@@ -6,8 +6,6 @@ import type { ChatId, ChatInviteId, Handle, PersonaId, UserId } from "@orb/kit/i
 import type { SQL } from "drizzle-orm";
 import type { AuditEntry } from "#foundation/observability";
 
-export type { SignupMinterCheckOp } from "@orb/contracts/chat";
-
 // domain/chat/contract/signup — the signup-invite ops (D259). The entry signup route calls them with no
 // Principal: the route is the signed-out door, and the authority is the invite plus its minter's standing.
 // Chat owns the invite, the seat and the order of the batch; sessions owns the account insert and hands it

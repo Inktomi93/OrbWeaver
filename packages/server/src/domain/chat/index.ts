@@ -11,47 +11,25 @@ export type { ChatBoundBackfillOps } from "./contract/bound-backfill.ts";
 // its structural gather result (docs/plans/rpg/design.md). `ChatContext.rpg` binds a real value only when domain/rpg
 // lands (chat.ts `input.rpg`); until then the field is null and the names have no by-name consumer, so the
 // door keeps the seam reachable (the rpg-facing `GetMembership`/`PostNarratorMessage` precedent).
-// The S2 teaching seam ships its types on this same door:
-// `ChatTeachingRegistry` is what the composition root assembles onto `ChatContext.teaching`, and
-// `TeachingContribution`/`TeachingContext`/`TeachingCollection`/`TeachingKnobs` are the shape every later
-// contributing domain implements against.
 export type {
-  BoundToolExecution,
   ChatRpgGameBirthPlan,
   ChatRpgGatherResult,
   ChatRpgOps,
-  ChatTeachingRegistry,
-  ChatToolExecFrame,
-  ChatToolOps,
-  ChatToolSet,
   ChatUserMacroDefs,
   ClaimChatOp,
-  EmitChatChanged,
-  ExtractQuiet,
-  ExtractQuietDeps,
-  ExtractQuietParams,
-  ExtractQuietResult,
   ForkGameArgs,
   ForkGameResult,
   GatherTurnContextArgs,
-  GeneratePictureOp,
   GetMembership,
   GetPendingUserText,
-  HandoffCardCopy,
-  HandoffHealArgs,
-  LoadUserHandlesOp,
-  MemoryStoreReceipt,
   PostNarratorMessage,
-  PostNarratorMessageDeps,
   PresenceReadOp,
   PromptTransformRegistry,
-  PublishChatChangedOp,
   ResolveCanonWindow,
   ResolveRpgCardCorpus,
   ResolveRpgParticipants,
   ResolveViewerVisibility,
   RpgCardCorpus,
-  RpgParticipantActor,
   RpgTurnContext,
   RpgTurnTranscriptMessage,
   RunChatTurnOp,
@@ -59,54 +37,26 @@ export type {
   TeachingCollection,
   TeachingContext,
   TeachingContribution,
-  TeachingKnobs,
-  ViewerVisibility,
 } from "./contract/context.ts";
-export type { ChatOpCode } from "./contract/errors.ts";
+
 export { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "./contract/errors.ts";
-// The turn's identity axis (`ResolveForeignInputsOp`'s `trigger`) — the composition root dispatches over it
-// to bind prompt-config `{{user}}`, so the union has to reach entry.
-export type { HumanSeatPersona, ResolvedPersonas, ResolveForeignInputsOp, TurnTrigger, TurnVoice } from "./contract/foreign.ts";
 export type { BeginGenerationObservation } from "./contract/generation-observation.ts";
-export type {
-  ImageryRoomAccess,
-  ImageryRoomAccessDeps,
-  VisibleExtractQuiet,
-  VisibleExtractQuietDeps,
-  VisibleExtractQuietParams,
-} from "./contract/imagery-access.ts";
-export type { BulkImportChats, ChatImportAssemblyContext as ChatImportContext } from "./contract/import.ts";
-export type { ImageRefAssets, MediaRoomAccess, ResolveMediaRef, ResolveMediaRefDeps } from "./contract/media-ref.ts";
-export type {
-  MemoryConfig,
-  MemoryEmbedSpace,
-  MemoryRecallFilter,
-  MemoryRecallRecord,
-  MemoryRecallRecorder,
-  ResolveBackfillMemoryConfig,
-} from "./contract/memory.ts";
+export type { ImageryRoomAccessDeps } from "./contract/imagery-access.ts";
+export type { BulkImportChats } from "./contract/import.ts";
+export type { ImageRefAssets, ResolveMediaRefDeps } from "./contract/media-ref.ts";
+export type { MemoryRecallRecorder } from "./contract/memory.ts";
 export { getGroupConfig, getRoomOverrides, TOOL_RECURSE_LIMIT_DEFAULT, toolRecurseLimitSchema } from "./contract/metadata.ts";
-export type { ReactToolHandler, ReactToolHandlerContext, ReactToolHandlerDeps } from "./contract/react-tool.ts";
+export type { ReactToolHandlerDeps } from "./contract/react-tool.ts";
 export type {
-  ImpersonateStreamDelta,
-  ReactAsCharacterOp,
-  ReactAsCharacterResult,
   RequestTurnOp,
-  ResolvedMediaRef,
   TurnEconomics,
-  TurnMessage,
   TurnRequest,
   TurnStreamChunk,
 } from "./contract/results.ts";
 export type { ChatService } from "./contract/service.ts";
 export type {
-  SignupInviteCapability,
   SignupInviteDeps,
   SignupInviteOps,
-  SignupMinterCheckOp,
-  SignupPersonaPointersStatementOp,
-  SignupRedeemOutcome,
-  SignupUserStatementOp,
 } from "./contract/signup.ts";
 export type { ChatAssemblyContext as ChatContext } from "./contract/wiring.ts";
 export type { ChatWorkloadDeps } from "./contract/workloads.ts";

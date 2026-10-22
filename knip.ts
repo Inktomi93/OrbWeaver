@@ -114,6 +114,7 @@ export const config = {
       project: ["src/**/*.{ts,tsx,css}!", "*.ts"],
     },
     "packages/server": {
+      includeEntryExports: true,
       entry: ["src/entry/index.ts!"],
       // Public entries come from package.json exports.
       // The shipped script entries are added for the production view below (PRODUCTION_SCRIPT_ENTRIES).

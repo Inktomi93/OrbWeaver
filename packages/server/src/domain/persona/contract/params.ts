@@ -1,13 +1,9 @@
-// domain/persona/contract/params — every verb's *Params, declared once. The wire input shapes
-// (CreatePersonaInput/UpdatePersonaInput) are cross-boundary and homed in @orb/contracts/persona,
-// re-exported here type-only. Every verb carries the resolved principal; ownership is scoped off
-// principal.userId (never a users read — the `orb/no-direct-users-read` lint rule).
+// Persona verb parameters derive wire inputs from @orb/contracts/persona.
+// Resolved principals carry ownership; verbs scope by principal.userId.
 
 import type { Principal } from "@orb/contracts/identity";
 import type { CreatePersonaInput, PersonaMetadata, UpdatePersonaInput } from "@orb/contracts/persona";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
-
-export type { CreatePersonaInput, UpdatePersonaInput } from "@orb/contracts/persona";
 
 interface PersonaActorParams {
   readonly principal: Principal;

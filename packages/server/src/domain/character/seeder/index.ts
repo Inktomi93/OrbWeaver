@@ -1,14 +1,6 @@
-// domain/character/seeder — the default-card seeder subsystem barrel. The character front door re-exports
-// these; entry (boot + the app first-request hook) constructs the ONE instance via `createDefaultCharacter
-// Seeder` over the built `CharacterService` + the injected settings latch ops. The TYPES
-// (`DefaultCharacterSeeder` / `DefaultCharacterSeederDeps`) live in `contract/seeder.ts` (the §7.4 one-type-
-// home rule); this barrel re-exports them alongside the factory + the authored card constants.
+// Entry composes the default-card seeder with the character service and settings latch.
+// Contract types stay in contract/seeder.ts; this door exposes the factory and consumed public surface.
 
-export type {
-  DefaultCharacterSeeder,
-  DefaultCharacterSeederDeps,
-  SeedCard,
-  SeededCardContent,
-} from "../contract/seeder.ts";
+export type { DefaultCharacterSeeder } from "../contract/seeder.ts";
 export { DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "./cards.ts";
 export { createDefaultCharacterSeeder } from "./seed.ts";

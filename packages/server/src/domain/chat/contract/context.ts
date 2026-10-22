@@ -68,11 +68,9 @@ import type { RpgTurnOps, RpgTurnTranscriptMessage } from "./rpg-turn.ts";
 import type { SignupInviteCapability, SignupInviteDeps } from "./signup.ts";
 import type { ParticipantData } from "./views.ts";
 
-export type { FilterOwnedAssetIdsOp, ResolveAssetHashOp } from "@orb/contracts/assets";
-export type { ResolveCharacterTagsOp, ResolveSeatDecoOp, ResolveViewerVisibility, SeatDeco, StoreSegmentParams, ViewerVisibility } from "@orb/contracts/chat";
-export type { ResolveCurrentPersonaOp, ResolveDefaultPersonaOp } from "@orb/contracts/persona";
+export type { ResolveViewerVisibility, StoreSegmentParams } from "@orb/contracts/chat";
+
 export type {
-  ApplyPromptTransformsOp,
   ApplyRegexReplaceOp,
   BoundToolExecution,
   ChatToolExecFrame,
@@ -664,8 +662,6 @@ export interface HandoffCopyPlan {
    *  book arm this does not ride on a card copy — a room's script attachment is room state of its own. */
   readonly regexRepoint: readonly BatchStmt[];
 }
-
-export type { HandoffHealArgs } from "@orb/contracts/chat";
 
 /** {@link ChatRpgOps.gatherTurnContext}'s call args. Chat OWNS this shape (rpg satisfies it, the same
  *  front-door type-import precedent as {@link ForkGameArgs}). `pendingUserText`/`respondsToLatestUserTurn`

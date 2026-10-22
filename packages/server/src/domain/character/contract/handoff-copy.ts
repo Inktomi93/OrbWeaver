@@ -6,8 +6,6 @@ import type { BatchStmt } from "@orb/db/query";
 import type { BatchHandle, DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 
-export type { CopyAssetToOwner } from "@orb/contracts/assets";
-
 // domain/character/contract/handoff-copy — the `CharacterHandoffCopyContext` DI bundle + op type for the
 // character-OWNED card copy the host handoff's property offer executes (stickler 2026-08-03 §5.1).
 //

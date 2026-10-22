@@ -11,12 +11,7 @@ export {
 } from "./contract/errors.ts";
 export type { SeedRosterPreset } from "./contract/seed.ts";
 export type {
-  CastRuleWrite,
-  MemberWrite,
-  PresentCharacterSeat,
   RosterPresetAssemblyContext as RosterPresetContext,
-  RosterPresetAutomationOps,
-  RosterPresetChatOps,
   RosterPresetService,
 } from "./contract/service.ts";
 export { createRosterPresetService } from "./service.ts";

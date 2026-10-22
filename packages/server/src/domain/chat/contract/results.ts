@@ -523,13 +523,6 @@ export interface CompactResult {
 /** `getVariables` — the ChoiceBlock variable map. */
 export type VariablesResult = ChatVariables;
 
-/** `reactAsCharacter` (B7/MR5) — the `react` tool's answer, shaped for a MODEL to narrate: every refusal
- *  is `ok:false` with words (errors-as-data — a thrown error would read as a platform fault, and "no
- *  character named that here" is a legality answer the model should route around). `alreadyReacted` names
- *  the idempotent-repeat case; `target` says what the reaction landed on ("the whole message" /
- *  "<name>'s line" / the narrated whole-message degrade for an unmatched `toSpeaker`). */
-export type { ReactAsCharacterResult } from "@orb/contracts/chat";
-
 /** The standalone `reactAsCharacter` op (`verbs/reactions.ts::createReactAsCharacter`) — NOT a
  *  `ChatService` member (its one consumer is the composition root's `react` tool definition; see
  *  `contract/params.ts::ReactAsCharacterParams`). */
