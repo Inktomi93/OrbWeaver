@@ -322,7 +322,7 @@ function parseCount(raw: unknown): number {
     return Math.round(raw);
   }
   if (typeof raw === "string") {
-    const m = /^([0-9]+(?:\.[0-9]+)?)([km]?)$/i.exec(raw.trim());
+    const m = /^(\d+(?:\.\d+)?)([km]?)$/i.exec(raw.trim());
     if (m !== null) {
       const n = Number(m[1]);
       const suffix = m[2]?.toLowerCase() ?? "";

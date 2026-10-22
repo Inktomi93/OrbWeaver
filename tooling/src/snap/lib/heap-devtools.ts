@@ -129,10 +129,10 @@ function nodeSummary(value: unknown, label: string): HeapNodeSummary {
 function classSummary(value: unknown, label: string): HeapClassSummary {
   const row = record(value, label);
   return {
-    className: text(row["name"], `${label}.name`),
+    className: text(row["className"], `${label}.className`),
     count: integer(row["count"], `${label}.count`),
-    selfSize: integer(row["self"], `${label}.self`),
-    maxRetainedSize: integer(row["maxRet"], `${label}.maxRet`),
+    selfSize: integer(row["selfSize"], `${label}.selfSize`),
+    maxRetainedSize: integer(row["retainedSize"], `${label}.retainedSize`),
   };
 }
 
@@ -177,9 +177,7 @@ function exactClassPattern(className: string): string {
 }
 
 async function parsedSnapshot(manager: object, path: string): Promise<HeapParsedSnapshot> {
-  // Prime HeapSnapshotManager's path cache before concurrent reads. Its getSnapshot() cache does not
-  // memoize an in-flight load: six first reads in Promise.all create six workers and dispose only the
-  // last map entry. The initial stats read makes every parallel query below hit the one loaded proxy.
+  // Load under the problem sink before parallel reads: the worker inherits this environment when spawned.
   const problemPath = join(dirname(path), `.heap-parser-${basename(path)}-${randomUUID()}.jsonl`);
   const statsValue = await withHeapParserProblemSink(problemPath, async () => await managerCall(manager, "getStats", [path]));
   const [staticValue, nativeValue, retainedValue, aggregatesValue, detachedValue] = await Promise.all([
@@ -194,8 +192,8 @@ async function parsedSnapshot(manager: object, path: string): Promise<HeapParsed
   const v8 = record(stats["v8heap"], "statistics.v8heap");
   const staticData = record(staticValue, "static data");
   const aggregates = record(aggregatesValue, "aggregates");
-  const aggregateRows = record(aggregates["aggregates"], "aggregates.rows");
-  const classes = Object.values(aggregateRows)
+  const aggregateRows = array(aggregates["aggregates"], "aggregates.rows");
+  const classes = aggregateRows
     .map((value, index) => classSummary(value, `aggregates[${String(index)}]`))
     .toSorted((left, right) => right.maxRetainedSize - left.maxRetainedSize || right.selfSize - left.selfSize);
   const detachedRange = rangeItems(detachedValue, "detached nodes");
@@ -327,7 +325,8 @@ export class HeapDevToolsParser {
   }
 
   async classDiffs(left: string, right: string): Promise<readonly HeapParsedClassDiff[]> {
-    return array(await managerCall(this.#manager, "getClassDiffs", [left, right]), "class diffs").map(parsedClassDiff);
+    const result = record(await managerCall(this.#manager, "getClassDiffs", [left, right]), "class diffs");
+    return array(result["classDiffs"], "class diffs.rows").map(parsedClassDiff);
   }
 
   async retainers(path: string, selector: HeapRetainerSelector): Promise<HeapParsedRetainers> {

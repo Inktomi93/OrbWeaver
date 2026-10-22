@@ -1,14 +1,4 @@
-// THE bubble box — one home for the class string that paints a message bubble, read by both the live
-// transcript (the bubble-family row skins in features/chat) and the theme editor's live preview. They are
-// the same box BY CONSTRUCTION, so a retune cannot drift the preview off the real thing: the 2026-08-01
-// side-eye caught the preview shipping `rounded-base p-block` (r=6, pad 12) against the transcript's
-// `rounded-card px-block py-row` (r=10, py=8) — a theme author was judging colours in a box the app never
-// paints.
-//
-// It lives in lib/, not features/chat/, because a RUNTIME cross-feature import is dep-cruiser RED
-// (.dependency-cruiser.cjs "Client features stay independent: … TYPE-ONLY imports across features ARE
-// allowed"), and settings needs the VALUE. lib/ is the tier both features may read (the `message-render` /
-// `message-role-labels` precedent).
+// The transcript and theme preview share this value; cross-feature runtime imports are forbidden.
 import type { MessageRole } from "@orb/kit/message-role";
 import { cn } from "@orb/ui/lib";
 

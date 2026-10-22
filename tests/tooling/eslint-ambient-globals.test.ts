@@ -18,7 +18,7 @@ const CHAT_VERB = "packages/server/src/domain/chat/verbs/probe.ts";
 const AUTHZ = "packages/server/src/domain/sessions/substrate/role-policy.ts";
 const DOOR_IMPORT = 'import { processDoor } from "@orb/db/backup-names";';
 
-const eslint = new ESLint({ cwd: ROOT });
+const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: ROOT });
 
 // The first effective-config read loads the whole repository config; later reads reuse it.
 beforeAll(async () => {

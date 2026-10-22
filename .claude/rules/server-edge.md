@@ -32,7 +32,7 @@ paths:
 - Derive the SSRF egress control (`infra/network/egress.ts`) from owner-scoped rows resolved
   server-side, never a caller role check. Check the never-admissible range set both at the allowlist
   entry and again on the resolved address; a resolved address can only subtract admission, never add it.
-- Cross-domain op caller scope is enforced by the `orb/injected-op-caller-param` ESLint rule. Its `CALLER_FREE_OPS` exemptions live in `eslint.config.js`.
+- Cross-domain ops carry the caller scope in their contract. Verify changed scope behavior through native application tests.
 
 ## Compose wiring
 

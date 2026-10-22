@@ -1,13 +1,6 @@
-// The MODEL-AUTHORED-STRING → GLYPH resolver — ONE home for every
-// "what icon does this free string get" decision: inventory items and condition chips, plus the CLOSED-vocab
-// Records (relationship kinds, tracker shapes) that are exhaustive mapped types, never the resolver. (WEATHER
-// used to bin here — it doesn't anymore: `weather.type` is a closed enum bound at the extraction wire, so
-// there is no free string left to resolve.) Pure data, deterministic TOKEN matching only (no fuzzy dep,
-// no LLM call — testable as a table). Icons come exclusively through the curated `@orb/ui/icons` seal
-// (dep-cruiser `ui-satellite-seals`); every name here is a verified export added to that seal.
-// A11y: every glyph rendered from this module is DECORATION (aria-hidden via `<Icon>` without `label`);
-// the NAME text on the cell/chip stays the datum (the tracker-kit a11y model).
-
+// Free-string glyphs use deterministic token matching; closed vocabularies use exhaustive records.
+// Icons enter through @orb/ui/icons (ui-satellite-seals-icons).
+// Glyphs decorate the adjacent text, which carries the accessible meaning.
 import type { RpgRelationshipKind, RpgTrackerShape } from "@orb/contracts/rpg";
 import type { LucideIcon } from "@orb/ui/icons";
 import {

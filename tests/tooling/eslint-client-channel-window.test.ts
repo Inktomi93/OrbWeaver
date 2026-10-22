@@ -8,7 +8,7 @@ const ROOT = join(import.meta.dirname, "../..");
 const CHANNEL = "orb/session-channel-boundary";
 const WINDOW = "orb/windowed-infinite-query";
 const FEATURE = "packages/client/src/features/chat/lib/sync.ts";
-const eslint = new ESLint({ cwd: ROOT });
+const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: ROOT });
 
 // The first config calculation loads the whole repo config; it must not bill to a test's timeout.
 beforeAll(async () => {

@@ -201,7 +201,7 @@ This section governs product tests, including the shared builders under `tests/s
 - **Mount the real door.** CT harnesses call production registry factories and mount their actual provider stack. Equal copied lists are not the production door. Stories mount the real surface and stub only the network edge. Browser-world stories, fixtures and support cannot value-import server implementation; native dependency-cruiser owns that boundary and preserves the type-only bridge.
 - **Snapshot the product.** Build an aria or text snapshot from what production renders, never from a hand-listed roster.
 - **Smoke the running app.** e2e specs drive the real stack headless for the core flows. They run on a committed synthetic corpus written by the seed tool, so CI needs no private data. A local run may point at a copy of the owner's data; that copy is never committed.
-- **Share setup.** Move repeated setup to a builder in the same file or in `tests/support`. Split a test file by concern before it is too large to review. ESLint `max-lines` in `eslint.config.js` caps maintained test files.
+- **Share setup.** Move repeated setup to a builder in the same file or in `tests/support`. Split a test file by concern before it is too large to review. ESLint `max-lines` in `eslint.config.ts` caps maintained test files.
 - **A mirror is an import, not a filename.** A mirrored test imports its module and exercises its exports. A file at the mirrored path proves only that the file exists.
 
 ## Esoterica (must-preserve facts)

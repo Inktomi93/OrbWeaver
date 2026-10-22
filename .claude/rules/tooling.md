@@ -3,8 +3,8 @@ paths:
   - "tooling/src/**"
   - "tests/tooling/**"
   - "biome.json"
-  - "eslint.config.js"
-  - ".dependency-cruiser.cjs"
+  - "eslint.config.ts"
+  - ".dependency-cruiser.ts"
   - "knip.ts"
   - "lefthook.yml"
   - "tsconfig*.json"
@@ -16,7 +16,7 @@ paths:
 
 TypeScript configs are checked-in configuration. Edit the owning config directly and validate with `pnpm typecheck`.
 
-`biome.json`, `eslint.config.js` and `.dependency-cruiser.cjs` are hand-authored on purpose, so a
+`biome.json`, `eslint.config.ts` and `.dependency-cruiser.ts` are hand-authored on purpose, so a
 current violation cannot mint its own permission. Fix the native lint or dependency-cruiser rule that owns the constraint.
 
 ## Biome and tsc

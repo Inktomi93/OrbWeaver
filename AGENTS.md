@@ -53,7 +53,7 @@ Each `packages/*/package.json` declares its workspace deps, and an undeclared im
 - `testkit` (`tests/support`, above the cake beside `tooling`): any app package and `tooling`'s public doors (a tool's `index.ts`, the floor). Only tests, the test runner configs and scripts import it, through its `iso`, `node` and `browser` world subpaths.
 
 Inside `packages/server/src/`, imports flow down only: `entry` → `transport` → `domain` → `infra` →
-`foundation` → `primitives`. `.dependency-cruiser.cjs` enforces the tier order (`pnpm depcruise`). A change
+`foundation` → `primitives`. `.dependency-cruiser.ts` enforces the tier order (`pnpm depcruise`). A change
 that needs an upward import is in the wrong place. Move the code; never force the import.
 
 ## Where code goes
@@ -193,7 +193,7 @@ without a path are in that folder.
 
 - `.claude/rules/server.md`: `packages/server/src/**`, `tests/server/**`
 
-- `.claude/rules/tooling.md`: `tooling/src/**`, `tests/tooling/**`, `biome.json`, `eslint.config.js`, `.dependency-cruiser.cjs`, `knip.ts`, `lefthook.yml`, `tsconfig*.json`
+- `.claude/rules/tooling.md`: `tooling/src/**`, `tests/tooling/**`, `biome.json`, `eslint.config.ts`, `.dependency-cruiser.ts`, `knip.ts`, `lefthook.yml`, `tsconfig*.json`
 
 - `.claude/rules/ui-and-client.md`: `packages/ui/src/**`, `packages/client/src/**`
 

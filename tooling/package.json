@@ -105,12 +105,14 @@
     "./wire-tap": "./src/wire-tap/index.ts",
     "./doc": "./src/doc/index.ts",
     "./floor/prose/prose-references": "./src/floor/prose/prose-references.ts",
-    "./floor/prose/prose-rules": "./src/floor/prose/prose-rules.ts"
+    "./floor/prose/prose-rules": "./src/floor/prose/prose-rules.ts",
+    "./eslint": "./src/eslint/index.ts"
   },
   "imports": {
     "#*": "./src/*/index.ts"
   },
   "dependencies": {
+    "@eslint/css-tree": "catalog:",
     "@orb/contracts": "workspace:*",
     "@orb/default-content": "workspace:*",
     "@orb/inference": "workspace:*",
@@ -124,7 +126,8 @@
     "pino-pretty": "catalog:",
     "vitest": "catalog:",
     "yaml": "catalog:",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "typescript": "catalog:"
   },
   "devDependencies": {
     "@orb/db": "workspace:*",
@@ -137,6 +140,9 @@
     "remark": "catalog:",
     "remark-frontmatter": "catalog:",
     "remark-gfm": "catalog:",
-    "sharp": "catalog:"
+    "sharp": "catalog:",
+    "@typescript-eslint/utils": "catalog:",
+    "@eslint/core": "catalog:",
+    "eslint": "catalog:"
   }
 }

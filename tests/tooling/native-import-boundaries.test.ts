@@ -3,7 +3,7 @@ import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
 
 test("the configured PNG import restriction preserves aliases, nested doors and sanctioned homes", async ({ repoRoot }) => {
-  const eslint = new ESLint({ cwd: repoRoot });
+  const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: repoRoot });
   const linter = new Linter({ cwd: repoRoot });
   const cases = [
     ["packages/server/src/domain/character/probe.ts", 'import { readCardChunk } from "@orb/kit/png-card-chunk";', 1],

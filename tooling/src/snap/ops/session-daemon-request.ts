@@ -90,7 +90,7 @@ function touchRow(state: SessionDaemonState, patch: Partial<SessionRow>): void {
 
 /** The daemon's three CALLER-LESS shutdown boundaries — the TTL timer and the two signal handlers. Nobody
  *  awaits them, and `void` is NOT an escape here: eslint runs `no-floating-promises` with
- *  `ignoreVoid: false` (eslint.config.js), the repo's ruling that a detached promise names its handler.
+ *  `ignoreVoid: false` (eslint.config.ts), the repo's ruling that a detached promise names its handler.
  *  `shutdown` releases the `closed` latch in a `finally`, so the process still leaves when its teardown
  *  throws; this catch is the last-resort REPORT on the daemon log, never a swallow — a teardown that failed
  *  quietly is exactly the row-reads-live-forever class §3.8 exists to make loud. */

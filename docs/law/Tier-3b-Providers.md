@@ -6,7 +6,7 @@ updated: 2026-10-14
 
 # Orbweaver — `@orb/inference`: the provider runtime (wires · providers · resolution · execution)
 
-> The infra/providers directory under `packages/server/src/` does not exist. The execution tier lives in the `@orb/inference` workspace package. The layer order is `kit ← contracts ← db ← inference ← server` (`.dependency-cruiser.cjs` rule `inference-cake`). The sibling legacy source is reference-only; its tests are not part of this repository's runtime or typecheck population.
+> The infra/providers directory under `packages/server/src/` does not exist. The execution tier lives in the `@orb/inference` workspace package. The layer order is `kit ← contracts ← db ← inference ← server` (`.dependency-cruiser.ts` rule `inference-cake`). The sibling legacy source is reference-only; its tests are not part of this repository's runtime or typecheck population.
 
 The closed backend-key tuple, the deriveRunner (api, source) matrix, the provider-roles tuple, the roles firewall and its role-source policy, the credential-source dispatch axis, the in-server vLLM engine plane, the OpenRouter agent-sdk skin, and the custom-byo backend do not exist in the tree. They are spelled here without code formatting on purpose: they have no referent, and a backticked cite would claim one. Do not carry a sentence forward from a doc that names them.
 

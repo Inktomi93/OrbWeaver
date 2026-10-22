@@ -11,6 +11,8 @@ import { __unstable__loadDesignSystem } from "tailwindcss";
 import tseslint from "typescript-eslint";
 
 const RULE = "better-tailwindcss/no-unknown-classes";
+const UI_AUTHORED_CLASS = "orb-weave-glow";
+const CLIENT_AUTHORED_CLASS = "shell-panel";
 const OFF_TOKEN = [
   "rounded-xs",
   "rounded-sm",
@@ -87,12 +89,12 @@ test("generated namespace resets reject stock scales without changing supported 
 });
 
 test("effective UI/client native rules reject stock classes in real class carriers, not copy or unrelated attributes", async ({ repoRoot }) => {
-  const eslint = new ESLint({ cwd: repoRoot });
-  for (const [path, entryPoint] of [
-    ["packages/ui/src/primitives/native-token-control.tsx", "packages/ui/src/styles/globals.css"],
-    ["packages/ui/src/primitives/native-token-control.ts", "packages/ui/src/styles/globals.css"],
-    ["packages/client/src/features/native-token-control.tsx", "packages/client/src/styles/globals.css"],
-    ["packages/client/src/features/native-token-control.ts", "packages/client/src/styles/globals.css"],
+  const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: repoRoot });
+  for (const [path, entryPoint, authoredClass] of [
+    ["packages/ui/src/primitives/native-token-control.tsx", "packages/ui/src/styles/globals.css", UI_AUTHORED_CLASS],
+    ["packages/ui/src/primitives/native-token-control.ts", "packages/ui/src/styles/globals.css", UI_AUTHORED_CLASS],
+    ["packages/client/src/features/native-token-control.tsx", "packages/client/src/styles/globals.css", CLIENT_AUTHORED_CLASS],
+    ["packages/client/src/features/native-token-control.ts", "packages/client/src/styles/globals.css", CLIENT_AUTHORED_CLASS],
   ] as const) {
     const config = await eslint.calculateConfigForFile(join(repoRoot, path));
     expect(config.rules[RULE]?.[0], path).toBe(2);
@@ -137,6 +139,10 @@ test("effective UI/client native rules reject stock classes in real class carrie
         ).toBe(true);
       }
       expect(lint(carrier.replaceAll("CLASS", SUPPORTED.join(" "))), carrier).toEqual([]);
+    }
+    expect(lint(`cn("${authoredClass}");`)).toEqual([]);
+    for (const candidate of ["orb-nonexistent", "shell-nonexistent", "orb-weave-glow-typo", "shell-panel-typo"]) {
+      expect(lint(`cn("${candidate}");`)).toEqual([`Unknown class detected: ${candidate}`]);
     }
     expect(lint('const label = "Prose shadow"; describe("rounded-lg card corners");')).toEqual([]);
     const nonClassAttribute = path.endsWith(".tsx") ? '<div title="rounded-lg" />;' : 'const title = "rounded-lg";';

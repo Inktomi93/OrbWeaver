@@ -1,12 +1,5 @@
-/**
- * `@orb/ui/icons` — the ONE icon home (dep-cruiser `ui-satellite-seals`; UI-Arch §2). A curated lucide-react
- * re-export for the shell + primitives, plus the `<Icon>` sizing wrapper. Grow the set per
- * consumer chunk — never import `lucide-react` outside this dir (dep-cruiser ui-satellite-seals).
- *
- * The fill-suitable glyphs are re-exported from `./fillable` instead (same runtime component, a
- * phantom brand added) so `tsc` can reject `<Icon fill>` on a glyph that renders badly filled.
- */
-
+// Curated glyphs share the Icon sizing wrapper; Lucide imports stay here (ui-satellite-seals-icons).
+// Fill-suitable exports carry a phantom brand so TypeScript rejects unsupported filled glyphs.
 export type { LucideIcon } from "lucide-react";
 export {
   Activity,

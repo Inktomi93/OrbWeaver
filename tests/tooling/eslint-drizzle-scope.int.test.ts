@@ -13,7 +13,7 @@ const BULK_SUBJECTS = [
 const ADJACENT_DELETES = "\ndb.delete(controlTable);\ndb.delete(controlTable).where(eq(controlTable.id, controlId));\n";
 
 test("native bulk delete permissions admit only their statements and preserve scoped enforcement", async ({ repoRoot }) => {
-  const eslint = new ESLint({ cwd: repoRoot });
+  const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: repoRoot });
   const linter = new Linter({ cwd: repoRoot });
   for (const [path, bulkCount] of BULK_SUBJECTS) {
     const native: Linter.Config | undefined = await eslint.calculateConfigForFile(path);

@@ -8,7 +8,7 @@ import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
 
 const ROOT = join(import.meta.dirname, "../..");
-const ordinary = new ESLint({ cwd: ROOT });
+const ordinary = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: ROOT });
 const SERVER = "packages/server/src";
 const VERB = `${SERVER}/domain/chat/verbs/principal-probe.ts`;
 const ENGINE = `${SERVER}/domain/chat/engine/principal-probe.ts`;
@@ -806,7 +806,7 @@ test.for([
   });
   const result = runNicedSync(
     join(repoRoot, "node_modules/.bin/depcruise"),
-    [row.from, "--config", join(repoRoot, ".dependency-cruiser.cjs"), "--output-type", "err-long"],
+    [row.from, "--config", join(repoRoot, ".dependency-cruiser.ts"), "--output-type", "err-long"],
     { cwd: root },
   );
   const output = result.stdout + result.stderr;

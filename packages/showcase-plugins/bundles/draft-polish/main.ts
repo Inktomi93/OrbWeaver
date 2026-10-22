@@ -7,12 +7,12 @@ const RUN_OF_SPACES_RE = /[ \t]{2,}/g;
 const SPACE_BEFORE_PUNCT_RE = / +([,.;:!?])/g;
 const TRAILING_SPACE_RE = /[ \t]+$/gm;
 const DOUBLE_DASH_RE = /(\S) ?-- ?(?=\S)/g;
-const APOSTROPHE_RE = /(\w)'(?=\w)/g;
+const APOSTROPHE_RE = /(\w)'\b/g;
 const OPEN_DQUOTE_RE = /(^|[\s([{])"/gm;
 const CLOSE_DQUOTE_RE = /"/g;
 
 // Code is copied, never passed through prose rules, on both paths.
-const CODE_SPAN_RE = /(```[\s\S]*?```|`[^`\n]*`)/g;
+const CODE_SPAN_RE = /(```[\s\S]*?```|`[^`\n]*`)/;
 
 function tidy(text: string): string {
   return text.replaceAll(ELLIPSIS_RE, "…").replaceAll(SPACE_BEFORE_PUNCT_RE, "$1").replaceAll(RUN_OF_SPACES_RE, " ");

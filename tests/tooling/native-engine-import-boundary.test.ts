@@ -7,6 +7,11 @@ const CHAT = "packages/server/src/domain/chat";
 const RULE = "chat-engine-authority-context";
 
 test.for([
+  {
+    name: "ambient authority import",
+    source: 'declare module "virtual-engine" { import type { ChatContext } from "../context.ts"; export type Value=ChatContext; }',
+    blocked: true,
+  },
   { name: "type alias", source: 'import type { ChatContext as Runtime } from "../context.ts"; export type Value = Runtime;', blocked: true },
   { name: "contract context", source: 'import type { ChatContext as Runtime } from "../contract/context.ts"; export type Value = Runtime;', blocked: true },
   {
@@ -51,7 +56,7 @@ test.for([
   });
   const result = runNicedSync(
     join(repoRoot, "node_modules/.bin/depcruise"),
-    [entry, "--config", join(repoRoot, ".dependency-cruiser.cjs"), "--output-type", "err-long"],
+    [entry, "--config", join(repoRoot, ".dependency-cruiser.ts"), "--output-type", "err-long"],
     { cwd: root },
   );
   const output = result.stdout + result.stderr;

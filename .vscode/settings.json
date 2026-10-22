@@ -39,5 +39,9 @@
   "js/ts.preferences.importModuleSpecifier": "non-relative",
   "biome.lsp.bin": "node_modules/.bin/biome",
   "biome.lsp.watcher.kind": "recommended",
-  "biome.lsp.watcher.pollingInterval": 10
+  "biome.lsp.watcher.pollingInterval": 10,
+  "eslint.runtime": "node",
+  "eslint.options": {
+    "flags": ["unstable_native_nodejs_ts_config"]
+  }
 }

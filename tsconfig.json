@@ -6,11 +6,13 @@
   },
   "include": [
     "reset.d.ts",
+    "eslint-plugins.d.ts",
     "platform.d.ts",
     "aggregator-assets.d.ts",
     "tests/support/vitest-tags.d.ts",
     "*.config.ts",
     "knip.ts",
+    ".dependency-cruiser.ts",
     "packages/*/*",
     "scripts/**/*.ts",
     "scripts/**/*.mts",

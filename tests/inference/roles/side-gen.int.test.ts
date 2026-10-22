@@ -507,8 +507,8 @@ test("(7) agent-sdk summarize runs a preset's effort with thinking on, and drops
   const executor = root.app.runtime.executor;
   const result = await executor.summarize({ connection: await agentConnection(root, "summarize", model), inputs: [ITEM], effort: "high", temperature: 0.5 });
   expect(result.items.map((item) => item.text)).toEqual(["a summary"]);
-  expect(edge.args[0]?.join(" ")).toContain("--thinking adaptive");
-  expect(edge.args[0]?.join(" ")).toContain("--effort high");
+  expect(edge.args[0]).toContain("--thinking=adaptive");
+  expect(edge.args[0]).toContain("--effort=high");
   expect(edge.environments[0]?.["CLAUDE_CODE_DISABLE_THINKING"]).toBeUndefined();
   expect(warnedCodes(warning.mock.calls)).toContain("sampling_knob_dropped");
 });
