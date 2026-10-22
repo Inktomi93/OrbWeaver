@@ -51,9 +51,3 @@ export function announceAvatarAnalysisSkip(model: string): boolean {
   announced.add(model);
   return true;
 }
-
-/** @internal test seam — drop the per-process memory for within-file cold/warm transitions. */
-export function __resetAvatarAnalysisAvailability(): void {
-  unservable.clear();
-  announced.clear();
-}

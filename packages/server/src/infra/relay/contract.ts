@@ -75,12 +75,6 @@ export interface RelayLauncher {
   readonly launch: (origin: string, events: RelayEvents) => Promise<RelayProcess>;
 }
 
-/** The quick-tunnel launcher's two seams: the verifier and the spawner (a fake in tests, so no test runs a tunnel). */
-export interface QuickTunnelLauncherDeps {
-  readonly binary: CloudflaredBinary;
-  readonly spawn: SpawnRelay;
-}
-
 export interface RelayExecutionDeps {
   readonly pin: CloudflaredPin | null;
   readonly target: string;

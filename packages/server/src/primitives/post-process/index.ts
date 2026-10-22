@@ -18,21 +18,21 @@ const LEADING_BLANK_LINE = /^\s*\n/u;
 /** The `PromptConfig.postProcess` block (RECEIVE singleLine/dropIncomplete/trim + the ASSEMBLE collapse). */
 export type PostProcessConfig = NonNullable<PromptConfig["postProcess"]>;
 
-/** ASSEMBLE: collapse runs of 3+ newlines down to exactly 2 (a single blank line). Idempotent. Applied to a
- *  rendered system half after the section/injection walk, before the cache split. */
-export function collapseNewlines(text: string): string {
+// ASSEMBLE: collapse runs of 3+ newlines down to exactly 2 (a single blank line). Idempotent. Applied to a
+// rendered system half after the section/injection walk, before the cache split.
+function collapseNewlines(text: string): string {
   return text.replace(THREE_PLUS_NEWLINES, "\n\n");
 }
 
-/** RECEIVE: strip trailing whitespace (spaces, tabs, newlines) from the model's reply. */
-export function trimTrailingWhitespace(text: string): string {
+// RECEIVE: strip trailing whitespace (spaces, tabs, newlines) from the model's reply.
+function trimTrailingWhitespace(text: string): string {
   return text.replace(TRAILING_WHITESPACE, "");
 }
 
-/** RECEIVE: drop a trailing INCOMPLETE sentence — text after the last sentence-ending punctuation. No-op when
- *  the reply already ends at `.`/`!`/`?`/`…` (optionally followed by a close quote/paren/asterisk) or has no
- *  sentence punctuation at all (don't nuke a single fragment the user may want). */
-export function dropIncompleteSentence(text: string): string {
+// RECEIVE: drop a trailing INCOMPLETE sentence — text after the last sentence-ending punctuation. No-op when
+// the reply already ends at `.`/`!`/`?`/`…` (optionally followed by a close quote/paren/asterisk) or has no
+// sentence punctuation at all (don't nuke a single fragment the user may want).
+function dropIncompleteSentence(text: string): string {
   const trimmed = text.replace(TRAILING_WHITESPACE, "");
   if (trimmed.length === 0) {
     return text;
@@ -47,11 +47,11 @@ export function dropIncompleteSentence(text: string): string {
   return match[0];
 }
 
-/** RECEIVE: collapse the reply to a SINGLE line (ST `single_line`) — keep everything up to the first newline,
- *  dropping the rest. Trailing whitespace on that line is also trimmed. A reply with no newline is returned
- *  unchanged (minus trailing whitespace). Leading blank lines are skipped so a model that opens with `"\n\nText"`
- *  still yields "Text", not "". */
-export function collapseToSingleLine(text: string): string {
+// RECEIVE: collapse the reply to a SINGLE line (ST `single_line`) — keep everything up to the first newline,
+// dropping the rest. Trailing whitespace on that line is also trimmed. A reply with no newline is returned
+// unchanged (minus trailing whitespace). Leading blank lines are skipped so a model that opens with `"\n\nText"`
+// still yields "Text", not "".
+function collapseToSingleLine(text: string): string {
   const leadingTrimmed = text.replace(LEADING_BLANK_LINE, "");
   const firstNewline = leadingTrimmed.indexOf("\n");
   const line = firstNewline === -1 ? leadingTrimmed : leadingTrimmed.slice(0, firstNewline);

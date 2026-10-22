@@ -815,7 +815,7 @@ export function scrubAppSecretsFromProcessEnv(): void {
 }
 
 /** The raw `process.env` snapshot — the baseline the agent-sdk child env builders spread. */
-export function processEnvSnapshot(): Record<string, string | undefined> {
+function processEnvSnapshot(): Record<string, string | undefined> {
   return { ...process.env };
 }
 

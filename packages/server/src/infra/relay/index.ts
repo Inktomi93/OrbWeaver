@@ -1,7 +1,6 @@
 // infra/relay — the share relay's I/O: the pinned cloudflared on disk (download, sha256 check, unpack) and the
 // quick-tunnel process. Sealed like every adapter: entry builds it and injects the launcher into `domain/share`.
 
-export { createCloudflaredBinary, extractTgzWithTar } from "./binary.ts";
 export type {
   CloudflaredAsset,
   CloudflaredPin,
@@ -15,4 +14,3 @@ export type {
 export { CLOUDFLARED_TARGETS } from "./contract.ts";
 export { createOwnedRelayLauncher } from "./execution.ts";
 export { CLOUDFLARED_PIN } from "./pin.ts";
-export { createQuickTunnelLauncher, spawnQuickTunnel } from "./quick-tunnel.ts";

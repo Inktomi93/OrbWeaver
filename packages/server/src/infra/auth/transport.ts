@@ -26,7 +26,7 @@ const UNKNOWN_CLIENT = "unknown";
 const LOOPBACK_RANGES: readonly string[] = ["127.0.0.0/8", "::1/128"];
 
 /** Pure transport rule: `https` iff the peer is a trusted hop and EVERY `X-Forwarded-Proto` value is `https`. */
-export function resolveTransport(args: {
+function resolveTransport(args: {
   readonly peer: string | undefined;
   readonly forwardedProto: string | null | undefined;
   readonly trustedProxies: readonly string[];
@@ -45,7 +45,7 @@ export function requestTransport(c: Context): RequestTransport {
 
 /** Pure scope rule over the resolved client address. Only a warning rides on it, so an unresolved address
  *  takes the direction that warns. */
-export function resolveClientScope(ip: string | null): ClientScope {
+function resolveClientScope(ip: string | null): ClientScope {
   if (ip === null) {
     return "public";
   }

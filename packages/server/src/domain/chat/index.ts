@@ -3,7 +3,7 @@
 // @orb/contracts/chat; callers import them from there directly, not through this door.
 
 export { createActiveTurns } from "./active-turns.ts";
-export { activePersonaIdFor, createTurnPersonaResolver, voicePersonaFor } from "./assembly/turn-personas.ts";
+export { createTurnPersonaResolver } from "./assembly/turn-personas.ts";
 export { createChatBus } from "./bus.ts";
 export type { ChatBoundBackfillOps } from "./contract/bound-backfill.ts";
 // Chat owns the injected RPG turn operation and its result; RPG implements them through this type-only door.
@@ -58,11 +58,10 @@ export type {
 export type { ChatAssemblyContext as ChatContext } from "./contract/wiring.ts";
 export type { ChatWorkloadDeps } from "./contract/workloads.ts";
 export { createRunChatTurnBridge } from "./engine/provider-bridge.ts";
-// The room identity rule imagery's chat-scoped preview runs under (D298): the host funds and runs as.
-export { resolveTurnIdentity } from "./engine/turn-identity.ts";
+
 export { requireWiredAuthorOrHost as requireAuthorOrHost, requireWiredHost as requireHost, requireWiredParticipant as requireParticipant } from "./guard.ts";
 export { consolidationHash } from "./memory/generate/substrate/transcript.ts";
-export { resolveTier0Range } from "./memory/recall/bridge.ts";
+
 export { createLiveTier0Range } from "./memory/recall/live-tier-range.ts";
 // The recall flight recorder (#250) — the composition root builds ONE and wires its sink onto `ChatContext`.
 export { createMemoryRecallRecorder } from "./memory/recall/recorder.ts";
@@ -76,11 +75,8 @@ export { migratePluginToolWireNames } from "./persistence/migrate-plugin-tool-wi
 export { migrateHandoffOfferVocab } from "./persistence/participant.ts";
 // The membership primitive imagery's extractQuiet compose-gate reads (leak-free NOT_FOUND for a non-member —
 // cross-tenant-sweep-enforced; the createGetMembership precedent, a pure `(db, chatId, userId)` read).
-export {
-  isPresentParticipant,
-  loadPresentRole,
-} from "./persistence/participants-read.ts";
-export { loadTurnOrigin } from "./persistence/queries.ts";
+export { loadPresentRole } from "./persistence/participants-read.ts";
+
 export { createRoomSeatReach } from "./persistence/room-reach.ts";
 export {
   createCompareAndSetImportedTokenUsage,
@@ -131,11 +127,9 @@ export { createGeneratePictureOp } from "./verbs/create-generate-picture.ts";
 export { buildChatToolOps } from "./verbs/create-tool-ops.ts";
 // The rpg-facing generic chat surface (docs/plans/rpg/design.md) — wired into `RpgContext.chat` at the composition
 // root; each is principal-free (rpg gates game authority) and teaches chat nothing rpg-shaped.
-// The imagery quiet-extraction shaper — imagery consumes it as an injected op at the
-// composition root; chat owns the history window + the {{char}}/{{user}} MacroContext.
 // The `chatsChanged` member fan wired onto `ChatContext.emitChatChanged`; compose injects the user bus.
 export { createEmitChatChanged } from "./verbs/emit-chat-changed.ts";
-export { createExtractQuiet } from "./verbs/extract-quiet.ts";
+
 export { createGenerationObservationSink } from "./verbs/generation-observation-sink.ts";
 export { createGetMembership } from "./verbs/get-membership.ts";
 export { createGetPendingUserText } from "./verbs/get-pending-user-text.ts";
@@ -160,7 +154,7 @@ export { createReadInheritedChatBooks } from "./verbs/read-inherited-chat-books.
 // The rpg roster-resolution op (docs/plans/rpg/design.md) — resolves present participants into rpg actor refs +
 // name/avatar; wired into `RpgContext.resolveParticipants` at the composition root (W1c-b). Standalone + principal-free.
 export { createResolveCanonWindow } from "./verbs/resolve-canon-window.ts";
-export { createResolveMediaRef, resolveImageRefToUrl } from "./verbs/resolve-media-ref.ts";
+export { createResolveMediaRef } from "./verbs/resolve-media-ref.ts";
 // The D121-E room display policy regex consumes (`RegexContext.resolveRoomDisplayPolicy`): both halves are chat's data.
 export { createResolveRoomDisplayPolicy } from "./verbs/resolve-room-display-policy.ts";
 export { createChatRoomInputs } from "./verbs/resolve-room-inputs.ts";
@@ -177,7 +171,7 @@ export { createResolveViewerVisibility } from "./verbs/resolve-viewer-visibility
 // The ONE leak-safe reverse-room read every attachment-junction library consumes (`ResolveVisibleRoomsOp`).
 export { createResolveVisibleRooms } from "./verbs/resolve-visible-rooms.ts";
 export { createEmitRoomEntityChanged, createRoomEntityRefresh } from "./verbs/room-refresh.ts";
-export { createChatInferenceOps, createTaskWindowReaders, speakerArbiterFor } from "./verbs/runtime-inference.ts";
+export { createChatInferenceOps } from "./verbs/runtime-inference.ts";
 // The opaque rpg-pointer WRITE op (docs/plans/rpg/design.md) — merges `metadata.rpg`; wired into `RpgContext.setPointer`
 // at the composition root (W1c). Standalone + principal-free (createGame gated host; the getMembership precedent).
 export { createSetRpgPointer } from "./verbs/set-rpg-pointer.ts";

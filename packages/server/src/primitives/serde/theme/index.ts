@@ -7,10 +7,9 @@
 // length-clamped here but its containment validation is the import verb's write-boundary concern, not
 // the serde's.
 //
-// Round-trip drift guard: buildThemeBackup(parseThemeBackup(buildThemeBackup(x))) deep-equals
-// buildThemeBackup(x).
+// The native envelope round-trips through buildThemeBackup and parseThemeFile.
 
-import type { PortableParse, PortableParseFailure } from "@orb/contracts/portability";
+import type { PortableParseFailure } from "@orb/contracts/portability";
 import type { ThemeOverride } from "@orb/contracts/theme";
 import { THEME_CSS_MAX, THEME_NAME_MAX, themeOverrideSchema } from "@orb/contracts/theme";
 import { isPlainObject } from "@orb/kit/guards";
@@ -22,10 +21,9 @@ import type { ParsedStTheme } from "./st.ts";
 import { stThemeFromJson } from "./st.ts";
 
 export type { ParsedStTheme } from "./st.ts";
-export { stThemeFromJson } from "./st.ts";
 
 export const THEME_SCHEMA_KIND = "orb.theme";
-export const THEME_SCHEMA_VERSION = 1;
+const THEME_SCHEMA_VERSION = 1;
 
 /** One theme as it travels in the backup file: the portable display fields only. No id, no ownerId, no
  *  timestamps. `override` is the clamped token-set; `css` is the optional self-authored custom CSS. */
@@ -79,16 +77,10 @@ const themeSerde = defineJsonRowsSerde<ThemeBackup, CanonicalTheme, EmptyJsonHea
   fromWire: (themes) => ({ themes }),
 });
 
-/** Serialize a `ThemeBackup` to the orb-native theme-backup JSON interchange bytes (the inverse of
- *  `parseThemeBackup`). Deterministic key order makes the round-trip byte-identical. */
+/** Serialize a `ThemeBackup` to the native envelope read by {@link parseThemeFile}.
+ *  Deterministic key order makes the round-trip byte-identical. */
 export function buildThemeBackup(backup: ThemeBackup): Uint8Array {
   return themeSerde.build(backup);
-}
-
-/** Parse orb-native theme-backup JSON bytes to a `ThemeBackup`, or the typed reason they were refused.
- *  Resilient within a valid file: a single malformed row is dropped, never fatal. */
-export function parseThemeBackup(bytes: Uint8Array): PortableParse<ThemeBackup> {
-  return themeSerde.parse(bytes);
 }
 
 // ── The three grammars one theme FILE can arrive in ──────────────────────────────────────────────────

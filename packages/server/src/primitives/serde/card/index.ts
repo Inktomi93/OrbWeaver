@@ -531,7 +531,7 @@ export function loreEntryIdentity(entry: LoreEntryIdentityInput): Record<string,
   };
 }
 
-export function exportBookEntry(entry: ExportWorldEntry): Record<string, unknown> {
+function exportBookEntry(entry: ExportWorldEntry): Record<string, unknown> {
   const meta = isPlainObject(entry.metadata) ? entry.metadata : {};
   const scope = resolveEntryScope(meta, entry.keys.length > 0);
   const inject = resolveEntryInjection(meta);

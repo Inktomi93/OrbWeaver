@@ -9,7 +9,7 @@ export type {
   SessionSocketEviction,
   SignupRouteDeps,
 } from "./auth-routes.ts";
-export { identityFromClaims, ownerClaimLoginUrl, registerAuthRoutes, serializeSessionCookie } from "./auth-routes.ts";
+export { ownerClaimLoginUrl, registerAuthRoutes, serializeSessionCookie } from "./auth-routes.ts";
 export type { BlobAssetsPort, BlobCasPort } from "./blob.ts";
 export { registerBlob } from "./blob.ts";
 

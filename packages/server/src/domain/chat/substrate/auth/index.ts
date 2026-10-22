@@ -17,4 +17,3 @@ export {
   assertParticipant,
   permitsHost,
 } from "./decide.ts";
-export { CHAT_VERB_AUTHORITY } from "./matrix.ts";

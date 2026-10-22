@@ -93,7 +93,7 @@ const BUG_REPORT_MAX_BODY_MIB = 4;
  *  generous against the real bundle (capped rings: 128 flags, 64 bus events, 32 shifts, the console ring)
  *  and still finite. NOT an `@orb/contracts/uploads` cap: that catalog is the deployment's UPLOAD ceilings,
  *  served to the client; this is a debug-surface request bound, the sibling of `app.ts`'s tRPC body cap. */
-export const BUG_REPORT_MAX_BODY_BYTES = BUG_REPORT_MAX_BODY_MIB * BYTES_PER_MIB;
+const BUG_REPORT_MAX_BODY_BYTES = BUG_REPORT_MAX_BODY_MIB * BYTES_PER_MIB;
 
 /** The bug-report POST body. `client` is deliberately `unknown`: the page owns its own bundle shape and this
  *  tier must not re-spell it (a field allowlist here would be a guess that goes stale silently). It is opaque
@@ -155,8 +155,7 @@ async function readJsonBody(c: Context): Promise<unknown> {
   }
 }
 
-/** @internal — pure timing-safe equality (exported for tests; the middleware closes over env.DEBUG_TOKEN). */
-export function tokenMatches(provided: string | undefined, expected: string | undefined): boolean {
+function tokenMatches(provided: string | undefined, expected: string | undefined): boolean {
   if (expected === undefined || provided === undefined) {
     return false;
   }
@@ -165,11 +164,8 @@ export function tokenMatches(provided: string | undefined, expected: string | un
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-/** @internal — the ring/list `?limit=` reader (exported for tests; every probe below funnels through it).
- *  FLOORED: the value reaches ring reads and array slices, which no caller wrote for a fraction — `1.5`
- *  used to pass through unmodified into `slice()` and `length >= limit` guards. A sub-1 ask floors to 0,
- *  which is not a limit anyone means, so it falls back with the rest of the junk. */
-export function toDebugLimit(raw: string | undefined, fallback: number): number {
+// Floor fractions before they reach ring slices; values below one use the fallback.
+function toDebugLimit(raw: string | undefined, fallback: number): number {
   const n = Math.floor(Number(raw ?? fallback));
   return Number.isFinite(n) && n > 0 ? Math.min(n, MAX_RING_READ) : fallback;
 }
@@ -238,7 +234,7 @@ function refusalReason(adminArmConsulted: boolean, tokenClause: string): string 
 
 /** Factory — the middleware closes over the gate config. Order: admin-session short-circuit, then the
  *  token check. The query-param token form is intentionally absent (it leaked into proxy access logs). */
-export function createDebugAuthMiddleware(opts: DebugAuthOptions | string | undefined): MiddlewareHandler {
+function createDebugAuthMiddleware(opts: DebugAuthOptions | string | undefined): MiddlewareHandler {
   const config: DebugAuthOptions = typeof opts === "string" || opts === undefined ? { expectedToken: opts } : opts;
   return async (c: Context, next: Next) => {
     const adminArmConsulted = config.adminAuth !== undefined;

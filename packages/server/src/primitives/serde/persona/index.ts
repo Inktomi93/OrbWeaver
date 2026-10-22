@@ -21,7 +21,7 @@ import { stripNameSuffix } from "@orb/kit/strings";
 import { defineJsonObjectSerde } from "#primitives/serde/lib";
 
 export const PERSONA_SCHEMA_KIND = "orb.persona";
-export const PERSONA_SCHEMA_VERSION = 1;
+const PERSONA_SCHEMA_VERSION = 1;
 /** The canonical persona-backup value: the portable fields with concrete (non-optional) types. Excludes
  *  avatarAssetId (a binary asset reference can't ride a JSON backup). */
 export type PersonaBackup = Readonly<Pick<PersonaDetail, "name" | "title" | "description" | "starred" | "metadata">>;
@@ -116,8 +116,8 @@ export interface PersonaCandidate extends PersonaIdentity {
   readonly id: PersonaId;
 }
 
-/** The content-equality key. Two personas with equal keys are one persona for import dedup. */
-export function personaContentKey(identity: PersonaIdentity): string {
+// The content-equality key. Two personas with equal keys are one persona for import dedup.
+function personaContentKey(identity: PersonaIdentity): string {
   return stableStringify({
     name: foldPersonaName(stripNameSuffix(identity.name)),
     title: identity.title,

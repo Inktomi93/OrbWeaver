@@ -77,7 +77,7 @@ import { z } from "zod";
 import { defineJsonObjectSerde } from "#primitives/serde/lib";
 
 export const CHAT_BUNDLE_SCHEMA_KIND = "orb.chat.bundle";
-export const CHAT_BUNDLE_SCHEMA_VERSION = 1;
+const CHAT_BUNDLE_SCHEMA_VERSION = 1;
 
 /** The bundle file extension the chat descriptor emits and its import half routes on. Distinct from the ST
  *  `.jsonl` sibling that shares the `chats/` dir — the two are told apart by their BYTES (the envelope), and

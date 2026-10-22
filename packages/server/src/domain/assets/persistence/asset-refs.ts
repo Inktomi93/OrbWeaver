@@ -35,7 +35,7 @@ import { extractInlineAssetIds } from "../substrate/portable-asset-file.ts";
 
 /** RETAINING references — a non-null value here keeps its asset (and blob) LIVE; the safe default for an
  *  ambiguous asset-FK column (over-retaining leaks a blob, under-retaining is data loss). */
-export const ASSET_REFS: readonly AssetRef[] = [
+const ASSET_REFS: readonly AssetRef[] = [
   { table: characters, column: characters.avatarAssetId },
   { table: personas, column: personas.avatarAssetId },
   { table: galleryItems, column: galleryItems.assetId },
@@ -67,17 +67,6 @@ export const ASSET_REFS: readonly AssetRef[] = [
   // exists so this registry can SEE the reference.
   { table: pluginAssets, column: pluginAssets.assetId },
 ];
-
-/** DERIVED asset-FK columns — regenerable rows that do NOT pin the blob. Held as `<table>.<column>`
- *  snake-case keys, not drizzle refs: `image_embeddings` / `image_index_skips` are embeddings-owned tables
- *  this file may not import. `image_index_skips` is the indexer's admission-floor skip-log (#273): a
- *  re-derivable verdict about the bytes, so it must NOT keep a degenerate blob alive (it CASCADEs away when
- *  the asset is reaped — retaining it would make a skipped 1×1 un-GC-able forever).
- *
- *  The `@public` marker retired 2026-09-05: the front door now re-exports this list and the
- *  `structure:asset-refs` stage's comparator consumes it, so it is an ordinary consumed export and a
- *  `@public`-family marker on a consumed export is stale by the orphan-ratchet's own two-sided rule. */
-export const DERIVED_ASSET_COLUMNS: readonly string[] = ["image_embeddings.asset_id", "image_index_skips.asset_id", "image_analyses.asset_id"];
 
 const ASSET_REFS_UNMEASURABLE = "asset_refs_unmeasurable";
 

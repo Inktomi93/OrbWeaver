@@ -34,7 +34,7 @@ export function canonicalHost(authority: string): string {
 /** True for an always-allowed host (`isAlwaysAllowedHost`: localhost, `*.localhost`, an IP literal) and a configured
  *  name (`resolveAllowedHosts`). A leading-dot entry admits its name and every subdomain. `host` is already
  *  {@link canonicalHost}. */
-export function isHostAllowed(host: string, allowedHosts: readonly string[]): boolean {
+function isHostAllowed(host: string, allowedHosts: readonly string[]): boolean {
   if (isAlwaysAllowedHost(host)) {
     return true;
   }

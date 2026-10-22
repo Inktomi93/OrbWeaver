@@ -47,7 +47,7 @@ import { installRealm, LogRing } from "./realm.ts";
 /** The `name` an ENDED invocation's error carries — the design's `PluginInvocationEnded` (03 §3), surfaced as
  *  DATA on the outcome (nothing crosses back into the guest: its realm is torn down). The domain's crash policy
  *  sees it as a rejected `invoke`, so a hang finally counts toward the 3-strike auto-disable. */
-export const PLUGIN_INVOCATION_ENDED = "PluginInvocationEnded";
+const PLUGIN_INVOCATION_ENDED = "PluginInvocationEnded";
 
 /** The settlement-race sentinel — a unique symbol so a guest value can never impersonate the deadline arm. */
 const ENDED = Symbol("plugin-invocation-ended");

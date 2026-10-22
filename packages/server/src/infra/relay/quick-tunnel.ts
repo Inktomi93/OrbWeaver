@@ -9,7 +9,7 @@
 
 import process from "node:process";
 import { Tunnel, use } from "cloudflared";
-import type { OwnedRelayProcess, QuickTunnelLauncherDeps, RelayEvents, RelayLauncher } from "./contract.ts";
+import type { OwnedRelayProcess, RelayEvents } from "./contract.ts";
 
 const QUICK_TUNNEL_PARENT = "trycloudflare.com";
 const QUICK_TUNNEL_LABEL = /^[a-z0-9]+(?:-[a-z0-9]+)+$/u;
@@ -20,7 +20,7 @@ const STOP_GRACE_MS = 5000;
 
 /** The canonical origin of a quick-tunnel URL, or null. Exact shape only: https, one hyphenated label directly under
  *  `trycloudflare.com`, no port, credentials, path, query or fragment. */
-export function quickTunnelOrigin(candidate: string): string | null {
+function quickTunnelOrigin(candidate: string): string | null {
   if (!URL.canParse(candidate)) {
     return null;
   }
@@ -114,12 +114,5 @@ export function spawnQuickTunnel(executable: string, origin: string, events: Rel
       stop();
       await settled;
     },
-  };
-}
-
-/** The launcher the relay controller holds: verify the pinned binary on every launch, then spawn it. */
-export function createQuickTunnelLauncher(deps: QuickTunnelLauncherDeps): RelayLauncher {
-  return {
-    launch: async (origin, events) => deps.spawn(await deps.binary.ensure(), origin, events),
   };
 }

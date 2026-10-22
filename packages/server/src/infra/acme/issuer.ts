@@ -8,9 +8,9 @@ import { checkIpCertificate } from "./certificate.ts";
 import type { AcmeIssuer, AcmeIssuerDeps, IssueFailureCode, IssueOutcome, IssueRequest } from "./contract.ts";
 
 /** The ACME profile Let's Encrypt issues an IP address certificate under, about 160 hours long. */
-export const SHORTLIVED_PROFILE = "shortlived";
+const SHORTLIVED_PROFILE = "shortlived";
 /** The order's identifier type for an IP address (RFC 8738). */
-export const IP_IDENTIFIER_TYPE = "ip";
+const IP_IDENTIFIER_TYPE = "ip";
 /** Let's Encrypt's production directory, the one a live certificate comes from. */
 export const LETS_ENCRYPT_DIRECTORY = directory.letsencrypt.production;
 

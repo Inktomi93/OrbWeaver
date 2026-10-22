@@ -27,7 +27,7 @@ import type { PromptTransformRegistry } from "../contract/context.ts";
 /** The per-call deadline FLOOR each transform apply is bounded by (a LEAN — the plugin bridge is async by
  *  nature). A transform that outruns it is SKIPPED (the draft passes through unchanged). Now the born-in-DB
  *  admin floor (AppSettings.promptTransformDeadlineMs); compose injects a live getter, this is the fallback. */
-export const PROMPT_TRANSFORM_DEADLINE_MS = 250;
+const PROMPT_TRANSFORM_DEADLINE_MS = 250;
 
 /** One bounded apply's three outcomes — the shape that keeps "it didn't run" and "it said no" apart:
  *   `ok`      — a clean in-time render; `text` is the new draft.

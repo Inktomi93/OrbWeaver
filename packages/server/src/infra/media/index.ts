@@ -159,7 +159,7 @@ async function collectVideoOutput(
 }
 
 /** Bind the decoder's owned deadline without replacing the caller's cancellation signal. */
-export function createVideoPreparer(scheduleTimeout: (fn: () => void, ms: number) => () => void = scheduleWithTimer) {
+function createVideoPreparer(scheduleTimeout: (fn: () => void, ms: number) => () => void = scheduleWithTimer) {
   return async function prepare(bytes: Uint8Array, mime: string, resolution: VideoMaxResolution, options: VideoPreparationOptions = {}): Promise<Uint8Array> {
     const { signal, maxBytes = ASSET_UPLOAD_MAX_BYTES } = options;
     signal?.throwIfAborted();

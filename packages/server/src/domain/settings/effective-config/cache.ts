@@ -16,8 +16,6 @@ import type { SettingsContext } from "../contract/service.ts";
 import { readAppOverrideRaw } from "../persistence/queries.ts";
 import { layer } from "./layer.ts";
 
-let cache: EffectiveAppConfig | undefined;
-
 export function createEffectiveConfigCache(
   handle: DatabaseHandle,
   authMode: AuthMode = env.AUTH_MODE,
@@ -36,27 +34,9 @@ export function createEffectiveConfigCache(
   };
 }
 
-/** The resolved runtime config (sync). Before the first reloadEffectiveConfig, this is the env-only floor. */
-export function getEffectiveConfig(): EffectiveAppConfig {
-  cache ??= layer({});
-  return cache;
-}
-
-/** Re-read the stored override blob and rebuild the cache; rebind logger.level. Call at boot + after every
- *  admin write. */
-export async function reloadEffectiveConfig(db: Db): Promise<EffectiveAppConfig> {
-  cache = await readResolvedConfig(db, env.AUTH_MODE);
-  return cache;
-}
-
 async function readResolvedConfig(db: Db, authMode: AuthMode): Promise<EffectiveAppConfig> {
   const raw = await readAppOverrideRaw(db);
   const resolved = layer(parseAppSettings(raw ?? {}), authMode);
   logger.level = resolved.logLevel;
   return resolved;
-}
-
-/** @internal test seam: drop the cache so the next read re-derives from the env floor. */
-export function __resetEffectiveConfigCache(): void {
-  cache = undefined;
 }

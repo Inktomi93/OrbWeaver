@@ -10,7 +10,7 @@ import type { RegexReplacer } from "@orb/kit/regex";
 
 // Generous for a real find/replace over a chat message: a legitimate rule completes in microseconds,
 // only a pathological backtrack approaches it. This is V8's interrupt watchdog, not a wall-clock read.
-export const REGEX_APPLY_TIMEOUT_MS = 50;
+const REGEX_APPLY_TIMEOUT_MS = 50;
 
 // The one expression run in the sandbox. Fixed constant (not user input — the user's pattern is already
 // a compiled RegExp object handed in as `regex`, never eval'd as code).

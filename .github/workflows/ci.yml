@@ -28,6 +28,8 @@ jobs:
       - run: pnpm lint:eslint
       - run: pnpm lint:css
       - run: pnpm depcruise
+      - name: Check unused files, exports and dependencies
+        run: pnpm knip
 
   node:
     runs-on: ubuntu-24.04

@@ -5,7 +5,7 @@
 import { z } from "zod";
 
 /** The refused keys of one env parse, each with the schema's own sentence and the path that names the key. */
-export function formatEnvRefusal(error: z.ZodError): string {
+function formatEnvRefusal(error: z.ZodError): string {
   return `The environment was refused:\n${z.prettifyError(error)}`;
 }
 

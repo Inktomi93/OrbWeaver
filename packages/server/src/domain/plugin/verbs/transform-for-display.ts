@@ -35,7 +35,7 @@ import { logPluginFailure } from "../substrate/failure-log.ts";
  *  `PROMPT_TRANSFORM_DEADLINE_MS` would be generous here for the opposite reason it is generous there: this
  *  runs once per VISIBLE ROW and its latency is a person watching a transcript paint, not a turn already
  *  waiting on a model. Overrun ⇒ that transform is skipped and the row keeps the text it had. */
-export const PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS = 200;
+const PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS = 200;
 
 /** One resident's crash-policy'd re-entry, curried to the (handler, argsJson) pair this seam uses. */
 type ResidentInvoke = (handler: PluginDisplayTransformRegistration["handler"], argsJson: string, signal: AbortSignal) => Promise<string>;

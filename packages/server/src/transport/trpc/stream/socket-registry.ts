@@ -65,9 +65,9 @@ import { DomainNotFoundError, DomainRateLimitError } from "@orb/kit/errors";
 import type { SessionId, SocketId, UserId } from "@orb/kit/ids";
 
 /** Ratified hygiene bounds. None is load-bearing; they exist so a client bug cannot grow the maps. */
-export const SOCKET_REAP_MS = 60_000;
-export const ROOMS_PER_SOCKET = 32;
-export const SOCKETS_PER_USER = 8;
+const SOCKET_REAP_MS = 60_000;
+const ROOMS_PER_SOCKET = 32;
+const SOCKETS_PER_USER = 8;
 
 /** One attached room's desired state. `cursor` is the last DURABLE seq delivered (null for a live-only room)
  *  — the resume point a reconnect's pump starts from, and what a `roomLagged` frame carries. */

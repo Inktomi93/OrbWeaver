@@ -26,7 +26,7 @@ import { defineJsonObjectSerde } from "#primitives/serde/lib";
 // The file-format version, distinct from the payload's USER_SETTINGS_SCHEMA_VERSION (which governs the
 // namespace shapes and is handled inside parseUserSettings).
 export const USER_SETTINGS_SCHEMA_KIND = "orb.user-settings";
-export const USER_SETTINGS_BACKUP_SCHEMA_VERSION = 1;
+const USER_SETTINGS_BACKUP_SCHEMA_VERSION = 1;
 
 // The allowlist (the fence) — the only share-safe UserSettings namespaces. Fixed, not derived from
 // UserSettings, so a new namespace is excluded by default. Order = deterministic serialization order.

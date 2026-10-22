@@ -27,7 +27,7 @@ import { rpgRoomSource } from "./sources/rpg.ts";
 import { userRoomSource } from "./sources/user.ts";
 import { workloadsRoomSource } from "./sources/workloads.ts";
 
-export const ROOM_SOURCES: { [C in StreamChannel]: RoomSourceDef<C> } = {
+const ROOM_SOURCES: { [C in StreamChannel]: RoomSourceDef<C> } = {
   user: userRoomSource,
   rpg: rpgRoomSource,
   chat: chatRoomSource,

@@ -7,7 +7,7 @@ import { sha256Hex } from "#primitives/content-hash";
 import { defineJsonObjectSerde } from "#primitives/serde/lib";
 
 export const IMAGERY_SCHEMA_KIND = "orb.imagery";
-export const IMAGERY_SCHEMA_VERSION = 1;
+const IMAGERY_SCHEMA_VERSION = 1;
 
 function canonicalCall(call: PortableImageryCall): PortableImageryCall {
   const parsed = portableImageryCallSchema.parse(call);

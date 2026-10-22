@@ -19,7 +19,7 @@ interface WarmRuntimeAcquireOptions {
 }
 
 /** Retryable pressure refusal before a request and its arguments enter the app-process wait queue. */
-export class PluginHostBusyError extends DomainConflictError {
+class PluginHostBusyError extends DomainConflictError {
   constructor(maximum: number) {
     super(`the plugin host already has ${maximum} requests waiting for a runtime — wait for one to finish and try again`);
   }

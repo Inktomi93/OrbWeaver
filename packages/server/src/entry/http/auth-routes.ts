@@ -243,7 +243,7 @@ export function serializeSessionCookie(token: SessionToken, transport: RequestTr
  * over plain http leaves an https cookie in place. That cookie is never read over http, and over https both
  * clears land.
  */
-export function serializeClearedSessionCookies(): readonly string[] {
+function serializeClearedSessionCookies(): readonly string[] {
   return SESSION_COOKIES.map(({ name, attrs }) => `${name}=; Max-Age=0; ${attrs}`);
 }
 
@@ -1017,7 +1017,7 @@ function writeMintedSession(c: Context, deps: AuthRoutesDeps, session: { readonl
  * no https derives an http callback, which only an `http://` allowlist entry the operator wrote can match.
  * X-Forwarded-Host is trusted here because the allowlist is the real gate. Off-allowlist ⇒ null.
  */
-export function deriveRedirectUri(headers: Headers, transport: RequestTransport, allowlist: readonly string[]): string | null {
+function deriveRedirectUri(headers: Headers, transport: RequestTransport, allowlist: readonly string[]): string | null {
   const host = requestHost(headers);
   if (host === null) {
     return null;
@@ -1532,7 +1532,7 @@ function readClaimPath(claims: { readonly [claim: string]: unknown }, path: stri
  *  (fail-closed, oidc-only), so a misconfigured oidc box gets a denied login plus this tell, not a guard-less
  *  session. The refusal is at the callback rather than in the verb because only the callback KNOWS the mode —
  *  forward-header, where a null subject is legitimate, never routes through here or through that arm. */
-export function identityFromClaims(
+function identityFromClaims(
   claims: { readonly [claim: string]: unknown } | undefined,
   claimMap: OidcClaimMap,
   groupsSeparator: string | undefined,
@@ -1621,7 +1621,7 @@ export function identityFromClaims(
  * NOT widen its own guard to null (that breaks forward-header); the ruling survives, its INPUT changed — the
  * oidc half now fails closed one tier UP. See the residual note in `provision-identity.ts`.
  */
-export function oidcSessionIdentity(
+function oidcSessionIdentity(
   claims: { readonly [claim: string]: unknown } | undefined,
   claimMap: OidcClaimMap,
   groupsSeparator: string | undefined,

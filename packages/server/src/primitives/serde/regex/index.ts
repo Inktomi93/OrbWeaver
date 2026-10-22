@@ -14,7 +14,7 @@ import { portableRegexScriptSchema, regexScriptCardSchema } from "@orb/contracts
 import { decodePortableObject, defineJsonObjectSerde } from "#primitives/serde/lib";
 
 export const REGEX_SCRIPT_SCHEMA_KIND = "orb.regex-script";
-export const REGEX_SCRIPT_SCHEMA_VERSION = 1;
+const REGEX_SCRIPT_SCHEMA_VERSION = 1;
 
 const regexScriptSerde = defineJsonObjectSerde<PortableRegexScript, PortableRegexScript>({
   schemaKind: REGEX_SCRIPT_SCHEMA_KIND,

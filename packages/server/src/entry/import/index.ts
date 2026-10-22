@@ -1,16 +1,9 @@
 // Front door for the bulk-import composition driver, which is the one place that constructs the per-owner
 // ImportService and wires the character/assets cross-feature ops.
 
-// The import byte caps now live in the ONE upload cap catalog (@orb/contracts/uploads); re-exported here so
-// this barrel's existing consumers (runner-env, the HTTP import edge, tests) keep their import path.
-export { IMPORT_MAX_DECOMPRESSED_BYTES, IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
+export { IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 
-export {
-  bundleImportMemoryChatIds,
-  bundleImportNotes,
-  importStagedArchive,
-  runBundleImport,
-} from "#domain/import";
+export { importStagedArchive, runBundleImport } from "#domain/import";
 export { createNodeFsImportPort } from "#infra/storage";
 
 export { runProfileDirImport } from "./run-profile-dir-import.ts";

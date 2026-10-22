@@ -13,10 +13,9 @@ import type { ChatInferenceDeps, ChatInferenceOps } from "../contract/runtime-in
  *  sizes the digest token guard; the embed model's input cap bounds a segment. A task with no window is
  *  `NoConnectionError` — the honest refusal, never a default window. The summarize window is the one the call sends:
  *  on a route whose window the request sets, the Utility preset's Max context (`windowForPreset`).
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 
-export function createTaskWindowReaders(deps: {
+function createTaskWindowReaders(deps: {
   readonly roleClientsFor: (funderUserId: UserId) => Promise<Pick<RoleClientsWithSignal, "resolved">>;
   readonly availability: ChatInferenceDeps["connection"]["availability"];
   readonly resolveHostPrincipal: (userId: UserId) => Promise<Principal>;
@@ -58,10 +57,8 @@ export function createTaskWindowReaders(deps: {
  * structured output only, so the row must carry a structured payload at all (`carriesStructured`, the planner's
  * answer). Null is the round's visible degrade, never a free-text call. How it rides is the plan's. Its window is
  * the one its call sends: the Utility preset's Max context on a route whose window the request sets.
- *
- * @public Test-anchored module surface; the three routes are pinned at `tests/legacy/server/entry/compose/speaker-arbiter.suite.test.ts`.
  */
-export async function speakerArbiterFor(
+async function speakerArbiterFor(
   roles: Pick<RoleClientsWithSignal, "resolved" | "structured">,
   maxContextTokens?: number | undefined,
 ): ReturnType<ChatContext["resolveSpeakerArbiter"]> {

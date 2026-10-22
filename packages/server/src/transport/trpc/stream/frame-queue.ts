@@ -27,15 +27,14 @@ import { roomKey } from "@orb/contracts/stream";
 
 /** Ratified hygiene bound (§14.6). Not load-bearing — it is the point where a room starts announcing that
  *  the client should heal instead of the socket growing without limit. */
-export const FRAME_QUEUE_CAPACITY = 512;
+const FRAME_QUEUE_CAPACITY = 512;
 
-/** File-local by design: a transport-internal policy label has no cross-boundary consumer, and an exported
- *  type outside a `contract/` home is `no-inline-types` RED. The TABLE below is the exported surface. */
+// Overflow labels stay internal to the queue policy.
 type OverflowPolicy = "lag" | "collapse";
 
 /** Per-channel overflow policy — total over ROOMS (control is not a room channel). Each row cites the
  *  property that makes it safe; see the file header for why `collapse` is not universally legal. */
-export const OVERFLOW_POLICIES: Record<StreamChannel, OverflowPolicy> = {
+const OVERFLOW_POLICIES: Record<StreamChannel, OverflowPolicy> = {
   /** every member is a coarse invalidation trigger (`data/invalidation.ts` USER map) */
   user: "collapse",
   /** durable inbox + ascending `replaySince` replay (#1459) */

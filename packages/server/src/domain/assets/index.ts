@@ -9,11 +9,7 @@ export type { InlineReplyImageDeps, MaterializeBackgroundDeps } from "./contract
 
 export type { SeedAvatarOps } from "./contract/seed-art.ts";
 export type { AssetsAssemblyContext as AssetsContext, AssetsService, AssetsWorkloadAssemblyDeps as AssetsWorkloadDeps } from "./contract/service.ts";
-// The asset-ref CLASSIFICATION registry (values only — `AssetRef` itself stays domain-internal). Read by
-// the `structure:asset-refs` verify stage's comparator, which reconciles it against the live `@orb/db`
-// schema's FK→`assets.id` columns; the exports map is `"./*": "./src/*/index.ts"`, so no deeper path
-// resolves and the front door is the ONLY way a reconciler outside this domain can see the registry.
-export { ASSET_REFS, DERIVED_ASSET_COLUMNS } from "./persistence/asset-refs.ts";
+
 export { createAssetsService } from "./service.ts";
 export { createAssetEmbeddingReads } from "./verbs/asset-embedding-reads.ts";
 export { createBackgroundStore } from "./verbs/background-store.ts";

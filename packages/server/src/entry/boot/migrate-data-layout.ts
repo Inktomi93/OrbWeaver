@@ -35,7 +35,7 @@ import { getLog } from "#foundation/observability";
 import { readSessionSecretKeyfile } from "#infra/crypto";
 
 /** The in-progress marker at the data root: present only between the first rename and the last. */
-export const LAYOUT_JOURNAL = ".layout-migration.json";
+const LAYOUT_JOURNAL = ".layout-migration.json";
 
 // The top-level names the current layout owns. A root entry outside this set and `LEGACY_ENTRIES` is the
 // operator's and is left where it is.

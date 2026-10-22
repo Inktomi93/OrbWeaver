@@ -6,7 +6,7 @@
 import { cosineToMany, pairwiseCosine } from "@orb/kit/vector-math";
 
 /** The CSLS neighbour count — the K nearest same-type vectors whose cosine is averaged into a hub score. */
-export const CSLS_K = 10;
+const CSLS_K = 10;
 
 /** The dense-vs-streaming switch (≈100MB N×N float32 matrix at N=5000). */
 export const HUBNESS_DENSE_MAX = 5000;

@@ -19,7 +19,7 @@ export const DB_LAUNCHED: boolean = true;
 const HASH_LOG_PREFIX = 12;
 
 /** Resolve the drizzle migrations folder shipped inside `@orb/db`, independent of the process cwd. */
-export function resolveMigrationsFolder(): string {
+function resolveMigrationsFolder(): string {
   const req = createRequire(import.meta.url);
   return join(dirname(req.resolve("@orb/db")), "migrations");
 }

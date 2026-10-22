@@ -171,7 +171,7 @@ export interface AutomationPluginComposeResult extends AsyncDisposable {
   readonly plugin: PluginService;
 }
 
-export const buildPluginQuietLlm = domainBuildPluginQuietLlm;
+const buildPluginQuietLlm = domainBuildPluginQuietLlm;
 
 export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): Promise<AutomationPluginComposeResult> {
   const newOpaqueId = deps.newOpaqueId ?? randomUUID;

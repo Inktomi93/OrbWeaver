@@ -9,7 +9,7 @@ import type { HumanSeatPersona, ResolvedPersonas, ResolveTurnPersonas, TurnTrigg
  * THE TRIGGER BINDING — which persona id prompt-config `{{user}}` (the assemble ctx's ACTIVE persona)
  * resolves against on a `trigger`-voice turn (an impersonate draft — see {@link voicePersonaFor}), dispatched
  * exhaustively over {@link TurnTrigger} (Chat-Macro-Resolution §3–§4; the union's own doc carries the arm
- * semantics). PURE; exported for its unit pin only — not a composition surface.
+ * semantics).
  *
  *   • `human`  → THAT human's persona ("who's speaking right now", §A.1), and `null` when their seat holds
  *     none — the kit floor, NEVER the anchor. Borrowing the anchor here is INVITE-JOIN-NULL-PERSONA: it
@@ -30,7 +30,7 @@ import type { HumanSeatPersona, ResolvedPersonas, ResolveTurnPersonas, TurnTrigg
  * `sameProjectedPersona` dedup keeps holding.
  */
 
-export function activePersonaIdFor(args: { readonly trigger: TurnTrigger; readonly anchorPersonaId: PersonaId | null }): PersonaId | null {
+function activePersonaIdFor(args: { readonly trigger: TurnTrigger; readonly anchorPersonaId: PersonaId | null }): PersonaId | null {
   const trigger = args.trigger;
   switch (trigger.kind) {
     case "human":
@@ -48,7 +48,7 @@ function assertNeverTrigger(trigger: never): never {
 
 /**
  * THE VOICE BINDING (D122 as amended) — which persona id prompt-config `{{user}}` resolves against, and whose
- * persona it is. PURE; exported for its unit pin.
+ * persona it is.
  *
  *   • `anchor` (every canon turn) → the anchor HUMAN's current seat persona. The anchor human owns the anchor
  *     persona when it resolved under the consent gate, else the frozen host. Who pressed send never enters, so
@@ -57,7 +57,7 @@ function assertNeverTrigger(trigger: never): never {
  *     seat falls back to the anchor persona its human owns, never to another human's.
  *   • `trigger` (an impersonate draft, the presser's own next line) → {@link activePersonaIdFor}.
  */
-export function voicePersonaFor(args: {
+function voicePersonaFor(args: {
   readonly voice: TurnVoice;
   readonly trigger: TurnTrigger;
   readonly anchorPersonaId: PersonaId | null;

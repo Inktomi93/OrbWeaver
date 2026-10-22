@@ -68,14 +68,10 @@ import {
   createResolveRpgCardCorpus,
   createResolveRpgParticipants,
   createSetRpgPointer,
-  activePersonaIdFor as domainActivePersonaIdFor,
   buildChatToolOps as domainBuildChatToolOps,
   createGeneratePictureOp as domainCreateGeneratePictureOp,
   createRunChatTurnBridge as domainCreateRunChatTurnBridge,
-  createTaskWindowReaders as domainCreateTaskWindowReaders,
   createTurnPersonaResolver as domainCreateTurnPersonaResolver,
-  speakerArbiterFor as domainSpeakerArbiterFor,
-  voicePersonaFor as domainVoicePersonaFor,
   getGroupConfig,
   getRoomOverrides,
   loadPresentHostUserId,
@@ -111,14 +107,10 @@ import { createReactToolDefinition } from "./chat-tools.ts";
 import { minter } from "./minter.ts";
 
 export const createSignupMinterCheck = createAdminSignupMinterCheck;
-export const activePersonaIdFor = domainActivePersonaIdFor;
-export const voicePersonaFor = domainVoicePersonaFor;
-export const createTurnPersonaResolver = domainCreateTurnPersonaResolver;
-export const buildChatToolOps = domainBuildChatToolOps;
-export const createRunChatTurnBridge = domainCreateRunChatTurnBridge;
-export const createTaskWindowReaders = domainCreateTaskWindowReaders;
-export const createGeneratePictureOp = domainCreateGeneratePictureOp;
-export const speakerArbiterFor = domainSpeakerArbiterFor;
+const createTurnPersonaResolver = domainCreateTurnPersonaResolver;
+const buildChatToolOps = domainBuildChatToolOps;
+const createRunChatTurnBridge = domainCreateRunChatTurnBridge;
+const createGeneratePictureOp = domainCreateGeneratePictureOp;
 
 /** Per-chat turn-lock TTL (ms) — auto-expires so a crashed holder's lock is takeover-eligible. */
 const CHAT_LOCK_TTL_MS = 120_000;

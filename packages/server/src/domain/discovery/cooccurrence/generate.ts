@@ -17,9 +17,9 @@ import { collapseByHash } from "../substrate/collapse.ts";
 import { normalizeKeyword } from "./utils.ts";
 
 /** Keep the top-N pairs per owner by count (the count-1 long tail is noise). */
-export const DEFAULT_MAX_PAIRS = 10_000;
+const DEFAULT_MAX_PAIRS = 10_000;
 /** Drop a keyword present in over this fraction of an owner's digests (a hub token — mirrors CSLS). */
-export const DEFAULT_HUB_FRACTION = 0.5;
+const DEFAULT_HUB_FRACTION = 0.5;
 
 const COOC_COLS = 6;
 const PROFILE_COLS = 5;

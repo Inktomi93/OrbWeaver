@@ -92,7 +92,7 @@ function unbracket(hostname: string): string {
   return hostname.length > 1 && hostname.startsWith("[") && hostname.endsWith("]") ? hostname.slice(1, -1) : hostname;
 }
 
-export function privateEgressRanges(): readonly string[] {
+function privateEgressRanges(): readonly string[] {
   const extra = parseTrustedPrivateRanges(env.TRUSTED_PRIVATE_RANGES);
   return extra.length > 0 ? [...DEFAULT_TRUSTED_RANGES, ...extra] : DEFAULT_TRUSTED_RANGES;
 }
@@ -103,7 +103,7 @@ function literalHost(hostname: string): string | null {
   return parseIp(bare) === null ? null : bare;
 }
 
-export function shouldBlockEgress(address: string, hostname: string, allowlist: ReadonlySet<string>, ranges: readonly string[]): boolean {
+function shouldBlockEgress(address: string, hostname: string, allowlist: ReadonlySet<string>, ranges: readonly string[]): boolean {
   if (!isInRanges(address, ranges)) {
     return false;
   }
@@ -445,7 +445,7 @@ function publishPrivateEndpointAllowlistFor(context: EgressContext, entries: rea
 
 /** THE ADMISSION AXIS, homed at its producer (§7.5 — one `as const` tuple, every reader derives). The
  *  connection domain's `EndpointAdmission` is `(typeof ENDPOINT_ADMISSIONS)[number]`; nothing re-spells the
- *  four members. The verdicts themselves are documented on {@link endpointAdmission} below. */
+ *  four members. The verdicts themselves are documented on {@link endpointAdmissionFor} below. */
 
 /** The WRITE-TIME admission read the connection domain runs before it saves an endpoint row (the guard above
  *  re-judges every connect): `public` = not a private/loopback literal (a hostname resolves at connect, where
@@ -474,7 +474,7 @@ function endpointAdmissionFor(context: EgressContext, baseUrl: string): (typeof 
   return admittedByAllowlistFor(context, host, port) || (host === "localhost" && admittedByAllowlistFor(context, literal, port)) ? "admitted" : "refused";
 }
 
-/** The write-time admission the connection domain runs: {@link endpointAdmission}, plus a HOSTNAME resolved
+/** The write-time admission the connection domain runs: {@link endpointAdmissionFor}, plus a HOSTNAME resolved
  *  now. A name that lands on a private address this deployment does not admit (`host.docker.internal`,
  *  `ollama.lan`) is `refused` here, so the dialog names the authority and offers the owner's Admit, instead of
  *  saving a row whose every dial fails at the connect gate. The judgement is the connect gate's own: the env
@@ -761,8 +761,7 @@ export class EgressBlockedError extends Error {
   }
 }
 
-/** The address resolver — real dns.lookup in prod. A test injects a deterministic map via
- *  {@link __setEgressResolverForTest} so the firewall-OFF SSRF suite needs no live DNS. */
+// Real DNS is the default; scoped execution can inject its resolver.
 
 function defaultResolver(host: string): Promise<readonly string[]> {
   return new Promise((resolve, reject) => {
@@ -784,27 +783,11 @@ function assertTestOnly(name: string): void {
   }
 }
 
-/** TEST-ONLY seam (the export map forces it through the front door; there is no deeper import path).
- *  Inject a deterministic resolver for the offline SSRF suites; pass `null` to restore real dns.lookup.
- *  Throws outside NODE_ENV=test — NEVER usable in production. */
-export function __setEgressResolverForTest(resolver: EgressResolver | null): void {
-  assertTestOnly("__setEgressResolverForTest");
-  defaultContext.resolver = resolver ?? defaultResolver;
-}
-
 /** TEST-ONLY seam: inject the DNS lookup the global firewall's two connector gates judge; pass `null` to restore
  *  real dns.lookup. Throws outside NODE_ENV=test — NEVER usable in production. */
 export function __setFirewallLookupForTest(lookup: LookupFunction | null): void {
   assertTestOnly("__setFirewallLookupForTest");
   defaultContext.firewallLookup = lookup ?? dnsLookup;
-}
-
-/** TEST-ONLY seam: build the SAME single-use pinned dispatcher safeFetch pins per request, so an
- *  integration test can drive the connector directly (addresses-only lookup + single-use reuse error).
- *  Throws outside NODE_ENV=test. */
-export function __pinnedAgentForTest(addresses: readonly string[]): Agent {
-  assertTestOnly("__pinnedAgentForTest");
-  return pinnedAgent(addresses);
 }
 
 /** A validated, pinned safeFetch answer before its body is read, and what releases it. */
@@ -1352,14 +1335,6 @@ export function publishPrivateEndpointAllowlist(entries: readonly string[]): voi
   publishPrivateEndpointAllowlistFor(defaultContext, entries);
 }
 
-export function endpointAdmission(baseUrl: string): (typeof ENDPOINT_ADMISSIONS)[number] {
-  return endpointAdmissionFor(defaultContext, baseUrl);
-}
-
-export function resolvedEndpointAdmission(baseUrl: string): Promise<(typeof ENDPOINT_ADMISSIONS)[number]> {
-  return resolvedEndpointAdmissionFor(defaultContext, baseUrl);
-}
-
 export function safeFetch(url: string | URL, options: SafeFetchOptions): Promise<SafeFetchResult> {
   return safeFetchFor(defaultContext, url, options);
 }
@@ -1374,10 +1349,6 @@ export function fetchWebDocument(url: string): Promise<Uint8Array> {
 
 export function fetchPluginBundle(url: string): Promise<Uint8Array> {
   return fetchPluginBundleFor(defaultContext, url);
-}
-
-export function fetchPinnedDownload(url: string, limits: PinnedDownloadLimits): Promise<Response> {
-  return fetchPinnedDownloadFor(defaultContext, url, limits);
 }
 
 async function configuredEndpointFetchFor(context: EgressContext, input: Parameters<typeof fetch>[0], init?: RequestInit): Promise<Response> {

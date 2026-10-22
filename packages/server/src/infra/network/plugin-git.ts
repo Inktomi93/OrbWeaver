@@ -99,8 +99,6 @@ async function requestGitHttp(request: GitHttpRequest, fetchImpl: ScopedEgress["
   };
 }
 
-export const guardedGitHttp: HttpClient = { request: requestGitHttp };
-
 export interface PluginGitSourceDeps {
   readonly makeScratch: () => Promise<string>;
   readonly removeScratch: (directory: string) => Promise<void>;
@@ -232,7 +230,7 @@ async function writePluginEntries(directory: string, commit: string, paths: read
 
 /** Materialize only the closed plugin-entry set from a no-checkout clone. Unrelated blobs remain compressed
  * in the bounded object store; admitted blobs are size-checked before any worktree write. */
-export async function materializePluginGitEntries(directory: string, cache: object = {}): Promise<void> {
+async function materializePluginGitEntries(directory: string, cache: object = {}): Promise<void> {
   await assertScratchBudget(directory);
   const commit = await resolveRef({ fs, dir: directory, ref: "HEAD" });
   const root = await readTree({ fs, dir: directory, oid: commit, cache });
@@ -240,7 +238,7 @@ export async function materializePluginGitEntries(directory: string, cache: obje
   await writePluginEntries(directory, commit, paths, cache);
 }
 
-export function createPluginGitSource(deps: PluginGitSourceDeps): PluginGitSource {
+function createPluginGitSource(deps: PluginGitSourceDeps): PluginGitSource {
   return {
     clone: async (url): Promise<{ readonly bundle: Uint8Array; readonly commit: string }> => {
       assertSafeGitSourceUrl(url);

@@ -20,7 +20,7 @@ import type { RequestTransport, ResolvedIdentity } from "@orb/contracts/identity
 import type { SessionCookie } from "../contract.ts";
 
 /** The https name. `__Host-` pins Secure + host-only + path=/ (no Domain). */
-export const SESSION_COOKIE_NAME_SECURE = "__Host-orb_session";
+const SESSION_COOKIE_NAME_SECURE = "__Host-orb_session";
 
 /**
  * The plain-http name. No cookie-prefix: `__Host-` and `__Secure-` both REQUIRE `Secure` (RFC 6265bis
@@ -28,7 +28,7 @@ export const SESSION_COOKIE_NAME_SECURE = "__Host-orb_session";
  * SUBSTRING OF THE OTHER, so an ad-hoc `includes` or regex against one cannot also match the other. The word
  * `insecure` lets an operator see in their own cookie jar that the session rides plain http.
  */
-export const SESSION_COOKIE_NAME_INSECURE = "orb_session_insecure";
+const SESSION_COOKIE_NAME_INSECURE = "orb_session_insecure";
 
 /** The attributes every auth cookie carries on each transport; the `__Host-` names need the https string.
  *  `HttpOnly` (no script read), `SameSite=Lax` (no cross-site ride) and `Path=/` apply on both transports;

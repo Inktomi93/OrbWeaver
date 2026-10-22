@@ -18,11 +18,11 @@ export const OIDC_TRANSACTION_TTL_MS = 600_000;
 // `state`. A cross-site page can make a victim open a URL; it cannot write a cookie into the victim's jar.
 
 /** The https binding name. `__Host-` pins Secure + host-only + Path=/, so a sibling subdomain cannot plant it. */
-export const OIDC_BINDING_COOKIE_NAME_SECURE = "__Host-orb_oidc_state";
+const OIDC_BINDING_COOKIE_NAME_SECURE = "__Host-orb_oidc_state";
 
 /** The plain-http binding name. It has no prefix for the same reason as the insecure session name. A request
  *  reads only its own transport's name, so an https callback never trusts this plantable one. */
-export const OIDC_BINDING_COOKIE_NAME_INSECURE = "orb_oidc_state_insecure";
+const OIDC_BINDING_COOKIE_NAME_INSECURE = "orb_oidc_state_insecure";
 
 const OIDC_BINDING_COOKIE_BY_TRANSPORT = {
   https: { name: OIDC_BINDING_COOKIE_NAME_SECURE, attrs: AUTH_COOKIE_ATTRS.https },

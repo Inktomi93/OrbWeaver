@@ -37,14 +37,14 @@ const FAMILY_LABEL = "OpenAI";
 
 /** The qualified preset name for a SAVED `OpenAI Settings/<stem>.json` (ST preset files carry no internal
  *  name — the same rule `parseStWorldFile` follows for books). */
-export function stPresetName(stem: string): string {
+function stPresetName(stem: string): string {
   return `${stem} (${FAMILY_LABEL})`;
 }
 
 /** The preset name for the LIVE `settings.json` blob. Measured against the real corpus, `oai_settings` matches
  *  the selected preset FILE on 90 of 95 shared keys — the differences are the author's UNSAVED tuning, so the
  *  blob imports rather than being dropped, under a name that can never merge onto a file preset. */
-export const ST_ACTIVE_PRESET_NAME = `${FAMILY_LABEL} (active)`;
+const ST_ACTIVE_PRESET_NAME = `${FAMILY_LABEL} (active)`;
 
 /** ST's presetManager stores EXTENSION FIELDS on the preset itself under `extensions` — the regex
  *  extension's preset-scoped scripts ride `extensions.regex_scripts` (SillyTavern
@@ -93,7 +93,7 @@ function parsePresetExtensions(raw: Record<string, unknown>): {
  *  config (stop strings, the four post-process switches, the inline-reasoning tag pair). Supplied ONLY for the
  *  LIVE preset below; a saved preset FILE gets none, because those knobs are one box's current tuning and
  *  stamping them onto every saved preset would rewrite presets their author tuned for something else. */
-export function stPresetFromJson(raw: unknown, name: string, powerUser?: unknown): ParsedStPreset | null {
+function stPresetFromJson(raw: unknown, name: string, powerUser?: unknown): ParsedStPreset | null {
   if (!isPlainObject(raw)) {
     return null;
   }

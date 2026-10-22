@@ -76,7 +76,6 @@ export async function resolve(headers: Headers, deps: ResolveDeps): Promise<Iden
   return { identity: null, via: "header", hasCsrfHeader: csrf };
 }
 
-export { CSRF_HEADER } from "@orb/contracts/identity";
 export { createBackchannelLogoutVerifier } from "./backchannel.ts";
 // ── Public surface ───────────────────────────────────────────────────────────────────────────────
 export { authConfigFromEnv, oidcRedirectAllowlist } from "./config.ts";
@@ -98,8 +97,7 @@ export type {
   ResolveDeps,
 } from "./contract.ts";
 export { hasCsrfHeader } from "./csrf.ts";
-export { MODE_RESOLVERS, ownerFallbackAllowed } from "./dispatch.ts";
-export { hasForwardingHeader } from "./forwarded.ts";
+export { ownerFallbackAllowed } from "./dispatch.ts";
 export { allowedHostsReader, createHostNotAllowedNotice, createRelayHostRegistry, refusedHost } from "./host-allowlist.ts";
 export { createForwardJwtVerifier, createJwksReader } from "./jwks.ts";
 export { readRequestCookie, SESSION_COOKIES, sessionCookieFor } from "./modes/cookie-session.ts";

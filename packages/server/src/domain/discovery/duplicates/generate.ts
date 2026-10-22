@@ -30,7 +30,7 @@ import { pairsAboveThreshold } from "../substrate/pair-cosine.ts";
 
 /** The raw-cosine floor a card pair must clear to be recorded as a near-duplicate (a hub-deflated near-dup
  *  must still BE a near-dup, so the gate is on raw cosine; `cslsScore` only ranks). */
-export const DEFAULT_DUP_THRESHOLD = 0.92;
+const DEFAULT_DUP_THRESHOLD = 0.92;
 
 /** Maximum content-distinct representatives admitted in one owner/model cosine space.
  *
@@ -155,7 +155,7 @@ async function replaceAllPairs(db: Db, inserts: readonly DupInsert[], ownerId?: 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 /** The Jaccard floor a chat pair must clear to be recorded as a near-duplicate. */
-export const DEFAULT_CHAT_JACCARD = 0.5;
+const DEFAULT_CHAT_JACCARD = 0.5;
 
 // A fixed sentinel `model` — the chat arm is content-hash Jaccard, not embedding-space specific (a pair is
 // meaningful across all spaces since content_hash is model-independent). The column is NOT NULL, so it carries

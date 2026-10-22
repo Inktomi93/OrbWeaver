@@ -63,7 +63,7 @@ export function isTrustedHop(ip: string, trustedProxies: readonly string[]): boo
  *  left, so a visitor could pick its own address, resetting the per-IP login throttle or passing
  *  `IP_ALLOWLIST` with a private value. Only entries a trusted hop appended are facts. An unparseable entry
  *  ends the walk at the last address a trusted hop vouched for. */
-export function resolveClientIp(args: {
+function resolveClientIp(args: {
   readonly peer: string | undefined;
   readonly forwarded: string | undefined;
   readonly trustedProxies: readonly string[];
@@ -139,7 +139,7 @@ export function peerIp(c: Context): string | undefined {
 
 /** Pure allow decision: loopback/private always allowed; unresolvable ip allowed (belt, not the auth
  *  layer); else must match the allowlist. */
-export function isIngressAllowed(ip: string | null, cidrs: readonly string[]): boolean {
+function isIngressAllowed(ip: string | null, cidrs: readonly string[]): boolean {
   return ip === null || isPrivateOrLoopback(ip) || isInRanges(ip, cidrs);
 }
 

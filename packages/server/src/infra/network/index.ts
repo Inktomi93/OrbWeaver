@@ -18,19 +18,16 @@ export {
   createScopedEgress,
   EgressBlockedError,
   ENDPOINT_ADMISSIONS,
-  endpointAdmission,
   fetchImageBytes,
-  fetchPinnedDownload,
   fetchPluginBundle,
   fetchWebDocument,
   installEgressFirewall,
   publishPrivateEndpointAllowlist,
-  resolvedEndpointAdmission,
   type SafeFetchOptions,
   type SafeFetchResult,
   safeFetch,
 } from "./egress.ts";
-export { drainHttpServer, HANGUP_DRAIN_MS, HTTP_SERVER_TIMEOUTS, joinNativeHttpRequest, SHUTDOWN_DRAIN_MS, serveHttpServer } from "./http-server.ts";
+export { drainHttpServer, HANGUP_DRAIN_MS, joinNativeHttpRequest, SHUTDOWN_DRAIN_MS, serveHttpServer } from "./http-server.ts";
 export { ImageRejectedError, isAllowedImageBuffer } from "./image-guard.ts";
 export {
   addressThrottleKey,

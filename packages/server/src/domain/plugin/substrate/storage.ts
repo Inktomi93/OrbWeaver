@@ -14,7 +14,7 @@ import { compareAndSetKv, deleteKv, getKv, listKv, upsertKvUnderCap } from "../p
 
 /** The per-plugin key ceiling ("≤ 256 keys/plugin"). Enforced HERE (a count the DDL cannot do); the
  *  value/key BYTE caps are DDL CHECKs. ONE home for the count cap. */
-export const PLUGIN_KV_MAX_KEYS = 256;
+const PLUGIN_KV_MAX_KEYS = 256;
 
 /** A storage-cap refusal — the membrane's host-fn reject arm contains it as guest errors-as-data (a caught
  *  error to the guest, never a host crash). Thrown internally by `set`; not caught by name elsewhere. */

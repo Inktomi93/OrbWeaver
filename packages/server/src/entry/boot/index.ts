@@ -2,7 +2,7 @@
 
 export { backfillPluginProvenanceOnBoot } from "./backfill-plugin-provenance.ts";
 export { settleBootSecrets } from "./boot-secrets.ts";
-export { BOOT_DISCLAIMER_TOPICS, composeBootDisclaimer } from "./disclaimer.ts";
+export { composeBootDisclaimer } from "./disclaimer.ts";
 export { healLegacyBackgroundPinsOnBoot } from "./heal-legacy-background-pins.ts";
 export { planLocalLightPrefetch } from "./local-light-prefetch.ts";
 export { DB_LAUNCHED, runBootMigrations } from "./migrate.ts";
@@ -19,9 +19,9 @@ export { seedCasSchedules } from "./seed-cas-schedules.ts";
 export { seedCredentialFromEnv } from "./seed-credential.ts";
 export { seedDefaultBackgrounds } from "./seed-default-backgrounds.ts";
 export { seedDefaultPreset } from "./seed-default-preset.ts";
-export { createExamplePluginSeeder } from "./seed-example-plugins.ts";
+
 export { seedExamplePlugins } from "./seed-example-plugins-step.ts";
 export { createLocalLightUserSeed, seedLocalLightOnBoot } from "./seed-local-light.ts";
 export { seedOwner } from "./seed-owner.ts";
 export { seedThemes } from "./seed-themes.ts";
-export { createUserContentSeeder, seedUserContent } from "./seed-user-content.ts";
+export { seedUserContent } from "./seed-user-content.ts";

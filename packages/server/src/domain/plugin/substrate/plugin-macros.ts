@@ -41,11 +41,11 @@ import { logPluginFailure } from "./failure-log.ts";
  *  `PROMPT_TRANSFORM_DEADLINE_MS`: this races the fan of a user's macros ONCE per turn rather than a single
  *  step in an ordered fold, and it is charged to the author's own turn latency. Overrun ⇒ every unresolved
  *  macro renders "" for that turn (the same shape a slow guest gets from the transform seam's skip). */
-export const PLUGIN_MACRO_RESOLVE_DEADLINE_MS = 1000;
+const PLUGIN_MACRO_RESOLVE_DEADLINE_MS = 1000;
 
 /** The most macros one plugin may register. A macro is a per-turn guest invoke, so the count is a per-turn
  *  latency budget as much as a namespace budget; ST plugins register a handful. */
-export const PLUGIN_MACROS_MAX = 16;
+const PLUGIN_MACROS_MAX = 16;
 
 /** ONE registered plugin macro as the registry holds it: the host-NAMESPACED name, the guest handle, and the
  *  per-plugin invoker activation closed over. */

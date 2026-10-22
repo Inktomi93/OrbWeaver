@@ -26,7 +26,7 @@ const FILE_URL_PREFIX = "file:";
  *  operator running `openssl rand -hex 32` and one running `openssl rand -base64 32` both get a working
  *  key. The 32-byte length check is the validator: a non-key string decodes to garbage but rarely lands
  *  at exactly 32 bytes. */
-export function decode32Bytes(raw: string): Buffer | null {
+function decode32Bytes(raw: string): Buffer | null {
   const trimmed = raw.trim();
   // hex: validate the exact char set + length BEFORE decoding (Buffer.from silently drops non-hex).
   if (new RegExp(`^[0-9a-fA-F]{${HEX_KEY_LENGTH}}$`).test(trimmed)) {

@@ -30,7 +30,7 @@ import { z } from "zod";
 import { defineJsonObjectSerde } from "#primitives/serde/lib";
 
 export const DATABANK_SCHEMA_KIND = "orb.databank.document";
-export const DATABANK_SCHEMA_VERSION = 1;
+const DATABANK_SCHEMA_VERSION = 1;
 
 /** One databank document as it travels: the canon + its provenance, plus the two re-linkable scopes. No
  *  DocumentId (a fresh id is minted on import), no ownerId (stamped at write time). */

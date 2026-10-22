@@ -8,7 +8,7 @@ const ONE = 1n;
 
 // biome-ignore-start lint/suspicious/noBitwiseOperators: prefix masking is shift+AND on the integer address.
 /** True if `ip` falls inside `cidr` (e.g. "10.0.0.0/8", "fc00::/7", or a bare IP = /max). */
-export function matchesCidr(ip: string, cidr: string): boolean {
+function matchesCidr(ip: string, cidr: string): boolean {
   const range = parseCidr(cidr);
   const addr = parseIp(ip);
   if (range === null || addr === null || range.net.bits !== addr.bits) {

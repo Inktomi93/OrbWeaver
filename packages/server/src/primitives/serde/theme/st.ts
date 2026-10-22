@@ -51,8 +51,8 @@ const RATIO_PRECISION = 2;
 /** The name qualifier — see the module header for why every imported theme carries one. */
 const SOURCE_LABEL = "SillyTavern";
 
-/** The qualified orb theme name for one ST theme. */
-export function stThemeName(label: string): string {
+// The qualified orb theme name for one ST theme.
+function stThemeName(label: string): string {
   return `${label} (${SOURCE_LABEL})`;
 }
 

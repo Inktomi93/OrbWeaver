@@ -39,7 +39,7 @@ const SURFACE_STATE_MAX_BYTES = 16_384;
  *  per-plugin byte budget rather than key count, or an LRU over rooms — is board row 778, parked until a real
  *  plugin hits this. Until then the refusal must be VISIBLE: a per-room widget that silently stopped updating
  *  with no trace would violate §4.9's diagnosability posture, so the throw carries the plugin AND the room. */
-export const PLUGIN_SURFACE_STATE_MAX_KEYS = 64;
+const PLUGIN_SURFACE_STATE_MAX_KEYS = 64;
 
 /** UTF-8 byte length without `TextEncoder` (server code, but kept isomorphic-style for one home with the
  *  contract's `ui.ts` byte counter — `encodeURIComponent` emits one char per ASCII byte and a `%XX` triple per

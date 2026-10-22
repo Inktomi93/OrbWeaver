@@ -49,7 +49,7 @@ import type { CharacterId, ChatEventId, ChatId, MessageId, MessageVariantId, Per
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { SQL } from "drizzle-orm";
-import { and, asc, count, desc, eq, exists, gt, gte, inArray, isNull, lt, lte, max, min, ne, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, exists, gt, gte, inArray, isNull, lt, lte, max, min, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { captureParticipantRole } from "#primitives/role-data";
 import type { ContinueSnapshot } from "../contract/continuation.ts";
@@ -796,125 +796,6 @@ export async function readRetainedCanonContributions(db: Db, chatId: ChatId, mes
       ),
     )}`,
   };
-}
-
-// ── Stats-delta canon reads (the delete-messages arm). Full rows so the signed deltas mirror the
-// rebuild's streams column-for-column. File-local shapes. ──
-
-/** One canon stat row (the inferred selection, named for the explicit return type). */
-interface CanonStatRow {
-  messageId: MessageId;
-  characterId: CharacterId | null;
-  role: MessageRole;
-  createdAt: number;
-  content: string;
-  tokensIn: number | null;
-  tokensOut: number | null;
-  tokenProvenance: import("@orb/contracts/chat").TokenProvenance;
-  costUsd: number | null;
-  cacheReadTokens: number | null;
-  cacheWriteTokens: number | null;
-  contextWindow: number | null;
-  genStartedAt: number | null;
-  genFinishedAt: number | null;
-  model: string | null;
-  provider: string | null;
-  reasoning: string | null;
-  /** The variant's sidecar, PARSED at this seam (never the drizzle `$type` cast). An absent/corrupt blob
-   *  degrades to `{}` — a stats delta must not fail on one unmodelled row (§5.3c class 3). */
-  metadata: VariantMetadata;
-  selectedIdx: number;
-  variantCount: number;
-}
-
-/** One swipe stat row (the NON-selected-variant stream shape). */
-interface SwipeStatRow {
-  messageId: MessageId;
-  characterId: CharacterId | null;
-  msgCreatedAt: number;
-  content: string;
-  tokensIn: number | null;
-  tokensOut: number | null;
-  tokenProvenance: import("@orb/contracts/chat").TokenProvenance;
-  genStartedAt: number | null;
-  genFinishedAt: number | null;
-  model: string | null;
-  provider: string | null;
-  reasoning: string | null;
-  /** The variant's sidecar, PARSED at this seam — the {@link CanonStatRow.metadata} twin. */
-  metadata: VariantMetadata;
-}
-
-const canonStatSelection = {
-  messageId: messages.id,
-  characterId: messages.characterId,
-  role: messages.role,
-  createdAt: messages.createdAt,
-  content: messageVariants.content,
-  tokensIn: messageVariants.tokensIn,
-  tokensOut: messageVariants.tokensOut,
-  tokenProvenance: messageVariants.tokenProvenance,
-  costUsd: messageVariants.costUsd,
-  cacheReadTokens: messageVariants.cacheReadTokens,
-  cacheWriteTokens: messageVariants.cacheWriteTokens,
-  contextWindow: messageVariants.contextWindow,
-  genStartedAt: messageVariants.genStartedAt,
-  genFinishedAt: messageVariants.genFinishedAt,
-  model: messageVariants.model,
-  provider: messageVariants.provider,
-  reasoning: messageVariants.reasoning,
-  // Raw JSON blob — parsed by `loadCanonStatRows` with `parseVariantMetadata` (never the `$type` cast).
-  metadata: messageVariants.metadata,
-  selectedIdx: messageVariants.idx,
-  variantCount: sql<number>`(select count(*) from ${messageVariants} where ${messageVariants.messageId} = ${messages.id})`,
-} as const;
-
-/** The stats-contribution rows (slot ⋈ selected variant) for a set of slots in one chat — the
- *  delete-messages delta input. Chat-scoped: a foreign id from another chat matches nothing. */
-export async function loadCanonStatRows(db: Db, chatId: ChatId, messageIds: readonly MessageId[]): Promise<CanonStatRow[]> {
-  const rows = await db
-    .select(canonStatSelection)
-    .from(messages)
-    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
-    .where(and(eq(messages.chatId, chatId), inArray(messages.id, [...messageIds])));
-  return rows.map((r) => ({ ...r, metadata: parseVariantMetadata(r.metadata) }));
-}
-
-/** The non-selected variants (swipes) of a slot set, joined to the slot's attribution — the
- *  delete-messages swipe-delta input.
- *
- *  `selectedVariantId` is NULLABLE (D26 — SET NULL when the pointed-at variant is deleted), and SQL is
- *  three-valued: a bare `ne(variant.id, messages.selectedVariantId)` evaluates to NULL for a slot with no
- *  pointer, silently dropping ALL of that slot's variants from the delta. `or(isNull(…), ne(…))` is the
- *  total reading of "not the selected one": when nothing is selected, every variant is a swipe. */
-export async function loadSwipeStatRows(db: Db, chatId: ChatId, messageIds: readonly MessageId[]): Promise<SwipeStatRow[]> {
-  const rows = await db
-    .select({
-      messageId: messageVariants.messageId,
-      characterId: messages.characterId,
-      msgCreatedAt: messages.createdAt,
-      content: messageVariants.content,
-      tokensIn: messageVariants.tokensIn,
-      tokensOut: messageVariants.tokensOut,
-      tokenProvenance: messageVariants.tokenProvenance,
-      genStartedAt: messageVariants.genStartedAt,
-      genFinishedAt: messageVariants.genFinishedAt,
-      model: messageVariants.model,
-      provider: messageVariants.provider,
-      reasoning: messageVariants.reasoning,
-      // Raw JSON blob — parsed below with `parseVariantMetadata` (never the drizzle `$type` cast).
-      metadata: messageVariants.metadata,
-    })
-    .from(messageVariants)
-    .innerJoin(messages, eq(messages.id, messageVariants.messageId))
-    .where(
-      and(
-        eq(messages.chatId, chatId),
-        inArray(messageVariants.messageId, [...messageIds]),
-        or(isNull(messages.selectedVariantId), ne(messageVariants.id, messages.selectedVariantId)),
-      ),
-    );
-  return rows.map((r) => ({ ...r, metadata: parseVariantMetadata(r.metadata) }));
 }
 
 // The append-variant/continue write target — the slot's attribution + seq joined to its selected

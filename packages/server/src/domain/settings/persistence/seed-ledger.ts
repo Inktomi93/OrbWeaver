@@ -9,7 +9,7 @@ import { eq } from "drizzle-orm";
 import type { ReadSeededKeys } from "../contract/composed-ops.ts";
 
 /** The manifest keys this account has already been given. */
-export async function listSeededItemKeys(handle: DatabaseHandle, userId: UserId): Promise<readonly string[]> {
+async function listSeededItemKeys(handle: DatabaseHandle, userId: UserId): Promise<readonly string[]> {
   const db = databaseForOwner(handle);
   const rows = await db.select({ itemKey: userSeedLedger.itemKey }).from(userSeedLedger).where(eq(userSeedLedger.userId, userId));
   return rows.map((row) => row.itemKey);

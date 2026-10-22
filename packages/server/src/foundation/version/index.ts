@@ -46,7 +46,7 @@ import {
 } from "@orb/kit/version-identity";
 
 /** The stamp the image build writes beside the runtime file set, relative to the process root. */
-export const VERSION_STAMP_FILE = "version.json";
+const VERSION_STAMP_FILE = "version.json";
 
 /** The honest stand-in when the root `package.json` could not be read — same posture as `UNKNOWN_COMMIT`. */
 const UNKNOWN_VERSION = "unknown";
@@ -143,14 +143,14 @@ function readLooseRef(location: GitLocation, ref: string): string | null {
 }
 
 /** The commit a checkout is on, or `null` — no git binary, no objects, just the ref files. */
-export function readGitCommit(root: string): string | null {
+function readGitCommit(root: string): string | null {
   const location = gitLocationOf(root);
   return location === null ? null : resolveCommit(readGitRefFiles(location));
 }
 
 /** The checkout's release channel: `stable` when the tag for `version` names `commit`. A missing version, a
  *  missing commit or a missing `.git` is `main` — a build that cannot prove it is the release is not one. */
-export function readReleaseChannel(root: string, version: string | null, commit: string | null): ReleaseChannel {
+function readReleaseChannel(root: string, version: string | null, commit: string | null): ReleaseChannel {
   const location = gitLocationOf(root);
   if (location === null || version === null) {
     return "main";
@@ -160,7 +160,7 @@ export function readReleaseChannel(root: string, version: string | null, commit:
 }
 
 /** The root `package.json`'s `version` field — the release number the owner bumps and tags. */
-export function readPackageVersion(root: string): string | null {
+function readPackageVersion(root: string): string | null {
   const text = readText(join(root, "package.json"));
   if (text === null) {
     return null;
@@ -177,7 +177,7 @@ export function readPackageVersion(root: string): string | null {
 
 /** The build stamp, when one was written AND is well-formed. A corrupt stamp is treated as ABSENT (the
  *  reader falls through to `.git`) rather than as a fatal: half an answer beats no boot. */
-export function readVersionStamp(root: string): VersionStamp | null {
+function readVersionStamp(root: string): VersionStamp | null {
   const text = readText(join(root, VERSION_STAMP_FILE));
   if (text === null) {
     return null;
@@ -193,7 +193,7 @@ export function readVersionStamp(root: string): VersionStamp | null {
 
 /** Derive the identity for one root. Pure w.r.t. process state (the root is a parameter), so a spec drives
  *  it over a fixture directory with a hand-built `.git` and no repository anywhere. */
-export function readVersionIdentity(root: string): VersionIdentity {
+function readVersionIdentity(root: string): VersionIdentity {
   const stamp = readVersionStamp(root);
   if (stamp !== null) {
     return Object.freeze({

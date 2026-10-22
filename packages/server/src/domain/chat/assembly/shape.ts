@@ -467,9 +467,9 @@ function stableRows(
  * (transparent to the depth) follow the pinned row, such as a turn-scoped cue after a committed user row.
  *
  * `delivered` is the final delivered history with each row's stability (a merged row is stable only when every
- * row in it is). @internal — exported for the unit test.
+ * row in it is).
  */
-export function computeHistoryBreakpoint(
+function computeHistoryBreakpoint(
   delivered: readonly { readonly role: DeliveredRole; readonly stable: boolean }[],
   hasStablePrefix: boolean,
 ): BreakpointOutcome {

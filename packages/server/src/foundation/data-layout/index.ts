@@ -9,7 +9,6 @@ import type { DataLayout, DataLayoutInput, DataLayoutKeeperKey, LegacyEntry } fr
 import { DATA_LAYOUT_SLOT_KEYS, SECRET_ENV_KEYS } from "./contract.ts";
 
 export type { DataLayout, DataLayoutInput, DataLayoutKeeperKey, LegacyEntry } from "./contract.ts";
-export { DATA_LAYOUT_SLOT_KEYS, SECRET_ENV_KEYS } from "./contract.ts";
 
 /** The root every slot defaults under, relative to the process cwd like every slot key before it. */
 export const DEFAULT_DATA_DIR = "./data";

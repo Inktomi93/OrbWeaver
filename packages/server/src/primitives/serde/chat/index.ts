@@ -382,16 +382,15 @@ function parseHumanDate(lower: string, zone: string): number | null {
  *  {@link hostTimeZone}, because THOSE bytes were written by SillyTavern against a local clock. */
 export const ST_DEFAULT_WALL_CLOCK_ZONE = "UTC";
 
-/** Parse ST's many date encodings → epoch ms. Numeric epoch (number OR ≥10-digit string) · ISO 8601 ·
- *  ST "2025-07-03\@14h56m48s[989ms]" · "August 27, 2025 6:36pm".
- *
- *  Two CLASSES, not one. An epoch and an offset-bearing/naive ISO are ABSOLUTE — they resolve through the
- *  shared `@orb/kit/time` parsers exactly as before, and `zone` cannot move them. ST's two human forms are a
- *  zone-less LOCAL WALL CLOCK (SOURCE-PINNED: `RossAscends-mods.js humanizedDateTime` builds them from
- *  `Date.getHours()`, and ST reads the meridiem form back through a NAIVE moment in its own
- *  `parseTimestamp`), so they resolve in `zone`. Reading them as UTC shifts a local wall-clock timestamp
- *  by the writing box's UTC offset, including its DST adjustment. */
-export function parseStDate(v: unknown, zone: string = ST_DEFAULT_WALL_CLOCK_ZONE): number | null {
+// Parse ST's many date encodings → epoch ms. Numeric epoch (number OR ≥10-digit string) · ISO 8601 ·
+// ST "2025-07-03\@14h56m48s[989ms]" · "August 27, 2025 6:36pm".
+// Two CLASSES, not one. An epoch and an offset-bearing/naive ISO are ABSOLUTE — they resolve through the
+// shared `@orb/kit/time` parsers exactly as before, and `zone` cannot move them. ST's two human forms are a
+// zone-less LOCAL WALL CLOCK (SOURCE-PINNED: `RossAscends-mods.js humanizedDateTime` builds them from
+// `Date.getHours()`, and ST reads the meridiem form back through a NAIVE moment in its own
+// `parseTimestamp`), so they resolve in `zone`. Reading them as UTC shifts a local wall-clock timestamp
+// by the writing box's UTC offset, including its DST adjustment.
+function parseStDate(v: unknown, zone: string = ST_DEFAULT_WALL_CLOCK_ZONE): number | null {
   if (v === null || v === undefined || v === "") {
     return null;
   }
@@ -411,11 +410,11 @@ export function parseStDate(v: unknown, zone: string = ST_DEFAULT_WALL_CLOCK_ZON
 
 const NOON_HOUR = 12;
 
-/** Format an epoch-ms instant as ST's human send_date string (MINUTE precision) e.g. "August 27, 2025 6:36pm".
- *  The exact inverse of {@link parseStDate}'s human arm in the SAME `zone` — the two must agree or an
- *  export→import round trip drifts by the offset, and ST itself would render an exported transcript shifted
- *  (its reader resolves this form locally). */
-export function formatStDate(ms: number | null, zone: string = ST_DEFAULT_WALL_CLOCK_ZONE): string | null {
+// Format an epoch-ms instant as ST's human send_date string (MINUTE precision) e.g. "August 27, 2025 6:36pm".
+// The exact inverse of {@link parseStDate}'s human arm in the SAME `zone` — the two must agree or an
+// export→import round trip drifts by the offset, and ST itself would render an exported transcript shifted
+// (its reader resolves this form locally).
+function formatStDate(ms: number | null, zone: string = ST_DEFAULT_WALL_CLOCK_ZONE): string | null {
   if (ms === null || !Number.isFinite(ms)) {
     return null;
   }

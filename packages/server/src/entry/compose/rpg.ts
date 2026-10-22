@@ -83,7 +83,7 @@ export interface RpgComposeResult extends AsyncDisposable {
 
 /** Restore's narrow atomic companion seam: RPG builds one RPG statement from chat's minted marker ids, and
  *  chat owns the narrator batch that commits and emits it. The two domains never construct each other's rows. */
-export function createRpgRestorePost(post: PostNarratorMessage): RpgPostNarratorMessage {
+function createRpgRestorePost(post: PostNarratorMessage): RpgPostNarratorMessage {
   return (chatId, content, buildSnapshotStatement) => post(chatId, content, undefined, { rpgRestoreStatement: buildSnapshotStatement });
 }
 

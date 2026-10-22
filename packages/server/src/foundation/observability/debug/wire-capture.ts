@@ -31,8 +31,7 @@
 //
 // The recorder RING is a module singleton (like `logRing`/the trace ring), but WRITES are gated: the sink the
 // backends receive is `recordWireCapture`, and compose only wires it when capture is enabled — so the ring
-// stays empty (never written) with the feature off. Test isolation: `resetWireCaptures()` clears the ring
-// between tests so a foreign run's bytes never bleed in.
+// stays empty (never written) with the feature off.
 
 // ── THE OUTCOME ARM (added after a live session spent hours guessing) ────────────────────────────────────
 // The request ring alone cannot answer "what came back", so a prose-less turn, a tool-terminated turn and a
@@ -125,13 +124,6 @@ export function recentWireCaptures(filter: WireCaptureFilter = {}): WireCapture[
     }
   }
   return out;
-}
-
-/** Clear the ring — test isolation (the harness resets between matrix rows so a prior row's wire never bleeds
- *  into the next assertion). No-op cost with the feature off (ring already empty). */
-export function resetWireCaptures(): void {
-  ring.clear();
-  outcomeRing.clear();
 }
 
 const outcomeRing = createBoundedRing<WireOutcome>(WIRE_CAPTURE_RING_CAPACITY);

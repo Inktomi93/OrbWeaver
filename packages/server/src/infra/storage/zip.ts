@@ -86,7 +86,7 @@ type ZipRejectKind = (typeof ZIP_REJECT_KINDS)[number];
 type ZipByteSource = Uint8Array | ReadableStream<Uint8Array> | AsyncIterable<Uint8Array>;
 
 /** Thrown by `extractZip`; never carries file bytes, only the machine-auditable rejection cause. */
-export class ZipRejectedError extends Error {
+class ZipRejectedError extends Error {
   readonly kind: ZipRejectKind;
   constructor(kind: ZipRejectKind, message: string, options?: ErrorOptions) {
     super(`zip rejected (${kind}): ${message}`, options);

@@ -90,7 +90,7 @@ export function joinNativeHttpRequest(bindings: NativeHttpBindings, signal: Abor
 
 /** The chosen HTTP/1 connection-reuse and inbound-request limits. These do not bound response duration:
  *  `requestTimeout` ends once Node has received the request, so a long-lived SSE response is unaffected. */
-export const HTTP_SERVER_TIMEOUTS = {
+const HTTP_SERVER_TIMEOUTS = {
   keepAliveTimeout: 5000,
   requestTimeout: 300_000,
   headersTimeout: 60_000,

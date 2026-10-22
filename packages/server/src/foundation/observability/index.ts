@@ -2,15 +2,7 @@
 // wrap, the per-request middleware, the best-effort audit writer, and the /api/_debug read surface. Read
 // DOWN by every tier; `getLog()`/`logger` is the only sanctioned output (the `noConsole` total ban).
 
-export {
-  type AuditEntry,
-  buildAuditStatement,
-  buildAuditStatementIfPrecedingWrote,
-  createAuditStatementAfterWrite,
-  createAuditWiring,
-  getAuditFailureSnapshot,
-  logAudit,
-} from "./audit.ts";
+export { type AuditEntry, createAuditWiring, logAudit } from "./audit.ts";
 export { readBugReportDiagnostics } from "./bug-report-diagnostics.ts";
 export { recordClientError } from "./client-error.ts";
 export type { AuditWiring } from "./contract/audit-wiring.ts";
@@ -30,18 +22,7 @@ export {
   type WireToolCall,
   type WireWarning,
 } from "./debug/index.ts";
-export {
-  bindRequestUser,
-  getLog,
-  groupsLogFields,
-  logger,
-  logRing,
-  logSerializers,
-  type RequestRecord,
-  recordRequest,
-  runInRequest,
-  securityEvent,
-} from "./logger.ts";
+export { getLog, groupsLogFields, logger, logRing, logSerializers, type RequestRecord, runInRequest, securityEvent } from "./logger.ts";
 export { type MemoryLogRecord, recordMemoryLog } from "./memory-log.ts";
 export { observability, observabilityErrorHandler } from "./middleware.ts";
 export { traceStructuredRetry } from "./structured-retry.ts";

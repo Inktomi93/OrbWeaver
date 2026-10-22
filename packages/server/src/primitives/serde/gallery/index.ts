@@ -21,7 +21,7 @@ import { defineJsonRowsSerde, NO_JSON_HEADER, noJsonHeader } from "#primitives/s
 // The wire discriminant + schema version. `schemaKind` fences a gallery file from every other portable file
 // (the upload router routes on it); `schemaVersion` is the lift-walk key for a future shape change.
 export const GALLERY_SCHEMA_KIND = "orb.gallery";
-export const GALLERY_SCHEMA_VERSION = 1;
+const GALLERY_SCHEMA_VERSION = 1;
 
 /** One curation row as it travels in a gallery file: the curated assetId, the subject character's handle
  *  (null for an un-charactered item), and the curation timestamp. No GalleryItemId (a fresh id is minted

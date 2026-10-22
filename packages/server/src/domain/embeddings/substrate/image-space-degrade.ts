@@ -36,8 +36,3 @@ export function reportImageSpaceDegrade(ownerId: UserId, space: string, cause: I
     "embeddings indexer: no image-capable embedder for this owner - images are indexed by their CAPTION only, in the text embed space (the image-raw lens is unavailable and visual similarity will be weaker). Bind an imageEmbed connection whose model accepts image input to restore the joint lens.",
   );
 }
-
-/** @internal test seam — drop the per-process memory for within-file cold/warm transitions. */
-export function __resetImageSpaceDegrade(): void {
-  announced.clear();
-}

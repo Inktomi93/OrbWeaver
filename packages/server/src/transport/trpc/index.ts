@@ -12,8 +12,5 @@ export { createPresenceRegistry } from "./presence-registry.ts";
 export type { AppRouter } from "./router.ts";
 export { appRouter, createCaller } from "./router.ts";
 
-export { OVERFLOW_POLICIES } from "./stream/frame-queue.ts";
-export { ROOM_SOURCES } from "./stream/room-sources.ts";
 export type { SocketRegistry } from "./stream/socket-registry.ts";
 export { createSocketRegistry } from "./stream/socket-registry.ts";
-export { withSubscriptionErrors } from "./subscriptions.ts";

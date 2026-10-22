@@ -30,13 +30,6 @@ export function getAuditFailureSnapshot(): AuditFailureSnapshot {
   return { count: auditFailureCount, firstFailureAt, lastFailureAt };
 }
 
-/** @internal — test seam for resetting the failure window between cases. */
-export function resetAuditFailureCount(): void {
-  auditFailureCount = 0;
-  firstFailureAt = null;
-  lastFailureAt = null;
-}
-
 function auditRow(entry: AuditEntry, createdAt: number, idSource: IdSource): typeof auditLogs.$inferInsert {
   return {
     id: idSource.typeId(ID_PREFIX.auditLog),
@@ -51,7 +44,7 @@ function auditRow(entry: AuditEntry, createdAt: number, idSource: IdSource): typ
 
 /** Build one unexecuted audit insert for a primary workflow that must commit its forensic row atomically.
  *  Ordinary callers keep using {@link logAudit}; this narrow seam does not weaken its best-effort contract. */
-export function buildAuditStatement(db: Db, entry: AuditEntry, createdAt: number, idSource: IdSource = createIdSource()): BatchStmt {
+function buildAuditStatement(db: Db, entry: AuditEntry, createdAt: number, idSource: IdSource = createIdSource()): BatchStmt {
   return batchStmt(db.insert(auditLogs).values(auditRow(entry, createdAt, idSource)));
 }
 
@@ -75,7 +68,7 @@ export function buildAuditStatement(db: Db, entry: AuditEntry, createdAt: number
  * a silently mis-bound column. `metadata` is hand-serialized because a raw `sql` param bypasses the column's
  * json mode.
  */
-export function buildAuditStatementIfPrecedingWrote(db: Db, entry: AuditEntry, createdAt: number, idSource: IdSource = createIdSource()): BatchStmt {
+function buildAuditStatementIfPrecedingWrote(db: Db, entry: AuditEntry, createdAt: number, idSource: IdSource = createIdSource()): BatchStmt {
   const row = auditRow(entry, createdAt, idSource);
   const metadata = row.metadata === null || row.metadata === undefined ? null : JSON.stringify(row.metadata);
   return batchStmt(
@@ -110,11 +103,6 @@ export async function logAudit(db: Db, entry: AuditEntry, createdAt: number, idS
       );
     }
   }
-}
-
-/** Bind the guarded unexecuted audit insert; the privileged caller owns its adjacent batch position. */
-export function createAuditStatementAfterWrite(db: Db, idSource: IdSource = createIdSource()): (entry: AuditEntry, at: number) => BatchStmt {
-  return (entry, at) => buildAuditStatementIfPrecedingWrote(db, entry, at, idSource);
 }
 
 /** Bind audit operations without handing composition an executable co-statement. */

@@ -19,7 +19,7 @@ import type { RefineryContext, RefineryService } from "../contract/service.ts";
 import { latestRunRowOf, loadOwnedSessionRow, sessionViewOf } from "../persistence/queries.ts";
 
 /** The coded reason for an out-of-selection manual entry (the client reads it off the BAD_REQUEST body). */
-export const MANUAL_REWRITE_OUT_OF_SCOPE_REASON = "refinery_manual_rewrite_out_of_scope";
+const MANUAL_REWRITE_OUT_OF_SCOPE_REASON = "refinery_manual_rewrite_out_of_scope";
 
 /** Is this entry inside the session's selection fence (field + narrowed greeting indexes)? An APPEND (F-T1)
  *  is fenced on the FIELD only: a new slot has no index to be inside a narrowing — the same asymmetry the

@@ -119,7 +119,7 @@ export interface AssetsCharacterComposeResult {
 }
 
 /** Bind each canonical owner; persona identifies its artifact, settings repairs picks and completes the latch. */
-export function createPersonaSeedLatch(deps: {
+function createPersonaSeedLatch(deps: {
   readonly settings: Pick<SettingsService, "getUserSettings" | "updateUserSettingsSection">;
   readonly getPersona: () => Pick<PersonaService, "list">;
 }): Pick<DefaultPersonaSeederDeps, "isSeeded" | "findSeededDefault" | "markSeeded"> {

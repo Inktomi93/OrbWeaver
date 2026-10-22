@@ -9,7 +9,7 @@ export type { Cas, ExtractOptions, StagedArchive, VariantCache, ZipEntry } from 
 
 export { createNodeFsImportPort } from "./profile-fs.ts";
 export { writeImportReportFile } from "./report.ts";
-export { readStorageFileNoFollow, stageDirectory } from "./stage-dir.ts";
+export { stageDirectory } from "./stage-dir.ts";
 export { createUserRuntimeDirs } from "./user-runtime-dir.ts";
 export { createVariantCache } from "./variant-cache.ts";
-export { extractZip, packZip, ZipRejectedError } from "./zip.ts";
+export { extractZip, packZip } from "./zip.ts";

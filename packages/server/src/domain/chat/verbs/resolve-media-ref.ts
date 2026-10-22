@@ -30,7 +30,7 @@ export function createResolveMediaRef(input: DbAssemblyInput<ResolveMediaRefDeps
  *  ({@link MediaRoomAccess.isPlacedInRoom}). Presence alone would let any member's quote of an id read off a
  *  transcript send another member's picture to the model. The row's author is no proof either: the history
  *  squash folds adjacent user rows under the first row's slot id, and a host may edit a member's row. */
-export async function resolveImageRefToUrl(
+async function resolveImageRefToUrl(
   assets: ImageRefAssets,
   room: MediaRoomAccess,
   forbidExternalMedia: boolean,

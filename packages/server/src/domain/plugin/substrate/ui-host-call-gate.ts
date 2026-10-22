@@ -30,7 +30,7 @@ import type { UiHostCallGate } from "../contract/ops.ts";
  *  can be attributed to, and what a runaway `ui.js` is a property of. A per-user scope would let one plugin's
  *  loop starve a well-behaved sibling; a per-surface scope would multiply the ceiling by however many surfaces
  *  the plugin chose to register, which is the one number the attacker controls. */
-export const UI_HOST_CALLS_IN_FLIGHT_MAX = 32;
+const UI_HOST_CALLS_IN_FLIGHT_MAX = 32;
 
 /** Mint the process-wide gate — ONE per service at compose. The SEAM TYPE ({@link UiHostCallGate}) lives in
  *  `contract/service.ts` beside `SnippetGate` and `NotifyFloor`: the seam type in contract, the factory in

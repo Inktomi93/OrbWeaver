@@ -115,11 +115,8 @@ async function resolveStagedPath(stagingRoot: string, stagedHandle: string): Pro
  * seam (real callers always take the host's own flag); it exists because `fs.constants` is not writable.
  * The seam is typed `number | null`, not `number | undefined` — a default parameter still fires when a
  * caller explicitly passes `undefined`, so `null` is the only value that reliably overrides the default.
- *
- * @internal — exported for the unit test, which simulates the Windows arm (`O_NOFOLLOW` absent) by passing
- * `noFollowFlag: null` rather than mutating the shared `fs.constants` object.
  */
-export async function readStagedFile(path: string, noFollowFlag: number | null = fsConstants.O_NOFOLLOW): Promise<Uint8Array> {
+async function readStagedFile(path: string, noFollowFlag: number | null = fsConstants.O_NOFOLLOW): Promise<Uint8Array> {
   if (typeof noFollowFlag === "number") {
     // biome-ignore lint/suspicious/noBitwiseOperators: OR-ing POSIX open() flag bits is the intended API (the zip + tree staging writers carry the same exemption).
     const handle = await open(path, fsConstants.O_RDONLY | noFollowFlag);

@@ -17,7 +17,7 @@ import type { EmptyJsonHeader } from "#primitives/serde/lib";
 import { defineJsonRowsSerde, NO_JSON_HEADER, noJsonHeader } from "#primitives/serde/lib";
 
 export const TAG_LIBRARY_SCHEMA_KIND = "orb.tag-library";
-export const TAG_LIBRARY_SCHEMA_VERSION = 1;
+const TAG_LIBRARY_SCHEMA_VERSION = 1;
 /** One tag as it travels in the library file: display + presentation axes only. No id (minted on
  *  import), no ownerId (stamped at write time), no createdAt (born at insert). */
 export type CanonicalTag = Readonly<Omit<TagView, "id">>;
