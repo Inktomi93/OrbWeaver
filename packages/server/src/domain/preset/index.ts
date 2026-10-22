@@ -11,8 +11,6 @@ export {
 } from "@orb/contracts/preset";
 export { SYSTEM_DEFAULT_PRESET_ID, SYSTEM_DEFAULT_PRESET_KIND, SYSTEM_DEFAULT_PRESET_NAME } from "./constants.ts";
 
-export { PRESET_OP_CODES, PresetNotFoundError, PresetOperationError } from "./contract/errors.ts";
-
 export type { LoadOptionalPreset } from "./contract/optional-read.ts";
 
 export type {

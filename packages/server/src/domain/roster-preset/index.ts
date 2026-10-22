@@ -3,12 +3,6 @@
 // (RosterPresetView/RosterPresetSummary/ApplyRosterPresetResult + the create/update schemas) live in
 // @orb/contracts/roster-preset; callers import them from there directly, not through this door.
 
-export {
-  RosterPresetCharacterNotFoundError,
-  RosterPresetNameConflictError,
-  RosterPresetNotFoundError,
-  RosterPresetPersonaNotFoundError,
-} from "./contract/errors.ts";
 export type { SeedRosterPreset } from "./contract/seed.ts";
 export type {
   RosterPresetAssemblyContext as RosterPresetContext,

@@ -3,7 +3,7 @@
 // @orb/contracts/chat directly.
 
 export type { DefaultPersonaSeeder, DefaultPersonaSeederDeps } from "./contract/default-seed.ts";
-export { AssetNotFoundError, LastPersonaError, PersonaNotFoundError } from "./contract/errors.ts";
+
 export type { BulkImportPersonas } from "./contract/import.ts";
 export type { JoinerPersonaStatementOp, ResolvePersonasForParticipants } from "./contract/ops.ts";
 

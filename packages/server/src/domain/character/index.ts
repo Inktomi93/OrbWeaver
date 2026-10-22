@@ -1,12 +1,7 @@
 // domain/character — FRONT DOOR: the only legal external import; re-exports the public surface. Cross-
 // boundary wire types/schemas live in `@orb/contracts/character` and are NOT re-exported here.
 
-export {
-  AssetNotFoundError,
-  CHARACTER_HANDLE_CONFLICT,
-  CharacterNotFoundError,
-  CharacterOperationError,
-} from "./contract/errors.ts";
+export { CharacterNotFoundError } from "./contract/errors.ts";
 
 export type { ImportCharacterPort } from "./contract/import-ops.ts";
 export type {

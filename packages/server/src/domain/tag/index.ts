@@ -2,7 +2,6 @@
 // internals sideways — the corpus/import producers that stage pending character-tag rows receive an
 // injected TagService at the root.
 
-export { TagNotFoundError } from "./contract/errors.ts";
 export type { ImportTagPort } from "./contract/import-tag.ts";
 export type { TagLibraryImportResult } from "./contract/results.ts";
 

@@ -2,8 +2,6 @@
 // does NOT read these tables directly — it consumes the injected `ResolveRegexSources` op (contract/
 // resolve.ts), which is what keeps the four-scope dereference in ONE home.
 
-export { RegexNotFoundError } from "./contract/errors.ts";
-
 export type {
   ExportCardScripts,
   ExportRegexScripts,
