@@ -14,9 +14,9 @@ Settle how inference flows through the server: which domain owns each table the 
 
 ### Reading priority
 
-The main program uses [test-foundation](../test-foundation/design.md) and the [test-mirror inventory](../test-mirror/design.md). This is a coupled side plan, not a replacement for either main plan.
+The [test-foundation program](../test-foundation/design.md) owns the test rebuild and its case inventory. This plan supplies required inference dependencies, not another rebuild queue.
 
-Read both main plans in full before program dispatch or status reports.
+Read test-foundation before program dispatch or status reports.
 
 Read this plan for runtime dependencies and correctness work scheduled by test-foundation. Report its progress separately from the main program. A required runtime defect still blocks dependent foundation work.
 

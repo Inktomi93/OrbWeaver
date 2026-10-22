@@ -8,19 +8,19 @@ updated: 2026-10-21
 
 ## Goal
 
-Rebuild meaningful legacy cases through production composition, production-derived builders, the shared corpus and real client mounting. Delete copied assemblies when qualified replacements land.
+Rebuild meaningful legacy cases through production composition, production-derived builders, the shared corpus and real client mounting. Remove copied assemblies from maintained tests when qualified replacements land.
 
 ## Shape
 
 ### Program ownership
 
-This plan owns the test rebuild and its execution order. The [test-mirror inventory](../test-mirror/design.md) supplies candidate cases, not a separate retrofit queue. Work items own current assignments, blockers and evidence.
+This plan owns the test rebuild and its execution order. The [task index](tasks.md) owns the execution queue. Work items own current assignments, blockers and evidence.
 
 ### Scope
 
 The program covers testkit, production-root test composition, builders, corpus data, the client mounting door and replacement suites. Change production only when a selected replacement exposes a real defect or needs a genuine composition seam.
 
-The sibling source at /home/inktomi/inktomi-stack/development/orbweaver-legacy-tests-2026-10-21 is reference-only. It is not part of this repository's tests, typecheck or CI.
+The external legacy source named by [Spine-Testing](../../law/Spine-Testing.md) is reference-only. It is not part of this repository's tests, typecheck or CI.
 
 Testkit support and runner configuration needed to execute a concrete replacement remain in scope. Add only machinery required by that case.
 
@@ -34,7 +34,7 @@ Use existing repository checks for changed behavior. Keep unrelated failures sep
 | Server harness | Qualify the existing server composition root, isolated database, injected business time and external-edge adapters. | Cases prove permissions, outputs and joined cleanup through the real graph. |
 | Inputs and mounting | Qualify production-derived builders, the shared corpus and the existing client composition door. | Inputs satisfy production contracts and mounted registries derive from production. |
 | Corpus flows | Complete corpus-backed e2e smoke across the required authentication, provider and viewport modes. | The actual wires and user-visible results pass without private owner data in artifacts. |
-| Replacement suites | Rebuild server domains, component CTs and remaining cases in substantial related batches. | Meaningful cases survive, a production defect control fails, and the replaced legacy assembly is deleted. |
+| Replacement suites | Rebuild server domains, component CTs and remaining cases in substantial related batches. | Meaningful cases survive, a production defect control fails, and the replacement contains no copied assembly. |
 
 Start a replacement batch when its actual harness dependencies are available.
 
@@ -43,6 +43,30 @@ Start a replacement batch when its actual harness dependencies are available.
 The production server graph, world-split testkit, builders, corpus and client mounting door already exist. Their existence does not complete replacement coverage or runtime qualification.
 
 Use these foundations for the remaining cases. Qualify corpus and support lifetimes through maintained cases. Keep source delivery, passing runtime cases and unqualified acceptance distinct.
+
+### Remaining work
+
+- Qualify existing server, corpus, client and E2E mechanisms through their maintained cases.
+- Rebuild meaningful reference cases through those mechanisms, including client lifecycle and recall behavior.
+- Correct product defects exposed by selected cases, with behavioral regression coverage.
+- Review unused support and production test hooks in the owning replacement batch.
+
+Source delivery is not runtime acceptance. The OIDC issuer, typed tRPC recorder and production-backed CT mount already exist; qualify them instead of rebuilding them.
+
+Keep the external reference source outside the test population. Do not restore deleted probes, checker infrastructure or legacy compiler programs.
+
+### Candidate cases
+
+| Area | Preserve | Replacement approach |
+| - | - | - |
+| Client composition | Registry entries and order, session recovery, subscriptions, nested mounts and disposal. | Mount the production composition door; assert observable behavior. |
+| User flows | Routes, app-shell journeys, pending joins, imports and exports. | Run E2E against the shared corpus and actual authentication modes. |
+| Server composition | Ownership, host checks, participant scope, targeted pruning, search and persistence. | Call the real server root instead of copying queries or domain assemblies. |
+| Inference and plugins | Capability refusal, target selection, provider failures and guest behavior. | Use production entries with scripted external edges. |
+| Contracts | Valid and invalid boundary inputs, actor keys, wire subsets and serialization. | Parse production-derived inputs through real schemas; use type assertions for compile-only properties. |
+| Paging and imports | Cursor behavior, batch limits, skipped files and replanning. | Exercise the owning production operation, not a responder's copied algorithm. |
+| Rendered behavior | Error and loading states, geometry, focus, accessibility, contrast and themes. | Use component CTs and retained measurement helpers. |
+| Fixtures and constants | Valid identities, hashes, ownership, settings defaults and served security policy. | Use production-derived builders or corpus data; import shared constants when maintained consumers need them. |
 
 ### Rules
 
@@ -73,7 +97,7 @@ Move flow-walking route and app-shell CT cases to corpus e2e. Keep component, me
 3. Use the real composition root and isolate its database and external edges.
 4. Assert observable behavior, permissions, persistence and cleanup rather than a literal the test created.
 5. Plant a production defect or remove a required behavior and show the corresponding control fails.
-6. Compare the replacement case list with the legacy source before deleting its copied assembly.
+6. Compare the replacement case list with the reference source; remove copied assembly from maintained tests.
 7. Run the affected maintained tests and applicable existing repository checks; record precise limitations.
 
 ### Server composition
@@ -104,13 +128,13 @@ Qualify query teardown, document and notification bindings, nested mounts, sessi
 
 Follow D318 and the existing public package doors. Rebuilt tests use production entries and testkit world subpaths.
 
-Delete test-only production hooks and legacy-only helper exports with the cases that replace them.
+Adjudicate test-only production hooks and unused helpers with their owning cases. Delete unsupported adapters; retain production-derived helpers needed by selected replacements.
 
 Use the sibling legacy source only to identify cases. It is not part of this repository's tests, typecheck or CI.
 
 ### Completion and verification
 
-A batch completes when its replacement preserves meaningful cases, exercises the real entry, qualifies its defect controls and removes the replaced assembly. Match evidence to the actual source, selected population and runtime.
+A batch completes when its replacement preserves meaningful cases, exercises the real entry, qualifies its defect controls and removes copied assembly from maintained tests. Match evidence to the actual source, selected population and runtime.
 
 Use D317 and the orchestrator/lane completion policy for existing verification. A timeout or tool failure supplies no behavioral verdict. Record unrelated limitations separately.
 
@@ -120,8 +144,8 @@ Copied production assemblies, fake-heavy legacy retrofits, test-only production 
 
 ## Coupled sites
 
-The [test-mirror inventory](../test-mirror/design.md) retains candidate cases and production contract concerns. [Spine-Testing](../../law/Spine-Testing.md) owns test composition, layer responsibilities and legacy boundaries. The inference-flow plan remains separate and supplies only dependencies required by a selected production case.
+[Spine-Testing](../../law/Spine-Testing.md) owns test composition, layer responsibilities and legacy boundaries. The inference-flow plan remains separate and supplies only dependencies required by a selected production case.
 
 ## Test plan
 
-Qualify production-root behavior, deterministic inputs, ownership, physical cleanup and the actual client mounting door. Preserve meaningful cases, prove production defects are caught, and delete the corresponding legacy assemblies. Complete corpus flows before general server and component replacement batches.
+Qualify production-root behavior, deterministic inputs, ownership, physical cleanup and the actual client mounting door. Preserve meaningful cases and prove production defects are caught. Run each replacement batch when its concrete dependencies are qualified; unrelated corpus flows do not block it.

@@ -1,4 +1,5 @@
 ((): void => {
+  // biome-ignore lint/suspicious/noRedundantUseStrict: the frame is embedded as a classic script, not executed as a module.
   "use strict";
 
   type Direction = "up" | "down" | "left" | "right";

@@ -163,9 +163,9 @@ test("a routed physical 429 retains ProviderError as the actual TRPCError cause 
     const settled = Promise.allSettled([running]);
     await expect(running).toThrowTRPCError("TOO_MANY_REQUESTS");
     const result = await settled;
-    expect(result[0]?.status).toBe("rejected");
+    expect(result[0].status).toBe("rejected");
     const rejected = result[0];
-    if (rejected?.status !== "rejected") {
+    if (rejected.status !== "rejected") {
       throw new Error("the physical 429 unexpectedly resolved");
     }
     expect(rejected.reason).toMatchObject({ name: "TRPCError", code: "TOO_MANY_REQUESTS", cause: expect.any(ProviderError) });
@@ -211,8 +211,8 @@ test("the outcome row is a passenger: the public service rethrows the actual obs
   });
   const [result] = await Promise.allSettled([fixture.turn()]);
   expect(observed).toBeInstanceOf(ProviderError);
-  expect(result?.status).toBe("rejected");
-  if (result?.status !== "rejected") {
+  expect(result.status).toBe("rejected");
+  if (result.status !== "rejected") {
     throw new Error("the actual native error unexpectedly resolved");
   }
   expect(result.reason).toBe(observed);

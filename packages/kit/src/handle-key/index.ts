@@ -187,10 +187,7 @@ export function admitsHandle(text: string): boolean {
   if (scripted.some((scripts) => scripts.has(UNASSIGNED))) {
     return false;
   }
-  const common = scripted.reduce<ReadonlySet<string> | null>(
-    (acc, scripts) => (acc === null ? scripts : new Set([...acc].filter((code) => scripts.has(code)))),
-    null,
-  );
+  const common = scripted.reduce<ReadonlySet<string> | null>((acc, scripts) => (acc === null ? scripts : acc.intersection(scripts)), null);
   if (common === null || common.size > 0) {
     return true;
   }

@@ -144,7 +144,7 @@ export async function withCancellationPeer(mode: (typeof MODES)[number], prove: 
   await using h = await createChatRoot({
     memoryEnabled: false,
     characters: (mode === "complete" ? ["aria"] : ["aria", "beth"]).map((name) =>
-      createCharacterSchema.parse({ handle: name, name, description: name + " is a seated witness." }),
+      createCharacterSchema.parse({ handle: name, name, description: `${name} is a seated witness.` }),
     ),
     group: { output: "per-speaker", policy: "list", autoMode: mode !== "complete", autoModeMaxTurns: 3, autoModeDelayMs: 0 },
     server: {

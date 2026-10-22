@@ -161,7 +161,7 @@ test.for(METHODS.flatMap((method) => CACHE_KINDS.map((kind) => ({ method, kind }
     await h.root.services.chat.continueTurn(args);
     const after = await h.root.db.select().from(messageVariants).where(eq(messageVariants.id, slot.selectedVariantId)).get();
     expect(after).toMatchObject({
-      content: (method === "undoContinue" ? "Base." : "Base.A.") + "B.",
+      content: `${method === "undoContinue" ? "Base." : "Base.A."}B.`,
       tokensIn: 0,
       tokensOut: 0,
       cacheReadTokens: 0,

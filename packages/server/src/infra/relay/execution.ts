@@ -38,7 +38,11 @@ export function createOwnedRelayLauncher(deps: RelayExecutionDeps): OwnedRelayLa
         // biome-ignore lint/nursery/useDisposables: this exact child transfers to the launcher owner until its native close event.
         const child = spawnQuickTunnel(executable, origin, events);
         children.add(child);
-        void child.settled.then(() => children.delete(child));
+        const forgetChild = (): boolean => children.delete(child);
+        void child.settled.then(
+          () => forgetChild(),
+          () => forgetChild(),
+        );
         return child;
       });
       pending.add(operation);

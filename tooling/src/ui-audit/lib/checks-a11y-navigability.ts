@@ -71,6 +71,7 @@ export function classifyUnreachableHint(input: UnreachableHintInput): CandidateD
   if (input.describesDecision === "name") {
     return { kind: "excluded", reason: "tooltipRepeatsName" };
   }
+  // biome-ignore lint/complexity/noExtraBooleanCast: Strict boolean expressions require explicit conversion of nullable trimmed strings.
   if (input.describedByResolved > 0 || Boolean(input.title?.trim()) || Boolean(input.ariaDescription?.trim())) {
     return { kind: "excluded", reason: "hasReachableDescription" };
   }

@@ -17,7 +17,7 @@ async function nativeSummary(value: object): Promise<SummarizeResult> {
       if (url.pathname === "/api/chat") {
         chatRequests += 1;
         return Promise.resolve(
-          new Response(JSON.stringify(value) + "\n", {
+          new Response(`${JSON.stringify(value)}\n`, {
             headers: { "content-type": "application/x-ndjson" },
           }),
         );

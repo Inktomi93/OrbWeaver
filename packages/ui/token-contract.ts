@@ -268,8 +268,7 @@ function outputRole(node: JsonObject, path: string, diagnostics: TokenContractDi
 }
 
 /**
- * `$extensions["orb.rootFloor"]` — THE ROOT FLOOR (#1872). The emitted value is `max(<authored>, <authored
- * at the 16px root>px)`, so `--font-scale` can only ever ENLARGE it.
+ * `$extensions["orb.rootFloor"]` — THE ROOT FLOOR (#1872). The emitted value is `max(<authored>, <authored at the 16px root>px)`, so `--font-scale` can only ever ENLARGE it.
  *
  * WHY IT IS A FLAG AND NOT AN OPERAND: the floor is the token's OWN authored value, never a second number.
  * A hand-written floor could differ from the authored size, and a face/leading PAIR floored to two

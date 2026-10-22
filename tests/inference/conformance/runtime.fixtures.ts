@@ -292,7 +292,7 @@ async function chatRequestFor(root: ServerTestHarness, wire: Wire, options: Chat
     systemPrompt: { static: "You are a conformance fixture.", dynamic: "" },
     chatId: sink.chatId,
     onDelta: (event: ChatDeltaEvent): void => {
-      if (event.kind === "text" && event.text !== undefined) {
+      if (event.kind === "text") {
         sink.deltas.push(event.text);
       }
     },

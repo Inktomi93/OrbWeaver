@@ -425,7 +425,9 @@ test("top-k cosine SQL is spelled only in search persistence", CONFIG_TIMEOUT, a
     for (const source of [
       'export const q = "SELECT vector_distance_cos(a, b)";',
       "export const q = `SELECT vector_distance_cos(a, b)`;",
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
       "export const q = (b: string) => sql`SELECT vector_distance_cos(embedding, ${b})`;",
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
       "export const q = (a: string, b: string) => sql`SELECT ${a} ORDER BY vector_distance_cos(embedding, ${b}) LIMIT 1`;",
       'export const q = (db: Record<string, (a: unknown, b: unknown) => unknown>) => db["vector_distance_cos"](1, 2);',
     ]) {

@@ -411,7 +411,7 @@ test("native SDK provenance persists beside the actual reasoning window in one p
   const rows = await captureSdkSessionRows(h.root.db, h.chatId, connection.id);
   expect(rows).toHaveLength(1);
   const nativeVariantId = outcome.messages[0]?.selectedVariantId;
-  if (nativeVariantId === undefined || nativeVariantId === null) {
+  if (nativeVariantId === undefined) {
     throw new Error("the actual native stats reply has no selected variant");
   }
   const nativeVariant = await h.root.db

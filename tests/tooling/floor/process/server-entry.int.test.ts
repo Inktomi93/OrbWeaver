@@ -38,6 +38,7 @@ test("pnpm start and pnpm dev both spawn that one file", ({ repoRoot }) => {
 
 // Node prints one of these when SIGUSR1 opens the inspector, the second when its port is already taken.
 const INSPECTOR_OPENED = /Debugger listening|Starting inspector/u;
+// biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
 const STAND_IN = "process.stdout.write(`ready ${process.pid}\\n`); setInterval(() => undefined, 1000);";
 const SIGNAL_WINDOW_BASE_MS = 1500;
 const SIGNAL_WINDOW_MS = scaledBudget(SIGNAL_WINDOW_BASE_MS);

@@ -44,7 +44,7 @@ test("a withheld terminal channel and mounted-but-empty calls take distinguishab
     await h.root.settleBackground();
     expect(wires).toHaveLength(2);
     expect(wires[0]?.["tools"] === undefined).toBe(guarded);
-    expect(JSON.stringify(wires[0]?.["tools"])?.includes(TURN_SCENE_TOOL) ?? false).toBe(!guarded);
+    expect(JSON.stringify(wires[0]?.["tools"] ?? []).includes(TURN_SCENE_TOOL)).toBe(!guarded);
     expect(JSON.stringify(wires[1]?.["tools"])).toContain(TURN_SCENE_TOOL);
     expect((await h.root.services.rpg.getTrackerView(params)).ambient).toMatchObject({ location: "Fallback observatory" });
     expect(h.root.app.rpgTrace?.recent({ chatId: h.chatId }).map(({ event }) => event)).toContainEqual(

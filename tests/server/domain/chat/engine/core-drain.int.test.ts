@@ -105,7 +105,7 @@ test.for([
           }
         : { status: "fulfilled", value: { aborted: false } },
     );
-    expect(result?.status === "rejected" && result.reason instanceof ProviderError).toBe(row.failed);
+    expect(result.status === "rejected" && result.reason instanceof ProviderError).toBe(row.failed);
     const canon = await h.root.db
       .select({ content: messageVariants.content })
       .from(messages)

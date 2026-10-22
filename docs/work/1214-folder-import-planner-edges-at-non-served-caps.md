@@ -1,9 +1,9 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-20
+updated: 2026-10-22
 priority: P3
-plan: test-mirror
+plan: test-foundation
 ---
 
 # Folder import planner edges at non-served caps

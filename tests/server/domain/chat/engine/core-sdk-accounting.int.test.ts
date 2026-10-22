@@ -123,7 +123,7 @@ test("actual SDK continuation replaces operation economics while retaining the n
   const first = await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Record the paid reply before its continuation." });
   expect(first.aborted).toBe(false);
   const target = first.messages.find((message) => message.role === "assistant");
-  if (target === undefined || target.selectedVariantId === null) {
+  if (target === undefined) {
     throw new Error("the real native SDK committed no selected reply");
   }
   const before = await h.root.db.select().from(messageVariants).where(eq(messageVariants.id, target.selectedVariantId)).get();

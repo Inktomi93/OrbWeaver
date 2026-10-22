@@ -32,6 +32,7 @@ function rowsIn(container: HTMLElement): readonly HTMLElement[] {
 
 /** The index the roving tab stop belongs to: the focused row, else the current selection, else the first. */
 function tabbableIndex(rows: readonly HTMLElement[]): number {
+  // biome-ignore lint/complexity/useIndexOf: indexOf requires HTMLElement, but document.activeElement is Element | null.
   const focused = rows.findIndex((row) => row === document.activeElement);
   if (focused !== -1) {
     return focused;

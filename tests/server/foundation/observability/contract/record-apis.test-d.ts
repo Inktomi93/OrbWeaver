@@ -28,9 +28,11 @@ type NativeSpanContext = ReturnType<NativeSpan["spanContext"]>;
 test("recorded native fields derive their actual owners without copying native readonly modifiers", () => {
   expectTypeOf<SerializedSpan["spanId"]>().toEqualTypeOf<NativeSpanContext["spanId"]>();
   expectTypeOf<SerializedSpan["parentSpanId"]>().toEqualTypeOf<NativeSpanContext["spanId"] | undefined>();
+  // biome-ignore lint/complexity/noBannedTypes: The type assertion tests property presence against the empty object type.
   expectTypeOf<{}>().not.toExtend<Pick<SerializedSpan, "parentSpanId">>();
   expectTypeOf<Pick<SerializedSpan, "spanId">>().toEqualTypeOf<{ spanId: NativeSpanContext["spanId"] }>();
   expectTypeOf<SerializedSpanEvent["attributes"]>().toEqualTypeOf<SerializedSpan["attributes"] | undefined>();
+  // biome-ignore lint/complexity/noBannedTypes: The type assertion tests property presence against the empty object type.
   expectTypeOf<{}>().toExtend<Pick<SerializedSpanEvent, "attributes">>();
   expectTypeOf<RequestTrace["status"]>().toEqualTypeOf<SerializedSpan["status"]>();
   expectTypeOf<RequestRecord["method"]>().toEqualTypeOf<HonoRequest["method"]>();
@@ -60,8 +62,10 @@ test("diagnostic inputs preserve opaque metadata, raw strings and explicit optio
 test("debug admission remains synchronous and context-based with required nullable settings selection", () => {
   expectTypeOf<Parameters<AdminAuthChecker["isAdmin"]>[0]>().toEqualTypeOf<Context>();
   expectTypeOf<ReturnType<AdminAuthChecker["isAdmin"]>>().toEqualTypeOf<boolean>();
+  // biome-ignore lint/complexity/noBannedTypes: The type assertion tests property presence against the empty object type.
   expectTypeOf<{}>().not.toExtend<DebugAuthOptions>();
   expectTypeOf<{ expectedToken: undefined }>().toExtend<DebugAuthOptions>();
+  // biome-ignore lint/complexity/noBannedTypes: The type assertion tests property presence against the empty object type.
   expectTypeOf<{}>().not.toExtend<DebugRoutesOptions>();
   expectTypeOf<{ appSettingRows: null }>().toExtend<DebugRoutesOptions>();
 });

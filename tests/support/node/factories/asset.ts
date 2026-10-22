@@ -39,7 +39,7 @@ export function makeAsset(overrides: Partial<AssetRow> = {}, source: IdSource = 
     mime: sniffMime(bytes),
     size: bytes.byteLength,
     hash: sha256Hex(bytes),
-    animated: sniffed !== null && sniffed.animated,
+    animated: sniffed?.animated ?? false,
     width: sniffed?.width ?? null,
     height: sniffed?.height ?? null,
     uploadedAt: FROZEN_AT_MS,

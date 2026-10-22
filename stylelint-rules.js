@@ -10,15 +10,15 @@ const REST = "orb/rest-transform-grid";
 const MOTION_PROPERTIES = new Set(["transition", "animation", "transition-duration", "animation-duration", "transition-timing-function"]);
 const DURATION_PROPERTIES = new Set(["transition-duration", "animation-duration"]);
 const REDUCED_MOTION = /prefers-reduced-motion|\[data-reduced-motion/u;
-const RAW_TIME = /(?<![\w.-])(?<num>\d*\.?\d+)(?:ms|s)\b/gu;
+const RAW_TIME = /(?<![\w.-])(?<num>\d+(?:\.\d+)?|\.\d+)(?:ms|s)\b/gu;
 const RAW_EASE = /\b(?:ease-in-out|ease-in|ease-out|ease)\b(?!-(?:expo|out-expo))|cubic-bezier\s*\(/gu;
 const HEX = /#[0-9a-fA-F]{3,8}\b/u;
 const COLOR_FUNCTION = /\b(?:rgb|rgba|hsl|hsla|oklch|oklab|lab|lch)\s*\(/u;
 const TRANSFORM_PROPERTIES = new Set(["transform", "translate", "scale"]);
 const ANIMATING_AT_RULE = /^(?:keyframes|starting-style)\b/u;
-const STATE_SELECTOR = /\[[^\]]*=[^\]]*\]|:hover|:focus|:active|:checked|:disabled|:target|:open|:popover-open/u;
+const STATE_SELECTOR = /\[[^=\]]*=[^\]]*\]|:hover|:focus|:active|:checked|:disabled|:target|:open|:popover-open/u;
 const FRACTIONAL_PX = /-?\d*\.\d+px/u;
-const PERCENTAGE = /-?\d*\.?\d+%/u;
+const PERCENTAGE = /-?(?:\d+(?:\.\d+)?|\.\d+)%/u;
 
 function withoutValueComments(value) {
   const spans = [];

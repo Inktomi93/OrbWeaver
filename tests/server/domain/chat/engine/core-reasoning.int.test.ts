@@ -37,7 +37,7 @@ test.for(THINKING_ROWS)("native reasoning from $label persists on the actual una
   expect(outcome.aborted).toBe(false);
   expect(outcome.messages).toMatchObject([{ role: "assistant", authorUserId: null, content: "A reasoned native reply.", reasoning: row.expected }]);
   const committed = outcome.messages[0];
-  if (committed === undefined || committed.selectedVariantId === null) {
+  if (committed === undefined) {
     throw new Error("the actual reasoning control committed no selected assistant");
   }
   expect(await h.root.db.select().from(messageVariants).where(eq(messageVariants.id, committed.selectedVariantId)).get()).toMatchObject({

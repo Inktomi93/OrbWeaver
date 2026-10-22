@@ -113,7 +113,7 @@ export interface RosterRuleCapture {
 
 export function useRosterRuleCapture(active: ActiveRosterChat | null): RosterRuleCapture {
   const trpc = useTRPC();
-  const hostChatId = active !== null && active.isHost ? active.chatId : null;
+  const hostChatId = active?.isHost === true ? active.chatId : null;
   // `skipToken` keeps the key unbuilt for a non-host / no-room mount (the use-readout-binding gate idiom).
   const rulesQuery = useQuery(trpc.automation.listRules.queryOptions(hostChatId === null ? skipToken : { chatId: hostChatId }));
   const retry = (): void => {
@@ -139,7 +139,7 @@ type RoomGameCapture =
 
 export function useRoomGameCapture(active: ActiveRosterChat | null): RoomGameCapture {
   const trpc = useTRPC();
-  const gameChatId = active !== null && active.isHost && active.detail.rpg !== null ? active.chatId : null;
+  const gameChatId = active?.isHost === true && active.detail.rpg !== null ? active.chatId : null;
   const gameQuery = useQuery(trpc.rpg.getGame.queryOptions(gameChatId === null ? skipToken : { chatId: gameChatId }));
   if (gameChatId === null) {
     return { status: "none" };

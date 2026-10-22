@@ -186,6 +186,7 @@ test("compose publishes on loopback by default, ships a credentialed login mode,
   const env = read(repoRoot, "docker/orbweaver.env");
   // ONE service; loopback unless the deployer interpolates ORB_BIND; never a bare "8788:8788"
   expect(compose.match(/^ {2}[a-z][\w-]*:$/gmu)).toEqual(["  orbweaver:"]);
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   expect(compose).toContain('"${ORB_BIND:-127.0.0.1}:${ORB_PORT:-8788}:8788"');
   expect(compose).not.toMatch(/^\s*- "8788:8788"/mu);
   // the tracked defaults: no-login single-user, safe ONLY because the port is loopback-published — the
@@ -194,6 +195,7 @@ test("compose publishes on loopback by default, ships a credentialed login mode,
   expect(env).toMatch(/^AUTH_MODE=single-user$/mu);
   expect(env).toMatch(/^AUTH_FALLBACK=owner$/mu);
   expect(env).toMatch(/^AUTH_FALLBACK_TRUSTED_PEERS=172\.16\.0\.0\/12,/mu);
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   expect(compose).toContain("ORB_BIND: ${ORB_BIND:-127.0.0.1}");
   // single-user binds loopback unless told otherwise; inside the container the published port needs every
   // interface, which the declared bridge ranges above make legal (the resolved shapes are pinned below).
@@ -249,11 +251,14 @@ test("the entrypoint exports generated file paths, keeps the data volume private
   const shim = read(repoRoot, "docker/entrypoint.sh");
   expect(shim).not.toContain("load_secret");
   expect(shim).not.toMatch(/export (?:SESSION_SECRET|LOCAL_INITIAL_PASSWORD)(?:=|\s|$)/mu);
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   expect(shim).toContain('export SESSION_SECRET_FILE="${secrets_dir}/session_secret"');
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   expect(shim).toContain('export LOCAL_INITIAL_PASSWORD_FILE="${secrets_dir}/initial_password"');
   // A bind-mounted ./data is a host directory: files the app creates must not be readable by other host users.
   expect(shim).toMatch(/^umask 077$/mu);
   // …and the data root is closed on every boot, which covers files written before the mask.
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   expect(shim).toContain('chmod go-rwx "${data_dir}"');
   // The privilege drop takes numeric ids (the rootfs is read-only, so /etc/passwd cannot be edited for another
   // PUID) and sets no_new_privs itself, so a bare `docker run` without compose's security_opt still gets it.

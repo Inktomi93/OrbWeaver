@@ -159,7 +159,7 @@ test.for(METHODS)("restore-first %s retains paid signed/tool state before the ne
 function expectNativeB(next: typeof messageVariants.$inferSelect | undefined, before: typeof messageVariants.$inferSelect, undo: boolean): void {
   const restoredContent = undo ? PRIVATE_BODY : PRIVATE_BODY + ADDITION;
   const restoredReasoning = undo ? PRIVATE_REASONING : PRIVATE_REASONING + ADDITION_REASONING;
-  expect(next?.content).toBe(restoredContent + "B.B-end.");
+  expect(next?.content).toBe(`${restoredContent}B.B-end.`);
   expect(next?.reasoning).toBe(restoredReasoning);
   const priorCalls = undo ? before.metadata?.continuationTools?.before : before.metadata?.continuationTools?.after;
   const priorSignatures = undo ? before.metadata?.contentSignatures?.previous?.tools : before.metadata?.contentSignatures?.tools;
@@ -199,7 +199,7 @@ function expectNativeB(next: typeof messageVariants.$inferSelect | undefined, be
         ]),
   ];
   expect(next?.metadata?.contentSignatures).toEqual({
-    content: restoredContent + "B.B-end.",
+    content: `${restoredContent}B.B-end.`,
     text: [...priorText, { text: "B.", thoughtSignature: "b-private" }, { text: "B-end.", thoughtSignature: "b-end-private" }],
     images: [],
     tools: [...(priorSignatures ?? []), { toolCallId: "same", turnId: nextCall?.turnId, callOrdinal: 0, thoughtSignature: TOOL_SIGNATURE }],

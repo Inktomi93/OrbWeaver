@@ -830,7 +830,7 @@ const assemblyBudgetSliceSchema = z.strictObject({
 const assemblySectionRowSchema = z.strictObject({ label: z.string(), tokens: z.number() }) satisfies z.ZodType<AssemblySectionRow>;
 
 const assemblySectionCostSchema = z.strictObject({
-  // preset-local authored/imported section key, not a row identity; ends if prompt sections acquire a canonical minted identity.
+  // eslint-disable-next-line orb/no-raw-id -- Preset-local authored/imported section key, not a canonical row identity.
   sectionId: z.string(),
   tokens: z.number(),
   rows: z.array(assemblySectionRowSchema).readonly(),

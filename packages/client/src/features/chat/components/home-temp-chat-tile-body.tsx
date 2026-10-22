@@ -34,7 +34,7 @@ import { openNewChatPicker } from "#state";
  *  the list can be showing. A throw still reconciles: `undefined` is not evidence of a no-op. */
 const useReapTemporaryChats = createEntityMutation<void, { readonly reaped: number }>({
   options: (trpc: Trpc) => trpc.chat.reapTemporaryChats.mutationOptions(),
-  invalidates: (trpc: Trpc, _vars: void, data: { readonly reaped: number } | undefined) =>
+  invalidates: (trpc: Trpc, _vars, data: { readonly reaped: number } | undefined) =>
     data !== undefined && data.reaped === 0 ? [] : [trpc.chat.listChats.pathFilter()],
 });
 

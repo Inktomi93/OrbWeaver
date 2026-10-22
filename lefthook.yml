@@ -5,12 +5,12 @@ output: [summary, failure, execution_out]
 pre-commit:
   commands:
     biome:
-      run: pnpm exec biome check --staged --diagnostic-level=error --no-errors-on-unmatched
+      run: pnpm exec biome check --staged --error-on-warnings --no-errors-on-unmatched
 
 pre-merge-commit:
   commands:
     biome:
-      run: pnpm exec biome check --staged --diagnostic-level=error --no-errors-on-unmatched
+      run: pnpm exec biome check --staged --error-on-warnings --no-errors-on-unmatched
 
 commit-msg:
   commands:
@@ -23,6 +23,17 @@ post-checkout:
       run: if [ "{3}" = "1" ] && [ ! -d node_modules ]; then pnpm install --prefer-offline; fi
 
 pre-push:
+  piped: true
   commands:
     github-sync-check:
+      priority: 1
       run: bash scripts/github-sync.sh --check
+    biome:
+      priority: 2
+      run: pnpm lint
+    depcruise:
+      priority: 3
+      run: pnpm depcruise
+    eslint:
+      priority: 4
+      run: pnpm lint:eslint

@@ -27,7 +27,7 @@ export function ActionBar({ leading, primary, fill, trailing, className, render,
   useLayoutEffect(() => {
     const control = restoreFocus.current;
     restoreFocus.current = null;
-    if (control !== null && control.isConnected && document.activeElement !== control) {
+    if (control?.isConnected === true && document.activeElement !== control) {
       control.focus({ preventScroll: true });
     }
   });

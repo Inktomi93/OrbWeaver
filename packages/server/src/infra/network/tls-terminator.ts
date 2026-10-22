@@ -69,7 +69,7 @@ function forwardedHeaders(headers: IncomingHttpHeaders, peer: string | undefined
 
 // True for an origin-form request target (`/path?query`), the only form this hop forwards.
 function isOriginForm(target: string | undefined): target is string {
-  return target !== undefined && target.startsWith("/") && !target.startsWith("//");
+  return target?.startsWith("/") === true && !target.startsWith("//");
 }
 
 function upstreamTarget(origin: string): { readonly hostname: string; readonly port: number } {

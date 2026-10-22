@@ -38,6 +38,7 @@ function incoherence(table: SQLiteTable, row: ScopingRow): string | undefined {
   }
   const roomGated = columns.includes(CHAT_COLUMN);
   if (row.scope === "membership") {
+    // biome-ignore lint/performance/noDynamicNamespaceImportAccess: The schema census follows the canonical room-table key across all namespace exports.
     return roomGated || getTableName(table) === getTableName(schema[ROOM_TABLE]) ? undefined : "no-chat-id";
   }
   if (roomGated) {

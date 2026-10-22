@@ -92,7 +92,7 @@ test("queued Kathmandu and New York turns retain their original clocks across tr
   const member = await invitePerson(room.h);
   await queue(room, member, room.h.chatId, { content: "from Kathmandu", timeZone: "Asia/Kathmandu" });
   await queue(room, member, room.h.chatId, { content: "from New York", timeZone: "America/New_York" });
-  expect((await pending(room)).map((row) => row.timeZone).toSorted()).toEqual(["America/New_York", "Asia/Kathmandu"]);
+  expect((await pending(room)).map((row) => row.timeZone).toSorted((a, b) => (a ?? "").localeCompare(b ?? ""))).toEqual(["America/New_York", "Asia/Kathmandu"]);
   expect(await speakerInputs(room.peer.requests, B_CHAT_MODEL)).toEqual([]);
   await expect(room.h.root.services.chat.drainDeferredTurns({ hostUserId: room.h.owner.userId })).resolves.toEqual({ ran: 2, dropped: 0 });
   expect(await clocks(room)).toEqual(["2026-01-16 01:45:00", "2026-01-15 15:00:00"]);

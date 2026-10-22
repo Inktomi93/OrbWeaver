@@ -1887,7 +1887,7 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
             // A failed WARNING emit must not mask `memErr` — the build failure rethrown below is what the span must
             // record. The emit's own failure is read as a value and logged, never re-thrown out of the fire-and-forget.
             const [warned] = await Promise.allSettled([deps.emit({ type: "warning", chatId: prep.chatId, code: "memory_build_failed" })]);
-            if (warned?.status === "rejected") {
+            if (warned.status === "rejected") {
               getLog().warn({ err: warned.reason, chatId: prep.chatId }, "memory: build-failure warning emit also failed");
             }
             // Rethrow so the span marks itself ERROR (I-7: previously swallowed here, so a failed build always

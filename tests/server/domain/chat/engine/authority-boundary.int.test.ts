@@ -99,7 +99,7 @@ function memoryReply(body: string): string {
   }
   // Summary-only sentinels distinguish recalled memory from the same scene still present in raw canon.
   const facts = MEMORY_PHASES.filter((phase) => body.includes(phase.input)).map((phase) => phase.memory);
-  return "Orbital ledger memory\n" + (facts.length === 0 ? "A keeper answered." : facts.join(". ") + ".") + "\nKeywords: ledger";
+  return `Orbital ledger memory\n${facts.length === 0 ? "A keeper answered." : `${facts.join(". ")}.`}\nKeywords: ledger`;
 }
 
 test("a member's actual turn uses the frozen host connection while keeping the member's message attribution", async () => {
@@ -177,13 +177,13 @@ test("bound memory ports retain shared buckets and enforce real join, leave and 
   };
   try {
     const ballast = "orbital ledger ballast ".repeat(640);
-    await send(MEMORY_PHASES[0].input + "\n" + ballast);
+    await send(`${MEMORY_PHASES[0].input}\n${ballast}`);
     await root.services.chat.addCharacterToChat({ principal: owner, chatId, characterId: second.id });
-    await send(MEMORY_PHASES[1].input + "\n" + ballast);
+    await send(`${MEMORY_PHASES[1].input}\n${ballast}`);
     await root.services.chat.removeCharacterFromChat({ principal: owner, chatId, characterId: second.id });
-    await send(MEMORY_PHASES[2].input + "\n" + ballast);
+    await send(`${MEMORY_PHASES[2].input}\n${ballast}`);
     await root.services.chat.addCharacterToChat({ principal: owner, chatId, characterId: second.id });
-    await send(MEMORY_PHASES[3].input + "\n" + ballast);
+    await send(`${MEMORY_PHASES[3].input}\n${ballast}`);
 
     const stored = await root.db.select().from(chatDigests).where(eq(chatDigests.chatId, chatId));
     const buckets = [...new Set(stored.map((row) => row.scopedCharacterId))];

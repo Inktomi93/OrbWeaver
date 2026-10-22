@@ -125,7 +125,7 @@ List each command and its result in the report. The whole-tree check is the orch
 - In Claude, use the Bash tool's `run_in_background` for long commands and read its completion notification.
 - In Codex, retain the running command's session identifier and collect its completion through the available shell tool.
 - A running command has no verdict. Read its completed artifact before reporting success or failure.
-- Read the test report at `reports/test-report.json` and other artifacts named in `AGENTS.md`.
+- Read completed native runner output and artifacts printed by that run. A report from another run is not current evidence.
 - Never wait on `pgrep` of a harness name. It matches every checkout on the box, so a sibling's run blocks you.
 - Stop only a process you started. Killing `git commit` leaves its hook running.
 

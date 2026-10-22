@@ -38,7 +38,7 @@ test("the actual detached RPG round seals a fresh trace after its outer SEND has
     const sent = await sending;
     expect(sent.aborted).toBe(false);
     const assistant = sent.messages.find((message) => message.role === "assistant");
-    if (assistant === undefined || assistant.selectedVariantId === null) {
+    if (assistant === undefined) {
       throw new Error("the traced turn has no selected assistant");
     }
     expect(recentTraces(100).find((trace) => trace.requestId === outer)).toMatchObject({ rootName: "controlled public SEND", status: "ok" });
@@ -79,7 +79,7 @@ test("the actual SEND user-commit confirms prior state under its own fresh trace
   const initial = await h.root.services.chat.send({ ...params, content: "Offer the first beat." });
   expect(initial.aborted).toBe(false);
   const assistant = initial.messages.find((message) => message.role === "assistant");
-  if (assistant === undefined || assistant.selectedVariantId === null) {
+  if (assistant === undefined) {
     throw new Error("the traced commit has no prior assistant variant");
   }
   await h.root.settleBackground();

@@ -164,7 +164,7 @@ function personaReads(): { readonly wrap: LibSqlWrap; readonly watch: () => void
       const sql = typeof statement === "string" ? statement : statement.sql;
       const bindings = typeof statement === "string" ? args : statement.args;
       const result = typeof statement === "string" ? await execute(statement, args) : await execute(statement);
-      if (watching && /from "personas"/u.test(sql) && /"personas"\."owner_id" in \(/u.test(sql)) {
+      if (watching && sql.includes('from "personas"') && sql.includes('"personas"."owner_id" in (')) {
         observations.push({
           sql,
           values: stringBindings(bindings),

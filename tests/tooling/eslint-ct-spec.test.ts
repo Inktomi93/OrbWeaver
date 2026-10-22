@@ -44,6 +44,7 @@ test.for([
   ["braced template without substitutions", "export const A = () => <div data-testid={`matrix`} />;", STORY, 1],
   ["a typed production id", `export const A = () => <div data-testid={testId('composer')} />;`, STORY, 0],
   ["a story-registry id", `export const A = () => <div data-testid={storyTestId("rowScrollport")} />;`, STORY, 0],
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   ["a dynamic template", "export const A = () => <div data-testid={`row-${key}`} />;", STORY, 0],
   ["a CT spec that is not a story module", `export const B = () => <div data-testid="inline" />;`, "tests/client/features/chat/composer.ct.tsx", 0],
   ["legacy stories stay outside the wall", `export const A = () => <div data-testid="legacy" />;`, "tests/legacy/client/features/chat/_ct-stories.tsx", 0],

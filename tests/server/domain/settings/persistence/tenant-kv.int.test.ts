@@ -36,12 +36,12 @@ test("prefix deletion treats URL underscores, percent signs and case as literal 
   const kv = createSettingsKvPort(databaseHandle(db), CATALOG_SETTINGS_PREFIX, () => clock.now());
   const prefix = `${CATALOG_SETTINGS_PREFIX}endpoint:http://Box_1/v%2F#`;
   const keys = [
-    prefix + "list",
-    prefix + "ollama",
+    `${prefix}list`,
+    `${prefix}ollama`,
     prefix.slice(0, -1),
-    prefix.replace("_", "X") + "list",
-    prefix.replace("%", "XX") + "list",
-    prefix.toLowerCase() + "list",
+    `${prefix.replace("_", "X")}list`,
+    `${prefix.replace("%", "XX")}list`,
+    `${prefix.toLowerCase()}list`,
   ];
   for (const key of keys) {
     await kv.write(key, key);
@@ -56,8 +56,8 @@ test("prefix deletion counts Unicode characters consistently for exact keys and 
   const kv = createSettingsKvPort(databaseHandle(db), CATALOG_SETTINGS_PREFIX, () => clock.now());
   for (const part of ["ascii", "😀"]) {
     const prefix = `${CATALOG_SETTINGS_PREFIX}${part}:`;
-    const matching = [prefix, prefix + "one", prefix + "two"];
-    const siblings = [prefix.slice(0, -1), prefix.slice(0, -1) + ";one"];
+    const matching = [prefix, `${prefix}one`, `${prefix}two`];
+    const siblings = [prefix.slice(0, -1), `${prefix.slice(0, -1)};one`];
     for (const key of [...matching, ...siblings]) {
       await kv.write(key, key);
     }

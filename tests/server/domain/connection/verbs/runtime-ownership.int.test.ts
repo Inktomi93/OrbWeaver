@@ -90,7 +90,7 @@ test("runtime operation capabilities retain stateful chat and concrete embedding
   expect(seeded?.model).toBe(space);
   expect(seeded?.vector.length).toBe(embedDimsOf(localSnapshot.capability));
   expect(precomputedSeedEmbedding(hash, space, "card-text", remoteSnapshot)).toBeNull();
-  expect(precomputedSeedEmbedding(sha256Hex(text + " changed"), space, "card-text", localSnapshot)).toBeNull();
+  expect(precomputedSeedEmbedding(sha256Hex(`${text} changed`), space, "card-text", localSnapshot)).toBeNull();
 });
 
 test("diagnostics resolve embedding rows under their canonical kind task", async () => {

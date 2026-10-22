@@ -219,7 +219,7 @@ test("no appearance flag = the account's real state (the shim is not installed a
 
 test("a failed real-response fallback rejects the appearance shim instead of reporting a usable route", async () => {
   let handler: ((route: Route) => Promise<void>) | undefined;
-  // eslint-disable-next-line orb/no-test-fabrication, @typescript-eslint/consistent-type-assertions -- Controlled Playwright routing exposes the real registered handler to distinguish primary and fallback failures. Ends when native routing fault injection supplies this pair.
+  // eslint-disable-next-line orb/no-test-fabrication -- Controlled Playwright routing exposes the real registered handler to distinguish primary and fallback failures. Ends when native routing fault injection supplies this pair.
   const context = {
     addInitScript: () => Promise.resolve(),
     route: (_glob: string, registered: (route: Route) => Promise<void>) => {
@@ -230,7 +230,7 @@ test("a failed real-response fallback rejects the appearance shim instead of rep
   await installSettingsShim(context, { appearance: { reducedMotion: false }, theme: null });
 
   const fallbackFailure = new Error("planted fallback failure");
-  // eslint-disable-next-line orb/no-test-fabrication, @typescript-eslint/consistent-type-assertions -- Primary fetch fails and final fallback rejects with its original error; no usable response may be reported. Ends when native routing fault injection supplies this pair.
+  // eslint-disable-next-line orb/no-test-fabrication -- Primary fetch fails and final fallback rejects with its original error; no usable response may be reported. Ends when native routing fault injection supplies this pair.
   const route = {
     request: () => ({ url: () => "http://localhost/api/trpc/settings.getUserSettings?batch=1" }),
     fetch: async () => Promise.reject(new Error("planted primary failure")),

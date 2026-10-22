@@ -119,6 +119,7 @@ const SUBJECT_ROWS: readonly Row[] = [
     name: "a raw SQL insert into users",
     path: `${ADMIN}/raw-insert.ts`,
     source:
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
       'import { sql } from "drizzle-orm";\nexport const w = (db, id, h, sub) => db.run(sql`insert into users (id, handle, handle_key, external_id) values (${id}, ${h}, ${h}, ${sub})`);\n',
     rules: [RAW],
   },
@@ -137,6 +138,7 @@ const SUBJECT_ROWS: readonly Row[] = [
   {
     name: "a namespace sql tag over a users update",
     path: `${ADMIN}/raw-namespace.ts`,
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
     source: 'import * as orm from "drizzle-orm";\nexport const w = (db, id, sub) => db.run(orm.sql`update users set external_id = ${sub} where id = ${id}`);\n',
     rules: [RAW],
   },
@@ -226,7 +228,9 @@ const SUBJECT_ROWS: readonly Row[] = [
     path: USERS,
     source:
       `${USERS_IMPORT}import { and, eq, isNull, sql } from "drizzle-orm";\n` +
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
       "export function insertSignupUserStatement(db, row, admission) {\n  return db.insert(users).select(sql`select ${row.id}, ${row.handle}, null, null, 'user', 1, ${row.passwordHash}, 'human', null, ${row.at}, ${row.at} where ${admission}`).returning({ id: users.id });\n}\n" +
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
       "export function insertPendingSignupUserStatement(db, row, admission) {\n  return db.insert(users).select(sql`select ${row.id}, ${row.handle}, ${row.externalId}, ${row.email} where changes() > 0 and ${admission}`).returning({ id: users.id });\n}\n" +
       "export function claimExternalIdIfUnbound(db, id, externalId, updatedAt) {\n  return db.update(users).set({ externalId, updatedAt }).where(and(eq(users.id, id), isNull(users.externalId))).returning({ id: users.id });\n}\n",
     rules: [],
@@ -309,6 +313,7 @@ const SUBJECT_ROWS: readonly Row[] = [
   {
     name: "a cast sql tag over a users update",
     path: `${ADMIN}/cast-tag.ts`,
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
     source: 'import { sql } from "drizzle-orm";\nexport const w = (db, sub) => db.run((sql as typeof sql)`update users set external_id = ${sub}`);\n',
     rules: [RAW],
   },

@@ -709,16 +709,16 @@ export const automationActionsSchema = z
  *  it, one home, the `automationActionSchema` / `pluginManifestSchema` posture — the interface can never drift
  *  from the runtime validator. */
 const triggerFactPayloadSchema = z.object({
-  // guest-marshalled predicate data crosses the sandbox as an unbranded structured-clone string. Ends if the membrane validates canonical brands before cloning.
+  // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
   chatId: z.string().nullable(),
   // messageCommitted / messageEdited / variantSelected / messageHidden
   message: z
     .object({
       id: z.string(),
       role: z.enum(MESSAGE_ROLES),
-      // guest-marshalled predicate data crosses the sandbox as an unbranded structured-clone string. Ends if the membrane validates canonical brands before cloning.
+      // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
       authorUserId: z.string().nullable(),
-      // guest-marshalled predicate data crosses the sandbox as an unbranded structured-clone string. Ends if the membrane validates canonical brands before cloning.
+      // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
       characterId: z.string().nullable(),
       seq: z.number(),
       content: z.string(),
@@ -732,7 +732,7 @@ const triggerFactPayloadSchema = z.object({
       // The provider REGISTRY id the turn ran on (inference program §5.3b — was the retired `source` word).
       provider: z.string(),
       model: z.string(),
-      // guest-marshalled predicate data crosses the sandbox as an unbranded structured-clone string. Ends if the membrane validates canonical brands before cloning.
+      // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
       speakerCharacterId: z.string().nullable(),
       abortReason: z.string().optional(), // turnAborted only
       automationDepth: z.number(), // 0 = human-initiated (the cascade guard reads this)
@@ -750,9 +750,9 @@ const triggerFactPayloadSchema = z.object({
    *  seat id is roster data a predicate has no way to resolve, and the useful facts are what and where. */
   reaction: z
     .object({
-      // guest-marshalled predicate data crosses the sandbox as an unbranded structured-clone string. Ends if the membrane validates canonical brands before cloning.
+      // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
       messageId: z.string(),
-      // guest-marshalled predicate data crosses the sandbox as an unbranded structured-clone string. Ends if the membrane validates canonical brands before cloning.
+      // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
       variantId: z.string(),
       emoji: z.string(),
       added: z.boolean(),
@@ -774,11 +774,11 @@ const triggerFactPayloadSchema = z.object({
    *  event always carries it), so a predicate needs only the `has(event.character)` guard law 1 already
    *  demands. */
   character: z.object({ id: z.string(), contentChanged: z.boolean() }).optional(),
-  // guest-marshalled predicate data crosses the sandbox as an unbranded structured-clone string. Ends if the membrane validates canonical brands before cloning.
+  // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
   assetId: z.string().optional(), // asset.created
-  // guest-marshalled predicate data crosses the sandbox as an unbranded structured-clone string. Ends if the membrane validates canonical brands before cloning.
+  // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
   personaId: z.string().optional(), // persona.updated (S7) — the persona whose CONTENT changed
-  // guest-marshalled predicate data crosses the sandbox as an unbranded structured-clone string. Ends if the membrane validates canonical brands before cloning.
+  // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
   worldBookId: z.string().optional(), // world-info.updated (S7) — the OWNING book of the changed row
 });
 export const triggerFactSchema = z.discriminatedUnion("bus", [

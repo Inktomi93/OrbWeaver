@@ -229,7 +229,7 @@ test("land --merged is all-or-nothing: an unknown id in a Closes trailer refuses
   const outcome = landMerged(root, TODAY);
   expect(outcome.written).toEqual([]);
   expect(outcome.refusals).toEqual([
-    "99: a merged commit closes it but no such item exists under docs/work/ — fix the trailer's id, then pnpm doc land 1 --evidence " + before,
+    `99: a merged commit closes it but no such item exists under docs/work/ — fix the trailer's id, then pnpm doc land 1 --evidence ${before}`,
   ]);
   expect(readFileSync(join(root, "docs/work/0001-a.md"), "utf8")).toContain("status: open\n");
   expect(git(root, "rev-parse", "HEAD")).toBe(before);

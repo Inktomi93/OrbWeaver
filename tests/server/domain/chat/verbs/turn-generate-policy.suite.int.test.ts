@@ -65,8 +65,8 @@ test.for([
   if (expectedName === undefined) {
     throw new Error("the generation matrix has no expected seat");
   }
-  await using h = await textRoom([expectedName + " answers."], {
-    characters: names.map((name) => createCharacterSchema.parse({ handle: name.toLowerCase(), name, description: name + " is present." })),
+  await using h = await textRoom([`${expectedName} answers.`], {
+    characters: names.map((name) => createCharacterSchema.parse({ handle: name.toLowerCase(), name, description: `${name} is present.` })),
     group: scene.group,
   });
   const [aria, bryn] = h.characters;
@@ -86,7 +86,7 @@ test.for([
   const outcome = await h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId });
   expect(outcome.aborted).toBe(false);
   expect(outcome.messages).toHaveLength(1);
-  expect(outcome.messages[0]).toMatchObject({ role: "assistant", characterId: selected.id, content: expectedName + " answers.", seq: 3 });
+  expect(outcome.messages[0]).toMatchObject({ role: "assistant", characterId: selected.id, content: `${expectedName} answers.`, seq: 3 });
   const canon = await h.root.db.select().from(messages).where(eq(messages.chatId, h.chatId)).orderBy(messages.seq);
   expect(canon.map(({ characterId }) => characterId)).toEqual([null, aria.id, selected.id]);
   expect(h.requests.filter((request) => new URL(request.url).pathname.endsWith("/chat/completions"))).toHaveLength(1);
@@ -157,11 +157,11 @@ test.for([
   if (expectedName === undefined) {
     throw new Error("the Smart generation matrix has no expected speaker");
   }
-  const reply = expectedName + " answers.";
+  const reply = `${expectedName} answers.`;
   await using f = await speakerRoom(
     { chat: [reply], picks: [scene.picks], utilityFailure: scene.failure },
     {
-      characters: scene.names.map((name) => createCharacterSchema.parse({ handle: name, name, description: "The traveller " + name + "." })),
+      characters: scene.names.map((name) => createCharacterSchema.parse({ handle: name, name, description: `The traveller ${name}.` })),
       group: { output: "per-speaker", policy: "smart", smartPicker: "utility", allowSelfResponses: false },
     },
     { ...SHIPPED_PROMPT_CACHE, enabled: false },

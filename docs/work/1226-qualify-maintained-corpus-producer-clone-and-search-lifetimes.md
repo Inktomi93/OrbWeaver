@@ -11,16 +11,16 @@ plan: test-foundation
 
 ## What
 
-Qualify the maintained corpus producer, clone, search and cleanup cases named in the runtime portion of work 1219. Preserve the exact cases and diagnose their fixture or product failure through existing testkit and production entries. The project-selection checker work remains parked outside this program.
+Qualify maintained corpus producer, clone, search and cleanup cases through existing testkit and production entries. Diagnose fixture or product failures without expanding checker machinery.
 
 ## Why
 
-These are actual corpus and testkit runtime failures, separate from the stopped tooling and semantic-engine projects.
+Corpus-based replacements depend on correct ownership, published search results and joined resource lifetimes.
 
 ## Done when
 
-The named maintained corpus cases complete with correct ownership, outputs and joined lifetimes. Preserve every meaningful assertion and identify the cause before changing timing. Do not expand checkers or use private owner data.
+The named suites complete with correct ownership, outputs and joined lifetimes. Preserve meaningful assertions and diagnose failures before changing timing. Use synthetic corpus data.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Run `tests/support/node/corpus-seed.int.test.ts`, `corpus-fixture.int.test.ts`, `corpus-library-clone.int.test.ts`, `corpus-search.int.test.ts`, `corpus-search-publication.int.test.ts` and `corpus-fixture-lifetime.int.test.ts`. All paths share `tests/support/node/`.

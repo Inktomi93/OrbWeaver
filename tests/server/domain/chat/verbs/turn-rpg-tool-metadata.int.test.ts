@@ -80,7 +80,7 @@ test("a native installed guest preserves supplied display and true or false repl
   const sent = await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Execute each of the three offered reports." });
   expect(sent.aborted).toBe(false);
   const assistant = sent.messages.find((message) => message.role === "assistant");
-  if (assistant === undefined || assistant.selectedVariantId === null) {
+  if (assistant === undefined) {
     throw new Error("the native tool execution did not select an assistant variant");
   }
   expect(assistant.content).toBe("All three native guest handlers returned.");

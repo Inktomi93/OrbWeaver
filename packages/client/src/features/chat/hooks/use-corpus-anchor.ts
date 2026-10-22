@@ -58,5 +58,5 @@ export function useCorpusAnchor({
     frame = requestAnimationFrame(reveal);
     return (): void => cancelAnimationFrame(frame);
   }, [moment, messages, anchorMessageId, outcome, listHandleRef]);
-  return moment !== null && moment.consumed && moment.request !== consumedOnMount && moment.announcement !== null ? OUTCOME_TEXT[moment.announcement] : "";
+  return moment?.consumed === true && moment.request !== consumedOnMount && moment.announcement !== null ? OUTCOME_TEXT[moment.announcement] : "";
 }

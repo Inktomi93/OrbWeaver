@@ -72,7 +72,7 @@ export interface ExtractionPromptContext {
  *  `no-circular` cycle. The precedence rule + the splice are the SAME code either way — they live on the shape
  *  half precisely so a domain table can call them (see `#prose-slot`'s resolution-primitives header). */
 function rpgProse(ctx: ExtractionPromptContext, id: keyof typeof RPG_PROSE_SLOTS, tokens?: Readonly<Record<string, string>>): string {
-  return spliceProseTokens(resolveProseFrom(RPG_PROSE_SLOTS[id], (ctx.prose ?? {})[id]).text, tokens);
+  return spliceProseTokens(resolveProseFrom(RPG_PROSE_SLOTS[id], ctx.prose?.[id]).text, tokens);
 }
 
 /** One row per model-writable extraction plane: the schema field (the ratchet key), its teaching-fragment

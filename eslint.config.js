@@ -531,7 +531,7 @@ const HEX_COLOR = String.raw`-\[#[0-9a-fA-F]{3,8}\]`;
 
 const VIEWPORT_CLASS = String.raw`(?:(?:max-|min-)?(?:sm|md|lg|xl|2xl)|(?:min|max)-\[[^\s\]]+\]):`;
 
-const POINTER_CLASS = String.raw`(?:any-)?pointer-(?:coarse|fine):`;
+const POINTER_CLASS = "(?:any-)?pointer-(?:coarse|fine):";
 
 const CAPABILITY_MEDIA_CLASS = String.raw`\[@media\([^\s)]*(?:any-pointer|pointer|hover):[^\s)]*\)\]:`;
 
@@ -4867,7 +4867,7 @@ const NATIVE_CONFIG = [
     files: [".claude/**", "tooling/**", "tests/**", "scripts/**"],
     rules: { "regexp/no-super-linear-backtracking": "off" },
   },
-  { files: SOURCE, ignores: ["**/*.d.ts"], languageOptions: { parserOptions: { projectService: true, tsconfigRootDir: ROOT } } },
+  { files: SOURCE, languageOptions: { parserOptions: { projectService: true, tsconfigRootDir: ROOT } } },
   {
     files: SOURCE,
     ignores: ["**/*.d.ts"],

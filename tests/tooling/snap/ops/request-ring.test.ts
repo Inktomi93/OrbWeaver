@@ -19,7 +19,7 @@ function fakePage(): EventEmitter & Page {
 }
 
 function fakeRequest(spec: FakeRequestSpec): Request {
-  // eslint-disable-next-line orb/no-test-fabrication, @typescript-eslint/consistent-type-assertions -- Controlled Request events expose the six consumed methods to measure pending sizes, retention and eviction. Ends when native protocol injection supplies those cases.
+  // eslint-disable-next-line orb/no-test-fabrication -- Controlled Request events expose the six consumed methods to measure pending sizes, retention and eviction. Ends when native protocol injection supplies those cases.
   return {
     method: () => "GET",
     url: () => spec.url,
@@ -38,7 +38,7 @@ function fakeRequest(spec: FakeRequestSpec): Request {
 }
 
 function fakeResponse(request: Request, body: string, contentType: string): Response {
-  // eslint-disable-next-line orb/no-test-fabrication, @typescript-eslint/consistent-type-assertions -- Controlled Response methods expose deferred/rejected bodies and exact content/budget limits, not successful browser behavior. Ends when native protocol injection supplies those cases.
+  // eslint-disable-next-line orb/no-test-fabrication -- Controlled Response methods expose deferred/rejected bodies and exact content/budget limits, not successful browser behavior. Ends when native protocol injection supplies those cases.
   return {
     request: () => request,
     url: () => request.url(),

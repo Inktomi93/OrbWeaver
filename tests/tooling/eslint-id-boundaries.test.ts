@@ -90,6 +90,7 @@ rows(FAKE_DISABLED, CLIENT, [
   ["an unresolvable door cannot hide the sentinel", 'import { castId } from "./nowhere.ts";\nexport const x = castId("");\n', 1],
   ["nonempty id", 'import { castId } from "@orb/kit/ids";\nexport const x = castId("chat_123");\n', 0],
   ["dynamic argument", 'import { castId } from "@orb/kit/ids";\nexport const x = castId(raw);\n', 0],
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   ["template with a substitution", 'import { castId } from "@orb/kit/ids";\nexport const x = castId(`${raw}`);\n', 0],
   ["empty argument list", 'import { castId } from "@orb/kit/ids";\nexport const x = castId();\n', 0],
   ["unrelated helper", 'export const x = other("");\n', 0],

@@ -31,7 +31,7 @@ test("a real game's default macro reaches public SEND without a preset declarati
   const sent = await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Hello, keeper." });
   expect(sent.aborted).toBe(false);
   const assistant = sent.messages.find((message) => message.role === "assistant");
-  if (assistant === undefined || assistant.selectedVariantId === null) {
+  if (assistant === undefined) {
     throw new Error("the public SEND did not select an assistant variant");
   }
   await h.root.settleBackground();

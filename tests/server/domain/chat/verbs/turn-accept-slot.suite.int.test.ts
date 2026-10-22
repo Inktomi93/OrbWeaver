@@ -18,7 +18,7 @@ function presetReadFault(): { readonly wrap: LibSqlWrap; readonly arm: () => voi
     const execute = client.execute.bind(client);
     client.execute = async (statement: Parameters<typeof client.migrate>[0][number], args?: Parameters<typeof execute>[1]): ReturnType<typeof execute> => {
       const text = typeof statement === "string" ? statement : statement.sql;
-      if (armed && /from "presets"/u.test(text)) {
+      if (armed && text.includes('from "presets"')) {
         armed = false;
         failures.push(text);
         throw new Error("physical preset read unavailable");

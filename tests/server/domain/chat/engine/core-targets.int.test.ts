@@ -26,7 +26,7 @@ test.for(POSTFIX_ROWS)("the saved $label continuation delimiter survives native 
   });
   const generated = await h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId });
   const target = generated.messages[0];
-  if (target === undefined || target.selectedVariantId === null) {
+  if (target === undefined) {
     throw new Error("the actual continuation has no selected target");
   }
   const continued = await h.root.services.chat.continueTurn({ principal: h.owner, chatId: h.chatId, messageId: target.id });

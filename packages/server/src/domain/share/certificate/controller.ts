@@ -40,6 +40,7 @@ export function createCertificateController(deps: CertificateControllerDeps): Ow
   // One order at a time: an order from an older generation still holds the challenge port until its authority answers.
   let ordering: Promise<void> = Promise.resolve();
   let orderAbort = new AbortController();
+  // biome-ignore lint/suspicious/noConfusingVoidType: one settlement owner tracks status-returning enable and no-result lifecycle operations.
   const pending = new Set<Promise<IpCertificateStatus | void>>();
   let disposed = false;
   let disposal: Promise<void> | undefined;
@@ -49,6 +50,7 @@ export function createCertificateController(deps: CertificateControllerDeps): Ow
     return setting;
   }
 
+  // biome-ignore lint/suspicious/noConfusingVoidType: lifecycle callbacks return Promise<void>, not the narrower Promise<undefined>.
   function track<T extends IpCertificateStatus | void>(run: () => Promise<T>): Promise<T> {
     if (disposed) {
       return Promise.reject(new Error("The certificate controller is disposed"));

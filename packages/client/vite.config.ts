@@ -413,14 +413,13 @@ async function withCompilerTransformCache(pluginPromise: ReturnType<typeof babel
 /**
  * The `/@fs/` deny list — what the dev server refuses to read out of the workspace root.
  *
- * `server.fs.allow` is the whole workspace root (the monorepo REQUIRES it — client imports @orb/* SOURCE
+ * `server.fs.allow` is the whole workspace root (the monorepo REQUIRES it — client imports `@orb/*` source
  * from sibling packages), so `/@fs/` would otherwise hand out every file under it. Setting `deny` REPLACES
  * Vite's built-in default, so the first block re-lists that default floor verbatim
  * (`.env`/keys/certs/.npmrc/.git — Vite 8.1 default) and the rest is orbweaver's own:
  *   • `credentials_key` and `session_secret` — infra/crypto's generated boot secrets, under whatever data
  *     root DATA_DIR names (mode 0o600), so ANYWHERE under the workspace root, not only `data/` (the e2e and
- *     snap stages keep theirs under `.cache/`, and the compose secrets overlay's files sit under `docker/
- *     secrets/`). NOT covered by the default `*.{…,key,…}` glob — that matches a `.key` EXTENSION. Leaking
+ *     snap stages keep theirs under `.cache/`, and the compose secrets overlay's files sit under `docker/secrets/`). NOT covered by the default `*.{…,key,…}` glob — that matches a `.key` EXTENSION. Leaking
  *     the first decrypts every stored provider API key; the second is the password and session pepper.
  *   • `*.db` (+ `-wal`/`-shm`) / `*.sqlite*` — the SQLite database, ANYWHERE under the root (a test
  *     fixture db, a package-local scratch db), which is why these stay globstar-prefixed.

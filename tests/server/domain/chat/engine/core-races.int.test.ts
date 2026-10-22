@@ -155,7 +155,7 @@ test("a physical provider error named AbortError remains a fault when the actual
     }),
   );
   const [result] = await Promise.allSettled([h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: character.id })]);
-  expect(result?.status).toBe("rejected");
+  expect(result.status).toBe("rejected");
   if (observed === undefined) {
     throw new Error("the native provider boundary was never reached");
   }

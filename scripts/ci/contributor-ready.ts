@@ -60,7 +60,7 @@ if (process.platform === "win32") {
   const script = join(RUNNER_TEMP, "contributor-resources.ps1");
   writeFileSync(
     script,
-    String.raw`
+    `
 $ErrorActionPreference = "Stop"
 for ($sample = 0; $sample -lt 44; $sample++) {
   $memory = Get-CimInstance Win32_OperatingSystem

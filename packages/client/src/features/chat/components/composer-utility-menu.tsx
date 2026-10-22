@@ -191,7 +191,7 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
         {/* STORY — game-only (owner: "game steers go in the magic wand"). The six plot steers nest under one
             submenu (side-eye P1-B — no more flat icon-less dump). Plot steers are APPLICABILITY-gated on
             plotProgression, so a game whose plot progression is off contributes no Story group at all. */}
-        {game !== undefined && game.plotAvailable ? (
+        {game?.plotAvailable === true ? (
           <>
             <MenuGroup>
               <MenuGroupLabel>Story</MenuGroupLabel>

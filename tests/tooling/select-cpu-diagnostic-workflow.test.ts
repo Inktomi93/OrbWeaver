@@ -66,6 +66,7 @@ test("E2E startup dispatch is bounded, immutable and retains failed global setup
   const [checkout, setup, media, showcase, startup, upload] = job.steps;
   expect(job.steps).toHaveLength(6);
   expect(checkout?.uses).toMatch(/^actions\/checkout@[a-f0-9]{40}$/u);
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   expect(checkout?.with).toEqual({ ref: "${{ github.sha }}", "persist-credentials": false });
   expect(setup?.uses).toBe("./.github/actions/setup");
   expect(setup?.with).toEqual({ browsers: "true" });
@@ -77,6 +78,7 @@ test("E2E startup dispatch is bounded, immutable and retains failed global setup
   expect(showcase?.if).toBeUndefined();
   expect(startup?.run).toBe('pnpm e2e "$E2E_SPEC" --project="$E2E_PROJECT" --retries=0');
   expect(startup?.if).toBeUndefined();
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   expect(upload?.if).toBe("${{ !cancelled() }}");
   for (const failure of [false, true]) {
     for (const canceled of [false, true]) {
@@ -84,6 +86,7 @@ test("E2E startup dispatch is bounded, immutable and retains failed global setup
     }
   }
   expect(upload?.uses).toBe("actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a");
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   expect(upload?.with).toEqual({ name: "reports-e2e-startup-diagnostic-${{ matrix.project }}", path: "reports/\ntest-results/\n", "retention-days": 7 });
   expect(job.steps.some((step) => step.name?.includes("ORB_CI_QUALIFICATION_GENERATION") === true)).toBe(false);
   expect(job.steps.some((step) => step.uses?.startsWith("actions/cache/") === true)).toBe(false);

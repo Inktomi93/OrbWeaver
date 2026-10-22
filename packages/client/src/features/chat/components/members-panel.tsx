@@ -142,6 +142,7 @@ function moveWithinRow(key: string, active: Element | null): boolean {
     return false;
   }
   const controls = rowControls(active);
+  // biome-ignore lint/complexity/useIndexOf: indexOf requires HTMLElement, but the DOM focus candidate is Element | null.
   const index = controls.findIndex((el) => el === active);
   const next = controls[index + step];
   if (index < 0 || next === undefined) {

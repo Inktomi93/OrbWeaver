@@ -51,12 +51,14 @@ const SUPPORTED = [
 const CARRIERS = [
   '<div className="CLASS" />;',
   '<div className={"CLASS"} />;',
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   "<div className={`CLASS ${dynamic} CLASS ${other} CLASS`} />;",
   'cn("CLASS");',
   'cn(["CLASS"], { "CLASS": enabled });',
   'clsx("CLASS", ["CLASS"], { "CLASS": enabled });',
   'cva("CLASS", { variants: { size: { large: "CLASS" } }, compoundVariants: [{ size: "large", class: "CLASS" }] });',
   'tv({ base: "CLASS", slots: { card: "CLASS" }, variants: { size: { large: "CLASS" } }, compoundVariants: [{ size: "large", class: "CLASS" }], compoundSlots: [{ slots: ["card"], class: "CLASS" }] });',
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   "tv({ base: `CLASS ${dynamic} CLASS ${other} CLASS` });",
 ];
 

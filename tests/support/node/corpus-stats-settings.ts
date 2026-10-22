@@ -134,6 +134,7 @@ async function read<P extends TrpcProcedurePath>(input: TrpcInput<P>, invoke: (i
   return { input, output: await invoke(input) };
 }
 
+// biome-ignore lint/suspicious/noConfusingVoidType: The fixture preserves native void-returning contracts; undefined is not a substitute for void.
 async function refused(operation: Promise<object | void>): Promise<Error | undefined> {
   try {
     await operation;

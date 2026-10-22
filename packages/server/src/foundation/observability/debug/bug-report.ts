@@ -266,7 +266,7 @@ function noteMarkdown(record: BugReportRecord, stem: string): string {
     // cheapest of the three discoverability homes and the only one that travels WITH the evidence.
     "---",
     "",
-    "Every report in this directory: `pnpm bug:reports` · this one: `pnpm bug:reports " + record.id.slice(0, ID_PREFIX_HINT) + "`",
+    `Every report in this directory: \`pnpm bug:reports\` · this one: \`pnpm bug:reports ${record.id.slice(0, ID_PREFIX_HINT)}\``,
     "",
   ]
     .filter((line, index, lines) => !(line === "" && lines[index - 1] === ""))

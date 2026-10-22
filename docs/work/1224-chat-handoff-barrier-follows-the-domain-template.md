@@ -11,16 +11,16 @@ plan: test-foundation
 
 ## What
 
-Hosted maintained node qualification reports a loose handoff-barrier.ts at the chat domain root. The source implements D332 room-work coordination, while the closed root vocabulary excludes this file. Evidence: reports/review/ci-1215-current/run-39620796838/.
+`packages/server/src/domain/chat/handoff-barrier.ts` implements room-work coordination at the domain root, outside the domain template.
 
 ## Why
 
-The production implementation violates the domain template and prevents maintained node qualification.
+Room-work coordination needs a domain home that preserves the documented dependency direction.
 
 ## Done when
 
-Move the implementation to its lawful domain home, update actual imports and subject declarations, and preserve handoff settlement behavior. Qualify the layout suite, affected native compiler programs and matching handoff controls without adding a root allowance.
+Move the implementation to its lawful domain home and update actual imports. Preserve handoff settlement through affected behavioral tests and native compiler checks.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The implementation remains at the domain root. File placement is not a reason to rebuild a custom layout checker.

@@ -923,8 +923,7 @@ interface PluginHostV1 {
      *  There is no `orb` inside a frame. It reaches the host by
      *  `parent.postMessage({ orbPluginFrameCall: { callId, fn, args } }, "*")`, where `fn` is one of the
      *  functions `ui.host` proxies for a scripted surface, `args` is that function's opaque wire input, and the call is
-     *  re-gated against this plugin's grants. The answer arrives as `{ orbPluginFrameResult: { callId, ok,
-     *  value } }` or, on any refusal, `{ callId, ok: false, error: "refused" }`, with at most 4 calls in flight.
+     *  re-gated against this plugin's grants. The answer arrives as `{ orbPluginFrameResult: { callId, ok, value } }` or, on any refusal, `{ callId, ok: false, error: "refused" }`, with at most 4 calls in flight.
      *  Frame code must check that `event.source === parent` before obeying a received message, because other
      *  frames on the same page can post to it. See the pocket-arcade example. capability: ui.frame */
     registerFrame: (def: { id: string; anchor: PluginSurfaceAnchor; title: string; html: string; css?: string }) => void;

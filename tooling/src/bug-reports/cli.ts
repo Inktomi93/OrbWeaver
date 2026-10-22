@@ -20,7 +20,7 @@ async function main(): Promise<number> {
     throw new UsageError(USAGE);
   }
   const ref = args[0];
-  if (ref !== undefined && ref.startsWith("-")) {
+  if (ref?.startsWith("-") === true) {
     // There are no flags on purpose (list + show is the whole surface) — so a flag-looking argument is a
     // misuse, never a ref that happens to start with a dash.
     throw new UsageError(`${USAGE} — this reader takes no flags`);

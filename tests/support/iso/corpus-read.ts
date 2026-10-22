@@ -26,6 +26,7 @@ export interface CorpusCapture<Input, Output> {
 }
 
 type Capture<Input, Output> = CorpusCapture<Input, TrpcWire<Output>>;
+// biome-ignore lint/suspicious/noConfusingVoidType: The fixture preserves native void-returning contracts; undefined is not a substitute for void.
 type InputlessCapture<Output> = Capture<void | undefined, Output>;
 
 /** The finite captured procedures, derived from their production input and output schemas. */

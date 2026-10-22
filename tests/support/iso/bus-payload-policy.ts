@@ -5,6 +5,7 @@ import type { UserCredentialId } from "@orb/kit/ids";
 
 const FORBIDDEN_WORDS = ["secret", "token", "apikey", "password", "credential", "key"] as const;
 type ForbiddenWord = (typeof FORBIDDEN_WORDS)[number];
+// biome-ignore lint/suspicious/noConfusingVoidType: The fixture preserves native void-returning contracts; undefined is not a substitute for void.
 type Scalar = string | number | boolean | bigint | symbol | null | undefined | void;
 const ECONOMICS_FIELDS = ["tokensIn", "tokensOut", "cacheReadTokens", "cacheWriteTokens"] as const;
 const VIEW_EVENTS = ["messageCommitted", "messageEdited", "messageHidden", "variantSelected", "reasoningEdited", "reasoningCleared"] as const;

@@ -38,7 +38,7 @@
     "trace:tail": "node tooling/src/render-trace/cli.ts tail",
     "trace:fire": "node tooling/src/render-trace/cli.ts fire",
     "sandbox": "bash scripts/dev/sandbox.sh",
-    "lint": "biome check . --diagnostic-level=error",
+    "lint": "biome check . --error-on-warnings",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "format:docs": "node tooling/src/doc/cli.ts format --write",

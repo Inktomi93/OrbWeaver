@@ -108,6 +108,7 @@ for (const [operation, unselected] of [
     await caller.chat.setGroupConfig({ chatId, config: { output: "per-speaker", cardScope: "scoped", policy: "list" } });
     await seedRpgGame(root.db, root.services.rpg.createGame, { principal: actors.owner, chatId, mode: "lite" });
     await caller.rpg.updateConfig({ chatId, extractionMode: "cheap" });
+    // biome-ignore lint/suspicious/noConfusingVoidType: The fixture preserves native void-returning contracts; undefined is not a substitute for void.
     let mutation: Promise<void | MessageView> | undefined;
     let gate: ReturnType<typeof held.hold> | undefined;
     try {

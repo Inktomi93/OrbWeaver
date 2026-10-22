@@ -116,10 +116,10 @@ const CASES: readonly SpeakerCase[] = [
 
 test.for(CASES)("$title", async (scene) => {
   await using h = await textRoom(
-    scene.expected.map((_, index) => "Reply " + String(index)),
+    scene.expected.map((_, index) => `Reply ${String(index)}`),
     {
       server: { random: () => 0.99 },
-      characters: scene.names.map((name) => createCharacterSchema.parse({ handle: name, name, description: name + " has a distinct public card." })),
+      characters: scene.names.map((name) => createCharacterSchema.parse({ handle: name, name, description: `${name} has a distinct public card.` })),
       group: { output: "per-speaker", ...scene.group },
     },
   );
@@ -129,7 +129,7 @@ test.for(CASES)("$title", async (scene) => {
       throw new Error("the canonical root did not create the prior speaker");
     }
     await seedMessage(h.root.db, { chatId: h.chatId, seq: 1, role: "user", authorUserId: h.owner.userId, content: "hello" }, h.root.idSource);
-    await seedMessage(h.root.db, { chatId: h.chatId, seq: 2, role: "assistant", characterId: speaker.id, content: speaker.name + " answers" }, h.root.idSource);
+    await seedMessage(h.root.db, { chatId: h.chatId, seq: 2, role: "assistant", characterId: speaker.id, content: `${speaker.name} answers` }, h.root.idSource);
   }
   const outcome = await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: scene.content });
   expect(outcome.aborted).toBe(false);

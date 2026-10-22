@@ -82,7 +82,7 @@ export function ConfigCollectionLanding({ group }: { readonly group: CollectionG
   const [filter, setFilter] = useState("");
   // A census that FAILED and produced no number. A failed REFETCH over a warm cache still has a number, and
   // that arm keeps stating it — the pane says "couldn't load" only when it genuinely has nothing to say.
-  if (census !== undefined && census.failed && count === undefined) {
+  if (census?.failed === true && count === undefined) {
     return (
       <Stack data-collection={group.id} data-slot="config-collection-landing" gap="section">
         {/* The library still NAMES itself while its census is broken: the reader navigated here on purpose,

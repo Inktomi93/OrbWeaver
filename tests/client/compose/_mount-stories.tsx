@@ -121,12 +121,13 @@ export function RawTrpcObservationStory({ backgroundUrl, videoUrl }: { readonly 
     <CtIsolation subject="Raw tRPC observations" isolates="isolates the protocol recorder from domain execution and server parsing">
       <Stack>
         <Button
-          onClick={(): void => {
-            void Promise.allSettled([
+          onClick={async (): Promise<void> => {
+            await Promise.allSettled([
               client.settings.addExternalBackground.mutate({ url: backgroundUrl }),
               client.databank.scrapeYoutube.mutate({ url: videoUrl }),
               client.settings.resetUserConfig.mutate(),
-            ]).then(() => setSettled(true));
+            ]);
+            setSettled(true);
           }}
         >
           Send observed batch

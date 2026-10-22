@@ -543,16 +543,13 @@ export async function routeTrpc<const TRoutes extends object>(
 
   return {
     // These observations preserve client bytes, including malformed inputs; parsing would add defaults or transform them.
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Procedure-keyed raw input history is unvalidated and unnormalized; parsing would alter malformed/default/transform-sensitive bytes. Ends when a native typed wire recorder preserves these observations.
     inputs: <P extends TrpcProcedurePath>(proc: P): TrpcInput<P>[] => (calls.get(proc) ?? []) as TrpcInput<P>[],
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- The last observation is correlated by procedure path, not validated or normalized by a server parser. Ends when a native typed wire recorder preserves these observations.
     lastInput: <P extends TrpcProcedurePath>(proc: P): TrpcInput<P> | undefined => (calls.get(proc) ?? []).at(-1) as TrpcInput<P> | undefined,
     requireLastInput: <P extends TrpcProcedurePath>(proc: P): TrpcInput<P> => {
       const recorded = calls.get(proc) ?? [];
       if (recorded.length === 0) {
         throw new Error(`routeTrpc: ${proc} has not been called`);
       }
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- The nonempty procedure-keyed history proves an observation exists, not that its raw bytes are validated or normalized. Ends when a native typed wire recorder preserves these observations.
       return recorded.at(-1) as TrpcInput<P>;
     },
     count: (proc): number => (calls.get(proc) ?? []).length,

@@ -88,7 +88,7 @@ export const tagRouter = t.router({
       z.object({
         tagId: typeIdSchema(ID_PREFIX.tag),
         targetType: tagTargetTypeSchema,
-        // polymorphic ref — targetId is a plain wire string, branded per targetType at the junction dispatch (tag params).
+        // eslint-disable-next-line orb/no-raw-id -- Polymorphic wire reference; the targetType dispatch brands it at the owner-gated junction.
         targetId: z.string().min(1),
         status: tagStatusSchema.optional(),
       }),
@@ -108,7 +108,7 @@ export const tagRouter = t.router({
       z.object({
         tagId: typeIdSchema(ID_PREFIX.tag),
         targetType: tagTargetTypeSchema,
-        // polymorphic ref — targetId is a plain wire string, branded per targetType at the junction dispatch (tag params).
+        // eslint-disable-next-line orb/no-raw-id -- Polymorphic wire reference; the targetType dispatch brands it at the owner-gated junction.
         targetId: z.string().min(1),
       }),
     )

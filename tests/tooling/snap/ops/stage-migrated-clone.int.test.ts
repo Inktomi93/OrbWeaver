@@ -34,10 +34,7 @@ async function olderSource(
   await writeFile(join(migrations, "meta/_journal.json"), JSON.stringify({ ...journal, entries: journal.entries.slice(0, 1) }));
   await copyFile(join(SHIPPED_MIGRATIONS, "0000_baseline.sql"), join(migrations, "0000_baseline.sql"));
   if (divergent) {
-    await writeFile(
-      join(migrations, "0000_baseline.sql"),
-      (await readFile(join(migrations, "0000_baseline.sql"), "utf8")) + "\n-- divergent fixture baseline\n",
-    );
+    await writeFile(join(migrations, "0000_baseline.sql"), `${await readFile(join(migrations, "0000_baseline.sql"), "utf8")}\n-- divergent fixture baseline\n`);
   }
   const layout = resolveDataLayout({ ["DATA_DIR"]: join(parent, "source") });
   const source = await createDb(layout.databaseUrl);

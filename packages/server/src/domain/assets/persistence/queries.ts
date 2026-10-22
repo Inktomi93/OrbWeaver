@@ -137,7 +137,7 @@ export async function storeBlob(db: Db, cas: Cas, input: StoreBlobInput): Promis
       size: put.size,
       hash: put.hash,
       // Computed once here so the grid + variant pipeline never re-sniff.
-      animated: sniffed !== null && sniffed.animated,
+      animated: sniffed?.animated ?? false,
       // Header-parsed dimensions so the render side reserves the true box before the bytes arrive (#625).
       // NULL for a non-image or an unparseable/truncated header — the renderer's `auto 16 / 9` fallback.
       width: sniffed?.width ?? null,

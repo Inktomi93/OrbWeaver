@@ -118,6 +118,7 @@ const CASES: readonly (readonly [name: string, rule: string, path: string, sourc
     "egress pass: reassigned local named fetch holding fresh functions",
     EGRESS,
     VERB,
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
     'let fetch = (url: string): string => url;\nfetch = (url: string): string => `${url}/`;\nexport const a = fetch("https://x");\n',
     0,
   ],
@@ -610,6 +611,7 @@ const CASES: readonly (readonly [name: string, rule: string, path: string, sourc
     "env: process laundered through a tagged template",
     ENV,
     HUB,
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
     "declare function tag(s: TemplateStringsArray, p: unknown): unknown;\nexport const x = tag`${process}`;\n",
     1,
   ],
@@ -633,6 +635,7 @@ const CASES: readonly (readonly [name: string, rule: string, path: string, sourc
     "env pass: the process tested, compared and stringified",
     ENV,
     HUB,
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
     'export const a = typeof process === "object" && process !== null && "env" in process ? `${process}` : String(process.pid);\nif (process) {\n  process.exitCode = 0;\n}\n',
     0,
   ],

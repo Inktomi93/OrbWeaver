@@ -20,6 +20,7 @@ test("Docker install checks out the immutable published release source and runs 
   const workflow = workflowSchema.parse(parse(readFileSync(join(repoRoot, ".github/workflows/install.yml"), "utf8")));
   const docker = workflow.jobs["docker"];
   const checkout = docker?.steps.find((step) => step.uses?.startsWith("actions/checkout@") === true);
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   expect(checkout?.with?.["ref"]).toBe("${{ steps.release.outputs.tag }}");
   const proof = docker?.steps.find((step) => step.id === "image");
   expect(proof?.run).toContain("git rev-parse HEAD");

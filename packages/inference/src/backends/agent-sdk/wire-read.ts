@@ -130,6 +130,7 @@ function readSystem(message: unknown, subtype: string | undefined): void {
     case "model_refusal_no_fallback":
       refusalSchema.parse(message);
       break;
+    // biome-ignore lint/complexity/noUselessSwitchCase: the exhaustive discriminator policy requires the absent SDK subtype to be explicit.
     case undefined:
     default:
       return;

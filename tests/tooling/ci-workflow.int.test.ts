@@ -21,6 +21,7 @@ test("published-image scans cannot turn registry failure into a successful skip"
   const upload = steps.find((step) => step.uses?.startsWith("github/codeql-action/upload-sarif@") === true);
   expect(scan).toBeDefined();
   expect(scan?.if).toBeUndefined();
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   expect(scan?.with).toMatchObject({ "image-ref": "${{ env.IMAGE }}", severity: "HIGH,CRITICAL", "ignore-unfixed": true, output: "trivy.sarif" });
   expect(upload).toBeDefined();
   expect(upload?.if).toBeUndefined();
@@ -82,9 +83,13 @@ test("setup has one cache owner and only saves successful misses from trusted tr
     expect(save.if).toBe(`${browserOnly}steps.pnpm.outputs.save == 'true' && steps.${restore.id}.outputs.cache-hit != 'true'`);
     expect(steps.indexOf(save)).toBeGreaterThan(installIndex);
   }
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   expect(restores[0]?.with?.["path"]).toBe("${{ steps.pnpm.outputs.paths }}");
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   expect(restores[0]?.with?.["key"]).toBe("pnpm-${{ runner.os }}-${{ runner.arch }}-${{ steps.pnpm.outputs.version }}-${{ hashFiles('pnpm-lock.yaml') }}");
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   expect(restores[0]?.with?.["restore-keys"]).toBe("pnpm-${{ runner.os }}-${{ runner.arch }}-${{ steps.pnpm.outputs.version }}-\n");
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   expect(restores[1]?.with?.["key"]).toBe("playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}");
   expect(restores[1]?.with?.["restore-keys"]).toBeUndefined();
 });

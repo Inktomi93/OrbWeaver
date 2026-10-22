@@ -119,7 +119,7 @@ test("swipe: turnAccepted(targetMessageId set) → turnStarted → delta → mes
 
 test("auto-mode chain: each chained iteration re-opens the slot — … turnCompleted → turnAccepted → turnStarted …", async () => {
   await using h = await goldenRoom(["one", "two", "three"], {
-    characters: ["aria", "bryn"].map((name) => createCharacterSchema.parse({ handle: name, name, description: name + " replies in roster order." })),
+    characters: ["aria", "bryn"].map((name) => createCharacterSchema.parse({ handle: name, name, description: `${name} replies in roster order.` })),
     group: { output: "per-speaker", policy: "list", autoMode: true, autoModeMaxTurns: 1, autoModeDelayMs: 0 },
   });
   const { events } = await observeOperation(h, async () => await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "go" }));

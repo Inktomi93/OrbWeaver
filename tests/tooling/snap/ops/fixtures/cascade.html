@@ -17,11 +17,17 @@
       #animation { color: black; animation: pulse 100s linear infinite; }
       #transition { color: red; transition: color 100s linear; }
       #transition.on { color: blue; }
-      #important { color: red !important; }
+      #important {
+        /* biome-ignore lint/complexity/noImportantStyles: Verifies that an important declaration wins over a normal declaration. */
+        color: red !important;
+      }
       .important-loser { color: blue; }
       #longhand { margin: 1px; margin-left: 4px; }
       #owner-wins, #owner-loses { color: red; }
-      #owner-loses { color: red !important; }
+      #owner-loses {
+        /* biome-ignore lint/complexity/noImportantStyles: Verifies that normal owner CSS loses to an important application declaration. */
+        color: red !important;
+      }
       #source-order { color: red; }
       #mixed-parent, #null-only-parent { background-color: red; }
       #mixed { background-color: blue; }

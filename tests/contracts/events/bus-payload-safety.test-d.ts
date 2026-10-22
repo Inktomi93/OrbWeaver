@@ -48,6 +48,7 @@ test("finite optional mapped tuple and conditional values remain admissible", ()
   expectTypeOf<BusPayloadFailure<{ type: "ok"; payload: FiniteRemap }>>().toBeNever();
   type FiniteConditional<T> = T extends true ? { readonly count: number } : { readonly text: string };
   expectTypeOf<BusPayloadFailure<{ type: "ok"; payload: FiniteConditional<true | false> }>>().toBeNever();
+  // biome-ignore lint/suspicious/noConfusingVoidType: The fixture preserves native void-returning contracts; undefined is not a substitute for void.
   expectTypeOf<BusPayloadFailure<{ type: "ok"; value: ChatId; maybe?: null | boolean; money: bigint; tag: symbol; nothing: void }>>().toBeNever();
 });
 

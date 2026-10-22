@@ -1,9 +1,9 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-20
+updated: 2026-10-22
 priority: P3
-plan: test-mirror
+plan: test-foundation
 ---
 
 # e2e specs assert copy text instead of production constants
@@ -18,7 +18,7 @@ Spine-Testing section 10 imports labels from their production home; a copy liter
 
 ## Done when
 
-Each spec locates by test id, role or the production label constant; no e2e spec asserts copy text.
+Selected specs locate controls by test id, role or the production label constant. Assertions still prove behavior, not only that a label renders. Apply this with the owning replacement cases.
 
 ## Evidence
 

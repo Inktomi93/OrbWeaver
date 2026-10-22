@@ -37,7 +37,6 @@ function pageOwner(page: Page): { readonly contexts: readonly { readonly pages: 
 }
 
 async function installed(cdp = new FakeCdp(), bodyReadTimeoutMs?: number): Promise<{ readonly cdp: FakeCdp; readonly page: Page }> {
-  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- This Page is only the controller WeakMap identity; protocol events and hung reads remain controlled. Ends when the identity seam accepts an opaque key.
   const page = {} as Page;
   await wirePageNetwork(
     // eslint-disable-next-line orb/no-test-fabrication -- Controlled CDP on/send events preserve malformed, omitted and hung protocol inputs for normalization/refusal assertions. Ends when native protocol injection supplies those cases.

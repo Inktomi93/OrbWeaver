@@ -520,7 +520,7 @@ test("a completed public user commit retains its real RPG snapshot tail until ha
   expect(initial.aborted).toBe(false);
   await h.root.settleBackground();
   const assistant = initial.messages[0];
-  if (assistant === undefined || assistant.selectedVariantId === null) {
+  if (assistant === undefined) {
     throw new Error("the real RPG generation left no selected assistant");
   }
   const before = await h.root.db.select().from(rpgSnapshots).where(eq(rpgSnapshots.variantId, assistant.selectedVariantId)).get();

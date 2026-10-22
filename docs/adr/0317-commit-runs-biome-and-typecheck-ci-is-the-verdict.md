@@ -5,26 +5,28 @@ updated: 2026-10-12
 supersedes: docs/adr/0274-the-commit-gate-runs-only-what-narrows-to-the-staged-files.md
 ---
 
-# Commit runs Biome and typecheck; CI is the verdict
+# Commit checks staged files; push checks native lint and dependencies
 
 ## Context
 
-CI qualifies every push to main and every pull request: the static job runs the whole application static tier, the node and ct jobs run every product test in shards, and e2e smoke runs the real stack. Nightly runs full verification and weekly runs tooling proof. The commit hook still ran most of the static tier over the staged change, so every commit and every lane paid again for checks CI already owns.
+Contributors need fast commits and a clean lint and dependency result before publishing changes.
 
 ## Decision
 
-Pre-commit and pre-merge-commit run Biome and the native typecheck over the staged change, plus the commit-message check, by owner ruling. The typecheck runs every native program whose import closure holds a staged file; a deleted file selects every program. ESLint, dependency-cruiser and the structure walk do not run at commit.
+Pre-commit and pre-merge-commit run Biome on staged files and reject errors or warnings. The commit-message hook checks message format.
 
-CI is the verdict for done. Its static, node, ct and e2e-smoke jobs are the core every push must pass: the compiler programs and world purity, import and tier direction, lint, structure, runner membership, contracts, schema and data safety, persistence and tenancy, and the running app. Nightly full verification and weekly tooling proof keep their schedules (D307).
+Pre-push checks GitHub synchronization, full Biome, dependency-cruiser and full ESLint, in that order. Run these commands sequentially and stop on failure. ESLint includes the retained custom rules. Use native commands directly; do not introduce another verification wrapper.
 
-The orchestrator runs `pnpm check --application` once on main before the owner pushes, not after each merge train. A lane runs the tests named for its change and a typecheck of its affected programs.
+Run affected native compiler programs and behavioral tests during implementation. CI runs complete application static checks, Node tests, component tests and E2E smoke. Release approval remains subject to CI.
 
-Homes: `lefthook.yml`, `tooling/src/verify/lib/selection.ts`, `.github/workflows/ci.yml`, `.claude/skills/orchestrator/SKILL.md` and `docs/law/UNIFIED-VERIFICATION-DESIGN.md` section 4.
+Homes: `lefthook.yml`, `package.json`, `.github/workflows/ci.yml` and `.claude/skills/orchestrator/SKILL.md`.
 
 ## Consequences
 
-A commit costs seconds plus the typecheck of its programs. A structure, depcruise or ESLint red now surfaces at the pre-push check or in CI, not at commit, and is fixed forward on main.
+Ordinary commits avoid full-tree semantic lint. Pushes pay for the full native lint and dependency checks without concurrent compiler graphs.
+
+Local lint success does not establish complete application runtime acceptance. Read CI results before release.
 
 ## Alternatives rejected
 
-Keep the whole static tier at commit: rejected, because it repeats the CI static job on every commit. Drop the typecheck from the hook too: rejected by the owner, because it is fast and catches most breakage at the source. A merge-train branch with CI as the barrier: rejected, because work lands on local main and the owner pushes in batches.
+Whole-tree ESLint on every commit repeats expensive work during editing. A custom check runner adds machinery where native commands suffice.

@@ -263,7 +263,7 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D314 | [Persona pointers have one writer each, the default decides new chats, and the pin holds](0314-persona-pointers-have-one-writer-and-the-pin-holds.md) | superseded by [0315-persona-pointers-one-writer-pin-read-through-chat.md](0315-persona-pointers-one-writer-pin-read-through-chat.md) |
 | D315 | [Persona pointers have one writer each, the default decides new chats, and the pin holds through its chat](0315-persona-pointers-one-writer-pin-read-through-chat.md) | active |
 | D316 | [Test setup stays inline; test duplication is held by a ratchet, never swept](0316-test-setup-stays-inline-under-a-cpd-ratchet.md) | active |
-| D317 | [Commit runs Biome and typecheck; CI is the verdict](0317-commit-runs-biome-and-typecheck-ci-is-the-verdict.md) | active |
+| D317 | [Commit checks staged files; push checks native lint and dependencies](0317-commit-runs-biome-and-typecheck-ci-is-the-verdict.md) | active |
 | D318 | [Package exports list their public doors by hand](0318-package-exports-list-public-doors.md) | active |
 | D319 | [Native protocol time stays native in scripted test edges](0319-native-protocol-time-in-scripted-test-edges.md) | active |
 | D320 | [Legacy tests run and typecheck without semantic extraction](0320-legacy-tests-run-and-typecheck-without-semantic-extraction.md) | active |

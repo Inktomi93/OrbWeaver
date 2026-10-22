@@ -87,8 +87,8 @@ test("a second-speaker lock loss preserves the first canon and rejects the actua
     h.root.timers.advance(ttl);
     const [result] = await settled;
     expect(signal.aborted).toBe(true);
-    expect(result?.status).toBe("rejected");
-    if (result?.status !== "rejected") {
+    expect(result.status).toBe("rejected");
+    if (result.status !== "rejected") {
       throw new Error("a lost real turn lease did not reject the public caller");
     }
     expect(result.reason).toBeInstanceOf(ChatOperationError);

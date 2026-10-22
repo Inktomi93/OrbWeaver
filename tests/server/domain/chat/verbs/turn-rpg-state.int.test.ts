@@ -19,7 +19,7 @@ test("public SEND folds actual terminal bytes into durable RPG state without exp
   const sent = await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Cross the river." });
   expect(sent.aborted).toBe(false);
   const assistant = sent.messages.find((message) => message.role === "assistant");
-  if (assistant === undefined || assistant.selectedVariantId === null) {
+  if (assistant === undefined) {
     throw new Error("the folded SEND has no selected assistant variant");
   }
   expect(assistant.content).toBe("She fords the river.");

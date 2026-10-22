@@ -173,7 +173,7 @@ test("native nested lists preserve typing and successor bindings, retain own ech
   failSaves = false;
   await page.getByRole("button", { name: "Retry", exact: true }).press("Enter");
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
-  expect(trpc.lastInput("preset.update")?.config?.variables?.[0]?.options?.[0]?.label).toBe("Louder draft");
+  expect(trpc.lastInput("preset.update")?.config?.variables?.[0]?.options[0]?.label).toBe("Louder draft");
   expect(trpc.lastInput("preset.update")?.config).not.toHaveProperty("variableRowIds");
   await component.update(<PresetListLifetimeStory presetId={presetId} revision={5} />);
   await expect(page.getByLabel("Read revision", { exact: true })).toHaveText("5");

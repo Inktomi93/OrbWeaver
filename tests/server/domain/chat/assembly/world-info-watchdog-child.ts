@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import process from "node:process";
-// eslint-disable-next-line vitest/no-import-node-test -- This supervised native Node child has no Vitest worker state; its parent owns the Vitest case.
 import { test } from "node:test";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { createEntrySchema } from "@orb/contracts/world-info";

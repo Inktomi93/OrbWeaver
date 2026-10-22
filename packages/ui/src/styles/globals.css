@@ -726,6 +726,7 @@
 :root {
   scrollbar-color: color-mix(in oklab, var(--color-foreground) 22%, transparent) transparent;
 }
+/* biome-ignore lint/style/noDescendingSpecificity: scrollbar-width is non-inherited and must reach every scroller; preceding selectors set other properties. */
 * {
   scrollbar-width: thin;
 }

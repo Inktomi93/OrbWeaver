@@ -24,7 +24,7 @@ async function room(): Promise<
   const h = construction.use(
     await textRoom(["Hi there", " more"], {
       server: { random: () => 0.99 },
-      characters: ["aria", "bryn"].map((name) => createCharacterSchema.parse({ handle: name, name, description: name + " has a public character card." })),
+      characters: ["aria", "bryn"].map((name) => createCharacterSchema.parse({ handle: name, name, description: `${name} has a public character card.` })),
       group: { output: "per-speaker", policy: "natural" },
     }),
   );

@@ -28,7 +28,7 @@ test("a real card's setvar lands once and survives the following empty-delta tur
   const first = await h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: character.id });
   expect(first.aborted).toBe(false);
   const firstVariant = first.messages[0]?.selectedVariantId;
-  if (firstVariant === undefined || firstVariant === null) {
+  if (firstVariant === undefined) {
     throw new Error("the real variable turn committed no selected variant");
   }
   expect(await h.root.db.select().from(messageVariants).where(eq(messageVariants.id, firstVariant)).get()).toMatchObject({
@@ -43,7 +43,7 @@ test("a real card's setvar lands once and survives the following empty-delta tur
   const second = await h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: character.id });
   expect(second.aborted).toBe(false);
   const secondVariant = second.messages[0]?.selectedVariantId;
-  if (secondVariant === undefined || secondVariant === null) {
+  if (secondVariant === undefined) {
     throw new Error("the real empty-delta turn committed no selected variant");
   }
   expect(await h.root.db.select().from(messageVariants).where(eq(messageVariants.id, secondVariant)).get()).toMatchObject({ variableDelta: [] });

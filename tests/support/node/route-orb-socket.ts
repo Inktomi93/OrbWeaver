@@ -124,7 +124,6 @@ function decodeStreamAttaches(req: Request, url: URL, wanted: "attach" | "detach
       continue;
     }
     const rawInput: unknown = Reflect.get(byIndex, String(i));
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Passive stream protocol observations preserve unvalidated refs and unnormalized cursors; canonical parsing would reject malformed wire this recorder must observe. Ends when a native typed wire recorder preserves these observations.
     const input = rawInput as Partial<Pick<StreamAttachInput, "ref" | "sinceSeq">> | null | undefined;
     if (input?.ref !== undefined) {
       attaches.push({ ref: input.ref, sinceSeq: input.sinceSeq ?? null });

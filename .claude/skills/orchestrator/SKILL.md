@@ -114,7 +114,7 @@ The `lane` skill carries the standing lane rules. Restate only the deltas.
 ## Before calling work done
 
 - Assign verification ownership in the brief. Reuse completed lane checks under the `lane` skill's completion policy.
-- Call work done after its applicable checks. CI is the verdict (D317). Run the barrier once before the owner pushes ("The barrier").
+- Call work done after its applicable checks. CI is the verdict (D317). Use the native pre-push checks when the owner pushes; run affected runtime checks before that ("The barrier").
 - Use fresh-context review for substantive code changes. Review routine prose and configuration edits directly; add independent review for a concrete correctness or security risk.
 - For a multi-wave program, run one `verifier` pass per wave over every change landed in it. That pass covers each item; spawn no second `verifier` per item inside a covered wave.
 - Call `side-eye` for a new UI surface or redesign, imagery or effects near text, settings panes, forms, wizards, empty, error, or loading states, and any accessibility doubt. Skip it for backend-only changes.
@@ -142,7 +142,7 @@ Scoped lane green does not prove the combined tree, including a fast-forward wit
 
 ## The barrier
 
-CI runs the native application checks before release. The pre-push hook checks GitHub synchronization.
+CI runs the native application checks before release. Pre-push checks GitHub synchronization, Biome, dependency-cruiser and ESLint sequentially.
 
 1. Check that main is clean and that no whole-tree check is reading the checkout.
 2. Run `pnpm lint`, `pnpm typecheck`, `pnpm test` and `pnpm test:ct` as applicable.

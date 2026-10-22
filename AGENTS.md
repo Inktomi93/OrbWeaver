@@ -104,9 +104,10 @@ as the new one. If you cannot go green without a hatch, stop and report.
 
 - Run affected Node tests with `pnpm test <paths>` and CTs with `pnpm test:ct <paths>`.
 - Typecheck affected programs with `pnpm typecheck <tsconfig paths...>`.
-- Run `pnpm lint` for Biome and `pnpm lint:eslint <paths>` for ESLint.
+- Run `pnpm lint` for Biome and `pnpm lint:eslint <paths>` for ESLint. Errors and warnings fail both commands.
+- Commit hooks check staged files with Biome. Pre-push runs full Biome, dependency-cruiser and ESLint sequentially.
 - CI owns full application verification (D317). D333 retires custom verify tiers, gates and checker qualification.
-- Read the completed test report at `reports/test-report.json`. A timeout or tool error is no verdict.
+- Read the completed native runner output. A timeout or tool error is no verdict.
 
 ## Code questions
 

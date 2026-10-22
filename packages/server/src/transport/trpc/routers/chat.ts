@@ -155,7 +155,7 @@ const impersonateStreamSchema = z.object({
   intent: userIntentSchema.optional(),
   guided: guidedSteerSchema.optional(),
   timeZone: reportedTimeZoneSchema,
-  // SSE's opaque resume token, not an entity identity; any supplied token is refused before generation. Ends if this one-shot operation supports replay.
+  // eslint-disable-next-line orb/no-raw-id -- Opaque SSE resume token; this one-shot operation refuses supplied tokens before generation.
   lastEventId: z.string().optional(),
 });
 
@@ -225,7 +225,7 @@ const editToolCallSchema = z.object({
   chatId: typeIdSchema(ID_PREFIX.chat),
   messageId: typeIdSchema(ID_PREFIX.message),
   variantId: typeIdSchema(ID_PREFIX.messageVariant),
-  // provider-emitted opaque call id, paired with our turn/ordinal occurrence identity (D48). Ends if providers use Orbweaver TypeIDs.
+  // eslint-disable-next-line orb/no-raw-id -- Provider-emitted opaque call handle; the host identifies occurrences separately by turn and ordinal.
   toolCallId: z.string(),
   action: z.enum(TOOL_CALL_EDIT_ACTIONS),
 });

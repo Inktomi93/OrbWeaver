@@ -118,6 +118,7 @@ test("RENDER FIDELITY: the well-formed corpus shapes are accepted, so the refusa
 });
 
 test("SOURCE FIDELITY: a template literal nested inside single-backtick code delimiters is REFUSED", ({ scratch }) => {
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   const body = `${FRONTMATTER}The guard is \`startsWith(\`prefix ${"${EXEMPT_DIR}"}/\`)\`, not a prefix guess.\n`;
 
   const { bytes, outcome } = format(scratch, "nested-backtick.md", body);
@@ -131,6 +132,7 @@ test("SOURCE FIDELITY: a template literal nested inside single-backtick code del
 });
 
 test("SOURCE FIDELITY: longer delimiters carry a template literal, and ordinary adjacent code spans remain valid", ({ scratch }) => {
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   const body = `${FRONTMATTER}The guard is \`\`startsWith(\`prefix ${"${EXEMPT_DIR}"}/\`)\`\`, beside \`left\` and \`right\`.\n`;
 
   const { bytes, outcome } = format(scratch, "nested-backtick-ok.md", body);
@@ -140,6 +142,7 @@ test("SOURCE FIDELITY: longer delimiters carry a template literal, and ordinary 
 });
 
 test("SOURCE FIDELITY: contiguous code-template-code fragments are conservatively refused, with a content-preserving canonical spelling", ({ scratch }) => {
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   const ambiguous = `${FRONTMATTER}The pieces are \`left\`${"${NAME}"}\`right\`.\n`;
   const refused = format(scratch, "adjacent-template-fragments.md", ambiguous);
 
@@ -147,7 +150,9 @@ test("SOURCE FIDELITY: contiguous code-template-code fragments are conservativel
   expect(refused.outcome.refused.map((entry) => entry.file)).toStrictEqual([join(scratch, "adjacent-template-fragments.md")]);
   expect(refused.outcome.refused[0]?.reason).toContain("longer backtick delimiter");
 
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   const fencedCarrier = "```txt\n`left`${NAME}`right`\n```\n\n";
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   const canonicalSpan = "The pieces are ``left``${NAME}``right``.\n";
   const canonical = `${FRONTMATTER}${fencedCarrier}${canonicalSpan}\n${canonicalSpan}`;
   const accepted = format(scratch, "adjacent-template-fragments-ok.md", canonical);
@@ -164,9 +169,12 @@ test("SOURCE FIDELITY: contiguous code-template-code fragments are conservativel
       .split("\n\n")
       .map((line) => spanPattern.exec(line)?.slice(1)),
   ).toEqual([
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
     ["left", "${NAME}", "right"],
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
     ["left", "${NAME}", "right"],
   ]);
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   expect(content.slice(fencedCarrier.length).replaceAll("``", "")).toBe("The pieces are left${NAME}right.\n\nThe pieces are left${NAME}right.\n");
   const second = format(scratch, "adjacent-template-fragments-ok.md", accepted.bytes);
   expect(second.outcome.refused).toStrictEqual([]);

@@ -33,6 +33,7 @@ test("stable GitHub publication waits for a scanned, attested and anonymously pu
   const image = jobs["image"]?.steps ?? [];
   const anonymous = image.find((step) => step.name === "Prove the image pulls without credentials");
   expect(anonymous?.run).toContain("bash scripts/ci/anonymous-image-pull.sh");
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   expect(anonymous?.env?.["DIGEST"]).toBe("${{ steps.digest.outputs.digest }}");
   const latest = image.findIndex((step) => step.name === "Advertise the verified image as latest");
   expect(latest).toBeGreaterThan(image.indexOf(anonymous ?? {}));
@@ -96,6 +97,7 @@ test("the release workflow runs on the stable branch and publishes, from the tag
   expect(workflow.on.push.branches).toEqual(["release"]);
   expect(workflow.jobs.image.if).toContain("release_created == 'true'");
   const checkout = workflow.jobs.image.steps.find((step) => step.uses?.startsWith("actions/checkout@") === true);
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   expect(checkout?.with?.["ref"]).toBe("refs/tags/${{ needs.release-please.outputs.tag_name }}");
 
   const compose = z
@@ -137,10 +139,12 @@ test("development publication selects an exact source commit and cannot overwrit
   const checkout = image.steps.find((step) => step.uses?.startsWith("actions/checkout@") === true);
   expect(workflow.on.workflow_dispatch).toBeNull();
   expect(workflow.on).toHaveProperty("workflow_dispatch", null);
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   expect(checkout?.with?.["ref"]).toBe("${{ github.sha }}");
   expect(checkout?.with?.["persist-credentials"]).toBe(false);
   expect(checkout?.with?.["fetch-tags"]).toBe(false);
   const build = image.steps.find((step) => step.uses?.startsWith("docker/build-push-action@") === true);
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   expect(build?.with?.["tags"]).toBe("${{ env.IMAGE }}:sha-${{ github.sha }}\n");
   expect(build?.with?.["push"]).not.toBe(true);
   const stamp = image.steps.find((step) => step.name === "Prove development identity");
@@ -187,16 +191,20 @@ for (const [workflowName, cacheTag, publishName, proofName] of [
     expect(buildIndex).toBeGreaterThan(-1);
     expect(loginIndex).toBeGreaterThan(-1);
     expect(loginIndex).toBeLessThan(buildIndex);
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
     expect(steps[loginIndex]?.with).toEqual({ registry: "ghcr.io", username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" });
     const build = steps[buildIndex]?.with;
     const exportIndex = steps.findIndex((step) => step.with?.["outputs"] === "type=cacheonly");
     const cacheExport = steps[exportIndex]?.with;
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
     expect(build?.["cache-from"]).toBe("type=registry,ref=${{ env.BUILD_CACHE }}");
     expect(build?.["cache-to"]).toBeUndefined();
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
     expect(cacheExport?.["cache-to"]).toBe("type=registry,ref=${{ env.BUILD_CACHE }},mode=max,ignore-error=true");
     expect(env["BUILD_CACHE"]).toBe(`${env["IMAGE"]}:${cacheTag}`);
     expect(build?.["tags"]).not.toContain(env["BUILD_CACHE"]);
     expect(build?.["load"]).toBe(true);
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
     expect(build?.["builder"]).toBe("${{ steps.builder.outputs.name }}");
     expect(build?.["push"]).not.toBe(true);
     expect(cacheExport?.["load"]).not.toBe(true);
@@ -255,6 +263,7 @@ test("stable publication rejects a wrong source stamp or OCI revision before sca
     });
     expect(result.code === 0, `${stamp}/${label}: ${result.stderr}`).toBe(accepted);
   }
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   expect(image?.env?.["SOURCE_SHA"]).toBe("${{ needs.release-please.outputs.sha }}");
   const steps = image?.steps ?? [];
   const proof = steps.findIndex((step) => step.name === "Prove the image is this stable release");

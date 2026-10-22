@@ -11,7 +11,7 @@ const draftActionSchema = z.discriminatedUnion("type", [
   variable.extend({ key: z.string(), value: z.string().optional() }),
   transform.extend({ template: z.string() }),
   lore.extend({
-    // unfinished editor selections are draft text; ruleEditorCommitSchema and ruleEditable validate canonical IDs before transport. Ends if drafts become commit-ready values.
+    // eslint-disable-next-line orb/no-raw-id -- Unfinished draft selection; ruleEditorCommitSchema reparses canonical IDs before transport.
     bookId: z.string(),
     entryKey: z.string(),
     keys: z.array(z.string()),
@@ -19,9 +19,9 @@ const draftActionSchema = z.discriminatedUnion("type", [
   }),
   reply.extend({ choices: z.array(reply.shape.choices.element.extend({ label: z.string(), sendTemplate: z.string() })) }),
   notification.extend({ messageTemplate: z.string() }),
-  // unfinished editor selections are draft text; ruleEditorCommitSchema and ruleEditable validate canonical IDs before transport. Ends if drafts become commit-ready values.
+  // eslint-disable-next-line orb/no-raw-id -- Unfinished draft speaker selection; the commit schema reparses canonical IDs before transport.
   turn.extend({ speakerCharacterId: z.string().optional(), guidedTemplate: z.string().optional() }),
-  // unfinished editor selections are draft text; ruleEditorCommitSchema and ruleEditable validate canonical IDs before transport. Ends if drafts become commit-ready values.
+  // eslint-disable-next-line orb/no-raw-id -- Unfinished draft subject selection; the commit schema reparses canonical IDs before transport.
   image.extend({ prompt: z.string().optional(), negative: z.string().optional(), subjectCharacterId: z.string().optional(), n: z.number() }),
   background.extend({ instruction: z.string().optional() }),
   analysis.extend({
@@ -31,7 +31,7 @@ const draftActionSchema = z.discriminatedUnion("type", [
       lore: analysis.shape.routes.shape.lore
         .unwrap()
         .extend({
-          // unfinished editor selections are draft text; ruleEditorCommitSchema and ruleEditable validate canonical IDs before transport. Ends if drafts become commit-ready values.
+          // eslint-disable-next-line orb/no-raw-id -- Unfinished draft lore selection; the commit schema reparses canonical IDs before transport.
           bookId: z.string(),
         })
         .optional(),
