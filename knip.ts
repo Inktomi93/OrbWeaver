@@ -77,7 +77,7 @@ export const config = {
       ignoreDependencies: ["chrome-devtools-mcp"],
     },
     "packages/kit": { includeEntryExports: true, project: ["src/**/*.ts!"] },
-    "packages/contracts": { project: ["src/**/*.ts!"] },
+    "packages/contracts": { includeEntryExports: true, project: ["src/**/*.ts!"] },
     "packages/db": { project: ["src/**/*.ts!"] },
     "packages/inference": {
       project: ["src/**/*.ts!"],

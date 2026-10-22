@@ -15,7 +15,7 @@
 // `axes.ts` is the root of the directory-module: its siblings import it, it imports none of them.
 
 export { requireWorkloadFunder, WORKLOAD_NOT_ADMISSIBLE, WORKLOAD_UNFUNDED } from "./admission.ts";
-export type { IndexSource, ScheduleCadence, WorkloadKind, WorkloadMode, WorkloadModePolicy, WorkloadStatus } from "./axes.ts";
+export type { IndexSource, ScheduleCadence, WorkloadKind, WorkloadMode, WorkloadStatus } from "./axes.ts";
 export {
   ACTIVE_WORKLOAD_STATUSES,
   CADENCE_INTERVAL_MS,
@@ -44,9 +44,9 @@ export type {
   WorkloadRunContext,
   WorkloadRunScope,
 } from "./execution.ts";
-export { WORKLOAD_LANES, WORKLOAD_RESUME_POLICIES } from "./execution.ts";
+export { WORKLOAD_LANES } from "./execution.ts";
 export type { StartWorkloadOp, StartWorkloadParams } from "./owner-ops.ts";
-export type { NoWorkloadParams, StartWorkloadEnvelope, StartWorkloadInput, WorkloadParamsByKind } from "./params.ts";
+export type { StartWorkloadInput, WorkloadParamsByKind } from "./params.ts";
 export {
   asStartWorkloadInput,
   databankIngestWorkloadParams,
@@ -69,7 +69,6 @@ export {
   type WorkloadRowAnyKind,
   type WorkloadRunnableRow,
   type WorkloadScheduleRef,
-  type WorkloadScheduleView,
   workloadRefSchema,
   workloadResultSchemaOf,
   workloadRowAnyKindSchema,

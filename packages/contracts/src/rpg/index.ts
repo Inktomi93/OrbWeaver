@@ -45,8 +45,6 @@ export type {
 export {
   actorRefKey,
   clampActorCardName,
-  RPG_ACTOR_IDENTITY_TEXT_FIELDS,
-  RPG_ACTOR_OP_FIELDS,
   RPG_NPC_GUIDE_FIELDS,
   rpgActorEntrySchema,
   rpgActorIdentitySchema,
@@ -57,7 +55,7 @@ export {
   rpgPromotedCardDescription,
   rpgRelationshipSchema,
 } from "./actor.ts";
-export type { RpgClockTime, RpgWeather, RpgWeatherType, TimeOfDay } from "./ambient.ts";
+export type { RpgClockTime, RpgWeather } from "./ambient.ts";
 export {
   clockTimeOfDay,
   RPG_SCENE_LINE_LABEL,
@@ -67,9 +65,8 @@ export {
   rpgWeatherText,
   TIME_OF_DAY,
   TIME_OF_DAY_HOURS,
-  TIME_OF_DAY_RANGES,
 } from "./ambient.ts";
-export type { EmitRpgEvent, RpgBusEvent, RpgBusEventType } from "./bus.ts";
+export type { EmitRpgEvent, RpgBusEvent } from "./bus.ts";
 export { RPG_BUS_EVENT_TYPES } from "./bus.ts";
 export type {
   RpgDateMode,
@@ -86,13 +83,11 @@ export {
   RPG_CARD_KEEP_LAST_DEFAULT,
   RPG_CONFIG_MAX_TRACKERS,
   RPG_DATE_MODES,
-  RPG_DELIVERY_PATHS,
   RPG_EXTRACTION_CONTEXTS,
   RPG_EXTRACTION_MODES,
   RPG_EXTRACTION_WINDOW_TOKENS_DEFAULT,
   RPG_EXTRACTION_WINDOW_TOKENS_MAX,
   RPG_EXTRACTION_WINDOW_TOKENS_MIN,
-  RPG_FOLD_FALLBACK_REASONS,
   RPG_RECENT_BEATS_KEEP_DEFAULT,
   RPG_RECONCILE_EVERY_BEATS_DEFAULT,
   RPG_RECONCILE_EVERY_BEATS_MAX,
@@ -102,17 +97,12 @@ export {
   rpgGameFeaturesSchema,
 } from "./config.ts";
 export type {
-  RpgCheckpointTrigger,
   RpgCyoaChoiceBehavior,
-  RpgGameMode,
-  RpgGameStatus,
   RpgJournalType,
   RpgQuestStatus,
   RpgRelationshipKind,
   RpgTrackerCarrierClass,
   RpgTrackerShape,
-  RpgTrackerSubject,
-  RpgTrackerWrite,
 } from "./enums.ts";
 export {
   RPG_CHECKPOINT_TRIGGERS,
@@ -120,12 +110,7 @@ export {
   RPG_GAME_MODES,
   RPG_GAME_STATUSES,
   RPG_JOURNAL_TYPES,
-  RPG_QUEST_STATUSES,
   RPG_RELATIONSHIP_KINDS,
-  RPG_TRACKER_CARRIER_CLASSES,
-  RPG_TRACKER_SHAPES,
-  RPG_TRACKER_SUBJECTS,
-  RPG_TRACKER_WRITES,
   rpgCheckpointTriggerSchema,
   rpgGameModeSchema,
   rpgGameStatusSchema,
@@ -134,13 +119,6 @@ export {
 export type {
   ExtractionRefs,
   RpgExtraction,
-  RpgExtractionDrop,
-  RpgExtractionDropPlane,
-  RpgExtractionSalvage,
-  RpgMalformedToolCall,
-  RpgPopulate,
-  RpgPopulateSalvage,
-  RpgPopulateSheet,
   RpgRecordedToolCall,
   RpgToolCall,
   RpgToolCallVerdict,
@@ -156,7 +134,6 @@ export {
   parseToolCallArgs,
   projectIssueSentValue,
   RPG_NO_CHANGES_TOOL,
-  RPG_TOOL_CALL_VERDICTS,
   RPG_TOOL_ROUND_TOOL_NAMES,
   recordToolCalls,
   rpgExtractionSchema,
@@ -168,37 +145,14 @@ export {
   strippedToolCallKeys,
   toolCallsToExtraction,
 } from "./extraction.ts";
-export type { ExtractionPlanePrompt, ExtractionPromptContext } from "./extraction-prompt.ts";
+
 export {
-  buildRpgToolDescriptions,
   buildToolRoundWireTools,
   composePlaneTeaching,
   composePopulateTeaching,
-  EXTRACTION_PLANE_PROMPTS,
   RPG_BASELINE_TOOL_DESCRIPTIONS,
 } from "./extraction-prompt.ts";
-export type {
-  RpgAddJournalEntryInput,
-  RpgCreateCheckpointInput,
-  RpgCreateGameInput,
-  RpgDeleteJournalEntryInput,
-  RpgDeleteQuestInput,
-  RpgDismissActorInput,
-  RpgEditJournalEntryInput,
-  RpgEditQuestObjectiveInput,
-  RpgEditSnapshotInput,
-  RpgListJournalInput,
-  RpgListTurnToolCallsInput,
-  RpgPatchActorInput,
-  RpgPatchSheetInput,
-  RpgPopulateFromCharacterInput,
-  RpgPromoteActorInput,
-  RpgReadGameInput,
-  RpgRestoreCheckpointInput,
-  RpgRollDiceInput,
-  RpgUpdateConfigInput,
-  RpgUpsertQuestInput,
-} from "./inputs.ts";
+export type { RpgAddJournalEntryInput } from "./inputs.ts";
 export {
   rpgAddJournalEntryInputSchema,
   rpgCreateCheckpointInputSchema,
@@ -221,8 +175,7 @@ export {
   rpgUpdateConfigInputSchema,
   rpgUpsertQuestInputSchema,
 } from "./inputs.ts";
-export type { RpgModePolicy } from "./mode.ts";
-export { MODE_POLICY } from "./mode.ts";
+
 export type { ChatRpgPointer } from "./pointer.ts";
 export { chatRpgPointerSchema, isRpgEngaged } from "./pointer.ts";
 export type { RpgStatAttributeDef, RpgStatProfile } from "./profile.ts";
@@ -231,7 +184,6 @@ export {
   attributeReading,
   meterDisplayNumber,
   RPG_PROFILE_D20,
-  RPG_PROFILE_FREEFORM,
   RPG_PROFILE_MAX_ATTRIBUTES,
   rpgAttributeModifier,
   rpgSeedTrackers,
@@ -251,7 +203,7 @@ export {
   resyncResultSchema,
   rollDiceResultSchema,
 } from "./results.ts";
-export type { RpgGameTemplate, RpgRuleset, RpgRulesetVocabulary } from "./ruleset.ts";
+export type { RpgGameTemplate, RpgRuleset } from "./ruleset.ts";
 export {
   applyRulesetVocabulary,
   RPG_RULESET_CONSEQUENCE,
@@ -276,7 +228,7 @@ export {
   rpgQuestSchema,
   rpgSnapshotStateSchema,
 } from "./snapshot.ts";
-export { describePatchFields, patchChangesToToolCalls, patchFieldPaths, patchToolsOnlyFields, stateRoundPatchSchema } from "./structured-patch.ts";
+export { describePatchFields, patchChangesToToolCalls, stateRoundPatchSchema } from "./structured-patch.ts";
 export type { RpgStateRoundTool, RpgStructuredChanges, RpgStructuredRoundShape } from "./structured-round.ts";
 export {
   RPG_STATE_CHANGES_FIELD,
@@ -286,7 +238,6 @@ export {
 } from "./structured-round.ts";
 export type {
   AddJournalEntryArgs,
-  RollDiceArgs,
   RollDiceToolResult,
   RpgToolName,
   SetTrackerArgs,
@@ -301,7 +252,6 @@ export {
   journalTypeFor,
   ROLL_DICE_TOOL_NAME,
   RPG_LITE_TOOL_NAMES,
-  RPG_QUEST_ACTIONS,
   rollDiceArgsSchema,
   rollDiceToolResultSchema,
   setTrackerArgsSchema,
@@ -311,18 +261,15 @@ export {
   upsertQuestArgsSchema,
 } from "./tools.ts";
 export type { RpgFlushOutcome, RpgTraceEvent, RpgTraceRecord } from "./trace.ts";
-export { RPG_FLUSH_OUTCOMES, rpgTraceEventSchema, rpgTraceRecordSchema } from "./trace.ts";
+export { rpgTraceEventSchema, rpgTraceRecordSchema } from "./trace.ts";
 export type {
   RpgTrackerCarrier,
-  RpgTrackerCarrierKind,
   RpgTrackerDef,
   RpgTrackerValue,
   RpgTrackerValues,
-  RpgTrackerWriteGroup,
 } from "./tracker.ts";
 export {
   buildTrackerWriteGroups,
-  carriesTracker,
   gameTrackers,
   gameTrackerWriteKeys,
   RPG_HINT_MAX,
@@ -334,7 +281,6 @@ export {
   rpgTrackerValuesSchema,
   sortTrackers,
   trackerCeiling,
-  trackerGloss,
   trackerNumber,
   trackerReading,
   trackersForCarrier,
@@ -361,8 +307,6 @@ export type {
 } from "./views.ts";
 export {
   RPG_STATE_ROUND_FAILED_SUMMARY,
-  RPG_TOOL_CALL_WITHHOLD_REASONS,
-  type RpgCheckpointView,
   rpgCheckpointViewSchema,
   rpgConfigViewSchema,
   rpgGameViewSchema,
