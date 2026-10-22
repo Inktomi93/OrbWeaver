@@ -5,18 +5,7 @@
 
 export type { RuleView } from "@orb/contracts/automation";
 export { confirmSuggestionResultSchema, fireViewSchema, ruleViewSchema, runRuleNowResultSchema, testRunResultSchema } from "@orb/contracts/automation";
-export {
-  AutomationChatNotFoundError,
-  AutomationReservedTriggerError,
-  BudgetValidationError,
-  GlobalVariableInvalidError,
-  RuleCreationScopeConflictError,
-  RuleNotFoundError,
-  RuleReorderError,
-  RuleValidationError,
-  SuggestionNotFoundError,
-  SuggestionRefusedError,
-} from "./contract/errors.ts";
+
 export type {
   AutomationImageRequest,
   AutomationImageResult,
