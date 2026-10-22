@@ -145,11 +145,11 @@ catalog:
   pino-pretty: ^13.2.0
   # @opentelemetry/*: in-process spans + the RingExporter (OTLP-replaceable seam) + the ALS context
   # manager + the service.name/version resource attrs. We run the SDK, NOT the collector stack.
-  # The SDK and resources require API <1.10; one API identity also keeps Drizzle's peer graph coherent.
-  "@opentelemetry/api": ">=1.9.1 <1.10.0"
-  "@opentelemetry/sdk-trace-base": ^2.12.0
-  "@opentelemetry/context-async-hooks": ^2.12.0
-  "@opentelemetry/resources": ^2.12.0
+  # The SDK and resources require API 1.10; one API identity also keeps Drizzle's peer graph coherent.
+  "@opentelemetry/api": ">=1.10.0 <1.11.0"
+  "@opentelemetry/sdk-trace": ^3.0.0
+  "@opentelemetry/context-async-hooks": ^3.0.0
+  "@opentelemetry/resources": ^3.0.0
   "@opentelemetry/semantic-conventions": ^1.43.0
   # infra/image (Phase 4b — Tier-3-Infra.md D6): the sharp adapter (decode/resize/format-normalize/
   # strip-metadata) behind the injected `imageTransform` op. Native libvips binding — pnpm builds it.
@@ -361,9 +361,17 @@ catalog:
 # `pnpm install`, all three typecheck programs, a vitest suite, a playwright CT spec, and a full
 # `pnpm --filter @orb/client build` (es2025 target, exit 0). Cost of removal: a third esbuild copy in the
 # store (0.25.12 beside 0.18.20 and tsx's 0.28.1) — disk, not correctness.
+packageExtensions:
+  # Sentry's child core peers need a provider inside its API 1.9 context, not the application's API 1.10.
+  "@sentry/node@10.76.2":
+    dependencies:
+      "@opentelemetry/core": "2.12.0"
+
 overrides:
   # Drizzle's private SQL members require one module identity across every libsql peer resolution.
   "@libsql/client": "catalog:"
+  # Sentry's API range admits 1.10, but its bundled SDK 2.x requires API below 1.10.
+  "@sentry/node@10.76.2>@opentelemetry/api": ">=1.9.1 <1.10.0"
   # Pin the native resource-owning driver; retain its public client ABI through the package patch.
   "@libsql/client@0.18.0>libsql": "0.6.0-pre.43"
   "libsql@0.6.0-pre.43>libsql-win32-x64-msvc": "npm:@libsql/win32-x64-msvc@0.6.0-pre.43"

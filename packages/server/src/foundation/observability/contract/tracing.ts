@@ -1,7 +1,7 @@
-import type { AttributeValue, SpanContext } from "@opentelemetry/api";
-import type { ReadableSpan, TimedEvent } from "@opentelemetry/sdk-trace-base";
+import type { SpanContext } from "@opentelemetry/api";
+import type { ReadableSpan, TimedEvent } from "@opentelemetry/sdk-trace";
 
-type ScalarAttribute = Extract<AttributeValue, string | number | boolean>;
+type ScalarAttribute = string | number | boolean;
 
 /** Serialization converts native time tuples to milliseconds and flattens native attribute arrays. */
 export interface SerializedSpan {
