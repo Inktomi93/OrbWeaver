@@ -456,9 +456,8 @@ export interface ListTurnToolCallsParams {
 // feature types in contract/, never inline at the module). The gather result is structurally the chat-side
 // `ChatRpgGatherResult`; the reminder input is the pure assembler's argument.
 
-/** The generic gather contribution (structurally the chat-side `ChatRpgGatherResult`): the macro map, the
- *  reminder injection(s), and the tool NAMES to attach. Lite contributes no macros (the injection strategy —
- *  `MODE_POLICY.lite.prompt === "injection"`; the gm-preset macro arm is full's). */
+/** The generic gather contribution (structurally the chat-side `ChatRpgGatherResult`): the macro map, reminder
+ *  injections, and tool names to attach. */
 export interface RpgGatherResult {
   readonly macros: Readonly<Record<string, string>>;
   readonly injections: readonly ChatInjection[];

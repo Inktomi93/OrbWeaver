@@ -11,11 +11,6 @@
 // house phantom `Branded<B>`), so the LAW is unchanged in effect: keep transform-bearing schemas off this
 // surface. Only the stated MECHANISM was stale.
 //
-// COUNT: 7 lite tools (`RPG_LITE_TOOL_NAMES`). Full SIBLINGS its tools (`skill_check`, `request_check`,
-// `advance_time`, `tick_clock`, `upsert_npc`, encounter/loot/map…) — same registry, additive
-// registrations, zero renames (§C). Widening `update_party.targetRef` to reach npcs is documented
-// in the def's model-facing description; the name stays (renaming re-litigates for zero capability).
-//
 // The core names (`update_party`/`update_inventory`/`update_scene`/`roll_dice`) are D86/CP vocabulary the
 // owner ratified; `upsert_quest`/`add_journal_entry` complete the lite set. `set_widget_value` became
 // `set_tracker` with the tracked-field unification — the widget CONCEPT is gone, so keeping its name would
@@ -26,9 +21,7 @@ import { rpgWeatherLabelSchema, rpgWeatherTypeSchema, TIME_OF_DAY } from "./ambi
 import type { RpgJournalType } from "./enums.ts";
 import { rpgJournalTypeSchema, rpgRelationshipKindSchema } from "./enums.ts";
 
-/** The lite tool names — the 7-tuple `MODE_POLICY.lite.tools` withholds on a read-only turn. Full ADDS
- *  its names to its own tuple; these 7 are byte-stable at graft (the ambient/wallet args are already
- *  full-compatible — the engines WRITE the same planes). */
+/** The tool-name tuple for the implemented lite extraction contract. */
 export const RPG_LITE_TOOL_NAMES = [
   "update_party",
   "update_inventory",

@@ -2,7 +2,6 @@
 // shapes are split across sibling modules by concern (D15's directory-module law: internals flat, this
 // index re-exports, consumer-invisible):
 //   • enums.ts    — the string-union tuples (mode/status/quest/journal/checkpoint/widget), CHECK-derived in db
-//   • mode.ts     — the `MODE_POLICY` exhaustive record + the mode capability axis (§2.2)
 //   • profile.ts  — `statProfile` as data + live ruleset profile defaults (D281)
 //   • ruleset.ts  — the RULESET axis (#862): the host setting that picks a game's vocabulary + dice, and the
 //                   ADDITIVE apply the write door commits (owner ruling 2026-08-30)
@@ -27,8 +26,6 @@
 //     stamps an rpg owner.
 //   • One home per axis (§5.5): every string union is a tuple here; the db CHECK derives from it, no re-spell.
 //   • Tool args are PROJECTION-CLEAN (tools.ts): no `.transform()`/branded ids (z.toJSONSchema throws on them).
-//   • KISS/YAGNI SUSPENDED: the full-mode shape ships as DATA from day one so full grafts add siblings, never
-//     re-spell (the graft-map invariant, §C).
 
 export type {
   RpgActorEntry,
