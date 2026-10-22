@@ -59,5 +59,5 @@ export type BugReportDiagnostics = z.infer<typeof bugReportDiagnosticsSchema>;
 
 export type { ClientErrorReport } from "./client-error.ts";
 export { clientErrorReportSchema } from "./client-error.ts";
-export type { HealthResponse } from "./health.ts";
+
 export { HEALTH_STATUSES, healthResponseSchema } from "./health.ts";

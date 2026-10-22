@@ -90,7 +90,7 @@ export type {
   MessageWindowTarget,
   ResolveCorpusSourceState,
 } from "./source.ts";
-export { CORPUS_SOURCE_OUTCOMES, messageWindowCursorSchema, messageWindowTargetSchema } from "./source.ts";
+export { messageWindowCursorSchema, messageWindowTargetSchema } from "./source.ts";
 
 /** A memory-digest hit as RETRIEVAL returns it — what `memory.recall` assembles a prompt from. EXTENDS the
  *  cross-domain {@link ScoredBlock} (the seam shape `memory`'s injected `searchDigests` op speaks) rather

@@ -17,30 +17,23 @@ export type {
   BackgroundMaterializeFailure,
   MaterializeBackgroundOp,
   MaterializeBackgroundResult,
-  MaterializedBackgroundAsset,
 } from "./materialize.ts";
-export { BACKGROUND_MATERIALIZE_FAILURES, backgroundMaterializeMessage } from "./materialize.ts";
+export { backgroundMaterializeMessage } from "./materialize.ts";
 export type {
   CardEmbeddableTheme,
-  CardEmbeddableThemeKey,
   ThemeChatStyle,
   ThemeDensity,
   ThemeFont,
-  ThemeKeyReach,
   ThemeOverride,
   ThemeRadius,
-  ViewerSacredThemeKey,
 } from "./override.ts";
 export {
-  CARD_EMBEDDABLE_THEME_KEYS,
   cardEmbeddableSubset,
   THEME_CHAT_STYLES,
   THEME_DENSITIES,
   THEME_FONT_ALLOWLIST,
-  THEME_KEY_REACHES,
   THEME_RADII,
   themeOverrideSchema,
-  VIEWER_SACRED_THEME_KEYS,
 } from "./override.ts";
 
 /** Name/CSS length caps (named constants, shared with the future db CHECKs). */

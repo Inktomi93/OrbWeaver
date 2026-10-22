@@ -14,8 +14,8 @@
 //   • `#automation` (automation/prose.ts) — per-USER quiet-pick prose (census 91)
 //   • `#discovery` (discovery/prose.ts)   — per-USER library-semantics system prompts
 // …and THIS file composes them into `PROSE_SLOTS` and owns the resolver. Later stages graft the per-game
-// teaches (`#rpg`) and the extraction templates onto the SAME tuple. This module re-exports `#prose-slot`,
-// so a consumer imports `@orb/contracts/prose` and gets the whole vocabulary.
+// teaches (`#rpg`) and the extraction templates onto the SAME tuple. This module re-exports the shared
+// prose shapes and operations needed by consumers through `@orb/contracts/prose`.
 //
 // `PROSE_SLOT_IDS` is the ONE closed id vocabulary (§5.5 string-union dispatch): `PROSE_SLOTS` is annotated
 // `Record<ProseSlotId, ProseSlotDef>` so a missing row fails `tsc`, and each table `satisfies
@@ -35,19 +35,15 @@ import { hasProseToken, isProseSlotId, PROSE_SLOT_IDS, proseOverBy, proseOverrid
 import { REFINERY_PROSE_SLOTS } from "#refinery";
 import { RPG_PROSE_SLOTS } from "#rpg";
 
-export type { ProseHome, ProseMacroMode, ProseOverride, ProseOverrides, ProseResolution, ProseSlotDef, ProseSlotId } from "#prose-slot";
+export type { ProseHome, ProseOverride, ProseOverrides, ProseResolution, ProseSlotDef, ProseSlotId } from "#prose-slot";
 export {
   isProseSlotId,
   PROSE_COUNTER_AT,
-  PROSE_HOMES,
-  PROSE_MACRO_MODES,
   PROSE_MAX_CHARS,
-  PROSE_SLOT_IDS,
   proseOverBy,
   proseOverrideFromLegacy,
   proseOverridesSchema,
   proseOverridesViewSchema,
-  spliceProseTokens,
 } from "#prose-slot";
 
 /** The composed registry — every slot, one row each. Annotated (not inferred) so an id without a row is a

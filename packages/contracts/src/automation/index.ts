@@ -979,10 +979,8 @@ export type {
   RulePresetChoiceKnobDescriptor,
   RulePresetEntityKind,
   RulePresetEntityRefKnobDescriptor,
-  RulePresetEntityRefValueOf,
   RulePresetId,
   RulePresetKnobDescriptor,
-  RulePresetKnobKind,
   RulePresetKnobValue,
   RulePresetKnobValueInput,
   RulePresetKnobValueInputs,
@@ -996,12 +994,9 @@ export type {
   RulePresetView,
 } from "./presets.ts";
 export {
-  RULE_PRESET_ENTITY_KINDS,
   RULE_PRESET_ENTITY_NOUNS,
   RULE_PRESET_ENTITY_REF_SCHEMAS,
   RULE_PRESET_IDS,
-  RULE_PRESET_KNOB_KINDS,
-  RULE_PRESET_SCOPES,
   rulePresetIdSchema,
   rulePresetKnobBagsEqual,
   rulePresetKnobBagToInputs,

@@ -29,16 +29,14 @@ import { appearanceSettingsSchema } from "./appearance.ts";
 // The `appearance` section lives in its own module so the client's pre-paint boot hint can reach the
 // CONTRACT's own schema object (e94c50a718: one set of bounds, never a client copy) without composing this
 // whole `UserSettings` tree and its prose tables (#448). Ownership is unchanged — the section is settings',
-// and every name it publishes is re-exported here verbatim, so `@orb/contracts/settings` importers see no
-// difference. The deep door is the exact `@orb/contracts/settings/appearance` exports entry.
+// and shared appearance shapes and operations are re-exported here for `@orb/contracts/settings` consumers.
+// The deep door is the exact `@orb/contracts/settings/appearance` exports entry.
 export type { AppearanceBackgroundFit, AppearanceSettings, BackgroundLibraryEntry, BlurSurface, SurfaceTexture } from "./appearance.ts";
 export {
   APPEARANCE_BACKGROUND_FITS,
   appearanceSettingsSchema,
-  BACKGROUND_DIM_MIN,
   BLUR_SURFACES,
   backgroundLibraryEntrySchema,
-  SURFACE_TEXTURES,
 } from "./appearance.ts";
 export type { SettingsKvPort, SettingsTenantPrefix } from "./kv.ts";
 export { CATALOG_SETTINGS_PREFIX, SETTINGS_TENANT_PREFIXES } from "./kv.ts";

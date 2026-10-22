@@ -18,7 +18,6 @@ export {
   encodePersonaCollisionChoices,
   PERSONA_COLLISION_CHOICES,
   PERSONA_COLLISION_FIELD,
-  PERSONA_DIFFERENCES,
   personaCollisionChoiceFor,
   personaCollisionChoicesSchema,
   personaCollisionReviewSchema,
@@ -139,8 +138,7 @@ export function chatDirCardCandidates(slug: string): string[] {
   return candidates.filter((c): c is string => c !== undefined && c.length > 0 && c !== slug);
 }
 
-export type { FsDirEntry, FsDirEntryKind, ImportFsPort } from "./filesystem.ts";
-export { FS_DIR_ENTRY_KINDS } from "./filesystem.ts";
+export type { ImportFsPort } from "./filesystem.ts";
 
 /** The sniff outcome: the importer to route to + the staging-path prefix that normalizes the tree, or a
  *  typed reject carrying the top-level names found (so the caller can tell the user what it saw). The importer consumes the classification before any staging write. */
