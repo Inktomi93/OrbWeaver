@@ -4,22 +4,5 @@
 // (frames.ts). Backend-internal — the domain turn never sees a session (docs/law/Spine-Identity-and-Auth.md §"BFF session ≠ SDK chat session").
 
 export type { SessionEntryWriter } from "#contract";
-export {
-  buildSeedFrames,
-  canonHashOf,
-  GREETING_USER_STUB,
-  isBranchDivergence,
-  NO_SAVED_TOTALS,
-  type SeedTurn,
-  savedSessionTotals,
-  seedSessionId,
-  sessionContainsSeedPrefix,
-  sessionMatchesSeed,
-  toSeedTurns,
-} from "./frames.ts";
-export {
-  InMemorySessionStore,
-  type ReplaceableSessionStore,
-  type SeededSessionDecision,
-  SessionCache,
-} from "./store.ts";
+export { NO_SAVED_TOTALS } from "./frames.ts";
+export { SessionCache } from "./store.ts";
