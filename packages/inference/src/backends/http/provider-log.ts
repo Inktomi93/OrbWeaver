@@ -43,4 +43,4 @@ export function providerLogger(log: InferenceLog, wire: string, providerId: stri
   };
 }
 
-export type { ProviderCapabilityLog, ProviderLogger, ProviderTurnUsage } from "../../contract/http.ts";
+export type { ProviderLogger } from "../../contract/http.ts";

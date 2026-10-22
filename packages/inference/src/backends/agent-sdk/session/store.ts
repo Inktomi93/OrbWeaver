@@ -82,7 +82,7 @@ async function persistUpdate(writer: SessionEntryWriter | undefined, log: Infere
  * {@link MAX_SESSION_LINEAGES} lineages, LRU by lineage (a lineage groups every composite key of one
  * sessionId, so eviction drops a whole session atomically, never a partial transcript).
  */
-export class InMemorySessionStore implements ReplaceableSessionStore {
+class InMemorySessionStore implements ReplaceableSessionStore {
   private readonly entries = new Map<string, SessionStoreEntry[]>();
   // LRU recency order over lineages: Map iteration is insertion-ordered, so the first key is least-recently-touched.
   private readonly lineages = new Map<string, Set<string>>();
@@ -294,4 +294,4 @@ export class SessionCache {
   }
 }
 
-export type { ReplaceableSessionStore, SeededSessionDecision } from "../../../contract/agent-sdk-backend.ts";
+export type { SeededSessionDecision } from "../../../contract/agent-sdk-backend.ts";

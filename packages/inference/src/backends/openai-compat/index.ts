@@ -19,8 +19,6 @@ import { createReachabilityProber } from "./reachability.ts";
 import { runOpenAiCompatRerank } from "./rerank.ts";
 import { createTokenLexicon } from "./tokens.ts";
 
-export type { ReachabilityProber } from "./reachability.ts";
-
 function isOpenAiCompatChatRequest(req: ChatRequest): req is OpenAiCompatChatRequest {
   return req.api === "chat-completions";
 }

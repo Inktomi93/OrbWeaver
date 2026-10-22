@@ -197,4 +197,4 @@ export function buildClaudeSdkEnv(args: ClaudeSdkEnvArgs): Record<string, string
   };
 }
 
-export type { ClaudeRuntimeOverrides, ClaudeSdkEnvArgs } from "../../contract/agent-sdk-backend.ts";
+export type { ClaudeSdkEnvArgs } from "../../contract/agent-sdk-backend.ts";

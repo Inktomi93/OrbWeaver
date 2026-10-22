@@ -13,7 +13,7 @@ import type { SeedTurn } from "../../../contract/agent-sdk-backend.ts";
 
 // Session-only stub, never persisted to canon: a greeting has no preceding user turn, but a session must
 // start user-first to resume cleanly.
-export const GREETING_USER_STUB = "*The scene begins.*";
+const GREETING_USER_STUB = "*The scene begins.*";
 
 const SEED_VERSION = "2.0.0";
 const SEED_CWD = "/";

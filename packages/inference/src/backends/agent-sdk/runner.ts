@@ -147,21 +147,6 @@ function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === "AbortError";
 }
 
-/** Bridge the caller's signal onto the fresh controller the SDK query takes — NOT `AbortSignal.any` (the SDK's
- *  `abortController` field takes a controller INSTANCE). */
-export function linkAbort(signal: AbortSignal | undefined): AbortController {
-  const controller = new AbortController();
-  if (signal === undefined) {
-    return controller;
-  }
-  if (signal.aborted) {
-    controller.abort();
-  } else {
-    signal.addEventListener("abort", () => controller.abort(), { once: true });
-  }
-  return controller;
-}
-
 type UserContentBlock = { readonly type: "text"; readonly text: string } | AnthImageBlock;
 
 /** The query prompt: a plain string, or, when images ride the user turn, the SDK's streaming-input form (one full

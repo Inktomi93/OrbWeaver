@@ -327,4 +327,4 @@ export function requireStructuredPlan(connection: Resolved, ask: StructuredAsk, 
   });
 }
 
-export type { PlannedResponseFormat, PlannedTool, StructuredAsk, StructuredPlan, StructuredRefusal } from "../contract/structured.ts";
+export type { StructuredAsk, StructuredPlan, StructuredRefusal } from "../contract/structured.ts";

@@ -147,5 +147,3 @@ export function buildBackends(deps: InferenceDeps): BuiltBackends {
     },
   };
 }
-
-export type { BackendDef } from "../contract/registry.ts";

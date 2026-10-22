@@ -136,4 +136,4 @@ export function createAgentToolServer(opts: { readonly name?: string; readonly v
   return createSdkMcpServer({ name: opts.name ?? DEFAULT_TOOL_SERVER_NAME, ...(opts.version !== undefined ? { version: opts.version } : {}), tools: sdkTools });
 }
 
-export type { AgentSdkBackend, AgentSdkBackendDeps, AgentToolResult, AgentToolSpec } from "../../contract/agent-sdk-backend.ts";
+export type { AgentSdkBackend, AgentSdkBackendDeps, AgentToolSpec } from "../../contract/agent-sdk-backend.ts";

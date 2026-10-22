@@ -71,4 +71,4 @@ export function anthropicModelFor(call: AnthropicCall): LanguageModelV4 {
   return provider.chat(connection.model);
 }
 
-export type { AnthropicCall, AnthropicTransportDeps } from "../../contract/anthropic-backend.ts";
+export type { AnthropicCall } from "../../contract/anthropic-backend.ts";

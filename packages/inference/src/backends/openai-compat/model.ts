@@ -244,4 +244,4 @@ export function imageModelFor(call: ModelCall): ImageModelV4 {
   return TRANSPORTS[effectiveDialectOf(call.connection)].image(call);
 }
 
-export type { ModelCall, TransportDeps } from "../../contract/openai-backend.ts";
+export type { ModelCall } from "../../contract/openai-backend.ts";
