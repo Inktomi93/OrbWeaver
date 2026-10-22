@@ -315,7 +315,7 @@ test("a stale voice owner refuses canon even when accepted copying preserves the
   }
 });
 
-for (const change of ["none", "source-variant", "retained-cohort"] as const) {
+for (const change of ["none", "source-variant"] as const) {
   test(`native continuation transfers paid facts only through retained generation first-write guards: ${change}`, async () => {
     const held = await freshHeldDb();
     await using ownership = new AsyncDisposableStack();
@@ -356,8 +356,6 @@ for (const change of ["none", "source-variant", "retained-cohort"] as const) {
       ]);
       if (change === "source-variant") {
         await root.services.chat.deleteMessages({ principal: actors.owner, chatId, messageIds: [source.id] });
-      } else if (change === "retained-cohort") {
-        await root.services.chat.acceptHostHandoff({ principal: nominee, chatId });
       }
       const expectedAccounting = await accounting(root);
       const expectedVariants = await root.db.select().from(messageVariants).where(eq(messageVariants.messageId, source.id));
@@ -382,3 +380,114 @@ for (const change of ["none", "source-variant", "retained-cohort"] as const) {
     }
   });
 }
+
+test("native continuation settles before handoff rebases its retained cohort and signed economics", async () => {
+  const held = await freshHeldDb();
+  await using ownership = new AsyncDisposableStack();
+  ownership.defer(() => closeDb(held.db));
+  const wire = paidReplies(2);
+  const root = ownership.use(await createServerHarness({ db: held.db, providerFetch: wire.execute }));
+  const actors = await seedCorpusActors(root);
+  const nominee = await root.principalFor(actors.secondUserId);
+  const caller = await root.internalCallerFor(root.ownerId);
+  const chatId = await seedRecallRoom(caller);
+  await caller.chat.setGroupConfig({ chatId, config: { output: "per-speaker", cardScope: "scoped", policy: "list" } });
+  const turn = await root.services.chat.send({ principal: actors.owner, chatId, content: "Preserve the paid source.", intent: INTENT });
+  expect(turn.aborted).toBe(false);
+  await root.settleBackground();
+  const source = turn.messages.find((message) => message.role === "assistant");
+  if (source === undefined) {
+    throw new Error("the retained generation control has no native assistant source");
+  }
+  await invite(root, actors.owner, nominee, chatId);
+  await root.services.chat.nominateHostHandoff({
+    principal: actors.owner,
+    chatId,
+    userId: nominee.userId,
+    offer: { copyCharacters: true, copyGmPreset: false },
+  });
+  const gate = held.hold(/^insert into "chats"/u);
+  let pending: Promise<void> | undefined;
+  let handoffs = Promise.resolve<PromiseSettledResult<void>[]>([]);
+  try {
+    const continuation = root.services.chat.continueTurn({ principal: actors.owner, chatId, messageId: source.id, intent: INTENT });
+    pending = continuation.then(
+      () => undefined,
+      () => undefined,
+    );
+    await gate.reached;
+    gate.disarm();
+    expect(await root.db.select().from(chatGenerationObservations).where(eq(chatGenerationObservations.chatId, chatId))).toMatchObject([
+      { sourceMessageId: source.id, sourceVariantId: source.selectedVariantId, tokensIn: 100, tokensOut: 35 },
+    ]);
+    const beforeVariants = await root.db.select().from(messageVariants).where(eq(messageVariants.messageId, source.id));
+    const beforeCards = await root.db.select().from(characters).where(eq(characters.ownerId, nominee.userId)).orderBy(characters.id);
+    let settledHandoffs = 0;
+    const acceptances = [0, 1].map(() =>
+      Promise.allSettled([root.services.chat.acceptHostHandoff({ principal: nominee, chatId })]).then(([result]) => {
+        settledHandoffs += 1;
+        return result;
+      }),
+    );
+    handoffs = Promise.all(acceptances);
+    // The competing refusal proves the real transition closed admission without a timing guess.
+    expect(await Promise.race(acceptances)).toMatchObject({ status: "rejected", reason: { code: CHAT_OP_CODES.locked } });
+    expect(settledHandoffs).toBe(1);
+    expect(await root.db.select().from(characters).where(eq(characters.ownerId, nominee.userId)).orderBy(characters.id)).toEqual(beforeCards);
+    expect(await root.db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chatId))).toEqual(
+      expect.arrayContaining([expect.objectContaining({ role: "host", userId: actors.owner.userId, leftSeq: null })]),
+    );
+    expect(await root.db.select().from(messageVariants).where(eq(messageVariants.messageId, source.id))).toEqual(beforeVariants);
+    expect(await root.db.select().from(chatGenerationObservations).where(eq(chatGenerationObservations.chatId, chatId))).toMatchObject([
+      { sourceMessageId: source.id, sourceVariantId: source.selectedVariantId, tokensIn: 100, tokensOut: 35 },
+    ]);
+    gate.release();
+    const [outcome, accepted] = await Promise.all([continuation, handoffs]);
+    expect(outcome).toMatchObject({
+      aborted: false,
+      messages: [{ id: source.id, selectedVariantId: source.selectedVariantId, content: source.content.repeat(2) }],
+    });
+    expect(accepted).toEqual(
+      expect.arrayContaining([
+        { status: "fulfilled", value: undefined },
+        { status: "rejected", reason: expect.objectContaining({ code: CHAT_OP_CODES.locked }) },
+      ]),
+    );
+    expect(await root.db.select().from(chatGenerationObservations).where(eq(chatGenerationObservations.chatId, chatId))).toEqual([]);
+    expect(await root.db.select().from(messageVariants).where(eq(messageVariants.messageId, source.id))).toMatchObject([
+      { id: source.selectedVariantId, messageId: source.id, content: source.content.repeat(2), tokensIn: 100, tokensOut: 35 },
+    ]);
+    const [copied] = await root.db.select().from(messages).where(eq(messages.id, source.id));
+    if (copied?.characterId === null || copied?.characterId === undefined) {
+      throw new Error("the settled handoff has no copied voice");
+    }
+    expect(copied.characterId).not.toBe(source.characterId);
+    expect(copied.selectedVariantId).toBe(source.selectedVariantId);
+    expect(await root.db.select({ ownerId: characters.ownerId }).from(characters).where(eq(characters.id, copied.characterId))).toEqual([
+      { ownerId: nominee.userId },
+    ]);
+    expect(await root.services.stats.overview(actors.owner.userId)).toMatchObject({ chats: 0, assistantTurns: 0, tokensIn: null, tokensOut: null });
+    expect(await root.db.select().from(ownerStats).where(eq(ownerStats.ownerId, actors.owner.userId))).toMatchObject([
+      { tokensIn: 0, tokensOut: 0, tokensInMeasuredSamples: 0, tokensOutMeasuredSamples: 0 },
+    ]);
+    expect(await root.services.stats.overview(nominee.userId)).toMatchObject({ chats: 1, assistantTurns: 1, tokensIn: 100, tokensOut: 35 });
+    expect(await root.services.stats.characterEconomics(actors.owner.userId)).toEqual([]);
+    expect(await root.services.stats.characterEconomics(nominee.userId)).toMatchObject([
+      { characterId: copied.characterId, generations: 1, tokensIn: 100, tokensOut: 35 },
+    ]);
+    for (const ownerId of [actors.owner.userId, nominee.userId]) {
+      const before = await root.services.stats.overview(ownerId);
+      await root.services.stats.reconcile(ownerId);
+      expect(await root.services.stats.overview(ownerId)).toMatchObject({
+        chats: before?.chats,
+        assistantTurns: before?.assistantTurns,
+        tokensIn: before?.tokensIn,
+        tokensOut: before?.tokensOut,
+      });
+    }
+  } finally {
+    gate.release();
+    await pending;
+    await handoffs;
+  }
+});

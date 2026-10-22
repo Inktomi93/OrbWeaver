@@ -1,7 +1,7 @@
 // D332 joins actual room work before authority moves; normal admissions remain concurrent.
 import type { ChatId } from "@orb/kit/ids";
-import { CHAT_OP_CODES, ChatOperationError } from "./contract/errors.ts";
-import type { HandoffBarrier, HandoffReservation } from "./contract/handoff-barrier.ts";
+import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
+import type { HandoffBarrier, HandoffReservation } from "../contract/handoff-barrier.ts";
 
 interface RoomWork {
   count: number;

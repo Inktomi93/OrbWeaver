@@ -85,7 +85,6 @@
     "./floor/process/sync-sleep": "./src/floor/process/sync-sleep.ts",
     "./floor/testing/ct-cache": "./src/floor/testing/ct-cache.ts",
     "./floor/testing/test-kinds": "./src/floor/testing/test-kinds.ts",
-    "./floor/testing/test-population": "./src/floor/testing/test-population.ts",
     "./floor/testing/test-tags": "./src/floor/testing/test-tags.ts",
     "./floor/testing/working-tree-guard": "./src/floor/testing/working-tree-guard.ts",
     "./floor/variant-matrix/variant-matrix": "./src/floor/variant-matrix/variant-matrix.ts",

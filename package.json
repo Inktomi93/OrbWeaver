@@ -55,7 +55,7 @@
     "typecheck": "node scripts/typecheck.ts",
     "lint:eslint": "eslint --max-warnings 0",
     "lint:css": "stylelint \"packages/**/*.css\"",
-    "test:ct": "playwright test --config=playwright-ct.product.config.ts",
+    "test:ct": "playwright test --config=playwright-ct.config.ts --project=chromium",
     "test:tools": "vitest run --config=vitest.config.ts --exclude=\"tests/!(tooling)/**\""
   },
   "devDependencies": {

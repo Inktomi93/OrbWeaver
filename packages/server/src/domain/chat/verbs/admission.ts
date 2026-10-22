@@ -4,7 +4,7 @@ import type { ChatId } from "@orb/kit/ids";
 import type { ChatContext } from "../context.ts";
 import type { AdmittedChatOperations, ChatAdmissionDeps, HandoffBarrier } from "../contract/handoff-barrier.ts";
 import { requireHandoffAcceptance, requireHost, requireParticipant } from "../guard.ts";
-import { refuseHandoffAdmission } from "../handoff-barrier.ts";
+import { refuseHandoffAdmission } from "../substrate/handoff-barrier.ts";
 
 function admitted<Params extends { readonly principal: Principal; readonly chatId: ChatId }, Result>(
   ctx: ChatContext,

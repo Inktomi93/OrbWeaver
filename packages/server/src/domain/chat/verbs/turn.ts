@@ -75,7 +75,6 @@ import type {
 import { KIND_TO_INTENT } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireHost, requireParticipant } from "../guard.ts";
-import { refuseHandoffAdmission } from "../handoff-barrier.ts";
 import {
   buildCommittedMessageView,
   combineReasoning,
@@ -104,6 +103,7 @@ import { prepareContinueRestoreForRoleData } from "../persistence/role-encoding.
 import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
 import { buildTurnUserMacros, freezeVolatileMacros, resolveNudgeText } from "../substrate/assembly-access.ts";
 import { isBelowHistoryFloor } from "../substrate/auth/index.ts";
+import { refuseHandoffAdmission } from "../substrate/handoff-barrier.ts";
 import { commitHostFencedWrite } from "../substrate/host-fenced-write.ts";
 import { projectViewReturnForViewer, stripMessagesForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { ownedCitedAssetIds } from "../substrate/owned-citations.ts";

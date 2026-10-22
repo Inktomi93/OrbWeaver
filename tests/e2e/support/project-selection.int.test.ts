@@ -19,7 +19,8 @@ const SELECTORS = [
   ["--project", "SINGLE-*", "LOCAL", "--project=forward-*"],
   ["--", "--project", "local"],
 ] as const;
-const SPEC_FILTERS = ["auth-smoke.local.spec.ts", "smoke.spec.ts", "auth-smoke.forward.spec.ts"];
+// Keep a real spec for each auth mode so an empty filtered project is not mistaken for an unselected one.
+const SPEC_FILTERS = ["auth-smoke.local.spec.ts", "smoke.spec.ts", "auth-smoke.forward.spec.ts", "oidc-pending-join.oidc.spec.ts"];
 const COLLECTION_ARGS = [...SPEC_FILTERS, "--list", "--reporter=json"];
 // Linked .bin launchers can load another runner copy than the sandbox specs register against.
 const PLAYWRIGHT_CLI = createRequire(import.meta.url).resolve("@playwright/test/cli");
