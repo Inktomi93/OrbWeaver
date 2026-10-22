@@ -235,8 +235,8 @@ export const BG_PHOTO_ERROR_PLATE = "in-data-[has-bg-image]:bg-card in-data-[has
 // column, two backings, a CONSTANT ΔL ≈ 0.085 apart, filed by the owner as an unintended step ("two
 // stacked whites of different opacity per message", chats-rescore 2026-08-18 → #223). Matching the two
 // numbers by hand would leave them free to drift apart at the next retune; DERIVING the band from the
-// plate makes the step impossible — `--color-reading-band` is `readingBandSurface(base)` at
-// `READING_BAND_ALPHA` (kit/theme-derivation), emitted beside the plate by the same clamp, so a carried
+// plate makes the step impossible — `--color-reading-band` uses `THEME_DERIVATION.readingPlate.deltaL`
+// at `READING_BAND_ALPHA`, emitted beside the plate by the same clamp, so a carried
 // palette moves both together or neither. Its ink is the PAIRED `text-foreground` (#204), the base's own
 // derived neutral — the same ink the wallpaper chip pairs with its plate, and the pairing
 // `palette-contrast.suite.test.ts` floors this surface against. It is no longer a ramp member, so

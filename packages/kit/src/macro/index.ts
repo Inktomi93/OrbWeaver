@@ -8,11 +8,7 @@ export {
   type ProcessMacroOptions,
   processMacros,
 } from "./engine.ts";
-// The macro-DX layer + the runtime-enforcement core: typed violations
-// (checkMacroArgs → MacroArgViolation) with validateMacroArgs deriving the positional diagnostics, and
-// the autocomplete query. Types + MACRO_CATEGORIES home in ./types (below) so the registry references
-// them cycle-free.
-export { queryMacros, validateMacroArgs } from "./metadata.ts";
+export { queryMacros } from "./metadata.ts";
 // MACRO_NAME_RE: the fully-anchored macro-name shape — user-macro registration + the contracts-side
 // authoring schema both validate against it (one vocabulary with the parser's identifier scan).
 export { MACRO_NAME_RE, type MacroRun, scanMacroRuns, stripComments } from "./parser.ts";

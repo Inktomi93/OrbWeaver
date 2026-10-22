@@ -77,8 +77,8 @@ function checkArity(metadata: MacroMetadata, count: number, contentArgs: number)
 
 /** The runtime-enforcement core: check a macro call's DELIVERED args against its declared
  *  contract and return the typed violations (arity, list bounds, per-arg type). Pure function of its
- *  inputs — the evaluator and validateMacroArgs both derive from THIS so the runtime posture and the
- *  authoring diagnostics can never disagree. An arg still containing `{{` (a lazy-delivered raw arg or
+ *  inputs — the evaluator derives runtime refusal and positional diagnostics from these violations.
+ *  An arg still containing `{{` (a lazy-delivered raw arg or
  *  an unknown-macro passthrough) is exempt from the TYPE check — its value isn't knowable here. */
 export function checkMacroArgs(metadata: MacroMetadata, args: readonly string[], opts: CheckMacroArgsOptions = {}): MacroArgViolation[] {
   const out = checkArity(metadata, args.length, opts.contentArgs ?? 0);
@@ -134,15 +134,6 @@ export function macroArgDiagnostics(violations: readonly MacroArgViolation[], sp
     message: violation.message,
     span,
   }));
-}
-
-/** Validate a macro call's RESOLVED args against its metadata. Returns the diagnostics (arity + per-arg
- *  type) at `severity` — `"error"` under strictArgs (the rule/template editors), `"warning"` otherwise
- *  (default-lenient: imported content can be loosely formed). An empty array = the call is well-formed. Derived
- *  from {@link checkMacroArgs} + {@link macroArgDiagnostics} (the ONE violation home — the evaluator's
- *  runtime enforcement composes the same pair). Determinism: pure function of its inputs; no clock/PRNG. */
-export function validateMacroArgs(metadata: MacroMetadata, args: readonly string[], span: MacroSpan, strict: boolean): MacroDiagnostic[] {
-  return macroArgDiagnostics(checkMacroArgs(metadata, args), span, strict);
 }
 
 /** Autocomplete / browser query. Name-or-alias prefix match + category filter over the registry's
