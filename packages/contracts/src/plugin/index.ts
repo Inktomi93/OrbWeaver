@@ -246,6 +246,7 @@ export {
   resolvePluginBoundTiles,
   resolvePluginPrimaryButton,
 } from "./ui.ts";
+export { PLUGIN_UI_CHAT_MESSAGES_LIMIT_MAX, pluginUiHostArgsSchemas } from "./ui-host.ts";
 export type {
   DistributedPluginView,
   PluginBundleAssetView,

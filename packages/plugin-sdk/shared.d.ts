@@ -967,9 +967,10 @@ interface PluginUiV1 {
   onEvent: (handler: (event: PluginUiEvent) => void | Promise<void>) => void;
   /** The admitted host proxy subset; each call is re-gated server-side against the stored grant. */
   readonly host: {
+    /** Room reads use the surface's mounting room; no guest-supplied room handle is accepted. */
     readonly chat: {
-      listMessages: (chat: ChatHandle, opts?: { limit?: number }) => Promise<readonly PluginMessageView[]>;
-      getVariables: (chat: ChatHandle) => Promise<Record<string, string>>;
+      listMessages: (opts?: { limit?: number }) => Promise<readonly PluginMessageView[]>;
+      getVariables: () => Promise<Record<string, string>>;
     };
     readonly variables: {
       get: (key: string) => Promise<string | null>;

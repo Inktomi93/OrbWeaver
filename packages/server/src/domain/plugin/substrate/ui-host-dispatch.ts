@@ -22,30 +22,8 @@
 // composed. A chat-scoped function called with no admitted room is a refusal, not a silent no-op.
 
 import type { PluginBridge, UiProxyableHostFunction } from "@orb/contracts/plugin";
+import { pluginUiHostArgsSchemas } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
-import { z } from "zod";
-
-/** A key/prefix/value bound for the KV proxies. The DOMAIN op enforces the real `storage.kv` ceilings (64 KiB
- *  value, 256 keys); this is the wire-shape floor under it, so a pathological key never reaches the op. */
-const KV_KEY_MAX = 512;
-/** `chat.listMessages`'s host-side ceiling (`PluginHostV1`: "≤ 50, default 20") — re-stated at this second
- *  boundary so a proxied read cannot ask for more than a guest read can. */
-const LIST_MESSAGES_LIMIT_MAX = 50;
-
-const kvKey = z.string().min(1).max(KV_KEY_MAX);
-
-/** The ten argument schemas, one per proxyable function. Each parses the DECODED `argsJson` value — a
- *  positional array, mirroring the membrane's own `args` convention so a plugin author writes the same call on
- *  both sides of the wire. */
-const listMessagesArgs = z.tuple([z.object({ limit: z.int().positive().max(LIST_MESSAGES_LIMIT_MAX).optional() }).optional()]);
-const noArgs = z.tuple([]);
-const oneKey = z.tuple([kvKey]);
-const keyAndValue = z.tuple([kvKey, z.string()]);
-const optionalPrefix = z.tuple([z.string().max(KV_KEY_MAX).optional()]);
-/** `storage.compareAndSet` (#1442): key, the PRECONDITION (`null` = "must be absent" — `nullable`, never
- *  optional, so a client that forgot the argument is a refusal rather than a silent create), and the next
- *  value. Same key/value floor as `keyAndValue`; the real ceilings are the domain op's. */
-const casArgs = z.tuple([kvKey, z.string().nullable(), z.string()]);
 
 /** Thrown when a chat-scoped proxy is called without an admitted room. A distinct MESSAGE because the two
  *  failures a plugin author hits here are genuinely different: "you did not pass the room" (this) versus "you
@@ -75,47 +53,47 @@ type UiHostCallImpl = (bridge: PluginBridge, args: unknown, chatId: ChatId | nul
  *  schema and a call — which is the whole point of keying this by the contracts union. */
 const UI_HOST_CALL_IMPLS: Record<UiProxyableHostFunction, UiHostCallImpl> = {
   "chat.listMessages": async (bridge, args, chatId) => {
-    const [opts] = listMessagesArgs.parse(args);
+    const [opts] = pluginUiHostArgsSchemas["chat.listMessages"].parse(args);
     return await bridge.chat.listMessages(requireChat("chat.listMessages", chatId), opts?.limit);
   },
   "chat.getVariables": async (bridge, args, chatId) => {
-    noArgs.parse(args);
+    pluginUiHostArgsSchemas["chat.getVariables"].parse(args);
     return await bridge.chat.getVariables(requireChat("chat.getVariables", chatId));
   },
   "variables.get": async (bridge, args) => {
-    const [key] = oneKey.parse(args);
+    const [key] = pluginUiHostArgsSchemas["variables.get"].parse(args);
     return await bridge.variables.get(key);
   },
   "variables.set": async (bridge, args) => {
-    const [key, value] = keyAndValue.parse(args);
+    const [key, value] = pluginUiHostArgsSchemas["variables.set"].parse(args);
     await bridge.variables.set(key, value);
     return null;
   },
   "variables.delete": async (bridge, args) => {
-    const [key] = oneKey.parse(args);
+    const [key] = pluginUiHostArgsSchemas["variables.delete"].parse(args);
     await bridge.variables.delete(key);
     return null;
   },
   "storage.get": async (bridge, args) => {
-    const [key] = oneKey.parse(args);
+    const [key] = pluginUiHostArgsSchemas["storage.get"].parse(args);
     return await bridge.storage.get(key);
   },
   "storage.set": async (bridge, args) => {
-    const [key, value] = keyAndValue.parse(args);
+    const [key, value] = pluginUiHostArgsSchemas["storage.set"].parse(args);
     await bridge.storage.set(key, value);
     return null;
   },
   "storage.compareAndSet": async (bridge, args) => {
-    const [key, expected, next] = casArgs.parse(args);
+    const [key, expected, next] = pluginUiHostArgsSchemas["storage.compareAndSet"].parse(args);
     return await bridge.storage.compareAndSet(key, expected, next);
   },
   "storage.delete": async (bridge, args) => {
-    const [key] = oneKey.parse(args);
+    const [key] = pluginUiHostArgsSchemas["storage.delete"].parse(args);
     await bridge.storage.delete(key);
     return null;
   },
   "storage.list": async (bridge, args) => {
-    const [prefix] = optionalPrefix.parse(args);
+    const [prefix] = pluginUiHostArgsSchemas["storage.list"].parse(args);
     return await bridge.storage.list(prefix);
   },
 };
