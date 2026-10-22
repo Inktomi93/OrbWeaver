@@ -98,8 +98,9 @@ export const config = {
     // scoped to src/ rather than accusing the content of being dead files.
     "packages/default-content": { project: ["src/**/*.ts!"] },
     "packages/showcase-plugins": { project: ["src/**/*.ts!"] },
-    "packages/plugin-sdk": {},
-    "packages/plugin-toolchain": { project: ["src/**/*.ts"] },
+    // Released authoring doors have consumers outside this workspace; internal modules remain checked.
+    "packages/plugin-sdk": { includeEntryExports: false, project: ["**/*.ts!"] },
+    "packages/plugin-toolchain": { includeEntryExports: false, project: ["src/**/*.ts!"] },
     "packages/ui": {
       // Entry set = the package.json subpath exports map (knip reads it) + tokens.build.ts, which is
       // auto-detected as an entry via the `tokens:build` package script that runs it.

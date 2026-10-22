@@ -7,7 +7,7 @@
 // IT IS A MIRROR, NOT A SOURCE. The one true contract lives in the application
 // (`@orb/contracts/plugin` — host-v1.ts, manifest.ts, ui.ts); this file re-states it for authors outside the
 // repository and is PINNED byte-for-meaning against it by a conformance test
-// (`tests/legacy/contracts/plugin/host-v1.test-d.ts`) — a drifted mirror fails the application's own build. Two
+// (`tests/contracts/plugin/sdk-conformance.test-d.ts`) — a drifted mirror fails the application's native typecheck. Two
 // deliberate simplifications, both author-invisible: the app's BRANDED ids (`ChatHandle`, asset/character
 // ids) appear here as `string` with their semantics documented — a guest never constructs one, only passes
 // them back — and internal enforcement-map types are omitted (they gate the HOST side, not yours). One
@@ -965,8 +965,7 @@ interface PluginUiV1 {
   render: (surfaceId: string, tree: PluginSurfaceSpec) => void;
   /** ONE handler per guest; a second call replaces the first. Events arrive locally — no network. */
   onEvent: (handler: (event: PluginUiEvent) => void | Promise<void>) => void;
-  /** The relayed READ-ONLY-ish host subset — exactly these nine, each re-gated server-side per call. No
-   *  fetch, no writes, no registrations: effects belong to your server half (`main.js`). */
+  /** The admitted host proxy subset; each call is re-gated server-side against the stored grant. */
   readonly host: {
     readonly chat: {
       listMessages: (chat: ChatHandle, opts?: { limit?: number }) => Promise<readonly PluginMessageView[]>;
@@ -982,6 +981,7 @@ interface PluginUiV1 {
       set: (key: string, value: string) => Promise<void>;
       delete: (key: string) => Promise<void>;
       list: (prefix?: string) => Promise<readonly string[]>;
+      compareAndSet: PluginHostV1["storage"]["compareAndSet"];
     };
   };
 }
