@@ -348,8 +348,8 @@ catalogs:
       specifier: ^6.0.2
       version: 6.0.2
     colorjs.io:
-      specifier: 0.7.0
-      version: 0.7.0
+      specifier: 0.7.1
+      version: 0.7.1
     cross-spawn:
       specifier: 7.0.6
       version: 7.0.6
@@ -547,7 +547,7 @@ overrides:
   '@typescript-eslint/utils': 8.65.0
   mermaid: '>=11.16.1'
   dompurify: '>=3.4.13'
-  katex: ^0.18.10
+  katex: ^0.19.0
 
 packageExtensionsChecksum: sha256-r1WjEB5UWyKCkVm13nSBzdgcXnOnuuTI2Y5A+hGn38Y=
 
@@ -557,7 +557,7 @@ patchedDependencies:
   '@vitest/eslint-plugin@1.6.27': 5d9b0cfbe2f217abee47c556cc65d2e534ae4c5c53cf97f675491dfee1a767d7
   chrome-devtools-mcp@1.8.0: 67db8089f861f501bdd6ba80a83641bb7f8cee56d9a3378a2ffc137abfc0af7a
   cmdk@1.1.1: a6e7187df52e9d4f1cd63362a275f1138eb85222f332c5ef99f6b1d44fa35420
-  colorjs.io@0.7.0: 89433c3a39b2363e5239e741412841e2e49dd5f41e95b6450d17cc4f61fded57
+  colorjs.io@0.7.1: 12d81310907897d570f7f59553b3ce0243e2b40a802c22971beb75c2a3182220
   isomorphic-git@1.42.2: be8fb8a37b59f0ba20092772c50d4f678b0d6a8c6e0d5556808cdbb8c6297047
   libsql@0.6.0-pre.43: 7b48aa0bd500a46194e7b41b77327ba74b34e5a0d6717f366ea745b4e7978031
   node-av@6.1.1: 36551009254ba2f04a7116d9f5c2e58bd9a276f4f026daac918fc75c72088039
@@ -945,7 +945,7 @@ importers:
         version: 8.0.0
       colorjs.io:
         specifier: 'catalog:'
-        version: 0.7.0(patch_hash=89433c3a39b2363e5239e741412841e2e49dd5f41e95b6450d17cc4f61fded57)
+        version: 0.7.1(patch_hash=12d81310907897d570f7f59553b3ce0243e2b40a802c22971beb75c2a3182220)
       luxon:
         specifier: 'catalog:'
         version: 3.7.2
@@ -1146,8 +1146,8 @@ importers:
         specifier: 'catalog:'
         version: 3.0.6(echarts@6.1.0)(react@19.3.1)
       katex:
-        specifier: ^0.18.10
-        version: 0.18.10
+        specifier: ^0.19.0
+        version: 0.19.0
       lucide-react:
         specifier: 'catalog:'
         version: 1.61.0(@types/react@19.3.0)(react@19.3.1)
@@ -4683,8 +4683,8 @@ packages:
   colorjs.io@0.5.2:
     resolution: {integrity: sha512-twmVoizEW7ylZSN32OgKdXRmo1qg+wT5/6C3xu5b9QsWzSFAhHLn2xd8ro0diCsKfCj1RdaTP/nrcW+vAoQPIw==}
 
-  colorjs.io@0.7.0:
-    resolution: {integrity: sha512-JfLy3aZW1Xp2iwSFzGlLn0XSMnIdItH3BmzsXtwHVFEWwVUJIwKBWNzjQq2Tgf3998OY7qW2R6klrlYo8vmEGg==}
+  colorjs.io@0.7.1:
+    resolution: {integrity: sha512-LY7OHnJZxHwT5UlzNa9bbhHHDbzB6yE5+3MIPwJEQKRvSCt/T4G7epsj+9j2BExUIIfXFIJGsIXUKdfrK9Q5tA==}
 
   combined-stream@1.0.8:
     resolution: {integrity: sha512-FQN4MRfuJeHf7cBbBMJFXhKSDq+2kAArBlmRBvcvFE5BB1HZKXtSFASDhdlz9zOYwxh8lDdnvmMOe/+5cdoEdg==}
@@ -6057,8 +6057,8 @@ packages:
     resolution: {integrity: sha512-ZZow9HBI5O6EPgSJLUb8n2NKgmVWTwCvHGwFuJlMjvLFqlGG6pjirPhtdsseaLZjSibD8eegzmYpUZwoIlj2cQ==}
     engines: {node: '>=4.0'}
 
-  katex@0.18.10:
-    resolution: {integrity: sha512-/B6p9eY9DX7aHBfpkHdpirDTZ5QH9xTwL9y837PWuzuv41O5jFdqNQwVQEQsimY0/iVNkwBY4+4hMfhQ7d4Dbw==}
+  katex@0.19.0:
+    resolution: {integrity: sha512-v6Tznz3zJ7u3niRCoDTsumM2+HA2XXcCu+WAacCeHD2z3p9A9Ks987o5FzfTGBN0e8A0vjEgIDvLbICrXpdw/Q==}
     hasBin: true
 
   keyv@5.6.0:
@@ -11224,7 +11224,7 @@ snapshots:
 
   colorjs.io@0.5.2: {}
 
-  colorjs.io@0.7.0(patch_hash=89433c3a39b2363e5239e741412841e2e49dd5f41e95b6450d17cc4f61fded57): {}
+  colorjs.io@0.7.1(patch_hash=12d81310907897d570f7f59553b3ce0243e2b40a802c22971beb75c2a3182220): {}
 
   combined-stream@1.0.8:
     dependencies:
@@ -12739,7 +12739,7 @@ snapshots:
       object.assign: 4.1.7
       object.values: 1.2.1
 
-  katex@0.18.10:
+  katex@0.19.0:
     dependencies:
       commander: 15.0.0
 
@@ -13358,7 +13358,7 @@ snapshots:
     dependencies:
       '@types/katex': 0.16.8
       devlop: 1.1.0
-      katex: 0.18.10
+      katex: 0.19.0
       micromark-factory-space: 2.1.0
       micromark-util-character: 2.1.1
       micromark-util-symbol: 2.0.1
@@ -14083,7 +14083,7 @@ snapshots:
       '@types/katex': 0.16.8
       hast-util-from-html-isomorphic: 2.0.0
       hast-util-to-text: 4.0.2
-      katex: 0.18.10
+      katex: 0.19.0
       unist-util-visit-parents: 6.0.2
       vfile: 6.0.3
 
