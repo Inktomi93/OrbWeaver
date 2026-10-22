@@ -58,7 +58,7 @@ Runnable examples:
 
 | Contract | Enforcement |
 | - | - |
-| Declared package doors and helper-world import direction | Package exports, compiler programs and [dependency-cruiser](../../.dependency-cruiser.cjs) |
+| Declared package doors and helper-world import direction | Package exports, compiler programs and [dependency-cruiser](../../.dependency-cruiser.ts) |
 | Story props and updated props | Explicit native `mount<typeof Story>` and [compiler assertions](browser/gallery.dom.test-d.ts) |
 | Ordinary CT authoring uses typed mounts, browser JSX and type-only story imports | Native ESLint syntax restrictions in [eslint.config.js](../../eslint.config.js) |
 | Inline callback props stay out of Node mount calls | The same ESLint restrictions; aliases and arbitrary dataflow remain review responsibilities |

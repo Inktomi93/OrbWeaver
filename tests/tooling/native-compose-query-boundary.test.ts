@@ -95,7 +95,7 @@ test.for(IMPORT_CASES)("native entry query ownership judges $name", async (row, 
   }
   const result = runNicedSync(
     join(repoRoot, "node_modules/.bin/depcruise"),
-    [ENTRY, "--config", join(repoRoot, ".dependency-cruiser.cjs"), "--output-type", "err-long"],
+    [ENTRY, "--config", join(repoRoot, ".dependency-cruiser.ts"), "--output-type", "err-long"],
     { cwd: root },
   );
   const output = result.stdout + result.stderr;
@@ -116,7 +116,7 @@ test("the actual wiring package door cannot publish an executable private conver
   writeFileSync(join(root, contract), 'export { databaseForOwner } from "./wiring-capabilities.ts";');
   const result = runNicedSync(
     join(repoRoot, "node_modules/.bin/depcruise"),
-    [ENTRY, "--config", join(repoRoot, ".dependency-cruiser.cjs"), "--output-type", "err-long"],
+    [ENTRY, "--config", join(repoRoot, ".dependency-cruiser.ts"), "--output-type", "err-long"],
     { cwd: root },
   );
   const output = result.stdout + result.stderr;

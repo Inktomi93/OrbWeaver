@@ -2,7 +2,6 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { cp, mkdir, mkdtemp, readFile, rm, symlink, unlink, writeFile } from "node:fs/promises";
-import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,6 +10,7 @@ import type { DevToolsAssetManifest, DevToolsAssetPin, DevToolsClosureFile, DevT
 import { adjudicateDevToolsClosure, readChromiumBrowserVersion, verifyDevToolsAssets } from "@orb/tooling/floor/devtools/devtools-assets";
 import { startDevToolsAssetServer } from "@orb/tooling/floor/devtools/devtools-assets-server";
 import { afterEach } from "vitest";
+import dependencyCruiser from "../../../../.dependency-cruiser.ts";
 
 const REAL_PIN = fileURLToPath(new URL("../../../../tooling/src/snap/lib/devtools-frontend/pin.json", import.meta.url));
 const REAL_ROOT = fileURLToPath(new URL("../../../../tooling/src/snap/lib/devtools-frontend", import.meta.url));
@@ -311,9 +311,6 @@ test("the pure adjudicator and the filesystem entry point cannot drift apart", a
 
 test("the generated closure is excluded exactly from first-party source analyzers", async () => {
   const biome = JSON.parse(await readFile(join(REPO_ROOT, "biome.json"), "utf8")) as { readonly files: { readonly includes: readonly string[] } };
-  const dependencyCruiser = createRequire(import.meta.url)("../../../../.dependency-cruiser.cjs") as {
-    readonly options: { readonly exclude: { readonly path: readonly string[] } };
-  };
   const biomeRows = biome.files.includes.filter((row) => row.includes("devtools-frontend"));
   const depcruiseRows = dependencyCruiser.options.exclude.path.filter((row) => row.includes("devtools-frontend"));
 

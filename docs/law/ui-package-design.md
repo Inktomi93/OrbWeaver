@@ -60,7 +60,7 @@ packages/ui/
       macro-textarea/     ← minisearch
       virtual-list/       ← TanStack Virtual, directDomUpdates (D54)
       message-list/       ← the chat seal (same lib)   media-grid/ ← lanes grid (same lib)
-      icons/              ← lucide-react (the ONE icon set; dep-cruiser `ui-satellite-seals`)
+      icons/              ← lucide-react (the ONE icon set; dep-cruiser `ui-satellite-seals-*`)
       + the Wave-3/carve-out set (checkbox · radio-group · toggle(-group) · textarea · autocomplete ·
         combobox · separator · collapsible · accordion · scroll-area · alert-dialog · progress ·
         badge · skeleton · spinner · empty-state · card · list-row · selection-bar ·
@@ -70,7 +70,7 @@ packages/ui/
         no lib, tv() over semantic HTML/ARIA)
     fuzzy-search/       # minisearch's second sealed home — the generic browse-search hook,
                         #   sibling to primitives/macro-textarea/ (same lib, two sanctioned homes,
-                        #   dep-cruiser `ui-satellite-seals`)
+                        #   dep-cruiser `ui-satellite-seals-*`)
     layout/             # Stack · Row · Section · Toolbar · Container · Grid (owns container-type —
                         #   §4-tier model; Toolbar = Base UI Toolbar for roving-tabindex + our layout
                         #   skin; Grid = fill-and-sort grid)
@@ -112,14 +112,14 @@ packages/ui/
 Versions live in the pnpm **catalog** (`catalog:` in `package.json`), not this table — the catalog is
 the one home for the number. `@base-ui/react` v1 broke its RC-era APIs, so **every wrap is written
 against the live per-component docs (base-ui.com), never memory** (the DEAD rc-era package
-`@base-ui-components/react` must never be installed). The dep-cruiser `ui-satellite-seals` rule (§8)
-enforces the seal column: a lib may only be imported from its sealed dir.
+`@base-ui-components/react` must never be installed). The dep-cruiser `ui-satellite-seals-*` rules (§8)
+enforce the seal column: a lib may only be imported from its sealed dir.
 
 | Dep(s) | Seals | Notes |
 | - | - | - |
 | `@base-ui/react` | every Base UI wrap (`primitives/`, `layout/toolbar`) | THE headless primitive (D42); react + react-dom peers ride it (§1) |
 | `tailwind-variants` (+ `tailwind-merge`) | `lib/` — the `cn` merge + configured `tv` (§5) | subsumes cva/clsx as the styling primitive; `tailwind-merge` is a direct dep only so `createTV`'s `twMergeConfig` can register the custom `--text-*` size classGroup (§5) |
-| `lucide-react` | `primitives/icons/` (dep-cruiser `ui-satellite-seals`) | the ONE icon set |
+| `lucide-react` | `primitives/icons/` (dep-cruiser `ui-satellite-seals-*`) | the ONE icon set |
 | `@tanstack/react-virtual` | `primitives/virtual-list/` + `primitives/message-list/` + `primitives/media-grid/` | `directDomUpdates` + core chat APIs (D54) |
 | `streamdown` + `remark-gfm` | `markdown/` | two trust policies |
 | `katex` + `rehype-katex` + `remark-math` | `markdown/math.ts` | Streamdown bundles no math renderer — this seal supplies the whole `$…$`/`$$…$$` stack + stylesheet |
@@ -222,7 +222,7 @@ factories are inventoried here because this package is their substrate and their
 | `code-editor` seal | `<CodeEditor lang="css"\|…, value, onChange, readOnly?>` | CM6 behind the seam; token-themed via an editor theme built FROM the TS token map (one mapping site); no raw CodeMirror import outside the dir (dep-cruiser) | CT: mounts, edits, theme vars applied |
 | `diff` seal | `<DiffView before after mode="chars"\|"lines">` | jsdiff v9 behind the seam; add/remove intent tokens | CT: known before/after renders adds/dels |
 | `useSmoothText` pacer + shimmer (stream/) | `(text, opts) => paced` | grapheme-cluster safety; adaptive backlog drain; hidden-tab flush; reduced-motion passthrough (§6.3.1) | node tests (pure string-math) + CT compose check with Markdown fade |
-| `icons` seal | re-export of the lucide set actually used + `<Icon>` sizing wrapper | one icon lib (dep-cruiser `ui-satellite-seals`); token-driven sizes | CT smoke |
+| `icons` seal | re-export of the lucide set actually used + `<Icon>` sizing wrapper | one icon lib (dep-cruiser `ui-satellite-seals-*`); token-driven sizes | CT smoke |
 | layout primitives | `<Stack> <Row> <Section> <Toolbar> <Container name size>` | `Container` owns `container-type/-name` (features never write raw containment); intent-token gaps/padding as variant unions; Toolbar = Base UI Toolbar (roving tabindex) + layout skin | CT: containment established (a `@container` child query resolves); gap variants map to intent tokens |
 
 ### 6.2 Client-side (Phase 6 — inventoried so the homes are pre-decided; DO NOT build in ui)

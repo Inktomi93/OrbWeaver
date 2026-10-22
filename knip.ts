@@ -23,21 +23,12 @@ export const config = {
     enumMembers: "error",
     namespaceMembers: "error",
     catalog: "error",
-    // CYCLES HAVE THREE GATES AND ONE AUTHORITY OF RECORD (#1332). dep-cruiser's recommended-strict
-    // `no-circular` is the gate and the place an exemption is granted (it has a rule-level `pathNot` seam);
-    // knip's view is the report twin, hence `warn`. The THIRD is biome's `suspicious/noImportCycles`
-    // ("error", repo-wide, no per-rule exemption seam at all — the only escape would be a banned
-    // `biome-ignore`), and it is WIDER than either: `pnpm depcruise` scans `packages tooling` only, so biome
-    // is the only cycle gate over `tests/`, `scripts/` and `playwright/`. That is coverage, not a conflict.
-    // The note lives HERE and in .dependency-cruiser.cjs's header rather than beside biome's own rule
-    // because biome.json cannot carry a comment: measured 2026-09-19 with `biome rage --linter` before and
-    // after planting one, a `//` line makes biome 2.5.1 SILENTLY skip the file and load an ancestor config
-    // (or its built-ins) with no parse error and exit 0. `json.parser.allowComments` governs the .json files
-    // biome LINTS, never its own config loader.
+    // Dependency-cruiser blocks cycles; Knip also reports them in its liveness graph.
     cycles: "warn",
   },
   workspaces: {
     ".": {
+      "dependency-cruiser": { config: [".dependency-cruiser.ts"] },
       // Operator scripts are direct Node entry points.
       entry: [
         "scripts/**/*.ts",

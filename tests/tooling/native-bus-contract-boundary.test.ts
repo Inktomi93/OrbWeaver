@@ -8,6 +8,12 @@ const RULE = "bus-contract-no-credentials";
 
 test.for([
   {
+    name: "ambient bus import",
+    home: "chat",
+    source: 'declare module "virtual-bus" { import type { SecretCarrier } from "../credentials/index.ts"; export type Event=SecretCarrier; }',
+    blocked: true,
+  },
+  {
     name: "chat alias",
     home: "chat",
     source: 'import type { SecretCarrier as Local } from "../credentials/index.ts"; export type Event = Local;',
@@ -65,7 +71,7 @@ test.for([
   });
   const result = runNicedSync(
     join(repoRoot, "node_modules/.bin/depcruise"),
-    [entry, "--config", join(repoRoot, ".dependency-cruiser.cjs"), "--output-type", "err-long"],
+    [entry, "--config", join(repoRoot, ".dependency-cruiser.ts"), "--output-type", "err-long"],
     { cwd: root },
   );
   const output = result.stdout + result.stderr;

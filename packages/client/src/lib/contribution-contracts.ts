@@ -115,16 +115,7 @@ export type ChatSettingsSectionContribution = ChatSettingsHostControlsContributi
 // generalization of the click/consume contract `choice-send-provider.tsx` already spells for the `:::choices`
 // fence (own `useSendMessage`, busy from the shared turn phase, a compose default the reader can edit).
 //
-// WHY THE DESCRIPTORS LIVE HERE and not in `features/chat/lib/`, stated precisely (an earlier revision of
-// this header claimed `client-features-no-cross` would make the feature-tier home RED — it would NOT: that
-// rule carries `dependencyTypesNot: ["type-only"]` and its own comment says cross-feature TYPE imports are
-// allowed, `.dependency-cruiser.cjs:134-146`). The two real reasons:
-//   1. ONE HOME, the §6c residency rule — every other contributor family's contract (surface anchors,
-//      context tabs, tool renderers, slash commands, character detail) is declared in this tier-4 file, and
-//      a twelfth family homed somewhere else is the parallel-map shape the lockdown exists to kill.
-//   2. The VALUE half really would be RED. `CHAT_CONTROL_KINDS`/`CHAT_CONTROL_MODES` are runtime consts a
-//      source imports to spell a descriptor; a `features/chat/lib/` home makes that a runtime cross-feature
-//      import (`client-features-no-cross`, error). Type-only would have squeaked through — the values do not.
+// Contributor contracts share this home; runtime vocabularies here remain usable across features.
 // Chat owns the MOUNT and the stacking law; a source owns only its descriptors.
 //
 // The seam is a TWO-LEVEL contribution: the door assembles a STATIC list of sources, and each source

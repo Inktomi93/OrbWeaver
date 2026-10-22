@@ -21,7 +21,7 @@ export function plantCheckout(scratch: string): { readonly main: string; readonl
   const worktree = join(scratch, "linked worktree");
   mkdirSync(join(main, "tests", "client"), { recursive: true });
   writeFileSync(join(main, "package.json"), '{"name":"fixture","private":true}\n');
-  writeFileSync(join(main, ".dependency-cruiser.cjs"), "module.exports = {};\n");
+  writeFileSync(join(main, ".dependency-cruiser.ts"), "export default {};\n");
   writeFileSync(join(main, "tests", "client", "subject.dom.test.ts"), "export const subject = true;\n");
   git(main, "init", "--quiet");
   git(main, "config", "user.email", "test@orb.local");

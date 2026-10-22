@@ -28,14 +28,7 @@
 // because the emscripten loader fetches the `.wasm` itself.
 
 import baseVariant from "@jitl/quickjs-ng-wasmfile-release-sync";
-// The `.wasm` as a bundled ASSET URL. Without this the variant's own loader builds a URL from
-// `import.meta.url` at RUNTIME, which works in dev (vite serves node_modules) and silently 404s in a production
-// build (nothing told the bundler to emit the file) — a scripted surface that works for every developer and for
-// no user. `?url` yields the emitted asset's hashed URL, and `newVariant`'s `wasmLocation` is the
-// upstream-sanctioned way to point the loader at it. The suffix is NOT optional here — probed 2026-08-28:
-// `assetsInclude: ["**/*.wasm"]` plus a plain specifier does NOT win, vite still runs its `?init` wasm
-// transform and the worker bundle fails to build. It is also why `.dependency-cruiser.cjs` excludes
-// `?`-suffixed asset requests from its graph (see the note there).
+// Vite must emit the WASM asset; the default import.meta.url loader does not locate a production bundle asset.
 import wasmUrl from "@jitl/quickjs-ng-wasmfile-release-sync/wasm?url";
 import type { QuickJSContext, QuickJSWASMModule } from "quickjs-emscripten-core";
 import { newQuickJSWASMModuleFromVariant, newVariant } from "quickjs-emscripten-core";

@@ -1,30 +1,6 @@
-// The ModelPicker for connection authoring (inference program §5.3a Essential tier, §7.4 policy). Ported from
-// the picker the inference cut-over deleted, and adapted to the connection era: `<Command shouldFilter={false}>`
-// with the search through `@orb/ui/fuzzy-search` (never minisearch or cmdk's own filter — dep-cruiser
-// `ui-satellite-seals`), the list sectioned by provider (`groupModelEntries`) under the device-local Recent
-// MRU, the Vision/Tools chips where the catalog states capabilities, and the render cap spent across sections.
-// A model joins Recent when its connection is SAVED (`pushRecentModel` in the dialogs), never on a pick, so
-// picking a row neither reorders the list nor shows the row twice; a Recent row is left out of its section.
-//
-// WHAT CHANGED IN THE PORT. The catalog is an INPUT with four states (`model-picker-model.ts`), not a
-// per-source query this file owns, so the saved-key path, the endpoint draft and any later draft read feed one
-// control. The list is INLINE in the dialog rather than behind a popover: the dialog's whole job at this step
-// is picking the model, and a popover inside a modal is a second focus trap. The typed id follows the
-// provider's catalog policy (`typedModelAllowed`) and is a BUTTON beside the list, never a row the provider
-// did not list.
-//
-// ENTER NEVER SAVES A LOOSE MATCH. The fuzzy search keeps showing near misses — a typo still finds its model —
-// but the highlight follows cmdk only once the user moves through the list, or for the result whose id or
-// name IS what was typed (`isExactMatch`). With none, nothing is highlighted and Enter takes the typed option,
-// which is never offered for a term with a space in it (a multi-word search, not an id).
-//
-// A RETRY KEEPS ITS BUTTON. "Try the list again" stays mounted and busy while the list reloads, so focus
-// stays on it; the list replaces it only once it lands.
-//
-// THE PICKED VALUE IS SPOKEN BELOW THE LIST, NOT BY THE ROW. cmdk's `aria-selected` is its roving highlight,
-// not the chosen value; the chosen row carries a badge and the status line names the pick in words (with
-// §5.3a's unlisted-model sentence when the pick is typed).
-
+// The caller supplies the catalog; Recent updates only after the connection is saved.
+// Fuzzy matches require an explicit highlight before Enter selects one.
+// Search and command behavior use @orb/ui seals (ui-satellite-seals-search, ui-satellite-seals-command).
 import type { ModelCatalogEntry } from "@orb/contracts/inference";
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

@@ -39,7 +39,7 @@ The tab title still tracks the active entity even with the URL pinned to `/`: re
 | - | - |
 | **DUMP** | **shadcn** (copy-paste workflow) → hand-author `@orb/ui`. **Radix** → **Base UI**. **react-markdown + rehype-sanitize + remark-gfm + rehype-raw** → **Streamdown** (§6.3). **react-syntax-highlighter / Prism** → **Shiki** (free inside Streamdown). **nivo** → **ECharts** (D52). The `@/` alias → `#`. |
 | **KEEP** | feature-slice · surfaces/anchors · state-files · intent tokens · the gate battery · **Tailwind v4** · **tailwind-variants** (slots; subsumes cva+clsx+tailwind-merge — D54) · **lucide** · **TanStack** (Query / Router-minimal / Form / Virtual) · **Zustand** · the satellites **cmdk · @dnd-kit (the `@dnd-kit/react` rewrite) · minisearch** · **ECharts** (D52). **Base UI native: toast + drawer** (dropped **sonner** + **vaul**, D54); **dropped react-resizable-panels** (shell uses the clamp-overlay, §11.1). |
-| **WRAP** | every kept third-party lib lives behind `@orb/ui` (`ui-satellite-seals`); app imports `@orb/ui`, never the lib. |
+| **WRAP** | every kept third-party lib lives behind `@orb/ui` (`ui-satellite-seals-*`); app imports `@orb/ui`, never the lib. |
 
 #### 6.1 TanStack — keep, with discipline
 

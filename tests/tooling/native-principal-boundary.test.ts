@@ -806,7 +806,7 @@ test.for([
   });
   const result = runNicedSync(
     join(repoRoot, "node_modules/.bin/depcruise"),
-    [row.from, "--config", join(repoRoot, ".dependency-cruiser.cjs"), "--output-type", "err-long"],
+    [row.from, "--config", join(repoRoot, ".dependency-cruiser.ts"), "--output-type", "err-long"],
     { cwd: root },
   );
   const output = result.stdout + result.stderr;

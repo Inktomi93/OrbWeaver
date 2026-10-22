@@ -161,7 +161,7 @@ notifications is a compile error. Keep the shared bus channel primitive as the t
 - **Destructive confirms.** `ConfirmDialog` is the only feature-tier confirm. `features/**` importing `@orb/ui/alert-dialog` is RED.
 - **Mutations.** A named `useMutation` import from `@tanstack/react-query` belongs only in `data/create-entity-mutation.ts`.
 - **Browse.** `createCollectionSurface` owns unbounded/paginated browse; `useInfiniteQuery` appears only inside the factory. A small bounded owner list fetched whole in one `useSuspenseQuery` legally uses `LibrarySurfaceShell` + `LibraryListLayout` (tier 2) instead — the boundary is the query shape, paginated implies the factory.
-- **Forms / virtualization / charts / markdown** — `form-factory-for-multifield`, `no-direct-useform`, `no-form-reset-in-autosave`, resolver physics, `ui-satellite-seals`.
+- **Forms / virtualization / charts / markdown** — `form-factory-for-multifield`, `no-direct-useform`, `no-form-reset-in-autosave`, resolver physics, `ui-satellite-seals-*`.
 
 ## 15. Doc↔code precedence
 
