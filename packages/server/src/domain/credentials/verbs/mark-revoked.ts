@@ -7,9 +7,8 @@
 // is that the provider rejected it (the free-text `reason` stays log-only provenance).
 
 import { securityEvent } from "#foundation/observability";
-import type { CredentialContext } from "../context.ts";
 import type { MarkRevokedParams } from "../contract/params.ts";
-import type { CredentialsService } from "../contract/service.ts";
+import type { CredentialContext, CredentialsService } from "../contract/service.ts";
 import { setRevokedById } from "../persistence/queries.ts";
 
 export function createMarkRevoked(ctx: CredentialContext): CredentialsService["markRevoked"] {

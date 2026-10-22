@@ -31,10 +31,9 @@ import { sha256Hex } from "#primitives/content-hash";
 import type { PortableChat, PortableRpgGame } from "#primitives/serde/chat-bundle";
 import { CHAT_BUNDLE_SCHEMA_KIND, parseChatBundleFile } from "#primitives/serde/chat-bundle";
 import { portableParseError } from "#primitives/serde/lib";
-import type { ImportContext } from "../context.ts";
 import type { ImportChatFileInput } from "../contract/params.ts";
 import type { ImportChatFileOutcome } from "../contract/results.ts";
-import type { ImportProfileDeps, ImportService } from "../contract/service.ts";
+import type { ImportContext, ImportProfileDeps, ImportService } from "../contract/service.ts";
 import { requireProfile } from "../guard.ts";
 
 /** The handles a bundle could re-link against, in preference order: its own seat list, then the directory it

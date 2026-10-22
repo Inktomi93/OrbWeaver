@@ -6,7 +6,7 @@
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { RegexContext } from "#domain/regex";
-import type { ChatContext } from "../context.ts";
+import type { ChatContext } from "../contract/context.ts";
 import { loadChatRow } from "../persistence/queries.ts";
 import { loadPresentHostUserId } from "../persistence/reactions.ts";
 

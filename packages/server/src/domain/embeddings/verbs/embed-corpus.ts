@@ -10,10 +10,9 @@
 
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { GenerationSupersededError } from "#primitives/embedding-generation";
-import type { EmbeddingsContext } from "../context.ts";
 import type { EmbedPassParams } from "../contract/params.ts";
 import type { BulkEmbedResult, StoreResult } from "../contract/results.ts";
-import type { EmbeddingsService } from "../contract/service.ts";
+import type { EmbeddingsContext, EmbeddingsService } from "../contract/service.ts";
 import { completeGenerationScope, resolveTargetGeneration } from "../substrate/generation.ts";
 import { requireTaskModel } from "../substrate/task-model.ts";
 

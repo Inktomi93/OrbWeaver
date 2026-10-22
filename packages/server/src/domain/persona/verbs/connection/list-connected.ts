@@ -2,9 +2,8 @@
 // character must belong to the caller (gate first). Reuses the avatar LEFT JOIN + `detailOf` so connected
 // personas render identically to a plain list. A read: no audit.
 
-import type { PersonaContext } from "#src/domain/persona/context.ts";
 import type { ListConnectedParams } from "#src/domain/persona/contract/params.ts";
-import type { PersonaService } from "#src/domain/persona/contract/service.ts";
+import type { PersonaContext, PersonaService } from "#src/domain/persona/contract/service.ts";
 import { detailOf, ensureCharacterOwned, listConnectedPersonasWithAvatar } from "#src/domain/persona/persistence/queries.ts";
 
 export function createListConnected(ctx: PersonaContext): PersonaService["listConnectedToCharacter"] {

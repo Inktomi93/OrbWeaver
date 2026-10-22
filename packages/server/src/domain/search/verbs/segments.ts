@@ -13,11 +13,10 @@
 // best-scoring chunk (`collapseSegmentChunks`) before hits are formed — the chunk that matched is the one
 // that scored, and one scene never returns twice under the same id.
 
-import type { SearchContext } from "../context.ts";
 import { SEARCH_EMPTY_QUERY, SEARCH_SCOPE_REQUIRED, SearchError } from "../contract/errors.ts";
 import type { SegmentsParams } from "../contract/params.ts";
 import type { SegmentSearchHit } from "../contract/results.ts";
-import type { SearchService } from "../contract/service.ts";
+import type { SearchContext, SearchService } from "../contract/service.ts";
 import { nearestSegments } from "../persistence/digest-rows.ts";
 import { SCOPED_POOL_K } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust } from "../substrate/csls.ts";

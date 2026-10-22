@@ -6,8 +6,7 @@
 
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { PresetContext } from "./context.ts";
-import type { PresetService } from "./contract/service.ts";
+import type { PresetContext, PresetService } from "./contract/service.ts";
 import { createCreate } from "./verbs/create.ts";
 import { createGet } from "./verbs/get.ts";
 import { createImport } from "./verbs/import.ts";

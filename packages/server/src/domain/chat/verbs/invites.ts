@@ -17,8 +17,7 @@ import type { Principal } from "@orb/contracts/identity";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { MS_PER_HOUR } from "@orb/kit/time";
-import type { ChatContext } from "../context.ts";
-import type { AssembleInvitePreviewOp, ClaimChatOp } from "../contract/context.ts";
+import type { AssembleInvitePreviewOp, ChatContext, ClaimChatOp } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type {
   AcceptInviteParams,

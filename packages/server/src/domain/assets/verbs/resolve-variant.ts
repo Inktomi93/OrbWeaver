@@ -6,9 +6,8 @@ import type { VariantKind } from "@orb/contracts/assets";
 import { isAssetHash } from "@orb/kit/assets";
 import type { UserId } from "@orb/kit/ids";
 import { isAnimated } from "@orb/kit/image-sniff";
-import type { AssetsContext } from "../context.ts";
 import type { ResolveVariantParams } from "../contract/params.ts";
-import type { AssetsService } from "../contract/service.ts";
+import type { AssetsContext, AssetsService } from "../contract/service.ts";
 import { snapBannerWidth, snapBlobWidth, snapPortraitWidth } from "../substrate/variant-policy.ts";
 
 /** The blob-serve gate, injected at `service.ts` so both blob routes share one owner resolution. */

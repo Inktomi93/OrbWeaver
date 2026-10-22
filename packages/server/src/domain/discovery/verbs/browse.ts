@@ -8,10 +8,9 @@ import type { Db } from "@orb/db";
 import { assets, characterSummaries, characters } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { and, asc, desc, eq, gt, isNotNull, lt, or, sql } from "drizzle-orm";
-import type { DiscoveryContext } from "../context.ts";
 import type { BrowseCursor, BrowseFilter } from "../contract/params.ts";
 import type { BrowseCharacter, BrowseCharactersPage, CharacterFacets, FacetCount } from "../contract/results.ts";
-import type { DiscoveryService } from "../contract/service.ts";
+import type { DiscoveryContext, DiscoveryService } from "../contract/service.ts";
 
 // KEYSET, NOT A CEILING (A8, side-eye corpus re-pass 2026-08-19). This verb used to answer one array capped
 // at 200 and call the truncation deliberate, on the reasoning that "the row set is a browse page, not a

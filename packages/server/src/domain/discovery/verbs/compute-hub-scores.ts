@@ -7,10 +7,9 @@ import type { EveryOwnerRun, WorkloadRunScope } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import type { VectorTable } from "#domain/embeddings";
-import type { DiscoveryContext } from "../context.ts";
 import type { ComputeHubScoresOptions } from "../contract/params.ts";
 import type { HubStats } from "../contract/results.ts";
-import type { ComputeHubScoresDeps, DiscoveryService } from "../contract/service.ts";
+import type { ComputeHubScoresDeps, DiscoveryContext, DiscoveryService } from "../contract/service.ts";
 import {
   distinctCharacterHubOwners,
   distinctDigestHubOwners,

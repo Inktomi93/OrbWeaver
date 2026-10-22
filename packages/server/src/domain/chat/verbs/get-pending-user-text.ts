@@ -6,8 +6,7 @@
 
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { ChatContext } from "../context.ts";
-import type { GetPendingUserText } from "../contract/context.ts";
+import type { ChatContext, GetPendingUserText } from "../contract/context.ts";
 import { loadPendingUserText } from "../persistence/queries.ts";
 
 export function createGetPendingUserText(input: DbAssemblyInput<Pick<ChatContext, "db">>): GetPendingUserText {

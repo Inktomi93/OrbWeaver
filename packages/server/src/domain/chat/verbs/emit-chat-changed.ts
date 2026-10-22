@@ -8,8 +8,7 @@
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { getLog } from "#foundation/observability";
-import type { ChatContext } from "../context.ts";
-import type { EmitChatChanged, PublishChatChangedOp } from "../contract/context.ts";
+import type { ChatContext, EmitChatChanged, PublishChatChangedOp } from "../contract/context.ts";
 import { loadPresentHumanUserIds } from "../persistence/participants-read.ts";
 
 export function createEmitChatChanged(input: DbAssemblyInput<Pick<ChatContext, "db">>, publishChatChanged: PublishChatChangedOp): EmitChatChanged {

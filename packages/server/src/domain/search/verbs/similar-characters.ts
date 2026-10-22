@@ -3,10 +3,9 @@
 // owner-belted; a foreign/unknown/unembedded seed resolves to an empty result, never another tenant's
 // neighbourhood. No rerank — the seed is a stored vector, not a query phrase to cross-encode against.
 
-import type { SearchContext } from "../context.ts";
 import type { SimilarCharactersParams } from "../contract/params.ts";
 import type { CharacterCardHit } from "../contract/results.ts";
-import type { SearchService } from "../contract/service.ts";
+import type { SearchContext, SearchService } from "../contract/service.ts";
 import { resolveCharacterDisplay } from "../persistence/display.ts";
 import { nearestCharacters, readSeedCharacterVector } from "../persistence/nearest.ts";
 import { OWNER_OVERFETCH } from "../substrate/constants.ts";

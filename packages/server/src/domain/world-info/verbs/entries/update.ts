@@ -10,10 +10,9 @@ import { worldBooks, worldEntries } from "@orb/db";
 import { stripUndefined } from "@orb/kit/objects";
 import { resolveEntryScope } from "@orb/kit/world-info";
 import { and, eq, inArray } from "drizzle-orm";
-import type { WorldInfoContext } from "#src/domain/world-info/context.ts";
 import { WorldInfoNotFoundError } from "#src/domain/world-info/contract/errors.ts";
 import type { UpdateEntryParams } from "#src/domain/world-info/contract/params.ts";
-import type { WorldInfoService } from "#src/domain/world-info/contract/service.ts";
+import type { WorldInfoContext, WorldInfoService } from "#src/domain/world-info/contract/service.ts";
 import { listChatIdsForBook, loadOwnedEntry, toEntryView } from "#src/domain/world-info/persistence/queries.ts";
 
 const SCOPE_AFFECTING_FIELDS = ["keys", "enabled", "metadata"] as const;

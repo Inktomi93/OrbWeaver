@@ -26,10 +26,10 @@ import type {
 import { appendedRewrites, GREETING_SLOTS_MAX, isAppendedRewrite, isClearedRewrite, REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { RefineryRunId, RefinerySessionId, UserId } from "@orb/kit/ids";
-import type { RefineryContext } from "../context.ts";
 import { RefineryStageNotReadyError } from "../contract/errors.ts";
 import type { AcceptedField } from "../contract/params.ts";
 import type { AcceptBelts, AcceptVerdict } from "../contract/results.ts";
+import type { RefineryContext } from "../contract/service.ts";
 import { latestRunRowOf, loadOwnedSessionRow, loadSessionRewriteRunRow, sessionViewOf } from "../persistence/queries.ts";
 
 /** Where an accept POINTED, minus its verdict — carried between the classifier's arms so a drop and an

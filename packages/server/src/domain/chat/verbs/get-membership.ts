@@ -6,8 +6,7 @@
 
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { ChatContext } from "../context.ts";
-import type { GetMembership } from "../contract/context.ts";
+import type { ChatContext, GetMembership } from "../contract/context.ts";
 import { loadPresentRole } from "../persistence/participants-read.ts";
 
 export function createGetMembership(input: DbAssemblyInput<Pick<ChatContext, "db">>): GetMembership {

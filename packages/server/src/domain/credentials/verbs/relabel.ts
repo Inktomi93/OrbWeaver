@@ -2,9 +2,8 @@
 // so a name the user gave the key by hand is never overwritten; a taken name gets the next free spelling.
 
 import { nextFreeLabel } from "@orb/kit/strings";
-import type { CredentialContext } from "../context.ts";
 import type { RelabelCredentialParams } from "../contract/params.ts";
-import type { CredentialsService } from "../contract/service.ts";
+import type { CredentialContext, CredentialsService } from "../contract/service.ts";
 import { fetchOwnedCredential, listProviderLabels, setLabelOwned } from "../persistence/queries.ts";
 
 export function createRelabel(ctx: CredentialContext): CredentialsService["relabel"] {

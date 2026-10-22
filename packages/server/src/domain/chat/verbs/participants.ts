@@ -38,8 +38,7 @@ import { castId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { captureParticipantRole } from "#primitives/role-data";
-import type { ChatContext } from "../context.ts";
-import type { ClaimChatOp, HandoffCopyPlan, HandoffResumption } from "../contract/context.ts";
+import type { ChatContext, ClaimChatOp, HandoffCopyPlan, HandoffResumption } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import { TOOL_RECURSE_LIMIT_MAX, TOOL_RECURSE_LIMIT_MIN, toolRecurseLimitSchema } from "../contract/metadata.ts";
 import type {

@@ -7,8 +7,7 @@
 // the leaf language — is readable material without needing an inverse transpile.
 
 import { REFINERY_FORGE_ARM_DEFAULT, refineryGuidanceSchema } from "@orb/contracts/refinery";
-import type { RefineryContext } from "../context.ts";
-import type { RefineryService } from "../contract/service.ts";
+import type { RefineryContext, RefineryService } from "../contract/service.ts";
 import { resolveForgeCall, runForgeTurn } from "../substrate/schema-forge.ts";
 
 export function createRefineSchema(ctx: RefineryContext): RefineryService["refineSchema"] {

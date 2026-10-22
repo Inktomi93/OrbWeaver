@@ -3,10 +3,9 @@
 
 import { globalRegexScripts } from "@orb/db";
 import { eq } from "drizzle-orm";
-import type { RegexContext } from "#src/domain/regex/context.ts";
 import { RegexNotFoundError } from "#src/domain/regex/contract/errors.ts";
 import type { DetachGlobalParams } from "#src/domain/regex/contract/params.ts";
-import type { RegexService } from "#src/domain/regex/contract/service.ts";
+import type { RegexContext, RegexService } from "#src/domain/regex/contract/service.ts";
 import { loadOwnedScript } from "#src/domain/regex/persistence/queries.ts";
 
 export function createDetachGlobal(ctx: RegexContext): RegexService["detachGlobal"] {

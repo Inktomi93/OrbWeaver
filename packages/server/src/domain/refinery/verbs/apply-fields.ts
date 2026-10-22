@@ -31,9 +31,8 @@ import { eq } from "drizzle-orm";
 import type { CardWriteBasis } from "#domain/character";
 import type { CardIdentityField } from "#primitives/serde/card";
 import { cardContentHash } from "#primitives/serde/card";
-import type { RefineryContext } from "../context.ts";
 import { RefinerySessionCompletedError } from "../contract/errors.ts";
-import type { RefineryService } from "../contract/service.ts";
+import type { RefineryContext, RefineryService } from "../contract/service.ts";
 import { buildPatch, remapSelection, resolveApplyBasis } from "../substrate/accept-belts.ts";
 
 /** The pre-apply snapshot label — prefix-classified by the version walk (Refinery vs Manual vs

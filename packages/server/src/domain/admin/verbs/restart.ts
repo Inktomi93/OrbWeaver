@@ -2,9 +2,8 @@
 // the first await, so two concurrent calls can never both restart; the process is ending, so it never resets.
 
 import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
-import type { AdminContext } from "../context.ts";
 import type { RestartParams } from "../contract/params.ts";
-import type { AdminService } from "../contract/service.ts";
+import type { AdminContext, AdminService } from "../contract/service.ts";
 import { requireOwner } from "../guard.ts";
 
 const RESTART_UNSUPERVISED = "restart_unsupervised";

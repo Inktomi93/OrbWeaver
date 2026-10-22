@@ -4,8 +4,8 @@
 
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { awaitableStatementToken, databaseForOwner } from "@orb/db/wiring-owner";
-import type { PersonaContext } from "../context.ts";
 import type { JoinerPersonaStatementOp } from "../contract/ops.ts";
+import type { PersonaContext } from "../contract/service.ts";
 import { insertJoinerPersonaStatement } from "../persistence/joiner.ts";
 
 export function createJoinerPersonaStatement(ctx: DbAssemblyInput<Pick<PersonaContext, "db" | "newPersonaId">>): JoinerPersonaStatementOp {

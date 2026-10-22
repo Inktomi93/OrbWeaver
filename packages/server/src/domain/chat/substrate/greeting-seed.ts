@@ -17,7 +17,7 @@
 import type { MessageView } from "@orb/contracts/chat";
 import type { BatchStmt } from "@orb/db/query";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import type { ChatContext } from "../context.ts";
+import type { ChatContext } from "../contract/context.ts";
 import { buildCommittedMessageView, insertCanonMessageStatements } from "../persistence/canon-write.ts";
 
 /** One character's resolved greeting text. An empty/whitespace text seeds NO row (a cleared greeting). */

@@ -5,8 +5,7 @@
 
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { CredentialContext } from "./context.ts";
-import type { CredentialsService } from "./contract/service.ts";
+import type { CredentialContext, CredentialsService } from "./contract/service.ts";
 import { createAdd } from "./verbs/add.ts";
 import { createClearRevoked } from "./verbs/clear-revoked.ts";
 import { createList } from "./verbs/list.ts";

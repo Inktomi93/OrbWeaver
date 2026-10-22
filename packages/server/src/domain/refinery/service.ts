@@ -5,8 +5,7 @@
 
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { RefineryContext } from "./context.ts";
-import type { RefineryService } from "./contract/service.ts";
+import type { RefineryContext, RefineryService } from "./contract/service.ts";
 import { createApplyAsCopy } from "./verbs/apply-as-copy.ts";
 import { createApplyFields } from "./verbs/apply-fields.ts";
 import { createCreateSchema } from "./verbs/create-schema.ts";

@@ -21,7 +21,7 @@ import type { MacroRegistry } from "@orb/kit/macro";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { humanizeDuration, UTC_TIME_ZONE } from "@orb/kit/time";
 import { buildAssembleContext } from "../assembly/context.ts";
-import type { ChatContext } from "../context.ts";
+import type { ChatContext } from "../contract/context.ts";
 
 import type { ForeignInputs } from "../contract/foreign.ts";
 import type { MemoryRecallInputs, MsgRow, TurnRetrievalWarningEpisode } from "../contract/memory.ts";

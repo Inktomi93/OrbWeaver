@@ -12,8 +12,7 @@ import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Cas } from "#infra/storage";
-import type { AssetsContext } from "../context.ts";
-import type { AssetsService } from "../contract/service.ts";
+import type { AssetsContext, AssetsService } from "../contract/service.ts";
 import { listAssetOwners, loadOwnerAssetRows } from "../persistence/maintenance.ts";
 
 /** Per-owner dangling+corrupt tally over the index rows. `!exists` ⇒ dangling; present-but-`!verify` ⇒

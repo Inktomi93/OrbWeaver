@@ -12,9 +12,8 @@
 import type { CredentialHealth } from "@orb/contracts/credentials";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
-import type { CredentialContext } from "../context.ts";
 import type { RecordProbeOutcomeParams } from "../contract/params.ts";
-import type { CredentialsService } from "../contract/service.ts";
+import type { CredentialContext, CredentialsService } from "../contract/service.ts";
 import { clearRevokedOwned, fetchOwnedCredential, setRevokedById } from "../persistence/queries.ts";
 import { requireOwned } from "../substrate/credential-not-found.ts";
 

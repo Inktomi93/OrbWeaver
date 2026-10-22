@@ -5,7 +5,7 @@
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ChatContext } from "#domain/chat";
-import type { PersonaContext } from "../context.ts";
+import type { PersonaContext } from "../contract/service.ts";
 import { loadOwnedConnectedPersonaIds } from "../persistence/queries.ts";
 
 /** Two rows are enough to tell "exactly one" from "ambiguous". */

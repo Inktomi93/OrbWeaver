@@ -9,10 +9,9 @@
 
 import type { PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { RosterPresetContext } from "../context.ts";
 import { RosterPresetNameConflictError } from "../contract/errors.ts";
 import type { CreateRosterPresetParams } from "../contract/params.ts";
-import type { RosterPresetService } from "../contract/service.ts";
+import type { RosterPresetContext, RosterPresetService } from "../contract/service.ts";
 import { insertPresetWithMembers, ownedPresetNameTaken } from "../persistence/queries.ts";
 import { ensureAnchorOwned, ensureMembersOwned, loadView, parsedGameTemplate, parsedGroupConfig, resolveCastRules } from "../substrate/authored-input.ts";
 import { normalizeMembers } from "../substrate/members.ts";

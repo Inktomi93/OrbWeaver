@@ -2,7 +2,7 @@ import type { HistoryFloorSeq, MessageView, MessageWindow } from "@orb/contracts
 import { CHAT_MESSAGE_LIST_MAX_LIMIT, projectViewForMember } from "@orb/contracts/chat";
 import type { CorpusSource, CorpusSourceOutcome } from "@orb/contracts/search";
 import type { ChatId } from "@orb/kit/ids";
-import type { ChatContext } from "../context.ts";
+import type { ChatContext } from "../contract/context.ts";
 import type { GetMessageWindowParams } from "../contract/params.ts";
 import type { ChatService } from "../contract/service.ts";
 import type { ParticipantData } from "../contract/views.ts";

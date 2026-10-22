@@ -38,7 +38,7 @@ import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ChatId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
-import type { ChatContext } from "../context.ts";
+import type { ChatContext } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import { loadMaxMessageSeq, loadMessageVariableDeltas, loadStandaloneVariableDeltasWithRaw, toStandaloneFoldRow } from "../persistence/queries.ts";
 import { foldChain, standaloneVariableCasStatement } from "./runtime-variables.ts";

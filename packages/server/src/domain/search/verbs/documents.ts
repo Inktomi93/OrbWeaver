@@ -7,11 +7,10 @@
 // The empty-allowlist short-circuit is the trigger-discipline mirror: a bankless scope returns [] with ZERO
 // embed calls, so a chat with no attached documents does zero databank work per turn, forever.
 
-import type { SearchContext } from "../context.ts";
 import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors.ts";
 import type { DocumentSearchParams } from "../contract/params.ts";
 import type { DocumentChunkHit } from "../contract/results.ts";
-import type { SearchService } from "../contract/service.ts";
+import type { SearchContext, SearchService } from "../contract/service.ts";
 import { nearestDocumentChunks } from "../persistence/nearest.ts";
 import { DEFAULT_DOCUMENT_K, DEFAULT_DOCUMENT_MIN_SCORE, OWNER_OVERFETCH, SCOPED_POOL_K } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust } from "../substrate/csls.ts";

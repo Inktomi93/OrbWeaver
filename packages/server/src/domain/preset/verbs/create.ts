@@ -2,9 +2,8 @@ import type { PresetDetail } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { nextFreeName } from "@orb/kit/strings";
 import { getLog } from "#foundation/observability";
-import type { PresetContext } from "../context.ts";
 import type { CreatePresetParams } from "../contract/params.ts";
-import type { PresetService } from "../contract/service.ts";
+import type { PresetContext, PresetService } from "../contract/service.ts";
 import { insertPreset, listOwnedPresetNames } from "../persistence/queries.ts";
 import { toPresetDetail } from "../substrate/views.ts";
 

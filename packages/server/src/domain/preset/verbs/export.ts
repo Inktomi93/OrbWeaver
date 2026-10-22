@@ -6,8 +6,8 @@ import { buildPresetFile, parsePromptConfig } from "@orb/contracts/preset";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { slugifyHandle } from "@orb/kit/slug";
-import type { PresetContext } from "../context.ts";
 import type { ExportPresets, PresetExportFile } from "../contract/portability.ts";
+import type { PresetContext } from "../contract/service.ts";
 import { listOwned } from "../persistence/queries.ts";
 
 export function createExport(input: DbAssemblyInput<PresetContext>): ExportPresets {

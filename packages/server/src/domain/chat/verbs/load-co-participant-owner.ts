@@ -7,7 +7,7 @@
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { AssetsContext } from "#domain/assets";
-import type { ChatContext } from "../context.ts";
+import type { ChatContext } from "../contract/context.ts";
 import { loadRosteredCharacterAvatarOwner, loadSeatedPersonaAvatarOwner, loadSharedAttachmentOwner } from "../persistence/co-participant-assets.ts";
 
 export function createLoadCoParticipantOwner(input: DbAssemblyInput<Pick<ChatContext, "db">>): NonNullable<AssetsContext["loadCoParticipantOwner"]> {

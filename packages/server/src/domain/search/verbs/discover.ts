@@ -2,11 +2,10 @@
 import { NO_HISTORY_FLOOR } from "@orb/contracts/chat";
 import type { CorpusSource } from "@orb/contracts/search";
 import type { CharacterId } from "@orb/kit/ids";
-import type { SearchContext } from "../context.ts";
 import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors.ts";
 import type { DiscoverParams } from "../contract/params.ts";
 import type { DiscoverResult, DiscoverSegment } from "../contract/results.ts";
-import type { ActiveQuerySpace, SearchService } from "../contract/service.ts";
+import type { ActiveQuerySpace, SearchContext, SearchService } from "../contract/service.ts";
 import { hostedChatIds, nearestSegments } from "../persistence/digest-rows.ts";
 import { resolveChatDisplay, resolveSegmentDisplay } from "../persistence/display.ts";
 import { readSourceAnchors } from "../persistence/source.ts";

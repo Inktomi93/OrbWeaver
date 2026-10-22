@@ -8,8 +8,8 @@
 
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { PersonaContext } from "../context.ts";
 import type { ResolvePersonasForParticipants } from "../contract/ops.ts";
+import type { PersonaContext } from "../contract/service.ts";
 import { loadPersonasForOwners, loadPinnedPersonaView } from "../persistence/queries.ts";
 
 export function createResolvePersonasForParticipants(assembly: DbAssemblyInput<Pick<PersonaContext, "db">>): ResolvePersonasForParticipants {

@@ -6,10 +6,9 @@
 // for the detail view (the inserted row alone would lose the joined `assets.hash`).
 
 import { personas } from "@orb/db";
-import type { PersonaContext } from "../context.ts";
 import { PersonaNotFoundError } from "../contract/errors.ts";
 import type { CreatePersonaParams } from "../contract/params.ts";
-import type { PersonaService } from "../contract/service.ts";
+import type { PersonaContext, PersonaService } from "../contract/service.ts";
 import { detailOf, ensureAssetOwned, loadOwnedPersonaWithAvatar } from "../persistence/queries.ts";
 import { normalizeWriteMetadata } from "../substrate/metadata.ts";
 

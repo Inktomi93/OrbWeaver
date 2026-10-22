@@ -22,10 +22,9 @@
 // window-dependent again, which is the whole defect. The buckets' MEMBERS still come from the paged list —
 // this verb answers "what buckets exist and how big are they", which is the half the client cannot know.
 
-import type { CharacterContext } from "../context.ts";
 import type { ListCharacterTagGroupsParams } from "../contract/params.ts";
 import type { ListCharacterTagGroupsResult } from "../contract/results.ts";
-import type { CharacterService } from "../contract/service.ts";
+import type { CharacterContext, CharacterService } from "../contract/service.ts";
 import { countOwnedCharactersByVisibleTag, countOwnedCharactersWithoutVisibleTag } from "../persistence/queries.ts";
 
 import { characterListLens } from "../substrate/list-lens.ts";

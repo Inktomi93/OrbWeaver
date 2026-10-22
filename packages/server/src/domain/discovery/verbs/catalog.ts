@@ -8,9 +8,8 @@ import type { Db } from "@orb/db";
 import { characterSummaries, characters } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { and, asc, desc, eq, isNotNull, sql } from "drizzle-orm";
-import type { DiscoveryContext } from "../context.ts";
 import type { CatalogStats, CharacterComparison, ComparedCharacter, FacetCount, TagCount, TagPair } from "../contract/results.ts";
-import type { DiscoveryService } from "../contract/service.ts";
+import type { DiscoveryContext, DiscoveryService } from "../contract/service.ts";
 import { ownedRealCharacters } from "../persistence/character-scope.ts";
 
 const TOP_TAGS_LIMIT = 40;

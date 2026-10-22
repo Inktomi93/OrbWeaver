@@ -1,10 +1,9 @@
 ---
 kind: work
-status: blocked
+status: doing
 updated: 2026-10-21
 priority: P2
 area: packages
-blocked: owner
 ---
 
 # Adjudicate unused production exports behind explicit package doors
@@ -38,3 +37,14 @@ Continue owner-authorized package batches. Keep other scopes parked and preserve
 | Tooling-only kit consumers | Keep existing pure APIs with maintained tooling consumers. Production-only findings do not establish unused code across the workspace. |
 
 Registry completeness, autocomplete, other handle-key cases and unrelated theme reference cases remain outside this selected restoration scope. The [restoration register](../plans/test-foundation/design.md#restoration-register) records these bounds.
+
+## Selected server boundaries
+
+| Surface | Disposition |
+| - | - |
+| Unused boundary type forwarders | Remove unused aliases while retaining canonical definitions, consumed public exports and emitted JavaScript. |
+| Generated AppRouter declaration entry | Keep the compiler source entry. Model its actual client consumers through native Knip source mapping. |
+| Plugin Git packer | Preserve the implementation and use its module front door from the production Git adapter. |
+| Domain contexts | Follow [the context construction rule](../law/Core-0-Architecture-and-Structure.md#4-the-per-feature-template--the-legibility-engine). Import types from their canonical contracts; retain real dependency adapters and state owners. |
+
+The context migration uses JSSG against a resolved import inventory. Compiler, runtime-output equivalence and composed application checks qualify the changed boundaries.

@@ -30,7 +30,7 @@
 import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
 import type { AuditEntry } from "#foundation/observability";
-import type { AdminContext } from "../context.ts";
+import type { AdminContext } from "../contract/service.ts";
 
 /** File-local (never exported — a shape a domain exports belongs in `contract/`): what one audited privileged
  *  write is made of. `write` is UNEXECUTED and carries `.returning(...)`; `at` is the one instant stamping the

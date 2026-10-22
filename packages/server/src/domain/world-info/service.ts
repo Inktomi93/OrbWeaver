@@ -9,8 +9,7 @@
 
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { WorldInfoContext } from "./context.ts";
-import type { WorldInfoService } from "./contract/service.ts";
+import type { WorldInfoContext, WorldInfoService } from "./contract/service.ts";
 import { createImportStandaloneLorebook } from "./persistence/import-write.ts";
 import {
   createAttachGlobal,

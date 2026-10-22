@@ -4,9 +4,8 @@
 
 import { characterBooks } from "@orb/db";
 import { and, eq } from "drizzle-orm";
-import type { WorldInfoContext } from "#src/domain/world-info/context.ts";
 import type { DetachFromCharacterParams } from "#src/domain/world-info/contract/params.ts";
-import type { WorldInfoService } from "#src/domain/world-info/contract/service.ts";
+import type { WorldInfoContext, WorldInfoService } from "#src/domain/world-info/contract/service.ts";
 import { ensureCharacterOwned } from "#src/domain/world-info/persistence/ownership.ts";
 
 export function createDetachFromCharacter(ctx: WorldInfoContext): WorldInfoService["detachFromCharacter"] {

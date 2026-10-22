@@ -3,9 +3,8 @@
 // that references credential rows, `user_connections.credential_id`, is SET NULL (schema/connection.ts), so a
 // connection on the removed key survives and reads `no-connection` at send until re-keyed.
 
-import type { CredentialContext } from "../context.ts";
 import type { RemoveCredentialParams } from "../contract/params.ts";
-import type { CredentialsService } from "../contract/service.ts";
+import type { CredentialContext, CredentialsService } from "../contract/service.ts";
 import { deleteOwnedCredential, fetchOwnedCredential } from "../persistence/queries.ts";
 import { requireOwned } from "../substrate/credential-not-found.ts";
 

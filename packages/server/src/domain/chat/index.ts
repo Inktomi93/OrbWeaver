@@ -5,13 +5,13 @@
 export { createActiveTurns } from "./active-turns.ts";
 export { activePersonaIdFor, createTurnPersonaResolver, voicePersonaFor } from "./assembly/turn-personas.ts";
 export { createChatBus } from "./bus.ts";
-export type { ChatServiceDeps } from "./context.ts";
 export type { ChatBoundBackfillOps } from "./contract/bound-backfill.ts";
 // Chat owns the injected RPG turn operation and its result; RPG implements them through this type-only door.
 export type {
   ChatRpgGameBirthPlan,
   ChatRpgGatherResult,
   ChatRpgOps,
+  ChatServiceDeps,
   ChatUserMacroDefs,
   ClaimChatOp,
   ForkGameArgs,

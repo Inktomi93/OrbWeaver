@@ -15,7 +15,6 @@ import type { Principal } from "@orb/contracts/identity";
 import { backgroundMaterializeMessage } from "@orb/contracts/theme";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { cardContentHash } from "#primitives/serde/card";
-import type { CharacterContext } from "../context.ts";
 import {
   CHARACTER_BACKGROUND_UNAVAILABLE,
   CHARACTER_HANDLE_RESERVED,
@@ -24,7 +23,7 @@ import {
   CharacterOperationError,
 } from "../contract/errors.ts";
 import type { UpdateCharacterParams } from "../contract/params.ts";
-import type { CharacterService } from "../contract/service.ts";
+import type { CharacterContext, CharacterService } from "../contract/service.ts";
 import { writeCardInPlace } from "../persistence/card.ts";
 import {
   canonicalTagsOf,

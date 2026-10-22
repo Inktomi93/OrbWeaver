@@ -13,10 +13,9 @@
 import { characters, chatParticipants } from "@orb/db";
 import { and, asc, eq, isNotNull, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
-import type { ExportContext } from "../context.ts";
 import type { ListHostChatsParams } from "../contract/params.ts";
 import type { HostChatRef } from "../contract/results.ts";
-import type { ExportService } from "../contract/service.ts";
+import type { ExportContext, ExportService } from "../contract/service.ts";
 
 const hostSeat = alias(chatParticipants, "host_seat");
 const charSeat = alias(chatParticipants, "char_seat");

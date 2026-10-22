@@ -7,7 +7,7 @@ import type { ChatBookView } from "@orb/contracts/world-info";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ChatId } from "@orb/kit/ids";
-import type { ChatContext } from "../context.ts";
+import type { ChatContext } from "../contract/context.ts";
 import { requireParticipant } from "../guard.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";

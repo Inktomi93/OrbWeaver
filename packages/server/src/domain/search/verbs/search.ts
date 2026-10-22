@@ -4,11 +4,10 @@
 
 import type { MemoryRetrievalMode, SearchScope } from "@orb/contracts/search";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
-import type { SearchContext } from "../context.ts";
 import { SEARCH_EMPTY_QUERY, SEARCH_LENS_REQUIRED, SEARCH_SCOPE_REQUIRED, SEARCH_SCOPE_UNSUPPORTED, SearchError } from "../contract/errors.ts";
 import type { UnifiedSearchParams } from "../contract/params.ts";
 import type { DigestSourceHit, SegmentSearchHit, UnifiedSearchResult, UnifiedSearchRows } from "../contract/results.ts";
-import type { DigestCoverageOp, SearchService } from "../contract/service.ts";
+import type { DigestCoverageOp, SearchContext, SearchService } from "../contract/service.ts";
 import { hostedChatIds, nearestDigests } from "../persistence/digest-rows.ts";
 import { resolveCharacterDisplay, resolveChatDisplay } from "../persistence/display.ts";
 import { DISCOVER_SEGMENT_POOL_CAP, DISCOVER_SEGMENT_POOL_FACTOR, DISCOVER_SEGMENTS_PER_CHAR, OWNER_OVERFETCH, SCOPED_POOL_K } from "../substrate/constants.ts";

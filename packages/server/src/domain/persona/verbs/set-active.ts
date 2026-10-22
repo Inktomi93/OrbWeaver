@@ -5,10 +5,9 @@
 
 import { personas } from "@orb/db";
 import { and, eq } from "drizzle-orm";
-import type { PersonaContext } from "../context.ts";
 import { PersonaNotFoundError } from "../contract/errors.ts";
 import type { SetActivePersonaParams } from "../contract/params.ts";
-import type { PersonaService } from "../contract/service.ts";
+import type { PersonaContext, PersonaService } from "../contract/service.ts";
 
 export function createSetActive(ctx: PersonaContext): PersonaService["setActivePersona"] {
   return async ({ principal, chatId, targetUserId, personaId }: SetActivePersonaParams): Promise<void> => {

@@ -5,8 +5,7 @@
 
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { PersonaContext } from "./context.ts";
-import type { PersonaService } from "./contract/service.ts";
+import type { PersonaContext, PersonaService } from "./contract/service.ts";
 import { createConnect, createDisconnect, createListConnected, createListConnectedCharacters } from "./verbs/connection/index.ts";
 import { createCreate } from "./verbs/create.ts";
 import { createCreateFromCharacter } from "./verbs/create-from-character.ts";

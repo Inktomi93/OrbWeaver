@@ -5,7 +5,7 @@
 
 import type { ImportWindow } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
-import type { ChatContext } from "../context.ts";
+import type { ChatContext } from "../contract/context.ts";
 import type { BlockSpan, ResolveBackfillMemoryConfig } from "../contract/memory.ts";
 import { resolveCfg } from "../memory/constants.ts";
 import { blockHash, consolidationHash, sliceBlocks } from "../memory/generate/substrate/transcript.ts";

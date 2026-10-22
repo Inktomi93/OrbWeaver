@@ -5,7 +5,6 @@
 
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import { createWorkloadServiceContext } from "./context.ts";
 import type { WorkloadService, WorkloadServiceDeps } from "./contract/service.ts";
 import { createCancel } from "./verbs/cancel.ts";
 import { createCreateSchedule } from "./verbs/create-schedule.ts";
@@ -20,8 +19,7 @@ import { createStart } from "./verbs/start.ts";
 import { createUpdateSchedule } from "./verbs/update-schedule.ts";
 
 export function createWorkloadService(input: DbAssemblyInput<WorkloadServiceDeps>): WorkloadService {
-  const deps: WorkloadServiceDeps = { ...input, db: databaseForOwner(input.db) };
-  const ctx = createWorkloadServiceContext(deps);
+  const ctx: WorkloadServiceDeps = { ...input, db: databaseForOwner(input.db) };
   return {
     ...createStart(ctx),
     ...createEstimateModelCalls(ctx),

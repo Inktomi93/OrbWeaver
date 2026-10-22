@@ -6,8 +6,7 @@
 
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { RosterPresetContext } from "./context.ts";
-import type { RosterPresetService } from "./contract/service.ts";
+import type { RosterPresetContext, RosterPresetService } from "./contract/service.ts";
 import { createApplyToChat } from "./verbs/apply-to-chat.ts";
 import { createCount } from "./verbs/count.ts";
 import { createCreate } from "./verbs/create.ts";

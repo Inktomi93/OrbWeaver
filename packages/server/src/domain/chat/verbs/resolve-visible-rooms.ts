@@ -18,8 +18,7 @@ import type { ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ChatId, UserId } from "@orb/kit/ids";
-import type { ChatContext } from "../context.ts";
-import type { LoadUserHandlesOp } from "../contract/context.ts";
+import type { ChatContext, LoadUserHandlesOp } from "../contract/context.ts";
 import { loadRoomSeatNames, loadSeatedRooms } from "../persistence/visible-rooms.ts";
 import { REMOVED_MEMBER_LABEL } from "../substrate/participant-name.ts";
 

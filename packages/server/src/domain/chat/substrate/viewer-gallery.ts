@@ -3,7 +3,7 @@
 // `firstCharacterIdOf`, the one `generateImage` makes; ownership is the owner-scoped card read its auto-add reads.
 
 import type { CharacterId, UserId } from "@orb/kit/ids";
-import type { ChatContext } from "../context.ts";
+import type { ChatContext } from "../contract/context.ts";
 import { characterIdsOf, firstCharacterIdOf } from "../persistence/participant.ts";
 
 type RosterSeats = Parameters<typeof characterIdsOf>[0];

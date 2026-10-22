@@ -1,7 +1,6 @@
 import { userCredentials } from "@orb/db";
-import type { CredentialContext } from "../context.ts";
 import { CredentialsDecryptError } from "../contract/errors.ts";
-import type { CredentialsService } from "../contract/service.ts";
+import type { CredentialContext, CredentialsService } from "../contract/service.ts";
 import { aadFor } from "../persistence/aad.ts";
 import { decryptSealed } from "../substrate/decrypt.ts";
 

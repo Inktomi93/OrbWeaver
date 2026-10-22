@@ -1,6 +1,4 @@
-// domain/workloads/contract/service — the typed API surface. Holds the `WorkloadService` verb interface,
-// the two explicit DI bundles, and the injected-op type aliases; `context.ts` is the builder for these types.
-// workloads sideways-imports NO sibling runtime — every cross-feature capability is an injected op wired at entry/.
+// Workload service and runner contracts. Cross-feature capabilities arrive through injected operations.
 
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { ModelCallEstimate, WorkloadEvent, WorkloadLane, WorkloadRef } from "@orb/contracts/workloads";
@@ -29,7 +27,7 @@ type NewWorkloadId = () => WorkloadId;
 /** Mint a fresh `WorkloadScheduleId` — the injected determinism seam for the schedule verbs. */
 type NewWorkloadScheduleId = () => WorkloadScheduleId;
 
-/** The bundle the `WorkloadService` verbs close over (built by `context.ts`, wired at `service.ts`). */
+/** The bundle the service root supplies to the workload verbs. */
 export interface WorkloadServiceContext {
   readonly db: Db;
   /** The per-kind contribution registry, LATE-BOUND (a thunk, like portability's `getPortabilityRegistry`).

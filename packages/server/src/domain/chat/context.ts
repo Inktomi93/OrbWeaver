@@ -4,8 +4,6 @@ import { batchHandle, databaseForOwner, databaseHandle } from "@orb/db/wiring-ow
 import type { ChatContext } from "./contract/context.ts";
 import type { ChatAssemblyContext } from "./contract/wiring.ts";
 
-export type { ChatContext, ChatServiceDeps } from "./contract/context.ts";
-
 /** Preserve each operation's actual connection and mutable batch across the accounting seam. */
 export function createChatContext(input: ChatAssemblyContext): ChatContext {
   return {

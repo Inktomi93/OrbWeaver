@@ -54,8 +54,8 @@ import {
 } from "@orb/contracts/chat";
 import type { ChatParticipantId, MessageVariantId } from "@orb/kit/ids";
 import { parseSpeakerSpans, segmentSnippet } from "@orb/kit/speaker-label";
-import type { ChatContext } from "../context.ts";
 import { createChatContext } from "../context.ts";
+import type { ChatContext } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import { DEFAULT_CHAT_BEHAVIOR } from "../contract/foreign.ts";
 import type { ListReactionsParams, ReactAsCharacterParams, StoredSegmentAnchor, ToggleReactionParams } from "../contract/params.ts";

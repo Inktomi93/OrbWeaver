@@ -14,10 +14,9 @@
 // so the pane reads that off `listGlobal` and renders a switch. Adding a one-element "rosters" arm for it
 // would be a second home for the same boolean.
 
-import type { RegexContext } from "#src/domain/regex/context.ts";
 import { RegexNotFoundError } from "#src/domain/regex/contract/errors.ts";
 import type { ListScriptUsageParams } from "#src/domain/regex/contract/params.ts";
-import type { RegexService } from "#src/domain/regex/contract/service.ts";
+import type { RegexContext, RegexService } from "#src/domain/regex/contract/service.ts";
 import { listCharactersAttaching, listChatIdsAttaching, listPresetsAttaching, loadOwnedScript } from "#src/domain/regex/persistence/queries.ts";
 
 export function createListScriptUsage(ctx: RegexContext): RegexService["listScriptUsage"] {

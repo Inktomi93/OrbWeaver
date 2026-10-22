@@ -5,8 +5,7 @@
 import { refinerySchemas } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { and, eq } from "drizzle-orm";
-import type { RefineryContext } from "../context.ts";
-import type { RefineryService } from "../contract/service.ts";
+import type { RefineryContext, RefineryService } from "../contract/service.ts";
 import { loadOwnedSchemaRow } from "../persistence/queries.ts";
 
 export function createDeleteSchema(ctx: RefineryContext): RefineryService["deleteSchema"] {

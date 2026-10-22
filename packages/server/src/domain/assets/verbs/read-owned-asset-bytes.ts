@@ -7,10 +7,9 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { AssetId } from "@orb/kit/ids";
-import type { AssetsContext } from "../context.ts";
 import { AssetNotFoundError } from "../contract/errors.ts";
 import type { OwnedAssetBytes } from "../contract/results.ts";
-import type { AssetsService } from "../contract/service.ts";
+import type { AssetsContext, AssetsService } from "../contract/service.ts";
 import { ownedAssetCasRef } from "../persistence/queries.ts";
 
 export function createReadOwnedAssetBytes(ctx: AssetsContext): AssetsService["readOwnedAssetBytes"] {

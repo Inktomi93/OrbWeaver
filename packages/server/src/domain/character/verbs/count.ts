@@ -1,5 +1,4 @@
-import type { CharacterContext } from "../context.ts";
-import type { CharacterService } from "../contract/service.ts";
+import type { CharacterContext, CharacterService } from "../contract/service.ts";
 import { countOwnedCharacters } from "../persistence/queries.ts";
 import { characterListLens } from "../substrate/list-lens.ts";
 

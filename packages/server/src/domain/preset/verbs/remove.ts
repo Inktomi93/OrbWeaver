@@ -1,9 +1,8 @@
 import { getLog } from "#foundation/observability";
 import { SYSTEM_DEFAULT_PRESET_ID } from "../constants.ts";
-import type { PresetContext } from "../context.ts";
 import { PRESET_OP_CODES, PresetNotFoundError, PresetOperationError } from "../contract/errors.ts";
 import type { RemovePresetParams } from "../contract/params.ts";
-import type { PresetService } from "../contract/service.ts";
+import type { PresetContext, PresetService } from "../contract/service.ts";
 import { deletePreset } from "../persistence/queries.ts";
 
 // verb: remove — delete an OWNED preset. The system default is GUARDED (its lifecycle is the boot seeder's

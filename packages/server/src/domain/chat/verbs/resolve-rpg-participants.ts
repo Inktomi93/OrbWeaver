@@ -13,9 +13,8 @@
 
 import type { RpgActorRef } from "@orb/contracts/rpg";
 import type { UserId } from "@orb/kit/ids";
-import type { ChatContext } from "../context.ts";
 import { createChatContext } from "../context.ts";
-import type { ResolveRpgParticipants, RpgParticipantActor } from "../contract/context.ts";
+import type { ChatContext, ResolveRpgParticipants, RpgParticipantActor } from "../contract/context.ts";
 import type { ParticipantRow } from "../contract/participant-row.ts";
 import type { ChatAssemblyContext } from "../contract/wiring.ts";
 import { classifyParticipant } from "../persistence/participant.ts";

@@ -13,8 +13,7 @@
 
 import type { AssetBlobRef } from "@orb/contracts/assets";
 import type { AssetId, UserId } from "@orb/kit/ids";
-import type { AssetsContext } from "../context.ts";
-import type { AssetsService } from "../contract/service.ts";
+import type { AssetsContext, AssetsService } from "../contract/service.ts";
 import { selectOwnedAssetRefs } from "../persistence/queries.ts";
 
 export function createResolveOwnedAssetRefs(ctx: AssetsContext): AssetsService["resolveOwnedAssetRefs"] {

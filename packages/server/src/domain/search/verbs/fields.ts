@@ -2,10 +2,9 @@
 // `fields` names its hits through the owner-scoped display read, so a card deleted since the index was built
 // drops out instead of rendering as a bare id.
 
-import type { SearchContext } from "../context.ts";
 import type { FieldSearchParams, SuggestParams } from "../contract/params.ts";
 import type { FieldSearchResult, SearchSuggestion } from "../contract/results.ts";
-import type { SearchService } from "../contract/service.ts";
+import type { SearchContext, SearchService } from "../contract/service.ts";
 import { loadCardFields } from "../persistence/cards.ts";
 import { resolveCharacterDisplay } from "../persistence/display.ts";
 

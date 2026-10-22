@@ -14,10 +14,9 @@
 // through the one projection seam every other card read in this domain uses, and the compare view now
 // shows what restoring would actually give you.
 
-import type { CharacterContext } from "../context.ts";
 import { CharacterNotFoundError } from "../contract/errors.ts";
 import type { GetSnapshotParams } from "../contract/params.ts";
-import type { CharacterService } from "../contract/service.ts";
+import type { CharacterContext, CharacterService } from "../contract/service.ts";
 import { loadOwnedCharacterRow, loadSnapshotRow, snapshotCardOf } from "../persistence/queries.ts";
 
 export function createGetSnapshot(ctx: CharacterContext): CharacterService["getSnapshot"] {

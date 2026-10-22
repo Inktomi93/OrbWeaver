@@ -7,8 +7,7 @@ import { refinerySchemaDocumentSchema } from "@orb/contracts/refinery";
 import type { refinerySchemas } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { RefinerySchemaId, UserId } from "@orb/kit/ids";
-import type { RefineryContext } from "../context.ts";
-import type { RefineryService } from "../contract/service.ts";
+import type { RefineryContext, RefineryService } from "../contract/service.ts";
 import { loadOwnedSchemaRow, schemaSummaryOf, updateOwnedSchemaIfNameFree } from "../persistence/queries.ts";
 import { schemaNameTakenError, schemaStalePatchError } from "../substrate/schema-library.ts";
 

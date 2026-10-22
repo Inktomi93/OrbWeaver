@@ -4,8 +4,7 @@
 // LIFTABLE BY INVARIANT. S5 name hygiene via the shared substrate.
 
 import { refinerySchemaDocumentSchema } from "@orb/contracts/refinery";
-import type { RefineryContext } from "../context.ts";
-import type { RefineryService } from "../contract/service.ts";
+import type { RefineryContext, RefineryService } from "../contract/service.ts";
 import { insertOwnedSchemaIfNameFree, schemaSummaryOf } from "../persistence/queries.ts";
 import { schemaNameTakenError } from "../substrate/schema-library.ts";
 

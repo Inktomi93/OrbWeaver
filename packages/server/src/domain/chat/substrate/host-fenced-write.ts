@@ -19,7 +19,7 @@
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
 import type { ChatId } from "@orb/kit/ids";
-import type { ChatContext } from "../context.ts";
+import type { ChatContext } from "../contract/context.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import { hostUserIdOf } from "./participants-host.ts";
 

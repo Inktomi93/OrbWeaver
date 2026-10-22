@@ -8,8 +8,7 @@
 
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { DatabankContext } from "./context.ts";
-import type { DatabankService } from "./contract/service.ts";
+import type { DatabankContext, DatabankService } from "./contract/service.ts";
 import { createAttachGlobal } from "./verbs/attach/attach-global.ts";
 import { createAttachToCharacter } from "./verbs/attach/attach-to-character.ts";
 import { createAttachToChat } from "./verbs/attach/attach-to-chat.ts";

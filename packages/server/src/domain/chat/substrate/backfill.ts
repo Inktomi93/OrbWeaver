@@ -28,7 +28,7 @@ import type { RowMacroNameContext } from "@orb/kit/macro";
 import { getLog } from "#foundation/observability";
 import { isAborted } from "#primitives/abort";
 import { GenerationSupersededError } from "#primitives/embedding-generation";
-import type { ChatContext } from "../context.ts";
+import type { ChatContext } from "../contract/context.ts";
 import type { BackfillPassCounts, MemoryBackfillSweepCounts, MemoryEmbedSpace, MemoryScope, ResolveBackfillMemoryConfig } from "../contract/memory.ts";
 import type { MemorySweepArgs } from "../contract/workloads.ts";
 import {

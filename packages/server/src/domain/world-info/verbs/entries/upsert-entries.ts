@@ -16,10 +16,9 @@ import type { ChatId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { resolveEntryScope } from "@orb/kit/world-info";
 import { eq } from "drizzle-orm";
 import { sha256Hex } from "#primitives/content-hash";
-import type { WorldInfoContext } from "#src/domain/world-info/context.ts";
 import { WorldInfoNotFoundError } from "#src/domain/world-info/contract/errors.ts";
 import type { UpsertEntriesParams } from "#src/domain/world-info/contract/params.ts";
-import type { WorldInfoService } from "#src/domain/world-info/contract/service.ts";
+import type { WorldInfoContext, WorldInfoService } from "#src/domain/world-info/contract/service.ts";
 import { listBookEntries, listChatIdsForBook, loadOwnedBook } from "#src/domain/world-info/persistence/queries.ts";
 
 type EntryRow = Awaited<ReturnType<typeof listBookEntries>>[number];

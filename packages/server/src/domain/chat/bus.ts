@@ -69,7 +69,7 @@ import type { DbAssemblyInput, StatementToken } from "@orb/db/wiring";
 import { databaseForOwner, statementForOwner, statementToken } from "@orb/db/wiring-owner";
 import type { ChatEventId, ChatId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
-import type { ChatContext } from "./context.ts";
+import type { ChatContext } from "./contract/context.ts";
 import { appendChatEvent, appendChatEventAfterClaimStatement, insertChatEventStatement } from "./persistence/events.ts";
 import { loadChatEventById, loadChatRow } from "./persistence/queries.ts";
 import { createMemberDeltaStamper } from "./substrate/member-visibility.ts";

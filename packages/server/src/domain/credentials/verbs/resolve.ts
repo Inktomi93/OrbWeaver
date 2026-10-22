@@ -8,9 +8,8 @@
 import type { ResolvedSecret, ResolvedSecretKind } from "@orb/contracts/credentials";
 import { parseProviderMetadata } from "@orb/contracts/credentials";
 import { DomainNoCredentialError } from "@orb/kit/errors";
-import type { CredentialContext } from "../context.ts";
 import type { ResolveCredentialParams } from "../contract/params.ts";
-import type { CredentialsService } from "../contract/service.ts";
+import type { CredentialContext, CredentialsService } from "../contract/service.ts";
 import { aadFor } from "../persistence/aad.ts";
 import { fetchOwnedCredential } from "../persistence/queries.ts";
 import { decryptSealed } from "../substrate/decrypt.ts";

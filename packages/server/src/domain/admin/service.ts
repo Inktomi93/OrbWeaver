@@ -3,8 +3,7 @@
 // each return their slice). The `AdminContext` is built at the entry composition root and passed in.
 
 import { awaitableStatementForOwner, databaseForOwner, statementForOwner } from "@orb/db/wiring-owner";
-import type { AdminContext } from "./context.ts";
-import type { AdminAssemblyContext, AdminService } from "./contract/service.ts";
+import type { AdminAssemblyContext, AdminContext, AdminService } from "./contract/service.ts";
 import { createCreateUser } from "./verbs/create-user.ts";
 import { createEmbed } from "./verbs/embed.ts";
 import { createLinkSsoIdentity } from "./verbs/link-sso-identity.ts";

@@ -13,10 +13,9 @@
 
 import type { GalleryItemView } from "@orb/contracts/assets";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { AssetsContext } from "../context.ts";
 import { AssetNotFoundError, GalleryItemNotFoundError } from "../contract/errors.ts";
 import type { GalleryAddParams } from "../contract/params.ts";
-import type { AssetsService } from "../contract/service.ts";
+import type { AssetsContext, AssetsService } from "../contract/service.ts";
 import { galleryItemViewById, insertGalleryItem, ownedAssetForGallery } from "../persistence/queries.ts";
 
 export function createAddToGallery(ctx: AssetsContext): AssetsService["addToGallery"] {

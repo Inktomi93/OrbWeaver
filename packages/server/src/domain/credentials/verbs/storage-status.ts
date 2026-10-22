@@ -15,8 +15,7 @@
 // Principal-free by construction: the answer is the same for every caller, so the verb takes no params.
 
 import type { CredentialStorageStatus } from "@orb/contracts/credentials";
-import type { CredentialContext } from "../context.ts";
-import type { CredentialsService } from "../contract/service.ts";
+import type { CredentialContext, CredentialsService } from "../contract/service.ts";
 
 export function createStorageStatus(ctx: CredentialContext): CredentialsService["storageStatus"] {
   return (): Promise<CredentialStorageStatus> => Promise.resolve({ enabled: ctx.box.enabled });

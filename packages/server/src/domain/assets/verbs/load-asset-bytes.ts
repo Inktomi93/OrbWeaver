@@ -12,8 +12,7 @@
 // strictly "no asset row").
 
 import type { AssetId } from "@orb/kit/ids";
-import type { AssetsContext } from "../context.ts";
-import type { AssetsService } from "../contract/service.ts";
+import type { AssetsContext, AssetsService } from "../contract/service.ts";
 import { loadAssetCasRefById } from "../persistence/queries.ts";
 
 export function createLoadAssetBytes(ctx: AssetsContext): AssetsService["loadAssetBytes"] {

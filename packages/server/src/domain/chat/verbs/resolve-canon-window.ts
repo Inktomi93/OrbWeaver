@@ -15,8 +15,7 @@
 import { buildIdentityNameContext } from "@orb/contracts/chat";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { ChatContext } from "../context.ts";
-import type { ResolveCanonWindow } from "../contract/context.ts";
+import type { ChatContext, ResolveCanonWindow } from "../contract/context.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { loadCanonHistory } from "../persistence/queries.ts";
 import { projectRpgTranscript, sliceCanonWindow } from "../substrate/rpg-transcript.ts";

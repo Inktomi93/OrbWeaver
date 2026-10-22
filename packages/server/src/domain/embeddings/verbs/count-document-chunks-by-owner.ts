@@ -15,9 +15,8 @@
 // A read only — no write, no embed. The Map is built HERE (a verb), never in the query layer.
 
 import type { DocumentId } from "@orb/kit/ids";
-import type { EmbeddingsContext } from "../context.ts";
 import type { OwnerChunkCountsParams } from "../contract/params.ts";
-import type { EmbeddingsService } from "../contract/service.ts";
+import type { EmbeddingsContext, EmbeddingsService } from "../contract/service.ts";
 import { countDocumentChunksByOwner } from "../persistence/queries.ts";
 
 export function createCountDocumentChunksByOwner(ctx: EmbeddingsContext): EmbeddingsService["countDocumentChunksByOwner"] {

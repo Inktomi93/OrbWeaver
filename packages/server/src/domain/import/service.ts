@@ -6,8 +6,7 @@
 // (`importChats` / `importPersonas`) — the latter close over `ctx.profile` (the db handle + minters +
 // `personaByUserName` + the backfill ops, RULING A); they throw if `ctx.profile` is absent (a card-only wiring).
 
-import type { ImportContext } from "./context.ts";
-import type { ImportService } from "./contract/service.ts";
+import type { ImportContext, ImportService } from "./contract/service.ts";
 import { createImportCharacter } from "./verbs/import-character.ts";
 import { createImportChatBundle } from "./verbs/import-chat-bundle.ts";
 import { createImportChatFile } from "./verbs/import-chat-file.ts";

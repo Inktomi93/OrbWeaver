@@ -40,7 +40,7 @@ import type { AssetId, CharacterId, ChatId, MessageAssetId, MessageId, MessageVa
 import type { VarOp } from "@orb/kit/macro";
 import { eq } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
-import type { ChatContext } from "../context.ts";
+import type { ChatContext } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { ForkChatParams } from "../contract/params.ts";
 import type { ParticipantRow } from "../contract/participant-row.ts";

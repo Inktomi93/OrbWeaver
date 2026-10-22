@@ -11,9 +11,8 @@ import {
   mintPersonaName,
   personaPlacementOf,
 } from "#primitives/serde/persona";
-import type { PersonaContext } from "../context.ts";
 import type { ReviewPersonaImportParams } from "../contract/params.ts";
-import type { PersonaService } from "../contract/service.ts";
+import type { PersonaContext, PersonaService } from "../contract/service.ts";
 import { loadOwnedPersonaCandidates } from "../persistence/queries.ts";
 
 export function createReviewImport(ctx: PersonaContext): PersonaService["reviewImport"] {

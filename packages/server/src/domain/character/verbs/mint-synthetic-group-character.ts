@@ -7,11 +7,10 @@
 
 import type { CharacterHandle } from "@orb/kit/ids";
 import { cardContentHash } from "#primitives/serde/card";
-import type { CharacterContext } from "../context.ts";
 import { CHARACTER_HANDLE_CONFLICT, CHARACTER_HANDLE_RESERVED, CharacterOperationError } from "../contract/errors.ts";
 import type { MintGroupCharParams } from "../contract/params.ts";
 import type { CharacterRef } from "../contract/results.ts";
-import type { CharacterService } from "../contract/service.ts";
+import type { CharacterContext, CharacterService } from "../contract/service.ts";
 import { insertCharacter } from "../persistence/card.ts";
 import { findByOwnerHandle } from "../persistence/queries.ts";
 import { cardTokenSize } from "../substrate/card-tokens.ts";

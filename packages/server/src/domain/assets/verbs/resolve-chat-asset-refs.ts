@@ -10,8 +10,7 @@
 
 import type { AssetBlobRef } from "@orb/contracts/assets";
 import type { AssetId, ChatId, UserId } from "@orb/kit/ids";
-import type { AssetsContext } from "../context.ts";
-import type { AssetsService } from "../contract/service.ts";
+import type { AssetsContext, AssetsService } from "../contract/service.ts";
 
 export function createResolveChatAssetRefs(ctx: AssetsContext): AssetsService["resolveChatAssetRefs"] {
   return (callerId: UserId, chatId: ChatId, assetIds: readonly AssetId[]): Promise<readonly AssetBlobRef[]> => {

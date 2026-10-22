@@ -31,11 +31,10 @@
 
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
-import type { AdminContext } from "../context.ts";
 import { ADMIN_OP_CODES } from "../contract/errors.ts";
 import type { LinkSsoIdentityParams } from "../contract/params.ts";
 import type { UnclaimedLinkOutcome } from "../contract/results.ts";
-import type { AdminService } from "../contract/service.ts";
+import type { AdminContext, AdminService } from "../contract/service.ts";
 import { isBootstrapOwnerRole, requireAdmin } from "../guard.ts";
 import { loadUser } from "../persistence/queries.ts";
 import { commitAuditedWrite } from "../substrate/audited-write.ts";

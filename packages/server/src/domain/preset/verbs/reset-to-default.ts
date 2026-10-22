@@ -2,10 +2,9 @@ import type { PresetDetail } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { getLog } from "#foundation/observability";
 import { SYSTEM_DEFAULT_PRESET_ID } from "../constants.ts";
-import type { PresetContext } from "../context.ts";
 import { PresetNotFoundError } from "../contract/errors.ts";
 import type { ResetToDefaultParams } from "../contract/params.ts";
-import type { PresetService } from "../contract/service.ts";
+import type { PresetContext, PresetService } from "../contract/service.ts";
 import { readablePreset, replacePresetConfig } from "../persistence/queries.ts";
 import { toPresetDetail } from "../substrate/views.ts";
 

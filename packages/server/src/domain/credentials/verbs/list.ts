@@ -3,9 +3,8 @@
 // field (ciphertext/iv/tag) or plaintext key ever reaches the wire (invariant #4).
 
 import type { CredentialView } from "@orb/contracts/credentials";
-import type { CredentialContext } from "../context.ts";
 import type { ListCredentialsParams } from "../contract/params.ts";
-import type { CredentialsService } from "../contract/service.ts";
+import type { CredentialContext, CredentialsService } from "../contract/service.ts";
 import { listOwnedCredentials, toCredentialView } from "../persistence/queries.ts";
 
 export function createList(ctx: CredentialContext): CredentialsService["list"] {

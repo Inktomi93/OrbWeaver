@@ -7,10 +7,9 @@
 // retrieval ranking lives in exactly one place. A character that vanished between the scan and the enrich
 // (deleted, or filtered by the owner re-assert) is simply dropped from the result.
 
-import type { SearchContext } from "../context.ts";
 import type { FindCharactersParams } from "../contract/params.ts";
 import type { CharacterCardHit } from "../contract/results.ts";
-import type { SearchService } from "../contract/service.ts";
+import type { SearchContext, SearchService } from "../contract/service.ts";
 import { resolveCharacterDisplay } from "../persistence/display.ts";
 
 export function createFindCharacters(ctx: SearchContext, knn: SearchService["knn"]): SearchService["findCharacters"] {

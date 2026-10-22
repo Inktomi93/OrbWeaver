@@ -2,9 +2,8 @@
 // keeps its id and label, so every connection on it moves to the new secret; a fresh key clears revocation.
 
 import type { CredentialView } from "@orb/contracts/credentials";
-import type { CredentialContext } from "../context.ts";
 import type { ReplaceCredentialParams } from "../contract/params.ts";
-import type { CredentialsService } from "../contract/service.ts";
+import type { CredentialContext, CredentialsService } from "../contract/service.ts";
 import { aadFor } from "../persistence/aad.ts";
 import { fetchOwnedCredential, rotateSealed } from "../persistence/queries.ts";
 import { requireOwned } from "../substrate/credential-not-found.ts";

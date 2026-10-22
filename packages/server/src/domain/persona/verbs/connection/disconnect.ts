@@ -4,9 +4,8 @@
 
 import { characterPersonas } from "@orb/db";
 import { and, eq } from "drizzle-orm";
-import type { PersonaContext } from "#src/domain/persona/context.ts";
 import type { DisconnectParams } from "#src/domain/persona/contract/params.ts";
-import type { PersonaService } from "#src/domain/persona/contract/service.ts";
+import type { PersonaContext, PersonaService } from "#src/domain/persona/contract/service.ts";
 import { ensureCharacterOwned, ensurePersonaOwned } from "#src/domain/persona/persistence/queries.ts";
 
 export function createDisconnect(ctx: PersonaContext): PersonaService["disconnectFromCharacter"] {
