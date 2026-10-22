@@ -1,57 +1,24 @@
-// @orb/contracts/chat/content-classes — the CONTENT-CLASS VISIBILITY REGISTRY: two
-// orthogonal planes per embedded content class — reading-surface `{show|hide}` (does the human reader SEE
-// it?) × wire `{full|stub|drop}` (what does the MODEL receive on subsequent turns?). ONE open registry, one
-// row per class; the two projection seams are TOTAL over it (render: `contentSpansToBlocks` / the client
-// filter; wire: the server `toContentParts` arm) — a future class (a thoughts channel, a GM-notes channel)
-// is a REGISTRATION, not a build (graft #V1).
-//
-// The registry keys off the KIT span-kind axis (`ContentSpanKind`, `@orb/kit/content`) — the axis homes in
-// kit because the tokenizer (kit) must read the tag/fence registries and the cake forbids kit→contracts
-// (D54 axis-home-follows-reachability); the POLICY homes here because it is cross-boundary vocabulary both
-// server (wire seam) and client (render filter) consume.
-//
-// THE TABLE IS NOT THE BEHAVIOR — a wire-plane flip is TWO edits. The reading plane is read from this
-// registry at its projection seam, but the model-wire projection is a per-kind handler dispatch
-// (`WIRE_PART_HANDLERS`/`spanToWirePart`, server `domain/chat/engine/pipeline.ts`): keyed by span kind, so a
-// NEW class cannot build without a handler, but an EDITED row here changes nothing on its own. Flipping a
-// row's `wire` value (e.g. `full` → `drop`) without editing that handler leaves this table describing a
-// projection the pipeline does not perform, and the contract test (which asserts the TABLE) stays green.
-// The pipeline's own binding test is the tie-breaker; edit BOTH, and pin the new behavior with a PIPELINE
-// test (the span's bytes absent from the serialized history) rather than a row assertion.
-//
-// A THIRD dimension exists but is NOT a plane here: the SERVER MEMBER-STRIP (§3.6) applies to the `hidden`
-// class ONLY — hidden-class bytes never reach a non-host member's payload (`domain/chat` substrate
-// `member-visibility`, the trust boundary). `unknown-directive` shares `{hide, full}` (display noise is
-// stripped from the READING surface, the wire transcript stays honest) but is NOT member-stripped — it is
-// noise, not a secret.
+// Reading visibility and model-wire policy are independent (D285).
+// Member authorization is separate: the server removes hidden bodies before member delivery.
 
 import type { ContentSpanKind } from "@orb/kit/content";
 
-/** One content class's two-plane policy (§3.1). `reading` drives the render projection (a `hide` class
- *  emits NO render block); `wire` drives the server history projection (`full` = verbatim bytes, `stub` =
- *  the deterministic compact stand-in, `drop` = resolve-or-drop like image refs). */
+/** A content class's reading visibility and baseline model-wire projection. */
 export interface ContentClassPolicy {
   readonly reading: "show" | "hide";
   readonly wire: "full" | "stub" | "drop";
 }
 
-/** The shipped cells (§3.1 — the rationale column lives in the spec table):
- *  `text` show/full — the baseline; `image` show/drop — ATTACHMENT-ONLY (owner ruling, ST parity): only a
- *  deliberate user attachment (an owned-CAS `asset:` ref on a user-authored row) is a resolve-or-drop→alt
- *  candidate gated by the asset's media kind (`input.vision` for images, `input.video` for mp4/webm/
- *  animated-gif attachments — the kind is the ASSET's stored fact, classified by the resolve seam, #317);
- *  EVERY other embedded image — a character card's greeting picture, a
- *  world-info illustration, narrator/`/imagine` media, a pasted link — is DISPLAY-ONLY: it renders in the
- *  transcript forever and rides as a short `[image: alt]` marker, never as a model-visible image part (the
- *  gate is `ridesAsModelMedia` in `domain/chat/substrate/wire-history`); `hidden` hide/full — `<lie>`/`<ofilter>`: the reader never sees it, the model
- *  MUST remember its own lie/the true event; `card` show/stub — the reader keeps the rich card forever,
- *  the model gets `[card: title]` not the multi-KB blob (keep-last-X excepts the newest X); `choices`
- *  show/drop — buttons for the reader, but the CYOA fence is STRIPPED from the model wire on later turns
- *  (the user's pick already became a real user turn — unselected options must not pile up in context);
- *  `unknown-directive`
- *  hide/full — the §3.2.1 allowlist-strip (a hallucinated command tag/fence never renders as garbage; the
- *  wire keeps the model's bytes). The `Record<ContentSpanKind, …>` is the compile-force: a new span kind
- *  will not build until it declares its row. */
+/**
+ * Canonical policy consumed by the reading projection.
+ *
+ * @remarks
+ * Wire policy changes also require the per-kind handlers in server `chat/substrate/wire-history.ts`
+ * and behavior tests against actual provider input. That projection preserves hidden and unknown-directive
+ * bytes, drops choices, and stubs cards subject to the configured retention window. Owned attachments
+ * resolve or degrade according to media capability; other images become display-only text markers.
+ * A reading policy change never grants access to hidden bodies or changes model input.
+ */
 export const CONTENT_CLASS_POLICY: Readonly<Record<ContentSpanKind, ContentClassPolicy>> = {
   text: { reading: "show", wire: "full" },
   dice: { reading: "show", wire: "full" },

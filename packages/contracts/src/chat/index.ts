@@ -133,6 +133,7 @@ export type { CardFrameMintRequest, CardFrameMintResponse } from "./card-frame.t
 export { CARD_FRAME_MINT_BODY_MAX_BYTES, CARD_FRAME_ROUTE, cardFrameMintRequestSchema, cardFrameMintResponseSchema, cardFrameUrl } from "./card-frame.ts";
 export type { CardTrust, ContentSpansToBlocksOptions, MessageContentBlock } from "./content-blocks.ts";
 export { contentSpansToBlocks, messageContentBlockSchema } from "./content-blocks.ts";
+export { CONTENT_CLASS_POLICY } from "./content-classes.ts";
 
 export type { AnchorState, ChatDetail, RedeemInviteResult } from "./detail.ts";
 export { chatDetailSchema, redeemInviteResultSchema, viewerGalleryCharacter } from "./detail.ts";

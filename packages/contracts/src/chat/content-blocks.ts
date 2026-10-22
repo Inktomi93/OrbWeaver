@@ -7,6 +7,7 @@
 import type { ContentSpan } from "@orb/kit/content";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
+import { CONTENT_CLASS_POLICY } from "./content-classes.ts";
 
 // ── Message content blocks (D44 §12.4) ────────────────────────────────────────────────────────────
 // A message body is a typed SEQUENCE of content blocks, NOT one HTML string (ST's fatal simplification).
@@ -109,13 +110,20 @@ function imageSpanBlock(span: Extract<ContentSpan, { kind: "image" }>): MessageC
 }
 
 function nonTextBlock(span: Exclude<ContentSpan, { kind: "text" | "hidden" | "unknown-directive" | "dice" }>, trust: CardTrust): MessageContentBlock {
-  if (span.kind === "image") {
-    return imageSpanBlock(span);
+  switch (span.kind) {
+    case "image":
+      return imageSpanBlock(span);
+    case "card":
+      return { kind: "html-card", html: span.body, trust, origin: span.origin, ...(span.title === null ? {} : { title: span.title }) };
+    case "choices":
+      return { kind: "choices", options: [...span.options] };
+    default:
+      return assertNeverContentSpan(span);
   }
-  if (span.kind === "card") {
-    return { kind: "html-card", html: span.body, trust, origin: span.origin, ...(span.title === null ? {} : { title: span.title }) };
-  }
-  return { kind: "choices", options: [...span.options] };
+}
+
+function assertNeverContentSpan(_span: never): never {
+  throw new Error("Unrecognized content span");
 }
 
 export function contentSpansToBlocks(spans: readonly ContentSpan[], options?: ContentSpansToBlocksOptions): MessageContentBlock[] {
@@ -129,16 +137,12 @@ export function contentSpansToBlocks(spans: readonly ContentSpan[], options?: Co
     }
   };
   for (const span of spans) {
-    if (span.kind === "text" || span.kind === "dice") {
-      pendingText += span.kind === "text" ? span.text : span.raw;
+    // Reading policy is not authorization: the server strips hidden bodies from member payloads (D285).
+    if (CONTENT_CLASS_POLICY[span.kind].reading === "hide") {
       continue;
     }
-    // The READING-SURFACE plane (`CONTENT_CLASS_POLICY` `{hide, …}` classes) — the filter IS "the
-    // projection emits nothing": a hidden span's truth/event is simply absent from the displayed body
-    // (§3.4; the server member-strip is the trust boundary — this client arm is defense-in-depth + the
-    // host's own display), and an unknown command-shaped directive is model noise the reader never sees
-    // (§3.2.1 allowlist-strip). Text on either side joins into ONE markdown block.
-    if (span.kind === "hidden" || span.kind === "unknown-directive") {
+    if (span.kind === "text" || span.kind === "dice" || span.kind === "hidden" || span.kind === "unknown-directive") {
+      pendingText += span.kind === "text" ? span.text : span.raw;
       continue;
     }
     flushText();
