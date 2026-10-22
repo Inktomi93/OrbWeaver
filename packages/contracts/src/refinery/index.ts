@@ -65,17 +65,17 @@ export * from "./schema-plan.ts";
 // The card TEXT_MAX twin (contracts/character) — an applied rewrite flows into `character.update`,
 // whose text fields cap at 100 000; an uncapped payload would make the apply verb partial. Pinned
 // in the contract test against the character contract's exported `TEXT_MAX`.
-export const REWRITE_TEXT_MAX = 100_000;
+const REWRITE_TEXT_MAX = 100_000;
 
 /** Host-authored free prose that reaches a model wire (session `guidance`) — the `PROSE_MAX_CHARS` twin
  *  (contracts/prose-slot), and deliberately still CHARS. It is a typed input field, not model-authored
  *  critique output: a human types it into a bounded control, so the char cap is the one the editor can show
  *  and the token ruling above does not reach it. */
-export const HOST_PROSE_MAX_CHARS = 4000;
+const HOST_PROSE_MAX_CHARS = 4000;
 /** Entries in a per-field payload array (`fieldScores`, rewrite `fields`) = one per ADDRESSABLE target:
  *  the 8 non-greeting refinable fields + the card's own 100-greeting ceiling. Pinned in the contract test
  *  against `REFINABLE_FIELDS.length` and the character contract's exported `GREETINGS_MAX`. */
-export const ENTRIES_MAX = 108;
+const ENTRIES_MAX = 108;
 /** The card's greetings CEILING (`characterCardSchema`'s own `GREETINGS_MAX`) — the twin the append belt
  *  caps against: a rewrite may grow a card's greetings, never past what the card contract accepts, so the
  *  apply verb refuses the entry rather than letting `character.update` throw on a payload we constructed.
@@ -83,11 +83,11 @@ export const ENTRIES_MAX = 108;
 export const GREETING_SLOTS_MAX = 100;
 /** The last greeting slot the CARD can hold — an index above it addresses a greeting that cannot exist,
  *  so a rewrite carrying one is unapplicable by construction. DERIVED, so the pair can never drift. */
-export const GREETING_INDEX_MAX = GREETING_SLOTS_MAX - 1;
+const GREETING_INDEX_MAX = GREETING_SLOTS_MAX - 1;
 /** Greeting slots one selection may name (every slot the card can hold). */
 const GREETING_INDEXES_MAX = GREETING_SLOTS_MAX;
 /** Host-authored session label (the card `NAME_MAX` twin — a roster row's label, not prose). */
-export const SESSION_NAME_MAX = 200;
+const SESSION_NAME_MAX = 200;
 
 // ── WORST-CASE PAYLOAD BUDGET (recomputed 2026-08-08 for the chars→tokens cap; measured, not estimated) ──
 // Every string and array at its ceiling, serialized:
@@ -140,15 +140,15 @@ export const REFINERY_SESSION_COMPLETED_REASON = "refinery_session_completed";
 
 export const REFINERY_SCORE_MODES = ["full", "quick"] as const;
 export type RefineryScoreMode = (typeof REFINERY_SCORE_MODES)[number];
-export const refineryScoreModeSchema = z.enum(REFINERY_SCORE_MODES) satisfies z.ZodType<RefineryScoreMode>;
+const refineryScoreModeSchema = z.enum(REFINERY_SCORE_MODES) satisfies z.ZodType<RefineryScoreMode>;
 
 export const REFINERY_REWRITE_MODES = ["conservative", "balanced", "expansive"] as const;
 export type RefineryRewriteMode = (typeof REFINERY_REWRITE_MODES)[number];
-export const refineryRewriteModeSchema = z.enum(REFINERY_REWRITE_MODES) satisfies z.ZodType<RefineryRewriteMode>;
+const refineryRewriteModeSchema = z.enum(REFINERY_REWRITE_MODES) satisfies z.ZodType<RefineryRewriteMode>;
 
 export const REFINERY_ANALYZE_MODES = ["full", "iteration", "quick"] as const;
 export type RefineryAnalyzeMode = (typeof REFINERY_ANALYZE_MODES)[number];
-export const refineryAnalyzeModeSchema = z.enum(REFINERY_ANALYZE_MODES) satisfies z.ZodType<RefineryAnalyzeMode>;
+const refineryAnalyzeModeSchema = z.enum(REFINERY_ANALYZE_MODES) satisfies z.ZodType<RefineryAnalyzeMode>;
 
 // ── F5 refinable fields (card text fields, canonical-card order; per-greeting via indexes) ──────────────
 
@@ -413,7 +413,7 @@ export function appendedRewrites(fields: readonly RefineryRewriteField[]): Extra
  *  `fields` is entry-COUNT-capped as well as per-text-capped: the entry count is the apply verb's blast
  *  radius (one entry = one card field overwritten), and one payload can never name more targets than the
  *  card has. */
-export const refineryRewritePayloadSchema = z.object({
+const refineryRewritePayloadSchema = z.object({
   fields: z.array(refineryRewriteFieldSchema).max(ENTRIES_MAX),
 });
 export type RefineryRewritePayload = z.infer<typeof refineryRewritePayloadSchema>;
@@ -439,7 +439,7 @@ export const refineryRewriteParseSchema = refineryRewritePayloadSchema.transform
 ) satisfies z.ZodType<RefineryRewritePayload>;
 
 /** One review block's Keep/Discard decision: `true` keeps, `false` discards, `null` is undecided. */
-export const refineryRewriteDecisionSchema = z.boolean().nullable();
+const refineryRewriteDecisionSchema = z.boolean().nullable();
 export type RefineryRewriteDecision = z.infer<typeof refineryRewriteDecisionSchema>;
 
 /** The session's persisted decision sheets, keyed BY REWRITE RUN: a re-run reopens every block undecided,
@@ -592,7 +592,7 @@ const customPayloadSchema = z.record(z.string(), z.unknown());
 /** One append-only pipeline run. A plain union (not `z.discriminatedUnion`): score/analyze each carry TWO
  *  arms per stage literal (fixed + custom), which a single-key discriminator cannot spell. Narrow by
  *  `stage`, then by `payloadConfig.kind` — the provenance and the payload type move together. */
-export const refineryRunSchema = z.union([
+const refineryRunSchema = z.union([
   refineryRunBaseSchema.extend({
     stage: z.literal("score"),
     payloadConfig: refineryScoreFixedConfigSchema,
@@ -700,7 +700,7 @@ const refineryRewriteFieldViewSchema = z.union(refineryRewriteFieldSchema.option
 const refineryRewritePayloadViewSchema = refineryRewritePayloadSchema.strict().extend({
   fields: z.array(refineryRewriteFieldViewSchema).max(ENTRIES_MAX),
 }) satisfies z.ZodType<RefineryRewritePayload>;
-export const refineryStageConfigViewSchema = refineryStageConfigSchema.strict().extend({
+const refineryStageConfigViewSchema = refineryStageConfigSchema.strict().extend({
   score: z.union(refineryScoreConfigSchema.options.map((option) => option.strict())),
   rewrite: refineryRewriteConfigSchema.strict(),
   analyze: z.union(refineryAnalyzeConfigSchema.options.map((option) => option.strict())),
@@ -722,7 +722,7 @@ export const iterateResultSchema = z.strictObject({
   analyze: refineryRunViewSchema,
   iterationCount: z.number(),
 }) satisfies z.ZodType<IterateResult>;
-export const stagePreflightSchema = z.strictObject({
+const stagePreflightSchema = z.strictObject({
   stage: refineryStageSchema,
   model: brandedId<ModelId>(),
   temperature: z.number().nullable(),

@@ -105,7 +105,7 @@ const REFINERY_FORGE_MAX_FIELDS = REFINERY_SCHEMA_MAX_PROPERTIES;
  *  levels (the array node, then its `items`), so the ceiling below is the belt's depth cap halved — the
  *  transpiler's output can then never exceed `REFINERY_SCHEMA_MAX_DEPTH`, which is the agreement direction
  *  the mirror obligation requires. */
-export const REFINERY_FORGE_MAX_PATH_SEGMENTS = Math.floor(REFINERY_SCHEMA_MAX_DEPTH / 2);
+const REFINERY_FORGE_MAX_PATH_SEGMENTS = Math.floor(REFINERY_SCHEMA_MAX_DEPTH / 2);
 
 /** A path segment: an identifier, optionally suffixed `[]` to mean "an array of this". Enforced by the
  *  TRANSPILER, not the grammar (`pattern` never rides a wire — header). */
@@ -113,7 +113,7 @@ const PATH_SEGMENT_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*(\[\])?$/;
 
 /** One authored leaf. Every optional here is a real "the author had nothing to say" — under the hosted
  *  strict shape they arrive as explicit `null`s, and the structured layer drops them before the reply returns. */
-export const forgeFieldRowSchema = z
+const forgeFieldRowSchema = z
   .object({
     /** Dot path to the leaf; a `[]` suffix on a segment makes that level an array. */
     path: z.string().max(REFINERY_SCHEMA_NAME_MAX * REFINERY_FORGE_MAX_PATH_SEGMENTS),
@@ -205,7 +205,7 @@ export type ForgeFieldEnvelope = z.infer<typeof forgeFieldEnvelopeSchema>;
 /** The `two-stage` arm's SECOND call: display vocabulary only, keyed by the paths the FIRST call fixed. The
  *  structure is ours by then — the model cannot move a field while hinting it. A path that matches no row
  *  is dropped and counted, never applied to a guess. */
-export const forgeHintRowSchema = z.object({
+const forgeHintRowSchema = z.object({
   path: z.string().max(REFINERY_SCHEMA_NAME_MAX * REFINERY_FORGE_MAX_PATH_SEGMENTS),
   role: z.enum(RENDER_HINT_ROLES).optional(),
   group: z.string().max(REFINERY_SCHEMA_NAME_MAX).optional(),
@@ -236,7 +236,7 @@ const VERDICT_TONES: Readonly<Record<string, string>> = Object.fromEntries(
   REFINERY_VERDICTS.map((verdict, i) => [verdict, VERDICT_TONE_WORDS[i] ?? "neutral"]),
 );
 
-export const REFINERY_FORGE_CORE_NODES: Readonly<Record<RefinerySchemaStage, { readonly name: string; readonly node: Readonly<Record<string, unknown>> }>> = {
+const REFINERY_FORGE_CORE_NODES: Readonly<Record<RefinerySchemaStage, { readonly name: string; readonly node: Readonly<Record<string, unknown>> }>> = {
   score: {
     name: "overallScore",
     node: {
