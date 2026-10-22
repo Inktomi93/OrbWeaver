@@ -123,6 +123,8 @@ type RelayArgs<F extends UiProxyableHostFunction> = z.input<(typeof pluginUiHost
 
 test("scripted UI proxy names and guest arguments match the authoritative relay schemas", () => {
   expectTypeOf<SdkProxyFunction>().toEqualTypeOf<UiProxyableHostFunction>();
+  expectTypeOf<PluginUiV1["host"]["variables"]>().toEqualTypeOf<DeepUnbrand<Pick<ContractHost["variables"], keyof PluginUiV1["host"]["variables"]>>>();
+  expectTypeOf<PluginUiV1["host"]["storage"]>().toEqualTypeOf<DeepUnbrand<Pick<ContractHost["storage"], keyof PluginUiV1["host"]["storage"]>>>();
   expectTypeOf<Parameters<PluginUiV1["host"]["chat"]["getVariables"]>>().toEqualTypeOf<RelayArgs<"chat.getVariables">>();
   expectTypeOf<Parameters<PluginUiV1["host"]["chat"]["listMessages"]>>().toExtend<RelayArgs<"chat.listMessages">>();
   expectTypeOf<Parameters<PluginUiV1["host"]["chat"]["listMessages"]>["length"]>().toEqualTypeOf<RelayArgs<"chat.listMessages">["length"]>();
