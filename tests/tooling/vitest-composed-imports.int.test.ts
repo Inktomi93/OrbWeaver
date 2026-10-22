@@ -6,10 +6,11 @@ const ASSERTIONS = "vitest/expect-expect";
 const VALID_EXPECT = "vitest/valid-expect";
 
 test("effective Vitest rules recognize composed imports and retain legal assertion cases", async ({ repoRoot }) => {
-  const configured = new ESLint({ cwd: repoRoot });
+  const configured = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: repoRoot });
   const filePath = "tests/tooling/vitest-composed-imports.int.test.ts";
   const config = await configured.calculateConfigForFile(filePath);
   const native = new ESLint({
+    flags: ["unstable_native_nodejs_ts_config"],
     cwd: repoRoot,
     overrideConfigFile: true,
     overrideConfig: [

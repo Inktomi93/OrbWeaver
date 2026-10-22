@@ -6,6 +6,7 @@
   },
   "include": [
     "reset.d.ts",
+    "eslint-plugins.d.ts",
     "platform.d.ts",
     "aggregator-assets.d.ts",
     "tests/support/vitest-tags.d.ts",

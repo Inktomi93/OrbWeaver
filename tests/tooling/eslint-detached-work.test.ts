@@ -23,7 +23,7 @@ async function messages(root: string, source: string, path: string): Promise<rea
   const filename = join(root, path);
   let eslint = eslints.get(root);
   if (eslint === undefined) {
-    eslint = new ESLint({ cwd: root });
+    eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: root });
     eslints.set(root, eslint);
   }
   const config = await eslint.calculateConfigForFile(filename);
@@ -152,6 +152,12 @@ rows([
 ]);
 
 rows([
+  ["a module-level throw outside a catch reaches the Program root safely", "if (!channel) { throw new Error('missing channel'); }\n", 0],
+  [
+    "a module-scoped collection retained by top-level await stays visible",
+    "const jobs = new Set();\nconst stopped = worker.terminate();\njobs.add(stopped);\nvoid stopped.catch(() => undefined);\nawait Promise.allSettled(jobs);\n",
+    0,
+  ],
   [
     "a promise added to a collection that disposal spreads into allSettled is retained",
     "export function make(): void {\n  const terminations = new Set<Promise<number>>();\n  const terminate = (w: W): void => {\n    const stopped = w.terminate();\n    terminations.add(stopped);\n    void stopped.catch(() => undefined);\n  };\n  const dispose = async (): Promise<void> => {\n    await Promise.allSettled([...terminations]);\n  };\n  void terminate;\n  void dispose;\n}\n",

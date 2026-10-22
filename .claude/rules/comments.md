@@ -43,7 +43,7 @@ Take the first step that applies:
 
 ## TSDoc
 
-Exported API uses `/** */` TSDoc; a non-exported helper uses `//`. The `tsdoc/syntax` and `@typescript-eslint/no-deprecated` rules in `eslint.config.js` are hard errors. JSDoc type tags such as `@type`, `@typedef` and `@template` never appear.
+Exported API uses `/** */` TSDoc; a non-exported helper uses `//`. The `tsdoc/syntax` and `@typescript-eslint/no-deprecated` rules in `eslint.config.ts` are hard errors. JSDoc type tags such as `@type`, `@typedef` and `@template` never appear.
 
 | Tag | Use |
 | - | - |

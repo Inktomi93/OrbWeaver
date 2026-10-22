@@ -4,7 +4,7 @@ import { ESLint } from "eslint";
 import { scaledBudget } from "./_load-budget.ts";
 
 test("generated sandboxes and caches are excluded while authored JavaScript remains linted", async ({ repoRoot }) => {
-  const eslint = new ESLint({ cwd: repoRoot });
+  const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: repoRoot });
   expect(await eslint.isPathIgnored(".cache/eslint-discovery-probe.mjs")).toBe(true);
   const results = await eslint.lintText("/* eslint-disable no-empty-pattern */\nexport const value = 1;\n", {
     filePath: "scripts/temporary-lint-control.js",
@@ -16,6 +16,7 @@ test("generated sandboxes and caches are excluded while authored JavaScript rema
 test("the Node-tool surface executes the type-aware promise diagnostic", { timeout: scaledBudget(LONG_TEST_TIMEOUT_BASE_MS) }, async ({ repoRoot }) => {
   // CI's single-run parser reads on-disk source rather than the first lintText replacement.
   const eslint = new ESLint({
+    flags: ["unstable_native_nodejs_ts_config"],
     cwd: repoRoot,
     overrideConfig: { languageOptions: { parserOptions: { disallowAutomaticSingleRunInference: true } } },
   });
@@ -30,6 +31,7 @@ test("hyphenated browser fixtures execute React hook diagnostics in their owning
   repoRoot,
 }) => {
   const eslint = new ESLint({
+    flags: ["unstable_native_nodejs_ts_config"],
     cwd: repoRoot,
     overrideConfig: { languageOptions: { parserOptions: { disallowAutomaticSingleRunInference: true } } },
   });

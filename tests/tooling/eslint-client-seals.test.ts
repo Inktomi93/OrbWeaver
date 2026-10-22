@@ -25,7 +25,7 @@ let engine: ESLint | undefined;
 
 async function messages(root: string, rule: string, source: string, path: string): Promise<readonly Linter.LintMessage[]> {
   const filename = join(root, path);
-  engine ??= new ESLint({ cwd: root });
+  engine ??= new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: root });
   const config = await engine.calculateConfigForFile(filename);
   expect(config).toBeDefined();
   const found = new Linter().verify(
@@ -185,13 +185,6 @@ for (const [name, rule, path, source, count] of [
     "chat-stream-writes-in-bus-only a test file exercising the write api is a different subject",
     STREAM,
     "tests/client/state/chat-stream.test.ts",
-    'import { chatStream } from "@orb/client/state";\nexport const push = (): void => chatStream.push();\n',
-    0,
-  ],
-  [
-    "chat-stream-writes-in-bus-only legacy tests are outside the strict gates",
-    STREAM,
-    "tests/legacy/client/features/chat/_ct-stories.tsx",
     'import { chatStream } from "@orb/client/state";\nexport const push = (): void => chatStream.push();\n',
     0,
   ],

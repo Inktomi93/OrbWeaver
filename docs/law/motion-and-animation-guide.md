@@ -212,7 +212,7 @@ Anything else that reaches for JS to move pixels is a defect, not a third member
 two files before writing a third, and if the delta can be spelled in CSS, the answer is the
 shell's shape. This list is enforced, not prose-only: the native `orb/no-unruled-flip-inversion` lint
 rule reds a transform write flushed by a forced layout read anywhere in `@ui`/`@client`, and the one
-member that writes a transform is that rule's `homes` entry in `eslint.config.js`, which allows exactly one pair in its file and reports itself stale at none. Amend this list and
+member that writes a transform is that rule's `homes` entry in `eslint.config.ts`, which allows exactly one pair in its file and reports itself stale at none. Amend this list and
 that entry together, in one edit. Reduced motion needs no special case in either — the globals.css
 floor (`transition-property: none !important`) makes the inverse land instead of animate.
 
@@ -584,7 +584,7 @@ data-attribute for the full duration of a closing animation (Base UI keeps `data
 a React boolean flips on the first event). Styling off the boolean creates a second source of truth —
 the component visually snaps while the animation is still running.
 
-**Enforcer:** `orb/baseui-state-data-attributes` in `eslint.config.js` checks local hook-state names used in Base UI part styling. The rule consumes the committed surface manifest. Scoped metadata changes rejudge seals and invalidate native lint caches. This lexical check does not prove general state-value provenance.
+**Enforcer:** `orb/baseui-state-data-attributes` in `eslint.config.ts` checks local hook-state names used in Base UI part styling. The rule consumes the committed surface manifest. Scoped metadata changes rejudge seals and invalidate native lint caches. This lexical check does not prove general state-value provenance.
 
 **The closed set:** `data-starting-style` (one frame, enter "from") · `data-ending-style` (exit "to") ·
 `data-open` (while open) · `data-closed` (while closed, if `keepMounted`) · `data-disabled` ·

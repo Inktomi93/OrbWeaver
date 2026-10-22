@@ -29,7 +29,7 @@ async function configFor(root: string, filename: string): ReturnType<ESLint["cal
   if (config === undefined) {
     let eslint = eslints.get(root);
     if (eslint === undefined) {
-      eslint = new ESLint({ cwd: root });
+      eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: root });
       eslints.set(root, eslint);
     }
     config = eslint.calculateConfigForFile(filename);

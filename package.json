@@ -53,7 +53,7 @@
     "e2e:live": "E2E_LIVE=1 node tooling/src/floor/process/niced-exec.ts playwright test -c playwright.config.ts start-chat-with-character.spec.ts",
     "cpd": "node scripts/cpd.ts -c jscpd.json",
     "typecheck": "node scripts/typecheck.ts",
-    "lint:eslint": "eslint --max-warnings 0",
+    "lint:eslint": "eslint --flag unstable_native_nodejs_ts_config --max-warnings 0",
     "lint:css": "stylelint \"packages/**/*.css\"",
     "test:ct": "playwright test --config=playwright-ct.config.ts --project=chromium",
     "test:tools": "vitest run --config=vitest.config.ts --exclude=\"tests/!(tooling)/**\""

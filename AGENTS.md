@@ -193,7 +193,7 @@ without a path are in that folder.
 
 - `.claude/rules/server.md`: `packages/server/src/**`, `tests/server/**`
 
-- `.claude/rules/tooling.md`: `tooling/src/**`, `tests/tooling/**`, `biome.json`, `eslint.config.js`, `.dependency-cruiser.ts`, `knip.ts`, `lefthook.yml`, `tsconfig*.json`
+- `.claude/rules/tooling.md`: `tooling/src/**`, `tests/tooling/**`, `biome.json`, `eslint.config.ts`, `.dependency-cruiser.ts`, `knip.ts`, `lefthook.yml`, `tsconfig*.json`
 
 - `.claude/rules/ui-and-client.md`: `packages/ui/src/**`, `packages/client/src/**`
 

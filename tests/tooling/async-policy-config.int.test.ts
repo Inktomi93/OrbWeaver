@@ -33,12 +33,12 @@ test("async policy: raw void cannot own a rejecting Promise while await/catch/su
       include: ["packages/server/src/**/*.ts"],
     }),
   );
-  const productionConfigUrl = pathToFileURL(join(repoRoot, "eslint.config.js")).href;
+  const productionConfigUrl = pathToFileURL(join(repoRoot, "eslint.config.ts")).href;
   writeFileSync(
     join(scratch, "eslint.config.mjs"),
     `import production from ${JSON.stringify(productionConfigUrl)};\nexport default [...production, { files: ["packages/server/src/**/*.ts"], languageOptions: { parserOptions: { projectService: true, tsconfigRootDir: ${JSON.stringify(scratch)} } } }];\n`,
   );
-  const eslint = new ESLint({ cwd: scratch, overrideConfigFile: join(scratch, "eslint.config.mjs") });
+  const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: scratch, overrideConfigFile: join(scratch, "eslint.config.mjs") });
   const results = await eslint.lintFiles(Object.keys(fixtures).map((name) => join(fixtureRoot, `${name}.ts`)));
   const byName = new Map(
     results.map((result) => [

@@ -116,8 +116,9 @@ if (host.grants.includes("ui.surface")) {
  *     by construction, indexed for retrieval, no destination to configure and no host authority to ask:
  *     a write into your own shelves is your own reach.
  *  One marker per message, first match wins — `lookup` is checked first only because it came first. */
-const LOOKUP_RE = /\(\(\s*lookup:\s*([^)]{2,80}?)\s*\)\)/i;
-const CLIP_RE = /\(\(\s*clip:\s*([^)]{2,80}?)\s*\)\)/i;
+// Trimmed term boundaries prevent padding from being repartitioned between unbounded whitespace repeats.
+const LOOKUP_RE = /\(\(\s*lookup:(?=[^)]{2})(?:\s*([^\s)](?:[^)]{0,78}[^\s)])?)\s*|\s{2,})\)\)/i;
+const CLIP_RE = /\(\(\s*clip:(?=[^)]{2})(?:\s*([^\s)](?:[^)]{0,78}[^\s)])?)\s*|\s{2,})\)\)/i;
 
 /** The smallest gap between two live fetches, in ms. The SECOND debounce layer: the per-term memory below
  *  stops repeats, this stops a burst of ten distinct markers pasted at once. */

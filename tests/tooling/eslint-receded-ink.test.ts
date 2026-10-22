@@ -8,7 +8,7 @@ const ROOT = join(import.meta.dirname, "../..");
 const RULE = "orb/receded-ink-integrity";
 const SUBJECT = "packages/client/src/features/a/control.tsx";
 const IMPORT = 'import { RECEDED_INK } from "@orb/ui/lib";\n';
-const eslint = new ESLint({ cwd: ROOT });
+const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: ROOT });
 
 // The first config calculation loads the whole repo config; it must not bill to a test's timeout.
 beforeAll(async () => {

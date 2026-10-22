@@ -120,3 +120,35 @@ test("native framework permissions stop at actual Node and environment intake ow
   );
   expect(diagnostics).toHaveLength(8);
 });
+
+test("Playwright suite callbacks stay synchronous without rejecting legal async Vitest suites", async ({ plantedTree, repoRoot }) => {
+  const playwright =
+    'import { expect, test } from "@playwright/test"; test.describe("suite", async () => { await Promise.resolve(); test("case", () => { expect(1).toBe(1); }); });\n';
+  const vitest =
+    'import { describe, expect, test } from "vitest"; describe("suite", async () => { await Promise.resolve(); test("case", () => { expect(1).toBe(1); }); });\n';
+  const rejected = ["tests/client/control.ct.tsx", "tests/e2e/control.spec.ts", "tests/e2e/support/helper.ts"];
+  const accepted = [
+    "tests/tooling/control.test.ts",
+    "tests/e2e/support/control.int.test.ts",
+    "tests/e2e/support/control.dom.test.ts",
+    "tests/support/node/helper.ts",
+  ];
+  const paths = [...rejected, ...accepted];
+  const root = await plantedTree({
+    ...Object.fromEntries(rejected.map((path) => [path, playwright])),
+    ...Object.fromEntries(accepted.map((path) => [path, vitest])),
+    "package.json": readFileSync(join(repoRoot, "package.json"), "utf8"),
+  });
+  const report = lintTree(root, repoRoot, paths);
+  const diagnostics = report["diagnostics"];
+  for (const path of rejected) {
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        category: "lint/correctness/usePlaywrightValidDescribeCallback",
+        location: expect.objectContaining({ path }),
+      }),
+    );
+  }
+  expect(diagnostics).toHaveLength(rejected.length);
+  expect(report["summary"]).toMatchObject({ unchanged: paths.length, diagnosticsNotPrinted: 0 });
+});

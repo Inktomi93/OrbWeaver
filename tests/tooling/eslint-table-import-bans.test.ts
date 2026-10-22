@@ -8,7 +8,7 @@ import { scaledBudget } from "./_load-budget.ts";
 const ROOT = join(import.meta.dirname, "../..");
 // The first effective-config read loads the whole flat config.
 const CONFIG_TIMEOUT = { timeout: scaledBudget(120_000) };
-const eslint = new ESLint({ cwd: ROOT });
+const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: ROOT });
 const USERS = "orb/no-direct-users-read";
 const USERS_REEXPORT = "orb/no-direct-users-read-reexport";
 const VECTOR = "orb/vector-scope-derived";

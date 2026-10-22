@@ -35,7 +35,7 @@ Split off [client-architecture-lockdown.md](client-architecture-lockdown.md) for
 
 ## 10. The data/ tier — the whole surface, not just the factories
 
-- **`trpc.ts`** — the typed client + `useTRPC`; queryKeys are 100% proxy-derived (the `queryKey` selector of `no-restricted-syntax` in `eslint.config.js`).
+- **`trpc.ts`** — the typed client + `useTRPC`; queryKeys are 100% proxy-derived (the `queryKey` selector of `no-restricted-syntax` in `eslint.config.ts`).
 - **`query-client.ts`** — the §6.1 QueryClient pins have ONE home here (verified header): `staleTime: Infinity` (the bus drives freshness — never `'static'`), `refetchOnReconnect: true` (SSE-gap catch-up), `refetchOnWindowFocus: false`, mutations `retry: 0`, global error toasts via `QueryCache`/`MutationCache` `onError` reading `meta.errorToast`. Do not re-tune these per-surface.
 - **The HTTP-route fetch-fn pattern:** endpoints that are Hono routes, not tRPC (multipart/binary), get ONE `data/` fetch fn each — `upload-asset.ts` (the one client seam for persisting a picked file), `import-tree.ts` (folder import → `202 {workloadId}`), `import-bundle.ts`, `import-characters.ts`, sharing `http-error.ts` (`throwHttpError`) + the `CSRF_HEADER`. Rule: tRPC for everything except multipart/binary/streaming-HTTP; an HTTP route consumed anywhere gets a `data/` fetch fn — a feature never hand-writes `fetch()` (R5).
 - **One canonical "who am I" composer** owns identity: it composes the already-cached `sessions.me` + settings + persona-list reads so every caller dedupes on the shared cache. A scattered `trpc.sessions.me` read for identity is the wrong move (the settings host's plain role read is the sanctioned exception class: a non-suspense probe that must never block its shell).

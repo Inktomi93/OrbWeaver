@@ -17,7 +17,7 @@ const CONFIG_LOAD = { timeout: scaledBudget(CONFIG_LOAD_BASE_MS) };
 
 async function ordinary(root: string, rule: string, source: string, path: string): Promise<readonly Linter.LintMessage[]> {
   const filename = join(root, path);
-  const config = await new ESLint({ cwd: root }).calculateConfigForFile(filename);
+  const config = await new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: root }).calculateConfigForFile(filename);
   expect(config).toBeDefined();
   const found = new Linter().verify(
     source,
@@ -47,7 +47,6 @@ test.for([
   // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   ["a dynamic template", "export const A = () => <div data-testid={`row-${key}`} />;", STORY, 0],
   ["a CT spec that is not a story module", `export const B = () => <div data-testid="inline" />;`, "tests/client/features/chat/composer.ct.tsx", 0],
-  ["legacy stories stay outside the wall", `export const A = () => <div data-testid="legacy" />;`, "tests/legacy/client/features/chat/_ct-stories.tsx", 0],
 ] as const)("native story test id wall: %s", CONFIG_LOAD, async ([, source, path, count], { repoRoot }) => {
   expect(await ordinary(repoRoot, STORY_ID, source, path)).toHaveLength(count);
 });
@@ -101,7 +100,6 @@ test.for([
     [],
   ],
   ["a node test is outside the CT population", routeTest(`  ${trpcRoute}\n  await routeTrpc(page, {});`), "tests/client/features/g/g.test.ts", []],
-  ["legacy CT specs stay outside the wall", routeTest(`  ${trpcRoute}\n  await routeTrpc(page, {});`), "tests/legacy/client/g.ct.tsx", []],
 ] as const)("native trpc route order: %s", CONFIG_LOAD, async ([, source, path, lines], { repoRoot }) => {
   const found = await ordinary(repoRoot, ROUTE_ORDER, source, path);
   expect(found.map(({ line }) => line)).toEqual(lines);

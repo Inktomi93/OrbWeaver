@@ -11,6 +11,7 @@ const UNRELATED_DEPRECATED_CALL = "\n/** @deprecated Use the current API. */\nfu
 
 test("native formData exceptions do not admit unrelated deprecated calls in either compiler owner", { tags: ["slow"] }, async ({ repoRoot }) => {
   const eslint = new ESLint({
+    flags: ["unstable_native_nodejs_ts_config"],
     cwd: repoRoot,
     overrideConfig: { languageOptions: { parserOptions: { disallowAutomaticSingleRunInference: true } } },
   });
@@ -31,6 +32,7 @@ test("tracing owns its native rejection handler without exempting raw void promi
   const filePath = "packages/server/src/foundation/observability/tracing.ts";
   const source = readFileSync(join(repoRoot, filePath), "utf8");
   const eslint = new ESLint({
+    flags: ["unstable_native_nodejs_ts_config"],
     cwd: repoRoot,
     overrideConfig: { languageOptions: { parserOptions: { disallowAutomaticSingleRunInference: true } } },
   });

@@ -5,7 +5,7 @@ import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
 
 const ROOT = join(import.meta.dirname, "../..");
-const eslint = new ESLint({ cwd: ROOT });
+const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: ROOT });
 
 test.for([
   "primitives/role-data/index.ts",

@@ -107,7 +107,7 @@ Features cannot express the wrong thing because they never express spacing or ra
 
 `<Surface tier="instrument" | "form">` (`packages/ui/src/layout/surface.tsx`) is the ONLY code in the repo that writes `data-surface-tier`. It renders a containment-neutral wrapper — it does not duplicate `<Container>`'s `container-type`, it composes with it.
 
-**An attribute, not a prop or a context**: ESLint attribute restrictions in `eslint.config.js` ban `density`/`compact`/`inDrawer` PROPS, and `UI-Architecture-and-Layout.md` §4 states density is the `data-*` attribute axis. This tier is the SURFACE-CLASS axis; the `data-density="comfortable|compact"` USER-PREF axis is orthogonal and untouched (D9).
+**An attribute, not a prop or a context**: ESLint attribute restrictions in `eslint.config.ts` ban `density`/`compact`/`inDrawer` PROPS, and `UI-Architecture-and-Layout.md` §4 states density is the `data-*` attribute axis. This tier is the SURFACE-CLASS axis; the `data-density="comfortable|compact"` USER-PREF axis is orthogonal and untouched (D9).
 
 ### 4.2 The tier stylesheet — the map made executable
 

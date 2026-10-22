@@ -258,7 +258,7 @@ CT tests assert the CONTAINMENT properties, not just rendering:
   structural + text + tables + `details/summary` + lucide-mapped icons + gated links/images;
   forbidden: `script`, `on*`, `style`, inline `style=`, `iframe/object/embed/form/input`).
 - **Tier-B HTML** = `<SandboxFrame>` — the iframe IS the boundary (never sanitize-into-main-DOM;
-  `eslint.config.js` and Biome enforce this). Card scripts require the `interactive` frame posture
+  `eslint.config.ts` and Biome enforce this). Card scripts require the `interactive` frame posture
   (D294, UI-Theming-and-Content.md §12.2).
 - **Media** = `<MessageMedia>` — the D44 §12.3 policy (external gated default-safe;
   autoplay-off/controls-on non-overridable for untrusted; data-URI images off for untrusted).

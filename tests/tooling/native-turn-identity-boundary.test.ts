@@ -7,7 +7,7 @@ import tseslint from "typescript-eslint";
 const ROOT = join(import.meta.dirname, "../..");
 const RULE = "orb/turn-identity-name";
 const ENGINE = "packages/server/src/domain/chat/engine/native-identity-probe.ts";
-const eslint = new ESLint({ cwd: ROOT });
+const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: ROOT });
 // The first config resolution loads the whole flat config; pay it at import, not inside the first row's timeout.
 await eslint.calculateConfigForFile(join(ROOT, ENGINE));
 

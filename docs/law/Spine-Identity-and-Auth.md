@@ -36,7 +36,7 @@ Code comments cite the numbered invariants below as "invariant N":
 2. **Resolve once.** Everything below the seam reads `Principal.userId`. Nothing re-resolves or
    re-queries identity.
 3. **`ResolvedIdentity` carries no `userId` and no `role`.** Infra must not know DB row ids; the seam
-   adds them. `eslint.config.js` owns verification identifier and direct static import restrictions.
+   adds them. `eslint.config.ts` owns verification identifier and direct static import restrictions.
    `tests/server/entry/auth/identity-placement.int.test.ts` exercises the real request seam.
 4. **`MODE_RESOLVERS` is exhaustive** over `AuthConfig["mode"]` (mapped-type `Record`; a new
    `AUTH_MODES` member fails `tsc`).
@@ -111,7 +111,7 @@ Code comments cite the numbered invariants below as "invariant N":
     The one such statement is the `oidc` pending-join confirm (`domain/sessions/verbs/pending-signup.ts`).
     A mode with its own upsert would carry its own, weaker, takeover
     posture. Enforcers: `infra/auth` is db-free and may not import a domain, so a mode resolver
-    structurally cannot write; the `orb/no-direct-users-read` lint rule (`eslint.config.js`) reds any domain
+    structurally cannot write; the `orb/no-direct-users-read` lint rule (`eslint.config.ts`) reds any domain
     or entry module outside sessions/admin that names `users`. Entry is the tier where a second upsert
     could still be hand-written; the two callers above are the census, and a third is a review defect. The rules live at the verb and its header comment,
     never restated here.
@@ -247,7 +247,7 @@ The sanctioned `Principal`/credential construction and cookie sites; everything 
   `ROLES_FOR_GLOBAL_ACTION.admin`). `ownerFallbackAllowed` is what defends that boundary.
 - `entry/auth/principal-mint.ts` — `mintPrincipal`, the one constructor of the branded `Principal`. A
   literal, a spread or a `satisfies` check fails `tsc`. dependency-cruiser `principal-mint-owners` limits its
-  importers to `seam.ts` and `compose/chat.ts`. The HARD `orb/principal-*` rules in `eslint.config.js` name the
+  importers to `seam.ts` and `compose/chat.ts`. The HARD `orb/principal-*` rules in `eslint.config.ts` name the
   functions that may call it or return a bare `Principal`, and refuse the assertion and literal spellings `tsc`
   accepts. Those rules key on the name `Principal`, so `orb/principal-alias` refuses every rename of it:
 

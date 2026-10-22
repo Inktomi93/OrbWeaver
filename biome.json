@@ -81,7 +81,7 @@
         "noComponentHookFactories": "error",
         "noJsxNamespace": "error",
         "noPlaywrightMissingAwait": "error",
-        "usePlaywrightValidDescribeCallback": "error"
+        "usePlaywrightValidDescribeCallback": "off"
       },
       "complexity": {
         "noUselessFragments": "error",
@@ -544,6 +544,16 @@
     }
   },
   "overrides": [
+    {
+      "includes": ["tests/**/*.ct.tsx", "tests/**/*.spec.ts", "tests/e2e/**/*.{ts,tsx}", "!tests/**/*.test.ts"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "usePlaywrightValidDescribeCallback": "error"
+          }
+        }
+      }
+    },
     {
       "includes": ["packages/plugin-sdk/package.json", "packages/plugin-toolchain/package.json"],
       "json": {
@@ -1959,6 +1969,7 @@
         "**/*.config.js",
         "knip.ts",
         ".dependency-cruiser.ts",
+        "eslint-plugins.d.ts",
         "playwright*.config.ts",
         "tests/e2e/support/global-setup.ts",
         "tests/e2e/support/modes.ts",
@@ -2621,12 +2632,186 @@
           }
         }
       }
+    },
+    {
+      "includes": ["tooling/src/eslint/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": {
+              "level": "error",
+              "options": {
+                "strictCase": false,
+                "requireAscii": true,
+                "conventions": [
+                  {
+                    "match": "[_$]+|[_$]*(.+?)[_$]*"
+                  },
+                  {
+                    "selector": {
+                      "kind": "objectLiteralMember"
+                    },
+                    "formats": ["camelCase", "PascalCase"]
+                  },
+                  {
+                    "selector": {
+                      "kind": "typeMember"
+                    },
+                    "formats": ["camelCase", "PascalCase"]
+                  },
+                  {
+                    "selector": {
+                      "kind": "classProperty",
+                      "modifiers": ["static"]
+                    },
+                    "formats": ["camelCase", "CONSTANT_CASE"]
+                  },
+                  {
+                    "selector": {
+                      "kind": "classGetter",
+                      "modifiers": ["static"]
+                    },
+                    "formats": ["camelCase", "CONSTANT_CASE"]
+                  },
+                  {
+                    "selector": {
+                      "kind": "function",
+                      "scope": "global"
+                    },
+                    "match": "[A-Z][A-Z0-9_]*|(.+)",
+                    "formats": ["camelCase", "PascalCase"]
+                  },
+                  {
+                    "selector": {
+                      "kind": "const",
+                      "scope": "global"
+                    },
+                    "formats": ["camelCase", "PascalCase", "CONSTANT_CASE"]
+                  },
+                  {
+                    "selector": {
+                      "kind": "var",
+                      "scope": "global"
+                    },
+                    "formats": ["camelCase", "PascalCase", "CONSTANT_CASE"]
+                  },
+                  {
+                    "selector": {
+                      "kind": "typeLike"
+                    },
+                    "formats": ["PascalCase"]
+                  },
+                  {
+                    "selector": {
+                      "kind": "enumMember"
+                    },
+                    "formats": ["PascalCase"]
+                  },
+                  {
+                    "selector": {
+                      "kind": "function"
+                    },
+                    "formats": ["camelCase", "PascalCase"]
+                  },
+                  {
+                    "selector": {
+                      "kind": "namespaceLike"
+                    },
+                    "formats": ["camelCase", "PascalCase"]
+                  },
+                  {
+                    "selector": {
+                      "kind": "importAlias"
+                    },
+                    "formats": ["camelCase", "PascalCase", "CONSTANT_CASE"]
+                  },
+                  {
+                    "selector": {
+                      "kind": "exportAlias"
+                    },
+                    "formats": ["camelCase", "PascalCase", "CONSTANT_CASE"]
+                  },
+                  {
+                    "selector": {
+                      "kind": "variable"
+                    },
+                    "formats": ["camelCase", "PascalCase"]
+                  },
+                  {
+                    "selector": {
+                      "kind": "functionParameter"
+                    },
+                    "formats": ["camelCase", "PascalCase"]
+                  },
+                  {
+                    "selector": {
+                      "kind": "catchParameter"
+                    },
+                    "formats": ["camelCase"]
+                  },
+                  {
+                    "selector": {
+                      "kind": "indexParameter"
+                    },
+                    "formats": ["camelCase"]
+                  },
+                  {
+                    "selector": {
+                      "kind": "typeParameter"
+                    },
+                    "formats": ["PascalCase"]
+                  },
+                  {
+                    "selector": {
+                      "kind": "classMember"
+                    },
+                    "formats": ["camelCase"]
+                  },
+                  {
+                    "selector": {
+                      "kind": "typeProperty",
+                      "modifiers": ["readonly"]
+                    },
+                    "formats": ["camelCase", "CONSTANT_CASE"]
+                  },
+                  {
+                    "selector": {
+                      "kind": "typeGetter"
+                    },
+                    "formats": ["camelCase", "CONSTANT_CASE"]
+                  },
+                  {
+                    "selector": {
+                      "kind": "typeMember"
+                    },
+                    "formats": ["camelCase"]
+                  },
+                  {
+                    "selector": {
+                      "kind": "objectLiteralMember"
+                    },
+                    "formats": ["camelCase"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
     }
   ],
-  "yaml": { "formatter": { "enabled": false } },
+  "yaml": {
+    "formatter": {
+      "enabled": false
+    }
+  },
   "markdown": {
-    "formatter": { "enabled": false },
-    "linter": { "enabled": false },
+    "formatter": {
+      "enabled": false
+    },
+    "linter": {
+      "enabled": false
+    },
     "analyzeEmbeds": false
   },
   "css": {

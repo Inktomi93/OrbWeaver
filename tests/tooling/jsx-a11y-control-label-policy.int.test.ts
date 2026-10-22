@@ -22,7 +22,7 @@
 //                            (arms: switchAriaProp, switchNoninteractiveRole).
 //
 // The fixtures are TSX under the real `CLIENT_SRC` glob so the production config's `SHIPPED_SRC` jsx-a11y
-// block actually selects them, driven through the real `eslint.config.js` — inspecting the option objects
+// block actually selects them, driven through the real `eslint.config.ts` — inspecting the option objects
 // would prove nothing about what the rule sees. They declare no imports: jsx-a11y keys off the JSX element
 // NAME, and messages are filtered by ruleId so unrelated policy on the fixtures cannot colour a verdict.
 
@@ -82,13 +82,13 @@ test("jsx-a11y: the components map and control-has-associated-label's ignoreElem
       include: ["packages/client/src/**/*.tsx"],
     }),
   );
-  const productionConfigUrl = pathToFileURL(join(repoRoot, "eslint.config.js")).href;
+  const productionConfigUrl = pathToFileURL(join(repoRoot, "eslint.config.ts")).href;
   writeFileSync(
     join(scratch, "eslint.config.mjs"),
     `import production from ${JSON.stringify(productionConfigUrl)};\nexport default [...production, { files: ["packages/client/src/**/*.tsx"], languageOptions: { parserOptions: { projectService: true, tsconfigRootDir: ${JSON.stringify(scratch)} } } }];\n`,
   );
 
-  const eslint = new ESLint({ cwd: scratch, overrideConfigFile: join(scratch, "eslint.config.mjs") });
+  const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: scratch, overrideConfigFile: join(scratch, "eslint.config.mjs") });
   const results = await eslint.lintFiles(Object.keys(ARMS).map((name) => join(fixtureRoot, `${name}.tsx`)));
 
   const seen: Record<string, readonly string[]> = {};
