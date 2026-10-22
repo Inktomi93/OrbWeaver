@@ -1,11 +1,10 @@
 // FRONT DOOR: the only legal external import; re-exports the public surface. `StoredAsset`/`AssetKind` live
 // in `@orb/contracts/assets` instead; maintenance/DR verb param types are domain-internal (contract/maintenance.ts).
 
-export type { BackgroundStoreDeps } from "./contract/background-store.ts";
 export { AssetContentRejectedError } from "./contract/errors.ts";
 
 export type { ImportAssetPort } from "./contract/import-store.ts";
-export type { InlineReplyImageDeps, MaterializeBackgroundDeps } from "./contract/materialize.ts";
+export type { MaterializeBackgroundDeps } from "./contract/materialize.ts";
 
 export type { SeedAvatarOps } from "./contract/seed-art.ts";
 export type { AssetsAssemblyContext as AssetsContext, AssetsService, AssetsWorkloadAssemblyDeps as AssetsWorkloadDeps } from "./contract/service.ts";

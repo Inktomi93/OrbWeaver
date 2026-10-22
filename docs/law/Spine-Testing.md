@@ -48,7 +48,7 @@ Runtime and compiler ownership are separate. A `.dom.test.ts` has DOM declaratio
 tests/
 ├── support/                    the @orb/testkit package; no source mirror
 │   ├── iso/                    platform-independent seams: frozen clock, seeded ids
-│   ├── node/                   fixtures.ts and tool-fixtures.ts, factories/, the chat tape, db and Node drivers
+│   ├── node/                   fixtures.ts and tool-fixtures.ts, factories/, db and Node drivers
 │   └── browser/                browser helpers, the CT door and providers
 ├── <package>/                  mirror packages/<package>/src directories for registered workspaces
 ├── tooling/                    mirror tooling/src directories where a tool home exists

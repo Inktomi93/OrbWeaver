@@ -29,7 +29,6 @@ export type {
   RpgCardCorpus,
   RpgTurnContext,
   RpgTurnTranscriptMessage,
-  RunChatTurnOp,
   SetRpgPointer,
   TeachingCollection,
   TeachingContext,
@@ -44,12 +43,7 @@ export type { ImageRefAssets, ResolveMediaRefDeps } from "./contract/media-ref.t
 export type { MemoryRecallRecorder } from "./contract/memory.ts";
 export { getGroupConfig, getRoomOverrides, TOOL_RECURSE_LIMIT_DEFAULT, toolRecurseLimitSchema } from "./contract/metadata.ts";
 export type { ReactToolHandlerDeps } from "./contract/react-tool.ts";
-export type {
-  RequestTurnOp,
-  TurnEconomics,
-  TurnRequest,
-  TurnStreamChunk,
-} from "./contract/results.ts";
+export type { RequestTurnOp } from "./contract/results.ts";
 export type { ChatService } from "./contract/service.ts";
 export type {
   SignupInviteDeps,

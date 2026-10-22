@@ -2,11 +2,8 @@
 // quick-tunnel process. Sealed like every adapter: entry builds it and injects the launcher into `domain/share`.
 
 export type {
-  CloudflaredAsset,
   CloudflaredPin,
-  CloudflaredTarget,
   RelayAssetFetch,
-  RelayEvents,
   RelayLauncher,
   RelayProcess,
   SpawnRelay,

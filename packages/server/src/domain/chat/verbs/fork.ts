@@ -677,9 +677,8 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
     const now = ctx.now();
     const newChatId = ctx.newChatId();
 
-    // `loadVariableDeltas` is the ACTIVITY plane (seq-stamped variable ops, zero canon bytes — see the
-    // `chat-viewer-plane-canon-reads` gate header), read UNFLOORED on purpose: the floored fork's baseline is a
-    // fold of the whole chain, and folding is what strips the pre-floor history down to present state.
+    // D106: variable operations carry room activity, not canon bytes. Fold the whole chain so the
+    // floored fork retains present state without copying pre-floor history verbatim.
     const [variables, userMacroValues, slots, injections, sourceParticipants, chainDeltas] = await Promise.all([
       loadStoredVariables(ctx.db, chatId),
       loadStoredUserMacroValues(ctx.db, chatId),

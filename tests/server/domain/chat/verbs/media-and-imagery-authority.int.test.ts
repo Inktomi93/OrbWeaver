@@ -1,29 +1,39 @@
 // @subject packages/server/src/entry/compose/imagery.ts
 import { databaseHandle } from "@orb/db/wiring-driver";
 import "@orb/testkit/node/composed-real.ts";
+import { createCharacterSchema } from "@orb/contracts/character";
 import { INLINE_REPLY_ORIGIN } from "@orb/contracts/chat";
 import { DEFAULT_ATTACHMENT_QUALITY } from "@orb/contracts/inference";
 import { chatParticipants, messageAssets } from "@orb/db";
 import type { AssetId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { isAdmin, isOwner } from "@orb/server/domain/admin";
 import type { ImageryRoomAccessDeps, ResolveMediaRefDeps } from "@orb/server/domain/chat";
 import {
   createImageryRoomAccess,
   createResolveMediaRef,
   createResolveViewerVisibility,
-  createVisibleExtractQuiet,
   isCharacterSeated,
   loadPresentHostUserId,
 } from "@orb/server/domain/chat";
+import { authConfigFromEnv } from "@orb/server/entry/auth";
+import {
+  CORPUS_EMBED_MODEL,
+  CORPUS_EMBEDDING_VECTOR,
+  CORPUS_STRUCTURED_REPLIES,
+  CORPUS_TEXT_MODEL,
+  createCorpusProviderExecution,
+} from "@orb/testkit/node/corpus-provider.ts";
+import { seedCorpusActors } from "@orb/testkit/node/corpus-seed.ts";
 import { makeAssetBytes } from "@orb/testkit/node/factories/asset.ts";
 import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
 import { seedChat } from "@orb/testkit/node/factories/chat.ts";
 import { seedMessage } from "@orb/testkit/node/factories/message.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
-import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { createServerHarness } from "@orb/testkit/node/server.ts";
 import { and, eq } from "drizzle-orm";
 import { vi } from "vitest";
 
@@ -132,66 +142,74 @@ test("room admission and subject seating run before host principal, card or Util
   expect(await access.callerInChat(outsider, room.id)).toBe(false);
 });
 
-test("quiet extraction preserves the caller floor and summary strip while the actual supplied host Principal reads the card", async ({
-  harness,
-  db,
-  ids,
-  clock,
-}) => {
-  const room = await seedChat(db);
-  const hostRow = await seedUser(db, { role: "admin" });
-  await db.insert(chatParticipants).values({
-    id: typeIdSchema(ID_PREFIX.chatParticipant).parse(ids.next(ID_PREFIX.chatParticipant)),
-    chatId: room.id,
-    kind: "human",
-    userId: hostRow.id,
-    role: "host",
-    joinedAt: clock.now(),
-    joinSeq: 0,
+test("quiet extraction sends only the caller's visible scene through the host's real funded provider path", async () => {
+  const prejoinText = "prejoin-secret";
+  const visibleText = "visible-scene";
+  const hiddenText = "hidden-scene";
+  const extractedPrompt = "visible scene keywords";
+  const physical = createCorpusProviderExecution({
+    modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
+    embedding: CORPUS_EMBEDDING_VECTOR,
+    chatText: extractedPrompt,
+    structuredReplies: CORPUS_STRUCTURED_REPLIES,
+    images: [],
   });
-  const hostId = hostRow.id;
-  const host = await principal(harness, hostId);
-  const member = await principal(harness, (await seedUser(db)).id);
-  const subject = await seedCharacter(db, { ownerId: hostId });
-  await db.insert(chatParticipants).values({
-    id: typeIdSchema(ID_PREFIX.chatParticipant).parse(ids.next(ID_PREFIX.chatParticipant)),
-    chatId: room.id,
-    kind: "human",
-    userId: member.userId,
-    role: "member",
-    joinedAt: clock.now(),
-    joinSeq: 2,
-    joinHistoryVisibility: "from-join",
+  const requests: Request[] = [];
+  await using root = await createServerHarness({
+    authConfig: { ...authConfigFromEnv(), mode: "forward-header", fallback: "deny" },
+    providerFetch: async (input, init) => {
+      const request = new Request(input, init);
+      requests.push(request.clone());
+      return await physical.execute(request);
+    },
   });
-  await seedMessage(db, { chatId: room.id, seq: 1, content: "prejoin-secret" });
-  await seedMessage(db, { chatId: room.id, seq: 2, content: 'visible-scene <lie truth="hidden-scene"/>' });
-  const summarize = vi.fn(makeFakeRoleClients().summarize);
-  const roleClientsFor = vi.fn(() => Promise.resolve({ summarize }));
-  const getCard = vi.fn(() => Promise.resolve(null));
-  const resolveHostPrincipal = vi.fn(() => Promise.resolve(host));
-  const extract = createVisibleExtractQuiet({
-    db: databaseHandle(db),
-    now: clock.now,
-    roleClientsFor,
-    getCard,
-    resolveHostPrincipal,
-    resolveUtilityPresetParams: () => Promise.resolve(undefined),
-    resolveUserMacroDefs: () => Promise.resolve({ preset: [], game: [] }),
-    resolveViewerVisibility: createResolveViewerVisibility({ db: databaseHandle(db) }),
+  const { owner: host, secondUserId } = await seedCorpusActors(root);
+  const member = await root.principalFor(secondUserId);
+  const hostCaller = await root.internalCallerFor(host.userId);
+  const memberCaller = await root.internalCallerFor(member.userId);
+  await root.services.connection.setBinding({ principal: member, task: "summarize", connectionId: null });
+  expect(await root.services.connection.availability({ principal: member, task: "summarize" })).toMatchObject({ available: false });
+  const subject = await hostCaller.character.create({
+    input: createCharacterSchema.parse({ handle: "quiet-witness", name: "Quiet witness", description: "A host-owned scene witness." }),
   });
-  await extract({ caller: member, funderUserId: hostId, chatId: room.id, instruction: "scene", subjectCharacterId: subject.id });
-  expect(getCard).toHaveBeenCalledWith({ principal: host, characterId: subject.id });
-  expect(roleClientsFor).toHaveBeenCalledWith(hostId);
-  expect(summarize.mock.calls[0]?.[0][0]?.userPrompt).toContain("visible-scene");
-  expect(summarize.mock.calls[0]?.[0][0]?.userPrompt).not.toContain("prejoin-secret");
-  expect(summarize.mock.calls[0]?.[0][0]?.userPrompt).not.toContain("hidden-scene");
-  await expect(
-    extract({ caller: await principal(harness, (await seedUser(db)).id), funderUserId: hostId, chatId: room.id, instruction: "scene" }),
-  ).rejects.toMatchObject({
-    name: "DomainNotFoundError",
+  const { chat } = await hostCaller.chat.startChat({ characterIds: [subject.id], opening: "none" });
+  await hostCaller.chat.commitMessage({ chatId: chat.id, content: prejoinText, timeZone: UTC_TIME_ZONE });
+  // Admission records the current canon head, so keep a public row at that boundary.
+  await hostCaller.chat.commitMessage({ chatId: chat.id, content: "A public join boundary.", timeZone: UTC_TIME_ZONE });
+  const invite = await hostCaller.invites.createInvite({ chatId: chat.id, input: { invitedHandle: member.handle } });
+  await memberCaller.invites.acceptInvite({ inviteId: invite.invite.id });
+  await hostCaller.invites.setMemberHistoryVisibility({ chatId: chat.id, userId: member.userId, visibility: "from-join" });
+  await hostCaller.chat.commitMessage({ chatId: chat.id, content: `${visibleText} <lie truth="${hiddenText}"/>`, timeZone: UTC_TIME_ZONE });
+  await root.settleBackground();
+
+  const getCard = vi.spyOn(root.services.character, "getCard");
+  const beforeExtraction = requests.length;
+  const params = { chatId: chat.id, mode: "character" as const, subjectCharacterId: subject.id, timeZone: UTC_TIME_ZONE };
+  const extracted = await root.services.imagery.extractPrompt({ caller: member, ...params });
+  expect(extracted).toMatchObject({ prompt: extractedPrompt, source: "extracted" });
+  expect(getCard).toHaveBeenCalledExactlyOnceWith({
+    principal: expect.objectContaining({ userId: host.userId, role: host.role }),
+    characterId: subject.id,
   });
+  const extractionRequests = requests
+    .slice(beforeExtraction)
+    .filter((request) => request.method === "POST" && new URL(request.url).pathname.endsWith("/chat/completions"));
+  expect(extractionRequests).toHaveLength(1);
+  const extractionRequest = extractionRequests[0];
+  if (extractionRequest === undefined) {
+    throw new Error("the actual quiet extraction made no physical provider request");
+  }
+  const body = await extractionRequest.text();
+  expect(JSON.parse(body)).toMatchObject({ model: CORPUS_TEXT_MODEL });
+  expect(body).toContain(visibleText);
+  expect(body).not.toContain(prejoinText);
+  expect(body).not.toContain(hiddenText);
+
+  const outsider = await root.principalFor((await root.actor()).id);
+  const beforeRefusal = requests.length;
+  await expect(root.services.imagery.extractPrompt({ caller: outsider, ...params })).rejects.toMatchObject({ name: "DomainNotFoundError" });
   expect(getCard).toHaveBeenCalledTimes(1);
-  expect(roleClientsFor).toHaveBeenCalledTimes(1);
+  expect(requests).toHaveLength(beforeRefusal);
 });
 
 test("only host or PRESENT owner assets reach byte processing; conversion remains deferred with caller quality and signal", async ({

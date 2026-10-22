@@ -16,7 +16,7 @@ export type {
   WarningCode,
   Wire,
 } from "@orb/contracts/inference";
-export { WARNING_CODES } from "@orb/contracts/inference";
+
 export type {
   AccountCredits,
   EmbedResult,

@@ -1,6 +1,6 @@
 // The group-roster-controls write verbs (task #29 — the character bar + the CONTEXT-panel Roster tab), each a
 // module-scope `createEntityMutation` (§13.1 — the ONE mutation home; a call site never hand-rolls
-// `useMutation` + cache surgery). All are host-only server-side (substrate/auth/matrix.ts); the client
+// `useMutation` + cache surgery). All require host authority inside the server verbs; the client
 // host-gates the SURFACE (the Roster tab is host-only, like Preview), so these never fire for a member.
 // Settle-invalidation routes through the central seam:
 //   • setSeatKnobs → refetch `getChat` (the roster read the character bar + the Roster tab + the message-list

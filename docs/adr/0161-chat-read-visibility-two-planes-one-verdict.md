@@ -12,7 +12,7 @@ Not recorded in the ledger row.
 
 ## Decision
 
-A VIEWER-PLANE chat verb (matrix authority other than `host`/`non-chat-scoped`) may not reach a ROOM-PLANE floorless canon reader without a directly-negated `isBelowHistoryFloor` clamp. Enforcement home: `tooling/src/verify/gates/chat-viewer-plane-canon-reads.ts`. D321 governs enforcement migration.
+Chat verbs that are neither host-only nor non-chat-scoped are viewer-plane verbs. They may not reach a room-plane floorless canon reader without a directly-negated `isBelowHistoryFloor` clamp. Apply D106 through production guards and read projections. D333 governs tooling.
 
 ## Consequences
 

@@ -81,7 +81,7 @@ const getMemberCardSchema = z.object({
 // (domain/chat/verbs/read.ts createListMessageVariants) returns the full sibling-variant set for a slot —
 // `{variantId, idx}[]`, no content — so a step to an idx this session hasn't rendered (e.g. a cold page
 // load) resolves through the real list instead of only what `useVariantHistory` observed live. Member-gated
-// (a read, unlike `selectVariant`'s author-or-host — see `substrate/auth/matrix.ts`).
+// (a read, unlike `selectVariant`'s author-or-host gate inside the verb).
 const listMessageVariantsSchema = z.object({
   chatId: typeIdSchema(ID_PREFIX.chat),
   messageId: typeIdSchema(ID_PREFIX.message),
@@ -259,7 +259,7 @@ const forkChatSchema = z.object({
 // manual injections). Same MISSING-API shape as the clusters above: `setRoomOverrides`
 // (verbs/participants.ts), `previewAssembly` (verbs/read.ts), and
 // `setChatInjection`/`listChatInjections`/`deleteChatInjection` (verbs/chat-lifecycle.ts) were ALL
-// already fully implemented — host/member gated via substrate/auth/matrix.ts, DB-backed where relevant,
+// already fully implemented — host/member gated inside the verbs, DB-backed where relevant,
 // bus-emitting — but none had ever been exposed on this router (swept via grep before this addition, no
 // call site referenced any). Thin pass-throughs; authz lives INSIDE each verb (the sibling-cluster shape).
 // The wire input schemas are DERIVED from contracts (`roomOverridesSchema`, `chatInjectionInputSchema`) —
@@ -354,7 +354,7 @@ const previewAssemblySchema = z.object({
 
 // `previewActionTemplates` — the preset editor's BOUND readout: every
 // ACTION template of `presetId`, resolved against this chat. Host-gated (`requireHost`) INSIDE the verb
-// (matrix `previewActionTemplates: "host"` — a rendered template carries full-fidelity card bytes). The
+// (a rendered template carries full-fidelity card bytes). The
 // `presetId` OVERRIDE is resolved owned-or-system under the HOST by the landed `presetOverride` seam, so it
 // cannot reach outside the host's library; a stranger's chatId is a leak-free NOT_FOUND before any render,
 // which is what the cross-tenant sweep classifies it PROBED for.
@@ -366,14 +366,14 @@ const previewActionTemplatesSchema = z.object({
 
 // `getShapeTrace` — the content-free SHAPE trace for the next-turn shaping of the current canon.
 // `speakerCharacterId` picks the primary speaker the peek shapes for (mirrors `peekPrompt`); host-gated
-// (`requireHost`) INSIDE the verb (matrix `getShapeTrace: "host"`).
+// (`requireHost`) INSIDE the verb.
 const getShapeTraceSchema = z.object({
   chatId: typeIdSchema(ID_PREFIX.chat),
   speakerCharacterId: typeIdSchema(ID_PREFIX.character).nullish(),
 });
 
 // `getVariantWire` — the per-variant WIRE RECORD: what ONE PAST generation actually sent (`promptSnapshot` +
-// `params` + `macroDraws`). HOST-gated (`requireHost`) INSIDE the verb (matrix `getVariantWire: "host"`), for
+// `params` + `macroDraws`). HOST-gated (`requireHost`) INSIDE the verb, for
 // the same reason the rest of the preview family is: a stored assembled prompt carries FULL-fidelity roster
 // cards (the D22 bypass), the hidden-class spans the §3.6 member strip removes, and history below a clamped
 // member's D16 floor. BOTH ids are foreign-referenceable, and BOTH are gated: `chatId` by `requireHost`, and
@@ -388,7 +388,7 @@ const getVariantWireSchema = z.object({
 });
 
 // `previewContextFit` — the present-tense fit budget for the current canon (the transcript divider's
-// live source). Member-gated (`requireParticipant`) INSIDE the verb (matrix `previewContextFit: "member"`);
+// live source). Member-gated (`requireParticipant`) INSIDE the verb;
 // reads tenant canon by chatId, so the cross-tenant sweep classifies it PROBED.
 const previewContextFitSchema = z.object({
   chatId: typeIdSchema(ID_PREFIX.chat),
@@ -410,7 +410,7 @@ const deleteChatInjectionSchema = z.object({
 
 // The CHAT-ROW lifecycle cluster (J5 chat-list — the LIST-panel row kebab: rename/star/archive/delete).
 // `updateTitle`/`star`/`archive`/`delete` (domain/chat/verbs/chat-lifecycle.ts) were ALL already fully
-// implemented — HOST-only via `requireHost` (substrate/auth/matrix.ts), DB-backed, bus-emitting
+// implemented — HOST-only via `requireHost`, DB-backed, bus-emitting
 // (`chatUpdated`/`chatDeleted`) — but none had ever been exposed on this router (the SAME MISSING-API shape
 // the #28/#29 clusters + the guided-generations cluster were in; swept via grep before this addition, no
 // call site referenced any of the four). Thin pass-throughs; authz lives INSIDE each verb. `title` is
@@ -443,8 +443,8 @@ const setChatAnchorPersonaSchema = z.object({
 // The GROUP-ROSTER-CONTROLS cluster (task #29 — the cast bar + per-member controls): the two
 // per-member setters `setParticipantDisabled` (mute/unmute) + `setParticipantTalkativeness` (the 0–1
 // `natural`-policy sampling weight) and `forceCharacterTurn` (host summons one member to speak next)
-// were ALL already fully implemented in domain/chat (verbs/participants.ts + verbs/turn.ts) — host-gated via
-// substrate/auth/matrix.ts, DB-backed (chatParticipants columns), bus-emitting — but none had ever been
+// were ALL already fully implemented in domain/chat (verbs/participants.ts + verbs/turn.ts) — host-gated
+// inside the verbs, DB-backed (chatParticipants columns), bus-emitting — but none had ever been
 // exposed on this router (the same MISSING-API shape the #28 CONTEXT-panel cluster + the guided-generations
 // cluster were in; swept via grep before this addition, no call site referenced any of the three). Thin
 // pass-throughs; authz lives INSIDE each verb (`requireHost`, the sibling-cluster shape). `forceCharacterTurn`

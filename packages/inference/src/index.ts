@@ -56,7 +56,7 @@ import { createProviderExecutor } from "./roles/executor.ts";
 import { createRoleClientsFor } from "./roles/role-clients.ts";
 
 export type { ResolvedWarning } from "@orb/contracts/inference";
-export { resolvedWarningSchema } from "@orb/contracts/inference";
+
 export { availableClaudeExecutable, resolveClaudeExecutable } from "./backends/agent-sdk/executable.ts";
 export type { SessionEntryWriter } from "./backends/agent-sdk/index.ts";
 export { providerErrorFromHttp } from "./backends/http/error-classify.ts";

@@ -7,9 +7,8 @@ paths:
 
 - A prose slot whose rendered bytes must match a legacy constant needs a no-trim path through
   `processMacros`. `resolveGuidedInstruction` (`packages/kit/src/guided`) trims its template.
-- Adding a `ChatService` verb touches four places: the `VerbAuthority` record
-  (`substrate/auth/matrix.ts`), the service composition root, `contract/params.ts`, and, for a
-  client-visible verb, automation's trigger-label switch.
+- Add a `ChatService` verb through the service composition root and `contract/params.ts`.
+  Update automation's trigger-label switch for a client-visible verb.
 - Changing how a content class projects to the model wire needs two edits: the
   `CONTENT_CLASS_POLICY` table and the dispatch in `spanToWirePart` (`substrate/wire-history.ts`).
   Add a pipeline behavior test, not just a table test.
