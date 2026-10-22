@@ -4,12 +4,7 @@
 // The import byte caps now live in the ONE upload cap catalog (@orb/contracts/uploads); re-exported here so
 // this barrel's existing consumers (runner-env, the HTTP import edge, tests) keep their import path.
 export { IMPORT_MAX_DECOMPRESSED_BYTES, IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
-export type {
-  BundleImportDeps,
-  BundleImportFileOutcome,
-  BundleImportReport,
-  StagedBundleImportDeps,
-} from "#domain/import";
+
 export {
   bundleImportMemoryChatIds,
   bundleImportNotes,

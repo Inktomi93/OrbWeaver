@@ -1,65 +1,20 @@
 // domain/import — FRONT DOOR: the only legal external import; re-exports the public surface.
 
-export type { ImportContext } from "./context.ts";
-export type { ImportContextWiring } from "./contract/build-context.ts";
-export type { BundleImportDeps, BundleImportFileOutcome, BundleImportReport, StagedBundleImportDeps } from "./contract/bundle.ts";
-export type { ImportCardBatch, ImportCardBatchDeps, ImportFile } from "./contract/cards.ts";
-export type {
-  CollectedBackground,
-  CollectedCard,
-  CollectedChat,
-  CollectedGroup,
-  CollectedPersona,
-  CollectedPreset,
-  CollectedTheme,
-  CollectedWorld,
-  CollectResult,
-  UploadedFile,
-} from "./contract/collection.ts";
-export type { ImportDriverDeps, ImportWorkloadDrivers } from "./contract/drivers.ts";
-export type { ImportCardErrorCode, ProfileImportLimitErrorCode } from "./contract/errors.ts";
+export type { ImportFile } from "./contract/cards.ts";
+export type { UploadedFile } from "./contract/collection.ts";
+
 export { ImportCardError, ImportInfraFailureError, ProfileImportLimitError } from "./contract/errors.ts";
-export type { CardIdentityHashes, FindCharacterByHash, ImportedCharacterMatch } from "./contract/identity.ts";
-export type {
-  ImportCardInput,
-  ImportCharacterInput,
-  ImportChatFileInput,
-  ImportChatsInput,
-  ImportGroupsInput,
-  ImportPersonaInput,
-  RestoreCharacterBookInput,
-} from "./contract/params.ts";
-export type { OwnerImportDeps, PortableImportDeps, PortableImports } from "./contract/portable.ts";
+
 export type { ProfileDirImportDeps } from "./contract/profile-directory.ts";
 export type {
-  ImportAmbiguousSpeakerName,
-  ImportCharacterResult,
-  ImportChatFileOutcome,
-  ImportDryRunCensus,
-  ImportedCharacterRef,
-  ImportGroupsResult,
-  ImportPresetNote,
-  ImportPresetsResult,
   ImportReport,
-  ImportSeatedDisabledMember,
-  ImportSkippedCard,
-  ImportSkippedCardTag,
-  ImportSkippedGroup,
-  ImportSkippedGroupMember,
-  ImportThemeNote,
-  ImportUnresolvedPinnedPersona,
-  ImportWorldNote,
   RestoreCharacterBookResult,
 } from "./contract/results.ts";
 export type {
-  CreateImportedCharacter,
-  FindCharacterByImportHash,
   // R6 — the compose seam threads the orb-native chat bundle's three optional re-link ops through this shape.
   ImportProfileDeps,
-  ImportService,
-  StoreImportAsset,
 } from "./contract/service.ts";
-export type { BackfillTokenUsage, ImportTokenUsageBackfillDeps, ImportWorkloadDeps, SettleImportMemory } from "./contract/workloads.ts";
+export type { ImportWorkloadDeps, SettleImportMemory } from "./contract/workloads.ts";
 export { collectBundlesFromDir } from "./loader/collect.ts";
 export { importStagedArchive, runBundleImport } from "./loader/import-bundle.ts";
 export { importCardBatch } from "./loader/import-card-batch.ts";

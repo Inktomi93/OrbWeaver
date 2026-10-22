@@ -5,20 +5,14 @@
 // Every invocation funnels through the same executeToolCalls, producing the same ToolCallRecord[] that chat
 // persistence stores on the variant.
 
-export type { ToolUseContext } from "./context.ts";
 export { ToolNameCollisionError, ToolNotFoundError } from "./contract/errors.ts";
 export type {
-  PluginToolSpec,
-  ToolCallInput,
-  ToolCapability,
   ToolDefinition,
   ToolExecutionContext,
-  ToolHandler,
   ToolHandlerResult,
-  ToolSource,
 } from "./contract/params.ts";
 export { TOOL_SOURCES } from "./contract/params.ts";
-export type { PluginToolHandle, ResolvedToolSet, ToolCallRecord } from "./contract/results.ts";
+export type { ResolvedToolSet } from "./contract/results.ts";
 export type { ToolUseService } from "./contract/service.ts";
 export { createToolUseService } from "./service.ts";
 // The S2 teaching contribution (D145's 11th root slot): the per-turn attach of the turn HOST's own plugin

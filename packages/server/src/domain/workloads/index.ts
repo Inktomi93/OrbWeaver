@@ -6,27 +6,10 @@
 
 export { WORKLOAD_NOT_ADMISSIBLE } from "@orb/contracts/workloads";
 export type { AnyWorkloadContribution, WorkloadContribution, WorkloadContributions } from "./contract/contribution.ts";
-export type {
-  CancelWorkloadParams,
-  CancelWorkloadResult,
-  GetWorkloadParams,
-  ListWorkloadsParams,
-  RetryWorkloadParams,
-  StartWorkloadParams,
-} from "./contract/params.ts";
+
 export type { WorkloadProgressBus } from "./contract/progress-bus.ts";
+export type { ScheduleTickAssemblyDeps as ScheduleTickDeps } from "./contract/schedule.ts";
 export type {
-  CreateScheduleParams,
-  DeleteScheduleParams,
-  ListSchedulesParams,
-  ScheduleTickAssemblyDeps as ScheduleTickDeps,
-  SetScheduleEnabledParams,
-  UpdateScheduleParams,
-  WorkloadScheduleRow,
-  WorkloadScheduleService,
-} from "./contract/schedule.ts";
-export type {
-  BootReclaimReport,
   ReapWorkloadsAssemblyArgs as ReapWorkloadsArgs,
   WorkloadReapReason,
   WorkloadRunnerAssemblyDeps as WorkloadRunnerDeps,
