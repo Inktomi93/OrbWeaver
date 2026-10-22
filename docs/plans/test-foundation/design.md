@@ -14,7 +14,7 @@ Preserve meaningful behavior at the appropriate test layer, not every reference 
 
 ### Program ownership
 
-This plan owns the test rebuild and its execution order. The [task index](tasks.md) owns the execution queue. Work items own current assignments, blockers and evidence.
+This plan owns the test rebuild, its execution order and the [restoration register](#restoration-register). The [task index](tasks.md) owns the execution queue. Work items own current assignments, blockers and runtime evidence; an open item does not make its completed subareas unfinished.
 
 ### Scope
 
@@ -43,6 +43,35 @@ Start a replacement batch when its actual harness dependencies are available.
 The production server graph, world-split testkit, builders, corpus and client mounting door already exist. Their existence does not complete replacement coverage or runtime qualification.
 
 Use these foundations for the remaining cases. Qualify corpus and support lifetimes through maintained cases. Keep source delivery, passing runtime cases and unqualified acceptance distinct.
+
+### Restoration register
+
+Read this register before selecting reference cases to port. Follow the maintained test links and compare assertions before adding another test.
+
+This is the current coverage index for reviewed restoration scopes, not a generated test inventory or an archive of closed work items.
+
+| Porting state | Meaning |
+| - | - |
+| Accounted for | The named reference cases have maintained homes or explicit drop decisions. Do not port them again. |
+| Partial | Only the named subset is compared. Preserve its coverage and inspect the listed remainder. |
+| Unreviewed | No complete case comparison is recorded. This does not mean tests or implementation are missing. |
+
+Porting state and runtime qualification are separate. An implemented case awaiting execution needs qualification, not a second implementation.
+
+Legacy paths below are relative to the external reference source named in [Spine-Testing](../../law/Spine-Testing.md#2-the-tree).
+
+| Reference scope | Porting state | Maintained home or decision | Remaining action |
+| - | - | - | - |
+| `client/features/chat/anchors/join-invite-dialog.ct.tsx` | Accounted for | [Invite CT](../../../tests/client/features/chat/anchors/join-invite-dialog.ct.tsx) owns component states, focus and completion. [Wording unit test](../../../tests/client/lib/invite-copy.dom.test.ts) owns formatting; duplicate copy-only CTs are dropped. | None for these reference cases. Reopen only for a named uncovered behavior or regression. |
+| `client/features/auth/components/login-pending-join.ct.tsx` | Partial | [Pending-join CT](../../../tests/client/features/auth/components/login-pending-join.ct.tsx) owns controlled states and requests. [Wording unit test](../../../tests/client/lib/invite-copy.dom.test.ts) owns anonymous-preview wording. [OIDC E2E](../../../tests/e2e/oidc-pending-join.oidc.spec.ts) owns dismissal and URL cleanup. | The unavailable-state CT does not exercise its return-to-sign-in button. Compare and restore that action, not the whole file. Existing OIDC E2E [qualification](../../work/1082-qualify-the-existing-oidc-pending-join-e2e.md) is separate from porting. |
+| Chat permissions and history | Partial | Keep the maintained integration and browser cases in the [selected case map](#selected-case-map-chat-permissions-and-history). | Do not label the entire chat domain restored. Compare additional reference cases individually. |
+| `server/entry/http/join.test.ts` | Partial | [Real HTTP tests](../../../tests/server/entry/http/auth-meta.int.test.ts) cover capability refusal and redirect. Drop the mock-app harness. | Compare the encoded-token assertion with maintained coverage before adding it. |
+| `server/domain/chat/substrate/wire-history.test.ts`; `db/query/chat-visibility.int.test.ts` | Unreviewed | Existing chat coverage remains authoritative for its named behaviors. | Complete case-by-case comparison; neither file is declared missing or obsolete. |
+| Initial-read invalidation, PostEventSource lifetime, invalid auth-config input and data-list-header behavior | Unreviewed | [Client regression work](../../work/0977-rebuild-client-lifecycle-and-boundary-regression-cases.md) owns this comparison. | Inspect maintained tests before restoring reference cases. Completed invite work inside that item is not part of this remainder. |
+
+An unlisted area is unreviewed, not missing. Neither filenames nor test counts establish whether its behaviors need restoration.
+
+Update the existing row with its replacement commit's changes; do not append another completion record for the same scope. Name uncovered cases when marking a scope partial. Keep links to maintained tests here when the owning work item closes. A completed row may reopen only with a specific missing behavior, failing regression or changed product contract.
 
 ### Remaining work
 
