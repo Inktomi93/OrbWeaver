@@ -28,17 +28,33 @@
 // the stack tool's dev pins and fixture recipe. `SESSION_SECRET` is ≥32 chars (the local-mode
 // superRefine) and `LOCAL_INITIAL_PASSWORD` ≥8 (the owner seed).
 
+import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import process from "node:process";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import { assertPrivateCorpusNetwork, assertPrivateCorpusOutput, assertPrivateCorpusOutputArguments, loadCorpusFixture } from "@orb/testkit/node/corpus.ts";
 import { DEV_PORTS, E2E_OIDC_ISSUER_PORT, E2E_PORTS, ENGINE_PORTS } from "@orb/tooling/floor/host/ports";
+import { exportProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
 import type { IssuerTls } from "./oidc-issuer.ts";
 import { ensureIssuerTls, issuerCertPath } from "./oidc-issuer.ts";
 import type { Target } from "./target-guard.ts";
 import { devTargetAllowed } from "./target-guard.ts";
+
+const RUN_TOKEN_ENV = "ORB_E2E_RUN_TOKEN";
+/** Only the runner creates disposal authority; workers inherit its native environment. */
+export const E2E_RUN_IS_OWNER = process.env["TEST_WORKER_INDEX"] === undefined;
+const runToken = E2E_RUN_IS_OWNER ? `${String(process.pid)}-${randomUUID()}` : process.env[RUN_TOKEN_ENV];
+if (runToken === undefined || !/^[1-9]\d*-[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/u.test(runToken)) {
+  throw new Error("An E2E worker requires its runner's generated run token");
+}
+if (E2E_RUN_IS_OWNER) {
+  exportProcessEnv(RUN_TOKEN_ENV, runToken);
+}
+const CHECKOUT_ROOT = resolve(import.meta.dirname, "..", "..", "..");
+/** Disposable state belongs to one runner, never to a fixed port or auth mode. */
+export const E2E_RUN_ROOT = join(CHECKOUT_ROOT, ".cache", "e2e", "runs", runToken);
 
 /** One auth-mode project's boot + seed contract. `webServerEnv` is the exact env its `pnpm stack up-fg`
  *  webServer boots with; `baseUrl` is its vite origin (the specs' `E2E_BASE_URL`); `backendUrl` is the Hono
@@ -116,7 +132,7 @@ export const E2E_DEBUG_TOKEN = "orbweaver-e2e-debug-token-insecure";
  * is an instrument, not a test suite — and the shared `stack.pgid` was the same collision one step worse,
  * since `stop`/`status` read it.
  *
- * It rides the mode's EXISTING throwaway state root (`.cache/e2e/<mode>/`, next to its DB and assets) rather
+ * It rides the mode's run-owned throwaway state root, next to its DB and assets, rather
  * than minting a second convention; the stack creates it, so nothing has to pre-create it.
  */
 const STACK_RUN_SUBDIR = "stack";
@@ -143,14 +159,6 @@ const HARNESS_OWNER_HANDLE = "owner";
 
 /** The SSO fixtures carry these groups under the isolated stacks' explicit admission policy. */
 export const E2E_SSO_GROUPS = { member: "e2e-members", admin: "e2e-admins", owner: "e2e-owners" } as const;
-
-// THE THROWAWAY STATE ROOT MOVED WITH THAT PIN: `.cache/e2e-<mode>/` → `.cache/e2e/<mode>/` (2026-08-08).
-// A harness DB seeded BEFORE the pin holds the operator's handle at `role='owner'`, and D17's
-// `users_single_owner_unique` partial index makes a second owner row UNREPRESENTABLE — so boot's
-// `seedOwner("owner")` dies with `UNIQUE constraint failed: users.role` on any stale harness DB (measured
-// against this box's `.cache/e2e-local/orb.db`). A fresh path retires that state on every box at once,
-// instead of leaving a manual `rm -rf` standing between this fix and the next green run. The old
-// `.cache/e2e-*` dirs are inert leftovers — delete at leisure.
 
 /**
  * THE HARNESS'S LOCAL-ENGINE CONNECTION — the three facts `global-setup.ts`'s `pinChatConnection` mints it
@@ -242,6 +250,17 @@ if (stFolderDirectory !== undefined && SELECTED_CORPUS_FIXTURE?.privateParent ==
 }
 /** A local SillyTavern library folder; only a private corpus run, whose artifacts stay in its owner, accepts one. */
 export const SELECTED_ST_FOLDER = stFolderDirectory;
+function isolatedDataEnv(mode: string): Readonly<Record<string, string>> {
+  const root = join(E2E_RUN_ROOT, mode);
+  return {
+    DATA_DIR: root,
+    DATABASE_URL: `file:${join(root, "orb.db")}`,
+    ASSETS_DIR: join(root, "assets"),
+    STACK_RUN_DIR: join(root, STACK_RUN_SUBDIR),
+    ...(SELECTED_CORPUS_FIXTURE === undefined ? { LOCAL_LIGHT_PREFETCH: "off", LOCAL_LIGHT_CACHE_DIR: join(CHECKOUT_ROOT, ".cache", "e2e", "models") } : {}),
+  };
+}
+
 const SINGLE_BACKEND_PORT = String(DEV_TARGET_ALLOWED ? DEV_PORTS.server : E2E_PORTS.singleUser.server);
 const SINGLE_VITE_PORT = String(DEV_TARGET_ALLOWED ? DEV_PORTS.vite : E2E_PORTS.singleUser.vite);
 export const SINGLE_USER: ModeProject = {
@@ -272,10 +291,7 @@ export const SINGLE_USER: ModeProject = {
           VITE_PORT: SINGLE_VITE_PORT,
           VITE_API_TARGET: `http://127.0.0.1:${SINGLE_BACKEND_PORT}`,
           // The whole data root, so the generated secrets and every cache land under .cache too.
-          DATA_DIR: "./.cache/e2e/single",
-          DATABASE_URL: "file:./.cache/e2e/single/orb.db",
-          ASSETS_DIR: "./.cache/e2e/single/assets",
-          STACK_RUN_DIR: `./.cache/e2e/single/${STACK_RUN_SUBDIR}`,
+          ...isolatedDataEnv("single"),
           OWNER_HANDLES: SELECTED_CORPUS_FIXTURE?.wire.reads["sessions.me"][0]?.output.handle ?? HARNESS_OWNER_HANDLE,
           PRIVATE_ENDPOINT_ALLOWLIST: LOOPBACK_ENDPOINT_ALLOWLIST,
           EGRESS_ALLOWLIST: "127.0.0.1",
@@ -336,10 +352,7 @@ const LOCAL: ModeProject = {
     PORT: LOCAL_BACKEND_PORT,
     VITE_PORT: LOCAL_VITE_PORT,
     VITE_API_TARGET: `http://127.0.0.1:${LOCAL_BACKEND_PORT}`,
-    DATA_DIR: "./.cache/e2e/local",
-    DATABASE_URL: "file:./.cache/e2e/local/orb.db",
-    ASSETS_DIR: "./.cache/e2e/local/assets",
-    STACK_RUN_DIR: `./.cache/e2e/local/${STACK_RUN_SUBDIR}`,
+    ...isolatedDataEnv("local"),
     // The reasoning-strip spec's scripted BYO provider (support/fixture-provider.ts) is a loopback endpoint the
     // custom-byo runner reaches via a raw fetch → the global egress firewall. Allowlist loopback so the box can
     // reach its OWN configured backend (127.0.0.1); the operator legitimately trusts loopback egress on a test
@@ -389,10 +402,7 @@ const FORWARD_HEADER: ModeProject = {
     PORT: FWD_BACKEND_PORT,
     VITE_PORT: FWD_VITE_PORT,
     VITE_API_TARGET: `http://127.0.0.1:${FWD_BACKEND_PORT}`,
-    DATA_DIR: "./.cache/e2e/forward",
-    DATABASE_URL: "file:./.cache/e2e/forward/orb.db",
-    ASSETS_DIR: "./.cache/e2e/forward/assets",
-    STACK_RUN_DIR: `./.cache/e2e/forward/${STACK_RUN_SUBDIR}`,
+    ...isolatedDataEnv("forward"),
     // The owner case in auth-smoke.forward.spec.ts asserts THIS handle resolves role=owner.
     OWNER_HANDLES: HARNESS_OWNER_HANDLE,
     OWNER_GROUP: E2E_SSO_GROUPS.owner,
@@ -420,7 +430,7 @@ const OIDC_BACKEND_PORT = String(E2E_PORTS.oidc.server);
 const OIDC_ORIGIN = `http://127.0.0.1:${OIDC_BACKEND_PORT}`;
 const OIDC_CALLBACK_ROUTE = "/api/auth/oidc/callback";
 // Absolute: the playwright config mints the certificate and the server child reads it, each from its own cwd.
-const OIDC_STATE_DIR = resolve(import.meta.dirname, "..", "..", "..", ".cache", "e2e", "oidc");
+const OIDC_STATE_DIR = join(E2E_RUN_ROOT, "oidc");
 const OIDC_CLIENT_DIR = join(OIDC_STATE_DIR, "client");
 const OIDC_ISSUER_DIR = join(OIDC_STATE_DIR, "issuer");
 
@@ -464,10 +474,7 @@ export const OIDC_MODE: ModeProject = {
     PORT: OIDC_BACKEND_PORT,
     VITE_PORT: String(E2E_PORTS.oidc.vite),
     VITE_API_TARGET: OIDC_ORIGIN,
-    DATA_DIR: "./.cache/e2e/oidc",
-    DATABASE_URL: "file:./.cache/e2e/oidc/orb.db",
-    ASSETS_DIR: "./.cache/e2e/oidc/assets",
-    STACK_RUN_DIR: `./.cache/e2e/oidc/${STACK_RUN_SUBDIR}`,
+    ...isolatedDataEnv("oidc"),
     OWNER_HANDLES: HARNESS_OWNER_HANDLE,
     OWNER_GROUP: E2E_SSO_GROUPS.owner,
     OIDC_ADMIN_GROUPS: E2E_SSO_GROUPS.admin,

@@ -205,6 +205,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
   const now = (): number => Date.now();
 
   let isShuttingDown = false;
+  let shutdownCompletion: Promise<void> | undefined;
   let credentialsKeyOk = false;
   let db: Db | null = null;
   let server: ServerType | null = null;
@@ -408,9 +409,9 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     const holder = hostname();
 
     // `admin.restart`'s port: close the app as a signal does, then exit with the code the supervisor respawns on. It
-    // runs on a later tick so the owner's answer is sent first. A shutdown already under way (a signal) wins, because
-    // a second `shutdown()` returns at once and the exit would cut its drain. A failed close still exits with the
-    // code, so the respawned boot is the one that reports what is wrong.
+    // runs on a later tick so the owner's answer is sent first. A shutdown already under way (a signal) wins:
+    // a restart must not change its eventual exit code. A failed close still exits with the code, so the
+    // respawned boot is the one that reports what is wrong.
     const serverRestart: ServerRestartPort = {
       supervised: launchedBySupervisor(),
       serverInstanceId: SERVER_INSTANCE_ID,
@@ -658,14 +659,16 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     }
   }
 
+  function shutdown(request: { readonly drainMs?: number } = {}): Promise<void> {
+    shutdownCompletion ??= drain(request);
+    return shutdownCompletion;
+  }
+
   // RATIFIED (#596). Nine null-guarded stops at real nesting depth 0 score 20 only because biome DOUBLES every
   // increment inside a closure — the measured tell that this score is length, not tangle.
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: the graceful-drain teardown is a flat sequence of independent null-guarded stops (server, schedulers, worker, observer, vLLM, db) — one cohesive shutdown, splitting it hides the ordering.
-  async function shutdown(request: { readonly drainMs?: number } = {}): Promise<void> {
+  async function drain(request: { readonly drainMs?: number }): Promise<void> {
     const httpDrainMs = request.drainMs ?? SHUTDOWN_DRAIN_MS;
-    if (isShuttingDown) {
-      return;
-    }
     isShuttingDown = true;
     log.info("shutdown: draining");
     let shareFailure: Error | undefined;

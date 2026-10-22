@@ -1,6 +1,6 @@
 // Native collection is independent of the shared stack-boot/seed selector; no stack starts under --list.
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import process from "node:process";
@@ -10,7 +10,7 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { pageArray, pageObject, pageString } from "@orb/tooling/floor/browser/page-validate";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
-import { selectedModeProjects } from "./modes.ts";
+import { E2E_RUN_ROOT, selectedModeProjects } from "./modes.ts";
 
 const SELECTORS = [
   ["--project", "single-user", "local"],
@@ -88,6 +88,8 @@ function collectedProjects(suites: readonly unknown[]): string[] {
 }
 
 test("native repeated, variadic, equals and wildcard project selection agrees with boot configuration and the shared seed selector", { tags: ["slow"] }, () => {
+  const runDirectory = dirname(E2E_RUN_ROOT);
+  const before = existsSync(runDirectory) ? readdirSync(runDirectory).sort() : [];
   for (const selector of SELECTORS) {
     const argv = [...COLLECTION_ARGS, ...selector];
     const collection = collect(selector);
@@ -106,6 +108,7 @@ test("native repeated, variadic, equals and wildcard project selection agrees wi
     expect(sharedSelection, JSON.stringify(selector)).toEqual(native);
     expect([...bootModes].sort(), JSON.stringify(selector)).toEqual(native);
   }
+  expect(existsSync(runDirectory) ? readdirSync(runDirectory).sort() : []).toEqual(before);
 });
 
 test("native collection rejects an unmatched project instead of falling back to other auth modes", () => {

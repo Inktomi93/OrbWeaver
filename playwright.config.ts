@@ -40,6 +40,7 @@ const e2eLive = process.env["E2E_LIVE"] === "1";
 const reporters: ReporterDescription[] = [
   ...(process.env["GITHUB_ACTIONS"] ? [["github"] as const] : []),
   ["list"],
+  ["./tests/e2e/support/disposable-reporter.ts"],
   ["json", { outputFile: `${E2E_REPORT_PREFIX}-report.json` }],
   ["html", { outputFolder: `${E2E_REPORT_PREFIX}-report`, open: "never" }],
 ];
@@ -68,7 +69,9 @@ const projects = BROWSER_PROJECTS.map(({ name, mode, device, chatStyle }) => ({
 // from argv because only the runner process starts webServers; workers re-load this file without the flag.
 const bootedModes = selectedModeProjects(process.argv);
 // The oidc server child trusts the issuer through NODE_EXTRA_CA_CERTS, read once at its boot: mint before it starts.
-if (bootedModes.includes(OIDC_MODE)) {
+const optionTerminator = process.argv.indexOf("--");
+const collecting = process.argv.slice(0, optionTerminator === -1 ? undefined : optionTerminator).includes("--list");
+if (!collecting && bootedModes.includes(OIDC_MODE)) {
   oidcIssuerTls();
 }
 
@@ -79,6 +82,7 @@ const webServers = bootedModes.map((mode) => ({
     mode.servedClient === undefined ? STACK_UP : `pnpm --filter @orb/client exec vite build --configLoader native --outDir ${mode.servedClient} && ${STACK_UP}`,
   url: mode.baseUrl,
   reuseExistingServer: mode.name === SINGLE_USER.name && DEV_TARGET_ALLOWED && !inCI,
+  gracefulShutdown: { signal: "SIGTERM" as const, timeout: budget(15_000) },
   timeout: budget(180_000),
   env: mode.webServerEnv,
   stdout: "pipe" as const,

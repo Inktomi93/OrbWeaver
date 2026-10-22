@@ -59,7 +59,6 @@ async function loadExecutionKernel(module: string | undefined): Promise<Transfor
   return kernel;
 }
 
-const DEFAULT_DEVICE: DeviceType = "auto";
 const CPU_DEVICE: DeviceType = "cpu";
 /** How a reranker whose capability names no `onnx` serving runs: the transformers.js export convention at fp32,
  *  exactly as every reranker ran before servings existed (an offline box may hold only `onnx/model.onnx`). */
@@ -72,7 +71,7 @@ const DATA_TYPES: readonly DataType[] = ["auto", "fp32", "fp16", "q8", "int8", "
 /** Narrow a configured string onto the lib's own vocabulary — the two vocabularies are checked HERE, the one
  *  file that may import the lib's types. */
 function resolveDevice(configured: string | undefined): DeviceType {
-  return DEVICE_TYPES.find((candidate) => candidate === configured) ?? DEFAULT_DEVICE;
+  return DEVICE_TYPES.find((candidate) => candidate === configured) ?? CPU_DEVICE;
 }
 
 export function resolveEmbedDtype(configured: string | undefined): DataType {

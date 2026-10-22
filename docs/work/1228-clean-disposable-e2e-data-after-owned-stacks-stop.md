@@ -19,8 +19,8 @@ Native E2E stops its processes but retains each mode data root, including duplic
 
 ## Done when
 
-Success and failure release owned processes before deleting disposable data. Interrupted-run recovery touches only proven test-owned paths. Native reports remain usable; developer data and caller-owned corpus fixtures are untouched.
+Normal CLI success and failure release owned processes before deleting disposable data. Uncertain shutdown retains and identifies its directory. Hard termination requires explicit owner recovery; there is no automatic sweep. Native reports remain usable; developer data and caller-owned corpus fixtures are untouched.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The [E2E disposable-state policy](../plans/test-foundation/design.md#e2e-disposable-state) records ownership, completed native lifecycle exercises and retained-directory limits.

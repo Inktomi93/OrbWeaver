@@ -21,13 +21,12 @@ const CONTINUE_WITH_IDP = `Continue with ${OIDC_CLIENT.providerName}`;
 // server child, so the browser's one hop through /authorize ignores it.
 test.use({ extraHTTPHeaders: { forwarded: "" }, ignoreHTTPSErrors: true });
 
-const tls = oidcIssuerTls();
 let issuer: OidcIssuer | undefined;
 
 test.beforeAll(async () => {
   issuer = await startOidcIssuer({
     port: OIDC_CLIENT.issuerPort,
-    tls,
+    tls: oidcIssuerTls(),
     clientId: OIDC_CLIENT.clientId,
     clientSecret: OIDC_CLIENT.clientSecret,
   });
@@ -53,7 +52,7 @@ test("leaving an OIDC pending join retires its invite and preserves other query 
       input: { allowSignup: true, maxUses: 1, expiresAt: Date.now() + INVITE_TTL_MS },
     });
     const joiner = `oidc-joiner-${randomBytes(JOINER_SUFFIX_BYTES).toString("hex")}`;
-    await stageIssuerIdentity(issuer.url, { sub: joiner, preferredUsername: joiner, groups: [E2E_SSO_GROUPS.member] }, tls.cert);
+    await stageIssuerIdentity(issuer.url, { sub: joiner, preferredUsername: joiner, groups: [E2E_SSO_GROUPS.member] }, oidcIssuerTls().cert);
 
     await page.goto(`/join/${invite.token}`);
     await page.getByRole("button", { name: CONTINUE_WITH_IDP, exact: true }).click();

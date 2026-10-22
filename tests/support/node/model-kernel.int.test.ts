@@ -146,6 +146,7 @@ test("independent roots run native tokenizer/cache/head scoring without sessions
   for (const root of [first, second]) {
     const recorded = await readFile(join(root.modelCacheDir, "kernel-execution.jsonl"), "utf8");
     expect(recorded).toContain('"sessions":0,"nativeModel":true');
+    expect(recorded).toContain('"device":"cpu"');
     expect(recorded).toContain('"nativeTensor":true');
     expect(recorded).not.toContain('"hub-fetch"');
   }

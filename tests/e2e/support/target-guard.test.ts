@@ -6,19 +6,17 @@
 // globalSetup's unconditional model-routing pin (`pinChatConnection` today, a `routing.roleDefaults`
 // settings patch back then) rewrote the operator's REAL configuration.
 
+import { join } from "node:path";
 import { HEALTH_STATUSES, healthResponseSchema } from "@orb/contracts/diagnostics";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
-import { LOCAL_OWNER, MODE_PROJECTS, SINGLE_USER, selectedModeProjects } from "./modes.ts";
+import { E2E_RUN_ROOT, LOCAL_OWNER, MODE_PROJECTS, SINGLE_USER, selectedModeProjects } from "./modes.ts";
 import { ALLOW_DEV_TARGET_ENV, DEV_STACK_PORTS, devTargetAllowed, probeTarget, targetRefusal } from "./target-guard.ts";
 
 const HARNESS_TARGET = { name: "single-user", baseUrl: "http://localhost:5181", backendUrl: "http://127.0.0.1:8796" } as const;
 const DEV_TARGET = { name: "single-user", baseUrl: "http://localhost:5173", backendUrl: "http://127.0.0.1:8788" } as const;
 const STAMPED = { reachable: true, stamped: true } as const;
 const UNSTAMPED = { reachable: true, stamped: false } as const;
-// Every mode's DB and data root must live under the throwaway .cache tree — never the dev `data/` default.
-const ISOLATED_DB_RE = /^file:\.\/\.cache\//u;
-const ISOLATED_ROOT_RE = /^\.\/\.cache\//u;
 
 describe("targetRefusal", () => {
   test("a stamped, non-dev-port target is seedable", () => {
@@ -68,15 +66,17 @@ describe("mode projects (default, no override)", () => {
       for (const url of [mode.baseUrl, mode.backendUrl]) {
         expect(DEV_STACK_PORTS, `${mode.name} ${url}`).not.toContain(new URL(url).port);
       }
-      expect(mode.webServerEnv["DATABASE_URL"], mode.name).toMatch(ISOLATED_DB_RE);
+      expect(mode.webServerEnv["DATABASE_URL"], mode.name).toBe(`file:${join(mode.webServerEnv["DATA_DIR"] ?? "", "orb.db")}`);
       // The secrets, caches and reports derive from the root, not the db slot: without this the harness
       // stack would generate its keyfiles into the checkout's real `data/secrets/`.
-      expect(mode.webServerEnv["DATA_DIR"], mode.name).toMatch(ISOLATED_ROOT_RE);
+      expect(mode.webServerEnv["DATA_DIR"]?.startsWith(`${E2E_RUN_ROOT}/`), mode.name).toBe(true);
+      expect(mode.webServerEnv["LOCAL_LIGHT_PREFETCH"], mode.name).toBe("off");
+      expect(mode.webServerEnv["LOCAL_LIGHT_CACHE_DIR"]?.startsWith(`${E2E_RUN_ROOT}/`), mode.name).toBe(false);
     }
   });
 
   test("the single-user project is the one that regressed — it is isolated by default", () => {
-    expect(SINGLE_USER.webServerEnv["DATABASE_URL"]).toBe("file:./.cache/e2e/single/orb.db");
+    expect(SINGLE_USER.webServerEnv["DATABASE_URL"]).toBe(`file:${join(E2E_RUN_ROOT, "single", "orb.db")}`);
     expect(targetRefusal(SINGLE_USER, STAMPED, false)).toBeUndefined();
   });
 

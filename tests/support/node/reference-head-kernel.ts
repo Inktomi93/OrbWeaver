@@ -89,7 +89,13 @@ export const loadTransformers: LocalLightKernelModule["loadTransformers"] = asyn
         throw new Error("reference Hub refusal unexpectedly returned a config");
       }
       const model = new ReferenceEncoder(new kernel.PretrainedConfig({ ["model_type"]: "custom", ["hidden_size"]: 3 }), {}, {});
-      await record({ edge: "model-load", modelId, sessions: Object.keys(model.sessions).length, nativeModel: model instanceof kernel.PreTrainedModel });
+      await record({
+        edge: "model-load",
+        modelId,
+        device: options?.device,
+        sessions: Object.keys(model.sessions).length,
+        nativeModel: model instanceof kernel.PreTrainedModel,
+      });
       return model;
     }
   }
