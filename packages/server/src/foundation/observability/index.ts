@@ -4,7 +4,6 @@
 
 export {
   type AuditEntry,
-  type AuditFailureSnapshot,
   buildAuditStatement,
   buildAuditStatementIfPrecedingWrote,
   createAuditStatementAfterWrite,
@@ -13,14 +12,12 @@ export {
   logAudit,
 } from "./audit.ts";
 export { readBugReportDiagnostics } from "./bug-report-diagnostics.ts";
-export { type ClientErrorReport, recordClientError } from "./client-error.ts";
+export { recordClientError } from "./client-error.ts";
 export type { AuditWiring } from "./contract/audit-wiring.ts";
 export {
   type AdminAuthChecker,
-  type AssetInspector,
   type DebugAuthOptions,
   type DebugRoutesOptions,
-  type IntegrityReport,
   isWireCaptureEnabled,
   isWireReplyCaptureEnabled,
   type MemoryRecallInspector,
@@ -53,7 +50,6 @@ export {
   getTraceByRequestId,
   initTracing,
   type RequestTrace,
-  type RequestTraceTotals,
   recentTraces,
   type SerializedSpan,
   type SerializedSpanEvent,

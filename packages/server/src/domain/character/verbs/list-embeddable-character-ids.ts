@@ -10,8 +10,7 @@
 // funneling every synthetic row through a null `loadCardText` skip.
 
 import type { CharacterId, UserId } from "@orb/kit/ids";
-import type { CharacterContext } from "../context.ts";
-import type { CharacterService } from "../contract/service.ts";
+import type { CharacterContext, CharacterService } from "../contract/service.ts";
 import { listEmbeddableCharacterIdRows } from "../persistence/queries.ts";
 
 export function createListEmbeddableCharacterIds(ctx: CharacterContext): CharacterService["listEmbeddableCharacterIds"] {

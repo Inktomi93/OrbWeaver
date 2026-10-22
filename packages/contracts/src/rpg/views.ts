@@ -145,6 +145,9 @@ export interface RpgActorView {
   readonly trackers: readonly RpgTrackerDef[];
 }
 
+/** Chat-resolved participant identity before RPG adds tracker state. */
+export type RpgParticipantActor = Pick<RpgActorView, "actorRef" | "name" | "avatar">;
+
 /** ONE tracked value in a view — the def paired with its swipe-volatile reading (null = the carrier has the
  *  tracker but the story hasn't moved it). The shape every tracker surface renders, actor or game. */
 export interface RpgTrackerEntry {

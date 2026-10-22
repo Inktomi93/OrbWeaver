@@ -38,6 +38,7 @@ import {
   buildRunToolRound,
   createImportRpgGame,
   createRpgChatOps,
+  createRpgHandWrites,
   createRpgRoundObservers,
   createRpgService,
   createRpgStagingStore,
@@ -89,7 +90,12 @@ export function createRpgRestorePost(post: PostNarratorMessage): RpgPostNarrator
 export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
   const idSource = deps.idSource ?? createIdSource();
   const rounds: RpgRoundsDeps = { ...deps, idSource, isHandleConflict: isCharacterHandleConflict };
+  const lifetime = new AsyncDisposableStack();
+  // biome-ignore lint/nursery/useDisposables: the returned RPG graph owns writes shared by its service, tools and chat hooks.
+  const handWrites = lifetime.use(createRpgHandWrites());
   const observers = createRpgRoundObservers(deps.trace, deps.scheduleTimeout, deps.emitRpgEvent);
+  // Rounds can reconcile through handWrites while settling; close their owner first.
+  lifetime.use(observers.flushBarrier);
   const ctx: RpgContext = {
     idSource,
     db: deps.db,
@@ -106,6 +112,7 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
       item: () => idSource.unprefixed(),
     },
     staging: createRpgStagingStore(),
+    handWrites,
     // The ONE privilege kernel (spine invariant #6) — rpg's `guard.ts` resolves membership and asks THIS for the
     // host verdict, exactly as chat/automation do. Wired here, never imported by the domain (§2 flow).
     can,
@@ -154,6 +161,6 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
     service,
     chatOps: createRpgChatOps(ctx),
     importGame: createImportRpgGame(ctx),
-    [Symbol.asyncDispose]: () => observers.flushBarrier[Symbol.asyncDispose](),
+    [Symbol.asyncDispose]: () => lifetime.disposeAsync(),
   };
 }

@@ -2,8 +2,7 @@
 // character join (D23); foreign and absent collapse to NOT_FOUND.
 
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { RefineryContext } from "../context.ts";
-import type { RefineryService } from "../contract/service.ts";
+import type { RefineryContext, RefineryService } from "../contract/service.ts";
 import { loadOwnedSessionRow, sessionViewOf } from "../persistence/queries.ts";
 
 export function createGetSession(ctx: RefineryContext): RefineryService["getSession"] {

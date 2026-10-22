@@ -4,10 +4,9 @@
 // via character.update). Leak-free NOT_FOUND for a non-owner — the owner gate (`loadOwnedCharacterRow`) is
 // the chokepoint and fires BEFORE any template read or completion (the cross-tenant sweep's owner-gate probe).
 
-import type { CharacterContext } from "../context.ts";
 import { CharacterNotFoundError } from "../contract/errors.ts";
 import type { RewriteGreetingParams } from "../contract/params.ts";
-import type { CharacterService } from "../contract/service.ts";
+import type { CharacterContext, CharacterService } from "../contract/service.ts";
 import { cardOf, loadOwnedCharacterRow } from "../persistence/queries.ts";
 import { buildGreetingPrompt, composeGreetingSteer } from "../substrate/greeting-studio.ts";
 

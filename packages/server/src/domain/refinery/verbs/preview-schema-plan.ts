@@ -4,8 +4,7 @@
 
 import { refinerySchemaDocumentSchema } from "@orb/contracts/refinery";
 import { liftJsonSchema, projectJsonSchema } from "@orb/kit/json-schema";
-import type { RefineryContext } from "../context.ts";
-import type { RefineryService } from "../contract/service.ts";
+import type { RefineryContext, RefineryService } from "../contract/service.ts";
 
 export function createPreviewSchemaPlan(ctx: RefineryContext): RefineryService["previewSchemaPlan"] {
   return async ({ principal, schema, stage }) => {

@@ -1,9 +1,8 @@
 // verb: listForPreset — the scripts attached to an owned preset, in execution order. A read: no audit.
 // Owner-filtered on BOTH sides, so this can never enumerate a foreign preset's attachments.
 
-import type { RegexContext } from "#src/domain/regex/context.ts";
 import type { ListForPresetParams } from "#src/domain/regex/contract/params.ts";
-import type { RegexService } from "#src/domain/regex/contract/service.ts";
+import type { RegexContext, RegexService } from "#src/domain/regex/contract/service.ts";
 import { ensurePresetOwned } from "#src/domain/regex/persistence/ownership.ts";
 import { listPresetScripts, toRow } from "#src/domain/regex/persistence/queries.ts";
 

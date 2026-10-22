@@ -3,10 +3,9 @@
 // itself, and a non-owner/missing item rejects with `GalleryItemNotFoundError` (leak-free — "missing"
 // and "not yours" collapse). The asset itself is untouched (removing a curation row never deletes bytes).
 
-import type { AssetsContext } from "../context.ts";
 import { GalleryItemNotFoundError } from "../contract/errors.ts";
 import type { RemoveFromGalleryParams } from "../contract/params.ts";
-import type { AssetsService } from "../contract/service.ts";
+import type { AssetsContext, AssetsService } from "../contract/service.ts";
 import { deleteGalleryItemRow, ownsGalleryItem } from "../persistence/queries.ts";
 
 export function createRemoveFromGallery(ctx: AssetsContext): AssetsService["removeFromGallery"] {

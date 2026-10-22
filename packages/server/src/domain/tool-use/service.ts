@@ -4,9 +4,8 @@
 // projection every wire consumes (`@orb/inference` places it); every invocation, whichever side drives the
 // loop, funnels through the SAME executeToolCalls.
 
-import type { ToolUseContext } from "./context.ts";
 import type { ToolRegistry } from "./contract/results.ts";
-import type { ToolUseService } from "./contract/service.ts";
+import type { ToolUseContext, ToolUseService } from "./contract/service.ts";
 import { createExecuteToolCalls } from "./verbs/execute-tool-calls.ts";
 import { createIsToolDrivableBy } from "./verbs/is-tool-drivable-by.ts";
 import { createListDrivableToolNames } from "./verbs/list-drivable-tool-names.ts";

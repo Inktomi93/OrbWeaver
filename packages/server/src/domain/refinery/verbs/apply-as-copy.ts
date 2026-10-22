@@ -20,8 +20,7 @@ import { REFINERY_STAGE_PAYLOADS, refineryCustomRunConfigSchema, refinerySession
 import { refinerySessions } from "@orb/db";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import type { RefineryContext } from "../context.ts";
-import type { RefineryService } from "../contract/service.ts";
+import type { RefineryContext, RefineryService } from "../contract/service.ts";
 import { latestRunRowAtOrBefore } from "../persistence/queries.ts";
 import { buildPatch, resolveApplyBasis } from "../substrate/accept-belts.ts";
 

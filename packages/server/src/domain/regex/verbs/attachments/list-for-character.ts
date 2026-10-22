@@ -1,9 +1,8 @@
 // verb: listForCharacter — the scripts attached to an owned character, in execution order. A read: no audit.
 // Owner-filtered on BOTH sides, so this can never enumerate a foreign character's attachments.
 
-import type { RegexContext } from "#src/domain/regex/context.ts";
 import type { ListForCharacterParams } from "#src/domain/regex/contract/params.ts";
-import type { RegexService } from "#src/domain/regex/contract/service.ts";
+import type { RegexContext, RegexService } from "#src/domain/regex/contract/service.ts";
 import { ensureCharacterOwned } from "#src/domain/regex/persistence/ownership.ts";
 import { listCharacterScripts, toRow } from "#src/domain/regex/persistence/queries.ts";
 

@@ -6,10 +6,9 @@
 import { personas } from "@orb/db";
 import { and, eq, exists, ne } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
-import type { PersonaContext } from "../context.ts";
 import { LastPersonaError, PersonaNotFoundError } from "../contract/errors.ts";
 import type { RemovePersonaParams } from "../contract/params.ts";
-import type { PersonaService } from "../contract/service.ts";
+import type { PersonaContext, PersonaService } from "../contract/service.ts";
 
 const otherPersona = alias(personas, "other_persona");
 

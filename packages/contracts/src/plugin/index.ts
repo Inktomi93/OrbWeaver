@@ -18,7 +18,7 @@ export type { InvocationChat, PluginBridge, PluginInvocationLiveness } from "./b
 export type { PluginCommandView } from "./command-view.ts";
 export { pluginCommandViewSchema } from "./command-view.ts";
 export { HostVersionError, PluginCapabilityError, PluginHostDeadlineError, PluginSuggestedError } from "./errors.ts";
-export type { PluginFrameCall, PluginFrameMintRequest, PluginFrameMintResponse, PluginFrameResult } from "./frame.ts";
+export type { PluginFrameCall, PluginFrameMintRequest, PluginFrameMintResponse } from "./frame.ts";
 export {
   PLUGIN_FRAME_CALL_REFUSED,
   PLUGIN_FRAME_CALLS_IN_FLIGHT_MAX,
@@ -37,7 +37,6 @@ export { pluginGrantTasks } from "./grant-tasks.ts";
 export type {
   ChatHandle,
   HostFunctionRef,
-  PluginAssetView,
   PluginCharacterView,
   PluginHostV1,
   PluginLogLevel,
@@ -64,7 +63,7 @@ export {
 } from "./host-v1.ts";
 export type { PluginOrigin, PluginStatus } from "./lifecycle.ts";
 export { PLUGIN_ORIGINS, PLUGIN_STATUSES } from "./lifecycle.ts";
-export type { PluginBuiltAgainst, PluginBundleHash, PluginCapability, PluginManifest, PluginSlug } from "./manifest.ts";
+export type { PluginBuiltAgainst, PluginBundleHash, PluginCapability, PluginManifest } from "./manifest.ts";
 export {
   NET_HOSTS_MAX,
   PLUGIN_BUNDLE_MAX_BYTES,
@@ -80,7 +79,6 @@ export {
   PLUGIN_UI_ASSETS_MAX_COUNT,
   PLUGIN_UI_ASSETS_TOTAL_MAX_BYTES,
   PLUGIN_UI_ENTRY,
-  pluginBuiltAgainstSchema,
   pluginBundleHashSchema,
   pluginManifestSchema,
   pluginNetHostSchema,
@@ -124,35 +122,27 @@ export {
 } from "./registrations.ts";
 export type { PluginBudgets, PluginInstanceCreateData } from "./runtime-input.ts";
 export type { SnippetResult } from "./snippet.ts";
-export { SNIPPET_ERROR_KINDS, snippetResultSchema } from "./snippet.ts";
+export { snippetResultSchema } from "./snippet.ts";
 export type { PluginSuggestedAct, PluginSuggestedActKind } from "./suggestion.ts";
-export { PLUGIN_SUGGESTED_ACT_KINDS, summarizePluginAct } from "./suggestion.ts";
+export { summarizePluginAct } from "./suggestion.ts";
 export type {
-  PluginBadgeIntent,
   PluginBadgeNode,
   PluginBoundBoolean,
   PluginBoundGridTile,
-  PluginBoundKeyValueRow,
   PluginBoundNumber,
   PluginBoundString,
   PluginButtonNode,
-  PluginButtonVariant,
   PluginCommandArgSpec,
-  PluginCommandArgs,
-  PluginCommandArgsFor,
-  PluginCommandArgType,
   PluginCommandArgValue,
   PluginCommandPlacement,
   PluginCommandPlacementTarget,
   PluginCommandRegistrationMeta,
   PluginConfirmButtonNode,
   PluginFrameBody,
-  PluginGapToken,
   PluginGridNode,
   PluginGridTile,
   PluginIconName,
   PluginIconNode,
-  PluginImageAspect,
   PluginImageNode,
   PluginKeyValueNode,
   PluginKeyValueRow,
@@ -163,18 +153,11 @@ export type {
   PluginNodeKind,
   PluginNumberFieldNode,
   PluginPageHero,
-  PluginPageStage,
-  PluginPageStageKind,
-  PluginPrimaryArbitration,
-  PluginRowNode,
   PluginSearchBarNode,
-  PluginSectionNode,
   PluginSelectHostSource,
   PluginSelectNode,
   PluginSelectOption,
   PluginSliderNode,
-  PluginStackNode,
-  PluginStateBinding,
   PluginSurfaceAnchor,
   PluginSurfaceNode,
   PluginSurfaceRegistrationMeta,
@@ -183,8 +166,6 @@ export type {
   PluginTabsNode,
   PluginTextFieldNode,
   PluginTextNode,
-  PluginTextVoice,
-  PluginTierRegistrar,
   PluginToast,
   PluginToastLevel,
   PluginToggleNode,
@@ -195,30 +176,18 @@ export {
   coercePluginCommandArgs,
   PLUGIN_ANCHOR_PRIMARY_ALLOWED,
   PLUGIN_ANCHOR_TIERS,
-  PLUGIN_BADGE_INTENTS,
-  PLUGIN_BUTTON_VARIANTS,
   PLUGIN_COMMAND_ARG_NAME_RE,
-  PLUGIN_COMMAND_ARG_TYPES,
   PLUGIN_COMMAND_ARGS_DECLARED_MAX,
   PLUGIN_COMMAND_ARGS_MAX,
   PLUGIN_COMMAND_NAME_RE,
   PLUGIN_COMMAND_PLACEMENT_TARGETS,
-  PLUGIN_FOOTER_NODE_KIND_ALLOWED,
   PLUGIN_FRAME_SURFACES_MAX,
-  PLUGIN_GAP_TOKENS,
-  PLUGIN_ICON_NAMES,
-  PLUGIN_IMAGE_ASPECTS,
-  PLUGIN_NODE_KINDS,
-  PLUGIN_PAGE_STAGE_KINDS,
-  PLUGIN_SELECT_HOST_SOURCES,
   PLUGIN_SPEC_MAX_DEPTH,
   PLUGIN_SURFACE_ANCHORS,
   PLUGIN_SURFACE_ID_RE,
   PLUGIN_SURFACE_TIERS,
   PLUGIN_TEXT_MAX_CHARS,
-  PLUGIN_TEXT_VOICES,
   PLUGIN_TIER_REGISTRAR,
-  PLUGIN_TIER_REGISTRARS,
   PLUGIN_TOAST_COOLDOWN_SECONDS,
   PLUGIN_TOAST_LEVELS,
   PLUGIN_TOAST_MAX_CHARS,
@@ -228,9 +197,7 @@ export {
   PLUGIN_UI_OUTBOX_MAX,
   PLUGIN_UI_ROUTE,
   pluginChildNodes,
-  pluginCommandArgSpecSchema,
   pluginCommandArgsSchema,
-  pluginCommandPlacementSchema,
   pluginCommandRegistrationMetaSchema,
   pluginComposerDraftSchema,
   pluginFrameBodySchema,
@@ -253,17 +220,14 @@ export type {
   PluginDisplayTransformView,
   PluginFanoutResult,
   PluginFanoutSkip,
-  PluginFanoutSkipReason,
   PluginLogView,
   PluginSurfaceState,
   PluginSurfaceView,
-  PluginUpdateSource,
   PluginView,
 } from "./view.ts";
 export {
   distributedPluginViewSchema,
   PLUGIN_FANOUT_SKIP_REASONS,
-  PLUGIN_UPDATE_SOURCES,
   pluginBundleAssetViewSchema,
   pluginDisplayTransformViewSchema,
   pluginFanoutResultSchema,

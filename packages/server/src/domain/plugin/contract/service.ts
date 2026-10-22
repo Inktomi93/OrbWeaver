@@ -35,7 +35,6 @@ import type {
   SnippetResult,
 } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
-import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { AssetId, ChatId, PluginId, UserId } from "@orb/kit/ids";
 import type { ScheduleOp } from "@orb/kit/time";
 import type {
@@ -93,8 +92,6 @@ import type {
   PluginUpdateCheck,
   PluginUrlPreview,
 } from "./results.ts";
-
-export type { PluginBudgets } from "@orb/contracts/plugin";
 
 /** The input to `createInstance`: the guest source + its durable re-reader + the confirmed grants + the
  *  authority-agnostic membrane BRIDGE the domain built (per-installer: `substrate/bridge.ts` closes global-vars over the installer
@@ -354,8 +351,6 @@ export interface PluginContext {
    *  bound how many are RUNNING, which is what a re-rendering scripted surface can turn into a flood. */
   readonly uiHostCallGate: UiHostCallGate;
 }
-
-export type PluginAssemblyContext = DbAssemblyInput<PluginContext>;
 
 /** Activation binds every resident handler to the service's owned invocation lifetime. */
 export interface PluginActivationContext extends PluginContext {

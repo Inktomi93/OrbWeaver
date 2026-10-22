@@ -4,15 +4,8 @@
 export type {
   AcmeIssuer,
   AcmeIssuerDeps,
-  CertificateCheck,
   CertificateStore,
-  ChallengeResponse,
   IssuedCertificate,
-  IssueOutcome,
-  IssueRequest,
-  OpenChallenge,
-  OpenChallengeResponder,
-  OwnedAcmeIssuer,
 } from "./contract.ts";
 export { createOwnedAcmeIssuer } from "./execution.ts";
 export { openChallengeResponder } from "./http-01.ts";

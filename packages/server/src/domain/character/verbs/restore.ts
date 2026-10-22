@@ -10,10 +10,9 @@
 // one `restoreCardInPlace` batch now; see its doc for the `changes()` witness that ties them together.
 
 import { cardContentHash } from "#primitives/serde/card";
-import type { CharacterContext } from "../context.ts";
 import { CHARACTER_BACKGROUND_UNAVAILABLE, CharacterNotFoundError, CharacterOperationError } from "../contract/errors.ts";
 import type { RestoreParams } from "../contract/params.ts";
-import type { CharacterService } from "../contract/service.ts";
+import type { CharacterContext, CharacterService } from "../contract/service.ts";
 import { restoreCardInPlace } from "../persistence/card.ts";
 import { canonicalTagsOf, cardOf, detailOf, loadOwnedCharacterRow, loadOwnedCharacterWithAvatar, loadSnapshotContent } from "../persistence/queries.ts";
 import { cardTokenSize } from "../substrate/card-tokens.ts";

@@ -4,10 +4,9 @@
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { UserId } from "@orb/kit/ids";
-import type { DiscoveryContext } from "./context.ts";
 import type { ThemeLevel } from "./contract/params.ts";
 import type { DuplicateCharacterPair, DuplicateChatPair, ThemeRow } from "./contract/results.ts";
-import type { DiscoveryService, ViewsDeps } from "./contract/service.ts";
+import type { DiscoveryContext, DiscoveryService, ViewsDeps } from "./contract/service.ts";
 import { computeCooccurrence as runComputeCooccurrence } from "./cooccurrence/generate.ts";
 import { characterKeywords, cooccurringKeywords, topKeywords } from "./cooccurrence/retrieve.ts";
 import { computeChatDuplicatePairs as runComputeChatDuplicatePairs, computeDuplicatePairs as runComputeDuplicatePairs } from "./duplicates/generate.ts";

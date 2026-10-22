@@ -3,7 +3,7 @@
 
 import type { SearchSpaceStatus } from "@orb/contracts/search";
 import type { UserId } from "@orb/kit/ids";
-import type { SearchContext } from "../context.ts";
+import type { SearchContext } from "../contract/service.ts";
 import { readGeneration } from "../persistence/active-space.ts";
 
 export function createSpaceStatus(ctx: Pick<SearchContext, "db">): (params: { readonly ownerId: UserId }) => Promise<SearchSpaceStatus> {

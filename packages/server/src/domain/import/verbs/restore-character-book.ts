@@ -18,10 +18,9 @@
 // operator-facing refusals the calling door renders.
 
 import { isPng } from "@orb/kit/png-card-chunk";
-import type { ImportContext } from "../context.ts";
 import type { RestoreCharacterBookInput } from "../contract/params.ts";
 import type { RestoreCharacterBookResult } from "../contract/results.ts";
-import type { ImportService } from "../contract/service.ts";
+import type { ImportContext, ImportService } from "../contract/service.ts";
 import { findImportedCharacter, parseCardJson, parseCardPng, parsedCardImportHash, parsedCardTextHash } from "../substrate/card.ts";
 
 const FALLBACK_NAME = "Imported Character";

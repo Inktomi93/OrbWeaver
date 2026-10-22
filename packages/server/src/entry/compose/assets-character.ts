@@ -35,6 +35,7 @@ import type { DefaultPersonaSeeder, DefaultPersonaSeederDeps, PersonaService } f
 import { createDefaultPersonaSeeder, createFindSeededDefault } from "#domain/persona";
 import type { PresetService } from "#domain/preset";
 import { createReadOptionalPresetConfig } from "#domain/preset";
+import type { FieldIndexCache } from "#domain/search";
 import { createCharacterIndexPublication } from "#domain/search";
 import type { DefaultBackgroundSeeder, SettingsService } from "#domain/settings";
 import {
@@ -63,6 +64,7 @@ import { createSeedAvatarOps } from "./seed-avatar-ops.ts";
  *  forward-ref getters (those services compose later); `materializeBackground` is the keystone's late-bound holder
  *  (character/seeders reference it, and this seam returns the real op the keystone rebinds onto the holder). */
 export interface AssetsCharacterComposeDeps {
+  readonly evictFieldIndex: FieldIndexCache["evict"];
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
 
   readonly fetchImpl?: MaterializeBackgroundDeps["fetchImpl"];
@@ -174,7 +176,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     emit: deps.emit,
     // Every card write also drops the owner's lexical index, so the next text search rebuilds over the live
     // card set: a deleted card leaves both the hits and the coverage counts.
-    emitUserEvent: createCharacterIndexPublication(deps.emitUserEvent),
+    emitUserEvent: createCharacterIndexPublication(deps.emitUserEvent, deps.evictFieldIndex),
     // F-P0-2: a `kind:"external"` carried card background is materialized into an owned CAS asset at update.
     materializeBackground: deps.materializeBackground,
     // Best-effort: remove/bulk-remove wrap it in try/catch, so a reap failure never fails the delete —

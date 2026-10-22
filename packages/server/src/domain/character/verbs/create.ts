@@ -8,10 +8,9 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import { cardContentHash } from "#primitives/serde/card";
-import type { CharacterContext } from "../context.ts";
 import { CHARACTER_HANDLE_RESERVED, CharacterNotFoundError, CharacterOperationError } from "../contract/errors.ts";
 import type { CharacterImportProvenance, CreateCharacterParams } from "../contract/params.ts";
-import type { CharacterService } from "../contract/service.ts";
+import type { CharacterContext, CharacterService } from "../contract/service.ts";
 import { insertCharacter } from "../persistence/card.ts";
 import { canonicalTagsOf, detailOf, ensureAssetOwned, loadOwnedCharacterWithAvatar } from "../persistence/queries.ts";
 import { cardTokenSize } from "../substrate/card-tokens.ts";

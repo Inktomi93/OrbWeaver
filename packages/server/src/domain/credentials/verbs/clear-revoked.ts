@@ -2,9 +2,8 @@
 // overrides a transient/stale revoked flag. Owner check via `fetchOwnedCredential` → `requireOwned`, then
 // `clearRevokedOwned` nulls `revoked_at`. (A `replace` also clears revocation.)
 
-import type { CredentialContext } from "../context.ts";
 import type { ClearRevokedParams } from "../contract/params.ts";
-import type { CredentialsService } from "../contract/service.ts";
+import type { CredentialContext, CredentialsService } from "../contract/service.ts";
 import { clearRevokedOwned, fetchOwnedCredential } from "../persistence/queries.ts";
 import { requireOwned } from "../substrate/credential-not-found.ts";
 

@@ -1,9 +1,8 @@
 // Missing or foreign rows are skipped. Audit and notification follow deletion; owned avatars reap once.
 import type { AssetId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
-import type { CharacterContext } from "../context.ts";
 import type { BulkRemoveParams } from "../contract/params.ts";
-import type { CharacterService } from "../contract/service.ts";
+import type { CharacterContext, CharacterService } from "../contract/service.ts";
 import { deleteOwnedCharacter } from "../persistence/card.ts";
 import { loadOwnedCharacterRow } from "../persistence/queries.ts";
 

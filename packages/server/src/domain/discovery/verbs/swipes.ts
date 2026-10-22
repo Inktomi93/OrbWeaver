@@ -5,9 +5,8 @@
 
 import type { Db } from "@orb/db";
 import type { ChatId, UserId } from "@orb/kit/ids";
-import type { DiscoveryContext } from "../context.ts";
 import type { SwipeHotspot } from "../contract/results.ts";
-import type { DiscoveryService } from "../contract/service.ts";
+import type { DiscoveryContext, DiscoveryService } from "../contract/service.ts";
 import { readSwipeHotspots } from "../persistence/message-reads.ts";
 
 const DEFAULT_LIMIT = 20;

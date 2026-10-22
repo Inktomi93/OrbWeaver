@@ -8,14 +8,14 @@
 // the cascade takes the only record of which assets this install was retaining (#802).
 
 import { PluginNotFoundError } from "../contract/errors.ts";
+import type { PluginConsentPrompt } from "../contract/ops.ts";
 import type { UninstallPluginParams } from "../contract/params.ts";
 import type { ActivationDeps, PluginContext, PluginService } from "../contract/service.ts";
 import { listPluginFetchedAssetIds } from "../persistence/plugin-assets.ts";
 import { deletePlugin, getById } from "../persistence/plugins.ts";
-import { refreshConsentPrompt } from "../substrate/consent-prompt.ts";
 import { reapReleasedAssets } from "../substrate/reap-released.ts";
 
-export function createUninstall(ctx: PluginContext, deps: Pick<ActivationDeps, "deactivate">): PluginService["uninstall"] {
+export function createUninstall(ctx: PluginContext, deps: Pick<ActivationDeps, "deactivate">, consentPrompt: PluginConsentPrompt): PluginService["uninstall"] {
   return async ({ caller, pluginId }: UninstallPluginParams): Promise<void> => {
     const existing = await getById(ctx.db, caller.userId, pluginId);
     if (existing === undefined) {
@@ -35,6 +35,6 @@ export function createUninstall(ctx: PluginContext, deps: Pick<ActivationDeps, "
     // aggregate must not keep counting it — and when it was the last one standing, the ask is retracted
     // rather than left pointing at a screen with nothing to answer. Never `raised`: an uninstall can only
     // lower the count, so the standing row is corrected in place and the bell does not re-badge.
-    await refreshConsentPrompt(ctx, caller.userId, false);
+    await consentPrompt.refresh(caller.userId, false);
   };
 }

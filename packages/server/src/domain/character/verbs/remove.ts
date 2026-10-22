@@ -1,9 +1,8 @@
 // Avatar reaping follows a successful owned delete; a failed delete never frees a live asset.
 import { getLog } from "#foundation/observability";
-import type { CharacterContext } from "../context.ts";
 import { CharacterNotFoundError } from "../contract/errors.ts";
 import type { RemoveCharacterParams } from "../contract/params.ts";
-import type { CharacterService } from "../contract/service.ts";
+import type { CharacterContext, CharacterService } from "../contract/service.ts";
 import { deleteOwnedCharacter } from "../persistence/card.ts";
 import { loadOwnedCharacterRow } from "../persistence/queries.ts";
 

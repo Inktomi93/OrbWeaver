@@ -3,8 +3,6 @@
 export type { ImportFile } from "./contract/cards.ts";
 export type { UploadedFile } from "./contract/collection.ts";
 
-export { ImportCardError, ImportInfraFailureError, ProfileImportLimitError } from "./contract/errors.ts";
-
 export type { ProfileDirImportDeps } from "./contract/profile-directory.ts";
 export type {
   ImportReport,

@@ -2,10 +2,9 @@
 // only on restore). Owner-gated. A read: no audit, no emit. Throws `CharacterNotFoundError` when not
 // owned/found.
 
-import type { CharacterContext } from "../context.ts";
 import { CharacterNotFoundError } from "../contract/errors.ts";
 import type { ListSnapshotsParams } from "../contract/params.ts";
-import type { CharacterService } from "../contract/service.ts";
+import type { CharacterContext, CharacterService } from "../contract/service.ts";
 import { listSnapshotSummaries, loadOwnedCharacterRow } from "../persistence/queries.ts";
 
 export function createListSnapshots(ctx: CharacterContext): CharacterService["listSnapshots"] {

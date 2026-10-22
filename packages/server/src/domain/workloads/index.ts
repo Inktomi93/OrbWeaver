@@ -4,7 +4,6 @@
 // browser, so they are a WIRE contract, and a reader takes them from `@orb/contracts/workloads` directly
 // rather than through this door (the bus PRODUCER, `emitWorkloadEvent`, is still ours).
 
-export { WORKLOAD_NOT_ADMISSIBLE } from "@orb/contracts/workloads";
 export type { AnyWorkloadContribution, WorkloadContribution, WorkloadContributions } from "./contract/contribution.ts";
 
 export type { WorkloadProgressBus } from "./contract/progress-bus.ts";

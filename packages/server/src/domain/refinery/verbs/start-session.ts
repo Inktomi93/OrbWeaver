@@ -7,8 +7,7 @@
 import { DEFAULT_REFINERY_STAGE_CONFIG, refinerySessionNameSchema } from "@orb/contracts/refinery";
 import { refinerySessions } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { RefineryContext } from "../context.ts";
-import type { RefineryService } from "../contract/service.ts";
+import type { RefineryContext, RefineryService } from "../contract/service.ts";
 import { defaultSelectionOf } from "../substrate/refine-prompt.ts";
 
 export function createStartSession(ctx: RefineryContext): RefineryService["startSession"] {

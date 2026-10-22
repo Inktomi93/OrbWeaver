@@ -13,15 +13,12 @@
 import type { CharacterRegexSlice } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
-import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { CharacterId, ChatId, PresetId, UserId } from "@orb/kit/ids";
 
 /** The DI bundle `createResolveRegexSources` closes over. Pure owner-scoped reads — no clock/id/audit. */
 export interface RegexResolveContext {
   readonly db: Db;
 }
-
-export type RegexResolveAssemblyContext = DbAssemblyInput<RegexResolveContext>;
 
 /** Which scopes to dereference for one turn. Every field is already caller-gated (see the header). */
 export interface ResolveRegexSourcesArgs {

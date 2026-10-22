@@ -42,24 +42,9 @@ export {
 export { PLUGIN_CRASH_DISABLE_THRESHOLD } from "./activation/crash-policy.ts";
 export type { DistributedPluginApplier } from "./contract/distributed-seed.ts";
 export {
-  CapabilityNotGrantedError,
-  HostVersionUnservedError,
   ManifestInvalidError,
-  PluginActionFailedError,
-  PluginAlreadyInstalledError,
-  PluginBundleFetchError,
-  PluginBundlePreviewStaleError,
   PluginCrashedError,
-  PluginDowngradeRefusedError,
-  PluginGitPreviewStaleError,
-  PluginGitSourceError,
-  PluginNetHostsUnacknowledgedError,
-  PluginNoGitSourceError,
-  PluginNoSourceUrlError,
-  PluginNotDistributedError,
   PluginNotFoundError,
-  PluginNotShowcaseError,
-  PluginSnippetBusyError,
 } from "./contract/errors.ts";
 export type {
   PluginBelts,

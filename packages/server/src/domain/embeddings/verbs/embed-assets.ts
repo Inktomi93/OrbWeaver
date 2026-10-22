@@ -1,10 +1,9 @@
 // The catch-up sweep shares avatar preparation with event delivery and records completed generations.
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { GenerationSupersededError } from "#primitives/embedding-generation";
-import type { EmbeddingsContext } from "../context.ts";
 import type { EmbedPassParams } from "../contract/params.ts";
 import type { BulkEmbedResult, StoreResult } from "../contract/results.ts";
-import type { EmbeddingsService } from "../contract/service.ts";
+import type { EmbeddingsContext, EmbeddingsService } from "../contract/service.ts";
 import { completeGenerationScope, resolveImageTargetGeneration } from "../substrate/generation.ts";
 export function createEmbedAssets(ctx: EmbeddingsContext, deps: Pick<EmbeddingsService, "indexAsset">): EmbeddingsService["embedAssets"] {
   return async ({ force, signal, ownerId, onProgress, embedderChanged }: EmbedPassParams): Promise<BulkEmbedResult> => {

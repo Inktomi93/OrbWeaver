@@ -24,11 +24,10 @@ import type { CharacterHandle, CharacterId, RegexScriptId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { isPng } from "@orb/kit/png-card-chunk";
 import { fileStem } from "@orb/kit/strings";
-import type { ImportContext } from "../context.ts";
 import { ImportCardError } from "../contract/errors.ts";
 import type { ImportCharacterInput } from "../contract/params.ts";
 import type { ImportCharacterResult } from "../contract/results.ts";
-import type { ImportService } from "../contract/service.ts";
+import type { ImportContext, ImportService } from "../contract/service.ts";
 import { cardToCreateInput, findImportedCharacter, parseCardJson, parseCardPng, parsedCardImportHash, parsedCardTextHash } from "../substrate/card.ts";
 
 const PNG_MIME = "image/png";

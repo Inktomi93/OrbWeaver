@@ -13,10 +13,9 @@
 // partial success into one opaque failure).
 
 import type { CharacterBulkTagResult } from "@orb/contracts/character";
-import type { CharacterContext } from "../context.ts";
 import type { BulkRemoveCardTagParams } from "../contract/params.ts";
 import type { BulkTagOutcome } from "../contract/results.ts";
-import type { CharacterService } from "../contract/service.ts";
+import type { CharacterContext, CharacterService } from "../contract/service.ts";
 import { loadOwnedCharacterRow } from "../persistence/queries.ts";
 import { buildBulkTagResult } from "../substrate/bulk-tag-result.ts";
 

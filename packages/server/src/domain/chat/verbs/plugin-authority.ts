@@ -1,7 +1,7 @@
 import type { ResolvePluginChatAuthority } from "@orb/contracts/plugin";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { ChatContext } from "../context.ts";
+import type { ChatContext } from "../contract/context.ts";
 import { loadPresentRole } from "../persistence/participants-read.ts";
 import { permitsHost } from "../substrate/auth/decide.ts";
 

@@ -4,7 +4,7 @@
 
 import { assetIdsInContent } from "@orb/kit/content";
 import type { AssetId, UserId } from "@orb/kit/ids";
-import type { ChatContext } from "../context.ts";
+import type { ChatContext } from "../contract/context.ts";
 
 /** The ids `content` cites, minus `alreadyLinked`, that `writerUserId` owns. No citation ⇒ no ownership read. */
 export async function ownedCitedAssetIds(

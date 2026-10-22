@@ -12,7 +12,6 @@ import type { RpgContext, RpgService } from "#src/domain/rpg/contract/service.ts
 import { resolveHost } from "#src/domain/rpg/guard.ts";
 import { findCheckpoint } from "#src/domain/rpg/persistence/checkpoints.ts";
 import { buildRestoredSnapshotStatement, findSnapshotById } from "#src/domain/rpg/persistence/snapshots.ts";
-import { serializeHandWrite } from "#src/domain/rpg/snapshot-edit.ts";
 
 const RESTORE_MESSAGE = "— scene restored —";
 
@@ -20,7 +19,7 @@ export function createRestoreCheckpoint(ctx: RpgContext): Pick<RpgService, "rest
   async function restoreCheckpoint(params: RestoreCheckpointParams): Promise<void> {
     const { game } = await resolveHost(ctx, params.principal, params.chatId);
     await ctx.claimChat(params.chatId);
-    const snapshotId = await serializeHandWrite(game.id, async () => {
+    const snapshotId = await ctx.handWrites.run(game.id, async () => {
       const checkpoint = await findCheckpoint(ctx.db, params.checkpointId);
       if (checkpoint === undefined || checkpoint.gameId !== game.id) {
         throw new DomainNotFoundError("checkpoint", params.checkpointId);

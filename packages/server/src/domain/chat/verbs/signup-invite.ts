@@ -12,8 +12,7 @@ import { isConstraintViolation } from "@orb/db/query";
 import { awaitableStatementForOwner, statementForOwner } from "@orb/db/wiring-owner";
 import type { ChatId, ChatInviteId, Handle, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
-import type { ChatContext } from "../context.ts";
-import type { AssembleInvitePreviewOp } from "../contract/context.ts";
+import type { AssembleInvitePreviewOp, ChatContext } from "../contract/context.ts";
 import type { PendingSignupStatements, SignupInviteDeps, SignupInviteOps, SignupRedeemOutcome, SignupRefusal } from "../contract/signup.ts";
 import { findAdmittingSignupInvite, redeemSignupAtomic, signupAccountAdmission } from "../persistence/invites.ts";
 

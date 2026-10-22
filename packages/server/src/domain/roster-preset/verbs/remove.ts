@@ -1,10 +1,9 @@
 // verb: remove — delete an owned party. The seats CASCADE with the row; chats started from the preset
 // are untouched (a preset is a stamp, not a live link — no back-reference column exists to clean).
 
-import type { RosterPresetContext } from "../context.ts";
 import { RosterPresetNotFoundError } from "../contract/errors.ts";
 import type { RemoveRosterPresetParams } from "../contract/params.ts";
-import type { RosterPresetService } from "../contract/service.ts";
+import type { RosterPresetContext, RosterPresetService } from "../contract/service.ts";
 import { deletePresetRow, loadOwnedPresetRow } from "../persistence/queries.ts";
 
 export function createRemove(ctx: RosterPresetContext): RosterPresetService["remove"] {

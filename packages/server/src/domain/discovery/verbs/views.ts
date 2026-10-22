@@ -7,10 +7,9 @@
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { cosineSim } from "@orb/kit/vector-math";
-import type { DiscoveryContext } from "../context.ts";
 import type { ThemeLevel } from "../contract/params.ts";
 import type { CharacterDossier, HomeView, ThemeDetail } from "../contract/results.ts";
-import type { DiscoveryService, ViewsDeps } from "../contract/service.ts";
+import type { DiscoveryContext, DiscoveryService, ViewsDeps } from "../contract/service.ts";
 import {
   readCorpusCoverage,
   readOwnedCharacterHashes,

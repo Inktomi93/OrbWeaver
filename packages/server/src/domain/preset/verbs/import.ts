@@ -8,8 +8,8 @@ import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { nextFreeName } from "@orb/kit/strings";
 import { getLog } from "#foundation/observability";
-import type { PresetContext } from "../context.ts";
 import type { ImportPreset, PresetImportOutcome } from "../contract/portability.ts";
+import type { PresetContext } from "../contract/service.ts";
 import { insertPreset, listOwned } from "../persistence/queries.ts";
 
 const PRESET_IMPORT = "preset.import";

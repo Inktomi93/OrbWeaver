@@ -34,7 +34,7 @@ export interface MacroDiagnostic {
 // ── macro-DX vocabulary ──────────────────────────────────────────────────────────────────────────
 // The metadata type surface + the category union home here (with the other macro types) so both the
 // registry (types.ts's MacroRegisterOptions/MacroRegistry) and the DX functions (metadata.ts:
-// validateMacroArgs/queryMacros) reference them without an import cycle — metadata.ts imports DOWN
+// checkMacroArgs/queryMacros) reference them without an import cycle — metadata.ts imports DOWN
 // from here only.
 
 // ── the reserved flags grammar (the FINAL launch grammar, locked) ──────────────────────────────────
@@ -115,7 +115,7 @@ export interface MacroListSpec {
 // ── typed arg-violation classing ─────────────────────────────────────────────────────────────────
 // The runtime-enforcement error CLASS — richer than the two MacroDiagnostic codes it maps onto
 // ("bad-arity"/"bad-arg-type", kept narrow so no diagnostic consumer churns). checkMacroArgs
-// (metadata.ts) produces these; validateMacroArgs derives the diagnostics FROM them (one home for the
+// (metadata.ts) produces these; macroArgDiagnostics derives the diagnostics FROM them (one home for the
 // messages). The fail-open posture is unchanged: a violation renders best-effort (lenient) or ""
 // (strict) — never a throw into prose.
 

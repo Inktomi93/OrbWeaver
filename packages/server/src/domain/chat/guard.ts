@@ -19,7 +19,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ChatId } from "@orb/kit/ids";
-import type { ChatContext } from "./context.ts";
+import type { ChatContext } from "./contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "./contract/errors.ts";
 import type { HandoffAcceptance } from "./contract/handoff-barrier.ts";
 import type { ParticipantRow } from "./contract/participant-row.ts";

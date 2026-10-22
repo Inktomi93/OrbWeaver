@@ -1,5 +1,5 @@
 // Post-turn memory policy runs outside the engine, bound once to chat's memory collaborators.
-import type { ChatContext } from "../../context.ts";
+import type { ChatContext } from "../../contract/context.ts";
 import type { BuildTurnMemoryArgs } from "../../contract/memory.ts";
 import { classifyParticipant } from "../../persistence/participant.ts";
 import { loadParticipants } from "../../persistence/participants-read.ts";

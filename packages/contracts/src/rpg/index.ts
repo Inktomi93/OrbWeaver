@@ -289,6 +289,7 @@ export type {
   RpgEffectiveDelivery,
   RpgGameView,
   RpgJournalEntryView,
+  RpgParticipantActor,
   RpgQuestView,
   RpgRevealedMessage,
   RpgRevealedSpan,

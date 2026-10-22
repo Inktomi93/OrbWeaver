@@ -3,10 +3,9 @@
 // audit, no emit. Owner-only (viewing ≠ owning — a member reads a roster card through chat's D22 clamp,
 // `domain/chat/substrate/auth/clamp.ts` `clampMemberCard`, the ONE level-clamp surface).
 
-import type { CharacterContext } from "../context.ts";
 import { CharacterNotFoundError } from "../contract/errors.ts";
 import type { GetCharacterParams } from "../contract/params.ts";
-import type { CharacterService } from "../contract/service.ts";
+import type { CharacterContext, CharacterService } from "../contract/service.ts";
 import { canonicalTagsOf, detailOf, loadOwnedCharacterWithAvatar } from "../persistence/queries.ts";
 
 export function createGet(ctx: CharacterContext): CharacterService["get"] {

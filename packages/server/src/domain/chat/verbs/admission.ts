@@ -1,7 +1,7 @@
 // D332 admits before preparation; internal follow-ups inherit their already-admitted caller.
 import type { Principal } from "@orb/contracts/identity";
 import type { ChatId } from "@orb/kit/ids";
-import type { ChatContext } from "../context.ts";
+import type { ChatContext } from "../contract/context.ts";
 import type { AdmittedChatOperations, ChatAdmissionDeps, HandoffBarrier } from "../contract/handoff-barrier.ts";
 import { requireHandoffAcceptance, requireHost, requireParticipant } from "../guard.ts";
 import { refuseHandoffAdmission } from "../substrate/handoff-barrier.ts";

@@ -4,8 +4,8 @@
 import type { CredentialView } from "@orb/contracts/credentials";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
-import type { CredentialContext } from "../context.ts";
 import { CREDENTIALS_OP_CODES } from "../contract/errors.ts";
+import type { CredentialContext } from "../contract/service.ts";
 import { fetchOwnedCredential, toCredentialView } from "../persistence/queries.ts";
 
 /** Refuse before anything is read or sealed when no CREDENTIALS_KEY is configured. */

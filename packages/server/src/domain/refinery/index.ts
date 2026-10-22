@@ -4,14 +4,6 @@
 // iterate loop, and the belted per-field apply. Ownership derives through the character join (D23 — no
 // ownerId on refinery tables); `characters.*` is written ONLY through injected character ops (F6).
 
-export {
-  RefineryOutputBudgetError,
-  RefineryRoundInFlightError,
-  RefineryRunFailedError,
-  RefinerySessionCompletedError,
-  RefineryStageNotReadyError,
-} from "./contract/errors.ts";
-
 export type { ResolveStructuredBinding } from "./contract/planning.ts";
 
 export type { RefineryAssemblyContext as RefineryContext, RefineryService, RefineryWorkloadDeps } from "./contract/service.ts";

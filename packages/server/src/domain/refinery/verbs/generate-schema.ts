@@ -4,8 +4,7 @@
 
 import { REFINERY_FORGE_ARM_DEFAULT, REFINERY_SCHEMA_DESCRIPTION_MAX } from "@orb/contracts/refinery";
 import { z } from "zod";
-import type { RefineryContext } from "../context.ts";
-import type { RefineryService } from "../contract/service.ts";
+import type { RefineryContext, RefineryService } from "../contract/service.ts";
 import { resolveForgeCall, runForgeTurn } from "../substrate/schema-forge.ts";
 
 const askSchema = z.string().min(1).max(REFINERY_SCHEMA_DESCRIPTION_MAX);

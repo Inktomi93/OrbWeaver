@@ -7,8 +7,8 @@ import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { AssetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ChatContext } from "#domain/chat";
-import type { PersonaContext } from "../context.ts";
 import type { UserPublicsDeps } from "../contract/ops.ts";
+import type { PersonaContext } from "../contract/service.ts";
 import { loadOwnedPersonaPublic } from "../persistence/queries.ts";
 
 export function createResolveUserPublics(input: DbAssemblyInput<Pick<PersonaContext, "db">>, deps: UserPublicsDeps): ChatContext["resolveUserPublics"] {

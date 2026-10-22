@@ -16,10 +16,9 @@ import { hostTimeZone } from "@orb/kit/time";
 import { and, asc, eq, getTableColumns, inArray, isNotNull, isNull } from "drizzle-orm";
 import type { ParsedChat, ParsedChatMessage, ParsedVariant } from "#primitives/serde/chat";
 import { buildChatJsonl, buildChatTxt, classifyChat } from "#primitives/serde/chat";
-import type { ExportContext } from "../context.ts";
 import type { ExportChatParams } from "../contract/params.ts";
 import type { ExportedText } from "../contract/results.ts";
-import type { ExportService } from "../contract/service.ts";
+import type { ExportContext, ExportService } from "../contract/service.ts";
 import { slug } from "../substrate/download-slug.ts";
 
 type ChatRow = typeof chats.$inferSelect;

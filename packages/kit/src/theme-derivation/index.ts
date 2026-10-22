@@ -35,7 +35,7 @@
  *  polarity-aware {@link readingPlateAlpha} starts from, no longer the emitted value for every palette
  *  (#217 — read that function's contract for the algebra and for `inkReferenceRatio`).
  *
- *  The plate's OPAQUE sibling — the sticky attribution BAND — is {@link readingBandSurface}: the same
+ *  The plate's OPAQUE sibling — the sticky attribution BAND — uses the same
  *  `deltaL` off the same base, at {@link READING_BAND_ALPHA}. It carries no alpha of its own to declare
  *  here precisely because it is the plate at α 1 (#241).
  *
@@ -380,21 +380,9 @@ export function derivedForegroundLightnessForSurfaces(surfaces: readonly Oklch[]
   );
 }
 
-/** The foreground orb WOULD derive for `surface` — chroma 0 at the surface's own hue, exactly as
- *  `foregroundOn()` emits `oklch(from <surface> <CONTRAST_L> 0 h)`. */
-export function derivedForeground(surface: Oklch): Oklch {
-  return { l: derivedForegroundLightness(surface), c: 0, h: surface.h };
-}
-
 /** One neutral ramp surface: the base with only L shifted (hue + chroma held), as the clamp emits. */
 export function rampSurface(base: Oklch, deltaL: number): Oklch {
   return { l: clamp01(base.l + deltaL), c: base.c, h: base.h };
-}
-
-/** The opaque pixel painted by the translucent input fill over one of its actual backing surfaces. */
-export function inputCompositeSurface(base: Oklch, backing: Oklch, alpha: number = THEME_DERIVATION.inputAlpha): Oklch {
-  const inputInk = { l: derivedForegroundLightness(base), c: 0, h: base.h };
-  return srgbToOklch(compositeSrgb(oklchToSrgb(inputInk), alpha, oklchToSrgb(backing)));
 }
 
 export interface MutedForegroundPair {
@@ -556,27 +544,6 @@ export function readingPlateForeground(base: Oklch): Oklch {
  * §7a ink clamp, stickler F1).
  */
 export const READING_BAND_ALPHA = 1;
-
-/**
- * THE STICKY ATTRIBUTION BAND'S COLOUR for a base surface — the reading plate's colour, at
- * {@link READING_BAND_ALPHA} (#241, owner-ruled off #223).
- *
- * WHY IT IS THE PLATE AND NOT A RAMP MEMBER. The band shipped as the `card` ramp surface
- * (`base + ramp.dark.card`, +0.047) while the prose under it rides the plate (`base + readingPlate.deltaL`,
- * −0.038): two backings on ONE column, a constant ΔL ≈ 0.085 apart, which the owner filed as an
- * unintentional-looking step ("two stacked whites of different opacity per message"). Deriving the band
- * FROM the plate makes the step disappear BY CONSTRUCTION rather than by matching two numbers that can
- * drift apart again — the same one-home move D144(b) made for the plate itself. There is no separate
- * `deltaL` to tune here on purpose: a band that is anything other than the plate at α 1 is the defect.
- *
- * The band is judged for legibility exactly like the plate's own surface: it is the plate composited on
- * an OPAQUE backing, so it is never darker/lighter than the plate over any art, and the ink it pairs
- * with is the plate's own derived foreground (`--color-reading-plate-foreground`), which
- * `palette-contrast.suite.test.ts` floors against this surface.
- */
-export function readingBandSurface(base: Oklch): Oklch {
-  return rampSurface(base, THEME_DERIVATION.readingPlate.deltaL);
-}
 
 /** One elevation ingredient: an OKLCH colour plus the alpha that IS its per-polarity decision. */
 interface ShadowIngredient extends Oklch {

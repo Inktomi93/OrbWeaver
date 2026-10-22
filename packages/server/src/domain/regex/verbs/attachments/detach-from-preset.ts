@@ -4,10 +4,9 @@
 
 import { presetRegexScripts } from "@orb/db";
 import { and, eq } from "drizzle-orm";
-import type { RegexContext } from "#src/domain/regex/context.ts";
 import { RegexNotFoundError } from "#src/domain/regex/contract/errors.ts";
 import type { DetachFromPresetParams } from "#src/domain/regex/contract/params.ts";
-import type { RegexService } from "#src/domain/regex/contract/service.ts";
+import type { RegexContext, RegexService } from "#src/domain/regex/contract/service.ts";
 import { ensurePresetOwned } from "#src/domain/regex/persistence/ownership.ts";
 import { loadOwnedScript } from "#src/domain/regex/persistence/queries.ts";
 

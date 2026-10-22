@@ -4,11 +4,12 @@
 // seed-vector siblings (`similarCharacters`/`similarArt`), and the unified `search()` dispatch over
 // the `SearchScope`/`SearchTarget` axes.
 
+export type { FieldIndexCache } from "./contract/field-index.ts";
 export type { DocumentChunkHit } from "./contract/results.ts";
 export type { ResolveActiveDocumentIdsOp, SearchService } from "./contract/service.ts";
 
 export { createSearchService } from "./service.ts";
-export {} from "./substrate/field-index.ts";
+export { createFieldIndexCache } from "./substrate/field-index.ts";
 export { withRetrievalDegrade } from "./substrate/retrieval-degrade.ts";
 export { createCharacterIndexPublication } from "./verbs/character-index-publication.ts";
 export { createDigestSources } from "./verbs/digest-sources.ts";

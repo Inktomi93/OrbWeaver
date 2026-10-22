@@ -4,10 +4,9 @@
 // ownership derives through `world_books.ownerId`, D23; differs from neo's per-user junction). Idempotent.
 
 import { globalBooks } from "@orb/db";
-import type { WorldInfoContext } from "#src/domain/world-info/context.ts";
 import { WorldInfoNotFoundError } from "#src/domain/world-info/contract/errors.ts";
 import type { AttachGlobalParams } from "#src/domain/world-info/contract/params.ts";
-import type { WorldInfoService } from "#src/domain/world-info/contract/service.ts";
+import type { WorldInfoContext, WorldInfoService } from "#src/domain/world-info/contract/service.ts";
 import { loadOwnedBook } from "#src/domain/world-info/persistence/queries.ts";
 
 export function createAttachGlobal(ctx: WorldInfoContext): WorldInfoService["attachGlobal"] {

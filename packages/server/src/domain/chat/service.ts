@@ -3,9 +3,8 @@
 // `ChatService` (so a missing/renamed verb fails tsc). Every verb body lives in its `verbs/*` factory.
 
 import type { DbAssemblyInput } from "@orb/db/wiring";
-import type { ChatServiceDeps } from "./context.ts";
 import { createChatContext } from "./context.ts";
-import type { ClaimChatOp } from "./contract/context.ts";
+import type { ChatServiceDeps, ClaimChatOp } from "./contract/context.ts";
 import type { VisibleExtractQuiet, VisibleExtractQuietDeps } from "./contract/imagery-access.ts";
 import type { RequestTurnOp } from "./contract/results.ts";
 import type { ChatService } from "./contract/service.ts";

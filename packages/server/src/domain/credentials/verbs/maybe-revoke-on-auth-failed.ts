@@ -6,9 +6,8 @@ import { errorMessage } from "@orb/kit/error-message";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { redactKnownSecrets } from "@orb/kit/secret-redaction";
 import { getLog, securityEvent } from "#foundation/observability";
-import type { CredentialContext } from "../context.ts";
 import type { MaybeRevokeParams } from "../contract/params.ts";
-import type { CredentialsService } from "../contract/service.ts";
+import type { CredentialContext, CredentialsService } from "../contract/service.ts";
 import { strikeCredentialExecution } from "../persistence/queries.ts";
 import { capturedCredentialExecution } from "../substrate/execution-witness.ts";
 

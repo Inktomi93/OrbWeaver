@@ -5,9 +5,8 @@
 // `CRED_REVOKED_REASONS`, which is what the pane renders).
 
 import { securityEvent } from "#foundation/observability";
-import type { CredentialContext } from "../context.ts";
 import type { MarkRevokedByUserParams } from "../contract/params.ts";
-import type { CredentialsService } from "../contract/service.ts";
+import type { CredentialContext, CredentialsService } from "../contract/service.ts";
 import { fetchOwnedCredential, setRevokedById } from "../persistence/queries.ts";
 import { requireOwned } from "../substrate/credential-not-found.ts";
 

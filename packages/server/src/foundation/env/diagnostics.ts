@@ -131,4 +131,4 @@ export function diagnosticsPostureWarnings(posture: DiagnosticsPosture): readonl
   return lines;
 }
 
-export type { DiagnosticsExposure, DiagnosticsPosture, DiagnosticsPostureInput, OwnerFallbackCredentialInput } from "./contract.ts";
+export type { DiagnosticsPosture, DiagnosticsPostureInput, OwnerFallbackCredentialInput } from "./contract.ts";

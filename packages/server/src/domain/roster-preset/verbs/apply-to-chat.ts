@@ -43,10 +43,9 @@ import { DomainOperationError } from "@orb/kit/errors";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
 import type { RuleView } from "#domain/automation";
-import type { RosterPresetContext } from "../context.ts";
 import { RosterPresetNotFoundError } from "../contract/errors.ts";
 import type { ApplyRosterPresetParams } from "../contract/params.ts";
-import type { CastRuleWrite, RosterPresetService } from "../contract/service.ts";
+import type { CastRuleWrite, RosterPresetContext, RosterPresetService } from "../contract/service.ts";
 import { loadCastRuleRows, loadMemberRows, loadOwnedPresetRow } from "../persistence/queries.ts";
 
 /** One cast rule's apply outcome — the three result arms, decided by {@link applyOneCastRule}. */

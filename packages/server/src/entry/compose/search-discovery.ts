@@ -50,7 +50,7 @@ import {
 import type { PresetContext, PresetService } from "#domain/preset";
 import { createPresetService, createResolvePresetUsage } from "#domain/preset";
 import { listGmPresetChatIds } from "#domain/rpg";
-import type { SearchService } from "#domain/search";
+import type { FieldIndexCache, SearchService } from "#domain/search";
 import { createDigestSources, createSearchService } from "#domain/search";
 import type { SettingsService } from "#domain/settings";
 import { createResolveUserProse } from "#domain/settings";
@@ -68,6 +68,7 @@ import { createVisibleRoomsReader } from "./visible-rooms.ts";
 
 /** What the search/discovery cluster seam needs from the composition root. */
 export interface SearchDiscoveryComposeDeps {
+  readonly fieldIndex: Pick<FieldIndexCache, "fields" | "suggest">;
   readonly emitWorkloadEvent: WorkloadProgressBus["emitWorkloadEvent"];
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
 
@@ -267,6 +268,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   // `resolveActiveDocumentIds` is databank's ONE scope-union home, injected into search — the
   // documents lens never re-derives which documents a scope may see.
   const search = createSearchService({
+    fieldIndex: deps.fieldIndex,
     resolveViewerVisibility: createResolveViewerVisibility({ db }),
     digestConsolidationHash: consolidationHash,
     tier0RangeOf,

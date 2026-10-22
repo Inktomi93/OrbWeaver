@@ -2,9 +2,8 @@
 // position-ordered member preview (the picker's avatar stack). One batched member read for the whole
 // page — never a per-row N+1.
 
-import type { RosterPresetContext } from "../context.ts";
 import type { ListRosterPresetsParams } from "../contract/params.ts";
-import type { RosterPresetService } from "../contract/service.ts";
+import type { RosterPresetContext, RosterPresetService } from "../contract/service.ts";
 import { listOwnedPresetRows, loadCastRuleRows, loadMemberCardRows, summaryOf } from "../persistence/queries.ts";
 import { groupMemberViews } from "../substrate/members.ts";
 import { groupCastRuleViews } from "../substrate/rules.ts";

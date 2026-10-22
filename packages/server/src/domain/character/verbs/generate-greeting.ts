@@ -5,10 +5,9 @@
 // BEFORE any template read or completion (the cross-tenant sweep's owner-gate probe). The `greeting_new`
 // template carries no `{{base}}` token (there is no existing greeting to rewrite).
 
-import type { CharacterContext } from "../context.ts";
 import { CharacterNotFoundError } from "../contract/errors.ts";
 import type { GenerateGreetingParams } from "../contract/params.ts";
-import type { CharacterService } from "../contract/service.ts";
+import type { CharacterContext, CharacterService } from "../contract/service.ts";
 import { cardOf, loadOwnedCharacterRow } from "../persistence/queries.ts";
 import { buildGreetingPrompt, composeGreetingSteer } from "../substrate/greeting-studio.ts";
 

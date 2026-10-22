@@ -6,8 +6,7 @@
 
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { AssetsContext } from "./context.ts";
-import type { AssetsService } from "./contract/service.ts";
+import type { AssetsContext, AssetsService } from "./contract/service.ts";
 import { createAddToGallery } from "./verbs/add-to-gallery.ts";
 import { createAssetCasRefById } from "./verbs/asset-cas-ref-by-id.ts";
 import { createBackfillAvatars } from "./verbs/backfill-avatars.ts";

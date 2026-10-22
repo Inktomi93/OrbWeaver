@@ -6,8 +6,7 @@ import type { GroupConfig, GroupPolicy, InvitePreview } from "@orb/contracts/cha
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId } from "@orb/kit/ids";
-import type { ChatContext } from "../context.ts";
-import type { AssembleInvitePreviewOp, LoadParticipantViewsOp } from "../contract/context.ts";
+import type { AssembleInvitePreviewOp, ChatContext, LoadParticipantViewsOp } from "../contract/context.ts";
 import { countPresentMembers } from "../persistence/invites.ts";
 import { loadChatRow } from "../persistence/queries.ts";
 import { hostSeatOf } from "../substrate/participants-host.ts";

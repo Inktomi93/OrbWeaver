@@ -71,7 +71,7 @@ const RENDER_HINT_GROUP_MAX = 64;
 /** A hint `label` (display text — roomier than an identifier, still one line). */
 const RENDER_HINT_LABEL_MAX = 120;
 
-export const renderHintSchema = z.strictObject({
+const renderHintSchema = z.strictObject({
   role: z.enum(RENDER_HINT_ROLES).optional(),
   tone: z.record(z.string().max(REFINERY_SCHEMA_NAME_MAX), z.enum(RENDER_HINT_TONES)).optional(),
   group: z.string().max(RENDER_HINT_GROUP_MAX).optional(),

@@ -127,16 +127,20 @@ packages/server/src/
 
 Use the same role-based layout across domains. Create `contract/views.ts` only for definitions the domain owns.
 Import shared view shapes directly from `@orb/contracts`; do not create forwarding-only view files.
+Define context types in the domain's `contract/`. Add `context.ts` only for dependency adaptation, operation binding or shared-state construction.
+Use direct context construction in `service.ts` when no adaptation or shared state needs a separate builder.
+Do not create forwarding-only context files or identity builders.
 
 ```
 domain/<feature>/
 ├── index.ts        FRONT DOOR — the only legal external import. Re-exports the public surface.
 ├── service.ts      COMPOSITION ROOT — wires verbs + injected deps. ZERO logic.
-├── context.ts      DI BUNDLE — the `ctx` verbs close over (db + cross-feature ops, wired at root).
+├── context.ts      OPTIONAL CONSTRUCTION — adapts dependencies, binds operations or constructs shared state.
 ├── guard.ts        OPTIONAL 9th slot — the ratified `can()` authority seam (`requireAdmin`/`requireParticipant`):
 │                   an I/O-touching, non-verb gate primitive. Allowed at ANY feature root (admin/chat/import).
 ├── contract/       THE TYPED SURFACE — the feature's "API README, as code" (no logic):
 │   ├── service.ts      interface <Feature>Service   ← read THIS to know everything the feature does
+│   ├── context.ts      context types, when separate from the service contract
 │   ├── params.ts       every verb's *Params
 │   ├── results.ts      every verb's *Result
 │   ├── views.ts        domain-owned read models, when needed

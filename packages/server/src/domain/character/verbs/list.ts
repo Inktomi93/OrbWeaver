@@ -9,11 +9,10 @@
 // library of hundreds. `sort` was already a server keyset; the filters now compose with it.
 
 import { CHARACTER_LIST_DEFAULT_LIMIT } from "@orb/contracts/character";
-import type { CharacterContext } from "../context.ts";
 import { CharacterOperationError } from "../contract/errors.ts";
 import type { CharacterListCursor, CharacterListSort, ListCharactersParams } from "../contract/params.ts";
 import type { ListCharactersResult } from "../contract/results.ts";
-import type { CharacterService } from "../contract/service.ts";
+import type { CharacterContext, CharacterService } from "../contract/service.ts";
 import { ambiguousNamesFor, canonicalTagsFor, countOwnedCharacters, listOwnedCharactersWithAvatar, summaryOf } from "../persistence/queries.ts";
 
 import { characterListLens } from "../substrate/list-lens.ts";

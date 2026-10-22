@@ -10,10 +10,9 @@
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { sha256Hex } from "#primitives/content-hash";
-import type { ImportContext } from "../context.ts";
 import type { ImportOrphanCharacterInput } from "../contract/params.ts";
 import type { ImportOrphanCharacterResult } from "../contract/results.ts";
-import type { ImportService } from "../contract/service.ts";
+import type { ImportContext, ImportService } from "../contract/service.ts";
 
 /** ST's header sentinel for "no persona was resolved" — never a character name (§5.7's corpus census). */
 const ST_UNUSED_SENTINEL = "unused";

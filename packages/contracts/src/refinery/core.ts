@@ -35,7 +35,7 @@ export const refineryVerdictSchema = z.enum(REFINERY_VERDICTS) satisfies z.ZodTy
  *  tokens is piddly, I have cards that are like 4k". Measured by `@orb/kit/tokens`, the ONE production
  *  estimator (never a re-implementation) — which makes this cap the same currency as every prompt budget
  *  in the tree. */
-export const CRITIQUE_TOKEN_MAX = 4000;
+const CRITIQUE_TOKEN_MAX = 4000;
 
 /** The most characters ONE token can buy under the production estimator. `estimateTokens` (QuadChars,
  *  `@orb/kit/tokens`) charges a printable-ASCII run 1 token per 4 chars and EVERY other codepoint a whole
@@ -57,7 +57,7 @@ const QUADCHARS_MAX_CHARS_PER_TOKEN = 4;
  *  It is deliberately NOT the whole belt: non-ASCII prose costs a token PER CODEPOINT, so 5 000 CJK
  *  characters is 5 000 tokens at only 5 000 chars — over the product cap and nowhere near this backstop.
  *  That gap is precisely why the token refinement exists. */
-export const CRITIQUE_CHAR_BACKSTOP = CRITIQUE_TOKEN_MAX * QUADCHARS_MAX_CHARS_PER_TOKEN;
+const CRITIQUE_CHAR_BACKSTOP = CRITIQUE_TOKEN_MAX * QUADCHARS_MAX_CHARS_PER_TOKEN;
 
 /** One free-prose critique string, DUAL-BOUND: a native char backstop (projected to the wire, grammar-
  *  enforced on vLLM) plus the token product cap (parse-only because JSON Schema cannot count tokens).

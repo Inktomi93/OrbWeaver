@@ -25,7 +25,6 @@
 
 import type { EmbedResult, ImageEmbedResult } from "@orb/contracts/providers";
 import type { EmbedGenerationId } from "@orb/kit/ids";
-import type { EmbeddingsContext } from "../context.ts";
 import { EmbedFailedError, SpaceMismatchError } from "../contract/errors.ts";
 import type {
   CardTextStoreParams,
@@ -36,7 +35,7 @@ import type {
   StoreParams,
 } from "../contract/params.ts";
 import type { StoreResult } from "../contract/results.ts";
-import type { EmbeddingsService, PinnedGeneration } from "../contract/service.ts";
+import type { EmbeddingsContext, EmbeddingsService, PinnedGeneration } from "../contract/service.ts";
 import {
   existingCaptionedRow,
   existingCharacterHash,

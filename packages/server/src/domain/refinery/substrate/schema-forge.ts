@@ -21,8 +21,8 @@ import type { UserId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { z } from "zod";
 import { addSpanEvent, traceStructuredRetry } from "#foundation/observability";
-import type { RefineryContext } from "../context.ts";
 import type { ForgeTurnArgs } from "../contract/prompts.ts";
+import type { RefineryContext } from "../contract/service.ts";
 
 /** The `{{core}}` splice per stage — what the WELL-KNOWN CORE is, stated as a fact the author does not
  *  author. The transpiler injects the node itself, so this text exists to stop the model spending a field

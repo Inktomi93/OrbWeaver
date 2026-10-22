@@ -6,10 +6,9 @@ import { NoConnectionError, ProviderError } from "@orb/inference";
 import { DomainNoCredentialError } from "@orb/kit/errors";
 import type { EmbedGenerationId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
-import type { EmbeddingsContext } from "../context.ts";
 import { EmbedFailedError } from "../contract/errors.ts";
 import type { EmbedMoveRefusal, GenerationTask } from "../contract/generation.ts";
-import type { EmbeddingsService } from "../contract/service.ts";
+import type { EmbeddingsContext, EmbeddingsService } from "../contract/service.ts";
 import { landProvenTarget, pendingTargetMove, probeWidth, widthMismatchOf } from "../substrate/generation.ts";
 import { resolveImageSpace } from "../substrate/task-model.ts";
 

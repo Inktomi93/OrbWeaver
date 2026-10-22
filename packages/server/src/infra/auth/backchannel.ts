@@ -100,4 +100,4 @@ export function createBackchannelLogoutVerifier(readKeyset: JwksReader["jwksFor"
   };
 }
 
-export type { BackchannelLogoutVerifier, BackchannelVerifyArgs, LogoutTokenSubject } from "./contract.ts";
+export type { BackchannelLogoutVerifier } from "./contract.ts";

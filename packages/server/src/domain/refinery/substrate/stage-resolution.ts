@@ -11,8 +11,8 @@ import type { ResponseFormat } from "@orb/contracts/role-clients";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { liftJsonSchema, projectJsonSchema } from "@orb/kit/json-schema";
-import type { RefineryContext } from "../context.ts";
 import type { StageResolution } from "../contract/prompts.ts";
+import type { RefineryContext } from "../contract/service.ts";
 import { loadOwnedSchemaRow } from "../persistence/queries.ts";
 import { customShapeTextOf } from "./refine-prompt.ts";
 

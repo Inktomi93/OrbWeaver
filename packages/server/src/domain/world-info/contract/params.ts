@@ -7,13 +7,6 @@ import type { Principal } from "@orb/contracts/identity";
 import type { CreateBookInput, CreateEntryInput, UpdateBookInput, UpdateEntryInput, UpsertLoreEntryInput, WorldBookRole } from "@orb/contracts/world-info";
 import type { CharacterId, ChatId, PersonaId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 
-export type {
-  CreateBookInput,
-  CreateEntryInput,
-  UpdateBookInput,
-  UpdateEntryInput,
-} from "@orb/contracts/world-info";
-
 interface WorldInfoActorParams {
   readonly principal: Principal;
 }

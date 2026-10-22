@@ -12,12 +12,10 @@
 import type { CredentialHealth } from "@orb/contracts/credentials";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
-import type { CredentialContext } from "../context.ts";
 import type { RecordProbeOutcomeParams } from "../contract/params.ts";
-import type { CredentialsService } from "../contract/service.ts";
+import type { CredentialContext, CredentialsService } from "../contract/service.ts";
 import { clearRevokedOwned, fetchOwnedCredential, setRevokedById } from "../persistence/queries.ts";
 import { requireOwned } from "../substrate/credential-not-found.ts";
-import { beginProbe, recordStrike, resetStrikes } from "../substrate/health-throttle.ts";
 
 const HTTP_SERVER_ERROR_MIN = 500;
 
@@ -35,11 +33,11 @@ async function applyOutcome(ctx: CredentialContext, args: Outcome, result: Crede
     if (args.revoked) {
       await clearRevokedOwned(ctx.db, ownerId, credentialId, now);
     }
-    resetStrikes(credentialId);
+    ctx.healthThrottle.resetStrikes(credentialId);
     return { status: "ok", checkedAt: now };
   }
   if (result.status === "revoked") {
-    resetStrikes(credentialId);
+    ctx.healthThrottle.resetStrikes(credentialId);
     // The probe reached the provider and the provider rejected the key — the SAME fact the post-generation
     // strike-out records, so it carries the same persisted reason.
     await setRevokedById(ctx.db, { ownerId, credentialId, revokedAt: now, reason: "auth_failed" });
@@ -52,7 +50,7 @@ async function applyOutcome(ctx: CredentialContext, args: Outcome, result: Crede
     if (args.localEndpoint || answeredUp) {
       return { ...result, checkedAt: now };
     }
-    const { strikes, limitHit } = recordStrike(credentialId);
+    const { strikes, limitHit } = ctx.healthThrottle.recordStrike(credentialId);
     if (limitHit) {
       // `unreachable`, NOT `auth_failed`: nothing ever answered, so nothing has judged the key.
       await setRevokedById(ctx.db, { ownerId, credentialId, revokedAt: now, reason: "unreachable" });
@@ -77,7 +75,7 @@ export function createRecordProbeOutcome(ctx: CredentialContext): CredentialsSer
       // No verdict claims no throttle window: nothing went out.
       return { status: "unchecked", checkedAt: now, reason: params.result.reason };
     }
-    const throttledAt = beginProbe(credentialId, now);
+    const throttledAt = ctx.healthThrottle.beginProbe(credentialId, now);
     if (throttledAt !== null) {
       return { status: "throttled", checkedAt: throttledAt };
     }

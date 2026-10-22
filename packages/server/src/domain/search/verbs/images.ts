@@ -10,11 +10,10 @@
 // scan already joins, and the avatar's owning character is resolved for the returned page — an image result
 // that can be neither seen nor opened is a row pretending to be a result, which is exactly what shipped.
 
-import type { SearchContext } from "../context.ts";
 import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors.ts";
 import type { ImagesParams } from "../contract/params.ts";
 import type { ImageSearchHit } from "../contract/results.ts";
-import type { ActiveQuerySpace, SearchService } from "../contract/service.ts";
+import type { ActiveQuerySpace, SearchContext, SearchService } from "../contract/service.ts";
 import { resolveAvatarOwners } from "../persistence/display.ts";
 import { nearestImages } from "../persistence/image-nearest.ts";
 import { CAPTION_LENS, OWNER_OVERFETCH, RERANK_POOL_FACTOR } from "../substrate/constants.ts";

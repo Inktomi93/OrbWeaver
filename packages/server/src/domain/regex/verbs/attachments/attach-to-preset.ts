@@ -3,10 +3,9 @@
 // composite PK; a re-attach keeps the existing position rather than jumping the script to the end.
 
 import { presetRegexScripts } from "@orb/db";
-import type { RegexContext } from "#src/domain/regex/context.ts";
 import { RegexNotFoundError } from "#src/domain/regex/contract/errors.ts";
 import type { AttachToPresetParams } from "#src/domain/regex/contract/params.ts";
-import type { RegexService } from "#src/domain/regex/contract/service.ts";
+import type { RegexContext, RegexService } from "#src/domain/regex/contract/service.ts";
 import { ensurePresetOwned } from "#src/domain/regex/persistence/ownership.ts";
 import { listPresetScripts, loadOwnedScript } from "#src/domain/regex/persistence/queries.ts";
 

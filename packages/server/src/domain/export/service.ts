@@ -4,8 +4,7 @@
 
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { ExportContext } from "./context.ts";
-import type { ExportService } from "./contract/service.ts";
+import type { ExportContext, ExportService } from "./contract/service.ts";
 import { createExportCharacter } from "./verbs/export-character.ts";
 import { createExportChat } from "./verbs/export-chat.ts";
 import { createExportChatBundle } from "./verbs/export-chat-bundle.ts";

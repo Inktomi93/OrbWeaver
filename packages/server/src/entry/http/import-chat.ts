@@ -50,8 +50,6 @@ type ImportedChat = ChatImportResult["imported"][number];
 /** One transcript that could not be imported — the operator-facing reason, isolated rather than thrown. */
 type FailedChat = ChatImportResult["failed"][number];
 
-export type { ChatImportResult } from "@orb/contracts/import";
-
 /**
  * Route every uploaded transcript through the chat descriptor, one at a time, collecting each file's
  * isolated outcome. SEQUENTIAL by construction — a promise CHAIN rather than an await-in-loop — because two

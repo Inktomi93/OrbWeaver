@@ -22,9 +22,8 @@ import {
 import { refinerySessions } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { eq } from "drizzle-orm";
-import type { RefineryContext } from "../context.ts";
 import type { UpdateSessionPatch } from "../contract/params.ts";
-import type { RefineryService } from "../contract/service.ts";
+import type { RefineryContext, RefineryService } from "../contract/service.ts";
 import { loadOwnedSessionRow, sessionViewOf } from "../persistence/queries.ts";
 
 export function createUpdateSession(ctx: RefineryContext): RefineryService["updateSession"] {

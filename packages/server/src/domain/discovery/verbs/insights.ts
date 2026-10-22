@@ -7,10 +7,9 @@ import type { Db } from "@orb/db";
 import { assets, characters, chatParticipants, digestThemeAssignments, themeClusters } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { and, asc, desc, eq, isNotNull, notExists, sql } from "drizzle-orm";
-import type { DiscoveryContext } from "../context.ts";
 import type { ThemeLevel } from "../contract/params.ts";
 import type { ThemeDriftBucket, ThemeDriftTheme, UnusedCharacter } from "../contract/results.ts";
-import type { DiscoveryService } from "../contract/service.ts";
+import type { DiscoveryContext, DiscoveryService } from "../contract/service.ts";
 import { storyTimeBucketStart } from "../persistence/embed-store-reads.ts";
 
 export function createInsights(ctx: DiscoveryContext): Pick<DiscoveryService, "themeDrift" | "unusedCharacters"> {

@@ -3,9 +3,9 @@
 // Sequential by design (staged effects are order-dependent). Never throws for a per-call failure — every
 // outcome is a ToolCallRecord the model reads and self-corrects on; result is always a JSON document.
 
-import type { ToolUseContext } from "../context.ts";
 import type { ToolCallBatch, ToolCallInput, ToolExecutionContext } from "../contract/params.ts";
 import type { RegisteredTool, ResolvedToolSet, RunOutcome, ToolCallRecord } from "../contract/results.ts";
+import type { ToolUseContext } from "../contract/service.ts";
 import { checkToolCapability } from "../substrate/capability.ts";
 
 interface CallOutcome {

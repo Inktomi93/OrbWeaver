@@ -8,8 +8,7 @@
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { IdSource } from "@orb/kit/ids";
-import { createStatsContext } from "./context.ts";
-import type { StatsService } from "./contract/service.ts";
+import type { StatsContext, StatsService } from "./contract/service.ts";
 import { createReconcileInFlight } from "./reconcile-in-flight.ts";
 import { createByModel } from "./verbs/by-model.ts";
 import { createCharacter } from "./verbs/character.ts";
@@ -25,7 +24,7 @@ import { createTimeseries } from "./verbs/timeseries.ts";
 import { createWrapped } from "./verbs/wrapped.ts";
 
 export function createStatsService(db: DatabaseHandle, now: () => number, idSource?: IdSource): StatsService {
-  const ctx = createStatsContext(databaseForOwner(db), now, idSource);
+  const ctx: StatsContext = { db: databaseForOwner(db), now, idSource };
   // Built HERE, not in the DI bundle: the single-flight registry is process state only `reconcile` reads,
   // and one instance per service is what makes "this user already has a rebuild running" answerable.
   const reconcileInFlight = createReconcileInFlight();

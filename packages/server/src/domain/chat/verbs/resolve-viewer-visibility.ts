@@ -21,8 +21,7 @@
 
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { ChatContext } from "../context.ts";
-import type { ResolveViewerVisibility } from "../contract/context.ts";
+import type { ChatContext, ResolveViewerVisibility } from "../contract/context.ts";
 import { loadPresentVisibilityRow } from "../persistence/participants-read.ts";
 import { resolveHistoryFloorSeq } from "../substrate/auth/index.ts";
 import { viewerReadsHidden } from "../substrate/member-visibility.ts";

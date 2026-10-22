@@ -1343,7 +1343,7 @@ function concatChunks(chunks: readonly Uint8Array[], total: number): Uint8Array 
   return out;
 }
 
-export type { PinnedDownloadLimits, SafeFetchOptions, SafeFetchResult } from "./contract/egress.ts";
+export type { SafeFetchOptions, SafeFetchResult } from "./contract/egress.ts";
 export const ANY_HOST: typeof ANY_HOST_POLICY = ANY_HOST_POLICY;
 export const ENDPOINT_ADMISSIONS = ENDPOINT_ADMISSION_VALUES;
 

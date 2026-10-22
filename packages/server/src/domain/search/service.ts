@@ -6,8 +6,7 @@
 
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { SearchContext } from "./context.ts";
-import type { SearchService } from "./contract/service.ts";
+import type { SearchContext, SearchService } from "./contract/service.ts";
 import { createCorpus } from "./verbs/corpus.ts";
 import { createDigestSourceCoverage } from "./verbs/digest-sources.ts";
 import { createDigests } from "./verbs/digests.ts";

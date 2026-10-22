@@ -5,11 +5,10 @@
 
 import { slugifyHandle } from "@orb/kit/slug";
 import { buildPersonaBackup } from "#primitives/serde/persona";
-import type { PersonaContext } from "../context.ts";
 import { PersonaNotFoundError } from "../contract/errors.ts";
 import type { ExportPersonaParams } from "../contract/params.ts";
 import type { PersonaPortableFile } from "../contract/results.ts";
-import type { PersonaService } from "../contract/service.ts";
+import type { PersonaContext, PersonaService } from "../contract/service.ts";
 import { detailOf, loadOwnedPersonaWithAvatar } from "../persistence/queries.ts";
 
 export function createExport(ctx: PersonaContext): PersonaService["export"] {

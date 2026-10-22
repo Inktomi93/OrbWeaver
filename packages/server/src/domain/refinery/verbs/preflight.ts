@@ -22,9 +22,8 @@ import type { PreflightResult, RefineryRewritePayload, RefinerySessionView, Refi
 import { REFINERY_STAGE_PAYLOADS, REFINERY_STAGES } from "@orb/contracts/refinery";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { estimateTokens } from "@orb/kit/tokens";
-import type { RefineryContext } from "../context.ts";
 import type { StagePrompts } from "../contract/prompts.ts";
-import type { RefineryService } from "../contract/service.ts";
+import type { RefineryContext, RefineryService } from "../contract/service.ts";
 import { latestRunRowOf, loadOwnedSessionRow, sessionViewOf } from "../persistence/queries.ts";
 import { outputEstimateOf, resolveStageSampling, stageSubjectOf } from "../substrate/output-budget.ts";
 import { buildAnalyzePrompt, buildRewritePrompt, buildScorePrompt, overlayRewrite } from "../substrate/refine-prompt.ts";

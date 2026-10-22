@@ -20,7 +20,7 @@ import type {
   TurnInitiator,
   TurnRetrievalEvents,
 } from "@orb/contracts/chat";
-import type { PruneMemoryBlocksParams } from "@orb/contracts/embeddings";
+import type { MemoryEmbedSpace, PruneMemoryBlocksParams } from "@orb/contracts/embeddings";
 import type { Can, ChatMembership, Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
 import type { SendAvailability } from "@orb/contracts/inference";
@@ -28,7 +28,7 @@ import type { NotificationEvent, PresenceView } from "@orb/contracts/notificatio
 import type { ResolveCurrentPersonaOp, ResolveDefaultPersonaOp } from "@orb/contracts/persona";
 import type { ChoiceBlockSpec, UserIntent, UserMacroSpec } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
-import type { ChatRpgPointer, RpgActorRef, RpgGameTemplate } from "@orb/contracts/rpg";
+import type { ChatRpgPointer, RpgGameTemplate, RpgParticipantActor } from "@orb/contracts/rpg";
 import type { BlockKey, MemoryQueryOptions, ResolveCorpusSourceState, ScoredBlock } from "@orb/contracts/search";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
@@ -63,7 +63,7 @@ import type { ActiveTurns } from "./active-turns.ts";
 import type { CharacterDistillate, SpeakerArbiter, SpeakerReranker } from "./arbitration.ts";
 import type { ApplyPromptTransformsOp, EngineContext, RunChatTurnOp } from "./engine-context.ts";
 import type { ChatBehaviorInputs, ResolveForeignInputsOp } from "./foreign.ts";
-import type { MemoryEmbedSpace, MemoryLog, MemoryRecallPhaseEmitter, MemoryRecallSink } from "./memory.ts";
+import type { MemoryLog, MemoryRecallPhaseEmitter, MemoryRecallSink } from "./memory.ts";
 import type { RpgTurnOps, RpgTurnTranscriptMessage } from "./rpg-turn.ts";
 import type { SignupInviteCapability, SignupInviteDeps } from "./signup.ts";
 import type { ParticipantData } from "./views.ts";
@@ -126,7 +126,7 @@ type CopyHandoffCardsOp = (args: {
   readonly toOwnerId: UserId;
   readonly chatId: ChatId;
   readonly characterIds: readonly CharacterId[];
-}) => Promise<readonly HandoffCardCopy[]>;
+}) => Promise<readonly HandoffCardPair[]>;
 
 /** The host-handoff LORE copy (world-info's `CopyHandoffBooks`, declared structurally). Copies the books and
  *  returns the UNEXECUTED `chat_books` detach-original/attach-copy statements for the swap batch. */
@@ -134,7 +134,7 @@ type CopyHandoffBooksOp = (args: {
   readonly fromOwnerId: UserId;
   readonly toOwnerId: UserId;
   readonly chatId: ChatId;
-  readonly cardCopies: readonly HandoffCardCopy[];
+  readonly cardCopies: readonly HandoffCardPair[];
 }) => Promise<readonly StatementToken[]>;
 
 /** The host-handoff REGEX copy (regex's `CopyHandoffRegexScripts`, declared structurally). Copies the
@@ -165,7 +165,7 @@ type CountHandoffRegexScriptsOp = (args: { readonly fromOwnerId: UserId; readonl
 
 /** The host-handoff DIGEST re-key (embeddings' `HandoffRestampStatements`, declared structurally). Returns
  *  UNEXECUTED statements scoped to this chat; empty for an empty pair list. */
-type RestampHandoffDigestsOp = (args: { readonly chatId: ChatId; readonly pairs: readonly HandoffCardCopy[] }) => Promise<readonly StatementToken[]>;
+type RestampHandoffDigestsOp = (args: { readonly chatId: ChatId; readonly pairs: readonly HandoffCardPair[] }) => Promise<readonly StatementToken[]>;
 
 /** Resolves a human participant's display fields. */
 type ResolveUserPublicsOp = (
@@ -373,16 +373,6 @@ export interface SetRpgPointerDeps {
   /** The husk→real transition (R0). Every non-null pointer write is a host act (creating a game, or the engaged
    *  toggle either way), so it claims; the null detach is a server heal and never claims. */
   readonly claimChat: ClaimChatOp;
-}
-
-/** One present roster participant projected for rpg's tracker view (roster ∪ sheets, docs/plans/rpg/design.md): a
- *  `character`/`user` actor ref + the RESOLVED display name + avatar hash. rpg stays table-blind — the
- *  name/avatar joins live HERE (chat/character). Structurally the rpg-facing `RpgParticipantActor` (rpg declares its
- *  own copy — the foreign-op-shape precedent; the `avatar` is the renderable CAS hash, absent when none). */
-export interface RpgParticipantActor {
-  readonly actorRef: RpgActorRef;
-  readonly name: string;
-  readonly avatar?: string;
 }
 
 /** The roster-resolution op (docs/plans/rpg/design.md): resolve a chat's PRESENT participants into rpg actor refs +
@@ -624,7 +614,7 @@ export interface ChatRpgOps extends RpgTurnOps {
    *  `forkGame` post-batch posture, degraded-not-broken: a crash between them leaves the room correctly
    *  transferred with its tracker rows still on the old keys, and a re-run converges (an already-moved actor
    *  refuses per-actor and changes nothing). Never throws into the accept. `[]`/a non-game chat writes nothing. */
-  readonly handoffRekeyActors: (chatId: ChatId, cardCopies: readonly HandoffCardCopy[]) => Promise<void>;
+  readonly handoffRekeyActors: (chatId: ChatId, cardCopies: readonly HandoffCardPair[]) => Promise<void>;
 }
 
 /** RPG's unexecuted contribution to a chat-owned atomic birth batch. */
@@ -633,14 +623,12 @@ export interface ChatRpgGameBirthPlan {
   readonly statements: readonly StatementToken[];
 }
 
-export type HandoffCardCopy = HandoffCardPair;
-
 /** Durable post-swap work owned by the accepted host. The persistence seam parses this exact shape before
  *  the roster resumes the idempotent actor/event tail. */
 export interface HandoffResumption {
   readonly chatId: ChatId;
   readonly acceptedByUserId: UserId;
-  readonly actorRekeys: readonly HandoffCardCopy[];
+  readonly actorRekeys: readonly HandoffCardPair[];
 }
 
 /** One present character seat the accepted offer considered — the participant row and the card it seats. */
@@ -653,9 +641,9 @@ export interface OfferedSeat {
  *  every no-offer accept, which is what keeps that path byte-identical to the pre-offer handoff. */
 export interface HandoffCopyPlan {
   /** The seat re-points: one per copied card. */
-  readonly seats: readonly { readonly participantId: ChatParticipantId; readonly copy: HandoffCardCopy }[];
+  readonly seats: readonly { readonly participantId: ChatParticipantId; readonly copy: HandoffCardPair }[];
   /** The source→copy pairings the canon/digest/rpg re-stamps key off. */
-  readonly cardCopies: readonly HandoffCardCopy[];
+  readonly cardCopies: readonly HandoffCardPair[];
   /** The UNEXECUTED `chat_books` detach-original/attach-copy statements world-info minted. */
   readonly bookRepoint: readonly BatchStmt[];
   /** The UNEXECUTED `chat_regex_scripts` detach-original/attach-copy statements regex minted. Unlike the
@@ -757,13 +745,6 @@ type ResolveConnectedPersonaOp = (userId: UserId, characterIds: readonly Charact
  *  only to a persona the acting user owns. */
 type VerifyPersonaOwnedOp = (params: { readonly ownerId: UserId; readonly personaId: PersonaId }) => Promise<boolean>;
 
-/** The space the embeddings boundary actually stamped — the RETURN half of the write ops below, distinct from
- *  the {@link MemoryEmbedSpace} a pass PLANNED against (`generate/digests.ts assertStoreSpace` compares them).
- *  It stays HERE and not in `memory.ts`: it is the return type of two `ChatContext` ops, and the composition
- *  root builds the value (`entry/compose/chat.ts memorySegmentReceipts`), so it belongs to the DI bundle's
- *  vocabulary rather than the subsystem's. */
-export interface MemoryStoreReceipt extends MemoryEmbedSpace {}
-
 /** Resolve the host's current concrete embed space for memory planning. NOT exported: its one reader is
  *  `ChatContext.resolveMemoryEmbedSpace` below; callers take the whole bundle, never this member's type. */
 type ResolveMemoryEmbedSpaceOp = (ownerId: UserId) => Promise<MemoryEmbedSpace>;
@@ -772,7 +753,7 @@ type ResolveMemoryEmbedSpaceOp = (ownerId: UserId) => Promise<MemoryEmbedSpace>;
  *
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
-export type EmbeddingsStoreOp = (params: StoreDigestParams) => Promise<MemoryStoreReceipt>;
+export type EmbeddingsStoreOp = (params: StoreDigestParams) => Promise<MemoryEmbedSpace>;
 
 /**
  * memory's verbatim-segment write — a BATCH, and the one place the segment phase's embed flood lives (#172,
@@ -782,7 +763,7 @@ export type EmbeddingsStoreOp = (params: StoreDigestParams) => Promise<MemorySto
  * one chat's chunks. Nothing here decides concurrency — that is the provider surface's.
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
-export type EmbeddingsStoreSegmentsOp = (params: readonly StoreSegmentParams[], signal?: AbortSignal) => Promise<readonly MemoryStoreReceipt[]>;
+export type EmbeddingsStoreSegmentsOp = (params: readonly StoreSegmentParams[], signal?: AbortSignal) => Promise<readonly MemoryEmbedSpace[]>;
 
 type EmbeddingsPruneBlocksOp = (params: PruneMemoryBlocksParams) => Promise<void>;
 

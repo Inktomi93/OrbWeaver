@@ -1,11 +1,10 @@
 // Joint host-scoped digest and transcript retrieval preserves genuine source identity (D16/D20).
 import { NO_HISTORY_FLOOR } from "@orb/contracts/chat";
 import type { BlockKey, CorpusSource } from "@orb/contracts/search";
-import type { SearchContext } from "../context.ts";
 import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors.ts";
 import type { CorpusParams } from "../contract/params.ts";
 import type { CorpusHit } from "../contract/results.ts";
-import type { DigestCoverageOp, SearchService } from "../contract/service.ts";
+import type { DigestCoverageOp, SearchContext, SearchService } from "../contract/service.ts";
 import { hostedChatIds, nearestDigests, nearestSegments, segmentBlockKeys } from "../persistence/digest-rows.ts";
 import { resolveChatDisplay } from "../persistence/display.ts";
 import { readSourceAnchors } from "../persistence/source.ts";

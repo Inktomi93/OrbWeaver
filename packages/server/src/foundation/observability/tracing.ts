@@ -18,7 +18,7 @@ import { versionIdentity } from "#foundation/version";
 import type { RequestTrace, SerializedSpan, SerializedSpanEvent, SpanAttrs } from "./contract/tracing.ts";
 import { getLog } from "./logger.ts";
 
-export type { RequestTrace, RequestTraceTotals, SerializedSpan, SerializedSpanEvent, SpanAttrs } from "./contract/tracing.ts";
+export type { RequestTrace, SerializedSpan, SerializedSpanEvent, SpanAttrs } from "./contract/tracing.ts";
 
 const TRACER_NAME = "orbweaver";
 // The attribute the root span stamps + child spans copy down so the ring buckets a whole tree together.

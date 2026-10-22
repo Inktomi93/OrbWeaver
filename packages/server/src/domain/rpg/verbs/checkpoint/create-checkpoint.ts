@@ -8,13 +8,12 @@ import type { RpgContext, RpgService } from "#src/domain/rpg/contract/service.ts
 import { resolveHost } from "#src/domain/rpg/guard.ts";
 import { insertCheckpoint } from "#src/domain/rpg/persistence/checkpoints.ts";
 import { buildCheckpointSnapshotStatements, resolveSnapshotForTurn } from "#src/domain/rpg/persistence/snapshots.ts";
-import { serializeHandWrite } from "#src/domain/rpg/snapshot-edit.ts";
 
 export function createCreateCheckpoint(ctx: RpgContext): Pick<RpgService, "createCheckpoint"> {
   async function createCheckpoint(params: CreateCheckpointParams): Promise<RpgCheckpointId> {
     const { game } = await resolveHost(ctx, params.principal, params.chatId);
     await ctx.claimChat(params.chatId);
-    return await serializeHandWrite(game.id, async () => {
+    return await ctx.handWrites.run(game.id, async () => {
       const head = await resolveSnapshotForTurn(ctx.db, { id: game.id, chatId: game.chatId });
       if (head === undefined) {
         throw new DomainNotFoundError("snapshot", game.id);

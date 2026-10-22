@@ -50,4 +50,4 @@ export function createSecretBox(key: Buffer | null): SecretBox {
   };
 }
 
-export type { Sealed, SecretBox } from "./contract.ts";
+export type { SecretBox } from "./contract.ts";

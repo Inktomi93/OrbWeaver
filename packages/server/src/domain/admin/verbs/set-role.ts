@@ -10,10 +10,9 @@
 import { users } from "@orb/db";
 import { DomainConflictError, DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import { and, eq, ne } from "drizzle-orm";
-import type { AdminContext } from "../context.ts";
 import { ADMIN_OP_CODES } from "../contract/errors.ts";
 import type { SetRoleParams } from "../contract/params.ts";
-import type { AdminService } from "../contract/service.ts";
+import type { AdminContext, AdminService } from "../contract/service.ts";
 import { isBootstrapOwnerRole, isBootstrapOwnerRoleCode, requireOwner } from "../guard.ts";
 import { loadUser, toAdminUserData, userCols } from "../persistence/queries.ts";
 import { commitAuditedWrite } from "../substrate/audited-write.ts";

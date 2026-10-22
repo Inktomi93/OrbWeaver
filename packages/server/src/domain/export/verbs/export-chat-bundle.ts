@@ -31,10 +31,9 @@ import { and, asc, eq, getTableColumns, inArray, isNotNull, isNull } from "drizz
 import type { RpgPortableGame } from "#domain/rpg";
 import type { PortableChat, PortableChatInjection, PortableChatMessage, PortableChatVariant, PortableRpgGame } from "#primitives/serde/chat-bundle";
 import { buildChatBundleFile, CHAT_BUNDLE_EXT } from "#primitives/serde/chat-bundle";
-import type { ExportContext } from "../context.ts";
 import type { ExportChatBundleParams } from "../contract/params.ts";
 import type { ExportedFile } from "../contract/results.ts";
-import type { ExportService } from "../contract/service.ts";
+import type { ExportContext, ExportService } from "../contract/service.ts";
 import { slug } from "../substrate/download-slug.ts";
 
 type ChatRow = typeof chats.$inferSelect;

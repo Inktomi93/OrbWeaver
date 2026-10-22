@@ -9,8 +9,7 @@
 // persist/emit pattern of `turn.ts` `persistUserMessage` (the D26 canon-write dance + the durable-first bus emit).
 
 import type { ChatWarningCode, DurableChatBusEvent, MessageView } from "@orb/contracts/chat";
-import type { ChatContext } from "../context.ts";
-import type { ClaimChatOp } from "../contract/context.ts";
+import type { ChatContext, ClaimChatOp } from "../contract/context.ts";
 import type { GenerateImageParams } from "../contract/params.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireParticipant } from "../guard.ts";

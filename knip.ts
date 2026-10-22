@@ -28,6 +28,8 @@ export const config = {
   },
   workspaces: {
     ".": {
+      // Analyze the source behind @orb/server's generated declaration-only package entry.
+      paths: { "@orb/server": ["./packages/server/src/index.ts"] },
       "dependency-cruiser": { config: [".dependency-cruiser.ts"] },
       // Operator scripts are direct Node entry points.
       entry: [
@@ -37,6 +39,7 @@ export const config = {
         "playwright/index.css",
       ],
       project: ["scripts/**/*.ts", "tests/**/*.{ts,tsx}", "playwright/**/*.{ts,tsx,css}"],
+      playwright: { config: ["playwright.config.ts", "playwright-ct.config.ts"] },
       // The full binary analysis sees these deliberately fake executables in missing-binary and PATH-shim controls.
       // mkfifo is the POSIX coreutils binary the orchestrator-inject hook test uses to plant a FIFO transcript path;
       // it is an OS tool, never an npm dependency, so knip has no package to credit it to.
@@ -72,6 +75,8 @@ export const config = {
     "packages/db": { project: ["src/**/*.ts!"] },
     "packages/inference": {
       project: ["src/**/*.ts!"],
+      // Contract types remain importable even when their consumers use them through enclosing signatures.
+      ignoreExportsUsedInFile: { interface: true, type: true },
       // @ai-sdk/provider is imported 15 times and EVERY import is `import type` (the V4 model/call-option
       // interfaces the three hosted backends implement). knip's production view drops type-only imports, so
       // strict mode reads the package as unused; it is not — dropping it breaks `tsc`, and the catalog pin
@@ -106,7 +111,10 @@ export const config = {
     },
     "packages/server": {
       includeEntryExports: true,
-      entry: ["src/entry/index.ts!"],
+      // Contract types remain importable even when their consumers use them through enclosing signatures.
+      ignoreExportsUsedInFile: { interface: true, type: true },
+      // The declaration compiler consumes src/index.ts; client imports resolve to its generated output.
+      entry: ["src/entry/index.ts!", "src/index.ts!"],
       // Public entries come from package.json exports.
       // The shipped script entries are added for the production view below (PRODUCTION_SCRIPT_ENTRIES).
       project: ["src/**/*.ts!"],

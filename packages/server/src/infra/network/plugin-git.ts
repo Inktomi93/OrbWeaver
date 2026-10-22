@@ -20,7 +20,7 @@ import {
 } from "@orb/contracts/plugin";
 import type { GitHttpRequest, GitHttpResponse, HttpClient, TreeEntry } from "isomorphic-git";
 import { clone, listServerRefs, readBlob, readTree, resolveRef } from "isomorphic-git";
-import { packPreparedPluginDir } from "../plugin-source/pack-plugin-dir.ts";
+import { packPreparedPluginDir } from "../plugin-source/index.ts";
 import type { ScopedEgress } from "./contract/egress.ts";
 import type { PluginGitSource } from "./contract/plugin-git.ts";
 import { ANY_HOST, safeFetch } from "./egress.ts";

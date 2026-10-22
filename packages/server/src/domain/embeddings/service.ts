@@ -7,9 +7,8 @@
 
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { EmbeddingsContext } from "./context.ts";
 import type { AvatarAnalysis } from "./contract/results.ts";
-import type { EmbeddingsService } from "./contract/service.ts";
+import type { EmbeddingsContext, EmbeddingsService } from "./contract/service.ts";
 import { analyzeAvatarImage, avatarAnalysisCallsModel } from "./indexer/caption.ts";
 import { createImageAnalysisCounter, createImageIndexer } from "./indexer/image.ts";
 import { countOwnedVectors } from "./persistence/owned-vector-counts.ts";

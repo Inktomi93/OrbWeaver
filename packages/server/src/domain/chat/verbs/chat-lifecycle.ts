@@ -46,9 +46,8 @@ import { findOffVocabularyPicks } from "@orb/kit/macro";
 import { MS_PER_HOUR } from "@orb/kit/time";
 import type { SQL } from "drizzle-orm";
 import { and, eq, exists, isNotNull, isNull, lt, ne, not, or, sql } from "drizzle-orm";
-import type { ChatContext } from "../context.ts";
 import type { ActiveTurns } from "../contract/active-turns.ts";
-import type { ClaimChatOp } from "../contract/context.ts";
+import type { ChatContext, ClaimChatOp } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { PreparedRetainedCanonStats } from "../contract/generation-observation.ts";
 import type {

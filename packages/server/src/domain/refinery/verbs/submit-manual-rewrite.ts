@@ -15,8 +15,7 @@ import { refineryRuns, refinerySessions } from "@orb/db";
 import { batchMany, batchStmt } from "@orb/db/query";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import { eq } from "drizzle-orm";
-import type { RefineryContext } from "../context.ts";
-import type { RefineryService } from "../contract/service.ts";
+import type { RefineryContext, RefineryService } from "../contract/service.ts";
 import { latestRunRowOf, loadOwnedSessionRow, sessionViewOf } from "../persistence/queries.ts";
 
 /** The coded reason for an out-of-selection manual entry (the client reads it off the BAD_REQUEST body). */

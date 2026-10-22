@@ -4,8 +4,7 @@
 
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { ConnectionContext } from "./context.ts";
-import type { ConnectionService } from "./contract/service.ts";
+import type { ConnectionContext, ConnectionService } from "./contract/service.ts";
 import { createOwnerWriteQueue } from "./substrate/owner-queue.ts";
 import { createBindings } from "./verbs/bindings.ts";
 import { createCatalogs } from "./verbs/catalogs.ts";

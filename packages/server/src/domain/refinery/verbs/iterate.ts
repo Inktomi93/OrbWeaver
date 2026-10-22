@@ -27,9 +27,8 @@ import { refinerySessions } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { eq, sql } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
-import type { RefineryContext } from "../context.ts";
 import { RefineryRoundInFlightError, RefineryStageNotReadyError } from "../contract/errors.ts";
-import type { RefineryService, StageEngineDeps } from "../contract/service.ts";
+import type { RefineryContext, RefineryService, StageEngineDeps } from "../contract/service.ts";
 import { latestRunRowOf, loadOwnedSessionRow } from "../persistence/queries.ts";
 import { releaseRoundClaim, takeRoundClaim } from "../substrate/round-claim.ts";
 

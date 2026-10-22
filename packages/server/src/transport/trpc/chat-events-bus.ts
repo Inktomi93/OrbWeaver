@@ -25,8 +25,6 @@ import type { ChatEventsBus, ChatLiveEvent } from "./contract/live-buses.ts";
 
 const channelFor = (chatId: ChatId): string => `chat:${chatId}`;
 
-export type { ChatLiveEvent } from "./contract/live-buses.ts";
-
 /** Create one graph-owned live channel; admission and durable writes remain at their existing callers. */
 export function createChatEventsBus(): ChatEventsBus {
   // biome-ignore lint/nursery/useDisposables: the returned bus delegates disposal to this channel; local using would close it before graph subscribers start.

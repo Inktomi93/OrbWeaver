@@ -11,8 +11,7 @@
 
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { RegexContext } from "./context.ts";
-import type { RegexService } from "./contract/service.ts";
+import type { RegexContext, RegexService } from "./contract/service.ts";
 import { createExportRegexScript, createImportRegexScript } from "./persistence/portability-write.ts";
 import {
   createApplyScopeOrder,

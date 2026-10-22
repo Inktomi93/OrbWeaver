@@ -1,7 +1,6 @@
 import type { PresetSummary } from "@orb/contracts/preset";
-import type { PresetContext } from "../context.ts";
 import type { ListPresetsParams } from "../contract/params.ts";
-import type { PresetService } from "../contract/service.ts";
+import type { PresetContext, PresetService } from "../contract/service.ts";
 import { listReadable } from "../persistence/queries.ts";
 import { toPresetSummary } from "../substrate/views.ts";
 

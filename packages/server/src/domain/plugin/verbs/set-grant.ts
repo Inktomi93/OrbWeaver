@@ -33,10 +33,10 @@
 
 import type { PluginCapability } from "@orb/contracts/plugin";
 import { CapabilityNotGrantedError, PluginNetHostsUnacknowledgedError, PluginNotFoundError } from "../contract/errors.ts";
+import type { PluginConsentPrompt } from "../contract/ops.ts";
 import type { SetPluginGrantParams } from "../contract/params.ts";
 import type { ActivationDeps, PluginContext, PluginService } from "../contract/service.ts";
 import { applyGrant, getById, toPluginView } from "../persistence/plugins.ts";
-import { refreshConsentPrompt } from "../substrate/consent-prompt.ts";
 import { normalizeGrant, ungrantableCapabilities, widenedNetHosts } from "../substrate/grants.ts";
 
 /** The refusal the row carries OUT of the consent act — whether one still stands, and which hosts it is
@@ -80,7 +80,7 @@ function requireAcknowledgedHosts(grant: readonly PluginCapability[], manifestHo
   }
 }
 
-export function createSetGrant(ctx: PluginContext, deps: ActivationDeps): PluginService["setGrant"] {
+export function createSetGrant(ctx: PluginContext, deps: ActivationDeps, consentPrompt: PluginConsentPrompt): PluginService["setGrant"] {
   return async ({ caller, pluginId, grant, acknowledgedNetHosts, enable = false }: SetPluginGrantParams) => {
     const existing = await getById(ctx.db, caller.userId, pluginId);
     if (existing === undefined) {
@@ -137,7 +137,7 @@ export function createSetGrant(ctx: PluginContext, deps: ActivationDeps): Plugin
     // grant is what takes it out — so it is also where the owner's ONE aggregate inbox row is brought into
     // line. `raised` is this row's own transition into pending: only that deserves a new row and a new badge
     // (an answer that merely lowers the count corrects the standing row in place).
-    await refreshConsentPrompt(ctx, caller.userId, refusal.pending && !existing.pendingReconsent);
+    await consentPrompt.refresh(caller.userId, refusal.pending && !existing.pendingReconsent);
 
     const row = await getById(ctx.db, caller.userId, pluginId);
     if (row === undefined) {

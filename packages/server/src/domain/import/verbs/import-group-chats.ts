@@ -21,7 +21,6 @@
 import type { BulkImportChatInput, ChatMetadata } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, narratorPolicyOf } from "@orb/contracts/chat";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import type { ImportContext } from "../context.ts";
 import type { CollectedGroup } from "../contract/collection.ts";
 import type { ImportGroupsInput } from "../contract/params.ts";
 import type {
@@ -33,7 +32,7 @@ import type {
   ImportSkippedGroupMember,
   ImportUnresolvedPinnedPersona,
 } from "../contract/results.ts";
-import type { ImportService } from "../contract/service.ts";
+import type { ImportContext, ImportService } from "../contract/service.ts";
 import { requireProfile } from "../guard.ts";
 import { buildGroupChatInput, disambiguateChatTitles, unresolvedPinnedPersonas } from "../substrate/chat-input.ts";
 

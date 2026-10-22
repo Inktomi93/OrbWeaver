@@ -4,9 +4,8 @@
 // A row that already has art is left alone (false): that card is an alt-art version, a separate character.
 // Import-injected; acts on the resolved `ownerId`.
 
-import type { CharacterContext } from "../context.ts";
 import type { AttachImportedArtParams } from "../contract/params.ts";
-import type { CharacterService } from "../contract/service.ts";
+import type { CharacterContext, CharacterService } from "../contract/service.ts";
 import { attachArtIfMissing, ensureAssetOwned } from "../persistence/queries.ts";
 
 const ATTACH_IMPORTED_ART = "character.attachImportedArt";

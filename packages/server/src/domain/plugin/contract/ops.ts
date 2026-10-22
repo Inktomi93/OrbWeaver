@@ -37,6 +37,14 @@ export interface PluginLifecycleLanes {
 /** The service owns queued lifecycle jobs until their durable and resident effects finish. */
 export interface OwnedPluginLifecycleLanes extends PluginLifecycleLanes, AsyncDisposable {}
 
+/** Consent follow-ups share one recipient queue across the service's management verbs. */
+export interface PluginConsentPrompt {
+  readonly refresh: (recipientUserId: UserId, raised: boolean) => Promise<void>;
+}
+
+/** Management callers settle before the service closes its consent publisher. */
+export interface OwnedPluginConsentPrompt extends PluginConsentPrompt, AsyncDisposable {}
+
 /** Invocation ownership includes the domain accounting that follows guest execution. */
 export interface PluginInvocationWork extends AsyncDisposable {
   readonly run: <T>(job: () => Promise<T>) => Promise<T>;

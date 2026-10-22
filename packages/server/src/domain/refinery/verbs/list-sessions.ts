@@ -4,8 +4,7 @@
 // now carries the row's character name + avatar hash, so the roster names its cards without the client
 // paging `character.list` to find them (`refinerySessionSummarySchema`'s ceiling note).
 
-import type { RefineryContext } from "../context.ts";
-import type { RefineryService } from "../contract/service.ts";
+import type { RefineryContext, RefineryService } from "../contract/service.ts";
 import { latestVerdictsOf, listOwnedSessionRows, sessionSummaryOf } from "../persistence/queries.ts";
 
 export function createListSessions(ctx: RefineryContext): RefineryService["listSessions"] {

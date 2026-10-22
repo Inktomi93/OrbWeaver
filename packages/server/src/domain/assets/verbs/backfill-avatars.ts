@@ -14,9 +14,8 @@
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
 import { isAborted } from "#primitives/abort";
 import { sha256Hex } from "#primitives/content-hash";
-import type { AssetsContext } from "../context.ts";
 import type { BackfillCard } from "../contract/maintenance.ts";
-import type { AssetsService } from "../contract/service.ts";
+import type { AssetsContext, AssetsService } from "../contract/service.ts";
 import { storeBlob } from "../persistence/queries.ts";
 
 /** Bounded store fan-out — 8 concurrent `storeBlob` calls per wave (the CAS write + the index upsert are the

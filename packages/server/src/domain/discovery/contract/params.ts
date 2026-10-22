@@ -74,8 +74,8 @@ export interface DuplicateChatsOptions {
 // ── BrowseSort (the browse ordering dispatch axis) ────────────────────────────
 // The axis and its keyset live in `@orb/contracts/discovery` (moved 2026-08-19 with the A8 paging): the
 // cursor is a WIRE shape discriminated on this union, so the two have to be spelled in one place, and that
-// place is the one both ends can import. Re-exported here so the domain's own callers keep one front door.
-export type { BrowseCursor, BrowseSort } from "@orb/contracts/discovery";
+// place is the one both ends can import.
+export type { BrowseCursor } from "@orb/contracts/discovery";
 
 /** The filter/sort/page bag for the owner-scoped `browseCharacters` read. `ownerId` is never here — it is
  *  the resolved principal. */

@@ -11,9 +11,8 @@
 import type { TokenProvenance } from "@orb/contracts/chat";
 import { combineTokenProvenance } from "@orb/contracts/chat";
 import type { UserId } from "@orb/kit/ids";
-import type { DiscoveryContext } from "../context.ts";
 import type { ForgottenGem, ModelRoutingRow } from "../contract/results.ts";
-import type { DiscoveryService } from "../contract/service.ts";
+import type { DiscoveryContext, DiscoveryService } from "../contract/service.ts";
 import { readForgottenGemCandidates } from "../persistence/message-reads.ts";
 import { readOwnedCardFacets } from "../persistence/summary-reads.ts";
 

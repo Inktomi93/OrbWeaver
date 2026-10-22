@@ -9,8 +9,7 @@
 //   front door). See seeder/ + contract/seeder.ts.
 
 import { batchHandle, databaseForOwner, databaseHandle } from "@orb/db/wiring-owner";
-import type { CharacterContext } from "./context.ts";
-import type { CharacterAssemblyInput, CharacterService } from "./contract/service.ts";
+import type { CharacterAssemblyInput, CharacterContext, CharacterService } from "./contract/service.ts";
 import { createAttachImportedArt } from "./verbs/attach-imported-art.ts";
 import { createBulkAddCardTag } from "./verbs/bulk-add-card-tag.ts";
 import { createBulkArchive } from "./verbs/bulk-archive.ts";
