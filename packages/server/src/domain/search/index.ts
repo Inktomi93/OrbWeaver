@@ -4,8 +4,6 @@
 // seed-vector siblings (`similarCharacters`/`similarArt`), and the unified `search()` dispatch over
 // the `SearchScope`/`SearchTarget` axes.
 
-export { SEARCH_EMPTY_QUERY, SEARCH_NO_SPACE, SEARCH_SPACE_REINDEXING, SearchError } from "./contract/errors.ts";
-
 export type { DocumentChunkHit } from "./contract/results.ts";
 export type { ResolveActiveDocumentIdsOp, SearchService } from "./contract/service.ts";
 

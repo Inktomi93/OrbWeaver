@@ -3,7 +3,6 @@
 // (the workload-env ingest product) and injects `resolveActiveDocumentIds` into `search.documents` (DB5).
 // The per-turn chat GATHER op + the search lens are later waves (DB5/DB6) — not exported here yet.
 
-export { DatabankCharacterNotFoundError, DocumentNotFoundError, ScrapeFailedError } from "./contract/errors.ts";
 export type {
   DatabankPortabilityAssemblyContext as DatabankPortabilityContext,
   ExportDocument,

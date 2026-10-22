@@ -24,7 +24,6 @@
 // with neither is the exact lie that was deleted.
 
 export { THEME_LEVELS } from "@orb/contracts/discovery";
-export { CardNotDistillableError, DistillFailedError } from "./contract/errors.ts";
 
 export { IMAGE_FACET_KEYS } from "./contract/params.ts";
 export type { DiscoveryAssemblyContext as DiscoveryContext, DiscoveryService, DiscoveryWorkloadDeps } from "./contract/service.ts";

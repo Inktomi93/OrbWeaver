@@ -2,7 +2,6 @@
 // per-turn pool builder (chat-assembly) reads these tables directly as a db-layer consumer, NOT through
 // this front door (invariant #8).
 
-export { WorldInfoNotFoundError } from "./contract/errors.ts";
 export type { ExportWorldBook, ListOwnedBookIds, WorldInfoExportAssemblyContext as WorldInfoExportContext } from "./contract/export.ts";
 
 export type {

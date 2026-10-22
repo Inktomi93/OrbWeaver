@@ -3,8 +3,6 @@
 // `ImageEmbedResult`) live in `@orb/contracts/providers`; the `RoleClients` bundle in
 // `@orb/contracts/role-clients` — callers import those from contracts, not through this door.
 
-export { EmbedFailedError, SpaceMismatchError } from "./contract/errors.ts";
-
 // Consumed by `discovery` + `search` + tests, not just this domain.
 export type { VectorTable } from "./contract/params.ts";
 export { VECTOR_TABLES } from "./contract/params.ts";

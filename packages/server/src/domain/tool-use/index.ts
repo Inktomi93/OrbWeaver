@@ -5,7 +5,6 @@
 // Every invocation funnels through the same executeToolCalls, producing the same ToolCallRecord[] that chat
 // persistence stores on the variant.
 
-export { ToolNameCollisionError, ToolNotFoundError } from "./contract/errors.ts";
 export type {
   ToolDefinition,
   ToolExecutionContext,
