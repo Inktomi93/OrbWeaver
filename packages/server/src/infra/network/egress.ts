@@ -766,7 +766,7 @@ export class EgressBlockedError extends Error {
 
 function defaultResolver(host: string): Promise<readonly string[]> {
   return new Promise((resolve, reject) => {
-    dnsLookup(host, { all: true, verbatim: true }, (err, addresses): void => {
+    dnsLookup(host, { all: true, order: "verbatim" }, (err, addresses): void => {
       if (err) {
         reject(err);
         return;

@@ -147,7 +147,7 @@ test("a named session preserves exact-page labels, reports retained growth/retai
     expect(leakedIndex.resultPairs).toContainEqual(["heap-comparisons", "1"]);
     expect(leakedIndex.verdict.arms.find((row) => row.arm === "heap")?.state).toBe("passed");
     const summary = await readJson<HeapSnapshotReceipt>(artifact(leakedIndex, "snap-heap-snapshot-v1"));
-    expect(summary.identity.parser).toEqual({ package: "chrome-devtools-mcp", version: "1.8.0", engine: "HeapSnapshotManager" });
+    expect(summary.identity.parser).toEqual({ package: "chrome-devtools-mcp", version: "1.11.0", engine: "HeapSnapshotManager" });
     expect(summary.population.nodes).toBeGreaterThan(0);
     expect(summary.population.objects).toBeGreaterThan(0);
     expect(summary.parserProblems.total).toBeGreaterThan(0);

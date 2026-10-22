@@ -22,7 +22,7 @@ function validSnapshotReceipt(limits: unknown): unknown {
       captureSessionId: "session",
       browser: { product: "Chrome", protocolVersion: "1.3", revision: "1", userAgent: "ua", jsVersion: "1" },
       target: { targetId: "target", browserContextId: null, url: "file:///x", title: "x", contextIndex: 0, pageIndex: 0 },
-      parser: { package: "chrome-devtools-mcp", version: "1.8.0", engine: "HeapSnapshotManager" },
+      parser: { package: "chrome-devtools-mcp", version: "1.11.0", engine: "HeapSnapshotManager" },
     },
     statistics: { total: 0, nativeTotal: 0, typedArrays: 0, v8Total: 0, code: 0, jsArrays: 0, strings: 0, system: 0 },
     population: { nodes: 0, objects: 0, totalSelfSize: 0, rootNodeIndex: 0, maxJsObjectId: 0 },

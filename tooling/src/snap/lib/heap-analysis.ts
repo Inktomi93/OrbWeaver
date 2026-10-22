@@ -310,8 +310,7 @@ export async function buildHeapComparisonReceipt(
   right: HeapSnapshotReceipt,
 ): Promise<HeapComparisonReceipt> {
   assertComparableHeapSnapshots(left, right);
-  // Load both proxies before asking the official diff engine to reuse them. HeapSnapshotManager does not
-  // deduplicate concurrent first loads for one path, so this ordering is worker-lifetime correctness.
+  // Capture each snapshot's parser diagnostics before the official diff engine reuses its cached proxy.
   const leftParsed = await parser.snapshot(left.identity.rawPath);
   const rightParsed = await parser.snapshot(right.identity.rawPath);
   const rawDiffs = await parser.classDiffs(left.identity.rawPath, right.identity.rawPath);

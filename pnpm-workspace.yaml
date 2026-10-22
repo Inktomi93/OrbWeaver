@@ -79,7 +79,7 @@ catalog:
   # in the tree as lighthouse's own dependency; PINNED EXACT TO LIGHTHOUSE'S RESOLUTION so the two share
   # one installed copy — a drift here silently gives Lighthouse a page from a different puppeteer build.
   # Re-derive this pin on every `lighthouse` bump (`pnpm why puppeteer-core`).
-  "puppeteer-core": 25.11.0
+  "puppeteer-core": 25.15.0
   # chrome-devtools-mcp: PARSER ENGINE ONLY for Snap's heap arm (#1300). Snap never imports or starts
   # the MCP server, transport, Puppeteer page, or browser launcher. One adapter deep-imports the bundled
   # browser-free HeapSnapshotManager so retained sizes, dominators, native-context attribution and
@@ -89,7 +89,7 @@ catalog:
   # worker's official weak-root problem reports into Snap's structured sidecar instead of dumping dozens
   # of lines to stderr; it changes no graph algorithm. Any bump owes re-deriving that patch plus the
   # planted installed-subpath parse in the heap suite; there is deliberately no fallback parser.
-  chrome-devtools-mcp: 1.8.0
+  chrome-devtools-mcp: 1.11.0
   # --- quality tooling ---
   # ts-reset: ambient type hardening (filter(Boolean), JSON.parse→unknown) — wired via root reset.d.ts.
   "@total-typescript/ts-reset": ^0.6.1
@@ -111,7 +111,7 @@ catalog:
   hono: ^4.13.13
   "@hono/node-server": ^2.1.5
   openid-client: ^6.8.8
-  isomorphic-git: 1.42.2
+  isomorphic-git: 1.44.3
   # cloudflared: the quick-tunnel process wrapper only (`Tunnel.quick`, `use`, its output and exit events). Exact pin:
   # the wrapper spawns and signals the binary. Never its installer; allowBuilds above denies its postinstall.
   cloudflared: 0.7.3
@@ -159,12 +159,9 @@ catalog:
   # @anthropic-ai/claude-agent-sdk: the agent-sdk backend (the Max sub + the OR-Anthropic skin + agent
   # mode). Its env firewall is the load-bearing credential seam (Tier-3b-Providers.md Esoteric §1).
   # Exact pin: the native-child observer patch preserves this bundled transport; any bump must rederive it.
-  # CLI 2.1.280 serves claude-opus-5-5 and claude-fable-5-1 (see minimumReleaseAgeExclude).
-  "@anthropic-ai/claude-agent-sdk": 0.3.280
-  # @anthropic-ai/sdk: the anth-direct backend (D67) — the direct Anthropic-Messages wire over the
-  # egress-firewalled global fetch. ALREADY in the tree as a transitive dep of the agent-sdk; promoted
-  # to a direct dep to name the existing surface (installs nothing new).
-  "@anthropic-ai/sdk": ^0.128.0
+  "@anthropic-ai/claude-agent-sdk": 0.3.306
+  # Supply the agent SDK peer and its public Anthropic API declarations explicitly.
+  "@anthropic-ai/sdk": ^1.0.0
   # --- @orb/inference — the Vercel AI SDK provider layer (inference program §8.0; F9 settled 2026-09-19) ---
   # EXACT PINS, deliberately: the two hosted wires are built against provider spec V4
   # (`LanguageModelV4.doStream` / `EmbeddingModelV4.doEmbed` / `ImageModelV4.doGenerate`) and the
@@ -284,11 +281,11 @@ catalog:
   # ESLint 10 is the NARROW supplement to biome (biome owns format + 400+ correctness rules): only the
   # rules biome can't do — react-hooks + React-Compiler diagnostics, TanStack Query/Router discipline,
   # tailwind compiled-class validation. Config: eslint.config.js (explicit-rules-only, no `recommended`).
-  # Every plugin below peer-supports eslint ^10 (verified) and TS 6.0.3 (typescript-eslint peer <6.1.0).
+  # Plugins retain ESLint 10 and the TypeScript 6 compatibility API.
   eslint: ^10.13.0
-  # typescript-eslint: latest major-8 (there is NO v9); peer `typescript >=4.8.4 <6.1.0` → our 6.0.3 in range.
+  # typescript-eslint consumes the TypeScript 6 compatibility API, not the native compiler.
   # Used as PARSER only (+ the type-aware no-deprecated gate); its recommended RULE set stays OFF (biome+tsc own that).
-  typescript-eslint: ^8.70.1
+  typescript-eslint: ^8.72.0
   # react-hooks v7 ships the React Compiler diagnostics (the rules-of-react correctness set) alongside rules-of-hooks.
   eslint-plugin-react-hooks: ^7.1.1
   "@tanstack/eslint-plugin-query": ^5.104.5
@@ -308,7 +305,7 @@ catalog:
   eslint-plugin-react-web-api: ^5.28.4
   # eslint-react's core family: the React-19 migration and legacy-API rules. EXACT, not a caret — the config
   # lists each rule by name, but a minor must not add or retune a rule without review.
-  eslint-plugin-react-x: 5.20.5
+  eslint-plugin-react-x: 5.28.4
   # semantic unnecessary-effect analysis (the "you might not need an effect" family). 6 of 9 rules
   # enabled, 3 rejected with receipts — the reasoning lives in eslint.config.js beside the block.
   eslint-plugin-react-you-might-not-need-an-effect: ^1.0.2
@@ -387,12 +384,8 @@ overrides:
   # duplicating the GHSA-f88m-g3jw-g9cj-vulnerable version instead of deduping onto the fixed one.
   # Force the single resolution onto the catalog floor.
   sharp: "catalog:"
-  # eslint-plugin-tsdoc@0.5.2 (latest) pins its own `@typescript-eslint/utils: ~8.56.0` dependency, whose
-  # transitive peer `typescript >=4.8.4 <6.0.0` conflicts with our typescript@6.0.3 — `pnpm peers check`
-  # DEPLOCK-02. The direct `typescript-eslint` catalog dep already resolves ^8.65.0, whose
-  # `@typescript-eslint/utils` peers `typescript >=4.8.4 <6.1.0` (6.0.3 in range). Force the single
-  # duplicate resolution onto that already-satisfied version rather than bump TS/ESLint themselves.
-  "@typescript-eslint/utils": "8.65.0"
+  # Keep tsdoc's transitive utilities on the parser family's TypeScript 6-compatible release.
+  "@typescript-eslint/utils": "8.72.0"
   # DEPLOCK 2026-08-14: streamdown@2.5.0 pins `mermaid: ^11.12.2`, resolved-stale at 11.16.0 —
   # 5 advisories fixed in 11.16.1 (prototype pollution x2, CSS injection, XY-chart + radar DoS).
   # No diagram plugin is wired, so a mermaid fence in chat renders as inert code and this bump is
@@ -431,32 +424,17 @@ auditConfig:
     - GHSA-67mh-4wv8-2f99 # esbuild, drizzle-kit dev dependency, dev server never started
 
 minimumReleaseAge: 1440
-minimumReleaseAgeExclude:
-  - dependency-cruiser@18.0.0
-  # agent-sdk 0.3.280 (+ its 8 platform-binary siblings): owner-approved force past the age gate
-  # 2026-09-22 (published hours prior); its CLI 2.1.280 serves claude-opus-5-5 and claude-fable-5-1.
-  # Version-pinned — the gate stays live for future releases.
-  - "@anthropic-ai/claude-agent-sdk@0.3.280"
-  - "@anthropic-ai/claude-agent-sdk-darwin-arm64@0.3.280"
-  - "@anthropic-ai/claude-agent-sdk-darwin-x64@0.3.280"
-  - "@anthropic-ai/claude-agent-sdk-linux-arm64-musl@0.3.280"
-  - "@anthropic-ai/claude-agent-sdk-linux-arm64@0.3.280"
-  - "@anthropic-ai/claude-agent-sdk-linux-x64-musl@0.3.280"
-  - "@anthropic-ai/claude-agent-sdk-linux-x64@0.3.280"
-  - "@anthropic-ai/claude-agent-sdk-win32-arm64@0.3.280"
-  - "@anthropic-ai/claude-agent-sdk-win32-x64@0.3.280"
 patchedDependencies:
   libsql@0.6.0-pre.43: patches/libsql@0.6.0-pre.43.patch
-  '@typescript-eslint/eslint-plugin@8.70.1': patches/@typescript-eslint__eslint-plugin@8.70.1.patch
   node-av@6.1.1: patches/node-av@6.1.1.patch
-  chrome-devtools-mcp@1.8.0: patches/chrome-devtools-mcp@1.8.0.patch
+  chrome-devtools-mcp@1.11.0: patches/chrome-devtools-mcp@1.11.0.patch
   # #0081: clone packs are attacker-controlled. This exact-version patch bounds object count, declared and
   # actual inflation, aggregate work, delta depth, and pre-concat delta output. A dependency bump must port it.
-  isomorphic-git@1.42.2: patches/isomorphic-git@1.42.2.patch
+  isomorphic-git@1.44.3: patches/isomorphic-git@1.44.3.patch
   # cmdk's group sort looked a group up by its heading text but keyed it by its internal id, so groups never
   # reordered and the best match could sit under a lower group. The patch keys the lookup by the group id.
   cmdk@1.1.1: patches/cmdk@1.1.1.patch
-  '@anthropic-ai/claude-agent-sdk@0.3.280': patches/@anthropic-ai__claude-agent-sdk@0.3.280.patch
+  '@anthropic-ai/claude-agent-sdk@0.3.306': patches/@anthropic-ai__claude-agent-sdk@0.3.306.patch
   # valid-expect accepted an async assertion only where it was written. The patch accepts an assertion stored in a block-scoped
   # const or let when every path to the block's end awaits, returns or Promise.all-settles it: an early return or throw, a catch
   # that can swallow, or any reassignment or shadowing of the name keeps the finding, and a declaration outside a block keeps it

@@ -10,7 +10,7 @@ import type { SnapAnalyzerProblem } from "./analyzer.ts";
 import { SNAP_ANALYZER_PROBLEM_KINDS } from "./analyzer.ts";
 
 export const HEAP_PARSER_PACKAGE = "chrome-devtools-mcp";
-export const HEAP_PARSER_VERSION = "1.8.0";
+export const HEAP_PARSER_VERSION = "1.11.0";
 export const HEAP_SNAPSHOT_SCHEMA = "snap-heap-snapshot-v1";
 export const HEAP_COMPARISON_SCHEMA = "snap-heap-comparison-v1";
 export const HEAP_RETAINERS_SCHEMA = "snap-heap-retainers-v1";
