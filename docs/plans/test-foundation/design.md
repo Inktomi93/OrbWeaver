@@ -133,7 +133,7 @@ Do not restore a reference file wholesale because its cases once ran together. K
 
 ### Selected case map: chat permissions and history
 
-This is a bounded source comparison, not an exhaustive chat audit or fresh browser qualification. Legacy paths are relative to the external source named in [Spine-Testing](../../law/Spine-Testing.md#2-the-tree).
+This is a bounded case map, not an exhaustive chat audit. Linked work items own runtime evidence; existing E2E source is not a fresh runtime verdict. Legacy paths are relative to the external source named in [Spine-Testing](../../law/Spine-Testing.md#2-the-tree).
 
 | Behavior | Primary home and maintained evidence | Decision |
 | - | - | - |
@@ -145,11 +145,11 @@ This is a bounded source comparison, not an exhaustive chat audit or fresh brows
 | Invite landing after the first-run persona step | E2E: [corpus joiner](../../../tests/e2e/corpus-joiner.local.spec.ts). | Keep. Do not rebuild the complete journey as a network-stubbed CT. |
 | OIDC callback, pending-join dismissal and precise URL/history cleanup | E2E: [OIDC pending join](../../../tests/e2e/oidc-pending-join.oidc.spec.ts). | Keep; qualify the existing spec under [OIDC acceptance](../../work/1082-qualify-the-existing-oidc-pending-join-e2e.md). Do not restore a duplicate dismissal journey. |
 | Capability-dependent `/join/:token` refusal and redirect | HTTP integration: [auth metadata](../../../tests/server/entry/http/auth-meta.int.test.ts). Legacy `server/entry/http/join.test.ts` also checks encoded token bytes. | Keep existing coverage. Add the encoded-token case through real HTTP only if uncovered; drop the mock-app harness. |
-| Invalid invite disclosure, focus ordering and dismissal without redemption | CT candidate: legacy `client/features/chat/anchors/join-invite-dialog.ct.tsx`. | Rebuild controlled component cases through the maintained mount and typed network helpers. No matching current client assertions were found in the selected scan. |
-| Persona validation/focus, approval, refused confirmation and unavailable pending invite | CT candidate: legacy `client/features/auth/components/login-pending-join.ct.tsx`. | Rebuild controlled states, not the OIDC journey. Retain a local dismissal case only for a distinct component failure. |
-| Shared invite sentence capitalization and formatting | Unit candidate: production [invite-copy](../../../packages/client/src/lib/invite-copy.ts). | Move useful uncovered formatting assertions to the pure function; drop duplicate capitalization-only CTs. |
+| Invalid invite disclosure, focus ordering and dismissal without redemption | CT: [invite dialog](../../../tests/client/features/chat/anchors/join-invite-dialog.ct.tsx). | Keep the rebuilt controlled cases, including late popup focus and refusal after a ready preview. Membership remains an integration responsibility. |
+| Persona validation/focus, approval, refused confirmation and unavailable pending invite | CT: [pending join](../../../tests/client/features/auth/components/login-pending-join.ct.tsx). | Keep public login-surface state and outgoing-request assertions. These do not prove session cookies or backend authentication. |
+| Shared invite sentence formatting, withheld host and unnamed-room fallback | Unit: [invite wording](../../../tests/client/lib/invite-copy.dom.test.ts) calls production [invite-copy](../../../packages/client/src/lib/invite-copy.ts). | Keep the pure-function case; drop duplicate capitalization-only CTs. DOM declarations do not require browser execution. |
 
-Start the next restoration batch with the controlled invite components under [client regression work](../../work/0977-rebuild-client-lifecycle-and-boundary-regression-cases.md). Confirm current component contracts before porting assertions. Preserve production providers and use explicit external responses, not copied registry assemblies.
+The controlled invite-component replacements are maintained under [client regression work](../../work/0977-rebuild-client-lifecycle-and-boundary-regression-cases.md). Reuse them when comparing further reference cases. The remaining client lifecycle and boundary cases stay open; this batch does not qualify the OIDC E2E journey.
 
 Keep the server coverage above. Legacy `server/domain/chat/substrate/wire-history.test.ts` and `db/query/chat-visibility.int.test.ts` still need case-by-case comparison with their current owners. This map does not classify those files as missing or obsolete.
 
