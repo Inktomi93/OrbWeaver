@@ -18,7 +18,7 @@ export type { InvocationChat, PluginBridge, PluginInvocationLiveness } from "./b
 export type { PluginCommandView } from "./command-view.ts";
 export { pluginCommandViewSchema } from "./command-view.ts";
 export { HostVersionError, PluginCapabilityError, PluginHostDeadlineError, PluginSuggestedError } from "./errors.ts";
-export type { PluginFrameCall, PluginFrameMintRequest, PluginFrameMintResponse, PluginFrameResult } from "./frame.ts";
+export type { PluginFrameCall, PluginFrameMintRequest, PluginFrameMintResponse } from "./frame.ts";
 export {
   PLUGIN_FRAME_CALL_REFUSED,
   PLUGIN_FRAME_CALLS_IN_FLIGHT_MAX,
@@ -37,7 +37,6 @@ export { pluginGrantTasks } from "./grant-tasks.ts";
 export type {
   ChatHandle,
   HostFunctionRef,
-  PluginAssetView,
   PluginCharacterView,
   PluginHostV1,
   PluginLogLevel,
@@ -64,7 +63,7 @@ export {
 } from "./host-v1.ts";
 export type { PluginOrigin, PluginStatus } from "./lifecycle.ts";
 export { PLUGIN_ORIGINS, PLUGIN_STATUSES } from "./lifecycle.ts";
-export type { PluginBuiltAgainst, PluginBundleHash, PluginCapability, PluginManifest, PluginSlug } from "./manifest.ts";
+export type { PluginBuiltAgainst, PluginBundleHash, PluginCapability, PluginManifest } from "./manifest.ts";
 export {
   NET_HOSTS_MAX,
   PLUGIN_BUNDLE_MAX_BYTES,
@@ -128,31 +127,23 @@ export { SNIPPET_ERROR_KINDS, snippetResultSchema } from "./snippet.ts";
 export type { PluginSuggestedAct, PluginSuggestedActKind } from "./suggestion.ts";
 export { PLUGIN_SUGGESTED_ACT_KINDS, summarizePluginAct } from "./suggestion.ts";
 export type {
-  PluginBadgeIntent,
   PluginBadgeNode,
   PluginBoundBoolean,
   PluginBoundGridTile,
-  PluginBoundKeyValueRow,
   PluginBoundNumber,
   PluginBoundString,
   PluginButtonNode,
-  PluginButtonVariant,
   PluginCommandArgSpec,
-  PluginCommandArgs,
-  PluginCommandArgsFor,
-  PluginCommandArgType,
   PluginCommandArgValue,
   PluginCommandPlacement,
   PluginCommandPlacementTarget,
   PluginCommandRegistrationMeta,
   PluginConfirmButtonNode,
   PluginFrameBody,
-  PluginGapToken,
   PluginGridNode,
   PluginGridTile,
   PluginIconName,
   PluginIconNode,
-  PluginImageAspect,
   PluginImageNode,
   PluginKeyValueNode,
   PluginKeyValueRow,
@@ -163,18 +154,11 @@ export type {
   PluginNodeKind,
   PluginNumberFieldNode,
   PluginPageHero,
-  PluginPageStage,
-  PluginPageStageKind,
-  PluginPrimaryArbitration,
-  PluginRowNode,
   PluginSearchBarNode,
-  PluginSectionNode,
   PluginSelectHostSource,
   PluginSelectNode,
   PluginSelectOption,
   PluginSliderNode,
-  PluginStackNode,
-  PluginStateBinding,
   PluginSurfaceAnchor,
   PluginSurfaceNode,
   PluginSurfaceRegistrationMeta,
@@ -183,8 +167,6 @@ export type {
   PluginTabsNode,
   PluginTextFieldNode,
   PluginTextNode,
-  PluginTextVoice,
-  PluginTierRegistrar,
   PluginToast,
   PluginToastLevel,
   PluginToggleNode,
@@ -253,11 +235,9 @@ export type {
   PluginDisplayTransformView,
   PluginFanoutResult,
   PluginFanoutSkip,
-  PluginFanoutSkipReason,
   PluginLogView,
   PluginSurfaceState,
   PluginSurfaceView,
-  PluginUpdateSource,
   PluginView,
 } from "./view.ts";
 export {
