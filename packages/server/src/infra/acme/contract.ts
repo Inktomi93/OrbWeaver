@@ -5,7 +5,7 @@ import type { IpCertificateFailureCode } from "@orb/contracts/identity";
 import { z } from "zod";
 
 /** A certificate chain and its private key, as PEM, with the validity the renewal schedule reads (epoch ms). */
-export const issuedCertificateSchema = z.strictObject({ certificatePem: z.string(), keyPem: z.string(), notBefore: z.number(), notAfter: z.number() });
+const issuedCertificateSchema = z.strictObject({ certificatePem: z.string(), keyPem: z.string(), notBefore: z.number(), notAfter: z.number() });
 export type IssuedCertificate = z.infer<typeof issuedCertificateSchema>;
 
 /** One order for one public IP address. The HTTP-01 responder listens on `challengePort` only while the challenge is

@@ -48,6 +48,7 @@ export const config = {
         "playwright/index.css",
       ],
       project: ["scripts/**/*.ts", "tests/**/*.{ts,tsx}", "playwright/**/*.{ts,tsx,css}"],
+      playwright: { config: ["playwright.config.ts", "playwright-ct.config.ts"] },
       // The full binary analysis sees these deliberately fake executables in missing-binary and PATH-shim controls.
       // mkfifo is the POSIX coreutils binary the orchestrator-inject hook test uses to plant a FIFO transcript path;
       // it is an OS tool, never an npm dependency, so knip has no package to credit it to.
@@ -119,6 +120,8 @@ export const config = {
     },
     "packages/server": {
       includeEntryExports: true,
+      // Contract types remain importable even when their consumers use them through enclosing signatures.
+      ignoreExportsUsedInFile: { interface: true, type: true },
       // The declaration compiler consumes src/index.ts; client imports resolve to its generated output.
       entry: ["src/entry/index.ts!", "src/index.ts!"],
       // Public entries come from package.json exports.
