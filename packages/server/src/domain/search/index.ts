@@ -5,34 +5,8 @@
 // the `SearchScope`/`SearchTarget` axes.
 
 export { SEARCH_EMPTY_QUERY, SEARCH_NO_SPACE, SEARCH_SPACE_REINDEXING, SearchError } from "./contract/errors.ts";
-export type {
-  CorpusParams,
-  DigestsParams,
-  DiscoverParams,
-  DocumentSearchParams,
-  FieldSearchParams,
-  FindCharactersParams,
-  ImagesParams,
-  KnnParams,
-  SegmentsParams,
-  SimilarArtParams,
-  SimilarCharactersParams,
-  SuggestParams,
-  UnifiedSearchParams,
-} from "./contract/params.ts";
-export type {
-  CharacterCardHit,
-  CorpusHit,
-  DigestSearchHit,
-  DocumentChunkHit,
-  FieldSearchHit,
-  ImageSearchHit,
-  SearchHit,
-  SearchSuggestion,
-  SegmentSearchHit,
-  SimilarArtHit,
-  UnifiedSearchResult,
-} from "./contract/results.ts";
+
+export type { DocumentChunkHit } from "./contract/results.ts";
 export type { ResolveActiveDocumentIdsOp, SearchService } from "./contract/service.ts";
 
 export { createSearchService } from "./service.ts";
