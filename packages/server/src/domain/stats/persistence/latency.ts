@@ -7,10 +7,9 @@
 // which the rebuild built from that same scope, so a latency computed over a wider population would print a
 // number for a room the generations column denies (#1477).
 
-import type { LatencyScope } from "@orb/contracts/stats";
+import type { LatencyScope, LatencyStats } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { sql } from "drizzle-orm";
-import type { LatencyStats } from "../contract/views.ts";
 import { percentiles } from "../substrate/percentiles.ts";
 import { ownerChatIds } from "./owner-chat-scope.ts";
 

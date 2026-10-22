@@ -11,7 +11,7 @@
 // this extends that precedent to counts, costs and rates).
 
 import type { TokenProvenance } from "@orb/contracts/chat";
-import type { ExtraStats } from "../contract/views.ts";
+import type { ExtraStats } from "@orb/contracts/stats";
 
 /** 0 when the denominator is non-positive (avoids NaN/Infinity from an empty rollup).
  *

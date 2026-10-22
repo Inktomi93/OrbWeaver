@@ -8,7 +8,18 @@
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
-import type { ChatBookView, LoreConstantCanonRow, LoreEntryIndexRow, UpsertEntriesResult, WiBusEvent } from "@orb/contracts/world-info";
+import type {
+  BookAttachmentTargets,
+  BookAttachmentView,
+  BookView,
+  BookWithUsage,
+  ChatBookView,
+  EntryView,
+  LoreConstantCanonRow,
+  LoreEntryIndexRow,
+  UpsertEntriesResult,
+  WiBusEvent,
+} from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { ChatId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
@@ -49,7 +60,6 @@ import type {
   UpsertEntriesParams,
 } from "./params.ts";
 import type { BackfillResult, DetachResult, RemoveResult, ReorderResult } from "./results.ts";
-import type { BookAttachmentTargets, BookAttachmentView, BookView, BookWithUsage, EntryView } from "./views.ts";
 
 /** DI bundle every world-info verb closes over. Chat-scope guards/emit are injected from chat itself. */
 export interface WorldInfoContext {

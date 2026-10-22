@@ -125,8 +125,8 @@ packages/server/src/
 
 ## 4. The per-feature template — the legibility engine
 
-**Every feature is the same eight slots.** Learn one, know all. Scales from a small leaf like `tag`
-to the 90+-file `chat` without changing shape.
+Use the same role-based layout across domains. Create `contract/views.ts` only for definitions the domain owns.
+Import shared view shapes directly from `@orb/contracts`; do not create forwarding-only view files.
 
 ```
 domain/<feature>/
@@ -139,7 +139,7 @@ domain/<feature>/
 │   ├── service.ts      interface <Feature>Service   ← read THIS to know everything the feature does
 │   ├── params.ts       every verb's *Params
 │   ├── results.ts      every verb's *Result
-│   ├── views.ts        read-model shapes (what the client receives)
+│   ├── views.ts        domain-owned read models, when needed
 │   └── errors.ts       typed domain errors
 ├── verbs/          THE ACTIONS — one verb per file, `createX(ctx, deps?)`:
 │   ├── <verb>.ts       flat when few
@@ -156,7 +156,7 @@ domain/<feature>/
 | - | - |
 | What does this feature *do*? | `contract/service.ts` (the interface) |
 | Where's the `X` action? | `verbs/X.ts` |
-| What shape does the client get? | `contract/views.ts` |
+| What shape does the client get? | `@orb/contracts`; domain-owned read models stay in `contract/views.ts` |
 | Where's the DB? | `persistence/` |
 | Where's the pure logic? | `substrate/` or the named `<subsystem>/` |
 | How do I enter from outside? | `index.ts` (only) |

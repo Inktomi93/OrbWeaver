@@ -1,7 +1,7 @@
+import type { LeaderboardPage } from "@orb/contracts/stats";
 import type { UserId } from "@orb/kit/ids";
 import type { LeaderboardOpts } from "../contract/params.ts";
 import type { StatsContext, StatsService } from "../contract/service.ts";
-import type { LeaderboardPage } from "../contract/views.ts";
 import { readLeaderboard } from "../persistence/rollups.ts";
 
 // leaderboard — per-character rows for the owner, sortable (assistantTurns | totalGenTimeMs | swipes |

@@ -2,11 +2,11 @@
 // Owner-scoped through the asset join (`assets.ownerId`); the subject and room filters only narrow that scope, so
 // naming a shared room returns the caller's own pictures from it. No envelope: a short page is the end.
 
+import type { GalleryItemView } from "@orb/contracts/assets";
 import { DEFAULT_GALLERY_SORT } from "@orb/contracts/assets";
 import type { AssetsContext } from "../context.ts";
 import type { GalleryListParams } from "../contract/params.ts";
 import type { AssetsService } from "../contract/service.ts";
-import type { GalleryItemView } from "../contract/views.ts";
 import { listGalleryViewRows } from "../persistence/queries.ts";
 
 export function createListGallery(ctx: AssetsContext): AssetsService["listGallery"] {

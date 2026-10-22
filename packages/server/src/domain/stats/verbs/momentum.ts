@@ -1,6 +1,6 @@
+import type { MomentumBucket } from "@orb/contracts/stats";
 import type { UserId } from "@orb/kit/ids";
 import type { StatsContext, StatsService } from "../contract/service.ts";
-import type { MomentumBucket } from "../contract/views.ts";
 import { readMomentumBuckets } from "../persistence/activity.ts";
 
 // momentum — each character's replies per UTC quarter-hour, from canon (character_stats is cumulative, no

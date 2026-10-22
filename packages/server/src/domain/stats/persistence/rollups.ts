@@ -7,14 +7,6 @@
 // `characters.ownerId`; the name comes off the flat `characters.name`. personaUsage is the live definition
 // (anchor persona OR a participant's active persona).
 
-import { STATS_LIST_MAX_LIMIT } from "@orb/contracts/stats";
-import type { Db } from "@orb/db";
-import { characterStats, characters, dailyStats, modelStats, ownerStats } from "@orb/db";
-import { escapeLikeTerm } from "@orb/db/query";
-import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
-import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
-import type { LeaderboardOpts, PersonaUsageOpts, TimeseriesOpts } from "../contract/params.ts";
 import type {
   ActivityBucket,
   CharacterStatsView,
@@ -24,7 +16,15 @@ import type {
   PersonaUsageRow,
   StatsFreshness,
   WrappedSummary,
-} from "../contract/views.ts";
+} from "@orb/contracts/stats";
+import { STATS_LIST_MAX_LIMIT } from "@orb/contracts/stats";
+import type { Db } from "@orb/db";
+import { characterStats, characters, dailyStats, modelStats, ownerStats } from "@orb/db";
+import { escapeLikeTerm } from "@orb/db/query";
+import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
+import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
+import type { LeaderboardOpts, PersonaUsageOpts, TimeseriesOpts } from "../contract/params.ts";
 import { aggregateTokenProvenance, cacheHitRate, deriveExtra, reasoningRate, recordedCost, recordedTokens, throughputTps } from "../substrate/rates.ts";
 import { modelLatencyKey, readLatency, readModelLatencies } from "./latency.ts";
 

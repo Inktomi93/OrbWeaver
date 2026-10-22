@@ -3,7 +3,15 @@
 // depthPrompt/extensions/refinery are nullable (corrupt ⇒ null). The card projection carries NO regexScripts
 // (D121-E — they are library rows behind `character_regex_scripts`; only the serde boundary re-embeds them).
 
-import type { CharacterCard, CharacterListCursor, CharacterListSort, StoredCardBlob } from "@orb/contracts/character";
+import type {
+  CharacterCard,
+  CharacterDetail,
+  CharacterListCursor,
+  CharacterListSort,
+  CharacterSummary,
+  CharacterTagGroupCensus,
+  StoredCardBlob,
+} from "@orb/contracts/character";
 import { cardDepthPromptSchema, characterProvenanceOf, greetingsColumnSchema, refinerySignalsSchema, storedCardBlobSchema } from "@orb/contracts/character";
 import type { TagView } from "@orb/contracts/tag";
 import type { ThemeBackground } from "@orb/contracts/theme";
@@ -22,7 +30,6 @@ import { addSpanEvent } from "#foundation/observability";
 import { AssetNotFoundError } from "../contract/errors.ts";
 import type { CharacterListFilter } from "../contract/params.ts";
 import type { SnapshotSummary } from "../contract/results.ts";
-import type { CharacterDetail, CharacterSummary, CharacterTagGroupCensus } from "../contract/views.ts";
 
 const LIMIT_ONE = 1;
 

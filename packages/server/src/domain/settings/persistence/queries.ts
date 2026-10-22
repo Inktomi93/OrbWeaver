@@ -12,7 +12,7 @@
 // became the second caller and a domain→domain value import was the wrong shape).
 
 import type { AssetKind } from "@orb/contracts/assets";
-import type { UserSettings } from "@orb/contracts/settings";
+import type { GlobalSettingView, UserSettings, UserSettingsView } from "@orb/contracts/settings";
 import { appSettingsConfig, DEFAULT_USER_SETTINGS, parseUserSettings, USER_SETTINGS_SCHEMA_VERSION, userSettingsConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { assets, settings, userSettings } from "@orb/db";
@@ -27,7 +27,6 @@ import type { SQL } from "drizzle-orm";
 import { and, eq, exists, sql } from "drizzle-orm";
 import { requireIntactStoredConfig } from "#primitives/stored-config";
 import { APP_SETTINGS_KEY } from "../contract/keys.ts";
-import type { GlobalSettingView, UserSettingsView } from "../contract/views.ts";
 
 /** Read this user's typed/defaulted UserSettings. A never-touched account returns parsed defaults with no
  *  write (updatedAt: 0) — materializing the row is ensureUserSettings.

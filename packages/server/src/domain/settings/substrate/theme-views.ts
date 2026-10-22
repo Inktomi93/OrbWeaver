@@ -11,10 +11,10 @@
 // writer: `listThemes`, `getTheme`, `createTheme`, `duplicateTheme`, `promoteTheme` and `updateTheme` all
 // return `toThemeView(row)` and cannot omit it.
 
+import type { ThemeView } from "@orb/contracts/settings";
 import { themeOverrideSchema } from "@orb/contracts/theme";
 import type { themes } from "@orb/db";
 import { THEME_HEARTH_ID } from "../constants.ts";
-import type { ThemeView } from "../contract/views.ts";
 
 type ThemeRow = typeof themes.$inferSelect;
 

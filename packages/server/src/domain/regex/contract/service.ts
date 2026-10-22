@@ -8,7 +8,7 @@
 
 import type { ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
-import type { ImportScriptFileResult } from "@orb/contracts/regex";
+import type { ImportScriptFileResult, RegexScriptRow, RegexScriptUsage } from "@orb/contracts/regex";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
@@ -46,7 +46,6 @@ import type {
 import type { ExportedRegexScriptFile } from "./portability.ts";
 import type { RoomDisplayPolicy } from "./resolve.ts";
 import type { BulkResult, DetachResult, RemoveResult, ReorderResult } from "./results.ts";
-import type { RegexScriptRow, RegexScriptUsage } from "./views.ts";
 
 /** DI bundle every regex verb closes over. Chat-scope guards are injected from chat itself. */
 export interface RegexContext {

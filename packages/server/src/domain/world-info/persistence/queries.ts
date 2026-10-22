@@ -10,7 +10,16 @@
 // primary key's own intent — `DESC` under a newest-first `createdAt`, and `ASC` inside a `priority` band so
 // a newly created entry appends to the END of its band instead of jumping the queue.
 
-import type { LoreConstantCanonRow } from "@orb/contracts/world-info";
+import type {
+  BookAttachmentTargets,
+  BookAttachmentView,
+  BookUsage,
+  BookView,
+  BookWithUsage,
+  EntryView,
+  LoreConstantCanonRow,
+  WorldBookRole,
+} from "@orb/contracts/world-info";
 import { entryMetadataSchema } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { characterBooks, characters, chatBooks, globalBooks, personaBooks, personas, worldBooks, worldEntries } from "@orb/db";
@@ -18,7 +27,6 @@ import type { CharacterId, ChatId, PersonaId, UserId, WorldBookId, WorldEntryId 
 import { resolveEntryScope } from "@orb/kit/world-info";
 import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
-import type { BookAttachmentTargets, BookAttachmentView, BookUsage, BookView, BookWithUsage, EntryView, WorldBookRole } from "../contract/views.ts";
 
 const LIMIT_ONE = 1;
 

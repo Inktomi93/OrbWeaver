@@ -3,10 +3,10 @@
 // `AssetListItem[]` (no page envelope): the client derives the next cursor from the last row's
 // `(uploadedAt, assetId)`, and a short page is end-of-list. Each row carries the stored `animated` fact (G2).
 
+import type { AssetListItem } from "@orb/contracts/assets";
 import type { AssetsContext } from "../context.ts";
 import type { ListOwnedParams } from "../contract/params.ts";
 import type { AssetsService } from "../contract/service.ts";
-import type { AssetListItem } from "../contract/views.ts";
 import { listOwnedAssetRows } from "../persistence/queries.ts";
 
 export function createListOwned(ctx: AssetsContext): AssetsService["listOwned"] {

@@ -6,12 +6,12 @@
 // credential/baseUrl smuggled onto the event can't survive into the persisted payload; the recipient is the
 // event's mandatory `recipientUserId` — a producer delivers to a user, it isn't the caller.
 
+import type { InboxView } from "@orb/contracts/notifications";
 import { notificationEventSchema } from "@orb/contracts/notifications";
 import { statementForOwner } from "@orb/db/wiring-owner";
 import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import type { RecordParams } from "../contract/params.ts";
 import type { NotificationsContext, NotificationsService } from "../contract/service.ts";
-import type { InboxView } from "../contract/views.ts";
 import { insertNotification } from "../persistence/queries.ts";
 import { asRaised } from "../substrate/actionable.ts";
 

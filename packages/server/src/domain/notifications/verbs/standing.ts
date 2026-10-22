@@ -21,10 +21,10 @@
 // The rows each verb actually changed come back so the composed op can publish them: a live reader treats
 // any inbox frame as "re-read the inbox", so publishing is what makes the bell agree without a reload.
 
+import type { InboxView } from "@orb/contracts/notifications";
 import { notificationEventSchema } from "@orb/contracts/notifications";
 import type { RefreshStandingParams, RetractParams } from "../contract/params.ts";
 import type { NotificationsContext, NotificationsService } from "../contract/service.ts";
-import type { InboxView } from "../contract/views.ts";
 import { dismissActiveOfType, updateActivePayloadOfType } from "../persistence/queries.ts";
 import { asRaised, asSettled } from "../substrate/actionable.ts";
 

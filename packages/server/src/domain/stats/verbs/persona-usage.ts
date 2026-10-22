@@ -1,7 +1,7 @@
+import type { PersonaUsageRow } from "@orb/contracts/stats";
 import type { UserId } from "@orb/kit/ids";
 import type { PersonaUsageOpts } from "../contract/params.ts";
 import type { StatsContext, StatsService } from "../contract/service.ts";
-import type { PersonaUsageRow } from "../contract/views.ts";
 import { readPersonaUsage } from "../persistence/rollups.ts";
 
 // personaUsage — live per-persona usage (a cheap chat-level GROUP BY, always fresh, NOT rolled up — so a

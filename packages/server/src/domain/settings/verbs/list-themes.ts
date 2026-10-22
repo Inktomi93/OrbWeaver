@@ -1,8 +1,8 @@
 // verb: listThemes — the caller's own themes PLUS every seed palette, as views. Read-only; no audit.
 
+import type { ThemeView } from "@orb/contracts/settings";
 import type { ListThemesParams } from "../contract/params.ts";
 import type { SettingsContext, SettingsService } from "../contract/service.ts";
-import type { ThemeView } from "../contract/views.ts";
 import { listReadableThemes } from "../persistence/theme-queries.ts";
 import { toThemeView } from "../substrate/theme-views.ts";
 

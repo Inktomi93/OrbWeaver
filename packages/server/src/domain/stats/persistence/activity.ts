@@ -2,10 +2,10 @@
 // cumulative). Bucketed by UTC quarter-hour, so the client folds it into the viewer's months. Owner scope is the
 // one-home membership definition in `persistence/owner-chat-scope.ts`, so a husk room is invisible here too.
 
+import type { MomentumBucket } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { sql } from "drizzle-orm";
 import { calendarBucketStartSql } from "#primitives/calendar-bucket-sql";
-import type { MomentumBucket } from "../contract/views.ts";
 import { ownerChatIds } from "./owner-chat-scope.ts";
 
 /** The owner's characters' assistant replies per (character, UTC quarter-hour), ascending by bucket. */

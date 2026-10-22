@@ -6,15 +6,12 @@
 // `ownerId` is always `principal.userId`. Verbs return data or `null`/empty for an absent rollup — no typed
 // error.
 
-import type { CharacterEconomics, CharacterModelEconomics, LatencyScope } from "@orb/contracts/stats";
-import type { Db } from "@orb/db";
-import type { DatabaseHandle } from "@orb/db/wiring";
-import type { CharacterId, IdSource, UserId } from "@orb/kit/ids";
-import type { ByModelOpts, LeaderboardOpts, PersonaUsageOpts, TimeseriesOpts } from "./params.ts";
-import type { ReconcileStatsResult } from "./results.ts";
 import type {
   ActivityBucket,
+  CharacterEconomics,
+  CharacterModelEconomics,
   CharacterStatsView,
+  LatencyScope,
   LatencyStats,
   LeaderboardPage,
   ModelStatRow,
@@ -23,7 +20,12 @@ import type {
   PersonaUsageRow,
   StatsFreshness,
   WrappedSummary,
-} from "./views.ts";
+} from "@orb/contracts/stats";
+import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import type { CharacterId, IdSource, UserId } from "@orb/kit/ids";
+import type { ByModelOpts, LeaderboardOpts, PersonaUsageOpts, TimeseriesOpts } from "./params.ts";
+import type { ReconcileStatsResult } from "./results.ts";
 
 /** The DI bundle every verb closes over: the libSQL handle + the injected clock the rebuild stamps with. */
 export interface StatsContext {

@@ -1,9 +1,8 @@
-import type { CreateCharacterInput } from "@orb/contracts/character";
+import type { CharacterDetail, CreateCharacterInput } from "@orb/contracts/character";
 import type { CharacterId } from "@orb/kit/ids";
 import type { AttachImportedArtParams, CreateCharacterParams, FindByHandleParams, FindByImportHashParams, FindByNameParams } from "./params.ts";
 import type { CharacterRef } from "./results.ts";
 import type { CharacterService } from "./service.ts";
-import type { CharacterDetail } from "./views.ts";
 
 /** The import consumer needs identity only; the source signatures remain the actual owner's params. */
 export interface ImportCharacterPort extends Pick<CharacterService, "attachImportedArt"> {

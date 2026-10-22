@@ -18,12 +18,12 @@
 // two input modes. The constraint race still classifies to `DomainConflictError`, never a 500.
 // Never writes `ownerId: null`: promote can never mint a seed (isSeed derives from a NULL owner, D71).
 
+import type { ThemeView } from "@orb/contracts/settings";
 import { cardEmbeddableSubset, themeOverrideSchema } from "@orb/contracts/theme";
 import { DomainConflictError } from "@orb/kit/errors";
 import { nextFreeName } from "@orb/kit/strings";
 import type { PromoteThemeParams } from "../contract/params.ts";
 import type { SettingsContext, SettingsService } from "../contract/service.ts";
-import type { ThemeView } from "../contract/views.ts";
 import { insertTheme, isThemeNameConflict, listOwnedThemeNames } from "../persistence/theme-queries.ts";
 import { toThemeView } from "../substrate/theme-views.ts";
 

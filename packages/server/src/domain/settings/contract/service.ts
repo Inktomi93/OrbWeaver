@@ -1,7 +1,15 @@
 // The typed API surface: the `SettingsContext` DI bundle and the `SettingsService` interface. Cross-feature
 // deps arrive injected — admin's guard ops are type-only imports; the runtime ops wire at the entry root.
 
-import type { AppSettingsView, BackgroundLibraryEntry, EffectiveAppConfig, UserSettings } from "@orb/contracts/settings";
+import type {
+  AppSettingsView,
+  BackgroundLibraryEntry,
+  EffectiveAppConfig,
+  GlobalSettingView,
+  ThemeView,
+  UserSettings,
+  UserSettingsView,
+} from "@orb/contracts/settings";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
@@ -28,7 +36,6 @@ import type {
   UpdateUserSettingsSectionParams,
 } from "./params.ts";
 import type { ImportThemeFileOutcome } from "./portability.ts";
-import type { GlobalSettingView, ThemeView, UserSettingsView } from "./views.ts";
 
 /** The DI bundle every verb closes over, wired at the composition root. */
 export interface SettingsContext {

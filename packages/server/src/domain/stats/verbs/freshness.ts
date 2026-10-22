@@ -1,6 +1,6 @@
+import type { StatsFreshness } from "@orb/contracts/stats";
 import type { UserId } from "@orb/kit/ids";
 import type { StatsContext, StatsService } from "../contract/service.ts";
-import type { StatsFreshness } from "../contract/views.ts";
 import { readFreshness } from "../persistence/rollups.ts";
 
 // freshness — the empty-state gate: computedAt + hasData. `stale` is ALWAYS false post-Stage-3 (the

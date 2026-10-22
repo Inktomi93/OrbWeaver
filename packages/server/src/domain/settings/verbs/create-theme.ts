@@ -3,13 +3,13 @@
 // boundary; a taken `(ownerId, name)` is TOCTOU-safe (insert optimistically, classify
 // the constraint violation — the `tag.create` precedent), never a phantom pre-SELECT.
 
+import type { ThemeView } from "@orb/contracts/settings";
 import { themeOverrideSchema } from "@orb/contracts/theme";
 import { validateThemeCss } from "@orb/kit/css-validate";
 import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
 import { SETTINGS_OP_CODES } from "../contract/errors.ts";
 import type { CreateThemeParams } from "../contract/params.ts";
 import type { SettingsContext, SettingsService } from "../contract/service.ts";
-import type { ThemeView } from "../contract/views.ts";
 import { insertTheme, isThemeNameConflict } from "../persistence/theme-queries.ts";
 import { toThemeView } from "../substrate/theme-views.ts";
 

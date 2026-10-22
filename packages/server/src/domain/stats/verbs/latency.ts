@@ -1,7 +1,6 @@
-import type { LatencyScope } from "@orb/contracts/stats";
+import type { LatencyScope, LatencyStats } from "@orb/contracts/stats";
 import type { UserId } from "@orb/kit/ids";
 import type { StatsContext, StatsService } from "../contract/service.ts";
-import type { LatencyStats } from "../contract/views.ts";
 import { readLatency } from "../persistence/latency.ts";
 
 // latency — on-read TTFT/gen percentiles for the entity in view (owner | character | model). The stored

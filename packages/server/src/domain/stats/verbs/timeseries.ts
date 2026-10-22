@@ -1,7 +1,7 @@
+import type { ActivityBucket } from "@orb/contracts/stats";
 import type { UserId } from "@orb/kit/ids";
 import type { TimeseriesOpts } from "../contract/params.ts";
 import type { StatsContext, StatsService } from "../contract/service.ts";
-import type { ActivityBucket } from "../contract/views.ts";
 import { readTimeseries } from "../persistence/rollups.ts";
 
 // timeseries — the daily_stats activity timeline, one point per UTC quarter-hour bucket ascending, over an

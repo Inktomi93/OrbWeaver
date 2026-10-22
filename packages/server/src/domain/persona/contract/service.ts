@@ -5,6 +5,7 @@
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { PersonaCollision } from "@orb/contracts/import";
+import type { ConnectedCharacterView, PersonaDetail } from "@orb/contracts/persona";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
@@ -28,7 +29,6 @@ import type {
   UpdatePersonaParams,
 } from "./params.ts";
 import type { DisconnectResult, PersonaImportOutcome, PersonaPortableFile, PersonaSeedRepoint, RemovePersonaResult } from "./results.ts";
-import type { ConnectedCharacterView, PersonaDetail } from "./views.ts";
 
 /** The DI bundle every persona verb closes over, wired at the composition root. */
 export interface PersonaContext {

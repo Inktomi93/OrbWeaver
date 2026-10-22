@@ -11,10 +11,10 @@
 // principal, and the tRPC caller derives the owner from the authenticated session). The `ownerId` predicate is
 // in the WHERE, so a foreign / gone id is simply absent — never a leak, never a hash oracle for another owner.
 
+import type { AssetBlobRef } from "@orb/contracts/assets";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import type { AssetsContext } from "../context.ts";
 import type { AssetsService } from "../contract/service.ts";
-import type { AssetBlobRef } from "../contract/views.ts";
 import { selectOwnedAssetRefs } from "../persistence/queries.ts";
 
 export function createResolveOwnedAssetRefs(ctx: AssetsContext): AssetsService["resolveOwnedAssetRefs"] {

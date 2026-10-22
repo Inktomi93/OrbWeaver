@@ -1,9 +1,9 @@
 // domain/persona/contract/results — the thin result shapes. Most verbs return `PersonaDetail`
-// (contract/views.ts) or `void`; only the two delete-ish verbs carry a discriminant the caller acts on
+// (@orb/contracts/persona) or `void`; only the two delete-ish verbs carry a discriminant the caller acts on
 // (did a row actually go away?). One home for those shapes (§7.4 / types-in-contract).
 
+import type { PersonaDetail } from "@orb/contracts/persona";
 import type { PersonaId } from "@orb/kit/ids";
-import type { PersonaDetail } from "./views.ts";
 
 /** `export` — one portable persona file, ready for either door (the bundle descriptor streams it; the
  *  single-entity door hands its bytes down as text). */

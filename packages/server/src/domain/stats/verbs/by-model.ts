@@ -1,7 +1,7 @@
+import type { ModelStatRow } from "@orb/contracts/stats";
 import type { UserId } from "@orb/kit/ids";
 import type { ByModelOpts } from "../contract/params.ts";
 import type { StatsContext, StatsService } from "../contract/service.ts";
-import type { ModelStatRow } from "../contract/views.ts";
 import { readByModel } from "../persistence/rollups.ts";
 
 // byModel — per-(model, provider) usage from model_stats (desc by generations) + on-read latency + the

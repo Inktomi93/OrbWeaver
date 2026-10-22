@@ -1,7 +1,7 @@
 // domain/character/contract/service — typed API surface: CharacterContext (DI bundle) + CharacterService
 // (verb interface) + cross-feature injected-op types (character never sideways-imports assets or tag).
 
-import type { CharacterBulkTagResult, CharacterCard } from "@orb/contracts/character";
+import type { CharacterBulkTagResult, CharacterCard, CharacterDetail } from "@orb/contracts/character";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { ProseOverrides } from "@orb/contracts/prose";
@@ -50,7 +50,6 @@ import type {
   SnapshotSummary,
   SnapshotView,
 } from "./results.ts";
-import type { CharacterDetail } from "./views.ts";
 
 /** Best-effort reap of avatar assets a deleted character may have orphaned (FK is onDelete: set null). */
 export type ReapAssetsOp = (assetIds: readonly AssetId[]) => Promise<void>;

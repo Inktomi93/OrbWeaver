@@ -10,10 +10,10 @@
 // so a caller that stops early (a shed, an abort, a slow consumer) resumes exactly where it stopped. The
 // direction is the contract, which is why it is a distinct verb rather than a flag on `list`.
 
+import type { InboxView } from "@orb/contracts/notifications";
 import { NOTIFICATIONS_LIST_MAX_LIMIT } from "@orb/contracts/notifications";
 import type { ReplaySinceParams } from "../contract/params.ts";
 import type { NotificationsContext, NotificationsService } from "../contract/service.ts";
-import type { InboxView } from "../contract/views.ts";
 import { selectInboxSince } from "../persistence/queries.ts";
 import { asksNothing, NO_STANDING_ASKS, standingAsksOf, withActionable } from "../substrate/actionable.ts";
 

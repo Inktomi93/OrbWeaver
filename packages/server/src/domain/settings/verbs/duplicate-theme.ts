@@ -2,12 +2,12 @@
 // always a new owned row (fresh id, deep-copied override/css, name defaulted to "<source> copy" and
 // de-duped by a numeric suffix). Seeds are never edited in place.
 
+import type { ThemeView } from "@orb/contracts/settings";
 import { DomainConflictError } from "@orb/kit/errors";
 import { nextFreeName } from "@orb/kit/strings";
 import { ThemeNotFoundError } from "../contract/errors.ts";
 import type { DuplicateThemeParams } from "../contract/params.ts";
 import type { SettingsContext, SettingsService } from "../contract/service.ts";
-import type { ThemeView } from "../contract/views.ts";
 import { insertTheme, isThemeNameConflict, listOwnedThemeNames, readableTheme } from "../persistence/theme-queries.ts";
 import { toThemeView } from "../substrate/theme-views.ts";
 

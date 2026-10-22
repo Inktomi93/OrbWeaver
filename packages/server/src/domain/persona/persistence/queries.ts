@@ -3,6 +3,7 @@
 // ROOM-plane read; and the room's pin through its chat (`chats.anchorPersonaId`, the FK chain). `detailOf`
 // narrows the stored `metadata` blob at the read seam, so a corrupt row degrades to `null`.
 
+import type { ConnectedCharacterView, PersonaDetail, PersonaListView } from "@orb/contracts/persona";
 import { personaMetadataSchema } from "@orb/contracts/persona";
 import type { Db } from "@orb/db";
 import { assets, characterPersonas, characters, chats, personas } from "@orb/db";
@@ -11,7 +12,6 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import type { PersonaCandidate } from "#primitives/serde/persona";
 import { foldPersonaName, personaPlacementOf } from "#primitives/serde/persona";
 import { AssetNotFoundError, PersonaCharacterNotFoundError, PersonaNotFoundError } from "../contract/errors.ts";
-import type { ConnectedCharacterView, PersonaDetail, PersonaListView } from "../contract/views.ts";
 import { indexByDedupName } from "../substrate/dedup-name.ts";
 
 const LIMIT_ONE = 1;

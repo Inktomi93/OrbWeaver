@@ -2,6 +2,7 @@
 // (upload/fetch/variant core, gallery, and maintenance/DR verbs). Every surface is owner-scoped off
 // `principal.userId`; maintenance verbs are un-principal (CLI/workload/DR callers only).
 
+import type { AssetBlobRef, AssetListItem, GalleryItemView } from "@orb/contracts/assets";
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
@@ -20,7 +21,6 @@ import type {
   StoreParams,
 } from "./params.ts";
 import type { AssetCasRef, AssetMetadata, OwnedAssetBytes, StoredAsset } from "./results.ts";
-import type { AssetBlobRef, AssetListItem, GalleryItemView } from "./views.ts";
 
 /** The DI bundle every assets verb closes over (wired at `service.ts`); explicit interface, not `ReturnType<>`. */
 export interface AssetsContext {
