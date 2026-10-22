@@ -2,12 +2,12 @@
 // ownership check + the write into one round-trip; an empty result = not owned / not found → typed NotFound.
 // Bumps `updatedAt` (a visible write timestamp), touches NOTHING derived (chunks/attachments unaffected).
 
+import type { DocumentView } from "@orb/contracts/databank";
 import { documents } from "@orb/db";
 import { and, eq } from "drizzle-orm";
 import { DocumentNotFoundError } from "../contract/errors.ts";
 import type { RenameDocumentParams } from "../contract/params.ts";
 import type { DatabankContext, DatabankService } from "../contract/service.ts";
-import type { DocumentView } from "../contract/views.ts";
 import { requireOwnedMeta, toDocumentView } from "../persistence/queries.ts";
 import { activeSpaceModel } from "../substrate/active-space.ts";
 

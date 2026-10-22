@@ -1,10 +1,10 @@
 // verb: replace — the one explicit way a stored key's secret changes, named by id and owner-scoped. The row
 // keeps its id and label, so every connection on it moves to the new secret; a fresh key clears revocation.
 
+import type { CredentialView } from "@orb/contracts/credentials";
 import type { CredentialContext } from "../context.ts";
 import type { ReplaceCredentialParams } from "../contract/params.ts";
 import type { CredentialsService } from "../contract/service.ts";
-import type { CredentialView } from "../contract/views.ts";
 import { aadFor } from "../persistence/aad.ts";
 import { fetchOwnedCredential, rotateSealed } from "../persistence/queries.ts";
 import { requireOwned } from "../substrate/credential-not-found.ts";

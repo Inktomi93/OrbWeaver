@@ -14,7 +14,18 @@
 
 import type { StoredAsset } from "@orb/contracts/assets";
 import type { ResolveVisibleRoomsOp } from "@orb/contracts/chat";
-import type { BankHealthView, DatabankSettings, IngestRunResult, ReindexMode, ReindexResult, ReindexScope } from "@orb/contracts/databank";
+import type {
+  ActiveChatDocumentView,
+  BankHealthView,
+  DatabankSettings,
+  DocumentAttachmentsView,
+  DocumentDetailView,
+  DocumentView,
+  IngestRunResult,
+  ReindexMode,
+  ReindexResult,
+  ReindexScope,
+} from "@orb/contracts/databank";
 import type { DocumentVectorSweepReceipt, MemoryEmbedSpace } from "@orb/contracts/embeddings";
 import type { ExtractTextOp } from "@orb/contracts/extraction";
 import type { Can, Principal } from "@orb/contracts/identity";
@@ -46,7 +57,6 @@ import type {
   UploadDocumentParams,
 } from "./params.ts";
 import type { DatabankGatherResult, ListDocumentsResult, UploadResult } from "./results.ts";
-import type { ActiveChatDocumentView, DocumentAttachmentsView, DocumentDetailView, DocumentView } from "./views.ts";
 
 /** assets.store, narrowed to the CAS write databank drives (`kind:'document'`). Returns the stored blob's id
  *  + sha-256 hash (the hash IS the document's `importHash` — the CAS already content-addressed the bytes). */

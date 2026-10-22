@@ -15,10 +15,9 @@
 // the parse issues: paths, key names and fixed messages, never a value (zod omits input from its issues, and
 // `typeIdSchema` emits a fixed message rather than the id library's echo of the rejected value).
 
-import { credentialViewSchema, providerMetadataSchema } from "@orb/contracts/credentials";
+import { credentialStorageStatusSchema, credentialViewSchema, providerMetadataSchema } from "@orb/contracts/credentials";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
-import { credentialStorageStatusSchema } from "#domain/credentials";
 import { authedProcedure, t } from "../trpc.ts";
 
 export const credentialsRouter = t.router({

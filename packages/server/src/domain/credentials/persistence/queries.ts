@@ -2,7 +2,7 @@
 // stores/reads the sealed bytes. `toCredentialView` is the only projection to the wire shape — it drops
 // `ciphertext`/`iv`/`tag`.
 
-import type { CredRevokedReason, ProviderMetadata } from "@orb/contracts/credentials";
+import type { CredentialView, CredRevokedReason, ProviderMetadata } from "@orb/contracts/credentials";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { userCredentials } from "@orb/db";
@@ -11,7 +11,6 @@ import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { and, asc, eq, sql } from "drizzle-orm";
 import type { Sealed } from "#infra/crypto";
 import type { CapturedCredentialExecution, CredentialExecutionStrike } from "../contract/execution-witness.ts";
-import type { CredentialView } from "../contract/views.ts";
 
 type CredentialRow = typeof userCredentials.$inferSelect;
 

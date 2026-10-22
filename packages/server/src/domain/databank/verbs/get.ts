@@ -3,10 +3,10 @@
 // canon `extractedText` is returned ONLY when `includeText` (the panel's source view); `chunkCount` is derived
 // from the live `document_chunks` rows for the active model. A read: no audit.
 
+import type { DocumentDetailView } from "@orb/contracts/databank";
 import { DocumentNotFoundError } from "../contract/errors.ts";
 import type { GetDocumentParams } from "../contract/params.ts";
 import type { DatabankContext, DatabankService } from "../contract/service.ts";
-import type { DocumentDetailView } from "../contract/views.ts";
 import { loadOwnedDocument, requireOwnedMeta, toDocumentView } from "../persistence/queries.ts";
 import { activeSpaceModel } from "../substrate/active-space.ts";
 

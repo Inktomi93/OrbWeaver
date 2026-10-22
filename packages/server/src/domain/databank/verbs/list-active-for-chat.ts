@@ -14,9 +14,9 @@
 // set), and the client derives that set from the rows it rendered — a page of rows would silently write away
 // every hidden document not on it. Adding a limit here is a correctness change at the far end, not a tuning knob.
 
+import type { ActiveChatDocumentView } from "@orb/contracts/databank";
 import type { ListActiveForChatParams } from "../contract/params.ts";
 import type { DatabankContext, DatabankService } from "../contract/service.ts";
-import type { ActiveChatDocumentView } from "../contract/views.ts";
 import { loadMetaByIds, toDocumentView } from "../persistence/queries.ts";
 import { resolveChatDocumentSources, resolveChatHiddenDocumentIds } from "../persistence/scope.ts";
 import { activeSpaceModel } from "../substrate/active-space.ts";

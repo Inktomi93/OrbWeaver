@@ -34,7 +34,7 @@
 // `getVariables` returns the effective config-plane view: stored ChoiceBlock picks merged over the active
 // preset's declared defaults, with `withRandomPick: false` so the read is stable.
 
-import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
+import type { ChatInjectionView, DurableChatBusEvent, LiveOnlyChatBusEvent, UserMacroPicksView, VariablePicksView } from "@orb/contracts/chat";
 import type { UserMacroSpec, UserMacroValues } from "@orb/contracts/preset";
 import { userMacroValuesSchema } from "@orb/contracts/preset";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
@@ -72,7 +72,6 @@ import type {
 } from "../contract/params.ts";
 import type { ReapResult, VariablesResult } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
-import type { ChatInjectionView, UserMacroPicksView, VariablePicksView } from "../contract/views.ts";
 import { requireHost, requireParticipant } from "../guard.ts";
 import {
   commitGenerationObservationRemoval,

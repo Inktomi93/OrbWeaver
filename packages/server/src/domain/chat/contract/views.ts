@@ -17,25 +17,6 @@ import type { BatchStmt } from "@orb/db/query";
 import type { ChatStreamGenerationId, MessageVariantId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 
-export type {
-  AssembledPrompt,
-  // The present-tense context-fit answer (previewContextFit) — the cross-boundary wire node (`@orb/contracts/chat`),
-  // re-exported type-only so the service + front door share the ONE name.
-  ContextFitAnswer,
-  InvitePreview,
-  InviteView,
-  MessagesPage,
-  MessageView,
-  MessageWindow,
-  SectionPreview,
-  // The content-free SHAPE trace (getShapeTrace) — the cross-boundary wire node (`@orb/contracts/chat`),
-  // re-exported type-only so the service signature + front door reference the ONE name (derive-don't-respell).
-  ShapeTrace,
-  // The per-variant WIRE RECORD (getVariantWire) — the cross-boundary wire node (`@orb/contracts/chat`),
-  // re-exported type-only for the same reason. HOST-ONLY payload (see its contract header).
-  VariantWireView,
-} from "@orb/contracts/chat";
-
 /** A resumable SSE token-log row (replayStreamEvents) — one streamed delta with its replay cursor
  *  ("resumable SSE stream log"; the db `chat_stream_events` row projected). */
 export interface ChatStreamReplayEvent {
@@ -84,17 +65,6 @@ export interface ChatEventAttach extends StreamEventBounds {
    *  non-game / non-deception chat — the pre-P3 live behavior (reasoning member-visible). Never client-supplied. */
   readonly reasoningHostOnly: boolean;
 }
-
-export type {
-  ActionTemplatesPreview,
-  AssemblyPreview,
-  ChatInjectionView,
-  ChatSeatPortrait,
-  ChatVariables,
-  MessageVariantSummary,
-  UserMacroPicksView,
-  VariablePicksView,
-} from "@orb/contracts/chat";
 
 /** A selected continuation's immutable read witness; raw private JSON is compared, never sent on the wire. */
 export interface ContinueSnapshot

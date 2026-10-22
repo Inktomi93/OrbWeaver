@@ -4,6 +4,7 @@ import type {
   AssemblySectionRow,
   AssemblySource,
   ChatContentPart,
+  ChatVariables,
   CueRole,
   GroupConfig,
   ReactAsCharacterResult,
@@ -48,7 +49,7 @@ import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/m
 import type { MessageRole } from "@orb/kit/message-role";
 import type { MemoryConfig, MemoryRecallInputs } from "./memory.ts";
 import type { ReactAsCharacterParams } from "./params.ts";
-import type { ChatDetailData, ChatVariables, ParticipantData } from "./views.ts";
+import type { ChatDetailData, ParticipantData } from "./views.ts";
 
 export type { RequestTurnOp } from "@orb/contracts/chat";
 

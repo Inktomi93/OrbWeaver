@@ -9,7 +9,7 @@
 // row); what stays here is the ROW side of a probe outcome — `recordProbeOutcome` writes the revocation / strike
 // consequences, because only this domain writes `user_credentials`.
 
-import type { CredentialHealth, ResolvedSecret } from "@orb/contracts/credentials";
+import type { CredentialHealth, CredentialStorageStatus, CredentialView, ResolvedSecret } from "@orb/contracts/credentials";
 import type { ProviderDef } from "@orb/contracts/inference";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
@@ -30,7 +30,6 @@ import type {
   ReplaceCredentialParams,
   ResolveCredentialParams,
 } from "./params.ts";
-import type { CredentialStorageStatus, CredentialView } from "./views.ts";
 
 /** The DI bundle the credential verbs close over, wired at the composition root. */
 export interface CredentialContext {

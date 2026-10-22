@@ -2,6 +2,7 @@
 // "default" too) gets the next free spelling and `replace` is the only way a stored secret changes. The
 // provider is checked against the registry before sealing: its id is half the AAD.
 
+import type { CredentialView } from "@orb/contracts/credentials";
 import type { Db } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/query";
 import { DomainOperationError } from "@orb/kit/errors";
@@ -10,7 +11,6 @@ import type { CredentialContext } from "../context.ts";
 import { CREDENTIALS_OP_CODES, CredentialsConflictError } from "../contract/errors.ts";
 import type { AddCredentialParams } from "../contract/params.ts";
 import type { CredentialsService } from "../contract/service.ts";
-import type { CredentialView } from "../contract/views.ts";
 import { aadFor } from "../persistence/aad.ts";
 import { insertSealed, listProviderLabels } from "../persistence/queries.ts";
 import { reloadView, requireStorage } from "../substrate/stored.ts";

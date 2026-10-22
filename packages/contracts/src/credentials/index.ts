@@ -92,6 +92,16 @@ export const credentialViewSchema = z.strictObject({
 });
 export type CredentialView = z.infer<typeof credentialViewSchema>;
 
+/** The DEPLOYMENT's credential-storage capability (`storageStatus`) — `false` when no `CREDENTIALS_KEY` is
+ *  configured, in which case every write verb refuses (`credentials_disabled`) and the UI must refuse the
+ *  INPUT rather than collect a live secret into a form that cannot keep it. An object, not a bare boolean, so
+ *  a future reason/remedy field is additive. */
+export interface CredentialStorageStatus {
+  readonly enabled: boolean;
+}
+
+export const credentialStorageStatusSchema = z.strictObject({ enabled: z.boolean() }) satisfies z.ZodType<CredentialStorageStatus>;
+
 // Phantom `unique symbol` brand: an arbitrary `{ source, ... }` literal can't satisfy it, so the ONLY
 // way to produce a `ResolvedCredential` is the domain `resolve.ts` factory's encapsulated cast.
 declare const secretBrand: unique symbol;

@@ -24,6 +24,7 @@ import type {
   TurnOrigin,
   UserMacroDraws,
   VariantMetadata,
+  VariantWireView,
 } from "@orb/contracts/chat";
 import {
   chatReasoningPartSchema,
@@ -55,7 +56,7 @@ import type { RetainedCanonContributions } from "../contract/generation-observat
 import type { ChatMetadata } from "../contract/metadata.ts";
 import { parseChatMetadata } from "../contract/metadata.ts";
 import type { DeliveredCue } from "../contract/results.ts";
-import type { ChatStreamReplayEvent, ContinueSnapshot, StreamEventBounds, VariantWireView } from "../contract/views.ts";
+import type { ChatStreamReplayEvent, ContinueSnapshot, StreamEventBounds } from "../contract/views.ts";
 import { continuationToolsAreUndone, signaturesForContent } from "../substrate/content-signatures.ts";
 
 const LIMIT_ONE = 1;

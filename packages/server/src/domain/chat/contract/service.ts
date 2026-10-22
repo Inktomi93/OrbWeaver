@@ -10,7 +10,30 @@
 // one participant-insert chokepoint AND the only public human-join path — there is no standalone `join`
 // verb. The two-party host handoff is modelled as two verbs (nominate + accept).
 
-import type { ChatReactionsView, EffectiveRegexView, GroupConfig, MemberCardView, NextTurnConnectionView, RoomOverrides } from "@orb/contracts/chat";
+import type {
+  ActionTemplatesPreview,
+  AssembledPrompt,
+  AssemblyPreview,
+  ChatInjectionView,
+  ChatReactionsView,
+  ContextFitAnswer,
+  EffectiveRegexView,
+  GroupConfig,
+  InvitePreview,
+  InviteView,
+  MemberCardView,
+  MessagesPage,
+  MessageVariantSummary,
+  MessageView,
+  MessageWindow,
+  NextTurnConnectionView,
+  RoomOverrides,
+  SectionPreview,
+  ShapeTrace,
+  UserMacroPicksView,
+  VariablePicksView,
+  VariantWireView,
+} from "@orb/contracts/chat";
 import type { ChatDocumentVisibility } from "@orb/contracts/databank";
 import type { SendAvailability } from "@orb/contracts/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
@@ -128,31 +151,15 @@ import type {
   VariablesResult,
 } from "./results.ts";
 import type {
-  ActionTemplatesPreview,
-  AssembledPrompt,
-  AssemblyPreview,
   ChatBusReplayEvent,
   ChatDetailData,
   ChatEventAttach,
-  ChatInjectionView,
   ChatLineageData,
   ChatListPageData,
   ChatStreamReplayEvent,
   ChatSummaryData,
-  ContextFitAnswer,
-  InvitePreview,
-  InviteView,
-  MessagesPage,
-  MessageVariantSummary,
-  MessageView,
-  MessageWindow,
   ParticipantData,
-  SectionPreview,
-  ShapeTrace,
   StreamEventBounds,
-  UserMacroPicksView,
-  VariablePicksView,
-  VariantWireView,
 } from "./views.ts";
 
 export interface ChatService {

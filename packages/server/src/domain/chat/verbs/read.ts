@@ -19,12 +19,16 @@
 // resolves the model the previews need; `resolveForeignInputs` is the foreign half of the assemble ctx.
 
 import type {
+  ActionTemplatesPreview,
   AssembleCharacter,
   AssembleContext,
+  AssembledPrompt,
   AssemblePersona,
+  AssemblyPreview,
   ChatInjection,
   ChatLibraryLens,
   ChatReasoningPart,
+  ChatSeatPortrait,
   ContextFitAnswer,
   ContextFitPreview,
   ContextFitUnbound,
@@ -33,8 +37,13 @@ import type {
   JoinHistoryVisibility,
   MemberCardView,
   MemberCardVisibility,
+  MessagesPage,
+  MessageVariantSummary,
   MessageView,
   NextTurnConnectionView,
+  SectionPreview,
+  ShapeTrace,
+  VariantWireView,
 } from "@orb/contracts/chat";
 import { buildIdentityNameContext, CHAT_LIST_MAX_LIMIT, CHAT_MESSAGE_LIST_MAX_LIMIT, DEFAULT_GROUP_CONFIG, projectViewForMember } from "@orb/contracts/chat";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
@@ -99,23 +108,14 @@ import type { PromptHistoryRegexEnv } from "../contract/regex.ts";
 import type { HistoryBudgetInput, HistoryMacroNames } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
 import type {
-  ActionTemplatesPreview,
-  AssembledPrompt,
-  AssemblyPreview,
   ChatDetailData,
   ChatEventAttach,
   ChatLineageData,
   ChatListPageData,
-  ChatSeatPortrait,
   ChatStreamReplayEvent,
   ChatSummaryData,
-  MessagesPage,
-  MessageVariantSummary,
   ParticipantData,
-  SectionPreview,
-  ShapeTrace,
   StreamEventBounds,
-  VariantWireView,
 } from "../contract/views.ts";
 import { gateLineagePerAncestor, requireHost, requireParticipant } from "../guard.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
