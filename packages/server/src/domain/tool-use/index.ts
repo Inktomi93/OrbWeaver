@@ -10,7 +10,7 @@ export type {
   ToolExecutionContext,
   ToolHandlerResult,
 } from "./contract/params.ts";
-export { TOOL_SOURCES } from "./contract/params.ts";
+
 export type { ResolvedToolSet } from "./contract/results.ts";
 export type { ToolUseService } from "./contract/service.ts";
 export { createToolUseService } from "./service.ts";

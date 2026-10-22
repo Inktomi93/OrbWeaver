@@ -1,8 +1,6 @@
 // domain/connection — FRONT DOOR: the service, composition factories and consumed public contracts.
 // Canonical inference wire shapes are imported directly from @orb/contracts/inference.
 
-export { ConnectionNotFoundError } from "./contract/errors.ts";
-
 export {
   bindingViewSchema,
   catalogRefreshOutcomeSchema,

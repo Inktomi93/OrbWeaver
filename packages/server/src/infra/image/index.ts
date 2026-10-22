@@ -21,7 +21,6 @@ import sharp from "sharp";
 import type { ImageAdapter, ImageFormat, ImageInfo } from "./contract.ts";
 
 export type { ImageAdapter, ImageInfo, ImageTransformOptions } from "./contract.ts";
-export { IMAGE_FORMATS } from "./contract.ts";
 
 const DEFAULT_FORMAT: ImageFormat = "webp";
 const DEFAULT_QUALITY = 80;
