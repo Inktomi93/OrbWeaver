@@ -500,7 +500,7 @@ function agentFrames(model: string, structuredOutput?: unknown): Record<string, 
 }
 
 test("(7) agent-sdk summarize runs a preset's effort with thinking on, and drops a role temperature by name", async () => {
-  const edge = physicalSdkScenario({ frames: agentFrames("claude-opus-5") });
+  await using edge = physicalSdkScenario({ frames: agentFrames("claude-opus-5") });
   const model = "claude-opus-5";
   await using root = await createRuntimeRoot({ sdkSpawn: edge.spawn });
   using warning = vi.spyOn(getLog(), "warn");
@@ -530,7 +530,7 @@ test("(7) agent-sdk structured still refuses a turn that produced no structured_
 
 test("(3) a wedged agent-sdk item with no caller signal is aborted at the row's idle ceiling and fails retryably", async () => {
   const model = "claude-opus-5";
-  const edge = physicalSdkScenario({ frames: agentFrames(model).slice(0, 1), hang: true });
+  await using edge = physicalSdkScenario({ frames: agentFrames(model).slice(0, 1), hang: true });
   const timer = createManualTimer();
   await using root = await createRuntimeRoot({ sdkSpawn: edge.spawn, timers: runtimeTimers(timer.schedule) });
   const executor = root.app.runtime.executor;
@@ -560,7 +560,7 @@ test("(3) a wedged agent-sdk item with no caller signal is aborted at the row's 
   expect(edge.children[0]?.exitCode !== null || edge.children[0].signalCode !== null).toBe(true);
   // The caller's own cancel inside the same window stays a non-retryable abort.
   const cancel = new AbortController();
-  const cancellationEdge = physicalSdkScenario({ frames: agentFrames(model).slice(0, 1), hang: true });
+  await using cancellationEdge = physicalSdkScenario({ frames: agentFrames(model).slice(0, 1), hang: true });
   const callerTimer = createManualTimer();
   await using callerRoot = await createRuntimeRoot({ sdkSpawn: cancellationEdge.spawn, timers: runtimeTimers(callerTimer.schedule) });
   const caller = callerRoot.app.runtime.executor;
@@ -587,7 +587,7 @@ test("(3) a wedged agent-sdk item with no caller signal is aborted at the row's 
 test("(3) agent-sdk side generation fans out to the connection's utility calls at once, 4 when it states none", async () => {
   const model = "claude-opus-5";
   const run = async (declaredFeatures: { readonly concurrency?: { readonly summarize: number } }): Promise<number> => {
-    const edge = physicalSdkScenario({ frames: agentFrames(model), delayMs: 20 });
+    await using edge = physicalSdkScenario({ frames: agentFrames(model), delayMs: 20 });
     await using root = await createRuntimeRoot({ sdkSpawn: edge.spawn });
     const executor = root.app.runtime.executor;
     const connection = await wireConnection(root, {

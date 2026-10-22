@@ -22,10 +22,12 @@ import { deleteChat, listCharacters, startChat } from "./support/trpc.ts";
 const USER_DISPLAY_NAME = "You";
 const NON_WS = /\S/u;
 
-/** The trimmed name text of the first row of the given role (name-row = speaker name + timestamp). */
+/** The visible speaker attribution of the first row of the given role, without its timestamp or actions. */
 async function speakerNameText(page: Page, role: "user" | "assistant"): Promise<string> {
   const row = page.locator(`[data-slot="message-row"][data-role="${role}"]`).first();
-  return (await row.locator('[data-slot="message-name-row"]').first().innerText()).replace(/\s+/gu, " ").trim();
+  const attribution = row.locator('[data-slot="message-attribution"]').first();
+  await expect(attribution).toBeVisible();
+  return ((await attribution.textContent()) ?? "").replace(/\s+/gu, " ").trim();
 }
 
 test("row speaker names are DB-true and survive a chat rename + reload", {

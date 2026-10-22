@@ -133,7 +133,7 @@ export async function settlePage(page: Page, opts: Args): Promise<void> {
     // Wait for the network to go quiet (bounded) — a real settle for routes whose
     // content lands via deferred queries, instead of guessing a timeout.
     // bounded best-effort settle — a chatty stream must never block the shot, per the trailing comment. Ends if the timeout bound is removed.
-    // biome-ignore lint/nursery/noPlaywrightNetworkidle: explicit opt-in (--idle) with a hard bound — settling on network-quiet IS the flag's contract.
+    // biome-ignore lint/suspicious/noPlaywrightNetworkidle: explicit opt-in (--idle) with a hard bound — settling on network-quiet IS the flag's contract.
     await page.waitForLoadState("networkidle", { timeout: NETWORKIDLE_TIMEOUT_MS }).catch(() => {
       /* bounded — a chatty stream must never block the shot */
     });

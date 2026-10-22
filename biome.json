@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.6.2/schema.json",
   "root": true,
   "plugins": [],
   "vcs": {
@@ -77,7 +77,11 @@
         "useSingleJsDocAsterisk": "error",
         "useUniqueElementIds": "error",
         "noNestedComponentDefinitions": "error",
-        "noReactPropAssignments": "error"
+        "noReactPropAssignments": "error",
+        "noComponentHookFactories": "error",
+        "noJsxNamespace": "error",
+        "noPlaywrightMissingAwait": "error",
+        "usePlaywrightValidDescribeCallback": "error"
       },
       "complexity": {
         "noUselessFragments": "error",
@@ -111,7 +115,13 @@
         "noForEach": "error",
         "useSimplifiedLogicExpression": "error",
         "noVoid": "off",
-        "useLiteralKeys": "off"
+        "useLiteralKeys": "off",
+        "noUnnecessaryTemplateExpression": "error",
+        "useArraySome": "error",
+        "useMathMinMax": "error",
+        "noPlaywrightUselessAwait": "error",
+        "useRegexpTest": "error",
+        "noExcessiveNestedCallbacks": "error"
       },
       "style": {
         "useImportType": {
@@ -384,7 +394,15 @@
         "useUnifiedTypeSignatures": "error",
         "useDefaultSwitchClause": "off",
         "useLiteralEnumMembers": "off",
-        "useVueMultiWordComponentNames": "off"
+        "useVueMultiWordComponentNames": "off",
+        "useReduceTypeParameter": "error",
+        "useImportsFirst": "error",
+        "useConsistentTestIt": "error",
+        "useTestHooksInOrder": "error",
+        "useTestHooksOnTop": "error",
+        "noPlaywrightElementHandle": "error",
+        "noPlaywrightEval": "error",
+        "noPlaywrightWaitForSelector": "error"
       },
       "suspicious": {
         "noConsole": {
@@ -433,7 +451,20 @@
           }
         },
         "noUnnecessaryConditions": "off",
-        "noEmptySource": "off"
+        "noEmptySource": "off",
+        "noJsxLeakedDollar": "error",
+        "noReactStringRefs": "error",
+        "noLoopFunc": "error",
+        "useExpect": "error",
+        "noConditionalExpect": "error",
+        "noIdenticalTestTitle": "error",
+        "noDrizzleDeleteWithoutWhere": "error",
+        "noDrizzleUpdateWithoutWhere": "error",
+        "noPlaywrightForceOption": "error",
+        "noPlaywrightNetworkidle": "error",
+        "noPlaywrightPagePause": "error",
+        "noPlaywrightWaitForNavigation": "error",
+        "noPlaywrightWaitForTimeout": "error"
       },
       "performance": {
         "noBarrelFile": "error",
@@ -467,43 +498,12 @@
         "noBaseToString": "off",
         "noUnsafePlusOperands": "error",
         "noUselessTypeConversion": "off",
-        "useReduceTypeParameter": "error",
         "useNullishCoalescing": "off",
-        "useImportsFirst": "error",
-        "noUnnecessaryTemplateExpression": "error",
-        "useArraySome": "error",
         "useIncludes": "off",
         "useStringStartsEndsWith": "off",
-        "useMathMinMax": "error",
-        "noJsxLeakedDollar": "error",
-        "noReactStringRefs": "error",
-        "noComponentHookFactories": "error",
-        "noJsxNamespace": "error",
         "noImpliedEval": "error",
-        "noLoopFunc": "error",
-        "useExpect": "error",
-        "noConditionalExpect": "error",
-        "noIdenticalTestTitle": "error",
-        "useConsistentTestIt": "error",
         "useExplicitReturnType": "error",
-        "noDrizzleDeleteWithoutWhere": "error",
-        "noDrizzleUpdateWithoutWhere": "error",
-        "useTestHooksInOrder": "error",
-        "useTestHooksOnTop": "error",
-        "noPlaywrightElementHandle": "error",
-        "noPlaywrightEval": "error",
-        "noPlaywrightForceOption": "error",
-        "noPlaywrightMissingAwait": "error",
-        "noPlaywrightNetworkidle": "error",
-        "noPlaywrightPagePause": "error",
-        "noPlaywrightUselessAwait": "error",
-        "noPlaywrightWaitForNavigation": "error",
-        "noPlaywrightWaitForSelector": "error",
-        "noPlaywrightWaitForTimeout": "error",
-        "usePlaywrightValidDescribeCallback": "error",
-        "useRegexpTest": "error",
         "useRegexpExec": "off",
-        "noExcessiveNestedCallbacks": "error",
         "useDisposables": "error"
       }
     }
@@ -2537,15 +2537,7 @@
       "linter": {
         "rules": {
           "style": {
-            "noMagicNumbers": "off"
-          },
-          "performance": {
-            "noBarrelFile": "off"
-          },
-          "correctness": {
-            "noEmptyPattern": "off"
-          },
-          "nursery": {
+            "noMagicNumbers": "off",
             "useConsistentTestIt": {
               "level": "error",
               "options": {
@@ -2553,7 +2545,14 @@
                 "withinDescribe": "test"
               }
             }
-          }
+          },
+          "performance": {
+            "noBarrelFile": "off"
+          },
+          "correctness": {
+            "noEmptyPattern": "off"
+          },
+          "nursery": {}
         }
       }
     },
@@ -2623,6 +2622,12 @@
       }
     }
   ],
+  "yaml": { "formatter": { "enabled": false } },
+  "markdown": {
+    "formatter": { "enabled": false },
+    "linter": { "enabled": false },
+    "analyzeEmbeds": false
+  },
   "css": {
     "parser": {
       "tailwindDirectives": true

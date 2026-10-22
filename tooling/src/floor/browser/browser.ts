@@ -31,7 +31,7 @@ export function buildUrl(base: string, route: string): string {
 
 /** Wall-clock settle — deliberate, bounded (this is an observation harness, not a test). */
 export async function settle(page: Page, ms: number): Promise<void> {
-  // biome-ignore lint/nursery/noPlaywrightWaitForTimeout: deliberate bounded observation window (see docblock) — the flakiness this rule hunts in tests is the probe's feature.
+  // biome-ignore lint/suspicious/noPlaywrightWaitForTimeout: deliberate bounded observation window (see docblock) — the flakiness this rule hunts in tests is the probe's feature.
   await page.waitForTimeout(ms);
 }
 

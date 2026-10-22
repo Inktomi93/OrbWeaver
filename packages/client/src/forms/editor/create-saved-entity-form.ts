@@ -47,7 +47,7 @@ export interface SavedEntityFormArgs<TValues extends object> {
 // Return type is inference-carried: the AppForm instance is a 20+-generic TanStack type that can't
 // be truthfully re-spelled by hand.
 export function createSavedEntityForm<TValues extends object>(config: SavedEntityFormConfig<TValues>) {
-  // biome-ignore lint/nursery/noComponentHookFactories: the D54 §13.1 editor-factory pattern — factories run at MODULE scope (const useCharacterForm = createSavedEntityForm(...)), so the returned hook has a stable identity the Compiler can analyze; a per-render creation is what the rule fears and cannot happen here.
+  // biome-ignore lint/correctness/noComponentHookFactories: the D54 §13.1 editor-factory pattern — factories run at MODULE scope (const useCharacterForm = createSavedEntityForm(...)), so the returned hook has a stable identity the Compiler can analyze; a per-render creation is what the rule fears and cannot happen here.
   // biome-ignore lint/nursery/useExplicitReturnType: inference-carried (see the factory header).
   return function useSavedEntityForm({ entityId, serverValues, save: callTimeSave }: SavedEntityFormArgs<TValues>) {
     const save = callTimeSave ?? config.save;

@@ -27,7 +27,7 @@ export interface RegistryContext<R> {
  *  registry view type (`Registry<Id, Def>` or `ContributorRegistry<Def>`). */
 export function createRegistryContext<R>(name: string): RegistryContext<R> {
   const RegistryCtx = createContext<R | null>(null);
-  // biome-ignore lint/nursery/noComponentHookFactories: callers mint each trio at MODULE scope (export const modalRegistryContext = createRegistryContext(...)), so the hook keeps one identity.
+  // biome-ignore lint/correctness/noComponentHookFactories: callers mint each trio at MODULE scope (export const modalRegistryContext = createRegistryContext(...)), so the hook keeps one identity.
   function useRegistry(): R {
     const registry = use(RegistryCtx);
     if (registry === null) {
@@ -35,7 +35,7 @@ export function createRegistryContext<R>(name: string): RegistryContext<R> {
     }
     return registry;
   }
-  // biome-ignore lint/nursery/noComponentHookFactories: the same module-scope mint gives Provider one identity.
+  // biome-ignore lint/correctness/noComponentHookFactories: the same module-scope mint gives Provider one identity.
   function Provider({ value, children }: { readonly value: R; readonly children: ReactNode }): ReactElement {
     return <RegistryCtx value={value}>{children}</RegistryCtx>;
   }

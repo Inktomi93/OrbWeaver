@@ -40,7 +40,7 @@ test("a real owned HTTP connection executes, then current funding consent refuse
 });
 
 test("a saved subscription credential reaches native Query and a current revocation refuses before another physical spawn", async () => {
-  const edge = physicalSdkScenario({
+  await using edge = physicalSdkScenario({
     frames: [
       { type: "system", subtype: "init", apiKeySource: "none", model: "claude-opus-5" },
       { type: "assistant", message: { content: [{ type: "text", text: "summary" }], ["stop_reason"]: "end_turn" } },

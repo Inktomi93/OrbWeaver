@@ -8,7 +8,12 @@ import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 
 const EQUALITY_BODY = "export const same = (left: number, right: number): boolean => left == right;\n";
-const ADMITTED_PATHS = [".ds-sync/native-config.ts", "ds-bundle/native-config.ts", "packages/client/src/routes/routeTree.gen.ts"];
+const ADMITTED_PATHS = [
+  ".ds-sync/native-config.ts",
+  "ds-bundle/native-config.ts",
+  "packages/client/src/routes/routeTree.gen.ts",
+  "packages/kit/src/__dc_native-config.ts",
+];
 const PROTECTED_PATHS = [
   ".cache/native-config.ts",
   ".claude/worktrees/native-config.ts",
@@ -16,7 +21,6 @@ const PROTECTED_PATHS = [
   "reports/native-config.ts",
   "coverage/native-config.ts",
   "playwright/.cache/native-config.ts",
-  "packages/kit/src/__dc_native-config.ts",
   "packages/ui/src/tokens/index.ts",
   "packages/ui/src/tokens/themes.gen.ts",
   "tooling/src/snap/lib/devtools-frontend/native-config.ts",
@@ -69,14 +73,13 @@ test("native config admits authored paths and rejects unnecessary default/namesp
   expect(diagnostics).toContainEqual(
     expect.objectContaining({ category: "lint/performance/noNamespaceImport", location: expect.objectContaining({ path: NAMESPACE_PATH }) }),
   );
-  expect(diagnostics).toContainEqual(
-    expect.objectContaining({
-      category: "lint/style/useFilenamingConvention",
-      location: expect.objectContaining({ path: "packages/client/src/routes/routeTree.gen.ts" }),
-    }),
-  );
-  expect(diagnostics).toHaveLength(7);
-  expect(report["summary"]).toMatchObject({ unchanged: 8, diagnosticsNotPrinted: 0 });
+  for (const path of ["packages/client/src/routes/routeTree.gen.ts", "packages/kit/src/__dc_native-config.ts"]) {
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({ category: "lint/style/useFilenamingConvention", location: expect.objectContaining({ path }) }),
+    );
+  }
+  expect(diagnostics).toHaveLength(9);
+  expect(report["summary"]).toMatchObject({ unchanged: 9, diagnosticsNotPrinted: 0 });
 });
 
 const ENV_BODY = 'import process from "node:process"; export const selected = process.env["ORB_CONFIG_CONTROL"];\n';

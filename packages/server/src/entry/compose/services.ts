@@ -429,7 +429,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const timers: TimerScheduler = resources.use(createScopedTimers(deps.timers));
   // biome-ignore lint/nursery/useDisposables: resources adopts this owner through the moved graph stack; local using would close it before the graph starts.
   const rpgEvents = resources.use(createRpgEventBus());
-  // biome-ignore lint/nursery/useDisposables: resources adopts this owner through the moved graph stack; local using would close it before the graph starts.
   const workloadEvents = resources.use(createWorkloadProgressBus());
   const liveBuses = resources.use(createLiveBuses({ rpg: rpgEvents, workloads: workloadEvents }));
   const publishUserEvent = liveBuses.user.publishUserEvent;

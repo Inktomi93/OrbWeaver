@@ -477,6 +477,7 @@ export async function createServerHarness(
       });
     },
   });
+  // biome-ignore lint/nursery/useDisposables: httpLifetime owns this resource through closeHarnessGraph's share-first teardown; local disposal would close the returned harness.
   const http = createOwnedHttpRequests(httpApp, timers.timeout, bind.host);
   httpLifetime = http;
   const internalCallerFor = async (userId: UserId | null): Promise<ReturnType<typeof createCaller>> =>

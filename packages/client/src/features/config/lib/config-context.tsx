@@ -294,7 +294,7 @@ function drillState(drill: DrillInput): ConfigContextState | null {
 
 /** Mint the Settings context definition over a door-frozen groups registry. */
 export function makeConfigContext(groups: ConfigGroupRegistry): ContextDefinition {
-  // biome-ignore lint/nursery/noComponentHookFactories: the D54 §13.1 mint pattern (registry-contracts.ts's own `useResolved` carve-out, the `makeCharactersSection` posture one level up) — `makeConfigContext` runs ONCE at the door, so this named hook has a stable identity; the closure is how the door-frozen groups registry reaches it without a second delivery channel.
+  // biome-ignore lint/correctness/noComponentHookFactories: the D54 §13.1 mint pattern (registry-contracts.ts's own `useResolved` carve-out, the `makeCharactersSection` posture one level up) — `makeConfigContext` runs ONCE at the door, so this named hook has a stable identity; the closure is how the door-frozen groups registry reaches it without a second delivery channel.
   function useConfigContextState(): ConfigContextState | null {
     const registry = useConfigSectionRegistry();
     const viewer = useSettingsViewerView();
