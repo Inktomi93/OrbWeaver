@@ -52,11 +52,12 @@ import type { SQL } from "drizzle-orm";
 import { and, asc, count, desc, eq, exists, gt, gte, inArray, isNull, lt, lte, max, min, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { captureParticipantRole } from "#primitives/role-data";
+import type { ContinueSnapshot } from "../contract/continuation.ts";
 import type { RetainedCanonContributions } from "../contract/generation-observation.ts";
 import type { ChatMetadata } from "../contract/metadata.ts";
 import { parseChatMetadata } from "../contract/metadata.ts";
 import type { DeliveredCue } from "../contract/results.ts";
-import type { ChatStreamReplayEvent, ContinueSnapshot, StreamEventBounds } from "../contract/views.ts";
+import type { ChatStreamReplayEvent, StreamEventBounds } from "../contract/views.ts";
 import { continuationToolsAreUndone, signaturesForContent } from "../substrate/content-signatures.ts";
 
 const LIMIT_ONE = 1;

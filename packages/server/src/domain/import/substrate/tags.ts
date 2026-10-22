@@ -6,7 +6,7 @@
 // ST's per-profile tag ids across the box.
 
 import { isPlainObject } from "@orb/kit/guards";
-import type { ParsedStTags } from "../contract/views.ts";
+import type { ParsedStTags } from "../contract/collection.ts";
 
 // Ids coerce numbers too: old ST profiles stored numeric tag ids, and a string-only read would silently
 // resolve ZERO tags for the whole profile (verifier finding — a whole-feature no-op, not a per-tag drop).

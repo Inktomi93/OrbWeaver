@@ -11,7 +11,16 @@ import type { ImportPreset } from "#domain/preset";
 import type { ImportCardScripts, ImportPresetScripts } from "#domain/regex";
 import type { ImportRpgGame } from "#domain/rpg";
 import type { SettingsImportOutcome } from "#domain/settings";
-import type { ImportCharacterInput, ImportOrphanCharacterInput, RestoreCharacterBookInput } from "./params.ts";
+import type { CollectedPreset, CollectedTheme } from "./collection.ts";
+import type {
+  ImportCharacterInput,
+  ImportChatFileInput,
+  ImportChatsInput,
+  ImportGroupsInput,
+  ImportOrphanCharacterInput,
+  ImportPersonaInput,
+  RestoreCharacterBookInput,
+} from "./params.ts";
 import type {
   ImportCharacterResult,
   ImportChatFileOutcome,
@@ -24,7 +33,6 @@ import type {
   ImportThemesResult,
   RestoreCharacterBookResult,
 } from "./results.ts";
-import type { CollectedPreset, CollectedTheme, ImportChatFileInput, ImportChatsInput, ImportGroupsInput, ImportPersonaInput } from "./views.ts";
 
 export type CreateImportedCharacter = (args: {
   readonly ownerId: UserId;

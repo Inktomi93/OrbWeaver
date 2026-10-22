@@ -12,9 +12,9 @@
 import type { PersonaCollisionChoices } from "@orb/contracts/import";
 import type { BulkImportPersonaInput, PersonaMetadata } from "@orb/contracts/persona";
 import type { ImportContext } from "../context.ts";
+import type { ImportPersonaInput } from "../contract/params.ts";
 import type { ImportPersonasResult } from "../contract/results.ts";
 import type { ImportService } from "../contract/service.ts";
-import type { ImportPersonaInput } from "../contract/views.ts";
 import { requireProfile } from "../guard.ts";
 
 export function createImportPersonas(ctx: ImportContext): ImportService["importPersonas"] {

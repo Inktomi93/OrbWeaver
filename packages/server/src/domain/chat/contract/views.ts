@@ -1,5 +1,5 @@
 // Internal chat views derive their canonical wire shapes; captured roles stay server-only until transport encoding.
-// Persistence snapshots and replay witnesses below never acquire a second wire representation.
+// Replay witnesses below never acquire a second wire representation.
 
 import type {
   ChatBusEvent,
@@ -12,10 +12,7 @@ import type {
   ParticipantView as WireParticipantView,
 } from "@orb/contracts/chat";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
-import type { messageVariants } from "@orb/db";
-import type { BatchStmt } from "@orb/db/query";
-import type { ChatStreamGenerationId, MessageVariantId } from "@orb/kit/ids";
-import type { SQL } from "drizzle-orm";
+import type { ChatStreamGenerationId } from "@orb/kit/ids";
 
 /** A resumable SSE token-log row (replayStreamEvents) — one streamed delta with its replay cursor
  *  ("resumable SSE stream log"; the db `chat_stream_events` row projected). */
@@ -64,25 +61,6 @@ export interface ChatEventAttach extends StreamEventBounds {
    *  that member (reasoning deltas + `reasoningStreamDone` dropped, `view.reasoning` nulled). `false` for a
    *  non-game / non-deception chat — the pre-P3 live behavior (reasoning member-visible). Never client-supplied. */
   readonly reasoningHostOnly: boolean;
-}
-
-/** A selected continuation's immutable read witness; raw private JSON is compared, never sent on the wire. */
-export interface ContinueSnapshot
-  extends Readonly<
-    Pick<
-      typeof messageVariants.$inferSelect,
-      "content" | "reasoning" | "preContinueContent" | "preContinueReasoning" | "lastContinuationContent" | "lastContinuationReasoning"
-    >
-  > {
-  readonly variantId: MessageVariantId;
-  readonly rawMetadata: string | null;
-  readonly rawToolCalls: string | null;
-}
-
-/** The first-write admission witness is retained so unrelated DB failures cannot become stale refusals. */
-export interface ContinueRestorePlan {
-  readonly selection: SQL;
-  readonly statements: BatchStmt[];
 }
 
 /** Wire fields derive from the canonical view; only the server's captured role representation differs. */

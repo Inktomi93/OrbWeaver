@@ -1,6 +1,6 @@
 import type { StoredAsset, StoreParams } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
-import type { PersonaCollisionChoices } from "@orb/contracts/import";
+import type { ImportFsPort, PersonaCollisionChoices } from "@orb/contracts/import";
 import type { ImportedAppearance, ImportedAppearanceOutcome, SettingsImportOutcome } from "@orb/contracts/settings";
 import type { UserId } from "@orb/kit/ids";
 import type { ImportAssetPort } from "#domain/assets";
@@ -11,7 +11,8 @@ import type { ImportCardScripts, ImportGlobalScripts, ImportPresetScripts } from
 import type { ImportTagPort } from "#domain/tag";
 import type { AttachOwnedBooksByName, ImportStandaloneLorebook, ImportWorldInfoPort } from "#domain/world-info";
 import type { ImportContextWiring } from "./build-context.ts";
-import type { CollectResult, ImportFsPort, ImportReport } from "./views.ts";
+import type { CollectResult } from "./collection.ts";
+import type { ImportReport } from "./results.ts";
 
 /** The settings-owned theme-import op (`createImportTheme`) as the driver consumes it. */
 type ImportTheme = (ownerId: UserId, bytes: Uint8Array, fallbackName?: string) => Promise<SettingsImportOutcome>;

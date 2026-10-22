@@ -22,18 +22,18 @@ import type { BulkImportChatInput, ChatMetadata } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, narratorPolicyOf } from "@orb/contracts/chat";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import type { ImportContext } from "../context.ts";
-import type { ImportGroupsResult } from "../contract/results.ts";
-import type { ImportService } from "../contract/service.ts";
+import type { CollectedGroup } from "../contract/collection.ts";
+import type { ImportGroupsInput } from "../contract/params.ts";
 import type {
-  CollectedGroup,
   GroupSeats,
   ImportAmbiguousSpeakerName,
-  ImportGroupsInput,
+  ImportGroupsResult,
   ImportSeatedDisabledMember,
   ImportSkippedGroup,
   ImportSkippedGroupMember,
   ImportUnresolvedPinnedPersona,
-} from "../contract/views.ts";
+} from "../contract/results.ts";
+import type { ImportService } from "../contract/service.ts";
 import { requireProfile } from "../guard.ts";
 import { buildGroupChatInput, disambiguateChatTitles, unresolvedPinnedPersonas } from "../substrate/chat-input.ts";
 
@@ -129,7 +129,7 @@ function speakerNamesOf(
 }
 
 /** The members ST had DISABLED, resolved to the SEATS they became (#1687). THE SEATING IS THE RECORDED RULING
- *  (`contract/views.ts` on `ParsedStGroup.disabledMemberFiles`: "still seated — the room's cast is the cast")
+ *  (`contract/collection.ts` on `ParsedStGroup.disabledMemberFiles`: "still seated — the room's cast is the cast")
  *  and it stands; what changed is its INPUT. #1469 item 4 could only REPORT the flag as lost because the
  *  bulk-import wire seated a flat `CharacterId[]` with no knob channel; the wire now carries `seatKnobs`, so
  *  the member is seated AND muted through orb's own per-seat knob and the report says the flag travelled.

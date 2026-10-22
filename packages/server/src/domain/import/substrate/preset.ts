@@ -25,7 +25,7 @@ import { buildPresetFile, tryImportStChatCompletionPreset } from "@orb/contracts
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import { regexScriptCardSchema } from "@orb/contracts/regex";
 import { isPlainObject } from "@orb/kit/guards";
-import type { ParsedStPreset } from "../contract/views.ts";
+import type { ParsedStPreset } from "../contract/collection.ts";
 import { ST_POWER_USER_KEY } from "./appearance.ts";
 
 /** The ST profile SUBDIRECTORY holding the chat-completion family's saved presets. */

@@ -218,3 +218,12 @@ export type ResolveCurrentPersonaOp = (userId: UserId) => Promise<PersonaId | nu
 export const personaIdInputSchema = z.object({ personaId: typeIdSchema(ID_PREFIX.persona) });
 
 export const personaCharacterInputSchema = z.object({ characterId: typeIdSchema(ID_PREFIX.character) });
+
+/** A persona a profile upload would write, with the content hash of its avatar bytes — what the pre-commit
+ *  review compares against the owner's personas. */
+export interface IncomingPersona {
+  readonly name: string;
+  readonly description: string;
+  readonly metadata: PersonaMetadata | null;
+  readonly artHash: string | null;
+}

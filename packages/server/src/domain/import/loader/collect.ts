@@ -6,7 +6,7 @@
 // /worlds/*.json, /OpenAI Settings/*.json (chat-completion presets), /groups/*.json + /group chats/*.jsonl.
 // Cards and chat dirs pair by slugifyHandle. Every non-happy path is recorded in CollectResult, never silent.
 
-import type { StProfileHandledEntry } from "@orb/contracts/import";
+import type { ImportFsPort, StProfileHandledEntry } from "@orb/contracts/import";
 import { chatDirCardCandidates, ST_SETTINGS_FILE, stProfileEntryDisposition } from "@orb/contracts/import";
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import { regexScriptCardSchema } from "@orb/contracts/regex";
@@ -17,7 +17,6 @@ import { chatContentHash, parseChatJsonl } from "#primitives/serde/chat";
 import { portableParseError } from "#primitives/serde/lib";
 import { parseThemeFile, THEME_SCHEMA_KIND } from "#primitives/serde/theme";
 import { parseWorldBookFile } from "#primitives/serde/world-info";
-import { ImportInfraFailureError, ProfileImportLimitError } from "../contract/errors.ts";
 import type {
   CollectedBackground,
   CollectedCard,
@@ -28,8 +27,8 @@ import type {
   CollectedTheme,
   CollectedWorld,
   CollectResult,
-  ImportFsPort,
-} from "../contract/views.ts";
+} from "../contract/collection.ts";
+import { ImportInfraFailureError, ProfileImportLimitError } from "../contract/errors.ts";
 import { ST_POWER_USER_KEY, stAppearancePatch } from "../substrate/appearance.ts";
 import { ST_BACKGROUND_DIR, stBackgroundMime, stBackgroundName } from "../substrate/background.ts";
 import { importFileHash, parseCardPng, parsedCardImportHash, parsedCardTextHash } from "../substrate/card.ts";

@@ -32,9 +32,9 @@ import type { PortableChat, PortableRpgGame } from "#primitives/serde/chat-bundl
 import { CHAT_BUNDLE_SCHEMA_KIND, parseChatBundleFile } from "#primitives/serde/chat-bundle";
 import { portableParseError } from "#primitives/serde/lib";
 import type { ImportContext } from "../context.ts";
+import type { ImportChatFileInput } from "../contract/params.ts";
 import type { ImportChatFileOutcome } from "../contract/results.ts";
 import type { ImportProfileDeps, ImportService } from "../contract/service.ts";
-import type { ImportChatFileInput } from "../contract/views.ts";
 import { requireProfile } from "../guard.ts";
 
 /** The handles a bundle could re-link against, in preference order: its own seat list, then the directory it

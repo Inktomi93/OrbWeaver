@@ -1,6 +1,6 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { BundleImportDeps, BundleImportReport, StagedBundleImportDeps } from "./bundle.ts";
-import type { ImportReport } from "./views.ts";
+import type { ImportReport } from "./results.ts";
 import type { ImportWorkloadDeps, SettleImportMemory } from "./workloads.ts";
 
 export type ImportWorkloadDrivers = Pick<ImportWorkloadDeps, "runProfileDirImport" | "runBundleImport" | "runStagedDirImport">;

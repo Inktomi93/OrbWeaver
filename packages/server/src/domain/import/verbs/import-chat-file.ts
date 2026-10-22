@@ -24,9 +24,9 @@ import { slugifyHandle } from "@orb/kit/slug";
 import { sha256Hex } from "#primitives/content-hash";
 import { chatContentHash, parseChatJsonl } from "#primitives/serde/chat";
 import type { ImportContext } from "../context.ts";
+import type { ImportChatFileInput } from "../contract/params.ts";
 import type { ImportChatFileOutcome } from "../contract/results.ts";
 import type { ImportService } from "../contract/service.ts";
-import type { ImportChatFileInput } from "../contract/views.ts";
 
 const DEC = new TextDecoder();
 /** CASE-INSENSITIVE, exactly like the profile collector's own `JSONL_EXT` (`loader/collect.ts`): the two

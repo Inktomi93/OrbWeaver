@@ -13,7 +13,7 @@
 // group's own list, and the chat write op dedups by `importHash`, so the second claimant is a clean skip.
 
 import { isPlainObject } from "@orb/kit/guards";
-import type { ParsedStGroup } from "../contract/views.ts";
+import type { ParsedStGroup } from "../contract/collection.ts";
 
 /** ST's own group-config numerals we can read. `generation_mode` 0 = swap (one speaker per turn), 1 = append
  *  (the whole cast is joined into ONE generation) — which is exactly orb's `per-speaker` vs `narrator` output

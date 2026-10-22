@@ -16,7 +16,9 @@ import { messageRoleFromSt } from "@orb/kit/message-role";
 import { msToWallClock } from "@orb/kit/time";
 import type { ParsedChat, ParsedChatMessage, ParsedNotePlacement, ParsedScriptInject } from "#primitives/serde/chat";
 import { ST_DEFAULT_WALL_CLOCK_ZONE } from "#primitives/serde/chat";
-import type { CollectedChat, GroupChatInputDeps, ImportUnresolvedPinnedPersona } from "../contract/views.ts";
+import type { CollectedChat } from "../contract/collection.ts";
+import type { GroupChatInputDeps } from "../contract/params.ts";
+import type { ImportUnresolvedPinnedPersona } from "../contract/results.ts";
 import { resolveImportedTokenUsage } from "./token-usage.ts";
 
 const JSONL_EXT = /\.jsonl$/i;

@@ -37,9 +37,9 @@ import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { SQL } from "drizzle-orm";
 import { and, eq, exists, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import type { ContinueRestorePlan, ContinueSnapshot } from "../contract/continuation.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { DeliveredCue } from "../contract/results.ts";
-import type { ContinueRestorePlan, ContinueSnapshot } from "../contract/views.ts";
 import { loadMaxMessageSeq } from "./queries.ts";
 
 /** Only the known first required-parent write may become a stale-source domain refusal. */

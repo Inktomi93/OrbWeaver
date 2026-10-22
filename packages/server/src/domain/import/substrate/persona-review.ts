@@ -3,10 +3,10 @@
 // the review hashes the same bytes the real run stores.
 
 import { ST_SETTINGS_FILE } from "@orb/contracts/import";
-import type { PersonaMetadata } from "@orb/contracts/persona";
+import type { IncomingPersona, PersonaMetadata } from "@orb/contracts/persona";
 import { sha256Hex } from "#primitives/content-hash";
 import { decodePortableObject } from "#primitives/serde/lib";
-import type { IncomingPersona, UploadedFile } from "../contract/views.ts";
+import type { UploadedFile } from "../contract/collection.ts";
 import { parseStPersonas } from "./persona.ts";
 
 const AVATARS_DIR = "User Avatars";

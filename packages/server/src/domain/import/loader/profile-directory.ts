@@ -1,4 +1,5 @@
 import type { Principal } from "@orb/contracts/identity";
+import type { ImportFsPort } from "@orb/contracts/import";
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import type { BackgroundLibraryEntry } from "@orb/contracts/settings";
 import { ASSET_UPLOAD_MAX_BYTES, IMPORT_TREE_MAX_FILE_BYTES, IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
@@ -8,8 +9,6 @@ import { inertActivationFields } from "@orb/kit/world-info";
 import type { ImportAssetPort } from "#domain/assets";
 import type { ImportGlobalScripts } from "#domain/regex";
 import type { AttachOwnedBooksByName } from "#domain/world-info";
-import { ProfileImportLimitError } from "../contract/errors.ts";
-import type { ProfileCollected, ProfileCollectRecords, ProfileDirImportDeps, ProfileWaveOutcomes } from "../contract/profile-directory.ts";
 import type {
   CollectedBackground,
   CollectedCard,
@@ -19,15 +18,18 @@ import type {
   CollectedTheme,
   CollectedWorld,
   CollectResult,
+} from "../contract/collection.ts";
+import { ProfileImportLimitError } from "../contract/errors.ts";
+import type { ImportPersonaInput } from "../contract/params.ts";
+import type { ProfileCollected, ProfileCollectRecords, ProfileDirImportDeps, ProfileWaveOutcomes } from "../contract/profile-directory.ts";
+import type {
   ImportDryRunCensus,
-  ImportFsPort,
-  ImportPersonaInput,
   ImportReport,
   ImportSkippedCard,
   ImportSkippedCardTag,
   ImportUnresolvedPinnedPersona,
   ImportWorldNote,
-} from "../contract/views.ts";
+} from "../contract/results.ts";
 import { createImportService } from "../service.ts";
 import { buildImportContext } from "../substrate/build-context.ts";
 import { findImportedCharacter } from "../substrate/card.ts";

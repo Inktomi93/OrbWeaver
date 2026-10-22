@@ -3,9 +3,9 @@
 // chat to `BulkImportChatInput` and delegates the write to the injected `bulkImportChats` op.
 
 import type { ImportContext } from "../context.ts";
+import type { ImportChatsInput } from "../contract/params.ts";
 import type { ImportChatsResult } from "../contract/results.ts";
 import type { ImportService } from "../contract/service.ts";
-import type { ImportChatsInput } from "../contract/views.ts";
 import { requireProfile } from "../guard.ts";
 import { buildBulkImportChatInput, disambiguateChatTitles, unresolvedPinnedPersonas } from "../substrate/chat-input.ts";
 

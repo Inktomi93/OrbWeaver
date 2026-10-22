@@ -9,9 +9,9 @@
 
 import type { PresetId } from "@orb/kit/ids";
 import type { ImportContext } from "../context.ts";
-import type { ImportPresetsResult } from "../contract/results.ts";
+import type { CollectedPreset } from "../contract/collection.ts";
+import type { ImportPresetNote, ImportPresetsResult, ImportSkippedCard } from "../contract/results.ts";
 import type { ImportService } from "../contract/service.ts";
-import type { CollectedPreset, ImportPresetNote, ImportSkippedCard } from "../contract/views.ts";
 import { requireProfile } from "../guard.ts";
 
 const ENC = new TextEncoder();

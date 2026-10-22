@@ -15,9 +15,9 @@
 
 import { buildThemeBackup } from "#primitives/serde/theme";
 import type { ImportContext } from "../context.ts";
-import type { ImportThemesResult } from "../contract/results.ts";
+import type { CollectedTheme } from "../contract/collection.ts";
+import type { ImportSkippedCard, ImportThemeNote, ImportThemesResult } from "../contract/results.ts";
 import type { ImportService } from "../contract/service.ts";
-import type { CollectedTheme, ImportSkippedCard, ImportThemeNote } from "../contract/views.ts";
 import { requireProfile } from "../guard.ts";
 
 /** One theme's lossiness note — emitted for EVERY imported theme, empty `fields` included, so the operator can
