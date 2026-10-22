@@ -152,3 +152,20 @@ test("Playwright suite callbacks stay synchronous without rejecting legal async 
   expect(diagnostics).toHaveLength(rejected.length);
   expect(report["summary"]).toMatchObject({ unchanged: paths.length, diagnosticsNotPrinted: 0 });
 });
+
+test("native JSON parsing rejects comments in strict consumers while preserving known JSONC filenames", async ({ plantedTree, repoRoot }) => {
+  const body = '{\n  // Native comment control\n  "foo": 1\n}\n';
+  const rejected = ["jscpd.json", "package.json", "plain.json"];
+  const accepted = ["tsconfig.base.json", ".devcontainer/devcontainer.json", ".vscode/settings.json", "fixture.jsonc"];
+  const paths = [...rejected, ...accepted];
+  const root = await plantedTree(Object.fromEntries(paths.map((path) => [path, body])));
+  const report = lintTree(root, repoRoot, paths);
+  const diagnostics = report["diagnostics"];
+  for (const path of rejected) {
+    expect(diagnostics).toContainEqual(expect.objectContaining({ category: "parse", location: expect.objectContaining({ path }) }));
+  }
+  for (const path of accepted) {
+    expect(diagnostics).not.toContainEqual(expect.objectContaining({ location: expect.objectContaining({ path }) }));
+  }
+  expect(report["summary"]).toMatchObject({ unchanged: paths.length, diagnosticsNotPrinted: 0 });
+});

@@ -531,7 +531,6 @@
   },
   "json": {
     "parser": {
-      "allowComments": true,
       "allowTrailingCommas": false
     },
     "formatter": {
@@ -2349,16 +2348,6 @@
                 ]
               }
             }
-          }
-        }
-      }
-    },
-    {
-      "includes": ["scripts/codemods/inference-test-cutover.ts"],
-      "linter": {
-        "rules": {
-          "complexity": {
-            "noExcessiveCognitiveComplexity": "off"
           }
         }
       }
