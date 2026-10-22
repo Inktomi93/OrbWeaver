@@ -19,20 +19,14 @@
 // The return is UNEXECUTED statements: the re-key is a property of the authority move and must commit in the
 // SAME batch as the role swap (the `handoffHealStatements` co-statement seam).
 
+import type { HandoffCardPair } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import type { StatementToken } from "@orb/db/wiring";
-import type { CharacterId, ChatId } from "@orb/kit/ids";
+import type { ChatId } from "@orb/kit/ids";
 
 /** db only — a re-key writes no vectors, mints no ids and needs no clock. */
 export interface EmbeddingsHandoffRestampContext {
   readonly db: Db;
-}
-
-/** One source→copy card pairing (the structural shape of character's `HandoffCardCopy` — embeddings declares
- *  its own copy rather than importing a sibling domain's type). */
-export interface HandoffRestampPair {
-  readonly sourceCharacterId: CharacterId;
-  readonly characterId: CharacterId;
 }
 
 /** The digest statements the host-handoff swap must carry for `chatId` — empty for an empty pair list.
@@ -40,4 +34,4 @@ export interface HandoffRestampPair {
  *  is never touched, and the chat's authority was proven by the caller. Collision-free by construction — the
  *  copy ids are freshly minted, so no `(chatId, scopedCharacterId, tier, blockIdx, model)` unique and no
  *  `(digestId, characterId)` PK can already hold the destination. */
-export type HandoffRestampStatements = (args: { readonly chatId: ChatId; readonly pairs: readonly HandoffRestampPair[] }) => Promise<readonly StatementToken[]>;
+export type HandoffRestampStatements = (args: { readonly chatId: ChatId; readonly pairs: readonly HandoffCardPair[] }) => Promise<readonly StatementToken[]>;

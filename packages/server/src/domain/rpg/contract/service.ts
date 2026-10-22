@@ -21,7 +21,6 @@ import type { ProseOverrides } from "@orb/contracts/prose";
 import type {
   ChatRpgPointer,
   EmitRpgEvent,
-  RpgActorRef,
   RpgConfigView,
   RpgDeliveryPath,
   RpgExtractionMode,
@@ -30,6 +29,7 @@ import type {
   RpgFoldFallbackReason,
   RpgGameView,
   RpgJournalEntryView,
+  RpgParticipantActor,
   RpgRecordedToolCall,
   RpgRevealView,
   RpgSnapshotState,
@@ -315,15 +315,7 @@ export type RpgSetPointer = (chatId: ChatId, pointer: ChatRpgPointer | null) => 
 /** Chat's husk→real transition (R0 F4(a)). Every host write verb calls it right after its authority gate, so a
  *  room whose game the host authored is listed and never reaped. Idempotent; a claimed room is a no-op. */
 type RpgClaimChat = (chatId: ChatId) => Promise<void>;
-
-/** One participant actor projected for the tracker view (participants ∪ sheets, §4.3). The injected `resolveParticipants` op
- *  resolves the chat's present participants into `character`/`user` actor refs + display name + avatar — the
- *  name/avatar joins live in chat/character (rpg stays table-blind). */
-export interface RpgParticipantActor {
-  readonly actorRef: RpgActorRef;
-  readonly name: string;
-  readonly avatar?: string;
-}
+/** Chat resolves participant names and avatars; RPG consumes the shared projection without reading chat tables. */
 export type RpgResolveParticipants = (chatId: ChatId) => Promise<readonly RpgParticipantActor[]>;
 
 /** R4 — PROMOTION's durable half: resolve-or-mint a marked character CARD from a promoted NPC and ensure its
@@ -837,11 +829,7 @@ interface FlushDropInfo {
   /** The `rpgSnapshotStateSchema` parse failure — the field path(s) + reason the state was refused. */
   readonly reason: string;
 }
-
-/** What the composition root supplies to build the ctx — a pass-through of `RpgContext`'s members (the builder
- *  does no derivation; every field is injected at compose, W1c). */
-export type RpgContextDeps = RpgContext;
-export type RpgAssemblyContext = DbAssemblyInput<RpgContextDeps>;
+export type RpgAssemblyContext = DbAssemblyInput<RpgContext>;
 
 /** The resolved authority context a gated verb works from: the game row + the caller's present role (derived
  *  from `PARTICIPANT_ROLES`, never re-spelled — §5.5). */

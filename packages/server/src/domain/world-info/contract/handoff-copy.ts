@@ -18,6 +18,7 @@
 // attachment is a room-state change and must commit with the role swap, so the `chat_books` statements come
 // back UNEXECUTED for the caller's batch (the `handoffHealStatements` co-statement seam).
 
+import type { HandoffCardPair } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import type { StatementToken } from "@orb/db/wiring";
 import type { CharacterId, ChatId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
@@ -29,14 +30,6 @@ export interface WorldInfoHandoffCopyContext {
   readonly now: () => number;
   readonly newBookId: () => WorldBookId;
   readonly newEntryId: () => WorldEntryId;
-}
-
-/** One source→copy card pairing the caller already minted — the structural shape of character's
- *  `HandoffCardCopy` (the foreign-op-shape precedent: world-info declares its own copy rather than importing
- *  a sibling domain's type). */
-export interface HandoffCardPair {
-  readonly sourceCharacterId: CharacterId;
-  readonly characterId: CharacterId;
 }
 
 /** Copy the room's lore from `fromOwnerId` into `toOwnerId` and return the UNEXECUTED `chat_books` re-point.

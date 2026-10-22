@@ -1,20 +1,11 @@
-// domain/chat/verbs/resolve-rpg-participants — the participants-resolution op (docs/plans/rpg/design.md): resolve a
-// chat's PRESENT participants into rpg actor refs + display name + avatar hash.
-//
-// THE TWINS NOW AGREE (#1774 closed the asymmetry #1010 opened): this side ships
-// `RpgParticipantActor`/`ResolveRpgParticipants` and the rpg domain's own structural twin is
-// `RpgParticipantActor`/`RpgResolveParticipants`. #1010 renamed the SERVER CHAT DOMAIN only and left the pair
-// spelled apart rather than half-renaming the rpg family here; vocabulary-map row 155 then RULED the rpg word
-// and #1774 landed it by codemod. STANDALONE + principal-free (rpg gated the game read; the `getMembership`/
-// `setRpgPointer`/`postNarratorMessage` injected-op precedent). Homed in chat because the name/avatar joins are
-// chat/character's — rpg stays table-blind. A CHARACTER seat resolves its card under the chat HOST's ownership
-// (the `getCard` ownerId); a HUMAN seat resolves its publics. A seat that resolves to neither ref (a gone card,
-// a headless seat) is dropped — the tracker view only projects addressable actors.
+// Chat owns participant name/avatar resolution; RPG gates the game read before calling this principal-free op.
+// Character cards resolve under the room host's ownership; human seats resolve public identity fields.
+// Missing cards and headless seats are omitted because the tracker only projects addressable actors.
 
-import type { RpgActorRef } from "@orb/contracts/rpg";
+import type { RpgActorRef, RpgParticipantActor } from "@orb/contracts/rpg";
 import type { UserId } from "@orb/kit/ids";
 import { createChatContext } from "../context.ts";
-import type { ChatContext, ResolveRpgParticipants, RpgParticipantActor } from "../contract/context.ts";
+import type { ChatContext, ResolveRpgParticipants } from "../contract/context.ts";
 import type { ParticipantRow } from "../contract/participant-row.ts";
 import type { ChatAssemblyContext } from "../contract/wiring.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
