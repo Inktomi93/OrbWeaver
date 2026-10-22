@@ -75,6 +75,10 @@ test("an unavailable pending join exposes no persona or confirmation", async ({ 
   await expect(page.getByRole("textbox", { name: JOIN_NAME_LABEL, exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: JOIN_CONFIRM_LABEL, exact: true })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: JOIN_DESTINATION_LABEL, exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Back to sign in", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: `Continue with ${PENDING_AUTH_CONFIG.oidcProviderName}`, exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: JOIN_CONFIRM_LABEL, exact: true })).toHaveCount(0);
   expect(confirms).toHaveLength(0);
 });
 
