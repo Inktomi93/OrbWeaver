@@ -24,7 +24,7 @@ export function orbBridgeGap(url: string): EvidenceGap {
 export function appReadyTimeoutGap(url: string, timeoutMs: number): EvidenceGap {
   return {
     evidence: "app readiness (data-app-ready)",
-    detail: `${url} never signalled data-app-ready within ${timeoutMs}ms — the app had not finished booting, so nothing about it was measured AND the __orb bridge could not be checked at all (an absent bridge at this point is a boot symptom, not a finding). RETRYABLE and usually environmental: a cold vite compiling the route on first navigation is the standard cause — re-run against the now-warm stack`,
+    detail: `${url} never signalled data-app-ready within ${timeoutMs}ms — the app had not finished booting, so nothing about it was measured AND the __orb bridge could not be checked at all (an absent bridge at this point is a boot symptom, not a finding). This first navigation failed; inspect its retained browser evidence and stack log before drawing a surface verdict`,
   };
 }
 

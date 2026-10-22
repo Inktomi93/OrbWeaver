@@ -4,18 +4,25 @@ import { createCorpusHarness } from "@orb/testkit/node/corpus.ts";
 import { expect, test } from "@orb/testkit/node/ct-corpus.ts";
 import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
-import { processEnvValue } from "@orb/tooling/floor/process/process-env";
-import { CT_CACHE_DIR_ENV } from "@orb/tooling/floor/testing/ct-cache";
-import { TideMediaLifetimeStory } from "./_media-lifetime-stories.tsx";
+import type { TideMediaLifetimeStory } from "./_media-lifetime-stories.tsx";
 
 test.use({ trace: "on" });
 
-test("Tide retains zoom for identical snapshots and closes obsolete media on message replacement", async ({ corpus, corpusMedia, mount, page }, testInfo) => {
+test("Tide retains zoom for identical snapshots and closes obsolete media on message replacement", async ({
+  corpus,
+  corpusMedia,
+  mount,
+  page,
+  baseURL,
+}, testInfo) => {
+  if (baseURL === undefined) {
+    throw new Error("The component gallery has no configured base URL");
+  }
   const hashes = corpus.reads["character.list"][0]?.output.items.flatMap((item) => (item.avatarHash === null ? [] : [item.avatarHash]));
   if (hashes?.[0] === undefined || hashes[1] === undefined) {
     throw new Error("Committed library must include two real images");
   }
-  await using root = await createCorpusHarness(undefined, { clientDistDir: processEnvValue(CT_CACHE_DIR_ENV) });
+  await using root = await createCorpusHarness();
   const caller = await root.internalCallerFor(root.ownerId);
   await caller.settings.updateUserSettingsSection({ section: "appearance", patch: { chatStyle: "tide" } });
   await caller.settings.updateUserSettingsSection({ section: "memory", patch: { enabled: false } });
@@ -24,8 +31,8 @@ test("Tide retains zoom for identical snapshots and closes obsolete media on mes
     throw new Error("Committed corpus omitted a chat");
   }
   const chatId = (await caller.chat.getChat({ chatId: capturedChat.id })).id;
-  const firstUrl = new URL(blobUrl(hashes[0]), page.url()).href;
-  const secondUrl = new URL(blobUrl(hashes[1]), page.url()).href;
+  const firstUrl = new URL(blobUrl(hashes[0]), baseURL).href;
+  const secondUrl = new URL(blobUrl(hashes[1]), baseURL).href;
   const existing = await caller.chat.listMessages({ chatId });
   const message = existing.messages.find((row) => row.role === "user");
   if (message === undefined) {
@@ -58,7 +65,9 @@ test("Tide retains zoom for identical snapshots and closes obsolete media on mes
     "regex.listRoomDisplayScripts": () => roomScripts,
   });
   await corpusMedia();
-  const component = await mount(<TideMediaLifetimeStory chatId={chatId} />);
+  const component = await mount<typeof TideMediaLifetimeStory>("tests/client/features/chat/components/_media-lifetime-stories/TideMediaLifetimeStory", {
+    chatId,
+  });
   await expect(page.locator('[data-slot="message-bubble-train"]').filter({ hasText: "Lead paragraph" })).toBeVisible();
   await page.getByRole("button", { name: /^External media — load from / }).click();
   const firstImage = page.getByRole("img", { name: "First witness", exact: true });
@@ -84,7 +93,7 @@ test("Tide retains zoom for identical snapshots and closes obsolete media on mes
       return element.naturalWidth > 0;
     }),
   ).toBe(true);
-  await component.update(<TideMediaLifetimeStory chatId={chatId} revision={1} />);
+  await component.update({ chatId, revision: 1 });
   await expect(page.locator('output[aria-label="Read revision"]')).toHaveText("1");
   await expect(zoom).toBeVisible();
   const before = testInfo.outputPath("unchanged-media-zoom.png");
@@ -92,7 +101,7 @@ test("Tide retains zoom for identical snapshots and closes obsolete media on mes
   await testInfo.attach("unchanged-media-zoom", { path: before });
   await caller.chat.editMessage({ chatId, messageId: message.id, content: `Lead paragraph\n\n![Replacement witness](${secondUrl})`, timeZone: UTC_TIME_ZONE });
   messages = await caller.chat.listMessages({ chatId });
-  await component.update(<TideMediaLifetimeStory chatId={chatId} revision={2} />);
+  await component.update({ chatId, revision: 2 });
   await expect(page.locator('output[aria-label="Read revision"]')).toHaveText("2");
   await expect(zoom).toHaveCount(0);
   await page.getByRole("button", { name: /^External media — load from / }).click();

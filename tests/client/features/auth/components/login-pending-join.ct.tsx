@@ -1,7 +1,7 @@
 import { CSRF_HEADER } from "@orb/contracts/identity";
-import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page, Request, Route } from "@playwright/test";
-import { PendingJoinStory } from "./_pending-join-stories.tsx";
+import { expect, test } from "@playwright/test";
+import type { PendingJoinStory } from "./_pending-join-stories.tsx";
 import {
   APPROVAL_RESPONSE,
   JOIN_CONFIRM_LABEL,
@@ -32,7 +32,11 @@ async function previewRoom(page: Page): Promise<void> {
 
 test.beforeEach(async ({ page }) => {
   await page.route("**/api/auth/config", (route) => route.fulfill({ status: 200, json: PENDING_AUTH_CONFIG }));
-  await page.evaluate(() => globalThis.history.replaceState(null, "", "/login?pendingJoin=1"));
+  await page.addInitScript(() => {
+    if (globalThis.top === globalThis.window) {
+      globalThis.history.replaceState(null, "", "/login?pendingJoin=1");
+    }
+  });
 });
 
 test("a held preview offers no Join until the room is available", async ({ mount, page }) => {
@@ -52,7 +56,7 @@ test("a held preview offers no Join until the room is available", async ({ mount
     }
   });
   try {
-    await mount(<PendingJoinStory />);
+    await mount<typeof PendingJoinStory>("tests/client/features/auth/components/_pending-join-stories/PendingJoinStory", {});
     await requested.promise;
     await expect(page.getByLabel("Loading your invite", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: JOIN_CONFIRM_LABEL, exact: true })).toHaveCount(0);
@@ -70,7 +74,7 @@ test("a held preview offers no Join until the room is available", async ({ mount
 test("an unavailable pending join exposes no persona or confirmation", async ({ mount, page }) => {
   const confirms = await captureConfirms(page, (route) => route.fulfill({ status: 404, json: UNAVAILABLE_RESPONSE }));
   await page.route(PENDING_PREVIEW_PATH, (route) => route.fulfill({ status: 404, json: UNAVAILABLE_RESPONSE }));
-  await mount(<PendingJoinStory />);
+  await mount<typeof PendingJoinStory>("tests/client/features/auth/components/_pending-join-stories/PendingJoinStory", {});
   await expect(page.getByRole("heading", { name: "This invite isn't available", exact: true })).toBeVisible();
   await expect(page.getByRole("textbox", { name: JOIN_NAME_LABEL, exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: JOIN_CONFIRM_LABEL, exact: true })).toHaveCount(0);
@@ -85,7 +89,7 @@ test("an unavailable pending join exposes no persona or confirmation", async ({ 
 test("an unnamed persona focuses its error without a request, then submits only the canonical persona and CSRF", async ({ mount, page }) => {
   await previewRoom(page);
   const confirms = await captureConfirms(page, (route) => route.fulfill({ status: 200, json: JOINED_RESPONSE }));
-  await mount(<PendingJoinStory />);
+  await mount<typeof PendingJoinStory>("tests/client/features/auth/components/_pending-join-stories/PendingJoinStory", {});
   const name = page.getByRole("textbox", { name: JOIN_NAME_LABEL, exact: true });
   const submit = page.getByRole("button", { name: JOIN_CONFIRM_LABEL, exact: true });
   await name.fill("   ");
@@ -126,7 +130,7 @@ test("a held confirm cannot submit twice and a non-signed-in result waits for ap
     }
   });
   try {
-    await mount(<PendingJoinStory />);
+    await mount<typeof PendingJoinStory>("tests/client/features/auth/components/_pending-join-stories/PendingJoinStory", {});
     await page.getByRole("textbox", { name: JOIN_NAME_LABEL, exact: true }).fill(JOIN_PERSONA.name);
     await page.getByRole("button", { name: JOIN_CONFIRM_LABEL, exact: true }).click();
     await requested.promise;
@@ -155,7 +159,7 @@ test("a held confirm cannot submit twice and a non-signed-in result waits for ap
 test("a refused confirm stays unsigned and renders the server refusal inline", async ({ mount, page }) => {
   await previewRoom(page);
   const confirms = await captureConfirms(page, (route) => route.fulfill({ status: 409, json: REFUSED_RESPONSE }));
-  await mount(<PendingJoinStory />);
+  await mount<typeof PendingJoinStory>("tests/client/features/auth/components/_pending-join-stories/PendingJoinStory", {});
   await page.getByRole("textbox", { name: JOIN_NAME_LABEL, exact: true }).fill(JOIN_PERSONA.name);
   await page.getByRole("button", { name: JOIN_CONFIRM_LABEL, exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("An account already exists for this identity.");

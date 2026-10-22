@@ -1,14 +1,10 @@
 // Wire stays portable. Media lazily uses a private clone and native viewer admission; source bytes never become a writable server root.
 
-import { access } from "node:fs/promises";
-import { join } from "node:path";
 import { BLOB_ROUTE } from "@orb/contracts/assets";
 import type { UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
-import { processEnvValue } from "@orb/tooling/floor/process/process-env";
-import { CT_CACHE_DIR_ENV } from "@orb/tooling/floor/testing/ct-cache";
-import { test as base } from "@playwright/experimental-ct-react";
 import type { Route } from "@playwright/test";
+import { test as base } from "@playwright/test";
 import type { CorpusWire } from "../iso/corpus.ts";
 import { loadCorpusFixture } from "./corpus.ts";
 
@@ -39,18 +35,16 @@ export const test = base.extend<CorpusFixtures & CtCorpusOptions>({
     await use(viewer);
   },
   corpusMedia: [
-    async ({ page, corpusDirectory, corpusViewer }, use) => {
-      const origin = new URL(page.url()).origin;
+    async ({ page, baseURL, corpusDirectory, corpusViewer }, use) => {
+      if (baseURL === undefined) {
+        throw new Error("Corpus media requires the configured gallery origin");
+      }
+      const origin = new URL(baseURL).origin;
       const initialize = async () => {
-        const clientDistDir = processEnvValue(CT_CACHE_DIR_ENV);
-        if (clientDistDir === undefined) {
-          throw new Error("Corpus media requires the native CT runner's built frontend");
-        }
-        await access(join(clientDistDir, "index.html"));
         const { createCorpusHarness } = await import("./corpus.ts");
         const { captureCookieAuth } = await import("./corpus-auth.ts");
         await using construction = new AsyncDisposableStack();
-        const root = construction.use(await createCorpusHarness(corpusDirectory, { clientDistDir }));
+        const root = construction.use(await createCorpusHarness(corpusDirectory));
         const principal = await root.principalFor(brandedId<UserId>().parse(corpusViewer.userId));
         const auth = await captureCookieAuth(root, principal, MEDIA_PASSWORD);
         const actual = auth.identity.viewer;
@@ -111,4 +105,4 @@ export const test = base.extend<CorpusFixtures & CtCorpusOptions>({
   ],
 });
 
-export { expect } from "@playwright/experimental-ct-react";
+export { expect } from "@playwright/test";

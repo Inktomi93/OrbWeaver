@@ -50,9 +50,9 @@ export function staticRouteSegments(): readonly string[] {
  *  such as `/join/:token`: the server answers them before the SPA router, so none is an unknown section. */
 export function serverRouteSegments(): readonly string[] {
   const source = clientSource(VITE_CONFIG_PATH);
-  const proxy = /\n {4}proxy: \{(?<body>[\s\S]*?)\n {4}\},/u.exec(source)?.groups?.["body"];
+  const proxy = /^const SERVER_PROXY = \{(?<body>[\s\S]*?)^\};/mu.exec(source)?.groups?.["body"];
   if (proxy === undefined) {
-    throw new Error(`${VITE_CONFIG_PATH}: the server.proxy block not found — the reader rotted`);
+    throw new Error(`${VITE_CONFIG_PATH}: SERVER_PROXY not found — the reader rotted`);
   }
-  return [...proxy.matchAll(/^ {6}"\/(?<segment>[^"/]+)": \{/gmu)].map((m) => m.groups?.["segment"] ?? "");
+  return [...proxy.matchAll(/^\s*"\/(?<segment>[^"/]+)": \{/gmu)].map((m) => m.groups?.["segment"] ?? "");
 }

@@ -8,9 +8,11 @@ paths:
 
 # Browser tests (CT and e2e)
 
+Read the [testkit authoring contract](../../tests/support/README.md) before adding or changing browser tests or helpers.
+
 ## Tests run the product
 
-Follow `docs/law/Spine-Testing.md` §10. Call production, derive types, import constants, and mount the real door. Never copy product logic, registries or wire shapes into a test.
+Follow `docs/law/Spine-Testing.md` §9. Call production, derive types, import constants, and mount the real door. Never copy product logic, registries or wire shapes into a test.
 
 The test layers and the rebuild plan are in `.claude/rules/node-tests.md`.
 
@@ -28,17 +30,10 @@ Run only the named component suites for the changed behavior.
   `innerText` or a raw attribute read. `aria-labelledby` outranks `aria-label`.
 - `getComputedStyle` reports the declared value even under `display: none`; suppress the exact property a
   test measures, not the element's display.
-- Playwright's production build makes `import.meta.env.DEV` false in every CT; mount dev-gated components
-  directly. `react-profiler` `onRender` never fires under CT; prove settling by sampling rendered geometry,
-  and prove a disabled control with `toBeDisabled` or a computed style, never a click.
-- StrictMode double-invocation does not reproduce under CT, which runs production React.
+- Follow `Spine-Testing.md` §7 for native gallery authoring, execution mode and lifecycle.
+- Prove a disabled control with `toBeDisabled` or a computed style, never a click.
 - Inside `page.evaluate` or `locator.evaluate`, pass computed values as arguments. The callback runs
   in-browser; a node-side import is `undefined` there with no type error.
-- A CT spec's node side cannot import a value from a client `.tsx` file: playwright-ct rewrites named
-  component imports into stubs and silently collects zero tests. Put values a CT imports in a
-  zero-import `.ts` file.
-- `mount()` allows one call per test. Cover several theme or state variants in one mount with
-  suffixed panes, not a loop of mounts.
 - Barrier on the first persisted write before reading state after `mount()`. Reading immediately
   races zustand-persist's rehydrate write, which lands a beat after mount, not on it.
 
@@ -52,9 +47,8 @@ Run only the named component suites for the changed behavior.
 
 ## Stories and seeds
 
-- A `_ct-stories` module exports only components.
-- Rebuilt stories import client modules through declared `@orb/client/*` doors. Legacy stories may use the existing root raw-reach map.
-- Seed first-run state with `addInitScript` and `page.reload()`.
+- Stories import client modules through declared `@orb/client/*` doors. Keep shared values in `.ts` helpers.
+- Seed first-run state with `addInitScript` before native `mount()` navigates.
 - A lane touching app-shell, the first-run persona gate, the home launcher, or the ambient-route feed runs
   `app-root.ct.tsx` and `route-pending.ct.tsx`.
 - When a gate trigger changes, retire every story that mounts it.

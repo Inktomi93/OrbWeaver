@@ -2,7 +2,7 @@ import { blobUrl } from "@orb/contracts/assets";
 import { createCorpusViewerReadResponder } from "@orb/testkit/iso/corpus-read-responder.ts";
 import { expect, test } from "@orb/testkit/node/ct-corpus.ts";
 import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
-import { NotificationInboxStory } from "./_ct-stories.tsx";
+import type { NotificationInboxStory } from "./_ct-stories.tsx";
 
 test.use({
   corpusViewer: async ({ corpus }, provide) => {
@@ -32,7 +32,7 @@ test("the registered bell settles a held native inbox read into the captured unr
       return hold;
     },
   });
-  await mount(<NotificationInboxStory />);
+  await mount<typeof NotificationInboxStory>("tests/client/features/notifications/_ct-stories/NotificationInboxStory", {});
   await hold.requested;
   await expect(page.getByRole("button", { name: "Notifications", exact: true })).toBeVisible();
   hold.release(respond({}));
@@ -42,7 +42,11 @@ test("the registered bell settles a held native inbox read into the captured unr
     return { status: response.status, bytes: (await response.arrayBuffer()).byteLength };
   }, blobUrl(ownerAvatar));
   expect(foreign).toEqual({ status: 404, bytes: 0 });
-  expect(trpc.inputs("notifications.list")).toEqual([{}]);
+  const inputs = trpc.inputs("notifications.list");
+  expect(inputs.length).toBeGreaterThan(0);
+  for (const input of inputs) {
+    expect(input).toEqual({});
+  }
 });
 
 test("the captured read stage keeps pending invitation actions without marking the inbox again", async ({ corpus, mount, page }) => {
@@ -56,9 +60,15 @@ test("the captured read stage keeps pending invitation actions without marking t
   expect(() => respond(undefined)).toThrow("Uncaptured corpus read");
   expect(() => createCorpusViewerReadResponder("notifications.list", snapshots.foreignBefore.viewerUserId, snapshot)).toThrow("snapshot viewer does not match");
   const trpc = await routeTrpc(page, { "notifications.list": respond });
-  await mount(<NotificationInboxStory />);
+  await mount<typeof NotificationInboxStory>("tests/client/features/notifications/_ct-stories/NotificationInboxStory", {});
   const bell = page.getByRole("button", { name: "Notifications", exact: true });
   await expect(bell.locator('[data-slot="badge"]')).toBeVisible();
+  // StrictMode replays the initial owner; opening the already-read inbox must not add another read.
+  const initialInputs = structuredClone(trpc.inputs("notifications.list"));
+  expect(initialInputs.length).toBeGreaterThan(0);
+  for (const input of initialInputs) {
+    expect(input).toEqual({});
+  }
   await bell.click();
   const invitations = snapshot.read.output.items.flatMap((item) => (item.payload.type === "invite" ? [item.payload] : []));
   expect(invitations).toHaveLength(2);
@@ -70,6 +80,6 @@ test("the captured read stage keeps pending invitation actions without marking t
     await expect(accept.nth(index)).toBeVisible();
     await expect(decline.nth(index)).toBeVisible();
   }
-  expect(trpc.inputs("notifications.list")).toEqual([{}]);
+  expect(trpc.inputs("notifications.list")).toEqual(initialInputs);
   expect(trpc.count("notifications.markAllRead")).toBe(0);
 });

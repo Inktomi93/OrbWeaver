@@ -7,11 +7,13 @@ paths:
 
 # Node test suites
 
+Read the [testkit authoring contract](../../tests/support/README.md) before adding or changing Node tests or helpers.
+
 Read a suite's result from its own output file. `AGENTS.md` owns the piping rule.
 
 ## Tests run the product
 
-Follow `docs/law/Spine-Testing.md` §10. Call production, derive types, import constants, and mount the real door. Never copy product logic, registries or wire shapes into a test.
+Follow `docs/law/Spine-Testing.md` §9. Call production, derive types, import constants, and mount the real door. Never copy product logic, registries or wire shapes into a test.
 
 ## Test layers and the rebuild
 

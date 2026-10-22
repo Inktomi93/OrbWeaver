@@ -21,8 +21,8 @@
 // user-macro bodies calls `assertTokenRoundtrip` on its template-text field — no per-editor re-spelling of
 // the assertion, so the invariant cannot drift editor to editor.
 
-import { expect } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
+import { expect } from "@playwright/test";
 import type { TrpcProcedurePath, TrpcRecorder } from "./route-trpc.ts";
 
 /** The probe text: a bare identity macro plus prose, so a resolution bug changes the string VISIBLY (an

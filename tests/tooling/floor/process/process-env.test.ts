@@ -19,7 +19,7 @@ test("the test environment preserves explicit overrides and adds the storage opt
   const ambient = inheritedProcessEnv();
   const overrides = {
     ["NODE_OPTIONS"]: '--max-old-space-size=16384 --import="/a path/preload.js"',
-    ["ORB_CT_CACHE_DIR"]: "/owned/ct",
+    ["CT_PORT"]: "3100",
     ["ORB_RUN_MARKER"]: "proof-run",
     ["AUTH_MODE"]: "synthetic-explicit-auth-mode",
   };
@@ -40,6 +40,7 @@ test.for([
   "ORB_UNAPPROVED_TEST_KEY",
   "CT_RUN_SLOT_DIR",
   "CT_RUN_SLOT_RACING",
+  "ORB_CT_CACHE_DIR",
 ])("the worker environment does not inherit %s from its parent", async (key) => {
   await withProcessEnv(key, "synthetic-parent-only-value", () => {
     expect(Object.hasOwn(testProcessEnv(), key)).toBe(false);
@@ -58,7 +59,6 @@ test("the worker environment preserves intentional runtime, CI and native fixtur
     "ORB_RUN_MARKER",
     "ORB_RUN_LEASE",
     "ORB_VITEST_BIN",
-    "ORB_CT_CACHE_DIR",
     "ORB_NATIVE_OCCURRENCE_PACKAGES",
     "ORB_LOCAL_LIGHT_E2E",
     "PLUGIN_BROKER_PROOF_RECEIPT",

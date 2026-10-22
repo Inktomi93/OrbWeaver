@@ -1,5 +1,5 @@
 // Native route failures must fail the owning CT even when the page handles the network error and keeps rendering.
-import { expect, test } from "@playwright/experimental-ct-react";
+import { expect, test } from "@playwright/test";
 import { malformedOrForwardTrpcWire, routeTrpc, trpcEndSubscription, trpcError, trpcHold } from "../node/route-trpc.ts";
 
 const ORIGIN = "http://route-trpc.test";

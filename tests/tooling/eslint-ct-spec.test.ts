@@ -35,7 +35,7 @@ async function ordinary(root: string, rule: string, source: string, path: string
 }
 
 const trpcRoute = 'await page.route("**/api/trpc/**", () => undefined);';
-const routeTest = (body: string): string => `import { test } from "@playwright/experimental-ct-react";\ntest("g", async ({ page }) => {\n${body}\n});\n`;
+const routeTest = (body: string): string => `import { test } from "@playwright/test";\ntest("g", async ({ page }) => {\n${body}\n});\n`;
 
 test.for([
   ["bare and braced freeform ids", `export const A = () => <div data-testid="composer"><span data-testid={'send' as string} /></div>;`, STORY, 2],
@@ -113,7 +113,31 @@ test("an inversion takes a reasoned inline permission at the routeTrpc statement
   expect(await ordinary(repoRoot, ROUTE_ORDER, source, SPEC)).toEqual([]);
 });
 
-const poll = (body: string): string => `import { expect, test } from "@playwright/experimental-ct-react";\n${body}\n`;
+const poll = (body: string): string => `import { expect, test } from "@playwright/test";\n${body}\n`;
+
+test("native gallery authoring keeps composition and callbacks in typed browser stories", CONFIG_LOAD, async ({ repoRoot }) => {
+  const rule = "no-restricted-syntax";
+  for (const source of [
+    'async function run(mount) { await mount("tests/example/Story", { label: "Ready" }); }',
+    'async function run(mount) { await mount<typeof Story>("tests/example/Story", { onClick: () => undefined }); }',
+    "const component = <Story />;",
+    'import { Story } from "./_ct-stories.tsx";',
+  ]) {
+    expect(await ordinary(repoRoot, rule, source, SPEC), source).not.toEqual([]);
+  }
+  const typed =
+    'import type { Story } from "./_ct-stories.tsx"; async function run(mount) { await mount<typeof Story>("tests/example/Story", { label: "Ready" }); }';
+  expect(await ordinary(repoRoot, rule, typed, SPEC)).toEqual([]);
+  expect(
+    await ordinary(
+      repoRoot,
+      rule,
+      'async function run(mount) { await mount<typeof Story>("tests/example/Story", { rows: [1].map(value => ({ value })) }); }',
+      SPEC,
+    ),
+  ).toEqual([]);
+  expect(await ordinary(repoRoot, rule, "export const Story = () => <div />;", STORY)).toEqual([]);
+});
 
 test.for([
   [

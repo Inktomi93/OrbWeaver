@@ -3,41 +3,44 @@
 // toggles are proven to be caught, and only through the metric each one actually escapes on
 // (contained-within-fixtures.tsx's header states which); the non-ancestor arm proves the anchor check
 // fires before any measurement, never after.
-import { expect, test } from "@playwright/experimental-ct-react";
+import { expect, test } from "@playwright/test";
 import { expectContainedWithin } from "./contained-within.ts";
-import { ContainmentNonAncestorStory, ContainmentSubjectStory } from "./contained-within-fixtures.tsx";
+import type { ContainmentNonAncestorStory, ContainmentSubjectStory } from "./contained-within-fixtures.tsx";
 
 // A negative-control fixture never settles, so bound the poll tightly instead of eating the default 5s.
 const FAST_FAIL = { intervals: [10, 20], timeout: 300 };
 
 test("the correctly-truncated, min-w-0'd subject passes — the positive control", async ({ mount }) => {
-  const component = await mount(<ContainmentSubjectStory />);
+  const component = await mount<typeof ContainmentSubjectStory>("tests/support/browser/contained-within-fixtures/ContainmentSubjectStory", {});
   await expect(expectContainedWithin(component.getByTestId("containment-subject"), component.getByTestId("containment-wrapper"))).resolves.toBeUndefined();
 });
 
 test("PLANTED CONTROL: with `truncate` removed the helper FAILS via scrollWidth", async ({ mount }) => {
-  const component = await mount(<ContainmentSubjectStory truncate={false} />);
+  const component = await mount<typeof ContainmentSubjectStory>("tests/support/browser/contained-within-fixtures/ContainmentSubjectStory", { truncate: false });
   await expect(expectContainedWithin(component.getByTestId("containment-subject"), component.getByTestId("containment-wrapper"), FAST_FAIL)).rejects.toThrow(
     /subject overflows wrapper: scrollWidth \d+px/u,
   );
 });
 
 test("PLANTED CONTROL: with `min-w-0` removed the helper FAILS via the painted box width", async ({ mount }) => {
-  const component = await mount(<ContainmentSubjectStory minW0={false} />);
+  const component = await mount<typeof ContainmentSubjectStory>("tests/support/browser/contained-within-fixtures/ContainmentSubjectStory", { minW0: false });
   await expect(expectContainedWithin(component.getByTestId("containment-subject"), component.getByTestId("containment-wrapper"), FAST_FAIL)).rejects.toThrow(
     /boundingBox width \d+\.\d+px/u,
   );
 });
 
 test("PLANTED CONTROL: with BOTH removed the helper still FAILS", async ({ mount }) => {
-  const component = await mount(<ContainmentSubjectStory minW0={false} truncate={false} />);
+  const component = await mount<typeof ContainmentSubjectStory>("tests/support/browser/contained-within-fixtures/ContainmentSubjectStory", {
+    minW0: false,
+    truncate: false,
+  });
   await expect(expectContainedWithin(component.getByTestId("containment-subject"), component.getByTestId("containment-wrapper"), FAST_FAIL)).rejects.toThrow(
     /subject overflows wrapper/u,
   );
 });
 
 test("a non-ancestor wrapper is REFUSED before any measurement runs", async ({ mount }) => {
-  const component = await mount(<ContainmentNonAncestorStory />);
+  const component = await mount<typeof ContainmentNonAncestorStory>("tests/support/browser/contained-within-fixtures/ContainmentNonAncestorStory", {});
   await expect(expectContainedWithin(component.getByTestId("containment-subject"), component.getByTestId("containment-decoy-wrapper"))).rejects.toThrow(
     /WRAPPER is not an ancestor of SUBJECT/u,
   );

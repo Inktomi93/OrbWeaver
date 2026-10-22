@@ -4,9 +4,7 @@ import { createCorpusHarness } from "@orb/testkit/node/corpus.ts";
 import { expect, test } from "@orb/testkit/node/ct-corpus.ts";
 import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
-import { processEnvValue } from "@orb/tooling/floor/process/process-env";
-import { CT_CACHE_DIR_ENV } from "@orb/tooling/floor/testing/ct-cache";
-import { CharacterExampleLifetimeStory } from "./_example-lifetime-stories.tsx";
+import type { CharacterExampleLifetimeStory } from "./_example-lifetime-stories.tsx";
 
 test.use({ trace: "on" });
 
@@ -22,7 +20,7 @@ test("example preview retains native link consent for identical reads and drops 
   if (character === undefined || hashes?.[0] === undefined || hashes[1] === undefined) {
     throw new Error("Committed character library must include a bare card and two real images");
   }
-  await using root = await createCorpusHarness(undefined, { clientDistDir: processEnvValue(CT_CACHE_DIR_ENV) });
+  await using root = await createCorpusHarness();
   const caller = await root.internalCallerFor(root.ownerId);
   const characterId = characterDetailSchema.shape.id.parse(character.id);
   const firstText = `<START>\n![Example witness](${blobUrl(hashes[0])})\n[Read image](${blobUrl(hashes[0])})`;
@@ -48,7 +46,10 @@ test("example preview retains native link consent for identical reads and drops 
     "tag.listPendingSuggestions": () => pendingTags,
   });
   await corpusMedia();
-  const component = await mount(<CharacterExampleLifetimeStory characterId={characterId} />);
+  const component = await mount<typeof CharacterExampleLifetimeStory>(
+    "tests/client/features/character/components/_example-lifetime-stories/CharacterExampleLifetimeStory",
+    { characterId },
+  );
   await page.getByRole("button", { name: /Example messages/ }).click();
   const image = page.getByRole("img", { name: "Example witness", exact: true });
   await expect(image).toBeVisible();
@@ -61,7 +62,7 @@ test("example preview retains native link consent for identical reads and drops 
   await page.getByRole("button", { name: "Read image", exact: true }).click();
   const consent = page.locator('[data-streamdown="link-safety-modal"]');
   await expect(consent).toBeVisible();
-  await component.update(<CharacterExampleLifetimeStory characterId={characterId} revision={1} />);
+  await component.update({ characterId, revision: 1 });
   await expect(page.getByRole("status", { name: "Read revision", exact: true })).toHaveText("1");
   await expect(consent).toBeVisible();
   const before = testInfo.outputPath("unchanged-example-consent.png");
@@ -71,7 +72,7 @@ test("example preview retains native link consent for identical reads and drops 
     characterId,
     input: { exampleMessages: `<START>\n![Replacement witness](${blobUrl(hashes[1])})\n[Read replacement](${blobUrl(hashes[1])})` },
   });
-  await component.update(<CharacterExampleLifetimeStory characterId={characterId} revision={2} />);
+  await component.update({ characterId, revision: 2 });
   await expect(page.getByRole("status", { name: "Read revision", exact: true })).toHaveText("2");
   await expect(page.getByRole("button", { name: "Read replacement", exact: true })).toBeVisible();
   await expect(consent).toHaveCount(0);

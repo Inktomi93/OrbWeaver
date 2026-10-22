@@ -19,9 +19,17 @@ function NativePluginPage({ pluginId, surfaceId }: { readonly pluginId: PluginId
 }
 
 /** Mount only the production Extensions content contribution; its normal page path owns the real Worker. */
-export function PluginProtocolStory({ pluginId, surfaceId = "protocol" }: { readonly pluginId: PluginId; readonly surfaceId?: string }): ReactElement {
+export function PluginProtocolStory({
+  pluginId,
+  surfaceId = "protocol",
+  runtimeEpoch = 0,
+}: {
+  readonly pluginId: PluginId;
+  readonly surfaceId?: string;
+  readonly runtimeEpoch?: number;
+}): ReactElement {
   return (
-    <CtClientProviders>
+    <CtClientProviders key={runtimeEpoch}>
       <NativePluginPage pluginId={pluginId} surfaceId={surfaceId} />
     </CtClientProviders>
   );

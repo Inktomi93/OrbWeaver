@@ -20,9 +20,9 @@
 // EVERY ARM RUNS AT BOTH POINTERS. `--spacing-touch-target` is pointer-CONDITIONAL (D62), the hit pseudo
 // is sized on it, and a fix that only lands on one pointer is half a fix — the fine arm is also where the
 // pseudo is SMALLEST, i.e. where an over-crediting predicate is easiest to mistake for a correct one.
-import { expect, test } from "@playwright/experimental-ct-react";
+import { expect, test } from "@playwright/test";
 import { hitExtent, measurePitch, touchFloorPx } from "./touch-floor.ts";
-import {
+import type {
   TouchFloorBoxCarriedIsolatedStory,
   TouchFloorCtaGlyphIsolatedStory,
   TouchFloorInlinePrimaryStory,
@@ -38,7 +38,7 @@ for (const pointer of [
     test.use({ hasTouch: pointer.hasTouch });
 
     test("#662: a box-carried control alone in a padded wrapper measures its OWN box, not the wrapper", async ({ mount, page }) => {
-      await mount(<TouchFloorBoxCarriedIsolatedStory />);
+      await mount<typeof TouchFloorBoxCarriedIsolatedStory>("tests/support/browser/touch-floor-fixtures/TouchFloorBoxCarriedIsolatedStory", {});
       const floor = await touchFloorPx(page);
       const control = page.getByTestId("box-carried-isolated");
 
@@ -52,7 +52,7 @@ for (const pointer of [
     });
 
     test("#662: an overflowing ::before pseudo still carries the floor when its control is isolated", async ({ mount, page }) => {
-      await mount(<TouchFloorPseudoCarriedIsolatedStory />);
+      await mount<typeof TouchFloorPseudoCarriedIsolatedStory>("tests/support/browser/touch-floor-fixtures/TouchFloorPseudoCarriedIsolatedStory", {});
       const floor = await touchFloorPx(page);
       const control = page.getByTestId("pseudo-carried-isolated");
 
@@ -63,7 +63,7 @@ for (const pointer of [
     });
 
     test("#1843: the SAME glyph wearing the CTA ring keeps its hit area", async ({ mount, page }) => {
-      await mount(<TouchFloorCtaGlyphIsolatedStory />);
+      await mount<typeof TouchFloorCtaGlyphIsolatedStory>("tests/support/browser/touch-floor-fixtures/TouchFloorCtaGlyphIsolatedStory", {});
       const floor = await touchFloorPx(page);
       const control = page.getByTestId("cta-glyph-isolated");
 
@@ -75,7 +75,7 @@ for (const pointer of [
     });
 
     test("#2300: the PRE-#1843 ringed glyph — an untappable pseudo — measures BELOW the floor", async ({ mount, page }) => {
-      await mount(<TouchFloorPreFixCtaGlyphStory />);
+      await mount<typeof TouchFloorPreFixCtaGlyphStory>("tests/support/browser/touch-floor-fixtures/TouchFloorPreFixCtaGlyphStory", {});
       const floor = await touchFloorPx(page);
       const control = page.getByTestId("pre-fix-cta-glyph");
 
@@ -91,7 +91,7 @@ for (const pointer of [
     });
 
     test("#1843/#2301: the `inline` arm at intent=primary answers a tap over its whole hit-area ::before", async ({ mount, page }) => {
-      await mount(<TouchFloorInlinePrimaryStory />);
+      await mount<typeof TouchFloorInlinePrimaryStory>("tests/support/browser/touch-floor-fixtures/TouchFloorInlinePrimaryStory", {});
       const floor = await touchFloorPx(page);
       const control = page.getByTestId("inline-primary");
 

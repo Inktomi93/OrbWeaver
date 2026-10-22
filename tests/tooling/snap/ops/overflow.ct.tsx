@@ -11,11 +11,12 @@
 // NEGATIVE, so `scrollWidth - clientWidth` — this assertion's only arm until now — reads 0, and the
 // instrument printed `PASS overflow=0x0` over the defect (receipt: 2026-08-22). The healthy twin in the
 // same story is the false-positive fence.
-import { expect, test } from "@playwright/experimental-ct-react";
+
 import type { Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import type { OverflowProbe } from "../../../../tooling/src/snap/contract/overflow.ts";
 import { OVERFLOW_MAX_ESCAPES, OVERFLOW_TOLERANCE_PX, sweepOverflowEscapes } from "../../../../tooling/src/snap/ops/overflow.ts";
-import { WalkerClippedInflowControlStory } from "../../_ct-stories.tsx";
+import type { WalkerClippedInflowControlStory } from "../../_ct-stories.tsx";
 
 /** Run the SHIPPED sweep body in the mounted page, over the element `--expect-no-overflow` would have
  *  matched. Not a re-typed copy of it: a proof of a paraphrase proves nothing about the tool. */
@@ -24,7 +25,7 @@ async function sweep(page: Page, selector: string): Promise<OverflowProbe> {
 }
 
 test("a control pushed past the LEFT edge of an overflow:auto box is an escape — the arm scrollWidth is blind to", async ({ mount, page }) => {
-  await mount(<WalkerClippedInflowControlStory />);
+  await mount<typeof WalkerClippedInflowControlStory>("tests/tooling/_ct-stories/WalkerClippedInflowControlStory", {});
   const probe = await sweep(page, "[data-testid=clip-dialog]");
 
   expect(probe.scrollX, "the scroll arm still reads ZERO here — this is exactly why the rect sweep exists").toBe(0);
@@ -40,7 +41,7 @@ test("a control pushed past the LEFT edge of an overflow:auto box is an escape �
 });
 
 test("the healthy twin sweeps clean — a scroll pane, an sr-only stub and a padded badge are not escapes", async ({ mount, page }) => {
-  await mount(<WalkerClippedInflowControlStory />);
+  await mount<typeof WalkerClippedInflowControlStory>("tests/tooling/_ct-stories/WalkerClippedInflowControlStory", {});
   const probe = await sweep(page, "[data-testid=healthy-dialog]");
 
   expect(
@@ -50,7 +51,7 @@ test("the healthy twin sweeps clean — a scroll pane, an sr-only stub and a pad
 });
 
 test("a scrolling side is declined and a clipping one is not — per SIDE, never per axis", async ({ mount, page }) => {
-  await mount(<WalkerClippedInflowControlStory />);
+  await mount<typeof WalkerClippedInflowControlStory>("tests/tooling/_ct-stories/WalkerClippedInflowControlStory", {});
   const probe = await sweep(page, "[data-testid=healthy-scroller]");
 
   expect(probe.scrollY, "the pane's content is far taller than the pane — the scroll arm sees this one").toBeGreaterThan(0);

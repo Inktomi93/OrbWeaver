@@ -72,30 +72,7 @@ export interface ModeProject extends Target {
   /** The built client the SERVER origin serves (`CLIENT_DIST_DIR`); the mode's webServer builds it before boot.
    *  Set only where the spec origin is the server rather than vite. */
   readonly servedClient?: string;
-  /** How deep `global-setup.ts` warms THIS mode's vite dev server before the first spec runs (see
-   *  `ClientWarmup`). The depth is an auth fact, not a preference: only a mode whose UI is reachable
-   *  WITHOUT a login can be driven into the chat room by an un-authenticated warm pass. */
-  readonly clientWarmup: ClientWarmup;
 }
-
-/**
- * How far `global-setup.ts` drives a mode's client to pre-transform its module graph.
- *
- * WHY THE HARNESS WARMS AT ALL (#571): each `playwright test` invocation boots a FRESH vite dev server, and
- * vite's transform cache is per-process — so the FIRST spec of every run pays the cold transform of the
- * whole route graph (~1.6k module requests for home → Chats → room, measured from the #571 trace) INSIDE its
- * own 60s test timeout. That cost grew with the client and crossed the budget: `chat-persistence`'s `@smoke`
- * case died at `page.reload` with `net::ERR_ABORTED` — the abort being the test-timeout context close, not a
- * competing navigation. Warming here moves that one-time cost OUT of every spec's budget (measured on this
- * box: cold 42.2s → warm 14.9s / 13.8s for the same case), and it is self-maintaining because the warm pass
- * walks the REAL graph through the same helpers the specs use rather than a hand-listed file set.
- *
- * - `room`  — drive home → Chats list → open a chat (`support/chat-room.ts`). The full spec surface; only
- *             valid where the UI needs no login (single-user).
- * - `shell` — load `/` only. The login-gated modes (local, forward-header) cannot reach the room
- *             un-authenticated, so they warm the boot shell + router + dep graph and stop there.
- */
-type ClientWarmup = "room" | "shell";
 
 const SESSION_SECRET = "orbweaver-e2e-multimode-session-secret-insecure";
 const CREDENTIALS_KEY = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
@@ -234,7 +211,7 @@ if (corpusDirectory !== undefined && (DEV_TARGET_ALLOWED || process.env["E2E_LIV
 export const SELECTED_CORPUS_FIXTURE = corpusDirectory === undefined ? undefined : loadCorpusFixture(corpusDirectory);
 /** The local-auth stack owns a different writable clone from single-user. */
 export const SELECTED_LOCAL_CORPUS_FIXTURE = localCorpusDirectory === undefined ? undefined : loadCorpusFixture(localCorpusDirectory);
-/** Additive corpus qualification retains ordinary smoke reports and warm-up diagnostics in the same job. */
+/** Additive corpus qualification retains ordinary smoke reports and failure artifacts in the same job. */
 export const E2E_REPORT_PREFIX = SELECTED_CORPUS_FIXTURE === undefined ? "reports/e2e" : (process.env["E2E_CORPUS_REPORT_PREFIX"] ?? "reports/e2e-corpus");
 for (const fixture of [SELECTED_CORPUS_FIXTURE, SELECTED_LOCAL_CORPUS_FIXTURE]) {
   if (fixture?.privateParent !== undefined) {
@@ -307,7 +284,6 @@ export const SINGLE_USER: ModeProject = {
         }),
   },
   seedMultiUser: false,
-  clientWarmup: "room",
 };
 
 const CORPUS_DEVICES = ["Desktop Chrome", "Pixel 7"] as const;
@@ -375,7 +351,6 @@ const LOCAL: ModeProject = {
         }),
   },
   seedMultiUser: true,
-  clientWarmup: "shell",
 };
 
 // ── forward-header (SSO trusted-proxy) — ports 8798/5182, isolated DB/assets. AUTH_MODE=forward-header +
@@ -412,7 +387,6 @@ const FORWARD_HEADER: ModeProject = {
     ORB_ENV_NO_FILE: "1",
   },
   seedMultiUser: false,
-  clientWarmup: "shell",
 };
 
 // ── oidc (the app is an OIDC client, cookie/BFF sessions) — ports 8795/5184, isolated DB/assets, and the HTTPS
@@ -485,7 +459,6 @@ export const OIDC_MODE: ModeProject = {
     ORB_ENV_NO_FILE: "1",
   },
   seedMultiUser: false,
-  clientWarmup: "shell",
 };
 
 /** Every mode project the config builds a project + webServer for. */

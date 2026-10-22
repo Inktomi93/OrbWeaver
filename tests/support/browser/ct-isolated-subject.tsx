@@ -1,7 +1,7 @@
 // Primitive and instrument subjects name why their mount excludes authenticated application composition.
 import type { ReactElement, ReactNode } from "react";
 
-/** Static admission checks the named subject and reason; this boundary adds no box or replacement implementation. */
+/** Name the isolated subject and reason for review without adding a box or replacing product behavior. */
 export function CtIsolation({ children }: { readonly subject: string; readonly isolates: string; readonly children: ReactNode }): ReactElement {
   return <>{children}</>;
 }

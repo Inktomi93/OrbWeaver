@@ -1,12 +1,26 @@
 import { blobIconUrl, blobUrl } from "@orb/contracts/assets";
 import { refineryScorePayloadSchema } from "@orb/contracts/refinery";
 import { projectJsonSchema } from "@orb/kit/json-schema";
+import type { CorpusWire } from "@orb/testkit/iso/corpus.ts";
 import { expect, test } from "@orb/testkit/node/ct-corpus.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import type { ConsoleMessage } from "@playwright/test";
-import { SchemaPreviewStory } from "./_payload-stories.tsx";
+import type { SchemaPreviewStory } from "./_payload-stories.tsx";
 
 test.use({ trace: "on" });
+
+const FOREIGN_MEDIA_ORIGIN = "https://corpus-media.example.invalid";
+
+// Reach the media origin guard in its own context, independently of the gallery document's earlier CSP refusal.
+const mediaBoundaryTest = test.extend({ bypassCSP: true, reuseContext: false });
+
+function requireMediaHash(corpus: CorpusWire): string {
+  const hash = corpus.reads["character.list"][0]?.output.items.find((item) => item.avatarHash !== null)?.avatarHash;
+  if (hash === undefined || hash === null) {
+    throw new Error("The committed corpus omitted its media query control");
+  }
+  return hash;
+}
 
 test("schema preview retains settled expansion through rerenders and failures, then resets on successful replacement", async ({
   corpus,
@@ -57,7 +71,7 @@ test("schema preview retains settled expansion through rerenders and failures, t
     },
   });
   await corpusMedia();
-  await mount(<SchemaPreviewStory />);
+  await mount<typeof SchemaPreviewStory>("tests/client/features/refinery/components/_payload-stories/SchemaPreviewStory", {});
   await page
     .getByRole("textbox", { name: "Schema (JSON — the full vocabulary)", exact: true })
     .fill(JSON.stringify(projectJsonSchema(refineryScorePayloadSchema)));
@@ -81,12 +95,11 @@ test("schema preview retains settled expansion through rerenders and failures, t
   }
   expect(mediaConsoleErrors).toEqual([]);
   page.off("console", observeConsole);
-  const hash = library.items.find((item) => item.avatarHash !== null)?.avatarHash;
-  if (hash === undefined || hash === null) {
-    throw new Error("The committed corpus omitted its media query control");
-  }
-  const foreignUrl = `https://corpus-media.example.invalid${blobUrl(hash)}`;
-  const foreignFailure = page.waitForEvent("requestfailed", { predicate: (request) => request.url() === foreignUrl });
+  const hash = requireMediaHash(corpus);
+  const foreignUrl = `${FOREIGN_MEDIA_ORIGIN}${blobUrl(hash)}`;
+  const foreignPolicy = page.waitForEvent("console", {
+    predicate: (message) => message.type() === "error" && message.text().includes(foreignUrl) && message.text().includes("connect-src"),
+  });
   const mediaControls = await page.evaluate(
     async ({ variant, refusals, foreign }) => {
       const image = new Image();
@@ -121,7 +134,7 @@ test("schema preview retains settled expansion through rerenders and failures, t
     ],
     externalRefused: true,
   });
-  expect((await foreignFailure).failure()?.errorText).toMatch(/^net::ERR_BLOCKED_BY_CLIENT(?:\.Inspector)?$/);
+  expect((await foreignPolicy).text()).toContain("Content Security Policy");
   await page.getByRole("option", { name: character.name, exact: true }).click();
   await page.getByRole("button", { name: "Test on this card", exact: true }).click();
   const assay = page.getByRole("button", { name: "description — 7", exact: true });
@@ -164,4 +177,32 @@ test("schema preview retains settled expansion through rerenders and failures, t
   const reopenedScreenshot = testInfo.outputPath("preview-replacement-reopened.png");
   await page.screenshot({ path: reopenedScreenshot });
   await testInfo.attach("replacement-preview-reopened", { path: reopenedScreenshot });
+});
+
+mediaBoundaryTest("the media route admits its native blob and refuses the same path on a foreign origin", async ({ baseURL, corpus, corpusMedia, page }) => {
+  if (baseURL === undefined) {
+    throw new Error("The component gallery has no configured base URL");
+  }
+  const path = blobUrl(requireMediaHash(corpus));
+  await corpusMedia();
+  await page.goto(baseURL);
+  const admitted = await page.evaluate(async (blobPath) => {
+    const response = await fetch(blobPath);
+    return { status: response.status, bytes: (await response.arrayBuffer()).byteLength };
+  }, path);
+  expect(admitted.status).toBe(200);
+  expect(admitted.bytes).toBeGreaterThan(0);
+
+  const foreignUrl = `${FOREIGN_MEDIA_ORIGIN}${path}`;
+  const foreignFailure = page.waitForEvent("requestfailed", { predicate: (request) => request.url() === foreignUrl });
+  const refused = await page.evaluate(async (url) => {
+    try {
+      await fetch(url);
+      return false;
+    } catch {
+      return true;
+    }
+  }, foreignUrl);
+  expect(refused).toBe(true);
+  expect((await foreignFailure).failure()?.errorText).toMatch(/^net::ERR_BLOCKED_BY_CLIENT(?:\.Inspector)?$/);
 });

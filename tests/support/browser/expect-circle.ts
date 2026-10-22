@@ -1,5 +1,5 @@
-import { expect } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
+import { expect } from "@playwright/test";
 
 /**
  * UI-Density-Law 2.1: an avatar (and the click target that wraps one) takes the full radius. Reads the

@@ -156,7 +156,7 @@ are JSON).
   an app finding: Playwright's own tracing script trips in the app's script-dead sandboxed card frames.
 - A red run (exit 1) is read off the `RESULT` line's `nav`/`steps-failed`/`assertion-fails`/
   `contrast-fails`/`console-errors`/`page-errors` axes, then the trace under `reports/traces/`. A
-  `data-app-ready=degraded` readiness is a NAV ERROR: the capture is mid-hydration, rerun it.
+  `data-app-ready=degraded` readiness is a NAV ERROR. Preserve the failure and diagnose startup; a warmed rerun does not qualify it.
 - **Read a `--lighthouse` result by its failed audits.** Judge the run by `lighthouse-failed-audits`
   and the failed-audit list, never by a category score. Some audits carry no category weight. The
   accessibility category can show a perfect score while `label-content-name-mismatch` fails on the

@@ -283,7 +283,7 @@ export function readinessGap(url: string, appReady: boolean): EvidenceGap | null
   }
   return {
     evidence: "the app-readiness signal",
-    detail: `${url} never published html[data-app-ready] — the app did not mount, so the walk censused the shell around it and every check family folded a near-empty list into "no findings". On an isolated stage the run has ALREADY re-navigated once against the cold vite itself (#1142), so a persisting absence means the stage's app does not mount — read the stage's stack log instead of re-running; on the dev stack it means the app is broken, which is a finding for a human, not a clean audit`,
+    detail: `${url} never published html[data-app-ready] — the app did not mount, so the walk censused the shell around it and every check family folded a near-empty list into "no findings". This first navigation failed; inspect its retained browser evidence and stack log. No later navigation replaces this failed observation`,
   };
 }
 
@@ -343,7 +343,7 @@ export function censusThinGap(population: DomPopulation | null): EvidenceGap | n
   const floorNote = stabilized ? "" : " The population was still moving at the ceiling, so its figure is a floor.";
   return {
     evidence: "the node census's completeness",
-    detail: `the page settled at ${settled} element(s), snapshotted ${duringWalk}, walked ${accounting.walked}, and explicitly skipped ${closedSkips} (${accounting.skipped.documentHead} document-head + ${accounting.skipped.devChrome} dev-chrome), but exact accounting failed: ${faults.join("; ")}.${floorNote} Re-run the SAME command only after the surface is actually stable; a clean verdict requires settled = walked + classified closed skips with no identity churn`,
+    detail: `the page settled at ${settled} element(s), snapshotted ${duringWalk}, walked ${accounting.walked}, and explicitly skipped ${closedSkips} (${accounting.skipped.documentHead} document-head + ${accounting.skipped.devChrome} dev-chrome), but exact accounting failed: ${faults.join("; ")}.${floorNote} Inspect the unsettled identities; a clean verdict requires settled = walked + classified closed skips with no identity churn`,
   };
 }
 

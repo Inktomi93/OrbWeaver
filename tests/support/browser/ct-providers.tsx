@@ -1,5 +1,5 @@
 // Shared CT provider harness — the GLOBAL chrome every mounted component gets, injected once via
-// `beforeMount` (playwright/index.tsx). This is the @orb/ui-scoped sibling of Spine-Testing §7's
+// the browser gallery (playwright/index.tsx). This is the @orb/ui-scoped sibling of Spine-Testing §7's
 // client provider harness, minus QueryClient/tRPC (@orb/ui is domain-agnostic). See the primitive
 // contract §4.3: the app-wide providers live here so no `.ct.tsx` re-wraps them inline.
 //
@@ -40,7 +40,7 @@ export interface CtProvidersProps {
  * root for every test that reads the mounted element directly (`mount(...).evaluate(...)`). Base
  * tokens already resolve at `:root` (globals.css `@theme`), so with no override the wrapper is a
  * pure no-op — we therefore mount ThemeScope ONLY when a case actually supplies override tokens via
- * `mount(<C/>, { hooksConfig: { theme } })`. A test that reads a scoped `--color-*` override wraps;
+ * its own `CtProviders` theme prop. A story that reads a scoped `--color-*` override wraps;
  * everything else mounts flush against the component root.
  */
 export function CtProviders({ children, theme }: CtProvidersProps): ReactElement {

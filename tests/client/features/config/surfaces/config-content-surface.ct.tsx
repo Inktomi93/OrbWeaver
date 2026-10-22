@@ -1,7 +1,7 @@
 import { createCorpusReadResponder } from "@orb/testkit/iso/corpus-read-responder.ts";
 import { expect, test } from "@orb/testkit/node/ct-corpus.ts";
 import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
-import { ConfigAnchorStory } from "./_anchor-stories.tsx";
+import type { ConfigAnchorStory } from "./_anchor-stories.tsx";
 
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
@@ -15,7 +15,7 @@ test("a registered delayed body still receives its canonical anchor and lands vi
     "settings.getUserSettings": () => hold,
     "settings.listThemes": createCorpusReadResponder("settings.listThemes", corpus.reads["settings.listThemes"]),
   });
-  await mount(<ConfigAnchorStory />);
+  await mount<typeof ConfigAnchorStory>("tests/client/features/config/surfaces/_anchor-stories/ConfigAnchorStory", {});
   await hold.requested;
   const jump = page.getByRole("button", { name: "Jump to avatars", exact: true });
   const target = await jump.getAttribute("data-anchor");
@@ -39,7 +39,7 @@ test("a superseded delayed anchor cannot flash or scroll after its read arrives"
     "settings.getUserSettings": () => hold,
     "settings.listThemes": createCorpusReadResponder("settings.listThemes", corpus.reads["settings.listThemes"]),
   });
-  await mount(<ConfigAnchorStory />);
+  await mount<typeof ConfigAnchorStory>("tests/client/features/config/surfaces/_anchor-stories/ConfigAnchorStory", {});
   await hold.requested;
   const jump = page.getByRole("button", { name: "Jump to avatars", exact: true });
   const target = await jump.getAttribute("data-anchor");
@@ -77,7 +77,7 @@ test("unmount disconnects a pending anchor observer from its retired browser ele
     "settings.getUserSettings": () => hold,
     "settings.listThemes": createCorpusReadResponder("settings.listThemes", corpus.reads["settings.listThemes"]),
   });
-  await mount(<ConfigAnchorStory />);
+  await mount<typeof ConfigAnchorStory>("tests/client/features/config/surfaces/_anchor-stories/ConfigAnchorStory", {});
   await hold.requested;
   const jump = page.getByRole("button", { name: "Jump to avatars", exact: true });
   const target = await jump.getAttribute("data-anchor");
@@ -86,9 +86,6 @@ test("unmount disconnects a pending anchor observer from its retired browser ele
   }
   await jump.click();
   const retired = await page.locator('[data-slot="config-content"]').elementHandle();
-  if (retired === null) {
-    throw new Error("The production scroller did not mount");
-  }
   await page.getByRole("button", { name: "Unmount content", exact: true }).click();
   await expect(page.locator('[data-slot="config-content"]')).toHaveCount(0);
   const flashed = await retired.evaluate(async (container, id) => {

@@ -12,9 +12,6 @@
 //      shared local model engine. Routine setup never discovers or generates against the operator's model.
 //   4. LOCAL mode ONLY: the multi-user seed (localMultiUser AppSetting on + a member account) by shelling the
 //      dev `seed multi-user` (@orb/tooling) — the ONE source of truth for that sequence, not a reimplementation.
-//   5. The CLIENT IS WARMED in a real browser (#571) — each mode's vite dev server transforms its route graph
-//      HERE, so no spec pays the cold compile inside its own 60s test timeout. Depth per mode is
-//      `clientWarmup` (modes.ts, which carries the measurement and the WHY).
 //
 // Seed via API, not UI — faster + more reliable, and it runs against the SAME running stack the specs hit.
 // The un-credentialed 127.0.0.1 owner-fallback seam resolves the owner in every mode (single-user always;
@@ -26,14 +23,10 @@
 // the run dies before it writes.
 
 import { execFileSync } from "node:child_process";
-import { mkdir, writeFile } from "node:fs/promises";
 import process from "node:process";
 import { authMeSchema, viewerViewSchema } from "@orb/contracts/identity";
 import type { CharacterId } from "@orb/kit/ids";
-import type { Browser, Request } from "@playwright/test";
-import { chromium, devices } from "@playwright/test";
 import { loginLocal } from "./actors.ts";
-import { APP_READY_ATTRIBUTE, openNewestChat, waitForAppReady } from "./chat-room.ts";
 import { startFixtureProvider } from "./fixture-provider.ts";
 import type { ModeProject } from "./modes.ts";
 import {
@@ -43,7 +36,6 @@ import {
   E2E_LOCAL_ENGINE_FALLBACK_MODEL,
   E2E_LOCAL_ENGINE_LABEL,
   E2E_LOCAL_ENGINE_PROVIDER,
-  E2E_REPORT_PREFIX,
   LOCAL_MEMBER,
   LOCAL_OWNER,
   SELECTED_CORPUS_FIXTURE,
@@ -198,179 +190,6 @@ async function seedMode(mode: ModeProject, fixtureBaseUrl?: string): Promise<voi
   }
 }
 
-// ── CLIENT WARM-UP (#571) — the second half of globalSetup's job. See `ClientWarmup` in modes.ts for WHY:
-// vite's transform cache is per-process, so without this the FIRST spec of a run pays the cold transform of
-// the whole route graph inside its own 60s test timeout, and that cost has crossed the budget. ──
-
-// Two attempts, and the FIRST one is expected to be slow — it is the one paying the cold transform, and on a
-// truly cold tree it can outrun any single budget we would pick (vite serves ~1.6k modules one at a time
-// while the page is mid-boot, so the helpers' own actionability waits can expire before the route mounts).
-// The retry re-drives the SAME path against a now-mostly-transformed graph, which is the pass that must
-// succeed. A second failure THROWS: a warm-up that silently gave up would restore the exact cold-first-spec
-// regression this exists to kill, so it aborts the run loudly instead.
-const WARMUP_ATTEMPTS = 2;
-const SHELL_WARMUP_TIMEOUT = 120_000;
-const READY_EVENT_PREFIX = "e2e-ready:";
-const WARMUP_REPORT_DIR = `${E2E_REPORT_PREFIX}-results`;
-const DIAGNOSTIC_SAMPLE_COUNT = 5;
-const DIAGNOSTIC_SAMPLE_LENGTH = 250;
-
-/** Complete startup evidence; thrown errors carry bounded samples instead of this full record. */
-interface WarmupDiagnostics {
-  readonly elapsedMs: number;
-  readonly path: string;
-  readonly loads: readonly number[];
-  readonly navigations: readonly { readonly elapsedMs: number; readonly path: string }[];
-  readonly readiness: readonly { readonly elapsedMs: number; readonly state: string }[];
-  readonly failures: readonly string[];
-  readonly pendingRequests: readonly string[];
-}
-
-function diagnosticSample(entries: readonly string[]): readonly string[] {
-  return entries.slice(0, DIAGNOSTIC_SAMPLE_COUNT).map((entry) => entry.slice(0, DIAGNOSTIC_SAMPLE_LENGTH));
-}
-
-/** Run one warm-up body, retrying once — the cold pass primes the transform cache for the pass that counts. */
-async function warmWithRetry(mode: ModeProject, drive: () => Promise<void>, attemptsLeft: number = WARMUP_ATTEMPTS): Promise<void> {
-  try {
-    await drive();
-  } catch (cause) {
-    if (attemptsLeft <= 1) {
-      throw new Error(`e2e warm-up: ${mode.name} client never settled after ${WARMUP_ATTEMPTS} attempts`, { cause });
-    }
-    console.warn(`e2e warm-up: ${mode.name} failed — ${attemptsLeft - 1} attempt(s) left: ${cause instanceof Error ? cause.message : String(cause)}`);
-    await warmWithRetry(mode, drive, attemptsLeft - 1);
-  }
-}
-
-/** Pre-transform ONE mode's client module graph by actually driving it in a browser (the real graph the
- *  specs walk, not a hand-listed file set). `room` modes go all the way into a chat; login-gated `shell`
- *  modes stop at `/`. Its own context per mode, so the modes stay isolated exactly as their stacks are. */
-async function warmMode(browser: Browser, mode: ModeProject, reportDir: string): Promise<void> {
-  await mkdir(reportDir, { recursive: true });
-  const context = await browser.newContext({ ...devices["Desktop Chrome"], baseURL: mode.baseUrl });
-  const page = await context.newPage();
-  const pending = new Set<Request>();
-  const failures: string[] = [];
-  const loads: number[] = [];
-  const navigations: { readonly elapsedMs: number; readonly path: string }[] = [];
-  const readiness: { readonly elapsedMs: number; readonly state: string }[] = [];
-  const started = performance.now();
-  const elapsedMs = (): number => Math.round(performance.now() - started);
-  const reportPath = `${reportDir}/warmup-${mode.name}.json`;
-  const diagnostics = (): WarmupDiagnostics => ({
-    elapsedMs: elapsedMs(),
-    path: new URL(page.url()).pathname,
-    loads,
-    navigations,
-    readiness,
-    failures,
-    pendingRequests: [...pending].map((request) => new URL(request.url()).pathname),
-  });
-  await page.addInitScript(
-    ({ attribute, prefix }) => {
-      let previous: string | null | undefined;
-      const observer = new MutationObserver(() => {
-        const ready = document.documentElement.getAttribute(attribute) ?? null;
-        if (ready !== previous) {
-          previous = ready;
-          const state = ready ?? "missing";
-          console.debug(`${prefix}${state === "" ? "settled" : state}`);
-        }
-        if (ready === "") {
-          observer.disconnect();
-        }
-      });
-      observer.observe(document, { attributes: true, childList: true, subtree: true, attributeFilter: [attribute] });
-    },
-    { attribute: APP_READY_ATTRIBUTE, prefix: READY_EVENT_PREFIX },
-  );
-  page.on("console", (message) => {
-    if (message.type() === "error") {
-      // Console-only import failures can carry full URLs; query and fragment state are not diagnostic evidence.
-      failures.push(`Console: ${message.text().replace(/(https?:\/\/[^\s?#]+)[?#]\S*/gu, "$1")}`);
-    } else if (message.text().startsWith(READY_EVENT_PREFIX)) {
-      readiness.push({ elapsedMs: elapsedMs(), state: message.text().slice(READY_EVENT_PREFIX.length) });
-    }
-  });
-  page.on("framenavigated", (frame) => {
-    if (frame === page.mainFrame()) {
-      navigations.push({ elapsedMs: elapsedMs(), path: new URL(frame.url()).pathname });
-    }
-  });
-  page.on("request", (request) => pending.add(request));
-  page.on("requestfinished", (request) => pending.delete(request));
-  page.on("requestfailed", (request) => {
-    pending.delete(request);
-    failures.push(`${new URL(request.url()).pathname}: ${request.failure()?.errorText ?? "request failed"}`);
-  });
-  page.on("pageerror", (error) => failures.push(`JavaScript: ${error.message}`));
-  page.on("response", (response) => {
-    if (response.status() >= 400) {
-      failures.push(`HTTP ${String(response.status())}: ${new URL(response.url()).pathname}`);
-    }
-  });
-  page.on("load", () => loads.push(elapsedMs()));
-  // The room drive navigates through shared helpers with no timeout of their own; on a cold, small runner
-  // the first transform outlasts Playwright's 30s navigation default, which is exactly the cost this pays.
-  page.setDefaultNavigationTimeout(SHELL_WARMUP_TIMEOUT);
-  let bootError: Error | null = null;
-  try {
-    switch (mode.clientWarmup) {
-      case "room":
-        await warmWithRetry(mode, () => openNewestChat(page));
-        break;
-      case "shell":
-        await warmWithRetry(mode, async (): Promise<void> => {
-          await page.goto("/", { waitUntil: "load", timeout: SHELL_WARMUP_TIMEOUT });
-          await waitForAppReady(page);
-        });
-        break;
-    }
-    console.info(`e2e warm-up: ${mode.name} settled in ${String(elapsedMs())}ms; diagnostics: ${reportPath}`);
-  } catch (cause) {
-    const state = diagnostics();
-    const summary = JSON.stringify({
-      elapsedMs: state.elapsedMs,
-      failureCount: state.failures.length,
-      failureSample: diagnosticSample(state.failures),
-      pendingRequestCount: state.pendingRequests.length,
-      pendingRequestSample: diagnosticSample(state.pendingRequests),
-    });
-    bootError = new Error(`e2e warm-up: ${mode.name} boot diagnostics: ${summary}; artifact: ${reportPath}`, { cause });
-  } finally {
-    try {
-      await writeFile(reportPath, JSON.stringify(diagnostics(), null, 2));
-    } catch (cause) {
-      const reportCause = bootError === null ? cause : new AggregateError([bootError, cause], "Boot and diagnostic report failed", { cause });
-      bootError = new Error(`e2e warm-up: ${mode.name} could not write ${reportPath}`, { cause: reportCause });
-    } finally {
-      await context.close();
-    }
-  }
-  if (bootError !== null) {
-    throw bootError;
-  }
-}
-
-/** Warm every booted mode in parallel (separate stacks ⇒ separate vite processes ⇒ no contention beyond CPU,
- *  and serialising them would just re-add the wall-clock this whole step exists to remove). */
-export async function __warmClientsForTest(modes: readonly ModeProject[], reportDir: string = WARMUP_REPORT_DIR): Promise<void> {
-  const browser = await chromium.launch();
-  try {
-    const outcomes = await Promise.allSettled(modes.map((mode) => warmMode(browser, mode, reportDir)));
-    const failures = outcomes.filter((outcome): outcome is PromiseRejectedResult => outcome.status === "rejected");
-    if (failures.length > 0) {
-      throw new AggregateError(
-        failures.map((failure) => failure.reason),
-        `e2e warm-up: ${String(failures.length)} mode(s) failed\n${failures.map((failure) => (failure.reason instanceof Error ? failure.reason.message : String(failure.reason))).join("\n")}`,
-      );
-    }
-  } finally {
-    await browser.close();
-  }
-}
-
 async function seedCorpusLocal(mode: ModeProject): Promise<void> {
   const wire = SELECTED_LOCAL_CORPUS_FIXTURE?.wire;
   const ownerCapture = wire?.reads["sessions.me"][0]?.output;
@@ -433,9 +252,6 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
         await seedCorpusLocal(mode);
       }
     }
-    // AFTER the seed, never before: the `room` warm pass opens a chat from the list, which only exists once
-    // `ensureChat` has run.
-    await __warmClientsForTest(booted.map(({ mode }) => mode));
   } catch (error) {
     await fixture?.close();
     throw error;

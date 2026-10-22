@@ -20,8 +20,8 @@
 // (a ResizeObserver, a late font swap) when the assertion first runs, and a single read would sample that
 // transition instead of the settled state.
 
-import { expect } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
+import { expect } from "@playwright/test";
 
 /** Sub-pixel tolerance, in CSS px — `getBoundingClientRect().width` can read up to ~1px over an integer
  *  `clientWidth` from browser subpixel layout rounding alone, with no real overflow behind it. */
@@ -52,9 +52,6 @@ interface ContainmentReading {
  */
 export async function expectContainedWithin(subject: Locator, wrapper: Locator, options: ContainmentOptions = {}): Promise<void> {
   const wrapperHandle = await wrapper.elementHandle();
-  if (wrapperHandle === null) {
-    throw new Error("expectContainedWithin: the WRAPPER locator resolved to no element — mount it before asserting containment");
-  }
   const isAncestor = await subject.evaluate((subjectEl: Element, wrapperEl: Element) => wrapperEl.contains(subjectEl), wrapperHandle);
   if (!isAncestor) {
     throw new Error(

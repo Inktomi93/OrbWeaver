@@ -1,16 +1,8 @@
-import { PickerDialog } from "@orb/client/components";
-import { CtIsolation } from "@orb/testkit/browser/ct-isolated-subject.tsx";
-import { expect, test } from "@playwright/experimental-ct-react";
+import { expect, test } from "@playwright/test";
+import type { PickerDialogStory } from "./_dialog-stories.tsx";
 
 test("keeps the heading at the viewport gutter and dismisses with Escape", async ({ mount, page }) => {
-  await mount(
-    <CtIsolation subject="PickerDialog" isolates="isolates dialog placement and keyboard dismissal from authenticated feature data">
-      <PickerDialog defaultOpen={true} title="Pick an image">
-        <input aria-label="Find images" />
-        <button type="button">Choose image</button>
-      </PickerDialog>
-    </CtIsolation>,
-  );
+  await mount<typeof PickerDialogStory>("tests/client/components/_dialog-stories/PickerDialogStory", {});
   const dialog = page.getByRole("dialog", { name: "Pick an image", exact: true });
   await expect(dialog).toBeVisible();
   await expect.poll(() => dialog.evaluate((element) => element.getAnimations().length)).toBe(0);

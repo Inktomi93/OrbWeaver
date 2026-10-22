@@ -7,7 +7,7 @@ import { expect, test } from "@orb/testkit/node/ct-corpus.ts";
 import { makeChatDetail, makeChatId, makeRedeemInviteResult } from "@orb/testkit/node/factories/chat-view.ts";
 import type { TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
-import { JoinInviteDialogStory } from "./_join-invite-stories.tsx";
+import type { JoinInviteDialogStory } from "./_join-invite-stories.tsx";
 
 const TOKEN = "controlled-invite-token";
 const PREVIEW = invitePreviewSchema.parse({
@@ -31,7 +31,7 @@ test("a controlled loading preview becomes ready and focuses its newly mounted p
   const preview = trpcHold<"invites.previewInvite">();
   const wire = await routeTrpc(page, { ...providerReads(corpus), "invites.previewInvite": preview });
   const request = page.waitForRequest((candidate) => new URL(candidate.url()).pathname.endsWith("/invites.previewInvite"));
-  await mount(<JoinInviteDialogStory token={TOKEN} />);
+  await mount<typeof JoinInviteDialogStory>("tests/client/features/chat/anchors/_join-invite-stories/JoinInviteDialogStory", { token: TOKEN });
   await preview.requested;
   const dialog = page.getByRole("dialog", { name: DIALOG, exact: true });
   await expect(dialog.getByText("Checking the invite…", { exact: true })).toBeVisible();
@@ -47,7 +47,7 @@ test("a controlled loading preview becomes ready and focuses its newly mounted p
 
 test("popup focus delivered after a ready preview still lands on Join chat", async ({ corpus, mount, page }) => {
   await routeTrpc(page, { ...providerReads(corpus), "invites.previewInvite": () => PREVIEW });
-  await mount(<JoinInviteDialogStory token={TOKEN} />);
+  await mount<typeof JoinInviteDialogStory>("tests/client/features/chat/anchors/_join-invite-stories/JoinInviteDialogStory", { token: TOKEN });
   const dialog = page.getByRole("dialog", { name: DIALOG, exact: true });
   const join = dialog.getByRole("button", { name: "Join chat", exact: true });
   await expect(join).toBeVisible();
@@ -61,7 +61,7 @@ test("an invalid preview discloses no room or host and closes through the caller
     ...providerReads(corpus),
     "invites.previewInvite": trpcError({ code: "NOT_FOUND", message: "The preview cannot be read." }),
   });
-  await mount(<JoinInviteDialogStory token={TOKEN} />);
+  await mount<typeof JoinInviteDialogStory>("tests/client/features/chat/anchors/_join-invite-stories/JoinInviteDialogStory", { token: TOKEN });
   const dialog = page.getByRole("dialog", { name: DIALOG, exact: true });
   await expect(dialog.getByText(DEAD_INVITE_SENTENCE, { exact: true })).toBeVisible();
   await expect(page.getByText(PREVIEW.roomName, { exact: false })).toHaveCount(0);
@@ -75,7 +75,7 @@ test("an invalid preview discloses no room or host and closes through the caller
 
 test("Not now dismisses the ready component without redeeming the invite", async ({ corpus, mount, page }) => {
   const wire = await routeTrpc(page, { ...providerReads(corpus), "invites.previewInvite": () => PREVIEW });
-  await mount(<JoinInviteDialogStory token={TOKEN} />);
+  await mount<typeof JoinInviteDialogStory>("tests/client/features/chat/anchors/_join-invite-stories/JoinInviteDialogStory", { token: TOKEN });
   const dialog = page.getByRole("dialog", { name: DIALOG, exact: true });
   await expect(dialog.getByText(ROOM_SENTENCE, { exact: true })).toBeVisible();
   await dialog.getByRole("button", { name: "Not now", exact: true }).click();
@@ -90,7 +90,7 @@ test("a refused redemption replaces the previous preview with the same flat inva
     "invites.previewInvite": () => PREVIEW,
     "invites.redeemInvite": trpcError({ code: "NOT_FOUND", message: "The invite was spent after preview." }),
   });
-  await mount(<JoinInviteDialogStory token={TOKEN} />);
+  await mount<typeof JoinInviteDialogStory>("tests/client/features/chat/anchors/_join-invite-stories/JoinInviteDialogStory", { token: TOKEN });
   const dialog = page.getByRole("dialog", { name: DIALOG, exact: true });
   await expect(dialog.getByText(ROOM_SENTENCE, { exact: true })).toBeVisible();
   await dialog.getByRole("button", { name: "Join chat", exact: true }).click();
@@ -111,7 +111,7 @@ test("successful redemption completes through the caller callback", async ({ cor
     "invites.previewInvite": () => PREVIEW,
     "invites.redeemInvite": () => makeRedeemInviteResult({ chat }),
   });
-  await mount(<JoinInviteDialogStory token={TOKEN} />);
+  await mount<typeof JoinInviteDialogStory>("tests/client/features/chat/anchors/_join-invite-stories/JoinInviteDialogStory", { token: TOKEN });
   const dialog = page.getByRole("dialog", { name: DIALOG, exact: true });
   await dialog.getByRole("button", { name: "Join chat", exact: true }).click();
   await expect(page.getByRole("status", { name: "Join dialog completion", exact: true })).toHaveText("Closed");

@@ -1,5 +1,5 @@
 // The door's contributor lists that need no injected read channel, split out of `authed-app.tsx` so the CT
-// harness imports the same arrays in the same order (Spine-Testing §10). Order here is render and dispatch order.
+// harness imports the same arrays in the same order (Spine-Testing §9). Order here is render and dispatch order.
 
 import { bugReportChrome, contextToggleChrome } from "#features/app-shell";
 import {

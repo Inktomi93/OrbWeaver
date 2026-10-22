@@ -1,8 +1,8 @@
 import { auditRenderedTextContrast } from "@orb/testkit/browser/pixel-contrast.ts";
 import { routeOrbSocket } from "@orb/testkit/node/route-orb-socket.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
-import { expect, test } from "@playwright/experimental-ct-react";
-import { RawTrpcObservationStory } from "../../client/compose/_mount-stories.tsx";
+import { expect, test } from "@playwright/test";
+import type { RawTrpcObservationStory } from "../../client/compose/_mount-stories.tsx";
 import { labelInNameFindings } from "./accessible-names.ts";
 import { beginAutosaveStatusTranscript, readAutosaveStatusTranscript } from "./autosave-status-transcript.ts";
 import { lastInkColumn, readCanvasBandInk, solidColumns } from "./canvas-ink.ts";
@@ -201,7 +201,7 @@ test("the production typed client keeps batch inputs raw, path-correlated and di
   expect(recorder.inputs("settings.addExternalBackground")).toEqual([]);
   expect(recorder.lastInput("settings.resetUserConfig")).toBeUndefined();
   expect(() => recorder.requireLastInput("settings.resetUserConfig")).toThrow("has not been called");
-  await mount(<RawTrpcObservationStory backgroundUrl={backgroundUrl} videoUrl={videoUrl} />);
+  await mount<typeof RawTrpcObservationStory>("tests/client/compose/_mount-stories/RawTrpcObservationStory", { backgroundUrl, videoUrl });
   const batched = page.waitForRequest((request) => request.url().includes("settings.addExternalBackground,databank.scrapeYoutube,settings.resetUserConfig"));
   await page.getByRole("button", { name: "Send observed batch", exact: true }).click();
   expect((await batched).method()).toBe("POST");

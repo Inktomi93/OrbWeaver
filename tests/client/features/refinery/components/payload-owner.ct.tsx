@@ -6,7 +6,7 @@ import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
 import { expect, test } from "@orb/testkit/node/ct-corpus.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
-import { PayloadOwnerStory } from "./_payload-stories.tsx";
+import type { PayloadOwnerStory } from "./_payload-stories.tsx";
 
 test("assay expansion survives a same-run clone but not a different immutable run", async ({ corpus, mount, page }) => {
   const ids = createSeededIds();
@@ -45,18 +45,18 @@ test("assay expansion survives a same-run clone but not a different immutable ru
     "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpus.reads["settings.getUserSettings"]),
     "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
   });
-  const component = await mount(<PayloadOwnerStory run={run} />);
+  const component = await mount<typeof PayloadOwnerStory>("tests/client/features/refinery/components/_payload-stories/PayloadOwnerStory", { run });
   const assay = page.getByRole("button", { name: "description — 7", exact: true });
   await assay.click();
   await expect(assay).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByText("Recognizable voice", { exact: true })).toBeVisible();
 
-  await component.update(<PayloadOwnerStory run={structuredClone(run)} />);
+  await component.update({ run: structuredClone(run) });
   await expect(assay).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByText("Recognizable voice", { exact: true })).toBeVisible();
 
   const nextRun = { ...run, id: refineryRunViewSchema.options[0].shape.id.parse(ids.next(ID_PREFIX.refineryRun)), createdAt: FROZEN_AT_MS + 1 };
-  await component.update(<PayloadOwnerStory run={nextRun} />);
+  await component.update({ run: nextRun });
   await expect(assay).toHaveAttribute("aria-expanded", "false");
   await expect(page.getByText("Recognizable voice", { exact: true })).toHaveCount(0);
 });
