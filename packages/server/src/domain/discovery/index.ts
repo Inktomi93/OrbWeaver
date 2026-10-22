@@ -25,58 +25,8 @@
 
 export { THEME_LEVELS } from "@orb/contracts/discovery";
 export { CardNotDistillableError, DistillFailedError } from "./contract/errors.ts";
-export type {
-  ArchetypesOptions,
-  BrowseCursor,
-  BrowseFilter,
-  BrowseSort,
-  ComputeChatDuplicatesOptions,
-  ComputeCooccurrenceOptions,
-  ComputeDuplicatesOptions,
-  ComputeHubScoresOptions,
-  ComputeThemesOptions,
-  DistillCharactersOptions,
-  DistillTargetNarrow,
-  DuplicateCharactersOptions,
-  DuplicateChatsOptions,
-  ImageFacetKey,
-  SimilarityGraphOptions,
-  ThemeLevel,
-  TopKeywordsOptions,
-} from "./contract/params.ts";
+
 export { IMAGE_FACET_KEYS } from "./contract/params.ts";
-// Consumed via service-method-signature inference at the tRPC routers + tests, not direct imports.
-export type {
-  Archetype,
-  BrowseCharactersPage,
-  CatalogStats,
-  CharacterComparison,
-  CharacterFacets,
-  CooccurrenceStats,
-  CorpusPoint,
-  DuplicateCharacterPair,
-  DuplicateChatComputeStats,
-  DuplicateChatPair,
-  DuplicateComputeStats,
-  ForgottenGem,
-  HomeView,
-  HubStats,
-  ImageDuplicatePair,
-  ImageFacetMember,
-  ImageFacets,
-  KeywordCount,
-  ModelRoutingRow,
-  PortraitAlignmentReport,
-  SimilarChat,
-  SimilarityGraph,
-  StoryTimeBackfillStats,
-  ThemeComputeStats,
-  ThemeDetail,
-  ThemeDriftBucket,
-  ThemeRow,
-  UnusedCharacter,
-  VisualArchetype,
-} from "./contract/results.ts";
 export type { DiscoveryAssemblyContext as DiscoveryContext, DiscoveryService, DiscoveryWorkloadDeps } from "./contract/service.ts";
 export {} from "./cooccurrence/generate.ts";
 export {} from "./duplicates/generate.ts";

@@ -3,29 +3,18 @@
 // this front door (invariant #8).
 
 export { WorldInfoNotFoundError } from "./contract/errors.ts";
-export type { ExportedWorldBook, ExportWorldBook, ListOwnedBookIds, WorldInfoExportAssemblyContext as WorldInfoExportContext } from "./contract/export.ts";
-export type { CopyHandoffBooks, CountHandoffBooks, HandoffCardPair } from "./contract/handoff-copy.ts";
+export type { ExportWorldBook, ListOwnedBookIds, WorldInfoExportAssemblyContext as WorldInfoExportContext } from "./contract/export.ts";
+
 export type {
   AttachOwnedBooksByName,
   BulkImportLorebook,
-  CopyCharacterBooks,
   HasPrimaryBook,
   ImportStandaloneLorebook,
-  ImportWorldBook,
-  ImportWorldBookContext,
-  ImportWorldBookOutcome,
   ImportWorldInfoPort,
-  LinkCarriedBooks,
-  LinkCarriedBooksResult,
 } from "./contract/import.ts";
-export type {
-  CreateBookInput,
-  CreateEntryInput,
-  UpdateBookInput,
-  UpdateEntryInput,
-} from "./contract/params.ts";
+
 export type { WorldInfoService } from "./contract/service.ts";
-export type { BookAttachmentView, BookView, EntryView, WorldBookRole } from "./contract/views.ts";
+
 export { createCopyCharacterBooks } from "./persistence/duplicate-carry.ts";
 export { createCopyHandoffBooks, createCountHandoffBooks } from "./persistence/handoff-copy-write.ts";
 export {

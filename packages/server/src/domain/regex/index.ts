@@ -2,29 +2,20 @@
 // does NOT read these tables directly — it consumes the injected `ResolveRegexSources` op (contract/
 // resolve.ts), which is what keeps the four-scope dereference in ONE home.
 
-export type { CardLiftInput, CardLiftPlan, PlannedInsert, SplitScript } from "./contract/dedup.ts";
 export { RegexNotFoundError } from "./contract/errors.ts";
-export type { CopyHandoffRegexScripts, CountHandoffRegexScripts } from "./contract/handoff-copy.ts";
-export type { ApplyScopeOrderParams, RegexAttachScopeRef } from "./contract/params.ts";
+
 export type {
   ExportCardScripts,
-  ExportedCardScripts,
-  ExportedRegexScriptFile,
-  ExportRegexScript,
   ExportRegexScripts,
   ImportCardScripts,
-  ImportCardScriptsArgs,
-  ImportCardScriptsResult,
   ImportGlobalScripts,
   ImportPresetScripts,
-  ImportPresetScriptsArgs,
   ImportRegexScript,
 } from "./contract/portability.ts";
-export type { ResolvedRegexSources, ResolveRegexSources, ResolveRegexSourcesArgs } from "./contract/resolve.ts";
-export type { BulkResult, DetachResult, RemoveResult, ReorderResult } from "./contract/results.ts";
-export type { ScriptRecord } from "./contract/rows.ts";
+export type { ResolveRegexSources } from "./contract/resolve.ts";
+
 export type { RegexAssemblyContext as RegexContext, RegexService } from "./contract/service.ts";
-export type { CreateRegexScriptInput, PortableRegexScript, RegexScriptRow, UpdateRegexScriptInput } from "./contract/views.ts";
+
 export { createCopyHandoffRegexScripts, createCountHandoffRegexScripts } from "./persistence/handoff-copy-write.ts";
 export {
   createExportCardScripts,
