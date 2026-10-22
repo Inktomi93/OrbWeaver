@@ -301,7 +301,7 @@ function buildReplacement(args: readonly unknown[], script: RegexScriptInput, ct
 /** Native `String.replace` callback shape: `(match, p1..pn, offset, subject, groups?)`. */
 export type RegexReplacer = (substring: string, ...rest: unknown[]) => string;
 
-export interface RegexExecuteOptions {
+interface RegexExecuteOptions {
   /** Called per script that fails to compile or execute. Server wires this to a logger + a
    *  disabled-script tally; client can wire console.warn or leave it (undefined → silent skip,
    *  fine for display-side rendering). */

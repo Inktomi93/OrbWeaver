@@ -76,7 +76,7 @@ export const config = {
       // the installed module and its exact-version compatibility fence.
       ignoreDependencies: ["chrome-devtools-mcp"],
     },
-    "packages/kit": { project: ["src/**/*.ts!"] },
+    "packages/kit": { includeEntryExports: true, project: ["src/**/*.ts!"] },
     "packages/contracts": { project: ["src/**/*.ts!"] },
     "packages/db": { project: ["src/**/*.ts!"] },
     "packages/inference": {

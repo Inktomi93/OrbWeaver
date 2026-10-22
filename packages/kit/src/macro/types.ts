@@ -5,7 +5,7 @@ export type MacroAST = MacroNode[];
 
 export type MacroNode = TextNode | MacroCallNode | MacroBlockNode;
 
-export interface TextNode {
+interface TextNode {
   type: "text";
   value: string;
 }
@@ -60,7 +60,7 @@ export type MacroFlagKey = (typeof MACRO_FLAG_DEFS)[number]["key"];
  *  it lives in the key union because it is part of the one flag vocabulary. */
 export type MacroFlags = { readonly [K in MacroFlagKey]?: true };
 
-export const MACRO_CATEGORIES = [
+const MACRO_CATEGORIES = [
   "identity", // char/user/group…
   "card", // description/personality/…
   "conversation", // input/lastMessage/…
@@ -119,10 +119,9 @@ export interface MacroListSpec {
 // messages). The fail-open posture is unchanged: a violation renders best-effort (lenient) or ""
 // (strict) — never a throw into prose.
 
-// The axis declared ONCE as a tuple, the union derived (§7.5); no external consumer needs the tuple VALUE,
-// so it stays module-local (only `MacroArgViolationKind` is exported).
+// The violation vocabulary is module-local; consumers receive it through MacroArgViolation.kind.
 const MACRO_ARG_VIOLATION_KINDS = ["missing-required", "too-many-args", "list-bounds", "bad-type"] as const;
-export type MacroArgViolationKind = (typeof MACRO_ARG_VIOLATION_KINDS)[number];
+type MacroArgViolationKind = (typeof MACRO_ARG_VIOLATION_KINDS)[number];
 
 export interface MacroArgViolation {
   readonly kind: MacroArgViolationKind;
@@ -237,7 +236,7 @@ export interface MacroFreeze {
 /** One `{{setglobalvar}}` write collected during a render (D46). UNLIKE {@link VarOp}, globals are
  *  NOT variant-scoped — these are drained + upserted into the per-user `global_variables` plane at TURN
  *  COMMIT, last-write-wins; a swipe never rewinds a global. */
-export interface GlobalVarWrite {
+interface GlobalVarWrite {
   readonly key: string;
   readonly value: string;
 }
@@ -378,7 +377,7 @@ export interface MacroContext {
 /** Options for {@link MacroContext.resolve}. `trim: true` runs the resolved string through the
  *  trimContent body normalizer (trim + indent-dedent) — the same treatment a universal block body gets
  *  by default; omit/false for verbatim (the `#` PRESERVE_WHITESPACE behavior). */
-export interface MacroResolveOptions {
+interface MacroResolveOptions {
   readonly trim?: boolean;
 }
 

@@ -71,7 +71,7 @@ export type ContentSpan =
 
 /** The span-kind axis the visibility registry (`CONTENT_CLASS_POLICY`) keys off — one member per content
  *  class. A NEW class = a tuple member + a policy row + (if distinct) a projection arm (graft #V1). */
-export const CONTENT_SPAN_KINDS = ["text", "image", "hidden", "card", "choices", "unknown-directive", "dice"] as const;
+const CONTENT_SPAN_KINDS = ["text", "image", "hidden", "card", "choices", "unknown-directive", "dice"] as const;
 export type ContentSpanKind = (typeof CONTENT_SPAN_KINDS)[number];
 
 // ── The OPEN registries (§3.2 — P3/P4/P5 REGISTER rows; the mechanism never changes) ─────────────────────
@@ -100,7 +100,7 @@ const HIDDEN_TAG_NAMES: ReadonlySet<string> = new Set(HIDDEN_TAGS.map((d) => d.t
 /** The directive-fence registry — card/choices are the FIRST TWO REGISTRANTS (graft #V3: a new fence is a
  *  member here + a `FENCE_BUILDERS` row + a render/wire projection arm; the fence recognizer is shared). */
 export const DIRECTIVE_FENCE_NAMES = ["card", "choices"] as const;
-export type DirectiveFenceName = (typeof DIRECTIVE_FENCE_NAMES)[number];
+type DirectiveFenceName = (typeof DIRECTIVE_FENCE_NAMES)[number];
 
 /** Tokenizer options. `lenientHtml` enables the §4.8 implicit-card detection (default OFF — the P4 wave
  *  wires the product gate; the DETECTOR ships with the grammar so the tokenizer stays ONE parser family). */
@@ -1283,7 +1283,7 @@ export function projectBodyForSummary(content: string): string {
  * cheap field on a list a user is already waiting for). Raising it is what lets `line-clamp-2` do the
  * visual cut, which is the only cutter that knows the rendered width.
  */
-export const PREVIEW_MAX_CHARS = 240;
+const PREVIEW_MAX_CHARS = 240;
 
 /** The truncation marker: a single-char ellipsis, so the budget stays a character count. */
 const PREVIEW_ELLIPSIS = "…";

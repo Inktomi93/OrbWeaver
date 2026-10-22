@@ -107,7 +107,7 @@ import { isSafeColor } from "#safe-color";
  *  can express `sandbox` + `frame-ancestors`, and is not intersected with the embedder's policy).
  *  `meta` = an in-document `<meta http-equiv>` (the srcdoc floor — those two directives are ignored there,
  *  so emitting them would be dead config that teaches the next reader a lie). */
-export const CARD_FRAME_DELIVERIES = ["document", "meta"] as const;
+const CARD_FRAME_DELIVERIES = ["document", "meta"] as const;
 export type CardFrameDelivery = (typeof CARD_FRAME_DELIVERIES)[number];
 
 /**
@@ -164,7 +164,7 @@ export const CARD_FRAME_SANDBOX = { document: "allow-scripts", meta: "" } as con
  * selector for a script grant: it does not exist for a non-game chat, it says nothing about an imported
  * card, and a prompt-shaping default-on switch is not a security consent. The rpg ask-knob is untouched.
  */
-export const CARD_FRAME_POSTURES = ["static", "interactive"] as const;
+const CARD_FRAME_POSTURES = ["static", "interactive"] as const;
 export type CardFramePosture = (typeof CARD_FRAME_POSTURES)[number];
 
 /**
@@ -181,13 +181,13 @@ export type CardFramePosture = (typeof CARD_FRAME_POSTURES)[number];
  * (and could not be trusted with it): the payload is one integer, and the RECEIVER authenticates by window
  * identity, never by the message. See {@link foldCardFrameHeight}.
  */
-export const CARD_FRAME_HEIGHT_SCRIPT =
+const CARD_FRAME_HEIGHT_SCRIPT =
   '(function(){var last=-1;function post(){var body=document.body;if(body===null){return;}var height=body.scrollHeight;if(height!==last){last=height;parent.postMessage({orbCardFrameHeight:height},"*");}}addEventListener("DOMContentLoaded",function(){new ResizeObserver(post).observe(document.body);});addEventListener("load",post);})();';
 
 /** The CSP source expression pinning {@link CARD_FRAME_HEIGHT_SCRIPT} by digest. A literal, because kit is
  *  isomorphic (no `node:crypto`) and WebCrypto's digest is async — the recompute lives in the unit test,
  *  which is the gate: change the script without re-pinning and the suite REDs before the policy ships. */
-export const CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH = "'sha256-X4P6ct+XbYLNF4Q5h+h/1nJEA0TD7k/6cHZe/VxxMI0='";
+const CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH = "'sha256-X4P6ct+XbYLNF4Q5h+h/1nJEA0TD7k/6cHZe/VxxMI0='";
 
 /** The one keyword that turns the posture into a capability. Named so the grant is greppable and so the
  *  `static` row can assert against it by identity rather than by a re-typed string. */
@@ -229,8 +229,8 @@ const CARD_FRAME_SCRIPT_SOURCES = {
  *    #91 measures against; past it an INLINE card owns the whole screen and the reader loses the
  *    transcript, so taller content scrolls inside the frame (what every card past 320px already did) and the
  *    lightbox stays the see-it-big path. */
-export const CARD_FRAME_MIN_HEIGHT_PX = 48;
-export const CARD_FRAME_MAX_HEIGHT_PX = 720;
+const CARD_FRAME_MIN_HEIGHT_PX = 48;
+const CARD_FRAME_MAX_HEIGHT_PX = 720;
 
 const HEIGHT_KEY = "orbCardFrameHeight";
 

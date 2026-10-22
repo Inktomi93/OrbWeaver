@@ -228,7 +228,7 @@ export function isDelimitedKeyPattern(key: string): boolean {
  *  version with a per-call budget so a catastrophic-backtracking USER key throws (→ treated as a non-match +
  *  reported) instead of hanging the event loop for every user on the process (#710 ReDoS). Isomorphic —
  *  RegExp+string in, boolean out, no `node:*` — so kit stays browser-safe and the timeout lives server-side. */
-export type TestKeyRegex = (regex: RegExp, haystack: string) => boolean;
+type TestKeyRegex = (regex: RegExp, haystack: string) => boolean;
 
 /** The default {@link TestKeyRegex}: a bare native `.test`, no runtime budget. This is all the browser can do;
  *  the server overrides it with its node:vm watchdog. */
@@ -290,7 +290,7 @@ export function buildKeywordHaystack(recentMessages: readonly string[], names: r
 // and not active, so the owner never reads a stored knob as a working one.
 
 /** The ST entry fields that steer activation there and are stored inert here. */
-export const ST_INERT_ACTIVATION_FIELDS = [
+const ST_INERT_ACTIVATION_FIELDS = [
   "keysecondary",
   "probability",
   "scanDepth",
@@ -316,7 +316,7 @@ export const ST_INERT_ACTIVATION_FIELDS = [
   "matchCreatorNotes",
 ] as const;
 
-export type StInertActivationField = (typeof ST_INERT_ACTIVATION_FIELDS)[number];
+type StInertActivationField = (typeof ST_INERT_ACTIVATION_FIELDS)[number];
 
 /** One inert field an entry carries with a value that departs from ST's own default. */
 export interface InertActivationField {

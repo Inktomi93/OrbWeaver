@@ -44,7 +44,7 @@ declare const wireReadyBrand: unique symbol;
  *  plain record — the per-wire subset scrubbers, the wire request builders — keeps working unchanged. */
 export type WireReady = Record<string, unknown> & { readonly [wireReadyBrand]: true };
 
-export { JsonSchemaLiftError, liftJsonSchema, MAX_LIFT_DEPTH, RENDER_HINT_KEY } from "./lift.ts";
+export { JsonSchemaLiftError, liftJsonSchema, RENDER_HINT_KEY } from "./lift.ts";
 
 const OBJECT_TYPE = "object";
 const SCHEMA_MAP_KEYS = new Set(["properties", "patternProperties", "dependentSchemas", "$defs", "definitions"]);

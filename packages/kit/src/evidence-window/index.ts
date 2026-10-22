@@ -1,4 +1,5 @@
 import { MS_PER_MINUTE } from "../time/index.ts";
+
 // EVIDENCE WINDOW (#1095) — the pure "what does '~N minutes ago' honestly cover" engine, shared by the two
 // halves of a bug report: the browser filters `__orb`'s rings with it, the server filters its own in-memory
 // flight recorders with it. ONE engine so the two halves can never disagree about what a window means or about
@@ -21,7 +22,7 @@ import { MS_PER_MINUTE } from "../time/index.ts";
 // clock assumption no caller could see.
 
 /** Inclusive-around padding on the leading edge of a requested window — see the header. */
-export const EVIDENCE_WINDOW_PAD_MS = 60_000;
+const EVIDENCE_WINDOW_PAD_MS = 60_000;
 
 /** A resolved capture window: what was asked for, and the instant of the capture. */
 export interface EvidenceWindow {

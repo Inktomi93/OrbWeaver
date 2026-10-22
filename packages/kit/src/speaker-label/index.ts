@@ -344,7 +344,7 @@ function stripInlineSpeakerLabel(content: string, speakerName: string): string {
  *  Returns the content up to (not including) the first foreign label, right-trimmed. No foreign label
  *  / empty `otherNames` (solo) → unchanged. Only matches at a LINE START so an in-prose "Niko:" inside
  *  a sentence is left alone. */
-export function truncateAtForeignLabel(content: string, otherNames: readonly string[]): string {
+function truncateAtForeignLabel(content: string, otherNames: readonly string[]): string {
   let cut: number | null = null;
   for (const raw of otherNames) {
     const n = RegExp.escape(raw.trim());

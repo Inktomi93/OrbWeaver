@@ -10,7 +10,7 @@
 // args — refusal beats looseness everywhere. The lift can only ever emit plain zod (no `.transform()`, no
 // brands), so the lifted schema stays projection-clean by construction (the D48 tool-schema law).
 //
-// The supported subset is ONE exported const (`LIFTABLE_JSON_SCHEMA`) the refusal error cites; the golden
+// The supported subset is ONE module-local const (`LIFTABLE_JSON_SCHEMA`) the refusal error cites; the golden
 // round-trip (lift → projectJsonSchema ≡ input, per supported construct) is the engine's proof.
 
 import { z } from "zod";
@@ -26,7 +26,7 @@ export const RENDER_HINT_KEY = "x-orb-ui";
 
 /** The JSON-Schema subset the lift supports, by node kind. The refusal error cites this so a rejected guest
  *  knows exactly what to author within. Deliberately narrow — widen only with a matching golden round-trip. */
-export const LIFTABLE_JSON_SCHEMA = {
+const LIFTABLE_JSON_SCHEMA = {
   /** `type` values that lift. `"null"` is NOT here — nullability (type-arrays / `nullable`) is refused in v1
    *  (a guest models an omittable arg by leaving it out of `required`, not by a null union). */
   types: ["object", "array", "string", "number", "integer", "boolean"],
@@ -69,7 +69,7 @@ export class JsonSchemaLiftError extends Error {
  *  stack (a RangeError). Real tool schemas in the {@link LIFTABLE_JSON_SCHEMA} subset are shallow (2–3 levels);
  *  32 is generous headroom while sitting far below any stack limit, so an over-deep schema becomes a TYPED
  *  refusal (`construct: "max-depth-exceeded"`) BEFORE the stack blows, never an implicit RangeError. */
-export const MAX_LIFT_DEPTH = 32;
+const MAX_LIFT_DEPTH = 32;
 
 const PROTO_PROPERTY = "__proto__";
 const STRING_TYPE = "string";

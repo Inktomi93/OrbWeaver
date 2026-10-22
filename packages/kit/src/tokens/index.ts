@@ -29,7 +29,7 @@ const CHARS_PER_TOKEN = 4;
  * packing density (an over-window block cuts into slightly more pieces); the cost of being wrong the other way
  * is a 400 that fails a whole embed batch. Nothing is truncated either way — over-budget content is CHUNKED.
  */
-export const TOKENIZER_HEADROOM_FACTOR = 0.7;
+const TOKENIZER_HEADROOM_FACTOR = 0.7;
 
 /**
  * The most tokens {@link safeTokenWindow} holds back from one window. The proportional discount sizes the
@@ -38,7 +38,7 @@ export const TOKENIZER_HEADROOM_FACTOR = 0.7;
  * crossover the tolerated estimate error falls below the measured ratio, by owner ruling: a large window trades
  * that margin for context.
  */
-export const TOKEN_HEADROOM_SLACK_CAP = 8192;
+const TOKEN_HEADROOM_SLACK_CAP = 8192;
 
 /**
  * Generic token estimate for one string. Model-agnostic (see file header). Returns 0 for empty.

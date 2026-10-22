@@ -40,10 +40,10 @@ export const ORBWEAVER_REPO_URL = `https://github.com/${ORBWEAVER_REPO_SLUG}`;
 
 /** Where the identity came from. `checkout` = derived from `.git` plain files at boot; `container` = read
  *  from the `version.json` the image build stamped (an image ships no `.git`, so nothing else could answer). */
-export const VERSION_SOURCES = ["checkout", "container"] as const;
+const VERSION_SOURCES = ["checkout", "container"] as const;
 
 /** Which line of development a build belongs to (see the header). */
-export const RELEASE_CHANNELS = ["stable", "main"] as const;
+const RELEASE_CHANNELS = ["stable", "main"] as const;
 export type ReleaseChannel = (typeof RELEASE_CHANNELS)[number];
 
 /** The honest stand-in for a commit that could not be derived — an image without a stamp, a zip download, a
@@ -208,11 +208,11 @@ export function formatVersionIdentity(identity: VersionIdentity): string {
 /** The verdict vocabulary. `behind` deliberately carries NO commit COUNT: the check is one unauthenticated
  *  GET of the upstream head, which knows the remote sha but not how many commits separate it from ours
  *  (that needs the object graph, i.e. a fetch). Counting would mean guessing. */
-export const UPDATE_CHECK_STATUSES = ["up-to-date", "behind", "unknown"] as const;
+const UPDATE_CHECK_STATUSES = ["up-to-date", "behind", "unknown"] as const;
 
 /** What the upstream probe found, per channel. A `main` build is compared with main's head commit; a
  *  `stable` build with the latest published GitHub Release. */
-export const upstreamSchema = z.discriminatedUnion("channel", [
+const upstreamSchema = z.discriminatedUnion("channel", [
   z.strictObject({
     channel: z.literal("main"),
     commit: z.string().min(1),

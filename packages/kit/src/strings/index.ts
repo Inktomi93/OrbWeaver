@@ -231,11 +231,6 @@ export function blankText(text: string): string {
   return text.replace(/[^\n]/gu, (char) => BLANK.repeat(char.length));
 }
 
-/** `text` with `[start, end)` blanked by {@link blankText}. */
-export function blankSpan(text: string, start: number, end: number): string {
-  return text.slice(0, start) + blankText(text.slice(start, end)) + text.slice(end);
-}
-
 /** A signed integer delta for a momentum bar-end label: `+5` · `-3` · `0`. The sign lives only in this label. */
 export function formatSignedDelta(n: number): string {
   return n > 0 ? `+${n}` : String(n);

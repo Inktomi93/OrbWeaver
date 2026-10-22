@@ -40,7 +40,7 @@ export const USER_MACRO_INPUT_KINDS = ["single-select", "boolean-toggle", "multi
 export type UserMacroInputKind = (typeof USER_MACRO_INPUT_KINDS)[number];
 
 /** One selectable option of a select-family input (label = display, value = what the macro sees). */
-export interface UserMacroInputOption {
+interface UserMacroInputOption {
   readonly label: string;
   readonly value: string;
 }
@@ -308,7 +308,7 @@ function resolveDelivered(value: string, ctx: MacroContext): string {
 /** The reserved binding name a scoped-block BODY lands under (`{{myMacro}}…{{/myMacro}}` → the body
  *  is the last delivered arg, referenced as `{{content}}` in the template). A declared arg/input named
  *  `content` is overridden by a delivered body (delivery order: inputs → args → body; later wins). */
-export const USER_MACRO_CONTENT_BINDING = "content";
+const USER_MACRO_CONTENT_BINDING = "content";
 
 // The input half of the template splice: the threaded per-turn bindings win; an unthreaded input
 // resolves its DEFAULTS per render (random-pick then draws from ctx.random — the {{pick}} preview

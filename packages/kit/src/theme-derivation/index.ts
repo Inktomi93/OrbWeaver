@@ -114,7 +114,7 @@ export const AA_NORMAL_RATIO = 4.5;
  *  8-bit OKLCH resolution and alpha composition can spend contrast after the analytic solve. A host near
  *  WCAG's black/white crossover cannot physically reach 4.6, so each search caps this aim at the chosen
  *  polarity endpoint's measured capacity rather than narrowing the accepted theme domain. */
-export const AA_NORMAL_DERIVATION_RATIO = 4.6;
+const AA_NORMAL_DERIVATION_RATIO = 4.6;
 /** WCAG 2.x SC 1.4.3 Contrast (Minimum), large text: 3:1. */
 export const AA_LARGE_RATIO = 3;
 /** WCAG 2.x SC 1.4.11 Non-text Contrast: 3:1 for a user-interface component's boundary or a graphic that
@@ -579,7 +579,7 @@ export function readingBandSurface(base: Oklch): Oklch {
 }
 
 /** One elevation ingredient: an OKLCH colour plus the alpha that IS its per-polarity decision. */
-export interface ShadowIngredient extends Oklch {
+interface ShadowIngredient extends Oklch {
   readonly alpha: number;
 }
 

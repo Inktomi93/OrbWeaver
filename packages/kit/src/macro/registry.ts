@@ -60,7 +60,7 @@ function splitComparator(raw: string): { readonly lhs: string; readonly op: (typ
   return { lhs: raw.slice(0, best.at), op: best.op, rhs: raw.slice(best.at + COMPARATOR_OP_LENGTH) };
 }
 
-export class SimpleMacroRegistry implements MacroRegistry {
+class SimpleMacroRegistry implements MacroRegistry {
   private handlers = new Map<string, MacroHandler>();
   private options = new Map<string, MacroRegisterOptions>();
   // The AUTHORED DX metadata (no `volatile` — composed on read from the `volatile` option, D51). Fed by

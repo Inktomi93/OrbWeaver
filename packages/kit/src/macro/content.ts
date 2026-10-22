@@ -14,7 +14,7 @@
 // between the braces gives `{<ZWSP>{`, which the indexOf scan can no longer match. Output looks
 // identical to a human (U+200B is invisible) and round-trips through every storage layer that
 // preserves Unicode. The U+200B codepoint is load-bearing — keep it exact.
-export const ZWSP = "​";
+const ZWSP = "​";
 export function neutralizeMacros(s: string): string {
   return s.replace(/\{\{/g, `{${ZWSP}{`).replace(/\}\}/g, `}${ZWSP}}`);
 }
