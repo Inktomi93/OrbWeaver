@@ -307,7 +307,10 @@ interface VisualLabels {
   readonly facets: VisualFacets | undefined;
 }
 
-const metaStr = (m: ImageCaptionMeta | null, key: string): string | null => (m !== null && typeof m[key] === "string" ? (m[key] as string) : null);
+const metaStr = (m: ImageCaptionMeta | null, key: ImageFacetMetaKey): string | null => {
+  const value = m?.[key];
+  return typeof value === "string" ? value : null;
+};
 
 /** Project one stored `caption_meta` blob onto the facets the labeler reads; `undefined` when it carries none
  *  (a provenance-only `{model}` row, i.e. captioned before the breakdown pass existed). */

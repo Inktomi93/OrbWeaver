@@ -1,10 +1,8 @@
-// domain/settings — COMPOSITION ROOT. Builds the `SettingsContext` (via `createSettingsContext`, which
-// owns the per-user serializer + binds the effective-config subsystem) and wires the verbs into the
-// `SettingsService`. ZERO business logic — only factory calls + assembly. The effective-config read side is
-// surfaced straight off the context (it was bound there at the composition surface).
+// domain/settings — COMPOSITION ROOT. Ordinary edits and injected import operations share the assembled
+// context's per-user serializer. Effective-config reads remain bound at the assembly context.
 
-import { createSettingsContext } from "./context.ts";
-import type { SettingsService, SettingsServiceDeps } from "./contract/service.ts";
+import { databaseForOwner } from "@orb/db/wiring-owner";
+import type { SettingsAssemblyContext, SettingsContext, SettingsService } from "./contract/service.ts";
 import { createAddExternalBackground } from "./verbs/add-external-background.ts";
 import { createAppSettings } from "./verbs/app-settings.ts";
 import { createCheckForUpdate, createGetVersion } from "./verbs/check-for-update.ts";
@@ -23,8 +21,8 @@ import { createResetUserConfig } from "./verbs/reset-user-config.ts";
 import { createUpdateTheme } from "./verbs/update-theme.ts";
 import { createUpdateUserSettingsSection } from "./verbs/update-user-settings-section.ts";
 
-export function createSettingsService(deps: SettingsServiceDeps): SettingsService {
-  const ctx = createSettingsContext(deps);
+export function createSettingsService(input: SettingsAssemblyContext): SettingsService {
+  const ctx: SettingsContext = { ...input, db: databaseForOwner(input.db) };
   const globalSettings = createGlobalSettings(ctx);
   const appSettings = createAppSettings(ctx);
   return {
@@ -51,6 +49,6 @@ export function createSettingsService(deps: SettingsServiceDeps): SettingsServic
     removeTheme: createRemoveTheme(ctx).removeTheme,
     // The single-theme door is a thin arm over the SAME import op the bundle descriptor and the profile
     // import compose, so one parser and one collision rule serve every door.
-    importThemeFile: createImportThemeFile({ importTheme: createImportTheme({ ...ctx, db: deps.db }) }).importThemeFile,
+    importThemeFile: createImportThemeFile({ importTheme: createImportTheme(input) }).importThemeFile,
   };
 }

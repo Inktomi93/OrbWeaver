@@ -45,7 +45,10 @@ export function createImageAnalyticsFacets(ctx: DiscoveryContext): Pick<Discover
   };
 }
 
-const metaStr = (m: ImageCaptionMeta | null, key: string): string | null => (m !== null && typeof m[key] === "string" ? (m[key] as string) : null);
+const metaStr = (m: ImageCaptionMeta | null, key: ImageFacetMetaKey): string | null => {
+  const value = m?.[key];
+  return typeof value === "string" ? value : null;
+};
 
 /** Ascending — worst-matched art first (the curation signal). */
 async function portraitAlignment(db: Db, ownerId: UserId): Promise<PortraitAlignmentReport> {

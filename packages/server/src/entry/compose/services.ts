@@ -573,10 +573,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // late-bound thunk, dereferenced per verb call after the registry has been assembled.
   const workloadBinding = createBinding<WorkloadContributions>("compose: workload contributions derefed before the registry was assembled");
   const getWorkloadContributions = workloadBinding.read;
-  const settings = createSettingsService(settingsDeps);
+  const settingsCtx: SettingsContext = createSettingsContext(settingsDeps);
+  const settings = createSettingsService(settingsCtx);
   const rateLimit = createRateLimitGate({ db, now, resolveRateLimits: () => settings.getEffectiveConfig().rateLimits });
   const multiHumanCapable = createMultiHumanCapability(authMode, () => settings.getEffectiveConfig());
-  const settingsCtx: SettingsContext = createSettingsContext(settingsDeps);
 
   // Warm the resolved-config cache from the stored override so the sync getEffectiveConfig() returns the
   // floor⊕override config before the runtime reads it. The settings domain's reload also publishes the F12

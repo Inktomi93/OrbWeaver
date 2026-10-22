@@ -1,3 +1,4 @@
+import type { HistoryFloorSeq } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { messages } from "@orb/db";
 import type { ChatId, MessageId } from "@orb/kit/ids";
@@ -8,7 +9,7 @@ export async function loadWindowAnchor(
   db: Db,
   chatId: ChatId,
   messageId: MessageId,
-  floorSeq: number,
+  floorSeq: HistoryFloorSeq,
 ): Promise<{ readonly id: MessageId; readonly seq: number } | null> {
   const [row] = await db
     .select({ id: messages.id, seq: messages.seq })
@@ -22,7 +23,7 @@ export async function loadWindowAnchor(
 export async function loadWindowRange(
   db: Db,
   chatId: ChatId,
-  { seqStart, seqEnd, floorSeq }: { readonly seqStart: number; readonly seqEnd: number; readonly floorSeq: number },
+  { seqStart, seqEnd, floorSeq }: { readonly seqStart: number; readonly seqEnd: number; readonly floorSeq: HistoryFloorSeq },
 ): Promise<{
   readonly first: { readonly id: MessageId; readonly seq: number } | null;
   readonly last: { readonly id: MessageId; readonly seq: number } | null;

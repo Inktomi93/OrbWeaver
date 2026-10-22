@@ -6,6 +6,7 @@
 // (§7.1). NOTE: membership-scoped chats (D18) do NOT use this — they go through `requireParticipant`.
 
 import type { UserId } from "@orb/kit/ids";
+import type { GetColumnData } from "drizzle-orm";
 import { and, eq } from "drizzle-orm";
 import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
 import type { Db } from "../client/index.ts";
@@ -26,7 +27,12 @@ export type OwnedTable = SQLiteTable & OwnedColumns;
  * Load the row of `table` with `id` owned by `ownerId`, or `undefined`. The owner predicate is part of
  * the WHERE (not a post-filter), so the query can never return a row the caller doesn't own.
  */
-export async function fetchOwned<T extends OwnedTable>(db: Db, table: T, id: string, ownerId: UserId): Promise<T["$inferSelect"] | undefined> {
+export async function fetchOwned<T extends OwnedTable>(
+  db: Db,
+  table: T,
+  id: NoInfer<GetColumnData<T["id"], "raw"> & string>,
+  ownerId: UserId,
+): Promise<T["$inferSelect"] | undefined> {
   const rows = await db
     .select()
     .from(table)

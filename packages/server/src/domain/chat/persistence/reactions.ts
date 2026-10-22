@@ -19,7 +19,7 @@
 // reader is not allowed to see is the same leak one seq lower. The floor arrives on the guard's resolved
 // membership (`requireParticipant` → `historyFloorSeq`), so the verb passes it and cannot forget it.
 
-import type { MessageKind } from "@orb/contracts/chat";
+import type { HistoryFloorSeq, MessageKind } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { characters, chatParticipants, messageReactions, messages, messageVariants, personas } from "@orb/db";
 import type { AssetId, ChatId, ChatParticipantId, MessageId, MessageReactionId, MessageVariantId, UserId } from "@orb/kit/ids";
@@ -70,7 +70,7 @@ export async function loadVariantSlotInChat(
   db: Db,
   chatId: ChatId,
   variantId: MessageVariantId,
-  floorSeq: number,
+  floorSeq: HistoryFloorSeq,
 ): Promise<{ readonly messageId: MessageId; readonly kind: MessageKind; readonly content: string } | undefined> {
   const rows = await db
     .select({ messageId: messages.id, kind: messages.kind, content: messageVariants.content })
@@ -141,7 +141,7 @@ export async function loadCharacterSeatByName(
 export async function loadNewestSelectedSlot(
   db: Db,
   chatId: ChatId,
-  floorSeq: number,
+  floorSeq: HistoryFloorSeq,
 ): Promise<{ readonly messageId: MessageId; readonly variantId: MessageVariantId; readonly kind: MessageKind; readonly content: string } | undefined> {
   const rows = await db
     .select({ messageId: messages.id, variantId: messageVariants.id, kind: messages.kind, content: messageVariants.content })
@@ -199,7 +199,11 @@ export async function deleteReaction(
 
 /** The room's bounded reaction window, newest slot first (see the header for why the budget counts SLOTS).
  *  Rows, not groups: the grouping is a pure projection the verb applies, so this stays one indexed read. */
-export function listChatReactions(db: Db, chatId: ChatId, opts: { readonly slotWindow: number; readonly floorSeq: number }): Promise<readonly ReactionRow[]> {
+export function listChatReactions(
+  db: Db,
+  chatId: ChatId,
+  opts: { readonly slotWindow: number; readonly floorSeq: HistoryFloorSeq },
+): Promise<readonly ReactionRow[]> {
   const recentSlots = db
     .select({ messageId: messageVariants.messageId })
     .from(messageReactions)
@@ -243,7 +247,7 @@ export function listChatReactions(db: Db, chatId: ChatId, opts: { readonly slotW
 export function listAttributionReactions(
   db: Db,
   chatId: ChatId,
-  opts: { readonly slotWindow: number; readonly floorSeq: number },
+  opts: { readonly slotWindow: number; readonly floorSeq: HistoryFloorSeq },
 ): Promise<
   readonly {
     readonly messageId: MessageId;

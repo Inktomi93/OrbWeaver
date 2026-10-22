@@ -16,6 +16,7 @@ import type {
   ChatReasoningPart,
   ContentSignatures,
   HandoffOffer,
+  HistoryFloorSeq,
   JoinHistoryVisibility,
   MessageView,
   StandaloneVariableDelta,
@@ -1016,7 +1017,7 @@ export async function loadMessagesPage(
     readonly afterSeq?: number | undefined;
     readonly ascending?: boolean;
     readonly limit: number;
-    readonly floorSeq: number;
+    readonly floorSeq: HistoryFloorSeq;
   },
 ): Promise<MessageView[]> {
   const { beforeSeq, limit, floorSeq } = window;
@@ -1048,7 +1049,7 @@ export async function loadMessagesPage(
  *  anchorless HERE, unlike the bus `delta`, whose anchor is stamped by the emit site rather than read back
  *  from a column, so those stay conservatively withheld).
  *  An unclamped caller takes the plain read (no join, byte-identical to before). */
-export async function loadStreamReplay(db: Db, chatId: ChatId, afterSeq: number | undefined, floorSeq: number): Promise<ChatStreamReplayEvent[]> {
+export async function loadStreamReplay(db: Db, chatId: ChatId, afterSeq: number | undefined, floorSeq: HistoryFloorSeq): Promise<ChatStreamReplayEvent[]> {
   const selection = {
     seq: chatStreamEvents.seq,
     messageId: chatStreamEvents.messageId,
@@ -1116,7 +1117,7 @@ export async function loadMessageVariantSummaries(
   db: Db,
   chatId: ChatId,
   messageId: MessageId,
-  floorSeq: number,
+  floorSeq: HistoryFloorSeq,
 ): Promise<{ variantId: MessageVariantId; idx: number }[]> {
   return await db
     .select({ variantId: messageVariants.id, idx: messageVariants.idx })
@@ -1387,7 +1388,12 @@ export async function loadChatInjections(db: Db, chatId: ChatId): Promise<(typeo
  *  floored at the FORKER's D16 join-history `floorSeq` (a fork COPIES canon into a room the forker hosts, so
  *  an unfloored copy would launder every row past the forker's own clamp). Raw `$inferSelect` rows so the
  *  fork can spread→re-id every column; the verb mints fresh ids + remaps the selected-variant pointer. */
-export async function loadMessageSlots(db: Db, chatId: ChatId, throughSeq: number | undefined, floorSeq: number): Promise<(typeof messages.$inferSelect)[]> {
+export async function loadMessageSlots(
+  db: Db,
+  chatId: ChatId,
+  throughSeq: number | undefined,
+  floorSeq: HistoryFloorSeq,
+): Promise<(typeof messages.$inferSelect)[]> {
   const where = and(eq(messages.chatId, chatId), gte(messages.seq, floorSeq), throughSeq === undefined ? undefined : lte(messages.seq, throughSeq));
   return await db.select().from(messages).where(where).orderBy(asc(messages.seq));
 }

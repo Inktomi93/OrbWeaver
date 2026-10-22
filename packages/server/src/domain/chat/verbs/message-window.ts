@@ -1,4 +1,4 @@
-import type { MessageView } from "@orb/contracts/chat";
+import type { HistoryFloorSeq, MessageView } from "@orb/contracts/chat";
 import { CHAT_MESSAGE_LIST_MAX_LIMIT, projectViewForMember } from "@orb/contracts/chat";
 import type { CorpusSource, CorpusSourceOutcome } from "@orb/contracts/search";
 import type { ChatId } from "@orb/kit/ids";
@@ -70,14 +70,18 @@ interface WindowResolution {
   readonly anchor: WindowAnchor;
   readonly end: WindowAnchor;
 }
-async function resolveWindowTarget(ctx: ChatContext, request: Pick<GetMessageWindowParams, "chatId" | "target">, floor: number): Promise<WindowResolution> {
+async function resolveWindowTarget(
+  ctx: ChatContext,
+  request: Pick<GetMessageWindowParams, "chatId" | "target">,
+  floor: HistoryFloorSeq,
+): Promise<WindowResolution> {
   if (request.target.kind === "source") {
     return await resolveSourceWindow(ctx, request.chatId, request.target.source, floor);
   }
   const anchor = await loadWindowAnchor(ctx.db, request.chatId, request.target.messageId, floor);
   return { outcome: anchor === null ? "deleted" : "resolved", anchor, end: anchor };
 }
-async function resolveSourceWindow(ctx: ChatContext, chatId: ChatId, source: CorpusSource, floor: number): Promise<WindowResolution> {
+async function resolveSourceWindow(ctx: ChatContext, chatId: ChatId, source: CorpusSource, floor: HistoryFloorSeq): Promise<WindowResolution> {
   if (source.chatId !== chatId || source.fingerprint === null || source.seqStart === null || source.seqEnd === null || source.seqEnd < source.seqStart) {
     return { outcome: "unavailable", anchor: null, end: null };
   }
@@ -133,7 +137,7 @@ async function readWindowPage(
     readonly chatId: ChatId;
     readonly cursor: GetMessageWindowParams["cursor"];
     readonly pageSize: number;
-    readonly floor: number;
+    readonly floor: HistoryFloorSeq;
     readonly anchorSeq: number;
   },
 ): Promise<MessageView[]> {

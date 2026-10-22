@@ -214,7 +214,8 @@ export type ImageBreakdown = z.infer<typeof imageBreakdownSchema>;
  *  there, every facet is OPTIONAL because the 2026-08-18 backfill boundary means older rows carry none, and
  *  unknown keys pass through (a future facet must not poison an old reader). */
 export const imageCaptionMetaSchema = imageBreakdownSchema.omit({ caption: true }).partial().extend({ model: z.string().optional() }).loose();
-export type ImageCaptionMeta = z.infer<typeof imageCaptionMetaSchema>;
+/** Canonical reader fields; parsing still preserves unknown stored keys without exposing them as application fields. */
+export type ImageCaptionMeta = z.infer<z.ZodObject<typeof imageCaptionMetaSchema.shape>>;
 
 // ── The `index` workload's terminal result (the workloads junk-drawer exit: a workload's result shape is
 //    domain↔domain wire, authored by the OWNING domain — embeddings owns the ONE vector write path). ──
