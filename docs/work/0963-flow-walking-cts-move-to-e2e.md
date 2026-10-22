@@ -10,7 +10,7 @@ plan: test-foundation
 
 ## What
 
-CTs that mount a route or the app shell and stub the network to walk a user flow move their cases to e2e specs on the golden corpus, and are deleted. Component, measurement and hard-state cases stay in CT.
+Classify flow-walking CT cases using the [restoration decisions](../plans/test-foundation/design.md#restoration-decisions). Move uncovered critical journeys to corpus E2E. Reuse existing E2E coverage for duplicates and delete superseded flow CTs. Keep component, measurement and controlled-state cases in CT.
 
 ## Why
 
@@ -18,7 +18,7 @@ A flow CT pays the cost of stubbing every call and still cannot see a broken wir
 
 ## Done when
 
-No CT mounts a route or the app shell to walk a flow; each moved case runs as an e2e spec; the deleted CTs' cases are listed against their new specs.
+No CT uses a fabricated backend to walk a complete route or app-shell journey. Each selected case names its retained coverage, replacement or reason for removal. Cross-layer cases identify distinct failures; they do not repeat the same permutation matrix.
 
 ## Evidence
 

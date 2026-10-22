@@ -8,7 +8,7 @@ updated: 2026-10-21
 
 ## Goal
 
-Rebuild meaningful legacy cases through production composition, production-derived builders, the shared corpus and real client mounting. Remove copied assemblies from maintained tests when qualified replacements land.
+Preserve meaningful behavior at the appropriate test layer, not every reference file. Rebuild missing cases through production composition, production-derived builders, the shared corpus and real client mounting. Remove redundant tests and copied assemblies with their qualified replacements.
 
 ## Shape
 
@@ -79,26 +79,79 @@ Keep the external reference source outside the test population. Do not restore d
 - Stop fake-heavy legacy fixture retrofits; rebuild the cases in their correct layer.
 - Keep unrelated architecture and export cleanup outside the replacement assignment.
 
-### Each layer answers one question
+### Layer ownership and overlap
+
+Give each failure mode a primary test home. Choose the least expensive layer that exercises the actual behavior.
 
 | Layer | Owns | Does not replace |
 | - | - | - |
-| e2e on the corpus | User flows and actual auth, cookies, CSRF, router, streams, database, migrations, uploads and plugin-host wires. | Component states that require controlled responses. |
-| CT | Component behavior, hard states, rendered geometry, contrast, focus, accessibility, viewports and themes. | A route or app-shell user flow over fabricated backend calls. |
-| Server integration | Domain logic, permissions, cross-tenant behavior and persistence through the production composition root. | Domain behavior with a copied implementation. |
-| Unit | Pure logic in kit and contracts. | I/O or application flows. |
+| Unit | Pure production calculations, reducers, formatters and transformations; inexpensive input permutations. | I/O or business behavior reconstructed with fake services. |
+| Contract | Real schema acceptance and refusal, serialization, round trips and stored-data compatibility. | A hand-written schema copy or a browser journey. |
+| Type | Invalid IDs and combinations, required inputs and inferred outputs under the owning compiler world. | Runtime authorization, persistence or resource cleanup. |
+| Server integration | Business rules, ownership, transactions, cancellation and lifetimes through production composition and real persistence. | UI behavior or a copied implementation. |
+| CT | Real component interactions, controlled loading/error/empty states, focus, accessibility, geometry, viewports and themes. | Complete application journeys over a fabricated backend. |
+| E2E | Important journeys connecting the browser, authentication, transport, server, persistence and visible result. | Every lower-layer input, permission or presentation permutation. |
+
+Use the real HTTP entry for HTTP-specific integration cases. An internal caller does not prove cookie, CSRF or request-authentication behavior.
+
+Script external execution at its real boundary. Ordinary application coverage does not require live model-provider execution.
+
+A suite groups related cases; it is not another test layer. The `.suite` suffix does not require duplicate standalone or global tests.
+
+Retain cross-layer coverage only when it catches a distinct failure. Record that distinction in the batch's case map. Do not repeat an edge-case matrix at every layer.
+
+For settings, integration owns sibling-field preservation and concurrent writes. CT owns pending/error presentation. E2E owns saving through the browser and observing persistence after reload.
+
+Use risk and distinct behavior to choose cases, not test-count targets, coverage percentages or per-file quotas.
 
 Move flow-walking route and app-shell CT cases to corpus e2e. Keep component, measurement and controlled-state cases in CT.
 
+### Restoration decisions
+
+Before writing a replacement, record its behavior, existing coverage, primary layer, decision and any distinct cross-layer purpose in the owning work item.
+
+| Decision | Use when | Action |
+| - | - | - |
+| Keep | Maintained coverage already exercises the behavior through production. | Reuse it; do not restore a duplicate. |
+| Rebuild | A useful case has an unsuitable harness or fabricated business behavior. | Preserve the assertion's purpose through the real production entry. |
+| Move | A useful case belongs at another layer. | Add only uncovered behavior there; remove the superseded maintained case. |
+| Drop | A case is duplicate, obsolete, implementation trivia or only confirms its own fabricated data. | Record the reason or covering test; do not port the case. |
+
+Prioritize authorization, data loss, critical journeys and known regressions. Compare case assertions, not filenames or test counts.
+
+Do not restore a reference file wholesale because its cases once ran together. Keep reference harnesses outside the repository.
+
 ### How a replacement is written
 
-1. Inventory the meaningful cases of the legacy file and identify the production entry each case must exercise.
-2. Build data through production-derived builders or the corpus.
-3. Use the real composition root and isolate its database and external edges.
+1. Compare reference assertions with maintained coverage and record the restoration decisions above.
+2. Select the production entry and layer for each uncovered behavior.
+3. Build data through production-derived builders or the corpus; isolate physical resources and external execution.
 4. Assert observable behavior, permissions, persistence and cleanup rather than a literal the test created.
-5. Plant a production defect or remove a required behavior and show the corresponding control fails.
-6. Compare the replacement case list with the reference source; remove copied assembly from maintained tests.
-7. Run the affected maintained tests and applicable existing repository checks; record precise limitations.
+5. Demonstrate that a relevant production defect makes the new regression case fail.
+6. Remove redundant maintained cases and unsupported helpers with their qualified replacements.
+7. Run affected tests and applicable existing checks; record remaining limitations without expanding the batch.
+
+### Selected case map: chat permissions and history
+
+This is a bounded source comparison, not an exhaustive chat audit or fresh browser qualification. Legacy paths are relative to the external source named in [Spine-Testing](../../law/Spine-Testing.md#2-the-tree).
+
+| Behavior | Primary home and maintained evidence | Decision |
+| - | - | - |
+| Joining, host/member/outsider authority and host handoff | Integration: [role-authority](../../../tests/server/domain/chat/verbs/role-authority.int.test.ts), [participants](../../../tests/server/domain/chat/verbs/participants.int.test.ts). | Keep. Do not restore another service-level role matrix. |
+| Full/from-join history, pages, message windows and fork lineage | Integration: [role-authority](../../../tests/server/domain/chat/verbs/role-authority.int.test.ts), [corpus chat outputs](../../../tests/support/node/corpus-chat-outputs.int.test.ts). | Keep. Browser coverage should prove wiring, not repeat cursor and permission permutations. |
+| Hidden bytes across replay cursors and recipient-scoped live delivery | Integration: [member visibility](../../../tests/server/domain/chat/substrate/member-visibility.int.test.ts), [recipient isolation](../../../tests/server/transport/trpc/stream/recipient-isolation.int.test.ts). | Keep. These exercise production replay and authenticated transport, not only a UI filter. |
+| Card disclosure and co-member updates | Integration: [member card clamp](../../../tests/server/domain/chat/verbs/member-card-clamp.int.test.ts), [member fanout](../../../tests/server/domain/chat/verbs/member-fan.int.test.ts). | Keep. Rendered controls do not replace authorization checks. |
+| Shared history and role-specific controls after browser reload | E2E: [shared corpus](../../../tests/e2e/corpus-shared.local.spec.ts), [multi-human visibility](../../../tests/e2e/multi-human-visibility.local.spec.ts). | Keep the distinct browser/transport assertions. Compare overlapping API-only permutations before retaining both. |
+| Invite landing after the first-run persona step | E2E: [corpus joiner](../../../tests/e2e/corpus-joiner.local.spec.ts). | Keep. Do not rebuild the complete journey as a network-stubbed CT. |
+| OIDC callback, pending-join dismissal and precise URL/history cleanup | E2E: [OIDC pending join](../../../tests/e2e/oidc-pending-join.oidc.spec.ts). | Keep; qualify the existing spec under [OIDC acceptance](../../work/1082-qualify-the-existing-oidc-pending-join-e2e.md). Do not restore a duplicate dismissal journey. |
+| Capability-dependent `/join/:token` refusal and redirect | HTTP integration: [auth metadata](../../../tests/server/entry/http/auth-meta.int.test.ts). Legacy `server/entry/http/join.test.ts` also checks encoded token bytes. | Keep existing coverage. Add the encoded-token case through real HTTP only if uncovered; drop the mock-app harness. |
+| Invalid invite disclosure, focus ordering and dismissal without redemption | CT candidate: legacy `client/features/chat/anchors/join-invite-dialog.ct.tsx`. | Rebuild controlled component cases through the maintained mount and typed network helpers. No matching current client assertions were found in the selected scan. |
+| Persona validation/focus, approval, refused confirmation and unavailable pending invite | CT candidate: legacy `client/features/auth/components/login-pending-join.ct.tsx`. | Rebuild controlled states, not the OIDC journey. Retain a local dismissal case only for a distinct component failure. |
+| Shared invite sentence capitalization and formatting | Unit candidate: production [invite-copy](../../../packages/client/src/lib/invite-copy.ts). | Move useful uncovered formatting assertions to the pure function; drop duplicate capitalization-only CTs. |
+
+Start the next restoration batch with the controlled invite components under [client regression work](../../work/0977-rebuild-client-lifecycle-and-boundary-regression-cases.md). Confirm current component contracts before porting assertions. Preserve production providers and use explicit external responses, not copied registry assemblies.
+
+Keep the server coverage above. Legacy `server/domain/chat/substrate/wire-history.test.ts` and `db/query/chat-visibility.int.test.ts` still need case-by-case comparison with their current owners. This map does not classify those files as missing or obsolete.
 
 ### Server composition
 
@@ -134,7 +187,7 @@ Use the sibling legacy source only to identify cases. It is not part of this rep
 
 ### Completion and verification
 
-A batch completes when its replacement preserves meaningful cases, exercises the real entry, qualifies its defect controls and removes copied assembly from maintained tests. Match evidence to the actual source, selected population and runtime.
+A batch completes when every selected case has a keep, rebuild, move or drop decision with evidence. Required replacements exercise production, pass relevant controls and remove superseded support. Existing qualified coverage is a valid result; an additional test is not required for every reference case.
 
 Use D317 and the orchestrator/lane completion policy for existing verification. A timeout or tool failure supplies no behavioral verdict. Record unrelated limitations separately.
 
