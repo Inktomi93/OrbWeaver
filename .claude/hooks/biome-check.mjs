@@ -7,7 +7,24 @@ import path from "node:path";
 import process from "node:process";
 
 const TOOLS = new Set(["Edit", "Write", "MultiEdit"]);
-const EXTENSIONS = new Set([".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs", ".json", ".jsonc", ".css"]);
+const EXTENSIONS = new Set([
+  ".ts",
+  ".tsx",
+  ".mts",
+  ".cts",
+  ".js",
+  ".jsx",
+  ".mjs",
+  ".cjs",
+  ".json",
+  ".jsonc",
+  ".css",
+  ".yml",
+  ".yaml",
+  ".html",
+  ".svg",
+  ".webmanifest",
+]);
 const CONTEXT_LIMIT = 8000;
 const TIMEOUT_MS = 15_000;
 const MAX_BUFFER = 65_536;
@@ -96,7 +113,8 @@ function main() {
       `--config-path=${root}`,
       "--reporter=concise",
       "--colors=off",
-      "--diagnostic-level=error",
+      "--diagnostic-level=warn",
+      "--error-on-warnings",
       "--max-diagnostics=20",
       `./${path.relative(root, file)}`,
     ],
