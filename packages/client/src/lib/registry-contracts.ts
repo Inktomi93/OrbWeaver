@@ -265,7 +265,7 @@ export function defineContextTabs<S>(spec: ContextTabsSpec<S>): ContextDefinitio
     }
     seen.add(tab.id);
   }
-  // biome-ignore lint/nursery/noComponentHookFactories: D54 constructs this hook with the retained composition graph, not on each render.
+  // biome-ignore lint/correctness/noComponentHookFactories: D54 constructs this hook with the retained composition graph, not on each render.
   function useResolved(): ResolvedContextTabs | null {
     const state = spec.useContextState();
     if (state === null) {

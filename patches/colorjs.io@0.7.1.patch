@@ -1,5 +1,4 @@
 diff --git a/types/src/types.d.ts b/types/src/types.d.ts
-index 200575b9869939a7eb2e5120a056f2faff6bbf57..b39eab48d5b4254208afa0c21d2b3df85766cef9 100644
 --- a/types/src/types.d.ts
 +++ b/types/src/types.d.ts
 @@ -1,4 +1,3 @@
@@ -7,7 +6,7 @@ index 200575b9869939a7eb2e5120a056f2faff6bbf57..b39eab48d5b4254208afa0c21d2b3df8
  /**
   * @packageDocumentation
   * Defines and re-exports many types for use throughout the library.
-@@ -247,7 +246,7 @@ export interface TryColorOptions extends ParseOptions {
+@@ -247,7 +246,7 @@
  	 **/
  	cssProperty?: string;
  	/** DOM element to use for CSS resolution */

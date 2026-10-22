@@ -21,7 +21,7 @@ const MODELS = [
 ];
 
 test("native daemon discovery uses the caller's current saved credential and normalizes advertised model facts", async () => {
-  const edge = physicalSdkScenario({ models: MODELS });
+  await using edge = physicalSdkScenario({ models: MODELS });
   await using root = await createServerHarness({ secretBoxKey: Buffer.alloc(32, 1), sdkSpawn: edge.spawn, startJobs: false });
   const principal = await root.principalFor(root.ownerId);
   const key = await root.services.credentials.add({ principal, provider: "claude-sub", key: TOKEN });
@@ -47,7 +47,7 @@ test("native daemon discovery uses the caller's current saved credential and nor
 });
 
 test("native catalog refusal scrubs a reflected saved token from the readable reason and the actual warning", async () => {
-  const edge = physicalSdkScenario({ catalogError: `auth rejected for ${TOKEN} — refresh the token` });
+  await using edge = physicalSdkScenario({ catalogError: `auth rejected for ${TOKEN} — refresh the token` });
   await using root = await createServerHarness({ secretBoxKey: Buffer.alloc(32, 1), sdkSpawn: edge.spawn, startJobs: false });
   const principal = await root.principalFor(root.ownerId);
   const key = await root.services.credentials.add({ principal, provider: "claude-sub", key: TOKEN });
@@ -69,7 +69,7 @@ test("native catalog refusal scrubs a reflected saved token from the readable re
 });
 
 test("native catalog error prose remains readable, markup-free, control-free and bounded", async () => {
-  const edge = physicalSdkScenario({ catalogError: `<html><body><h1>Daemon died</h1><p>exit\u0007 ${"filler ".repeat(300)}</p></body></html>` });
+  await using edge = physicalSdkScenario({ catalogError: `<html><body><h1>Daemon died</h1><p>exit\u0007 ${"filler ".repeat(300)}</p></body></html>` });
   await using root = await createServerHarness({ secretBoxKey: Buffer.alloc(32, 1), sdkSpawn: edge.spawn, startJobs: false });
   const principal = await root.principalFor(root.ownerId);
   const key = await root.services.credentials.add({ principal, provider: "claude-sub", key: TOKEN });

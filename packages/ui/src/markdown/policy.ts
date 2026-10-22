@@ -13,9 +13,40 @@ import { defaultRemarkPlugins } from "streamdown";
 const IMAGE_TAG = "img";
 const SOURCE_TAG = "source";
 
+// Streamdown sanitizes raw HTML before KaTeX; its final element filter must retain the generated MathML.
+// Exclude fetching mglyph and HTML integration points such as annotation-xml, not just scripts.
+const KATEX_MATHML_ELEMENTS: readonly string[] = [
+  "math",
+  "semantics",
+  "annotation",
+  "mrow",
+  "mi",
+  "mn",
+  "mo",
+  "mtext",
+  "mspace",
+  "msup",
+  "msub",
+  "msubsup",
+  "mover",
+  "munder",
+  "munderover",
+  "mfrac",
+  "mroot",
+  "msqrt",
+  "mtable",
+  "mtr",
+  "mtd",
+  "mlabeledtr",
+  "menclose",
+  "mstyle",
+  "mpadded",
+  "mphantom",
+];
+
 /**
  * The Tier-A element allowlist: structural + text-formatting + tables + details/summary + links +
- * images. Forbidden by omission: script, style, iframe, object, embed, form, input, and any `on*`
+ * images + inert MathML. Forbidden by omission: script, style, iframe, object, embed, form, input, and any `on*`
  * handler. This is the full trusted surface; the untrusted surface drops `img` (see below).
  */
 export const TIER_A_ELEMENTS: readonly string[] = [
@@ -55,6 +86,7 @@ export const TIER_A_ELEMENTS: readonly string[] = [
   "summary",
   "a",
   IMAGE_TAG,
+  ...KATEX_MATHML_ELEMENTS,
 ];
 
 /**

@@ -89,7 +89,7 @@ export function createAutosaveEntityForm<TValues extends object>(
    * (entity switch or reseed), so every ref here is genuinely fresh per entity (the cross-entity
    * stale-`error` bleed of the old hook-resident state is gone — §4).
    */
-  // biome-ignore lint/nursery/noComponentHookFactories: the D54 §13.1 editor-factory pattern — callers mint at MODULE scope (const PresetForm = createAutosaveEntityForm(...)), so Session keeps one identity across renders.
+  // biome-ignore lint/correctness/noComponentHookFactories: the D54 §13.1 editor-factory pattern — callers mint at MODULE scope (const PresetForm = createAutosaveEntityForm(...)), so Session keeps one identity across renders.
   function Session({ entityId, serverValues, save, readOnly, pendingSeed, discardRef, reseed, children }: SessionProps): ReactElement {
     // The identity of the server snapshot this epoch mounts over — the baseline a surviving draft must
     // have been begun on to still outrank it. Computed at mount and held stable for
@@ -412,7 +412,7 @@ export function createAutosaveEntityForm<TValues extends object>(
     );
   }
 
-  // biome-ignore lint/nursery/noComponentHookFactories: the same module-scope mint gives AutosaveBoundary one identity across renders.
+  // biome-ignore lint/correctness/noComponentHookFactories: the same module-scope mint gives AutosaveBoundary one identity across renders.
   return function AutosaveBoundary({ entityId, serverValues, save: callTimeSave, readOnly, children }: AutosaveBoundaryImplProps<TValues>): ReactElement {
     // A DECLARED read-only mount never persists, even if the mint config carried a seam — the arm the
     // surface declared at the mount site is the stronger statement about this instance.

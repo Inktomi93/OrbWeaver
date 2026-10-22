@@ -5,7 +5,7 @@ import { testProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { physicalSdkScenario } from "./regression-edge.fixtures.ts";
 
 test("a failed SDK fixture scope closes its owned live child but retains the leak refusal", async () => {
-  const edge = physicalSdkScenario({ hang: true });
+  await using edge = physicalSdkScenario({ hang: true });
   const child = edge.spawn({ command: process.execPath, args: [], cwd: edge.directory, env: testProcessEnv(), signal: new AbortController().signal });
   let closeObserved = false;
   const closed = once(child, "close").then(() => {
