@@ -12,11 +12,7 @@ export {
   runBundleImport,
 } from "#domain/import";
 export { createNodeFsImportPort } from "#infra/storage";
-export type { ProfileDirImportDeps } from "./run-profile-dir-import.ts";
+
 export { runProfileDirImport } from "./run-profile-dir-import.ts";
-export type {
-  CardLorebookRestoreDeps,
-  ImportFile,
-  ProfileImportDeps,
-} from "./run-profile-import.ts";
+export type { ImportFile } from "./run-profile-import.ts";
 export { runCardLorebookRestore, runProfileImport } from "./run-profile-import.ts";

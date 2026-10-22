@@ -10,5 +10,5 @@
 export { LOG_BYTES_PER_INVOCATION, LOG_LINES_PER_INVOCATION, PLUGIN_LOG_RING_CHARS, PLUGIN_LOG_RING_LINES } from "./budgets.ts";
 export type { PluginHostSeamDeps } from "./contract/port.ts";
 export { createPluginHost } from "./process-runtime.ts";
-export { AMBIENT_STUBS, type HostSeams } from "./realm.ts";
-export { type EvalOutcome, type GuestError, Sandbox } from "./sandbox.ts";
+export { AMBIENT_STUBS } from "./realm.ts";
+export { Sandbox } from "./sandbox.ts";

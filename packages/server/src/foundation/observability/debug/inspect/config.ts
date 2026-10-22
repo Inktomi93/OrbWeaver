@@ -29,14 +29,11 @@ import type {
   UserSettingsRow,
 } from "../../contract/inspect.ts";
 
-export type { GlobalSettingView as AppSettingRow } from "@orb/contracts/settings";
 export type {
   CharacterDetailRow,
   ChatConfigRow,
-  ChatParticipantRow,
   PersonaRow,
   PresetRow,
-  RenderPolicyVerdict,
   RpgGameRow,
   UserSettingsRow,
 } from "../../contract/inspect.ts";

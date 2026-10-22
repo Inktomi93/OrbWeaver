@@ -59,12 +59,10 @@ import { isWireCaptureEnabled, recentTurnOutcomes, recentWireCaptures } from "./
 
 export type {
   AdminAuthChecker,
-  AssetInspector,
   DebugAuthOptions,
   DebugRoutesOptions,
   MemoryRecallInspector,
   RpgTraceInspector,
-  SocketInspector,
 } from "../contract/debug.ts";
 
 const MAX_RING_READ = 2000;

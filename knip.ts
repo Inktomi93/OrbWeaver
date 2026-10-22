@@ -38,6 +38,8 @@ export const config = {
   },
   workspaces: {
     ".": {
+      // Analyze the source behind @orb/server's generated declaration-only package entry.
+      paths: { "@orb/server": ["./packages/server/src/index.ts"] },
       // Operator scripts are direct Node entry points.
       entry: [
         "scripts/**/*.ts",
@@ -117,7 +119,8 @@ export const config = {
     },
     "packages/server": {
       includeEntryExports: true,
-      entry: ["src/entry/index.ts!"],
+      // The declaration compiler consumes src/index.ts; client imports resolve to its generated output.
+      entry: ["src/entry/index.ts!", "src/index.ts!"],
       // Public entries come from package.json exports.
       // The shipped script entries are added for the production view below (PRODUCTION_SCRIPT_ENTRIES).
       project: ["src/**/*.ts!"],

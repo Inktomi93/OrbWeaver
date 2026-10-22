@@ -4,18 +4,10 @@
 export { createCloudflaredBinary, extractTgzWithTar } from "./binary.ts";
 export type {
   CloudflaredAsset,
-  CloudflaredBinary,
-  CloudflaredBinaryDeps,
-  CloudflaredPackaging,
   CloudflaredPin,
   CloudflaredTarget,
-  ExtractTgz,
-  OwnedRelayLauncher,
-  OwnedRelayProcess,
-  QuickTunnelLauncherDeps,
   RelayAssetFetch,
   RelayEvents,
-  RelayExecutionDeps,
   RelayLauncher,
   RelayProcess,
   SpawnRelay,

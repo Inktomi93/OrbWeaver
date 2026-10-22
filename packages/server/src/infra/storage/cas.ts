@@ -32,7 +32,7 @@ import { getLog } from "#foundation/observability";
 import { sha256Hex } from "#primitives/content-hash";
 import type { Cas, PutResult } from "./contract.ts";
 
-export type { Cas, PutResult } from "./contract.ts";
+export type { Cas } from "./contract.ts";
 
 const SHARD_SEGMENT = /^[0-9a-f]{2}$/;
 const SHARD_A_END = 2;

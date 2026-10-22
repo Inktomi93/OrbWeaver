@@ -76,9 +76,6 @@ export async function resolve(headers: Headers, deps: ResolveDeps): Promise<Iden
   return { identity: null, via: "header", hasCsrfHeader: csrf };
 }
 
-// Cross-boundary identity type re-exported type-only for ergonomics (canonical home: @orb/contracts).
-// NOTE: `Principal` is NOT re-exported — infra/auth never constructs one (that is `entry/auth/seam.ts`).
-export type { ResolvedIdentity } from "@orb/contracts/identity";
 export { CSRF_HEADER } from "@orb/contracts/identity";
 export { createBackchannelLogoutVerifier } from "./backchannel.ts";
 // ── Public surface ───────────────────────────────────────────────────────────────────────────────
@@ -87,30 +84,18 @@ export type {
   AllowedHostsReader,
   AuthConfig,
   BackchannelLogoutVerifier,
-  BackchannelVerifyArgs,
-  ForwardJwtClaims,
   ForwardJwtVerifier,
-  ForwardJwtVerifyArgs,
-  HostFacts,
   HostNotAllowedNotice,
   IdentityResolution,
-  JwksKeySet,
-  JwksReader,
-  LogoutTokenSubject,
-  OidcCodeGrant,
-  OidcDiscover,
   OidcExchange,
   OidcSettings,
   OidcTransaction,
   OidcTransactionStore,
-  OidcVerifiedTokens,
   OwnerClaimCode,
-  PasswordHasher,
   PublicHttpMintNotice,
   RelayedFallbackNotice,
   RelayHostWriter,
   ResolveDeps,
-  SessionCookie,
 } from "./contract.ts";
 export { hasCsrfHeader } from "./csrf.ts";
 export { MODE_RESOLVERS, ownerFallbackAllowed } from "./dispatch.ts";
