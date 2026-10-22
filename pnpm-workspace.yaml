@@ -42,20 +42,20 @@ catalog:
   # our own Windows escaping.
   cross-spawn: 7.0.6
   "@types/cross-spawn": ^6.0.6
-  knip: ^6.37.0
+  knip: ^6.42.1
   unbash: 4.0.11
   yaml: 2.9.1
   # Native tsc is the default; the compatibility API exposes tsc6 for older tooling.
   "@typescript/native": npm:typescript@7.1.0-beta
   typescript: npm:@typescript/typescript6@6.0.2
   "@biomejs/biome": 2.5.15
-  lefthook: ^2.1.14
-  dependency-cruiser: ^18.4.0
+  lefthook: ^2.2.2
+  dependency-cruiser: ^18.7.0
   # D321: CSS policy uses Stylelint's native AST and its maintained value parser, never a private CSS reader.
   stylelint: 17.16.0
   postcss-value-parser: 4.2.0
   # @types/node tracks the RUNTIME (Node 26).
-  "@types/node": ^26.6.2
+  "@types/node": ^26.6.5
   # --- test ---
   # Typecheck integration is experimental; validate upgrades explicitly and keep coverage in lockstep.
   vitest: 5.0.0
@@ -95,22 +95,22 @@ catalog:
   # ts-reset: ambient type hardening (filter(Boolean), JSON.parse→unknown) — wired via root reset.d.ts.
   "@total-typescript/ts-reset": ^0.6.1
   # jscpd: copy-paste detection (CI gate, threshold 5%) — config jscpd.json.
-  jscpd: ^5.3.1
+  jscpd: ^5.4.2
   # --- kit (isomorphic libs allowed by the kit-purity ruling) ---
   zod: ^4.6.7
   typeid-js: ^1.2.0
   luxon: ^3.7.2
-  "@types/luxon": ^3.7.5
+  "@types/luxon": ^3.7.6
   # @marcbachmann/cel-js: the CEL expression evaluator (isomorphic, pure — no node:*) behind the
   # @orb/kit/cel seam; automation predicates + {{expr}}. Bundled types.
   "@marcbachmann/cel-js": ^8.0.0
   # --- db ---
-  drizzle-orm: ^0.45.3
+  drizzle-orm: ^0.45.4
   drizzle-kit: ^0.31.11
   "@libsql/client": ^0.18.0
   # --- server ---
   hono: ^4.13.13
-  "@hono/node-server": ^2.0.6
+  "@hono/node-server": ^2.1.5
   openid-client: ^6.8.8
   isomorphic-git: 1.42.2
   # cloudflared: the quick-tunnel process wrapper only (`Tunnel.quick`, `use`, its output and exit events). Exact pin:
@@ -124,7 +124,7 @@ catalog:
   # createRemoteJWKSet + jwtVerify with a pinned RS256/ES256 allowlist). Already in the tree as an
   # openid-client transitive; promoted to a direct @orb/server dep to name the verify surface
   # (docs/law/Tier-5-Entry.md: mint = openid-client at entry, verify = jose at infra).
-  jose: ^6.2.12
+  jose: ^6.2.13
   "@trpc/server": ^11.19.0
   # undici: the global-dispatcher seam for the SSRF egress firewall (infra/network/egress —
   # setGlobalDispatcher + Agent({connect.lookup})). Node's fetch is undici under the hood, but the
@@ -136,19 +136,20 @@ catalog:
   # the break LOUD is `tests/legacy/server/infra/network/dispatcher-contract.suite.int.test.ts` — keep it passing,
   # and re-run it on every node/undici bump. Mirrored into root devDependencies so that test can
   # import this exact package (pnpm-strict hides a packages/server dep from tests/).
-  undici: ^8.11.2
+  undici: ^8.12.3
   # --- foundation observability (Phase 4a — Tier-2-Foundation.md › Runtime dependencies) ---
   # pino: the structured logger (pino.multistream([stdout, ringStream])).
-  pino: ^10.3.1
+  pino: ^10.4.0
   # pino-pretty: DEV-ONLY pipe for the dev script (never a configured prod transport — it would
   # double-serialize + starve the ring); prod emits raw JSON to stdout.
-  pino-pretty: ^13.1.3
+  pino-pretty: ^13.2.0
   # @opentelemetry/*: in-process spans + the RingExporter (OTLP-replaceable seam) + the ALS context
   # manager + the service.name/version resource attrs. We run the SDK, NOT the collector stack.
-  "@opentelemetry/api": ^1.9.1
-  "@opentelemetry/sdk-trace-base": ^2.8.0
-  "@opentelemetry/context-async-hooks": ^2.11.0
-  "@opentelemetry/resources": ^2.7.1
+  # The SDK and resources require API 1.10; one API identity also keeps Drizzle's peer graph coherent.
+  "@opentelemetry/api": ">=1.10.0 <1.11.0"
+  "@opentelemetry/sdk-trace": ^3.0.0
+  "@opentelemetry/context-async-hooks": ^3.0.0
+  "@opentelemetry/resources": ^3.0.0
   "@opentelemetry/semantic-conventions": ^1.43.0
   # infra/image (Phase 4b — Tier-3-Infra.md D6): the sharp adapter (decode/resize/format-normalize/
   # strip-metadata) behind the injected `imageTransform` op. Native libvips binding — pnpm builds it.
@@ -186,9 +187,9 @@ catalog:
   "@openrouter/ai-sdk-provider": 3.1.0
   # @huggingface/transformers: the in-process local-light tier (transformers.js/ONNX, CPU+CUDA) — the
   # "any box" embed/rerank/imageEmbed path (D39). Pulls onnxruntime-node (native; allowBuilds-approved).
-  "@huggingface/transformers": ^4.3.0
+  "@huggingface/transformers": ^4.3.1
   # --- infra/extraction (databank) ---
-  pdfjs-dist: ^6.3.289
+  pdfjs-dist: ^6.4.299
   html-to-text: ^10.0.1
   "@types/html-to-text": ^9.0.4
   # --- infra/plugin-host (P1 — the QuickJS-ng WASM sandbox) ---
@@ -196,14 +197,14 @@ catalog:
   "@jitl/quickjs-ng-wasmfile-release-sync": ^0.32.0
   fflate: ^0.8.3
   # --- client ---
-  react: ^19.3.0
-  react-dom: ^19.3.0
+  react: ^19.3.1
+  react-dom: ^19.3.1
   "@types/react": ^19.3.0
   "@types/react-dom": ^19.3.0
   # --- ui (@orb/ui — the sealed satellites; versions verified against the registry 2026-07-02,
   #     deltas vs the docs recorded in proposed/ui-package-design.md §3) ---
   # Base UI v1 stable — the headless primitive (D42). NOT the dead rc-era @base-ui-components/react.
-  "@base-ui/react": ^1.8.0
+  "@base-ui/react": ^1.9.0
   # tailwind-variants: variants + slots + merge — subsumes cva/clsx (D54). DELTA vs D54: v3
   # externalized tailwind-merge to a PEER (>=3) — it rides inside @orb/ui's seal, never the client.
   tailwind-variants: ^3.3.1
@@ -211,11 +212,11 @@ catalog:
   ajv: 8.20.0
   ajv-formats: 3.0.1
   # lucide-react: ^1.22 (not .23 — published <24h ago, blocked by minimumReleaseAge; bump when mature)
-  lucide-react: ^1.47.0
+  lucide-react: ^1.61.0
   # TanStack Virtual ≥3.14.3: the directDomUpdates React-Compiler fix + core 3.16 chat APIs (D54).
-  "@tanstack/react-virtual": ^3.14.13
+  "@tanstack/react-virtual": ^3.14.21
   # Streamdown ≥2.5 — the D43 §6.3.1 version-floor build gate.
-  streamdown: ^2.6.0
+  streamdown: ^2.7.1
   # KaTeX math stack for @orb/ui/markdown's plugins.math (Streamdown ships mermaid bundled but NOT
   #   katex — these three are the math plugin's parse (remark-math) + render (rehype-katex) + the
   #   stylesheet/typesetting engine (katex). remark-gfm (^4 above) is also a @orb/ui direct dep for the
@@ -228,9 +229,9 @@ catalog:
   #   `@shikijs/engine-javascript` (the JS-regex engine, no WASM oniguruma) + `@shikijs/langs` (per-lang
   #   grammar entrypoints, dynamic-imported lazily per fence language) keep the highlighter tree-shaken
   #   to only what's actually rendered.
-  "@shikijs/core": ^4.4.3
-  "@shikijs/engine-javascript": ^4.4.3
-  "@shikijs/langs": ^4.4.3
+  "@shikijs/core": ^4.5.0
+  "@shikijs/engine-javascript": ^4.5.0
+  "@shikijs/langs": ^4.5.0
   codemirror: ^6.0.2
   "@codemirror/lang-css": ^6.3.1
   # jsdiff (docs said v8+; current major is 9 — same modern TS surface).
@@ -245,17 +246,17 @@ catalog:
   # @codemirror/autocomplete: pinned direct (was transitive via `codemirror`'s basicSetup, same
   #   @codemirror/lint reasoning) — WS3 exposes a `completions` prop on the code-editor seal
   #   (autocompletion/completionSource) for the theme editor's CSS var inline autocomplete.
-  "@codemirror/autocomplete": ^6.20.3
+  "@codemirror/autocomplete": ^6.20.4
   # cmdk: the command-palette seal (primitives/command/). 1.1.1 (2025-03-14, mature).
   cmdk: ^1.1.1
   # @dnd-kit/react + helpers: the MODERN rewrite (0.5.0, 2026-06-11) for the sortable seal. NEVER
   #   @dnd-kit/core|sortable|utilities — the dead legacy stack (biome-banned).
-  "@dnd-kit/react": ^0.5.0
-  "@dnd-kit/helpers": ^0.5.0
+  "@dnd-kit/react": ^0.5.1
+  "@dnd-kit/helpers": ^0.5.1
   # @dnd-kit/dom: pinned direct (was transitive, the @codemirror/lint precedent) — the sortable
   #   seal reaches past @dnd-kit/react's public surface for the `Feedback` plugin class (not
   #   re-exported there) to configure the reduced-motion drop-animation override.
-  "@dnd-kit/dom": ^0.5.0
+  "@dnd-kit/dom": ^0.5.1
   # echarts + echarts-for-react (D52, nivo replacement): the charts/ analytics seal. Tree-shaken
   #   imports only (echarts/core + used charts/components/renderers) — never `import "echarts"` whole.
   echarts: ^6.1.0
@@ -269,9 +270,9 @@ catalog:
   "remark-frontmatter": ^5.0.0
   "remark-gfm": ^4.0.1
   # DTCG token codegen (docs said v4; current major is 5 — ESM/async, DTCG first-class).
-  style-dictionary: ^5.5.5
+  style-dictionary: ^5.7.0
   # Standards CSS Color 4 parsing/gamut mapping for the isomorphic ThemeScope derivation boundary.
-  colorjs.io: 0.5.2
+  colorjs.io: 0.7.0
   # Tailwind v4 + the vite plugin (the @theme consumer; used by the CT harness + Phase-6 client).
   tailwindcss: ^4.3.3
   "@tailwindcss/oxide": ^4.3.3
@@ -285,19 +286,19 @@ catalog:
   # rules biome can't do — react-hooks + React-Compiler diagnostics, TanStack Query/Router discipline,
   # tailwind compiled-class validation. Config: eslint.config.js (explicit-rules-only, no `recommended`).
   # Every plugin below peer-supports eslint ^10 (verified) and TS 6.0.3 (typescript-eslint peer <6.1.0).
-  eslint: ^10.11.0
+  eslint: ^10.13.0
   # typescript-eslint: latest major-8 (there is NO v9); peer `typescript >=4.8.4 <6.1.0` → our 6.0.3 in range.
   # Used as PARSER only (+ the type-aware no-deprecated gate); its recommended RULE set stays OFF (biome+tsc own that).
   typescript-eslint: ^8.70.1
   # react-hooks v7 ships the React Compiler diagnostics (the rules-of-react correctness set) alongside rules-of-hooks.
   eslint-plugin-react-hooks: ^7.1.1
-  "@tanstack/eslint-plugin-query": ^5.103.2
+  "@tanstack/eslint-plugin-query": ^5.104.5
   "@tanstack/eslint-plugin-router": ^1.162.0
   # better-tailwindcss: validates class strings against the classes the v4 engine ACTUALLY registers
   # for our @theme (entryPoint = @orb/ui globals.css). Correctness rules only (biome owns class style/order).
-  eslint-plugin-better-tailwindcss: ^4.7.0
+  eslint-plugin-better-tailwindcss: ^4.10.0
   # tsdoc/syntax — validates TSDoc comment syntax (the doc-comment gate, .claude/rules/comments.md). No eslint peer dep.
-  eslint-plugin-tsdoc: ^0.5.3
+  eslint-plugin-tsdoc: ^0.5.4
   # jsx-a11y — EXACT, not a caret, and that is the point (#1331). eslint.config.js spreads its `strict`
   # bundle, `lint:eslint` runs with `--max-warnings 0`, so any rule a 6.x MINOR adds to that bundle would
   # land as a hard `pnpm check` gate with no config change and no review. The spread is sanctioned ONLY
@@ -305,7 +306,7 @@ catalog:
   eslint-plugin-jsx-a11y: 6.10.2
   # eslint-react's leak family: unremoved listeners/timers/observers/fetch inside components — nothing
   # else in the stack (biome, react-hooks, tsc) can see a subscription that outlives its component.
-  eslint-plugin-react-web-api: ^5.20.5
+  eslint-plugin-react-web-api: ^5.28.4
   # eslint-react's core family: the React-19 migration and legacy-API rules. EXACT, not a caret — the config
   # lists each rule by name, but a minor must not add or retune a rule without review.
   eslint-plugin-react-x: 5.20.5
@@ -322,7 +323,7 @@ catalog:
   eslint-plugin-drizzle: 0.2.3
   # vite: not 8.1.3 (published <24h ago, minimumReleaseAge-blocked); ^8.1.2 is the latest mature — the
   # caret auto-adopts 8.1.3 once it clears the 24h window. (Matches the lucide pin-reason style.)
-  vite: ^8.3.0
+  vite: ^8.3.5
   # CT's CommonJS declarations erase Vite's types; this type-only alias reaches its pinned ESM API.
   vite-ct: npm:vite@6.4.3
   vite-plugin-checker: ^0.14.5
@@ -332,7 +333,7 @@ catalog:
   "@rolldown/plugin-babel": ^0.2.4
   # --- client data/forms/state (the Phase-6 client-foundation wave — UI-Primitives-and-Reuse.md §13.1
   #     primitives; versions per the UI-Lib-* mines' verified baselines, caret-adopted) ---
-  "@tanstack/react-query": ^5.103.2
+  "@tanstack/react-query": ^5.104.5
   "@tanstack/react-form": ^1.33.5
   zustand: ^5.0.15
   # @trpc/client + the tanstack-react-query bridge track @trpc/server's major (^11.18.0) — the
@@ -346,7 +347,7 @@ catalog:
   # DELIBERATELY DROPPED (UI-Arch §6.1): hand-written code-based
   # tree; type-safety = inference + one `declare module { Register }`, not codegen. The vite build does
   # NOT wire tanstackRouter().
-  "@tanstack/react-router": ^1.170.38
+  "@tanstack/react-router": ^1.170.45
 # There is deliberately NO `esbuild@^0.25.0` override here any more (dropped 2026-08-07). It existed to
 # force "vite/vitest's bundled esbuild" up to 0.28.1 so the es2025 target would not be rejected — and the
 # vite 8 / vitest 4 bump killed BOTH halves of that premise. Re-derived from source, not from the comment:
@@ -360,9 +361,17 @@ catalog:
 # `pnpm install`, all three typecheck programs, a vitest suite, a playwright CT spec, and a full
 # `pnpm --filter @orb/client build` (es2025 target, exit 0). Cost of removal: a third esbuild copy in the
 # store (0.25.12 beside 0.18.20 and tsx's 0.28.1) — disk, not correctness.
+packageExtensions:
+  # Sentry's child core peers need a provider inside its API 1.9 context, not the application's API 1.10.
+  "@sentry/node@10.76.2":
+    dependencies:
+      "@opentelemetry/core": "2.12.0"
+
 overrides:
   # Drizzle's private SQL members require one module identity across every libsql peer resolution.
   "@libsql/client": "catalog:"
+  # Sentry's API range admits 1.10, but its bundled SDK 2.x requires API below 1.10.
+  "@sentry/node@10.76.2>@opentelemetry/api": ">=1.9.1 <1.10.0"
   # Pin the native resource-owning driver; retain its public client ABI through the package patch.
   "@libsql/client@0.18.0>libsql": "0.6.0-pre.43"
   "libsql@0.6.0-pre.43>libsql-win32-x64-msvc": "npm:@libsql/win32-x64-msvc@0.6.0-pre.43"
@@ -491,5 +500,7 @@ patchedDependencies:
   # untouched body parameter. valid-expect-in-promise is unpatched. A bump must port it;
   # tests/tooling/eslint-vitest-plugin-patch.test.ts holds both directions.
   '@vitest/eslint-plugin@1.6.27': patches/@vitest__eslint-plugin@1.6.27.patch
+  # The optional DOM resolver must not import browser globals into Node programs.
+  colorjs.io@0.7.0: patches/colorjs.io@0.7.0.patch
 
 nodeOptions: "--max-old-space-size=16384"

@@ -44,6 +44,8 @@ test("recorded native fields derive their actual owners without copying native r
 test("diagnostic inputs preserve opaque metadata, raw strings and explicit optional-value semantics", () => {
   expectTypeOf<{ probe: string | number | boolean | undefined }>().toExtend<SpanAttrs>();
   expectTypeOf<{ probe: string[] }>().not.toExtend<SpanAttrs>();
+  expectTypeOf<{ probe: { nested: string } }>().not.toExtend<SpanAttrs>();
+  expectTypeOf<{ probe: null }>().not.toExtend<SpanAttrs>();
   expectTypeOf<MemoryLogRecord["opaqueMetadata"]>().toEqualTypeOf<unknown>();
   expectTypeOf<WireToolCall["name"]>().toEqualTypeOf<ToolCallRecord["name"]>();
   expectTypeOf<WireToolCall["args"]>().toEqualTypeOf<ToolCallRecord["arguments"]>();

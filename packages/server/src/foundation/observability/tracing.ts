@@ -10,8 +10,8 @@ import type { Span, SpanOptions, Tracer } from "@opentelemetry/api";
 import { context, SpanStatusCode, trace } from "@opentelemetry/api";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import { resourceFromAttributes } from "@opentelemetry/resources";
-import type { ReadableSpan, SpanExporter, SpanProcessor } from "@opentelemetry/sdk-trace-base";
-import { BasicTracerProvider, SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base";
+import type { ReadableSpan, SpanExporter, SpanProcessor } from "@opentelemetry/sdk-trace";
+import { SimpleSpanProcessor, TracerProvider } from "@opentelemetry/sdk-trace";
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from "@opentelemetry/semantic-conventions";
 import { errorMessage } from "@orb/kit/error-message";
 import { versionIdentity } from "#foundation/version";
@@ -194,8 +194,8 @@ export function initTracing(): void {
   contextManager.enable();
   context.setGlobalContextManager(contextManager);
   const exporter = new RingExporter();
-  processor = new SimpleSpanProcessor(exporter);
-  const provider = new BasicTracerProvider({
+  processor = new SimpleSpanProcessor({ exporter });
+  const provider = new TracerProvider({
     resource: resourceFromAttributes({
       [ATTR_SERVICE_NAME]: TRACER_NAME,
       [ATTR_SERVICE_VERSION]: versionIdentity().version,
@@ -279,7 +279,7 @@ export function withRequestSpan<T>(requestId: string, name: string, attrs: SpanA
       // (below the observability middleware), converts it to a Response via `app.onError`, and resolves
       // `next()` normally — so a thrown request reaches here on the SUCCESS path. `recordThrownRequest`
       // (called from that onError, root still active) marks ERROR; the SDK's setStatus lets a later OK
-      // overwrite a prior ERROR (only OK is final — verified against @opentelemetry/sdk-trace-base), so
+      // overwrite a prior ERROR (only OK is final — verified against @opentelemetry/sdk-trace), so
       // guard explicitly or the /api/_debug/traces status would seal back to "ok".
       if (spanStatusCode(root) !== SpanStatusCode.ERROR) {
         root.setStatus({ code: SpanStatusCode.OK });

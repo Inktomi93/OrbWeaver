@@ -108,6 +108,7 @@ not get your conversation, your reads, or your output style. Write each brief so
 - For an investigation, the instrumentation steps: log each boundary from client payload to server input to db row to read-back.
 - For work that produces text (a spec, a doc draft, owner-facing copy), a `docs/` path to write it to. A report alone is lost.
 - For a `docs/**` lane, the floor that the docs path rule names.
+- For test restoration, use the [implementation and review briefs](../../../docs/plans/test-foundation/design.md#implementation-and-review-briefs) for both assignments.
 
 The `lane` skill carries the standing lane rules. Restate only the deltas.
 
