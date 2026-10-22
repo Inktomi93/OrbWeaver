@@ -81,6 +81,8 @@ export const config = {
     "packages/db": { project: ["src/**/*.ts!"] },
     "packages/inference": {
       project: ["src/**/*.ts!"],
+      // Contract types remain importable even when their consumers use them through enclosing signatures.
+      ignoreExportsUsedInFile: { interface: true, type: true },
       // @ai-sdk/provider is imported 15 times and EVERY import is `import type` (the V4 model/call-option
       // interfaces the three hosted backends implement). knip's production view drops type-only imports, so
       // strict mode reads the package as unused; it is not — dropping it breaks `tsc`, and the catalog pin
