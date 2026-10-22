@@ -10,7 +10,7 @@ import { expect, test } from "@orb/testkit/node/ct-corpus.ts";
 import { makePluginRow, makePluginScriptedPage } from "@orb/testkit/node/factories/plugin-view.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import type { Page } from "@playwright/test";
-import { PluginProtocolStory } from "./_ct-stories.tsx";
+import type { PluginProtocolStory } from "./_ct-stories.tsx";
 
 const OBSERVATIONS = "orb-native-plugin-protocol";
 const LOG_OBSERVATIONS = `${OBSERVATIONS}:logs`;
@@ -40,8 +40,11 @@ ui.onEvent(async ({ event, values }) => {
 });`;
 
 async function observeProtocol(page: Page): Promise<void> {
-  await page.evaluate(
+  await page.addInitScript(
     ({ key, logKey }) => {
+      if (globalThis.top !== globalThis.window) {
+        return;
+      }
       const inbound: UiGuestInbound[] = [];
       const outbound: UiGuestOutbound[] = [];
       const save = (): void => {
@@ -114,7 +117,7 @@ for (const mode of ["lines", "chars"] as const) {
       render("Native logs settled");ui.onEvent(()=>{ui.log.error("after lifetime cap");render("Native late log settled");});`;
     await page.route(`${PLUGIN_UI_ROUTE}/${plugin.id}`, (route) => route.fulfill({ contentType: "application/octet-stream", body: source }));
     await observeProtocol(page);
-    await mount(<PluginProtocolStory pluginId={plugin.id} />);
+    await mount<typeof PluginProtocolStory>("tests/client/features/plugin/_ct-stories/PluginProtocolStory", { pluginId: plugin.id });
     await expect(page.getByText("Native logs settled", { exact: true })).toBeVisible();
     expect(await page.evaluate((key) => sessionStorage.getItem(key), LOG_OBSERVATIONS)).toBe(JSON.stringify(expected));
     await page.getByRole("button", { name: "Try a late log", exact: true }).click();
@@ -149,7 +152,7 @@ test("the native Worker exchanges boot, render, event, host-call/result and sett
   const retired: Promise<void>[] = [];
   page.on("worker", (worker) => retired.push(new Promise<void>((resolve) => worker.once("close", () => resolve()))));
   await observeProtocol(page);
-  const component = await mount(<PluginProtocolStory pluginId={plugin.id} />);
+  const component = await mount<typeof PluginProtocolStory>("tests/client/features/plugin/_ct-stories/PluginProtocolStory", { pluginId: plugin.id });
   await expect(page.getByText("Native browser ready", { exact: true })).toBeVisible();
   await page.getByRole("textbox", { name: "Ledger entry", exact: true }).fill("Native field");
   await expect(page.getByText("Draft: Native field", { exact: true })).toBeVisible();
@@ -239,7 +242,7 @@ test("a native guest boot failure publishes ready:false and reports the original
   const retired: Promise<void>[] = [];
   page.on("worker", (worker) => retired.push(new Promise<void>((resolve) => worker.once("close", () => resolve()))));
   await observeProtocol(page);
-  const component = await mount(<PluginProtocolStory pluginId={plugin.id} />);
+  const component = await mount<typeof PluginProtocolStory>("tests/client/features/plugin/_ct-stories/PluginProtocolStory", { pluginId: plugin.id });
   await expect(page.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
   await expect
     .poll(() => trpc.lastInput("plugin.reportUiCrash"))
@@ -303,14 +306,18 @@ test("the default shared corpus renders its native Ledger publication and captur
   });
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  const component = await mount(<PluginProtocolStory key="active" pluginId={active.ids.pluginId} surfaceId={surface.id} />);
+  const component = await mount<typeof PluginProtocolStory>("tests/client/features/plugin/_ct-stories/PluginProtocolStory", {
+    runtimeEpoch: 0,
+    pluginId: active.ids.pluginId,
+    surfaceId: surface.id,
+  });
   const attribution = page.getByRole("group", { name: `${plugin.name} — ${surface.title}`, exact: true });
   await expect(attribution.getByText("Initial ledger entry", { exact: true })).toBeVisible();
   await expect(page.getByText(plugin.name, { exact: true })).toBeVisible();
   await expect(page.getByText("Plugin", { exact: true })).toBeVisible();
   expect(trpc.lastInput("plugin.getSurfaceState")).toEqual(active.reads.state.input);
   stage = library.ownerDisabled;
-  await component.update(<PluginProtocolStory key="disabled" pluginId={active.ids.pluginId} surfaceId={surface.id} />);
+  await component.update({ runtimeEpoch: 1, pluginId: active.ids.pluginId, surfaceId: surface.id });
   await expect(page.getByText("That page is no longer available", { exact: true })).toBeVisible();
   await expect(attribution).toHaveCount(0);
   expect(errors).toEqual([]);
@@ -355,7 +362,7 @@ memoryTest("native engine memory reservation refusal retires the real Worker wit
   page.on("pageerror", (error) => pageErrors.push(error.message));
   page.on("worker", (worker) => closed.push(new Promise<void>((resolve) => worker.once("close", () => resolve()))));
   await observeProtocol(page);
-  await mount(<PluginProtocolStory pluginId={plugin.id} />);
+  await mount<typeof PluginProtocolStory>("tests/client/features/plugin/_ct-stories/PluginProtocolStory", { pluginId: plugin.id });
   const retry = page.getByRole("button", { name: "Retry", exact: true });
   const unavailable = expect.objectContaining({
     kind: "unavailable" satisfies UiGuestUnavailableMessage["kind"],

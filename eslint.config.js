@@ -40,6 +40,11 @@ const REACT_HOOK_RULES = {
   "react-hooks/incompatible-library": "warn",
 };
 const PLAYWRIGHT_TESTS = ["tests/**/*.ct.tsx", "tests/**/*.spec.ts", "tests/e2e/**/*.{ts,tsx}"];
+const INTERNAL_MODULE_MOCK_RESTRICTION = {
+  selector: String.raw`CallExpression:matches([callee.name=/^(mock|doMock)$/], [callee.property.name=/^(mock|doMock)$/], [callee.property.value=/^(mock|doMock)$/]):matches([arguments.0.type='Literal'][arguments.0.value=/^(@orb\/|#|\.\.?\/)/], [arguments.0.type='ImportExpression'][arguments.0.source.value=/^(@orb\/|#|\.\.?\/)/])`,
+  message: "Do not replace internal modules in product tests. Script external execution through the production test root.",
+};
+
 const TEST_PROJECTS = ["tsconfig.json", "tsconfig.tests-dom.json", "tsconfig.tests-iso.json"];
 const NODE_TOOL_SOURCE = ["*.{ts,mts,cts}", "packages/*/*.{ts,mts,cts}", "scripts/**/*.{ts,mts,cts}"];
 const ASYNC_SAFETY_RULES = {
@@ -3895,68 +3900,6 @@ const commentedCodeRule = {
   },
 };
 
-const CT_STORY_MODULE = /(?:_ct-stories|\.fixtures)(?:\.tsx)?$/u;
-
-const CT_JSX_TREE = new Set(["JSXElement", "JSXFragment", "JSXOpeningElement", "JSXAttribute", "JSXExpressionContainer"]);
-
-const CT_REWRITE_SCOPES = new Set(["ArrowFunctionExpression", "FunctionDeclaration", "FunctionExpression"]);
-
-const ctStorySingleImportRule = {
-  meta: { type: "problem", schema: [] },
-  create(context) {
-    const sourceCode = context.sourceCode;
-    const imported = new Set();
-    const components = new Set();
-    const occurrences = [];
-    const report = (node, name) =>
-      context.report({
-        node,
-        message: `The CT story \`${name}\` is declared into this scope twice; playwright-ct fails the bundle at eval. Import it once and reference it once per JSX tree or array scope.`,
-      });
-    return {
-      ImportDeclaration: (node) => {
-        for (const specifier of node.specifiers.filter(({ type }) => type !== "ImportNamespaceSpecifier")) {
-          const name = specifier.local.name;
-          if (/^[A-Z]/u.test(name) && CT_STORY_MODULE.test(node.source.value)) {
-            components.add(name);
-          }
-          if (imported.has(name)) {
-            report(specifier, name);
-          }
-          imported.add(name);
-        }
-      },
-      ArrayExpression: (node) => {
-        const scope = sourceCode.getAncestors(node).findLast((ancestor) => CT_REWRITE_SCOPES.has(ancestor.type)) ?? sourceCode.ast;
-        for (const element of node.elements.filter((candidate) => candidate?.type === "Identifier")) {
-          occurrences.push({ scope, name: element.name, node: element });
-        }
-      },
-      JSXOpeningElement: (node) => {
-        if (node.name.type !== "JSXIdentifier") {
-          return;
-        }
-        let root = node;
-        while (CT_JSX_TREE.has(root.parent.type)) {
-          root = root.parent;
-        }
-        occurrences.push({ scope: root, name: node.name.name, node: node.name });
-      },
-      "Program:exit"() {
-        const seen = new Map();
-        for (const occurrence of occurrences.filter(({ name }) => components.has(name))) {
-          const names = seen.get(occurrence.scope) ?? new Set();
-          seen.set(occurrence.scope, names);
-          if (names.has(occurrence.name)) {
-            report(occurrence.node, occurrence.name);
-          }
-          names.add(occurrence.name);
-        }
-      },
-    };
-  },
-};
-
 const EVALUATE_METHODS = new Set(["evaluate", "evaluateAll"]);
 
 const FUNCTION_NODES = new Set(["FunctionDeclaration", "ArrowFunctionExpression", "FunctionExpression"]);
@@ -4778,7 +4721,6 @@ const localPlugin = {
     "receded-ink-integrity": recededInkRule,
     "detached-work-traced": detachedWorkRule,
     "commented-code": commentedCodeRule,
-    "ct-story-single-import": ctStorySingleImportRule,
     "plugin-dump-guard": restrictionRule({ selectors: PLUGIN_DUMP_SELECTORS }),
     "browser-no-node-globals": browserNoNodeGlobalsRule,
   },
@@ -5133,7 +5075,6 @@ export default [
     rules: { "orb/session-channel-boundary": "error" },
   },
   { files: ["tests/**/*.{ts,tsx}"], plugins: { orb: localPlugin }, rules: { "orb/ct-poll-intervals-shared": "error" } },
-  { files: ["tests/**/*.ct.tsx", "tests/**/*_ct-stories.tsx"], plugins: { orb: localPlugin }, rules: { "orb/ct-story-single-import": "error" } },
   { files: ["tests/ui/**/*.ct.tsx"], plugins: { orb: localPlugin }, rules: { "orb/ui-ct-no-color-literal": "error" } },
   { files: [PLUGIN_MEMBRANE], plugins: { orb: localPlugin }, rules: { "orb/plugin-dump-guard": "error" } },
   { files: ["packages/ui/src/**/*.{ts,tsx}"], plugins: { orb: localPlugin }, rules: { "orb/baseui-portal-container-seam": "error" } },
@@ -5171,11 +5112,28 @@ export default [
     files: ["tests/**/*.{ts,tsx}"],
     ignores: ["tests/tooling/**", "**/*.test-d.ts"],
     rules: {
+      "no-restricted-syntax": ["error", INTERNAL_MODULE_MOCK_RESTRICTION],
+    },
+  },
+  {
+    files: ["tests/**/*.ct.tsx"],
+    rules: {
       "no-restricted-syntax": [
         "error",
+        INTERNAL_MODULE_MOCK_RESTRICTION,
+        { selector: "JSXElement, JSXFragment", message: "Keep component composition in browser stories; CT specs call native mount with data props." },
         {
-          selector: String.raw`CallExpression:matches([callee.name=/^(mock|doMock)$/], [callee.property.name=/^(mock|doMock)$/], [callee.property.value=/^(mock|doMock)$/]):matches([arguments.0.type='Literal'][arguments.0.value=/^(@orb\/|#|\.\.?\/)/], [arguments.0.type='ImportExpression'][arguments.0.source.value=/^(@orb\/|#|\.\.?\/)/])`,
-          message: "Do not replace internal modules in product tests. Script external execution through the production test root.",
+          selector: "CallExpression[callee.name='mount']:not([typeArguments])",
+          message: "Use mount<typeof Story> so the compiler checks mount and update props.",
+        },
+        {
+          selector:
+            "CallExpression:matches([callee.name='mount'], [callee.property.name='update']) > ObjectExpression.arguments Property > :matches(ArrowFunctionExpression, FunctionExpression)",
+          message: "Create callbacks inside the browser story; mount props carry data, not Node callbacks.",
+        },
+        {
+          selector: String.raw`ImportDeclaration[importKind!='type'][source.value=/(?:-stories|-fixtures|\.stories|\.fixtures)(?:\.tsx)?$/] > :matches(ImportDefaultSpecifier, ImportNamespaceSpecifier, ImportSpecifier[importKind!='type'])`,
+          message: "Import story types only in CT specs; the gallery loads the browser implementation.",
         },
       ],
     },

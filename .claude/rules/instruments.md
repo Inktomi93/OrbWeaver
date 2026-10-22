@@ -18,8 +18,8 @@ with them is `snap-driving`; reviewing their findings is `side-eye-design-review
   stage.ts` reuses a cached stage's existing copy.
 - `--stage-db` swaps that copy for a clone of another box's db and the assets beside it
   (`cloneStageDb`); `--stage-auth local` over a clone seeds the fixture humans after the boot.
-- An `--isolated` stage boots a fresh copy with no other lane's writes in it. A cold run's first
-  page-error is vite re-optimizing, not the app; take evidence from run two.
+- An `--isolated` stage boots a fresh copy with no other lane's writes in it.
+- Treat cold-start errors as failed evidence. Fix startup instead of accepting a later warmed run.
 - Seed data inside a staged run, never against the live dev stack.
 
 ## Teardown

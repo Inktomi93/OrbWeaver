@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// `pnpm deps:update`: move every catalog entry to its latest mature version, except TypeScript and the patched
+// `pnpm deps:update`: move every catalog entry to its latest mature version, except Playwright, TypeScript and the patched
 // packages. It resolves with a stricter age than the workspace enforces, so a release wave whose packages pin
 // each other exactly never leaves a parent resolved while its minutes-younger child still fails the install gate.
 import { spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import process, { env } from "node:process";
 import { pnpmInvocation } from "@orb/tooling/floor/host/platform";
 import { parse } from "yaml";
@@ -12,7 +12,7 @@ const WORKSPACE_FILE = "pnpm-workspace.yaml";
 // Longer than any one release wave, so a child published a few minutes after its parent is mature too.
 const RESOLVE_MARGIN_MINUTES = 60;
 const TYPESCRIPT = "typescript";
-const PLAYWRIGHT_PAIR = ["@playwright/test", "@playwright/experimental-ct-react"] as const;
+const PLAYWRIGHT = "@playwright/test";
 
 interface Workspace {
   readonly minimumReleaseAge: number;
@@ -30,14 +30,6 @@ function packageName(key: string): string {
   return at > 0 ? key.slice(0, at) : key;
 }
 
-/** Compares two `^x.y.z` or `x.y.z` specs by their version numbers. */
-function compareVersions(a: string, b: string): number {
-  const parts = (spec: string): number[] => spec.replace(/^\D*/u, "").split(".").map(Number);
-  const [left, right] = [parts(a), parts(b)];
-  const index = left.findIndex((part, i) => part !== right[i]);
-  return index === -1 ? 0 : (left[index] ?? 0) - (right[index] ?? 0);
-}
-
 const workspace = readWorkspace();
 // A patch is keyed to one exact version, so bumping a patched package would silently drop its patch.
 const patched = Object.keys(workspace.patchedDependencies ?? {}).map(packageName);
@@ -45,7 +37,7 @@ const patched = Object.keys(workspace.patchedDependencies ?? {}).map(packageName
 const typescriptAliases = Object.entries(workspace.catalog)
   .filter(([, spec]) => spec.startsWith(`npm:${TYPESCRIPT}@`))
   .map(([name]) => name);
-const held = [TYPESCRIPT, ...typescriptAliases, ...patched];
+const held = [PLAYWRIGHT, TYPESCRIPT, ...typescriptAliases, ...patched];
 
 const resolveAge = String(workspace.minimumReleaseAge + RESOLVE_MARGIN_MINUTES);
 console.log(`holding: ${held.join(", ")}`);
@@ -71,22 +63,4 @@ if (result.error !== undefined) {
 }
 if (result.status !== 0) {
   process.exit(result.status ?? 1);
-}
-
-// The component-testing package trails `@playwright/test`, and the two must stay on one version: both take
-// the lower of the two, then one more install applies it.
-const catalog = readWorkspace().catalog;
-const testSpec = catalog[PLAYWRIGHT_PAIR[0]] ?? "";
-const componentSpec = catalog[PLAYWRIGHT_PAIR[1]] ?? "";
-if (testSpec !== componentSpec) {
-  const lower = compareVersions(testSpec, componentSpec) <= 0 ? testSpec : componentSpec;
-  let text = readFileSync(WORKSPACE_FILE, "utf8");
-  for (const name of PLAYWRIGHT_PAIR) {
-    text = text.replace(new RegExp(`^(  "${name}": ).*$`, "mu"), `$1${lower}`);
-  }
-  writeFileSync(WORKSPACE_FILE, text);
-  console.log(`aligned ${PLAYWRIGHT_PAIR.join(" and ")} on ${lower}`);
-  const install = pnpmCommand(["install"]);
-  const installed = spawnSync(install.command, [...install.args], { stdio: "inherit" });
-  process.exit(installed.status ?? 1);
 }

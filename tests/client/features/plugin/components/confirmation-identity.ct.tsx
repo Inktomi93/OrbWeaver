@@ -3,7 +3,7 @@ import { createCorpusReadResponder } from "@orb/testkit/iso/corpus-read-responde
 import { expect, test } from "@orb/testkit/node/ct-corpus.ts";
 import { makePluginRow, makePluginScriptedPage } from "@orb/testkit/node/factories/plugin-view.ts";
 import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
-import { PluginProtocolStory } from "../_ct-stories.tsx";
+import type { PluginProtocolStory } from "../_ct-stories.tsx";
 
 const UI_SOURCE = `const ui = orb.ui(1);
 const render = (second) => ui.render("protocol", { kind: "stack", children: [
@@ -36,7 +36,7 @@ test("a refreshed action cannot inherit another action's open destructive confir
     "plugin.reportUiCrash": () => undefined,
   });
   await page.route(`${PLUGIN_UI_ROUTE}/${plugin.id}`, (route) => route.fulfill({ contentType: "application/octet-stream", body: UI_SOURCE }));
-  await mount(<PluginProtocolStory pluginId={plugin.id} />);
+  await mount<typeof PluginProtocolStory>("tests/client/features/plugin/_ct-stories/PluginProtocolStory", { pluginId: plugin.id });
   await page.getByRole("button", { name: "Refresh actions", exact: true }).click();
   await refresh.requested;
   await page.getByRole("button", { name: "Remove first", exact: true }).click();

@@ -64,8 +64,7 @@ const projects = BROWSER_PROJECTS.map(({ name, mode, device, chatStyle }) => ({
 // The actor clients target their stack via the spec's per-project Playwright `baseURL` (not an env), so no
 // `E2E_BASE_URL` threading is needed here.
 // Playwright starts every configured webServer even when `--project` selects fewer projects, so a
-// `--project=single-user` run (the @smoke tier) would still boot and warm all three stacks; on a 4-vCPU CI
-// runner that starves the cold vite transforms past the warm-up budget. Boot only the selected modes. Read
+// `--project=single-user` run (the @smoke tier) would still boot every stack. Boot only the selected modes. Read
 // from argv because only the runner process starts webServers; workers re-load this file without the flag.
 const bootedModes = selectedModeProjects(process.argv);
 // The oidc server child trusts the issuer through NODE_EXTRA_CA_CERTS, read once at its boot: mint before it starts.
@@ -91,32 +90,20 @@ const webServers = bootedModes.map((mode) => ({
 
 export default defineConfig({
   testDir: "tests/e2e",
-  // Seed KNOWN DB state over each booted stack's tRPC API before the first spec, then WARM each stack's
-  // client in a real browser (support/global-setup.ts — iterates the mode projects, seeds + warms each by
-  // its origin). Runs AFTER the webServers are up.
-  // docs/work/0062 — runs FIRST (Playwright loads `globalSetup` array entries in order) so the guard's
-  // baseline predates the e2e seed/warm-up writes this config's own globalSetup performs against the
-  // stack's DB, never against this repo's working tree. Its returned teardown runs LAST, after every
-  // spec and after the e2e seed's own teardown (if any), for the same reason.
+  // Seed selected owned stacks without navigating the client before its first spec.
+  // The working-tree guard surrounds setup, specs and teardown.
   globalSetup: ["./tooling/src/floor/testing/working-tree-guard.ts", "./tests/e2e/support/global-setup.ts"],
   outputDir: `${E2E_REPORT_PREFIX}-results`, // reports/ is gitignored
   fullyParallel: false,
   workers: 1, // serial — avoids libSQL :memory: state collisions once the stack is wired
-  // 60s, not the 30s default. It USED to be the cold-boot budget: since single-user got its own stack, the
-  // FIRST spec of a run paid vite's cold module compile for the whole chat room (measured: chat-persistence
-  // @smoke timed out at 30s cold, passed in 25.5s warm). That cost kept growing with the client and crossed
-  // 60s too (#571 — the @smoke case died at `page.reload` with `net::ERR_ABORTED`, the abort being the
-  // test-timeout context close). Raising it again would only restart that treadmill, so globalSetup now
-  // WARMS each mode's client before the first spec and no spec pays cold compile at all. This stays at 60s
-  // as headroom for the slowest WARM spec (the room drives real turns), not as a cold-boot budget.
+  // The first spec owns its cold navigation within the same native test budget.
   timeout: budget(60_000),
   ...(e2eLive ? {} : { grepInvert: /@live/u }),
   forbidOnly: inCI,
-  retries: inCI ? 2 : 0,
+  retries: 0,
   reporter: reporters,
   use: {
-    // retain-on-failure, NOT on-first-retry: local retries=0, so first-retry artifacts NEVER exist for a
-    // plain local failure — the exact runs that need diagnosing.
+    // Preserve evidence from the first failure; there is no retry run.
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     actionTimeout: budget(15_000),

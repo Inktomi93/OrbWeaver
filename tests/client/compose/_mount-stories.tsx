@@ -16,10 +16,14 @@ const CACHE_KEY = ["composition", "mount-control"] as const;
 function CacheProbe({ version, advance }: { readonly version: number; readonly advance: () => void }): ReactElement {
   const client = useQueryClient();
   const [firstClient] = useState(() => client);
+  const cached = useSyncExternalStore(
+    (onChange) => client.getQueryCache().subscribe(onChange),
+    () => client.getQueryData<string>(CACHE_KEY),
+  );
   return (
     <Stack>
       <Text>{firstClient === client ? "Same data runtime" : "Data runtime replaced"}</Text>
-      <Text>{client.getQueryData<string>(CACHE_KEY) ?? "Empty cache"}</Text>
+      <Text>{cached ?? "Empty cache"}</Text>
       <Button
         onClick={(): void => {
           client.setQueryData(CACHE_KEY, "Retained cache");
@@ -71,9 +75,13 @@ export function RegistryDoorStory(): ReactElement {
 function WarmedRuntime({ retire }: { readonly retire: (client: QueryClient) => void }): ReactElement {
   const client = useQueryClient();
   const [warmed, setWarmed] = useState(false);
+  const cached = useSyncExternalStore(
+    (onChange) => client.getQueryCache().subscribe(onChange),
+    () => client.getQueryData<string>(CACHE_KEY),
+  );
   return (
     <Stack>
-      <Text>{client.getQueryData<string>(CACHE_KEY) ?? "Empty active cache"}</Text>
+      <Text>{cached ?? "Empty active cache"}</Text>
       <Button
         onClick={(): void => {
           client.setQueryData(CACHE_KEY, "Warmed active cache");

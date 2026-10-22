@@ -8,7 +8,7 @@ import { brotliCompress, gzip, constants as zlibConstants, zstdCompress } from "
 import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
-import type { Plugin, ResolvedConfig } from "vite";
+import type { HtmlTagDescriptor, Plugin, ResolvedConfig } from "vite";
 import { defineConfig, isFileLoadingAllowed, resolveConfig, searchForWorkspaceRoot } from "vite";
 import checker from "vite-plugin-checker";
 import { nativeTypecheck } from "./native-typecheck.config.ts";
@@ -33,6 +33,21 @@ const WORKSPACE_ROOT = searchForWorkspaceRoot(import.meta.dirname);
 const DEV_SERVER_PORT = Number(process.env["VITE_PORT"]) || 5173;
 
 const API_PROXY_TARGET = process.env["VITE_API_TARGET"] ?? "http://127.0.0.1:8788";
+
+const SERVER_PROXY = {
+  // Vite is the dev front door; the Hono server owns the API and serves the built bundle in prod
+  // (entry/http/spa.ts — hashed-asset cache + index.html history fallback).
+  "/api": {
+    target: API_PROXY_TARGET,
+    changeOrigin: true,
+  },
+  // The /join/:token invite landing (entry/http/join.ts) — a server 302 into `/?join=<token>`, so a
+  // dev-minted invite link opened against the vite origin still lands in the SPA.
+  "/join": {
+    target: API_PROXY_TARGET,
+    changeOrigin: true,
+  },
+};
 
 // ── The DEV app-document CSP ──────────────────────────────────────────────────────
 // In dev VITE is the front door — it serves `index.html`, so ITS header is the document's CSP and the
@@ -533,181 +548,216 @@ function precompressedAssets(): Plugin {
   };
 }
 
-export default defineConfig({
-  // Vite replaces its writable deps directory; concurrent dev origins must not replace a peer's output.
-  cacheDir: join(import.meta.dirname, "node_modules", `.vite-${String(DEV_SERVER_PORT)}`),
-  resolve: {
-    // pnpm can hoist devtools' peer deps under their own node_modules → TWO React instances →
-    // invalid-hook-call errors. Force the bundler to a single instance.
-    dedupe: ["react", "react-dom"],
-  },
-  plugins: [
-    precompressedAssets(),
-    // React Compiler (stable 1.0, FULL-compile per D54) runs as a @rolldown/plugin-babel preset —
-    // plugin-react v6 dropped internal Babel, so the compiler needs its own Babel pass. Order matches
-    // the canonical react.dev / plugin-react snippet (`react()` then `babel()`) and is COSMETIC here:
-    // the compiler plugin is `enforce:"pre"`, plugin-react's `viteBabel` has NO transform hook (it only
-    // configures oxc), and oxc lowers JSX in Rolldown CORE after all pre-plugins — so the compiler sees
-    // UNMODIFIED source regardless of array position (verified in installed source 2026-07-02). The
-    // preset's filter is code-content + client-env-scoped + path-agnostic (@vitejs/plugin-react@6.0.3
-    // reactCompilerPreset), so it compiles @orb/ui components too — provided @orb/ui is consumed as
-    // SOURCE (see optimizeDeps.exclude below), the one real correctness guarantee here.
-    // The babel pass is wrapped in the persistent content-hash transform cache (#593, see above) —
-    // same plugin instance, same compiled output, just never compiled twice for the same input. The
-    // preset options object is passed to BOTH so a config change is inside the cache key.
-    react(),
-    withCompilerTransformCache(babel({ presets: [reactCompilerPreset(REACT_COMPILER_OPTIONS)] }), REACT_COMPILER_OPTIONS),
-    tailwindcss(),
-    nativeTypecheck(WORKSPACE_ROOT),
-    // Native TypeScript and typed ESLint retain terminal and browser diagnostics without duplicate JS programs.
-    // enableBuild:false — `pnpm check` owns gate-time. eslint auto-discovers the root eslint.config.js.
-    checker({
-      eslint: {
-        useFlatConfig: true,
-        lintCommand: "eslint 'src/**/*.{ts,tsx}'",
-      },
-      overlay: process.env["E2E_HARNESS"] === "on" ? false : { initialIsOpen: false, position: "br" },
-      enableBuild: false,
-    }),
-    // Dev-serve only: mirrors the backend's live, setting-dependent document CSP (see CSP_DEV_FALLBACK).
-    devCspMirror(),
-    // Dev-serve only: keeps the watcher's coverage of @orb/{kit,contracts,ui} alive across git's
-    // unlink+create writes (#2462) — installed BEFORE the restart plugin, which now leans on it.
-    orbWorkspaceSourceWatch(),
-    // Dev-serve only: self-heals a live session across a workspace export move (#32, see above).
-    orbWorkspaceExportsRestart(),
-  ],
-  optimizeDeps: {
-    // Excluded UI source hides its satellites from the HTML scan; scan its source doors before browser discovery triggers reloads.
-    entries: ["./index.html", "../ui/src/**/index.ts"],
-    // Keep @orb/ui as SOURCE (never pre-bundled) so the React Compiler babel pass above actually
-    // processes its components. A pre-bundled @orb/ui would be esbuild-optimized and BYPASS the
-    // compiler — silently shipping un-memoized ui (the flagged correctness risk). @orb/ui's own
-    // node_modules deps (base-ui, codemirror, streamdown, …) stay pre-bundled by default — we do NOT
-    // want to recompile third-party libs. @orb/kit + @orb/contracts are also source-consumed by
-    // default (workspace packages, not pre-bundled) — no React components in them, so the compiler
-    // no-ops there harmlessly; they need no explicit exclude.
-    exclude: ["@orb/ui"],
-  },
-  // Opt in to the next-major deprecation warnings (config/shared-options.md#future) so a vite major
-  // lands as a warning in our dev log instead of a hard break. These are WARNINGS ONLY — nothing here
-  // changes what gets built.
-  //
-  // This is `future: "warn"` (the shorthand that enables ALL of them) MINUS exactly one key, and the
-  // exception is the whole reason it is spelled out. Measured on a cold dev boot 2026-08-07, vite 8.1.2
-  // trips `removeServerWarmupRequest` AGAINST ITSELF: its own HTML middleware calls the deprecated
-  // `server.warmupRequest` (`preTransformRequest`, vite/dist/node/chunks/node.js:24698) rather than
-  // `environment.warmupRequest`. Nothing first-party is involved — we never call it (swept packages/,
-  // scripts/, tests/: zero hits), and it is NOT `orb:dev-csp-mirror`, which only uses `configureServer`
-  // + `server.middlewares`. Left on, it prints a warning with a stack on EVERY dev start that no one
-  // here can act on, and a channel that always cries wolf is a channel developers filter out — which
-  // would cost us the one warning that IS ours. So it is off, and every OTHER deprecation stays loud.
-  //
-  // RE-CHECK ON ANY VITE BUMP: if upstream migrates `preTransformRequest`, delete this object and go
-  // back to the self-updating `future: "warn"` shorthand. Enumerating rots — vite's docs say the list
-  // "may be updated, added, or removed at any time" — so this enumeration is a debt with a payoff date,
-  // not a preference. Verified: with this object a cold dev boot + a full build emit ZERO `[vite future]`
-  // lines.
-  future: {
-    removePluginHookHandleHotUpdate: "warn",
-    removePluginHookSsrArgument: "warn",
-    removeServerModuleGraph: "warn",
-    removeServerReloadModule: "warn",
-    removeServerPluginContainer: "warn",
-    removeServerHot: "warn",
-    removeServerTransformRequest: "warn",
-    removeSsrLoadModule: "warn",
-  },
-  build: {
-    // Every Zod consumer loads its client configuration before constructing a schema, even across chunks.
-    rolldownOptions: {
-      output: {
-        codeSplitting: {
-          groups: [{ name: "zod", test: /[\\/]node_modules[\\/]zod[\\/]|[\\/]lib[\\/]zod-jitless\.ts$/ }],
+function componentGallery(): Plugin {
+  const extension = join(WORKSPACE_ROOT, "playwright", "index.css");
+  return {
+    name: "orb:component-gallery",
+    enforce: "pre",
+    transformIndexHtml(_html, context): HtmlTagDescriptor[] {
+      return context.filename === join(WORKSPACE_ROOT, "playwright", "index.html")
+        ? [{ tag: "script", attrs: { type: "module", src: "/packages/client/src/lib/zod-jitless.ts" }, injectTo: "head-prepend" }]
+        : [];
+    },
+    async transform(code, id): Promise<string | undefined> {
+      const target = id.split("?", 1)[0] === join(import.meta.dirname, "src", "styles", "globals.css");
+      if (target) {
+        this.addWatchFile(extension);
+      }
+      return target ? `${code}\n${await readFile(extension, "utf8")}` : undefined;
+    },
+  };
+}
+
+export default defineConfig(({ mode }) => {
+  const gallery = mode === "component-test";
+  return {
+    ...(gallery ? { root: WORKSPACE_ROOT, publicDir: join(import.meta.dirname, "public") } : {}),
+    // Vite replaces its writable deps directory; concurrent dev origins must not replace a peer's output.
+    cacheDir: join(import.meta.dirname, "node_modules", `.vite-${String(DEV_SERVER_PORT)}`),
+    resolve: {
+      // pnpm can hoist devtools' peer deps under their own node_modules → TWO React instances →
+      // invalid-hook-call errors. Force the bundler to a single instance.
+      dedupe: ["react", "react-dom"],
+    },
+    plugins: [
+      precompressedAssets(),
+      // React Compiler (stable 1.0, FULL-compile per D54) runs as a @rolldown/plugin-babel preset —
+      // plugin-react v6 dropped internal Babel, so the compiler needs its own Babel pass. Order matches
+      // the canonical react.dev / plugin-react snippet (`react()` then `babel()`) and is COSMETIC here:
+      // the compiler plugin is `enforce:"pre"`, plugin-react's `viteBabel` has NO transform hook (it only
+      // configures oxc), and oxc lowers JSX in Rolldown CORE after all pre-plugins — so the compiler sees
+      // UNMODIFIED source regardless of array position (verified in installed source 2026-07-02). The
+      // preset's filter is code-content + client-env-scoped + path-agnostic (@vitejs/plugin-react@6.0.3
+      // reactCompilerPreset), so it compiles @orb/ui components too — provided @orb/ui is consumed as
+      // SOURCE (see optimizeDeps.exclude below), the one real correctness guarantee here.
+      // The babel pass is wrapped in the persistent content-hash transform cache (#593, see above) —
+      // same plugin instance, same compiled output, just never compiled twice for the same input. The
+      // preset options object is passed to BOTH so a config change is inside the cache key.
+      react(),
+      withCompilerTransformCache(babel({ presets: [reactCompilerPreset(REACT_COMPILER_OPTIONS)] }), REACT_COMPILER_OPTIONS),
+      tailwindcss(),
+      ...(gallery
+        ? [componentGallery()]
+        : [
+            nativeTypecheck(WORKSPACE_ROOT),
+            // Native TypeScript and typed ESLint retain terminal and browser diagnostics without duplicate JS programs.
+            // enableBuild:false — `pnpm check` owns gate-time. eslint auto-discovers the root eslint.config.js.
+            checker({
+              eslint: {
+                useFlatConfig: true,
+                lintCommand: "eslint 'src/**/*.{ts,tsx}'",
+              },
+              overlay: process.env["E2E_HARNESS"] === "on" ? false : { initialIsOpen: false, position: "br" },
+              enableBuild: false,
+            }),
+            // Dev-serve only: mirrors the backend's live, setting-dependent document CSP (see CSP_DEV_FALLBACK).
+            devCspMirror(),
+          ]),
+      // Dev-serve only: keeps the watcher's coverage of @orb/{kit,contracts,ui} alive across git's
+      // unlink+create writes (#2462) — installed BEFORE the restart plugin, which now leans on it.
+      orbWorkspaceSourceWatch(),
+      // Dev-serve only: self-heals a live session across a workspace export move (#32, see above).
+      orbWorkspaceExportsRestart(),
+    ],
+    optimizeDeps: {
+      // Lazy gallery imports are not a complete cold scan: include every browser story before mounting starts.
+      // Excluded workspace packages need their source doors scanned to expose their third-party dependencies.
+      entries: gallery
+        ? [
+            "./playwright/index.html",
+            "./tests/**/*-stories.tsx",
+            "./tests/support/browser/*-fixtures.tsx",
+            "./packages/client/src/**/index.{ts,tsx}",
+            "./packages/client/src/**/*.worker.ts",
+            "./packages/ui/src/**/index.ts",
+          ]
+        : ["./index.html", "../ui/src/**/index.ts"],
+      // Keep @orb/ui as SOURCE (never pre-bundled) so the React Compiler babel pass above actually
+      // processes its components. A pre-bundled @orb/ui would be esbuild-optimized and BYPASS the
+      // compiler — silently shipping un-memoized ui (the flagged correctness risk). @orb/ui's own
+      // node_modules deps (base-ui, codemirror, streamdown, …) stay pre-bundled by default — we do NOT
+      // want to recompile third-party libs. @orb/kit + @orb/contracts are also source-consumed by
+      // default (workspace packages, not pre-bundled) — no React components in them, so the compiler
+      // no-ops there harmlessly; they need no explicit exclude.
+      exclude: ["@orb/ui", ...(gallery ? ["@orb/client"] : [])],
+    },
+    // Opt in to the next-major deprecation warnings (config/shared-options.md#future) so a vite major
+    // lands as a warning in our dev log instead of a hard break. These are WARNINGS ONLY — nothing here
+    // changes what gets built.
+    //
+    // This is `future: "warn"` (the shorthand that enables ALL of them) MINUS exactly one key, and the
+    // exception is the whole reason it is spelled out. Measured on a cold dev boot 2026-08-07, vite 8.1.2
+    // trips `removeServerWarmupRequest` AGAINST ITSELF: its own HTML middleware calls the deprecated
+    // `server.warmupRequest` (`preTransformRequest`, vite/dist/node/chunks/node.js:24698) rather than
+    // `environment.warmupRequest`. Nothing first-party is involved — we never call it (swept packages/,
+    // scripts/, tests/: zero hits), and it is NOT `orb:dev-csp-mirror`, which only uses `configureServer`
+    // + `server.middlewares`. Left on, it prints a warning with a stack on EVERY dev start that no one
+    // here can act on, and a channel that always cries wolf is a channel developers filter out — which
+    // would cost us the one warning that IS ours. So it is off, and every OTHER deprecation stays loud.
+    //
+    // RE-CHECK ON ANY VITE BUMP: if upstream migrates `preTransformRequest`, delete this object and go
+    // back to the self-updating `future: "warn"` shorthand. Enumerating rots — vite's docs say the list
+    // "may be updated, added, or removed at any time" — so this enumeration is a debt with a payoff date,
+    // not a preference. Verified: with this object a cold dev boot + a full build emit ZERO `[vite future]`
+    // lines.
+    future: {
+      removePluginHookHandleHotUpdate: "warn",
+      removePluginHookSsrArgument: "warn",
+      removeServerModuleGraph: "warn",
+      removeServerReloadModule: "warn",
+      removeServerPluginContainer: "warn",
+      removeServerHot: "warn",
+      removeServerTransformRequest: "warn",
+      removeSsrLoadModule: "warn",
+    },
+    build: {
+      // Every Zod consumer loads its client configuration before constructing a schema, even across chunks.
+      rolldownOptions: {
+        output: {
+          codeSplitting: {
+            groups: [{ name: "zod", test: /[\\/]node_modules[\\/]zod[\\/]|[\\/]lib[\\/]zod-jitless\.ts$/ }],
+          },
         },
       },
+      // Fully es2025. NOTE (corrected 2026-08-07): this is lowered by OXC/Rolldown, NOT esbuild — vite 8
+      // treats esbuild as an optional peer it only lazily imports for `cssMinify: "esbuild"` and the
+      // deprecated `transformWithEsbuild`. The old comment here claimed the target rode a pnpm-workspace
+      // `esbuild@^0.25.0 → 0.28.1` override "because 0.25.x rejects es2025"; that override has been
+      // REMOVED and this build is green without it. cssTarget follows the same es2025 baseline.
+      target: "es2025",
+      cssTarget: "es2025",
+      // es2025 browsers ship native modulepreload — drop the polyfill.
+      modulePreload: { polyfill: false },
+      // CRITICAL (D44): assetsInlineLimit:0 → NO `data:` URIs, so the app CSP `img-src` stays tight
+      // (D44 `allowDataImages:false`). A few extra small-asset requests are fine on a self-hosted box;
+      // a `data:` image would force loosening `img-src`, which D44 forbids.
+      assetsInlineLimit: 0,
+      // false — emit NO sourcemaps into the served dist. `"hidden"` only drops the
+      // `//# sourceMappingURL` comment; the deterministic `<bundle>.js.map` still lands in the dir
+      // `serveStatic` serves, so any anonymous visitor could `GET /assets/<bundle>.js.map` and recover the
+      // entire first-party `src/**` via `sourcesContent` (pre-auth-attack-surface audit 2026-08-09, F1).
+      // No out-of-band symbolication is wired today, so `false` is the KISS root fix; the spa.ts `.map`
+      // belt is the defense-in-depth backstop. Reinstate `"hidden"` + a build-step map extraction only if
+      // symbolication is ever wired — never leave maps in the served tree.
+      sourcemap: false,
+      // Emit the dependency-license artifact (AGPL hygiene). `{ fileName }` ending in `.json` gets the
+      // RAW JSON metadata ({name, version, identifier, text}[]) instead of the `true` form's rendered
+      // `.vite/license.md` — the licence set is an input to attribution tooling and audits, not prose to
+      // read, and a bare markdown blob would have to be re-parsed to answer "which SPDX identifiers ship".
+      // Same location as the `true` default (`.vite/` under outDir), so the SPA registrar's dist layout
+      // is unchanged.
+      license: { fileName: ".vite/license.json" },
+      // Report transfer estimates alongside raw sizes; the boot gate still measures all preloaded JS.
+      reportCompressedSize: true,
+      // Vite generates index.html and Hono serves it as-is → no manifest needed. REVISIT if Hono ever
+      // injects hashed asset tags server-side (then flip to true and read the manifest).
+      manifest: false,
+      // The accepted entry is 3,137 kB; allow ~8% per-chunk headroom. check:boot-chunk separately
+      // enforces the 3,357,000-byte aggregate boot ceiling, including every modulepreloaded sibling.
+      // Keep app sideEffects undeclared so effect-only imports, including the stylesheet, survive.
+      chunkSizeWarningLimit: 3400,
+      // The canonical bundle location: the server's SPA registrar (entry/http/spa.ts) serves this dir —
+      // CLIENT_DIST_DIR defaults to packages/client/dist and must move with any change here.
+      outDir: "dist",
+      emptyOutDir: true,
     },
-    // Fully es2025. NOTE (corrected 2026-08-07): this is lowered by OXC/Rolldown, NOT esbuild — vite 8
-    // treats esbuild as an optional peer it only lazily imports for `cssMinify: "esbuild"` and the
-    // deprecated `transformWithEsbuild`. The old comment here claimed the target rode a pnpm-workspace
-    // `esbuild@^0.25.0 → 0.28.1` override "because 0.25.x rejects es2025"; that override has been
-    // REMOVED and this build is green without it. cssTarget follows the same es2025 baseline.
-    target: "es2025",
-    cssTarget: "es2025",
-    // es2025 browsers ship native modulepreload — drop the polyfill.
-    modulePreload: { polyfill: false },
-    // CRITICAL (D44): assetsInlineLimit:0 → NO `data:` URIs, so the app CSP `img-src` stays tight
-    // (D44 `allowDataImages:false`). A few extra small-asset requests are fine on a self-hosted box;
-    // a `data:` image would force loosening `img-src`, which D44 forbids.
-    assetsInlineLimit: 0,
-    // false — emit NO sourcemaps into the served dist. `"hidden"` only drops the
-    // `//# sourceMappingURL` comment; the deterministic `<bundle>.js.map` still lands in the dir
-    // `serveStatic` serves, so any anonymous visitor could `GET /assets/<bundle>.js.map` and recover the
-    // entire first-party `src/**` via `sourcesContent` (pre-auth-attack-surface audit 2026-08-09, F1).
-    // No out-of-band symbolication is wired today, so `false` is the KISS root fix; the spa.ts `.map`
-    // belt is the defense-in-depth backstop. Reinstate `"hidden"` + a build-step map extraction only if
-    // symbolication is ever wired — never leave maps in the served tree.
-    sourcemap: false,
-    // Emit the dependency-license artifact (AGPL hygiene). `{ fileName }` ending in `.json` gets the
-    // RAW JSON metadata ({name, version, identifier, text}[]) instead of the `true` form's rendered
-    // `.vite/license.md` — the licence set is an input to attribution tooling and audits, not prose to
-    // read, and a bare markdown blob would have to be re-parsed to answer "which SPDX identifiers ship".
-    // Same location as the `true` default (`.vite/` under outDir), so the SPA registrar's dist layout
-    // is unchanged.
-    license: { fileName: ".vite/license.json" },
-    // Report transfer estimates alongside raw sizes; the boot gate still measures all preloaded JS.
-    reportCompressedSize: true,
-    // Vite generates index.html and Hono serves it as-is → no manifest needed. REVISIT if Hono ever
-    // injects hashed asset tags server-side (then flip to true and read the manifest).
-    manifest: false,
-    // The accepted entry is 3,137 kB; allow ~8% per-chunk headroom. check:boot-chunk separately
-    // enforces the 3,357,000-byte aggregate boot ceiling, including every modulepreloaded sibling.
-    // Keep app sideEffects undeclared so effect-only imports, including the stylesheet, survive.
-    chunkSizeWarningLimit: 3400,
-    // The canonical bundle location: the server's SPA registrar (entry/http/spa.ts) serves this dir —
-    // CLIENT_DIST_DIR defaults to packages/client/dist and must move with any change here.
-    outDir: "dist",
-    emptyOutDir: true,
-  },
-  server: {
-    port: DEV_SERVER_PORT,
-    // Fail loudly if the port is taken rather than silently hopping to a random port (stable dev origin
-    // for the proxy + CSP + auth-redirect assumptions). The snap-stage picks a free offset port, so
-    // strictPort stays on for it too.
-    strictPort: true,
-    proxy: {
-      // Vite is the dev front door; the Hono server owns the API and serves the built bundle in prod
-      // (entry/http/spa.ts — hashed-asset cache + index.html history fallback).
-      "/api": {
-        target: API_PROXY_TARGET,
-        changeOrigin: true,
+    server: {
+      port: DEV_SERVER_PORT,
+      // Fail loudly if the port is taken rather than silently hopping to a random port (stable dev origin
+      // for the proxy + CSP + auth-redirect assumptions). The snap-stage picks a free offset port, so
+      // strictPort stays on for it too.
+      strictPort: true,
+      ...(gallery
+        ? {
+            host: "127.0.0.1",
+            headers: { [CSP_HEADER]: CSP_DEV_FALLBACK },
+            // Native traces emit HTML inside the workspace; they are evidence, not gallery entry changes.
+            watch: { ignored: [`${WORKSPACE_ROOT}/reports/**`] },
+          }
+        : {}),
+      proxy: gallery ? {} : SERVER_PROXY,
+      // Pre-transform the shell entry + the route tree on server boot so the first paint isn't cold.
+      warmup: gallery
+        ? {}
+        : {
+            clientFiles: ["./src/main.tsx", "./src/routes/router.tsx"],
+          },
+      // Monorepo file access — let Vite serve @orb/* source from outside packages/client (the workspace
+      // root, discovered by walking up from this config). This root scope is REQUIRED (the workspace
+      // packages live outside packages/client), so the guard is `deny` below, not a narrower `allow`.
+      fs: {
+        allow: [WORKSPACE_ROOT],
+        // Spread: vite's `deny` is a MUTABLE `string[]`, and `devFsDeny` hands back a readonly view so no
+        // caller can edit the list in place.
+        deny: [...devFsDeny(WORKSPACE_ROOT)],
       },
-      // The /join/:token invite landing (entry/http/join.ts) — a server 302 into `/?join=<token>`, so a
-      // dev-minted invite link opened against the vite origin still lands in the SPA.
-      "/join": {
-        target: API_PROXY_TARGET,
-        changeOrigin: true,
-      },
+      // Forward browser console → terminal (dev half of client observability).
+      forwardConsole: true,
+      // NO `headers: { "Content-Security-Policy": … }` here ON PURPOSE — the `orb:dev-csp-mirror` plugin
+      // owns the dev document CSP (see CSP_DEV_FALLBACK above). Vite's own header middleware runs AFTER
+      // user middlewares and would overwrite the mirrored policy with a frozen literal.
     },
-    // Pre-transform the shell entry + the route tree on server boot so the first paint isn't cold.
-    warmup: {
-      clientFiles: ["./src/main.tsx", "./src/routes/router.tsx"],
-    },
-    // Monorepo file access — let Vite serve @orb/* source from outside packages/client (the workspace
-    // root, discovered by walking up from this config). This root scope is REQUIRED (the workspace
-    // packages live outside packages/client), so the guard is `deny` below, not a narrower `allow`.
-    fs: {
-      allow: [WORKSPACE_ROOT],
-      // Spread: vite's `deny` is a MUTABLE `string[]`, and `devFsDeny` hands back a readonly view so no
-      // caller can edit the list in place.
-      deny: [...devFsDeny(WORKSPACE_ROOT)],
-    },
-    // Forward browser console → terminal (dev half of client observability).
-    forwardConsole: true,
-    // NO `headers: { "Content-Security-Policy": … }` here ON PURPOSE — the `orb:dev-csp-mirror` plugin
-    // owns the dev document CSP (see CSP_DEV_FALLBACK above). Vite's own header middleware runs AFTER
-    // user middlewares and would overwrite the mirrored policy with a frozen literal.
-  },
-  // worker: reserve-flag `format: "es"` here IF client-side inline-plugin-snippet workers ever land
-  // (D46 Tier-2 workers are server-side today) — intentionally NOT set now.
+    // worker: reserve-flag `format: "es"` here IF client-side inline-plugin-snippet workers ever land
+    // (D46 Tier-2 workers are server-side today) — intentionally NOT set now.
+  };
 });

@@ -10,11 +10,12 @@
 // `ownsPoint` accepted only identity/containment, stalled there, and reported a fine-pointer P1 at 22px on
 // a 32px row. The paired control arm is the reason the widening is not a blanket: two genuine neighbouring
 // buttons must still measure as sub-targets.
-import { expect, test } from "@playwright/experimental-ct-react";
+
 import type { Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import type { Finding, RawSamples } from "../../tooling/src/ui-audit/index.ts";
 import { COLLECT_SAMPLES_JS, collectFindings } from "../../tooling/src/ui-audit/index.ts";
-import {
+import type {
   WalkerAccentBorderStory,
   WalkerAriaHiddenVisualStory,
   WalkerBelowTheFoldStory,
@@ -87,7 +88,7 @@ function smallestSide(targets: readonly TapTarget[], match: string): number {
 const FINE_POINTER_FLOOR = 24;
 
 test("a slider's effective target is its whole control row, not the box the sibling probe stalls on", async ({ mount, page }) => {
-  await mount(<WalkerSliderCompositeStory />);
+  await mount<typeof WalkerSliderCompositeStory>("tests/tooling/_ct-stories/WalkerSliderCompositeStory", {});
   const targets = await tapTargets(page);
 
   // The censused control is Base UI's native range input INSIDE the thumb (the thumb div itself carries no
@@ -112,7 +113,7 @@ test("a slider's effective target is its whole control row, not the box the sibl
 // `self` to +/-13px. The rung at 12 is what makes the floor expressible; the negative arm is what keeps a
 // genuine 22px control failing.
 test("#1067: a 28px pseudo-carried selection control measures its real extent, and a 22px box still fails", async ({ mount, page }) => {
-  await mount(<WalkerFinePointerFloorStory />);
+  await mount<typeof WalkerFinePointerFloorStory>("tests/tooling/_ct-stories/WalkerFinePointerFloorStory", {});
   const targets = await tapTargets(page);
 
   expect(
@@ -140,7 +141,7 @@ test.describe("#1829 coarse touch floor", () => {
   test.use({ hasTouch: true });
 
   test("a checkbox whose coarse ::before is exactly 44px is published as 44, not as the rung below it", async ({ mount, page }) => {
-    await mount(<WalkerCoarseTouchFloorStory />);
+    await mount<typeof WalkerCoarseTouchFloorStory>("tests/tooling/_ct-stories/WalkerCoarseTouchFloorStory", {});
     const targets = await tapTargets(page);
     expect(
       smallestSide(targets, "checkbox-root"),
@@ -149,7 +150,7 @@ test.describe("#1829 coarse touch floor", () => {
   });
 
   test("the inset is not a free rung: a box-carried 40px control is still under the coarse floor", async ({ mount, page }) => {
-    await mount(<WalkerCoarseTouchFloorStory />);
+    await mount<typeof WalkerCoarseTouchFloorStory>("tests/tooling/_ct-stories/WalkerCoarseTouchFloorStory", {});
     const targets = await tapTargets(page);
     expect(
       smallestSide(targets, "coarse-under-floor-box"),
@@ -159,7 +160,7 @@ test.describe("#1829 coarse touch floor", () => {
 });
 
 test("two genuine neighbours stay sub-targets — the widening is per composite, never a blanket", async ({ mount, page }) => {
-  await mount(<WalkerNeighbourButtonsStory />);
+  await mount<typeof WalkerNeighbourButtonsStory>("tests/tooling/_ct-stories/WalkerNeighbourButtonsStory", {});
   const targets = await tapTargets(page);
 
   // Each button is a real, separately-offered control 4px from the other. Neither may inherit the row.
@@ -176,7 +177,7 @@ test("two genuine neighbours stay sub-targets — the widening is per composite,
 // the pseudo-carried stage — the ancestor clause's one legitimate purpose — must still PASS.
 
 test("#662/#665: a box-carried control alone in a padded wrapper measures its OWN box, not the wrapper", async ({ mount, page }) => {
-  await mount(<WalkerBoxCarriedIsolatedControlStory />);
+  await mount<typeof WalkerBoxCarriedIsolatedControlStory>("tests/tooling/_ct-stories/WalkerBoxCarriedIsolatedControlStory", {});
   const measured = smallestSide(await tapTargets(page), "box-carried-isolated");
 
   // The regression this exists for: the unconditional ancestor clause reported 44 here regardless of the
@@ -186,7 +187,7 @@ test("#662/#665: a box-carried control alone in a padded wrapper measures its OW
 });
 
 test("#662/#665: an overflowing ::before pseudo still carries the floor when its control is isolated", async ({ mount, page }) => {
-  await mount(<WalkerPseudoCarriedIsolatedGlyphStory />);
+  await mount<typeof WalkerPseudoCarriedIsolatedGlyphStory>("tests/tooling/_ct-stories/WalkerPseudoCarriedIsolatedGlyphStory", {});
   const measured = smallestSide(await tapTargets(page), "pseudo-carried-isolated");
 
   // The ancestor clause's MINTED purpose (the pseudo has no DOM node of its own) must survive the fix —
@@ -209,7 +210,7 @@ test("#662/#665: an overflowing ::before pseudo still carries the floor when its
 // whose prose actually covers pixels the pseudo reaches must cap BELOW it. Dropping the second would
 // leave #807's ruling with no arm that can fail.
 test("#807: a control whose outward ring is owned by non-forwarding prose loses the composite credit", async ({ mount, page }) => {
-  await mount(<WalkerRowWrappedGlyphStory />);
+  await mount<typeof WalkerRowWrappedGlyphStory>("tests/tooling/_ct-stories/WalkerRowWrappedGlyphStory", {});
   const targets = await tapTargets(page);
   const alone = smallestSide(targets, "glyph-alone");
   const tight = smallestSide(targets, "glyph-in-tight-row");
@@ -221,7 +222,7 @@ test("#807: a control whose outward ring is owned by non-forwarding prose loses 
 });
 
 test("#2300: prose BEYOND the pseudo's measured reach takes nothing away — the live +30px arm equals the isolated one", async ({ mount, page }) => {
-  await mount(<WalkerRowWrappedGlyphStory />);
+  await mount<typeof WalkerRowWrappedGlyphStory>("tests/tooling/_ct-stories/WalkerRowWrappedGlyphStory", {});
   const targets = await tapTargets(page);
   const alone = smallestSide(targets, "glyph-alone");
   const inRow = smallestSide(targets, "glyph-in-row");
@@ -233,7 +234,7 @@ test("#2300: prose BEYOND the pseudo's measured reach takes nothing away — the
 });
 
 test("#807 does not disarm the probe: an isolated pseudo-carried glyph keeps its full extent", async ({ mount, page }) => {
-  await mount(<WalkerRowWrappedGlyphStory />);
+  await mount<typeof WalkerRowWrappedGlyphStory>("tests/tooling/_ct-stories/WalkerRowWrappedGlyphStory", {});
   // #662/#665's surviving half, asserted in the SAME mount as the row-wrapped arm: narrowing the credit
   // must not turn every glyph button back into a bare-box sub-target.
   expect(
@@ -243,7 +244,7 @@ test("#807 does not disarm the probe: an isolated pseudo-carried glyph keeps its
 });
 
 test("a list-row wrapper around its one control is not a nested card, while a real inner panel remains red", async ({ mount, page }) => {
-  await mount(<WalkerListRowCardStory />);
+  await mount<typeof WalkerListRowCardStory>("tests/tooling/_ct-stories/WalkerListRowCardStory", {});
   const findings = collectFindings(await samplesOf(page));
   const nested = selectorsFor(findings, "nested-card");
 
@@ -261,7 +262,7 @@ async function samplesOf(page: Page): Promise<RawSamples> {
 // `[data-slot=text]` plus one `[data-slot=button]` — nobody could tell them apart, let alone find them, so
 // two real text-overflow defects were unforwardable. An anchor is only an anchor if it resolves to ONE node.
 test("a selector the walker reports resolves to exactly one element, even when data-slot repeats", async ({ mount, page }) => {
-  await mount(<WalkerDuplicateSlotStory />);
+  await mount<typeof WalkerDuplicateSlotStory>("tests/tooling/_ct-stories/WalkerDuplicateSlotStory", {});
   const samples = await samplesOf(page);
 
   const reported = samples.textStyles.filter((t) => t.tag === "span").map((t) => t.selector);
@@ -282,7 +283,7 @@ function trackingFindings(samples: RawSamples): Finding[] {
 }
 
 test("wide-tracking exempts the ratified caps kicker — typed caps as well as transformed", async ({ mount, page }) => {
-  await mount(<WalkerCapsTrackingStory />);
+  await mount<typeof WalkerCapsTrackingStory>("tests/tooling/_ct-stories/WalkerCapsTrackingStory", {});
   const findings = trackingFindings(await samplesOf(page));
 
   const flagged = findings.map((f) => f.selector);
@@ -291,7 +292,7 @@ test("wide-tracking exempts the ratified caps kicker — typed caps as well as t
 });
 
 test("wide-tracking still fires on sentence-case running text — the exemption is caps, not tracking", async ({ mount, page }) => {
-  await mount(<WalkerCapsTrackingStory />);
+  await mount<typeof WalkerCapsTrackingStory>("tests/tooling/_ct-stories/WalkerCapsTrackingStory", {});
   const findings = trackingFindings(await samplesOf(page));
 
   expect(
@@ -311,7 +312,7 @@ function selectorsFor(findings: readonly Finding[], rule: string): string[] {
 // surface's two "waiting on:" lines measured 3.68:1 that way under snap's --contrast (which tags `dimmed
 // α0.60`) while design-audit reported nothing at all. The two instruments must agree.
 test("text dimmed by an ancestor's opacity fails contrast on the composited color, not the authored one", async ({ mount, page }) => {
-  await mount(<WalkerDimmedContrastStory />);
+  await mount<typeof WalkerDimmedContrastStory>("tests/tooling/_ct-stories/WalkerDimmedContrastStory", {});
   const findings = collectFindings(await samplesOf(page));
 
   const flagged = selectorsFor(findings, "contrast");
@@ -323,7 +324,7 @@ test("text dimmed by an ancestor's opacity fails contrast on the composited colo
 });
 
 test("the SAME color at full opacity still passes — the composite is the defect, not the color", async ({ mount, page }) => {
-  await mount(<WalkerDimmedContrastStory />);
+  await mount<typeof WalkerDimmedContrastStory>("tests/tooling/_ct-stories/WalkerDimmedContrastStory", {});
   const findings = collectFindings(await samplesOf(page));
 
   expect(selectorsFor(findings, "contrast"), "rgb(180,180,185) on rgb(16,16,20) is ~9:1 undimmed — flagging it would be a false positive").not.toContain(
@@ -338,7 +339,7 @@ test("the SAME color at full opacity still passes — the composite is the defec
 // exactly this reason (its own 1.11-vs-2.6 false FAIL); the two instruments must agree about what is behind a
 // glyph.
 test("text over a 10%-alpha tint is measured against the COMPOSITE, not the tint's own color", async ({ mount, page }) => {
-  await mount(<WalkerTranslucentTintStory />);
+  await mount<typeof WalkerTranslucentTintStory>("tests/tooling/_ct-stories/WalkerTranslucentTintStory", {});
   const findings = collectFindings(await samplesOf(page));
 
   const onLine = findings.filter((f) => f.selector === "[data-testid=tinted-row-subtitle]");
@@ -351,7 +352,7 @@ test("text over a 10%-alpha tint is measured against the COMPOSITE, not the tint
 // and the whole `side-tab` / `border-accent-on-rounded` family is structurally dead — measured live: a 3px
 // oklch left border on a 10px-radius home card produced zero findings.
 test("a thick oklch accent edge on a rounded card fires BOTH tells — the §6 absolute bans", async ({ mount, page }) => {
-  await mount(<WalkerAccentBorderStory />);
+  await mount<typeof WalkerAccentBorderStory>("tests/tooling/_ct-stories/WalkerAccentBorderStory", {});
   const findings = collectFindings(await samplesOf(page));
 
   const seen = JSON.stringify(findings.map((f) => `${f.rule} ${f.selector}`));
@@ -362,7 +363,7 @@ test("a thick oklch accent edge on a rounded card fires BOTH tells — the §6 a
 });
 
 test("the rgb-authored twin fires identically, and a hairline neutral card stays clean", async ({ mount, page }) => {
-  await mount(<WalkerAccentBorderStory />);
+  await mount<typeof WalkerAccentBorderStory>("tests/tooling/_ct-stories/WalkerAccentBorderStory", {});
   const findings = collectFindings(await samplesOf(page));
 
   expect(selectorsFor(findings, "side-tab")).toContain("[data-testid=accent-card-rgb]");
@@ -384,7 +385,7 @@ function accentRulesOn(findings: readonly Finding[], testId: string): string[] {
 }
 
 test("the selected ListRow's left ember bar is exempt on BOTH of the primitive's carriers", async ({ mount, page }) => {
-  await mount(<WalkerListRowSelectionStory />);
+  await mount<typeof WalkerListRowSelectionStory>("tests/tooling/_ct-stories/WalkerListRowSelectionStory", {});
   const findings = collectFindings(await samplesOf(page));
 
   const seen = JSON.stringify(findings.map((f) => `${f.rule} ${f.selector}`));
@@ -393,7 +394,7 @@ test("the selected ListRow's left ember bar is exempt on BOTH of the primitive's
 });
 
 test("the exemption did not widen: an unselected row, a selected non-row, and a plain card all still fire BOTH tells", async ({ mount, page }) => {
-  await mount(<WalkerListRowSelectionStory />);
+  await mount<typeof WalkerListRowSelectionStory>("tests/tooling/_ct-stories/WalkerListRowSelectionStory", {});
   const findings = collectFindings(await samplesOf(page));
 
   const seen = JSON.stringify(findings.map((f) => `${f.rule} ${f.selector}`));
@@ -412,7 +413,7 @@ test("the exemption did not widen: an unselected row, a selected non-row, and a 
 // `--fail-on P1` untrustworthy for the whole rail sweep. The skip is a COMPUTED-STATE test, which is what
 // keeps the revealed (`not-sr-only`) arm and every ordinary clipped control judged.
 test("neither sr-only spelling is a text-overflow finding — clipped content spills nowhere", async ({ mount, page }) => {
-  await mount(<WalkerScreenReaderOnlyStory />);
+  await mount<typeof WalkerScreenReaderOnlyStory>("tests/tooling/_ct-stories/WalkerScreenReaderOnlyStory", {});
   const findings = collectFindings(await samplesOf(page));
 
   const flagged = selectorsFor(findings, "text-overflow");
@@ -425,7 +426,7 @@ test("neither sr-only spelling is a text-overflow finding — clipped content sp
 });
 
 test("the revealed arm and an ordinary clipped box still fire text-overflow — the rule stays alive", async ({ mount, page }) => {
-  await mount(<WalkerScreenReaderOnlyStory />);
+  await mount<typeof WalkerScreenReaderOnlyStory>("tests/tooling/_ct-stories/WalkerScreenReaderOnlyStory", {});
   const findings = collectFindings(await samplesOf(page));
 
   const flagged = selectorsFor(findings, "text-overflow");
@@ -444,7 +445,7 @@ test("the revealed arm and an ordinary clipped box still fire text-overflow — 
 // directions are pinned here: the silences AND the bare clip that must still fire, because a rule that
 // only learns to shut up is a deleted rule.
 test("a truncation that PAINTS its ellipsis is not a finding — on the node or on the clipping ancestor", async ({ mount, page }) => {
-  await mount(<WalkerTruncationAffordanceStory />);
+  await mount<typeof WalkerTruncationAffordanceStory>("tests/tooling/_ct-stories/WalkerTruncationAffordanceStory", {});
   const findings = collectFindings(await samplesOf(page));
 
   const flagged = selectorsFor(findings, "text-overflow");
@@ -461,7 +462,7 @@ test("a truncation that PAINTS its ellipsis is not a finding — on the node or 
 });
 
 test("a bare clip with no ellipsis and no full-value affordance still fires — both arms", async ({ mount, page }) => {
-  await mount(<WalkerTruncationAffordanceStory />);
+  await mount<typeof WalkerTruncationAffordanceStory>("tests/tooling/_ct-stories/WalkerTruncationAffordanceStory", {});
   const findings = collectFindings(await samplesOf(page));
 
   const flagged = selectorsFor(findings, "text-overflow");
@@ -471,7 +472,7 @@ test("a bare clip with no ellipsis and no full-value affordance still fires — 
 });
 
 test("a label erased to 0px stays #816's family — the two rules never double-report", async ({ mount, page }) => {
-  await mount(<WalkerTruncationAffordanceStory />);
+  await mount<typeof WalkerTruncationAffordanceStory>("tests/tooling/_ct-stories/WalkerTruncationAffordanceStory", {});
   const findings = collectFindings(await samplesOf(page));
 
   const seen = JSON.stringify(findings.map((f) => `${f.rule} ${f.selector}`));
@@ -482,7 +483,7 @@ test("a label erased to 0px stays #816's family — the two rules never double-r
 });
 
 test("an sr-only control is not a tap target, while a 20px visible button still is", async ({ mount, page }) => {
-  await mount(<WalkerScreenReaderOnlyStory />);
+  await mount<typeof WalkerScreenReaderOnlyStory>("tests/tooling/_ct-stories/WalkerScreenReaderOnlyStory", {});
   const findings = collectFindings(await samplesOf(page));
 
   const flagged = selectorsFor(findings, "tap-target");
@@ -493,7 +494,7 @@ test("an sr-only control is not a tap target, while a 20px visible button still 
 });
 
 test("the a11y lens keeps seeing what the paint lens drops — a nameless sr-only control still fails", async ({ mount, page }) => {
-  await mount(<WalkerScreenReaderOnlyStory />);
+  await mount<typeof WalkerScreenReaderOnlyStory>("tests/tooling/_ct-stories/WalkerScreenReaderOnlyStory", {});
   const findings = collectFindings(await samplesOf(page));
 
   expect(
@@ -510,7 +511,7 @@ test("the a11y lens keeps seeing what the paint lens drops — a nameless sr-onl
 // not disagree about what is behind a glyph, so the walk must now REFUSE rather than fabricate: the runner
 // (design-audit.ts) settles an unresolved backdrop from real pixels, or says NO VERDICT out loud.
 test("text over a translucent plate with a fixed art layer behind it gets NO css-resolved contrast verdict", async ({ mount, page }) => {
-  await mount(<WalkerPaintLayerStory />);
+  await mount<typeof WalkerPaintLayerStory>("tests/tooling/_ct-stories/WalkerPaintLayerStory", {});
   const findings = collectFindings(await samplesOf(page));
 
   const onLine = findings.filter((f) => f.selector === "[data-testid=plate-line]");
@@ -518,7 +519,7 @@ test("text over a translucent plate with a fixed art layer behind it gets NO css
 });
 
 test("an opaque card with nothing painting over it is still judged — the refusal is not a mute", async ({ mount, page }) => {
-  await mount(<WalkerPaintLayerStory />);
+  await mount<typeof WalkerPaintLayerStory>("tests/tooling/_ct-stories/WalkerPaintLayerStory", {});
   const findings = collectFindings(await samplesOf(page));
 
   expect(
@@ -534,7 +535,7 @@ test("an opaque card with nothing painting over it is still judged — the refus
 // known. Latent when filed (no such surface on home or the chat room), and the exact sibling of the
 // border/contrast family that 7e747bccdf fixed with the canvas normalizer.
 test("a legible oklch gradient backdrop mints nothing — its stops are known, so there is no art to bleed over", async ({ mount, page }) => {
-  await mount(<WalkerGradientBackdropStory />);
+  await mount<typeof WalkerGradientBackdropStory>("tests/tooling/_ct-stories/WalkerGradientBackdropStory", {});
   const findings = collectFindings(await samplesOf(page));
 
   const onLine = findings.filter((f) => f.selector === "[data-testid=oklch-gradient-line]" && (f.rule === "text-over-art" || f.rule === "contrast"));
@@ -544,7 +545,7 @@ test("a legible oklch gradient backdrop mints nothing — its stops are known, s
 });
 
 test("an illegible oklch gradient fails as a WORST-STOP ratio, not as an indeterminate refusal", async ({ mount, page }) => {
-  await mount(<WalkerGradientBackdropStory />);
+  await mount<typeof WalkerGradientBackdropStory>("tests/tooling/_ct-stories/WalkerGradientBackdropStory", {});
   const findings = collectFindings(await samplesOf(page));
 
   const bled = findings.find((f) => f.selector === "[data-testid=oklch-gradient-bled]" && f.rule === "text-over-art");
@@ -555,7 +556,7 @@ test("an illegible oklch gradient fails as a WORST-STOP ratio, not as an indeter
 });
 
 test("the rgb-authored twin stays clean — the normalizer widened the parse, it did not change the math", async ({ mount, page }) => {
-  await mount(<WalkerGradientBackdropStory />);
+  await mount<typeof WalkerGradientBackdropStory>("tests/tooling/_ct-stories/WalkerGradientBackdropStory", {});
   const findings = collectFindings(await samplesOf(page));
 
   const onLine = findings.filter((f) => f.selector === "[data-testid=rgb-gradient-line]" && (f.rule === "text-over-art" || f.rule === "contrast"));
@@ -565,7 +566,7 @@ test("the rgb-authored twin stays clean — the normalizer widened the parse, it
 // aria-hidden changes the accessibility tree, not rendered pixels (#253). Visual type-floor families still
 // inspect painted text; name/target families continue excluding hidden names. These tests pin that split.
 test("the visual families judge aria-hidden text — pixels do not consult the accessibility tree", async ({ mount, page }) => {
-  await mount(<WalkerAriaHiddenVisualStory />);
+  await mount<typeof WalkerAriaHiddenVisualStory>("tests/tooling/_ct-stories/WalkerAriaHiddenVisualStory", {});
   const findings = collectFindings(await samplesOf(page));
   const seen = JSON.stringify(findings.map((f) => `${f.rule} ${f.selector}`));
 
@@ -584,7 +585,7 @@ test("the visual families judge aria-hidden text — pixels do not consult the a
 });
 
 test("the name/target census still skips aria-hidden — the split is per rule FAMILY, not global", async ({ mount, page }) => {
-  await mount(<WalkerAriaHiddenVisualStory />);
+  await mount<typeof WalkerAriaHiddenVisualStory>("tests/tooling/_ct-stories/WalkerAriaHiddenVisualStory", {});
   const targets = await tapTargets(page);
   const findings = collectFindings(await samplesOf(page));
 
@@ -605,7 +606,7 @@ test("the name/target census still skips aria-hidden — the split is per rule F
 // This lens counts what the USER sees: the same (role, accessible name) offered more than once on one plane.
 // Its false-positive class is per-datum repetition, and the second test is the arm that keeps it honest.
 test("one action offered from three unrelated places on one plane is ONE finding naming all three", async ({ mount, page }) => {
-  await mount(<WalkerDuplicateDoorStory />);
+  await mount<typeof WalkerDuplicateDoorStory>("tests/tooling/_ct-stories/WalkerDuplicateDoorStory", {});
   const findings = collectFindings(await samplesOf(page));
   const seen = JSON.stringify(findings.map((f) => `${f.rule} ${f.value}`));
 
@@ -618,7 +619,7 @@ test("one action offered from three unrelated places on one plane is ONE finding
 });
 
 test("per-datum repeats and same-role-different-name controls are not duplicate doors", async ({ mount, page }) => {
-  await mount(<WalkerDuplicateDoorStory />);
+  await mount<typeof WalkerDuplicateDoorStory>("tests/tooling/_ct-stories/WalkerDuplicateDoorStory", {});
   const findings = collectFindings(await samplesOf(page));
   const values = findings.filter((f) => f.rule === "duplicate-action-door").map((f) => f.value);
 
@@ -636,7 +637,7 @@ test("per-datum repeats and same-role-different-name controls are not duplicate 
 // rule was set to fire on every virtualized list precisely at coarse pointer. The two controls in the same
 // mount are what keep the exclusion from being a blanket.
 test("three list rows whose subtrees diverge are one per-datum home, not a duplicate door", async ({ mount, page }) => {
-  await mount(<WalkerListRowDoorStory />);
+  await mount<typeof WalkerListRowDoorStory>("tests/tooling/_ct-stories/WalkerListRowDoorStory", {});
   const findings = collectFindings(await samplesOf(page));
   const values = findings.filter((f) => f.rule === "duplicate-action-door").map((f) => f.value);
 
@@ -647,7 +648,7 @@ test("three list rows whose subtrees diverge are one per-datum home, not a dupli
 });
 
 test("the sibling-row fold does not disarm the rule: one action twice in a row, and two homes outside the list, still fire", async ({ mount, page }) => {
-  await mount(<WalkerListRowDoorStory />);
+  await mount<typeof WalkerListRowDoorStory>("tests/tooling/_ct-stories/WalkerListRowDoorStory", {});
   const findings = collectFindings(await samplesOf(page));
   const values = findings.filter((f) => f.rule === "duplicate-action-door").map((f) => f.value);
 
@@ -662,7 +663,7 @@ test("the sibling-row fold does not disarm the rule: one action twice in a row, 
 // relevant to the focus and accessibility censuses, but inherited descendant text does not turn them into
 // user actions. The paired native buttons keep the duplicate detector's real bite in the same mounted tree.
 test("nested generic tabindex=-1 focus wrappers stay censused without becoming duplicate action doors", async ({ mount, page }) => {
-  await mount(<WalkerProgrammaticFocusDoorStory />);
+  await mount<typeof WalkerProgrammaticFocusDoorStory>("tests/tooling/_ct-stories/WalkerProgrammaticFocusDoorStory", {});
   const samples = await samplesOf(page);
   const findings = collectFindings(samples);
 
@@ -682,7 +683,7 @@ test("nested generic tabindex=-1 focus wrappers stay censused without becoming d
 });
 
 test("two real same-role same-name buttons still produce exactly one duplicate-action-door finding", async ({ mount, page }) => {
-  await mount(<WalkerProgrammaticFocusDoorStory />);
+  await mount<typeof WalkerProgrammaticFocusDoorStory>("tests/tooling/_ct-stories/WalkerProgrammaticFocusDoorStory", {});
   const findings = collectFindings(await samplesOf(page));
   const duplicates = findings.filter((finding) => finding.rule === "duplicate-action-door" && finding.value === '2x button "duplicate action"');
 
@@ -700,7 +701,7 @@ test("two real same-role same-name buttons still produce exactly one duplicate-a
 // (with a control scrolled out of view), an sr-only stub, and an absolute badge inside the padding are
 // exactly what a naive sweep over-reports.
 test("an in-flow control cut by its clipping container is a P1 finding naming the side and the spill", async ({ mount, page }) => {
-  await mount(<WalkerClippedInflowControlStory />);
+  await mount<typeof WalkerClippedInflowControlStory>("tests/tooling/_ct-stories/WalkerClippedInflowControlStory", {});
   const samples = await samplesOf(page);
   const census = JSON.stringify(samples.clippedOverflows);
 
@@ -728,7 +729,7 @@ test("an in-flow control cut by its clipping container is a P1 finding naming th
 // while the rule printed `affected=0`. Both numbers are real; the rule now measures BOTH and judges each
 // arm against the token that governs it.
 test("the walker measures BOTH units, and a law-character is narrower than a CSS ch", async ({ mount, page }) => {
-  await mount(<WalkerReadingMeasureStory />);
+  await mount<typeof WalkerReadingMeasureStory>("tests/tooling/_ct-stories/WalkerReadingMeasureStory", {});
   const samples = await samplesOf(page);
   const sample = samples.textStyles.find((s) => s.selector.includes("measure-75ch-prose"));
 
@@ -746,7 +747,7 @@ test("the walker measures BOTH units, and a law-character is narrower than a CSS
 });
 
 test("the prose measure is judged in characters and the transcript in ch — the same 75ch box, two verdicts", async ({ mount, page }) => {
-  await mount(<WalkerReadingMeasureStory />);
+  await mount<typeof WalkerReadingMeasureStory>("tests/tooling/_ct-stories/WalkerReadingMeasureStory", {});
   const findings = collectFindings(await samplesOf(page)).filter((f) => f.rule === "line-length");
   const named = findings.map((f) => `${f.selector} => ${f.value}`).join(" | ");
 
@@ -764,7 +765,7 @@ test("the prose measure is judged in characters and the transcript in ch — the
 });
 
 test("a prose VOICE on a non-prose tag is judged, while its chrome twin is excluded by name", async ({ mount, page }) => {
-  await mount(<WalkerReadingMeasureStory />);
+  await mount<typeof WalkerReadingMeasureStory>("tests/tooling/_ct-stories/WalkerReadingMeasureStory", {});
   const samples = await samplesOf(page);
   const findings = collectFindings(samples).filter((f) => f.rule === "line-length");
   const named = findings.map((f) => f.selector).join(" | ");
@@ -788,7 +789,7 @@ test("a prose VOICE on a non-prose tag is judged, while its chrome twin is exclu
 // exactly like a surface that has nothing to promote. jsdom cannot answer any of this; the pseudo's
 // generated content, its resolved inset and the host's containing-block status are all real-browser facts.
 test("a pseudo-carried promotion is censused, judged and named — and the element arm is untouched", async ({ mount, page }) => {
-  await mount(<WalkerPseudoPromotionStory />);
+  await mount<typeof WalkerPseudoPromotionStory>("tests/tooling/_ct-stories/WalkerPseudoPromotionStory", {});
   const samples = await samplesOf(page);
   const census = samples.relationalAccounting?.["promoted-layer-offset"];
   const seen = samples.promotedLayerOffsets?.map((p) => p.selector).join(" | ") ?? "";
@@ -810,7 +811,7 @@ test("a pseudo-carried promotion is censused, judged and named — and the eleme
 });
 
 test("an in-flow pseudo whose box cannot be derived is WITHHELD by name, never judged off the host's rect", async ({ mount, page }) => {
-  await mount(<WalkerPseudoPromotionStory />);
+  await mount<typeof WalkerPseudoPromotionStory>("tests/tooling/_ct-stories/WalkerPseudoPromotionStory", {});
   const samples = await samplesOf(page);
   const census = samples.relationalAccounting?.["promoted-layer-offset"];
 
@@ -844,7 +845,7 @@ test.describe("below-the-fold census reach", () => {
   test.use({ viewport: { width: 520, height: 420 } });
 
   test("a 413x16 control below the fold is a tap-target finding — it was invisible to three rule families before", async ({ mount, page }) => {
-    await mount(<WalkerBelowTheFoldStory />);
+    await mount<typeof WalkerBelowTheFoldStory>("tests/tooling/_ct-stories/WalkerBelowTheFoldStory", {});
     const samples = await samplesOf(page);
     const findings = collectFindings(samples);
     const seen = JSON.stringify(samples.tapTargets);
@@ -857,7 +858,7 @@ test.describe("below-the-fold census reach", () => {
   });
 
   test("a healthy below-fold control is censused and stays silent — the reveal did not become a finding factory", async ({ mount, page }) => {
-    await mount(<WalkerBelowTheFoldStory />);
+    await mount<typeof WalkerBelowTheFoldStory>("tests/tooling/_ct-stories/WalkerBelowTheFoldStory", {});
     const samples = await samplesOf(page);
     const findings = collectFindings(samples);
 
@@ -871,7 +872,7 @@ test.describe("below-the-fold census reach", () => {
   });
 
   test("a revealed control's hit extent is still measured by the compositor, not read off its box", async ({ mount, page }) => {
-    await mount(<WalkerBelowTheFoldStory />);
+    await mount<typeof WalkerBelowTheFoldStory>("tests/tooling/_ct-stories/WalkerBelowTheFoldStory", {});
     const samples = await samplesOf(page);
 
     // A 20x20 box wearing a 52px `::after`. Reading the BOX would report 20 and mint a false sub-target;
@@ -881,7 +882,7 @@ test.describe("below-the-fold census reach", () => {
   });
 
   test("an unreachable control is COUNTED, not dropped — the census publishes its own denominator", async ({ mount, page }) => {
-    await mount(<WalkerBelowTheFoldStory />);
+    await mount<typeof WalkerBelowTheFoldStory>("tests/tooling/_ct-stories/WalkerBelowTheFoldStory", {});
     const samples = await samplesOf(page);
     const reach = samples.censusReach;
 
@@ -898,7 +899,7 @@ test.describe("below-the-fold census reach", () => {
   });
 
   test("the sweep puts every scroller back — the text samples' viewport boxes must survive it", async ({ mount, page }) => {
-    await mount(<WalkerBelowTheFoldStory />);
+    await mount<typeof WalkerBelowTheFoldStory>("tests/tooling/_ct-stories/WalkerBelowTheFoldStory", {});
     const host = page.locator("[data-testid=fold-scroll-host]");
     await host.evaluate((el) => {
       el.scrollTop = 120;
@@ -938,7 +939,7 @@ test.describe("viewport-edge probe frame (#797)", () => {
   }
 
   test("a 44px ring straddling the bottom edge is RE-CENTRED and measured, not read off its 18px box", async ({ mount, page }) => {
-    await mount(<WalkerViewportEdgeTargetStory />);
+    await mount<typeof WalkerViewportEdgeTargetStory>("tests/tooling/_ct-stories/WalkerViewportEdgeTargetStory", {});
     await parkAtBottomEdge(page);
     const targets = await tapTargets(page);
 
@@ -948,7 +949,7 @@ test.describe("viewport-edge probe frame (#797)", () => {
   });
 
   test("an edge-clipped control that cannot be re-centred has its verdict WITHHELD and counted, not minted from its box", async ({ mount, page }) => {
-    await mount(<WalkerViewportEdgeTargetStory />);
+    await mount<typeof WalkerViewportEdgeTargetStory>("tests/tooling/_ct-stories/WalkerViewportEdgeTargetStory", {});
     await parkAtBottomEdge(page);
     const samples = await samplesOf(page);
     const seen = JSON.stringify(samples.tapTargets);
@@ -967,7 +968,7 @@ test.describe("viewport-edge probe frame (#797)", () => {
   });
 
   test("a genuinely 18px control with no ring still fires — the frame guard is not a mute", async ({ mount, page }) => {
-    await mount(<WalkerViewportEdgeTargetStory />);
+    await mount<typeof WalkerViewportEdgeTargetStory>("tests/tooling/_ct-stories/WalkerViewportEdgeTargetStory", {});
     await parkAtBottomEdge(page);
     const samples = await samplesOf(page);
 
@@ -986,14 +987,14 @@ test.describe("viewport-edge probe frame (#797)", () => {
 // The three negative arms are what keep the credit from becoming a blanket: the association is read from
 // the DOM's own `el.labels`, and a pixel inside the label owned by ANOTHER control is that control's.
 test("a 16px checkbox inside a 44px forwarding label measures the label's target, not its own box", async ({ mount, page }) => {
-  await mount(<WalkerForwardingLabelStory />);
+  await mount<typeof WalkerForwardingLabelStory>("tests/tooling/_ct-stories/WalkerForwardingLabelStory", {});
   const targets = await tapTargets(page);
 
   expect(smallestSide(targets, "forwarded-checkbox"), `census: ${JSON.stringify(targets)}`).toBeGreaterThanOrEqual(44);
 });
 
 test("label credit does not widen: no label, a label naming another control, and a shared label all still fire", async ({ mount, page }) => {
-  await mount(<WalkerForwardingLabelStory />);
+  await mount<typeof WalkerForwardingLabelStory>("tests/tooling/_ct-stories/WalkerForwardingLabelStory", {});
   const samples = await samplesOf(page);
   const flagged = selectorsFor(collectFindings(samples), "tap-target");
   const seen = JSON.stringify(samples.tapTargets);
@@ -1009,7 +1010,7 @@ test("label credit does not widen: no label, a label naming another control, and
 });
 
 test("the healthy twin produces no clipped-overflow finding — scroll panes, sr-only stubs and padded badges are not cuts", async ({ mount, page }) => {
-  await mount(<WalkerClippedInflowControlStory />);
+  await mount<typeof WalkerClippedInflowControlStory>("tests/tooling/_ct-stories/WalkerClippedInflowControlStory", {});
   const samples = await samplesOf(page);
 
   expect(
@@ -1032,7 +1033,7 @@ async function findingsFor(page: Page): Promise<readonly Finding[]> {
 }
 
 test("#816: the 366px cast row erases its name and puts the badge on the Start button — both are findings", async ({ mount, page }) => {
-  await mount(<WalkerCastRowStory badges={2} />);
+  await mount<typeof WalkerCastRowStory>("tests/tooling/_ct-stories/WalkerCastRowStory", { badges: 2 });
   // GEOMETRY RECEIPT, not just a rule name: this is what the review measured by hand.
   const geometry = await page.evaluate(() => {
     const nameEl = document.querySelector('[data-testid="cast-name"]');
@@ -1068,7 +1069,7 @@ test("#816: the 366px cast row erases its name and puts the badge on the Start b
 });
 
 test("#816: the same row without the badges keeps its name and its hit test — neither rule fires on the healthy arm", async ({ mount, page }) => {
-  await mount(<WalkerCastRowStory badges={0} />);
+  await mount<typeof WalkerCastRowStory>("tests/tooling/_ct-stories/WalkerCastRowStory", { badges: 0 });
   const findings = await findingsFor(page);
   expect(
     findings.filter((f) => f.rule === "truncated-to-nothing"),
@@ -1089,7 +1090,7 @@ test("#816: the same row without the badges keeps its name and its hit test — 
 // UI upgrade would leave every one of those proofs green while the rule went blind on the real app
 // (RULE-AUTHORING.md step 1/2). This mounts the real component and reads the real census.
 test("the real @orb/ui Tooltip publishes the census's two attributes, one row per seal decision", async ({ mount, page }) => {
-  await mount(<WalkerTooltipHintStory />);
+  await mount<typeof WalkerTooltipHintStory>("tests/tooling/_ct-stories/WalkerTooltipHintStory", {});
   const samples = (await page.evaluate(COLLECT_SAMPLES_JS)) as { readonly unreachableHints?: readonly UnreachableHint[] };
   const hints = samples.unreachableHints ?? [];
 

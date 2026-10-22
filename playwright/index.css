@@ -1,5 +1,2 @@
-/* CT-only Tailwind scan extension. playwright-ct.config.ts appends this to the production Tailwind
- * root before compilation; product imports and product @source roots come exclusively from the shared
- * @orb/client/styles front door. The path is relative to packages/client/src/styles/globals.css, the
- * injection target, not to this file. No product import/source belongs here. */
+/* The component-gallery Vite mode appends this source root to client globals before Tailwind runs. */
 @source "../../../../tests";

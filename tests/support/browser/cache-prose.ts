@@ -1,5 +1,5 @@
-import { expect } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
+import { expect } from "@playwright/test";
 
 /** Measure the paragraph's own font and cap, not a wrapper's reading scale. */
 export async function expectCacheProse(paragraph: Locator): Promise<void> {

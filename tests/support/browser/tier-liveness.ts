@@ -7,8 +7,9 @@
 // map in the first place. So each LIST pane's own CT asserts the tier is resolving IN THAT PANE, from
 // computed values: the row title sits at the `label` step, not the tier-less `body` default it falls back
 // to. Read from the same document, never a hardcoded px.
-import { expect } from "@playwright/experimental-ct-react";
+
 import type { Locator } from "@playwright/test";
+import { expect } from "@playwright/test";
 
 const TITLE = '[data-slot="list-row-title"]';
 

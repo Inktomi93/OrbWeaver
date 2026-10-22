@@ -125,79 +125,60 @@ Coverage remains report-only. A coverage number does not prove that a test asser
 - **Memory's chat-scoped semantics** — a "could silently regress" surface the oracle never covered either (memory is a rewrite, not a port). Each → a named `.int.test.ts` at the memory mirror.
 - **Serde round-trip** — import → export → reimport hash-identical, a `.contract.test` invariant on the one serde core (`docs/law/Spine-Config-and-Serialization.md` §7.3).
 
-## 7. Client / browser tests — Playwright, NOT Vitest browser
+## 7. Client / browser tests — native Playwright
 
-Vitest browser-mode is FORBIDDEN — cold-cache dep-discovery *hangs*. Use Playwright CT and E2E:
+Use native Playwright for rendered tests. Vitest browser mode is not part of this repository's test setup.
 
-- **Component — Playwright CT** (`@playwright/experimental-ct-react`): `*.ct.tsx` at the mirror, `playwright-ct.config.ts`, `pnpm test:ct`. `CtProviders` supplies UI-only chrome. Client component mounts use `CtClientProviders` from `tests/support/browser/ct-data-providers.tsx`: production data defaults, registry factories, provider order and notification mapping. Each mount retains its runtime until teardown. Primitive isolation uses the named `CtIsolation` exception; registry variants use `isolationRegistry`. Stub tRPC at the **network** boundary with Playwright `page.route`, never by replacing client modules. Node-side closures cannot execute inside the browser worker. Story wrappers hold the components CT mounts.
+- **Component tests:** `*.ct.tsx` under `tests/`, `playwright-ct.config.ts`, `pnpm test:ct`. Plain `@playwright/test` mounts browser stories through `playwright/index.html`.
+- **E2E:** `*.spec.ts` under `tests/e2e/`, `playwright.config.ts`, `pnpm e2e`. These tests exercise the running application and its wires.
+- Choose the layer by the behavior in the [test-foundation plan](../plans/test-foundation/design.md#layer-ownership-and-overlap). A component test does not establish a full application journey.
 
-- **e2e** — `*.spec.ts` under `tests/e2e/`, `playwright.config.ts`, `pnpm e2e`: the full running stack.
+### Composition and execution
 
-- **Locator priority:** `getByRole` ≫ `getByLabel` ≫ `getByPlaceholder` ≫ `getByText` ≫ … ≫ `getByTestId` (last resort, never for buttons/inputs). **Real timers in form tests** (fake timers drift against React 19's scheduler + debounce — assert with Playwright's auto-retrying `expect`).
-  **The CT harness's own physics** — each of these produces a green, a hang, or a timeout that reads like a
-  product defect. They belong to the RUNNER, not to any component:
+The gallery uses the application's Vite configuration in `component-test` mode. It retains the React Compiler, StrictMode, styles, assets and early Zod configuration. It owns a loopback server without backend proxies or probes. Never reuse the developer's server or data for a component test. A cold first run must succeed without automatic warm-up navigation or test retries.
 
-- **`mount()` is once per test** (a second call throws "container that already has a React root") — a prop
-  matrix is N tests or one mount + `component.update()`. **The locator `mount()` returns IS the fixture
-  root**, so `mounted.getByTestId(<the root's own id>)` searches DESCENDANTS, matches nothing, and fails as
-  a 30s TIMEOUT rather than an assertion diff.
+Component tests run development React. Production build and E2E qualification remain separate. StrictMode can repeat render and effect setup; preserve correct cleanup rather than disabling it for a failing story.
 
-- **A `.ct.tsx` may import only COMPONENTS from its story module.** A mixed value export breaks the CT
-  transform with `Identifier … already declared` + a bogus "No tests found"; shared constants live in a
-  non-story fixtures module. `@orb/ui/icons` (mixed component+glyph exports) cannot be imported in a
-  `.ct.tsx` at all — put the JSX in a `.fixtures.tsx`.
+`CtProviders` supplies shared UI chrome. Client stories use `CtClientProviders` from `tests/support/browser/ct-data-providers.tsx`: actual production data defaults, registry factories, provider order and notification mapping. Primitive isolation uses `CtIsolation`; registry variants use `isolationRegistry`. Do not copy an application assembly into a story.
 
-- **A story mounting a suspending component MUST wrap it in the production `QueryBoundary`** — a bare mount
-  is a silent infinite mount/refetch loop (no thrown error, just a hang). Read the component's production
-  mount site and copy its boundary wiring.
+Stories live beside their tests, outside production source. The gallery discovers `*-stories.tsx` and the browser support's `*-fixtures.tsx` modules. Each named export describes a rendered scenario. Keep state, callbacks, JSX composition and intentional keyed remounts inside the browser story.
 
-- **CT serves PRODUCTION React and runs NO React Compiler pass** (both deliberate): StrictMode's
-  double-invoke is unreachable — reproduce double-lifecycle edges with a keyed remount — and a CT red that
-  "the compiler would have memoized away" is a REAL defect, fixed at the source (identity), never with a
-  manual memo.
+### Authoring and types
 
-- **The maintained client door uses the production error channel.** Mutation-error notifications are observable through its real toaster. Timing overrides belong to explicit data-isolation helpers, not another cache implementation.
+Import `test` and `expect` from `@playwright/test`. Corpus-backed cases retain the existing `@orb/testkit/node/ct-corpus.ts` fixture.
 
-- **Declare every intercepted request.** `routeTrpc` fails the native Playwright test for an unlisted procedure, even when the component handles the transport failure. Script errors and terminal subscriptions explicitly.
+Import story components with `import type`. Call `mount<typeof Story>(id, props)` so TypeScript checks both initial and updated props. Use exact repository-relative module paths without `.tsx`, followed by `/ExportName`; the gallery accepts no suffix matching. Unknown IDs reject at runtime. Explicit story types check props, not the relationship between the string ID and its type.
 
-- **`page.addInitScript` does not affect the CURRENT page** (the `page` fixture has already navigated) —
-  it fires on SUBSEQUENT navigations, so for pre-module-init state (persisted stores, localStorage seeds)
-  use `page.addInitScript` + `page.reload()` to re-run the page with the script installed. For
-  instrumentation that only needs to run before `mount()`, use `page.evaluate` BEFORE `mount()` instead.
+ESLint rejects untyped `mount()` calls, inline JSX, inline callback props and runtime story imports in CT specs. These syntax restrictions guide ordinary authoring; they do not prove semantic coverage or resolve arbitrary aliases. Dependency-cruiser keeps browser stories away from Node/server implementation, and compiler worlds retain their separate declarations.
 
-- **CDP media emulation LEAKS across tests in a file**, and `page.emulateMedia` does NOT clear a feature it
-  doesn't model — every emulation caller states the TOTAL media state in one call, including explicit
-  `no-preference` for the features it does not exercise.
+Plain data crosses the mounting boundary. Stories create callbacks and expose their observable effects through the rendered surface. Do not pass Node callbacks or replace application modules.
 
-- **`getComputedStyle` on a DETACHED element returns `""`**, not resolved defaults — a sentinel read off a
-  fresh `createElement` silently inverts every comparison against it. Attach the probe, then remove it.
+### Navigation, updates and teardown
 
-- **Timing reads are measurements, not barriers.** `expect.poll` drains the caller's own intervals array and
-  abandons its timeout tail; a computed value read across a transition lands MID-INTERPOLATION (assert a
-  range, or read atomically in one `evaluate`); a layout-shift entry needs a PAINTED previous position. A
-  transient window (a lying "Saved" during a debounce) needs a recorded TRANSCRIPT (a `MutationObserver`
-  started before the interaction), never a poll that races it.
+- Register network routes and `page.addInitScript` before mounting. Native `mount()` navigates to the gallery before invoking the story.
+- Use configured `baseURL` for pre-mount origin calculations; the page can still be `about:blank`.
+- An init script runs in child frames too. Restrict instrumentation to the main frame when that is its actual subject.
+- The returned locator is the gallery's `#root`, not the component's first element. Query the intended subject within it; use page locators for portals.
+- `component.update(props)` replaces props while retaining the React root and component state. Omitted props return to their component defaults.
+- `component.unmount()` releases the React root. Await it when asserting cleanup. Repeated native `mount()` calls navigate fresh; use `update()` for state-preserving transitions.
+- Keep query clients and document leases owned by the existing testkit runtime. Corpus fixtures retain private clones, real admission and joined request teardown.
+- Unknown stories and uncaught render failures must reject mounting, not return an empty successful locator.
 
-- **Prove an ABSENCE with a round-trip barrier, never a monotonic counter** (a poll passes on a transited
-  value); avoid `page.waitForTimeout`. And barrier on a SETTLED rendered state — a node-side
-  request count is not a browser-side settle.
+### Network and rendered assertions
 
-- **A stub at the seam under test is a tautology.** A fixed-array responder passes every FILTER test while
-  the filter is wrong: a CT proving server-side filtering uses an INPUT-AWARE responder (it filters/sorts by
-  the request it received) so filtering that ignores its input goes red. Whatever a CT fakes, something else
-  (an `.int` test through the real verb, or a live drive) owns that seam's truth.
+Stub only external execution and network boundaries. `routeTrpc` fails the native Playwright test for an unlisted procedure, even when the component handles the transport failure. Script errors and terminal subscriptions explicitly. Service workers stay blocked so they cannot shadow request interception.
 
-- **A source-neuter "bite proof" lies for a bare `@orb/*` import** — vite's `optimizeDeps` serves a
-  PREBUNDLED copy that clearing `playwright/.cache` does not invalidate. Relative-path (`_*-stories`)
-  imports compile fresh; for bare-import wiring tests, prove the bite with in-test rendered pre/post
-  controls.
+Use accessible roles, labels and retrying web assertions. Observe the rendered result, not only a request count. A story mounting a suspending component uses its production `QueryBoundary` wiring.
 
-- **Lane invocation**: `pnpm test:ct <paths>`. The supervisor owns run/cache coordination and build identity. A CT report with
-  ONE suite means the BUNDLE FAILED TO BUILD, not that the named spec failed.
+A fixed-array responder does not prove server filtering. Use request-aware responses for the UI contract, and retain integration coverage through the real operation for server behavior.
 
-- **`pnpm test` does not run CT.** A shared provider or registry Context change can break rendered
-  stories while Node tests remain green. Such changes require the relevant `pnpm test:ct` coverage;
-  run `pnpm test:ct` for the full CT suite.
+CDP media emulation can survive context reuse. State the full media state, including `no-preference` for unused features. Font settling belongs to gallery startup, before geometry assertions.
+
+Timing samples are measurements, not completion barriers. Use actual lifecycle signals and settled rendered state. A negative assertion needs a valid positive control or a completed operation, not an arbitrary delay.
+
+Do not infer source identity from an old cache. A controlled source defect must be observed in the served module before treating its failure as evidence.
+
+Run named CTs with `pnpm test:ct <paths>`. Native Playwright owns the server and browser lifecycle; a startup or module-transform failure is not a component verdict. Shared provider or registry changes require rendered checks even when Node tests pass.
 
 ## 8. Tags (Vitest 4.1+) — the runtime axis, orthogonal to suffix
 

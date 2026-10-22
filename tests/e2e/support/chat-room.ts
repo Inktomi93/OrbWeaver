@@ -34,15 +34,11 @@ import { WAIT_SETTLE_MS, WAIT_SHORT_MS, WAIT_STREAM_MS, WAIT_SURFACE_MS } from "
 // (start-chat-with-character.spec.ts, commit b79cf0a871). The stale kebab→"Chat" menuitem flow is dead — this
 // client's row kebab ("Actions for <name>") carries only Archive/Duplicate/Delete, NO "Chat" item.
 const CHARACTER_ROW_CHAT_CTA = /^Chat with /u;
-/** The marker observed by both the readiness waiter and the cold-boot diagnostics. */
-export const APP_READY_ATTRIBUTE = "data-app-ready";
+const APP_READY_ATTRIBUTE = "data-app-ready";
 const APP_READY = `html[${APP_READY_ATTRIBUTE}]`;
 const BOOTSTRAP_MESSAGE = "Hi";
-// The first lazy Chats route can trigger Vite dependency optimization after the boot shell has already
-// marked itself ready. Vite then reloads the page and compiles the route graph; the cold push-gate receipt
-// measured 42s before the list appeared. This budget stays below the spec's 60s ceiling while covering
-// that one-time dev-server restart. Warm navigation remains immediate.
-const COLD_CHAT_SURFACE_TIMEOUT = budget(45_000);
+// Wait for the lazy Chats surface without replaying the navigation action.
+const CHAT_SURFACE_TIMEOUT = budget(45_000);
 
 /** Identity-scoped locator for ONE message row, keyed on `data-message-id` (message-row.tsx). The
  *  deliberate alternative to a positional `.first()/.last()` pick when the target row's id is known
@@ -155,26 +151,18 @@ export async function gotoChatsList(page: Page): Promise<void> {
   const backToChats = page.getByRole("button", { name: "Back to Chats", exact: true });
   const chatsList = page.getByRole("list", { name: "Chats list" });
   const emptyState = page.getByText("No chats yet");
-  // COLD-BOOT RESILIENCE (the reason this is a retry loop, not a bare click). The FIRST navigation into the
-  // lazy Chats route can trigger a Vite dependency re-optimization that RELOADS the page AFTER `data-app-ready`
-  // already fired (same mechanism the COLD_CHAT_SURFACE_TIMEOUT budget documents) — which silently drops a
-  // one-shot rail click and lands the caller back on the home surface. So poll: (re-)click the rail and
-  // confirm the list surface settled; a mid-boot reload just re-enters the loop. Warm navigation clicks once.
-  await expect(async () => {
-    if (await closeDetails.isVisible()) {
-      await closeDetails.click();
-    }
-    if (await backToChats.isVisible()) {
-      await backToChats.click();
-    }
-    await chatsRail.click({ timeout: WAIT_SHORT_MS });
-    // Entering Chats can restore its retained room instead of opening the list.
-    await expect(chatsList.or(emptyState).or(backToChats).first()).toBeVisible({ timeout: WAIT_SHORT_MS });
-    if (await backToChats.isVisible()) {
-      await backToChats.click();
-    }
-    await expect(chatsList.or(emptyState).first()).toBeVisible({ timeout: WAIT_SHORT_MS });
-  }).toPass({ timeout: COLD_CHAT_SURFACE_TIMEOUT });
+  if (await closeDetails.isVisible()) {
+    await closeDetails.click();
+  }
+  if (await backToChats.isVisible()) {
+    await backToChats.click();
+  }
+  await chatsRail.click({ timeout: WAIT_SHORT_MS });
+  await expect(chatsList.or(emptyState).or(backToChats).first()).toBeVisible({ timeout: WAIT_SHORT_MS });
+  if (await backToChats.isVisible()) {
+    await backToChats.click();
+  }
+  await expect(chatsList.or(emptyState).first()).toBeVisible({ timeout: WAIT_SHORT_MS });
 }
 
 /** Drive the real library→draft→send flow to CREATE one committed chat (one real turn). Returns once the
@@ -225,48 +213,14 @@ export async function openOrCreateChat(page: Page): Promise<void> {
   await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: WAIT_SURFACE_MS });
 }
 
-// The typeAndSend retry ledger — a module counter incremented once per EXTRA typing attempt (0 = the text
-// landed on the first pass, the healthy case now that #13 is fixed at source). It exists so an
-// anti-regression spec can pin zero-retry instant typing WITHOUT changing typeAndSend's behavior: the
-// helper still retries (belt, for any residual settle jitter), but a resurfaced remount would push this
-// above zero. Read it via `takeTypeAndSendRetries()` (reads + resets), so each assertion scopes to its own
-// call.
-let typeAndSendRetries = 0;
-
-/** Read-and-reset the retry counter accumulated by `typeAndSend` since the last read. */
-export function takeTypeAndSendRetries(): number {
-  const n = typeAndSendRetries;
-  typeAndSendRetries = 0;
-  return n;
-}
-
-/** Type a message into the OPEN room's composer and send it (Enter). `fill` is unusable (it bypasses React's
- *  onChange so the controlled value never updates), and a raw pressSequentially FLAKES: the composer re-mounts
- *  when the room's initial reads / an SSE event settle mid-type, dropping focus + every keystroke after the
- *  first (verified live: "Reply…" left the textarea at just "R"). So RETRY: focus → clear → type → verify the
- *  controlled value STUCK; if a re-mount ate it, the composer is now settled and the retry lands cleanly. The
- *  retry LEDGER (`takeTypeAndSendRetries`) exposes whether a retry was actually needed — #13's fix should
- *  keep it at zero (instant typing survives room settle). Behavior is unchanged: the poll still retries. */
+/** Type and send once; a lost controlled value fails instead of being retyped. */
 export async function typeAndSend(composer: ReturnType<Page["getByRole"]>, message: string): Promise<void> {
-  let attempt = 0;
-  await expect
-    .poll(
-      async (): Promise<string> => {
-        // Every pass after the first is a retry — count it BEFORE the attempt so a mid-type remount that
-        // never lets the value stick still registers as a retry (the poll re-enters).
-        if (attempt > 0) {
-          typeAndSendRetries += 1;
-        }
-        attempt += 1;
-        await composer.click();
-        await composer.press("ControlOrMeta+A");
-        await composer.press("Delete");
-        await composer.pressSequentially(message, { delay: 15 });
-        return composer.inputValue();
-      },
-      { timeout: WAIT_SETTLE_MS, intervals: [250] },
-    )
-    .toBe(message);
+  await expect(composer).toBeEditable({ timeout: WAIT_SETTLE_MS });
+  await composer.click();
+  await composer.press("ControlOrMeta+A");
+  await composer.press("Delete");
+  await composer.pressSequentially(message, { delay: 15 });
+  await expect(composer).toHaveValue(message, { timeout: WAIT_SETTLE_MS });
   await composer.press("Enter");
 }
 
@@ -277,7 +231,7 @@ export async function typeAndSend(composer: ReturnType<Page["getByRole"]>, messa
 export async function openNewestChat(page: Page): Promise<void> {
   await gotoChatsList(page);
   const rows = page.getByRole("list", { name: "Chats list" }).getByRole("button");
-  await expect(rows.first()).toBeVisible({ timeout: COLD_CHAT_SURFACE_TIMEOUT });
+  await expect(rows.first()).toBeVisible({ timeout: CHAT_SURFACE_TIMEOUT });
   await rows.first().click();
   await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: WAIT_SURFACE_MS });
 }
@@ -353,7 +307,7 @@ export async function openChatByTitle(page: Page, title: string): Promise<void> 
   }
   await search.fill(title);
   const row = page.getByRole("list", { name: "Chats list" }).getByRole("button", { name: title }).first();
-  await expect(row).toBeVisible({ timeout: COLD_CHAT_SURFACE_TIMEOUT });
+  await expect(row).toBeVisible({ timeout: CHAT_SURFACE_TIMEOUT });
   await row.click();
   await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: WAIT_SURFACE_MS });
 }

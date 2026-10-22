@@ -1,7 +1,7 @@
 import { choiceBlockSchema, presetDetailSchema, userMacroSchema } from "@orb/contracts/preset";
 import { expect, test } from "@orb/testkit/node/ct-corpus.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
-import { PresetListLifetimeStory } from "./_list-lifetime-stories.tsx";
+import type { PresetListLifetimeStory } from "./_list-lifetime-stories.tsx";
 
 test.use({ trace: "on" });
 
@@ -72,7 +72,9 @@ test("native nested lists preserve typing and successor bindings, retain own ech
       return preset;
     },
   });
-  const component = await mount(<PresetListLifetimeStory presetId={presetId} />);
+  const component = await mount<typeof PresetListLifetimeStory>("tests/client/features/preset/components/_list-lifetime-stories/PresetListLifetimeStory", {
+    presetId,
+  });
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
   await page.getByRole("tab", { name: "Data", exact: true }).click();
   await page.getByRole("button", { name: "{{cohort_macro}}", exact: true }).click();
@@ -119,7 +121,7 @@ test("native nested lists preserve typing and successor bindings, retain own ech
   await dialog.locator('input[name="userMacros[0].inputs[1].name"]').fill("added_input");
   await dialog.getByRole("group", { name: "Macro input 2", exact: true }).getByRole("button", { name: "Remove", exact: true }).first().click();
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
-  await component.update(<PresetListLifetimeStory presetId={presetId} revision={1} />);
+  await component.update({ presetId, revision: 1 });
   await expect(page.getByLabel("Read revision", { exact: true })).toHaveText("1");
   await expect(dialog).toBeVisible();
   await expect(dialog.locator('input[name="userMacros[0].args[0].name"]')).toHaveValue("second_edited");
@@ -130,13 +132,13 @@ test("native nested lists preserve typing and successor bindings, retain own ech
   await testInfo.attach("macro-after-removal-and-echo", { path: macroScreenshot });
 
   preset = presetDetailSchema.parse({ ...preset, config: { ...preset.config, params: { ...preset.config.params, temperature: 0.63 } } });
-  await component.update(<PresetListLifetimeStory presetId={presetId} revision={2} />);
+  await component.update({ presetId, revision: 2 });
   await expect(page.getByLabel("Read revision", { exact: true })).toHaveText("2");
   await expect(dialog).toBeVisible();
   await expect(dialog.locator('input[name="userMacros[0].args[0].name"]')).toHaveValue("second_edited");
 
   preset = presetDetailSchema.parse({ ...preset, config: { ...preset.config, userMacros: [userMacroSchema.parse({ ...macro, name: "remote_macro" })] } });
-  await component.update(<PresetListLifetimeStory presetId={presetId} revision={3} />);
+  await component.update({ presetId, revision: 3 });
   await expect(page.getByLabel("Read revision", { exact: true })).toHaveText("3");
   await expect(dialog).toHaveCount(0);
   await expect(page.getByRole("button", { name: "{{remote_macro}}", exact: true })).toBeVisible();
@@ -154,15 +156,15 @@ test("native nested lists preserve typing and successor bindings, retain own ech
   await expect(remaining).toBeFocused();
   await expect(remaining).toHaveValue("Louder");
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
-  await component.update(<PresetListLifetimeStory presetId={presetId} revision={4} />);
+  await component.update({ presetId, revision: 4 });
   await expect(page.getByLabel("Read revision", { exact: true })).toHaveText("4");
   await expect(variable).toBeVisible();
 
   failSaves = true;
   await remaining.fill("Louder draft");
   await expect(page.getByText("Save failed —", { exact: true })).toBeVisible();
-  await component.update(<PresetListLifetimeStory presetId={presetId} mounted={false} />);
-  await component.update(<PresetListLifetimeStory presetId={presetId} />);
+  await component.update({ presetId, mounted: false });
+  await component.update({ presetId });
   await page.getByRole("button", { name: "cohort_variable", exact: true }).click();
   await expect(remaining).toHaveValue("Louder draft");
   await expect(page.getByText("Restored draft — not saved", { exact: true })).toBeVisible();
@@ -175,14 +177,14 @@ test("native nested lists preserve typing and successor bindings, retain own ech
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
   expect(trpc.lastInput("preset.update")?.config?.variables?.[0]?.options[0]?.label).toBe("Louder draft");
   expect(trpc.lastInput("preset.update")?.config).not.toHaveProperty("variableRowIds");
-  await component.update(<PresetListLifetimeStory presetId={presetId} revision={5} />);
+  await component.update({ presetId, revision: 5 });
   await expect(page.getByLabel("Read revision", { exact: true })).toHaveText("5");
 
   failSaves = true;
   await page.getByRole("button", { name: "cohort_variable", exact: true }).click();
   await remaining.fill("Obsolete draft");
   await expect(page.getByText("Save failed —", { exact: true })).toBeVisible();
-  await component.update(<PresetListLifetimeStory presetId={presetId} mounted={false} />);
+  await component.update({ presetId, mounted: false });
   preset = presetDetailSchema.parse({
     ...preset,
     config: {
@@ -190,7 +192,7 @@ test("native nested lists preserve typing and successor bindings, retain own ech
       variables: [choiceBlockSchema.parse({ name: "cohort_variable", question: "Remote question", options: [{ label: "Remote option", value: "remote" }] })],
     },
   });
-  await component.update(<PresetListLifetimeStory presetId={presetId} runtimeEpoch={1} />);
+  await component.update({ presetId, runtimeEpoch: 1 });
   await page.getByRole("tab", { name: "Data", exact: true }).click();
   await page.getByRole("button", { name: "cohort_variable", exact: true }).click();
   await expect(remaining).toHaveValue("Remote option");
@@ -247,7 +249,9 @@ test("pending writes cannot replace newer edits, and explicit reset admits a new
       return preset;
     },
   });
-  const component = await mount(<PresetListLifetimeStory presetId={presetId} />);
+  const component = await mount<typeof PresetListLifetimeStory>("tests/client/features/preset/components/_list-lifetime-stories/PresetListLifetimeStory", {
+    presetId,
+  });
   await page.getByRole("tab", { name: "Data", exact: true }).click();
   await page.getByRole("button", { name: "queued_variable", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Edit variable", exact: true });
@@ -264,7 +268,7 @@ test("pending writes cannot replace newer edits, and explicit reset admits a new
       ],
     },
   });
-  await component.update(<PresetListLifetimeStory presetId={presetId} revision={1} />);
+  await component.update({ presetId, revision: 1 });
   await expect(page.getByLabel("Read revision", { exact: true })).toHaveText("1");
   await expect(label).toHaveValue("Newer");
   await expect(label).toBeFocused();
@@ -274,7 +278,7 @@ test("pending writes cannot replace newer edits, and explicit reset admits a new
   await expect(page.getByText("Saved", { exact: true })).toHaveCount(0);
   second.release(secondAnswer);
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
-  await component.update(<PresetListLifetimeStory presetId={presetId} revision={2} />);
+  await component.update({ presetId, revision: 2 });
   await expect(page.getByLabel("Read revision", { exact: true })).toHaveText("2");
   await expect(label).toHaveValue("Newer");
   await expect(label).toBeFocused();

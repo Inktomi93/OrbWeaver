@@ -1,5 +1,5 @@
 // The door's contributor registries that are injected a read channel or ship empty, split out of
-// `authed-app.tsx` so the CT door takes the same assemblies the app mounts (Spine-Testing §10). The injected
+// `authed-app.tsx` so the CT door takes the same assemblies the app mounts (Spine-Testing §9). The injected
 // ones are factories because the app and a CT hand them different `{ trpc, queryClient }` singletons.
 
 import { automationActivityTab } from "#features/automation";
