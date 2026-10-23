@@ -10,12 +10,13 @@ export {
   registerDebugRoutes,
 } from "./routes.ts";
 export {
+  createWireCaptureSpill,
   isWireCaptureEnabled,
   isWireReplyCaptureEnabled,
   recordTurnOutcome,
   recordWireCapture,
-  settleWireCaptureSpill,
   type WireCaptureFilter,
+  type WireCaptureSpill,
   type WireOutcome,
   type WireToolCall,
   type WireWarning,

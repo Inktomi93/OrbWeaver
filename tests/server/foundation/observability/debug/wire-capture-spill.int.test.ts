@@ -1,8 +1,11 @@
 // @subject packages/server/src/foundation/observability/debug/wire-capture.ts
-import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { mkdir, mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import { setTimeout as sleep } from "node:timers/promises";
+import { promisify } from "node:util";
 import { wireCaptureSchema } from "@orb/contracts/debug";
 import { DATA_LAYOUT_DIRS } from "@orb/server/foundation/data-layout";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -26,9 +29,12 @@ test("a wire capture spills under the data root and never into the process check
     const checkoutBefore = await sizeOf(CHECKOUT_SPILL);
     vi.stubEnv("DATA_DIR", dataDir);
     vi.resetModules();
-    const { recordWireCapture } = await import("@orb/server/foundation/observability");
+    const { createWireCaptureSpill, recordWireCapture } = await import("@orb/server/foundation/observability");
     const marker = `spill-witness-${dataDir.split("-").at(-1) ?? ""}`;
-    recordWireCapture(wireCaptureSchema.parse({ api: "chat", wire: "literal", providerId: "spill-witness", model: marker, at: 1, body: { marker } }));
+    recordWireCapture(
+      wireCaptureSchema.parse({ api: "chat", wire: "literal", providerId: "spill-witness", model: marker, at: 1, body: { marker } }),
+      createWireCaptureSpill(),
+    );
     const spilled = join(dataDir, DATA_LAYOUT_DIRS.wireCapture, SPILL_FILE);
     await expect.poll(() => sizeOf(spilled)).toBeGreaterThan(0);
     expect(await readFile(spilled, "utf8")).toContain(marker);
@@ -36,5 +42,34 @@ test("a wire capture spills under the data root and never into the process check
   } finally {
     vi.unstubAllEnvs();
     await rm(dataDir, { recursive: true, force: true });
+  }
+});
+
+const mkfifo = promisify(execFile);
+
+test("one graph's blocked spill write never holds another graph's settle", async () => {
+  const root = await mkdtemp(join(tmpdir(), "orb-wire-spill-graphs-"));
+  const blockedDir = join(root, "blocked");
+  const freeDir = join(root, "free");
+  const blockedFile = join(blockedDir, SPILL_FILE);
+  await mkdir(blockedDir);
+  // A FIFO holds the append in `open` until a reader arrives, so this graph's write stays pending on a real filesystem.
+  await mkfifo("mkfifo", [blockedFile]);
+  const { createWireCaptureSpill, recordWireCapture } = await import("@orb/server/foundation/observability");
+  const capture = (marker: string): ReturnType<typeof wireCaptureSchema.parse> =>
+    wireCaptureSchema.parse({ api: "chat", wire: "literal", providerId: "spill-witness", model: marker, at: 1, body: { marker } });
+  const blockedGraph = createWireCaptureSpill(blockedDir);
+  const freeGraph = createWireCaptureSpill(freeDir);
+  try {
+    recordWireCapture(capture("blocked-graph"), blockedGraph);
+    recordWireCapture(capture("free-graph"), freeGraph);
+    const verdict = await Promise.race([freeGraph.settle().then(() => "settled"), sleep(2000, "stuck")]);
+    expect(verdict).toBe("settled");
+    expect(await readFile(join(freeDir, SPILL_FILE), "utf8")).toContain("free-graph");
+  } finally {
+    const drained = readFile(blockedFile, "utf8");
+    await blockedGraph.settle();
+    expect(await drained).toContain("blocked-graph");
+    await rm(root, { recursive: true, force: true });
   }
 });

@@ -59,8 +59,8 @@
 // looking for (it did). Both arms therefore ALSO append to a size-capped JSONL under the data layout's
 // `wireCapture` slot, best-effort: a spill failure never touches the request path. Off with the feature off,
 // like everything else here. The spill holds provider request bodies, so it never derives from the process
-// cwd: a stack started from a checkout must not write its data's prompts into that checkout. Compose passes
-// the spill directory on every record; absent, it is the env data layout's slot.
+// cwd: a stack started from a checkout must not write its data's prompts into that checkout. Each composed
+// graph owns one spill queue over its directory (absent, the env data layout's slot) and passes it on every record.
 
 import { appendFile, mkdir, rename, stat } from "node:fs/promises";
 import { join } from "node:path";
@@ -97,9 +97,9 @@ export function isWireReplyCaptureEnabled(): boolean {
  *  enabled). Kept in the process ring for the live `/api/_debug` read AND best-effort spilled to
  *  `captures.jsonl` in the data layout's `wireCapture` slot (see SPILL below) — never a DB table, but not
  *  process-memory-only either. */
-export function recordWireCapture(capture: WireCapture, spillDir: string = DEFAULT_SPILL_DIR): void {
+export function recordWireCapture(capture: WireCapture, spill: WireCaptureSpill): void {
   ring.push(capture);
-  spill(spillDir, "request", capture);
+  spill.append("request", capture);
 }
 
 const DEFAULT_READ_LIMIT = 50;
@@ -131,7 +131,7 @@ const outcomeRing = createBoundedRing<WireOutcome>(WIRE_CAPTURE_RING_CAPACITY);
 const TOOL_ARGS_MAX = 2000;
 
 /** Record ONE turn outcome. Ungated here: compose hands it to the engine only when capture is on. */
-export function recordTurnOutcome(outcome: WireOutcome, spillDir: string = DEFAULT_SPILL_DIR): void {
+export function recordTurnOutcome(outcome: WireOutcome, spill: WireCaptureSpill): void {
   const bounded: WireOutcome = {
     ...outcome,
     toolCalls: outcome.toolCalls.map((call) => ({
@@ -140,7 +140,7 @@ export function recordTurnOutcome(outcome: WireOutcome, spillDir: string = DEFAU
     })),
   };
   outcomeRing.push(bounded);
-  spill(spillDir, "outcome", bounded);
+  spill.append("outcome", bounded);
 }
 
 /** Read recent outcomes, newest-first, optionally filtered by chatId. */
@@ -161,38 +161,47 @@ export function recentTurnOutcomes(filter: Pick<WireCaptureFilter, "chatId" | "l
 
 // ── SPILL ───────────────────────────────────────────────────────────────────────────────────────────────
 
-// The env data layout's spill slot, used when a caller supplies no spill directory.
-const DEFAULT_SPILL_DIR = resolveDataLayout(env).wireCapture;
 const SPILL_FILE = "captures.jsonl";
 const SPILL_PREV_FILE = "captures.prev.jsonl";
 /** Rotate past this (32 MiB); two generations are retained, so the on-disk ceiling is 64 MiB. */
 const SPILL_MAX_BYTES = 33_554_432;
 
-/** Serializes every append so concurrent turns cannot interleave a half-written line. Failures are swallowed
- *  into the chain (never rethrown) — an unwritable spill directory must not fail a chat turn. */
-let spillChain: Promise<void> = Promise.resolve();
-
-/** Resolves once every spill append queued so far has settled; a graph's disposal awaits it so no append
- *  outlives the directory it writes into. Never rejects: the chain swallows its own failures. */
-export function settleWireCaptureSpill(): Promise<void> {
-  return spillChain;
+/** One composed graph's spill queue over one directory. */
+export interface WireCaptureSpill {
+  /** Queue one record as JSONL, rotating at the cap. Best-effort by construction. */
+  readonly append: (kind: "request" | "outcome", record: WireCapture | WireOutcome) => void;
+  /** Resolves once every append queued on THIS spill has settled, so a graph's disposal waits on its own writes
+   *  only and no append outlives its directory. Never rejects: the chain swallows its own failures. */
+  readonly settle: () => Promise<void>;
 }
 
-/** Append one record as JSONL, rotating at the cap. Best-effort by construction. */
-function spill(spillDir: string, kind: "request" | "outcome", record: WireCapture | WireOutcome): void {
+/** Create a graph's spill queue. Absent a directory it writes to the env data layout's `wireCapture` slot. */
+export function createWireCaptureSpill(spillDir: string = resolveDataLayout(env).wireCapture): WireCaptureSpill {
+  // Serializes this graph's appends so concurrent turns cannot interleave a half-written line. Failures are
+  // swallowed into the chain (never rethrown) — an unwritable spill directory must not fail a chat turn.
+  let chain: Promise<void> = Promise.resolve();
+  return {
+    append: (kind, record): void => {
+      chain = appendSpillLine(chain, spillDir, kind, record);
+    },
+    settle: () => chain,
+  };
+}
+
+function appendSpillLine(chain: Promise<void>, spillDir: string, kind: "request" | "outcome", record: WireCapture | WireOutcome): Promise<void> {
   let line: string;
   // documented — an unserializable body is not
-  // worth failing (or retrying) a turn over, best-effort observability spill. Ends if spill() stops being
+  // worth failing (or retrying) a turn over, best-effort observability spill. Ends if the spill stops being
   // best-effort by contract.
   try {
     line = `${JSON.stringify({ kind, ...record })}\n`;
   } catch {
-    return; // an unserializable body is not worth failing (or retrying) a turn over
+    return chain; // an unserializable body is not worth failing (or retrying) a turn over
   }
-  // documented above the spillChain
-  // declaration — failures are swallowed into the chain, never rethrown; an unwritable spill directory must not
-  // fail a chat turn. Ends if spill stops being best-effort by contract.
-  spillChain = spillChain
+  // documented above the chain declaration in createWireCaptureSpill
+  // — failures are swallowed into the chain, never rethrown; an unwritable spill directory must not
+  // fail a chat turn. Ends if the spill stops being best-effort by contract.
+  return chain
     .then(async () => {
       const spillPath = join(spillDir, SPILL_FILE);
       await mkdir(spillDir, { recursive: true });
