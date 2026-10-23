@@ -57,8 +57,6 @@ export interface ModelCacheConfig {
   readonly log: InferenceLog;
   /** Owned fire-and-forget for a model disposal. */
   readonly detach: (name: string, fn: () => Promise<void>) => void;
-  /** Replaces the lib's dynamic import. Only tests set it, to drive the rerank servings without model weights. */
-  readonly __loadTransformersForTest?: (() => Promise<TransformersModule>) | undefined;
 }
 
 /** The tokenizer surface the pair fit needs; the lib's tokenizer satisfies it. */

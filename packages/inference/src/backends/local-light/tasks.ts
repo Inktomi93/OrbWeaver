@@ -5,7 +5,7 @@
 
 import type { EmbeddingAccounting } from "@orb/contracts/embeddings";
 import type { Capability, LocalTextEncoding } from "@orb/contracts/inference";
-import { LOCAL_LIGHT_SEED_ROWS, modelIdSchema } from "@orb/contracts/inference";
+
 import type { EmbedResult, ImageEmbedResult, RerankResult } from "@orb/contracts/providers";
 import type { ImageEmbedInput, ImageInput, RerankQuery } from "@orb/contracts/role-clients";
 import type { ModelId } from "@orb/kit/ids";
@@ -15,10 +15,6 @@ import { ProviderError } from "#contract";
 import type { LocalLightModelCache } from "../../contract/local-light.ts";
 import { abortableWait } from "../http/abort-wait.ts";
 import { normalizeVector, throwIfAborted } from "./model-cache.ts";
-
-/** The bundled encoder and reranker share the canonical seed rows. */
-export const DEFAULT_EMBED_MODEL = modelIdSchema.parse(LOCAL_LIGHT_SEED_ROWS[0].model);
-export const DEFAULT_RERANK_MODEL = modelIdSchema.parse(LOCAL_LIGHT_SEED_ROWS[1].model);
 
 interface KeptInput {
   readonly index: number;

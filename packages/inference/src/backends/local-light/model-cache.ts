@@ -536,7 +536,7 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
   const embedDtype = resolveEmbedDtype(config.embedDtype);
   const cacheDir = config.cacheDir === undefined ? undefined : resolve(config.cacheDir);
   const configure = async (): Promise<TransformersModule> => {
-    const mod = await (config.__loadTransformersForTest === undefined ? loadExecutionKernel(config.kernelModule) : config.__loadTransformersForTest());
+    const mod = await loadExecutionKernel(config.kernelModule);
     if (config.allowRemoteModels !== undefined) {
       mod.env.allowRemoteModels = config.allowRemoteModels;
     }

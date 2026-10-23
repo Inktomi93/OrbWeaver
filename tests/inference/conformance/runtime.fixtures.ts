@@ -16,11 +16,12 @@ import type {
   StructuredRequest,
   WireTool,
 } from "@orb/inference";
-import { DEFAULT_EMBED_MODEL, ProviderError } from "@orb/inference";
+import { ProviderError } from "@orb/inference";
 import type { ChatId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
+import { DEFAULT_EMBED_MODEL } from "@orb/testkit/iso/inference-identities.ts";
 import { seedRecallRoom } from "@orb/testkit/node/corpus-seed.ts";
 import { test } from "@orb/testkit/node/fixtures.ts";
 import type { ServerTestHarness } from "@orb/testkit/node/server.ts";

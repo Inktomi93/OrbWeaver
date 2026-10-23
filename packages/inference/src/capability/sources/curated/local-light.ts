@@ -71,7 +71,7 @@ export const localLightRows = [
     evidence: {
       tier: "curated",
       dated: "2026-10-03",
-      cite: "backends/local-light/tasks.ts DEFAULT_RERANK_MODEL; config.json max_position_embeddings 7999; quality, window and cost in scripts/probes/reranker-swap/RESULTS.md, measured on x64 only (the arm64 file is untested)",
+      cite: "packages/contracts/src/inference/tasks.ts LOCAL_LIGHT_SEED_ROWS; config.json max_position_embeddings 7999; quality, window and cost in scripts/probes/reranker-swap/RESULTS.md, measured on x64 only (the arm64 file is untested)",
     },
   },
   {

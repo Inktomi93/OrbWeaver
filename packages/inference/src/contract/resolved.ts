@@ -4,7 +4,15 @@
 // backend needs and a client must never see. "The connection IS the pick" — there is nothing to heal.
 
 import type { ResolvedSecret } from "@orb/contracts/credentials";
-import type { EndpointFeatures, GenerationCapability, PromptCacheSettings, ProviderDef, ResolvedConnectionView, Task } from "@orb/contracts/inference";
+import type {
+  ConnectionTransportDoc,
+  EndpointFeatures,
+  GenerationCapability,
+  PromptCacheSettings,
+  ProviderDef,
+  ResolvedConnectionView,
+  Task,
+} from "@orb/contracts/inference";
 import { windowForPreset } from "@orb/contracts/inference";
 import type { ModelId, UserId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
@@ -14,25 +22,13 @@ import { ProviderError } from "./errors.ts";
  *  connection): headers on the request, a strip/keep list applied AFTER `extras` as the endpoint's final
  *  word, a dot-path map that reshapes a non-OpenAI reply into one the shared stream reducer can read. Shown
  *  only on `auth: endpoint` rows. */
-export interface ConnectionTransport {
-  readonly headers?: Readonly<Record<string, string>> | undefined;
-  readonly includeBody?: Readonly<Record<string, JsonValue>> | undefined;
-  readonly excludeBody?: readonly string[] | undefined;
-  readonly responseMap?: ResponseMap | undefined;
-}
+export type ConnectionTransport = {
+  readonly [K in keyof ConnectionTransportDoc]: Readonly<ConnectionTransportDoc[K]>;
+};
 
 /** Dot-paths into a raw reply that override the OpenAI-compatible defaults (a numeric segment indexes an
  *  array); an unset path keeps the default. */
-export interface ResponseMap {
-  readonly contentPath?: string | undefined;
-  readonly reasoningPath?: string | undefined;
-  readonly finishReasonPath?: string | undefined;
-  readonly promptTokensPath?: string | undefined;
-  readonly completionTokensPath?: string | undefined;
-  readonly errorMessagePath?: string | undefined;
-  readonly errorCodePath?: string | undefined;
-  readonly toolCallsPath?: string | undefined;
-}
+export type ResponseMap = Readonly<NonNullable<ConnectionTransportDoc["responseMap"]>>;
 
 export interface Resolved<T extends Task = Task> extends ResolvedConnectionView {
   readonly task: T;

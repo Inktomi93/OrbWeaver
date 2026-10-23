@@ -63,14 +63,9 @@ export type { SessionEntryWriter } from "./backends/agent-sdk/index.ts";
 export { cachePolicyContextOf, responseReplaySupportedFor } from "./backends/http/response-cache.ts";
 
 export type { LocalLightModelCache, LocalLightModelSlot, LocalLightPrefetchTarget } from "./backends/local-light/index.ts";
-export { DEFAULT_EMBED_MODEL, DEFAULT_RERANK_MODEL, LOCAL_LIGHT_MODEL_SLOTS } from "./backends/local-light/index.ts";
+export { LOCAL_LIGHT_MODEL_SLOTS } from "./backends/local-light/index.ts";
 
 export { cacheDepthCovering, preservesCacheBlockEnds, rowIndexAtCacheDepth } from "./backends/wire/cache-control.ts";
-// The curated-evidence fold, for a caller that answers a route's capability without a saved connection: the
-// connection editor's CT oracle reads the funnel's own answer through these instead of the package internals.
-export { detectModelFamily } from "./capability/families.ts";
-export { curatedRows } from "./capability/sources/curated/loader.ts";
-export { synthesizeCapability } from "./capability/synthesize.ts";
 export type { AgentSdkNativeOptions, AgentSdkQuery, AgentSdkSpawn } from "./contract/agent-sdk-execution.ts";
 export * from "./contract/index.ts";
 export type { LoadTransformersKernel, LocalLightKernelModule } from "./contract/local-light-kernel.ts";
@@ -81,11 +76,10 @@ export { resolveCachePolicy } from "./funnel/resolve-cache.ts";
 // its answers BEFORE the first wire call: the `conversation` rung materializes prior thinking at the
 // history-build seam, which runs upstream of `resolveChat`. One policy home, two readers (§8.8).
 export { resolveCarryReasoning, resolveChat } from "./funnel/resolve-chat.ts";
-// The funnel the runtime serves as `funnel.embed`, for a test runtime that scripts only the executor.
-export { resolveEmbed } from "./funnel/resolve-embed.ts";
+
 export { resolveSideGenSampling } from "./funnel/resolve-side-gen.ts";
 export type { ProviderRegistry } from "./registry/providers.ts";
-export { embeddingExecution, requiresHubModelId, supportsManagedCompaction } from "./resolve/operation-capabilities.ts";
+export { requiresHubModelId, supportsManagedCompaction } from "./resolve/operation-capabilities.ts";
 export type { ResolveArgs, ResolveOutcome } from "./resolve/resolve-task.ts";
 export { NoConnectionError } from "./resolve/resolve-task.ts";
 // The chat turn's ONE neutral-to-backend projection: a caller hands over a history array and its tools as
