@@ -8,11 +8,13 @@ import type { UserMacroValues } from "@orb/contracts/preset";
 import type { ChatId } from "@orb/kit/ids";
 import type { MacroFreeze, MacroRegistry, RejectedUserMacro, UserMacroDef } from "@orb/kit/macro";
 
-const CHOICE_PICK_MODES = ["random", "stable"] as const;
+export const CHOICE_PICK_MODES = ["random", "stable"] as const;
 /** How a ChoiceBlock `randomPick` variable resolves: `random` draws one of the stored values from the gather's PRNG
  *  (a turn); `stable` leaves the stored value as is, so a preview or an aux build reads the same on every poll. Chosen
  *  by the caller, never inferred from whether a PRNG was passed. */
 export type ChoicePickMode = (typeof CHOICE_PICK_MODES)[number];
+/** Whether a mode draws from the PRNG; a new mode must take a row here or `tsc` fails. */
+export const CHOICE_PICK_DRAWS: Record<ChoicePickMode, boolean> = { random: true, stable: false };
 
 /** What every section, lore and persona render reads besides the assemble ctx: the per-turn user-macro registry
  *  (WAVE MU) and the turn PRNG every `{{random}}`/`{{roll}}`/`{{pick}}` draw rides. One bag, so the walk threads a

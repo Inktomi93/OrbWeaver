@@ -7,6 +7,7 @@
 
 import type { ChoiceBlockSpec } from "@orb/contracts/preset";
 import type { ChoicePickMode } from "../contract/assembly-macros.ts";
+import { CHOICE_PICK_DRAWS } from "../contract/assembly-macros.ts";
 
 /**
  * Resolve the chat's stored ChoiceBlock picks against the preset's declared variables into the concrete
@@ -30,7 +31,7 @@ export function resolveChoiceVariables(
     const fallback = spec.defaultValue ?? spec.options[0]?.value ?? "";
     const picked = stored[spec.name];
     let resolved = typeof picked === "string" && picked.length > 0 ? picked : fallback;
-    if (picks === "random" && spec.multiSelect && spec.randomPick && resolved.length > 0) {
+    if (CHOICE_PICK_DRAWS[picks] && spec.multiSelect && spec.randomPick && resolved.length > 0) {
       const parts = resolved
         .split(spec.separator)
         .map((s) => s.trim())
