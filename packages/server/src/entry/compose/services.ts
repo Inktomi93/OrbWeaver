@@ -221,7 +221,9 @@ type InferenceSeams = Partial<Pick<InferenceDeps, "agentSdk" | "localLight" | "c
  */
 export interface ServicesDeps {
   readonly pluginExecution?: AutomationPluginComposeDeps["pluginExecution"];
-  readonly networkExecution?: Omit<ScopedEgressOptions, "timers">;
+  readonly networkExecution?: Omit<ScopedEgressOptions, "timers" | "buildConnector">;
+  /** The physical dial every egress this graph builds uses (`systemConnector` from `createProcessSeams`). */
+  readonly buildConnector: ScopedEgressOptions["buildConnector"];
   /** The process seams are required so a forgotten one fails to compile instead of reaching the real process;
    *  `createProcessSeams` (`./process-seams.ts`) is their one real source. */
   readonly timers: TimerScheduler;
@@ -501,6 +503,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       ...deps.networkExecution,
       fetch: deps.networkExecution?.fetch ?? deps.providerSeams?.sdkFetch,
       timers,
+      buildConnector: deps.buildConnector,
     }),
   );
   egressLifetime = egress;

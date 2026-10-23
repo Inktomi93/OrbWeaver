@@ -289,7 +289,7 @@ function appliedEffortOf(options: Pick<LanguageModelV4CallOptions, "providerOpti
 }
 
 interface StreamOnceArgs {
-  readonly scheduleTimeout?: ScheduleTimeout | undefined;
+  readonly scheduleTimeout: ScheduleTimeout;
   readonly call: AnthropicCall;
   readonly options: LanguageModelV4CallOptions;
   readonly req: AnthropicChatRequest;
@@ -464,7 +464,7 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
       ...(req.signal !== undefined ? { signal: req.signal } : {}),
       now: deps.now,
       scheduleTimeout: deps.scheduleTimeout,
-      ...(deps.random !== undefined ? { random: deps.random } : {}),
+      random: deps.random,
       ...(deps.addSpanEvent !== undefined ? { addSpanEvent: deps.addSpanEvent } : {}),
     },
   ).catch((err: unknown): never => {

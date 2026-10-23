@@ -9,7 +9,7 @@ import type { ProviderBackend } from "./backend.ts";
 import type { InferenceDeps, InferenceLog } from "./runtime.ts";
 
 export interface LocalLightBackendDeps {
-  readonly scheduleTimeout?: InferenceDeps["scheduleTimeout"];
+  readonly scheduleTimeout: InferenceDeps["scheduleTimeout"];
   readonly now: () => number;
   readonly log: InferenceDeps["log"];
   readonly superviseDetached: InferenceDeps["superviseDetached"];

@@ -204,8 +204,8 @@ export interface ProviderStore {
 }
 
 export interface InferenceDeps {
-  readonly scheduleTimeout?: ScheduleTimeout | undefined;
-  readonly scheduleTimeoutUnref?: ScheduleTimeout | undefined;
+  readonly scheduleTimeout: ScheduleTimeout;
+  readonly scheduleTimeoutUnref: ScheduleTimeout;
   readonly beginEmbeddingAccounting: BeginEmbeddingAccounting;
   readonly now: () => number;
   readonly log: InferenceLog;
@@ -240,7 +240,6 @@ export interface InferenceDeps {
   readonly captureWireReply?: boolean | undefined;
   readonly imageToPng?: ((bytes: Uint8Array) => Promise<Uint8Array>) | undefined;
   readonly agentSdk: {
-    readonly scheduleTimeout?: ScheduleTimeout | undefined;
     readonly query?: AgentSdkQuery;
     readonly spawnClaudeCodeProcess?: AgentSdkSpawn;
     readonly native?: AgentSdkNativeOptions;
@@ -260,5 +259,5 @@ export interface InferenceDeps {
       }
     | undefined;
   readonly sdkFetch: typeof fetch;
-  readonly random?: (() => number) | undefined;
+  readonly random: () => number;
 }

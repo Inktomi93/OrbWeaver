@@ -134,7 +134,7 @@ function postDeadlineMs(tokens: number, baseMs: number, floorTokensPerSec: numbe
 }
 
 interface BatchRun {
-  readonly scheduleTimeout?: ScheduleTimeout | undefined;
+  readonly scheduleTimeout: ScheduleTimeout;
   readonly req: EmbedRequest;
   readonly call: ModelCall;
   readonly model: EmbeddingModelV4;

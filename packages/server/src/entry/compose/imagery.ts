@@ -16,11 +16,11 @@ import type { ImageryService } from "#domain/imagery";
 import { createCaptionImage, createImageProviderOps, createImageryInstructions, createImageryService, imageryToolDefinitions } from "#domain/imagery";
 import { createStatsBatchWiring } from "#domain/stats";
 import type { ToolUseService } from "#domain/tool-use";
-import { fetchImageBytes } from "#infra/network";
+import type { ScopedEgress } from "#infra/network";
 import { minter } from "./minter.ts";
 
 export interface ImageryComposeDeps {
-  readonly fetchImageBytes?: typeof fetchImageBytes;
+  readonly fetchImageBytes: ScopedEgress["fetchImageBytes"];
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;
   readonly now: () => number;
@@ -58,7 +58,7 @@ export interface ImageryComposeDeps {
 
 export function buildImagery(deps: ImageryComposeDeps): ImageryService {
   const { db, now, connection, executor, assets, character, roleClientsFor } = deps;
-  const fetchImage = deps.fetchImageBytes ?? fetchImageBytes;
+  const fetchImage = deps.fetchImageBytes;
   const imagery = createImageryService({
     db,
     now,

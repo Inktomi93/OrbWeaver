@@ -42,9 +42,9 @@ export interface ShapeArgs {
 }
 
 export interface OpenAiCompatChatDeps {
-  readonly scheduleTimeout?: ScheduleTimeout | undefined;
+  readonly scheduleTimeout: ScheduleTimeout;
   readonly now: () => number;
-  readonly random?: (() => number) | undefined;
+  readonly random: () => number;
   readonly log: InferenceLog;
   readonly addSpanEvent?: AddSpanEvent | undefined;
   readonly transport: TransportDeps;
@@ -52,20 +52,20 @@ export interface OpenAiCompatChatDeps {
 }
 
 export interface DiagnosticsDeps {
-  readonly scheduleTimeout?: ScheduleTimeout | undefined;
+  readonly scheduleTimeout: ScheduleTimeout;
   readonly fetch: typeof fetch;
   readonly now: () => number;
 }
 
 /** What the inspector's call needs beyond the diagnostics deps: the app identity the model factory sends. */
 export interface InspectDeps {
-  readonly scheduleTimeout?: ScheduleTimeout | undefined;
+  readonly scheduleTimeout: ScheduleTimeout;
   readonly fetch: typeof fetch;
   readonly app: TransportDeps["app"];
 }
 
 export interface EmbedDeps {
-  readonly scheduleTimeout?: ScheduleTimeout | undefined;
+  readonly scheduleTimeout: ScheduleTimeout;
   readonly log: InferenceLog;
   readonly transport: TransportDeps;
 }
@@ -83,8 +83,8 @@ export interface ImagesDeps {
 /** The slice of the runtime deps this backend closes over. */
 export interface OpenAiCompatBackendDeps {
   readonly now: () => number;
-  readonly random?: (() => number) | undefined;
-  readonly scheduleTimeout?: InferenceDeps["scheduleTimeout"];
+  readonly random: () => number;
+  readonly scheduleTimeout: InferenceDeps["scheduleTimeout"];
   readonly log: InferenceDeps["log"];
   readonly addSpanEvent?: AddSpanEvent | undefined;
   readonly fetch: typeof fetch;
@@ -159,7 +159,7 @@ export interface NativeThink {
 }
 
 export interface ReachabilityDeps {
-  readonly scheduleTimeout?: ScheduleTimeout | undefined;
+  readonly scheduleTimeout: ScheduleTimeout;
   readonly fetch: typeof fetch;
   readonly now: () => number;
 }

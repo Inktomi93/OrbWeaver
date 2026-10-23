@@ -17,7 +17,7 @@ export const systemTimers: TimerScheduler = {
   },
 };
 
-export function createScopedTimers(execution: TimerScheduler = systemTimers): ScopedTimers {
+export function createScopedTimers(execution: TimerScheduler): ScopedTimers {
   const cancellations = new Set<() => void>();
   let disposed = false;
   const arm = (schedule: ScheduleOp, callback: () => void, ms: number, repeating: boolean): (() => void) => {

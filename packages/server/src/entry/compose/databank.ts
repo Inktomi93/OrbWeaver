@@ -22,7 +22,7 @@ import { createGetDatabankSettings } from "#domain/settings";
 import type { WorkloadService } from "#domain/workloads";
 import type { AuditEntry } from "#foundation/observability";
 import { EXTRACTOR_VERSION } from "#infra/extraction";
-import { fetchWebDocument } from "#infra/network";
+import type { ScopedEgress } from "#infra/network";
 import type { LiveBuses } from "#transport/trpc";
 
 import { minter } from "./minter.ts";
@@ -40,7 +40,7 @@ import { createVisibleRoomsReader } from "./visible-rooms.ts";
 export interface DatabankComposeDeps {
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
 
-  readonly fetchWebDocument?: typeof fetchWebDocument;
+  readonly fetchWebDocument: ScopedEgress["fetchWebDocument"];
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;
   readonly now: () => number;
@@ -102,7 +102,7 @@ export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult 
     extractorVersion: EXTRACTOR_VERSION,
     // The DB7 scrapeWeb port: infra/network's `fetchWebDocument` (the ANY_HOST arbitrary-URL class — no host
     // pin, but https + private-range denial run per hop; throws on refusal/non-2xx/cap, the verb maps it).
-    fetchUrl: deps.fetchWebDocument ?? fetchWebDocument,
+    fetchUrl: deps.fetchWebDocument,
     // `model` is the SPACE TAG (`embedSpaceOf`), never the bare row column: every count read here is
     // compared against `document_chunks.model`, which carries the dtype the backend stamped (§10-2).
     //

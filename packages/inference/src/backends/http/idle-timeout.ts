@@ -13,7 +13,6 @@
 import type { ScheduleTimeout } from "#contract";
 import type { IdleAbort } from "../../contract/http.ts";
 import { foldAbortInto } from "./abort-flatten.ts";
-import { realScheduleTimeout } from "./timers.ts";
 
 /** Max time a streaming HTTP call may go WITHOUT a received chunk before the socket is treated as stalled
  *  and aborted. NOT a whole-turn deadline: a healthy long stream resets the window on every chunk. Long
@@ -50,7 +49,8 @@ export function isIdleTrip(error: unknown): boolean {
  * detaches from the caller's signal). The caller's cancel is folded in — REASON-FLATTENED, never
  * `AbortSignal.any` (`./abort-flatten.ts`) — so the composed signal fires on either cause.
  */
-export function turnAbortSignal(external?: AbortSignal, idleMs: number = IDLE_TIMEOUT_MS, scheduleTimeout: ScheduleTimeout = realScheduleTimeout): IdleAbort {
+export function turnAbortSignal(external: AbortSignal | undefined, idleWindowMs: number | undefined, scheduleTimeout: ScheduleTimeout): IdleAbort {
+  const idleMs = idleWindowMs ?? IDLE_TIMEOUT_MS;
   const controller = new AbortController();
   let cancelTimer: (() => void) | undefined;
   let settled = false;

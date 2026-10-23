@@ -6,7 +6,7 @@ import { Agent, buildConnector, getGlobalDispatcher, setGlobalDispatcher } from 
 import { env, parseTrustedPrivateRanges } from "#foundation/env";
 import { getLog, securityEvent } from "#src/foundation/observability/logger.ts";
 import { superviseSettled } from "#src/foundation/observability/tracing.ts";
-import { systemTimers } from "../timers/index.ts";
+
 import type {
   EgressBlockReason,
   EgressResolver,
@@ -203,9 +203,9 @@ function createEgressContext(options: ScopedEgressOptions, global: boolean): Egr
     firewallAgent: undefined,
     firewallLookup: options.resolver === undefined ? dnsLookup : resolverLookup(options.resolver),
     resolver: options.resolver ?? defaultResolver,
-    buildConnector: options.buildConnector ?? buildConnector,
+    buildConnector: options.buildConnector,
     fetch: options.fetch ?? ((input, init): Promise<Response> => globalThis.fetch(input, init)),
-    timers: options.timers ?? systemTimers,
+    timers: options.timers,
     pending: new Set(),
     requests: new Map(),
     discards: new Set(),
@@ -238,8 +238,6 @@ function resolverLookup(resolver: EgressResolver): LookupFunction {
     );
   };
 }
-
-const defaultContext = createEgressContext({}, true);
 
 function samePrivateEndpointAllowlistFor(context: EgressContext, next: PrivateEndpointAllowlist): boolean {
   const previous = context.privateEndpointAllowlist;
@@ -563,11 +561,13 @@ function admittedByAllowlistFor(context: EgressContext, hostname: string, port: 
   return parseIp(host) !== null && addressInAdmittedRangesFor(context, host);
 }
 
-export function installEgressFirewall(): void {
+/** Install the process-global firewall dispatcher. It is the only process-wide egress context; every request the
+ *  app makes goes through a graph-scoped `createScopedEgress`, so this context only ever backs the backstop. */
+export function installEgressFirewall(options: Pick<ScopedEgressOptions, "timers" | "buildConnector">): void {
   if (!env.EGRESS_FIREWALL) {
     return;
   }
-  const allowlist = replaceFirewallAgentFor(defaultContext);
+  const allowlist = replaceFirewallAgentFor(createEgressContext(options, true));
   getLog().info({ allowlist: [...allowlist] }, "security: egress firewall installed (private egress blocked)");
 }
 
@@ -1304,23 +1304,9 @@ function concatChunks(chunks: readonly Uint8Array[], total: number): Uint8Array 
 
 export type { SafeFetchOptions, SafeFetchResult } from "./contract/egress.ts";
 export const ANY_HOST: typeof ANY_HOST_POLICY = ANY_HOST_POLICY;
+/** The real physical dial; a composition root passes it as `buildConnector`, and a test passes a scripted one. */
+export const systemConnector: ScopedEgressOptions["buildConnector"] = buildConnector;
 export const ENDPOINT_ADMISSIONS = ENDPOINT_ADMISSION_VALUES;
-
-export function safeFetch(url: string | URL, options: SafeFetchOptions): Promise<SafeFetchResult> {
-  return safeFetchFor(defaultContext, url, options);
-}
-
-export function fetchImageBytes(url: string, maxBytes?: number, signal?: AbortSignal): Promise<Uint8Array | null> {
-  return fetchImageBytesFor(defaultContext, url, maxBytes, signal);
-}
-
-export function fetchWebDocument(url: string): Promise<Uint8Array> {
-  return fetchWebDocumentFor(defaultContext, url);
-}
-
-export function fetchPluginBundle(url: string): Promise<Uint8Array> {
-  return fetchPluginBundleFor(defaultContext, url);
-}
 
 async function configuredEndpointFetchFor(context: EgressContext, input: Parameters<typeof fetch>[0], init?: RequestInit): Promise<Response> {
   if (context.closed) {
@@ -1381,7 +1367,7 @@ async function settleEgress(context: EgressContext): Promise<void> {
 }
 
 /** Own one graph's publication, guarded execution, cancellation and physical network settlement. */
-export function createScopedEgress(options: ScopedEgressOptions = {}): ScopedEgress {
+export function createScopedEgress(options: ScopedEgressOptions): ScopedEgress {
   const context = createEgressContext(options, false);
   let disposal: Promise<void> | undefined;
   const cancel = (): void => {

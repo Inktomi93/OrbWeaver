@@ -37,7 +37,7 @@ export interface RpgRoundsChatOps {
 }
 
 export interface RpgRoundsDeps {
-  readonly idSource?: IdSource;
+  readonly idSource: IdSource;
   readonly db: Db;
   /** R-OBS — the rpg flight-recorder sink, present only when tracing is enabled. Absent is the default: every emit
    *  site calls `deps.trace?.(…)`, so a traced-off turn never builds an event object. */

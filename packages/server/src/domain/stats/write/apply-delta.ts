@@ -24,7 +24,7 @@ import { characterStats, dailyStats, modelStats, ownerStats, statsCanonVersions 
 import type { BatchStmt } from "@orb/db/query";
 import { batchStmt } from "@orb/db/query";
 import type { IdSource } from "@orb/kit/ids";
-import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import { MODEL_PROVIDER_UNKNOWN } from "@orb/kit/stats-tally";
 import { sql } from "drizzle-orm";
 
@@ -135,7 +135,7 @@ function appendCharacterStatsDelta(batch: BatchStmt[], db: Db, delta: StatsDelta
 }
 
 /** Rebase a retained voice without changing the unchanged owner, timeline or model grains. */
-export function applyCharacterStatsDelta(batch: BatchStmt[], db: Db, delta: StatsDelta, idSource: IdSource = createIdSource()): void {
+export function applyCharacterStatsDelta(batch: BatchStmt[], db: Db, delta: StatsDelta, idSource: IdSource): void {
   if (delta.characterId === null) {
     return;
   }
@@ -143,7 +143,7 @@ export function applyCharacterStatsDelta(batch: BatchStmt[], db: Db, delta: Stat
   appendCharacterStatsDelta(batch, db, delta, idSource);
 }
 
-export function applyStatsDelta(batch: BatchStmt[], db: Db, delta: StatsDelta, idSource: IdSource = createIdSource()): void {
+export function applyStatsDelta(batch: BatchStmt[], db: Db, delta: StatsDelta, idSource: IdSource): void {
   const lastAt = delta.lastAt ?? null;
   const firstAt = delta.firstAt ?? null;
   const maxCtx = delta.maxContextTokens ?? null;

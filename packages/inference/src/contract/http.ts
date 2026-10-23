@@ -95,7 +95,7 @@ export interface ProviderLogger {
 
 /** Tuning + injected seams for the retry policy. */
 export interface RetryOptions {
-  readonly scheduleTimeout?: ScheduleTimeout | undefined;
+  readonly scheduleTimeout: ScheduleTimeout;
   /** Total tries including the first. */
   readonly maxAttempts?: number;
   /** First backoff sleep (ms). */
@@ -104,8 +104,8 @@ export interface RetryOptions {
   readonly maxMs?: number;
   /** Caller-cancel that interrupts the backoff sleep (so Stop during a rate-limit wait is prompt). */
   readonly signal?: AbortSignal;
-  /** Injected jitter RNG in `[0, 1)` (default `Math.random`) — deterministic in tests. */
-  readonly random?: () => number;
+  /** Injected jitter RNG in `[0, 1)` — deterministic in tests. */
+  readonly random: () => number;
   /** The request span's event sink (`provider.retry` / `provider.retry.abandoned`); absent ⇒ no-op. */
   readonly addSpanEvent?: AddSpanEvent;
   /** Injected clock (epoch-ms) for the `resetsAt`-proximity shortcut. Omit to skip it (pure backoff). */

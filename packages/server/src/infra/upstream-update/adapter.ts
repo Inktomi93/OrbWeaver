@@ -7,7 +7,7 @@ import { ORBWEAVER_REPO_SLUG, shortCommit } from "@orb/kit/version-identity";
 import { z } from "zod";
 import { APP_NAME, APP_URL } from "#foundation/config";
 import type { SafeFetchResult } from "#infra/network";
-import { safeFetch } from "#infra/network";
+
 import type { UpstreamFetchDeps } from "./contract.ts";
 
 /** The upstream this build is compared against — the repo `APP_URL` already names. Constants rather than
@@ -65,7 +65,7 @@ function statusReason(channel: ReleaseChannel, status: number): string {
 
 /** Construct the uncached, manual upstream reads for each release channel. */
 export function createUpstreamFetches(deps: UpstreamFetchDeps): UpstreamProbes {
-  const fetchImpl = deps.fetchImpl ?? safeFetch;
+  const { fetchImpl } = deps;
   async function fetchUpstream<T extends Upstream>(channel: ReleaseChannel, parse: (body: string) => UpstreamProbeResult<T>): Promise<UpstreamProbeResult<T>> {
     let res: SafeFetchResult;
     try {

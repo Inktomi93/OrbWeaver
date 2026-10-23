@@ -31,7 +31,7 @@ import type { ByModelOpts, LeaderboardOpts, PersonaUsageOpts, TimeseriesOpts } f
 export interface StatsContext {
   db: Db;
   now: () => number;
-  readonly idSource?: IdSource | undefined;
+  readonly idSource: IdSource;
 }
 
 export interface StatsService {
@@ -83,5 +83,5 @@ export interface StatsService {
 export interface StatsWorkloadDeps {
   readonly db: DatabaseHandle;
   readonly now: () => number;
-  readonly idSource?: IdSource | undefined;
+  readonly idSource: IdSource;
 }

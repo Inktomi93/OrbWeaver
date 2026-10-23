@@ -63,7 +63,7 @@ import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
 import type { WorldInfoService } from "#domain/world-info";
 import { createPluginWorldInfoReads } from "#domain/world-info";
 import type { ScopedEgress } from "#infra/network";
-import { createNetworkPluginGitSource, fetchPluginBundle, pluginGitSource } from "#infra/network";
+import { createNetworkPluginGitSource } from "#infra/network";
 import type { PluginHostSeamDeps } from "#infra/plugin-host";
 import { createPluginHost } from "#infra/plugin-host";
 import type { LiveBuses } from "#transport/trpc";
@@ -82,7 +82,7 @@ export interface AutomationPluginComposeDeps {
   readonly publishNotification: LiveBuses["notifications"]["publishNotification"];
   readonly publishAutomationEvent: LiveBuses["automation"]["publishAutomationEvent"];
 
-  readonly egress?: Pick<ScopedEgress, "safeFetch" | "fetchPluginBundle">;
+  readonly egress: Pick<ScopedEgress, "safeFetch" | "fetchPluginBundle">;
   readonly scheduleTimeout: ScheduleOp;
   readonly random: () => number;
   readonly newOpaqueId: () => string;
@@ -277,7 +277,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       nowEpochMs: now,
       nextRandom: deps.random,
       mintId: newOpaqueId,
-      ...(deps.egress === undefined ? {} : { safeFetch: deps.egress.safeFetch }),
+      safeFetch: deps.egress.safeFetch,
     }),
   );
   // Activation and confirmed acts share the same process-wide belts.
@@ -384,8 +384,8 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
         },
         host: pluginHost,
         ops: pluginHostOps,
-        fetchBundle: deps.egress?.fetchPluginBundle ?? fetchPluginBundle,
-        gitSource: deps.egress === undefined ? pluginGitSource : createNetworkPluginGitSource(deps.egress.safeFetch),
+        fetchBundle: deps.egress.fetchPluginBundle,
+        gitSource: createNetworkPluginGitSource(deps.egress.safeFetch),
         showcase: {
           slugs: new Set<string>(SHOWCASE_PLUGIN_SLUGS),
           bundle: packShowcaseBundle,

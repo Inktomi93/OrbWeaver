@@ -14,7 +14,7 @@ export type { EmitNotification } from "@orb/contracts/notifications";
 export interface NotificationsContext {
   db: Db;
   now: () => number;
-  readonly idSource?: IdSource | undefined;
+  readonly idSource: IdSource;
   /** The ONE cross-feature read this domain consumes (#1799) — which of a page's chat-owned decisions are
    *  still standing, so `list`/`replaySince` can stamp `InboxView.actionable`. Declared in `./ops.ts` (the
    *  consumer's own contract) and supplied by `entry/compose` from the chat domain; NOT optional, because a

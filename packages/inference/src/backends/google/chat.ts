@@ -99,7 +99,7 @@ export async function runGoogleChat(req: GoogleChatRequest, deps: GoogleBackendD
       ...(req.signal === undefined ? {} : { signal: req.signal }),
       now: deps.now,
       scheduleTimeout: deps.scheduleTimeout,
-      ...(deps.random === undefined ? {} : { random: deps.random }),
+      random: deps.random,
       ...(deps.addSpanEvent === undefined ? {} : { addSpanEvent: deps.addSpanEvent }),
     },
   ).catch((err: unknown): never => {

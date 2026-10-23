@@ -26,7 +26,6 @@
 
 import type { ScheduleTimeout } from "#contract";
 import type { FlattenedAbort } from "../../contract/http.ts";
-import { realScheduleTimeout } from "./timers.ts";
 
 /**
  * Fold `external`'s cancellation into `controller` by RE-ABORTING it with no argument — never
@@ -56,7 +55,7 @@ export function flattenAbortSignal(external: AbortSignal): FlattenedAbort {
 
 /** A per-request deadline composed with the caller's cancel: fires on either, reason-flattened. `dispose()`
  *  on settle also clears the deadline's timer. */
-export function deadlineSignal(external: AbortSignal | undefined, deadlineMs: number, scheduleTimeout: ScheduleTimeout = realScheduleTimeout): FlattenedAbort {
+export function deadlineSignal(external: AbortSignal | undefined, deadlineMs: number, scheduleTimeout: ScheduleTimeout): FlattenedAbort {
   const controller = new AbortController();
   const detach = foldAbortInto(controller, external);
   const cancelTimer = scheduleTimeout(() => {

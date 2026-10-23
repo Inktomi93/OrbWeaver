@@ -62,9 +62,9 @@ export interface AgentSdkBackendDeps {
   readonly imageToPng?: InferenceDeps["imageToPng"];
   /** Opt-in subprocess stderr at debug level. */
   readonly debug?: boolean | undefined;
-  /** The bounded-probe/watchdog timer seam; absent ⇒ the real unref'd `setTimeout`. */
-  readonly scheduleTimeout?: AgentSdkDeps["scheduleTimeout"];
-  readonly scheduleIdleTimeout?: AgentSdkDeps["scheduleIdleTimeout"];
+  /** The bounded-probe/watchdog timer seam; the root passes its unref'd scheduler. */
+  readonly scheduleTimeout: AgentSdkDeps["scheduleTimeout"];
+  readonly scheduleIdleTimeout: AgentSdkDeps["scheduleIdleTimeout"];
 }
 
 export interface AgentSdkBackend extends AgentSdkLifetime {
@@ -143,7 +143,7 @@ export interface AgentSdkDeps {
   readonly normalizeImageBytes: NormalizeImageBytes;
   /** The TIMER seam every bound in this backend arms through — injected so a test trips a bound by hand. */
   readonly scheduleTimeout: ScheduleTimeout;
-  readonly scheduleIdleTimeout?: ScheduleTimeout;
+  readonly scheduleIdleTimeout: ScheduleTimeout;
   readonly captureWire?: WireCaptureSink | undefined;
   /** Opt-in subprocess stderr at debug level. */
   readonly debug: boolean;

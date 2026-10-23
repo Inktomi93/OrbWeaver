@@ -647,7 +647,7 @@ export interface RpgIdMints {
  *  + id mints + the staging singleton + the five injected cross-feature ops + the dice CSPRNG. */
 export interface RpgContext {
   readonly db: Db;
-  readonly idSource?: IdSource;
+  readonly idSource: IdSource;
   readonly now: () => number;
   readonly ids: RpgIdMints;
   readonly staging: RpgStagingStore;

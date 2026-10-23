@@ -20,7 +20,6 @@ import type {
 import type { ScheduleTimeout } from "#src/contract/runtime.ts";
 import type { InferenceLog } from "#src/deps.ts";
 import type { WorkerModelCache } from "../../contract/local-light.ts";
-import { realScheduleTimeout } from "../http/timers.ts";
 
 // How long `close` waits for the worker to exit: one embed or rerank run returns well inside it. A model load
 // in progress can outlast it; the process exit then tears the worker down mid-run and aborts (exit 134).
@@ -30,7 +29,7 @@ const LOCAL_LIGHT_WORKER_CLOSE_MS = 10_000;
 const LOCAL_LIGHT_WORKER_MAX_PENDING = 64;
 
 interface WorkerModelCacheConfig extends Omit<LocalLightWorkerOptions, "cacheModule"> {
-  readonly scheduleTimeout?: ScheduleTimeout | undefined;
+  readonly scheduleTimeout: ScheduleTimeout;
   readonly cacheModule?: string | undefined;
   readonly closeWaitMs?: number | undefined;
   readonly maxPending?: number | undefined;
@@ -245,7 +244,7 @@ export function createWorkerModelCache(config: WorkerModelCacheConfig): WorkerMo
     state.closing = true;
     const bound = Promise.withResolvers<"timeout">();
     const waitMs = config.closeWaitMs ?? LOCAL_LIGHT_WORKER_CLOSE_MS;
-    const cancelTimer = (config.scheduleTimeout ?? realScheduleTimeout)(() => bound.resolve("timeout"), waitMs);
+    const cancelTimer = config.scheduleTimeout(() => bound.resolve("timeout"), waitMs);
     const closeMessage: LocalLightHostMessage = { type: "close" };
     state.worker.postMessage(closeMessage);
     const outcome = await Promise.race([state.exited.promise.then(() => "exited" as const), bound.promise]);

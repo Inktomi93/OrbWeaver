@@ -13,7 +13,8 @@ export interface ShareGraphOptions {
   readonly secretsDir: string;
   readonly now: () => number;
   readonly timers: TimerScheduler;
-  readonly networkExecution?: Omit<ScopedEgressOptions, "timers">;
+  readonly buildConnector: ScopedEgressOptions["buildConnector"];
+  readonly networkExecution?: Omit<ScopedEgressOptions, "timers" | "buildConnector">;
   readonly relay?: { readonly pin?: CloudflaredPin; readonly target?: string } | null;
   readonly acme?: Pick<AcmeIssuerDeps, "directoryUrl" | "polling"> | null;
   /** Compatibility with retained lifecycle callers; the maintained harness scripts raw executable bytes instead. */

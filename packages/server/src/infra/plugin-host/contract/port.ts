@@ -18,17 +18,23 @@ import type { PluginNetEgress } from "./net-egress.ts";
 /** The determinism seams every instance's realm binds. */
 export interface PluginHostSeamDeps {
   readonly spawn?: (...args: Parameters<typeof spawn>) => ReturnType<typeof spawn>;
-  readonly timers?: TimerScheduler;
+  readonly timers: TimerScheduler;
   readonly monotonicNow?: () => number;
-  readonly safeFetch?: ScopedEgress["safeFetch"];
+  /** The graph's scoped egress; every guest `net.fetch` the app performs runs through it. */
+  readonly safeFetch: ScopedEgress["safeFetch"];
   readonly nowEpochMs: () => number;
   readonly nextRandom: () => number;
   readonly mintId: () => string;
   readonly mirrorLog?: (label: string, level: PluginLogLevel, message: string) => void;
-  /** The broker Worker's forwarding egress: the broker has no network, so the app performs every plugin fetch
-   *  against its own copy of the instance's `netHosts`. Absent in-process, where each instance fetches locally. */
-  readonly netEgress?: PluginNetEgress;
 }
+
+/** A Worker-local runtime schedules nothing and fetches nothing itself: the app process owns the timers and the
+ *  scoped egress, and the Worker forwards every guest fetch to it through `netEgress`. */
+export type LocalPluginHostSeams = Omit<PluginHostSeamDeps, "timers" | "safeFetch"> & {
+  /** The broker Worker's forwarding egress: the app performs every plugin fetch against its own copy of the
+   *  instance's `netHosts`. */
+  readonly netEgress: PluginNetEgress;
+};
 
 /** Instance data plus the app-owned operation bridge; no domain import crosses the infra boundary. */
 export interface CreateInstanceInputIn extends PluginInstanceCreateData {

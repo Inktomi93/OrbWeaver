@@ -50,7 +50,7 @@ import {
   PLUGIN_SNIPPET_RUNTIME_MAX,
   SNIPPET_WALL_MS,
 } from "./budgets.ts";
-import type { CreateInstanceInputIn, CreateInstanceOutcomeOut, PluginHostSeamDeps, SnippetRunOut } from "./contract/port.ts";
+import type { CreateInstanceInputIn, CreateInstanceOutcomeOut, LocalPluginHostSeams, PluginHostSeamDeps, SnippetRunOut } from "./contract/port.ts";
 import { getPluginQuickJS } from "./module.ts";
 import type { HostSeams, LogMirror } from "./realm.ts";
 import { Sandbox } from "./sandbox.ts";
@@ -187,11 +187,11 @@ function centralLogMirror(label: string | undefined, mirrorLog: PluginHostSeamDe
 function residentSandboxOptions(
   input: CreateInstanceInputIn,
   grants: ReadonlySet<PluginCapability>,
-  seams: PluginHostSeamDeps,
+  seams: LocalPluginHostSeams,
 ): Parameters<typeof Sandbox.create>[1] {
   const { mirrorLog, netEgress } = seams;
   return {
-    membrane: { grants, bridge: input.bridge, netHosts: input.netHosts ?? [], ...(netEgress === undefined ? {} : { netEgress }) },
+    membrane: { grants, bridge: input.bridge, netEgress },
     ...(input.budgets !== undefined ? { limits: input.budgets } : {}),
     ...(input.label !== undefined || mirrorLog !== undefined ? { logMirror: centralLogMirror(input.label, mirrorLog) } : {}),
   };
@@ -199,7 +199,7 @@ function residentSandboxOptions(
 
 /** Build one Worker-local runtime. One `QuickJSWASMModule` is loaded lazily by `Sandbox.create`; the broker
  *  assigns one guest to this Worker so terminating it reclaims the module's linear-memory high-water mark. */
-export function createLocalPluginHost(seams: PluginHostSeamDeps): {
+export function createLocalPluginHost(seams: LocalPluginHostSeams): {
   readonly createInstance: (input: CreateInstanceInputIn) => Promise<CreateInstanceOutcomeOut>;
   readonly invoke: (instance: PluginInstance, handler: PluginHandlerRef, argsJson: PluginInvokeArgs, chat?: InvocationChat | null) => Promise<string>;
   readonly runSnippet: (input: {
@@ -239,7 +239,7 @@ export function createLocalPluginHost(seams: PluginHostSeamDeps): {
           const failedSandbox = sandbox;
           sandbox = undefined;
           await retireFailedActivation(failedSandbox, releaseAdmission);
-          return { ok: false, error: outcome.error?.message ?? "activation failed", log: toLog(outcome.logs, at) };
+          return { ok: false, error: outcome.error.message, log: toLog(outcome.logs, at) };
         }
         await sandbox.settleActivationJobs();
         // The collected tool + transform + event registrations — the domain hands each to its runtime
@@ -304,9 +304,9 @@ export function createLocalPluginHost(seams: PluginHostSeamDeps): {
         if (!outcome.ok) {
           // A handler throw/deadline is contained data; the domain's crash policy classifies it. Re-throw
           // so the registrar's run() catches it as `threw` (errors-as-data to the model).
-          throw new Error(outcome.error?.message ?? "plugin handler failed");
+          throw new Error(outcome.error.message);
         }
-        return outcome.value ?? "";
+        return outcome.value;
       });
       // Advance the tail on BOTH settle arms (a rejected/deadlined invoke cannot wedge the chain). The tail is a
       // `void`-typed barrier that never rejects — it swallows this run's outcome so the NEXT invoke's `.then`
@@ -349,13 +349,8 @@ export function createLocalPluginHost(seams: PluginHostSeamDeps): {
         // `using` disposes at the end of ITS block, which is this `try`, so the lease is returned strictly
         // AFTER the context it accounts for is gone — never while a torn-down-but-not-yet-freed one lingers.
         using sandbox = await Sandbox.create(hostSeams, {
-          // A snippet has no manifest → no declared net hosts (its profile also omits net.fetch); `[]` fail-closes.
-          membrane: {
-            grants: new Set(input.grants),
-            bridge: input.bridge,
-            netHosts: [],
-            ...(seams.netEgress === undefined ? {} : { netEgress: seams.netEgress }),
-          },
+          // A snippet has no manifest, so its profile omits net.fetch; the forwarded egress is never reached.
+          membrane: { grants: new Set(input.grants), bridge: input.bridge, netEgress: seams.netEgress },
           limits: { cpuDeadlineMs: SNIPPET_WALL_MS, memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES },
         });
         sandbox.setInvocationChat(input.chat);
@@ -366,12 +361,12 @@ export function createLocalPluginHost(seams: PluginHostSeamDeps): {
         // A "parse" outcome means the guest source never started executing — a QuickJS `SyntaxError` caught
         // synchronously before the first job pump (`Sandbox.runToSettlement`'s `result.error` branch). Anything
         // else threw or hit the wall MID-run, which is a genuinely different fact for the console to report.
-        const errorKind: "parse" | "runtime" = outcome.error?.name === "SyntaxError" ? "parse" : "runtime";
+        const errorKind: "parse" | "runtime" = outcome.error.name === "SyntaxError" ? "parse" : "runtime";
         return {
           logLines: outcome.logs,
-          error: outcome.error?.message ?? "snippet failed",
+          error: outcome.error.message,
           errorKind,
-          ...(outcome.error?.line === undefined ? {} : { errorLine: outcome.error.line }),
+          ...(outcome.error.line === undefined ? {} : { errorLine: outcome.error.line }),
         };
       } finally {
         releaseAdmission();

@@ -3,9 +3,9 @@ import type { AddSpanEvent, ProviderScrubSet, Resolved, ScheduleTimeout, WireCap
 import type { InferenceDeps, InferenceLog } from "./runtime.ts";
 
 export interface AnthropicChatDeps {
-  readonly scheduleTimeout?: ScheduleTimeout | undefined;
+  readonly scheduleTimeout: ScheduleTimeout;
   readonly now: () => number;
-  readonly random?: (() => number) | undefined;
+  readonly random: () => number;
   readonly log: InferenceLog;
   readonly addSpanEvent?: AddSpanEvent | undefined;
   readonly transport: AnthropicTransportDeps;
@@ -13,8 +13,8 @@ export interface AnthropicChatDeps {
 
 export interface AnthropicBackendDeps {
   readonly now: () => number;
-  readonly random?: (() => number) | undefined;
-  readonly scheduleTimeout?: InferenceDeps["scheduleTimeout"];
+  readonly random: () => number;
+  readonly scheduleTimeout: InferenceDeps["scheduleTimeout"];
   readonly log: InferenceDeps["log"];
   readonly addSpanEvent?: AddSpanEvent | undefined;
   readonly fetch: typeof fetch;

@@ -16,13 +16,10 @@ export {
   createScopedEgress,
   EgressBlockedError,
   ENDPOINT_ADMISSIONS,
-  fetchImageBytes,
-  fetchPluginBundle,
-  fetchWebDocument,
   installEgressFirewall,
   type SafeFetchOptions,
   type SafeFetchResult,
-  safeFetch,
+  systemConnector,
 } from "./egress.ts";
 export { drainHttpServer, HANGUP_DRAIN_MS, joinNativeHttpRequest, SHUTDOWN_DRAIN_MS, serveHttpServer } from "./http-server.ts";
 export { ImageRejectedError, isAllowedImageBuffer } from "./image-guard.ts";
@@ -38,6 +35,6 @@ export {
 } from "./ingress.ts";
 export { isInRanges, isPrivateOrLoopback, isPublicUnicast } from "./ip-ranges.ts";
 
-export { createNetworkPluginGitSource, pluginGitSource } from "./plugin-git.ts";
+export { createNetworkPluginGitSource } from "./plugin-git.ts";
 export { createOwnedResponseBody } from "./response-body.ts";
 export { startTlsTerminator } from "./tls-terminator.ts";

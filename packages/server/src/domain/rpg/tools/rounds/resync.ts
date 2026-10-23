@@ -7,7 +7,7 @@ import type { Resolved } from "@orb/inference";
 import { carriesForcedToolRound, GenerationObservationPersistenceError, generationOf, toForcedToolRoundRequest } from "@orb/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import type { ChatId } from "@orb/kit/ids";
-import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { logger } from "#foundation/observability";
 import { createRpgRoundsContext } from "#src/domain/rpg/context.ts";
@@ -269,7 +269,7 @@ export function buildRunResyncExtraction(input: RpgRoundsAssemblyDeps): RpgConte
     const args = { chatId, conn, baseState, inputs, userPrompt };
     const observed = withGenerationObservation(deps, {
       chatId,
-      turnId: (deps.idSource ?? createIdSource()).typeId(ID_PREFIX.chatTurn),
+      turnId: deps.idSource.typeId(ID_PREFIX.chatTurn),
       sourceMessageId: null,
       sourceVariantId: null,
     });

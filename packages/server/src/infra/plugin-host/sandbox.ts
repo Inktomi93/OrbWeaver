@@ -40,7 +40,7 @@ import type { PluginNetEgress } from "./contract/net-egress.ts";
 import { installCpuGuard, openCpuWindow, pumpGuestJobs } from "./cpu-guard.ts";
 import type { InFlightCounter, InvocationChat, MembraneRuntime, PluginBridge } from "./membrane.ts";
 import { getPluginQuickJS } from "./module.ts";
-import { createPluginNetEgress } from "./net-egress.ts";
+
 import type { HostSeams, LogMirror } from "./realm.ts";
 import { installRealm, LogRing } from "./realm.ts";
 
@@ -62,12 +62,9 @@ function endedInstanceOutcome(): EvalOutcome {
 export interface SandboxMembrane {
   readonly grants: ReadonlySet<PluginCapability>;
   readonly bridge: PluginBridge;
-  /** The manifest-declared `net.fetch` allowlist (plain-string DATA — NEVER `ANY_HOST`/guest-supplied). Empty
-   *  ⇒ every `net.fetch` is refused (fail-closed). */
-  readonly netHosts: readonly string[];
-  /** The broker Worker's app-performed egress. Absent, the membrane fetches in this process against
-   *  {@link netHosts}; inside the broker that local fetch has no network grant and fails closed. */
-  readonly netEgress?: PluginNetEgress;
+  /** The broker Worker's app-performed egress: the app pins every guest `net.fetch` to the instance's manifest
+   *  `netHosts` through the graph's scoped egress. The broker itself has no network. */
+  readonly netEgress: PluginNetEgress;
 }
 
 /** A guest error projected to plain data (never a live handle across the boundary). `line` is the guest
@@ -230,7 +227,7 @@ export class Sandbox implements Disposable {
         : {
             grants: opts.membrane.grants,
             bridge: opts.membrane.bridge,
-            netEgress: opts.membrane.netEgress ?? createPluginNetEgress(opts.membrane.netHosts, opts.membrane.bridge),
+            netEgress: opts.membrane.netEgress,
             currentChat: (): InvocationChat | null => state.chat,
             currentToken: (): string | null => state.token,
             inFlight: state.inFlight,

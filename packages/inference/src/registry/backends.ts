@@ -96,8 +96,8 @@ export function buildBackends(deps: InferenceDeps): BuiltBackends {
       env: deps.env,
       userRuntimeDir: deps.userRuntimeDir,
       agentSdk: deps.agentSdk,
-      ...(deps.scheduleTimeoutUnref === undefined ? {} : { scheduleTimeout: deps.scheduleTimeoutUnref }),
-      ...(deps.scheduleTimeout === undefined ? {} : { scheduleIdleTimeout: deps.scheduleTimeout }),
+      scheduleTimeout: deps.scheduleTimeoutUnref,
+      scheduleIdleTimeout: deps.scheduleTimeout,
       captureWire: deps.captureWire,
       imageToPng: deps.imageToPng,
     });

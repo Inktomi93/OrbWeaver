@@ -9,7 +9,7 @@
 import type { InboxView } from "@orb/contracts/notifications";
 import { notificationEventSchema } from "@orb/contracts/notifications";
 import { statementForOwner } from "@orb/db/wiring-owner";
-import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import type { RecordParams } from "../contract/params.ts";
 import type { NotificationsContext, NotificationsService } from "../contract/service.ts";
 import { insertNotification } from "../persistence/queries.ts";
@@ -21,7 +21,7 @@ export function createRecord(ctx: NotificationsContext): Pick<NotificationsServi
     const event = notificationEventSchema.parse(params.event);
 
     const row = {
-      id: (ctx.idSource ?? createIdSource()).typeId(ID_PREFIX.notification),
+      id: ctx.idSource.typeId(ID_PREFIX.notification),
       recipientUserId: event.recipientUserId,
       type: event.type,
       payload: event,
