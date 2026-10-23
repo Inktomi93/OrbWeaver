@@ -364,7 +364,3 @@ test("a same-bytes upload indexed between the row delete and the unlink keeps it
   expect(again.assetId).not.toBe(target.assetId);
   expect(await survives(box, again)).toBe(true);
 });
-
-/** Stored shapes no current writer produces — a newer build's row, a hand edit, or corruption — written
- *  straight into the JSON column, because the refusal path is exactly what a production writer cannot reach.
- *  Each plant answers the primary key of the row it broke: the refusal must name it for the owner to repair. */

@@ -1,3 +1,5 @@
+// Unreadable asset references: stored shapes no current writer produces, planted straight into the JSON column.
+// @subject packages/server/src/domain/assets/persistence/asset-refs.ts
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -6,6 +8,9 @@ import { plantForeignCardBackground, plantForeignRoomBackground, plantForeignSet
 import type { GcBox, StoredRef } from "../gc-box.ts";
 import { ageOnly, openBox, openRoom, runScheduledGc, store, survival } from "../gc-box.ts";
 
+/** Stored shapes no current writer produces — a newer build's row, a hand edit, or corruption — written
+ *  straight into the JSON column, because the refusal path is exactly what a production writer cannot reach.
+ *  Each plant answers the primary key of the row it broke: the refusal must name it for the owner to repair. */
 const UNREADABLE_REFERENCES = {
   "a room background of a source kind this build does not know": async (box: GcBox, ref: StoredRef): Promise<string> => {
     const room = await openRoom(box, castId<CharacterHandle>("gc-unknown-room-kind"));
