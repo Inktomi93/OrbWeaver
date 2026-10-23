@@ -7,18 +7,18 @@ import { RPG_BUS_EVENT_TYPES } from "./bus.ts";
 import { RPG_DELIVERY_PATHS, RPG_FOLD_FALLBACK_REASONS } from "./config.ts";
 import { rpgRecordedToolCallSchema } from "./extraction.ts";
 
-/** HOW A STATE ROUND ENDED — one importable union, the settle event's and the settle hook's shared
- *  vocabulary (never re-spelled at either site). The members are the arms of `flushTurn`:
- *  - `wrote`: the snapshot (and any journal) committed.
- *  - `no-writes`: the round ran and staged nothing (the quiet beat; the 8B model's commonest end).
- *  - `dropped`: the write-boundary backstop refused a contract-invalid state (`droppedReason` says which
- *    field), so canon is untouched.
- *  - `cancelled`: the caller pressed Stop, at either gate; whatever was staged was discarded.
- *  - `readonly`: this game's resolved connection has no write path, so NO round ran at all.
- *  - `failed`: something threw out of the round, the write boundary, or the tool-call disclosure. The
- *    settle still fires (from the `finally`) BEFORE the throw propagates, because a barrier that only
- *    releases on success hangs to its timeout on exactly the turn a reader most needs to see. */
-export const RPG_FLUSH_OUTCOMES = ["wrote", "no-writes", "dropped", "cancelled", "readonly", "failed"] as const;
+// HOW A STATE ROUND ENDED — one importable union, the settle event's and the settle hook's shared
+//  vocabulary (never re-spelled at either site). The members are the arms of `flushTurn`:
+//  - `wrote`: the snapshot (and any journal) committed.
+//  - `no-writes`: the round ran and staged nothing (the quiet beat; the 8B model's commonest end).
+//  - `dropped`: the write-boundary backstop refused a contract-invalid state (`droppedReason` says which
+//    field), so canon is untouched.
+//  - `cancelled`: the caller pressed Stop, at either gate; whatever was staged was discarded.
+//  - `readonly`: this game's resolved connection has no write path, so NO round ran at all.
+//  - `failed`: something threw out of the round, the write boundary, or the tool-call disclosure. The
+//    settle still fires (from the `finally`) BEFORE the throw propagates, because a barrier that only
+//    releases on success hangs to its timeout on exactly the turn a reader most needs to see.
+const RPG_FLUSH_OUTCOMES = ["wrote", "no-writes", "dropped", "cancelled", "readonly", "failed"] as const;
 export type RpgFlushOutcome = (typeof RPG_FLUSH_OUTCOMES)[number];
 
 const chatIdSchema = typeIdSchema(ID_PREFIX.chat);

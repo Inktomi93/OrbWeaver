@@ -30,7 +30,7 @@ import { wireSchema } from "./wires.ts";
 
 const usd = z.number().nonnegative();
 
-export const RESPONSE_CACHE_STATUSES = ["hit", "miss"] as const;
+const RESPONSE_CACHE_STATUSES = ["hit", "miss"] as const;
 export const responseCacheSchema = z.strictObject({
   status: z.enum(RESPONSE_CACHE_STATUSES),
   ageSeconds: z.int().nonnegative().nullable(),
@@ -68,7 +68,7 @@ export const costUsageSchema = z.strictObject({
 });
 export type CostUsage = Readonly<z.infer<typeof costUsageSchema>>;
 
-export const tokenUsageSchema = z.strictObject({
+const tokenUsageSchema = z.strictObject({
   tokensIn: z.int().nonnegative().nullable(),
   tokensOut: z.int().nonnegative().nullable(),
   cacheReadTokens: z.int().nonnegative().nullable(),

@@ -81,10 +81,10 @@ export const USER_PROSE_SLOT_IDS: readonly ProseSlotId[] = PROSE_SLOT_IDS.filter
  *  tab through those fields, so the `promptConfig.prose` blob must not offer them a second door. */
 const LEGACY_ADAPTED_PRESET_SLOT_IDS: ReadonlySet<ProseSlotId> = new Set<ProseSlotId>(Object.keys(PRESET_PROSE_SLOTS) as ProseSlotId[]);
 
-/** The slots a host edits as `promptConfig.prose` — every `home:"preset"` slot that is NOT one of the
- *  legacy-adapted preset fields. DERIVED for the same reason `USER_PROSE_SLOT_IDS` is: a new preset-home slot
- *  reaches its editor the commit it lands. `templateGroups` (client) walks this to build the framing rows. */
-export const PRESET_PROSE_SLOT_IDS: readonly ProseSlotId[] = PROSE_SLOT_IDS.filter(
+// The slots a host edits as `promptConfig.prose` — every `home:"preset"` slot that is NOT one of the
+//  legacy-adapted preset fields. DERIVED for the same reason `USER_PROSE_SLOT_IDS` is: a new preset-home slot
+//  reaches its editor the commit it lands. `templateGroups` (client) walks this to build the framing rows.
+const PRESET_PROSE_SLOT_IDS: readonly ProseSlotId[] = PROSE_SLOT_IDS.filter(
   (id) => PROSE_SLOTS[id].home === "preset" && !LEGACY_ADAPTED_PRESET_SLOT_IDS.has(id),
 );
 

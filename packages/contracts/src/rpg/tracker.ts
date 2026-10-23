@@ -38,17 +38,17 @@ export const RPG_HINT_MAX = 120;
 export const RPG_TRACKER_COLOR_RE =
   /^(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}|oklch\(\s*\d+(\.\d+)?%?\s+\d+(\.\d+)?\s+\d+(\.\d+)?(deg)?\s*(\/\s*\d+(\.\d+)?%?\s*)?\))$/;
 
-/** Who an actor-subject tracker applies to BEFORE per-actor exceptions: a carrier CLASS (`party` = the
- *  participants' character/user actors · `npcs` = scene `npc` actors · `everyone` = both) or an explicit actor
- *  list (the ad-hoc arm — "the act-3 demon's Bound Will", a personal field on two named characters). The
- *  classes are honest to what the old surfaces actually were: pool defs were per-party-member, npc fields
- *  were per-NPC. Ignored entirely on a `subject:"game"` tracker (there is no carrier to resolve).
- *
- *  The explicit arm holds ACTOR-REF KEYS (`actorRefKey`'s `character:<id>`/`user:<id>`/`npc:<name>` — the ONE
- *  string projection every map/lock/find already keys on), not embedded ref objects: it keeps this module free
- *  of an `./actor` import (which imports THIS one for the value plane — the cycle is physics, not taste), and
- *  it stores flat, so a carrier list reads the same as a lock path. */
-export const rpgTrackerAppliesToSchema = z.union([rpgTrackerCarrierClassSchema, z.array(z.string().min(1))]);
+// Who an actor-subject tracker applies to BEFORE per-actor exceptions: a carrier CLASS (`party` = the
+//  participants' character/user actors · `npcs` = scene `npc` actors · `everyone` = both) or an explicit actor
+//  list (the ad-hoc arm — "the act-3 demon's Bound Will", a personal field on two named characters). The
+//  classes are honest to what the old surfaces actually were: pool defs were per-party-member, npc fields
+//  were per-NPC. Ignored entirely on a `subject:"game"` tracker (there is no carrier to resolve).
+//
+//  The explicit arm holds ACTOR-REF KEYS (`actorRefKey`'s `character:<id>`/`user:<id>`/`npc:<name>` — the ONE
+//  string projection every map/lock/find already keys on), not embedded ref objects: it keeps this module free
+//  of an `./actor` import (which imports THIS one for the value plane — the cycle is physics, not taste), and
+//  it stores flat, so a carrier list reads the same as a lock path.
+const rpgTrackerAppliesToSchema = z.union([rpgTrackerCarrierClassSchema, z.array(z.string().min(1))]);
 type RpgTrackerAppliesTo = z.infer<typeof rpgTrackerAppliesToSchema>;
 
 /** THE unified tracked-field definition. Lives in `RpgGameConfig.trackers[]` — ONE home for every tracker in
@@ -133,11 +133,11 @@ export function resolveTrackerMaxOverride(def: RpgTrackerDef, requested: number 
 // CARRIER RESOLUTION — the ONE pure home for "who carries this tracker".
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════
 
-/** The CLASS a concrete carrier belongs to — the `everyone` member is a def-side wildcard, never a carrier's
- *  own class, so it is excluded by derivation (never re-declared — spine §5.5). The caller classifies, because
- *  the caller is the one holding the `RpgActorRef`: participant identities (character/user) are `party`, scene
- *  `npc` actors are `npcs`. */
-export type RpgTrackerCarrierKind = Exclude<RpgTrackerCarrierClass, "everyone">;
+// The CLASS a concrete carrier belongs to — the `everyone` member is a def-side wildcard, never a carrier's
+//  own class, so it is excluded by derivation (never re-declared — spine §5.5). The caller classifies, because
+//  the caller is the one holding the `RpgActorRef`: participant identities (character/user) are `party`, scene
+//  `npc` actors are `npcs`.
+type RpgTrackerCarrierKind = Exclude<RpgTrackerCarrierClass, "everyone">;
 
 /** One candidate carrier as the resolver sees it: the actor's ref KEY + its class + that actor's own
  *  exceptions (`sheet.trackerGrants` / `sheet.trackerRevokes` — an `npc` actor has no sheet, so it carries empty
@@ -160,10 +160,10 @@ function trackerAppliesToCarrier(appliesTo: RpgTrackerAppliesTo, carrier: RpgTra
   return appliesTo === "everyone" || appliesTo === carrier.kind;
 }
 
-/** THE carrier predicate: `resolve(appliesTo) + grants − revokes`. A REVOKE beats everything (it is the
- *  host saying "not this one, not on them"); a GRANT reaches an actor the class/list missed (the one-off
- *  ad-hoc arm). A `subject:"game"` tracker has no carriers at all — it is one value on the snapshot. */
-export function carriesTracker(def: RpgTrackerDef, carrier: RpgTrackerCarrier): boolean {
+// THE carrier predicate: `resolve(appliesTo) + grants − revokes`. A REVOKE beats everything (it is the
+//  host saying "not this one, not on them"); a GRANT reaches an actor the class/list missed (the one-off
+//  ad-hoc arm). A `subject:"game"` tracker has no carriers at all — it is one value on the snapshot.
+function carriesTracker(def: RpgTrackerDef, carrier: RpgTrackerCarrier): boolean {
   if (def.subject === "game") {
     return false;
   }

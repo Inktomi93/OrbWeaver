@@ -142,11 +142,11 @@ export const REFINERY_SCORE_MODES = ["full", "quick"] as const;
 export type RefineryScoreMode = (typeof REFINERY_SCORE_MODES)[number];
 const refineryScoreModeSchema = z.enum(REFINERY_SCORE_MODES) satisfies z.ZodType<RefineryScoreMode>;
 
-export const REFINERY_REWRITE_MODES = ["conservative", "balanced", "expansive"] as const;
+const REFINERY_REWRITE_MODES = ["conservative", "balanced", "expansive"] as const;
 export type RefineryRewriteMode = (typeof REFINERY_REWRITE_MODES)[number];
 const refineryRewriteModeSchema = z.enum(REFINERY_REWRITE_MODES) satisfies z.ZodType<RefineryRewriteMode>;
 
-export const REFINERY_ANALYZE_MODES = ["full", "iteration", "quick"] as const;
+const REFINERY_ANALYZE_MODES = ["full", "iteration", "quick"] as const;
 export type RefineryAnalyzeMode = (typeof REFINERY_ANALYZE_MODES)[number];
 const refineryAnalyzeModeSchema = z.enum(REFINERY_ANALYZE_MODES) satisfies z.ZodType<RefineryAnalyzeMode>;
 
@@ -236,19 +236,19 @@ export const refineryScoreFixedConfigSchema = z.object({
   kind: z.literal("fixed"),
   mode: refineryScoreModeSchema,
 });
-export type RefineryScoreFixedConfig = z.infer<typeof refineryScoreFixedConfigSchema>;
+type RefineryScoreFixedConfig = z.infer<typeof refineryScoreFixedConfigSchema>;
 
 export const refineryRewriteConfigSchema = z.object({
   kind: z.literal("fixed"),
   mode: refineryRewriteModeSchema,
 });
-export type RefineryRewriteConfig = z.infer<typeof refineryRewriteConfigSchema>;
+type RefineryRewriteConfig = z.infer<typeof refineryRewriteConfigSchema>;
 
 export const refineryAnalyzeFixedConfigSchema = z.object({
   kind: z.literal("fixed"),
   mode: refineryAnalyzeModeSchema,
 });
-export type RefineryAnalyzeFixedConfig = z.infer<typeof refineryAnalyzeFixedConfigSchema>;
+type RefineryAnalyzeFixedConfig = z.infer<typeof refineryAnalyzeFixedConfigSchema>;
 
 /** The SESSION-side custom arm — a pointer at an owned `refinery_schemas` row. `brandedId`, not
  *  `typeIdSchema`: the id is an INPUT the verb immediately resolves against the owned table (the lookup
@@ -258,8 +258,6 @@ export const refineryCustomStageConfigSchema = z.object({
   kind: z.literal("custom"),
   schemaId: typeIdSchema(ID_PREFIX.refinerySchema),
 });
-/** @public twin: refineryCustomStageConfigSchema — the contract's stable spelling for the SF0 custom arm (cross-package PUBLIC). */
-export type RefineryCustomStageConfig = z.infer<typeof refineryCustomStageConfigSchema>;
 
 /** Session score config: fixed mode, or a custom schema pointer. */
 const refineryScoreConfigSchema = z.union([refineryScoreFixedConfigSchema, refineryCustomStageConfigSchema]);
@@ -303,7 +301,7 @@ export type RefineryCustomRunConfig = z.infer<typeof refineryCustomRunConfigSche
 export const refineryManualRewriteConfigSchema = z.object({
   kind: z.literal("manual"),
 });
-export type RefineryManualRewriteConfig = z.infer<typeof refineryManualRewriteConfigSchema>;
+type RefineryManualRewriteConfig = z.infer<typeof refineryManualRewriteConfigSchema>;
 
 /** The per-RUN provenance union (`refinery_runs.payload_config`) — the config arm that produced a run's
  *  payload. A TYPE union only: the arms' `kind` overlaps and modes collide across stages ("full"/"quick"),

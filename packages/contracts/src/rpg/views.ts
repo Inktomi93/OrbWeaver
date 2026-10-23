@@ -229,11 +229,11 @@ export interface RpgJournalEntryView {
  *  SWIPE-CORRECT BY CONSTRUCTION: the client indexes by `variantId`, so a row shows the calls of the swipe it
  *  is CURRENTLY showing — the same keying `rpg_snapshots`/`rpg_journal` use for the same reason. `messageId`
  *  is the slot, for a client that wants to group without walking its own variant map. */
-/** WHY a call's args are not the model's verbatim bytes for this viewer (#1690). Declared as a tuple and
- *  DERIVED (§5.5): a second reason is a member here and a `tsc` failure at every reader, never a free string.
- *  One member today — the args did not parse as JSON, so the hidden-span belt cannot be applied to them and
- *  the fail-closed answer is to serve none of them. */
-export const RPG_TOOL_CALL_WITHHOLD_REASONS = ["unparseable"] as const;
+// WHY a call's args are not the model's verbatim bytes for this viewer (#1690). Declared as a tuple and
+//  DERIVED (§5.5): a second reason is a member here and a `tsc` failure at every reader, never a free string.
+//  One member today — the args did not parse as JSON, so the hidden-span belt cannot be applied to them and
+//  the fail-closed answer is to serve none of them.
+const RPG_TOOL_CALL_WITHHOLD_REASONS = ["unparseable"] as const;
 export type RpgToolCallWithholdReason = (typeof RPG_TOOL_CALL_WITHHOLD_REASONS)[number];
 
 /**
@@ -536,5 +536,3 @@ export const rpgCheckpointViewSchema = z.strictObject({
   trigger: rpgCheckpointTriggerSchema,
   createdAt: z.number(),
 });
-/** @public twin: rpgCheckpointViewSchema */
-export type RpgCheckpointView = z.output<typeof rpgCheckpointViewSchema>;

@@ -306,16 +306,16 @@ export const rpgReadGameInputSchema = z.object({
   chatId: chatIdField,
 });
 
-/** The `listJournal` / `listTurnToolCalls` page CEILINGS, enforced at the transport trust boundary (the
- *  `CHARACTER_LIST_MAX_LIMIT` precedent) — both are growing per-game catalogs whose verbs page an unbounded
- *  SQL `.limit()`, so an over-bound ask is a BAD_REQUEST naming the bound, never an unbounded fetch.
- *
- *  The two ceilings count DIFFERENT things, which is why the tool-calls field is `turnLimit` and the
- *  journal's is `limit`: the journal bounds ROWS, the tool-calls read bounds TURNS (message slots) and serves
- *  every record of a windowed slot. The tool-calls row count is therefore turns × that slot's swipes — still
- *  bounded, because a slot's variants are bounded by how many times a human pressed reroll. */
-export const RPG_JOURNAL_LIST_MAX_LIMIT = 200;
-export const RPG_TURN_TOOL_CALLS_LIST_MAX_LIMIT = 200;
+// The `listJournal` / `listTurnToolCalls` page CEILINGS, enforced at the transport trust boundary (the
+//  `CHARACTER_LIST_MAX_LIMIT` precedent) — both are growing per-game catalogs whose verbs page an unbounded
+//  SQL `.limit()`, so an over-bound ask is a BAD_REQUEST naming the bound, never an unbounded fetch.
+//
+//  The two ceilings count DIFFERENT things, which is why the tool-calls field is `turnLimit` and the
+//  journal's is `limit`: the journal bounds ROWS, the tool-calls read bounds TURNS (message slots) and serves
+//  every record of a windowed slot. The tool-calls row count is therefore turns × that slot's swipes — still
+//  bounded, because a slot's variants are bounded by how many times a human pressed reroll.
+const RPG_JOURNAL_LIST_MAX_LIMIT = 200;
+const RPG_TURN_TOOL_CALLS_LIST_MAX_LIMIT = 200;
 
 /** `listJournal` — the paged lineage-projected archive (member). */
 export const rpgListJournalInputSchema = z.object({
@@ -336,47 +336,5 @@ export const rpgListTurnToolCallsInputSchema = z.object({
   turnLimit: z.int().min(1).max(RPG_TURN_TOOL_CALLS_LIST_MAX_LIMIT).optional(),
 });
 
-// Public post-parse faces for the transport schemas above. These are the branded/defaulted values the
-// router actually hands to the server domain, rather than pre-parse caller input approximations. Each
-// schema is a cross-package PUBLIC surface (the `rpg` tRPC router consumes it directly); the type alias
-// is that schema's unconsumed type face, kept for a caller that types against the output shape.
-/** @public twin: rpgCreateGameInputSchema */
-export type RpgCreateGameInput = z.output<typeof rpgCreateGameInputSchema>;
-/** @public twin: rpgUpdateConfigInputSchema */
-export type RpgUpdateConfigInput = z.output<typeof rpgUpdateConfigInputSchema>;
-/** @public twin: rpgPatchSheetInputSchema */
-export type RpgPatchSheetInput = z.output<typeof rpgPatchSheetInputSchema>;
-/** @public twin: rpgPopulateFromCharacterInputSchema */
-export type RpgPopulateFromCharacterInput = z.output<typeof rpgPopulateFromCharacterInputSchema>;
-/** @public twin: rpgEditSnapshotInputSchema */
-export type RpgEditSnapshotInput = z.output<typeof rpgEditSnapshotInputSchema>;
-/** @public twin: rpgPatchActorInputSchema */
-export type RpgPatchActorInput = z.output<typeof rpgPatchActorInputSchema>;
-/** @public twin: rpgDismissActorInputSchema */
-export type RpgDismissActorInput = z.output<typeof rpgDismissActorInputSchema>;
-/** @public twin: rpgPromoteActorInputSchema */
-export type RpgPromoteActorInput = z.output<typeof rpgPromoteActorInputSchema>;
-/** @public twin: rpgUpsertQuestInputSchema */
-export type RpgUpsertQuestInput = z.output<typeof rpgUpsertQuestInputSchema>;
-/** @public twin: rpgEditQuestObjectiveInputSchema */
-export type RpgEditQuestObjectiveInput = z.output<typeof rpgEditQuestObjectiveInputSchema>;
-/** @public twin: rpgDeleteQuestInputSchema */
-export type RpgDeleteQuestInput = z.output<typeof rpgDeleteQuestInputSchema>;
 /** @public twin: rpgAddJournalEntryInputSchema */
 export type RpgAddJournalEntryInput = z.output<typeof rpgAddJournalEntryInputSchema>;
-/** @public twin: rpgEditJournalEntryInputSchema */
-export type RpgEditJournalEntryInput = z.output<typeof rpgEditJournalEntryInputSchema>;
-/** @public twin: rpgDeleteJournalEntryInputSchema */
-export type RpgDeleteJournalEntryInput = z.output<typeof rpgDeleteJournalEntryInputSchema>;
-/** @public twin: rpgCreateCheckpointInputSchema */
-export type RpgCreateCheckpointInput = z.output<typeof rpgCreateCheckpointInputSchema>;
-/** @public twin: rpgRestoreCheckpointInputSchema */
-export type RpgRestoreCheckpointInput = z.output<typeof rpgRestoreCheckpointInputSchema>;
-/** @public twin: rpgRollDiceInputSchema */
-export type RpgRollDiceInput = z.output<typeof rpgRollDiceInputSchema>;
-/** @public twin: rpgReadGameInputSchema */
-export type RpgReadGameInput = z.output<typeof rpgReadGameInputSchema>;
-/** @public twin: rpgListJournalInputSchema */
-export type RpgListJournalInput = z.output<typeof rpgListJournalInputSchema>;
-/** @public twin: rpgListTurnToolCallsInputSchema */
-export type RpgListTurnToolCallsInput = z.output<typeof rpgListTurnToolCallsInputSchema>;

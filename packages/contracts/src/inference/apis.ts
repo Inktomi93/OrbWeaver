@@ -22,5 +22,5 @@ export const chatApiSchema = z.enum(CHAT_APIS) satisfies z.ZodType<ChatApi>;
 
 /** Stored encoder fingerprints retain this sentinel for a route without a chat protocol. */
 export const ENCODER_IDENTITY_NO_API = "none";
-export const ENCODER_IDENTITY_APIS = [...CHAT_APIS, ENCODER_IDENTITY_NO_API] as const;
+const ENCODER_IDENTITY_APIS = [...CHAT_APIS, ENCODER_IDENTITY_NO_API] as const;
 export type EncoderIdentityApi = (typeof ENCODER_IDENTITY_APIS)[number];

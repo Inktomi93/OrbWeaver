@@ -2,5 +2,5 @@
 // blocks consume by `kind`. A wire declares which members it can emit (`WIRE_DEFS[w].deltas`); a runner
 // never invents one. Inline reply images (§6.7) are the `image` member, not a feature.
 
-export const DELTA_KINDS = ["text", "reasoning", "image", "audio", "tool-call", "citation", "usage"] as const;
+const DELTA_KINDS = ["text", "reasoning", "image", "audio", "tool-call", "citation", "usage"] as const;
 export type DeltaKind = (typeof DELTA_KINDS)[number];

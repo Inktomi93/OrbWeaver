@@ -75,7 +75,6 @@ export const RPG_BUS_EVENT_TYPES = [
   "stateRoundSettled",
   "turnToolCallsRecorded",
 ] as const satisfies readonly RpgBusEvent["type"][];
-export type RpgBusEventType = (typeof RPG_BUS_EVENT_TYPES)[number];
 
 /** The INJECTED emit op the rpg verbs/flush close over (the house cross-feature-op pattern — the domain
  *  declares this TYPE, the entry root wires the runtime to `domain/rpg/bus.ts`'s `publishRpgEvent`). Fire-and-

@@ -22,11 +22,11 @@ import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } fro
 // @typeonly-ok: the wire vocabulary lives in `ResponseFormat` (the type consumers import); the runtime
 // schema itself is only referenced in type position here in contracts — infra's wire arms build their
 // OWN literal against the shape rather than calling this validator, so the schema stays the type anchor.
-/** The structured-output request (D79) — one projection rule (`@orb/kit/json-schema`) fills `schema`, the
- *  same shape every backend's wire arm maps. Never rides `toolChoice` (the two axes are separate). Minted
- *  zod-first as the cross-boundary vocabulary; the caller's zod payload schema stays its runtime validator. A
- *  caller states the schema only: how it goes out, and whether it fits, is the structured plan's (`@orb/inference`). */
-export const responseFormatSchema = z.object({
+// The structured-output request (D79) — one projection rule (`@orb/kit/json-schema`) fills `schema`, the
+//  same shape every backend's wire arm maps. Never rides `toolChoice` (the two axes are separate). Minted
+//  zod-first as the cross-boundary vocabulary; the caller's zod payload schema stays its runtime validator. A
+//  caller states the schema only: how it goes out, and whether it fits, is the structured plan's (`@orb/inference`).
+const responseFormatSchema = z.object({
   /** Schema name (OpenAI `json_schema.name`; Anthropic tool name). */
   name: z.string(),
   /** JSON Schema — projected by `projectJsonSchema` (`additionalProperties:false` pinned). The exported TS

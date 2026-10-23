@@ -20,8 +20,8 @@ export const RPG_GAME_STATUSES = ["setup", "ready", "active", "concluded"] as co
 export type RpgGameStatus = (typeof RPG_GAME_STATUSES)[number];
 export const rpgGameStatusSchema = z.enum(RPG_GAME_STATUSES) satisfies z.ZodType<RpgGameStatus>;
 
-/** Quest status (§2.5 — the snapshot-resident quest object). */
-export const RPG_QUEST_STATUSES = ["active", "completed", "failed"] as const;
+// Quest status (§2.5 — the snapshot-resident quest object).
+const RPG_QUEST_STATUSES = ["active", "completed", "failed"] as const;
 export type RpgQuestStatus = (typeof RPG_QUEST_STATUSES)[number];
 export const rpgQuestStatusSchema = z.enum(RPG_QUEST_STATUSES) satisfies z.ZodType<RpgQuestStatus>;
 
@@ -38,9 +38,8 @@ export const rpgJournalTypeSchema = z.enum(RPG_JOURNAL_TYPES) satisfies z.ZodTyp
 /** Checkpoint trigger. Lite only ever writes `"manual"`; full ADDS the session/combat arms (additive
  *  tuple members — the reserved-vocabulary posture). */
 export const RPG_CHECKPOINT_TRIGGERS = ["manual"] as const;
-/** @public twin: RPG_CHECKPOINT_TRIGGERS — the type face of the trigger tuple (cross-package PUBLIC);
- *  covers full's additive session/combat trigger arms, shipped as data ahead of the full-mode graft. */
-export type RpgCheckpointTrigger = (typeof RPG_CHECKPOINT_TRIGGERS)[number];
+
+type RpgCheckpointTrigger = (typeof RPG_CHECKPOINT_TRIGGERS)[number];
 export const rpgCheckpointTriggerSchema = z.enum(RPG_CHECKPOINT_TRIGGERS) satisfies z.ZodType<RpgCheckpointTrigger>;
 
 // The TRACKER axes (the tracked-field unification). These four
@@ -48,31 +47,31 @@ export const rpgCheckpointTriggerSchema = z.enum(RPG_CHECKPOINT_TRIGGERS) satisf
 // def read along these axes. The shapes they replace (`RPG_WIDGET_TYPES`/`RPG_WIDGET_POSITIONS`/
 // `RPG_CAST_FIELD_KINDS`) are DELETED outright — no-legacy ruling, no compat vocabulary.
 
-/** A tracker's SHAPE — what kind of datum it holds. `meter` = value/max (the old pools, meter cast-fields,
- *  meter widgets); `text` = a free string chip (the old text cast-fields); `list` = string lines (the old
- *  widget `items[]`). Drives the value union, the panel render, and the delta diff. */
-export const RPG_TRACKER_SHAPES = ["meter", "text", "list"] as const;
+// A tracker's SHAPE — what kind of datum it holds. `meter` = value/max (the old pools, meter cast-fields,
+//  meter widgets); `text` = a free string chip (the old text cast-fields); `list` = string lines (the old
+//  widget `items[]`). Drives the value union, the panel render, and the delta diff.
+const RPG_TRACKER_SHAPES = ["meter", "text", "list"] as const;
 export type RpgTrackerShape = (typeof RPG_TRACKER_SHAPES)[number];
 export const rpgTrackerShapeSchema = z.enum(RPG_TRACKER_SHAPES) satisfies z.ZodType<RpgTrackerShape>;
 
-/** A tracker's WRITE axis — the loud distinction the old surfaces buried. `delta` = a RESOURCE the story
- *  spends/restores (the tool arm takes `{key, delta}`); `set` = a STATE the story observes (the arm takes
- *  `{key, value}`). It drives the tool arg shape, the model's mental model, and the panel read (a bar you
- *  drain vs a gauge that tracks). */
-export const RPG_TRACKER_WRITES = ["delta", "set"] as const;
+// A tracker's WRITE axis — the loud distinction the old surfaces buried. `delta` = a RESOURCE the story
+//  spends/restores (the tool arm takes `{key, delta}`); `set` = a STATE the story observes (the arm takes
+//  `{key, value}`). It drives the tool arg shape, the model's mental model, and the panel read (a bar you
+//  drain vs a gauge that tracks).
+const RPG_TRACKER_WRITES = ["delta", "set"] as const;
 export type RpgTrackerWrite = (typeof RPG_TRACKER_WRITES)[number];
 export const rpgTrackerWriteSchema = z.enum(RPG_TRACKER_WRITES) satisfies z.ZodType<RpgTrackerWrite>;
 
-/** A tracker's SUBJECT — `actor` (per-carrier, resolved through `appliesTo`+grants−revokes) or `game` (ONE
- *  value on the snapshot; the old game-scoped widgets, no carrier resolution). */
-export const RPG_TRACKER_SUBJECTS = ["actor", "game"] as const;
+// A tracker's SUBJECT — `actor` (per-carrier, resolved through `appliesTo`+grants−revokes) or `game` (ONE
+//  value on the snapshot; the old game-scoped widgets, no carrier resolution).
+const RPG_TRACKER_SUBJECTS = ["actor", "game"] as const;
 export type RpgTrackerSubject = (typeof RPG_TRACKER_SUBJECTS)[number];
 export const rpgTrackerSubjectSchema = z.enum(RPG_TRACKER_SUBJECTS) satisfies z.ZodType<RpgTrackerSubject>;
 
-/** The carrier CLASSES an actor-subject tracker's `appliesTo` may name (the alternative is an explicit
- *  `ActorRef[]`). Honest to what the old surfaces were: pool defs were per-party-member (`party`), cast
- *  fields were per-NPC (`npcs`). `everyone` is the column-field arm. */
-export const RPG_TRACKER_CARRIER_CLASSES = ["party", "npcs", "everyone"] as const;
+// The carrier CLASSES an actor-subject tracker's `appliesTo` may name (the alternative is an explicit
+//  `ActorRef[]`). Honest to what the old surfaces were: pool defs were per-party-member (`party`), cast
+//  fields were per-NPC (`npcs`). `everyone` is the column-field arm.
+const RPG_TRACKER_CARRIER_CLASSES = ["party", "npcs", "everyone"] as const;
 export type RpgTrackerCarrierClass = (typeof RPG_TRACKER_CARRIER_CLASSES)[number];
 export const rpgTrackerCarrierClassSchema = z.enum(RPG_TRACKER_CARRIER_CLASSES) satisfies z.ZodType<RpgTrackerCarrierClass>;
 

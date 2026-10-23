@@ -15,8 +15,8 @@ const ITEM_KEY = "item";
 const VALUE_KEY = "value";
 /** A path segment's separator in `field` (`addCondition.name`, `presentUpsert.relationship.kind`). */
 const PATH_SEPARATOR = ".";
-/** The largest `call` / `item` id a reply may use: far beyond any real beat, and well inside safe integers. */
-export const RPG_PATCH_INDEX_MAX = 999;
+// The largest `call` / `item` id a reply may use: far beyond any real beat, and well inside safe integers.
+const RPG_PATCH_INDEX_MAX = 999;
 /** A strict decimal number: the only text a numeric field shapes into a number. */
 const NUMERIC = /^-?(?:0|[1-9]\d*)(?:\.\d+)?$/u;
 /** ES2025 `JSON.rawJSON`, shipped by every runtime this server supports (engines: node 26 or later) but not yet in TS's
@@ -126,10 +126,8 @@ function toolBranches(tool: Pick<RpgStateRoundTool, "parameters">): {
   return { branches, toolsOnly: [...new Set(toolsOnly)] };
 }
 
-/** Every field path a tool's patch entries may name, in schema order, across its branches.
- *
- * @public Test-anchored: the schema pins compare the generated field enum against this. */
-export function patchFieldPaths(tool: Pick<RpgStateRoundTool, "parameters">): readonly string[] {
+// Every field path a tool's patch entries may name, in schema order, across its branches.
+function patchFieldPaths(tool: Pick<RpgStateRoundTool, "parameters">): readonly string[] {
   return [...new Set(toolBranches(tool).branches.flatMap((branch) => [...branch.keys()]))];
 }
 

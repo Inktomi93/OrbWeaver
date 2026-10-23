@@ -14,7 +14,7 @@ import { WIRE_SCHEMA_MODES } from "../wire-subset.ts";
 /** How a model reasons — distinct from on/off (`reasoning.enabled`); `EFFORT_LEVELS` has no `'none'`. */
 export const REASONING_MODES = ["none", "effort", "budget", "adaptive"] as const;
 export type ReasoningMode = (typeof REASONING_MODES)[number];
-export const reasoningModeSchema = z.enum(REASONING_MODES) satisfies z.ZodType<ReasoningMode>;
+const reasoningModeSchema = z.enum(REASONING_MODES) satisfies z.ZodType<ReasoningMode>;
 
 /** The model's real effort levels, deliberately EXCLUDING `'none'` — the on/off decision is
  *  `reasoning.enabled`. `contracts/preset.EFFORT_LEVELS` derives from this set, never redeclares it. */
@@ -25,37 +25,37 @@ export const effortLevelSchema = z.enum(EFFORT_LEVELS) satisfies z.ZodType<Effor
 /** The verbosity axis (OpenAI) — a real, model-gated control, present only when the model honors it. */
 export const VERBOSITY_LEVELS = ["low", "medium", "high"] as const;
 export type Verbosity = (typeof VERBOSITY_LEVELS)[number];
-export const verbositySchema = z.enum(VERBOSITY_LEVELS) satisfies z.ZodType<Verbosity>;
+const verbositySchema = z.enum(VERBOSITY_LEVELS) satisfies z.ZodType<Verbosity>;
 
-/** WHAT THE MODEL WILL ACCEPT BACK when a prior reply's thinking rides the next request (§8.8). A
- *  CAPABILITY, not an `EndpointFeatures` quirk: features is the openai-compat chat body/stream schema
- *  (§8.1b) and this fact must hold for `anthropic-messages` and `agent-sdk` too.
- *
- *  • `signed` — the wire round-trips an opaque signature / encrypted block (Anthropic thinking blocks,
- *    OpenRouter `reasoning_details`, Gemini thought signatures). The replay is VERIFIED thinking.
- *  • `text`   — only prose can ride back, with no provenance.
- *  • `none`   — do not send prior thinking at all.
- *
- *  Absent ⇒ `REASONING_REPLAY_FLOOR` (`none`), the fail-closed rung (D68/D69): a wire nobody measured
- *  never gets a signed block it may reject. Read through `reasoningReplayOf`, never re-spelled. */
-export const REASONING_REPLAY_MODES = ["signed", "text", "none"] as const;
+// WHAT THE MODEL WILL ACCEPT BACK when a prior reply's thinking rides the next request (§8.8). A
+//  CAPABILITY, not an `EndpointFeatures` quirk: features is the openai-compat chat body/stream schema
+//  (§8.1b) and this fact must hold for `anthropic-messages` and `agent-sdk` too.
+//
+//  • `signed` — the wire round-trips an opaque signature / encrypted block (Anthropic thinking blocks,
+//    OpenRouter `reasoning_details`, Gemini thought signatures). The replay is VERIFIED thinking.
+//  • `text`   — only prose can ride back, with no provenance.
+//  • `none`   — do not send prior thinking at all.
+//
+//  Absent ⇒ `REASONING_REPLAY_FLOOR` (`none`), the fail-closed rung (D68/D69): a wire nobody measured
+//  never gets a signed block it may reject. Read through `reasoningReplayOf`, never re-spelled.
+const REASONING_REPLAY_MODES = ["signed", "text", "none"] as const;
 export type ReasoningReplayMode = (typeof REASONING_REPLAY_MODES)[number];
-export const reasoningReplayModeSchema = z.enum(REASONING_REPLAY_MODES) satisfies z.ZodType<ReasoningReplayMode>;
+const reasoningReplayModeSchema = z.enum(REASONING_REPLAY_MODES) satisfies z.ZodType<ReasoningReplayMode>;
 
-/** How a model turns reasoning OFF. `disabled` runs no thinking at all. `between-tools` is the off of a model that
- *  refuses `disabled` (Claude Sonnet 5.5): no thinking before the reply, only short progress notes between tool
- *  calls, legal at effort `high` or below and with no other thinking field beside it. Read through
- *  `reasoningOffModeOf`, never re-spelled. */
-export const REASONING_OFF_MODES = ["disabled", "between-tools"] as const;
+// How a model turns reasoning OFF. `disabled` runs no thinking at all. `between-tools` is the off of a model that
+//  refuses `disabled` (Claude Sonnet 5.5): no thinking before the reply, only short progress notes between tool
+//  calls, legal at effort `high` or below and with no other thinking field beside it. Read through
+//  `reasoningOffModeOf`, never re-spelled.
+const REASONING_OFF_MODES = ["disabled", "between-tools"] as const;
 export type ReasoningOffMode = (typeof REASONING_OFF_MODES)[number];
-export const reasoningOffModeSchema = z.enum(REASONING_OFF_MODES) satisfies z.ZodType<ReasoningOffMode>;
+const reasoningOffModeSchema = z.enum(REASONING_OFF_MODES) satisfies z.ZodType<ReasoningOffMode>;
 /** The off spelling of a model that states none: every model took `disabled` before one refused it. */
 export const REASONING_OFF_DEFAULT = "disabled" as const satisfies ReasoningOffMode;
 
-/** The Anthropic-only reasoning-display knob. */
-export const REASONING_DISPLAY_MODES = ["summarized", "omitted"] as const;
+// The Anthropic-only reasoning-display knob.
+const REASONING_DISPLAY_MODES = ["summarized", "omitted"] as const;
 export type ReasoningDisplayMode = (typeof REASONING_DISPLAY_MODES)[number];
-export const reasoningDisplayModeSchema = z.enum(REASONING_DISPLAY_MODES) satisfies z.ZodType<ReasoningDisplayMode>;
+const reasoningDisplayModeSchema = z.enum(REASONING_DISPLAY_MODES) satisfies z.ZodType<ReasoningDisplayMode>;
 
 /** The message-handling ladder, least to most strict; the tuple order IS the strictness order. Each level adds
  *  to the one before it:
@@ -73,7 +73,7 @@ export const reasoningDisplayModeSchema = z.enum(REASONING_DISPLAY_MODES) satisf
  *  (`turns.roleHandlingFloor`); the preset knob can only raise it (`clampRoleHandling`). */
 export const ROLE_HANDLING = ["none", "merge", "slotted", "semi-strict", "strict"] as const;
 export type RoleHandling = (typeof ROLE_HANDLING)[number];
-export const roleHandlingSchema = z.enum(ROLE_HANDLING) satisfies z.ZodType<RoleHandling>;
+const roleHandlingSchema = z.enum(ROLE_HANDLING) satisfies z.ZodType<RoleHandling>;
 
 /** The levels only a model states: `slotted` is a measured fact about where a system row is legal, never a
  *  preference a preset can hold for every model. */
@@ -83,9 +83,9 @@ export const userRoleHandlingSchema = roleHandlingSchema.exclude(MODEL_ONLY_ROLE
 export type UserRoleHandling = z.infer<typeof userRoleHandlingSchema>;
 export const USER_ROLE_HANDLING: readonly UserRoleHandling[] = userRoleHandlingSchema.options;
 
-/** Where a level lets a delivered `system` row sit: wherever the model takes one, only in its legal slot, or
- *  nowhere (every system row folds). */
-export const SYSTEM_ROW_PLACEMENTS = ["anywhere", "slot", "fold"] as const;
+// Where a level lets a delivered `system` row sit: wherever the model takes one, only in its legal slot, or
+//  nowhere (every system row folds).
+const SYSTEM_ROW_PLACEMENTS = ["anywhere", "slot", "fold"] as const;
 export type SystemRowPlacement = (typeof SYSTEM_ROW_PLACEMENTS)[number];
 
 export const SYSTEM_ROW_PLACEMENT: Readonly<Record<RoleHandling, SystemRowPlacement>> = {
@@ -96,9 +96,9 @@ export const SYSTEM_ROW_PLACEMENT: Readonly<Record<RoleHandling, SystemRowPlacem
   strict: "fold",
 };
 
-/** An inclusive numeric range — the ONE place a knob's bounds live; the client reads them for slider
- *  min/max and never re-hardcodes them. */
-export const rangeSchema = z.object({ min: z.number(), max: z.number() });
+// An inclusive numeric range — the ONE place a knob's bounds live; the client reads them for slider
+//  min/max and never re-hardcodes them.
+const rangeSchema = z.object({ min: z.number(), max: z.number() });
 export type Range = z.infer<typeof rangeSchema>;
 
 /** THE HOME of the NUMERIC sampling knobs: each is a preset field (`UserIntent`), a capability `Range`, a
@@ -175,9 +175,9 @@ const SAMPLING_FLAG_KNOBS = ["seed", "logitBias", "stop", "drySequenceBreakers",
 export const SAMPLER_KNOBS = [...SAMPLING_RANGE_KNOBS, ...SAMPLING_FLAG_KNOBS] as const;
 export type SamplerKnob = (typeof SAMPLER_KNOBS)[number];
 
-/** The sampler stages a server can run in a chosen order (llama.cpp `samplers`, KoboldCpp `sampler_order`).
- *  `penalties` is the repetition stage (repetition, presence and frequency together on llama.cpp). */
-export const SAMPLER_STAGES = ["penalties", "dry", "topNSigma", "topK", "topA", "typicalP", "topP", "minP", "xtc", "temperature", "adaptiveP"] as const;
+// The sampler stages a server can run in a chosen order (llama.cpp `samplers`, KoboldCpp `sampler_order`).
+//  `penalties` is the repetition stage (repetition, presence and frequency together on llama.cpp).
+const SAMPLER_STAGES = ["penalties", "dry", "topNSigma", "topK", "topA", "typicalP", "topP", "minP", "xtc", "temperature", "adaptiveP"] as const;
 export type SamplerStage = (typeof SAMPLER_STAGES)[number];
 
 /** A knob that acts only where its stage runs in the chain (llama.cpp applies adaptive-P only when `adaptive_p` is
@@ -187,7 +187,7 @@ export const SAMPLER_KNOB_STAGES: Readonly<Partial<Record<SamplingRangeKnob, Sam
 /** A stage that picks the token rather than narrowing the candidates, as a server's final draw does: the server
  *  runs it after every other stage, wherever an order lists it (llama.cpp common/sampling.cpp appends adaptive-P). */
 export const TERMINAL_SAMPLER_STAGES: readonly SamplerStage[] = ["adaptiveP"];
-export const samplerStageSchema = z.enum(SAMPLER_STAGES) satisfies z.ZodType<SamplerStage>;
+const samplerStageSchema = z.enum(SAMPLER_STAGES) satisfies z.ZodType<SamplerStage>;
 /** A stage order, each stage at most once: a repeat would put one token on the wire twice. The shape a
  *  capability states and a preset stores. */
 export const samplerOrderSchema = z
@@ -195,11 +195,11 @@ export const samplerOrderSchema = z
   .min(1)
   .refine((stages) => new Set(stages).size === stages.length, { error: "a sampler stage appears once" }) satisfies z.ZodType<SamplerStage[]>;
 
-/** The sampling knobs a model exposes, each a `Range` or a boolean. `exclusive` names knob PAIRS the model
- *  rejects together (current Claude models refuse `temperature` + `top_p` in one request): the funnel keeps
- *  the first-listed and drops the other with `sampling_knob_conflict`. `samplerOrder` is the stages the server
- *  can order, in the server's own default order. */
-export const samplingCapabilitySchema = z.object({
+// The sampling knobs a model exposes, each a `Range` or a boolean. `exclusive` names knob PAIRS the model
+//  rejects together (current Claude models refuse `temperature` + `top_p` in one request): the funnel keeps
+//  the first-listed and drops the other with `sampling_knob_conflict`. `samplerOrder` is the stages the server
+//  can order, in the server's own default order.
+const samplingCapabilitySchema = z.object({
   ...samplingRangeShape,
   seed: z.boolean().optional(),
   logitBias: z.boolean().optional(),
@@ -228,7 +228,7 @@ function ridesBody(knob: SamplerKnob): knob is Exclude<SamplerKnob, V4SamplerKno
  *  Derived from {@link SAMPLER_KNOBS}, so a new knob rides the body without a second list to keep. */
 export const BODY_SAMPLER_KNOBS: readonly Exclude<SamplerKnob, V4SamplerKnob>[] = SAMPLER_KNOBS.filter(ridesBody);
 
-export const reasoningCapabilitySchema = z.object({
+const reasoningCapabilitySchema = z.object({
   mode: reasoningModeSchema,
   /** The on/off axis (NOT `effort:'none'`). */
   enabled: z.boolean(),
@@ -265,9 +265,9 @@ export const reasoningCapabilitySchema = z.object({
 });
 export type ReasoningCapability = z.infer<typeof reasoningCapabilitySchema>;
 
-/** Turn/message-array capabilities, keyed on (wire-shape × model). Every cell is MEASURED or fail-closed
- *  (D68/D69): absent `turns` ⇒ `TURNS_FLOOR`. */
-export const turnsCapabilitySchema = z.object({
+// Turn/message-array capabilities, keyed on (wire-shape × model). Every cell is MEASURED or fail-closed
+//  (D68/D69): absent `turns` ⇒ `TURNS_FLOOR`.
+const turnsCapabilitySchema = z.object({
   /** The wire continues a DELIVERED trailing-assistant row. `true` authorizes the transport to send its
    *  continuation spelling (`features.prefill`); a template-driven engine that lacks it silently renders
    *  the row as a COMPLETED prior turn, an Anthropic wire hard-400s. */

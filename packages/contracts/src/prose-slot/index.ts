@@ -9,20 +9,20 @@
 import { isPlainObject } from "@orb/kit/guards";
 import { z } from "zod";
 
-/** Which storage owns a slot's override. Exactly one per slot — never a cascade (PROSE-1 §3.1).
- *
- *  TWO storages, not three: the per-GAME home (`rpg_games.config.prose`) was RETIRED by the owner ruling of
- *  2026-08-08 ("we are putting everything in presets") and the whole rpg cohort re-homed to `preset`. A member
- *  with no slot is dead vocabulary that invites the next author to re-open the storage this ruling closed, so
- *  it is deleted rather than parked (NO-LEGACY). */
-export const PROSE_HOMES = ["preset", "user"] as const;
+// Which storage owns a slot's override. Exactly one per slot — never a cascade (PROSE-1 §3.1).
+//
+//  TWO storages, not three: the per-GAME home (`rpg_games.config.prose`) was RETIRED by the owner ruling of
+//  2026-08-08 ("we are putting everything in presets") and the whole rpg cohort re-homed to `preset`. A member
+//  with no slot is dead vocabulary that invites the next author to re-open the storage this ruling closed, so
+//  it is deleted rather than parked (NO-LEGACY).
+const PROSE_HOMES = ["preset", "user"] as const;
 export type ProseHome = (typeof PROSE_HOMES)[number];
 
-/** The macro power a slot's text resolves under (PROSE-1 §6.1). `names-only` = the `{{user}}`/`{{char}}`
- *  identity registry ONLY (the steer-neutralization posture); `full` = the whole macro engine; `none` = the
- *  bytes ship verbatim, braces and all. */
-export const PROSE_MACRO_MODES = ["none", "names-only", "full"] as const;
-export type ProseMacroMode = (typeof PROSE_MACRO_MODES)[number];
+// The macro power a slot's text resolves under (PROSE-1 §6.1). `names-only` = the `{{user}}`/`{{char}}`
+//  identity registry ONLY (the steer-neutralization posture); `full` = the whole macro engine; `none` = the
+//  bytes ship verbatim, braces and all.
+const PROSE_MACRO_MODES = ["none", "names-only", "full"] as const;
+type ProseMacroMode = (typeof PROSE_MACRO_MODES)[number];
 
 /** One model-facing prose slot: the shipped default + everything the edit surface and the gate need. */
 export interface ProseSlotDef {
@@ -300,9 +300,9 @@ export function proseOverBy(text: string): number {
   return Math.max(0, text.trim().length - PROSE_MAX_CHARS);
 }
 
-/** A stored host override. `baseVersion` = the slot `version` this edit was authored against; it is the
- *  ONLY staleness signal (PROSE-1 §4.4) and is never used to pick which text wins. */
-export const proseOverrideSchema = z.object({
+// A stored host override. `baseVersion` = the slot `version` this edit was authored against; it is the
+//  ONLY staleness signal (PROSE-1 §4.4) and is never used to pick which text wins.
+const proseOverrideSchema = z.object({
   text: z.string().max(PROSE_MAX_CHARS),
   baseVersion: z.int().positive(),
 });
@@ -332,11 +332,11 @@ export interface ProseResolution {
   readonly stale: boolean;
 }
 
-/** The pre-PROSE-1 override fields (`formatStrings.*`, `UserSettings.imagery.*`) store a BARE string with no
- *  authored-against version. They are adapted, never duplicated (PROSE-1 §4.6): a legacy string is stamped
- *  at the FIRST slot version, so it reads as non-stale today and correctly reports stale the first time its
- *  shipped default is revised. */
-export const LEGACY_PROSE_BASE_VERSION = 1;
+// The pre-PROSE-1 override fields (`formatStrings.*`, `UserSettings.imagery.*`) store a BARE string with no
+//  authored-against version. They are adapted, never duplicated (PROSE-1 §4.6): a legacy string is stamped
+//  at the FIRST slot version, so it reads as non-stale today and correctly reports stale the first time its
+//  shipped default is revised.
+const LEGACY_PROSE_BASE_VERSION = 1;
 
 /** Adapt a legacy bare-string override field into the ONE override shape. */
 export function proseOverrideFromLegacy(text: string | undefined): ProseOverride | undefined {

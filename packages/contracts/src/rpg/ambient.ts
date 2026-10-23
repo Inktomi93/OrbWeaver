@@ -43,9 +43,8 @@ export type RpgClockTime = z.infer<typeof rpgClockTimeSchema>;
  *  `@orb/kit/weather` (reachable by BOTH this schema and the ui primitive, which may not import contracts,
  *  D54); this is the rpg-facing NAME for the same tuple, never a second spelling. */
 export const RPG_WEATHER_TYPES = WEATHER_TYPES;
-/** @public twin: RPG_WEATHER_TYPES — the type face of the weather tuple (cross-package PUBLIC); the
- *  full-mode weather-engine surface, shipped as data from day one (rpg/index.ts KISS/YAGNI SUSPENDED). */
-export type RpgWeatherType = (typeof RPG_WEATHER_TYPES)[number];
+
+type RpgWeatherType = (typeof RPG_WEATHER_TYPES)[number];
 export const rpgWeatherTypeSchema = z.enum(RPG_WEATHER_TYPES) satisfies z.ZodType<RpgWeatherType>;
 
 /** The weather label cap — a short flavor phrase ("torrential sleet"), not a sentence of prose. */
@@ -108,17 +107,17 @@ export const TIME_OF_DAY_HOURS: Readonly<Record<TimeOfDay, number>> = {
   midnight: 0,
 };
 
-/** The ONE boundary truth: each phase's START hour, running until the next phase's start (wrap-aware —
- *  `midnight` spans 23h→5h across the day line). Owner-tunable: these are the hours the DAY actually turns
- *  over, not an artifact of where two representative hours happen to average out. (They used to be exactly
- *  that artifact — inverting `TIME_OF_DAY_HOURS` by nearest hour put dawn's border at 7.5h and reached it
- *  back to 3am, so a 4am hand sat in dawn's color under a pitch-dark sky.)
- *
- *  Coupled to the Waystone's palette: the sky's golden windows (~5-7h and ~17-19h, `waystone-treatment`)
- *  must fall INSIDE `dawn` and `evening` respectively — the boundaries and the light are one design, and the
- *  dial's band arcs are drawn from exactly these numbers (mirrored in `WAYSTONE_PHASE_SPANS`, since `@orb/ui`
- *  may not import contracts, D54; pinned by a test that imports both). */
-export const TIME_OF_DAY_RANGES: Readonly<Record<TimeOfDay, number>> = {
+// The ONE boundary truth: each phase's START hour, running until the next phase's start (wrap-aware —
+//  `midnight` spans 23h→5h across the day line). Owner-tunable: these are the hours the DAY actually turns
+//  over, not an artifact of where two representative hours happen to average out. (They used to be exactly
+//  that artifact — inverting `TIME_OF_DAY_HOURS` by nearest hour put dawn's border at 7.5h and reached it
+//  back to 3am, so a 4am hand sat in dawn's color under a pitch-dark sky.)
+//
+//  Coupled to the Waystone's palette: the sky's golden windows (~5-7h and ~17-19h, `waystone-treatment`)
+//  must fall INSIDE `dawn` and `evening` respectively — the boundaries and the light are one design, and the
+//  dial's band arcs are drawn from exactly these numbers (mirrored in `WAYSTONE_PHASE_SPANS`, since `@orb/ui`
+//  may not import contracts, D54; pinned by a test that imports both).
+const TIME_OF_DAY_RANGES: Readonly<Record<TimeOfDay, number>> = {
   dawn: 5,
   morning: 8,
   afternoon: 12,
@@ -146,7 +145,7 @@ export function clockTimeOfDay(clock: RpgClockTime | null): TimeOfDay | null {
   return timeOfDayAtHour(clock.hour);
 }
 
-export function timeOfDayAtHour(hour: number): TimeOfDay {
+function timeOfDayAtHour(hour: number): TimeOfDay {
   const h = ((hour % HOURS_IN_DAY) + HOURS_IN_DAY) % HOURS_IN_DAY;
   let current: TimeOfDay | null = null;
   let currentStart = Number.NEGATIVE_INFINITY;

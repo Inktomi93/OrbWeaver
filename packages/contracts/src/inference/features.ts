@@ -245,18 +245,18 @@ export function foldFeatures(...layers: readonly (EndpointFeatures | undefined)[
   return folded;
 }
 
-/** The request-body keys the wire OWNS on every endpoint we build the body for — a key here in a
- *  connection's `extras` is DROPPED with `custom_parameters_ignored{key}`, never merged (D311,
- *  unchanged — F21). EIGHT keys, each with its failure written down:
- *    `truncate_prompt_tokens` / `truncation_side` — the engine-side truncation that #165 measured as an
- *      unbounded hang; the belt clamps client-side instead.
- *    `stream` / `stream_options` — the stream reducer's contract with the wire.
- *    `model` — the resolved connection's identity (window math, cost attribution, the catalog).
- *    `messages` — the assembled canon.
- *    `continue_final_message` / `add_generation_prompt` — the prefill pair: a stray value folds the next turn
- *      into the previous message or 400s outright; under `features.prefill` they are infra-owned.
- *  Moved here from `contracts/preset::VLLM_BELT_OWNED_PARAMETER_KEYS` with `extras` (§8.1c). */
-export const BELT_OWNED_BODY_KEYS = [
+// The request-body keys the wire OWNS on every endpoint we build the body for — a key here in a
+//  connection's `extras` is DROPPED with `custom_parameters_ignored{key}`, never merged (D311,
+//  unchanged — F21). EIGHT keys, each with its failure written down:
+//    `truncate_prompt_tokens` / `truncation_side` — the engine-side truncation that #165 measured as an
+//      unbounded hang; the belt clamps client-side instead.
+//    `stream` / `stream_options` — the stream reducer's contract with the wire.
+//    `model` — the resolved connection's identity (window math, cost attribution, the catalog).
+//    `messages` — the assembled canon.
+//    `continue_final_message` / `add_generation_prompt` — the prefill pair: a stray value folds the next turn
+//      into the previous message or 400s outright; under `features.prefill` they are infra-owned.
+//  Moved here from `contracts/preset::VLLM_BELT_OWNED_PARAMETER_KEYS` with `extras` (§8.1c).
+const BELT_OWNED_BODY_KEYS = [
   "truncate_prompt_tokens",
   "truncation_side",
   "stream",

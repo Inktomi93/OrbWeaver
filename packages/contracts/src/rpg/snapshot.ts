@@ -24,8 +24,8 @@ import { rpgTrackerValuesSchema } from "./tracker.ts";
 // manages a nested list); hand-locked via the `plot` fieldLocks prefix. The panel act rail renders `acts`
 // with the current act embered; null = no plot authored yet (the rail renders nothing — no invented acts).
 
-/** One act of the plot spine — a title (the rail's label) + a short optional summary. */
-export const rpgPlotActSchema = z.object({
+// One act of the plot spine — a title (the rail's label) + a short optional summary.
+const rpgPlotActSchema = z.object({
   title: z.string().default(""),
   summary: z.string().default(""),
 });
@@ -99,18 +99,18 @@ export const rpgSnapshotStateSchema = z.object({
 });
 export type RpgSnapshotState = z.infer<typeof rpgSnapshotStateSchema>;
 
-/** THE HAND-PATCH VOCABULARY — the top-level keys an `editSnapshot` patch may address, DERIVED from the state
- *  schema's own shape (never a hand-spelled second list: a new plane is patchable the day it is declared
- *  above). The verb rejects any other key as errors-as-data instead of merging it into a plain object that the
- *  column projection then drops on the floor — the silent-no-op class this exists to kill (a `{ambient: null}`
- *  patch, addressing the TRACKER VIEW's `ambient` grouping, which is a projection of
- *  `location`/`calendarDate`/`clock`/`weather` and has no state home of its own, wrote nothing, said nothing,
- *  and stamped a junk `ambient` lock).
- *
- *  `fieldLocks` is deliberately EXCLUDED: a lock is snapshot METADATA written through the verb's
- *  `lockPaths`/`releaseLocks` DELTA, never a [merge-clear] state leaf (`inputs.ts`, the `editSnapshot` input
- *  header). The `satisfies` pins the exclusion to a real key — a rename fails `tsc` here. */
-export const RPG_SNAPSHOT_STATE_PLANES: ReadonlySet<string> = new Set(
+// THE HAND-PATCH VOCABULARY — the top-level keys an `editSnapshot` patch may address, DERIVED from the state
+//  schema's own shape (never a hand-spelled second list: a new plane is patchable the day it is declared
+//  above). The verb rejects any other key as errors-as-data instead of merging it into a plain object that the
+//  column projection then drops on the floor — the silent-no-op class this exists to kill (a `{ambient: null}`
+//  patch, addressing the TRACKER VIEW's `ambient` grouping, which is a projection of
+//  `location`/`calendarDate`/`clock`/`weather` and has no state home of its own, wrote nothing, said nothing,
+//  and stamped a junk `ambient` lock).
+//
+//  `fieldLocks` is deliberately EXCLUDED: a lock is snapshot METADATA written through the verb's
+//  `lockPaths`/`releaseLocks` DELTA, never a [merge-clear] state leaf (`inputs.ts`, the `editSnapshot` input
+//  header). The `satisfies` pins the exclusion to a real key — a rename fails `tsc` here.
+const RPG_SNAPSHOT_STATE_PLANES: ReadonlySet<string> = new Set(
   Object.keys(rpgSnapshotStateSchema.shape).filter((key) => key !== ("fieldLocks" satisfies keyof RpgSnapshotState)),
 );
 

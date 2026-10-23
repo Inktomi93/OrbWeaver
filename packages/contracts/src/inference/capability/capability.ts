@@ -19,7 +19,7 @@ type CapabilityPayloadByKind = {
   readonly [K in ModelKind]: Extract<Capability, { readonly kind: K }> extends Readonly<Record<K, infer Payload>> ? Payload : never;
 };
 
-export interface KindDef<K extends ModelKind = ModelKind> {
+interface KindDef<K extends ModelKind = ModelKind> {
   readonly capabilitySchema: z.ZodType<CapabilityPayloadByKind[K]>;
   readonly floor: Extract<Capability, { readonly kind: K }>;
 }

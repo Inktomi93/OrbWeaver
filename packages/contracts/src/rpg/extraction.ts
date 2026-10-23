@@ -569,13 +569,13 @@ export function toolCallsToExtraction(calls: readonly RpgToolCall[]): RpgExtract
 // Errors-as-data, D112 (3): the drop list comes OUT of the same function that builds the extraction (one home,
 // stronger than the `malformedToolCalls` mirror — a log here cannot disagree with what applied by construction).
 
-/** The plane a salvage drop belongs to — an extraction plane, or `root` when the payload wasn't an object at
- *  all (non-JSON / an array / a scalar), in which case NOTHING was salvageable. */
-export type RpgExtractionDropPlane = keyof RpgExtraction | "root";
+// The plane a salvage drop belongs to — an extraction plane, or `root` when the payload wasn't an object at
+//  all (non-JSON / an array / a scalar), in which case NOTHING was salvageable.
+type RpgExtractionDropPlane = keyof RpgExtraction | "root";
 
-/** ONE thing {@link salvageExtraction} threw away: which plane, which entry (`null` = the whole plane — a
- *  non-array field, a malformed `scene`, or the unusable root), and the zod issues that condemned it. */
-export interface RpgExtractionDrop {
+// ONE thing {@link salvageExtraction} threw away: which plane, which entry (`null` = the whole plane — a
+//  non-array field, a malformed `scene`, or the unusable root), and the zod issues that condemned it.
+interface RpgExtractionDrop {
   readonly plane: RpgExtractionDropPlane;
   readonly index: number | null;
   readonly issues: readonly string[];
@@ -696,17 +696,17 @@ export function salvageExtraction(value: unknown): RpgExtractionSalvage {
 // planes derive from, so the populate delta folds through the SAME `extractionToStateDelta` → locks → write
 // tail (no bespoke write path).
 
-/** The identity-sheet half of a populate round — the hand-only fields a card implies but no beat ever writes.
- *  `title` is the model-facing name for `RpgSheet.className` (what the takeover renders beside the name — the
- *  client has called it "title" since the tracked-field unification; the storage name is not the wire's).
- *  Both are OPTIONAL in the zod (a card that implies neither must still PARSE) and both are re-marked REQUIRED
- *  in the projected grammar ({@link constrainPopulateSchema}) — the LOOSE-ZOD + STRICT-PROJECTION pattern
- *  D112 (3) documents: an enforcing wire must answer, a non-enforcing one degrades to "the card said nothing". */
-export const rpgPopulateSheetSchema = z.object({
+// The identity-sheet half of a populate round — the hand-only fields a card implies but no beat ever writes.
+//  `title` is the model-facing name for `RpgSheet.className` (what the takeover renders beside the name — the
+//  client has called it "title" since the tracked-field unification; the storage name is not the wire's).
+//  Both are OPTIONAL in the zod (a card that implies neither must still PARSE) and both are re-marked REQUIRED
+//  in the projected grammar ({@link constrainPopulateSchema}) — the LOOSE-ZOD + STRICT-PROJECTION pattern
+//  D112 (3) documents: an enforcing wire must answer, a non-enforcing one degrades to "the card said nothing".
+const rpgPopulateSheetSchema = z.object({
   title: z.string().min(1).optional(),
   level: z.int().min(0).optional(),
 });
-export type RpgPopulateSheet = z.infer<typeof rpgPopulateSheetSchema>;
+type RpgPopulateSheet = z.infer<typeof rpgPopulateSheetSchema>;
 
 /** The populate round's whole payload: the identity sheet + the two BORN-STATE planes a background implies —
  *  what this character CARRIES (`inventory`, incl. `walletDeltas` = the starting purse) and what they are
@@ -717,9 +717,6 @@ export const rpgPopulateSchema = z.object({
   inventory: z.array(updateInventoryArgsSchema).default([]),
   quests: z.array(upsertQuestArgsSchema).default([]),
 });
-/** @public twin: rpgPopulateSchema — the whole-payload populate surface inferred from the schema, which is
- *  cross-package PUBLIC; beyond `RpgPopulateSalvage`'s per-field access (rpg/index.ts KISS/YAGNI SUSPENDED). */
-export type RpgPopulate = z.infer<typeof rpgPopulateSchema>;
 
 /** What a salvaging populate parse yields: the sheet half (`null` = the model wrote none), the state half as
  *  an `RpgExtraction` whose LIVE-PLAY planes are empty BY CONSTRUCTION (so the one `extractionToStateDelta`
@@ -941,17 +938,17 @@ export function salvagedToolCallFields(calls: readonly RpgToolCall[]): readonly 
 // resolves, executes or persists it — so a RECORD made by the CONTRIBUTOR is the only honest way the user
 // ever sees what a turn did. That is what this shape is for.
 
-/** What the fold DID with one call. Declared ONCE as a tuple and DERIVED (§5.5) — a new loss class fails
- *  `tsc` at every reader instead of silently rendering as its neighbour.
- *
- *  THE FOURTH MEMBER IS A DIFFERENT LAYER OF LOSS. `salvaged`/`dropped` are SCHEMA verdicts: the vocabulary
- *  could not hold what the model sent. `overridden` is a MERGE verdict: the call was well-formed and applied,
- *  and then a hand LOCK dropped part of the write it produced (`domain/rpg/substrate/merge.ts` — manual-edit-
- *  wins). Both are real losses the reader is owed, and the record used to report the second one as `applied`.
- *  Precedence when a call earns more than one, worst first: `dropped`, then `salvaged`, then `overridden`,
- *  then `applied` — the badge names the loss the reader must act on first, and `issues` carries EVERY reason
- *  regardless of which verdict won. */
-export const RPG_TOOL_CALL_VERDICTS = ["applied", "salvaged", "dropped", "overridden"] as const;
+// What the fold DID with one call. Declared ONCE as a tuple and DERIVED (§5.5) — a new loss class fails
+//  `tsc` at every reader instead of silently rendering as its neighbour.
+//
+//  THE FOURTH MEMBER IS A DIFFERENT LAYER OF LOSS. `salvaged`/`dropped` are SCHEMA verdicts: the vocabulary
+//  could not hold what the model sent. `overridden` is a MERGE verdict: the call was well-formed and applied,
+//  and then a hand LOCK dropped part of the write it produced (`domain/rpg/substrate/merge.ts` — manual-edit-
+//  wins). Both are real losses the reader is owed, and the record used to report the second one as `applied`.
+//  Precedence when a call earns more than one, worst first: `dropped`, then `salvaged`, then `overridden`,
+//  then `applied` — the badge names the loss the reader must act on first, and `issues` carries EVERY reason
+//  regardless of which verdict won.
+const RPG_TOOL_CALL_VERDICTS = ["applied", "salvaged", "dropped", "overridden"] as const;
 export type RpgToolCallVerdict = (typeof RPG_TOOL_CALL_VERDICTS)[number];
 
 /** ONE model-emitted tool call as the record keeps it: the name, the args VERBATIM, and the fold's verdict.

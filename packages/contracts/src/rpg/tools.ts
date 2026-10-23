@@ -185,9 +185,9 @@ export const setTrackerArgsSchema = z.object({
 });
 export type SetTrackerArgs = z.infer<typeof setTrackerArgsSchema>;
 
-/** `upsert_quest` — staged-volatile (post-ratification: quests live IN the snapshot, §2.5). Create /
- *  update / complete / fail all ride the one staged-state overlay; abort discards, commit clone-forwards. */
-export const RPG_QUEST_ACTIONS = ["create", "update", "complete", "fail"] as const;
+// `upsert_quest` — staged-volatile (post-ratification: quests live IN the snapshot, §2.5). Create /
+//  update / complete / fail all ride the one staged-state overlay; abort discards, commit clone-forwards.
+const RPG_QUEST_ACTIONS = ["create", "update", "complete", "fail"] as const;
 export const upsertQuestArgsSchema = z.object({
   name: z.string().min(1),
   action: z.enum(RPG_QUEST_ACTIONS),
@@ -273,9 +273,6 @@ export const rollDiceArgsSchema = z.object({
   notation: z.string().min(1),
   reason: z.string().optional(),
 });
-/** @public twin: rollDiceArgsSchema — the typed roll_dice args surface inferred from the schema, which is
- *  cross-package PUBLIC (rpg/index.ts KISS/YAGNI SUSPENDED). */
-export type RollDiceArgs = z.infer<typeof rollDiceArgsSchema>;
 
 /** `roll_dice`'s persisted TOOL RESULT (the JSON `ToolCallRecord.result` the model round's dice call writes —
  *  `domain/rpg/tools/index.ts` handler value). B8's in-thread `tool-renderers` contribution parses

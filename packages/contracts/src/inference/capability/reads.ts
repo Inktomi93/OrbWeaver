@@ -30,13 +30,13 @@ export function requireGenerationCapability(capability: Capability): GenerationC
   return capability.generation;
 }
 
-export function accepts(capability: GenerationCapability, side: "input" | "output", modality: Modality): boolean {
+function accepts(capability: GenerationCapability, side: "input" | "output", modality: Modality): boolean {
   return side === "input" ? capability.input.includes(modality) : capability.output.modalities.includes(modality);
 }
 
-/** The least window a preset's Max context sets on a route that sends it: the smallest default any Ollama release
- *  runs, so a typo cannot shrink the server's window to nothing. */
-export const SETTABLE_WINDOW_FLOOR = 2048;
+// The least window a preset's Max context sets on a route that sends it: the smallest default any Ollama release
+//  runs, so a typo cannot shrink the server's window to nothing.
+const SETTABLE_WINDOW_FLOOR = 2048;
 
 /** The window a turn sends and budgets: on a route whose window the request sets, the preset's Max context tokens,
  *  at least {@link SETTABLE_WINDOW_FLOOR} and at most the model's trained maximum, and stated rather than estimated.
@@ -144,7 +144,7 @@ export function acceptsMidConversationSystem(capability: GenerationCapability): 
   return capability.turns?.midConversationSystem === true;
 }
 
-export function roleHandlingFloorOf(capability: GenerationCapability): RoleHandling {
+function roleHandlingFloorOf(capability: GenerationCapability): RoleHandling {
   return capability.turns?.roleHandlingFloor ?? TURNS_FLOOR.roleHandlingFloor;
 }
 

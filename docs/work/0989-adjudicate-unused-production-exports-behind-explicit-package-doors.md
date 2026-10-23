@@ -78,3 +78,31 @@ This selection covers character, databank, discovery, persona, roster-preset, st
 | Mounted parser and schema enumeration tests | Keep actual mounted-input coverage. Generic export enumeration does not establish a business consumer for every internal schema. Qualify the selected public surface without weakening its constraints. |
 
 No runtime definition, schema or package door is deleted by this selection. Existing parser regression purposes remain distinct from type-identity trivia. The selected source passes maintained contract and reflective-reader tests, affected compiler programs, scoped lint, dependency checks and independent review. Native default and production scans remove the selected findings without adding findings. The package-wide remainder is open.
+
+## Selected inference and RPG contract surfaces
+
+| Selected purpose | Decision and boundary |
+| - | - |
+| Inference, provider and role-client auxiliary declarations with actual local use | Localize unused export modifiers. Preserve canonical bodies, schema constraints, initializer order, correlated signatures and independent type checks. |
+| RPG, refinery and prose declarations with actual local use | Localize unused export modifiers, including locally used marked declarations. Preserve canonical tuples, schemas, readonly interfaces and enclosing public contracts. |
+| Declaration-only RPG and refinery inferred aliases | Remove audit-only aliases with no current, generator, SDK or original assertion consumer. Preserve their canonical schemas and the externally consumed RpgAddJournalEntryInput. |
+| PREFIX_CACHE_ACTIONS, bindingActorKindSchema and structuredSchemaComplexity | Hold pending original-purpose comparison and qualified current-boundary coverage. Do not manufacture consumers or weaken correlated schemas. |
+| ConnectionRef and WIRE_SCHEMA_KEYWORD_VOCABULARY marker claims | Remove unsupported public suppression claims. Hold declarations visibly for separate purpose decisions. |
+| payloadSchemaFor and patchToolsOnlyFields | Hold callable definitions pending current-owner comparison and qualification of meaningful original assertions. |
+| trackerGloss | Hold under D113. Existing transition formatting differs from absolute readings; investigate actual standalone-provider behavior without forcing a helper call. |
+| Original parser, formatter and patch-expressibility permutations | Keep restoration partial. Pure permutations belong in unit or contract tests; integration owns distinct production composition and provider wiring. Record selected replacements and defect controls before acceptance. |
+
+This selection passes scoped lint, maintained runtime tests, affected compiler programs, dependency checks and independent review. Native scans remove the selected findings and expose only the held declarations whose unsupported markers were removed. It does not complete the wider contract restoration or authorize runtime-body changes.
+
+## Selected tracker wiring cases
+
+| Behavior | Primary layer and disposition |
+| - | - |
+| Tracker numeric narrowing, value totality and ceiling permutations | Unit or contract through actual public production helpers. Rebuild uncovered cases there; do not repeat their matrix through SEND. |
+| Absolute readings and vocabulary formatting | Unit or contract. Hold helper-specific trackerGloss assertions with D113; preserve meaningful reading behavior independently. |
+| Persisted actor and game trackers reaching standalone macro and CEL provider fragments | Integration through actual SEND, production composition and native provider capture. Rebuild this distinct wiring case; existing user-macro tests do not prove it. |
+| Carried-unset labels, effective ceilings and vocabulary placement | Keep representative integration assertions for real carriage and composition. Pure punctuation and input permutations remain unit or contract work. |
+| Selected snapshot and quiet output | Integration. Verify the real selected variant has a snapshot before trusting negative output. Reuse existing swipe and regeneration coverage. |
+| Other delta, reminder and guide projection cases | Remain partial and outside this selection. No complete reference file is declared restored. |
+
+The tracker integration replacement passes runtime, affected compiler and dependency checks and independent review. Removing hint emission makes its isolated provider-fragment assertion fail while vocabulary assertions still pass. Its external execution is scripted; application composition, persistence and macro assembly remain production-owned.

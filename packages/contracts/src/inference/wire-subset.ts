@@ -10,10 +10,10 @@ import type { Wire } from "./wires.ts";
 export const WIRE_SCHEMA_MODES = ["hosted-common", "anthropic-format", "guided-decoding", "strict-compatible", "gbnf", "gemini-schema"] as const;
 export type WireSchemaMode = (typeof WIRE_SCHEMA_MODES)[number];
 
-/** How a planned structured request carries its schema: the endpoint's native carrier (`response_format`,
- *  `output_config.format`, `responseJsonSchema`, the agent-sdk `outputFormat`), one tool the model is forced
- *  onto, or one tool offered under `auto`. The planner in `@orb/inference` is the only reader. */
-export const STRUCTURED_VEHICLES = ["response-format", "forced-tool", "offered-tool"] as const;
+// How a planned structured request carries its schema: the endpoint's native carrier (`response_format`,
+//  `output_config.format`, `responseJsonSchema`, the agent-sdk `outputFormat`), one tool the model is forced
+//  onto, or one tool offered under `auto`. The planner in `@orb/inference` is the only reader.
+const STRUCTURED_VEHICLES = ["response-format", "forced-tool", "offered-tool"] as const;
 export type StructuredVehicle = (typeof STRUCTURED_VEHICLES)[number];
 
 /** The mode a provider row that names no `features.structuredMode` gets, per wire. */
@@ -91,8 +91,7 @@ const META_KEYWORDS = ["$schema", "$id"] as const;
 // Pure annotations, no validation semantics. `description` is never one: it is the model's instructions.
 const ANNOTATION_KEYWORDS = ["title", "default", "examples"] as const;
 
-/** Every keyword this engine spells. A file outside the engine that spells two of them is a second keyword table.
- *  @public read by eslint.config.js, which the product import graph never reaches */
+/** Every keyword this engine spells. A file outside the engine that spells two of them is a second keyword table. */
 export const WIRE_SCHEMA_KEYWORD_VOCABULARY: readonly string[] = [...BOUND_KEYWORDS, ...META_KEYWORDS, ...ANNOTATION_KEYWORDS];
 
 /** Keys whose value is a `{ name → schema }` map: the names are data, never keywords. */
@@ -403,8 +402,8 @@ function acceptsNull(node: Record<string, unknown>, root: Record<string, unknown
   });
 }
 
-/** One construct a mode cannot carry, with the value path of the node it sits on (`""` = the root). */
-export interface WireSchemaRefusal {
+// One construct a mode cannot carry, with the value path of the node it sits on (`""` = the root).
+interface WireSchemaRefusal {
   readonly keyword: string;
   readonly path: string;
 }

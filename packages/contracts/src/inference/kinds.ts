@@ -5,6 +5,6 @@
 
 import { z } from "zod";
 
-export const MODEL_KINDS = ["generation", "embedding", "rerank"] as const;
+const MODEL_KINDS = ["generation", "embedding", "rerank"] as const;
 export type ModelKind = (typeof MODEL_KINDS)[number];
 export const modelKindSchema = z.enum(MODEL_KINDS) satisfies z.ZodType<ModelKind>;

@@ -6,21 +6,21 @@ import type { Unprojected } from "@orb/kit/json-schema";
 import { RENDER_HINT_KEY } from "@orb/kit/json-schema";
 import { checkWireSchema, HOSTED_INTERSECTION_TARGET } from "#inference";
 
-/** One advisory class. A closed union so the editor's copy is a mapped Record and a new class cannot ship without
- *  a sentence for it. */
-export const REFINERY_ADVISORY_CODES = ["wire-bounds-stripped", "anyof-variants"] as const;
-export type RefineryAdvisoryCode = (typeof REFINERY_ADVISORY_CODES)[number];
+// One advisory class. A closed union so the editor's copy is a mapped Record and a new class cannot ship without
+//  a sentence for it.
+const REFINERY_ADVISORY_CODES = ["wire-bounds-stripped", "anyof-variants"] as const;
+type RefineryAdvisoryCode = (typeof REFINERY_ADVISORY_CODES)[number];
 
-/** One advisory: what, where, and why it matters — in the author's terms, never the mechanism's. */
-export interface RefinerySchemaAdvisory {
+// One advisory: what, where, and why it matters — in the author's terms, never the mechanism's.
+interface RefinerySchemaAdvisory {
   readonly code: RefineryAdvisoryCode;
   /** JSON-pointer-ish path to the node it is about (`#` for a whole-document accounting claim). */
   readonly path: string;
   readonly message: string;
 }
 
-/** The accounting readout an author reasons about a schema's size with. */
-export interface RefinerySchemaStats {
+// The accounting readout an author reasons about a schema's size with.
+interface RefinerySchemaStats {
   readonly properties: number;
   readonly optionalFields: number;
   readonly anyOfBlocks: number;

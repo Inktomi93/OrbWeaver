@@ -8,7 +8,7 @@ import { z } from "zod";
 import { modalitySchema } from "../modalities.ts";
 
 const NATIVE_TEXT_WINDOW_TOKENS = 512;
-export const localTextEncodingSchema = z.object({
+const localTextEncodingSchema = z.object({
   version: z.literal(1),
   maxTokens: z.literal(NATIVE_TEXT_WINDOW_TOKENS),
   pooling: z.literal("mean-normalized"),

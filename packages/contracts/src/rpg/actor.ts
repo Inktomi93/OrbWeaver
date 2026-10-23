@@ -337,23 +337,16 @@ export type RpgActorEntry = z.infer<typeof rpgActorEntrySchema>;
 // fails `tsc` here, not at a call site — and every op names the ONE field it writes, which is also the fine
 // lock path it stamps (the server's ONE derivation, `substrate/actor-ops.ts`).
 
-/** The volatile fields the hand ops address, pinned to the plane's own keys (`actorRef` is identity, not a
- *  writable datum — an actor is re-keyed by no gesture; it LEAVES by `rpg.dismissActor`). */
-export const RPG_ACTOR_OP_FIELDS = ["status", "trackerValues", "conditions", "inventory", "wallet"] as const satisfies readonly (keyof RpgActorVolatile)[];
+// The volatile fields the hand ops address, pinned to the plane's own keys (`actorRef` is identity, not a
+//  writable datum — an actor is re-keyed by no gesture; it LEAVES by `rpg.dismissActor`).
+const RPG_ACTOR_OP_FIELDS = ["status", "trackerValues", "conditions", "inventory", "wallet"] as const satisfies readonly (keyof RpgActorVolatile)[];
 export type RpgActorOpField = (typeof RPG_ACTOR_OP_FIELDS)[number];
 
-/** The IDENTITY fields the hand ops address as free TEXT, pinned to the identity plane's own keys. Each is
- *  also its own fine lock path (`actorState.<key>.identity.<field>`) — pinning one NPC's mood no longer
- *  freezes every npc, which is what the retired plane-level `presentCharacters` pin did. `relationship`
- *  is deliberately absent: it is a two-field object with its own op arm, not a string. */
-export const RPG_ACTOR_IDENTITY_TEXT_FIELDS = [
-  "name",
-  "emoji",
-  "mood",
-  "appearance",
-  "outfit",
-  "thoughts",
-] as const satisfies readonly (keyof RpgActorIdentity)[];
+// The IDENTITY fields the hand ops address as free TEXT, pinned to the identity plane's own keys. Each is
+//  also its own fine lock path (`actorState.<key>.identity.<field>`) — pinning one NPC's mood no longer
+//  freezes every npc, which is what the retired plane-level `presentCharacters` pin did. `relationship`
+//  is deliberately absent: it is a two-field object with its own op arm, not a string.
+const RPG_ACTOR_IDENTITY_TEXT_FIELDS = ["name", "emoji", "mood", "appearance", "outfit", "thoughts"] as const satisfies readonly (keyof RpgActorIdentity)[];
 
 /** The tracked-value PATCH a `setTracker` op carries — each datum optional, each DERIVED from the resident
  *  value schema (never a re-spell): an omitted datum keeps the actor's current one, so a max edit never blanks

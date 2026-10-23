@@ -7,7 +7,7 @@ import { resolvedConnectionViewSchema } from "./resolved.ts";
 import { wireSchema } from "./wires.ts";
 
 export const PREFIX_CACHE_ACTIONS = ["none", "markers", "automatic-request"] as const;
-export const CACHE_POLICY_PROVENANCES = ["fresh", "request", "preset", "connection", "default"] as const;
+const CACHE_POLICY_PROVENANCES = ["fresh", "request", "preset", "connection", "default"] as const;
 
 /** Secret-free connection input shared by execution and effective editor reads. */
 export const cachePolicyContextSchema = z.strictObject({
@@ -21,8 +21,8 @@ export const cachePolicyContextSchema = z.strictObject({
 });
 export type CachePolicyContext = z.infer<typeof cachePolicyContextSchema>;
 
-/** Internal capability port: the public resolved view remains unchanged. */
-export const resolvedCacheConnectionViewSchema = resolvedConnectionViewSchema.extend({ cacheContext: cachePolicyContextSchema });
+// Internal capability port: the public resolved view remains unchanged.
+const resolvedCacheConnectionViewSchema = resolvedConnectionViewSchema.extend({ cacheContext: cachePolicyContextSchema });
 export type ResolvedCacheConnectionView = z.infer<typeof resolvedCacheConnectionViewSchema>;
 
 /** Effective controls are not cache-hit claims, token counters, or resource authority. */

@@ -92,10 +92,10 @@ export const REFINERY_FORGE_ARM_DEFAULT: RefineryForgeArm = "single";
 
 // ── the leaf language ────────────────────────────────────────────────────────────────────────────────────
 
-/** The leaf types a designed field may take. Containers are never declared — they are IMPLIED by a path
- *  (`issues[].severity` implies an array of objects), which is what keeps the grammar flat. */
-export const FORGE_FIELD_TYPES = ["string", "number", "integer", "boolean"] as const;
-export type ForgeFieldType = (typeof FORGE_FIELD_TYPES)[number];
+// The leaf types a designed field may take. Containers are never declared — they are IMPLIED by a path
+//  (`issues[].severity` implies an array of objects), which is what keeps the grammar flat.
+const FORGE_FIELD_TYPES = ["string", "number", "integer", "boolean"] as const;
+type ForgeFieldType = (typeof FORGE_FIELD_TYPES)[number];
 
 /** Leaf rows one design may carry. The cap is the belt's per-object property cap read as a whole-document
  *  budget: a design spreads its leaves across nested objects, so this can only ever be tighter. */
@@ -191,16 +191,9 @@ export const forgePlanEnvelopeSchema = z.object({
     .min(1)
     .max(REFINERY_FORGE_MAX_PLAN_FIELDS),
 });
-/** @public twin: forgePlanEnvelopeSchema — the STATIC plan-call shape; the live guided-arm runner projects
- *  the schema value through `projectJsonSchema`/`tolerant()` and never imports this alias (schema value is
- *  cross-package PUBLIC — consumed by the server refinery forge). */
-export type ForgePlanEnvelope = z.infer<typeof forgePlanEnvelopeSchema>;
 
 /** The `guided` arm's PER-FIELD call: exactly one finished row. */
 export const forgeFieldEnvelopeSchema = z.object({ field: forgeFieldRowSchema });
-/** @public twin: forgeFieldEnvelopeSchema — same class as `ForgePlanEnvelope` above: the live consumer
- *  projects/parses the schema value (cross-package PUBLIC), never imports this alias. */
-export type ForgeFieldEnvelope = z.infer<typeof forgeFieldEnvelopeSchema>;
 
 /** The `two-stage` arm's SECOND call: display vocabulary only, keyed by the paths the FIRST call fixed. The
  *  structure is ours by then — the model cannot move a field while hinting it. A path that matches no row
@@ -219,9 +212,6 @@ const forgeHintRowSchema = z.object({
 export type ForgeHintRow = z.infer<typeof forgeHintRowSchema>;
 
 export const forgeHintEnvelopeSchema = z.object({ hints: z.array(forgeHintRowSchema).max(REFINERY_FORGE_MAX_FIELDS) });
-/** @public twin: forgeHintEnvelopeSchema — same class as `ForgePlanEnvelope` above: the live two-stage-arm
- *  hint call projects/parses the schema value (cross-package PUBLIC), never imports this alias. */
-export type ForgeHintEnvelope = z.infer<typeof forgeHintEnvelopeSchema>;
 
 // ── the spliced well-known cores ─────────────────────────────────────────────────────────────────────────
 
@@ -260,8 +250,8 @@ const REFINERY_FORGE_CORE_NODES: Readonly<Record<RefinerySchemaStage, { readonly
 
 // ── the transpiler ───────────────────────────────────────────────────────────────────────────────────────
 
-/** A row the transpiler could not place, with the reason a human (and the retry prompt) can act on. */
-export interface ForgeTranspileDrop {
+// A row the transpiler could not place, with the reason a human (and the retry prompt) can act on.
+interface ForgeTranspileDrop {
   readonly path: string;
   readonly reason: string;
 }

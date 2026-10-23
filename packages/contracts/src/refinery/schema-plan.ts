@@ -5,9 +5,9 @@
 import { z } from "zod";
 import type { WireSchemaViolation } from "#inference";
 
-/** How a fitting schema rides: held to the shape as the model writes (`native`), or filled in through a tool call
- *  whose answer is checked when it comes back (`tool`). */
-export const REFINERY_SCHEMA_CARRIERS = ["native", "tool"] as const;
+// How a fitting schema rides: held to the shape as the model writes (`native`), or filled in through a tool call
+//  whose answer is checked when it comes back (`tool`).
+const REFINERY_SCHEMA_CARRIERS = ["native", "tool"] as const;
 
 export const refinerySchemaPlanSchema = z.discriminatedUnion("outcome", [
   z.strictObject({ outcome: z.literal("unbound") }),

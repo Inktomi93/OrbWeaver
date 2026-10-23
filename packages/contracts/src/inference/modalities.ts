@@ -5,7 +5,7 @@
 
 import { z } from "zod";
 
-export const MODALITIES = ["text", "image", "video", "audio", "file", "vector"] as const;
+const MODALITIES = ["text", "image", "video", "audio", "file", "vector"] as const;
 export type Modality = (typeof MODALITIES)[number];
 export const modalitySchema = z.enum(MODALITIES) satisfies z.ZodType<Modality>;
 

@@ -17,9 +17,9 @@ import { providerDefSchema } from "./provider-schema.ts";
 import type { Task } from "./tasks.ts";
 import { WIRE_DEFS } from "./wires.ts";
 
-/** A built-in row's id is bare — a plugin row's is namespaced. The parse refuses the other spelling in each
- *  place so the two populations can never cross (§5.9-1 (a)/(b)). */
-export const builtinProviderDefSchema = providerDefSchema.refine((row) => !isPluginProviderId(row.id), {
+// A built-in row's id is bare — a plugin row's is namespaced. The parse refuses the other spelling in each
+//  place so the two populations can never cross (§5.9-1 (a)/(b)).
+const builtinProviderDefSchema = providerDefSchema.refine((row) => !isPluginProviderId(row.id), {
   message: "a built-in provider id is bare, never plugin:-namespaced",
   path: ["id"],
 }) satisfies z.ZodType<ProviderDef>;

@@ -4,7 +4,7 @@ import type { Branded } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { z } from "zod";
 
-export const PROVIDER_ID = /^(?:[a-z0-9-]+|plugin:[a-z0-9-]+\/[a-z0-9-]+)$/;
+const PROVIDER_ID = /^(?:[a-z0-9-]+|plugin:[a-z0-9-]+\/[a-z0-9-]+)$/;
 const PLUGIN_PROVIDER_ID = /^plugin:([a-z0-9-]+)\/[a-z0-9-]+$/;
 export const PLUGIN_PROVIDER_ID_PREFIX = "plugin:";
 export type ProviderId = Branded<"ProviderId">;

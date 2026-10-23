@@ -75,10 +75,10 @@ function rpgProse(ctx: ExtractionPromptContext, id: keyof typeof RPG_PROSE_SLOTS
   return spliceProseTokens(resolveProseFrom(RPG_PROSE_SLOTS[id], ctx.prose?.[id]).text, tokens);
 }
 
-/** One row per model-writable extraction plane: the schema field (the ratchet key), its teaching-fragment
- *  builder (config/refs aware), and the cheap-mode tool name it maps to (for the tool-round framing). A
- *  fragment builder returns the plane's teaching prose, or `null` when the plane is disabled this game. */
-export interface ExtractionPlanePrompt {
+// One row per model-writable extraction plane: the schema field (the ratchet key), its teaching-fragment
+//  builder (config/refs aware), and the cheap-mode tool name it maps to (for the tool-round framing). A
+//  fragment builder returns the plane's teaching prose, or `null` when the plane is disabled this game.
+interface ExtractionPlanePrompt {
   readonly plane: keyof RpgExtraction;
   readonly toolName: string;
   readonly fragment: (ctx: ExtractionPromptContext) => string | null;
@@ -123,10 +123,10 @@ function actorTrackerFragment(ctx: ExtractionPromptContext): string | null {
   return blocks.join("\n");
 }
 
-/** The plane-prompt registry (§1.6). One row per top-level `rpgExtractionSchema` key — the ratchet asserts
- *  full coverage. `scene` folds the ambient/cast/day/emoji/plot gaps the audit named; `widgets` is now
- *  prompted on the structured arm (the audit's "never mentioned" gap). */
-export const EXTRACTION_PLANE_PROMPTS: readonly ExtractionPlanePrompt[] = [
+// The plane-prompt registry (§1.6). One row per top-level `rpgExtractionSchema` key — the ratchet asserts
+//  full coverage. `scene` folds the ambient/cast/day/emoji/plot gaps the audit named; `widgets` is now
+//  prompted on the structured arm (the audit's "never mentioned" gap).
+const EXTRACTION_PLANE_PROMPTS: readonly ExtractionPlanePrompt[] = [
   {
     plane: "scene",
     toolName: "update_scene",
@@ -297,11 +297,11 @@ function partyExample(ctx: ExtractionPromptContext): string {
   });
 }
 
-/** Build the per-game model-facing tool DESCRIPTIONS (R2 templates), keyed by WIRE TOOL NAME. A `Map` (not an
- *  object) because the keys are snake_case wire VALUES, not JS property identifiers — the same reason
- *  `TOOL_ROUND_ARRAY_ARMS` is a Map in `./extraction`. The assembly layer pairs each with that tool's
- *  per-call constrained parameter schema. */
-export function buildRpgToolDescriptions(ctx: ExtractionPromptContext): ReadonlyMap<string, string> {
+// Build the per-game model-facing tool DESCRIPTIONS (R2 templates), keyed by WIRE TOOL NAME. A `Map` (not an
+//  object) because the keys are snake_case wire VALUES, not JS property identifiers — the same reason
+//  `TOOL_ROUND_ARRAY_ARMS` is a Map in `./extraction`. The assembly layer pairs each with that tool's
+//  per-call constrained parameter schema.
+function buildRpgToolDescriptions(ctx: ExtractionPromptContext): ReadonlyMap<string, string> {
   const actorTrackers = actorTrackerFragment(ctx);
   const gameTrackerDefs = gameTrackers(ctx.config.trackers).filter((def) => !def.locked);
   return new Map([

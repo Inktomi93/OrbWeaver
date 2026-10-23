@@ -5,8 +5,8 @@
 import type { StructuredVehicle, WireSchemaLimits, WireSchemaMode } from "./wire-subset.ts";
 import { DEF_MAP_KEYWORDS, LONG_ENUM_VALUES, NAME_MAP_KEYWORDS, scrubWireSchema, WIRE_SUBSETS } from "./wire-subset.ts";
 
-/** A grammar ceiling's kind, in the order {@link countWireSchemas} reports them. */
-export const WIRE_SCHEMA_CEILINGS = [
+// A grammar ceiling's kind, in the order {@link countWireSchemas} reports them.
+const WIRE_SCHEMA_CEILINGS = [
   "optional-props",
   "union-props",
   "strict-tools",
@@ -16,7 +16,7 @@ export const WIRE_SCHEMA_CEILINGS = [
   "name-chars",
   "long-enum-chars",
 ] as const;
-export type WireSchemaCeiling = (typeof WIRE_SCHEMA_CEILINGS)[number];
+type WireSchemaCeiling = (typeof WIRE_SCHEMA_CEILINGS)[number];
 
 /** Where in a plan a violation came from: the candidate format's index and the vehicle it was tried on. */
 interface ViolationOrigin {

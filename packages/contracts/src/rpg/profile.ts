@@ -6,9 +6,9 @@ import { z } from "zod";
 import type { RpgTrackerDef, RpgTrackerValue } from "./tracker.ts";
 import { trackerCeiling, trackerNumber } from "./tracker.ts";
 
-/** One attribute definition in a profile's vocabulary — the label-as-mini-prompt (`{key, label, hint}`).
- *  `key` is the machine name (a sheet's `attributes` record keys off it); `label`/`hint` are prompt prose. */
-export const rpgStatAttributeDefSchema = z.object({
+// One attribute definition in a profile's vocabulary — the label-as-mini-prompt (`{key, label, hint}`).
+//  `key` is the machine name (a sheet's `attributes` record keys off it); `label`/`hint` are prompt prose.
+const rpgStatAttributeDefSchema = z.object({
   key: z.string().min(1),
   label: z.string().min(1),
   hint: z.string().default(""),
@@ -18,9 +18,9 @@ export type RpgStatAttributeDef = z.infer<typeof rpgStatAttributeDefSchema>;
 /** The max attribute count a profile may carry (§2.3 — "≤12"). A prompt-budget shape constant. */
 export const RPG_PROFILE_MAX_ATTRIBUTES = 12;
 
-/** The RESERVED resolution discriminant (§2.3) — a single-arm union today (`house-d20`). Full's check
- *  engine grows this with alt-arms (the D86 reserved-discriminant growth pattern); lite never reads it. */
-export const rpgStatResolutionSchema = z.discriminatedUnion("kind", [z.object({ kind: z.literal("house-d20") })]);
+// The RESERVED resolution discriminant (§2.3) — a single-arm union today (`house-d20`). Full's check
+//  engine grows this with alt-arms (the D86 reserved-discriminant growth pattern); lite never reads it.
+const rpgStatResolutionSchema = z.discriminatedUnion("kind", [z.object({ kind: z.literal("house-d20") })]);
 type RpgStatResolution = z.infer<typeof rpgStatResolutionSchema>;
 
 /** A `statProfile` — the full mechanical vocabulary, shipped whole. Manual ability rolls read `attributes` and `modifier`; the remaining fields reserve the full-engine contract. `skillGoverning` maps a skill name → the attribute
@@ -132,10 +132,10 @@ export const RPG_PROFILE_D20: RpgStatProfile = {
 /** The seeded HP meter's key — how a surface tells it from a host-defined pool. */
 const RPG_SEED_HP_KEY = "hp";
 
-/** The default ceiling the seeded HP meter is born with. A per-CARRIER ceiling that differs on purpose rides
- *  `RpgTrackerValue.max` through the one `trackerCeiling` resolver (the d20 max-HP reality the unification's
- *  per-carrier override was designed for) — this is only the game-wide default the host can retune. */
-export const RPG_SEED_HP_MAX = 20;
+// The default ceiling the seeded HP meter is born with. A per-CARRIER ceiling that differs on purpose rides
+//  `RpgTrackerValue.max` through the one `trackerCeiling` resolver (the d20 max-HP reality the unification's
+//  per-carrier override was designed for) — this is only the game-wide default the host can retune.
+const RPG_SEED_HP_MAX = 20;
 
 /** The seeded HP def. `write:"delta"` because damage and healing are spends/restores (that axis is what picks
  *  the model's tool arm); `appliesTo:"everyone"` because an NPC bleeds like a party member; `pinned` so it
