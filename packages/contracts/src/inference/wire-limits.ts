@@ -217,12 +217,6 @@ function childSchemas(node: Record<string, unknown>): unknown[] {
   return Object.entries(node).flatMap(([key, value]) => (NAME_MAP_KEYWORDS.has(key) && isRecord(value) ? Object.values(value) : [value]));
 }
 
-/** A JSON Schema's optional and union-typed property counts, the two ceilings Anthropic reports in its refusals. */
-export function structuredSchemaComplexity(schema: unknown): { readonly optionalProps: number; readonly unionProps: number } {
-  const { optionalProps, unionProps } = weighSchema(schema);
-  return { optionalProps, unionProps };
-}
-
 /** Each ceiling's count over a request's summed weight, keyed by the ceiling kind. */
 const CEILING_READS: Readonly<
   Record<WireSchemaCeiling, { readonly limit: keyof WireSchemaLimits; readonly count: (w: SchemaWeight, tools: number) => number }>

@@ -73,13 +73,7 @@ function childKind(child: SchemaNode, insideArray: boolean): ChildKind {
   return isScalar(child) ? "scalar" : "object";
 }
 
-/** Walk one object node into its writable leaves; a field the patch list cannot address lands in `toolsOnly`. */
-function collectLeaves(
-  node: SchemaNode,
-  at: { readonly segments: readonly string[]; readonly arrayAt: number | null },
-  out: PatchLeaf[],
-  toolsOnly: string[],
-): void {
+function collectLeaves(node: SchemaNode, at: { readonly segments: readonly string[]; readonly arrayAt: number | null }, out: PatchLeaf[]): void {
   const properties = node["properties"];
   for (const [key, child] of Object.entries(isRecord(properties) ? properties : {})) {
     if (!isRecord(child)) {
@@ -87,7 +81,7 @@ function collectLeaves(
     }
     const segments = [...at.segments, key];
     const items = isRecord(child["items"]) ? child["items"] : {};
-    CHILD_HANDLERS[childKind(child, at.arrayAt !== null)]({ child, items, segments, arrayAt: at.arrayAt, out, toolsOnly });
+    CHILD_HANDLERS[childKind(child, at.arrayAt !== null)]({ child, items, segments, arrayAt: at.arrayAt, out });
   }
 }
 
@@ -97,33 +91,30 @@ interface ChildVisit {
   readonly segments: readonly string[];
   readonly arrayAt: number | null;
   readonly out: PatchLeaf[];
-  readonly toolsOnly: string[];
 }
 
 /** What each kind of property contributes — a mapped Record, so a new kind without a handler fails tsc. */
 const CHILD_HANDLERS: Readonly<Record<ChildKind, (visit: ChildVisit) => void>> = {
   append: (v) => v.out.push({ segments: v.segments, arrayAt: v.arrayAt, append: true, node: v.items }),
   scalar: (v) => v.out.push({ segments: v.segments, arrayAt: v.arrayAt, append: false, node: v.child }),
-  "object-array": (v) => collectLeaves(v.items, { segments: v.segments, arrayAt: v.segments.length - 1 }, v.out, v.toolsOnly),
-  object: (v) => collectLeaves(v.child, { segments: v.segments, arrayAt: v.arrayAt }, v.out, v.toolsOnly),
-  "tools-only": (v) => v.toolsOnly.push(v.segments.join(PATH_SEPARATOR)),
+  "object-array": (v) => collectLeaves(v.items, { segments: v.segments, arrayAt: v.segments.length - 1 }, v.out),
+  object: (v) => collectLeaves(v.child, { segments: v.segments, arrayAt: v.arrayAt }, v.out),
+  "tools-only": () => undefined,
 };
 
 /** A tool's parameter branches (one, or one per `oneOf` arm — the per-actor tracker split), each with its leaves
  *  keyed by field path. Map-keyed, so a model-sent `constructor` or `toString` finds nothing. */
 function toolBranches(tool: Pick<RpgStateRoundTool, "parameters">): {
   readonly branches: readonly ReadonlyMap<string, PatchLeaf>[];
-  readonly toolsOnly: readonly string[];
 } {
-  const toolsOnly: string[] = [];
   const arms = unionArms(tool.parameters);
   const roots = arms !== null && arms.length > 0 ? arms : [tool.parameters];
   const branches = roots.map((root) => {
     const leaves: PatchLeaf[] = [];
-    collectLeaves(root, { segments: [], arrayAt: null }, leaves, toolsOnly);
+    collectLeaves(root, { segments: [], arrayAt: null }, leaves);
     return new Map(leaves.map((leaf) => [leaf.segments.join(PATH_SEPARATOR), leaf] as const));
   });
-  return { branches, toolsOnly: [...new Set(toolsOnly)] };
+  return { branches };
 }
 
 // Every field path a tool's patch entries may name, in schema order, across its branches.
@@ -198,14 +189,6 @@ export function describePatchFields(tool: Pick<RpgStateRoundTool, "parameters">)
     const hint = mergedHint(path, branches, owners);
     return hint === "" ? path : `${path} (${hint})`;
   });
-}
-
-/** The tool fields the patch list cannot express (an array of objects inside an array of objects): writable through
- *  the tool round only.
- *
- * @public Test-anchored: the coverage pin asserts no state tool field is left tools-only. */
-export function patchToolsOnlyFields(tool: Pick<RpgStateRoundTool, "parameters">): readonly string[] {
-  return toolBranches(tool).toolsOnly;
 }
 
 interface PatchValueEntry {
