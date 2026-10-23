@@ -111,7 +111,7 @@ The tracker integration replacement passes runtime, affected compiler and depend
 
 | Finding and original purpose | Decision and qualification |
 | - | - |
-| PREFIX_CACHE_ACTIONS defines the prefix action axis | Preserve the canonical tuple as a local declaration. Derive each existing correlated literal from its tuple member, following healthResponseSchema precedent. Preserve branch order and every field constraint. |
+| PREFIX_CACHE_ACTIONS defines the prefix action axis | Keep the canonical tuple local. A complete key-correlated schema map preserves existing branch order and every field constraint. |
 | Prefix parser and producer behavior | Contract owns admitted actions and correlated-field refusals. The actual resolveCachePolicy producer owns effective none, automatic-request and marker outcomes; use production-derived contexts rather than copied resolution logic. Preserve existing replay coverage. |
 | ConnectionRef audit alias | Remove the unconsumed inferred alias. Keep connectionRefSchema and its actual branded-id and model-stripping behavior; original parser cases remain separate from the unused alias spelling. |
 | WIRE_SCHEMA_KEYWORD_VOCABULARY tooling projection | Remove the unused concatenation for removed checker consumers. Preserve the engine's actual private keyword tables and public scrub behavior. No replacement checker or fabricated consumer is required. |
@@ -219,7 +219,7 @@ The replacements pass against unchanged production and after retirement. Guided-
 | Purpose | Decision and boundary |
 | - | - |
 | Automation, event, preset and RPC support declarations | Localize unused exports while preserving canonical bodies, strict parsing, readonly/presence distinctions and enclosing contracts. |
-| Stream-channel and preset-knob vocabularies | Retain canonical tuples as local schema/type inputs. Derive existing discriminator values without changing variants or mapped exhaustiveness checks. |
+| Stream-channel and preset-knob vocabularies | Retain canonical tuples as local schema/type inputs. Complete key-correlated maps feed every variant into the actual unions without changing fields or order. |
 | Bus-registry declaration-location metadata | Remove BUSES and exclusive BusHome after current migration and checker-removal confirmation. Preserve native type assertions, BUS_SUBUNIONS usage and actual event vocabularies. |
 | Output/discriminator aliases and suppression claims | Remove unsupported aliases and markers. Retain actual schema, native type-test, generator, SDK and stream-attach consumers. |
 | Process-global compatibility APIs | Keep them deleted. Graph-owned runtime buses, subscriptions, sources, cursors, visibility and authority remain unchanged. |
@@ -233,7 +233,7 @@ The focused public contracts pass before and after alignment. Actual room/knob d
 | - | - |
 | Persisted user, rule and plugin kind admission | Extend the maintained connectionBindingSchema contract case with complete valid row equality, including the plugin case. |
 | Unknown actor-kind refusal | Rebuild the original agent, chat, system and empty-kind refusals on an otherwise-valid row through the actual public parser. Preserve identity-correlation refusals. |
-| Canonical persisted kind ownership | Derive the existing row discriminator values directly from BINDING_ACTOR_KINDS. Preserve order, identity correlations and the distinct optional caller selector. |
+| Canonical persisted kind ownership | A complete schema map derives existing row tags from BINDING_ACTOR_KINDS. Preserve order, identity correlations and the distinct optional caller selector. |
 | Orphan scalar parser identity | Remove only after the live row-boundary replacement and a discriminant-widening defect control qualify. Keep canonical vocabulary, selector separation and actual ownership/SQL controls. |
 | Other connection-reference, selector and SQL cases | Remain partial. Contract parser tests do not claim HTTP authorization or migrated-SQL qualification. |
 
@@ -248,3 +248,9 @@ Tests use the actual production row schema, not a replacement validator or inven
 | memory/index.ts | D55 retains clip/world-state contract seams; the world-state-clips plan is parked. Preserve the declarations without adding a package door or fake consumer. |
 
 Native findings remain visible for these governed locations. No contract source retains public/alpha/beta/alias suppression tags. Production-only findings retain actual maintained test, tooling and generator consumers. This does not close the broader package work item or complete legacy test restoration.
+
+## Canonical variant completeness
+
+Stream rooms, preset knobs, persisted binding actors and prefix-cache actions use total schema maps over their canonical vocabulary. The descriptor union indexes its independent per-kind map. Actual union construction includes every map entry without a cast, runtime guard or new helper door.
+
+Appending a distinct vocabulary member fails the native compiler at its missing map or descriptor entry. Sources restore exactly after each probe. Existing variant bodies, branch order, readonly/presence contracts and public application behavior remain unchanged.

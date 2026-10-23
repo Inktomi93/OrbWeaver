@@ -46,13 +46,18 @@ const STREAM_CHANNELS = ["user", "notifications", "chat", "rpg", "automation", "
 // A room the client may attach to. `user`/`notifications` are self-scoped (the channel key IS the caller's
 //  principal — no input can widen them); the three chat-scoped rooms carry the `chatId` they address, and
 //  `workloads` carries the ONE run it tails (owner-scoped at attach, inside the room's own gate).
+const streamRoomRefSchemas = {
+  user: z.object({ channel: z.literal(STREAM_CHANNELS[0]) }),
+  notifications: z.object({ channel: z.literal(STREAM_CHANNELS[1]) }),
+  chat: z.object({ channel: z.literal(STREAM_CHANNELS[2]), chatId: typeIdSchema(ID_PREFIX.chat) }),
+  rpg: z.object({ channel: z.literal(STREAM_CHANNELS[3]), chatId: typeIdSchema(ID_PREFIX.chat) }),
+  automation: z.object({ channel: z.literal(STREAM_CHANNELS[4]), chatId: typeIdSchema(ID_PREFIX.chat) }),
+  workloads: z.object({ channel: z.literal(STREAM_CHANNELS[5]), workloadId: typeIdSchema(ID_PREFIX.workload) }),
+} satisfies { readonly [Channel in (typeof STREAM_CHANNELS)[number]]: z.ZodType<{ readonly channel: Channel }> };
+const [firstStreamChannel, ...remainingStreamChannels] = STREAM_CHANNELS;
 const streamRoomRefSchema = z.discriminatedUnion("channel", [
-  z.object({ channel: z.literal(STREAM_CHANNELS[0]) }),
-  z.object({ channel: z.literal(STREAM_CHANNELS[1]) }),
-  z.object({ channel: z.literal(STREAM_CHANNELS[2]), chatId: typeIdSchema(ID_PREFIX.chat) }),
-  z.object({ channel: z.literal(STREAM_CHANNELS[3]), chatId: typeIdSchema(ID_PREFIX.chat) }),
-  z.object({ channel: z.literal(STREAM_CHANNELS[4]), chatId: typeIdSchema(ID_PREFIX.chat) }),
-  z.object({ channel: z.literal(STREAM_CHANNELS[5]), workloadId: typeIdSchema(ID_PREFIX.workload) }),
+  streamRoomRefSchemas[firstStreamChannel],
+  ...remainingStreamChannels.map((channel) => streamRoomRefSchemas[channel]),
 ]);
 export type StreamRoomRef = z.infer<typeof streamRoomRefSchema>;
 

@@ -10,6 +10,7 @@ import { nextFreeLabel } from "@orb/kit/strings";
 import { z } from "zod";
 import { chatApiSchema } from "./apis.ts";
 import { declaredCapabilitySchema } from "./capability/override.ts";
+import type { BindingActorKind } from "./connection-ref.ts";
 import { BINDING_ACTOR_KINDS } from "./connection-ref.ts";
 import { modelIdSchema } from "./model-schema.ts";
 import { promptCacheSettingsSchema } from "./prompt-cache.ts";
@@ -101,21 +102,23 @@ const connectionBindingFields = z.strictObject({
   task: routableTaskSchema,
   connectionId: typeIdSchema(ID_PREFIX.userConnection).nullable(),
 });
-export const connectionBindingSchema = z.discriminatedUnion("actorKind", [
-  connectionBindingFields.extend({ actorKind: z.literal(BINDING_ACTOR_KINDS[0]), userId: brandedId("UserId"), ruleId: z.null(), pluginId: z.null() }),
-  connectionBindingFields.extend({
+const connectionBindingSchemas = {
+  user: connectionBindingFields.extend({ actorKind: z.literal(BINDING_ACTOR_KINDS[0]), userId: brandedId("UserId"), ruleId: z.null(), pluginId: z.null() }),
+  "automation-rule": connectionBindingFields.extend({
     actorKind: z.literal(BINDING_ACTOR_KINDS[1]),
     userId: z.null(),
     ruleId: typeIdSchema(ID_PREFIX.automationRule),
     pluginId: z.null(),
   }),
-  connectionBindingFields.extend({
+  "plugin-grant": connectionBindingFields.extend({
     actorKind: z.literal(BINDING_ACTOR_KINDS[2]),
     userId: z.null(),
     ruleId: z.null(),
     pluginId: typeIdSchema(ID_PREFIX.plugin),
   }),
-]);
+} satisfies { [K in BindingActorKind]: z.ZodType<{ readonly actorKind: K }> };
+const { user: userBindingSchema, ...otherBindingSchemas } = connectionBindingSchemas;
+export const connectionBindingSchema = z.discriminatedUnion("actorKind", [userBindingSchema, ...Object.values(otherBindingSchemas)]);
 export type ConnectionBinding = z.infer<typeof connectionBindingSchema>;
 
 /** The connection verbs' refusal codes, carried on a tRPC error's `data.reason`. Here rather than in the

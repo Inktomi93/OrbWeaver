@@ -25,34 +25,37 @@ export type CachePolicyContext = z.infer<typeof cachePolicyContextSchema>;
 const resolvedCacheConnectionViewSchema = resolvedConnectionViewSchema.extend({ cacheContext: cachePolicyContextSchema });
 export type ResolvedCacheConnectionView = z.infer<typeof resolvedCacheConnectionViewSchema>;
 
+const prefixCacheSchemas = {
+  none: z.strictObject({
+    action: z.literal(PREFIX_CACHE_ACTIONS[0]),
+    format: z.enum(PROMPT_CACHE_FORMATS).nullable(),
+    ttl: z.null(),
+    cacheSystem: z.literal(false),
+    historyDepth: z.null(),
+    preservesBlockEnds: z.literal(false),
+  }),
+  "automatic-request": z.strictObject({
+    action: z.literal(PREFIX_CACHE_ACTIONS[2]),
+    format: z.enum(PROMPT_CACHE_FORMATS).nullable(),
+    ttl: z.enum(PROMPT_CACHE_TTLS).nullable(),
+    cacheSystem: z.literal(false),
+    historyDepth: z.null(),
+    preservesBlockEnds: z.boolean(),
+  }),
+  markers: z.strictObject({
+    action: z.literal(PREFIX_CACHE_ACTIONS[1]),
+    format: z.enum(PROMPT_CACHE_FORMATS),
+    ttl: z.enum(PROMPT_CACHE_TTLS).nullable(),
+    cacheSystem: z.boolean(),
+    historyDepth: z.int().nonnegative().nullable(),
+    preservesBlockEnds: z.boolean(),
+  }),
+} satisfies { [K in (typeof PREFIX_CACHE_ACTIONS)[number]]: z.ZodType<{ readonly action: K }> };
+const { none: noPrefixCacheSchema, ...activePrefixCacheSchemas } = prefixCacheSchemas;
+
 /** Effective controls are not cache-hit claims, token counters, or resource authority. */
 export const cachePolicySchema = z.strictObject({
-  prefix: z.discriminatedUnion("action", [
-    z.strictObject({
-      action: z.literal(PREFIX_CACHE_ACTIONS[0]),
-      format: z.enum(PROMPT_CACHE_FORMATS).nullable(),
-      ttl: z.null(),
-      cacheSystem: z.literal(false),
-      historyDepth: z.null(),
-      preservesBlockEnds: z.literal(false),
-    }),
-    z.strictObject({
-      action: z.literal(PREFIX_CACHE_ACTIONS[2]),
-      format: z.enum(PROMPT_CACHE_FORMATS).nullable(),
-      ttl: z.enum(PROMPT_CACHE_TTLS).nullable(),
-      cacheSystem: z.literal(false),
-      historyDepth: z.null(),
-      preservesBlockEnds: z.boolean(),
-    }),
-    z.strictObject({
-      action: z.literal(PREFIX_CACHE_ACTIONS[1]),
-      format: z.enum(PROMPT_CACHE_FORMATS),
-      ttl: z.enum(PROMPT_CACHE_TTLS).nullable(),
-      cacheSystem: z.boolean(),
-      historyDepth: z.int().nonnegative().nullable(),
-      preservesBlockEnds: z.boolean(),
-    }),
-  ]),
+  prefix: z.discriminatedUnion("action", [noPrefixCacheSchema, ...Object.values(activePrefixCacheSchemas)]),
   implicit: z.strictObject({
     supported: z.boolean().nullable(),
     disableApplied: z.boolean(),

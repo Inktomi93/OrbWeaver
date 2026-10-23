@@ -110,6 +110,7 @@ const rulePresetScopeSchema = z.enum(RULE_PRESET_SCOPES) satisfies z.ZodType<Rul
 
 // The knob editor kinds. A new kind fails every exhaustive descriptor dispatch (`tsc`).
 const RULE_PRESET_KNOB_KINDS = ["number", "text", "textList", "choice", "entityRef"] as const;
+type RulePresetKnobKind = (typeof RULE_PRESET_KNOB_KINDS)[number];
 
 // The ENTITIES an `entityRef` knob may point at. ONE member, deliberately: the kind exists because the
 //  auto-add-lore rule preset needs a BOOK and no knob could reference one (a host was asked to type a
@@ -212,13 +213,16 @@ export interface RulePresetEntityRefKnobDescriptor<TEntity extends RulePresetEnt
  *  `tsc` names every builder that reads one. */
 export type RulePresetEntityRefValueOf<TEntity extends RulePresetEntityKind> = TEntity extends "worldInfoBook" ? WorldBookId : never;
 
+interface RulePresetKnobDescriptors {
+  readonly number: RulePresetNumberKnobDescriptor;
+  readonly text: RulePresetTextKnobDescriptor;
+  readonly textList: RulePresetTextListKnobDescriptor;
+  readonly choice: RulePresetChoiceKnobDescriptor;
+  readonly entityRef: RulePresetEntityRefKnobDescriptor;
+}
+
 /** One knob's editor descriptor — the picker's exhaustive dispatch axis. */
-export type RulePresetKnobDescriptor =
-  | RulePresetNumberKnobDescriptor
-  | RulePresetTextKnobDescriptor
-  | RulePresetTextListKnobDescriptor
-  | RulePresetChoiceKnobDescriptor
-  | RulePresetEntityRefKnobDescriptor;
+export type RulePresetKnobDescriptor = RulePresetKnobDescriptors[RulePresetKnobKind];
 
 /** The VALUE type a descriptor resolves to. The domain's `ResolvedRulePresetKnobs` maps a preset's knob schema
  *  through this, which is what makes every preset builder's knob reads compile-checked. */
@@ -327,27 +331,29 @@ export interface RulePresetView {
 }
 
 const knobViewFields = { key: z.string(), label: z.string(), help: z.string().optional() };
+const rulePresetKnobViewSchemas = {
+  number: z.strictObject({ ...knobViewFields, kind: z.literal(RULE_PRESET_KNOB_KINDS[0]), default: z.number(), min: z.number(), max: z.number() }),
+  text: z.strictObject({ ...knobViewFields, kind: z.literal(RULE_PRESET_KNOB_KINDS[1]), default: z.string(), minLength: z.number(), maxLength: z.number() }),
+  textList: z.strictObject({
+    ...knobViewFields,
+    kind: z.literal(RULE_PRESET_KNOB_KINDS[2]),
+    default: z.array(z.string()).readonly(),
+    minItems: z.number(),
+    maxItems: z.number(),
+    maxLength: z.number(),
+  }),
+  choice: z.strictObject({
+    ...knobViewFields,
+    kind: z.literal(RULE_PRESET_KNOB_KINDS[3]),
+    options: z.array(z.string()).readonly(),
+    optionLabels: z.record(z.string(), z.string()),
+    default: z.string(),
+  }),
+  entityRef: z.strictObject({ ...knobViewFields, kind: z.literal(RULE_PRESET_KNOB_KINDS[4]), entity: z.enum(RULE_PRESET_ENTITY_KINDS) }),
+} satisfies { readonly [Kind in RulePresetKnobKind]: z.ZodType<{ readonly kind: Kind }> };
+const [firstKnobKind, ...remainingKnobKinds] = RULE_PRESET_KNOB_KINDS;
 const rulePresetKnobViewSchema = z
-  .discriminatedUnion("kind", [
-    z.strictObject({ ...knobViewFields, kind: z.literal(RULE_PRESET_KNOB_KINDS[0]), default: z.number(), min: z.number(), max: z.number() }),
-    z.strictObject({ ...knobViewFields, kind: z.literal(RULE_PRESET_KNOB_KINDS[1]), default: z.string(), minLength: z.number(), maxLength: z.number() }),
-    z.strictObject({
-      ...knobViewFields,
-      kind: z.literal(RULE_PRESET_KNOB_KINDS[2]),
-      default: z.array(z.string()).readonly(),
-      minItems: z.number(),
-      maxItems: z.number(),
-      maxLength: z.number(),
-    }),
-    z.strictObject({
-      ...knobViewFields,
-      kind: z.literal(RULE_PRESET_KNOB_KINDS[3]),
-      options: z.array(z.string()).readonly(),
-      optionLabels: z.record(z.string(), z.string()),
-      default: z.string(),
-    }),
-    z.strictObject({ ...knobViewFields, kind: z.literal(RULE_PRESET_KNOB_KINDS[4]), entity: z.enum(RULE_PRESET_ENTITY_KINDS) }),
-  ])
+  .discriminatedUnion("kind", [rulePresetKnobViewSchemas[firstKnobKind], ...remainingKnobKinds.map((kind) => rulePresetKnobViewSchemas[kind])])
   .transform(({ help, ...knob }): RulePresetKnobView => ({ ...knob, ...(help === undefined ? {} : { help }) })) satisfies z.ZodType<RulePresetKnobView>;
 
 export const rulePresetViewSchema = z.strictObject({
