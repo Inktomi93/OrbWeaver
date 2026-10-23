@@ -159,8 +159,7 @@ export function HomeDoorway({ tile, doorway }: { readonly tile: HomeTileContribu
             title — and only stops spelling type at the call site. The MONO FACE is still the whole carrier
             of the teaser/state separation, which is the clause that must not move; what it lost is the
             ramp step that P3-6 had lent it, and that is the cost H9 is: a stamp voice cannot carry a
-            sentence, and this line is a sentence. Pinned by computed type + `data-voice` in
-            tests/legacy/client/features/home/surfaces/home-surface.ct.tsx. */}
+            sentence, and this line is a sentence. */}
         <Text voice="datumMono">{doorway.reason}</Text>
       </Stack>
     </Row>

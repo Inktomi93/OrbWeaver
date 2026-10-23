@@ -45,10 +45,8 @@
 // `min(100%, …)` collapsed it to ZERO width at the shipped 1280 default (measured `[773, 175, 0, 132]`),
 // so the ruling above never fired at the width most people run, and 1920 got a 33px slice of a face. Both
 // halves of the pair moved to `--reading-measure-min` — the design law's low reading bound, 65ch — which
-// keeps the guarantee byte-for-byte and buys the band ~68px at 1280 / ~210px at 1920. Pinned by geometry,
-// not by property, in tests/legacy/client/features/chat/components/home-recents-tile-body.ct.tsx (this component
-// has no CT file of its own — it is pinned through the tile body that renders it; the citation this line
-// replaced named a path that has never existed on the tree).
+// keeps the guarantee byte-for-byte and buys the band ~68px at 1280 / ~210px at 1920. Verify it by geometry,
+// not by property.
 //
 // A11y follows the `ListRow clickable` model rather than inventing one: the island is the operable thing
 // (`Card interactive` — role=button + Enter/Space) and the excerpt + the credit line ride

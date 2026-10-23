@@ -162,8 +162,7 @@ export interface SelectProps<Value = string, Multiple extends boolean = false> e
    *
    * INSIDE A `<Field>`, `aria-label` IS STILL WORTH PASSING even though the trigger ignores it. Base UI's
    * `Field.Control` injects an `aria-labelledby` built from the field's visible label, and `aria-labelledby`
-   * outranks `aria-label` (accname 1.2, 2B before 2C) — measured per primitive family in
-   * `tests/legacy/client/a11y/field-control-name.suite.ct.tsx`. But the seal also stamps a name on the HIDDEN
+   * outranks `aria-label` (accname 1.2, 2B before 2C) — measured per primitive family. But the seal also stamps a name on the HIDDEN
    * submission input Base UI renders (the effect below), and that input is out of reach of the Field's
    * association: it takes `aria-label` (else `aria-labelledby`, else the literal "Hidden select value").
    * So the attribute that is dead on the trigger is the hidden input's ONLY real name, on an element axe

@@ -13,7 +13,6 @@
 // `dirty` and `touched` ARE forwarded verbatim as the handbook requires, so Base UI's own `data-dirty` /
 // `data-touched` remain honest — only the SHOW-THE-ERROR moment is ours. `MultiToggleField` documents the
 // one state a touch gate cannot reach (untouched-and-empty) and passes an explicit `error` to cover it.
-// Pinned by tests/legacy/client/forms/editor/bound-fields/use-bound-field.ct.tsx (attributes read off the rendered DOM).
 
 import type { ReactNode } from "react";
 import { useConfigRowAnnotation } from "#state";

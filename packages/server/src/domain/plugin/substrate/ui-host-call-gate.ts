@@ -23,8 +23,7 @@ import type { UiHostCallGate } from "../contract/ops.ts";
  *  `packages/server/src/infra/plugin-host/budgets.ts` — the same number, for the same reason (a legitimate guest
  *  fans a handful of reads at once; 32 is generous for that and small enough to bound host work), re-declared
  *  rather than imported because the cake bans the domain from value-importing infra (the identical situation
- *  `activation/crash-policy.ts` records for the crash threshold). The two are pinned equal by
- *  `tests/legacy/server/domain/plugin/substrate/ui-host-call-gate.test.ts`.
+ *  `activation/crash-policy.ts` records for the crash threshold). The two must stay equal.
  *
  *  The SCOPE is the plugin, not the user, and not the surface: a plugin is what holds the grant, what the belt
  *  can be attributed to, and what a runaway `ui.js` is a property of. A per-user scope would let one plugin's

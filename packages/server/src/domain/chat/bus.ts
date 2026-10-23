@@ -37,8 +37,7 @@
 //     the same recoverable half the terminal-drop branches below name for `emit`.
 // A retry is also structurally incapable of double-consuming (the co-statement's `changes() > 0` guard makes
 // a re-run of an already-consumed claim a converged no-op that answers `false`) — so the missing retry costs
-// a LIVE FAN in one branch and nothing at all in the other. Both are pinned in `tests/legacy/server/domain/chat/
-// bus.int.test.ts`. WHAT WOULD REOPEN THIS: a caller whose claim does NOT ride this batch, or a caller that
+// a LIVE FAN in one branch and nothing at all in the other. WHAT WOULD REOPEN THIS: a caller whose claim does NOT ride this batch, or a caller that
 // must tell `false` (converged) apart from `null` (dropped) — today no caller reads either.
 //
 // THE TERMINAL DROP HAS TWO BRANCHES, and they state opposite facts (#1544 — `reportTerminalDrop`): #1537's

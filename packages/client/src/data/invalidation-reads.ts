@@ -241,7 +241,7 @@ export function roomEntityHealReads(chatId: ChatId, trpc: Trpc): readonly Invali
 // `invalidation.ts`, for one structural reason: that file sits AT the 450-line component cap, and this map is
 // the one self-contained third of it — its own event union, its own router namespace, its own gap-heal set,
 // and zero references from the chat/user maps. The seam is unchanged; `invalidation.ts` imports these two
-// names. Its behavioral pins stay in `tests/legacy/client/data/invalidation.test.ts`, which drives them through
+// names. Test them through
 // `invalidateRpg`/`gapHealRpg` — the surface a reader cares about — not through the map object.
 //
 // Third map: the feature-root rpg game bus (`rpg.stream`). LIVE-ONLY like the user bus; the client's tracker/

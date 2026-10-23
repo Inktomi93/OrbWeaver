@@ -21,7 +21,6 @@
 // row claiming it happened, and a write that landed cannot lose its record. Put a tail between them and the
 // audit silently reads the TAIL's row count instead: `resetPassword`'s kick legitimately changes 0 rows when
 // the target holds no sessions, which would have dropped the audit row for every reset of a signed-out user.
-// `tests/legacy/server/domain/admin/verbs/reset-password.int.test.ts` pins exactly that case.
 //
 // NON-DB tails do not belong in `tails` and are the caller's, AFTER the returned promise resolves: the W7a
 // socket eviction (`sessions.evictUserSockets`) and the `identityChanged` user-bus emit. Both are

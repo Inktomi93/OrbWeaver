@@ -50,8 +50,7 @@ export function useRefinerySessions(): UseQueryResult<SessionList, TrpcReadError
  *
  * NON-SUSPENDING, and that is why it is not `useSuspenseQuery`: the topbar is shell chrome above every
  * section boundary, so a suspending read there blanks the whole bar. It shares the ONE `listSessions` key the
- * roster surface already fetches — pinned by `tests/legacy/client/features/refinery/surfaces/refinery-list-surface.ct.tsx`
- * ("header, surface and selection-title share one `listSessions` key", `trpc.count(...) === 1`) — so the
+ * roster surface already fetches — so the
  * second reader costs no request. `undefined` until it lands: an unread roster is not an empty one.
  */
 export function useRefineryCensus(): number | undefined {

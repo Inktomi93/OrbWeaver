@@ -145,7 +145,7 @@ rows(RAW_ID, CONTRACTS, [
 ]);
 
 rows(RAW_ID, "tooling/src/probe.ts", [["the authored tooling tree is judged too", `${ZOD}export const schema = { runId: z.string() };\n`, 1]]);
-rows(RAW_ID, "tests/legacy/x/probe.ts", [["the legacy tree is judged too", `${ZOD}export const schema = { runId: z.string() };\n`, 1]]);
+rows(RAW_ID, "tests/x/probe.ts", [["the tests tree is judged too", `${ZOD}export const schema = { runId: z.string() };\n`, 1]]);
 
 test(
   `${RAW_ID} a line permission names the rule and is consumed`,

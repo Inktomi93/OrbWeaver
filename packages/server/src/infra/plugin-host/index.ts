@@ -1,7 +1,7 @@
 // infra/plugin-host — front door. The QuickJS-ng WASM sandbox runtime (D46) and NOTHING else: this is a
 // sealed I/O executor BELOW domain (the `plugin-no-ambient` invariant) — it imports zero domains and is
 // handed its host-function op bundle at compose. The runtime SKELETON is proven by the spike
-// suite (tests/legacy/server/infra/plugin-host/): module load, context-per-instance, injected-seam realm, the
+// suite (tests/server/infra/plugin-host/): module load, context-per-instance, injected-seam realm, the
 // per-invocation DoS budget, the async promise bridge, and the ambient-authority denial.
 //
 // The evidence report lives in ./README.md. The full `PluginHostV1` surface is

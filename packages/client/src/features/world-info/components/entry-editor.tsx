@@ -165,8 +165,7 @@ function EntryEditorBody({ entry, session, onDeleted }: EntryEditorBodyProps): R
             {/* No `aria-label` (#1621, the Combobox family): the chip input is the Field's sole
                 `Field.Control`, so the label reaches it through Base UI's `aria-labelledby`, which outranks
                 the attribute — it was the same string, unreachable. `entry-editor.ct.tsx`'s
-                `getByLabel("Keyword triggers")` resolves identically. Measured per family at
-                `tests/legacy/client/a11y/field-control-name.suite.ct.tsx`. */}
+                `getByLabel("Keyword triggers")` resolves identically. Measured per family. */}
             <Combobox
               value={keys}
               maxItems={KEYS_MAX}

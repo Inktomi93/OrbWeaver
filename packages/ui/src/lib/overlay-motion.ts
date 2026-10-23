@@ -20,8 +20,8 @@
 // The two names are exactly what the motion below needs: `opacity` + `scale` (Tailwind v4's `scale-95` is
 // the standalone `scale` property, NOT `transform` — the Button `active:scale-95` precedent had to name it
 // for the same reason). Dropping either silently kills that half of the fade+scale.
-// Pinned by tests/legacy/ui/primitives/dialog/dialog.ct.tsx + tests/legacy/ui/primitives/popover/popover.ct.tsx
-// (unpolled `transitionProperty` reads — a retrying matcher would wait out a fade and pass).
+// Assert it with unpolled
+// `transitionProperty` reads — a retrying matcher would wait out a fade and pass.
 export const OVERLAY_MOTION = {
   anchoredPopup:
     "origin-(--transform-origin) transition-[opacity,scale] duration-(--motion-fast) ease-out-expo data-instant:duration-0 data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0",

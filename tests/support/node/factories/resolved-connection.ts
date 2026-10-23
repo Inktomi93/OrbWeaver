@@ -22,11 +22,8 @@ export const TEST_OWNER_ID: UserId = castId<UserId>("user_test_owner");
  * path must ALSO seed the `user_connections` row this points at: `embed_generations.connection_id` FKs it
  * (`packages/server/src/domain/embeddings/substrate/generation.ts`), so without the row the generation insert
  * fails the FK and the suite goes red — or worse, quietly green where the caller records a partial failure as
- * data. The seeder is `seedVectorConnection` in `tests/legacy/server/domain/embeddings/_support.ts` (embeddings owns
- * the write path); `tests/legacy/server/domain/embeddings/_support.ts` `seedUser` already calls it for you.
- *
- * The seeder is NOT here because this module is imported by BROWSER-world CT stories
- * (`tests/legacy/client/features/preset/**`, `tests/legacy/client/features/config/**`) — a `@orb/db` import would drag the
+ * data. The row's seeder is NOT here because this module is imported by BROWSER-world CT stories —
+ * a `@orb/db` import would drag the
  * node-only db package into the CT bundle.
  */
 export const TEST_CONNECTION_ID: UserConnectionId = viewIds.typeId(ID_PREFIX.userConnection);

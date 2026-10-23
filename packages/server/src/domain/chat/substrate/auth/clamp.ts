@@ -103,8 +103,7 @@ export function isBelowHistoryFloor(event: ChatBusEvent, floorSeq: HistoryFloorS
  * the union is inspected — keyed on the CARRIER (`view` = a committed row's projection, `slotSeq` = the slot
  * a live token stream is filling), never on `type`, so the verdict cannot be bypassed by adding a discriminant.
  * A member that carries NO `view` (an id-only lifecycle/delete event) is anchorless by construction.
- * `view` is REQUIRED on every member that declares it — the positive key-vocabulary pin in
- * `tests/legacy/contracts/chat/index.test-d.ts` holds that shape — so the key test alone is the whole guard; an
+ * `view` is REQUIRED on every member that declares it, so the key test alone is the whole guard; an
  * `!== undefined` arm would be provably dead (eslint `no-unnecessary-condition` rejects it).
  */
 function canonAnchorSeq(event: ChatBusEvent): number | undefined {

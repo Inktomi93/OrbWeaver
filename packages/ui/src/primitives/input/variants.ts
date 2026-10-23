@@ -23,7 +23,7 @@ export const inputVariants = tv({
     // that also slips past the ui-size-via-variant gate. #146 registered the spacing scale, so those pairs now
     // resolve last-wins: the escape is inert AND a plain call-site class would now silently win, which is the
     // stronger reason for the arm to exist at all. The scale can only be chosen HERE (Button `media`/`wrap`,
-    // TabsTab `stacked` precedent). Pinned by COMPUTED box in tests/legacy/ui/primitives/input/input.ct.tsx.
+    // TabsTab `stacked` precedent).
     layout: {
       field: [FIELD_CONTROL, "h-control-sm"],
       // `text-field-dense` IS THE DENSE STEP WITH THE PLATFORM FLOOR BAKED IN (#1868, §4b axis 3). This arm

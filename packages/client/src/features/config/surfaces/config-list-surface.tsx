@@ -198,8 +198,7 @@ export function ConfigListSurface({ groups }: ConfigListSurfaceProps): ReactElem
  *    published mirror, and while that publish lived only in a PASSIVE effect the mirror still said `false`
  *    at the moment this layout effect ran — the guard was written, shipped, and silently inert on every
  *    phone. `use-shell-layout.ts` now seeds the regime during its own render (see its note); a future
- *    change that moves the seed back into an effect re-opens this exact hole, and the pin that catches it
- *    is `tests/legacy/client/features/config/lib/config-section.ct.tsx`'s cold-arrival test.
+ *    change that moves the seed back into an effect re-opens this exact hole.
  *
  * `useLayoutEffect`, not `useEffect`: the write lands BEFORE the browser paints, so the arrival's first
  * frame is the settings body rather than one frame of the landing followed by a swap.

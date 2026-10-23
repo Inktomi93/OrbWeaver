@@ -5,9 +5,7 @@
 // core.ts, `WALKER_PRIMITIVES`), so a selector spelled there is unreachable from any test: the only way to
 // prove the exemption still declines an UNSELECTED carrier and a NON-carrier rounded box is to run the
 // same string a browser runs. Hoisting it here — the `INTERACTIVE_SELECTOR_JS` precedent, interpolated at
-// the same seam — makes the control possible; the planted-control arm lives in
-// tests/legacy/client/features/config/components/config-list-collection-group.ct.tsx, which is where the real
-// carriers render.
+// the same seam — makes the control possible.
 //
 // BOTH HALVES OF EVERY CLAUSE ARE LOAD-BEARING: the slot identity says the element is a ratified carrier,
 // `[data-selected]` says it is in the selection STATE. Drop the state half and an unselected row's

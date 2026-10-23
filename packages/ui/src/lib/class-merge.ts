@@ -72,8 +72,7 @@ const CUSTOM_CLASS_GROUPS = {
 // So this extends the THEME entry rather than enumerating class groups: one registration, every group
 // Tailwind itself derives from the namespace — registering only `gap` would leave the identical latent
 // bug in padding, in the sealed control HEIGHTS, and in every family added later. The scale is DERIVED
-// from the generated token map, so a token added to `tokens.json` is registered by existing; the
-// completeness pin is `tests/legacy/ui/lib/class-merge.test.ts`.
+// from the generated token map, so a token added to `tokens.json` is registered by existing.
 /** Every token name under one DTCG namespace, e.g. `radius.control` → `control`. The scale is DERIVED,
  *  never hand-listed: a token added to `tokens.json` is registered by existing. */
 function scaleOf(namespace: string): string[] {

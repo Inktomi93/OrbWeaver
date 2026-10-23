@@ -12,8 +12,7 @@
 // error). A frozen array would need a placeholder mini-language and would move every knob-name mistake from
 // compile time to mint time. The def's field name (`rules`) and every other field are the spec's.
 //
-// THE AUTHORING LAWS (spec §2) are obeyed here, mechanically, and the `tests/legacy/kit/cel/cel-goldens.json` vector
-// pins the dialect they exist for:
+// THE AUTHORING LAWS (spec §2) are obeyed here, mechanically, for the dialect they exist for:
 //   law 1 — every maybe-unset `vars`/`event` read is `has()`-guarded (`int(vars.absent)` THROWS "No such key").
 //   law 2 — every mixed arithmetic is `int()`-coerced (`chat.messageCount % N` throws
 //           "no such overload: dyn<double> % int").
@@ -192,7 +191,7 @@ function messageContainsAny(needles: readonly string[]): string {
  *  non-activation event carries none, and the short-circuit keeps the `.size()` read from throwing there),
  *  then law 2's `int()` over the entry count — `event.worldInfo.entryIds.size()` is a `dyn` in the shipped
  *  dialect, so the coercion is the same requirement every count comparison has. Both forms — list membership
- *  (`x in event.worldInfo.entryIds`) and `size()` — are pinned in `tests/legacy/kit/cel/cel-goldens.json`. */
+ *  (`x in event.worldInfo.entryIds`) and `size()` — work in the shipped dialect. */
 function loreRevealPredicate(minEntries: number): string {
   return `has(event.worldInfo) && int(event.worldInfo.entryIds.size()) >= ${celInt(minEntries)}`;
 }

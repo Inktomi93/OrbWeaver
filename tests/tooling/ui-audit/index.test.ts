@@ -691,7 +691,7 @@ test("an ANIMATING near-square control is declined, not judged", () => {
 
 // CARVE 3 — ROLES THE TABLE DOES NOT CLAIM. progressbar (a circular progress ring is a legitimate
 // deliberate circle) and slider (role="slider" lands on the visually-hidden native input inside the
-// THUMB here — tests/legacy/ui/primitives/slider/slider.ct.tsx:129-131 — never on the track) are declared out of
+// THUMB here — never on the track) are declared out of
 // reach rather than approximated; checkbox/radio are square by design.
 test("a near-square progressbar/slider/checkbox is NOT judged — the refused roles, pinned", () => {
   for (const role of ["progressbar", "slider", "checkbox", "radio", "button", ""]) {

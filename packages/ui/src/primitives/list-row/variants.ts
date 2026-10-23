@@ -173,8 +173,7 @@ export const listRowVariants = tv({
     // discriminates the rows) clipped on the five longest. `column` pins the name cell to the shared
     // `--width-label-col` so every row's gloss starts at ONE x and gets ONE width, which is what
     // "a fixed name column, then the gloss at 1fr" meant. The name still truncates inside its cell; it can
-    // simply no longer steal the gloss's width. Pinned by computed geometry in
-    // tests/legacy/client/features/preset/components/actions-view.ct.tsx.
+    // simply no longer steal the gloss's width.
     subtitlePlacement: {
       block: {},
       inline: {
