@@ -98,6 +98,7 @@ import {
 import { prepareRetainedCanonStats } from "../persistence/retained-canon.ts";
 import { insertChatStreamEventStatements } from "../persistence/stream-events.ts";
 import { buildHistoryBudget, fitCeiling, historyTurnTokens } from "../substrate/assembly-access.ts";
+import { isCoveredByCompaction } from "../substrate/compaction-coverage.ts";
 import { continuedSignatureMetadata } from "../substrate/content-signatures.ts";
 import { projectInlineReplyImages } from "../substrate/inline-reply-images.ts";
 import { projectRpgTranscript } from "../substrate/rpg-transcript.ts";
@@ -918,7 +919,13 @@ function resolveCoveragePoint(
   }
   const maxSeq = canonAll.at(-1)?.seq ?? 0;
   const coverage = maxSeq - (compaction.verbatimTail ?? MANAGED_VERBATIM_TAIL);
-  return coverage > 0 ? coverage : undefined;
+  return coversCanon(coverage, canonAll) ? coverage : undefined;
+}
+
+// A coverage point below the oldest canon row covers nothing. Point 0 is a real row in a room numbered from seq 0.
+function coversCanon(coverage: number, canonAll: readonly MessageView[]): boolean {
+  const oldest = canonAll.at(0);
+  return oldest !== undefined && isCoveredByCompaction(oldest.seq, coverage);
 }
 
 /** The context the next dispatch would carry, priced as the turn's fit prices it, against the fit's ceiling — what
@@ -931,7 +938,7 @@ function preTurnFitUsage(args: {
   readonly maxContextTokens: number | undefined;
   readonly maxOutputTokens: number | undefined;
   readonly canonAll: readonly MessageView[];
-  readonly currentCoverage: number;
+  readonly currentCoverage: number | null;
   readonly systemTokens: number;
 }): { readonly used: number; readonly ceiling: number } | null {
   const generation = generationOf(args.connection);
@@ -946,7 +953,7 @@ function preTurnFitUsage(args: {
   if (ceiling === null) {
     return null;
   }
-  const eligible = args.canonAll.filter((m) => !m.excludedFromPrompt && m.role !== "system" && m.seq > args.currentCoverage);
+  const eligible = args.canonAll.filter((m) => !m.excludedFromPrompt && m.role !== "system" && !isCoveredByCompaction(m.seq, args.currentCoverage));
   return { used: eligible.reduce((sum, m) => sum + historyTurnTokens(m), 0) + args.systemTokens + budget.reserveOutputTokens, ceiling };
 }
 
@@ -962,7 +969,7 @@ function preTurnCoveragePoint(args: {
   readonly maxContextTokens: number | undefined;
   readonly maxOutputTokens: number | undefined;
   readonly canonAll: readonly MessageView[];
-  readonly currentCoverage: number;
+  readonly currentCoverage: number | null;
   readonly systemTokens: number;
 }): number | undefined {
   const pct = args.compaction.thresholdPct ?? MANAGED_COMPACT_DEFAULT_PCT;
@@ -977,7 +984,7 @@ function preTurnCoveragePoint(args: {
   // no-fit-boundary path). Undefined when there is nothing old enough to compact yet.
   const maxSeq = args.canonAll.at(-1)?.seq ?? 0;
   const coverage = maxSeq - (args.compaction.verbatimTail ?? MANAGED_VERBATIM_TAIL);
-  return coverage > args.currentCoverage && coverage > 0 ? coverage : undefined;
+  return !isCoveredByCompaction(coverage, args.currentCoverage) && coversCanon(coverage, args.canonAll) ? coverage : undefined;
 }
 
 /** Emit a bus event, swallowing any failure — a background warning/update must never re-throw out of the
@@ -1018,10 +1025,10 @@ async function preTurnCompactionPlan(
   ctx: EngineContext,
   prep: TurnPrep,
   canonAll: readonly MessageView[],
-): Promise<{ readonly coveragePoint: number | undefined; readonly currentCoverage: number; readonly instructions: string }> {
+): Promise<{ readonly coveragePoint: number | undefined; readonly currentCoverage: number | null; readonly instructions: string }> {
   const { compaction, maxContextTokens, maxOutputTokens } = resolveEffectiveCompaction(prep);
   const chat = await loadChatRow(ctx.db, prep.chatId);
-  const currentCoverage = chat?.compactedAtSeq ?? 0;
+  const currentCoverage = chat?.compactedAtSeq ?? null;
   const coveragePoint =
     compaction.mode === "managed" && supportsManagedCompaction(prep.connection)
       ? preTurnCoveragePoint({

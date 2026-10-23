@@ -21,7 +21,7 @@ import type { TimerScheduler } from "@orb/kit/time";
 import type { WireOutcome } from "#foundation/observability";
 import type { ChatAccountingContext } from "./accounting-context.ts";
 import type { BuildTurnMemoryArgs, MemoryRecallResult, RecallMemoryArgs, WitnessInterval } from "./memory.ts";
-import type { ResolvedMediaRef, TurnRequest, TurnStreamChunk } from "./results.ts";
+import type { CompactResult, ResolvedMediaRef, TurnRequest, TurnStreamChunk } from "./results.ts";
 import type { RpgTurnOps } from "./rpg-turn.ts";
 
 /** The Node regex watchdog owns execution time outside the pure regex library. */
@@ -129,5 +129,5 @@ export interface EngineDeps {
     readonly coveragePoint?: number | undefined;
     readonly instructions?: string | undefined;
     readonly signal?: AbortSignal | undefined;
-  }) => Promise<{ readonly summary: string; readonly compactedAtSeq: number; readonly updated: boolean }>;
+  }) => Promise<CompactResult>;
 }

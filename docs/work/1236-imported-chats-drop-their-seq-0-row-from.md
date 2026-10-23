@@ -20,6 +20,26 @@ Every chat imported from SillyTavern or a native bundle loses its opening messag
 
 The readers treat absent coverage as no filter so existing 0-based imports are whole; a regression imports a chat and asserts its first message is in the assembled prompt and in the compaction window; the writer's numbering and any renumbering of existing rows are decided and recorded on this item.
 
+## Writer decision
+
+The import writer numbers canon from seq 1 (`importedSeq` in `packages/server/src/domain/chat/persistence/import-write.ts`).
+
+- Live canon appends at the head plus 1 over an empty head of 0 (`commitCanonAppend`, `loadMaxMessageSeq`).
+- A native bundle carries messages by position and `compactedAtSeq` in the source room's seqs. A 0-based write shifts every row down one against that marker, so the row after the covered span falls under the marker without being in its summary.
+- The persona heal matches each input message to the stored room's index-aligned `messageIds`, so it heals rooms written by either origin.
+
+## Existing rows
+
+No migration ships with this item. The readers treat absent coverage as no filter, so 0-based rooms are whole in the prompt and the compaction window.
+
+One residual stays on 0-based rooms imported from a native bundle that carried a marker: the row at the marker's seq plus 1 sits under the marker but is not in its summary. A renumbering migration would close it. Proposed shape, for the owner to decide:
+
+1. Select each chat that has a `messages` row at seq 0.
+2. Shift that chat's `messages.seq` up by 1, highest seq first, so the `(chat_id, seq)` unique index never collides.
+3. Shift the chat's `chat_participants.join_seq` and `left_seq` values above 0 by 1. A founding seat keeps `join_seq` 0.
+4. Leave `chats.compacted_at_seq` alone when the marker came from the bundle. Shift it when a local pass wrote it. The row does not record which one wrote it, so the migration needs a rule for that choice.
+5. Check every other seq-keyed plane for the same chat: runtime variable deltas, memory digest positions, and `automation_rule_state` `settledThroughSeq`.
+
 ## Evidence
 
 Filled at landing: what ran and where its output is.

@@ -159,11 +159,21 @@ async function loadExistingImports(db: Db, characterId: CharacterId, hashes: rea
  *
  * The three planes are the same three the fresh write sets, so a healed room is indistinguishable from one
  * imported today: the room's pin, the HOST SEAT's active persona (scoped to `ownerId` — a member's seat is
- * their own business), and each user slot, matched by `seq` (which the fresh write assigns as the input
- * index, so `ci.messages[i]` ↔ `seq = i` is exact, not a heuristic).
+ * their own business), and each user slot, matched through the room's index-aligned `messageIds` (the same
+ * alignment the R6 remap reads), never through a seq formula: launched imported rooms number canon from 0 or
+ * from 1, and both must heal.
  */
-function healPersonaAttribution(ctx: ChatImportContext, existing: ExistingImport, ownerId: UserId, ci: BulkImportChatInput): BatchStmt[] {
+function healPersonaAttribution(
+  ctx: ChatImportContext,
+  room: {
+    readonly existing: ExistingImport;
+    readonly messageIds: ImportedChatIdentity["messageIds"];
+    readonly ownerId: UserId;
+    readonly ci: BulkImportChatInput;
+  },
+): BatchStmt[] {
   const { db } = ctx;
+  const { existing, messageIds, ownerId, ci } = room;
   const anchor = ci.anchorPersonaId;
   // Gated twice — the stored room must still be anchor-less AND this run must have resolved a persona for it —
   // so an ordinary re-import of an already-attributed corpus produces ZERO statements.
@@ -191,9 +201,10 @@ function healPersonaAttribution(ctx: ChatImportContext, existing: ExistingImport
         ),
     ),
   ];
-  for (const [seq, m] of ci.messages.entries()) {
+  for (const [index, m] of ci.messages.entries()) {
     const personaId = m.role === "user" ? m.personaId : null;
-    if (personaId === null) {
+    const messageId = messageIds[index];
+    if (personaId === null || messageId === undefined) {
       continue;
     }
     stmts.push(
@@ -201,7 +212,7 @@ function healPersonaAttribution(ctx: ChatImportContext, existing: ExistingImport
         db
           .update(messages)
           .set({ personaId })
-          .where(and(eq(messages.chatId, existing.chatId), eq(messages.seq, seq), eq(messages.role, "user"), isNull(messages.personaId))),
+          .where(and(eq(messages.chatId, existing.chatId), eq(messages.id, messageId), eq(messages.role, "user"), isNull(messages.personaId))),
       ),
     );
   }
@@ -572,6 +583,13 @@ function pendingObservationStmts(ctx: ChatImportContext, ownerId: UserId, ci: Bu
   return importedObservationRows(ctx.newChatTurnId, ownerId, ci, identity).map((row) => batchStmt(ctx.db.insert(chatGenerationObservations).values(row)));
 }
 
+/** The seq the import writes for `ci.messages[index]`. Canon numbers from 1 (`commitCanonAppend` appends at the
+ *  head + 1 over an empty head of 0), and a carried `compactedAtSeq` names the source room's seqs, so a row from
+ *  a gap-free source lands on the seq it held there. */
+function importedSeq(index: number): number {
+  return index + 1;
+}
+
 /** All statements for ONE imported chat (header + roster + message slots/variants) + the identity of what it
  *  writes. `identity` is INDEX-ALIGNED to `ci.messages` — the R6 remap (`ImportedChatIdentity`); the tallies
  *  the caller reports are derived from it rather than counted separately, so the count and the remap cannot
@@ -584,14 +602,13 @@ function buildChatStatements(args: OneChatArgs): {
   const stmts = chatHeaderStmts(args);
   const messageIds: MessageId[] = [];
   const variantIds: (readonly MessageVariantId[])[] = [];
-  let seq = 0;
-  for (const m of ci.messages) {
+  for (const [index, m] of ci.messages.entries()) {
     const messageId = ctx.newMessageId();
     const built = messageStatements({
       ctx,
       messageId,
       chatId,
-      seq,
+      seq: importedSeq(index),
       message: m,
       ownerId,
       characterId,
@@ -601,7 +618,6 @@ function buildChatStatements(args: OneChatArgs): {
     stmts.push(...built.stmts);
     messageIds.push(messageId);
     variantIds.push(built.variantIds);
-    seq += 1;
   }
   const identity = { chatId, messageIds, variantIds };
   stmts.push(...pendingObservationStmts(ctx, ownerId, ci, identity));
@@ -717,9 +733,10 @@ async function recordSkippedImport(args: {
   readonly ci: BulkImportChatInput;
 }): Promise<void> {
   const { ctx, state, existing, ownerId, ci } = args;
-  state.identities.push(await loadImportedIdentity(ctx.db, existing.chatId));
+  const identity = await loadImportedIdentity(ctx.db, existing.chatId);
+  state.identities.push(identity);
   state.chatsSkipped += 1;
-  state.chatsPersonaHealed += collectInto(state.healStmts, healPersonaAttribution(ctx, existing, ownerId, ci));
+  state.chatsPersonaHealed += collectInto(state.healStmts, healPersonaAttribution(ctx, { existing, messageIds: identity.messageIds, ownerId, ci }));
 }
 
 /** Commit one fresh candidate, returning the exact winning claim when another invocation won the race.
