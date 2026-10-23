@@ -1,5 +1,4 @@
 // Finite raw HTTP replies feed the production graph; no fixture builds engine contexts or outcomes.
-import "@orb/testkit/node/composed-real.ts";
 import type { JsonValue } from "@orb/kit/json";
 import { createSeededIds } from "@orb/testkit/iso";
 import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/composed";

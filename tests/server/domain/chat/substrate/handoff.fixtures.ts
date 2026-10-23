@@ -1,4 +1,3 @@
-import "@orb/testkit/node/composed-real.ts";
 import type { CharacterDetail } from "@orb/contracts/character";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { StartChatResult } from "@orb/contracts/chat";
