@@ -48,7 +48,7 @@ Runtime and compiler ownership are separate. A `.dom.test.ts` has DOM declaratio
 tests/
 ├── support/                    the @orb/testkit package; no source mirror
 │   ├── iso/                    platform-independent seams: frozen clock, seeded ids
-│   ├── node/                   fixtures.ts and tool-fixtures.ts, factories/, db and Node drivers
+│   ├── node/                   the vitest, helpers, composed, ct and tooling doors; fixtures, factories/, db and Node drivers
 │   └── browser/                browser helpers, the CT door and providers
 ├── <package>/                  mirror packages/<package>/src directories for registered workspaces
 ├── tooling/                    mirror tooling/src directories where a tool home exists
@@ -59,7 +59,7 @@ A test lives in the directory that mirrors the source directory it covers, and i
 
 The sibling legacy source at /home/inktomi/inktomi-stack/development/orbweaver-legacy-tests-2026-10-21 is reference-only. It is not compiled or run by this repository. Use it to identify meaningful cases for rebuilt tests.
 
-`support/` is the test kit, the workspace package `@orb/testkit`. A test imports it through a world subpath, such as `@orb/testkit/node/fixtures.ts`; the kit has no root entry, and its files import each other by relative path. Every kit module lives in exactly one world directory: `iso/` needs neither Node nor DOM declarations, `node/` may use Node and the runners, and `browser/` holds browser and CT helpers.  `Core-0-Architecture-and-Structure.md` §5 owns the kit's doors and the two named exceptions.
+`support/` is the test kit, the workspace package `@orb/testkit`. A test imports it through one of the doors its `package.json` exports: `@orb/testkit/iso`, `node`, `node/helpers`, `node/composed`, `ct`, `ct-corpus`, `browser`, `tooling` and `sdk`. A door is a barrel that names what tests may use; a helper no door exports is internal, and the kit's files import each other by relative path. Knip derives the kit's entries from that exports map, so a module no door or kit test reaches is reported as unused, and dependency-cruiser refuses a deep import (`testkit-doors-only`). The `tests/support/README.md` table says what each door holds. Every kit module lives in exactly one world directory: `iso/` needs neither Node nor DOM declarations, `node/` may use Node and the runners, and `browser/` holds browser and CT helpers.  `Core-0-Architecture-and-Structure.md` §5 owns the kit's doors and the two named exceptions.
 
 `tests/support/node/server.ts` owns the server test composition root and delegates to production composition. Rebuilt server cases use this graph or call pure production functions directly. Builders use deterministic defaults or actual production operations. External-edge adapters and recorders belong in the kit; copied domain rules and alternate domain assemblies do not.
 
@@ -79,11 +79,13 @@ For signed external-protocol test inputs, use native timestamp defaults and veri
 
 Injected clocks model product time. External process, socket and browser completion require their actual lifecycle signals; a frozen clock does not establish physical completion.
 
+**One module registry per worker.** The integration project runs with `isolate: false` and loads the composed-real warm through `setupFiles`, so a production module must not read the environment at import time and a test never stubs the environment before import. A test passes what it needs through the harness: `logLevel`, `debugToken`, `wireCapture`, `rpgTrace` and the owned directories (`tests/support/node/server.ts`).
+
 Do not use `vi.mock` or `vi.spyOn` on an internal module namespace: they replace behavior for every importer. A spy on an object the composition root hands over stays legal.
 
 ## 4. The fixture + factory contract
 
-**Fixture doctrine:** composed `test.extend`, never `beforeEach` sprinkled per file. `tests/support/node/fixtures.ts` exports the project `test` (typed, lazily-initialized — a fixture only runs if destructured); import `{ test, expect }` from there, never raw fixture modules. Fixtures grow as needs land (clock + ids today; a scoped `db` and caller fixtures join the same composed `test`, not per-file setup).
+**Fixture doctrine:** composed `test.extend`, never `beforeEach` sprinkled per file. `tests/support/node/fixtures.ts` exports the project `test` (typed, lazily-initialized — a fixture only runs if destructured); import `{ test, expect }` from `@orb/testkit/node`, never raw fixture modules. Fixtures grow as needs land (clock + ids today; a scoped `db` and caller fixtures join the same composed `test`, not per-file setup).
 
 **Custom matchers (cap at 5):** each must appear in ≥10 sites or encode a domain invariant whose diff message beats a generic `toEqual`. No generic equality/impl-detail/framework wrappers. (Root config already enforces `expect.requireAssertions` — no assertion-free tests.)
 

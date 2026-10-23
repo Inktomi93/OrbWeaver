@@ -1,5 +1,4 @@
 // Shared real-root setup for native executable controls; no fixture owns engine decisions or context.
-import "@orb/testkit/node/composed-real.ts";
 import type { UserIntent } from "@orb/contracts/preset";
 import { chatEvents, chats, messages } from "@orb/db";
 import { createSeededIds } from "@orb/testkit/iso";

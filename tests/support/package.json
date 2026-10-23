@@ -9,15 +9,15 @@
   "sideEffects": true,
   "exports": {
     "./browser": "./browser/index.ts",
+    "./browser/spec": "./browser/spec.ts",
     "./ct": "./node/ct.ts",
     "./ct-corpus": "./node/ct-corpus.ts",
     "./iso": "./iso/index.ts",
     "./node": "./node/index.ts",
     "./node/composed": "./node/composed.ts",
-    "./node/composed-real.ts": "./node/composed-real.ts",
     "./node/helpers": "./node/helpers.ts",
     "./node/rows": "./node/factories/rows.ts",
-    "./sdk": "./node/sdk-process-control.mjs",
+    "./sdk": "./node/sdk-process-control.ts",
     "./tooling": "./node/tool-fixtures.ts"
   },
   "dependencies": {

@@ -1,5 +1,4 @@
 // Native HTTP transport controls use the composed product, including identity and persistence.
-import "@orb/testkit/node/composed-real.ts";
 import { once } from "node:events";
 import { createServer } from "node:http";
 import { CSRF_HEADER } from "@orb/contracts/identity";

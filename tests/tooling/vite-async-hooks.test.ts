@@ -1,5 +1,6 @@
 import type { ServerResponse } from "node:http";
 import { expect, test } from "@orb/testkit/tooling";
+import type { ConfigEnv } from "vite";
 import { afterEach, vi } from "vitest";
 import viteConfig from "../../packages/client/vite.config.ts";
 
@@ -27,8 +28,12 @@ interface ConfiguredPlugin {
   configureServer?: (server: TestServer) => void;
 }
 
+// The dev serve environment: it is the one that registers every plugin this file drives.
+const DEV_SERVE_ENV: ConfigEnv = { command: "serve", mode: "development" };
+
 async function configuredPlugin(name: string): Promise<ConfiguredPlugin> {
-  const options = (viteConfig as { readonly plugins?: readonly unknown[] }).plugins ?? [];
+  const config = viteConfig(DEV_SERVE_ENV);
+  const options = config.plugins ?? [];
   for (const option of options) {
     const plugin = await Promise.resolve(option);
     if (typeof plugin === "object" && plugin !== null && "name" in plugin && plugin.name === name) {

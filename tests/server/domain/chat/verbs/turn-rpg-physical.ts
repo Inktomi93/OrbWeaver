@@ -1,5 +1,4 @@
 // Real room authoring and finite native bytes; the production graph owns RPG state and tool attachment.
-import "@orb/testkit/node/composed-real.ts";
 import { RPG_LITE_TOOL_NAMES, RPG_NO_CHANGES_TOOL } from "@orb/contracts/rpg";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";

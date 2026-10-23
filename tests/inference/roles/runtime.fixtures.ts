@@ -1,4 +1,3 @@
-import "@orb/testkit/node/composed-real.ts";
 import type { Capability, DeclaredCapability, EndpointFeatures, GenerationCapability, Task } from "@orb/contracts/inference";
 import { BUILTIN_PROVIDERS, declaredCapabilitySchema } from "@orb/contracts/inference";
 import type { Resolved } from "@orb/inference";

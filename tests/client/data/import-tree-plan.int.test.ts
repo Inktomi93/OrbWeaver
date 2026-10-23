@@ -1,6 +1,5 @@
 // @subject packages/client/src/data/import-tree-plan.ts
 // @subject packages/client/src/data/import-tree-packer.ts
-import "@orb/testkit/node/composed-real.ts";
 import type { TreeImportCaps, TreeImportPlan } from "@orb/client/data";
 import { importTree, planServedTreeImport, planTreeImport, relativePathOf } from "@orb/client/data";
 import { createCharacterSchema } from "@orb/contracts/character";
@@ -22,7 +21,7 @@ const UNIT = 400;
 // Each upload holds two units, so the native tree below splits into one upload per plane group.
 const SPLIT_CAPS: TreeImportCaps = { totalBytes: UNIT * 2, fileBytes: UNIT * 2, files: DEFAULT_UPLOAD_CAPS.importTreeFiles };
 
-function pickedFile(path: string, bytes: BlobPart = "native fixture"): File {
+function pickedFile(path: string, bytes: string | Uint8Array<ArrayBuffer> = "native fixture"): File {
   const file = new File([bytes], path.split("/").at(-1) ?? path);
   Object.defineProperty(file, "webkitRelativePath", { value: path });
   return file;

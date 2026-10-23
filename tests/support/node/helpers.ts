@@ -25,6 +25,8 @@ export { requestWithHost } from "./host-request.ts";
 export { lanAddress } from "./lan-address.ts";
 export { magicBytes } from "./magic-bytes.ts";
 export { CLIENT_ID, createNativeIssuer, ISSUER, NATIVE_OIDC_SETTINGS } from "./oidc-issuer.ts";
+export type { RecordedRequest } from "./openai-server.ts";
+export { openAiServer, recordRequest, SLEEP_PROBE_SUFFIX } from "./openai-server.ts";
 export type { TerminalFrameOptions } from "./provider-stream.ts";
 export { terminalSseLine } from "./provider-stream.ts";
 export type { SdkPrivateDiagnosticInput, SdkPrivateDiagnosticResult, SdkScriptSpawn } from "./sdk-process.ts";

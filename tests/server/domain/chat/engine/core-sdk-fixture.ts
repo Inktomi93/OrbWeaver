@@ -1,5 +1,4 @@
 // Script files and executable bytes are fixture-owned; no Query, principal or accounting result is fabricated.
-import "@orb/testkit/node/composed-real.ts";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

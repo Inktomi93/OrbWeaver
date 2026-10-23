@@ -1,5 +1,5 @@
 import { AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
-import { pixelContrast, pixelSurface } from "@orb/testkit/browser";
+import { pixelContrast, pixelSurface } from "@orb/testkit/browser/spec";
 import { expect, test } from "@playwright/test";
 import type { ReadingBandStory, SemanticContrastStory } from "./_contrast-stories.tsx";
 

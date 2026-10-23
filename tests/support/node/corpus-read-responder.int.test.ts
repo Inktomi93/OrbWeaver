@@ -1,5 +1,4 @@
 import { createCorpusReadResponder } from "../iso/corpus-read-responder.ts";
-import "./composed-real.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 

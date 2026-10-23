@@ -28,7 +28,7 @@ const configs = [];
 for (const [index, port] of [5181, 5182, 5181].entries()) {
   process.env.VITE_PORT = String(port);
   const { default: config } = await import(${JSON.stringify(pathToFileURL(join(clientRoot, "vite.config.ts")).href)} + "?cache-owner=" + index);
-  configs.push(await resolveConfig({ ...config, configFile: false, root: ${JSON.stringify(clientRoot)}, plugins: [], logLevel: "silent" }, "serve"));
+  configs.push(await resolveConfig({ ...config({ command: "serve", mode: "development" }), configFile: false, root: ${JSON.stringify(clientRoot)}, plugins: [], logLevel: "silent" }, "serve"));
 }
 const servers = [];
 async function optimize(config, force) {

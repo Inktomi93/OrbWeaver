@@ -1,5 +1,4 @@
 // Loopback HTTP, native provider conversion and an installed guest expose Stop beyond the room's bus.
-import "@orb/testkit/node/composed-real.ts";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import type { ServerResponse } from "node:http";

@@ -15,16 +15,20 @@ if (!(hasGit || existsSync(routerConfig))) {
   process.exit(0);
 }
 
-const declarations = spawnSync(process.execPath, [join(root, "node_modules/@typescript/native/bin/tsc"), "--project", routerConfig], { stdio: "inherit" });
-if (declarations.error !== undefined) {
-  throw declarations.error;
-}
-if (declarations.signal !== null) {
-  console.error(`router declaration compiler terminated by signal ${declarations.signal}`);
-  process.exit(1);
-}
-if (declarations.status !== 0) {
-  process.exit(declarations.status ?? 1);
+// A .git without the router config has no server compiler inputs to emit from (a bare repository under test);
+// the hook decision below still has to run there.
+if (existsSync(routerConfig)) {
+  const declarations = spawnSync(process.execPath, [join(root, "node_modules/@typescript/native/bin/tsc"), "--project", routerConfig], { stdio: "inherit" });
+  if (declarations.error !== undefined) {
+    throw declarations.error;
+  }
+  if (declarations.signal !== null) {
+    console.error(`router declaration compiler terminated by signal ${declarations.signal}`);
+    process.exit(1);
+  }
+  if (declarations.status !== 0) {
+    process.exit(declarations.status ?? 1);
+  }
 }
 
 // pnpm runs `prepare` with the package root as cwd, and cwd is also where lefthook looks for the repository.

@@ -29,7 +29,8 @@ Import testkit through the doors its `package.json` exports. A door is a barrel 
 | `@orb/testkit/node/rows` | direct row builders for persistence suites under `tests/db/` and `tests/**/persistence/`; dependency-cruiser refuses every other importer |
 | `@orb/testkit/ct` | Playwright-side helpers for component specs: declared tRPC and socket interception, section navigation |
 | `@orb/testkit/ct-corpus` | the Playwright `test` and `expect` that mount against a corpus-backed server |
-| `@orb/testkit/browser` | production-backed providers, the registry door and rendered-surface helpers for component specs |
+| `@orb/testkit/browser` | production-backed providers, the registry door and isolation helpers a story mounts in the browser |
+| `@orb/testkit/browser/spec` | Node-side helpers a component spec drives the page with: contrast and prose measurement, wire types |
 | `@orb/testkit/tooling` | the vitest `test` and fixtures for tooling tests |
 | `@orb/testkit/sdk` | what a spawned SDK stand-in process imports |
 
@@ -63,7 +64,9 @@ Runnable examples:
 
 | Contract | Enforcement |
 | - | - |
-| Declared package doors and helper-world import direction | Package exports, compiler programs and [dependency-cruiser](../../.dependency-cruiser.ts) |
+| Tests import testkit only through its doors, and a kit module no door or kit test reaches is unused | The `exports` map in [package.json](package.json), knip (the `tests/support` entries derive from that map) and the `testkit-doors-only` rule in [dependency-cruiser](../../.dependency-cruiser.ts) |
+| Helper-world import direction | Compiler programs and the world rules in [dependency-cruiser](../../.dependency-cruiser.ts) |
+| Integration files share one module registry and never read the environment at import | `isolate: false` and the `setupFiles` warm on the integration project in [vitest.config.ts](../../vitest.config.ts); the harness seams in [node/server.ts](node/server.ts) |
 | Story props and updated props | Explicit native `mount<typeof Story>` and [compiler assertions](browser/gallery.dom.test-d.ts) |
 | Ordinary CT authoring uses typed mounts, browser JSX and type-only story imports | Native ESLint syntax restrictions in [eslint.config.ts](../../eslint.config.ts) |
 | Inline callback props stay out of Node mount calls | The same ESLint restrictions; aliases and arbitrary dataflow remain review responsibilities |

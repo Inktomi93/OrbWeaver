@@ -1,5 +1,4 @@
 // A controlled image/tool endpoint speaks native Google bytes; plugin execution and asset retention stay real.
-import "@orb/testkit/node/composed-real.ts";
 import { spawn } from "node:child_process";
 import { parseVariantMetadata } from "@orb/contracts/chat";
 import { providerDefSchema } from "@orb/contracts/inference";
