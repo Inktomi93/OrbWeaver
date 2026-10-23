@@ -1,41 +1,27 @@
-// ONE FINDING, RENDERED ONCE — the pairwise→equivalence-class collapse the Similarity tab's duplicate-art
-// section needed (side-eye se-verify-4 N3, issue #564).
-//
-// THE DEFECT THIS EXISTS FOR, measured on the populated library: "Duplicate art" drew 82 rows over 3,572px
-// — 48% of the tab — and the content was COMBINATORIAL. Twelve cards sharing one placeholder portrait
-// produce C(12,2) = 66 pairs, every one of them at 100%, so a single fact ("these twelve cards have the
-// same picture") was rendered sixty-six times as sixty-six separate findings. A reader scrolling it cannot
-// tell that they are looking at one group, and the section's own length is a function of the SQUARE of the
-// most boring thing in the library.
-//
-// WHY ONLY THE EXACT MATCHES COLLAPSE. "Same portrait" is transitive; "similar portrait" is not. Chaining
-// 0.9 edges would merge two cards that were never within 0.9 of each other and report them as one group —
-// a stronger claim than the pass ever made. So the collapse is applied to the identical edges alone and
-// every sub-identical pair keeps its own row, which is also where a pairwise reading is the honest one:
-// with two members there is nothing to collapse.
-//
-// PURE, and unit-tested (`tests/legacy/client/features/discovery/lib/corpus-duplicate-groups.test.ts`): the
-// grouping is a claim about the DATA, and a CT can only prove that whatever it computed reached the DOM.
+// Exact-art edges collapse transitively; near matches do not connect components.
+// Members retain their dossier identity beside their first-seen display name.
+
+import type { CharacterId } from "@orb/kit/ids";
 
 /** One near-duplicate art pair as this module reads it — passed structurally by the tab, like
  *  `disambiguateLabels`' clusters, so no wire shape is re-spelled here. */
 interface ArtPair {
-  readonly characterIdA: string;
+  readonly characterIdA: CharacterId;
   readonly nameA: string;
-  readonly characterIdB: string;
+  readonly characterIdB: CharacterId;
   readonly nameB: string;
   readonly similarity: number;
 }
 
-/** A set of cards that all carry the SAME portrait — the collapse of one identical-art clique. NOT
- *  exported: the caller reaches it through {@link ArtDuplicateSections} and never names it, and an export
- *  nothing imports is what `knip` is for. */
+/** A member's displayed name and dossier identity travel together through grouping and rendering. */
+export interface ArtCliqueMember {
+  readonly id: CharacterId;
+  readonly name: string;
+}
+
 interface ArtCliqueGroup {
-  /** Stable across renders and unique within the result: the smallest member id. */
-  readonly id: string;
-  readonly memberIds: readonly string[];
-  /** Member names, in first-seen order — the tab shows a bounded run of them. */
-  readonly names: readonly string[];
+  readonly id: CharacterId;
+  readonly members: readonly ArtCliqueMember[];
 }
 
 /** What the duplicate-art section actually renders: the cliques, then the pairs that are not one. Generic
@@ -63,15 +49,15 @@ export function groupIdenticalArt<T extends ArtPair>(pairs: readonly T[]): ArtDu
   const identical = pairs.filter((pair) => pair.similarity >= IDENTICAL_FLOOR);
   const roots = connect(identical);
   const cliques = componentsOf(identical, roots);
-  const collapsed = new Set(cliques.flatMap((clique) => clique.memberIds));
+  const collapsed = new Set(cliques.flatMap((clique) => clique.members.map((member) => member.id)));
   // A pair survives only when it is NOT entirely inside a collapsed clique — the group above already
   // states it, and re-listing it is the pairwise expansion this module deletes.
   return { cliques, pairs: pairs.filter((pair) => !(collapsed.has(pair.characterIdA) && collapsed.has(pair.characterIdB))) };
 }
 
 /** Union-find over the identical edges → each card's component root. */
-function connect(identical: readonly ArtPair[]): Map<string, string> {
-  const parent = new Map<string, string>();
+function connect(identical: readonly ArtPair[]): Map<CharacterId, CharacterId> {
+  const parent = new Map<CharacterId, CharacterId>();
   for (const pair of identical) {
     const [rootA, rootB] = [rootOf(parent, pair.characterIdA), rootOf(parent, pair.characterIdB)];
     if (rootA !== rootB) {
@@ -81,7 +67,7 @@ function connect(identical: readonly ArtPair[]): Map<string, string> {
   return parent;
 }
 
-function rootOf(parent: Map<string, string>, id: string): string {
+function rootOf(parent: Map<CharacterId, CharacterId>, id: CharacterId): CharacterId {
   let root = id;
   let next = parent.get(root);
   while (next !== undefined && next !== root) {
@@ -92,29 +78,24 @@ function rootOf(parent: Map<string, string>, id: string): string {
 }
 
 /** Components of 3+ members, in the order the ranked pair list introduced them. */
-function componentsOf(identical: readonly ArtPair[], parent: Map<string, string>): ArtCliqueGroup[] {
-  const members = new Map<string, { readonly ids: string[]; readonly names: string[] }>();
-  const seen = new Set<string>();
-  for (const side of identical.flatMap((pair) => [
+function componentsOf(identical: readonly ArtPair[], parent: Map<CharacterId, CharacterId>): ArtCliqueGroup[] {
+  const components = new Map<CharacterId, { id: CharacterId; readonly members: ArtCliqueMember[] }>();
+  const seen = new Set<CharacterId>();
+  for (const member of identical.flatMap((pair) => [
     { id: pair.characterIdA, name: pair.nameA },
     { id: pair.characterIdB, name: pair.nameB },
   ])) {
-    if (seen.has(side.id)) {
+    if (seen.has(member.id)) {
       continue;
     }
-    seen.add(side.id);
-    const bucket = members.get(rootOf(parent, side.id)) ?? { ids: [], names: [] };
-    bucket.ids.push(side.id);
-    bucket.names.push(side.name);
-    members.set(rootOf(parent, side.id), bucket);
+    seen.add(member.id);
+    const root = rootOf(parent, member.id);
+    const component = components.get(root) ?? { id: member.id, members: [] };
+    component.members.push(member);
+    if (member.id < component.id) {
+      component.id = member.id;
+    }
+    components.set(root, component);
   }
-  return [...members.values()]
-    .filter((bucket) => bucket.ids.length >= MIN_CLIQUE)
-    .map((bucket) => ({
-      // The smallest id is deterministic and independent of iteration order — the ids are ULID-shaped, so
-      // it is also the earliest-minted member.
-      id: [...bucket.ids].sort()[0] ?? "",
-      memberIds: bucket.ids,
-      names: bucket.names,
-    }));
+  return [...components.values()].filter((component) => component.members.length >= MIN_CLIQUE);
 }

@@ -1,29 +1,6 @@
-// THE SIMILARITY TAB'S FINDINGS — the three duplicate sections (characters · art · chats) and the pair-row
-// anatomy they share with the ranked edge list next door.
-//
-// WHY THEY LEFT THE TAB (the `component-size` cap, 2026-08-23). `corpus-similarity-tab.tsx` is the tab's
-// COMPOSITION: three suspended reads, the section order, and the ranked-edge query with its two knobs. The
-// findings then grew the two things #564 says they owed — a cap with its denominator, and the
-// equivalence-class collapse — and a section's own copy is not the composition's business. Same seam the
-// corpus overview was cut on (`corpus-home-insights.tsx`).
-//
-// ── ONE FINDING IS ONE ROW (side-eye se-verify-4 N3, issue #564) ──────────────────────────────────────
-// "Duplicate art" drew 82 rows / 3,572px — 48% of the tab — with no cap and no denominator, beside a
-// sibling that states "closest 40 of 1,664". And the content was COMBINATORIAL: twelve cards sharing one
-// placeholder portrait produce C(12,2) = 66 pairs, all at 100%, so ONE fact was rendered sixty-six times.
-// Capping alone would have hidden the group behind an arbitrary cut of its own duplicates; the collapse is
-// the real fix and the cap is what keeps the remainder bounded. `lib/corpus-duplicate-groups.ts` owns the
-// grouping (pure, unit-tested — the transitivity argument for why only IDENTICAL art collapses lives
-// there), and all three sections now share one capped-list head so the tab states its truncations the same
-// way in all four places.
-//
-// A CLIQUE'S MEMBERS STAY REACHABLE. The collapsed row is not a summary that loses the cards: each member
-// is a door into its own dossier, which is what the 66 pair rows were really offering and what a reader
-// wants from "which twelve cards are these?". A bounded run of them is drawn and the overflow is stated —
-// the same "showing N of M" contract as the sections themselves.
+// Duplicate findings share bounded pair rows; exact-art groups keep each member's dossier door.
 
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Row, Section, Stack } from "@orb/ui/layout";
@@ -32,6 +9,7 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
 import { selectCorpusArtifact, selectCorpusCharacter } from "#state";
+import type { ArtCliqueMember } from "../lib/corpus-duplicate-groups.ts";
 import { groupIdenticalArt } from "../lib/corpus-duplicate-groups.ts";
 import { percent } from "../lib/corpus-vocabulary.ts";
 
@@ -91,7 +69,7 @@ export function CorpusDuplicateArt({ pairs }: { readonly pairs: readonly ImageDu
         <Stack gap="row">
           <CapNote noun="pairs" shown={shownPairs.length} total={leftover.length} />
           {cliques.map((clique) => (
-            <ArtCliqueRow key={clique.id} memberIds={clique.memberIds} names={clique.names} />
+            <ArtCliqueRow key={clique.id} members={clique.members} />
           ))}
           {shownPairs.map((pair) => (
             <CharacterPairRow
@@ -143,23 +121,18 @@ export function CorpusDuplicateChats({ pairs }: { readonly pairs: readonly Dupli
 
 /** A set of cards that all carry the SAME portrait, as ONE finding — the 66-row expansion collapsed. Each
  *  member is its own door into that character's dossier: the group is the fact, the names are the action. */
-function ArtCliqueRow({ memberIds, names }: { readonly memberIds: readonly string[]; readonly names: readonly string[] }): ReactElement {
-  const shown = names.slice(0, CLIQUE_NAME_CAP);
-  const hidden = names.length - shown.length;
+function ArtCliqueRow({ members }: { readonly members: readonly ArtCliqueMember[] }): ReactElement {
+  const shown = members.slice(0, CLIQUE_NAME_CAP);
+  const hidden = members.length - shown.length;
   return (
     <Stack data-slot="corpus-art-clique" gap="tight">
       <Text as="span" voice="label">
-        {`${memberIds.length.toString()} cards share this portrait`}
+        {`${members.length.toString()} cards share this portrait`}
       </Text>
       <Row align="center" className="flex-wrap" gap="field">
-        {shown.map((name, index) => (
-          <Button
-            intent="ghost"
-            key={memberIds[index] ?? name}
-            onClick={(): void => selectCorpusCharacter(castId<CharacterId>(memberIds[index] ?? ""))}
-            size="sm"
-          >
-            {name}
+        {shown.map((member) => (
+          <Button intent="ghost" key={member.id} onClick={(): void => selectCorpusCharacter(member.id)} size="sm">
+            {member.name}
           </Button>
         ))}
         {hidden > 0 ? <Text voice="gloss">{`+${hidden.toString()} more`}</Text> : null}
