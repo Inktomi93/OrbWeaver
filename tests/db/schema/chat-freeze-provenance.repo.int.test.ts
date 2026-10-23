@@ -1,41 +1,17 @@
 // @subject packages/db/src/schema/chat.ts
-import { cp, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { cp, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { assertReferentialIntegrity, closeDb, createDb, messages, messageVariants, runMigrations } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { jsonValueSchema } from "@orb/kit/json";
 import { runBootMigrations } from "@orb/server/entry/boot";
 import { expect, test } from "@orb/testkit/node";
-import { SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
+import { migrationsBefore, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
 import { seedMessageRow } from "@orb/testkit/node/rows";
 import { eq, sql } from "drizzle-orm";
 
 const MIGRATION = "0004_freeze-provenance";
 const RECORD = [{ name: "roll", args: "1d1", value: "1" }];
-
-async function precedingChain(): Promise<AsyncDisposable & { readonly path: string }> {
-  const path = await mkdtemp(join(tmpdir(), "freeze-provenance-chain-"));
-  try {
-    await cp(SHIPPED_MIGRATIONS, path, { recursive: true });
-    const journalPath = join(path, "meta", "_journal.json");
-    const journal = jsonValueSchema.parse(JSON.parse(await readFile(journalPath, "utf8")));
-    if (journal === null || typeof journal !== "object" || Array.isArray(journal) || !Array.isArray(journal["entries"])) {
-      throw new Error("shipped migration journal has no entries");
-    }
-    const entries = journal["entries"];
-    const index = entries.findIndex((entry) => entry !== null && typeof entry === "object" && !Array.isArray(entry) && entry["tag"] === MIGRATION);
-    if (index < 1) {
-      throw new Error("freeze provenance migration has no preceding chain");
-    }
-    await writeFile(journalPath, JSON.stringify({ ...journal, entries: entries.slice(0, index) }));
-    return { path, [Symbol.asyncDispose]: () => rm(path, { recursive: true, force: true }) };
-  } catch (error) {
-    await rm(path, { recursive: true, force: true });
-    throw error;
-  }
-}
 
 test("the shipped database rejects incoherent provenance on insert, update and upsert and rolls back the batch", async () => {
   const db = await createDb(":memory:");
@@ -77,7 +53,7 @@ test("the shipped database rejects incoherent provenance on insert, update and u
 });
 
 test("the forward migration preserves coherent provenance and circular message selection byte-for-byte", async () => {
-  await using previous = await precedingChain();
+  await using previous = await migrationsBefore(MIGRATION);
   const db = await createDb(":memory:");
   try {
     await runMigrations(db, previous.path);
@@ -104,7 +80,7 @@ test("the forward migration preserves coherent provenance and circular message s
 });
 
 test("an invalid existing row refuses the forward migration atomically without cleanup or advancing its journal", async () => {
-  await using previous = await precedingChain();
+  await using previous = await migrationsBefore(MIGRATION);
   const db = await createDb(":memory:");
   try {
     await runMigrations(db, previous.path);
@@ -123,7 +99,7 @@ test("an invalid existing row refuses the forward migration atomically without c
 });
 
 test("production boot backs up a copied file database before the provenance rebuild and retains its canon", async ({ importStagingDir }) => {
-  await using previous = await precedingChain();
+  await using previous = await migrationsBefore(MIGRATION);
   const sourcePath = join(importStagingDir, "source.db");
   const source = await createDb(pathToFileURL(sourcePath).href);
   try {

@@ -31,7 +31,7 @@ export { createCorpusRecipe, prepareCorpusSnapFixture, runCorpusSnapConsumer } f
 export { seedCorpusActors, seedCorpusConnections, seedRecallCorpus, seedRecallRoom } from "./corpus-seed.ts";
 
 export type { HeldDb, HeldStatement } from "./db.ts";
-export { freshCountedDb, freshDb, freshHeldDb, SHIPPED_MIGRATIONS } from "./db.ts";
+export { freshCountedDb, freshDb, freshHeldDb, migrationsBefore, SHIPPED_MIGRATIONS } from "./db.ts";
 export { makeAssetBytes, seedAsset } from "./factories/asset.ts";
 export { seedAutomationRule, seedAutomationTestFires } from "./factories/automation.ts";
 export { seedCharacter } from "./factories/character.ts";

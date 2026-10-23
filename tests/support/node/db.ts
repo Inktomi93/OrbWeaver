@@ -9,10 +9,14 @@
 // `LibSqlWrap` seam — the SAME seam `foundation/observability`'s `wrapLibSqlClient` uses for OTel spans
 // in production — so what a budget test counts is exactly what shows up as `db.*` spans at runtime.
 
+import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { Db, LibSqlWrap } from "@orb/db";
 import { closeDb, createDb } from "@orb/db";
 // biome-ignore lint/performance/noNamespaceImport: drizzle-kit's snapshot API takes the whole schema module as a Record — namespace import is the canonical way to pass every table.
 import * as schema from "@orb/db/schema";
+import { jsonValueSchema } from "@orb/kit/json";
 import { generateSQLiteDrizzleJson, generateSQLiteMigration } from "drizzle-kit/api";
 import { sql } from "drizzle-orm";
 
@@ -28,6 +32,30 @@ async function pushLiveSchema(db: Db): Promise<void> {
 
 /** The shipped migration chain, relative to the repo root the test runner starts in. */
 export const SHIPPED_MIGRATIONS = "packages/db/src/migrations";
+
+/** A temporary copy of the shipped chain that stops before `tag`, so a forward-migration test can build rows
+ *  at the schema the migration upgrades from. Disposing removes the copy. */
+export async function migrationsBefore(tag: string): Promise<AsyncDisposable & { readonly path: string }> {
+  const path = await mkdtemp(join(tmpdir(), "orb-migrations-before-"));
+  try {
+    await cp(SHIPPED_MIGRATIONS, path, { recursive: true });
+    const journalPath = join(path, "meta", "_journal.json");
+    const journal = jsonValueSchema.parse(JSON.parse(await readFile(journalPath, "utf8")));
+    if (journal === null || typeof journal !== "object" || Array.isArray(journal) || !Array.isArray(journal["entries"])) {
+      throw new Error("shipped migration journal has no entries");
+    }
+    const entries = journal["entries"];
+    const index = entries.findIndex((entry) => entry !== null && typeof entry === "object" && !Array.isArray(entry) && entry["tag"] === tag);
+    if (index < 1) {
+      throw new Error(`migration ${tag} has no preceding chain`);
+    }
+    await writeFile(journalPath, JSON.stringify({ ...journal, entries: entries.slice(0, index) }));
+    return { path, [Symbol.asyncDispose]: () => rm(path, { recursive: true, force: true }) };
+  } catch (error) {
+    await rm(path, { recursive: true, force: true });
+    throw error;
+  }
+}
 
 /** A fresh in-memory db with the full schema applied (FK enforcement ON, via createDb). */
 export function freshDb(wrap?: LibSqlWrap): Promise<Db> {
