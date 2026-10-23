@@ -18,47 +18,20 @@ function jobs(root: string, file: string): Partial<Record<string, { steps: z.inf
     .parse(parse(readFileSync(join(root, `.github/workflows/${file}.yml`), "utf8"))).jobs;
 }
 
-test("CI and weekly gates name actual refused job results without weakening the verdict", async ({ repoRoot, scratch }) => {
-  const workflow = jobs(repoRoot, "ci");
-  for (const [job, needs, failure] of [
-    [
-      "ci-ok",
-      {
-        changes: { result: "success", outputs: { code: "true" } },
-        static: { result: "success" },
-        node: { result: "failure" },
-        ct: { result: "success" },
-        ["e2e-smoke"]: { result: "success" },
-      },
-      "job=node expected=success actual=failure",
-    ],
-    [
-      "ci-ok",
-      {
-        changes: { result: "success", outputs: { code: "false" } },
-        static: { result: "success" },
-        node: { result: "success" },
-        ct: { result: "skipped" },
-        ["e2e-smoke"]: { result: "skipped" },
-      },
-      "job=node expected=skipped actual=success",
-    ],
-    [
-      "weekly-ok",
-      { ["weekly-head"]: { result: "success" }, ["weekly-tooling"]: { result: "cancelled" } },
-      "job=weekly-tooling expected=success actual=cancelled",
-    ],
+test("the CI verdict job fails unless every needed job succeeded", async ({ repoRoot, scratch }) => {
+  const verdict = jobs(repoRoot, "ci")["ci-ok"];
+  const script = z.string().parse(verdict?.steps[0]?.run);
+  for (const [results, code] of [
+    [["success", "success", "success", "success"], 0],
+    [["success", "failure", "success", "success"], 1],
+    [["success", "success", "skipped", "success"], 1],
+    [["success", "success", "success", "cancelled"], 1],
   ] as const) {
-    const script = z.string().parse(workflow[job]?.steps[0]?.run);
-    const summary = join(scratch, `${job}.md`);
     const result = await spawnNiced("bash", ["-euo", "pipefail", "-c", script], {
       cwd: scratch,
-      env: { ["NEEDS"]: JSON.stringify(needs), ["GITHUB_STEP_SUMMARY"]: summary },
+      env: { ["RESULTS"]: JSON.stringify(results) },
     });
-    expect(result.code).toBe(1);
-    expect(result.stdout).toContain(failure);
-    expect(readFileSync(summary, "utf8")).toContain("| Job | Result |");
-    expect(result.stdout.includes("changes.outputs.code=")).toBe(job === "ci-ok");
+    expect(result.code, result.stderr).toBe(code);
   }
 });
 

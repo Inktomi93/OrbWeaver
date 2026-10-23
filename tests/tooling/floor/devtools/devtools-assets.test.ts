@@ -15,6 +15,7 @@ import dependencyCruiser from "../../../../.dependency-cruiser.ts";
 const REAL_PIN = fileURLToPath(new URL("../../../../tooling/src/snap/lib/devtools-frontend/pin.json", import.meta.url));
 const REAL_ROOT = fileURLToPath(new URL("../../../../tooling/src/snap/lib/devtools-frontend", import.meta.url));
 const REPO_ROOT = fileURLToPath(new URL("../../../..", import.meta.url));
+const REAL_REVISION = (JSON.parse(readFileSync(REAL_PIN, "utf8")) as { devtoolsFrontendRevision: string }).devtoolsFrontendRevision;
 const ASSET_ROOT = "tooling/src/snap/lib/devtools-frontend";
 const roots: string[] = [];
 
@@ -193,7 +194,7 @@ test("the formatter worker cannot disappear from the generated closure", async (
   const root = await mkdtemp(join(tmpdir(), "orb-devtools-worker-test-"));
   roots.push(root);
   await cp(REAL_ROOT, root, { recursive: true });
-  await unlink(join(root, "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/entrypoints/formatter_worker/formatter_worker-entrypoint.js"));
+  await unlink(join(root, `assets/serve_rev/@${REAL_REVISION}/entrypoints/formatter_worker/formatter_worker-entrypoint.js`));
   expect(() => verifyDevToolsAssets(root)).toThrow();
 });
 
@@ -250,11 +251,11 @@ test("every real manifest resource is Git-tracked, including resources beneath i
     readonly resources: readonly { readonly file: string }[];
   };
   const tracked = new Set(execFileSync("git", ["ls-files", "--", ASSET_ROOT], { cwd: REPO_ROOT, encoding: "utf8" }).split("\n").filter(Boolean));
-  const ignoredCoverageResource = `${ASSET_ROOT}/assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/coverage/coverage.js`;
+  const ignoredCoverageResource = `${ASSET_ROOT}/assets/serve_rev/@${REAL_REVISION}/panels/coverage/coverage-meta.js`;
   const plantedMissing = new Set(tracked);
   plantedMissing.delete(ignoredCoverageResource);
 
-  const formatterWorker = `${ASSET_ROOT}/assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/entrypoints/formatter_worker/formatter_worker-entrypoint.js`;
+  const formatterWorker = `${ASSET_ROOT}/assets/serve_rev/@${REAL_REVISION}/entrypoints/formatter_worker/formatter_worker-entrypoint.js`;
   expect(manifest.resources.map(({ file }) => `${ASSET_ROOT}/${file}`)).toContain(formatterWorker);
   expect(untrackedManifestResources(manifest.resources, plantedMissing)).toContain(ignoredCoverageResource);
   expect(untrackedManifestResources(manifest.resources, tracked)).toEqual([]);

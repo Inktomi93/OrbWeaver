@@ -272,11 +272,15 @@ test("a broken stageBudgets row REFUSES loudly — never a defaulted ceiling", (
   expect(() => stageBudgetsFor(shared, BODY.replace(/"ctSuiteWorkerMinutes": \d+/u, '"ctSuiteWorkerMinutes": "165"'))).toThrow(
     /field "ctSuiteWorkerMinutes" is "165"/u,
   );
-  expect(() => stageBudgetsFor(shared, BODY.replace(/"verifyHostSlotWaitMinutes": \d+,\n/u, ""))).toThrow(/field "verifyHostSlotWaitMinutes" is undefined/u);
+  expect(() => stageBudgetsFor(shared, BODY.replace('"verifyHostSlotWaitMinutes":', '"renamedverifyHostSlotWaitMinutes":'))).toThrow(
+    /field "verifyHostSlotWaitMinutes" is undefined/u,
+  );
   expect(() => stageBudgetsFor(shared, BODY.replace(/"verifyHostSlotWaitMinutes": \d+/u, '"verifyHostSlotWaitMinutes": 0'))).toThrow(
     /field "verifyHostSlotWaitMinutes" is 0/u,
   );
-  expect(() => stageBudgetsFor(shared, BODY.replace(/"vitestHardCeilingMinutes": \d+,\n/u, ""))).toThrow(/field "vitestHardCeilingMinutes" is undefined/u);
+  expect(() => stageBudgetsFor(shared, BODY.replace('"vitestHardCeilingMinutes":', '"renamedvitestHardCeilingMinutes":'))).toThrow(
+    /field "vitestHardCeilingMinutes" is undefined/u,
+  );
   expect(() => stageBudgetsFor(shared, BODY.replace(/"vitestHardCeilingMinutes": \d+/u, '"vitestHardCeilingMinutes": 0'))).toThrow(
     /field "vitestHardCeilingMinutes" is 0/u,
   );

@@ -231,7 +231,8 @@ const FIXTURE_HTML = `<style>
 const DISCOVERY_BRIDGE = `(async () => {
   const SDK = await import("./core/sdk/sdk.js");
   const Root = await import("./core/root/root.js");
-  const Formatter = await import("./models/formatter/formatter.js"), formatted = await Formatter.ScriptFormatter.formatScriptContent("text/css", "a{color:red}", "  ");
+  const Common = await import("./core/common/common.js");
+  const Formatter = await import("./models/formatter/formatter.js"), formatted = await Formatter.ScriptFormatter.formatScriptContent(Common.Settings.Settings.instance(), "text/css", "a{color:red}", "  ");
   if (!formatted.formattedContent.includes("color")) throw new Error("formatter worker returned no content");
   Object.assign(Root.Runtime.hostConfig, { devToolsAnimationStylesInStylesTab: { enabled: true } });
   if (Root.Runtime.hostConfig.devToolsAnimationStylesInStylesTab?.enabled !== true) throw new Error("animation host config arm missing");
