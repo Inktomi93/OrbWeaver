@@ -3,7 +3,6 @@
 // These stay raw Hono, pre-tRPC, and must never move behind auth. `/me` reads the principal app.ts's auth
 // middleware already resolved — deliberately not a second resolution call (drift-free by construction).
 
-import type { AuthConfig } from "@orb/contracts/auth-config";
 import { authConfigSchema } from "@orb/contracts/auth-config";
 import type { AuthConfigShare, AuthMe, AuthMode, RelayStatus } from "@orb/contracts/identity";
 import { authConfigShareSchema, authMeSchema } from "@orb/contracts/identity";
@@ -87,7 +86,7 @@ export function registerAuthMeta(app: Hono<PrincipalEnv>, deps: AuthMetaDeps): v
       // http, in red when the client is on the public internet (`infra/auth/transport.ts`).
       transport: requestTransport(c),
       clientScope: requestClientScope(c),
-    } satisfies AuthConfig;
+    };
     return c.json(authConfigSchema.parse(config));
   });
 

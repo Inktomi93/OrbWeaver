@@ -88,9 +88,9 @@ export function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, 
   // must still offer the Dismiss that failed. So the affordances follow what has actually happened rather
   // than what the row was born as.
   const [acted, setActed] = useState(false);
-  const isInvite = item.payload.type === "invite";
-  const isHandoff = item.payload.type === "handoff-nominated";
-  const isConsent = item.payload.type === "plugins-awaiting-consent";
+  const isInvite = item.type === "invite";
+  const isHandoff = item.type === "handoff-nominated";
+  const isConsent = item.type === "plugins-awaiting-consent";
   const disabledPluginName = useDisabledPluginName(item.payload);
   const isPending = accept.isPending || decline.isPending || dismiss.isPending;
   // The handoff's own in-flight copy moved to the confirm with the verb (#1762): the only write this row

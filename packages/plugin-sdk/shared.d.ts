@@ -165,9 +165,7 @@ interface PluginQuietOptions {
 /** The `generate_image` argument vocabulary — the SAME shape automation rules use. NOTE the required fields:
  *  this is the resolved form (`mode`, `n`, `useAvatarReference`, `reuse`, `quiet` are yours to state).
  *  `quiet: false` posts the finished picture to the room; `true` returns only the assetId to you. */
-interface GenerateImageActionArgs {
-  readonly mode: "free" | "character" | "face" | "scenario" | "background" | "character_multimodal" | "face_multimodal";
-  readonly prompt?: string | undefined;
+interface GenerateImageActionFields {
   readonly negative?: string | undefined;
   readonly n: number;
   readonly size?: "square" | "portrait" | "landscape" | undefined;
@@ -176,6 +174,12 @@ interface GenerateImageActionArgs {
   readonly reuse: "prefer" | "never";
   readonly quiet: boolean;
 }
+
+type GenerateImageActionArgs = GenerateImageActionFields &
+  (
+    | { readonly mode: "free"; readonly prompt: string }
+    | { readonly mode: "character" | "face" | "scenario" | "background" | "character_multimodal" | "face_multimodal"; readonly prompt?: string | undefined }
+  );
 
 /** Who a plugin notice may reach — the participant-only subset of the notification recipient axis. */
 type PluginNotificationRecipient = "host" | "all_members";

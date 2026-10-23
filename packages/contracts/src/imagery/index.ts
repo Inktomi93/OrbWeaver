@@ -237,17 +237,24 @@ const MIN_IMAGE_COUNT = 1;
 const MAX_IMAGE_COUNT = 4;
 
 /** The chat-client wire for `chat.generateImage` → `imagery.generatePicture`.
- *  Phase-5 drives `mode:"free"` with a required `prompt` (the caller refines it); the Phase-7 fields
+ *  Free mode requires a nonempty prompt; the Phase-7 fields
  *  (`negative`/`subjectCharacterId`/`useAvatarReference`/`reuse`) are additive optionals. `gallery` is the
  *  per-request opt-out of the auto-add: absent or `true` joins each picture to the room character's gallery,
  *  `false` keeps it out (SillyTavern's `gallery=false`). */
-export const generatePictureRequestSchema = z.object({
-  mode: promptTemplateModeSchema,
-  prompt: z.string().max(MAX_PROMPT_CHARS).optional(),
+const generatePictureRequestFields = z.object({
   n: z.int().min(MIN_IMAGE_COUNT).max(MAX_IMAGE_COUNT).optional(),
   size: sizePresetSchema.optional(),
   gallery: z.boolean().optional(),
 });
+const freePromptSchema = z
+  .string()
+  .max(MAX_PROMPT_CHARS)
+  .refine((prompt) => prompt.trim().length > 0, "Free mode requires a prompt");
+const templateModeSchema = promptTemplateModeSchema.exclude(["free"]);
+export const generatePictureRequestSchema = z.discriminatedUnion("mode", [
+  generatePictureRequestFields.extend({ mode: z.literal("free"), prompt: freePromptSchema }),
+  generatePictureRequestFields.extend({ mode: templateModeSchema, prompt: z.string().max(MAX_PROMPT_CHARS).optional() }),
+]);
 /** @public twin: generatePictureRequestSchema — the live `generateImage` tRPC input (cross-package PUBLIC). */
 export type GeneratePictureRequest = z.infer<typeof generatePictureRequestSchema>;
 
@@ -269,24 +276,27 @@ export const MODE_TRIGGERS = {
 // The negative-prompt cap for the action arm (named — `noMagicNumbers`). Shorter than the prompt cap: a
 // negative is a keyword list, not a scene description.
 const MAX_NEGATIVE_CHARS = 1000;
-const DEFAULT_ACTION_MODE = "scenario" satisfies PromptTemplateMode;
+export const DEFAULT_ACTION_MODE = "scenario" satisfies PromptTemplateMode;
 const DEFAULT_IMAGE_COUNT = 1;
 
-/** The automation Tier-1 `generate_image` action-arm args — lives HERE so the
- *  automation contract IMPORTS it into its action union, never re-spells it (`no-inline-union-redecl`). The
- *  args map 1:1 onto `GeneratePictureParams`; `quiet` is interpreted by the CALLER (post vs fire-log
- *  return), not by imagery. */
-export const generateImageActionArgsSchema = z.object({
-  mode: promptTemplateModeSchema.default(DEFAULT_ACTION_MODE),
-  prompt: z.string().max(MAX_PROMPT_CHARS).optional(),
+export const reusePolicySchema = z.enum(["prefer", "never"]);
+const generateImageActionArgsFields = z.object({
   negative: z.string().max(MAX_NEGATIVE_CHARS).optional(),
   n: z.int().min(MIN_IMAGE_COUNT).max(MAX_IMAGE_COUNT).default(DEFAULT_IMAGE_COUNT),
   size: sizePresetSchema.optional(),
   subjectCharacterId: typeIdSchema(ID_PREFIX.character).optional(),
   useAvatarReference: z.boolean().default(false),
-  reuse: z.enum(["prefer", "never"]).default("prefer"),
+  reuse: reusePolicySchema.default("prefer"),
   quiet: z.boolean().default(false),
 });
+/** The automation Tier-1 `generate_image` action-arm args — lives HERE so the
+ *  automation contract IMPORTS it into its action union, never re-spells it (`no-inline-union-redecl`). The
+ *  args map 1:1 onto `GeneratePictureParams`; `quiet` is interpreted by the CALLER (post vs fire-log
+ *  return), not by imagery. */
+export const generateImageActionArgsSchema = z.discriminatedUnion("mode", [
+  generateImageActionArgsFields.extend({ mode: z.literal("free"), prompt: freePromptSchema }),
+  generateImageActionArgsFields.extend({ mode: templateModeSchema.default(DEFAULT_ACTION_MODE), prompt: z.string().max(MAX_PROMPT_CHARS).optional() }),
+]);
 export type GenerateImageActionArgs = z.infer<typeof generateImageActionArgsSchema>;
 
 /** block is a render-ready convenience for direct consumers; the chat caller persists a message string
@@ -403,13 +413,13 @@ interface GalleryCuration {
 }
 /** The reuse-gate policy (doc 03 §4.4): `"prefer"` (default) short-circuits to a matching prior portrait;
  *  `"never"` is the regenerate affordance (always a fresh generation). */
-export type ReusePolicy = "prefer" | "never";
+export type ReusePolicy = z.infer<typeof reusePolicySchema>;
 /** `generatePicture` — the orchestrator's params. `caller` is the requesting human: the extraction viewer and
  *  the reader of the subject card for the reuse and avatar-reference gates. The run-as principal (`runAsUserId`, else `caller`) funds, styles and owns the
  *  picture. `chatId` is provenance + the extraction-shaper's history scope (REQUIRED unless `mode:"free"`
  *  with a `prompt`); `prompt` present OR `mode:"free"` skips extraction (used verbatim);
  *  `subjectCharacterId` focuses the char macro / picks the avatar for character/face + multimodal modes. */
-export interface GeneratePictureParams {
+interface GeneratePictureFields {
   readonly caller: Principal;
   /** The room host a room picture runs as (D298), resolved by chat through the turn identity. Absent
    *  outside a room: the caller funds, styles and owns its own picture. */
@@ -417,8 +427,6 @@ export interface GeneratePictureParams {
   /** The binding actor whose own generateImage binding is folded before the caller's (an automation rule's). */
   readonly actor?: BindingActor | undefined;
   readonly chatId?: ChatId | undefined;
-  readonly mode: PromptTemplateMode;
-  readonly prompt?: string | undefined;
   readonly n?: number | undefined;
   readonly subjectCharacterId?: CharacterId | undefined;
   /** Appended to `DEFAULT_NEGATIVE` (doc 02 §6), never replaces it. */
@@ -446,4 +454,8 @@ export interface GeneratePictureParams {
    *  plugin and a model tool call have no viewer. */
   readonly timeZone?: IanaTimeZone | undefined;
 }
+export type GeneratePicturePrompt =
+  | { readonly mode: "free"; readonly prompt: string }
+  | { readonly mode: Exclude<PromptTemplateMode, "free">; readonly prompt?: string | undefined };
+export type GeneratePictureParams = GeneratePictureFields & GeneratePicturePrompt;
 export type GeneratePicture = (params: GeneratePictureParams) => Promise<GeneratedPicture>;

@@ -78,7 +78,7 @@ import { createMemberDeltaStamper } from "./substrate/member-visibility.ts";
  *  §3.6-stamped copy, so the composition root fans the exact bytes the log holds. */
 interface ChatEmitted {
   readonly seq: number;
-  readonly event: ChatBusEvent;
+  readonly event: DurableChatBusEvent;
 }
 
 /** Returns what was logged so the composition root can fan the same cursor-stamped event onto the transport
@@ -232,10 +232,7 @@ async function committedRowSeq(db: Db, id: ChatEventId, event: ChatBusEvent): Pr
 
 /** The one attempt-exhausted append the report below classifies: the id the whole retry re-used, the stamped
  *  event it tried to write, the last attempt's error, and how many attempts were spent.
- *
- *  `ChatBusEvent`, not the emit door's `DurableChatBusEvent`: this holds the STAMPED copy (`stamper.stamp`
- *  widens back to the whole union), and the classification only ever reads `chatId`/`type` off it plus
- *  compares it to the stored payload. */
+ */
 interface TerminalDrop {
   readonly id: ChatEventId;
   readonly event: ChatBusEvent;
@@ -274,7 +271,7 @@ export function createChatBus(input: DbAssemblyInput<ChatBusDeps>): ChatBus {
   // token stream regardless of who is (or is not) subscribed at any moment.
   const stamper = createMemberDeltaStamper();
 
-  const publishCommitted = (seq: number, event: ChatBusEvent): ChatEmitted => {
+  const publishCommitted = (seq: number, event: DurableChatBusEvent): ChatEmitted => {
     const ring = rings.get(event.chatId) ?? [];
     ring.push({ seq, event });
     if (ring.length > RING_CAPACITY) {

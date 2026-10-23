@@ -1,6 +1,7 @@
 // @subject tests/support/node/factories/imagery.ts
 // @subject packages/server/src/domain/imagery/persistence/queries.ts
 import { createCharacterSchema } from "@orb/contracts/character";
+import type { GeneratePictureParams } from "@orb/contracts/imagery";
 import { generationProvenanceSchema } from "@orb/contracts/imagery";
 import type { PortableFile } from "@orb/contracts/portability";
 import { imageryGenerations, imageryImportCalls } from "@orb/db";
@@ -40,7 +41,9 @@ function imageExecution(): ImageExecution {
   };
 }
 
-async function hostedSubject(root: Awaited<ReturnType<typeof createServerHarness>>): Promise<Omit<Parameters<typeof seedImageryGenerations>[1], "reuse">> {
+async function hostedSubject(
+  root: Awaited<ReturnType<typeof createServerHarness>>,
+): Promise<Pick<GeneratePictureParams, "caller" | "chatId" | "subjectCharacterId" | "n"> & { readonly mode: "character" }> {
   const principal = await root.principalFor(root.ownerId);
   const character = await root.services.character.create({
     principal,

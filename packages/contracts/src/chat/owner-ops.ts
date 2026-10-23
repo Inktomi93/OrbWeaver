@@ -7,7 +7,7 @@ import type { BindingActor } from "#inference";
 import type { BlockKey } from "#search";
 import type { TagView } from "#tag";
 import type { ThemeBackground, ThemeOverride } from "#theme";
-import type { ChatBusEvent, LiveOnlyChatBusEvent, TurnInitiator } from "./bus.ts";
+import type { DurableChatBusEvent, LiveOnlyChatBusEvent, TurnInitiator } from "./bus.ts";
 import type { GuidedSteer } from "./metadata.ts";
 import type { HistoryFloorSeq, RenderPolicy } from "./roster.ts";
 import type { TurnOutcome } from "./views.ts";
@@ -156,7 +156,7 @@ export interface StoreSegmentParams {
 }
 
 /** A live-only event has no durable cursor; publishers must preserve that distinction. */
-export type ChatLivePublish = { readonly seq: number; readonly event: ChatBusEvent } | { readonly seq: null; readonly event: LiveOnlyChatBusEvent };
+export type ChatLivePublish = { readonly seq: number; readonly event: DurableChatBusEvent } | { readonly seq: null; readonly event: LiveOnlyChatBusEvent };
 
 export interface TurnRetrievalEvents {
   readonly onRerankUnavailable: () => void;

@@ -5,7 +5,7 @@ import type { ChatId } from "@orb/kit/ids";
 import type { ChatContext } from "../contract/context.ts";
 import type { GetMessageWindowParams } from "../contract/params.ts";
 import type { ChatService } from "../contract/service.ts";
-import type { ParticipantData } from "../contract/views.ts";
+import type { MessageWindowAnchor, MessageWindowResolution, ParticipantData } from "../contract/views.ts";
 import { requireParticipant } from "../guard.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { loadWindowAnchor, loadWindowRange } from "../persistence/message-window.ts";
@@ -24,10 +24,9 @@ export function createMessageWindow(
     const floor = membership.historyFloorSeq;
     const pageSize = Math.max(1, Math.min(limit ?? DEFAULT_WINDOW_LIMIT, CHAT_MESSAGE_LIST_MAX_LIMIT));
     const resolution = await resolveWindowTarget(ctx, { chatId, target }, floor);
-    const { outcome, anchor, end } = resolution;
-    if (anchor === null) {
+    if (resolution.anchor === null) {
       return {
-        outcome,
+        outcome: resolution.outcome,
         anchorMessageId: null,
         anchorSeq: null,
         endSeq: null,
@@ -38,6 +37,7 @@ export function createMessageWindow(
         hasAfter: false,
       };
     }
+    const { outcome, anchor, end } = resolution;
     const canon = await readWindowPage(ctx, { chatId, cursor, pageSize, floor, anchorSeq: anchor.seq });
     const readsHidden = viewerReadsHidden(membership);
     const reasoningHostOnly = readsHidden ? false : ((await ctx.rpg?.resolveReasoningHostOnly(chatId)) ?? false);
@@ -54,8 +54,8 @@ export function createMessageWindow(
       outcome,
       anchorMessageId: anchor.id,
       anchorSeq: anchor.seq,
-      endSeq: end?.seq ?? null,
-      endMessageId: end?.id ?? null,
+      endSeq: end.seq,
+      endMessageId: end.id,
       messages,
       identities,
       hasBefore: before.length > 0,
@@ -64,24 +64,18 @@ export function createMessageWindow(
   };
 }
 
-type WindowAnchor = Awaited<ReturnType<typeof loadWindowAnchor>>;
-interface WindowResolution {
-  readonly outcome: CorpusSourceOutcome;
-  readonly anchor: WindowAnchor;
-  readonly end: WindowAnchor;
-}
 async function resolveWindowTarget(
   ctx: ChatContext,
   request: Pick<GetMessageWindowParams, "chatId" | "target">,
   floor: HistoryFloorSeq,
-): Promise<WindowResolution> {
+): Promise<MessageWindowResolution> {
   if (request.target.kind === "source") {
     return await resolveSourceWindow(ctx, request.chatId, request.target.source, floor);
   }
   const anchor = await loadWindowAnchor(ctx.db, request.chatId, request.target.messageId, floor);
-  return { outcome: anchor === null ? "deleted" : "resolved", anchor, end: anchor };
+  return anchor === null ? { outcome: "deleted", anchor: null, end: null } : { outcome: "resolved", anchor, end: anchor };
 }
-async function resolveSourceWindow(ctx: ChatContext, chatId: ChatId, source: CorpusSource, floor: HistoryFloorSeq): Promise<WindowResolution> {
+async function resolveSourceWindow(ctx: ChatContext, chatId: ChatId, source: CorpusSource, floor: HistoryFloorSeq): Promise<MessageWindowResolution> {
   if (source.chatId !== chatId || source.fingerprint === null || source.seqStart === null || source.seqEnd === null || source.seqEnd < source.seqStart) {
     return { outcome: "unavailable", anchor: null, end: null };
   }
@@ -96,8 +90,11 @@ async function resolveSourceWindow(ctx: ChatContext, chatId: ChatId, source: Cor
   ]);
   // Sequence slots can be reused after edits; surviving stable identity owns the jump.
   const anchor = stableStart ?? stableEnd ?? range.first;
+  if (anchor === null) {
+    return { outcome: "deleted", anchor: null, end: null };
+  }
   const survivingEnd = stableEnd ?? range.last;
-  const end = anchor !== null && survivingEnd !== null && survivingEnd.seq >= anchor.seq ? survivingEnd : anchor;
+  const end = survivingEnd !== null && survivingEnd.seq >= anchor.seq ? survivingEnd : anchor;
   return { anchor, end, outcome: sourceOutcome({ source, anchor, end, contentHash: current.contentHash, sourceSpanMatches: current.sourceSpanMatches }) };
 }
 function sourceOutcome({
@@ -108,19 +105,16 @@ function sourceOutcome({
   sourceSpanMatches,
 }: {
   readonly source: CorpusSource;
-  readonly anchor: WindowAnchor;
-  readonly end: WindowAnchor;
+  readonly anchor: MessageWindowAnchor;
+  readonly end: MessageWindowAnchor;
   readonly contentHash: string | null;
   readonly sourceSpanMatches: boolean;
-}): CorpusSourceOutcome {
-  if (anchor === null) {
-    return "deleted";
-  }
+}): Extract<CorpusSourceOutcome, "resolved" | "moved"> {
   const exact =
     sourceSpanMatches &&
     contentHash === source.contentHash &&
     anchor.id === source.messageStartId &&
-    end?.id === source.messageEndId &&
+    end.id === source.messageEndId &&
     anchor.seq === source.seqStart &&
     end.seq === source.seqEnd;
   return exact ? "resolved" : "moved";

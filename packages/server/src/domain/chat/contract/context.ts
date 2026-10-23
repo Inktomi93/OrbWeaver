@@ -22,7 +22,7 @@ import type {
 } from "@orb/contracts/chat";
 import type { MemoryEmbedSpace, PruneMemoryBlocksParams } from "@orb/contracts/embeddings";
 import type { Can, ChatMembership, Principal } from "@orb/contracts/identity";
-import type { PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
+import type { GeneratePicturePrompt, SizePresetName } from "@orb/contracts/imagery";
 import type { SendAvailability } from "@orb/contracts/inference";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
 import type { ResolveCurrentPersonaOp, ResolveDefaultPersonaOp } from "@orb/contracts/persona";
@@ -713,22 +713,23 @@ type GmSeatHolderKind = { readonly kind: "human" } | { readonly kind: "agent"; r
 
 /** The injected image-generation op. Chat holds message-write authority; imagery is caller-blind (returns
  *  blocks, never posts). */
-export type GeneratePictureOp = (p: {
-  /** The requesting member: the extraction viewer and the message author. */
-  readonly caller: Principal;
-  /** The room host the picture runs as (D298): its connection, templates, negative base, Utility
-   *  funder, asset store and gallery. */
-  readonly runAsUserId: UserId;
-  readonly chatId: ChatId;
-  readonly mode: PromptTemplateMode;
-  readonly prompt?: string | undefined;
-  readonly n?: number | undefined;
-  readonly size?: SizePresetName | undefined;
-  /** The character whose gallery each picture joins; imagery adds it only when the run-as host owns it. */
-  readonly gallery?: { readonly subjectCharacterId: CharacterId } | undefined;
-  /** The viewer's zone an extraction template's time macros read; absent ⇒ UTC. */
-  readonly timeZone?: IanaTimeZone | undefined;
-}) => Promise<{
+export type GeneratePictureOp = (
+  p: GeneratePicturePrompt & {
+    /** The requesting member: the extraction viewer and the message author. */
+    readonly caller: Principal;
+    /** The room host the picture runs as (D298): its connection, templates, negative base, Utility
+     *  funder, asset store and gallery. */
+    readonly runAsUserId: UserId;
+    readonly chatId: ChatId;
+
+    readonly n?: number | undefined;
+    readonly size?: SizePresetName | undefined;
+    /** The character whose gallery each picture joins; imagery adds it only when the run-as host owns it. */
+    readonly gallery?: { readonly subjectCharacterId: CharacterId } | undefined;
+    /** The viewer's zone an extraction template's time macros read; absent ⇒ UTC. */
+    readonly timeZone?: IanaTimeZone | undefined;
+  },
+) => Promise<{
   readonly images: readonly { readonly assetId: AssetId }[];
   // Imagery's native warning vocabulary (e.g. `image_edit_dropped` — an edit/avatar-reference input dropped for
   // a non-edit model). `generateImage` maps these onto chat's OWN `warning` bus codes

@@ -121,26 +121,24 @@ export function makeChatDetail(overrides: Partial<ChatDetailWire> = {}): ChatDet
 
 /** One `chat.listChats` row: a host's quiet room with no messages and no seats. */
 export function makeChatSummaryView(overrides: Partial<ChatSummaryWire> = {}): ChatSummaryWire {
-  return {
-    ...chatSummarySchema.parse({
-      id: makeChatId(),
-      title: null,
-      starred: false,
-      archived: false,
-      lastMessageAt: null,
-      viewerLastTurnAt: null,
-      messageCount: 0,
-      lastMessagePreview: null,
-      isGame: false,
-      gamePaused: false,
-      participantNames: [],
-      participantPortraits: [],
-      viewerRole: "host",
-      createdAt: FROZEN_AT_MS,
-      updatedAt: FROZEN_AT_MS,
-    }),
+  return chatSummarySchema.parse({
+    id: makeChatId(),
+    title: null,
+    starred: false,
+    archived: false,
+    lastMessageAt: null,
+    viewerLastTurnAt: null,
+    messageCount: 0,
+    lastMessagePreview: null,
+    isGame: false,
+    gamePaused: false,
+    participantNames: [],
+    participantPortraits: [],
+    viewerRole: "host",
+    createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
     ...overrides,
-  };
+  });
 }
 
 /** A `chat.listChats` page over `items`; `totalCount` is the item count unless the override says otherwise. */

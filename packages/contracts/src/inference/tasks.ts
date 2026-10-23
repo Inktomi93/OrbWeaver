@@ -25,15 +25,14 @@ export interface CapabilityRequirement {
   readonly structured?: boolean | undefined;
 }
 
-export interface TaskDef {
+interface TaskDefFields {
   readonly kind: ModelKind;
   readonly requires?: CapabilityRequirement | undefined;
   readonly scope: "actor" | "owner";
   readonly spend: "foreground" | "background";
-  readonly routable: boolean;
-  /** A non-routable task resolves through this task's binding. */
-  readonly ridesOn?: Task | undefined;
 }
+
+export type TaskDef = TaskDefFields & ({ readonly routable: true; readonly ridesOn?: never } | { readonly routable: false; readonly ridesOn: RoutableTask });
 
 /** The built-in encoder's vector width (the seed `embed` row below). An owner's space is as wide as whatever
  *  embedder they bind; this is only the width a default install's space has. */
@@ -64,7 +63,7 @@ export type LocalLightSeedSlot = (typeof LOCAL_LIGHT_SEED_ROWS)[number]["task"];
 
 // `as const satisfies` (not a `Record<Task, TaskDef>` annotation): the literal `routable` flags must
 // survive so `RoutableTask` can be DERIVED from the rows rather than spelled twice.
-export const TASK_DEFS = {
+const taskDefinitions = {
   chat: { kind: "generation", scope: "actor", spend: "foreground", routable: true },
   // `agent` is served only by the `agent-sdk` wire and rides the chat binding (F4: not routable today;
   // nothing routes it — `ROUTING_ROLE_KEYS` never had it).
@@ -77,7 +76,9 @@ export const TASK_DEFS = {
   embed: { kind: "embedding", scope: "owner", spend: "background", routable: true },
   imageEmbed: { kind: "embedding", requires: { input: ["image"] }, scope: "owner", spend: "background", routable: true },
   rerank: { kind: "rerank", scope: "owner", spend: "background", routable: true },
-} as const satisfies Record<Task, TaskDef>;
+} as const;
+
+export const TASK_DEFS = taskDefinitions satisfies Record<Task, TaskDef>;
 
 /** The row as its TYPE (the `as const` literal union has no `requires` on the rows that state none). */
 export function taskDef(task: Task): TaskDef {
@@ -85,7 +86,7 @@ export function taskDef(task: Task): TaskDef {
 }
 
 /** The tasks a `connection_bindings` row may name — derived from `TASK_DEFS`, never a second list. */
-export type RoutableTask = { [T in Task]: (typeof TASK_DEFS)[T]["routable"] extends true ? T : never }[Task];
+export type RoutableTask = { [T in Task]: (typeof taskDefinitions)[T]["routable"] extends true ? T : never }[Task];
 export const ROUTABLE_TASKS: readonly RoutableTask[] = TASKS.filter((task): task is RoutableTask => TASK_DEFS[task].routable);
 
 const ROUTABLE_TASK_SET: ReadonlySet<string> = new Set<string>(ROUTABLE_TASKS);
@@ -102,12 +103,7 @@ export function bindingTaskOf(task: Task): RoutableTask {
   if (isRoutableTask(task)) {
     return task;
   }
-  const def: TaskDef = TASK_DEFS[task];
-  const rides = def.ridesOn;
-  if (rides === undefined || !isRoutableTask(rides)) {
-    throw new Error(`TASK_DEFS.${task} is not routable and names no routable ridesOn`);
-  }
-  return rides;
+  return TASK_DEFS[task].ridesOn;
 }
 
 /** Every task of one kind — what a connection on a model of that kind can serve at most. */

@@ -24,6 +24,11 @@ export interface ChatStreamReplayEvent {
   readonly delta: string;
 }
 
+export type MessageWindowAnchor = Pick<MessageView, "id" | "seq">;
+export type MessageWindowResolution =
+  | { readonly outcome: "deleted" | "unavailable"; readonly anchor: null; readonly end: null }
+  | { readonly outcome: "resolved" | "moved"; readonly anchor: MessageWindowAnchor; readonly end: MessageWindowAnchor };
+
 /** A durable chat-bus log row (replayChatEvents) — one room-public `ChatBusEvent` with its per-chat replay
  *  cursor (the `chat_events` row projected). The chat room's SSE resume replays these; the live
  *  half rides the transport fan-out with the SAME `{seq, event}` shape (uniform `tracked()` envelopes). */
@@ -70,9 +75,11 @@ export interface ParticipantData extends Omit<WireParticipantView, "role"> {
 export interface ChatDetailData extends Omit<WireChatDetail, "participants"> {
   readonly participants: readonly ParticipantData[];
 }
-export interface ChatSummaryData extends Omit<WireChatSummary, "viewerRole"> {
-  readonly viewerRole: ParticipantRoleState;
-}
+export type ChatSummaryData = WireChatSummary extends infer Summary
+  ? Summary extends WireChatSummary
+    ? Pick<Summary, Exclude<keyof Summary, "viewerRole">> & { readonly viewerRole: ParticipantRoleState }
+    : never
+  : never;
 export interface ChatListPageData extends Omit<WireChatListPage, "items"> {
   readonly items: readonly ChatSummaryData[];
 }

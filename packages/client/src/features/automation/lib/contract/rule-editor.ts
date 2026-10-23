@@ -1,4 +1,5 @@
 import { AUTOMATION_RULE_NAME_MAX_CHARS, automationActionSchema, automationRuleEditableSchema, noticeCooldownTooShort } from "@orb/contracts/automation";
+import { DEFAULT_ACTION_MODE, promptTemplateModeSchema } from "@orb/contracts/imagery";
 import { AUTOMATION_NOTICE_COOLDOWN_SECONDS } from "@orb/contracts/notifications";
 import { z } from "zod";
 
@@ -21,8 +22,14 @@ const draftActionSchema = z.discriminatedUnion("type", [
   notification.extend({ messageTemplate: z.string() }),
   // eslint-disable-next-line orb/no-raw-id -- Unfinished draft speaker selection; the commit schema reparses canonical IDs before transport.
   turn.extend({ speakerCharacterId: z.string().optional(), guidedTemplate: z.string().optional() }),
-  // eslint-disable-next-line orb/no-raw-id -- Unfinished draft subject selection; the commit schema reparses canonical IDs before transport.
-  image.extend({ prompt: z.string().optional(), negative: z.string().optional(), subjectCharacterId: z.string().optional(), n: z.number() }),
+  image.options[1].extend({
+    mode: promptTemplateModeSchema.default(DEFAULT_ACTION_MODE),
+    prompt: z.string().optional(),
+    negative: z.string().optional(),
+    // eslint-disable-next-line orb/no-raw-id -- Unfinished draft subject selection; the commit schema reparses canonical IDs before transport.
+    subjectCharacterId: z.string().optional(),
+    n: z.number(),
+  }),
   background.extend({ instruction: z.string().optional() }),
   analysis.extend({
     brief: z.string(),

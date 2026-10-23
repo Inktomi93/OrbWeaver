@@ -69,17 +69,17 @@ export function docFormatForMime(mime: string): DocFormat | undefined {
   return MIME_TO_FORMAT[mime.split(";", 1)[0]?.trim().toLowerCase() ?? ""];
 }
 
-export interface ExtractionMeta {
-  readonly format: DocFormat;
+interface ExtractionMetaFields {
   /** EXTRACTOR_VERSION at run time — stamped onto `documents.extractorVersion` (the re-extract predicate). */
   readonly extractorVersion: string;
   /** `text.length` (convenience; saves a re-measure at every consumer). */
   readonly charCount: number;
-  /** pdf only. */
-  readonly pageCount?: number;
   /** html `<title>` / epub package metadata / pdf info-dict title, when present. */
   readonly title?: string;
 }
+
+export type ExtractionMeta = ExtractionMetaFields &
+  ({ readonly format: "pdf"; readonly pageCount: number } | { readonly format: Exclude<DocFormat, "pdf">; readonly pageCount?: never });
 
 export interface ExtractionResult {
   /** UTF-8 clean, newlines normalized to `\n`, NFC-normalized. */

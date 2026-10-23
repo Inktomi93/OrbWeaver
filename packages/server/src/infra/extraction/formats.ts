@@ -12,11 +12,11 @@ import { loadPdf } from "./loaders/pdf.ts";
 import { loadTextlike } from "./loaders/textlike.ts";
 
 /** The exhaustive format → loader dispatch. Adding a `DocFormat` member without a loader fails `tsc`. */
-export const LOADERS: { readonly [F in DocFormat]: Loader } = {
+export const LOADERS = {
   pdf: loadPdf,
   html: loadHtml,
   markdown: loadTextlike,
   text: loadTextlike,
   docx: loadDocx,
   epub: loadEpub,
-};
+} satisfies { readonly [F in DocFormat]: Loader };

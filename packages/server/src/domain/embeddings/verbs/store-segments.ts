@@ -16,6 +16,7 @@
 //
 // A one-element call is the live post-turn path — same code, batch of one.
 
+import type { StoreGenerationReceipt } from "@orb/contracts/embeddings";
 import type { UserId } from "@orb/kit/ids";
 import { EmbedFailedError, SpaceMismatchError } from "../contract/errors.ts";
 import type { SegmentStoreParams } from "../contract/params.ts";
@@ -51,7 +52,7 @@ async function targetGenerations(
 
 /** The receipt fields `store` stamps too: the memory sweep records its completion from them, so a noop names
  *  the generation it was gated against, not only a write. */
-function receiptOf(generation: PinnedGeneration | undefined): Pick<StoreResult, "generationId" | "generationEpoch" | "generationVia"> {
+function receiptOf(generation: PinnedGeneration | undefined): StoreGenerationReceipt {
   return generation === undefined ? {} : { generationId: generation.id, generationEpoch: generation.epoch, generationVia: generation.via };
 }
 

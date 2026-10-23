@@ -562,7 +562,10 @@ export const automationActionSchema = z.discriminatedUnion("type", [
     confirmFirst: confirmFirstSchema,
   }),
   // 1.7 generate an image (SPEND-classed). Args home in @orb/contracts/imagery (`no-inline-union-redecl`).
-  generateImageActionArgsSchema.extend({ type: z.literal("generate_image"), confirmFirst: confirmFirstSchema }),
+  z.discriminatedUnion("mode", [
+    generateImageActionArgsSchema.options[0].extend({ type: z.literal("generate_image"), confirmFirst: confirmFirstSchema }),
+    generateImageActionArgsSchema.options[1].extend({ type: z.literal("generate_image"), confirmFirst: confirmFirstSchema }),
+  ]),
   // 1.8 auto-background (BG-F — ST `/autobg`): an LLM QUIET-pick over the author's owned background library,
   // writing the CHAT background (host-scoped; scope-safe precisely because BG-C's composition rule makes a
   // chat background INERT for every viewer outside a true-solo room). `instruction` optionally biases the
@@ -1023,7 +1026,7 @@ export const automationActionViewSchema = z.union([
     .extend({ choices: z.array(quickReplyAction.shape.choices.element.strict()).min(QUICK_REPLY_MIN_CHOICES).max(QUICK_REPLY_MAX_CHOICES) }),
   noticeAction.strict(),
   turnAction.strict(),
-  imageAction.strict(),
+  z.discriminatedUnion("mode", [imageAction.options[0].strict(), imageAction.options[1].strict()]),
   backgroundAction.strict(),
   analysisAction.strict().extend({
     routes: analysisRoutes.strict().extend({
@@ -1259,11 +1262,11 @@ export interface FireView {
 
 /** One arm's dry-run preview (`testRule`): the macro-rendered template, or the render error. Executes
  *  NOTHING — no op is called, no budget debited. */
-export interface ArmPreview {
-  readonly type: AutomationActionType;
-  readonly renderedPreview?: string;
-  readonly error?: string;
-}
+export type ArmPreview = { readonly type: AutomationActionType } & (
+  | { readonly renderedPreview?: never; readonly error?: never }
+  | { readonly renderedPreview: string; readonly error?: never }
+  | { readonly renderedPreview?: never; readonly error: string }
+);
 
 /** The `testRule` dry-run contract: the predicate verdict (or its error) + every arm's rendered
  *  preview. A template bug — the dominant authoring failure — surfaces here without a spend. */
@@ -1324,19 +1327,16 @@ export const fireViewSchema = z.strictObject({
   firedAt: z.number(),
 }) satisfies z.ZodType<FireView>;
 
-const armPreviewSchema = z
-  .strictObject({
-    type: z.enum(AUTOMATION_ACTION_TYPES),
-    renderedPreview: z.string().optional(),
-    error: z.string().optional(),
-  })
-  .transform(
-    ({ renderedPreview, error, type }): ArmPreview => ({
-      type,
-      ...(renderedPreview === undefined ? {} : { renderedPreview }),
-      ...(error === undefined ? {} : { error }),
-    }),
-  ) satisfies z.ZodType<ArmPreview>;
+const armPreviewFields = { type: z.enum(AUTOMATION_ACTION_TYPES) };
+const armPreviewSchema = z.union([
+  z.strictObject({ ...armPreviewFields, renderedPreview: z.never().optional(), error: z.never().optional() }).transform(({ type }): ArmPreview => ({ type })),
+  z
+    .strictObject({ ...armPreviewFields, renderedPreview: z.string(), error: z.never().optional() })
+    .transform(({ type, renderedPreview }): ArmPreview => ({ type, renderedPreview })),
+  z
+    .strictObject({ ...armPreviewFields, renderedPreview: z.never().optional(), error: z.string() })
+    .transform(({ type, error }): ArmPreview => ({ type, error })),
+]) satisfies z.ZodType<ArmPreview>;
 
 export const testRunResultSchema = z.strictObject({
   predicate: z.union([z.boolean(), z.strictObject({ error: z.string() })]),

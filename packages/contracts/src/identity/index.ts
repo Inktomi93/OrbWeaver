@@ -318,7 +318,10 @@ export type SignInModeView = z.infer<typeof signInModeViewSchema>;
 
 /** The share fields on `/api/auth/config`. `url` is the public origin while the relay is up, served to a signed-in
  *  caller only; an anonymous visitor reads `null`, because the sign-in page needs no link to hand out. */
-export const authConfigShareSchema = z.strictObject({ state: z.enum(SHARE_STATES), url: z.string().nullable() });
+export const authConfigShareSchema = z.discriminatedUnion("state", [
+  z.strictObject({ state: z.literal("up"), url: z.string().nullable() }),
+  z.strictObject({ state: z.enum(SHARE_STATES).exclude(["up"]), url: z.null() }),
+]);
 export type AuthConfigShare = z.infer<typeof authConfigShareSchema>;
 
 /** The pre-row output: identity resolved to its stable SSO fields, BEFORE the `users` row exists. Carries

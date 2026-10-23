@@ -20,7 +20,7 @@ import type {
 } from "@orb/contracts/chat";
 import type { ChatDocumentVisibility } from "@orb/contracts/databank";
 import type { Principal } from "@orb/contracts/identity";
-import type { PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
+import type { GeneratePicturePrompt, SizePresetName } from "@orb/contracts/imagery";
 import type { UserIntent, UserMacroValues } from "@orb/contracts/preset";
 import type { RpgGameTemplate } from "@orb/contracts/rpg";
 import type { MessageWindowCursor, MessageWindowTarget } from "@orb/contracts/search";
@@ -292,9 +292,7 @@ export interface CompactParams extends ChatScopedParams {
 export interface AbortParams extends ChatScopedParams {}
 
 /** `generateImage` — generates n image(s), then persists one message whose body carries n asset: refs. */
-export interface GenerateImageParams extends ChatScopedParams, ViewerClockParams {
-  readonly mode: PromptTemplateMode;
-  readonly prompt?: string | undefined;
+interface GenerateImageFields extends ChatScopedParams, ViewerClockParams {
   readonly n?: number | undefined;
   /** The semantic size preset — forwarded to `imagery.generatePicture`; when absent
    *  the leaf uses `defaultSizeFor(mode)`. The I5 mode picker surfaces it. */
@@ -302,6 +300,8 @@ export interface GenerateImageParams extends ChatScopedParams, ViewerClockParams
   /** `false` keeps the pictures out of the room character's gallery; absent or `true` joins them to it. */
   readonly gallery?: boolean | undefined;
 }
+
+export type GenerateImageParams = GenerateImageFields & GeneratePicturePrompt;
 
 /** `selectVariant` — flips messages.selectedVariantId to a sibling swipe (pointer move, zero copy). */
 export interface SelectVariantParams extends MessageScopedParams, ViewerClockParams {

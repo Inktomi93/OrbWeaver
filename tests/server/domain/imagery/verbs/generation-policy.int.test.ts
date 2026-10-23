@@ -1,6 +1,7 @@
 import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import { IMAGERY_NEGATIVE_SLOT_ID } from "@orb/contracts/imagery";
 import { providerDefSchema } from "@orb/contracts/inference";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
@@ -9,14 +10,18 @@ import { resolveImageryCaption, resolveImageryTemplate } from "@orb/contracts/se
 import type { Resolved } from "@orb/inference";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { processMacros } from "@orb/kit/macro";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
+import type { AppRouter } from "@orb/server";
+import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { CORPUS_PROVIDER_ENDPOINT, createCorpusProviderExecution } from "@orb/testkit/node/corpus-provider.ts";
-import { seedCorpusConnections } from "@orb/testkit/node/corpus-seed.ts";
+import { captureCookieAuth, seedCorpusConnections } from "@orb/testkit/node/corpus-seed.ts";
 import { makeAssetBytes } from "@orb/testkit/node/factories/asset.ts";
 import { seedChatInvite, seedInvitedChatParticipant } from "@orb/testkit/node/factories/chat.ts";
 import { seedAdminProvider } from "@orb/testkit/node/factories/provider.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { createTRPCClient, httpBatchLink } from "@trpc/client";
 
 const HOST_MODEL = "imagery-host-utility";
 const LIVE_MODEL = "imagery-host-utility-live";
@@ -202,12 +207,39 @@ test("member previews use the host's live Utility binding, preset and instructio
 
 test("a member's room image uses the host's image connection and live negative prose, not the member's settings", async () => {
   const wire = physicalExecution([]);
-  await using root = await createServerHarness({ startJobs: false, providerFetch: wire.execute, secretBoxKey: Buffer.alloc(32, 3) });
+  await using root = await createServerHarness({
+    startJobs: false,
+    providerFetch: wire.execute,
+    secretBoxKey: Buffer.alloc(32, 3),
+    authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" },
+  });
   const room = await policyRoom(root);
   wire.images.push(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)), makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)));
   const defaults = await root.services.settings.loadUserSettings(room.host.userId);
+  const auth = await captureCookieAuth(root, room.member, "imagery-boundary-password");
+  const url = "http://localhost/api/trpc";
+  const headers = { cookie: auth.cookie, [CSRF_HEADER]: "1", "content-type": "application/json" };
+  const invalid = await root.http.request(`${url}/chat.generateImage`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ chatId: room.chat.id, mode: "free", timeZone: UTC_TIME_ZONE }),
+  });
+  const refusal = await invalid.text();
+  expect(invalid.status).toBe(400);
+  expect(refusal).toContain("BAD_REQUEST");
+  expect(refusal).toContain("prompt");
+  expect(wire.requests).toHaveLength(0);
+  const memberCaller = createTRPCClient<AppRouter>({
+    links: [
+      httpBatchLink({
+        url,
+        headers,
+        fetch: async (address, init) => await root.http.request(String(address), init === undefined ? undefined : { ...init, signal: init.signal ?? null }),
+      }),
+    ],
+  });
   const generate = (): ReturnType<ServerTestHarness["services"]["chat"]["generateImage"]> =>
-    root.services.chat.generateImage({ principal: room.member, chatId: room.chat.id, mode: "free", prompt: "The orbital loom.", n: 1, gallery: false });
+    memberCaller.chat.generateImage.mutate({ chatId: room.chat.id, mode: "free", prompt: "The orbital loom.", n: 1, gallery: false, timeZone: UTC_TIME_ZONE });
   const first = await generate();
   expect(first.authorUserId).toBe(room.member.userId);
   expect(await wire.requests[0]?.clone().text()).toContain(resolveProseText(IMAGERY_NEGATIVE_SLOT_ID, defaults.prose));

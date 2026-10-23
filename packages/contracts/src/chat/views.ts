@@ -32,7 +32,7 @@ export interface ChatSeatPortrait {
 
 /** The library-list row (listChats) — light, membership-scoped (D18: a chat I host OR am a member of; there
  *  is no `ownerId`). `lastMessageAt`/`messageCount` drive the list ordering + the unread chrome. */
-export interface ChatSummary {
+interface ChatSummaryFields {
   readonly id: ChatId;
   readonly title: string | null;
   readonly starred: boolean;
@@ -54,27 +54,6 @@ export interface ChatSummary {
    *  row (their whole readable window is empty, so a preview would be the one surface leaking pre-join canon).
    *  Per-caller by construction: the floor is resolved from the viewer's own participant row, never stamped. */
   readonly lastMessagePreview: string | null;
-  /** Is this chat a LIVE GAME (docs/plans/rpg/design.md)? The ONE takeover-gate predicate (`isRpgEngaged`) over the
-   *  opaque `metadata.rpg` pointer this row already carries — the SAME sync surface `ChatDetail.rpg` and every
-   *  client rpg gate read, so the list marker can never disagree with the chat it opens (chat stays
-   *  rpg-table-blind: no join, no cross-domain read; a detached/healed pointer, or a game toggled OFF, is
-   *  `false`).
-   *
-   *  RULING FORK, recorded (#863(f), 2026-08-30). This clause used to end "a disengaged game shows no panel,
-   *  so it shows no marker". The MECHANISM survives verbatim — `isGame` is still the one engagement
-   *  predicate, still pointer-only, and a disengaged game still shows no panel and no ⚔. What changed is its
-   *  INPUT: the drive found that once a game is off, its existence is visible ONLY behind a host-only tab in
-   *  a pane that ships closed, so a host cannot find the rooms with a sleeping game. The answer is a SECOND
-   *  bit ({@link ChatSummary.gamePaused}), not a widened `isGame`. */
-  readonly isGame: boolean;
-  /** Does this chat carry a game that is currently OFF (#863(f), owner-ordered 2026-08-30)? The SECOND bit
-   *  off the SAME opaque pointer — `metadata.rpg` present AND `isRpgEngaged` false. It does NOT widen
-   *  `isGame` and it does NOT read the rpg tables (the rpg-table-blind mechanism above is untouched): it
-   *  exists because the ONLY surviving evidence of a paused game was a host-only tab inside a pane that
-   *  ships closed, so a host could not see which rooms had a game sleeping in them. The list row wears it as
-   *  a QUIET marker (`Game chat — paused`), never as the live ⚔ — the panel/assembly still see nothing, which
-   *  is what the `isGame` ruling actually protects. */
-  readonly gamePaused: boolean;
   /** The resolved present characters for the list card (names only — the heavy roster is `getChat`), PER-CALLER:
    *  the VIEWER'S OWN seat is suppressed while any other seat remains, so an untitled row reads "Niko", not
    *  "You, Niko" (side-eye NR4 — the viewer is in every chat they can list, so their own name is a constant
@@ -101,6 +80,11 @@ export interface ChatSummary {
   readonly createdAt: number;
   readonly updatedAt: number;
 }
+
+/** isGame means engaged, not merely present; gamePaused marks an existing disengaged game.
+ * Both derive from the same opaque game pointer without reading RPG tables. */
+export type ChatSummary = ChatSummaryFields &
+  ({ readonly isGame: true; readonly gamePaused: false } | { readonly isGame: false; readonly gamePaused: boolean });
 
 /** One KEYSET page of the caller's chat library (`listChats`) — newest-CONVERSATION first (ordered on the
  *  clock the rows DISPLAY, `lastMessageAt ?? updatedAt`; #150), filtered by the
@@ -265,23 +249,34 @@ export const chatSeatPortraitSchema = z.strictObject({
   name: z.string(),
   avatarHash: z.string().nullable(),
 }) satisfies z.ZodType<ChatSeatPortrait>;
-export const chatSummarySchema = z.strictObject({
-  id: typeIdSchema(ID_PREFIX.chat),
-  title: z.string().nullable(),
-  starred: z.boolean(),
-  archived: z.boolean(),
-  lastMessageAt: z.number().nullable(),
-  viewerLastTurnAt: z.number().nullable(),
-  messageCount: z.number(),
-  lastMessagePreview: z.string().nullable(),
-  isGame: z.boolean(),
-  gamePaused: z.boolean(),
-  participantNames: z.array(z.string()).readonly(),
-  participantPortraits: z.array(chatSeatPortraitSchema).readonly(),
-  viewerRole: participantRoleSchema,
-  createdAt: z.number(),
-  updatedAt: z.number(),
-}) satisfies z.ZodType<ChatSummary>;
+export const chatSummarySchema = z
+  .strictObject({
+    id: typeIdSchema(ID_PREFIX.chat),
+    title: z.string().nullable(),
+    starred: z.boolean(),
+    archived: z.boolean(),
+    lastMessageAt: z.number().nullable(),
+    viewerLastTurnAt: z.number().nullable(),
+    messageCount: z.number(),
+    lastMessagePreview: z.string().nullable(),
+    isGame: z.boolean(),
+    gamePaused: z.boolean(),
+    participantNames: z.array(z.string()).readonly(),
+    participantPortraits: z.array(chatSeatPortraitSchema).readonly(),
+    viewerRole: participantRoleSchema,
+    createdAt: z.number(),
+    updatedAt: z.number(),
+  })
+  .transform((summary, ctx) => {
+    if (!summary.isGame) {
+      return { ...summary, isGame: false as const };
+    }
+    if (summary.gamePaused) {
+      ctx.addIssue({ code: "custom", message: "An engaged game cannot also be paused" });
+      return z.NEVER;
+    }
+    return { ...summary, isGame: true as const, gamePaused: false as const };
+  }) satisfies z.ZodType<ChatSummary>;
 export const chatListPageSchema = z.strictObject({
   items: z.array(chatSummarySchema).readonly(),
   nextCursor: chatListCursorSchema.strict().nullable(),

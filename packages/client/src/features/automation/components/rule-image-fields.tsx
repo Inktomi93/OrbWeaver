@@ -1,5 +1,5 @@
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
-import { generateImageActionArgsSchema, MULTIMODAL_MODES, PROMPT_TEMPLATE_MODES, SIZE_PRESET_NAMES } from "@orb/contracts/imagery";
+import { MULTIMODAL_MODES, PROMPT_TEMPLATE_MODES, reusePolicySchema, SIZE_PRESET_NAMES } from "@orb/contracts/imagery";
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { ChevronRight, Icon } from "@orb/ui/icons";
@@ -102,9 +102,7 @@ export function RuleImageFields({
         {(field): ReactElement => (
           <field.SelectField
             label="Reuse matching images"
-            items={generateImageActionArgsSchema.shape.reuse
-              .unwrap()
-              .options.map((value) => ({ value, label: value === "prefer" ? "Prefer a saved match" : "Always generate" }))}
+            items={reusePolicySchema.options.map((value) => ({ value, label: value === "prefer" ? "Prefer a saved match" : "Always generate" }))}
           />
         )}
       </form.AppField>

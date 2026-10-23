@@ -520,12 +520,9 @@ export interface ModelStatRow {
   cacheHitRate: number | null;
 }
 
-export interface StatsFreshness {
-  computedAt: number | null;
-  /** Always false — rollups are maintained live on the write path, so a read is never stale. */
-  stale: boolean;
-  hasData: boolean;
-}
+export type StatsFreshness =
+  | { readonly hasData: false; readonly computedAt: null; readonly stale: false }
+  | { readonly hasData: true; readonly computedAt: number; readonly stale: false };
 
 export interface PersonaUsageRow {
   personaId: PersonaId;
@@ -677,11 +674,10 @@ export const modelStatRowSchema = z.strictObject({
   cacheHitRate: z.number().nullable(),
 }) satisfies z.ZodType<ModelStatRow>;
 
-export const statsFreshnessSchema = z.strictObject({
-  computedAt: z.number().nullable(),
-  stale: z.boolean(),
-  hasData: z.boolean(),
-}) satisfies z.ZodType<StatsFreshness>;
+export const statsFreshnessSchema = z.discriminatedUnion("hasData", [
+  z.strictObject({ hasData: z.literal(false), computedAt: z.null(), stale: z.literal(false) }),
+  z.strictObject({ hasData: z.literal(true), computedAt: z.number(), stale: z.literal(false) }),
+]) satisfies z.ZodType<StatsFreshness>;
 
 export const personaUsageRowSchema = z.strictObject({
   personaId: typeIdSchema(ID_PREFIX.persona),

@@ -12,7 +12,7 @@
 // returns it truthfully (`charCount` tells the story; the upload verb surfaces an `empty-extraction` warning,
 // not a throw).
 
-import type { DocFormat, ExtractionResult, ExtractTextOp } from "@orb/contracts/extraction";
+import type { DocFormat, ExtractionMeta, ExtractionResult, ExtractTextOp } from "@orb/contracts/extraction";
 import { docFormatForMime, ExtractionFailedError, UnsupportedDocTypeError } from "@orb/contracts/extraction";
 import type { RawExtraction } from "./contract.ts";
 import { LOADERS } from "./formats.ts";
@@ -33,17 +33,16 @@ function formatFor(mime: string): DocFormat {
 
 /** Normalize the loader's raw text (§2) and stamp the meta — the ONE place `EXTRACTOR_VERSION` + `charCount`
  *  are applied, so every format returns an identically-shaped `ExtractionResult`. */
-function toResult(format: DocFormat, raw: RawExtraction): ExtractionResult {
+function toResult(
+  meta: Pick<Extract<ExtractionMeta, { readonly format: "pdf" }>, "format" | "pageCount"> | Pick<Exclude<ExtractionMeta, { readonly format: "pdf" }>, "format">,
+  raw: RawExtraction,
+): ExtractionResult {
   const text = normalizeText(raw.text);
+  const fields = { extractorVersion: EXTRACTOR_VERSION, charCount: text.length };
+  const title = raw.title === undefined ? {} : { title: raw.title };
   return {
     text,
-    meta: {
-      format,
-      extractorVersion: EXTRACTOR_VERSION,
-      charCount: text.length,
-      ...(raw.pageCount === undefined ? {} : { pageCount: raw.pageCount }),
-      ...(raw.title === undefined ? {} : { title: raw.title }),
-    },
+    meta: meta.format === "pdf" ? { format: meta.format, ...fields, pageCount: meta.pageCount, ...title } : { format: meta.format, ...fields, ...title },
   };
 }
 
@@ -54,10 +53,14 @@ export function createExtractText(): ExtractTextOp {
     const format = formatFor(mime);
     let raw: RawExtraction;
     try {
+      if (format === "pdf") {
+        const pdf = await LOADERS.pdf(bytes);
+        return toResult({ format, pageCount: pdf.pageCount }, pdf);
+      }
       raw = await LOADERS[format](bytes);
     } catch (error) {
       throw new ExtractionFailedError(format, { cause: error });
     }
-    return toResult(format, raw);
+    return toResult({ format }, raw);
   };
 }

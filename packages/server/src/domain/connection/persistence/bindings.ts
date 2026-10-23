@@ -3,6 +3,7 @@
 // upsert's conflict target — the tree's NULL-distinctness idiom, never a coalesce expression.
 
 import type { ConnectionBinding, RoutableTask } from "@orb/contracts/inference";
+import { connectionBindingSchema } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { connectionBindings } from "@orb/db";
 import type { AutomationRuleId, ConnectionBindingId, PluginId, UserConnectionId, UserId } from "@orb/kit/ids";
@@ -13,15 +14,7 @@ import type { StoredActor } from "../contract/params.ts";
 type BindingRow = typeof connectionBindings.$inferSelect;
 
 function toBinding(row: BindingRow): ConnectionBinding {
-  return {
-    id: row.id,
-    actorKind: row.actorKind,
-    userId: row.userId,
-    ruleId: row.ruleId,
-    pluginId: row.pluginId,
-    task: row.task,
-    connectionId: row.connectionId,
-  };
+  return connectionBindingSchema.parse(row);
 }
 
 /** The WHERE for one actor — its kind + the one id column that kind sets. */
@@ -88,5 +81,5 @@ export async function upsertBinding(
   }
   const columns = actorColumns(args.actor);
   await db.insert(connectionBindings).values({ id: args.id, ...columns, task: args.task, connectionId: args.connectionId });
-  return { id: args.id, ...columns, task: args.task, connectionId: args.connectionId };
+  return toBinding({ id: args.id, ...columns, task: args.task, connectionId: args.connectionId });
 }

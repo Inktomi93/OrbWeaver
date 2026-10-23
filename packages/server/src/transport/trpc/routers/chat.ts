@@ -840,19 +840,8 @@ export const chatRouter = t.router({
   // `chat.generateImage` → `imagery.generatePicture` (an absent `size` falls to the leaf's `defaultSizeFor`).
   generateImage: authedProcedure
     .output(messageViewSchema)
-    .input(generatePictureRequestSchema.extend({ chatId: typeIdSchema(ID_PREFIX.chat), timeZone: reportedTimeZoneSchema }))
-    .mutation(({ ctx, input }) =>
-      ctx.services.chat.generateImage({
-        principal: ctx.auth,
-        chatId: input.chatId,
-        mode: input.mode,
-        prompt: input.prompt,
-        n: input.n,
-        size: input.size,
-        gallery: input.gallery,
-        timeZone: input.timeZone,
-      }),
-    ),
+    .input(generatePictureRequestSchema.and(z.object({ chatId: typeIdSchema(ID_PREFIX.chat), timeZone: reportedTimeZoneSchema })))
+    .mutation(({ ctx, input }) => ctx.services.chat.generateImage({ ...input, principal: ctx.auth })),
 });
 
 // Wrap the domain's bare impersonation `{ delta }` yields in `tracked()` envelopes (the shape

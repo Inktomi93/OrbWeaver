@@ -59,7 +59,7 @@
 // incl. `reasoningEdited`/`reasoningCleared`), the live `reasoning`-channel token DELTA, `reasoningStreamDone`,
 // and the fork copy (a non-host forker of a deception game must not launder a member→host reasoning leak).
 
-import type { ChatBusEvent, ChatDeltaEvent, MemberCardView, MessageView } from "@orb/contracts/chat";
+import type { ChatBusEvent, ChatDeltaEvent, DurableChatBusEvent, MemberCardView, MessageView } from "@orb/contracts/chat";
 import { projectViewForMember } from "@orb/contracts/chat";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
 import type { HiddenSpanStreamScrubber } from "@orb/kit/content";
@@ -278,7 +278,7 @@ const MEMBER_DELTA_CHANNELS: { readonly [K in ChatDeltaEvent["kind"]]: MemberDel
 interface MemberDeltaStamper {
   /** Stamp `memberText` onto a `delta` event (identity for every other member) — call ONCE per emitted event,
    *  in emit order, BEFORE the durable append: the stored payload and the live fan must carry the same bytes. */
-  readonly stamp: (event: ChatBusEvent) => ChatBusEvent;
+  readonly stamp: (event: DurableChatBusEvent) => DurableChatBusEvent;
 }
 
 /** One streaming slot's scrub-state key — the chat plus the `messages.seq` the tokens are streaming INTO
@@ -325,7 +325,7 @@ function retireSlotState(scrubbers: Map<string, HiddenSpanStreamScrubber>, event
 export function createMemberDeltaStamper(): MemberDeltaStamper {
   const scrubbers = new Map<string, HiddenSpanStreamScrubber>();
   return {
-    stamp(event: ChatBusEvent): ChatBusEvent {
+    stamp(event: DurableChatBusEvent): DurableChatBusEvent {
       if (event.type !== "delta") {
         retireSlotState(scrubbers, event);
         return event;

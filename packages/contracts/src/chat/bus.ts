@@ -278,8 +278,7 @@ export type TurnAbortReason = (typeof TURN_ABORT_REASONS)[number];
  *  `"recalling"` is stamped the instant recall begins for a turn (memory on) — the embed → cosine → CSLS →
  *  optional rerank window that runs BEFORE the provider streams, so it doubles as the "is my request hanging?"
  *  tell; `"recalled"` carries the surfaced count once that window closes. Memory OFF emits neither (the icon
- *  stays idle — an absent event, never a lying "recalled 0"). One home; the member below derives its `phase`
- *  from this tuple. */
+ *  stays idle — an absent event, never a lying "recalled 0"). One vocabulary; each event arm pairs its phase with the count witness. */
 export const MEMORY_RECALL_PHASES = ["recalling", "recalled"] as const;
 export type MemoryRecallPhase = (typeof MEMORY_RECALL_PHASES)[number];
 
@@ -541,7 +540,8 @@ export type ChatBusEvent =
   // preview). LIVE-ONLY (see LIVE_ONLY_CHAT_EVENT_TYPES): the phase is EPHEMERAL per-turn state — replaying a
   // stale "recalling" from a prior subscription would be a lie, and there is nothing to persist.
   // `count` is null on `"recalling"` (not known yet) and the surfaced block count on `"recalled"`.
-  | { type: "memoryRecall"; chatId: ChatId; phase: MemoryRecallPhase; count: number | null }
+  | { type: "memoryRecall"; chatId: ChatId; phase: "recalling"; count: null }
+  | { type: "memoryRecall"; chatId: ChatId; phase: "recalled"; count: number }
   // ── Turn warning (domain-originated; e.g. image parts dropped for a non-vision model, D45) ──
   //    TWO ARMS, and the split is the enforcer (#1440): `settings_adjusted` is the only code whose notice
   //    cannot be written from the code alone, so it is the only arm that carries detail — and it carries it

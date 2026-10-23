@@ -10,8 +10,8 @@ export function createGeneratePictureOp(generatePicture: GeneratePicture): Gener
       caller: p.caller,
       runAsUserId: p.runAsUserId,
       chatId: p.chatId,
-      mode: p.mode,
-      ...(p.prompt !== undefined ? { prompt: p.prompt } : {}),
+      ...(p.mode === "free" ? { mode: p.mode, prompt: p.prompt } : { mode: p.mode, ...(p.prompt !== undefined ? { prompt: p.prompt } : {}) }),
+
       ...(p.n !== undefined ? { n: p.n } : {}),
       ...(p.size !== undefined ? { size: p.size } : {}),
       ...(p.gallery !== undefined ? { gallery: p.gallery } : {}),

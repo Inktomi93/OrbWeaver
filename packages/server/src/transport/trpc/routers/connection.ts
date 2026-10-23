@@ -116,7 +116,7 @@ export const connectionRouter = t.router({
 
   setBinding: authedProcedure
     .input(z.object({ task: routableTaskSchema, connectionId: connectionId.nullable(), actor: bindingActor.optional() }))
-    .output(connectionBindingSchema.strict())
+    .output(connectionBindingSchema)
     .mutation(({ ctx, input }) =>
       ctx.services.connection.setBinding({
         principal: ctx.auth,
@@ -128,7 +128,7 @@ export const connectionRouter = t.router({
 
   useForEverything: authedProcedure
     .input(z.object({ connectionId }))
-    .output(z.array(connectionBindingSchema.strict()).readonly())
+    .output(z.array(connectionBindingSchema).readonly())
     .mutation(({ ctx, input }) => ctx.services.connection.useForEverything({ principal: ctx.auth, connectionId: input.connectionId })),
 
   // The caller's own pending embedder change, read before it is written: would it rebuild the index, and how much.

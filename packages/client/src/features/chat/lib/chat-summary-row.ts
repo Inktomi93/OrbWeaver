@@ -1,3 +1,4 @@
+import type { ChatSeatPortrait } from "@orb/contracts/chat";
 // The ONE derivation of a chat summary's display fields (title fallback · participant subtitle ·
 // last-activity epoch) — shared by the chats-list rows, the landing "Recent chats" strip, the command
 // palette, and (via `deriveChatTitle`) the topbar/context identity, so the surfaces can't drift
@@ -8,8 +9,6 @@ import type { Trpc } from "#data";
 import { authoredChatName, deriveChatTitle, rowQualifiers, timeLib } from "#lib";
 
 type ChatSummaryItem = inferOutput<Trpc["chat"]["listChats"]>["items"][number];
-/** One seat on that row, straight off the wire — the base {@link ChatRowPortrait} extends. */
-type ChatSummarySeat = ChatSummaryItem["participantPortraits"][number];
 
 // `deriveChatTitle` MOVED to `#lib/chat-title` (2026-08-09) and is imported from there above, NOT re-exported
 // from here (a re-export would make this a barrel file, which biome forbids): the regex library's room
@@ -32,10 +31,8 @@ type ChatSummarySeat = ChatSummaryItem["participantPortraits"][number];
  *  which is the map this alias replaced. A single seat paints one
  *  portrait; two or more paint an `AvatarStack`, because a shared room must read SHARED at rest.
  *
- *  An INTERFACE extending the derived member, not a `type` alias of it: an exported type ALIAS outside a
- *  type home is `no-inline-types` RED anywhere in the tree, while an exported interface is RED only inside
- *  a server domain — and the alias it extends is the derive, so the wire still owns the shape. */
-export interface ChatRowPortrait extends ChatSummarySeat {}
+ */
+export interface ChatRowPortrait extends ChatSeatPortrait {}
 
 /** The mock's credit register: a character's SHORT display name, i.e. everything before its first appositive
  *  comma ("Calamity, Doomblade of the Ninth Epoch" → "Calamity"; "Sabine Veyra" → "Sabine Veyra"). A comma

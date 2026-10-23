@@ -24,7 +24,16 @@ export const viewerViewSchema = wireViewerViewSchema.extend({ globalRole: userRo
 export const adminUserViewSchema = wireAdminUserViewSchema.extend({ role: userRole });
 export const participantViewSchema = wireParticipantViewSchema.extend({ role: participantRole });
 export const chatDetailSchema = wireChatDetailSchema.extend({ participants: z.array(participantViewSchema).readonly() });
-const chatSummarySchema = wireChatSummarySchema.extend({ viewerRole: participantRole });
+const chatSummarySchema = wireChatSummarySchema.in.extend({ viewerRole: participantRole }).transform((summary, ctx) => {
+  const parsed = wireChatSummarySchema.safeParse(summary);
+  if (parsed.success) {
+    return parsed.data;
+  }
+  for (const issue of parsed.error.issues) {
+    ctx.addIssue({ code: "custom", path: issue.path, message: issue.message });
+  }
+  return z.NEVER;
+});
 export const chatListPageSchema = wireChatListPageSchema.extend({ items: z.array(chatSummarySchema).readonly() });
 export const chatLineageViewSchema = wireChatLineageViewSchema.extend({ chain: z.array(chatSummarySchema).readonly() });
 export const startChatResultSchema = wireStartChatResultSchema.extend({ chat: chatDetailSchema });

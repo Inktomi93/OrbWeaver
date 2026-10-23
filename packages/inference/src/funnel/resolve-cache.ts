@@ -88,13 +88,9 @@ function replayPlan(args: ResolveCachePolicyInput, warnings: ResolvedWarning[]):
   if (!context.responseReplaySupported && (enabled || request?.ttlSeconds !== undefined || request?.refresh === true || preset?.ttlSeconds !== undefined)) {
     warn(warnings, "Complete response replay controls are unsupported on this endpoint; no replay control was applied");
   }
-  return {
-    supported: context.responseReplaySupported,
-    enabled: context.responseReplaySupported && enabled,
-    ttlSeconds,
-    refresh: context.responseReplaySupported && refresh,
-    provenance,
-  };
+  return context.responseReplaySupported
+    ? { supported: true, enabled, ttlSeconds, refresh, provenance }
+    : { supported: false, enabled: false, ttlSeconds, refresh: false, provenance };
 }
 
 function replayProvenance(args: ResolveCachePolicyInput): CachePolicy["replay"]["provenance"] {
