@@ -24,20 +24,35 @@ import type { CarryReasoning, ResponseCacheControl, ResponseCacheSettings } from
 export const ADAPTIVE_DEFAULT_EFFORT = "high" as const satisfies EffortLevel;
 
 /** The capability-resolved reasoning decision after the adaptive/budget guard, effort clamp, and display gate. */
-export interface ResolvedReasoning {
-  readonly mode: ReasoningMode;
-  readonly enabled: boolean;
-  /** Present only when the caller chose off (`effort: "none"`) on a model that can turn reasoning off. A disabled
-   *  turn without it left effort unset, so a wire sends no reasoning field and the model runs at its own default. */
-  readonly offChosen?: true | undefined;
-  /** Present only on a disabled turn of a model that can reason: how the wire spells reasoning off there. The off
-   *  turn carries no effort, display or carry, which is what keeps `between-tools` legal (no other field rides). */
-  readonly offMode?: ReasoningOffMode | undefined;
-  readonly effort?: EffortLevel | undefined;
-  /** Present only for budget mode — dropped for adaptive (sending enabled+budget_tokens 400s some models). */
-  readonly budgetTokens?: number | undefined;
-  readonly display?: ReasoningDisplayMode | undefined;
-}
+export type ResolvedReasoning =
+  | {
+      readonly mode: ReasoningMode;
+      readonly enabled: false;
+      /** Explicit caller off, rather than an unset effort that leaves the model default active. */
+      readonly offChosen?: true | undefined;
+      readonly offMode?: ReasoningOffMode | undefined;
+      readonly effort?: never;
+      readonly budgetTokens?: never;
+      readonly display?: never;
+    }
+  | {
+      readonly mode: Extract<ReasoningMode, "budget">;
+      readonly enabled: true;
+      readonly offChosen?: never;
+      readonly offMode?: never;
+      readonly effort?: never;
+      readonly budgetTokens?: number | undefined;
+      readonly display?: ReasoningDisplayMode | undefined;
+    }
+  | {
+      readonly mode: Exclude<ReasoningMode, "budget">;
+      readonly enabled: true;
+      readonly offChosen?: never;
+      readonly offMode?: never;
+      readonly effort?: EffortLevel | undefined;
+      readonly budgetTokens?: never;
+      readonly display?: ReasoningDisplayMode | undefined;
+    };
 
 /** Every numeric sampler the funnel resolved (clamped into the capability's `Range`), the flag knobs, and the
  *  stage order narrowed to the stages the server can order. */

@@ -32,6 +32,7 @@ import type {
   WorkloadQueueFailureSink,
   WorkloadRowAnyKind,
   WorkloadRunnableRow,
+  WorkloadTerminalWrite,
   WorkloadTextRow,
 } from "../contract/workload-row.ts";
 
@@ -280,16 +281,7 @@ export async function heartbeat(db: Db, id: WorkloadId, now: number, progress?: 
  *  row was already reaped writes nothing). `succeeded` is allowed only from `running`; failure terminals move
  *  from either in-flight state. */
 // THE ENGINE PLANE (D20 un-principal) — the status-guarded terminal stamp. The id is one the engine itself polled/enumerated (the runner's own row, or `findStaleInFlight` in the reaper), never caller input, and these writes must move ADMIN and system rows too, so an ownerId in the WHERE would make that unrepresentable. The user-facing rung is F3-AUTHZ at the verb (`isVisibleToCaller(isAdmin, caller, row.ownerId)`), the POST-FETCH arm the read half recognizes. Ends if a door writes a workload row without that check.
-export async function markTerminal(
-  db: Db,
-  args: {
-    id: WorkloadId;
-    status: TerminalStatus;
-    result?: unknown;
-    error?: string;
-    now: number;
-  },
-): Promise<boolean> {
+export async function markTerminal(db: Db, args: WorkloadTerminalWrite): Promise<boolean> {
   const guard: WorkloadStatus[] = args.status === "succeeded" ? ["running"] : [...IN_FLIGHT_STATUSES];
   const moved = await db
     .update(workloads)

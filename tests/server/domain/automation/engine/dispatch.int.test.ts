@@ -158,11 +158,22 @@ test("the arms behind a real confirm-first question wait for the human instead o
   try {
     const raised = stream.next();
     await root.services.automation.handleEvent({ type: "chatOpened", chatId });
-    expect(await raised).toMatchObject({ done: false, value: { type: "suggestionRaised", kind: "confirm", source: { kind: "rule", ruleId: rule.id } } });
+    const event = await raised;
+    expect(event).toMatchObject({ done: false, value: { type: "suggestionRaised", kind: "confirm", source: { kind: "rule", ruleId: rule.id } } });
     expect(await root.services.automation.getGlobalVariable({ principal, key: "before" })).toBe("1");
     expect(await root.services.worldInfo.listEntries({ principal, bookId: book.id })).toEqual([]);
     expect(await root.services.automation.getGlobalVariable({ principal, key: "after" })).toBeNull();
     expect(await root.services.automation.listFires({ principal, ruleId: rule.id })).toEqual([]);
+    if (event.done || event.value.type !== "suggestionRaised") {
+      throw new Error("the real confirm-first arm did not raise its pending question");
+    }
+    expect(await root.services.automation.confirmSuggestion({ principal, suggestionId: event.value.suggestionId })).toEqual({
+      ran: "stashed-arm",
+      outcome: "fired",
+    });
+    expect((await root.services.worldInfo.listEntries({ principal, bookId: book.id })).map((entry) => entry.content)).toEqual(["The keeper records the loom."]);
+    expect(await root.services.automation.getGlobalVariable({ principal, key: "after" })).toBe("1");
+    expect((await root.services.automation.listFires({ principal, ruleId: rule.id })).map((fire) => fire.outcome)).toEqual(["fired"]);
   } finally {
     cancellation.abort();
     await stream.return?.();

@@ -33,7 +33,7 @@
 //      live receipt 2026-08-22) without minting a second copy: `(owner, slug)` UNIQUE is the real backstop.
 // The latch is written ONLY after a COMPLETE pass — every slug installed or already present — so a transient
 // failure (a fs read, a db blip, a bundle the pack could not produce) retries on the next touch instead of
-// silently skipping the user forever. That completeness is `SeedOutcome`'s whole job (#1411): a throw is not
+// silently skipping the user forever. That completeness is `ShowcaseSeedResult`'s whole job (#1411): a throw is not
 // the only way a pass can be incomplete, and the non-throwing way used to latch.
 //
 // UPGRADE half — runs on EVERY pass, latched or not, because a latch that meant "never look at these rows
@@ -74,15 +74,8 @@ import { errorMessage } from "@orb/kit/error-message";
 import type { UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { HeldSeedPlugin } from "../contract/seed-ops.ts";
-import type { ExamplePluginSeeder, ExamplePluginSeederDeps } from "../contract/showcase-seed.ts";
+import type { ExamplePluginSeeder, ExamplePluginSeederDeps, ShowcaseSeedResult } from "../contract/showcase-seed.ts";
 import { isVersionNewer } from "../substrate/manifest.ts";
-
-/** What ONE slug's INSTALL pass can produce, homed as a tuple and DERIVED from (never re-spelled — the axis
- *  rule). `installed`/`present` both mean "accounted for"; `unavailable` means the pack shipped no such
- *  bundle, which is the one outcome that must block the latch. Module-local: the seeder's internal
- *  completeness vocabulary, never a cross-boundary shape. */
-const SEED_OUTCOMES = ["installed", "present", "unavailable"] as const;
-type SeedOutcome = (typeof SEED_OUTCOMES)[number];
 
 export function createExamplePluginSeeder(deps: ExamplePluginSeederDeps): ExamplePluginSeeder {
   const log = getLog();
@@ -95,7 +88,7 @@ export function createExamplePluginSeeder(deps: ExamplePluginSeederDeps): Exampl
   /** Install ONE example for `principal`. The outcome is the LATCH INPUT, not a log detail (#1411):
    *  `installed`/`present` are both "this slug is accounted for", `unavailable` is not. Returns the version
    *  it wrote so the caller can record OUR provenance for it. */
-  async function seedOne(principal: Principal, slug: string, held: boolean): Promise<{ readonly outcome: SeedOutcome; readonly version: string | null }> {
+  async function seedOne(principal: Principal, slug: string, held: boolean): Promise<ShowcaseSeedResult> {
     if (held) {
       return { outcome: "present", version: null };
     }
@@ -127,7 +120,7 @@ export function createExamplePluginSeeder(deps: ExamplePluginSeederDeps): Exampl
     const unavailable = results.filter((row) => row.outcome === "unavailable").map((row) => row.slug);
     const wrote: Record<string, string> = {};
     for (const row of results) {
-      if (row.version !== null) {
+      if (row.outcome === "installed") {
         wrote[row.slug] = row.version;
       }
     }

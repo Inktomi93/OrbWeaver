@@ -11,6 +11,13 @@ import type { WorkloadError, WorkloadKind } from "@orb/contracts/workloads";
 import type { workloads } from "@orb/db";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
 
+/** The engine-plane terminal write, correlated with the payload each terminal persists. */
+export type WorkloadTerminalWrite = { readonly id: WorkloadId; readonly now: number } & (
+  | { readonly status: "succeeded"; readonly result?: WorkloadDecodedRow["result"]; readonly error?: never }
+  | { readonly status: "cancelled"; readonly result?: never; readonly error?: never }
+  | { readonly status: "failed" | "worker_died"; readonly result?: never; readonly error: string }
+);
+
 /** A queued row terminalized while the persistence scan searched for runnable work. The engine emits the
  * canonical event only after the scan's guarded UPDATE has settled, keeping persistence bus-free. */
 interface WorkloadQueueFailure {
