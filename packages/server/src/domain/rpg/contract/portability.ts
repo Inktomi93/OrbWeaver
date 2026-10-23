@@ -15,7 +15,7 @@
 // THESE OPS SPEAK RAW IDS, NEVER BUNDLE POSITIONS. The portable file's cross-plane references are positional
 // (`messages[i].variants[j]`) because ids are not preserved across a box — but that is the SERDE's business.
 // The export verb resolves ids → positions on the way out and positions → ids on the way in (through the
-// `ImportedChatIdentity` remap the chat write op returns), so rpg never learns what a bundle index is and
+// `ImportedChatRemap` the chat write op returns), so rpg never learns what a bundle index is and
 // the serde never learns what a `MessageVariantId` is.
 
 import type {

@@ -16,7 +16,7 @@
 //     so this resolves exactly the row its import verb would have merged onto. A miss degrades to no persona.
 //   • the tag overlay — resolve-or-create by name through tag's own by-name attach (D30 per-tagger overlay).
 //   • the rpg campaign — the carried POSITIONS (`messages[i].variants[j]`) remapped through the
-//     `ImportedChatIdentity` the chat write op returns. This is the load-bearing step: get it wrong and every
+//     `ImportedChatRemap` the chat write op returns. This is the load-bearing step: get it wrong and every
 //     snapshot, journal entry and tool-call record anchors to the wrong turn (or to nothing).
 //
 // ORDERING: canon FIRST (it mints the ids everything else re-links against), then the tag overlay and the
@@ -24,7 +24,7 @@
 // than no room, and the outcome still reports `ok`.
 
 import { characterHandleSchema } from "@orb/contracts/character";
-import type { BulkImportChatInput, BulkImportMessageInput, ImportedChatIdentity } from "@orb/contracts/chat";
+import type { BulkImportChatInput, BulkImportMessageInput, ImportedChatRemap } from "@orb/contracts/chat";
 import type { CharacterHandle, CharacterId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
 import type { RpgPortableGame } from "#domain/rpg";
 import { sha256Hex } from "#primitives/content-hash";
@@ -183,14 +183,13 @@ function toChatInput(args: {
 }
 
 /** Turn the campaign's carried POSITIONS back into THIS box's ids. The serde already pruned every reference
- *  that does not resolve within the file, so a lookup miss here would mean the write op returned a remap that
- *  disagrees with the input it was handed — an internal contradiction, not untrusted data. Such a row is
- *  dropped rather than written against the wrong turn: a silently-misanchored snapshot is worse than a
- *  missing one, because it LOOKS like history. */
-function remapRpg(game: PortableRpgGame, identity: ImportedChatIdentity, characterIds: ResolvedCharacterIds): RpgPortableGame {
-  const messageAt = (i: number | null): MessageId | null => (i === null ? null : (identity.messageIds[i] ?? null));
+ *  that does not resolve within the file, so a miss here is a slot or variant deleted from an already-imported
+ *  room since its first import. Such a row is dropped or degraded rather than written against the wrong turn:
+ *  a silently-misanchored snapshot is worse than a missing one, because it LOOKS like history. */
+function remapRpg(game: PortableRpgGame, remap: Extract<ImportedChatRemap, { kind: "aligned" }>, characterIds: ResolvedCharacterIds): RpgPortableGame {
+  const messageAt = (i: number | null): MessageId | null => (i === null ? null : (remap.messageIds[i] ?? null));
   const variantAt = (messageIndex: number | null, variantIdx: number | null): MessageVariantId | null =>
-    messageIndex === null || variantIdx === null ? null : (identity.variantIds[messageIndex]?.[variantIdx] ?? null);
+    messageIndex === null || variantIdx === null ? null : (remap.variantIds[messageIndex]?.[variantIdx] ?? null);
   return {
     mode: game.mode,
     status: game.status,
@@ -260,10 +259,10 @@ async function restoreOverlays(args: {
   readonly profile: ImportProfileDeps;
   readonly ownerId: ImportContext["ownerId"];
   readonly bundle: PortableChat;
-  readonly identity: ImportedChatIdentity;
+  readonly remap: ImportedChatRemap;
   readonly characterIds: ResolvedCharacterIds;
 }): Promise<readonly string[]> {
-  const { profile, ownerId, bundle, identity, characterIds } = args;
+  const { profile, ownerId, bundle, remap, characterIds } = args;
   const { attachChatTagByName, importRpgGame } = profile;
   const skipped: string[] = [];
   if (attachChatTagByName === undefined && bundle.tagNames.length > 0) {
@@ -278,11 +277,17 @@ async function restoreOverlays(args: {
     // name must not race each other into the `(ownerId, name)` unique index.
     await bundle.tagNames.reduce<Promise<void>>(async (chain, tagName) => {
       await chain;
-      await attachChatTagByName({ ownerId, chatId: identity.chatId, tagName });
+      await attachChatTagByName({ ownerId, chatId: remap.chatId, tagName });
     }, Promise.resolve());
   }
   if (bundle.rpg !== null && importRpgGame !== undefined) {
-    await importRpgGame({ chatId: identity.chatId, hostUserId: ownerId, game: remapRpg(bundle.rpg, identity, characterIds) });
+    if (remap.kind === "aligned") {
+      await importRpgGame({ chatId: remap.chatId, hostUserId: ownerId, game: remapRpg(bundle.rpg, remap, characterIds) });
+    } else {
+      skipped.push(
+        "the carried RPG campaign was not re-linked — messages deleted from this room since its first import leave no way to match it to the file's turns",
+      );
+    }
   }
   return skipped;
 }
@@ -327,12 +332,12 @@ async function writeBundle(args: {
   if (result.realConversationsWritten.length > 0) {
     await profile.enqueueImportIndex({ ownerId: ctx.ownerId });
   }
-  const identity = result.identities[0];
-  if (identity === undefined) {
+  const remap = result.remaps[0];
+  if (remap === undefined) {
     // One input must resolve one canonical identity. Treat a lying injected op as a failed import instead of
     // silently declaring success while leaving every carried overlay dark.
     return { ok: false, error: "chat import resolved no canonical identity for the bundle" };
   }
-  const skippedOverlays = await restoreOverlays({ profile, ownerId: ctx.ownerId, bundle, identity, characterIds });
+  const skippedOverlays = await restoreOverlays({ profile, ownerId: ctx.ownerId, bundle, remap, characterIds });
   return { ok: true, created: result.chatsImported > 0, skippedOverlays, memoryChatIds: result.realConversationsWritten };
 }
