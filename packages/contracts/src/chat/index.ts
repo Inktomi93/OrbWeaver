@@ -87,6 +87,7 @@ export type {
   BulkImportSeatKnobs,
   BulkImportVariantInput,
   ImportedChatIdentity,
+  ImportedChatRemap,
   PendingGenerationObservationInput,
 } from "./bulk-import.ts";
 export { pendingGenerationObservationsSchema } from "./bulk-import.ts";

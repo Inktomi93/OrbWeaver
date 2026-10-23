@@ -15,7 +15,7 @@
 // THESE OPS SPEAK RAW IDS, NEVER BUNDLE POSITIONS. The portable file's cross-plane references are positional
 // (`messages[i].variants[j]`) because ids are not preserved across a box — but that is the SERDE's business.
 // The export verb resolves ids → positions on the way out and positions → ids on the way in (through the
-// `ImportedChatIdentity` remap the chat write op returns), so rpg never learns what a bundle index is and
+// `ImportedChatRemap` the chat write op returns), so rpg never learns what a bundle index is and
 // the serde never learns what a `MessageVariantId` is.
 
 import type {
@@ -111,10 +111,20 @@ export interface RpgPortableGame {
  *  gameless chat's bundle is byte-identical to one written before this plane existed). */
 export type ExportRpgGame = (args: { readonly chatId: ChatId }) => Promise<RpgPortableGame | null>;
 
-/** Write a carried campaign onto a freshly-imported chat. Every message/variant reference is ALREADY
- *  remapped to this box's ids by the caller. Idempotent by construction rather than by dedup key: the chat
- *  it anchors to was minted by this same import, so a re-run of the bundle produces a NEW chat and a new
- *  game — there is no pre-existing game to collide with, and a chat that deduped never reaches here.
+/** What {@link ImportRpgGame} did: wrote the carried campaign, kept the game the chat already has, or wrote
+ *  nothing because the caller had no placeable campaign for a gameless chat. */
+const RPG_IMPORT_OUTCOMES = ["restored", "kept-existing", "not-restored"] as const;
+export type RpgImportOutcome = (typeof RPG_IMPORT_OUTCOMES)[number];
+
+/** Write a carried campaign onto an imported chat. Every message/variant reference is ALREADY remapped to this
+ *  box's ids by the caller. Idempotent per chat: a chat that already has a game keeps it. A deduped re-import
+ *  reaches here with the room it found, which usually still holds its campaign. `game` is `null` when the
+ *  caller could not place the carried campaign on this chat's rows; the op then only reports whether a game is
+ *  kept, so the kept-or-lost rule has this one home and no caller re-reads `rpg_games`.
  *
  *  `hostUserId` fills the sheet actor XOR's user arm (a carried host sheet re-keys onto the importer). */
-export type ImportRpgGame = (args: { readonly chatId: ChatId; readonly hostUserId: UserId; readonly game: RpgPortableGame }) => Promise<void>;
+export type ImportRpgGame = (args: {
+  readonly chatId: ChatId;
+  readonly hostUserId: UserId;
+  readonly game: RpgPortableGame | null;
+}) => Promise<RpgImportOutcome>;

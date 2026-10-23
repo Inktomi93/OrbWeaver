@@ -149,7 +149,7 @@ export interface ImportProfileDeps {
   readonly findPersonaByName?: FindPersonaByNameOp;
   readonly attachChatTagByName?: AttachChatTagByNameOp;
   /** The chat-anchored rpg campaign's write half. Every message/variant ref is remapped by the bundle verb
-   *  through the `ImportedChatIdentity` the chat write op returns, before this ever sees it. */
+   *  through the `ImportedChatRemap` the chat write op returns, before this ever sees it. */
   readonly importRpgGame?: ImportRpgGame;
   /** Preset-owned import write op — the ST preset wave hands it orb-native `orb.preset` BYTES, so the preset
    *  domain keeps its one serde AND its one (ownerId, name) collision rule and import owns neither. OPTIONAL on

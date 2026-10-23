@@ -12,6 +12,7 @@ import type {
   BulkImportVariantInput,
   ChatMetadata,
   ImportedChatIdentity,
+  ImportedChatRemap,
   MessageKind,
   TurnInitiator,
 } from "@orb/contracts/chat";
@@ -36,7 +37,7 @@ import { batchHandle, databaseForOwner, databaseHandle } from "@orb/db/wiring-ow
 import { assetIdsInContent } from "@orb/kit/content";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, ChatId, MessageId, MessageVariantId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
-import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, lt } from "drizzle-orm";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { BulkImportChats, ChatImportAssemblyContext, ChatImportContext } from "../contract/import.ts";
 import { parseChatMetadata } from "../contract/metadata.ts";
@@ -239,7 +240,7 @@ type ImportSeqOrigin = (typeof IMPORT_SEQ_ORIGINS)[keyof typeof IMPORT_SEQ_ORIGI
 
 /** The origin a stored import room was written with, proven from its own import-written slots: only the legacy
  *  writer wrote seq 0, and only the current writer wrote seq `count` for a `count`-message transcript. `null`
- *  when deletions removed both proofs, so the caller heals no slot rather than guess an offset. */
+ *  when deletions removed both proofs, so no caller pairs a slot rather than guess an offset. */
 async function importSeqOrigin(db: Db, chatId: ChatId, count: number): Promise<ImportSeqOrigin | null> {
   const proofs = await db
     .select({ seq: messages.seq })
@@ -723,7 +724,7 @@ async function assertImportPreconditions(db: Db, ownerId: UserId, characterId: C
 
 interface ImportRunState {
   readonly existing: Record<string, ExistingImport>;
-  readonly identities: ImportedChatIdentity[];
+  readonly remaps: ImportedChatRemap[];
   readonly written: ImportedChatIdentity[];
   readonly pendingParents: PendingParent[];
   readonly healStmts: BatchStmt[];
@@ -735,31 +736,44 @@ interface ImportRunState {
   readonly realConversationsWritten: ChatId[];
 }
 
-/** Resolve the claimed room's complete index-aligned identity without history-sized binds. */
-async function loadImportedIdentity(db: Db, chatId: ChatId): Promise<ImportedChatIdentity> {
-  const slots = await db.select({ id: messages.id }).from(messages).where(eq(messages.chatId, chatId)).orderBy(asc(messages.seq));
-  const messageIds = slots.map((slot) => slot.id);
-  if (messageIds.length === 0) {
-    return { chatId, messageIds: [], variantIds: [] };
+/** The claimed room's remap for `ci`, paired by `seq = index + origin` against the slots the import wrote, so a
+ *  slot deleted since then leaves a `null` at its own position instead of shifting every later pairing. Range
+ *  bounds rather than id lists keep the binds independent of history size. */
+async function loadImportedRemap(db: Db, chatId: ChatId, ci: BulkImportChatInput, origin: ImportSeqOrigin | null): Promise<ImportedChatRemap> {
+  if (ci.messages.length === 0) {
+    return { kind: "aligned", chatId, messageIds: [], variantIds: [] };
   }
+  if (origin === null) {
+    return { kind: "unproven-origin", chatId };
+  }
+  // The initiator filter keeps a live slot later appended into a deleted import seq out of the pairing.
+  const importedSlot = and(
+    eq(messages.chatId, chatId),
+    eq(messages.initiator, IMPORT_INITIATOR),
+    gte(messages.seq, origin),
+    lt(messages.seq, ci.messages.length + origin),
+  );
+  const slots = await db.select({ id: messages.id, seq: messages.seq }).from(messages).where(importedSlot);
   const variants = await db
-    .select({ id: messageVariants.id, messageId: messageVariants.messageId })
+    .select({ id: messageVariants.id, messageId: messageVariants.messageId, idx: messageVariants.idx })
     .from(messageVariants)
     .innerJoin(messages, eq(messages.id, messageVariants.messageId))
-    .where(eq(messages.chatId, chatId))
-    .orderBy(asc(messageVariants.idx));
-  // query-local regrouping of the variant rows just loaded. Ends if it outlives the call.
-  const variantsByMessage = new Map<MessageId, MessageVariantId[]>();
+    .where(importedSlot);
+  // query-local indexes over the rows just loaded. Ends if they outlive the call.
+  const slotBySeq = new Map(slots.map((slot) => [slot.seq, slot.id]));
+  const variantsByMessage = new Map<MessageId, Map<number, MessageVariantId>>();
   for (const variant of variants) {
-    const pool = variantsByMessage.get(variant.messageId) ?? [];
-    pool.push(variant.id);
+    const pool = variantsByMessage.get(variant.messageId) ?? new Map<number, MessageVariantId>();
+    pool.set(variant.idx, variant.id);
     variantsByMessage.set(variant.messageId, pool);
   }
-  return {
-    chatId,
-    messageIds,
-    variantIds: messageIds.map((messageId) => variantsByMessage.get(messageId) ?? []),
-  };
+  const pairs = ci.messages.map((m, index) => {
+    const messageId = slotBySeq.get(index + origin) ?? null;
+    const pool = messageId === null ? undefined : variantsByMessage.get(messageId);
+    // A carried variant pairs by its own `idx`, the column the import stored it under.
+    return { messageId, variantIds: m.variants.map((v) => pool?.get(v.idx) ?? null) };
+  });
+  return { kind: "aligned", chatId, messageIds: pairs.map((pair) => pair.messageId), variantIds: pairs.map((pair) => pair.variantIds) };
 }
 
 async function recordSkippedImport(args: {
@@ -770,10 +784,9 @@ async function recordSkippedImport(args: {
   readonly ci: BulkImportChatInput;
 }): Promise<void> {
   const { ctx, state, existing, ownerId, ci } = args;
-  const identity = await loadImportedIdentity(ctx.db, existing.chatId);
-  state.identities.push(identity);
-  state.chatsSkipped += 1;
   const origin = await importSeqOrigin(ctx.db, existing.chatId, ci.messages.length);
+  state.remaps.push(await loadImportedRemap(ctx.db, existing.chatId, ci, origin));
+  state.chatsSkipped += 1;
   state.chatsPersonaHealed += collectInto(state.healStmts, healPersonaAttribution(ctx, { existing, origin, ownerId, ci }));
 }
 
@@ -843,7 +856,7 @@ async function importOneChat(args: {
     state.pendingParents.push({ chatId, parentRef: ci.parentRef, forkedAt: ci.createdAt });
   }
   state.written.push(identity);
-  state.identities.push(identity);
+  state.remaps.push({ kind: "aligned", ...identity });
   state.chatsImported += 1;
   state.messagesImported += identity.messageIds.length;
   state.variantsImported += identity.variantIds.reduce((total, pool) => total + pool.length, 0);
@@ -871,7 +884,7 @@ export function createBulkImportChats(assembly: ChatImportAssemblyContext): Bulk
 
     const state: ImportRunState = {
       existing,
-      identities: [],
+      remaps: [],
       written: [],
       pendingParents: [],
       // The dedup-skip arm's accumulated heal commits once after the loop. Every statement is a NULL-guarded
@@ -894,7 +907,7 @@ export function createBulkImportChats(assembly: ChatImportAssemblyContext): Bulk
     }
     const branchesLinked = await resolveBranches(ctx, ownerId, characterId, state.pendingParents);
     return {
-      identities: state.identities,
+      remaps: state.remaps,
       written: state.written,
       chatsImported: state.chatsImported,
       chatsSkipped: state.chatsSkipped,

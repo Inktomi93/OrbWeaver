@@ -220,17 +220,30 @@ export interface ImportedChatIdentity {
   readonly variantIds: readonly (readonly MessageVariantId[])[];
 }
 
+/** R6 — one input's re-link remap, the {@link ImportedChatIdentity} alignment over the room as it stands now.
+ *  `aligned` pairs `messages[i]` with the slot the import wrote for it, and is `null` where that slot or variant
+ *  was since deleted. `unproven-origin` is the refusal: the room's surviving slots no longer prove the seq its
+ *  import numbered from, so no position can be paired with a row and the caller re-links nothing anchored. */
+export type ImportedChatRemap =
+  | {
+      readonly kind: "aligned";
+      readonly chatId: ChatId;
+      readonly messageIds: readonly (MessageId | null)[];
+      readonly variantIds: readonly (readonly (MessageVariantId | null)[])[];
+    }
+  | { readonly kind: "unproven-origin"; readonly chatId: ChatId };
+
 /** The tallies `createBulkImportChats` returns for one bulk-import run. `realConversationsWritten` is the
  *  scope an import offers to build memory over. */
 export interface BulkImportChatsResult {
-  /** The canonical identity resolved for EVERY input, in input order, whether this call wrote it or the scoped
-   * import claim found it already present. This is the retry/re-link surface for cross-domain overlays; unlike
-   * `written`, it is not a creation tally. */
-  readonly identities: readonly ImportedChatIdentity[];
+  /** The remap resolved for EVERY input, in input order, whether this call wrote it or the scoped import claim
+   * found it already present. This is the retry/re-link surface for cross-domain overlays; unlike `written`, it
+   * is not a creation tally. */
+  readonly remaps: readonly ImportedChatRemap[];
   /** What this run actually WROTE, in input order (a dedup-skipped input contributes nothing). A write that
    *  cannot say what it wrote forces its caller to re-derive the rows by a side-channel lookup: a caller that
    *  attaches to the written room needs its chat id. Cross-domain retry/re-link
-   *  callers consume `identities`, because this creation-only tally is intentionally empty on dedup. */
+   *  callers consume `remaps`, because this creation-only tally is intentionally empty on dedup. */
   readonly written: readonly ImportedChatIdentity[];
   readonly chatsImported: number;
   readonly chatsSkipped: number;
