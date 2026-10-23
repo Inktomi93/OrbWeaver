@@ -3,7 +3,8 @@ import { assertReferentialIntegrity, closeDb, createDb, runMigrations, users, wo
 import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import { migrationsBefore, SHIPPED_MIGRATIONS, seedUser } from "@orb/testkit/node/composed";
+import { migrationsBefore, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
+import { seedUser } from "@orb/testkit/node/rows";
 import { eq, sql } from "drizzle-orm";
 
 const FUNDER_MIGRATION = "0003_workload-funder";

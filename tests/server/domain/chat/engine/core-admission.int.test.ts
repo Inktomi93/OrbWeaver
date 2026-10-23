@@ -5,12 +5,10 @@ import { chatLocks, closeDb, messages } from "@orb/db";
 import { CHAT_OP_CODES, ChatNotFoundError } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
 import type { HeldStatement } from "@orb/testkit/node/composed";
-import { freshHeldDb } from "@orb/testkit/node/composed";
+import { freshHeldDb, seedPeerLease } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { eq } from "drizzle-orm";
 import { coreFrame, coreHttpRoom, coreSse } from "./core-physical.ts";
-
-const PEER_LEASE_MS = 60_000;
 
 function reply(): Response {
   return coreSse([
@@ -25,8 +23,11 @@ test("an accepted swipe closes exactly once on a real held lease while public lo
   if (target === undefined) {
     throw new Error("the actual locked-swipe control committed no target");
   }
-  const lease = { chatId: h.chatId, holder: "controlled-peer-holder", acquiredAt: h.root.clock.now(), expiresAt: h.root.clock.now() + PEER_LEASE_MS };
-  await h.root.db.insert(chatLocks).values(lease);
+  const voice = h.characters[0];
+  if (voice === undefined) {
+    throw new Error("the actual locked-swipe room has no voice for the peer replica");
+  }
+  await using peer = await seedPeerLease(h.root, { chatId: h.chatId, characterId: voice.id, hostUserId: h.owner.userId, holder: "controlled-peer-holder" });
   const events: ChatBusEvent[] = [];
   using subscription = new DisposableStack();
   subscription.defer(
@@ -45,7 +46,7 @@ test("an accepted swipe closes exactly once on a real held lease while public lo
   const generated = await h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId });
   expect(generated.aborted).toBe(false);
   expect(generated.messages).toMatchObject([{ seq: 2, content: "The actual retained reply." }]);
-  expect(await h.root.db.select().from(chatLocks).where(eq(chatLocks.chatId, h.chatId))).toEqual([lease]);
+  expect(await h.root.db.select().from(chatLocks).where(eq(chatLocks.chatId, h.chatId))).toEqual([peer.row]);
   expect(h.requests.filter((request) => request.method === "POST" && new URL(request.url).pathname.endsWith("/chat/completions"))).toHaveLength(2);
 });
 

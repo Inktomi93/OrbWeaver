@@ -7,8 +7,8 @@ import type { ChatId, IdSource, UserId } from "@orb/kit/ids";
 import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { createSeededIds, FROZEN_AT_MS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import { migrationsBefore, SHIPPED_MIGRATIONS, seedUser } from "@orb/testkit/node/composed";
-import { seedCharacterRow, seedChatRow, seedMessageRow } from "@orb/testkit/node/rows";
+import { migrationsBefore, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
+import { seedCharacterRow, seedChatRow, seedMessageRow, seedUser } from "@orb/testkit/node/rows";
 import { asc, eq, sql } from "drizzle-orm";
 
 const MIGRATION = "0005_renumber-imported-canon";

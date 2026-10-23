@@ -7,7 +7,7 @@ import { createTurnPersonaResolver } from "@orb/server/domain/chat";
 import { createResolvePersonasForParticipants } from "@orb/server/domain/persona";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { seedChat, seedPersona, seedUser } from "@orb/testkit/node/composed";
+import { seedChat, seedPersona } from "@orb/testkit/node/composed";
 
 async function seededPersona(harness: ServerTestHarness, ownerId: UserId, name: string): Promise<Awaited<ReturnType<typeof seedPersona>>["row"]> {
   const principal = await harness.principalFor(ownerId);
@@ -24,8 +24,8 @@ async function anchoredRoom(
 }
 
 test("a trigger with no seat persona cannot borrow the room's anchor identity", async ({ harness, db }): Promise<void> => {
-  const host = await seedUser(db);
-  const member = await seedUser(db);
+  const host = await harness.actor();
+  const member = await harness.actor();
   const anchor = await seededPersona(harness, host.id, "Anchor");
   const room = await anchoredRoom(harness, host.id, anchor.id);
   const resolve = createTurnPersonaResolver(createResolvePersonasForParticipants({ db: databaseHandle(db) }));
@@ -50,9 +50,9 @@ test("a trigger with no seat persona cannot borrow the room's anchor identity", 
 });
 
 test("a held departed-owner pin remains the card identity but cannot authorize a foreign active persona", async ({ harness, db }): Promise<void> => {
-  const host = await seedUser(db);
-  const departed = await seedUser(db);
-  const stranger = await seedUser(db);
+  const host = await harness.actor();
+  const departed = await harness.actor();
+  const stranger = await harness.actor();
   const pin = await seededPersona(harness, departed.id, "Held pin");
   const foreign = await seededPersona(harness, stranger.id, "Private stranger");
   // The pin's owner founded the room; production refuses an anchor the starter does not own.
@@ -76,8 +76,8 @@ test("a held departed-owner pin remains the card identity but cannot authorize a
 });
 
 test("canon follows the anchor owner's current seat while impersonation follows the triggering member", async ({ harness, db }): Promise<void> => {
-  const host = await seedUser(db);
-  const member = await seedUser(db);
+  const host = await harness.actor();
+  const member = await harness.actor();
   const anchor = await seededPersona(harness, host.id, "Pinned");
   const current = await seededPersona(harness, host.id, "Host current");
   const memberPersona = await seededPersona(harness, member.id, "Member current");

@@ -2,7 +2,7 @@ import { browserNoNodeGlobalsRule, rawEgressRule, rawHttpClientRule, sessionChan
 import { detachedWorkRule } from "./async.ts";
 import { assumesSingleReplicaRule, commentedCodeRule, rawIdRule, sideGenSamplingRule, wireJsonRule } from "./general.ts";
 import { DB_SCHEMA_RESTRICTIONS, SERVER_HARD_RESTRICTIONS, TYPE_SHAPE_RESTRICTIONS } from "./general-policy.ts";
-import { baseUiPortalContainerRule, contextReturnTypeRule, testFactoryContractRule } from "./native.ts";
+import { baseUiPortalContainerRule, contextReturnTypeRule, directRowWriteRule, testFactoryContractRule } from "./native.ts";
 import { PRINCIPAL_RULES } from "./principal.ts";
 import {
   AMBIENT_GLOBAL_RESTRICTIONS,
@@ -78,6 +78,7 @@ export function createOrbPlugin(options: { browserNodeGlobals: ReadonlySet<strin
       "sole-env-reader": soleEnvReaderRule,
       "baseui-portal-container-seam": baseUiPortalContainerRule,
       "test-factory-contract": testFactoryContractRule,
+      "no-direct-row-writes": directRowWriteRule,
       "no-context-returntype": contextReturnTypeRule,
       "no-raw-id": rawIdRule,
       "wire-json-parsed-at-consumer": wireJsonRule,

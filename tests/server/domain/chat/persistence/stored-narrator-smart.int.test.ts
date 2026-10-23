@@ -1,5 +1,6 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // @subject packages/contracts/src/chat/metadata.ts
+// An old room stored narrator + smart, which no current writer produces, so the stored bytes are planted directly.
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";

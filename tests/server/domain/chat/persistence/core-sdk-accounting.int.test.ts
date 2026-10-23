@@ -1,12 +1,13 @@
 // @subject packages/server/src/domain/chat/persistence/generation-observation.ts
 // @subject packages/server/src/domain/chat/engine/engine.ts
+// A retained card changing owner mid-turn has no verb that produces it as a race, so the owner column is moved directly.
 import { createCharacterSchema } from "@orb/contracts/character";
 import { parseVariantMetadata } from "@orb/contracts/chat";
 import { characters, chatGenerationObservations, closeDb, messages, messageVariants, ownerStats } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import { captureSdkSessionRows, freshHeldDb } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
-import { coreSdkRoom } from "./core-sdk-fixture.ts";
+import { coreSdkRoom } from "../engine/core-sdk-fixture.ts";
 
 test("a failed actual SDK terminal result retains paid facts without committing its reply", async () => {
   await using fixture = await coreSdkRoom({ text: "API Error: 400 controlled core refusal", failed: true, cost: 0.25 });

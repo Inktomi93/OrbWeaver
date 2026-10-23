@@ -3,7 +3,8 @@
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { chatLocks, closeDb, messages, messageVariants, ownerStats } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
-import { freshHeldDb } from "@orb/testkit/node/composed";
+import type { PeerLease } from "@orb/testkit/node/composed";
+import { freshHeldDb, seedPeerLease } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { eq } from "drizzle-orm";
 import { coreFrame, coreHeldReply, coreHttpRoom, coreSse } from "./core-physical.ts";
@@ -21,6 +22,7 @@ test.for([
   const now = h.root.clock.now();
   const running = h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: character.id });
   const settled = Promise.allSettled([running]);
+  let peer: PeerLease | undefined;
   try {
     const signal = await Promise.race([
       physical.reached,
@@ -32,9 +34,14 @@ test.for([
     if (lease === undefined) {
       throw new Error("the actual commit-fence turn owns no real lease");
     }
-    const replacement = { ...lease, holder: "controlled-fence-replacement" };
     if (row.stolen) {
-      await h.root.db.update(chatLocks).set(replacement).where(eq(chatLocks.chatId, h.chatId));
+      peer = await seedPeerLease(h.root, {
+        chatId: h.chatId,
+        characterId: character.id,
+        hostUserId: h.owner.userId,
+        holder: "controlled-fence-replacement",
+        aheadMs: lease.expiresAt - now + 1,
+      });
     }
     physical.release();
     const [result] = await settled;
@@ -52,10 +59,11 @@ test.for([
         .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
         .where(eq(messages.chatId, h.chatId)),
     ).toEqual(row.stolen ? [] : [{ content: "The held reply finishes." }]);
-    expect(await h.root.db.select().from(chatLocks).where(eq(chatLocks.chatId, h.chatId))).toEqual(row.stolen ? [replacement] : []);
+    expect(await h.root.db.select().from(chatLocks).where(eq(chatLocks.chatId, h.chatId))).toEqual(peer === undefined ? [] : [peer.row]);
   } finally {
     physical.release();
     await settled;
+    await peer?.[Symbol.asyncDispose]();
   }
 });
 

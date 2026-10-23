@@ -8,9 +8,9 @@ import { ProviderError } from "@orb/inference";
 import { logRing } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node";
 import type { HeldStatement } from "@orb/testkit/node/composed";
-import { freshHeldDb } from "@orb/testkit/node/composed";
+import { freshHeldDb, refuseWrites } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { coreFrame, coreHttpRoom, coreSse } from "./core-physical.ts";
 
 const CORE_LOG_LEVEL = "warn" satisfies LogLevel;
@@ -129,9 +129,12 @@ test("the real total publisher reports a dropped durable delta but the paid turn
     ],
     { server: { logLevel: CORE_LOG_LEVEL } },
   );
-  await h.root.db.run(
-    sql`CREATE TEMP TRIGGER refuse_core_delta BEFORE INSERT ON ${chatEvents} WHEN NEW."type" = 'delta' BEGIN SELECT RAISE(ABORT, 'controlled durable delta refusal'); END`,
-  );
+  await using _refusal = await refuseWrites(h.root.db, {
+    table: chatEvents,
+    event: "INSERT",
+    when: `NEW."type" = 'delta'`,
+    message: "controlled durable delta refusal",
+  });
   const outcome = await h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId });
   expect(outcome.aborted).toBe(false);
   expect(outcome.messages).toMatchObject([{ role: "assistant", content: PARTIAL }]);

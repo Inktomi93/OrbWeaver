@@ -5,7 +5,7 @@ import { SEED_MANIFEST } from "@orb/default-content";
 import { createFindSeedCharacter } from "@orb/server/domain/character";
 import { createRosterSeedStep, createSeedRosterPreset } from "@orb/server/domain/roster-preset";
 import { expect, test } from "@orb/testkit/node";
-import { seedCharacter, seedUser } from "@orb/testkit/node/composed";
+import { seedCharacter } from "@orb/testkit/node/composed";
 import { principal } from "@orb/testkit/node/helpers";
 
 const CAMPAIGN = SEED_MANIFEST.find((item) => item.kind === "rosterPreset" && item.startsGame);
@@ -16,11 +16,10 @@ if (CAMPAIGN?.kind !== "rosterPreset" || PLAIN?.kind !== "rosterPreset") {
 
 test("authored campaign and plain steps preserve the receiving Principal, owned character order and real game interpretation", async ({
   harness,
-  db,
   services,
 }) => {
-  const owner = await seedUser(db);
-  const neighbor = await seedUser(db);
+  const owner = await harness.actor();
+  const neighbor = await harness.actor();
   const actor = await principal(harness, owner.id);
   const neighborActor = await principal(harness, neighbor.id);
   for (const handle of new Set([...CAMPAIGN.characters, ...PLAIN.characters])) {
@@ -50,13 +49,9 @@ test("authored campaign and plain steps preserve the receiving Principal, owned 
   expect(await services.rosterPreset.list({ principal: neighborActor })).toEqual([]);
 });
 
-test("all-deleted authored seats settle without a roster write, never filling the vacancy with another user's same handles", async ({
-  harness,
-  db,
-  services,
-}) => {
-  const owner = await seedUser(db);
-  const neighbor = await seedUser(db);
+test("all-deleted authored seats settle without a roster write, never filling the vacancy with another user's same handles", async ({ harness, services }) => {
+  const owner = await harness.actor();
+  const neighbor = await harness.actor();
   const actor = await principal(harness, owner.id);
   const neighborActor = await principal(harness, neighbor.id);
   for (const handle of PLAIN.characters) {

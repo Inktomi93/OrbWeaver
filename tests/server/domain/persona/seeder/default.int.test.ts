@@ -2,17 +2,17 @@
 // @subject packages/server/src/domain/persona/verbs/find-seeded-default.ts
 // @subject packages/server/src/domain/settings/verbs/seed-policy.ts
 
+import { userSettings } from "@orb/db";
 import { readSeedAvatar } from "@orb/default-content";
 import { createSeedAvatarOps } from "@orb/server/domain/assets";
 import { createDefaultPersonaSeeder, createFindSeededDefault } from "@orb/server/domain/persona";
 import { createPersonaSeedSettings } from "@orb/server/domain/settings";
 import { expect, test } from "@orb/testkit/node";
-import { seedUser } from "@orb/testkit/node/composed";
+import { refuseWrites } from "@orb/testkit/node/composed";
 import { principal } from "@orb/testkit/node/helpers";
-import { sql } from "drizzle-orm";
 
-test("a real-stack seed performs no persona or latch write; automation creates the unchanged authored artifact", async ({ harness, db, app, services }) => {
-  const user = await seedUser(db);
+test("a real-stack seed performs no persona or latch write; automation creates the unchanged authored artifact", async ({ harness, app, services }) => {
+  const user = await harness.actor();
   const actor = await principal(harness, user.id);
   await app.personaSeeder.ensureSeeded(actor);
   expect(await services.persona.list({ principal: actor })).toEqual([]);
@@ -42,9 +42,9 @@ test("a real-stack seed performs no persona or latch write; automation creates t
   expect(config.onboarding.defaultPersonaSeeded).toBe(true);
 });
 
-test("an automation stack leaves the first-run ask intact for exactly the accounts the policy declines", async ({ harness, db, services }) => {
-  const asker = await principal(harness, (await seedUser(db)).id);
-  const other = await principal(harness, (await seedUser(db)).id);
+test("an automation stack leaves the first-run ask intact for exactly the accounts the policy declines", async ({ harness, services }) => {
+  const asker = await principal(harness, (await harness.actor()).id);
+  const other = await principal(harness, (await harness.actor()).id);
   const seeder = createDefaultPersonaSeeder({
     autoSeedEnabled: (who) => who.userId !== asker.userId,
     createPersona: (args) => services.persona.create(args),
@@ -59,9 +59,9 @@ test("an automation stack leaves the first-run ask intact for exactly the accoun
   expect(await services.persona.list({ principal: other })).toHaveLength(1);
 });
 
-test("a lost persona latch heals only its own artifact and independently preserves the user's explicit pick", async ({ harness, db, services }) => {
-  const user = await seedUser(db);
-  const stranger = await seedUser(db);
+test("a lost persona latch heals only its own artifact and independently preserves the user's explicit pick", async ({ harness, services }) => {
+  const user = await harness.actor();
+  const stranger = await harness.actor();
   const actor = await principal(harness, user.id);
   const neighbor = await principal(harness, stranger.id);
   await services.persona.create({ principal: neighbor, input: { name: "Foreign artifact", description: "", metadata: { seededDefault: true } } });
@@ -86,20 +86,24 @@ test("a lost persona latch heals only its own artifact and independently preserv
 });
 
 test("a real database refusal of the completion latch leaves pointers landed and the seed retryable", async ({ harness, db, services }) => {
-  const user = await seedUser(db);
+  const user = await harness.actor();
   const actor = await principal(harness, user.id);
   const persona = await services.persona.create({ principal: actor, input: { name: "Traveler", description: "", metadata: { seededDefault: true } } });
   const latch = createPersonaSeedSettings(services.settings);
   await services.settings.getUserSettings({ principal: actor });
-  await db.run(
-    sql`CREATE TRIGGER refuse_persona_seed_latch BEFORE UPDATE OF config ON user_settings WHEN json_extract(NEW.config, '$.onboarding.defaultPersonaSeeded') = 1 BEGIN SELECT RAISE(ABORT, 'latch refused'); END`,
-  );
+  await using refusal = await refuseWrites(db, {
+    table: userSettings,
+    event: "UPDATE",
+    columns: [userSettings.config],
+    when: "json_extract(NEW.config, '$.onboarding.defaultPersonaSeeded') = 1",
+    message: "latch refused",
+  });
   await expect(latch.markSeeded(actor, persona.id)).rejects.toThrow();
   const partial = (await services.settings.getUserSettings({ principal: actor })).config;
   expect(partial.onboarding.defaultPersonaSeeded).toBe(false);
   expect(partial.seeds.defaultPersonaId).toBe(persona.id);
   expect(partial.seeds.currentPersonaId).toBe(persona.id);
-  await db.run(sql`DROP TRIGGER refuse_persona_seed_latch`);
+  await refusal.lift();
   await latch.markSeeded(actor, persona.id);
   expect(await latch.isSeeded(actor)).toBe(true);
 });

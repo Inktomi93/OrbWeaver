@@ -5,16 +5,14 @@
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { StartWorkloadInput } from "@orb/contracts/workloads";
-import { characterEmbeddings, characterSummaries, characters, embedGenerations, themeClusters, users, workloads } from "@orb/db";
-import { databaseHandle } from "@orb/db/wiring-driver";
+import { characterEmbeddings, characterSummaries, characters, embedGenerations, themeClusters, workloads } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { runWorkload } from "@orb/server/domain/workloads";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, seedCorpusConnections, seedRecallCorpus } from "@orb/testkit/node/composed";
-import { eq, inArray, sql } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { vi } from "vitest";
-import { createQueueScanner, executeAdmitted, observeQueued, physicalWire, QUEUE_OBSERVATION_DELAY_MS } from "./funding.fixtures.ts";
+import { executeAdmitted, physicalWire } from "./funding.fixtures.ts";
 
 test("only actual NULL-owner execution carries every-owner authority, independently of a null caller", async () => {
   const wire = physicalWire();
@@ -223,80 +221,4 @@ test("theme estimates use the same seeded clustering as real owned execution wit
   expect(await root.services.workloads.get({ caller: owner, id: bulk.id })).toMatchObject({ status: "succeeded", funderUserId: owner.userId });
   const bulkWritten = await root.db.select().from(themeClusters).where(eq(themeClusters.ownerId, owner.userId));
   expect(bulkWritten.filter((row) => row.name !== null).length).toBe(estimate.calls);
-});
-
-test("a deleted owner's admitted job never upgrades into every-owner execution or a retry", async () => {
-  const wire = physicalWire();
-  await using root = await createServerHarness({ providerFetch: wire.execute });
-  const owner = await root.principalFor(root.ownerId);
-  const member = await root.principalFor((await root.actor()).id);
-  await seedCorpusConnections(root, owner);
-  for (const name of ["one", "two"]) {
-    await root.services.character.create({
-      principal: owner,
-      input: createCharacterSchema.parse({ name, handle: name, description: `Real paragraph ${name}.` }),
-    });
-  }
-  await root.app.embeddings.embedCorpus({ ownerId: owner.userId, force: true, signal: new AbortController().signal });
-  await root.settleBackground();
-  const ref = await root.services.workloads.start({
-    caller: member,
-    mode: "singular",
-    ownerId: member.userId,
-    scheduledAt: root.clock.now() + QUEUE_OBSERVATION_DELAY_MS,
-    input: { kind: "csls", params: {} },
-  });
-  await observeQueued(root, ref.id);
-  await root.db.delete(users).where(eq(users.id, member.userId));
-  const retained = await root.db.select().from(workloads).where(eq(workloads.id, ref.id)).get();
-  expect(retained).toMatchObject({ ownerId: null, admissionSystem: false, status: "queued" });
-  const run = vi.spyOn(root.app.workloadContributions.csls, "run");
-  await executeAdmitted(root, ref.id);
-  const scores = await root.db.select({ score: characterEmbeddings.hubScore }).from(characterEmbeddings);
-  expect(scores.map((row) => row.score)).toEqual([null, null]);
-  expect(run).not.toHaveBeenCalled();
-  expect(await createQueueScanner(root)(root.clock.now() + QUEUE_OBSERVATION_DELAY_MS, "sweep")).toBeNull();
-  expect(await root.services.workloads.get({ caller: owner, id: ref.id })).toMatchObject({ status: "failed" });
-  await root.db
-    .update(workloads)
-    .set({ params: sql`${"{"}` })
-    .where(eq(workloads.id, ref.id));
-  await expect(root.services.workloads.retry({ caller: owner, id: ref.id })).rejects.toBeInstanceOf(DomainNotFoundError);
-  await expect(root.services.workloads.retry({ caller: null, id: ref.id })).rejects.toBeInstanceOf(DomainNotFoundError);
-  await expect(root.services.workloads.estimateRetryModelCalls({ caller: owner, id: ref.id })).rejects.toBeInstanceOf(DomainNotFoundError);
-  run.mockRestore();
-});
-
-test("owner deletion between queue observation and atomic claim cannot upgrade a captured owned row", async () => {
-  await using root = await createServerHarness();
-  const member = await root.principalFor((await root.actor()).id);
-  await root.settleBackground();
-  const ref = await root.services.workloads.start({
-    caller: member,
-    mode: "singular",
-    ownerId: member.userId,
-    scheduledAt: root.clock.now() + QUEUE_OBSERVATION_DELAY_MS,
-    input: { kind: "csls", params: {} },
-  });
-  const captured = await observeQueued(root, ref.id);
-  expect(captured.id).toBe(ref.id);
-  await root.db.delete(users).where(eq(users.id, member.userId));
-  const run = vi.spyOn(root.app.workloadContributions.csls, "run");
-  await runWorkload(
-    {
-      db: databaseHandle(root.db),
-      contributions: root.app.workloadContributions,
-      audit: root.app.audit,
-      now: root.clock.now,
-      emitEvent: root.app.workloadEvents.emitWorkloadEvent,
-      heartbeatMs: 0,
-      cancelPollMs: 0,
-    },
-    captured,
-    new AbortController().signal,
-  );
-  expect(run).not.toHaveBeenCalled();
-  expect(await createQueueScanner(root)(root.clock.now() + QUEUE_OBSERVATION_DELAY_MS, "sweep")).toBeNull();
-  expect(await root.services.workloads.get({ caller: null, id: ref.id })).toMatchObject({ status: "failed" });
-  run.mockRestore();
 });

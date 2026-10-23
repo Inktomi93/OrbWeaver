@@ -22,7 +22,7 @@ import { createCorpusRecipe } from "./corpus-recipe.ts";
 import { SHIPPED_MIGRATIONS } from "./db.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
 import { capturePluginRows, makePluginBundle } from "./factories/plugin.ts";
-import { seedUser } from "./factories/user.ts";
+import { seedUser } from "./factories/rows.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 

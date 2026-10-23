@@ -4,7 +4,6 @@ import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { users } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import type { UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
@@ -14,7 +13,6 @@ import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { NATIVE_OIDC_SETTINGS } from "@orb/testkit/node/helpers";
-import { eq } from "drizzle-orm";
 
 const ALLOWLIST = ["https://orb.example.com/api/auth/oidc/callback", "http://localhost:8788/api/auth/oidc/callback"];
 const OWNER_ONLY = 0o600;
@@ -75,10 +73,10 @@ test.each([
 
 test("a bound owner → no code is issued, nothing is printed, and a stale claim file is removed", async () => {
   await using root = await createServerHarness();
-  await root.db
-    .update(users)
-    .set({ externalId: brandedId("ExternalId").parse("idp|owner") })
-    .where(eq(users.id, root.ownerId));
+  const subject = brandedId("ExternalId").parse("idp|owner");
+  const owner = await root.principalFor(root.ownerId);
+  await root.app.sessions.provisionIdentity({ externalId: subject, handle: owner.handle, groups: [], email: null }, { ownerClaimProven: true });
+  expect((await root.app.sessions.loadUserById(root.ownerId))?.externalId).toBe(subject);
   await using oidc = await configuredClaim(root);
   await using file = await claimFile();
   await mkdir(dirname(file.path), { recursive: true });

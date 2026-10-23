@@ -19,12 +19,13 @@ import {
   createCorpusProviderExecution,
   createServerHarness,
   freshHeldDb,
+  refuseWrites,
   seedCorpusActors,
   seedRecallRoom,
   seedRpgCheckpoint,
   seedRpgGame,
 } from "@orb/testkit/node/composed";
-import { eq, getTableName, sql } from "drizzle-orm";
+import { eq, getTableName } from "drizzle-orm";
 
 const INTENT = { maxContextTokens: 32_000, maxOutputTokens: 128 };
 const SAVED_LOCATION = "Bookmarked observatory";
@@ -199,14 +200,12 @@ for (const table of [rpgSnapshots, rpgCheckpoints]) {
     const scene = await foldedScene(root);
     const params = { principal: scene.owner, chatId: scene.chatId };
     const before = await capturedRows(root, scene.game.id, scene.chatId);
-    await root.db.run(
-      sql.raw(`CREATE TRIGGER checkpoint_write_failure BEFORE INSERT ON "${getTableName(table)}" BEGIN SELECT RAISE(ABORT, 'checkpoint write refused'); END`),
-    );
+    await using refusal = await refuseWrites(root.db, { table, event: "INSERT", message: "checkpoint write refused" });
     try {
       await expect(root.services.rpg.createCheckpoint({ ...params, label: "Refused native write" })).rejects.toThrow("checkpoint write refused");
       expect(await capturedRows(root, scene.game.id, scene.chatId)).toEqual(before);
     } finally {
-      await root.db.run(sql`DROP TRIGGER checkpoint_write_failure`);
+      await refusal.lift();
     }
     const checkpoint = await seedRpgCheckpoint(root, { ...params, label: "Allowed retry" });
     expect(await captureRpgSnapshot(root.db, checkpoint.snapshotId)).toMatchObject({ gameId: scene.game.id, committed: 1, variantId: null });
@@ -374,12 +373,12 @@ test("a native restore snapshot failure keeps both the narrator and saved state 
   const checkpoint = await seedRpgCheckpoint(root, { ...params, label: "Restore failure" });
   expect(await root.services.rpg.editSnapshot({ ...params, patch: { location: EDITED_LOCATION } })).toEqual({ ok: true });
   const before = await capturedRows(root, scene.game.id, scene.chatId);
-  await root.db.run(sql`CREATE TRIGGER restore_write_failure BEFORE INSERT ON rpg_snapshots BEGIN SELECT RAISE(ABORT, 'restore snapshot refused'); END`);
+  await using refusal = await refuseWrites(root.db, { table: rpgSnapshots, event: "INSERT", message: "restore snapshot refused" });
   try {
     await expect(root.services.rpg.restoreCheckpoint({ ...params, checkpointId: checkpoint.id })).rejects.toThrow("restore snapshot refused");
     expect(await capturedRows(root, scene.game.id, scene.chatId)).toEqual(before);
   } finally {
-    await root.db.run(sql`DROP TRIGGER restore_write_failure`);
+    await refusal.lift();
   }
   await root.services.rpg.restoreCheckpoint({ ...params, checkpointId: checkpoint.id });
   expect((await root.services.rpg.getTrackerView(params)).ambient?.location).toBe(scene.snapshot.location);

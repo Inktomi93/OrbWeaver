@@ -8,7 +8,7 @@ import { characters, chatLocks, chatParticipants, chats, closeDb, messages, mess
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { CHAT_OP_CODES, ChatNotFoundError } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
-import { freshHeldDb } from "@orb/testkit/node/composed";
+import { freshHeldDb, seedPeerLease } from "@orb/testkit/node/composed";
 import { and, eq } from "drizzle-orm";
 import { sdkEngineRoom } from "../engine/engine-physical.ts";
 import { invitePerson } from "../persona-cache-physical.ts";
@@ -163,7 +163,11 @@ test("the real native engine lease refuses settlement without silently consuming
   await queued(room, member);
   const before = await debt(room);
   const holder = "owned-maintenance-turn-lease";
-  await h.root.db.insert(chatLocks).values({ chatId: h.chatId, holder, acquiredAt: h.root.clock.now(), expiresAt: h.root.clock.now() + 60_000 });
+  const voice = h.characters[0];
+  if (voice === undefined) {
+    throw new Error("the actual owed room has no voice for the peer replica");
+  }
+  const peer = await seedPeerLease(h.root, { chatId: h.chatId, characterId: voice.id, hostUserId: h.owner.userId, holder, secretBoxKey: Buffer.alloc(32, 1) });
   try {
     await expect(h.root.services.chat.drainDeferredTurns({ all: true })).resolves.toEqual({ ran: 0, dropped: 0 });
     expect(await debt(room)).toEqual(before);
@@ -173,7 +177,7 @@ test("the real native engine lease refuses settlement without silently consuming
     expect(await speakerInputs(room.peer.requests, B_CHAT_MODEL)).toEqual([]);
     expect(await h.root.db.select().from(chatLocks).where(eq(chatLocks.chatId, h.chatId))).toMatchObject([{ holder }]);
   } finally {
-    await h.root.db.delete(chatLocks).where(and(eq(chatLocks.chatId, h.chatId), eq(chatLocks.holder, holder)));
+    await peer[Symbol.asyncDispose]();
   }
 });
 
@@ -430,6 +434,7 @@ test("an early native lock-loss rejection cannot release handoff before the actu
   const settled = Promise.allSettled([running]);
   let joined = Promise.resolve<PromiseSettledResult<void>[]>([]);
   const replacement = "owned-handoff-replacement-holder";
+  let peer: Awaited<ReturnType<typeof seedPeerLease>> | undefined;
   try {
     await gate.reached;
     gate.disarm();
@@ -437,7 +442,14 @@ test("an early native lock-loss rejection cannot release handoff before the actu
     if (lease === undefined) {
       throw new Error("the actual old body owns no lease at its commit check");
     }
-    await h.root.db.update(chatLocks).set({ holder: replacement }).where(eq(chatLocks.chatId, h.chatId));
+    peer = await seedPeerLease(h.root, {
+      chatId: h.chatId,
+      characterId: character.id,
+      hostUserId: h.owner.userId,
+      holder: replacement,
+      aheadMs: lease.expiresAt - h.root.clock.now() + 1,
+      secretBoxKey: Buffer.alloc(32, 1),
+    });
     h.root.timers.advance(Math.floor((lease.expiresAt - lease.acquiredAt) / 3));
     await expect(running).rejects.toMatchObject({ code: CHAT_OP_CODES.aborted });
     let complete = false;
@@ -459,7 +471,7 @@ test("an early native lock-loss rejection cannot release handoff before the actu
     gate.release();
     await settled;
     await joined;
-    await h.root.db.delete(chatLocks).where(and(eq(chatLocks.chatId, h.chatId), eq(chatLocks.holder, replacement)));
+    await peer?.[Symbol.asyncDispose]();
   }
 });
 

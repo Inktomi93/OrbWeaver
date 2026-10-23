@@ -3,8 +3,9 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { chats, messages, messageVariants } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
+import { refuseWrites } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { coreFrame, coreHttpRoom, coreSse } from "./core-physical.ts";
 
 const HP = "coreHp";
@@ -84,16 +85,14 @@ test("a physical failed canon write leaves variable state untouched and a real r
   if (character === undefined) {
     throw new Error("the actual variable retry has no character");
   }
-  await h.root.db.run(
-    sql`CREATE TEMP TRIGGER refuse_runtime_variant BEFORE INSERT ON ${messageVariants} BEGIN SELECT RAISE(ABORT, 'controlled variable canon refusal'); END`,
-  );
+  await using refusal = await refuseWrites(h.root.db, { table: messageVariants, event: "INSERT", message: "controlled variable canon refusal" });
   await expect(h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: character.id })).rejects.toThrow(
     "controlled variable canon refusal",
   );
   expect(await h.root.db.select().from(messages).where(eq(messages.chatId, h.chatId))).toEqual([]);
   expect(await h.root.db.select().from(chats).where(eq(chats.id, h.chatId)).get()).toMatchObject({ runtimeVariables: null });
   expect(await h.root.services.chat.getRuntimeVariables({ principal: h.owner, chatId: h.chatId })).toEqual({});
-  await h.root.db.run(sql`DROP TRIGGER refuse_runtime_variant`);
+  await refusal.lift();
   const retried = await h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: character.id });
   expect(retried.aborted).toBe(false);
   expect(retried.messages).toMatchObject([{ seq: 1, characterId: character.id }]);

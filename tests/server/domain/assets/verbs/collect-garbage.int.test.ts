@@ -1,32 +1,15 @@
-// The scheduled assets-gc workload on the real composition root: every reference kind keeps its blob, a
-// truly unreferenced blob is reclaimed, and a reference the collector cannot read stops the sweep cold.
-// @subject packages/server/src/domain/assets/verbs/collect-garbage.ts
-// @subject packages/server/src/domain/assets/persistence/asset-refs.ts
-
-import { mkdtemp, rm, utimes } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, PLUGIN_UI_ASSETS_DIR, pluginManifestSchema } from "@orb/contracts/plugin";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
-import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
-import type { Db } from "@orb/db";
-import { assets, characters, chats, closeDb, documents, userSettings } from "@orb/db";
-import { contentSpanRaw } from "@orb/kit/content";
-import type { AssetId, CharacterHandle, ChatId, MessageId, UserId } from "@orb/kit/ids";
+import { documents } from "@orb/db";
+import type { CharacterHandle, ChatId, MessageId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { recordPluginFetchedAsset } from "@orb/server/domain/plugin";
-import type { Cas } from "@orb/server/infra/storage/cas";
-import { createCas } from "@orb/server/infra/storage/cas";
 import { FROZEN_AT_MS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
-  CORPUS_EMBEDDING_VECTOR,
   CORPUS_PROVIDER_ENDPOINT,
-  createCorpusProviderExecution,
-  createServerHarness,
   freshHeldDb,
   makeAssetBytes,
   makePluginBundle,
@@ -36,16 +19,29 @@ import {
   seedInstalledPlugin,
   seedInvitedChatParticipant,
 } from "@orb/testkit/node/composed";
-import { eq, sql } from "drizzle-orm";
-import { onTestFinished } from "vitest";
+import { eq } from "drizzle-orm";
+import type { GcBox, StoredRef } from "../gc-box.ts";
+import {
+  ageOnly,
+  aWeekAgo,
+  GC_IMAGE_MODEL,
+  inlineImage,
+  openBox,
+  openRoom,
+  PNG,
+  runScheduledGc,
+  stampBlob,
+  stampEveryBlob,
+  store,
+  storedRow,
+  survival,
+  survives,
+} from "../gc-box.ts";
+import { plantRoomBackground } from "../persistence/foreign-references.ts";
 
-const PNG = "image/png";
-const MS_PER_SECOND = 1000;
 const ASSET_ROW_DELETE = /^delete from "assets"/i;
 /** The purge's `(owner, hash)` index re-check: the statement that sits between the row delete and the unlink. */
 const ASSET_HASH_LOOKUP = /^select "id" from "assets" where .*"assets"\."hash" = \?/i;
-const WORKLOAD_DEADLINE_MS = 30_000;
-const GC_IMAGE_MODEL = "gc-image-v1";
 const GC_PLUGIN_IMAGE_PATH = `${PLUGIN_UI_ASSETS_DIR}cover.png`;
 const GC_PLUGIN_SOURCE = "orb.host(1);";
 
@@ -61,134 +57,6 @@ function gcPluginBundle(slug: string, image: Uint8Array): Uint8Array {
     netHosts: ["covers.example.invalid"],
   });
   return makePluginBundle(manifest, GC_PLUGIN_SOURCE, FROZEN_AT_MS, { [GC_PLUGIN_IMAGE_PATH]: image });
-}
-
-interface GcBox {
-  readonly root: ServerTestHarness;
-  readonly cas: Cas;
-  readonly principal: Principal;
-  readonly images: Uint8Array[];
-}
-
-interface StoredRef {
-  readonly assetId: AssetId;
-  readonly hash: string;
-}
-
-/** One harness on a scratch CAS; a supplied db is closed after the harness that used it. The scripted provider
- *  answers only an image generation, with whatever bytes a test pushes into `images` first. */
-async function openBox(db?: Db): Promise<GcBox> {
-  const dir = await mkdtemp(join(tmpdir(), "orb-assets-gc-"));
-  const casDir = join(dir, "cas");
-  const images: Uint8Array[] = [];
-  const wire = createCorpusProviderExecution({
-    modelIds: [GC_IMAGE_MODEL],
-    embedding: CORPUS_EMBEDDING_VECTOR,
-    chatText: "",
-    structuredReplies: new Map(),
-    images,
-  });
-  const root = await createServerHarness({ startJobs: false, casDir, providerFetch: wire.execute, ...(db === undefined ? {} : { db }) });
-  onTestFinished(async () => {
-    await root[Symbol.asyncDispose]();
-    if (db !== undefined) {
-      closeDb(db);
-    }
-    await rm(dir, { recursive: true, force: true });
-  });
-  const principal = await root.principalFor(root.ownerId);
-  await root.services.settings.updateAppSettings({ principal, partial: { privateEndpointAllowlist: [new URL(CORPUS_PROVIDER_ENDPOINT).hostname] } });
-  // A committed message resolves the room's chat connection even when nothing generates; nothing here calls it.
-  await seedCorpusConnections(root, principal);
-  return { root, cas: createCas(casDir), principal, images };
-}
-
-/** An asset a production writer stored on its own, resolved to the `(id, hash)` the sweep keys on. */
-async function storedRow(box: GcBox, assetId: AssetId): Promise<StoredRef> {
-  const row = await box.root.db.select({ hash: assets.hash }).from(assets).where(eq(assets.id, assetId)).get();
-  if (row === undefined) {
-    throw new Error("a production writer pointed at an asset with no index row");
-  }
-  return { assetId, hash: row.hash };
-}
-
-async function store(
-  box: GcBox,
-  kind: "attachment" | "avatar" | "background" | "gallery" | "generated",
-  bytes: Uint8Array = makeAssetBytes(box.root.idSource.typeId(ID_PREFIX.asset)),
-): Promise<StoredRef> {
-  const stored = await box.root.services.assets.store({ principal: box.principal, bytes, kind, mime: PNG });
-  return { assetId: stored.assetId, hash: stored.hash };
-}
-
-/** A week ago is one scheduled-GC period: far outside any grace window. */
-function aWeekAgo(box: GcBox): number {
-  return box.root.clock.now() - CADENCE_INTERVAL_MS.weekly;
-}
-
-/** Stamp every blob as last put at `atMs` (the lever `putBytes` pulls on every write and dedup hit). */
-async function stampEveryBlob(box: GcBox, atMs: number): Promise<void> {
-  const seconds = atMs / MS_PER_SECOND;
-  for await (const owner of box.cas.listOwners()) {
-    for await (const hash of box.cas.listHashes(castId<UserId>(owner))) {
-      await utimes(box.cas.blobPath(castId<UserId>(owner), hash), seconds, seconds);
-    }
-  }
-}
-
-async function stampBlob(box: GcBox, ref: StoredRef, atMs: number): Promise<void> {
-  const seconds = atMs / MS_PER_SECOND;
-  await utimes(box.cas.blobPath(box.root.ownerId, ref.hash), seconds, seconds);
-}
-
-/** Only `refs` are past grace, so they are the only blobs the sweep can reach a destructive edge for. */
-async function ageOnly(box: GcBox, ...refs: readonly StoredRef[]): Promise<void> {
-  await stampEveryBlob(box, box.root.clock.now());
-  for (const ref of refs) {
-    await stampBlob(box, ref, aWeekAgo(box));
-  }
-}
-
-/** Start and run the assets-gc workload the boot seed schedules, then read its recorded outcome. */
-async function runScheduledGc(box: GcBox): ReturnType<ServerTestHarness["services"]["workloads"]["get"]> {
-  const runAdmitted = box.root.runAdmittedWorkload;
-  if (runAdmitted === undefined) {
-    throw new Error("the harness owns its workload execution only with startJobs: false");
-  }
-  const started = await box.root.services.workloads.start({
-    caller: box.principal,
-    mode: "bulk",
-    ownerId: box.root.ownerId,
-    input: { kind: "assets-gc", params: {} },
-  });
-  await runAdmitted(started.id, AbortSignal.timeout(WORKLOAD_DEADLINE_MS));
-  return await box.root.services.workloads.get({ caller: box.principal, id: started.id });
-}
-
-async function survives(box: GcBox, ref: StoredRef): Promise<boolean> {
-  const rows = await box.root.db.select({ id: assets.id }).from(assets).where(eq(assets.id, ref.assetId));
-  return rows.length === 1 && (await box.cas.exists(box.root.ownerId, ref.hash));
-}
-
-async function survival(box: GcBox, refs: Readonly<Record<string, StoredRef>>): Promise<Record<string, boolean>> {
-  const out: Record<string, boolean> = {};
-  for (const [name, ref] of Object.entries(refs)) {
-    out[name] = await survives(box, ref);
-  }
-  return out;
-}
-
-function inlineImage(ref: StoredRef): string {
-  return contentSpanRaw({ kind: "image", ref: { kind: "asset", assetId: ref.assetId }, alt: "kept" });
-}
-
-async function openRoom(box: GcBox, handle: CharacterHandle, principal: Principal = box.principal): Promise<ChatId> {
-  const character = await box.root.services.character.create({
-    principal,
-    input: createCharacterSchema.parse({ handle, name: "Keeper", description: "A keeper tends the orbital ledger." }),
-  });
-  const room = await box.root.services.chat.startChat({ principal, characterIds: [character.id], opening: "none" });
-  return room.chat.id;
 }
 
 interface Post {
@@ -495,87 +363,3 @@ test("a same-bytes upload indexed between the row delete and the unlink keeps it
 /** Stored shapes no current writer produces — a newer build's row, a hand edit, or corruption — written
  *  straight into the JSON column, because the refusal path is exactly what a production writer cannot reach.
  *  Each plant answers the primary key of the row it broke: the refusal must name it for the owner to repair. */
-const UNREADABLE_REFERENCES = {
-  "a room background of a source kind this build does not know": async (box: GcBox, ref: StoredRef): Promise<string> => {
-    const room = await openRoom(box, castId<CharacterHandle>("gc-unknown-room-kind"));
-    await plantRoomBackground(box, room, { kind: "library", assetId: ref.assetId });
-    return room;
-  },
-  "a room background that is not an object": async (box: GcBox, ref: StoredRef): Promise<string> => {
-    const room = await openRoom(box, castId<CharacterHandle>("gc-encoded-room-background"));
-    await plantRoomBackground(box, room, JSON.stringify({ kind: "asset", assetId: ref.assetId }));
-    return room;
-  },
-  "a card background of a source kind this build does not know": async (box: GcBox, ref: StoredRef): Promise<string> =>
-    await plantCardBackground(box, castId<CharacterHandle>("gc-unknown-card-kind"), { kind: "library", assetId: ref.assetId }),
-  "a card background override that is not an object": async (box: GcBox, ref: StoredRef): Promise<string> =>
-    await plantCardBackground(box, castId<CharacterHandle>("gc-encoded-card-background"), JSON.stringify({ kind: "asset", assetId: ref.assetId })),
-  "a background-library entry whose assetId is not a string": async (box: GcBox, ref: StoredRef): Promise<string> =>
-    await rewriteSettings(box, "$.appearance.backgroundLibrary", [{ entryId: "gc-entry", assetId: { id: ref.assetId } }]),
-  "a background-library entry that is not an object": async (box: GcBox, ref: StoredRef): Promise<string> =>
-    await rewriteSettings(box, "$.appearance.backgroundLibrary", [ref.assetId]),
-  "a background pick that is not a string": async (box: GcBox, ref: StoredRef): Promise<string> =>
-    await rewriteSettings(box, "$.appearance.backgroundAssetId", { id: ref.assetId }),
-  "an appearance section that is not an object": async (box: GcBox, ref: StoredRef): Promise<string> =>
-    await rewriteSettings(box, "$.appearance", JSON.stringify({ backgroundAssetId: ref.assetId })),
-  "a profile avatar that is not a string": async (box: GcBox, ref: StoredRef): Promise<string> =>
-    await rewriteSettings(box, "$.profile.avatarAssetId", [ref.assetId]),
-  "a profile section that is not an object": async (box: GcBox, ref: StoredRef): Promise<string> =>
-    await rewriteSettings(box, "$.profile", JSON.stringify({ avatarAssetId: ref.assetId })),
-  "a settings blob that is not JSON at all": async (box: GcBox, ref: StoredRef): Promise<string> => {
-    await settingsRow(box);
-    await box.root.db
-      .update(userSettings)
-      .set({ config: sql`${`{"profile":{"avatarAssetId":"${ref.assetId}"`}` })
-      .where(eq(userSettings.userId, box.root.ownerId));
-    return box.root.ownerId;
-  },
-} as const;
-
-/** Write `value` at the room's `background` key as stored JSON (a string value stores a JSON string). */
-async function plantRoomBackground(box: GcBox, room: ChatId, value: unknown): Promise<void> {
-  await box.root.db
-    .update(chats)
-    .set({ metadata: sql`json_set(coalesce(${chats.metadata}, '{}'), '$.background', json(${JSON.stringify(value)}))` })
-    .where(eq(chats.id, room));
-}
-
-async function plantCardBackground(box: GcBox, handle: CharacterHandle, value: unknown): Promise<string> {
-  const card = await box.root.services.character.create({
-    principal: box.principal,
-    input: createCharacterSchema.parse({ handle, name: "Unreadable", description: "" }),
-  });
-  await box.root.db
-    .update(characters)
-    .set({ backgroundOverride: sql`json(${JSON.stringify(value)})` })
-    .where(eq(characters.id, card.id));
-  return card.id;
-}
-
-/** The owner's settings row, written once through the real section verb so a raw rewrite has a row to edit. */
-async function settingsRow(box: GcBox): Promise<void> {
-  await box.root.services.settings.updateUserSettingsSection({ principal: box.principal, input: { section: "profile", patch: { flankCollapsed: true } } });
-}
-
-async function rewriteSettings(box: GcBox, path: string, value: unknown): Promise<string> {
-  await settingsRow(box);
-  await box.root.db
-    .update(userSettings)
-    .set({ config: sql`json_set(${userSettings.config}, ${path}, json(${JSON.stringify(value)}))` })
-    .where(eq(userSettings.userId, box.root.ownerId));
-  return box.root.ownerId;
-}
-
-test.each(Object.entries(UNREADABLE_REFERENCES))("%s refuses the whole sweep, names the row and deletes nothing", async (_shape, plant) => {
-  const box = await openBox();
-  const named = await store(box, "background");
-  const orphan = await store(box, "attachment");
-  const brokenRow = await plant(box, named);
-  await ageOnly(box, named, orphan);
-
-  const run = await runScheduledGc(box);
-
-  expect(run.status).toBe("failed");
-  expect(run.error).toContain(brokenRow);
-  expect(await survival(box, { named, orphan })).toEqual({ named: true, orphan: true });
-});

@@ -80,6 +80,46 @@ export const testFactoryContractRule: OrbRule = {
   },
 };
 
+const ROW_WRITE_METHODS = new Set(["insert", "update", "delete", "run", "execute", "batch"]);
+const ROW_WRITE_OWNERS = new Set(["BaseSQLiteDatabase", "LibSQLDatabase", "SQLiteTransaction", "LibSQLTransaction"]);
+const ROW_WRITE_PACKAGES = /\/node_modules\/drizzle-orm\//u;
+
+function nativeRowWriteDeclaration(declaration: ts.Declaration | undefined): boolean {
+  if (declaration === undefined || !(ts.isMethodDeclaration(declaration) || ts.isMethodSignature(declaration)) || !ts.isIdentifier(declaration.name)) {
+    return false;
+  }
+  const owner = declaration.parent;
+  return (
+    ROW_WRITE_METHODS.has(declaration.name.text) &&
+    (ts.isClassDeclaration(owner) || ts.isInterfaceDeclaration(owner)) &&
+    owner.name !== undefined &&
+    ROW_WRITE_OWNERS.has(owner.name.text) &&
+    ROW_WRITE_PACKAGES.test(owner.getSourceFile().fileName.replaceAll("\\", "/"))
+  );
+}
+
+// Spine-Testing §9: outside the persistence tier a test writes rows only through verbs. The resolved signature names the
+// drizzle method however the call reaches it: a transaction handle, a root's db and a held db resolve alike. The raw
+// libSQL client (`$client.execute`) is out of reach; no test calls it.
+export const directRowWriteRule: OrbRule = {
+  meta: { type: "problem", schema: [] },
+  create(context: OrbRuleContext): RuleVisitor {
+    const native = nativeDeclarationContext(context);
+    return {
+      CallExpression: (node: TSESTree.CallExpression): void => {
+        const call = native.esTreeNodeToTSNodeMap.get(node);
+        if (ts.isCallExpression(call) && nativeRowWriteDeclaration(native.checker.getResolvedSignature(call)?.declaration)) {
+          context.report({
+            node: node.callee,
+            message:
+              "A direct database write outside the persistence tier: seed through a root seed from @orb/testkit/node/composed or the production verb; a test whose subject is the table moves under tests/db/ or a persistence/ directory (Spine-Testing §9).",
+          });
+        }
+      },
+    };
+  },
+};
+
 export const contextReturnTypeRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {

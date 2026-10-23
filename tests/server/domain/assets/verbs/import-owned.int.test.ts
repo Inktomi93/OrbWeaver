@@ -10,7 +10,7 @@ import { isAdmin, isOwner } from "@orb/server/domain/admin";
 import { createImportAvatarStore, createImportOwnedAsset } from "@orb/server/domain/assets";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node";
-import { createServerHarness, seedUser } from "@orb/testkit/node/composed";
+import { createServerHarness } from "@orb/testkit/node/composed";
 import { principal } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";
 
@@ -68,7 +68,7 @@ test("avatar policy retains the original Principal and false-magic flag while a 
   db,
   services,
 }): Promise<void> => {
-  const actor = await principal(harness, (await seedUser(db, { role: "admin" })).id);
+  const actor = await principal(harness, (await harness.actor({ role: "admin" })).id);
   const bytes = new TextEncoder().encode("Already parsed avatar bytes");
   const stored = vi.spyOn(services.assets, "store");
   const capped = createImportAvatarStore(actor, (params) => services.assets.store({ ...params, maxBytes: 1 }));

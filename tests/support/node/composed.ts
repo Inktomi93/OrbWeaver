@@ -32,6 +32,8 @@ export { seedCorpusActors, seedCorpusConnections, seedRecallCorpus, seedRecallRo
 
 export type { HeldDb, HeldStatement } from "./db.ts";
 export { freshCountedDb, freshDb, freshHeldDb, migrationsBefore, SHIPPED_MIGRATIONS } from "./db.ts";
+export type { DbFault } from "./db-faults.ts";
+export { refuseWrites, withheldTable } from "./db-faults.ts";
 export { makeAssetBytes, seedAsset } from "./factories/asset.ts";
 export { seedAutomationRule, seedAutomationTestFires } from "./factories/automation.ts";
 export { seedCharacter } from "./factories/character.ts";
@@ -39,8 +41,12 @@ export type { TranscriptLine } from "./factories/chat.ts";
 export { seedChat, seedChatInvite, seedInvitedChatParticipant, seedTranscript } from "./factories/chat.ts";
 export { captureSdkSessionRows } from "./factories/connection.ts";
 export { makeResolvedSecret } from "./factories/credentials.ts";
+export type { OwnerRowDamage } from "./factories/damaged-owner.ts";
+export { damageOwnerRow } from "./factories/damaged-owner.ts";
 export { seedCharacterDistillations } from "./factories/discovery.ts";
 export { captureTurnRows, seedMessage } from "./factories/message.ts";
+export type { PeerLease } from "./factories/peer-replica.ts";
+export { seedPeerLease } from "./factories/peer-replica.ts";
 export { seedPersona } from "./factories/persona.ts";
 export {
   capturePluginRows,
@@ -56,7 +62,6 @@ export { seedGlobalRegexScript, seedRegexScript } from "./factories/regex.ts";
 export { captureRpgSnapshot, seedRpgCheckpoint, seedRpgGame } from "./factories/rpg.ts";
 export { seedUserSettings } from "./factories/settings.ts";
 export { seedCreatedTag } from "./factories/tag.ts";
-export { seedUser } from "./factories/user.ts";
 export { seedWorkloadSchedule } from "./factories/workload.ts";
 export type { ServerHarnessOptions, ServerTestHarness, UnclaimedServerTestHarness } from "./server.ts";
 export { createServerHarness } from "./server.ts";

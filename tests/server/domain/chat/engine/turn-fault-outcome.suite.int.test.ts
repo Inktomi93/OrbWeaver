@@ -17,8 +17,9 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
+  refuseWrites,
 } from "@orb/testkit/node/composed";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { sdkEngineRoom } from "./engine-physical.ts";
 import { ENGINE_SDK_MODEL } from "./engine-sdk-physical.mjs";
 
@@ -61,9 +62,7 @@ test("a provider fault records disposition:error with the native provider termin
 
 test("a real database refusal still records the non-provider lifecycle classification", async () => {
   await using fixture = await sdkEngineRoom({ history: 2, server: outcomeServer });
-  await fixture.h.root.db.run(
-    sql`CREATE TEMP TRIGGER refuse_fault_variant BEFORE INSERT ON ${messageVariants} BEGIN SELECT RAISE(ABORT, 'controlled outcome canon refusal'); END`,
-  );
+  await using _refusal = await refuseWrites(fixture.h.root.db, { table: messageVariants, event: "INSERT", message: "controlled outcome canon refusal" });
   await expect(fixture.turn()).rejects.toThrow("controlled outcome canon refusal");
   expect((await outcomes(fixture.h))[0]).toMatchObject({ disposition: "error", terminalReason: "error" });
   expect(fixture.receipts.filter(({ marker }) => !marker)).toHaveLength(1);

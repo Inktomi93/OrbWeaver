@@ -6,7 +6,8 @@ import { chats, closeDb, createDb, runMigrations } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import { migrationsBefore, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
-import { importedSeqs, renumberFromZero, textRoom } from "../scenario-physical.ts";
+import { importedSeqs, textRoom } from "../scenario-physical.ts";
+import { renumberFromZero } from "./legacy-canon.ts";
 
 const MIGRATION = "0005_renumber-imported-canon";
 const SUMMARY = "The traveller lit a lantern and the knight answered twice.";

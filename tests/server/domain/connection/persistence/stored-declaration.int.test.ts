@@ -1,4 +1,5 @@
 // @subject packages/server/src/domain/connection/contract/stored.ts
+// A stored declaration another build wrote is planted directly: the current create verb cannot produce it.
 
 import { modelIdSchema, providerIdSchema, SUMMARIZE_CONCURRENCY_MAX } from "@orb/contracts/inference";
 import { expect, test } from "@orb/testkit/node";

@@ -4,13 +4,11 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import { chatLocks, closeDb, messages, messageVariants } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import type { HeldStatement } from "@orb/testkit/node/composed";
-import { freshHeldDb } from "@orb/testkit/node/composed";
+import { freshHeldDb, seedPeerLease } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { eq } from "drizzle-orm";
 import { enabledRule } from "../../automation/runtime.fixtures.ts";
 import { coreFrame, coreHttpRoom, coreSse } from "./core-physical.ts";
-
-const PEER_LEASE_MS = 60_000;
 
 test("a real depth-two automation child refused by a peer lease closes its accepted slot with its own cascade depth", async () => {
   const held = await freshHeldDb();
@@ -62,14 +60,14 @@ test("a real depth-two automation child refused by a peer lease closes its accep
     await Promise.race([gate.reached, premature]);
     expect(await running).toEqual({ outcome: "fired" });
     gate.disarm();
-    const lease = {
-      chatId: h.chatId,
-      holder: "controlled-recursive-peer",
-      acquiredAt: h.root.clock.now(),
-      expiresAt: h.root.clock.now() + PEER_LEASE_MS,
-    };
     expect(await h.root.db.select().from(chatLocks).where(eq(chatLocks.chatId, h.chatId))).toEqual([]);
-    await h.root.db.insert(chatLocks).values(lease);
+    const voice = h.characters[0];
+    if (voice === undefined) {
+      throw new Error("the actual recursive room has no voice for the peer replica");
+    }
+    const peer = ownership.use(
+      await seedPeerLease(h.root, { chatId: h.chatId, characterId: voice.id, hostUserId: h.owner.userId, holder: "controlled-recursive-peer" }),
+    );
     gate.release();
     await finished;
     expect(await h.root.services.automation.getGlobalVariable({ principal: h.owner, key: "coreRefusalDepth" })).toBe("2");
@@ -84,7 +82,7 @@ test("a real depth-two automation child refused by a peer lease closes its accep
         .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
         .where(eq(messages.chatId, h.chatId)),
     ).toMatchObject([{ role: "assistant", initiator: "automation", automationDepth: 1, content: "The first real automated beat commits." }]);
-    expect(await h.root.db.select().from(chatLocks).where(eq(chatLocks.chatId, h.chatId))).toEqual([lease]);
+    expect(await h.root.db.select().from(chatLocks).where(eq(chatLocks.chatId, h.chatId))).toEqual([peer.row]);
     expect(h.requests.filter((request) => request.method === "POST" && new URL(request.url).pathname.endsWith("/chat/completions"))).toHaveLength(1);
   } finally {
     boundary?.release();

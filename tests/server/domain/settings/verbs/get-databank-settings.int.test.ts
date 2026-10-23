@@ -4,13 +4,12 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { createAssetEmbeddingReads } from "@orb/server/domain/assets";
 import { createGetDatabankSettings } from "@orb/server/domain/settings";
 import { expect, test } from "@orb/testkit/node";
-import { seedUser } from "@orb/testkit/node/composed";
 import { magicBytes, principal } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";
 
-test("databank settings remain owner-isolated and live while excluding the chat-only slot budget", async ({ harness, db, services }) => {
-  const owner = await seedUser(db);
-  const other = await seedUser(db);
+test("databank settings remain owner-isolated and live while excluding the chat-only slot budget", async ({ harness, services }) => {
+  const owner = await harness.actor();
+  const other = await harness.actor();
   const read = createGetDatabankSettings((userId) => services.settings.loadUserSettings(userId));
   const otherBefore = await read(other.id);
   await services.settings.updateUserSettingsSection({
@@ -27,8 +26,8 @@ test("databank settings remain owner-isolated and live while excluding the chat-
   expect((await read(owner.id)).chunk.chunkSize).toBe(700);
 });
 
-test("the existing asset read adapter maps absent rows only and propagates actual read failures", async ({ harness, services, ids, db }) => {
-  const owner = await seedUser(db);
+test("the existing asset read adapter maps absent rows only and propagates actual read failures", async ({ harness, services, ids }) => {
+  const owner = await harness.actor();
   const reads = createAssetEmbeddingReads(services.assets);
   const absent = typeIdSchema(ID_PREFIX.asset).parse(ids.next(ID_PREFIX.asset));
   expect(await reads.loadAssetBytes(absent)).toBeUndefined();

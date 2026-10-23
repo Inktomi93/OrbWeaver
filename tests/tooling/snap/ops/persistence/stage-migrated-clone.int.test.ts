@@ -1,4 +1,5 @@
 // @subject tooling/src/snap/ops/stage-source.ts
+// The source runs a pre-migration schema where production verbs cannot run, so its rows are built directly.
 import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -7,10 +8,11 @@ import { createIdSource } from "@orb/kit/ids";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { createCas } from "@orb/server/infra/storage/cas";
 import { createSeededIds } from "@orb/testkit/iso";
-import { SHIPPED_MIGRATIONS, seedUser } from "@orb/testkit/node/composed";
+import { SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
+import { seedUser } from "@orb/testkit/node/rows";
 import { expect, test } from "@orb/testkit/tooling";
 import { z } from "zod";
-import { cloneMigratedStageDb } from "../../../../tooling/src/snap/ops/stage-source.ts";
+import { cloneMigratedStageDb } from "../../../../../tooling/src/snap/ops/stage-source.ts";
 
 async function olderSource(
   parent: string,

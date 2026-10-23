@@ -1,5 +1,6 @@
 // @subject packages/server/src/domain/character/persistence/gallery-character.ts
 // @subject packages/server/src/domain/assets/verbs/export-gallery.ts
+// An owned curation row pointing at a foreign subject has no producing verb; the row is moved directly to prove the read refuses it.
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { PortableFile } from "@orb/contracts/portability";
@@ -7,7 +8,7 @@ import { galleryItems } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import { createGalleryCharacterOps } from "@orb/server/domain/character";
 import { expect, test } from "@orb/testkit/node";
-import { seedCharacter, seedUser } from "@orb/testkit/node/composed";
+import { seedCharacter } from "@orb/testkit/node/composed";
 import { magicBytes, principal } from "@orb/testkit/node/helpers";
 import { eq } from "drizzle-orm";
 
@@ -15,8 +16,8 @@ const OWNED_SUBJECT = createCharacterSchema.parse({ handle: "owned-gallery-subje
 const FOREIGN_SUBJECT = createCharacterSchema.parse({ handle: "foreign-gallery-subject", name: "Foreign subject", description: "" });
 
 test("composed gallery export never resolves a foreign subject handle even from an owned curation row", async ({ harness, app, db, services }) => {
-  const owner = await seedUser(db);
-  const other = await seedUser(db);
+  const owner = await harness.actor();
+  const other = await harness.actor();
   const { row: owned } = await seedCharacter(harness, { principal: await principal(harness, owner.id), input: OWNED_SUBJECT });
   const { row: foreign } = await seedCharacter(harness, { principal: await principal(harness, other.id), input: FOREIGN_SUBJECT });
   const image = await services.assets.store({ principal: await principal(harness, owner.id), bytes: magicBytes("png"), kind: "gallery", mime: "image/png" });
@@ -42,9 +43,9 @@ test("composed gallery export never resolves a foreign subject handle even from 
   expect(await ops.resolveCharacterHandle(owner.id, foreign.id)).toBeNull();
 });
 
-test("composed gallery import relinks only the importing owner's handle and preserves null fallback", async ({ harness, app, db, services }) => {
-  const owner = await seedUser(db);
-  const other = await seedUser(db);
+test("composed gallery import relinks only the importing owner's handle and preserves null fallback", async ({ harness, app, services }) => {
+  const owner = await harness.actor();
+  const other = await harness.actor();
   const { row: owned } = await seedCharacter(harness, { principal: await principal(harness, owner.id), input: OWNED_SUBJECT });
   const { row: foreign } = await seedCharacter(harness, { principal: await principal(harness, other.id), input: FOREIGN_SUBJECT });
   const image = await services.assets.store({ principal: await principal(harness, owner.id), bytes: magicBytes("png"), kind: "gallery", mime: "image/png" });

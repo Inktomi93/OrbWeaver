@@ -8,8 +8,8 @@ import { castId } from "@orb/kit/ids";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { test as base, expect } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness } from "@orb/testkit/node/composed";
-import { eq, sql } from "drizzle-orm";
+import { createServerHarness, refuseWrites } from "@orb/testkit/node/composed";
+import { eq } from "drizzle-orm";
 
 const PASSWORD = "create-user-synthetic-password";
 const NEW_HANDLE = castId<Handle>("newbie");
@@ -160,13 +160,18 @@ test("a plain user is denied", async ({ root }) => {
 
 test("a failing audit write mints no account, while the restored audit permits the same mint", async ({ root }) => {
   const admin = await delegate(root);
-  await root.db.run(
-    sql`CREATE TRIGGER refuse_create_user_audit BEFORE INSERT ON audit_logs WHEN NEW.action = 'admin.createUser' BEGIN SELECT RAISE(ABORT, 'synthetic audit refusal'); END`,
+  await using refusal = await refuseWrites(root.db, {
+    table: auditLogs,
+    event: "INSERT",
+    when: "NEW.action = 'admin.createUser'",
+    message: "synthetic audit refusal",
+  });
+  await expect(root.services.admin.createUser({ principal: admin.principal, handle: NEW_HANDLE, password: PASSWORD })).rejects.toThrow(
+    "synthetic audit refusal",
   );
-  await expect(root.services.admin.createUser({ principal: admin.principal, handle: NEW_HANDLE, password: PASSWORD })).rejects.toThrow();
   expect(await root.db.select().from(users).where(eq(users.handle, NEW_HANDLE))).toEqual([]);
   expect(await createAudits(root)).toEqual([]);
-  await root.db.run(sql`DROP TRIGGER refuse_create_user_audit`);
+  await refusal.lift();
   const view = await admin.caller.admin.createUser({ handle: NEW_HANDLE, password: PASSWORD });
   expect(view.role).toBe("user");
   expect((await createAudits(root)).map((entry) => entry.entityId)).toEqual([view.id]);

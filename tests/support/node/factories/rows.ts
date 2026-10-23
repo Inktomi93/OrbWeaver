@@ -1,8 +1,9 @@
 // Direct row builders for persistence-tier tests that assert a query or a schema fact (Spine-Testing §9).
 // Every other test seeds through the composed root; dependency-cruiser limits who imports this door.
+// A user row stays row-level: the harness owner precedes every Principal, and fixtures pin fixed identities.
 
-import type { Db, users } from "@orb/db";
-import { characters, chats, messages, messageVariants } from "@orb/db";
+import type { Db } from "@orb/db";
+import { characters, chats, messages, messageVariants, users } from "@orb/db";
 import { handleKey } from "@orb/kit/handle-key";
 import type { CharacterHandle, Handle, IdSource, MessageVariantId } from "@orb/kit/ids";
 import { castId, createIdSource, ID_PREFIX } from "@orb/kit/ids";
@@ -38,6 +39,14 @@ export function makeUser(overrides: Partial<UserRow> = {}, source: IdSource = id
     updatedAt: FROZEN_AT_MS,
     ...overrides,
   };
+}
+
+/** `makeUser` then insert. Returns the built row (its `.id` is the FK target for owned seeds). Composed tests use the
+ *  root-bound `harness.actor`, which stamps the root's clock and draws the root's id source. */
+export async function seedUser(db: Db, overrides: Partial<UserRow> = {}, source?: IdSource): Promise<UserRow> {
+  const row = makeUser(overrides, source);
+  await db.insert(users).values(row);
+  return row;
 }
 
 /** A card row stamped the way the create verb stamps it: `contentHash` and `tokenSize` derive from the

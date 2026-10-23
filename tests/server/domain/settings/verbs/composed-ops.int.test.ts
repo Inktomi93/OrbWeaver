@@ -2,17 +2,15 @@
 import { DomainForbiddenError } from "@orb/kit/errors";
 import { createSettingsComposedOps } from "@orb/server/domain/settings";
 import { expect, test } from "@orb/testkit/node";
-import { seedUser } from "@orb/testkit/node/composed";
 import { principal } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";
 
 test("onboarding retains the original Principal, another user stays unseeded, and certificate governance remains owner-only", async ({
   harness,
-  db,
   services,
 }): Promise<void> => {
-  const actor = await principal(harness, (await seedUser(db, { role: "admin" })).id);
-  const neighbor = await principal(harness, (await seedUser(db)).id);
+  const actor = await principal(harness, (await harness.actor({ role: "admin" })).id);
+  const neighbor = await principal(harness, (await harness.actor()).id);
   const write = vi.spyOn(services.settings, "updateUserSettingsSection");
   const ops = createSettingsComposedOps(services.settings);
   await ops.markExamplePluginSeeded(actor);

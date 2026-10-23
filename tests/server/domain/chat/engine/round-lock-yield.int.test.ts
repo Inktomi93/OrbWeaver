@@ -11,8 +11,9 @@ import {
   createChatRoot,
   createCorpusProviderExecution,
   freshHeldDb,
+  seedPeerLease,
 } from "@orb/testkit/node/composed";
-import { and, eq, lte } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 test("a mid-round locked refusal returns the committed-so-far without throwing", async () => {
   const held = await freshHeldDb();
@@ -46,15 +47,20 @@ test("a mid-round locked refusal returns the committed-so-far without throwing",
     if (lease === undefined) {
       throw new Error("the completed first speaker has no lease to release");
     }
-    const ttl = lease.expiresAt - lease.acquiredAt;
-    h.root.clock.advance(lease.expiresAt - h.root.clock.now() + 1);
-    const acquiredAt = h.root.clock.now();
-    const replacement = await h.root.db
-      .update(chatLocks)
-      .set({ holder: "replacement-replica", acquiredAt, expiresAt: acquiredAt + ttl })
-      .where(and(eq(chatLocks.chatId, h.chatId), lte(chatLocks.expiresAt, acquiredAt)))
-      .returning({ chatId: chatLocks.chatId });
-    expect(replacement).toEqual([{ chatId: h.chatId }]);
+    const voice = h.characters[0];
+    if (voice === undefined) {
+      throw new Error("the completed round has no voice for the peer replica");
+    }
+    const peer = ownership.use(
+      await seedPeerLease(h.root, {
+        chatId: h.chatId,
+        characterId: voice.id,
+        hostUserId: h.owner.userId,
+        holder: "replacement-replica",
+        aheadMs: lease.expiresAt - h.root.clock.now() + 1,
+      }),
+    );
+    expect(peer.row.acquiredAt).toBeGreaterThanOrEqual(lease.expiresAt);
     releaseBoundary.release();
     const outcome = await sending;
     expect(outcome.aborted).toBe(false);

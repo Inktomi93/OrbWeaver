@@ -1,8 +1,10 @@
 // @subject packages/server/src/entry/compose/services.ts
+
+import { settings } from "@orb/db";
 import { createEnableShareSeating } from "@orb/server/domain/share";
 import { createHostPrincipalResolver } from "@orb/server/entry/auth";
 import { expect, OWNER_USER_ID, test } from "@orb/testkit/node";
-import { sql } from "drizzle-orm";
+import { refuseWrites } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
 
 test("share seating writes as the canonical owner and restores stored false versus a deployment-default override", async ({ app, services, ownerCaller }) => {
@@ -47,10 +49,10 @@ test("restoration leaves already-on settings alone and an actual stored-write fa
   await services.settings.updateAppSettings({ principal: owner, partial: { localMultiUser: false } });
   await restore();
   expect(services.settings.getEffectiveConfig()).toMatchObject({ localMultiUser: false, discreetLogin: false });
-  await db.run(sql`CREATE TRIGGER refuse_seating_restore BEFORE UPDATE ON settings BEGIN SELECT RAISE(ABORT, 'restore refused'); END`);
+  await using refusal = await refuseWrites(db, { table: settings, event: "UPDATE", message: "restore refused" });
   try {
     await expect(restore()).rejects.toMatchObject({ cause: expect.objectContaining({ message: expect.stringContaining("restore refused") }) });
   } finally {
-    await db.run(sql`DROP TRIGGER refuse_seating_restore`);
+    await refusal.lift();
   }
 });

@@ -11,9 +11,9 @@ import { createSeedPersonaWithCompletion } from "@orb/server/domain/persona";
 import type { ContentSeedStep } from "@orb/server/domain/settings";
 import { createReadSeededKeys, createSettingsComposedOps, createUserContentSeeder, recordSeededItemKeys } from "@orb/server/domain/settings";
 import { expect, test } from "@orb/testkit/node";
-import { seedUser } from "@orb/testkit/node/composed";
+import { refuseWrites } from "@orb/testkit/node/composed";
 import { principal } from "@orb/testkit/node/helpers";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { vi } from "vitest";
 
 const FIRST_CARD = SEED_MANIFEST.find((item) => item.kind === "character");
@@ -49,7 +49,7 @@ test("a recorded deleted card stays deleted across a cold seed; its real tag row
   services,
   clock,
 }) => {
-  const user = await seedUser(db);
+  const user = await harness.actor();
   const actor = await principal(harness, user.id);
   await app.contentSeeder.ensureSeeded(actor);
   const card = await services.character.findByHandle({ ownerId: user.id, handle: FIRST_CARD.handle });
@@ -83,16 +83,16 @@ test("a recorded deleted card stays deleted across a cold seed; its real tag row
 });
 
 test("a refused real ledger write leaves the created card retryable without duplicating it", async ({ harness, db, app, services, clock }) => {
-  const user = await seedUser(db);
+  const user = await harness.actor();
   const actor = await principal(harness, user.id);
   const step = { key: FIRST_CARD.key, seed: createCharacterSeedStep((p, handle) => app.characterSeeder.seedCard(p, handle), FIRST_CARD.handle) };
   const policy = ledgerPolicy(db, clock.now, services.settings, [step]);
-  await db.run(sql`CREATE TRIGGER refuse_seed_record BEFORE INSERT ON user_seed_ledger BEGIN SELECT RAISE(ABORT, 'ledger refused'); END`);
+  await using refusal = await refuseWrites(db, { table: userSeedLedger, event: "INSERT", message: "ledger refused" });
   await expect(policy.ensureSeeded(actor)).resolves.toBeUndefined();
   const before = await services.character.findByHandle({ ownerId: user.id, handle: FIRST_CARD.handle });
   expect(before).not.toBeNull();
   expect(await createReadSeededKeys(databaseHandle(db))(user.id)).toEqual(new Set());
-  await db.run(sql`DROP TRIGGER refuse_seed_record`);
+  await refusal.lift();
   await policy.ensureSeeded(actor);
   expect(await services.character.findByHandle({ ownerId: user.id, handle: FIRST_CARD.handle })).toEqual(before);
   expect(await createReadSeededKeys(databaseHandle(db))(user.id)).toEqual(new Set([FIRST_CARD.key]));
@@ -105,8 +105,8 @@ test("same-user concurrent calls share the real pass while a second account rece
   services,
   clock,
 }) => {
-  const first = await seedUser(db);
-  const second = await seedUser(db);
+  const first = await harness.actor();
+  const second = await harness.actor();
   const actor = await principal(harness, first.id);
   const neighbor = await principal(harness, second.id);
   let release = (): void => undefined;
@@ -134,7 +134,7 @@ test("same-user concurrent calls share the real pass while a second account rece
 });
 
 test("the real-stack persona false outcome leaves its key unrecorded but still settles this process's pass", async ({ harness, db, app, services, clock }) => {
-  const user = await seedUser(db);
+  const user = await harness.actor();
   const actor = await principal(harness, user.id);
   const settingsOps = createSettingsComposedOps(services.settings);
   const seed = createSeedPersonaWithCompletion({ ensureSeeded: (p) => app.personaSeeder.ensureSeeded(p), isSeeded: settingsOps.personaSeeded });

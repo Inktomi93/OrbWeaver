@@ -8,7 +8,7 @@ import { castId } from "@orb/kit/ids";
 import { isAdmin, isOwner } from "@orb/server/domain/admin";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node";
-import { createServerHarness } from "@orb/testkit/node/composed";
+import { createServerHarness, damageOwnerRow } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
 
@@ -65,7 +65,7 @@ test("fallback and frozen-host identities read the same live owner row instead o
   expect(await root.db.select({ id: users.id }).from(users).where(eq(users.handle, placeholder))).toEqual([]);
 
   // A damaged stored role must fail closed consistently, not become a second in-memory owner verdict.
-  await root.db.update(users).set({ role: "admin" }).where(eq(users.id, root.ownerId));
+  await damageOwnerRow(root, { role: "admin" });
   const host = await root.principalFor(root.ownerId);
   const changed = await root.http.request("/api/auth/me");
   expect(isOwner(host)).toBe(false);
@@ -73,7 +73,7 @@ test("fallback and frozen-host identities read the same live owner row instead o
   expect(isOwner(owner)).toBe(true);
   expect(authMeSchema.parse(await changed.json())).toEqual({ authenticated: true, handle: host.handle, role: "admin" });
 
-  await root.db.update(users).set({ enabled: false }).where(eq(users.id, root.ownerId));
+  await damageOwnerRow(root, { enabled: false });
   const disabled = await root.http.request("/api/auth/me");
   expect(authMeSchema.parse(await disabled.json())).toEqual({ authenticated: false, handle: null, role: null });
 });

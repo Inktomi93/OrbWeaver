@@ -988,6 +988,13 @@ export default [
     rules: { "orb/test-factory-contract": "error" },
   },
   {
+    // The persistence tier matches the rows door's audience (testkit-rows-persistence-only); every other test seeds through verbs.
+    files: ["tests/**/*.{ts,tsx}", "scripts/**/*.{ts,tsx}", "playwright/**/*.{ts,tsx}"],
+    ignores: ["tests/support/**", "tests/db/**", "**/persistence/**", "**/*.d.ts"],
+    plugins: { orb: localPlugin },
+    rules: { "orb/no-direct-row-writes": "error" },
+  },
+  {
     files: AUTHORED_SRC.map((glob) => [glob, "**/context.ts"]),
     plugins: { orb: localPlugin },
     rules: { "orb/no-context-returntype": "error" },

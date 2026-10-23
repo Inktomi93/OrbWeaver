@@ -3,6 +3,7 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import { chatLocks, messages } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
+import { seedPeerLease } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { eq } from "drizzle-orm";
 import { coreFrame, coreHeldReply, coreHttpRoom, coreSse } from "./core-physical.ts";
@@ -88,14 +89,23 @@ test("a stolen actual lease aborts physical I/O before canon and leaves the repl
     if (lease === undefined) {
       throw new Error("the physically held turn has no lease to steal");
     }
-    const replacement = { holder: "controlled-replacement-replica", acquiredAt: h.root.clock.now(), expiresAt: lease.expiresAt + 1 };
-    await h.root.db.update(chatLocks).set(replacement).where(eq(chatLocks.chatId, h.chatId));
+    const character = h.characters[0];
+    if (character === undefined) {
+      throw new Error("the actual lease fixture has no voice for the peer replica");
+    }
+    await using peer = await seedPeerLease(h.root, {
+      chatId: h.chatId,
+      characterId: character.id,
+      hostUserId: h.owner.userId,
+      holder: "controlled-replacement-replica",
+      aheadMs: lease.expiresAt - h.root.clock.now() + 1,
+    });
     h.root.timers.advance(Math.floor((lease.expiresAt - lease.acquiredAt) / 3));
     await expect(running).rejects.toMatchObject({ code: "aborted" });
     await h.root.settleBackground();
     expect(signal.aborted).toBe(true);
     expect(await h.root.db.select().from(messages).where(eq(messages.chatId, h.chatId))).toEqual([]);
-    expect(await h.root.db.select().from(chatLocks).where(eq(chatLocks.chatId, h.chatId))).toMatchObject([replacement]);
+    expect(await h.root.db.select().from(chatLocks).where(eq(chatLocks.chatId, h.chatId))).toEqual([peer.row]);
     expect(h.root.timers.pending()).toBe(pending);
   } finally {
     held.release();

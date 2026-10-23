@@ -2,7 +2,7 @@
 // @subject packages/server/src/domain/automation/contract/analysis.ts
 // A cold analysis pass over a room numbered from seq 0 reads its opening row into the settled window.
 import { createBookSchema } from "@orb/contracts/world-info";
-import { automationRuleState, messages } from "@orb/db";
+import { automationRuleState } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node";
 import {
@@ -13,7 +13,8 @@ import {
   createChatRoot,
   createCorpusProviderExecution,
 } from "@orb/testkit/node/composed";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
+import { renumberFromZero } from "../../chat/persistence/legacy-canon.ts";
 
 const OPENING = "The opening oath is sworn at the old gate.";
 // Well past the fresh window plus the protect tail, so only the settled window can carry the opening row.
@@ -34,11 +35,7 @@ test("a cold lore pass over a room numbered from seq 0 summarizes that opening r
   for (let index = 0; index < ROWS; index += 1) {
     await h.caller.chat.commitMessage({ chatId: h.chatId, timeZone: UTC_TIME_ZONE, content: index === 0 ? OPENING : `Beat ${index} at the gate.` });
   }
-  // Launched imports hold canon numbered from 0; shift this room's canon to that shape.
-  await h.root.db
-    .update(messages)
-    .set({ seq: sql`${messages.seq} - 1` })
-    .where(eq(messages.chatId, h.chatId));
+  await renumberFromZero(h, h.chatId);
   const book = await h.root.services.worldInfo.createBook({ principal: h.owner, input: createBookSchema.parse({ name: "Gate lore" }) });
   await h.root.services.worldInfo.attachToChat({ principal: h.owner, chatId: h.chatId, bookId: book.id });
   const rule = await h.root.services.automation.createRule({

@@ -9,7 +9,7 @@ import { chatLocks, closeDb, messages, messageVariants, statsCanonVersions } fro
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { createFrozenClock } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import { freshHeldDb } from "@orb/testkit/node/composed";
+import { freshHeldDb, seedPeerLease } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { textRoom } from "../scenario-physical.ts";
 import { withCancellationPeer } from "./turn-cancellation-physical.ts";
@@ -216,8 +216,11 @@ test("a real send freezes its injected clock and requested zone into stored text
 test("a foreign real lease makes send yield its round while public generate still commits lock-free", async () => {
   await using h = await textRoom(["The lock-free answer."]);
   await h.root.services.chat.commitMessage({ principal: h.owner, chatId: h.chatId, content: "Claim this room." });
-  const lease = { chatId: h.chatId, holder: "physical-competitor", acquiredAt: h.root.clock.now(), expiresAt: h.root.clock.now() + 60_000 };
-  await h.root.db.insert(chatLocks).values(lease);
+  const voice = h.characters[0];
+  if (voice === undefined) {
+    throw new Error("the lock-free room has no voice for the peer replica");
+  }
+  await using peer = await seedPeerLease(h.root, { chatId: h.chatId, characterId: voice.id, hostUserId: h.owner.userId, holder: "physical-competitor" });
   const locked = await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "blocked" });
   expect(locked.messages).toHaveLength(1);
   expect(locked.messages[0]).toMatchObject({ role: "user", content: "blocked", seq: 2 });
@@ -225,7 +228,7 @@ test("a foreign real lease makes send yield its round while public generate stil
   expect(outcome.aborted).toBe(false);
   expect(outcome.messages).toHaveLength(1);
   expect(outcome.messages[0]).toMatchObject({ role: "assistant", characterId: h.characters[0]?.id, content: "The lock-free answer.", seq: 3 });
-  expect(await h.root.db.select().from(chatLocks).where(eq(chatLocks.chatId, h.chatId)).get()).toEqual(lease);
+  expect(await h.root.db.select().from(chatLocks).where(eq(chatLocks.chatId, h.chatId)).get()).toEqual(peer.row);
   expect((await h.root.db.select().from(messages).where(eq(messages.chatId, h.chatId)).orderBy(messages.seq)).map(({ role }) => role)).toEqual([
     "user",
     "user",

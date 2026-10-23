@@ -4,7 +4,6 @@
 import { readFile, rm } from "node:fs/promises";
 import type { AuthMode } from "@orb/contracts/identity";
 import { AUTH_MODES, CSRF_HEADER } from "@orb/contracts/identity";
-import { users } from "@orb/db";
 import { isPlainObject } from "@orb/kit/guards";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -12,9 +11,8 @@ import { isOwner } from "@orb/server/domain/admin";
 import { authConfigFromEnv, createAuthSeam } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness } from "@orb/testkit/node/composed";
+import { createServerHarness, damageOwnerRow } from "@orb/testkit/node/composed";
 import { NATIVE_OIDC_SETTINGS } from "@orb/testkit/node/helpers";
-import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { z } from "zod";
 import { authMe, claimedOwnerCookie, debugStatus, FORWARD_USERNAME_CLAIM, policy, signedForwardRoot, signedInMember } from "./_auth-roots.ts";
@@ -129,7 +127,7 @@ describe("the loopback owner fallback opens the door only where the posture says
 
   test("a DEMOTED loopback row is refused (the ROLE half of the verdict is untouched)", async () => {
     await using root = await rootFor("single-user");
-    await root.db.update(users).set({ role: "user" }).where(eq(users.id, root.ownerId));
+    await damageOwnerRow(root, { role: "user" });
     expect((await authMe(root)).authenticated).toBe(true);
     expect(await outcomes(root)).toEqual(ALL_REFUSED_TOKENLESS);
   });

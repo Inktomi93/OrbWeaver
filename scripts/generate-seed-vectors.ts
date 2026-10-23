@@ -6,29 +6,32 @@ import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { BUILT_IN_EMBED_DIMS } from "@orb/contracts/inference";
-import { APP_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";
-import { createDb, runMigrations, settings } from "@orb/db";
+import { createDb, runMigrations } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import { readSeedAvatar } from "@orb/default-content";
 import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { buildCardEmbedText, DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
+import { createSessionsRolePolicy } from "@orb/server/domain/sessions";
 import { createHostPrincipalResolver } from "@orb/server/entry/auth";
 import { createProcessSeams, createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
+import { env } from "@orb/server/foundation/env";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
+const SEED_AUTHOR = castId<Handle>("seed-vector-author");
 const output = join(root, "packages/default-content/embeddings.json");
 const scratch = await mkdtemp(join(tmpdir(), "orb-seed-vectors-"));
 // Native database extensions may create sidecars relative to cwd; keep them inside the disposable run.
 process.chdir(scratch);
 const db = await createDb(pathToFileURL(join(scratch, "seed.sqlite")).href);
 await runMigrations(db, join(root, "packages/db/src/migrations"));
-await db.insert(settings).values({ key: "app", value: { corpusAutoindex: false, schemaVersion: APP_SETTINGS_SCHEMA_VERSION }, updatedAt: Date.now() });
 const built = await createServices({
   ...createProcessSeams(),
   db: databaseHandle(db),
   now: Date.now,
   ownerId: undefined,
+  // The isolated author owns this disposable box, so the admin settings verb can turn corpus indexing off.
+  rolePolicy: createSessionsRolePolicy({ ...env, ["OWNER_HANDLES"]: SEED_AUTHOR }),
   secretBoxKey: null,
   sessionSecret: null,
   casDir: join(scratch, "cas"),
@@ -53,7 +56,9 @@ function add(
   process.stdout.write(`${kind} ${source} ${result.model} ${vector.length}\n`);
 }
 try {
-  const ownerId = await built.sessions.ensureUser(castId<Handle>("seed-vector-author"));
+  const ownerId = await built.sessions.ensureUser(SEED_AUTHOR);
+  const author = await createHostPrincipalResolver(built.sessions)(ownerId);
+  await built.services.settings.updateAppSettings({ principal: author, partial: { corpusAutoindex: false } });
   const roles = await built.roleClientsFor(ownerId);
   const encoder = await roles.resolved("embed");
   const user = await built.sessions.loadUserById(ownerId);
@@ -61,7 +66,7 @@ try {
     throw new Error("The isolated seed account has no local encoder");
   }
   await built.services.connection.setBinding({
-    principal: await createHostPrincipalResolver(built.sessions)(ownerId),
+    principal: author,
     task: "imageEmbed",
     connectionId: encoder.connectionId,
   });

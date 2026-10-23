@@ -8,7 +8,8 @@ import { buildChatBundleFile, parseChatBundleFile } from "@orb/server/primitives
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { and, asc, eq } from "drizzle-orm";
-import { importedSeqs, LEGACY_IMPORT_ARMS, renumberFromZero, textRoom } from "../scenario-physical.ts";
+import { importedSeqs, LEGACY_IMPORT_ARMS, textRoom } from "../scenario-physical.ts";
+import { renumberFromZero } from "./legacy-canon.ts";
 
 const LINES = [
   { text: "The first line the wanderer wrote.", persona: "Lantern Wanderer" },

@@ -2,12 +2,11 @@
 // @subject packages/server/src/domain/rpg/snapshot-edit.ts
 import { setTimeout as physicalDeadline } from "node:timers/promises";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
-import { closeDb } from "@orb/db";
+import { closeDb, notifications } from "@orb/db";
 import type { ChatId, RpgGameId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness, freshHeldDb, makePluginBundle, seedInstalledPlugin, seedRpgGame } from "@orb/testkit/node/composed";
-import { sql } from "drizzle-orm";
+import { createServerHarness, freshHeldDb, makePluginBundle, refuseWrites, seedInstalledPlugin, seedRpgGame } from "@orb/testkit/node/composed";
 
 const PROGRESS_OBSERVATION_MS = 1000;
 
@@ -127,12 +126,12 @@ test("a failed consent publication leaves the grant committed and releases the s
   await using root = await createServerHarness();
   const subject = await installConsentSubject(root, "consent-retry");
   const nextSubject = await installConsentSubject(root, "consent-next");
-  await root.db.run(sql`CREATE TRIGGER refuse_consent BEFORE INSERT ON notifications BEGIN SELECT RAISE(ABORT, 'consent publication refused'); END`);
+  await using refusal = await refuseWrites(root.db, { table: notifications, event: "INSERT", message: "consent publication refused" });
   try {
     expect(await root.services.plugin.setGrant(subject)).toMatchObject({ id: subject.pluginId, reconsentPending: true });
     expect(await consentCount(root)).toBeUndefined();
   } finally {
-    await root.db.run(sql`DROP TRIGGER refuse_consent`);
+    await refusal.lift();
   }
   await root.services.plugin.setGrant(nextSubject);
   expect(await consentCount(root)).toBe(2);

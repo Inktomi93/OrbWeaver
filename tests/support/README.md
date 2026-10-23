@@ -26,7 +26,7 @@ Import testkit through the doors its `package.json` exports. A door is a barrel 
 | `@orb/testkit/node` | the vitest `test` and `expect` with their fixtures; it registers fixtures at import, so only vitest files import it |
 | `@orb/testkit/node/helpers` | Node-side helpers that never load the server graph at import; Playwright configs and scripts may import it |
 | `@orb/testkit/node/composed` | the server harness, database, root seeds that run production verbs, corpus producers and chat composition; it loads the server graph |
-| `@orb/testkit/node/rows` | direct row builders for persistence suites under `tests/db/` and `tests/**/persistence/`, including suites on a pre-migration schema where production verbs cannot run: `makeUser`, `seedChatRow`, `seedCharacterRow` and `seedMessageRow`; dependency-cruiser refuses every other importer |
+| `@orb/testkit/node/rows` | direct row builders for persistence suites under `tests/db/` and `tests/**/persistence/`, including suites on a pre-migration schema where production verbs cannot run: `makeUser`, `seedUser`, `seedChatRow`, `seedCharacterRow` and `seedMessageRow`; dependency-cruiser refuses every other importer. Composed suites mint users with the root-bound `harness.actor`, because fixture identities are fixed ids and the harness owner precedes every Principal |
 | `@orb/testkit/ct` | Playwright-side helpers for component specs: declared tRPC and socket interception, section navigation |
 | `@orb/testkit/ct-corpus` | the Playwright `test` and `expect` that mount against a corpus-backed server |
 | `@orb/testkit/browser` | production-backed providers, the registry door and isolation helpers a story mounts in the browser |
@@ -66,6 +66,7 @@ Runnable examples:
 | - | - |
 | Tests import testkit only through its doors, and a kit module no door or kit test reaches is unused | The `exports` map in [package.json](package.json), knip (the `tests/support` entries derive from that map) and the `testkit-doors-only` rule in [dependency-cruiser](../../.dependency-cruiser.ts) |
 | Helper-world import direction | Compiler programs and the world rules in [dependency-cruiser](../../.dependency-cruiser.ts) |
+| Tests outside the persistence tier write rows only through verbs and root seeds | The `orb/no-direct-row-writes` rule in [eslint.config.ts](../../eslint.config.ts) |
 | Integration files share one module registry and never read the environment at import | `isolate: false` and the `setupFiles` warm on the integration project in [vitest.config.ts](../../vitest.config.ts); the harness seams in [node/server.ts](node/server.ts) |
 | A test never stubs or writes the process environment (`vi.stubEnv`, `process.env` writes); it uses a harness seam or the subject's own parameter | The `TEST_ENVIRONMENT_RESTRICTIONS` syntax rules in [eslint.config.ts](../../eslint.config.ts); `tests/tooling` is outside them because that project isolates modules |
 | Story props and updated props | Explicit native `mount<typeof Story>` and [compiler assertions](browser/gallery.dom.test-d.ts) |

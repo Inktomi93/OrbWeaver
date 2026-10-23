@@ -2,7 +2,8 @@
 // @subject packages/server/src/domain/chat/persistence/import-write.ts
 // An import-born room's opening line must reach the physical provider request on its next turn.
 import { expect, test } from "@orb/testkit/node";
-import { importedSeqs, importTranscript, LEGACY_IMPORT_ARMS, renumberFromZero, textRoom } from "../scenario-physical.ts";
+import { renumberFromZero } from "../persistence/legacy-canon.ts";
+import { importedSeqs, importTranscript, LEGACY_IMPORT_ARMS, textRoom } from "../scenario-physical.ts";
 
 const OPENING = "The lantern-lit opening line of the imported room.";
 const REPLY = "The imported character's first answer.";

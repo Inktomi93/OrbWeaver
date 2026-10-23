@@ -12,6 +12,7 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
+  seedPeerLease,
 } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 
@@ -82,7 +83,17 @@ test("a second-speaker lock loss preserves the first canon and rejects the actua
       throw new Error("the actual second-speaker turn has no held lease");
     }
     const ttl = lease.expiresAt - lease.acquiredAt;
-    await h.root.db.update(chatLocks).set({ holder: "replacement-replica" }).where(eq(chatLocks.chatId, h.chatId));
+    const voice = h.characters[0];
+    if (voice === undefined) {
+      throw new Error("the actual round has no voice for the peer replica");
+    }
+    await using _peer = await seedPeerLease(h.root, {
+      chatId: h.chatId,
+      characterId: voice.id,
+      hostUserId: h.owner.userId,
+      holder: "replacement-replica",
+      aheadMs: lease.expiresAt - h.root.clock.now() + 1,
+    });
     h.root.timers.advance(ttl);
     const [result] = await settled;
     expect(signal.aborted).toBe(true);

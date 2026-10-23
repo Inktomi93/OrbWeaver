@@ -3,6 +3,7 @@
 // @subject packages/server/src/domain/plugin/verbs/upgrade.ts
 // @subject packages/server/src/domain/plugin/verbs/uninstall.ts
 // @subject packages/server/src/domain/plugin/substrate/bundle-assets.ts
+// @subject packages/server/src/domain/assets/persistence/asset-refs.ts
 
 import { spawn } from "node:child_process";
 import type { Principal } from "@orb/contracts/identity";

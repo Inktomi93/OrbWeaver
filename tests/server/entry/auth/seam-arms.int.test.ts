@@ -10,7 +10,7 @@ import { authConfigFromEnv, createAuthSeam } from "@orb/server/entry/auth";
 import { env } from "@orb/server/foundation/env";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness } from "@orb/testkit/node/composed";
+import { createServerHarness, damageOwnerRow } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
 import { authMe, claimedOwnerCookie, debugStatus, FORWARD_USERNAME_CLAIM, policy, signedForwardRoot, signedInMember, wireViewer } from "../_auth-roots.ts";
@@ -102,13 +102,6 @@ test("D135: the fallback lands on the OWNER_HANDLES row and mints NO second-clas
   expect(await root.db.select({ id: users.id, handle: users.handle }).from(users)).toEqual([{ id: root.ownerId, handle: REAL_OWNER_HANDLE }]);
 });
 
-test("D135: an owner row demoted below owner is REPORTED, not overridden (the fallback never grants)", async () => {
-  await using root = await single({ rolePolicyConfig: policy({ ["OWNER_HANDLES"]: REAL_OWNER_HANDLE }) });
-  await root.db.update(users).set({ role: "user" }).where(eq(users.id, root.ownerId));
-  expect(await authMe(root)).toEqual({ authenticated: true, handle: REAL_OWNER_HANDLE, role: "user" });
-  expect((await wireViewer(root)).globalRole).toBe("user");
-});
-
 test("the empty-owner-handles guard is LOAD-BEARING: OWNER_HANDLES=',,' still resolves a handle", async () => {
   // An unseeded owner id: the fallback's own ensure births the row, so its role is the policy's verdict.
   await using root = await single({
@@ -118,9 +111,10 @@ test("the empty-owner-handles guard is LOAD-BEARING: OWNER_HANDLES=',,' still re
   });
   expect(root.app.sessions.rolePolicy.ownerHandles()).toEqual([]);
   const ensure = vi.spyOn(root.app.sessions, "ensureUser");
-  // With no owner policy the row the arm lands on is honestly `user`: the fallback admits, it does not grant.
+  // D135: with no owner policy the row the arm lands on is honestly `user`; the fallback admits, it does not grant.
   expect(await authMe(root)).toEqual({ authenticated: true, handle: PLACEHOLDER_HANDLE, role: "user" });
   expect(ensure.mock.calls).toEqual([[PLACEHOLDER_HANDLE]]);
+  expect((await wireViewer(root)).globalRole).toBe("user");
 });
 
 test("a valid cookie resolves DIRECTLY via sessions.validate (userId carried, role re-read)", async () => {
@@ -267,7 +261,7 @@ test("debugGateAdmits requires a CREDENTIAL as well as the OWNER role", async ()
   // This process launched on a non-production posture, so the composed root opens the door to the same caller.
   expect(await debugStatus(root)).toBe(200);
   for (const role of ["user", "admin"] as const) {
-    await root.db.update(users).set({ role }).where(eq(users.id, root.ownerId));
+    await damageOwnerRow(root, { role });
     expect((await authMe(root)).role).toBe(role);
     expect(await debugStatus(root), role).toBe(404);
   }
@@ -320,7 +314,7 @@ test("createHostPrincipalResolver degrades an unknown id to role=user (fail-clos
 test("D135: a DISABLED owner row is refused by the fallback arm (parity with cookie + SSO)", async () => {
   await using root = await single({ rolePolicyConfig: policy({ ["OWNER_HANDLES"]: REAL_OWNER_HANDLE }) });
   expect(await debugStatus(root)).toBe(200);
-  await root.db.update(users).set({ enabled: false }).where(eq(users.id, root.ownerId));
+  await damageOwnerRow(root, { enabled: false });
   expect(await authMe(root)).toEqual(ANONYMOUS);
   // The operator posture's credential arm collapses with it: a disabled row never becomes a principal to admit.
   expect(await debugStatus(root)).toBe(404);
@@ -328,7 +322,7 @@ test("D135: a DISABLED owner row is refused by the fallback arm (parity with coo
 
 test("D135: the frozen-host bridge still resolves a DISABLED row (the gate is the CALLER's)", async () => {
   await using root = await single();
-  await root.db.update(users).set({ enabled: false }).where(eq(users.id, root.ownerId));
+  await damageOwnerRow(root, { enabled: false });
   expect(isOwner(await root.principalFor(root.ownerId))).toBe(true);
   expect((await (await root.internalCallerFor(root.ownerId)).sessions.me()).globalRole).toBe("owner");
 });

@@ -1,4 +1,6 @@
 // The real chat bus establishes durability; only its stamped result can reach the live publisher.
+// @subject packages/server/src/domain/chat/persistence/events.ts
+// The claim is a raw statement and the deleted room a raw delete: the durable append is the subject, not a verb.
 
 import type { ChatLivePublish } from "@orb/contracts/chat";
 import { chatEvents, chats } from "@orb/db";

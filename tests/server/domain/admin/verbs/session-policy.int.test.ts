@@ -3,26 +3,25 @@
 // @subject packages/server/src/foundation/observability/audit.ts
 // @subject packages/server/src/domain/admin/substrate/audited-write.ts
 
-import { auditLogs, users } from "@orb/db";
+import { auditLogs, sessions, users } from "@orb/db";
 import type { SocketId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
-import { seedUser } from "@orb/testkit/node/composed";
+import { refuseWrites } from "@orb/testkit/node/composed";
 import { principal } from "@orb/testkit/node/helpers";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { vi } from "vitest";
 
 const PASSWORD = "a-new-valid-password";
 
 test("a single-device admin kick ends every target socket, including another device and session-less SSO, but not another user's", async ({
   harness,
-  db,
   app,
   ids,
 }) => {
-  const actor = await seedUser(db, { role: "admin" });
-  const target = await seedUser(db);
-  const stranger = await seedUser(db);
+  const actor = await harness.actor({ role: "admin" });
+  const target = await harness.actor();
+  const stranger = await harness.actor();
   const first = await app.sessions.create({ userId: target.id });
   const second = await app.sessions.create({ userId: target.id });
   const evicted = [vi.fn(), vi.fn(), vi.fn(), vi.fn()];
@@ -48,9 +47,9 @@ test("a single-device admin kick ends every target socket, including another dev
   expect(evicted.map((fn) => fn.mock.calls.length)).toEqual([1, 1, 1, 0]);
 });
 
-test("the admin gate runs before a revoke, and the queried target is stamped on secret-free session views", async ({ harness, db, app }) => {
-  const actor = await seedUser(db, { role: "admin" });
-  const target = await seedUser(db);
+test("the admin gate runs before a revoke, and the queried target is stamped on secret-free session views", async ({ harness, app }) => {
+  const actor = await harness.actor({ role: "admin" });
+  const target = await harness.actor();
   const session = await app.sessions.create({ userId: target.id, oidcIdToken: "private-id-token" });
   await expect(app.services.admin.revokeSession({ principal: await principal(harness, target.id), sessionId: session.sessionId })).rejects.toThrow();
   expect(await app.sessions.validate(session.token)).toMatchObject({ userId: target.id });
@@ -62,9 +61,9 @@ test("the admin gate runs before a revoke, and the queried target is stamped on 
   expect(rows[0]).not.toHaveProperty("tokenHash");
 });
 
-test("revoke-all evicts session-less SSO even when the target has no cookie sessions", async ({ harness, db, app, ids }) => {
-  const actor = await seedUser(db, { role: "admin" });
-  const target = await seedUser(db);
+test("revoke-all evicts session-less SSO even when the target has no cookie sessions", async ({ harness, app, ids }) => {
+  const actor = await harness.actor({ role: "admin" });
+  const target = await harness.actor();
   const evicted = vi.fn();
   app.sockets.goLive(app.sockets.adopt(target.id, castId<SocketId>(ids.next("socket")), null), {
     onAttach: vi.fn(),
@@ -77,8 +76,8 @@ test("revoke-all evicts session-less SSO even when the target has no cookie sess
 });
 
 test("a refused durable revoke does not evict live sockets or invalidate a cookie", async ({ harness, db, app, ids }) => {
-  const actor = await seedUser(db, { role: "admin" });
-  const target = await seedUser(db);
+  const actor = await harness.actor({ role: "admin" });
+  const target = await harness.actor();
   const session = await app.sessions.create({ userId: target.id });
   const evicted = vi.fn();
   app.sockets.goLive(app.sockets.adopt(target.id, castId<SocketId>(ids.next("socket")), session.sessionId), {
@@ -87,18 +86,18 @@ test("a refused durable revoke does not evict live sockets or invalidate a cooki
     onDetach: vi.fn(),
     onEvicted: evicted,
   });
-  await db.run(sql`CREATE TRIGGER refuse_session_revoke BEFORE UPDATE OF revoked_at ON sessions BEGIN SELECT RAISE(ABORT, 'revoke refused'); END`);
+  await using refusal = await refuseWrites(db, { table: sessions, event: "UPDATE", columns: [sessions.revokedAt], message: "revoke refused" });
   await expect(app.services.admin.revokeSession({ principal: await principal(harness, actor.id), sessionId: session.sessionId })).rejects.toThrow();
   expect(evicted).not.toHaveBeenCalled();
   expect(await app.sessions.validate(session.token)).toMatchObject({ userId: target.id });
-  await db.run(sql`DROP TRIGGER refuse_session_revoke`);
+  await refusal.lift();
   await app.services.admin.revokeSession({ principal: await principal(harness, actor.id), sessionId: session.sessionId });
   expect(evicted).toHaveBeenCalledOnce();
 });
 
 test("the composed guarded audit stays adjacent and atomic with the password and session kick", async ({ harness, db, app, ids }) => {
-  const actor = await seedUser(db, { role: "admin" });
-  const target = await seedUser(db, { passwordHash: "original-hash" });
+  const actor = await harness.actor({ role: "admin" });
+  const target = await harness.actor({ passwordHash: "original-hash" });
   const session = await app.sessions.create({ userId: target.id });
   const evicted = vi.fn();
   app.sockets.goLive(app.sockets.adopt(target.id, castId<SocketId>(ids.next("socket")), null), {
@@ -107,15 +106,13 @@ test("the composed guarded audit stays adjacent and atomic with the password and
     onDetach: vi.fn(),
     onEvicted: evicted,
   });
-  await db.run(
-    sql`CREATE TRIGGER refuse_admin_audit BEFORE INSERT ON audit_logs WHEN NEW.action = 'admin.resetPassword' BEGIN SELECT RAISE(ABORT, 'audit refused'); END`,
-  );
+  await using refusal = await refuseWrites(db, { table: auditLogs, event: "INSERT", when: "NEW.action = 'admin.resetPassword'", message: "audit refused" });
   const params = { principal: await principal(harness, actor.id), userId: target.id, password: PASSWORD };
   await expect(app.services.admin.resetPassword(params)).rejects.toThrow();
   expect((await db.select().from(users).where(eq(users.id, target.id)))[0]?.passwordHash).toBe("original-hash");
   expect(await app.sessions.validate(session.token)).toMatchObject({ userId: target.id });
   expect(evicted).not.toHaveBeenCalled();
-  await db.run(sql`DROP TRIGGER refuse_admin_audit`);
+  await refusal.lift();
   await app.services.admin.resetPassword(params);
   expect(await app.sessions.validate(session.token)).toBeNull();
   expect(evicted).toHaveBeenCalledOnce();

@@ -13,7 +13,7 @@ import {
   createChatRoot,
   createCorpusProviderExecution,
 } from "@orb/testkit/node/composed";
-import { asc, eq, sql } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 
 /** Supply a finite physical reply plan without substituting a domain operation. */
 export async function textRoom(replies: readonly string[], options: Omit<ChatRootOptions, "providerFetch"> = {}): Promise<ChatRoot> {
@@ -105,18 +105,6 @@ export const LEGACY_IMPORT_ARMS = [
   { title: "a room imported today", legacy: false },
   { title: "a launched room numbered from seq 0", legacy: true },
 ] as const;
-
-/** Re-number a room's canon to start at seq 0, the shape the earlier import writer left in launched databases. */
-export async function renumberFromZero(h: ChatRoot, chatId: ChatId): Promise<void> {
-  const [oldest] = await importedSeqs(h, chatId);
-  if (oldest === undefined) {
-    throw new Error("the room has no canon to re-number");
-  }
-  await h.root.db
-    .update(messages)
-    .set({ seq: sql`${messages.seq} - ${oldest}` })
-    .where(eq(messages.chatId, chatId));
-}
 
 /** The room's canon seqs, oldest first. */
 export async function importedSeqs(h: ChatRoot, chatId: ChatId): Promise<number[]> {

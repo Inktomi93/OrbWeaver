@@ -4,16 +4,14 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import { connectionBindings, userConnections } from "@orb/db";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { presets } from "@orb/db";
 import { CharacterNotFoundError, createGreetingTemplate } from "@orb/server/domain/character";
 import { createReadOptionalPresetConfig } from "@orb/server/domain/preset";
 import { createReadDefaultPresetId } from "@orb/server/domain/settings";
 import { makeGenerationCapability } from "@orb/testkit/iso";
 import { test as base, expect } from "@orb/testkit/node";
-import { seedCharacter, seedUser } from "@orb/testkit/node/composed";
+import { seedCharacter, withheldTable } from "@orb/testkit/node/composed";
 import { principal, TEST_BASE_URL, TEST_PROVIDER_ID, terminalSseLine } from "@orb/testkit/node/helpers";
-import { sql } from "drizzle-orm";
 
 const test = base.extend<{ requests: Request[]; providerFetch: typeof fetch }>({
   requests: async ({}, use) => {
@@ -37,35 +35,28 @@ const test = base.extend<{ requests: Request[]; providerFetch: typeof fetch }>({
 
 test("the real greeting gate precedes template/funding reads; each completion resolves the caller's live Utility binding and preset", async ({
   harness,
-  db,
   services,
-  clock,
   requests,
 }) => {
-  const owner = await seedUser(db);
-  const stranger = await seedUser(db);
+  const owner = await harness.actor();
+  const stranger = await harness.actor();
   const actor = await principal(harness, owner.id);
   const neighbor = await principal(harness, stranger.id);
   const { row: card } = await seedCharacter(harness, {
     principal: actor,
     input: createCharacterSchema.parse({ handle: "greeter", name: "Greeter", description: "" }),
   });
-  const connectionId = mintTypeId(ID_PREFIX.userConnection);
-  await db.insert(userConnections).values({
-    id: connectionId,
-    ownerId: owner.id,
+  const { id: connectionId } = await services.connection.create({
+    principal: actor,
     label: "Owned Utility",
     providerId: providerIdSchema.parse(TEST_PROVIDER_ID),
+    credentialId: null,
     baseUrl: TEST_BASE_URL,
     model: modelIdSchema.parse("owned-first"),
     declared: { kind: "generation", generation: makeGenerationCapability({ sampling: { temperature: { min: 0, max: 2 } } }) },
     allowBackground: true,
-    createdAt: clock.now(),
-    updatedAt: clock.now(),
   });
-  await db
-    .insert(connectionBindings)
-    .values({ id: mintTypeId(ID_PREFIX.connectionBinding), actorKind: "user", userId: owner.id, task: "summarize", connectionId });
+  await services.connection.setBinding({ principal: actor, task: "summarize", connectionId });
   const preset = await services.preset.create({
     userId: owner.id,
     name: "Owned greeting",
@@ -106,8 +97,8 @@ test("a foreign preset degrades to the shipped template, but a real preset datab
   services,
   requests,
 }) => {
-  const owner = await seedUser(db);
-  const stranger = await seedUser(db);
+  const owner = await harness.actor();
+  const stranger = await harness.actor();
   const actor = await principal(harness, owner.id);
   const { row: card } = await seedCharacter(harness, {
     principal: actor,
@@ -125,7 +116,7 @@ test("a foreign preset degrades to the shipped template, but a real preset datab
   expect(requests).toHaveLength(0);
   const owned = await services.preset.create({ userId: owner.id, name: "Owned", kind: "prompt" });
   await services.settings.updateUserSettingsSection({ principal: actor, input: { section: "seeds", patch: { defaultPresetId: owned.id } } });
-  await db.run(sql`DROP TABLE presets`);
+  await using _withheld = await withheldTable(db, presets);
   await expect(services.character.generateGreeting({ principal: neighbor, characterId: card.id, steer: "hi" })).rejects.toBeInstanceOf(CharacterNotFoundError);
   await expect(services.character.generateGreeting({ principal: actor, characterId: card.id, steer: "hi" })).rejects.toThrow(/presets/u);
   expect(requests).toHaveLength(0);

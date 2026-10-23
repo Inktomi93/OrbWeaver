@@ -15,8 +15,9 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
+  refuseWrites,
 } from "@orb/testkit/node/composed";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { vi } from "vitest";
 
 const ids = createSeededIds();
@@ -81,9 +82,7 @@ async function room(): Promise<
 
 test("the memory build throwing emits warning(memory_build_failed) but the turn itself still completes", async () => {
   await using fixture = await room();
-  await fixture.h.root.db.run(
-    sql`CREATE TEMP TRIGGER refuse_memory_segment BEFORE INSERT ON ${chatSegments} BEGIN SELECT RAISE(ABORT, 'controlled memory segment refusal'); END`,
-  );
+  await using _segments = await refuseWrites(fixture.h.root.db, { table: chatSegments, event: "INSERT", message: "controlled memory segment refusal" });
   const { outcome, canon } = await fixture.turn();
   expect(outcome.aborted).toBe(false);
   expect(outcome.messages).toMatchObject([{ role: "assistant", content: "The real memory turn commits." }]);
@@ -95,12 +94,13 @@ test("the memory build throwing emits warning(memory_build_failed) but the turn 
 
 test("a failing warning append neither fails the turn nor leaves an unhandled rejection", async () => {
   await using fixture = await room();
-  await fixture.h.root.db.run(
-    sql`CREATE TEMP TRIGGER refuse_memory_segment BEFORE INSERT ON ${chatSegments} BEGIN SELECT RAISE(ABORT, 'controlled memory segment refusal'); END`,
-  );
-  await fixture.h.root.db.run(
-    sql`CREATE TEMP TRIGGER refuse_memory_warning BEFORE INSERT ON ${chatEvents} WHEN NEW."type" = 'warning' AND json_extract(NEW."payload", '$.code') = 'memory_build_failed' BEGIN SELECT RAISE(ABORT, 'controlled memory warning append refusal'); END`,
-  );
+  await using _segments = await refuseWrites(fixture.h.root.db, { table: chatSegments, event: "INSERT", message: "controlled memory segment refusal" });
+  await using _warnings = await refuseWrites(fixture.h.root.db, {
+    table: chatEvents,
+    event: "INSERT",
+    when: `NEW."type" = 'warning' AND json_extract(NEW."payload", '$.code') = 'memory_build_failed'`,
+    message: "controlled memory warning append refusal",
+  });
   const unhandled = vi.fn();
   process.on("unhandledRejection", unhandled);
   try {

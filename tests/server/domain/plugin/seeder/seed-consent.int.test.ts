@@ -6,9 +6,9 @@ import { createDistributedPluginApplier, createExamplePluginSeeder, createPlugin
 import { createSettingsComposedOps } from "@orb/server/domain/settings";
 import { packShowcaseBundle, readShowcaseManifest, SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
 import { expect, test } from "@orb/testkit/node";
-import { requireShowcaseBundle, seedUser } from "@orb/testkit/node/composed";
+import { refuseWrites, requireShowcaseBundle } from "@orb/testkit/node/composed";
 import { principal } from "@orb/testkit/node/helpers";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { vi } from "vitest";
 
 const SLUG = SHOWCASE_PLUGIN_SLUGS[0];
@@ -19,7 +19,7 @@ test("a missing real showcase bundle remains retryable, then lands owned, disabl
   services,
 }) => {
   await requireShowcaseBundle(SLUG);
-  const user = await seedUser(db);
+  const user = await harness.actor();
   const actor = await principal(harness, user.id);
   const source = { missing: true };
   const pluginOps = createPluginSeedOps(services.plugin);
@@ -55,8 +55,8 @@ test("a missing real showcase bundle remains retryable, then lands owned, disabl
 
 test("real showcase deletion survives a cold seed, while another account receives its own copy and provenance", async ({ harness, db, services }) => {
   await requireShowcaseBundle(SLUG);
-  const first = await seedUser(db);
-  const second = await seedUser(db);
+  const first = await harness.actor();
+  const second = await harness.actor();
   const actor = await principal(harness, first.id);
   const neighbor = await principal(harness, second.id);
   const pluginOps = createPluginSeedOps(services.plugin);
@@ -95,22 +95,22 @@ test("a failed real distributed install never latches; retry stays recipient-sco
   db,
   services,
 }) => {
-  const publisher = await seedUser(db, { role: "admin" });
+  const publisher = await harness.actor({ role: "admin" });
   const admin = await principal(harness, publisher.id);
   const bundle = await requireShowcaseBundle(SLUG);
   await services.plugin.installForAllUsers({ caller: admin, bundle });
-  const recipient = await seedUser(db);
+  const recipient = await harness.actor();
   const actor = await principal(harness, recipient.id);
   const settingsOps = createSettingsComposedOps(services.settings);
   const pluginOps = createPluginSeedOps(services.plugin);
   const apply = vi.fn(pluginOps.apply);
   const deps = { apply, isApplied: settingsOps.isDistributedPluginApplied, markApplied: settingsOps.markDistributedPluginApplied };
   const applier = createDistributedPluginApplier(deps);
-  await db.run(sql`CREATE TRIGGER refuse_distributed_install BEFORE INSERT ON plugins BEGIN SELECT RAISE(ABORT, 'recipient install refused'); END`);
+  await using refusal = await refuseWrites(db, { table: plugins, event: "INSERT", message: "recipient install refused" });
   await expect(applier.ensureApplied(actor)).resolves.toBeUndefined();
   expect(await settingsOps.isDistributedPluginApplied(actor)).toBe(false);
   expect(await db.select().from(plugins).where(eq(plugins.ownerId, recipient.id))).toEqual([]);
-  await db.run(sql`DROP TRIGGER refuse_distributed_install`);
+  await refusal.lift();
   const pending = applier.ensureApplied(actor);
   expect(applier.ensureApplied(actor)).toBe(pending);
   await pending;

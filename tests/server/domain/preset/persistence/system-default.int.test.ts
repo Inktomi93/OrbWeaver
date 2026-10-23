@@ -6,7 +6,8 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { closeDb, presets } from "@orb/db";
 import { SYSTEM_DEFAULT_PRESET_ID, SYSTEM_DEFAULT_PRESET_KIND, SYSTEM_DEFAULT_PRESET_NAME } from "@orb/server/domain/preset";
 import { expect, test } from "@orb/testkit/node";
-import { freshHeldDb, seedUser } from "@orb/testkit/node/composed";
+import { freshHeldDb } from "@orb/testkit/node/composed";
+import { seedUser } from "@orb/testkit/node/rows";
 import { eq } from "drizzle-orm";
 import { seedDefaultPreset } from "#server/entry/boot/seed-default-preset.ts";
 

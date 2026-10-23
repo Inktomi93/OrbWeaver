@@ -1,4 +1,5 @@
 // The real operator route reads complete settings bytes through the owning domain, never an auth fallback.
+// Historic stored JSON no current verb writes is planted directly, so this suite sits in the persistence tier.
 import { automationTriggerFor } from "@orb/contracts/automation";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";

@@ -6,7 +6,7 @@
 import { themes } from "@orb/db";
 import { RETIRED_SEED_THEME_IDS, SEED_THEMES, THEME_HEARTH_ID, THEME_MOCHA_ID } from "@orb/server/domain/settings";
 import { expect, test } from "@orb/testkit/node";
-import { seedUser } from "@orb/testkit/node/composed";
+import { seedUser } from "@orb/testkit/node/rows";
 import { eq, inArray } from "drizzle-orm";
 import { seedThemes } from "#server/entry/boot/seed-themes.ts";
 

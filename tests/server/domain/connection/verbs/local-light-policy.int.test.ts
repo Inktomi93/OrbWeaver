@@ -6,8 +6,8 @@ import { databaseHandle } from "@orb/db/wiring-driver";
 import { castId } from "@orb/kit/ids";
 import { seedLocalLightOnBoot } from "@orb/server/entry/boot";
 import { expect, test } from "@orb/testkit/node";
-import { seedUser } from "@orb/testkit/node/composed";
-import { eq, sql } from "drizzle-orm";
+import { refuseWrites } from "@orb/testkit/node/composed";
+import { eq } from "drizzle-orm";
 
 test("boot continues across a real binding refusal, and the composed post-boot account mint survives and repairs its own floor", async ({
   db,
@@ -15,9 +15,8 @@ test("boot continues across a real binding refusal, and the composed post-boot a
   clock,
   harness,
 }) => {
-  // Seed from the harness id source: the factory counter and the composed mint both start at 1, so ensureUser would collide with the second row's primary key.
-  const first = await seedUser(db, {}, harness.idSource);
-  const second = await seedUser(db, { enabled: false }, harness.idSource);
+  const first = await harness.actor();
+  const second = await harness.actor({ enabled: false });
   const bound: string[] = [];
   const deps = {
     db: databaseHandle(db),
@@ -27,7 +26,7 @@ test("boot continues across a real binding refusal, and the composed post-boot a
       bound.push(id);
     },
   };
-  await db.run(sql`CREATE TRIGGER refuse_seed_binding BEFORE INSERT ON connection_bindings BEGIN SELECT RAISE(ABORT, 'binding refused'); END`);
+  await using refusal = await refuseWrites(db, { table: connectionBindings, event: "INSERT", message: "binding refused" });
   expect(await seedLocalLightOnBoot(deps)).toBe(0);
   for (const user of [first, second]) {
     expect(await db.select().from(userConnections).where(eq(userConnections.ownerId, user.id))).toHaveLength(2);
@@ -37,7 +36,7 @@ test("boot continues across a real binding refusal, and the composed post-boot a
   expect(await db.select().from(users).where(eq(users.id, minted))).toHaveLength(1);
   expect(await db.select().from(userConnections).where(eq(userConnections.ownerId, minted))).toHaveLength(2);
   expect(await db.select().from(connectionBindings).where(eq(connectionBindings.userId, minted))).toEqual([]);
-  await db.run(sql`DROP TRIGGER refuse_seed_binding`);
+  await refusal.lift();
   await app.seedUserConnections(minted);
   const repaired = await db.select().from(connectionBindings).where(eq(connectionBindings.userId, minted));
   expect(new Set(repaired.map((row) => row.task))).toEqual(new Set(["embed", "imageEmbed", "rerank"]));

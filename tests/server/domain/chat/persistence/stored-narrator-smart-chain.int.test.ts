@@ -1,11 +1,12 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
+// An old room stored narrator + smart, which no current writer produces, so the stored bytes are planted directly.
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import { characters, chats, messages } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import { and, eq, sql } from "drizzle-orm";
 import { textRoom } from "../scenario-physical.ts";
-import { TAIL_ROSTER } from "./turn-lifetimes-roster.ts";
+import { TAIL_ROSTER } from "../verbs/turn-lifetimes-roster.ts";
 
 const SCENES = [
   { title: "an unavailable Utility route cannot degrade or warn a stored narrator and Smart room", utility: false, turns: 1 },

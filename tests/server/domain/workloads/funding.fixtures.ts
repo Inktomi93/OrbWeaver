@@ -1,20 +1,44 @@
+import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import { refineryScorePayloadSchema } from "@orb/contracts/refinery";
-import type { WorkloadRunnableRow } from "@orb/contracts/workloads";
+import type { StartWorkloadInput, WorkloadRunnableRow } from "@orb/contracts/workloads";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import type { WorkloadId } from "@orb/kit/ids";
 import { createNextRunnableWorkload, runWorkload } from "@orb/server/domain/workloads";
-import type { ServerTestHarness, seedCorpusConnections, seedRecallRoom } from "@orb/testkit/node/composed";
+import type { ServerTestHarness, seedRecallRoom } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
+  seedCorpusConnections,
 } from "@orb/testkit/node/composed";
 
 export const QUEUE_OBSERVATION_DELAY_MS = 60_000;
 export const WORKLOAD_FUNDER_HEADER = "x-workload-funder";
+export const DISTILL = { kind: "distill-characters", params: {} } satisfies StartWorkloadInput;
+
+export async function fundedOwner(root: ServerTestHarness, principal: Principal): Promise<Awaited<ReturnType<typeof seedCorpusConnections>>> {
+  const rows = await seedCorpusConnections(root, principal);
+  await root.services.connection.update({
+    principal,
+    connectionId: rows.text.id,
+    patch: { transport: { headers: { [WORKLOAD_FUNDER_HEADER]: principal.userId } } },
+  });
+  return rows;
+}
+
+export async function card(root: ServerTestHarness, principal: Principal): Promise<Awaited<ReturnType<ServerTestHarness["services"]["character"]["create"]>>> {
+  return await root.services.character.create({
+    principal,
+    input: createCharacterSchema.parse({
+      name: "Funding subject",
+      handle: "funding-subject",
+      description: "An authored paragraph about a traveller repairing the orbital loom.",
+    }),
+  });
+}
 
 type CorpusExecution = ReturnType<typeof createCorpusProviderExecution>;
 interface FundingWire extends CorpusExecution {

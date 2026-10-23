@@ -11,7 +11,6 @@ import { buildImportContext, createInstallerCharacterImport } from "@orb/server/
 import { createImportedCardTag } from "@orb/server/domain/tag";
 import { createHostPrincipalResolver } from "@orb/server/entry/auth";
 import { expect, OWNER_USER_ID, test } from "@orb/testkit/node";
-import { seedUser } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
 
@@ -23,7 +22,7 @@ test("owner binders retain Principal identity and ignore foreign owner arguments
 }): Promise<void> => {
   await ownerCaller.character.list({});
   const actor = await harness.principalFor(OWNER_USER_ID);
-  const foreignOwner = (await seedUser(db)).id;
+  const foreignOwner = (await harness.actor()).id;
   const created = vi.spyOn(services.character, "create");
   const ctx = buildImportContext({
     principal: actor,

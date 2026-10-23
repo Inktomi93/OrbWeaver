@@ -1,6 +1,6 @@
 // Real composed writes and transport frames prove reach authority, confirmed deletion, and failure isolation.
 import { createRegexScriptSchema } from "@orb/contracts/regex";
-import { auditLogs, chatEvents, chatRegexScripts, regexScripts } from "@orb/db";
+import { auditLogs, chatDocuments, chatEvents, chatRegexScripts, regexScripts } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import type { ServicesResult } from "@orb/server/entry/compose";
@@ -8,8 +8,8 @@ import { getLog } from "@orb/server/foundation/observability";
 import type { Fixtures } from "@orb/testkit/node";
 import { test as baseTest, expect, OTHER_USER_ID, OWNER_USER_ID } from "@orb/testkit/node";
 import type { HeldDb } from "@orb/testkit/node/composed";
-import { freshHeldDb } from "@orb/testkit/node/composed";
-import { and, eq, sql } from "drizzle-orm";
+import { freshHeldDb, withheldTable } from "@orb/testkit/node/composed";
+import { and, eq } from "drizzle-orm";
 import { onTestFinished, vi } from "vitest";
 
 const test = baseTest.extend<Pick<Fixtures, "authConfig">>({
@@ -203,7 +203,7 @@ test("a failed regex reach capture is logged and cannot fault the confirmed dele
   expect(frames).toEqual([{ seq: null, event: { type: "roomEntityChanged", chatId: room.id, entity: "regex" } }]);
   frames.length = 0;
   using warn = vi.spyOn(getLog(), "warn");
-  await db.run(sql`ALTER TABLE chat_regex_scripts RENAME TO unavailable_chat_regex_scripts`);
+  await using withheld = await withheldTable(db, chatRegexScripts);
   try {
     expect(await services.regex.bulkRemoveScripts({ principal: callerPrincipal, scriptIds: [script.id] })).toEqual({
       affected: 1,
@@ -215,7 +215,7 @@ test("a failed regex reach capture is logged and cannot fault the confirmed dele
     expect(frames).toEqual([]);
     expect(await db.select().from(regexScripts).where(eq(regexScripts.id, script.id))).toEqual([]);
   } finally {
-    await db.run(sql`ALTER TABLE unavailable_chat_regex_scripts RENAME TO chat_regex_scripts`);
+    await withheld.lift();
   }
   expect(await db.select().from(chatRegexScripts).where(eq(chatRegexScripts.regexScriptId, script.id))).toEqual([]);
 });
@@ -243,7 +243,7 @@ test("a failed document reach is logged without rejecting or rolling back its al
   expect(frames).toEqual([{ seq: null, event: { type: "roomEntityChanged", chatId: room.id, entity: "databank" } }]);
   frames.length = 0;
   using warn = vi.spyOn(getLog(), "warn");
-  await db.run(sql`ALTER TABLE chat_documents RENAME TO unavailable_chat_documents`);
+  await using withheld = await withheldTable(db, chatDocuments);
   try {
     expect((await services.databank.rename({ principal: callerPrincipal, id: document.document.id, name: "committed" })).name).toBe("committed");
     expect(warn).toHaveBeenCalledWith(
@@ -256,7 +256,7 @@ test("a failed document reach is logged without rejecting or rolling back its al
     );
     expect(frames).toEqual([]);
   } finally {
-    await db.run(sql`ALTER TABLE unavailable_chat_documents RENAME TO chat_documents`);
+    await withheld.lift();
   }
   expect((await ownerCaller.databank.get({ id: document.document.id, includeText: true })).name).toBe("committed");
 });

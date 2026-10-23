@@ -4,7 +4,7 @@ import { readSeedAvatar } from "@orb/default-content";
 import { createSeedAvatarOps } from "@orb/server/domain/assets";
 import { DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
 import { expect, test } from "@orb/testkit/node";
-import { seedCharacter, seedUser } from "@orb/testkit/node/composed";
+import { seedCharacter } from "@orb/testkit/node/composed";
 import { principal } from "@orb/testkit/node/helpers";
 
 const CARD = DEFAULT_CHARACTER_CARDS[0];
@@ -12,8 +12,8 @@ if (CARD === undefined) {
   throw new Error("the authored card pack is empty");
 }
 
-test("truncated real shipped art is refused by the production magic guard before a CAS index row lands", async ({ harness, db, services }) => {
-  const user = await seedUser(db);
+test("truncated real shipped art is refused by the production magic guard before a CAS index row lands", async ({ harness, services }) => {
+  const user = await harness.actor();
   const actor = await principal(harness, user.id);
   const art = await readSeedAvatar(CARD.input.handle);
   if (art === null) {
@@ -35,9 +35,9 @@ test("truncated real shipped art is refused by the production magic guard before
   expect(await services.assets.listOwned({ principal: actor, limit: 100 })).toMatchObject([{ kind: "avatar", mime: art.mime }]);
 });
 
-test("seed gallery keeps the actual Principal and refuses a foreign subject while owned repeats deduplicate", async ({ harness, db, services }) => {
-  const owner = await seedUser(db);
-  const stranger = await seedUser(db);
+test("seed gallery keeps the actual Principal and refuses a foreign subject while owned repeats deduplicate", async ({ harness, services }) => {
+  const owner = await harness.actor();
+  const stranger = await harness.actor();
   const actor = await principal(harness, owner.id);
   const neighbor = await principal(harness, stranger.id);
   const { row: card } = await seedCharacter(harness, { principal: actor, input: CARD.input });

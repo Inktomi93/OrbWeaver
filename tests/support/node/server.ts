@@ -31,13 +31,13 @@ import type { ControlledTimers } from "../iso/timers.ts";
 import { createControlledTimers } from "../iso/timers.ts";
 import { freshDb } from "./db.ts";
 import type { UserRow } from "./factories/rows.ts";
-import { seedUser } from "./factories/user.ts";
+import { seedUser } from "./factories/rows.ts";
 import type { OwnedHttpRequests } from "./http.ts";
 import { createOwnedHttpRequests } from "./http.ts";
 
 export interface ServerHarnessOptions
   extends Partial<
-    Pick<ServicesDeps, "secretBoxKey" | "casDir" | "variantDir" | "importStagingDir" | "rpgTrace" | "wireCapture" | "wireCaptureReply" | "logLevel">
+    Pick<ServicesDeps, "secretBoxKey" | "casDir" | "variantDir" | "importStagingDir" | "rpgTrace" | "wireCapture" | "wireCaptureReply" | "logLevel" | "holder">
   > {
   readonly networkExecution?: ServicesDeps["networkExecution"];
   readonly share?: Pick<ShareGraphOptions, "relay" | "acme">;
@@ -202,6 +202,11 @@ function observerSettingsOf(
     ...(options.wireCapture === undefined ? {} : { wireCapture: options.wireCapture }),
     ...(options.wireCaptureReply === undefined ? {} : { wireCaptureReply: options.wireCaptureReply }),
   };
+}
+
+// A second root on the same database is another replica only when it locks under its own holder tag.
+function replicaOf(options: Pick<ServerHarnessOptions, "holder">): Pick<ServicesDeps, "holder"> {
+  return options.holder === undefined ? {} : { holder: options.holder };
 }
 
 function httpOverridesOf(
@@ -456,6 +461,7 @@ export async function createServerHarness(
     ownerId,
     secretBoxKey: options.secretBoxKey ?? null,
     ...observerSettingsOf(options),
+    ...replicaOf(options),
     sessionSecret: SESSION_SECRET,
     casDir,
     variantDir,

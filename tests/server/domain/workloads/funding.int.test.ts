@@ -11,43 +11,16 @@
 // @subject packages/server/src/domain/chat/workload-contributions.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";
-import type { Principal } from "@orb/contracts/identity";
-import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import { CADENCE_INTERVAL_MS, WORKLOAD_UNFUNDED } from "@orb/contracts/workloads";
-import { characterSummaries, characters, chatDigests, chatSegments, closeDb, embeddingCalls, embedGenerations, users } from "@orb/db";
+import { characterSummaries, characters, chatDigests, chatSegments, closeDb, embeddingCalls, embedGenerations } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
-import { DomainNotFoundError } from "@orb/kit/errors";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { tickWorkloadSchedules } from "@orb/server/domain/workloads";
 import { expect, test } from "@orb/testkit/node";
-import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { CORPUS_EMBEDDING_VECTOR, createServerHarness, freshDb, freshHeldDb, seedCorpusConnections, seedRecallRoom } from "@orb/testkit/node/composed";
+import { CORPUS_EMBEDDING_VECTOR, createServerHarness, freshDb, seedRecallRoom } from "@orb/testkit/node/composed";
 import { and, eq, inArray } from "drizzle-orm";
 import type { HostedFundingRoom } from "./funding.fixtures.ts";
-import { executeAdmitted, executeRow, observeQueued, physicalWire, QUEUE_OBSERVATION_DELAY_MS, WORKLOAD_FUNDER_HEADER } from "./funding.fixtures.ts";
-
-const DISTILL = { kind: "distill-characters", params: {} } satisfies StartWorkloadInput;
-
-async function fundedOwner(root: ServerTestHarness, principal: Principal): Promise<Awaited<ReturnType<typeof seedCorpusConnections>>> {
-  const rows = await seedCorpusConnections(root, principal);
-  await root.services.connection.update({
-    principal,
-    connectionId: rows.text.id,
-    patch: { transport: { headers: { [WORKLOAD_FUNDER_HEADER]: principal.userId } } },
-  });
-  return rows;
-}
-
-async function card(root: ServerTestHarness, principal: Principal): Promise<Awaited<ReturnType<ServerTestHarness["services"]["character"]["create"]>>> {
-  return await root.services.character.create({
-    principal,
-    input: createCharacterSchema.parse({
-      name: "Funding subject",
-      handle: "funding-subject",
-      description: "An authored paragraph about a traveller repairing the orbital loom.",
-    }),
-  });
-}
+import { card, DISTILL, executeAdmitted, fundedOwner, physicalWire } from "./funding.fixtures.ts";
 
 test("restart and a different retry caller preserve admitted funding and owned enumeration", async () => {
   const db = await freshDb();
@@ -124,58 +97,6 @@ test("unfunded system paid jobs and their retries never borrow the saved owner b
   await executeAdmitted(root, admitted.id);
   expect(wire.funders.at(-1)).toBe(owner.userId);
   expect(await root.db.select({ id: characterSummaries.characterId }).from(characterSummaries)).toEqual([{ id: subject.id }]);
-});
-
-test("atomic claim reads cleared funding instead of the captured queue observation", async () => {
-  const wire = physicalWire();
-  await using root = await createServerHarness({ providerFetch: wire.execute, secretBoxKey: Buffer.alloc(32, 1) });
-  const owner = await root.principalFor(root.ownerId);
-  const funder = await root.principalFor((await root.actor()).id);
-  await fundedOwner(root, owner);
-  await fundedOwner(root, funder);
-  await card(root, owner);
-  await root.settleBackground();
-  const ref = await root.services.workloads.start({
-    caller: null,
-    funderUserId: funder.userId,
-    ownerId: null,
-    mode: "bulk",
-    input: DISTILL,
-    scheduledAt: root.clock.now() + QUEUE_OBSERVATION_DELAY_MS,
-  });
-  const captured = await observeQueued(root, ref.id);
-  expect(captured.funderUserId).toBe(funder.userId);
-  await root.db.delete(users).where(eq(users.id, funder.userId));
-  const before = [...wire.requests];
-  await executeRow(root, captured);
-  expect(await root.services.workloads.get({ caller: owner, id: ref.id })).toMatchObject({ status: "failed", ownerId: null, funderUserId: null });
-  expect(wire.requests).toEqual(before);
-  expect(await root.db.select().from(characterSummaries)).toEqual([]);
-});
-
-test("retry refuses a funder deleted after its read without persisting another job", async () => {
-  const held = await freshHeldDb();
-  await using lifetime = new AsyncDisposableStack();
-  lifetime.defer(() => closeDb(held.db));
-  await using root = await createServerHarness({ db: held.db });
-  const owner = await root.principalFor(root.ownerId);
-  const funder = await root.principalFor((await root.actor()).id);
-  const original = await root.services.workloads.start({ caller: null, funderUserId: funder.userId, ownerId: owner.userId, mode: "singular", input: DISTILL });
-  await root.services.workloads.cancel({ caller: owner, id: original.id });
-  const before = await root.services.workloads.list({ caller: owner, kind: "distill-characters" });
-  const gate = held.hold(/insert into "workloads"/u);
-  const retry = root.services.workloads.retry({ caller: owner, id: original.id });
-  const refusal = (async (): Promise<void> => {
-    await expect(retry).rejects.toBeInstanceOf(DomainNotFoundError);
-  })();
-  try {
-    await gate.reached;
-    await root.db.delete(users).where(eq(users.id, funder.userId));
-  } finally {
-    gate.release();
-  }
-  await refusal;
-  expect(await root.services.workloads.list({ caller: owner, kind: "distill-characters" })).toEqual(before.map((row) => ({ ...row, funderUserId: null })));
 });
 
 test("a bulk schedule persists its owner's funding through the trusted tick and disable stops new admission", async () => {
