@@ -718,10 +718,11 @@ const HYGIENE = [
   },
   {
     name: "not-to-unresolvable",
-    comment: "Vite emits this exact WASM asset request as a URL; the client build verifies the emitted binary.",
+    comment:
+      "Vite emits this exact WASM asset request as a URL; the client build verifies the emitted binary. `codemod:*` modules exist only inside the codemod CLI sandbox; `codemod jssg test` verifies them.",
     severity: "error",
     from: {},
-    to: { couldNotResolve: true, pathNot: ["^@jitl/quickjs-ng-wasmfile-release-sync/wasm\\?url$"] },
+    to: { couldNotResolve: true, pathNot: ["^@jitl/quickjs-ng-wasmfile-release-sync/wasm\\?url$", "^codemod:"] },
   },
   {
     name: "no-duplicate-dep-types",
@@ -790,7 +791,12 @@ const config = {
     // TypeScript owns declaration-relative resolution; retain the public bridge edge only.
     doNotFollow: { path: ["node_modules", SERVER_ROOT] },
     exclude: {
-      path: ["^packages/[^/]+/dist/(?!router-types/packages/server/src/index\\.d\\.ts$)", "^playwright/\\.cache/", "^tooling/src/snap/lib/devtools-frontend/"],
+      path: [
+        "^packages/[^/]+/dist/(?!router-types/packages/server/src/index\\.d\\.ts$)",
+        "^playwright/\\.cache/",
+        "^tooling/src/snap/lib/devtools-frontend/",
+        "^tooling/src/codemods/[^/]+/tests/",
+      ],
     },
   },
 } satisfies IConfiguration;

@@ -31,6 +31,8 @@ export const config = {
       // Analyze the source behind @orb/server's generated declaration-only package entry.
       paths: { "@orb/server": ["./packages/server/src/index.ts"] },
       "dependency-cruiser": { config: [".dependency-cruiser.ts"] },
+      // The codemod program declares its types package through its own tsconfig outside the default glob.
+      typescript: { config: ["tsconfig*.json", "tooling/src/codemods/tsconfig.json"] },
       // Operator scripts are direct Node entry points.
       entry: [
         "scripts/**/*.ts",
@@ -63,8 +65,9 @@ export const config = {
     // @orb/tooling: every tool's cli.ts + index.ts are entries; floor modules are entries too
     // Shared floor modules are exported package entry points.
     tooling: {
-      entry: ["src/*/cli.ts", "src/*/index.ts", "src/floor/*/*.ts", "src/snap/lib/budgets.ts"],
-      project: ["src/**/*.ts"],
+      entry: ["src/*/cli.ts", "src/*/index.ts", "src/floor/*/*.ts", "src/snap/lib/budgets.ts", "src/codemods/*/scripts/*.ts"],
+      // Codemod fixtures are input/expected data for `codemod jssg test`, not modules.
+      project: ["src/**/*.ts", "!src/codemods/*/tests/**"],
       // The heap arm loads chrome-devtools-mcp's browser-free parser through a version-pinned dynamic
       // subpath held in a constant. Knip cannot resolve that indirection, while the heap suite exercises
       // the installed module and its exact-version compatibility fence.

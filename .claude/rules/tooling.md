@@ -44,6 +44,10 @@ CPU across the process tree, never silence alone.
 
 D333 ends custom gate authoring and checker qualification. Use native lint, typecheck, dependency-cruiser and application tests.
 
+## Codemods
+
+A repeatable multi-file rewrite is a codemod under `tooling/src/codemods/`. The `codemod` skill owns the authoring, verification and apply steps.
+
 ## Shared code facts and readers
 
 Before you fold two readers or code facts into one, compare every version case by case. Keep the most correct recognition, or write one merged reader that is better than each. A parity proof alone does not qualify a fold, because it keeps a weaker version's gaps. Record each case where the versions differed, the behavior kept and why, in the change's report.

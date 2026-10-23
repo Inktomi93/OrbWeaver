@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "remove-composed-real-warm"
+version: "0.1.0"
+description: "Remove the per-file composed-real warm import from integration tests after the vitest integration project owns the warm through setupFiles."
+author: "Orbweaver"
+license: "AGPL-3.0-only"
+targets:
+  languages: ["typescript"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

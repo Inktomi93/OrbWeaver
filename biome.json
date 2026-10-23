@@ -18,6 +18,7 @@
       "!packages/ui/src/tokens/themes.gen.ts",
       "!packages/ui/src/styles/theme.css",
       "!tooling/src/snap/lib/devtools-frontend",
+      "!tooling/src/codemods/*/tests",
       "!**/node_modules",
       "!**/.git",
       "!**/reports",
@@ -543,6 +544,10 @@
     }
   },
   "overrides": [
+    {
+      "includes": ["tooling/src/codemods/*/scripts/*.ts"],
+      "linter": { "rules": { "style": { "noDefaultExport": "off" } } }
+    },
     {
       "includes": ["tests/**/*.ct.tsx", "tests/**/*.spec.ts", "tests/e2e/**/*.{ts,tsx}", "!tests/**/*.test.ts"],
       "linter": {

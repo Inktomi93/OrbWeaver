@@ -200,6 +200,9 @@ catalogs:
     '@codemirror/state':
       specifier: ^6.7.6
       version: 6.7.6
+    '@codemod.com/jssg-types':
+      specifier: 1.6.3
+      version: 1.6.3
     '@dnd-kit/dom':
       specifier: ^0.5.1
       version: 0.5.1
@@ -353,6 +356,9 @@ catalogs:
     codemirror:
       specifier: ^6.0.2
       version: 6.0.2
+    codemod:
+      specifier: 1.18.6
+      version: 1.18.6
     colorjs.io:
       specifier: 0.7.1
       version: 0.7.1
@@ -577,6 +583,9 @@ importers:
       '@biomejs/biome':
         specifier: 'catalog:'
         version: 2.6.2
+      '@codemod.com/jssg-types':
+        specifier: 'catalog:'
+        version: 1.6.3
       '@opentelemetry/api':
         specifier: 'catalog:'
         version: 1.10.0
@@ -664,6 +673,9 @@ importers:
       '@vitest/eslint-plugin':
         specifier: 'catalog:'
         version: 1.6.27(patch_hash=5d9b0cfbe2f217abee47c556cc65d2e534ae4c5c53cf97f675491dfee1a767d7)(@typescript-eslint/eslint-plugin@8.72.0(@typescript-eslint/parser@8.72.0(@typescript/typescript6@6.0.2)(eslint@10.13.0(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0))(@typescript/typescript6@6.0.2)(eslint@10.13.0(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0))(@typescript/typescript6@6.0.2)(eslint@10.13.0(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)(vitest@5.0.5)
+      codemod:
+        specifier: 'catalog:'
+        version: 1.18.6
       dependency-cruiser:
         specifier: 'catalog:'
         version: 18.7.0
@@ -1685,6 +1697,55 @@ packages:
 
   '@codemirror/view@6.43.15':
     resolution: {integrity: sha512-HHsfpqFeHyXLs983pSRe38Xajs0vFWZQ2BuX0m7Ki8w3jZ5iD8cuR3lBz2/5/X53Dhf32SBHKh6rtSTB6tKeGw==}
+
+  '@codemod.com/cli-darwin-arm64@1.18.6':
+    resolution: {integrity: sha512-uI1rnUMWDPNSJqJWLd8Ny/QIRgu/eOUBi0WhQLYtghHwMtWBcHi/Tj2DVS06MV3oBkgnvDQ5bAjk1jAC/lj08Q==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@codemod.com/cli-darwin-x64@1.18.6':
+    resolution: {integrity: sha512-fk4O3MHRzBsO9NoSEyTsAQnAqsD9+H+9hzXkDvH/aF3ty+woHD7nODy66LfkKIgpGz9xK9VfyU2vrPrFC3jehg==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [darwin]
+
+  '@codemod.com/cli-linux-arm64-gnu@1.18.6':
+    resolution: {integrity: sha512-dCmspZYPDVBX8EW93AR5ZHlllxF0bSBHCdkOib9i9Z1Xj8lBXuPZNfutL/BdRzoO37L618Hror9pNbXyYoqCvg==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  '@codemod.com/cli-linux-arm64-musl@1.18.6':
+    resolution: {integrity: sha512-OnKJpNEFp2MeF4zJRb8CwE1baalr16PNJHGSCsMhYY/HNRP5RLS+/w05e7nx0RMm4FMA5hFCBhHBA2D+9vk0Zg==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [linux]
+    libc: [musl]
+
+  '@codemod.com/cli-linux-x64-gnu@1.18.6':
+    resolution: {integrity: sha512-vKlGc40CBePeweGtstNt2wmMmhUT4D1as4sPV9IKKitchG5CEFI5HIizvVC1PkPmME7edGr9gT5huHex6Y5zLQ==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  '@codemod.com/cli-linux-x64-musl@1.18.6':
+    resolution: {integrity: sha512-4fFToEd8p5FJ27CWVJzGFWp9ys/bwAHTLrlAh7ms6sXcHFnq17s1YmuKbmCfTbfpjkKtpkwrExhNMq0RRqJPvw==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [linux]
+    libc: [musl]
+
+  '@codemod.com/cli-win32-x64-msvc@1.18.6':
+    resolution: {integrity: sha512-/l/na7Vg7BaJn0m6QzbnfLZKjHrdDWacE9YVvfx2gG3v7wWCNiBxLcGX1ZqldlrxSJ2yayNa3ZpHdeyJupGV+A==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [win32]
+
+  '@codemod.com/jssg-types@1.6.3':
+    resolution: {integrity: sha512-b5829ixO5TdGL5xg5YcL9YfiLC3WwFZU+8Zx78NpsHlJ1iySbqfA0g0psqNXv8ss/r7hdpy2KiBXm3GE6bN5bQ==}
 
   '@csstools/css-calc@3.4.3':
     resolution: {integrity: sha512-iex20d8CHVkyvg6B7UKV7uHnI2Bqo9g+EFfT9E0y+GvTvhZ/DwONJ+9aKb1dlqm0ZiGsL5RXjp0fCoJYnkeDjA==}
@@ -4587,6 +4648,11 @@ packages:
 
   codemirror@6.0.2:
     resolution: {integrity: sha512-VhydHotNW5w1UGK0Qj96BwSk/Zqbp9WbnyK2W/eVMv4QyF41INRGpjUhFJY7/uDNuudSc33a/PKr4iDqRduvHw==}
+
+  codemod@1.18.6:
+    resolution: {integrity: sha512-1ZgVgBuzXGVH/G/6rupovWGCbYCZyl+BZJ6LZdpG9vMILucCtZORtqqoELwDmVbJ5Zb9De+3remZjjG8v2q0nA==}
+    engines: {node: '>= 16.0.0'}
+    hasBin: true
 
   color-convert@2.0.1:
     resolution: {integrity: sha512-RRECPsj7iu/xb5oKYcsFHSppFNnsj/52OVTRKb4zP5onXwVF3zVmmToNcOfGC+CRDpfK/U584fMg38ZHCaElKQ==}
@@ -8546,6 +8612,29 @@ snapshots:
       style-mod: 4.1.4
       w3c-keyname: 2.2.8
 
+  '@codemod.com/cli-darwin-arm64@1.18.6':
+    optional: true
+
+  '@codemod.com/cli-darwin-x64@1.18.6':
+    optional: true
+
+  '@codemod.com/cli-linux-arm64-gnu@1.18.6':
+    optional: true
+
+  '@codemod.com/cli-linux-arm64-musl@1.18.6':
+    optional: true
+
+  '@codemod.com/cli-linux-x64-gnu@1.18.6':
+    optional: true
+
+  '@codemod.com/cli-linux-x64-musl@1.18.6':
+    optional: true
+
+  '@codemod.com/cli-win32-x64-msvc@1.18.6':
+    optional: true
+
+  '@codemod.com/jssg-types@1.6.3': {}
+
   '@csstools/css-calc@3.4.3(@csstools/css-parser-algorithms@4.0.2(@csstools/css-tokenizer@4.0.2))(@csstools/css-tokenizer@4.0.2)':
     dependencies:
       '@csstools/css-parser-algorithms': 4.0.2(@csstools/css-tokenizer@4.0.2)
@@ -10983,6 +11072,18 @@ snapshots:
       '@codemirror/search': 6.7.2
       '@codemirror/state': 6.7.6
       '@codemirror/view': 6.43.15
+
+  codemod@1.18.6:
+    dependencies:
+      detect-libc: 2.1.2
+    optionalDependencies:
+      '@codemod.com/cli-darwin-arm64': 1.18.6
+      '@codemod.com/cli-darwin-x64': 1.18.6
+      '@codemod.com/cli-linux-arm64-gnu': 1.18.6
+      '@codemod.com/cli-linux-arm64-musl': 1.18.6
+      '@codemod.com/cli-linux-x64-gnu': 1.18.6
+      '@codemod.com/cli-linux-x64-musl': 1.18.6
+      '@codemod.com/cli-win32-x64-msvc': 1.18.6
 
   color-convert@2.0.1:
     dependencies:

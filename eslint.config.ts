@@ -144,6 +144,7 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
 
       "packages/ui/src/tokens/index.ts",
       "tooling/src/snap/lib/devtools-frontend/**",
+      "tooling/src/codemods/*/tests/**",
     ],
   },
   {

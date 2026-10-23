@@ -17,6 +17,7 @@ const configs =
           .filter((config) => config !== routerConfig)
           .sort(),
         "tooling/tsconfig.json",
+        "tooling/src/codemods/tsconfig.json",
         "tsconfig.json",
         "tsconfig.tests-dom.json",
         "tsconfig.tests-iso.json",
