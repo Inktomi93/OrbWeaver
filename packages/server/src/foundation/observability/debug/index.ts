@@ -14,6 +14,7 @@ export {
   isWireReplyCaptureEnabled,
   recordTurnOutcome,
   recordWireCapture,
+  settleWireCaptureSpill,
   type WireCaptureFilter,
   type WireOutcome,
   type WireToolCall,

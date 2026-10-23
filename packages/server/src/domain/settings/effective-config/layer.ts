@@ -3,7 +3,7 @@
 // admin override moves. Pure (no I/O, no cache) — cache + reload live in cache.ts.
 
 import type { AuthMode } from "@orb/contracts/identity";
-import type { AppSettings, EffectiveAppConfig, RateLimits, ResolvedRateLimits } from "@orb/contracts/settings";
+import type { AppSettings, EffectiveAppConfig, LogLevel, RateLimits, ResolvedRateLimits } from "@orb/contracts/settings";
 import { DEFAULT_DISCREET_LOGIN, DEFAULT_LOCAL_MULTI_USER, DEFAULT_MAX_IMAGE_BYTES, PROMPT_CACHE_MIN_DEPTH_FLOOR } from "@orb/contracts/settings";
 import { DATABANK_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
 import { MS_PER_DAY } from "@orb/kit/time";
@@ -79,12 +79,13 @@ function resolveRateLimits(o: RateLimits | null | undefined): ResolvedRateLimits
  * Resolve the stored override blob against the floor → the fully-present `EffectiveAppConfig`. Each field
  * is `override ?? floor`: `undefined` (absent) AND a stored `null` (the CLEAR sentinel) both fall through
  * to the floor — so an admin PATCH `{ field: null }` wipes the override and the floor reads back.
+ * `logLevelFloor` is the composition root's log level, `env.LOG_LEVEL` unless the root supplies its own.
  */
-export function layer(overrides: AppSettings, authMode: AuthMode = env.AUTH_MODE): EffectiveAppConfig {
+export function layer(overrides: AppSettings, authMode: AuthMode = env.AUTH_MODE, logLevelFloor: LogLevel = env.LOG_LEVEL): EffectiveAppConfig {
   return {
     corpusAutoindex: overrides.corpusAutoindex ?? env.CORPUS_AUTOINDEX,
     importSkipCharacters: overrides.importSkipCharacters ?? splitCsv(env.IMPORT_SKIP_CHARACTERS),
-    logLevel: overrides.logLevel ?? env.LOG_LEVEL,
+    logLevel: overrides.logLevel ?? logLevelFloor,
     forbidExternalMedia: overrides.forbidExternalMedia ?? FORBID_EXTERNAL_MEDIA_FLOOR,
     trustHtml: overrides.trustHtml ?? TRUST_HTML_FLOOR,
     allowInteractiveCards: overrides.allowInteractiveCards ?? ALLOW_INTERACTIVE_CARDS_FLOOR,

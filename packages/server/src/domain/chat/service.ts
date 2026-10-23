@@ -100,6 +100,7 @@ export function createChatService(
       ...(ctx.timers === undefined ? {} : { timers: ctx.timers }),
       ...(ctx.backgroundSignal === undefined ? {} : { backgroundSignal: ctx.backgroundSignal }),
       ...(ctx.trackBackground === undefined ? {} : { trackBackground: ctx.trackBackground }),
+      ...(ctx.recordTurnOutcome === undefined ? {} : { recordTurnOutcome: ctx.recordTurnOutcome }),
       rpg:
         ctx.rpg === null
           ? null

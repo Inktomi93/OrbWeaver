@@ -1,16 +1,15 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 import "@orb/testkit/node/composed-real.ts";
 import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { LogLevel } from "@orb/contracts/settings";
 import { chatLocks, messages, messageVariants } from "@orb/db";
 import { logRing } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { terminalSseLine } from "@orb/testkit/node/provider-stream.ts";
 import { eq } from "drizzle-orm";
-import { afterAll, vi } from "vitest";
 import { coreFrame, coreHttpRoom, coreSse } from "./core-physical.ts";
 
-vi.hoisted(() => vi.stubEnv("LOG_LEVEL", "warn"));
-afterAll(() => vi.unstubAllEnvs());
+const CORE_LOG_LEVEL = "warn" satisfies LogLevel;
 
 const REFUSAL_ROWS = [
   {
@@ -62,7 +61,7 @@ test.for(REFUSAL_ROWS)("native $label refuses without changing selected canon an
       terminalSseLine({ finishReason: row.rawFinishReason, usage: { promptTokens: 4, completionTokens: 3 } }),
     ]);
   };
-  await using h = await coreHttpRoom(row.swipe ? [prior, response] : [response]);
+  await using h = await coreHttpRoom(row.swipe ? [prior, response] : [response], { server: { logLevel: CORE_LOG_LEVEL } });
   const target = row.swipe ? (await h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId })).messages[0] : undefined;
   if (row.swipe && target === undefined) {
     throw new Error("the real swipe control committed no target");
@@ -102,15 +101,18 @@ test.for(REFUSAL_ROWS)("native $label refuses without changing selected canon an
 });
 
 test("an actual truncated swipe commits its partial prose and selects the new variant", async () => {
-  await using h = await coreHttpRoom([
-    (): Response =>
-      coreSse([coreFrame({ choices: [{ delta: { content: "The prior reply." } }] }), terminalSseLine({ usage: { promptTokens: 4, completionTokens: 2 } })]),
-    (): Response =>
-      coreSse([
-        coreFrame({ choices: [{ delta: { content: "The door creaks" } }] }),
-        terminalSseLine({ finishReason: "length", usage: { promptTokens: 4, completionTokens: 3 } }),
-      ]),
-  ]);
+  await using h = await coreHttpRoom(
+    [
+      (): Response =>
+        coreSse([coreFrame({ choices: [{ delta: { content: "The prior reply." } }] }), terminalSseLine({ usage: { promptTokens: 4, completionTokens: 2 } })]),
+      (): Response =>
+        coreSse([
+          coreFrame({ choices: [{ delta: { content: "The door creaks" } }] }),
+          terminalSseLine({ finishReason: "length", usage: { promptTokens: 4, completionTokens: 3 } }),
+        ]),
+    ],
+    { server: { logLevel: CORE_LOG_LEVEL } },
+  );
   const events: ChatBusEvent[] = [];
   using subscriptions = new DisposableStack();
   subscriptions.defer(

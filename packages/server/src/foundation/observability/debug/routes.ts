@@ -403,16 +403,15 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = { a
   // completion apart from a provider that returned nothing — this is what closes that. Metadata only, never
   // reply text. Empty when capture is off.
   //
-  // `enabled` (#412) is `isWireCaptureEnabled()` — the env flag ALONE — because that is the outcome arm's own
-  // self-gate (`recordTurnOutcome` returns early on it; it has no compose seam). A forced-on int test therefore
-  // records requests with `enabled: true` here and outcomes with `enabled: false`, which is the truth.
+  // `enabled` (#412) is the same compose decision as the request read: compose wires the outcome recorder
+  // into the engine on exactly the gate it wires the request sink on.
   app.get("/api/_debug/wire/outcomes", (c) => {
     const chatId = c.req.query("chatId");
     const outcomes = recentTurnOutcomes({
       ...(chatId !== undefined ? { chatId: castId<ChatId>(chatId) } : {}),
       limit: toDebugLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
     });
-    return c.json({ enabled: isWireCaptureEnabled(), count: outcomes.length, outcomes });
+    return c.json({ enabled: wireCaptureEnabled(), count: outcomes.length, outcomes });
   });
 
   app.get("/api/_debug/requests", (c) => {

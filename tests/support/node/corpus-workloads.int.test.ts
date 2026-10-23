@@ -3,10 +3,10 @@
 import "./composed-real.ts";
 import { setTimeout as physicalDelay, setImmediate as physicalTurn } from "node:timers/promises";
 import { createCharacterSchema } from "@orb/contracts/character";
+import type { LogLevel } from "@orb/contracts/settings";
 import { WORKLOAD_LIST_MAX_LIMIT } from "@orb/contracts/workloads";
 import { characterEmbeddings, closeDb, embeddingCalls } from "@orb/db";
 import { logRing } from "@orb/server/foundation/observability";
-import { afterAll, vi } from "vitest";
 import { createFrozenClock } from "../iso/clock.ts";
 import { createControlledTimers } from "../iso/timers.ts";
 import { seedCorpusAccount } from "./corpus-auth.ts";
@@ -17,10 +17,7 @@ import { freshHeldDb } from "./db.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 
-vi.hoisted(() => {
-  vi.stubEnv("LOG_LEVEL", "info");
-});
-afterAll(() => vi.unstubAllEnvs());
+const WORKLOAD_LOG_LEVEL = "info" satisfies LogLevel;
 
 const DEADLINE_OBSERVATION_TIMEOUT_MS = 10_000;
 const TIMEOUT_DELIVERY_OBSERVATION_MS = 6000;
@@ -32,7 +29,7 @@ test(
     await using database = new AsyncDisposableStack();
     const held = await freshHeldDb();
     database.defer(() => closeDb(held.db));
-    await using root = await createServerHarness({ db: held.db, startJobs: false });
+    await using root = await createServerHarness({ logLevel: WORKLOAD_LOG_LEVEL, db: held.db, startJobs: false });
     const caller = await root.internalCallerFor(root.ownerId);
     const admitted = await caller.workloads.start({ input: { kind: "reconcile-stats", params: {} }, mode: "singular" });
     const before = await caller.workloads.get({ id: admitted.id });
@@ -83,7 +80,7 @@ test(
     await using database = new AsyncDisposableStack();
     const held = await freshHeldDb();
     database.defer(() => closeDb(held.db));
-    await using root = await createServerHarness({ db: held.db, startJobs: false });
+    await using root = await createServerHarness({ logLevel: WORKLOAD_LOG_LEVEL, db: held.db, startJobs: false });
     const caller = await root.internalCallerFor(root.ownerId);
     const admitted = await caller.workloads.start({ input: { kind: "reconcile-stats", params: {} }, mode: "singular" });
     const started = [admitted];
@@ -140,7 +137,7 @@ test(
     await using database = new AsyncDisposableStack();
     const held = await freshHeldDb();
     database.defer(() => closeDb(held.db));
-    await using root = await createServerHarness({ db: held.db });
+    await using root = await createServerHarness({ logLevel: WORKLOAD_LOG_LEVEL, db: held.db });
     await root.settleBackground();
     const caller = await root.internalCallerFor(root.ownerId);
     const admitted = await caller.workloads.start({
@@ -203,7 +200,7 @@ test(
     await using database = new AsyncDisposableStack();
     const held = await freshHeldDb();
     database.defer(() => closeDb(held.db));
-    await using root = await createServerHarness({ db: held.db, startJobs: false });
+    await using root = await createServerHarness({ logLevel: WORKLOAD_LOG_LEVEL, db: held.db, startJobs: false });
     const owner = await root.internalCallerFor(root.ownerId);
     const foreign = await seedCorpusAccount(root);
     const observer = await root.internalCallerFor(foreign.userId);
@@ -262,7 +259,7 @@ test("physical provider completion cannot advance persisted corpus workload time
       }
       return await physical.execute(request);
     };
-    await using root = await createServerHarness({ providerFetch: execute });
+    await using root = await createServerHarness({ logLevel: WORKLOAD_LOG_LEVEL, providerFetch: execute });
     const principal = await root.principalFor(root.ownerId);
     await root.services.character.create({
       principal,
@@ -289,7 +286,7 @@ test("native background settlement joins the worker post-run read before certify
   await using database = new AsyncDisposableStack();
   const held = await freshHeldDb();
   database.defer(() => closeDb(held.db));
-  await using root = await createServerHarness({ db: held.db });
+  await using root = await createServerHarness({ logLevel: WORKLOAD_LOG_LEVEL, db: held.db });
   await root.settleBackground();
   const caller = await root.internalCallerFor(root.ownerId);
   const admitted = await caller.workloads.start({ input: { kind: "compute-cooccurrence", params: {} }, mode: "bulk" });
@@ -328,6 +325,7 @@ test("native sleep registration refusal retains its worker error owner without r
   let refusing = false;
   let failures = 0;
   await using root = await createServerHarness({
+    logLevel: WORKLOAD_LOG_LEVEL,
     clock,
     timers: {
       ...timers,
@@ -362,7 +360,7 @@ test("native sleep registration refusal retains its worker error owner without r
 });
 
 test("manual native corpus execution joins only its admitted jobs and leaves an older queued job untouched", async () => {
-  await using root = await createServerHarness({ startJobs: false });
+  await using root = await createServerHarness({ logLevel: WORKLOAD_LOG_LEVEL, startJobs: false });
   const caller = await root.internalCallerFor(root.ownerId);
   const older = await caller.workloads.start({ input: { kind: "compute-cooccurrence", params: {} }, mode: "bulk" });
   const before = await caller.workloads.get({ id: older.id });
@@ -394,7 +392,7 @@ test("manual native corpus execution joins only its admitted jobs and leaves an 
 });
 
 test("selected native corpus settlement reads its exact admitted ID behind newer history", async () => {
-  await using root = await createServerHarness({ startJobs: false });
+  await using root = await createServerHarness({ logLevel: WORKLOAD_LOG_LEVEL, startJobs: false });
   const caller = await root.internalCallerFor(root.ownerId);
   const principal = await root.principalFor(root.ownerId);
   const admitted = await caller.workloads.start({ input: { kind: "reconcile-stats", params: {} }, mode: "singular" });

@@ -1,12 +1,15 @@
-import { getTraceByRequestId, logRing, span, superviseDetached, superviseSettled } from "@orb/server/foundation/observability";
+import { getTraceByRequestId, logger, logRing, span, superviseDetached, superviseSettled } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { afterAll, vi } from "vitest";
+import { beforeAll } from "vitest";
 
-// Configure the real destinations before logger construction; the runner's silent floor emits no log bytes.
-vi.hoisted(() => {
-  vi.stubEnv("LOG_LEVEL", "error");
+// The runner's silent floor emits no log bytes; these cases read the error report from the real logger.
+beforeAll(() => {
+  const runnerLogLevel = logger.level;
+  logger.level = "error";
+  return (): void => {
+    logger.level = runnerLogLevel;
+  };
 });
-afterAll(() => vi.unstubAllEnvs());
 
 const OPERATION_KIND = "lifetime-probe";
 const SUCCESS_SPAN = "owned.success";

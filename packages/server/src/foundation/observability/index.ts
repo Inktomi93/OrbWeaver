@@ -17,6 +17,7 @@ export {
   recordTurnOutcome,
   recordWireCapture,
   registerDebugRoutes,
+  settleWireCaptureSpill,
   type WireCaptureFilter,
   type WireOutcome,
   type WireToolCall,

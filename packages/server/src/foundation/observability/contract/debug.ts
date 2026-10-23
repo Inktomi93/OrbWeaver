@@ -54,8 +54,7 @@ export interface DebugRoutesOptions {
   memoryRecall?: MemoryRecallInspector;
   sockets?: SocketInspector;
   effectiveConfig?: () => EffectiveAppConfig;
-  /** The live request-sink decision includes composition overrides unavailable to foundation.
-   * Outcomes instead report the environment decision that gates their own recorder. */
+  /** The live capture decision for both wire reads; it includes composition overrides unavailable to foundation. */
   wireCaptureEnabled?: () => boolean;
   auth?: DebugAuthOptions | string;
 }

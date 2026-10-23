@@ -2,7 +2,6 @@
 import "./composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { characterEmbeddings, characters, embeddingCalls } from "@orb/db";
-import { afterAll, vi } from "vitest";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -15,12 +14,6 @@ import { seedCorpusConnections } from "./corpus-seed.ts";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
-
-vi.hoisted(() => {
-  vi.stubEnv("LOG_LEVEL", "error");
-  vi.stubEnv("CORPUS_AUTOINDEX", "false");
-});
-afterAll(() => vi.unstubAllEnvs());
 
 test("native corpus provider serves the existing script and retires its socket", async () => {
   await using provider = await createCorpusProviderServer(async (baseUrl) =>
@@ -79,9 +72,12 @@ test("request-sensitive corpus embeddings preserve real near-duplicates without 
   const population = 144;
   await using provider = await createCorpusProviderServer(async (baseUrl) => (await createCorpusRecipeExecution(baseUrl)).execution);
   const transport = createCorpusProviderTransport(provider.baseUrl);
-  await using root = await createServerHarness({ startJobs: false, providerFetch: transport.fetch, networkExecution: transport });
+  await using root = await createServerHarness({ logLevel: "error", startJobs: false, providerFetch: transport.fetch, networkExecution: transport });
   const principal = await root.principalFor(root.ownerId);
-  await root.services.settings.updateAppSettings({ principal, partial: { privateEndpointAllowlist: [new URL(provider.baseUrl).hostname] } });
+  await root.services.settings.updateAppSettings({
+    principal,
+    partial: { corpusAutoindex: false, privateEndpointAllowlist: [new URL(provider.baseUrl).hostname] },
+  });
   const connections = await seedCorpusConnections(root, principal);
   await root.services.connection.update({ principal, connectionId: connections.embed.id, patch: { baseUrl: provider.baseUrl } });
   const cards: Awaited<ReturnType<typeof root.services.character.create>>[] = [];

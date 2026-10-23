@@ -3,21 +3,19 @@ import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import process from "node:process";
 import { declaredCapabilitySchema } from "@orb/contracts/inference";
 import type { VerifyAuthResult } from "@orb/contracts/providers";
+import type { LogLevel } from "@orb/contracts/settings";
 import type { AgentSdkNativeOptions, AgentSdkQuery, AgentSdkSpawn, ChatResult, Resolved } from "@orb/inference";
 import { ProviderError, toChatRequest } from "@orb/inference";
 import { logRing, runInRequest } from "@orb/server/foundation/observability";
 import { sql } from "drizzle-orm";
-import { afterAll, vi } from "vitest";
+import { vi } from "vitest";
 import { z } from "zod";
 import { expect, test } from "./fixtures.ts";
 import { createSdkProcessIdentity, createSdkProcessSpawner } from "./sdk-process.ts";
 import { createServerHarness } from "./server.ts";
 
-// Select the real logger destinations before construction; the runner otherwise disables every log sink.
-vi.hoisted(() => {
-  vi.stubEnv("LOG_LEVEL", "error");
-});
-afterAll(() => vi.unstubAllEnvs());
+// The runner floor is silent; the diagnostics these cases read are logged at error.
+const SDK_LOG_LEVEL = "error" satisfies LogLevel;
 
 const SDK_TOKEN = 'controlled-sdk-"<cross-chunk>\\token';
 
@@ -48,7 +46,7 @@ test("synchronous SDK execution refusal releases the already-armed side-generati
     atExecution = readPending();
     throw failure;
   });
-  await using harness = await createServerHarness({ secretBoxKey: Buffer.alloc(32, 1), sdkQuery: execute });
+  await using harness = await createServerHarness({ logLevel: SDK_LOG_LEVEL, secretBoxKey: Buffer.alloc(32, 1), sdkQuery: execute });
   const connection = await savedSummarizer(harness);
   readPending = harness.timers.pending;
   const before = readPending();
@@ -62,7 +60,7 @@ test("asynchronous prompt preparation refusal releases idle ownership before SDK
   const execute: AgentSdkQuery = vi.fn((): never => {
     throw new Error("SDK execution must not receive the refused prompt");
   });
-  await using harness = await createServerHarness({ secretBoxKey: Buffer.alloc(32, 1), sdkQuery: execute });
+  await using harness = await createServerHarness({ logLevel: SDK_LOG_LEVEL, secretBoxKey: Buffer.alloc(32, 1), sdkQuery: execute });
   const connection = await savedSummarizer(harness);
   const before = harness.timers.pending();
   await expect(
@@ -91,7 +89,7 @@ test("native SDK Query keeps idle ownership while its physical stream is active 
     });
     return child;
   });
-  await using harness = await createServerHarness({ secretBoxKey: Buffer.alloc(32, 1), sdkSpawn: spawn });
+  await using harness = await createServerHarness({ logLevel: SDK_LOG_LEVEL, secretBoxKey: Buffer.alloc(32, 1), sdkSpawn: spawn });
   const connection = await savedSummarizer(harness);
   readPending = harness.timers.pending;
   const before = readPending();
@@ -140,7 +138,7 @@ test("root cancellation joins its actual SDK child and owned grandchild exit bef
     });
     return child;
   };
-  await using harness = await createServerHarness({ secretBoxKey: Buffer.alloc(32, 1), sdkSpawn: spawn });
+  await using harness = await createServerHarness({ logLevel: SDK_LOG_LEVEL, secretBoxKey: Buffer.alloc(32, 1), sdkSpawn: spawn });
   const connection = await savedSummarizer(harness);
   const turn = harness.app.runtime.executor
     .summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_OWNED_DESCENDANT SDK_HOLD_UNTIL_CANCEL" }] })
@@ -197,7 +195,7 @@ test("normal native SDK settlement waits for its owned descendant exit, not only
     });
     return child;
   };
-  await using harness = await createServerHarness({ secretBoxKey: Buffer.alloc(32, 1), sdkSpawn: spawn });
+  await using harness = await createServerHarness({ logLevel: SDK_LOG_LEVEL, secretBoxKey: Buffer.alloc(32, 1), sdkSpawn: spawn });
   const connection = await savedSummarizer(harness);
   let settled = false;
   const result = harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_OWNED_DESCENDANT" }] }).then((value) => {
@@ -226,7 +224,7 @@ test("raw SDK startup failure retains scrubbed split-UTF8 stderr diagnostics and
     child = execute(options);
     return child;
   };
-  await using harness = await createServerHarness({ secretBoxKey: Buffer.alloc(32, 1), sdkSpawn: spawn });
+  await using harness = await createServerHarness({ logLevel: SDK_LOG_LEVEL, secretBoxKey: Buffer.alloc(32, 1), sdkSpawn: spawn });
   const connection = await savedSummarizer(harness);
   await expect(
     harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_DIAGNOSTIC_CRASH" }] }),
@@ -254,7 +252,7 @@ test("native catalog and verify queries close their actual children after native
     child.once("close", () => closed.add(child));
     return child;
   };
-  await using harness = await createServerHarness({ secretBoxKey: Buffer.alloc(32, 1), sdkSpawn: spawn });
+  await using harness = await createServerHarness({ logLevel: SDK_LOG_LEVEL, secretBoxKey: Buffer.alloc(32, 1), sdkSpawn: spawn });
   const connection = await savedSummarizer(harness);
   const listing = await harness.app.runtime.diagnostics.listModels({ connection });
   expect(listing).toEqual({ listed: false, reason: "the provider listed no models" });
@@ -276,7 +274,7 @@ test("unexpected physical stderr failure stays visible at graph settlement witho
     owned.stderr.once("data", () => owned.stderr.destroy(failure));
     return owned;
   };
-  await using harness = await createServerHarness({ secretBoxKey: Buffer.alloc(32, 1), sdkSpawn: spawn });
+  await using harness = await createServerHarness({ logLevel: SDK_LOG_LEVEL, secretBoxKey: Buffer.alloc(32, 1), sdkSpawn: spawn });
   const connection = await savedSummarizer(harness);
   await expect(
     harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_DIAGNOSTIC_CRASH" }] }),
@@ -294,7 +292,7 @@ test("native raw exit diagnostics include stderr drained by a real descendant af
     child = execute(options);
     return child;
   };
-  await using harness = await createServerHarness({ secretBoxKey: Buffer.alloc(32, 1), sdkSpawn: spawn });
+  await using harness = await createServerHarness({ logLevel: SDK_LOG_LEVEL, secretBoxKey: Buffer.alloc(32, 1), sdkSpawn: spawn });
   const connection = await savedSummarizer(harness);
   await expect(harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_LATE_DIAGNOSTIC" }] })).rejects.toMatchObject(
     { kind: "server" },
@@ -314,7 +312,7 @@ test("native stderr never publishes overlapping public fixture credential fragme
     child.stderr.once("data", () => child.kill("SIGUSR2"));
     return child;
   };
-  await using harness = await createServerHarness({ secretBoxKey: Buffer.alloc(32, 1), sdkSpawn: spawn });
+  await using harness = await createServerHarness({ logLevel: SDK_LOG_LEVEL, secretBoxKey: Buffer.alloc(32, 1), sdkSpawn: spawn });
   const connection = await savedSummarizer(harness, PUBLIC_OVERLAP_TOKEN);
   await expect(
     harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_OVERLAP_DIAGNOSTIC" }] }),
@@ -336,7 +334,7 @@ test.each(["intact", "split"] as const)("native stderr protects a known sk-shape
     }
     return child;
   };
-  await using harness = await createServerHarness({ secretBoxKey: Buffer.alloc(32, 1), sdkSpawn: spawn });
+  await using harness = await createServerHarness({ logLevel: SDK_LOG_LEVEL, secretBoxKey: Buffer.alloc(32, 1), sdkSpawn: spawn });
   const connection = await savedSummarizer(harness, PUBLIC_SHAPED_TOKEN);
   await expect(
     harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: `SDK_SHAPED_DIAGNOSTIC:${mode}` }] }),
@@ -374,6 +372,7 @@ test("physical SDK identity replays deterministically without colliding across c
     };
     const execute = createSdkProcessSpawner(new URL("./sdk-timer-process.mjs", import.meta.url));
     await using harness = await createServerHarness({
+      logLevel: SDK_LOG_LEVEL,
       secretBoxKey: Buffer.alloc(32, 1),
       ...(native
         ? { sdkNative: nativeSdkOptions(observe) }
@@ -419,6 +418,7 @@ test("default native transport retains prepared executable and argv while joinin
   let child: ChildProcessWithoutNullStreams | undefined;
   let closed = false;
   await using harness = await createServerHarness({
+    logLevel: SDK_LOG_LEVEL,
     secretBoxKey: Buffer.alloc(32, 1),
     sdkNative: nativeSdkOptions((value) => {
       child = value;
@@ -446,6 +446,7 @@ test("default native root cancellation joins actual child and reaped descendant 
   let descendantExited = false;
   let closed = false;
   await using harness = await createServerHarness({
+    logLevel: SDK_LOG_LEVEL,
     secretBoxKey: Buffer.alloc(32, 1),
     sdkNative: nativeSdkOptions((value) => {
       child = value;
@@ -511,6 +512,7 @@ test("default native observer construction refusal retains original fault and jo
   let child: ChildProcessWithoutNullStreams | undefined;
   let closed = false;
   await using harness = await createServerHarness({
+    logLevel: SDK_LOG_LEVEL,
     secretBoxKey: Buffer.alloc(32, 1),
     sdkNative: nativeSdkOptions((value) => {
       child = value;
@@ -544,6 +546,7 @@ test("default native asynchronous spawn refusal joins actual close without a PID
   let child: ChildProcessWithoutNullStreams | undefined;
   let closed = false;
   await using harness = await createServerHarness({
+    logLevel: SDK_LOG_LEVEL,
     secretBoxKey: Buffer.alloc(32, 1),
     sdkNative: {
       ...nativeSdkOptions((value) => {
@@ -568,6 +571,7 @@ test("default native decoder retains split UTF8 diagnostics with known credentia
   const logScope = "sdk-default-native-utf8";
   await using harness = await runInRequest(logScope, () =>
     createServerHarness({
+      logLevel: SDK_LOG_LEVEL,
       secretBoxKey: Buffer.alloc(32, 1),
       sdkNative: nativeSdkOptions((value) => {
         child = value;
@@ -592,6 +596,7 @@ test("default native caller cancellation joins actual child while leaving its gr
   let child: ChildProcessWithoutNullStreams | undefined;
   let closed = false;
   await using harness = await createServerHarness({
+    logLevel: SDK_LOG_LEVEL,
     secretBoxKey: Buffer.alloc(32, 1),
     sdkNative: nativeSdkOptions((value) => {
       child = value;
@@ -624,7 +629,9 @@ test("default native caller cancellation joins actual child while leaving its gr
 const PUBLIC_NATIVE_LONG_TOKEN = `native-public-${"N".repeat(2400)}-fixture-end`;
 test("default native stderr protects an oversized known opaque credential in application diagnostics", async () => {
   const logScope = "sdk-default-native-oversized";
-  await using harness = await runInRequest(logScope, () => createServerHarness({ secretBoxKey: Buffer.alloc(32, 1), sdkNative: nativeSdkOptions() }));
+  await using harness = await runInRequest(logScope, () =>
+    createServerHarness({ logLevel: SDK_LOG_LEVEL, secretBoxKey: Buffer.alloc(32, 1), sdkNative: nativeSdkOptions() }),
+  );
   const connection = await savedSummarizer(harness, PUBLIC_NATIVE_LONG_TOKEN);
   await expect(
     harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_SHAPED_DIAGNOSTIC:intact" }] }),
@@ -645,6 +652,7 @@ const NATIVE_STARTUP_ARGS = ["--import", new URL("./sdk-native-startup-failure.m
 test.each(["chat", "agent", "verify"] as const)("default native startup diagnostics use safe owned provenance for %s", async (operation) => {
   let closed = false;
   await using harness = await createServerHarness({
+    logLevel: SDK_LOG_LEVEL,
     secretBoxKey: Buffer.alloc(32, 1),
     sdkNative: {
       ...nativeSdkOptions((child) => {
@@ -733,6 +741,7 @@ test.each(["chat", "agent", "verify"] as const)("default native startup diagnost
 test("default native catalog refusal uses safe owned exit diagnostics", async () => {
   let closed = false;
   await using harness = await createServerHarness({
+    logLevel: SDK_LOG_LEVEL,
     secretBoxKey: Buffer.alloc(32, 1),
     sdkNative: {
       ...nativeSdkOptions((child) => {
@@ -760,6 +769,7 @@ test("default native concurrent exit does not relabel an unrelated caller event 
   const original = new Error("controlled caller event failure");
   let child: ChildProcessWithoutNullStreams | undefined;
   await using harness = await createServerHarness({
+    logLevel: SDK_LOG_LEVEL,
     secretBoxKey: Buffer.alloc(32, 1),
     sdkNative: nativeSdkOptions((value) => {
       child = value;
@@ -805,7 +815,7 @@ test("default native concurrent exit does not relabel an unrelated caller event 
 });
 
 test("default native stderr never publishes a confirmed known credential prefix on physical EOF", async () => {
-  await using harness = await createServerHarness({ secretBoxKey: Buffer.alloc(32, 1), sdkNative: nativeSdkOptions() });
+  await using harness = await createServerHarness({ logLevel: SDK_LOG_LEVEL, secretBoxKey: Buffer.alloc(32, 1), sdkNative: nativeSdkOptions() });
   const connection = await savedSummarizer(harness, PUBLIC_NATIVE_LONG_TOKEN);
   await expect(harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_PREFIX_EOF" }] })).rejects.toMatchObject({
     kind: "server",

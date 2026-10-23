@@ -4,25 +4,22 @@
 import "./composed-real.ts";
 import { SIGN_IN_TARGET_MODES } from "@orb/contracts/identity";
 import { PRESENCE_READ_MAX_USER_IDS } from "@orb/contracts/notifications";
+import type { LogLevel } from "@orb/contracts/settings";
 import type { ExternalId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { authModeSource, installKind } from "@orb/server/foundation/env";
 import { logger } from "@orb/server/foundation/observability";
-import { afterAll, vi } from "vitest";
 import { captureAccountViews } from "./corpus-auth.ts";
 import { captureNotificationViews } from "./factories/notification.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 import { captureShareViews } from "./share.ts";
 
-vi.hoisted(() => {
-  vi.stubEnv("LOG_LEVEL", "error");
-});
-afterAll(() => vi.unstubAllEnvs());
+const OUTPUT_LOG_LEVEL = "error" satisfies LogLevel;
 
 test("native account and sharing suppliers keep request identity and owner-only diagnostics separate from delegated sign-in guidance", async () => {
-  await using root = await createServerHarness({ authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" } });
+  await using root = await createServerHarness({ logLevel: OUTPUT_LOG_LEVEL, authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" } });
   const owner = await root.principalFor(root.ownerId);
   const admin = await root.actor({ role: "admin" });
   const subject = "private-native-supplier-subject";
@@ -84,7 +81,7 @@ test("native account and sharing suppliers keep request identity and owner-only 
 });
 
 test("native notification snapshots distinguish offline and unknown IDs from unavailable disclosure without leaking last-seen state", async () => {
-  await using root = await createServerHarness({ authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" } });
+  await using root = await createServerHarness({ logLevel: OUTPUT_LOG_LEVEL, authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" } });
   const owner = await root.principalFor(root.ownerId);
   await root.services.settings.updateAppSettings({ principal: owner, partial: { localMultiUser: true } });
   const reader = await root.actor();

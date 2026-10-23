@@ -8,6 +8,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import process from "node:process";
 import { Writable } from "node:stream";
+import type { LogLevel } from "@orb/contracts/settings";
 import { createBoundedRing } from "@orb/kit/bounded-ring";
 import type { Handle, UserId } from "@orb/kit/ids";
 import pino from "pino";
@@ -22,6 +23,7 @@ type Logger = pino.Logger;
 
 const LOG_RING_CAPACITY = 2000;
 const REQUEST_RING_CAPACITY = 500;
+const LOWEST_LOG_LEVEL = "trace" satisfies LogLevel;
 
 /** The pino stream-attached ring of raw serialized log lines — strings in, parsed lazily on query (cheap
  *  writes; the parse cost only happens when someone curls /api/_debug/logs). The debug surface reads it.
@@ -78,12 +80,12 @@ export const logger: Logger = pino(
       censor: "[redacted]",
     },
   },
-  // Each multistream destination needs its own level — without it pino.multistream defaults streams to
-  // `info` and silently drops debug logs even when the logger level is `debug`.
+  // Destinations admit every level so `logger.level` is the one gate: a fixed destination level (pino's
+  // default is `info`) would drop lines after a runtime `AppSettings.logLevel` raise past the boot level.
   pino.multistream(
     [
-      { level: env.LOG_LEVEL, stream: process.stdout },
-      { level: env.LOG_LEVEL, stream: ringStream },
+      { level: LOWEST_LOG_LEVEL, stream: process.stdout },
+      { level: LOWEST_LOG_LEVEL, stream: ringStream },
     ],
     { dedupe: false },
   ),

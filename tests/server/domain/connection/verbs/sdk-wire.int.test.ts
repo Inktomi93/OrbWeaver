@@ -11,23 +11,13 @@ import { logger, logRing, logSerializers } from "@orb/server/foundation/observab
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createSdkProcessSpawner } from "@orb/testkit/node/sdk-process.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";
-import { afterAll, vi } from "vitest";
-
-// Select the real Pino destinations before construction; the scoped runner otherwise silences every sink.
-vi.hoisted(() => {
-  vi.stubEnv("LOG_LEVEL", "error");
-});
-afterAll(() => vi.unstubAllEnvs());
 
 const MODEL = "sdk-wire-model";
 const SDK_TOKEN = "controlled-wire-oauth-token";
 
 async function rootFor(mode: string): Promise<Awaited<ReturnType<typeof createServerHarness>>> {
   const execute = createSdkProcessSpawner(new URL("./sdk-wire-child.ts", import.meta.url), [mode, MODEL, SDK_TOKEN]);
-  return await createServerHarness({
-    secretBoxKey: Buffer.alloc(32, 1),
-    sdkSpawn: execute,
-  });
+  return await createServerHarness({ logLevel: "error", secretBoxKey: Buffer.alloc(32, 1), sdkSpawn: execute });
 }
 
 async function savedConnection(root: Awaited<ReturnType<typeof createServerHarness>>): Promise<Resolved<"chat">> {

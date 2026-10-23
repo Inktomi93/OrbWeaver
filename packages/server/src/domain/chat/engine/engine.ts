@@ -49,7 +49,7 @@ import { isConstraintViolation } from "@orb/db/query";
 import type { Resolved, ResolvedWarning } from "@orb/inference";
 import { GenerationObservationPersistenceError, generationOf, ProviderError, supportsManagedCompaction } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, ModelId, UserConnectionId } from "@orb/kit/ids";
-import { getLog, recordTurnOutcome, withRequestSpan } from "#foundation/observability";
+import { getLog, withRequestSpan } from "#foundation/observability";
 import { systemTimers } from "#infra/timers";
 import type { EngineContext, EngineContextInput, EngineDeps } from "../contract/engine-context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
@@ -1285,13 +1285,17 @@ function abortReasonFor(err: unknown, signal: AbortSignal | undefined): TurnAbor
  */
 /** The RESPONSE half of wire capture (`/api/_debug/wire/outcomes`). Called BEFORE the empty-generation guard
  *  so a REFUSED turn still leaves the record that explains it — the case the request-only ring could never
- *  answer. Self-gated inside the recorder (no-op with capture off); metadata + tool-call args, never prose.
+ *  answer. A no-op when compose wired no recorder (capture off); metadata + tool-call args, never prose.
  *  Its FAULT twin is {@link captureTurnFault} — this arm can only ever run on a pipeline that RESOLVED. */
-function captureTurnOutcome(prep: TurnPrep, result: Awaited<ReturnType<typeof runTurnPipeline>>, at: number): void {
+function captureTurnOutcome(ctx: EngineContext, prep: TurnPrep, result: Awaited<ReturnType<typeof runTurnPipeline>>): void {
+  const recordOutcome = ctx.recordTurnOutcome;
+  if (recordOutcome === undefined) {
+    return;
+  }
   const economics = result.economics;
-  recordTurnOutcome({
+  recordOutcome({
     chatId: prep.chatId,
-    at,
+    at: ctx.now(),
     model: economics?.model ?? null,
     disposition: "completed",
     finishReason: economics?.finishReason ?? null,
@@ -1362,11 +1366,15 @@ function providerTerminalReason(err: unknown): string | null {
  * original error, so the whole body is wrapped. A recorder failure degrades to a warn line and the caller's
  * rethrow proceeds untouched.
  */
-function captureTurnFault(prep: TurnPrep, err: unknown, reason: TurnAbortReason, at: number): void {
+function captureTurnFault(ctx: EngineContext, prep: TurnPrep, err: unknown, reason: TurnAbortReason): void {
+  const recordOutcome = ctx.recordTurnOutcome;
+  if (recordOutcome === undefined) {
+    return;
+  }
   try {
-    recordTurnOutcome({
+    recordOutcome({
       chatId: prep.chatId,
-      at,
+      at: ctx.now(),
       model: prep.connection.model,
       disposition: reason,
       finishReason: null,
@@ -1775,7 +1783,7 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
       },
     } satisfies Parameters<typeof runTurnPipeline>[0];
     const firstPass = await runTurnPipeline(pipelineArgs);
-    captureTurnOutcome(prep, firstPass, ctx.now());
+    captureTurnOutcome(ctx, prep, firstPass);
     // RECOVER, do not discard. A reasoning turn whose
     // tool calls landed but whose prose did not is not a failed turn — it is a turn missing its second half,
     // and the half it HAS is the expensive one. `resolveTurnNarrative` re-runs it once for the narrative and
@@ -1786,7 +1794,7 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
       chatId: prep.chatId,
       pipelineArgs,
       first: firstPass,
-      onRecoveryOutcome: (recovered): void => captureTurnOutcome(prep, recovered, ctx.now()),
+      onRecoveryOutcome: (recovered): void => captureTurnOutcome(ctx, prep, recovered),
     });
     await deltaTail;
     const genFinishedAt = ctx.now();
@@ -1945,7 +1953,7 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
     // The FAULT row in the wire-outcome ring. FIRST in the catch, before the bus emit and the rpg flush:
     // those are awaited/injected and can themselves fail, and the row explaining WHY the turn died must not
     // be hostage to them. Itself throw-safe (see `captureTurnFault`).
-    captureTurnFault(prep, err, reason, ctx.now());
+    captureTurnFault(ctx, prep, err, reason);
     // Carry the aborting turn's OWN cascade depth: an aborted turn commits no reply
     // slot, so the automation fact-resolver cannot read this back through `getTurnOrigin` — it must ride the
     // event. A depth ≥ 1 abort (this turn was itself automation-initiated) makes the `turnAborted` fact depth
