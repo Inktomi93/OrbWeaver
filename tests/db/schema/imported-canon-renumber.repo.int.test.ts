@@ -7,7 +7,8 @@ import type { ChatId, IdSource, UserId } from "@orb/kit/ids";
 import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { createSeededIds, FROZEN_AT_MS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import { migrationsBefore, SHIPPED_MIGRATIONS, seedChat, seedMessage, seedUser } from "@orb/testkit/node/composed";
+import { migrationsBefore, SHIPPED_MIGRATIONS, seedUser } from "@orb/testkit/node/composed";
+import { seedCharacterRow, seedChatRow, seedMessageRow } from "@orb/testkit/node/rows";
 import { asc, eq, sql } from "drizzle-orm";
 
 const MIGRATION = "0005_renumber-imported-canon";
@@ -29,11 +30,9 @@ async function seedRoom(
   args: { readonly first: number; readonly importedFrom: string; readonly updatedAt: number; readonly compactedAtSeq: number | null; readonly settled: number },
 ): Promise<Room> {
   const { first } = args;
-  const chat = await seedChat(
+  const chat = await seedChatRow(
     db,
     {
-      withHost: true,
-      withCharacter: true,
       importedFrom: args.importedFrom,
       startedAt: IMPORTED_AT,
       updatedAt: args.updatedAt,
@@ -46,26 +45,20 @@ async function seedRoom(
     },
     ids,
   );
-  const hostUserId = chat.hostUserId;
-  if (hostUserId === undefined) {
-    throw new Error("the seeded room has no host");
-  }
-  for (const offset of [0, 1, 2, 3]) {
-    await seedMessage(db, { chatId: chat.id, seq: first + offset, content: `line ${offset}` }, ids);
-  }
-  // The character seat left after the opening row; a second human joined later and left at the tail.
-  await db.update(chatParticipants).set({ leftSeq: first }).where(sql`${chatParticipants.chatId} = ${chat.id} and ${chatParticipants.kind} = 'character'`);
+  const hostUserId = (await seedUser(db, {}, ids)).id;
+  const character = await seedCharacterRow(db, { ownerId: hostUserId }, ids);
   const guest = await seedUser(db, {}, ids);
-  await db.insert(chatParticipants).values({
-    id: ids.typeId(ID_PREFIX.chatParticipant),
-    chatId: chat.id,
-    kind: "human",
-    userId: guest.id,
-    role: "member",
-    joinedAt: FROZEN_AT_MS,
-    joinSeq: first + 2,
-    leftSeq: first + 3,
-  });
+  for (const offset of [0, 1, 2, 3]) {
+    await seedMessageRow(db, { chatId: chat.id, seq: first + offset, content: `line ${offset}` }, ids);
+  }
+  // Both founding seats join at 0; the character left after the opening row, and a second human joined
+  // later and left at the tail.
+  const seat = { chatId: chat.id, joinedAt: FROZEN_AT_MS } as const;
+  await db.insert(chatParticipants).values([
+    { ...seat, id: ids.typeId(ID_PREFIX.chatParticipant), kind: "human", userId: hostUserId, role: "host", joinSeq: 0 },
+    { ...seat, id: ids.typeId(ID_PREFIX.chatParticipant), kind: "character", characterId: character.id, role: "member", joinSeq: 0, leftSeq: first },
+    { ...seat, id: ids.typeId(ID_PREFIX.chatParticipant), kind: "human", userId: guest.id, role: "member", joinSeq: first + 2, leftSeq: first + 3 },
+  ]);
   const generationId = `generation-${chat.id}`;
   await db.run(sql`insert into embed_generations (id, owner_id, task, via, connection_ref, fingerprint, space)
     values (${generationId}, ${hostUserId}, 'embed', 'embed', 'connection', 'fingerprint', 'space')`);
