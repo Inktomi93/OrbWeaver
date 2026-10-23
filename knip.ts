@@ -72,7 +72,7 @@ export const config = {
     },
     "packages/kit": { includeEntryExports: true, project: ["src/**/*.ts!"] },
     "packages/contracts": { includeEntryExports: true, project: ["src/**/*.ts!"] },
-    "packages/db": { project: ["src/**/*.ts!"] },
+    "packages/db": { includeEntryExports: true, project: ["src/**/*.ts!"] },
     "packages/inference": {
       project: ["src/**/*.ts!"],
       // Contract types remain importable even when their consumers use them through enclosing signatures.

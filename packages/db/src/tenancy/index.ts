@@ -18,7 +18,7 @@ export const ROOM_TABLE = "chats" satisfies SchemaTableName;
 
 /** Strongest predicate first: a table that satisfies two classes takes the one its authorization check spells. */
 const SCOPING_CLASSES = ["ownerId", "membership", "junction", "parent", "global"] as const;
-export type ScopingClass = (typeof SCOPING_CLASSES)[number];
+type ScopingClass = (typeof SCOPING_CLASSES)[number];
 
 /**
  * The classes a table's own columns admit. An `ownerId` column is the scope (D23), even beside a `chatId`

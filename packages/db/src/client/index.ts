@@ -393,26 +393,24 @@ export async function assertReferentialIntegrity(db: Db): Promise<void> {
   }
 }
 
-/**
- * The migration-chain drift check. Compares what THIS db recorded in `__drizzle_migrations` (the newest
- * `hash` + `created_at` = folderMillis drizzle's own migrator writes) against the identity of EVERY
- * shipped migration (sha256 of each `<tag>.sql` + its journal `when`), computed identically to drizzle so
- * a byte-identical file compares equal.
- *
- * MATCH ANY ENTRY, NOT THE NEWEST ONE (2026-09-18, #316 Arm A). Until launch the chain was a single
- * regenerated `0000_baseline` and "the newest shipped entry" and "the chain" were the same fact, so this
- * compared against `.at(-1)` alone. Post-launch that read is a trap: a db sitting at `0000` with a freshly
- * committed `0001` is BEHIND, not diverged, and `.at(-1)` reports it `regenerated` — which under
- * `DB_LAUNCHED` is the FATAL arm, i.e. no forward migration could ever be applied. A db whose newest
- * applied migration IS one of the shipped entries is `current` on this axis; `hasPendingMigrations` owns
- * the orthogonal "is there anything left to apply" question and drizzle's migrator applies it.
- *
- * `regenerated` therefore now means: this db applied a migration that is in no shipped entry — an applied
- * `.sql` was edited or deleted (pre-launch that was the routine baseline squash; post-launch it is the
- * thing that must never happen, because drizzle would RE-APPLY over existing tables and die on "table
- * already exists"). `entry/boot/migrate.ts` reads this to decide fatal-vs-reset.
- */
-export type BaselineCheck =
+// The migration-chain drift check. Compares what THIS db recorded in `__drizzle_migrations` (the newest
+// `hash` + `created_at` = folderMillis drizzle's own migrator writes) against the identity of EVERY
+// shipped migration (sha256 of each `<tag>.sql` + its journal `when`), computed identically to drizzle so
+// a byte-identical file compares equal.
+//
+// MATCH ANY ENTRY, NOT THE NEWEST ONE (2026-09-18, #316 Arm A). Until launch the chain was a single
+// regenerated `0000_baseline` and "the newest shipped entry" and "the chain" were the same fact, so this
+// compared against `.at(-1)` alone. Post-launch that read is a trap: a db sitting at `0000` with a freshly
+// committed `0001` is BEHIND, not diverged, and `.at(-1)` reports it `regenerated` — which under
+// `DB_LAUNCHED` is the FATAL arm, i.e. no forward migration could ever be applied. A db whose newest
+// applied migration IS one of the shipped entries is `current` on this axis; `hasPendingMigrations` owns
+// the orthogonal "is there anything left to apply" question and drizzle's migrator applies it.
+//
+// `regenerated` therefore now means: this db applied a migration that is in no shipped entry — an applied
+// `.sql` was edited or deleted (pre-launch that was the routine baseline squash; post-launch it is the
+// thing that must never happen, because drizzle would RE-APPLY over existing tables and die on "table
+// already exists"). `entry/boot/migrate.ts` reads this to decide fatal-vs-reset.
+type BaselineCheck =
   | { readonly status: "fresh" }
   | { readonly status: "current" }
   | { readonly status: "regenerated"; readonly appliedHash: string; readonly currentHash: string };
@@ -545,27 +543,25 @@ export async function checkBaseline(db: Db, migrationsFolder: string): Promise<B
 // reader opens a bare client without pragmas and performs only two SELECTs: it never migrates or writes.
 const MIN_FORECAST_BYTES = 8_388_608; // 8 MiB — a freshly-migrated, never-used db is well under this.
 
-/**
- * What the next boot would make of the db at this URL.
- * · `no-db` — not a file URL, or nothing on disk yet.
- * · `trivial` — smaller than {@link MIN_FORECAST_BYTES}; a fresh checkout's db is not worth a warning.
- *   NOTE the direction: SQLite does not shrink on DROP, so a reset db keeps its pages and stays
- *   "non-trivial" — this threshold silences a NEW db, it never certifies that a big one holds data.
- *   STATED PLAINLY (#1376 item 4, resolved as a documented limit rather than a fix): a REAL dataset that
- *   happens to be under 8 MiB — a handful of chats, a small import — is classified `trivial` and gets NO
- *   warning. Post-#316 the cost of that silence is far lower than it was (the un-warned boot now refuses
- *   rather than wipes), and the threshold is kept because the alternative (warn on every fresh checkout)
- *   is the alarm nobody reads.
- * · `current` — this db's newest applied migration is one of the shipped ones; nothing to warn about.
- * · `diverged` — this db applied a migration that is in NO shipped journal entry: an applied `.sql` was
- *   edited or deleted under a live database. SINCE #316 THAT IS A BOOT REFUSAL, NOT A WIPE — the arm was
- *   called `will-reset` while the pre-launch auto-reset existed, and keeping that name past the flip would
- *   have made this tripwire print a consequence that no longer happens. The repair is a forward
- *   incremental migration, or restoring the migration the checkout deleted.
- * · `unknown` — the db could not be read (locked, corrupt, mid-write). A silence here would be a lie of
- *   the "I could not measure" kind, so it is its own arm and the caller reports it.
- */
-export type DevDbResetForecast =
+// What the next boot would make of the db at this URL.
+// · `no-db` — not a file URL, or nothing on disk yet.
+// · `trivial` — smaller than {@link MIN_FORECAST_BYTES}; a fresh checkout's db is not worth a warning.
+//   NOTE the direction: SQLite does not shrink on DROP, so a reset db keeps its pages and stays
+//   "non-trivial" — this threshold silences a NEW db, it never certifies that a big one holds data.
+//   STATED PLAINLY (#1376 item 4, resolved as a documented limit rather than a fix): a REAL dataset that
+//   happens to be under 8 MiB — a handful of chats, a small import — is classified `trivial` and gets NO
+//   warning. Post-#316 the cost of that silence is far lower than it was (the un-warned boot now refuses
+//   rather than wipes), and the threshold is kept because the alternative (warn on every fresh checkout)
+//   is the alarm nobody reads.
+// · `current` — this db's newest applied migration is one of the shipped ones; nothing to warn about.
+// · `diverged` — this db applied a migration that is in NO shipped journal entry: an applied `.sql` was
+//   edited or deleted under a live database. SINCE #316 THAT IS A BOOT REFUSAL, NOT A WIPE — the arm was
+//   called `will-reset` while the pre-launch auto-reset existed, and keeping that name past the flip would
+//   have made this tripwire print a consequence that no longer happens. The repair is a forward
+//   incremental migration, or restoring the migration the checkout deleted.
+// · `unknown` — the db could not be read (locked, corrupt, mid-write). A silence here would be a lie of
+//   the "I could not measure" kind, so it is its own arm and the caller reports it.
+type DevDbResetForecast =
   | { readonly status: "no-db" }
   | { readonly status: "trivial"; readonly path: string; readonly bytes: number }
   | { readonly status: "current"; readonly path: string; readonly bytes: number }
@@ -637,7 +633,6 @@ const RESET_DROP_ORDER = ["trigger", "view", "index", "table"] as const;
  *  · ESCAPED IDENTIFIERS. `sqlite_master.name` was interpolated into a quoted identifier raw, so a name
  *    containing `"` closed the identifier early and appended a second executable statement. Doubling `"` is
  *    SQLite's own escape for a quoted identifier.
- * @public Test-anchored module surface: the assertion target for a path that must never be executed to test.
  */
 export function buildResetDropScript(objects: readonly Record<string, unknown>[]): string {
   const drops = RESET_DROP_ORDER.flatMap((kind) =>

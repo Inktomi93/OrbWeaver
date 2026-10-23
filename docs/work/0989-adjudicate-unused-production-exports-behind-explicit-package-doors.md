@@ -48,3 +48,20 @@ Registry completeness, autocomplete, other handle-key cases and unrelated theme 
 | Domain contexts | Follow [the context construction rule](../law/Core-0-Architecture-and-Structure.md#4-the-per-feature-template--the-legibility-engine). Import types from their canonical contracts; retain real dependency adapters and state owners. |
 
 The context migration uses JSSG against a resolved import inventory. Compiler, runtime-output equivalence and composed application checks qualify the changed boundaries.
+
+## Selected database surface
+
+Check database findings against schema registration, relational metadata, migration generation, raw SQL and actual consumers before changing an export. Runtime and generation both consume the complete schema barrel; keep its tables, relations and codec registration intact.
+
+| Selected surface or behavior | Decision and primary layer |
+| - | - |
+| Unused root codec and result-type forwards | Remove forwarding sites only. Keep the canonical codec used by schema declarations and actual lifecycle result types. |
+| Module-local constraint vocabulary, ownership-column shape, scoping type and backup pin suffix | Localize unused export modifiers. Preserve their actual declarations, classifier, query predicates, registry and backup naming behavior. |
+| Cascading lifecycle result-type exports | Localize only when removing an unused root forward leaves no named external consumer. Keep actual function signatures and inferred results unchanged. |
+| SQL literal-list formatting | Rebuild meaningful quote, backslash and canonical-member cases through the existing `@orb/db/query` function. This pure calculation belongs in unit tests, not a fabricated database service. Keep the supported entry. |
+| Reset-script construction | Rebuild transaction framing, dependent-object ordering, quoted identifiers and empty-input behavior through the existing `@orb/db` function. These unit cases prove generated SQL, not native rollback. Keep the function and remove its unused public directive. |
+| Schema and migration metadata | Keep. A missing named import does not establish unused database registration. No schema, relation, migration or live database is changed by this selection. |
+
+Ordinary native Knip includes DB entry exports and reports no unused findings. Production-only findings retain actual test and tooling consumers without public-marker exemptions. Affected compiler, lint, dependency and selected native behavior checks pass. Isolated literal-quote and identifier-quote defects fail the intended unit assertions while their positive cases pass; sources are restored exactly.
+
+The schema, relations, codec, migration inputs and existing function bodies remain unchanged. Other database reference cases need separate comparison; this batch does not qualify native reset rollback or complete database restoration.

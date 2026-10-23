@@ -14,8 +14,8 @@ import type { Db } from "../client/index.ts";
 // At most one row matches a PK+owner predicate; the limit is belt-and-suspenders.
 const LIMIT_ONE = 1;
 
-/** The two columns every single-owned table exposes for the owner-scoped fetch. */
-export interface OwnedColumns {
+// The two columns every single-owned table exposes for the owner-scoped fetch.
+interface OwnedColumns {
   readonly id: SQLiteColumn;
   readonly ownerId: SQLiteColumn;
 }
