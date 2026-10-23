@@ -66,7 +66,8 @@ Runnable examples:
 | - | - |
 | Tests import testkit only through its doors, and a kit module no door or kit test reaches is unused | The `exports` map in [package.json](package.json), knip (the `tests/support` entries derive from that map) and the `testkit-doors-only` rule in [dependency-cruiser](../../.dependency-cruiser.ts) |
 | Helper-world import direction | Compiler programs and the world rules in [dependency-cruiser](../../.dependency-cruiser.ts) |
-| Tests outside the persistence tier write rows only through verbs and root seeds | The `orb/no-direct-row-writes` rule in [eslint.config.ts](../../eslint.config.ts) |
+| Tests outside the persistence tier write rows only through verbs, root seeds and the sanctioned historic states | The `orb/no-direct-row-writes` rule in [eslint.config.ts](../../eslint.config.ts) judges each call site |
+| A helper under a `persistence/` directory serves only its own tier | The `testkit-persistence-helpers-own-tier` rule in [dependency-cruiser](../../.dependency-cruiser.ts) |
 | Integration files share one module registry and never read the environment at import | `isolate: false` and the `setupFiles` warm on the integration project in [vitest.config.ts](../../vitest.config.ts); the harness seams in [node/server.ts](node/server.ts) |
 | A test never stubs or writes the process environment (`vi.stubEnv`, `process.env` writes); it uses a harness seam or the subject's own parameter | The `TEST_ENVIRONMENT_RESTRICTIONS` syntax rules in [eslint.config.ts](../../eslint.config.ts); `tests/tooling` is outside them because that project isolates modules |
 | Story props and updated props | Explicit native `mount<typeof Story>` and [compiler assertions](browser/gallery.dom.test-d.ts) |
@@ -78,6 +79,16 @@ Runnable examples:
 | Cold failures remain failures | Native runner configuration and first-navigation regression checks; no automatic warm-up navigation or test retries |
 
 Explicit story types do not type-check the story ID string. Unknown IDs fail at runtime. Do not describe syntax checks as complete semantic proof.
+
+## Sanctioned historic states
+
+The row-write lint judges call sites, so a state the product can no longer produce has one enumerated home in `node/factories/`. Each home cites the ruling or migration that makes the state real. Add a home here only with that citation.
+
+| Home | State | Why it is real |
+| - | - | - |
+| `damageOwnerRow` | an owner row below `owner`, or disabled | D135 and D218 rule that every Principal path reads it and fails closed |
+| `plantLegacyZeroCanon` | imported canon numbered from seq 0 | launched databases held it until migration `0005_renumber-imported-canon` |
+| `plantForeignRoomBackground`, `plantForeignCardBackground`, `plantForeignSettingsValue`, `plantForeignSettingsBytes` | a stored reference another build wrote | a database shared across versions holds kinds and encodings this build never writes |
 
 ## What review must establish
 

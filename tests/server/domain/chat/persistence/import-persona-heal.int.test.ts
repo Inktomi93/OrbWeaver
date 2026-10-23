@@ -7,9 +7,9 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { buildChatBundleFile, parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
+import { plantLegacyZeroCanon } from "@orb/testkit/node/composed";
 import { and, asc, eq } from "drizzle-orm";
 import { importedSeqs, LEGACY_IMPORT_ARMS, textRoom } from "../scenario-physical.ts";
-import { renumberFromZero } from "./legacy-canon.ts";
 
 const LINES = [
   { text: "The first line the wanderer wrote.", persona: "Lantern Wanderer" },
@@ -63,7 +63,7 @@ async function importedRoom(h: ChatRoot, legacy: boolean, replyAfterFirst: boole
     throw new Error("the production import landed no room");
   }
   if (legacy) {
-    await renumberFromZero(h, chatId);
+    await plantLegacyZeroCanon(h.root, chatId);
   }
   expect(await importedSeqs(h, chatId)).toEqual(legacy ? [0, 1, 2] : [1, 2, 3]);
   return { h, chatId, reimport: () => descriptor.importFile(h.owner.userId, file) };

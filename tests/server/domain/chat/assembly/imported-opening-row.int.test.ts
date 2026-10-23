@@ -2,7 +2,7 @@
 // @subject packages/server/src/domain/chat/persistence/import-write.ts
 // An import-born room's opening line must reach the physical provider request on its next turn.
 import { expect, test } from "@orb/testkit/node";
-import { renumberFromZero } from "../persistence/legacy-canon.ts";
+import { plantLegacyZeroCanon } from "@orb/testkit/node/composed";
 import { importedSeqs, importTranscript, LEGACY_IMPORT_ARMS, textRoom } from "../scenario-physical.ts";
 
 const OPENING = "The lantern-lit opening line of the imported room.";
@@ -15,7 +15,7 @@ test.for(LEGACY_IMPORT_ARMS)("$title: the first imported message reaches the nex
     { user: false, text: REPLY },
   ]);
   if (legacy) {
-    await renumberFromZero(h, chatId);
+    await plantLegacyZeroCanon(h.root, chatId);
   }
   const imported = await importedSeqs(h, chatId);
   expect((await h.root.services.chat.send({ principal: h.owner, chatId, content: "And then?" })).aborted).toBe(false);

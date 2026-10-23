@@ -4,10 +4,9 @@
 // after the covered span reaches the model again.
 import { chats, closeDb, createDb, runMigrations } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
-import { migrationsBefore, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
+import { migrationsBefore, plantLegacyZeroCanon, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { importedSeqs, textRoom } from "../scenario-physical.ts";
-import { renumberFromZero } from "./legacy-canon.ts";
 
 const MIGRATION = "0005_renumber-imported-canon";
 const SUMMARY = "The traveller lit a lantern and the knight answered twice.";
@@ -49,7 +48,7 @@ test("a 0-based bundle import with a carried marker shows the row after the mark
       throw new Error("the bundle import landed no room");
     }
     // The launched import writer numbered the same canon from seq 0 and kept the source marker.
-    await renumberFromZero(h, imported.id);
+    await plantLegacyZeroCanon(h.root, imported.id);
     expect(await importedSeqs(h, imported.id)).toEqual([0, 1, 2, 3, 4, 5]);
 
     await runMigrations(db, SHIPPED_MIGRATIONS);

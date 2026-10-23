@@ -44,6 +44,8 @@ export { makeResolvedSecret } from "./factories/credentials.ts";
 export type { OwnerRowDamage } from "./factories/damaged-owner.ts";
 export { damageOwnerRow } from "./factories/damaged-owner.ts";
 export { seedCharacterDistillations } from "./factories/discovery.ts";
+export { plantForeignCardBackground, plantForeignRoomBackground, plantForeignSettingsBytes, plantForeignSettingsValue } from "./factories/foreign-build.ts";
+export { plantLegacyZeroCanon } from "./factories/legacy-canon.ts";
 export { captureTurnRows, seedMessage } from "./factories/message.ts";
 export type { PeerLease } from "./factories/peer-replica.ts";
 export { seedPeerLease } from "./factories/peer-replica.ts";

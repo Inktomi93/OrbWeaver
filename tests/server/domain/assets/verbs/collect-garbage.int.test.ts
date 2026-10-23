@@ -1,3 +1,8 @@
+// The scheduled assets-gc workload on the real composition root: every reference kind keeps its blob and a
+// truly unreferenced blob is reclaimed. A stored reference the collector cannot read is the persistence-tier suite.
+// @subject packages/server/src/domain/assets/verbs/collect-garbage.ts
+// @subject packages/server/src/domain/assets/persistence/asset-refs.ts
+
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, PLUGIN_UI_ASSETS_DIR, pluginManifestSchema } from "@orb/contracts/plugin";
@@ -13,6 +18,7 @@ import {
   freshHeldDb,
   makeAssetBytes,
   makePluginBundle,
+  plantForeignRoomBackground,
   seedChatInvite,
   seedCorpusConnections,
   seedDistributedPlugin,
@@ -37,7 +43,6 @@ import {
   survival,
   survives,
 } from "../gc-box.ts";
-import { plantRoomBackground } from "../persistence/foreign-references.ts";
 
 const ASSET_ROW_DELETE = /^delete from "assets"/i;
 /** The purge's `(owner, hash)` index re-check: the statement that sits between the row delete and the unlink. */
@@ -297,7 +302,7 @@ test("a reference written after the sweep's snapshot still wins the destructive 
     nothing: (): Promise<void> => Promise.resolve(),
     // Last on purpose: once stored, this kind refuses every later snapshot. Written after this one, it must keep the asset.
     "room background of an unknown kind": async (ref: StoredRef): Promise<void> => {
-      await plantRoomBackground(box, room, { kind: "library", assetId: ref.assetId });
+      await plantForeignRoomBackground(box.root, room, { kind: "library", assetId: ref.assetId });
     },
   } as const;
   const outcome: Record<string, boolean> = {};

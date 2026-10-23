@@ -12,9 +12,9 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
+  plantLegacyZeroCanon,
 } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
-import { renumberFromZero } from "../../chat/persistence/legacy-canon.ts";
 
 const OPENING = "The opening oath is sworn at the old gate.";
 // Well past the fresh window plus the protect tail, so only the settled window can carry the opening row.
@@ -35,7 +35,7 @@ test("a cold lore pass over a room numbered from seq 0 summarizes that opening r
   for (let index = 0; index < ROWS; index += 1) {
     await h.caller.chat.commitMessage({ chatId: h.chatId, timeZone: UTC_TIME_ZONE, content: index === 0 ? OPENING : `Beat ${index} at the gate.` });
   }
-  await renumberFromZero(h, h.chatId);
+  await plantLegacyZeroCanon(h.root, h.chatId);
   const book = await h.root.services.worldInfo.createBook({ principal: h.owner, input: createBookSchema.parse({ name: "Gate lore" }) });
   await h.root.services.worldInfo.attachToChat({ principal: h.owner, chatId: h.chatId, bookId: book.id });
   const rule = await h.root.services.automation.createRule({

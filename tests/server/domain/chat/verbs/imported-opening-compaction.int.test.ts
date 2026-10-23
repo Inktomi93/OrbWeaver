@@ -2,7 +2,7 @@
 // @subject packages/server/src/domain/chat/persistence/queries.ts
 // A first compaction over an import-born room must summarize its opening line, never skip it as "covered".
 import { expect, test } from "@orb/testkit/node";
-import { renumberFromZero } from "../persistence/legacy-canon.ts";
+import { plantLegacyZeroCanon } from "@orb/testkit/node/composed";
 import { importedSeqs, importTranscript, LEGACY_IMPORT_ARMS, textRoom } from "../scenario-physical.ts";
 
 const OPENING = "The lantern-lit opening line of the imported room.";
@@ -16,7 +16,7 @@ test.for(LEGACY_IMPORT_ARMS)("$title: the first compaction window starts at the 
     { user: false, text: REPLY },
   ]);
   if (legacy) {
-    await renumberFromZero(h, chatId);
+    await plantLegacyZeroCanon(h.root, chatId);
   }
   const seqs = await importedSeqs(h, chatId);
   const result = await h.root.services.chat.compact({ principal: h.owner, chatId });

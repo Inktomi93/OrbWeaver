@@ -6,8 +6,9 @@ import type { ChatId, MessageId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
+import { plantLegacyZeroCanon } from "@orb/testkit/node/composed";
 import { asc, eq } from "drizzle-orm";
-import { importedSeqs, LEGACY_IMPORT_ARMS, renumberFromZero, textRoom } from "../scenario-physical.ts";
+import { importedSeqs, LEGACY_IMPORT_ARMS, textRoom } from "../scenario-physical.ts";
 
 const LINES = ["The first line.", "The second line.", "The third line.", "The fourth line."] as const;
 const sceneAfter = (line: string): string => `Scene after: ${line}`;
@@ -44,7 +45,7 @@ async function importedRoom(h: ChatRoot, legacy: boolean, keepCampaign = false):
     await h.root.db.delete(rpgGames).where(eq(rpgGames.chatId, chatId));
   }
   if (legacy) {
-    await renumberFromZero(h, chatId);
+    await plantLegacyZeroCanon(h.root, chatId);
   }
   expect(await importedSeqs(h, chatId)).toEqual(legacy ? [0, 1, 2, 3] : [1, 2, 3, 4]);
   const slots = await h.root.db.select({ id: messages.id }).from(messages).where(eq(messages.chatId, chatId)).orderBy(asc(messages.seq));

@@ -102,6 +102,13 @@ test("D135: the fallback lands on the OWNER_HANDLES row and mints NO second-clas
   expect(await root.db.select({ id: users.id, handle: users.handle }).from(users)).toEqual([{ id: root.ownerId, handle: REAL_OWNER_HANDLE }]);
 });
 
+test("D135: an owner row demoted below owner is REPORTED, not overridden (the fallback never grants)", async () => {
+  await using root = await single({ rolePolicyConfig: policy({ ["OWNER_HANDLES"]: REAL_OWNER_HANDLE }) });
+  await damageOwnerRow(root, { role: "user" });
+  expect(await authMe(root)).toEqual({ authenticated: true, handle: REAL_OWNER_HANDLE, role: "user" });
+  expect((await wireViewer(root)).globalRole).toBe("user");
+});
+
 test("the empty-owner-handles guard is LOAD-BEARING: OWNER_HANDLES=',,' still resolves a handle", async () => {
   // An unseeded owner id: the fallback's own ensure births the row, so its role is the policy's verdict.
   await using root = await single({

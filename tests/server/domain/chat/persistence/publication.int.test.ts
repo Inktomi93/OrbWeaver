@@ -1,6 +1,6 @@
 // The real chat bus establishes durability; only its stamped result can reach the live publisher.
 // @subject packages/server/src/domain/chat/persistence/events.ts
-// The claim is a raw statement and the deleted room a raw delete: the durable append is the subject, not a verb.
+// The emitter's claim is a raw unexecuted statement by contract, so the durable append suite builds one here.
 
 import type { ChatLivePublish } from "@orb/contracts/chat";
 import { chatEvents, chats } from "@orb/db";
@@ -15,8 +15,11 @@ import { seedChat } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
 
-async function hostedRoom(harness: ServerTestHarness): Promise<Awaited<ReturnType<typeof seedChat>>["row"]> {
-  return (await seedChat(harness, { principal: await harness.principalFor((await harness.actor()).id), characterIds: [] })).row;
+async function hostedRoom(
+  harness: ServerTestHarness,
+): Promise<{ readonly room: Awaited<ReturnType<typeof seedChat>>["row"]; readonly host: Awaited<ReturnType<ServerTestHarness["principalFor"]>> }> {
+  const host = await harness.principalFor((await harness.actor()).id);
+  return { room: (await seedChat(harness, { principal: host, characterIds: [] })).row, host };
 }
 
 test("durable append precedes fan, a lost claim converges without fan, and a deleted room never fans an unlogged event", async ({
@@ -24,7 +27,7 @@ test("durable append precedes fan, a lost claim converges without fan, and a del
   db,
   clock,
 }): Promise<void> => {
-  const room = await hostedRoom(harness);
+  const { room, host } = await hostedRoom(harness);
   const published: ChatLivePublish[] = [];
   const bus = createChatBus({ db: databaseHandle(db), now: clock.now, newEventId: () => mintTypeId(ID_PREFIX.chatEvent) });
   const publication = createChatPublication({
@@ -45,13 +48,13 @@ test("durable append precedes fan, a lost claim converges without fan, and a del
     ),
   ).toBe(true);
   expect(published).toHaveLength(1);
-  await db.delete(chats).where(eq(chats.id, room.id));
+  await harness.services.chat.delete({ principal: host, chatId: room.id });
   expect(await publication.emitChecked({ type: "chatUpdated", chatId: room.id })).toBe(false);
   expect(published).toHaveLength(1);
 });
 
 test("quiet entity churn may coalesce but a terminal delete remains live and append-free", async ({ harness, db, clock }): Promise<void> => {
-  const room = await hostedRoom(harness);
+  const { room } = await hostedRoom(harness);
   const before = await db.select().from(chatEvents);
   const publish = vi.fn();
   const quiet = vi.fn(() => true);

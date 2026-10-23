@@ -235,6 +235,14 @@ const TEST_WORLDS = [
     to: { path: "^tests/support/node/factories/rows\\.ts$" },
   },
   {
+    name: "testkit-persistence-helpers-own-tier",
+    comment:
+      "A helper under a persistence directory serves only its own tier; a historic state other suites need has one sanctioned home in testkit's factories.",
+    severity: "error",
+    from: { path: "^(tests|scripts|playwright)/", pathNot: ["^tests/support/", "^tests/db/", "^tests/.*/persistence/"] },
+    to: { path: "^tests/.*/persistence/" },
+  },
+  {
     name: "tooling-no-testkit",
     severity: "error",
     from: { path: "^tooling/" },
