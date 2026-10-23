@@ -88,7 +88,10 @@ test("a server root with every tier and index.ts has nothing to report", () => {
 
 // ── the per-domain template ──────────────────────────────────────────────────────────────────────────────────
 
-const REQUIRED_FILES = ["index.ts", "service.ts", "context.ts"] as const;
+const REQUIRED_FILES = ["index.ts", "service.ts"] as const;
+
+/** Law §4: `context.ts` exists only for dependency adaptation, operation binding or shared-state construction. */
+const OPTIONAL_ROOT_FILES = ["context.ts"] as const;
 const REQUIRED_DIRS = ["contract", "verbs"] as const;
 
 /** Root slots any domain may carry: the `can()` authority seam, the model-teaching seam and the background-work seam. */
@@ -112,8 +115,9 @@ function domainNames(entries: readonly Entry[]): readonly string[] {
 
 function isAllowedRootFile(domain: string, file: string): boolean {
   const required: readonly string[] = REQUIRED_FILES;
+  const optional: readonly string[] = OPTIONAL_ROOT_FILES;
   const always: readonly string[] = ALWAYS_ALLOWED_ROOT_FILES;
-  return required.includes(file) || always.includes(file) || (DOMAIN_SPECIFIC_ALLOWED_ROOT_FILES[domain] ?? []).includes(file);
+  return required.includes(file) || optional.includes(file) || always.includes(file) || (DOMAIN_SPECIFIC_ALLOWED_ROOT_FILES[domain] ?? []).includes(file);
 }
 
 function templateProblems(entries: readonly Entry[]): readonly string[] {
@@ -148,8 +152,7 @@ function staleAllowlistProblems(entries: readonly Entry[]): readonly string[] {
 
 const domainFiles = (domain: string, ...paths: readonly string[]): Record<string, string> =>
   Object.fromEntries(paths.map((path) => [`${DOMAIN}/${domain}/${path}`, "export const x = 1;\n"]));
-const wholeDomain = (domain: string): Record<string, string> =>
-  domainFiles(domain, "index.ts", "service.ts", "context.ts", "contract/service.ts", "verbs/x.ts");
+const wholeDomain = (domain: string): Record<string, string> => domainFiles(domain, "index.ts", "service.ts", "contract/service.ts", "verbs/x.ts");
 
 test("every real domain follows the template and every allowlisted root name is occupied", () => {
   const entries = listTree(DOMAIN);
@@ -158,10 +161,9 @@ test("every real domain follows the template and every allowlisted root name is 
   expect(staleAllowlistProblems(entries)).toEqual([]);
 });
 
-test("a domain holding only index.ts is missing the other four slots", () => {
+test("a domain holding only index.ts is missing the other required slots", () => {
   expect(templateProblems(treeOf(domainFiles("broken", "index.ts")))).toEqual([
     "broken: missing service.ts",
-    "broken: missing context.ts",
     "broken: missing contract/",
     "broken: missing verbs/",
   ]);
@@ -169,6 +171,10 @@ test("a domain holding only index.ts is missing the other four slots", () => {
 
 test("a domain with every slot plus a non-template root file reports the loose file", () => {
   expect(templateProblems(treeOf({ ...wholeDomain("loose"), ...domainFiles("loose", "helpers.ts") }))).toEqual(["loose: loose helpers.ts"]);
+});
+
+test("a domain may carry the optional context.ts", () => {
+  expect(templateProblems(treeOf({ ...wholeDomain("adapted"), ...domainFiles("adapted", "context.ts") }))).toEqual([]);
 });
 
 test("a domain with every slot and nothing else passes", () => {

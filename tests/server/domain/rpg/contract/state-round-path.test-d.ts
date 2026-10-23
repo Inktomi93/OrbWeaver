@@ -1,5 +1,5 @@
+import type { RpgContext } from "@orb/server/domain/rpg";
 import { expectTypeOf, test } from "vitest";
-import type { RpgContext } from "#server/domain/rpg/contract/service.ts";
 
 type Path = Parameters<RpgContext["onStateRoundPath"]>[0];
 type Identity = Pick<Path, "chatId" | "gameId" | "turnId" | "mode">;

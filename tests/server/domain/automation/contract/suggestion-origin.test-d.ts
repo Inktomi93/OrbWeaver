@@ -1,5 +1,9 @@
 import { expectTypeOf, test } from "vitest";
-import type { PendingSuggestion, SuggestionPayload, SuggestionSource } from "#server/domain/automation/contract/ops.ts";
+import type { createSuggestionStore } from "#server/domain/automation/index.ts";
+
+type PendingSuggestion = Parameters<ReturnType<typeof createSuggestionStore>["raise"]>[0];
+type SuggestionSource = PendingSuggestion["source"];
+type SuggestionPayload = NonNullable<PendingSuggestion["payload"]>;
 
 type Common = Pick<PendingSuggestion, "id" | "chatId" | "actorUserId" | "summary" | "expiresAt">;
 type Rule = Extract<SuggestionSource, { kind: "rule" }>;
