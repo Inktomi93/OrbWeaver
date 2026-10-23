@@ -2643,14 +2643,16 @@
                   },
                   {
                     "selector": {
-                      "kind": "objectLiteralMember"
+                      "kind": "objectLiteralProperty"
                     },
+                    "match": "[_$]*(.+?)[_$]*",
                     "formats": ["camelCase", "PascalCase"]
                   },
                   {
                     "selector": {
-                      "kind": "typeMember"
+                      "kind": "typeProperty"
                     },
+                    "match": "[_$]*(.+?)[_$]*",
                     "formats": ["camelCase", "PascalCase"]
                   },
                   {
