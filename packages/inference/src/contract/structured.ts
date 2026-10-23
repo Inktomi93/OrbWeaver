@@ -42,19 +42,19 @@ export interface PlannedTool extends WireTool {
   readonly strict: boolean | undefined;
 }
 
-export interface StructuredPlan {
+interface StructuredPlanBase {
   readonly ok: true;
   /** The endpoint's grammar vocabulary the plan was built for. */
   readonly mode: WireSchemaMode;
-  /** The index into `formats` the plan picked; absent on a tool-only plan. */
-  readonly shape?: number | undefined;
-  readonly responseFormat?: PlannedResponseFormat | undefined;
   readonly tools?: readonly PlannedTool[] | undefined;
   readonly toolChoice?: ToolChoice | undefined;
   /** A tool vehicle rides one call: parallel calls are off. */
   readonly parallelToolCalls?: false | undefined;
   readonly downgrades: readonly ResolvedWarning[];
 }
+
+export type StructuredPlan = StructuredPlanBase &
+  ({ readonly shape?: never; readonly responseFormat?: never } | { readonly shape: number; readonly responseFormat: PlannedResponseFormat });
 
 export interface StructuredRefusal {
   readonly ok: false;

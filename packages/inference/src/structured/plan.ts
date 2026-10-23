@@ -118,7 +118,10 @@ function strictEntries(tools: readonly PlannedToolScrub[]): readonly PlannedTool
 }
 
 type Attempt =
-  | { readonly ok: true; readonly plan: Omit<StructuredPlan, "downgrades" | "ok" | "mode"> }
+  | {
+      readonly ok: true;
+      readonly plan: Pick<Extract<StructuredPlan, { readonly shape: number }>, "responseFormat" | "tools" | "toolChoice" | "parallelToolCalls">;
+    }
   | { readonly ok: false; readonly violations: readonly WireSchemaViolation[] };
 
 function responseFormatAttempt(format: ResponseFormat, target: StructuredTarget, callerTools: readonly PlannedToolScrub[]): Attempt {

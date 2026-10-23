@@ -774,20 +774,24 @@ interface FoldBuildFailedInfo {
  *  Non-exported: reachable only through `RpgContext.onStateRoundPath`'s signature — no consumer names it (knip). */
 /** The cause vocabulary moved to `@orb/contracts/rpg` (EFF-3): the panel's freshness surface reads the SAME
  *  reasons off `RpgGameView.effectiveDelivery`, so the words home once, below both consumers. */
-interface StateRoundPathInfo {
+interface StateRoundPathBase {
   readonly chatId: ChatId;
   readonly gameId: RpgGameId;
   /** The turn this flush belongs to — the correlation key the rpg flight recorder (R-OBS) joins a turn's
    *  mount/tool/flush events on, and the one `/api/_debug/rpg/traces?turnId=` filters by. */
   readonly turnId: ChatTurnId;
   readonly mode: RpgExtractionMode;
-  /** `folded` = the character turn's own tool calls (ZERO extra model calls); `tool-round` = a dedicated
-   *  post-commit model call (which, on an agent-sdk wire, that op emits as one structured-output call).
-   *  `none` is excluded BY TYPE: a flush that reports a path has already passed the F2 readonly gate, so the
-   *  no-vehicle-at-all member of the axis can never appear on this line. */
-  readonly path: Exclude<RpgDeliveryPath, "none">;
-  readonly fallbackReason: RpgFoldFallbackReason | null;
 }
+
+/** `folded` = the character turn's own tool calls (ZERO extra model calls); `tool-round` = a dedicated
+ *  post-commit model call (which, on an agent-sdk wire, that op emits as one structured-output call).
+ *  `none` is excluded BY TYPE: a flush that reports a path has already passed the F2 readonly gate, so the
+ *  no-vehicle-at-all member of the axis can never appear on this line. */
+type StateRoundPathInfo = StateRoundPathBase &
+  (
+    | { readonly path: Extract<RpgDeliveryPath, "folded">; readonly fallbackReason: null }
+    | { readonly path: Exclude<RpgDeliveryPath, "none" | "folded">; readonly fallbackReason: RpgFoldFallbackReason | null }
+  );
 
 /** The CANCELLED-round signal (the caller aborted the turn while its state round was in flight). Distinct from
  *  {@link FlushDropInfo}: that one means the model's output was contract-INVALID and canon refused it; this one

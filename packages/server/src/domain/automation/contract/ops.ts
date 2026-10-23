@@ -610,12 +610,9 @@ export type SuggestionPayload =
 export type SuggestionSource = AutomationEmitSource;
 
 /** One pending ask. */
-export interface PendingSuggestion {
+interface PendingSuggestionBase {
   readonly id: AutomationSuggestionId;
-  readonly kind: AutomationSuggestionKind;
   readonly chatId: ChatId;
-  /** Rule or plugin — the replace-per-kind slot key, the liveness branch, and the execution branch. */
-  readonly source: SuggestionSource;
   /** The identity a confirmed execution runs AS: the rule AUTHOR, or the plugin's INSTALLER. The confirmer is
    *  the AUTHORIZER only (§3-S4: ownership, funding and the variable namespace all key off this user, never
    *  off who clicked) — and it is the user whose HOST authority the confirm re-check re-runs, which is the
@@ -624,8 +621,26 @@ export interface PendingSuggestion {
   readonly actorUserId: UserId;
   readonly summary: string;
   readonly expiresAt: number;
-  readonly payload: SuggestionPayload | null;
 }
+
+export type PendingSuggestion = PendingSuggestionBase &
+  (
+    | {
+        readonly kind: Extract<AutomationSuggestionKind, "invitation">;
+        readonly source: Extract<SuggestionSource, { kind: "rule" }>;
+        readonly payload: null;
+      }
+    | {
+        readonly kind: Extract<AutomationSuggestionKind, "confirm">;
+        readonly source: Extract<SuggestionSource, { kind: "rule" }>;
+        readonly payload: Exclude<SuggestionPayload, { via: "plugin-act" }>;
+      }
+    | {
+        readonly kind: Extract<AutomationSuggestionKind, "confirm">;
+        readonly source: Extract<SuggestionSource, { kind: "plugin" }>;
+        readonly payload: Extract<SuggestionPayload, { via: "plugin-act" }>;
+      }
+  );
 
 /** C3 — apply a HOST-CONFIRMED prose rewrite to one audited reply, wired at `entry/compose` to chat's own
  *  `applyProseRewrite` verb under the rule author's Principal (the `setChatBackground` wiring shape).

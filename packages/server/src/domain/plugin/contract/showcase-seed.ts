@@ -35,3 +35,11 @@ export interface ExamplePluginSeederDeps {
 export interface ExamplePluginSeeder {
   readonly ensureSeeded: (principal: Principal) => Promise<void>;
 }
+
+const SEED_OUTCOMES = ["installed", "present", "unavailable"] as const;
+type SeedOutcome = (typeof SEED_OUTCOMES)[number];
+
+/** Only a newly installed bundle supplies written-version provenance. */
+export type ShowcaseSeedResult =
+  | { readonly outcome: Extract<SeedOutcome, "installed">; readonly version: string }
+  | { readonly outcome: Exclude<SeedOutcome, "installed">; readonly version: null };

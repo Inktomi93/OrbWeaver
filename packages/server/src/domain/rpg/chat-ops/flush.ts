@@ -194,8 +194,7 @@ function resolveStateRound(ctx: RpgContext, game: RpgGameRow, turn: CompletedTur
     gameId: game.id,
     turnId: turn.turnId,
     mode,
-    path: shouldRound ? POST_COMMIT_PATH[mode] : "folded",
-    fallbackReason: foldFallbackReason(turn, mode, calls),
+    ...(shouldRound ? { path: POST_COMMIT_PATH[mode], fallbackReason: foldFallbackReason(turn, mode, calls) } : { path: "folded", fallbackReason: null }),
   });
   if (shouldRound) {
     return POST_COMMIT_ROUND[mode](ctx);
