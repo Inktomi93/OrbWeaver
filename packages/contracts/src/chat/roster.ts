@@ -100,13 +100,6 @@ export const characterMemberSpecSchema = z.object({
 });
 export type CharacterMemberSpec = z.infer<typeof characterMemberSpecSchema>;
 
-/** A seat the caller WANTS to exist — kind-discriminated like {@link SpeakerRef}. `human` is
- *  UNREPRESENTABLE by design (invites are the only human join path — a template cannot carry an invite's
- *  runtime preconditions); `observer` and `agent` were purged 2026-07-25 (the rebuild re-adds their arms
- *  here if either domain returns) — `character` is the only live arm. */
-export const rosterMemberSpecSchema = z.discriminatedUnion("kind", [characterMemberSpecSchema]);
-export type RosterMemberSpec = z.infer<typeof rosterMemberSpecSchema>;
-
 /** The RESOLVED per-participant content-render policy (docs/law/UI-Theming-and-Content.md §12.2/§12.3). The chat domain resolves each
  *  character's tri-state overrides against the deployment effective config at roster-build time (the ONE
  *  resolution home — {@link resolveRenderPolicy}, never re-resolved client-side); the client READS these to

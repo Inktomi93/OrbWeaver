@@ -58,8 +58,7 @@ export function rpgAttributeModifier(profile: RpgStatProfile, score: number): nu
 }
 
 /** ONE attribute's VOCABULARY gloss — `Strength (raw physical power — lifting, melee force)`, the hint
- *  omitted when empty. The same `label value (hint)` grammar `trackerGloss` uses, split across two surfaces
- *  because attributes are a fixed vocabulary shared by every sheet: the MEANING is taught ONCE (this line),
+ *  omitted when empty. Attributes are a fixed vocabulary shared by every sheet: the MEANING is taught ONCE (this line),
  *  and each actor's line then carries only `label value` ({@link attributeReading}). Teaching the hint per
  *  actor would multiply the profile's prose by the party size for zero extra information.
  *

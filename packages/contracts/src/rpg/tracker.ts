@@ -261,12 +261,11 @@ export function gameTrackerWriteKeys(defs: readonly RpgTrackerDef[]): { readonly
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════
-// The GLOSS — ONE seg builder for every tracker, on every model-facing surface.
+// Readings and vocabulary keep per-carrier data separate from once-per-turn meaning.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════
 
-/** The bare reading, gloss-free (`Mana 5/10`, `trust: guarded`, `Pack: rope, torch`) — the datum half of
- *  {@link trackerGloss}, exported for the delta/panel surfaces that carry the hint separately. Returns `null`
- *  when the tracker has no reading at all (an unset tracker must never print `Mana null`). */
+/** A bare absolute reading; {@link trackerVocabulary} teaches its meaning once per turn instead of per carrier.
+ *  Returns `null` when unset so callers can distinguish carriage from a recorded value. */
 export function trackerReading(def: RpgTrackerDef, value: RpgTrackerValue | undefined): string | null {
   if (def.shape === "list") {
     const items = value?.items ?? null;
@@ -283,24 +282,6 @@ export function trackerReading(def: RpgTrackerDef, value: RpgTrackerValue | unde
   // that actually applies to the actor it is narrating, never the party default a carrier deliberately left.
   const ceiling = trackerCeiling(def, value);
   return ceiling === null ? `${def.label} ${raw}` : `${def.label} ${raw}/${ceiling}`;
-}
-
-/** The ONE tracker gloss (`Mana 5/10 (fuels spellcasting)`). Replaces the three drifted per-concept builders
- *  the reminder used to carry (pool segs · cast-field segs · widget lines) — that drift is exactly how the
- *  R4b class was born (npc fields shipped a hint the model never saw). `null` when there is no reading.
- *
- *  READING-BOUND BY CONSTRUCTION, which is why it is NOT the reminder's per-carrier builder any more: an
- *  UNSET tracker glosses to `null`, so a carrier that has the tracker and no reading yet taught the model
- *  nothing — not the tracker's existence, not its meaning. The reminder now teaches the vocabulary once
- *  ({@link trackerVocabulary}) and prints bare {@link trackerReading}s per carrier (the `attributeGloss` /
- *  `attributeReading` split). This stays for the surfaces that carry ONE reading with no vocabulary line
- *  above it (the delta's standalone `{{rpgDelta}}` consumer). */
-export function trackerGloss(def: RpgTrackerDef, value: RpgTrackerValue | undefined): string | null {
-  const reading = trackerReading(def, value);
-  if (reading === null) {
-    return null;
-  }
-  return def.hint !== "" ? `${reading} (${def.hint})` : reading;
 }
 
 /** ONE tracker's VOCABULARY gloss — `Corruption (how corrupted someone is.)`, the hint omitted when empty.

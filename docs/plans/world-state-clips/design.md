@@ -13,7 +13,7 @@ Retain useful narrative facts beside conversational memory when the owner resume
 
 ## Shape
 
-The core concept distinguishes remembered dialogue from durable story facts. D55 and D94 retain their constraints; the storage, reconciliation and presentation design remains deferred.
+The core concept distinguishes remembered dialogue from durable story facts. D55 and D94 retain their constraints; the storage, reconciliation and presentation design remains deferred. Production contracts are not yet built.
 
 ## Open questions
 
@@ -25,7 +25,7 @@ A duplicate RPG tracker or an inherited feature list is not a committed design.
 
 ## Coupled sites
 
-`packages/contracts/src/memory/` and `packages/server/src/domain/chat/memory/`.
+The live conversational-memory boundary is `packages/server/src/domain/chat/memory/`.
 
 ## Test plan
 

@@ -89,7 +89,7 @@ No runtime definition, schema or package door is deleted by this selection. Exis
 | PREFIX_CACHE_ACTIONS, bindingActorKindSchema and structuredSchemaComplexity | Keep the canonical cache axis connected to its real schema; remove the orphan parsers/readers with the qualified public-entry replacements below. |
 | ConnectionRef and WIRE_SCHEMA_KEYWORD_VOCABULARY | Remove the unconsumed audit alias and obsolete checker projection. Preserve the actual parser and wire engine. |
 | payloadSchemaFor and patchToolsOnlyFields | Remove unused callable identities with their bounded reader/patch cases qualified below. Preserve actual payload parsing, generated grammar and decoding. |
-| trackerGloss | Retain under D113. Actual standalone-provider hint delivery is qualified; do not force an absolute-reading helper into transition formatting. |
+| trackerGloss | Remove the unconsumed absolute-gloss helper. D113 protects actual standalone transition hints through the shared delta builder. |
 | Original parser, formatter and patch-expressibility permutations | Keep restoration partial. Pure permutations belong in unit or contract tests; integration owns distinct production composition and provider wiring. Record selected replacements and defect controls before acceptance. |
 
 This selection passes scoped lint, maintained runtime tests, affected compiler programs, dependency checks and independent review. Native scans remove the selected findings without weakening live behavior. The case maps below own bounded callable removals; wider restoration remains partial.
@@ -99,7 +99,7 @@ This selection passes scoped lint, maintained runtime tests, affected compiler p
 | Behavior | Primary layer and disposition |
 | - | - |
 | Tracker numeric narrowing, value totality and ceiling permutations | Unit or contract through actual public production helpers. Rebuild uncovered cases there; do not repeat their matrix through SEND. |
-| Absolute readings and vocabulary formatting | Unit or contract. Hold helper-specific trackerGloss assertions with D113; preserve meaningful reading behavior independently. |
+| Absolute readings and vocabulary formatting | Unit or contract. Drop only helper-specific gloss assertions; preserve meaningful reading, vocabulary and ceiling behavior independently. |
 | Persisted actor and game trackers reaching standalone macro and CEL provider fragments | Integration through actual SEND, production composition and native provider capture. Rebuild this distinct wiring case; existing user-macro tests do not prove it. |
 | Carried-unset labels, effective ceilings and vocabulary placement | Keep representative integration assertions for real carriage and composition. Pure punctuation and input permutations remain unit or contract work. |
 | Selected snapshot and quiet output | Integration. Verify the real selected variant has a snapshot before trusting negative output. Reuse existing swipe and regeneration coverage. |
@@ -127,7 +127,7 @@ This bounded selection passes runtime, affected compiler and dependency checks a
 | PluginUpdateSource audit alias | Remove the unconsumed alias and correct its stale comment reference. Keep the update-source tuple and actual PluginView wire contract. |
 | Embedding metadata axes, prune variants, extraction format tables and search parser components | Localize selected unused exports while retaining every definition, constraint, readonly field, presence distinction and enclosing public contract. |
 | Original plugin and knowledge boundary cases | Preserve meaningful cap, refusal, serialization, branding and type-conformance purposes. Modifier cleanup does not declare their broader restoration complete. |
-| Memory clip reservations | Retain the file and vocabulary under D55. The world-state plan is parked pending owner scope and terminology; leave the unused-file finding visible without fabricated wiring. |
+| Durable-fact concept | D55 keeps the future design in the parked world-state plan. Remove the unconsumed vocabulary file without changing live conversational memory. |
 
 This selection passes bounded JSSG preservation checks, maintained runtime tests, affected compiler programs, dependency checks and independent review. SDK packages, templates, generators and application behavior remain unchanged.
 
@@ -152,7 +152,7 @@ The selected tests pass before and after helper removal. Omitting an actual nest
 | Chat assembly, event, metadata, roster and projection support declarations | Localize unused exports while retaining exact bodies, readonly/presence contracts, refusal variants and enclosing public signatures. Hidden/reasoning stripping remains in the actual public member projection. |
 | Op-code and invite-result audit aliases | Remove unused tagged aliases. Retain actual op-code constants, mounted parsers, auth writes and client reads. No substitute type or consumer is needed. |
 | MemoryDigestInput | Keep the genuine cross-domain API and remove its inaccurate test-only claim. Preserve host/coherence guards and actual digest/storage wiring. |
-| rosterMemberSpecSchema and RosterMemberSpec | Retain the explicitly named spine reservation without inventing a caller or implementing parked seat branches. The live character-member schema remains separate. |
+| rosterMemberSpecSchema and RosterMemberSpec | Remove the unused single-character wrapper and type. Saved rosters retain the live character-member schema; future seat contracts belong to the resumed design. |
 | Original member projection and roster cases | Preserve meaningful privacy, non-deception, inside-tag tool offsets, absent fields, invalid kinds and range distinctions. Private helper export removal does not complete those broader restoration matrices. |
 
 This bounded selection passes exact JSSG preservation, maintained runtime tests, affected compiler and dependency checks and independent review. No authorization, credential flow, visibility rule or runtime operation changes.
@@ -239,15 +239,15 @@ The focused public contracts pass before and after alignment. Actual room/knob d
 
 Tests use the actual production row schema, not a replacement validator or invented consumer. Valid rows pass; widening the real discriminator fails the unknown-kind assertion. The canonical row tags and orphan-parser removal pass final qualification.
 
-## Remaining governed contract declarations
+## Owner-approved reservation cleanup
 
-| Finding | Current authority and boundary |
+| Identity or concept | Decision and preserved behavior |
 | - | - |
-| trackerGloss | D113 explicitly retains the named helper. Actual standalone delta hints already use transition formatting; any helper retirement requires a narrow ruling clarification, not manufactured wiring. |
-| rosterMemberSpecSchema and RosterMemberSpec | Spine-Identity-and-Auth §4 names the reserved desired-seat graft point. Preserve it without claiming a live consumer or implementing parked seats. |
-| memory/index.ts | D55 retains clip/world-state contract seams; the world-state-clips plan is parked. Preserve the declarations without adding a package door or fake consumer. |
+| trackerGloss | Remove the unused helper and preserve actual hinted transition lines. D113 names that behavior, not an unconsumed formatter. |
+| rosterMemberSpecSchema and RosterMemberSpec | Remove the redundant wrapper/type and named graft reservation. Public saved-roster parsing still uses characterMemberSpecSchema and its existing bounds. |
+| memory/index.ts | Remove unimplemented clip vocabularies. D55 retains the parked durable-fact concept; current chat memory and its preservation obligations remain unchanged. |
 
-Native findings remain visible for these governed locations. No contract source retains public/alpha/beta/alias suppression tags. Production-only findings retain actual maintained test, tooling and generator consumers. This does not close the broader package work item or complete legacy test restoration.
+The live saved-roster contract cases pass and catch deliberate kind/range defects with valid positive controls. Actual tracker SEND/state cases pass without changing hint formatting. Default native Knip reports no contract findings; production-only entries retain actual maintained test, tooling and generator consumers. No suppression or fabricated consumer is added. Broader package work and legacy restoration remain partial.
 
 ## Canonical variant completeness
 

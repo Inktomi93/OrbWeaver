@@ -301,7 +301,7 @@ suite. The only live agent surface is dormant DDL, kept so the re-land needs no 
   an `isAgent` boolean), and the `users_agent_shape` check makes an agent row loginless, `role='user'`,
   and owned by DDL (`packages/db/src/schema/users.ts`); `chat_participants_kind_shape` carries the
   dormant `agent` (userId-backed) and `observer` (both-null) branches (`packages/db/src/schema/chat.ts`);
-  `rosterMemberSpecSchema` documents where those branches graft back; the deny seam is pre-named in
+  the deny seam is pre-named in
   `admin/guard.ts` and `chat/guard.ts`. Every live `Principal` is human.
 - **Committed, not yet built — the capability factor re-lands with the seat wave:** the agent ceiling
   (a `canAgent` successor over a closed action union, decided at the kernel), its containment suite, and
@@ -315,6 +315,8 @@ suite. The only live agent surface is dormant DDL, kept so the re-land needs no 
 - Design of record: ledger D60 and the parked agent-principals plan
   (`../plans/agent-principals/design.md`). A parked plan is not quotable as build authority; D60
   describes the design, not the tree.
+
+Saved rosters use the live character-seat schema. Future desired-seat contracts belong to the resumed seat design.
 
 ## BFF session ≠ SDK chat session
 
