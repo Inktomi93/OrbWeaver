@@ -44,17 +44,14 @@ export const config = {
       ],
       project: ["scripts/**/*.ts", "tests/**/*.{ts,tsx}", "playwright/**/*.{ts,tsx,css}"],
       playwright: { config: ["playwright.config.ts", "playwright-ct.config.ts"] },
-      // The full binary analysis sees these deliberately fake executables in missing-binary and PATH-shim controls.
       // mkfifo is the POSIX coreutils binary the orchestrator-inject hook test uses to plant a FIFO transcript path;
       // it is an OS tool, never an npm dependency, so knip has no package to credit it to.
-      ignoreBinaries: ["orb-nonexistent-binary-xyz-123", "mkfifo"],
+      ignoreBinaries: ["mkfifo"],
       // pino-pretty is a root devDependency the dev launcher's pretty log rides; its importer is the tooling
       // workspace (tooling/src/dev/ops/dev.ts), which knip credits to that workspace, not to the root.
-      // @typescript/native (npm:typescript@7) is resolved by PATH STRING in scripts/typecheck.ts (node_modules/@typescript/native/bin/tsc) —
-      // invisible to import analysis.
       // @anthropic-ai/sdk is never imported; it is the peer pin for @anthropic-ai/claude-agent-sdk (pnpm-workspace.yaml).
       // typeid-js is resolved through the root node_modules by fixtures that copy packages/kit/src/ids (testkit-enforcement nativeProgram).
-      ignoreDependencies: ["pino-pretty", "@typescript/native", "@anthropic-ai/sdk", "typeid-js"],
+      ignoreDependencies: ["pino-pretty", "@anthropic-ai/sdk", "typeid-js"],
     },
     // @orb/testkit: every world module is a package subpath export, so each one is an entry.
     "tests/support": {

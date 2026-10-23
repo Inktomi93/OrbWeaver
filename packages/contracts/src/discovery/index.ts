@@ -132,7 +132,7 @@ export interface AnalyticsResult {
 }
 
 export type { Archetype, ArchetypeMember, ModelRoutingRow, ThemeRow, VisualArchetype } from "./artifacts.ts";
-export { archetypeMemberSchema, archetypeSchema, modelRoutingRowSchema, themeRowSchema, visualArchetypeSchema } from "./artifacts.ts";
+export { archetypeMemberSchema, archetypeSchema, modelRoutingRowSchema, visualArchetypeSchema } from "./artifacts.ts";
 // The PROSE-1 discovery slot table (the three whole side-generation system prompts) — `#prose` imports it
 // to compose `PROSE_SLOTS`.
 export { DISCOVERY_PROSE_SLOTS } from "./prose.ts";
@@ -602,7 +602,7 @@ export const distillStatsSchema = z.strictObject({
   tagsStaged: z.number(),
 }) satisfies z.ZodType<DistillStats>;
 
-export const browseCharacterSchema = z.strictObject({
+const browseCharacterSchema = z.strictObject({
   characterId: typeIdSchema(ID_PREFIX.character),
   name: z.string(),
   genre: z.string().nullable(),
@@ -635,14 +635,14 @@ export const corpusPointSchema = z.strictObject({
   y: z.number(),
 }) satisfies z.ZodType<CorpusPoint>;
 
-export const similarityGraphNodeSchema = z.strictObject({
+const similarityGraphNodeSchema = z.strictObject({
   characterId: typeIdSchema(ID_PREFIX.character),
   name: z.string(),
   degree: z.number(),
   genre: z.string().nullable(),
 }) satisfies z.ZodType<SimilarityGraphNode>;
 
-export const similarityGraphEdgeSchema = z.strictObject({
+const similarityGraphEdgeSchema = z.strictObject({
   source: typeIdSchema(ID_PREFIX.character),
   target: typeIdSchema(ID_PREFIX.character),
   similarity: z.number(),
@@ -761,7 +761,7 @@ const themeMemberSchema = z.strictObject({
   count: z.number(),
 }) satisfies z.ZodType<ThemeMember>;
 
-export const dossierNeighborSchema = z.strictObject({
+const dossierNeighborSchema = z.strictObject({
   characterId: typeIdSchema(ID_PREFIX.character),
   name: z.string(),
   score: z.number(),

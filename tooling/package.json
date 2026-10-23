@@ -83,7 +83,6 @@
     "./floor/process/server-entry": "./src/floor/process/server-entry.ts",
     "./floor/process/stop-escalation": "./src/floor/process/stop-escalation.ts",
     "./floor/process/sync-sleep": "./src/floor/process/sync-sleep.ts",
-    "./floor/testing/ct-cache": "./src/floor/testing/ct-cache.ts",
     "./floor/testing/test-kinds": "./src/floor/testing/test-kinds.ts",
     "./floor/testing/test-tags": "./src/floor/testing/test-tags.ts",
     "./floor/testing/working-tree-guard": "./src/floor/testing/working-tree-guard.ts",

@@ -71,7 +71,6 @@ export {
   chatInjectionInputSchema,
   contextFitAnswerSchema,
   MEMORY_RECALL_REJECTS_SHOWN,
-  SHAPE_BREAKPOINT_DECISIONS,
   sentPromptSchema,
   shapeTraceSchema,
   variantWireViewSchema,

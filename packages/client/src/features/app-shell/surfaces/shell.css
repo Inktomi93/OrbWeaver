@@ -71,8 +71,7 @@
    * 2. THIS FILE MAY ONLY SPELL THE SHELL-SCOPED RUNGS: `--z-base` / `--z-raised` (a rung inside whatever
    *    context an element already sits in) and `--z-overlay` (the shell frame's own float rung — panels,
    *    the scrim one below it, the skip link). `--z-modal` and up are the PORTAL-FLOAT tier and buy
-   *    exactly nothing here: 50 and 40 order the same four siblings. The scope→token map is DATA, beside
-   *    the scale it maps: `packages/ui/src/tokens/z-scope.ts` (`Z_TOKEN_SCOPES`).
+   *    exactly nothing here: 50 and 40 order the same four siblings.
    * 3. A CROSS-BOUNDARY FLOAT ESCAPES BY MOUNT POSITION, NEVER BY A HIGHER NUMBER. Dialogs, the ⌘K
    *    palette, menus, tooltips and toasts portal to `[data-slot="portal-root"]` — this grid's
    *    `display: contents` SIBLING — so they paint in the document's own stacking context, above the whole

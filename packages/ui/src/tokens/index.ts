@@ -297,7 +297,6 @@ export const SNAPPED_LENGTH_BASE_PX = {
   "leading.micro": 13,
 } as const;
 
-export type SnappedTokenPath = keyof typeof SNAPPED_LENGTH_BASE_PX;
 
 /** The `snapped` serialization and its INVERSE are generated together (#1640): a runtime consumer that must read a LIVE
  *  custom property — the pointer-conditional arm no static map carries — gets the belted length decoded here rather than

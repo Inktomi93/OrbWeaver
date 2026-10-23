@@ -91,7 +91,6 @@ export {
   RPG_STATE_CAPTURE_VEHICLES,
   RPG_STEERING_NOTE_MAX,
   rpgGameConfigSchema,
-  rpgGameFeaturesSchema,
 } from "./config.ts";
 export type {
   RpgCyoaChoiceBehavior,
