@@ -15,7 +15,7 @@ const NAME_MAX_LENGTH = 200;
 /** The five taggable entity types — each backed by its own per-type FK junction table. */
 export const TAG_TARGET_TYPES = ["character", "chat", "worldBook", "persona", "preset"] as const;
 export type TagTargetType = (typeof TAG_TARGET_TYPES)[number];
-export const tagTargetTypeSchema = z.enum(TAG_TARGET_TYPES) satisfies z.ZodType<TagTargetType>;
+const tagTargetTypeSchema = z.enum(TAG_TARGET_TYPES) satisfies z.ZodType<TagTargetType>;
 
 /** Tag provenance (display-only axis). `manual` = user-typed · `auto` = corpus tag-suggest distillation ·
  *  `card` = adopted from a character card's tag field. Not semantic facets — that's `discovery`'s concern. */
@@ -136,8 +136,8 @@ const worldBookTagTargetSchema = z.object({ targetType: z.literal("worldBook"), 
 const personaTagTargetSchema = z.object({ targetType: z.literal("persona"), targetId: typeIdSchema(ID_PREFIX.persona) });
 const presetTagTargetSchema = z.object({ targetType: z.literal("preset"), targetId: typeIdSchema(ID_PREFIX.preset) });
 
-/** The target kind selects the only entity-id prefix admitted at the wire boundary. */
-export const tagTargetRefSchema = z.discriminatedUnion("targetType", [
+// The target kind selects the only entity-id prefix admitted at the wire boundary.
+const tagTargetRefSchema = z.discriminatedUnion("targetType", [
   characterTagTargetSchema,
   chatTagTargetSchema,
   worldBookTagTargetSchema,
@@ -171,7 +171,7 @@ export const tagViewSchema = z.strictObject({
   isHiddenOnCard: z.boolean(),
 }) satisfies z.ZodType<TagView>;
 
-export const tagUsageSchema = z.strictObject({
+const tagUsageSchema = z.strictObject({
   characters: z.number(),
   chats: z.number(),
   worldBooks: z.number(),
@@ -197,7 +197,7 @@ export const tagFilterVocabularyEntrySchema = z.strictObject({
   characters: z.number(),
 }) satisfies z.ZodType<TagFilterVocabularyEntry>;
 
-export const tagAttachedEntitySchema = z.discriminatedUnion("targetType", [
+const tagAttachedEntitySchema = z.discriminatedUnion("targetType", [
   characterTagTargetSchema.extend({ name: z.string() }).strict(),
   chatTagTargetSchema.extend({ name: z.string() }).strict(),
   worldBookTagTargetSchema.extend({ name: z.string() }).strict(),

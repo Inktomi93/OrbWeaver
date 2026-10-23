@@ -26,8 +26,8 @@ export const worldBookRoleSchema = z.enum(WORLD_BOOK_ROLES);
 export type WorldBookRole = z.infer<typeof worldBookRoleSchema>;
 
 // `always` entries fire every turn; `keyword` entries fire only on a recent-message/name keyword match.
-export const WORLD_INFO_SCOPES = ["always", "keyword"] as const;
-export const worldInfoScopeSchema = z.enum(WORLD_INFO_SCOPES);
+const WORLD_INFO_SCOPES = ["always", "keyword"] as const;
+const worldInfoScopeSchema = z.enum(WORLD_INFO_SCOPES);
 export type WorldInfoScope = z.infer<typeof worldInfoScopeSchema>;
 
 export const createBookSchema = z.object({
@@ -42,14 +42,14 @@ export const updateBookSchema = z.object({
 });
 export type UpdateBookInput = z.infer<typeof updateBookSchema>;
 
-/** Machine-writer provenance an automated upserter (the D46 automation writer today; the purged chat/rpg
- *  agents keepers were the other two intended consumers — the rebuild wires them onto the same shape if either
- *  domain returns) stamps onto an entry it owns. `contentHash` is the sha256-hex of the content AS THE WRITER
- *  LEFT IT — the hand-edit-safe belt: a `upsertEntries` re-run that finds the CURRENT content no longer
- *  hashing to this value knows a human curated the entry and SKIPS it (the host's hand always wins). `span`
- *  is the transcript window that produced the entry (display + re-run idempotency). Generic on purpose — the
- *  shared `upsertEntries` mint owns this shape so every machine consumer inherits the same guarantee. */
-export const loreEntryProvenanceSchema = z.object({
+// Machine-writer provenance an automated upserter (the D46 automation writer today; the purged chat/rpg
+//  agents keepers were the other two intended consumers — the rebuild wires them onto the same shape if either
+//  domain returns) stamps onto an entry it owns. `contentHash` is the sha256-hex of the content AS THE WRITER
+//  LEFT IT — the hand-edit-safe belt: a `upsertEntries` re-run that finds the CURRENT content no longer
+//  hashing to this value knows a human curated the entry and SKIPS it (the host's hand always wins). `span`
+//  is the transcript window that produced the entry (display + re-run idempotency). Generic on purpose — the
+//  shared `upsertEntries` mint owns this shape so every machine consumer inherits the same guarantee.
+const loreEntryProvenanceSchema = z.object({
   contentHash: z.string(),
   span: z.object({ fromSeq: z.int().nonnegative(), toSeq: z.int().nonnegative() }).optional(),
 });
@@ -76,15 +76,15 @@ export const entryMetadataSchema = z.looseObject({
 });
 export type EntryMetadata = z.infer<typeof entryMetadataSchema>;
 
-/** Write-side metadata guard: stays a lenient open record (unknown keys ride through), but the
- *  load-bearing fields are validated when present — a typo'd `scopeMode`/`inject` rejects at WRITE.
- *
- *  The two hops are deliberate (the `personaMetadataWriteSchema` rationale, audited 2026-08-02): the opaque
- *  `Record<string, unknown>` OUTPUT keeps the wire input unnarrowed so every writer passes the ONE narrowing
- *  seam. The `code:"custom"` re-emit is an ACCEPTED loss for the same reason stated there: forwarding the
- *  original issue does not typecheck on 4.4.3 (`$ZodIssue` lacks `$ZodRawIssue`'s index signature) and
- *  `message` + `path` — what a client renders — survive the flatten. */
-export const entryMetadataWriteSchema = z.record(z.string(), z.unknown()).superRefine((val, ctx): void => {
+// Write-side metadata guard: stays a lenient open record (unknown keys ride through), but the
+//  load-bearing fields are validated when present — a typo'd `scopeMode`/`inject` rejects at WRITE.
+//
+//  The two hops are deliberate (the `personaMetadataWriteSchema` rationale, audited 2026-08-02): the opaque
+//  `Record<string, unknown>` OUTPUT keeps the wire input unnarrowed so every writer passes the ONE narrowing
+//  seam. The `code:"custom"` re-emit is an ACCEPTED loss for the same reason stated there: forwarding the
+//  original issue does not typecheck on 4.4.3 (`$ZodIssue` lacks `$ZodRawIssue`'s index signature) and
+//  `message` + `path` — what a client renders — survive the flatten.
+const entryMetadataWriteSchema = z.record(z.string(), z.unknown()).superRefine((val, ctx): void => {
   const known = entryMetadataSchema.safeParse(val);
   if (!known.success) {
     for (const issue of known.error.issues) {
@@ -173,7 +173,7 @@ export interface BookAttachmentView extends BookView {
   role: WorldBookRole | null;
 }
 
-export const INHERITED_BOOK_SOURCES = ["global", "character", "persona"] as const;
+const INHERITED_BOOK_SOURCES = ["global", "character", "persona"] as const;
 export type InheritedBookSource = (typeof INHERITED_BOOK_SOURCES)[number];
 
 /** A room attachment, or an eligible runtime source the room inherits without granting automation writes. */
@@ -194,7 +194,7 @@ export const bookViewSchema = z.strictObject({
   description: z.string().nullable(),
   createdAt: z.number(),
 }) satisfies z.ZodType<BookView>;
-export const bookUsageSchema = z.strictObject({
+const bookUsageSchema = z.strictObject({
   characters: z.number(),
   personas: z.number(),
   chats: z.number(),

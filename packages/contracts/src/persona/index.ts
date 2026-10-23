@@ -36,22 +36,22 @@ export const personaMetadataSchema = z
   .loose();
 export type PersonaMetadata = z.infer<typeof personaMetadataSchema>;
 
-/** Write-side metadata guard: the blob stays a lenient open record, but known fields are validated when
- *  present so a typo'd `descriptionPosition`/`inject` is rejected at WRITE instead of silently no-op'ing.
- *
- *  WHY THE TWO HOPS AND NOT JUST `personaMetadataSchema` (audited 2026-08-02 — the loose schema alone accepts
- *  the identical set): the OPAQUE `Record<string, unknown>` OUTPUT is the point. It keeps the wire input
- *  UNNARROWED so every writer — transport AND the import domain, which never crosses this schema — must go
- *  through the ONE narrowing seam (`domain/persona/substrate/metadata.ts` `normalizeWriteMetadata`, typed on
- *  exactly this record). Collapsing to the loose schema would hand transport a pre-narrowed value and leave
- *  the import path shaped differently — two shapes into one seam.
- *
- *  The re-emit flattens every issue to `code:"custom"` and that is a KNOWN, ACCEPTED loss: forwarding the
- *  original (`ctx.addIssue(issue)`) works at runtime but does NOT typecheck on zod 4.4.3 — the finalized
- *  `$ZodIssue` arms lack the `[x: string]: unknown` index signature `$ZodRawIssue` requires (probed; TS2345),
- *  and the only way through is a cast this repo bans. `message` and `path` survive, which is what a client
- *  renders; only the machine-readable `code`/payload is lost. */
-export const personaMetadataWriteSchema = z.record(z.string(), z.unknown()).superRefine((val, ctx): void => {
+// Write-side metadata guard: the blob stays a lenient open record, but known fields are validated when
+//  present so a typo'd `descriptionPosition`/`inject` is rejected at WRITE instead of silently no-op'ing.
+//
+//  WHY THE TWO HOPS AND NOT JUST `personaMetadataSchema` (audited 2026-08-02 — the loose schema alone accepts
+//  the identical set): the OPAQUE `Record<string, unknown>` OUTPUT is the point. It keeps the wire input
+//  UNNARROWED so every writer — transport AND the import domain, which never crosses this schema — must go
+//  through the ONE narrowing seam (`domain/persona/substrate/metadata.ts` `normalizeWriteMetadata`, typed on
+//  exactly this record). Collapsing to the loose schema would hand transport a pre-narrowed value and leave
+//  the import path shaped differently — two shapes into one seam.
+//
+//  The re-emit flattens every issue to `code:"custom"` and that is a KNOWN, ACCEPTED loss: forwarding the
+//  original (`ctx.addIssue(issue)`) works at runtime but does NOT typecheck on zod 4.4.3 — the finalized
+//  `$ZodIssue` arms lack the `[x: string]: unknown` index signature `$ZodRawIssue` requires (probed; TS2345),
+//  and the only way through is a cast this repo bans. `message` and `path` survive, which is what a client
+//  renders; only the machine-readable `code`/payload is lost.
+const personaMetadataWriteSchema = z.record(z.string(), z.unknown()).superRefine((val, ctx): void => {
   const known = personaMetadataSchema.safeParse(val);
   if (!known.success) {
     for (const issue of known.error.issues) {
@@ -93,10 +93,6 @@ export type UpdatePersonaInput = z.infer<typeof updatePersonaSchema>;
 // The export/import round-trip shape: `createPersonaSchema` minus `avatarAssetId` (a binary asset
 // reference can't travel in a JSON backup).
 export const personaBackupSchema = createPersonaSchema.omit({ avatarAssetId: true });
-/** The portable JSON body before the persona serde narrows it to its canonical `PersonaBackup`.
- * @public twin: personaBackupSchema
- */
-export type PersonaBackupWire = z.output<typeof personaBackupSchema>;
 
 /** One resolved persona to bulk-import. `isDefault` marks the profile's `power_user.default_persona`.
  *  `avatarAssetId` is set by the driver after storing the `User Avatars/<file>` bytes. */

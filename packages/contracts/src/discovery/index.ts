@@ -47,11 +47,11 @@ export const DISCOVERY_GRAPH_MAX_NODES = 500;
 // of how much the user owns. So: a page + a cursor + the server's own census, the SAME three fields the
 // character library's collection surface already consumes.
 
-/** `recent` = collected-date descending; `name` = card name ascending. Discovery browse is content-only.
- *  Homed HERE rather than in the domain (it moved 2026-08-19 with the cursor): the cursor schema below is a
- *  WIRE shape discriminated on this axis, and re-spelling the two members beside it is exactly the doubling
- *  §5.5 forbids. The domain re-exports the type. */
-export const BROWSE_SORTS = ["recent", "name"] as const;
+// `recent` = collected-date descending; `name` = card name ascending. Discovery browse is content-only.
+//  Homed HERE rather than in the domain (it moved 2026-08-19 with the cursor): the cursor schema below is a
+//  WIRE shape discriminated on this axis, and re-spelling the two members beside it is exactly the doubling
+//  §5.5 forbids. The domain re-exports the type.
+const BROWSE_SORTS = ["recent", "name"] as const;
 export type BrowseSort = (typeof BROWSE_SORTS)[number];
 export const browseSortSchema = z.enum(BROWSE_SORTS) satisfies z.ZodType<BrowseSort>;
 
@@ -101,27 +101,25 @@ export type ComputeThemesWorkloadParams = z.infer<typeof computeThemesWorkloadPa
 export const findDuplicatesWorkloadParams = z.object({ threshold: z.number().min(0).max(1).optional() });
 export type FindDuplicatesWorkloadParams = z.infer<typeof findDuplicatesWorkloadParams>;
 
-/**
- * Why a pass wrote nothing — the honest-accounting discriminator (issue #166).
- *
- * A ZERO IS NOT A SUCCESS SENTENCE. `compute-themes` clusters MEMORY DIGESTS, and a library with none ran to
- * `succeeded` with `{scanned: 0, written: 0}` and a result line reading "0 rows · 0 written" — a pass that
- * could not run at all, reported as one that ran and found nothing. Typed rather than a free-text note so the
- * client's copy is an exhaustive `Record` over this union (§5.5) instead of a server-authored sentence
- * crossing the wire.
- *
- * `no-digests` — the input plane is empty: memory has never been backfilled (or memory is disabled).
- * `no-solo-digests` — digests EXIST but every one belongs to a group room, and the passes that attribute a
- *   digest to a character read solo digests only: `compute-themes` clusters them and `compute-cooccurrence`
- *   credits their keywords (a group room's digests belong to the synthetic group character, #1467). "Run the
- *   backfill" is the wrong sentence there — it already ran (issue #558).
- * `no-embeddings` — the EMBEDDINGS plane is empty: nothing has been indexed yet. `csls` scores card vectors
- *   and `find-duplicates` compares card vectors + chat segment hashes, and all of those are written by the
- *   INDEX pass — a different job from the memory backfill the digest reasons point at, so it is a different
- *   sentence (issue #561).
- * `no-cards` — the owner's library has nothing to read yet.
- */
-export const ANALYTICS_EMPTY_REASONS = ["no-digests", "no-solo-digests", "no-embeddings", "no-cards"] as const;
+// Why a pass wrote nothing — the honest-accounting discriminator (issue #166).
+//
+// A ZERO IS NOT A SUCCESS SENTENCE. `compute-themes` clusters MEMORY DIGESTS, and a library with none ran to
+// `succeeded` with `{scanned: 0, written: 0}` and a result line reading "0 rows · 0 written" — a pass that
+// could not run at all, reported as one that ran and found nothing. Typed rather than a free-text note so the
+// client's copy is an exhaustive `Record` over this union (§5.5) instead of a server-authored sentence
+// crossing the wire.
+//
+// `no-digests` — the input plane is empty: memory has never been backfilled (or memory is disabled).
+// `no-solo-digests` — digests EXIST but every one belongs to a group room, and the passes that attribute a
+//   digest to a character read solo digests only: `compute-themes` clusters them and `compute-cooccurrence`
+//   credits their keywords (a group room's digests belong to the synthetic group character, #1467). "Run the
+//   backfill" is the wrong sentence there — it already ran (issue #558).
+// `no-embeddings` — the EMBEDDINGS plane is empty: nothing has been indexed yet. `csls` scores card vectors
+//   and `find-duplicates` compares card vectors + chat segment hashes, and all of those are written by the
+//   INDEX pass — a different job from the memory backfill the digest reasons point at, so it is a different
+//   sentence (issue #561).
+// `no-cards` — the owner's library has nothing to read yet.
+const ANALYTICS_EMPTY_REASONS = ["no-digests", "no-solo-digests", "no-embeddings", "no-cards"] as const;
 export type AnalyticsEmptyReason = (typeof ANALYTICS_EMPTY_REASONS)[number];
 
 /** What every discovery analytics pass reports: rows examined, rows written, and — when it wrote nothing
@@ -622,7 +620,7 @@ export const browseCharactersPageSchema = z.strictObject({
   totalCount: z.number(),
 }) satisfies z.ZodType<BrowseCharactersPage>;
 
-export const facetCountSchema = z.strictObject({ value: z.string(), count: z.number() }) satisfies z.ZodType<FacetCount>;
+const facetCountSchema = z.strictObject({ value: z.string(), count: z.number() }) satisfies z.ZodType<FacetCount>;
 
 export const characterFacetsSchema = z.strictObject({
   genres: z.array(facetCountSchema),
@@ -663,9 +661,9 @@ export const similarChatSchema = z.strictObject({
 
 export const keywordCountSchema = z.strictObject({ keyword: z.string(), count: z.number() }) satisfies z.ZodType<KeywordCount>;
 
-export const tagCountSchema = z.strictObject({ tag: z.string(), count: z.number() }) satisfies z.ZodType<TagCount>;
+const tagCountSchema = z.strictObject({ tag: z.string(), count: z.number() }) satisfies z.ZodType<TagCount>;
 
-export const tagPairSchema = z.strictObject({ a: z.string(), b: z.string(), count: z.number() }) satisfies z.ZodType<TagPair>;
+const tagPairSchema = z.strictObject({ a: z.string(), b: z.string(), count: z.number() }) satisfies z.ZodType<TagPair>;
 
 export const catalogStatsSchema = z.strictObject({
   genres: z.array(facetCountSchema),
@@ -676,7 +674,7 @@ export const catalogStatsSchema = z.strictObject({
   totalCharacters: z.number(),
 }) satisfies z.ZodType<CatalogStats>;
 
-export const comparedCharacterSchema = z.strictObject({
+const comparedCharacterSchema = z.strictObject({
   characterId: typeIdSchema(ID_PREFIX.character),
   name: z.string(),
   genre: z.string().nullable(),
@@ -695,7 +693,7 @@ export const characterComparisonSchema = z.strictObject({
   redundancy: z.number(),
 }) satisfies z.ZodType<CharacterComparison>;
 
-export const comparisonNarrativeSchema = z.strictObject({
+const comparisonNarrativeSchema = z.strictObject({
   summary: z.string(),
   overlap: z.string(),
   distinction: z.string(),
@@ -724,7 +722,7 @@ export const swipeHotspotSchema = z.strictObject({
   snippet: z.string(),
 }) satisfies z.ZodType<SwipeHotspot>;
 
-export const themeDriftThemeSchema = z.strictObject({
+const themeDriftThemeSchema = z.strictObject({
   clusterIdx: z.number(),
   themeName: z.string().nullable(),
   count: z.number(),
@@ -735,7 +733,7 @@ export const themeDriftBucketSchema = z.strictObject({
   themes: z.array(themeDriftThemeSchema),
 }) satisfies z.ZodType<ThemeDriftBucket>;
 
-export const themeTimelineBucketSchema = z.strictObject({ bucketStart: z.int(), count: z.number() }) satisfies z.ZodType<ThemeTimelineBucket>;
+const themeTimelineBucketSchema = z.strictObject({ bucketStart: z.int(), count: z.number() }) satisfies z.ZodType<ThemeTimelineBucket>;
 
 export const forgottenGemSchema = z.strictObject({
   characterId: typeIdSchema(ID_PREFIX.character),
@@ -757,7 +755,7 @@ export const homeViewSchema = z.strictObject({
   duplicateCounts: z.strictObject({ characters: z.number(), chats: z.number(), identicalCharacterPairs: z.number() }),
 }) satisfies z.ZodType<HomeView>;
 
-export const themeMemberSchema = z.strictObject({
+const themeMemberSchema = z.strictObject({
   characterId: typeIdSchema(ID_PREFIX.character),
   name: z.string(),
   count: z.number(),
@@ -808,7 +806,7 @@ export const imageDuplicatePairSchema = z.strictObject({
   similarity: z.number(),
 }) satisfies z.ZodType<ImageDuplicatePair>;
 
-export const portraitAlignmentSchema = z.strictObject({
+const portraitAlignmentSchema = z.strictObject({
   characterId: typeIdSchema(ID_PREFIX.character),
   name: z.string(),
   avatarHash: z.string().nullable(),

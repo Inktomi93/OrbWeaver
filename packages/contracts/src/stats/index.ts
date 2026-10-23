@@ -17,12 +17,12 @@ import { tokenProvenanceSchema } from "../chat/token-provenance.ts";
  *  references (homed HERE so the wire ceiling and the clamp never drift). An over-bound ask is a BAD_REQUEST. */
 export const STATS_LIST_MAX_LIMIT = 200;
 
-/** The per-canon-write increment payload, applied in the same `db.batch()` as the canon write. Three
- *  decoupled slices: SCALAR (monotonic per-character/per-owner totals), DAILY (`dailyTokensIn`/`Out`,
- *  decoupled so a swipe can bump `day.swipes` without touching `day.tokens`), MODEL (`modelGenerations`/…,
- *  decoupled so a swipe on a different model never double-counts scalar). No `.default()`: an omitted
- *  increment stays absent (the delta is a sparse patch). */
-export const statsDeltaSchema = z.object({
+// The per-canon-write increment payload, applied in the same `db.batch()` as the canon write. Three
+//  decoupled slices: SCALAR (monotonic per-character/per-owner totals), DAILY (`dailyTokensIn`/`Out`,
+//  decoupled so a swipe can bump `day.swipes` without touching `day.tokens`), MODEL (`modelGenerations`/…,
+//  decoupled so a swipe on a different model never double-counts scalar). No `.default()`: an omitted
+//  increment stays absent (the delta is a sparse patch).
+const statsDeltaSchema = z.object({
   ownerId: brandedId("UserId"),
   // null for system / no-character writes → `character_stats` is skipped for this delta.
   characterId: typeIdSchema(ID_PREFIX.character).nullable(),
@@ -571,7 +571,7 @@ export interface LatencyStats {
   p90GenMs: number | null;
 }
 
-export const extraStatsSchema = z.strictObject({
+const extraStatsSchema = z.strictObject({
   reasoningMs: z.number(),
   costUsd: z.number().nullable(),
   cacheReadTokens: z.number(),
@@ -619,7 +619,7 @@ export const characterStatsViewSchema = ownerStatsViewSchema.extend({
   name: z.string(),
 }) satisfies z.ZodType<CharacterStatsView>;
 
-export const leaderboardRowSchema = z.strictObject({
+const leaderboardRowSchema = z.strictObject({
   characterId: typeIdSchema(ID_PREFIX.character),
   name: z.string(),
   chats: z.number(),
@@ -747,7 +747,7 @@ export const reconcileStatsWorkloadResultSchema = z.strictObject({
   characters: z.number(),
 }) satisfies z.ZodType<ReconcileStatsWorkloadResult>;
 
-export const LEADERBOARD_SORTS = ["assistantTurns", "totalGenTimeMs", "swipes", "lastActivityAt"] as const;
+const LEADERBOARD_SORTS = ["assistantTurns", "totalGenTimeMs", "swipes", "lastActivityAt"] as const;
 export type LeaderboardSort = (typeof LEADERBOARD_SORTS)[number];
 
 export const latencyScopeSchema = z.discriminatedUnion("kind", [

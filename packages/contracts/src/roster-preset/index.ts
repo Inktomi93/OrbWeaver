@@ -26,19 +26,19 @@ import { characterMemberSpecSchema, groupConfigInputSchema, groupConfigSchema } 
 import type { RpgGameTemplate } from "#rpg";
 import { rpgGameTemplateSchema } from "#rpg";
 
-/** Sanity rail on a roster's size (the program doc's "lean: 25 — matches nothing structural"). */
-export const ROSTER_PRESET_MEMBER_MAX = 25;
+// Sanity rail on a roster's size (the program doc's "lean: 25 — matches nothing structural").
+const ROSTER_PRESET_MEMBER_MAX = 25;
 const NAME_MAX = 200;
 const DESCRIPTION_MAX = 2000;
 
-/** One saved seat on the wire — chat's D80 character-member spec, verbatim (kind + characterId +
- *  position + the optional seat knobs). The preset write verb normalizes `position` (sort, re-stamp
- *  dense 0..n-1), so wire positions only need to ORDER, not to be contiguous. */
-export const rosterPresetMemberSchema = characterMemberSpecSchema;
+// One saved seat on the wire — chat's D80 character-member spec, verbatim (kind + characterId +
+//  position + the optional seat knobs). The preset write verb normalizes `position` (sort, re-stamp
+//  dense 0..n-1), so wire positions only need to ORDER, not to be contiguous.
+const rosterPresetMemberSchema = characterMemberSpecSchema;
 
-/** The full member list: 1..MAX seats, one seat per character (the junction PK made wire-visible —
- *  a duplicate characterId would silently collapse into one row on insert otherwise). */
-export const rosterPresetMembersSchema = z
+// The full member list: 1..MAX seats, one seat per character (the junction PK made wire-visible —
+//  a duplicate characterId would silently collapse into one row on insert otherwise).
+const rosterPresetMembersSchema = z
   .array(rosterPresetMemberSchema)
   .min(1)
   .max(ROSTER_PRESET_MEMBER_MAX)
@@ -56,10 +56,10 @@ const rosterPresetRuleSchema = z.object({
   knobs: rulePresetKnobValuesSchema.default({}),
 });
 
-/** The captured rule-preset list. Array order IS capture/apply order (re-stamped dense at the write
- *  verb — the members posture, minus the explicit position field the D80 member vocabulary carries);
- *  one instance per rule preset (the junction PK made wire-visible), bounded by the catalogue itself. */
-export const rosterPresetRulesSchema = z
+// The captured rule-preset list. Array order IS capture/apply order (re-stamped dense at the write
+//  verb — the members posture, minus the explicit position field the D80 member vocabulary carries);
+//  one instance per rule preset (the junction PK made wire-visible), bounded by the catalogue itself.
+const rosterPresetRulesSchema = z
   .array(rosterPresetRuleSchema)
   .max(RULE_PRESET_IDS.length)
   .refine((rules) => new Set(rules.map((r) => r.rulePresetId)).size === rules.length, {
@@ -84,10 +84,7 @@ export const createRosterPresetSchema = z.object({
    *  library editor's rename ECHOES the stored list back verbatim. */
   rules: rosterPresetRulesSchema.default([]),
 });
-/** The post-parse create payload, including schema defaults and branded ids.
- * @public twin: createRosterPresetSchema
- */
-export type CreateRosterPreset = z.output<typeof createRosterPresetSchema>;
+
 /** The LENIENT input (`z.input` — pre-default, pre-brand): what a caller hands the verb. The ROUTER
  *  parses the wire through {@link createRosterPresetSchema} (strict TypeIDs, caps); the VERB re-parses
  *  only the `groupConfig` sub-blob (the one field whose garbage would otherwise be STORED and detonate
@@ -189,7 +186,7 @@ export interface ApplyRosterPresetResult {
   readonly rulesSkipped: readonly RosterPresetRuleSkip[];
 }
 
-export const rosterPresetMemberViewSchema = z.strictObject({
+const rosterPresetMemberViewSchema = z.strictObject({
   characterId: typeIdSchema(ID_PREFIX.character),
   position: z.number(),
   talkativeness: z.number().nullable(),
@@ -198,7 +195,7 @@ export const rosterPresetMemberViewSchema = z.strictObject({
   avatarHash: z.string().nullable(),
 }) satisfies z.ZodType<RosterPresetMemberView>;
 
-export const rosterPresetRuleViewSchema = z.strictObject({
+const rosterPresetRuleViewSchema = z.strictObject({
   rulePresetId: rulePresetIdSchema,
   knobs: rulePresetKnobOutputValuesSchema,
 }) satisfies z.ZodType<RosterPresetRuleView>;
@@ -221,7 +218,7 @@ export const rosterPresetSummarySchema = rosterPresetViewSchema.omit({ groupConf
   hasGroupConfig: z.boolean(),
 }) satisfies z.ZodType<RosterPresetSummary>;
 
-export const rosterPresetRuleSkipSchema = z.strictObject({
+const rosterPresetRuleSkipSchema = z.strictObject({
   rulePresetId: rulePresetIdSchema,
   reason: z.string(),
 }) satisfies z.ZodType<RosterPresetRuleSkip>;

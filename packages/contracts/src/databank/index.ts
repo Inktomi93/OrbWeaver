@@ -31,7 +31,7 @@ export type DocOrigin = z.infer<typeof docOriginSchema>;
  *  are fetched by a scraper rather than uploaded. */
 export const SCRAPER_KINDS = ["web", "youtube", "wiki"] as const satisfies readonly DocOrigin[];
 
-export const scraperKindSchema = z.enum(SCRAPER_KINDS);
+const scraperKindSchema = z.enum(SCRAPER_KINDS);
 
 export type ScraperKind = z.infer<typeof scraperKindSchema>;
 
@@ -73,7 +73,7 @@ export const INGEST_PHASES = ["empty", "indexing", "embedding", "ready", "stalle
  *  type are exactly equal. */
 export type IngestPhase = (typeof INGEST_PHASES)[number];
 
-export const ingestPhaseSchema = z.enum(INGEST_PHASES) satisfies z.ZodType<IngestPhase>;
+const ingestPhaseSchema = z.enum(INGEST_PHASES) satisfies z.ZodType<IngestPhase>;
 
 /** A document still in an IN-FLIGHT phase this long after its last write reads as a STUCK job. Derived from
  *  `updatedAt` because there is no status column: a live ingest bumps `updatedAt` as chunks land, so a frozen
@@ -109,12 +109,12 @@ export interface BankHealthView {
   readonly staleExtraction: number;
 }
 
-/** The keyset `databank.list` pages by — the boundary row's own `(updatedAt, id)`, because the list is
- *  ordered `updatedAt DESC, id DESC` and `updatedAt` is not unique (two documents written in the same
- *  millisecond, which a bulk import produces by the dozen). `id` breaks the tie, so no row is served twice
- *  and none is skipped. An OFFSET would do neither: it re-counts from the top of a list whose head moves
- *  every time an ingest bumps a row's `updatedAt` (the `character.list` keyset precedent). */
-export const documentListCursorSchema = z.object({
+// The keyset `databank.list` pages by — the boundary row's own `(updatedAt, id)`, because the list is
+//  ordered `updatedAt DESC, id DESC` and `updatedAt` is not unique (two documents written in the same
+//  millisecond, which a bulk import produces by the dozen). `id` breaks the tie, so no row is served twice
+//  and none is skipped. An OFFSET would do neither: it re-counts from the top of a list whose head moves
+//  every time an ingest bumps a row's `updatedAt` (the `character.list` keyset precedent).
+const documentListCursorSchema = z.object({
   updatedAt: z.int(),
   id: documentIdSchema,
 });
@@ -123,15 +123,15 @@ export type DocumentListCursor = z.infer<typeof documentListCursorSchema>;
 
 // Chunk/retrieval bounds — named (contracts enforce no-magic-numbers). ST-derived defaults:
 // 2500-char chunks, 0% overlap, ≤5 KB whole-file, k=5, minScore 0.25.
-export const CHUNK_SIZE_MIN = 200;
+const CHUNK_SIZE_MIN = 200;
 const CHUNK_SIZE_MAX = 20_000;
-export const CHUNK_SIZE_DEFAULT = 2500;
-export const OVERLAP_PERCENT_MAX = 50;
+const CHUNK_SIZE_DEFAULT = 2500;
+const OVERLAP_PERCENT_MAX = 50;
 const WHOLE_FILE_THRESHOLD_MAX = 100_000;
-export const WHOLE_FILE_THRESHOLD_DEFAULT = 5120;
+const WHOLE_FILE_THRESHOLD_DEFAULT = 5120;
 const RETRIEVAL_K_MAX = 50;
-export const RETRIEVAL_K_DEFAULT = 5;
-export const MIN_SCORE_DEFAULT = 0.25;
+const RETRIEVAL_K_DEFAULT = 5;
+const MIN_SCORE_DEFAULT = 0.25;
 
 // ── chunk params (the wire twin of @orb/kit/chunk's ChunkParams; pinned by ChunkParamsPin below) ─────────
 export const chunkParamsSchema = z.object({
@@ -142,12 +142,11 @@ export const chunkParamsSchema = z.object({
 
 export type ChunkParamsWire = z.infer<typeof chunkParamsSchema>;
 
-/** Compile-time pin: the wire shape and `@orb/kit/chunk`'s `ChunkParams` are MUTUALLY assignable — any drift
- *  (a renamed/added/dropped field) fails tsc HERE, not at a call site. kit stays zod-free; contracts derives
- *  the wire twin and this type is the belt that keeps them one shape. Self-referenced by `_chunkParamsHolds`
- *  below (an UNREFERENCED conditional type is never evaluated, so the pin only bites when read) — which also
- *  makes it an own-file-consumed export, not orphan-ratchet parking-permit rot. */
-export type ChunkParamsPin = ChunkParamsWire extends ChunkParams ? (ChunkParams extends ChunkParamsWire ? true : never) : never;
+// Compile-time pin: the wire shape and `@orb/kit/chunk`'s `ChunkParams` are MUTUALLY assignable — any drift
+//  (a renamed/added/dropped field) fails tsc HERE, not at a call site. kit stays zod-free; contracts derives
+//  the wire twin and this type is the belt that keeps them one shape. Self-referenced by `_chunkParamsHolds`
+//  below (an UNREFERENCED conditional type is never evaluated, so the pin only bites when read).
+type ChunkParamsPin = ChunkParamsWire extends ChunkParams ? (ChunkParams extends ChunkParamsWire ? true : never) : never;
 /** Forces tsc to EVALUATE {@link ChunkParamsPin}: a wire/kit drift makes the pin `never` and this `= true` fails. */
 const _chunkParamsHolds: ChunkParamsPin = true;
 void _chunkParamsHolds;
@@ -286,7 +285,7 @@ export type ReindexScope = z.infer<typeof reindexScopeSchema>;
 // producer verbs write the `documents` row before enqueuing and the two are not one transaction, so a
 // producer must be able to report a half-success — and the CLIENT is what tells the user which half
 // (`add-document-dialog` renders a different sentence for it, and it must not re-spell the members).
-export const INGEST_OUTCOMES = ["queued", "skipped", "not-queued"] as const;
+const INGEST_OUTCOMES = ["queued", "skipped", "not-queued"] as const;
 
 export type IngestOutcome = (typeof INGEST_OUTCOMES)[number];
 
@@ -405,7 +404,7 @@ export const documentDetailViewSchema = documentViewSchema
     ({ extractedText, ...view }): DocumentDetailView => ({ ...view, ...(extractedText === undefined ? {} : { extractedText }) }),
   ) satisfies z.ZodType<DocumentDetailView>;
 
-export const documentCharacterRefSchema = z.strictObject({
+const documentCharacterRefSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.character),
   name: z.string(),
 }) satisfies z.ZodType<DocumentCharacterRef>;

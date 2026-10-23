@@ -20,12 +20,12 @@ const HANDLE_MIN = 1;
 const HANDLE_MAX = 200;
 // CARD-CONTENT ceiling (greetings/systemPrompt/…). The FACE fields (name/description/starred/
 // avatarAssetId) spread `cardFaceFields` (D137(E)) — their limits live in `#card-face`, not here.
-export const TEXT_MAX = 100_000;
-export const CREATOR_MAX = 200;
-export const CARD_VERSION_MAX = 200;
-export const NICKNAME_MAX = 200;
+const TEXT_MAX = 100_000;
+const CREATOR_MAX = 200;
+const CARD_VERSION_MAX = 200;
+const NICKNAME_MAX = 200;
 const SOURCE_MAX = 100;
-export const GREETINGS_MAX = 100;
+const GREETINGS_MAX = 100;
 const REGEX_SCRIPTS_MAX = 500;
 
 // ── Card spec markers (Character-Card V2 / V3) ──────────────────────────────────────────────────────────
@@ -36,9 +36,9 @@ const REGEX_SCRIPTS_MAX = 500;
 // absent. The canonical card carries the spec it was READ from so export round-trips it (V2→V2, V3→V3).
 export const CHARA_CARD_V2_SPEC = "chara_card_v2";
 export const CHARA_CARD_V3_SPEC = "chara_card_v3";
-export const CARD_SPECS = [CHARA_CARD_V2_SPEC, CHARA_CARD_V3_SPEC] as const;
+const CARD_SPECS = [CHARA_CARD_V2_SPEC, CHARA_CARD_V3_SPEC] as const;
 export type CardSpec = (typeof CARD_SPECS)[number];
-export const cardSpecSchema = z.enum(CARD_SPECS) satisfies z.ZodType<CardSpec>;
+const cardSpecSchema = z.enum(CARD_SPECS) satisfies z.ZodType<CardSpec>;
 
 /**
  * The `creator` every SHIPPED example card carries — the tell that a row in the library is app-authored
@@ -57,18 +57,16 @@ export const cardSpecSchema = z.enum(CARD_SPECS) satisfies z.ZodType<CardSpec>;
  */
 export const AUTHORED_CARD_CREATOR = "orbweaver";
 
-/**
- * WHERE A CHARACTER IN THE LIBRARY CAME FROM — the closed verdict both read models project (#865).
- *
- * `shipped` = one of the app's own default cards ({@link AUTHORED_CARD_CREATOR}) · `imported` = brought in
- * from outside (the row carries an `importedFrom`) · `authored` = the owner made it here. Three arms, total
- * over every row: the Characters landing shelves a fresh install by this, and a row with no answer is a row
- * with no shelf.
- *
- * NOT to be confused with the CARD's own `source` field, which is the ST V3 `data.source` provenance-URL
- * list carried verbatim through the serde — a different fact under a name the wire already owns.
- */
-export const CHARACTER_PROVENANCES = ["shipped", "imported", "authored"] as const;
+// WHERE A CHARACTER IN THE LIBRARY CAME FROM — the closed verdict both read models project (#865).
+//
+// `shipped` = one of the app's own default cards ({@link AUTHORED_CARD_CREATOR}) · `imported` = brought in
+// from outside (the row carries an `importedFrom`) · `authored` = the owner made it here. Three arms, total
+// over every row: the Characters landing shelves a fresh install by this, and a row with no answer is a row
+// with no shelf.
+//
+// NOT to be confused with the CARD's own `source` field, which is the ST V3 `data.source` provenance-URL
+// list carried verbatim through the serde — a different fact under a name the wire already owns.
+const CHARACTER_PROVENANCES = ["shipped", "imported", "authored"] as const;
 export type CharacterProvenance = (typeof CHARACTER_PROVENANCES)[number];
 
 /**
@@ -195,7 +193,7 @@ export const ATTACHED_BOOKS_WIRE_KEY = "orbweaver_attached_books";
 // `alternate_greetings` (the rest, `groupOnly` absent/false), and `group_only_greetings` (`groupOnly: true`) —
 // offered only in group chats. The serde re-splits them on export (`buildCardV3`) so the round-trip is lossless.
 // The owner-decided lock-the-extensible-shape call (the parallel-column alternative was rejected).
-export const greetingSchema = z.object({
+const greetingSchema = z.object({
   /** The greeting text — macro-aware (`{{char}}`/`{{user}}`/…), resolved at read. */
   text: z.string().max(TEXT_MAX),
   /** True ⇒ offered ONLY in group chats (ST `data.group_only_greetings`). Absent ⇒ a normal greeting. Never
@@ -207,13 +205,9 @@ export type Greeting = z.infer<typeof greetingSchema>;
 /** The always-a-list DB read-seam coercion for the `characters.greetings` JSON column (+ snapshot blobs): a
  *  corrupt/non-array value collapses to `[]`. The ONE home the row→view readers share (queries `cardOf`). */
 export const greetingsColumnSchema = z.array(greetingSchema).catch([]);
-/** The healed DB/snapshot representation emitted by {@link greetingsColumnSchema}.
- * @public twin: greetingsColumnSchema
- */
-export type GreetingsColumn = z.output<typeof greetingsColumnSchema>;
 
 // Identity-free (no id/handle/ownerId — those are row identity columns, not card content).
-export const characterCardSchema = z.object({
+const characterCardSchema = z.object({
   name: cardFaceFields.name,
   // The face description, `.nullable()` per card-spec fidelity (a V2/V3 card may omit it) — the wrap is
   // character's write semantics; the inner validator is the ONE home.
@@ -464,10 +458,10 @@ export const CHARACTER_LIST_SORTS = [
   "worstScore",
 ] as const;
 export type CharacterListSort = (typeof CHARACTER_LIST_SORTS)[number];
-export const characterListSortSchema = z.enum(CHARACTER_LIST_SORTS) satisfies z.ZodType<CharacterListSort>;
+const characterListSortSchema = z.enum(CHARACTER_LIST_SORTS) satisfies z.ZodType<CharacterListSort>;
 
 // `sort` is carried in the payload so the server can reject a cursor minted under a different sort.
-export const characterListCursorSchema = z.discriminatedUnion("sort", [
+const characterListCursorSchema = z.discriminatedUnion("sort", [
   z.object({
     sort: z.literal("recent"),
     /** `null` = the boundary row has never been chatted (the NULLS-LAST tail). */
@@ -655,9 +649,9 @@ export const CHARACTER_STALE_BASIS_OP_CODE = "stale_basis" as const;
 
 export const CHARACTER_BULK_TAG_RESOLVE_FAILED_OP_CODE = "tag_resolve_failed" as const;
 export const CHARACTER_BULK_TAG_UNEXPECTED_OP_CODE = "unexpected" as const;
-export const CHARACTER_BULK_TAG_FAILURE_CODES = [CHARACTER_BULK_TAG_RESOLVE_FAILED_OP_CODE, CHARACTER_BULK_TAG_UNEXPECTED_OP_CODE] as const;
+const CHARACTER_BULK_TAG_FAILURE_CODES = [CHARACTER_BULK_TAG_RESOLVE_FAILED_OP_CODE, CHARACTER_BULK_TAG_UNEXPECTED_OP_CODE] as const;
 
-export const characterBulkTagFailureSchema = z.strictObject({
+const characterBulkTagFailureSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.character),
   error: z.strictObject({
     code: z.enum(CHARACTER_BULK_TAG_FAILURE_CODES),
@@ -925,7 +919,7 @@ export const characterSummarySchema = characterDetailSchema
     return z.NEVER;
   }) satisfies z.ZodType<CharacterSummary>;
 
-export const characterTagGroupCensusSchema = z.strictObject({
+const characterTagGroupCensusSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.tag),
   name: z.string(),
   folderType: tagFolderTypeSchema,

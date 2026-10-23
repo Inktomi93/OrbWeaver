@@ -65,3 +65,16 @@ Check database findings against schema registration, relational metadata, migrat
 Ordinary native Knip includes DB entry exports and reports no unused findings. Production-only findings retain actual test and tooling consumers without public-marker exemptions. Affected compiler, lint, dependency and selected native behavior checks pass. Isolated literal-quote and identifier-quote defects fail the intended unit assertions while their positive cases pass; sources are restored exactly.
 
 The schema, relations, codec, migration inputs and existing function bodies remain unchanged. Other database reference cases need separate comparison; this batch does not qualify native reset rollback or complete database restoration.
+
+## Selected data-contract surface
+
+This selection covers character, databank, discovery, persona, roster-preset, stats, tag and world-info contract owners. Resolve actual direct, alias, namespace, computed and generated consumers before narrowing an export.
+
+| Selected surface | Decision and preserved owner |
+| - | - |
+| Implementation-only exports used by their enclosing live schemas or types | Localize export modifiers only. Preserve canonical schemas, tuples, initializers, readonly fields, strictness, type-first interfaces and schema checks. |
+| `GreetingsColumn`, `PersonaBackupWire`, `CreateRosterPreset` | Remove unused type identities and their hiding directives. Actual callers retain the canonical schema-derived results and existing domain input types. No parser or wire field is removed. |
+| SDK, author-support generation and package compatibility | Preserve actual supported consumers and published SDK/toolchain doors. Contracts remain checked rather than receiving a package-wide exemption. |
+| Mounted parser and schema enumeration tests | Keep actual mounted-input coverage. Generic export enumeration does not establish a business consumer for every internal schema. Qualify the selected public surface without weakening its constraints. |
+
+No runtime definition, schema or package door is deleted by this selection. Existing parser regression purposes remain distinct from type-identity trivia. The selected source passes maintained contract and reflective-reader tests, affected compiler programs, scoped lint, dependency checks and independent review. Native default and production scans remove the selected findings without adding findings. The package-wide remainder is open.
