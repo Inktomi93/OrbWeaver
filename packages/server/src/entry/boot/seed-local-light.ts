@@ -33,7 +33,7 @@ import { createListSeedAccountIds } from "#domain/sessions";
 import { minter } from "../compose/minter.ts";
 
 export interface SeedLocalLightDeps {
-  readonly idSource?: IdSource;
+  readonly idSource: IdSource;
   readonly db: DatabaseHandle;
   readonly now: () => number;
   /** Called with an owner whose seed newly bound a vector task (their embed space changed). */

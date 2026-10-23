@@ -1,10 +1,7 @@
-// Every compose slice binds the same canonical business ID source, including deterministic compositions.
+// Every compose slice binds the root's one business ID source; there is no module-level fallback source.
 
 import type { IdSource, TypeIdOf, TypeIdPrefix } from "@orb/kit/ids";
-import { createIdSource } from "@orb/kit/ids";
 
-const DEFAULT_IDS = createIdSource();
-
-export function minter<P extends TypeIdPrefix>(prefix: P, source: IdSource = DEFAULT_IDS): () => TypeIdOf<P> {
+export function minter<P extends TypeIdPrefix>(prefix: P, source: IdSource): () => TypeIdOf<P> {
   return (): TypeIdOf<P> => source.typeId(prefix);
 }

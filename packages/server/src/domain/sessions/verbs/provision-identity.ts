@@ -1,7 +1,7 @@
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
 import { admitsHandle } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
-import { createIdSource } from "@orb/kit/ids";
+
 import { getLog, groupsLogFields, securityEvent } from "#foundation/observability";
 import { captureUserRole } from "#primitives/role-data";
 import type { ProvisionIdentityOptions } from "../contract/params.ts";
@@ -230,7 +230,7 @@ async function insertNew(ctx: SessionsContext, identity: ResolvedIdentity, resol
   }
   const now = ctx.now();
   await insertUser(ctx.db, {
-    id: (ctx.idSource ?? createIdSource()).userId(),
+    id: ctx.idSource.userId(),
     handle: identity.handle,
     externalId: identity.externalId,
     email: identity.email,

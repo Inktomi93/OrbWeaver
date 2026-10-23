@@ -22,6 +22,7 @@ test("boot continues across a real binding refusal, and the composed post-boot a
   const deps = {
     db: databaseHandle(db),
     now: (): number => clock.now(),
+    idSource: harness.idSource,
     onEmbedSpaceBound: (id: string): void => {
       bound.push(id);
     },

@@ -14,6 +14,7 @@ type ServiceJobDeps = Pick<WorkloadRunnerDeps, "db" | "now" | "contributions" | 
     readonly services: Pick<Services, "workloads" | "settings">;
     readonly ownerId: UserId | null;
     readonly timers: TimerScheduler;
+    readonly newOpaqueId: () => string;
     readonly progress: WorkloadProgressBus;
   };
 
@@ -54,6 +55,7 @@ export function buildServiceJobs(deps: ServiceJobDeps): ServiceJobs {
       scheduleInterval: deps.timers.interval,
       scheduleTimeout: deps.timers.timeout,
       supervise: deps.supervise,
+      newOpaqueId: deps.newOpaqueId,
     },
   });
 }

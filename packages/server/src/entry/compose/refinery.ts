@@ -24,7 +24,7 @@ import { minter } from "./minter.ts";
 export interface RefineryComposeDeps {
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
 
-  readonly idSource?: IdSource;
+  readonly idSource: IdSource;
   readonly db: DatabaseHandle;
   readonly now: () => number;
   readonly roleClientsFor: (funderUserId: UserId) => Promise<RoleClientsWithSignal>;

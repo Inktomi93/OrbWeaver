@@ -3,7 +3,7 @@ import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { and, eq, gt, lte } from "drizzle-orm";
 import type { OidcTransaction } from "#infra/auth";
-import { OIDC_TRANSACTION_TTL_MS } from "#infra/auth";
+import { OIDC_TRANSACTION_TTL_MS } from "../contract/policy.ts";
 import { deleteExpiredPendingSignups } from "./pending-signups.ts";
 
 interface DomainOidcStore {

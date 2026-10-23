@@ -170,9 +170,11 @@ export interface SocketRegistry {
   readonly liveSocketCount: (userId?: UserId) => number;
   /** Sweep cells dark past the window. Called on every entry point; exposed for the reap test. */
   readonly reap: () => number;
+  /** The root's opaque nonce; it keeps each supervised room-pump name unique across re-attaches. */
+  readonly newOpaqueId: () => string;
 }
 
-export function createSocketRegistry(now: () => number): SocketRegistry {
+export function createSocketRegistry(now: () => number, newOpaqueId: () => string): SocketRegistry {
   const cells = new Map<SocketId, SocketCell>();
 
   function reap(): number {
@@ -305,6 +307,7 @@ export function createSocketRegistry(now: () => number): SocketRegistry {
   }
 
   return {
+    newOpaqueId,
     adopt,
     attach,
     detach,

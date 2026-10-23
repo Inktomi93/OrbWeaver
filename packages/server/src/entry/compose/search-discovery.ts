@@ -73,8 +73,8 @@ export interface SearchDiscoveryComposeDeps {
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
 
   readonly supervise?: typeof superviseDetached | undefined;
-  readonly scheduleTimeout?: EmbeddingsContext["scheduleTimeout"];
-  readonly idSource?: IdSource;
+  readonly scheduleTimeout: EmbeddingsContext["scheduleTimeout"];
+  readonly idSource: IdSource;
   readonly db: DatabaseHandle;
   readonly now: () => number;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;

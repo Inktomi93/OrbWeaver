@@ -10,6 +10,7 @@
 // already created. A privileged mint that cannot be recorded must not happen.
 
 import type { Principal, UserRole } from "@orb/contracts/identity";
+import { MIN_PASSWORD_LENGTH } from "@orb/contracts/identity";
 
 import { users } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/query";
@@ -18,7 +19,7 @@ import { admitsHandle, handleKey } from "@orb/kit/handle-key";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { MIN_PASSWORD_LENGTH } from "#infra/auth";
+
 import { ADMIN_OP_CODES } from "../contract/errors.ts";
 import type { CreateUserParams } from "../contract/params.ts";
 import type { AdminContext, AdminService } from "../contract/service.ts";

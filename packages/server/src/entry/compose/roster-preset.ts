@@ -22,7 +22,7 @@ import type { AuditEntry } from "#foundation/observability";
 import { minter } from "./minter.ts";
 
 interface RosterPresetComposeInput {
-  readonly idSource?: IdSource;
+  readonly idSource: IdSource;
   readonly db: DatabaseHandle;
   readonly now: () => number;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;

@@ -2,7 +2,6 @@
 // the owner only from a loopback callback or with this code, so this is how an owner behind a proxy or a published
 // port claims the box. SECURITY: the URL goes to an owner-only file and the log names only the command that reads it.
 
-import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import type { UserId } from "@orb/kit/ids";
 import type { SessionsService } from "#domain/sessions";
@@ -49,13 +48,13 @@ export async function announceOwnerClaim(step: OwnerClaimAnnouncement): Promise<
 }
 
 /** `claim` whose spending callback also removes the claim file, so the file never outlives the code it holds. */
-export function removeOwnerClaimFileOnSpend(claim: OwnerClaimCode, claimUrlFile: string): OwnerClaimCode {
+export function removeOwnerClaimFileOnSpend(claim: OwnerClaimCode, claimUrlFile: string, newOpaqueId: () => string): OwnerClaimCode {
   return {
     ...claim,
     redeem: (state: string): boolean => {
       const spent = claim.redeem(state);
       if (spent) {
-        superviseDetached(`owner-claim-file:${randomUUID()}`, "ownerClaim.removeFile", {}, () => removeSecretFile(claimUrlFile));
+        superviseDetached(`owner-claim-file:${newOpaqueId()}`, "ownerClaim.removeFile", {}, () => removeSecretFile(claimUrlFile));
       }
       return spent;
     },

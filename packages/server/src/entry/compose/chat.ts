@@ -98,7 +98,7 @@ import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
 import { createCopyHandoffBooks, createCountHandoffBooks } from "#domain/world-info";
 import type { AuditEntry } from "#foundation/observability";
 import { createAuditWiring, recordMemoryLog } from "#foundation/observability";
-import { systemTimers, waitForTimer } from "#infra/timers";
+import { waitForTimer } from "#infra/timers";
 import { createRegexApplyReplace, createRegexTest } from "#primitives/regex";
 import { captureUserRole } from "#primitives/role-data";
 import type { LiveBuses } from "#transport/trpc";
@@ -121,12 +121,12 @@ export interface ChatComposeInput {
   readonly publishChatChanged: LiveBuses["user"]["publishChatChanged"];
   readonly publishNotification: LiveBuses["notifications"]["publishNotification"];
 
-  readonly timers?: TimerScheduler;
+  readonly timers: TimerScheduler;
   readonly backgroundSignal?: AbortSignal;
   readonly trackBackground?: ChatContext["trackBackground"];
   readonly recordTurnOutcome?: ChatContext["recordTurnOutcome"];
-  readonly random?: (() => number) | undefined;
-  readonly idSource?: IdSource;
+  readonly random: () => number;
+  readonly idSource: IdSource;
   /** A user's Utility-role preset params (`side-gen-params.ts`), for the arbiter and the memory build. */
   readonly resolveUtilityPresetParams: ChatContext["resolveUtilityPresetParams"];
   readonly mediaProcessing: Pick<ImageRefAssets, "frameCount" | "prepareVideo">;
@@ -300,10 +300,10 @@ export interface ChatComposeResult extends AsyncDisposable {
  * collaborator. Returns the service AND the bus emit.
  */
 export function buildChatService(input: ChatComposeInput): ChatComposeResult {
-  const { db, now, emitChatEvent } = input;
+  const { db, now, emitChatEvent, timers } = input;
   const stats = createStatsBatchWiring(input.idSource);
   const auditStatements = createAuditWiring(db, input.idSource);
-  const timers = input.timers ?? systemTimers;
+
   const lifetime = new AsyncDisposableStack();
   // biome-ignore lint/nursery/useDisposables: lifetime adopts this resource for the returned owner; local using would close it before callers can use the graph.
   const activeTurns: ChatServiceDeps["activeTurns"] = lifetime.use(createActiveTurns());
@@ -367,8 +367,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   });
   const promptTransformRegistry = createPromptTransformRegistry(
     emitChatEvent,
-    () => input.settings.getEffectiveConfig().promptTransformDeadlineMs,
     timers.timeout,
+    () => input.settings.getEffectiveConfig().promptTransformDeadlineMs,
   );
 
   const chatCtx: ChatContext = {
@@ -544,7 +544,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     prepareCreationEvent: input.prepareChatCreationEvent,
     emitLive: input.emitChatEventLive,
     activeTurns,
-    prng: input.random ?? Math.random,
+    prng: input.random,
     delay: (ms) => waitForTimer(ms, timers.timeout, input.backgroundSignal),
     resolveConnection: inferenceOps.resolveConnection,
     checkSendAvailability: inferenceOps.checkSendAvailability,

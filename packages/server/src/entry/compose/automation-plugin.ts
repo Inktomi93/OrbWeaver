@@ -1,13 +1,12 @@
 // Wire automation and plugin onto the same effect ports, feedback registries and enforcement belts.
 // Author and installer Principals are row-derived through the injected entry resolver.
 
-import { randomUUID } from "node:crypto";
 import type { Principal } from "@orb/contracts/identity";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { BindingActor, RoleClientsWithSignal, SideGenSampling } from "@orb/inference";
 import type { AssetId, CharacterId, IdSource, PluginId, SandboxWireId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
-import type { ScheduleOp } from "@orb/kit/time";
+import type { ScheduleOp, TimerScheduler } from "@orb/kit/time";
 import { packShowcaseBundle, readShowcaseManifest, SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
 import type { AdminService } from "#domain/admin";
 import { can, createPluginDistributionRecipients } from "#domain/admin";
@@ -78,16 +77,16 @@ import { loadPluginCharacters, loadPluginMessages } from "./plugin-chat-reads.ts
 
 export interface AutomationPluginComposeDeps {
   readonly pluginExecution?: Pick<PluginHostSeamDeps, "spawn" | "monotonicNow">;
-  readonly timers?: PluginHostSeamDeps["timers"];
+  readonly timers: TimerScheduler;
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
   readonly publishNotification: LiveBuses["notifications"]["publishNotification"];
   readonly publishAutomationEvent: LiveBuses["automation"]["publishAutomationEvent"];
 
   readonly egress?: Pick<ScopedEgress, "safeFetch" | "fetchPluginBundle">;
-  readonly scheduleTimeout?: ScheduleOp;
-  readonly random?: (() => number) | undefined;
-  readonly newOpaqueId?: (() => string) | undefined;
-  readonly idSource?: IdSource;
+  readonly scheduleTimeout: ScheduleOp;
+  readonly random: () => number;
+  readonly newOpaqueId: () => string;
+  readonly idSource: IdSource;
   readonly db: DatabaseHandle;
   readonly now: () => number;
   readonly connection: Pick<ConnectionService, "registerPluginProviders" | "dropPluginProviders">;
@@ -174,7 +173,7 @@ export interface AutomationPluginComposeResult extends AsyncDisposable {
 const buildPluginQuietLlm = domainBuildPluginQuietLlm;
 
 export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): Promise<AutomationPluginComposeResult> {
-  const newOpaqueId = deps.newOpaqueId ?? randomUUID;
+  const { newOpaqueId } = deps;
   const hostResources = new AsyncDisposableStack();
   const pluginResources = new AsyncDisposableStack();
   await using construction = new AsyncDisposableStack();
@@ -241,7 +240,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
   const automationTransforms = createPromptTransformIndex({
     db,
     ops: automationOps,
-    prng: deps.random ?? Math.random,
+    prng: deps.random,
     now,
     register: chatCompose.promptTransforms.register,
     unregister: chatCompose.promptTransforms.unregister,
@@ -249,7 +248,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
   const automation = createAutomationService({
     db,
     now,
-    prng: deps.random ?? Math.random,
+    prng: deps.random,
     newRuleId: minter(ID_PREFIX.automationRule, deps.idSource),
     newFireId: minter(ID_PREFIX.automationFire, deps.idSource),
     newSuggestionId,
@@ -274,9 +273,9 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
   const pluginHost: PluginHostPort = hostResources.use(
     createPluginHost({
       ...deps.pluginExecution,
-      ...(deps.timers === undefined ? {} : { timers: deps.timers }),
+      timers: deps.timers,
       nowEpochMs: now,
-      nextRandom: deps.random ?? Math.random,
+      nextRandom: deps.random,
       mintId: newOpaqueId,
       ...(deps.egress === undefined ? {} : { safeFetch: deps.egress.safeFetch }),
     }),

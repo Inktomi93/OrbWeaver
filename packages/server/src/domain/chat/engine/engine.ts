@@ -50,7 +50,7 @@ import type { Resolved, ResolvedWarning } from "@orb/inference";
 import { GenerationObservationPersistenceError, generationOf, ProviderError, supportsManagedCompaction } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, ModelId, UserConnectionId } from "@orb/kit/ids";
 import { getLog, withRequestSpan } from "#foundation/observability";
-import { systemTimers } from "#infra/timers";
+
 import type { EngineContext, EngineContextInput, EngineDeps } from "../contract/engine-context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { GenerationObservationParent, GenerationObservationSession, RetainedTurnStats } from "../contract/generation-observation.ts";
@@ -2010,7 +2010,7 @@ async function runInLockWithHeartbeat(ctx: EngineContext, deps: OwnedEngineDeps,
     heartbeatController.abort(new StaleLockAbort());
     rejectLockLost(new ChatOperationError(CHAT_OP_CODES.aborted, "turn-lock lost mid-turn (stolen or gone)"));
   };
-  const cancelBeat = (ctx.timers ?? systemTimers).interval(
+  const cancelBeat = ctx.timers.interval(
     (): void => {
       trackSettledWork(
         ctx,

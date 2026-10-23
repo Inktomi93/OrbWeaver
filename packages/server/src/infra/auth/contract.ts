@@ -244,6 +244,9 @@ export interface PasswordHasher {
    *  null/empty/malformed stored value or any mismatch — so a nullable `passwordHash` passes straight
    *  in and an SSO-only (null-hash) row simply fails to log in. */
   verify: (plain: string, stored: string | null | undefined) => Promise<boolean>;
+  /** A well-formed hash in this hasher's own format that no password matches; verifying against it burns the
+   *  same KDF time as a real row, so a missing account is not a timing oracle. */
+  readonly dummyHash: string;
 }
 
 /** The request facts the decision reads. `forwardedHost` counts only when `peer` is a trusted hop. */

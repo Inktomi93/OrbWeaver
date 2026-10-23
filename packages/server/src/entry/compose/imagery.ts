@@ -21,7 +21,7 @@ import { minter } from "./minter.ts";
 
 export interface ImageryComposeDeps {
   readonly fetchImageBytes?: typeof fetchImageBytes;
-  readonly idSource?: IdSource;
+  readonly idSource: IdSource;
   readonly db: DatabaseHandle;
   readonly now: () => number;
   readonly connection: Pick<ConnectionService, "resolve">;

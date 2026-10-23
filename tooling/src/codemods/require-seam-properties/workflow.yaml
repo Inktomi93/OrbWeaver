@@ -1,0 +1,33 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/codemod/codemod/refs/heads/main/schemas/workflow.json
+version: "1"
+params:
+  schema:
+    properties:
+      name: "Properties"
+      description: "Comma-separated property names that become required"
+      type: string
+      default: "timers,random,randomInt,idSource,newOpaqueId,scheduleTimeout,scheduleInterval"
+    interface:
+      name: "Interface pattern"
+      description: "Regular expression an owning interface name must match"
+      type: string
+      default: "(Deps|ComposeInput)$"
+nodes:
+  - id: require-seam-properties
+    name: Make optional seam properties required
+    type: automatic
+    steps:
+      - name: TypeScript files
+        js-ast-grep:
+          js_file: scripts/codemod.ts
+          base_path: "."
+          language: "typescript"
+          include: ["**/*.ts"]
+          exclude: ["**/node_modules/**", "**/codemods/*/tests*/**"]
+      - name: TSX files
+        js-ast-grep:
+          js_file: scripts/codemod.ts
+          base_path: "."
+          language: "tsx"
+          include: ["**/*.tsx"]
+          exclude: ["**/node_modules/**", "**/codemods/*/tests*/**"]

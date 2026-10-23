@@ -7,22 +7,20 @@
 // The per-viewer `chatOpened` trigger is NOT on either bus (D81 — a transport-attach synthesis); it is tapped
 // separately at the composition root and fed to the same `handleEvent`.
 
-import { randomUUID } from "node:crypto";
-import { superviseDetached } from "#foundation/observability";
 import type { AutomationWatcherEnv, AutomationWatcherHandle } from "../contract/service.ts";
 
 /** Start the automation watcher. Idempotent teardown via the returned stop(). */
 export function startAutomationWatcher(env: AutomationWatcherEnv): AutomationWatcherHandle {
   using construction = new DisposableStack();
-  const supervise = env.supervise ?? superviseDetached;
+  const { supervise, newOpaqueId } = env;
   const unsubChat = env.onChatEvent((event) => {
-    supervise(`automation:chat:${event.chatId}:${event.type}:${randomUUID()}`, "automation.handleEvent", { eventType: event.type }, () =>
+    supervise(`automation:chat:${event.chatId}:${event.type}:${newOpaqueId()}`, "automation.handleEvent", { eventType: event.type }, () =>
       env.automation.handleEvent(event),
     );
   });
   construction.defer(unsubChat);
   const unsubDomain = env.onDomainEvent((event) => {
-    supervise(`automation:domain:${event.type}:${randomUUID()}`, "automation.handleEvent", { eventType: event.type }, () => env.automation.handleEvent(event));
+    supervise(`automation:domain:${event.type}:${newOpaqueId()}`, "automation.handleEvent", { eventType: event.type }, () => env.automation.handleEvent(event));
   });
 
   construction.defer(unsubDomain);

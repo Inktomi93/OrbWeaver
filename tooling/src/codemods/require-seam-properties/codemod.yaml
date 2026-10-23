@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "require-seam-properties"
+version: "0.1.0"
+description: "Make named optional seam properties required on composition deps interfaces."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["typescript"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

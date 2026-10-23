@@ -35,7 +35,7 @@ import {
   seedThemes,
   seedUserContent,
 } from "@orb/server/entry/boot";
-import { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
+import { createProcessSeams, createServices, NO_SHARE_RELAY, SESSIONS_CRYPTO, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
 import { env } from "@orb/server/foundation/env";
 import { and, desc, eq } from "drizzle-orm";
 import { print } from "../../floor/artifacts/artifacts.ts";
@@ -108,12 +108,20 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
   // An owner whose encoder this seed binds gets its search sweeps enqueued once services exist (as boot does).
   const ownersBoundBeforeCompose: UserId[] = [];
   const wiringDb = databaseHandle(db);
+  const seams = createProcessSeams();
   const bootSessions = createSessionsService({
     rolePolicy,
     db: wiringDb,
     now,
     sessionSecret,
-    seedUserConnections: createLocalLightUserSeed({ db: wiringDb, now, onEmbedSpaceBound: (boundOwner) => ownersBoundBeforeCompose.push(boundOwner) }),
+    idSource: seams.idSource,
+    crypto: SESSIONS_CRYPTO,
+    seedUserConnections: createLocalLightUserSeed({
+      db: wiringDb,
+      now,
+      idSource: seams.idSource,
+      onEmbedSpaceBound: (boundOwner) => ownersBoundBeforeCompose.push(boundOwner),
+    }),
   });
   const ownerIds = await seedOwner({ db, sessions: bootSessions, ownerHandles: handles, now });
   const ownerId = ownerIds[0];
@@ -123,6 +131,7 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
   const owner = await createHostPrincipalResolver(bootSessions)(ownerId);
 
   const built = await createServices({
+    ...seams,
     rolePolicy,
     db: wiringDb,
     now,

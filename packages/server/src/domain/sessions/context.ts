@@ -5,10 +5,8 @@
 
 import type { Db } from "@orb/db";
 import type { SessionId } from "@orb/kit/ids";
-import { createIdSource } from "@orb/kit/ids";
-import { createPasswordHasher } from "#infra/auth";
 import type { Sealed } from "#infra/crypto";
-import type { SessionsContext } from "./contract/service.ts";
+import type { SessionsContext, SessionsCryptoOps } from "./contract/service.ts";
 import { createIdTokenBox, createTokenHasher, mintSessionToken, SESSION_TTL_MS, SLIDE_THROTTLE_MS } from "./tokens/tokens.ts";
 
 const PENDING_SECRET_DOMAIN = "join-pending:";
@@ -17,21 +15,23 @@ export function createSessionsContext(
   db: Db,
   now: () => number,
   sessionSecret: string | null,
-  inputs: Pick<SessionsContext, "seedUserConnections" | "rolePolicy"> & Partial<Pick<SessionsContext, "idSource">>,
+  inputs: Pick<SessionsContext, "seedUserConnections" | "rolePolicy" | "idSource"> & { readonly crypto: SessionsCryptoOps },
 ): SessionsContext {
   // #141 — the OIDC id_token cipher, keyed off the SAME pepper (HKDF, own purpose label — tokens/tokens.ts).
-  const idTokenBox = createIdTokenBox(sessionSecret);
+  const idTokenBox = createIdTokenBox(sessionSecret, inputs.crypto.createSecretBox);
   const pendingHasher = createTokenHasher(sessionSecret);
+  const passwords = inputs.crypto.createPasswordHasher(sessionSecret);
   return {
     rolePolicy: inputs.rolePolicy,
     db,
     now,
-    idSource: inputs.idSource ?? createIdSource(),
+    idSource: inputs.idSource,
     seedUserConnections: inputs.seedUserConnections,
     mintToken: mintSessionToken,
     hashToken: createTokenHasher(sessionSecret),
     // Bound from the same pepper as the token hasher. Unset pepper -> a disabled hasher that throws at call time.
-    verifyPassword: createPasswordHasher(sessionSecret).verify,
+    verifyPassword: passwords.verify,
+    dummyPasswordHash: passwords.dummyHash,
     // #141 — THE ONE AAD SITE for the sealed OIDC id_token, seal and open bound here together so the two
     // halves cannot drift: the AAD is the session ROW id, byte-identical (the `domain/credentials` shape,
     // where the single `aadFor()` site is what makes a lifted row fail LOUDLY instead of decrypting wrong).

@@ -31,6 +31,7 @@ import {
   signupResultSchema,
 } from "@orb/contracts/chat";
 import type { RequestTransport, ResolvedIdentity } from "@orb/contracts/identity";
+import { MIN_PASSWORD_LENGTH } from "@orb/contracts/identity";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import { admitsHandle, withinHandleLength } from "@orb/kit/handle-key";
@@ -43,15 +44,13 @@ import type { Configuration } from "openid-client";
 import { buildAuthorizationUrl, calculatePKCECodeChallenge, randomNonce, randomPKCECodeVerifier, randomState } from "openid-client";
 import type { SignupInviteOps } from "#domain/chat";
 import type { ProvisionIdentityOptions, RevokedSessionsSummary, SessionsRolePolicy, SessionsService } from "#domain/sessions";
+import { OIDC_PENDING_JOIN_TTL_MS, OIDC_TRANSACTION_TTL_MS } from "#domain/sessions";
 import { getLog, groupsLogFields, securityEvent } from "#foundation/observability";
 import type { BackchannelLogoutVerifier, OidcExchange, OidcTransaction, OwnerClaimCode, PublicHttpMintNotice } from "#infra/auth";
 import {
   hasCsrfHeader,
-  MIN_PASSWORD_LENGTH,
   OIDC_BINDING_COOKIES,
   OIDC_PENDING_JOIN_COOKIES,
-  OIDC_PENDING_JOIN_TTL_MS,
-  OIDC_TRANSACTION_TTL_MS,
   oidcBindingCookieFor,
   oidcPendingJoinCookieFor,
   ownerFallbackAllowed,

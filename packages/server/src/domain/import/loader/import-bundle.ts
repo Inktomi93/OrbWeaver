@@ -2,7 +2,6 @@ import type { PortabilityRegistry, PortableEntity, PortableImportOutcome, Portab
 import { PORTABLE_IMPORT_ORDER } from "@orb/contracts/portability";
 import type { UserId } from "@orb/kit/ids";
 import type { StagedArchive } from "#infra/storage";
-import { extractZip } from "#infra/storage";
 
 import type { BundleImportDeps, BundleImportFileOutcome, BundleImportReport, StagedBundleImportDeps } from "../contract/bundle.ts";
 
@@ -195,12 +194,12 @@ export async function importStagedArchive(deps: StagedBundleImportDeps): Promise
 
 /**
  * Extract an untrusted bundle and import each file to its owning entity in dependency order. Returns the
- * per-file report (imported / deduped vs skipped vs failed). Rejects (from `extractZip`) with a
+ * per-file report (imported / deduped vs skipped vs failed). Rejects (from the injected extractor) with a
  * `ZipRejectedError` if the archive itself is hostile — nothing is imported in that case.
  */
 export async function runBundleImport(deps: BundleImportDeps): Promise<BundleImportReport> {
   const { registry, ownerId, archive, extractOptions, signal } = deps;
-  const staged = await extractZip(archive, extractOptions);
+  const staged = await deps.extractArchive(archive, extractOptions);
   return await importStagedArchive({
     registry,
     ownerId,

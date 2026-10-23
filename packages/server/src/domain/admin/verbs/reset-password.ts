@@ -17,10 +17,11 @@
 // the actual hole — a delegated admin resetting the owner's password is account takeover under AUTH_MODE=local
 // — while keeping owner self-rotation.
 
+import { MIN_PASSWORD_LENGTH } from "@orb/contracts/identity";
 import { users } from "@orb/db";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import { eq } from "drizzle-orm";
-import { MIN_PASSWORD_LENGTH } from "#infra/auth";
+
 import { ADMIN_OP_CODES } from "../contract/errors.ts";
 import type { ResetPasswordParams } from "../contract/params.ts";
 import type { AdminContext, AdminService } from "../contract/service.ts";

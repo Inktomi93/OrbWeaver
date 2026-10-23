@@ -3,7 +3,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { BackgroundMaterializeFailure, MaterializeBackgroundOp, MaterializeBackgroundResult } from "@orb/contracts/theme";
 import type { SafeFetchResult } from "#infra/network";
-import { ANY_HOST, EgressBlockedError, ImageRejectedError, isAllowedImageBuffer, safeFetch } from "#infra/network";
+import { ANY_HOST, EgressBlockedError, ImageRejectedError, isAllowedImageBuffer } from "#infra/network";
 import type { MaterializeBackgroundDeps } from "../contract/materialize.ts";
 
 const OK_STATUS_MIN = 200;
@@ -26,7 +26,7 @@ function imageReason(err: unknown): Exclude<BackgroundMaterializeFailure, "unrea
 }
 
 export function createMaterializeBackground(deps: MaterializeBackgroundDeps): MaterializeBackgroundOp {
-  const fetchImpl = deps.fetchImpl ?? safeFetch;
+  const { fetchImpl } = deps;
   return async (principal: Principal, url: string): Promise<MaterializeBackgroundResult> => {
     const maxBytes = deps.maxBytes();
 
