@@ -35,16 +35,16 @@ import type { ParsedOklch } from "./color-parse.ts";
 import { compositedBase, serializeOpaqueOklch, toOklch } from "./color-parse.ts";
 import { foregroundOn, surfaceVarsOn } from "./derive-vars.ts";
 
-/** Fonts a user may pick — an allowlist; anything else is dropped. */
-export const THEME_FONT_ALLOWLIST = ["Geist", "ui-sans-serif", "ui-serif", "ui-monospace", "Georgia", "Times New Roman", "Iowan Old Style"] as const;
+// Fonts a user may pick — an allowlist; anything else is dropped.
+const THEME_FONT_ALLOWLIST = ["Geist", "ui-sans-serif", "ui-serif", "ui-monospace", "Georgia", "Times New Roman", "Iowan Old Style"] as const;
 type ThemeFont = (typeof THEME_FONT_ALLOWLIST)[number];
 
-// Exported for the contracts↔ui structural pairing test — must stay byte-identical to the wire twin.
+// Keep the contracts↔ui structural pairing byte-identical to the wire twin.
 // No chatStyle axis: a theme/card cannot force a message-row anatomy (TD/O-4). The row skin reads the
 // viewer's own `appearance.chatStyle` setting, whose vocabulary is `@orb/contracts/theme`'s
 // THEME_CHAT_STYLES — nothing here ever stamped a `data-chat-style` any selector read.
-export const THEME_SCOPE_DENSITIES = ["comfortable", "compact"] as const;
-export const THEME_SCOPE_RADII = ["base", "control", "card", "full"] as const;
+const THEME_SCOPE_DENSITIES = ["comfortable", "compact"] as const;
+const THEME_SCOPE_RADII = ["base", "control", "card", "full"] as const;
 const DENSITIES = THEME_SCOPE_DENSITIES;
 const RADII = THEME_SCOPE_RADII;
 
@@ -54,8 +54,8 @@ const deterministicColorToken = z.string().refine(isDeterministicColor).optional
 // painted. Inherited/direct colors below deliberately retain the broader safe-color contract.
 const bubble = z.object({ bg: deterministicColorToken, fg: colorToken }).optional().catch(undefined);
 
-/** The ui-local override shape callers pass (loose — every field optional; failures drop per-field). */
-export const themeScopeTokensSchema = z.object({
+// The ui-local override shape callers pass (loose — every field optional; failures drop per-field).
+const themeScopeTokensSchema = z.object({
   // These are derivation origins: accent gets a foreground/contrast correction, background gets the
   // whole surface/chart ramp. Contextual/system/CSS-wide colors cannot stand in for authored pixels.
   accent: deterministicColorToken,

@@ -6,8 +6,7 @@ import "./lib/zod-jitless.ts";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 // biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc +
-// vite resolve AlertTriangle/Icon fine (the same gap `#primitives/icons` hits inside packages/ui itself
-// — see status-chip.tsx).
+// vite resolve AlertTriangle/Icon fine.
 import { AlertTriangle, Icon } from "@orb/ui/icons";
 import { createToastManager, ToastProvider } from "@orb/ui/toast";
 import { RouterProvider } from "@tanstack/react-router";

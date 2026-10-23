@@ -28,30 +28,12 @@
 // float may spell `in-context`/`app-frame` rungs for its own internals (the dialog header's sticky
 // `--z-raised`, the select's scroll arrows) — those order the float's own children and claim nothing.
 //
-// ENFORCEMENT TIERS, named so nobody reads one as the other:
-//   · TYPE (live): the nonempty source-key constraint reads the canonical source keys, so a
-//     vault change without its scope row fails compilation before generation. A scope is minted with
-//     the token.
-//   · TEST (live): `tests/legacy/ui/styles/css-structure.suite.test.ts` reads `shell.css` — the ONE structural
-//     shell stylesheet, and the file the drift lived in — and reds on any `portal-float` token in it,
-//     with a planted positive control in the same test.
-//   · GATE (SPEC ONLY, not built here — #1584's gate worker owns it): the TSX half. Every `z-(--z-<name>)`
-//     class recipe under `packages/{client,ui}/src` whose token is `portal-float` must sit in a module that
-//     is a portal-mounted float. The honest discriminator is not "is this file a primitive" but "does this
-//     element mount outside its subtree": today's whole population is the `positioner`/`viewport`/`backdrop`
-//     slots of the overlay primitives (alert-dialog · autocomplete · combobox · dialog · drawer · menu ·
-//     popover · select · toast · tooltip), the two shared recipes those slots compose (`lib/popup-surface.ts`,
-//     `lib/scrim.ts`), and `art/web-weave`'s boot veil (a document-root `fixed inset-0`) — enumerated
-//     2026-09-06, so re-derive it rather than trusting this list. A gate should key on the SLOT NAME the recipe feeds (positioner ·
-//     viewport · backdrop · popup) or on an explicit `/** @portal-float */` marker beside the recipe, and
-//     must NOT key on the package or the directory — `shell.css` is client CSS and `web-weave` is ui TSX,
-//     and both answers would be wrong. Note the CSS half is deliberately left to the test tier above:
-//     the gate corpus is ts-morph over TSX and does not parse stylesheets.
+// The nonempty source-key constraint requires every token to declare its scope before generation.
 
 /** Every `z.*` path in the canonical source, without loading the vault at runtime. */
 export type ZTokenPath = `z.${keyof typeof import("./tokens.json").z}`;
 
-/** The axis, homed ONCE as a tuple so the union derives and a reader (or the future gate) can enumerate
+/** The axis, homed ONCE as a tuple so the union derives and a reader can enumerate
  *  it. See the header for the rule each value carries. */
 export const Z_STACKING_SCOPES = ["app-frame", "in-context", "portal-float"] as const;
 
@@ -68,11 +50,3 @@ export const Z_TOKEN_SCOPES = {
   "z.toast": "portal-float",
   "z.tooltip": "portal-float",
 } as const satisfies ZTokenPath extends never ? never : Record<ZTokenPath, ZStackingScope>;
-
-/** `--z-overlay` → `z.overlay`, for a consumer holding the CSS custom property rather than the token path
- *  (a stylesheet reader, the future gate's class-recipe arm). Returns `undefined` for an unknown name —
- *  which is itself a finding: an unknown `--z-*` resolves to no declaration at all. */
-export function zScopeOfCssVar(cssVar: string): ZStackingScope | undefined {
-  const path = cssVar.replace(/^--z-/u, "z.");
-  return path in Z_TOKEN_SCOPES ? Z_TOKEN_SCOPES[path as ZTokenPath] : undefined;
-}

@@ -8,7 +8,7 @@ import { SNAPPED_LENGTH_BASE_PX } from "#tokens";
 // when the chat list virtualized (2026-08-09): its rows had always sat at `gap="tight"` as a plain <Stack>,
 // and the seal's narrower vocabulary would have silently re-spaced a landed list by 2px to adopt it. The
 // token itself is `spacing.tight` — the same one the <Stack> was resolving; nothing new is minted here.
-export const GAP_TOKENS = ["tight", "field", "row", "block", "section", "gutter"] as const;
+const GAP_TOKENS = ["tight", "field", "row", "block", "section", "gutter"] as const;
 export type GapToken = (typeof GAP_TOKENS)[number];
 
 // A scroll element taller than this many viewports at mount means the parent gave the list no bounded

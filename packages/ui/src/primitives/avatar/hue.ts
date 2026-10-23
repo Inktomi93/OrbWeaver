@@ -47,9 +47,8 @@ const HASH_MOD = 2_147_483_647;
  *  neighbouring buckets never differ on one axis alone — five shades separated by lightness only, inside a
  *  window this narrow, are not tellable apart at 32px. Bucket 5 is the primary itself, so the commonest
  *  fallback is exactly the theme's accent.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
-export const AVATAR_HUE_STEPS: Readonly<Record<AvatarFallbackHue, { readonly l: number; readonly c: number }>> = {
+const AVATAR_HUE_STEPS: Readonly<Record<AvatarFallbackHue, { readonly l: number; readonly c: number }>> = {
   "1": { l: -0.085, c: 1.1 },
   "2": { l: -0.065, c: 0.5 },
   "3": { l: -0.042, c: 0.95 },

@@ -32,7 +32,7 @@ export {
   FOCUS_RING_WITHIN_INSET,
 } from "./focus-ring.ts";
 export { readKeyboardInset, subscribeKeyboardInset } from "./keyboard-inset.ts";
-export { createLiveTokenStore, LIVE_TOKEN_ROOT_ATTRIBUTE, type LiveTokenStore, resolveCssColor, resolveCssVar } from "./live-token-resolver.ts";
+export { createLiveTokenStore, LIVE_TOKEN_ROOT_ATTRIBUTE, resolveCssColor, resolveCssVar } from "./live-token-resolver.ts";
 export { OVERLAY_ARROW } from "./overlay-arrow.ts";
 export { OVERLAY_MOTION } from "./overlay-motion.ts";
 export { ITEM_ROW, MODAL_SURFACE, POPUP_SURFACE } from "./popup-surface.ts";
@@ -55,12 +55,7 @@ export { usePrefersLightColorScheme } from "./use-prefers-light-color-scheme.ts"
 export { usePrefersReducedMotion } from "./use-prefers-reduced-motion.ts";
 export {
   STAMPED_VARIANT_AXES,
-  type StampedVariantAxis,
-  type VariantAxisAttrs,
-  type VariantAxisSource,
-  type VariantClassRecipe,
-  type VariantStampProps,
   variantAttrs,
   variantProps,
 } from "./variant-attrs.ts";
-export { assertBoundedScrollHeight, GAP_TOKENS, type GapToken, gapPxFor } from "./virtual-gap.ts";
+export { assertBoundedScrollHeight, type GapToken, gapPxFor } from "./virtual-gap.ts";

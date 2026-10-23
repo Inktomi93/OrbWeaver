@@ -82,7 +82,6 @@ export const TOKEN_ARTIFACT_PATHS = {
   tokensTs: "src/tokens/index.ts",
   themesTs: "src/tokens/themes.gen.ts",
 } as const;
-export const TOKEN_TYPESCRIPT_ARTIFACT_KEYS = ["tokensTs", "themesTs"] as const;
 export const TOKEN_ARTIFACT_SOURCE_PATHS = {
   producer: "tokens.build.ts",
   contract: "token-contract.ts",
@@ -113,7 +112,7 @@ const CSS_VAR_RE = /var\((--[a-z0-9-]+)(?:\s*,[^)]*)?\)/gu;
 type JsonObject = Record<string, unknown>;
 type AddFormats = (ajv: Ajv) => Ajv;
 type TokenType = (typeof TOKEN_TYPES)[number];
-export const TOKEN_OUTPUT_ROLES = ["input", "light-dark", "percentage", "snapped"] as const;
+const TOKEN_OUTPUT_ROLES = ["input", "light-dark", "percentage", "snapped"] as const;
 type OutputRole = (typeof TOKEN_OUTPUT_ROLES)[number];
 export type CssValuePlacement = "theme" | "root";
 
@@ -968,7 +967,7 @@ export function readTokenContractTexts(uiRoot = import.meta.dirname, admittedRoo
   };
 }
 
-export function validateTokenContract(uiRoot = import.meta.dirname, repoRoot?: string): TokenContractResult {
+function validateTokenContract(uiRoot = import.meta.dirname, repoRoot?: string): TokenContractResult {
   return validateTokenContractTexts(readTokenContractTexts(uiRoot, repoRoot), repoRoot);
 }
 

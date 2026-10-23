@@ -94,5 +94,3 @@ export function webGlyph({ spokes, turns, spiralEndRadius, view = GLYPH_VIEW }: 
 
 /** The display cut (mark A): 8 spokes, 2.6 open turns — wordmark rows, hero marks, spinner md/lg. */
 export const WEB_GLYPH_DISPLAY: WebGlyphGeometry = webGlyph({ spokes: 8, turns: 2.6, spiralEndRadius: 13.5 });
-/** The 16px cut (the favicon discipline, §8): fewer elements, wider rings — tab strips, spinner sm. */
-export const WEB_GLYPH_COMPACT: WebGlyphGeometry = webGlyph({ spokes: 6, turns: 1.7, spiralEndRadius: 10.6 });

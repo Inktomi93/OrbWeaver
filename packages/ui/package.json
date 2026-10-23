@@ -10,7 +10,6 @@
   "exports": {
     "./token-contract": "./token-contract.ts",
     "./tokens-build": "./tokens.build.ts",
-    "./action-bar": "./src/layout/action-bar.tsx",
     "./accordion": "./src/primitives/accordion/index.ts",
     "./alert-dialog": "./src/primitives/alert-dialog/index.ts",
     "./aria-announcer": "./src/primitives/aria-announcer/index.ts",
@@ -87,7 +86,6 @@
     "./sortable": "./src/primitives/sortable/index.ts",
     "./spinner": "./src/primitives/spinner/index.ts",
     "./stat-figure": "./src/charts/stat-figure/index.ts",
-    "./status-chip": "./src/primitives/status-chip/index.ts",
     "./stream": "./src/stream/index.ts",
     "./styles/globals.css": "./src/styles/globals.css",
     "./switch": "./src/primitives/switch/index.ts",

@@ -25,4 +25,3 @@ export type {
   WaystonePhase,
   WaystoneWeather,
 } from "./waystone-treatment.ts";
-export { WAYSTONE_PHASES } from "./waystone-treatment.ts";

@@ -17,10 +17,10 @@ import { BRIDGE_CATCH_LEAD, BRIDGE_WALK_START, WEAVE_TIMELINE } from "./web-weav
 
 // ─── Types ───────────────────────────────────────────────────────────────────────────────────────
 
-/** The web's display states (§4.1): `weaving` runs the build timeline; `settled` rests (ambient only);
- *  `partial` freezes at radii-complete (the B4 first-run "your server isn't fully spun" web);
- *  `strand-out` is settled + the A9 handoff beat (the spider rides a new silk line off-screen). */
-export const WEAVE_STATES = ["weaving", "settled", "partial", "strand-out"] as const;
+// The web's display states (§4.1): `weaving` runs the build timeline; `settled` rests (ambient only);
+//  `partial` freezes at radii-complete (the B4 first-run "your server isn't fully spun" web);
+//  `strand-out` is settled + the A9 handoff beat (the spider rides a new silk line off-screen).
+const WEAVE_STATES = ["weaving", "settled", "partial", "strand-out"] as const;
 export type WeaveState = (typeof WEAVE_STATES)[number];
 
 export interface WeavePoint {
@@ -91,12 +91,12 @@ export interface WovenWeb {
 // ─── Web construction ────────────────────────────────────────────────────────────────────────────
 
 const TAU = Math.PI * 2;
-/** ~16 radii (§1.1) — enough spokes to read as an orb web, few enough to stay individually watchable. */
-export const RADIUS_COUNT = 16;
-/** Capture-spiral turns rim→free-zone; the density that reads "tight" without mushing at phone width. */
-export const CAPTURE_TURNS = 9;
-/** The wide-pitch scaffold the capture pass consumes. */
-export const AUX_TURNS = 4.4;
+// ~16 radii (§1.1) — enough spokes to read as an orb web, few enough to stay individually watchable.
+const RADIUS_COUNT = 16;
+// Capture-spiral turns rim→free-zone; the density that reads "tight" without mushing at phone width.
+const CAPTURE_TURNS = 9;
+// The wide-pitch scaffold the capture pass consumes.
+const AUX_TURNS = 4.4;
 /** The free zone: real orb webs keep the capture spiral clear of the hub. Fraction of mean reach. */
 const FREE_ZONE_FRAC = 0.16;
 /** Spiral radial extremes as fractions of mean reach (start of aux · rim of capture · capture's inner stop). */

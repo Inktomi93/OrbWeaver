@@ -39,11 +39,8 @@ const PLUCK_WAVENUMBER = 0.16;
  *  trivial (the render already pays a point loop; this must not turn it into a physics engine). */
 export const PLUCK_MAX_PER_STRAND = 6;
 
-/** Transverse displacement (px) at index-fraction `s` of a strand, summed over its live plucks.
- *
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export function pluckOffset(strandLength: number, s: number, plucks: readonly WeavePluck[], now: number): number {
+// Transverse displacement (px) at index-fraction `s` of a strand, summed over its live plucks.
+function pluckOffset(strandLength: number, s: number, plucks: readonly WeavePluck[], now: number): number {
   let offset = 0;
   for (const pluck of plucks) {
     const age = now - pluck.t0;

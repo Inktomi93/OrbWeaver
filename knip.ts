@@ -98,6 +98,9 @@ export const config = {
     "packages/plugin-sdk": { includeEntryExports: false, project: ["**/*.ts!"] },
     "packages/plugin-toolchain": { includeEntryExports: false, project: ["src/**/*.ts!"] },
     "packages/ui": {
+      includeEntryExports: true,
+      // Component-owned types remain live through their public signatures, as in server and inference.
+      ignoreExportsUsedInFile: { interface: true, type: true },
       // Entry set = the package.json subpath exports map (knip reads it) + tokens.build.ts, which is
       // auto-detected as an entry via the `tokens:build` package script that runs it.
       //

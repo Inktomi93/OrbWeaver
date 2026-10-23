@@ -283,3 +283,20 @@ The consumer inventory establishes references, not complete restoration coverage
 | RPG tool-name completeness | Couple actual tool implementations to RpgToolName with a key/name-correlated map. Preserve handler bodies and canonical tool order. |
 
 These selections do not restore unrelated capability-reader, provider, RPG or admin cases.
+
+## Selected UI public surfaces and replacement cases
+
+| Finding or original purpose | Decision and maintained home |
+| - | - |
+| ActionBar, StreamText and StatusChip | Remove unused composites, their exclusive recipes and export doors. The composer uses its actual utility/input rows; streaming uses the existing pacer, shimmer and Markdown; no current workload surface consumes StatusChip. Remove stale reservation references without creating replacement callers. |
+| Private UI helper constants, functions and type forwarding | Localize unused export modifiers and remove unsupported forwarding only. Keep canonical declarations and actual component, engine, validation and generator bodies. |
+| Native anatomy, handles and canonical component props | Retain the complete public surface required by the UI package law. Restore meaningful keyboard, selection, validation, payload and description behavior through actual public seals and browser-owned stories. |
+| ThemeScope wire/render pairing | Native public-type equality preserves keys, optional fields and enums. The public boundary CT proves accepted output, hostile-value drops, safe siblings and inheritance. Unreadable accents are dropped; direct prose ink retains its intentional fallback. Private schema acceptance is not emitted output. |
+| Waystone sky-table alias | Remove the test-only alias, not the private production table. The public Waystone CT proves atmospheric paint, distinct interpolated skies, golden windows and midnight wrapping. Other weather and phase permutations remain separate restoration work. |
+| Public web-weave engine helpers | Keep actual component, glyph and spider engines. Public pure-unit cases preserve selected seed, geometry, phase, itinerary, scaling and angle invariants. Broader timing, attachment and physics matrices remain partial. |
+| Compact web glyph and Pause alias | Remove the unused compact preset and icon alias. The live compact glyph, icon renderer and spinner keep their actual production paths. Do not add identity tests to retain unused aliases. |
+| zScopeOfCssVar checker reader | Remove the obsolete reader under D333. Keep the native total Z_TOKEN_SCOPES map and supported token door; add no replacement CSS checker. |
+| UI token-authoring doors | Retain actual read, text-validation and assertion APIs at the supported Node doors. Localize the internal validator wrapper and output-role tuple; remove unused artifact-key metadata. Door support does not preserve unused exports. |
+| Knip accounting | Include UI entry exports. Count locally referenced component-owned types through the existing interface/type option used by server and inference. Keep value and file findings visible. Remove public suppression markers; the installed tool ignores those markers even with an empty tag filter. |
+
+Native CT cases mount the real primitives through the existing gallery. They do not replace application services or claim browser journeys. Case maps retain unselected reference behavior explicitly; this batch does not complete the wider UI restoration.

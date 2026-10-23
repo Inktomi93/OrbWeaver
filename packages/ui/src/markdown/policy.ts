@@ -44,12 +44,10 @@ const KATEX_MATHML_ELEMENTS: readonly string[] = [
   "mphantom",
 ];
 
-/**
- * The Tier-A element allowlist: structural + text-formatting + tables + details/summary + links +
- * images + inert MathML. Forbidden by omission: script, style, iframe, object, embed, form, input, and any `on*`
- * handler. This is the full trusted surface; the untrusted surface drops `img` (see below).
- */
-export const TIER_A_ELEMENTS: readonly string[] = [
+// The Tier-A element allowlist: structural + text-formatting + tables + details/summary + links +
+// images + inert MathML. Forbidden by omission: script, style, iframe, object, embed, form, input, and any `on*`
+// handler. The untrusted surface drops `img` (see below).
+const TIER_A_ELEMENTS: readonly string[] = [
   "p",
   "br",
   "hr",
@@ -101,10 +99,9 @@ export const TIER_A_UNTRUSTED_ELEMENTS: readonly string[] = TIER_A_ELEMENTS.filt
 // resolve the same url against the page, so `//host` and `/\host` land off it exactly as they would live.
 const OWN_ORIGIN_PROBE = new URL("https://own-origin.invalid");
 
-/** True when `url` resolves on the page's own origin (a path, a query or a fragment). A protocol-relative
- *  or backslash-led url and every absolute url resolve elsewhere.
- *  @public Test-anchored module surface; the policy suite pins it against off-origin spellings. */
-export function resolvesOnOwnOrigin(url: string): boolean {
+// True when `url` resolves on the page's own origin (a path, a query or a fragment). A protocol-relative
+// or backslash-led url and every absolute url resolve elsewhere.
+function resolvesOnOwnOrigin(url: string): boolean {
   return URL.canParse(url, OWN_ORIGIN_PROBE) && new URL(url, OWN_ORIGIN_PROBE).origin === OWN_ORIGIN_PROBE.origin;
 }
 
@@ -129,12 +126,9 @@ export const ownOriginMediaOnly: AllowElement = (element) => {
 // Protocols an untrusted link may use — everything else (javascript:, data:, vbscript:, …) is blocked.
 const SAFE_PROTOCOLS: readonly string[] = ["http:", "https:", "mailto:"];
 
-/**
- * Host prefixes an untrusted external image/link may load from. Minimal by design (the load itself
- * is the tracking-pixel/exfil risk): only relative + the app's own origin.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export const UNTRUSTED_ALLOWED_PREFIXES: readonly string[] = ["/", "#"];
+// Host prefixes an untrusted external image/link may load from. Minimal by design (the load itself
+// is the tracking-pixel/exfil risk): only relative + the app's own origin.
+const UNTRUSTED_ALLOWED_PREFIXES: readonly string[] = ["/", "#"];
 
 /**
  * The `untrusted` url gate. Returns the url to allow it, or an empty string to block (Streamdown

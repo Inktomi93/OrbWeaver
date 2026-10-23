@@ -5,7 +5,7 @@
 // and two of them call each other — homing the vocabulary here is what keeps that from being an
 // import cycle.
 
-export const WEAVE_CHARACTERS = ["calm", "lively", "full"] as const;
+const WEAVE_CHARACTERS = ["calm", "lively", "full"] as const;
 export type WeaveCharacter = (typeof WEAVE_CHARACTERS)[number];
 
 /** Head-down at the hub — the posture a resting orb-weaver actually holds. */

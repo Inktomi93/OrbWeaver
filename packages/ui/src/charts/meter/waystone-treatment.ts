@@ -27,9 +27,9 @@
 
 import type { WeatherType } from "@orb/kit/weather";
 
-/** The dial's label bands — one member per `TIME_OF_DAY` label (the ring is the DISCRETE layer: it shows which
- *  named part of the day we are in, matching the band's text, while the sky reads the exact hour). */
-export const WAYSTONE_PHASES = ["dawn", "morning", "afternoon", "evening", "night", "midnight"] as const;
+// The dial's label bands — one member per `TIME_OF_DAY` label (the ring is the DISCRETE layer: it shows which
+//  named part of the day we are in, matching the band's text, while the sky reads the exact hour).
+const WAYSTONE_PHASES = ["dawn", "morning", "afternoon", "evening", "night", "midnight"] as const;
 export type WaystonePhase = (typeof WAYSTONE_PHASES)[number];
 
 export type WaystoneWeather = WeatherType;
@@ -39,11 +39,11 @@ export type WaystoneWeather = WeatherType;
  *  `indoors` is its own identity rather than `none`: the stone is not showing an unveiled sky there, it is
  *  showing that no sky is legible from where the scene stands — and `data-weather` is the rendered read. */
 const WAYSTONE_OVERLAY_KINDS = ["none", "clouds", "rain", "storm", "snow", "fog", "wind", "ash", "indoors"] as const;
-export type WaystoneOverlayKind = (typeof WAYSTONE_OVERLAY_KINDS)[number];
+type WaystoneOverlayKind = (typeof WAYSTONE_OVERLAY_KINDS)[number];
 
-/** The sky disc's radial-gradient recipe — `cy` puts the light source low (a dawn/dusk glow at the horizon) or
- *  high (a midday/midnight dome). Interpolated per hour; a phase change crossfades between two of these. */
-export interface WaystoneSky {
+// The sky disc's radial-gradient recipe — `cy` puts the light source low (a dawn/dusk glow at the horizon) or
+//  high (a midday/midnight dome). Interpolated per hour; a phase change crossfades between two of these.
+interface WaystoneSky {
   readonly from: string;
   readonly to: string;
   readonly cy: string;
@@ -93,8 +93,8 @@ interface WaystoneWash {
   readonly opacity: number;
 }
 
-/** The WEATHER half of a cell: the air layers. */
-export interface WaystoneWeatherRecipe {
+// The WEATHER half of a cell: the air layers.
+interface WaystoneWeatherRecipe {
   readonly overlay: WaystoneOverlayKind;
   readonly clouds: WaystoneCloudLayer;
   readonly particles: WaystoneParticleLayer | null;
@@ -194,9 +194,9 @@ const SKY_STOPS: readonly { readonly hour: number; readonly value: WaystoneSky }
   { hour: 22, value: { from: "var(--color-sky-night-horizon)", to: "var(--color-sky-night)", cy: "34%" } },
 ];
 
-/** The sky at an exact hour — the two bracketing stops, blended. Exactly ON a stop returns that stop's recipe
- *  untouched (no wrapper mix, no reformatted `cy` — the authored palette is what paints). */
-export function waystoneSkyAt(hour: number): WaystoneSky {
+// The sky at an exact hour — the two bracketing stops, blended. Exactly ON a stop returns that stop's recipe
+//  untouched (no wrapper mix, no reformatted `cy` — the authored palette is what paints).
+function waystoneSkyAt(hour: number): WaystoneSky {
   const { a, b, t } = bracket(SKY_STOPS, hour);
   if (t <= 0) {
     return a;
@@ -210,9 +210,6 @@ export function waystoneSkyAt(hour: number): WaystoneSky {
     cy: `${(Number.parseFloat(a.cy) + (Number.parseFloat(b.cy) - Number.parseFloat(a.cy)) * t).toFixed(MIX_PRECISION)}%`,
   };
 }
-
-/** The stop table, exported so the test can pin each stop's hour + tokens (the palette IS the design). */
-export const WAYSTONE_SKY_STOPS = SKY_STOPS;
 
 // ─── The celestial arc — the clock a cold viewer reads ────────────────────────────────────────────
 const SUNRISE = 5;
@@ -233,9 +230,9 @@ const SUN_HIGH = "color-mix(in oklab, var(--color-sky-star) 78%, var(--color-sky
 const MOON_LOW = "color-mix(in oklab, var(--color-sky-star) 62%, var(--color-sky-twilight))";
 const MOON_HIGH = "color-mix(in oklab, var(--color-sky-star) 88%, var(--color-sky-night-horizon))";
 
-/** The sun (05:00-19:00) or the moon (19:00-05:00) at its exact point on the arc: rises left, peaks overhead
- *  at the middle of its watch, sets right. Continuous in the hour, so ANY advance slides it visibly. */
-export function waystoneCelestialAt(hour: number): WaystoneCelestial {
+// The sun (05:00-19:00) or the moon (19:00-05:00) at its exact point on the arc: rises left, peaks overhead
+//  at the middle of its watch, sets right. Continuous in the hour, so ANY advance slides it visibly.
+function waystoneCelestialAt(hour: number): WaystoneCelestial {
   const h = ((hour % HOURS_IN_DAY) + HOURS_IN_DAY) % HOURS_IN_DAY;
   const isDay = h >= SUNRISE && h < SUNSET;
   const u = isDay ? (h - SUNRISE) / DAY_SPAN : (((h - SUNSET + HOURS_IN_DAY) % HOURS_IN_DAY) % HOURS_IN_DAY) / NIGHT_SPAN;
@@ -264,8 +261,8 @@ const STAR_STOPS: readonly { readonly hour: number; readonly value: number }[] =
   { hour: 22, value: 1 },
 ];
 
-/** Star-field opacity at an exact hour (0 in daylight) — the darkness ramp, transitioned in the component. */
-export function waystoneStarOpacityAt(hour: number): number {
+// Star-field opacity at an exact hour (0 in daylight) — the darkness ramp, transitioned in the component.
+function waystoneStarOpacityAt(hour: number): number {
   const { a, b, t } = bracket(STAR_STOPS, hour);
   return Number.parseFloat((a + (b - a) * t).toFixed(2));
 }
@@ -365,9 +362,9 @@ const WEATHER_RECIPES: Readonly<Record<WaystoneWeather, WaystoneWeatherRecipe>> 
   },
 };
 
-/** The air-layer recipe for a weather (`null` ⇒ clear). TOTAL by construction — an exhaustive Record over the
- *  union, so a new weather member fails tsc here rather than painting a silent default. */
-export function waystoneWeatherRecipe(weather: WaystoneWeather | null): WaystoneWeatherRecipe {
+// The air-layer recipe for a weather (`null` ⇒ clear). TOTAL by construction — an exhaustive Record over the
+//  union, so a new weather member fails tsc here rather than painting a silent default.
+function waystoneWeatherRecipe(weather: WaystoneWeather | null): WaystoneWeatherRecipe {
   return WEATHER_RECIPES[weather ?? "clear"];
 }
 

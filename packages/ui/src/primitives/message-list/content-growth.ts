@@ -62,9 +62,8 @@ type MessageListVirtualizer = Virtualizer<HTMLDivElement, HTMLLIElement>;
  * - `clientHeightPx > 0` — the scroller has a box; scrolling an unlaid-out element is a no-op that also
  *   records a programmatic write, which the external-scroll detector would then have to un-learn.
  *
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
-export function shouldRepinTail(input: {
+function shouldRepinTail(input: {
   readonly tailFollowActive: boolean;
   readonly sticking: boolean;
   readonly contentHeightPx: number;
@@ -77,9 +76,8 @@ export function shouldRepinTail(input: {
  * Whether the mount-time `sync()` runs at all — see (a). `false` on an empty, unpadded list, which then
  * takes its first sync from the scroller's ResizeObserver instead.
  *
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
-export function shouldSyncOnMount(contentHeightPx: number): boolean {
+function shouldSyncOnMount(contentHeightPx: number): boolean {
   return contentHeightPx > 0;
 }
 
@@ -88,9 +86,8 @@ export function shouldSyncOnMount(contentHeightPx: number): boolean {
  * guard is why a streaming turn does not re-render the whole list through this path: a row growing changes
  * the OL's height, never the scrollport's, so `sync()` runs and this returns the identical number.
  *
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
-export function nextScrollportHeight(previousPx: number, clientHeightPx: number): number {
+function nextScrollportHeight(previousPx: number, clientHeightPx: number): number {
   return previousPx === clientHeightPx ? previousPx : clientHeightPx;
 }
 

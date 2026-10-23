@@ -1,0 +1,51 @@
+import { expect, test } from "@playwright/test";
+import type { MenuChoiceStory, MenuHandleStory } from "./_native-parts-stories.tsx";
+
+test("checkbox and radio semantics survive the optional viewport, and native callbacks can veto changes", async ({ mount, page }) => {
+  await mount<typeof MenuChoiceStory>("tests/ui/primitives/menu/_native-parts-stories/MenuChoiceStory");
+  await page.getByRole("button", { name: "View options", exact: true }).click();
+  const menu = page.getByRole("menu");
+  const viewport = page.locator('[data-slot="menu-viewport"]');
+  await expect(menu).toBeVisible();
+  await expect(viewport).toBeVisible();
+  await expect(page.locator('[data-slot="menu-arrow"]')).toBeVisible();
+  const check = viewport.getByRole("menuitemcheckbox", { name: "Show minimap", exact: true });
+  await expect(check).toHaveAttribute("aria-checked", "false");
+  await check.click();
+  await expect(check).toHaveAttribute("aria-checked", "true");
+  await expect(check.locator("svg")).toBeVisible();
+  await expect(menu).toBeVisible();
+  await check.press("Space");
+  await expect(check).toHaveAttribute("aria-checked", "false");
+  const locked = viewport.getByRole("menuitemcheckbox", { name: "Locked option", exact: true });
+  await locked.click();
+  await expect(page.getByRole("status", { name: "Refused changes", exact: true })).toHaveText("1");
+  await expect(locked).toHaveAttribute("aria-checked", "false");
+  const date = viewport.getByRole("menuitemradio", { name: "Date", exact: true });
+  const name = viewport.getByRole("menuitemradio", { name: "Name", exact: true });
+  await expect(date).toHaveAttribute("aria-checked", "true");
+  await expect(name).toHaveAttribute("aria-checked", "false");
+  await name.click();
+  await expect(name).toHaveAttribute("aria-checked", "true");
+  await expect(date).toHaveAttribute("aria-checked", "false");
+  await expect(menu).toBeVisible();
+  const backdrop = page.locator('[data-slot="menu-backdrop"]');
+  await expect(backdrop).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(menu).toBeHidden();
+  await expect(viewport).toBeHidden();
+  await expect(backdrop).toBeHidden();
+});
+
+test("a menu handle resolves its anchor payload and does not retain it for another detached source", async ({ mount, page }) => {
+  await mount<typeof MenuHandleStory>("tests/ui/primitives/menu/_native-parts-stories/MenuHandleStory");
+  const menu = page.getByRole("menu");
+  await expect(menu).toBeHidden();
+  await page.getByRole("button", { name: "Open remotely", exact: true }).click();
+  await expect(menu.getByRole("menuitem", { name: "Character actions", exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(menu).toBeHidden();
+  await page.getByRole("button", { name: "Rooms", exact: true }).click();
+  await expect(menu.getByRole("menuitem", { name: "Room actions", exact: true })).toBeVisible();
+  await expect(menu.getByRole("menuitem", { name: "Character actions", exact: true })).toHaveCount(0);
+});

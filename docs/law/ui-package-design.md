@@ -64,7 +64,7 @@ packages/ui/
       + the Wave-3/carve-out set (checkbox · radio-group · toggle(-group) · textarea · autocomplete ·
         combobox · separator · collapsible · accordion · scroll-area · alert-dialog · progress ·
         badge · skeleton · spinner · empty-state · card · list-row · selection-bar ·
-        save-bar · status-chip · compare-blocks · avatar-stack · file-dropzone · file-trigger ·
+        save-bar · compare-blocks · avatar-stack · file-dropzone · file-trigger ·
         highlighted-text · log-viewer · color-field · tool-call-block · crossfade-image · reveal-gate)
       + aria-announcer/ · fieldset/ · kbd/ · table/ · text/  (the small hand-authored primitives;
         no lib, tv() over semantic HTML/ARIA)

@@ -29,26 +29,22 @@ export type { NearDuplicateOptions } from "./token-contract.ts";
 /** A raw DTCG node (pre-resolution): `$value` is still `{color.x}` for a reference. */
 type RawNode = NonNullable<NearDuplicateOptions["lightSource"]>;
 
-/**
- * The near-duplicate threshold, in Oklab ΔE (√(ΔL² + Δa² + Δb² + Δalpha²), all channels on the same
- * 0–1 scale). Bracketed by the tree's own evidence, not by a round number:
- *   • the drift it must CATCH — the two whites above sit at ΔE 0.005, and `color.secondary` vs
- *     `color.muted` (0.007 vs 0.006 chroma, identical L and hue) at ΔE 0.001;
- *   • the design it must NOT touch — the smallest DELIBERATE step in the Hearth ramp is 0.010
- *     (`sidebar-accent` 0.235 → `popover` 0.245 → `secondary` 0.255, the elevation ladder), and the
- *     border/sidebar-border alpha step is also 0.010.
- * 0.008 is the only decade between them. Widening this past 0.010 starts calling the elevation ladder
- * a duplicate; narrowing it below 0.005 stops catching the defect that minted the lint.
- */
-export const NEAR_DUPLICATE_EPSILON = 0.008;
+// The near-duplicate threshold, in Oklab ΔE (√(ΔL² + Δa² + Δb² + Δalpha²), all channels on the same
+// 0–1 scale). Bracketed by the tree's own evidence, not by a round number:
+//   • the drift it must CATCH — the two whites above sit at ΔE 0.005, and `color.secondary` vs
+//     `color.muted` (0.007 vs 0.006 chroma, identical L and hue) at ΔE 0.001;
+//   • the design it must NOT touch — the smallest DELIBERATE step in the Hearth ramp is 0.010
+//     (`sidebar-accent` 0.235 → `popover` 0.245 → `secondary` 0.255, the elevation ladder), and the
+//     border/sidebar-border alpha step is also 0.010.
+// 0.008 is the only decade between them. Widening this past 0.010 starts calling the elevation ladder
+// a duplicate; narrowing it below 0.005 stops catching the defect that minted the lint.
+const NEAR_DUPLICATE_EPSILON = 0.008;
 
-/**
- * Sanctioned near-pairs: `"color.a|color.b"` (paths sorted) → the DESIGN reason they are two values.
- * Empty on purpose — every near-pair the tree had was drift and was collapsed. The seam exists so a
- * future intentional pair is STATED here rather than silently tolerated; an entry with a hand-wave for
- * a reason is the same defect wearing a comment.
- */
-export const ALLOWED_NEAR_PAIRS: Readonly<Record<string, string>> = {};
+// Sanctioned near-pairs: `"color.a|color.b"` (paths sorted) → the DESIGN reason they are two values.
+// Empty on purpose — every near-pair the tree had was drift and was collapsed. The seam exists so a
+// future intentional pair is STATED here rather than silently tolerated; an entry with a hand-wave for
+// a reason is the same defect wearing a comment.
+const ALLOWED_NEAR_PAIRS: Readonly<Record<string, string>> = {};
 
 /** oklch states hue in DEGREES; the Oklab a/b projection needs radians. */
 const DEGREES_PER_RADIAN = 180;

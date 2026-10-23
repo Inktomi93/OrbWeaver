@@ -186,11 +186,11 @@ export const POINTER_PATH = [
   "Z",
 ].join(" ");
 
-/** THE hour→angle mapping — the dial's single geometric home. Degrees CLOCKWISE from 12 o'clock, so noon sits
- *  at the top and midnight at the bottom. Everything angular on the stone goes through this one function: the
- *  band arcs, the cardinal glyphs, and the hour hand's rotation. (A second table with its own origin is
- *  exactly how a ring drifts out of agreement with its own hand.) */
-export function hourAngle(hour: number): number {
+// THE hour→angle mapping — the dial's single geometric home. Degrees CLOCKWISE from 12 o'clock, so noon sits
+//  at the top and midnight at the bottom. Everything angular on the stone goes through this one function: the
+//  band arcs, the cardinal glyphs, and the hour hand's rotation. (A second table with its own origin is
+//  exactly how a ring drifts out of agreement with its own hand.)
+function hourAngle(hour: number): number {
   return ((((hour / HOURS_IN_DAY) * DEG_FULL + DEG_HALF) % DEG_FULL) + DEG_FULL) % DEG_FULL;
 }
 
