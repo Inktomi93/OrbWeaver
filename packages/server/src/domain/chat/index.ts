@@ -5,7 +5,7 @@
 export { createActiveTurns } from "./active-turns.ts";
 export { createTurnPersonaResolver } from "./assembly/turn-personas.ts";
 export { createChatBus } from "./bus.ts";
-export type { FreezeVolatileMacrosArgs, TurnMacroContextArgs } from "./contract/assembly-macros.ts";
+export type { FreezeVolatileMacrosArgs, MacroRenderEnv, RenderMacrosOptions, TurnMacroContextArgs } from "./contract/assembly-macros.ts";
 export type { ChatBoundBackfillOps } from "./contract/bound-backfill.ts";
 // Chat owns the injected RPG turn operation and its result; RPG implements them through this type-only door.
 export type {

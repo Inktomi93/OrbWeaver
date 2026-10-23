@@ -8,6 +8,7 @@
 // owner a link that is not theirs. The first banner URL per process wins; later output never replaces it.
 
 import process from "node:process";
+import type { ScheduleOp } from "@orb/kit/time";
 import { Tunnel, use } from "cloudflared";
 import type { OwnedRelayProcess, RelayEvents } from "./contract.ts";
 
@@ -16,7 +17,7 @@ const QUICK_TUNNEL_LABEL = /^[a-z0-9]+(?:-[a-z0-9]+)+$/u;
 const BANNER_URL = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/u;
 // A line longer than this is no banner line, so the unterminated tail is dropped rather than held.
 const MAX_LINE_CHARS = 4096;
-const STOP_GRACE_MS = 5000;
+export const RELAY_STOP_GRACE_MS = 5000;
 
 /** The canonical origin of a quick-tunnel URL, or null. Exact shape only: https, one hyphenated label directly under
  *  `trycloudflare.com`, no port, credentials, path, query or fragment. */
@@ -61,14 +62,15 @@ function bannerUrlReader(onUrl: (url: string) => void): (chunk: string) => void 
   };
 }
 
-/** Spawns `executable` as a quick tunnel to `origin`. `onExit` fires once, for an exit or a spawn failure. */
-export function spawnQuickTunnel(executable: string, origin: string, events: RelayEvents): OwnedRelayProcess {
+/** Spawns `executable` as a quick tunnel to `origin`. `onExit` fires once, for an exit or a spawn failure. `schedule`
+ *  arms the SIGKILL grace after a stop, so the caller owns the timer. */
+export function spawnQuickTunnel(executable: string, origin: string, events: RelayEvents, schedule: ScheduleOp): OwnedRelayProcess {
   use(executable);
   const tunnel = Tunnel.quick(origin, { "--no-autoupdate": true });
   const child = tunnel.process;
   const settled = new Promise<void>((resolve) => child.once("close", () => resolve()));
   let ended = false;
-  let force: NodeJS.Timeout | undefined;
+  let cancelForce: (() => void) | undefined;
   // A server that exits without its shutdown (a crash, a direct exit) still takes the relay down with it.
   const killWithServer = (): void => {
     child.kill("SIGKILL");
@@ -80,7 +82,7 @@ export function spawnQuickTunnel(executable: string, origin: string, events: Rel
     }
     ended = true;
     process.removeListener("exit", killWithServer);
-    clearTimeout(force);
+    cancelForce?.();
     events.onExit(detail);
   };
   const read = bannerUrlReader((url) => {
@@ -98,14 +100,13 @@ export function spawnQuickTunnel(executable: string, origin: string, events: Rel
     end(`cloudflared failed: ${err.message}`);
   });
   const stop = (): void => {
-    if (ended || force !== undefined) {
+    if (ended || cancelForce !== undefined) {
       return;
     }
     child.kill("SIGINT");
-    force = setTimeout(() => {
+    cancelForce = schedule(() => {
       child.kill("SIGKILL");
-    }, STOP_GRACE_MS);
-    force.unref();
+    }, RELAY_STOP_GRACE_MS);
   };
   return {
     stop,

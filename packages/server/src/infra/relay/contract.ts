@@ -1,6 +1,8 @@
 // The relay adapter's contract: the cloudflared pin's shape, the injected download and spawn seams, and the launcher
 // port the share domain's relay controller drives. db-free and domain-free, like every infra contract.
 
+import type { ScheduleOp } from "@orb/kit/time";
+
 /** The node `${process.platform}-${process.arch}` pairs cloudflared publishes a build for. */
 export const CLOUDFLARED_TARGETS = ["linux-x64", "linux-arm64", "linux-arm", "linux-ia32", "darwin-x64", "darwin-arm64", "win32-x64", "win32-ia32"] as const;
 export type CloudflaredTarget = (typeof CLOUDFLARED_TARGETS)[number];
@@ -80,6 +82,8 @@ export interface RelayExecutionDeps {
   readonly target: string;
   readonly dir: string;
   readonly fetch: RelayAssetFetch;
+  /** Arms the SIGKILL grace for a native child that ignores its stop; the root passes its unref'd timer. */
+  readonly schedule: ScheduleOp;
   readonly spawn?: SpawnRelay;
 }
 
