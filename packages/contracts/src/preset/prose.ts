@@ -454,17 +454,3 @@ export const PRESET_FORMAT_SLOT_IDS = {
  *  override is the existing `promptConfig.compaction.instructions` field, so it is excluded from the
  *  `promptConfig.prose` editable set. `DEFAULT_COMPACT_INSTRUCTIONS` derives its bytes from this slot. */
 export const PRESET_COMPACTION_SLOT_ID = "preset.compaction.instructions" as const satisfies ProseSlotId;
-
-/** Guided-action kind → slot id. `response` and `swipe` intentionally share ONE slot. */
-export const PRESET_GUIDED_SLOT_IDS = {
-  opening: "preset.guided.opening",
-  continue: "preset.guided.continue",
-  response: "preset.guided.response",
-  swipe: "preset.guided.response",
-  impersonate: "preset.guided.impersonate",
-  rewrite: "preset.guided.rewrite",
-  // Computed-key form (the `DEFAULT_MARKER_TEMPLATES` precedent): the keys ARE the `GuidedActionKind`
-  // strings, and that vocabulary is snake_case (audit §3).
-  ["greeting_rewrite"]: "preset.guided.greetingRewrite",
-  ["greeting_new"]: "preset.guided.greetingNew",
-} as const satisfies Record<string, ProseSlotId>;

@@ -337,7 +337,7 @@ async function collectWorlds(fs: ImportFsPort, profileDir: string, state: Collec
 }
 
 // ST saved CHAT-COMPLETION presets: `<profileDir>/OpenAI Settings/*.json`. Each is mapped to the orb-native
-// portable shape by the substrate (through the already-shipped `importStChatCompletionPreset`); an unparseable
+// portable shape by the substrate (through `tryImportStChatCompletionPreset`); an unparseable
 // file is recorded, never silent. A missing dir yields nothing (the port resolves [] for a missing dir).
 async function collectPresetDir(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<void> {
   const dir = fs.join(profileDir, ST_PRESET_DIR);

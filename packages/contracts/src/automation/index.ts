@@ -70,9 +70,9 @@ export const DOMAIN_TRIGGER_TYPES = [
 ] as const satisfies readonly DomainEventType[];
 export type DomainTriggerType = (typeof DOMAIN_TRIGGER_TYPES)[number];
 
-/** A rule's trigger: `{bus, type}` where `type` is a member of that bus's source union — no third
- *  vocabulary. The db pairs the two columns with a bus↔tuple CHECK derived from the same tuples. */
-export const automationTriggerSchema = z.discriminatedUnion("bus", [
+// A rule's trigger: `{bus, type}` where `type` is a member of that bus's source union — no third
+//  vocabulary. The db pairs the two columns with a bus↔tuple CHECK derived from the same tuples.
+const automationTriggerSchema = z.discriminatedUnion("bus", [
   z.object({ bus: z.literal("chat"), type: z.enum(CHAT_TRIGGER_TYPES) }),
   z.object({ bus: z.literal("domain"), type: z.enum(DOMAIN_TRIGGER_TYPES) }),
 ]);
@@ -133,7 +133,7 @@ export const AUTOMATION_FIRE_OUTCOMES = [
   "test_run",
 ] as const;
 export type AutomationFireOutcome = (typeof AUTOMATION_FIRE_OUTCOMES)[number];
-export const automationFireOutcomeSchema = z.enum(AUTOMATION_FIRE_OUTCOMES) satisfies z.ZodType<AutomationFireOutcome>;
+const automationFireOutcomeSchema = z.enum(AUTOMATION_FIRE_OUTCOMES) satisfies z.ZodType<AutomationFireOutcome>;
 
 /** The `automation.listFires` fire-log page CEILING, enforced at the transport trust boundary (the
  *  `CHARACTER_LIST_MAX_LIMIT` precedent) — the host-only debug surface is a growing per-rule catalog, so an
@@ -269,9 +269,9 @@ export const LIVE_TRIGGERS = {
  *  `tsc`-forced like every other member; the open-world contributor name rides INSIDE its payload
  *  (`run_tool.name`). Adding an open arm — a `type: string` escape, a `plugin_*` wildcard member — is the
  *  banned move: it defeats every exhaustive dispatch downstream (Spine-TypeScript-and-Patterns.md "String-union dispatch discipline"). */
-/** C5 — the SCOPE an arm needs from the rule that carries it. A rule is `chatId: ChatId | null` and NULL
- *  means owner-global (`db/schema/automation.ts`), so half the arm surface has no room to act in. */
-export const AUTOMATION_ARM_SCOPES = ["chat-required", "chat-independent"] as const;
+// C5 — the SCOPE an arm needs from the rule that carries it. A rule is `chatId: ChatId | null` and NULL
+//  means owner-global (`db/schema/automation.ts`), so half the arm surface has no room to act in.
+const AUTOMATION_ARM_SCOPES = ["chat-required", "chat-independent"] as const;
 export type AutomationArmScope = (typeof AUTOMATION_ARM_SCOPES)[number];
 
 /** THE VARIABLE PLANE an arm writes: the room's own runtime fold, or the AUTHOR's per-user globals. Two arms
@@ -483,8 +483,6 @@ export type QuickReplyMode = (typeof QUICK_REPLY_MODES)[number];
  *  it now?" invitation when a run_tool rule is turned away by the fire-rate cap, which is the correct offer:
  *  the money at stake is the author's own. */
 export const SPEND_ARM_TYPES = ["trigger_turn", "generate_image", "run_analysis", "run_tool"] as const satisfies readonly AutomationActionType[];
-/** @public twin: SPEND_ARM_TYPES */
-export type SpendArmType = (typeof SPEND_ARM_TYPES)[number];
 
 /** S4 — the CONFIRM-FIRST flag, carried by the four SUGGESTIBLE arms and by nothing else (the shape IS the
  *  vocabulary: `SuggestibleArmType` below is derived from which arms carry it, so the two can never drift).
@@ -841,34 +839,34 @@ export function automationRuleClockZone<Zone extends string = IanaTimeZone>(time
 //                    REFERENCE only and its confirm is a FRESH host run (`runRuleNow`). No stored payload,
 //                    therefore no TOCTOU by construction.
 
-export const AUTOMATION_SUGGESTION_KINDS = ["confirm", "invitation"] as const;
+const AUTOMATION_SUGGESTION_KINDS = ["confirm", "invitation"] as const;
 export type AutomationSuggestionKind = (typeof AUTOMATION_SUGGESTION_KINDS)[number];
 
 /** The rendered ask's cap. A card is one line of host-facing prose, not a preview pane. */
 export const AUTOMATION_SUGGESTION_SUMMARY_MAX = 200;
 
-/** What ONE dispatch of a rule DID, as a VERB RESULT reports it (`runRuleNow`, `confirmSuggestion`): a fire
- *  terminal, or one of the two NON-FIRE terminals below.
- *
- *  Neither `suggested` nor `paused` is a member of {@link AUTOMATION_FIRE_OUTCOMES}, and the distinction is the
- *  fire log's honesty (§3-S4 + §6 R5): NO row is written for either, because neither is a fire. Adding a
- *  terminal to the outcome TUPLE is a CHECK edit on a generated baseline and is recorded-unbuilt as R5, so this
- *  union is the house home for "a terminal a verb must be able to report and the log must not claim". It exists
- *  so a verb can ANSWER "what happened?" without either lying (`fired`) or going silent.
- *
- *  • `suggested` — the arms raised a pending ask instead of acting. The CONFIRMED execution writes `fired`,
- *    stamped with the confirmer.
- *  • `paused` — D146 clause (d), THE CLAUSE WITH NO FIRST-PARTY ANALOGUE. A rule naming a CONTRIBUTOR's tool
- *    (`run_tool`) whose contributor is not currently available to the rule's author does not act, and does not
- *    ERROR. It must not error: an `arm_error` increments `consecutive_errors` and a rule auto-disables at 20
- *    (`domain/automation/engine/dispatch.ts`), so treating a disabled plugin as a fault would silently eat
- *    every rule naming its tools, and re-enabling the plugin would not bring them back. `paused` is
- *    self-healing by construction — it changes NO stored state, so the very next event after the plugin comes
- *    back dispatches normally. A first-party contributor cannot vanish; a plugin does so by ordinary user
- *    action, which is why this terminal exists at all. */
-export const AUTOMATION_RUN_OUTCOMES = [...AUTOMATION_FIRE_OUTCOMES, "suggested", "paused"] as const;
+// What ONE dispatch of a rule DID, as a VERB RESULT reports it (`runRuleNow`, `confirmSuggestion`): a fire
+//  terminal, or one of the two NON-FIRE terminals below.
+//
+//  Neither `suggested` nor `paused` is a member of {@link AUTOMATION_FIRE_OUTCOMES}, and the distinction is the
+//  fire log's honesty (§3-S4 + §6 R5): NO row is written for either, because neither is a fire. Adding a
+//  terminal to the outcome TUPLE is a CHECK edit on a generated baseline and is recorded-unbuilt as R5, so this
+//  union is the house home for "a terminal a verb must be able to report and the log must not claim". It exists
+//  so a verb can ANSWER "what happened?" without either lying (`fired`) or going silent.
+//
+//  • `suggested` — the arms raised a pending ask instead of acting. The CONFIRMED execution writes `fired`,
+//    stamped with the confirmer.
+//  • `paused` — D146 clause (d), THE CLAUSE WITH NO FIRST-PARTY ANALOGUE. A rule naming a CONTRIBUTOR's tool
+//    (`run_tool`) whose contributor is not currently available to the rule's author does not act, and does not
+//    ERROR. It must not error: an `arm_error` increments `consecutive_errors` and a rule auto-disables at 20
+//    (`domain/automation/engine/dispatch.ts`), so treating a disabled plugin as a fault would silently eat
+//    every rule naming its tools, and re-enabling the plugin would not bring them back. `paused` is
+//    self-healing by construction — it changes NO stored state, so the very next event after the plugin comes
+//    back dispatches normally. A first-party contributor cannot vanish; a plugin does so by ordinary user
+//    action, which is why this terminal exists at all.
+const AUTOMATION_RUN_OUTCOMES = [...AUTOMATION_FIRE_OUTCOMES, "suggested", "paused"] as const;
 export type AutomationRunOutcome = (typeof AUTOMATION_RUN_OUTCOMES)[number];
-export const automationRunOutcomeSchema = z.enum(AUTOMATION_RUN_OUTCOMES) satisfies z.ZodType<AutomationRunOutcome>;
+const automationRunOutcomeSchema = z.enum(AUTOMATION_RUN_OUTCOMES) satisfies z.ZodType<AutomationRunOutcome>;
 
 // ── the cascade origin + the automation bus ─────────────────────────────────────────────────────────
 /** Turn-path/write origin stamped by an automation-initiated effect: the rule + its cascade depth.
@@ -895,19 +893,19 @@ export type AutomationEmitSource = { kind: "rule"; ruleId: AutomationRuleId } | 
  *  subscriber and drops everything else (`transport/trpc/stream/sources/automation.ts`). It carries display
  *  strings for the same reason the chips do: the pending record is in RAM (RULED F1), so there is nothing to
  *  re-read. */
-/** The optional STRUCTURED half of a raised ask — what a card needs to show that one line of summary prose
- *  cannot. It exists for exactly one reason and gains members the same way: a REWRITE card must show the host
- *  WHAT WOULD CHANGE before they say yes, and a "Fix the prose?" summary is not that. Both strings are capped
- *  at {@link ANALYSIS_REWRITE_MAX} at the producer.
- *
- *  IT RIDES THE EVENT rather than a query for the same reason `summary` does: the pending record is in RAM
- *  (RULED F1), so there is no row to re-read. And it is safe to ride a host-only event: `suggestionRaised` is
- *  never forwarded to a member subscriber (the room source's member filter is default-deny), so the audited
- *  text crosses to exactly the host who could already read it in the transcript.
- *
- *  DISCRIMINATED FROM ONE MEMBER: `kind` is spelled today so the second detail is a union arm rather than a
- *  re-type of every consumer (the single-arm-union seam shape). */
-export interface RewriteCardDetail {
+// The optional STRUCTURED half of a raised ask — what a card needs to show that one line of summary prose
+//  cannot. It exists for exactly one reason and gains members the same way: a REWRITE card must show the host
+//  WHAT WOULD CHANGE before they say yes, and a "Fix the prose?" summary is not that. Both strings are capped
+//  at {@link ANALYSIS_REWRITE_MAX} at the producer.
+//
+//  IT RIDES THE EVENT rather than a query for the same reason `summary` does: the pending record is in RAM
+//  (RULED F1), so there is no row to re-read. And it is safe to ride a host-only event: `suggestionRaised` is
+//  never forwarded to a member subscriber (the room source's member filter is default-deny), so the audited
+//  text crosses to exactly the host who could already read it in the transcript.
+//
+//  DISCRIMINATED FROM ONE MEMBER: `kind` is spelled today so the second detail is a union arm rather than a
+//  re-type of every consumer (the single-arm-union seam shape).
+interface RewriteCardDetail {
   readonly kind: "rewrite";
   /** The audited variant's bytes AS THEY WERE at the ask — the diff's left side and the host's "before". */
   readonly before: string;
@@ -952,19 +950,9 @@ export type AutomationBusEvent =
   | { type: "ruleErrored"; chatId: ChatId; ruleId: AutomationRuleId }
   | { type: "ruleAutoDisabled"; chatId: ChatId; ruleId: AutomationRuleId }
   | { type: "rulesChanged"; chatId: ChatId };
-/** @public twin: AutomationBusEvent — discriminant twin of the live union (cross-package PUBLIC). */
-export type AutomationBusEventType = AutomationBusEvent["type"];
 
-/** The automation bus's PRODUCER-coverage belt. The `satisfies Record<AutomationBusEvent["type"], true>`
- *  makes `tsc` error the moment a member is added without an entry, and its existence is what puts the bus
- *  inside the coverage ratchets' quantifier — `bus-producer-coverage` finds the bus THROUGH this const, and
- *  `@orb/contracts/bus-registry` holds it total over the union. Its client total map is the S4 card source's
- *  `Record<AutomationBusEvent["type"], …>` reducer in `packages/client/src/features/automation/`.
- *  @public future: the automation client INVALIDATION map. The card source's reducer is the consumer-
- *  exhaustiveness belt, not an invalidation seam — the automation room is live-only with no durable half
- *  (no cursor, no replay), so there is no gap-heal set for this const to derive the way
- *  `invalidation.ts::allUserRootFilters` derives one from USER_BUS_EVENT_TYPES. It gains that consumer the
- *  day a bus member invalidates a query (B2's fire log off `ruleFired` is the named candidate). */
+/** The canonical automation event belt, checked against {@link AutomationBusEvent} by its mapped Record
+ *  and the bus registry's native type assertions. */
 export const AUTOMATION_BUS_EVENT_TYPES = {
   quickReplySurfaced: true,
   suggestionRaised: true,
@@ -1013,7 +1001,7 @@ export {
 export { AUTOMATION_PROSE_SLOTS } from "./prose.ts";
 
 // These projections police typed wire additions, not persisted action normalization or dynamic fire detail.
-export const automationTriggerViewSchema = z.union(automationTriggerSchema.options.map((option) => option.strict())) satisfies z.ZodType<AutomationTrigger>;
+const automationTriggerViewSchema = z.union(automationTriggerSchema.options.map((option) => option.strict())) satisfies z.ZodType<AutomationTrigger>;
 const [variableAction, draftAction, loreAction, quickReplyAction, noticeAction, turnAction, imageAction, backgroundAction, analysisAction, toolAction] =
   automationActionSchema.options;
 const analysisRoutes = analysisAction.shape.routes;
@@ -1056,9 +1044,9 @@ export const automationRuleEditableSchema = z.strictObject({
 });
 export type AutomationRuleEditable = z.infer<typeof automationRuleEditableSchema>;
 
-/** The machine codes a rule write is refused with. The wire reason is `automation_rule_<code>` ({@link ruleRefusalReason}),
- *  which the editor maps to field copy, so a new code fails `tsc` where the server throws it and where the editor reads it. */
-export const AUTOMATION_RULE_REFUSAL_CODES = [
+// The machine codes a rule write is refused with. The wire reason is `automation_rule_<code>` ({@link ruleRefusalReason}),
+//  which the editor maps to field copy, so a new code fails `tsc` where the server throws it and where the editor reads it.
+const AUTOMATION_RULE_REFUSAL_CODES = [
   "active_game",
   "analysis_confirm_slots",
   "analysis_no_routes",
@@ -1112,16 +1100,14 @@ export const automationRuleCreateSchema = automationRuleEditableSchema.extend({
   chatId: typeIdSchema(ID_PREFIX.chat).nullable(),
   creationRequestId: typeIdSchema(ID_PREFIX.automationRuleCreation),
 });
-/** @public twin: automationRuleCreateSchema */
-export type AutomationRuleCreate = z.output<typeof automationRuleCreateSchema>;
+
 export type AutomationRuleCreateInput = z.input<typeof automationRuleCreateSchema>;
 
 export const automationRuleUpdateSchema = automationRuleEditableSchema.extend({
   ...automationRuleTimeZoneSchema.shape,
   ruleId: typeIdSchema(ID_PREFIX.automationRule),
 });
-/** @public twin: automationRuleUpdateSchema */
-export type AutomationRuleUpdate = z.output<typeof automationRuleUpdateSchema>;
+
 export type AutomationRuleUpdateInput = z.input<typeof automationRuleUpdateSchema>;
 
 export const automationRuleReorderSchema = z.strictObject({
@@ -1142,9 +1128,9 @@ export type AutomationRuleTools = z.output<typeof automationRuleToolsSchema>;
 
 // Canon-room projections consumed by the automation fact resolver.
 
-/** A turn's origin as the cascade guard reads it (chat's `getTurnOrigin`) — the initiator + the depth
- *  the turn ran at. `null` when the ref names no committed reply slot in the chat. */
-export interface TurnOriginRead {
+// A turn's origin as the cascade guard reads it (chat's `getTurnOrigin`) — the initiator + the depth
+//  the turn ran at. `null` when the ref names no committed reply slot in the chat.
+interface TurnOriginRead {
   readonly initiator: TurnInitiator;
   readonly automationDepth: number;
 }

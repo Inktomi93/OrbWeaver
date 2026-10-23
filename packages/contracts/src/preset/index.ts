@@ -3370,7 +3370,7 @@ function isMeaningfulPowerUserValue(value: unknown): boolean {
 }
 
 /** The whole `power_user` fold, as ONE call: the three config slices plus the seat-less keys to report.
- *  Extracted so `importStChatCompletionPreset` keeps its shape (and clears the cognitive-complexity gate)
+ *  Extracted so `tryImportStChatCompletionPreset` keeps its shape (and clears the cognitive-complexity gate)
  *  as this half grew. A non-object `powerUser` (the saved-preset-file path) folds nothing. */
 function stPowerUserGenerationKnobs(powerUser: unknown): {
   readonly stop: string[] | undefined;
@@ -3434,8 +3434,7 @@ function stSchemaRejection(
 }
 
 /** Import a SillyTavern Chat Completion preset (parsed JSON) into a validated PromptConfig, as a TYPED
- *  OUTCOME (#1580) — the one home for both refusals; {@link importStChatCompletionPreset} is the throwing
- *  wrapper over this, and the two refusal `reason`s ARE that wrapper's two messages, verbatim.
+ *  OUTCOME (#1580) — the one home for both refusals and their diagnostic reasons.
  *
  *  `powerUser` is ST's GLOBAL `settings.json.power_user` blob, supplied ONLY when importing the LIVE
  *  `oai_settings` preset (see the section above): its generation-adjacent knobs fold onto the config, and its
@@ -3490,17 +3489,6 @@ export function tryImportStChatCompletionPreset(raw: unknown, powerUser?: unknow
   // The count DESCRIBES THE RETURNED CONFIG, never the array that was built: when the two could disagree,
   // the disagreement was invisible and made the silent-default failure above look like a success (#1363).
   return { ok: true, result: { config, dropped, sectionCount: config.sections.length } };
-}
-
-/** The THROWING wrapper over {@link tryImportStChatCompletionPreset} — kept because a caller that has no
- *  door to render a refusal at (the server's bulk ST import) reads better with an exception it contains.
- *  The thrown message is the outcome's `reason` verbatim, so the two spellings can never drift apart. */
-export function importStChatCompletionPreset(raw: unknown, powerUser?: unknown): StImportResult {
-  const outcome = tryImportStChatCompletionPreset(raw, powerUser);
-  if (!outcome.ok) {
-    throw new Error(outcome.reason);
-  }
-  return outcome.result;
 }
 
 // ── orb native preset file (the lossless full-preset export) ───────────────────────────────────────

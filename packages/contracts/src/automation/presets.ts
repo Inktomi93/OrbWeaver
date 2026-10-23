@@ -95,29 +95,28 @@ export const RULE_PRESET_IDS = [
 export type RulePresetId = (typeof RULE_PRESET_IDS)[number];
 export const rulePresetIdSchema = z.enum(RULE_PRESET_IDS) satisfies z.ZodType<RulePresetId>;
 
-/** C5 — WHERE a preset's rules live: inside one room, or on the author's owner-GLOBAL lane
- *  (`automation_rules.chat_id IS NULL`). It is the preset's own declaration, not a caller's choice: a
- *  preset's rules are written against a scope (a global rule's arms may not touch a room), so the mint
- *  DERIVES the chat from this rather than trusting a caller to pair them correctly.
- *
- *  IT IS ALSO THE PICKER'S PARTITION, which is why it rides the client-visible projection: the chat "Rules"
- *  section offers only `chat` presets and the Automation settings pane only `global` ones. Without it the
- *  in-room picker would offer a preset whose mint refuses, which is the affordance-that-does-nothing this
- *  catalogue has already paid for once (#655). */
-export const RULE_PRESET_SCOPES = ["chat", "global"] as const;
+// C5 — WHERE a preset's rules live: inside one room, or on the author's owner-GLOBAL lane
+//  (`automation_rules.chat_id IS NULL`). It is the preset's own declaration, not a caller's choice: a
+//  preset's rules are written against a scope (a global rule's arms may not touch a room), so the mint
+//  DERIVES the chat from this rather than trusting a caller to pair them correctly.
+//
+//  IT IS ALSO THE PICKER'S PARTITION, which is why it rides the client-visible projection: the chat "Rules"
+//  section offers only `chat` presets and the Automation settings pane only `global` ones. Without it the
+//  in-room picker would offer a preset whose mint refuses, which is the affordance-that-does-nothing this
+//  catalogue has already paid for once (#655).
+const RULE_PRESET_SCOPES = ["chat", "global"] as const;
 export type RulePresetScope = (typeof RULE_PRESET_SCOPES)[number];
-export const rulePresetScopeSchema = z.enum(RULE_PRESET_SCOPES) satisfies z.ZodType<RulePresetScope>;
+const rulePresetScopeSchema = z.enum(RULE_PRESET_SCOPES) satisfies z.ZodType<RulePresetScope>;
 
-/** The knob editor kinds. A new kind fails every exhaustive descriptor dispatch (`tsc`). */
-export const RULE_PRESET_KNOB_KINDS = ["number", "text", "textList", "choice", "entityRef"] as const;
-export type RulePresetKnobKind = (typeof RULE_PRESET_KNOB_KINDS)[number];
+// The knob editor kinds. A new kind fails every exhaustive descriptor dispatch (`tsc`).
+const RULE_PRESET_KNOB_KINDS = ["number", "text", "textList", "choice", "entityRef"] as const;
 
-/** The ENTITIES an `entityRef` knob may point at. ONE member, deliberately: the kind exists because the
- *  auto-add-lore rule preset needs a BOOK and no knob could reference one (a host was asked to type a
- *  TypeID from memory). It generalizes when a SECOND consumer exists — the axis is already the §5.5 shape
- *  (a tuple + mapped-type Records below), so widening it is adding a member and letting `tsc` name every
- *  site, not a redesign. */
-export const RULE_PRESET_ENTITY_KINDS = ["worldInfoBook"] as const;
+// The ENTITIES an `entityRef` knob may point at. ONE member, deliberately: the kind exists because the
+//  auto-add-lore rule preset needs a BOOK and no knob could reference one (a host was asked to type a
+//  TypeID from memory). It generalizes when a SECOND consumer exists — the axis is already the §5.5 shape
+//  (a tuple + mapped-type Records below), so widening it is adding a member and letting `tsc` name every
+//  site, not a redesign.
+const RULE_PRESET_ENTITY_KINDS = ["worldInfoBook"] as const;
 export type RulePresetEntityKind = (typeof RULE_PRESET_ENTITY_KINDS)[number];
 
 /** The id VALIDATOR per entity kind — a mapped-type Record, so a new entity kind without a schema fails
@@ -142,7 +141,7 @@ interface RulePresetKnobBase {
 /** An integer knob (a cadence N, a beat distance D, a threshold). `min`/`max` are the picker's bounds AND
  *  the mint-time clamp — an out-of-range override is a typed refusal, never a silent clamp. */
 export interface RulePresetNumberKnobDescriptor extends RulePresetKnobBase {
-  readonly kind: "number";
+  readonly kind: (typeof RULE_PRESET_KNOB_KINDS)[0];
   readonly default: number;
   readonly min: number;
   readonly max: number;
@@ -156,7 +155,7 @@ export interface RulePresetNumberKnobDescriptor extends RulePresetKnobBase {
  *  `.optional()` with no `.min()`), and those declare `minLength: 0` — never a hardcoded "must not be
  *  empty" that cannot tell the two apart (#1387). */
 export interface RulePresetTextKnobDescriptor extends RulePresetKnobBase {
-  readonly kind: "text";
+  readonly kind: (typeof RULE_PRESET_KNOB_KINDS)[1];
   readonly default: string;
   readonly minLength: number;
   readonly maxLength: number;
@@ -166,7 +165,7 @@ export interface RulePresetTextKnobDescriptor extends RulePresetKnobBase {
  *  an emptied list would build a degenerate CEL predicate (`(...)` with no disjunct) or a zero-choice chip
  *  arm — both are mint-time refusals rather than a rule that stores and then errors every event. */
 export interface RulePresetTextListKnobDescriptor extends RulePresetKnobBase {
-  readonly kind: "textList";
+  readonly kind: (typeof RULE_PRESET_KNOB_KINDS)[2];
   readonly default: readonly string[];
   readonly minItems: number;
   readonly maxItems: number;
@@ -186,7 +185,7 @@ export interface RulePresetTextListKnobDescriptor extends RulePresetKnobBase {
  *  than a parallel array: an option without a label fails `tsc` at the preset def, so the two cannot drift
  *  and there is no ordering to keep in sync. */
 export interface RulePresetChoiceKnobDescriptor<TOption extends string = string> extends RulePresetKnobBase {
-  readonly kind: "choice";
+  readonly kind: (typeof RULE_PRESET_KNOB_KINDS)[3];
   readonly options: readonly TOption[];
   /** What the picker SHOWS for each wire value — host vocabulary, never the discriminator. */
   readonly optionLabels: Readonly<Record<TOption, string>>;
@@ -205,7 +204,7 @@ export interface RulePresetChoiceKnobDescriptor<TOption extends string = string>
  *  Generic in its entity so a preset builder's read is the BRANDED id (the `RulePresetChoiceKnobDescriptor`
  *  shape — the default parameter keeps the erased union one type). */
 export interface RulePresetEntityRefKnobDescriptor<TEntity extends RulePresetEntityKind = RulePresetEntityKind> extends RulePresetKnobBase {
-  readonly kind: "entityRef";
+  readonly kind: (typeof RULE_PRESET_KNOB_KINDS)[4];
   readonly entity: TEntity;
 }
 
@@ -258,7 +257,7 @@ export type RulePresetKnobValueInput = RulePresetKnobValueInputs[string];
  *  descriptor default, and a knob it LOST refuses loudly at the re-mint, never silently). */
 export type RulePresetKnobValues = Readonly<Record<string, RulePresetKnobValue>>;
 
-export const rulePresetKnobValueSchema = z.union([z.number(), z.string(), z.array(z.string()).readonly()]) satisfies z.ZodType<RulePresetKnobValue>;
+const rulePresetKnobValueSchema = z.union([z.number(), z.string(), z.array(z.string()).readonly()]) satisfies z.ZodType<RulePresetKnobValue>;
 export const rulePresetKnobOutputValuesSchema = z.record(z.string(), rulePresetKnobValueSchema).readonly() satisfies z.ZodType<RulePresetKnobValues>;
 
 /** A stored/resolved bag re-spelled as the WIRE INPUT bag (mutable arrays — the values schema takes
@@ -328,13 +327,13 @@ export interface RulePresetView {
 }
 
 const knobViewFields = { key: z.string(), label: z.string(), help: z.string().optional() };
-export const rulePresetKnobViewSchema = z
+const rulePresetKnobViewSchema = z
   .discriminatedUnion("kind", [
-    z.strictObject({ ...knobViewFields, kind: z.literal("number"), default: z.number(), min: z.number(), max: z.number() }),
-    z.strictObject({ ...knobViewFields, kind: z.literal("text"), default: z.string(), minLength: z.number(), maxLength: z.number() }),
+    z.strictObject({ ...knobViewFields, kind: z.literal(RULE_PRESET_KNOB_KINDS[0]), default: z.number(), min: z.number(), max: z.number() }),
+    z.strictObject({ ...knobViewFields, kind: z.literal(RULE_PRESET_KNOB_KINDS[1]), default: z.string(), minLength: z.number(), maxLength: z.number() }),
     z.strictObject({
       ...knobViewFields,
-      kind: z.literal("textList"),
+      kind: z.literal(RULE_PRESET_KNOB_KINDS[2]),
       default: z.array(z.string()).readonly(),
       minItems: z.number(),
       maxItems: z.number(),
@@ -342,12 +341,12 @@ export const rulePresetKnobViewSchema = z
     }),
     z.strictObject({
       ...knobViewFields,
-      kind: z.literal("choice"),
+      kind: z.literal(RULE_PRESET_KNOB_KINDS[3]),
       options: z.array(z.string()).readonly(),
       optionLabels: z.record(z.string(), z.string()),
       default: z.string(),
     }),
-    z.strictObject({ ...knobViewFields, kind: z.literal("entityRef"), entity: z.enum(RULE_PRESET_ENTITY_KINDS) }),
+    z.strictObject({ ...knobViewFields, kind: z.literal(RULE_PRESET_KNOB_KINDS[4]), entity: z.enum(RULE_PRESET_ENTITY_KINDS) }),
   ])
   .transform(({ help, ...knob }): RulePresetKnobView => ({ ...knob, ...(help === undefined ? {} : { help }) })) satisfies z.ZodType<RulePresetKnobView>;
 

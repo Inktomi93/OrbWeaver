@@ -105,7 +105,6 @@ export type CharacterMemberSpec = z.infer<typeof characterMemberSpecSchema>;
  *  runtime preconditions); `observer` and `agent` were purged 2026-07-25 (the rebuild re-adds their arms
  *  here if either domain returns) — `character` is the only live arm. */
 export const rosterMemberSpecSchema = z.discriminatedUnion("kind", [characterMemberSpecSchema]);
-/** @public future: founding character sets and saved-rosters v2 (unbuilt — the union's own header) */
 export type RosterMemberSpec = z.infer<typeof rosterMemberSpecSchema>;
 
 /** The RESOLVED per-participant content-render policy (docs/law/UI-Theming-and-Content.md §12.2/§12.3). The chat domain resolves each

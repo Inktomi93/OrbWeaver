@@ -10,6 +10,7 @@ import { nextFreeLabel } from "@orb/kit/strings";
 import { z } from "zod";
 import { chatApiSchema } from "./apis.ts";
 import { declaredCapabilitySchema } from "./capability/override.ts";
+import { BINDING_ACTOR_KINDS } from "./connection-ref.ts";
 import { modelIdSchema } from "./model-schema.ts";
 import { promptCacheSettingsSchema } from "./prompt-cache.ts";
 import { providerIdSchema } from "./provider-id.ts";
@@ -101,14 +102,19 @@ const connectionBindingFields = z.strictObject({
   connectionId: typeIdSchema(ID_PREFIX.userConnection).nullable(),
 });
 export const connectionBindingSchema = z.discriminatedUnion("actorKind", [
-  connectionBindingFields.extend({ actorKind: z.literal("user"), userId: brandedId("UserId"), ruleId: z.null(), pluginId: z.null() }),
+  connectionBindingFields.extend({ actorKind: z.literal(BINDING_ACTOR_KINDS[0]), userId: brandedId("UserId"), ruleId: z.null(), pluginId: z.null() }),
   connectionBindingFields.extend({
-    actorKind: z.literal("automation-rule"),
+    actorKind: z.literal(BINDING_ACTOR_KINDS[1]),
     userId: z.null(),
     ruleId: typeIdSchema(ID_PREFIX.automationRule),
     pluginId: z.null(),
   }),
-  connectionBindingFields.extend({ actorKind: z.literal("plugin-grant"), userId: z.null(), ruleId: z.null(), pluginId: typeIdSchema(ID_PREFIX.plugin) }),
+  connectionBindingFields.extend({
+    actorKind: z.literal(BINDING_ACTOR_KINDS[2]),
+    userId: z.null(),
+    ruleId: z.null(),
+    pluginId: typeIdSchema(ID_PREFIX.plugin),
+  }),
 ]);
 export type ConnectionBinding = z.infer<typeof connectionBindingSchema>;
 

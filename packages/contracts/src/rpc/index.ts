@@ -8,8 +8,8 @@ export const TRPC_BATCH_MAX_ITEMS = 22;
 /** Maximum encoded URL characters passed to the HTTP batch link, measured with the relative API base. */
 export const TRPC_BATCH_MAX_URL_LENGTH = 1334;
 
-/** A modelled subscription fault is terminal data, not an instruction to retry the source. */
-export const subscriptionErrorFrameSchema = z.object({
+// A modelled subscription fault is terminal data, not an instruction to retry the source.
+const subscriptionErrorFrameSchema = z.object({
   __subscriptionError: z.literal(true),
   code: z.string(),
   message: z.string(),

@@ -53,37 +53,37 @@ export interface AssetCreatedEvent {
   readonly assetId: AssetId;
 }
 
-/** A persona's CONTENT changed (name/title/description/avatar/metadata) — the entity→room bridge fans a
- *  `roomEntityChanged{entity:"persona"}` to every room the persona is live in: a human seat's member-visible
- *  displayName + avatar ARE their active persona's (`domain/persona/verbs/resolve-user-publics.ts`), and the
- *  description feeds assembly. The indexer ignores it (personas are not an embedded source).
- *
- *  Emitted by `update` and `import`-restore. NOT by `remove`, and that is a receipt rather than an omission:
- *  `chat_participants.activePersonaId` and `chats.anchorPersonaId` are both `onDelete: "set null"`, and the
- *  reach lookup runs AFTER the write commits, so a post-delete fan resolves ∅ by construction — a member
- *  declared here would be a dead wire that reads as coverage. Delete-freshness needs a pre-write reach
- *  capture and is not this wave's. NOT by `create`/`duplicate`/`create-from-character` either: a
- *  brand-new persona is seated nowhere.
- *
- *  `personaId` is REQUIRED (unlike the user-bus's optional targeting hint — `contracts/user-bus` lets an
- *  emitter omit it): the reach resolver's SQL is keyed on it, so an absent id would silently lose rooms. */
-export interface PersonaUpdatedEvent {
+// A persona's CONTENT changed (name/title/description/avatar/metadata) — the entity→room bridge fans a
+//  `roomEntityChanged{entity:"persona"}` to every room the persona is live in: a human seat's member-visible
+//  displayName + avatar ARE their active persona's (`domain/persona/verbs/resolve-user-publics.ts`), and the
+//  description feeds assembly. The indexer ignores it (personas are not an embedded source).
+//
+//  Emitted by `update` and `import`-restore. NOT by `remove`, and that is a receipt rather than an omission:
+//  `chat_participants.activePersonaId` and `chats.anchorPersonaId` are both `onDelete: "set null"`, and the
+//  reach lookup runs AFTER the write commits, so a post-delete fan resolves ∅ by construction — a member
+//  declared here would be a dead wire that reads as coverage. Delete-freshness needs a pre-write reach
+//  capture and is not this wave's. NOT by `create`/`duplicate`/`create-from-character` either: a
+//  brand-new persona is seated nowhere.
+//
+//  `personaId` is REQUIRED (unlike the user-bus's optional targeting hint — `contracts/user-bus` lets an
+//  emitter omit it): the reach resolver's SQL is keyed on it, so an absent id would silently lose rooms.
+interface PersonaUpdatedEvent {
   readonly type: "persona.updated";
   readonly personaId: PersonaId;
 }
 
-/** A world book's CONTENT changed (the book row, or any of its entries) — the bridge fans a
- *  `roomEntityChanged{entity:"world-info"}` to every room whose per-turn assembly pool reads this book (all
- *  four scopes; `entry/compose/room-reach.ts`). DISTINCT from the `wiEntryScopeChanged` chat-bus fan the
- *  scope-affecting entry edits already do: that moves the ATTACHMENT view, this moves the ASSEMBLY.
- *
- *  Emitted by book `update` and entry `create`/`update`/`remove`/`reorder`/`upsert-entries`. NOT by
- *  `removeBook` — the same cascade receipt as `PersonaUpdatedEvent` (`chat_books.worldBookId` is
- *  `onDelete: "cascade"`, so the junction is gone before the reach query runs).
- *
- *  `bookId` is REQUIRED, for the reach lookup (see `PersonaUpdatedEvent`); an ENTRY edit reports its
- *  OWNING book, because attachment — and therefore reach — is per book, never per entry. */
-export interface WorldInfoUpdatedEvent {
+// A world book's CONTENT changed (the book row, or any of its entries) — the bridge fans a
+//  `roomEntityChanged{entity:"world-info"}` to every room whose per-turn assembly pool reads this book (all
+//  four scopes; `entry/compose/room-reach.ts`). DISTINCT from the `wiEntryScopeChanged` chat-bus fan the
+//  scope-affecting entry edits already do: that moves the ATTACHMENT view, this moves the ASSEMBLY.
+//
+//  Emitted by book `update` and entry `create`/`update`/`remove`/`reorder`/`upsert-entries`. NOT by
+//  `removeBook` — the same cascade receipt as `PersonaUpdatedEvent` (`chat_books.worldBookId` is
+//  `onDelete: "cascade"`, so the junction is gone before the reach query runs).
+//
+//  `bookId` is REQUIRED, for the reach lookup (see `PersonaUpdatedEvent`); an ENTRY edit reports its
+//  OWNING book, because attachment — and therefore reach — is per book, never per entry.
+interface WorldInfoUpdatedEvent {
   readonly type: "world-info.updated";
   readonly bookId: WorldBookId;
 }

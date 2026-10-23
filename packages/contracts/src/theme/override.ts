@@ -89,8 +89,7 @@ export type ThemeOverride = z.infer<typeof themeOverrideSchema>;
 // key — so the field stays on the schema and the projection is what a card-sourced read runs through.
 //
 // Enforcement is a classification RECORD, not a second key list: every `ThemeOverride` key is classified
-// here or tsc fails, and both tuples DERIVE from it (one home, no drift). `tests/legacy/contracts/theme/
-// card-embeddable-partition.suite.test.ts` pins the derivation against the schema's own key set.
+// here or tsc fails, and the card projection derives from it (one home, no drift).
 
 // Which plane a `ThemeOverride` key belongs to.
 const THEME_KEY_REACHES = ["card-embeddable", "viewer-sacred"] as const;
@@ -118,18 +117,12 @@ type KeysWithReach<R extends ThemeKeyReach> = {
 
 // A `ThemeOverride` key a character card may carry into a room.
 type CardEmbeddableThemeKey = KeysWithReach<"card-embeddable">;
-// A `ThemeOverride` key that applies from a card NOWHERE — gate or no gate.
-type ViewerSacredThemeKey = KeysWithReach<"viewer-sacred">;
 
 const REACH_ENTRIES = Object.entries(THEME_KEY_REACH) as ReadonlyArray<readonly [keyof ThemeOverride, ThemeKeyReach]>;
 
 // The keys a card carries — the projection surface of {@link cardEmbeddableSubset}.
 const CARD_EMBEDDABLE_THEME_KEYS: readonly CardEmbeddableThemeKey[] = REACH_ENTRIES.filter(([, reach]) => reach === "card-embeddable").map(
   ([key]) => key as CardEmbeddableThemeKey,
-);
-/** The keys a card may never carry (live on a theme the viewer selected; dead from a card). */
-export const VIEWER_SACRED_THEME_KEYS: readonly ViewerSacredThemeKey[] = REACH_ENTRIES.filter(([, reach]) => reach === "viewer-sacred").map(
-  ([key]) => key as ViewerSacredThemeKey,
 );
 
 /** The card-carriable half of a `ThemeOverride`. */

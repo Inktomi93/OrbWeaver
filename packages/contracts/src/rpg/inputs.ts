@@ -336,5 +336,4 @@ export const rpgListTurnToolCallsInputSchema = z.object({
   turnLimit: z.int().min(1).max(RPG_TURN_TOOL_CALLS_LIST_MAX_LIMIT).optional(),
 });
 
-/** @public twin: rpgAddJournalEntryInputSchema */
 export type RpgAddJournalEntryInput = z.output<typeof rpgAddJournalEntryInputSchema>;

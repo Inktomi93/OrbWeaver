@@ -77,7 +77,7 @@ This selection covers character, databank, discovery, persona, roster-preset, st
 | SDK, author-support generation and package compatibility | Preserve actual supported consumers and published SDK/toolchain doors. Contracts remain checked rather than receiving a package-wide exemption. |
 | Mounted parser and schema enumeration tests | Keep actual mounted-input coverage. Generic export enumeration does not establish a business consumer for every internal schema. Qualify the selected public surface without weakening its constraints. |
 
-No runtime definition, schema or package door is deleted by this selection. Existing parser regression purposes remain distinct from type-identity trivia. The selected source passes maintained contract and reflective-reader tests, affected compiler programs, scoped lint, dependency checks and independent review. Native default and production scans remove the selected findings without adding findings. The package-wide remainder is open.
+No runtime definition, schema or package door is deleted by this selection. Existing parser regression purposes remain distinct from type-identity trivia. The selected source passes maintained contract and reflective-reader tests, affected compiler programs, scoped lint, dependency checks and independent review. Native default and production scans remove the selected findings without adding findings. The remaining governed contract findings are recorded below; broader original-case restoration remains partial.
 
 ## Selected inference and RPG contract surfaces
 
@@ -86,13 +86,13 @@ No runtime definition, schema or package door is deleted by this selection. Exis
 | Inference, provider and role-client auxiliary declarations with actual local use | Localize unused export modifiers. Preserve canonical bodies, schema constraints, initializer order, correlated signatures and independent type checks. |
 | RPG, refinery and prose declarations with actual local use | Localize unused export modifiers, including locally used marked declarations. Preserve canonical tuples, schemas, readonly interfaces and enclosing public contracts. |
 | Declaration-only RPG and refinery inferred aliases | Remove audit-only aliases with no current, generator, SDK or original assertion consumer. Preserve their canonical schemas and the externally consumed RpgAddJournalEntryInput. |
-| PREFIX_CACHE_ACTIONS, bindingActorKindSchema and structuredSchemaComplexity | Hold pending original-purpose comparison and qualified current-boundary coverage. Do not manufacture consumers or weaken correlated schemas. |
-| ConnectionRef and WIRE_SCHEMA_KEYWORD_VOCABULARY marker claims | Remove unsupported public suppression claims. Hold declarations visibly for separate purpose decisions. |
-| payloadSchemaFor and patchToolsOnlyFields | Hold callable definitions pending current-owner comparison and qualification of meaningful original assertions. |
-| trackerGloss | Hold under D113. Existing transition formatting differs from absolute readings; investigate actual standalone-provider behavior without forcing a helper call. |
+| PREFIX_CACHE_ACTIONS, bindingActorKindSchema and structuredSchemaComplexity | Keep the canonical cache axis connected to its real schema; remove the orphan parsers/readers with the qualified public-entry replacements below. |
+| ConnectionRef and WIRE_SCHEMA_KEYWORD_VOCABULARY | Remove the unconsumed audit alias and obsolete checker projection. Preserve the actual parser and wire engine. |
+| payloadSchemaFor and patchToolsOnlyFields | Remove unused callable identities with their bounded reader/patch cases qualified below. Preserve actual payload parsing, generated grammar and decoding. |
+| trackerGloss | Retain under D113. Actual standalone-provider hint delivery is qualified; do not force an absolute-reading helper into transition formatting. |
 | Original parser, formatter and patch-expressibility permutations | Keep restoration partial. Pure permutations belong in unit or contract tests; integration owns distinct production composition and provider wiring. Record selected replacements and defect controls before acceptance. |
 
-This selection passes scoped lint, maintained runtime tests, affected compiler programs, dependency checks and independent review. Native scans remove the selected findings and expose only the held declarations whose unsupported markers were removed. It does not complete the wider contract restoration or authorize runtime-body changes.
+This selection passes scoped lint, maintained runtime tests, affected compiler programs, dependency checks and independent review. Native scans remove the selected findings without weakening live behavior. The case maps below own bounded callable removals; wider restoration remains partial.
 
 ## Selected tracker wiring cases
 
@@ -116,7 +116,7 @@ The tracker integration replacement passes runtime, affected compiler and depend
 | ConnectionRef audit alias | Remove the unconsumed inferred alias. Keep connectionRefSchema and its actual branded-id and model-stripping behavior; original parser cases remain separate from the unused alias spelling. |
 | WIRE_SCHEMA_KEYWORD_VOCABULARY tooling projection | Remove the unused concatenation for removed checker consumers. Preserve the engine's actual private keyword tables and public scrub behavior. No replacement checker or fabricated consumer is required. |
 
-This bounded selection passes runtime, affected compiler and dependency checks and independent review. Controlled weakening of the inactive-prefix constraint and manual-depth floor makes the selected assertions fail; both production files are restored exactly. bindingActorKindSchema remains held for its separate actual admission-boundary comparison.
+This bounded selection passes runtime, affected compiler and dependency checks and independent review. Controlled weakening of the inactive-prefix constraint and manual-depth floor makes the selected assertions fail; both production files are restored exactly. The binding-actor case map below owns the separate live admission-boundary replacement.
 
 ## Selected plugin and knowledge contract surfaces
 
@@ -178,7 +178,7 @@ This selection passes bounded JSSG preservation, scoped runtime tests, affected 
 | Preset vocabularies, version lifts, field partitions and parser components | Localize unused export modifiers. Keep all actual migrations, defaults, transforms, field constraints and public enclosing types. CONFIG_LIFTS remains used by stored parsing and native-file import. |
 | Settings, appearance, regex and theme support declarations | Localize unused exports only. Preserve canonical types, schema-derived boundaries, placement correlations and theme privacy projections. |
 | Production-only test and tool consumers | Retain appearanceSettingsSchema, userSettingsSchema, guidedActionsSchema, promptConfigViewSchema and FormatStringKey. These serve real production-derived builders or type assertions. |
-| importStChatCompletionPreset, PRESET_GUIDED_SLOT_IDS and VIEWER_SACRED_THEME_KEYS | Hold definitions pending bounded original-purpose comparison and qualified current-public-entry coverage. Do not invent consumers or declare their meaningful assertions obsolete. |
+| importStChatCompletionPreset, PRESET_GUIDED_SLOT_IDS and VIEWER_SACRED_THEME_KEYS | Remove the unused metadata and facade with qualified public-entry cases below. Preserve the actual mapper, editor defaults and privacy projection. |
 | Original stored-data compatibility and import matrices | Keep restoration partial. Reach actual parsers and typed import results, not private lift-table identity or obsolete exception wrappers. |
 
 This modifier-only selection passes bounded preservation, scoped runtime tests, affected compiler and dependency checks and independent review. No UI behavior or schema constraint changes.
@@ -202,3 +202,49 @@ This selection passes scoped preservation, real credential/health boundary tests
 | Payload dispatch implementation | Remove only the unused overloads, exclusive conditional return alias and exclusive lift import. Correct coupled stale comments; do not change actual query parsing, schema lifting or payload validation. |
 
 This selection passes current caller confirmation, real refinery corpus qualification, affected compiler and dependency checks and independent review. It introduces no replacement dispatcher or test door and does not claim broader corrupt-embed or read-heal coverage.
+
+## Selected preset and theme purpose replacements
+
+| Original purpose | Primary home and bounded decision |
+| - | - |
+| Guided defaults agree with editor slot metadata; adapted slots stay out of editable prose | Contract tests through actual TEMPLATE_DEFS, DEFAULT_GUIDED_ACTIONS, resolveProseText and isPresetProseSlotId. Preserve the shared response/swipe slot explicitly; then remove unused PRESET_GUIDED_SLOT_IDS metadata. |
+| Cards carry atmosphere but not viewer ergonomics | Contract tests through actual cardEmbeddableSubset using a complete canonical ThemeOverride fixture. Preserve every allowed field, density exclusion, absent/undefined behavior and background carriage distinctions; then remove VIEWER_SACRED_THEME_KEYS and its exclusive local alias. |
+| ST preset mapping, refusals and native round-trip | Contract tests through actual tryImportStChatCompletionPreset and native parsers. Preserve depth clamps, diagnostics, section counts, markers, sentinels, squash, dropped fields and format mappings. Drop throwing-facade identity/message assertions with its unused wrapper. |
+| Unselected prose, migration and theme behavior | Remain partial. Do not restore removed checker/generator machinery, create a test door or claim the entire original suites restored. |
+
+The replacements pass against unchanged production and after retirement. Guided-slot, sacred-density and typed-import defects fail the intended assertions; sources restore exactly. Actual mapping and projection behavior remains unchanged.
+
+## Selected automation and streaming contract surfaces
+
+| Purpose | Decision and boundary |
+| - | - |
+| Automation, event, preset and RPC support declarations | Localize unused exports while preserving canonical bodies, strict parsing, readonly/presence distinctions and enclosing contracts. |
+| Stream-channel and preset-knob vocabularies | Retain canonical tuples as local schema/type inputs. Derive existing discriminator values without changing variants or mapped exhaustiveness checks. |
+| Bus-registry declaration-location metadata | Remove BUSES and exclusive BusHome after current migration and checker-removal confirmation. Preserve native type assertions, BUS_SUBUNIONS usage and actual event vocabularies. |
+| Output/discriminator aliases and suppression claims | Remove unsupported aliases and markers. Retain actual schema, native type-test, generator, SDK and stream-attach consumers. |
+| Process-global compatibility APIs | Keep them deleted. Graph-owned runtime buses, subscriptions, sources, cursors, visibility and authority remain unchanged. |
+| Original parser, descriptor and frame purposes | Rebuild selected cases through public schemas and types; preserve meaningful branding, mode/default, scoping and frame relationships. Keep broader automation restoration partial. |
+
+The focused public contracts pass before and after alignment. Actual room/knob defects fail runtime assertions; a removed chat cursor fails the native frame assertion. No replacement checker, fabricated consumer or production test door is introduced.
+
+## Selected binding actor parser purpose
+
+| Original purpose | Primary home and bounded decision |
+| - | - |
+| Persisted user, rule and plugin kind admission | Extend the maintained connectionBindingSchema contract case with complete valid row equality, including the plugin case. |
+| Unknown actor-kind refusal | Rebuild the original agent, chat, system and empty-kind refusals on an otherwise-valid row through the actual public parser. Preserve identity-correlation refusals. |
+| Canonical persisted kind ownership | Derive the existing row discriminator values directly from BINDING_ACTOR_KINDS. Preserve order, identity correlations and the distinct optional caller selector. |
+| Orphan scalar parser identity | Remove only after the live row-boundary replacement and a discriminant-widening defect control qualify. Keep canonical vocabulary, selector separation and actual ownership/SQL controls. |
+| Other connection-reference, selector and SQL cases | Remain partial. Contract parser tests do not claim HTTP authorization or migrated-SQL qualification. |
+
+Tests use the actual production row schema, not a replacement validator or invented consumer. Valid rows pass; widening the real discriminator fails the unknown-kind assertion. The canonical row tags and orphan-parser removal pass final qualification.
+
+## Remaining governed contract declarations
+
+| Finding | Current authority and boundary |
+| - | - |
+| trackerGloss | D113 explicitly retains the named helper. Actual standalone delta hints already use transition formatting; any helper retirement requires a narrow ruling clarification, not manufactured wiring. |
+| rosterMemberSpecSchema and RosterMemberSpec | Spine-Identity-and-Auth §4 names the reserved desired-seat graft point. Preserve it without claiming a live consumer or implementing parked seats. |
+| memory/index.ts | D55 retains clip/world-state contract seams; the world-state-clips plan is parked. Preserve the declarations without adding a package door or fake consumer. |
+
+Native findings remain visible for these governed locations. No contract source retains public/alpha/beta/alias suppression tags. Production-only findings retain actual maintained test, tooling and generator consumers. This does not close the broader package work item or complete legacy test restoration.

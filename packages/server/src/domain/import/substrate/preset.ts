@@ -12,7 +12,7 @@
 // samplers on a room that will never run them.
 //
 // This module also owns NO ST→PromptConfig mapping of its own: the chat-completion mapper already exists and
-// is shared with the client's single-file import dialog — `importStChatCompletionPreset` (@orb/contracts/preset).
+// is shared with the client's single-file import dialog — `tryImportStChatCompletionPreset` (@orb/contracts/preset).
 // A second answer here would be the banned parallel path. What IS owned here: the family's file/section
 // locations, the preset NAME rule, and the never-throw envelope.
 //

@@ -146,7 +146,13 @@ test("binding actors require exactly their own identity and retain deleted conne
   const user = { ...common, actorKind: "user", userId: "owner", ruleId: null, pluginId: null };
   expect(connectionBindingSchema.parse(user)).toEqual(user);
   const ruleId = mintTypeId(ID_PREFIX.automationRule, ids.next);
-  expect(connectionBindingSchema.parse({ ...common, actorKind: "automation-rule", userId: null, ruleId, pluginId: null }).connectionId).toBeNull();
+  const rule = { ...common, actorKind: "automation-rule", userId: null, ruleId, pluginId: null };
+  expect(connectionBindingSchema.parse(rule)).toEqual(rule);
+  const plugin = { ...common, actorKind: "plugin-grant", userId: null, ruleId: null, pluginId: mintTypeId(ID_PREFIX.plugin, ids.next) };
+  expect(connectionBindingSchema.parse(plugin)).toEqual(plugin);
+  for (const actorKind of ["agent", "chat", "system", ""]) {
+    expect(connectionBindingSchema.safeParse({ ...user, actorKind }).success, `"${actorKind}" must not parse as a binding actor kind`).toBe(false);
+  }
   expect(connectionBindingSchema.safeParse({ ...user, userId: null }).success).toBe(false);
   expect(connectionBindingSchema.safeParse({ ...user, ruleId }).success).toBe(false);
 });

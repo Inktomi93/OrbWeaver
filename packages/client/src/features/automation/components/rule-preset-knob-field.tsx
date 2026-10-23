@@ -3,7 +3,7 @@
 // file owns what one knob LOOKS like, and `lib/rule-preset-knob-model.ts` owns what counts as a usable
 // value for it.
 //
-// KNOB EDITORS dispatch EXHAUSTIVELY over the descriptor `kind` (§5.5): a new `RulePresetKnobKind` fails
+// KNOB EDITORS dispatch EXHAUSTIVELY over the descriptor `kind` (§5.5): a new `RulePresetKnobDescriptor["kind"]` member fails
 // `tsc` at the `never` default. The switch runs on a `RulePresetKnobDescriptor`-typed local, NOT on the
 // wire's `RulePresetKnobView` (= descriptor & `{key}`): biome's type service does not narrow a switch over
 // an INTERSECTED union (it marks every case after the first unreachable), while it narrows the plain union
@@ -318,7 +318,7 @@ export function KnobBlockingLine({ knob, chatId }: KnobBlockingLineProps): React
 }
 
 /** One knob's editor, dispatched exhaustively over its descriptor kind (§5.5 — a new
- *  `RulePresetKnobKind` fails `tsc` at the `never` default). The switch runs on a plain
+ *  kind in {@link RulePresetKnobDescriptor} fails `tsc` at the `never` default). The switch runs on a plain
  *  `RulePresetKnobDescriptor` local (see the header) while `key`/`label`/`help` read off the view. */
 export function KnobField(props: KnobFieldProps): ReactElement {
   const descriptor: RulePresetKnobDescriptor = props.knob;

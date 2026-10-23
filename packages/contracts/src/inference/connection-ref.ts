@@ -24,7 +24,6 @@ export type CapabilityTarget = z.output<typeof capabilityTargetSchema>;
  *  defaults silently). An agent principal is a future kind when D60 builds it. */
 export const BINDING_ACTOR_KINDS = ["user", "automation-rule", "plugin-grant"] as const;
 export type BindingActorKind = (typeof BINDING_ACTOR_KINDS)[number];
-export const bindingActorKindSchema = z.enum(BINDING_ACTOR_KINDS) satisfies z.ZodType<BindingActorKind>;
 
 export type BindingActor =
   | { readonly kind: "automation-rule"; readonly ruleId: AutomationRuleId }

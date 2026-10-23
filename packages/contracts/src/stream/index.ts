@@ -40,25 +40,24 @@ import type { WorkloadEvent } from "#workloads";
 /** The SSE inactivity window, shared by server-advertised native options and the browser adapter. */
 export const STREAM_INACTIVITY_TIMEOUT_MS = 45_000;
 
-/** A room the client may attach to. `user`/`notifications` are self-scoped (the channel key IS the caller's
- *  principal — no input can widen them); the three chat-scoped rooms carry the `chatId` they address, and
- *  `workloads` carries the ONE run it tails (owner-scoped at attach, inside the room's own gate). */
-export const streamRoomRefSchema = z.discriminatedUnion("channel", [
-  z.object({ channel: z.literal("user") }),
-  z.object({ channel: z.literal("notifications") }),
-  z.object({ channel: z.literal("chat"), chatId: typeIdSchema(ID_PREFIX.chat) }),
-  z.object({ channel: z.literal("rpg"), chatId: typeIdSchema(ID_PREFIX.chat) }),
-  z.object({ channel: z.literal("automation"), chatId: typeIdSchema(ID_PREFIX.chat) }),
-  z.object({ channel: z.literal("workloads"), workloadId: typeIdSchema(ID_PREFIX.workload) }),
+// Control frames never belong to the attachable room vocabulary.
+const STREAM_CHANNELS = ["user", "notifications", "chat", "rpg", "automation", "workloads"] as const;
+
+// A room the client may attach to. `user`/`notifications` are self-scoped (the channel key IS the caller's
+//  principal — no input can widen them); the three chat-scoped rooms carry the `chatId` they address, and
+//  `workloads` carries the ONE run it tails (owner-scoped at attach, inside the room's own gate).
+const streamRoomRefSchema = z.discriminatedUnion("channel", [
+  z.object({ channel: z.literal(STREAM_CHANNELS[0]) }),
+  z.object({ channel: z.literal(STREAM_CHANNELS[1]) }),
+  z.object({ channel: z.literal(STREAM_CHANNELS[2]), chatId: typeIdSchema(ID_PREFIX.chat) }),
+  z.object({ channel: z.literal(STREAM_CHANNELS[3]), chatId: typeIdSchema(ID_PREFIX.chat) }),
+  z.object({ channel: z.literal(STREAM_CHANNELS[4]), chatId: typeIdSchema(ID_PREFIX.chat) }),
+  z.object({ channel: z.literal(STREAM_CHANNELS[5]), workloadId: typeIdSchema(ID_PREFIX.workload) }),
 ]);
 export type StreamRoomRef = z.infer<typeof streamRoomRefSchema>;
 
 /** The ROOM channels — derived from the ref union, so `control` (a frame-only channel) can never appear. */
 export type StreamChannel = StreamRoomRef["channel"];
-
-/** The room-channel belt. Deliberately NOT named `*_EVENT_TYPES`: it is not an event union, and that suffix
- *  would drag it into the bus-registry's producer/consumer belt demand. */
-export const STREAM_CHANNELS = ["user", "notifications", "chat", "rpg", "automation", "workloads"] as const satisfies readonly StreamChannel[];
 
 /** The ONE routing key — the server registry's map key AND the client handler-registry key. Accepts a ROOM
  *  REF or a DATA FRAME: both carry the same routing fields, and a delivered frame has to resolve to the same
@@ -124,8 +123,6 @@ export type StreamFrame = StreamDataFrame | StreamControlFrame;
 
 /** `stream.connect` — the ONE EventSource. `socketId` is minted per tab by the client. */
 export const streamConnectInputSchema = z.object({ socketId: brandedId("SocketId") });
-/** @public twin: streamConnectInputSchema */
-export type StreamConnectInput = z.output<typeof streamConnectInputSchema>;
 
 /** `stream.attach` — rides the batched HTTP link (zero connections, inherits the CSRF header + rate limit).
  *  Returns `void`: delivery NEVER rides a mutation return, so a replay can never interleave ahead of live
@@ -136,7 +133,6 @@ export const streamAttachInputSchema = z.object({
   ref: streamRoomRefSchema,
   sinceSeq: z.int().min(0).nullish(),
 });
-/** @public twin: streamAttachInputSchema */
 export type StreamAttachInput = z.output<typeof streamAttachInputSchema>;
 
 /** `stream.detach` — drop one room. Idempotent (detaching an unattached room is a no-op). */
@@ -144,5 +140,3 @@ export const streamDetachInputSchema = z.object({
   socketId: brandedId("SocketId"),
   ref: streamRoomRefSchema,
 });
-/** @public twin: streamDetachInputSchema */
-export type StreamDetachInput = z.output<typeof streamDetachInputSchema>;
