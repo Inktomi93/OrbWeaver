@@ -548,15 +548,26 @@ function precompressedAssets(): Plugin {
   };
 }
 
+const GALLERY_HTML = join(WORKSPACE_ROOT, "playwright", "index.html");
+// The gallery is built once per run and served static by `vite preview` (playwright-ct.config.ts), so no
+// worker pays a cold module transform inside a test timeout. One directory per port: concurrent CT runs
+// in one checkout must not empty each other's output.
+const GALLERY_OUT_DIR = join(import.meta.dirname, "node_modules", `.vite-ct-gallery-${String(DEV_SERVER_PORT)}`);
+
 function componentGallery(): Plugin {
   const extension = join(WORKSPACE_ROOT, "playwright", "index.css");
   return {
     name: "orb:component-gallery",
     enforce: "pre",
-    transformIndexHtml(_html, context): HtmlTagDescriptor[] {
-      return context.filename === join(WORKSPACE_ROOT, "playwright", "index.html")
-        ? [{ tag: "script", attrs: { type: "module", src: "/packages/client/src/lib/zod-jitless.ts" }, injectTo: "head-prepend" }]
-        : [];
+    // "pre": the build bundles a script tag injected before its HTML pass; a later one stays a raw
+    // source path the static server cannot resolve.
+    transformIndexHtml: {
+      order: "pre",
+      handler(_html, context): HtmlTagDescriptor[] {
+        return context.filename === GALLERY_HTML
+          ? [{ tag: "script", attrs: { type: "module", src: "/packages/client/src/lib/zod-jitless.ts" }, injectTo: "head-prepend" }]
+          : [];
+      },
     },
     async transform(code, id): Promise<string | undefined> {
       const target = id.split("?", 1)[0] === join(import.meta.dirname, "src", "styles", "globals.css");
@@ -580,7 +591,7 @@ export default defineConfig(({ mode }) => {
       dedupe: ["react", "react-dom"],
     },
     plugins: [
-      precompressedAssets(),
+      ...(gallery ? [] : [precompressedAssets()]),
       // React Compiler (stable 1.0, FULL-compile per D54) runs as a @rolldown/plugin-babel preset —
       // plugin-react v6 dropped internal Babel, so the compiler needs its own Babel pass. Order matches
       // the canonical react.dev / plugin-react snippet (`react()` then `babel()`) and is COSMETIC here:
@@ -620,18 +631,8 @@ export default defineConfig(({ mode }) => {
       orbWorkspaceExportsRestart(),
     ],
     optimizeDeps: {
-      // Lazy gallery imports are not a complete cold scan: include every browser story before mounting starts.
-      // Excluded workspace packages need their source doors scanned to expose their third-party dependencies.
-      entries: gallery
-        ? [
-            "./playwright/index.html",
-            "./tests/**/*-stories.tsx",
-            "./tests/support/browser/*-fixtures.tsx",
-            "./packages/client/src/**/index.{ts,tsx}",
-            "./packages/client/src/**/*.worker.ts",
-            "./packages/ui/src/**/index.ts",
-          ]
-        : ["./index.html", "../ui/src/**/index.ts"],
+      // The gallery is prebuilt, not served by the dev optimizer, so it has no scan entries.
+      ...(gallery ? {} : { entries: ["./index.html", "../ui/src/**/index.ts"] }),
       // Keep @orb/ui as SOURCE (never pre-bundled) so the React Compiler babel pass above actually
       // processes its components. A pre-bundled @orb/ui would be esbuild-optimized and BYPASS the
       // compiler — silently shipping un-memoized ui (the flagged correctness risk). @orb/ui's own
@@ -639,7 +640,7 @@ export default defineConfig(({ mode }) => {
       // want to recompile third-party libs. @orb/kit + @orb/contracts are also source-consumed by
       // default (workspace packages, not pre-bundled) — no React components in them, so the compiler
       // no-ops there harmlessly; they need no explicit exclude.
-      exclude: ["@orb/ui", ...(gallery ? ["@orb/client"] : [])],
+      exclude: ["@orb/ui"],
     },
     // Opt in to the next-major deprecation warnings (config/shared-options.md#future) so a vite major
     // lands as a warning in our dev log instead of a hard break. These are WARNINGS ONLY — nothing here
@@ -673,6 +674,7 @@ export default defineConfig(({ mode }) => {
     build: {
       // Every Zod consumer loads its client configuration before constructing a schema, even across chunks.
       rolldownOptions: {
+        ...(gallery ? { input: GALLERY_HTML } : {}),
         output: {
           codeSplitting: {
             groups: [{ name: "zod", test: /[\\/]node_modules[\\/]zod[\\/]|[\\/]lib[\\/]zod-jitless\.ts$/ }],
@@ -718,30 +720,33 @@ export default defineConfig(({ mode }) => {
       chunkSizeWarningLimit: 3400,
       // The canonical bundle location: the server's SPA registrar (entry/http/spa.ts) serves this dir —
       // CLIENT_DIST_DIR defaults to packages/client/dist and must move with any change here.
-      outDir: "dist",
+      outDir: gallery ? GALLERY_OUT_DIR : "dist",
       emptyOutDir: true,
     },
+    // The gallery's static server. Preview inherits `server.proxy` unless told otherwise, and a gallery
+    // test mocks its own routes, so the proxy is emptied. strictPort makes a stale server an error.
+    ...(gallery
+      ? {
+          preview: {
+            host: "127.0.0.1",
+            port: DEV_SERVER_PORT,
+            strictPort: true,
+            headers: { [CSP_HEADER]: CSP_DEV_FALLBACK },
+            proxy: {},
+          },
+        }
+      : {}),
     server: {
       port: DEV_SERVER_PORT,
       // Fail loudly if the port is taken rather than silently hopping to a random port (stable dev origin
       // for the proxy + CSP + auth-redirect assumptions). The snap-stage picks a free offset port, so
       // strictPort stays on for it too.
       strictPort: true,
-      ...(gallery
-        ? {
-            host: "127.0.0.1",
-            headers: { [CSP_HEADER]: CSP_DEV_FALLBACK },
-            // Native traces emit HTML inside the workspace; they are evidence, not gallery entry changes.
-            watch: { ignored: [`${WORKSPACE_ROOT}/reports/**`] },
-          }
-        : {}),
-      proxy: gallery ? {} : SERVER_PROXY,
+      proxy: SERVER_PROXY,
       // Pre-transform the shell entry + the route tree on server boot so the first paint isn't cold.
-      warmup: gallery
-        ? {}
-        : {
-            clientFiles: ["./src/main.tsx", "./src/routes/router.tsx"],
-          },
+      warmup: {
+        clientFiles: ["./src/main.tsx", "./src/routes/router.tsx"],
+      },
       // Monorepo file access — let Vite serve @orb/* source from outside packages/client (the workspace
       // root, discovered by walking up from this config). This root scope is REQUIRED (the workspace
       // packages live outside packages/client), so the guard is `deny` below, not a narrower `allow`.
