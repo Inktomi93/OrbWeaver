@@ -202,7 +202,7 @@ export function snapshotServerEvidence(window: EvidenceWindow, inspectors: BugRe
   return {
     sources: named.map(([, slice]) => slice.meta),
     evidence: Object.fromEntries(named.map(([name, slice]) => [name, slice.entries])),
-    wireCaptureEnabled: isWireCaptureEnabled(),
+    wireCaptureEnabled: (inspectors.wireCaptureEnabled ?? isWireCaptureEnabled)(),
   };
 }
 

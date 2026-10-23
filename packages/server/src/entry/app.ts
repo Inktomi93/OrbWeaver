@@ -181,6 +181,8 @@ export interface AppDeps {
   readonly liveBuses: LiveBuses;
   readonly importStagingDir?: string;
   readonly clientDistDir?: Parameters<typeof resolveSpaDistDir>[0]["distDir"];
+  /** The `x-debug-token` operator credential `/api/_debug` compares against; absent ⇒ `env.DEBUG_TOKEN`. */
+  readonly debugToken?: string;
   readonly authConfig?: Pick<AuthConfig, "mode" | "defaultHandle">;
   readonly multiHumanCapable?: ReturnType<typeof createMultiHumanCapability>;
   readonly now: () => number;
@@ -198,8 +200,8 @@ export interface AppDeps {
   /** #250 — the memory-recall flight recorder's read half. Present in production compose (the recorder is
    *  built unconditionally); absent ⇒ `/api/_debug/memory/recalls` is not registered. */
   readonly memoryRecall?: MemoryRecallInspector;
-  /** #412 — compose's wire-capture REQUEST-SINK decision (`env.WIRE_CAPTURE === "on"` OR its force flag),
-   *  published on `/api/_debug/wire/captures` as `enabled` so `wire-tap captures` can tell "recorder off"
+  /** #412 — compose's wire-capture decision (`env.WIRE_CAPTURE === "on"` OR its force flag), published on
+   *  `/api/_debug/wire/captures` and `/wire/outcomes` as `enabled` so `wire-tap captures` can tell "recorder off"
    *  (apparatus absent → exit 2) from "recorder on, no traffic" (an honest zero). Absent ⇒ the route falls
    *  back to the env half, which is the truth for a hand-built app that never forced the sink on. */
   readonly wireCapture?: boolean;
@@ -478,6 +480,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   });
   registerJoin(plain, { multiHumanCapable });
 
+  const { debugToken = env.DEBUG_TOKEN } = deps;
   registerDebugRoutes(plain, {
     db: deps.db,
     appSettingRows: () => readGlobalSettings(deps.db),
@@ -502,7 +505,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     // mint the loopback owner arm, so a single-user/dev box's only operator was refused at its own door
     // (#1193). `?? null` is the fail-closed read for a context this middleware never ran on.
     auth: {
-      expectedToken: env.DEBUG_TOKEN,
+      expectedToken: debugToken,
       adminAuth: { isAdmin: (c: Context): boolean => deps.seam.debugGateAdmits((c as Context<AppEnv>).get("principal") ?? null, c.req.raw.headers) },
     },
   });

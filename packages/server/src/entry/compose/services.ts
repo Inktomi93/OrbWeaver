@@ -45,6 +45,7 @@ import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
+import type { LogLevel } from "@orb/contracts/settings";
 import { CATALOG_SETTINGS_PREFIX } from "@orb/contracts/settings";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { DatabaseHandle } from "@orb/db/wiring";
@@ -142,8 +143,10 @@ import {
   getLog,
   isWireCaptureEnabled,
   isWireReplyCaptureEnabled,
+  recordTurnOutcome,
   recordWireCapture,
   securityEvent,
+  settleWireCaptureSpill,
   span,
 } from "#foundation/observability";
 import { SERVER_INSTANCE_ID } from "#foundation/server-instance";
@@ -249,13 +252,18 @@ export interface ServicesDeps {
   /** Force the rpg flight recorder on (R-OBS), independent of `env.RPG_TRACE` — the drive kit / a trace int test
    *  passes `true` so it never depends on the ambient env. Absent ⇒ `env.RPG_TRACE === "on"` decides. */
   readonly rpgTrace?: boolean;
-  /** TASK-24: force the provider wire-capture sink on, independent of `env.WIRE_CAPTURE` — an int test passes
-   *  `true`. Absent ⇒ `isWireCaptureEnabled()` (env) decides. When neither is on, NO sink is wired into the
-   *  backends (zero cost, zero retained bytes). */
+  /** TASK-24: force wire capture on (the backends' request sink and the engine's outcome recorder), independent
+   *  of `env.WIRE_CAPTURE` — an int test passes `true`. Absent ⇒ `isWireCaptureEnabled()` (env) decides. When
+   *  neither is on, NO recorder is wired (zero cost, zero retained bytes). */
   readonly wireCapture?: boolean;
   /** Audit D2/D3: force the REPLY tap on, independent of `env.WIRE_CAPTURE_REPLY`. Absent ⇒
    *  `isWireReplyCaptureEnabled()` (env) decides. Inert unless the request sink is wired at all. */
   readonly wireCaptureReply?: boolean;
+  /** Where both wire-capture arms spill; absent ⇒ the env data layout's `wireCapture` slot. A test root passes its
+   *  own directory so a capture never lands in the checkout. */
+  readonly wireCaptureDir?: string;
+  /** The log-level floor `AppSettings.logLevel` overrides, independent of `env.LOG_LEVEL`; absent ⇒ the env decides. */
+  readonly logLevel?: LogLevel;
   /** The process restart `admin.restart` drives (`entry/lifecycle.ts` builds it; a test passes an unsupervised one). */
   readonly serverRestart: ServerRestartPort;
   /** The share relay `share.*` drives (`entry/lifecycle.ts` builds it; a test passes {@link NO_SHARE_RELAY}). */
@@ -410,6 +418,11 @@ function pluginExecutionInputs(deps: ServicesDeps): Pick<AutomationPluginCompose
   return deps.pluginExecution === undefined ? {} : { pluginExecution: deps.pluginExecution };
 }
 
+// The outcome arm rides the request sink's gate, so the two wire-capture reads can never disagree.
+function turnOutcomeRecorderOf(wireCaptureOn: boolean, deps: ServicesDeps): Pick<Parameters<typeof buildChatService>[0], "recordTurnOutcome"> {
+  return wireCaptureOn ? { recordTurnOutcome: (outcome): void => recordTurnOutcome(outcome, deps.wireCaptureDir) } : {};
+}
+
 function inferenceSpanOf(deps: ServicesDeps): InferenceDeps["span"] {
   return (
     deps.providerSeams?.span ??
@@ -423,6 +436,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   await using construction = new AsyncDisposableStack();
   const resources = new AsyncDisposableStack();
   construction.defer(() => resources.disposeAsync());
+  // Deferred first so it runs last: every turn has settled, so no wire-capture append outlives the graph.
+  resources.defer(settleWireCaptureSpill);
   const backgroundResources = new AsyncDisposableStack();
   construction.defer(() => backgroundResources.disposeAsync());
   // biome-ignore lint/nursery/useDisposables: resources adopts this owner through the moved graph stack; local using would close it before the graph starts.
@@ -554,7 +569,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const materializeBackground: MaterializeBackgroundOp = (principal, url) => materializeBackgroundOp(principal, url);
   let refreshAutoindex = (): void => undefined;
   const settingsDeps: SettingsServiceDeps = {
-    effectiveConfig: createEffectiveConfigCache(db, authMode),
+    effectiveConfig: createEffectiveConfigCache(db, authMode, deps.logLevel),
     onEffectiveConfigChanged: () => refreshAutoindex(),
     db,
     now,
@@ -657,7 +672,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // `MaybeRevokeParams`; an adapter here could only re-derive a fact it was handed (#1373's whole defect).
     onAuthFailed: credentials.maybeRevokeOnAuthFailed,
     // The sink stamps `at` from the injected clock (no-raw-clock) and forwards to the process ring.
-    ...(wireCaptureOn ? { captureWire: (entry): void => recordWireCapture({ ...entry, at: now() }) } : {}),
+    ...(wireCaptureOn ? { captureWire: (entry): void => recordWireCapture({ ...entry, at: now() }, deps.wireCaptureDir) } : {}),
     // The reply tap lives at the SEND BOUNDARY (it owns the 64 KiB cap and the by-value scrub); compose only
     // carries the verdict. A second opt-in on purpose — see the recorder's header.
     captureWireReply: wireReplyCaptureOn,
@@ -984,6 +999,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     timers,
     backgroundSignal: background.signal,
     trackBackground: background.track,
+    ...turnOutcomeRecorderOf(wireCaptureOn, deps),
     random: deps.random,
     idSource,
     resolveUtilityPresetParams,

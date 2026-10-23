@@ -22,22 +22,16 @@ import {
 } from "@orb/testkit/node/corpus-provider.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq, sql } from "drizzle-orm";
-import { afterAll, vi } from "vitest";
 import { sdkEngineRoom } from "./engine-physical.ts";
 import { ENGINE_SDK_MODEL } from "./engine-sdk-physical.mjs";
 
-vi.hoisted(() => {
-  vi.stubEnv("WIRE_CAPTURE", "on");
-  vi.stubEnv("WIRE_CAPTURE_REPLY", "off");
-  vi.stubEnv("DEBUG_TOKEN", "controlled-engine-outcome-debug-token");
-  vi.stubEnv("DATA_DIR", "./reports/review/1193-leg4-wire-data");
-});
-afterAll(() => vi.unstubAllEnvs());
+const DEBUG_TOKEN = "controlled-engine-outcome-debug-token";
 const outcomeIds = createSeededIds();
+const outcomeServer = { ids: outcomeIds, wireCapture: true, debugToken: DEBUG_TOKEN } as const;
 
 async function outcomes(h: ChatRoot): Promise<JsonValue[]> {
   const response = await h.root.http.request(`/api/_debug/wire/outcomes?chatId=${h.chatId}`, {
-    headers: { "x-debug-token": "controlled-engine-outcome-debug-token" },
+    headers: { "x-debug-token": DEBUG_TOKEN },
   });
   expect(response.status).toBe(200);
   const body = jsonValueSchema.parse(await response.json());
@@ -50,7 +44,7 @@ async function outcomes(h: ChatRoot): Promise<JsonValue[]> {
 }
 
 test("a provider fault records disposition:error with the native provider terminalReason and requested route", async () => {
-  await using fixture = await sdkEngineRoom({ history: 2, policy: { foreground: "fail" }, server: { ids: outcomeIds } });
+  await using fixture = await sdkEngineRoom({ history: 2, policy: { foreground: "fail" }, server: outcomeServer });
   await expect(fixture.turn({ effort: "high" })).toThrowProviderError("server");
   expect(await outcomes(fixture.h)).toEqual([
     expect.objectContaining({
@@ -69,7 +63,7 @@ test("a provider fault records disposition:error with the native provider termin
 });
 
 test("a real database refusal still records the non-provider lifecycle classification", async () => {
-  await using fixture = await sdkEngineRoom({ history: 2, server: { ids: outcomeIds } });
+  await using fixture = await sdkEngineRoom({ history: 2, server: outcomeServer });
   await fixture.h.root.db.run(
     sql`CREATE TEMP TRIGGER refuse_fault_variant BEFORE INSERT ON ${messageVariants} BEGIN SELECT RAISE(ABORT, 'controlled outcome canon refusal'); END`,
   );
@@ -95,8 +89,8 @@ async function withHttpRoom(refuse: boolean, prove: (h: ChatRoot, routed: () => 
     memoryEnabled: false,
     group: { output: "per-speaker", policy: "list" },
     server: {
+      ...outcomeServer,
       clock,
-      ids: outcomeIds,
       timers: {
         ...timers,
         timeout: (callback, ms) => {
@@ -175,7 +169,7 @@ test("a routed physical 429 retains ProviderError as the actual TRPCError cause 
 });
 
 test("a physical caller cancellation records user, never a provider fault", async () => {
-  await using fixture = await sdkEngineRoom({ history: 2, policy: { foreground: "hold" }, server: { ids: outcomeIds } });
+  await using fixture = await sdkEngineRoom({ history: 2, policy: { foreground: "hold" }, server: outcomeServer });
   const running = fixture.turn();
   const settled = Promise.allSettled([running]);
   try {
@@ -196,7 +190,7 @@ test("the outcome row is a passenger: the public service rethrows the actual obs
     history: 2,
     policy: { foreground: "fail" },
     server: {
-      ids: outcomeIds,
+      ...outcomeServer,
       runtimeSpan: async (name, operation) => {
         try {
           return await operation();

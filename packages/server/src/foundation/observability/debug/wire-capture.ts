@@ -51,17 +51,16 @@
 // METADATA ONLY — finish/stop reason, token counts, tool-call names + args, content/reasoning LENGTHS. Never
 // the reply text: the ring is a debug surface, and the canon row already holds the prose.
 //
-// GATING ASYMMETRY, stated because it is real: the request sink is compose-injected (env OR the `wireCapture`
-// force flag), while the outcome arm self-gates on `isWireCaptureEnabled()` — it has no compose seam to ride.
-// An int test that forces capture via the flag therefore records requests but NOT outcomes; set `WIRE_CAPTURE=on`
-// if a test needs both.
+// ONE GATE FOR BOTH ARMS: compose injects the request sink and the outcome recorder together, on the same
+// decision (env OR the `wireCapture` force flag); with capture off the engine holds no recorder at all.
 //
 // ── SPILL TO DISK ───────────────────────────────────────────────────────────────────────────────────────
 // The ring is in-memory and 256 slots, so a restart or a busy hour erases exactly the evidence you went
 // looking for (it did). Both arms therefore ALSO append to a size-capped JSONL under the data layout's
 // `wireCapture` slot, best-effort: a spill failure never touches the request path. Off with the feature off,
 // like everything else here. The spill holds provider request bodies, so it never derives from the process
-// cwd: a stack started from a checkout must not write its data's prompts into that checkout.
+// cwd: a stack started from a checkout must not write its data's prompts into that checkout. Compose passes
+// the spill directory on every record; absent, it is the env data layout's slot.
 
 import { appendFile, mkdir, rename, stat } from "node:fs/promises";
 import { join } from "node:path";
@@ -98,9 +97,9 @@ export function isWireReplyCaptureEnabled(): boolean {
  *  enabled). Kept in the process ring for the live `/api/_debug` read AND best-effort spilled to
  *  `captures.jsonl` in the data layout's `wireCapture` slot (see SPILL below) — never a DB table, but not
  *  process-memory-only either. */
-export function recordWireCapture(capture: WireCapture): void {
+export function recordWireCapture(capture: WireCapture, spillDir: string = DEFAULT_SPILL_DIR): void {
   ring.push(capture);
-  spill("request", capture);
+  spill(spillDir, "request", capture);
 }
 
 const DEFAULT_READ_LIMIT = 50;
@@ -131,12 +130,8 @@ const outcomeRing = createBoundedRing<WireOutcome>(WIRE_CAPTURE_RING_CAPACITY);
 /** Cap on one rendered tool-argument string. */
 const TOOL_ARGS_MAX = 2000;
 
-/** Record ONE turn outcome. Self-gated (see the header's gating-asymmetry note) so the engine can call it
- *  unconditionally without a compose seam of its own. */
-export function recordTurnOutcome(outcome: WireOutcome): void {
-  if (!isWireCaptureEnabled()) {
-    return;
-  }
+/** Record ONE turn outcome. Ungated here: compose hands it to the engine only when capture is on. */
+export function recordTurnOutcome(outcome: WireOutcome, spillDir: string = DEFAULT_SPILL_DIR): void {
   const bounded: WireOutcome = {
     ...outcome,
     toolCalls: outcome.toolCalls.map((call) => ({
@@ -145,7 +140,7 @@ export function recordTurnOutcome(outcome: WireOutcome): void {
     })),
   };
   outcomeRing.push(bounded);
-  spill("outcome", bounded);
+  spill(spillDir, "outcome", bounded);
 }
 
 /** Read recent outcomes, newest-first, optionally filtered by chatId. */
@@ -166,9 +161,10 @@ export function recentTurnOutcomes(filter: Pick<WireCaptureFilter, "chatId" | "l
 
 // ── SPILL ───────────────────────────────────────────────────────────────────────────────────────────────
 
-const SPILL_DIR = resolveDataLayout(env).wireCapture;
-const SPILL_PATH = join(SPILL_DIR, "captures.jsonl");
-const SPILL_PREV_PATH = join(SPILL_DIR, "captures.prev.jsonl");
+// The env data layout's spill slot, used when a caller supplies no spill directory.
+const DEFAULT_SPILL_DIR = resolveDataLayout(env).wireCapture;
+const SPILL_FILE = "captures.jsonl";
+const SPILL_PREV_FILE = "captures.prev.jsonl";
 /** Rotate past this (32 MiB); two generations are retained, so the on-disk ceiling is 64 MiB. */
 const SPILL_MAX_BYTES = 33_554_432;
 
@@ -176,8 +172,14 @@ const SPILL_MAX_BYTES = 33_554_432;
  *  into the chain (never rethrown) — an unwritable spill directory must not fail a chat turn. */
 let spillChain: Promise<void> = Promise.resolve();
 
+/** Resolves once every spill append queued so far has settled; a graph's disposal awaits it so no append
+ *  outlives the directory it writes into. Never rejects: the chain swallows its own failures. */
+export function settleWireCaptureSpill(): Promise<void> {
+  return spillChain;
+}
+
 /** Append one record as JSONL, rotating at the cap. Best-effort by construction. */
-function spill(kind: "request" | "outcome", record: WireCapture | WireOutcome): void {
+function spill(spillDir: string, kind: "request" | "outcome", record: WireCapture | WireOutcome): void {
   let line: string;
   // documented — an unserializable body is not
   // worth failing (or retrying) a turn over, best-effort observability spill. Ends if spill() stops being
@@ -192,18 +194,19 @@ function spill(kind: "request" | "outcome", record: WireCapture | WireOutcome): 
   // fail a chat turn. Ends if spill stops being best-effort by contract.
   spillChain = spillChain
     .then(async () => {
-      await mkdir(SPILL_DIR, { recursive: true });
+      const spillPath = join(spillDir, SPILL_FILE);
+      await mkdir(spillDir, { recursive: true });
       let bytes = 0;
       // a missing file is the normal first write of a generation and counts as size 0, so nothing rotates. Any other stat fault is met again by the `appendFile` below, whose rejection ends in the chain's catch (waived separately). Ends if rotation needs the stat fault itself.
       try {
-        bytes = (await stat(SPILL_PATH)).size;
+        bytes = (await stat(spillPath)).size;
       } catch {
         bytes = 0; // first write of a fresh generation — nothing to rotate
       }
       if (bytes >= SPILL_MAX_BYTES) {
-        await rename(SPILL_PATH, SPILL_PREV_PATH);
+        await rename(spillPath, join(spillDir, SPILL_PREV_FILE));
       }
-      await appendFile(SPILL_PATH, line, "utf8");
+      await appendFile(spillPath, line, "utf8");
     })
     .catch(() => undefined);
 }

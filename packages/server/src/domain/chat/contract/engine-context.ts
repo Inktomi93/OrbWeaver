@@ -18,6 +18,7 @@ import type {
 } from "@orb/kit/ids";
 import type { RegexReplacer } from "@orb/kit/regex";
 import type { TimerScheduler } from "@orb/kit/time";
+import type { WireOutcome } from "#foundation/observability";
 import type { ChatAccountingContext } from "./accounting-context.ts";
 import type { BuildTurnMemoryArgs, MemoryRecallResult, RecallMemoryArgs, WitnessInterval } from "./memory.ts";
 import type { ResolvedMediaRef, TurnRequest, TurnStreamChunk } from "./results.ts";
@@ -85,6 +86,8 @@ export interface EngineContext extends Pick<ChatAccountingContext, "db" | "now" 
   readonly timers?: TimerScheduler;
   readonly backgroundSignal?: AbortSignal;
   readonly trackBackground?: (settled: Promise<void>, chatId: ChatId) => void;
+  /** The wire-capture outcome recorder; compose wires it only when wire capture is on. */
+  readonly recordTurnOutcome?: (outcome: WireOutcome) => void;
   readonly newMessageId: () => MessageId;
   readonly newMessageVariantId: () => MessageVariantId;
   readonly newMessageAssetId: () => MessageAssetId;

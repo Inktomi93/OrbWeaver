@@ -19,10 +19,7 @@ import {
 import { seedMessage } from "@orb/testkit/node/factories/message.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq, sql } from "drizzle-orm";
-import { afterAll, vi } from "vitest";
-
-vi.hoisted(() => vi.stubEnv("LOG_LEVEL", "warn"));
-afterAll(() => vi.unstubAllEnvs());
+import { vi } from "vitest";
 
 const ids = createSeededIds();
 const LOG_SCAN_LIMIT = 100;
@@ -51,7 +48,7 @@ async function room(): Promise<
   const h = construction.use(
     await createChatRoot({
       providerFetch: physical.execute,
-      server: { ids },
+      server: { ids, logLevel: "warn" },
       memoryEnabled: true,
       group: { output: "per-speaker", policy: "list" },
       memoryDefaults: { mode: "mixC", blockSize: 2, verbatimWindow: 0, maxTier: 0 },

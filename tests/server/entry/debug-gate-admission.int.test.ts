@@ -1,7 +1,8 @@
 // D17: /api/_debug admits an owner credential or the operator's own loopback session, through the composed root.
-// The token states need a configured DEBUG_TOKEN, so they live in the e2e debug-gate specs; these run tokenless.
+// Token cases inject the harness `debugToken`; every other case runs tokenless.
 // @subject packages/server/src/foundation/observability/debug/routes.ts
 import "@orb/testkit/node/composed-real.ts";
+import { readFile, rm } from "node:fs/promises";
 import type { AuthMode } from "@orb/contracts/identity";
 import { AUTH_MODES, CSRF_HEADER } from "@orb/contracts/identity";
 import { users } from "@orb/db";
@@ -16,6 +17,7 @@ import type { ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/
 import { createServerHarness } from "@orb/testkit/node/server.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
+import { z } from "zod";
 import { authMe, claimedOwnerCookie, debugStatus, FORWARD_USERNAME_CLAIM, policy, signedForwardRoot, signedInMember } from "./_auth-roots.ts";
 
 const LOOPBACK = "127.0.0.1";
@@ -24,6 +26,9 @@ const ADMIN_GROUP = "orb-debug-admins";
 /** The principal-blind whole-db reads the gate is the entire boundary for, plus the db-free info control. */
 const PROBE_PATHS = ["/api/_debug/info", "/api/_debug/db/chats", "/api/_debug/config/user"] as const;
 const BUG_REPORT = "/api/_debug/bug-report";
+const INJECTED_DEBUG_TOKEN = "debug-gate-injected-token";
+// The writer answers with the artifact pair it wrote under the checkout's report directory; the case removes both.
+const writtenReportSchema = z.object({ written: z.object({ json: z.string(), markdown: z.string() }) });
 const HOST_CASES = [
   { name: "no Host header at all", headers: {} },
   { name: "Host: localhost", headers: { host: "localhost" } },
@@ -188,6 +193,16 @@ describe("the two real credentials still open the gate", () => {
   });
 });
 
+describe("an injected debug token is the gate's token everywhere it is read", () => {
+  test("the token admits, a mismatch is refused, and /info reports the token as configured", async () => {
+    await using root = await rootFor("local", { debugToken: INJECTED_DEBUG_TOKEN });
+    expect((await root.http.request("/api/_debug/info", { headers: { "x-debug-token": "not-the-injected-token" } })).status).toBe(401);
+    const info = await root.http.request("/api/_debug/info", { headers: { "x-debug-token": INJECTED_DEBUG_TOKEN } });
+    expect(info.status).toBe(200);
+    expect(await info.json()).toMatchObject({ diagnostics: { tokenConfigured: true } });
+  });
+});
+
 describe("the bug-report WRITE route is behind the same gate", () => {
   test("no token configured → 404 (surface off), and NOTHING is written", async () => {
     await using root = await rootFor("single-user", { fallback: "deny" });
@@ -210,6 +225,24 @@ describe("the bug-report WRITE route is behind the same gate", () => {
     const admitted = await bugReport(root);
     expect(admitted.status).toBe(400);
     await admitted.arrayBuffer();
+  });
+
+  test("a graph forced to capture wires reports capture enabled in the written bundle, as the wire reads do", async () => {
+    await using root = await rootFor("single-user", { wireCapture: true });
+    const captures: unknown = await (await root.http.request("/api/_debug/wire/captures")).json();
+    expect(captures).toMatchObject({ enabled: true });
+    const written = await root.http.request(BUG_REPORT, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ note: "forced-on wire capture witness", windowMinutes: null }),
+    });
+    expect(written.status).toBe(200);
+    const paths = writtenReportSchema.parse(await written.json()).written;
+    try {
+      expect(JSON.parse(await readFile(paths.json, "utf8"))).toMatchObject({ server: { wireCaptureEnabled: true } });
+    } finally {
+      await Promise.all([rm(paths.json, { force: true }), rm(paths.markdown, { force: true })]);
+    }
   });
 });
 

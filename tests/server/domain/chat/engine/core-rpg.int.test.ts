@@ -11,18 +11,14 @@ import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "@orb/testkit/node/c
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { terminalSseLine } from "@orb/testkit/node/provider-stream.ts";
 import { eq } from "drizzle-orm";
-import { afterAll, vi } from "vitest";
 import type { CoreWireReply } from "./core-physical.ts";
 import { coreFrame, coreHttpRoom, coreSse } from "./core-physical.ts";
 
 const SCENE_TOOL = "update_scene" satisfies (typeof RPG_TOOL_ROUND_TOOL_NAMES)[number];
 
-vi.hoisted(() => vi.stubEnv("LOG_LEVEL", "warn"));
-afterAll(() => vi.unstubAllEnvs());
-
 async function foldedRoom(replies: readonly CoreWireReply[]): Promise<ChatRoot> {
   await using construction = new AsyncDisposableStack();
-  const h = construction.use(await coreHttpRoom(replies));
+  const h = construction.use(await coreHttpRoom(replies, { server: { logLevel: "warn" } }));
   const connection = await h.root.services.connection.create({
     principal: h.owner,
     providerId: "custom-openai",

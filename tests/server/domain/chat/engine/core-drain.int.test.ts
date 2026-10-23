@@ -3,6 +3,7 @@
 import "@orb/testkit/node/composed-real.ts";
 import { setImmediate as physicalTurn } from "node:timers/promises";
 import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { LogLevel } from "@orb/contracts/settings";
 import { chatEvents, chatLocks, closeDb, messages, messageVariants } from "@orb/db";
 import { ProviderError } from "@orb/inference";
 import { logRing } from "@orb/server/foundation/observability";
@@ -11,11 +12,9 @@ import { freshHeldDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { terminalSseLine } from "@orb/testkit/node/provider-stream.ts";
 import { eq, sql } from "drizzle-orm";
-import { afterAll, vi } from "vitest";
 import { coreFrame, coreHttpRoom, coreSse } from "./core-physical.ts";
 
-vi.hoisted(() => vi.stubEnv("LOG_LEVEL", "warn"));
-afterAll(() => vi.unstubAllEnvs());
+const CORE_LOG_LEVEL = "warn" satisfies LogLevel;
 const PARTIAL = "The partial physical reply.";
 
 test.for([
@@ -58,7 +57,7 @@ test.for([
           );
         },
       ],
-      { server: { db: held.db } },
+      { server: { db: held.db, logLevel: CORE_LOG_LEVEL } },
     ),
   );
   const character = h.characters[0];
@@ -124,9 +123,13 @@ test.for([
 });
 
 test("the real total publisher reports a dropped durable delta but the paid turn still commits and completes", async () => {
-  await using h = await coreHttpRoom([
-    (): Response => coreSse([coreFrame({ choices: [{ delta: { content: PARTIAL } }] }), terminalSseLine({ usage: { promptTokens: 4, completionTokens: 2 } })]),
-  ]);
+  await using h = await coreHttpRoom(
+    [
+      (): Response =>
+        coreSse([coreFrame({ choices: [{ delta: { content: PARTIAL } }] }), terminalSseLine({ usage: { promptTokens: 4, completionTokens: 2 } })]),
+    ],
+    { server: { logLevel: CORE_LOG_LEVEL } },
+  );
   await h.root.db.run(
     sql`CREATE TEMP TRIGGER refuse_core_delta BEFORE INSERT ON ${chatEvents} WHEN NEW."type" = 'delta' BEGIN SELECT RAISE(ABORT, 'controlled durable delta refusal'); END`,
   );

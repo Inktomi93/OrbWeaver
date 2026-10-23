@@ -5,7 +5,7 @@
 // Each composed graph owns its cache; the DB "app" row is the multi-replica seam.
 
 import type { AuthMode } from "@orb/contracts/identity";
-import type { EffectiveAppConfig } from "@orb/contracts/settings";
+import type { EffectiveAppConfig, LogLevel } from "@orb/contracts/settings";
 import { parseAppSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import type { DatabaseHandle } from "@orb/db/wiring";
@@ -19,24 +19,25 @@ import { layer } from "./layer.ts";
 export function createEffectiveConfigCache(
   handle: DatabaseHandle,
   authMode: AuthMode = env.AUTH_MODE,
+  logLevelFloor: LogLevel = env.LOG_LEVEL,
 ): Pick<SettingsContext, "getEffectiveConfig" | "reloadEffectiveConfig"> {
   const db = databaseForOwner(handle);
   let resolved: EffectiveAppConfig | undefined;
   return {
     getEffectiveConfig: (): EffectiveAppConfig => {
-      resolved ??= layer({}, authMode);
+      resolved ??= layer({}, authMode, logLevelFloor);
       return resolved;
     },
     reloadEffectiveConfig: async (): Promise<EffectiveAppConfig> => {
-      resolved = await readResolvedConfig(db, authMode);
+      resolved = await readResolvedConfig(db, authMode, logLevelFloor);
       return resolved;
     },
   };
 }
 
-async function readResolvedConfig(db: Db, authMode: AuthMode): Promise<EffectiveAppConfig> {
+async function readResolvedConfig(db: Db, authMode: AuthMode, logLevelFloor: LogLevel): Promise<EffectiveAppConfig> {
   const raw = await readAppOverrideRaw(db);
-  const resolved = layer(parseAppSettings(raw ?? {}), authMode);
+  const resolved = layer(parseAppSettings(raw ?? {}), authMode, logLevelFloor);
   logger.level = resolved.logLevel;
   return resolved;
 }

@@ -124,6 +124,7 @@ export interface ChatComposeInput {
   readonly timers?: TimerScheduler;
   readonly backgroundSignal?: AbortSignal;
   readonly trackBackground?: ChatContext["trackBackground"];
+  readonly recordTurnOutcome?: ChatContext["recordTurnOutcome"];
   readonly random?: (() => number) | undefined;
   readonly idSource?: IdSource;
   /** A user's Utility-role preset params (`side-gen-params.ts`), for the arbiter and the memory build. */
@@ -377,6 +378,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     timers,
     ...(input.backgroundSignal === undefined ? {} : { backgroundSignal: input.backgroundSignal }),
     ...(input.trackBackground === undefined ? {} : { trackBackground: input.trackBackground }),
+    ...(input.recordTurnOutcome === undefined ? {} : { recordTurnOutcome: input.recordTurnOutcome }),
     can: input.can,
     newChatId: minter(ID_PREFIX.chat, input.idSource),
     newMessageId: minter(ID_PREFIX.message, input.idSource),

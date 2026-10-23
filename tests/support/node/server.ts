@@ -20,7 +20,7 @@ import { authConfigFromEnv, createHostPrincipalResolver } from "@orb/server/entr
 import { announceOwnerClaim, removeOwnerClaimFileOnSpend } from "@orb/server/entry/boot";
 import type { createConfiguredOidc, createHttpApp, ServicesDeps, ServicesResult } from "@orb/server/entry/compose";
 import { env, resolveBindPosture } from "@orb/server/foundation/env";
-import { getLog } from "@orb/server/foundation/observability";
+import { getLog, logger } from "@orb/server/foundation/observability";
 import { createCaller, createContext } from "@orb/server/transport/trpc";
 import type { Clock } from "../iso/clock.ts";
 import { createFrozenClock } from "../iso/clock.ts";
@@ -35,7 +35,9 @@ import type { OwnedHttpRequests } from "./http.ts";
 import { createOwnedHttpRequests } from "./http.ts";
 
 export interface ServerHarnessOptions
-  extends Partial<Pick<ServicesDeps, "secretBoxKey" | "casDir" | "variantDir" | "importStagingDir" | "rpgTrace" | "wireCapture" | "wireCaptureReply">> {
+  extends Partial<
+    Pick<ServicesDeps, "secretBoxKey" | "casDir" | "variantDir" | "importStagingDir" | "rpgTrace" | "wireCapture" | "wireCaptureReply" | "logLevel">
+  > {
   readonly networkExecution?: ServicesDeps["networkExecution"];
   readonly share?: Pick<ShareGraphOptions, "relay" | "acme">;
   readonly relayDir?: string;
@@ -56,6 +58,7 @@ export interface ServerHarnessOptions
   readonly rolePolicyConfig?: SessionsRolePolicyConfig;
   readonly physicalPeer?: Parameters<typeof createHttpApp>[0]["physicalPeer"];
   readonly clientDistDir?: Parameters<typeof createHttpApp>[0]["clientDistDir"];
+  readonly debugToken?: Parameters<typeof createHttpApp>[0]["debugToken"];
   readonly ownerId?: UserId;
   readonly oidc?: NonNullable<Parameters<typeof createConfiguredOidc>[0]["settings"]>;
   readonly providerFetch?: typeof fetch;
@@ -190,9 +193,10 @@ function providerExecutionOf(
 }
 
 function observerSettingsOf(
-  options: Pick<ServerHarnessOptions, "rpgTrace" | "wireCapture" | "wireCaptureReply">,
-): Pick<ServicesDeps, "rpgTrace" | "wireCapture" | "wireCaptureReply"> {
+  options: Pick<ServerHarnessOptions, "rpgTrace" | "wireCapture" | "wireCaptureReply" | "logLevel">,
+): Pick<ServicesDeps, "rpgTrace" | "wireCapture" | "wireCaptureReply" | "logLevel"> {
   return {
+    ...(options.logLevel === undefined ? {} : { logLevel: options.logLevel }),
     ...(options.rpgTrace === undefined ? {} : { rpgTrace: options.rpgTrace }),
     ...(options.wireCapture === undefined ? {} : { wireCapture: options.wireCapture }),
     ...(options.wireCaptureReply === undefined ? {} : { wireCaptureReply: options.wireCaptureReply }),
@@ -200,11 +204,25 @@ function observerSettingsOf(
 }
 
 function httpOverridesOf(
-  options: Pick<ServerHarnessOptions, "physicalPeer" | "clientDistDir">,
-): Pick<Parameters<typeof createHttpApp>[0], "physicalPeer" | "clientDistDir"> {
+  options: Pick<ServerHarnessOptions, "physicalPeer" | "clientDistDir" | "debugToken">,
+): Pick<Parameters<typeof createHttpApp>[0], "physicalPeer" | "clientDistDir" | "debugToken"> {
   return {
     ...(options.physicalPeer === undefined ? {} : { physicalPeer: options.physicalPeer }),
     ...(options.clientDistDir === undefined ? {} : { clientDistDir: options.clientDistDir }),
+    ...(options.debugToken === undefined ? {} : { debugToken: options.debugToken }),
+  };
+}
+
+// The logger is the process singleton the root hands over, so a root borrows its level and restores it on dispose.
+function borrowLogLevel(level: ServerHarnessOptions["logLevel"]): Disposable {
+  const previous = logger.level;
+  if (level !== undefined) {
+    logger.level = level;
+  }
+  return {
+    [Symbol.dispose]: (): void => {
+      logger.level = previous;
+    },
   };
 }
 
@@ -212,7 +230,8 @@ async function directoriesFor(
   rootDir: string,
   options: Pick<ServerHarnessOptions, "casDir" | "variantDir" | "importStagingDir">,
 ): Promise<
-  Required<Pick<ServicesDeps, "casDir" | "variantDir" | "importStagingDir" | "userRuntimeDir" | "stProfileDir">> & Pick<ServerTestHarness, "modelCacheDir">
+  Required<Pick<ServicesDeps, "casDir" | "variantDir" | "importStagingDir" | "userRuntimeDir" | "stProfileDir" | "wireCaptureDir">> &
+    Pick<ServerTestHarness, "modelCacheDir">
 > {
   const paths = {
     casDir: options.casDir ?? join(rootDir, "cas"),
@@ -221,6 +240,7 @@ async function directoriesFor(
     userRuntimeDir: join(rootDir, "user-runtime"),
     modelCacheDir: join(rootDir, "model-cache"),
     stProfileDir: join(rootDir, "st-profile"),
+    wireCaptureDir: join(rootDir, "wire-capture"),
   };
   await Promise.all(Object.values(paths).map((path) => mkdir(path, { recursive: true })));
   return paths;
@@ -399,12 +419,13 @@ export async function createServerHarness(
   const random = options.random ?? ((): number => 0.5);
   const authConfig = options.authConfig ?? authConfigFromEnv();
   const rolePolicy = createSessionsRolePolicy(options.rolePolicyConfig ?? env);
+  construction.use(borrowLogLevel(options.logLevel));
   let appLifetime: ServicesResult | undefined;
   let httpLifetime: OwnedHttpRequests | undefined;
   let oidcLifetime: Awaited<ReturnType<typeof createConfiguredOidc>> | undefined;
   let shareLifetime: ShareGraph | undefined;
   construction.defer(() => closeHarnessGraph(httpLifetime, oidcLifetime, appLifetime, shareLifetime));
-  const { casDir, variantDir, importStagingDir, userRuntimeDir, modelCacheDir, stProfileDir } = await directoriesFor(rootDir, options);
+  const { casDir, variantDir, importStagingDir, userRuntimeDir, modelCacheDir, stProfileDir, wireCaptureDir } = await directoriesFor(rootDir, options);
   const inputs: HarnessConstruction = { db, clock, idSource, timers, authConfig, rolePolicy, rootDir };
   const ownerId = await prepareHarnessOwner(options, inputs);
   const { createHttpApp: assembleHttp, createServices, createShareGraph, UNSUPERVISED_RESTART } = await import("@orb/server/entry/compose");
@@ -433,6 +454,7 @@ export async function createServerHarness(
     importStagingDir,
     stProfileDir,
     userRuntimeDir,
+    wireCaptureDir,
     serverRestart: UNSUPERVISED_RESTART,
     share: sharing.share,
     providerSeams: providerExecutionOf(options, modelCacheDir),
