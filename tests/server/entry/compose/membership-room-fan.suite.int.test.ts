@@ -4,7 +4,7 @@ import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import type { Fixtures } from "@orb/testkit/node";
-import { test as baseTest, expect, OTHER_USER_ID, OWNER_USER_ID } from "@orb/testkit/node";
+import { test as baseTest, expect } from "@orb/testkit/node";
 import { onTestFinished } from "vitest";
 
 type ChatFrame = Parameters<Parameters<ServicesResult["liveBuses"]["chat"]["subscribeAllChatEvents"]>[0]>[0];
@@ -24,8 +24,8 @@ test("a host's membership-class writes reach the shared room channel, not only t
   const room = (await ownerCaller.chat.startChat({ characterIds: [] })).chat;
   await ownerCaller.settings.updateAppSettings({ partial: { localMultiUser: true } });
   // Internal callers capture one request's capability; the changed setting governs the next request.
-  const host = await harness.internalCallerFor(OWNER_USER_ID);
-  const member = await harness.internalCallerFor(OTHER_USER_ID);
+  const host = await harness.internalCallerFor(harness.ownerId);
+  const member = await harness.internalCallerFor((await otherCaller.sessions.me()).userId);
   const invite = await host.invites.createInvite({ chatId: room.id, input: {} });
   await member.invites.redeemInvite({ token: invite.token });
   expect((await otherCaller.chat.getChat({ chatId: room.id })).id).toBe(room.id);
