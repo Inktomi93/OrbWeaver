@@ -176,7 +176,7 @@ Adding a surface class, a step, or a voice touches a fixed set. Land them togeth
 | a surface class row (§3.1) | the §3.1 row · the `tiers.css` rules for its slots · the surface's `<Surface tier>` call site · a §5.3 CT case if the class introduces a new slot |
 | a token step (§2.1/§2.2) | `packages/ui/src/tokens/tokens.json` (with its `$description` stating the assignment) · `pnpm --filter @orb/ui tokens:build` (theme.css + tokens/index.ts are GENERATED) · the §2 table · the primitive variant union that exposes it. **A dead/unused token is a build error** |
 | a `voice` entry (§2.3) | `text/variants.ts` (the tuple IS the truth) with the discriminator stated beside the class string · the §2.3 discriminator rule, NOT a new doc row · state the product discriminator beside the voice entry |
-| a `data-slot` the map keys on | the primitive that EMITS it · the `tiers.css` rule  |
+| a `data-slot` the map keys on | the primitive that EMITS it · the `tiers.css` rule |
 
 A sweep stage that converts call sites ends with a `side-eye` pass against the surface, and side-eye findings are fixed in full before the stage closes — side-eye is the polish authority here, not an advisory.
 

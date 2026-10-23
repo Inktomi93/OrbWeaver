@@ -272,7 +272,7 @@ Qualify query teardown, document and notification bindings, nested mounts, sessi
 
 ### Public entries and legacy retirement
 
-Follow D318 and the existing public package doors. Rebuilt tests use production entries and testkit world subpaths.
+Follow D318 and the existing public package doors. Rebuilt tests use production entries and the testkit doors; a helper a door does not export is internal to the kit.
 
 Adjudicate test-only production hooks and unused helpers with their owning cases. Delete unsupported adapters; retain production-derived helpers needed by selected replacements.
 
