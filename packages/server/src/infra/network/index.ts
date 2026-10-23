@@ -20,6 +20,8 @@ export {
   type SafeFetchOptions,
   type SafeFetchResult,
   systemConnector,
+  systemFetch,
+  systemResolver,
 } from "./egress.ts";
 export { drainHttpServer, HANGUP_DRAIN_MS, joinNativeHttpRequest, SHUTDOWN_DRAIN_MS, serveHttpServer } from "./http-server.ts";
 export { ImageRejectedError, isAllowedImageBuffer } from "./image-guard.ts";

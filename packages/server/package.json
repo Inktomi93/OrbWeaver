@@ -32,6 +32,7 @@
     "./foundation/observability": "./src/foundation/observability/index.ts",
     "./infra/plugin-host": "./src/infra/plugin-host/index.ts",
     "./infra/network": "./src/infra/network/index.ts",
+    "./infra/media": "./src/infra/media/index.ts",
     "./infra/storage/cas": "./src/infra/storage/cas.ts",
     "./infra/storage/zip": "./src/infra/storage/zip.ts",
     "./infra/timers": "./src/infra/timers/index.ts",

@@ -6,6 +6,7 @@ import { jsonValueSchema } from "@orb/kit/json";
 import { getLog } from "@orb/server/foundation/observability";
 import type { NativeHttpBindings } from "@orb/server/infra/network";
 import { drainHttpServer, serveHttpServer } from "@orb/server/infra/network";
+import { systemTimers } from "@orb/server/infra/timers";
 import { createSeededIds } from "@orb/testkit/iso";
 import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/composed";
 import {
@@ -131,7 +132,8 @@ async function speakerPeer(plan: SpeakerWirePlan, ownership: AsyncDisposableStac
   );
   ownership.defer(async (): Promise<void> => {
     released.resolve();
-    await drainHttpServer(server, getLog());
+    // The real deadline, chosen: this physical peer serves live provider streams, and the forced close is its only bound.
+    await drainHttpServer(server, getLog(), systemTimers.timeout);
     if (failures.length > 0) {
       throw new AggregateError(failures, "speaker peer had unscripted native requests");
     }

@@ -19,7 +19,8 @@ import type { PluginNetEgress } from "./net-egress.ts";
 export interface PluginHostSeamDeps {
   readonly spawn?: (...args: Parameters<typeof spawn>) => ReturnType<typeof spawn>;
   readonly timers: TimerScheduler;
-  readonly monotonicNow?: () => number;
+  /** The broker connect deadline's monotonic clock; the root supplies `performance.now` from `createProcessSeams`. */
+  readonly monotonicNow: () => number;
   /** The graph's scoped egress; every guest `net.fetch` the app performs runs through it. */
   readonly safeFetch: ScopedEgress["safeFetch"];
   readonly nowEpochMs: () => number;
@@ -28,9 +29,9 @@ export interface PluginHostSeamDeps {
   readonly mirrorLog?: (label: string, level: PluginLogLevel, message: string) => void;
 }
 
-/** A Worker-local runtime schedules nothing and fetches nothing itself: the app process owns the timers and the
- *  scoped egress, and the Worker forwards every guest fetch to it through `netEgress`. */
-export type LocalPluginHostSeams = Omit<PluginHostSeamDeps, "timers" | "safeFetch"> & {
+/** A Worker-local runtime schedules nothing and fetches nothing itself: the app process owns the timers, the
+ *  broker connect clock and the scoped egress, and the Worker forwards every guest fetch to it through `netEgress`. */
+export type LocalPluginHostSeams = Omit<PluginHostSeamDeps, "timers" | "monotonicNow" | "safeFetch"> & {
   /** The broker Worker's forwarding egress: the app performs every plugin fetch against its own copy of the
    *  instance's `netHosts`. */
   readonly netEgress: PluginNetEgress;

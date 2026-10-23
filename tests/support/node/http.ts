@@ -25,7 +25,7 @@ interface ActiveRequest {
 /** Forward the actual Hono request operation; disposal cancels bodies and joins handlers before graph teardown. */
 export function createOwnedHttpRequests(
   app: HttpApp,
-  scheduleTimeout: Parameters<typeof drainHttpServer>[3],
+  scheduleTimeout: Parameters<typeof drainHttpServer>[2],
   host: string | undefined = "127.0.0.1",
 ): OwnedHttpRequests {
   const active = new Set<ActiveRequest>();
@@ -104,7 +104,7 @@ export function createOwnedHttpRequests(
     for (const entry of requests) {
       entry.controller.abort();
     }
-    const listenerClosed = listening?.then(() => Promise.all([...servers].map((server) => drainHttpServer(server, getLog(), undefined, scheduleTimeout))));
+    const listenerClosed = listening?.then(() => Promise.all([...servers].map((server) => drainHttpServer(server, getLog(), scheduleTimeout))));
     const settled = await Promise.allSettled([Promise.all(requests.map((entry) => entry.completion.promise)), listenerClosed]);
     for (const result of settled) {
       if (result.status === "rejected") {

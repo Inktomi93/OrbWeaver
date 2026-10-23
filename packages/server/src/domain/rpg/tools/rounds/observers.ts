@@ -10,7 +10,7 @@ import { createRpgFlushBarrier } from "#src/domain/rpg/flush-barrier.ts";
 /** Trace state-round outcomes and publish through the application's live RPG channel. */
 export function createRpgRoundObservers(
   trace: RpgTraceSink | undefined,
-  scheduleTimeout: FlushBarrierScheduleTimeout | undefined,
+  scheduleTimeout: FlushBarrierScheduleTimeout,
   emitBus: RpgRoundObservers["emitBus"],
 ): RpgRoundObservers {
   return {
@@ -84,15 +84,11 @@ export function createRpgRoundObservers(
     // The per-chat FLUSH BARRIER (the race fix): the next turn's gather awaits this chat's in-flight flush before
     // reading the state its reminder assembles from. A hung flush releases the barrier (bounded) + logs — the
     // turn proceeds on last-known state, never a deadlock.
-    flushBarrier: createRpgFlushBarrier(
-      (info) => {
-        logger.warn(
-          { event: "rpg.flush.barrier_timeout", chatId: info.chatId },
-          "rpg flush barrier timed out — the next turn proceeded on last-known state (a prior flush did not settle in time)",
-        );
-      },
-      undefined,
-      scheduleTimeout,
-    ),
+    flushBarrier: createRpgFlushBarrier((info) => {
+      logger.warn(
+        { event: "rpg.flush.barrier_timeout", chatId: info.chatId },
+        "rpg flush barrier timed out — the next turn proceeded on last-known state (a prior flush did not settle in time)",
+      );
+    }, scheduleTimeout),
   };
 }

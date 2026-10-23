@@ -1737,6 +1737,7 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
       runChatTurn: ctx.runChatTurn,
       attachmentQuality: prep.attachmentQuality,
       now: ctx.now,
+      random: ctx.prng,
       applyRegexReplace: ctx.applyRegexReplace,
       resolveImageUrl: (ref): Promise<ResolvedMediaRef | null> =>
         ctx.resolveImageUrl({ ownerId: prep.runAsUserId, chatId: prep.chatId, ref, quality: prep.attachmentQuality, signal: prep.signal }),
@@ -2083,6 +2084,7 @@ async function generateTextUnpersisted(ctx: EngineContext, prep: TurnPrep, onTex
       runChatTurn: ctx.runChatTurn,
       attachmentQuality: prep.attachmentQuality,
       now: ctx.now,
+      random: ctx.prng,
       applyRegexReplace: ctx.applyRegexReplace,
       resolveImageUrl: (ref) =>
         ctx.resolveImageUrl({ ownerId: prep.runAsUserId, chatId: prep.chatId, ref, quality: prep.attachmentQuality, signal: prep.signal }),

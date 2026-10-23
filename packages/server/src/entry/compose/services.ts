@@ -155,7 +155,7 @@ import type { SecretBox } from "#infra/crypto";
 import { createSecretBox } from "#infra/crypto";
 import { createExtractText } from "#infra/extraction";
 import { createImageAdapter } from "#infra/image";
-import { prepareVideo } from "#infra/media";
+import { createVideoPreparer } from "#infra/media";
 import type { ScopedEgress, ScopedEgressOptions } from "#infra/network";
 import { createScopedEgress } from "#infra/network";
 import { createCas, createUserRuntimeDirs, createVariantCache } from "#infra/storage";
@@ -201,18 +201,14 @@ import { buildWorkloadContributions } from "./workload-contributions.ts";
 import { buildWorldInfo } from "./world-info.ts";
 
 /** The runtime seams a composition root MAY override — the SDK `query` test seam, the D8 session store, a
- *  prebuilt local-light model cache, a wire-capture sink, and the provider TRANSPORT. Everything else the
- *  runtime needs is wired HERE from the domains; nothing about a provider, an engine or a posture is a boot
- *  dep any more (§4, F1/F2).
+ *  prebuilt local-light model cache and a wire-capture sink. Everything else the runtime needs is wired HERE
+ *  from the domains; nothing about a provider, an engine or a posture is a boot dep any more (§4, F1/F2).
  *
- *  `sdkFetch` is the one seam that is REQUIRED on `InferenceDeps` and therefore always supplied below: a
- *  caller that does not override it gets the deployment's real transport, a caller that does gets its fake
- *  from the runtime's FIRST call onward. That ordering is the whole reason the field is required —
- *  `buildBackends` resolves the transport ONCE, synchronously, inside `createInferenceRuntime`, so a
- *  `vi.spyOn(globalThis, "fetch")` installed after `createServices` has already returned can never reach it.
- *  While the field was optional with an ambient fallback, a composed-real test that forgot the seam reached
- *  a real listening inference engine on the box and asserted against its real answer. */
-type InferenceSeams = Partial<Pick<InferenceDeps, "agentSdk" | "localLight" | "captureWire" | "sdkFetch" | "span">>;
+ *  The provider TRANSPORT is not one of them: `InferenceDeps.sdkFetch` is always this graph's
+ *  `egress.configuredEndpointFetch`, over the required `ServicesDeps.networkExecution.fetch`. `buildBackends`
+ *  resolves it ONCE, synchronously, inside `createInferenceRuntime`, so a `vi.spyOn(globalThis, "fetch")`
+ *  installed after `createServices` has returned can never reach it; a test root scripts that fetch instead. */
+type InferenceSeams = Partial<Pick<InferenceDeps, "agentSdk" | "localLight" | "captureWire" | "span">>;
 
 /**
  * What boot supplies to stand up the whole service graph. The env→config→runtime facts (the private-endpoint
@@ -221,9 +217,12 @@ type InferenceSeams = Partial<Pick<InferenceDeps, "agentSdk" | "localLight" | "c
  */
 export interface ServicesDeps {
   readonly pluginExecution?: AutomationPluginComposeDeps["pluginExecution"];
-  readonly networkExecution?: Omit<ScopedEgressOptions, "timers" | "buildConnector">;
+  /** The fetch and resolver every egress this graph builds uses (`systemFetch` and `systemResolver` from `createProcessSeams`). */
+  readonly networkExecution: Pick<ScopedEgressOptions, "fetch" | "resolver">;
   /** The physical dial every egress this graph builds uses (`systemConnector` from `createProcessSeams`). */
   readonly buildConnector: ScopedEgressOptions["buildConnector"];
+  /** The plugin broker's connect-deadline clock (`performance.now` from `createProcessSeams`). */
+  readonly monotonicNow: AutomationPluginComposeDeps["monotonicNow"];
   /** The process seams are required so a forgotten one fails to compile instead of reaching the real process;
    *  `createProcessSeams` (`./process-seams.ts`) is their one real source. */
   readonly timers: TimerScheduler;
@@ -501,7 +500,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const egress = resources.use(
     createScopedEgress({
       ...deps.networkExecution,
-      fetch: deps.networkExecution?.fetch ?? deps.providerSeams?.sdkFetch,
       timers,
       buildConnector: deps.buildConnector,
     }),
@@ -1015,7 +1013,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     random: deps.random,
     idSource,
     resolveUtilityPresetParams,
-    mediaProcessing: { frameCount: imageAdapter.frameCount, prepareVideo },
+    mediaProcessing: { frameCount: imageAdapter.frameCount, prepareVideo: createVideoPreparer(timers.timeoutUnref) },
     toolUse,
     db,
     now,
@@ -1207,6 +1205,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // chat/world-info/imagery/notifications + resolveOwnerPrincipal; plugin reuses automation's op objects).
   const automationPlugin = await buildAutomationPlugin({
     ...pluginExecutionInputs(deps),
+    monotonicNow: deps.monotonicNow,
     timers,
     emitUserEvent: liveBuses.user.publishUserEvent,
     publishNotification: liveBuses.notifications.publishNotification,

@@ -144,20 +144,11 @@ function createLeaseWriter(deps: WorkloadRunnerDeps, row: WorkloadRunnableRow, c
   };
 }
 
-/** The real interval, and the default for `WorkloadRunnerDeps.scheduleInterval` — the ONE ambient timer this
- *  engine owns. Everything else takes the seam, so a test ticks the lease without a global fake clock. */
-const realScheduleInterval = (fn: () => void, ms: number): (() => void) => {
-  const handle = setInterval(fn, ms);
-  return (): void => {
-    clearInterval(handle);
-  };
-};
-
 /** Start the single-replica lease timers (heartbeat + DB cancel-poll); `<= 0` cadence DISABLES a timer (the
  *  deterministic test seam). Returns each timer's CANCEL for the `finally` cleanup. */
 function startLeaseTimers(deps: WorkloadRunnerDeps, row: WorkloadRunnableRow, controller: AbortController, lease: LeaseWriter): (() => void)[] {
   const cancels: (() => void)[] = [];
-  const scheduleInterval = deps.scheduleInterval ?? realScheduleInterval;
+  const { scheduleInterval } = deps;
   const heartbeatMs = deps.heartbeatMs ?? DEFAULT_HEARTBEAT_MS;
   const cancelPollMs = deps.cancelPollMs ?? DEFAULT_CANCEL_POLL_MS;
   if (heartbeatMs > 0) {

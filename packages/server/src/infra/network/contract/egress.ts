@@ -72,8 +72,10 @@ export interface PinnedDownloadLimits {
 export type EgressResolver = (host: string) => Promise<readonly string[]>;
 
 export interface ScopedEgressOptions {
-  readonly fetch?: typeof fetch | undefined;
-  readonly resolver?: EgressResolver;
+  /** The physical request; a composition root passes `systemFetch`, a test passes a scripted one. */
+  readonly fetch: typeof fetch;
+  /** Every hostname this egress admits or dials resolves here; a composition root passes `systemResolver`. */
+  readonly resolver: EgressResolver;
   /** The physical dial: every connector this egress builds comes from here, so a script replaces the socket and receives the firewall's lookup and must dial only what it returns. */
   readonly buildConnector: typeof buildConnector;
   readonly timers: TimerScheduler;

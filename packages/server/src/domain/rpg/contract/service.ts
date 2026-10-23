@@ -227,8 +227,8 @@ export type FlushBarrierOnTimeout = (info: { readonly chatId: ChatId }) => void;
 /** The flush barrier's injected TIMER seam: schedule `fn` after `ms`, returning its cancel. The house
  *  `ScheduleOp` shape (`transport/jobs/workloads-worker.ts`), so the handle type never leaks. Injected for
  *  the same reason the clock is: the bound is then drivable from a test WITHOUT replacing the global clock
- *  (Spine-Testing.md §3 — the `test-determinism` gate bans `vi.useFakeTimers`). Production leaves it
- *  defaulted to the real `setTimeout`. */
+ *  (Spine-Testing.md §3 — the `test-determinism` gate bans `vi.useFakeTimers`). Required: production passes
+ *  the root's `timers.timeout`. */
 export type FlushBarrierScheduleTimeout = ScheduleOp;
 
 /** The per-chat FLUSH BARRIER's public interface (impl: `flush-barrier.ts`). `onTurnCompleted` REGISTERS its

@@ -3,9 +3,10 @@
 // interface outside `contract/`, so these live here rather than file-local in `assembly/macros.ts` /
 // `assembly/user-macros.ts` (the `contract/macro-ids.ts` precedent — the same §7.4 move).
 
-import type { UserMacroDraws } from "@orb/contracts/chat";
+import type { AssembleContext, UserMacroDraws } from "@orb/contracts/chat";
 import type { UserMacroValues } from "@orb/contracts/preset";
-import type { MacroRegistry, RejectedUserMacro, UserMacroDef } from "@orb/kit/macro";
+import type { ChatId } from "@orb/kit/ids";
+import type { MacroFreeze, MacroRegistry, RejectedUserMacro, UserMacroDef } from "@orb/kit/macro";
 
 /** Per-render knobs for `renderMacros`. `original` is the preset Main-Prompt/Jailbreak (the two overridable
  *  markers only); `registry` is the per-turn user-macro registry (WAVE MU) — absent ⇒ the process
@@ -14,6 +15,34 @@ import type { MacroRegistry, RejectedUserMacro, UserMacroDef } from "@orb/kit/ma
 export interface RenderMacrosOptions {
   readonly original?: string | undefined;
   readonly registry?: MacroRegistry | undefined;
+}
+
+/** The inputs to `buildTurnMacroContext` — the turn-stage regex/guided macro context, built once per turn. */
+export interface TurnMacroContextArgs {
+  readonly assembleCtx: AssembleContext;
+  readonly model: string;
+  readonly chatId: ChatId;
+  readonly input?: string | undefined;
+  /** The turn PRNG (`ChatContext.prng`) every `{{random}}`/`{{roll}}`/`{{pick}}` draw rides; required so no draw
+   *  reaches kit's ambient fallback. */
+  readonly random: () => number;
+  readonly onWarn?: ((msg: string, err?: unknown) => void) | undefined;
+  /** The per-turn user-macro registry (WAVE MU) — the turn-stage regex/guided context resolves user macros
+   *  against it; absent ⇒ the process `globalMacroRegistry` (byte-identical). */
+  readonly registry?: MacroRegistry | undefined;
+}
+
+/** The inputs to `freezeVolatileMacros` — the commit-time volatile bake. */
+export interface FreezeVolatileMacrosArgs {
+  /** The turn PRNG the bake draws from, so a committed row's baked value is deterministic and replayable. */
+  readonly random: () => number;
+  /** The per-turn FREEZE registry (WAVE MU); absent ⇒ the process volatile-only registry. */
+  readonly registry?: MacroRegistry | undefined;
+  /** The caller's sink for the record of what this bake froze (D129-F). */
+  readonly freezes?: MacroFreeze[] | undefined;
+  /** A PRIOR record to REPLAY (D129-F freeze-at-selection): matched occurrences reproduce their stored value
+   *  instead of drawing, so re-freezing an already-frozen body is byte-identical and consumes no entropy. */
+  readonly frozenMacros?: readonly MacroFreeze[] | undefined;
 }
 
 /** ONE authoring home's macro defs + the id its source attribution carries (`MacroSourceRef.id` — the

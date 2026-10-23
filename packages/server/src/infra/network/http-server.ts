@@ -5,6 +5,7 @@ import type { ServerOptions } from "node:http";
 import type { AddressInfo } from "node:net";
 import type { ServerType } from "@hono/node-server";
 import { serve } from "@hono/node-server";
+import type { ScheduleOp } from "@orb/kit/time";
 import type { DrainLog, NativeHttpBindings } from "./contract/http-server.ts";
 
 // The installed adapter's lightweight Request has the platform prototype but not its private brand.
@@ -162,17 +163,10 @@ function connectionCloser(handle: ServerType): ConnectionCloser | null {
  *  a client saw a truncated stream.
  *
  *  Exported (not a `createLifecycle` closure) so the forced path is directly testable against a real open
- *  socket, rather than only provable live (`DRAIN-UNBOUNDED`).
+ *  socket, rather than only provable live (`DRAIN-UNBOUNDED`). The deadline arms only through `scheduleTimeout`,
+ *  the root's `timers.timeout`, so a test drives the forced path without a real clock.
  */
-export async function drainHttpServer(
-  handle: ServerType,
-  log: DrainLog,
-  drainMs: number = SHUTDOWN_DRAIN_MS,
-  scheduleTimeout: (run: () => void, ms: number) => () => void = (run, ms) => {
-    const timer = setTimeout(run, ms);
-    return () => clearTimeout(timer);
-  },
-): Promise<void> {
+export async function drainHttpServer(handle: ServerType, log: DrainLog, scheduleTimeout: ScheduleOp, drainMs: number = SHUTDOWN_DRAIN_MS): Promise<void> {
   const closed = new Promise<void>((resolve) => {
     handle.close(() => {
       resolve();

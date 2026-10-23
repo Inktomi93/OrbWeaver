@@ -2,6 +2,7 @@
 import { createHash } from "node:crypto";
 import { getLog } from "@orb/server/foundation/observability";
 import { drainHttpServer, serveHttpServer } from "@orb/server/infra/network";
+import { systemTimers } from "@orb/server/infra/timers";
 import { z } from "zod";
 import type { TerminalFrameOptions } from "./provider-stream.ts";
 import { terminalSseLine } from "./provider-stream.ts";
@@ -361,7 +362,8 @@ export async function createCorpusProviderServer(createExecution: (baseUrl: stri
   server.once("error", listener.reject);
   let disposal: Promise<void> | undefined;
   const dispose = (): Promise<void> => {
-    disposal ??= drainHttpServer(server, getLog());
+    // The real deadline, chosen: this physical peer serves live provider streams, and the forced close is its only bound.
+    disposal ??= drainHttpServer(server, getLog(), systemTimers.timeout);
     return disposal;
   };
   try {

@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { setImmediate } from "node:timers/promises";
 import { queryObjects } from "node:v8";
-import { ANY_HOST, createScopedEgress, systemConnector } from "@orb/server/infra/network";
+import { ANY_HOST, createScopedEgress, systemConnector, systemFetch, systemResolver } from "@orb/server/infra/network";
 import { createControlledTimers, createFrozenClock } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { budget } from "@orb/tooling/floor/host/load-budget";
@@ -32,7 +32,12 @@ test.each([
   { address: "10.0.0.7", verdict: "refused", allowlist: [] },
   { address: "169.254.169.254", verdict: "refused", allowlist: ["0.0.0.0/0"] },
 ] as const)("write-time admission preserves $address as $verdict", async ({ address, verdict, allowlist }) => {
-  await using egress = createScopedEgress({ timers: quietTimers(), buildConnector: systemConnector, resolver: () => Promise.resolve([address]) });
+  await using egress = createScopedEgress({
+    timers: quietTimers(),
+    buildConnector: systemConnector,
+    resolver: () => Promise.resolve([address]),
+    fetch: () => Promise.reject(new Error("write admission attempted raw HTTP")),
+  });
   egress.publishPrivateEndpointAllowlist(allowlist);
   await expect(egress.resolvedEndpointAdmission("https://resolved.example/v1")).resolves.toBe(verdict);
 });
@@ -85,7 +90,8 @@ test.each([false, true])(
     if (address === null || typeof address === "string") {
       throw new Error("native egress control requires a physical loopback listener");
     }
-    await using egress = createScopedEgress({ timers: quietTimers(), buildConnector: systemConnector });
+    // The physical loopback control: the real request and DNS against a real listener.
+    await using egress = createScopedEgress({ timers: quietTimers(), buildConnector: systemConnector, fetch: systemFetch, resolver: systemResolver });
     egress.publishPrivateEndpointAllowlist([`127.0.0.1:${address.port}`]);
     const stop = new AbortController();
     const response = await egress.configuredEndpointFetch(`http://127.0.0.1:${address.port}/held`, { signal: stop.signal });
@@ -158,6 +164,7 @@ test.each(["EOF", "error", "cancel"] as const)(
     await using egress = createScopedEgress({
       timers: quietTimers(),
       buildConnector: systemConnector,
+      resolver: systemResolver,
       fetch: (input, init) => {
         if (!(input instanceof Request)) {
           throw new Error("configured egress did not normalize its native Request");

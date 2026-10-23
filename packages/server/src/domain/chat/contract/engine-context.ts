@@ -96,6 +96,8 @@ export interface EngineContext extends Pick<ChatAccountingContext, "db" | "now" 
   readonly newChatTurnId: () => ChatTurnId;
   readonly emitChatChanged: EmitChatChanged;
   readonly applyRegexReplace: ApplyRegexReplaceOp;
+  /** The service PRNG the turn-stage macro context draws `{{random}}`/`{{roll}}`/`{{pick}}` from. */
+  readonly prng: () => number;
   readonly runChatTurn: RunChatTurnOp;
   readonly tools: ChatToolOps | null;
   readonly resolveImageUrl: ResolveImageUrlOp;
