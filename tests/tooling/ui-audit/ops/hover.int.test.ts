@@ -17,9 +17,9 @@
 // forced-state pass was supposed to have failed.
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { CliResult, RunCliOpts } from "@orb/testkit/node/tool-fixtures.ts";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node/ui-audit-relational.ts";
+import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
+import type { CliResult, RunCliOpts } from "@orb/testkit/tooling";
+import { expect, test } from "@orb/testkit/tooling";
 
 /** The env key `floor/browser/browser.ts` reads. Spelled here rather than imported so this pin exercises the
  *  PROTOCOL the injector publishes to a spawned process, exactly as an operator would. */

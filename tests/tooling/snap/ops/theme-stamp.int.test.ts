@@ -9,7 +9,7 @@
 // the arms whose stamp this instrument cannot predict (a CUSTOM theme, `--theme none`) must be UNGATED
 // with a stated reason, never silently gated into a false refusal on every --matrix cell.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { SettingsShimEvidence } from "@orb/tooling/floor/appearance/appearance";
 import { closeProbeSession, launchProbeSession } from "@orb/tooling/floor/browser/browser";
 import { vi } from "vitest";

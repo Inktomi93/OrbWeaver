@@ -1,5 +1,5 @@
 import type { ServerResponse } from "node:http";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { afterEach, vi } from "vitest";
 import viteConfig from "../../packages/client/vite.config.ts";
 

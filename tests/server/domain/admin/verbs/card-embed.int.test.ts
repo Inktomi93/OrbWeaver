@@ -5,10 +5,9 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { auditLogs, characterEmbeddings, embeddingCalls } from "@orb/db";
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
-import { seedCreatedCharacter } from "@orb/testkit/node/factories/character.ts";
-import { TEST_BASE_URL, TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
-import { expect } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect } from "@orb/testkit/node";
+import { createServerHarness, seedCreatedCharacter } from "@orb/testkit/node/composed";
+import { TEST_BASE_URL, TEST_PROVIDER_ID } from "@orb/testkit/node/helpers";
 import { eq } from "drizzle-orm";
 import { FUNDING_KEY, FUNDING_MODEL, fundingConnection, test } from "../../embeddings/verbs/runtime-funding.fixtures.ts";
 

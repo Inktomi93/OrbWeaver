@@ -2,7 +2,7 @@
 // @subject packages/server/src/domain/chat/verbs/read.ts
 import { createPersonaSchema } from "@orb/contracts/persona";
 import { messages, messageVariants } from "@orb/db";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { eq } from "drizzle-orm";
 import { personaInputs, personaRoom, seatPersona } from "../persona-cache-physical.ts";
 

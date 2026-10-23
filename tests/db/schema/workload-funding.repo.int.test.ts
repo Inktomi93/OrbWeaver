@@ -5,10 +5,9 @@ import { join } from "node:path";
 import { assertReferentialIntegrity, closeDb, createDb, runMigrations, users, workloads } from "@orb/db";
 import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { jsonValueSchema } from "@orb/kit/json";
-import { createSeededIds } from "@orb/testkit/iso/ids.ts";
-import { SHIPPED_MIGRATIONS } from "@orb/testkit/node/db.ts";
-import { seedUser } from "@orb/testkit/node/factories/user.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { createSeededIds } from "@orb/testkit/iso";
+import { expect, test } from "@orb/testkit/node";
+import { SHIPPED_MIGRATIONS, seedUser } from "@orb/testkit/node/composed";
 import { eq, sql } from "drizzle-orm";
 
 const FUNDER_MIGRATION = "0003_workload-funder";

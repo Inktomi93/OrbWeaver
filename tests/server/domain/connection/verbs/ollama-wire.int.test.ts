@@ -1,9 +1,9 @@
 // @subject packages/inference/src/backends/openai-compat/ollama-native.ts
 import { setImmediate } from "node:timers/promises";
 import type { SummarizeResult } from "@orb/contracts/providers";
-import { makeGenerationCapability } from "@orb/testkit/iso/inference-capability.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { makeGenerationCapability } from "@orb/testkit/iso";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
 
 const MODEL = "qwen2.5:0.5b";
 const VALID = { model: MODEL, message: { role: "assistant", content: "A real native answer." }, done: true, ["prompt_eval_count"]: 3, ["eval_count"]: 2 };

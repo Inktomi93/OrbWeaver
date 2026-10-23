@@ -4,9 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { localPath } from "@orb/db";
-import { cloneCorpusFixture, loadCorpusFixture } from "@orb/testkit/node/corpus.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { processEnvValue } from "@orb/tooling/floor/process/process-env";
+import { cloneCorpusFixture, loadCorpusFixture } from "./corpus.ts";
+import { expect, test } from "./fixtures.ts";
 
 const publication = processEnvValue("CORPUS_PUBLICATION_FIXTURE");
 

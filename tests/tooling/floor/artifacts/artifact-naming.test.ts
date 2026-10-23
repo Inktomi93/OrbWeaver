@@ -27,7 +27,7 @@
 // survived so long: only a lane pasting a path from its own scratch dir ever hit it.
 import { isAbsolute, join } from "node:path";
 import process from "node:process";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { artifactFilePath, artifactKey, isOutPath, routeSlug } from "@orb/tooling/floor/artifacts/artifact-naming";
 import { variantOut } from "../../../../tooling/src/snap/index.ts";
 

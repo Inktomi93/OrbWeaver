@@ -1,4 +1,4 @@
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { WEAVE_CHARACTER_PRESETS } from "#ui/art/web-weave/web-weave-character.ts";
 import type { WeaveStrand } from "#ui/art/web-weave/web-weave-geometry.ts";
 import { buildWeb } from "#ui/art/web-weave/web-weave-geometry.ts";

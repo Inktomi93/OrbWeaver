@@ -1,7 +1,7 @@
 // @subject packages/server/src/entry/compose/services.ts
 import { createEnableShareSeating } from "@orb/server/domain/share";
 import { createHostPrincipalResolver } from "@orb/server/entry/auth";
-import { expect, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, OWNER_USER_ID, test } from "@orb/testkit/node";
 import { sql } from "drizzle-orm";
 import { vi } from "vitest";
 

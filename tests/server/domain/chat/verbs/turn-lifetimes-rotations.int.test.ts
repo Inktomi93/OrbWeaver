@@ -1,7 +1,7 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // @subject packages/server/src/domain/chat/engine/auto-mode.ts
 import { messages } from "@orb/db";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { eq } from "drizzle-orm";
 import { textRoom } from "../scenario-physical.ts";
 import { TAIL_ROSTER } from "./turn-lifetimes-roster.ts";

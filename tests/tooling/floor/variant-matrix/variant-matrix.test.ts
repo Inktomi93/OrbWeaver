@@ -1,4 +1,4 @@
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { VariantMatrixSpec } from "@orb/tooling/floor/variant-matrix/variant-matrix";
 import { planVariantMatrix, variantArtifactId, variantCellId } from "@orb/tooling/floor/variant-matrix/variant-matrix";
 

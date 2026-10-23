@@ -1,4 +1,4 @@
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { RuntimeAppearanceContract } from "../../../../tooling/src/floor/appearance/appearance-matrix.ts";
 import { appearancePatchForAssignment, appearanceReachReceipt } from "../../../../tooling/src/floor/appearance/appearance-matrix.ts";
 

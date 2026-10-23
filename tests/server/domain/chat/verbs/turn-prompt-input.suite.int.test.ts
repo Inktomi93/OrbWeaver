@@ -5,10 +5,9 @@ import { createPersonaSchema } from "@orb/contracts/persona";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
-import type { ChatRoot } from "@orb/testkit/node/chat/composed.ts";
-import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "@orb/testkit/node/corpus-provider.ts";
-import { seedMessage } from "@orb/testkit/node/factories/message.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import type { ChatRoot } from "@orb/testkit/node/composed";
+import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL, seedMessage } from "@orb/testkit/node/composed";
 import { textRoom } from "../scenario-physical.ts";
 
 async function wireBodies(h: ChatRoot): Promise<JsonValue[]> {

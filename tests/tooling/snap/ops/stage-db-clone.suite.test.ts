@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { localPath } from "@orb/db";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { afterEach } from "vitest";
 import { parseSnapArgs } from "../../../../tooling/src/snap/index.ts";
 import { stageOwnerKey, stagePaths } from "../../../../tooling/src/snap/lib/stage-plan.ts";

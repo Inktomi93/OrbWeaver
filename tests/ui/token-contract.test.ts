@@ -2,7 +2,7 @@
 import { cpSync, lstatSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { isPlainObject } from "@orb/kit/guards";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { configureFixtureGitIdentity, execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { describe } from "vitest";
 import type { TokenContractTexts } from "../../packages/ui/token-contract.ts";

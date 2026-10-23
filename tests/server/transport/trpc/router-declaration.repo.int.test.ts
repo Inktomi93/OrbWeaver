@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import process from "node:process";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 
 test("the native client program resolves the router declaration without server implementation", ({ repoRoot }) => {
   const files = execFileSync(

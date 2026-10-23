@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { TOKEN_ARTIFACT_PATHS } from "@orb/ui/token-contract";
 import { TOKENS } from "@orb/ui/tokens";
 import { generateArtifacts } from "@orb/ui/tokens-build";

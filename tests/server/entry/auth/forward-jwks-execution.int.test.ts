@@ -6,10 +6,10 @@ import { authMeSchema } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { CLIENT_ID, createNativeIssuer, ISSUER } from "@orb/testkit/node/oidc-issuer.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import { createServerHarness } from "@orb/testkit/node/composed";
+import { CLIENT_ID, createNativeIssuer, ISSUER } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";
 
 const KEY_HOST = new URL(ISSUER).hostname;

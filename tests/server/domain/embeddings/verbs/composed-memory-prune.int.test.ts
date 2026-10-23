@@ -5,9 +5,8 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { EMBEDDING_FLOOR } from "@orb/contracts/inference";
 import { chatDigests, embedGenerations, embedGenerationTargets } from "@orb/db";
 import { sha256Hex } from "@orb/server/primitives/content-hash";
-import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, createCorpusProviderExecution } from "@orb/testkit/node/corpus-provider.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, createCorpusProviderExecution, createServerHarness } from "@orb/testkit/node/composed";
 import { and, eq } from "drizzle-orm";
 
 const ENDPOINT = "https://inference.test/v1";

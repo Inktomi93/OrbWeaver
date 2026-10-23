@@ -20,8 +20,8 @@
 // would have traded a false positive for a false clean, which is the trade this repair exists to refuse.
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { AUDIT_ARGV, RELATIONAL_CLI_TIMEOUT_MS } from "@orb/testkit/node/ui-audit-relational.ts";
+import { AUDIT_ARGV, RELATIONAL_CLI_TIMEOUT_MS } from "@orb/testkit/node";
+import { expect, test } from "@orb/testkit/tooling";
 
 /** The refusal's own headline, as `floor/verdict/evidence.ts` renders an EvidenceGap. */
 const FRAME_REFUSAL = "the page's frame against the viewport it was judged at is ABSENT — this run is not a verdict";

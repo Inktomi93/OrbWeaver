@@ -5,7 +5,7 @@
 // @instrument-absence-proof: with `--map` off, and with the flag on but every page failing to capture,
 //   the pairs stay "no"/"0" rather than borrowing a neighbour's population.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { MapEntry } from "../../../../../tooling/src/snap/contract/map.ts";
 import type { CaptureOutcome } from "../../../../../tooling/src/snap/contract/types.ts";
 import { MAP_ARM } from "../../../../../tooling/src/snap/ops/arms/map.ts";

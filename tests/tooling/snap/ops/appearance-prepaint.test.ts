@@ -1,4 +1,4 @@
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { AppearancePrepaintEvidence, AppearancePrepaintSample } from "../../../../tooling/src/floor/appearance/appearance-prepaint.ts";
 import { evaluateAppearancePrepaint } from "../../../../tooling/src/snap/ops/appearance-prepaint.ts";
 

@@ -1,6 +1,6 @@
 import { ROLE_ROWS_ORDERED, roleRequirementVerdicts } from "@orb/client/lib";
 import { bindingTaskOf, GENERATION_FLOOR, ROUTABLE_TASKS, TASKS, taskDef } from "@orb/contracts/inference";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 test("authored role rails cover each actual task requirement without hiding the agent-only tools exception", () => {
   expect(ROLE_ROWS_ORDERED.map(({ task }) => task).toSorted()).toEqual(ROUTABLE_TASKS.toSorted());

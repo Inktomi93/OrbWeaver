@@ -1,6 +1,6 @@
 // `pnpm dev`'s pure decisions: which source trees restart the server, and which port and proxy target vite gets.
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { DEV_PORTS, MAX_TCP_PORT } from "@orb/tooling/floor/host/ports";
 import type { WorkspacePackage } from "../../../../tooling/src/dev/index.ts";
 import {

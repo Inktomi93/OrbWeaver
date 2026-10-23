@@ -6,7 +6,7 @@ import { dirname, join } from "node:path";
 import process from "node:process";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import { isPlainObject } from "@orb/kit/guards";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { pageArray, pageObject, pageString } from "@orb/tooling/floor/browser/page-validate";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";

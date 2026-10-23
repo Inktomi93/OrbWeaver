@@ -6,7 +6,7 @@
 import { CONNECTION_OP_CODES, modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import { createHostPrincipalResolver } from "@orb/server/entry/auth";
 import { getLog } from "@orb/server/foundation/observability";
-import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "@orb/testkit/node";
 import { sql } from "drizzle-orm";
 import { vi } from "vitest";
 

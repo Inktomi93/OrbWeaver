@@ -6,10 +6,9 @@ import { databaseHandle } from "@orb/db/wiring-driver";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { tickWorkloadSchedules } from "@orb/server/domain/workloads";
-import { seedWorkloadSchedule } from "@orb/testkit/node/factories/workload.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import { createServerHarness, seedWorkloadSchedule } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 
 async function schedule(

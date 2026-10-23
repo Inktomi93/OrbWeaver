@@ -2,10 +2,10 @@
 import type { AuthMode } from "@orb/contracts/identity";
 import { AUTH_MODES } from "@orb/contracts/identity";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { NATIVE_OIDC_SETTINGS } from "@orb/testkit/node/oidc-issuer.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import { createServerHarness } from "@orb/testkit/node/composed";
+import { NATIVE_OIDC_SETTINGS } from "@orb/testkit/node/helpers";
 import {
   BACKCHANNEL_ROUTE,
   BUNDLE_ROUTE,

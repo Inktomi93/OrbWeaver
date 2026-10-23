@@ -20,7 +20,7 @@ import {
   toolCallsToExtraction,
 } from "@orb/contracts/rpg";
 import { projectJsonSchema } from "@orb/kit/json-schema";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { z } from "zod";
 
 const MIRA = "Mira";

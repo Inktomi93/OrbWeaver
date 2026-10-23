@@ -2,9 +2,9 @@
 // Public variant operations retain actual slot identity, history anchors and continuation snapshots.
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { messages, messageVariants } from "@orb/db";
-import { makePromptConfig } from "@orb/testkit/iso/preset-config.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { terminalSseLine } from "@orb/testkit/node/provider-stream.ts";
+import { makePromptConfig } from "@orb/testkit/iso";
+import { expect, test } from "@orb/testkit/node";
+import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { eq } from "drizzle-orm";
 import { coreFrame, coreHttpRoom, coreSse } from "./core-physical.ts";
 

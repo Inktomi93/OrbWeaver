@@ -1,13 +1,13 @@
 // Only vendor response bytes vary; room policy, persistence and assembly belong to the real graph.
-import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/chat/composed.ts";
-import { createChatRoot } from "@orb/testkit/node/chat/composed.ts";
+import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
+  createChatRoot,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
+} from "@orb/testkit/node/composed";
 
 /** Supply a finite physical reply plan without substituting a domain operation. */
 export async function textRoom(replies: readonly string[], options: Omit<ChatRootOptions, "providerFetch"> = {}): Promise<ChatRoot> {

@@ -6,16 +6,16 @@ import { jsonValueSchema } from "@orb/kit/json";
 import { getLog } from "@orb/server/foundation/observability";
 import type { NativeHttpBindings } from "@orb/server/infra/network";
 import { drainHttpServer, serveHttpServer } from "@orb/server/infra/network";
-import { createSeededIds } from "@orb/testkit/iso/ids.ts";
-import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/chat/composed.ts";
-import { createChatRoot } from "@orb/testkit/node/chat/composed.ts";
+import { createSeededIds } from "@orb/testkit/iso";
+import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
+  createChatRoot,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
+} from "@orb/testkit/node/composed";
 import { z } from "zod";
 
 export const B_CHAT_MODEL = "speaker-chat";

@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import rootConfig from "../../vitest.config.ts";
 
 const coverage = rootConfig.test?.coverage;

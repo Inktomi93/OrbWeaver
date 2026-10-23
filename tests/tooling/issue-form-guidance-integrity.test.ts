@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { isPlainObject } from "@orb/kit/guards";
-import { expect, test as issueTest } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test as issueTest } from "@orb/testkit/tooling";
 import { parseDocument } from "yaml";
 
 const ROOT = join(import.meta.dirname, "..", "..");

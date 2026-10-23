@@ -6,7 +6,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { crc32, deflateSync } from "node:zlib";
-import { expect, test as houseTest } from "@orb/testkit/node/fixtures.ts";
+import { expect, test as houseTest } from "@orb/testkit/node";
 import { Errors, indexPack, init, readBlob } from "isomorphic-git";
 
 const OBJECT_CAP = 2 * 1024 * 1024;

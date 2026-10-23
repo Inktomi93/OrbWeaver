@@ -1,4 +1,4 @@
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { literalModuleAssetPaths } from "../../../../tooling/src/snap/lib/devtools-module-assets.ts";
 
 const REVISION = "33c2f401a9c8ddad2159eb0ab83aa244a5247361";

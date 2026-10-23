@@ -1,8 +1,8 @@
 // @subject packages/inference/src/backends/agent-sdk/catalog.ts
 // @subject packages/inference/src/catalog/listing.ts
 import { getLog } from "@orb/server/foundation/observability";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
 import { physicalSdkScenario } from "./regression-edge.fixtures.ts";
 

@@ -1,5 +1,5 @@
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { groupIdenticalArt } from "#client/features/discovery/lib/corpus-duplicate-groups.ts";
 
 test("exact-art components retain each member identity and first name through transitive grouping", ({ ids }) => {

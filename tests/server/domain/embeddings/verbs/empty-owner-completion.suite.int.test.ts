@@ -18,18 +18,18 @@ import {
   embedSpaceState,
 } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { expect, test } from "@orb/testkit/node";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_PROVIDER_ENDPOINT,
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { seedCorpusConnections } from "@orb/testkit/node/corpus-seed.ts";
-import { freshHeldDb } from "@orb/testkit/node/db.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+  createServerHarness,
+  freshHeldDb,
+  seedCorpusConnections,
+} from "@orb/testkit/node/composed";
 import { and, eq } from "drizzle-orm";
 import { vi } from "vitest";
 import { executeAdmitted } from "../../workloads/funding.fixtures.ts";

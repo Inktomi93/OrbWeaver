@@ -1,4 +1,4 @@
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { EmptyState } from "@orb/ui/empty-state";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";

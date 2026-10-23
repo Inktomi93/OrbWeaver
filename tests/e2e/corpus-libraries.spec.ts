@@ -1,7 +1,7 @@
 // Collection edits retain native grammar, relationships and persistence across a browser reload.
 
 import { COLLECTION_LARGE_GROUP, connectionSummary } from "@orb/client/lib";
-import type { CorpusWire } from "@orb/testkit/iso/corpus.ts";
+import type { CorpusWire } from "@orb/testkit/iso";
 import type { Page } from "@playwright/test";
 import { ownerActor } from "./support/actors.ts";
 import { openConfigGroup } from "./support/config-flow.ts";

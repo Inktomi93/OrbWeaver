@@ -10,7 +10,7 @@
 //   3. the usability signal SURVIVES the exemption: a control so dim it may not read as present at all
 //      still says so, as a P3 advisory that explicitly disclaims being a WCAG violation.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { describe } from "vitest";
 import { INACTIVE_KIND_EXPR, isContrastExempt, remainsOperable } from "../../../../tooling/src/floor/instrument/wcag.ts";
 import type { ContrastInput } from "../../../../tooling/src/ui-audit/contract/samples.ts";

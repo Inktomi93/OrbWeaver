@@ -2,7 +2,7 @@
 // Ctrl-C or supervisor TERM leaves an orphan holding the port. The registrar and the platform are injected,
 // so the wiring is asserted for every platform without signalling this vitest worker.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { childExitCode, FORWARDED_SIGNALS, forwardSignalsTo, signalOfExitCode } from "@orb/tooling/floor/process/proc-signals";
 
 function fakeStopTarget(): {

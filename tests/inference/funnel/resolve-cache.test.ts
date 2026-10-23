@@ -1,6 +1,6 @@
 import { cachePolicyContextSchema, cachePolicySchema, GENERATION_FLOOR, generationCapabilitySchema, SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import { resolveCachePolicy } from "@orb/inference";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 test("unsupported replay retains configured retention while the producer clears effective controls", () => {
   const context = cachePolicyContextSchema.parse({

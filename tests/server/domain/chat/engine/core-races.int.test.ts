@@ -2,9 +2,9 @@
 // Physical admission and SQLite boundaries distinguish heartbeat loss, commit fencing and genuine seq retry.
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { chatLocks, closeDb, messages, messageVariants, ownerStats } from "@orb/db";
-import { freshHeldDb } from "@orb/testkit/node/db.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { terminalSseLine } from "@orb/testkit/node/provider-stream.ts";
+import { expect, test } from "@orb/testkit/node";
+import { freshHeldDb } from "@orb/testkit/node/composed";
+import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { eq } from "drizzle-orm";
 import { coreFrame, coreHeldReply, coreHttpRoom, coreSse } from "./core-physical.ts";
 

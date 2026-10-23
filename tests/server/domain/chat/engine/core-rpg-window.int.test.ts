@@ -3,16 +3,16 @@
 import { RPG_NO_CHANGES_TOOL } from "@orb/contracts/rpg";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
-import { createChatRoot } from "@orb/testkit/node/chat/composed.ts";
+import { expect, test } from "@orb/testkit/node";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_PROVIDER_ENDPOINT,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
+  createChatRoot,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+} from "@orb/testkit/node/composed";
 
 const SENT_WINDOW = 16_384;
 const TRAINED_WINDOW = 32_768;

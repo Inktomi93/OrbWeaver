@@ -1,6 +1,6 @@
 // @subject packages/server/src/entry/http/app.ts
 import process from "node:process";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { testProcessEnv } from "@orb/tooling/floor/process/process-env";
@@ -15,7 +15,7 @@ import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {authMeSchema} from "@orb/contracts/identity";
 import {env,ownerFallbackCredentialInput} from "@orb/server/foundation/env";
-import {createServerHarness} from "@orb/testkit/node/server.ts";
+import {createServerHarness} from "@orb/testkit/node/composed";
 const clientDistDir=await mkdtemp(join(tmpdir(),"orb-production-debug-"));
 try{
 await writeFile(join(clientDistDir,"index.html"),"<!doctype html><title>Production debug fixture</title>");

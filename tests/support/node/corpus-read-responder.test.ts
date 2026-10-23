@@ -1,7 +1,7 @@
-import { createCorpusReadResponder } from "@orb/testkit/iso/corpus-read-responder.ts";
-import "@orb/testkit/node/composed-real.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { createCorpusReadResponder } from "../iso/corpus-read-responder.ts";
+import "./composed-real.ts";
+import { expect, test } from "./fixtures.ts";
+import { createServerHarness } from "./server.ts";
 
 test("an actual inputless settings capture succeeds, but malformed raw null cannot receive its successful response", async () => {
   await using root = await createServerHarness();

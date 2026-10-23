@@ -6,9 +6,9 @@ import { readSeedAvatar } from "@orb/default-content";
 import { createSeedAvatarOps } from "@orb/server/domain/assets";
 import { createDefaultPersonaSeeder, createFindSeededDefault } from "@orb/server/domain/persona";
 import { createPersonaSeedSettings } from "@orb/server/domain/settings";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
-import { seedUser } from "@orb/testkit/node/factories/user.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import { seedUser } from "@orb/testkit/node/composed";
+import { principal } from "@orb/testkit/node/helpers";
 import { sql } from "drizzle-orm";
 
 test("a real-stack seed performs no persona or latch write; automation creates the unchanged authored artifact", async ({ harness, db, app, services }) => {

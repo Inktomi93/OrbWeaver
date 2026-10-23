@@ -5,9 +5,9 @@
 
 import { auditLogs } from "@orb/db";
 import { ProviderError } from "@orb/inference";
-import { seedRecallCorpus } from "@orb/testkit/node/corpus-seed.ts";
-import { TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
-import { expect } from "@orb/testkit/node/fixtures.ts";
+import { expect } from "@orb/testkit/node";
+import { seedRecallCorpus } from "@orb/testkit/node/composed";
+import { TEST_PROVIDER_ID } from "@orb/testkit/node/helpers";
 import { and, eq } from "drizzle-orm";
 import { fundingConnection, test } from "./runtime-funding.fixtures.ts";
 

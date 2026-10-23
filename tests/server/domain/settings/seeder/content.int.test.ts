@@ -10,9 +10,9 @@ import { createCharacterSeedStep, DEFAULT_CHARACTER_CARDS } from "@orb/server/do
 import { createSeedPersonaWithCompletion } from "@orb/server/domain/persona";
 import type { ContentSeedStep } from "@orb/server/domain/settings";
 import { createReadSeededKeys, createSettingsComposedOps, createUserContentSeeder, recordSeededItemKeys } from "@orb/server/domain/settings";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
-import { seedUser } from "@orb/testkit/node/factories/user.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import { seedUser } from "@orb/testkit/node/composed";
+import { principal } from "@orb/testkit/node/helpers";
 import { and, eq, sql } from "drizzle-orm";
 import { vi } from "vitest";
 

@@ -4,10 +4,10 @@
 // @subject packages/server/src/domain/rpg/persistence/journal.ts
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import { assertReferentialIntegrity, closeDb } from "@orb/db";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
 import { seedCorpusRpg } from "./corpus-rpg.ts";
 import { freshHeldDb } from "./db.ts";
+import { expect, test } from "./fixtures.ts";
+import { createServerHarness } from "./server.ts";
 
 test("native RPG hand variants preserve objective identity, release removed locks and restore unbound state through a real narrator anchor", async () => {
   await using root = await createServerHarness();

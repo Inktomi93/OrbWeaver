@@ -2,11 +2,11 @@
 
 import { closeDb } from "@orb/db";
 import { CHAT_OP_CODES } from "@orb/server/domain/chat";
-import { seedRecallRoom } from "@orb/testkit/node/corpus-seed.ts";
-import { freshHeldDb } from "@orb/testkit/node/db.ts";
-import { captureChatHandoffResumption, seedChatInvite, seedInvitedChatParticipant } from "@orb/testkit/node/factories/chat.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { seedRecallRoom } from "../corpus-seed.ts";
+import { freshHeldDb } from "../db.ts";
+import { expect, test } from "../fixtures.ts";
+import { createServerHarness } from "../server.ts";
+import { captureChatHandoffResumption, seedChatInvite, seedInvitedChatParticipant } from "./chat.ts";
 
 test("real accepted host handoff exposes its durable resumption only until accepted-host completion and preserves actual copied actor IDs", async () => {
   const held = await freshHeldDb();

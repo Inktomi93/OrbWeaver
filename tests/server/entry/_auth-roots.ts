@@ -6,10 +6,10 @@ import type { AppRouter } from "@orb/server";
 import type { SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { env } from "@orb/server/foundation/env";
-import { expect } from "@orb/testkit/node/fixtures.ts";
-import { CLIENT_ID, createNativeIssuer, ISSUER } from "@orb/testkit/node/oidc-issuer.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect } from "@orb/testkit/node";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import { createServerHarness } from "@orb/testkit/node/composed";
+import { CLIENT_ID, createNativeIssuer, ISSUER } from "@orb/testkit/node/helpers";
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 
 type Root = Pick<ServerTestHarness, "http">;

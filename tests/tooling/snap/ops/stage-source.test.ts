@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { DB_FILE_NAME, SECRET_FILE_NAMES } from "@orb/server/foundation/data-layout";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { afterEach, vi } from "vitest";
 import { stagePaths } from "../../../../tooling/src/snap/lib/stage-plan.ts";
 import { seedStageData } from "../../../../tooling/src/snap/ops/stage-source.ts";

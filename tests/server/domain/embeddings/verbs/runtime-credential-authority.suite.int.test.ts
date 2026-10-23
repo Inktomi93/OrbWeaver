@@ -9,8 +9,8 @@ import { DomainNoCredentialError } from "@orb/kit/errors";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { createResolveEmbeddingConnection } from "@orb/server/domain/embeddings";
 import { createImageProviderOps } from "@orb/server/domain/imagery";
-import { TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
-import { expect } from "@orb/testkit/node/fixtures.ts";
+import { expect } from "@orb/testkit/node";
+import { TEST_PROVIDER_ID } from "@orb/testkit/node/helpers";
 import { and, eq } from "drizzle-orm";
 import { fundingConnection, test } from "./runtime-funding.fixtures.ts";
 

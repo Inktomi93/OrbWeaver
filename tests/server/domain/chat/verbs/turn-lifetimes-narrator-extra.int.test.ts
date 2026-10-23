@@ -2,7 +2,7 @@
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import { characters, chats, messages } from "@orb/db";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { and, eq, sql } from "drizzle-orm";
 import { textRoom } from "../scenario-physical.ts";
 import { TAIL_ROSTER } from "./turn-lifetimes-roster.ts";

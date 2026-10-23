@@ -3,10 +3,9 @@
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { createAssetEmbeddingReads } from "@orb/server/domain/assets";
 import { createGetDatabankSettings } from "@orb/server/domain/settings";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
-import { seedUser } from "@orb/testkit/node/factories/user.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { magicBytes } from "@orb/testkit/node/magic-bytes.ts";
+import { expect, test } from "@orb/testkit/node";
+import { seedUser } from "@orb/testkit/node/composed";
+import { magicBytes, principal } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";
 
 test("databank settings remain owner-isolated and live while excluding the chat-only slot budget", async ({ harness, db, services }) => {

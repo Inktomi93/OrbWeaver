@@ -1,4 +1,4 @@
-import { CtIsolation } from "@orb/testkit/browser/ct-isolated-subject.tsx";
+import { CtIsolation } from "@orb/testkit/browser";
 import type { WaystoneProps } from "@orb/ui/meter";
 import { Waystone } from "@orb/ui/meter";
 import type { ReactElement } from "react";

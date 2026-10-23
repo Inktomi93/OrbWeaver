@@ -5,15 +5,15 @@ import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/chat/composed.ts";
-import { createChatRoot } from "@orb/testkit/node/chat/composed.ts";
+import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
+  createChatRoot,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
+} from "@orb/testkit/node/composed";
 
 const MODEL = "claude-opus-5-5";
 

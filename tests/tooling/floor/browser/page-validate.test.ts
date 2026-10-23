@@ -8,7 +8,7 @@
 // non-boolean reports success for a nav that did not land — and a probe that navigated nowhere then
 // measures the WRONG SURFACE, which every snap header calls worse than not measuring at all.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { describe } from "vitest";
 import {
   navResultShape,

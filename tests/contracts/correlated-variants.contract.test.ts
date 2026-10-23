@@ -9,8 +9,8 @@ import { inboxViewSchema } from "@orb/contracts/notifications";
 import { regexScriptBehaviorSchema } from "@orb/contracts/regex";
 import { statsFreshnessSchema } from "@orb/contracts/stats";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { makeChatSummaryView } from "@orb/testkit/node/factories/chat-view.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import { makeChatSummaryView } from "@orb/testkit/node/helpers";
 
 test("relay projections withhold links when down but allow an anonymous up relay", () => {
   for (const value of [

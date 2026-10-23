@@ -1,7 +1,7 @@
 import { confirmSuggestionResultSchema, fireViewSchema, ruleViewSchema, runRuleNowResultSchema, testRunResultSchema } from "@orb/contracts/automation";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { makeRuleView } from "@orb/testkit/node/factories/automation-view.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import { makeRuleView } from "@orb/testkit/node/helpers";
 
 test("rule output retains corruption, disablement and provenance disclosure but refuses undeclared trigger and action fields", () => {
   const rule = makeRuleView({ actionsCorrupt: true, autoDisabled: true, enabled: false });

@@ -10,7 +10,7 @@
 // remains (447 requests, `page.goto` past 90s) is a real finding about the unbundled dev graph rather
 // than a 10s stopwatch.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import {
   NAV_TIMEOUT_MS,
   STAGE_NAV_TIMEOUT_MS,

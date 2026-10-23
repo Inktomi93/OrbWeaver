@@ -1,7 +1,7 @@
 import { automationRules } from "@orb/db";
 import type { AutomationRuleId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 
 type CreateRule = ServerTestHarness["services"]["automation"]["createRule"];

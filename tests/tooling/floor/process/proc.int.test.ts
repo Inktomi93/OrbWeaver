@@ -21,7 +21,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { processInfo } from "@orb/tooling/floor/host/platform";
 import { execNicedSync, execNicedSyncBuffer, platformSpawn, runNicedSync, spawnNiced, spawnNicedTranscript } from "@orb/tooling/floor/process/proc";
 import { scaledBudget } from "../../_load-budget.ts";

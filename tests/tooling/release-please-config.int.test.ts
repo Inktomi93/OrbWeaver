@@ -3,7 +3,7 @@ import { readdirSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { releaseTagRef } from "@orb/kit/version-identity";
-import { expect, fixturePath, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, fixturePath, test } from "@orb/testkit/tooling";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import { parse } from "yaml";
 import { z } from "zod";

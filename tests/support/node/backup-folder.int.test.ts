@@ -2,8 +2,8 @@ import { mkdir, open, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
 import { packZip } from "@orb/server/infra/storage/zip";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { prepareBackupFolder } from "./backup-folder.ts";
+import { expect, test } from "./tool-fixtures.ts";
 
 async function archiveAt(path: string, paths: readonly string[]): Promise<void> {
   async function* entries(): Parameters<typeof packZip>[0] {

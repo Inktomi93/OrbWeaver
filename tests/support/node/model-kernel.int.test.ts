@@ -2,13 +2,13 @@ import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promise
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { BroadcastChannel } from "node:worker_threads";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
 import { sql } from "drizzle-orm";
 import { vi } from "vitest";
 import { createFrozenClock } from "../iso/clock.ts";
 import { createControlledTimers } from "../iso/timers.ts";
+import { expect, test } from "./fixtures.ts";
 import { KERNEL_HOLD } from "./reference-head-kernel.ts";
+import { createServerHarness } from "./server.ts";
 
 const MODEL = "cross-encoder/ettin-reranker-17m-v1";
 const KERNEL = new URL("./reference-head-kernel.ts", import.meta.url);

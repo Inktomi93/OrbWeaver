@@ -6,8 +6,8 @@ import { createServer } from "node:http";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
 
 const body = {
   timeZone: UTC_TIME_ZONE,

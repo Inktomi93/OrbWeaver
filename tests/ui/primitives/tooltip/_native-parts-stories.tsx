@@ -1,4 +1,4 @@
-import { CtIsolation } from "@orb/testkit/browser/ct-isolated-subject.tsx";
+import { CtIsolation } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";
 import { createTooltipHandle, Tooltip, TooltipArrow, TooltipPopup, TooltipTrigger, TooltipViewport } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";

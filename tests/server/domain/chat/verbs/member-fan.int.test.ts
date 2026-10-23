@@ -4,8 +4,8 @@
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { UserId } from "@orb/kit/ids";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
 
 // A publish after the write marks the end of what the write delivered, so a missing event cannot hang the read.
 const END: UserBusEvent = { type: "charactersChanged" };

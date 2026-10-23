@@ -8,7 +8,7 @@
 // drift apart again silently. The last arm is the one that matters for blinding: a genuinely missing
 // sibling fails with a DIFFERENT text and stays a failure.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { CapturedConsole, CapturedRequest } from "@orb/tooling/floor/browser/browser";
 import {
   isDevToolsFrontendNoise,

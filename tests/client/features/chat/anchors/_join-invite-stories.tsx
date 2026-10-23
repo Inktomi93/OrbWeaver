@@ -1,5 +1,5 @@
 import { JoinInviteDialog } from "@orb/client/features/chat";
-import { CtClientProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { CtClientProviders } from "@orb/testkit/browser";
 import type { ReactElement } from "react";
 import { useState } from "react";
 

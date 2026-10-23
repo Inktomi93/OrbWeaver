@@ -23,7 +23,7 @@
 // still fails — is `tests/tooling/design-audit-walker.ct.tsx` (#1067); only a browser can prove that. This
 // file is the coupling: it goes red when a floor moves and no rung follows it.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { describe } from "vitest";
 import { checkTapTarget } from "../../../../../tooling/src/ui-audit/lib/checks-a11y.ts";
 import { WALKER_HIT_EXTENT } from "../../../../../tooling/src/ui-audit/ops/walker/hit-extent.ts";

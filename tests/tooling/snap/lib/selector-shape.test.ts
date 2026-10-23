@@ -4,7 +4,7 @@
 // prose REFUSES, and every real selector shape (including the ones a false-positive predicate would eat:
 // `nav a`, `:has(a b)`, quoted attribute values, custom elements, `text=`) passes untouched.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { OPTIONAL_SELECTOR_FLAGS, SELECTOR_VALUE_FLAGS, selectorRefusalForFlag, unmatchableSelectorRefusal } from "../../../../tooling/src/snap/index.ts";
 
 // lib/ cannot import ops/, so selector-shape.ts RESTATES the optional-inline-selector flags. This is the

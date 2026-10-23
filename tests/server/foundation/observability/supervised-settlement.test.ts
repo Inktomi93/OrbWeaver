@@ -1,5 +1,5 @@
 import { getTraceByRequestId, logger, logRing, span, superviseDetached, superviseSettled } from "@orb/server/foundation/observability";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { beforeAll } from "vitest";
 
 // The runner's silent floor emits no log bytes; these cases read the error report from the real logger.

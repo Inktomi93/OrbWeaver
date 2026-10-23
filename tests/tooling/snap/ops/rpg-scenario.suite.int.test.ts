@@ -7,7 +7,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { parseSnapArgs, prepareScenario, SNAP_HELP } from "@orb/tooling/snap";
 import { vi } from "vitest";

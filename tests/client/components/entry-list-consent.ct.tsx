@@ -1,6 +1,6 @@
-import { createCorpusReadResponder } from "@orb/testkit/iso/corpus-read-responder.ts";
-import { expect, test } from "@orb/testkit/node/ct-corpus.ts";
-import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
+import { createCorpusReadResponder } from "@orb/testkit/iso";
 import type { EntryListRebaseStory } from "./_entry-list-stories.tsx";
 
 test("a replaced entry snapshot invalidates obsolete consent and returns focus without removing another row", async ({ corpus, mount, page }) => {

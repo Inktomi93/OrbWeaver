@@ -1,5 +1,5 @@
 // @subject packages/inference/src/backends/openai-compat/reasoning.ts
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import type { RecordedRequest } from "../conformance/transport.fixtures.ts";
 import { recordRequest } from "../conformance/transport.fixtures.ts";
 import { createRuntimeRoot, generationCapability, wireConnection } from "./runtime.fixtures.ts";

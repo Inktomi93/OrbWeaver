@@ -3,8 +3,8 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { GroupConfig } from "@orb/contracts/chat";
 import { messages } from "@orb/db";
-import { seedMessage } from "@orb/testkit/node/factories/message.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import { seedMessage } from "@orb/testkit/node/composed";
 import { and, eq, gt } from "drizzle-orm";
 import { textRoom } from "../scenario-physical.ts";
 

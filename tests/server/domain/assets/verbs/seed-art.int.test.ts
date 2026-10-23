@@ -3,10 +3,9 @@
 import { readSeedAvatar } from "@orb/default-content";
 import { createSeedAvatarOps } from "@orb/server/domain/assets";
 import { DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
-import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
-import { seedUser } from "@orb/testkit/node/factories/user.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import { seedCharacter, seedUser } from "@orb/testkit/node/composed";
+import { principal } from "@orb/testkit/node/helpers";
 
 const CARD = DEFAULT_CHARACTER_CARDS[0];
 if (CARD === undefined) {

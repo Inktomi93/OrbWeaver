@@ -4,9 +4,8 @@ import { messages, rpgJournal } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-owner";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { createResolveViewerVisibility } from "@orb/server/domain/chat";
-import { seedMessage } from "@orb/testkit/node/factories/message.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness, seedMessage } from "@orb/testkit/node/composed";
 import { eq, max } from "drizzle-orm";
 
 test("journal readers retain inclusive member floors, unfiltered host reads and anchorless hand entries", async () => {

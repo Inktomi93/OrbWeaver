@@ -2,7 +2,7 @@ import { pluginCommandRegistrationMetaSchema, snippetResultSchema } from "@orb/c
 import { portableImportOutcomeSchema } from "@orb/contracts/portability";
 import { endpointInspectionSchema } from "@orb/contracts/providers";
 import { updateCheckSchema } from "@orb/kit/version-identity";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 test("portable imports separate failure reasons from successful accounting", () => {
   for (const value of [{ ok: true }, { ok: true, created: false, notes: ["overlay omitted"], memoryChatIds: [] }, { ok: false, error: "unreadable file" }]) {

@@ -1,6 +1,6 @@
 import { resolveChat } from "@orb/inference";
-import { makeGenerationCapability } from "@orb/testkit/iso/inference-capability.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { makeGenerationCapability } from "@orb/testkit/iso";
+import { expect, test } from "@orb/testkit/node";
 
 test("the funnel drops all active-only knobs on explicit off", () => {
   const capability = makeGenerationCapability({

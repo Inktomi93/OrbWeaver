@@ -1,6 +1,6 @@
 // Private role decoding is a native module boundary, independently of imported spelling.
 import { dirname, join, relative } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 
 const SERVER = "packages/server/src";

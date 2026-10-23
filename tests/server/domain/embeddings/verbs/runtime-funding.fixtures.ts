@@ -5,15 +5,13 @@ import { closeDb } from "@orb/db";
 import type { InferenceDeps, Resolved } from "@orb/inference";
 import type { UserCredentialId } from "@orb/kit/ids";
 import { jsonValueSchema } from "@orb/kit/json";
-import { freshDb } from "@orb/testkit/node/db.ts";
-import { TEST_BASE_URL, TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
-import type { AppCaller, Fixtures } from "@orb/testkit/node/fixtures.ts";
-import { test as baseTest } from "@orb/testkit/node/fixtures.ts";
-import { terminalSseLine } from "@orb/testkit/node/provider-stream.ts";
-import type { SdkScriptSpawn } from "@orb/testkit/node/sdk-process.ts";
-import { createSdkProcessSpawner } from "@orb/testkit/node/sdk-process.ts";
+import type { AppCaller, Fixtures } from "@orb/testkit/node";
+import { test as baseTest } from "@orb/testkit/node";
+import { freshDb } from "@orb/testkit/node/composed";
+import type { SdkScriptSpawn } from "@orb/testkit/node/helpers";
+import { createSdkProcessSpawner, TEST_BASE_URL, TEST_PROVIDER_ID, terminalSseLine } from "@orb/testkit/node/helpers";
 
-export { seedRecallRoom as fundingRoom } from "@orb/testkit/node/corpus-seed.ts";
+export { seedRecallRoom as fundingRoom } from "@orb/testkit/node/composed";
 
 export const FUNDING_MODEL = "funding-model";
 export const FUNDING_KEY = "funding-test-key";

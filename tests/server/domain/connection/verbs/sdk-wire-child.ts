@@ -1,6 +1,6 @@
 // Raw external process bytes only; the installed SDK still owns Query, control routing and JSON decoding.
 import process from "node:process";
-import { readSdkProcessInput } from "@orb/testkit/node/sdk-process.ts";
+import { readSdkProcessInput } from "@orb/testkit/node/helpers";
 import { z } from "zod";
 
 const { sdkSessionId: sessionId, frameId, lines } = await readSdkProcessInput();

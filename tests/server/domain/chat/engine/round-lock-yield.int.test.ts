@@ -2,16 +2,16 @@
 // A real expired lease changes owner at the physical release boundary between committed speakers.
 import { createCharacterSchema } from "@orb/contracts/character";
 import { chatLocks, closeDb, messages } from "@orb/db";
-import { createChatRoot } from "@orb/testkit/node/chat/composed.ts";
+import { expect, test } from "@orb/testkit/node";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
+  createChatRoot,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { freshHeldDb } from "@orb/testkit/node/db.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+  freshHeldDb,
+} from "@orb/testkit/node/composed";
 import { and, eq, lte } from "drizzle-orm";
 
 test("a mid-round locked refusal returns the committed-so-far without throwing", async () => {

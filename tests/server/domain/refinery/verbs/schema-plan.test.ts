@@ -4,11 +4,10 @@ import "@orb/testkit/node/composed-real.ts";
 import { NoConnectionError } from "@orb/inference";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { createPlanSchema, createResolveStructuredBinding } from "@orb/server/domain/refinery";
-import { testProviderId } from "@orb/testkit/iso/inference-identities.ts";
-import { makeResolvedSecret } from "@orb/testkit/node/factories/credentials.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
-import { makeResolved, TEST_OWNER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { testProviderId } from "@orb/testkit/iso";
+import { expect, test } from "@orb/testkit/node";
+import { makeResolvedSecret } from "@orb/testkit/node/composed";
+import { makeResolved, principal, TEST_OWNER_ID } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";
 import { z } from "zod";
 

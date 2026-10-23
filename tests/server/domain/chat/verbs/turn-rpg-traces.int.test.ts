@@ -2,9 +2,9 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 import { closeDb, rpgSnapshots } from "@orb/db";
 import { initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
-import { freshHeldDb } from "@orb/testkit/node/db.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { terminalSseLine } from "@orb/testkit/node/provider-stream.ts";
+import { expect, test } from "@orb/testkit/node";
+import { freshHeldDb } from "@orb/testkit/node/composed";
+import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { eq } from "drizzle-orm";
 import { coreFrame, coreSse } from "../engine/core-physical.ts";
 import { turnRpgReply, turnRpgRoom } from "./turn-rpg-physical.ts";

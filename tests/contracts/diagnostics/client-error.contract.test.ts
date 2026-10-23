@@ -1,6 +1,6 @@
 // @subject packages/contracts/src/diagnostics/client-error.ts
 import { clientErrorReportSchema } from "@orb/contracts/diagnostics";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 test.for([
   { field: "message", maximum: 20_000 },

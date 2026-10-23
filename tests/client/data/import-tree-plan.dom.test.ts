@@ -11,9 +11,9 @@ import { PORTABLE_DIRECTORIES, PORTABLE_IMPORT_ORDER } from "@orb/contracts/port
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import { createServerHarness } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
 
 const WRAPPER = "backup";

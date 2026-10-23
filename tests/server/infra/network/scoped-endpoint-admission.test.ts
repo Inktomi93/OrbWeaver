@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import { setImmediate } from "node:timers/promises";
 import { queryObjects } from "node:v8";
 import { ANY_HOST, createScopedEgress } from "@orb/server/infra/network";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 
 test("unresolved write-time endpoint admission remains public without attempting a physical request", async () => {

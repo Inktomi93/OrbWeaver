@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { CapturedRequest } from "@orb/tooling/floor/browser/browser-capture";
 import { vi } from "vitest";
 import type { SnapFailureSummary } from "../../../tooling/src/snap/index.ts";

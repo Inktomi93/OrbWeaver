@@ -30,7 +30,7 @@
 import { rowActionsName } from "@orb/client/lib";
 import type { CharacterHandle, CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { HOST_BAND, openContextSections } from "@orb/testkit/node/open-context-sections.ts";
+import { HOST_BAND, openContextSections } from "@orb/testkit/ct";
 import { expect, test } from "@playwright/test";
 import {
   characterChipNames,

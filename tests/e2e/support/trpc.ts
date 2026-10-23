@@ -17,7 +17,7 @@ import type {
   RpgConfigPatch,
   TrpcInput,
   TrpcPath,
-} from "@orb/testkit/browser/trpc-wire.ts";
+} from "@orb/testkit/browser";
 import type { TRPCClient } from "@trpc/client";
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import { DEV_TARGET_ALLOWED, E2E_DEBUG_TOKEN, E2E_LOCAL_ENGINE_LABEL, SINGLE_USER } from "./modes.ts";
@@ -59,7 +59,7 @@ export type {
   NewConnection,
   TrackerDefInput,
   TrpcInput,
-} from "@orb/testkit/browser/trpc-wire.ts";
+} from "@orb/testkit/browser";
 
 /** The first batch entry's `result.data`, or `undefined` when that entry carries an error or no result. tRPC
  *  publishes no schema for the envelope, so it stays raw and only the envelope's own fields are read. */

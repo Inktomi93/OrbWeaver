@@ -1,6 +1,6 @@
 import { createRosterPresetSchema } from "@orb/contracts/roster-preset";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 test("saved character members round-trip absent knobs and inclusive talkativeness boundaries", ({ ids }) => {
   const member = { kind: "character", characterId: mintTypeId(ID_PREFIX.character, ids.next), position: 0 };

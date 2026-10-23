@@ -3,9 +3,9 @@ import { authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
 import { vi } from "vitest";
+import { expect, test } from "./fixtures.ts";
+import { createServerHarness } from "./server.ts";
 
 const PASSWORD = "a-real-test-password-not-an-auth-bypass";
 const HANDLE = castId<Handle>("local-member");

@@ -3,8 +3,8 @@
 // @subject packages/server/src/domain/notifications/verbs/replay-since.ts
 import type { InboxView } from "@orb/contracts/notifications";
 import { closeDb } from "@orb/db";
-import { freshCountedDb } from "@orb/testkit/node/db.ts";
-import type { Fixtures } from "@orb/testkit/node/fixtures.ts";
+import type { Fixtures } from "@orb/testkit/node";
+import { freshCountedDb } from "@orb/testkit/node/composed";
 import { test as base, expect } from "../_fixtures.ts";
 
 const test = base.extend<{ counted: Awaited<ReturnType<typeof freshCountedDb>> } & Pick<Fixtures, "db">>({

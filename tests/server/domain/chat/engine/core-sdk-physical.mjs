@@ -1,7 +1,7 @@
 // Raw native SDK frames only; Query and the production root own every application result and session.
 import { readFile } from "node:fs/promises";
 import process from "node:process";
-import { readSdkProcessInput, readSdkResumeTranscript, writeSdkControlReply } from "@orb/testkit/node/sdk-process-control.mjs";
+import { readSdkProcessInput, readSdkResumeTranscript, writeSdkControlReply } from "@orb/testkit/sdk";
 import { ENGINE_SDK_MODEL } from "./engine-sdk-physical.mjs";
 
 export const CORE_SDK_SCRIPT_ARG = "--orb-core-sdk-script=";

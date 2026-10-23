@@ -3,7 +3,7 @@
 // the nonzero sibling proves this is denominator-derived, not a blanket requests refusal.
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { aggregateScope, factBatchId } from "@orb/tooling/floor/artifacts/artifact-scope";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { installOutputSink } from "@orb/tooling/floor/cli/log";

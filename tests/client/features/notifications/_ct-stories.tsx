@@ -1,5 +1,5 @@
 import { useChromeRegistry } from "@orb/client/state";
-import { CtClientProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { CtClientProviders } from "@orb/testkit/browser";
 import type { ReactElement, ReactNode } from "react";
 
 function RegisteredNotifications(): ReactNode {

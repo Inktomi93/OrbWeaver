@@ -4,17 +4,17 @@ import type { GroupConfig, TurnOutcome } from "@orb/contracts/chat";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { messages } from "@orb/db";
 import { jsonValueSchema } from "@orb/kit/json";
-import { makePromptConfig } from "@orb/testkit/iso/preset-config.ts";
-import type { ChatRoot } from "@orb/testkit/node/chat/composed.ts";
-import { createChatRoot } from "@orb/testkit/node/chat/composed.ts";
+import { makePromptConfig } from "@orb/testkit/iso";
+import { expect, test } from "@orb/testkit/node";
+import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
+  createChatRoot,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+} from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 
 async function room(group: Partial<GroupConfig> = {}, names = ["Aria", "Bran"], promptConfig?: PromptConfig): Promise<ChatRoot> {

@@ -1,6 +1,6 @@
 // Public URL execution cannot acquire configured-endpoint authority from extra JavaScript options.
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
 
 const PRIVATE_HOST = "private-egress.test";
 const PRIVATE_ADDRESS = "192.168.1.50";

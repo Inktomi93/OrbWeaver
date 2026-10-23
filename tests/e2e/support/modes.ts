@@ -33,7 +33,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import process from "node:process";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
-import { assertPrivateCorpusNetwork, assertPrivateCorpusOutput, assertPrivateCorpusOutputArguments, loadCorpusFixture } from "@orb/testkit/node/corpus.ts";
+import { assertPrivateCorpusNetwork, assertPrivateCorpusOutput, assertPrivateCorpusOutputArguments, loadCorpusFixture } from "@orb/testkit/node/composed";
 import { DEV_PORTS, E2E_OIDC_ISSUER_PORT, E2E_PORTS, ENGINE_PORTS } from "@orb/tooling/floor/host/ports";
 import { exportProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";

@@ -3,9 +3,8 @@
 import { chatParticipants } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import { createChatAutomationReads, createResolveViewerVisibility, loadPluginCharacters, loadPluginMessages } from "@orb/server/domain/chat";
-import { seedChat } from "@orb/testkit/node/factories/chat.ts";
-import { seedMessage } from "@orb/testkit/node/factories/message.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import { seedChat, seedMessage } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 
 test("a cross-wired message fact cannot hydrate another room's canon", async ({ db }): Promise<void> => {

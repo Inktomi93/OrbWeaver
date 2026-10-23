@@ -1,7 +1,7 @@
 // Native protocol exceptions remain local while the installed rules still judge adjacent unsafe calls.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { ESLint } from "eslint";
 
 const DEPRECATED_RULE = "@typescript-eslint/no-deprecated";

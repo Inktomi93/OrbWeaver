@@ -6,7 +6,7 @@
 // value loudly at run time — so this suite is what stops a typo in the committed JSON from reaching a live
 // run as a nav error nobody expected.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { PanelPresetAction } from "@orb/tooling/floor/instrument/panel-flags";
 import {
   applyPanelPresetFlag,

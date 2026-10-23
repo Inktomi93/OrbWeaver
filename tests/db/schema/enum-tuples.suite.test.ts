@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 // biome-ignore lint/performance/noNamespaceImport: the census denominator is every schema export, including tables a named import would omit.
 import * as schema from "@orb/db/schema";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { is } from "drizzle-orm";
 import { getTableConfig, SQLiteColumn, SQLiteTable, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { z } from "zod";

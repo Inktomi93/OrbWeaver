@@ -4,15 +4,14 @@ import type { WorkloadRunnableRow } from "@orb/contracts/workloads";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import type { WorkloadId } from "@orb/kit/ids";
 import { createNextRunnableWorkload, runWorkload } from "@orb/server/domain/workloads";
+import type { ServerTestHarness, seedCorpusConnections, seedRecallRoom } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import type { seedCorpusConnections, seedRecallRoom } from "@orb/testkit/node/corpus-seed.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
+} from "@orb/testkit/node/composed";
 
 export const QUEUE_OBSERVATION_DELAY_MS = 60_000;
 export const WORKLOAD_FUNDER_HEADER = "x-workload-funder";

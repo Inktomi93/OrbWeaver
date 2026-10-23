@@ -14,7 +14,7 @@
 //       message naming base×factor and the loadavg. The ceiling is not a way to hang.
 
 import { cpus } from "node:os";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import {
   annotateRateLoad,
   BOX_LOAD_ENV,

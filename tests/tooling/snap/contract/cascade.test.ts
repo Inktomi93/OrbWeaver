@@ -1,4 +1,4 @@
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { CSS_MERGE_TRACE_STATUSES, cssMergeTraceStatusSchema } from "../../../../tooling/src/snap/contract/cascade.ts";
 import { cssMergeTraceSnapshot } from "../../../../tooling/src/snap/ops/arms/cascade.ts";
 

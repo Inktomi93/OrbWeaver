@@ -1,10 +1,10 @@
 import { EMBEDDING_FLOOR } from "@orb/contracts/inference";
 import type { ResolvedTaskView, RoleClientTask } from "@orb/contracts/role-clients";
 import { createGetLiveEmbedSpace } from "@orb/server/domain/embeddings";
-import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
-import { makeResolvedView } from "@orb/testkit/node/factories/resolved-connection.ts";
-import { makeUser } from "@orb/testkit/node/factories/user.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { testModelId } from "@orb/testkit/iso";
+import { expect, test } from "@orb/testkit/node";
+import { makeUser } from "@orb/testkit/node/composed";
+import { makeResolvedView } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";
 
 test("the progress space follows each owner's current binding and dtype, including an explicit unbound state", async () => {

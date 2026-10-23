@@ -1,8 +1,8 @@
 // @subject tests/support/iso/refinery-config.ts
 
 import { DEFAULT_REFINERY_STAGE_CONFIG } from "@orb/contracts/refinery";
-import { makeRefineryStageConfig } from "@orb/testkit/iso/refinery-config.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { makeRefineryStageConfig } from "../iso/refinery-config.ts";
+import { expect, test } from "./fixtures.ts";
 
 test("a stage mode override preserves its fixed provenance and sibling stages", () => {
   const config = makeRefineryStageConfig({ rewrite: { mode: "conservative" } });

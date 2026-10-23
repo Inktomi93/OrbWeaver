@@ -7,11 +7,11 @@ import {
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { seedCorpusConnections } from "@orb/testkit/node/corpus-seed.ts";
-import { seedStats } from "@orb/testkit/node/factories/stats.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+} from "../corpus-provider.ts";
+import { seedCorpusConnections } from "../corpus-seed.ts";
+import { expect, test } from "../fixtures.ts";
+import { createServerHarness } from "../server.ts";
+import { seedStats } from "./stats.ts";
 
 test("computed-empty reconciliation does not invent a live canon fence or activity rows", async () => {
   await using root = await createServerHarness();

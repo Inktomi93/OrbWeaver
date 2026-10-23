@@ -5,7 +5,7 @@ import { cp, mkdir, mkdtemp, readFile, rm, symlink, unlink, writeFile } from "no
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { DevToolsAssetManifest, DevToolsAssetPin, DevToolsClosureFile, DevToolsClosureInput } from "@orb/tooling/floor/devtools/devtools-assets";
 import { adjudicateDevToolsClosure, readChromiumBrowserVersion, verifyDevToolsAssets } from "@orb/tooling/floor/devtools/devtools-assets";
 import { startDevToolsAssetServer } from "@orb/tooling/floor/devtools/devtools-assets-server";

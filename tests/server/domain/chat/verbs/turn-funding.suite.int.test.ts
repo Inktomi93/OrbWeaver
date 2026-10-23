@@ -3,8 +3,8 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { chatGenerationObservations, messages, ownerStats } from "@orb/db";
 import { NoConnectionError } from "@orb/inference";
-import { captureTurnRows } from "@orb/testkit/node/factories/message.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import { captureTurnRows } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
 import { invitePerson } from "../persona-cache-physical.ts";

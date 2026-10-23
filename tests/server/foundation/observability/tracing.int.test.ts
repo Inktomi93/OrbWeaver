@@ -10,7 +10,7 @@ import {
   withRequestSpan,
   wrapLibSqlClient,
 } from "@orb/server/foundation/observability";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { sql } from "drizzle-orm";
 import { Hono } from "hono";
 

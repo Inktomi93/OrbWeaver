@@ -5,7 +5,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { listProcesses, pnpmInvocation } from "@orb/tooling/floor/host/platform";
 import { killPidGroup } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";

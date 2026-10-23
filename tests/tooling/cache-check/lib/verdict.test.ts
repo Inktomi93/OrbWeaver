@@ -4,7 +4,7 @@
 // @instrument-absence-proof: a call with no recorded usage, a prompt below the calibration prefix or the model's
 // cache minimum, a case with one call, and a run whose every line is SKIPPED must never read as a clean verdict.
 import process from "node:process";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { CallUsage, CaseOutcome, CaseVerdict } from "@orb/tooling/cache-check";
 import { CACHE_READ_FLOOR, exitFor, FLOOR_CALIBRATION, formatOutcome, judgeCase, runVerdict } from "@orb/tooling/cache-check";
 import { printVerdictReceipt } from "@orb/tooling/floor/verdict/evidence";

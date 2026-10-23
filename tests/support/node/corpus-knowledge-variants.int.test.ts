@@ -2,20 +2,14 @@
 // @subject tests/support/node/corpus-knowledge-images.ts
 // @subject tests/support/node/corpus-knowledge-wire.ts
 import { assertReferentialIntegrity } from "@orb/db";
-import {
-  CORPUS_EMBED_MODEL,
-  CORPUS_EMBEDDING_VECTOR,
-  CORPUS_STRUCTURED_REPLIES,
-  CORPUS_TEXT_MODEL,
-  createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { seedCorpusActors } from "@orb/testkit/node/corpus-seed.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
 import sharp from "sharp";
 import { CORPUS_KNOWLEDGE_IMAGE_SIZES } from "./corpus-knowledge-images.ts";
 import { seedCorpusKnowledgeVariants } from "./corpus-knowledge-variants.ts";
 import { CORPUS_KNOWLEDGE_SWIPE_TAKES, corpusKnowledgeVariantsText, createKnowledgeSwipeWire } from "./corpus-knowledge-wire.ts";
+import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
+import { seedCorpusActors } from "./corpus-seed.ts";
+import { expect, test } from "./fixtures.ts";
+import { createServerHarness } from "./server.ts";
 
 test("default-grid canon produces real arc themes and selected reroll hotspots while valid GIF avatars acquire both geometry lenses and facets", async () => {
   const swipes = createKnowledgeSwipeWire();

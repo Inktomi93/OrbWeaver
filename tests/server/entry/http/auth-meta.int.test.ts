@@ -6,10 +6,9 @@ import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
-import { claimShareOwner, readRelayStarts, relayExecutable, relayProgram } from "@orb/testkit/node/share.ts";
+import { expect, test } from "@orb/testkit/node";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import { claimShareOwner, createServerHarness, readRelayStarts, relayExecutable, relayProgram } from "@orb/testkit/node/composed";
 import { describe } from "vitest";
 import { signedInMember } from "../_auth-roots.ts";
 

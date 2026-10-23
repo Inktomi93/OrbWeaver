@@ -1,8 +1,8 @@
 // The claim row the allocator writes before a boot: it must be held by the claiming process, or a full table
 // reads it as dangling residue and reaps it while its stack is still coming up.
 import process from "node:process";
-import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { FROZEN_AT_MS } from "@orb/testkit/iso";
+import { expect, test } from "@orb/testkit/tooling";
 import { STAGE_BAND_COUNT, stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
 import type { StageBandView, StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
 import { allocateStageBand, liveHoldersOf } from "../../../../tooling/src/snap/lib/stage-bands.ts";

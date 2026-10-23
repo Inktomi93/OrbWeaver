@@ -10,12 +10,10 @@ import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, PLUGIN_UI_ASSETS_DIR, pluginMa
 import { assets, plugins, userSettings } from "@orb/db";
 import type { AssetId, PluginId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
-import { makeAssetBytes } from "@orb/testkit/node/factories/asset.ts";
-import { makePluginBundle, seedInstalledPlugin } from "@orb/testkit/node/factories/plugin.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { FROZEN_AT_MS } from "@orb/testkit/iso";
+import { expect, test } from "@orb/testkit/node";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import { createServerHarness, makeAssetBytes, makePluginBundle, seedInstalledPlugin } from "@orb/testkit/node/composed";
 import { eq, inArray, sql } from "drizzle-orm";
 
 const SLUG = "reap-refusal-witness";

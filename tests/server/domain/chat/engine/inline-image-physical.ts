@@ -7,18 +7,21 @@ import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema, pluginTo
 import { assets, chatEvents, messageAssets, messages, messageVariants } from "@orb/db";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
-import { createChatRoot } from "@orb/testkit/node/chat/composed.ts";
+import type { ServerHarnessOptions } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
+  createChatRoot,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { makeAsset, makeAssetBytes } from "@orb/testkit/node/factories/asset.ts";
-import { makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "@orb/testkit/node/factories/plugin.ts";
-import { seedAdminProvider } from "@orb/testkit/node/factories/provider.ts";
-import type { ServerHarnessOptions } from "@orb/testkit/node/server.ts";
+  makeAsset,
+  makeAssetBytes,
+  makePluginBundle,
+  seedAdminProvider,
+  seedInstalledPlugin,
+  seedPluginGrant,
+} from "@orb/testkit/node/composed";
 import { and, eq } from "drizzle-orm";
 
 export const IMAGE_PROSE = "She unrolls the map.";

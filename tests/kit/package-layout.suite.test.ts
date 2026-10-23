@@ -1,7 +1,7 @@
 // No package src root holds a loose module: every importable module is a directory with an index.ts front door.
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 const REPOSITORY = join(import.meta.dirname, "../..");
 const PACKAGES = ["kit", "contracts", "client", "db", "ui", "inference"] as const;

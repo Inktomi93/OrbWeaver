@@ -6,7 +6,7 @@
 import type { ServerResponse } from "node:http";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { aggregateScope, exactScope } from "@orb/tooling/floor/artifacts/artifact-scope";
 import { launchProbeSession, settle, withProbeSession } from "@orb/tooling/floor/browser/browser";
 import { browserEvidenceRetention } from "@orb/tooling/floor/browser/browser-capture";

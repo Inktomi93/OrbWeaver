@@ -1,17 +1,17 @@
 // Finite raw HTTP replies feed the production graph; no fixture builds engine contexts or outcomes.
 import "@orb/testkit/node/composed-real.ts";
 import type { JsonValue } from "@orb/kit/json";
-import { createSeededIds } from "@orb/testkit/iso/ids.ts";
-import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/chat/composed.ts";
-import { createChatRoot } from "@orb/testkit/node/chat/composed.ts";
+import { createSeededIds } from "@orb/testkit/iso";
+import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
+  createChatRoot,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { terminalSseLine } from "@orb/testkit/node/provider-stream.ts";
+} from "@orb/testkit/node/composed";
+import { terminalSseLine } from "@orb/testkit/node/helpers";
 
 export type CoreWireReply = (request: Request) => Response | Promise<Response>;
 const coreIds = createSeededIds();

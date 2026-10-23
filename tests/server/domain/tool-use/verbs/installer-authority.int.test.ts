@@ -5,17 +5,18 @@ import type { Principal } from "@orb/contracts/identity";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, PLUGIN_MANIFEST_ENTRY, pluginManifestSchema, pluginToolWireName } from "@orb/contracts/plugin";
 import { chats } from "@orb/db";
 import { loadPresentRole } from "@orb/server/domain/chat";
+import { expect, test } from "@orb/testkit/node";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { seedCorpusActors } from "@orb/testkit/node/corpus-seed.ts";
-import { seedInstalledPlugin, seedPluginGrant } from "@orb/testkit/node/factories/plugin.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+  createServerHarness,
+  seedCorpusActors,
+  seedInstalledPlugin,
+  seedPluginGrant,
+} from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { strToU8, zipSync } from "fflate";
 

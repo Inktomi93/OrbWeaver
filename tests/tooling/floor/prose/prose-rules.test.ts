@@ -2,7 +2,7 @@
 // catch, what the glossary allows, and which spans are checked as repository paths. Every negative case
 // sits beside a positive control that proves the same rule fires on the planted spelling.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import {
   backtickedRelativePaths,
   backtickedRepoPaths,

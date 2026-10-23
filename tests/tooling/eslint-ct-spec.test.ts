@@ -1,6 +1,6 @@
 // Native ESLint guards story test ids, tRPC route order and shared poll schedules.
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
 import { scaledBudget } from "./_load-budget.ts";

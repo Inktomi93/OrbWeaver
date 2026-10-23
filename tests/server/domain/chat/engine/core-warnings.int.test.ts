@@ -3,11 +3,10 @@
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { jsonValueSchema } from "@orb/kit/json";
-import type { ChatRoot } from "@orb/testkit/node/chat/composed.ts";
-import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "@orb/testkit/node/corpus-provider.ts";
-import { makeAssetBytes } from "@orb/testkit/node/factories/asset.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { terminalSseLine } from "@orb/testkit/node/provider-stream.ts";
+import { expect, test } from "@orb/testkit/node";
+import type { ChatRoot } from "@orb/testkit/node/composed";
+import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL, makeAssetBytes } from "@orb/testkit/node/composed";
+import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { coreFrame, coreHttpRoom, coreSse } from "./core-physical.ts";
 
 const REPLY = "The actual text-only reply.";

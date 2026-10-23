@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { RunSlot } from "@orb/tooling/floor/artifacts/artifacts";
 import { scaledBudget } from "../../_load-budget.ts";
 

@@ -1,6 +1,6 @@
 import { cardImportResultSchema } from "@orb/contracts/import";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { summarizeCardImport } from "#client/features/workloads/lib/portability-model.ts";
 
 test("card summaries retain success notes, omit empty or legacy notes, and keep failures separate", ({ ids }) => {

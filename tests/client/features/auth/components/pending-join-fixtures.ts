@@ -4,7 +4,7 @@ import { authErrorResponseSchema } from "@orb/contracts/identity";
 import { joinerPersonaSchema } from "@orb/contracts/persona";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso/ids.ts";
+import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 
 export const JOIN_DESTINATION_LABEL = "Signed-in destination";
 export const JOIN_CONFIRM_LABEL = "Create account and join";

@@ -3,7 +3,7 @@
 // The MEASUREMENT half is layout arithmetic and is proved in a real browser
 // (tests/tooling/snap/ops/overflow.ct.tsx) — jsdom has no layout, so nothing here fakes one.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { OverflowProbe } from "../../../../tooling/src/snap/index.ts";
 import { overflowAssertionLine } from "../../../../tooling/src/snap/index.ts";
 

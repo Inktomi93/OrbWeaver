@@ -2,7 +2,7 @@
 // commit-message contract is checked by this door itself, and git's own refusal text reaches the caller.
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { commitPaths } from "../../../../tooling/src/doc/ops/tree.ts";
 import { configureFixtureGitIdentity, execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { withProcessEnv } from "../../../../tooling/src/floor/process/process-env.ts";

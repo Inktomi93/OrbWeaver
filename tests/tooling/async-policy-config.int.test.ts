@@ -5,7 +5,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { ESLint } from "eslint";
 
 const FLOATING_RULE = "@typescript-eslint/no-floating-promises";

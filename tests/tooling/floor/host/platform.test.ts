@@ -2,7 +2,7 @@
 // it would run on darwin and win32 and the output that tool documents, so a wrong flag or a wrong column is
 // a red here rather than on a machine nobody has. The Linux branch reads a planted `/proc`.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { vi } from "vitest";
 import type { OpenerChild, PlatformDeps, PortOwner, SocketTableRead } from "../../../../tooling/src/floor/host/platform.ts";
 import {

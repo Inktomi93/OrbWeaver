@@ -2,7 +2,7 @@
 // @subject packages/server/src/domain/embeddings/verbs/record-usage.ts
 import type { LibSqlWrap } from "@orb/db";
 import { embeddingCalls } from "@orb/db";
-import { expect } from "@orb/testkit/node/fixtures.ts";
+import { expect } from "@orb/testkit/node";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
 import { FUNDING_MODEL, fundingConnection, test } from "./runtime-funding.fixtures.ts";

@@ -1,7 +1,7 @@
 // @subject packages/server/src/infra/plugin-host/worker-runtime.ts
 import { spawn } from "node:child_process";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
 
 const SOURCE = 'const h = orb.host(1); h.log.info("random=" + h.random.next());';
 

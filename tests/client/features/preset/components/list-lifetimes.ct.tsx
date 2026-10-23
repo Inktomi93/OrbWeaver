@@ -1,6 +1,6 @@
 import { choiceBlockSchema, presetDetailSchema, userMacroSchema } from "@orb/contracts/preset";
-import { expect, test } from "@orb/testkit/node/ct-corpus.ts";
-import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
 import type { PresetListLifetimeStory } from "./_list-lifetime-stories.tsx";
 
 test.use({ trace: "on" });

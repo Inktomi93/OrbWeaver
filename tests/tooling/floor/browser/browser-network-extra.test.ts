@@ -1,7 +1,7 @@
 // Pending ExtraInfo retention: exact queue accounting must preserve whole-queue FIFO eviction and the
 // active-request overflow exception without rescanning every retained queue to learn the total.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { exactScope } from "../../../../tooling/src/floor/artifacts/artifact-scope.ts";
 import type { NetworkExtraKind } from "../../../../tooling/src/floor/browser/browser-network-extra.ts";
 import { PendingNetworkExtras } from "../../../../tooling/src/floor/browser/browser-network-extra.ts";

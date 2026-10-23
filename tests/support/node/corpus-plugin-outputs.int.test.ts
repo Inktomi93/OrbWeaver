@@ -13,8 +13,6 @@ import {
   pluginUiHostCallResultSchema,
 } from "@orb/server/domain/plugin";
 import { LOG_BYTES_PER_INVOCATION, LOG_LINES_PER_INVOCATION, PLUGIN_LOG_RING_CHARS, PLUGIN_LOG_RING_LINES } from "@orb/server/infra/plugin-host";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
 import {
   CORPUS_PLUGIN_CALLBACK_VALUE,
   CORPUS_PLUGIN_TYPED_VALUES,
@@ -24,6 +22,8 @@ import {
   seedCorpusPluginOutputs,
 } from "./corpus-plugin-outputs.ts";
 import { makePluginRow } from "./factories/plugin-view.ts";
+import { expect, test } from "./fixtures.ts";
+import { createServerHarness } from "./server.ts";
 
 test("native callbacks refuse invalid args and stale scopes, revoke grants and retire an in-flight draft before restart", { tags: ["slow"] }, async () => {
   const network = createCorpusPluginCallbackNetwork();

@@ -1,7 +1,7 @@
 import { useSessionRecovery, useTRPC } from "@orb/client/data";
 import type { SessionDocumentHost } from "@orb/client/lib";
 import { setActiveSection, useActiveSection, useOpenModal } from "@orb/client/state";
-import { CtClientProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { CtClientProviders } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";

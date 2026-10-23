@@ -16,7 +16,7 @@
 
 import { chatDetailSchema } from "@orb/contracts/chat";
 import { documentDetailViewSchema } from "@orb/contracts/databank";
-import { corpusReadInput } from "@orb/testkit/iso/corpus.ts";
+import { corpusReadInput } from "@orb/testkit/iso";
 import { expect, test } from "./support/corpus-test.ts";
 import { SELECTED_CORPUS_FIXTURE, SINGLE_USER } from "./support/modes.ts";
 import { WAIT_SETTLE_MS, WAIT_UI_MS } from "./support/timeouts.ts";

@@ -4,8 +4,8 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { auditLogs, characterSnapshots, characters } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 

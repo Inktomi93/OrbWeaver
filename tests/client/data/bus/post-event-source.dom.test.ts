@@ -12,8 +12,8 @@ import type { StreamFrame } from "@orb/contracts/stream";
 import { STREAM_INACTIVITY_TIMEOUT_MS, streamConnectInputSchema } from "@orb/contracts/stream";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso/ids.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
+import { expect, test } from "@orb/testkit/node";
 import { TRPCClientError } from "@trpc/client";
 import { afterEach, vi } from "vitest";
 

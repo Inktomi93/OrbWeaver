@@ -5,7 +5,7 @@
 // tests/tooling/snap/lib/session-wire.test.ts; the imperative halves are proven by
 // tests/tooling/snap/ops/session-daemon.int.test.ts.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { SessionRow } from "../../../../tooling/src/snap/contract/session.ts";
 import { SESSION_PROTOCOL_VERSION } from "../../../../tooling/src/snap/contract/session.ts";
 import {

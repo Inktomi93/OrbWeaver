@@ -2,7 +2,7 @@
 // Native finish reasons and saved settings distinguish in-place continuation, reroll precedence and bounded spend.
 import type { UserSettings } from "@orb/contracts/settings";
 import { messages, messageVariants } from "@orb/db";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { eq } from "drizzle-orm";
 import type { PhysicalReply } from "./followup-physical.ts";
 import { followupRoom } from "./followup-physical.ts";

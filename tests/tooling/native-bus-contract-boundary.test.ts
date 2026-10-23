@@ -1,6 +1,6 @@
 // The existing native direct-import boundary judges resolved bus-module edges, not identifier spelling.
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 
 const CONTRACTS = "packages/contracts/src";

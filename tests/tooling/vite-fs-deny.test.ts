@@ -20,7 +20,7 @@
 // wrong root), the denied arm alone would read as a clean pass.
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { describe } from "vitest";
 import { devServerServes } from "../../packages/client/vite.config.ts";
 

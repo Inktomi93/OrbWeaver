@@ -1,8 +1,8 @@
 // @subject tests/support/iso/chat-metadata.ts
 
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
-import { makeGroupConfig, makeRoomOverrides } from "@orb/testkit/iso/chat-metadata.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { makeGroupConfig, makeRoomOverrides } from "../iso/chat-metadata.ts";
+import { expect, test } from "./fixtures.ts";
 
 test("caller edits cannot change the production defaults or a later room's configuration", () => {
   const first = makeGroupConfig();

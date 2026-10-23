@@ -6,7 +6,7 @@
 // The ruling under test is preserved from the spec verbatim: BOTH outcomes are terminal (a moved state, or
 // an empty delta with canon intact — the 8B ceiling, plan-for-small-hardware). What changed is the INPUT of
 // the second arm: it now requires the flush to have been OBSERVED.
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { describe } from "vitest";
 import { hasRpgFlush, rpgStateMoved, rpgTurnSettled } from "./rpg-settle.ts";
 

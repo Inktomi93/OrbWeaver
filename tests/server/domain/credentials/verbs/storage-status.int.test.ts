@@ -2,9 +2,9 @@
 // @subject packages/server/src/transport/trpc/routers/credentials.ts
 // @subject packages/contracts/src/credentials/index.ts
 import { credentialStorageStatusSchema } from "@orb/contracts/credentials";
-import { TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
+import { TEST_PROVIDER_ID } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";
 
 const KEY = "storage-status-private-key";

@@ -3,7 +3,7 @@
 // that returns an empty history for a damaged ledger defeats its own purpose.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { readPrunedRuns } from "@orb/tooling/floor/artifacts/run-retention";
 import { installOutputSink } from "@orb/tooling/floor/cli/log";
 

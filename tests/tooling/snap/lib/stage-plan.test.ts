@@ -12,7 +12,7 @@
 import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { DEV_PORTS, STAGE_BAND_COUNT, stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
 import type { StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
 import { stageDecision } from "../../../../tooling/src/snap/lib/stage-bands.ts";

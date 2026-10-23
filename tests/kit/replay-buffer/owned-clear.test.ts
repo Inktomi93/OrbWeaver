@@ -1,6 +1,6 @@
 import { createReplayBuffer } from "@orb/kit/replay-buffer";
-import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { createFrozenClock } from "@orb/testkit/iso";
+import { expect, test } from "@orb/testkit/node";
 
 test("clearing releases all retained keys and later recording has no old tail", () => {
   const clock = createFrozenClock();

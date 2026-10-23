@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 
 const COMPILER = "babel-plugin-react-compiler";
 const BUNDLE = "dist/index.js";

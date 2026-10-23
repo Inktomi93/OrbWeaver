@@ -5,26 +5,19 @@ import { declaredCapabilitySchema } from "@orb/contracts/inference";
 import { RPG_NO_CHANGES_TOOL } from "@orb/contracts/rpg";
 import { messages, rpgCheckpoints, rpgSnapshots } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
+import { eq } from "drizzle-orm";
+import { vi } from "vitest";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { seedCorpusActors, seedRecallRoom } from "@orb/testkit/node/corpus-seed.ts";
-import {
-  captureRpgSnapshot,
-  captureRpgTurnToolCalls,
-  seedRpgCheckpoint,
-  seedRpgGame,
-  seedRpgJournalEntry,
-  seedRpgSheets,
-} from "@orb/testkit/node/factories/rpg.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
-import { eq } from "drizzle-orm";
-import { vi } from "vitest";
+} from "../corpus-provider.ts";
+import { seedCorpusActors, seedRecallRoom } from "../corpus-seed.ts";
+import { expect, test } from "../fixtures.ts";
+import { createServerHarness } from "../server.ts";
+import { captureRpgSnapshot, captureRpgTurnToolCalls, seedRpgCheckpoint, seedRpgGame, seedRpgJournalEntry, seedRpgSheets } from "./rpg.ts";
 
 test("a genuine folded RPG turn retains its actual quiet tool call on the returned assistant variant without buying a second state round", async () => {
   const provider = createCorpusProviderExecution({

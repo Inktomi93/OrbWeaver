@@ -1,6 +1,6 @@
 // The effective native configuration seals the few modules allowed to decode role data.
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
 

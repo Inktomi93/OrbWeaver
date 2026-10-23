@@ -2,7 +2,7 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 import { messages, pendingTurns } from "@orb/db";
 import { parseIanaTimeZone, UTC_TIME_ZONE } from "@orb/kit/time";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { eq } from "drizzle-orm";
 import { invitePerson } from "../../../domain/chat/persona-cache-physical.ts";
 import { textRoom } from "../../../domain/chat/scenario-physical.ts";

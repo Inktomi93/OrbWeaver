@@ -4,18 +4,12 @@ import { AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR, ownerBudgetViewSchema } from "@or
 import { assertReferentialIntegrity } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import {
-  CORPUS_EMBED_MODEL,
-  CORPUS_EMBEDDING_VECTOR,
-  CORPUS_STRUCTURED_REPLIES,
-  CORPUS_TEXT_MODEL,
-  createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { seedCorpusAutomation, seedCorpusConnections } from "@orb/testkit/node/corpus-seed.ts";
-import { makeAssetBytes } from "@orb/testkit/node/factories/asset.ts";
-import { captureAutomationExecution, captureGlobalVariable, seedAutomationOwnerBudget, seedAutomationRule } from "@orb/testkit/node/factories/automation.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
+import { seedCorpusAutomation, seedCorpusConnections } from "./corpus-seed.ts";
+import { makeAssetBytes } from "./factories/asset.ts";
+import { captureAutomationExecution, captureGlobalVariable, seedAutomationOwnerBudget, seedAutomationRule } from "./factories/automation.ts";
+import { expect, test } from "./fixtures.ts";
+import { createServerHarness } from "./server.ts";
 
 function providerExecution(): ReturnType<typeof createCorpusProviderExecution> {
   return createCorpusProviderExecution({

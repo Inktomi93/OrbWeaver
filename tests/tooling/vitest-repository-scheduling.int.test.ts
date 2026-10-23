@@ -3,7 +3,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import { SEMANTIC_CORPUS_RESOURCE } from "@orb/tooling/floor/testing/test-kinds";
 import base from "../../vitest.config.ts";

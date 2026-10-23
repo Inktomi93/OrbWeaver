@@ -1,9 +1,9 @@
 // Native JOSE verification and bounded key retrieval run through the actual composed server capability.
 // @subject packages/server/src/infra/auth/jwks.ts
-import { test as base, expect } from "@orb/testkit/node/fixtures.ts";
-import { CLIENT_ID, createNativeIssuer, ISSUER } from "@orb/testkit/node/oidc-issuer.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { test as base, expect } from "@orb/testkit/node";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import { createServerHarness } from "@orb/testkit/node/composed";
+import { CLIENT_ID, createNativeIssuer, ISSUER } from "@orb/testkit/node/helpers";
 import type { JWTPayload } from "jose";
 
 const ALLOW = [new URL(ISSUER).hostname];

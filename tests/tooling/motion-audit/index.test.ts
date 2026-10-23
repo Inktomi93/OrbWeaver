@@ -15,7 +15,7 @@
 // This file's home is the tests/tooling/motion-audit mirror (Spine-Testing.md §2); the browser
 // half — that a virtualized-tagged shift really does move only raw — is tests/legacy/client/lib/motion-stats.ct.tsx.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { AnimationRecord, AuditData, BrowserEnvironmentEvidence, MotionFlagRecord } from "../../../tooling/src/motion-audit/index.ts";
 import {
   animationTotals,

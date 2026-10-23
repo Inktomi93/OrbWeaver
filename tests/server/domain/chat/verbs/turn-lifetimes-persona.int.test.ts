@@ -1,6 +1,6 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // @subject packages/server/src/domain/chat/verbs/participants.ts
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { attachPersonaLore, invitePerson, personaInputs, personaRoom, seatPersona } from "../persona-cache-physical.ts";
 
 const HOST_LORE = "HOST-PERSONA-ONLY-LORE";

@@ -21,18 +21,19 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterHandle, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { CHAT_OP_CODES } from "@orb/server/domain/chat";
+import { expect, test } from "@orb/testkit/node";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { seedCorpusActors, seedRecallRoom } from "@orb/testkit/node/corpus-seed.ts";
-import { freshHeldDb } from "@orb/testkit/node/db.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+  createServerHarness,
+  freshHeldDb,
+  seedCorpusActors,
+  seedRecallRoom,
+} from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 
 const INTENT = { maxContextTokens: 32_000, maxOutputTokens: 128 };

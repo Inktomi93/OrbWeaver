@@ -1,4 +1,4 @@
-import { CtIsolation } from "@orb/testkit/browser/ct-isolated-subject.tsx";
+import { CtIsolation } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";
 import { createDialogHandle, Dialog, DialogClose, DialogDescription, DialogPopup, DialogTitle, DialogTrigger } from "@orb/ui/dialog";
 import type { ReactElement } from "react";

@@ -4,17 +4,19 @@ import { setImmediate as physicalTurn } from "node:timers/promises";
 import { ruleRefusalReason } from "@orb/contracts/automation";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { automationFires, automationRules, chats, closeDb } from "@orb/db";
+import { expect, test } from "@orb/testkit/node";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { seedCorpusConnections, seedRecallRoom } from "@orb/testkit/node/corpus-seed.ts";
-import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+  createServerHarness,
+  freshDb,
+  freshHeldDb,
+  seedCorpusConnections,
+  seedRecallRoom,
+} from "@orb/testkit/node/composed";
 import { eq, sql } from "drizzle-orm";
 import { enabledRule, storedRule } from "../runtime.fixtures.ts";
 

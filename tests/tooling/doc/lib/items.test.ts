@@ -1,7 +1,7 @@
 // Work items as data: the parse, the blocker grammar, and the transition patch that clears the
 // companions of the states left behind.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { applyPatch, itemTemplate, parseBlocker, parseItem } from "../../../../tooling/src/doc/index.ts";
 
 const PATH = "docs/work/0007-ledger-split.md";

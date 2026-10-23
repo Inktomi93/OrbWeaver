@@ -4,18 +4,18 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { jsonValueSchema } from "@orb/kit/json";
-import { createSeededIds } from "@orb/testkit/iso/ids.ts";
-import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/chat/composed.ts";
-import { createChatRoot } from "@orb/testkit/node/chat/composed.ts";
+import { createSeededIds } from "@orb/testkit/iso";
+import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
+  createChatRoot,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { seedMessage } from "@orb/testkit/node/factories/message.ts";
-import { createSdkProcessSpawner } from "@orb/testkit/node/sdk-process.ts";
+  seedMessage,
+} from "@orb/testkit/node/composed";
+import { createSdkProcessSpawner } from "@orb/testkit/node/helpers";
 import { z } from "zod";
 import { CORE_SDK_IMPORT_RECEIPT, CORE_SDK_RECEIPT, CORE_SDK_RUNTIME_ARG, CORE_SDK_SCRIPT_ARG } from "./core-sdk-physical.mjs";
 import { ENGINE_SDK_MODEL } from "./engine-sdk-physical.mjs";

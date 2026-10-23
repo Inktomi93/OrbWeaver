@@ -1,4 +1,4 @@
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { describe } from "vitest";
 import type { RuntimeAppearanceHistoricalRow } from "../../../../tooling/src/floor/appearance/appearance-matrix.ts";
 import type { BrowserEnvironmentEvidence } from "../../../../tooling/src/floor/browser/browser-environment.ts";

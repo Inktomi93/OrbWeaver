@@ -1,7 +1,7 @@
 // Every built client feature slice follows the slice layout, and every feature directory owns a registered definition.
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 const REPOSITORY = join(import.meta.dirname, "../..");
 const FEATURES = "packages/client/src/features";

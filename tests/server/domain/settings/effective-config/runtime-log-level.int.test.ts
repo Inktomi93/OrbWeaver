@@ -3,8 +3,8 @@
 // An admin's AppSettings.logLevel moves the running logger through the settings verb, with no restart.
 import type { LogLevel } from "@orb/contracts/settings";
 import { logger, logRing } from "@orb/server/foundation/observability";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
 
 const BOOT_LOG_LEVEL = "silent" satisfies LogLevel;
 const LOG_SCAN_LIMIT = 100;

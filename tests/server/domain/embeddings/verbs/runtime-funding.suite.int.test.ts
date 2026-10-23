@@ -12,9 +12,9 @@ import type { InferenceRuntime, ProviderExecutor, Resolved, RoleClientsWithSigna
 import { NoConnectionError } from "@orb/inference";
 import { DomainNoCredentialError } from "@orb/kit/errors";
 import { projectJsonSchema } from "@orb/kit/json-schema";
-import { TEST_BASE_URL, TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
-import type { Fixtures } from "@orb/testkit/node/fixtures.ts";
-import { expect } from "@orb/testkit/node/fixtures.ts";
+import type { Fixtures } from "@orb/testkit/node";
+import { expect } from "@orb/testkit/node";
+import { TEST_BASE_URL, TEST_PROVIDER_ID } from "@orb/testkit/node/helpers";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { FUNDING_KEY, FUNDING_MODEL, fundingConnection, test } from "./runtime-funding.fixtures.ts";

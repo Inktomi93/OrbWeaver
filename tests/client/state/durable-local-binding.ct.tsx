@@ -1,6 +1,5 @@
-import { createCorpusHarness } from "@orb/testkit/node/corpus.ts";
-import { seedCorpusAccount } from "@orb/testkit/node/corpus-auth.ts";
-import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/ct";
+import { createCorpusHarness, seedCorpusAccount } from "@orb/testkit/node/composed";
 import { expect, test } from "@playwright/test";
 import type { SessionFreshnessStory } from "../data/_session-freshness-stories.tsx";
 

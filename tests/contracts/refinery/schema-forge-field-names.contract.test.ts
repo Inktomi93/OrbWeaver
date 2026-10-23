@@ -1,6 +1,6 @@
 import type { ForgeDesignEnvelope } from "@orb/contracts/refinery";
 import { refinerySchemaDocumentSchema, transpileForgeDesign } from "@orb/contracts/refinery";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 type Row = ForgeDesignEnvelope["fields"][number];
 

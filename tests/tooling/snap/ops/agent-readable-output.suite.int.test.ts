@@ -7,8 +7,8 @@
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import process from "node:process";
-import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { FROZEN_AT_MS } from "@orb/testkit/iso";
+import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { installOutputSink } from "@orb/tooling/floor/cli/log";
 import { BOX_LOAD_ENV } from "@orb/tooling/floor/host/load-budget";

@@ -2,9 +2,9 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 import { spawn } from "node:child_process";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema, pluginToolWireName } from "@orb/contracts/plugin";
-import { makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "@orb/testkit/node/factories/plugin.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { terminalSseLine } from "@orb/testkit/node/provider-stream.ts";
+import { expect, test } from "@orb/testkit/node";
+import { makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "@orb/testkit/node/composed";
+import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { coreFrame, coreSse } from "../engine/core-physical.ts";
 import { turnToolsRoom, turnWireBody } from "./turn-rpg-physical.ts";
 

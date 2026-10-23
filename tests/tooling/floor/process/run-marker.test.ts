@@ -12,7 +12,7 @@
 // grace, then KILL), and which foreign runs are fair game (only those whose OWNER PID is gone).
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import { processCompletion } from "@orb/tooling/floor/host/platform";
 import { spawnNicedTranscript } from "@orb/tooling/floor/process/proc";

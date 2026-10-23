@@ -9,17 +9,11 @@ import {
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { seedCorpusActors, seedRecallRoom } from "@orb/testkit/node/corpus-seed.ts";
-import {
-  captureChatGenerationObservations,
-  captureChatReplayRows,
-  captureCompactionSpend,
-  seedChatInvite,
-  seedInvitedChatParticipant,
-} from "@orb/testkit/node/factories/chat.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+} from "../corpus-provider.ts";
+import { seedCorpusActors, seedRecallRoom } from "../corpus-seed.ts";
+import { expect, test } from "../fixtures.ts";
+import { createServerHarness } from "../server.ts";
+import { captureChatGenerationObservations, captureChatReplayRows, captureCompactionSpend, seedChatInvite, seedInvitedChatParticipant } from "./chat.ts";
 
 const REPLY = "The ledger's orbital witness is complete.";
 

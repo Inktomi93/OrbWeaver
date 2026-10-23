@@ -2,7 +2,7 @@
 // so the darwin and win32 branches are proven on Linux. A parser that misreads a column returns the wrong
 // pid to a kill path, so every column and every state filter has its own row.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import {
   parseCimProcesses,
   parseLsofSockets,

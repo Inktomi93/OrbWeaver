@@ -1,5 +1,5 @@
 import { cachePolicySchema } from "@orb/contracts/inference";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 const POLICY = cachePolicySchema.parse({
   prefix: { action: "none", format: null, ttl: null, cacheSystem: false, historyDepth: null, preservesBlockEnds: false },

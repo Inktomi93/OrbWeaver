@@ -11,7 +11,7 @@ import { join } from "node:path";
 import { parseEnv } from "node:util";
 import { SETUP_COMMAND } from "@orb/contracts/identity";
 import { ENV_FROM_FILE_KEY } from "@orb/kit/env-file";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { SERVER_ENTRY_REL, SERVER_NODE_FLAGS } from "@orb/tooling/floor/process/server-entry";
 import {
   decideStartBuild,

@@ -9,11 +9,9 @@ import process from "node:process";
 import { authConfigSchema } from "@orb/contracts/auth-config";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { requestWithHost } from "@orb/testkit/node/host-request.ts";
-import { lanAddress } from "@orb/testkit/node/lan-address.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
-import { claimShareOwner, readRelayStarts, relayExecutable, relayProgram } from "@orb/testkit/node/share.ts";
+import { expect, test } from "@orb/testkit/node";
+import { claimShareOwner, createServerHarness, readRelayStarts, relayExecutable, relayProgram } from "@orb/testkit/node/composed";
+import { lanAddress, requestWithHost } from "@orb/testkit/node/helpers";
 
 const RELAY_URL = "https://calm-river-four-birds.trycloudflare.com";
 

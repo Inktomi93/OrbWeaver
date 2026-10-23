@@ -3,8 +3,8 @@
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import { chatEvents, chatParticipants, messageVariants, statsCanonVersions } from "@orb/db";
 import { ChatNotFoundError, ChatOperationError } from "@orb/server/domain/chat";
-import type { ChatRoot } from "@orb/testkit/node/chat/composed.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import type { ChatRoot } from "@orb/testkit/node/composed";
 import { and, eq } from "drizzle-orm";
 import { TOOL_SIGNATURE } from "../engine/inline-image-physical.ts";
 import { signedContinuation } from "./continue-physical.ts";

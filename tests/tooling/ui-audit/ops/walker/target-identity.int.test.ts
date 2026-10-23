@@ -9,8 +9,8 @@
 // than a fence: 1 population without it, 2 with it.
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { AUDIT_ARGV, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node/ui-audit-relational.ts";
+import { AUDIT_ARGV, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
+import { expect, test } from "@orb/testkit/tooling";
 
 /** Two undersized offered controls in one authored home; `stamp` is what the primitive emits per arm. */
 function toolbar(stamps: readonly [string, string]): string {

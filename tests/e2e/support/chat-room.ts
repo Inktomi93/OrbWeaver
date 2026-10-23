@@ -21,7 +21,7 @@
 
 import { rowActionsName } from "@orb/client/lib";
 import type { MessageId } from "@orb/kit/ids";
-import { HOST_BAND, openContextSections } from "@orb/testkit/node/open-context-sections.ts";
+import { HOST_BAND, openContextSections } from "@orb/testkit/ct";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";

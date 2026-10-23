@@ -1,5 +1,5 @@
 import { isDeterministicColor, isRenderableColor, isSafeColor, parseCssColorToSrgb } from "@orb/kit/safe-color";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 test.each([
   ["#123", [17, 34, 51, 1]],

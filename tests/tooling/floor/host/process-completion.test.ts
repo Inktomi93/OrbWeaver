@@ -1,6 +1,6 @@
 // @subject tooling/src/floor/host/platform.ts
 import process from "node:process";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { completionProcesses, processCompletion } from "@orb/tooling/floor/host/platform";
 
 test.skipIf(process.platform !== "linux")("inaccessible candidates are excluded only before this positively matched owner incarnation", () => {

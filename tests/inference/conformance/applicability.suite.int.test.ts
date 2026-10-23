@@ -2,7 +2,7 @@
 // @subject packages/inference/src/registry/backends.ts
 import { WIRE_DEFS } from "@orb/contracts/inference";
 
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 import { CONFORMANCE_TASKS, CONFORMANCE_WIRES, conformanceRoot, hasDriver, skipReasonFor } from "./runtime.fixtures.ts";
 

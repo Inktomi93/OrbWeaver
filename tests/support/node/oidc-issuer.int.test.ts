@@ -1,9 +1,9 @@
 // @subject tests/support/node/oidc-issuer.ts
 import { createHash } from "node:crypto";
 import { MS_PER_MINUTE, MS_PER_SECOND } from "@orb/kit/time";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { CALLBACK, CLIENT_ID, CLIENT_SECRET, createNativeIssuer, ISSUER } from "@orb/testkit/node/oidc-issuer.ts";
 import { createRemoteJWKSet, customFetch, decodeJwt, jwtVerify } from "jose";
+import { expect, test } from "./fixtures.ts";
+import { CALLBACK, CLIENT_ID, CLIENT_SECRET, createNativeIssuer, ISSUER } from "./oidc-issuer.ts";
 
 const VERIFIER = "scripted-native-proof-verifier";
 const LOGOUT_EVENT = "http://schemas.openid.net/event/backchannel-logout";

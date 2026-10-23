@@ -8,8 +8,8 @@ import * as schema from "@orb/db/schema";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { LIFECYCLE_DOORS, NON_PORTABLE_CANON, NON_PORTABLE_CLASSES, PORTABLE_CANON_TABLES } from "@orb/server/entry/compose";
 import { appRouter } from "@orb/server/transport/trpc";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
 import { is } from "drizzle-orm";
 import { getTableConfig, SQLiteTable } from "drizzle-orm/sqlite-core";
 

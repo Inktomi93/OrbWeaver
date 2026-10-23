@@ -8,8 +8,8 @@ import { brandedId } from "@orb/kit/ids";
 import { createListSeedAccountIds } from "@orb/server/domain/sessions";
 import { seedOwner, settleBootSecrets } from "@orb/server/entry/boot";
 import { SECRET_FILE_NAMES } from "@orb/server/foundation/data-layout";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
 
 test("trusted boot moves its singleton seed key without taking another account's key and still enumerates disabled accounts", async () => {
   await using root = await createServerHarness();

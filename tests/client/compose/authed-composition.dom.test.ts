@@ -3,8 +3,8 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ModalDefinition, SectionDefinition } from "@orb/client/state";
 import { MODAL_SLOT_IDS, SECTION_IDS } from "@orb/client/state";
-import { createAuthedComposition, createClientRuntime } from "@orb/testkit/browser/ct-door.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { createAuthedComposition, createClientRuntime } from "@orb/testkit/browser";
+import { expect, test } from "@orb/testkit/node";
 
 const CLIENT_SRC = fileURLToPath(new URL("../../../packages/client/src", import.meta.url));
 const SINGLETON_PLACEMENT = "mobile-tab" satisfies ModalDefinition["trigger"]["placement"];

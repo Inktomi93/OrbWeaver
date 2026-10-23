@@ -3,8 +3,8 @@ import { mkdtempSync } from "node:fs";
 import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { SdkScriptSpawn } from "@orb/testkit/node/sdk-process.ts";
-import { createSdkProcessSpawner } from "@orb/testkit/node/sdk-process.ts";
+import type { SdkScriptSpawn } from "@orb/testkit/node/helpers";
+import { createSdkProcessSpawner } from "@orb/testkit/node/helpers";
 import { afterEach } from "vitest";
 
 const leases = new Set<AsyncDisposable>();

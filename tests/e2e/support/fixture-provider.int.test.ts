@@ -1,5 +1,5 @@
 // The external fixture refuses a wrong latest user turn and does not finish a held stream early.
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { FIXTURE_COVER_MARKER, startFixtureProvider } from "./fixture-provider.ts";
 
 const TURN = { userMessage: "Synthetic correct turn", prefix: "Synthetic prefix", suffix: " and tail." };

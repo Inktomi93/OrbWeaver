@@ -5,17 +5,18 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { createDb, embedGenerationTargets, embedSpaceState, preCloseHousekeeping, runMigrations } from "@orb/db";
+import { expect, test } from "@orb/testkit/node";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { seedCorpusActors, seedRecallRoom } from "@orb/testkit/node/corpus-seed.ts";
-import { SHIPPED_MIGRATIONS } from "@orb/testkit/node/db.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+  createServerHarness,
+  SHIPPED_MIGRATIONS,
+  seedCorpusActors,
+  seedRecallRoom,
+} from "@orb/testkit/node/composed";
 
 test("room document consent is current at the native scan, not frozen before query embedding", async () => {
   await using resources = new AsyncDisposableStack();

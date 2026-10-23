@@ -1,8 +1,7 @@
 // Probes the actual CT data and registry door without replacing a feature or transport implementation.
 import { createTrpcClient } from "@orb/client/data";
 import { CommandPaletteSourceRegistryContext, MessageToolsRendererRegistryContext, SlashCommandRegistryContext, useSectionRegistry } from "@orb/client/state";
-import { CtAppDataProviders, CtClientProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
-import { CtIsolation } from "@orb/testkit/browser/ct-isolated-subject.tsx";
+import { CtAppDataProviders, CtClientProviders, CtIsolation } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";

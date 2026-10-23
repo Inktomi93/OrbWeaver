@@ -1,7 +1,7 @@
 // Dependencies can explicitly load Node declarations into browser programs; lint rejects their runtime globals.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { describe } from "vitest";

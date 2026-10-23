@@ -4,19 +4,19 @@
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import { characterEmbeddings, embeddingCalls } from "@orb/db";
+import { and, eq, inArray } from "drizzle-orm";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { seedCorpusConnections } from "@orb/testkit/node/corpus-seed.ts";
-import { seedCharacterDistillations, seedDuplicateCharacterPairs } from "@orb/testkit/node/factories/discovery.ts";
-import { seedEmbeddedCorpus, seedEmbeddingGeneration } from "@orb/testkit/node/factories/embedding-generation.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
-import { and, eq, inArray } from "drizzle-orm";
+} from "../corpus-provider.ts";
+import { seedCorpusConnections } from "../corpus-seed.ts";
+import { expect, test } from "../fixtures.ts";
+import { createServerHarness } from "../server.ts";
+import { seedCharacterDistillations, seedDuplicateCharacterPairs } from "./discovery.ts";
+import { seedEmbeddedCorpus, seedEmbeddingGeneration } from "./embedding-generation.ts";
 
 type MutablePhysicalScript = Omit<Parameters<typeof createCorpusProviderExecution>[0], "embedding"> & { embedding: number[] };
 

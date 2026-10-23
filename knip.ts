@@ -53,10 +53,20 @@ export const config = {
       // typeid-js is resolved through the root node_modules by fixtures that copy packages/kit/src/ids (testkit-enforcement nativeProgram).
       ignoreDependencies: ["pino-pretty", "@anthropic-ai/sdk", "typeid-js"],
     },
-    // @orb/testkit: every world module is a package subpath export, so each one is an entry.
+    // @orb/testkit: the doors come from package.json `exports`; these entries are loaded by path instead (the
+    // vitest setupFiles warm, URL-loaded kernels, spawned SDK stand-ins) or are the package's own tests.
     "tests/support": {
       includeEntryExports: true,
-      entry: ["{iso,node,browser}/**/*.{ts,tsx}"],
+      entry: [
+        "node/composed-real.ts",
+        "node/refuse-model-kernel.ts",
+        "node/reference-head-kernel.ts",
+        "node/db-holder.ts",
+        "node/migrate-data-layout.ts",
+        "node/sdk-private-diagnostic-root.ts",
+        "node/*.mjs",
+        "{iso,node,browser}/**/*.{test,int.test,suite.int.test,test-d,dom.test-d,ct}.{ts,tsx}",
+      ],
       project: ["{iso,node,browser}/**/*.{ts,tsx}"],
       // Peer pin for @anthropic-ai/claude-agent-sdk (pnpm-workspace.yaml); never imported.
       ignoreDependencies: ["@anthropic-ai/sdk"],

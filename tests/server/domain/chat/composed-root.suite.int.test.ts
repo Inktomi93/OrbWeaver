@@ -5,19 +5,18 @@ import type { TurnOutcome } from "@orb/contracts/chat";
 import { chatEvents, messages, ownerStats } from "@orb/db";
 import { jsonValueSchema } from "@orb/kit/json";
 import { ChatNotFoundError } from "@orb/server/domain/chat";
-import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
-import { createControlledTimers } from "@orb/testkit/iso/timers.ts";
-import { assertEventSequence } from "@orb/testkit/node/chat/assertions.ts";
-import type { ChatRoot } from "@orb/testkit/node/chat/composed.ts";
-import { createChatRoot } from "@orb/testkit/node/chat/composed.ts";
+import { createControlledTimers, createFrozenClock } from "@orb/testkit/iso";
+import { expect, test } from "@orb/testkit/node";
+import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
+  createChatRoot,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+} from "@orb/testkit/node/composed";
+import { assertEventSequence } from "@orb/testkit/node/helpers";
 import { eq } from "drizzle-orm";
 
 async function room(

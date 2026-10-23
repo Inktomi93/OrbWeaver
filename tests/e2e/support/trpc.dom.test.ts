@@ -6,8 +6,8 @@ import { CSRF_HEADER } from "@orb/contracts/identity";
 import { TRPC_BATCH_MAX_ITEMS } from "@orb/contracts/rpc";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
 import { ownerActor, SESSION_COOKIE } from "./actors.ts";
 import { createTrpcClient } from "./trpc.ts";
 

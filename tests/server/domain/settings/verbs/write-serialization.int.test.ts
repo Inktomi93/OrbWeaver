@@ -1,8 +1,7 @@
 // Settings edits and portability imports must share the same per-user write owner.
 import { closeDb } from "@orb/db";
-import { freshHeldDb } from "@orb/testkit/node/db.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness, freshHeldDb } from "@orb/testkit/node/composed";
 import { buildUserSettingsBackup } from "#server/primitives/serde/user-settings/index.ts";
 
 test("a held backup import preserves a concurrent section edit while another user keeps writing", async () => {

@@ -1,4 +1,4 @@
-import { CtIsolation } from "@orb/testkit/browser/ct-isolated-subject.tsx";
+import { CtIsolation } from "@orb/testkit/browser";
 import { Toolbar, ToolbarButton, ToolbarGroup, ToolbarInput, ToolbarLink, ToolbarSeparator } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";

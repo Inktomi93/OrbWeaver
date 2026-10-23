@@ -1,6 +1,6 @@
 // @subject packages/inference/src/registry/dispatch.ts
 // @subject packages/inference/src/backends/http/abort-flatten.ts
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 import { CONFORMANCE_WIRES, cancellationTaskFor, driveCancellable, settledProviderError } from "./runtime.fixtures.ts";
 

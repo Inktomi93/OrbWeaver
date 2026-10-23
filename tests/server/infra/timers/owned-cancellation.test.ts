@@ -1,6 +1,6 @@
 import type { TimerScheduler } from "@orb/kit/time";
 import { createScopedTimers } from "@orb/server/infra/timers";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 test("a raw clear failure still attempts every owned timer cancellation and preserves the failure", async () => {
   const failure = new Error("first raw timer clear failed");

@@ -17,7 +17,7 @@
 // WHOLE is missing evidence — `withheld`, which makes the run NO VERDICT — never a judged pass, and never
 // a finding minted off the args that happened to parse.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { describe } from "vitest";
 import { checkRadialGlow, classifyRadialGlow } from "../../../../tooling/src/ui-audit/lib/checks-ornament.ts";
 

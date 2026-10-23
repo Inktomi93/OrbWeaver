@@ -3,7 +3,7 @@ import { once } from "node:events";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { z } from "zod";
 import { killPidGroup } from "../../../../tooling/src/floor/process/proc.ts";
 import { doDevDown, stackContext } from "../../../../tooling/src/stack/index.ts";

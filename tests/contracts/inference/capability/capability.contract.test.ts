@@ -1,5 +1,5 @@
 import { capabilitySchema, EMBEDDING_FLOOR, GENERATION_FLOOR, modelKindSchema, RERANK_FLOOR, TASK_DEFS, TASKS, tasksOfKind } from "@orb/contracts/inference";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 test("canonical capability floors retain their complete payloads through parsing and serialization", () => {
   for (const input of [

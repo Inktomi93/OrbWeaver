@@ -1,7 +1,7 @@
 // Invariant 10 subject writers and D257 handle keys use the configured native ESLint rules.
 
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";

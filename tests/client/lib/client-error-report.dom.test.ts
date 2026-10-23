@@ -2,7 +2,7 @@
 
 import { buildClientErrorPayload } from "@orb/client/lib";
 import { clientErrorReportSchema } from "@orb/contracts/diagnostics";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 test("the caught render error builder preserves optional fields and the unsanitized injected URL", () => {
   const error = new Error("render failed");

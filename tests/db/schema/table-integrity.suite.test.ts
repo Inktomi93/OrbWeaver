@@ -3,7 +3,7 @@
 // runs on small synthetic tables, so a predicate that stopped seeing the real schema cannot pass by seeing nothing.
 // biome-ignore lint/performance/noNamespaceImport: the census denominator is every schema export, including tables a named import would omit.
 import * as schema from "@orb/db/schema";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { is } from "drizzle-orm";
 import {
   blob,

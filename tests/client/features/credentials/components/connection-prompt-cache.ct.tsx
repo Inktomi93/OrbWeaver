@@ -1,11 +1,11 @@
 import "@orb/testkit/node/composed-real.ts";
 import type { PromptCacheSettings } from "@orb/contracts/inference";
 import { builtinProvider, effectivePromptCache, foldFeatures, SUMMARIZE_CONCURRENCY_MAX } from "@orb/contracts/inference";
-import { expectCacheProse } from "@orb/testkit/browser/cache-prose.ts";
-import { expect, test } from "@orb/testkit/node/ct-corpus.ts";
-import type { TrpcInput, TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
-import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expectCacheProse } from "@orb/testkit/browser";
+import type { TrpcInput, TrpcRecorder, TrpcWireOutput } from "@orb/testkit/ct";
+import { routeTrpc } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
+import { createServerHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import type { ConnectionPromptCacheStory } from "./_prompt-cache-stories.tsx";
 

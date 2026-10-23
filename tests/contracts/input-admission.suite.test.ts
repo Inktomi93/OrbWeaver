@@ -17,7 +17,7 @@ import {
 } from "@orb/contracts/stats";
 import { worldBookIdInputSchema } from "@orb/contracts/world-info";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 test("optional library requests preserve absence without injecting paging defaults", () => {
   for (const schema of [

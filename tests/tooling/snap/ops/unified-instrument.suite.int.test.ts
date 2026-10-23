@@ -1,7 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { CliResult } from "@orb/testkit/node/tool-fixtures.ts";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import type { CliResult } from "@orb/testkit/tooling";
+import { expect, test } from "@orb/testkit/tooling";
 import type { MeterData, StepReport } from "@orb/tooling/cpu-profile";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { BOX_LOAD_ENV } from "@orb/tooling/floor/host/load-budget";

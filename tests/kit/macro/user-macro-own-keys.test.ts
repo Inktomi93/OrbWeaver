@@ -2,7 +2,7 @@
 // name-keyed read of the per-turn planes must address only the plane's own entries.
 import type { UserMacroDef, UserMacroInputDef } from "@orb/kit/macro";
 import { createDefaultRegistry, processMacros, registerUserMacros, resolveUserMacroInputs } from "@orb/kit/macro";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 const INHERITED_NAMES = ["constructor", "toString"] as const;
 const SOURCE = { kind: "preset", id: "preset_test" } as const;

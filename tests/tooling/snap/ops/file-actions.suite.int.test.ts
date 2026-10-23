@@ -4,7 +4,7 @@
 // boundary both refuse loudly instead of producing a clean zero-file receipt.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { vi } from "vitest";
 import { scaledBudget } from "../../_load-budget.ts";
 

@@ -1,16 +1,16 @@
 // @subject packages/server/src/domain/chat/substrate/member-visibility.ts
 // The producer stamps member bytes once, so a member resuming the durable log mid-span never reads the truth.
 import { createCharacterSchema } from "@orb/contracts/character";
+import { expect, test } from "@orb/testkit/node";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { seedCorpusActors } from "@orb/testkit/node/corpus-seed.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+  createServerHarness,
+  seedCorpusActors,
+} from "@orb/testkit/node/composed";
 
 const TRUTH_HEAD = "stamp-truth-";
 const TRUTH_TAIL = "resumed-tail";

@@ -1,6 +1,6 @@
 import type { Notify, SessionDocumentHost } from "@orb/client/lib";
 import { leaseNotify, leaseSessionDocumentHost, notify, sessionDocument } from "@orb/client/lib";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 function documentHost(name: string, navigations: string[], at: number): SessionDocumentHost {
   return {

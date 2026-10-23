@@ -1,9 +1,9 @@
 import { blobUrl } from "@orb/contracts/assets";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { createCorpusHarness } from "@orb/testkit/node/corpus.ts";
-import { expect, test } from "@orb/testkit/node/ct-corpus.ts";
-import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcWireOutput } from "@orb/testkit/ct";
+import { routeTrpc, trpcError } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
+import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { TideMediaLifetimeStory } from "./_media-lifetime-stories.tsx";
 
 test.use({ trace: "on" });

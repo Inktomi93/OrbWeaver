@@ -5,18 +5,18 @@ import type { TurnOutcome } from "@orb/contracts/chat";
 import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import { chatDigests, chatEvents, chatSegments, messages } from "@orb/db";
 import { logRing } from "@orb/server/foundation/observability";
-import { createSeededIds } from "@orb/testkit/iso/ids.ts";
-import type { ChatRoot } from "@orb/testkit/node/chat/composed.ts";
-import { createChatRoot } from "@orb/testkit/node/chat/composed.ts";
+import { createSeededIds } from "@orb/testkit/iso";
+import { expect, test } from "@orb/testkit/node";
+import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
+  createChatRoot,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { seedMessage } from "@orb/testkit/node/factories/message.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+  seedMessage,
+} from "@orb/testkit/node/composed";
 import { eq, sql } from "drizzle-orm";
 import { vi } from "vitest";
 

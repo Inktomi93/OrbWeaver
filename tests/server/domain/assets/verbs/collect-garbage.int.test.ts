@@ -19,16 +19,23 @@ import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { recordPluginFetchedAsset } from "@orb/server/domain/plugin";
 import type { Cas } from "@orb/server/infra/storage/cas";
 import { createCas } from "@orb/server/infra/storage/cas";
-import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
-import { CORPUS_EMBEDDING_VECTOR, CORPUS_PROVIDER_ENDPOINT, createCorpusProviderExecution } from "@orb/testkit/node/corpus-provider.ts";
-import { seedCorpusConnections } from "@orb/testkit/node/corpus-seed.ts";
-import { freshHeldDb } from "@orb/testkit/node/db.ts";
-import { makeAssetBytes } from "@orb/testkit/node/factories/asset.ts";
-import { seedChatInvite, seedInvitedChatParticipant } from "@orb/testkit/node/factories/chat.ts";
-import { makePluginBundle, seedDistributedPlugin, seedInstalledPlugin } from "@orb/testkit/node/factories/plugin.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { FROZEN_AT_MS } from "@orb/testkit/iso";
+import { expect, test } from "@orb/testkit/node";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import {
+  CORPUS_EMBEDDING_VECTOR,
+  CORPUS_PROVIDER_ENDPOINT,
+  createCorpusProviderExecution,
+  createServerHarness,
+  freshHeldDb,
+  makeAssetBytes,
+  makePluginBundle,
+  seedChatInvite,
+  seedCorpusConnections,
+  seedDistributedPlugin,
+  seedInstalledPlugin,
+  seedInvitedChatParticipant,
+} from "@orb/testkit/node/composed";
 import { eq, sql } from "drizzle-orm";
 import { onTestFinished } from "vitest";
 

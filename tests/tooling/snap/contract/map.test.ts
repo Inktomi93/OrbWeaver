@@ -1,4 +1,4 @@
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import {
   MAP_ACTIONABILITIES,
   MAP_INACTIVE_REASONS,

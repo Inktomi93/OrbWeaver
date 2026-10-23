@@ -1,6 +1,6 @@
 // Reconcile the Appearance manifest with settings leaves, editor ownership and observable carrier arms.
 import { appearanceSettingsSchema } from "@orb/contracts/settings";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import {
   APPEARANCE_CARRIER_MANIFEST,
   APPEARANCE_CARRIER_OBSERVABLES,

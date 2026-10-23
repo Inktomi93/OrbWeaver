@@ -7,14 +7,9 @@ import { healthResponseSchema } from "@orb/contracts/diagnostics";
 import { closeDb } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
-import type { CorpusWire } from "@orb/testkit/iso/corpus.ts";
-import { hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "@orb/testkit/iso/corpus.ts";
-import { createCorpusReadResponder, createCorpusViewerReadResponder } from "@orb/testkit/iso/corpus-read-responder.ts";
-import { captureCookieAuth, captureCorpusReads, seedCorpusActors, seedCorpusLibraries } from "@orb/testkit/node/corpus-seed.ts";
-import { seedUserCredential } from "@orb/testkit/node/factories/credentials.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import type { CorpusWire } from "../iso/corpus.ts";
+import { hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "../iso/corpus.ts";
+import { createCorpusReadResponder, createCorpusViewerReadResponder } from "../iso/corpus-read-responder.ts";
 import { captureCorpusMemberMessages, seedCorpusChatLifecycle } from "./corpus-chat-lifecycle.ts";
 import { CORPUS_CHAT_MODEL, CORPUS_CHAT_REPLY, createCorpusChatWire } from "./corpus-chat-wire.ts";
 import { CORPUS_NOTIFICATION_RULE_MESSAGE, seedCorpusNotifications } from "./corpus-notifications.ts";
@@ -28,7 +23,12 @@ import {
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
 } from "./corpus-provider.ts";
+import { captureCookieAuth, captureCorpusReads, seedCorpusActors, seedCorpusLibraries } from "./corpus-seed.ts";
 import { freshHeldDb } from "./db.ts";
+import { seedUserCredential } from "./factories/credentials.ts";
+import { expect, test } from "./fixtures.ts";
+import type { ServerTestHarness } from "./server.ts";
+import { createServerHarness } from "./server.ts";
 
 const PRIVATE_KEY = 'native-publication-"credential"\\959';
 const OWNER_PASSWORD = "native-publication-owner-password";

@@ -3,9 +3,8 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { parseVariantMetadata } from "@orb/contracts/chat";
 import { characters, chatGenerationObservations, closeDb, messages, messageVariants, ownerStats } from "@orb/db";
-import { freshHeldDb } from "@orb/testkit/node/db.ts";
-import { captureSdkSessionRows } from "@orb/testkit/node/factories/connection.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import { captureSdkSessionRows, freshHeldDb } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { coreSdkRoom } from "./core-sdk-fixture.ts";
 

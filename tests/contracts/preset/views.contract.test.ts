@@ -1,10 +1,9 @@
 import { effectivePresetSchema, presetDetailSchema, presetSummarySchema, presetUsageViewSchema, promptConfigConfig } from "@orb/contracts/preset";
 import { VERSIONED_PARSE_FAILURES } from "@orb/contracts/versioned-config";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
-import { makePresetDetail, makePresetSummary } from "@orb/testkit/node/factories/preset-view.ts";
-import { makeCachePolicy } from "@orb/testkit/node/factories/resolved-connection.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { testModelId } from "@orb/testkit/iso";
+import { expect, test } from "@orb/testkit/node";
+import { makeCachePolicy, makePresetDetail, makePresetSummary } from "@orb/testkit/node/helpers";
 
 test("preset output parsers retain normalized configuration and unreadable disclosure without admitting private config fields", () => {
   const detail = makePresetDetail({ schemaVersion: promptConfigConfig.currentVersion });

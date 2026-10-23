@@ -19,7 +19,7 @@
 // @instrument-proof: every arm below runs the SAME selectors against a page that carries the element and
 // one that does not, through the real CLI, so a refusal that fired unconditionally reds the control.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { scaledBudget } from "../../../_load-budget.ts";
 

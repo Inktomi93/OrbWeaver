@@ -6,8 +6,8 @@ import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import type { PluginHostSeamDeps } from "@orb/server/infra/plugin-host";
-import { capturePluginRows, makePluginBundle } from "@orb/testkit/node/factories/plugin.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import { capturePluginRows, makePluginBundle } from "@orb/testkit/node/composed";
 
 export const PLUGIN_PROCESS_OPERATIONS = { mint: "seam.mintId", read: "storage.get", write: "storage.set", variableWrite: "variables.set" } as const;
 

@@ -8,7 +8,7 @@
 // tests/tooling/ui-audit/index.test.ts, and #1027 changed no threshold, severity or message.
 
 import { readFile } from "node:fs/promises";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { DESIGN_AUDIT_RULE_IDS } from "../../../../tooling/src/ui-audit/contract/rules.ts";
 import type { RawSamples, TextStyleInput } from "../../../../tooling/src/ui-audit/index.ts";
 import { collectAudit } from "../../../../tooling/src/ui-audit/lib/collect.ts";

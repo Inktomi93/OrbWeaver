@@ -2,7 +2,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { TAG_TARGET_TYPES } from "@orb/contracts/tag";
 import { characterTags, chatTags } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { eq } from "drizzle-orm";
 
 test("tag mutation ingress refuses malformed and wrong-kind target ids without changing an owned attachment", async ({ harness }) => {

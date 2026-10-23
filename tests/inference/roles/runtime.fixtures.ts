@@ -3,12 +3,10 @@ import type { Capability, DeclaredCapability, EndpointFeatures, GenerationCapabi
 import { BUILTIN_PROVIDERS, declaredCapabilitySchema } from "@orb/contracts/inference";
 import type { Resolved } from "@orb/inference";
 import type { ScheduleOp } from "@orb/kit/time";
-import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
-import { makeCapability, makeGenerationCapability } from "@orb/testkit/iso/inference-capability.ts";
-import type { ControlledTimers } from "@orb/testkit/iso/timers.ts";
-import { createControlledTimers } from "@orb/testkit/iso/timers.ts";
-import type { ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/server.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import type { ControlledTimers } from "@orb/testkit/iso";
+import { createControlledTimers, createFrozenClock, makeCapability, makeGenerationCapability } from "@orb/testkit/iso";
+import type { ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/composed";
+import { createServerHarness } from "@orb/testkit/node/composed";
 
 type ConnectionFields = Omit<Parameters<ServerTestHarness["services"]["connection"]["create"]>[0], "principal">;
 

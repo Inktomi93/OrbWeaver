@@ -1,6 +1,6 @@
 // @subject packages/contracts/src/embeddings/index.ts
 import { imageCaptionMetaSchema } from "@orb/contracts/embeddings";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 test("stored image metadata retains future residue through parse and JSON roundtrip without relaxing known facets", () => {
   const stored = {

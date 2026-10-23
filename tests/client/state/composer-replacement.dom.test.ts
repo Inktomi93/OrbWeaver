@@ -1,6 +1,6 @@
 import { readComposerDraft, readComposerDraftSnapshot, replaceComposerDraft, setComposerDraft } from "@orb/client/state";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 test("replacement and Undo require the captured edit revision and preserve exact unsent text", ({ ids }) => {
   const first = mintTypeId(ID_PREFIX.chat, ids.next);

@@ -3,7 +3,7 @@ import { join, relative } from "node:path";
 import { cwd } from "node:process";
 import { pathToFileURL } from "node:url";
 import { backupBeforeMigrate, closeDb, createDb, detachWal, forecastDevDbReset, localPath, preCloseHousekeeping, pruneDbBackups } from "@orb/db";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { sql } from "drizzle-orm";
 
 const VERSION = 1013;

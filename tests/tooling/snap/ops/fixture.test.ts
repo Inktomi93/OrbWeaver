@@ -8,7 +8,7 @@
 // (SNAP_FIXTURE_SERVER_URL) that existed but reached NEITHER the health probe nor the browser's base URL.
 // One resolve feeding both halves is the fix; these cases are its lens.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { DEV_PORTS, FIXTURE_PORTS } from "../../../../tooling/src/floor/host/ports.ts";
 import type { PortOwnerAuthProbe } from "../../../../tooling/src/snap/contract/fixture.ts";
 import {

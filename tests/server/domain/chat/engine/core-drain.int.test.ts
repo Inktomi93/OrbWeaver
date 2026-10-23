@@ -6,10 +6,10 @@ import type { LogLevel } from "@orb/contracts/settings";
 import { chatEvents, chatLocks, closeDb, messages, messageVariants } from "@orb/db";
 import { ProviderError } from "@orb/inference";
 import { logRing } from "@orb/server/foundation/observability";
-import type { HeldStatement } from "@orb/testkit/node/db.ts";
-import { freshHeldDb } from "@orb/testkit/node/db.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { terminalSseLine } from "@orb/testkit/node/provider-stream.ts";
+import { expect, test } from "@orb/testkit/node";
+import type { HeldStatement } from "@orb/testkit/node/composed";
+import { freshHeldDb } from "@orb/testkit/node/composed";
+import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { eq, sql } from "drizzle-orm";
 import { coreFrame, coreHttpRoom, coreSse } from "./core-physical.ts";
 

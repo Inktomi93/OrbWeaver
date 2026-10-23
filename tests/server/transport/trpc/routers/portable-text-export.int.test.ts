@@ -4,7 +4,7 @@
 import { personaBackupSchema } from "@orb/contracts/persona";
 import { portableTextFileSchema } from "@orb/contracts/portability";
 import { createRegexScriptSchema, portableRegexScriptSchema } from "@orb/contracts/regex";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 test("persona download wrapper retains native backup contents and cannot export a stranger's persona", async ({ ownerCaller, otherCaller }) => {
   const persona = await ownerCaller.persona.create({ input: { name: "Owned export", description: "Only this owner's prose." } });

@@ -13,7 +13,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { aggregateScope, artifactRef } from "@orb/tooling/floor/artifacts/artifact-scope";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import type { DiskSafeBrowserDiagnostic } from "../../../../tooling/src/snap/contract/browser-evidence-redaction.ts";

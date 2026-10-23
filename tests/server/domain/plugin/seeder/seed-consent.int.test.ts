@@ -5,10 +5,9 @@ import { plugins } from "@orb/db";
 import { createDistributedPluginApplier, createExamplePluginSeeder, createPluginSeedOps } from "@orb/server/domain/plugin";
 import { createSettingsComposedOps } from "@orb/server/domain/settings";
 import { packShowcaseBundle, readShowcaseManifest, SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
-import { seedUser } from "@orb/testkit/node/factories/user.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { requireShowcaseBundle } from "@orb/testkit/node/showcase-bundle.ts";
+import { expect, test } from "@orb/testkit/node";
+import { requireShowcaseBundle, seedUser } from "@orb/testkit/node/composed";
+import { principal } from "@orb/testkit/node/helpers";
 import { eq, sql } from "drizzle-orm";
 import { vi } from "vitest";
 

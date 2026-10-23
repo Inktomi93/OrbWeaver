@@ -1,4 +1,4 @@
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { CACHE_CASES, CACHE_ROUTES, parseCacheCheckArgs } from "@orb/tooling/cache-check";
 import { UsageError } from "../../../../tooling/src/floor/cli/run-tool.ts";
 

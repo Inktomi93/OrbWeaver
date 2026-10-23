@@ -11,9 +11,8 @@ import {
   statementForOwner,
   statementToken,
 } from "@orb/db/wiring-owner";
-import { freshDb } from "@orb/testkit/node/db.ts";
-import { makeUser } from "@orb/testkit/node/factories/user.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import { freshDb, makeUser } from "@orb/testkit/node/composed";
 import { sql } from "drizzle-orm";
 
 test("wiring handles are distinct inert identities and retain the borrowed physical connection", async () => {

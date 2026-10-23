@@ -1,7 +1,7 @@
 // @subject tests/support/iso/rpg-state.ts
 
 import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
-import { createSeededIds } from "@orb/testkit/iso/ids.ts";
+import { createSeededIds } from "../iso/ids.ts";
 import {
   makeRpgActorEntry,
   makeRpgActorIdentity,
@@ -10,8 +10,8 @@ import {
   makeRpgRelationship,
   makeRpgSheet,
   makeRpgTrackerValue,
-} from "@orb/testkit/iso/rpg-state.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+} from "../iso/rpg-state.ts";
+import { expect, test } from "./fixtures.ts";
 
 test("whole actor defaults retain the supplied reference without sharing mutable inventory", () => {
   const seeded = createSeededIds();

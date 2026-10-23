@@ -1,5 +1,5 @@
 import { Sandbox } from "@orb/server/infra/plugin-host";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 test("guest error fields remain plain diagnostics without host object coercion", async ({ clock }) => {
   using sandbox = await Sandbox.create({ nowEpochMs: clock.now, nextRandom: () => 0, mintId: () => "guest-error-test" });

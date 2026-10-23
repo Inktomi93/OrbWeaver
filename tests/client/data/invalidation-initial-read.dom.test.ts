@@ -1,9 +1,9 @@
 // @subject packages/client/src/data/invalidation.ts
 import type { Invalidation } from "@orb/client/data";
 import { useInvalidation } from "@orb/client/data";
-import { AppDataProviders, createClientRuntime } from "@orb/testkit/browser/ct-door.ts";
-import { makeTagView } from "@orb/testkit/node/factories/tag-view.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { AppDataProviders, createClientRuntime } from "@orb/testkit/browser";
+import { expect, test } from "@orb/testkit/node";
+import { makeTagView } from "@orb/testkit/node/helpers";
 import { QueryObserver } from "@tanstack/react-query";
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";

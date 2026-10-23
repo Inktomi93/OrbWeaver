@@ -1,8 +1,8 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // The real member author and frozen host connection remain distinct from retained canon accounting.
 import { characterStats, dailyStats, ownerStats } from "@orb/db";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { terminalSseLine } from "@orb/testkit/node/provider-stream.ts";
+import { expect, test } from "@orb/testkit/node";
+import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { eq } from "drizzle-orm";
 import { coreFrame, coreHttpRoom, coreSse } from "./core-physical.ts";
 

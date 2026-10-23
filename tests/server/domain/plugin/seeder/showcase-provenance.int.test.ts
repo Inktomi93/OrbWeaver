@@ -1,7 +1,7 @@
 import { createExamplePluginSeeder, createPluginSeedOps, createShowcaseVersionReader } from "@orb/server/domain/plugin";
 import { createSettingsComposedOps } from "@orb/server/domain/settings";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { requireShowcaseBundle, requireShowcaseManifest } from "@orb/testkit/node/showcase-bundle.ts";
+import { expect, test } from "@orb/testkit/node";
+import { requireShowcaseBundle, requireShowcaseManifest } from "@orb/testkit/node/composed";
 
 test("missing bundles retry without latching while only installed versions advance real provenance", async ({ harness }) => {
   const caller = await harness.principalFor((await harness.actor()).id);

@@ -10,8 +10,8 @@ import { createCharacterImportOps } from "@orb/server/domain/character";
 import { buildImportContext, createInstallerCharacterImport } from "@orb/server/domain/import";
 import { createImportedCardTag } from "@orb/server/domain/tag";
 import { createHostPrincipalResolver } from "@orb/server/entry/auth";
-import { seedUser } from "@orb/testkit/node/factories/user.ts";
-import { expect, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, OWNER_USER_ID, test } from "@orb/testkit/node";
+import { seedUser } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
 

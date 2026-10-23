@@ -3,7 +3,7 @@
 // 5.3 KB of a 17 KB `--map` run. This is the parse that replaced it, pinned on the exact shapes the
 // client logger emits (captured from a live /chats run, 2026-09-04) plus the two ways it can be wrong.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { DiskSafeBrowserDiagnostic } from "../../../../tooling/src/snap/contract/browser-evidence-redaction.ts";
 import { annotationOf, annotationText, diagnosticFindingDrafts } from "../../../../tooling/src/snap/lib/run-finding-console-annotation.ts";
 

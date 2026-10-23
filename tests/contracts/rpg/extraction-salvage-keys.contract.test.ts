@@ -1,5 +1,5 @@
 import { toolCallsToExtraction } from "@orb/contracts/rpg";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 // Tool-call arguments are model output, and JSON.parse keeps `__proto__` as an own key.
 test("a refused field cannot return through a __proto__ key in the salvaged arguments", () => {

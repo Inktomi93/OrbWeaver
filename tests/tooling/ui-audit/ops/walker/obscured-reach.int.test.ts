@@ -22,9 +22,9 @@
 // declines to answer at this coordinate", and the sub-pixel boundary is the whole mechanism.
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import type { RelationalPopulationReport } from "@orb/testkit/node/ui-audit-relational.ts";
-import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node/ui-audit-relational.ts";
+import type { RelationalPopulationReport } from "@orb/testkit/node";
+import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
+import { expect, test } from "@orb/testkit/tooling";
 
 const VIEWPORT = "800x1000";
 

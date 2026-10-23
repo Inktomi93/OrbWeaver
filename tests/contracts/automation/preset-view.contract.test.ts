@@ -1,6 +1,6 @@
 import type { RulePresetKnobView, RulePresetView } from "@orb/contracts/automation";
 import { rulePresetViewSchema } from "@orb/contracts/automation";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 const KNOBS = [
   { key: "everyN", kind: "number", label: "Cadence", default: 8, min: 2, max: 200 },

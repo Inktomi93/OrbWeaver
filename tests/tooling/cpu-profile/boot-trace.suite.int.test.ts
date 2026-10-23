@@ -6,7 +6,7 @@
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { beginBootTrace } from "@orb/tooling/cpu-profile";
 import type { CDPSession, Page } from "@playwright/test";
 import sharp from "sharp";

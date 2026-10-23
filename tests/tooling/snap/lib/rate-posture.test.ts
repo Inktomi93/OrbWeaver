@@ -1,7 +1,7 @@
 // The rate posture belongs to one Snap run. Every rate arm must consume the same acceleration/load
 // sample even when a hypothetical second read would disagree.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { vi } from "vitest";
 import { launchProbeSession, withProbeSession } from "../../../../tooling/src/floor/browser/browser.ts";
 import type { BrowserAccelerationEvidence } from "../../../../tooling/src/floor/browser/browser-acceleration.ts";

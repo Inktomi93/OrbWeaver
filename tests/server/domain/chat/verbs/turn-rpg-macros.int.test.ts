@@ -2,8 +2,8 @@
 // @subject packages/server/src/domain/rpg/chat-ops/index.ts
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { messageVariants } from "@orb/db";
-import { makePromptConfig } from "@orb/testkit/iso/preset-config.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { makePromptConfig } from "@orb/testkit/iso";
+import { expect, test } from "@orb/testkit/node";
 import { eq } from "drizzle-orm";
 import { GAME_MOOD } from "./turn-rpg-macro-data.ts";
 import { turnRpgReply, turnRpgRoom, turnWireBody } from "./turn-rpg-physical.ts";

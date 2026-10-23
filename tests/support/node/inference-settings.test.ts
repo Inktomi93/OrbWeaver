@@ -2,9 +2,9 @@
 // @subject tests/support/iso/prompt-cache-settings.ts
 
 import { SHIPPED_PROMPT_CACHE, WIRE_DEFAULT_FEATURES } from "@orb/contracts/inference";
-import { makeEndpointFeatures } from "@orb/testkit/iso/endpoint-features.ts";
-import { makePromptCacheSettings } from "@orb/testkit/iso/prompt-cache-settings.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { makeEndpointFeatures } from "../iso/endpoint-features.ts";
+import { makePromptCacheSettings } from "../iso/prompt-cache-settings.ts";
+import { expect, test } from "./fixtures.ts";
 
 test("a single concurrency override cannot erase the other wire defaults", () => {
   const features = makeEndpointFeatures({ concurrency: { embed: 1 } });

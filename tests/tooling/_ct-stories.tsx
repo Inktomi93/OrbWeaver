@@ -5,7 +5,7 @@
 // Imports go through the SAME `@orb/ui/*` aliases the CT providers use — a relative path into
 // packages/ui would resolve a second module instance and mount blank.
 
-import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
+import { storyTestId } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Slider } from "@orb/ui/slider";

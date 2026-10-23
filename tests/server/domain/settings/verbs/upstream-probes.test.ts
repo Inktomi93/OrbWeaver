@@ -2,7 +2,7 @@
 
 import type { UpstreamOf, UpstreamProbeResult } from "@orb/kit/version-identity";
 import { createCachedUpstreamProbes, UPSTREAM_ANSWER_TTL_MS } from "@orb/server/domain/settings";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { vi } from "vitest";
 
 const MAIN: UpstreamProbeResult<UpstreamOf<"main">> = { ok: true, upstream: { channel: "main", commit: "commit-one", short: "commit-one", committedAt: null } };

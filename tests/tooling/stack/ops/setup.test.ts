@@ -7,7 +7,7 @@ import process from "node:process";
 import { PassThrough } from "node:stream";
 import { parseEnv } from "node:util";
 import { ALLOWED_HOSTS_KEY } from "@orb/kit/allowed-hosts";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { afterEach, vi } from "vitest";
 import type { SetupMachine } from "../../../../tooling/src/stack/index.ts";
 import { AUTH_MODE_KEY, PORT_KEY, runSetup } from "../../../../tooling/src/stack/index.ts";

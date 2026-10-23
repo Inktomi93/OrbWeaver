@@ -4,21 +4,20 @@ import type { TurnOutcome } from "@orb/contracts/chat";
 import { parseVariantMetadata, VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";
 import { builtinProvider } from "@orb/contracts/inference";
 import { characterStats, chatGenerationObservations, dailyStats, messages, messageVariants, modelStats, ownerStats } from "@orb/db";
-import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
-import type { ChatRoot } from "@orb/testkit/node/chat/composed.ts";
-import { createChatRoot } from "@orb/testkit/node/chat/composed.ts";
+import { createFrozenClock } from "@orb/testkit/iso";
+import { expect, test } from "@orb/testkit/node";
+import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_PROVIDER_ENDPOINT,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
+  captureSdkSessionRows,
+  createChatRoot,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { captureSdkSessionRows } from "@orb/testkit/node/factories/connection.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { terminalSseLine } from "@orb/testkit/node/provider-stream.ts";
-import { createSdkProcessSpawner } from "@orb/testkit/node/sdk-process.ts";
+} from "@orb/testkit/node/composed";
+import { createSdkProcessSpawner, terminalSseLine } from "@orb/testkit/node/helpers";
 import { and, eq } from "drizzle-orm";
 import { STATS_SDK_CACHE_1H, STATS_SDK_MODEL, STATS_SDK_REPLY, STATS_SDK_THINKING } from "./stats-sdk-physical.mjs";
 

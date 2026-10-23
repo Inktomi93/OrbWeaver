@@ -2,8 +2,8 @@
 // @subject packages/server/src/transport/trpc/role-output.ts
 import { createCharacterSchema } from "@orb/contracts/character";
 import { chatEvents, messages } from "@orb/db";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
 import { asc, eq } from "drizzle-orm";
 
 test("first-message seeds the primary greeting verbatim; the caller is host and the roster references the live card", async () => {

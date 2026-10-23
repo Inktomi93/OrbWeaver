@@ -2,9 +2,9 @@
 // @subject packages/server/src/domain/chat/engine/pipeline.ts
 import { CHAT_REACT_TOOL_NAME, reactToolArgsSchema } from "@orb/contracts/chat";
 import { messageVariants } from "@orb/db";
-import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "@orb/testkit/node/corpus-provider.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { terminalSseLine } from "@orb/testkit/node/provider-stream.ts";
+import { expect, test } from "@orb/testkit/node";
+import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "@orb/testkit/node/composed";
+import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { eq } from "drizzle-orm";
 import { coreFrame, coreHttpRoom, coreSse } from "./core-physical.ts";
 

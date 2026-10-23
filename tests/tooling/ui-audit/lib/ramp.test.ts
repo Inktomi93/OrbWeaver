@@ -2,7 +2,7 @@
 // change what every ramp-bound rule means. These pin the derivation itself: finite, in band, and still
 // judging. Sibling behaviour lives in tests/tooling/ui-audit/index.test.ts (the rule proofs).
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { TextStyleInput } from "../../../../tooling/src/ui-audit/contract/samples.ts";
 import { checkTextStyle } from "../../../../tooling/src/ui-audit/lib/checks-typography.ts";
 import { INTERACTIVE_TEXT_FLOOR_PX, LEADING_FLOOR, RAMP_FONT_FACES, TEXT_MICRO_PX } from "../../../../tooling/src/ui-audit/lib/ramp.ts";

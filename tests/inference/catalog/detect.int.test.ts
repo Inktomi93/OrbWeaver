@@ -1,6 +1,6 @@
-import { makeGenerationCapability } from "@orb/testkit/iso/inference-capability.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { makeGenerationCapability } from "@orb/testkit/iso";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
 
 const BASE_URL = "http://8.8.8.8:9999/v1";
 const DETECT_SNAPSHOT_KEY = `catalog:endpoint:${BASE_URL}#detect`;

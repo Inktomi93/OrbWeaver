@@ -1,4 +1,4 @@
-import { CtIsolation } from "@orb/testkit/browser/ct-isolated-subject.tsx";
+import { CtIsolation } from "@orb/testkit/browser";
 import { Field, FieldValidity } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import type { ReactElement } from "react";

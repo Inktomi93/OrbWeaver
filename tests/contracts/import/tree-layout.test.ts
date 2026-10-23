@@ -1,6 +1,6 @@
 import { admitTreeBatch, ST_SETTINGS_FILE, sniffTreeLayout } from "@orb/contracts/import";
 import { PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 test("mixed format markers refuse routing, while each distinct layout retains its staging prefix", () => {
   const nativeDirs = new Set(["personas"]);

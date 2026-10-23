@@ -4,10 +4,10 @@ import { CSRF_HEADER } from "@orb/contracts/identity";
 import { RATE_LIMIT_CAP_MIN } from "@orb/contracts/settings";
 import { sessions } from "@orb/db";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
-import { seedBffSession, seedLoginBuckets } from "@orb/testkit/node/factories/sessions.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
 import { eq } from "drizzle-orm";
+import { expect, test } from "../fixtures.ts";
+import { createServerHarness } from "../server.ts";
+import { seedBffSession, seedLoginBuckets } from "./sessions.ts";
 
 test("a real session mint persists only its hash and revoke settles the actual returned session identity", async () => {
   await using root = await createServerHarness();

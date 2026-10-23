@@ -4,7 +4,7 @@
 // `satisfies RequestTrace` against the REAL server shape, so wire drift fails tsc here, not silently.
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { RequestTrace } from "../../../tooling/src/render-trace/index.ts";
 
 function trace(status: "ok" | "error", dbMs: number): RequestTrace {

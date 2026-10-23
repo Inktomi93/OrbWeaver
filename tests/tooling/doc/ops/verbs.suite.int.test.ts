@@ -2,7 +2,7 @@
 // writes nothing. A suite because the verbs share one planted shape and each proves a different door.
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import {
   newAdr,
   newItem,

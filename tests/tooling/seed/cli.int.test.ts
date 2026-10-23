@@ -3,7 +3,7 @@
 // boot-FATAL under an incomplete env). Regression for #2407: the CLI used to dispatch through a shared
 // barrel (./index.ts) that re-exported all three verbs, so `multi-user` imported the server env schema for
 // no reason.
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 
 test("multi-user runs under an env that is boot-fatal for the SERVER env schema", async ({ runCli }) => {
   // AUTH_MODE=oidc with none of its required companions (OIDC_ISSUER, …) is boot-fatal for

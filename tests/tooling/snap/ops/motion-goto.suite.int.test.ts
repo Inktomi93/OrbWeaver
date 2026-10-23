@@ -4,7 +4,7 @@
 
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { chromium } from "@playwright/test";
 import { runNav } from "../../../../tooling/src/floor/instrument/nav.ts";
 import { runAudit } from "../../../../tooling/src/motion-audit/ops/trace.ts";

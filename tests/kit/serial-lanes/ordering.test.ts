@@ -1,5 +1,5 @@
 import { createSerialLanes } from "@orb/kit/serial-lanes";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 test("two jobs on the SAME key never overlap — the second starts only after the first settles", async () => {
   const lanes = createSerialLanes();

@@ -1,7 +1,7 @@
 // The docs half of `pnpm check:agents` on planted trees: the structural rules, the writing rules and
 // the reference check compose into one list; the clean tree passes; the real repository is clean.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { docFileCount, docLayerProblems, newAdr, newItem, newItemsFrom, newPlan } from "../../../../tooling/src/doc/index.ts";
 

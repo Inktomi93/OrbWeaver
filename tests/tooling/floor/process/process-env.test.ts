@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { isDeepStrictEqual } from "node:util";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv, processEnvValue, testProcessEnv, withProcessEnv } from "@orb/tooling/floor/process/process-env";
 

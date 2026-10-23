@@ -14,7 +14,7 @@
 //  • a killed watcher reads `degraded`, never `warm` — and a healthy stage reads `warm`, or "degraded" would
 //    just be a way to rebuild every time.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { STAGE_BAND_COUNT, stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
 import type { StageBandView, StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
 import {

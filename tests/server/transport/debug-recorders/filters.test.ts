@@ -5,7 +5,7 @@ import type { ChatId, ChatTurnId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createRpgTraceRecorder } from "@orb/server/domain/rpg";
 import { createRpgTraceInspector } from "@orb/server/transport/debug-recorders";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 test("real RPG reads combine chat, raw turn and cap filters, excluding turn-less events without changing bytes or chronological stamps", ({ ids, clock }) => {
   const chatId = castId<ChatId>(ids.next("chat"));

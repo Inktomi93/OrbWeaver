@@ -5,7 +5,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { afterEach } from "vitest";
 import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";
 import type { EnsureStageOpts } from "../../../../tooling/src/snap/contract/stage.ts";

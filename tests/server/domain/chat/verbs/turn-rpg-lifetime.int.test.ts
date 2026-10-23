@@ -1,8 +1,8 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // @subject packages/server/src/domain/rpg/flush-barrier.ts
 import { rpgSnapshots } from "@orb/db";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { terminalSseLine } from "@orb/testkit/node/provider-stream.ts";
+import { expect, test } from "@orb/testkit/node";
+import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { eq } from "drizzle-orm";
 import { coreFrame, coreHeldReply, coreSse } from "../engine/core-physical.ts";
 import { turnRpgRoom } from "./turn-rpg-physical.ts";

@@ -1,4 +1,4 @@
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { compositedBase, toOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
 
 test("theme derivation receives converted OKL channels with authored alpha and gamut status", () => {

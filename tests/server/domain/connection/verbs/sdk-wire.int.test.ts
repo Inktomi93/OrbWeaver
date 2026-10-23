@@ -7,9 +7,9 @@ import { settings } from "@orb/db";
 import type { Resolved } from "@orb/inference";
 import { ProviderError, toChatRequest } from "@orb/inference";
 import { logger, logRing, logSerializers } from "@orb/server/foundation/observability";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createSdkProcessSpawner } from "@orb/testkit/node/sdk-process.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
+import { createSdkProcessSpawner } from "@orb/testkit/node/helpers";
 
 const MODEL = "sdk-wire-model";
 const SDK_TOKEN = "controlled-wire-oauth-token";

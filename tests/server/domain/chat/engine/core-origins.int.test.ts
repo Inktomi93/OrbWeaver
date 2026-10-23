@@ -3,8 +3,8 @@
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
 import { messages } from "@orb/db";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { terminalSseLine } from "@orb/testkit/node/provider-stream.ts";
+import { expect, test } from "@orb/testkit/node";
+import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { eq } from "drizzle-orm";
 import { enabledRule } from "../../automation/runtime.fixtures.ts";
 import { coreFrame, coreHttpRoom, coreSse } from "./core-physical.ts";

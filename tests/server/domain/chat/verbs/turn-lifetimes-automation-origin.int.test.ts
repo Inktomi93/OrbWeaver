@@ -2,8 +2,8 @@
 // @subject packages/server/src/domain/automation/engine/dispatch.ts
 import { AUTOMATION_DEPTH_HARD_CAP } from "@orb/contracts/chat";
 import { automationFires, chatGenerationObservations, messages, messageVariants } from "@orb/db";
-import { seedCorpusConnections } from "@orb/testkit/node/corpus-seed.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import { seedCorpusConnections } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { enabledRule } from "../../automation/runtime.fixtures.ts";
 import { invitePerson } from "../persona-cache-physical.ts";

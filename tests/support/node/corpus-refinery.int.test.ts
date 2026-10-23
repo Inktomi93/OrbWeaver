@@ -9,18 +9,12 @@ import {
   refinerySessionViewSchema,
 } from "@orb/contracts/refinery";
 import { assertReferentialIntegrity } from "@orb/db";
-import {
-  CORPUS_EMBED_MODEL,
-  CORPUS_EMBEDDING_VECTOR,
-  CORPUS_STRUCTURED_REPLIES,
-  CORPUS_TEXT_MODEL,
-  createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { seedCorpusConnections } from "@orb/testkit/node/corpus-seed.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
 import { vi } from "vitest";
+import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
 import { seedCorpusRefinery } from "./corpus-refinery.ts";
+import { seedCorpusConnections } from "./corpus-seed.ts";
+import { expect, test } from "./fixtures.ts";
+import { createServerHarness } from "./server.ts";
 
 function physicalScript(): ReturnType<typeof createCorpusProviderExecution> {
   return createCorpusProviderExecution({

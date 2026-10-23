@@ -2,7 +2,7 @@
 // that does not say WHICH rules were withheld and WHY cost a 2026-09-04 review three extra calls and a
 // python heredoc over the report JSON to learn that the answer was "box is off-screen".
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { PopulationAccounting, RulePopulationAccounting } from "@orb/tooling/ui-audit";
 import { backdropRefusalSummary, populationWithheldSummary } from "../../../../tooling/src/ui-audit/ops/report.ts";
 

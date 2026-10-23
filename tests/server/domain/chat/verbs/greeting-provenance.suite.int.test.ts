@@ -6,18 +6,18 @@ import { isSeededGreetingRow } from "@orb/contracts/chat";
 import { closeDb, messages, messageVariants, ownerStats } from "@orb/db";
 import { CHAT_OP_CODES } from "@orb/server/domain/chat";
 import { sha256Hex } from "@orb/server/primitives/content-hash";
+import { expect, test } from "@orb/testkit/node";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { seedCorpusActors } from "@orb/testkit/node/corpus-seed.ts";
-import { freshHeldDb } from "@orb/testkit/node/db.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+  createServerHarness,
+  freshHeldDb,
+  seedCorpusActors,
+} from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 
 const GREETINGS = ["The market opens.", "The keeper lifts the ledger.", "Rain taps the window."] as const;

@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { vi } from "vitest";
 import { appearanceMatrixContract } from "#client/lib/appearance-carrier-manifest.ts";
 import type { ThemeEntry } from "../../../../tooling/src/floor/appearance/theme.ts";

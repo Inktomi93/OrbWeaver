@@ -1,7 +1,7 @@
 import type { AuthConfig } from "@orb/contracts/auth-config";
 import { authConfigSchema } from "@orb/contracts/auth-config";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 const WIRE: AuthConfig = {
   mode: "local",

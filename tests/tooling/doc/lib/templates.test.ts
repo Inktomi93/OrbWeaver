@@ -1,7 +1,7 @@
 // The content-flag tuples and the templates bind one-to-one: every flag the parser accepts lands in a
 // section of its kind's template, so a flag with no section cannot silently drop the author's text.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { ADR_SECTION_FLAGS, adrTemplate, ITEM_SECTION_FLAGS, itemTemplate, PLAN_SECTION_FLAGS, planTemplate } from "../../../../tooling/src/doc/index.ts";
 
 const TODAY = "2026-09-23";

@@ -1,9 +1,9 @@
 import type { CredentialHealth } from "@orb/contracts/credentials";
-import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso/ids.ts";
-import { TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
+import { expect, test } from "@orb/testkit/node";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import { createServerHarness } from "@orb/testkit/node/composed";
+import { TEST_PROVIDER_ID } from "@orb/testkit/node/helpers";
 
 const MODEL = "health-ownership-encoder";
 const KEY = "health-ownership-private-material";

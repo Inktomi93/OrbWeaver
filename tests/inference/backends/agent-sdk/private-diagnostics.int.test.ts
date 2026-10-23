@@ -5,9 +5,9 @@ import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import type { SdkPrivateDiagnosticInput, SdkPrivateDiagnosticResult } from "@orb/testkit/node/sdk-process.ts";
-import { SDK_PRIVATE_DIAGNOSTIC_SINKS, SDK_SCRIPT_IDENTITY_TYPE, sdkPrivateDiagnosticResultSchema } from "@orb/testkit/node/sdk-process.ts";
+import { expect, test } from "@orb/testkit/node";
+import type { SdkPrivateDiagnosticInput, SdkPrivateDiagnosticResult } from "@orb/testkit/node/helpers";
+import { SDK_PRIVATE_DIAGNOSTIC_SINKS, SDK_SCRIPT_IDENTITY_TYPE, sdkPrivateDiagnosticResultSchema } from "@orb/testkit/node/helpers";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import { vi } from "vitest";
 

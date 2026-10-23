@@ -1,7 +1,7 @@
 import { existsSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { testTagFilters } from "../../../../vitest.config.ts";
 

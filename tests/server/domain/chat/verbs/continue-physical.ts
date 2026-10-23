@@ -2,7 +2,7 @@
 
 import type { TurnOutcome } from "@orb/contracts/chat";
 import { closeDb, messageVariants } from "@orb/db";
-import { freshHeldDb } from "@orb/testkit/node/db.ts";
+import { freshHeldDb } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { imageRoom, nativeText, nativeTool } from "../engine/inline-image-physical.ts";
 

@@ -8,7 +8,7 @@
 // It ALSO pins the module's third lever, the #1040 WITHHOLD (bottom of the file) — the arm for measured
 // RATES, which scaling cannot save and which must decline to vote instead of false-redding or, worse,
 // having its budget widened.
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { LabellableTest } from "./_load-budget.ts";
 import {
   computeLoadFactor,

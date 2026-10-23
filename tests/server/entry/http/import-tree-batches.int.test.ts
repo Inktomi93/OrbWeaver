@@ -11,11 +11,9 @@ import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { createThemeInputSchema } from "@orb/contracts/theme";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
-import { prepareBackupFolder } from "@orb/testkit/node/backup-folder.ts";
-import { makeAssetBytes } from "@orb/testkit/node/factories/asset.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import { createServerHarness, makeAssetBytes, prepareBackupFolder } from "@orb/testkit/node/composed";
 import { CSRF_HEADERS } from "./_body-limit-inputs.ts";
 
 const TREE_ROUTE = "/api/import/tree";

@@ -1,5 +1,5 @@
 import "@orb/client/styles";
-import { CtProviders } from "@orb/testkit/browser/ct-providers.tsx";
+import { CtProviders } from "@orb/testkit/browser";
 import { TOKENS } from "@orb/ui/tokens";
 import type { ComponentType } from "react";
 import { StrictMode } from "react";

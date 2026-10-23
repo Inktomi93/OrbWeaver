@@ -3,7 +3,7 @@ import { CARD_FRAME_MINT_BODY_MAX_BYTES, CARD_FRAME_ROUTE } from "@orb/contracts
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { PLUGIN_FRAME_MINT_BODY_MAX_BYTES, PLUGIN_FRAME_ROUTE } from "@orb/contracts/plugin";
 import { ASSET_UPLOAD_MAX_BYTES, DATABANK_UPLOAD_MAX_BYTES, IMPORT_MAX_TOTAL_BYTES, IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
 
 export const REQUEST_CHUNK_BYTES = 64 * 1024;
 // This hostile form is larger than every small auth envelope, not a copy of their private budgets.

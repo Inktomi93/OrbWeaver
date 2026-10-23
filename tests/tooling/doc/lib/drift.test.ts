@@ -1,7 +1,7 @@
 // The drift nag as a pure rule: each line fires on a planted fact and stays silent on the consistent
 // control, and the `Closes:` trailer reader.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { DriftFacts, PlanState, WorkItem } from "../../../../tooling/src/doc/index.ts";
 import { closesTrailer, driftLines, planWakeConditions, wakeConditions } from "../../../../tooling/src/doc/index.ts";
 

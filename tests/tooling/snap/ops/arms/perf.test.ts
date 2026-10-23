@@ -5,7 +5,7 @@
 // unlabelled. Neither path contributes a pass/fail count, and `load-suspect` moves no exit code.
 // The one remaining WITHHELD cause is an unproven/software browser — no number exists there at all.
 import process from "node:process";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { Page } from "@playwright/test";
 import { vi } from "vitest";
 import type { BrowserAccelerationEvidence } from "../../../../../tooling/src/floor/browser/browser-acceleration.ts";

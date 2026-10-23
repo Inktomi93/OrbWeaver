@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import type { ChromiumIdentity } from "@orb/testkit/node/chromium-processes.ts";
+import type { ChromiumIdentity } from "@orb/testkit/node/helpers";
 import {
   chromiumDescendantIdentities,
   identityKey,
@@ -12,8 +12,8 @@ import {
   livingChromiumIdentities,
   terminateChromiumIdentities,
   watchChromiumDescendants,
-} from "@orb/testkit/node/chromium-processes.ts";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+} from "@orb/testkit/node/helpers";
+import { expect, test } from "@orb/testkit/tooling";
 import { closeProbeSession, launchProbeSession, withProbeSession } from "@orb/tooling/floor/browser/browser";
 import { readBrowserAcceleration } from "@orb/tooling/floor/browser/browser-acceleration";
 import type { LocalStorageSeed } from "@orb/tooling/floor/browser/browser-contract";

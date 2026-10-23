@@ -18,17 +18,21 @@ Before restoring a reference case, consult the [restoration register](../../docs
 
 ## Use the maintained entry points
 
-| Need | Entry point |
-| - | - |
-| Node tests, deterministic inputs and owned resources | [node/fixtures.ts](node/fixtures.ts) |
-| Tool tests | [node/tool-fixtures.ts](node/tool-fixtures.ts) |
-| Real server composition | [node/server.ts](node/server.ts) and [node/composed-real.ts](node/composed-real.ts) |
-| Production-derived inputs | [node/factories](node/factories) and [node/corpus.ts](node/corpus.ts) |
-| Client runtime and production providers | [browser/ct-data-providers.tsx](browser/ct-data-providers.tsx) |
-| Corpus-backed component fixtures | [node/ct-corpus.ts](node/ct-corpus.ts) |
-| Declared tRPC interception | [node/route-trpc.ts](node/route-trpc.ts) |
+Import testkit through the doors its `package.json` exports. A door is a barrel that names what tests may use; a helper a door does not export is internal to testkit.
 
-Import testkit through its `iso`, `node` or `browser` package subpaths. Inside testkit, use relative imports. Follow [the test layout and world rules](../../docs/law/Spine-Testing.md#2-the-tree).
+| Door | Holds |
+| - | - |
+| `@orb/testkit/iso` | pure helpers every world may import: the frozen clock, seeded ids, corpus readers, wire shapes |
+| `@orb/testkit/node` | the vitest `test` and `expect` with their fixtures; it registers fixtures at import, so only vitest files import it |
+| `@orb/testkit/node/helpers` | Node-side helpers that never load the server graph at import; Playwright configs and scripts may import it |
+| `@orb/testkit/node/composed` | the server harness, database, factories, corpus producers and chat composition; it loads the server graph |
+| `@orb/testkit/ct` | Playwright-side helpers for component specs: declared tRPC and socket interception, section navigation |
+| `@orb/testkit/ct-corpus` | the Playwright `test` and `expect` that mount against a corpus-backed server |
+| `@orb/testkit/browser` | production-backed providers, the registry door and rendered-surface helpers for component specs |
+| `@orb/testkit/tooling` | the vitest `test` and fixtures for tooling tests |
+| `@orb/testkit/sdk` | what a spawned SDK stand-in process imports |
+
+To publish a helper, add its name to the door's barrel. Inside testkit, use relative imports. Follow [the test layout and world rules](../../docs/law/Spine-Testing.md#2-the-tree).
 
 Call production operations and registry factories. Derive inputs from their contracts, builders or corpus. Script external execution at its real boundary. Do not replace domain services, authorization, persistence or application modules with fabricated behavior.
 

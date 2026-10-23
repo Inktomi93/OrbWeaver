@@ -1,6 +1,6 @@
 import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG, promptConfigSchema, TEMPLATE_CLUSTERS, TEMPLATE_DEFS, TEMPLATE_KINDS } from "@orb/contracts/preset";
 import { PROSE_SLOTS } from "@orb/contracts/prose";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { templateGroups, templateRowById, templateStoredText } from "#client/features/preset/lib/template-rows.ts";
 
 test("every template retains its registry object and resolves the matching form address", () => {

@@ -1,15 +1,15 @@
 // Explicit native finish frames distinguish capped responses from clean stops before the real auto-behavior loop.
-import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/chat/composed.ts";
-import { createChatRoot } from "@orb/testkit/node/chat/composed.ts";
+import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
+  createChatRoot,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import type { TerminalFrameOptions } from "@orb/testkit/node/provider-stream.ts";
-import { terminalSseLine } from "@orb/testkit/node/provider-stream.ts";
+} from "@orb/testkit/node/composed";
+import type { TerminalFrameOptions } from "@orb/testkit/node/helpers";
+import { terminalSseLine } from "@orb/testkit/node/helpers";
 
 export interface PhysicalReply extends Pick<TerminalFrameOptions, "finishReason"> {
   readonly text: string;

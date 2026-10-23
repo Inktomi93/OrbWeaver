@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { chromium } from "@playwright/test";
 import { z } from "zod";
 import { awaitDevClientReady } from "../../../../tooling/src/dev/ops/client-ready.ts";

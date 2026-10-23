@@ -11,8 +11,8 @@ import {
 } from "@orb/contracts/plugin";
 
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { makePluginScriptedPage } from "@orb/testkit/node/factories/plugin-view.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import { makePluginScriptedPage } from "@orb/testkit/node/helpers";
 
 test("public plugin registration parsers retain native metadata refinements and refuse private handler or row fields", ({ ids }) => {
   const pluginId = typeIdSchema(ID_PREFIX.plugin).parse(ids.next(ID_PREFIX.plugin));

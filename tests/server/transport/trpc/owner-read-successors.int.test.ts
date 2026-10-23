@@ -2,7 +2,7 @@
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import { tags } from "@orb/db";
 import { fetchOwned } from "@orb/db/query";
-import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "@orb/testkit/node";
 
 test("fetchOwned and its composed read door refuse a foreign tag without revealing its existence", async ({ db, ownerCaller, otherCaller }) => {
   const tag = await ownerCaller.tag.createTag({ input: { name: "Owner-read private tag" } });

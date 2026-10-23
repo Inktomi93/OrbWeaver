@@ -8,7 +8,7 @@
 // The parser is stubbed on purpose: the truncation itself happens inside `heap-devtools.ts` (it slices at
 // HEAP_OUTGOING_EDGE_CAP), and what this file owns is whether the RECEIPT describes that policy honestly.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { HeapSnapshotIdentity } from "../../../../tooling/src/snap/contract/heap.ts";
 import {
   HEAP_OUTGOING_EDGE_CAP,

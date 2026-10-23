@@ -1,4 +1,4 @@
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import type { BuildWebInput, WeavePoint } from "@orb/ui/web-weave";
 import { buildStrandOut, buildWeb, WEAVE_TIMELINE, weaveJitter, weavePhaseAt, webGlyph, wrapToPi } from "@orb/ui/web-weave";
 

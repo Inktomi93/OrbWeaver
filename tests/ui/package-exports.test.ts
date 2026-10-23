@@ -3,7 +3,7 @@ import { globSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync
 import { createRequire } from "node:module";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { z } from "zod";
 
 const UI = fileURLToPath(new URL("../../packages/ui", import.meta.url));

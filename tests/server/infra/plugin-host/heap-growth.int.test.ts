@@ -2,9 +2,8 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { pluginCardStateKey } from "@orb/contracts/plugin";
 import { characters } from "@orb/db";
-import { seedCreatedCharacter } from "@orb/testkit/node/factories/character.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness, seedCreatedCharacter } from "@orb/testkit/node/composed";
 import { and, eq } from "drizzle-orm";
 import { createPluginProcessEdge, installGuest } from "./process-runtime.fixtures.ts";
 

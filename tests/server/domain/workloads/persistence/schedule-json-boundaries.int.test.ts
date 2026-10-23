@@ -8,8 +8,8 @@ import { CADENCE_INTERVAL_MS, workloadScheduleViewSchema } from "@orb/contracts/
 import { workloadSchedules } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { WorkloadScheduleId } from "@orb/kit/ids";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 

@@ -6,7 +6,7 @@
 // __orb read below answers null/[] and each budget arm reads that as a clean zero"); these are the same
 // defence for the case where the bridge is present and answers the wrong shape.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { describe } from "vitest";
 import { animationRecords, bridgePresence, flagRecords, motionSnapshot } from "../../../../tooling/src/motion-audit/ops/page-validate.ts";
 

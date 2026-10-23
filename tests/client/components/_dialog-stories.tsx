@@ -1,5 +1,5 @@
 import { FlowDialog, PickerDialog, ViewerDialog } from "@orb/client/components";
-import { CtIsolation } from "@orb/testkit/browser/ct-isolated-subject.tsx";
+import { CtIsolation } from "@orb/testkit/browser";
 import type { ReactElement } from "react";
 
 export function ViewerDialogStory(): ReactElement {

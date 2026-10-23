@@ -1304,11 +1304,6 @@ export type { SafeFetchOptions, SafeFetchResult } from "./contract/egress.ts";
 export const ANY_HOST: typeof ANY_HOST_POLICY = ANY_HOST_POLICY;
 export const ENDPOINT_ADMISSIONS = ENDPOINT_ADMISSION_VALUES;
 
-/** Publish into the production process firewall's owner. */
-export function publishPrivateEndpointAllowlist(entries: readonly string[]): void {
-  publishPrivateEndpointAllowlistFor(defaultContext, entries);
-}
-
 export function safeFetch(url: string | URL, options: SafeFetchOptions): Promise<SafeFetchResult> {
   return safeFetchFor(defaultContext, url, options);
 }

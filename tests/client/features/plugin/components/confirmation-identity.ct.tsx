@@ -1,8 +1,8 @@
 import { PLUGIN_UI_ROUTE } from "@orb/contracts/plugin";
-import { createCorpusReadResponder } from "@orb/testkit/iso/corpus-read-responder.ts";
-import { expect, test } from "@orb/testkit/node/ct-corpus.ts";
-import { makePluginRow, makePluginScriptedPage } from "@orb/testkit/node/factories/plugin-view.ts";
-import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcHold } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
+import { createCorpusReadResponder } from "@orb/testkit/iso";
+import { makePluginRow, makePluginScriptedPage } from "@orb/testkit/node/helpers";
 import type { PluginProtocolStory } from "../_ct-stories.tsx";
 
 const UI_SOURCE = `const ui = orb.ui(1);

@@ -20,7 +20,7 @@
 // the surface a reviewer's `pnpm snap --contrast` reaches, and asserting through it is what makes this
 // file a defect proof against the OLD source rather than a compile error.
 import { AA_NON_TEXT_RATIO, AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { chromium } from "@playwright/test";
 import { captureContrastEvidence } from "../../../../tooling/src/snap/ops/arms/contrast.ts";
 import { scaledBudget } from "../../_load-budget.ts";

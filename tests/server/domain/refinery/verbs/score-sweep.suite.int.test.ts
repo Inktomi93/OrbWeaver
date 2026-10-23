@@ -11,10 +11,9 @@ import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import { characters, refineryRuns, refinerySessions, workloads } from "@orb/db";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { seedCorpusConnections } from "@orb/testkit/node/corpus-seed.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import { createServerHarness, seedCorpusConnections } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { executeAdmitted, physicalWire, WORKLOAD_FUNDER_HEADER } from "../../workloads/funding.fixtures.ts";
 

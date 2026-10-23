@@ -1,7 +1,7 @@
 import { blobUrl } from "@orb/contracts/assets";
-import { createCorpusViewerReadResponder } from "@orb/testkit/iso/corpus-read-responder.ts";
-import { expect, test } from "@orb/testkit/node/ct-corpus.ts";
-import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcHold } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
+import { createCorpusViewerReadResponder } from "@orb/testkit/iso";
 import type { NotificationInboxStory } from "./_ct-stories.tsx";
 
 test.use({

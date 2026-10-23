@@ -3,9 +3,9 @@ import "@orb/testkit/node/composed-real.ts";
 import { RPG_LITE_TOOL_NAMES, RPG_NO_CHANGES_TOOL } from "@orb/contracts/rpg";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
-import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/chat/composed.ts";
-import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "@orb/testkit/node/corpus-provider.ts";
-import { terminalSseLine } from "@orb/testkit/node/provider-stream.ts";
+import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/composed";
+import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "@orb/testkit/node/composed";
+import { terminalSseLine } from "@orb/testkit/node/helpers";
 import type { CoreWireReply } from "../engine/core-physical.ts";
 import { coreFrame, coreHttpRoom, coreSse } from "../engine/core-physical.ts";
 

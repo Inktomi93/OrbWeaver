@@ -4,16 +4,17 @@
 import type { CorpusSource } from "@orb/contracts/search";
 import { chatDigests, chatSegments } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { seedCorpusConnections, seedRecallCorpus } from "@orb/testkit/node/corpus-seed.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+  createServerHarness,
+  seedCorpusConnections,
+  seedRecallCorpus,
+} from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 
 test("a second user with the same embedding space retrieves none of the owner's digest or segment rows", async () => {

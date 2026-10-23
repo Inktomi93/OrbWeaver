@@ -2,7 +2,7 @@
 
 import type { UpstreamFetchDeps } from "@orb/server/infra/upstream-update";
 import { createUpstreamFetches, parseLatestRelease, parseMainHead } from "@orb/server/infra/upstream-update";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { vi } from "vitest";
 
 type FetchResult = Awaited<ReturnType<NonNullable<UpstreamFetchDeps["fetchImpl"]>>>;

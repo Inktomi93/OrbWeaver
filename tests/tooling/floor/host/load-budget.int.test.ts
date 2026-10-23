@@ -4,7 +4,7 @@
 // `spawnNiced` door (the nice -19 floor), which is also the door whose default ceiling is now
 // `budget(120_000)`, so the arm exercises the seam every instrument spawns through.
 import process from "node:process";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
 

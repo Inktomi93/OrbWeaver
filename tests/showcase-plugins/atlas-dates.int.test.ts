@@ -1,6 +1,6 @@
-import type { CannedResponse } from "@orb/testkit/node/atlas-guest.ts";
-import { bootAtlas, bootAtlasDates, lastAtlasState } from "@orb/testkit/node/atlas-guest.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import type { CannedResponse } from "@orb/testkit/node/composed";
+import { bootAtlas, bootAtlasDates, lastAtlasState } from "@orb/testkit/node/composed";
 import { describe } from "vitest";
 
 function wire(entries: readonly (readonly [string, unknown])[]): Record<string, unknown> {

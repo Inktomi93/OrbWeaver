@@ -4,12 +4,12 @@ import { randomBytes } from "node:crypto";
 import { credentialExecutionEvidenceOf, credentialViewSchema } from "@orb/contracts/credentials";
 import { auditLogs, userCredentials } from "@orb/db";
 import { DomainNoCredentialError, DomainOperationError } from "@orb/kit/errors";
-import { testProviderId } from "@orb/testkit/iso/inference-identities.ts";
-import { makeResolvedSecret, seedApiKeySecret, seedUserCredential } from "@orb/testkit/node/factories/credentials.ts";
-import { makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
 import { and, eq } from "drizzle-orm";
+import { testProviderId } from "../../iso/inference-identities.ts";
+import { expect, test } from "../fixtures.ts";
+import { createServerHarness } from "../server.ts";
+import { makeResolvedSecret, seedApiKeySecret, seedUserCredential } from "./credentials.ts";
+import { makeResolved } from "./resolved-connection.ts";
 
 const KEY = "synthetic-corpus-credential";
 const REPLACEMENT_KEY = "replacement-corpus-credential";

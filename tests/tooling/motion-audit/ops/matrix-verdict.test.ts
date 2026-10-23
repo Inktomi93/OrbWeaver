@@ -1,4 +1,4 @@
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { MOBILE_DEVICE } from "../../../../tooling/src/floor/browser/browser-environment.ts";
 import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";
 import type { AuditData } from "../../../../tooling/src/motion-audit/contract/types.ts";

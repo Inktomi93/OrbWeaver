@@ -1,8 +1,8 @@
 import { createServer } from "node:http";
 import process from "node:process";
-import type { ChromiumIdentity } from "@orb/testkit/node/chromium-processes.ts";
-import { livingChromiumIdentities, terminateChromiumIdentities, watchChromiumDescendants } from "@orb/testkit/node/chromium-processes.ts";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import type { ChromiumIdentity } from "@orb/testkit/node/helpers";
+import { livingChromiumIdentities, terminateChromiumIdentities, watchChromiumDescendants } from "@orb/testkit/node/helpers";
+import { expect, test } from "@orb/testkit/tooling";
 import { snapContexts } from "../../../../tooling/src/snap/ops/contexts.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
 

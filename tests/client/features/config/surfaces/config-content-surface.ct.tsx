@@ -1,6 +1,6 @@
-import { createCorpusReadResponder } from "@orb/testkit/iso/corpus-read-responder.ts";
-import { expect, test } from "@orb/testkit/node/ct-corpus.ts";
-import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcHold } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
+import { createCorpusReadResponder } from "@orb/testkit/iso";
 import type { ConfigAnchorStory } from "./_anchor-stories.tsx";
 
 test.beforeEach(async ({ page }) => {

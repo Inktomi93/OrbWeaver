@@ -1,7 +1,7 @@
 // Physical executable bytes only; native Query owns sessions, controls, classification and cancellation.
 import { once } from "node:events";
 import process from "node:process";
-import { readSdkProcessInput, readSdkResumeTranscript, writeSdkControlReply } from "@orb/testkit/node/sdk-process-control.mjs";
+import { readSdkProcessInput, readSdkResumeTranscript, writeSdkControlReply } from "@orb/testkit/sdk";
 
 export const ENGINE_SDK_MODEL = "claude-opus-5";
 export const ENGINE_SDK_REPLY = "Hi there";

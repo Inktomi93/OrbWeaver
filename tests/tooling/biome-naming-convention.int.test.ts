@@ -3,7 +3,7 @@
 // key rows come first, followed by the same explicit code-owned matrix carried by the global rule.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { scaledBudget } from "./_load-budget.ts";

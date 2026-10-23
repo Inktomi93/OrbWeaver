@@ -10,7 +10,7 @@
 // unmounted shell was still reached either at rest or under an action queue.
 
 import process from "node:process";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { ShellStateSnapshot } from "../../../../tooling/src/ui-audit/index.ts";
 import { buildSurfaceStateAccounting, DRIVE_STATE_SPACE, PANEL_MODE_SPACE, surfaceStateAxisLabel } from "../../../../tooling/src/ui-audit/index.ts";
 import { surfaceStateRows } from "../../../../tooling/src/ui-audit/lib/result-rows.ts";

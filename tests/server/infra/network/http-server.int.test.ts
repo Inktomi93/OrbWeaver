@@ -3,7 +3,7 @@ import { request as nodeRequest } from "node:http";
 import type { AddressInfo } from "node:net";
 import { queryObjects } from "node:v8";
 import { drainHttpServer, joinNativeHttpRequest, serveHttpServer } from "@orb/server/infra/network";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 const HEADER = "x-native-proof";
 const HEADER_VALUE = "public-field-normalization";

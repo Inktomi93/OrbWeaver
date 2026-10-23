@@ -2,7 +2,7 @@
 // @subject packages/server/src/domain/discovery/verbs/count-distill-calls.ts
 import { createCharacterSchema } from "@orb/contracts/character";
 import { characters } from "@orb/db";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { eq, sql } from "drizzle-orm";
 
 test("the canonical whole-array heal excludes partially malformed greeting text from the distill estimate", async ({ harness }) => {

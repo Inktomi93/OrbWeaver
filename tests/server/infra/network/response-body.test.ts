@@ -1,6 +1,6 @@
 import process from "node:process";
 import { createOwnedResponseBody } from "@orb/server/infra/network";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 test("abort joins actual upstream cancellation even with a consumer-locked body", async () => {
   const released = Promise.withResolvers<void>();

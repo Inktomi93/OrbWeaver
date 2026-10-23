@@ -4,7 +4,7 @@ import type { Principal } from "@orb/contracts/identity";
 import { declaredCapabilitySchema } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import { closeDb, messageVariants } from "@orb/db";
-import { freshHeldDb } from "@orb/testkit/node/db.ts";
+import { freshHeldDb } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { imageRoom, nativeText, nativeTool } from "../engine/inline-image-physical.ts";
 

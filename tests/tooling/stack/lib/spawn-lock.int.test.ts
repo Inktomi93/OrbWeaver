@@ -13,7 +13,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { SpawnLockOpts } from "../../../../tooling/src/stack/index.ts";
 import { acquireSpawnLock, handleHeldSpawnLock, pidIsAlive, releaseSpawnLock } from "../../../../tooling/src/stack/index.ts";
 

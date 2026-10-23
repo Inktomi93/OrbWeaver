@@ -5,9 +5,9 @@ import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import type { LibSqlWrap } from "@orb/db";
 import { chatLocks, closeDb } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { ChatRoot } from "@orb/testkit/node/chat/composed.ts";
-import { freshDb } from "@orb/testkit/node/db.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import type { ChatRoot } from "@orb/testkit/node/composed";
+import { freshDb } from "@orb/testkit/node/composed";
 import { textRoom } from "../scenario-physical.ts";
 
 function presetReadFault(): { readonly wrap: LibSqlWrap; readonly arm: () => void; readonly failures: () => readonly string[] } {

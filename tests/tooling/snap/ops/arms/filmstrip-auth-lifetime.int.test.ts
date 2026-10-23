@@ -2,8 +2,8 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import process from "node:process";
-import { startFilmstripAuthFixture } from "@orb/testkit/node/filmstrip-auth-fixture.ts";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { startFilmstripAuthFixture } from "@orb/testkit/node/helpers";
+import { expect, test } from "@orb/testkit/tooling";
 import { listProcesses } from "@orb/tooling/floor/host/platform";
 import { killPidGroup } from "@orb/tooling/floor/process/proc";
 

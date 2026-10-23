@@ -1,6 +1,6 @@
 import { installSafeErrorRing, runAfterViewTransition, safeErrorRing } from "@orb/client/lib";
 import { setActiveSection, useActiveSection } from "@orb/client/state";
-import { CtClientProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { CtClientProviders } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";

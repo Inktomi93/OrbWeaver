@@ -2,7 +2,7 @@ import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { ThemeOverride } from "@orb/contracts/theme";
 import { cardEmbeddableSubset, themeBackgroundSchema, themeOverrideSchema } from "@orb/contracts/theme";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 const COMPLETE_OVERRIDE = {
   accent: "#bc784a",

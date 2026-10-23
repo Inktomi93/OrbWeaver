@@ -1,6 +1,6 @@
 import { once } from "node:events";
 import process from "node:process";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { testProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { physicalSdkScenario } from "./regression-edge.fixtures.ts";
 

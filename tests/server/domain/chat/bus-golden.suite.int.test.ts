@@ -4,8 +4,8 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { ChatBusEvent, TurnOutcome } from "@orb/contracts/chat";
 import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import { chatEvents } from "@orb/db";
-import type { ChatRoot } from "@orb/testkit/node/chat/composed.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import type { ChatRoot } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { textRoom } from "./scenario-physical.ts";
 

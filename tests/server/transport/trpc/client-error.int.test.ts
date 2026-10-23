@@ -2,8 +2,8 @@
 // @subject packages/server/src/foundation/observability/client-error.ts
 import { RATE_LIMIT_CAP_MIN } from "@orb/contracts/settings";
 import { logger } from "@orb/server/foundation/observability";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
 
 test("anonymous and authenticated reports keep sink truncation, URL secrecy and client correlation isolation", async () => {

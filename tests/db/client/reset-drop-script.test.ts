@@ -1,6 +1,6 @@
 // @subject packages/db/src/client/index.ts
 import { buildResetDropScript } from "@orb/db";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 test("reset DDL drops dependencies before tables inside one transaction", () => {
   const script = buildResetDropScript([

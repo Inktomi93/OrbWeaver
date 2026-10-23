@@ -10,8 +10,8 @@ import type { InboxView } from "@orb/contracts/notifications";
 import type { PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_MAIN_ENTRY, PLUGIN_MANIFEST_ENTRY } from "@orb/contracts/plugin";
 import { MS_PER_SECOND } from "@orb/kit/time";
-import { makePluginBundle, PLUGIN_ZIP_MTIME_SECONDS_RANGE, seedInstalledPlugin, seedPluginGrant } from "@orb/testkit/node/factories/plugin.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import { makePluginBundle, PLUGIN_ZIP_MTIME_SECONDS_RANGE, seedInstalledPlugin, seedPluginGrant } from "@orb/testkit/node/composed";
 import { unzipSync } from "fflate";
 import { describe } from "vitest";
 import { expect, NOTIFICATION_GUEST_SOURCE, pendingConsent, test } from "../_fixtures.ts";
@@ -209,7 +209,7 @@ const CHILD_TIMEZONE_ENV = "TZ";
 // One child per timezone builds every mtime: a child pays the whole testkit module load, so a child per (mtime, timezone) pair quadrupled it.
 async function archivesInTimezone(manifest: PluginManifest, mtimes: readonly number[], timezone: string): Promise<readonly string[]> {
   await using lifetime = new AsyncDisposableStack();
-  const source = `import { makePluginBundle } from "@orb/testkit/node/factories/plugin.ts";
+  const source = `import { makePluginBundle } from "@orb/testkit/node/composed";
 const archives = ${JSON.stringify(mtimes)}.map((mtime) => Buffer.from(makePluginBundle(${JSON.stringify(manifest)}, ${JSON.stringify(NOTIFICATION_GUEST_SOURCE)}, mtime)).toString("base64"));
 process.stdout.write(JSON.stringify(archives));`;
   const child = spawn(process.execPath, ["--input-type=module", "--eval", source], {

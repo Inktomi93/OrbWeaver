@@ -3,7 +3,7 @@
 // whether or not the caller had just seen it. The decision below is the whole change; it depends on
 // session state a one-shot CLI invocation cannot reach, so it is pinned here rather than through stdout.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { MapAtlasEvidence } from "../../../../tooling/src/snap/contract/map.ts";
 import {
   mapChatPositionSchema,

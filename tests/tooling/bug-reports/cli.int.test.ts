@@ -14,7 +14,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { bugReportStem } from "@orb/kit/bug-report";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 
 interface PlantOpts {
   readonly id: string;

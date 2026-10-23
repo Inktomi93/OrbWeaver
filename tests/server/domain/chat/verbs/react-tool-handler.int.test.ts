@@ -2,12 +2,9 @@
 import { CHAT_REACT_TOOL_NAME } from "@orb/contracts/chat";
 import { chatParticipants, chats, messageReactions } from "@orb/db";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
-import { seedChat } from "@orb/testkit/node/factories/chat.ts";
-import { seedMessage } from "@orb/testkit/node/factories/message.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
-import { seedUser } from "@orb/testkit/node/factories/user.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import { seedCharacter, seedChat, seedMessage, seedUser } from "@orb/testkit/node/composed";
+import { principal } from "@orb/testkit/node/helpers";
 import { eq } from "drizzle-orm";
 
 test("the real registered react tool attributes the character seat, preserves repeat data, and rechecks changed room posture", async ({

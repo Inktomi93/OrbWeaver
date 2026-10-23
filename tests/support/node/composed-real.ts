@@ -1,5 +1,5 @@
 // tests/support/node/composed-real — THE IMPORT-PHASE WARM for a COMPOSED-REAL test file (#2386). Import it for
-// its side effect (`import "@orb/testkit/node/composed-real.ts";`) in any file whose tests destructure the
+// its side effect (`import "./composed-real.ts";`) in any file whose tests destructure the
 // `app` / `services` / `*Caller` fixtures; it exports nothing on purpose.
 //
 // WHAT IT FIXES — an ACCOUNTING defect, not a slow test. `support/node/fixtures.ts` loads the composition root

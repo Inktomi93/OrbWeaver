@@ -3,7 +3,7 @@
 import { DEFAULT_PROMPT_CONFIG, PROMPT_CONFIG_SCHEMA_VERSION, promptConfigSchema } from "@orb/contracts/preset";
 import { chatParticipants, presets, rpgGames } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { handoffActors } from "../../chat/substrate/handoff.fixtures.ts";
 

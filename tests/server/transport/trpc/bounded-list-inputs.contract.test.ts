@@ -4,8 +4,8 @@ import "@orb/testkit/node/composed-real.ts";
 import { readFile } from "node:fs/promises";
 import { CHAT_MESSAGE_LIST_MAX_LIMIT } from "@orb/contracts/chat";
 import { appRouter } from "@orb/server/transport/trpc";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
 import { z } from "zod";
 

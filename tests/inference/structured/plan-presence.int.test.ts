@@ -1,6 +1,6 @@
 import { planStructuredFor } from "@orb/inference";
 import { projectJsonSchema } from "@orb/kit/json-schema";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { z } from "zod";
 import { createRuntimeRoot, generationCapability, wireConnection } from "../roles/runtime.fixtures.ts";
 

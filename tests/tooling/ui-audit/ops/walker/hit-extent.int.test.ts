@@ -17,9 +17,9 @@
 // agreement is measured rather than asserted from two separate runs.
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { HIT_EXTENT_WALK_SOURCE, PSEUDO_ENVELOPE_SOURCE } from "@orb/testkit/iso/hit-extent-walk.ts";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS } from "@orb/testkit/node/ui-audit-relational.ts";
+import { HIT_EXTENT_WALK_SOURCE, PSEUDO_ENVELOPE_SOURCE } from "@orb/testkit/iso";
+import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS } from "@orb/testkit/node";
+import { expect, test } from "@orb/testkit/tooling";
 import { WALKER_HIT_EXTENT } from "../../../../../tooling/src/ui-audit/ops/walker/hit-extent.ts";
 
 /** The shipped shape, reduced to its mechanism: `.value` is text-height and carries a pointer-conditional

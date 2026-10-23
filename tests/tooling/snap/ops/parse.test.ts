@@ -6,7 +6,7 @@ import type { SpawnSyncReturns } from "node:child_process";
 import { spawnSync } from "node:child_process";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { vi } from "vitest";
 import { DEV_PORTS, ORB_APP_PORT_NUMBERS, stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
 // THE PARSER, NOT THE BARREL (#1743). `snap/index.ts` re-exports the whole op graph — `ops/run.ts` and

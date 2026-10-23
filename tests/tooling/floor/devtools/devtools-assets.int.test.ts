@@ -1,6 +1,6 @@
 import { cpSync, readFileSync, writeFileSync } from "node:fs";
 import { join, normalize, relative } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { vi } from "vitest";
 import { verifyDevToolsAssets } from "../../../../tooling/src/floor/devtools/devtools-assets.ts";
 

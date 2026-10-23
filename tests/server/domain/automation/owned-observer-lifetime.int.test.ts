@@ -1,9 +1,8 @@
 import { automationTriggerFor } from "@orb/contracts/automation";
 import { closeDb } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { freshHeldDb } from "@orb/testkit/node/db.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness, freshHeldDb } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
 
 const COUNTER = "observer-witness";

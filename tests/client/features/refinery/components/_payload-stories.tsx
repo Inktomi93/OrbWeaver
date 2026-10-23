@@ -1,6 +1,6 @@
 import type { PayloadLaneProps } from "@orb/client/features/refinery";
 import { PayloadLane, SchemaEditorDialog } from "@orb/client/features/refinery";
-import { CtClientProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { CtClientProviders } from "@orb/testkit/browser";
 import type { ReactElement } from "react";
 
 export function PayloadOwnerStory({ run }: { readonly run: NonNullable<PayloadLaneProps["run"]> }): ReactElement {

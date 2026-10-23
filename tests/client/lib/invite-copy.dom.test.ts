@@ -1,6 +1,6 @@
 import { inviteRoomSentence } from "@orb/client/lib";
 import { invitePreviewSchema } from "@orb/contracts/chat";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 test("invite wording respects a withheld host and an unnamed room without losing member counts", () => {
   const hostHandle = invitePreviewSchema.shape.hostHandle.parse("alex");

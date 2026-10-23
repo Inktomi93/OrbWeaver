@@ -3,8 +3,8 @@
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
-import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { createFrozenClock } from "@orb/testkit/iso";
+import { expect, test } from "@orb/testkit/node";
 import { textRoom } from "../../../domain/chat/scenario-physical.ts";
 import { CLOCK_CONFIG, CLOCK_PREFIX, KATHMANDU, KATHMANDU_CLOCK, NOW } from "./turn-lifetimes-clock-physical.ts";
 

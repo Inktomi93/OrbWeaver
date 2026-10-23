@@ -3,9 +3,9 @@ import { SEED_MANIFEST } from "@orb/default-content";
 import { supportsManagedCompaction } from "@orb/inference";
 import { createResolveEmbeddingConnection, precomputedSeedEmbedding } from "@orb/server/domain/embeddings";
 import { sha256Hex } from "@orb/server/primitives/content-hash";
-import { makeGenerationCapability } from "@orb/testkit/iso/inference-capability.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { makeGenerationCapability } from "@orb/testkit/iso";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
 
 test("connection admission and use-for-everything retain canonical API and funding decisions", async () => {
   await using root = await createServerHarness();

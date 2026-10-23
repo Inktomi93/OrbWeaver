@@ -1,6 +1,6 @@
 import { buildPresetFile, DEFAULT_PROMPT_CONFIG, parsePresetFile, tryImportStChatCompletionPreset } from "@orb/contracts/preset";
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 const INJECTED_PRESET = {
   prompts: [{ identifier: "a", name: "A", content: "You are helpful.", role: "system", ["injection_position"]: 1, ["injection_depth"]: 3 }],

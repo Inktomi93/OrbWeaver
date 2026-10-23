@@ -3,7 +3,7 @@
 // off-grammar (a torn line, another protocol version, a missing ownership fact) so nothing half-read is
 // ever mistaken for a verdict. The partition/verdict half is tests/tooling/snap/lib/session-plan.test.ts.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { SessionRow } from "../../../../tooling/src/snap/contract/session.ts";
 import { SESSION_PROTOCOL_VERSION } from "../../../../tooling/src/snap/contract/session.ts";
 import { readSessionEvent, readSessionRequest, readSessionRow, resultPairsOf } from "../../../../tooling/src/snap/lib/session-wire.ts";

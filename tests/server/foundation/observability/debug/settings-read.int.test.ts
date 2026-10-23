@@ -6,14 +6,17 @@ import { automationFires } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
-import { seedAutomationRule, seedAutomationTestFires } from "@orb/testkit/node/factories/automation.ts";
-import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
-import { seedPersona } from "@orb/testkit/node/factories/persona.ts";
-import { seedPreset } from "@orb/testkit/node/factories/preset.ts";
-import { seedRpgGame } from "@orb/testkit/node/factories/rpg.ts";
-import { seedUserSettings } from "@orb/testkit/node/factories/settings.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import {
+  createServerHarness,
+  seedAutomationRule,
+  seedAutomationTestFires,
+  seedCharacter,
+  seedPersona,
+  seedPreset,
+  seedRpgGame,
+  seedUserSettings,
+} from "@orb/testkit/node/composed";
 import { sql } from "drizzle-orm";
 
 const PASSWORD = "operator-read-control-password";

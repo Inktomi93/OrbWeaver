@@ -2,9 +2,9 @@
 import { spawn } from "node:child_process";
 import { pluginFrameMintResponseSchema } from "@orb/contracts/plugin";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
 import { CORPUS_PLUGIN_FRAME_TEXT, CORPUS_PLUGIN_UI_SOURCE, seedCorpusPluginFrameLifetime, seedCorpusPluginHttp } from "./corpus-plugin-http.ts";
+import { expect, test } from "./fixtures.ts";
+import { createServerHarness } from "./server.ts";
 
 test("native frame handles slide until exact expiry and cease serving documents and passive assets after revocation", { tags: ["slow"] }, async () => {
   await using root = await createServerHarness({ pluginSpawn: spawn, authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" } });

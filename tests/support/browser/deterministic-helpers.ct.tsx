@@ -1,11 +1,11 @@
-import { auditRenderedTextContrast } from "@orb/testkit/browser/pixel-contrast.ts";
-import { routeOrbSocket } from "@orb/testkit/node/route-orb-socket.ts";
-import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/test";
 import type { RawTrpcObservationStory } from "../../client/compose/_mount-stories.tsx";
+import { routeOrbSocket } from "../node/route-orb-socket.ts";
+import { routeTrpc, trpcError } from "../node/route-trpc.ts";
 import { labelInNameFindings } from "./accessible-names.ts";
 import { beginAutosaveStatusTranscript, readAutosaveStatusTranscript } from "./autosave-status-transcript.ts";
 import { lastInkColumn, readCanvasBandInk, solidColumns } from "./canvas-ink.ts";
+import { auditRenderedTextContrast } from "./pixel-contrast.ts";
 import { frameFingerprint, frameFingerprintPair } from "./weave-drive.ts";
 
 test("socket frames wait for completed attaches", async ({ page }) => {

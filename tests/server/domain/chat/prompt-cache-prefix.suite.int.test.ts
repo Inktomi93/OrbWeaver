@@ -6,9 +6,9 @@ import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { JsonValue } from "@orb/kit/json";
-import type { ChatRoot } from "@orb/testkit/node/chat/composed.ts";
-import { seedMessage } from "@orb/testkit/node/factories/message.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import type { ChatRoot } from "@orb/testkit/node/composed";
+import { seedMessage } from "@orb/testkit/node/composed";
 import {
   attachPersonaLore,
   inputMessages,

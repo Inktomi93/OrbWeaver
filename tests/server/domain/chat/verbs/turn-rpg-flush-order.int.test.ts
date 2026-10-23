@@ -1,9 +1,9 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // @subject packages/server/src/domain/rpg/chat-ops/index.ts
 import { closeDb } from "@orb/db";
-import { freshCountedDb } from "@orb/testkit/node/db.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { terminalSseLine } from "@orb/testkit/node/provider-stream.ts";
+import { expect, test } from "@orb/testkit/node";
+import { freshCountedDb } from "@orb/testkit/node/composed";
+import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { coreFrame, coreHeldReply, coreSse } from "../engine/core-physical.ts";
 import { turnRpgReply, turnRpgRoom } from "./turn-rpg-physical.ts";
 

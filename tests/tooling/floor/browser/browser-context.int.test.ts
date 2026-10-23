@@ -12,7 +12,7 @@
 // defect is a POISONED SAMPLE, not a hidden element: the arm is what a reviewer runs, and the surround
 // colour it prints is the thing that was wrong.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { chromium } from "@playwright/test";
 import { DEV_SERVER_HUD } from "../../../../tooling/src/floor/browser/browser-context.ts";
 import { captureContrastEvidence } from "../../../../tooling/src/snap/ops/arms/contrast.ts";

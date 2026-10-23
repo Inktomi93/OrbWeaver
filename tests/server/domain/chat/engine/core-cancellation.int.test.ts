@@ -2,8 +2,8 @@
 // Stop after a real partial native response; an unfinished swipe must never replace the selected prose.
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { messages, messageVariants } from "@orb/db";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { terminalSseLine } from "@orb/testkit/node/provider-stream.ts";
+import { expect, test } from "@orb/testkit/node";
+import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { eq } from "drizzle-orm";
 import { coreFrame, coreHttpRoom, coreSse } from "./core-physical.ts";
 

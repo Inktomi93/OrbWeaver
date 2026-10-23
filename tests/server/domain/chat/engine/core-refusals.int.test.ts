@@ -3,8 +3,8 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { LogLevel } from "@orb/contracts/settings";
 import { chatLocks, messages, messageVariants } from "@orb/db";
 import { logRing } from "@orb/server/foundation/observability";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { terminalSseLine } from "@orb/testkit/node/provider-stream.ts";
+import { expect, test } from "@orb/testkit/node";
+import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { eq } from "drizzle-orm";
 import { coreFrame, coreHttpRoom, coreSse } from "./core-physical.ts";
 

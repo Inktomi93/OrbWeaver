@@ -4,12 +4,9 @@ import { setTimeout as physicalDeadline } from "node:timers/promises";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { closeDb } from "@orb/db";
 import type { ChatId, RpgGameId } from "@orb/kit/ids";
-import { freshHeldDb } from "@orb/testkit/node/db.ts";
-import { makePluginBundle, seedInstalledPlugin } from "@orb/testkit/node/factories/plugin.ts";
-import { seedRpgGame } from "@orb/testkit/node/factories/rpg.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import { createServerHarness, freshHeldDb, makePluginBundle, seedInstalledPlugin, seedRpgGame } from "@orb/testkit/node/composed";
 import { sql } from "drizzle-orm";
 
 const PROGRESS_OBSERVATION_MS = 1000;

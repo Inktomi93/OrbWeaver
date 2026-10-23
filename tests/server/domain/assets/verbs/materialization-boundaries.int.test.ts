@@ -3,9 +3,8 @@ import { backgroundMaterializeMessage } from "@orb/contracts/theme";
 import { assets } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
-import { makeAsset, makeAssetBytes } from "@orb/testkit/node/factories/asset.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness, makeAsset, makeAssetBytes } from "@orb/testkit/node/composed";
 import { IMAGE_PROSE, imageRoom, nativeText } from "../../chat/engine/inline-image-physical.ts";
 
 const PUBLIC_URL = "https://public-image.test/image.png";

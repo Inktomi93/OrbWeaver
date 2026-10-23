@@ -8,7 +8,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { promisify } from "node:util";
 import { wireCaptureSchema } from "@orb/contracts/debug";
 import { DATA_LAYOUT_DIRS } from "@orb/server/foundation/data-layout";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { vi } from "vitest";
 
 const SPILL_FILE = "captures.jsonl";

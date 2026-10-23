@@ -1,6 +1,6 @@
 import { appRouter } from "@orb/server/transport/trpc";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
 import { z } from "zod";
 
 test("the role codec reports invalid game posture through safeParse without throwing", async () => {

@@ -3,7 +3,7 @@
 import * as schema from "@orb/db/schema";
 import type { ScopingRow } from "@orb/db/tenancy";
 import { ROOM_TABLE, TABLE_SCOPING } from "@orb/db/tenancy";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { getTableColumns, getTableName, is } from "drizzle-orm";
 import { getTableConfig, SQLiteTable, sqliteTable, text } from "drizzle-orm/sqlite-core";
 

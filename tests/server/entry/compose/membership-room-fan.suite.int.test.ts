@@ -3,8 +3,8 @@
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import type { ServicesResult } from "@orb/server/entry/compose";
-import type { Fixtures } from "@orb/testkit/node/fixtures.ts";
-import { test as baseTest, expect, OTHER_USER_ID, OWNER_USER_ID } from "@orb/testkit/node/fixtures.ts";
+import type { Fixtures } from "@orb/testkit/node";
+import { test as baseTest, expect, OTHER_USER_ID, OWNER_USER_ID } from "@orb/testkit/node";
 import { onTestFinished } from "vitest";
 
 type ChatFrame = Parameters<Parameters<ServicesResult["liveBuses"]["chat"]["subscribeAllChatEvents"]>[0]>[0];

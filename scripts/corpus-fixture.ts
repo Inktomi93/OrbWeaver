@@ -38,7 +38,7 @@ async function runPrivateCorpus(command: string, directory: string | undefined, 
     return;
   }
   const { assertPrivateCorpusOutput, assertPrivateCorpusOutputArguments, assertPrivateCorpusNetwork, privateCorpusParent } = await import(
-    "@orb/testkit/node/corpus.ts"
+    "@orb/testkit/node/composed"
   );
   const parent = command === "private" ? realpathSync(dirname(resolve(directory))) : privateCorpusParent(resolve(directory));
   if (parent === undefined) {
@@ -214,7 +214,7 @@ async function runCorpusSnap(directory: string | undefined, nativeArgs: readonly
     throw new UsageError("A corpus Snap provider is run-owned; use a one-shot or scenario drive, not a detached session or stage waiter");
   }
   const { localPath } = await import("@orb/db");
-  const { prepareCorpusSnapFixture, runCorpusSnapConsumer } = await import("@orb/testkit/node/corpus-recipe.ts");
+  const { prepareCorpusSnapFixture, runCorpusSnapConsumer } = await import("@orb/testkit/node/composed");
   const prepared = await prepareCorpusSnapFixture(directory === "--" ? undefined : directory);
   const database = localPath(prepared.fixture.layout.databaseUrl);
   if (database === undefined) {
@@ -272,8 +272,8 @@ async function writePrivateIntake(directory: string | undefined, nativeArgs: rea
   if (parent === undefined) {
     throw new UsageError("Private corpus intake requires its owned private output root");
   }
-  const { createCorpusCapsule, writePrivateCorpusFixture, rethrowPrivateCorpusFailure } = await import("@orb/testkit/node/corpus.ts");
-  const { createCorpusRecipe } = await import("@orb/testkit/node/corpus-recipe.ts");
+  const { createCorpusCapsule, writePrivateCorpusFixture, rethrowPrivateCorpusFailure } = await import("@orb/testkit/node/composed");
+  const { createCorpusRecipe } = await import("@orb/testkit/node/composed");
   try {
     const workloadExecutionSignal = privateCorpusExecutionSignal();
     workloadExecutionSignal.throwIfAborted();
@@ -308,7 +308,7 @@ async function writePrivateIntake(directory: string | undefined, nativeArgs: rea
 }
 
 async function runCorpusFixture(command: string, directory: string | undefined, nativeArgs: readonly string[]): Promise<number> {
-  const { createCorpusCapsule, publishCorpusFixture, loadCorpusFixture, cloneCorpusFixture } = await import("@orb/testkit/node/corpus.ts");
+  const { createCorpusCapsule, publishCorpusFixture, loadCorpusFixture, cloneCorpusFixture } = await import("@orb/testkit/node/composed");
   const parent = await mkdtemp(join(tmpdir(), "orb-corpus-fixture-"));
   let consumerCompleted = true;
   await using ownership = new AsyncDisposableStack();
@@ -323,7 +323,7 @@ async function runCorpusFixture(command: string, directory: string | undefined, 
     if (directory === undefined || nativeArgs.length > 0) {
       throw new UsageError(USAGE);
     }
-    const { createCorpusRecipe } = await import("@orb/testkit/node/corpus-recipe.ts");
+    const { createCorpusRecipe } = await import("@orb/testkit/node/composed");
     const { options } = await createCorpusRecipe(parent);
     const capsule = ownership.use(await createCorpusCapsule({ ...options, directory: join(parent, "source") }));
     const published = await publishCorpusFixture(capsule, resolve(directory));
@@ -331,7 +331,7 @@ async function runCorpusFixture(command: string, directory: string | undefined, 
     return 0;
   }
   const source = directory === "--" ? undefined : directory;
-  const prepared = nativeArgs.includes("--list") ? undefined : await (await import("@orb/testkit/node/corpus-recipe.ts")).prepareCorpusSnapFixture(source);
+  const prepared = nativeArgs.includes("--list") ? undefined : await (await import("@orb/testkit/node/composed")).prepareCorpusSnapFixture(source);
   const clone = prepared?.fixture ?? (await cloneCorpusFixture(loadCorpusFixture(source), join(parent, "consumer")));
   ownership.defer(async (): Promise<void> => {
     if (consumerCompleted) {

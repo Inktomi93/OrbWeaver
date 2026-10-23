@@ -10,7 +10,7 @@
 // REQUIRED field in `RawSamples` reds here (the fixture stops being valid) and in tsc (the table is a
 // `Record<keyof RawSamples, …>`) — the two guards are independent on purpose.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { describe } from "vitest";
 import { appFailureSurface, rawSamples, shellStateSnapshot } from "../../../../tooling/src/ui-audit/ops/page-validate.ts";
 

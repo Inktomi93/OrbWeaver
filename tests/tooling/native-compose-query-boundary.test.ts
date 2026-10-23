@@ -1,7 +1,7 @@
 // The installed import checker judges actual DB/server source and package doors, never substitute DB declarations.
 import { copyFileSync, cpSync, mkdirSync, readdirSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 
 const ENTRY = "packages/server/src/entry/compose/native-query-probe.ts";

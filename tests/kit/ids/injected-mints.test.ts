@@ -1,6 +1,6 @@
 import { brandedId, createIdSource, ID_PREFIX, mintTypeId, mintUserId, typeIdSchema } from "@orb/kit/ids";
-import { createSeededIds } from "@orb/testkit/iso/ids.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { createSeededIds } from "@orb/testkit/iso";
+import { expect, test } from "@orb/testkit/node";
 
 test("canonical mints preserve the injected business identity sequence", () => {
   const ids = createSeededIds();

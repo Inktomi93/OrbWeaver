@@ -7,7 +7,7 @@
 // is REFUSED loudly instead of silently rendering the account's own theme, and that the patch states the
 // SELECTION only (the app fetches the real theme row itself — the shim never fabricates a palette).
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import {
   applyThemeFlag,
   NO_THEME,

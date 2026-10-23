@@ -2,8 +2,8 @@ import { globSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { HomeTileContribution, SectionDefinition } from "@orb/client/state";
 import { assembleChrome, CONFIG_GROUP_IDS, isCollectionGroup, SECTION_IDS } from "@orb/client/state";
-import { chromeWidgets, createAuthedComposition, createClientRuntime, homeTiles } from "@orb/testkit/browser/ct-door.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { chromeWidgets, createAuthedComposition, createClientRuntime, homeTiles } from "@orb/testkit/browser";
+import { expect, test } from "@orb/testkit/node";
 import ts from "typescript";
 
 const FEATURES = fileURLToPath(new URL("../../../packages/client/src/features", import.meta.url));

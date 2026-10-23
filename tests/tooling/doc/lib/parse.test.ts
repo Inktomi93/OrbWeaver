@@ -1,7 +1,7 @@
 // The argv parser: every verb's shape, the list-taking forms, and misuse refused as UsageError so the cli
 // exits 3, never 1 or 2.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { parseDocCommand, USAGE } from "../../../../tooling/src/doc/index.ts";
 import { UsageError } from "../../../../tooling/src/floor/cli/run-tool.ts";
 

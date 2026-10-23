@@ -5,16 +5,16 @@ import { DEFAULT_GROUP_CONFIG, narratorPolicyOf } from "@orb/contracts/chat";
 import { messages, messageVariants } from "@orb/db";
 import type { CharacterId } from "@orb/kit/ids";
 import { jsonValueSchema } from "@orb/kit/json";
-import { createChatRoot } from "@orb/testkit/node/chat/composed.ts";
+import { expect, test } from "@orb/testkit/node";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
+  createChatRoot,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { seedMessage } from "@orb/testkit/node/factories/message.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+  seedMessage,
+} from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 
 const GROUP_OF_ONE: GroupConfig = { ...DEFAULT_GROUP_CONFIG, output: "per-speaker", speakerTags: true, cardScope: "scoped" };

@@ -5,11 +5,9 @@ import type { PortableFile } from "@orb/contracts/portability";
 import { galleryItems } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import { createGalleryCharacterOps } from "@orb/server/domain/character";
-import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
-import { seedUser } from "@orb/testkit/node/factories/user.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { magicBytes } from "@orb/testkit/node/magic-bytes.ts";
+import { expect, test } from "@orb/testkit/node";
+import { seedCharacter, seedUser } from "@orb/testkit/node/composed";
+import { magicBytes, principal } from "@orb/testkit/node/helpers";
 import { eq } from "drizzle-orm";
 
 test("composed gallery export never resolves a foreign subject handle even from an owned curation row", async ({ harness, app, db, services }) => {

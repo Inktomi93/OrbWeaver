@@ -3,18 +3,18 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { automationFires, automationRuleState } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { eq } from "drizzle-orm";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { seedCorpusConnections } from "@orb/testkit/node/corpus-seed.ts";
-import { seedAutomationRule, seedAutomationRun, seedAutomationTestFires } from "@orb/testkit/node/factories/automation.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
-import { eq } from "drizzle-orm";
+} from "../corpus-provider.ts";
+import { seedCorpusConnections } from "../corpus-seed.ts";
+import { expect, test } from "../fixtures.ts";
+import { createServerHarness } from "../server.ts";
+import { seedAutomationRule, seedAutomationRun, seedAutomationTestFires } from "./automation.ts";
 
 test("dry-run provenance and same-clock real fires retain distinct IDs without inventing analysis state", async () => {
   await using root = await createServerHarness();

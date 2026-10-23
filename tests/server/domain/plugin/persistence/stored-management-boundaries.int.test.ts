@@ -8,9 +8,9 @@ import { databaseHandle } from "@orb/db/wiring-driver";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { createPluginGrantTasksOf } from "@orb/server/domain/plugin";
 import { SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
-import { requireShowcaseBundle } from "@orb/testkit/node/showcase-bundle.ts";
+import { expect, test } from "@orb/testkit/node";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import { requireShowcaseBundle } from "@orb/testkit/node/composed";
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 

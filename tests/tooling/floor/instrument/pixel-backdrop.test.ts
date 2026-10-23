@@ -9,7 +9,7 @@
 // The ring is the load-bearing choice: glyphs live in the box INTERIOR, so an interior-inclusive average
 // would measure the text it is trying to measure text AGAINST.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { ScanlineBackdrop } from "@orb/tooling/floor/instrument/pixel-backdrop";
 import { clampBoxToImage, ringBackdropOfRegion, scanlineBackdrop, scanlineLuminances } from "@orb/tooling/floor/instrument/pixel-backdrop";
 

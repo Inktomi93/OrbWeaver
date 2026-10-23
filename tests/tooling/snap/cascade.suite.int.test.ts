@@ -7,7 +7,7 @@ import type { Server } from "node:http";
 import { createServer } from "node:http";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { launchProbeSession, withProbeSession } from "@orb/tooling/floor/browser/browser";
 import type { DevToolsCascadeRawDeclaration, DevToolsCascadeRawReceipt } from "@orb/tooling/floor/devtools/devtools-runtime";
 import { prepareDevToolsCascadeRuntime } from "@orb/tooling/floor/devtools/devtools-runtime";

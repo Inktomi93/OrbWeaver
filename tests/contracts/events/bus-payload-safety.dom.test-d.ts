@@ -8,7 +8,7 @@ import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { MaintenanceResult, WorkloadEvent } from "@orb/contracts/workloads";
 import type { WiBusEvent } from "@orb/contracts/world-info";
 import type { ChatId, UserCredentialId } from "@orb/kit/ids";
-import type { BusPayloadFailure, EconomicsField } from "@orb/testkit/iso/bus-payload-policy.ts";
+import type { BusPayloadFailure, EconomicsField } from "@orb/testkit/iso";
 import { expectTypeOf, test } from "vitest";
 import { z } from "zod";
 

@@ -1,7 +1,7 @@
 // Drizzle's syntax-only rule must keep local bulk permissions off neighboring scoped writes.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 
 const DELETE_RULE = "drizzle/enforce-delete-with-where";

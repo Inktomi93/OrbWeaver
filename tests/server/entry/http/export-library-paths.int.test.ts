@@ -7,9 +7,8 @@ import { importStartedSchema, TREE_FILE_FIELD } from "@orb/contracts/import";
 import { PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { extractZip } from "@orb/server/infra/storage/zip";
-import { prepareBackupFolder } from "@orb/testkit/node/backup-folder.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness, prepareBackupFolder } from "@orb/testkit/node/composed";
 import { CSRF_HEADERS } from "./_body-limit-inputs.ts";
 
 const EXPORT_ROUTE = "/api/export/library";

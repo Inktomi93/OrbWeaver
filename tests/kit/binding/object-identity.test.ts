@@ -1,5 +1,5 @@
 import { createBinding } from "@orb/kit/binding";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 test("an early read preserves the composition error and succeeds after binding", () => {
   const message = "runtime accessed before composition";

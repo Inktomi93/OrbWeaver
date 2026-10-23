@@ -6,7 +6,7 @@
 // byte-identical for every invocation that does not opt in. The first assertion below is therefore about
 // the DEFAULT, not the new flag: a later reader "fixing" the default to `device` reds here.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import {
   CSS_SHOT_SCALE,
   parseShotScale,

@@ -1,6 +1,6 @@
 // Corpus characters, native chat actions and durable identity; only physical provider bytes are scripted.
 import { blobUrl } from "@orb/contracts/assets";
-import type { CorpusWire } from "@orb/testkit/iso/corpus.ts";
+import type { CorpusWire } from "@orb/testkit/iso";
 import type { Page } from "@playwright/test";
 import { configureCustomProvider, ownerActor } from "./support/actors.ts";
 import { openChatByTitle, openChatOptions, typeAndSend, waitForAppReady } from "./support/chat-room.ts";

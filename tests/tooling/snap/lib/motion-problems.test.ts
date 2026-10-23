@@ -10,7 +10,7 @@
 // The two rows are mutually exclusive by construction, which is why `exemption` is its own non-failing
 // kind rather than a sentence appended to a `threshold` row.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { AuditData, BrowserEnvironmentEvidence, MotionSnapshot } from "../../../../tooling/src/motion-audit/index.ts";
 import { motionProblems } from "../../../../tooling/src/snap/lib/motion-problems.ts";
 

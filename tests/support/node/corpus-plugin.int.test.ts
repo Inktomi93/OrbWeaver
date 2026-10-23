@@ -2,8 +2,6 @@
 import { spawn } from "node:child_process";
 import { assertReferentialIntegrity, pluginKv, pluginProviderClaims } from "@orb/db";
 import { distributedPluginViewSchema, PluginNotFoundError, pluginFanoutResultSchema } from "@orb/server/domain/plugin";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
 import {
   CORPUS_ADMIN_PROVIDER,
   CORPUS_PLUGIN_ASSET_PATH,
@@ -14,6 +12,8 @@ import {
   seedCorpusPlugins,
   seedCorpusPluginWithdrawal,
 } from "./corpus-plugin.ts";
+import { expect, test } from "./fixtures.ts";
+import { createServerHarness } from "./server.ts";
 
 test("native withdrawal removes matching copies but retains a recipient's upgraded live install and private canon", { tags: ["slow"] }, async () => {
   await using root = await createServerHarness({ pluginSpawn: spawn });

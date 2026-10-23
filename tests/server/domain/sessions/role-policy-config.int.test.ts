@@ -5,9 +5,9 @@ import { brandedId } from "@orb/kit/ids";
 import type { SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { env } from "@orb/server/foundation/env";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import { createServerHarness } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { afterEach, vi } from "vitest";
 

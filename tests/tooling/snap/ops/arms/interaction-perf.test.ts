@@ -9,7 +9,7 @@
 // it. `unknown`, not `bounded`: a missing meter cannot say how much it lost, so there is no limit policy to
 // express (the heap arm makes the same call for a snapshot whose population it cannot count).
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { interactionPerfCompleteness } from "../../../../../tooling/src/snap/ops/arms/interaction-perf.ts";
 
 test("no gaps ⇒ the artifact is complete (#1507 positive control)", () => {

@@ -7,8 +7,8 @@ import { databaseHandle } from "@orb/db/wiring-driver";
 import { statementToken } from "@orb/db/wiring-owner";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createChatBus, createChatPublication } from "@orb/server/domain/chat";
-import { seedChat } from "@orb/testkit/node/factories/chat.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import { seedChat } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
 

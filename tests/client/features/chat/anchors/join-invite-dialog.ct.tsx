@@ -1,12 +1,12 @@
 // Controlled invite presentation, focus and completion; membership and whole-app navigation belong to integration and E2E.
 import { DEAD_INVITE_SENTENCE, inviteRoomSentence } from "@orb/client/lib";
 import { invitePreviewSchema } from "@orb/contracts/chat";
-import type { CorpusWire } from "@orb/testkit/iso/corpus.ts";
-import { createCorpusReadResponder } from "@orb/testkit/iso/corpus-read-responder.ts";
-import { expect, test } from "@orb/testkit/node/ct-corpus.ts";
-import { makeChatDetail, makeChatId, makeRedeemInviteResult } from "@orb/testkit/node/factories/chat-view.ts";
-import type { TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
+import type { TrpcRoutes } from "@orb/testkit/ct";
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
+import type { CorpusWire } from "@orb/testkit/iso";
+import { createCorpusReadResponder } from "@orb/testkit/iso";
+import { makeChatDetail, makeChatId, makeRedeemInviteResult } from "@orb/testkit/node/helpers";
 import type { JoinInviteDialogStory } from "./_join-invite-stories.tsx";
 
 const TOKEN = "controlled-invite-token";

@@ -1,5 +1,5 @@
 import { createScopedEgress } from "@orb/server/infra/network";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 test("an exact hostname port cannot be re-widened by the resolved address's containing CIDR", async () => {
   const resolvedHosts: string[] = [];

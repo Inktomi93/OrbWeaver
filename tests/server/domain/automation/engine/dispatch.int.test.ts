@@ -4,6 +4,8 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { createBookSchema } from "@orb/contracts/world-info";
 import { assets, chats, imageryGenerations, messages } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -11,12 +13,10 @@ import {
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { seedCorpusConnections } from "@orb/testkit/node/corpus-seed.ts";
-import { makeAssetBytes } from "@orb/testkit/node/factories/asset.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+  createServerHarness,
+  makeAssetBytes,
+  seedCorpusConnections,
+} from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { enabledRule } from "../runtime.fixtures.ts";
 

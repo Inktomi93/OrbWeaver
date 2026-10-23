@@ -1,7 +1,7 @@
 // Positive controls for every browser-diagnostic carrier persisted by Snap. Canary bytes must exist in
 // raw fixtures and disappear from every disk-safe projection without destroying ordinary provenance.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { BrowserDiagnostic } from "../../../../tooling/src/floor/browser/browser-diagnostics.ts";
 import { redactedRequestUrl } from "../../../../tooling/src/floor/browser/browser-request-url.ts";
 import {

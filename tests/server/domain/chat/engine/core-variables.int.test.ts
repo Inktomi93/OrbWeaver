@@ -2,8 +2,8 @@
 // Real card macros author deltas; SQLite and the canonical fold own commit and retry behavior.
 import { createCharacterSchema } from "@orb/contracts/character";
 import { chats, messages, messageVariants } from "@orb/db";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { terminalSseLine } from "@orb/testkit/node/provider-stream.ts";
+import { expect, test } from "@orb/testkit/node";
+import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { eq, sql } from "drizzle-orm";
 import { coreFrame, coreHttpRoom, coreSse } from "./core-physical.ts";
 

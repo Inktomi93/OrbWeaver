@@ -9,6 +9,7 @@ import { RPG_NO_CHANGES_TOOL } from "@orb/contracts/rpg";
 import { characterStats, closeDb, dailyStats, messages, messageVariants, modelStats, ownerStats, statsCanonVersions } from "@orb/db";
 import { CHAT_OP_CODES, ChatOperationError } from "@orb/server/domain/chat";
 import { sha256Hex } from "@orb/server/primitives/content-hash";
+import { expect, test } from "@orb/testkit/node";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -16,12 +17,11 @@ import {
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { seedCorpusActors } from "@orb/testkit/node/corpus-seed.ts";
-import { freshHeldDb } from "@orb/testkit/node/db.ts";
-import { seedRpgGame } from "@orb/testkit/node/factories/rpg.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+  createServerHarness,
+  freshHeldDb,
+  seedCorpusActors,
+  seedRpgGame,
+} from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 
 const REQUIRED_TOOL_CHOICE = '"tool_choice":"required"';

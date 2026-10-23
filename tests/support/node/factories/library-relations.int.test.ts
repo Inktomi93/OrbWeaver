@@ -12,16 +12,16 @@ import { createTagSchema } from "@orb/contracts/tag";
 import { createBookSchema } from "@orb/contracts/world-info";
 import { characterBooks, characterTags, chatTags } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
-import { createCorpusReadResponder } from "@orb/testkit/iso/corpus-read-responder.ts";
-import { captureCorpusReads, seedCorpusLibraries } from "@orb/testkit/node/corpus-seed.ts";
-import { seedChatInvite, seedInvitedChatParticipant } from "@orb/testkit/node/factories/chat.ts";
-import { seedGalleryItem } from "@orb/testkit/node/factories/gallery.ts";
-import { seedCharacterTag, seedChatTag, seedTag } from "@orb/testkit/node/factories/tag.ts";
-import { captureWorldBookRows, seedCharacterBook, seedWorldBook } from "@orb/testkit/node/factories/world-info.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
 import { eq } from "drizzle-orm";
+import { createFrozenClock } from "../../iso/clock.ts";
+import { createCorpusReadResponder } from "../../iso/corpus-read-responder.ts";
+import { captureCorpusReads, seedCorpusLibraries } from "../corpus-seed.ts";
+import { expect, test } from "../fixtures.ts";
+import { createServerHarness } from "../server.ts";
+import { seedChatInvite, seedInvitedChatParticipant } from "./chat.ts";
+import { seedGalleryItem } from "./gallery.ts";
+import { seedCharacterTag, seedChatTag, seedTag } from "./tag.ts";
+import { captureWorldBookRows, seedCharacterBook, seedWorldBook } from "./world-info.ts";
 
 test("world-info creation and first edits persist one injected clock rather than reversing a database wall-clock stamp", async () => {
   const clock = createFrozenClock(1_100_000_000_123);

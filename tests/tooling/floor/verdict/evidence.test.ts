@@ -1,5 +1,5 @@
 import process from "node:process";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { printVerdict, printVerdictReceipt } from "@orb/tooling/floor/verdict/evidence";
 import { vi } from "vitest";
 import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";

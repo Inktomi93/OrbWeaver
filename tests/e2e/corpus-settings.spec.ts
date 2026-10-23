@@ -9,7 +9,7 @@ import type { RegexScriptRow } from "@orb/contracts/regex";
 import { IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import { WORKLOAD_LIST_MAX_LIMIT } from "@orb/contracts/workloads";
 import { formatVersionIdentity } from "@orb/kit/version-identity";
-import { prepareBackupFolder } from "@orb/testkit/node/backup-folder.ts";
+import { prepareBackupFolder } from "@orb/testkit/node/composed";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Page, Request, Response } from "@playwright/test";
 import { ownerActor } from "./support/actors.ts";

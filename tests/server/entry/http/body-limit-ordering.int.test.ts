@@ -8,10 +8,9 @@ import { authMeSchema } from "@orb/contracts/identity";
 import type { ExternalId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
-import { makeAssetBytes } from "@orb/testkit/node/factories/asset.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createNativeIssuer, ISSUER, NATIVE_OIDC_SETTINGS } from "@orb/testkit/node/oidc-issuer.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness, makeAssetBytes } from "@orb/testkit/node/composed";
+import { createNativeIssuer, ISSUER, NATIVE_OIDC_SETTINGS } from "@orb/testkit/node/helpers";
 import {
   BACKCHANNEL_ROUTE,
   BUNDLE_ROUTE,

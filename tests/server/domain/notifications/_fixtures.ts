@@ -3,10 +3,9 @@ import type { Principal } from "@orb/contracts/identity";
 import type { InboxView, NotificationEvent } from "@orb/contracts/notifications";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { seedChat } from "@orb/testkit/node/factories/chat.ts";
-import { makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "@orb/testkit/node/factories/plugin.ts";
-import { test as base } from "@orb/testkit/node/fixtures.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
+import { test as base } from "@orb/testkit/node";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import { makePluginBundle, seedChat, seedInstalledPlugin, seedPluginGrant } from "@orb/testkit/node/composed";
 
 interface NotificationActors {
   readonly host: Principal;
@@ -163,4 +162,4 @@ export const test = base.extend<{
   },
 });
 
-export { expect } from "@orb/testkit/node/fixtures.ts";
+export { expect } from "@orb/testkit/node";

@@ -1,7 +1,7 @@
 // Browser evidence retention truth: replacement is not observation/eviction, while protected overflow
 // is incomplete even though no active request body may be dropped.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { exactScope } from "../../../../tooling/src/floor/artifacts/artifact-scope.ts";
 import {
   BoundedEvidenceRing,

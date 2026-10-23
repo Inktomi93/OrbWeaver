@@ -1,4 +1,4 @@
-import { CtIsolation } from "@orb/testkit/browser/ct-isolated-subject.tsx";
+import { CtIsolation } from "@orb/testkit/browser";
 import { Container } from "@orb/ui/layout";
 import type { RadioGroupPickerItemProps } from "@orb/ui/radio-group";
 import { RadioGroupPicker, RadioGroupPickerItem } from "@orb/ui/radio-group";

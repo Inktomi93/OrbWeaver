@@ -212,6 +212,20 @@ const TEST_WORLDS = [
     to: { path: "^tooling/src/", pathNot: ["^tooling/src/[^/]+/index\\.ts$", "^tooling/src/floor/"] },
   },
   {
+    name: "testkit-doors-only",
+    comment: "Tests reach @orb/testkit through the doors its package.json exports; a deep path is a private helper.",
+    severity: "error",
+    from: { path: "^(tests|scripts|playwright)/", pathNot: "^tests/support/" },
+    to: {
+      path: "^tests/support/",
+      pathNot: [
+        "^tests/support/(iso|browser)/index\\.ts$",
+        "^tests/support/node/(index|helpers|composed|ct|ct-corpus|tool-fixtures|composed-real)\\.ts$",
+        "^tests/support/node/sdk-process-control\\.mjs$",
+      ],
+    },
+  },
+  {
     name: "tooling-no-testkit",
     severity: "error",
     from: { path: "^tooling/" },

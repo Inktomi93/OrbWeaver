@@ -13,7 +13,7 @@
 // @instrument-proof: the failing and passing borders differ ONLY in border-color; a per-side sampler reading
 // the wrong strip (the fill, the surround, the anti-aliased corner) cannot separate them.
 import { AA_NON_TEXT_RATIO } from "@orb/kit/theme-derivation";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { chromium } from "@playwright/test";
 import { measureEdgeContrast } from "../../../../tooling/src/snap/ops/contrast-edge.ts";
 import { scaledBudget } from "../../_load-budget.ts";

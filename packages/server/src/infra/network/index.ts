@@ -20,7 +20,6 @@ export {
   fetchPluginBundle,
   fetchWebDocument,
   installEgressFirewall,
-  publishPrivateEndpointAllowlist,
   type SafeFetchOptions,
   type SafeFetchResult,
   safeFetch,

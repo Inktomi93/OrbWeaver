@@ -4,8 +4,8 @@
 // @subject packages/server/src/domain/character/persistence/handoff-copy-write.ts
 import { createCharacterSchema } from "@orb/contracts/character";
 import { characters } from "@orb/db";
-import { seedCreatedCharacter } from "@orb/testkit/node/factories/character.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import { seedCreatedCharacter } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { handoffActors } from "../../chat/substrate/handoff.fixtures.ts";
 

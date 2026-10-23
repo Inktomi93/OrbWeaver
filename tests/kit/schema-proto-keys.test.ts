@@ -1,7 +1,7 @@
 import { evalCel, isCelParseError, parseCel } from "@orb/kit/cel";
 import { isPlainObject } from "@orb/kit/guards";
 import { JsonSchemaLiftError, liftJsonSchema } from "@orb/kit/json-schema";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 // JSON.parse keeps `__proto__` as an own key; a copy into `{}` would hand it to the inherited setter instead.
 const PROTO_DATA = '{"__proto__":{"inherited":"smuggled"},"kept":2}';

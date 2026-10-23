@@ -2,7 +2,7 @@
 // shapes the app writes: a mint under the transport's name plus a `Max-Age=0` clear of the other name.
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { loginFixtureUser } from "../../../../tooling/src/snap/ops/fixture.ts";
 
 const HTTP_MINT = "orb_session_insecure=tok-http; Max-Age=2592000; Path=/; HttpOnly; SameSite=Lax";

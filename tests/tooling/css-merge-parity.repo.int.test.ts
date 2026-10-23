@@ -1,7 +1,7 @@
 // Tailwind compilation and the production-shaped Oxide scan establish utility-family and token emission parity.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { CSS_MERGE_FAMILY_NAMES } from "@orb/ui/lib";
 // Devtime build/verify machinery at the @orb/ui package ROOT — no `exports` subpath by design (#1847).
 import { assertTokenContract } from "@orb/ui/token-contract";

@@ -3,7 +3,7 @@
 // tests/tooling/ui-audit/index.int.test.ts; this file pins the READINESS arm's pure verdict, whose whole job
 // is to be true when the two count-based arms cannot see the problem.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { SettingsShimEvidence } from "../../../../tooling/src/floor/appearance/appearance.ts";
 import { instrumentPageError, pageErrorText, runtimePageError } from "../../../../tooling/src/floor/browser/browser-contract.ts";
 import type { RowVoidInput } from "../../../../tooling/src/ui-audit/contract/samples-layout.ts";

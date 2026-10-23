@@ -7,8 +7,8 @@ import { messageVariants } from "@orb/db";
 import type { ChatId, MessageVariantId } from "@orb/kit/ids";
 import { createVolatileOnlyRegistry, processMacros } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
-import type { ChatRoot } from "@orb/testkit/node/chat/composed.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import type { ChatRoot } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { textRoom } from "../scenario-physical.ts";
 

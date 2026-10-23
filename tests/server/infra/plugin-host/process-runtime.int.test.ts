@@ -3,8 +3,8 @@ import { ChildProcess } from "node:child_process";
 import { once } from "node:events";
 import { PLUGIN_CONTINUATION_WINDOW_MS } from "@orb/contracts/plugin";
 import { globalVariables } from "@orb/db";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
 import {
   bridgeRequest,
   createPluginProcessEdge,

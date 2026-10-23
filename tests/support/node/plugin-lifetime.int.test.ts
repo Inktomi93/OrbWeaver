@@ -1,12 +1,12 @@
 import { spawn } from "node:child_process";
 import { access } from "node:fs/promises";
 import process from "node:process";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import { spawnNicedTranscript } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { vi } from "vitest";
+import { expect, test } from "./fixtures.ts";
+import { createServerHarness } from "./server.ts";
 
 const SOURCE = "const h = orb.host(1); h.log.info(JSON.stringify({ at: h.clock.nowEpochMs(), random: h.random.next(), id: h.ids.mint() }));";
 const CHILD_TIMEOUT_MS = 30_000;
@@ -23,8 +23,8 @@ test("standalone native teardown joins a resident guest after the last outer lis
       "-e",
       `
     import { spawn } from "node:child_process";
-    import { createServerHarness } from "@orb/testkit/node/server.ts";
-    import { makePluginBundle } from "@orb/testkit/node/factories/plugin.ts";
+    import { createServerHarness } from "@orb/testkit/node/composed";
+    import { makePluginBundle } from "@orb/testkit/node/composed";
     import { pluginManifestSchema, PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY } from "@orb/contracts/plugin";
     const root = await createServerHarness({ pluginSpawn: spawn });
     await root.listen();

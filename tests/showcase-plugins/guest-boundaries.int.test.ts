@@ -1,6 +1,6 @@
 import type { PluginHostV1, PluginSurfaceRegistration, PluginToolRegistration, PluginVariableOp } from "@orb/contracts/plugin";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { bootShowcase } from "@orb/testkit/node/showcase-guest.ts";
+import { expect, test } from "@orb/testkit/node";
+import { bootShowcase } from "@orb/testkit/node/composed";
 
 // The VM helper receives guest functions directly, before the real host replaces them with handler refs.
 type GuestTool = Omit<PluginToolRegistration, "handler"> & { readonly handler: (input: unknown) => Promise<string> };

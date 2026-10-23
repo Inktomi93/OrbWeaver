@@ -1,7 +1,7 @@
 import { useTRPC } from "@orb/client/data";
 import { PresetEditorSurface } from "@orb/client/features/preset";
 import type { PresetId } from "@orb/kit/ids";
-import { CtClientProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { CtClientProviders } from "@orb/testkit/browser";
 import { Stack } from "@orb/ui/layout";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";

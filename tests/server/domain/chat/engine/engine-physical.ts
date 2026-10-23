@@ -2,18 +2,18 @@
 import "@orb/testkit/node/composed-real.ts";
 import type { UserIntent } from "@orb/contracts/preset";
 import { chatEvents, chats } from "@orb/db";
-import { createSeededIds } from "@orb/testkit/iso/ids.ts";
-import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/chat/composed.ts";
-import { createChatRoot } from "@orb/testkit/node/chat/composed.ts";
+import { createSeededIds } from "@orb/testkit/iso";
+import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
+  createChatRoot,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { seedMessage } from "@orb/testkit/node/factories/message.ts";
-import { createSdkProcessSpawner } from "@orb/testkit/node/sdk-process.ts";
+  seedMessage,
+} from "@orb/testkit/node/composed";
+import { createSdkProcessSpawner } from "@orb/testkit/node/helpers";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { ENGINE_SDK_MODEL, ENGINE_SDK_POLICY, ENGINE_SDK_RECEIPT } from "./engine-sdk-physical.mjs";

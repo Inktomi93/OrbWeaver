@@ -1,7 +1,6 @@
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
-import { makePromptConfig } from "@orb/testkit/iso/preset-config.ts";
-import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/chat/composed.ts";
+import { createFrozenClock, makePromptConfig } from "@orb/testkit/iso";
+import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/composed";
 
 export const NOW = Date.UTC(2026, 0, 15, 20, 0);
 export const KATHMANDU = "Asia/Kathmandu";

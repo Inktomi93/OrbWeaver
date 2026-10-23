@@ -1,7 +1,7 @@
 // @subject packages/server/src/domain/databank/verbs/scrape/scrape-wiki.ts
 import { assets, documents, workloads } from "@orb/db";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 
 const ARTICLE = "https://wiki.example/wiki/Northern_Passes";

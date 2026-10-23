@@ -12,7 +12,7 @@
 // absence cost the diagnosis. The multi-procedure arm is the second control: a batch window can fold another
 // call into the same request, so index 0 is an assumption, not a fact.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { MutationRequestRead } from "../../../../tooling/src/snap/ops/appearance-density-persistence.ts";
 import { readMutationInput } from "../../../../tooling/src/snap/ops/appearance-density-persistence.ts";
 

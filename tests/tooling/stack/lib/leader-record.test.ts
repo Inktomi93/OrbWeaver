@@ -3,7 +3,7 @@
 // record that does not parse never authorizes a signal.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { DevPinKey, LeaderRecord, PinSource } from "../../../../tooling/src/stack/index.ts";
 import {
   DEV_PIN_KEYS,

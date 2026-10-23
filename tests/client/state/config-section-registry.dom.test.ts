@@ -1,7 +1,7 @@
 import { createContributorRegistry } from "@orb/client/lib";
 import type { ConfigSectionContribution, SettingsViewerView } from "@orb/client/state";
 import { configSectionNavParts, resolveConfigSectionAnchor, resolveConfigSectionAnchorPrefix, resolveConfigSections } from "@orb/client/state";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 const MEMBER: SettingsViewerView = { isAdmin: false, isOwner: false };
 const ADMIN: SettingsViewerView = { isAdmin: true, isOwner: false };

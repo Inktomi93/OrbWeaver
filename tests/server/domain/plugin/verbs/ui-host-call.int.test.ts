@@ -2,10 +2,8 @@ import { spawn } from "node:child_process";
 import { PLUGIN_MAIN_ENTRY, PLUGIN_UI_CHAT_MESSAGES_LIMIT_MAX, PLUGIN_UI_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { jsonValueSchema } from "@orb/kit/json";
-import { seedCorpusActors } from "@orb/testkit/node/corpus-seed.ts";
-import { makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "@orb/testkit/node/factories/plugin.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness, makePluginBundle, seedCorpusActors, seedInstalledPlugin, seedPluginGrant } from "@orb/testkit/node/composed";
 import { strToU8 } from "fflate";
 import { z } from "zod";
 

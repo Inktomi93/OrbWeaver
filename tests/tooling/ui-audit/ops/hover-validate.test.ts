@@ -2,7 +2,7 @@
 // defect was a silent `JSON.parse(raw) as number[]` over selector strings, which turned restoration
 // withholding off without a single error line; these are the pins that keep every seam beside it honest.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { describe } from "vitest";
 import { attrRestored, candidateIndices, groupReadResult, hoverCensusResult, pageJsonString } from "../../../../tooling/src/ui-audit/ops/hover-validate.ts";
 

@@ -18,22 +18,22 @@ import {
   loadPresentHostUserId,
 } from "@orb/server/domain/chat";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
+import { expect, test } from "@orb/testkit/node";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { seedCorpusActors } from "@orb/testkit/node/corpus-seed.ts";
-import { makeAssetBytes } from "@orb/testkit/node/factories/asset.ts";
-import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
-import { seedChat } from "@orb/testkit/node/factories/chat.ts";
-import { seedMessage } from "@orb/testkit/node/factories/message.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
-import { seedUser } from "@orb/testkit/node/factories/user.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+  createServerHarness,
+  makeAssetBytes,
+  seedCharacter,
+  seedChat,
+  seedCorpusActors,
+  seedMessage,
+  seedUser,
+} from "@orb/testkit/node/composed";
+import { principal } from "@orb/testkit/node/helpers";
 import { and, eq } from "drizzle-orm";
 import { vi } from "vitest";
 

@@ -24,7 +24,7 @@ import {
   useSelectionActive,
 } from "@orb/client/state";
 import type { MessageId, PresetId } from "@orb/kit/ids";
-import { CtClientProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { CtClientProviders } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";

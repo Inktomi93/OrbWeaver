@@ -9,10 +9,9 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { isAdmin, isOwner } from "@orb/server/domain/admin";
 import { createImportAvatarStore, createImportOwnedAsset } from "@orb/server/domain/assets";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
-import { seedUser } from "@orb/testkit/node/factories/user.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness, seedUser } from "@orb/testkit/node/composed";
+import { principal } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";
 
 test("foreign malformed bytes and absence share the same refusal before import; same-owner bytes retain actor and payload", async (): Promise<void> => {

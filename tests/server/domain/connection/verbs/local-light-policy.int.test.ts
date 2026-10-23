@@ -5,8 +5,8 @@ import { connectionBindings, userConnections, users } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import { castId } from "@orb/kit/ids";
 import { seedLocalLightOnBoot } from "@orb/server/entry/boot";
-import { seedUser } from "@orb/testkit/node/factories/user.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import { seedUser } from "@orb/testkit/node/composed";
 import { eq, sql } from "drizzle-orm";
 
 test("boot continues across a real binding refusal, and the composed post-boot account mint survives and repairs its own floor", async ({

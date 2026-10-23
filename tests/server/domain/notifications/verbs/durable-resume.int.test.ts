@@ -2,7 +2,7 @@
 // @subject packages/server/src/domain/notifications/persistence/queries.ts
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import { NOTIFICATIONS_LIST_MAX_LIMIT } from "@orb/contracts/notifications";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { describe } from "vitest";
 import { expect, test } from "../_fixtures.ts";
 

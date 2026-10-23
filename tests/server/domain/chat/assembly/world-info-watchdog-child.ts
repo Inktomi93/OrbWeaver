@@ -5,7 +5,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { createEntrySchema } from "@orb/contracts/world-info";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { logRing } from "@orb/server/foundation/observability";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { createServerHarness } from "@orb/testkit/node/composed";
 import { z } from "zod";
 
 const mode = z.enum(["normal", "full", "latest"]).parse(process.argv[2]);

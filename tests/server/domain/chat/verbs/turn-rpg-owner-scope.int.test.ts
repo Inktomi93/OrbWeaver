@@ -1,7 +1,7 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // @subject packages/server/src/domain/rpg/flush-barrier.ts
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { terminalSseLine } from "@orb/testkit/node/provider-stream.ts";
+import { expect, test } from "@orb/testkit/node";
+import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { coreFrame, coreHeldReply, coreSse } from "../engine/core-physical.ts";
 import { turnRpgReply, turnRpgRoom } from "./turn-rpg-physical.ts";
 

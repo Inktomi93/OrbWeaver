@@ -3,17 +3,8 @@
 import { declaredCapabilitySchema } from "@orb/contracts/inference";
 import { rpgSnapshotStateSchema } from "@orb/contracts/rpg";
 import { assertReferentialIntegrity, rpgJournal, rpgSnapshots } from "@orb/db";
-import {
-  CORPUS_EMBED_MODEL,
-  CORPUS_EMBEDDING_VECTOR,
-  CORPUS_STRUCTURED_REPLIES,
-  CORPUS_TEXT_MODEL,
-  createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { seedCorpusActors } from "@orb/testkit/node/corpus-seed.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
 import { eq } from "drizzle-orm";
+import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
 import { seedCorpusRpgProvider } from "./corpus-rpg-provider.ts";
 import {
   CORPUS_RPG_CARD_NAME,
@@ -24,7 +15,10 @@ import {
   CORPUS_RPG_SCENE_TOOL,
   createCorpusRpgWire,
 } from "./corpus-rpg-wire.ts";
+import { seedCorpusActors } from "./corpus-seed.ts";
 import { captureRpgSnapshot } from "./factories/rpg.ts";
+import { expect, test } from "./fixtures.ts";
+import { createServerHarness } from "./server.ts";
 
 test("native model population, structured and required-tool resync, and changed folded calls retain their real planes and lineage", async () => {
   const wire = createCorpusRpgWire();

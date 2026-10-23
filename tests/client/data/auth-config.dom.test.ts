@@ -2,8 +2,8 @@
 import { fetchLiveShare, useAuthConfig } from "@orb/client/data";
 import { authConfigSchema } from "@orb/contracts/auth-config";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
-import { AppDataProviders, createClientRuntime } from "@orb/testkit/browser/ct-door.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { AppDataProviders, createClientRuntime } from "@orb/testkit/browser";
+import { expect, test } from "@orb/testkit/node";
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";
 import { vi } from "vitest";

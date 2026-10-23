@@ -1,6 +1,7 @@
 // @subject tests/support/iso/ids.ts
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+
 import { createSeededIds, SEEDED_ID_MAX_CURSOR } from "../iso/ids.ts";
+import { expect, test } from "./fixtures.ts";
 
 test("restored business IDs continue the shared TypeID and opaque UUID sequence without replaying earlier identities", () => {
   const source = createSeededIds();

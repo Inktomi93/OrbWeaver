@@ -5,7 +5,7 @@ import type { PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { messages } from "@orb/db";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { and, eq } from "drizzle-orm";
 import { inputSystem, personaInputs, personaRoom, seatPersona } from "../persona-cache-physical.ts";
 

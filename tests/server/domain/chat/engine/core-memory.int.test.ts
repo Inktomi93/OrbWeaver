@@ -3,16 +3,16 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { chatDigests, chatParticipants, chatSegments } from "@orb/db";
 import { initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
-import { createChatRoot } from "@orb/testkit/node/chat/composed.ts";
+import { expect, test } from "@orb/testkit/node";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
+  createChatRoot,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { seedMessage } from "@orb/testkit/node/factories/message.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+  seedMessage,
+} from "@orb/testkit/node/composed";
 import { and, eq } from "drizzle-orm";
 
 test("the actual scoped digest build excludes complete blocks from before a character joined", async () => {

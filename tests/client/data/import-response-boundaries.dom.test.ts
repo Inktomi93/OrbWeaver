@@ -5,7 +5,7 @@
 import { importBundle, importChats, importTree, restoreCardLorebook } from "@orb/client/data";
 import { importStartedSchema } from "@orb/contracts/import";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { vi } from "vitest";
 import { z } from "zod";
 

@@ -2,11 +2,11 @@
 // @subject tests/support/node/factories/sessions.ts
 import { oidcPendingSignups, oidcTransactions, users } from "@orb/db";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
-import { seedOidcCorpus } from "@orb/testkit/node/corpus-seed.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createNativeIssuer, ISSUER, NATIVE_OIDC_SETTINGS } from "@orb/testkit/node/oidc-issuer.ts";
-import type { ServerHarnessOptions, UnclaimedServerTestHarness } from "@orb/testkit/node/server.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { seedOidcCorpus } from "./corpus-seed.ts";
+import { expect, test } from "./fixtures.ts";
+import { createNativeIssuer, ISSUER, NATIVE_OIDC_SETTINGS } from "./oidc-issuer.ts";
+import type { ServerHarnessOptions, UnclaimedServerTestHarness } from "./server.ts";
+import { createServerHarness } from "./server.ts";
 
 function oidcRoot(
   issuer: Awaited<ReturnType<typeof createNativeIssuer>>,

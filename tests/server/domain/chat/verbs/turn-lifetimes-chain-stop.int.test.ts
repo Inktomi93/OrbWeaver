@@ -2,7 +2,7 @@
 // @subject packages/server/src/domain/chat/engine/auto-mode.ts
 import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import { messages } from "@orb/db";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { eq } from "drizzle-orm";
 import { B_CHAT_MODEL, B_UTILITY_MODEL, saveSpeakerConnection, speakerInputs, speakerRoom } from "./speaker-funding-physical.ts";
 import { TAIL_ROSTER } from "./turn-lifetimes-roster.ts";

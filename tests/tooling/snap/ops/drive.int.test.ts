@@ -1,8 +1,8 @@
 // Navigation keeps the first document's verdict; a later healthy document cannot erase its failure.
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
-import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { FROZEN_AT_MS } from "@orb/testkit/iso";
+import { expect, test } from "@orb/testkit/tooling";
 import { chromium, devices } from "@playwright/test";
 import { MOBILE_DEVICE } from "../../../../tooling/src/floor/browser/browser-environment.ts";
 import { registerStageRunBinding, takeBootDeadStage } from "../../../../tooling/src/snap/lib/stage-run-binding.ts";

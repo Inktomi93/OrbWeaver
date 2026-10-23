@@ -6,8 +6,8 @@ import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@
 import { messages, messageVariants } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "@orb/testkit/node/factories/plugin.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import { makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { textRoom } from "../scenario-physical.ts";
 

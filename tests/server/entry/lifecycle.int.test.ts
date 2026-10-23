@@ -4,8 +4,8 @@ import { connect } from "node:net";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { CSRF_HEADER } from "@orb/contracts/identity";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { freeLoopbackPort } from "@orb/testkit/node/free-port.ts";
+import { expect, test } from "@orb/testkit/node";
+import { freeLoopbackPort } from "@orb/testkit/node/helpers";
 import { processEnvValue } from "@orb/tooling/floor/process/process-env";
 import { onTestFinished } from "vitest";
 

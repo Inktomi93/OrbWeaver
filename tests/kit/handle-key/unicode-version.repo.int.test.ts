@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import process from "node:process";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 // D257 keys combine vendored tables with native normalization, casing and script matching.
 test("vendored handle tables match the runtime Unicode version", async () => {

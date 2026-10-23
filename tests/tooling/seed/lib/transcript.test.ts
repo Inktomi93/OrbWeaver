@@ -3,7 +3,7 @@
 // — a seeder answering a request nobody made, behind a clean exit. Every refusal here is a `UsageError`,
 // which `seed/cli.ts` maps to exit 3 (misuse), because a bad invocation is not a tool failure.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { UsageError } from "@orb/tooling/floor/cli/run-tool";
 import { parseChatArgs, parseDemoArgs } from "@orb/tooling/seed";
 

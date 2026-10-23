@@ -1,6 +1,6 @@
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { createSeededIds } from "@orb/testkit/iso/ids.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { createSeededIds } from "@orb/testkit/iso";
+import { expect, test } from "@orb/testkit/node";
 import { resolveEmptySendAction } from "#client/features/chat/lib/continue-on-empty.ts";
 import { durationLabel, genDurationLabel } from "#client/features/chat/lib/gen-duration.ts";
 

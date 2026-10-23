@@ -1,5 +1,5 @@
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import { makePromptConfig } from "@orb/testkit/iso/preset-config.ts";
+import { makePromptConfig } from "@orb/testkit/iso";
 
 export const MOOD_CONFIG = makePromptConfig({
   userMacros: [

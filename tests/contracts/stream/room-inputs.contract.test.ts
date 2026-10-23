@@ -1,7 +1,7 @@
 import type { StreamRoomRef } from "@orb/contracts/stream";
 import { roomKey, streamAttachInputSchema, streamConnectInputSchema, streamDetachInputSchema } from "@orb/contracts/stream";
 import { ID_PREFIX, mintSocketId, mintTypeId } from "@orb/kit/ids";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 test("connect requires a nonempty socket identity and attach/detach retain every room's routing fields", ({ ids }) => {
   const socketId = mintSocketId(ids.next);

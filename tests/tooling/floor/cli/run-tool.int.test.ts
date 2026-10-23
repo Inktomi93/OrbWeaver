@@ -4,7 +4,7 @@
 // survives a later crash as 2, not 1).
 import process from "node:process";
 import { pathToFileURL } from "node:url";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
 

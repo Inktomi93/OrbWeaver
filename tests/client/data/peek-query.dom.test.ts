@@ -1,5 +1,5 @@
-import { createClientRuntime } from "@orb/testkit/browser/ct-door.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { createClientRuntime } from "@orb/testkit/browser";
+import { expect, test } from "@orb/testkit/node";
 import { queryOptions } from "@tanstack/react-query";
 import { vi } from "vitest";
 import { peekQueryData } from "#client/data/peek-query.ts";

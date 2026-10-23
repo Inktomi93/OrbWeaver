@@ -1,9 +1,9 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { chatLocks, messages } from "@orb/db";
-import type { ChatRoot } from "@orb/testkit/node/chat/composed.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { terminalSseLine } from "@orb/testkit/node/provider-stream.ts";
+import { expect, test } from "@orb/testkit/node";
+import type { ChatRoot } from "@orb/testkit/node/composed";
+import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { eq } from "drizzle-orm";
 import { coreFrame, coreHeldReply, coreHttpRoom, coreSse } from "./core-physical.ts";
 

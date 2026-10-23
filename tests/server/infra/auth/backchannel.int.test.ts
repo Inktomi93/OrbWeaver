@@ -2,10 +2,10 @@
 // @subject packages/server/src/infra/auth/backchannel.ts
 import { databaseHandle } from "@orb/db/wiring-driver";
 import { createConfiguredOidc } from "@orb/server/entry/compose";
-import { test as base, expect } from "@orb/testkit/node/fixtures.ts";
-import { CLIENT_ID, createNativeIssuer, ISSUER, NATIVE_OIDC_SETTINGS } from "@orb/testkit/node/oidc-issuer.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { test as base, expect } from "@orb/testkit/node";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import { createServerHarness } from "@orb/testkit/node/composed";
+import { CLIENT_ID, createNativeIssuer, ISSUER, NATIVE_OIDC_SETTINGS } from "@orb/testkit/node/helpers";
 
 const BACKCHANNEL_EVENT = "http://schemas.openid.net/event/backchannel-logout";
 const SUBJECT = "authentik|alice";

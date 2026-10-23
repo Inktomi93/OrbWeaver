@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { SpawnNicedOptions } from "@orb/tooling/floor/process/proc";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import { parse } from "yaml";

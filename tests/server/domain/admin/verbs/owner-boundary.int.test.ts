@@ -11,8 +11,8 @@ import { users } from "@orb/db";
 import type { ExternalId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
 

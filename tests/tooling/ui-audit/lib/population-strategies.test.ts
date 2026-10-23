@@ -15,7 +15,7 @@
 // "carries" cases red, and the absent-route cases prove the fix does not mint an empty `carried()` on
 // every row (the report prints the token only where a census has a route, ops/report.ts:195-198).
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { describe } from "vitest";
 import type { Finding, RelationalCensusAccountingInput } from "../../../../tooling/src/ui-audit/contract/findings.ts";
 import { accountedFindings, cappedRelationalFindings, decisionPopulationFindings } from "../../../../tooling/src/ui-audit/lib/population-strategies.ts";

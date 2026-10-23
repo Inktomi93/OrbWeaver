@@ -1,20 +1,14 @@
 // @subject tests/support/node/corpus-knowledge.ts
 // @subject tests/support/node/factories/discovery.ts
 import { assertReferentialIntegrity } from "@orb/db";
-import {
-  CORPUS_EMBED_MODEL,
-  CORPUS_EMBEDDING_VECTOR,
-  CORPUS_STRUCTURED_REPLIES,
-  CORPUS_TEXT_MODEL,
-  createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { seedCorpusConnections, seedRecallCorpus } from "@orb/testkit/node/corpus-seed.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
 import { corpusKnowledgeText, seedCorpusKnowledge } from "./corpus-knowledge.ts";
+import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
+import { seedCorpusConnections, seedRecallCorpus } from "./corpus-seed.ts";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
 import { captureDuplicateCharacterPairs, captureDuplicateChatPairs, captureKeywordCooccurrence, captureThemeRows } from "./factories/discovery.ts";
+import { expect, test } from "./fixtures.ts";
+import type { ServerTestHarness } from "./server.ts";
+import { createServerHarness } from "./server.ts";
 
 function physicalScript(replies: ReadonlyMap<string, string> = CORPUS_STRUCTURED_REPLIES): ReturnType<typeof createCorpusProviderExecution> {
   return createCorpusProviderExecution({

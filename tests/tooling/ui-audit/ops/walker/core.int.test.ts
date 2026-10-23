@@ -25,8 +25,8 @@
 // `overflows` test below is exactly that shape, and it asserts the artifact, not stdout.
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node/ui-audit-relational.ts";
+import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
+import { expect, test } from "@orb/testkit/tooling";
 
 /** `census-glow.ts`'s own bound. Hardcoded rather than imported: the value lives inside a template
  *  literal the type system cannot reach, and a test that derived it from the same string could never

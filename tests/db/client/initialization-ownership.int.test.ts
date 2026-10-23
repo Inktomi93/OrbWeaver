@@ -2,7 +2,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { LibSqlWrap } from "@orb/db";
 import { closeDb, createDb } from "@orb/db";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { sql } from "drizzle-orm";
 import { vi } from "vitest";
 

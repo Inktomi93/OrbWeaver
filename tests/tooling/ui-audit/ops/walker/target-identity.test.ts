@@ -13,7 +13,7 @@
 // is floor-guarded and carries a PLANTED CONTROL, because a regex that stops matching returns `[]` and
 // every set comparison then passes vacuously.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { STAMPED_VARIANT_AXES } from "@orb/ui/lib";
 import { WALKER_TARGET_IDENTITY } from "../../../../../tooling/src/ui-audit/ops/walker/target-identity.ts";
 

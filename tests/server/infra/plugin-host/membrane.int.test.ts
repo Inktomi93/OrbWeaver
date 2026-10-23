@@ -1,7 +1,7 @@
 // @subject packages/server/src/infra/plugin-host/membrane.ts
 import { spawn } from "node:child_process";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
 
 // Far past the membrane's dump depth guard, so the iterative pre-walk must refuse this argument.
 const PAST_DEPTH_GUARD = 1000;

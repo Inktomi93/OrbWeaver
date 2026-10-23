@@ -1,8 +1,9 @@
 // @subject packages/server/src/domain/chat/engine/pipeline.ts
 // @subject packages/server/src/domain/rpg/chat-ops/flush.ts
-import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "@orb/testkit/node/corpus-provider.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { terminalSseLine } from "@orb/testkit/node/provider-stream.ts";
+
+import { expect, test } from "@orb/testkit/node";
+import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "@orb/testkit/node/composed";
+import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { coreFrame, coreSse } from "../engine/core-physical.ts";
 import { TURN_SCENE_TOOL, turnRpgReply, turnRpgRoom, turnWireBody } from "./turn-rpg-physical.ts";
 

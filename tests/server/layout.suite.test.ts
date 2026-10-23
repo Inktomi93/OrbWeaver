@@ -1,7 +1,7 @@
 // The server source root is the closed six-tier architecture, and every domain follows the per-feature template.
 import { readdirSync } from "node:fs";
 import { join, relative } from "node:path";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 const REPOSITORY = join(import.meta.dirname, "../..");
 const SERVER_SOURCE = "packages/server/src";

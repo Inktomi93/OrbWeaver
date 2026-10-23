@@ -1,4 +1,4 @@
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { Button } from "@orb/ui/button";
 import { BUTTON_SIZE_OVERFLOW } from "@orb/ui/button/size-hit-area";
 import { Stack } from "@orb/ui/layout";

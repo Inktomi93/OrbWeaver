@@ -3,8 +3,8 @@
 import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
-import { startFilmstripAuthFixture } from "@orb/testkit/node/filmstrip-auth-fixture.ts";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { startFilmstripAuthFixture } from "@orb/testkit/node/helpers";
+import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { HOST_POOL_ROOT_ENV } from "@orb/tooling/floor/host/host-slots";
 import sharp from "sharp";

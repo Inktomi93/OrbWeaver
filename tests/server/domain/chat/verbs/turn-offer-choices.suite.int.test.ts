@@ -3,7 +3,7 @@
 import { PROSE_SLOTS } from "@orb/contracts/prose";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { textRoom } from "../scenario-physical.ts";
 
 const CASES = [

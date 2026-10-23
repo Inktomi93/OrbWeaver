@@ -2,9 +2,9 @@
 // @subject packages/inference/src/resolve/resolve-task.ts
 import { embeddingCalls } from "@orb/db";
 import { NoConnectionError, ProviderError } from "@orb/inference";
-import { DEFAULT_EMBED_MODEL } from "@orb/testkit/iso/inference-identities.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { terminalSseLine } from "@orb/testkit/node/provider-stream.ts";
+import { DEFAULT_EMBED_MODEL } from "@orb/testkit/iso";
+import { expect, test } from "@orb/testkit/node";
+import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { physicalSdkScenario } from "../backends/agent-sdk/regression-edge.fixtures.ts";
 import { createRuntimeRoot, RUNTIME_ENDPOINT, RUNTIME_KEY, RUNTIME_TOKEN, runtimeConnection } from "./runtime.fixtures.ts";
 

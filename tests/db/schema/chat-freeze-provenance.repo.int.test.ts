@@ -7,9 +7,8 @@ import { assertReferentialIntegrity, closeDb, createDb, messages, messageVariant
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { jsonValueSchema } from "@orb/kit/json";
 import { runBootMigrations } from "@orb/server/entry/boot";
-import { SHIPPED_MIGRATIONS } from "@orb/testkit/node/db.ts";
-import { seedMessage } from "@orb/testkit/node/factories/message.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import { SHIPPED_MIGRATIONS, seedMessage } from "@orb/testkit/node/composed";
 import { eq, sql } from "drizzle-orm";
 
 const MIGRATION = "0004_freeze-provenance";

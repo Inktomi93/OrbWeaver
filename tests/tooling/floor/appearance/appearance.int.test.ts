@@ -13,7 +13,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { afterAll, beforeAll, vi } from "vitest";
 import { scaledBudget } from "../../_load-budget.ts";
 

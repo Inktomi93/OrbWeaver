@@ -19,10 +19,10 @@
 // the word — tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md row 8's class. The two arms below are the two directions.
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { CliResult, RunCliOpts } from "@orb/testkit/node/tool-fixtures.ts";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import type { AuditRuleProof } from "@orb/testkit/node/ui-audit-relational.ts";
-import { AUDIT_ARGV, findingSelectors, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node/ui-audit-relational.ts";
+import type { AuditRuleProof } from "@orb/testkit/node";
+import { AUDIT_ARGV, findingSelectors, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
+import type { CliResult, RunCliOpts } from "@orb/testkit/tooling";
+import { expect, test } from "@orb/testkit/tooling";
 
 interface ToolContext {
   readonly runCli: (tool: string, args: readonly string[], opts?: RunCliOpts) => Promise<CliResult>;

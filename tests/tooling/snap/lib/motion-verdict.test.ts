@@ -1,4 +1,4 @@
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { timingCapability } from "../../../../tooling/src/floor/host/timing-capability.ts";
 import { motionFactState, motionStatus, motionTimingPolicy } from "../../../../tooling/src/snap/lib/motion-verdict.ts";
 

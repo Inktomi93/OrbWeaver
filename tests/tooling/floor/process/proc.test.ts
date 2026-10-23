@@ -3,7 +3,7 @@
 import { EventEmitter } from "node:events";
 import process from "node:process";
 import { PassThrough } from "node:stream";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { vi } from "vitest";
 
 // The ambient-env WINDOW pins live beside their door in process-env.test.ts (#1848 moved the door out of

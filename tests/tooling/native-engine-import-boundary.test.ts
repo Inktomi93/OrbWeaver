@@ -1,6 +1,6 @@
 // The installed native import checker must preserve the engine boundary through real module edges.
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 
 const CHAT = "packages/server/src/domain/chat";

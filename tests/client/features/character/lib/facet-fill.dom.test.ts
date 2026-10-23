@@ -1,4 +1,4 @@
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { CHARACTER_CARD_FACET_IDS, facetFillState } from "#client/features/character/lib/character-card-facets.ts";
 import { DEFAULT_CHARACTER_CARD_FORM } from "#client/features/character/lib/character-card-form-model.ts";
 

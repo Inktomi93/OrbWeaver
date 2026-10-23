@@ -8,7 +8,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createServer, request as httpsRequest } from "node:https";
 import { join } from "node:path";
-import { ipCertificatePem } from "@orb/testkit/node/x509.ts";
+import { ipCertificatePem } from "@orb/testkit/node/helpers";
 import { exportJWK, SignJWT } from "jose";
 import { z } from "zod";
 

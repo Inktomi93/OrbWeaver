@@ -1,9 +1,9 @@
 // These scripts observe guest requests and page outcomes, not application persistence or toast admission.
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { createSeededIds } from "@orb/testkit/iso/ids.ts";
-import type { AtlasBootOptions, CannedResponse } from "@orb/testkit/node/atlas-guest.ts";
-import { bootAtlas, lastAtlasState } from "@orb/testkit/node/atlas-guest.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { createSeededIds } from "@orb/testkit/iso";
+import { expect, test } from "@orb/testkit/node";
+import type { AtlasBootOptions, CannedResponse } from "@orb/testkit/node/composed";
+import { bootAtlas, lastAtlasState } from "@orb/testkit/node/composed";
 import { describe } from "vitest";
 
 const WYVERN_SEARCH: CannedResponse = {

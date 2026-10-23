@@ -1,7 +1,7 @@
 // Real producers own encryption and closed storage; no fixture-side emitter or notification assembly.
 import { notifications, userCredentials } from "@orb/db";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 
 const FIRST_SECRET = "bus-private-first-credential-material";

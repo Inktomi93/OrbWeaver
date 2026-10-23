@@ -5,16 +5,16 @@ import type { TurnOutcome } from "@orb/contracts/chat";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import { messages, messageVariants } from "@orb/db";
 import { jsonValueSchema } from "@orb/kit/json";
+import { expect, test } from "@orb/testkit/node";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { seedCorpusActors } from "@orb/testkit/node/corpus-seed.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+  createServerHarness,
+  seedCorpusActors,
+} from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 
 async function room(text: string): Promise<

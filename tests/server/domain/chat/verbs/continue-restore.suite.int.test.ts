@@ -2,9 +2,9 @@
 // A real driver fence holds stale writes and post-commit publication without replacing turn policy.
 import { chatEvents, closeDb, messages, messageVariants, statsCanonVersions } from "@orb/db";
 import { ChatOperationError } from "@orb/server/domain/chat";
-import type { ChatRoot } from "@orb/testkit/node/chat/composed.ts";
-import { freshHeldDb } from "@orb/testkit/node/db.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import type { ChatRoot } from "@orb/testkit/node/composed";
+import { freshHeldDb } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { textRoom } from "../scenario-physical.ts";
 

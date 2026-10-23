@@ -5,7 +5,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { vi } from "vitest";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
 import { runMultiUserSeed } from "../../../tooling/src/seed/ops/multi-user.ts";

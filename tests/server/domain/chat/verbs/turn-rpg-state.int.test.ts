@@ -2,7 +2,7 @@
 // @subject packages/server/src/domain/rpg/chat-ops/gather.ts
 // @subject packages/server/src/domain/rpg/chat-ops/flush.ts
 import { rpgSnapshots } from "@orb/db";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { eq } from "drizzle-orm";
 import { TURN_SCENE_TOOL, turnRpgReply, turnRpgRoom, turnWireBody } from "./turn-rpg-physical.ts";
 

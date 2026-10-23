@@ -2,10 +2,10 @@
 // A real recursive rule must retain its cascade depth when a peer lease refuses the accepted child.
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { chatLocks, closeDb, messages, messageVariants } from "@orb/db";
-import type { HeldStatement } from "@orb/testkit/node/db.ts";
-import { freshHeldDb } from "@orb/testkit/node/db.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { terminalSseLine } from "@orb/testkit/node/provider-stream.ts";
+import { expect, test } from "@orb/testkit/node";
+import type { HeldStatement } from "@orb/testkit/node/composed";
+import { freshHeldDb } from "@orb/testkit/node/composed";
+import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { eq } from "drizzle-orm";
 import { enabledRule } from "../../automation/runtime.fixtures.ts";
 import { coreFrame, coreHttpRoom, coreSse } from "./core-physical.ts";

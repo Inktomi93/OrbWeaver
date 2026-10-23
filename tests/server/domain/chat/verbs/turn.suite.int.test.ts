@@ -1,16 +1,16 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 import { closeDb, messageVariants } from "@orb/db";
-import { createChatRoot } from "@orb/testkit/node/chat/composed.ts";
+import { expect, test } from "@orb/testkit/node";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
+  createChatRoot,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { freshCountedDb } from "@orb/testkit/node/db.ts";
-import { seedMessage } from "@orb/testkit/node/factories/message.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+  freshCountedDb,
+  seedMessage,
+} from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 
 test("an established-room commit does not reload the full selected transcript to decide first-turn status", async () => {

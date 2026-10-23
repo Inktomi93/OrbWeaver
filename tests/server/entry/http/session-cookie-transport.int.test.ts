@@ -8,9 +8,9 @@ import { castId } from "@orb/kit/ids";
 import { MS_PER_HOUR } from "@orb/kit/time";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { getLog } from "@orb/server/foundation/observability";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import { createServerHarness } from "@orb/testkit/node/composed";
 import { describe, vi } from "vitest";
 import { authMe, sessionCookie, signedInMember } from "../_auth-roots.ts";
 

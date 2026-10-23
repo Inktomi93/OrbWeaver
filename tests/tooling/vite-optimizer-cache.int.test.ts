@@ -2,7 +2,7 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import { scaledBudget } from "./_load-budget.ts";
 

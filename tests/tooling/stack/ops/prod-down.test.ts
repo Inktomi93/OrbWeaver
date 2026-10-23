@@ -1,5 +1,5 @@
 import process from "node:process";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { vi } from "vitest";
 import type { DownDeps } from "../../../../tooling/src/stack/ops/prod-down.ts";
 

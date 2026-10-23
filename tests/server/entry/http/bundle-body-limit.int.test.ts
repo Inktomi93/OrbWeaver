@@ -5,8 +5,8 @@ import { importStartedSchema } from "@orb/contracts/import";
 import { IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import { stagedOwnerRoot } from "@orb/server/domain/import";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
 import { BUNDLE_ROUTE, bodyRequest, CSRF_HEADERS, observedBody } from "./_body-limit-inputs.ts";
 
 test("actual raw bundle overflow cancels its source and removes the partial staged file without a workload", async () => {

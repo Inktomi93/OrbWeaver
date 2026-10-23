@@ -1,6 +1,6 @@
 // The PURE half of snap's request-log arm (#1199): URL filtering and explicit bounded-ring receipts.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { RequestLogEntry, RequestLogReceipt } from "../../../../tooling/src/snap/index.ts";
 import { filterRequests, matchesRequestFilter, requestLogLines } from "../../../../tooling/src/snap/index.ts";
 

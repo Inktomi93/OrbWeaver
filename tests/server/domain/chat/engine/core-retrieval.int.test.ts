@@ -2,19 +2,18 @@
 // Real stored digests and a genuinely unbound reranker exercise scope and per-turn degradation episodes.
 import { createCharacterSchema } from "@orb/contracts/character";
 import { chatDigests, chatEvents, closeDb } from "@orb/db";
-import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/chat/composed.ts";
-import { createChatRoot } from "@orb/testkit/node/chat/composed.ts";
+import { expect, test } from "@orb/testkit/node";
+import type { ChatRoot, ChatRootOptions, HeldStatement } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
+  createChatRoot,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import type { HeldStatement } from "@orb/testkit/node/db.ts";
-import { freshHeldDb } from "@orb/testkit/node/db.ts";
-import { seedMessage } from "@orb/testkit/node/factories/message.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+  freshHeldDb,
+  seedMessage,
+} from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 
 const RECALL_INTENT = { maxContextTokens: 4096, maxOutputTokens: 64 } as const;

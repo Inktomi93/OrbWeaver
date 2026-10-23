@@ -3,17 +3,17 @@
 import { builtinProvider } from "@orb/contracts/inference";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { messageVariants } from "@orb/db";
-import type { ChatRoot } from "@orb/testkit/node/chat/composed.ts";
-import { createChatRoot } from "@orb/testkit/node/chat/composed.ts";
+import { expect, test } from "@orb/testkit/node";
+import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_PROVIDER_ENDPOINT,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
+  createChatRoot,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+} from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 
 const METHODS = ["undoContinue", "revertContinue"] as const;

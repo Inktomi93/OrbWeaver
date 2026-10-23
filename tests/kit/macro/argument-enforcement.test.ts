@@ -1,6 +1,6 @@
 import type { MacroDiagnostic, MacroMetadata, ProcessMacroOptions } from "@orb/kit/macro";
 import { createDefaultRegistry, processMacros } from "@orb/kit/macro";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 const OPTIONS = { char: "Alice", user: "Bob", persona: "Hero", scenario: "A quest", env: {} };
 

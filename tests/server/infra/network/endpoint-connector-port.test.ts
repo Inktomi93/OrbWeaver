@@ -1,7 +1,7 @@
 import type { LookupFunction } from "node:net";
 import type { ScopedEgressOptions } from "@orb/server/infra/network";
 import { createScopedEgress } from "@orb/server/infra/network";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { vi } from "vitest";
 
 const raw = vi.hoisted((): { reached: Error; calls: string[] } => ({ reached: new Error("controlled raw dial reached"), calls: [] }));

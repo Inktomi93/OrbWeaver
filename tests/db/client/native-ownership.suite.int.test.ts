@@ -1,7 +1,7 @@
 // @subject packages/db/src/client/index.ts
 import { execPath } from "node:process";
 import { fileURLToPath } from "node:url";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 
 test("installed native statements, rows and canonical DB lifetimes release before the process exits", ({ importStagingDir }) => {

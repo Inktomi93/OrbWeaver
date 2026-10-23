@@ -8,17 +8,11 @@ import { healthResponseSchema } from "@orb/contracts/diagnostics";
 import { SEED_MANIFEST } from "@orb/default-content";
 import { NoConnectionError } from "@orb/inference";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
-import { hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "@orb/testkit/iso/corpus.ts";
-import {
-  CORPUS_EMBED_MODEL,
-  CORPUS_EMBEDDING_VECTOR,
-  CORPUS_STRUCTURED_REPLIES,
-  CORPUS_TEXT_MODEL,
-  createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { seedCorpusActors, seedCorpusConnections, seedRecallCorpus, seedSyntheticCorpus } from "@orb/testkit/node/corpus-seed.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "../iso/corpus.ts";
+import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
+import { seedCorpusActors, seedCorpusConnections, seedRecallCorpus, seedSyntheticCorpus } from "./corpus-seed.ts";
+import { expect, test } from "./fixtures.ts";
+import { createServerHarness } from "./server.ts";
 
 const OWNER_PASSWORD = "synthetic-corpus-owner-password";
 

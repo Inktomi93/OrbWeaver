@@ -2,10 +2,8 @@
 import { databaseHandle } from "@orb/db/wiring-driver";
 import { createTurnPersonaResolver } from "@orb/server/domain/chat";
 import { createResolvePersonasForParticipants } from "@orb/server/domain/persona";
-import { seedChat } from "@orb/testkit/node/factories/chat.ts";
-import { seedPersona } from "@orb/testkit/node/factories/persona.ts";
-import { seedUser } from "@orb/testkit/node/factories/user.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import { seedChat, seedPersona, seedUser } from "@orb/testkit/node/composed";
 
 test("a trigger with no seat persona cannot borrow the room's anchor identity", async ({ db }): Promise<void> => {
   const host = await seedUser(db);

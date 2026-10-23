@@ -2,16 +2,16 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 import { createCharacterSchema } from "@orb/contracts/character";
 import { DomainNotFoundError } from "@orb/kit/errors";
+import { expect, test } from "@orb/testkit/node";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { seedCorpusActors } from "@orb/testkit/node/corpus-seed.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+  createServerHarness,
+  seedCorpusActors,
+} from "@orb/testkit/node/composed";
 
 const BODY = 'Visible receipt <lie character="Witness" truth="continuation-role-secret"/>';
 const VISIBLE = "Visible receipt ";

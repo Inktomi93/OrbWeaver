@@ -1,4 +1,4 @@
-import { CtIsolation } from "@orb/testkit/browser/ct-isolated-subject.tsx";
+import { CtIsolation } from "@orb/testkit/browser";
 import type { ThemeScopeProps } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";

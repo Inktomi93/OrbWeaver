@@ -12,7 +12,7 @@
 // `--help`, and an arm whose pairs the RESULT spine never claims still reaches the RESULT line. A
 // derivation that silently omitted an arm would read as a clean, complete instrument.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { ResultPair } from "../../../../../tooling/src/floor/artifacts/artifacts.ts";
 import type { Arm } from "../../../../../tooling/src/snap/contract/arm-vocabulary.ts";
 import { ARMS } from "../../../../../tooling/src/snap/contract/arm-vocabulary.ts";

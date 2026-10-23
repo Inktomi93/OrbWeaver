@@ -1,6 +1,5 @@
 import { openConfigTo, resolveConfigSectionAnchor, useSectionRegistry } from "@orb/client/state";
-import { CtClientProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
-import { configSections } from "@orb/testkit/browser/ct-door.ts";
+import { CtClientProviders, configSections } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";

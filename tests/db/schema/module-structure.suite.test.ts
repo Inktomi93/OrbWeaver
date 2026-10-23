@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 // biome-ignore lint/performance/noNamespaceImport: the barrel's full export set is the denominator the layout is judged against.
 import * as barrel from "@orb/db/schema";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 const SCHEMA_DIR = join(import.meta.dirname, "../../../packages/db/src/schema");
 const DOMAIN_DIR = join(import.meta.dirname, "../../../packages/server/src/domain");

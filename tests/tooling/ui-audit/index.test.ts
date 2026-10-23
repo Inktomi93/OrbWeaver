@@ -6,8 +6,8 @@
 // The impeccable-adapted checks (origin "impeccable") each get a firing fixture AND a passing/exempt
 // control — a green that cannot fail is not a fence.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import type { AuditRuleProof } from "@orb/testkit/node/ui-audit-relational.ts";
+import type { AuditRuleProof } from "@orb/testkit/node";
+import { expect, test } from "@orb/testkit/tooling";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
 import type { HoverContrastInput, HoverScanInput } from "../../../tooling/src/ui-audit/contract/samples-hover.ts";
 import type {

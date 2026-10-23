@@ -5,7 +5,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { basename, join } from "node:path";
 import process from "node:process";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { launchProbeSession, settle, withProbeSession } from "@orb/tooling/floor/browser/browser";
 import { createPageCapture, wireProbePage } from "@orb/tooling/floor/browser/browser-capture";
 import type { BrowserDiagnostic, OrbConsoleCompleteness } from "@orb/tooling/floor/browser/browser-diagnostics";

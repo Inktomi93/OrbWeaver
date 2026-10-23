@@ -1,4 +1,4 @@
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { CACHE_ROUTES, missingCredential, ROUTE_SPECS } from "@orb/tooling/cache-check";
 
 test("only the subscription route is optional: without a credential it is SKIPPED, the others cannot measure", () => {

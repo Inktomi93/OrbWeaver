@@ -10,8 +10,8 @@
 //  • the identity rule gets both halves: a row naming a DIFFERENT live keeper releases, and a row naming a
 //    DEAD one is ADOPTED rather than released (the arming race, and the self-heal for a killed timer).
 
-import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { FROZEN_AT_MS } from "@orb/testkit/iso";
+import { expect, test } from "@orb/testkit/tooling";
 import { DEV_PORTS, stageBandPorts } from "@orb/tooling/floor/host/ports";
 import type { StageKeeperEvidence, StageRow } from "@orb/tooling/snap";
 import {

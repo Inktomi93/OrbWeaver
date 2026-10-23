@@ -13,7 +13,7 @@
 // proves nothing.
 import { runInNewContext } from "node:vm";
 import { relativeLuminance } from "@orb/kit/theme-derivation";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
 import { WALKER_CENSUS_REGION } from "../../../../../tooling/src/ui-audit/ops/walker/census-region.ts";
 

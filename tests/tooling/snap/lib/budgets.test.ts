@@ -10,7 +10,7 @@
 // on stretches/holds them correctly, this file re-applies `budget()` to the real, imported bases with an
 // INJECTED reader — the same technique T14/T15 use everywhere else — rather than re-deriving the numbers.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { budget } from "../../../../tooling/src/floor/host/load-budget.ts";
 import {
   MOUNT_SETTLE_MS,

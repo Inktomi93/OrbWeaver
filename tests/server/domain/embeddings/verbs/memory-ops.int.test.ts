@@ -5,8 +5,8 @@ import { chatParticipants } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import { loadPresentHostUserId } from "@orb/server/domain/chat";
 import { createMemoryEmbeddingOps } from "@orb/server/domain/embeddings";
-import { seedChat } from "@orb/testkit/node/factories/chat.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import { seedChat } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
 

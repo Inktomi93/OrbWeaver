@@ -6,9 +6,9 @@
 import { auditLogs, users } from "@orb/db";
 import type { SocketId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
-import { seedUser } from "@orb/testkit/node/factories/user.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import { seedUser } from "@orb/testkit/node/composed";
+import { principal } from "@orb/testkit/node/helpers";
 import { eq, sql } from "drizzle-orm";
 import { vi } from "vitest";
 

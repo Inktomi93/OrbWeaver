@@ -4,7 +4,7 @@ import { TOKEN_PROVENANCES } from "@orb/contracts/chat";
 
 import type { Wire } from "@orb/contracts/inference";
 
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 import type { ChatScript } from "./runtime.fixtures.ts";
 

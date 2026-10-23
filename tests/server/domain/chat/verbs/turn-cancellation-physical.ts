@@ -9,20 +9,21 @@ import type { ChatBusEvent, TurnOutcome } from "@orb/contracts/chat";
 import { builtinProvider } from "@orb/contracts/inference";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema, pluginToolWireName } from "@orb/contracts/plugin";
 import { pluginKv } from "@orb/db";
-import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
-import { createControlledTimers } from "@orb/testkit/iso/timers.ts";
-import type { ChatRoot } from "@orb/testkit/node/chat/composed.ts";
-import { createChatRoot } from "@orb/testkit/node/chat/composed.ts";
+import { createControlledTimers, createFrozenClock } from "@orb/testkit/iso";
+import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_PROVIDER_ENDPOINT,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
+  createChatRoot,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "@orb/testkit/node/factories/plugin.ts";
-import { terminalSseLine } from "@orb/testkit/node/provider-stream.ts";
+  makePluginBundle,
+  seedInstalledPlugin,
+  seedPluginGrant,
+} from "@orb/testkit/node/composed";
+import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { and, eq } from "drizzle-orm";
 import type { MockInstance } from "vitest";
 import { vi } from "vitest";

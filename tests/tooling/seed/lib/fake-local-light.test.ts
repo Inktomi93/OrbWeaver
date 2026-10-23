@@ -2,7 +2,7 @@
 // the same vector, and the seeded encoder and reranker rows read as running only while the fake reports
 // no failed load.
 import { modelIdSchema } from "@orb/contracts/inference";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { fakeLocalLightCache } from "@orb/tooling/seed";
 
 const DIM = 8;

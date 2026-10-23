@@ -2,7 +2,7 @@ import { QueryBoundary } from "@orb/client/components";
 import { SkeletonRows } from "@orb/client/data";
 import { pluginPageKey, selectPluginPageFromList, useSectionRegistry } from "@orb/client/state";
 import type { PluginId } from "@orb/kit/ids";
-import { CtClientProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { CtClientProviders } from "@orb/testkit/browser";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
 

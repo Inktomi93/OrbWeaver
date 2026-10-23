@@ -1,7 +1,7 @@
 // Physical SDK bytes only; native Query owns session admission, decoding and process lifetime.
 import { once } from "node:events";
 import process from "node:process";
-import { readSdkProcessInput, writeSdkControlReply } from "@orb/testkit/node/sdk-process-control.mjs";
+import { readSdkProcessInput, writeSdkControlReply } from "@orb/testkit/sdk";
 
 export const STATS_SDK_MODEL = "claude-opus-5";
 export const STATS_SDK_THINKING = "The subscription keeper weighs this reply.";

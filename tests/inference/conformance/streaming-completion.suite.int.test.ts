@@ -4,7 +4,7 @@ import type { Wire } from "@orb/contracts/inference";
 
 import { NORMALIZED_FINISH_REASONS } from "@orb/contracts/inference";
 
-import { expect } from "@orb/testkit/node/fixtures.ts";
+import { expect } from "@orb/testkit/node";
 
 import type { ChatScript } from "./runtime.fixtures.ts";
 

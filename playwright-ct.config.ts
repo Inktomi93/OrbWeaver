@@ -1,5 +1,5 @@
 import process from "node:process";
-import type { CtCorpusOptions } from "@orb/testkit/node/ct-corpus.ts";
+import type { CtCorpusOptions } from "@orb/testkit/ct-corpus";
 import { readConcurrencyProfile } from "@orb/tooling/floor/host/concurrency-profile";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import { CT_VITE_PORT } from "@orb/tooling/floor/host/ports";

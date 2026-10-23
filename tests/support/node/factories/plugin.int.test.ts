@@ -4,11 +4,6 @@ import { spawn } from "node:child_process";
 import { pluginKv, pluginProviderClaims } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { PluginNotFoundError } from "@orb/server/domain/plugin";
-import { makeAssetBytes } from "@orb/testkit/node/factories/asset.ts";
-import { seedDistributedPlugin, seedInstalledPlugin, seedPluginGrant } from "@orb/testkit/node/factories/plugin.ts";
-import { seedAdminProvider, seedPluginProviders } from "@orb/testkit/node/factories/provider.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
 import { and, eq, inArray } from "drizzle-orm";
 import {
   CORPUS_PLUGIN_ASSET_PATH as ASSET_PATH,
@@ -19,6 +14,11 @@ import {
   CORPUS_PLUGIN_STORAGE_KEY as STORAGE_KEY,
   CORPUS_PLUGIN_STORAGE_VALUE as STORAGE_VALUE,
 } from "../corpus-plugin.ts";
+import { expect, test } from "../fixtures.ts";
+import { createServerHarness } from "../server.ts";
+import { makeAssetBytes } from "./asset.ts";
+import { seedDistributedPlugin, seedInstalledPlugin, seedPluginGrant } from "./plugin.ts";
+import { seedAdminProvider, seedPluginProviders } from "./provider.ts";
 
 test("real install retains bundle assets and guest activation writes only the consenting owner's private KV", async () => {
   await using root = await createServerHarness({ pluginSpawn: spawn });

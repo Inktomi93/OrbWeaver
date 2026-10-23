@@ -4,8 +4,8 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { StartChatResult } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { makeAssetBytes } from "@orb/testkit/node/factories/asset.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import { makeAssetBytes } from "@orb/testkit/node/composed";
 
 type StoredAsset = Awaited<ReturnType<ServerTestHarness["services"]["assets"]["store"]>>;
 export interface HandoffActors {

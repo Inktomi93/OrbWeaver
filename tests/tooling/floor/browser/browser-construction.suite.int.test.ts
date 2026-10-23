@@ -8,7 +8,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { exactScope } from "@orb/tooling/floor/artifacts/artifact-scope";
 import { attachProbeSession, closeProbeSession, launchProbeSession } from "@orb/tooling/floor/browser/browser";
 import { createPageCapture } from "@orb/tooling/floor/browser/browser-capture";

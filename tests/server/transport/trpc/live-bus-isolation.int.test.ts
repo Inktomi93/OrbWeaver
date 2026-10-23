@@ -1,7 +1,7 @@
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import type { ServicesResult } from "@orb/server/entry/compose";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
 
 type ChatFrame = Parameters<Parameters<ServicesResult["liveBuses"]["chat"]["subscribeAllChatEvents"]>[0]>[0];
 const FUTURE_WORKLOAD_MS = 10_000;

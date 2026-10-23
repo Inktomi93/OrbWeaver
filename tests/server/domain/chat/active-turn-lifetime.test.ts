@@ -1,6 +1,6 @@
 import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { createActiveTurns } from "@orb/server/domain/chat";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 test("releasing an aborted registration cannot hide the replacement turn from Stop", async ({ ids }) => {
   const source = createIdSource(ids.next);

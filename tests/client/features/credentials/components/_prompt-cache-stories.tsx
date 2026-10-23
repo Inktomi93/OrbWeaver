@@ -1,6 +1,5 @@
 import { connectionsListSection } from "@orb/client/features/credentials";
-import { CtClientProviders, CtConfigGroupBody } from "@orb/testkit/browser/ct-data-providers.tsx";
-import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
+import { CtClientProviders, CtConfigGroupBody, isolationRegistry } from "@orb/testkit/browser";
 import type { ReactElement } from "react";
 
 const sections = isolationRegistry("configSections", "isolates connection editor cache controls from unrelated settings contributions", [

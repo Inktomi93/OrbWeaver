@@ -4,7 +4,7 @@
 // against the running stack, not here — this file's home is tests/tooling/ per docs/law/Spine-Testing.md §2
 // (a test of a scripts/ tool), same as snap-stage.test.ts.
 import { readFileSync } from "node:fs";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { parseGotoTarget, parseViewport, splitPageSuffix } from "@orb/tooling/floor/instrument/argv";
 
 // ── splitPageSuffix ───────────────────────────────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 import { setImmediate } from "node:timers/promises";
-import { makeGenerationCapability } from "@orb/testkit/iso/inference-capability.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { makeGenerationCapability } from "@orb/testkit/iso";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
 
 test("cancelling one connection waiter leaves the shared catalog and another caller alive", async () => {
   const started = Promise.withResolvers<void>();

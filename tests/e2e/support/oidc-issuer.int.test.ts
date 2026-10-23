@@ -3,7 +3,7 @@
 import type { ExecException } from "node:child_process";
 import { execFile } from "node:child_process";
 import { execPath } from "node:process";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { OS_ASSIGNED_PORT } from "@orb/tooling/floor/host/ports";
 import { z } from "zod";
 import { ensureIssuerTls, stageIssuerIdentity, startOidcIssuer } from "./oidc-issuer.ts";

@@ -1,6 +1,6 @@
 // @subject tests/support/iso/preset-config.ts
-import { makeGuidedActionsConfig, makePromptConfig, makeUserIntent } from "@orb/testkit/iso/preset-config.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { makeGuidedActionsConfig, makePromptConfig, makeUserIntent } from "../iso/preset-config.ts";
+import { expect, test } from "./fixtures.ts";
 
 test("caller mutations cannot change a produced preset or another caller's default templates", () => {
   const actions = makeGuidedActionsConfig();

@@ -7,7 +7,7 @@
 // element it lands on, and that CLI misuse is refused instead of silently doing nothing.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import {
   appearanceBootHintPatch,
   applySettingsToBody,

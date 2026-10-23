@@ -5,8 +5,8 @@ import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
 
 test("actual authenticated multiplexing enforces socket ownership and withholds foreign and pre-join replay/live bytes", async () => {

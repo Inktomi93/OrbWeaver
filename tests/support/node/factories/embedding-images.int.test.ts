@@ -10,12 +10,12 @@ import {
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { seedCorpusConnections } from "@orb/testkit/node/corpus-seed.ts";
-import { makeAssetBytes } from "@orb/testkit/node/factories/asset.ts";
-import { seedIndexedAsset } from "@orb/testkit/node/factories/embedding-generation.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+} from "../corpus-provider.ts";
+import { seedCorpusConnections } from "../corpus-seed.ts";
+import { expect, test } from "../fixtures.ts";
+import { createServerHarness } from "../server.ts";
+import { makeAssetBytes } from "./asset.ts";
+import { seedIndexedAsset } from "./embedding-generation.ts";
 
 function imageProvider(): ReturnType<typeof createCorpusProviderExecution> {
   return createCorpusProviderExecution({

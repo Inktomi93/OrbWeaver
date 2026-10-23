@@ -7,10 +7,10 @@ import type { LibSqlWrap } from "@orb/db";
 import { closeDb, messageVariants } from "@orb/db";
 import type { MessageVariantId } from "@orb/kit/ids";
 import { parseIanaTimeZone } from "@orb/kit/time";
-import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
-import { freshDb } from "@orb/testkit/node/db.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import type { ServerHarnessOptions } from "@orb/testkit/node/server.ts";
+import { createFrozenClock } from "@orb/testkit/iso";
+import { expect, test } from "@orb/testkit/node";
+import type { ServerHarnessOptions } from "@orb/testkit/node/composed";
+import { freshDb } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { textRoom } from "../scenario-physical.ts";
 

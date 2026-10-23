@@ -1,5 +1,5 @@
 import { createPubSub } from "@orb/kit/pubsub";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 test("disposal clears the current subscribers and permanently refuses registration", async () => {
   const delivered: string[] = [];

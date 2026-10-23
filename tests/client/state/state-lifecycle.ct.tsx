@@ -1,5 +1,5 @@
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { createSeededIds } from "@orb/testkit/iso/ids.ts";
+import { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@playwright/test";
 import type { MessageDraftStory, MessageSelectionStory, PresetSelectionStory, SteerRecoveryStory } from "./_state-lifecycle-stories.tsx";
 

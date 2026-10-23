@@ -6,7 +6,7 @@
 // that a NON-DIRECTORY entry simply has no run index, and this is the pin that keeps it that way.
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { localSnapRunIndexPaths } from "../../../../tooling/src/snap/lib/run-report-candidates.ts";
 
 test("the retention ledger sitting beside the run slots is an absent index, never a thrown reader", async ({ scratch }) => {

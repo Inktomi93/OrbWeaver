@@ -1,7 +1,6 @@
 import { LoginShellAnchor, LoginSurface } from "@orb/client/features/auth";
 import { useActiveChatId, useActiveSection } from "@orb/client/state";
-import { CtAppDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
-import { CtIsolation } from "@orb/testkit/browser/ct-isolated-subject.tsx";
+import { CtAppDataProviders, CtIsolation } from "@orb/testkit/browser";
 import { Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import { createBrowserHistory, createRootRoute, createRoute, createRouter, RouterProvider } from "@tanstack/react-router";

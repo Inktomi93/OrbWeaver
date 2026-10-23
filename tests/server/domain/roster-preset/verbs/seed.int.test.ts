@@ -3,10 +3,9 @@
 import { SEED_MANIFEST } from "@orb/default-content";
 import { createFindSeedCharacter } from "@orb/server/domain/character";
 import { createRosterSeedStep, createSeedRosterPreset } from "@orb/server/domain/roster-preset";
-import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
-import { seedUser } from "@orb/testkit/node/factories/user.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import { seedCharacter, seedUser } from "@orb/testkit/node/composed";
+import { principal } from "@orb/testkit/node/helpers";
 
 const CAMPAIGN = SEED_MANIFEST.find((item) => item.kind === "rosterPreset" && item.startsGame);
 const PLAIN = SEED_MANIFEST.find((item) => item.kind === "rosterPreset" && !item.startsGame);

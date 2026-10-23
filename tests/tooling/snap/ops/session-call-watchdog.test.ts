@@ -1,6 +1,6 @@
 import process from "node:process";
 import { setImmediate as nextTurn, setTimeout as sleep } from "node:timers/promises";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";
 import { STEP_BASE_MS } from "../../../../tooling/src/snap/lib/budgets.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";

@@ -3,7 +3,7 @@
 // proving the instrument is not always-red. `--file` mode: no stack, a real headless chromium.
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { isJudgeableMeasurement, labelRateLoad, scaledBudget } from "../_load-budget.ts";
 

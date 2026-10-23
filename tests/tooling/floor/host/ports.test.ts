@@ -9,7 +9,7 @@
 // a collision on a planted input before it is trusted to report none on the real one. A bare empty array
 // is "I could not measure", never "there is nothing there".
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import {
   CT_VITE_PORT,
   DEV_PORTS,

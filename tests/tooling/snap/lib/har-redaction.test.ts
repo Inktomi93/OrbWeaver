@@ -1,7 +1,7 @@
 // Security controls for the one HAR disk-safety door. Every credential carrier gets a distinct canary;
 // the positive control proves the raw fixture contains it before the serialized result proves it cannot.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { RawNetworkEvidence } from "../../../../tooling/src/snap/contract/har-redaction.ts";
 import { REDACTED } from "../../../../tooling/src/snap/contract/har-redaction.ts";
 import { redactNetworkEvidence, redactNetworkUrl } from "../../../../tooling/src/snap/lib/har-redaction.ts";

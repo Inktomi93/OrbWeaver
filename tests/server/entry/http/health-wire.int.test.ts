@@ -1,7 +1,7 @@
 // @subject packages/server/src/entry/http/healthz.ts
 import { HEALTH_STATUSES, healthResponseSchema } from "@orb/contracts/diagnostics";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
 
 test.each([
   { peer: "127.0.0.1", headers: new Headers(), identity: true, label: "direct operator" },

@@ -2,7 +2,7 @@
 
 import "@orb/testkit/node/composed-real.ts";
 import { modelIdSchema, providerIdSchema, SUMMARIZE_CONCURRENCY_MAX } from "@orb/contracts/inference";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { sql } from "drizzle-orm";
 
 test("stored summarize compatibility clamps only its cap and leaves the persisted declaration unchanged", async ({ db, ownerCaller }) => {

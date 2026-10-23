@@ -2,8 +2,8 @@
 // @subject packages/server/src/transport/trpc/role-output.ts
 import { createCharacterSchema } from "@orb/contracts/character";
 import { chatEvents, chatParticipants } from "@orb/db";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
 import { and, asc, eq } from "drizzle-orm";
 
 test("the host adds a character; the row is inserted and the wire view resolves the card", async () => {

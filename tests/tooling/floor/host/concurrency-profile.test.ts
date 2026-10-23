@@ -17,7 +17,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir, totalmem } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { ConcurrencyProfile, DerivedCap, Machine, ProfileCeilings, UnitCosts } from "@orb/tooling/floor/host/concurrency-profile";
 import {
   CONCURRENCY_PROFILE_NAMES,

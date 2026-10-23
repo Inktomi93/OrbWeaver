@@ -3,7 +3,7 @@ import { join, relative } from "node:path";
 import { cwd } from "node:process";
 import { closeDb, createDb, localPath } from "@orb/db";
 import { DB_FILE_NAME, fileDatabaseUrl, resolveDataLayout } from "@orb/server/foundation/data-layout";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { sql } from "drizzle-orm";
 
 for (const name of ["ordinary space", "capsule%20root", "literal% root #?", "unicode 雪"]) {

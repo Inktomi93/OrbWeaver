@@ -6,13 +6,13 @@ import { chatInjectionInputSchema } from "@orb/contracts/chat";
 import { chatImportClaims, chats, messages } from "@orb/db";
 import { contentSpanRaw } from "@orb/kit/content";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "@orb/testkit/node/corpus-provider.ts";
-import { seedCorpusConnections, seedRecallRoom } from "@orb/testkit/node/corpus-seed.ts";
-import { makeAssetBytes } from "@orb/testkit/node/factories/asset.ts";
-import { seedImportedChatRows } from "@orb/testkit/node/factories/chat.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
 import { eq } from "drizzle-orm";
+import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "../corpus-provider.ts";
+import { seedCorpusConnections, seedRecallRoom } from "../corpus-seed.ts";
+import { expect, test } from "../fixtures.ts";
+import { createServerHarness } from "../server.ts";
+import { makeAssetBytes } from "./asset.ts";
+import { seedImportedChatRows } from "./chat.ts";
 
 test("native chat import captures returned claims, injections and owned attachments without forging dedup or refusal IDs", async () => {
   const wire = createCorpusProviderExecution({

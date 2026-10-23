@@ -2,7 +2,7 @@ import { CATALOG_SETTINGS_PREFIX } from "@orb/contracts/settings";
 import { settings } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import { createSettingsKvPort } from "@orb/server/domain/settings";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { eq } from "drizzle-orm";
 
 test("tenant KV preserves stored keys, opaque values and overwrite timestamps", async ({ db, clock }) => {

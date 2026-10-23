@@ -7,7 +7,7 @@
 // against a page that DOES show the surface's settle subject returns normally, so the refusal above is a
 // real answer about the surface rather than a wait that can only fail.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { chromium } from "@playwright/test";
 import type { RuntimeAppearanceHistoricalRow } from "../../../../tooling/src/floor/appearance/appearance-matrix.ts";
 import { anchorRowSubject, driveSurface } from "../../../../tooling/src/snap/ops/appearance-surface-drive.ts";

@@ -2,13 +2,13 @@
 import { pluginManifestSchema } from "@orb/contracts/plugin";
 import { pluginGitPreviewSchema, pluginUpdateCheckSchema, pluginUrlPreviewSchema } from "@orb/server/domain/plugin";
 import { SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
-import { makePluginBundle } from "@orb/testkit/node/factories/plugin.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
-import { requireShowcaseManifest } from "@orb/testkit/node/showcase-bundle.ts";
 import { strToU8 } from "fflate";
 import { CORPUS_PLUGIN_GIT_URL, createCorpusPluginGit } from "./corpus-plugin-git.ts";
 import { CORPUS_PLUGIN_SOURCE_URL, createCorpusPluginDownloads, seedCorpusPluginSource } from "./corpus-plugin-source.ts";
+import { makePluginBundle } from "./factories/plugin.ts";
+import { expect, test } from "./fixtures.ts";
+import { createServerHarness } from "./server.ts";
+import { requireShowcaseManifest } from "./showcase-bundle.ts";
 
 test("native URL output suppliers bind consent to bytes and preserve leak-free update failures", async () => {
   const downloads = createCorpusPluginDownloads();

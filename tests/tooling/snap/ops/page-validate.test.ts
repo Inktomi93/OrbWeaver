@@ -1,7 +1,7 @@
 // snap's page→node seams refuse loudly (#1004). One test per converted seam, each asserting the arm
 // that used to be SILENT rather than merely the obviously-broken one.
 
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { describe } from "vitest";
 import {
   animationEvidence,

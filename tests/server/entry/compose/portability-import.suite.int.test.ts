@@ -19,9 +19,9 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import { ST_SETTINGS_FILE } from "@orb/contracts/import";
 import type { PortableFile } from "@orb/contracts/portability";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
-import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
+import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "@orb/testkit/node";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import { principal } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";
 
 async function owners(harness: ServerTestHarness): Promise<readonly [Principal, Principal]> {

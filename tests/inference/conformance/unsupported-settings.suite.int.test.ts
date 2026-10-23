@@ -4,7 +4,7 @@ import type { Wire } from "@orb/contracts/inference";
 
 import { WARNING_CODES } from "@orb/contracts/inference";
 
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { wireConnection } from "../roles/runtime.fixtures.ts";
 import type { ChatScript } from "./runtime.fixtures.ts";
 import { CONFORMANCE_WIRES, cellTest, chatCapability, conformanceRoot, driveChat, warningCodesOf } from "./runtime.fixtures.ts";

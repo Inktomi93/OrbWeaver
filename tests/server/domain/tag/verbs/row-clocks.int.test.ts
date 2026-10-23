@@ -11,9 +11,8 @@ import type { PortableFile } from "@orb/contracts/portability";
 import { createBookSchema } from "@orb/contracts/world-info";
 import { characterTags, chatTags, personaTags, presetTags, tags, worldBookTags } from "@orb/db";
 import { DomainConflictError } from "@orb/kit/errors";
-import { seedCreatedCharacter } from "@orb/testkit/node/factories/character.ts";
-import { seedCreatedTag } from "@orb/testkit/node/factories/tag.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import { seedCreatedCharacter, seedCreatedTag } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 
 test("tag creation uses advanced product time and a folded-name conflict preserves the existing birth", async ({ harness }) => {

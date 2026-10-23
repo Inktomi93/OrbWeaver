@@ -8,7 +8,7 @@
 
 import { join } from "node:path";
 import { HEALTH_STATUSES, healthResponseSchema } from "@orb/contracts/diagnostics";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { describe, vi } from "vitest";
 import { E2E_RUN_ROOT, LOCAL_OWNER, MODE_PROJECTS, SINGLE_USER, selectedModeProjects } from "./modes.ts";
 import { ALLOW_DEV_TARGET_ENV, DEV_STACK_PORTS, devTargetAllowed, probeTarget, targetRefusal } from "./target-guard.ts";

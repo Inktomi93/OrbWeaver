@@ -1,6 +1,5 @@
-import { createCorpusHarness } from "@orb/testkit/node/corpus.ts";
-import { captureCookieAuth } from "@orb/testkit/node/corpus-auth.ts";
-import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc } from "@orb/testkit/ct";
+import { captureCookieAuth, createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { SessionFreshnessStory } from "./_session-freshness-stories.tsx";

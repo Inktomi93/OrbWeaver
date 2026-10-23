@@ -2,10 +2,8 @@
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { deriveRegexTierFlags } from "@orb/kit/regex";
 import { getLog } from "@orb/server/foundation/observability";
-import { seedMessage } from "@orb/testkit/node/factories/message.ts";
-import { seedGlobalRegexScript, seedRegexScript } from "@orb/testkit/node/factories/regex.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness, seedGlobalRegexScript, seedMessage, seedRegexScript } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
 
 // A catastrophic-backtracking pattern: the host's node:vm watchdog (or the kit's complexity guard) refuses it.

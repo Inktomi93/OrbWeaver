@@ -5,8 +5,8 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
 
 const DESCRIPTION = "member-card-sheet-description";
 const STEERING = "member-card-host-only-steering";

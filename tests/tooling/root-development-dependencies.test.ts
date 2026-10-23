@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { lstatSync, mkdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { z } from "zod";
 
 const ROOT_MANIFEST = new URL("../../package.json", import.meta.url);

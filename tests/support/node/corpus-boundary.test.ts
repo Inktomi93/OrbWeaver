@@ -5,11 +5,11 @@ import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
-import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
-import { serializeCorpusWire } from "@orb/testkit/iso/corpus.ts";
-import { createSeededIds, SEEDED_ID_MAX_CURSOR } from "@orb/testkit/iso/ids.ts";
-import { createCorpusCapsule, loadCorpusFixture } from "@orb/testkit/node/corpus.ts";
-import { createCorpusHarness, expect, test } from "@orb/testkit/node/fixtures.ts";
+import { FROZEN_AT_MS } from "../iso/clock.ts";
+import { serializeCorpusWire } from "../iso/corpus.ts";
+import { createSeededIds, SEEDED_ID_MAX_CURSOR } from "../iso/ids.ts";
+import { createCorpusCapsule, loadCorpusFixture } from "./corpus.ts";
+import { createCorpusHarness, expect, test } from "./fixtures.ts";
 
 test("capsule creation refuses an existing data root before opening or modifying its contents", async () => {
   const parent = await mkdtemp(join(tmpdir(), "orb-corpus-boundary-"));

@@ -12,14 +12,19 @@ import { processMacros } from "@orb/kit/macro";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { AppRouter } from "@orb/server";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
-import { CORPUS_PROVIDER_ENDPOINT, createCorpusProviderExecution } from "@orb/testkit/node/corpus-provider.ts";
-import { captureCookieAuth, seedCorpusConnections } from "@orb/testkit/node/corpus-seed.ts";
-import { makeAssetBytes } from "@orb/testkit/node/factories/asset.ts";
-import { seedChatInvite, seedInvitedChatParticipant } from "@orb/testkit/node/factories/chat.ts";
-import { seedAdminProvider } from "@orb/testkit/node/factories/provider.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { expect, test } from "@orb/testkit/node";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import {
+  CORPUS_PROVIDER_ENDPOINT,
+  captureCookieAuth,
+  createCorpusProviderExecution,
+  createServerHarness,
+  makeAssetBytes,
+  seedAdminProvider,
+  seedChatInvite,
+  seedCorpusConnections,
+  seedInvitedChatParticipant,
+} from "@orb/testkit/node/composed";
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 
 const HOST_MODEL = "imagery-host-utility";

@@ -12,7 +12,7 @@ import {
   THEME_DERIVATION,
   wcagContrastRatio,
 } from "@orb/kit/theme-derivation";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 const LIGHTNESSES = [...Array.from({ length: 101 }, (_unused, index) => index / 100), 0.62, 0.6201];
 const CHROMAS = [0, 0.01, 0.25, 1, 3.6];

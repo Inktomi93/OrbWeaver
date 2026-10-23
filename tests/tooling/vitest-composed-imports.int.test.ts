@@ -1,5 +1,5 @@
 // The installed Vitest rules must recognize the public composed fixtures without a compiler program.
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { ESLint } from "eslint";
 
 const ASSERTIONS = "vitest/expect-expect";

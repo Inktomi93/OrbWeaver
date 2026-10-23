@@ -1,9 +1,9 @@
 import { blobIconUrl, blobUrl } from "@orb/contracts/assets";
 import { refineryScorePayloadSchema } from "@orb/contracts/refinery";
 import { projectJsonSchema } from "@orb/kit/json-schema";
-import type { CorpusWire } from "@orb/testkit/iso/corpus.ts";
-import { expect, test } from "@orb/testkit/node/ct-corpus.ts";
-import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
+import type { CorpusWire } from "@orb/testkit/iso";
 import type { ConsoleMessage } from "@playwright/test";
 import type { SchemaPreviewStory } from "./_payload-stories.tsx";
 

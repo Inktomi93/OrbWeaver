@@ -4,7 +4,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import process from "node:process";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { openRunSlot, publishRunSlot } from "@orb/tooling/floor/artifacts/artifacts";
 import { launchProbeSession, settle, withProbeSession } from "@orb/tooling/floor/browser/browser";
 import { browserEvidenceRetentionBatchSchema } from "@orb/tooling/floor/browser/browser-evidence-ring";

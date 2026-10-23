@@ -11,6 +11,8 @@ import type { Principal } from "@orb/contracts/identity";
 import { assetIdsInContent, contentSpanRaw } from "@orb/kit/content";
 import type { AssetId, ChatId, MessageId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -18,13 +20,12 @@ import {
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
-} from "@orb/testkit/node/corpus-provider.ts";
-import { seedCorpusActors } from "@orb/testkit/node/corpus-seed.ts";
-import { makeAssetBytes } from "@orb/testkit/node/factories/asset.ts";
-import { seedChatInvite, seedInvitedChatParticipant } from "@orb/testkit/node/factories/chat.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
-import { createServerHarness } from "@orb/testkit/node/server.ts";
+  createServerHarness,
+  makeAssetBytes,
+  seedChatInvite,
+  seedCorpusActors,
+  seedInvitedChatParticipant,
+} from "@orb/testkit/node/composed";
 import { onTestFinished } from "vitest";
 
 const PNG = "image/png";

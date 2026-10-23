@@ -9,8 +9,8 @@ import type { NamesBehavior, PromptConfig, PromptSection } from "@orb/contracts/
 import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { PersonaId } from "@orb/kit/ids";
-import type { ChatRoot } from "@orb/testkit/node/chat/composed.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
   attachPersonaLore,
   inputMessages,

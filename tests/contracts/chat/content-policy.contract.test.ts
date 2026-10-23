@@ -2,7 +2,7 @@ import { CONTENT_CLASS_POLICY, contentSpansToBlocks, messageContentBlockSchema }
 import type { ContentSpanKind } from "@orb/kit/content";
 import { tokenizeContent } from "@orb/kit/content";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 const CLASS_BODIES = {
   text: "The witness speaks.",

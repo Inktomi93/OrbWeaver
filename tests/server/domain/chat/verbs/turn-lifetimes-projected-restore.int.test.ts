@@ -1,7 +1,7 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // @subject packages/contracts/src/chat/member-projection.ts
 import { messageVariants } from "@orb/db";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 import { eq } from "drizzle-orm";
 import { IMAGE_TOOL, imageRoom, nativeText, nativeTool } from "../engine/inline-image-physical.ts";
 import { invitePerson } from "../persona-cache-physical.ts";

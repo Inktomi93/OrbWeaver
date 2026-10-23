@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import { z } from "zod";
 import { read, setupSteps, workflowJobs } from "./_workflow-support.ts";

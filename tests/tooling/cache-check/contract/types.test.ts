@@ -1,4 +1,4 @@
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import type { CaseVerdict } from "@orb/tooling/cache-check";
 import { CASE_VERDICTS } from "@orb/tooling/cache-check";
 

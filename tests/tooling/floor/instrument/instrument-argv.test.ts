@@ -1,4 +1,4 @@
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { ARTIFACT_FLAGS, ENVIRONMENT_FLAGS, WHERE_FLAGS } from "@orb/tooling/floor/instrument/instrument-argv";
 import { parseSnapArgs } from "../../../../tooling/src/snap/index.ts";
 

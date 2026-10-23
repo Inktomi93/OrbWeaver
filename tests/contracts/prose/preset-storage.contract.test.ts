@@ -7,7 +7,7 @@ import {
   TEMPLATE_DEFS,
 } from "@orb/contracts/preset";
 import { isPresetProseSlotId, isProseSlotId, PROSE_SLOTS, resolveProseText } from "@orb/contracts/prose";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 test("guided Templates rows resolve the defaults used by their actual actions", () => {
   for (const kind of GUIDED_ACTION_KINDS) {

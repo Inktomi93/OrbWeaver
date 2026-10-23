@@ -1,7 +1,7 @@
 // The two-human fixture's env recipe: its own port pair from the registry, its own data root and run dir
 // under the repo, the local sign-in mode, no `.env`, and the seed contract the seed tool reads.
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { FIXTURE_PORTS } from "../../../../tooling/src/floor/host/ports.ts";
 import { FIXTURE_CREDENTIALS, FIXTURE_DIR_REL, fixtureEnv, fixtureIdentityEnv } from "../../../../tooling/src/stack/index.ts";
 

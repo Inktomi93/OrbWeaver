@@ -6,10 +6,9 @@ import { createDb, hasPendingMigrations, localPath, preCloseHousekeeping, runMig
 import { createIdSource } from "@orb/kit/ids";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { createCas } from "@orb/server/infra/storage/cas";
-import { createSeededIds } from "@orb/testkit/iso/ids.ts";
-import { SHIPPED_MIGRATIONS } from "@orb/testkit/node/db.ts";
-import { seedUser } from "@orb/testkit/node/factories/user.ts";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { createSeededIds } from "@orb/testkit/iso";
+import { SHIPPED_MIGRATIONS, seedUser } from "@orb/testkit/node/composed";
+import { expect, test } from "@orb/testkit/tooling";
 import { z } from "zod";
 import { cloneMigratedStageDb } from "../../../../tooling/src/snap/ops/stage-source.ts";
 

@@ -4,8 +4,8 @@ import { databaseHandle } from "@orb/db/wiring-driver";
 import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { createEmitChatChanged } from "@orb/server/domain/chat";
 import { getLog } from "@orb/server/foundation/observability";
-import { freshDb } from "@orb/testkit/node/db.ts";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
+import { freshDb } from "@orb/testkit/node/composed";
 import { sql } from "drizzle-orm";
 import { vi } from "vitest";
 

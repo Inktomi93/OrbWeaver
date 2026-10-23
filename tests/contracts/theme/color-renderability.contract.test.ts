@@ -1,5 +1,5 @@
 import { themeOverrideSchema } from "@orb/contracts/theme";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { expect, test } from "@orb/testkit/node";
 
 test("the theme write boundary retains resolvable authored fills and contextual direct ink", () => {
   const override = {

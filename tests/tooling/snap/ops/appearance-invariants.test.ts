@@ -1,5 +1,5 @@
 import { AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, test } from "@orb/testkit/tooling";
 import { describe } from "vitest";
 import type { RuntimeAppearanceHistoricalRow } from "../../../../tooling/src/floor/appearance/appearance-matrix.ts";
 import type { AppearanceInvariantReceipt } from "../../../../tooling/src/snap/contract/appearance-invariants.ts";
