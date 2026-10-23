@@ -6,7 +6,7 @@ import { authConfigFromEnv } from "@orb/server/entry/auth";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { getLog } from "@orb/server/foundation/observability";
 import type { Fixtures } from "@orb/testkit/node";
-import { test as baseTest, expect, OTHER_USER_ID, OWNER_USER_ID } from "@orb/testkit/node";
+import { test as baseTest, expect } from "@orb/testkit/node";
 import type { HeldDb } from "@orb/testkit/node/composed";
 import { freshHeldDb, withheldTable } from "@orb/testkit/node/composed";
 import { and, eq } from "drizzle-orm";
@@ -32,7 +32,7 @@ const held = heldDbTest.extend<Pick<Fixtures, "db">>({
 
 held(
   "a raced single regex delete preserves its answer but fans no rooms when its owned DELETE removed nothing",
-  async ({ heldDb, db, ownerCaller, app }): Promise<void> => {
+  async ({ heldDb, db, harness, ownerCaller, app }): Promise<void> => {
     const script = await ownerCaller.regex.createScript({
       input: createRegexScriptSchema.parse({ name: "race", findRegex: "x", replaceString: "y", placement: [] }),
     });
@@ -61,7 +61,7 @@ held(
         await db
           .select()
           .from(auditLogs)
-          .where(and(eq(auditLogs.actorUserId, OWNER_USER_ID), eq(auditLogs.entityId, script.id), eq(auditLogs.action, "regex.removeScript"))),
+          .where(and(eq(auditLogs.actorUserId, harness.ownerId), eq(auditLogs.entityId, script.id), eq(auditLogs.action, "regex.removeScript"))),
       ).toHaveLength(2);
       expect(frames).toEqual([]);
     } finally {
@@ -100,7 +100,9 @@ test("bulk regex capture fans only confirmed owned scripts, once per room, and n
   expect(await ownerCaller.regex.bulkRemove({ scriptIds: [first.id, second.id, global.id, foreign.id, mintTypeId(ID_PREFIX.regexScript)] })).toEqual({
     affected: 3,
   });
-  expect((await services.regex.getScript({ principal: await harness.principalFor(OTHER_USER_ID), scriptId: foreign.id })).id).toBe(foreign.id);
+  expect((await services.regex.getScript({ principal: await harness.principalFor((await otherCaller.sessions.me()).userId), scriptId: foreign.id })).id).toBe(
+    foreign.id,
+  );
   expect(frames).toEqual([{ seq: null, event: { type: "roomEntityChanged", chatId: ownedRoom.id, entity: "regex" } }]);
 });
 
@@ -146,8 +148,8 @@ test("global document reach credits a present member rather than only the host, 
   const hostRoom = (await ownerCaller.chat.startChat({ characterIds: [] })).chat;
   await ownerCaller.settings.updateAppSettings({ partial: { localMultiUser: true } });
   // Internal callers capture one request's capability; the changed setting governs the next request.
-  const hostRequest = await harness.internalCallerFor(OWNER_USER_ID);
-  const memberRequest = await harness.internalCallerFor(OTHER_USER_ID);
+  const hostRequest = await harness.internalCallerFor(harness.ownerId);
+  const memberRequest = await harness.internalCallerFor((await otherCaller.sessions.me()).userId);
   const invite = await hostRequest.invites.createInvite({ chatId: hostRoom.id, input: {} });
   await memberRequest.invites.redeemInvite({ token: invite.token });
   const ownRoom = (await otherCaller.chat.startChat({ characterIds: [] })).chat;
@@ -198,7 +200,7 @@ test("a failed regex reach capture is logged and cannot fault the confirmed dele
       }
     }),
   );
-  const callerPrincipal = await harness.principalFor(OWNER_USER_ID);
+  const callerPrincipal = await harness.principalFor(harness.ownerId);
   expect(await services.regex.bulkRemoveScripts({ principal: callerPrincipal, scriptIds: [control.id] })).toEqual({ affected: 1 });
   expect(frames).toEqual([{ seq: null, event: { type: "roomEntityChanged", chatId: room.id, entity: "regex" } }]);
   frames.length = 0;
@@ -238,7 +240,7 @@ test("a failed document reach is logged without rejecting or rolling back its al
       }
     }),
   );
-  const callerPrincipal = await harness.principalFor(OWNER_USER_ID);
+  const callerPrincipal = await harness.principalFor(harness.ownerId);
   expect((await services.databank.rename({ principal: callerPrincipal, id: document.document.id, name: "positive" })).name).toBe("positive");
   expect(frames).toEqual([{ seq: null, event: { type: "roomEntityChanged", chatId: room.id, entity: "databank" } }]);
   frames.length = 0;

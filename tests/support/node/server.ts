@@ -5,24 +5,26 @@ import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { closeDb } from "@orb/db";
+import { closeDb, users } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import type { AgentSdkNativeOptions, AgentSdkQuery, AgentSdkSpawn } from "@orb/inference";
 import { createBinding } from "@orb/kit/binding";
-import type { Handle, UserId, WorkloadId } from "@orb/kit/ids";
+import type { ExternalId, Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId, createIdSource } from "@orb/kit/ids";
 import type { SessionsRolePolicy, SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
-import { createSessionsRolePolicy } from "@orb/server/domain/sessions";
+import { createSessionsRolePolicy, createSessionsService } from "@orb/server/domain/sessions";
 import type { ShareGraph, ShareGraphOptions } from "@orb/server/domain/share";
 import { loadWorkload, runWorkload, tickWorkloadSchedules } from "@orb/server/domain/workloads";
 import { authConfigFromEnv, createHostPrincipalResolver } from "@orb/server/entry/auth";
-import { announceOwnerClaim, removeOwnerClaimFileOnSpend } from "@orb/server/entry/boot";
+import { announceOwnerClaim, createLocalLightUserSeed, removeOwnerClaimFileOnSpend, seedOwner } from "@orb/server/entry/boot";
 import type { createConfiguredOidc, createHttpApp, ServicesDeps, ServicesResult } from "@orb/server/entry/compose";
 import { env, resolveBindPosture } from "@orb/server/foundation/env";
 import { getLog, logger } from "@orb/server/foundation/observability";
 import { systemConnector, systemFetch } from "@orb/server/infra/network";
 import { createCaller, createContext } from "@orb/server/transport/trpc";
+import { eq } from "drizzle-orm";
 import type { Clock } from "../iso/clock.ts";
 import { createFrozenClock } from "../iso/clock.ts";
 import type { SeededIds } from "../iso/ids.ts";
@@ -31,7 +33,6 @@ import type { ControlledTimers } from "../iso/timers.ts";
 import { createControlledTimers } from "../iso/timers.ts";
 import { freshDb } from "./db.ts";
 import type { UserRow } from "./factories/rows.ts";
-import { seedUser } from "./factories/rows.ts";
 import type { OwnedHttpRequests } from "./http.ts";
 import { createOwnedHttpRequests } from "./http.ts";
 
@@ -78,6 +79,25 @@ export type UnclaimedServerHarnessOptions = Omit<ServerHarnessOptions, "ownerId"
   readonly authConfig: NonNullable<ServerHarnessOptions["authConfig"]> & { readonly mode: "oidc" };
 };
 
+/** The account a claimed root mints: `sessions.ensureUser`, then the owner's audited admin verbs for each field. */
+export interface ActorSpec {
+  /** Defaults to a fresh seeded handle; an already-held handle is refused, never adopted. */
+  readonly handle?: Handle;
+  /** The owner is the bootstrap row; no verb mints a second one. */
+  readonly role?: Exclude<UserRole, "owner">;
+  readonly enabled?: boolean;
+  /** Bound through `admin.linkSsoIdentity`. */
+  readonly externalId?: ExternalId;
+  /** Stored through `admin.resetPassword`, so the hash is the root's own peppered credential. */
+  readonly password?: string;
+}
+
+/** An unclaimed root has no owner to run admin verbs, so its accounts arrive the way SSO users do: through
+ *  `sessions.provisionIdentity`, with `enabled: false` as the pending-approval state. */
+interface UnclaimedActorSpec extends Pick<ActorSpec, "handle" | "enabled" | "externalId"> {
+  readonly email?: string;
+}
+
 class ComposedServerRoot {
   readonly #app: ServicesResult;
   readonly #db: Db;
@@ -120,7 +140,9 @@ class ComposedServerRoot {
 /** Persisted producers require the actual composed root, not a structural bag of replacement operations. */
 export type ServerProducerRoot = ComposedServerRoot;
 
-export interface UnclaimedServerTestHarness extends ComposedServerRoot, Omit<ServerTestHarness, "ownerId"> {}
+export interface UnclaimedServerTestHarness extends ComposedServerRoot, Omit<ServerTestHarness, "ownerId" | "actor"> {
+  readonly actor: (spec?: UnclaimedActorSpec) => Promise<UserRow>;
+}
 
 export interface ServerTestHarness extends ComposedServerRoot, AsyncDisposable {
   readonly app: ServicesResult;
@@ -134,7 +156,7 @@ export interface ServerTestHarness extends ComposedServerRoot, AsyncDisposable {
   readonly principalFor: ReturnType<typeof createHostPrincipalResolver>;
   /** Internal row-derived tRPC calls, not request authentication; HTTP owns cookie/session admission proof. */
   readonly internalCallerFor: (userId: UserId | null) => Promise<ReturnType<typeof createCaller>>;
-  readonly actor: (overrides?: Partial<UserRow>) => ReturnType<typeof seedUser>;
+  readonly actor: (spec?: ActorSpec) => Promise<UserRow>;
   readonly http: Pick<OwnedHttpRequests, "request" | "routes">;
   readonly listen: () => Promise<Readonly<AddressInfo>>;
   readonly importStagingDir: string;
@@ -290,28 +312,118 @@ type HarnessConstruction = Pick<ServerTestHarness, "db" | "clock" | "idSource" |
   readonly rootDir: string;
 };
 
+interface HarnessOwner {
+  readonly ownerId: UserId | undefined;
+  /** Owners whose pre-compose local-light seed bound an encoder; their embed sweeps start once compose exists. */
+  readonly boundBeforeCompose: readonly UserId[];
+}
+
+// Boot's owner path: compose takes the owner id, so a transient sessions service runs `seedOwner` first. A
+// supplied id names an owner an earlier root on the same database already seeded.
 async function prepareHarnessOwner(
   options: ServerHarnessOptions | UnclaimedServerHarnessOptions,
-  { db, clock, idSource, authConfig, rolePolicy }: Pick<HarnessConstruction, "db" | "clock" | "idSource" | "authConfig" | "rolePolicy">,
-): Promise<UserId | undefined> {
-  if (options.ownerId === null) {
-    return;
+  {
+    db,
+    wiringDb,
+    clock,
+    idSource,
+    rolePolicy,
+  }: Pick<HarnessConstruction, "db" | "clock" | "idSource" | "rolePolicy"> & { readonly wiringDb: ServicesDeps["db"] },
+  crypto: Parameters<typeof createSessionsService>[0]["crypto"],
+): Promise<HarnessOwner> {
+  if (options.ownerId !== undefined) {
+    return { ownerId: options.ownerId ?? undefined, boundBeforeCompose: [] };
   }
-  const ownerId = options.ownerId ?? idSource.userId();
-  if (options.ownerId === undefined) {
-    await seedUser(
-      db,
-      {
-        id: ownerId,
-        handle: castId<Handle>(rolePolicy.ownerHandles()[0] ?? authConfig.defaultHandle),
-        role: "owner",
-        createdAt: clock.now(),
-        updatedAt: clock.now(),
-      },
-      idSource,
+  const boundBeforeCompose: UserId[] = [];
+  const bootSessions = createSessionsService({
+    rolePolicy,
+    db: wiringDb,
+    now: clock.now,
+    idSource,
+    crypto,
+    sessionSecret: SESSION_SECRET,
+    seedUserConnections: createLocalLightUserSeed({ db: wiringDb, now: clock.now, idSource, onEmbedSpaceBound: (owner) => boundBeforeCompose.push(owner) }),
+  });
+  const [ownerId] = await seedOwner({ db, sessions: bootSessions, ownerHandles: rolePolicy.ownerHandles(), now: clock.now });
+  if (ownerId === undefined) {
+    throw new Error("server harness: seedOwner returned no owner (OWNER_HANDLES resolved empty)");
+  }
+  return { ownerId, boundBeforeCompose };
+}
+
+function startPreComposeSweeps(app: Pick<ServicesResult, "detachEmbedReindex">, owners: HarnessOwner["boundBeforeCompose"]): void {
+  for (const owner of owners) {
+    app.detachEmbedReindex(owner);
+  }
+}
+
+const ACTOR_HANDLE_PREFIX = "actor";
+
+async function readActor(db: Db, userId: UserId): Promise<UserRow> {
+  const row = await db.select().from(users).where(eq(users.id, userId)).get();
+  if (row === undefined) {
+    throw new Error("server harness: the production mint left no users row");
+  }
+  return row;
+}
+
+// Both mint verbs resolve an existing handle to its account, so an actor refuses a held handle instead of adopting it.
+async function unheldHandle(db: Db, ids: SeededIds, requested: Handle | undefined): Promise<Handle> {
+  const handle = requested ?? castId<Handle>(ids.next(ACTOR_HANDLE_PREFIX));
+  const held = await db.select({ id: users.id }).from(users).where(eq(users.handle, handle)).get();
+  if (held !== undefined) {
+    throw new Error(`server harness: actor handle "${handle}" is already held by ${held.id}`);
+  }
+  return handle;
+}
+
+interface ActorMint {
+  readonly app: ServicesResult;
+  readonly db: Db;
+  readonly ids: SeededIds;
+}
+
+function claimedActor({ app, db, ids }: ActorMint, ownerId: UserId, principalFor: ServerTestHarness["principalFor"]): ServerTestHarness["actor"] {
+  return async (spec = {}) => {
+    const userId = await app.sessions.ensureUser(await unheldHandle(db, ids, spec.handle));
+    const principal = await principalFor(ownerId);
+    const { admin } = app.services;
+    if (spec.externalId !== undefined) {
+      await admin.linkSsoIdentity({ principal, userId, externalId: spec.externalId });
+    }
+    if (spec.role !== undefined && spec.role !== (await readActor(db, userId)).role) {
+      await admin.setRole({ principal, userId, role: spec.role });
+    }
+    if (spec.enabled === false) {
+      await admin.setEnabled({ principal, userId, enabled: false });
+    }
+    if (spec.password !== undefined) {
+      await admin.resetPassword({ principal, userId, password: spec.password });
+    }
+    return await readActor(db, userId);
+  };
+}
+
+function unclaimedActor({ app, db, ids }: ActorMint): UnclaimedServerTestHarness["actor"] {
+  return async (spec = {}) => {
+    const handle = await unheldHandle(db, ids, spec.handle);
+    const provisioned = await app.sessions.provisionIdentity(
+      { externalId: spec.externalId ?? null, handle, groups: [], email: spec.email ?? null },
+      { ownerClaimProven: false, requireApproval: spec.enabled === false },
     );
-  }
-  return ownerId;
+    if (provisioned.outcome !== "provisioned") {
+      throw new Error(`server harness: provisionIdentity refused the actor (${provisioned.reason ?? "denied"})`);
+    }
+    return await readActor(db, provisioned.userId);
+  };
+}
+
+function actorFor(
+  mint: ActorMint,
+  ownerId: UserId | undefined,
+  principalFor: ServerTestHarness["principalFor"],
+): ServerTestHarness["actor"] | UnclaimedServerTestHarness["actor"] {
+  return ownerId === undefined ? unclaimedActor(mint) : claimedActor(mint, ownerId, principalFor);
 }
 
 async function configuredOidcFor(
@@ -446,14 +558,14 @@ export async function createServerHarness(
     options,
   );
   const inputs: HarnessConstruction = { db, clock, idSource, timers, authConfig, rolePolicy, rootDir };
-  const ownerId = await prepareHarnessOwner(options, inputs);
-  const { createHttpApp: assembleHttp, createServices, createShareGraph, UNSUPERVISED_RESTART } = await import("@orb/server/entry/compose");
+  const { createHttpApp: assembleHttp, createServices, createShareGraph, SESSIONS_CRYPTO, UNSUPERVISED_RESTART } = await import("@orb/server/entry/compose");
+  const wiringDb = databaseHandle(db);
+  const { ownerId, boundBeforeCompose } = await prepareHarnessOwner(options, { ...inputs, wiringDb }, SESSIONS_CRYPTO);
   const listener = createBinding<Readonly<AddressInfo>>("Share execution requires the server harness native listener");
   const shareInputs = shareInputsFor(options, inputs, () => listener.read().port);
   const { bind, relayDir, secretsDir } = shareInputs;
   const sharing = await createShareGraph(shareInputs);
   shareLifetime = sharing;
-  const wiringDb = databaseHandle(db);
   const app = await createServices({
     authConfig,
     rolePolicy,
@@ -485,6 +597,7 @@ export async function createServerHarness(
     networkExecution: networkExecutionOf(options, options.providerFetch ?? refusingProviderFetch()),
   });
   appLifetime = app;
+  startPreComposeSweeps(app, boundBeforeCompose);
   const manualWorkloadAbort = new AbortController();
   construction.defer(() => manualWorkloadAbort.abort());
   const workloadExecution = {
@@ -540,16 +653,7 @@ export async function createServerHarness(
         clientIp: IN_PROCESS_CLIENT_IP,
       }),
     );
-  const actor = (overrides: Partial<UserRow> = {}): ReturnType<typeof seedUser> =>
-    seedUser(
-      db,
-      {
-        createdAt: clock.now(),
-        updatedAt: clock.now(),
-        ...overrides,
-      },
-      idSource,
-    );
+  const actor = actorFor({ app, db, ids }, ownerId, principalFor);
   const workloadDriver = workloadsFor(app, workloadExecution, manualWorkloadAbort.signal, options.startJobs);
   const lifetime = construction.move();
   return Object.assign(new ComposedServerRoot(app, db, internalCallerFor, http), {

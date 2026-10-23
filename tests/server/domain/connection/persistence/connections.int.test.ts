@@ -6,7 +6,7 @@
 import { CONNECTION_OP_CODES, modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import { createHostPrincipalResolver } from "@orb/server/entry/auth";
 import { getLog } from "@orb/server/foundation/observability";
-import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "@orb/testkit/node";
+import { expect, test } from "@orb/testkit/node";
 import { sql } from "drizzle-orm";
 import { vi } from "vitest";
 
@@ -50,7 +50,14 @@ test("owned invalid shapes and malformed bytes refuse before a read-derived upda
   expect(await db.all(sql`select id from user_connections where id = ${row.id}`)).toHaveLength(0);
 });
 
-test("foreign malformed bytes still reach the mismatch event, never decoding or exposing the foreign row", async ({ db, app, ownerCaller, otherCaller }) => {
+test("foreign malformed bytes still reach the mismatch event, never decoding or exposing the foreign row", async ({
+  db,
+  app,
+  harness,
+  ownerCaller,
+  otherCaller,
+}) => {
+  const otherId = (await otherCaller.sessions.me()).userId;
   const own = await ownerCaller.connection.create(CONNECTION_INPUT);
   const foreign = await otherCaller.connection.create({ ...CONNECTION_INPUT, label: "foreign-connection-marker" });
   const foreignRefusal = {
@@ -71,12 +78,12 @@ test("foreign malformed bytes still reach the mismatch event, never decoding or 
       return typeof fields === "object" && fields !== null && "event" in fields && fields.event === OWNER_MISMATCH_EVENT;
     });
   const expectedEvent = [
-    { security: true, event: OWNER_MISMATCH_EVENT, task: "chat", connectionId: foreign.id, funder: OWNER_USER_ID, owner: OTHER_USER_ID },
+    { security: true, event: OWNER_MISMATCH_EVENT, task: "chat", connectionId: foreign.id, funder: harness.ownerId, owner: otherId },
     "security: connection_owner_mismatch",
   ];
   expect(mismatchEvents()).toEqual([expectedEvent]);
 
-  const principal = await createHostPrincipalResolver(app.sessions)(OWNER_USER_ID);
+  const principal = await createHostPrincipalResolver(app.sessions)(harness.ownerId);
   await expect(app.runtime.capabilities.for({ connectionId: foreign.id, principal })).rejects.toThrow(`connection ${foreign.id} not found`);
   await expect(ownerCaller.connection.get({ connectionId: foreign.id })).rejects.toMatchObject(foreignRefusal);
   await expect(ownerCaller.connection.remove({ connectionId: foreign.id })).toThrowTRPCError("BAD_REQUEST");
