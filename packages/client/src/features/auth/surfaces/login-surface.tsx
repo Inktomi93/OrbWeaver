@@ -127,7 +127,8 @@ export function LoginBody({
   readonly onLeavePendingJoin?: () => void;
   readonly onDone: () => void;
 }): ReactElement {
-  switch (config.mode) {
+  const mode = config.mode;
+  switch (mode) {
     case "local":
       // B4 — a fresh local box (owner has no password yet) renders the first-run setup form instead of the
       // credential form; the server serves `localFirstRun` only on a local/trusted origin, so this arm is
@@ -215,7 +216,7 @@ export function LoginBody({
         </Stack>
       );
     default:
-      return assertNeverMode(config.mode);
+      return assertNeverMode(mode);
   }
 }
 

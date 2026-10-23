@@ -10,7 +10,6 @@ import { nextFreeLabel } from "@orb/kit/strings";
 import { z } from "zod";
 import { chatApiSchema } from "./apis.ts";
 import { declaredCapabilitySchema } from "./capability/override.ts";
-import { bindingActorKindSchema } from "./connection-ref.ts";
 import { modelIdSchema } from "./model-schema.ts";
 import { promptCacheSettingsSchema } from "./prompt-cache.ts";
 import { providerIdSchema } from "./provider-id.ts";
@@ -96,15 +95,21 @@ export type UserConnection = z.infer<typeof userConnectionSchema>;
 /** One actor's pick of a connection for ONE routable task. Exactly one of the three actor ids is set,
  *  matching `actorKind` (the `chat_participants` kind-shape idiom); `connectionId` is `null` after the row it
  *  pointed at was deleted (SET NULL) — the binding survives as `no-connection`, never a dangling id. */
-export const connectionBindingSchema = z.object({
+const connectionBindingFields = z.strictObject({
   id: typeIdSchema(ID_PREFIX.connectionBinding),
-  actorKind: bindingActorKindSchema,
-  userId: brandedId("UserId").nullable(),
-  ruleId: typeIdSchema(ID_PREFIX.automationRule).nullable(),
-  pluginId: typeIdSchema(ID_PREFIX.plugin).nullable(),
   task: routableTaskSchema,
   connectionId: typeIdSchema(ID_PREFIX.userConnection).nullable(),
 });
+export const connectionBindingSchema = z.discriminatedUnion("actorKind", [
+  connectionBindingFields.extend({ actorKind: z.literal("user"), userId: brandedId("UserId"), ruleId: z.null(), pluginId: z.null() }),
+  connectionBindingFields.extend({
+    actorKind: z.literal("automation-rule"),
+    userId: z.null(),
+    ruleId: typeIdSchema(ID_PREFIX.automationRule),
+    pluginId: z.null(),
+  }),
+  connectionBindingFields.extend({ actorKind: z.literal("plugin-grant"), userId: z.null(), ruleId: z.null(), pluginId: typeIdSchema(ID_PREFIX.plugin) }),
+]);
 export type ConnectionBinding = z.infer<typeof connectionBindingSchema>;
 
 /** The connection verbs' refusal codes, carried on a tRPC error's `data.reason`. Here rather than in the

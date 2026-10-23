@@ -25,23 +25,13 @@ export function createAutomationRuntimeOps<TSet>(deps: AutomationRuntimeDeps<TSe
       return { messageCount: outcome.messages.length };
     },
     generatePicture: async (req): ReturnType<AutomationRuntimeOps["generatePicture"]> => {
-      const caller = await resolveOwnerPrincipal(req.authorUserId);
+      const { authorUserId, ruleId, chatId, automationDepth, quiet, ...pictureArgs } = req;
+      const caller = await resolveOwnerPrincipal(authorUserId);
       const picture = await imagery.generatePicture({
+        ...pictureArgs,
         caller,
-        actor: { kind: "automation-rule", ruleId: req.ruleId },
-        // C5 — an owner-GLOBAL rule's fire carries NO chat. Imagery's own param is optional and now behaves
-        // chat-lessly for the caption modes, so the null maps onto the absent field rather than inventing a
-        // room; the automation-side admission matrix is what guarantees only a caption mode gets here.
-        ...(req.chatId === null ? {} : { chatId: req.chatId }),
-        mode: req.mode,
-        n: req.n,
-        useAvatarReference: req.useAvatarReference,
-        reuse: req.reuse,
-        timeZone: req.timeZone,
-        ...(req.prompt !== undefined ? { prompt: req.prompt } : {}),
-        ...(req.negative !== undefined ? { negative: req.negative } : {}),
-        ...(req.size !== undefined ? { size: req.size } : {}),
-        ...(req.subjectCharacterId !== undefined ? { subjectCharacterId: req.subjectCharacterId } : {}),
+        actor: { kind: "automation-rule", ruleId },
+        ...(chatId === null ? {} : { chatId }),
       });
       // ONE /imagine path: the DEFAULT (`quiet:false`) surfaces the image IN-CHAT — otherwise a
       // `generate_image` rule's output is only ever reachable via the gallery. Post through chat's EXISTING
@@ -50,14 +40,14 @@ export function createAutomationRuntimeOps<TSet>(deps: AutomationRuntimeDeps<TSe
       // The post path needs a room, and a chat-less request cannot reach it: the automation admission matrix
       // refuses a non-quiet `generate_image` on an owner-global rule for exactly this reason, so `chatId`
       // being null here is only ever the quiet lane.
-      if (!req.quiet && req.chatId !== null && picture.images.length > 0) {
+      if (!quiet && chatId !== null && picture.images.length > 0) {
         // N1 (F1 cascade belt): stamp the posted image's slot with `initiator:"automation"` + the firing rule's
         // cascade depth so its `messageCommitted` fact rides at depth ≥ 1.
         await deps.postNarratorMessage(
-          req.chatId,
+          chatId,
           req.prompt ?? "",
           picture.images.map((img) => img.assetId),
-          { initiator: "automation", automationDepth: req.automationDepth },
+          { initiator: "automation", automationDepth },
         );
       }
       return { imageCount: picture.images.length };

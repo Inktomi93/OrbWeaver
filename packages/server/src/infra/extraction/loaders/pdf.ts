@@ -63,7 +63,7 @@ async function readTitle(doc: PDFDocumentProxy): Promise<string | undefined> {
   return title.length > 0 ? title : undefined;
 }
 
-export async function loadPdf(bytes: Uint8Array): Promise<RawExtraction> {
+export async function loadPdf(bytes: Uint8Array): Promise<RawExtraction & { readonly pageCount: number }> {
   // A COPY: pdfjs takes ownership of `data` and may detach the backing ArrayBuffer — never hand it the
   // caller's buffer. `verbosity: 0` silences pdfjs's console warnings (missing standard-font data is
   // irrelevant to text extraction). The loading TASK owns teardown (`destroy`), not the document proxy.

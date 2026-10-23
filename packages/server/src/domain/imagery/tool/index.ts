@@ -14,13 +14,15 @@
 //     targeting is the human/config-authored automation arm's surface, not the model's;
 //   • `useAvatarReference` — inert without a `subjectCharacterId` (B3 needs a subject), so it rides the arm too.
 
-import { generateImageActionArgsSchema, IMAGERY_GENERATE_IMAGE_TOOL_DESCRIPTION } from "@orb/contracts/imagery";
+import { DEFAULT_ACTION_MODE, generateImageActionArgsSchema, IMAGERY_GENERATE_IMAGE_TOOL_DESCRIPTION, promptTemplateModeSchema } from "@orb/contracts/imagery";
 import type { ToolDefinition, ToolExecutionContext, ToolHandlerResult } from "#domain/tool-use";
 import type { GeneratePictureParams } from "../contract/params.ts";
 import type { ImageryService } from "../contract/service.ts";
 
 /** The model-facing tool args — the projectable subset of the action-arm vocabulary (see the file header). */
-const generateImageToolArgsSchema = generateImageActionArgsSchema.omit({ quiet: true, subjectCharacterId: true, useAvatarReference: true });
+const generateImageToolArgsSchema = generateImageActionArgsSchema.options[1]
+  .omit({ quiet: true, subjectCharacterId: true, useAvatarReference: true })
+  .extend({ mode: promptTemplateModeSchema.default(DEFAULT_ACTION_MODE) });
 
 interface ImageryToolDeps {
   readonly generatePicture: ImageryService["generatePicture"];
@@ -46,11 +48,11 @@ export function imageryToolDefinitions(deps: ImageryToolDeps): readonly ToolDefi
         if (exec.chatId === null) {
           return { ok: false, error: "generate_image requires a chat context" };
         }
+        const p = generateImageActionArgsSchema.parse(args);
         const params: GeneratePictureParams = {
           caller: exec.principal,
           chatId: exec.chatId,
-          mode: args.mode,
-          ...(args.prompt !== undefined ? { prompt: args.prompt } : {}),
+          ...(p.mode === "free" ? { mode: p.mode, prompt: p.prompt } : { mode: p.mode, ...(p.prompt !== undefined ? { prompt: p.prompt } : {}) }),
           ...(args.negative !== undefined ? { negative: args.negative } : {}),
           n: args.n,
           ...(args.size !== undefined ? { size: args.size } : {}),

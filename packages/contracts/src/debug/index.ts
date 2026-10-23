@@ -91,12 +91,14 @@ const inspectedEventSchema = z.strictObject({
 });
 
 /** The `GET /api/_debug/db/chat/:id` response: a deep dump of one chat's stored state. */
-export const chatInspectionSchema = z.strictObject({
-  found: z.boolean(),
-  chat: inspectedChatSchema.nullable(),
+const chatInspectionFields = z.strictObject({
   participants: z.array(inspectedParticipantSchema),
   messages: z.array(inspectedMessageSchema),
   sessionFrameCount: z.int(),
   recentEvents: z.array(inspectedEventSchema),
 });
+export const chatInspectionSchema = z.discriminatedUnion("found", [
+  chatInspectionFields.extend({ found: z.literal(false), chat: z.null() }),
+  chatInspectionFields.extend({ found: z.literal(true), chat: inspectedChatSchema }),
+]);
 export type ChatInspection = z.infer<typeof chatInspectionSchema>;

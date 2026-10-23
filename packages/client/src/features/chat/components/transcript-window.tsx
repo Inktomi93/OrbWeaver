@@ -68,10 +68,14 @@ function AnchoredThread({
     initial.anchorMessageId === null && fallback.data !== undefined
       ? fallback.data
       : {
-          messages: [...new Map(pages.data.pages.flatMap((page) => page.messages).map((message) => [message.id, message])).values()].toSorted(
-            (a, b) => a.seq - b.seq,
-          ),
-          identities: [...new Map(pages.data.pages.flatMap((page) => page.identities).map((identity) => [identityKey(identity), identity])).values()],
+          messages: [
+            ...new Map(pages.data.pages.flatMap((page): Readonly<CanonPage["messages"]> => page.messages).map((message) => [message.id, message])).values(),
+          ].toSorted((a, b) => a.seq - b.seq),
+          identities: [
+            ...new Map(
+              pages.data.pages.flatMap((page): CanonPage["identities"] => page.identities).map((identity) => [identityKey(identity), identity]),
+            ).values(),
+          ],
         };
   return (
     <Stack className="h-full min-h-0" gap="field">

@@ -254,7 +254,7 @@ export const rawIdRule: OrbRule = {
         if (root !== undefined && isZodStringBuilder(context, root.callee)) {
           context.report({
             node: property.key,
-            message: "An id-named Zod field is a raw string; use typeIdSchema(ID_PREFIX.x) or brandedId<T>() so the validated output preserves identity.",
+            message: "An id-named Zod field is a raw string; use typeIdSchema(ID_PREFIX.x) or brandedId(label) so the validated output preserves identity.",
           });
         }
       },

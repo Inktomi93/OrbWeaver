@@ -55,3 +55,9 @@ test("every upload cap is required instead of silently restoring deployment defa
     expect(authConfigSchema.safeParse({ ...WIRE, uploads }).success, field).toBe(false);
   }
 });
+
+test("auth mode and discreet login restrict their correlated public fields", () => {
+  expect(authConfigSchema.parse({ ...WIRE, discreetLogin: false, defaultHandle: null }).defaultHandle).toBeNull();
+  expect(authConfigSchema.safeParse({ ...WIRE, mode: "oidc" }).success).toBe(false);
+  expect(authConfigSchema.safeParse({ ...WIRE, discreetLogin: true, defaultHandle: "owner" }).success).toBe(false);
+});

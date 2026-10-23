@@ -16,7 +16,7 @@ import type {
 } from "@orb/contracts/automation";
 import type { PromptTransform, ResolveViewerVisibility, VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
 import type { Can, Principal } from "@orb/contracts/identity";
-import type { PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
+import type { GeneratePicturePrompt, SizePresetName } from "@orb/contracts/imagery";
 import type { NotificationEvent, NotificationRecipient } from "@orb/contracts/notifications";
 import type { ExecutePluginSuggestion, PluginSuggestedAct } from "@orb/contracts/plugin";
 import type { SideGenKind } from "@orb/contracts/preset";
@@ -114,7 +114,7 @@ export type BudgetVerdict = { readonly ok: true } | { readonly ok: false; readon
  *  the I4 lesson): the automation action args are human/config-authored and NOT projected, so this arm is the
  *  non-projected home those fields live in. Compose maps this onto imagery's `GeneratePictureParams` (resolving
  *  the author Principal); automation stays imagery-blind about the orchestration. */
-export interface AutomationImageRequest {
+interface AutomationImageFields {
   readonly authorUserId: UserId;
   /** The firing rule. Compose resolves the spend as that rule's binding actor, so a connection the author bound
    *  to this rule is used before their own role binding (the resolver's actor hop). */
@@ -131,9 +131,7 @@ export interface AutomationImageRequest {
    *  re-fire (the cascade self-loop guard; the image-post depth-stamp mechanism). Quiet posts nothing, so the
    *  stamp is inert there. */
   readonly automationDepth: number;
-  readonly mode: PromptTemplateMode;
-  /** The macro-RENDERED prompt (the arm renders its template first). Absent ⇒ imagery extracts from chat. */
-  readonly prompt?: string | undefined;
+
   readonly negative?: string | undefined;
   readonly n?: number | undefined;
   readonly size?: SizePresetName | undefined;
@@ -149,6 +147,8 @@ export interface AutomationImageRequest {
    *  zone the rule was saved with, the same clock its predicate and templates read. */
   readonly timeZone: IanaTimeZone;
 }
+
+export type AutomationImageRequest = AutomationImageFields & GeneratePicturePrompt;
 
 /** The NARROW generation result automation reads — the image count. Never imagery's blocks/provenance:
  *  automation dispatches the generation, it does not post it. (Cost VISIBILITY rides the stats domain off the

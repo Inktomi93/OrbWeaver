@@ -12,23 +12,21 @@ const ids = createSeededIds();
 type InboxRowWire = TrpcWireOutput<"notifications.list">["items"][number];
 
 export function makeInboxRow(overrides: Partial<InboxRowWire> = {}): InboxRowWire {
-  return {
-    ...inboxViewSchema.parse({
-      id: ids.next(ID_PREFIX.notification),
+  return inboxViewSchema.parse({
+    id: ids.next(ID_PREFIX.notification),
+    type: "invite",
+    payload: {
       type: "invite",
-      payload: {
-        type: "invite",
-        recipientUserId: ids.next("user"),
-        chatId: ids.next(ID_PREFIX.chat),
-        inviteId: ids.next(ID_PREFIX.chatInvite),
-        invitedByHandle: "alex",
-      },
-      actionable: true,
-      seq: 1,
-      readAt: null,
-      dismissedAt: null,
-      createdAt: FROZEN_AT_MS,
-    }),
+      recipientUserId: ids.next("user"),
+      chatId: ids.next(ID_PREFIX.chat),
+      inviteId: ids.next(ID_PREFIX.chatInvite),
+      invitedByHandle: "alex",
+    },
+    actionable: true,
+    seq: 1,
+    readAt: null,
+    dismissedAt: null,
+    createdAt: FROZEN_AT_MS,
     ...overrides,
-  };
+  });
 }

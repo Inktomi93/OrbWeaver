@@ -31,6 +31,7 @@
 
 import type { AutomationAction, AutomationVariableScope, QuickReplyMode } from "@orb/contracts/automation";
 import { AUTOMATION_VARIABLE_VALUE_MAX, isConfirmFirstArm } from "@orb/contracts/automation";
+import type { GeneratePicturePrompt } from "@orb/contracts/imagery";
 import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
@@ -301,6 +302,14 @@ async function runGenerateImage(
   // `fact.message.content`; `post_notification` takes its actor from `fact.message.authorUserId`), and it is
   // safe on the global lane specifically because the dispatch has already proven this author OWNS that
   // character (`runGates`' subject gate) — otherwise this line would caption a stranger's avatar.
+  let promptArgs: GeneratePicturePrompt;
+  if (prompt !== undefined) {
+    promptArgs = { mode: action.mode, prompt };
+  } else if (action.mode === "free") {
+    return armError('imagery: "free" mode requires a prompt');
+  } else {
+    promptArgs = { mode: action.mode };
+  }
   const subjectCharacterId = action.subjectCharacterId ?? (frame.fact.character === undefined ? undefined : castId<CharacterId>(frame.fact.character.id));
   await deps.ops.imagery.generatePicture({
     authorUserId: frame.authorUserId,
@@ -309,8 +318,7 @@ async function runGenerateImage(
     // The firing rule's child depth — compose stamps it onto the non-quiet posted image so the resulting
     // `messageCommitted` fact rides at depth ≥ 1 and a non-opted re-fire is cascade-suppressed.
     automationDepth: frame.origin.automationDepth,
-    mode: action.mode,
-    ...(prompt !== undefined ? { prompt } : {}),
+    ...promptArgs,
     ...(action.negative !== undefined ? { negative: action.negative } : {}),
     n: action.n,
     ...(action.size !== undefined ? { size: action.size } : {}),

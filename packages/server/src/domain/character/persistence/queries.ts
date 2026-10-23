@@ -12,7 +12,14 @@ import type {
   CharacterTagGroupCensus,
   StoredCardBlob,
 } from "@orb/contracts/character";
-import { cardDepthPromptSchema, characterProvenanceOf, greetingsColumnSchema, refinerySignalsSchema, storedCardBlobSchema } from "@orb/contracts/character";
+import {
+  cardDepthPromptSchema,
+  characterProvenanceOf,
+  characterSummarySchema,
+  greetingsColumnSchema,
+  refinerySignalsSchema,
+  storedCardBlobSchema,
+} from "@orb/contracts/character";
 import type { TagView } from "@orb/contracts/tag";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import { canonicalBackgroundSource, themeBackgroundSchema, themeOverrideSchema } from "@orb/contracts/theme";
@@ -870,7 +877,7 @@ export function summaryOf(
   canonicalTags: readonly TagView[],
   ambiguousNames: ReadonlySet<string>,
 ): CharacterSummary {
-  return {
+  return characterSummarySchema.parse({
     id: row.id,
     handle: row.handle,
     name: row.name,
@@ -891,5 +898,5 @@ export function summaryOf(
     chatCount,
     provenance: characterProvenanceOf(row),
     nameIsAmbiguous: ambiguousNames.has(row.name.toLowerCase()),
-  };
+  });
 }

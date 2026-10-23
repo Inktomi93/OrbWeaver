@@ -341,13 +341,9 @@ function toChatSummary({ row, stat, viewerLastTurnAt, participants, viewerUserId
     viewerLastTurnAt,
     messageCount: stat.messageCount,
     lastMessagePreview,
-    // The ONE takeover-gate predicate over the opaque pointer (§2.1) — never a re-spelled null-check, so the
-    // list marker and every client rpg gate agree (a DISENGAGED game shows no panel, so it shows no marker).
-    isGame: isRpgEngaged(row.metadata.rpg),
-    // #863(f) — the PAUSED bit, derived from the same opaque pointer (no rpg read, no widened `isGame`):
-    // a game exists here and is switched off. The list row shows it quietly so a host can find a sleeping
-    // game; every gate that asks "is this a live game" still reads `isGame` alone.
-    gamePaused: row.metadata.rpg !== undefined && !isRpgEngaged(row.metadata.rpg),
+    ...(isRpgEngaged(row.metadata.rpg)
+      ? { isGame: true as const, gamePaused: false as const }
+      : { isGame: false as const, gamePaused: row.metadata.rpg !== undefined }),
     participantNames: summaryParticipantNames(participants, viewerUserId),
     participantPortraits: seatPortraits(participants),
     // Derive the caller's role from the present roster already loaded for this row — no extra read. The

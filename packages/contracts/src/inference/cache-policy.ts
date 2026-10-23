@@ -27,14 +27,32 @@ export type ResolvedCacheConnectionView = z.infer<typeof resolvedCacheConnection
 
 /** Effective controls are not cache-hit claims, token counters, or resource authority. */
 export const cachePolicySchema = z.strictObject({
-  prefix: z.strictObject({
-    action: z.enum(PREFIX_CACHE_ACTIONS),
-    format: z.enum(PROMPT_CACHE_FORMATS).nullable(),
-    ttl: z.enum(PROMPT_CACHE_TTLS).nullable(),
-    cacheSystem: z.boolean(),
-    historyDepth: z.int().nonnegative().nullable(),
-    preservesBlockEnds: z.boolean(),
-  }),
+  prefix: z.discriminatedUnion("action", [
+    z.strictObject({
+      action: z.literal("none"),
+      format: z.enum(PROMPT_CACHE_FORMATS).nullable(),
+      ttl: z.null(),
+      cacheSystem: z.literal(false),
+      historyDepth: z.null(),
+      preservesBlockEnds: z.literal(false),
+    }),
+    z.strictObject({
+      action: z.literal("automatic-request"),
+      format: z.enum(PROMPT_CACHE_FORMATS).nullable(),
+      ttl: z.enum(PROMPT_CACHE_TTLS).nullable(),
+      cacheSystem: z.literal(false),
+      historyDepth: z.null(),
+      preservesBlockEnds: z.boolean(),
+    }),
+    z.strictObject({
+      action: z.literal("markers"),
+      format: z.enum(PROMPT_CACHE_FORMATS),
+      ttl: z.enum(PROMPT_CACHE_TTLS).nullable(),
+      cacheSystem: z.boolean(),
+      historyDepth: z.int().nonnegative().nullable(),
+      preservesBlockEnds: z.boolean(),
+    }),
+  ]),
   implicit: z.strictObject({
     supported: z.boolean().nullable(),
     disableApplied: z.boolean(),
@@ -42,12 +60,21 @@ export const cachePolicySchema = z.strictObject({
     refreshOnHit: z.boolean().nullable(),
     retention: z.enum(PROMPT_CACHE_RETENTIONS).nullable(),
   }),
-  replay: z.strictObject({
-    supported: z.boolean(),
-    enabled: z.boolean(),
-    ttlSeconds: responseCacheTtlSchema.nullable(),
-    refresh: z.boolean(),
-    provenance: z.enum(CACHE_POLICY_PROVENANCES),
-  }),
+  replay: z.discriminatedUnion("supported", [
+    z.strictObject({
+      supported: z.literal(false),
+      enabled: z.literal(false),
+      ttlSeconds: responseCacheTtlSchema.nullable(),
+      refresh: z.literal(false),
+      provenance: z.enum(CACHE_POLICY_PROVENANCES),
+    }),
+    z.strictObject({
+      supported: z.literal(true),
+      enabled: z.boolean(),
+      ttlSeconds: responseCacheTtlSchema.nullable(),
+      refresh: z.boolean(),
+      provenance: z.enum(CACHE_POLICY_PROVENANCES),
+    }),
+  ]),
 });
 export type CachePolicy = z.infer<typeof cachePolicySchema>;

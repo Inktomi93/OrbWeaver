@@ -40,11 +40,11 @@ export function createPluginRuntimeOps(input: DbAssemblyInput<PluginRuntimeDeps>
       const picture = await imagery.generatePicture({
         caller,
         chatId,
-        mode: p.mode,
+        ...(p.mode === "free" ? { mode: p.mode, prompt: p.prompt } : { mode: p.mode, ...(p.prompt !== undefined ? { prompt: p.prompt } : {}) }),
         n: p.n,
         useAvatarReference: p.useAvatarReference,
         reuse: p.reuse,
-        ...(p.prompt !== undefined ? { prompt: p.prompt } : {}),
+
         ...(p.negative !== undefined ? { negative: p.negative } : {}),
         ...(p.size !== undefined ? { size: p.size } : {}),
         ...(p.subjectCharacterId !== undefined ? { subjectCharacterId: p.subjectCharacterId } : {}),

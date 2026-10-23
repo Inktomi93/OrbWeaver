@@ -16,7 +16,7 @@ function memorySegmentReceipts(rows: readonly EmbeddingSegmentRow[], results: Aw
     if (row === undefined) {
       throw new Error("embeddings.storeSegments returned more results than inputs");
     }
-    if (result.generationId === undefined || result.generationEpoch === undefined) {
+    if (result.generationId === undefined) {
       throw new Error("embeddings store omitted its generation receipt");
     }
     receipts.push({ ownerId: row.ownerId, model: result.model, generationId: result.generationId, generationEpoch: result.generationEpoch });
@@ -65,7 +65,7 @@ export function createMemoryEmbeddingOps(deps: MemoryEmbeddingDeps): MemoryEmbed
         model: params.model,
         signal: params.signal,
       });
-      if (result.generationId === undefined || result.generationEpoch === undefined) {
+      if (result.generationId === undefined) {
         throw new Error("embeddings store omitted its generation receipt");
       }
       return { ownerId: params.ownerId, model: result.model, generationId: result.generationId, generationEpoch: result.generationEpoch };

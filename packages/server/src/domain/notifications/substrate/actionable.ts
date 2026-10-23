@@ -14,6 +14,7 @@
 // informational and silently never raising the dot.
 
 import type { InboxView, NotificationEvent, NotificationType } from "@orb/contracts/notifications";
+import { inboxViewSchema } from "@orb/contracts/notifications";
 import type { ChatId, ChatInviteId } from "@orb/kit/ids";
 import type { StandingAsksParams, StandingAsksResult } from "../contract/ops.ts";
 
@@ -81,7 +82,7 @@ export const NO_STANDING_ASKS: StandingAsksResult = { inviteIds: [], nominatedCh
 export function withActionable(rows: readonly UnstampedRow[], standing: StandingAsksResult): InboxView[] {
   const invites = new Set<ChatInviteId>(standing.inviteIds);
   const nominations = new Set<ChatId>(standing.nominatedChatIds);
-  return rows.map((row) => ({ ...row, actionable: isActionable(row.payload, invites, nominations) }));
+  return rows.map((row) => inboxViewSchema.parse({ ...row, actionable: isActionable(row.payload, invites, nominations) }));
 }
 
 /**
@@ -91,7 +92,7 @@ export function withActionable(rows: readonly UnstampedRow[], standing: Standing
  * the bus publishes, so a live arrival raises the dot without waiting for the reader's next list.
  */
 export function asRaised(row: UnstampedRow): InboxView {
-  return { ...row, actionable: CARRIES_DECISION[row.type] };
+  return inboxViewSchema.parse({ ...row, actionable: CARRIES_DECISION[row.type] });
 }
 
 /**
@@ -100,7 +101,7 @@ export function asRaised(row: UnstampedRow): InboxView {
  * reads exclude it, so this is the honest terminal value rather than a convenience.
  */
 export function asSettled(row: UnstampedRow): InboxView {
-  return { ...row, actionable: false };
+  return inboxViewSchema.parse({ ...row, actionable: false });
 }
 
 function isActionable(payload: NotificationEvent, invites: ReadonlySet<ChatInviteId>, nominations: ReadonlySet<ChatId>): boolean {

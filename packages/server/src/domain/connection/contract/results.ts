@@ -70,7 +70,7 @@ export interface BindingView {
 
 export const bindingViewSchema = z.strictObject({
   task: routableTaskSchema,
-  binding: connectionBindingSchema.strict().nullable(),
+  binding: connectionBindingSchema.nullable(),
   resolved: resolvedConnectionViewSchema.nullable(),
   unavailableCause: unavailableCauseSchema.nullable(),
 }) satisfies z.ZodType<BindingView>;

@@ -221,10 +221,8 @@ export const NOTIFICATION_TYPES = [
  *  `notifications.list` query returns AND what the multiplexed socket's `notifications` room frame nests, so
  *  `@orb/contracts/stream` must be able to name it), which is why it homes here rather than in the
  *  `notifications` domain's server-only `contract/` — that file is now a door onto this declaration. */
-export interface InboxView {
+interface InboxViewFields {
   readonly id: NotificationId;
-  readonly type: NotificationType;
-  readonly payload: NotificationEvent;
   /** THIS ROW IS STILL WAITING ON A DECISION (#1799) — an invite nobody has accepted or declined, a host
    *  nomination nobody has confirmed, a standing consent ask. FALSE for an informational row (a kick, a
    *  handoff someone else accepted, an auto-disable notice), and false for a decision that has since been
@@ -254,6 +252,10 @@ export interface InboxView {
   readonly createdAt: number;
 }
 
+export type InboxView = {
+  readonly [T in NotificationType]: InboxViewFields & { readonly type: T; readonly payload: Extract<NotificationEvent, { readonly type: T }> };
+}[NotificationType];
+
 const [
   inviteEvent,
   kickedEvent,
@@ -276,16 +278,26 @@ const notificationOutputSchema = z.discriminatedUnion("type", [
   pluginsAwaitingConsentEvent.strict(),
 ]) satisfies z.ZodType<NotificationEvent>;
 
-export const inboxViewSchema: z.ZodType<InboxView> = z.strictObject({
+const inboxViewFields = z.strictObject({
   id: typeIdSchema(ID_PREFIX.notification),
-  type: z.enum(NOTIFICATION_TYPES),
-  payload: notificationOutputSchema,
   actionable: z.boolean(),
   seq: z.number(),
   readAt: z.number().nullable(),
   dismissedAt: z.number().nullable(),
   createdAt: z.number(),
-}) satisfies z.ZodType<InboxView>;
+});
+const [inviteOutput, kickedOutput, nominatedOutput, acceptedOutput, droppedOutput, noticeOutput, disabledOutput, consentOutput] =
+  notificationOutputSchema.options;
+export const inboxViewSchema = z.discriminatedUnion("type", [
+  inboxViewFields.extend({ type: inviteOutput.shape.type, payload: inviteOutput }),
+  inboxViewFields.extend({ type: kickedOutput.shape.type, payload: kickedOutput }),
+  inboxViewFields.extend({ type: nominatedOutput.shape.type, payload: nominatedOutput }),
+  inboxViewFields.extend({ type: acceptedOutput.shape.type, payload: acceptedOutput }),
+  inboxViewFields.extend({ type: droppedOutput.shape.type, payload: droppedOutput }),
+  inboxViewFields.extend({ type: noticeOutput.shape.type, payload: noticeOutput }),
+  inboxViewFields.extend({ type: disabledOutput.shape.type, payload: disabledOutput }),
+  inboxViewFields.extend({ type: consentOutput.shape.type, payload: consentOutput }),
+]) satisfies z.ZodType<InboxView>;
 
 /** The `notifications.presence` ask CEILING, enforced at the transport trust boundary (the
  *  {@link NOTIFICATIONS_LIST_MAX_LIMIT} precedent) — an over-bound ask is a BAD_REQUEST, never an unbounded

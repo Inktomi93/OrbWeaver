@@ -138,8 +138,8 @@ function OverviewBody(): ReactElement {
       <AccountingCoverageNotice />
       <Row align="center" justify="between" gap="row">
         {/* ONE time vocabulary in this column: relative in the text, the exact stamp in `title=` (P2e). */}
-        <Text voice="gloss" {...(freshness.computedAt === null ? {} : { title: timeLib.formatDateTime(freshness.computedAt) })}>
-          {freshness.computedAt === null ? "Not computed yet" : `Updated ${timeLib.formatRelative(freshness.computedAt)}`}
+        <Text voice="gloss" title={timeLib.formatDateTime(freshness.computedAt)}>
+          {`Updated ${timeLib.formatRelative(freshness.computedAt)}`}
         </Text>
         <RecomputeButton />
       </Row>

@@ -717,7 +717,7 @@ export interface CharacterDetail extends CharacterCard {
 }
 
 /** The library-list row — light, owner-scoped, synthetic rows excluded. */
-export interface CharacterSummary {
+interface CharacterSummaryFields {
   readonly id: CharacterId;
   readonly handle: CharacterHandle;
   readonly name: string;
@@ -736,32 +736,6 @@ export interface CharacterSummary {
   readonly tags: readonly TagView[];
   /** LEFT JOIN character_summaries.elevatorPitch; null until the distill producer has run. */
   readonly elevatorPitch: string | null;
-  /**
-   * WHEN THIS OWNER LAST SPOKE TO HER — `MAX(coalesce(newest message, chat.updated_at))` over her
-   * member-visible rooms; null = never chatted. Drives the `recent` sort + resume-or-new, and the landing
-   * PRINTS it ("chatted 3h ago").
-   *
-   * IT IS CANON, NOT `character_stats` (#1131). The read used to LEFT JOIN the stats rollup's
-   * `last_activity_at`, which is turn ECONOMICS on a different clock: measured on the dev library
-   * 2026-09-02, nine of ten characters with real seated chats had no stats row at all — so the Characters
-   * landing's "Recently chatted" shelf could only ever show one face — and the tenth's rollup stamp
-   * disagreed with her newest message by 29 days. Now it is the SAME expression `chat.listChats` orders and
-   * displays by (`@orb/db/query` `chatRecencyExpr`), so the landing, the editor header and the context pane
-   * cannot print three answers.
-   */
-  readonly lastChattedAt: number | null;
-  /**
-   * WHICH ROOM that stamp belongs to — the RESUME target, `null` when she has never been chatted with. Same
-   * visibility scope and same recency clock as {@link CharacterSummary.lastChattedAt}, ordered
-   * recency → `updatedAt` → id (the total order #1503 paid for), so the room a resume door opens is by
-   * construction the room whose stamp the surface printed beside it.
-   *
-   * IT IS A PROJECTION, NOT A CLIENT FOLD (#1662). The client used to reverse-index a BOUNDED `listChats`
-   * page into a `characterId → chatId` map, which answered about the last 100 rooms: a character outside
-   * that window fell through to "start a new chat" from a control that said resume. One home, one order,
-   * the whole library — and no second read, because every consumer of this view already has the row.
-   */
-  readonly lastChatId: ChatId | null;
   /**
    * #865 — HOW MANY THREADS this character has: a `COUNT` of the same member-visible seated rooms
    * `lastChattedAt` maxes over, which is what the editor header's "N chats" and the context band's chip
@@ -793,6 +767,11 @@ export interface CharacterSummary {
    */
   readonly nameIsAmbiguous: boolean;
 }
+
+/** The newest member-visible room and its chat-recency clock are one witness, absent together.
+ * Recency matches listChats: newest message, else room update; ties use room update then id. */
+export type CharacterSummary = CharacterSummaryFields &
+  ({ readonly lastChattedAt: null; readonly lastChatId: null } | { readonly lastChattedAt: number; readonly lastChatId: ChatId });
 
 /**
  * ONE BUCKET OF THE LIBRARY'S GROUP-BY-TAG CENSUS (#1696) — a visible tag and how many characters carry it
@@ -934,6 +913,16 @@ export const characterSummarySchema = characterDetailSchema
     lastChatId: typeIdSchema(ID_PREFIX.chat).nullable(),
     chatCount: z.number(),
     nameIsAmbiguous: z.boolean(),
+  })
+  .transform((summary, ctx) => {
+    if (summary.lastChattedAt === null && summary.lastChatId === null) {
+      return { ...summary, lastChattedAt: null, lastChatId: null };
+    }
+    if (summary.lastChattedAt !== null && summary.lastChatId !== null) {
+      return { ...summary, lastChattedAt: summary.lastChattedAt, lastChatId: summary.lastChatId };
+    }
+    ctx.addIssue({ code: "custom", message: "Character recency requires both timestamp and room identity" });
+    return z.NEVER;
   }) satisfies z.ZodType<CharacterSummary>;
 
 export const characterTagGroupCensusSchema = z.strictObject({

@@ -23,7 +23,7 @@
 // the image posts into the room whether or not this modal is still open, and nothing used to say so.
 
 import { viewerGalleryCharacter } from "@orb/contracts/chat";
-import type { PromptTemplateMode } from "@orb/contracts/imagery";
+import type { GeneratePicturePrompt, PromptTemplateMode } from "@orb/contracts/imagery";
 import { EXTRACTION_MODES } from "@orb/contracts/imagery";
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
@@ -99,7 +99,13 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
   const isExtraction = mode !== "free";
   const busy = extract.isPending || generate.isPending;
   // Free mode needs an explicit prompt; an extraction mode can generate from the conversation with none.
-  const canGenerate = !busy && (trimmed.length > 0 || isExtraction);
+  let generationPrompt: GeneratePicturePrompt | null = null;
+  if (trimmed.length > 0) {
+    generationPrompt = { mode: "free", prompt: trimmed };
+  } else if (mode !== "free") {
+    generationPrompt = { mode };
+  }
+  const canGenerate = !busy && generationPrompt !== null;
   // The DOUBLE-spend arm: an extraction mode with nothing typed makes the server run the read call too.
   const blindDoubleSpend = isExtraction && trimmed.length === 0;
 
@@ -117,13 +123,13 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
   };
 
   const runGenerate = (): void => {
-    if (!canGenerate) {
+    if (busy || generationPrompt === null) {
       return;
     }
     // A present prompt IS the image — sent verbatim as free mode (an extraction mode previewed-then-edited
     // lands here too). An extraction mode with no prompt defers resolution to the server.
     const base = { chatId: seed.chatId, gallery: toGallery, timeZone: viewerTimeZone() };
-    const request = trimmed.length > 0 ? { ...base, mode: "free" as const, prompt: trimmed } : { ...base, mode };
+    const request = { ...base, ...generationPrompt };
     void generate
       .mutateAsync(request)
       .then(() => closeModal())
