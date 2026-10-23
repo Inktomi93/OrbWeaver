@@ -15,8 +15,9 @@ import { useApplyRefineryAsCopy, useApplyRefineryFields } from "./use-refinery-m
 type ApplyWire = inferOutput<Trpc["refinery"]["applyFields"]>;
 type KeptAccept = inferInput<Trpc["refinery"]["applyFields"]>["accepts"][number];
 
+const TERMINAL_VERBS = ["apply", "copy"] as const;
 /** Which terminal act produced an outcome — the recovery re-runs the same one. */
-type TerminalVerb = "apply" | "copy";
+type TerminalVerb = (typeof TERMINAL_VERBS)[number];
 
 /** The apply outcome the surface renders (§20a's itemized panel feed). */
 export interface OutcomeState {

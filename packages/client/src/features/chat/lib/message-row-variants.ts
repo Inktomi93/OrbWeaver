@@ -31,9 +31,11 @@ const cx = (...args: Parameters<typeof cn>): string => cn(...args) ?? "";
 const AVATAR_TREATMENTS = ["icon-left", "sticky-portrait", "none"] as const;
 type AvatarTreatment = (typeof AVATAR_TREATMENTS)[number];
 
+const BUBBLE_LAYOUTS = ["single", "trains"] as const;
 /** `trains` (Tide) splits the body into per-paragraph bubbles; every other mode is `single`. */
-type BubbleLayout = "single" | "trains";
+type BubbleLayout = (typeof BUBBLE_LAYOUTS)[number];
 
+const HEADER_PLACEMENTS = ["inside", "outside"] as const;
 /** WHERE THIS SKIN PUTS ITS SPEAKER HEADER (#288, owner raised three times over 2026-08-19).
  *
  *  `inside` — name · timestamp · actions are the CONTAINER's own header row, the first child inside the
@@ -62,8 +64,9 @@ type BubbleLayout = "single" | "trains";
 // NOT exported: a consumer reads it off the table it belongs to (`RowSkin["headerPlacement"]`), the same
 // way `avatarTreatment`'s return type is reached. An exported alias here would be a second home for a
 // shape the skin table already owns, which `no-inline-types` reds.
-type HeaderPlacement = "inside" | "outside";
+type HeaderPlacement = (typeof HEADER_PLACEMENTS)[number];
 
+const COLUMN_PLACEMENTS = ["anchored", "gutterCentred"] as const;
 /** WHERE THIS SKIN SEATS THE READING COLUMN AGAINST THE IDENTITY GUTTER (#1728 arm B, owner 2026-09-05).
  *
  *  `anchored` — the row body is a flex line and the gutter is part of it, so the pair (chip + column) is
@@ -81,7 +84,7 @@ type HeaderPlacement = "inside" | "outside";
  *
  *  A REQUIRED field, like `headerPlacement` and `avatarTreatment`: a new chatStyle fails tsc here until it
  *  says how its column is seated. */
-type ColumnPlacement = "anchored" | "gutterCentred";
+type ColumnPlacement = (typeof COLUMN_PLACEMENTS)[number];
 
 export interface RowSkin {
   readonly outer: (role: MessageRole) => string;

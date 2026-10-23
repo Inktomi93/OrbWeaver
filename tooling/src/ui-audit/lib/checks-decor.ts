@@ -26,7 +26,8 @@ const HORIZONTAL_BAND_MAX_PX = 12;
 const BORDER_SIDES = ["top", "right", "bottom", "left"] as const;
 
 type BorderSide = (typeof BORDER_SIDES)[number];
-type AccentBorderRuleId = "border-accent-on-rounded" | "side-tab";
+const ACCENT_BORDER_RULE_IDS = ["border-accent-on-rounded", "side-tab"] as const;
+type AccentBorderRuleId = (typeof ACCENT_BORDER_RULE_IDS)[number];
 
 /** One side's verdict: every accent-border rule it violates (a single edge can be two tells at once —
  *  a chromatic side band AND a border fighting the corner radius). */

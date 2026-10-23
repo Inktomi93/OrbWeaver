@@ -8,6 +8,7 @@
 
 import { createGatedStore } from "./create-gated-store.ts";
 
+const REFINERY_WORKBENCH_DOORS = ["scope", "guidance"] as const;
 /**
  * A DOOR the CONTEXT pane can knock on, opened by the WORKBENCH control that owns the concept (#171).
  *
@@ -19,7 +20,7 @@ import { createGatedStore } from "./create-gated-store.ts";
  * Request-shaped (the requester sets it, the OWNER clears it on arrival) because the two doors live in two
  * different components and neither can be reached by a prop from the pane raising the request.
  */
-export type RefineryWorkbenchDoor = "scope" | "guidance";
+export type RefineryWorkbenchDoor = (typeof REFINERY_WORKBENCH_DOORS)[number];
 
 interface RefineryViewState {
   /** The run id CONTENT's viewer is pinned to; null = the latest of the active stage. */

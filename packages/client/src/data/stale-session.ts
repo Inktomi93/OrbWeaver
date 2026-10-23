@@ -72,9 +72,10 @@ let navigated = false;
 /** The rung-1 modal's verdict, awaited by the ladder while it holds the recovery lock. */
 let reauthSettle: ((outcome: ReauthOutcome) => void) | null = null;
 
+const REAUTH_OUTCOMES = ["recovered", "dismissed"] as const;
 /** How a rung-1 re-auth prompt ended. `dismissed` falls through to rung 2 — a user who closes the prompt
  *  has declined to re-authenticate, and leaving them on a frozen shell would be the dishonest arm. */
-export type ReauthOutcome = "recovered" | "dismissed";
+export type ReauthOutcome = (typeof REAUTH_OUTCOMES)[number];
 
 /** UNAUTHORIZED is the TRANSPORT verdict "no principal was minted" (session invalid/absent). Per-procedure
  *  authz refusals are FORBIDDEN or the leak-free NOT_FOUND, never this — so keying on it is precisely "the

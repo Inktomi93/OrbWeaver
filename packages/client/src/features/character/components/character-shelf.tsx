@@ -85,10 +85,11 @@ export interface ShelfFace {
   readonly lastChatId: ChatId | null;
 }
 
+const SHELF_DOORS = ["open", "resume"] as const;
 /** A shelf's door, closed: press a face to OPEN her in the editor, or to RESUME her newest room (#1662).
  *  FILE-LOCAL on purpose: callers pass the literal, so exporting it would put a two-member axis in a
  *  component file, which is what `no-inline-types` refuses. */
-type ShelfDoor = "open" | "resume";
+type ShelfDoor = (typeof SHELF_DOORS)[number];
 
 /** The face's resume half, resolved from the SHELF's door. A `"resume"` shelf whose face somehow carries no
  *  room falls back to `null` — i.e. to the OPEN door and the plain name — rather than announcing a verb it

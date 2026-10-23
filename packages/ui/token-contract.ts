@@ -114,7 +114,8 @@ type AddFormats = (ajv: Ajv) => Ajv;
 type TokenType = (typeof TOKEN_TYPES)[number];
 const TOKEN_OUTPUT_ROLES = ["input", "light-dark", "percentage", "snapped"] as const;
 type OutputRole = (typeof TOKEN_OUTPUT_ROLES)[number];
-export type CssValuePlacement = "theme" | "root";
+const CSS_VALUE_PLACEMENTS = ["theme", "root"] as const;
+export type CssValuePlacement = (typeof CSS_VALUE_PLACEMENTS)[number];
 
 export interface GeneratedCssValue {
   readonly path: readonly string[];

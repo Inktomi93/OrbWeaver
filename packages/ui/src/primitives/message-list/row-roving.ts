@@ -22,8 +22,9 @@
 import type { RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 
+const MESSAGE_LIST_ROW_NAVIGATIONS = ["none", "roving"] as const;
 /** How the log's rows participate in the document tab order. */
-export type MessageListRowNavigation = "none" | "roving";
+export type MessageListRowNavigation = (typeof MESSAGE_LIST_ROW_NAVIGATIONS)[number];
 
 /** The row wrapper the primitive stamps; the sweep's unit of work. */
 export const MESSAGE_LIST_ROW_SLOT = "message-list-row";

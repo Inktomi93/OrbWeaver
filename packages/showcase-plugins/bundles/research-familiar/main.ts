@@ -23,7 +23,8 @@
 
 const host = orb.host(1);
 
-type ResearchVerb = "lookup" | "clip";
+const RESEARCH_VERBS = ["lookup", "clip"] as const;
+type ResearchVerb = (typeof RESEARCH_VERBS)[number];
 
 interface ResearchMarker {
   readonly verb: ResearchVerb;

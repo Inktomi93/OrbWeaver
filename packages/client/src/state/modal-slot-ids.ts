@@ -59,10 +59,11 @@ export const MODAL_SLOT_IDS = [
 ] as const;
 export type ModalSlotId = (typeof MODAL_SLOT_IDS)[number];
 
+const MODAL_CONTENT_LIFETIMES = ["global", "content"] as const;
 /** Whether a modal slot's MEANING survives the CONTENT pane being swapped underneath it (UI-Arch §4a,
  *  #1795). `"global"` = reachable from, and about, anywhere — it stays open across a swap. `"content"` =
  *  its subject is the very content being left, so the swap dismisses it. */
-export type ModalContentLifetime = "global" | "content";
+export type ModalContentLifetime = (typeof MODAL_CONTENT_LIFETIMES)[number];
 
 /**
  * THE CONTENT-SWAP LIFETIME OF EVERY MODAL SLOT — the shell's answer to "may this float outlive the

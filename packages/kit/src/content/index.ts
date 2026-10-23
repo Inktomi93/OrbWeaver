@@ -53,9 +53,10 @@ import { speakerTagsToPlain } from "#speaker-label";
  *  model-fetchable URL via the injected `resolveImageUrl` op (asset→CAS URL/data-URI; external→gated). */
 export type ContentImageRef = { readonly kind: "asset"; readonly assetId: AssetId } | { readonly kind: "external"; readonly url: string };
 
+const CARD_SPAN_ORIGINS = ["fence", "lenient"] as const;
 /** How a card span was recognized: an explicit `:::card` fence, or the §4.8 lenient arm (naked HTML /
  *  html/svg code fence) — provenance for the reveal/debug surfaces; the wire stub is identical either way. */
-export type CardSpanOrigin = "fence" | "lenient";
+export type CardSpanOrigin = (typeof CARD_SPAN_ORIGINS)[number];
 
 /** One ordered span of a tokenized message body (the §3 content-class grammar — `CONTENT_CLASS_POLICY` in
  *  `@orb/contracts/chat` declares each kind's reading-surface × wire planes; the two projection seams

@@ -102,24 +102,30 @@
 
 const host = orb.host(1);
 
-type SourceKey = "tavern" | "realm" | "chub" | "wyvern" | "aicc" | "charavault" | "botbooru" | "pygmalion" | "datacat";
-type PagingKind = "server" | "held-set";
-type SortKey =
-  | "relevance"
-  | "trending"
-  | "downloads"
-  | "stars"
-  | "likes"
-  | "favorites"
-  | "views"
-  | "chats"
-  | "rating"
-  | "newest"
-  | "oldest"
-  | "updated"
-  | "name";
-type StatKey = "downloads" | "stars" | "likes" | "favorites" | "views" | "chats" | "messages" | "comments" | "rating" | "tokens" | "created" | "updated";
-type ImportOutcome = "added" | "already";
+const SOURCE_KEYS = ["tavern", "realm", "chub", "wyvern", "aicc", "charavault", "botbooru", "pygmalion", "datacat"] as const;
+type SourceKey = (typeof SOURCE_KEYS)[number];
+const PAGING_KINDS = ["server", "held-set"] as const;
+type PagingKind = (typeof PAGING_KINDS)[number];
+const SORT_KEYS = [
+  "relevance",
+  "trending",
+  "downloads",
+  "stars",
+  "likes",
+  "favorites",
+  "views",
+  "chats",
+  "rating",
+  "newest",
+  "oldest",
+  "updated",
+  "name",
+] as const;
+type SortKey = (typeof SORT_KEYS)[number];
+const STAT_KEYS = ["downloads", "stars", "likes", "favorites", "views", "chats", "messages", "comments", "rating", "tokens", "created", "updated"] as const;
+type StatKey = (typeof STAT_KEYS)[number];
+const IMPORT_OUTCOMES = ["added", "already"] as const;
+type ImportOutcome = (typeof IMPORT_OUTCOMES)[number];
 
 interface SortOption {
   readonly value: SortKey;

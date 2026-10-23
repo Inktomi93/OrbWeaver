@@ -10,8 +10,10 @@ import { FieldControlDockContext } from "./field-control-dock.ts";
 import { FieldLabelledContext } from "./field-labelled.ts";
 import { fieldVariants } from "./variants.ts";
 
-export type FieldOrientation = "vertical" | "horizontal";
+const FIELD_ORIENTATIONS = ["vertical", "horizontal"] as const;
+export type FieldOrientation = (typeof FIELD_ORIENTATIONS)[number];
 
+const FIELD_ALIGNS = ["block", "track"] as const;
 /**
  * How a HORIZONTAL row places its two columns (#932 — the measure-capped settings row).
  *
@@ -26,7 +28,7 @@ export type FieldOrientation = "vertical" | "horizontal";
  *   The ancestor is `@orb/client`'s `SettingRowGroup`; a `track` Field with no such ancestor still renders
  *   (subgrid on a non-grid parent falls back to `none`), it simply gains nothing.
  */
-export type FieldAlign = "block" | "track";
+export type FieldAlign = (typeof FIELD_ALIGNS)[number];
 
 // Lets a settings pane set orientation once instead of threading it through every field call site.
 const FieldOrientationContext = createContext<FieldOrientation>("vertical");

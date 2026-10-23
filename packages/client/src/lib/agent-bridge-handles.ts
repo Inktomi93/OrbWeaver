@@ -37,7 +37,8 @@ export interface OrbNavCapabilities {
   readonly chatPositions: readonly string[];
 }
 
-export type SeedProfile = "d20" | "freeform";
+const SEED_PROFILES = ["d20", "freeform"] as const;
+export type SeedProfile = (typeof SEED_PROFILES)[number];
 
 export interface OrbSeedHandle {
   readonly game: (args: { profile: SeedProfile; title?: string }) => Promise<{ readonly chatId: ChatId }>;

@@ -6,7 +6,8 @@ import type { RefObject } from "react";
 import { useLayoutEffect, useRef } from "react";
 import { motionIsReduced } from "#lib";
 
-type FlankDirection = "in" | "out";
+const FLANK_DIRECTIONS = ["in", "out"] as const;
+type FlankDirection = (typeof FLANK_DIRECTIONS)[number];
 
 /** The keyframe shell.css arms on the transcript rows; the release listens for its end only. */
 const FLANK_FLIP_ANIMATION = "room-flank-centre-flip";

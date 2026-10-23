@@ -29,8 +29,9 @@ import type { CorpusDestination } from "./corpus-destination.ts";
 import type { CorpusMode } from "./corpus-modes.ts";
 import type { ContributorRegistry } from "./registry.ts";
 
+const CONTEXT_TAB_STRIPS = ["game", "meta"] as const;
 // Owners declare strip membership; the renderer never infers it from a tab identifier.
-type ContextTabStrip = "game" | "meta";
+type ContextTabStrip = (typeof CONTEXT_TAB_STRIPS)[number];
 
 /** The state rail's on-screen name and a11y group name — a property of the closed strip vocabulary, homed
  *  beside it. "Game state", not "Game": the crown host console in the header strip is a TAB named "Game", and

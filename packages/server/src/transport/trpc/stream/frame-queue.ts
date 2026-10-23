@@ -29,8 +29,9 @@ import { roomKey } from "@orb/contracts/stream";
  *  the client should heal instead of the socket growing without limit. */
 const FRAME_QUEUE_CAPACITY = 512;
 
+const OVERFLOW_POLICY_VALUES = ["lag", "collapse"] as const;
 // Overflow labels stay internal to the queue policy.
-type OverflowPolicy = "lag" | "collapse";
+type OverflowPolicy = (typeof OVERFLOW_POLICY_VALUES)[number];
 
 /** Per-channel overflow policy — total over ROOMS (control is not a room channel). Each row cites the
  *  property that makes it safe; see the file header for why `collapse` is not universally legal. */

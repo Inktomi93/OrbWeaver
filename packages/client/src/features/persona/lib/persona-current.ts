@@ -14,8 +14,9 @@ export interface PlayingRoom {
   readonly seatId: string | null;
 }
 
+const NEW_CHAT_PERSONA_SOURCES = ["default", "lastPlayed"] as const;
 /** Which pointer decided who a new chat starts you as. */
-type NewChatPersonaSource = "default" | "lastPlayed";
+type NewChatPersonaSource = (typeof NEW_CHAT_PERSONA_SOURCES)[number];
 
 export function resolvePlayingPersona<T extends { readonly id: string }>(
   personas: readonly T[],

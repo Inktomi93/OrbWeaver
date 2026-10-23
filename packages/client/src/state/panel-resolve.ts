@@ -10,8 +10,9 @@ import type { CorpusMode } from "#lib";
 export const PANEL_MODES = ["docked", "overlay", "collapsed"] as const;
 export type PanelMode = (typeof PANEL_MODES)[number];
 
+const PANEL_NAMES = ["list", "context"] as const;
 /** The two collapsible side panels (rail is fixed, content is fluid — neither is a panel). */
-export type PanelName = "list" | "context";
+export type PanelName = (typeof PANEL_NAMES)[number];
 
 /** The transient slide-over REQUEST — which panel the user asked to float open, or their explicit "nothing
  *  open", or no request at all.
@@ -28,9 +29,10 @@ export type PanelName = "list" | "context";
  *  behind it to disappear too. Only the LIST — the one panel with a regime default to suppress — writes it. */
 export type OverlayPanelRequest = PanelName | "none" | null;
 
+const PHONE_LANDINGS = ["list", "content"] as const;
 /** Which screen a phone lands on in a list-bearing section with nothing selected (§4.1). A section that
  *  declares none lands on its LIST. */
-export type PhoneLanding = "list" | "content";
+export type PhoneLanding = (typeof PHONE_LANDINGS)[number];
 
 /** The Corpus per-mode phone landing (D271): the two finder modes land on LIST, Insights on its dashboard.
  *  A landing is a policy, never a fabricated selection. */

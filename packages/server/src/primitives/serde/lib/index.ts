@@ -39,9 +39,10 @@ const JSON_INDENT = 2;
 /** The version an envelope-less legacy file is read as (the shape that predates the envelope). */
 const IMPLIED_LEGACY_VERSION = 1;
 
+const JSON_SERDE_ROW_POLICIES = ["drop", "reject-file"] as const;
 /** How a malformed member of a file's row collection is handled. A DECLARED choice per family — the drift
  *  F7 named was that the split existed and was never ruled. */
-export type JsonSerdeRowPolicy = "drop" | "reject-file";
+export type JsonSerdeRowPolicy = (typeof JSON_SERDE_ROW_POLICIES)[number];
 
 /** A family's serde: the envelope constants it stamps, plus the two directions over its canonical value. */
 export interface JsonSerde<Value> {

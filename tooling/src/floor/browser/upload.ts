@@ -8,7 +8,8 @@ import process from "node:process";
 import type { Locator } from "@playwright/test";
 import { REPO_ROOT } from "../artifacts/artifacts.ts";
 
-export type FileActionKind = "upload" | "drop-files";
+const FILE_ACTION_KINDS = ["upload", "drop-files"] as const;
+export type FileActionKind = (typeof FILE_ACTION_KINDS)[number];
 const FILE_ACTION_FEEDERS = ["input", "filechooser", "datatransfer"] as const;
 export type FileActionFeeder = (typeof FILE_ACTION_FEEDERS)[number];
 

@@ -15,7 +15,8 @@ interface AnalysisResult {
   readonly mutatesState: boolean;
 }
 
-type DependencyAxis = "cache" | "volatile";
+const DEPENDENCY_AXES = ["cache", "volatile"] as const;
+type DependencyAxis = (typeof DEPENDENCY_AXES)[number];
 
 interface AnalysisContext {
   readonly registry: MacroRegistry;

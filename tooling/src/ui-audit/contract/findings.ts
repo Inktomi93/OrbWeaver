@@ -7,8 +7,9 @@ import { DESIGN_AUDIT_SEVERITIES } from "./rules.ts";
 export const SEVERITIES = DESIGN_AUDIT_SEVERITIES;
 export type Severity = DesignAuditSeverity;
 
+const RULE_ORIGINS = ["orbweaver", "impeccable"] as const;
 /** Which detector family a rule came from — "impeccable" rules are adaptations (see header). */
-export type RuleOrigin = "orbweaver" | "impeccable";
+export type RuleOrigin = (typeof RULE_ORIGINS)[number];
 
 /** Bounded presentation over a complete judged population. `capped` is affected instances omitted from
  * the representative list, never omitted from the verdict or machine denominator. */

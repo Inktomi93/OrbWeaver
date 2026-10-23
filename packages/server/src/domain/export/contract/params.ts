@@ -4,12 +4,14 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 
-export type ExportChatFormat = "jsonl" | "txt";
+const EXPORT_CHAT_FORMATS = ["jsonl", "txt"] as const;
+export type ExportChatFormat = (typeof EXPORT_CHAT_FORMATS)[number];
 
+const EXPORT_CARD_FORMATS = ["png", "json"] as const;
 /** O-5: the character door's format axis, the chat door's shape generalized. `png` is the ST-parity card
  *  (the JSON welded into the avatar as a tEXt chunk); `json` is the SAME card object, unwrapped — the
  *  format people paste into tooling and diff. One producer, two containers. */
-export type ExportCardFormat = "png" | "json";
+export type ExportCardFormat = (typeof EXPORT_CARD_FORMATS)[number];
 
 interface ExportActorParams {
   readonly principal: Principal;

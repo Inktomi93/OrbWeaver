@@ -804,12 +804,13 @@ function personaLabel(name: string | undefined): string {
   return name === undefined || name.trim().length === 0 ? "persona" : personaContributorLabel(name);
 }
 
+const SLICE_DELIVERIES = ["system-half", "in-chat"] as const;
 /**
  * WHERE a contribution's bytes are delivered, which decides what still happens to them after the walk.
  * `system-half` bytes join the static/dynamic strings and then run the preset's ASSEMBLE post-process;
  * `in-chat` bytes are handed to the SHAPE splice verbatim (the pass never touches history rows).
  */
-type SliceDelivery = "system-half" | "in-chat";
+type SliceDelivery = (typeof SLICE_DELIVERIES)[number];
 
 /**
  * The bytes a contribution actually DELIVERS — what the budget must be priced on (`assembly/budget`).

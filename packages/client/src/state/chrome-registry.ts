@@ -24,9 +24,11 @@ export type ChromeZone = (typeof CHROME_ZONES)[number];
 /** A rail entry's mobile fate (`MobileCuration`) is homed in `section-registry.ts` beside the rail's
  *  other vocabulary — re-exported here so a chrome consumer imports the whole zone vocab from one place. */
 export type { MobileCuration } from "./section-registry.ts";
+
+const CHROME_PRESENTATIONS = ["bar", "sheet"] as const;
 /** Which lens renders a widget: the always-mounted bar DOM, or the You-sheet projection. Only `"bar"`
  *  has a consumer this wave; the sheet lens lands §E-5. */
-export type ChromePresentation = "bar" | "sheet";
+export type ChromePresentation = (typeof CHROME_PRESENTATIONS)[number];
 
 interface SectionBehavior {
   readonly kind: "section";

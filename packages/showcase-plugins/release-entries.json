@@ -7,7 +7,7 @@
       "ui.js": "b17ba5d6eaa91ce1daebfc19d93e25302a3cc955eee054e58c3c1eef860ac107"
     },
     "card-atlas": {
-      "main.js": "9d9b34039a0fd3eb8e0b1960df68e9d5a9ca386c270e2b876f7846d5b3a20855",
+      "main.js": "05b795b2529262c30df65c81082205827abaf68a04100c92bd3387055d0ca289",
       "manifest.json": "0572bc4be88e568032f237b1b39fbf07af37ed96dcd7a620e0500e8fbeb08442"
     },
     "draft-polish": {
@@ -27,7 +27,7 @@
       "manifest.json": "d8125de0d922976d01a2ef4832c63cd0d121025db7c2fc1c067fc3dcd83d8158"
     },
     "research-familiar": {
-      "main.js": "0ede15b5ae22c3c0faadf7ce0e5473f2dadf27b072857c0606ae14e9409a226f",
+      "main.js": "35ea0042376a68da8c4ed5f0e14cd2e544cec1f11b37d1296f5ee16e8e16bdf0",
       "manifest.json": "23003f79bd28cec2d9010775fba022332445e760337b8985ce4ca6187c1f3ee1",
       "ui.js": "20c5a80b307736df87ecf8f78496eb699695e488c28789746ea26bef7f033bf4"
     },

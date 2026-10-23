@@ -12,7 +12,8 @@ import { DomainOperationError } from "@orb/kit/errors";
 // through this module; transport already discriminates the shared kit error, so no import-domain re-home is
 // needed). This note is the pointer the spec's "re-export here" line intended.
 
-export type ImportCardErrorCode = "card_unreadable" | "card_invalid";
+const IMPORT_CARD_ERROR_CODES = ["card_unreadable", "card_invalid"] as const;
+export type ImportCardErrorCode = (typeof IMPORT_CARD_ERROR_CODES)[number];
 
 /** The supplied bytes are not a readable/valid character card (see header for the `code` split). */
 export class ImportCardError extends DomainOperationError {
@@ -22,7 +23,8 @@ export class ImportCardError extends DomainOperationError {
   }
 }
 
-export type ProfileImportLimitErrorCode = "profile_file_too_large" | "profile_total_too_large";
+const PROFILE_IMPORT_LIMIT_ERROR_CODES = ["profile_file_too_large", "profile_total_too_large"] as const;
+export type ProfileImportLimitErrorCode = (typeof PROFILE_IMPORT_LIMIT_ERROR_CODES)[number];
 
 /** A direct profile-directory input breached its per-file or run-wide byte budget. */
 export class ProfileImportLimitError extends DomainOperationError {

@@ -18,8 +18,9 @@ import type { ComponentProps, ReactElement } from "react";
 const SURFACE_ELEMENTS = { div: "div", span: "span" } as const;
 type SurfaceElement = keyof typeof SURFACE_ELEMENTS;
 
+const SURFACE_TIERS = ["instrument", "form"] as const;
 /** The two density tiers (UI-Density-Law.md §3) — a surface has exactly one. */
-export type SurfaceTier = "instrument" | "form";
+export type SurfaceTier = (typeof SURFACE_TIERS)[number];
 
 export interface SurfaceProps extends Omit<ComponentProps<"div">, "className"> {
   /** REQUIRED — there is no default tier: an unclassified surface is the defect this primitive exists to end. */

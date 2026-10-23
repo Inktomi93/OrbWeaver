@@ -18,7 +18,8 @@ export const mapChatPositionSchema = z.string().min(1).brand<"MapChatPosition">(
 /** @public Cross-file Snap map evidence contract. */
 export type MapChatPosition = z.infer<typeof mapChatPositionSchema>;
 
-type MapEntrySource = "semantic" | "dom";
+const MAP_ENTRY_SOURCES = ["semantic", "dom"] as const;
+type MapEntrySource = (typeof MAP_ENTRY_SOURCES)[number];
 export const MAP_VISIBILITIES = ["visible", "hidden"] as const;
 export const mapVisibilitySchema = z.enum(MAP_VISIBILITIES);
 /** @public Cross-file Snap map evidence contract. */

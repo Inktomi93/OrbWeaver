@@ -292,7 +292,8 @@ export function proseInkLightness(ink: Oklch, inkAlpha: number, base: Oklch): nu
   return derivedForegroundLightness(base);
 }
 
-export type SurfacePolarity = "dark" | "light";
+const SURFACE_POLARITIES = ["dark", "light"] as const;
+export type SurfacePolarity = (typeof SURFACE_POLARITIES)[number];
 
 const FOREGROUND_L_STEP = 0.001;
 const FOREGROUND_L_DECIMALS = 3;

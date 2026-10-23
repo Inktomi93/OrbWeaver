@@ -14,7 +14,8 @@ export interface CssCascadeQuery {
   readonly matchIndex?: number;
 }
 
-type CssDeclarationState = "Active" | "Overloaded";
+const CSS_DECLARATION_STATES = ["Active", "Overloaded"] as const;
+type CssDeclarationState = (typeof CSS_DECLARATION_STATES)[number];
 
 const CSS_CASCADE_SOURCE_KINDS = [
   "client-global",

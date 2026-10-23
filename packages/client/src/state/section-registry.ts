@@ -19,11 +19,12 @@ export const SECTION_GROUPS = ["primary", "authoring"] as const;
 /** The rail's section-group axis, derived from the SECTION_GROUPS tuple (no inline re-spell). */
 export type SectionGroup = (typeof SECTION_GROUPS)[number];
 
+const MOBILE_CURATIONS = ["tab", "sheet"] as const;
 /** A rail entry's mobile fate — an EXPLICIT decision: `"tab"` = a
  *  curated thumb-reach bottom-bar tab, `"sheet"` = folds into the mobile You sheet. Homed here with the
  *  rail's other vocabulary (SECTION_GROUPS) so `chrome-registry.ts` derives `ChromeEntry.mobile` from it
  *  the same one-directional way it derives `group` from `SectionGroup` — no second spelling, no cycle. */
-export type MobileCuration = "tab" | "sheet";
+export type MobileCuration = (typeof MOBILE_CURATIONS)[number];
 
 // The rail's three chrome zones, in DOM order — the ONE home for the rail-zone axis (state owns shell
 // vocabulary, §5 rule 5). `chrome-registry.ts` DERIVES `CHROME_ZONES` from this tuple (the one-directional

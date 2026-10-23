@@ -15,10 +15,12 @@ import { rendersTrustedHtml } from "@orb/contracts/chat";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 
-type RenderTrust = "trusted" | "untrusted";
+const RENDER_TRUSTS = ["trusted", "untrusted"] as const;
+type RenderTrust = (typeof RENDER_TRUSTS)[number];
+const CARD_TIERS = ["tierA", "tierB"] as const;
 /** The docs/law/UI-Theming-and-Content.md §12.2 card render tiers. `tierA` = the inert sanitized allowlist in the main DOM;
  *  `tierB` = the sandboxed `ImmersiveCard` mini-UI that may carry the card's own CSS. */
-type CardTier = "tierA" | "tierB";
+type CardTier = (typeof CARD_TIERS)[number];
 
 // Unresolved character policy fails closed; deployment defaults are resolved separately below.
 const SAFE_FLOOR: RenderPolicy = { htmlTrust: "untrusted", forbidExternalMedia: true };

@@ -448,9 +448,10 @@ export interface SessionSocketEviction {
  *  MS-W1 collision deny the callback surfaces as a DISTINCT, operator-actionable authError. */
 type ProvisionOutcome = Awaited<ReturnType<SessionsService["provisionIdentity"]>>;
 
+const PROVISION_DENY_REASONS = ["account-exists", "jit-closed"] as const;
 /** Why the callback's `provisionIdentity` refused, where the route tells it apart: `account-exists` gets its
  *  own authError, and `jit-closed` alone may become a pending join (D259). */
-type ProvisionDenyReason = "account-exists" | "jit-closed";
+type ProvisionDenyReason = (typeof PROVISION_DENY_REASONS)[number];
 
 /**
  * B4 — the local-mode FIRST-RUN owner-password setup deps. Present ONLY in local mode; its presence registers

@@ -135,8 +135,9 @@ export function onSessionMessage(listener: (message: SessionMessage) => void): (
   };
 }
 
+const SINGLE_FLIGHT_OUTCOMES = ["ran", "followed"] as const;
 /** Did THIS tab run the work, or did it follow a sibling that already held the lock? */
-export type SingleFlightOutcome = "ran" | "followed";
+export type SingleFlightOutcome = (typeof SINGLE_FLIGHT_OUTCOMES)[number];
 
 /**
  * Run `work` as the ONE tab doing it, origin-wide. Returns `"followed"` — without running anything — when
