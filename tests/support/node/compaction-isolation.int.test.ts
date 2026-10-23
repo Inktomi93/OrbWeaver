@@ -38,7 +38,7 @@ async function room(harness: ServerTestHarness): Promise<StartChatResult["chat"]
 }
 
 test("same-ID real roots own their compaction single-flight and join the held actual SDK work", async () => {
-  const execute = createSdkProcessSpawner(new URL("./compaction-isolation-sdk.mjs", import.meta.url));
+  const execute = createSdkProcessSpawner(new URL("./compaction-isolation-sdk.ts", import.meta.url));
   const held = [new Set<ReturnType<typeof execute>>(), new Set<ReturnType<typeof execute>>()];
   const all = new Map<ReturnType<typeof execute>, Promise<void>>();
   const closed = new Set<ReturnType<typeof execute>>();

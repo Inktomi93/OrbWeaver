@@ -1,7 +1,7 @@
 // Controlled executable bytes only; native Query owns the SDK protocol and process lifecycle.
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
-import { readSdkProcessInput, writeSdkControlReply } from "../../../support/node/sdk-process-control.mjs";
+import { readSdkProcessInput, writeSdkControlReply } from "../../../support/node/sdk-process-control.ts";
 
 const scenario = JSON.parse(process.argv[2]);
 const { sdkSessionId, frameId, lines } = await readSdkProcessInput();

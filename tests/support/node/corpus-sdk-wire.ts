@@ -25,7 +25,7 @@ export function createCorpusSdkExecution(controls: { readonly deferHoldExit?: bo
   readonly eof: Promise<void>;
   readonly releaseHeldExit: () => void;
 } {
-  const execute = createSdkProcessSpawner(new URL("./corpus-sdk-child.mjs", import.meta.url), controls.deferHoldExit === true ? [CORPUS_SDK_DEFER_EXIT] : []);
+  const execute = createSdkProcessSpawner(new URL("./corpus-sdk-child.ts", import.meta.url), controls.deferHoldExit === true ? [CORPUS_SDK_DEFER_EXIT] : []);
   const receipts: z.infer<typeof receiptSchema>[] = [];
   const children: ChildProcessWithoutNullStreams[] = [];
   const closes: Promise<void>[] = [];

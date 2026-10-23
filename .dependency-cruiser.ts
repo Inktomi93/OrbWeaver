@@ -222,7 +222,7 @@ const TEST_WORLDS = [
         "^tests/support/(iso|browser)/index\\.ts$",
         "^tests/support/browser/spec\\.ts$",
         "^tests/support/node/(index|helpers|composed|ct|ct-corpus|tool-fixtures|composed-real)\\.ts$",
-        "^tests/support/node/sdk-process-control\\.mjs$",
+        "^tests/support/node/sdk-process-control\\.ts$",
       ],
     },
   },

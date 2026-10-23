@@ -1,10 +1,12 @@
 // Native Query reads these external process bytes; this script owns no SDK session or decoder.
+import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import process from "node:process";
 import { setImmediate } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
-import { readSdkProcessInput, writeSdkControlReply } from "./sdk-process-control.mjs";
+import type { SdkOutputFrame } from "./sdk-process-control.ts";
+import { parseSdkStdinMessage, readSdkProcessInput, sdkUserPromptText, writeSdkControlReply } from "./sdk-process-control.ts";
 
 if (process.argv[2] === "late-diagnostic") {
   process.stderr.write("sdk-late-diagnostic: café complete\n", () => process.exit(0));
@@ -22,8 +24,8 @@ if (process.argv[2] === "owned-descendant") {
   process.exit(0);
 }
 
-let descendant;
-let descendantClosed;
+let descendant: ChildProcess | undefined;
+let descendantClosed: Promise<void> | undefined;
 let observeNativeGrace = false;
 process.on("SIGTERM", () => {
   if (descendant === undefined) {
@@ -33,25 +35,24 @@ process.on("SIGTERM", () => {
   }
 });
 // biome-ignore lint/style/noProcessEnv: this external executable consumes the actual prepared subprocess credential to prove split raw/JSON stderr scrubbing, not app configuration.
-const token = process.env.CLAUDE_CODE_OAUTH_TOKEN;
+const token = process.env["CLAUDE_CODE_OAUTH_TOKEN"];
+if (token === undefined) {
+  throw new Error("SDK timer fixture requires its actual prepared credential");
+}
 const { sdkSessionId: sessionId, frameId, lines } = await readSdkProcessInput();
-function write(value) {
-  process.stdout.write(`${JSON.stringify({ ...value, uuid: frameId(value.type === "system" ? value.subtype : value.type) })}\n`);
+function write(value: SdkOutputFrame): void {
+  process.stdout.write(`${JSON.stringify({ ...value, uuid: frameId(value.type === "system" ? String(value["subtype"]) : value.type) })}\n`);
 }
 
 for await (const line of lines) {
-  const message = JSON.parse(line);
+  const message = parseSdkStdinMessage(line);
   if (writeSdkControlReply(message)) {
     continue;
   }
   if (message.type === "control_request") {
     throw new Error(`unscripted SDK control ${message.request.subtype}`);
   }
-  if (message.type !== "user") {
-    throw new Error(`unscripted SDK input ${message.type}`);
-  }
-  const content = message.message.content;
-  const prompt = typeof content === "string" ? content : content.map((block) => block.text).join("\n");
+  const prompt = sdkUserPromptText(message);
   if (prompt.includes("SDK_PRIVATE_STDOUT_PREFIX_EOF")) {
     await new Promise((resolve) => process.stdout.write(`private-stdout-prefix-safe-context: ${token.slice(0, 64)}`, resolve));
     process.exit(7);
@@ -97,7 +98,7 @@ for await (const line of lines) {
   if (prompt.includes("SDK_OWNED_DESCENDANT")) {
     descendant = spawn(process.execPath, [fileURLToPath(import.meta.url), "owned-descendant"], { stdio: ["ignore", "ignore", "inherit"] });
     const owned = descendant;
-    descendantClosed = new Promise((resolve) =>
+    descendantClosed = new Promise<void>((resolve) =>
       owned.once("close", () => {
         process.stderr.write(`sdk-owned:descendant-exit:${owned.pid}\n`);
         resolve();

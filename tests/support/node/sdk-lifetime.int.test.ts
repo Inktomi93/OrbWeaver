@@ -73,7 +73,7 @@ test("asynchronous prompt preparation refusal releases idle ownership before SDK
 });
 
 test("native SDK Query keeps idle ownership while its physical stream is active and clears it on normal settlement", async () => {
-  const execute = createSdkProcessSpawner(new URL("./sdk-timer-process.mjs", import.meta.url));
+  const execute = createSdkProcessSpawner(new URL("./sdk-timer-process.ts", import.meta.url));
   const closed = Promise.withResolvers<void>();
   const firstOutput = Promise.withResolvers<void>();
   let child: ChildProcessWithoutNullStreams | undefined;
@@ -113,7 +113,7 @@ test("native SDK Query keeps idle ownership while its physical stream is active 
 });
 
 test("root cancellation joins its actual SDK child and owned grandchild exit before database cleanup", async () => {
-  const execute = createSdkProcessSpawner(new URL("./sdk-timer-process.mjs", import.meta.url));
+  const execute = createSdkProcessSpawner(new URL("./sdk-timer-process.ts", import.meta.url));
   const ready = Promise.withResolvers<number>();
   const eof = Promise.withResolvers<void>();
   const closed = Promise.withResolvers<void>();
@@ -172,7 +172,7 @@ test("root cancellation joins its actual SDK child and owned grandchild exit bef
 });
 
 test("normal native SDK settlement waits for its owned descendant exit, not only result or Query cleanup", async () => {
-  const execute = createSdkProcessSpawner(new URL("./sdk-timer-process.mjs", import.meta.url));
+  const execute = createSdkProcessSpawner(new URL("./sdk-timer-process.ts", import.meta.url));
   const ready = Promise.withResolvers<number>();
   const eof = Promise.withResolvers<void>();
   let child: ChildProcessWithoutNullStreams | undefined;
@@ -217,7 +217,7 @@ test("normal native SDK settlement waits for its owned descendant exit, not only
 });
 
 test("raw SDK startup failure retains scrubbed split-UTF8 stderr diagnostics and joins the real child", async () => {
-  const execute = createSdkProcessSpawner(new URL("./sdk-timer-process.mjs", import.meta.url));
+  const execute = createSdkProcessSpawner(new URL("./sdk-timer-process.ts", import.meta.url));
   let child: ChildProcessWithoutNullStreams | undefined;
   const spawn: AgentSdkSpawn = (options) => {
     child = execute(options);
@@ -240,7 +240,7 @@ test("raw SDK startup failure retains scrubbed split-UTF8 stderr diagnostics and
 });
 
 test("native catalog and verify queries close their actual children after native control probes", async () => {
-  const execute = createSdkProcessSpawner(new URL("./sdk-timer-process.mjs", import.meta.url));
+  const execute = createSdkProcessSpawner(new URL("./sdk-timer-process.ts", import.meta.url));
   const children: ChildProcessWithoutNullStreams[] = [];
   const closed = new Set<ChildProcessWithoutNullStreams>();
   const spawn: AgentSdkSpawn = (options) => {
@@ -264,7 +264,7 @@ test("native catalog and verify queries close their actual children after native
 });
 
 test("unexpected physical stderr failure stays visible at graph settlement without stranding cleanup", async () => {
-  const execute = createSdkProcessSpawner(new URL("./sdk-timer-process.mjs", import.meta.url));
+  const execute = createSdkProcessSpawner(new URL("./sdk-timer-process.ts", import.meta.url));
   const failure = new Error("controlled SDK diagnostic read failed");
   let child: ChildProcessWithoutNullStreams | undefined;
   const spawn: AgentSdkSpawn = (options) => {
@@ -285,7 +285,7 @@ test("unexpected physical stderr failure stays visible at graph settlement witho
 });
 
 test("native raw exit diagnostics include stderr drained by a real descendant after the direct child exits", async () => {
-  const execute = createSdkProcessSpawner(new URL("./sdk-timer-process.mjs", import.meta.url));
+  const execute = createSdkProcessSpawner(new URL("./sdk-timer-process.ts", import.meta.url));
   let child: ChildProcessWithoutNullStreams | undefined;
   const spawn: AgentSdkSpawn = (options) => {
     child = execute(options);
@@ -305,7 +305,7 @@ test("native raw exit diagnostics include stderr drained by a real descendant af
 // Deliberately public fixture material; repeated bytes expose redaction boundaries without real credentials.
 const PUBLIC_OVERLAP_TOKEN = "aaaaaaaaaaaaaaaa";
 test("native stderr never publishes overlapping public fixture credential fragments across chunks", async () => {
-  const execute = createSdkProcessSpawner(new URL("./sdk-timer-process.mjs", import.meta.url));
+  const execute = createSdkProcessSpawner(new URL("./sdk-timer-process.ts", import.meta.url));
   const spawn: AgentSdkSpawn = (options) => {
     const child = execute(options);
     child.stderr.once("data", () => child.kill("SIGUSR2"));
@@ -325,7 +325,7 @@ test("native stderr never publishes overlapping public fixture credential fragme
 // Public synthetic fixture material; this shape deliberately triggers the generic sk-token fallback.
 const PUBLIC_SHAPED_TOKEN = `sk-${"P".repeat(80)}-public-fixture-tail`;
 test.each(["intact", "split"] as const)("native stderr protects a known sk-shaped public credential (%s)", async (mode) => {
-  const execute = createSdkProcessSpawner(new URL("./sdk-timer-process.mjs", import.meta.url));
+  const execute = createSdkProcessSpawner(new URL("./sdk-timer-process.ts", import.meta.url));
   const spawn: AgentSdkSpawn = (options) => {
     const child = execute(options);
     if (mode === "split") {
@@ -350,7 +350,7 @@ function nativeSdkOptions(onNativeProcessCreated?: NonNullable<AgentSdkNativeOpt
   return {
     executable: "node",
     executableArgs: ["--no-warnings"],
-    pathToClaudeCodeExecutable: new URL("./sdk-timer-process.mjs", import.meta.url).pathname,
+    pathToClaudeCodeExecutable: new URL("./sdk-timer-process.ts", import.meta.url).pathname,
     onNativeProcessCreated: (child): void => {
       identify(child);
       onNativeProcessCreated?.(child);
@@ -369,7 +369,7 @@ test("physical SDK identity replays deterministically without colliding across c
         launches[index] += bytes.toString("utf8");
       });
     };
-    const execute = createSdkProcessSpawner(new URL("./sdk-timer-process.mjs", import.meta.url));
+    const execute = createSdkProcessSpawner(new URL("./sdk-timer-process.ts", import.meta.url));
     await using harness = await createServerHarness({
       logLevel: SDK_LOG_LEVEL,
       secretBoxKey: Buffer.alloc(32, 1),
@@ -429,7 +429,7 @@ test("default native transport retains prepared executable and argv while joinin
   const connection = await savedSummarizer(harness);
   const result = await harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "native default control" }] });
   expect(result.items[0]?.text).toBe("settled native SDK reply");
-  expect(child?.spawnargs.slice(0, 3)).toEqual(["node", "--no-warnings", new URL("./sdk-timer-process.mjs", import.meta.url).pathname]);
+  expect(child?.spawnargs.slice(0, 3)).toEqual(["node", "--no-warnings", new URL("./sdk-timer-process.ts", import.meta.url).pathname]);
   expect(child?.spawnargs).toContain("--strict-mcp-config");
   expect(child?.spawnargs).toContain("--input-format");
   expect(closed).toBe(true);
@@ -646,7 +646,7 @@ test("default native stderr protects an oversized known opaque credential in app
   expect(lines.some((line) => line.includes("N".repeat(32)))).toBe(false);
 });
 
-const NATIVE_STARTUP_ARGS = ["--import", new URL("./sdk-native-startup-failure.mjs", import.meta.url).href];
+const NATIVE_STARTUP_ARGS = ["--import", new URL("./sdk-native-startup-failure.ts", import.meta.url).href];
 
 test.each(["chat", "agent", "verify"] as const)("default native startup diagnostics use safe owned provenance for %s", async (operation) => {
   let closed = false;

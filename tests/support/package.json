@@ -17,7 +17,7 @@
     "./node/composed": "./node/composed.ts",
     "./node/composed-real.ts": "./node/composed-real.ts",
     "./node/helpers": "./node/helpers.ts",
-    "./sdk": "./node/sdk-process-control.mjs",
+    "./sdk": "./node/sdk-process-control.ts",
     "./tooling": "./node/tool-fixtures.ts"
   },
   "dependencies": {
