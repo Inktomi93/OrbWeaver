@@ -130,10 +130,8 @@ export const rpgGames = sqliteTable(
 // ids: `remapRpg` (`domain/import/verbs/import-chat-bundle.ts`) can only resolve them against the target
 // chat's freshly-minted `identity`, so a source-chat id has no path into the write.
 //
-// ENFORCER (constitution §2 — a boundary held by convention is a wish): the negative tests in
-// the "cross-chat lineage invariant" blocks in `tests/legacy/server/domain/rpg/persistence/{snapshots,turn-tool-calls,checkpoints}.int.test.ts`, which plant a cross-chat pair and
-// pin that today's writers refuse to produce it. A future arm that ACCEPTS a `(gameId, messageId)` pair
-// inherits no belt from the schema — it must validate, and that suite is where it says so.
+// Today's writers never produce a cross-chat pair. A future arm that ACCEPTS a `(gameId, messageId)` pair
+// inherits no belt from the schema — it must validate.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 export const rpgSnapshots = sqliteTable(
@@ -319,8 +317,7 @@ export const rpgJournal = sqliteTable(
 //
 // LINEAGE (#1380): `game_id`, `message_id` and `variant_id` must meet at ONE chat, exactly as on
 // `rpg_snapshots` — and for the same reason it is not a constraint (a CHECK cannot join three tables).
-// Held by DERIVATION at every writer; the enforcer is
-// the "cross-chat lineage invariant" block in `tests/legacy/server/domain/rpg/persistence/turn-tool-calls.int.test.ts`. `rpg_snapshots`'s header states
+// Held by DERIVATION at every writer. `rpg_snapshots`'s header states
 // the rule in full; do not re-derive it, and do not add an accept-shaped writer without validating.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
@@ -376,8 +373,7 @@ export const rpgTurnToolCalls = sqliteTable(
 // LINEAGE (#1380): `game_id` and `snapshot_id`'s OWN `game_id` must be the same game — two FKs to two
 // tables, which SQLite cannot pair. Unlike the derive-only arms this pair IS caller-supplied on the
 // restore path, and it IS validated there: `verbs/game/restore-checkpoint.ts` compares
-// `checkpoint.gameId !== game.id` before use. Enforcer: that guard's suite plus
-// the "cross-chat lineage invariant" block in `tests/legacy/server/domain/rpg/persistence/checkpoints.int.test.ts`.
+// `checkpoint.gameId !== game.id` before use.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 export const rpgCheckpoints = sqliteTable(

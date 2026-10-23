@@ -182,8 +182,7 @@ export const publicProcedure = t.procedure.use(tracingMiddleware).use(domainErro
 // `getContentTypeHandler` also matches `multipart/form-data` and `application/octet-stream` and dispatches
 // both as `type:"mutation"`, and multipart is exactly the CORS-simple type a plain cross-site `<form>` can
 // post. Behaviorally proven at the mount: before the belt, a multipart POST with no `x-orb-csrf` on the
-// fallback arm RAN `tag.pruneUnusedTags` and returned 200 (pin: tests/legacy/server/entry/app.test.ts, the
-// content-type-belt describe). Delete or narrow that belt and this gate is open again on every
+// fallback arm RAN `tag.pruneUnusedTags` and returned 200. Delete or narrow that belt and this gate is open again on every
 // `AUTH_FALLBACK=owner` box.
 const authMiddleware = t.middleware(({ ctx, type, path, next }) => {
   if (ctx.auth === null) {

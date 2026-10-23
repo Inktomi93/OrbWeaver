@@ -7,7 +7,7 @@
 // or crash on, the server env parse). Vitest charges fixture setup to the TEST's wall clock, so the FIRST
 // test in a composed-real file paid the whole server module graph inside `testTimeout` (`budget(5000)`),
 // while every later test in that file paid 0ms — the graph is already in that file's registry. Measured on
-// this box, 2026-09-18, `pnpm test:scoped tests/legacy/server/entry/compose/roster-preset.int.test.ts`:
+// this box, 2026-09-18, `pnpm test:scoped` on one composed-real file:
 //
 //   before — `import(@orb/server/entry/compose)` 5.9-7.7s inside the first test ⇒ RED at 5006ms; the two
 //            later tests in the same file green in 73-3480ms.
@@ -18,7 +18,7 @@
 // WHY NOT the other arms. (a) A `testTimeout` bump declares the limit instead of fixing it, and the number
 // it would have to declare is a transform cost, not a statement about the test. (b) A file-scoped or
 // worker-scoped `app` fixture does not help: the load is ALREADY paid once per file (vitest isolates the
-// module registry per file — 35 files in `tests/legacy/server/entry/compose` produced 35 fixtures-module
+// module registry per file — 35 composed-real files produced 35 fixtures-module
 // evaluations and only 7 non-zero compose imports, one per composing file), and file-scoping the fixture
 // would additionally share one db + one services instance across a file's tests. (c) There is no heavy
 // LEAF to lazy-import: the cost is the graph itself, measured uniformly —

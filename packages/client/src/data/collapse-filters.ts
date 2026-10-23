@@ -33,7 +33,7 @@ function subsumes(broad: InvalidateFilter, narrow: InvalidateFilter): boolean {
  * It bites hardest on the derived reconnect gap-heal (`allUserRootFilters`), whose set is the UNION of every
  * user-map row: the W7b `identityChanged` member (`062371a0dc`) mapped `persona.list` while `personasChanged`
  * already carried the `persona` ROOT, so every reconnect fetched persona twice
- * (`tests/legacy/client/data/bus/use-user-bus.ct.tsx:77` — persona.list 3, expected 2). The same union also repeated
+ * (persona.list fetched 3 times, expected 2). The same union also repeated
  * `getUserSettings`, `regex.listScriptUsage`, `previewContextFit` and the three prompt-preview reads. Fixing
  * it HERE rather than in the derivation is what keeps the class unmakeable: the map rows stay free to name
  * the reads they own (rows overlapping is correct — they fire independently), and no future member can drift

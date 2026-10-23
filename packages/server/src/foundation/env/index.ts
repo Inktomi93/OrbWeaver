@@ -257,9 +257,7 @@ const AUTH_MODE_REQUIRED_ENV = {
  *  `AUTH_FALLBACK` in the `.env` FILE is still boot-fatal (#301) — the operator's own words are still
  *  judged, this table only decides what SILENCE means.
  *
- *  ENFORCER: `tests/legacy/server/foundation/env/auth-fallback-pairing.test.ts` iterates `AUTH_MODES` and asserts the implicit
- *  value is `deny` for every mode but `single-user`, so a fifth mode added with the wrong row here is RED
- *  behaviorally as well as reviewed. */
+ *  The implicit value is `deny` for every mode but `single-user`, so a new mode needs the right row here. */
 const AUTH_MODE_DEFAULT_FALLBACK = {
   "single-user": "owner",
   local: "deny",

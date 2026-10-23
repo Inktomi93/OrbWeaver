@@ -33,8 +33,7 @@
 // every document {@link transpileForgeDesign} can produce MUST pass `refinerySchemaDocumentSchema`
 // (./schema-authoring.ts). Agreement is one-directional BY DESIGN — the transpiler's range is a SUBSET of
 // what the belt accepts, never a superset — because the belt also guards the raw-paste door and
-// hand-authored library rows. The correspondence is pinned in
-// `tests/legacy/contracts/refinery/schema-forge.contract.test.ts`.
+// hand-authored library rows.
 //
 // WHAT THE GRAMMAR CANNOT OWN (the residue the lift-refusal retry bridge SHRANK to — it used to carry
 // the WHOLE belt): the document NAME's identifier grammar and a field `path`'s segment grammar. Both are

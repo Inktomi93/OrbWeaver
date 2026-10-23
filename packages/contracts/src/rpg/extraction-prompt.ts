@@ -24,7 +24,7 @@
 // `promptConfig.prose`, authored in the preset Templates tab. What stays here is the ASSEMBLY: which clause
 // fires for which config, what the per-game tokens expand to, and the composition order. An ABSENT override
 // resolves to the shipped default, so a game whose host has edited nothing composes byte-identically to the
-// pre-PROSE-1 prompt (asserted per-slot in `tests/legacy/contracts/rpg/extraction-prompt.contract.test.ts`).
+// pre-PROSE-1 prompt.
 //
 // CENSUS 27 IS WIRED (owner ruling 2026-08-08 on spec §11 decision 6: WIRE it and measure). The state-tracking
 // GUIDE — Appendix A's "be thorough, the panel should reflect the FULL richness of the narration" addendum, the

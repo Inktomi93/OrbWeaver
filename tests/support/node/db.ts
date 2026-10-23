@@ -2,9 +2,8 @@
 // freshDb PUSHES the LIVE schema (it diffs `@orb/db/schema` against an empty snapshot via drizzle-kit's
 // programmatic API and applies the resulting CREATE statements over the real createDb handle), so a slice
 // test always runs against the current schema regardless of whether `0000_baseline.sql` has been
-// regenerated yet — fast + drift-proof for per-table tests. The committed baseline + the `runMigrations`
-// FK-dance + `assertReferentialIntegrity`'s throw path are covered by `tests/legacy/db/client.int.test.ts`, and
-// the committed baseline ↔ schema equivalence by `tests/tooling/verify/ops/db-baseline-parity.int.test.ts`.
+// regenerated yet — fast + drift-proof for per-table tests. The committed baseline ↔ schema equivalence is covered by
+// `tests/tooling/verify/ops/db-baseline-parity.int.test.ts`.
 //
 // freshCountedDb adds a QUERY-BUDGET counter over the same handle: the counting proxy rides `createDb`'s
 // `LibSqlWrap` seam — the SAME seam `foundation/observability`'s `wrapLibSqlClient` uses for OTel spans

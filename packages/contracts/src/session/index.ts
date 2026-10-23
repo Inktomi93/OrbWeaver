@@ -7,8 +7,7 @@ import { z } from "zod";
 
 /** One browser-session row as exposed to the admin device list. `revokedAt` is `null` while the device
  *  is live. Deliberately secret-free: no `tokenHash`/token/pepper/`userId`, and no `oidcIdToken*` column
- *  (that sealed blob has exactly ONE reader — the logout revoke — and is pinned unprojectable in
- *  `tests/legacy/server/domain/sessions/verbs/create.int.test.ts`). */
+ *  (that sealed blob has exactly ONE reader — the logout revoke — and is never projected). */
 export interface SessionView {
   id: SessionId;
   createdAt: number;

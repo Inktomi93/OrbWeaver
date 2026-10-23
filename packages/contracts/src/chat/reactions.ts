@@ -17,9 +17,8 @@
 //
 // SEGMENT TARGETING (B7/MR3): a reaction may anchor to ONE speaker's line — a `parseSpeakerSpans` LINE
 // index over the variant's STORED CANON (never display text; the renderer parses post-regex/macro bytes
-// no other surface shares). The persisted trio is `(segmentIndex, segmentSpeaker, segmentSnippet)`: the
-// anchoring fitness suite (`tests/legacy/kit/speaker-label/anchoring.suite.test.ts`) proved a bare index is not
-// edit-stable and `(index, speaker)` is defeated by a same-speaker insert, so the snippet is the
+// no other surface shares). The persisted trio is `(segmentIndex, segmentSpeaker, segmentSnippet)`: a bare
+// index is not edit-stable and `(index, speaker)` is defeated by a same-speaker insert, so the snippet is the
 // fingerprint — and a stale trio DEGRADES to whole-message rather than mis-attaching (MA-2 §2; the one
 // rule is kit's `resolveSegmentAnchor`, shared by the client display and the server attribution read).
 

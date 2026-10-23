@@ -23,8 +23,7 @@
 //     `source` URL list (the V3 upstream-provenance field) while reading `shipped` would be exactly the
 //     impossible pair #893 found in a fixture — so `source` stays null, pinned in the contract suite.
 //   · The CARRIED BACKGROUND is computed, not typed — see {@link seededBackground}.
-// The two hand-authored fields that DO ride a derivation's output are `creator` (above) and the scene plate;
-// both are pinned against their derivation in `tests/legacy/server/domain/character/seeder/cards.contract.test.ts`.
+// The two hand-authored fields that DO ride a derivation's output are `creator` (above) and the scene plate.
 //
 // SEEDING: each card is one item of the seed manifest (`@orb/default-content`, D263), keyed by its handle.
 // An account receives a card once; the seed ledger keeps a card the user deleted from coming back.

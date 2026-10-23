@@ -5,8 +5,7 @@
 // and ~60 CT locators in nine spec files, none of which imported the thing they assert. That is exactly the
 // coupling #2245 broke — a spec kept asserting a name the product no longer builds and stayed green because
 // the row it looked for simply had zero matches. With the consts, the component and its tests read the same
-// binding and a drifted spelling is a COMPILE error; the wording itself is pinned once, in
-// `tests/legacy/client/features/chat/lib/message-action-names.dom.test.ts`.
+// binding and a drifted spelling is a COMPILE error; the wording itself is spelled once, here.
 //
 // It is a `.ts` LEAF on purpose: a CT spec's node side cannot import a value out of a `.tsx`, and these
 // names are read from the node side of every spec that locates by role+name.

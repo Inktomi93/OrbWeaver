@@ -221,8 +221,7 @@ export function Markdown({
   // that replaced the vendor's 1rem block gap) out-specifies any sibling margin a descendant could set,
   // and padding also runs the rule the full height of the quote instead of leaving it floating.
   // Adding `@source "…/streamdown/dist"` would have resurrected the vendor's whole spacing scale app-wide,
-  // the thing `--reading-paragraph-spacing` exists to own. Pinned by the two `#238:` cases in
-  // tests/legacy/ui/markdown/markdown-typography.ct.tsx (rendered geometry, not class strings).
+  // the thing `--reading-paragraph-spacing` exists to own.
   //
   // #490 — #238's INLINE-CODE HALF WAS ONLY HALF PAID. The paragraph above names inline code beside the
   // blockquote, but only the horizontal padding was ever compensated (`px-tight`). The vendor also spells

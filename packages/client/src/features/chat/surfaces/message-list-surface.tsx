@@ -72,8 +72,8 @@ import { settledLastRowId } from "../lib/row-placement.ts";
  *  measurement, not by argument: `document.fonts.status` was `loaded` and every in-row image `complete` at the
  *  moment of the settle, so neither font swap nor image decode moves these rows.
  *
- *  The number is a CALIBRATION against a corpus, so it is pinned by a test that re-derives the bias rather
- *  than by asserting the literal — see `tests/legacy/client/features/chat/surfaces/message-list-surface.ct.tsx`. */
+ *  The number is a CALIBRATION against a corpus, so check it by re-deriving the bias rather
+ *  than by asserting the literal. */
 const ESTIMATED_ROW_BASE_PX = 96;
 const ESTIMATED_ROW_PX_PER_CHARACTER = 0.28;
 const ESTIMATED_ROW_MAX_PX = 1200;

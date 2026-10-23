@@ -7,7 +7,7 @@
 // COMPONENT NAME in `ignoreElements` is unreachable for any component the map renames, and what actually
 // decides whether a family is exempt is the map's lowercase target. That is why `"Switch"` sat in the ignore
 // list for months while every `<Switch>` inside a `<Field>` was still RED, and why six call sites carried a
-// measured-DEAD `aria-label` as a lint obligation (`tests/legacy/client/a11y/field-control-name.suite.ct.tsx`).
+// measured-DEAD `aria-label` as a lint obligation.
 //
 // #1633 remapped `Switch` to `input`. This file exists because that fix is a CONFIG VALUE with no gate: the
 // `eslint-grant-liveness` policy only audits `files`/`ignores` selectors, so nothing else in the repo notices

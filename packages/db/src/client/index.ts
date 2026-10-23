@@ -621,7 +621,7 @@ const RESET_DROP_ORDER = ["trigger", "view", "index", "table"] as const;
 
 /**
  * The reset's DDL script for a `sqlite_master` listing — pure, so the string a destructive path is about to
- * execute is unit-testable without running it (`tests/legacy/db/client.int.test.ts`).
+ * execute is unit-testable without running it.
  *
  * TWO properties it owes (#1376):
  *  · WRAPPED IN ONE TRANSACTION. `executeMultiple` is native `db.exec` with no implicit transaction

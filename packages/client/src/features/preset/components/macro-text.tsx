@@ -26,7 +26,6 @@
 // hue as TEXT), and it is the same 15%-tint +
 // hue-text grammar the rack's glyph discs already wear, so the surface speaks ONE muted-info dialect. The
 // PALETTE is untouched by design (owner ruling): `--color-info` stays blue; only the pill's weight moves.
-// Pinned by computed color in tests/legacy/client/features/preset/components/macro-text.ct.tsx.
 //
 // THE CHIP IS `size="inline"` (side-eye F-6): a run of prose is a LINE BOX, and an `inline-flex` chip with
 // vertical padding and its own line-height builds a 28px box inside a 20px line — every line carrying a

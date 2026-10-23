@@ -41,7 +41,7 @@ const HASH_MOD = 2_147_483_647;
  *  on a dark one (Hearth's deepest bucket measures 4.73:1). Every bucket therefore sits between the theme's
  *  primary and 0.085 below it, which is also what keeps an IMPORTED owner theme safe by construction: the
  *  ThemeScope clamp already AA-sweeps primary↔primary-foreground, and no bucket strays further than that
- *  from the pairing it guarantees. The full palette × step matrix is asserted in `tests/legacy/ui/tokens/index.test.ts`.
+ *  from the pairing it guarantees.
  *
  *  DIFFERENTIATION THEN RIDES CHROMA (0.5× … 1.1×), alternating rich/washed down the lightness ramp so two
  *  neighbouring buckets never differ on one axis alone — five shades separated by lightness only, inside a

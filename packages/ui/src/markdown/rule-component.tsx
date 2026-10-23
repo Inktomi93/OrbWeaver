@@ -24,8 +24,7 @@
 // gap on one side of it. `mx`-free `my-*` is the only symmetric spelling, and it is applied through the
 // seal root's descendant variant (markdown.tsx) rather than as a utility on this element, because the
 // root's own spacing trim (`space-y-0`, the compiled replacement for the vendor's 1rem block gap) governs
-// every direct child's block margins and would otherwise decide this one. Pinned by rendered GEOMETRY in
-// tests/legacy/ui/markdown/markdown-typography.ct.tsx, never by class string.
+// every direct child's block margins and would otherwise decide this one.
 import type { ComponentPropsWithoutRef, ReactElement } from "react";
 import type { StreamdownProps } from "streamdown";
 import { cn } from "#lib";

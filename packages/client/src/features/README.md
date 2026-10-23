@@ -95,4 +95,4 @@ imports ARE allowed (a shape wired at the composition root).
    `QueryBoundary`. Each of these is a sealed gate, not a preference (lockdown §1's table names the wall).
 6. **Ship all three states** — designed EMPTY (with an action), a shape-matched skeleton, and
    `QueryErrorState` with a real retry. A bare spinner or a dead-end empty is a defect (§11).
-7. **Write rebuilt tests** under `tests/client/` in the directory that mirrors the feature. Name each test for its behavior. Use the production mounting door for CTs and corpus-backed e2e for flows. `tests/legacy/` takes no new files. Follow `docs/law/Spine-Testing.md` and `docs/plans/test-foundation/design.md`.
+7. **Write rebuilt tests** under `tests/client/` in the directory that mirrors the feature. Name each test for its behavior. Use the production mounting door for CTs and corpus-backed e2e for flows. Follow `docs/law/Spine-Testing.md` and `docs/plans/test-foundation/design.md`.

@@ -94,8 +94,7 @@ const ACTION_BUTTON = "min-w-0 flex-1 @md:flex-none";
  *      submit-until-valid control with a short label, where the dim is correct and legibility is not the
  *      point). `UI-Primitives-and-Reuse.md` §13.9's litmus wants a committed consumer before API lands in
  *      the sealed package — the CapabilityGrantList precedent is "compose at feature level when one appears".
- *    · It has an ENFORCER, so the exemption is not prose. The `#441` case in
- *      `tests/legacy/client/features/chat/surfaces/new-chat-picker-surface.ct.tsx` polls the COMPUTED opacity of
+ *    · Verify the exemption by polling the COMPUTED opacity of
  *      the disabled Start to `"1"` (computed, because `snap --contrast` ignores an element's own opacity and
  *      reported a false 7.56:1 pass on the dimmed original).
  *  GRADUATION CONDITION: the SECOND consumer mints the variant. A second surface wanting a legible-disabled

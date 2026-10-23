@@ -91,8 +91,7 @@ export interface MotionFlagRecord {
    *  Present only on the `anim` channel; the other three raise no animation.
    *
    *  MUST NOT SILENTLY DISAPPEAR — a consumer that receives an `anim` flag without it cannot sanction the
-   *  ratified lifecycles and must treat the raise as unattributed. `tests/legacy/client/lib/motion-flaggers.ct.tsx`
-   *  pins the attachment for exactly that reason. */
+   *  ratified lifecycles and must treat the raise as unattributed. */
   readonly animation?: AnimationRecord;
 }
 

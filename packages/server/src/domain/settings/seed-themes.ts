@@ -11,9 +11,8 @@
 // picker's active-row display, not crash safety.
 //
 // Hearth mirrors @orb/ui's base TOKENS ramp; every other palette mirrors the SEED_THEME_VALUE_SETS[<lowercased
-// name>] vars — the SAME OKLCH the theme.css [data-theme] blocks emit. These OVERRIDEs are pinned byte-equal
-// to those @orb/ui values by tests/legacy/server/domain/settings/seed-theme-pairing.suite.test.ts (the cake forbids
-// server↔ui imports, so the test is the enforcer), which also asserts registry set-equality with the
+// name>] vars — the SAME OKLCH the theme.css [data-theme] blocks emit. These OVERRIDEs are kept byte-equal
+// to those @orb/ui values (the cake forbids server↔ui imports) and registry set-equal with the
 // value-set jsons in BOTH directions. Per D71 a seed theme RENDERS from its generated [data-theme] block;
 // the row's override is the duplicate-to-customize template.
 

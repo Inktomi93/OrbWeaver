@@ -72,8 +72,7 @@ body {
  * to hit-testing thanks to `pointer-events-none` and absent for reduced-motion users, which is why it
  * survived. A prose "host me on something positioned" would have been a wish, so the class OWNS both
  * halves of its own contract — the containing block and the clip the -100%→300% travel needs — and a
- * consumer can no longer get it wrong. Pinned by tests/legacy/client/features/refinery/components/
- * lane-run-control.ct.tsx (the segment's resolved box against its host's, never the class list). */
+ * consumer can no longer get it wrong. Prove it by the segment's resolved box against its host's, never the class list. */
 @keyframes orb-indeterminate-hairline {
   from {
     translate: -100% 0;
@@ -113,8 +112,7 @@ body {
  * contents-wrapper (`[dir]`, present because the seal passes dir="auto") → the LEAF block
  * (`<p>`/`<ul>`/…). An `::after` one level shallower — the display:contents dir wrapper, which is
  * where Streamdown's own caret attaches — flows AFTER the leaf's block box and renders the bar on a
- * fresh line below the text (the owner-reported symptom). Pinned by the tagName assertion in
- * tests/legacy/client/features/chat/components/ghost-message-row.ct.tsx. */
+ * fresh line below the text (the owner-reported symptom). Assert it on the tagName. */
 @keyframes orb-stream-caret {
   0%,
   45% {
@@ -157,7 +155,7 @@ body {
 /* Glass (appearance.blurSurfaces) + prose shadow (appearance.shadowEffects). data-blur/data-shadow
  * attrs live on html so they reach portalled content. "messages" gets the denser fill since it sits
  * behind scrolling prose; chrome (panels/composer/modals) gets the lighter fill.
- * surface list = BLUR_SURFACES (@orb/contracts/settings); sync-enforced by tests/legacy/ui/styles/css-structure.suite.test.ts
+ * surface list = BLUR_SURFACES (@orb/contracts/settings)
  *
  * THE GLASS DOES NOT RUN AT OR BELOW THE SHELL BREAKPOINT (#135) — backdrop-filter is too costly on
  * small/low-power devices. That mobile-perf ruling is stated HERE, as the glass's own applicability,
@@ -177,8 +175,7 @@ body {
  *
  * The 48rem literal is duplicated from shell.css's `@media (max-width: 48rem)` because an @media
  * condition cannot read a custom property (dimension.shell-breakpoint's own token note says so); this
- * range condition is its exact complement, and the pair is sync-enforced by
- * tests/legacy/ui/styles/css-structure.suite.test.ts. */
+ * range condition is its exact complement, and the pair must stay in sync. */
 @media (width > 48rem) {
   @supports (backdrop-filter: blur(1px)) {
     /* THE PANE'S GLASS PAINTS ON A CARRIER PSEUDO, NOT ON THE PANE (#1154). `backdrop-filter` on
@@ -270,9 +267,7 @@ body {
      * verbatim so it stays byte-identical.
      *
      * Gated on `[data-has-bg-image]` because that is the whole question: without a wallpaper the pane's
-     * translucency composites over the shell's own opaque base and nothing unknown is behind it.
-     * Rendered pin: the two `#237:` cases in tests/legacy/client/features/app-shell/surfaces/app-shell.ct.tsx
-     * (the derived-alpha floor + the kicker ink over worst-case black art). */
+     * translucency composites over the shell's own opaque base and nothing unknown is behind it. */
     html[data-blur-panels] .shell-grid[data-has-bg-image] .shell-panel::before {
       background-color: light-dark(
         color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), var(--color-reading-plate)),
@@ -521,16 +516,14 @@ body {
  * its own fill. `backdrop-filter: none` stays a per-surface override — an opaque fill hides the blur but
  * the compositor still pays for it, and the preference is a request to stop spending that.
  *
- * surface list = BLUR_SURFACES (@orb/contracts/settings); sync-enforced by tests/legacy/ui/styles/css-structure.suite.test.ts
- * Rendered pin: tests/legacy/client/features/app-shell/surfaces/app-shell.ct.tsx (#137 block — reduce vs
- * no-preference, desktop + phone + the reading surface). */
+ * surface list = BLUR_SURFACES (@orb/contracts/settings). */
 @media (prefers-reduced-transparency: reduce) {
   :root {
     --blur-fill-chrome: 100%;
     --blur-fill-dense: 100%;
   }
   /* Every selector below is an exact specificity TIE with its glass counterpart and wins on source
-     order; that order is asserted, not assumed (tests/legacy/ui/styles/css-structure.suite.test.ts). The bubble
+     order; that order must hold. The bubble
      therefore has to carry the ROLE ancestor the glass rules key on (`[data-role="user"] …`) — without
      it the selector is one attribute short and LOSES, which is why the old arm never killed a bubble's
      backdrop-filter either, a hole the alpha bug hid. The panel arm names the pane's `::before` glass
@@ -628,12 +621,9 @@ body {
  * `data-elevation="ramp"`, which deletes the panels' inline borders outright at higher specificity and is
  * left winning — its raised FILL is the boundary signal there; and the sub-breakpoint layout (per 3).
  *
- * surface list: the four SLOTS above, asserted in tests/legacy/ui/styles/css-structure.suite.test.ts — it is
+ * surface list: the four SLOTS above — it is
  * deliberately no longer the BLUR_SURFACES sync (that list is what the GLASS paints; `messages` is
- * excluded here on purpose, per 1).
- * Rendered pin: tests/legacy/client/features/app-shell/surfaces/app-shell.ct.tsx (#138 block — per-side widths
- * and the zero sides, the raised edge colour by framebuffer ratio, the no-blur and sub-breakpoint arms,
- * the modal's popover tint, both-preferences, and the grain drop). */
+ * excluded here on purpose, per 1). */
 @media (prefers-contrast: more) {
   /* A noise overlay works against a stated high-contrast preference — drop it entirely here. */
   html[data-texture="grain"] .shell-grid::after,
@@ -717,9 +707,8 @@ html[data-shadow] [data-slot="message-bubble"] {
  * go looking again"; that ruling was scoped to the harness as it then stood). The CT harness used
  * to import exactly TWO sheets (`@orb/ui/styles/globals.css` + `app-shell/surfaces/shell.css`), so every
  * rule in this file was structurally absent from every component test and a styles-tier regression could
- * not red one. The harness now enters through production's shared styles/index.ts, and the cap is pinned by
- * `tests/legacy/client/styles/reading-measure.suite.ct.tsx` (computed max-width vs `--reading-measure` resolved
- * in the column's own font, plus a cap-on/cap-off A/B). The rendered measurement on the isolated stage
+ * not red one. The harness now enters through production's shared styles/index.ts, and the cap can be verified as computed max-width vs `--reading-measure` resolved
+ * in the column's own font, plus a cap-on/cap-off A/B. The rendered measurement on the isolated stage
  * (`pnpm snap --isolated`) remains the whole-app receipt.
  *
  * THE ch RESOLVES IN THE PROSE FONT (#213). `ch` is font-relative to the element it is declared on, and
@@ -956,8 +945,7 @@ html[data-texture="grain"] [data-slot="card-root"] {
    THE CARD ARM SURVIVES OUTSIDE THE GRID, which is where its only real job is: Dialog/AlertDialog
    portal to `document.body` (app-shell.tsx stamps appearance state on the DOCUMENT ROOT precisely
    because of this), so a portalled card is not a `.shell-grid` descendant and its own `::after` is the
-   ONLY grain carrier it has. Narrowing by scope instead of deleting the arm is what keeps both true.
-   Pinned by the grain-double-paint block in tests/legacy/client/features/app-shell/surfaces/app-shell.ct.tsx. */
+   ONLY grain carrier it has. Narrowing by scope instead of deleting the arm is what keeps both true. */
 html[data-texture="grain"] .shell-grid [data-slot="card-root"]::after {
   content: none;
 }

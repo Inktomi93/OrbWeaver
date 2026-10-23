@@ -99,8 +99,7 @@ export const sectionVariants = tv({
     // the rule ABOVE the group as the section's own `border-top` and lets the kicker LEAD the control
     // line — same two marks, same mechanism, ~17px per group cheaper, which on a 291px LIST pane is a
     // whole chip row. MEASURED on the characters pane, whose two groups this shipped for: naming both of
-    // them cost **+2px** of chrome above the first row (260.25 → 262.25 at the docked width, pinned in
-    // tests/legacy/client/features/character/surfaces/character-library-surface.ct.tsx) against the +22px the
+    // them cost **+2px** of chrome above the first row (260.25 → 262.25 at the docked width) against the +22px the
     // stacked spelling costs — on a pane already spending 38.6% of its height on chrome.
     //
     // The root itself becomes the wrapping control line, so the kicker is a flex ITEM of the group rather
@@ -225,8 +224,7 @@ export const gridVariants = tv({
       //
       // A SEPARATE ARM, not a retune of `lead`: `lead`'s other consumer WAS the
       // config welcome hearth (retired by #1210), whose own CT declared the `@4xl` width as the one its split had
-      // to engage at (`5a9534aac2^:tests/legacy/client/features/config/_ct-stories.tsx:215` — #1210 deleted that story with
-      // the surface, so the claim is anchored to the SHA that carried it, never to today's file). Moving the
+      // to engage at. Moving the
       // shared value would change a surface nobody measured. Reach for `leadEarly` when the pane holding the
       // split is a docked CONTENT region rather than a whole page.
       // eslint-disable-next-line orb/no-arbitrary-tw-values -- The early lead keeps the same ratios at its distinct crossover; ends when tokens express these tracks.

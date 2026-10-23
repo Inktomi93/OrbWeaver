@@ -56,7 +56,7 @@ const FONT_SCALE_DEFAULT = 1;
 // at 0.45 because that is already `BACKGROUND_DIM_DEFAULT` — floor and default coincide, so an
 // out-of-bounds stored value `.catch`es straight onto the floor and no lift migration exists to get wrong.
 // `speaker` (the accent ink) is NOT in the guaranteed set: it needs dim 0.714, which is the same
-// sacred-room move D144(d) refuses. Pinned by `tests/legacy/ui/content/theme-scope/palette-contrast.suite.test.ts`.
+// sacred-room move D144(d) refuses.
 //
 // EXPORTED (unlike its sibling bounds) because it is the one bound that carries a proven guarantee: the
 // appearance panel's slider mirror (`client/features/app-shell/lib/appearance-bounds.ts`) takes THIS value

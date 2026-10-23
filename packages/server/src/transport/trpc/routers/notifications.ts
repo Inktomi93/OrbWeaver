@@ -19,8 +19,7 @@
 // the persistence WHERE clause (`selectInbox` / `markAllReadScoped` / `dismissScoped` all pin
 // `recipient_user_id`, so a foreign row matches nothing and `dismiss` collapses to the leak-free
 // NOT_FOUND). That partition is the ONLY belt left between two principals' inboxes, which is why all three
-// are now PROBED — no longer EXEMPT — in `tests/legacy/server/transport/cross-tenant-sweep.suite.int.test.ts`,
-// each with a planted-omission control.
+// need a cross-principal probe.
 //
 // The live inbox stream used to live here as `notifications`. It FOLDED into the multiplexed socket at
 // SSE-1 S3: it is now the `notifications` ROOM (`transport/trpc/stream/sources/notifications.ts`), carrying
