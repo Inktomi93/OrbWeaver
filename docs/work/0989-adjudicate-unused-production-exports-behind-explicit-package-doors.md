@@ -220,7 +220,7 @@ The replacements pass against unchanged production and after retirement. Guided-
 | - | - |
 | Automation, event, preset and RPC support declarations | Localize unused exports while preserving canonical bodies, strict parsing, readonly/presence distinctions and enclosing contracts. |
 | Stream-channel and preset-knob vocabularies | Retain canonical tuples as local schema/type inputs. Complete key-correlated maps feed every variant into the actual unions without changing fields or order. |
-| Bus-registry declaration-location metadata | Remove BUSES and exclusive BusHome after current migration and checker-removal confirmation. Preserve native type assertions, BUS_SUBUNIONS usage and actual event vocabularies. |
+| Bus-registry declaration-location metadata | Remove BUSES and exclusive BusHome after current migration and checker-removal confirmation. Keep native type assertions and their shared registry in testkit. Preserve actual event vocabularies. |
 | Output/discriminator aliases and suppression claims | Remove unsupported aliases and markers. Retain actual schema, native type-test, generator, SDK and stream-attach consumers. |
 | Process-global compatibility APIs | Keep them deleted. Graph-owned runtime buses, subscriptions, sources, cursors, visibility and authority remain unchanged. |
 | Original parser, descriptor and frame purposes | Rebuild selected cases through public schemas and types; preserve meaningful branding, mode/default, scoping and frame relationships. Keep broader automation restoration partial. |
@@ -254,3 +254,18 @@ The live saved-roster contract cases pass and catch deliberate kind/range defect
 Stream rooms, preset knobs, persisted binding actors and prefix-cache actions use total schema maps over their canonical vocabulary. The descriptor union indexes its independent per-kind map. Actual union construction includes every map entry without a cast, runtime guard or new helper door.
 
 Appending a distinct vocabulary member fails the native compiler at its missing map or descriptor entry. Sources restore exactly after each probe. Existing variant bodies, branch order, readonly/presence contracts and public application behavior remain unchanged.
+
+## Production-only consumer placement
+
+Production mode excludes maintained test, tool and generator consumers. Review declaration purpose before changing its home.
+
+| Surface | Decision and evidence |
+| - | - |
+| Bus-registry assertion types | Move shared assertion machinery to `tests/support/iso/bus-registry.ts`. Keep Node and DOM cases under `tests/contracts/events/`; import actual production events. Remove the application package door. |
+| Event discriminator tuples | Keep contracts ownership. Native testkit assertions compare AUTOMATION_BUS_EVENT_TYPES, DOMAIN_EVENT_TYPES and RPG_BUS_EVENT_TYPES against actual event unions. |
+| Canonical schemas, wire types, defaults, limits and error codes | Keep production ownership when testkit builds or parses genuine product data. Tests import the owner rather than duplicate its rules. |
+| Plugin authoring vocabularies and SDK type conformance | Keep contracts ownership. The author-support generator and SDK conformance cases consume actual application contracts. Independent SDK declarations retain their distribution boundary. |
+| Debug response schemas | Keep contracts ownership. E2E readers parse actual HTTP responses; the server uses inferred response types. |
+| KIND_DEFS and KindDefs | Unresolved. The selected admin card-embed case reads the embedding floor but supplies fabricated role clients and storage. Compare its assertions with production-root embedding coverage before retaining or removing this table. Do not use that import alone as liveness authority. |
+
+The consumer inventory establishes references, not complete restoration coverage. Preserve the wider restoration register and review unresolved harness purposes separately.

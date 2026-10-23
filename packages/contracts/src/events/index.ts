@@ -16,11 +16,7 @@ import type { AssetId, CharacterId, PersonaId, WorldBookId } from "@orb/kit/ids"
 // with the 2026-07-25 rollback — no `crew.*`/`rpg.*` members exist today. The rebuild grafts them back onto
 // this union (+ the matching `DOMAIN_TRIGGER_TYPES` reservation in `@orb/contracts/automation`) if either
 // domain returns.
-// The `satisfies readonly DomainEvent["type"][]` brings this bus inside the coverage ratchets' quantifier, and
-// `@orb/contracts/bus-registry` holds the tuple total over the union. This server-internal bus has no client
-// total map; its consumers are the `assertNever` subscribers (`bus-consumer-belt` finds them by their `never`
-// guard). Every member emits today; the belt guards the NEXT one (this header already plans the
-// `crew.*`/`rpg.*` grafts).
+// Native type assertions verify tuple totality; subscribers exhaust the union with assertNever.
 // GREW 2026-08-14 to four: `persona.updated` + `world-info.updated` are the entity→room member-freshness
 // bridge's inputs. They have NO indexer consumer
 // — the embeddings subscriber names them as explicit no-op cases — and exist so ONE reach engine at the

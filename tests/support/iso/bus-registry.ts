@@ -1,11 +1,11 @@
-// @orb/contracts/bus-registry — every bus event union and the `*_EVENT_TYPES` belt it owns.
+// Native type assertions compare production event unions with their discriminator tuples.
 // Types prove each belt names exactly its union's discriminators and each sub-union belongs to its root.
-import type { AUTOMATION_BUS_EVENT_TYPES, AutomationBusEvent } from "#automation";
-import type { CHAT_BUS_EVENT_TYPES, ChatBusEvent } from "#chat";
-import type { DOMAIN_EVENT_TYPES, DomainEvent } from "#events";
-import type { RPG_BUS_EVENT_TYPES, RpgBusEvent } from "#rpg";
-import type { USER_BUS_EVENT_TYPES, UserBusEvent } from "#user-bus";
-import type { WiBusEvent } from "#world-info";
+import type { AUTOMATION_BUS_EVENT_TYPES, AutomationBusEvent } from "@orb/contracts/automation";
+import type { CHAT_BUS_EVENT_TYPES, ChatBusEvent } from "@orb/contracts/chat";
+import type { DOMAIN_EVENT_TYPES, DomainEvent } from "@orb/contracts/events";
+import type { RPG_BUS_EVENT_TYPES, RpgBusEvent } from "@orb/contracts/rpg";
+import type { USER_BUS_EVENT_TYPES, UserBusEvent } from "@orb/contracts/user-bus";
+import type { WiBusEvent } from "@orb/contracts/world-info";
 
 /** Root bus unions by bus name, paired with their canonical belts in {@link BusBelts}. */
 interface BusUnions {

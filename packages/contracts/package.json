@@ -12,7 +12,6 @@
     "./assets": "./src/assets/index.ts",
     "./auth-config": "./src/auth-config/index.ts",
     "./automation": "./src/automation/index.ts",
-    "./bus-registry": "./src/bus-registry/index.ts",
     "./character": "./src/character/index.ts",
     "./chat": "./src/chat/index.ts",
     "./credentials": "./src/credentials/index.ts",

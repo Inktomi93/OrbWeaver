@@ -1,6 +1,6 @@
 // A belt is total only when it names exactly its union's discriminators. The tuple spelling proves membership,
 // never totality, so the registry derives the gap per bus and these assertions hold it at never.
-import type { BeltMismatch, BeltMismatchOf, BusName, SubUnionEscape } from "@orb/contracts/bus-registry";
+import type { BeltMismatch, BeltMismatchOf, BusName, SubUnionEscape } from "@orb/testkit/iso/bus-registry.ts";
 import { expectTypeOf, test } from "vitest";
 
 type Rpg = { readonly type: "sheetChanged" } | { readonly type: "rollResolved" };
