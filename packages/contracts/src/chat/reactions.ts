@@ -123,7 +123,7 @@ export type ReactAsCharacterResult =
   | { readonly ok: true; readonly alreadyReacted: boolean; readonly character: string; readonly emoji: ReactionEmoji; readonly target: string }
   | { readonly ok: false; readonly reason: string };
 
-export type ReactToolValue = Omit<Extract<ReactAsCharacterResult, { readonly ok: true }>, "ok"> & { readonly reacted: boolean };
+type ReactToolValue = Omit<Extract<ReactAsCharacterResult, { readonly ok: true }>, "ok"> & { readonly reacted: boolean };
 export type ReactToolOutcome =
   | { readonly ok: true; readonly value: ReactToolValue }
   | { readonly ok: false; readonly error: Extract<ReactAsCharacterResult, { readonly ok: false }>["reason"] };
@@ -138,7 +138,7 @@ export const REACTION_ATTRIBUTION_MAX_PER_MESSAGE = 8;
 export const REACTION_ATTRIBUTION_CONTENT_CAP = 32_000;
 export const REACTION_ATTRIBUTION_SLOT_WINDOW = 10;
 
-export const messageReactionGroupSchema = z.strictObject({
+const messageReactionGroupSchema = z.strictObject({
   variantId: typeIdSchema(ID_PREFIX.messageVariant),
   segmentIndex: z.number().nullable(),
   segmentSpeaker: z.string().nullable(),

@@ -160,8 +160,8 @@ export interface RenderPolicy {
   readonly forbidExternalMedia: boolean;
 }
 
-/** The strict runtime twin of {@link RenderPolicy} — a nested member of {@link participantViewSchema}. */
-export const renderPolicySchema = z.strictObject({
+// The strict runtime twin of {@link RenderPolicy} — a nested member of {@link participantViewSchema}.
+const renderPolicySchema = z.strictObject({
   htmlTrust: z.enum(HTML_TRUST_STEPS),
   forbidExternalMedia: z.boolean(),
 }) satisfies z.ZodType<RenderPolicy>;
@@ -352,10 +352,10 @@ export const participantViewSchema = z.strictObject({
   backgroundOverride: themeBackgroundSchema.nullable().exactOptional(),
 }) satisfies z.ZodType<ParticipantView>;
 
-/** One character seat's carried APPEARANCE — the card-authored look a room may take over (the theme half,
- *  D44 §12.1, and the background half, BG-C). Deliberately the MINIMAL projection: it is the most a
- *  pre-send DRAFT can honestly produce, since a draft has no `chat_participants` row to read. */
-export interface CarriedAppearanceMember {
+// One character seat's carried APPEARANCE — the card-authored look a room may take over (the theme half,
+//  D44 §12.1, and the background half, BG-C). Deliberately the MINIMAL projection: it is the most a
+//  pre-send DRAFT can honestly produce, since a draft has no `chat_participants` row to read.
+interface CarriedAppearanceMember {
   readonly displayName: string;
   readonly themeOverride: ThemeOverride | null;
   readonly backgroundOverride: ThemeBackground | null;
@@ -593,9 +593,9 @@ const INVITE_TOKEN_MIN = 1;
 
 /** Invite lifecycle status (the db `chat_invites.status` column mirrors this). */
 export const INVITE_STATUSES = ["pending", "accepted", "declined", "revoked", "expired"] as const;
-export type InviteStatus = (typeof INVITE_STATUSES)[number];
-/** @public twin: INVITE_STATUSES — drives the chat_invites status enum + CHECK (cross-package PUBLIC). */
-export const inviteStatusSchema = z.enum(INVITE_STATUSES) satisfies z.ZodType<InviteStatus>;
+type InviteStatus = (typeof INVITE_STATUSES)[number];
+
+const inviteStatusSchema = z.enum(INVITE_STATUSES) satisfies z.ZodType<InviteStatus>;
 
 /** The most accounts one signup invite may create (D259). */
 export const SIGNUP_MAX_USES = 10;
@@ -653,8 +653,6 @@ export type RedeemInviteInput = z.infer<typeof redeemInviteSchema>;
 export const acceptInviteSchema = z.object({
   inviteId: typeIdSchema(ID_PREFIX.chatInvite),
 });
-/** @public twin: acceptInviteSchema — the live `acceptInvite` tRPC input (cross-package PUBLIC). */
-export type AcceptInviteInput = z.infer<typeof acceptInviteSchema>;
 
 /** The preview-then-confirm result — deliberately MINIMAL: room name / host handle / member COUNT / mode
  *  label ONLY. NO roster identities, NO history (Part III §2 — those replay from `joinSeq` AFTER accept).
@@ -698,8 +696,6 @@ export type SignupRequest = z.infer<typeof signupRequestSchema>;
 
 /** D259 — the signup route's success body: the room the new account is seated in, so the client lands there. */
 export const signupResultSchema = z.strictObject({ ok: z.literal(true), chatId: typeIdSchema(ID_PREFIX.chat) });
-/** @public twin: signupResultSchema */
-export type SignupResult = z.infer<typeof signupResultSchema>;
 
 /** D260 — the local sign-up form's invite preview body: the stashed token alone. STRICT, like the signup body. */
 export const signupPreviewRequestSchema = z.strictObject({ token: signupRequestSchema.shape.token });
@@ -716,8 +712,6 @@ export type PendingJoinConfirmRequest = z.infer<typeof pendingJoinConfirmRequest
 
 /** D259 — the confirm's answer. `signedIn` is false when the new account waits for an admin's approval. */
 export const pendingJoinConfirmResultSchema = z.strictObject({ signedIn: z.boolean(), chatId: typeIdSchema(ID_PREFIX.chat) });
-/** @public twin: pendingJoinConfirmResultSchema */
-export type PendingJoinConfirmResult = z.infer<typeof pendingJoinConfirmResultSchema>;
 
 /** D259 — the pending-join routes' refusal codes (`{ error: <code> }`). The client maps each to its own copy. */
 export const PENDING_JOIN_ERROR_CODES = ["invalid_request", "already_signed_in", "join_unavailable", "account_exists"] as const;

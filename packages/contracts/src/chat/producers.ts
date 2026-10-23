@@ -18,10 +18,10 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { z } from "zod";
 
-/** The closed chat-identity-kind axis. `agent` is the D60 one-arm add: adding it REDS the policy record, both
- *  projections' `assertNever` tails, the loader's per-kind source table and `identityKey` — the five decision
- *  sites, found by the compiler (§3.7 of the design; the planted-control receipt lives in the build report). */
-export const CHAT_IDENTITY_KINDS = ["character", "persona"] as const;
+// The closed chat-identity-kind axis. `agent` is the D60 one-arm add: adding it REDS the policy record, both
+//  projections' `assertNever` tails, the loader's per-kind source table and `identityKey` — the five decision
+//  sites, found by the compiler (§3.7 of the design; the planted-control receipt lives in the build report).
+const CHAT_IDENTITY_KINDS = ["character", "persona"] as const;
 export type ChatIdentityKind = (typeof CHAT_IDENTITY_KINDS)[number];
 
 /** One character the chat references — name + portrait floor. NO description: a card's description is not

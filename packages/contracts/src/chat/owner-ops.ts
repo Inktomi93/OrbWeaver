@@ -16,11 +16,11 @@ import type { TurnOutcome } from "./views.ts";
 
 export type SignupMinterCheckOp = (minterUserId: UserId) => Promise<boolean>;
 
-/** The per-seat card-derived decoration a roster projection needs, resolved from ONE character read (the
- *  render policy, the raw theme + background overrides, and the card name/avatar) — collapses what used to
- *  be four separate reads of the same `characters` row per participant. `card` is null for a human/agent
- *  seat, no resolvable host, or a gone/mid-delete card. */
-export interface SeatDeco {
+// The per-seat card-derived decoration a roster projection needs, resolved from ONE character read (the
+//  render policy, the raw theme + background overrides, and the card name/avatar) — collapses what used to
+//  be four separate reads of the same `characters` row per participant. `card` is null for a human/agent
+//  seat, no resolvable host, or a gone/mid-delete card.
+interface SeatDeco {
   /** The content-render policy (character override ?? global floor); the bare global floor for a card-less seat. */
   readonly renderPolicy: RenderPolicy;
   /** The raw, unmerged per-character theme override; null for a card-less seat. Chat never reads the themes
@@ -122,7 +122,6 @@ export type RequestTurnOp = (params: RequestTurnParams) => Promise<TurnOutcome>;
 /** memory's digest write payload → `embeddings.store`. `contentHash` is the staleness/collapse key;
  *  `key.scopedCharacterId` is always a real CharacterId (the synthetic group-as-character bucket, or a seated
  *  character, never a sentinel/null).
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export interface MemoryDigestInput {
   readonly lens: "digest";

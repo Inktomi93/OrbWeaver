@@ -24,8 +24,8 @@ import type { MessageKind } from "./participants.ts";
 import type { SeatKnobs } from "./roster.ts";
 import type { TokenProvenance } from "./token-provenance.ts";
 
-/** Normalized completed facts travel by local transcript position, never by private funding or connection ids. */
-export const pendingGenerationObservationInputSchema = z
+// Normalized completed facts travel by local transcript position, never by private funding or connection ids.
+const pendingGenerationObservationInputSchema = z
   .object({
     turnIndex: z.int().nonnegative(),
     ordinal: z.int().nonnegative(),

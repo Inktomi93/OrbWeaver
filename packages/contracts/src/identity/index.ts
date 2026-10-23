@@ -25,7 +25,7 @@ export const userRoleSchema = z.enum(USER_ROLES) satisfies z.ZodType<UserRole>;
 // the rebuild grafts an `agent` member here if the agent-principal design set returns (docs/work/0048).
 export const USER_KINDS = ["human"] as const;
 export type UserKind = (typeof USER_KINDS)[number];
-export const userKindSchema = z.enum(USER_KINDS) satisfies z.ZodType<UserKind>;
+const userKindSchema = z.enum(USER_KINDS) satisfies z.ZodType<UserKind>;
 
 /** Never carries passwordHash or any secret column. ownerHandle names an agent's owner — null for humans. */
 export interface AdminUserView {
@@ -72,8 +72,8 @@ export const SETUP_COMMAND = "pnpm start --setup";
 export const BARE_METAL_ENV_FILE = ".env";
 export const CONTAINER_ENV_FILE = "docker/orbweaver.local.env";
 export const COMPOSE_FILE = "docker-compose.yaml";
-/** The overlay whose own `environment:` block pins single-user and the owner fallback over both env files. */
-export const HOST_NETWORK_OVERLAY = "docker/compose.host-network.yaml";
+// The overlay whose own `environment:` block pins single-user and the owner fallback over both env files.
+const HOST_NETWORK_OVERLAY = "docker/compose.host-network.yaml";
 /** Recreates the container with changed env files; a plain restart keeps the environment it was created with. */
 export const COMPOSE_UP_COMMAND = "docker compose up -d";
 
@@ -81,14 +81,14 @@ export const COMPOSE_UP_COMMAND = "docker compose up -d";
  *  single-user owner, so both read this one spelling. */
 export const SETUP_FRIENDS_ANSWER = "me and friends";
 
-/** Where the running `AUTH_MODE` came from: the `.env` file the server loads (the setup wizard writes it too), the
- *  environment the process started with (a container's compose env files, a launcher, a shell export), or nowhere,
- *  so the schema default applies. */
-export const AUTH_MODE_SOURCES = ["env-file", "process-env", "default"] as const;
+// Where the running `AUTH_MODE` came from: the `.env` file the server loads (the setup wizard writes it too), the
+//  environment the process started with (a container's compose env files, a launcher, a shell export), or nowhere,
+//  so the schema default applies.
+const AUTH_MODE_SOURCES = ["env-file", "process-env", "default"] as const;
 export type AuthModeSource = (typeof AUTH_MODE_SOURCES)[number];
 
-/** The install shape, which decides the file a setting goes in and how the server restarts. */
-export const INSTALL_KINDS = ["container", "bare-metal"] as const;
+// The install shape, which decides the file a setting goes in and how the server restarts.
+const INSTALL_KINDS = ["container", "bare-metal"] as const;
 export type InstallKind = (typeof INSTALL_KINDS)[number];
 
 /** The sign-in modes the Multi-user helper prints a switch for, in print order. */
@@ -143,8 +143,8 @@ export function envFileText(lines: readonly EnvLine[]): string {
   return lines.map(([key, value]) => `${key}=${value}`).join("\n");
 }
 
-/** The modes that mint a session cookie, so they need the SESSION_SECRET pepper to authenticate anyone. */
-export const COOKIE_AUTH_MODES = ["local", "oidc"] as const satisfies readonly AuthMode[];
+// The modes that mint a session cookie, so they need the SESSION_SECRET pepper to authenticate anyone.
+const COOKIE_AUTH_MODES = ["local", "oidc"] as const satisfies readonly AuthMode[];
 export type CookieAuthMode = (typeof COOKIE_AUTH_MODES)[number];
 
 export function isCookieAuthMode(mode: AuthMode): boolean {
@@ -174,18 +174,18 @@ export type RequestTransport = (typeof REQUEST_TRANSPORTS)[number];
 export const CLIENT_SCOPES = ["loopback", "private", "public"] as const;
 export type ClientScope = (typeof CLIENT_SCOPES)[number];
 
-/** The relays a share can run: a Cloudflare quick tunnel. `SHARE_RELAY` in the server env takes a member to start one at boot. */
-export const SHARE_RELAY_KINDS = ["quick"] as const;
+// The relays a share can run: a Cloudflare quick tunnel. `SHARE_RELAY` in the server env takes a member to start one at boot.
+const SHARE_RELAY_KINDS = ["quick"] as const;
 export type ShareRelayKind = (typeof SHARE_RELAY_KINDS)[number];
 export const shareRelayKindSchema = z.enum(SHARE_RELAY_KINDS) satisfies z.ZodType<ShareRelayKind>;
 
-/** The relay controller's states: `starting` carries the death it restarts after (null for an owner's start), `up` the
- *  public URL, `down` a reason and whether a restart is still owed. */
-export const SHARE_STATES = ["off", "starting", "up", "down"] as const;
+// The relay controller's states: `starting` carries the death it restarts after (null for an owner's start), `up` the
+//  public URL, `down` a reason and whether a restart is still owed.
+const SHARE_STATES = ["off", "starting", "up", "down"] as const;
 export type ShareState = (typeof SHARE_STATES)[number];
 
-/** Why a relay is down: its process ended, it reported no URL in time, or a restart could not launch it. */
-export const RELAY_DOWN_REASONS = ["exited", "no_url", "launch_failed"] as const;
+// Why a relay is down: its process ended, it reported no URL in time, or a restart could not launch it.
+const RELAY_DOWN_REASONS = ["exited", "no_url", "launch_failed"] as const;
 export type RelayDownReason = (typeof RELAY_DOWN_REASONS)[number];
 
 /** The coded refusals of `share.start` (the wire's `data.reason`), each naming a fix the Share card shows. A relayed
@@ -216,13 +216,8 @@ const relayStatusSchemas = {
   down: z.strictObject({ state: z.literal("down"), relay: shareRelayKindSchema, reason: z.enum(RELAY_DOWN_REASONS), restarting: z.boolean() }),
 } as const satisfies { readonly [S in ShareState]: z.ZodObject<{ state: z.ZodLiteral<S> }> };
 
-/** One relay's state as the owner's Share card reads it. */
-export const relayStatusSchema = z.discriminatedUnion("state", [
-  relayStatusSchemas.off,
-  relayStatusSchemas.starting,
-  relayStatusSchemas.up,
-  relayStatusSchemas.down,
-]);
+// One relay's state as the owner's Share card reads it.
+const relayStatusSchema = z.discriminatedUnion("state", [relayStatusSchemas.off, relayStatusSchemas.starting, relayStatusSchemas.up, relayStatusSchemas.down]);
 export type RelayStatus = z.infer<typeof relayStatusSchema>;
 
 /** Why a share may not start, with the sentence that names its fix. */
@@ -245,13 +240,13 @@ export const ipCertificateSettingSchema = z.strictObject({
 });
 export type IpCertificateSetting = z.infer<typeof ipCertificateSettingSchema>;
 
-/** The IP certificate's states: off, getting its first certificate, serving https, or failed back to plain http. */
-export const IP_CERTIFICATE_STATES = ["off", "obtaining", "active", "failed"] as const;
+// The IP certificate's states: off, getting its first certificate, serving https, or failed back to plain http.
+const IP_CERTIFICATE_STATES = ["off", "obtaining", "active", "failed"] as const;
 export type IpCertificateState = (typeof IP_CERTIFICATE_STATES)[number];
 
-/** Why a certificate is not serving: the certificate authority could not reach the challenge through port 80, any
- *  other issuance error, the https port could not open, or every renewal failed until the certificate expired. */
-export const IP_CERTIFICATE_FAILURES = ["validation_failed", "issuance_failed", "listener_failed", "expired"] as const;
+// Why a certificate is not serving: the certificate authority could not reach the challenge through port 80, any
+//  other issuance error, the https port could not open, or every renewal failed until the certificate expired.
+const IP_CERTIFICATE_FAILURES = ["validation_failed", "issuance_failed", "listener_failed", "expired"] as const;
 export type IpCertificateFailureCode = (typeof IP_CERTIFICATE_FAILURES)[number];
 
 /** The coded refusals of `share.enableIpCertificate`: a sign-in mode a visitor over https cannot use safely, an
@@ -284,8 +279,8 @@ const ipCertificateStatusSchemas = {
   failed: z.strictObject({ state: z.literal("failed"), setting: ipCertificateSettingSchema, failure: ipCertificateFailureSchema }),
 } as const satisfies { readonly [S in IpCertificateState]: z.ZodObject<{ state: z.ZodLiteral<S> }> };
 
-/** The IP certificate as the owner's Share card reads it. */
-export const ipCertificateStatusSchema = z.discriminatedUnion("state", [
+// The IP certificate as the owner's Share card reads it.
+const ipCertificateStatusSchema = z.discriminatedUnion("state", [
   ipCertificateStatusSchemas.off,
   ipCertificateStatusSchemas.obtaining,
   ipCertificateStatusSchemas.active,
@@ -385,13 +380,13 @@ export type AuthLogoutResult = z.infer<typeof authLogoutResultSchema>;
 // a roster it loaded; the union homes at the DAG root so both sides import it down. `can()` + the
 // `requireAdmin`/`requireOwner` wrappers live in `domain/admin/guard.ts`; chat reaches it by injection.
 
-/** Global-scope authority actions. `admin` = requires an administrator (owner passes too); `owner` =
- *  requires the box owner. */
-export const GLOBAL_ACTIONS = ["admin", "owner"] as const;
+// Global-scope authority actions. `admin` = requires an administrator (owner passes too); `owner` =
+//  requires the box owner.
+const GLOBAL_ACTIONS = ["admin", "owner"] as const;
 export type GlobalAction = (typeof GLOBAL_ACTIONS)[number];
 
-/** Chat-resource authority actions. `read` = the present-member floor; `host` = room authority. */
-export const CHAT_ACTIONS = ["read", "host"] as const;
+// Chat-resource authority actions. `read` = the present-member floor; `host` = room authority.
+const CHAT_ACTIONS = ["read", "host"] as const;
 export type ChatAction = (typeof CHAT_ACTIONS)[number];
 
 /** A chat participant's room authority. Lives here (not `@orb/contracts/chat`) because `can()` reads it
@@ -405,12 +400,12 @@ export interface ChatMembership {
   readonly role: ParticipantRoleState;
 }
 
-/** GLOBAL scope — the global-role axis (admin/owner). */
-export interface GlobalResource {
+// GLOBAL scope — the global-role axis (admin/owner).
+interface GlobalResource {
   readonly kind: "global";
 }
-/** CHAT scope — carries the {@link ChatMembership} chat loaded + fed in. */
-export interface ChatResource {
+// CHAT scope — carries the {@link ChatMembership} chat loaded + fed in.
+interface ChatResource {
   readonly kind: "chat";
   readonly membership: ChatMembership;
 }

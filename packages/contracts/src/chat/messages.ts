@@ -55,7 +55,7 @@ export type CueRole = (typeof CUE_ROLES)[number];
  *  `recorded` + null is a proven deleted connection while `unrecorded` + null is an honest missing record. */
 export const CONNECTION_ATTRIBUTION_PROVENANCES = ["recorded", "unrecorded"] as const;
 export type ConnectionAttributionProvenance = (typeof CONNECTION_ATTRIBUTION_PROVENANCES)[number];
-export const connectionAttributionProvenanceSchema = z.enum(CONNECTION_ATTRIBUTION_PROVENANCES) satisfies z.ZodType<ConnectionAttributionProvenance>;
+const connectionAttributionProvenanceSchema = z.enum(CONNECTION_ATTRIBUTION_PROVENANCES) satisfies z.ZodType<ConnectionAttributionProvenance>;
 
 /** The `listMessages` page CEILING, enforced at the transport trust boundary (the `CHAT_LIST_MAX_LIMIT` /
  *  `character.list` precedent). An unclamped `limit` is an unbounded SQL `.limit()` DoS surface; an over-bound
@@ -255,23 +255,23 @@ const contentSignatureSnapshotSchema = z.object({
 const contentSignaturesSchema = contentSignatureSnapshotSchema.extend({ previous: contentSignatureSnapshotSchema.optional() });
 export type ContentSignatures = z.infer<typeof contentSignaturesSchema>;
 
-/** `message_variants.metadata` PARSED (never cast) at the read seam: the measured reasoning window under
- *  {@link VARIANT_METADATA_REASONING_MS_KEY}, the provider sidecar, and the ST import's foreign residue.
- *
- *  §5.3c CLASS 3 — a parsed JSON sidecar with a zod schema at the read seam and a producer-side parse on
- *  write, never `Record<string, unknown>` past the seam. The column's `$type` is this shape
- *  (`db/schema/chat.ts`), every reader goes through {@link parseVariantMetadata}, and every writer builds
- *  this object rather than a bag — which is what puts the SQL rollup readers'
- *  `json_extract(metadata, '$.reasoning_duration')` under `open-json-column-key-parity` at all (an open bag
- *  is one level BELOW that gate's reach: it judges the column's `$type`, never a bag inside it).
- *
- *  `importResidue` is the ST import's OWN doorway and the reason closing this type is not a data drop: an ST
- *  `swipe_info[i].extra` carries arbitrary foreign keys (`api`, `bias`, `send_date`, a tool's own residue)
- *  which the import preserved verbatim by flattening them into this column. They keep landing — under ONE
- *  named, `JsonValue`-typed field, which is §5.3c class 4: declared-OPAQUE provenance, never compared,
- *  switched on or joined, and unreadable by key without an explicit narrow. Flattening them back into the
- *  modeled level is what let a foreign file's `providerMetadata` key masquerade as ours. */
-export const variantMetadataSchema = z.object({
+// `message_variants.metadata` PARSED (never cast) at the read seam: the measured reasoning window under
+//  {@link VARIANT_METADATA_REASONING_MS_KEY}, the provider sidecar, and the ST import's foreign residue.
+//
+//  §5.3c CLASS 3 — a parsed JSON sidecar with a zod schema at the read seam and a producer-side parse on
+//  write, never `Record<string, unknown>` past the seam. The column's `$type` is this shape
+//  (`db/schema/chat.ts`), every reader goes through {@link parseVariantMetadata}, and every writer builds
+//  this object rather than a bag — which is what puts the SQL rollup readers'
+//  `json_extract(metadata, '$.reasoning_duration')` under `open-json-column-key-parity` at all (an open bag
+//  is one level BELOW that gate's reach: it judges the column's `$type`, never a bag inside it).
+//
+//  `importResidue` is the ST import's OWN doorway and the reason closing this type is not a data drop: an ST
+//  `swipe_info[i].extra` carries arbitrary foreign keys (`api`, `bias`, `send_date`, a tool's own residue)
+//  which the import preserved verbatim by flattening them into this column. They keep landing — under ONE
+//  named, `JsonValue`-typed field, which is §5.3c class 4: declared-OPAQUE provenance, never compared,
+//  switched on or joined, and unreadable by key without an explicit narrow. Flattening them back into the
+//  modeled level is what let a foreign file's `providerMetadata` key masquerade as ours.
+const variantMetadataSchema = z.object({
   [VARIANT_METADATA_REASONING_MS_KEY]: z.number().optional(),
   [VARIANT_METADATA_TOKEN_COUNT_KEY]: z.number().optional(),
   /** The estimated cost of the system prompt the generating turn sent (agent-sdk turns only). The next turn's
@@ -347,7 +347,7 @@ export interface VariablePrecondition {
   readonly key: string;
   readonly expected: string | null;
 }
-export const variablePreconditionSchema = z.object({ key: z.string(), expected: z.string().nullable() }) satisfies z.ZodType<VariablePrecondition>;
+const variablePreconditionSchema = z.object({ key: z.string(), expected: z.string().nullable() }) satisfies z.ZodType<VariablePrecondition>;
 export type VariablePreconditions = readonly VariablePrecondition[];
 export const variablePreconditionsSchema = z
   .array(variablePreconditionSchema)
@@ -364,10 +364,10 @@ export const variablePreconditionsSchema = z
  *  answer `applied`. */
 export type VariableWriteResult = { readonly outcome: "applied" } | { readonly outcome: "stale"; readonly actual: Record<string, string | null> };
 
-/** One standalone (out-of-turn) delta batch (`chats.standalone_variable_deltas`) —
- *  a seq-stamped `applyVariableOps` write made with no turn in flight. Parsed at the read seam; folded into
- *  `chats.runtime_variables` interleaved with the message-variant deltas by `seq`. */
-export const standaloneVariableDeltaSchema = z.object({ seq: z.number(), delta: variableDeltaSchema });
+// One standalone (out-of-turn) delta batch (`chats.standalone_variable_deltas`) —
+//  a seq-stamped `applyVariableOps` write made with no turn in flight. Parsed at the read seam; folded into
+//  `chats.runtime_variables` interleaved with the message-variant deltas by `seq`.
+const standaloneVariableDeltaSchema = z.object({ seq: z.number(), delta: variableDeltaSchema });
 export type StandaloneVariableDelta = z.infer<typeof standaloneVariableDeltaSchema>;
 export type StandaloneVariableDeltas = StandaloneVariableDelta[];
 export const standaloneVariableDeltasSchema = z.array(standaloneVariableDeltaSchema) satisfies z.ZodType<StandaloneVariableDeltas>;

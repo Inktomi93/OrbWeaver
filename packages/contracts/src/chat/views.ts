@@ -244,7 +244,7 @@ export interface ReapResult {
   readonly reaped: number;
 }
 
-export const chatSeatPortraitSchema = z.strictObject({
+const chatSeatPortraitSchema = z.strictObject({
   characterId: typeIdSchema(ID_PREFIX.character),
   name: z.string(),
   avatarHash: z.string().nullable(),

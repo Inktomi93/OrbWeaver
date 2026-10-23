@@ -31,10 +31,10 @@ import { messageKindSchema, messageRoleSchema } from "./participants.ts";
 // Types only — the producing engine (`assemblePrompt`/`buildAssembleContext`) is `domain/chat`.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
-/** The card's Character's-Note-\@-Depth projected onto the assemble characters — spliced into history at a
- *  fixed `depth`/`role`. Re-homed slim HERE (not imported from `contracts/character`) so `chat` avoids a
- *  `chat → character` DAG edge. An empty `prompt` is "no note" at assemble time. */
-export interface AssembleDepthNote {
+// The card's Character's-Note-\@-Depth projected onto the assemble characters — spliced into history at a
+//  fixed `depth`/`role`. Re-homed slim HERE (not imported from `contracts/character`) so `chat` avoids a
+//  `chat → character` DAG edge. An empty `prompt` is "no note" at assemble time.
+interface AssembleDepthNote {
   prompt: string;
   depth: number;
   role?: MessageRole | undefined;
@@ -128,10 +128,10 @@ export interface ChatInjection {
   originLabel?: string;
 }
 
-/** The injection PRODUCER axis (see {@link ChatInjection.origin}) — declared ONCE as a tuple and DERIVED
- *  (§5.5, no inline union re-spell). Not a wire-input axis: `chatInjectionInputSchema` deliberately omits it
- *  (a client never authors provenance — the `user` origin is stamped server-side when the row is mapped). */
-export const CHAT_INJECTION_ORIGINS = ["user", "world-info", "persona", "authors-note", "guided", "game-state", "new-chat-marker"] as const;
+// The injection PRODUCER axis (see {@link ChatInjection.origin}) — declared ONCE as a tuple and DERIVED
+//  (§5.5, no inline union re-spell). Not a wire-input axis: `chatInjectionInputSchema` deliberately omits it
+//  (a client never authors provenance — the `user` origin is stamped server-side when the row is mapped).
+const CHAT_INJECTION_ORIGINS = ["user", "world-info", "persona", "authors-note", "guided", "game-state", "new-chat-marker"] as const;
 export type ChatInjectionOrigin = (typeof CHAT_INJECTION_ORIGINS)[number];
 
 /** The four injection positions as a tuple — the ONE runtime home for the `ChatInjection["position"]`
@@ -153,21 +153,21 @@ export const chatInjectionInputSchema = z.object({
 });
 export type ChatInjectionInput = z.infer<typeof chatInjectionInputSchema>;
 
-/** WHY one pooled memory block did (or did not) reach this turn's `{{memory}}` — the verdict axis of
- *  {@link MemoryRecallCandidate}. Declared ONCE as a tuple and DERIVED (§5.5, no inline union re-spell).
- *  The arms follow the recall pipeline's own order of elimination (`domain/chat/memory/recall/recall.ts`):
- *   • `unwitnessed`    — the speaker was absent for the block's span (a character cannot recall a scene it
- *                        wasn't in); dropped before any mode dispatch;
- *   • `live-window`    — the block's scene is still VERBATIM in this turn's history window, so re-injecting
- *                        its digest would say the same thing twice;
- *   • `mode-excluded`  — the pool survivor is not eligible in the active mode (mixA takes tier-0 only);
- *   • `bridge-covered` — a HIGHER-tier consolidation already covers this block, so the tiered bridge passed
- *                        the parent instead and this one never became a retrieval candidate;
- *   • `below-floor`    — it WAS scanned as a candidate and did not survive the retrieval cut (the `minScore`
- *                        floor, or the mixC rerank trim). Carries no score by construction: retrieval returns
- *                        its SURVIVORS, so the score of a rejected candidate is not knowable here;
- *   • `admitted`       — it made the block, and carries the `score`/`relevance`/`rank` it made it with. */
-export const MEMORY_RECALL_VERDICTS = ["admitted", "below-floor", "bridge-covered", "mode-excluded", "live-window", "unwitnessed"] as const;
+// WHY one pooled memory block did (or did not) reach this turn's `{{memory}}` — the verdict axis of
+//  {@link MemoryRecallCandidate}. Declared ONCE as a tuple and DERIVED (§5.5, no inline union re-spell).
+//  The arms follow the recall pipeline's own order of elimination (`domain/chat/memory/recall/recall.ts`):
+//   • `unwitnessed`    — the speaker was absent for the block's span (a character cannot recall a scene it
+//                        wasn't in); dropped before any mode dispatch;
+//   • `live-window`    — the block's scene is still VERBATIM in this turn's history window, so re-injecting
+//                        its digest would say the same thing twice;
+//   • `mode-excluded`  — the pool survivor is not eligible in the active mode (mixA takes tier-0 only);
+//   • `bridge-covered` — a HIGHER-tier consolidation already covers this block, so the tiered bridge passed
+//                        the parent instead and this one never became a retrieval candidate;
+//   • `below-floor`    — it WAS scanned as a candidate and did not survive the retrieval cut (the `minScore`
+//                        floor, or the mixC rerank trim). Carries no score by construction: retrieval returns
+//                        its SURVIVORS, so the score of a rejected candidate is not knowable here;
+//   • `admitted`       — it made the block, and carries the `score`/`relevance`/`rank` it made it with.
+const MEMORY_RECALL_VERDICTS = ["admitted", "below-floor", "bridge-covered", "mode-excluded", "live-window", "unwitnessed"] as const;
 export type MemoryRecallVerdict = (typeof MEMORY_RECALL_VERDICTS)[number];
 
 /** ONE memory block considered for this turn's `{{memory}}` (`MemoryRecallSlice.candidates`) — the block's
@@ -290,10 +290,10 @@ export interface AssembleTrace {
  *  tab's per-source accounting). Declared ONCE as a tuple and DERIVED (§5.5); the order IS prompt order, which
  *  is also the stacked bar's segment order and the client's colour-ramp keying. `history` is the shaped wire
  *  history (SHAPE + FIT), every other member is a BUILD-walk contribution. */
-/** Which limit bounds the context: the connected model's `window`, or the preset's own `cap`
- *  (`maxContextTokens`), whichever leaves less room. */
-export const CONTEXT_LIMIT_KINDS = ["window", "cap"] as const;
-export type ContextLimitKind = (typeof CONTEXT_LIMIT_KINDS)[number];
+// Which limit bounds the context: the connected model's `window`, or the preset's own `cap`
+//  (`maxContextTokens`), whichever leaves less room.
+const CONTEXT_LIMIT_KINDS = ["window", "cap"] as const;
+type ContextLimitKind = (typeof CONTEXT_LIMIT_KINDS)[number];
 
 /** The limit the fit's room comes from, in the user's own terms: the model window or the preset cap. A surface
  *  explains the room against it: the reply reserve, and on a window the estimator's safety margin
@@ -395,32 +395,32 @@ export interface AssemblyBudgetPreview {
 export const SHAPE_BREAKPOINT_DECISIONS = ["placed", "no-stable-prefix", "in-prefix-injection-or-squash"] as const;
 export type ShapeBreakpointDecision = (typeof SHAPE_BREAKPOINT_DECISIONS)[number];
 
-/** WHERE one delivered wire row's bytes came from — the provenance axis of {@link ShapeTraceRow}. Declared
- *  ONCE as a tuple and DERIVED (§5.5). Resolved from the SHAPE-internal `messageId` discriminator (a canon row
- *  carries the id of the message it was loaded from; a spliced injection and a synthetic nudge are id-less by
- *  construction — the same distinction `resolveFullCards` reads):
- *   • `canon`     — every contributing row is a stored message;
- *   • `assembled` — every contributing row was produced for THIS turn and is stored nowhere: a spliced
- *                   `in_chat` injection, the group/continuation nudge, or the synthetic user turn a
- *                   regen/continue appends. Deliberately NOT called "injected" — the nudge and the synthetic
- *                   turn are not injections, and naming the arm after one of its three producers would be a
- *                   surface that lies about the other two;
- *   • `merged`    — the adjacent-same-role squash folded BOTH kinds into one delivered row. Its own arm rather
- *                   than reporting as `canon`, because that fold is exactly the INJECT-NAMED-AS-PLAYER shape (a
- *                   demoted system note absorbed into the player's turn) and calling it canon would hide it. */
-export const SHAPE_ROW_SOURCES = ["canon", "assembled", "merged"] as const;
+// WHERE one delivered wire row's bytes came from — the provenance axis of {@link ShapeTraceRow}. Declared
+//  ONCE as a tuple and DERIVED (§5.5). Resolved from the SHAPE-internal `messageId` discriminator (a canon row
+//  carries the id of the message it was loaded from; a spliced injection and a synthetic nudge are id-less by
+//  construction — the same distinction `resolveFullCards` reads):
+//   • `canon`     — every contributing row is a stored message;
+//   • `assembled` — every contributing row was produced for THIS turn and is stored nowhere: a spliced
+//                   `in_chat` injection, the group/continuation nudge, or the synthetic user turn a
+//                   regen/continue appends. Deliberately NOT called "injected" — the nudge and the synthetic
+//                   turn are not injections, and naming the arm after one of its three producers would be a
+//                   surface that lies about the other two;
+//   • `merged`    — the adjacent-same-role squash folded BOTH kinds into one delivered row. Its own arm rather
+//                   than reporting as `canon`, because that fold is exactly the INJECT-NAMED-AS-PLAYER shape (a
+//                   demoted system note absorbed into the player's turn) and calling it canon would hide it.
+const SHAPE_ROW_SOURCES = ["canon", "assembled", "merged"] as const;
 export type ShapeRowSource = (typeof SHAPE_ROW_SOURCES)[number];
 
-/** WHY a system-role row reached the wire as user text instead of a real `system` row — the fold axis of
- *  {@link ShapeTraceRow}:
- *   • `level`     — the turn's message-handling level folds every system row (`semi-strict`, `strict`);
- *   • `slot`      — the level keeps a system run only in its legal slot, and this run sat outside it (the row
- *                   before is not a user row, or the row after is not an assistant row);
- *   • `tail`      — the run ended the history, and the model takes no system row there
- *                   (`turns.midConversationSystem`);
- *   • `mid-array` — the run sat inside the history, and the model takes no system row there
- *                   (`turns.historySystemRows`). */
-export const SHAPE_FOLD_REASONS = ["level", "slot", "tail", "mid-array"] as const;
+// WHY a system-role row reached the wire as user text instead of a real `system` row — the fold axis of
+//  {@link ShapeTraceRow}:
+//   • `level`     — the turn's message-handling level folds every system row (`semi-strict`, `strict`);
+//   • `slot`      — the level keeps a system run only in its legal slot, and this run sat outside it (the row
+//                   before is not a user row, or the row after is not an assistant row);
+//   • `tail`      — the run ended the history, and the model takes no system row there
+//                   (`turns.midConversationSystem`);
+//   • `mid-array` — the run sat inside the history, and the model takes no system row there
+//                   (`turns.historySystemRows`).
+const SHAPE_FOLD_REASONS = ["level", "slot", "tail", "mid-array"] as const;
 export type ShapeFoldReason = (typeof SHAPE_FOLD_REASONS)[number];
 
 /** ONE DELIVERED WIRE ROW, content-FREE (`ShapeTrace.rows`) — the ordered projection of the history the model
@@ -547,7 +547,7 @@ export const sentPromptSchema = z.object({
     }),
   ),
 });
-export type SentPrompt = z.infer<typeof sentPromptSchema>;
+type SentPrompt = z.infer<typeof sentPromptSchema>;
 
 /**
  * The per-variant WIRE RECORD — what one generation ACTUALLY sent, read back off

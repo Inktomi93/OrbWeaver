@@ -59,13 +59,13 @@ export const memberCardVisibilitySchema = z.enum(MEMBER_CARD_VISIBILITY_LEVELS) 
  *  `.catch().default()` on the schema hides `.options`, so the tuple is the shared source, not the enum. */
 export const GROUP_POLICIES = ["natural", "list", "pooled", "manual", "smart"] as const;
 export type GroupPolicy = (typeof GROUP_POLICIES)[number];
-/** Arbitration policy (WHO speaks each round). `@mention` is NOT a policy value — it is a hard override
- *  applied BEFORE the policy (and in a NARRATOR room it COERCES the round to per-speaker for the named
- *  character, like the other two forced doors). `smart` picks the one next speaker with the room's
- *  {@link SmartPicker}: the bound reranker by default (`domain/chat/engine/rerank-pick`), or the Utility-model
- *  arbiter (`domain/chat/engine/smart-arbitrate`) as the opt-in upgrade. `natural` is its DEGRADE arm, and the
- *  degrade says so out loud (D41). A NARRATOR round never buys either pick (see the arm below). */
-export const groupPolicySchema = z.enum(GROUP_POLICIES).catch("natural").default("natural") satisfies z.ZodType<GroupPolicy>;
+// Arbitration policy (WHO speaks each round). `@mention` is NOT a policy value — it is a hard override
+//  applied BEFORE the policy (and in a NARRATOR room it COERCES the round to per-speaker for the named
+//  character, like the other two forced doors). `smart` picks the one next speaker with the room's
+//  {@link SmartPicker}: the bound reranker by default (`domain/chat/engine/rerank-pick`), or the Utility-model
+//  arbiter (`domain/chat/engine/smart-arbitrate`) as the opt-in upgrade. `natural` is its DEGRADE arm, and the
+//  degrade says so out loud (D41). A NARRATOR round never buys either pick (see the arm below).
+const groupPolicySchema = z.enum(GROUP_POLICIES).catch("natural").default("natural") satisfies z.ZodType<GroupPolicy>;
 
 /** The policies a NARRATOR room can hold: every one but `smart`. A narrator round voices all the seated characters in
  *  one generation and schedules no speaker, so a Smart pick there would decide nothing. */
@@ -89,10 +89,10 @@ export const GROUP_POLICY_LABELS: Record<GroupPolicy, string> = {
   smart: "Smart",
 };
 
-/** What Smart picks with (owner ruling on 0420): the bound rerank role by default, free and local on the
- *  built-in reranker, or the Utility-model arbiter as the opt-in upgrade. A sub-setting of `smart`, never a
- *  policy of its own; every other policy ignores it. */
-export const SMART_PICKERS = ["reranker", "utility"] as const;
+// What Smart picks with (owner ruling on 0420): the bound rerank role by default, free and local on the
+//  built-in reranker, or the Utility-model arbiter as the opt-in upgrade. A sub-setting of `smart`, never a
+//  policy of its own; every other policy ignores it.
+const SMART_PICKERS = ["reranker", "utility"] as const;
 export type SmartPicker = (typeof SMART_PICKERS)[number];
 /** The picker names the host reads under Smart on the Group tab. */
 export const SMART_PICKER_LABELS: Record<SmartPicker, string> = {

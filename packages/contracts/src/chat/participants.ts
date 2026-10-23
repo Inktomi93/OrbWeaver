@@ -26,8 +26,8 @@ export const participantKindSchema = z.enum(PARTICIPANT_KINDS) satisfies z.ZodTy
 // `kind` carries TWO facts: the identity table (userId vs characterId) AND who DRIVES the seat.
 // `AI_DRIVEN_KINDS` splits out the DRIVE axis (the seats arbitration schedules/voices) — an agent is
 // AI-driven AND userId-backed. `USER_BACKED_KINDS` is the human/agent shared column shape (both FK `users`).
-export const AI_DRIVEN_KINDS = ["character"] as const satisfies readonly ParticipantKind[];
-export const USER_BACKED_KINDS = ["human"] as const satisfies readonly ParticipantKind[];
+const AI_DRIVEN_KINDS = ["character"] as const satisfies readonly ParticipantKind[];
+const USER_BACKED_KINDS = ["human"] as const satisfies readonly ParticipantKind[];
 export const isAiDriven = (k: ParticipantKind): boolean => (AI_DRIVEN_KINDS as readonly ParticipantKind[]).includes(k);
 export const isUserBacked = (k: ParticipantKind): boolean => (USER_BACKED_KINDS as readonly ParticipantKind[]).includes(k);
 

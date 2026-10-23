@@ -76,13 +76,13 @@ export type ChatContentPart =
       readonly isError?: boolean | undefined;
     };
 
-/** The warning codes whose user-facing notice is written from the CODE ALONE — every degrade except the
- *  `settings_adjusted` carrier, which needs its payload (#1440). Its own tuple rather than an
- *  `Exclude<ChatWarningCode, …>` for a measured reason: biome's type service does not evaluate a conditional
- *  type, so an `Exclude`-typed field makes it call every arm of the client's copy switch unreachable
- *  (`lint/suspicious/noUnnecessaryConditions`) while `tsc` is fine — the cross-module-union family. A tuple
- *  it can read keeps the switch legible to BOTH checkers. */
-export const PLAIN_CHAT_WARNING_CODES = [
+// The warning codes whose user-facing notice is written from the CODE ALONE — every degrade except the
+//  `settings_adjusted` carrier, which needs its payload (#1440). Its own tuple rather than an
+//  `Exclude<ChatWarningCode, …>` for a measured reason: biome's type service does not evaluate a conditional
+//  type, so an `Exclude`-typed field makes it call every arm of the client's copy switch unreachable
+//  (`lint/suspicious/noUnnecessaryConditions`) while `tsc` is fine — the cross-module-union family. A tuple
+//  it can read keeps the switch legible to BOTH checkers.
+const PLAIN_CHAT_WARNING_CODES = [
   // Image parts were stripped because the resolved model's `input.vision` isn't true (D45).
   "image_dropped",
   // Video parts (mp4/webm/animated-gif attachments, #317) were stripped because the resolved model's
@@ -237,7 +237,7 @@ export const PROVIDER_ADJUSTMENT_KINDS = [
   // just not as asked — so "wasn't used" would be the wrong sentence.
   "provider_compatibility_mode",
 ] as const;
-export type ProviderAdjustmentKind = (typeof PROVIDER_ADJUSTMENT_KINDS)[number];
+type ProviderAdjustmentKind = (typeof PROVIDER_ADJUSTMENT_KINDS)[number];
 
 /** The PAYLOAD half of a `warning` bus event — the shape a client's copy mapper dispatches on.
  *  `settings_adjusted` ALWAYS carries its `adjustment`; every other code carries none, and `tsc` enforces
@@ -266,20 +266,20 @@ export interface ChatSettingsAdjustedWarning {
   appliedEffort?: EffortLevel | undefined;
 }
 
-/** The turn kinds a lifecycle bus event reports. One home (no inline re-spell across the three members). */
-export const TURN_INTENTS = ["send", "swipe", "continue", "generate", "impersonate"] as const;
+// The turn kinds a lifecycle bus event reports. One home (no inline re-spell across the three members).
+const TURN_INTENTS = ["send", "swipe", "continue", "generate", "impersonate"] as const;
 export type TurnIntent = (typeof TURN_INTENTS)[number];
 
 /** Why a turn aborted. */
 export const TURN_ABORT_REASONS = ["user", "error", "stale"] as const;
 export type TurnAbortReason = (typeof TURN_ABORT_REASONS)[number];
 
-/** The pre-provider `{{memory}}` recall phase the header brain-icon reflects (the `memoryRecall` bus member).
- *  `"recalling"` is stamped the instant recall begins for a turn (memory on) — the embed → cosine → CSLS →
- *  optional rerank window that runs BEFORE the provider streams, so it doubles as the "is my request hanging?"
- *  tell; `"recalled"` carries the surfaced count once that window closes. Memory OFF emits neither (the icon
- *  stays idle — an absent event, never a lying "recalled 0"). One vocabulary; each event arm pairs its phase with the count witness. */
-export const MEMORY_RECALL_PHASES = ["recalling", "recalled"] as const;
+// The pre-provider `{{memory}}` recall phase the header brain-icon reflects (the `memoryRecall` bus member).
+//  `"recalling"` is stamped the instant recall begins for a turn (memory on) — the embed → cosine → CSLS →
+//  optional rerank window that runs BEFORE the provider streams, so it doubles as the "is my request hanging?"
+//  tell; `"recalled"` carries the surfaced count once that window closes. Memory OFF emits neither (the icon
+//  stays idle — an absent event, never a lying "recalled 0"). One vocabulary; each event arm pairs its phase with the count witness.
+const MEMORY_RECALL_PHASES = ["recalling", "recalled"] as const;
 export type MemoryRecallPhase = (typeof MEMORY_RECALL_PHASES)[number];
 
 /** The `DomainOperationError.code` a lock-loss / cancel / fault turn abort surfaces to an AWAITING caller —
@@ -288,8 +288,6 @@ export type MemoryRecallPhase = (typeof MEMORY_RECALL_PHASES)[number];
  *  dies to a stale lock rejects the awaited verb with this code; the client suppresses its generic
  *  "couldn't send" toast for it so the honest bus notice (`turnAbortNotice`) is the single stale surface. */
 export const TURN_ABORTED_OP_CODE = "aborted" as const;
-/** @public twin: TURN_ABORTED_OP_CODE — type twin of the live constant (cross-package PUBLIC). */
-export type TurnAbortedOpCode = typeof TURN_ABORTED_OP_CODE;
 
 /** The `DomainOperationError.code` a turn requested while the per-chat lock is HELD surfaces to the caller —
  *  the same wire-vocabulary home, for the same reason as the twin above: the client keys on `data.reason`,
@@ -298,8 +296,6 @@ export type TurnAbortedOpCode = typeof TURN_ABORTED_OP_CODE;
  *  client maps it to honest copy naming the other turn instead of its generic "couldn't swipe" toast
  *  (`features/chat/lib/turn-abort-notice.ts`). */
 export const TURN_LOCKED_OP_CODE = "locked" as const;
-/** @public twin: TURN_LOCKED_OP_CODE — type twin of the live constant (cross-package PUBLIC). */
-export type TurnLockedOpCode = typeof TURN_LOCKED_OP_CODE;
 
 /** The `DomainOperationError.code` `chat.setUserMacroValues` refuses an off-vocabulary select pick with
  *  (#1356) — the same wire-vocabulary home as the two twins above, for the same reason: the picks pane keys
@@ -308,8 +304,6 @@ export type TurnLockedOpCode = typeof TURN_LOCKED_OP_CODE;
  *  ACTIONABLE — the knob the user just moved names a value its preset no longer declares — so the pane
  *  renders it beside that control instead of letting it read as a server fault. */
 export const USER_MACRO_UNKNOWN_PICK_OP_CODE = "unknown_macro_pick" as const;
-/** @public twin: USER_MACRO_UNKNOWN_PICK_OP_CODE — type twin of the live constant (cross-package PUBLIC). */
-export type UserMacroUnknownPickOpCode = typeof USER_MACRO_UNKNOWN_PICK_OP_CODE;
 
 // ── Turn origin — who/what started a turn + its cascade depth ──
 // TURN-PATH STATE, never a bus-event field: the D19/D50 allowlist forbids attribution on the public bus, so
@@ -366,11 +360,11 @@ export interface PromptTransformEnv {
  *  because it is untrusted text (a guest writes it) that reaches a refusal surface. */
 export const PROMPT_TRANSFORM_ABORT_REASON_MAX = 200;
 
-/** A transform's deliberate ABORT of the generation. It is NOT the D53 skip:
- *  a skip means "this transform did not run, keep the draft"; an abort means "this transform ran and says
- *  the turn must not happen". The two are different outcomes and the shape makes them un-confusable — a
- *  timeout can never be mistaken for a refusal, and a transform can never abort by returning nothing. */
-export interface PromptTransformAbort {
+// A transform's deliberate ABORT of the generation. It is NOT the D53 skip:
+//  a skip means "this transform did not run, keep the draft"; an abort means "this transform ran and says
+//  the turn must not happen". The two are different outcomes and the shape makes them un-confusable — a
+//  timeout can never be mistaken for a refusal, and a transform can never abort by returning nothing.
+interface PromptTransformAbort {
   /** The author-facing reason, capped at {@link PROMPT_TRANSFORM_ABORT_REASON_MAX}. */
   readonly abort: string;
 }

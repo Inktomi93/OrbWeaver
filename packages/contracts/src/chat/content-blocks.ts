@@ -17,8 +17,8 @@ import { CONTENT_CLASS_POLICY } from "./content-classes.ts";
 
 const messageMediaKindSchema = z.enum(["image", "audio", "video"]);
 
-/** Tier-A = inert sanitized allowlist in the main DOM; Tier-B = sandboxed-iframe card (the card-trust tier split). */
-export const cardTrustSchema = z.enum(["tierA", "tierB"]);
+// Tier-A = inert sanitized allowlist in the main DOM; Tier-B = sandboxed-iframe card (the card-trust tier split).
+const cardTrustSchema = z.enum(["tierA", "tierB"]);
 export type CardTrust = z.infer<typeof cardTrustSchema>;
 
 /** Where a media block's bytes come from: an owned asset (per-user CAS, D21) or an external URL (gated by

@@ -143,3 +143,52 @@ This selection passes bounded JSSG preservation checks, maintained runtime tests
 | Call and item index boundaries | Remain deferred. Removing a diagnostic accumulator argument does not change index addressing; grammar constants, index validation and decoding remain unchanged. |
 
 The selected tests pass before and after helper removal. Omitting an actual nested field fails the generated-grammar assertion; adding a nested canonical field fails the complete typed fixture. Nonzero controls exercise the real counters. Both mutation controls restore source exactly. No new production test door, copied application rule or generic checker is introduced.
+
+## Selected identity and chat contract surfaces
+
+| Purpose | Decision and boundary |
+| - | - |
+| Identity status, action and resource support declarations | Localize unused exports only. Preserve canonical axes, strict schemas, Can/ResourceRef coupling and all auth/share behavior. |
+| Chat assembly, event, metadata, roster and projection support declarations | Localize unused exports while retaining exact bodies, readonly/presence contracts, refusal variants and enclosing public signatures. Hidden/reasoning stripping remains in the actual public member projection. |
+| Op-code and invite-result audit aliases | Remove unused tagged aliases. Retain actual op-code constants, mounted parsers, auth writes and client reads. No substitute type or consumer is needed. |
+| MemoryDigestInput | Keep the genuine cross-domain API and remove its inaccurate test-only claim. Preserve host/coherence guards and actual digest/storage wiring. |
+| rosterMemberSpecSchema and RosterMemberSpec | Retain the explicitly named spine reservation without inventing a caller or implementing parked seat branches. The live character-member schema remains separate. |
+| Original member projection and roster cases | Preserve meaningful privacy, non-deception, inside-tag tool offsets, absent fields, invalid kinds and range distinctions. Private helper export removal does not complete those broader restoration matrices. |
+
+This bounded selection passes exact JSSG preservation, maintained runtime tests, affected compiler and dependency checks and independent review. No authorization, credential flow, visibility rule or runtime operation changes.
+
+## Selected portability, media and workload surfaces
+
+| Purpose | Decision and boundary |
+| - | - |
+| Import profile/layout axes and filesystem support types | Localize unused export modifiers. Keep actual filesystem port shapes, missing-directory/error distinctions, secret filtering and native import admission. |
+| Portability refusals, asset variants and imagery parser components | Localize unused owner exports while preserving serialized identities, strict schemas, refusal distinctions and enclosing public contracts. |
+| Workload resume, progress and row support declarations | Keep all behavior, transforms, poison/result parsing and readonly/presence semantics; localize unused export modifiers. |
+| ResolveBlobRefsParams, ResolveChatBlobRefsParams and WorkloadScheduleView | Remove unconsumed inferred aliases and their exclusive markers. Preserve actual mounted schemas and their input/output behavior. |
+| GeneratePictureRequest | Retain the canonical type used by maintained required-prompt assertions; remove its suppression marker. |
+| Production-only findings with maintained consumers | Keep PortableTextFile, PERSONA_COLLISION_CHOICES, sniffTreeLayout and canonical/forwarded WORKLOAD_UNFUNDED. Native test usage is legitimate, not an exemption. |
+| Original parser and serialization matrices | Keep restoration partial. Preserve meaningful distinctions; do not restore obsolete free-mode assertions that omit the now-required prompt. |
+
+This selection awaits bounded JSSG preservation, scoped runtime/compiler/import qualification and independent review. No capability, schema constraint, package door or runtime body is removed.
+
+## Selected preset, settings, theme and regex surfaces
+
+| Purpose | Decision and boundary |
+| - | - |
+| Preset vocabularies, version lifts, field partitions and parser components | Localize unused export modifiers. Keep all actual migrations, defaults, transforms, field constraints and public enclosing types. CONFIG_LIFTS remains used by stored parsing and native-file import. |
+| Settings, appearance, regex and theme support declarations | Localize unused exports only. Preserve canonical types, schema-derived boundaries, placement correlations and theme privacy projections. |
+| Production-only test and tool consumers | Retain appearanceSettingsSchema, userSettingsSchema, guidedActionsSchema, promptConfigViewSchema and FormatStringKey. These serve real production-derived builders or type assertions. |
+| importStChatCompletionPreset, PRESET_GUIDED_SLOT_IDS and VIEWER_SACRED_THEME_KEYS | Hold definitions pending bounded original-purpose comparison and qualified current-public-entry coverage. Do not invent consumers or declare their meaningful assertions obsolete. |
+| Original stored-data compatibility and import matrices | Keep restoration partial. Reach actual parsers and typed import results, not private lift-table identity or obsolete exception wrappers. |
+
+This modifier-only selection awaits bounded preservation, scoped runtime/compiler/import qualification and independent review. No UI behavior or schema constraint changes.
+
+## Selected credential and health support identities
+
+| Identity | Decision and boundary |
+| - | - |
+| RESOLVED_SECRET_KINDS | Keep the canonical tuple and derived secret-kind/brand coupling; localize its unused value export. Minting, ownership, AAD and execution evidence remain unchanged. |
+| HealthResponse | Remove the unconsumed inferred alias. Keep the actual health schema, strict response arms, public parser and physical-peer identity gate. |
+| Original credential and health purposes | Keep actual authority and HTTP coverage. Drop only the private-tuple equality assertion; do not add an export-identity test or replacement harness. |
+
+This selection awaits scoped preservation, real credential/health boundary tests, affected compiler/import checks and independent review.

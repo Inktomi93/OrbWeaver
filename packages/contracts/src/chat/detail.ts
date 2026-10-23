@@ -18,8 +18,8 @@ import { chatIdentitySchema } from "./producers.ts";
 import type { ParticipantView } from "./roster.ts";
 import { participantViewSchema } from "./roster.ts";
 
-/** How a room's pin stands — see {@link ChatDetail.anchorState}. */
-export const ANCHOR_STATES = ["live", "held", "none"] as const;
+// How a room's pin stands — see {@link ChatDetail.anchorState}.
+const ANCHOR_STATES = ["live", "held", "none"] as const;
 export type AnchorState = (typeof ANCHOR_STATES)[number];
 
 /** The full chat read (getChat) — the row resolved + the present roster + the effective room behavior
