@@ -20,6 +20,7 @@ export async function createShareGraph(options: ShareGraphOptions): Promise<Shar
       pin: options.relay === null ? null : pin,
       target: options.relay?.target ?? `${process.platform}-${process.arch}`,
       dir: options.relayDir,
+      schedule: options.timers.timeoutUnref,
       fetch: options.relaySeams?.fetch ?? ((url, limits) => network.fetchPinnedDownload(url, { ...limits, allowedHosts: pin.downloadHosts })),
       ...(options.relaySeams === undefined ? {} : { spawn: options.relaySeams.spawn }),
     }),

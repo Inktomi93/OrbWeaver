@@ -9,6 +9,7 @@ import process from "node:process";
 import { authConfigSchema } from "@orb/contracts/auth-config";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
+import { RELAY_STOP_GRACE_MS } from "@orb/server/infra/relay";
 import { expect, test } from "@orb/testkit/node";
 import { claimShareOwner, createServerHarness, readRelayStarts, relayExecutable, relayProgram } from "@orb/testkit/node/composed";
 import { lanAddress, requestWithHost } from "@orb/testkit/node/helpers";
@@ -74,7 +75,7 @@ test("a bad pinned download restores real seating overrides and never reaches na
   await expect(readRelayStarts(relayExecutable(harness, pin))).rejects.toMatchObject({ code: "ENOENT" });
 });
 
-test("native child release is joined after immediate host invalidation, including a child that ignores SIGINT", { tags: "slow" }, async () => {
+test("native child release is joined after immediate host invalidation, and the injected timer ends a child that ignores SIGINT", async () => {
   const { bytes, pin } = relayProgram(RELAY_URL, true);
   await using harness = await createServerHarness({
     authConfig: { ...authConfigFromEnv(), mode: "local" },
@@ -105,6 +106,20 @@ test("native child release is joined after immediate host invalidation, includin
   expect(disposed).toBe(false);
   expect(process.kill(pid, 0)).toBe(true);
   await stat(harness.modelCacheDir);
+  // The SIGKILL grace rides the root's timers, so ticking them ends the child without waiting real time.
+  harness.timers.advance(RELAY_STOP_GRACE_MS);
+  await expect
+    .poll(
+      () => {
+        try {
+          return process.kill(pid, 0);
+        } catch {
+          return false;
+        }
+      },
+      { timeout: 2000 },
+    )
+    .toBe(false);
   await disposing;
   expect(() => process.kill(pid, 0)).toThrow();
   await expect(stat(harness.modelCacheDir)).rejects.toMatchObject({ code: "ENOENT" });

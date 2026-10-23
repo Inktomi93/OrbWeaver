@@ -48,6 +48,7 @@ import { generationOf, preservesCacheBlockEnds, resolveCarryReasoning, supportsM
 import type { ContentImageRef } from "@orb/kit/content";
 import type { AssetId, CharacterId, ChatId, MessageId, PersonaId, WorldEntryId } from "@orb/kit/ids";
 import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
+import { globalMacroRegistry } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { cleanPerSpeakerReply } from "@orb/kit/speaker-label";
@@ -697,7 +698,10 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
 
   // BUILD — the system-prompt halves + the after-history (in_chat) section splices — then the D50
   // `assembled_dynamic` PromptTransform point: rewrite the dynamic half only (static is untransformable).
-  const assembled = await applyDynamicTransform(args, buildPrompt(layout.promptConfig, layout, args.macroRegistry));
+  const assembled = await applyDynamicTransform(
+    args,
+    buildPrompt(layout.promptConfig, layout, { registry: args.macroRegistry ?? globalMacroRegistry, random: args.random }),
+  );
 
   // SHAPE — the wire history + the cache breakpoint.
   const inChatInjections: ChatInjection[] = [...(ctx.chatInjections ?? []).filter((i) => i.position === "in_chat"), ...assembled.afterHistory];

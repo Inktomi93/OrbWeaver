@@ -67,12 +67,13 @@ import { projectBodyForPreview } from "@orb/kit/content";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, MessageId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry, RowMacroNameContext } from "@orb/kit/macro";
-import { resolveRowMacros } from "@orb/kit/macro";
+import { globalMacroRegistry, resolveRowMacros } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { estimateTokens } from "@orb/kit/tokens";
 import { getLog } from "#foundation/observability";
 import { captureParticipantRole } from "#primitives/role-data";
+import type { MacroRenderEnv } from "../contract/assembly-macros.ts";
 import type { ChatContext, TeachingIdentity, TeachingKnobs } from "../contract/context.ts";
 import { ChatNotFoundError } from "../contract/errors.ts";
 import type { ForeignInputs, HumanSeatPersona, ResolveForeignInputsOp } from "../contract/foreign.ts";
@@ -575,9 +576,11 @@ async function resolveRoomInputs(
   };
 }
 
-/** The per-preview user-macro RENDER registry (WAVE MU) — resolves the preset's user macros with a STABLE
- *  prng (`() => 0`), so a random-pick previews its FIRST-pool value and a re-poll never varies (the
- *  "preview never varies per poll" precedent — `gatherAssembleContext`'s absent-prng arm). Draws are
+/** The PRNG every preview render draws from: stable, so `{{random}}`/`{{roll}}`/`{{pick}}` read the same on every poll. */
+const PREVIEW_RANDOM = (): number => 0;
+
+/** The per-preview user-macro RENDER registry (WAVE MU) — resolves the preset's user macros with the stable
+ *  {@link PREVIEW_RANDOM}, so a random-pick previews its FIRST-pool value and a re-poll never varies. Draws are
  *  discarded (a preview persists nothing). `null` ⇒ no user macros ⇒ the process singleton (byte-identical). */
 function buildPreviewRegistry(inputs: PreviewInputs): MacroRegistry | null {
   const built = buildTurnUserMacros({
@@ -586,9 +589,15 @@ function buildPreviewRegistry(inputs: PreviewInputs): MacroRegistry | null {
     // macro the TURN would render, not the one the game overrode.
     ...(inputs.gameUserMacros.length > 0 ? { game: { id: inputs.chatId, defs: inputs.gameUserMacros } } : {}),
     values: {},
-    prng: () => 0,
+    prng: PREVIEW_RANDOM,
   });
   return built?.registry ?? null;
+}
+
+/** The render env a preview walks with: the preview registry (or the process singleton) and the stable preview PRNG,
+ *  so no section, lore or persona render reaches kit's ambient `Math.random` and a re-poll never varies. */
+function previewRender(registry: MacroRegistry | null): MacroRenderEnv {
+  return { registry: registry ?? globalMacroRegistry, random: PREVIEW_RANDOM };
 }
 
 /** The PREVIEW's gather half — the rpg macro/CEL feed (docs/plans/rpg/design.md) plus the S2 teaching collection
@@ -722,6 +731,9 @@ async function buildPreviewContext(
       ...gather.fields,
       ...(opts.guided !== undefined ? { guided: opts.guided } : {}),
       timeZone: opts.timeZone,
+      // Every build-stage render draws from the stable preview PRNG, and ChoiceBlock picks stay unresolved.
+      prng: PREVIEW_RANDOM,
+      choicePicks: "stable",
       // The preview render registry (WAVE MU) — absent ⇒ the pure build's singleton fallback (byte-identical).
       ...(opts.registry !== null ? { macroRegistry: opts.registry } : {}),
     },
@@ -931,8 +943,8 @@ function cardRenderContext(
  *  unchanged (a clamped-away field), a non-null string resolves `{{char}}`/`{{user}}`/… so the wire never
  *  carries literal braces. This is a READ-ONLY DISPLAY, so macros RENDER (the owner's rule: raw only in
  *  type-as-you-type editors, and a member card is not an editor). */
-function renderCardField(value: string | null, renderCtx: AssembleContext): string | null {
-  return value === null ? value : renderMacros(value, renderCtx, renderCtx.pinnedPersona);
+function renderCardField(value: string | null, renderCtx: AssembleContext, random: () => number): string | null {
+  return value === null ? value : renderMacros(value, renderCtx, renderCtx.pinnedPersona, { random });
 }
 
 /** `getMemberCard` — read ONE roster character's card, field-clamped to the room's `memberCardVisibility`
@@ -1004,14 +1016,15 @@ function createGetMemberCard(ctx: ChatContext, deps: ReadDeps): ChatService["get
       {
         ...clamped,
         editableTags: principal.userId === hostUserId && clamped.tags !== null ? tags : null,
-        description: renderCardField(clamped.description, renderCtx),
-        personality: renderCardField(clamped.personality, renderCtx),
-        scenario: renderCardField(clamped.scenario, renderCtx),
-        greetings: clamped.greetings === null ? null : clamped.greetings.map((g) => renderMacros(g, renderCtx, renderCtx.pinnedPersona)),
-        exampleMessages: renderCardField(clamped.exampleMessages, renderCtx),
-        creatorNotes: renderCardField(clamped.creatorNotes, renderCtx),
-        systemPrompt: renderCardField(clamped.systemPrompt, renderCtx),
-        postHistoryInstructions: renderCardField(clamped.postHistoryInstructions, renderCtx),
+        description: renderCardField(clamped.description, renderCtx, PREVIEW_RANDOM),
+        personality: renderCardField(clamped.personality, renderCtx, PREVIEW_RANDOM),
+        scenario: renderCardField(clamped.scenario, renderCtx, PREVIEW_RANDOM),
+        greetings:
+          clamped.greetings === null ? null : clamped.greetings.map((g) => renderMacros(g, renderCtx, renderCtx.pinnedPersona, { random: PREVIEW_RANDOM })),
+        exampleMessages: renderCardField(clamped.exampleMessages, renderCtx, PREVIEW_RANDOM),
+        creatorNotes: renderCardField(clamped.creatorNotes, renderCtx, PREVIEW_RANDOM),
+        systemPrompt: renderCardField(clamped.systemPrompt, renderCtx, PREVIEW_RANDOM),
+        postHistoryInstructions: renderCardField(clamped.postHistoryInstructions, renderCtx, PREVIEW_RANDOM),
       },
       membership,
     );
@@ -1166,7 +1179,7 @@ function previewPromptHistoryEnv(ctx: ChatContext, assembleContext: AssembleCont
   }
   return {
     scripts,
-    macroCtx: buildTurnMacroContext({ assembleCtx: assembleContext, model: inputs.model, chatId: inputs.chatId, random: ctx.prng }),
+    macroCtx: buildTurnMacroContext({ assembleCtx: assembleContext, model: inputs.model, chatId: inputs.chatId, random: PREVIEW_RANDOM }),
     applyReplace: ctx.applyRegexReplace,
     onScriptFailure: (err, script) =>
       getLog().warn(
@@ -1379,7 +1392,7 @@ function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["p
     });
     const registry = buildPreviewRegistry(inputs);
     const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry, guided, timeZone });
-    const { prompt, slices } = buildPromptWithSlices(inputs.foreign.promptConfig, assembleContext, registry ?? undefined);
+    const { prompt, slices } = buildPromptWithSlices(inputs.foreign.promptConfig, assembleContext, previewRender(registry));
     const { canon, ...next } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled: prompt });
     const { fitted, budget: fitBudget } = await fitShapedHistory({
       assembleContext,
@@ -1424,7 +1437,7 @@ function createPeekPrompt(ctx: ChatContext, deps: ReadDeps): ChatService["peekPr
     const { assembleContext } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
     // Route peekPrompt through the ONE host-audience helper (D59) with the verdict
     // DERIVED from the loaded membership (no second read; provably host today, leak-free if the gate relaxes).
-    return buildPrompt(inputs.foreign.promptConfig, assembleContext, registry ?? undefined);
+    return buildPrompt(inputs.foreign.promptConfig, assembleContext, previewRender(registry));
   };
 }
 
@@ -1442,7 +1455,7 @@ function createGetShapeTrace(ctx: ChatContext, deps: ReadDeps): ChatService["get
     });
     const registry = buildPreviewRegistry(inputs);
     const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
-    const assembled = buildPrompt(inputs.foreign.promptConfig, assembleContext, registry ?? undefined);
+    const assembled = buildPrompt(inputs.foreign.promptConfig, assembleContext, previewRender(registry));
     // SHAPE the next-turn peek — the trace describes how the CURRENT canon shapes for the next turn.
     const { canon, ...next } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled });
     const { shaped } = await fitShapedHistory({
@@ -1553,7 +1566,7 @@ function createPreviewContextFit(ctx: ChatContext, deps: ReadDeps): ChatService[
     });
     const registry = buildPreviewRegistry(inputs);
     const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
-    const assembled = buildPrompt(inputs.foreign.promptConfig, assembleContext, registry ?? undefined);
+    const assembled = buildPrompt(inputs.foreign.promptConfig, assembleContext, previewRender(registry));
     const { canon, ...next } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled });
     // SHAPE → CONVERT → FIT — the same sequence, in the same order, over the same rows the engine's turn pipeline
     // runs (one home: `fitShapedHistory` → `substrate/wire-history` shapeConvertFit).
@@ -1613,7 +1626,7 @@ function createPreviewSection(ctx: ChatContext, deps: ReadDeps): ChatService["pr
     }
     const registry = buildPreviewRegistry(inputs);
     const { assembleContext } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
-    return previewSection(section, assembleContext, inputs.foreign.promptConfig, registry ?? undefined);
+    return previewSection(section, assembleContext, inputs.foreign.promptConfig, previewRender(registry));
   };
 }
 
@@ -1674,6 +1687,7 @@ function createPreviewActionTemplates(ctx: ChatContext, deps: ReadDeps): ChatSer
         resolved: previewActionText(assembleContext, actionTemplateText(config, def.id), {
           model: inputs.model,
           chatId,
+          random: PREVIEW_RANDOM,
           ...(registry !== null ? { registry } : {}),
         }),
       })),
