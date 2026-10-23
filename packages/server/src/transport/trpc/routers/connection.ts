@@ -205,7 +205,7 @@ export const connectionRouter = t.router({
 
   inspectEndpoint: authedProcedure
     .input(z.object({ connectionId }))
-    .output(endpointInspectionSchema.strict())
+    .output(endpointInspectionSchema)
     .mutation(({ ctx, input, signal }) => ctx.services.connection.inspectEndpoint({ principal: ctx.auth, connectionId: input.connectionId, signal })),
 
   // ── providers: what the picker may offer the caller (every row it may use, with its wire's build state, §5.3a)

@@ -38,6 +38,16 @@ export function bridgeRequest(value: unknown, operation: string, args: readonly 
   return { ...envelope, frame: JSON.stringify({ ...frame, operation, args }) };
 }
 
+/** Replace one actual command response with adverse wire data while retaining its live request identity. */
+export function responseResult(value: unknown, result: JsonValue): JsonValue {
+  const envelope = jsonValueSchema.parse(value);
+  const id = frameField(value, "id");
+  if (!objectValue(envelope) || typeof id !== "string" || !objectValue(result)) {
+    throw new Error("the captured command response has no request identity");
+  }
+  return { ...envelope, frame: JSON.stringify({ kind: "response", id, ...result }) };
+}
+
 interface HeldMessage extends Disposable {
   readonly reached: Promise<unknown>;
   readonly release: (replacement?: JsonValue) => void;

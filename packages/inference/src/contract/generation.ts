@@ -1,11 +1,9 @@
 // Image output shared by standalone image generation and inline chat completions.
 
-export interface GeneratedImage {
+interface GeneratedImageBase {
   /** Relative tool/file part order in the original completion, before the result arrays split it. */
   readonly partOrdinal?: number | undefined;
   readonly thoughtSignature?: string | undefined;
-  readonly url: string | undefined;
-  readonly base64: string | undefined;
   readonly mediaType: string | undefined;
   /** §6.7 INLINE REPLY ONLY — the character offset in the completion's accumulated REPLY TEXT at which this
    *  picture arrived, so the chat reducer can splice its `![alt](asset:id)` span where the model put it
@@ -14,3 +12,6 @@ export interface GeneratedImage {
    *  may rewrite those bytes before the splice, so the consumer clamps. */
   readonly atChars?: number | undefined;
 }
+
+export type GeneratedImage = GeneratedImageBase &
+  ({ readonly url: string; readonly base64?: undefined } | { readonly url?: undefined; readonly base64: string });

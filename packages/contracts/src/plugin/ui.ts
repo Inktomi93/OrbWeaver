@@ -1507,17 +1507,20 @@ export const PLUGIN_COMMAND_ARG_NAME_RE = /^[a-z][a-z0-9_]{0,40}$/;
  *  `type === "enum"` — a biconditional the schema enforces (an enum with no options is unpickable; options on a
  *  non-enum is a claim the input renderer would never honour). `describe` is the one-line hint the completion
  *  strip and the palette input label show. A declared arg with no `required` defaults to optional. */
-export interface PluginCommandArgSpec {
+interface PluginCommandArgSpecBase {
   readonly name: string;
-  readonly type: PluginCommandArgType;
   readonly required?: boolean | undefined;
   readonly describe?: string | undefined;
-  /** The accepted values — REQUIRED for `type: "enum"`, forbidden otherwise. */
-  readonly enumValues?: readonly string[] | undefined;
   /** The value the args dialog opens with. It must match `type`, and an enum default must be one of
    *  `enumValues`. A prefill only: the person still submits it, and the composer's `name=value` path ignores it. */
   readonly default?: PluginCommandArgValue | undefined;
 }
+
+export type PluginCommandArgSpec = PluginCommandArgSpecBase &
+  (
+    | { readonly type: "enum"; readonly enumValues: readonly string[] }
+    | { readonly type: Exclude<PluginCommandArgType, "enum">; readonly enumValues?: undefined }
+  );
 
 /** A TYPED arg value — what the surfaces collect and the guest receives (the ST-parity typed bag). The three
  *  JSON-safe scalars the four arg types coerce to (`enum` is a constrained `string`). The ONE home for the axis;
@@ -1552,19 +1555,22 @@ function defaultFitsArg(type: PluginCommandArgType, value: PluginCommandArgValue
 
 /** A declared arg spec, validated host-side at registration. The enum biconditional lives here so a malformed
  *  arg is a REGISTRATION refusal (the command absent, a log line), never activation-fatal. */
+const pluginCommandArgSpecBaseSchema = z.object({
+  name: z.string().regex(PLUGIN_COMMAND_ARG_NAME_RE),
+  required: z.boolean().optional(),
+  describe: z.string().min(1).max(PLUGIN_COMMAND_DESCRIBE_MAX).optional(),
+  default: z.union([z.string().max(LABEL_MAX), finiteNumber, z.boolean()]).optional(),
+});
+
 export const pluginCommandArgSpecSchema = z
-  .object({
-    name: z.string().regex(PLUGIN_COMMAND_ARG_NAME_RE),
-    type: z.enum(PLUGIN_COMMAND_ARG_TYPES),
-    required: z.boolean().optional(),
-    describe: z.string().min(1).max(PLUGIN_COMMAND_DESCRIBE_MAX).optional(),
-    enumValues: readonlyArrayOutput(z.array(z.string().min(1).max(LABEL_MAX)).min(1).max(PLUGIN_COMMAND_ENUM_VALUES_MAX)).optional(),
-    default: z.union([z.string().max(LABEL_MAX), finiteNumber, z.boolean()]).optional(),
-  })
+  .discriminatedUnion("type", [
+    pluginCommandArgSpecBaseSchema.extend({
+      type: z.literal("enum"),
+      enumValues: readonlyArrayOutput(z.array(z.string().min(1).max(LABEL_MAX)).min(1).max(PLUGIN_COMMAND_ENUM_VALUES_MAX)),
+    }),
+    pluginCommandArgSpecBaseSchema.extend({ type: z.enum(PLUGIN_COMMAND_ARG_TYPES).exclude(["enum"]), enumValues: z.undefined().optional() }),
+  ])
   .superRefine((arg, ctx) => {
-    if ((arg.type === "enum") !== (arg.enumValues !== undefined)) {
-      ctx.addIssue({ code: "custom", message: "an enum arg must name its enumValues, and only an enum arg may", path: ["enumValues"] });
-    }
     if (arg.default !== undefined && !defaultFitsArg(arg.type, arg.default, arg.enumValues)) {
       ctx.addIssue({ code: "custom", message: "an arg's default must match its type, and an enum default must be one of its enumValues", path: ["default"] });
     }
@@ -1660,11 +1666,9 @@ function coerceArgValue(
       return { ok: false, error: `'${input}' is not true or false` };
     }
     case "enum":
-      return (spec.enumValues ?? []).includes(input)
-        ? { ok: true, value: input }
-        : { ok: false, error: `'${input}' is not one of ${(spec.enumValues ?? []).join(", ")}` };
+      return spec.enumValues.includes(input) ? { ok: true, value: input } : { ok: false, error: `'${input}' is not one of ${spec.enumValues.join(", ")}` };
     default:
-      return assertNever(spec.type);
+      return assertNever(spec);
   }
 }
 
@@ -1706,9 +1710,9 @@ function argValueSchema(spec: PluginCommandArgSpec): z.ZodString | z.ZodNumber |
     case "boolean":
       return z.boolean();
     case "enum":
-      return z.enum((spec.enumValues ?? [""]) as [string, ...string[]]);
+      return z.enum(spec.enumValues);
     default:
-      return assertNever(spec.type);
+      return assertNever(spec);
   }
 }
 

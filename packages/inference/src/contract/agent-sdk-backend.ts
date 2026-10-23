@@ -214,10 +214,9 @@ export interface ReplaceableSessionStore extends SessionStore {
  *   • `fresh`     — no cache hit usable (salt ceiling / replace-incapable divergence) → SDK-fresh.
  *   • `cleared`   — an empty seed dropped the mapping.
  */
-export interface SeededSessionDecision {
-  readonly sessionId: AgentSdkSessionId | null;
-  readonly disposition: "resumed" | "forked" | "reseeded" | "seeded" | "readopted" | "rewound" | "fresh" | "cleared";
-}
+export type SeededSessionDecision =
+  | { readonly sessionId: AgentSdkSessionId; readonly disposition: "resumed" | "forked" | "reseeded" | "seeded" | "readopted" | "rewound" }
+  | { readonly sessionId: null; readonly disposition: "fresh" | "cleared" };
 
 /** One-line-per-turn anchor (`provider.turn`, info) — success or failure. */
 export interface ProviderTurnLog {

@@ -1,3 +1,4 @@
+import type { PortableImportOutcome } from "../portability/index.ts";
 import type { BackgroundLibraryEntry } from "./appearance.ts";
 
 /** The `appearance` half of a foreign-profile import (today: the SillyTavern profile importer). Two planes in
@@ -29,9 +30,6 @@ export interface ImportedThemeLanding {
 
 /** Never throws for a malformed file, so one bad entry can't abort a bundle. `landed` is the theme import's
  *  per-theme accounting (absent on the user-settings import). */
-export interface SettingsImportOutcome {
-  readonly ok: boolean;
-  readonly created?: boolean;
-  readonly error?: string;
-  readonly landed?: readonly ImportedThemeLanding[];
-}
+export type SettingsImportOutcome =
+  | (Extract<PortableImportOutcome, { readonly ok: true }> & { readonly landed?: readonly ImportedThemeLanding[] })
+  | (Extract<PortableImportOutcome, { readonly ok: false }> & { readonly landed?: never });

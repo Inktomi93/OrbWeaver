@@ -3,6 +3,7 @@
 // only db + clock + id minters, no audit/user-bus/chat guards (a bulk migration writes silently).
 
 import type { AttachedBookRef } from "@orb/contracts/character";
+import type { PortableImportOutcome } from "@orb/contracts/portability";
 import type { BulkImportLorebookInput, BulkImportLorebookResult, WorldBookRole } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
@@ -46,13 +47,9 @@ export interface ImportWorldBookContext {
 
 /** ok:false + error for a malformed upload (never thrown); created:false when the book content-matched an
  *  owned book. `name` is the landed name; `renamedFrom` the file's own name when a collision suffix applied. */
-export interface ImportWorldBookOutcome {
-  readonly ok: boolean;
-  readonly created?: boolean;
-  readonly name?: string;
-  readonly renamedFrom?: string | null;
-  readonly error?: string;
-}
+export type ImportWorldBookOutcome =
+  | (Extract<PortableImportOutcome, { readonly ok: true }> & { readonly created: boolean; readonly name: string; readonly renamedFrom: string | null })
+  | (Extract<PortableImportOutcome, { readonly ok: false }> & { readonly name?: never; readonly renamedFrom?: never });
 
 /** Never throws for a malformed file — returns \{ ok:false, error \}. `filename` names a raw SillyTavern
  *  world file (its stem is the book name); an orb-native file carries its own name. */

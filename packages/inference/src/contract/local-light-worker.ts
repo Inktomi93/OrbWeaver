@@ -44,12 +44,15 @@ export type LocalLightWorkerCall =
 /** A thrown value as it crosses the thread boundary: a `ProviderError` keeps every field. */
 export type LocalLightWorkerFailure = { readonly kind: "provider"; readonly init: ProviderErrorInit } | { readonly kind: "error"; readonly message: string };
 
-export type LocalLightWorkerValue = Float32Array[] | number[] | null;
+export type LocalLightWorkerValue =
+  | { readonly op: "embedTexts" | "embedClipTexts" | "embedImages"; readonly value: Float32Array[] }
+  | { readonly op: "scorePairs"; readonly value: number[] }
+  | { readonly op: "preload"; readonly value: null };
 
 export type LocalLightHostMessage = { readonly type: "call"; readonly id: number; readonly call: LocalLightWorkerCall } | { readonly type: "close" };
 
 export type LocalLightWorkerMessage =
-  | { readonly type: "reply"; readonly id: number; readonly loadFailed: boolean; readonly value: LocalLightWorkerValue }
+  | ({ readonly type: "reply"; readonly id: number; readonly loadFailed: boolean } & LocalLightWorkerValue)
   | { readonly type: "failure"; readonly id: number; readonly loadFailed: boolean; readonly failure: LocalLightWorkerFailure }
   | { readonly type: "progress"; readonly progress: LocalLightLoadProgress }
   | { readonly type: "log"; readonly level: LocalLightLogLevel; readonly fields: Record<string, unknown>; readonly message: string };

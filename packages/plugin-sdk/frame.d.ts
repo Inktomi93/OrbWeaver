@@ -12,12 +12,9 @@ declare global {
 
   /** A success or refusal returned to an isolated plugin frame. */
   interface OrbPluginFrameResult {
-    readonly orbPluginFrameResult: {
-      readonly callId: string;
-      readonly ok: boolean;
-      readonly value?: unknown;
-      readonly error?: "refused";
-    };
+    readonly orbPluginFrameResult:
+      | { readonly callId: string; readonly ok: true; readonly value: unknown }
+      | { readonly callId: string; readonly ok: false; readonly error: string };
   }
 
   /** Build the authenticated URL for one flat raster image shipped under `ui/assets/`. Orbweaver injects this

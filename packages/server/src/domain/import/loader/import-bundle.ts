@@ -52,12 +52,14 @@ function notAttemptedFrom(entity: PortableEntity, files: readonly StagedFile[]):
 /** One descriptor answer as the report's file outcome. The two lists are forwarded only when the descriptor
  *  said something: an empty list on every clean file would bury the one file that has a note. */
 function fileOutcome(entity: PortableEntity, path: string, result: PortableImportOutcome): BundleImportFileOutcome {
+  if (!result.ok) {
+    return { kind: entity.kind, path, ok: false, error: result.error };
+  }
   return {
     kind: entity.kind,
     path,
-    ok: result.ok,
+    ok: true,
     ...(result.created !== undefined ? { created: result.created } : {}),
-    ...(result.error !== undefined ? { error: result.error } : {}),
     ...(result.notes !== undefined && result.notes.length > 0 ? { notes: result.notes } : {}),
     ...(result.memoryChatIds !== undefined && result.memoryChatIds.length > 0 ? { memoryChatIds: result.memoryChatIds } : {}),
   };

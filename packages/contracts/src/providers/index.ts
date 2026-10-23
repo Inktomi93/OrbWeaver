@@ -111,9 +111,7 @@ export type GenerationCost = z.infer<typeof generationCostSchema>;
 /** The "Test endpoint" inspector's result — the `inspect` surface returns it. Carries the request one chat
  *  call sent on the route chat uses (headers REDACTED — the key never leaves the server) plus the raw
  *  response, or a `null` response + an `error` message when the request never completed (DNS / refused / timeout). */
-export const endpointInspectionSchema = z.object({
-  /** True iff the endpoint answered with a 2xx the chat path reads as a reply. */
-  ok: z.boolean(),
+const endpointInspectionBaseSchema = z.strictObject({
   request: z.object({
     url: z.string(),
     /** REDACTED — Authorization / key-shaped headers are masked. */
@@ -122,16 +120,16 @@ export const endpointInspectionSchema = z.object({
     body: z.string(),
   }),
   /** The raw response, or `null` when the request never completed. */
-  response: z
-    .object({
-      status: z.number(),
-      statusText: z.string(),
-      bodyPreview: z.string(),
-    })
-    .nullable(),
-  /** Why the call failed: the request never completed (`response` is `null`), or the chat path could not read the reply. */
-  error: z.string().optional(),
+  response: z.object({
+    status: z.number(),
+    statusText: z.string(),
+    bodyPreview: z.string(),
+  }),
 });
+export const endpointInspectionSchema = z.discriminatedUnion("ok", [
+  endpointInspectionBaseSchema.extend({ ok: z.literal(true), error: z.never().exactOptional() }),
+  endpointInspectionBaseSchema.extend({ ok: z.literal(false), response: endpointInspectionBaseSchema.shape.response.nullable(), error: z.string().optional() }),
+]);
 export type EndpointInspection = z.infer<typeof endpointInspectionSchema>;
 
 /** The authenticated account's identity/plan metadata — an SDK-free projection of the agent-sdk

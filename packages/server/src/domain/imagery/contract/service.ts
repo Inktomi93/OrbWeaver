@@ -12,7 +12,7 @@ import type { ApplyStatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import type { BatchHandle, DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
-import type { BindingActor, ImageGenerateRequest as InferenceImageGenerateRequest, Resolved } from "@orb/inference";
+import type { BindingActor, GeneratedImage, ImageGenerateRequest as InferenceImageGenerateRequest, Resolved } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, ImageryCallId, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
 import type { EditImageParams, ExtractionMode, ExtractPromptParams, GeneratePictureParams, MultimodalMode, ReadProvenanceParams } from "./params.ts";
@@ -67,12 +67,7 @@ interface ImageryCard extends CharacterCard {
   readonly contentHash: string;
 }
 
-/** One returned image — the provider decides between a URL and inline base64 (mirrors the infra shape). */
-export interface GeneratedImage {
-  readonly url?: string | undefined;
-  readonly base64?: string | undefined;
-  readonly mediaType?: string | undefined;
-}
+export type { GeneratedImage } from "@orb/inference";
 
 /** The text→image request the domain hands the sealed executor. Free mode fills the credential/model/prompt/
  *  negativePrompt/size/n fields; `edit` rides B3/editImage (I4). `systemPrompt` is the optional prepend.

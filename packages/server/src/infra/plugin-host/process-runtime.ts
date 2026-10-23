@@ -39,6 +39,7 @@ import {
   pluginCommandRegistrationMetaSchema,
   pluginFrameBodySchema,
   pluginSurfaceRegistrationMetaSchema,
+  snippetResultSchema,
 } from "@orb/contracts/plugin";
 import { DomainConflictError } from "@orb/kit/errors";
 import type { TimerScheduler } from "@orb/kit/time";
@@ -60,7 +61,7 @@ import {
 } from "./budgets.ts";
 import type { PluginNetEgress } from "./contract/net-egress.ts";
 import type { CreateInstanceInputIn, CreateInstanceOutcomeOut, PluginHostSeamDeps, ProcessPluginHost, SnippetRunOut } from "./contract/port.ts";
-import type { BrokerParentMessage, ParentBrokerMessage } from "./contract/process-protocol.ts";
+import type { BrokerParentMessage, ParentBrokerMessage, RpcResult } from "./contract/process-protocol.ts";
 import { createPluginNetEgress } from "./net-egress.ts";
 import { PluginIpcSender, parsePluginIpcMessage } from "./process-channel.ts";
 import { pluginWatchdogExecArgv } from "./process-permission.ts";
@@ -659,24 +660,23 @@ class BrokerClient {
   private handleBridge(message: Extract<BrokerParentMessage, { readonly kind: "bridge" }>): void {
     const binding = this.bindings.get(message.runtimeId);
     if (binding === undefined || binding.crashed !== null || binding.disposed) {
-      this.sendBridgeResult(message.id, false, undefined, new Error("plugin broker: stale, crashed, or disposed runtime id"));
+      this.sendBridgeResult(message.id, { ok: false, error: rpcError(new Error("plugin broker: stale, crashed, or disposed runtime id")) });
       return;
     }
     const authority = binding.authorities.get(message.authorityId);
     if (authority === undefined) {
-      this.sendBridgeResult(message.id, false, undefined, new Error("plugin broker: stale command authority"));
+      this.sendBridgeResult(message.id, { ok: false, error: rpcError(new Error("plugin broker: stale command authority")) });
       return;
     }
     if (isBridgeOperation(message.operation)) {
       if (!admitTailCall(binding, message.authorityId)) {
-        this.sendBridgeResult(message.id, false, undefined, new Error("plugin broker: command authority spent its continuation call budget"));
+        this.sendBridgeResult(message.id, { ok: false, error: rpcError(new Error("plugin broker: command authority spent its continuation call budget")) });
         return;
       }
       try {
         authorizeBridgeCall(authority, message.operation, message.args);
-        // an authorization refusal goes to sendBridgeResult, which serializes rpcError(error) into the bridge-result frame the worker receives. Ends if sendBridgeResult stops carrying the caught error.
       } catch (error) {
-        this.sendBridgeResult(message.id, false, undefined, error);
+        this.sendBridgeResult(message.id, { ok: false, error: rpcError(error) });
         return;
       }
       const liveness = createLiveness();
@@ -686,12 +686,12 @@ class BrokerClient {
       dispatchBridgeCall(binding, message.operation, message.args, liveness).then(
         (value) => {
           this.bridgeCalls.delete(message.id);
-          this.sendBridgeResult(message.id, true, value);
+          this.sendBridgeResult(message.id, { ok: true, value });
           completion.resolve();
         },
         (error) => {
           this.bridgeCalls.delete(message.id);
-          this.sendBridgeResult(message.id, false, undefined, error);
+          this.sendBridgeResult(message.id, { ok: false, error: rpcError(error) });
           completion.resolve();
         },
       );
@@ -703,21 +703,20 @@ class BrokerClient {
         seams: binding.seams,
         invokeArgs: binding.invokeArgs,
       });
-      this.sendBridgeResult(message.id, true, value);
-      // a synchronous authorization or dispatch refusal goes to sendBridgeResult(..., error), which serializes rpcError(error) for the worker. Ends if sendBridgeResult stops carrying the caught error.
+      this.sendBridgeResult(message.id, { ok: true, value });
     } catch (error) {
-      this.sendBridgeResult(message.id, false, undefined, error);
+      this.sendBridgeResult(message.id, { ok: false, error: rpcError(error) });
     }
   }
 
-  private sendBridgeResult(id: string, ok: boolean, value?: unknown, error?: unknown): void {
+  private sendBridgeResult(id: string, result: RpcResult): void {
     const sender = this.sender;
     const generation = this.generation;
     if (sender === undefined || generation === undefined) {
       return;
     }
     try {
-      const frame = serializeMessage({ kind: "bridge-result", id, ok, value, ...(error === undefined ? {} : { error: rpcError(error) }) });
+      const frame = serializeMessage({ kind: "bridge-result", id, ...result });
       sender.send({ kind: "frame", generation, frame });
       // an oversized or unserializable host result is replaced by a bridge-result frame carrying rpcError(serializationError); the failure of that fallback is owned by the inner channelError catch. Ends if the fallback frame stops carrying the error.
     } catch (serializationError) {
@@ -930,26 +929,11 @@ function parseCreateOutcome(value: unknown, grants: ReadonlySet<PluginCapability
 }
 
 function parseSnippetOutcome(value: unknown): SnippetRunOut {
-  if (
-    typeof value !== "object" ||
-    value === null ||
-    !("logLines" in value) ||
-    !Array.isArray(value.logLines) ||
-    value.logLines.some((line) => typeof line !== "string")
-  ) {
+  const parsed = snippetResultSchema.safeParse(value);
+  if (!parsed.success) {
     throw new Error("plugin broker: malformed snippet response");
   }
-  const response = value as { readonly logLines: readonly string[]; readonly error?: unknown; readonly errorKind?: unknown; readonly errorLine?: unknown };
-  if (response.error !== undefined && typeof response.error !== "string") {
-    throw new Error("plugin broker: malformed snippet error");
-  }
-  if (response.errorKind !== undefined && response.errorKind !== "parse" && response.errorKind !== "runtime") {
-    throw new Error("plugin broker: malformed snippet error kind");
-  }
-  if (response.errorLine !== undefined && (typeof response.errorLine !== "number" || !Number.isInteger(response.errorLine))) {
-    throw new Error("plugin broker: malformed snippet error line");
-  }
-  return response as SnippetRunOut;
+  return parsed.data;
 }
 
 export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {

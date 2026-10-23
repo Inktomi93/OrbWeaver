@@ -25,18 +25,19 @@ interface CacheModule {
   readonly createModelCache: (config: ModelCacheConfig) => LocalLightModelCache;
 }
 
-function run(cache: LocalLightModelCache, call: LocalLightWorkerCall): Promise<LocalLightWorkerValue> {
+async function run(cache: LocalLightModelCache, call: LocalLightWorkerCall): Promise<LocalLightWorkerValue> {
   switch (call.op) {
     case "embedTexts":
-      return cache.embedTexts(call.modelId, call.texts, undefined, call.encoding);
+      return { op: call.op, value: await cache.embedTexts(call.modelId, call.texts, undefined, call.encoding) };
     case "embedClipTexts":
-      return cache.embedClipTexts(call.modelId, call.texts, call.encoding);
+      return { op: call.op, value: await cache.embedClipTexts(call.modelId, call.texts, call.encoding) };
     case "embedImages":
-      return cache.embedImages(call.modelId, call.images);
+      return { op: call.op, value: await cache.embedImages(call.modelId, call.images) };
     case "scorePairs":
-      return cache.scorePairs(call.modelId, call.query, call.documents, call.serving);
+      return { op: call.op, value: await cache.scorePairs(call.modelId, call.query, call.documents, call.serving) };
     case "preload":
-      return cache.preload(call.slot, call.modelId, call.onnx).then(() => null);
+      await cache.preload(call.slot, call.modelId, call.onnx);
+      return { op: call.op, value: null };
     default: {
       const exhaustive: never = call;
       return exhaustive;
@@ -56,7 +57,7 @@ function idleCollector(): () => void {
 }
 
 // Only whole-buffer rows are transferred: a view into a shared or pooled buffer would detach bytes it does not own.
-function transfers(value: LocalLightWorkerValue): Transferable[] {
+function transfers(value: LocalLightWorkerValue["value"]): Transferable[] {
   if (!Array.isArray(value)) {
     return [];
   }
@@ -114,8 +115,8 @@ async function main(port: MessagePort, options: LocalLightWorkerOptions): Promis
     // the rejection arm posts a failure message (model-worker.ts:121) that worker-cache.ts:163 turns into `pending.reject(...)` for the waiting caller. Ends if the failure message stops rejecting the host call.
     run(cache, call)
       .then(
-        (value) => {
-          post({ type: "reply", id, loadFailed: cache.loadFailed(call.modelId), value }, transfers(value));
+        (result) => {
+          post({ type: "reply", id, loadFailed: cache.loadFailed(call.modelId), ...result }, transfers(result.value));
         },
         (err: unknown) => {
           post({ type: "failure", id, loadFailed: cache.loadFailed(call.modelId), failure: toWorkerFailure(err) });

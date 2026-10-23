@@ -158,7 +158,7 @@ export function createWorkerModelCache(config: WorkerModelCacheConfig): WorkerMo
       failedModels.delete(pending.modelId);
     }
     if (message.type === "reply") {
-      pending.resolve(message.value);
+      pending.resolve(message);
     } else {
       pending.reject(fromWorkerFailure(message.failure));
     }
@@ -227,7 +227,13 @@ export function createWorkerModelCache(config: WorkerModelCacheConfig): WorkerMo
     });
   }
 
-  const vectors = async (request: LocalLightWorkerCall): Promise<Float32Array[]> => (await call(request)) as Float32Array[];
+  const vectors = async (request: Exclude<LocalLightWorkerCall, { readonly op: "scorePairs" | "preload" }>): Promise<Float32Array[]> => {
+    const reply = await call(request);
+    if (reply.op === "scorePairs" || reply.op === "preload" || reply.op !== request.op) {
+      throw workerLostError("mismatched embedding reply");
+    }
+    return reply.value;
+  };
 
   const close = async (): Promise<void> => {
     closed = true;
@@ -260,10 +266,21 @@ export function createWorkerModelCache(config: WorkerModelCacheConfig): WorkerMo
       texts.length === 0 ? Promise.resolve([]) : vectors({ op: "embedClipTexts", modelId, texts, encoding }),
     embedImages: async (modelId, images): Promise<Float32Array[]> =>
       images.length === 0 ? [] : await vectors({ op: "embedImages", modelId, images: images.map(requireImageBytes) }),
-    scorePairs: async (modelId, query, documents, serving): Promise<number[]> =>
-      documents.length === 0 ? [] : ((await call({ op: "scorePairs", modelId, query, documents, serving })) as number[]),
+    scorePairs: async (modelId, query, documents, serving): Promise<number[]> => {
+      if (documents.length === 0) {
+        return [];
+      }
+      const reply = await call({ op: "scorePairs", modelId, query, documents, serving });
+      if (reply.op !== "scorePairs") {
+        throw workerLostError("mismatched rerank reply");
+      }
+      return reply.value;
+    },
     preload: async (slot, modelId, onnx): Promise<void> => {
-      await call({ op: "preload", modelId, slot, onnx });
+      const reply = await call({ op: "preload", modelId, slot, onnx });
+      if (reply.op !== "preload") {
+        throw workerLostError("mismatched preload reply");
+      }
     },
     loadFailed: (modelId): boolean => failedModels.has(modelId),
     // Never `terminate()`: stopping the thread while onnxruntime-node is inside a run makes its binding throw a

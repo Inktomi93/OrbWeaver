@@ -99,14 +99,9 @@ function extractGuestLine(dumped: object): number | undefined {
 }
 
 /** The result of one guest invocation — errors-as-data, logs drained, no live handles escape. */
-export interface EvalOutcome {
-  readonly ok: boolean;
-  /** JSON-serialized guest return value (present when ok). */
-  readonly value?: string;
-  /** Present when the guest threw, hit the deadline, or OOM'd — all contained, never a host crash. */
-  readonly error?: GuestError;
-  readonly logs: readonly string[];
-}
+export type EvalOutcome =
+  | { readonly ok: true; readonly value: string; readonly error?: never; readonly logs: readonly string[] }
+  | { readonly ok: false; readonly error: GuestError; readonly value?: never; readonly logs: readonly string[] };
 
 const DEFAULT_LIMITS: PluginBudgets = {
   cpuDeadlineMs: PLUGIN_INVOCATION_CPU_MS,
