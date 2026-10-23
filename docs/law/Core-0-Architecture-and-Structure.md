@@ -199,8 +199,8 @@ directory gives each test one home, and the src tree stays clean. The fixture do
 `test.extend` (over `beforeEach`/`freshDb()`).
 
 **The test kit is a package.** `tests/support` is the workspace package `@orb/testkit`. It sits above the cake
-beside tooling (§9). Its exports map has nine doors and no root entry: `@orb/testkit/iso`, `node`, `node/helpers`, `node/composed`, `ct`,
-`ct-corpus`, `browser`, `tooling` and `sdk`; each is a barrel in its world directory, and `tests/support/README.md` says what it holds. The checked-in compiler configurations own their environments: `tsconfig.tests-iso.json`, `tsconfig.json` and `tsconfig.tests-dom.json`.
+beside tooling (§9). Its `package.json` exports map holds its doors and no root entry: `@orb/testkit/iso`, `node`, `node/helpers`, `node/composed`,
+`node/rows`, `ct`, `ct-corpus`, `browser`, `browser/spec`, `tooling` and `sdk`; each is a barrel in its world directory, and `tests/support/README.md` says what it holds. The checked-in compiler configurations own their environments: `tsconfig.tests-iso.json`, `tsconfig.json` and `tsconfig.tests-dom.json`.
 The `test-helper-world-direction` rule in `.dependency-cruiser.ts` keeps the direction: iso imports no other world, node imports iso, browser imports both.
 
 The kit holds deterministic inputs, production-derived builders, external-edge adapters and recorders. Product logic stays in its owning layer behind its public API. `Spine-Testing.md` §2 owns the server test composition home; rebuilt tests do not assemble another domain graph.
