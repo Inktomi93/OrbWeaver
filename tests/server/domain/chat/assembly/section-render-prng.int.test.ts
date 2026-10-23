@@ -1,5 +1,6 @@
 // @subject packages/server/src/domain/chat/assembly/macros.ts
 // Previews render {{random}} from a stable PRNG; a real turn renders it from the root's seeded PRNG. Neither reaches kit's ambient Math.random.
+import { createCharacterSchema } from "@orb/contracts/character";
 import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { expect, test } from "@orb/testkit/node";
 import {
@@ -29,6 +30,7 @@ async function root(random: () => number): ReturnType<typeof createChatRoot> {
   return await createChatRoot({
     server: { random },
     memoryEnabled: false,
+    characters: [createCharacterSchema.parse({ handle: "aria", name: "Aria", description: PICKS })],
     promptConfig: {
       ...DEFAULT_PROMPT_CONFIG,
       sections: [{ type: "literal", id: "picks", name: "picks", role: "system", enabled: true, content: PICKS }, ...DEFAULT_PROMPT_CONFIG.sections],
@@ -63,6 +65,18 @@ test("a guided-action preview renders the same on every poll even when the live 
       ?.resolved;
   expect(await poll()).toBe(`${STABLE_PREVIEW}{{input}}`);
   expect(await poll()).toBe(`${STABLE_PREVIEW}{{input}}`);
+});
+
+test("a member card display renders the same on every read even when the live PRNG drifts", async () => {
+  await using h = await root(drifting());
+  const character = h.characters[0];
+  if (character === undefined) {
+    throw new Error("the composed room seated no character");
+  }
+  const read = async (): Promise<string | null> =>
+    (await h.caller.chat.getMemberCard({ chatId: h.chatId, characterId: character.id, timeZone: "UTC" })).description;
+  expect(await read()).toBe(STABLE_PREVIEW);
+  expect(await read()).toBe(STABLE_PREVIEW);
 });
 
 test("a real turn renders a preset section's {{random}} picks from the seeded PRNG", async () => {

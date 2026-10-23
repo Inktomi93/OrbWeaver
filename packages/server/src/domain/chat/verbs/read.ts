@@ -1014,14 +1014,15 @@ function createGetMemberCard(ctx: ChatContext, deps: ReadDeps): ChatService["get
       {
         ...clamped,
         editableTags: principal.userId === hostUserId && clamped.tags !== null ? tags : null,
-        description: renderCardField(clamped.description, renderCtx, ctx.prng),
-        personality: renderCardField(clamped.personality, renderCtx, ctx.prng),
-        scenario: renderCardField(clamped.scenario, renderCtx, ctx.prng),
-        greetings: clamped.greetings === null ? null : clamped.greetings.map((g) => renderMacros(g, renderCtx, renderCtx.pinnedPersona, { random: ctx.prng })),
-        exampleMessages: renderCardField(clamped.exampleMessages, renderCtx, ctx.prng),
-        creatorNotes: renderCardField(clamped.creatorNotes, renderCtx, ctx.prng),
-        systemPrompt: renderCardField(clamped.systemPrompt, renderCtx, ctx.prng),
-        postHistoryInstructions: renderCardField(clamped.postHistoryInstructions, renderCtx, ctx.prng),
+        description: renderCardField(clamped.description, renderCtx, PREVIEW_RANDOM),
+        personality: renderCardField(clamped.personality, renderCtx, PREVIEW_RANDOM),
+        scenario: renderCardField(clamped.scenario, renderCtx, PREVIEW_RANDOM),
+        greetings:
+          clamped.greetings === null ? null : clamped.greetings.map((g) => renderMacros(g, renderCtx, renderCtx.pinnedPersona, { random: PREVIEW_RANDOM })),
+        exampleMessages: renderCardField(clamped.exampleMessages, renderCtx, PREVIEW_RANDOM),
+        creatorNotes: renderCardField(clamped.creatorNotes, renderCtx, PREVIEW_RANDOM),
+        systemPrompt: renderCardField(clamped.systemPrompt, renderCtx, PREVIEW_RANDOM),
+        postHistoryInstructions: renderCardField(clamped.postHistoryInstructions, renderCtx, PREVIEW_RANDOM),
       },
       membership,
     );
