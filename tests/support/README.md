@@ -28,7 +28,8 @@ Import testkit through the doors its `package.json` exports. A door is a barrel 
 | `@orb/testkit/node/composed` | the server harness, database, factories, corpus producers and chat composition; it loads the server graph |
 | `@orb/testkit/ct` | Playwright-side helpers for component specs: declared tRPC and socket interception, section navigation |
 | `@orb/testkit/ct-corpus` | the Playwright `test` and `expect` that mount against a corpus-backed server |
-| `@orb/testkit/browser` | production-backed providers, the registry door and rendered-surface helpers for component specs |
+| `@orb/testkit/browser` | production-backed providers, the registry door and isolation helpers a story mounts in the browser |
+| `@orb/testkit/browser/spec` | Node-side helpers a component spec drives the page with: contrast and prose measurement, wire types |
 | `@orb/testkit/tooling` | the vitest `test` and fixtures for tooling tests |
 | `@orb/testkit/sdk` | what a spawned SDK stand-in process imports |
 

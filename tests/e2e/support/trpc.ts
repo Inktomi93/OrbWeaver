@@ -17,7 +17,7 @@ import type {
   RpgConfigPatch,
   TrpcInput,
   TrpcPath,
-} from "@orb/testkit/browser";
+} from "@orb/testkit/browser/spec";
 import type { TRPCClient } from "@trpc/client";
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import { DEV_TARGET_ALLOWED, E2E_DEBUG_TOKEN, E2E_LOCAL_ENGINE_LABEL, SINGLE_USER } from "./modes.ts";
@@ -51,15 +51,7 @@ const DEBUG_TOKEN = DEV_TARGET_ALLOWED ? (process.env["DEBUG_TOKEN"] ?? E2E_DEBU
 
 const debugHeaders = (): Record<string, string> => ({ "x-debug-token": DEBUG_TOKEN });
 
-export type {
-  ActorRefInput,
-  CompactionIntent,
-  GroupConfigInput,
-  GuidedSteerInput,
-  NewConnection,
-  TrackerDefInput,
-  TrpcInput,
-} from "@orb/testkit/browser";
+export type { ActorRefInput, CompactionIntent, GroupConfigInput, GuidedSteerInput, NewConnection, TrackerDefInput, TrpcInput } from "@orb/testkit/browser/spec";
 
 /** The first batch entry's `result.data`, or `undefined` when that entry carries an error or no result. tRPC
  *  publishes no schema for the envelope, so it stays raw and only the envelope's own fields are read. */

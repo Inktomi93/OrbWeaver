@@ -9,6 +9,7 @@
   "sideEffects": true,
   "exports": {
     "./browser": "./browser/index.ts",
+    "./browser/spec": "./browser/spec.ts",
     "./ct": "./node/ct.ts",
     "./ct-corpus": "./node/ct-corpus.ts",
     "./iso": "./iso/index.ts",
