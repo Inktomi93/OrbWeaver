@@ -1,80 +1,32 @@
-// support/factories/message — the D26 slot + variant pair. `X` is the SLOT row (`messages` — identity +
-// attribution + selection ONLY; content lives on `message_variants`). `seedMessage` performs the 3-step
-// circular-FK dance the schema requires (insert slot → insert variant idx 0 → point `selectedVariantId`)
-// and returns the slot with the pointer set plus the variant id + content. `makeMessage` stays pure —
-// its default `chatId` is MINTED (dangling); `seedMessage` auto-seeds a bare chat when none is given.
+// Message seeds run the canon writers: a user row is a Simple Send commit, and an assistant history is a transcript
+// import (`seedTranscript`). Captures read the D26 slot and its selected variant by the identities production returned.
 
 import type { TurnOutcome } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { messages, messageVariants } from "@orb/db";
-import type { IdSource, MessageVariantId } from "@orb/kit/ids";
-import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
+import type { ChatId } from "@orb/kit/ids";
+import type { ChatService } from "@orb/server/domain/chat";
 import { and, eq } from "drizzle-orm";
-import { FROZEN_AT_MS } from "../../iso/clock.ts";
-import { createSeededIds } from "../../iso/ids.ts";
-import { seedChat } from "./chat.ts";
+import type { ServerProducerRoot } from "../server.ts";
 
-/** The full `messages` SLOT row (derived from the live schema — the factory `X`). */
-export type MessageRow = typeof messages.$inferSelect;
+type MessageRow = typeof messages.$inferSelect;
 type MessageVariantRow = typeof messageVariants.$inferSelect;
 
-/** Slot overrides + the first variant's content (a variant field, so not on `Partial<X>`). */
-export interface SeedMessageOptions extends Partial<MessageRow> {
-  /** The idx-0 variant's text. Defaults to `body-<seq>` (deterministic). */
-  readonly content?: string;
+interface CapturedTurnRow {
+  readonly slot: MessageRow;
+  readonly variant: MessageVariantRow;
 }
+export type CapturedTurnRows = readonly CapturedTurnRow[];
 
-/** The seeded slot: `selectedVariantId` is set (non-null post-dance) + the variant id/content. */
-export interface SeededMessage extends MessageRow {
-  readonly variantId: MessageVariantId;
-  readonly content: string;
-}
-
-const ids = createIdSource(createSeededIds().next);
-
-/** Pure builder: a fully-valid slot row (assistant, seq 1). `selectedVariantId` is null — the pointer
- *  only exists after the variant insert (`seedMessage` owns that dance). */
-export function makeMessage(overrides: Partial<MessageRow> = {}, source: IdSource = ids): MessageRow {
-  return {
-    id: source.typeId(ID_PREFIX.message),
-    chatId: source.typeId(ID_PREFIX.chat),
-    seq: 1,
-    role: "assistant",
-    kind: "standard",
-    authorUserId: null,
-    characterId: null,
-    personaId: null,
-    selectedVariantId: null,
-    excludedFromPrompt: false,
-    initiator: "human",
-    automationDepth: 0,
-    createdAt: FROZEN_AT_MS,
-    editedAt: null,
-    ...overrides,
-  };
-}
-
-/** The D26 3-step dance over a real db: slot → variant idx 0 → `selectedVariantId` pointer. An absent
- *  `chatId` seeds a bare chat first (FK-clean on an empty db). */
-export async function seedMessage(db: Db, overrides: SeedMessageOptions = {}, source?: IdSource): Promise<SeededMessage> {
-  const { content, ...slotOverrides } = overrides;
-  const sequence = source ?? ids;
-  const chatId = slotOverrides.chatId ?? (await seedChat(db, {}, source)).id;
-  const slot = makeMessage({ ...slotOverrides, chatId }, sequence);
-  await db.insert(messages).values(slot);
-
-  const variantId = sequence.typeId(ID_PREFIX.messageVariant);
-  const body = content ?? `body-${slot.seq}`;
-  await db.insert(messageVariants).values({
-    id: variantId,
-    messageId: slot.id,
-    idx: 0,
-    content: body,
-    createdAt: FROZEN_AT_MS,
-  });
-  await db.update(messages).set({ selectedVariantId: variantId }).where(eq(messages.id, slot.id));
-
-  return { ...slot, selectedVariantId: variantId, variantId, content: body };
+/** The user commit owns send regex, greeting freeze, room claim, seq allocation and persona attribution. */
+export async function seedMessage(root: ServerProducerRoot, params: Parameters<ChatService["commitMessage"]>[0]): Promise<CapturedTurnRow> {
+  const commitMessage = root.services.chat.commitMessage;
+  const outcome = await commitMessage(params);
+  const [row, ...rest] = await captureTurnRows(root.db, outcome);
+  if (row === undefined || rest.length > 0) {
+    throw new Error("production message commit did not write exactly one canonical slot");
+  }
+  return row;
 }
 
 /** Canonical rows come only from the exact message/variant identities returned by the actual turn. */
@@ -95,8 +47,12 @@ export async function captureTurnRows(db: Db, outcome: TurnOutcome): Promise<Cap
   );
 }
 
-interface CapturedTurnRow {
-  readonly slot: MessageRow;
-  readonly variant: MessageVariantRow;
+/** A room's whole canon in seq order, each slot joined to the variant it selects. */
+export async function captureChatCanonRows(db: Db, chatId: ChatId): Promise<CapturedTurnRows> {
+  return await db
+    .select({ slot: messages, variant: messageVariants })
+    .from(messages)
+    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+    .where(eq(messages.chatId, chatId))
+    .orderBy(messages.seq);
 }
-export type CapturedTurnRows = readonly CapturedTurnRow[];

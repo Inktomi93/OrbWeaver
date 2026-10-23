@@ -495,7 +495,7 @@ test("a detached native SDK marker settles before the accepted copy and authorit
     fixture.release();
     await accepted;
     expect((await fixture.marker())?.compactSummary).toBeTruthy();
-    expect((await fixture.marker())?.compactedAtSeq).toBe(coveredRows);
+    expect((await fixture.marker())?.compactedAtSeq).toBe(await fixture.seqOfRow(coveredRows));
     expect(
       await h.root.db
         .select()

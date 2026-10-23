@@ -3,10 +3,13 @@ import type { CharacterDetail, CreateCharacterInput } from "@orb/contracts/chara
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { GroupConfigInput } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
+import type { CreatePersonaInput } from "@orb/contracts/persona";
 import type { PromptConfig } from "@orb/contracts/preset";
 import type { MemoryDefaults } from "@orb/contracts/settings";
 import type { ChatId } from "@orb/kit/ids";
 import { seedCorpusActors } from "../corpus-seed.ts";
+import type { TranscriptLine } from "../factories/chat.ts";
+import { seedTranscript } from "../factories/chat.ts";
 import type { AppCaller } from "../fixtures.ts";
 import type { ServerHarnessOptions, ServerTestHarness } from "../server.ts";
 import { createServerHarness } from "../server.ts";
@@ -19,6 +22,10 @@ export interface ChatRootOptions {
   readonly group?: GroupConfigInput;
   readonly memoryEnabled?: boolean;
   readonly memoryDefaults?: MemoryDefaults;
+  /** Owner personas created before the room, so a transcript line can name one as its author. */
+  readonly personas?: readonly CreatePersonaInput[];
+  /** Prior canon: the room is born through the native chat import instead of `startChat`. */
+  readonly transcript?: readonly TranscriptLine[];
 }
 
 export interface ChatRoot extends AsyncDisposable {
@@ -27,6 +34,7 @@ export interface ChatRoot extends AsyncDisposable {
   readonly caller: AppCaller;
   readonly chatId: ChatId;
   readonly characters: readonly CharacterDetail[];
+
   readonly requests: readonly Request[];
 }
 
@@ -58,11 +66,17 @@ export async function createChatRoot(options: ChatRootOptions): Promise<ChatRoot
   for (const input of options.characters ?? [createCharacterSchema.parse({ handle: "aria", name: "Aria", description: "A bold knight." })]) {
     characters.push(await caller.character.create({ input }));
   }
-  const room = await caller.chat.startChat({ characterIds: characters.map(({ id }) => id), opening: "none" });
+  for (const input of options.personas ?? []) {
+    await caller.persona.create({ input });
+  }
+  const chatId =
+    options.transcript === undefined
+      ? (await caller.chat.startChat({ characterIds: characters.map(({ id }) => id), opening: "none" })).chat.id
+      : (await seedTranscript(root, { ownerId: owner.userId, characterHandles: characters.map(({ handle }) => handle), lines: options.transcript })).row.id;
   if (options.group !== undefined) {
-    await caller.chat.setGroupConfig({ chatId: room.chat.id, config: options.group });
+    await caller.chat.setGroupConfig({ chatId, config: options.group });
   }
   await root.settleBackground();
   const lifetime = construction.move();
-  return { root, owner, caller, chatId: room.chat.id, characters, requests, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
+  return { root, owner, caller, chatId, characters, requests, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
 }

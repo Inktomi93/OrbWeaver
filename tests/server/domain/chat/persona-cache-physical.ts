@@ -38,7 +38,7 @@ function reply(text: string, model: string): Response {
 /** Keep provider admission and the native converter real while controlling a finite sequence of replies. */
 export async function personaRoom(
   replies: readonly string[],
-  options: Pick<ChatRootOptions, "characters" | "promptConfig" | "group"> & { readonly model?: string } = {},
+  options: Pick<ChatRootOptions, "characters" | "promptConfig" | "group" | "transcript"> & { readonly model?: string } = {},
 ): Promise<ChatRoot> {
   await using construction = new AsyncDisposableStack();
   const { model = MODEL, ...roomOptions } = options;

@@ -1,5 +1,6 @@
 // @subject packages/server/src/domain/roster-preset/verbs/seed.ts
 
+import { createCharacterSchema } from "@orb/contracts/character";
 import { SEED_MANIFEST } from "@orb/default-content";
 import { createFindSeedCharacter } from "@orb/server/domain/character";
 import { createRosterSeedStep, createSeedRosterPreset } from "@orb/server/domain/roster-preset";
@@ -21,9 +22,10 @@ test("authored campaign and plain steps preserve the receiving Principal, owned 
   const owner = await seedUser(db);
   const neighbor = await seedUser(db);
   const actor = await principal(harness, owner.id);
+  const neighborActor = await principal(harness, neighbor.id);
   for (const handle of new Set([...CAMPAIGN.characters, ...PLAIN.characters])) {
-    await seedCharacter(db, { ownerId: owner.id, handle });
-    await seedCharacter(db, { ownerId: neighbor.id, handle });
+    await seedCharacter(harness, { principal: actor, input: createCharacterSchema.parse({ handle, name: handle, description: "" }) });
+    await seedCharacter(harness, { principal: neighborActor, input: createCharacterSchema.parse({ handle, name: handle, description: "" }) });
   }
   for (const item of [CAMPAIGN, PLAIN]) {
     const step = createRosterSeedStep({
@@ -45,7 +47,7 @@ test("authored campaign and plain steps preserve the receiving Principal, owned 
     expect(row.members.map((member) => member.characterId)).toEqual(expected);
     expect(row.game === null).toBe(!item.startsGame);
   }
-  expect(await services.rosterPreset.list({ principal: await principal(harness, neighbor.id) })).toEqual([]);
+  expect(await services.rosterPreset.list({ principal: neighborActor })).toEqual([]);
 });
 
 test("all-deleted authored seats settle without a roster write, never filling the vacancy with another user's same handles", async ({
@@ -56,10 +58,11 @@ test("all-deleted authored seats settle without a roster write, never filling th
   const owner = await seedUser(db);
   const neighbor = await seedUser(db);
   const actor = await principal(harness, owner.id);
+  const neighborActor = await principal(harness, neighbor.id);
   for (const handle of PLAIN.characters) {
-    const card = await seedCharacter(db, { ownerId: owner.id, handle });
-    await seedCharacter(db, { ownerId: neighbor.id, handle });
-    await services.character.remove({ principal: actor, characterId: card.id });
+    const card = await seedCharacter(harness, { principal: actor, input: createCharacterSchema.parse({ handle, name: handle, description: "" }) });
+    await seedCharacter(harness, { principal: neighborActor, input: createCharacterSchema.parse({ handle, name: handle, description: "" }) });
+    await services.character.remove({ principal: actor, characterId: card.view.id });
   }
   const step = createRosterSeedStep({
     name: PLAIN.name,

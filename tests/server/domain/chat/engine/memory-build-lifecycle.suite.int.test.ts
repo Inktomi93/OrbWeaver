@@ -15,7 +15,6 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
-  seedMessage,
 } from "@orb/testkit/node/composed";
 import { eq, sql } from "drizzle-orm";
 import { vi } from "vitest";
@@ -51,6 +50,7 @@ async function room(): Promise<
       memoryEnabled: true,
       group: { output: "per-speaker", policy: "list" },
       memoryDefaults: { mode: "mixC", blockSize: 2, verbatimWindow: 0, maxTier: 0 },
+      transcript: [1, 2, 3].map((index) => ({ role: "assistant" as const, content: `The keeper's historical memory ${index}.` })),
     }),
   );
   const chatBinding = (await h.root.services.connection.listBindings({ principal: h.owner })).find(({ task }) => task === "chat")?.binding;
@@ -66,9 +66,7 @@ async function room(): Promise<
   if (character === undefined) {
     throw new Error("the real memory room has no seated character");
   }
-  for (let seq = 1; seq <= 3; seq += 1) {
-    await seedMessage(h.root.db, { chatId: h.chatId, seq, characterId: character.id, content: `The keeper's historical memory ${seq}.` }, h.root.idSource);
-  }
+
   const turn = async (): Promise<MemoryTurnCapture> => {
     const outcome = await h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: character.id });
     await h.root.settleBackground();

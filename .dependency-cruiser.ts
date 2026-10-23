@@ -222,8 +222,16 @@ const TEST_WORLDS = [
         "^tests/support/(iso|browser)/index\\.ts$",
         "^tests/support/node/(index|helpers|composed|ct|ct-corpus|tool-fixtures|composed-real)\\.ts$",
         "^tests/support/node/sdk-process-control\\.mjs$",
+        "^tests/support/node/factories/rows\\.ts$",
       ],
     },
+  },
+  {
+    name: "testkit-rows-persistence-only",
+    comment: "Only persistence-tier tests insert rows directly; every other test seeds through the composed root's verbs.",
+    severity: "error",
+    from: { path: "^(tests|scripts|playwright)/", pathNot: ["^tests/support/", "^tests/db/", "^tests/.*/persistence/"] },
+    to: { path: "^tests/support/node/factories/rows\\.ts$" },
   },
   {
     name: "tooling-no-testkit",

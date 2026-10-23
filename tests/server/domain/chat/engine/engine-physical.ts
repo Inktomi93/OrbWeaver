@@ -1,9 +1,9 @@
 // Shared real-root setup for native executable controls; no fixture owns engine decisions or context.
 import "@orb/testkit/node/composed-real.ts";
 import type { UserIntent } from "@orb/contracts/preset";
-import { chatEvents, chats } from "@orb/db";
+import { chatEvents, chats, messages } from "@orb/db";
 import { createSeededIds } from "@orb/testkit/iso";
-import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/composed";
+import type { ChatRoot, ChatRootOptions, TranscriptLine } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -11,7 +11,6 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
-  seedMessage,
 } from "@orb/testkit/node/composed";
 import { createSdkProcessSpawner } from "@orb/testkit/node/helpers";
 import { eq } from "drizzle-orm";
@@ -29,21 +28,12 @@ const behaviorSchema = z.enum(["reply", "fail", "hold"]);
 const policySchema = z.object({ marker: behaviorSchema, foreground: behaviorSchema, inputTokens: z.number(), inspectHistory: z.literal(true).optional() });
 const sdkFixtureIds = createSeededIds();
 
-async function seedEngineHistory(h: ChatRoot, from: number, through: number): Promise<void> {
-  for (let seq = from; seq <= through; seq += 1) {
-    await seedMessage(
-      h.root.db,
-      {
-        chatId: h.chatId,
-        seq,
-        role: seq % 2 === 1 ? "user" : "assistant",
-        authorUserId: seq % 2 === 1 ? h.owner.userId : null,
-        characterId: seq % 2 === 0 ? (h.characters[0]?.id ?? null) : null,
-        content: `turn ${seq} — ${"lorem ipsum dolor sit amet ".repeat(8)}`,
-      },
-      h.root.idSource,
-    );
-  }
+// Alternating owner and primary-character lines; the import attributes each assistant line to the primary seat.
+function engineHistory(through: number): readonly TranscriptLine[] {
+  return Array.from({ length: through }, (_, index) => {
+    const seq = index + 1;
+    return { role: seq % 2 === 1 ? "user" : "assistant", content: `turn ${seq} — ${"lorem ipsum dolor sit amet ".repeat(8)}` };
+  });
 }
 
 export async function sdkEngineRoom(
@@ -62,6 +52,8 @@ export async function sdkEngineRoom(
     readonly release: () => void;
     readonly turn: (intent?: UserIntent) => ReturnType<ChatRoot["root"]["services"]["chat"]["generate"]>;
     readonly marker: () => Promise<typeof chats.$inferSelect | undefined>;
+    /** The stored seq of the room's nth canon row, counted from one; production owns the numbering. */
+    readonly seqOfRow: (row: number) => Promise<number | undefined>;
     readonly warnings: () => Promise<(typeof chatEvents.$inferSelect)[]>;
   }
 > {
@@ -84,6 +76,7 @@ export async function sdkEngineRoom(
       memoryEnabled: false,
       group: { output: "per-speaker", policy: "list", allowSelfResponses: true },
       ...rootOptions,
+      ...(history === 0 ? {} : { transcript: engineHistory(history) }),
       providerFetch: physical.execute,
       server: {
         secretBoxKey: Buffer.alloc(32, 1),
@@ -124,7 +117,6 @@ export async function sdkEngineRoom(
     declared: { kind: "generation", generation: { context: { window } } },
   });
   await h.caller.connection.setBinding({ task: "chat", connectionId: connection.id });
-  await seedEngineHistory(h, 1, history);
   const release = (): void => {
     for (const child of held) {
       if (!released.has(child)) {
@@ -146,6 +138,17 @@ export async function sdkEngineRoom(
     release,
     turn: async (intent = {}) => await h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId, intent }),
     marker: async () => await h.root.db.select().from(chats).where(eq(chats.id, h.chatId)).get(),
+    seqOfRow: async (row) =>
+      (
+        await h.root.db
+          .select({ seq: messages.seq })
+          .from(messages)
+          .where(eq(messages.chatId, h.chatId))
+          .orderBy(messages.seq)
+          .limit(1)
+          .offset(row - 1)
+          .get()
+      )?.seq,
     warnings: async () =>
       (await h.root.db.select().from(chatEvents).where(eq(chatEvents.chatId, h.chatId))).filter(({ payload }) => payload.type === "warning"),
     [Symbol.asyncDispose]: () => lifetime.disposeAsync(),

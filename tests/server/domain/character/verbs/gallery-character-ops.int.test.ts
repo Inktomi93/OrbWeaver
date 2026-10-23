@@ -1,6 +1,7 @@
 // @subject packages/server/src/domain/character/persistence/gallery-character.ts
 // @subject packages/server/src/domain/assets/verbs/export-gallery.ts
 
+import { createCharacterSchema } from "@orb/contracts/character";
 import type { PortableFile } from "@orb/contracts/portability";
 import { galleryItems } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
@@ -10,11 +11,14 @@ import { seedCharacter, seedUser } from "@orb/testkit/node/composed";
 import { magicBytes, principal } from "@orb/testkit/node/helpers";
 import { eq } from "drizzle-orm";
 
+const OWNED_SUBJECT = createCharacterSchema.parse({ handle: "owned-gallery-subject", name: "Owned subject", description: "" });
+const FOREIGN_SUBJECT = createCharacterSchema.parse({ handle: "foreign-gallery-subject", name: "Foreign subject", description: "" });
+
 test("composed gallery export never resolves a foreign subject handle even from an owned curation row", async ({ harness, app, db, services }) => {
   const owner = await seedUser(db);
   const other = await seedUser(db);
-  const owned = await seedCharacter(db, { ownerId: owner.id });
-  const foreign = await seedCharacter(db, { ownerId: other.id });
+  const { row: owned } = await seedCharacter(harness, { principal: await principal(harness, owner.id), input: OWNED_SUBJECT });
+  const { row: foreign } = await seedCharacter(harness, { principal: await principal(harness, other.id), input: FOREIGN_SUBJECT });
   const image = await services.assets.store({ principal: await principal(harness, owner.id), bytes: magicBytes("png"), kind: "gallery", mime: "image/png" });
   const item = await services.assets.addToGallery({ principal: await principal(harness, owner.id), assetId: image.assetId, subjectCharacterId: owned.id });
   await expect(
@@ -41,8 +45,8 @@ test("composed gallery export never resolves a foreign subject handle even from 
 test("composed gallery import relinks only the importing owner's handle and preserves null fallback", async ({ harness, app, db, services }) => {
   const owner = await seedUser(db);
   const other = await seedUser(db);
-  const owned = await seedCharacter(db, { ownerId: owner.id });
-  const foreign = await seedCharacter(db, { ownerId: other.id });
+  const { row: owned } = await seedCharacter(harness, { principal: await principal(harness, owner.id), input: OWNED_SUBJECT });
+  const { row: foreign } = await seedCharacter(harness, { principal: await principal(harness, other.id), input: FOREIGN_SUBJECT });
   const image = await services.assets.store({ principal: await principal(harness, owner.id), bytes: magicBytes("png"), kind: "gallery", mime: "image/png" });
   const gallery = app.portability.find((entity) => entity.kind === "gallery");
   if (gallery === undefined) {

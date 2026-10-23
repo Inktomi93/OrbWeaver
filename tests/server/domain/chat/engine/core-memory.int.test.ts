@@ -1,7 +1,7 @@
 // @subject packages/server/src/domain/chat/memory/generate/turn.ts
 // @subject packages/server/src/domain/chat/engine/engine.ts
 import { createCharacterSchema } from "@orb/contracts/character";
-import { chatDigests, chatParticipants, chatSegments } from "@orb/db";
+import { chatDigests, chatParticipants, chatSegments, messages } from "@orb/db";
 import { initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node";
 import {
@@ -11,19 +11,20 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
-  seedMessage,
 } from "@orb/testkit/node/composed";
-import { and, eq } from "drizzle-orm";
+import { and, eq, max } from "drizzle-orm";
 
 test("the actual scoped digest build excludes complete blocks from before a character joined", async () => {
   initTracing();
   const summaries: string[] = [];
+  // Replies the late witness speaks after joining; the turn under test takes the keeper's line once they run out.
+  const lateReplies = [6, 7, 8].map((seq) => `Joined bridge ${seq}.`);
   const physical = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
     chatText: (body): string => {
       if (!body.includes("Transcript block:")) {
-        return "The keeper records the completed scene.";
+        return lateReplies.shift() ?? "The keeper records the completed scene.";
       }
       summaries.push(body);
       return body.includes("Unwitnessed opening")
@@ -38,15 +39,19 @@ test("the actual scoped digest build excludes complete blocks from before a char
     memoryEnabled: true,
     memoryDefaults: { mode: "mixA", blockSize: 2, verbatimWindow: 0, maxTier: 0 },
     group: { output: "per-speaker", cardScope: "scoped", policy: "list" },
+    transcript: [
+      ...[1, 2, 3, 4].map((seq) => ({ role: "assistant" as const, content: `Unwitnessed opening ${seq}.` })),
+      { role: "assistant", content: "Joined bridge 5." },
+    ],
   });
   const first = h.characters[0];
   if (first === undefined) {
     throw new Error("the actual memory room has no founding character");
   }
-  for (let seq = 1; seq <= 4; seq += 1) {
-    await seedMessage(h.root.db, { chatId: h.chatId, seq, characterId: first.id, content: `Unwitnessed opening ${seq}.` }, h.root.idSource);
-  }
-  await seedMessage(h.root.db, { chatId: h.chatId, seq: 5, characterId: first.id, content: "Joined bridge 5." }, h.root.idSource);
+  const [head] = await h.root.db
+    .select({ seq: max(messages.seq) })
+    .from(messages)
+    .where(eq(messages.chatId, h.chatId));
   const late = await h.caller.character.create({
     input: createCharacterSchema.parse({ handle: "bryn", name: "Bryn", description: "A late witness to the bridge." }),
   });
@@ -56,10 +61,14 @@ test("the actual scoped digest build excludes complete blocks from before a char
     .from(chatParticipants)
     .where(and(eq(chatParticipants.chatId, h.chatId), eq(chatParticipants.characterId, late.id)))
     .get();
-  expect(seat?.joinSeq).toBe(5);
-  for (let seq = 6; seq <= 8; seq += 1) {
-    await seedMessage(h.root.db, { chatId: h.chatId, seq, characterId: late.id, content: `Joined bridge ${seq}.` }, h.root.idSource);
+  expect(seat?.joinSeq).toBe(head?.seq);
+  // The late witness's lines are real forced turns, each settled so its memory pass ends before the next.
+  for (const _line of [6, 7, 8]) {
+    const spoken = await h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: late.id });
+    expect(spoken.aborted).toBe(false);
+    await h.root.settleBackground();
   }
+  expect(lateReplies).toEqual([]);
   const outer = `controlled-core-memory:${h.chatId}`;
   const beforeTraces = new Set(recentTraces(100).map((trace) => trace.requestId));
   const outcome = await withRequestSpan(outer, "controlled public memory turn", {}, () =>

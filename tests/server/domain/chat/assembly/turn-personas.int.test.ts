@@ -1,15 +1,33 @@
 // The production turn binder composes with the production consent/pin read over a real database.
+
+import { createPersonaSchema } from "@orb/contracts/persona";
 import { databaseHandle } from "@orb/db/wiring-driver";
+import type { UserId } from "@orb/kit/ids";
 import { createTurnPersonaResolver } from "@orb/server/domain/chat";
 import { createResolvePersonasForParticipants } from "@orb/server/domain/persona";
 import { expect, test } from "@orb/testkit/node";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { seedChat, seedPersona, seedUser } from "@orb/testkit/node/composed";
 
-test("a trigger with no seat persona cannot borrow the room's anchor identity", async ({ db }): Promise<void> => {
+async function seededPersona(harness: ServerTestHarness, ownerId: UserId, name: string): Promise<Awaited<ReturnType<typeof seedPersona>>["row"]> {
+  const principal = await harness.principalFor(ownerId);
+  return (await seedPersona(harness, { principal, input: createPersonaSchema.parse({ name, description: "" }) })).row;
+}
+
+async function anchoredRoom(
+  harness: ServerTestHarness,
+  hostId: UserId,
+  anchorPersonaId: Awaited<ReturnType<typeof seededPersona>>["id"],
+): Promise<Awaited<ReturnType<typeof seedChat>>["row"]> {
+  const principal = await harness.principalFor(hostId);
+  return (await seedChat(harness, { principal, characterIds: [], anchorPersonaId })).row;
+}
+
+test("a trigger with no seat persona cannot borrow the room's anchor identity", async ({ harness, db }): Promise<void> => {
   const host = await seedUser(db);
   const member = await seedUser(db);
-  const anchor = await seedPersona(db, { ownerId: host.id, name: "Anchor" });
-  const room = await seedChat(db, { anchorPersonaId: anchor.id });
+  const anchor = await seededPersona(harness, host.id, "Anchor");
+  const room = await anchoredRoom(harness, host.id, anchor.id);
   const resolve = createTurnPersonaResolver(createResolvePersonasForParticipants({ db: databaseHandle(db) }));
 
   const result = await resolve({
@@ -31,13 +49,14 @@ test("a trigger with no seat persona cannot borrow the room's anchor identity", 
   expect(result.people?.map((persona) => persona.name)).toEqual(["Anchor"]);
 });
 
-test("a held departed-owner pin remains the card identity but cannot authorize a foreign active persona", async ({ db }): Promise<void> => {
+test("a held departed-owner pin remains the card identity but cannot authorize a foreign active persona", async ({ harness, db }): Promise<void> => {
   const host = await seedUser(db);
   const departed = await seedUser(db);
   const stranger = await seedUser(db);
-  const pin = await seedPersona(db, { ownerId: departed.id, name: "Held pin" });
-  const foreign = await seedPersona(db, { ownerId: stranger.id, name: "Private stranger" });
-  const room = await seedChat(db, { anchorPersonaId: pin.id });
+  const pin = await seededPersona(harness, departed.id, "Held pin");
+  const foreign = await seededPersona(harness, stranger.id, "Private stranger");
+  // The pin's owner founded the room; production refuses an anchor the starter does not own.
+  const room = await anchoredRoom(harness, departed.id, pin.id);
   const resolve = createTurnPersonaResolver(createResolvePersonasForParticipants({ db: databaseHandle(db) }));
 
   const result = await resolve({
@@ -56,13 +75,13 @@ test("a held departed-owner pin remains the card identity but cannot authorize a
   expect(result.people).toBeUndefined();
 });
 
-test("canon follows the anchor owner's current seat while impersonation follows the triggering member", async ({ db }): Promise<void> => {
+test("canon follows the anchor owner's current seat while impersonation follows the triggering member", async ({ harness, db }): Promise<void> => {
   const host = await seedUser(db);
   const member = await seedUser(db);
-  const anchor = await seedPersona(db, { ownerId: host.id, name: "Pinned" });
-  const current = await seedPersona(db, { ownerId: host.id, name: "Host current" });
-  const memberPersona = await seedPersona(db, { ownerId: member.id, name: "Member current" });
-  const room = await seedChat(db, { anchorPersonaId: anchor.id });
+  const anchor = await seededPersona(harness, host.id, "Pinned");
+  const current = await seededPersona(harness, host.id, "Host current");
+  const memberPersona = await seededPersona(harness, member.id, "Member current");
+  const room = await anchoredRoom(harness, host.id, anchor.id);
   const resolve = createTurnPersonaResolver(createResolvePersonasForParticipants({ db: databaseHandle(db) }));
   const args = {
     chatId: room.id,

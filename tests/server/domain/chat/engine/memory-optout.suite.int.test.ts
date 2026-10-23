@@ -10,7 +10,6 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
-  seedMessage,
 } from "@orb/testkit/node/composed";
 import { and, eq } from "drizzle-orm";
 
@@ -46,14 +45,16 @@ async function group(memoryEnabled: boolean): Promise<
         createCharacterSchema.parse({ handle: "aria", name: "Aria", description: "A bold knight." }),
         createCharacterSchema.parse({ handle: "bryn", name: "Bryn", description: "An observant mage." }),
       ],
+      transcript: [1, 2, 3].map((turn) => ({
+        role: "assistant" as const,
+        speakerHandle: turn % 2 === 0 ? "bryn" : "aria",
+        content: `group turn ${turn}`,
+      })),
     }),
   );
   const [first, second] = h.characters;
   if (first === undefined || second === undefined) {
     throw new Error("the real group root did not create both witnesses");
-  }
-  for (let seq = 1; seq <= 3; seq += 1) {
-    await seedMessage(h.root.db, { chatId: h.chatId, seq, characterId: seq % 2 === 0 ? second.id : first.id, content: `group turn ${seq}` }, h.root.idSource);
   }
   const lifetime = construction.move();
   return { h, first, summaries, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };

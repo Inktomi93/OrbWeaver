@@ -11,7 +11,7 @@ import { pluginMacroName } from "@orb/server/domain/plugin";
 import { captureCorpusPluginHost } from "./corpus-plugin-host.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
 import { seedCorpusActors, seedCorpusLibraries } from "./corpus-seed.ts";
-import { seedCreatedCharacter } from "./factories/character.ts";
+import { seedCharacter } from "./factories/character.ts";
 import { makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "./factories/plugin.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
@@ -174,7 +174,7 @@ test("native plugin values render once in authored injections without re-expandi
   expect((await captureCorpusPluginHost(root, installed.plugin.id)).observations[COUNT]).toBe(2);
   expect(await caller.chat.getRuntimeVariables({ chatId })).toMatchObject({ injectionRuns: "3" });
   expect(await caller.chat.listChatInjections({ chatId })).toEqual(expect.arrayContaining(templates));
-  const memberCharacter = await seedCreatedCharacter(root, {
+  const memberCharacter = await seedCharacter(root, {
     principal: member,
     input: createCharacterSchema.parse({ handle: "member-injection", name: "Member native character", description: "Owned member character." }),
   });

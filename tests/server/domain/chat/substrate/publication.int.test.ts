@@ -8,15 +8,21 @@ import { statementToken } from "@orb/db/wiring-owner";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createChatBus, createChatPublication } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { seedChat } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
 
+async function hostedRoom(harness: ServerTestHarness): Promise<Awaited<ReturnType<typeof seedChat>>["row"]> {
+  return (await seedChat(harness, { principal: await harness.principalFor((await harness.actor()).id), characterIds: [] })).row;
+}
+
 test("durable append precedes fan, a lost claim converges without fan, and a deleted room never fans an unlogged event", async ({
+  harness,
   db,
   clock,
 }): Promise<void> => {
-  const room = await seedChat(db);
+  const room = await hostedRoom(harness);
   const published: ChatLivePublish[] = [];
   const bus = createChatBus({ db: databaseHandle(db), now: clock.now, newEventId: () => mintTypeId(ID_PREFIX.chatEvent) });
   const publication = createChatPublication({
@@ -28,7 +34,7 @@ test("durable append precedes fan, a lost claim converges without fan, and a del
     silenceRoomEntityFan: () => false,
   });
   expect(await publication.emitChecked({ type: "chatUpdated", chatId: room.id })).toBe(true);
-  expect((await db.select().from(chatEvents).where(eq(chatEvents.chatId, room.id)))[0]?.payload).toEqual(published[0]?.event);
+  expect((await db.select().from(chatEvents).where(eq(chatEvents.chatId, room.id)).orderBy(chatEvents.seq)).at(-1)?.payload).toEqual(published[0]?.event);
   const missing = mintTypeId(ID_PREFIX.chat);
   expect(
     await publication.emitChecked(
@@ -42,8 +48,9 @@ test("durable append precedes fan, a lost claim converges without fan, and a del
   expect(published).toHaveLength(1);
 });
 
-test("quiet entity churn may coalesce but a terminal delete remains live and append-free", async ({ db, clock }): Promise<void> => {
-  const room = await seedChat(db);
+test("quiet entity churn may coalesce but a terminal delete remains live and append-free", async ({ harness, db, clock }): Promise<void> => {
+  const room = await hostedRoom(harness);
+  const before = await db.select().from(chatEvents);
   const publish = vi.fn();
   const quiet = vi.fn(() => true);
   const publication = createChatPublication({
@@ -57,5 +64,5 @@ test("quiet entity churn may coalesce but a terminal delete remains live and app
   publication.emitLive({ type: "chatDeleted", chatId: room.id });
   expect(quiet).toHaveBeenCalledTimes(1);
   expect(publish).toHaveBeenCalledWith({ seq: null, event: { type: "chatDeleted", chatId: room.id } });
-  expect(await db.select().from(chatEvents)).toEqual([]);
+  expect(await db.select().from(chatEvents)).toEqual(before);
 });

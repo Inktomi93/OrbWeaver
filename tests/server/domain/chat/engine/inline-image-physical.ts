@@ -5,6 +5,7 @@ import { parseVariantMetadata } from "@orb/contracts/chat";
 import { providerDefSchema } from "@orb/contracts/inference";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema, pluginToolWireName } from "@orb/contracts/plugin";
 import { assets, chatEvents, messageAssets, messages, messageVariants } from "@orb/db";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import type { ServerHarnessOptions } from "@orb/testkit/node/composed";
@@ -15,7 +16,6 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
-  makeAsset,
   makeAssetBytes,
   makePluginBundle,
   seedAdminProvider,
@@ -38,7 +38,7 @@ export function nativeText(text: string, thoughtSignature?: string): JsonValue {
 }
 
 export function nativeImage(invalid = false): JsonValue {
-  const bytes = invalid ? Buffer.from("hello") : makeAssetBytes(makeAsset().id);
+  const bytes = invalid ? Buffer.from("hello") : makeAssetBytes(mintTypeId(ID_PREFIX.asset));
   return { inlineData: { mimeType: "image/png", data: Buffer.from(bytes).toString("base64") }, thoughtSignature: IMAGE_SIGNATURE };
 }
 

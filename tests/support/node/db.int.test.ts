@@ -7,7 +7,7 @@
 
 import { users } from "@orb/db";
 import { freshCountedDb, freshHeldDb } from "./db.ts";
-import { makeUser } from "./factories/user.ts";
+import { makeUser } from "./factories/rows.ts";
 import { expect, test } from "./fixtures.ts";
 
 const INSERT_SQL = /insert into/iu;

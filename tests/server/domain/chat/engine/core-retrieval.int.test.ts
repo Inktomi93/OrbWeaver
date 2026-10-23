@@ -12,7 +12,6 @@ import {
   createChatRoot,
   createCorpusProviderExecution,
   freshHeldDb,
-  seedMessage,
 } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 
@@ -47,6 +46,11 @@ async function recallRoom(group: NonNullable<ChatRootOptions["group"]>, options:
         createCharacterSchema.parse({ handle: "recall-aria", name: "Aria", description: "The first keeper of the ledger." }),
         createCharacterSchema.parse({ handle: "recall-bryn", name: "Bryn", description: "The second keeper of the ledger." }),
       ],
+      // Twelve earlier scenes voiced by the primary seat, written by the native transcript import.
+      transcript: Array.from({ length: 12 }, (_, index) => ({
+        role: "assistant" as const,
+        content: `Earlier ledger scene ${index + 1}: ${"orbital ledger ballast ".repeat(160)}`,
+      })),
     }),
   );
   await h.caller.connection.setBinding({ task: "rerank", connectionId: null });
@@ -54,13 +58,7 @@ async function recallRoom(group: NonNullable<ChatRootOptions["group"]>, options:
   if (first === undefined) {
     throw new Error("the actual recall room has no initial speaker");
   }
-  for (let seq = 1; seq <= 12; seq += 1) {
-    await seedMessage(
-      h.root.db,
-      { chatId: h.chatId, seq, characterId: first.id, content: `Earlier ledger scene ${seq}: ${"orbital ledger ballast ".repeat(160)}` },
-      h.root.idSource,
-    );
-  }
+
   const built = await h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: first.id, intent: RECALL_INTENT });
   if (built.aborted) {
     throw new Error("the actual recall warm-up aborted before building its canonical digests");

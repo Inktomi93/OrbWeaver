@@ -4,13 +4,13 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { TurnOutcome } from "@orb/contracts/chat";
 import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
+import { createPersonaSchema } from "@orb/contracts/persona";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { characterSummaries, characters, messages } from "@orb/db";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { expect, test } from "@orb/testkit/node";
-import { seedCharacterDistillations, seedMessage } from "@orb/testkit/node/composed";
+import { seedCharacterDistillations } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
-import { seatPersona } from "../persona-cache-physical.ts";
 import { B_CHAT_MODEL, B_UTILITY_MODEL, saveSpeakerConnection, speakerInputs, speakerRoom } from "./speaker-funding-physical.ts";
 
 type Room = Awaited<ReturnType<typeof speakerRoom>>;
@@ -130,17 +130,19 @@ test("one native schema-constrained happy pick is honored without warning", asyn
 });
 
 test("native arbiter transcript uses the persisted persona and each actual character label", async () => {
-  await using room = await smartRoom({ chat: ["Aria answers."], picks: [["aria"]] });
+  await using room = await smartRoom(
+    { chat: ["Aria answers."], picks: [["aria"]] },
+    {
+      personas: [createPersonaSchema.parse({ name: "host_pov", description: "The host's past point of view." })],
+      transcript: [
+        { role: "user", personaName: "host_pov", content: "Anyone awake?" },
+        { role: "assistant", speakerHandle: "aria", content: "I never sleep." },
+        { role: "assistant", speakerHandle: "bryn", content: "Speak for yourself." },
+      ],
+    },
+  );
   await saveSpeakerConnection(room.h, room.peer.baseUrl, "summarize");
   const { h } = room;
-  const [aria, bryn] = h.characters;
-  if (aria === undefined || bryn === undefined) {
-    throw new Error("the actual named transcript requires both authored character cards");
-  }
-  const persona = await seatPersona(h, h.owner, "host_pov", "The host's past point of view.");
-  await seedMessage(h.root.db, { chatId: h.chatId, seq: 1, role: "user", authorUserId: h.owner.userId, personaId: persona.id, content: "Anyone awake?" });
-  await seedMessage(h.root.db, { chatId: h.chatId, seq: 2, role: "assistant", characterId: aria.id, content: "I never sleep." });
-  await seedMessage(h.root.db, { chatId: h.chatId, seq: 3, role: "assistant", characterId: bryn.id, content: "Speak for yourself." });
   await h.root.services.persona.setActivePersona({ principal: h.owner, chatId: h.chatId, personaId: null });
   await send(room);
   const inputs = await speakerInputs(room.peer.requests, B_UTILITY_MODEL);

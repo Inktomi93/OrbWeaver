@@ -8,7 +8,6 @@ import { resolveProseText } from "@orb/contracts/prose";
 import type { JsonValue } from "@orb/kit/json";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
-import { seedMessage } from "@orb/testkit/node/composed";
 import {
   attachPersonaLore,
   inputMessages,
@@ -148,22 +147,26 @@ test("solo second-call system and native history have the canonical golden shape
 });
 
 test("departed and unattributed assistant history keeps its exact labels across current speakers", async () => {
+  // The departed voice leaves the roster and the unattributed voice's card is deleted, so production owns both stamps.
   await using h = await personaRoom(["aria speaks", "kai speaks"], {
-    characters: ["aria", "kai"].map((name) => createCharacterSchema.parse({ handle: name, name, description: "A seated character." })),
+    characters: ["aria", "kai", "mira", "ghost"].map((name) => createCharacterSchema.parse({ handle: name, name, description: "A seated character." })),
     group: { output: "per-speaker", policy: "list", allowSelfResponses: true },
     promptConfig: { ...DEFAULT_PROMPT_CONFIG, namesBehavior: "content" },
+    transcript: [
+      { role: "user", content: "hi all" },
+      { role: "assistant", speakerHandle: "mira", content: "I was here" },
+      { role: "user", content: "and you?" },
+      { role: "assistant", speakerHandle: "ghost", content: "agent line" },
+      { role: "user", content: "go on" },
+    ],
   });
-  const departed = await h.caller.character.create({ input: createCharacterSchema.parse({ handle: "mira", name: "mira", description: "A former speaker." }) });
-  for (const [index, row] of [
-    { role: "user", authorUserId: h.owner.userId, content: "hi all" },
-    { role: "assistant", characterId: departed.id, content: "I was here" },
-    { role: "user", authorUserId: h.owner.userId, content: "and you?" },
-    { role: "assistant", characterId: null, content: "agent line" },
-    { role: "user", authorUserId: h.owner.userId, content: "go on" },
-  ].entries()) {
-    await seedMessage(h.root.db, { ...row, role: row.role === "user" ? "user" : "assistant", chatId: h.chatId, seq: index + 1 }, h.root.idSource);
+  const [aria, kai, departed, ghost] = h.characters;
+  if (aria === undefined || kai === undefined || departed === undefined || ghost === undefined) {
+    throw new Error("the transcript room did not create its four authored voices");
   }
-  for (const character of h.characters) {
+  await h.root.services.chat.removeCharacterFromChat({ principal: h.owner, chatId: h.chatId, characterId: departed.id });
+  await h.root.services.character.remove({ principal: h.owner, characterId: ghost.id });
+  for (const character of [aria, kai]) {
     await h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: character.id });
   }
   const inputs = await personaInputs(h);
@@ -283,15 +286,14 @@ test("an unstamped user row keeps its bytes and cache prefix between a human sen
   await using h = await personaRoom(["r1", "r2"], {
     characters: [createCharacterSchema.parse({ handle: "aria", name: "aria", description: CACHE_CARD })],
     group: { output: "per-speaker", policy: "list", allowSelfResponses: true },
+    // The imported owner line names no persona, so its stored stamp is null.
+    transcript: [
+      { role: "user", content: "an old line" },
+      { role: "assistant", content: "a reply" },
+    ],
   });
   const alex = await seatPersona(h, h.owner, "Alex", "ALEX-DESC");
   await h.root.services.chat.setChatAnchorPersona({ principal: h.owner, chatId: h.chatId, personaId: alex.id });
-  await seedMessage(
-    h.root.db,
-    { chatId: h.chatId, seq: 1, role: "user", authorUserId: h.owner.userId, personaId: null, content: "an old line" },
-    h.root.idSource,
-  );
-  await seedMessage(h.root.db, { chatId: h.chatId, seq: 2, role: "assistant", characterId: h.characters[0]?.id ?? null, content: "a reply" }, h.root.idSource);
   await send(h, h.owner, "hi");
   await personaAutoTurn(h);
   const inputs = await personaInputs(h);
@@ -440,21 +442,8 @@ async function placement(model: string, strict: boolean): Promise<JsonValue> {
       params: strict ? { ...DEFAULT_PROMPT_CONFIG.params, advanced: { roleHandling: "strict" } } : DEFAULT_PROMPT_CONFIG.params,
     },
     group: { output: "per-speaker", policy: "list", allowSelfResponses: true },
+    transcript: ["u1", "a1", "u2", "a2"].map((content, index) => ({ role: index % 2 === 0 ? ("user" as const) : ("assistant" as const), content })),
   });
-  for (const [index, content] of ["u1", "a1", "u2", "a2"].entries()) {
-    await seedMessage(
-      h.root.db,
-      {
-        chatId: h.chatId,
-        seq: index + 1,
-        role: index % 2 === 0 ? "user" : "assistant",
-        authorUserId: index % 2 === 0 ? h.owner.userId : null,
-        characterId: index % 2 === 0 ? null : (h.characters[0]?.id ?? null),
-        content,
-      },
-      h.root.idSource,
-    );
-  }
   await send(h, h.owner, "u3");
   const inputs = await personaInputs(h);
   expect(inputs).toHaveLength(1);

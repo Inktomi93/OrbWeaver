@@ -16,6 +16,7 @@
     "./node/composed": "./node/composed.ts",
     "./node/composed-real.ts": "./node/composed-real.ts",
     "./node/helpers": "./node/helpers.ts",
+    "./node/rows": "./node/factories/rows.ts",
     "./sdk": "./node/sdk-process-control.mjs",
     "./tooling": "./node/tool-fixtures.ts"
   },
