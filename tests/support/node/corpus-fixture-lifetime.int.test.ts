@@ -6,13 +6,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as physicalDelay, setImmediate as physicalTurn } from "node:timers/promises";
 import { localPath } from "@orb/db";
+import type { BoxLoad } from "@orb/tooling/floor/host/load-budget";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import { processCompletion } from "@orb/tooling/floor/host/platform";
 import { spawnNicedTranscript } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { joinRunMarkerSweep, mintRunMarker, runMarkerEnv } from "@orb/tooling/floor/process/run-marker";
 import { TERM_GRACE_BASE_MS } from "@orb/tooling/floor/process/stop-escalation";
-import { afterEach, vi } from "vitest";
 import {
   PRIVATE_EXECUTION_EXPIRY_ENV,
   privateCorpusExecutionEnv,
@@ -23,21 +23,26 @@ import { createCorpusCapsule, loadCorpusFixture, writePrivateCorpusFixture } fro
 import { createCorpusRecipe } from "./corpus-recipe.ts";
 import { expect, test } from "./fixtures.ts";
 
-afterEach(() => vi.unstubAllEnvs());
+// Private admission refuses a CI environment; these tests run in CI, so they hand it an environment without those flags.
+const LOCAL_ENVIRONMENT = inheritedProcessEnv({ ["CI"]: undefined, ["GITHUB_ACTIONS"]: undefined });
 
 test("the private parent overwrites expiry before startup and reserves canonical grace inside its one hard budget", async () => {
-  vi.stubEnv("ORB_BOX_LOAD", "0/24");
-  vi.stubEnv(PRIVATE_EXECUTION_EXPIRY_ENV, "untrusted inherited expiry");
-  const hardBudgetMs = budget(600_000);
+  const quietBox = (): BoxLoad => ({ loadavg1: 0, cpuCount: 24 });
+  const hardBudgetMs = budget(600_000, quietBox);
   const start = 1_800_000_000_000;
   let clockReads = 0;
-  const env = privateCorpusExecutionEnv(hardBudgetMs, () => {
-    clockReads += 1;
-    return start;
-  });
+  const env = privateCorpusExecutionEnv(
+    hardBudgetMs,
+    () => {
+      clockReads += 1;
+      return start;
+    },
+    quietBox,
+    (overrides) => ({ [PRIVATE_EXECUTION_EXPIRY_ENV]: "untrusted inherited expiry", ...overrides }),
+  );
   const expiry = env[PRIVATE_EXECUTION_EXPIRY_ENV];
   expect(clockReads).toBe(1);
-  expect(Number(expiry) - start + budget(TERM_GRACE_BASE_MS)).toBe(hardBudgetMs);
+  expect(Number(expiry) - start + budget(TERM_GRACE_BASE_MS, quietBox)).toBe(hardBudgetMs);
   const signal = privateCorpusExecutionSignal(expiry, () => Number(expiry) - 20);
   expect(signal.aborted).toBe(false);
   await physicalDelay(30);
@@ -49,7 +54,6 @@ test("the private parent overwrites expiry before startup and reserves canonical
 });
 
 test("private child metadata refuses missing, nonfinite and negative expiry without echoing it", () => {
-  vi.stubEnv(PRIVATE_EXECUTION_EXPIRY_ENV, undefined);
   for (const expiry of [undefined, "", " ", "not an epoch", "NaN", "Infinity", "-Infinity", "-1"]) {
     expect(() => privateCorpusExecutionSignal(expiry, () => 0)).toThrow(/^Private corpus execution expiry is missing or invalid$/u);
   }
@@ -68,8 +72,6 @@ test("expired setup refuses before capsule filesystem or graph work begins", asy
 });
 
 test("private copy joins its native stage and removes late output instead of promoting a fixture", { timeout: budget(15_000) }, async () => {
-  vi.stubEnv("CI", undefined);
-  vi.stubEnv("GITHUB_ACTIONS", undefined);
   const parent = await mkdtemp(join(tmpdir(), "orb-corpus-expired-copy-"));
   await using cleanup = new AsyncDisposableStack();
   cleanup.defer(() => rm(parent, { recursive: true, force: true }));
@@ -94,7 +96,7 @@ test("private copy joins its native stage and removes late output instead of pro
     }
   });
   try {
-    const result = writePrivateCorpusFixture(source, directory, controller.signal).then(
+    const result = writePrivateCorpusFixture(source, directory, controller.signal, LOCAL_ENVIRONMENT).then(
       () => null,
       (error: unknown) => error,
     );
@@ -106,9 +108,9 @@ test("private copy joins its native stage and removes late output instead of pro
   await expect(access(directory)).rejects.toThrow();
   expect(await readFile(database)).toEqual(before);
   const refused = join(parent, "pre-expired");
-  await expect(writePrivateCorpusFixture(source, refused, controller.signal)).rejects.toBe(reason);
+  await expect(writePrivateCorpusFixture(source, refused, controller.signal, LOCAL_ENVIRONMENT)).rejects.toBe(reason);
   await expect(access(refused)).rejects.toThrow();
-  const completed = await writePrivateCorpusFixture(source, join(parent, "completed"));
+  const completed = await writePrivateCorpusFixture(source, join(parent, "completed"), undefined, LOCAL_ENVIRONMENT);
   expect(completed.wire).toEqual(source.wire);
 });
 

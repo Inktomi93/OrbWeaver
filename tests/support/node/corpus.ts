@@ -14,7 +14,7 @@ import { brandedId } from "@orb/kit/ids";
 import type { DataLayout } from "@orb/server/foundation/data-layout";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
-import { inheritedProcessEnv, processEnvValue } from "@orb/tooling/floor/process/process-env";
+import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { count, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { createFrozenClock } from "../iso/clock.ts";
@@ -65,6 +65,12 @@ const SHARED_MEMBER_PASSWORD = "synthetic-corpus-shared-member-password";
 
 const corpusReplaySchema = z.strictObject({ version: z.literal(1), nowMs: z.int().nonnegative(), idCursor: z.int().min(0).max(SEEDED_ID_MAX_CURSOR) });
 type CorpusReplayState = z.output<typeof corpusReplaySchema>;
+
+/** What private-corpus admission reads from the host. Absent means the live process; a test passes values instead of mutating it. */
+export interface CorpusAdmissionHost {
+  readonly environment?: NodeJS.ProcessEnv | undefined;
+  readonly temporaryDirectory?: string | undefined;
+}
 
 export interface CorpusCapsuleOptions {
   readonly directory: string;
@@ -209,9 +215,12 @@ function parsePrivateCorpusWire(serialized: string): CorpusWire {
 }
 
 /** Borrow a completed publication; the committed synthetic input is the lazy default, never a writable app root. */
-export function loadCorpusFixture(directory = fileURLToPath(new URL("./corpus-data", import.meta.url))): CorpusFixture {
+export function loadCorpusFixture(
+  directory = fileURLToPath(new URL("./corpus-data", import.meta.url)),
+  environment: NodeJS.ProcessEnv = inheritedProcessEnv(),
+): CorpusFixture {
   const layout = resolveDataLayout({ ["DATA_DIR"]: resolve(directory) });
-  const privateParent = privateCorpusParent(layout.root);
+  const privateParent = privateCorpusParent(layout.root, environment);
   const serialized = readFileSync(join(layout.root, CORPUS_WIRE_FILE), "utf8");
   const wire = privateParent === undefined ? parseCorpusWire(serialized) : parsePrivateCorpusWire(serialized);
   if (!statSync(corpusDatabaseFile(layout)).isFile()) {
@@ -236,7 +245,7 @@ export function loadCorpusFixture(directory = fileURLToPath(new URL("./corpus-da
 }
 
 /** Read privacy routing before any captured user content or application graph is loaded. */
-export function privateCorpusParent(directory: string): string | undefined {
+export function privateCorpusParent(directory: string, environment: NodeJS.ProcessEnv = inheritedProcessEnv()): string | undefined {
   const privacyFile = join(directory, CORPUS_PRIVATE_FILE);
   if (!existsSync(privacyFile)) {
     return;
@@ -251,7 +260,7 @@ export function privateCorpusParent(directory: string): string | undefined {
   if (!parsed.success) {
     throw new Error("Private corpus classification is invalid");
   }
-  assertPrivateCorpusOutput(parsed.data.parent, directory);
+  assertPrivateCorpusOutput(parsed.data.parent, directory, environment);
   return parsed.data.parent;
 }
 
@@ -263,10 +272,10 @@ export function assertPrivateCorpusOutputArguments(args: readonly string[]): voi
 }
 
 /** Durably retain private diagnostic causes, then reject with the original intake failure. */
-export async function rethrowPrivateCorpusFailure(directory: string, error: unknown): Promise<never> {
+export async function rethrowPrivateCorpusFailure(directory: string, error: unknown, environment: NodeJS.ProcessEnv = inheritedProcessEnv()): Promise<never> {
   try {
     const artifact = join(directory, CORPUS_PRIVATE_FAILURE_FILE);
-    assertPrivateCorpusOutput(directory, artifact);
+    assertPrivateCorpusOutput(directory, artifact, environment);
     await using file = await open(artifact, "wx", 0o600);
     // Trusted native Errors may materialize stack/cause; decoded row getters and custom inspectors stay disabled.
     await file.writeFile(
@@ -292,14 +301,14 @@ export async function rethrowPrivateCorpusFailure(directory: string, error: unkn
 }
 
 /** Private descendants must remain beneath their original inaccessible, non-repository output owner. */
-export function assertPrivateCorpusOutput(parent: string, directory: string): void {
-  if (processEnvValue("CI") !== undefined || processEnvValue("GITHUB_ACTIONS") !== undefined) {
+export function assertPrivateCorpusOutput(parent: string, directory: string, environment: NodeJS.ProcessEnv = inheritedProcessEnv()): void {
+  if (environment["CI"] !== undefined || environment["GITHUB_ACTIONS"] !== undefined) {
     throw new Error("Private corpus is local-only and cannot enter CI");
   }
   // Native reporter environment wins over configured destinations; loader/cache overrides also escape that owner.
   const outputOverride =
     /^(?:PLAYWRIGHT_(?:(?:JSON|JUNIT|BLOB)_OUTPUT_(?:FILE|DIR|NAME)|HTML_(?:OUTPUT_DIR|REPORT|OPEN|ATTACHMENTS_BASE_URL|HOST|PORT)|LAST_RUN_OUTPUT_FILE)|PW_TEST_(?:REPORTER|HTML_REPORT_OPEN)|PWTEST_CACHE_DIR)$/u;
-  if (Object.keys(inheritedProcessEnv()).some((name) => outputOverride.test(name))) {
+  if (Object.keys(environment).some((name) => outputOverride.test(name))) {
     throw new Error("Private corpus artifacts cannot override native output ownership");
   }
   const root = realpathSync(parent);
@@ -347,16 +356,16 @@ async function copyCorpusFixture(
   source: Pick<CorpusFixture, "layout" | "replay" | "privateParent">,
   published: string,
   directory: string,
-  options: CloneOptions & Pick<ServerHarnessOptions, "workloadExecutionSignal"> = {},
+  options: CloneOptions & Pick<ServerHarnessOptions, "workloadExecutionSignal"> & Pick<CorpusAdmissionHost, "environment"> = {},
 ): Promise<CorpusFixture> {
-  const { workloadExecutionSignal: executionSignal, ...cloneOptions } = options;
+  const { workloadExecutionSignal: executionSignal, environment, ...cloneOptions } = options;
   executionSignal?.throwIfAborted();
   const root = resolve(directory);
   if (source.privateParent !== undefined) {
     if (options.publication !== undefined) {
       throw new Error("Private corpus cannot enter portable publication");
     }
-    assertPrivateCorpusOutput(source.privateParent, root);
+    assertPrivateCorpusOutput(source.privateParent, root, environment);
   }
   await mkdir(root);
   let completed = false;
@@ -377,7 +386,7 @@ async function copyCorpusFixture(
       await writeFile(join(root, CORPUS_REPLAY_FILE), JSON.stringify(corpusReplaySchema.parse(source.replay)), { encoding: "utf8", flag: "wx" });
     }
     executionSignal?.throwIfAborted();
-    const fixture = loadCorpusFixture(root);
+    const fixture = loadCorpusFixture(root, environment);
     executionSignal?.throwIfAborted();
     completed = true;
     return fixture;
@@ -393,9 +402,13 @@ function ownedCorpusFixture(fixture: CorpusFixture): PreparedCorpusFixture {
 }
 
 /** A private stage clone retains backend lineage; its caller owns deletion after every stage process stops. */
-export async function prepareCorpusFixture(capsule: CorpusCapsule | PrivateCorpusCapsule, directory: string): Promise<PreparedCorpusFixture> {
+export async function prepareCorpusFixture(
+  capsule: CorpusCapsule | PrivateCorpusCapsule,
+  directory: string,
+  environment?: NodeJS.ProcessEnv,
+): Promise<PreparedCorpusFixture> {
   const published = "privateParent" in capsule ? encodeCorpusWire(capsule.wire) : capsule.publishWire();
-  return ownedCorpusFixture(await copyCorpusFixture(capsule, published, directory));
+  return ownedCorpusFixture(await copyCorpusFixture(capsule, published, directory, { environment }));
 }
 
 /** Retain a local-only fixture for later owner drives without portable publication or automatic deletion. */
@@ -403,14 +416,13 @@ export async function writePrivateCorpusFixture(
   capsule: Pick<PrivateCorpusCapsule, "layout" | "wire" | "replay" | "privateParent">,
   directory: string,
   executionSignal?: ServerHarnessOptions["workloadExecutionSignal"],
+  environment?: NodeJS.ProcessEnv,
 ): Promise<CorpusFixture> {
   executionSignal?.throwIfAborted();
-  return await copyCorpusFixture(
-    capsule,
-    encodeCorpusWire(capsule.wire),
-    directory,
-    executionSignal === undefined ? {} : { workloadExecutionSignal: executionSignal },
-  );
+  return await copyCorpusFixture(capsule, encodeCorpusWire(capsule.wire), directory, {
+    ...(executionSignal === undefined ? {} : { workloadExecutionSignal: executionSignal }),
+    environment,
+  });
 }
 
 /** Publish a durable, completed DB/CAS and portable envelope; source runtime identities and known echoes cannot leave. */
@@ -424,15 +436,16 @@ export async function publishCorpusFixture(capsule: CorpusCapsule | PrivateCorpu
 }
 
 /** Each consumer owns an independent writable copy; disposing it never deletes or modifies the durable publication. */
-export async function cloneCorpusFixture(fixture: CorpusFixture, directory: string): Promise<PreparedCorpusFixture> {
+export async function cloneCorpusFixture(fixture: CorpusFixture, directory: string, environment?: NodeJS.ProcessEnv): Promise<PreparedCorpusFixture> {
   const privateParent =
-    fixture.privateParent ?? (existsSync(join(fixture.layout.root, CORPUS_PRIVATE_FILE)) ? loadCorpusFixture(fixture.layout.root).privateParent : undefined);
+    fixture.privateParent ??
+    (existsSync(join(fixture.layout.root, CORPUS_PRIVATE_FILE)) ? loadCorpusFixture(fixture.layout.root, environment).privateParent : undefined);
   return ownedCorpusFixture(
     await copyCorpusFixture(
       { ...fixture, ...(privateParent === undefined ? {} : { privateParent }) },
       privateParent === undefined ? serializeCorpusWire(fixture.wire, []) : encodeCorpusWire(fixture.wire),
       directory,
-      privateParent === undefined ? { publication: { privateLiterals: [] } } : {},
+      { ...(privateParent === undefined ? { publication: { privateLiterals: [] } } : {}), environment },
     ),
   );
 }
@@ -445,10 +458,12 @@ interface CapturedCapsule {
 }
 
 /** Create only a new directory; teardown removes only this capsule, never a pre-existing data root. */
-export function createCorpusCapsule(options: CorpusCapsuleOptions & { readonly privateSourceDirectory: string }): Promise<PrivateCorpusCapsule>;
+export function createCorpusCapsule(
+  options: CorpusCapsuleOptions & CorpusAdmissionHost & { readonly privateSourceDirectory: string },
+): Promise<PrivateCorpusCapsule>;
 export function createCorpusCapsule(options: CorpusCapsuleOptions): Promise<CorpusCapsule>;
 export async function createCorpusCapsule(
-  options: CorpusCapsuleOptions & { readonly privateSourceDirectory?: string },
+  options: CorpusCapsuleOptions & CorpusAdmissionHost & { readonly privateSourceDirectory?: string },
 ): Promise<CorpusCapsule | PrivateCorpusCapsule> {
   const signal = options.server.workloadExecutionSignal;
   signal?.throwIfAborted();
@@ -457,9 +472,10 @@ export async function createCorpusCapsule(
   const privateParent = sourceDirectory === undefined ? undefined : realpathSync(dirname(directory));
   if (privateParent !== undefined) {
     const sourceParent = dirname(sourceDirectory ?? "");
-    assertPrivateCorpusOutput(sourceParent, privateParent);
-    assertPrivateCorpusOutput(privateParent, directory);
-    assertPrivateCorpusOutput(sourceParent, join(tmpdir(), "private-corpus-temporary"));
+    const { environment, temporaryDirectory = tmpdir() } = options;
+    assertPrivateCorpusOutput(sourceParent, privateParent, environment);
+    assertPrivateCorpusOutput(privateParent, directory, environment);
+    assertPrivateCorpusOutput(sourceParent, join(temporaryDirectory, "private-corpus-temporary"), environment);
     if (sourceDirectory === directory || directory.startsWith(`${sourceDirectory}${sep}`) || sourceDirectory?.startsWith(`${directory}${sep}`) === true) {
       throw new Error("Private corpus source cannot be its working clone");
     }

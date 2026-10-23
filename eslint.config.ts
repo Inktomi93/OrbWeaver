@@ -55,6 +55,35 @@ const INTERNAL_MODULE_MOCK_RESTRICTION = {
   message: "Do not replace internal modules in product tests. Script external execution through the production test root.",
 };
 
+// The integration project shares one module registry (`isolate: false`), so a stubbed or written process
+// environment leaks across files and the first file's value wins. Tests pass the value through the harness seam
+// (`createServerHarness` options) or the subject's own parameter instead.
+const ENV_MESSAGE =
+  "Do not stub or write the process environment in tests. Pass the value through a harness seam (tests/support/node/server.ts) or the module's own parameter.";
+const PROCESS_ENV = "[object.name='process'][property.name='env']";
+const TEST_ENVIRONMENT_RESTRICTIONS = [
+  {
+    selector: "CallExpression[callee.object.name='vi'][callee.property.name=/^(stubEnv|unstubAllEnvs)$/]",
+    message: ENV_MESSAGE,
+  },
+  {
+    selector: `AssignmentExpression:matches([left.object.object.name='process'][left.object.property.name='env'], [left.object.name='process'][left.property.name='env'])`,
+    message: ENV_MESSAGE,
+  },
+  {
+    selector: "UnaryExpression[operator='delete'][argument.object.object.name='process'][argument.object.property.name='env']",
+    message: ENV_MESSAGE,
+  },
+  {
+    selector: "CallExpression[callee.object.name='Object'][callee.property.name='assign'][arguments.0.object.name='process'][arguments.0.property.name='env']",
+    message: ENV_MESSAGE,
+  },
+  {
+    selector: `CallExpression[callee.object.name='vi'][callee.property.name='hoisted'] MemberExpression${PROCESS_ENV}`,
+    message: ENV_MESSAGE,
+  },
+];
+
 const TEST_PROJECTS = ["tsconfig.json", "tsconfig.tests-dom.json", "tsconfig.tests-iso.json"];
 
 const NODE_TOOL_SOURCE = ["*.{ts,mts,cts}", "packages/*/*.{ts,mts,cts}", "scripts/**/*.{ts,mts,cts}"];
@@ -972,9 +1001,12 @@ export default [
   },
   {
     files: ["tests/**/*.{ts,tsx}"],
+    // tests/tooling is outside this block twice over: it runs in the isolated `tooling` project, where a stubbed
+    // environment cannot reach another file, and its subjects (CLIs, `readBoxLoad`, the `.env` loader) read the
+    // process environment at call time by design with no parameter to pass the value through.
     ignores: ["tests/tooling/**", "**/*.test-d.ts"],
     rules: {
-      "no-restricted-syntax": ["error", INTERNAL_MODULE_MOCK_RESTRICTION],
+      "no-restricted-syntax": ["error", INTERNAL_MODULE_MOCK_RESTRICTION, ...TEST_ENVIRONMENT_RESTRICTIONS],
     },
   },
   {
@@ -983,6 +1015,7 @@ export default [
       "no-restricted-syntax": [
         "error",
         INTERNAL_MODULE_MOCK_RESTRICTION,
+        ...TEST_ENVIRONMENT_RESTRICTIONS,
         { selector: "JSXElement, JSXFragment", message: "Keep component composition in browser stories; CT specs call native mount with data props." },
         {
           selector: "CallExpression[callee.name='mount']:not([typeArguments])",
