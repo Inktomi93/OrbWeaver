@@ -52,7 +52,8 @@ Why this rule: shifting keeps today's coverage exactly, so it never makes a corr
 Residuals:
 
 - A room imported from a bundle with a marker, then edited (title, star, variables), keeps the hidden row at the old marker seq plus 1. The data cannot separate that edit from a local compaction.
-- A bundle exported from a 0-based room carries a 0-based marker. When such a bundle was imported and left untouched, the kept marker sits one row low. One summarized row then also shows in the prompt. No row is hidden.
+- A bundle exported from a 0-based room carries a 0-based marker. When such a bundle was imported and left untouched, the kept marker sits one row low: the source room's old seq 0 stays hidden and unsummarized, as it is today, and one summarized row also shows in the prompt. Shifting instead would match today for this case but keep hiding a row for the more common 1-based source, and the data cannot tell the two apart.
+- A fork of an untouched bundle room stamps `started_at` and `updated_at` with the fork time, so the fork takes the shift branch while its parent keeps. The fork ends up exactly as it is today, one hidden row.
 
 ### Planes that move with the rows
 
