@@ -53,3 +53,19 @@ The selected composed-root and media-authority cases pass. An isolated summary-s
 | Preset and inference wire-facade reference identity | Drop the identity-only test and unused compatibility forwards. | Canonical schemas and vocabulary remain in `@orb/contracts`. Maintained contract and production-root tests own validation and output behavior; the removed test asserted only that a forwarding export returned its source object. |
 
 These decisions preserve canonical application definitions. No maintained app, tool, SDK or template consumer requires the selected compatibility aliases.
+
+## Selected inference surface: partial adjudication
+
+The current inference selection covers 87 production-mode export identities and a separate census of nine test-anchored `@public` declarations and one named loader hook. A clean default unused-export result does not establish a maintained test purpose.
+
+| Selected group | Decision | Scope and remaining work |
+| - | - | - |
+| 63 unused forwarding specifiers | Remove forwarding sites only. | Preserve canonical type homes, enclosing signatures and production implementations. The alias-aware source census found no maintained consumer requiring these forwarding sites. |
+| `resolveClaudeExecutable`, `rerankBatches`, `fitPairToWindow` | Localize the three exports. | Keep the actual executable-availability and rerank implementations and their production callers. |
+| Nine production-local exports hidden by test-anchor directives | Localize and remove stale directives. | Keep credential isolation, SDK history projection, attribution, rate-limit parsing, cache placement and backend registry bodies unchanged. Historical test references do not grant an unused export permanent authority. |
+| `inference-runtime.ts`, `connection-cache-oracle.ts` and five coupled inference forwards | Held. | No current callers were found, but intended adoption and original-case comparisons are not complete. Compare creation history, planned purposes and maintained coverage before a keep, adopt, rebuild or drop decision. Do not fabricate a consumer to retain them or delete them solely for sparse adoption. |
+| Two default-model aliases, four forwards and their test inputs | Held. | Preserve the composed conformance and runtime-authority cases. Any later migration derives the selected model from canonical seed data in existing testkit support. |
+| `__loadTransformersForTest` | Held. | The current tests use the worker's `kernelModule` execution seam; no current hook setter was found. Complete its bounded purpose adjudication before removal. |
+| Ten retained runtime, physical-execution and tooling identities | Keep. | These include the real error-kind axis, dynamic model-cache worker entry, SDK and model-kernel contracts, and the maintained offline tooling cache interface. Their canonical bodies and real composed tests remain. |
+
+This selection does not complete inference restoration or qualify every legacy embedding, cache or component case. The ordinary forwarding/localization batch is independent of the held helper, input and loader-hook decisions. The independent forwarding/localization batch passes affected compiler, runtime, lint and import checks. Independent review confirms that runtime bodies and held groups remain unchanged.

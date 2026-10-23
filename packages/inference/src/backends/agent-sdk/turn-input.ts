@@ -63,34 +63,28 @@ function agentRowText(m: ChatHistoryMessage, parts: readonly HistoryPart[] = m.c
   return m.name !== undefined && m.name.length > 0 ? `${m.name}: ${text}` : text;
 }
 
-/**
- * Lift the capability-kept `system` rows near the tail (depth-0 mid-conversation system injections — the chat
- * engine emits them only when `turns.midConversationSystem`) off the history. On this backend the honest
- * system-authority channel at the tail is the `UserPromptSubmit` hook, not a transcript row: the projection
- * carries the extracted text as `tailSystem`, and the remaining history keeps a clean user prompt — the
- * volatile injection never enters the recorded transcript, so the session↔seed comparator still matches next
- * turn (resume, not reseed).
- *
- * NOT strictly tail-FINAL (F3 fix): the engine appends the group/CONTINUATION nudge as a trailing USER row AFTER
- * the depth-0 system row, so the real shape is `[…canon…, system, user-nudge]` — a system row with a nudge tail
- * AFTER it, not a tail-final run. A pure trailing-run scan misses it and leaves the reminder to fall bare into the
- * prompt tail (unframed system-authority text reaching the model as user content + entering the transcript →
- * reseed churn). So this scans for a contiguous SYSTEM run and lifts it even when NON-system (nudge) rows trail
- * it; those trailing rows stay in `rows` (the nudge is a legitimate user turn — only the system row folds into
- * the hook). A system run inside canon is NOT reachable here — the engine only ever emits depth-0 system
- * at/after the last canon assistant, so the run found is always the injection band.
- *
- * THAT LAST CLAIM IS CAPABILITY-CONDITIONAL, and the condition holds on this wire (#201). The engine can also
- * emit a MID-ARRAY system row — a depth \> 0 system injection — gated on `turns.historySystemRows`, which no
- * agent-sdk capability cell declares (only a live probe may flip one). This walk-back would lift a mid-array run
- * out of position if one ever reached it, so a future cell declaring `historySystemRows` on this wire MUST come
- * here first — the enforcer is the capability cell, and this is the coupling it protects.
- *
- * @public Test-anchored module surface; tests/legacy/inference/backends/agent-sdk/turn-input.test.ts and the
- *  scripts/probes/f4-cache-proof.ts dev probe call it directly, in addition to the in-file use by
- *  {@link toAgentSdkChatRequest}.
- */
-export function extractTrailingSystemRows(history: readonly ChatHistoryMessage[]): {
+// Lift the capability-kept `system` rows near the tail (depth-0 mid-conversation system injections — the chat
+// engine emits them only when `turns.midConversationSystem`) off the history. On this backend the honest
+// system-authority channel at the tail is the `UserPromptSubmit` hook, not a transcript row: the projection
+// carries the extracted text as `tailSystem`, and the remaining history keeps a clean user prompt — the
+// volatile injection never enters the recorded transcript, so the session↔seed comparator still matches next
+// turn (resume, not reseed).
+//
+// NOT strictly tail-FINAL (F3 fix): the engine appends the group/CONTINUATION nudge as a trailing USER row AFTER
+// the depth-0 system row, so the real shape is `[…canon…, system, user-nudge]` — a system row with a nudge tail
+// AFTER it, not a tail-final run. A pure trailing-run scan misses it and leaves the reminder to fall bare into the
+// prompt tail (unframed system-authority text reaching the model as user content + entering the transcript →
+// reseed churn). So this scans for a contiguous SYSTEM run and lifts it even when NON-system (nudge) rows trail
+// it; those trailing rows stay in `rows` (the nudge is a legitimate user turn — only the system row folds into
+// the hook). A system run inside canon is NOT reachable here — the engine only ever emits depth-0 system
+// at/after the last canon assistant, so the run found is always the injection band.
+//
+// THAT LAST CLAIM IS CAPABILITY-CONDITIONAL, and the condition holds on this wire (#201). The engine can also
+// emit a MID-ARRAY system row — a depth \> 0 system injection — gated on `turns.historySystemRows`, which no
+// agent-sdk capability cell declares (only a live probe may flip one). This walk-back would lift a mid-array run
+// out of position if one ever reached it, so a future cell declaring `historySystemRows` on this wire MUST come
+// here first — the enforcer is the capability cell, and this is the coupling it protects.
+function extractTrailingSystemRows(history: readonly ChatHistoryMessage[]): {
   readonly rows: readonly ChatHistoryMessage[];
   readonly systemText: string | null;
 } {
@@ -152,35 +146,29 @@ const AGENT_SEED_FRAMES: Record<ChatHistoryMessage["role"], { readonly frame: Ag
   tool: { frame: "user", announce: true },
 };
 
-/**
- * Split the history into the session seed + the prompt this turn queries with. TOTAL — every history reaches the
- * SDK as frames plus one prompt, and there is no other agent-sdk turn shape (#1607).
- *
- * THIS IS THE STRUCTURAL ARM (#1593, completed by #1607). The seed is not a nicety —
- * `session/frames.ts::buildSeedFrames` emits ONE `SessionStoreEntry` per seed turn, so a turn boundary here is a
- * JSON frame and content inside a frame cannot create another frame. A `tool` row therefore never forces a flat
- * string: it rides as an ANNOUNCED `user` frame instead.
- *
- * THE TAIL IS THE TRAILING RUN OF `user` ROWS, never "everything after the last assistant". The two rules agree on
- * every tool-free history (system rows near the tail are lifted by {@link extractTrailingSystemRows} first), and
- * they differ exactly where it matters: a `tool` row after the last assistant would otherwise become the QUERY
- * PROMPT — tool output handed to the model as the human's own message, #1457 arriving by the other door. The tail
- * carries NO host labels, so there is nothing in it for content to imitate.
- *
- * NO TAIL ⇒ THE HOST-AUTHORED {@link AGENT_CONTINUATION_PROMPT_STUB}, and the WHOLE history seeds. That case is
- * live, not theoretical: a tool exchange leaves `[…, assistant, tool]` on a recursion's next request, and a turn
- * whose verb appends no user row ends on an assistant. It used to flatten the entire transcript into one prompt
- * string with a text turn boundary; the stub deletes that string, so the paragraph-collapse fence #1593 had to
- * install is gone too (rows keep their bytes — they are separate frames).
- *
- * AN EMPTY-TEXT ROW IS NOT A TURN and never becomes a frame: `message.content: [{type:"text", text:""}]` is a
- * body the Anthropic wire rejects, which would fail every later turn on that lineage rather than this one.
- *
- * @public Test-anchored module surface; tests/legacy/inference/backends/agent-sdk/turn-input.test.ts and the
- *  scripts/probes/f4-cache-proof.ts dev probe call it directly, in addition to the in-file use by
- *  {@link toAgentSdkChatRequest}.
- */
-export function splitAgentHistory(history: readonly ChatHistoryMessage[]): { readonly seed: readonly AgentSeedTurn[]; readonly prompt: string } {
+// Split the history into the session seed + the prompt this turn queries with. TOTAL — every history reaches the
+// SDK as frames plus one prompt, and there is no other agent-sdk turn shape (#1607).
+//
+// THIS IS THE STRUCTURAL ARM (#1593, completed by #1607). The seed is not a nicety —
+// `session/frames.ts::buildSeedFrames` emits ONE `SessionStoreEntry` per seed turn, so a turn boundary here is a
+// JSON frame and content inside a frame cannot create another frame. A `tool` row therefore never forces a flat
+// string: it rides as an ANNOUNCED `user` frame instead.
+//
+// THE TAIL IS THE TRAILING RUN OF `user` ROWS, never "everything after the last assistant". The two rules agree on
+// every tool-free history (system rows near the tail are lifted by {@link extractTrailingSystemRows} first), and
+// they differ exactly where it matters: a `tool` row after the last assistant would otherwise become the QUERY
+// PROMPT — tool output handed to the model as the human's own message, #1457 arriving by the other door. The tail
+// carries NO host labels, so there is nothing in it for content to imitate.
+//
+// NO TAIL ⇒ THE HOST-AUTHORED {@link AGENT_CONTINUATION_PROMPT_STUB}, and the WHOLE history seeds. That case is
+// live, not theoretical: a tool exchange leaves `[…, assistant, tool]` on a recursion's next request, and a turn
+// whose verb appends no user row ends on an assistant. It used to flatten the entire transcript into one prompt
+// string with a text turn boundary; the stub deletes that string, so the paragraph-collapse fence #1593 had to
+// install is gone too (rows keep their bytes — they are separate frames).
+//
+// AN EMPTY-TEXT ROW IS NOT A TURN and never becomes a frame: `message.content: [{type:"text", text:""}]` is a
+// body the Anthropic wire rejects, which would fail every later turn on that lineage rather than this one.
+function splitAgentHistory(history: readonly ChatHistoryMessage[]): { readonly seed: readonly AgentSeedTurn[]; readonly prompt: string } {
   let tailStart = history.length;
   while (tailStart > 0 && history[tailStart - 1]?.role === "user") {
     tailStart -= 1;

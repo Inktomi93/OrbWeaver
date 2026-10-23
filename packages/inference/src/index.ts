@@ -57,47 +57,25 @@ import { createRoleClientsFor } from "./roles/role-clients.ts";
 
 export type { ResolvedWarning } from "@orb/contracts/inference";
 
-export { availableClaudeExecutable, resolveClaudeExecutable } from "./backends/agent-sdk/executable.ts";
+export { availableClaudeExecutable } from "./backends/agent-sdk/executable.ts";
 export type { SessionEntryWriter } from "./backends/agent-sdk/index.ts";
-export { providerErrorFromHttp } from "./backends/http/error-classify.ts";
+
 export { cachePolicyContextOf, responseReplaySupportedFor } from "./backends/http/response-cache.ts";
-export { resolvedScrubSet } from "./backends/http/sanitize.ts";
-export type {
-  LocalLightBackend,
-  LocalLightModelCache,
-  LocalLightModelSlot,
-  LocalLightPrefetchHandle,
-  LocalLightPrefetchRecord,
-  LocalLightPrefetchTarget,
-} from "./backends/local-light/index.ts";
+
+export type { LocalLightModelCache, LocalLightModelSlot, LocalLightPrefetchTarget } from "./backends/local-light/index.ts";
 export { DEFAULT_EMBED_MODEL, DEFAULT_RERANK_MODEL, LOCAL_LIGHT_MODEL_SLOTS } from "./backends/local-light/index.ts";
-// The space TAG derivation + the HTTP error classifier are test-visible seams: the embeddings suites derive the
-// tag the way compose does, and the transport suites build a classified `ProviderError` the way a runner does.
-export { localLightEmbedSpaceTag } from "./backends/local-light/model-cache.ts";
+
 export { cacheDepthCovering, preservesCacheBlockEnds, rowIndexAtCacheDepth } from "./backends/wire/cache-control.ts";
 // The curated-evidence fold, for a caller that answers a route's capability without a saved connection: the
 // connection editor's CT oracle reads the funnel's own answer through these instead of the package internals.
 export { detectModelFamily } from "./capability/families.ts";
-export { curatedKind, curatedRows } from "./capability/sources/curated/loader.ts";
+export { curatedRows } from "./capability/sources/curated/loader.ts";
 export { synthesizeCapability } from "./capability/synthesize.ts";
 export type { AgentSdkNativeOptions, AgentSdkQuery, AgentSdkSpawn } from "./contract/agent-sdk-execution.ts";
 export * from "./contract/index.ts";
 export type { LoadTransformersKernel, LocalLightKernelModule } from "./contract/local-light-kernel.ts";
-export type { ProviderOrigin, RoleClientsFor } from "./contract/runtime.ts";
-// The one structured-output layer: a caller that must choose between shapes, or ask whether its need fits a
-// connection at all, asks the planner every backend sends.
-export type { StructuredFit } from "./contract/structured-turn.ts";
-export type {
-  BindingActor,
-  BindingStore,
-  ConnectionStore,
-  InferenceDeps,
-  InferenceLog,
-  ProviderSnapshot,
-  ProviderStore,
-  SnapshotStore,
-  SpanFn,
-} from "./deps.ts";
+
+export type { BindingActor, BindingStore, ConnectionStore, InferenceDeps, ProviderSnapshot, ProviderStore, SnapshotStore } from "./deps.ts";
 export { resolveCachePolicy } from "./funnel/resolve-cache.ts";
 // `resolveCarryReasoning` is exported BESIDE the whole funnel because the chat engine needs exactly one of
 // its answers BEFORE the first wire call: the `conversation` rung materializes prior thinking at the
@@ -117,7 +95,7 @@ export { toChatRequest } from "./roles/chat-request.ts";
 export { carriesForcedToolRound, carriesStructured, forcesToolRound, runStructuredChat, toForcedToolRoundRequest } from "./roles/chat-rounds.ts";
 export { unavailableRefusal } from "./roles/role-clients.ts";
 export { runStructuredTurn } from "./roles/structured-turn.ts";
-export type { StructuredAsk, StructuredPlan, StructuredRefusal } from "./structured/plan.ts";
+
 export { planStructuredFor, structuredFitFor } from "./structured/plan.ts";
 
 const OPENROUTER_CATALOG_KEY = "catalog:openrouter";
@@ -480,4 +458,4 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
   };
 }
 
-export type { CapabilityRead, InferenceRuntime } from "./contract/api.ts";
+export type { InferenceRuntime } from "./contract/api.ts";

@@ -160,10 +160,10 @@ function requireTensor(out: Record<string, unknown>, key: string, modelId: Model
  *  scripts/probes/reranker-swap measured a 2048-token pair at about 0.7 GB over the loaded model. */
 const RERANK_BATCH_TOKENS = 2048;
 
-/** Document indexes grouped into forward passes under {@link RERANK_BATCH_TOKENS}, shortest first so a batch
- *  pads to a similar length. A pair longer than the budget runs alone, and so does every pair of a dynamically
- *  quantized file, whose activation scales come from the whole batch and would make a score depend on its neighbours. */
-export function rerankBatches(pairLengths: readonly number[], dynamicQuantized = false): number[][] {
+// Document indexes grouped into forward passes under {@link RERANK_BATCH_TOKENS}, shortest first so a batch
+//  pads to a similar length. A pair longer than the budget runs alone, and so does every pair of a dynamically
+//  quantized file, whose activation scales come from the whole batch and would make a score depend on its neighbours.
+function rerankBatches(pairLengths: readonly number[], dynamicQuantized = false): number[][] {
   const order = pairLengths.map((_, i) => i).sort((a, b) => (pairLengths[a] ?? 0) - (pairLengths[b] ?? 0));
   if (dynamicQuantized) {
     return order.map((index) => [index]);
@@ -376,12 +376,12 @@ async function ensureCacheDir(dir: string, log: InferenceLog): Promise<void> {
   });
 }
 
-/** Cut one query/document pair to `maxTokens` real tokens: the query to at most half of what the special tokens
- *  leave, the document to the rest. The tokenizer's own truncation would instead cut the joined pair's tail, and at
- *  the model's full length rather than the served window. A cut decodes with special tokens KEPT: skipping them would
- *  delete every unknown-token piece (`[UNK]`) from the text, and the pair would under-fill its window. The batch call
- *  still passes `max_length`, so a re-encode that drifts by a token can never exceed the window. */
-export function fitPairToWindow(tok: PairTokenizer, query: string, document: string, maxTokens: number): { query: string; document: string } {
+// Cut one query/document pair to `maxTokens` real tokens: the query to at most half of what the special tokens
+//  leave, the document to the rest. The tokenizer's own truncation would instead cut the joined pair's tail, and at
+//  the model's full length rather than the served window. A cut decodes with special tokens KEPT: skipping them would
+//  delete every unknown-token piece (`[UNK]`) from the text, and the pair would under-fill its window. The batch call
+//  still passes `max_length`, so a re-encode that drifts by a token can never exceed the window.
+function fitPairToWindow(tok: PairTokenizer, query: string, document: string, maxTokens: number): { query: string; document: string } {
   const plain = { add_special_tokens: false };
   const specials = tok.encode("a", { text_pair: "b" }).length - tok.encode("a", plain).length - tok.encode("b", plain).length;
   const budget = Math.max(0, maxTokens - specials);
@@ -760,4 +760,4 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
   };
 }
 
-export type { LocalLightModelCache, ModelCacheConfig, PairTokenizer } from "../../contract/local-light.ts";
+export type { LocalLightModelCache } from "../../contract/local-light.ts";

@@ -13,7 +13,7 @@ import { createWorkerModelCache } from "./worker-cache.ts";
 export type { LocalLightModelSlot } from "#contract";
 export { LOCAL_LIGHT_MODEL_SLOTS } from "#contract";
 export type { LocalLightModelCache } from "./model-cache.ts";
-export type { LocalLightPrefetchHandle, LocalLightPrefetchRecord, LocalLightPrefetchTarget } from "./prefetch.ts";
+export type { LocalLightPrefetchTarget } from "./prefetch.ts";
 export { DEFAULT_EMBED_MODEL, DEFAULT_RERANK_MODEL } from "./tasks.ts";
 
 function isModelCache(value: unknown): value is LocalLightModelCache {

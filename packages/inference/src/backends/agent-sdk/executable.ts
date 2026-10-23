@@ -8,7 +8,7 @@ import { createRequire } from "node:module";
 
 const SDK_PACKAGE = "@anthropic-ai/claude-agent-sdk";
 
-export function resolveClaudeExecutable(): string | null {
+function resolveClaudeExecutable(): string | null {
   // This waiver binds because `caught-failure-ownership` names the independent `@inference` population root;
   // `@packages` remains the frozen six-root composite. Keep the marker with the sound module-resolution reason
   // below: the policy now judges this site and the ordinary-waiver engine stale-checks the exact `catch` token.

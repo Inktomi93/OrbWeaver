@@ -1,60 +1,18 @@
-// @orb/inference/contract — THE BARREL: the task request/result shapes, the sealed-backend contract, the
-// resolved connection, the funnel's output shapes, the events and errors. Cross-boundary shapes (the task
-// RESULTS, `ResolvedSecret`, `CredentialHealth`, the capability schemas) are RE-EXPORTS from
-// `@orb/contracts` so a consumer needs ONE import for the whole surface.
+// Internal task, execution and error contracts, including the public subset forwarded by the package root.
+// Cross-boundary shapes remain owned by @orb/contracts; this barrel does not redefine them.
 
-export type { ResolvedSecret } from "@orb/contracts/credentials";
-export type {
-  Capability,
-  ChatApi,
-  EmbeddingCapability,
-  GenerationCapability,
-  ModelCatalogEntry,
-  RerankCapability,
-  ResolvedWarning,
-  Task,
-  WarningCode,
-  Wire,
-} from "@orb/contracts/inference";
+export type { ResolvedWarning } from "@orb/contracts/inference";
 
-export type {
-  AccountCredits,
-  EmbedResult,
-  EndpointInspection,
-  GenerationCost,
-  ImageEmbedResult,
-  RerankHit,
-  RerankResult,
-  SummarizeResult,
-  SummarizeResultItem,
-} from "@orb/contracts/providers";
-export type {
-  AgentMcpHttpServer,
-  AgentMcpServerSpec,
-  AgentMcpSseServer,
-  AgentMcpStdioServer,
-  AgentSdkSessionTotals,
-  AgentToolServer,
-  AgentTurnRequest,
-  SessionEntryWriter,
-} from "./agent.ts";
-export type {
-  AgentSdkExecution,
-  AgentSdkExecutionDeps,
-  AgentSdkLifetime,
-  AgentSdkNativeOptions,
-  AgentSdkQuery,
-  AgentSdkQueryLease,
-  AgentSdkSpawn,
-} from "./agent-sdk-execution.ts";
-export type { BackendRegistry, ProviderBackend, ProviderExecutor, WireCaptureSink } from "./backend.ts";
+export type { SummarizeResult } from "@orb/contracts/providers";
+export type { AgentMcpServerSpec, AgentSdkSessionTotals, AgentToolServer, AgentTurnRequest, SessionEntryWriter } from "./agent.ts";
+export type { AgentSdkExecution, AgentSdkExecutionDeps, AgentSdkLifetime, AgentSdkQueryLease } from "./agent-sdk-execution.ts";
+export type { ProviderBackend, ProviderExecutor, WireCaptureSink } from "./backend.ts";
 export type {
   AgentMcpServerHealth,
   AgentSdkChatRequest,
   AgentSeedBlock,
   AgentSeedTurn,
   AnthropicChatRequest,
-  ChatDeltaSubscription,
   ChatHistoryMessage,
   ChatRequest,
   ChatResult,
@@ -66,13 +24,11 @@ export type {
   ContextUsage,
   ForcedToolRoundInput,
   GenerationObservationCallback,
-  GenerationObservationSource,
   GoogleChatRequest,
   HistoryRole,
   OpenAiCompatChatRequest,
   ReasoningContentPart,
   ResponseFormat,
-  StructuredChatInput,
   ToolCallInput,
   ToolChoice,
   WireMeta,
@@ -83,33 +39,19 @@ export {
   AGENT_PROMPT_TAIL_JOINER,
   deltaSubscriptionOf,
   GenerationObservationPersistenceError,
-  HISTORY_ROLES,
   normalizeFinishReason,
 } from "./chat.ts";
-export type {
-  AccountCreditsRequest,
-  GenerationCostRequest,
-  InspectRequest,
-  ListModelsRequest,
-  ProbeRequest,
-  ProviderDiagnostics,
-  VerifyAuthRequest,
-} from "./diagnostics.ts";
-export type { ProviderErrorInit, ProviderErrorKind, ProviderScrubSet, VectorWidthMismatch } from "./errors.ts";
-export { assertNever, PROVIDER_ERROR_KINDS, ProviderError, SCHEMA_REJECTED_DETAIL } from "./errors.ts";
+export type { AccountCreditsRequest, GenerationCostRequest, InspectRequest, ListModelsRequest, ProbeRequest, VerifyAuthRequest } from "./diagnostics.ts";
+export type { ProviderErrorKind, ProviderScrubSet, VectorWidthMismatch } from "./errors.ts";
+export { PROVIDER_ERROR_KINDS, ProviderError, SCHEMA_REJECTED_DETAIL } from "./errors.ts";
 export type { ChatDeltaEvent, ChatEvent, RateLimitSnapshot } from "./events.ts";
 export { compactionTriggerSchema, compactResultSchema } from "./events.ts";
 export type { GoogleBackend, GoogleBackendDeps, GoogleCall } from "./google.ts";
 export type { AgentSdkSessionId } from "./identity.ts";
 export { agentSdkSessionIdSchema } from "./identity.ts";
-export type { LoadTransformersKernel, LocalLightKernelModule } from "./local-light-kernel.ts";
+
 export type { LocalLightLoadProgress } from "./local-light-worker.ts";
-export type {
-  ResolvedChatKnobs,
-  ResolvedEmbedKnobs,
-  ResolvedReasoning,
-  ResolvedSampling,
-} from "./resolve.ts";
+export type { ResolvedChatKnobs, ResolvedReasoning, ResolvedSampling } from "./resolve.ts";
 export type { ConnectionTransport, Resolved, ResponseMap } from "./resolved.ts";
 export { generationOf, withPresetWindow } from "./resolved.ts";
 export type {
@@ -121,15 +63,11 @@ export type {
   ImageGenerateResult,
   RerankRequest,
   RoleClientsWithSignal,
-  StructuredCallOptions,
   StructuredRequest,
-  SummarizeCallOptions,
   SummarizeRequest,
-  SummarizeRequestItem,
-  TaskSampling,
   WireEmbedding,
 } from "./roles.ts";
-export { embedRequestTimeoutMs, LOCAL_ENCODER_PROBE_TIMEOUT_MS } from "./roles.ts";
+export { embedRequestTimeoutMs } from "./roles.ts";
 export type {
   AddSpanEvent,
   AnthImageBlock,
@@ -145,5 +83,5 @@ export type {
 export { ANTH_IMAGE_MEDIA_TYPES, LOCAL_LIGHT_MODEL_SLOTS } from "./runtime.ts";
 export type { ChatPosture, SideGenSampling } from "./side-gen.ts";
 export { postureOfTask } from "./side-gen.ts";
-export type { StructuredRetrySummary, StructuredTurnArgs } from "./structured-turn.ts";
+export type { StructuredRetrySummary } from "./structured-turn.ts";
 export { StructuredOutputError } from "./structured-turn.ts";

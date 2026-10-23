@@ -110,4 +110,4 @@ export function createLocalLightPrefetch(deps: LocalLightPrefetchDeps): LocalLig
   };
 }
 
-export type { LocalLightPrefetchDeps, LocalLightPrefetchHandle, LocalLightPrefetchRecord, LocalLightPrefetchTarget } from "../../contract/local-light.ts";
+export type { LocalLightPrefetchDeps, LocalLightPrefetchHandle, LocalLightPrefetchTarget } from "../../contract/local-light.ts";

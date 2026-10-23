@@ -159,17 +159,13 @@ export function cacheDepthCovering(rows: readonly { readonly role: string; reado
   return covering;
 }
 
-/** Returns the pair of placements at depths `depth` and `depth+2` whose cumulative prefix clears the
- *  per-model cacheMinTokens floor. The deeper one keeps a cache hit inside Anthropic's 20-block lookback
- *  window that a single breakpoint drops on a long conversation. Drops the deeper placement when it runs
- *  off the front or is below the floor; drops both when even `depth` is below the floor. A REQUESTED
- *  depth the conversation cannot reach places nothing at all — that one is loud
- *  (`provider.cache_depth_unreachable`).
- *
- *  @public Test-anchored module surface; tests/legacy/inference/backends/wire/cache-control.test.ts calls it
- *  directly, in addition to the in-file use by {@link placeExplicitCacheMarkers}, the placer shared by the
- *  native Anthropic and OpenRouter runners. */
-export function computeCacheBreakpointPlacements(args: {
+// Returns the pair of placements at depths `depth` and `depth+2` whose cumulative prefix clears the
+//  per-model cacheMinTokens floor. The deeper one keeps a cache hit inside Anthropic's 20-block lookback
+//  window that a single breakpoint drops on a long conversation. Drops the deeper placement when it runs
+//  off the front or is below the floor; drops both when even `depth` is below the floor. A REQUESTED
+//  depth the conversation cannot reach places nothing at all — that one is loud
+//  (`provider.cache_depth_unreachable`).
+function computeCacheBreakpointPlacements(args: {
   readonly rows: readonly CacheBreakpointRow[];
   readonly systemStaticTokens: number;
   readonly depthFromEnd: number;
