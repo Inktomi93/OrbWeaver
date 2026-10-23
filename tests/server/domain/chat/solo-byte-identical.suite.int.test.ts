@@ -2,8 +2,10 @@
 // D16 compares physical requests; narrator identity has its one deliberate framing exception.
 import type { GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, narratorPolicyOf } from "@orb/contracts/chat";
+import { resolveProseText } from "@orb/contracts/prose";
 import { messages, messageVariants } from "@orb/db";
 import type { CharacterId } from "@orb/kit/ids";
+import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import { expect, test } from "@orb/testkit/node";
 import {
@@ -74,11 +76,27 @@ async function posture(group: GroupConfig): Promise<{
   return { body, characterId: character.id, row };
 }
 
+// The non-system messages of the physical request, in wire order: the whole seeded history plus the live send.
+function historyLines(body: string): readonly JsonValue[] {
+  const parsed = jsonValueSchema.parse(JSON.parse(body));
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed) || !Array.isArray(parsed["messages"])) {
+    throw new Error("the physical posture request has no messages");
+  }
+  return parsed["messages"]
+    .filter((message) => message !== null && typeof message === "object" && !Array.isArray(message) && message["role"] !== "system")
+    .map((message) => (message !== null && typeof message === "object" && !Array.isArray(message) ? (message["content"] ?? null) : null));
+}
+
 test("the wire request is BYTE-identical: untouched solo room vs fully group-configured roster of one", async () => {
   const solo = await posture(DEFAULT_GROUP_CONFIG);
   const grouped = await posture(GROUP_OF_ONE);
   expect(grouped.body).toBe(solo.body);
   expect(solo.body).toContain("well met, traveler");
+  expect(historyLines(solo.body)).toEqual([
+    `${resolveProseText("preset.format.newChatMarker", {})}\n\nhello there`,
+    "well met, traveler",
+    "tell me more\n\nContinue the conversation.",
+  ]);
 });
 
 test("the group knobs are runtime-fenced, not mode-fenced: no nudge, no name-stamp at one character", async () => {

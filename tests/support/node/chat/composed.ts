@@ -34,7 +34,6 @@ export interface ChatRoot extends AsyncDisposable {
   readonly caller: AppCaller;
   readonly chatId: ChatId;
   readonly characters: readonly CharacterDetail[];
-
   readonly requests: readonly Request[];
 }
 

@@ -7,7 +7,7 @@ import { messages } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import type { TranscriptLine } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
-import { textRoom } from "../scenario-physical.ts";
+import { openingOf, openingText, textRoom, wireBodies } from "../scenario-physical.ts";
 import { B_CHAT_MODEL, B_UTILITY_MODEL, saveSpeakerConnection, speakerInputs, speakerRoom } from "./speaker-funding-physical.ts";
 
 // An owner line and one reply by the room's first seat, written by the native transcript import.
@@ -40,7 +40,9 @@ test("speakerless list generation skips the actual last speaker and commits only
   expect(outcome.messages[0]?.id).not.toBe(prior?.id);
   expect(canon.map(({ role }) => role)).toEqual(["user", "assistant", "assistant"]);
   expect(canon.map(({ characterId }) => characterId)).toEqual([null, aria.id, bryn.id]);
-  expect(h.requests.filter((request) => new URL(request.url).pathname.endsWith("/chat/completions"))).toHaveLength(1);
+  const bodies = await wireBodies(h);
+  expect(bodies).toHaveLength(1);
+  expect(openingText(bodies[0])).toBe(openingOf("hello"));
 });
 
 test.for([
@@ -96,7 +98,9 @@ test.for([
     seq: (canon[1]?.seq ?? 0) + 1,
   });
   expect(canon.map(({ characterId }) => characterId)).toEqual([null, aria.id, selected.id]);
-  expect(h.requests.filter((request) => new URL(request.url).pathname.endsWith("/chat/completions"))).toHaveLength(1);
+  const bodies = await wireBodies(h);
+  expect(bodies).toHaveLength(1);
+  expect(openingText(bodies[0])).toBe(openingOf("hello"));
 });
 
 test("speakerless manual generation commits nothing and closes its accepted slot without starting a turn", async () => {
@@ -182,7 +186,9 @@ test.for([
   const [, priorReply] = await h.root.db.select().from(messages).where(eq(messages.chatId, h.chatId)).orderBy(messages.seq);
   expect(outcome.messages[0]).toMatchObject({ role: "assistant", characterId: expected.id, content: reply, seq: (priorReply?.seq ?? 0) + 1 });
   expect(await speakerInputs(f.peer.requests, B_UTILITY_MODEL)).toHaveLength(scene.explicit ? 0 : 1);
-  expect(await speakerInputs(f.peer.requests, B_CHAT_MODEL)).toHaveLength(1);
+  const chat = await speakerInputs(f.peer.requests, B_CHAT_MODEL);
+  expect(chat).toHaveLength(1);
+  expect(chat[0]?.messages.find(({ role }) => role !== "system")?.content).toBe(openingOf("hello"));
   expect(f.events.filter(({ type }) => type === "warning")).toEqual(
     scene.failure ? [{ type: "warning", chatId: h.chatId, code: "smart_arbitration_degraded" }] : [],
   );

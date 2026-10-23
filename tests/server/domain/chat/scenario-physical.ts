@@ -1,6 +1,9 @@
 // Only vendor response bytes vary; room policy, persistence and assembly belong to the real graph.
+import { resolveProseText } from "@orb/contracts/prose";
 import { messages, messageVariants } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
+import type { JsonValue } from "@orb/kit/json";
+import { jsonValueSchema } from "@orb/kit/json";
 import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
@@ -30,6 +33,32 @@ export async function textRoom(replies: readonly string[], options: Omit<ChatRoo
     },
   });
   return await createChatRoot({ memoryEnabled: false, ...options, providerFetch: provider.execute });
+}
+
+/** The JSON bodies of the room's recorded chat-completions requests, oldest first. */
+export async function wireBodies(h: ChatRoot): Promise<JsonValue[]> {
+  return await Promise.all(
+    h.requests
+      .filter((request) => request.method === "POST" && new URL(request.url).pathname.endsWith("/chat/completions"))
+      .map(async (request) => jsonValueSchema.parse(JSON.parse(await request.clone().text()))),
+  );
+}
+
+/** The first non-system message text of a physical request: a seeded history's opening row, behind the new-chat marker. */
+export function openingText(body: JsonValue | undefined): string {
+  if (body === undefined || body === null || typeof body !== "object" || Array.isArray(body) || !Array.isArray(body["messages"])) {
+    throw new Error("the actual native request has no messages");
+  }
+  const row = body["messages"].find((message) => message !== null && typeof message === "object" && !Array.isArray(message) && message["role"] !== "system");
+  if (row === null || typeof row !== "object" || Array.isArray(row) || typeof row["content"] !== "string") {
+    throw new Error("the actual native request has no text history row");
+  }
+  return row["content"];
+}
+
+/** The opening row's text when the history's first line is `text`. */
+export function openingOf(text: string): string {
+  return `${resolveProseText("preset.format.newChatMarker", {})}\n\n${text}`;
 }
 
 /** One SillyTavern transcript line: the user's turn or the room character's reply. */
