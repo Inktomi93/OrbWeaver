@@ -8,6 +8,7 @@ export { recordClientError } from "./client-error.ts";
 export type { AuditWiring } from "./contract/audit-wiring.ts";
 export {
   type AdminAuthChecker,
+  createWireCaptureSpill,
   type DebugAuthOptions,
   type DebugRoutesOptions,
   isWireCaptureEnabled,
@@ -17,8 +18,8 @@ export {
   recordTurnOutcome,
   recordWireCapture,
   registerDebugRoutes,
-  settleWireCaptureSpill,
   type WireCaptureFilter,
+  type WireCaptureSpill,
   type WireOutcome,
   type WireToolCall,
   type WireWarning,

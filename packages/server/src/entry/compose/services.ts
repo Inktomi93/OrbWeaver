@@ -136,17 +136,17 @@ import type { ImportWorldInfoPort } from "#domain/world-info";
 import { createAttachOwnedBooksByName, createImportStandaloneLorebook } from "#domain/world-info";
 import { APP_NAME, APP_URL } from "#foundation/config";
 import { allowedHostsInput, authModeSource, env, hostEnvAllowlist, installKind, publicAddresses } from "#foundation/env";
-import type { AuditEntry } from "#foundation/observability";
+import type { AuditEntry, WireCaptureSpill } from "#foundation/observability";
 import {
   addSpanEvent,
   createAuditWiring,
+  createWireCaptureSpill,
   getLog,
   isWireCaptureEnabled,
   isWireReplyCaptureEnabled,
   recordTurnOutcome,
   recordWireCapture,
   securityEvent,
-  settleWireCaptureSpill,
   span,
 } from "#foundation/observability";
 import { SERVER_INSTANCE_ID } from "#foundation/server-instance";
@@ -243,6 +243,9 @@ export interface ServicesDeps {
   /** The staging root the upload route stages a zip under; absent ⇒ `DEFAULT_IMPORT_STAGING_DIR`
    *  (the same default the route resolves). */
   readonly importStagingDir?: string;
+  /** Where an import writes its report; absent ⇒ the env data layout's `reports` slot. A test root passes its own
+   *  directory so a report never lands in the checkout. */
+  readonly importReportsDir?: string;
   /** The ST profile-directory snapshot `import-st`'s `importAll` reads; absent ⇒ repo-root `.st-data`. */
   readonly stProfileDir?: string;
   readonly sessionSecret: string | null;
@@ -419,8 +422,8 @@ function pluginExecutionInputs(deps: ServicesDeps): Pick<AutomationPluginCompose
 }
 
 // The outcome arm rides the request sink's gate, so the two wire-capture reads can never disagree.
-function turnOutcomeRecorderOf(wireCaptureOn: boolean, deps: ServicesDeps): Pick<Parameters<typeof buildChatService>[0], "recordTurnOutcome"> {
-  return wireCaptureOn ? { recordTurnOutcome: (outcome): void => recordTurnOutcome(outcome, deps.wireCaptureDir) } : {};
+function turnOutcomeRecorderOf(wireCaptureOn: boolean, spill: WireCaptureSpill): Pick<Parameters<typeof buildChatService>[0], "recordTurnOutcome"> {
+  return wireCaptureOn ? { recordTurnOutcome: (outcome): void => recordTurnOutcome(outcome, spill) } : {};
 }
 
 function inferenceSpanOf(deps: ServicesDeps): InferenceDeps["span"] {
@@ -436,8 +439,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   await using construction = new AsyncDisposableStack();
   const resources = new AsyncDisposableStack();
   construction.defer(() => resources.disposeAsync());
+  const wireSpill = createWireCaptureSpill(deps.wireCaptureDir);
   // Deferred first so it runs last: every turn has settled, so no wire-capture append outlives the graph.
-  resources.defer(settleWireCaptureSpill);
+  resources.defer(wireSpill.settle);
   const backgroundResources = new AsyncDisposableStack();
   construction.defer(() => backgroundResources.disposeAsync());
   // biome-ignore lint/nursery/useDisposables: resources adopts this owner through the moved graph stack; local using would close it before the graph starts.
@@ -506,6 +510,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     idSource = createIdSource(),
     newOpaqueId = randomUUID,
     userRuntimeDir = env.USER_RUNTIME_DIR,
+    importReportsDir = env.DATA_LAYOUT.reports,
   } = deps;
   const authMode = authConfig.mode;
   const presence = createPresenceRegistry(now);
@@ -672,7 +677,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // `MaybeRevokeParams`; an adapter here could only re-derive a fact it was handed (#1373's whole defect).
     onAuthFailed: credentials.maybeRevokeOnAuthFailed,
     // The sink stamps `at` from the injected clock (no-raw-clock) and forwards to the process ring.
-    ...(wireCaptureOn ? { captureWire: (entry): void => recordWireCapture({ ...entry, at: now() }, deps.wireCaptureDir) } : {}),
+    ...(wireCaptureOn ? { captureWire: (entry): void => recordWireCapture({ ...entry, at: now() }, wireSpill) } : {}),
     // The reply tap lives at the SEND BOUNDARY (it owns the 64 KiB cap and the by-value scrub); compose only
     // carries the verdict. A second opt-in on purpose — see the recorder's header.
     captureWireReply: wireReplyCaptureOn,
@@ -999,7 +1004,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     timers,
     backgroundSignal: background.signal,
     trackBackground: background.track,
-    ...turnOutcomeRecorderOf(wireCaptureOn, deps),
+    ...turnOutcomeRecorderOf(wireCaptureOn, wireSpill),
     random: deps.random,
     idSource,
     resolveUtilityPresetParams,
@@ -1307,7 +1312,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     workloads,
     ...(deps.importStagingDir !== undefined ? { importStagingDir: deps.importStagingDir } : {}),
     ...(deps.stProfileDir !== undefined ? { stProfileDir: deps.stProfileDir } : {}),
-    importReportsDir: env.DATA_LAYOUT.reports,
+    importReportsDir,
   });
 
   // Assemble the contribution registry + close the late-bound holder the workloads verbs deref.

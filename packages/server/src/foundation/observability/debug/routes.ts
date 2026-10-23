@@ -287,7 +287,13 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = { a
     // `/api/_debug` should be able to see, in one place, what reaching it is worth (retention), what bounds
     // who else can try (perimeter), and which standing item is still open (`warnings`). No secret value is
     // present — the resolver reduces the token to a boolean, and it is the gate's own token, not a re-read of env.
-    const diagnostics = resolveDiagnosticsPosture({ ...diagnosticsPostureInput(), debugToken: authConfig.expectedToken });
+    // The recorders are the compose decisions the wire reads publish; an absent trace inspector means no route and no recorder.
+    const diagnostics = resolveDiagnosticsPosture({
+      ...diagnosticsPostureInput(),
+      debugToken: authConfig.expectedToken,
+      wireCapture: wireCaptureEnabled() ? "on" : "off",
+      rpgTrace: rpgTrace === undefined ? "off" : "on",
+    });
     return c.json({
       // The WHOLE identity block, not a bare version string: an operator reading this probe is nearly always
       // asking "is this box running what I think it is", and the commit is the half that answers it.

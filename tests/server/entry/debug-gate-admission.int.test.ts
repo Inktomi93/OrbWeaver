@@ -202,6 +202,24 @@ describe("an injected debug token is the gate's token everywhere it is read", ()
   });
 });
 
+describe("/info reports the recorders this graph composed, not the ambient env", () => {
+  async function retaining(root: Root): Promise<unknown> {
+    const info = await root.http.request("/api/_debug/info", { headers: { "x-debug-token": INJECTED_DEBUG_TOKEN } });
+    expect(info.status).toBe(200);
+    return z.object({ diagnostics: z.object({ retaining: z.array(z.string()) }) }).parse(await info.json()).diagnostics.retaining;
+  }
+
+  test("a graph forced to capture and trace reports both retaining", async () => {
+    await using root = await rootFor("local", { debugToken: INJECTED_DEBUG_TOKEN, wireCapture: true, rpgTrace: true });
+    expect(await retaining(root)).toEqual(["WIRE_CAPTURE", "RPG_TRACE"]);
+  });
+
+  test("a graph that composed neither recorder reports nothing retaining", async () => {
+    await using root = await rootFor("local", { debugToken: INJECTED_DEBUG_TOKEN, wireCapture: false, rpgTrace: false });
+    expect(await retaining(root)).toEqual([]);
+  });
+});
+
 describe("the bug-report WRITE route is behind the same gate", () => {
   test("no token configured → 404 (surface off), and NOTHING is written", async () => {
     await using root = await rootFor("single-user", { fallback: "deny" });

@@ -230,13 +230,14 @@ async function directoriesFor(
   rootDir: string,
   options: Pick<ServerHarnessOptions, "casDir" | "variantDir" | "importStagingDir">,
 ): Promise<
-  Required<Pick<ServicesDeps, "casDir" | "variantDir" | "importStagingDir" | "userRuntimeDir" | "stProfileDir" | "wireCaptureDir">> &
+  Required<Pick<ServicesDeps, "casDir" | "variantDir" | "importStagingDir" | "importReportsDir" | "userRuntimeDir" | "stProfileDir" | "wireCaptureDir">> &
     Pick<ServerTestHarness, "modelCacheDir">
 > {
   const paths = {
     casDir: options.casDir ?? join(rootDir, "cas"),
     variantDir: options.variantDir ?? join(rootDir, "variants"),
     importStagingDir: options.importStagingDir ?? join(rootDir, "import-staging"),
+    importReportsDir: join(rootDir, "import-reports"),
     userRuntimeDir: join(rootDir, "user-runtime"),
     modelCacheDir: join(rootDir, "model-cache"),
     stProfileDir: join(rootDir, "st-profile"),
@@ -425,7 +426,10 @@ export async function createServerHarness(
   let oidcLifetime: Awaited<ReturnType<typeof createConfiguredOidc>> | undefined;
   let shareLifetime: ShareGraph | undefined;
   construction.defer(() => closeHarnessGraph(httpLifetime, oidcLifetime, appLifetime, shareLifetime));
-  const { casDir, variantDir, importStagingDir, userRuntimeDir, modelCacheDir, stProfileDir, wireCaptureDir } = await directoriesFor(rootDir, options);
+  const { casDir, variantDir, importStagingDir, importReportsDir, userRuntimeDir, modelCacheDir, stProfileDir, wireCaptureDir } = await directoriesFor(
+    rootDir,
+    options,
+  );
   const inputs: HarnessConstruction = { db, clock, idSource, timers, authConfig, rolePolicy, rootDir };
   const ownerId = await prepareHarnessOwner(options, inputs);
   const { createHttpApp: assembleHttp, createServices, createShareGraph, UNSUPERVISED_RESTART } = await import("@orb/server/entry/compose");
@@ -452,6 +456,7 @@ export async function createServerHarness(
     casDir,
     variantDir,
     importStagingDir,
+    importReportsDir,
     stProfileDir,
     userRuntimeDir,
     wireCaptureDir,
