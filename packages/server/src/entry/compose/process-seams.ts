@@ -1,7 +1,6 @@
 // The one home of the real process seams: wall timers, the monotonic clock, the business PRNG, the dice CSPRNG, the
-// id source, the opaque nonce, and the physical network (dial, fetch, DNS). Every non-test root passes these; the
-// root never defaults one. Exempt: `foundation/observability/middleware.ts` and `debug/bug-report.ts` read `performance.now`
-// for request-duration and wall-clock log stamps, which are measurements, not behaviour a test controls.
+// id source, the opaque nonce, and the physical network. Every non-test root passes these; the root never defaults one.
+// Exempt: observability's `middleware.ts` and `debug/bug-report.ts` read `performance.now` for duration and log stamps (measurements).
 
 import { randomInt, randomUUID } from "node:crypto";
 import { createIdSource } from "@orb/kit/ids";

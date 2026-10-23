@@ -580,6 +580,9 @@ async function resolveRoomInputs(
  *  prng (`() => 0`), so a random-pick previews its FIRST-pool value and a re-poll never varies (the
  *  "preview never varies per poll" precedent — `gatherAssembleContext`'s absent-prng arm). Draws are
  *  discarded (a preview persists nothing). `null` ⇒ no user macros ⇒ the process singleton (byte-identical). */
+/** The PRNG every preview render draws from: stable, so `{{random}}`/`{{roll}}`/`{{pick}}` read the same on every poll. */
+const PREVIEW_RANDOM = (): number => 0;
+
 function buildPreviewRegistry(inputs: PreviewInputs): MacroRegistry | null {
   const built = buildTurnUserMacros({
     preset: { id: inputs.foreign.presetId ?? "default", defs: inputs.foreign.promptConfig.userMacros },
@@ -587,15 +590,15 @@ function buildPreviewRegistry(inputs: PreviewInputs): MacroRegistry | null {
     // macro the TURN would render, not the one the game overrode.
     ...(inputs.gameUserMacros.length > 0 ? { game: { id: inputs.chatId, defs: inputs.gameUserMacros } } : {}),
     values: {},
-    prng: () => 0,
+    prng: PREVIEW_RANDOM,
   });
   return built?.registry ?? null;
 }
 
-/** The render env a preview walks with: the preview registry (or the process singleton) and the service PRNG, so no
- *  section, lore or persona render reaches kit's ambient `Math.random`. */
-function previewRender(ctx: ChatContext, registry: MacroRegistry | null): MacroRenderEnv {
-  return { registry: registry ?? globalMacroRegistry, random: ctx.prng };
+/** The render env a preview walks with: the preview registry (or the process singleton) and the stable preview PRNG,
+ *  so no section, lore or persona render reaches kit's ambient `Math.random` and a re-poll never varies. */
+function previewRender(registry: MacroRegistry | null): MacroRenderEnv {
+  return { registry: registry ?? globalMacroRegistry, random: PREVIEW_RANDOM };
 }
 
 /** The PREVIEW's gather half — the rpg macro/CEL feed (docs/plans/rpg/design.md) plus the S2 teaching collection
@@ -1173,7 +1176,7 @@ function previewPromptHistoryEnv(ctx: ChatContext, assembleContext: AssembleCont
   }
   return {
     scripts,
-    macroCtx: buildTurnMacroContext({ assembleCtx: assembleContext, model: inputs.model, chatId: inputs.chatId, random: ctx.prng }),
+    macroCtx: buildTurnMacroContext({ assembleCtx: assembleContext, model: inputs.model, chatId: inputs.chatId, random: PREVIEW_RANDOM }),
     applyReplace: ctx.applyRegexReplace,
     onScriptFailure: (err, script) =>
       getLog().warn(
@@ -1386,7 +1389,7 @@ function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["p
     });
     const registry = buildPreviewRegistry(inputs);
     const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry, guided, timeZone });
-    const { prompt, slices } = buildPromptWithSlices(inputs.foreign.promptConfig, assembleContext, previewRender(ctx, registry));
+    const { prompt, slices } = buildPromptWithSlices(inputs.foreign.promptConfig, assembleContext, previewRender(registry));
     const { canon, ...next } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled: prompt });
     const { fitted, budget: fitBudget } = await fitShapedHistory({
       assembleContext,
@@ -1431,7 +1434,7 @@ function createPeekPrompt(ctx: ChatContext, deps: ReadDeps): ChatService["peekPr
     const { assembleContext } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
     // Route peekPrompt through the ONE host-audience helper (D59) with the verdict
     // DERIVED from the loaded membership (no second read; provably host today, leak-free if the gate relaxes).
-    return buildPrompt(inputs.foreign.promptConfig, assembleContext, previewRender(ctx, registry));
+    return buildPrompt(inputs.foreign.promptConfig, assembleContext, previewRender(registry));
   };
 }
 
@@ -1449,7 +1452,7 @@ function createGetShapeTrace(ctx: ChatContext, deps: ReadDeps): ChatService["get
     });
     const registry = buildPreviewRegistry(inputs);
     const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
-    const assembled = buildPrompt(inputs.foreign.promptConfig, assembleContext, previewRender(ctx, registry));
+    const assembled = buildPrompt(inputs.foreign.promptConfig, assembleContext, previewRender(registry));
     // SHAPE the next-turn peek — the trace describes how the CURRENT canon shapes for the next turn.
     const { canon, ...next } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled });
     const { shaped } = await fitShapedHistory({
@@ -1560,7 +1563,7 @@ function createPreviewContextFit(ctx: ChatContext, deps: ReadDeps): ChatService[
     });
     const registry = buildPreviewRegistry(inputs);
     const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
-    const assembled = buildPrompt(inputs.foreign.promptConfig, assembleContext, previewRender(ctx, registry));
+    const assembled = buildPrompt(inputs.foreign.promptConfig, assembleContext, previewRender(registry));
     const { canon, ...next } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled });
     // SHAPE → CONVERT → FIT — the same sequence, in the same order, over the same rows the engine's turn pipeline
     // runs (one home: `fitShapedHistory` → `substrate/wire-history` shapeConvertFit).
@@ -1620,7 +1623,7 @@ function createPreviewSection(ctx: ChatContext, deps: ReadDeps): ChatService["pr
     }
     const registry = buildPreviewRegistry(inputs);
     const { assembleContext } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
-    return previewSection(section, assembleContext, inputs.foreign.promptConfig, previewRender(ctx, registry));
+    return previewSection(section, assembleContext, inputs.foreign.promptConfig, previewRender(registry));
   };
 }
 
@@ -1681,7 +1684,7 @@ function createPreviewActionTemplates(ctx: ChatContext, deps: ReadDeps): ChatSer
         resolved: previewActionText(assembleContext, actionTemplateText(config, def.id), {
           model: inputs.model,
           chatId,
-          random: ctx.prng,
+          random: PREVIEW_RANDOM,
           ...(registry !== null ? { registry } : {}),
         }),
       })),
