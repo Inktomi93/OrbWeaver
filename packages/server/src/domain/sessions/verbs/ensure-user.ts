@@ -26,7 +26,7 @@ export function createEnsureUser(ctx: SessionsContext): Pick<SessionsService, "e
     if (existing !== undefined) {
       return existing;
     }
-    const id = (ctx.idSource ?? createIdSource()).unprefixed<UserId>();
+    const id = (ctx.idSource ?? createIdSource()).userId();
     const now = ctx.now();
     const role = ctx.rolePolicy.determineRole(handle, []);
     await insertUser(ctx.db, {

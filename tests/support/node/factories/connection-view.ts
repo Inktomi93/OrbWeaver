@@ -1,6 +1,5 @@
 // Saved hosted-connection snapshots may lack a credential; a read model is not execution authority.
 
-import type { UserId } from "@orb/kit/ids";
 import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "../../iso/clock.ts";
 import { createSeededIds } from "../../iso/ids.ts";
@@ -13,7 +12,7 @@ type ConnectionRowWire = TrpcWireOutput<"connection.list">[number];
 export function makeConnectionRow(overrides: Partial<ConnectionRowWire> = {}): ConnectionRowWire {
   return {
     id: ids.typeId(ID_PREFIX.userConnection),
-    ownerId: ids.unprefixed<UserId>(),
+    ownerId: ids.userId(),
     label: "Everyday chat",
     providerId: "openrouter",
     providerLabel: "OpenRouter",

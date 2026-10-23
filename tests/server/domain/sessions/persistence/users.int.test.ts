@@ -19,8 +19,8 @@ import { eq } from "drizzle-orm";
 
 const OWNER_GROUP = "identity-owners";
 const MEMBER_GROUP = "identity-members";
-const subject = (value: string): ExternalId => brandedId<ExternalId>().parse(value);
-const handle = (value: string): Handle => brandedId<Handle>().parse(value);
+const subject = (value: string): ExternalId => brandedId("ExternalId").parse(value);
+const handle = (value: string): Handle => brandedId("Handle").parse(value);
 
 function forwardHeaderRoot(policy: Partial<SessionsRolePolicyConfig> = {}): Promise<ServerTestHarness> {
   // A developer's local group policy must not decide who may sign in here.

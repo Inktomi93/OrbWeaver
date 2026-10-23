@@ -8,7 +8,7 @@ import {
   similarArtHitSchema,
   unifiedSearchResultSchema,
 } from "@orb/contracts/search";
-import type { UserId } from "@orb/kit/ids";
+
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import type { CorpusRead } from "./corpus-read.ts";
@@ -113,7 +113,7 @@ export function corpusSearchRoomIds(outputs: readonly CorpusRead<"search.search"
 }
 
 export const corpusSearchSchema = z
-  .strictObject({ viewerUserId: brandedId<UserId>(), ids: searchIdsSchema, rooms: chatDetailSchema.array(), reads: searchReadsSchema })
+  .strictObject({ viewerUserId: brandedId("UserId"), ids: searchIdsSchema, rooms: chatDetailSchema.array(), reads: searchReadsSchema })
   .refine(({ viewerUserId, ids, rooms, reads }) => {
     const requests = corpusSearchInput(ids);
     const searches = [

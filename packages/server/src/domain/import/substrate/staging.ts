@@ -18,7 +18,7 @@
 // secret, nothing to leak or replay. That is D18's "ownership is INHERITED, gated at the producer verb"
 // expressed in the one namespace the filesystem gives us: the path IS the FK chain.
 //
-// THE OWNER SEGMENT IS VALIDATED, NOT TRUSTED. Every live `UserId` is a `newId<UserId>()` base32 TypeID, but
+// THE OWNER SEGMENT IS VALIDATED, NOT TRUSTED. Every live `UserId` is a `mintUserId()` base32 TypeID, but
 // this function builds a filesystem path out of an identifier, so it re-checks the charset itself rather
 // than inheriting a mint it cannot see. A non-conforming id throws instead of joining — the alternative is a
 // user id deciding which directory the import writes to.

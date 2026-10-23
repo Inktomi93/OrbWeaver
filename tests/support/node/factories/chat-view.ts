@@ -17,8 +17,8 @@ import {
   TALKATIVENESS_DEFAULT,
 } from "@orb/contracts/chat";
 import { viewerViewSchema } from "@orb/contracts/identity";
-import type { ChatId, UserId } from "@orb/kit/ids";
-import { ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
+import type { ChatId } from "@orb/kit/ids";
+import { ID_PREFIX, mintTypeId, mintUserId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "../../iso/clock.ts";
 import { createSeededIds } from "../../iso/ids.ts";
 import type { TrpcWireOutput } from "../route-trpc.ts";
@@ -68,7 +68,7 @@ export function makeParticipantView(overrides: Partial<ParticipantWire> = {}): P
 /** The full read carries the default host's human seat; explicit rosters remain caller-owned. */
 export function makeChatDetail(overrides: Partial<ChatDetailWire> = {}): ChatDetailWire {
   const chatId = overrides.id ?? makeChatId();
-  const userId = overrides.viewerUserId ?? newId<UserId>(ids.next);
+  const userId = overrides.viewerUserId ?? mintUserId(ids.next);
   const handle = viewerViewSchema.shape.handle.parse("chat-host");
   const participant = makeParticipantView({
     chatId,
@@ -160,7 +160,7 @@ export function makeStartChatResult(overrides: Partial<StartChatWire> = {}): Sta
 
 /** The `invites.redeemInvite` result: the joined room and the new member's own roster row. */
 export function makeRedeemInviteResult(overrides: Partial<RedeemInviteWire> = {}): RedeemInviteWire {
-  const userId = newId<UserId>(ids.next);
+  const userId = mintUserId(ids.next);
   const handle = viewerViewSchema.shape.handle.parse("invite-member");
   const chat = makeChatDetail({ viewerIsHost: false, viewerUserId: userId });
   const participant = makeParticipantView({

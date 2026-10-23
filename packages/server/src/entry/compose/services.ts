@@ -497,7 +497,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const sockets = createSocketRegistry(now);
 
   const audit = createAuditWiring(db, idSource).log;
-  const newUserId = (): UserId => idSource.unprefixed<UserId>();
+  const newUserId = (): UserId => idSource.userId();
   const { applyStatsDelta, bumpStatsCanonVersion } = createStatsBatchWiring(idSource);
   // biome-ignore lint/nursery/useDisposables: resources adopts this owner through the moved graph stack; local using would close it before the graph starts.
   const eventBus = resources.use(createDomainEventBus(background.supervise, newOpaqueId));

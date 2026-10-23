@@ -108,7 +108,7 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
       checkpoint: minter(ID_PREFIX.rpgCheckpoint, idSource),
       turnToolCalls: minter(ID_PREFIX.rpgTurnToolCalls, idSource),
       // Quest + inventory-item ids are PLAIN strings minted inside the snapshot blob (no table, no FK — §4.1).
-      quest: () => idSource.unprefixed(),
+      quest: () => idSource.rpgQuestId(),
       item: () => idSource.unprefixed(),
     },
     staging: createRpgStagingStore(),

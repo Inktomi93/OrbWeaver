@@ -1,7 +1,7 @@
 // @subject tests/support/iso/user-settings-view.ts
 
 import { DEFAULT_USER_SETTINGS, USER_SETTINGS_SCHEMA_VERSION, userSettingsViewSchema } from "@orb/contracts/settings";
-import type { UserId } from "@orb/kit/ids";
+
 import { createIdSource } from "@orb/kit/ids";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -18,7 +18,7 @@ describe("production-derived settings builders", () => {
 
   test("the read envelope preserves supplied identity and uses the owner's current version", async () => {
     const { userSettingsView } = await import("@orb/testkit/iso/user-settings-view.ts");
-    const userId = createIdSource(createSeededIds().next).unprefixed<UserId>();
+    const userId = createIdSource(createSeededIds().next).userId();
     const view = userSettingsView({}, { userId });
     expect(view.userId).toBe(userId);
     expect(view.schemaVersion).toBe(USER_SETTINGS_SCHEMA_VERSION);

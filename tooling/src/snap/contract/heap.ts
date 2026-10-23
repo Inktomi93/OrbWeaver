@@ -29,9 +29,9 @@ export type HeapCaptureSessionId = Branded<"HeapCaptureSessionId">;
 export type HeapTargetId = Branded<"HeapTargetId">;
 export type HeapBrowserContextId = Branded<"HeapBrowserContextId">;
 
-export const heapCaptureSessionIdSchema = brandedId<HeapCaptureSessionId>();
-export const heapTargetIdSchema = brandedId<HeapTargetId>();
-export const heapBrowserContextIdSchema = brandedId<HeapBrowserContextId>();
+export const heapCaptureSessionIdSchema = brandedId("HeapCaptureSessionId");
+export const heapTargetIdSchema = brandedId("HeapTargetId");
+export const heapBrowserContextIdSchema = brandedId("HeapBrowserContextId");
 
 export interface HeapCaptureRequest {
   readonly label: string;

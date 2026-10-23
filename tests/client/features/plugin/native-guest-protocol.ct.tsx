@@ -1,6 +1,6 @@
 import type { UiGuestInbound, UiGuestOutbound, UiGuestReadyMessage, UiGuestSettledMessage, UiGuestUnavailableMessage } from "@orb/client/lib";
 import { PLUGIN_LOG_LEVELS, PLUGIN_UI_ROUTE } from "@orb/contracts/plugin";
-import type { UserId } from "@orb/kit/ids";
+
 import { brandedId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
@@ -293,7 +293,7 @@ test("the default shared corpus renders its native Ledger publication and captur
   if (plugin === undefined || surface === undefined) {
     throw new Error("The shared corpus omitted its native Ledger page");
   }
-  const viewerId = brandedId<UserId>().parse(corpusViewer.userId);
+  const viewerId = brandedId("UserId").parse(corpusViewer.userId);
   let stage = active;
   const trpc = await routeTrpc(page, {
     "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpus.reads["settings.getUserSettings"]),

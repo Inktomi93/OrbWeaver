@@ -1,14 +1,14 @@
 // Settings fixtures share the owner's defaults and output parser; section patches cannot remove siblings.
 import type { UserSettings, UserSettingsView } from "@orb/contracts/settings";
 import { DEFAULT_USER_SETTINGS, USER_SETTINGS_SCHEMA_VERSION, userSettingsSchema, userSettingsViewSchema } from "@orb/contracts/settings";
-import type { UserId } from "@orb/kit/ids";
+
 import { createIdSource } from "@orb/kit/ids";
 import { makeAppearanceSettings } from "./appearance-settings.ts";
 import { makeDatabankSettings } from "./databank-settings.ts";
 import { createSeededIds } from "./ids.ts";
 
 const ids = createIdSource(createSeededIds().next);
-const defaultUserId = ids.unprefixed<UserId>();
+const defaultUserId = ids.userId();
 
 /** Overrides patch a section rather than replacing its complete contract value. */
 export type UserSettingsOverrides = {

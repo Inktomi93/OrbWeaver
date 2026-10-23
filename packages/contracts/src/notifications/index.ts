@@ -12,15 +12,15 @@
 
 // `UserId` is a plain `Branded` nanoid, so it validates with `brandedId` rather than `typeIdSchema`.
 
-import type { Handle, NotificationId, UserId } from "@orb/kit/ids";
+import type { NotificationId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { handoffOfferContentsSchema } from "../chat/roster.ts";
 
-const recipientUserIdSchema = brandedId<UserId>();
+const recipientUserIdSchema = brandedId("UserId");
 const chatIdSchema = typeIdSchema(ID_PREFIX.chat);
 const chatInviteIdSchema = typeIdSchema(ID_PREFIX.chatInvite);
-const handleSchema = brandedId<Handle>();
+const handleSchema = brandedId("Handle");
 const automationRuleIdSchema = typeIdSchema(ID_PREFIX.automationRule);
 const pluginIdSchema = typeIdSchema(ID_PREFIX.plugin);
 
@@ -310,7 +310,7 @@ export interface PresenceSnapshot {
 }
 
 export const presenceSnapshotSchema = z.strictObject({
-  onlineUserIds: z.array(brandedId<UserId>()).readonly(),
+  onlineUserIds: z.array(brandedId("UserId")).readonly(),
 }) satisfies z.ZodType<PresenceSnapshot>;
 
 /** The per-user presence shape transport derives from the live SSE connection ref-count. A read-model

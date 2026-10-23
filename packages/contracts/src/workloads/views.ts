@@ -85,8 +85,8 @@ export const workloadRowBaseSchema = z.strictObject({
   status: workloadStatusSchema,
   mode: workloadModeSchema,
   lane: z.enum(WORKLOAD_LANES),
-  ownerId: brandedId<UserId>().nullable(),
-  funderUserId: brandedId<UserId>().nullable(),
+  ownerId: brandedId("UserId").nullable(),
+  funderUserId: brandedId("UserId").nullable(),
   dependsOn: z.array(typeIdSchema(ID_PREFIX.workload)).readonly().nullable(),
   error: z.string().nullable(),
   progress: workloadProgressSchema.nullable(),
@@ -268,7 +268,7 @@ export type ModelCallEstimate = z.output<typeof modelCallEstimateSchema>;
 /** Schedule params are stored objects, not clean run params; the start door validates them when fired. */
 export const workloadScheduleViewSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.workloadSchedule),
-  ownerId: brandedId<UserId>(),
+  ownerId: brandedId("UserId"),
   kind: workloadKindSchema,
   mode: workloadModeSchema,
   params: z.record(z.string(), z.unknown()),

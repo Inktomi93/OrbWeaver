@@ -1,7 +1,7 @@
 // Wire stays portable. Media lazily uses a private clone and native viewer admission; source bytes never become a writable server root.
 
 import { BLOB_ROUTE } from "@orb/contracts/assets";
-import type { UserId } from "@orb/kit/ids";
+
 import { brandedId } from "@orb/kit/ids";
 import type { Route } from "@playwright/test";
 import { test as base } from "@playwright/test";
@@ -45,7 +45,7 @@ export const test = base.extend<CorpusFixtures & CtCorpusOptions>({
         const { captureCookieAuth } = await import("./corpus-auth.ts");
         await using construction = new AsyncDisposableStack();
         const root = construction.use(await createCorpusHarness(corpusDirectory));
-        const principal = await root.principalFor(brandedId<UserId>().parse(corpusViewer.userId));
+        const principal = await root.principalFor(brandedId("UserId").parse(corpusViewer.userId));
         const auth = await captureCookieAuth(root, principal, MEDIA_PASSWORD);
         const actual = auth.identity.viewer;
         if (actual.userId !== corpusViewer.userId || actual.handle !== corpusViewer.handle || actual.globalRole !== corpusViewer.globalRole) {

@@ -37,7 +37,7 @@ import {
   previewInviteSchema,
   redeemInviteSchema,
 } from "@orb/contracts/chat";
-import type { UserId } from "@orb/kit/ids";
+
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { redeemInviteResultSchema } from "../role-output.ts";
@@ -57,7 +57,7 @@ const declineSchema = z.object({ inviteId: typeIdSchema(ID_PREFIX.chatInvite) })
 
 const kickSchema = z.object({
   chatId: typeIdSchema(ID_PREFIX.chat),
-  userId: brandedId<UserId>(),
+  userId: brandedId("UserId"),
 });
 
 const chatScopedSchema = z.object({ chatId: typeIdSchema(ID_PREFIX.chat) });
@@ -67,7 +67,7 @@ const chatScopedSchema = z.object({ chatId: typeIdSchema(ID_PREFIX.chat) });
 // arm can never accidentally transfer someone's library.
 const nominateSchema = z.object({
   chatId: typeIdSchema(ID_PREFIX.chat),
-  userId: brandedId<UserId>(),
+  userId: brandedId("UserId"),
   offer: handoffOfferSchema.optional(),
 });
 
@@ -77,7 +77,7 @@ const nominateSchema = z.object({
 // `joinHistoryVisibilitySchema` (`@orb/contracts/chat`), the same tuple the DB column's enum derives from.
 const setMemberHistoryVisibilitySchema = z.object({
   chatId: typeIdSchema(ID_PREFIX.chat),
-  userId: brandedId<UserId>(),
+  userId: brandedId("UserId"),
   visibility: joinHistoryVisibilitySchema,
 });
 

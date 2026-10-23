@@ -97,7 +97,7 @@ export const archetypeSchema = z.strictObject({
   baseLabel: z.string(),
   // eslint-disable-next-line orb/no-raw-id -- SHA-256 corpus fingerprint produced by clustering, not a minted row identity.
   passId: z.string(),
-  generationId: brandedId<EmbedGenerationId>(),
+  generationId: brandedId("EmbedGenerationId"),
   fingerprint: z.string().nullable(),
   label: z.string(),
   genre: z.string().nullable(),
@@ -112,7 +112,7 @@ export const visualArchetypeSchema = z.strictObject({
   baseLabel: z.string(),
   // eslint-disable-next-line orb/no-raw-id -- SHA-256 corpus fingerprint produced by clustering, not a minted row identity.
   passId: z.string(),
-  generationId: brandedId<EmbedGenerationId>(),
+  generationId: brandedId("EmbedGenerationId"),
   fingerprint: z.string().nullable(),
   label: z.string(),
   genre: z.string().nullable(),

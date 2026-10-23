@@ -4,7 +4,7 @@
 
 import type { Db } from "@orb/db";
 import { personas } from "@orb/db";
-import type { IdSource, UserId } from "@orb/kit/ids";
+import type { IdSource } from "@orb/kit/ids";
 import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import type { PersonaService } from "@orb/server/domain/persona";
 import { and, eq } from "drizzle-orm";
@@ -23,7 +23,7 @@ const ids = createIdSource(createSeededIds().next);
 export function makePersona(overrides: Partial<PersonaRow> = {}, source: IdSource = ids): PersonaRow {
   return {
     id: source.typeId(ID_PREFIX.persona),
-    ownerId: source.unprefixed<UserId>(),
+    ownerId: source.userId(),
     name: "Test Persona",
     title: null,
     description: "",

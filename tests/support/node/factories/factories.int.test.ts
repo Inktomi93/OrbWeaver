@@ -5,7 +5,7 @@
 // slot→variant→pointer dance.
 
 import { assets, characters, chatParticipants, chats, closeDb, messages, messageVariants, users } from "@orb/db";
-import type { UserId } from "@orb/kit/ids";
+
 import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { cardTokenSize } from "@orb/server/domain/character";
 import { sha256Hex } from "@orb/server/primitives/content-hash";
@@ -39,8 +39,8 @@ describe("make* — pure, deterministic builders", () => {
   test("user defaults consume the injected production prefixless mint, not a prefixed fixture id", () => {
     const expected = createIdSource(createSeededIds().next);
     const source = createIdSource(createSeededIds().next);
-    expect(makeUser({}, source).id).toBe(expected.unprefixed<UserId>());
-    expect(makeUser({}, source).id).toBe(expected.unprefixed<UserId>());
+    expect(makeUser({}, source).id).toBe(expected.userId());
+    expect(makeUser({}, source).id).toBe(expected.userId());
   });
 
   test("ids are seeded-counter shaped and distinct per call; timestamps pin to the frozen instant", () => {

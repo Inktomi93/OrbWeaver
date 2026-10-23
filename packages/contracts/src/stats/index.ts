@@ -23,7 +23,7 @@ export const STATS_LIST_MAX_LIMIT = 200;
  *  decoupled so a swipe on a different model never double-counts scalar). No `.default()`: an omitted
  *  increment stays absent (the delta is a sparse patch). */
 export const statsDeltaSchema = z.object({
-  ownerId: brandedId<UserId>(),
+  ownerId: brandedId("UserId"),
   // null for system / no-character writes → `character_stats` is skipped for this delta.
   characterId: typeIdSchema(ID_PREFIX.character).nullable(),
   // The epoch-ms start of the message's UTC quarter-hour (the `daily_stats` key — produced by

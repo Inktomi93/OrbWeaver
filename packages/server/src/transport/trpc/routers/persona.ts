@@ -13,7 +13,7 @@ import {
   updatePersonaSchema,
 } from "@orb/contracts/persona";
 import { portableTextFileSchema } from "@orb/contracts/portability";
-import type { UserId } from "@orb/kit/ids";
+
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
@@ -61,7 +61,7 @@ export const personaRouter = t.router({
     .input(
       z.object({
         chatId: typeIdSchema(ID_PREFIX.chat),
-        targetUserId: brandedId<UserId>().optional(),
+        targetUserId: brandedId("UserId").optional(),
         personaId: typeIdSchema(ID_PREFIX.persona).nullable(),
       }),
     )

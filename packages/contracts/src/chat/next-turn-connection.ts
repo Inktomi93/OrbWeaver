@@ -24,6 +24,6 @@ export const nextTurnConnectionViewSchema = z.discriminatedUnion("state", [
     connectionLabel: z.string().nullable(),
     provider: providerIdSchema,
     providerLabel: z.string(),
-    model: brandedId<ModelId>(),
+    model: brandedId("ModelId"),
   }),
 ]) satisfies z.ZodType<NextTurnConnectionView>;

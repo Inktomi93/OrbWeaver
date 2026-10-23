@@ -24,7 +24,7 @@
 // above: a cross-game library ROW and a scene-only extra are two different addresses.
 
 import { stripHiddenSpans } from "@orb/kit/content";
-import type { UserId } from "@orb/kit/ids";
+
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { CARD_FACE_LIMITS } from "../card-face/index.ts";
@@ -128,7 +128,7 @@ export type RpgNpcRef = z.infer<typeof rpgNpcRefSchema>;
 
 export const rpgActorRefSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("character"), characterId: typeIdSchema(ID_PREFIX.character) }),
-  z.object({ kind: z.literal("user"), userId: brandedId<UserId>() }),
+  z.object({ kind: z.literal("user"), userId: brandedId("UserId") }),
   rpgNpcRefSchema,
 ]);
 export type RpgActorRef = z.infer<typeof rpgActorRefSchema>;

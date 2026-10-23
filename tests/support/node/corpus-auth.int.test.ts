@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { blobIconUrl, blobUrl } from "@orb/contracts/assets";
 import { CSRF_HEADER, viewerViewSchema } from "@orb/contracts/identity";
 import { localPath, sessions, users } from "@orb/db";
-import type { UserId } from "@orb/kit/ids";
+
 import { brandedId } from "@orb/kit/ids";
 import { authConfigFromEnv, readSessionCookie } from "@orb/server/entry/auth";
 import { createCas } from "@orb/server/infra/storage/cas";
@@ -31,7 +31,7 @@ test("committed media uses native cookie ownership, exact CAS bytes and native v
   const bytes = Buffer.from(await createCas(source.layout.assets).read(root.ownerId, hash));
   const owner = await root.principalFor(root.ownerId);
   const ownerAuth = await captureCookieAuth(root, owner, PASSWORD);
-  const member = await root.principalFor(brandedId<UserId>().parse(reader.userId));
+  const member = await root.principalFor(brandedId("UserId").parse(reader.userId));
   const memberAuth = await captureCookieAuth(root, member, PASSWORD);
   const request = (path: string, cookie: string): Promise<Response> => Promise.resolve(root.http.request(path, { headers: { cookie, forwarded: "" } }));
   const original = await request(blobUrl(hash), ownerAuth.cookie);

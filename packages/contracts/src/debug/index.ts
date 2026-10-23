@@ -2,7 +2,6 @@
 // no tRPC procedure, so the schema is the only place the shape is written down; the server builds against the
 // inferred types and its readers (the e2e harness) parse with the schemas.
 
-import type { UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { participantKindSchema, participantRoleSchema } from "#chat";
@@ -48,7 +47,7 @@ const inspectedParticipantSchema = z.strictObject({
   id: z.string(),
   kind: participantKindSchema,
   role: participantRoleSchema,
-  userId: brandedId<UserId>().nullable(),
+  userId: brandedId("UserId").nullable(),
   characterId: typeIdSchema(ID_PREFIX.character).nullable(),
   characterName: z.string().nullable(),
 });
@@ -57,7 +56,7 @@ const inspectedMessageSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.message),
   seq: z.int(),
   role: z.string(),
-  authorUserId: brandedId<UserId>().nullable(),
+  authorUserId: brandedId("UserId").nullable(),
   characterId: typeIdSchema(ID_PREFIX.character).nullable(),
   personaId: typeIdSchema(ID_PREFIX.persona).nullable(),
   selectedVariantId: typeIdSchema(ID_PREFIX.messageVariant).nullable(),

@@ -11,7 +11,7 @@ import {
   pluginSurfaceViewSchema,
   pluginViewSchema,
 } from "@orb/contracts/plugin";
-import type { UserId } from "@orb/kit/ids";
+
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import type { CorpusRead, CorpusViewerRead } from "./corpus-read.ts";
@@ -19,7 +19,7 @@ import type { CorpusRead, CorpusViewerRead } from "./corpus-read.ts";
 const pluginIdsSchema = z.strictObject({ pluginId: typeIdSchema(ID_PREFIX.plugin), surfaceId: pluginSurfaceIdSchema });
 const pluginStageSchema = z
   .strictObject({
-    viewerUserId: brandedId<UserId>(),
+    viewerUserId: brandedId("UserId"),
     ids: pluginIdsSchema,
     reads: z.strictObject({
       plugins: pluginViewSchema.array().readonly(),
@@ -69,9 +69,9 @@ export const pluginLibrarySchema = z
     ownerActive: pluginStageSchema,
     recipientActive: pluginStageSchema,
     ownerDisabled: pluginStageSchema,
-    ownerFinal: z.strictObject({ viewerUserId: brandedId<UserId>(), output: pluginViewSchema.array().readonly() }),
+    ownerFinal: z.strictObject({ viewerUserId: brandedId("UserId"), output: pluginViewSchema.array().readonly() }),
     distribution: z.strictObject({
-      viewerUserId: brandedId<UserId>(),
+      viewerUserId: brandedId("UserId"),
       output: distributedPluginViewSchema.array().readonly(),
       installed: pluginFanoutResultSchema,
       repeated: pluginFanoutResultSchema,

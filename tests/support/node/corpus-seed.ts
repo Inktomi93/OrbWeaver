@@ -6,7 +6,7 @@ import { parsePresetFile } from "@orb/contracts/preset";
 import { createRosterPresetSchema } from "@orb/contracts/roster-preset";
 import { createTagSchema } from "@orb/contracts/tag";
 import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
-import type { ChatId, DocumentId, Handle, PersonaId, UserConnectionId } from "@orb/kit/ids";
+import type { ChatId, DocumentId, PersonaId, UserConnectionId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
@@ -453,7 +453,7 @@ export async function seedCorpusActors(root: ServerHarness, freshAccount = false
   const connections = await seedCorpusConnections(root, owner);
   const secondUserId = freshAccount
     ? (await seedCorpusAccount(root)).userId
-    : await root.app.sessions.ensureUser(brandedId<Handle>().parse(SECOND_HUMAN_HANDLE));
+    : await root.app.sessions.ensureUser(brandedId("Handle").parse(SECOND_HUMAN_HANDLE));
   await seedCorpusConnections(root, await root.principalFor(secondUserId));
   return { owner, secondUserId, connections };
 }

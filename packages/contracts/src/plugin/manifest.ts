@@ -166,7 +166,7 @@ export type PluginSlug = Branded<"PluginSlug">;
 /** The slug as a STANDALONE input schema — the manifest field's own grammar, exported so a transport verb
  *  that takes a slug (`plugin.uninstallForAllUsers`) validates with the ONE rule rather than re-spelling a
  *  length cap that would drift from it. Same regex object, so the two can never disagree. */
-export const pluginSlugSchema = z.string().regex(SLUG_RE).pipe(brandedId<PluginSlug>()) satisfies z.ZodType<PluginSlug, string>;
+export const pluginSlugSchema = z.string().regex(SLUG_RE).pipe(brandedId("PluginSlug")) satisfies z.ZodType<PluginSlug, string>;
 /** An exact hostname `net.fetch` may reach (the SSRF posture; the per-request enforcer is `validateUrl`
  *  in the egress module, see below).
  *
@@ -252,7 +252,7 @@ export type PluginBundleHash = Branded<"PluginBundleHash">;
 export const pluginBundleHashSchema = z
   .string()
   .regex(/^[0-9a-f]{64}$/u)
-  .pipe(brandedId<PluginBundleHash>()) satisfies z.ZodType<PluginBundleHash, string>;
+  .pipe(brandedId("PluginBundleHash")) satisfies z.ZodType<PluginBundleHash, string>;
 /** The decompressed ceiling for either guest script entry. */
 export const PLUGIN_SCRIPT_ENTRY_MAX_BYTES = 1_048_576;
 /** The decompressed ceiling for `manifest.json`. */

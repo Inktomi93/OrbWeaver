@@ -9,7 +9,7 @@ import {
   pluginSurfaceStateSchema,
   pluginSurfaceViewSchema,
 } from "@orb/contracts/plugin";
-import type { UserId } from "@orb/kit/ids";
+
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { makePluginScriptedPage } from "@orb/testkit/node/factories/plugin-view.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -41,7 +41,7 @@ test("public log and distribution outputs preserve their closed vocabularies wit
   const published = { slug: "ledger", name: "Ledger", version: "1.0.0", distributedAt: clock.now(), updatedAt: clock.now() };
   expect(distributedPluginViewSchema.parse(published)).toEqual(published);
   expect(distributedPluginViewSchema.safeParse({ ...published, grantedCapabilities: [] }).success).toBe(false);
-  const userId = brandedId<UserId>().parse(ids.uuid());
+  const userId = brandedId("UserId").parse(ids.uuid());
   for (const reason of PLUGIN_FANOUT_SKIP_REASONS) {
     const result = {
       slug: published.slug,

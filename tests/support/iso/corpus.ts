@@ -21,7 +21,7 @@ import {
   wrappedSummarySchema,
 } from "@orb/contracts/stats";
 import { tagSuggestionViewSchema } from "@orb/contracts/tag";
-import type { ChatId, UserId } from "@orb/kit/ids";
+import type { ChatId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { secretRedactionLiterals } from "@orb/kit/secret-redaction";
@@ -59,7 +59,7 @@ export interface CorpusMemberMessagesRead extends CorpusViewerRead<"chat.listMes
 }
 
 const inboxSnapshotSchema = z
-  .strictObject({ viewerUserId: brandedId<UserId>(), output: listInboxResultSchema })
+  .strictObject({ viewerUserId: brandedId("UserId"), output: listInboxResultSchema })
   .refine(
     ({ viewerUserId, output }) => output.items.every((item) => item.payload.recipientUserId === viewerUserId),
     "Corpus inbox snapshot recipient mismatch",
@@ -74,7 +74,7 @@ const notificationInboxSchema = z.strictObject({
   hostAccepted: inboxSnapshotSchema,
 });
 const memberMessagesSnapshotSchema = z
-  .strictObject({ viewerUserId: brandedId<UserId>(), chatId: typeIdSchema(ID_PREFIX.chat), output: messagesPageSchema })
+  .strictObject({ viewerUserId: brandedId("UserId"), chatId: typeIdSchema(ID_PREFIX.chat), output: messagesPageSchema })
   .refine(({ chatId, output }) => output.messages.every((message) => message.chatId === chatId), "Corpus member snapshot chat mismatch");
 const chatLifecycleMemberSchema = z.strictObject({
   heldDuring: memberMessagesSnapshotSchema,

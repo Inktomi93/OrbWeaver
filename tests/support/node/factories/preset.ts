@@ -22,7 +22,7 @@ export function makePreset(overrides: Partial<PresetRow> = {}, source: IdSource 
   const config = overrides.config ?? makePromptConfig();
   return {
     id: source.typeId(ID_PREFIX.preset),
-    ownerId: source.unprefixed<UserId>(),
+    ownerId: source.userId(),
     name: "Test Preset",
     kind: "generation",
     config,

@@ -230,7 +230,7 @@ async function insertNew(ctx: SessionsContext, identity: ResolvedIdentity, resol
   }
   const now = ctx.now();
   await insertUser(ctx.db, {
-    id: (ctx.idSource ?? createIdSource()).unprefixed<UserId>(),
+    id: (ctx.idSource ?? createIdSource()).userId(),
     handle: identity.handle,
     externalId: identity.externalId,
     email: identity.email,
