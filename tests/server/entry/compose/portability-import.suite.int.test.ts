@@ -19,16 +19,14 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import { ST_SETTINGS_FILE } from "@orb/contracts/import";
 import type { PortableFile } from "@orb/contracts/portability";
-import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "@orb/testkit/node";
+import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { principal } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";
 
 async function owners(harness: ServerTestHarness): Promise<readonly [Principal, Principal]> {
-  const app = harness.app;
-  const source = await app.sessions.ensureUser((await principal(harness, OWNER_USER_ID)).handle);
-  const target = await app.sessions.ensureUser((await principal(harness, OTHER_USER_ID)).handle);
-  return [await principal(harness, source), await principal(harness, target)];
+  const target = await harness.actor();
+  return [await principal(harness, harness.ownerId), await principal(harness, target.id)];
 }
 
 async function exportedFiles(stream: AsyncIterable<PortableFile>): Promise<PortableFile[]> {

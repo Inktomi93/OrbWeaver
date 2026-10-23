@@ -15,6 +15,8 @@ test("boot continues across a real binding refusal, and the composed post-boot a
   clock,
   harness,
 }) => {
+  // Accounts whose mint-time floor lost its binding writes: the mint survives and the boot sweep repairs it.
+  await using refusal = await refuseWrites(db, { table: connectionBindings, event: "INSERT", message: "binding refused" });
   const first = await harness.actor();
   const second = await harness.actor({ enabled: false });
   const bound: string[] = [];
@@ -26,7 +28,6 @@ test("boot continues across a real binding refusal, and the composed post-boot a
       bound.push(id);
     },
   };
-  await using refusal = await refuseWrites(db, { table: connectionBindings, event: "INSERT", message: "binding refused" });
   expect(await seedLocalLightOnBoot(deps)).toBe(0);
   for (const user of [first, second]) {
     expect(await db.select().from(userConnections).where(eq(userConnections.ownerId, user.id))).toHaveLength(2);

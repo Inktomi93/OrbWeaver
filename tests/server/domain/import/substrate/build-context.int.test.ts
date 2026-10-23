@@ -10,7 +10,7 @@ import { createCharacterImportOps } from "@orb/server/domain/character";
 import { buildImportContext, createInstallerCharacterImport } from "@orb/server/domain/import";
 import { createImportedCardTag } from "@orb/server/domain/tag";
 import { createHostPrincipalResolver } from "@orb/server/entry/auth";
-import { expect, OWNER_USER_ID, test } from "@orb/testkit/node";
+import { expect, test } from "@orb/testkit/node";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
 
@@ -21,7 +21,7 @@ test("owner binders retain Principal identity and ignore foreign owner arguments
   harness,
 }): Promise<void> => {
   await ownerCaller.character.list({});
-  const actor = await harness.principalFor(OWNER_USER_ID);
+  const actor = await harness.principalFor(harness.ownerId);
   const foreignOwner = (await harness.actor()).id;
   const created = vi.spyOn(services.character, "create");
   const ctx = buildImportContext({
@@ -60,7 +60,7 @@ test("the real import parser refuses malformed bytes before any owner-bound effe
   const create = vi.spyOn(services.character, "create");
   const store = vi.spyOn(services.assets, "store");
   const attach = vi.spyOn(services.tag, "attachCardTagByName");
-  expect(await descriptor.importFile(OWNER_USER_ID, { filename: "malformed.json", bytes: new TextEncoder().encode("not a card") })).toMatchObject({
+  expect(await descriptor.importFile(harness.ownerId, { filename: "malformed.json", bytes: new TextEncoder().encode("not a card") })).toMatchObject({
     ok: false,
   });
   expect(create).not.toHaveBeenCalled();
@@ -69,13 +69,14 @@ test("the real import parser refuses malformed bytes before any owner-bound effe
   const bytes = new TextEncoder().encode(
     '{"spec":"chara_card_v3","spec_version":"3.0","data":{"name":"Parser control","description":"Owned card","first_mes":"Hello"}}',
   );
-  expect(await descriptor.importFile(OWNER_USER_ID, { filename: "control.json", bytes })).toMatchObject({ ok: true, created: true });
+  expect(await descriptor.importFile(harness.ownerId, { filename: "control.json", bytes })).toMatchObject({ ok: true, created: true });
   expect(create).toHaveBeenCalledTimes(1);
-  expect(create.mock.calls[0]?.[0].principal.userId).toBe(OWNER_USER_ID);
-  expect(await services.character.count({ principal: await harness.principalFor(OWNER_USER_ID) })).toBe(1);
+  expect(create.mock.calls[0]?.[0].principal.userId).toBe(harness.ownerId);
+  expect(await services.character.count({ principal: await harness.principalFor(harness.ownerId) })).toBe(1);
 });
 
 test("the installer factory uses the row-resolved role and the real import funnel for provenance and byte-identical reingest", async ({
+  harness,
   services,
   ownerCaller,
 }): Promise<void> => {
@@ -96,7 +97,7 @@ test("the installer factory uses the row-resolved role and the real import funne
   const bytes = new TextEncoder().encode(
     '{"spec":"chara_card_v3","spec_version":"3.0","data":{"name":"Installer role control","description":"Owned imported card","first_mes":"Hello"}}',
   );
-  const first = await run(OWNER_USER_ID, bytes, pluginId);
+  const first = await run(harness.ownerId, bytes, pluginId);
   const original = await resolvePrincipal.mock.results[0]?.value;
   expect(create.mock.calls[0]?.[0].principal).toBe(original);
   expect(first.created).toBe(true);
@@ -105,5 +106,5 @@ test("the installer factory uses the row-resolved role and the real import funne
   }
   expect(isOwner(original)).toBe(true);
   expect((await services.character.get({ principal: original, characterId: first.characterId })).provenance).toBe("imported");
-  expect(await run(OWNER_USER_ID, bytes, pluginId)).toEqual({ ...first, created: false });
+  expect(await run(harness.ownerId, bytes, pluginId)).toEqual({ ...first, created: false });
 });

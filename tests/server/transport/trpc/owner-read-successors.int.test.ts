@@ -2,12 +2,13 @@
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import { tags } from "@orb/db";
 import { fetchOwned } from "@orb/db/query";
-import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "@orb/testkit/node";
+import { expect, test } from "@orb/testkit/node";
 
-test("fetchOwned and its composed read door refuse a foreign tag without revealing its existence", async ({ db, ownerCaller, otherCaller }) => {
+test("fetchOwned and its composed read door refuse a foreign tag without revealing its existence", async ({ db, harness, ownerCaller, otherCaller }) => {
+  const otherId = (await otherCaller.sessions.me()).userId;
   const tag = await ownerCaller.tag.createTag({ input: { name: "Owner-read private tag" } });
-  expect(await fetchOwned(db, tags, tag.id, OWNER_USER_ID)).toMatchObject({ id: tag.id, name: tag.name });
-  expect(await fetchOwned(db, tags, tag.id, OTHER_USER_ID)).toBeUndefined();
+  expect(await fetchOwned(db, tags, tag.id, harness.ownerId)).toMatchObject({ id: tag.id, name: tag.name });
+  expect(await fetchOwned(db, tags, tag.id, otherId)).toBeUndefined();
   expect(await ownerCaller.tag.listAttachedEntities({ tagId: tag.id, targetType: "character" })).toEqual({ entities: [], hasMore: false });
   await expect(otherCaller.tag.listAttachedEntities({ tagId: tag.id, targetType: "character" })).rejects.toMatchObject({ code: "NOT_FOUND" });
 });
@@ -27,7 +28,7 @@ test("post-fetch workloads preserve ordinary ownership, admin access and trusted
     scheduledAt: harness.clock.now() + CADENCE_INTERVAL_MS.daily,
   });
   const owned = await otherCaller.workloads.get({ id: workload.id });
-  expect(owned).toMatchObject({ id: workload.id, ownerId: OTHER_USER_ID, status: "queued" });
+  expect(owned).toMatchObject({ id: workload.id, ownerId: (await otherCaller.sessions.me()).userId, status: "queued" });
   await expect(stranger.workloads.get({ id: workload.id })).rejects.toMatchObject({ code: "NOT_FOUND" });
   expect(await adminCaller.workloads.get({ id: workload.id })).toEqual(owned);
   expect(await services.workloads.get({ id: workload.id, caller: null })).toEqual(owned);

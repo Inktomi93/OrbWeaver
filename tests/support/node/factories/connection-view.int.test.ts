@@ -13,6 +13,9 @@ test("a saved hosted row may lack a credential without changing its native owner
     },
   });
   const principal = await root.principalFor(root.ownerId);
+  const caller = await root.internalCallerFor(root.ownerId);
+  // The owner's mint seeded its local-light floor before this case's own row.
+  const floor = await caller.connection.list();
   const snapshot = makeConnectionRow({ ownerId: principal.userId });
   const created = await root.services.connection.create({
     principal,
@@ -28,12 +31,11 @@ test("a saved hosted row may lack a credential without changing its native owner
   expect(created).toMatchObject({ ownerId: principal.userId, credentialId: null, providerId: snapshot.providerId, model: snapshot.model });
   expect(created.ownerId.startsWith("user_")).toBe(false);
   expect(snapshot.tasks.every((task) => created.tasks.includes(task))).toBe(true);
-  const caller = await root.internalCallerFor(root.ownerId);
   expect(await caller.connection.get({ connectionId: created.id })).toEqual(created);
-  expect(await caller.connection.list()).toEqual([created]);
+  expect(await caller.connection.list()).toEqual([...floor, created]);
   const other = await root.actor();
   const foreign = await root.internalCallerFor(other.id);
-  expect(await foreign.connection.list()).toEqual([]);
+  expect(new Set((await foreign.connection.list()).map((row) => row.ownerId))).toEqual(new Set([other.id]));
   await expect(foreign.connection.get({ connectionId: created.id })).rejects.toMatchObject({ cause: { code: CONNECTION_OP_CODES.notFound } });
   await expect(foreign.connection.resolveChatCapability({ target: { kind: "connection", connectionId: created.id } })).rejects.toMatchObject({
     cause: { code: CONNECTION_OP_CODES.notFound },

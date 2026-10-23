@@ -13,10 +13,10 @@ import { z } from "zod";
 const SCHEMA = projectJsonSchema(z.object({ answer: z.string() }));
 
 test("cached resolution carries the row-derived Principal and only NoConnection degrades to unbound", async ({ harness }) => {
-  await harness.actor({ id: TEST_OWNER_ID });
-  const actor = await principal(harness, TEST_OWNER_ID);
+  const { id: ownerId } = await harness.actor();
+  const actor = await principal(harness, ownerId);
   const credential = await makeResolvedSecret(harness, {
-    ownerId: TEST_OWNER_ID,
+    ownerId,
     credentialId: null,
     providerId: testProviderId("custom-openai"),
   });
@@ -24,14 +24,14 @@ test("cached resolution carries the row-derived Principal and only NoConnection 
   const resolve = vi.fn<Parameters<typeof createResolveStructuredBinding>[0]["resolve"]>().mockResolvedValue({ resolved, warnings: [] });
   const principalOf = vi.fn(async () => actor);
   const binding = createResolveStructuredBinding({ resolve, principalOf });
-  expect(await binding(TEST_OWNER_ID)).toBe(resolved);
-  expect(principalOf).toHaveBeenCalledWith(TEST_OWNER_ID);
+  expect(await binding(ownerId)).toBe(resolved);
+  expect(principalOf).toHaveBeenCalledWith(ownerId);
   expect(resolve).toHaveBeenLastCalledWith({ task: "structured", principal: actor, cachedFacts: true });
   resolve.mockRejectedValueOnce(new NoConnectionError("no binding"));
-  expect(await binding(TEST_OWNER_ID)).toBeNull();
+  expect(await binding(ownerId)).toBeNull();
   const failure = new Error("stored resolver failed");
   resolve.mockRejectedValueOnce(failure);
-  await expect(binding(TEST_OWNER_ID)).rejects.toBe(failure);
+  await expect(binding(ownerId)).rejects.toBe(failure);
 });
 
 test("unbound and background refusal precede preset reads, while a funded vehicle-less model remains a model refusal", async ({ harness }) => {

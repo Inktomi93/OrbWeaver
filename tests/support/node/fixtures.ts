@@ -5,9 +5,8 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import type { Handle, UserId } from "@orb/kit/ids";
+import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import type { createCaller, Services } from "@orb/server/transport/trpc";
@@ -17,7 +16,7 @@ import { createFrozenClock } from "../iso/clock.ts";
 import type { SeededIds } from "../iso/ids.ts";
 import { createSeededIds } from "../iso/ids.ts";
 import type { CorpusHarnessOptions, CorpusServerHarness } from "./corpus.ts";
-import type { ServerHarnessOptions, ServerTestHarness } from "./server.ts";
+import type { ActorSpec, ServerHarnessOptions, ServerTestHarness } from "./server.ts";
 // Side-effect: register the custom matchers (toThrowTRPCError / toThrowProviderError) + their types.
 import "./matchers.ts";
 
@@ -54,12 +53,6 @@ export async function createCorpusHarness(directory?: string, options?: CorpusHa
   return await open(directory, options);
 }
 
-// The caller identities — FIXED ids (never the factory counters, so they can't collide with seeded
-// rows) — exported for tests that assert against a caller's own userId.
-export const OWNER_USER_ID = castId<UserId>("user_fixture_owner");
-const ADMIN_USER_ID = castId<UserId>("user_fixture_admin");
-export const OTHER_USER_ID = castId<UserId>("user_fixture_other");
-
 function urlOf(input: Parameters<typeof fetch>[0]): string {
   if (typeof input === "string") {
     return input;
@@ -93,10 +86,7 @@ function refusingFetch(): typeof fetch {
 }
 
 // These callers exercise internal row-derived authority, not cookie/session authentication admission.
-async function seedInternalCaller(
-  harness: ServerTestHarness,
-  spec: { readonly id: UserId; readonly handle: Handle; readonly role: UserRole },
-): Promise<AppCaller> {
+async function seedInternalCaller(harness: ServerTestHarness, spec: ActorSpec): Promise<AppCaller> {
   const row = await harness.actor(spec);
   return await harness.internalCallerFor(row.id);
 }
@@ -167,7 +157,6 @@ export const test = base.extend<Fixtures>({
       db,
       clock,
       ids,
-      ownerId: OWNER_USER_ID,
       secretBoxKey,
       importStagingDir,
       providerFetch,
@@ -185,32 +174,15 @@ export const test = base.extend<Fixtures>({
   services: async ({ app }, use): Promise<void> => {
     await use(app.services);
   },
+  // The harness seeds the owner at construction, as boot does; a test reads its id from `harness.ownerId`.
   ownerCaller: async ({ harness }, use): Promise<void> => {
-    await use(
-      await seedInternalCaller(harness, {
-        id: OWNER_USER_ID,
-        handle: castId<Handle>("fixture-owner"),
-        role: "owner",
-      }),
-    );
+    await use(await harness.internalCallerFor(harness.ownerId));
   },
   adminCaller: async ({ harness }, use): Promise<void> => {
-    await use(
-      await seedInternalCaller(harness, {
-        id: ADMIN_USER_ID,
-        handle: castId<Handle>("fixture-admin"),
-        role: "admin",
-      }),
-    );
+    await use(await seedInternalCaller(harness, { handle: castId<Handle>("fixture-admin"), role: "admin" }));
   },
   otherCaller: async ({ harness }, use): Promise<void> => {
-    await use(
-      await seedInternalCaller(harness, {
-        id: OTHER_USER_ID,
-        handle: castId<Handle>("fixture-other"),
-        role: "user",
-      }),
-    );
+    await use(await seedInternalCaller(harness, { handle: castId<Handle>("fixture-other") }));
   },
   anonCaller: async ({ harness }, use): Promise<void> => {
     await use(await harness.internalCallerFor(null));
