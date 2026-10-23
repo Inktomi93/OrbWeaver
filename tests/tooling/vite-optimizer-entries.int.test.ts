@@ -18,7 +18,7 @@ test("the initial native scan includes UI satellites while keeping UI source out
     `
 import { createServer } from ${JSON.stringify(pathToFileURL(join(clientRoot, "node_modules", "vite", "dist", "node", "index.js")).href)};
 import config from ${JSON.stringify(pathToFileURL(join(clientRoot, "vite.config.ts")).href)};
-const server = await createServer({ ...config, configFile: false, root: ${JSON.stringify(clientRoot)}, cacheDir: ${JSON.stringify(join(scratch, "cache"))}, plugins: [], logLevel: "error", server: { middlewareMode: true, watch: null } });
+const server = await createServer({ ...config({ command: "serve", mode: "development" }), configFile: false, root: ${JSON.stringify(clientRoot)}, cacheDir: ${JSON.stringify(join(scratch, "cache"))}, plugins: [], logLevel: "error", server: { middlewareMode: true, watch: null } });
 try {
   const optimizer = server.environments.client.depsOptimizer;
   await optimizer.scanProcessing;
