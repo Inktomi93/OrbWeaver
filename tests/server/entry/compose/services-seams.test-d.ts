@@ -11,22 +11,25 @@ const random = (): number => 0.5;
 const randomInt = (max: number): number => max - 1;
 const idSource = createIdSource(() => "seeded");
 const newOpaqueId = (): string => "opaque";
+const buildConnector: ServicesDeps["buildConnector"] = () => (_options, callback) => callback(new Error("no dial"), null);
 
 test("the composition root requires every process seam, so a forgotten one cannot fall back to the ambient process", () => {
   expectTypeOf<Pick<ServicesDeps, ProcessSeam>>().toEqualTypeOf<Required<Pick<ServicesDeps, ProcessSeam>>>();
   expectTypeOf<undefined>().not.toExtend<ServicesDeps[ProcessSeam]>();
 
-  const complete: Pick<ServicesDeps, ProcessSeam> = { timers, random, randomInt, idSource, newOpaqueId };
+  const complete: Pick<ServicesDeps, ProcessSeam> = { timers, random, randomInt, idSource, newOpaqueId, buildConnector };
   expectTypeOf(complete).toExtend<Pick<ServicesDeps, ProcessSeam>>();
   // @ts-expect-error a root without `timers` must not compile
-  const withoutTimers: Pick<ServicesDeps, ProcessSeam> = { random, randomInt, idSource, newOpaqueId };
+  const withoutTimers: Pick<ServicesDeps, ProcessSeam> = { random, randomInt, idSource, newOpaqueId, buildConnector };
   // @ts-expect-error a root without `random` must not compile
-  const withoutRandom: Pick<ServicesDeps, ProcessSeam> = { timers, randomInt, idSource, newOpaqueId };
+  const withoutRandom: Pick<ServicesDeps, ProcessSeam> = { timers, randomInt, idSource, newOpaqueId, buildConnector };
   // @ts-expect-error a root without `randomInt` must not compile
-  const withoutRandomInt: Pick<ServicesDeps, ProcessSeam> = { timers, random, idSource, newOpaqueId };
+  const withoutRandomInt: Pick<ServicesDeps, ProcessSeam> = { timers, random, idSource, newOpaqueId, buildConnector };
   // @ts-expect-error a root without `idSource` must not compile
-  const withoutIdSource: Pick<ServicesDeps, ProcessSeam> = { timers, random, randomInt, newOpaqueId };
+  const withoutIdSource: Pick<ServicesDeps, ProcessSeam> = { timers, random, randomInt, newOpaqueId, buildConnector };
   // @ts-expect-error a root without `newOpaqueId` must not compile
-  const withoutNewOpaqueId: Pick<ServicesDeps, ProcessSeam> = { timers, random, randomInt, idSource };
-  expectTypeOf([withoutTimers, withoutRandom, withoutRandomInt, withoutIdSource, withoutNewOpaqueId]).toBeArray();
+  const withoutNewOpaqueId: Pick<ServicesDeps, ProcessSeam> = { timers, random, randomInt, idSource, buildConnector };
+  // @ts-expect-error a root without `buildConnector` must not compile
+  const withoutBuildConnector: Pick<ServicesDeps, ProcessSeam> = { timers, random, randomInt, idSource, newOpaqueId };
+  expectTypeOf([withoutTimers, withoutRandom, withoutRandomInt, withoutIdSource, withoutNewOpaqueId, withoutBuildConnector]).toBeArray();
 });

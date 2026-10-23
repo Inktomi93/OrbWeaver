@@ -6,15 +6,9 @@
 
 import type { Db } from "@orb/db";
 import type { IdSource } from "@orb/kit/ids";
-import { createIdSource } from "@orb/kit/ids";
 import type { ResolveStandingAsks } from "./contract/ops.ts";
 import type { NotificationsContext } from "./contract/service.ts";
 
-export function createNotificationsContext(
-  db: Db,
-  now: () => number,
-  resolveStandingAsks: ResolveStandingAsks,
-  idSource: IdSource = createIdSource(),
-): NotificationsContext {
+export function createNotificationsContext(db: Db, now: () => number, resolveStandingAsks: ResolveStandingAsks, idSource: IdSource): NotificationsContext {
   return { db, now, resolveStandingAsks, idSource };
 }

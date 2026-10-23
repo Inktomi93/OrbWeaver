@@ -23,7 +23,7 @@ import { createReconcile } from "./verbs/reconcile.ts";
 import { createTimeseries } from "./verbs/timeseries.ts";
 import { createWrapped } from "./verbs/wrapped.ts";
 
-export function createStatsService(db: DatabaseHandle, now: () => number, idSource?: IdSource): StatsService {
+export function createStatsService(db: DatabaseHandle, now: () => number, idSource: IdSource): StatsService {
   const ctx: StatsContext = { db: databaseForOwner(db), now, idSource };
   // Built HERE, not in the DI bundle: the single-flight registry is process state only `reconcile` reads,
   // and one instance per service is what makes "this user already has a rebuild running" answerable.

@@ -3,12 +3,14 @@
 // rebuild before the first Insights read. Idempotent by its predicate: a no-op on every boot after the first.
 
 import type { Db } from "@orb/db";
+import type { IdSource } from "@orb/kit/ids";
 import { reconcileOwnersMissingTimeline } from "#domain/stats";
 import { getLog } from "#foundation/observability";
 
 export interface RebuildStatsTimelineDeps {
   readonly db: Db;
   readonly now: () => number;
+  readonly idSource: IdSource;
 }
 
 /** Rebuild the rollups of every owner with recorded activity and an empty timeline. Returns the owners rebuilt. */
@@ -16,7 +18,7 @@ export async function rebuildStatsTimelineOnBoot(deps: RebuildStatsTimelineDeps)
   // Logged on both ends: a large library rebuilds before the listener binds, and silence there reads as a stall.
   const startedAt = deps.now();
   getLog().info("boot/rebuild-stats-timeline: checking for owners with an empty stats timeline");
-  const rebuilt = await reconcileOwnersMissingTimeline(deps.db, deps.now);
+  const rebuilt = await reconcileOwnersMissingTimeline(deps.db, deps.now, deps.idSource);
   getLog().info({ rebuilt, durationMs: deps.now() - startedAt }, "boot/rebuild-stats-timeline: done");
   return rebuilt;
 }

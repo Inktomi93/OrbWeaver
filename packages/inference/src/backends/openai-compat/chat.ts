@@ -492,7 +492,7 @@ function appliedEffortOf(shape: TurnShape | undefined, dialect: Dialect, nativeB
 // ── the stream ────────────────────────────────────────────────────────────────────────────────────────────
 
 interface StreamOnceArgs {
-  readonly scheduleTimeout?: ScheduleTimeout | undefined;
+  readonly scheduleTimeout: ScheduleTimeout;
   readonly call: ModelCall;
   readonly options: LanguageModelV4CallOptions;
   readonly req: OpenAiCompatChatRequest;
@@ -717,7 +717,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
     scheduleTimeout: deps.scheduleTimeout,
     ...(req.signal !== undefined ? { signal: req.signal } : {}),
     now: deps.now,
-    ...(deps.random !== undefined ? { random: deps.random } : {}),
+    random: deps.random,
     ...(deps.addSpanEvent !== undefined ? { addSpanEvent: deps.addSpanEvent } : {}),
   };
 

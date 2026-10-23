@@ -13,7 +13,7 @@ import { batchStmt } from "@orb/db/query";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner, statementToken } from "@orb/db/wiring-owner";
 import type { IdSource } from "@orb/kit/ids";
-import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import type { AuditEntry, AuditFailureSnapshot, AuditWiring } from "./contract/audit-wiring.ts";
 import { getLog } from "./logger.ts";
@@ -44,7 +44,7 @@ function auditRow(entry: AuditEntry, createdAt: number, idSource: IdSource): typ
 
 /** Build one unexecuted audit insert for a primary workflow that must commit its forensic row atomically.
  *  Ordinary callers keep using {@link logAudit}; this narrow seam does not weaken its best-effort contract. */
-function buildAuditStatement(db: Db, entry: AuditEntry, createdAt: number, idSource: IdSource = createIdSource()): BatchStmt {
+function buildAuditStatement(db: Db, entry: AuditEntry, createdAt: number, idSource: IdSource): BatchStmt {
   return batchStmt(db.insert(auditLogs).values(auditRow(entry, createdAt, idSource)));
 }
 
@@ -68,7 +68,7 @@ function buildAuditStatement(db: Db, entry: AuditEntry, createdAt: number, idSou
  * a silently mis-bound column. `metadata` is hand-serialized because a raw `sql` param bypasses the column's
  * json mode.
  */
-function buildAuditStatementIfPrecedingWrote(db: Db, entry: AuditEntry, createdAt: number, idSource: IdSource = createIdSource()): BatchStmt {
+function buildAuditStatementIfPrecedingWrote(db: Db, entry: AuditEntry, createdAt: number, idSource: IdSource): BatchStmt {
   const row = auditRow(entry, createdAt, idSource);
   const metadata = row.metadata === null || row.metadata === undefined ? null : JSON.stringify(row.metadata);
   return batchStmt(
@@ -82,7 +82,7 @@ function buildAuditStatementIfPrecedingWrote(db: Db, entry: AuditEntry, createdA
  * Best-effort audit write. The audit channel must never break the primary channel: log + count + drop.
  * `db` and `createdAt` are injected — no ambient `Date.now()` here.
  */
-export async function logAudit(db: Db, entry: AuditEntry, createdAt: number, idSource: IdSource = createIdSource()): Promise<void> {
+export async function logAudit(db: Db, entry: AuditEntry, createdAt: number, idSource: IdSource): Promise<void> {
   try {
     await db.insert(auditLogs).values(auditRow(entry, createdAt, idSource));
   } catch (err) {
@@ -106,7 +106,7 @@ export async function logAudit(db: Db, entry: AuditEntry, createdAt: number, idS
 }
 
 /** Bind audit operations without handing composition an executable co-statement. */
-export function createAuditWiring(handle: DatabaseHandle, idSource: IdSource = createIdSource()): AuditWiring {
+export function createAuditWiring(handle: DatabaseHandle, idSource: IdSource): AuditWiring {
   const db = databaseForOwner(handle);
   return {
     log: (entry, at) => logAudit(db, entry, at, idSource),

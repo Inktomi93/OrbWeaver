@@ -21,6 +21,7 @@ import { announceOwnerClaim, removeOwnerClaimFileOnSpend } from "@orb/server/ent
 import type { createConfiguredOidc, createHttpApp, ServicesDeps, ServicesResult } from "@orb/server/entry/compose";
 import { env, resolveBindPosture } from "@orb/server/foundation/env";
 import { getLog, logger } from "@orb/server/foundation/observability";
+import { systemConnector } from "@orb/server/infra/network";
 import { createCaller, createContext } from "@orb/server/transport/trpc";
 import type { Clock } from "../iso/clock.ts";
 import { createFrozenClock } from "../iso/clock.ts";
@@ -359,6 +360,8 @@ function shareInputsFor(options: ServerHarnessOptions | UnclaimedServerHarnessOp
     secretsDir: options.secretsDir ?? join(inputs.rootDir, "secrets"),
     now: inputs.clock.now,
     timers: inputs.timers,
+    // The harness keeps the physical dial real; the refusing resolver is what keeps names off the network.
+    buildConnector: systemConnector,
     relay: options.share?.relay ?? null,
     acme: options.share?.acme ?? null,
     networkExecution: { ...options.networkExecution, resolver: options.networkExecution?.resolver ?? refusingResolver },
@@ -445,6 +448,7 @@ export async function createServerHarness(
     db: wiringDb,
     now: clock.now,
     timers,
+    buildConnector: systemConnector,
     idSource,
     newOpaqueId: ids.uuid,
     random,

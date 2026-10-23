@@ -232,7 +232,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
 
     // Swap undici's global dispatcher for the private-IP-rejecting DNS lookup so every outbound fetch
     // below is address-gated before it can fire. No-op when EGRESS_FIREWALL=false.
-    installEgressFirewall();
+    installEgressFirewall({ timers: seams.timers, buildConnector: seams.buildConnector });
 
     // The data layout FIRST, before anything opens a file under it: a legacy flat data dir is renamed into
     // the current tree (db/, backups/, secrets/, cache/ …) under a journal. Every path below reads the layout
@@ -296,7 +296,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     await repairStaleJoinSeqOnBoot({ db });
     // DATA repair, same window: the `daily_stats` timeline re-grain drops rows only canon can rebuild, so every
     // owner with activity and an empty timeline is rebuilt before the first Insights read.
-    await rebuildStatsTimelineOnBoot({ db, now });
+    await rebuildStatsTimelineOnBoot({ db, now, idSource: seams.idSource });
 
     // The boot secrets, phase two: with the schema in place, an absent keyfile is generated only when no row
     // depends on it; otherwise this REFUSES and names the file (owner ruling — a regenerated secret would
@@ -440,6 +440,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       now,
       // Unref'd both ways so a pending relay restart never holds the process open.
       timers: { timeout: seams.timers.timeoutUnref, timeoutUnref: seams.timers.timeoutUnref, interval: seams.timers.interval },
+      buildConnector: seams.buildConnector,
       ...(options.relaySeams === undefined ? {} : { relaySeams: options.relaySeams }),
     });
     const relay = sharing.share.relay;

@@ -6,7 +6,7 @@
 //
 // DETERMINISM (spine/testing §3): the jitter RNG and the `resetsAt`-proximity clock are INJECTED via
 // `RetryOptions` (no ambient `Math.random` / `Date.now` on the production path — the same seam tests use).
-// `random` defaults to `Math.random`; `now` is optional — omit it and the `resetsAt` shortcut is simply
+// `random` and `scheduleTimeout` are required; `now` is optional — omit it and the `resetsAt` shortcut is simply
 // skipped (pure exponential backoff), so no raw clock read ever happens here (no-raw-clock).
 //
 // TRACE VOCABULARY: every retry decision annotates the active request span (`addSpanEvent`, a no-op when
@@ -20,7 +20,6 @@
 import type { AddSpanEvent, ScheduleTimeout } from "#contract";
 import { ProviderError } from "#contract";
 import type { RetryOptions } from "../../contract/http.ts";
-import { realScheduleTimeout } from "./timers.ts";
 
 const NO_SPAN_EVENT: AddSpanEvent = () => undefined;
 
@@ -37,7 +36,7 @@ const JITTER_CENTER = 0.5; // RNG midpoint (random() in [0,1) → jitter in [0.8
  * AND a clock is injected, wait until it; otherwise exponential backoff (`base * 2^(attempt-1)`) with
  * ±20% jitter, capped at `maxMs`.
  */
-function computeBackoffMs(attempt: number, err: ProviderError, opts: RetryOptions = {}): number {
+function computeBackoffMs(attempt: number, err: ProviderError, opts: RetryOptions): number {
   const baseMs = opts.baseMs ?? DEFAULT_BASE_MS;
   const maxMs = opts.maxMs ?? DEFAULT_MAX_MS;
   if (err.kind === "rate_limit" && err.resetsAt !== undefined && opts.now !== undefined) {
@@ -46,9 +45,8 @@ function computeBackoffMs(attempt: number, err: ProviderError, opts: RetryOption
       return Math.min(wait, maxMs);
     }
   }
-  const random = opts.random ?? Math.random;
   const exp = baseMs * BACKOFF_FACTOR ** (attempt - 1);
-  const jitter = 1 + (random() - JITTER_CENTER) * JITTER_SPREAD;
+  const jitter = 1 + (opts.random() - JITTER_CENTER) * JITTER_SPREAD;
   return Math.min(Math.max(0, Math.round(exp * jitter)), maxMs);
 }
 
@@ -94,7 +92,7 @@ function abandonReason(committed: boolean, retryable: boolean): string {
 export async function runWithPreCommitRetry<T>(
   op: (markCommitted: () => void) => Promise<T>,
   classify: (err: unknown) => ProviderError,
-  opts: RetryOptions = {},
+  opts: RetryOptions,
 ): Promise<T> {
   const maxAttempts = opts.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
   const addSpanEvent = opts.addSpanEvent ?? NO_SPAN_EVENT;
@@ -123,7 +121,7 @@ export async function runWithPreCommitRetry<T>(
       // The retries are INVISIBLE otherwise: a run that succeeds on attempt 3 reports a clean span that is
       // simply (backoff + 3 round-trips) slow, with nothing on the timeline naming the two 429s underneath.
       addSpanEvent("provider.retry", { attempt, kind: mapped.kind, delayMs });
-      await abortableSleep(delayMs, opts.signal, opts.scheduleTimeout ?? realScheduleTimeout);
+      await abortableSleep(delayMs, opts.signal, opts.scheduleTimeout);
     }
   }
   // Unreachable for maxAttempts >= 1 (the final attempt returns or throws); satisfies the return type.

@@ -11,7 +11,7 @@ import { CLOUDFLARED_PIN, createOwnedRelayLauncher } from "#infra/relay";
 /** Assemble native sharing over raw execution inputs, with physical joins before the caller releases storage. */
 export async function createShareGraph(options: ShareGraphOptions): Promise<ShareGraph> {
   await using owners = new AsyncDisposableStack();
-  const network = owners.use(createScopedEgress({ ...options.networkExecution, timers: options.timers }));
+  const network = owners.use(createScopedEgress({ ...options.networkExecution, timers: options.timers, buildConnector: options.buildConnector }));
   const hosts = createRelayHostRegistry();
   const pin = options.relaySeams?.pin ?? options.relay?.pin ?? CLOUDFLARED_PIN;
   // biome-ignore lint/nursery/useDisposables: the moved graph stack owns this exact launcher until native child and download completion.

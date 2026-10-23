@@ -1,14 +1,22 @@
 import { createServer } from "node:http";
 import { setImmediate } from "node:timers/promises";
 import { queryObjects } from "node:v8";
-import { ANY_HOST, createScopedEgress } from "@orb/server/infra/network";
+import { ANY_HOST, createScopedEgress, systemConnector } from "@orb/server/infra/network";
+import { createControlledTimers, createFrozenClock } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { budget } from "@orb/tooling/floor/host/load-budget";
+
+// A fresh scheduler per egress: these cases never wait on a deadline, so nothing advances it.
+function quietTimers(): ReturnType<typeof createControlledTimers> {
+  return createControlledTimers(createFrozenClock());
+}
 
 test("unresolved write-time endpoint admission remains public without attempting a physical request", async () => {
   const failure = new Error("controlled NXDOMAIN");
   let rawCalls = 0;
   await using egress = createScopedEgress({
+    timers: quietTimers(),
+    buildConnector: systemConnector,
     resolver: () => Promise.reject(failure),
     fetch: () => {
       rawCalls += 1;
@@ -24,7 +32,7 @@ test.each([
   { address: "10.0.0.7", verdict: "refused", allowlist: [] },
   { address: "169.254.169.254", verdict: "refused", allowlist: ["0.0.0.0/0"] },
 ] as const)("write-time admission preserves $address as $verdict", async ({ address, verdict, allowlist }) => {
-  await using egress = createScopedEgress({ resolver: () => Promise.resolve([address]) });
+  await using egress = createScopedEgress({ timers: quietTimers(), buildConnector: systemConnector, resolver: () => Promise.resolve([address]) });
   egress.publishPrivateEndpointAllowlist(allowlist);
   await expect(egress.resolvedEndpointAdmission("https://resolved.example/v1")).resolves.toBe(verdict);
 });
@@ -33,6 +41,8 @@ test("configured and arbitrary URL execution still reject DNS failure before the
   const failure = new Error("controlled physical DNS refusal");
   let rawCalls = 0;
   await using egress = createScopedEgress({
+    timers: quietTimers(),
+    buildConnector: systemConnector,
     resolver: () => Promise.reject(failure),
     fetch: () => {
       rawCalls += 1;
@@ -75,7 +85,7 @@ test.each([false, true])(
     if (address === null || typeof address === "string") {
       throw new Error("native egress control requires a physical loopback listener");
     }
-    await using egress = createScopedEgress();
+    await using egress = createScopedEgress({ timers: quietTimers(), buildConnector: systemConnector });
     egress.publishPrivateEndpointAllowlist([`127.0.0.1:${address.port}`]);
     const stop = new AbortController();
     const response = await egress.configuredEndpointFetch(`http://127.0.0.1:${address.port}/held`, { signal: stop.signal });
@@ -146,6 +156,8 @@ test.each(["EOF", "error", "cancel"] as const)(
     }
     let normalized: WeakRef<Request> | undefined;
     await using egress = createScopedEgress({
+      timers: quietTimers(),
+      buildConnector: systemConnector,
       fetch: (input, init) => {
         if (!(input instanceof Request)) {
           throw new Error("configured egress did not normalize its native Request");

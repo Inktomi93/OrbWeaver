@@ -8,7 +8,7 @@ import type { SpendDeltaField, StatsDelta } from "@orb/contracts/stats";
 import { SPEND_DELTA_FIELDS, variantUsageLegDelta } from "@orb/contracts/stats";
 import type { characterStats, dailyStats, modelStats, ownerStats } from "@orb/db";
 import type { CharacterId, IdSource, UserId } from "@orb/kit/ids";
-import { castId, createIdSource, ID_PREFIX } from "@orb/kit/ids";
+import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { MODEL_PROVIDER_UNKNOWN, statsBucketStart, wordCount } from "@orb/kit/stats-tally";
 import type {
   Accums,
@@ -590,7 +590,7 @@ function buildOwnerRow(ownerId: UserId, owner: OwnerAccum, meta: ChatMeta, now: 
 
 /** A chat creation without messages still produces a timeline bucket. */
 export function buildBucketRows(
-  { ownerId, idSource = createIdSource() }: Pick<OwnerRollupScope, "ownerId" | "idSource">,
+  { ownerId, idSource }: Pick<OwnerRollupScope, "ownerId" | "idSource">,
   bucketMap: Map<number, BucketAccum>,
   meta: ChatMeta,
   now: number,
@@ -674,12 +674,7 @@ export function buildChatMeta(
 }
 
 /** Character rollups inherit ownership from characters, not from the room's retained accounting cohort. */
-export function buildOwnerRows(
-  { ownerId, ownedCharacterIds, idSource = createIdSource() }: OwnerRollupScope,
-  a: Accums,
-  meta: ChatMeta,
-  now: number,
-): OwnerRollupRows {
+export function buildOwnerRows({ ownerId, ownedCharacterIds, idSource }: OwnerRollupScope, a: Accums, meta: ChatMeta, now: number): OwnerRollupRows {
   const ownedCharacters = new Set(ownedCharacterIds);
   return {
     ownerRow: buildOwnerRow(ownerId, a.owner, meta, now),

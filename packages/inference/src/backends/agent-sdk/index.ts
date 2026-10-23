@@ -39,14 +39,6 @@ export type { SessionEntryWriter } from "./session/index.ts";
 const DEFAULT_TOOL_SERVER_NAME = "orbweaver";
 const CLAUDE_TOOL = "claude";
 
-const realScheduleTimeout: AgentSdkDeps["scheduleTimeout"] = (fn, ms) => {
-  const handle = setTimeout(fn, ms);
-  handle.unref();
-  return (): void => {
-    clearTimeout(handle);
-  };
-};
-
 function isSessionStore(value: unknown): value is AgentSdkDeps["sessionStore"] {
   return value !== null && typeof value === "object" && "append" in value && "load" in value;
 }
@@ -80,8 +72,8 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): AgentSdkBacken
     sessionStore: sessions.store,
     ...(deps.agentSdk.sessionWriter !== undefined ? { sessionWriter: deps.agentSdk.sessionWriter } : {}),
     normalizeImageBytes,
-    scheduleTimeout: deps.scheduleTimeout ?? deps.agentSdk.scheduleTimeout ?? realScheduleTimeout,
-    ...(deps.scheduleIdleTimeout === undefined ? {} : { scheduleIdleTimeout: deps.scheduleIdleTimeout }),
+    scheduleTimeout: deps.scheduleTimeout,
+    scheduleIdleTimeout: deps.scheduleIdleTimeout,
     ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}),
     debug: deps.debug ?? false,
     childEnv,

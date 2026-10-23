@@ -19,7 +19,7 @@ import { createStanding } from "./verbs/standing.ts";
 interface NotificationsServiceDeps {
   db: DatabaseHandle;
   now: () => number;
-  readonly idSource?: IdSource | undefined;
+  readonly idSource: IdSource;
   /** The #1799 cross-feature read behind `InboxView.actionable` (contract/ops.ts). Required: see the field's
    *  note on `NotificationsContext` for why a defaulted no-op would be a silently wrong indicator. */
   resolveStandingAsks: ResolveStandingAsks;

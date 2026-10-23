@@ -47,6 +47,7 @@
     "./domain/rpg": "./src/domain/rpg/index.ts",
     "./domain/plugin": "./src/domain/plugin/index.ts",
     "./domain/roster-preset": "./src/domain/roster-preset/index.ts",
+    "./domain/stats": "./src/domain/stats/index.ts",
     "./primitives/serde/chat-bundle": "./src/primitives/serde/chat-bundle/index.ts"
   },
   "imports": {

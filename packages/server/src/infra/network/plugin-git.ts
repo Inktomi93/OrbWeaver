@@ -23,7 +23,7 @@ import { clone, listServerRefs, readBlob, readTree, resolveRef } from "isomorphi
 import { packPreparedPluginDir } from "../plugin-source/index.ts";
 import type { ScopedEgress } from "./contract/egress.ts";
 import type { PluginGitSource } from "./contract/plugin-git.ts";
-import { ANY_HOST, safeFetch } from "./egress.ts";
+import { ANY_HOST } from "./egress.ts";
 
 const GIT_HTTP_MAX_BYTES = 5_000_000;
 const GIT_BODY_MAX_BYTES = 5_000_000;
@@ -74,7 +74,7 @@ function responseBody(bytes: Uint8Array): AsyncIterableIterator<Uint8Array> {
   return Readable.from([bytes])[Symbol.asyncIterator]();
 }
 
-async function requestGitHttp(request: GitHttpRequest, fetchImpl: ScopedEgress["safeFetch"] = safeFetch): Promise<GitHttpResponse> {
+async function requestGitHttp(request: GitHttpRequest, fetchImpl: ScopedEgress["safeFetch"]): Promise<GitHttpResponse> {
   const method = request.method ?? "GET";
   if (method !== "GET" && method !== "POST") {
     throw new Error(`unsupported Git HTTP method ${method}`);
@@ -266,7 +266,7 @@ function createPluginGitSource(deps: PluginGitSourceDeps): PluginGitSource {
 }
 
 /** Bind the real Git assembly to the same guarded network owner as its graph's downloads. */
-export function createNetworkPluginGitSource(fetchImpl: ScopedEgress["safeFetch"] = safeFetch): PluginGitSource {
+export function createNetworkPluginGitSource(fetchImpl: ScopedEgress["safeFetch"]): PluginGitSource {
   const http: HttpClient = { request: (request) => requestGitHttp(request, fetchImpl) };
   return createPluginGitSource({
     makeScratch: () => mkdtemp(join(tmpdir(), "orb-plugin-git-")),
@@ -290,5 +290,3 @@ export function createNetworkPluginGitSource(fetchImpl: ScopedEgress["safeFetch"
     },
   });
 }
-
-export const pluginGitSource: PluginGitSource = createNetworkPluginGitSource();

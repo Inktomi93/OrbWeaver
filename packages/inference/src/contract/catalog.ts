@@ -5,7 +5,7 @@ import type { ProviderRegistry } from "./registry.ts";
 import type { InferenceDeps, MirrorWarm, ScheduleTimeout, SnapshotStore, SpanAttrs, SpawnIdentity } from "./runtime.ts";
 
 export interface DetectArgs {
-  readonly scheduleTimeout?: ScheduleTimeout | undefined;
+  readonly scheduleTimeout: ScheduleTimeout;
   readonly fetch: typeof fetch;
   readonly baseUrl: string;
   readonly secret: string | null;
@@ -14,7 +14,7 @@ export interface DetectArgs {
 }
 
 export interface EndpointFetchArgs {
-  readonly scheduleTimeout?: ScheduleTimeout | undefined;
+  readonly scheduleTimeout: ScheduleTimeout;
   readonly fetch: typeof fetch;
   readonly baseUrl: string;
   readonly secret: string | null;
@@ -32,7 +32,7 @@ export interface EndpointFetchArgs {
 }
 
 export interface CatalogListingDeps {
-  readonly scheduleTimeout?: InferenceDeps["scheduleTimeout"];
+  readonly scheduleTimeout: InferenceDeps["scheduleTimeout"];
   readonly registry: ProviderRegistry;
   readonly resolveCredential: InferenceDeps["resolveCredential"];
   readonly fetch: typeof fetch;

@@ -25,7 +25,7 @@ import {
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany, chunkRows, rowsPerInsert } from "@orb/db/query";
 import type { IdSource, ModelId, UserId } from "@orb/kit/ids";
-import { castId, createIdSource } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
 import { calendarBucketStartSql } from "#primitives/calendar-bucket-sql";
 import type { Accums, CanonMessage, CharChatMeta, ChatMeta, OwnerRollupRows, ReconcileOpts, SwipeRow } from "../contract/rebuild-from-canon.ts";
@@ -62,7 +62,7 @@ export async function reconcileStats(db: Db, opts: ReconcileOpts): Promise<Recon
         ).map((r) => r.ownerId);
 
   const now = opts.now();
-  const idSource = opts.idSource ?? createIdSource();
+  const idSource = opts.idSource;
   let totalChars = 0;
   let totalBuckets = 0;
   let totalModels = 0;
@@ -88,7 +88,7 @@ export async function reconcileStats(db: Db, opts: ReconcileOpts): Promise<Recon
  *  canon re-derives. A live write always lands both rows, so the predicate is idempotent — except for an owner
  *  whose only activity is that pre-ledger compaction spend, who re-runs an empty (cheap) rebuild each boot.
  *  Returns the owners rebuilt. */
-export async function reconcileOwnersMissingTimeline(db: Db, now: () => number, idSource: IdSource = createIdSource()): Promise<number> {
+export async function reconcileOwnersMissingTimeline(db: Db, now: () => number, idSource: IdSource): Promise<number> {
   const owners = await db.all<{ ownerId: string }>(sql`
     SELECT o.owner_id AS ownerId FROM owner_stats o
     WHERE (o.user_turns + o.assistant_turns + o.system_turns + o.chats > 0
