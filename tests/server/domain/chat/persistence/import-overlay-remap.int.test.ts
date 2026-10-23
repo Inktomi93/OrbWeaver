@@ -18,9 +18,10 @@ interface ImportedRoom {
   readonly reimport: () => Promise<unknown>;
 }
 
-/** A live room whose campaign stamps one hand snapshot after each line, exported and imported once. The imported
- *  room's campaign is then dropped, the state of a room whose first import restored none, so a re-import re-links. */
-async function importedRoom(h: ChatRoot, legacy: boolean): Promise<ImportedRoom> {
+/** A live room whose campaign stamps one hand snapshot after each line, exported and imported once. Unless kept,
+ *  the imported room's campaign is then dropped, the state of a room whose first import restored none, so a
+ *  re-import re-links. */
+async function importedRoom(h: ChatRoot, legacy: boolean, keepCampaign = false): Promise<ImportedRoom> {
   await h.root.services.rpg.createGame({ principal: h.owner, chatId: h.chatId, mode: "lite" });
   for (const line of LINES) {
     await h.caller.chat.commitMessage({ chatId: h.chatId, timeZone: UTC_TIME_ZONE, content: line });
@@ -39,7 +40,9 @@ async function importedRoom(h: ChatRoot, legacy: boolean): Promise<ImportedRoom>
     throw new Error("the production import landed no room");
   }
   expect(await anchoredLines(h, chatId)).toEqual(LINES.map((line) => ({ location: sceneAfter(line), line })));
-  await h.root.db.delete(rpgGames).where(eq(rpgGames.chatId, chatId));
+  if (!keepCampaign) {
+    await h.root.db.delete(rpgGames).where(eq(rpgGames.chatId, chatId));
+  }
   if (legacy) {
     await renumberFromZero(h, chatId);
   }
@@ -101,4 +104,13 @@ test("a live slot written into a deleted import seq takes no carried snapshot", 
   expect(await anchoredLines(h, room.chatId)).toEqual(
     LINES.map((line, index) => ({ location: sceneAfter(line), line: index === LINES.length - 1 ? null : line })),
   );
+});
+
+// The room still holds its campaign, so a refused re-link loses nothing and the report must not claim it did.
+test.for(LEGACY_IMPORT_ARMS)("$title: a room that lost both origin proofs but kept its campaign re-imports without a note", async ({ legacy }) => {
+  await using h = await textRoom([]);
+  const room = await importedRoom(h, legacy, true);
+  await h.root.services.chat.deleteMessages({ principal: h.owner, chatId: room.chatId, messageIds: [slotAt(room, 0), slotAt(room, LINES.length - 1)] });
+
+  expect(await room.reimport()).toEqual({ ok: true, created: false });
 });

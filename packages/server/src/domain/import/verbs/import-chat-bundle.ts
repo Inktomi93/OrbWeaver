@@ -281,9 +281,9 @@ async function restoreOverlays(args: {
     }, Promise.resolve());
   }
   if (bundle.rpg !== null && importRpgGame !== undefined) {
-    if (remap.kind === "aligned") {
-      await importRpgGame({ chatId: remap.chatId, hostUserId: ownerId, game: remapRpg(bundle.rpg, remap, characterIds) });
-    } else {
+    const game = remap.kind === "aligned" ? remapRpg(bundle.rpg, remap, characterIds) : null;
+    // An unplaceable campaign is lost only when the room has none to keep, and the op is what knows that.
+    if ((await importRpgGame({ chatId: remap.chatId, hostUserId: ownerId, game })) === "not-restored") {
       skipped.push(
         "the carried RPG campaign was not re-linked — messages deleted from this room since its first import leave no way to match it to the file's turns",
       );

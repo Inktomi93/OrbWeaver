@@ -25,6 +25,7 @@ import { asc, eq, inArray } from "drizzle-orm";
 import type {
   ExportRpgGame,
   ImportRpgGame,
+  RpgImportOutcome,
   RpgPortabilityContext,
   RpgPortableCheckpoint,
   RpgPortableGame,
@@ -128,10 +129,13 @@ export function createExportRpgGame(input: DbAssemblyInput<Pick<RpgPortabilityCo
 
 export function createImportRpgGame(input: DbAssemblyInput<RpgPortabilityContext>): ImportRpgGame {
   const ctx: RpgPortabilityContext = { ...input, db: databaseForOwner(input.db) };
-  return async ({ chatId, hostUserId, game }): Promise<void> => {
+  return async ({ chatId, hostUserId, game }): Promise<RpgImportOutcome> => {
     const existing = await ctx.db.select({ id: rpgGames.id }).from(rpgGames).where(eq(rpgGames.chatId, chatId)).limit(LIMIT_ONE);
     if (existing[0] !== undefined) {
-      return;
+      return "kept-existing";
+    }
+    if (game === null) {
+      return "not-restored";
     }
     const gameId = ctx.ids.game();
     const at = ctx.now();
@@ -238,6 +242,8 @@ export function createImportRpgGame(input: DbAssemblyInput<RpgPortabilityContext
       if (winner[0] === undefined) {
         throw err;
       }
+      return "kept-existing";
     }
+    return "restored";
   };
 }
