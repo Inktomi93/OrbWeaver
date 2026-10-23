@@ -4,7 +4,7 @@
 import "./composed-real.ts";
 import { SIGN_IN_TARGET_MODES } from "@orb/contracts/identity";
 import { PRESENCE_READ_MAX_USER_IDS } from "@orb/contracts/notifications";
-import type { ExternalId, UserId } from "@orb/kit/ids";
+import type { ExternalId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { authModeSource, installKind } from "@orb/server/foundation/env";
@@ -90,7 +90,7 @@ test("native notification snapshots distinguish offline and unknown IDs from una
   const reader = await root.actor();
   const other = await root.actor();
   const caller = await root.internalCallerFor(reader.id);
-  const unknownId = root.idSource.unprefixed<UserId>();
+  const unknownId = root.idSource.userId();
   const asked = [other.id, unknownId, root.ownerId, other.id, reader.id];
   const empty = await captureNotificationViews(root, reader.id, asked);
   expect(empty).toEqual({ inbox: { items: [], nextCursor: null }, presence: { onlineUserIds: [] } });

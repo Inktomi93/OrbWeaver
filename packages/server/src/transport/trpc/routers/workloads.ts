@@ -29,7 +29,7 @@ import {
   workloadScheduleViewSchema,
   workloadStatusSchema,
 } from "@orb/contracts/workloads";
-import type { UserId } from "@orb/kit/ids";
+
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { requireOwner } from "#domain/admin";
@@ -43,7 +43,7 @@ export const workloadsRouter = t.router({
         input: startWorkloadEnvelope,
         // The run mode (default singular). A bulk CREATE-kind additionally carries the mint target.
         mode: workloadModeSchema.default("singular"),
-        targetOwnerId: brandedId<UserId>().optional(),
+        targetOwnerId: brandedId("UserId").optional(),
         dependsOn: z.array(typeIdSchema(ID_PREFIX.workload)).optional(),
         scheduledAt: z.number().optional(),
       }),
@@ -72,7 +72,7 @@ export const workloadsRouter = t.router({
       z.object({
         input: startWorkloadEnvelope,
         mode: workloadModeSchema.default("singular"),
-        targetOwnerId: brandedId<UserId>().optional(),
+        targetOwnerId: brandedId("UserId").optional(),
         assumeAdmitted: z.boolean().optional(),
       }),
     )

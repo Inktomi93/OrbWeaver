@@ -6,7 +6,7 @@
 
 import type { Db } from "@orb/db";
 import { characterPersonas, characterSnapshots, characters } from "@orb/db";
-import type { CharacterHandle, IdSource, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, IdSource } from "@orb/kit/ids";
 import { castId, createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import type { CharacterService } from "@orb/server/domain/character";
 import { cardTokenSize } from "@orb/server/domain/character";
@@ -54,7 +54,7 @@ export function makeCharacter(overrides: CharacterOverrides = {}, source: IdSour
   const row: Omit<CharacterRow, "tokenSize"> = {
     id,
     handle: castId<CharacterHandle>(id),
-    ownerId: source.unprefixed<UserId>(),
+    ownerId: source.userId(),
     starred: false,
     archived: false,
     synthetic: false,

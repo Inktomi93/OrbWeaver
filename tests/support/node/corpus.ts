@@ -166,7 +166,7 @@ export async function createCorpusHarness(directory?: string, options: CorpusHar
       ...execution,
       ...(source.privateParent === undefined ? {} : { startJobs: false }),
       db,
-      ownerId: brandedId<UserId>().parse(owner.userId),
+      ownerId: brandedId("UserId").parse(owner.userId),
       clock: createFrozenClock(source.replay.nowMs),
       ids: createSeededIds(source.replay.idCursor),
       authConfig: options.authConfig ?? { ...authConfigFromEnv(), mode: "local", fallback: "deny", defaultHandle: owner.handle },

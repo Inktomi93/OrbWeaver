@@ -4,7 +4,7 @@ import { access, readFile } from "node:fs/promises";
 import { pendingJoinConfirmResultSchema, signedOutInvitePreviewSchema } from "@orb/contracts/chat";
 import { authLogoutResultSchema, authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
 import { chatInvites, chatParticipants, closeDb, oidcPendingSignups, oidcTransactions, sessions, users } from "@orb/db";
-import type { ExternalId, Handle } from "@orb/kit/ids";
+
 import { brandedId } from "@orb/kit/ids";
 import { MS_PER_HOUR } from "@orb/kit/time";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
@@ -328,7 +328,7 @@ test("a handle that became an owner seed-key look-alike after the callback is re
     await db
       .select()
       .from(users)
-      .where(eq(users.externalId, brandedId<ExternalId>().parse("restart-policy-joiner"))),
+      .where(eq(users.externalId, brandedId("ExternalId").parse("restart-policy-joiner"))),
   ).toHaveLength(0);
   expect((await db.select().from(chatInvites).where(eq(chatInvites.id, invite.invite.id)))[0]?.uses).toBe(0);
   const signedOut = await restarted.http.request("/api/auth/me", { headers: { cookie: cookieJar(confirmed) } });
@@ -778,7 +778,7 @@ test("an ACCOUNT-EXISTS collision deny surfaces its distinct code, still with no
   const issuer = await createNativeIssuer();
   await using root = await rootFor(issuer);
   const email = "native-collision@example.test";
-  const local = await root.actor({ handle: brandedId<Handle>().parse("native-local-holder"), email });
+  const local = await root.actor({ handle: brandedId("Handle").parse("native-local-holder"), email });
   const result = await callback(root, await begin(root, issuer, { ...MEMBER, email }));
   await expectRefusedWithoutSession(root, result, "/login?authError=account_exists");
   expect(await root.db.select({ id: users.id, externalId: users.externalId }).from(users)).toEqual([{ id: local.id, externalId: null }]);
@@ -787,7 +787,7 @@ test("an ACCOUNT-EXISTS collision deny surfaces its distinct code, still with no
 test("a provisioned but DISABLED account mints no session", async () => {
   const issuer = await createNativeIssuer();
   await using root = await rootFor(issuer);
-  await root.actor({ handle: brandedId<Handle>().parse(MEMBER.preferred_username), externalId: brandedId<ExternalId>().parse(MEMBER.sub), enabled: false });
+  await root.actor({ handle: brandedId("Handle").parse(MEMBER.preferred_username), externalId: brandedId("ExternalId").parse(MEMBER.sub), enabled: false });
   await expectRefusedWithoutSession(root, await callback(root, await begin(root, issuer)), "/login?authError=account_disabled");
   expect(await root.db.select({ enabled: users.enabled }).from(users)).toEqual([{ enabled: false }]);
 });

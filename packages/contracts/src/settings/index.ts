@@ -1004,7 +1004,7 @@ export const appSettingsViewSchema = z.strictObject({
 }) satisfies z.ZodType<AppSettingsView>;
 
 export const userSettingsViewSchema = z.strictObject({
-  userId: brandedId<UserId>(),
+  userId: brandedId("UserId"),
   schemaVersion: z.number(),
   config: userSettingsOutputSchema,
   updatedAt: z.number(),

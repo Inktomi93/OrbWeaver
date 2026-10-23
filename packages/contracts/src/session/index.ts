@@ -28,7 +28,7 @@ export interface SessionAdminView extends Readonly<SessionView> {
 export const sessionAdminViewSchema = z
   .strictObject({
     id: typeIdSchema(ID_PREFIX.session),
-    userId: brandedId<UserId>(),
+    userId: brandedId("UserId"),
     expiresAt: z.number(),
     lastSeenAt: z.number(),
     revokedAt: z.number().nullable(),

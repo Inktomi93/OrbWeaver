@@ -9,11 +9,10 @@
 // `rpgActorRefSchema` (the discriminated actor union), `rpgTrackerDefSchema` (the whole tracker set write),
 // `rpgStatProfileSchema`, and the enum schemas. Only the plain payload envelopes (chatId + scalar fields the
 // contract has no schema for, e.g. a checkpoint `label`, a dice `notation`) are spelled here. TypeIDs use
-// their prefix-validating schema; the prefixless in-snapshot quest id uses `brandedId<T>()`. The
+// their prefix-validating schema; the prefixless in-snapshot quest id uses `brandedId("RpgQuestId")`. The
 // OWNER/MEMBER gate inside each verb remains the authority boundary: a wire-valid-but-foreign id collapses
 // to a leak-free NOT_FOUND, never a router-tier gate.
 
-import type { RpgQuestId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { MAX_USER_MACROS, userMacroSchema } from "#preset";
@@ -230,13 +229,13 @@ export const rpgUpsertQuestInputSchema = z.union([
     questId: z.never().optional(),
     objectives: z.array(z.strictObject({ text: z.string().min(1), completed: z.boolean().optional() })).optional(),
   }),
-  z.strictObject({ ...questFields, questId: brandedId<RpgQuestId>() }),
+  z.strictObject({ ...questFields, questId: brandedId("RpgQuestId") }),
 ]);
 
 /** Objective edits are operations against the server's current quest, never a client-authored list image. */
 export const rpgEditQuestObjectiveInputSchema = z.strictObject({
   chatId: chatIdField,
-  questId: brandedId<RpgQuestId>(),
+  questId: brandedId("RpgQuestId"),
   op: z.discriminatedUnion("kind", [
     z.strictObject({ kind: z.literal("add"), text: z.string().min(1) }),
     z.strictObject({
@@ -251,7 +250,7 @@ export const rpgEditQuestObjectiveInputSchema = z.strictObject({
 /** `deleteQuest` — remove a quest from the current resolved snapshot's array (host). */
 export const rpgDeleteQuestInputSchema = z.object({
   chatId: chatIdField,
-  questId: brandedId<RpgQuestId>(),
+  questId: brandedId("RpgQuestId"),
 });
 
 /** `addJournalEntry` — a hand journal entry (host); `type` rides the DERIVED journal-type enum. */

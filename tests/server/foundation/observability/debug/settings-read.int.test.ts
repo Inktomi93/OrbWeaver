@@ -101,7 +101,7 @@ test("the settings probe preserves key order and stored values while rejecting a
     return await response.json();
   };
   expect(await read(`/api/_debug/config/user?userId=${root.ownerId}`)).toEqual({ count: 1, users: [{ ...settings, config: raw }] });
-  const missingUserId = root.idSource.unprefixed<Principal["userId"]>();
+  const missingUserId = root.idSource.userId();
   expect(await read(`/api/_debug/config/user?userId=${missingUserId}`)).toEqual({ count: 0, users: [] });
   expect(await read(`/api/_debug/config/presets?ownerId=${root.ownerId}`)).toEqual({ count: 1, presets: [{ ...preset, config: raw }] });
   expect(await read(`/api/_debug/config/personas?ownerId=${root.ownerId}`)).toEqual({ count: 1, personas: [{ ...persona, metadata: raw }] });

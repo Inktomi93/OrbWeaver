@@ -554,7 +554,7 @@ const refineryRunBaseSchema = z.object({
   iteration: z.int().min(0),
   /** Null on exactly the `manual` provenance arm — a hand-authored rewrite has no model, and an honest
    *  null beats a sentinel spelling (the anti-sniffing law). */
-  model: brandedId<ModelId>().nullable(),
+  model: brandedId("ModelId").nullable(),
   /** Provider-reported usage, or null when the backend reports none (stats parity). */
   promptTokens: z.int().min(0).nullable(),
   outputTokens: z.int().min(0).nullable(),
@@ -724,7 +724,7 @@ export const iterateResultSchema = z.strictObject({
 }) satisfies z.ZodType<IterateResult>;
 const stagePreflightSchema = z.strictObject({
   stage: refineryStageSchema,
-  model: brandedId<ModelId>(),
+  model: brandedId("ModelId"),
   temperature: z.number().nullable(),
   maxOutputTokens: z.number().nullable(),
   inputEstimate: z.number(),

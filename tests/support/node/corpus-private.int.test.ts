@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import { createDb, localPath, preCloseHousekeeping, runMigrations, users } from "@orb/db";
-import type { ExternalId, Handle } from "@orb/kit/ids";
+
 import { brandedId, createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
@@ -60,8 +60,8 @@ test("private intake retains the existing singleton owner and nonempty content i
     original = await seedUser(
       db,
       {
-        handle: brandedId<Handle>().parse("retained-owner"),
-        externalId: brandedId<ExternalId>().parse("synthetic-retained-subject"),
+        handle: brandedId("Handle").parse("retained-owner"),
+        externalId: brandedId("ExternalId").parse("synthetic-retained-subject"),
         role: "owner",
       },
       source,
@@ -78,7 +78,7 @@ test("private intake retains the existing singleton owner and nonempty content i
       importStagingDir: layout.importStaging,
       temporaryParentDir: parent,
     });
-    companion = (await seedUser(db, { handle: brandedId<Handle>().parse("companion"), role: "user" }, source)).id;
+    companion = (await seedUser(db, { handle: brandedId("Handle").parse("companion"), role: "user" }, source)).id;
     const principal = await root.principalFor(original.id);
     const installed = await root.services.plugin.install({
       caller: principal,

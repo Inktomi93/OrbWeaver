@@ -1,12 +1,11 @@
-import type { UserId } from "@orb/kit/ids";
-import { ID_PREFIX, mintTypeId, newId, typeIdSchema } from "@orb/kit/ids";
+import { brandedId, createIdSource, ID_PREFIX, mintTypeId, mintUserId, typeIdSchema } from "@orb/kit/ids";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("canonical mints preserve the injected business identity sequence", () => {
   const ids = createSeededIds();
   const expected = createSeededIds();
-  const userId = newId<UserId>(ids.next);
+  const userId = mintUserId(ids.next);
   const chatId = mintTypeId(ID_PREFIX.chat, ids.next);
   const sessionId = mintTypeId(ID_PREFIX.session, ids.next);
 
@@ -21,10 +20,25 @@ test("canonical mints refuse a generator that returns another entity's prefix", 
   const ids = createSeededIds();
   const wrong = ids.next(ID_PREFIX.character);
   expect(() => mintTypeId(ID_PREFIX.chat, () => wrong)).toThrow();
-  expect(() => newId<UserId>(() => wrong)).toThrow();
+  expect(() => mintUserId(() => wrong)).toThrow();
 });
 
 test("canonical mints refuse malformed generated identity bytes", () => {
   expect(() => mintTypeId(ID_PREFIX.chat, () => "chat_invalid")).toThrow();
-  expect(() => newId<UserId>(() => "invalid")).toThrow();
+  expect(() => mintUserId(() => "invalid")).toThrow();
+});
+
+test("bound prefixless families and plain blob identities share the injected byte sequence", () => {
+  const expected = createSeededIds();
+  const source = createIdSource(createSeededIds().next);
+  const minted = [source.userId(), source.rpgQuestId(), source.socketId(), source.unprefixed()];
+  expect(minted).toEqual([expected.next(""), expected.next(""), expected.next(""), expected.next("")]);
+});
+
+test("label-derived text schemas retain opaque upstream values and refuse empty or non-string input", () => {
+  const schema = brandedId("ProviderGenerationId");
+  const opaque = "upstream:run/opaque-value";
+  expect(schema.parse(opaque)).toBe(opaque);
+  expect(schema.safeParse("").success).toBe(false);
+  expect(schema.safeParse(12).success).toBe(false);
 });

@@ -4,7 +4,7 @@
 // with a password hash), not `decideProvision`.
 
 import { awaitableStatementToken } from "@orb/db/wiring-owner";
-import type { UserId } from "@orb/kit/ids";
+
 import { createIdSource } from "@orb/kit/ids";
 import type { SessionsContext, SessionsService } from "../contract/service.ts";
 import { insertSignupUserStatement, selectHandleKeyTaken } from "../persistence/users.ts";
@@ -12,7 +12,7 @@ import { insertSignupUserStatement, selectHandleKeyTaken } from "../persistence/
 export function createSignup(ctx: SessionsContext): Pick<SessionsService, "signupUserStatement" | "signupHandleTaken"> {
   return {
     signupUserStatement: ({ handle, passwordHash, at, admission }): ReturnType<SessionsService["signupUserStatement"]> => {
-      const userId = (ctx.idSource ?? createIdSource()).unprefixed<UserId>();
+      const userId = (ctx.idSource ?? createIdSource()).userId();
       return { userId, statement: awaitableStatementToken(insertSignupUserStatement(ctx.db, { id: userId, handle, passwordHash, at }, admission)) };
     },
     signupHandleTaken: (handle): Promise<boolean> => selectHandleKeyTaken(ctx.db, handle),

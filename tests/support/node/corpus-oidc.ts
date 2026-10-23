@@ -5,7 +5,7 @@ import { pendingJoinConfirmRequestSchema, pendingJoinConfirmResultSchema, signed
 import type { AuthMe } from "@orb/contracts/identity";
 import { authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
 import { sessions, users } from "@orb/db";
-import type { ExternalId, UserId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { MS_PER_HOUR } from "@orb/kit/time";
 import { oidcPendingJoinCookieFor, readRequestCookie, readSessionCookie } from "@orb/server/entry/auth";
@@ -125,7 +125,7 @@ export async function seedOidcCorpus(root: UnclaimedServerTestHarness, issuer: A
   if (join.response.status !== 302 || join.response.headers.get("location") !== "/login?pendingJoin=1") {
     throw new Error("actual native OIDC callback did not produce the required pending join");
   }
-  const pending = await captureOidcPendingSignup(root.db, brandedId<ExternalId>().parse(JOINER_SUBJECT));
+  const pending = await captureOidcPendingSignup(root.db, brandedId("ExternalId").parse(JOINER_SUBJECT));
   if (pending === undefined) {
     throw new Error("actual native OIDC callback produced no canonical pending-signup row");
   }

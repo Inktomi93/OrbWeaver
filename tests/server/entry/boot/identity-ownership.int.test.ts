@@ -3,7 +3,7 @@ import { access, mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { databaseHandle } from "@orb/db/wiring-driver";
-import type { Handle } from "@orb/kit/ids";
+
 import { brandedId } from "@orb/kit/ids";
 import { createListSeedAccountIds } from "@orb/server/domain/sessions";
 import { seedOwner, settleBootSecrets } from "@orb/server/entry/boot";
@@ -14,7 +14,7 @@ import { createServerHarness } from "@orb/testkit/node/server.ts";
 test("trusted boot moves its singleton seed key without taking another account's key and still enumerates disabled accounts", async () => {
   await using root = await createServerHarness();
   const owner = await root.principalFor(root.ownerId);
-  const heldHandle = brandedId<Handle>().parse("boot-held-handle");
+  const heldHandle = brandedId("Handle").parse("boot-held-handle");
   const otherId = await root.app.sessions.ensureUser(heldHandle);
   const deps = { db: root.db, sessions: root.app.sessions, now: root.clock.now };
   expect(await seedOwner({ ...deps, ownerHandles: ["boot-moved-owner"] })).toEqual([owner.userId]);
@@ -38,7 +38,7 @@ test("another account's actual password blocks a missing pepper after credential
   const owner = await root.principalFor(root.ownerId);
   const created = await root.services.admin.createUser({
     principal: owner,
-    handle: brandedId<Handle>().parse("boot-password-dependent"),
+    handle: brandedId("Handle").parse("boot-password-dependent"),
     password: "synthetic-boot-dependent-password",
   });
   expect(created.id).not.toBe(owner.userId);

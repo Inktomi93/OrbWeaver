@@ -8,14 +8,14 @@ import {
   chatBookViewSchema,
   entryViewSchema,
 } from "@orb/contracts/world-info";
-import type { UserId } from "@orb/kit/ids";
+
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import type { CorpusRead } from "./corpus-read.ts";
 
 export const worldInfoLibrarySchema = z
   .strictObject({
-    viewerUserId: brandedId<UserId>(),
+    viewerUserId: brandedId("UserId"),
     ids: z.strictObject({
       libraryBookId: typeIdSchema(ID_PREFIX.worldBook),
       orderedBookId: typeIdSchema(ID_PREFIX.worldBook),
@@ -50,7 +50,7 @@ export const worldInfoLibrarySchema = z
   );
 
 export const regexLibrarySchema = z.strictObject({
-  viewerUserId: brandedId<UserId>(),
+  viewerUserId: brandedId("UserId"),
   ids: z.strictObject({
     scriptId: typeIdSchema(ID_PREFIX.regexScript),
     characterId: typeIdSchema(ID_PREFIX.character),

@@ -32,7 +32,7 @@ export const TEST_OWNER_ID: UserId = castId<UserId>("user_test_owner");
  * (`tests/legacy/client/features/preset/**`, `tests/legacy/client/features/config/**`) — a `@orb/db` import would drag the
  * node-only db package into the CT bundle.
  */
-export const TEST_CONNECTION_ID: UserConnectionId = castId<UserConnectionId>("user_connection_test0001");
+export const TEST_CONNECTION_ID: UserConnectionId = viewIds.typeId(ID_PREFIX.userConnection);
 
 export interface MakeResolvedOverrides<T extends Task> extends Partial<Omit<Resolved<T>, "task" | "capability" | "providerId" | "credential">> {
   readonly task?: T | undefined;

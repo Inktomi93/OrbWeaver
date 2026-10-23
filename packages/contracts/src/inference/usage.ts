@@ -19,7 +19,7 @@
 // `cost`) + upstreamUsd (the provider's charge)`; on a passthrough turn `totalUsd` is OR's `cost` and the two
 // are absent.
 
-import type { ModelId, ProviderGenerationId } from "@orb/kit/ids";
+import type { ModelId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import { tokenProvenanceSchema } from "../chat/token-provenance.ts";
@@ -35,7 +35,7 @@ export const responseCacheSchema = z.strictObject({
   status: z.enum(RESPONSE_CACHE_STATUSES),
   ageSeconds: z.int().nonnegative().nullable(),
   ttlSeconds: z.int().nonnegative().nullable(),
-  sourceGenerationId: brandedId<ProviderGenerationId>().nullable(),
+  sourceGenerationId: brandedId("ProviderGenerationId").nullable(),
 });
 export type ResponseCache = z.infer<typeof responseCacheSchema>;
 
@@ -99,7 +99,7 @@ export const storedGenerationUsageSchema = generationUsageSchema.strip() satisfi
 /** One completed SDK observation. numTurns/modelCalls is reported SDK cardinality, not inferred HTTP calls.
  * Private funding/connection context belongs to the retained chat observation, never this copied provenance. */
 export const generationUsageLegSchema = generationUsageSchema.extend({
-  model: brandedId<ModelId>(),
+  model: brandedId("ModelId"),
   provider: providerIdSchema,
   wire: wireSchema,
   observedAt: z.int().nonnegative(),
@@ -111,7 +111,7 @@ export const generationUsageLegSchema = generationUsageSchema.extend({
   finishReason: normalizedFinishReasonSchema.nullable(),
   stopReason: z.string().nullable(),
   terminalReason: z.string().nullable(),
-  generationId: brandedId<ProviderGenerationId>().nullable(),
+  generationId: brandedId("ProviderGenerationId").nullable(),
 });
 export type GenerationUsageLeg = z.infer<typeof generationUsageLegSchema>;
 

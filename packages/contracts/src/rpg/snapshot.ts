@@ -8,7 +8,6 @@
 // The journal is NOT here — it is a variant-AWARE TABLE (unbounded archive; snapshot-copying it every
 // turn is O(archive)-wrong). See `db/schema/rpg.ts` `rpg_journal` + the lineage projection (§2.5).
 
-import type { RpgQuestId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import type { RpgActorRef } from "./actor.ts";
@@ -55,7 +54,7 @@ export type RpgQuestObjective = z.infer<typeof rpgQuestObjectiveSchema>;
  *  "plain string" call wanted, made a real brand so the id flows typed through the snapshot addressing
  *  (`fieldLocks` path `quests.<id>`, the tool flip target). Identity is stable across variants. */
 export const rpgQuestSchema = z.object({
-  id: brandedId<RpgQuestId>(),
+  id: brandedId("RpgQuestId"),
   name: z.string().min(1),
   status: rpgQuestStatusSchema,
   description: z.string().default(""),

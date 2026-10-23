@@ -3810,7 +3810,7 @@ export const effectivePresetSchema = z.strictObject({
   cache: cachePolicySchema,
   cacheWarnings: z.array(resolvedWarningSchema).readonly(),
   presetId: typeIdSchema(ID_PREFIX.preset),
-  model: brandedId<ModelId>(),
+  model: brandedId("ModelId"),
   knobs: z.partialRecord(z.enum(EFFECTIVE_KNOBS), effectiveKnobReadingSchema),
   stale: z.array(staleKnobSchema).readonly(),
   qualityMapping: qualityMappingSchema.nullable(),

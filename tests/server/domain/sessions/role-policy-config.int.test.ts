@@ -1,7 +1,7 @@
 import "@orb/testkit/node/composed-real.ts";
 import { authMeSchema } from "@orb/contracts/identity";
 import { users } from "@orb/db";
-import type { ExternalId, Handle } from "@orb/kit/ids";
+
 import { brandedId } from "@orb/kit/ids";
 import type { SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
@@ -39,7 +39,7 @@ test("a composed role policy ignores subsequent process-environment grants", asy
   });
   const headers = {
     "x-authentik-username": "snapshot-policy-member",
-    "x-authentik-uid": brandedId<ExternalId>().parse("snapshot-policy-subject"),
+    "x-authentik-uid": brandedId("ExternalId").parse("snapshot-policy-subject"),
     "x-authentik-groups": "late-process-admins",
   };
   const before = await root.http.request("/api/auth/me", { headers });
@@ -110,7 +110,7 @@ test("copied config and exposed owner handles cannot mutate a live graph's autho
   const owner = await root.principalFor(root.ownerId);
   expect(owner.handle).toBe("box-owner");
   await expect(
-    root.services.admin.createUser({ principal: owner, handle: brandedId<Handle>().parse("Box-Owner"), password: "synthetic-policy-password" }),
+    root.services.admin.createUser({ principal: owner, handle: brandedId("Handle").parse("Box-Owner"), password: "synthetic-policy-password" }),
   ).rejects.toMatchObject({ code: "invalid_handle" });
 });
 
@@ -121,7 +121,7 @@ test("the legacy rederivation flag is a construction-time input, not a live proc
   const row = await root.db
     .select()
     .from(users)
-    .where(eq(users.externalId, brandedId<ExternalId>().parse("policy-member-subject")))
+    .where(eq(users.externalId, brandedId("ExternalId").parse("policy-member-subject")))
     .get();
   if (row === undefined) {
     throw new Error("successful header login produced no account");
@@ -139,7 +139,7 @@ test("fixed group governance still rederives stored roles from every login's cur
   const row = await root.db
     .select()
     .from(users)
-    .where(eq(users.externalId, brandedId<ExternalId>().parse("policy-member-subject")))
+    .where(eq(users.externalId, brandedId("ExternalId").parse("policy-member-subject")))
     .get();
   if (row === undefined) {
     throw new Error("successful header login produced no account");
@@ -161,7 +161,7 @@ test.each([
   const rows = await root.db
     .select({ role: users.role })
     .from(users)
-    .where(eq(users.externalId, brandedId<ExternalId>().parse("policy-member-subject")));
+    .where(eq(users.externalId, brandedId("ExternalId").parse("policy-member-subject")));
   expect(rows).toEqual(role === null ? [] : [{ role }]);
   expect((await root.http.request("/api/trpc/sessions.me", { headers })).status).toBe(role === null ? 401 : 200);
 });
@@ -186,14 +186,14 @@ test("an IdP rename cannot take the graph's reserved seed key or its comparison-
     await root.db
       .select({ handle: users.handle })
       .from(users)
-      .where(eq(users.externalId, brandedId<ExternalId>().parse("policy-member-subject"))),
+      .where(eq(users.externalId, brandedId("ExternalId").parse("policy-member-subject"))),
   ).toEqual([{ handle: "policy-member" }]);
   await me(root, headerIdentity("", "ordinary-renamed"));
   expect(
     await root.db
       .select({ handle: users.handle })
       .from(users)
-      .where(eq(users.externalId, brandedId<ExternalId>().parse("policy-member-subject"))),
+      .where(eq(users.externalId, brandedId("ExternalId").parse("policy-member-subject"))),
   ).toEqual([{ handle: "ordinary-renamed" }]);
 });
 
@@ -216,7 +216,7 @@ test.each([
   const row = await root.db
     .select()
     .from(users)
-    .where(eq(users.externalId, brandedId<ExternalId>().parse("policy-member-subject")))
+    .where(eq(users.externalId, brandedId("ExternalId").parse("policy-member-subject")))
     .get();
   if (row === undefined) {
     throw new Error("successful header login produced no account");

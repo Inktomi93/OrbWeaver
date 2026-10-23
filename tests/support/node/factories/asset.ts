@@ -2,7 +2,7 @@
 
 import type { Db } from "@orb/db";
 import { assets } from "@orb/db";
-import type { AssetId, IdSource, UserId } from "@orb/kit/ids";
+import type { AssetId, IdSource } from "@orb/kit/ids";
 import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { sniffImageBytes, sniffMime } from "@orb/kit/image-sniff";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
@@ -35,7 +35,7 @@ export function makeAsset(overrides: Partial<AssetRow> = {}, source: IdSource = 
   const sniffed = sniffImageBytes(bytes);
   return {
     id,
-    ownerId: source.unprefixed<UserId>(),
+    ownerId: source.userId(),
     kind: "card",
     mime: sniffMime(bytes),
     size: bytes.byteLength,

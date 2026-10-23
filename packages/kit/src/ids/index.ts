@@ -2,7 +2,7 @@
  * Branded entity IDs — nominal types over `string`. Without brands, nothing stops passing a
  * `characterId` where a `chatId` is expected. Mint a TypeID: {@link mintTypeId}`(ID_PREFIX.chat)`.
  * Cross an untyped boundary: {@link castId}`<CharacterId>(raw)`. At the tRPC boundary:
- * {@link typeIdSchema}`(ID_PREFIX.persona)` (prefix-validating) or {@link brandedId}`<UserId>()`.
+ * {@link typeIdSchema}`(ID_PREFIX.persona)` (prefix-validating) or {@link brandedId}`("UserId")`.
  */
 
 import { fromString, getType, typeidUnboxed } from "typeid-js";
@@ -25,8 +25,11 @@ export type RawIdGenerator = (prefix: string) => string;
 
 /** Business identity inputs, kept separate from session tokens and cryptographic entropy. */
 export interface IdSource {
-  readonly typeId: <P extends string>(prefix: P) => TypeIdOf<P>;
-  readonly unprefixed: <T extends Branded<string>>() => T;
+  readonly typeId: <P extends TypeIdPrefix>(prefix: P) => TypeIdOf<P>;
+  readonly userId: () => UserId;
+  readonly rpgQuestId: () => RpgQuestId;
+  readonly socketId: () => SocketId;
+  readonly unprefixed: () => string;
 }
 
 /** The TypeID prefix for each entity. TypeID prefixes must be lowercase `[a-z_]` — multi-word
@@ -143,7 +146,7 @@ export type UserId = Branded<"UserId">;
  *
  * THE SUBTYPING IS THE POINT: `VerifiedUserId` is assignable to `UserId` (it IS one — it flows into every
  * `UserId`-typed read unchanged), and `UserId` is NOT assignable to `VerifiedUserId` (it lacks the second
- * phantom). Pinned both directions in `tests/legacy/kit/ids/index.test-d.ts`.
+ * phantom). Pinned both directions in `tests/kit/ids/mint-contract.test-d.ts`.
  *
  * IT CARRIES ITS OWN PHANTOM KEY, NOT A SECOND `Branded` alias. Measured 2026-08-30: intersecting a second
  * `Branded` reuses the ONE `brand` key, so tsc sees a discriminant property with two disjoint literal types
@@ -282,9 +285,9 @@ export type RpgCheckpointId = TypeIdOf<"rpg_checkpoint">;
 /** ONE folded turn's recorded tool calls (`rpg_turn_tool_calls`) — one row per producing variant, so a swipe
  *  surfaces that swipe's own calls (the `rpg_snapshots` variant-keying, one plane over). */
 export type RpgTurnToolCallsId = TypeIdOf<"rpg_turn_tool_calls">;
-/** A quest's stable id — a PLAIN (prefix-less) branded nanoid, minted IN the snapshot blob (no table, no
+/** A quest's stable id — a prefixless TypeID, minted IN the snapshot blob (no table, no
  *  FK, no `ID_PREFIX` entry). The `orb/no-raw-id` rule requires a brand even for the in-blob object id; a
- *  prefix-less brand is the type-safety-without-TypeID-machinery middle. Mint via `newId<RpgQuestId>()`. */
+ *  prefix-less brand is the type-safety-without-TypeID-machinery middle. Mint via {@link mintRpgQuestId}. */
 export type RpgQuestId = Branded<"RpgQuestId">;
 
 // --- Workloads (in-server bulk-work lifecycle) -------------------------------
@@ -297,7 +300,7 @@ export type NotificationId = TypeIdOf<"notification">;
 
 // --- Transport (ephemeral, never persisted) ----------------------------------
 /** One browser tab's multiplexed SSE socket (SSE-1, `@orb/contracts/stream`). CLIENT-MINTED
- *  (`crypto.randomUUID()` per document) and NOT a capability — the server's registry cell is owned by the
+ *  (a prefixless TypeID per document) and NOT a capability — the server's registry cell is owned by the
  *  minting principal and a foreign id collapses to a leak-free NOT_FOUND. No table, no TypeID prefix: it is
  *  transport state with a document's lifetime (the `SessionToken` precedent — branded so it can never be
  *  confused with an entity id). */
@@ -313,38 +316,50 @@ export type SandboxWireId<Id extends Branded<string>> = Id extends string ? stri
 // --- Cross-cutting -----------------------------------------------------------
 export type AuditLogId = TypeIdOf<"audit_log">;
 
-/** Brand a raw string as a specific id type. The one sanctioned cast — use it at untyped seams, never
+/** Unchecked cast of a raw string to a specific branded id. Use it at trusted untyped seams, never
  *  to paper over a real type mismatch. Prefer {@link typeIdSchema} for TypeID ids at boundaries. */
-export function castId<T extends string>(raw: string): T {
+export function castId<T extends Branded<string>>(raw: string): T {
   return raw as T;
 }
 
-type TypeIdPrefix = (typeof ID_PREFIX)[keyof typeof ID_PREFIX];
-type BrandLabel<T> = T extends Branded<infer B> ? B : never;
-/** No extra argument for a prefixless brand. A canonical TypeID brand (any `ID_PREFIX` value, alone or in a
- *  union) demands one of type `never`, which no value satisfies, so the call fails to compile. */
-type PrefixlessOnly<T> = [Extract<BrandLabel<T>, TypeIdPrefix>] extends [never] ? [] : [useTypeIdSchemaForTypeIdBrands: never];
+export type TypeIdPrefix = (typeof ID_PREFIX)[keyof typeof ID_PREFIX];
+type PrefixlessLabel<Label extends string> = string extends Label ? never : [Extract<Label, TypeIdPrefix>] extends [never] ? Label : never;
+// Method bivariance can erase an input guard, so inadmissible labels must also have an unbranded output.
+type PrefixlessBrand<Label extends string> = [PrefixlessLabel<Label>] extends [never] ? string : Branded<Label>;
 
 /** Zod schema for a non-TypeID branded id at a request boundary: validates non-empty, types output
  *  as the brand. For TypeID ids use {@link typeIdSchema} — it also validates the prefix, and a TypeID
- *  brand is a compile error here. */
-export function brandedId<T extends Branded<string>>(..._prefixlessOnly: PrefixlessOnly<T>): z.ZodType<T, string> {
-  // `z.custom<T>()` supplies only the phantom output face after the string schema has done the real
+ *  brand is a compile error here. Additional proof brands such as {@link VerifiedUserId} require their
+ *  dedicated verification seam, not a text parser. */
+export function brandedId<const Label extends string>(_label: PrefixlessLabel<Label>): z.ZodType<PrefixlessBrand<Label>, string> {
+  // `z.custom` supplies only the phantom output face after the string schema has done the real
   // validation. `pipe` preserves the validated string input and the runtime value byte-for-byte.
-  return z.string().min(1).pipe(z.custom<T>());
+  return z.string().min(1).pipe(z.custom<PrefixlessBrand<Label>>());
 }
 
-/** Mint a fresh `prefix_<base32 uuidv7>` TypeID, typed as the corresponding brand. The one id-mint
- *  primitive — the `no-mint-via-cast` gate forbids minting through {@link castId}. */
-export function mintTypeId<P extends string>(prefix: P, generate?: RawIdGenerator): TypeIdOf<P> {
+/** Mint a fresh `prefix_<base32 uuidv7>` TypeID, typed as the corresponding canonical entity brand. */
+export function mintTypeId<P extends TypeIdPrefix>(prefix: P, generate?: RawIdGenerator): TypeIdOf<P> {
   return (generate === undefined ? typeidUnboxed(prefix) : generatedTypeId(prefix, generate)) as string as TypeIdOf<P>;
 }
 
-/** Mint a fresh plain (non-TypeID) branded id — for brands that are deliberately prefix-less
- *  nanoids, not `prefix_…` TypeIDs (today: `UserId`). Mints via `typeid-js` with an empty prefix
- *  (avoids `globalThis.crypto`, which kit's no-DOM/no-node lib does not type). */
-export function newId<T extends Branded<string>>(generate?: RawIdGenerator): T {
-  return (generate === undefined ? typeidUnboxed("") : generatedTypeId("", generate)) as string as T;
+/** Mint a fresh prefixless TypeID as plain text, without claiming an identity family or verification. */
+export function newId(generate?: RawIdGenerator): string {
+  return generate === undefined ? typeidUnboxed("") : generatedTypeId("", generate);
+}
+
+/** Mint a user-row identity, without claiming session verification. */
+export function mintUserId(generate?: RawIdGenerator): UserId {
+  return newId(generate) as UserId;
+}
+
+/** Mint a quest identity in an RPG snapshot, not a persisted entity row. */
+export function mintRpgQuestId(generate?: RawIdGenerator): RpgQuestId {
+  return newId(generate) as RpgQuestId;
+}
+
+/** Mint one browser document's socket identity, never a capability. */
+export function mintSocketId(generate?: RawIdGenerator): SocketId {
+  return newId(generate) as SocketId;
 }
 
 function generatedTypeId(prefix: string, generate: RawIdGenerator): string {
@@ -360,7 +375,10 @@ function generatedTypeId(prefix: string, generate: RawIdGenerator): string {
 export function createIdSource(generate?: RawIdGenerator): IdSource {
   return {
     typeId: (prefix) => mintTypeId(prefix, generate),
-    unprefixed: <T extends Branded<string>>(): T => newId<T>(generate),
+    userId: () => mintUserId(generate),
+    rpgQuestId: () => mintRpgQuestId(generate),
+    socketId: () => mintSocketId(generate),
+    unprefixed: () => newId(generate),
   };
 }
 
@@ -382,7 +400,7 @@ export function createIdSource(generate?: RawIdGenerator): IdSource {
  *  schema; catching that class needs a typed resolution axis instead — the `entityRef` knob kind
  *  (`contracts/automation/presets.ts` + the real `.safeParse` at `domain/automation/substrate/presets.ts`)
  *  is the worked example, and is what actually fixed the case #641 mis-cited as this seam's evidence. */
-export function typeIdSchema<P extends string>(prefix: P): z.ZodType<TypeIdOf<P>, string> {
+export function typeIdSchema<P extends TypeIdPrefix>(prefix: P): z.ZodType<TypeIdOf<P>, string> {
   return z.string().transform((value, ctx): TypeIdOf<P> => {
     try {
       // fromString validates shape AND prefix; throws on mismatch/malformed.

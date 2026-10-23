@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { users } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
-import type { ExternalId, UserId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { announceOwnerClaim, removeOwnerClaimFileOnSpend } from "@orb/server/entry/boot";
 import { createConfiguredOidc } from "@orb/server/entry/compose";
@@ -78,7 +78,7 @@ test("a bound owner → no code is issued, nothing is printed, and a stale claim
   await using root = await createServerHarness();
   await root.db
     .update(users)
-    .set({ externalId: brandedId<ExternalId>().parse("idp|owner") })
+    .set({ externalId: brandedId("ExternalId").parse("idp|owner") })
     .where(eq(users.id, root.ownerId));
   await using oidc = await configuredClaim(root);
   await using file = await claimFile();

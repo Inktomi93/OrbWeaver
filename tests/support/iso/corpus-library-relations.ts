@@ -5,7 +5,7 @@ import { connectedCharacterViewSchema, personaDetailSchema } from "@orb/contract
 import { effectivePresetSchema, presetDetailSchema, presetSummarySchema, presetUsageViewSchema } from "@orb/contracts/preset";
 import { applyRosterPresetResultSchema, rosterPresetSummarySchema, rosterPresetViewSchema } from "@orb/contracts/roster-preset";
 import { tagFilterVocabularyEntrySchema, tagReachViewSchema, tagSuggestionViewSchema, tagViewSchema, tagWithUsageSchema } from "@orb/contracts/tag";
-import type { UserId } from "@orb/kit/ids";
+
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { z } from "zod";
@@ -13,7 +13,7 @@ import type { CorpusRead } from "./corpus-read.ts";
 
 export const libraryRelationsSchema = z
   .strictObject({
-    viewerUserId: brandedId<UserId>(),
+    viewerUserId: brandedId("UserId"),
     ids: z.strictObject({
       tagId: typeIdSchema(ID_PREFIX.tag),
       characterId: typeIdSchema(ID_PREFIX.character),

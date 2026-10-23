@@ -10,9 +10,9 @@
 // leak-free NOT_FOUND. It never appears in a frame and no domain ever sees it — pure transport state.
 
 import type { SocketId } from "@orb/kit/ids";
-import { newId } from "@orb/kit/ids";
+import { mintSocketId } from "@orb/kit/ids";
 
-const SOCKET_ID: SocketId = newId<SocketId>();
+const SOCKET_ID: SocketId = mintSocketId();
 
 /** This document's socket id — stable for the life of the tab. */
 export function socketId(): SocketId {

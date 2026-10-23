@@ -3,7 +3,7 @@
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";
 import { handleKey } from "@orb/kit/handle-key";
-import type { Handle, IdSource, UserId } from "@orb/kit/ids";
+import type { Handle, IdSource } from "@orb/kit/ids";
 import { castId, createIdSource } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "../../iso/clock.ts";
 import { createSeededIds } from "../../iso/ids.ts";
@@ -15,7 +15,7 @@ const ids = createIdSource(createSeededIds().next);
 
 /** Pure builder: a fully-valid human user row. `handle` defaults to the id (both unique per counter). */
 export function makeUser(overrides: Partial<UserRow> = {}, source: IdSource = ids): UserRow {
-  const id = overrides.id ?? source.unprefixed<UserId>();
+  const id = overrides.id ?? source.userId();
   const handle = overrides.handle ?? castId<Handle>(id);
   return {
     id,

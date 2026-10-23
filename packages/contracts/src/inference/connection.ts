@@ -3,7 +3,6 @@
 // (`schema/connection.ts`, producer `domain/connection`). Secrets never ride here: a row references its
 // credential by id; the runtime resolves the secret through its own port at call time.
 
-import type { UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
@@ -72,7 +71,7 @@ export function mintConnectionLabel(
 
 export const userConnectionSchema = z.object({
   id: typeIdSchema(ID_PREFIX.userConnection),
-  ownerId: brandedId<UserId>(),
+  ownerId: brandedId("UserId"),
   label: z.string().min(1),
   providerId: providerIdSchema,
   credentialId: typeIdSchema(ID_PREFIX.userCredential).nullable(),
@@ -100,7 +99,7 @@ export type UserConnection = z.infer<typeof userConnectionSchema>;
 export const connectionBindingSchema = z.object({
   id: typeIdSchema(ID_PREFIX.connectionBinding),
   actorKind: bindingActorKindSchema,
-  userId: brandedId<UserId>().nullable(),
+  userId: brandedId("UserId").nullable(),
   ruleId: typeIdSchema(ID_PREFIX.automationRule).nullable(),
   pluginId: typeIdSchema(ID_PREFIX.plugin).nullable(),
   task: routableTaskSchema,

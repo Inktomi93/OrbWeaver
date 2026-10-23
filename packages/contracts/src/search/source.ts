@@ -1,4 +1,3 @@
-import type { EmbedGenerationId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
@@ -7,7 +6,7 @@ const SOURCE_FINGERPRINT_PATTERN = /^[a-f0-9]{64}$/u;
 
 const sourceFields = {
   chatId: typeIdSchema(ID_PREFIX.chat),
-  generationId: brandedId<EmbedGenerationId>().refine((id) => SOURCE_FINGERPRINT_PATTERN.test(id)),
+  generationId: brandedId("EmbedGenerationId").refine((id) => SOURCE_FINGERPRINT_PATTERN.test(id)),
   fingerprint: z.string().regex(SOURCE_FINGERPRINT_PATTERN).nullable(),
   contentHash: z.string().max(SOURCE_CONTENT_HASH_MAX),
   blockIdx: z.int().nonnegative(),

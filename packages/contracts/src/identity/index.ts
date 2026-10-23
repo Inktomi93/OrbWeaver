@@ -42,13 +42,13 @@ export interface AdminUserView {
 
 /** Strict output parsing refuses extra fields instead of exposing them to the browser. */
 export const adminUserViewSchema = z.strictObject({
-  id: brandedId<UserId>(),
-  handle: brandedId<Handle>(),
-  externalId: brandedId<ExternalId>().nullable(),
+  id: brandedId("UserId"),
+  handle: brandedId("Handle"),
+  externalId: brandedId("ExternalId").nullable(),
   role: userRoleSchema,
   enabled: z.boolean(),
   kind: userKindSchema,
-  ownerHandle: brandedId<Handle>().nullable(),
+  ownerHandle: brandedId("Handle").nullable(),
   createdAt: z.number(),
   updatedAt: z.number(),
 }) satisfies z.ZodType<AdminUserView>;
@@ -358,8 +358,8 @@ export interface Principal extends PrincipalMint {
  *  installed as the procedure's output parser: a refactor that spreads the Principal would carry `externalId`
  *  (the SSO subject) and `via`, and fails the call instead of reaching the browser. */
 export const viewerViewSchema = z.strictObject({
-  userId: brandedId<UserId>(),
-  handle: brandedId<Handle>(),
+  userId: brandedId("UserId"),
+  handle: brandedId("Handle"),
   globalRole: userRoleSchema,
 });
 export type ViewerView = z.infer<typeof viewerViewSchema>;
@@ -367,7 +367,7 @@ export type ViewerView = z.infer<typeof viewerViewSchema>;
 /** The `GET /api/auth/me` response: who the seam resolved this request as, or unauthenticated. */
 export const authMeSchema = z.strictObject({
   authenticated: z.boolean(),
-  handle: brandedId<Handle>().nullable(),
+  handle: brandedId("Handle").nullable(),
   role: userRoleSchema.nullable(),
 });
 export type AuthMe = z.infer<typeof authMeSchema>;

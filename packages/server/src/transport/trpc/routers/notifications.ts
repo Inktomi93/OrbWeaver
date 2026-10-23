@@ -47,7 +47,7 @@ import {
   PRESENCE_READ_MAX_USER_IDS,
   presenceSnapshotSchema,
 } from "@orb/contracts/notifications";
-import type { UserId } from "@orb/kit/ids";
+
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { readPresenceDisclosure } from "../presence-disclosure.ts";
@@ -83,6 +83,6 @@ export const notificationsRouter = t.router({
   // boundary: an over-bound ask is a BAD_REQUEST before the registry is touched.
   presence: multiHumanProcedure
     .output(presenceSnapshotSchema)
-    .input(z.object({ userIds: z.array(brandedId<UserId>()).min(1).max(PRESENCE_READ_MAX_USER_IDS) }))
+    .input(z.object({ userIds: z.array(brandedId("UserId")).min(1).max(PRESENCE_READ_MAX_USER_IDS) }))
     .query(({ ctx, input }) => readPresenceDisclosure(ctx.presence, input.userIds)),
 });

@@ -264,7 +264,7 @@ async function prepareHarnessOwner(
   if (options.ownerId === null) {
     return;
   }
-  const ownerId = options.ownerId ?? idSource.unprefixed<UserId>();
+  const ownerId = options.ownerId ?? idSource.userId();
   if (options.ownerId === undefined) {
     await seedUser(
       db,

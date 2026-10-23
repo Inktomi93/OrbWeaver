@@ -17,7 +17,7 @@ type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
 export async function seedCorpusAccount(root: ServerTestHarness): ReturnType<ServerTestHarness["principalFor"]> {
   let handle: Handle;
   do {
-    handle = brandedId<Handle>().parse(`c-${root.ids.next("")}`);
+    handle = brandedId("Handle").parse(`c-${root.ids.next("")}`);
   } while ((await root.app.sessions.resolveHandle(handle)) !== null);
   const userId = await root.app.sessions.ensureUser(handle);
   return await root.principalFor(userId);

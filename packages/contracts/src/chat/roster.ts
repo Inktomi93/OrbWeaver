@@ -331,7 +331,7 @@ export const participantViewSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.chatParticipant),
   chatId: typeIdSchema(ID_PREFIX.chat),
   kind: participantKindSchema,
-  userId: brandedId<UserId>().nullable(),
+  userId: brandedId("UserId").nullable(),
   characterId: typeIdSchema(ID_PREFIX.character).nullable(),
   role: participantRoleSchema,
   activePersonaId: typeIdSchema(ID_PREFIX.persona).nullable(),
@@ -342,7 +342,7 @@ export const participantViewSchema = z.strictObject({
   leftSeq: z.number().nullable(),
   joinHistoryVisibility: joinHistoryVisibilitySchema,
   displayName: z.string(),
-  handle: brandedId<Handle>().nullable(),
+  handle: brandedId("Handle").nullable(),
   avatarAssetId: typeIdSchema(ID_PREFIX.asset).nullable(),
   avatarHash: z.string().nullable(),
   renderPolicy: renderPolicySchema.exactOptional(),
@@ -624,7 +624,7 @@ export const createInviteSchema = z.object({
   maxUses: z.int().min(INVITE_MAX_USES_MIN).max(INVITE_MAX_USES_MAX).nullable().optional(),
   expiresAt: z.int().nullable().optional(),
   /** Targeted-by-handle: the exact public handle to invite (no user directory/listing). */
-  invitedHandle: brandedId<Handle>().nullable().optional(),
+  invitedHandle: brandedId("Handle").nullable().optional(),
   /** D259 — the link may create an account for a signed-out visitor. Global admins only; it needs an explicit
    *  `maxUses` up to {@link SIGNUP_MAX_USES}, an explicit `expiresAt` within {@link SIGNUP_MAX_TTL_MS}, and no
    *  target. The server refuses every other shape. */
@@ -663,7 +663,7 @@ export type AcceptInviteInput = z.infer<typeof acceptInviteSchema>;
 export const invitePreviewSchema = z.strictObject({
   chatId: typeIdSchema(ID_PREFIX.chat),
   roomName: z.string(),
-  hostHandle: brandedId<Handle>(),
+  hostHandle: brandedId("Handle"),
   memberCount: z.int().nonnegative(),
   /** A human-readable mode label (e.g. the output × policy summary) — never the raw config. */
   modeLabel: z.string(),
@@ -673,7 +673,7 @@ export type InvitePreview = z.infer<typeof invitePreviewSchema>;
 /** D260 — the invite preview a SIGNED-OUT door answers (the local sign-up form, the OIDC pending join). The host
  *  handle is left out while discreet login is on: in local mode it is the owner's login handle, which discreet login
  *  keeps off the sign-in page. STRICT, like the signed-in preview. */
-export const signedOutInvitePreviewSchema = invitePreviewSchema.extend({ hostHandle: brandedId<Handle>().optional() });
+export const signedOutInvitePreviewSchema = invitePreviewSchema.extend({ hostHandle: brandedId("Handle").optional() });
 export type SignedOutInvitePreview = z.infer<typeof signedOutInvitePreviewSchema>;
 
 // ── Signup through an invite (D259) ──
@@ -735,7 +735,7 @@ export const inviteViewSchema = z.strictObject({
   remainingUses: z.number().nullable(),
   expiresAt: z.number().nullable(),
   /** The targeted user when created by handle; null for an open share-link. */
-  invitedUserId: brandedId<UserId>().nullable(),
+  invitedUserId: brandedId("UserId").nullable(),
   /** D259 — the link may create an account for a signed-out visitor. */
   allowSignup: z.boolean(),
   createdAt: z.number(),

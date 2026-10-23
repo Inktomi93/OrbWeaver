@@ -27,7 +27,7 @@
 // owned by the minting principal and a foreign `socketId` collapses to a leak-free NOT_FOUND (never a hijack,
 // never a FORBIDDEN that confirms existence). No frame ever carries it, and no domain ever sees it.
 
-import type { ChatId, SocketId, WorkloadId } from "@orb/kit/ids";
+import type { ChatId, WorkloadId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import type { AutomationBusEvent } from "#automation";
@@ -123,7 +123,7 @@ export type StreamControlFrame = { readonly channel: "control" } & (
 export type StreamFrame = StreamDataFrame | StreamControlFrame;
 
 /** `stream.connect` — the ONE EventSource. `socketId` is minted per tab by the client. */
-export const streamConnectInputSchema = z.object({ socketId: brandedId<SocketId>() });
+export const streamConnectInputSchema = z.object({ socketId: brandedId("SocketId") });
 /** @public twin: streamConnectInputSchema */
 export type StreamConnectInput = z.output<typeof streamConnectInputSchema>;
 
@@ -132,7 +132,7 @@ export type StreamConnectInput = z.output<typeof streamConnectInputSchema>;
  *  frames already queued. `sinceSeq` is a replay REQUEST for a durable room (`0` = from the beginning);
  *  `null`/omitted = live-only from now. */
 export const streamAttachInputSchema = z.object({
-  socketId: brandedId<SocketId>(),
+  socketId: brandedId("SocketId"),
   ref: streamRoomRefSchema,
   sinceSeq: z.int().min(0).nullish(),
 });
@@ -141,7 +141,7 @@ export type StreamAttachInput = z.output<typeof streamAttachInputSchema>;
 
 /** `stream.detach` — drop one room. Idempotent (detaching an unattached room is a no-op). */
 export const streamDetachInputSchema = z.object({
-  socketId: brandedId<SocketId>(),
+  socketId: brandedId("SocketId"),
   ref: streamRoomRefSchema,
 });
 /** @public twin: streamDetachInputSchema */

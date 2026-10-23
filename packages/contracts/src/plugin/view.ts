@@ -147,7 +147,7 @@ export const pluginFanoutResultSchema = z.strictObject({
   name: z.string(),
   version: z.string(),
   applied: z.int().nonnegative(),
-  skipped: z.array(z.strictObject({ userId: brandedId<UserId>(), userHandle: z.string(), reason: z.enum(PLUGIN_FANOUT_SKIP_REASONS) })).readonly(),
+  skipped: z.array(z.strictObject({ userId: brandedId("UserId"), userHandle: z.string(), reason: z.enum(PLUGIN_FANOUT_SKIP_REASONS) })).readonly(),
 }) satisfies z.ZodType<PluginFanoutResult>;
 
 /** One line of a plugin's host.log ring — the rate-limited, ring-buffered log surface the owner reads
