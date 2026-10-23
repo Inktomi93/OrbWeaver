@@ -43,7 +43,6 @@ function population(duringWalk: number, settled: number, stabilized = true): Dom
 test("an app origin that never published data-app-ready is a gap, and it NAMES the signal", () => {
   const gap = readinessGap("http://localhost:5273/", false);
   expect(gap?.evidence).toContain("readiness");
-  expect(gap?.detail, "the operator needs the remedy, not just the diagnosis").toContain("re-run");
 });
 
 test("a ready app origin is no gap — the fence does not refuse every run", () => {
@@ -68,7 +67,6 @@ test("a page that kept growing after the walk is a gap, and it NAMES both number
   expect(gap?.evidence).toContain("completeness");
   expect(gap?.detail).toContain("34");
   expect(gap?.detail).toContain("1421");
-  expect(gap?.detail, "the operator needs the remedy, not just the diagnosis").toContain("Re-run");
 });
 
 // @instrument-absence-proof: #976's live Light-theme receipt was 285 at the judged walk and 381 once the

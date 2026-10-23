@@ -19,7 +19,7 @@ const FIXTURE = `<!doctype html><html data-app-ready="settled"><head><title>popo
 interface TraceEvent {
   readonly type: string;
   readonly snapshot?: { readonly html: object };
-  readonly sha1?: string;
+  readonly file?: string;
 }
 
 interface TraceIndex {
@@ -63,11 +63,11 @@ for (const open of [false, true]) {
     const snapshots = events.filter(({ type }) => type === "frame-snapshot");
     expect(snapshots.length).toBeGreaterThan(0);
     expect(snapshots.some(({ snapshot }) => JSON.stringify(snapshot?.html).includes(POPOVER_OPEN_MARKER))).toBe(open);
-    const frames = events.filter(({ type, sha1 }) => type === "screencast-frame" && sha1 !== undefined);
+    const frames = events.filter(({ type, file }) => type === "screencast-frame" && file !== undefined);
     expect(frames.length).toBeGreaterThan(0);
     const colours = await Promise.all(
-      frames.map(async ({ sha1 }) => {
-        const bytes = entries[`resources/${String(sha1)}`];
+      frames.map(async ({ file }) => {
+        const bytes = entries[String(file)];
         expect(bytes).toBeDefined();
         const { data, info } = await Promise.resolve(sharp(bytes).removeAlpha().raw().toBuffer({ resolveWithObject: true }));
         const offset = (Math.floor((info.height * 130) / 800) * info.width + Math.floor((info.width * 140) / 1280)) * info.channels;

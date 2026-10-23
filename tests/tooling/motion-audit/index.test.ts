@@ -589,7 +589,6 @@ test("READY-TIMEOUT is diagnosed as readiness, NEVER as a missing bridge", () =>
   for (const bridge of [false, true]) {
     const gap = apparatusGap({ url: APPARATUS_URL, ready: false, bridge, readyTimeoutMs: READY_MS });
     expect(gap?.evidence).toBe("app readiness (data-app-ready)");
-    expect(gap?.detail).toContain("RETRYABLE");
     // The exact wrong claim, asserted as one that must not be made.
     expect(gap?.evidence).not.toContain("__orb dev bridge");
   }

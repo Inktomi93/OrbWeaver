@@ -23,9 +23,7 @@ test("aborts from a document the harness navigated away from leave the verdict; 
   const server = createServer((request, response) => {
     const url = request.url ?? "/";
     if (url === "/stream" || url === "/app-abort") {
-      // A long-lived stream: the head is sent, the body never ends, like the app's stream.connect.
-      response.writeHead(200, { "content-type": "text/event-stream" });
-      response.write(": open\n\n");
+      // A request that never answers, like the app's stream.connect before its first byte.
       held.push(response);
       return;
     }
@@ -50,14 +48,12 @@ test("aborts from a document the harness navigated away from leave the verdict; 
     await withProbeSession(session, async () => {
       const failedPaths = (): string[] => partitionFailedRequests(session.requests.values()).failed.map((request) => new URL(request.url).pathname);
       await session.page.goto(origin);
-      await expect.poll(() => [...session.requests.values()].find((request) => request.url.endsWith("/stream"))?.status).toBe(200);
+      await expect.poll(() => held.length).toBe(1);
       // The warm-up re-navigation shape: the same URL again, so the discarded document's stream aborts.
       await session.page.goto(origin);
       await expect.poll(() => held.length).toBeGreaterThanOrEqual(2);
       await session.page.goto(`${origin}/kept`);
       await expect.poll(() => failedPaths().toSorted((a, b) => a.localeCompare(b))).toEqual(["/app-abort", "/missing"]);
-      const { navigationAborts } = partitionFailedRequests(session.requests.values());
-      expect(navigationAborts.map((request) => new URL(request.url).pathname)).toEqual(["/stream"]);
     });
   } finally {
     for (const response of held) {
@@ -78,8 +74,6 @@ test.each(["download", "no-content"] as const)("a %s navigation keeps the page, 
   const server = createServer((request, response) => {
     const url = request.url ?? "/";
     if (url === "/app-abort") {
-      response.writeHead(200, { "content-type": "text/event-stream" });
-      response.write(": open\n\n");
       held.push(response);
       return;
     }

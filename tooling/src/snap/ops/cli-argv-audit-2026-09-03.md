@@ -267,6 +267,7 @@ The normal roster was derived from `tooling/src/snap/ops/parse.ts`, `flags-class
 | `--session-ttl` | `V,L` duration | boot/session admin policy | outer | no alias | owned | KEEP |
 | `--shot-of` | `V,L` selector | capture; element screenshot | checkpoint | canonical; legacy screenshot refused | owned | KEEP |
 | `--stream-settle` | `V,L` seconds | call settle policy; fixed streaming-surface settle | checkpoint | not requests capture | owned | KEEP; old `--sse` refuses by name |
+| `--stage-db` | `V,L` db path | boot WHERE; clone a database file, its -wal/-shm and the assets beside it into a rebuilt stage | outer | implies isolated and fresh; `--stage-auth local` seeds the fixture humans into the clone | owned | KEEP |
 | `--stage-down` | `B` | admin; stop stage | exclusive | `--force` and `--stage-owner` modifiers | owned | KEEP |
 | `--stage-keeper` | `V,L` band index | internal band idle-timer process (#1163 arm b); polls one row and tears its stage down through the `--stage-down` path | internal only; spawned by `ensureStage`, refused beside any other mode | no public synonym | internal | KEEP internal |
 | `--stage-wait` | `V,L` minutes | stage policy; queue a ticket for a busy table and let a detached waiter boot the stage in order | outer; implies isolated; refused beside the stage admin modes and `--session` | no synonym | owned | KEEP |
@@ -277,6 +278,10 @@ The normal roster was derived from `tooling/src/snap/ops/parse.ts`, `flags-class
 | `--scenario-summary` | `B` | scenario output modifier | scenario only | parent-owned and refused without scenario | owned | KEEP; old `--summary` refuses by name |
 | `--tap` | `V,R,@N` selector | action; a REAL touch tap (no mouseover, so a hover-only tooltip stays shut) | checkpoint | distinct mechanism from `--click`/`--dom-click`/`--force-click`; requires `--mobile` or another touch device | owned | KEEP |
 | `--swipe` | `V,R,@N` selector=dy | action; a dispatched touch drag that scrolls a touch scroller | checkpoint | distinct mechanism from `--wheel` (mouse); requires `--mobile` or another touch device | owned | KEEP |
+| `--swipe-x` | `V,R,@N` selector=dx | action; a dispatched horizontal touch drag; positive dx drags the finger left | checkpoint | distinct mechanism from `--swipe` (vertical); requires `--mobile` or another touch device | owned | KEEP |
+| `--long-press` | `V,R,@N` selector=ms | action; hold a touch on the selector for ms, then lift | checkpoint | distinct mechanism from `--tap`; requires `--mobile` or another touch device | owned | KEEP |
+| `--tap-at` | `V,R,@N` x,y | action; a REAL touch tap at viewport pixels | checkpoint | coordinate form of `--tap`; requires `--mobile` or another touch device | owned | KEEP |
+| `--soft-keyboard` | `V,R,@N` px | action; open an on-screen keyboard that shrinks visualViewport by px (0 closes) | checkpoint | phone-context only; refused without a touch device | owned | KEEP |
 | `--text` | `O,L,@N` selector | analyzer; text projection | checkpoint/arm | differs from ARIA/map | owned | KEEP |
 | `--theme` | `V,L` theme | boot appearance | outer | composes with appearance; not dark/light alias | owned | KEEP |
 | `--upload` | `V,R,@N` selector=path list | action; direct/descendant input or Playwright filechooser trigger | checkpoint | chooser semantics; real DataTransfer drop is distinct | owned | KEEP |

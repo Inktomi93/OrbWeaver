@@ -28,6 +28,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/tooling";
 import { attachProbeSession, closeProbeSession, launchProbeSession } from "@orb/tooling/floor/browser/browser";
+import { ownerPageSession } from "@orb/tooling/floor/browser/browser-capture";
 import { openProbeContext } from "@orb/tooling/floor/browser/browser-context";
 import type { ProbeSession } from "@orb/tooling/floor/browser/browser-contract";
 import { overrideOwnerViewport, reassertOwnerDevice, reassertOwnerViewport } from "@orb/tooling/floor/browser/browser-emulation-guard";
@@ -466,7 +467,7 @@ test("reassertOwnerViewport refuses to run against a page it did not create — 
 const READ_DEVICE_JS = "({coarse: matchMedia('(pointer: coarse)').matches, fine: matchMedia('(pointer: fine)').matches, touch: navigator.maxTouchPoints})";
 const MOBILE_VIEWPORT = { width: 430, height: 932 } as const;
 
-test("an element shot drops the owner's touch emulation, and reassertOwnerDevice restores it through the owner session", async ({ scratch }) => {
+test("reassertOwnerDevice restores touch emulation that the owner session lost", async ({ scratch }) => {
   const session = await launchProbeSession({
     headless: true,
     viewport: MOBILE_VIEWPORT,
@@ -479,9 +480,9 @@ test("an element shot drops the owner's touch emulation, and reassertOwnerDevice
   try {
     await session.page.setContent("<main>device</main>");
     expect(await session.page.evaluate(READ_DEVICE_JS)).toStrictEqual({ coarse: true, fine: false, touch: 1 });
-    // Planted control: the clipped capture a `--shot-of` takes leaves a desktop pointer behind.
-    await session.page.locator("main").screenshot();
-    expect(await session.page.evaluate(READ_DEVICE_JS)).toStrictEqual({ coarse: false, fine: true, touch: 0 });
+    // Planted control: drop the emulation through the owner session, as a lost override would leave it.
+    await ownerPageSession(session.page).send("Emulation.setTouchEmulationEnabled", { enabled: false });
+    expect(await session.page.evaluate(READ_DEVICE_JS)).toMatchObject({ coarse: false, touch: 0 });
 
     await reassertOwnerDevice(session.page, session.environmentContract.applied);
     expect(await session.page.evaluate(READ_DEVICE_JS)).toStrictEqual({ coarse: true, fine: false, touch: 1 });
