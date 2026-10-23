@@ -492,12 +492,11 @@ export type { ImpersonateStreamDelta } from "@orb/contracts/chat";
 
 /** `compact` — the portable compaction marker produced: the summary text + the seq it covers through, and
  *  whether this call actually rewrote the marker (`false` for an idempotent no-op / an all-hidden span / an
- *  empty generation the caller must surface). */
-export interface CompactResult {
-  readonly summary: string;
-  readonly compactedAtSeq: number;
-  readonly updated: boolean;
-}
+ *  empty generation the caller must surface). A rewrite always covers a real seq; a no-op reports the stamp it
+ *  left, `null` when the chat was never compacted. */
+export type CompactResult =
+  | { readonly summary: string; readonly compactedAtSeq: number; readonly updated: true }
+  | { readonly summary: string; readonly compactedAtSeq: number | null; readonly updated: false };
 
 /** `getVariables` — the ChoiceBlock variable map. */
 export type VariablesResult = ChatVariables;
