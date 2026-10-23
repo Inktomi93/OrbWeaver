@@ -1,5 +1,5 @@
-import type { AutomationRuleCreationId, AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
-import { ID_PREFIX, mintTypeId, typeIdSchema } from "@orb/kit/ids";
+import type { AutomationRuleCreationId, AutomationRuleId, ChatId, IdSource, UserId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { createPersistedStore } from "./create-persisted-store.ts";
 import { activeDurableLocalUserId, durableLocalReadyFor } from "./durable-local.ts";
@@ -58,9 +58,9 @@ export function assertRuleDraftOwner(owner: UserId): void {
 }
 
 /** Persist the request identity before any network write can start. */
-export function beginRuleCreation(chatId: ChatId | null, owner: UserId): RuleCreation {
+export function beginRuleCreation(chatId: ChatId | null, owner: UserId, ids: IdSource): RuleCreation {
   assertRuleDraftOwner(owner);
-  const creation: RuleCreation = { requestId: mintTypeId(ID_PREFIX.automationRuleCreation), chatId, ruleId: null, checkpoint: null };
+  const creation: RuleCreation = { requestId: ids.typeId(ID_PREFIX.automationRuleCreation), chatId, ruleId: null, checkpoint: null };
   useRuleCreationStore.setState((state) => ({ sessions: [...state.sessions, creation] }), false, "rule-creation/begin");
   return creation;
 }

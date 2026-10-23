@@ -167,12 +167,6 @@ export function triggersPillLabel(trigger: readonly GenerationType[] | undefined
   return trigger.map((t) => GENERATION_TYPE_LABELS[t]).join(", ");
 }
 
-/** A section id for a newly-added section — a plain unique string (section ids are config-local, not
- *  a branded entity id). */
-function newSectionId(): string {
-  return globalThis.crypto.randomUUID();
-}
-
 /** One entry the Add menu offers: a literal, or a specific not-yet-placed marker. */
 export interface AddableSection {
   /** `null` = a literal; a `MarkerType` = that marker. */
@@ -191,12 +185,13 @@ export function addableSections(sections: readonly PromptSection[]): readonly Ad
 }
 
 /** Build a fresh section to append. Markers seed their default framing implicitly; a literal starts
- *  empty. */
-export function makeSection(marker: MarkerType | null): PromptSection {
+ *  empty. `mint` supplies the section id — a plain unique string (section ids are config-local, not a
+ *  branded entity id). */
+export function makeSection(marker: MarkerType | null, mint: () => string): PromptSection {
   if (marker === null) {
     return {
       type: "literal",
-      id: newSectionId(),
+      id: mint(),
       name: "New literal",
       role: "system",
       content: "",
@@ -205,7 +200,7 @@ export function makeSection(marker: MarkerType | null): PromptSection {
   }
   return {
     type: "marker",
-    id: newSectionId(),
+    id: mint(),
     name: MARKER_COPY[marker].label,
     marker,
     role: "system",

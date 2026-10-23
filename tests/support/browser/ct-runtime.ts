@@ -3,6 +3,7 @@ import type { SessionDocumentHost } from "@orb/client/lib";
 import { leaseSessionDocumentHost } from "@orb/client/lib";
 import type { QueryClient } from "@tanstack/react-query";
 import { createContext, use, useLayoutEffect, useState } from "react";
+import { createSeededIds, FIXTURE_ID_CURSOR } from "../iso/ids.ts";
 import { browserSessionDocumentHost, createClientRuntime } from "./ct-door.ts";
 
 export interface CtRuntimeOptions {
@@ -20,7 +21,8 @@ export function useCtRuntime(options?: CtRuntimeOptions): ReturnType<typeof crea
     if (parent !== null) {
       return parent;
     }
-    const created = createClientRuntime();
+    // Minted ids replay from FIXTURE_ID_CURSOR, so a CT predicts them with `createSeededIds(FIXTURE_ID_CURSOR)`.
+    const created = createClientRuntime(undefined, createSeededIds(FIXTURE_ID_CURSOR).nextUuidBacked);
     if (options?.refetchOnWindowFocus !== undefined) {
       const defaults = created.queryClient.getDefaultOptions();
       created.queryClient.setDefaultOptions({

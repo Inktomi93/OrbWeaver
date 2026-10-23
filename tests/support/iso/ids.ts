@@ -23,29 +23,31 @@ export interface SeededIds {
   readonly next: (prefix?: string) => string;
   /** Deterministic opaque business UUIDs, never security tokens or cryptographic nonces. */
   readonly uuid: () => string;
+  /** A `RawIdGenerator` whose bytes are a valid v4 UUID, so `IdSource.uuid()` can decode what it mints. */
+  readonly nextUuidBacked: (prefix?: string) => string;
   readonly snapshot: () => number;
   readonly reset: () => void;
 }
 
 export function createSeededIds(cursor = 0): SeededIds {
   let n = cursor;
-  const nextBytes = (): Uint8Array => {
+  const nextBytes = (wellFormed = false): Uint8Array => {
     if (n >= SEEDED_ID_MAX_CURSOR) {
       throw new RangeError("Seeded business ID sequence is exhausted");
     }
     n += 1;
     const bytes = new Uint8Array(UUID_BYTE_LENGTH);
     new DataView(bytes.buffer).setUint32(UUID_BYTE_LENGTH - COUNTER_BYTE_LENGTH, n, false);
+    if (wellFormed) {
+      bytes[UUID_VERSION_INDEX] = UUID_VERSION_4;
+      bytes[UUID_VARIANT_INDEX] = UUID_RFC_VARIANT;
+    }
     return bytes;
   };
   return {
     next: (prefix = "id"): string => fromUUIDBytes(prefix, nextBytes()),
-    uuid: (): string => {
-      const bytes = nextBytes();
-      bytes[UUID_VERSION_INDEX] = UUID_VERSION_4;
-      bytes[UUID_VARIANT_INDEX] = UUID_RFC_VARIANT;
-      return toUUID(fromUUIDBytes("", bytes));
-    },
+    uuid: (): string => toUUID(fromUUIDBytes("", nextBytes(true))),
+    nextUuidBacked: (prefix = "id"): string => fromUUIDBytes(prefix, nextBytes(true)),
     snapshot: (): number => n,
     reset: (): void => {
       n = cursor;

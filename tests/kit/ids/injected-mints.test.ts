@@ -35,6 +35,16 @@ test("bound prefixless families and plain blob identities share the injected byt
   expect(minted).toEqual([expected.next(""), expected.next(""), expected.next(""), expected.next("")]);
 });
 
+test("the bound uuid mint yields a bare UUID that replays under the same injected sequence", () => {
+  const first = createIdSource(createSeededIds().nextUuidBacked);
+  const replay = createIdSource(createSeededIds().nextUuidBacked);
+  const minted = [first.uuid(), first.uuid()];
+  expect(minted[0]).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+  expect(minted[0]).not.toBe(minted[1]);
+  expect([replay.uuid(), replay.uuid()]).toEqual(minted);
+  expect(createIdSource().uuid()).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+});
+
 test("label-derived text schemas retain opaque upstream values and refuse empty or non-string input", () => {
   const schema = brandedId("ProviderGenerationId");
   const opaque = "upstream:run/opaque-value";

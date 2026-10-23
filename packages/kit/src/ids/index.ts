@@ -5,7 +5,7 @@
  * {@link typeIdSchema}`(ID_PREFIX.persona)` (prefix-validating) or {@link brandedId}`("UserId")`.
  */
 
-import { fromString, getType, typeidUnboxed } from "typeid-js";
+import { fromString, getType, toUUID, typeidUnboxed } from "typeid-js";
 import { z } from "zod";
 
 declare const brand: unique symbol;
@@ -30,6 +30,8 @@ export interface IdSource {
   readonly rpgQuestId: () => RpgQuestId;
   readonly socketId: () => SocketId;
   readonly unprefixed: () => string;
+  /** A bare UUID string for a persisted plain-string id whose stored shape is a UUID, never a TypeID. */
+  readonly uuid: () => string;
 }
 
 /** The TypeID prefix for each entity. TypeID prefixes must be lowercase `[a-z_]` — multi-word
@@ -345,6 +347,11 @@ export function newId(generate?: RawIdGenerator): string {
   return generate === undefined ? typeidUnboxed("") : generatedTypeId("", generate);
 }
 
+// A bare UUID string from the same entropy as newId, for ids persisted as plain UUID text.
+function newUuid(generate?: RawIdGenerator): string {
+  return toUUID(fromString(newId(generate)));
+}
+
 /** Mint a user-row identity, without claiming session verification. */
 export function mintUserId(generate?: RawIdGenerator): UserId {
   return newId(generate) as UserId;
@@ -377,6 +384,7 @@ export function createIdSource(generate?: RawIdGenerator): IdSource {
     rpgQuestId: () => mintRpgQuestId(generate),
     socketId: () => mintSocketId(generate),
     unprefixed: () => newId(generate),
+    uuid: () => newUuid(generate),
   };
 }
 

@@ -47,6 +47,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import { RowActionsMenu } from "#components";
+import { useIds } from "#data";
 import type { AppFormInstance } from "#forms/editor";
 import { notify, useFocusOnSwap } from "#lib";
 import {
@@ -386,6 +387,7 @@ function OverrideLocks({ form, section, index }: ClusterProps): ReactElement | n
  *  deliberate ST parity). A LITERAL keeps the full set, Delete behind the confirm. */
 function SectionActionsMenu({ form, section, index, onBack }: ClusterProps & { readonly onBack: () => void }): ReactElement | null {
   const structural = isStructuralSection(section);
+  const ids = useIds();
   const onDelete = (): void => {
     form.removeFieldValue("sections", index).catch(() => notify.error("Couldn't remove the section."));
     onBack();
@@ -412,7 +414,7 @@ function SectionActionsMenu({ form, section, index, onBack }: ClusterProps & { r
             }}
             label="Section actions"
           >
-            <MenuItem onClick={(): void => duplicate(form, section, index)}>
+            <MenuItem onClick={(): void => duplicate(form, section, index, ids.uuid)}>
               <Icon icon={Copy} size="sm" />
               Duplicate
             </MenuItem>
@@ -426,8 +428,8 @@ function SectionActionsMenu({ form, section, index, onBack }: ClusterProps & { r
 
 /** Duplicate the section just below itself with a fresh id (content preserved). The autosave BOUNDARY's
  *  store driver persists it (D78 §3) — no call-site flush. */
-function duplicate(form: AssemblyForm, section: PromptSection, index: number): void {
-  const clone: PromptSection = { ...section, id: globalThis.crypto.randomUUID() };
+function duplicate(form: AssemblyForm, section: PromptSection, index: number, mint: () => string): void {
+  const clone: PromptSection = { ...section, id: mint() };
   form.insertFieldValue("sections", index + 1, clone).catch(() => notify.error("Couldn't duplicate the section."));
 }
 
