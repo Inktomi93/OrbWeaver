@@ -159,6 +159,10 @@ export const CHAT_OP_CODES = {
    *  asked for. Refused instead (D41 no-silent-degrade). Internal surface — the callers are the turn pipeline
    *  and the host preview, both already past their own doors. */
   speakerOffRoster: "speaker_off_roster",
+  /** A memory transcript row names a character the room's identity producer did not resolve. Refused rather
+   *  than labelled with the id, which would put an internal id into the summarizer and embedding input.
+   *  Internal surface: the memory build and recall query, both behind their own doors. */
+  transcriptSpeakerUnresolved: "transcript_speaker_unresolved",
   /** D259 — `createInvite` with `allowSignup` under a sign-in mode that mints no signup invites. */
   inviteSignupUnavailable: "invite_signup_unavailable",
   /** D259 — `createInvite` with `allowSignup` and a missing or over-cap use count or expiry, or a target. */

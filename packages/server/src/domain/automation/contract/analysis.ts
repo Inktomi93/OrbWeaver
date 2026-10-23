@@ -84,8 +84,18 @@ export const ANALYSIS_MESSAGE_CHAR_CAP = 800;
 // ── the stored state ──────────────────────────────────────────────────────────────────────────────────
 /** The `automation_rule_state.state` blob, parsed. `settledThroughSeq` is the C2 HIGH-WATER MARK: the
  *  settled-span cursor, advanced ONLY on a successful durable apply (`engine/analysis-arm.ts`), so a
- *  failed / unconfirmed pass re-covers its span (the legacy retryability contract). */
+ *  failed / unconfirmed pass re-covers its span (the legacy retryability contract). `null` = no pass has
+ *  covered a span, never 0, because an imported room's canon can hold a real seq 0. */
 export type AnalysisState = z.infer<typeof analysisStateSchema>;
+
+/** True when a pass's settled mark already covers the row at `seq`; `null` covers nothing. */
+export function isSettledThrough(seq: number, settledThroughSeq: number | null): boolean {
+  return settledThroughSeq !== null && seq <= settledThroughSeq;
+}
+
+// A stored 0 predates the `null` mark, when no pass could cover through seq 0, so it means "never covered".
+// Reading a newer real 0 the same way re-covers seq 0 rather than skipping it.
+const LEGACY_UNCOVERED_MARK = 0;
 
 /** Parse-on-read with the ruled version posture (header): per-field defaults + per-field `.catch`, so a
  *  missing or damaged FIELD degrades alone and the watermark survives everything short of garbage. */
@@ -93,10 +103,10 @@ const analysisStateSchema = z.object({
   arc: z.string().catch("").default(""),
   twists: z.array(z.string()).readonly().catch([]).default([]),
   retiredTwists: z.array(z.string()).readonly().catch([]).default([]),
-  settledThroughSeq: z.int().nonnegative().catch(0).default(0),
+  settledThroughSeq: z.int().nonnegative().nullable().catch(null).default(null),
 });
 
-export const EMPTY_ANALYSIS_STATE: AnalysisState = { arc: "", twists: [], retiredTwists: [], settledThroughSeq: 0 };
+export const EMPTY_ANALYSIS_STATE: AnalysisState = { arc: "", twists: [], retiredTwists: [], settledThroughSeq: null };
 
 /** THE SIZE CEILING, APPLIED AS A CLAMP RATHER THAN A REFUSAL (#1480 item 3).
  *
@@ -128,7 +138,7 @@ function clampRetiredTwists(retired: readonly string[]): readonly string[] {
 }
 
 /** Read a stored blob into `AnalysisState`. Only a non-object / unparseable blob resets WHOLE (the safe
- *  direction — watermark 0 re-covers, never skips); anything object-shaped reads field-by-field, then
+ *  direction — an absent watermark re-covers, never skips); anything object-shaped reads field-by-field, then
  *  CLAMPS to the live write paths' own caps (see {@link clampTwists} for why clamp and not refuse). The
  *  watermark is never clamped — it is already `.int().nonnegative()` and it is the one field whose loss
  *  costs work. */
@@ -141,7 +151,7 @@ export function parseAnalysisState(raw: unknown): AnalysisState {
     arc: parsed.data.arc.slice(0, ANALYSIS_ARC_MAX),
     twists: clampTwists(parsed.data.twists),
     retiredTwists: clampRetiredTwists(parsed.data.retiredTwists),
-    settledThroughSeq: parsed.data.settledThroughSeq,
+    settledThroughSeq: parsed.data.settledThroughSeq === LEGACY_UNCOVERED_MARK ? null : parsed.data.settledThroughSeq,
   };
 }
 

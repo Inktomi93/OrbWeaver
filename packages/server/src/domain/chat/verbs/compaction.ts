@@ -159,14 +159,14 @@ async function buildMarker(
     // written over the newer one) and the settled state is reported, so the caller's `updated:false` says
     // honestly that this pass changed nothing. The generation's cost delta above still applies — the spend
     // happened whether or not its product landed, and hiding it would understate real money.
-    return await settledMarker(ctx, env.chatId, env.priorCoverage ?? 0);
+    return await settledMarker(ctx, env.chatId, env.priorCoverage);
   }
   return { summary, compactedAtSeq: env.coveredThroughSeq, updated: true };
 }
 
 /** The settled marker, re-read after a CAS lost — what the losing pass reports instead of its own discarded
  *  product. `fallbackSeq` covers the (unreachable-in-practice) racing-delete read. */
-async function settledMarker(ctx: ChatContext, chatId: ChatId, fallbackSeq: number): Promise<CompactResult> {
+async function settledMarker(ctx: ChatContext, chatId: ChatId, fallbackSeq: number | null): Promise<CompactResult> {
   const settled = await loadChatRow(ctx.db, chatId);
   return { summary: settled?.compactSummary ?? "", compactedAtSeq: settled?.compactedAtSeq ?? fallbackSeq, updated: false };
 }
@@ -196,7 +196,7 @@ async function advanceCoverageOnly(
   const results = await ctx.db.batch(batchMany(stmts));
   const stamped = results[0] as readonly { readonly id: ChatId }[];
   if (stamped.length === 0) {
-    return await settledMarker(ctx, env.chatId, env.priorCoverage ?? 0);
+    return await settledMarker(ctx, env.chatId, env.priorCoverage);
   }
   return { summary: env.priorSummary ?? "", compactedAtSeq: env.coveredThroughSeq, updated: false };
 }
@@ -210,7 +210,7 @@ function makeRunCompaction(ctx: ChatContext, quietGenerate: QuietGenerate): (arg
     if (chat === undefined) {
       throw new ChatNotFoundError(chatId);
     }
-    const fromSeq = chat.compactedAtSeq ?? 0;
+    const fromSeq = chat.compactedAtSeq;
     const afterCheckpoint = await loadCanonHistoryAfter(ctx.db, chatId, fromSeq);
     const capped = coveragePoint === undefined ? afterCheckpoint : afterCheckpoint.filter((m) => m.seq <= coveragePoint);
     // The coverage stamp advances over the whole capped span (hidden rows included — the marker must still cover

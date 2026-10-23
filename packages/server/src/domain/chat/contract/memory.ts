@@ -2,7 +2,6 @@ import type { BackfillPassResult, ChatBusEvent, MemoryBackfillResult, MemoryReca
 import type { MemoryEmbedSpace } from "@orb/contracts/embeddings";
 import type { MemoryRetrievalMode } from "@orb/contracts/search";
 import type { CharacterId, ChatDigestId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
-import type { RowMacroNameContext } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 
 export type { MemoryEmbedSpace } from "@orb/contracts/embeddings";
@@ -370,6 +369,5 @@ export interface BuildTurnMemoryArgs {
   readonly funderUserId: UserId;
   readonly runAsUserId: UserId;
   readonly config: MemoryConfig | null | undefined;
-  readonly macroNames: RowMacroNameContext;
   readonly signal: AbortSignal | undefined;
 }

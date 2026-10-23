@@ -15,7 +15,6 @@ export async function buildTurnMemory(ctx: ChatContext, args: BuildTurnMemoryArg
     chatId: args.chatId,
     funderUserId: args.funderUserId,
     config: args.config,
-    macroNames: args.macroNames,
     embedOwnerId: args.runAsUserId,
     signal: args.signal,
   });
@@ -40,7 +39,6 @@ export async function buildTurnMemory(ctx: ChatContext, args: BuildTurnMemoryArg
       scope: { chatId: args.chatId, scopedCharacterId: groupCharacterId, isGroup: true },
       funderUserId: args.funderUserId,
       config: args.config,
-      macroNames: args.macroNames,
       embedOwnerId: args.runAsUserId,
       signal: args.signal,
     });
@@ -59,7 +57,6 @@ export async function buildTurnMemory(ctx: ChatContext, args: BuildTurnMemoryArg
         },
         funderUserId: args.funderUserId,
         config: args.config,
-        macroNames: args.macroNames,
         embedOwnerId: args.runAsUserId,
         signal: args.signal,
         witnessing: await loadWitnessHorizons(ctx.db, args.chatId, charId),

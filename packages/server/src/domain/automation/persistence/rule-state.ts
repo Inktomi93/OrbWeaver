@@ -53,12 +53,16 @@ export async function upsertRuleState(
  *  `blob` is the JSON the write wants to store; the returned expression is that JSON with
  *  `$.settledThroughSeq` replaced by `max(the mark already stored, the mark this write carries)`. SQLite
  *  evaluates `json_extract` against the row as it stands at UPDATE time, so the comparison is atomic — no
- *  read ahead of the write (`batchMany` bans that) and no lost update. `coalesce(…, 0)` covers a stored blob
- *  that predates the field. Both writers below build their `set.state` from this, which is what makes
+ *  read ahead of the write (`batchMany` bans that) and no lost update. A stored blob with no mark, or a
+ *  `null` one, takes the write's mark. Both writers below build their `set.state` from this, which is what makes
  *  "no writer can drag the mark backwards" a property of the TABLE rather than of each call site.
  *  `blob` is a FRAGMENT so a caller can pass either a new JSON document or the row's own stored column. */
-function monotonicStateWrite(blob: SQL, throughSeq: number): SQL {
-  return sql`json_set(${blob}, '$.settledThroughSeq', max(coalesce(json_extract(${automationRuleState.state}, '$.settledThroughSeq'), 0), ${throughSeq}))`;
+function monotonicStateWrite(blob: SQL, throughSeq: number | null): SQL {
+  const stored = sql`json_extract(${automationRuleState.state}, '$.settledThroughSeq')`;
+  // A `null` mark covers nothing, so it keeps whatever is stored. SQLite's scalar `max` returns NULL on a NULL
+  // argument, hence the explicit arms.
+  const next = throughSeq === null ? stored : sql`max(coalesce(${stored}, ${throughSeq}), ${throughSeq})`;
+  return sql`json_set(${blob}, '$.settledThroughSeq', ${next})`;
 }
 
 /** The analysis pass's END-OF-PASS write (#1543): the merged banks + the optional guidance wholesale, and

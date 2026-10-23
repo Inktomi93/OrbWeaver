@@ -22,7 +22,7 @@ import { getLog } from "#foundation/observability";
 import { GenerationSupersededError } from "#primitives/embedding-generation";
 import type { ChatContext } from "#src/domain/chat/contract/context.ts";
 import { resolveCfg } from "../constants.ts";
-import { loadCanonThroughSeq, loadChatMeta, loadDigestHashes, loadDigestSpeakers, loadDigestsForScope } from "../persistence/queries.ts";
+import { loadCanonThroughSeq, loadChatMeta, loadDigestHashes, loadDigestSpeakers, loadDigestsForScope, loadTranscriptNames } from "../persistence/queries.ts";
 import type { BlockSpan, DigestRow, MemoryConfig, MemoryEmbedSpace, MemoryPassCounts, MemoryScope, WitnessInterval } from "../types.ts";
 import { parseDigest } from "./substrate/parse.ts";
 import { consolidationSystemPrompt, consolidationUserPrompt, digestSystemPrompt, digestUserPrompt } from "./substrate/prompts.ts";
@@ -33,7 +33,7 @@ import {
   fitConsolidationChildren,
   SUMMARIZER_CONTEXT_FLOOR,
 } from "./substrate/token-guard.ts";
-import { blockHash, blockSpeakerIds, consolidationHash, EMPTY_MACRO_NAMES, renderTranscript, sliceBlocks } from "./substrate/transcript.ts";
+import { blockHash, blockSpeakerIds, consolidationHash, renderTranscript, sliceBlocks } from "./substrate/transcript.ts";
 import { spanWitnessed } from "./substrate/witnessing.ts";
 
 /** `witnessing`, when present, is the scoped-build gate: only blocks the scope character was present for (its
@@ -44,7 +44,6 @@ interface GenerateDigestsArgs {
    *  principal on the corpus backfill. */
   readonly funderUserId: UserId;
   readonly config?: MemoryConfig | null | undefined;
-  readonly macroNames?: RowMacroNameContext | undefined;
   readonly witnessing?: readonly WitnessInterval[] | undefined;
   readonly signal?: AbortSignal | undefined;
   readonly embedSpace?: MemoryEmbedSpace | undefined;
@@ -190,8 +189,6 @@ export async function planDigests(ctx: ChatContext, args: GenerateDigestsArgs): 
     logBuild(ctx, args.scope, { startedAt, counts: EMPTY_TIER0_COUNTS, note: "mode off" });
     return null;
   }
-  const macroNames = args.macroNames ?? EMPTY_MACRO_NAMES;
-
   const { maxSeq } = await loadChatMeta(ctx.db, chatId);
   const cutoff = maxSeq - cfg.verbatimWindow;
   if (cutoff < cfg.blockSize) {
@@ -207,6 +204,7 @@ export async function planDigests(ctx: ChatContext, args: GenerateDigestsArgs): 
   const embedSpace = args.embedSpace ?? (await ctx.resolveMemoryEmbedSpace(args.embedOwnerId ?? args.funderUserId));
 
   const canon = await loadCanonThroughSeq(ctx.db, chatId, cutoff);
+  const macroNames = await loadTranscriptNames(ctx.db, canon);
   const allBlocks = sliceBlocks(canon, cfg.blockSize);
   const blocks = args.witnessing === undefined ? allBlocks : allBlocks.filter((b) => spanWitnessed(b.seqStart, b.seqEnd, args.witnessing ?? []));
   // THE SHRINK RECLAIM, before anything reads the stored rows (see `blockCeilings`). It runs FIRST — not in

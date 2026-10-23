@@ -70,6 +70,7 @@ import {
   ANALYSIS_PROTECT_TAIL,
   ANALYSIS_SETTLED_SLICE_MAX,
   buildAnalysisPayloadSchema,
+  isSettledThrough,
   mergeAnalysisState,
   projectAnalysisWireSchema,
 } from "../contract/analysis.ts";
@@ -413,7 +414,7 @@ async function readPassInputs(deps: ArmExecutorDeps, action: RunAnalysisAction, 
   }
   const maxSeq = await maxVisibleSeq(deps.db, frame.chatId);
   const through = maxSeq === null ? null : maxSeq - ANALYSIS_PROTECT_TAIL;
-  if (through === null || through <= state.settledThroughSeq) {
+  if (through === null || isSettledThrough(through, state.settledThroughSeq)) {
     return { state, fresh, settled: null, span: null, audited };
   }
   // #1416 — THE RULING SURVIVES, ITS INPUT CHANGED. The recorded posture ("a cold start over a long chat
@@ -433,9 +434,9 @@ async function readPassInputs(deps: ArmExecutorDeps, action: RunAnalysisAction, 
   // only gap it leaves is a stretch that holds no ingestible rows, which the next pass re-reads for free
   // and finds empty. Deriving the end from the DATA rather than from the requested bound means the mark can
   // never claim coverage of a row the model was not shown. Only a COLD pass ends at `through`.
-  const cold = state.settledThroughSeq <= NO_SETTLED_WATERMARK;
+  const cold = state.settledThroughSeq === null;
   const settled = await listAnalysisWindow(deps.db, frame.chatId, {
-    afterSeq: state.settledThroughSeq,
+    ...(state.settledThroughSeq === null ? {} : { afterSeq: state.settledThroughSeq }),
     throughSeq: through,
     limit: ANALYSIS_SETTLED_SLICE_MAX,
     slice: cold ? "newest" : "earliest",
@@ -446,13 +447,17 @@ async function readPassInputs(deps: ArmExecutorDeps, action: RunAnalysisAction, 
   const span =
     firstRead === undefined || lastRead === undefined
       ? null
-      : { start: state.settledThroughSeq, end: cold ? through : lastRead.seq, provenance: { fromSeq: firstRead.seq - 1, toSeq: lastRead.seq } };
+      : {
+          start: state.settledThroughSeq ?? COLD_SPAN_KEY_START,
+          end: cold ? through : lastRead.seq,
+          provenance: { fromSeq: firstRead.seq - 1, toSeq: lastRead.seq },
+        };
   return { state, fresh, settled, span, audited };
 }
 
-/** A rule whose state row has never recorded a covered span — a COLD analysis start (`EMPTY_ANALYSIS_STATE`
- *  seeds the watermark at 0, and seq numbering starts at 1, so 0 is "no pass has covered anything"). */
-const NO_SETTLED_WATERMARK = 0;
+/** The span start a COLD pass stamps its lore keys with ({@link spanStampedKey}). A key stamp only, never a seq
+ *  bound: it keeps the keys a cold pass wrote before the watermark could be `null`, so a re-run overwrites them. */
+const COLD_SPAN_KEY_START = 0;
 
 /** Run the model pass (ONE bounded retry — `runStructuredTurn`) and validate through the payload zod, whose
  *  input half IS the projected wire object: the two halves of the needle wall are one composition. Throws on the
@@ -493,8 +498,8 @@ async function applyRoutes(
   deps: ArmExecutorDeps,
   frame: ChatScopedDispatchFrame,
   pass: PassResolution,
-  from: { readonly i: number; readonly suggested: boolean; readonly watermark: number },
-): Promise<{ readonly ok: true; readonly suggested: boolean; readonly watermark: number } | { readonly ok: false; readonly detail: string }> {
+  from: { readonly i: number; readonly suggested: boolean; readonly watermark: number | null },
+): Promise<{ readonly ok: true; readonly suggested: boolean; readonly watermark: number | null } | { readonly ok: false; readonly detail: string }> {
   const cls = ROUTE_ORDER[from.i];
   if (cls === undefined) {
     return { ok: true, suggested: from.suggested, watermark: from.watermark };
