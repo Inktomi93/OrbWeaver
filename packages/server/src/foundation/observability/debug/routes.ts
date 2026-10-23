@@ -232,10 +232,14 @@ function refusalReason(adminArmConsulted: boolean, tokenClause: string): string 
   return adminArmConsulted ? `${ADMIN_ARM_REFUSED}, ${tokenClause}` : tokenClause.replace(/^and /u, "");
 }
 
+// The one reading of the gate's token: the middleware compares against it and `/info` reports whether it is set.
+function debugAuthConfigOf(opts: DebugAuthOptions | string | undefined): DebugAuthOptions {
+  return typeof opts === "string" || opts === undefined ? { expectedToken: opts } : opts;
+}
+
 /** Factory — the middleware closes over the gate config. Order: admin-session short-circuit, then the
  *  token check. The query-param token form is intentionally absent (it leaked into proxy access logs). */
-function createDebugAuthMiddleware(opts: DebugAuthOptions | string | undefined): MiddlewareHandler {
-  const config: DebugAuthOptions = typeof opts === "string" || opts === undefined ? { expectedToken: opts } : opts;
+function createDebugAuthMiddleware(config: DebugAuthOptions): MiddlewareHandler {
   return async (c: Context, next: Next) => {
     const adminArmConsulted = config.adminAuth !== undefined;
     if (config.adminAuth !== undefined) {
@@ -274,15 +278,16 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = { a
     auth = env.DEBUG_TOKEN,
   } = options;
   const db = handle === undefined ? undefined : databaseForOwner(handle);
-  app.use("/api/_debug/*", createDebugAuthMiddleware(auth));
+  const authConfig = debugAuthConfigOf(auth);
+  app.use("/api/_debug/*", createDebugAuthMiddleware(authConfig));
 
   app.get("/api/_debug/info", (c) => {
     // The DIAGNOSTICS POSTURE readout — the live twin of the boot report (`foundation/env/diagnostics.ts`).
     // It belongs on THIS probe because this is the surface the posture is ABOUT: an operator who can read
     // `/api/_debug` should be able to see, in one place, what reaching it is worth (retention), what bounds
     // who else can try (perimeter), and which standing item is still open (`warnings`). No secret value is
-    // present — the resolver reduces DEBUG_TOKEN to a boolean before it ever leaves `foundation/env`.
-    const diagnostics = resolveDiagnosticsPosture(diagnosticsPostureInput());
+    // present — the resolver reduces the token to a boolean, and it is the gate's own token, not a re-read of env.
+    const diagnostics = resolveDiagnosticsPosture({ ...diagnosticsPostureInput(), debugToken: authConfig.expectedToken });
     return c.json({
       // The WHOLE identity block, not a bare version string: an operator reading this probe is nearly always
       // asking "is this box running what I think it is", and the commit is the half that answers it.
@@ -335,6 +340,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = { a
         note: parsed.data.note,
         client: parsed.data.client ?? null,
         server: snapshotServerEvidence(resolveEvidenceWindow(capturedAt.getTime(), parsed.data.windowMinutes), {
+          wireCaptureEnabled,
           ...(rpgTrace === undefined ? {} : { rpgTrace }),
           ...(memoryRecall === undefined ? {} : { memoryRecall }),
         }),

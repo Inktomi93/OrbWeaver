@@ -67,4 +67,6 @@ interface BugReportRecorder {
 export interface BugReportInspectors {
   readonly rpgTrace?: BugReportRecorder;
   readonly memoryRecall?: BugReportRecorder;
+  /** The live wire-capture decision the debug routes report; absent ⇒ the env flag alone. */
+  readonly wireCaptureEnabled?: () => boolean;
 }
