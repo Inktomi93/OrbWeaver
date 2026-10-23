@@ -5,7 +5,7 @@ import { CLIENT_DIST_INDEX_REL } from "./spawn-plan.ts";
 
 // ── Shutdown drain ───────────────────────────────────────────────────────────────────────────────────
 
-/** MIRRORS `SHUTDOWN_DRAIN_MS` in packages/server/src/entry/lifecycle.ts (not exported from the package,
+/** MIRRORS `SHUTDOWN_DRAIN_MS` in packages/server/src/infra/network/http-server.ts (not exported from the package,
  *  so it is restated here and PINNED by a test that reads that file — a drift makes the test red, not the
  *  operator's restart hang). */
 export const SERVER_DRAIN_MS = 10_000;
@@ -28,7 +28,7 @@ export const SERVER_DRAIN_MS = 10_000;
  *     11.5 s; outcome `deadline-hit`, NO escalation. An open stream therefore CANNOT produce the reported
  *     SIGKILL: {@link classifyDrainTail} treats the deadline warn as terminal.
  * The escalation requires the two unbounded stages to exceed this margin, and until #1936 nothing in the
- * log said which stage a shutdown was in — `shutdown: http drained` / `joining the workloads worker` /
+ * log said which stage a shutdown was in — `shutdown: http drained` / `closing the service graph` /
  * `db housekeeping` are the breadcrumbs added for exactly that, and they must stay non-terminal here.
  *
  * WHETHER TO WIDEN THIS, BOUND THOSE STAGES, OR MAKE THE WATCH PROGRESS-AWARE IS AN OWNER CALL, not a

@@ -3,6 +3,11 @@
 import type { Page, Request } from "@playwright/test";
 import type { CapturedRequest } from "./browser-contract.ts";
 
+/** Answers that leave the current document in place: 204 No Content and 205 Reset Content. */
+const HTTP_NO_CONTENT = 204;
+const HTTP_RESET_CONTENT = 205;
+const NO_CONTENT_STATUSES: ReadonlySet<number> = new Set([HTTP_NO_CONTENT, HTTP_RESET_CONTENT]);
+
 /** One committed replacement: the event order at which its navigation started and at which it committed. */
 interface Replacement {
   readonly started: number;
@@ -67,6 +72,12 @@ export function trackDocumentDiscards(page: Page): DocumentDiscards {
   page.on("response", (response) => {
     const request = response.request();
     if (request.isNavigationRequest() && request.frame() === page.mainFrame()) {
+      // A no-content answer finishes without a `requestfailed`, so nothing else would drop its start.
+      if (NO_CONTENT_STATUSES.has(response.status())) {
+        navigationStarted = null;
+        navigationAnswered = null;
+        return;
+      }
       order += 1;
       navigationAnswered = order;
     }
