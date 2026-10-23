@@ -74,7 +74,7 @@ export type EgressResolver = (host: string) => Promise<readonly string[]>;
 export interface ScopedEgressOptions {
   readonly fetch?: typeof fetch | undefined;
   readonly resolver?: EgressResolver;
-  /** The physical dial: every connector this egress builds comes from here, so a script replaces the socket and keeps the address judgment. */
+  /** The physical dial: every connector this egress builds comes from here, so a script replaces the socket and receives the firewall's lookup and must dial only what it returns. */
   readonly buildConnector?: typeof buildConnector;
   readonly timers?: TimerScheduler;
 }
