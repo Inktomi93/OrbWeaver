@@ -406,12 +406,7 @@ function ChatThread({
             keepMounted={(item): boolean => liveCardRows.has(messageItemKey(item))}
             renderItem={(item, index, meta): ReactNode => {
               const highlighted =
-                item.kind === "message" &&
-                window !== null &&
-                window.anchorSeq !== null &&
-                window.endSeq !== null &&
-                item.view.seq >= window.anchorSeq &&
-                item.view.seq <= window.endSeq;
+                item.kind === "message" && window !== null && window.endSeq !== null && item.view.seq >= window.anchorSeq && item.view.seq <= window.endSeq;
               return (
                 <Stack data-corpus-anchor={highlighted ? "" : undefined} className={highlighted ? "bg-muted ring-1 ring-ring" : undefined}>
                   {renderItem(item, index, meta)}

@@ -86,7 +86,7 @@ function ArgInput({
             on an element axe scans. The primitive's header states the rule; this site cites it. */}
         <Select
           aria-label={humanizeId(spec.name)}
-          items={(spec.enumValues ?? []).map((option) => ({ label: humanizeId(option), value: option }))}
+          items={spec.enumValues.map((option) => ({ label: humanizeId(option), value: option }))}
           onValueChange={(next: string | null): void => onChange(next ?? "")}
           value={value}
         />
