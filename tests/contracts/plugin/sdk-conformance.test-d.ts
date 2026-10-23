@@ -15,6 +15,7 @@ import type {
   PluginSurfaceTier as ContractTier,
   PluginToastLevel as ContractToastLevel,
   PluginFrameCall,
+  pluginFrameResultMessage,
   pluginUiHostArgsSchemas,
   UiProxyableHostFunction,
 } from "@orb/contracts/plugin";
@@ -112,7 +113,7 @@ test("UI registrars preserve the contract with deliberate author-time narrowing"
   expectTypeOf<keyof SdkRegistration<"registerCommand">>().toEqualTypeOf<keyof ContractRegistration<"registerCommand">>();
   expectTypeOf<SdkRegistration<"registerCommand">>().toExtend<ContractRegistration<"registerCommand">>();
   expectTypeOf<PluginCommandArgSpec>().toExtend<ContractCommandArgSpec>();
-  expectTypeOf<ContractCommandArgSpec>().not.toExtend<PluginCommandArgSpec>();
+  expectTypeOf<ContractCommandArgSpec>().toExtend<PluginCommandArgSpec>();
   expectTypeOf<WithoutArgs<ContractRegistration<"registerCommand">>>().toExtend<WithoutArgs<SdkRegistration<"registerCommand">>>();
 });
 
@@ -220,5 +221,6 @@ test("guest ids are unbranded and frame payloads retain opaque host-call input",
   expectTypeOf<Parameters<PluginHostV1["assets"]["read"]>[0]>().toEqualTypeOf<string>();
   expectTypeOf<string>().not.toExtend<ContractChatHandle>();
   expectTypeOf<OrbPluginFrameCall["orbPluginFrameCall"]>().toEqualTypeOf<PluginFrameCall>();
+  expectTypeOf<OrbPluginFrameResult["orbPluginFrameResult"]>().toEqualTypeOf<Parameters<typeof pluginFrameResultMessage>[0]>();
   expectTypeOf(orbPluginAssetUrl).toEqualTypeOf<(bundlePath: string) => string>();
 });

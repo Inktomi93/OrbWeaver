@@ -6,13 +6,43 @@ import { PLUGIN_CONTINUATION_WINDOW_MS } from "@orb/contracts/plugin";
 import { globalVariables } from "@orb/db";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";
-import { bridgeRequest, createPluginProcessEdge, frameField, installGuest, PLUGIN_PROCESS_OPERATIONS as OP } from "./process-runtime.fixtures.ts";
+import {
+  bridgeRequest,
+  createPluginProcessEdge,
+  frameField,
+  installGuest,
+  PLUGIN_PROCESS_OPERATIONS as OP,
+  responseResult,
+} from "./process-runtime.fixtures.ts";
 
 const NATIVE_TIMEOUT_MS = 30_000;
 const STOPPED = "continuation stopped:";
 const FLOOD_HOST_CALLS = 1024;
 const BASE_GRANTS = ["ui.surface", "storage.kv"] as const;
 const NOOP_COMMAND = 'h.ui.registerCommand({name:"noop",describe:"Native no-op",onRun:()=>{}});';
+
+test.for([
+  { name: "RPC refusal without its error", result: { ok: false }, message: "malformed broker response" },
+  { name: "RPC success carrying a refusal", result: { ok: true, error: { name: "Error", message: "refusal" } }, message: "malformed broker response" },
+  {
+    name: "snippet classification without its error",
+    result: { ok: true, value: { logLines: [], errorKind: "parse" } },
+    message: "malformed snippet response",
+  },
+])("native process rejects $name after a successful native snippet", { timeout: NATIVE_TIMEOUT_MS }, async ({ result, message }) => {
+  const edge = createPluginProcessEdge();
+  await using root = await createServerHarness({ pluginSpawn: edge.spawn });
+  const caller = await root.internalCallerFor(root.ownerId);
+  const room = (await caller.chat.startChat({ characterIds: [] })).chat;
+  const code = 'orb.host(1).log.info("native result control");';
+  expect(await caller.plugin.runSnippet({ chatId: room.id, code })).toEqual({ logLines: ["[info] native result control"] });
+  using delivery = edge.holdNext((value) => frameField(value, "kind") === "response");
+  const running = caller.plugin.runSnippet({ chatId: room.id, code });
+  const settled = Promise.allSettled([running]);
+  const frame = await delivery.reached;
+  delivery.release(responseResult(frame, result));
+  expect(await settled).toMatchObject([{ status: "rejected", reason: { message: expect.stringContaining(message) } }]);
+});
 
 function firstChild(edge: ReturnType<typeof createPluginProcessEdge>): ChildProcess {
   const child = edge.children[0];

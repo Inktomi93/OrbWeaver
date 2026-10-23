@@ -322,9 +322,7 @@ export interface TurnEconomics {
  *  through from the provider's raw reply and is CLAMPED at the splice (`substrate/inline-reply-images`),
  *  because the receive tier rewrites those bytes in between. It lives here rather than beside the splice
  *  because a domain-internal shape's home is `contract/`. */
-export interface OrderedReplyImage extends GeneratedImage {
-  readonly eventOrdinal: number;
-}
+export type OrderedReplyImage = GeneratedImage & { readonly eventOrdinal: number };
 
 /** A completed neutral reply's original tool/image order plus its closing event. */
 export interface ReplyPartReceipt {

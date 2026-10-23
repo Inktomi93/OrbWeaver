@@ -19,20 +19,24 @@ import { CONFIG_SHELF_LABELS } from "./config-nav-model.ts";
 
 /** One flattened, fuzzy-searchable entry. `subId: null` = a group-level hit (open the group, no scroll);
  *  a non-null `subId` jumps to that section's anchor; a `settingId` additionally names the leaf. */
-export interface ConfigSearchEntry {
+interface ConfigSearchEntryBase {
   readonly id: string;
-  readonly kind: "group" | "section" | "setting";
   readonly label: string;
   readonly shelf: ConfigShelf;
   readonly groupId: ConfigGroupId;
   readonly groupLabel: string;
-  readonly subId: string | null;
-  readonly settingId: string | null;
   /** Hidden by default; surfaced only under `@advanced` (§3.3). */
   readonly advanced: boolean;
   /** Every human-readable token — label + navLabel + keywords + the group label. */
   readonly keywords: readonly string[];
 }
+
+export type ConfigSearchEntry = ConfigSearchEntryBase &
+  (
+    | { readonly kind: "group"; readonly subId: null; readonly settingId: null }
+    | { readonly kind: "section"; readonly subId: string; readonly settingId: null }
+    | { readonly kind: "setting"; readonly subId: string; readonly settingId: string }
+  );
 
 function groupEntry(group: ConfigGroupDefinition): ConfigSearchEntry {
   return {

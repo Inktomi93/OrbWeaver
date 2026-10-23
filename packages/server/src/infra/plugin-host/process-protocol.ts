@@ -7,6 +7,7 @@ import type {
   PluginCommandOperation,
   PluginSyncOperation,
   RpcError,
+  RpcResult,
   WorkerBrokerMessage,
 } from "./contract/process-protocol.ts";
 import { PLUGIN_BRIDGE_OPERATIONS, PLUGIN_COMMAND_OPERATIONS, PLUGIN_SYNC_OPERATIONS } from "./contract/process-protocol.ts";
@@ -18,17 +19,11 @@ export const PLUGIN_BROKER_MESSAGE_MAX_BYTES = 10_485_760;
 const PROCESS_ID_MIN_CHARS = 16;
 
 function parseWorkerResponse(value: Readonly<Record<string, unknown>>): WorkerBrokerMessage | null {
-  if (typeof value["id"] !== "string" || typeof value["ok"] !== "boolean") {
+  if (typeof value["id"] !== "string") {
     return null;
   }
-  const error = parseRpcError(value["error"]);
-  return {
-    kind: "response",
-    id: value["id"],
-    ok: value["ok"],
-    value: value["value"],
-    ...(error === undefined ? {} : { error }),
-  };
+  const result = parseRpcResult(value);
+  return result === null ? null : { kind: "response", id: value["id"], ...result };
 }
 
 function parseWorkerBridge(value: Readonly<Record<string, unknown>>): WorkerBrokerMessage | null {
@@ -130,11 +125,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function parseParentBridgeResult(value: Readonly<Record<string, unknown>>): ParentBrokerMessage | null {
-  if (typeof value["id"] !== "string" || typeof value["ok"] !== "boolean") {
+  if (typeof value["id"] !== "string") {
     return null;
   }
-  const error = parseRpcError(value["error"]);
-  return { kind: "bridge-result", id: value["id"], ok: value["ok"], value: value["value"], ...(error === undefined ? {} : { error }) };
+  const result = parseRpcResult(value);
+  return result === null ? null : { kind: "bridge-result", id: value["id"], ...result };
 }
 
 function parseParentCommand(value: Readonly<Record<string, unknown>>): ParentBrokerMessage | null {
@@ -176,11 +171,22 @@ export function parseParentBrokerMessage(message: unknown): ParentBrokerMessage 
 }
 
 function parseBrokerResponse(value: Readonly<Record<string, unknown>>): BrokerParentMessage | null {
-  if (typeof value["id"] !== "string" || typeof value["ok"] !== "boolean") {
+  if (typeof value["id"] !== "string") {
+    return null;
+  }
+  const result = parseRpcResult(value);
+  return result === null ? null : { kind: "response", id: value["id"], ...result };
+}
+
+function parseRpcResult(value: Readonly<Record<string, unknown>>): RpcResult | null {
+  if (value["ok"] === true) {
+    return value["error"] === undefined ? { ok: true, value: value["value"] } : null;
+  }
+  if (value["ok"] !== false || value["value"] !== undefined) {
     return null;
   }
   const error = parseRpcError(value["error"]);
-  return { kind: "response", id: value["id"], ok: value["ok"], value: value["value"], ...(error === undefined ? {} : { error }) };
+  return error === undefined ? null : { ok: false, error };
 }
 
 function parseBrokerBridge(value: Readonly<Record<string, unknown>>): BrokerParentMessage | null {

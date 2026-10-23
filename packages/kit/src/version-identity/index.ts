@@ -243,14 +243,20 @@ export type UpstreamProbes = { readonly [C in ReleaseChannel]: () => Promise<Ups
 /** The whole verdict, as the About surface renders it. `reason` is non-null EXACTLY on the `unknown` arm —
  *  an unknown that cannot say WHY (offline? no local commit? rate-limited?) is the same useless empty the
  *  named-empty rule exists to forbid. */
-export const updateCheckSchema = z.strictObject({
-  status: z.enum(UPDATE_CHECK_STATUSES),
-  /** What this verdict compared on the local side: the commit on `main` (`unknown` when the process could not
-   *  derive one), the version on `stable`. */
-  local: z.string().min(1),
-  remote: upstreamSchema.nullable(),
-  reason: z.string().min(1).nullable(),
-});
+export const updateCheckSchema = z.discriminatedUnion("status", [
+  z.strictObject({
+    status: z.enum(UPDATE_CHECK_STATUSES).exclude(["unknown"]),
+    local: z.string().min(1),
+    remote: upstreamSchema,
+    reason: z.null(),
+  }),
+  z.strictObject({
+    status: z.literal("unknown"),
+    local: z.string().min(1),
+    remote: upstreamSchema.nullable(),
+    reason: z.string().min(1),
+  }),
+]);
 export type UpdateCheck = z.infer<typeof updateCheckSchema>;
 
 /** The `main` verdict. PURE — the probe's I/O happens above this, so the whole verdict table is driven by a

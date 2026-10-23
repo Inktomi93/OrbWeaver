@@ -267,14 +267,19 @@ export interface BulkImportLorebookInput {
  *  in place (the restore door); `created` = a fresh book row was minted. Both false = the book content-matched
  *  an owned book and that row was reused. `name` is the name the book landed under; `renamedFrom` is the
  *  file's own name when the landed name took a collision suffix. */
-export interface BulkImportLorebookResult {
+interface BulkImportLorebookResultBase {
   readonly worldBookId: WorldBookId;
   readonly entryCount: number;
-  readonly replaced: boolean;
-  readonly created: boolean;
   readonly name: string;
   readonly renamedFrom: string | null;
 }
+
+export type BulkImportLorebookResult = BulkImportLorebookResultBase &
+  (
+    | { readonly created: true; readonly replaced: false }
+    | { readonly created: false; readonly replaced: true }
+    | { readonly created: false; readonly replaced: false }
+  );
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // upsertEntries — the SHARED machine-writer bulk op (D58 satellite). The ONE

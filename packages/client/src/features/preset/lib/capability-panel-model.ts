@@ -81,19 +81,12 @@ export const SAMPLER_STAGE_LABELS: Readonly<Record<SamplerStage, string>> = {
 //   • 'budget'   → an off-toggle + a budget slider from budgetRange.
 //   • 'adaptive' → an off-toggle + an adaptive note (the model self-budgets).
 
-const REASONING_CONTROL_KINDS = ["none", "effort", "budget", "adaptive"] as const;
-type ReasoningControlKind = (typeof REASONING_CONTROL_KINDS)[number];
-
 /** What the reasoning section renders for a capability — the control kind + the descriptor facts it needs. */
-export interface ReasoningControl {
-  readonly kind: ReasoningControlKind;
-  /** `false` when the model cannot reason at all — the section renders nothing. */
-  readonly reasons: boolean;
-  /** The model's real effort levels (only when `kind === 'effort'`); never the full enum. */
-  readonly effortLevels?: readonly EffortLevel[];
-  /** The token-budget range (only when `kind === 'budget'`). */
-  readonly budgetRange?: Range;
-}
+export type ReasoningControl =
+  | { readonly kind: "none"; readonly reasons: false; readonly effortLevels?: never; readonly budgetRange?: never }
+  | { readonly kind: "effort"; readonly reasons: true; readonly effortLevels: readonly EffortLevel[]; readonly budgetRange?: never }
+  | { readonly kind: "budget"; readonly reasons: true; readonly effortLevels?: never; readonly budgetRange?: Range }
+  | { readonly kind: "adaptive"; readonly reasons: true; readonly effortLevels?: never; readonly budgetRange?: never };
 
 /** Derive the reasoning control from the capability descriptor. A `mode:'none'` model renders no
  *  reasoning control at all. */

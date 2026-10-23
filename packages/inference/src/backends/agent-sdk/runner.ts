@@ -359,11 +359,11 @@ function systemChannels(req: AgentSdkChatRequest): { systemPrompt: string | unde
   return { systemPrompt: buildSystemPrompt(req.systemPrompt), dynamicHook: req.tailSystem === undefined ? {} : tailSystemOptions(req.tailSystem) };
 }
 
-interface ResumeDecision {
-  readonly resume: AgentSdkSessionId | undefined;
-  readonly disposition: SeededSessionDecision["disposition"];
-  readonly savedTotals: AgentSdkSessionTotals | null;
-}
+type ResumeTarget =
+  | { readonly resume: AgentSdkSessionId; readonly disposition: Exclude<SeededSessionDecision["disposition"], "fresh" | "cleared"> }
+  | { readonly resume: undefined; readonly disposition: "fresh" | "cleared" };
+
+type ResumeDecision = ResumeTarget & { readonly savedTotals: AgentSdkSessionTotals | null };
 
 async function resolveResume(req: AgentSdkChatRequest, sessions: SessionCache): Promise<ResumeDecision> {
   const decided = await resolveResumeId(req, sessions);
@@ -372,16 +372,18 @@ async function resolveResume(req: AgentSdkChatRequest, sessions: SessionCache): 
   return { ...decided, savedTotals };
 }
 
-async function resolveResumeId(req: AgentSdkChatRequest, sessions: SessionCache): Promise<Omit<ResumeDecision, "savedTotals">> {
+async function resolveResumeId(req: AgentSdkChatRequest, sessions: SessionCache): Promise<ResumeTarget> {
   if (req.chatId === undefined) {
     return { resume: undefined, disposition: "fresh" };
   }
   if (req.seed !== undefined) {
     const decision = await sessions.ensureSeededSession(req.chatId, req.connection.connectionId, req.seed);
-    return { resume: decision.sessionId ?? undefined, disposition: decision.disposition };
+    return decision.sessionId === null
+      ? { resume: undefined, disposition: decision.disposition }
+      : { resume: decision.sessionId, disposition: decision.disposition };
   }
   const recorded = sessions.resolveResumeId(req.chatId, req.connection.connectionId);
-  return { resume: recorded, disposition: recorded !== undefined ? "resumed" : "fresh" };
+  return recorded === undefined ? { resume: undefined, disposition: "fresh" } : { resume: recorded, disposition: "resumed" };
 }
 
 function logSessionDecision(

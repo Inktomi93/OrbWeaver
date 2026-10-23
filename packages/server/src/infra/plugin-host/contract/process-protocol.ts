@@ -77,18 +77,16 @@ interface BrokerCommand {
   readonly value?: unknown;
 }
 
-export interface BrokerBridgeResult {
-  readonly kind: "bridge-result";
-  readonly id: string;
-  readonly ok: boolean;
-  readonly value?: unknown;
-  readonly error?: RpcError;
-}
+export type RpcResult =
+  | { readonly ok: true; readonly value?: unknown; readonly error?: never }
+  | { readonly ok: false; readonly error: RpcError; readonly value?: never };
+
+export type BrokerBridgeResult = { readonly kind: "bridge-result"; readonly id: string } & RpcResult;
 
 export type ParentBrokerMessage = BrokerCommand | BrokerBridgeResult | { readonly kind: "bridge-cancel"; readonly id: string };
 
 export type BrokerParentMessage =
-  | { readonly kind: "response"; readonly id: string; readonly ok: boolean; readonly value?: unknown; readonly error?: RpcError }
+  | ({ readonly kind: "response"; readonly id: string } & RpcResult)
   | {
       readonly kind: "bridge";
       readonly id: string;
@@ -104,12 +102,12 @@ export type BrokerParentMessage =
 
 export type BrokerWorkerMessage =
   | { readonly kind: "command"; readonly id: string; readonly operation: PluginCommandOperation; readonly authorityId: string; readonly value?: unknown }
-  | { readonly kind: "bridge-result"; readonly id: string; readonly ok: boolean; readonly value?: unknown; readonly error?: RpcError }
+  | ({ readonly kind: "bridge-result"; readonly id: string } & RpcResult)
   | { readonly kind: "bridge-cancel"; readonly id: string };
 
 export type WorkerBrokerMessage =
   | { readonly kind: "ready" }
-  | { readonly kind: "response"; readonly id: string; readonly ok: boolean; readonly value?: unknown; readonly error?: RpcError }
+  | ({ readonly kind: "response"; readonly id: string } & RpcResult)
   | { readonly kind: "bridge"; readonly id: string; readonly authorityId: string; readonly operation: PluginBridgeOperation; readonly args: readonly unknown[] }
   | { readonly kind: "bridge-cancel"; readonly id: string }
   | {

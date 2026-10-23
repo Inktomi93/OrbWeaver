@@ -3,7 +3,7 @@
 // a registry of descriptors it iterates — it knows nothing about any specific entity. Function seams
 // remain server-side types; import-outcome schemas also support outcomes exposed by transport.
 
-import type { ChatId, UserId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
@@ -123,22 +123,7 @@ export interface PortableFile {
 
 /** The per-file import result the core aggregates into the bundle report. `importFile` never throws for
  *  one malformed file — it returns ok:false with an error string, so one bad entry can't abort the bundle. */
-export interface PortableImportOutcome {
-  readonly ok: boolean;
-  /** false = the file deduped against an existing row (idempotent re-import), true = a new row was written. */
-  readonly created?: boolean;
-  /** Set when ok is false: the operator-facing reason the file was skipped. */
-  readonly error?: string;
-  /** What a SUCCESSFUL import deliberately did not assert, one operator-facing line each (#1688). A restore
-   *  can land its entity and still drop a plane — an overlay whose op is unwired, a card's embedded lorebook
-   *  kept because the character already holds an edited primary (#1598) — and until this existed the domain
-   *  verb's own record of that stopped at the descriptor seam: the bundle answered a bare `{ok:true}` and the
-   *  loss was invisible to anyone reading the restore. Absent ⇒ nothing was skipped. */
-  readonly notes?: readonly string[];
-  /** The real conversations this file WROTE (the `chat` entity only) — the scope of the client's memory-build
-   *  offer, since an import enqueues no memory build of its own. Absent ⇒ none. */
-  readonly memoryChatIds?: readonly ChatId[];
-}
+export type PortableImportOutcome = Readonly<z.output<typeof portableImportOutcomeSchema>>;
 
 // A server-side descriptor, composed from each domain's export + import verbs and its serde. The
 // delivery core iterates a list of these — the only seam between the entity-agnostic core and per-entity logic.
@@ -159,10 +144,19 @@ export interface PortableEntity {
  *  descriptor. The core imports a full bundle in PORTABLE_IMPORT_ORDER, independent of this array's order. */
 export type PortabilityRegistry = readonly PortableEntity[];
 
-export const portableImportOutcomeSchema = z.strictObject({
-  ok: z.boolean(),
-  created: z.boolean().exactOptional(),
-  error: z.string().exactOptional(),
-  notes: z.array(z.string()).readonly().exactOptional(),
-  memoryChatIds: z.array(typeIdSchema(ID_PREFIX.chat)).readonly().exactOptional(),
-}) satisfies z.ZodType<PortableImportOutcome>;
+export const portableImportOutcomeSchema = z.discriminatedUnion("ok", [
+  z.strictObject({
+    ok: z.literal(true),
+    created: z.boolean().exactOptional(),
+    error: z.never().exactOptional(),
+    notes: z.array(z.string()).readonly().exactOptional(),
+    memoryChatIds: z.array(typeIdSchema(ID_PREFIX.chat)).readonly().exactOptional(),
+  }),
+  z.strictObject({
+    ok: z.literal(false),
+    error: z.string(),
+    created: z.never().exactOptional(),
+    notes: z.never().exactOptional(),
+    memoryChatIds: z.never().exactOptional(),
+  }),
+]);

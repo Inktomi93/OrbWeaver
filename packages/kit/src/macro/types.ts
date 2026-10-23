@@ -123,15 +123,16 @@ export interface MacroListSpec {
 const MACRO_ARG_VIOLATION_KINDS = ["missing-required", "too-many-args", "list-bounds", "bad-type"] as const;
 type MacroArgViolationKind = (typeof MACRO_ARG_VIOLATION_KINDS)[number];
 
-export interface MacroArgViolation {
-  readonly kind: MacroArgViolationKind;
+interface MacroArgViolationBase {
   readonly macro: string;
-  /** 0-based arg position for `bad-type`; absent on arity-level violations (whole-call). */
-  readonly argIndex?: number;
-  /** The declared arg's name for `bad-type`; absent on arity-level violations. */
-  readonly argName?: string;
   readonly message: string;
 }
+
+export type MacroArgViolation = MacroArgViolationBase &
+  (
+    | { readonly kind: "bad-type"; readonly argIndex: number; readonly argName: string }
+    | { readonly kind: Exclude<MacroArgViolationKind, "bad-type">; readonly argIndex?: never; readonly argName?: never }
+  );
 
 /** The FULL browser/autocomplete record for a macro. `volatile` is composed by the registry from the
  *  `registerVolatileMacros` set (never hand-authored — see registry.ts). */
