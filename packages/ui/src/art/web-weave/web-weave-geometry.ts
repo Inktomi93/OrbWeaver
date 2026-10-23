@@ -31,19 +31,23 @@ export interface WeavePoint {
 const STRAND_KINDS = ["bridge", "frame", "radius", "aux", "capture"] as const;
 type StrandKind = (typeof STRAND_KINDS)[number];
 
-/** One laid silk line: sampled points plus its birth window on the timeline. Spirals additionally
- *  carry a per-point birth time (`vt`) so the drawn extent ends exactly at the laying spider. */
-export interface WeaveStrand {
-  readonly kind: StrandKind;
+type SpiralKind = Extract<StrandKind, "aux" | "capture">;
+
+interface StrandGeometry {
   readonly pts: readonly WeavePoint[];
   readonly t0: number;
   readonly t1: number;
   readonly width: number;
-  readonly vt?: readonly number[];
-  /** Polyline arc length (px) — the physics module's pluck wave travels in REAL distance along the
-   *  silk, not in sample-index space, so a 22-sample radius and a 500-sample spiral ring the same. */
-  readonly length: number;
 }
+
+type UnmeasuredStrand = StrandGeometry &
+  ({ readonly kind: SpiralKind; readonly vt: readonly number[] } | { readonly kind: Exclude<StrandKind, SpiralKind>; readonly vt?: never });
+
+/** One laid silk line. Spirals carry per-point birth times so their drawn extent ends at the spider. */
+export type WeaveStrand = UnmeasuredStrand & {
+  /** Real arc length, so the pluck wave travels in px rather than sample-index space. */
+  readonly length: number;
+};
 
 /** One dew droplet on the capture spiral: position + radius + its own twinkle phase/speed, plus the
  *  capture SAMPLE it hangs from — a drop rides whatever that sample is doing (sway, and a pluck's
@@ -215,7 +219,7 @@ export function buildWeb({ width, height, hub: hubFrac, seed }: BuildWebInput): 
 
   const strands: WeaveStrand[] = [];
   /** Lay a strand: stamp its arc length (the physics module travels waves in real px) and file it. */
-  const lay = (strand: Omit<WeaveStrand, "length">): WeaveStrand => {
+  const lay = (strand: UnmeasuredStrand): WeaveStrand => {
     const laid: WeaveStrand = { ...strand, length: polylineLength(strand.pts) };
     strands.push(laid);
     return laid;
@@ -316,7 +320,7 @@ export function buildWeb({ width, height, hub: hubFrac, seed }: BuildWebInput): 
   /** The ring blend at an angle whose bounding ray is already known (one cast per spiral sample). */
   const shapeFor = (ray: number): number => SHAPE_ROUND + SHAPE_FRAME * (ray / reach);
   interface SpiralSpec {
-    readonly kind: "aux" | "capture";
+    readonly kind: SpiralKind;
     readonly t0: number;
     readonly t1: number;
     readonly thFrom: number;
@@ -325,7 +329,7 @@ export function buildWeb({ width, height, hub: hubFrac, seed }: BuildWebInput): 
     readonly rTo: number;
     readonly strokeWidth: number;
   }
-  const spiral = ({ kind, t0, t1, thFrom, thTo, rFrom, rTo, strokeWidth }: SpiralSpec): Omit<WeaveStrand, "length"> => {
+  const spiral = ({ kind, t0, t1, thFrom, thTo, rFrom, rTo, strokeWidth }: SpiralSpec): Extract<UnmeasuredStrand, { readonly kind: SpiralKind }> => {
     const pts: WeavePoint[] = [];
     const vt: number[] = [];
     const steps = Math.max(SPIRAL_MIN_STEPS, Math.round(Math.abs(thTo - thFrom) / SPIRAL_STEP_RAD));

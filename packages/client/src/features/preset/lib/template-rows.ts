@@ -15,15 +15,9 @@ import { GUIDED_ACTION_KINDS, TEMPLATE_CLUSTERS, TEMPLATE_DEFS, TEMPLATE_KINDS }
 import type { ProseSlotId } from "@orb/contracts/prose";
 import { isPresetProseSlotId, PROSE_SLOTS } from "@orb/contracts/prose";
 
-/** One registry row, resolved for the client: the def plus which slot shape it edits. */
+/** The registry def owns its form address; the row adds only its resolved factory text. */
 export interface TemplateRow {
   readonly def: TemplateDef;
-  /** A guided action carries role/depth beside its prompt; a format string is a bare string. */
-  readonly guidedKind: GuidedActionKind | undefined;
-  /** The THIRD form path (2026-08-07): a turn-wire framing, stored as `prose[<id>]` — a `{text, baseVersion}`
-   *  record rather than a bare string, so its write re-stamps the version the edit was authored against. */
-  readonly proseSlotId: ProseSlotId | undefined;
-  /** The PROSE-1 default bytes this row ghosts. */
   readonly factoryDefault: string;
 }
 
@@ -47,7 +41,7 @@ export interface TemplateGroup {
 const GUIDED_KIND_SET: ReadonlySet<string> = new Set<string>(GUIDED_ACTION_KINDS);
 
 /** Which ARM of `TemplateDefId` an id is — the one derivation the whole file's form-path split rides. */
-function isGuidedActionKind(id: TemplateDefId): id is GuidedActionKind {
+export function isGuidedActionKind(id: TemplateDefId): id is GuidedActionKind {
   return GUIDED_KIND_SET.has(id);
 }
 
@@ -174,14 +168,8 @@ export const TEMPLATE_KIND_FIRE_TIME: Record<TemplateKind, string> = {
   extract: "they are spliced from game data at the state round",
 };
 
-/** The ONE place a def's id becomes a form shape. */
 function templateRow(def: TemplateDef): TemplateRow {
-  return {
-    def,
-    guidedKind: isGuidedActionKind(def.id) ? def.id : undefined,
-    proseSlotId: isPresetProseSlotId(def.id) ? def.id : undefined,
-    factoryDefault: PROSE_SLOTS[def.defaultSlot].text,
-  };
+  return { def, factoryDefault: PROSE_SLOTS[def.defaultSlot].text };
 }
 
 /** Does a row match the tab's filter? Over the two strings a reader can SEE (label + fires) — matching

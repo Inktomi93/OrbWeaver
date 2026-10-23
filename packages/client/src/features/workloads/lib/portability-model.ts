@@ -12,12 +12,10 @@ import { skippedByReason } from "#data";
 /** One normalized per-file outcome for the report summary. `notes` mirrors the server's per-card
  *  `skippedOverlays` (#1598/#1709) — the planes THIS file's import deliberately did not assert (e.g. "book
  *  kept: primary already exists"). Absent on a failed outcome (nothing landed, so nothing was skipped). */
-interface ImportOutcomeView {
-  readonly path: string;
-  readonly ok: boolean;
-  readonly detail: string;
-  readonly notes?: readonly string[];
-}
+type ImportOutcomeView = { readonly path: string; readonly detail: string } & (
+  | { readonly ok: true; readonly notes?: readonly string[] }
+  | { readonly ok: false; readonly notes?: never }
+);
 
 /** The normalized import result the report summary renders (both import paths map into this). `notes` is
  *  the BATCH-wide list (#1710's `bundleImportNotes` flattening, for the bundle arm only — the card arm's
@@ -155,23 +153,31 @@ export function summarizeCardImport(result: CardImportResult): ImportSummary {
     // A bare card writes no chat, so it offers no memory build.
     memoryScope: null,
     outcomes: [
-      ...created.map((card) => ({
-        path: card.filename ?? UNNAMED_CARD,
-        ok: true,
-        detail: "Character card",
-        ...((card.notes ?? []).length > 0 ? { notes: card.notes } : {}),
-      })),
-      ...deduped.map((card) => ({
-        path: card.filename ?? UNNAMED_CARD,
-        ok: true,
-        detail: "Already imported",
-        ...((card.notes ?? []).length > 0 ? { notes: card.notes } : {}),
-      })),
-      ...result.failed.map((card) => ({
-        path: card.filename ?? UNNAMED_CARD,
-        ok: false,
-        detail: card.error,
-      })),
+      ...created.map((card): ImportOutcomeView => {
+        const notes = card.notes ?? [];
+        return {
+          path: card.filename ?? UNNAMED_CARD,
+          ok: true,
+          detail: "Character card",
+          ...(notes.length > 0 ? { notes } : {}),
+        };
+      }),
+      ...deduped.map((card): ImportOutcomeView => {
+        const notes = card.notes ?? [];
+        return {
+          path: card.filename ?? UNNAMED_CARD,
+          ok: true,
+          detail: "Already imported",
+          ...(notes.length > 0 ? { notes } : {}),
+        };
+      }),
+      ...result.failed.map(
+        (card): ImportOutcomeView => ({
+          path: card.filename ?? UNNAMED_CARD,
+          ok: false,
+          detail: card.error,
+        }),
+      ),
     ],
   };
 }

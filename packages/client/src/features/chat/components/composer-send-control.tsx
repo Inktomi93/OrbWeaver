@@ -23,6 +23,7 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { useId } from "react";
 import { cn, testId } from "#lib";
+import type { SendRefusal } from "../hooks/use-send-availability.ts";
 
 // A draft waiting to send: a compact accent disc at the glyph box (32px; the 44px hit area stays invisible),
 // the messenger convention. With nothing to send the glyph rests muted on no fill.
@@ -41,8 +42,7 @@ export interface ComposerSendControlProps {
   readonly sendPending: boolean;
   /** A draft (text or attachments) is waiting: Send takes the accent ink, else it rests muted. */
   readonly hasDraft: boolean;
-  readonly unavailable: boolean;
-  readonly unavailableReason: string | undefined;
+  readonly availability: SendRefusal;
   /** The id of the element that already states the refusal; Send is described by it and carries no copy. */
   readonly unavailableStatedBy: string | undefined;
 }
@@ -72,7 +72,7 @@ export function ComposerSendControl(props: ComposerSendControlProps): ReactEleme
       </Tooltip>
     );
   }
-  const ownReason = props.unavailableStatedBy === undefined ? props.unavailableReason : undefined;
+  const ownReason = props.unavailableStatedBy === undefined ? props.availability.reason : undefined;
   const describedBy = props.unavailableStatedBy ?? (ownReason === undefined ? undefined : ownReasonId);
   // `describesTrigger={false}`: this control already owns the reason's ONE description home (the `sr-only`
   // line below, or the element that states the refusal) and the tooltip is its visible twin. #2455 made the seal describe every trigger with its
@@ -89,7 +89,7 @@ export function ComposerSendControl(props: ComposerSendControlProps): ReactEleme
             size="glyph-lg"
             data-testid={testId("composerSend")}
             disabled={props.sendDisabled}
-            focusableWhenDisabled={props.unavailable}
+            focusableWhenDisabled={props.availability.unavailable}
             loading={props.sendPending}
             aria-label="Send message"
             onClick={props.onSend}
@@ -100,7 +100,7 @@ export function ComposerSendControl(props: ComposerSendControlProps): ReactEleme
           </Button>
         }
       />
-      <TooltipPopup side="top">{props.unavailableReason ?? "Send message"}</TooltipPopup>
+      <TooltipPopup side="top">{props.availability.reason ?? "Send message"}</TooltipPopup>
       {ownReason === undefined ? null : (
         <Text as="span" className="sr-only" id={ownReasonId}>
           {ownReason}

@@ -42,9 +42,17 @@ import { GameSeedFlights, PendingGameSeed } from "./retry-attempt.ts";
  * un-checked refusal hands back a chatId for a game whose scene planes silently never landed. It throws —
  * the seed's job is to be trustworthy or to say it failed, and the caller is an agent reading the rejection.
  */
-function assertHandWrote(door: string, result: { readonly ok: boolean; readonly reason?: string }): void {
+type HandWritePortResult = Awaited<ReturnType<AgentSeedClient["rpg"]["editSnapshot"]["mutate"] | AgentSeedClient["rpg"]["patchActor"]["mutate"]>>;
+
+/** A hand-write refusal retains the reason declared by its actual mutation door. */
+export type HandWriteResult =
+  | (Extract<HandWritePortResult, { readonly ok: true }> & { readonly reason?: never })
+  | Extract<HandWritePortResult, { readonly ok: false }>;
+
+/** Refused snapshot writes must fail the seed instead of returning a partially seeded game. */
+function assertHandWrote(door: string, result: HandWriteResult): void {
   if (!result.ok) {
-    throw new Error(`__orb.seed: rpg.${door} refused — ${result.reason ?? "no reason given"}`);
+    throw new Error(`__orb.seed: rpg.${door} refused — ${result.reason}`);
   }
 }
 

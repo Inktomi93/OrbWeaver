@@ -6,7 +6,7 @@
 //   · ReConsentNotice — the #650/#658 re-consent surface a reach-widening upgrade forces (rendered by the
 //     parent whenever `plugin.reconsentPending` is the server's own durable verdict).
 
-import type { PluginBundleHash, PluginCapability } from "@orb/contracts/plugin";
+import type { PluginCapability } from "@orb/contracts/plugin";
 import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -38,18 +38,18 @@ import { PluginGrantList } from "./plugin-grant-list.tsx";
 /** One projected row of `plugin.list` — the shape both leaves read (a private derived alias, mirrored by the
  *  parent `PluginRow`; a 1-line `inferOutput` derivation, not an exported shape a type home would own). */
 type PluginView = inferOutput<Trpc["plugin"]["list"]>[number];
+type AvailableUpdate = Extract<inferOutput<Trpc["plugin"]["checkForUpdates"]>[number], { readonly status: "update-available" | "source-changed" }>;
 
 /** The auto update-check's local verdict for ONE row (U8 2b). Local, not server state: the check writes
  *  nothing, so its result is transient UI feedback until the person acts on it (a one-click upgrade is what
  *  makes a DURABLE change, and that rides the list refetch). `idle` before the first check. */
-type UpdateVerdict =
+export type UpdateVerdict =
   | { readonly kind: "idle" | "up-to-date" | "unreachable" }
   | {
       readonly kind: "available";
       readonly label: string;
       readonly ariaLabel: string;
-      readonly expectedGitCommit: string | null;
-      readonly expectedBundleHash: PluginBundleHash | null;
+      readonly proof: AvailableUpdate;
     };
 
 /** The update-check + one-click upgrade affordance for a plugin SOMETHING can serve a newer version for (U8 2b —
@@ -97,8 +97,7 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
         kind: "available",
         label: updateAvailableLabel(mine.newVersion),
         ariaLabel: `Update ${plugin.name} to ${mine.newVersion}`,
-        expectedGitCommit: null,
-        expectedBundleHash: mine.source === "url" ? mine.bundleHash : null,
+        proof: mine,
       });
       return;
     }
@@ -107,8 +106,7 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
         kind: "available",
         label: updateCommitAvailableLabel(mine.sourceCommit),
         ariaLabel: `Update ${plugin.name} from commit ${abbreviateSourceCommit(mine.sourceCommit)}`,
-        expectedGitCommit: mine.sourceCommit,
-        expectedBundleHash: null,
+        proof: mine,
       });
       return;
     }
@@ -118,17 +116,17 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
   const applyUpgrade = async (): Promise<void> => {
     let pending: Promise<PluginView>;
     if (plugin.updateSource === "git") {
-      if (verdict.kind !== "available" || verdict.expectedGitCommit === null) {
+      if (verdict.kind !== "available" || verdict.proof.status !== "source-changed") {
         return;
       }
-      pending = upgradeGit.mutateAsync({ pluginId: plugin.id, expectedCommit: verdict.expectedGitCommit });
+      pending = upgradeGit.mutateAsync({ pluginId: plugin.id, expectedCommit: verdict.proof.sourceCommit });
     } else if (plugin.updateSource === "showcase") {
       pending = upgradeShowcase.mutateAsync({ pluginId: plugin.id });
     } else {
-      if (verdict.kind !== "available" || verdict.expectedBundleHash === null) {
+      if (verdict.kind !== "available" || verdict.proof.status !== "update-available" || verdict.proof.source !== "url") {
         return;
       }
-      pending = upgradeStored.mutateAsync({ pluginId: plugin.id, expectedBundleHash: verdict.expectedBundleHash });
+      pending = upgradeStored.mutateAsync({ pluginId: plugin.id, expectedBundleHash: verdict.proof.bundleHash });
     }
     // `pending` is useUpgradePluginFromStoredGit (lib/plugin-distribution-mutations.ts),
     // useUpgradePluginFromShowcase or useUpgradePluginFromStoredUrl (lib/plugin-mutations.ts); each carries an errorToast.

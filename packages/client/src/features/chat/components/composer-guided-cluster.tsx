@@ -49,6 +49,7 @@ import { useGatedQuery, useTRPC } from "#data";
 import { IMPERSONATE_IN_FLIGHT, IMPERSONATE_WAIT_FOR_TURN, STEER_CUE_CONTINUE, STEER_CUE_SWIPE, SWIPE_NEEDS_REPLY } from "#lib";
 import { useComposerUtilities } from "../hooks/use-composer-utilities.ts";
 import { useGuidedActions } from "../hooks/use-guided-actions.ts";
+import type { SendRefusal } from "../hooks/use-send-availability.ts";
 import { filterCharacters } from "../lib/roster.ts";
 import { GuidedIconButton, ImpersonateGuidedButton, ImpersonateStopButton, ResponseGuidedButton } from "./composer-guided-buttons.tsx";
 import type { ComposerImageControls } from "./composer-media-group.tsx";
@@ -70,8 +71,7 @@ export interface ComposerGuidedClusterProps {
   /** The honest-refusal pre-send gate (#54): the chat's resolved connection can't deterministically serve a
    *  turn, so EVERY fire action (impersonate/swipe/response/continue + the ✨-menu turn rows) disables with
    *  `sendUnavailableReason`. Engine-agnostic; the reason wins over a phase reason (both are persistent). */
-  readonly sendUnavailable: boolean;
-  readonly sendUnavailableReason: string | undefined;
+  readonly sendAvailability: SendRefusal;
   /** The id of the element that already states the send refusal (the next-turn line). The band's refusal line
    *  then stands down and each control it idles is described by that element. */
   readonly refusalStatedBy: string | undefined;
@@ -94,8 +94,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
     busy = false,
     tailIsAssistant,
     imageControls,
-    sendUnavailable,
-    sendUnavailableReason,
+    sendAvailability,
     refusalStatedBy,
     chatControl,
     actionContributions,
@@ -118,6 +117,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
   // all fire a doomed turn). `reasonFor` then lets the send cause WIN over the phase reason (both persistent):
   // a disabled icon on an off engine reads "Local engine is off…", not "needs a reply first".
   const anyBusy = guided.isPending || busy === true;
+  const { unavailable: sendUnavailable, reason: sendUnavailableReason } = sendAvailability;
   const idle = !(anyBusy || sendUnavailable);
   // IMP-2 — a LIVE impersonate stream is the honest off-cause while it runs: it idles every icon, but nothing
   // is being generated into the transcript, so the generic "wait for the current reply to finish" pointed at a

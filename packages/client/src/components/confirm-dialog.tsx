@@ -25,7 +25,7 @@ import { useState } from "react";
  *  controls inside it takes focus as a whole. */
 type ConfirmFinalFocus = RefObject<HTMLElement | null> | (() => boolean);
 
-export interface ConfirmDialogProps {
+interface ConfirmDialogBaseProps {
   /** The alert-dialog heading. */
   readonly title: ReactNode;
   /** Supporting copy — plain text/fragment only (AlertDialogDescription IS a <p>; no nested <Text>). Omit for a title-only confirm. */
@@ -61,9 +61,6 @@ export interface ConfirmDialogProps {
   readonly onConfirm: () => void | Promise<void>;
   /** Uncontrolled: the caller's own trigger element (ConfirmDialog owns the open state). Omit to run controlled (below). */
   readonly trigger?: ReactElement;
-  /** Controlled open state — supply BOTH or neither (paired with a caller-owned trigger elsewhere). */
-  readonly open?: boolean;
-  readonly onOpenChange?: (open: boolean) => void;
   /** Disables the confirm button (e.g. a pending mutation). */
   readonly confirmDisabled?: boolean;
   /** Shows the confirm button's busy state (e.g. `mutation.isPending`). */
@@ -73,6 +70,10 @@ export interface ConfirmDialogProps {
   /** Where focus goes on close. Give one when the act unmounts the trigger, or focus falls to the page body. */
   readonly finalFocus?: ConfirmFinalFocus;
 }
+
+/** Controlled callers own both state and changes; uncontrolled callers supply neither. */
+export type ConfirmDialogProps = ConfirmDialogBaseProps &
+  ({ readonly open: boolean; readonly onOpenChange: (open: boolean) => void } | { readonly open?: never; readonly onOpenChange?: never });
 
 /**
  * Does this `onConfirm` return value name work that is still in flight?

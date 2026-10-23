@@ -22,17 +22,16 @@ import { sendUnavailableReason } from "#lib";
 import { sendRefusalKey } from "../lib/next-turn-line.ts";
 import { useCreditConnections } from "./use-credit-connections.ts";
 
-export interface SendGate {
-  /** The chat cannot deterministically serve a turn — SEND + the guided fire actions disable. False while the
-   *  verdict is unresolved or on a draft (never refuse before we know / before the first send commits). */
-  readonly unavailable: boolean;
-  /** The cause-specific disabled reason (title + aria) — present iff `unavailable`. */
-  readonly reason: string | undefined;
-  /** The settled verdict for readouts: `null` = serveable, a cause = refused, `undefined` = not settled. */
-  readonly cause: UnavailableCause | null | undefined;
-  /** The verdict read itself failed. The gate still never refuses on it; a readout names it. */
-  readonly failed: boolean;
-}
+/** Unresolved reads do not refuse a send; a resolved refusal always carries its reason and cause. */
+export type SendGate =
+  | { readonly unavailable: false; readonly reason: undefined; readonly cause: undefined; readonly failed: boolean }
+  | { readonly unavailable: false; readonly reason: undefined; readonly cause: null; readonly failed: false }
+  | { readonly unavailable: true; readonly reason: string; readonly cause: UnavailableCause; readonly failed: false };
+
+/** The normalized refusal projected to controls without inventing a query outcome. */
+export type SendRefusal =
+  | Pick<Extract<SendGate, { readonly unavailable: false }>, "unavailable" | "reason">
+  | Pick<Extract<SendGate, { readonly unavailable: true }>, "unavailable" | "reason">;
 
 /** The pre-send serveability gate for `chatId` (null on a draft — never refused). */
 export function useSendAvailability(chatId: ChatId | null): SendGate {

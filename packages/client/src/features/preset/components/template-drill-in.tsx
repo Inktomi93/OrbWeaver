@@ -16,7 +16,7 @@
 import type { TemplateCapability } from "@orb/contracts/preset";
 import { MAX_INJECTION_TEMPLATE_LENGTH } from "@orb/contracts/preset";
 import type { ProseFooterState, ProseSlotId } from "@orb/contracts/prose";
-import { PROSE_COUNTER_AT, PROSE_MAX_CHARS, PROSE_SLOTS, proseFooterState } from "@orb/contracts/prose";
+import { isPresetProseSlotId, PROSE_COUNTER_AT, PROSE_MAX_CHARS, PROSE_SLOTS, proseFooterState } from "@orb/contracts/prose";
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Badge } from "@orb/ui/badge";
@@ -36,7 +36,7 @@ import { useFocusOnSwap } from "#lib";
 import { GUIDED_INPUT_TOKEN, guidedFooterState } from "../lib/assembly-model.ts";
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
 import type { TemplateRow } from "../lib/template-rows.ts";
-import { proseTemplateDraft } from "../lib/template-rows.ts";
+import { isGuidedActionKind, proseTemplateDraft } from "../lib/template-rows.ts";
 import { DeliveryCluster } from "./delivery-cluster.tsx";
 import { PresetMacroSuggestions } from "./preset-macro-suggestions.tsx";
 
@@ -105,17 +105,18 @@ export function TemplateDrillIn({ form, row, onBack }: TemplateDrillInProps): Re
  *  already says "Template", so a third label on the textarea was the same word at three levels. The
  *  accessible name moves to `aria-label` — the datum reaches AT, the eye stops reading it twice. */
 function TemplateBody({ form, row }: { readonly form: PresetForm; readonly row: TemplateRow }): ReactElement {
-  const { def, guidedKind, proseSlotId, factoryDefault } = row;
+  const { def, factoryDefault } = row;
+  const defId = def.id;
   const placeholder = factoryDefault;
   const label = "Template";
-  if (proseSlotId !== undefined) {
-    return <ProseTemplateBody form={form} label={label} placeholder={placeholder} slotId={proseSlotId} />;
+  if (isPresetProseSlotId(defId)) {
+    return <ProseTemplateBody form={form} label={label} placeholder={placeholder} slotId={defId} />;
   }
   return (
     <PresetMacroSuggestions form={form}>
       {(suggestions): ReactElement =>
-        guidedKind === undefined ? (
-          <form.AppField name={`formatStrings.${def.id}` as "formatStrings.continueNudge"}>
+        !isGuidedActionKind(defId) ? (
+          <form.AppField name={`formatStrings.${defId}`}>
             {(field): ReactElement => (
               <Stack gap="field">
                 {/* THE CAP, off the contract constant. `formatStringsSchema` bounds every slot at
@@ -136,7 +137,7 @@ function TemplateBody({ form, row }: { readonly form: PresetForm; readonly row: 
             )}
           </form.AppField>
         ) : (
-          <form.AppField name={`guidedActions.${guidedKind}.prompt`}>
+          <form.AppField name={`guidedActions.${defId}.prompt`}>
             {/* THE CAP, off the SAME contract constant the nudge above wears. The contract question this
                 field once raised is answered (owner ruling 2026-08-08): `guidedActionConfigSchema.prompt` was
                 an uncapped `z.string()` and is now bounded by `MAX_INJECTION_TEMPLATE_LENGTH`, because a
@@ -320,8 +321,8 @@ function CapabilityFields({ form, row }: { readonly form: PresetForm; readonly r
 /** The `role` capability — the SHARED DeliveryCluster, the same grammar a section's drill-in speaks, with
  *  the conditional tail-prefill mark rendered in its one home. */
 function DeliveryFields({ form, row }: CapabilityProps): ReactElement | null {
-  const guidedKind = row.guidedKind;
-  if (guidedKind === undefined) {
+  const guidedKind = row.def.id;
+  if (!isGuidedActionKind(guidedKind)) {
     return null;
   }
   return (
@@ -357,7 +358,8 @@ function TokenVocabulary({ form, row, capability }: CapabilityProps): ReactEleme
   if (capability.kind !== "tokens") {
     return null;
   }
-  const { def, guidedKind, factoryDefault } = row;
+  const { def, factoryDefault } = row;
+  const guidedKind = isGuidedActionKind(def.id) ? def.id : undefined;
   const tokens = capability.tokens;
   return (
     // THE CHIPS ARE A NAMED LIST, not two floating glyphs (side-eye F-17). They sat 30px under DELIVERY

@@ -21,6 +21,11 @@ const GHOST_APPEND_KEY = "__ghost__";
 
 type ChatRowItem = { readonly kind: "message"; readonly view: MessageView } | { readonly kind: "ghost"; readonly id: string };
 
+/** Preserve each canonical row arm while narrowing the message fields a pure reader consumes. */
+export type ChatRowProjection<Field extends keyof MessageView> =
+  | (Pick<Extract<ChatRowItem, { readonly kind: "message" }>, "kind"> & { readonly view: Pick<MessageView, Field> })
+  | Pick<Extract<ChatRowItem, { readonly kind: "ghost" }>, "kind">;
+
 export function messageItemKey(item: ChatRowItem): string {
   return item.kind === "ghost" ? item.id : item.view.id;
 }
@@ -28,10 +33,10 @@ export function messageItemKey(item: ChatRowItem): string {
 /** The list index of the last user-role row (the just-sent prompt), or -1 — the pin-prompt scroll target.
  *  Pure over the merged item list so it can be unit-tested without a virtualizer/DOM. Typed
  *  structurally (a ChatRowItem[] satisfies it) so callers and tests need no full-MessageView value. */
-export function lastUserRowIndex(items: readonly { readonly kind: "message" | "ghost"; readonly view?: { readonly role: MessageView["role"] } }[]): number {
+export function lastUserRowIndex(items: readonly ChatRowProjection<"role">[]): number {
   for (let i = items.length - 1; i >= 0; i--) {
     const item = items[i];
-    if (item !== undefined && item.kind === "message" && item.view?.role === "user") {
+    if (item !== undefined && item.kind === "message" && item.view.role === "user") {
       return i;
     }
   }
