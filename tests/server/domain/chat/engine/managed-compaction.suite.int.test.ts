@@ -29,6 +29,7 @@ test("agent-sdk fit drops rebuild the durable marker through the chat's own nati
   expect(markerRequest).toBeDefined();
   expect(markerRequest?.argv.join(" ")).toContain(ENGINE_SDK_MODEL);
   expect(markerRequest?.prompt).toContain("Conversation to summarize:");
+  expect(markerRequest?.prompt).toContain("turn 1 —");
   expect(fixture.receipts.filter(({ marker }) => !marker)).toHaveLength(1);
 });
 
@@ -329,6 +330,7 @@ test("configured compaction instructions reach the actual marker prompt instead 
   await fixture.h.root.settleBackground();
   const prompt = fixture.receipts.find(({ marker }) => marker)?.prompt;
   expect(prompt).toContain("CUSTOM-STEER-XYZ");
+  expect(prompt).toContain("turn 1 —");
   expect(prompt).not.toContain(DEFAULT_COMPACT_INSTRUCTIONS);
 });
 

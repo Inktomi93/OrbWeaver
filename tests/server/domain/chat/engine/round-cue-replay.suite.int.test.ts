@@ -4,6 +4,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { TurnOutcome } from "@orb/contracts/chat";
 import { builtinProvider, SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import type { CarryReasoning } from "@orb/contracts/preset";
+import { resolveProseText } from "@orb/contracts/prose";
 import { messages, messageVariants } from "@orb/db";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
@@ -17,7 +18,7 @@ import {
   createChatRoot,
   createCorpusProviderExecution,
 } from "@orb/testkit/node/composed";
-import { and, eq, gt } from "drizzle-orm";
+import { and, eq, gt, max } from "drizzle-orm";
 
 const MODEL = "claude-opus-5-5";
 const THINKING = "The signed group thought.";
@@ -119,19 +120,32 @@ async function room(): Promise<
   return { h, round, inputs, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
 }
 
+// The first request's seeded history as the converter sends it: the new-chat marker, then both seeded assistant lines
+// (the first speaker's included) folded into one assistant turn. The seeded owner line follows, joined with the live send.
+const OPENING_HISTORY = [
+  { role: "user", content: [{ type: "text", text: resolveProseText("preset.format.newChatMarker", {}) }] },
+  { role: "assistant", content: [{ type: "text", text: "Aria: Aria waves.\n\nBran: Bran nods." }] },
+];
+const OPENING_OWNER_LINE = "Where to?\n\nGo on.";
+
 test("each committed reply carries its delivered cue, and every request opens with the one before it", async () => {
   await using fixture = await room();
   const { h } = fixture;
+  const [head] = await h.root.db
+    .select({ seq: max(messages.seq) })
+    .from(messages)
+    .where(eq(messages.chatId, h.chatId));
   const firstRound = await fixture.round("conversation");
   expect(firstRound.aborted).toBe(false);
   expect(firstRound.messages.filter(({ role }) => role === "assistant")).toHaveLength(2);
   const first = await fixture.inputs();
   expect(first).toHaveLength(2);
+  expect(first[0]?.slice(0, 3)).toEqual([...OPENING_HISTORY, { role: "user", content: [{ type: "text", text: OPENING_OWNER_LINE }] }]);
   const cues = await h.root.db
     .select({ cue: messageVariants.cue, role: messageVariants.cueRole, reasoning: messageVariants.reasoning })
     .from(messages)
     .innerJoin(messageVariants, eq(messages.selectedVariantId, messageVariants.id))
-    .where(and(eq(messages.chatId, h.chatId), eq(messages.role, "assistant"), gt(messages.seq, 3)))
+    .where(and(eq(messages.chatId, h.chatId), eq(messages.role, "assistant"), gt(messages.seq, head?.seq ?? 0)))
     .orderBy(messages.seq);
   expect(cues).toHaveLength(2);
   expect(cues.map(({ role }) => role)).toEqual(["turn-scoped-system", "user"]);
@@ -166,6 +180,8 @@ test("a cue replays in the role it was delivered in after the carry changes mid-
   const requests = await fixture.inputs();
   expect(requests).toHaveLength(4);
   const before = requests[0] ?? [];
+  expect(before.slice(0, 2)).toEqual(OPENING_HISTORY);
+  expect(before[2]).toMatchObject({ role: "user", content: [{ type: "text", text: expect.stringContaining(OPENING_OWNER_LINE) }] });
   expect(before.at(-1)).toMatchObject({ role: "user" });
   expect(requests[2]?.slice(0, before.length)).toEqual(before);
   expect(requests[3]?.slice(0, before.length)).toEqual(before);

@@ -84,7 +84,9 @@ test("the actual scoped digest build excludes complete blocks from before a char
   expect(digests.filter((row) => row.scopedCharacterId === first.id && row.blockIdx === 0).map((row) => row.text)).toEqual([
     expect.stringContaining("Unwitnessed opening"),
   ]);
-  expect(summaries.some((body) => body.includes("Aria: Unwitnessed opening"))).toBe(true);
+  // The summarizer body is JSON, so the block text is matched as it is escaped on the wire.
+  const openingBlock = JSON.stringify("Transcript block:\n\nAria: Unwitnessed opening 1.\nAria: Unwitnessed opening 2.").slice(1, -1);
+  expect(summaries.some((body) => body.includes(openingBlock))).toBe(true);
   expect(summaries.some((body) => body.includes("Bryn: Joined bridge"))).toBe(true);
   expect(summaries.every((body) => !(body.includes(first.id) || body.includes(late.id)))).toBe(true);
   const segments = await h.root.db.select().from(chatSegments).where(eq(chatSegments.chatId, h.chatId)).orderBy(chatSegments.blockIdx, chatSegments.chunkIdx);

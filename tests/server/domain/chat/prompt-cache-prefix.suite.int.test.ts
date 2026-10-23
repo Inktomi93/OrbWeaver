@@ -6,6 +6,7 @@ import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { JsonValue } from "@orb/kit/json";
+import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
@@ -24,6 +25,7 @@ import {
   withoutCacheDirective,
 } from "./persona-cache-physical.ts";
 
+const newChatMarker = resolveProseText("preset.format.newChatMarker", {});
 const CACHE_CARD = `aria the innkeeper\n${"A patient archivist catalogs the observatory's numbered books.\n".repeat(512)}`;
 
 async function people(options: Parameters<typeof personaRoom>[1] = {}): Promise<
@@ -140,7 +142,7 @@ test("solo second-call system and native history have the canonical golden shape
   expect(inputSystemBlocks(inputs[0] ?? null).map(withoutCacheDirective)).toEqual(goldenBlocks);
   expect(inputSystemBlocks(inputs[1] ?? null).map(withoutCacheDirective)).toEqual(goldenBlocks);
   expect(inputMessages(inputs[1] ?? null).map(withoutCacheDirective)).toEqual([
-    { role: "user", content: [{ type: "text", text: `${resolveProseText("preset.format.newChatMarker", {})}\n\nhi` }] },
+    { role: "user", content: [{ type: "text", text: `${newChatMarker}\n\nhi` }] },
     { role: "assistant", content: [{ type: "text", text: "Hello there." }] },
     { role: "user", content: [{ type: "text", text: "my name is Alex" }] },
   ]);
@@ -172,13 +174,18 @@ test("departed and unattributed assistant history keeps its exact labels across 
   const inputs = await personaInputs(h);
   expect(inputs).toHaveLength(2);
   const first = inputMessages(inputs[0] ?? null).map(messageText);
-  expect(first[1]).toBe("mira: I was here");
-  expect(first[3]).toBe("agent line");
-  expect(
-    inputMessages(inputs[1] ?? null)
-      .slice(0, 4)
-      .map(messageText),
-  ).toEqual(first.slice(0, 4));
+  // The last row carries the per-speaker nudge, which differs per current speaker, so only its opening is pinned.
+  expect(first.slice(0, 4)).toEqual([
+    `${newChatMarker}\n\n${DEFAULT_PERSONA_NAME}: hi all`,
+    "mira: I was here",
+    `${DEFAULT_PERSONA_NAME}: and you?`,
+    "agent line",
+  ]);
+  expect(first[4]?.startsWith(`${DEFAULT_PERSONA_NAME}: go on`)).toBe(true);
+  expect(first).toHaveLength(5);
+  const second = inputMessages(inputs[1] ?? null).map(messageText);
+  expect(second.slice(0, 4)).toEqual(first.slice(0, 4));
+  expect(second[4]?.startsWith(`${DEFAULT_PERSONA_NAME}: go on`)).toBe(true);
 });
 
 test("Alice to Bob to Alice preserves the actual cached history and anchor-bound system across senders", async () => {
@@ -300,6 +307,8 @@ test("an unstamped user row keeps its bytes and cache prefix between a human sen
   expect(inputs).toHaveLength(2);
   const previous = inputMessages(inputs[0] ?? null);
   const next = inputMessages(inputs[1] ?? null);
+  expect(messageText(previous[0] ?? null)).toBe(`${newChatMarker}\n\nan old line`);
+  expect(messageText(previous[1] ?? null)).toBe("a reply");
   expect(messageText(next[0] ?? null)).toBe(messageText(previous[0] ?? null));
   const marker = lastMarkedRow(previous);
   expect(marker).toBeGreaterThanOrEqual(0);
@@ -460,6 +469,7 @@ test("a real mid-conversation-system model retains depth-two and below-history s
   expect(nativeText(blocks[0] ?? null)).not.toContain(PER_TURN_NOTE);
   expect(nativeText(blocks[1] ?? null)).toContain(PER_TURN_NOTE);
   expect(texts.some((text) => text.includes(PER_TURN_NOTE))).toBe(false);
+  expect(texts.slice(0, 2)).toEqual([`${newChatMarker}\n\nu1`, "a1"]);
   const index = texts.indexOf(DEPTH_TWO_NOTE);
   expect(rows[index]).toMatchObject({ role: "system" });
   expect([texts[index - 1], texts[index + 1]]).toEqual(["u2", "a2"]);
@@ -481,6 +491,7 @@ test("a real older model and strict preset fold the same system rows into user t
     expect(blocks).toHaveLength(2);
     expect(nativeText(blocks[0] ?? null)).not.toContain(PER_TURN_NOTE);
     expect(nativeText(blocks[1] ?? null)).toContain(PER_TURN_NOTE);
+    expect(texts.slice(0, 2)).toEqual([`${newChatMarker}\n\nu1`, "a1"]);
     const index = texts.findIndex((text) => text.includes(DEPTH_TWO_NOTE));
     expect(index).toBeGreaterThanOrEqual(0);
     expect(rows[index]).toMatchObject({ role: "user" });

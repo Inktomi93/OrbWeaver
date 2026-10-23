@@ -5,7 +5,7 @@ import type { GroupConfig } from "@orb/contracts/chat";
 import { messages } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import { and, eq, gt, max } from "drizzle-orm";
-import { textRoom } from "../scenario-physical.ts";
+import { openingOf, openingText, textRoom, wireBodies } from "../scenario-physical.ts";
 
 interface SpeakerCase {
   readonly title: string;
@@ -149,5 +149,10 @@ test.for(CASES)("$title", async (scene) => {
     scene.expected.map((index) => h.characters[index]?.id),
   );
   expect(canon[0]).toMatchObject({ role: "user", authorUserId: h.owner.userId });
-  expect(h.requests.filter((request) => new URL(request.url).pathname.endsWith("/chat/completions"))).toHaveLength(scene.expected.length);
+  // A seeded room opens on its imported owner line; an empty room opens on the live send, which may carry a nudge.
+  const bodies = await wireBodies(h);
+  expect(bodies).toHaveLength(scene.expected.length);
+  for (const body of bodies) {
+    expect(openingText(body).startsWith(openingOf(prior === undefined ? scene.content : "hello"))).toBe(true);
+  }
 });

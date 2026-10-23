@@ -4,21 +4,10 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { messages } from "@orb/db";
-import type { JsonValue } from "@orb/kit/json";
-import { jsonValueSchema } from "@orb/kit/json";
 import { expect, test } from "@orb/testkit/node";
-import type { ChatRoot } from "@orb/testkit/node/composed";
 import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
-import { textRoom } from "../scenario-physical.ts";
-
-async function wireBodies(h: ChatRoot): Promise<JsonValue[]> {
-  return await Promise.all(
-    h.requests
-      .filter((request) => request.method === "POST" && new URL(request.url).pathname.endsWith("/chat/completions"))
-      .map(async (request) => jsonValueSchema.parse(JSON.parse(await request.clone().text()))),
-  );
-}
+import { openingOf, openingText, textRoom, wireBodies } from "../scenario-physical.ts";
 
 test("saved custom stopping strings reach the actual native stop set on a declared stop-capable endpoint", async () => {
   await using h = await textRoom(["The response ends here."]);
@@ -202,6 +191,7 @@ test.for([
     throw new Error("the physical response input has no user message");
   }
   expect(JSON.stringify(lastUser).includes("write the next reply")).toBe(scene.afterAssistant);
+  expect(openingText(body)).toBe(openingOf("hello"));
 });
 
 const NORMAL_MARK = "NORMAL-TRIGGER-SECTION";
@@ -247,6 +237,9 @@ test.for([
   }
   const inputs = await wireBodies(h);
   expect(inputs).toHaveLength(1);
+  // The send room is born empty, so its opening row is the live send; the others open on the seeded line. A trigger
+  // section may append to the tail user row, so the opening is matched as a prefix.
+  expect(openingText(inputs[0]).startsWith(openingOf(scene.kind === "send" ? "hi" : "hello"))).toBe(true);
   const wire = JSON.stringify(inputs);
   expect(wire.includes(NORMAL_MARK)).toBe(scene.normal);
   expect(wire.includes(CONTINUE_MARK)).toBe(scene.continuation);
