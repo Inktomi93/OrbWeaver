@@ -1,36 +1,19 @@
 // @subject packages/db/src/schema/workloads.ts
-import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { assertReferentialIntegrity, closeDb, createDb, runMigrations, users, workloads } from "@orb/db";
 import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
-import { jsonValueSchema } from "@orb/kit/json";
 import { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import { SHIPPED_MIGRATIONS, seedUser } from "@orb/testkit/node/composed";
+import { migrationsBefore, SHIPPED_MIGRATIONS, seedUser } from "@orb/testkit/node/composed";
 import { eq, sql } from "drizzle-orm";
 
 const FUNDER_MIGRATION = "0003_workload-funder";
 
 test("the forward migration retains history, recovers only owned funding, and clears deleted funding", async () => {
+  await using previousChain = await migrationsBefore(FUNDER_MIGRATION);
   await using lifetime = new AsyncDisposableStack();
-  const previousChain = await mkdtemp(join(tmpdir(), "workload-funding-chain-"));
-  lifetime.defer(() => rm(previousChain, { recursive: true, force: true }));
-  await cp(SHIPPED_MIGRATIONS, previousChain, { recursive: true });
-  const journalPath = join(previousChain, "meta", "_journal.json");
-  const journal = jsonValueSchema.parse(JSON.parse(await readFile(journalPath, "utf8")));
-  if (journal === null || typeof journal !== "object" || Array.isArray(journal) || !Array.isArray(journal["entries"])) {
-    throw new Error("shipped migration journal has no entries");
-  }
-  const entries = journal["entries"];
-  const fundingIndex = entries.findIndex((entry) => entry !== null && typeof entry === "object" && !Array.isArray(entry) && entry["tag"] === FUNDER_MIGRATION);
-  if (fundingIndex < 1) {
-    throw new Error("funding migration has no preceding chain");
-  }
-  await writeFile(journalPath, JSON.stringify({ ...journal, entries: entries.slice(0, fundingIndex) }));
   const db = await createDb(":memory:");
   lifetime.defer(() => closeDb(db));
-  await runMigrations(db, previousChain);
+  await runMigrations(db, previousChain.path);
   const ids = createIdSource(createSeededIds().next);
   const owner = await seedUser(db, {}, ids);
   const deleted = await seedUser(db, {}, ids);

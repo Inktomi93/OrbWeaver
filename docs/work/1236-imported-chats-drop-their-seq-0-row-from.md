@@ -30,15 +30,51 @@ The import writer numbers canon from seq 1 (`importedSeq` in `packages/server/sr
 
 ## Existing rows
 
-No migration ships with this item. The readers treat absent coverage as no filter, so 0-based rooms are whole in the prompt and the compaction window.
+Migration `packages/db/src/migrations/0005_renumber-imported-canon.sql` renumbers every chat that holds a `messages` row at seq 0 so its canon starts at seq 1. A fork of a 0-based room copies its seqs, so the same selection covers it.
 
-One residual stays on 0-based rooms imported from a native bundle that carried a marker: the row at the marker's seq plus 1 sits under the marker but is not in its summary. A renumbering migration would close it. Proposed shape, for the owner to decide:
+### Marker rule
 
-1. Select each chat that has a `messages` row at seq 0.
-2. Shift that chat's `messages.seq` up by 1, highest seq first, so the `(chat_id, seq)` unique index never collides.
-3. Shift the chat's `chat_participants.join_seq` and `left_seq` values above 0 by 1. A founding seat keeps `join_seq` 0.
-4. Leave `chats.compacted_at_seq` alone when the marker came from the bundle. Shift it when a local pass wrote it. The row does not record which one wrote it, so the migration needs a rule for that choice.
-5. Check every other seq-keyed plane for the same chat: runtime variable deltas, memory digest positions, and `automation_rule_state` `settledThroughSeq`.
+No column records which writer set `chats.compacted_at_seq`.
+
+- `compaction_spend` has no chat id, and only a priced pass writes a row.
+- No durable bus event is specific to compaction. The compact verb emits the generic `chatUpdated`.
+- A local pass always writes a coverage point equal to the seq of an existing row, and so can a bundle marker.
+
+One bound exists. The import writes `chats.updated_at` from the bundle and `chats.started_at` at the import instant. Every compaction write sets `updated_at` to the current time. A canon turn does not write `updated_at`.
+
+The rule:
+
+- When `updated_at < started_at`, nothing has written the chat row since the import. The marker is the bundle's, so the migration keeps it. It then covers the same source messages it covered in the source room.
+- In every other case, the migration shifts the marker by 1 with the rows. It then covers the same messages it covers today.
+
+Why this rule: shifting keeps today's coverage exactly, so it never makes a correct room wrong. Keeping is correct only for a bundle marker, and the rule keeps only where the row proves that.
+
+Residuals:
+
+- A room imported from a bundle with a marker, then edited (title, star, variables), keeps the hidden row at the old marker seq plus 1. The data cannot separate that edit from a local compaction.
+- A bundle exported from a 0-based room carries a 0-based marker. When such a bundle was imported and left untouched, the kept marker sits one row low. One summarized row then also shows in the prompt. No row is hidden.
+
+### Planes that move with the rows
+
+| Plane | Change |
+| - | - |
+| `messages.seq` | plus 1 |
+| `chats.compacted_at_seq` | the marker rule above |
+| `chats.standalone_variable_deltas[].seq` | plus 1, so deltas fold in the same order against the rows |
+| `chat_participants.join_seq` | plus 1 when above 0; 0 already admits every row |
+| `chat_participants.left_seq` | plus 1 when set, so a departed seat keeps the last row it saw |
+| `chat_segments.seq_start`, `seq_end` | plus 1; the segment hash does not include seqs, so a rebuild would not repair them |
+| `chat_events.payload` `$.view.seq`, `$.slotSeq` | plus 1, so a durable replay carries current seqs |
+| `automation_rule_state.state` `$.settledThroughSeq` for a rule on the chat | plus 1 when above 0; 0 means no watermark |
+
+Planes left alone:
+
+- `chat_digests.block_idx` counts rows from the start, not seqs.
+- `chat_events.seq`, `chat_stream_events.seq` and `chats.stream_seq` are replay cursors, not message seqs.
+- `session_entries.seeded_through_seq` stores a seeded-turn count (`packages/db/src/schema/sdk-session.ts`).
+- `notifications.seq` is a per-recipient cursor.
+- RPG snapshots and journals reference messages by id.
+- `world_entries.metadata.provenance.span` names no chat, and a book can serve many rooms.
 
 ## Evidence
 
