@@ -52,9 +52,7 @@ export const connectionBindings = sqliteTable(
       .$type<PluginId>()
       .references(() => plugins.id, { onDelete: "cascade" }),
     // ROUTABLE tasks only — `structured`/`agent` ride their `ridesOn` task for every actor (F16).
-    task: text("task", { enum: ROUTABLE_TASKS as unknown as readonly [RoutableTask, ...RoutableTask[]] })
-      .$type<RoutableTask>()
-      .notNull(),
+    task: text("task", { enum: ROUTABLE_TASKS }).$type<RoutableTask>().notNull(),
     connectionId: text("connection_id")
       .$type<UserConnectionId>()
       .references(() => userConnections.id, { onDelete: "set null" }),

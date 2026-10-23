@@ -4,8 +4,8 @@
  * token data. It is imported UNLAYERED beside theme.css, which is the whole mechanism: Tailwind v4 emits
  * every utility into `@layer utilities`, and an unlayered rule beats any layered rule regardless of
  * specificity. So a primitive's own utility default (`p-block` on Card) is the TIER-LESS fallback, and
- * these rules take over inside a `<Surface>`. Proven by computed value, never by reading the source:
- * tests/legacy/ui/density-tier.suite.ct.tsx (UI-Density-Law.md §4.2 build step 0).
+ * these rules take over inside a `<Surface>`. Proven by computed value, never by reading the source
+ * (UI-Density-Law.md §4.2 build step 0).
  *
  * WHY THE INDIRECTION THROUGH A CUSTOM PROPERTY rather than the spec's illustrative
  * `[data-surface-tier="instrument"] [data-slot="card-root"] { padding: … }` pair: those two rules have
@@ -22,8 +22,7 @@
  * It lives beside the slot map so the common ThemeScope carrier reaches both the shell and portalled
  * overlays; shell.css owns frame geometry, not a preference axis. Both arms are explicit because a
  * nested comfortable ThemeScope below a compact one must RESTORE the comfortable scale. The private
- * aliases are generated from the canonical DTCG values at :root; this file only maps the density axis.
- * Computed through the real carrier in tests/legacy/ui/density-tier.suite.ct.tsx. */
+ * aliases are generated from the canonical DTCG values at :root; this file only maps the density axis. */
 [data-density="comfortable"] {
   --spacing-field: var(--orb-density-comfortable-field);
   --spacing-row: var(--orb-density-comfortable-row);

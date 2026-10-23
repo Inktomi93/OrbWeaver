@@ -25,8 +25,7 @@
 // `chat` reaching UP for anything does not resolve at all. What the cake CANNOT catch is a domain quietly
 // RE-SPELLING the four arms inline instead of importing them — that is the thing to grep for
 // (`chats.temporary` / `chats.startedAt` / `chatParticipants.leftSeq` outside this file and
-// `domain/chat/persistence`), and the honesty mechanism for it is `tests/legacy/db/query/chat-visibility.int.test.ts`
-// plus the character-library pins, which assert the LENS behaviour (a husk counts zero, a second seat counts
+// `domain/chat/persistence`), and the honesty mechanism for it is the character-library pins, which assert the LENS behaviour (a husk counts zero, a second seat counts
 // one) rather than the spelling — a re-spelling that drifts fails them.
 //
 // THE PRECEDENT: `fetch-owned.ts`, one directory over, already homes the D23 single-owned OWNERSHIP scope

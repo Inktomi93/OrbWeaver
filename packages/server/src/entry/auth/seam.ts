@@ -118,9 +118,7 @@ export interface AuthSeam {
  * Exported because all THREE session-cookie call paths must extract the same token from the same header, or
  * the seam authenticates one value while logout revokes another and the expiry-slide re-issues a third:
  * this reader, `entry/http/auth-routes.ts` (logout → `revokeByToken`), and `entry/app.ts` (the slide's
- * `Set-Cookie` re-issue). It was three byte-identical copies; the drift-equality proof is
- * `tests/legacy/server/entry/session-cookie-parity.suite.test.ts`, which drives all three paths over one crafted
- * header per transport. Do not re-inline a copy.
+ * `Set-Cookie` re-issue). It was three byte-identical copies. Do not re-inline a copy.
  *
  * It reads ONLY the transport's own name: an https request never reads the prefix-less http name, which a
  * plain-http sibling origin can plant.

@@ -10,7 +10,7 @@ interface NotificationActors {
   readonly host: Principal;
   readonly alice: Principal;
   readonly bob: Principal;
-  readonly room: Awaited<ReturnType<typeof seedChat>>;
+  readonly room: Awaited<ReturnType<typeof seedChat>>["row"];
   readonly aliceRaised: InboxView;
   readonly bobRaised: InboxView;
   readonly aliceInvite: Extract<NotificationEvent, { readonly type: "invite" }>;
@@ -48,6 +48,13 @@ interface NotificationDecisions {
   readonly kicked: Extract<NotificationEvent, { readonly type: "kicked" }>;
   readonly host: Principal;
   readonly room: NotificationActors["room"];
+}
+
+// A fresh actor founds the room, so production seats it as host.
+async function hostedRoom(harness: ServerTestHarness): Promise<{ readonly host: Principal; readonly room: NotificationActors["room"] }> {
+  const host = await harness.principalFor((await harness.actor()).id);
+  const { row: room } = await seedChat(harness, { principal: host, characterIds: [] });
+  return { host, room };
 }
 
 async function clearInbox(harness: ServerTestHarness, principal: Principal): Promise<void> {
@@ -97,11 +104,7 @@ export const test = base.extend<{
   notificationActors: async ({ harness }, use): Promise<void> => {
     const alice = await harness.principalFor((await harness.actor()).id);
     const bob = await harness.principalFor((await harness.actor()).id);
-    const room = await seedChat(harness.db, { withHost: true }, harness.idSource);
-    if (room.hostUserId === undefined) {
-      throw new Error("the canonical room seed omitted its requested host");
-    }
-    const host = await harness.principalFor(room.hostUserId);
+    const { host, room } = await hostedRoom(harness);
     const aliceRaised = await recipientInvite(harness, host, room, alice);
     const bobRaised = await recipientInvite(harness, host, room, bob);
     if (aliceRaised.payload.type !== "invite" || bobRaised.payload.type !== "invite") {
@@ -131,12 +134,8 @@ export const test = base.extend<{
     await use({ small: first.event, large: large.event, corrected: corrected.payload, bob: bob.event });
   },
   notificationDecisions: async ({ harness, notificationActors: actors }, use): Promise<void> => {
-    const room = await seedChat(harness.db, { withHost: true }, harness.idSource);
-    const kickRoom = await seedChat(harness.db, { withHost: true }, harness.idSource);
-    if (room.hostUserId === undefined || kickRoom.hostUserId === undefined) {
-      throw new Error("the canonical decision rooms omitted their host rows");
-    }
-    const host = await harness.principalFor(room.hostUserId);
+    const { host, room } = await hostedRoom(harness);
+    const { host: kickHost, room: kickRoom } = await hostedRoom(harness);
     for (const principal of [actors.alice, actors.bob]) {
       const made = await harness.services.chat.createInvite({ principal: host, chatId: room.id, input: { invitedHandle: principal.handle } });
       await harness.services.chat.acceptInvite({ principal, inviteId: made.invite.id });
@@ -145,7 +144,6 @@ export const test = base.extend<{
     const [nomination] = (await harness.services.notifications.list({ principal: actors.alice })).items.filter(
       (item) => item.payload.type === "handoff-nominated" && item.payload.chatId === room.id,
     );
-    const kickHost = await harness.principalFor(kickRoom.hostUserId);
     const made = await harness.services.chat.createInvite({ principal: kickHost, chatId: kickRoom.id, input: { invitedHandle: actors.alice.handle } });
     await harness.services.chat.acceptInvite({ principal: actors.alice, inviteId: made.invite.id });
     await harness.services.chat.kick({ principal: kickHost, chatId: kickRoom.id, userId: actors.alice.userId });

@@ -9,7 +9,7 @@ import { can } from "@orb/server/domain/admin";
 import { createResolveViewerVisibility, loadPresentRole } from "@orb/server/domain/chat";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node";
-import { createServerHarness, seedMessage } from "@orb/testkit/node/composed";
+import { createServerHarness, seedCorpusActors, seedMessage } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 
 test("real membership, roster and wire owners keep role data separate from global privilege and fresh chat authority", async () => {
@@ -77,17 +77,18 @@ test("real membership, roster and wire owners keep role data separate from globa
 
 test("real member reads, author checks and a sole-human fork preserve the hidden-content and history-floor boundary", async () => {
   await using root = await createServerHarness();
-  const host = await root.principalFor(root.ownerId);
+  // Every committed line is funded through the host's chat binding.
+  const { owner: host } = await seedCorpusActors(root);
   const member = await root.principalFor((await root.actor()).id);
   const room = await root.services.chat.startChat({ principal: host, characterIds: [], opening: "none" });
   const chatId = room.chat.id;
-  await seedMessage(root.db, { chatId, seq: 1, content: "pre-join-secret", authorUserId: host.userId }, root.idSource);
-  const boundary = await seedMessage(root.db, { chatId, seq: 2, content: "join boundary", authorUserId: host.userId }, root.idSource);
+  await seedMessage(root, { principal: host, chatId, content: "pre-join-secret" });
+  const { slot: boundary } = await seedMessage(root, { principal: host, chatId, content: "join boundary" });
   const invite = await root.services.chat.createInvite({ principal: host, chatId, input: { invitedHandle: member.handle } });
   await root.services.chat.acceptInvite({ principal: member, inviteId: invite.invite.id });
   await root.services.chat.setMemberHistoryVisibility({ principal: host, chatId, userId: member.userId, visibility: "from-join" });
   const body = 'Visible <lie character="Witness" truth="hidden-role-secret"/>';
-  const authored = await seedMessage(root.db, { chatId, seq: 3, content: body, role: "user", authorUserId: member.userId }, root.idSource);
+  const { slot: authored } = await seedMessage(root, { principal: member, chatId, content: body });
   const ownEdit = await root.services.chat.editMessage({ principal: member, chatId, messageId: authored.id, content: body });
   expect(ownEdit.content).toBe("Visible ");
   await expect(root.services.chat.editMessage({ principal: member, chatId, messageId: boundary.id, content: "must-not-land" })).rejects.toMatchObject({

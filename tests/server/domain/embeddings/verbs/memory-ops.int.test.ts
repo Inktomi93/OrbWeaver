@@ -10,14 +10,13 @@ import { seedChat } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
 
-test("a later foreign-owner segment refuses the entire flood; a departed host refuses before the store", async ({ db, app }): Promise<void> => {
-  const own = await seedChat(db, { withHost: true });
-  const neighbor = await seedChat(db, { withHost: true });
-  if (own.hostUserId === undefined || neighbor.hostUserId === undefined) {
-    throw new Error("requested host fixture did not seed a host");
-  }
-  await app.seedUserConnections(own.hostUserId);
-  const generation = await app.embeddings.resolveGeneration(own.hostUserId, "embed");
+test("a later foreign-owner segment refuses the entire flood; a departed host refuses before the store", async ({ harness, db, app }): Promise<void> => {
+  const ownHost = await harness.principalFor((await harness.actor()).id);
+  const neighborHost = await harness.principalFor((await harness.actor()).id);
+  const { row: own } = await seedChat(harness, { principal: ownHost, characterIds: [] });
+  const { row: neighbor } = await seedChat(harness, { principal: neighborHost, characterIds: [] });
+  await app.seedUserConnections(ownHost.userId);
+  const generation = await app.embeddings.resolveGeneration(ownHost.userId, "embed");
   if (generation === null) {
     throw new Error("the seeded owner has no embedding generation");
   }
@@ -28,7 +27,7 @@ test("a later foreign-owner segment refuses the entire flood; a departed host re
   });
   const base: StoreSegmentParams = {
     lens: "segment",
-    ownerId: own.hostUserId,
+    ownerId: ownHost.userId,
     model: generation.space,
     generationId: generation.id,
     generationEpoch: generation.epoch,

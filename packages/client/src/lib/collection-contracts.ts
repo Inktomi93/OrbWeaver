@@ -60,9 +60,7 @@ export const COLLECTION_LARGE_GROUP = 30;
  *  landing is a `min-h-0 flex-1` column inside that pane and each library's windowed arm is `min-h-0 flex-1`
  *  inside the landing, which is the `character-library-body.tsx` chain verbatim. The window is therefore as
  *  tall as the pane at every width instead of 384px at all of them, and the row past the old fold is
- *  reachable (the #1133 stranded-tail class). Nothing re-spells a height, so there is nothing left to home.
- *  Rendered receipt: `tests/legacy/client/features/config/components/config-collection-landing.ct.tsx`, the width
- *  matrix (752/1440/1920 + the phone) over a 31-row library. */
+ *  reachable (the #1133 stranded-tail class). Nothing re-spells a height, so there is nothing left to home. */
 
 /** ONE library-level FACT the landing states — what is TRUE OF THE LIBRARY, in the library's own words,
  *  and (when the fact is about one member) a real door to it.
@@ -238,8 +236,7 @@ export interface CollectionContribution {
    *  makes the call `useMemberTitle?.()` — a hook whose EXISTENCE varies by contribution. Switching from a
    *  collection that declares it to one that does not would change the hook COUNT mid-mount, which React
    *  answers with a crash rather than a fallback. It passes today only because all four contributions
-   *  happen to declare it; the pin that keeps it that way is a compile fact, not a convention
-   *  (`tests/legacy/client/lib/collection-contracts.test-d.ts`). A collection with nothing better to say returns
+   *  happen to declare it; the pin that keeps it that way is a compile fact, not a convention. A collection with nothing better to say returns
    *  `undefined` from the hook — the fallback arm is a VALUE, never an absent field. */
   readonly useMemberTitle: (memberId: string) => string | undefined;
   /** The group's rows — OWNER-rendered (its own query, its own row anatomy under the §12.2 row-action

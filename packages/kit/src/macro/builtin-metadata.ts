@@ -1,8 +1,7 @@
 // kit/macro/builtin-metadata — the backfilled DX metadata for every builtin the DEFAULT registry
 // registers (no metadata-less macro survives, so the browser is complete from birth). Keyed by
 // the registry's lowercase lookup name; `volatile` is intentionally ABSENT (MacroMetadataInput) — the
-// registry composes it from the `registerVolatileMacros` set so the two can't drift (D51). A completeness
-// test (tests/legacy/kit/macro/metadata.test.ts) asserts every default-registered name has an entry here.
+// registry composes it from the `registerVolatileMacros` set so the two can't drift (D51). Every default-registered name must have an entry here.
 // NOTE: block capability is UNIVERSAL — any macro takes a `{{name::args}}body{{/name}}` body
 // (the resolved body arrives as its last unnamed arg) — so there is deliberately NO per-macro
 // "block-capable" field; the flag vocabulary the browser documents is `MACRO_FLAG_DEFS` (types.ts).

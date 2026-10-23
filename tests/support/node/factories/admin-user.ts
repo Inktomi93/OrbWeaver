@@ -4,7 +4,7 @@ import type { UserId } from "@orb/kit/ids";
 import type { createCaller } from "@orb/server/transport/trpc";
 import { eq } from "drizzle-orm";
 import type { ServerProducerRoot } from "../server.ts";
-import type { UserRow } from "./user.ts";
+import type { UserRow } from "./rows.ts";
 
 export interface SeededAdminUser {
   readonly view: Awaited<ReturnType<ReturnType<typeof createCaller>["admin"]["createUser"]>>;

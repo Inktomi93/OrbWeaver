@@ -14,8 +14,7 @@
 // hand-writing `setPanelMode("list", …)` past it — going behind the carry is exactly the defect #391 names.
 // The writer that paid for this seam was the character screen's "N chats ›" hero link
 // (`revealChatsProjection`); #501 re-pointed that intent at the CONTEXT Chats tab, so the door currently has
-// no production caller. It is KEPT, with its invariant pinned by CT (`tests/legacy/client/state/list-flip-carry.ct
-// .tsx` at the store, `app-shell.ct.tsx` "#391" in the real frame): the rule is a property of the FLIP, and
+// no production caller. It is KEPT: the rule is a property of the FLIP, and
 // the next feature that docks the LIST must find a door that pays the carry rather than re-derive the bug.
 //
 // AN UNREGISTERED CARRY IS NOT A FAILURE MODE. No shell mounted ⇒ no rendered frame ⇒ no regime for a flip
@@ -27,7 +26,7 @@
 // claimed as a proven invariant: the registered carry closes over the PREVIOUS COMMIT's resolved modes, so
 // it sees the pre-flip world under either ordering, and a CT cannot tell the two apart through a
 // render-value closure. Measured, not assumed — a planted write-first `dockListPanel` left
-// `tests/legacy/client/state/list-flip-carry.ct.tsx` green, so that file pins what IS decidable (the carry is
+// the store's CT green, so a CT pins what IS decidable (the carry is
 // invoked, with the destination mode, from the pre-flip commit) and claims nothing about order.
 //
 // WHAT IS load-bearing is the CLOSURE'S AGE: the carry must be the one published by the commit BEFORE the

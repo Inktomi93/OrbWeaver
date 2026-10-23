@@ -162,11 +162,7 @@ async function writeStateHalf(
     return { ok: true, wrote: false }; // nothing established (a model no-op) — no row, no write
   }
   // Merge onto the base — locks HONORED (a populate fills the model plane, never a hand-pin).
-  const nextState = applyLockedPatch(
-    args.baseState as unknown as Record<string, unknown>,
-    args.statePatch,
-    args.baseState.fieldLocks,
-  ) as unknown as RpgSnapshotState;
+  const nextState = applyLockedPatch(args.baseState, args.statePatch, args.baseState.fieldLocks);
   const snapshotId = ctx.ids.snapshot();
   const written = await writeResyncedSnapshot(ctx.db, nextState, { id: snapshotId, gameId: args.gameId, chatId: args.chatId, now: ctx.now() });
   if (!written.ok) {

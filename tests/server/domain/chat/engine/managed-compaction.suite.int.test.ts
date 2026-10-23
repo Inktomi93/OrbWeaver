@@ -90,7 +90,7 @@ test("an over-threshold doomed foreground still has a durable pre-dispatch marke
 test("verbatimTail4 covers exactly twelve of sixteen real canon rows before a doomed dispatch", async () => {
   await using fixture = await sdkEngineRoom({ history: 16, policy: { foreground: "fail" } });
   await expect(fixture.turn({ ...SMALL_INTENT, compaction: { mode: "managed", verbatimTail: 4 } })).toThrowProviderError("server");
-  expect(await fixture.marker()).toMatchObject({ compactSummary: ENGINE_SDK_MARKER, compactedAtSeq: 12 });
+  expect(await fixture.marker()).toMatchObject({ compactSummary: ENGINE_SDK_MARKER, compactedAtSeq: await fixture.seqOfRow(12) });
   expect(fixture.receipts.map(({ marker }) => marker)).toEqual([true, false]);
 });
 
@@ -105,7 +105,7 @@ async function recordSystemPrompt(fixture: Awaited<ReturnType<typeof sdkEngineRo
     .where(and(eq(messages.chatId, fixture.h.chatId), eq(messages.role, "assistant")))
     .orderBy(desc(messages.seq))
     .get();
-  expect(newest).toMatchObject({ seq: count, variantId: bootstrap.messages[0]?.selectedVariantId });
+  expect(newest).toMatchObject({ seq: await fixture.seqOfRow(count), variantId: bootstrap.messages[0]?.selectedVariantId });
   expect(parseVariantMetadata(newest?.metadata).systemTokens).toBeGreaterThan(heavy ? 2000 : 0);
   expect((await fixture.marker())?.compactSummary).toBeNull();
 }
@@ -300,7 +300,7 @@ test("the public manual lever at unchanged durable coverage generates nothing an
   await using fixture = await sdkEngineRoom({ history: 8 });
   const first = await fixture.h.root.services.chat.compact({ principal: fixture.h.owner, chatId: fixture.h.chatId });
   expect(first.updated).toBe(true);
-  expect(first.compactedAtSeq).toBe(8);
+  expect(first.compactedAtSeq).toBe(await fixture.seqOfRow(8));
   const calls = fixture.receipts.length;
   expect(await fixture.h.root.services.chat.compact({ principal: fixture.h.owner, chatId: fixture.h.chatId })).toEqual({ ...first, updated: false });
   expect(fixture.receipts).toHaveLength(calls);

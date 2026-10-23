@@ -7,9 +7,8 @@
 //    MANDATORY (`GUEST_MAX_STACK_BYTES`, measured on the server): without it a recursive guest blows the real
 //    WASM stack, which surfaces as a HOST-side RangeError and leaves the runtime un-disposable.
 //  * REALM-STRIPPED. `Date`, `Math.random` and `performance` are overwritten with throwing stubs, and `orb.ui`
-//    is the only thing installed. The realm ALLOW-LIST is asserted as a CLOSED SET by the F3 pin (#784) in
-//    `tests/legacy/client/features/plugin/components/plugin-scripted-surface.ct.tsx` — the same ratchet the server realm
-//    carries (`tests/legacy/server/infra/plugin-host/realm.test.ts`): "absent from a bare context" is not a property
+//    is the only thing installed. The realm ALLOW-LIST is a CLOSED SET, the same ratchet the server realm
+//    needs: "absent from a bare context" is not a property
 //    this file may assume, because that assumption is exactly how `performance` shipped live on the server.
 //  * SYNC variant + manual job pumping. An `await` chain cannot outlive its budget, because the host pumps
 //    `executePendingJobs()` under an interrupt handler reading REAL monotonic time.

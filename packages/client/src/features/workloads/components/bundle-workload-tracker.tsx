@@ -57,9 +57,7 @@ export function BundleWorkloadTracker({ workloadId, onProgress, onSucceeded, onF
   // cleanup so there is one teardown to reason about. Read and written only in callbacks and that cleanup,
   // never during render.
   //
-  // CT-PINNED SINCE #1601 — `tests/legacy/client/features/workloads/components/bundle-workload-tracker.ct.tsx`, over
-  // the story that finally MOUNTS this component (nothing in `tests/**` did before it, which is why the guard
-  // shipped carried by review). Both arms are red against this file's pre-#1570 shape (8efdc3f533^): an unmount
+  // Two arms to hold: both are red against this file's pre-#1570 shape (8efdc3f533^): an unmount
   // while the read is in flight reported `onSucceeded` on a gone caller, and a read that failed after teardown
   // scheduled another attempt. Reaching `reconcile` needs a socket DROP AND RE-ATTACH (`onSocketLive` is
   // deliberately not fired on a room's first live edge — `use-workload-subscription.ts` / BOOT-4X), which the

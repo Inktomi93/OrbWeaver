@@ -123,7 +123,7 @@ test("real structured analysis produces private state, strips the unauthored sco
       arc: "Repair the orbital loom.",
       twists: ["A shuttle carries a missing tool."],
       retiredTwists: [],
-      settledThroughSeq: 0,
+      settledThroughSeq: null,
     },
   });
   expect(await root.services.chat.getVariables({ principal, chatId: chat.id })).not.toHaveProperty("score");

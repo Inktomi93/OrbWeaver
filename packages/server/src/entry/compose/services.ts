@@ -20,9 +20,8 @@
 // the `Services` type + its build here, the domain's own `entry/compose/<name>.ts` seam, the tRPC router
 // registration, the domain's `DOMAIN_SPECIFIC_ALLOWED_ROOT_FILES` row if it carries a non-template root file
 // (`tests/server/layout.suite.test.ts`), its schema module named for it
-// (`tests/db/schema/module-structure.suite.test.ts`), and a PROBED-or-
-// EXEMPT classification for every new procedure in `tests/legacy/server/transport/cross-tenant-sweep.suite.int.test.ts`
-// (its completeness guard enumerates the live router, so the sweep grows with it).
+// (`tests/db/schema/module-structure.suite.test.ts`), and a cross-tenant
+// probe for every new procedure.
 //
 // TWO STANDING HAZARDS AT THIS SEAM, both silent:
 //   • A STUBBED op rots. A predicate wired here as `() => Promise.resolve(false)` "until domain X exists"

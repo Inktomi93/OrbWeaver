@@ -2,7 +2,7 @@
 // (D137(E)): `name` / `description` / `starred` / `avatarAssetId`. SHAPE ONLY — no table, no kind
 // discriminator, no ownership/copy/resolution semantics (those walls are D131/D133/D122's and stay in
 // their domains). Composers SPREAD `cardFaceFields` — the same zod objects, so the single home is
-// REFERENCE equality, pinned per field in `tests/legacy/contracts/card-face/index.contract.test.ts`; per-domain
+// REFERENCE equality; per-domain
 // optionality/nullability wraps around a field are that composer's WRITE SEMANTICS, not drift (persona
 // description NOT NULL because "" is a value to `{{persona}}`; the character card's is nullable for
 // V2/V3 card-spec fidelity — the generic `CardFace<D>` states it).

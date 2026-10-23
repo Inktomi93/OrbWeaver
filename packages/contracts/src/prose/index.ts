@@ -23,7 +23,7 @@
 //
 // Default-identity discipline (the imagery posture): an ABSENT override MUST produce bytes identical to the
 // pre-PROSE-1 constant. That is what makes every migration stage a no-op until a host actually types
-// something, and it is asserted per-slot in `tests/legacy/contracts/prose/`.
+// something.
 
 import { AUTOMATION_PROSE_SLOTS } from "#automation";
 import { CHAT_PROSE_SLOTS } from "#chat";

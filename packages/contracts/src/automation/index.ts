@@ -93,7 +93,7 @@ const DOMAIN_TRIGGER_SET: ReadonlySet<string> = new Set(DOMAIN_TRIGGER_TYPES);
  *  while sitting correctly in the trigger map. The tuples above are the authority the db's bus↔type CHECK is
  *  generated from; reading them is the only classification that cannot drift from what a rule can store.
  *
- *  The two tuples are DISJOINT — pinned in `tests/legacy/contracts/automation/index.contract.test.ts`, because
+ *  The two tuples are DISJOINT, because
  *  membership order would otherwise decide a shared member's bus silently. */
 export function triggerBusOf(type: string): AutomationTriggerBus | null {
   if (CHAT_TRIGGER_SET.has(type)) {

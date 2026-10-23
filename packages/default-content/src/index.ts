@@ -24,9 +24,7 @@
 // does (nothing at runtime consumes tooling). It depends on `@orb/kit` alone (the `CharacterHandle` brand) —
 // no `@orb/db`, no `@orb/server`, no browser package. Enforcers in ladder order: the pnpm workspace
 // dependency is RESOLVE-TIME physics (an undeclared import does not resolve), the `default-content-cake` +
-// `browser-no-default-content` dep-cruiser rules name the direction at lint time, and
-// `tests/legacy/default-content/index.test.ts` holds the sha256 of every shipped file so a content edit reds exactly
-// one row where a reviewer can see which bytes a user now receives.
+// `browser-no-default-content` dep-cruiser rules name the direction at lint time.
 //
 // THE SEAM IS THE INJECTED OP, NOT AN IMPORT INTO A DOMAIN: the composition root (`entry/compose/`) closes
 // over these readers and hands the bytes to the character/persona seeders, which stay fs-unaware.
@@ -78,8 +76,7 @@ export const SEED_BACKGROUND_MIME = "image/jpeg";
 /** THE SHIPPED SCENE PLATES — one per default character, slugged `<handle>-bg` so a card and its plate
  *  cannot drift apart silently. The seeder lifts each into an owned `background`-kind asset plus an
  *  `appearance.backgroundLibrary` entry, so a user's plates are ordinary owned backgrounds they can pick,
- *  rename, delete or ignore. The inventory is pinned in BOTH directions (a file with no row, a row with no
- *  file) by `tests/legacy/default-content/index.test.ts`. */
+ *  rename, delete or ignore. */
 export const SEED_BACKGROUND_PLATES: readonly SeedBackgroundPlate[] = [
   { slug: "charlotte-bg", label: "Charlotte's study" },
   { slug: "jfc-coder-bg", label: "The dark office" },

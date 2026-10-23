@@ -1,5 +1,4 @@
-// accessible-names — the NAME-QUALITY probes behind `tests/legacy/client/a11y/accessible-name-quality.suite.ct.tsx`
-// (lane NAMECRAFT). The convention they enforce is `UI-Primitives-and-Reuse.md` §13.10; this file is the
+// accessible-names — the NAME-QUALITY probes for CT specs. The convention they enforce is `UI-Primitives-and-Reuse.md` §13.10; this file is the
 // MECHANICAL half of it. The judgment-y half (is the verb the right verb, is the noun the user's noun)
 // stays in the doc — a CT cannot read taste.
 //

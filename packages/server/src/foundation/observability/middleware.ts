@@ -49,7 +49,6 @@ const REQUEST_ID_HEADER = "X-Request-Id";
  *
  * This one site is sufficient, including for a THROWN handler: Hono's `compose` catches the throw at its own
  * dispatch frame and runs `app.onError` there, so `next()` resolves normally and `c.res` is already the 500.
- * Pinned by the two FENCE cases in tests/legacy/server/entry/app.test.ts (#480) — the belt/415 and the onError/500.
  */
 function stampRequestId(c: { readonly res: Response }, requestId: string): void {
   c.res.headers.set(REQUEST_ID_HEADER, requestId);

@@ -21,10 +21,8 @@
 // silent-skip engine: an isolated chat is COUNTED (`failed`) and logged at `error` level — see there.
 
 import type { ImportWindow } from "@orb/contracts/chat";
-import { buildIdentityNameContext } from "@orb/contracts/chat";
 import type { SummarizeInput } from "@orb/contracts/role-clients";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
-import type { RowMacroNameContext } from "@orb/kit/macro";
 import { getLog } from "#foundation/observability";
 import { isAborted } from "#primitives/abort";
 import { GenerationSupersededError } from "#primitives/embedding-generation";
@@ -43,7 +41,6 @@ import {
 import { collectSegments, storeSegments } from "../memory/generate/segments.ts";
 import { loadWitnessHorizons } from "../memory/persistence/queries.ts";
 import { loadBackfillChatIds } from "../persistence/backfill-scope.ts";
-import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import { digestsDerivable } from "./digests-derivable.ts";
@@ -58,15 +55,13 @@ export async function loadAllChatIds(ctx: ChatContext, hostUserId?: UserId | nul
   return await loadBackfillChatIds(ctx.db, hostUserId, importWindow);
 }
 
-/** A chat's present characters + its host + the projected macro-name context (the summarizer transcript labels
- *  resolve by character/persona name, not the raw id). One roster read serves all three. */
+/** A chat's present characters + its host. One roster read serves both. */
 async function loadCharacterIdsAndHost(
   ctx: ChatContext,
   chatId: ChatId,
 ): Promise<{
   characterIds: CharacterId[];
   hostUserId: UserId | null;
-  macroNames: RowMacroNameContext;
 }> {
   const participants = await loadParticipants(ctx.db, chatId);
   const characterIds = participants.flatMap((r) => {
@@ -74,8 +69,7 @@ async function loadCharacterIdsAndHost(
     return actor?.kind === "character" ? [actor.characterId] : [];
   });
   const hostUserId = hostUserIdOf(participants);
-  const macroNames: RowMacroNameContext = buildIdentityNameContext(await loadChatIdentityProducer(ctx.db, { participants }));
-  return { characterIds, hostUserId, macroNames };
+  return { characterIds, hostUserId };
 }
 
 /** The digest scope buckets for one chat — mirrors the engine's post-turn enumeration: the shared group
@@ -145,7 +139,7 @@ function recordSpace(sweep: PlanSweep, space: MemoryEmbedSpace): void {
 /** Plan ONE chat: COLLECT its segment chunks (no embed), then tier-0 COLLECT each of its scope buckets into
  *  `sweep`. No summarize, no vector write — both are corpus-wide phases of their own. */
 async function planOneChat(ctx: ChatContext, deps: PlanDeps, chatId: ChatId, sweep: PlanSweep): Promise<void> {
-  const { characterIds, hostUserId, macroNames } = await loadCharacterIdsAndHost(ctx, chatId);
+  const { characterIds, hostUserId } = await loadCharacterIdsAndHost(ctx, chatId);
   // Resolved inside the per-chat try (the caller's) so a settings-read failure is counted + continues.
   const config = hostUserId === null ? null : await deps.resolveMemoryConfig(hostUserId);
   if (config?.mode === "off") {
@@ -166,7 +160,6 @@ async function planOneChat(ctx: ChatContext, deps: PlanDeps, chatId: ChatId, swe
     funderUserId: hostUserId,
     embedOwnerId: hostUserId,
     config,
-    macroNames,
     signal: deps.signal,
   });
   sweep.segments.push(segments);
@@ -187,7 +180,6 @@ async function planOneChat(ctx: ChatContext, deps: PlanDeps, chatId: ChatId, swe
       scope,
       funderUserId: deps.funderUserId,
       config,
-      macroNames,
       signal: deps.signal,
       ...(witnessing !== undefined ? { witnessing } : {}),
       embedOwnerId: hostUserId,

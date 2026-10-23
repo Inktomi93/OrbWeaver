@@ -709,7 +709,7 @@ type FreeNamespace = (typeof PLUGIN_FREE_NAMESPACES)[number];
 type GatedNamespace = Exclude<keyof PluginHostV1, FreeNamespace>;
 /** A `"namespace.method"` reference for every capability-gated host function, DERIVED from the surface — the
  *  set the map below must exactly cover. Adding a gated method widens this union; if the map does not claim it,
- *  the reverse-completeness pin (tests/legacy/contracts/plugin/index.test-d.ts) goes red. */
+ *  the map no longer covers this union. */
 export type HostFunctionRef = {
   [Ns in GatedNamespace]: `${Ns & string}.${keyof PluginHostV1[Ns] & string}`;
 }[GatedNamespace];

@@ -49,8 +49,7 @@
 // exact "silently degrade a typed refusal into something-went-wrong" failure this work exists to avoid. It
 // also carries an upstream 4xx body, and that is ACCEPTED on three stated assumptions:
 //   1. the surfaces that produce it are OWNER-SCOPED (a connection, its credential and its baseUrl are the
-//      caller's own; cross-tenant reach is held by the domain pre-gates and probed by
-//      tests/legacy/server/transport/cross-tenant-sweep.suite.int.test.ts),
+//      caller's own; cross-tenant reach is held by the domain pre-gates),
 //   2. every upstream-derived message is `sanitizeApiError(redactSecretsFromText(…))` — true of
 //      `providerErrorFromHttp` always, and of `fetchJson` only as of this commit. A THIRD upstream-prose
 //      path added without that composition re-opens this,

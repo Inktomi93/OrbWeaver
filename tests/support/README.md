@@ -25,7 +25,8 @@ Import testkit through the doors its `package.json` exports. A door is a barrel 
 | `@orb/testkit/iso` | pure helpers every world may import: the frozen clock, seeded ids, corpus readers, wire shapes |
 | `@orb/testkit/node` | the vitest `test` and `expect` with their fixtures; it registers fixtures at import, so only vitest files import it |
 | `@orb/testkit/node/helpers` | Node-side helpers that never load the server graph at import; Playwright configs and scripts may import it |
-| `@orb/testkit/node/composed` | the server harness, database, factories, corpus producers and chat composition; it loads the server graph |
+| `@orb/testkit/node/composed` | the server harness, database, root seeds that run production verbs, corpus producers and chat composition; it loads the server graph |
+| `@orb/testkit/node/rows` | direct row builders for persistence suites under `tests/db/` and `tests/**/persistence/`; dependency-cruiser refuses every other importer |
 | `@orb/testkit/ct` | Playwright-side helpers for component specs: declared tRPC and socket interception, section navigation |
 | `@orb/testkit/ct-corpus` | the Playwright `test` and `expect` that mount against a corpus-backed server |
 | `@orb/testkit/browser` | production-backed providers, the registry door and isolation helpers a story mounts in the browser |

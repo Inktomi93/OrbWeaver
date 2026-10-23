@@ -545,7 +545,7 @@ export type UserIntent = z.infer<typeof userIntentSchema>;
 
 // What a non-chat model role takes from its preset (D299): generation params plus its inline reasoning tag pair,
 // which splits a prose reply; never other prompt structure.
-// The two tuples partition `UserIntent`'s keys (pinned by `tests/legacy/contracts/preset/index.test-d.ts`),
+// The two tuples partition `UserIntent`'s keys ,
 // so a new intent field reaches background tasks only after someone lists it here. A sampler knob is a role
 // field unless it is listed chat-only, which keeps the sampler catalog the one place a new knob is declared.
 // Chat-turn-only intent: reasoning display and carry, compaction policy, reply shape, the message-handling escape
@@ -1126,7 +1126,7 @@ export type TemplateCapability =
  *  preset-owned subset is runtime data in `#prose`, and `#prose` imports THIS module (the `no-circular`
  *  reason `#prose-slot` exists). The narrowing is enforced two-sidedly instead — every
  *  `PRESET_PROSE_SLOT_IDS` member has a row and every prose-armed row is a member — by
- *  `tests/legacy/contracts/prose/index.contract.test.ts`, which can import both. */
+ *  `tests/contracts/prose/preset-storage.contract.test.ts`, which can import both. */
 export type TemplateDefId = GuidedActionKind | FormatStringKey | ProseSlotId;
 
 export interface TemplateDef {
@@ -1534,7 +1534,7 @@ export const TEMPLATE_DEFS = [
   // ── THE GAME-TURN TEACHES (owner ruling 2026-08-08, "we are putting everything in presets") ────────────────
   // The slots the rpg steering reminder composes. They were `rpg_games.config.prose` for one merge; the
   // ruling re-homed them to `promptConfig.prose`, which is what puts them here — a preset-homed prose slot with
-  // no row is a slot no host can reach, and the two-sided coverage test in `tests/legacy/contracts/prose/` REDs on it.
+  // no row is a slot no host can reach, and the two-sided coverage test in `tests/contracts/prose/preset-storage.contract.test.ts` REDs on it.
   // Each row's `fires` states its GATE, because most of these are conditional on a per-game feature knob: the
   // copy is authored on the preset, the FIRING is still the game's.
   // The seven `names-only` teaches declare `{{user}}`/`{{char}}` as token vocabulary — the identity registry
@@ -2454,8 +2454,7 @@ export type AssemblePostProcessFlag = FlagsOnLane<"assemble">;
 
 /** The RECEIVE switches in the order `applyReceivePostProcess` applies them — single-line FIRST (the most
  *  aggressive cut), so the later sentence/whitespace trims operate on the already-reduced line. That the
- *  tuple is COMPLETE (a receive-lane flag left out here would simply never run) is pinned at runtime by
- *  `tests/legacy/contracts/preset/pipeline-order-declaration.contract.test.ts` against the schema's own key set. */
+ *  tuple is COMPLETE (a receive-lane flag left out here would simply never run) is checked against the schema's own key set. */
 export const RECEIVE_POST_PROCESS_ORDER = [
   "singleLine",
   "dropIncompleteSentence",
@@ -2501,7 +2500,7 @@ export const PROMPT_LANE_STEPS: readonly PromptPipelineStep[] = [
 /** THE REPLY-SIDE LANE, in the order `applyReceiveTransforms` runs it: the inline-reasoning demux, the
  *  `AI_OUTPUT` pass over the content, the post-process block, then the `REASONING` pass over the demuxed
  *  channel — and last, client-side, the `DISPLAY` pass, which changes what you read and never touches the
- *  wire. Pinned against the live engine by `tests/legacy/server/domain/chat/engine/pipeline-receive.test.ts`. */
+ *  wire. */
 export const REPLY_LANE_STEPS: readonly PromptPipelineStep[] = [
   { kind: "native-reasoning" },
   { kind: "reasoning-parse" },

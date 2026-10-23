@@ -168,7 +168,7 @@ function toColumns(state: RpgSnapshotState): StateColumns {
 export function applyHandEdit(ctx: RpgContext, game: RpgGameRow, patch: Record<string, unknown>, locks: HandEditLocks = {}): Promise<HandEditResult> {
   return writeHandState(ctx, game, (head) => ({
     ok: true,
-    state: applyLockedPatch(head.state as unknown as Record<string, unknown>, patch, null) as unknown as RpgSnapshotState,
+    state: applyLockedPatch(head.state, patch, null),
     locks,
   }));
 }
@@ -333,10 +333,9 @@ async function foldOwnedTurnWrite(
     // wrote the opening beat twice and put a character on stage twice. The pairing is carried by the
     // accumulator (`StagedPatch`), so the invariant is local: patch N's diff is measured against the state
     // patch N actually saw.
-    let state = hand.state as unknown as Record<string, unknown>;
+    let state = hand.state;
     for (const staged of written.patches) {
-      const stagedBase = staged.base as unknown as Record<string, unknown>;
-      const merged = applyLockedPatchTracked(state, rebasePatchOntoHead(staged.patch, stagedBase, state), hand.locks);
+      const merged = applyLockedPatchTracked(state, rebasePatchOntoHead(staged.patch, staged.base, state), hand.locks);
       state = merged.state;
       for (const path of merged.suppressed) {
         if (!suppressed.includes(path)) {
@@ -344,7 +343,7 @@ async function foldOwnedTurnWrite(
         }
       }
     }
-    return { ok: true, state: state as unknown as RpgSnapshotState };
+    return { ok: true, state };
   });
   return folded.ok ? { kind: "folded", headId: folded.snapshotId, suppressed } : { kind: "refused", headId: head.row.id, reason: folded.reason };
 }

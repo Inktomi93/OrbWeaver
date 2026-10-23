@@ -12,8 +12,7 @@
  * The family NAMES below are the literal heads of the font.sans / font.mono token stacks
  * (theme.css: `--font-sans: Geist, ...` / `--font-mono: 'Geist Mono', ...`). They resolved to NOTHING
  * for the app's whole life — no face was ever shipped, so every surface painted the ui-sans-serif
- * fallback. Spell a name differently here and the cascade silently falls back again, which is why
- * tests/legacy/ui/styles/font-faces.suite.test.ts pins these strings to tokens.json rather than to prose.
+ * fallback. Spell a name differently here and the cascade silently falls back again.
  *
  * The faces are ui-owned design-system property, homed beside the tokens that declare them, and reach
  * the client only through the one ordered CSS front door (client-architecture-lockdown.md §4.5).
@@ -398,7 +397,7 @@
  * the ONE layer present by construction (the list draws its own indicator), which is a seal change with a
  * vertical/`stacked` arm the rail would need rendered receipts for — reported for a follow-up, not
  * improvised at the end of a lane. The other two E2 targets (the media cell's four layers, the table row's
- * accent fill) landed; this one is a NAMED miss, pinned by `tests/legacy/ui/lib/selection-ring.ct.tsx`. */
+ * accent fill) landed; this one is a NAMED miss. */
 [data-slot="tabs-tab"][data-active]::after {
   content: "";
   position: absolute;
@@ -435,7 +434,7 @@
 /* …AND SO DOES ITS PICKER GLYPH (#541b, side-eye — the half #522's own note deferred as "the native picker
  * and its indicator are untouched"). `::-webkit-calendar-picker-indicator` paints a MASKED/imaged glyph, not
  * text, so `color` does not reach it and the tint rule above left it at pure white — measured 255 in both
- * arms by `tests/legacy/ui/primitives/input/input.ct.tsx`, i.e. the UA's own calendar icon was brighter than the
+ * arms, i.e. the UA's own calendar icon was brighter than the
  * placeholder dashes beside it and the loudest ink in the whole filter column. `opacity` is the honest lever
  * (it composites the glyph toward the field's own plate the way a muted tone would) and it is NOT keyed off
  * `data-empty`: this indicator is a secondary affordance in either state, and when a value IS set it shares
@@ -612,8 +611,7 @@
  * scroller, so for a full-contrast pair the composite clears WCAG 1.4.3's 4.5:1 at alpha >= 0.48 on the
  * dark arm and >= 0.60 on the LIGHT one (near-black on near-white, the demanding polarity); 0.62 clears
  * both, measured at 5.04:1 light and 6.9:1 dark in the worst case where a control lies wholly inside the
- * band. Pinned by framebuffer decode, not by property, in
- * tests/legacy/client/features/home/surfaces/home-surface.ct.tsx (#1128 — both polarities, three viewports).
+ * band. Prove it by framebuffer decode, not by property.
  *
  * WHAT A FADE STILL CANNOT PROMISE, stated so the next reader does not read this as a guarantee it is not:
  * a MUTED pair (7.62:1 authored) needs alpha >= 0.79 to hold 4.5:1, i.e. no perceptible fade at all. No
@@ -874,8 +872,7 @@
  * skip buys offscreen layout only, and charges for it a 94px snap on the FIRST render of every code
  * block, both mid-stream and on scroll-in. Correct geometry wins.
  *
- * No animation is introduced, so there is nothing here for reduced-motion to suppress. Pinned by the
- * two `M5:` cases in tests/legacy/ui/markdown/markdown-streaming.ct.tsx (mount-frame overshoot + the offscreen box). */
+ * No animation is introduced, so there is nothing here for reduced-motion to suppress. */
 [data-streamdown="code-block"] {
   /* biome-ignore lint/complexity/noImportantStyles: the only way to beat Streamdown's hardcoded INLINE content-visibility on an element it never forwards style/className to */
   content-visibility: visible !important;

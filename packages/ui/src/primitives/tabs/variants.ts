@@ -61,8 +61,7 @@ export const tabsVariants = tv({
     // scale, so the mechanism INVERTED: a call-site height now wins the merge outright. That does not undo
     // this ruling, it sharpens it — an unsealed size is now silently overridable by any caller, so the seal
     // is the variant plus the `ui-size-via-variant` gate, never a merge accident. A sealed size can only be
-    // overridden HERE, the button `size="media"` precedent (F2). Pinned by COMPUTED height in
-    // tests/legacy/ui/primitives/tabs/tabs.ct.tsx, whose sibling pin now also holds this arm's `gap-0` to zero.
+    // overridden HERE, the button `size="media"` precedent (F2).
     layout: {
       inline: { tab: `h-control-sm px-block ${FOCUS_RING}` },
       // `min-w-touch-target` is the WIDTH half of the same floor the height already carries, and it is

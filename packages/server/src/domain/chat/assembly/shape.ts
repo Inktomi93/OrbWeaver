@@ -43,6 +43,7 @@ import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { speakerTagsToPlain } from "@orb/kit/speaker-label";
 import type { PromptHistoryRegexEnv } from "../contract/regex.ts";
 import type { CueReplay, DeliveredCue, HistoryMacroNames } from "../contract/results.ts";
+import { isCoveredByCompaction } from "../substrate/compaction-coverage.ts";
 import { applyPromptHistoryRegex } from "./history-regex.ts";
 import { frameInjection, spliceInChatInjections } from "./injections.ts";
 import { renderHistoryMacros } from "./macros.ts";
@@ -755,14 +756,14 @@ function userRowAuthorName(
  *  resolution). The ONE mapping shared by the engine turn pipeline and the host/admin shape-trace preview
  *  (`verbs/read.ts`) — both reach it via the `substrate/assembly-access` seam (no drift, no duplicate). */
 /** The seq the compaction marker covers THROUGH — covered rows fall out of the shaped prompt history (full-reset:
- *  the marker stands in for them). Api-agnostic (covered turns never re-enter on any source). Returns 0 (no
+ *  the marker stands in for them). Api-agnostic (covered turns never re-enter on any source). `null` (no
  *  exclusion) unless a NON-empty `compactSummary` is present, so a stale `compactedThroughSeq` alone never trims. */
-function compactionCoveredThroughSeq(ctx: AssembleContext): number {
+function compactionCoveredThroughSeq(ctx: AssembleContext): number | null {
   const summary = ctx.compactSummary;
   if (summary === null || summary === undefined || summary.trim().length === 0) {
-    return 0;
+    return null;
   }
-  return ctx.compactedThroughSeq ?? 0; // null/undefined ⇒ 0 (no exclusion)
+  return ctx.compactedThroughSeq ?? null;
 }
 
 /** One ASSISTANT canon row → its wire row.
@@ -877,7 +878,7 @@ export function toShapeCanon(
   });
   const coveredThroughSeq = compactionCoveredThroughSeq(ctx);
   const rows: CanonRow[] = canon
-    .filter((m) => !(m.excludedFromPrompt || m.role === "system" || m.seq <= coveredThroughSeq) && entersPrompt(m.kind))
+    .filter((m) => !(m.excludedFromPrompt || m.role === "system" || isCoveredByCompaction(m.seq, coveredThroughSeq)) && entersPrompt(m.kind))
     .map((m) => (m.role === "assistant" ? assistantShapeRow(m, ctx, macroNames, nameById) : userShapeRow(m, ctx, macroNames)));
   // MACROS FIRST, THEN REGEX (D121-E): every row above resolved its own stamps through
   // `renderHistoryMacros`; the leg rewrites that resolved text and returns copies — `rows` itself is what

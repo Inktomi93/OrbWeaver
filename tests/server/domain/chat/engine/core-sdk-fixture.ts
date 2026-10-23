@@ -12,7 +12,6 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
-  seedMessage,
 } from "@orb/testkit/node/composed";
 import { createSdkProcessSpawner } from "@orb/testkit/node/helpers";
 import { z } from "zod";
@@ -90,6 +89,10 @@ export async function coreSdkRoom(
       providerFetch: physical.execute,
       memoryEnabled: false,
       group: { output: "per-speaker", policy: "list", allowSelfResponses: true },
+      transcript: [
+        { role: "user", content: "An owned SDK seed." },
+        { role: "assistant", content: "The prior assistant answers." },
+      ],
       server: {
         secretBoxKey: Buffer.alloc(32, 1),
         ids: sdkIds,
@@ -126,12 +129,6 @@ export async function coreSdkRoom(
       },
     }),
   );
-  const character = h.characters[0];
-  if (character === undefined) {
-    throw new Error("the actual SDK room has no seated character");
-  }
-  await seedMessage(h.root.db, { chatId: h.chatId, seq: 1, role: "user", authorUserId: h.owner.userId, content: "An owned SDK seed." }, h.root.idSource);
-  await seedMessage(h.root.db, { chatId: h.chatId, seq: 2, characterId: character.id, content: "The prior assistant answers." }, h.root.idSource);
   const credential = await h.root.services.credentials.add({ principal: h.owner, provider: "claude-sub", key: "controlled-core-native-sdk-token" });
   const connection = await h.root.services.connection.create({
     principal: h.owner,

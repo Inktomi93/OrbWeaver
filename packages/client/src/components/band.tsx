@@ -55,8 +55,7 @@
 // settings group WITH sections states no `aria-current` at all (its child section row carries the one
 // "you are here" marker — two `aria-current` rows for one location was a landed a11y defect), so those
 // thirteen bands are byte-identical to before. A collection band and a row-less settings LEAF both state
-// it, and both are genuinely the location. Pinned in both directions in
-// tests/legacy/client/features/config/components/config-list-collection-group.ct.tsx.
+// it, and both are genuinely the location.
 //
 // ── WHAT A CALL SITE STILL DECIDES ───────────────────────────────────────────────────────────────────
 // Everything that is genuinely per-surface: the chevron arm, the leading glyph, the census and where it

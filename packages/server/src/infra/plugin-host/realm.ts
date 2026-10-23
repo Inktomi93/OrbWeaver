@@ -100,9 +100,8 @@ export class LogRing {
 // two runs under identical injected seams were not byte-identical), an entropy source that defeats the
 // injected PRNG, and a precise timer for measuring the DoS deadline and for timing side-channels inside a
 // WASM module whose linear memory every plugin context shares. The stub keeps the NAME (feature-detectable)
-// and kills the reading; `timeOrigin` is dropped with it. The realm allow-list pin in
-// tests/legacy/server/infra/plugin-host/realm.test.ts is what makes a FUTURE quickjs-ng bump that adds `crypto` /
-// `Temporal` / `Atomics` go red on arrival instead of shipping the same way.
+// and kills the reading; `timeOrigin` is dropped with it. A FUTURE quickjs-ng bump that adds `crypto` /
+// `Temporal` / `Atomics` needs the same stub.
 //
 // EXPORTED (2026-08-30, #805) so a realm-faithful GUEST harness can evaluate the SAME denial text in a bare
 // `node:vm` context: the card-atlas offline harness once "proved the adapters correct" against a stub realm

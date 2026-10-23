@@ -191,7 +191,7 @@ export const PRESET_PROSE_SLOTS = {
 // it is excluded from the `promptConfig.prose` editable set). These 21 have no legacy field — their storage
 // IS `promptConfig.prose` — so they must land in `PRESET_PROSE_SLOT_IDS`, which is what opens their
 // Templates-tab door the same commit they land (each has a `TEMPLATE_DEFS` row; two-sided coverage is
-// asserted in `tests/legacy/contracts/prose/`).
+// asserted in `tests/contracts/prose/preset-storage.contract.test.ts`).
 //
 // `macros: "none"` for the whole cohort (PROSE-1 §6.1): a fragment is joined into the steer that becomes
 // `{{input}}` inside the guided template, and `{{input}}` is ZWSP-neutralized — so a `{{user}}` written into

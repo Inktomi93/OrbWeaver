@@ -2,9 +2,8 @@
 // design-value source; this script derives THREE artifacts — src/styles/theme.css (the Tailwind v4
 // @theme block + the [data-theme] seed blocks), src/tokens/index.ts (the typed TS map), and
 // src/tokens/themes.gen.ts (the seed value-sets as TS, re-exported by index). The generated artifacts
-// are committed; tests/legacy/ui/tokens/index.test.ts re-runs generateArtifacts() and diffs — hand-editing any
-// output, or editing tokens.json without regenerating, FAILS the test ("derived, never hand-authored"
-// as a machine invariant, not a hope). Run: pnpm --filter @orb/ui tokens:build
+// are committed; hand-editing any
+// output, or editing tokens.json without regenerating, leaves them out of sync ("derived, never hand-authored"). Run: pnpm --filter @orb/ui tokens:build
 //
 // WHY the value-sets are their OWN module (2026-08-02, the 10-palette default-character pack): one seed
 // palette emits ~37 lines, so a growing roster pushed the single index past the 450-line
@@ -342,8 +341,7 @@ export function renderGeneratedCss(tokens: readonly GeneratedCssValue[]): string
  * belt is a RENDERING invariant (a box must land on device pixels at every pointer), so it follows the
  * token. The floor answers a COARSE-POINTER PLATFORM fact (iOS's focus zoom), and every fine arm in this
  * block is authored BELOW that floor on purpose — the fine field steps are 15px and 13px. Flooring them
- * here would enlarge every desktop form and delete the dense step outright, which is the failure
- * `tests/legacy/ui/primitives/input/input.ct.tsx`'s fine-pointer case exists to catch.
+ * here would enlarge every desktop form and delete the dense step outright, which is the failure this block avoids.
  */
 function renderPointerFineBlock(overrides: readonly FineOverride[]): string {
   if (overrides.length === 0) {

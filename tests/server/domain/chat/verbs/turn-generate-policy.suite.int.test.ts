@@ -5,10 +5,18 @@ import type { ChatBusEvent, GroupConfigInput } from "@orb/contracts/chat";
 import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import { messages } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
-import { seedMessage } from "@orb/testkit/node/composed";
+import type { TranscriptLine } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { textRoom } from "../scenario-physical.ts";
 import { B_CHAT_MODEL, B_UTILITY_MODEL, saveSpeakerConnection, speakerInputs, speakerRoom } from "./speaker-funding-physical.ts";
+
+// An owner line and one reply by the room's first seat, written by the native transcript import.
+function priorExchange(speakerHandle: string, reply: string): readonly TranscriptLine[] {
+  return [
+    { role: "user", content: "hello" },
+    { role: "assistant", speakerHandle, content: reply },
+  ];
+}
 
 test("speakerless list generation skips the actual last speaker and commits only the next eligible seat", async () => {
   await using h = await textRoom(["Bryn answers."], {
@@ -17,23 +25,19 @@ test("speakerless list generation skips the actual last speaker and commits only
       createCharacterSchema.parse({ handle: "bryn", name: "Bryn", description: "An observant mage." }),
     ],
     group: { output: "per-speaker", policy: "list", allowSelfResponses: false },
+    transcript: priorExchange("aria", "Aria answers first."),
   });
   const [aria, bryn] = h.characters;
   if (aria === undefined || bryn === undefined) {
     throw new Error("the public generation fixture created no two-seat roster");
   }
-  await seedMessage(h.root.db, { chatId: h.chatId, seq: 1, role: "user", authorUserId: h.owner.userId, characterId: null, content: "hello" }, h.root.idSource);
-  const prior = await seedMessage(
-    h.root.db,
-    { chatId: h.chatId, seq: 2, role: "assistant", characterId: aria.id, content: "Aria answers first." },
-    h.root.idSource,
-  );
   const outcome = await h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId });
   expect(outcome.aborted).toBe(false);
   expect(outcome.messages).toHaveLength(1);
-  expect(outcome.messages[0]).toMatchObject({ role: "assistant", characterId: bryn.id, content: "Bryn answers.", seq: 3 });
-  expect(outcome.messages[0]?.id).not.toBe(prior.id);
   const canon = await h.root.db.select().from(messages).where(eq(messages.chatId, h.chatId)).orderBy(messages.seq);
+  const prior = canon[1];
+  expect(outcome.messages[0]).toMatchObject({ role: "assistant", characterId: bryn.id, content: "Bryn answers.", seq: (prior?.seq ?? 0) + 1 });
+  expect(outcome.messages[0]?.id).not.toBe(prior?.id);
   expect(canon.map(({ role }) => role)).toEqual(["user", "assistant", "assistant"]);
   expect(canon.map(({ characterId }) => characterId)).toEqual([null, aria.id, bryn.id]);
   expect(h.requests.filter((request) => new URL(request.url).pathname.endsWith("/chat/completions"))).toHaveLength(1);
@@ -67,14 +71,13 @@ test.for([
   await using h = await textRoom([`${expectedName} answers.`], {
     characters: names.map((name) => createCharacterSchema.parse({ handle: name.toLowerCase(), name, description: `${name} is present.` })),
     group: scene.group,
+    transcript: priorExchange("aria", "Aria answers first."),
   });
   const [aria, bryn] = h.characters;
   const selected = h.characters[scene.expected];
   if (aria === undefined || bryn === undefined || selected === undefined) {
     throw new Error("the generation matrix did not create its authored roster");
   }
-  await seedMessage(h.root.db, { chatId: h.chatId, seq: 1, role: "user", authorUserId: h.owner.userId, content: "hello" }, h.root.idSource);
-  await seedMessage(h.root.db, { chatId: h.chatId, seq: 2, role: "assistant", characterId: aria.id, content: "Aria answers first." }, h.root.idSource);
   if (scene.muted) {
     const seat = (await h.root.services.chat.listParticipants({ principal: h.owner, chatId: h.chatId })).find(({ characterId }) => characterId === bryn.id);
     if (seat === undefined) {
@@ -85,8 +88,13 @@ test.for([
   const outcome = await h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId });
   expect(outcome.aborted).toBe(false);
   expect(outcome.messages).toHaveLength(1);
-  expect(outcome.messages[0]).toMatchObject({ role: "assistant", characterId: selected.id, content: `${expectedName} answers.`, seq: 3 });
   const canon = await h.root.db.select().from(messages).where(eq(messages.chatId, h.chatId)).orderBy(messages.seq);
+  expect(outcome.messages[0]).toMatchObject({
+    role: "assistant",
+    characterId: selected.id,
+    content: `${expectedName} answers.`,
+    seq: (canon[1]?.seq ?? 0) + 1,
+  });
   expect(canon.map(({ characterId }) => characterId)).toEqual([null, aria.id, selected.id]);
   expect(h.requests.filter((request) => new URL(request.url).pathname.endsWith("/chat/completions"))).toHaveLength(1);
 });
@@ -98,13 +106,8 @@ test("speakerless manual generation commits nothing and closes its accepted slot
       createCharacterSchema.parse({ handle: "bryn", name: "Bryn", description: "An observant mage." }),
     ],
     group: { output: "per-speaker", policy: "manual" },
+    transcript: priorExchange("aria", "The prior answer."),
   });
-  const character = h.characters[0];
-  if (character === undefined) {
-    throw new Error("the manual room has no character");
-  }
-  await seedMessage(h.root.db, { chatId: h.chatId, seq: 1, role: "user", authorUserId: h.owner.userId, content: "hello" }, h.root.idSource);
-  await seedMessage(h.root.db, { chatId: h.chatId, seq: 2, role: "assistant", characterId: character.id, content: "The prior answer." }, h.root.idSource);
   const before = await h.root.db.select().from(messages).where(eq(messages.chatId, h.chatId)).orderBy(messages.seq);
   const events: ChatBusEvent[] = [];
   const unsubscribe = h.root.app.liveBuses.chat.subscribeAllChatEvents(({ event }) => events.push(event));
@@ -162,6 +165,7 @@ test.for([
     {
       characters: scene.names.map((name) => createCharacterSchema.parse({ handle: name, name, description: `The traveller ${name}.` })),
       group: { output: "per-speaker", policy: "smart", smartPicker: "utility", allowSelfResponses: false },
+      transcript: priorExchange("aria", "aria answers first."),
     },
     { ...SHIPPED_PROMPT_CACHE, enabled: false },
   );
@@ -172,12 +176,11 @@ test.for([
     throw new Error("the Smart generation matrix did not create its authored seats");
   }
   await saveSpeakerConnection(h, f.peer.baseUrl, "summarize");
-  await seedMessage(h.root.db, { chatId: h.chatId, seq: 1, role: "user", authorUserId: h.owner.userId, content: "hello" }, h.root.idSource);
-  await seedMessage(h.root.db, { chatId: h.chatId, seq: 2, role: "assistant", characterId: aria.id, content: "aria answers first." }, h.root.idSource);
   const outcome = await h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId, ...(scene.explicit ? { speakerCharacterId: aria.id } : {}) });
   expect(outcome.aborted).toBe(false);
   expect(outcome.messages).toHaveLength(1);
-  expect(outcome.messages[0]).toMatchObject({ role: "assistant", characterId: expected.id, content: reply, seq: 3 });
+  const [, priorReply] = await h.root.db.select().from(messages).where(eq(messages.chatId, h.chatId)).orderBy(messages.seq);
+  expect(outcome.messages[0]).toMatchObject({ role: "assistant", characterId: expected.id, content: reply, seq: (priorReply?.seq ?? 0) + 1 });
   expect(await speakerInputs(f.peer.requests, B_UTILITY_MODEL)).toHaveLength(scene.explicit ? 0 : 1);
   expect(await speakerInputs(f.peer.requests, B_CHAT_MODEL)).toHaveLength(1);
   expect(f.events.filter(({ type }) => type === "warning")).toEqual(

@@ -52,7 +52,10 @@ export default defineConfig<CtCorpusOptions>({
     ...(identityArgs.length === 0 ? {} : { launchOptions: { args: identityArgs } }),
   },
   webServer: {
-    command: "pnpm --filter @orb/client exec vite --configLoader native --mode component-test",
+    // Build the gallery once, then serve it static: the URL answers only after the build, so readiness is real
+    // and no worker pays a cold transform inside a test timeout.
+    command:
+      "pnpm --filter @orb/client exec vite build --configLoader native --mode component-test && pnpm --filter @orb/client exec vite preview --configLoader native --mode component-test",
     url: `${origin}/playwright/index.html`,
     reuseExistingServer: false,
     timeout: budget(BASE_SERVER_TIMEOUT_MS),

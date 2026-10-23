@@ -1,6 +1,7 @@
 // @subject packages/server/src/domain/character/verbs/greeting-ops.ts
 // @subject packages/server/src/domain/preset/verbs/optional-config.ts
 
+import { createCharacterSchema } from "@orb/contracts/character";
 import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { connectionBindings, userConnections } from "@orb/db";
@@ -45,7 +46,10 @@ test("the real greeting gate precedes template/funding reads; each completion re
   const stranger = await seedUser(db);
   const actor = await principal(harness, owner.id);
   const neighbor = await principal(harness, stranger.id);
-  const card = await seedCharacter(db, { ownerId: owner.id });
+  const { row: card } = await seedCharacter(harness, {
+    principal: actor,
+    input: createCharacterSchema.parse({ handle: "greeter", name: "Greeter", description: "" }),
+  });
   const connectionId = mintTypeId(ID_PREFIX.userConnection);
   await db.insert(userConnections).values({
     id: connectionId,
@@ -105,7 +109,10 @@ test("a foreign preset degrades to the shipped template, but a real preset datab
   const owner = await seedUser(db);
   const stranger = await seedUser(db);
   const actor = await principal(harness, owner.id);
-  const card = await seedCharacter(db, { ownerId: owner.id });
+  const { row: card } = await seedCharacter(harness, {
+    principal: actor,
+    input: createCharacterSchema.parse({ handle: "greeter", name: "Greeter", description: "" }),
+  });
   const foreign = await services.preset.create({ userId: stranger.id, name: "Foreign", kind: "prompt" });
   const neighbor = await principal(harness, stranger.id);
   await services.settings.updateUserSettingsSection({ principal: neighbor, input: { section: "seeds", patch: { defaultPresetId: foreign.id } } });

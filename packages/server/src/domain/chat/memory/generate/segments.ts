@@ -21,15 +21,14 @@
 // DETERMINISM (D46): blockIdx order; injected embed; no clock/random. NO ownerId (D20 — chat FK derives owner).
 
 import type { ChatId, UserId } from "@orb/kit/ids";
-import type { RowMacroNameContext } from "@orb/kit/macro";
 import { getLog } from "#foundation/observability";
 import { GenerationSupersededError } from "#primitives/embedding-generation";
 import type { ChatContext, StoreSegmentParams } from "#src/domain/chat/contract/context.ts";
 import { resolveCfg } from "../constants.ts";
-import { loadCanonThroughSeq, loadChatMeta, loadSegmentHashes } from "../persistence/queries.ts";
+import { loadCanonThroughSeq, loadChatMeta, loadSegmentHashes, loadTranscriptNames } from "../persistence/queries.ts";
 import type { MemoryConfig, MemoryEmbedSpace, MsgRow, SegmentPassCounts } from "../types.ts";
 import { chunkBlockForEmbedWindow } from "./substrate/token-guard.ts";
-import { blockHash, EMPTY_MACRO_NAMES, sliceBlocks } from "./substrate/transcript.ts";
+import { blockHash, sliceBlocks } from "./substrate/transcript.ts";
 
 /** What `generateSegments` needs (file-local, NON-exported — the `types-in-contract` gate; caller passes a
  *  structural literal). Segments are chat-wide, so this takes a bare `chatId` (no scope bucket). */
@@ -38,7 +37,6 @@ interface GenerateSegmentsArgs {
   /** Fallback vector owner when no explicit owner or pinned embedding space is supplied. */
   readonly funderUserId: UserId;
   readonly config?: MemoryConfig | null | undefined;
-  readonly macroNames?: RowMacroNameContext | undefined;
   readonly signal?: AbortSignal | undefined;
   readonly embedSpace?: MemoryEmbedSpace | undefined;
   readonly embedOwnerId?: UserId | undefined;
@@ -73,8 +71,6 @@ export async function collectSegments(ctx: ChatContext, args: GenerateSegmentsAr
   if (cfg.mode === "off") {
     return empty;
   }
-  const macroNames = args.macroNames ?? EMPTY_MACRO_NAMES;
-
   const { maxSeq } = await loadChatMeta(ctx.db, args.chatId);
   const cutoff = maxSeq - cfg.verbatimWindow;
   if (cutoff < cfg.blockSize) {
@@ -83,6 +79,7 @@ export async function collectSegments(ctx: ChatContext, args: GenerateSegmentsAr
   const embedSpace = args.embedSpace ?? (await ctx.resolveMemoryEmbedSpace(args.embedOwnerId ?? args.funderUserId));
 
   const canon = await loadCanonThroughSeq(ctx.db, args.chatId, cutoff);
+  const macroNames = await loadTranscriptNames(ctx.db, canon);
   const blocks = sliceBlocks(canon, cfg.blockSize);
   const embedContextTokens = await ctx.embedContextTokens(embedSpace.ownerId);
 

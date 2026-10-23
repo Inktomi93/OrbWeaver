@@ -2,7 +2,8 @@
   // biome-ignore lint/suspicious/noRedundantUseStrict: the frame is embedded as a classic script, not executed as a module.
   "use strict";
 
-  type Direction = "up" | "down" | "left" | "right";
+  const directionValues = ["up", "down", "left", "right"] as const;
+  type Direction = (typeof directionValues)[number];
   type Cell = readonly [row: number, column: number];
 
   const boardSize = 4;
@@ -81,17 +82,15 @@
     return out;
   }
 
+  const cellForDirection: Record<Direction, (index: number, offset: number) => Cell> = {
+    left: (index, offset) => [index, offset],
+    right: (index, offset) => [index, boardSize - 1 - offset],
+    up: (index, offset) => [offset, index],
+    down: (index, offset) => [boardSize - 1 - offset, index],
+  };
+
   function cellFor(direction: Direction, index: number, offset: number): Cell {
-    if (direction === "left") {
-      return [index, offset];
-    }
-    if (direction === "right") {
-      return [index, boardSize - 1 - offset];
-    }
-    if (direction === "up") {
-      return [offset, index];
-    }
-    return [boardSize - 1 - offset, index];
+    return cellForDirection[direction](index, offset);
   }
 
   function readLine(direction: Direction, index: number): number[] {

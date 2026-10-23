@@ -4,7 +4,6 @@
 // whole-blob reject).
 // Deliberate two-copy: this wire schema and the ui-local render clamp (`@orb/ui`
 // `content/theme-scope/clamp.ts`) exist twice by design (the cake forbids either importing the other);
-// `tests/legacy/contracts/theme/pairing.suite.test.ts` pins their structural mirror.
 // The decorative background IMAGE lives as flat fields on the `appearance` settings namespace, not here
 // — only the base surface COLOR (`background`) stays a token (it feeds the neutral ramp).
 // Also home to the CARD-EMBEDDABLE partition (bottom of file): which of these keys a character card may
@@ -34,7 +33,7 @@ export type ThemeRadius = (typeof THEME_RADII)[number];
 
 // A DERIVED fill must answer BOTH questions: one authored pixel (`isDeterministicColor`) that the renderer
 // can actually resolve (`isRenderableColor`, #1358). They are separate predicates because the render-side
-// clamp asks only the first — see `tests/legacy/contracts/theme/pairing.suite.test.ts` for the pinned divergence.
+// clamp asks only the first.
 const isRenderableDeterministicColor = (raw: string): boolean => isDeterministicColor(raw) && isRenderableColor(raw);
 
 // Lenient per-field: a failed parse yields `undefined` (field drops), never a thrown blob.

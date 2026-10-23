@@ -1,41 +1,13 @@
-// User rows are the FK root; their IDs use the production mint's prefixless path.
+// User rows are the FK root: the owner row precedes every Principal, so no production verb can create it.
 
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";
-import { handleKey } from "@orb/kit/handle-key";
-import type { Handle, IdSource } from "@orb/kit/ids";
-import { castId, createIdSource } from "@orb/kit/ids";
-import { FROZEN_AT_MS } from "../../iso/clock.ts";
-import { createSeededIds } from "../../iso/ids.ts";
-
-/** The full `users` row (derived from the live schema — the factory `X`). */
-export type UserRow = typeof users.$inferSelect;
-
-const ids = createIdSource(createSeededIds().next);
-
-/** Pure builder: a fully-valid human user row. `handle` defaults to the id (both unique per counter). */
-export function makeUser(overrides: Partial<UserRow> = {}, source: IdSource = ids): UserRow {
-  const id = overrides.id ?? source.userId();
-  const handle = overrides.handle ?? castId<Handle>(id);
-  return {
-    id,
-    handle,
-    handleKey: handleKey(handle),
-    externalId: null,
-    email: null,
-    role: "user",
-    enabled: true,
-    passwordHash: null,
-    kind: "human",
-    ownerUserId: null,
-    createdAt: FROZEN_AT_MS,
-    updatedAt: FROZEN_AT_MS,
-    ...overrides,
-  };
-}
+import type { IdSource } from "@orb/kit/ids";
+import type { UserRow } from "./rows.ts";
+import { makeUser } from "./rows.ts";
 
 /** `makeUser` then insert. Returns the built row (its `.id` is the FK target for owned seeds). */
-export async function seedUser(db: Db, overrides: Partial<UserRow> = {}, source: IdSource = ids): Promise<UserRow> {
+export async function seedUser(db: Db, overrides: Partial<UserRow> = {}, source?: IdSource): Promise<UserRow> {
   const row = makeUser(overrides, source);
   await db.insert(users).values(row);
   return row;

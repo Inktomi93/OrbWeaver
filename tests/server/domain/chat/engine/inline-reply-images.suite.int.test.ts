@@ -1,8 +1,9 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // Native image/tool bytes cross real plugin execution, CAS, selected canon and the next native request.
 
+import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
-import { makeAsset, makeAssetBytes, seedStoredAsset } from "@orb/testkit/node/composed";
+import { makeAssetBytes, seedAsset } from "@orb/testkit/node/composed";
 import {
   AFTER_SIGNATURE,
   BEFORE_SIGNATURE,
@@ -66,9 +67,9 @@ test("native image and text signatures stay private and replay only with their s
 
 test("the real narrator illustration writer in the same room cannot launder its stored image into model media", async () => {
   await using fixture = await imageRoom([[nativeText("A quiet beat.")]]);
-  const stored = await seedStoredAsset(fixture.h.root, {
+  const stored = await seedAsset(fixture.h.root, {
     principal: fixture.h.owner,
-    bytes: makeAssetBytes(makeAsset().id),
+    bytes: makeAssetBytes(fixture.h.root.idSource.typeId(ID_PREFIX.asset)),
     kind: "generated",
     mime: "image/png",
     enforceMagic: true,

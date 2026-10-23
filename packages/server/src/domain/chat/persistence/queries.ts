@@ -1115,13 +1115,14 @@ export async function loadHasSelectedCanonUserMessage(db: Db, chatId: ChatId): P
   return rows.length > 0;
 }
 
-/** The canon history strictly after `afterSeq` (the compaction window). Slot ⋈ selected-variant, oldest-first. */
-export async function loadCanonHistoryAfter(db: Db, chatId: ChatId, afterSeq: number): Promise<MessageView[]> {
+/** The canon history strictly after `afterSeq` (the compaction window); `null` (never compacted) reads the whole
+ *  history. Slot ⋈ selected-variant, oldest-first. */
+export async function loadCanonHistoryAfter(db: Db, chatId: ChatId, afterSeq: number | null): Promise<MessageView[]> {
   const rows = await db
     .select(messageViewSelection)
     .from(messages)
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
-    .where(and(eq(messages.chatId, chatId), gt(messages.seq, afterSeq)))
+    .where(and(eq(messages.chatId, chatId), afterSeq === null ? undefined : gt(messages.seq, afterSeq)))
     .orderBy(asc(messages.seq));
   return rows.map(toMessageView);
 }

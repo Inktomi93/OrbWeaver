@@ -25,8 +25,7 @@ export function SegmentField(props: SegmentFieldProps): ReactElement {
     <Field {...fieldProps}>
       {/* THE `aria-label` BELOW IS LOAD-BEARING and must not be swept as a duplicate of the Field's label
           (#1621) — a `ToggleGroup` is not a `Field.Control`, so the Field's label reaches nothing and this is
-          the group's only name. The Input/Switch/Select families measured the OTHER way and lost theirs.
-          Evidence: `tests/legacy/client/a11y/field-control-name.suite.ct.tsx`. */}
+          the group's only name. The Input/Switch/Select families measured the OTHER way and lost theirs. */}
       <ToggleGroup
         value={[field.state.value]}
         onValueChange={(next): void => {

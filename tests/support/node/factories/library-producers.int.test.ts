@@ -17,10 +17,10 @@ import { seedCorpusLibraries } from "../corpus-seed.ts";
 import { expect, test } from "../fixtures.ts";
 import type { ServerTestHarness } from "../server.ts";
 import { createServerHarness } from "../server.ts";
-import { makeAssetBytes, seedStoredAsset } from "./asset.ts";
-import { seedCreatedCharacter } from "./character.ts";
+import { makeAssetBytes, seedAsset } from "./asset.ts";
+import { seedCharacter } from "./character.ts";
 import { seedPersonaFromCharacter } from "./persona.ts";
-import { seedCreatedPreset, seedImportedPreset, seedUpdatedPreset } from "./preset.ts";
+import { seedImportedPreset, seedPreset, seedUpdatedPreset } from "./preset.ts";
 import { seedRosterPreset } from "./roster-preset.ts";
 import { seedCharacterTag, seedCreatedTag, seedPersonaTag, seedTag, seedTagPrune } from "./tag.ts";
 
@@ -42,13 +42,13 @@ async function exportedPreset(root: ServerTestHarness, name: string): Promise<st
 test("character-derived personas retain native one-pass macro inversion, provenance and avatar projections", async () => {
   await using root = await createServerHarness();
   const principal = await root.principalFor(root.ownerId);
-  const avatar = await seedStoredAsset(root, {
+  const avatar = await seedAsset(root, {
     principal,
     kind: "avatar",
     mime: "image/png",
     bytes: makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)),
   });
-  const source = await seedCreatedCharacter(root, {
+  const source = await seedCharacter(root, {
     principal,
     input: createCharacterSchema.parse({
       handle: "persona-source",
@@ -117,14 +117,14 @@ test("preset update captures the actual fork identity, convergence and explicit 
 
 test("genuine preset export/import captures additive collision, content reuse and refusal without inventing rows", async () => {
   await using root = await createServerHarness();
-  const source = await seedCreatedPreset(root, root.ownerId, {
+  const source = await seedPreset(root, root.ownerId, {
     name: "Imported keeper",
     kind: "custom",
     config: makePromptConfig({ params: { temperature: 0.4 } }),
   });
   const text = await exportedPreset(root, source.view.name);
   const actor = await root.actor();
-  const collision = await seedCreatedPreset(root, actor.id, {
+  const collision = await seedPreset(root, actor.id, {
     name: source.view.name,
     kind: "custom",
     config: makePromptConfig({ params: { temperature: 0.2 } }),
@@ -155,7 +155,7 @@ test("roster creation retains its actual normalized and joined view alongside ca
   await using root = await createServerHarness();
   const library = await seedCorpusLibraries(root);
   const principal = await root.principalFor(root.ownerId);
-  const second = await seedCreatedCharacter(root, {
+  const second = await seedCharacter(root, {
     principal,
     input: createCharacterSchema.parse({
       handle: "roster-second",

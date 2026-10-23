@@ -129,8 +129,7 @@ const bugReportInput = z.object({
  * one. A media-type PREFIX test, lowercased — a legal `; charset=utf-8` must still pass.
  *
  * The READ probes are deliberately untouched: they carry no body, and a cross-site page cannot read their
- * response. ENFORCER: `tests/legacy/server/foundation/observability/debug/routes.int.test.ts`, the content-type
- * belt describe (all four simple types + the no-content-type arm, with JSON positive controls).
+ * response.
  */
 const bugReportJsonOnly: MiddlewareHandler = (c, next) => {
   const contentType = c.req.header("content-type");
@@ -398,8 +397,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = { a
     // a SPREAD is exempt from TypeScript's excess-property check, so a filter key the ring has never heard of
     // type-checked clean and every `?backend=` read silently returned the WHOLE ring. A filter that answers
     // "everything" to a narrowing ask is a lying instrument, which is worse than an absent one. Spelling the
-    // object as `WireCaptureFilter` makes the next divergence a COMPILE error rather than a silent superset;
-    // the behavioural half is pinned in `tests/legacy/server/foundation/observability/debug/routes.int.test.ts`.
+    // object as `WireCaptureFilter` makes the next divergence a COMPILE error rather than a silent superset.
     const chatId = c.req.query("chatId");
     const filter: WireCaptureFilter = {
       chatId: chatId === undefined ? undefined : castId<ChatId>(chatId),

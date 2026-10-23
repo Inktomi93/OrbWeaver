@@ -687,7 +687,7 @@ export interface AssembleContext {
   /** The seq the compaction marker covers THROUGH (`chats.compactedAtSeq`). When a `compactSummary` is present,
    *  canon rows with `seq <= compactedThroughSeq` are EXCLUDED from the shaped prompt history — the marker stands
    *  in for them (full-reset semantics). Api-agnostic: covered turns never re-enter the prompt on ANY source, so
-   *  a stateless chat carrying a swapped-in marker also never re-sends summarized turns. Null/absent/0 ⇒ no exclusion. */
+   *  a stateless chat carrying a swapped-in marker also never re-sends summarized turns. Null/absent ⇒ no exclusion. */
   compactedThroughSeq?: number | null | undefined;
   /** Retrieved chat-history memory (the `{{memory}}` marker), pre-formatted by the memory subsystem. */
   memory?: string | null;

@@ -14,7 +14,7 @@
 // `Db`, and its only caller (`assembly/shape.ts::toShapeCanon`) already builds throwaway `CanonRow`s from
 // the loaded `MessageView`s. Nothing it produces is written anywhere — the four persisted planes
 // (`messages.content`, the compaction digest, an export bundle, a fork's copied rows) all read the ROW, and
-// the row never sees this output. The pins live in `tests/legacy/server/domain/chat/assembly/history-regex*`.
+// the row never sees this output.
 //
 // THE ORDER, per D121-E: the row's own macros resolve FIRST (`renderHistoryMacros`, inside `toShapeCanon`),
 // THEN this leg runs; the replacement TEMPLATE gets its own macro pass inside the executor and the captured

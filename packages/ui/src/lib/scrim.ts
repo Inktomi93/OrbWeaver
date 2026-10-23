@@ -35,14 +35,11 @@ import { OVERLAY_MOTION } from "./overlay-motion.ts";
 // `absolute` arm is reachable only in WebKit, and every browser we drive (CT, snap, design-audit) is
 // Chromium, which resolves this @supports block to false and renders the byte-identical `fixed` box it
 // always did. A CT asserting the computed position would pass while proving nothing. The honest pin is
-// therefore STRUCTURAL and it now exists at `tests/legacy/ui/lib/scrim.test.ts` (#1871, landed 2026-09-19): the
+// therefore STRUCTURAL: the
 // recipe's four fragments with the reason each is load-bearing, both SCRIM tiers embedding this base, and
 // the REACH half — each of the six backdrop variants modules reaching SCRIM/SCRIM_BASE rather than
 // re-spelling the fill, with a positive control so a moved module cannot empty the sweep into a false
-// clean. Red-first receipts: deleting the supports arm reds the fragment test; replacing menu's
-// `SCRIM("popover")` with a hand-rolled `fixed inset-0 bg-backdrop` reds the reach test. The earlier
-// pointer here named `tests/legacy/ui/styles/css-structure.suite.test.ts`, whose subject is raw CSS TEXT in
-// stylesheets; this is a TypeScript constant, so the mirror (AGENTS.md "Test layout") is the home.
+// clean.
 export const SCRIM_BASE = "fixed inset-0 min-h-dvh bg-backdrop supports-[-webkit-touch-callout:none]:absolute";
 
 export const SCRIM = (tier: "popover" | "modal"): string => `${SCRIM_BASE} z-(--z-${tier}) ${OVERLAY_MOTION.backdropFade(tier === "modal" ? "base" : "fast")}`;

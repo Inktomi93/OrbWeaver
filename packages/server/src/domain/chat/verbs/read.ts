@@ -165,6 +165,7 @@ import {
 } from "../substrate/assembly-access.ts";
 import { clampMemberCard, isBelowHistoryFloor, NO_HISTORY_FLOOR, resolveCardVisibility, resolveHistoryFloorSeq } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
+import { isCoveredByCompaction } from "../substrate/compaction-coverage.ts";
 import { cueReplayFor } from "../substrate/cue-replay.ts";
 import { scrubChatEventReplayForMember, scrubStreamReplayForMember, stripMemberCardForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
@@ -1507,7 +1508,7 @@ function resolveContextFitPreview(env: {
   readonly budget: ReturnType<typeof buildHistoryBudget>;
   readonly canon: readonly MessageView[];
   readonly compactSummary: string | null;
-  readonly coveragePoint: number;
+  readonly coveragePoint: number | null;
   /** The connected model's window was a guess, so the divider's "N of M used" must say so (same verdict the
    *  Preview tab's budget carries — one rule, both surfaces). */
   readonly ceilingEstimated: boolean;
@@ -1529,7 +1530,7 @@ function resolveContextFitPreview(env: {
   // A covering marker exists: the boundary is the earliest row STILL in the prompt above the coverage point.
   // The fit boundary (when a small window trimmed post-marker rows) is deeper and wins; otherwise the first row
   // just above the coverage point (the agent-sdk / full-window norm, where the fit dropped nothing).
-  const firstAboveCoverage = canon.find((m) => m.seq > coveragePoint)?.id ?? null;
+  const firstAboveCoverage = canon.find((m) => !isCoveredByCompaction(m.seq, coveragePoint))?.id ?? null;
   const boundaryMessageId = fitted.earliestKeptMessageId ?? firstAboveCoverage;
   return { ...common, boundaryMessageId, compactSummary: boundaryMessageId !== null ? compactSummary : null };
 }
@@ -1574,7 +1575,7 @@ function createPreviewContextFit(ctx: ChatContext, deps: ReadDeps): ChatService[
       budget,
       canon,
       compactSummary: checkpointVisible ? (chatRow?.compactSummary ?? null) : null,
-      coveragePoint: checkpointVisible ? (chatRow?.compactedAtSeq ?? 0) : 0,
+      coveragePoint: checkpointVisible ? (chatRow?.compactedAtSeq ?? null) : null,
       ceilingEstimated: ceilingIsEstimated(inputs.capability, assembleContext.promptConfig.params.maxContextTokens),
     });
   };
