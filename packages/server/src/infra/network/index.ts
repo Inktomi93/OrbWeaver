@@ -12,8 +12,6 @@ export type { PhysicalPeerRead } from "./contract/ingress.ts";
 
 export type { TlsTerminator, TlsTerminatorOptions } from "./contract/tls-terminator.ts";
 export {
-  __firewallConnectForTest,
-  __setFirewallLookupForTest,
   ANY_HOST,
   createScopedEgress,
   EgressBlockedError,

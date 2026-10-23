@@ -24,7 +24,7 @@ import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { pidAlive } from "@orb/tooling/floor/artifacts/run-retention";
 import type { StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
-import { __resetStageRunBinding, markStageBootDead, registerStageRunBinding } from "../../../../tooling/src/snap/lib/stage-run-binding.ts";
+import { markStageBootDead, registerStageRunBinding } from "../../../../tooling/src/snap/lib/stage-run-binding.ts";
 import { readBands, writeBands } from "../../../../tooling/src/snap/ops/stage-marker.ts";
 import { readStageReaps } from "../../../../tooling/src/snap/ops/stage-reap-log.ts";
 import { tearDownBootDeadStage } from "../../../../tooling/src/snap/ops/stage-teardown.ts";
@@ -97,7 +97,6 @@ test("a boot-dead stage this run BOOTED leaves zero stage processes behind", { t
   const planted = await plantStage(join(scratch, "booted"));
   const row = plantRow({ dir: planted.dir, port: planted.port, checkout: join(scratch, "booted") });
   writeBands(home, [row]);
-  __resetStageRunBinding();
   registerStageRunBinding({ row, home, booted: true });
 
   // RED-FIRST SHAPE: the readiness failure is planted, exactly as ops/drive.ts raises it after the warm-up
@@ -120,7 +119,6 @@ test("a boot-dead readiness failure never tears down a stage this run only REUSE
   const planted = await plantStage(join(scratch, "reused"));
   const row = plantRow({ dir: planted.dir, port: planted.port, checkout: join(scratch, "reused") });
   writeBands(home, [row]);
-  __resetStageRunBinding();
   // PLANTED CONTROL: the identical failure, on a row this run did not build. #324's warm-across-runs rule.
   registerStageRunBinding({ row, home, booted: false });
 

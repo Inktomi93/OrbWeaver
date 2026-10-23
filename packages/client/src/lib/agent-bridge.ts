@@ -11,19 +11,19 @@ import type { OrbPluginLogReader } from "./agent-plugin-bridge.ts";
 import { appReady, isAppReady } from "./app-ready-signal.ts";
 import { enableAppearanceMessageRegistry } from "./appearance-message-registry.ts";
 import type { BusEventRecord } from "./bus-devlog.ts";
-import { __resetBusDupBursts, __resetBusEventRing, busEventRing, busLiveCount } from "./bus-devlog.ts";
-import { __resetConsoleErrors, consoleErrorRing, installConsoleErrorRing } from "./console-error-ring.ts";
-import { __resetLongTaskEvidence } from "./long-task-tracer.ts";
+import { busEventRing, busLiveCount, resetBusDupBursts, resetBusEventRing } from "./bus-devlog.ts";
+import { consoleErrorRing, installConsoleErrorRing, resetConsoleErrors } from "./console-error-ring.ts";
+import { resetLongTaskEvidence } from "./long-task-tracer.ts";
 import type { AnimationRecord } from "./motion-animation-record.ts";
 import { activeAnimations, installAnimationLifecycleRecorder } from "./motion-animation-record.ts";
 import { setFrameDropTrackingPaused } from "./motion-animation-state.ts";
 import { motionFlaggersDrain, motionFlaggersSettled } from "./motion-dead-class-flagger.ts";
 import type { MotionFlagRecord } from "./motion-flaggers.ts";
-import { __resetMotionFlags, installMotionFlaggers, motionFlags } from "./motion-flaggers.ts";
+import { installMotionFlaggers, motionFlags, resetMotionFlags } from "./motion-flaggers.ts";
 import type { MotionSnapshot } from "./motion-stats.ts";
-import { __resetMotionStats, installMotionObservers, motionSnapshot } from "./motion-stats.ts";
+import { installMotionObservers, motionSnapshot, resetMotionStats } from "./motion-stats.ts";
 import { recentMeasures } from "./perf-marks.ts";
-import { __resetRenderStats, renderHeatmap } from "./render-stats.ts";
+import { renderHeatmap, resetRenderStats } from "./render-stats.ts";
 
 export type { NavResult, OrbAgentHandles, OrbNavCapabilities, OrbNavHandle, OrbRpgReader, OrbSeedHandle, SeedProfile } from "./agent-bridge-handles.ts";
 
@@ -282,16 +282,16 @@ export function installAgentDebugHandle(queryClient: QueryClient, handles: OrbAg
     // The ring AND the duplicate-invalidate burst windows: a window left half-counted across a checkpoint
     // would charge pre-reset waves to the measurement taken after it.
     "bus-events": (): void => {
-      __resetBusEventRing();
-      __resetBusDupBursts();
+      resetBusEventRing();
+      resetBusDupBursts();
     },
-    flags: __resetMotionFlags,
+    flags: resetMotionFlags,
     motion: (): void => {
-      __resetLongTaskEvidence();
-      __resetMotionStats();
+      resetLongTaskEvidence();
+      resetMotionStats();
     },
-    renders: __resetRenderStats,
-    "console-errors": __resetConsoleErrors,
+    renders: resetRenderStats,
+    "console-errors": resetConsoleErrors,
     "css-merges": css.reset,
   } as const satisfies Record<Extract<OrbRingName, "bus-events" | "console-errors" | "css-merges" | "flags" | "motion" | "renders">, () => void>;
   const resetRing = (name: string): OrbRingResetResult => {
@@ -324,7 +324,7 @@ export function installAgentDebugHandle(queryClient: QueryClient, handles: OrbAg
     animations: activeAnimations,
     flags: motionFlags,
     consoleErrors: consoleErrorRing,
-    resetFlags: __resetMotionFlags,
+    resetFlags: resetMotionFlags,
     resetEvidence,
     motionFlaggersSettled,
     motionFlaggersDrain,

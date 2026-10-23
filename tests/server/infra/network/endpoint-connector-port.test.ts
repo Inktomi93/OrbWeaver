@@ -1,7 +1,7 @@
 import type { LookupFunction } from "node:net";
-import { __firewallConnectForTest, __setFirewallLookupForTest, publishPrivateEndpointAllowlist } from "@orb/server/infra/network";
+import type { ScopedEgressOptions } from "@orb/server/infra/network";
+import { createScopedEgress } from "@orb/server/infra/network";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import type { buildConnector } from "undici";
 import { vi } from "vitest";
 
 const raw = vi.hoisted((): { reached: Error; calls: string[] } => ({ reached: new Error("controlled raw dial reached"), calls: [] }));
@@ -28,53 +28,48 @@ vi.mock("undici", async (importOriginal) => {
   return { ...actual, buildConnector: build };
 });
 
-const LOOKUP: LookupFunction = (hostname, options, callback): void => {
-  const address = hostname === "public.example" ? "93.184.215.14" : "127.0.0.1";
-  if (options.all === true) {
-    callback(null, [{ address, family: 4 }], 0);
-  } else {
-    callback(null, address, 4);
-  }
-};
+type EgressResolver = NonNullable<ScopedEgressOptions["resolver"]>;
 
-function connect(hostname: string, port: string): Promise<Parameters<buildConnector.Callback>> {
-  const connector = __firewallConnectForTest();
-  return new Promise((resolve) => connector({ hostname, protocol: "http:", port }, (...args) => resolve(args)));
+const PUBLIC_ADDRESS = "93.184.215.14";
+const LOOPBACK_ADDRESS = "127.0.0.1";
+
+const resolveByHost: EgressResolver = (hostname) => Promise.resolve([hostname === "public.example" ? PUBLIC_ADDRESS : LOOPBACK_ADDRESS]);
+
+// The write-time pin resolves first and admits the public answer; the connector's own lookup then sees the
+// rebound loopback answer, so the connector is the gate that decides.
+function rebindingResolver(): EgressResolver {
+  let answered = false;
+  return () => {
+    const address = answered ? LOOPBACK_ADDRESS : PUBLIC_ADDRESS;
+    answered = true;
+    return Promise.resolve([address]);
+  };
+}
+
+async function dialFailure(fetchPromise: Promise<Response>): Promise<unknown> {
+  const error = await fetchPromise.then(
+    () => new Error("the scripted connector never yields a socket"),
+    (rejection: unknown) => rejection,
+  );
+  return error instanceof Error ? error.cause : error;
 }
 
 test("the actual connector rejects a wrong hostname port before the physical dial despite its resolved CIDR", async () => {
   raw.calls.length = 0;
-  __setFirewallLookupForTest(LOOKUP);
-  publishPrivateEndpointAllowlist(["engine.lan:11434", "127.0.0.0/8"]);
-  try {
-    const [error, socket] = await connect("engine.lan", "22");
-    expect(error?.message).toContain("SSRF_BLOCKED");
-    expect(error).not.toBe(raw.reached);
-    expect(socket).toBeNull();
-    expect(raw.calls).toEqual([]);
-  } finally {
-    __setFirewallLookupForTest(null);
-    publishPrivateEndpointAllowlist([]);
-  }
+  await using egress = createScopedEgress({ resolver: rebindingResolver() });
+  egress.publishPrivateEndpointAllowlist(["engine.lan:11434", "127.0.0.0/8"]);
+  const cause = await dialFailure(egress.configuredEndpointFetch("http://engine.lan:8080/v1"));
+  expect(cause).not.toBe(raw.reached);
+  expect(cause instanceof Error ? cause.message : cause).toContain("SSRF_BLOCKED");
+  expect(raw.calls).toEqual([]);
 });
 
 test("the connector preserves exact-port, unrelated-CIDR-host and public-address admission", async () => {
   raw.calls.length = 0;
-  __setFirewallLookupForTest(LOOKUP);
-  publishPrivateEndpointAllowlist(["engine.lan:11434", "public.example:11434", "127.0.0.0/8"]);
-  try {
-    for (const [hostname, port] of [
-      ["engine.lan", "11434"],
-      ["other.lan", "22"],
-      ["public.example", "22"],
-    ] as const) {
-      const [error, socket] = await connect(hostname, port);
-      expect(error).toBe(raw.reached);
-      expect(socket).toBeNull();
-    }
-    expect(raw.calls).toEqual(["engine.lan:11434", "other.lan:22", "public.example:22"]);
-  } finally {
-    __setFirewallLookupForTest(null);
-    publishPrivateEndpointAllowlist([]);
+  await using egress = createScopedEgress({ resolver: resolveByHost });
+  egress.publishPrivateEndpointAllowlist(["engine.lan:11434", "public.example:11434", "127.0.0.0/8"]);
+  for (const url of ["http://engine.lan:11434/v1", "http://other.lan:8080/v1", "http://public.example:8080/v1"]) {
+    await expect(dialFailure(egress.configuredEndpointFetch(url))).resolves.toBe(raw.reached);
   }
+  expect(raw.calls).toEqual(["engine.lan:11434", "other.lan:8080", "public.example:8080"]);
 });

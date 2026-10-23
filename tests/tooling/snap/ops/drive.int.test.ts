@@ -5,7 +5,7 @@ import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { chromium, devices } from "@playwright/test";
 import { MOBILE_DEVICE } from "../../../../tooling/src/floor/browser/browser-environment.ts";
-import { __resetStageRunBinding, registerStageRunBinding, takeBootDeadStage } from "../../../../tooling/src/snap/lib/stage-run-binding.ts";
+import { registerStageRunBinding, takeBootDeadStage } from "../../../../tooling/src/snap/lib/stage-run-binding.ts";
 import { navigate } from "../../../../tooling/src/snap/ops/drive.ts";
 import { driveActions } from "../../../../tooling/src/snap/ops/drive-actions.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
@@ -49,7 +49,6 @@ async function driveOnce(argv: readonly string[], base: string): Promise<string 
 
 /** Bind this process to a stage it booted, so the drive's BOOT-DEAD latch is live, exactly as `ensureStage` does. */
 function bindBootedStage(): void {
-  __resetStageRunBinding();
   const at = new Date(FROZEN_AT_MS).toISOString();
   registerStageRunBinding({
     home: "/planted/home",
@@ -79,7 +78,6 @@ test("a settled isolated stage succeeds on its first navigation", { timeout: BRO
     expect(server.documents()).toBe(1);
     expect(takeBootDeadStage()).toBeNull();
   } finally {
-    __resetStageRunBinding();
     await server.close();
   }
 });
@@ -92,7 +90,6 @@ test("a failed first navigation stays failed even when a second document would s
     expect(server.documents()).toBe(1);
     expect(takeBootDeadStage()?.reason).toContain("first navigation came back degraded");
   } finally {
-    __resetStageRunBinding();
     await server.close();
   }
 });
@@ -143,7 +140,6 @@ test("--isolated does not retry or mark the stage BOOT-DEAD for a not-found rend
     expect(server.documents(), "the first not-found navigation is retained").toBe(1);
     expect(takeBootDeadStage()).toBeNull();
   } finally {
-    __resetStageRunBinding();
     await server.close();
   }
 });

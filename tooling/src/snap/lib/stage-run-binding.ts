@@ -33,7 +33,8 @@ export interface StageRunBinding {
 let binding: StageRunBinding | null = null;
 let bootDeadReason: string | null = null;
 
-/** Publish the stage this run bound. Called once, by `ensureStage`'s single exit. */
+/** Publish the stage this run bound, replacing any earlier binding and its latch. Called once, by `ensureStage`'s
+ *  single exit. */
 export function registerStageRunBinding(bound: StageRunBinding): void {
   binding = bound;
   bootDeadReason = null;
@@ -103,13 +104,4 @@ export function takeBootDeadStage(): { readonly binding: StageRunBinding; readon
   }
   binding = null;
   return { binding: bound, reason };
-}
-
-/** Test seam: forget this process's binding (a suite must not inherit another test's).
- *
- * @public Test-anchored module surface; focused tests pin this process-local behavior.
- */
-export function __resetStageRunBinding(): void {
-  binding = null;
-  bootDeadReason = null;
 }

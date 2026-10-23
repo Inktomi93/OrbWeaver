@@ -110,7 +110,7 @@ const longAnimationFrameSubscribers = new Set<LongAnimationFrameSubscriber>();
 /** Subscribe to THE LoAF observer — this file installs the app's only `long-animation-frame`
  *  PerformanceObserver, and every other rendered-frame consumer arrives here instead of installing a
  *  second one (`motion-animation-state.ts`'s `[drop]` flagger; `long-task-tracer.ts`'s
- *  `[frame]`/`[reflow]`). Delivery is gated on THIS file's checkpoint floor (`__resetMotionStats`),
+ *  `[frame]`/`[reflow]`). Delivery is gated on THIS file's checkpoint floor (`resetMotionStats`),
  *  which the dev bridge resets alongside every other evidence floor; a subscriber owning a narrower
  *  floor still applies its own on top. */
 export function subscribeLongAnimationFrames(subscriber: LongAnimationFrameSubscriber): () => void {
@@ -349,7 +349,7 @@ export function motionSnapshot(): MotionSnapshot {
 
 /** Clear the evidence accumulated by the motion observers without reinstalling them. A driven probe calls
  *  this immediately before each checkpoint so one surface cannot inherit another surface's LoAF/CLS debt. */
-export function __resetMotionStats(): void {
+export function resetMotionStats(): void {
   evidenceStartTime = performance.now();
   loafRing.length = 0;
   resetSelectEntranceEvidence();

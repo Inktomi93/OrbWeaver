@@ -121,7 +121,7 @@ export {
 } from "./lib/stage-plan.ts";
 // #1837's boot-dead latch: which stage row this run bound and whether this run BOOTED it — the one fence
 // that keeps the boot-dead teardown off a stage a run merely REUSED (#324's warm-across-runs rule).
-export { __resetStageRunBinding, boundStageRow, markStageBootDead, registerStageRunBinding, takeBootDeadStage } from "./lib/stage-run-binding.ts";
+export { boundStageRow, markStageBootDead, registerStageRunBinding, takeBootDeadStage } from "./lib/stage-run-binding.ts";
 export { NETWORK_PROFILES, NO_CPU_THROTTLE, parseNetworkProfile, throttleResultValue } from "./lib/throttle.ts";
 // The mode surface — the cli's dispatch targets, exported so a caller can drive snap programmatically
 // (and so cli.ts enters through THIS door, per the front-door gate).

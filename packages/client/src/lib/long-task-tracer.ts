@@ -34,7 +34,7 @@ let evidenceStartTime = 0;
 /** Move the observer's checkpoint floor without reinstalling it. Buffered entries delivered after a
  * probe reset otherwise inherit the next surface's route and console range even though they began on
  * the previous surface. */
-export function __resetLongTaskEvidence(): void {
+export function resetLongTaskEvidence(): void {
   evidenceStartTime = performance.now();
 }
 
