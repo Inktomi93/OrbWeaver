@@ -262,6 +262,23 @@ export const CLASS_TOKEN_RESTRICTIONS = [
   },
 ];
 
+const PORTAL_FLOAT_CLASS = String.raw`z-\(--z-(?:modal|popover|toast|tooltip)\)`;
+
+// A portal-float token orders anything only for a surface that leaves its subtree by mount position, so it is
+// legal only in the files eslint.config.ts allowlists; every other file is isolated inside a stacking context.
+export const PORTAL_FLOAT_RESTRICTIONS = [
+  {
+    id: "no-portal-float-token",
+    selectors: [
+      {
+        selector: `:matches(Literal[value=type(string)][value=/${PORTAL_FLOAT_CLASS}/], TemplateElement[value.raw=/${PORTAL_FLOAT_CLASS}/])`,
+        message:
+          'A portal-float z token (--z-modal, --z-popover, --z-toast, --z-tooltip) is legal only in a primitive that portals to [data-slot="portal-root"] or mounts at the document root: a float escapes its stacking context by mount position, and the token only orders floats against each other. Use --z-base or --z-raised for a sibling, or --z-overlay for the shell frame\'s own rung. A new portal primitive is added to PORTAL_FLOAT_HOMES in eslint.config.ts.',
+      },
+    ],
+  },
+];
+
 const OVERLAY_PART = (part: string): string => `:matches(MemberExpression[computed=false], JSXMemberExpression)[property.name='${part}']`;
 
 export const UI_PRIMITIVE_RESTRICTIONS = [

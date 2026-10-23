@@ -435,9 +435,30 @@ const localPlugin = createOrbPlugin({
       .map(([size]) => size),
   ),
 });
+// The only files that may spell a portal-float z token: each is a surface that portals to
+// [data-slot="portal-root"] or mounts at the document root. A new consumer is a finding, not an entry here.
+const PORTAL_FLOAT_HOMES = {
+  "packages/ui/src/lib/popup-surface.ts": "the shared popup surface every portaled popup composes",
+  "packages/ui/src/primitives/combobox/variants.ts": "its positioner portals to the portal root",
+  "packages/ui/src/primitives/popover/variants.ts": "its positioner portals to the portal root",
+  "packages/ui/src/primitives/menu/variants.ts": "its positioner portals to the portal root",
+  "packages/ui/src/primitives/select/variants.ts": "its positioner portals to the portal root",
+  "packages/ui/src/primitives/autocomplete/variants.ts": "its positioner portals to the portal root",
+  "packages/ui/src/primitives/tooltip/variants.ts": "its positioner portals to the portal root",
+  "packages/ui/src/primitives/toast/variants.ts": "its viewport portals to the portal root",
+  "packages/ui/src/primitives/alert-dialog/variants.ts": "its viewport portals to the portal root",
+  "packages/ui/src/primitives/dialog/variants.ts": "its viewport portals to the portal root",
+  "packages/ui/src/primitives/drawer/variants.ts": "its backdrop and viewport portal to the portal root",
+  "packages/ui/src/art/web-weave/variants.ts": "the boot veil mounts at the document root, above the whole shell",
+} as const;
 const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
   [
     { files: ["tests/**/*.{ts,tsx}"], rules: { "orb/no-test-fabrication": "error" } },
+    {
+      files: ["packages/client/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}"],
+      ignores: Object.keys(PORTAL_FLOAT_HOMES),
+      rules: { "orb/no-portal-float-token": "error" },
+    },
     {
       files: ["packages/client/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}"],
       rules: {
