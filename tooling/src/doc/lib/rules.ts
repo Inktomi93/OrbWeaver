@@ -14,10 +14,11 @@ import { basenameOf, parseNumberedName } from "./names.ts";
 import { ADR_SECTIONS, ITEM_SECTIONS, PLAN_SECTIONS, sectionNames } from "./templates.ts";
 
 const KIB = 1024;
-/** Size caps per kind, in bytes: 8 KiB for a decision, 4 KiB for an item, 48 KiB for a plan or a law doc. */
+/** Size caps per kind, in bytes: 8 KiB for a decision, 48 KiB for an item (adjudication ledgers are items;
+ *  owner ruling 2026-10-23 raised it from 4 KiB), 48 KiB for a plan or a law doc. */
 const ADR_CAP = 8192;
 const PLAN_CAP = 49_152;
-const ITEM_CAP = 4096;
+const ITEM_CAP = 49_152;
 const LAW_CAP = 49_152;
 const MISSION_PATH = "docs/Mission.md";
 const INDEX_KIND = "index";
