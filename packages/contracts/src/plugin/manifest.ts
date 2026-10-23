@@ -118,34 +118,34 @@ export const PLUGIN_HOST_VERSIONS = [1] as const;
  *  Derived once so a third egress capability lands in ONE place instead of a hand-updated `||` chain. */
 const EGRESS_CAPABILITIES = ["net.fetch", "net.fetch_asset"] as const satisfies readonly PluginCapability[];
 
-/** THE MINT'S BYTE BUDGET (#1803, the #1391 fork). `pluginToolWireName` (`registrations.ts`) mints
- *  `plugin_<slug'>_<name>` where `slug'` doubles every hyphen, and the ONE registry grammar `TOOL_NAME_RE`
- *  (`packages/server/src/domain/tool-use/contract/params.ts`) refuses a name over 64 bytes. Contracts
- *  cannot import server (the cake), so the 64 here is PINNED to that regex by a cross-package test
- *  (`tests/contracts/plugin/registrations.contract.test.ts`), never a second guess at the number.
- *
- *  BEFORE THIS BUDGET EXISTED a plugin whose slug+name flattened past 64 bytes registered nothing useful:
- *  the mint ran unconditionally, activation proceeded, and only `registerPluginTool`'s downstream
- *  `TOOL_NAME_RE.test` refused the result — AFTER the guest handler was already collected, with a
- *  `ToolNameCollisionError` whose text never mentioned length. Bounding `slug` HERE (the manifest parse,
- *  this file) and the guest-local tool `name` at the membrane's `tools.register` trust boundary
- *  (`infra/plugin-host/membrane.ts`) moves the refusal to the SAME call the author made, and the two
- *  boundaries are provably sufficient: a slug ≤ {@link PLUGIN_SLUG_MAX} and a name ≤
- *  {@link PLUGIN_TOOL_NAME_LOCAL_MAX} can NEVER mint past 64 bytes (the arithmetic below is the proof),
- *  so `registerPluginTool`'s regex test is a pure backstop from here on — unreachable by construction for
- *  a plugin-sourced name, kept loud in case a future caller bypasses either boundary. */
-export const PLUGIN_TOOL_WIRE_NAME_MAX = 64;
+// THE MINT'S BYTE BUDGET (#1803, the #1391 fork). `pluginToolWireName` (`registrations.ts`) mints
+//  `plugin_<slug'>_<name>` where `slug'` doubles every hyphen, and the ONE registry grammar `TOOL_NAME_RE`
+//  (`packages/server/src/domain/tool-use/contract/params.ts`) refuses a name over 64 bytes. Contracts
+//  cannot import server (the cake), so the 64 here is PINNED to that regex by a cross-package test
+//  (`tests/contracts/plugin/registrations.contract.test.ts`), never a second guess at the number.
+//
+//  BEFORE THIS BUDGET EXISTED a plugin whose slug+name flattened past 64 bytes registered nothing useful:
+//  the mint ran unconditionally, activation proceeded, and only `registerPluginTool`'s downstream
+//  `TOOL_NAME_RE.test` refused the result — AFTER the guest handler was already collected, with a
+//  `ToolNameCollisionError` whose text never mentioned length. Bounding `slug` HERE (the manifest parse,
+//  this file) and the guest-local tool `name` at the membrane's `tools.register` trust boundary
+//  (`infra/plugin-host/membrane.ts`) moves the refusal to the SAME call the author made, and the two
+//  boundaries are provably sufficient: a slug ≤ {@link PLUGIN_SLUG_MAX} and a name ≤
+//  {@link PLUGIN_TOOL_NAME_LOCAL_MAX} can NEVER mint past 64 bytes (the arithmetic below is the proof),
+//  so `registerPluginTool`'s regex test is a pure backstop from here on — unreachable by construction for
+//  a plugin-sourced name, kept loud in case a future caller bypasses either boundary.
+const PLUGIN_TOOL_WIRE_NAME_MAX = 64;
 /** `PLUGIN_TOOL_NAME_PREFIX.length` (`registrations.ts`, the literal `"plugin_"`) restated as a number so
  *  the arithmetic below reads as arithmetic rather than a bare `7`. A same-package import here would reach
  *  BACK into `registrations.ts`, which itself type-imports `./ui.ts` — this file's own downstream
  *  consumer — so the tie is a literal, PINNED by the cross-package test named above rather than a second
  *  import edge. */
 const PLUGIN_TOOL_WIRE_NAME_PREFIX_LEN = 7;
-/** The install slug's hard cap. Every showcase plugin's slug is ≤ 17 bytes
- *  (`research-familiar`, `packages/showcase-plugins/bundles/research-familiar/manifest.json`); 20 clears
- *  every real slug with margin. It is the DOMINANT term in the budget below because the mint doubles
- *  every hyphen — one byte of slug can cost two bytes of wire name. */
-export const PLUGIN_SLUG_MAX = 20;
+// The install slug's hard cap. Every showcase plugin's slug is ≤ 17 bytes
+//  (`research-familiar`, `packages/showcase-plugins/bundles/research-familiar/manifest.json`); 20 clears
+//  every real slug with margin. It is the DOMINANT term in the budget below because the mint doubles
+//  every hyphen — one byte of slug can cost two bytes of wire name.
+const PLUGIN_SLUG_MAX = 20;
 /** The guest-local tool name's hard cap — DERIVED, not independently chosen. The mint is
  *  `prefix + slug' + "_" + name`; `slug'` doubles only the HYPHENS in `slug` (not every byte), so its
  *  worst case (a slug of `PLUGIN_SLUG_MAX` bytes that is one leading alnum char plus ALL hyphens, the
@@ -288,9 +288,9 @@ export const PLUGIN_UI_ASSET_MAX_BYTES = 2_097_152;
  *  stronger and simpler guard than a per-entry ratio, because a ratio computed per entry says nothing about
  *  what the entries sum to. */
 export const PLUGIN_UI_ASSETS_TOTAL_MAX_BYTES = 8_388_608;
-/** Provider definitions are metadata but each becomes a deployment-global registry row + contribution write
- *  on activation. Bound the fan-out at the manifest trust edge, like capabilities and bundle assets. */
-export const PLUGIN_PROVIDERS_MAX = 16;
+// Provider definitions are metadata but each becomes a deployment-global registry row + contribution write
+//  on activation. Bound the fan-out at the manifest trust edge, like capabilities and bundle assets.
+const PLUGIN_PROVIDERS_MAX = 16;
 
 interface ProviderManifestFields {
   readonly id: string;

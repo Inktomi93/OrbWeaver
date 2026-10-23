@@ -6,7 +6,7 @@ import { DIALECTS } from "./provider-schema.ts";
 import { resolvedConnectionViewSchema } from "./resolved.ts";
 import { wireSchema } from "./wires.ts";
 
-export const PREFIX_CACHE_ACTIONS = ["none", "markers", "automatic-request"] as const;
+const PREFIX_CACHE_ACTIONS = ["none", "markers", "automatic-request"] as const;
 const CACHE_POLICY_PROVENANCES = ["fresh", "request", "preset", "connection", "default"] as const;
 
 /** Secret-free connection input shared by execution and effective editor reads. */
@@ -29,7 +29,7 @@ export type ResolvedCacheConnectionView = z.infer<typeof resolvedCacheConnection
 export const cachePolicySchema = z.strictObject({
   prefix: z.discriminatedUnion("action", [
     z.strictObject({
-      action: z.literal("none"),
+      action: z.literal(PREFIX_CACHE_ACTIONS[0]),
       format: z.enum(PROMPT_CACHE_FORMATS).nullable(),
       ttl: z.null(),
       cacheSystem: z.literal(false),
@@ -37,7 +37,7 @@ export const cachePolicySchema = z.strictObject({
       preservesBlockEnds: z.literal(false),
     }),
     z.strictObject({
-      action: z.literal("automatic-request"),
+      action: z.literal(PREFIX_CACHE_ACTIONS[2]),
       format: z.enum(PROMPT_CACHE_FORMATS).nullable(),
       ttl: z.enum(PROMPT_CACHE_TTLS).nullable(),
       cacheSystem: z.literal(false),
@@ -45,7 +45,7 @@ export const cachePolicySchema = z.strictObject({
       preservesBlockEnds: z.boolean(),
     }),
     z.strictObject({
-      action: z.literal("markers"),
+      action: z.literal(PREFIX_CACHE_ACTIONS[1]),
       format: z.enum(PROMPT_CACHE_FORMATS),
       ttl: z.enum(PROMPT_CACHE_TTLS).nullable(),
       cacheSystem: z.boolean(),

@@ -29,7 +29,7 @@ export const corpusSourceSchema = z.discriminatedUnion("kind", [
 ]);
 export type CorpusSource = z.infer<typeof corpusSourceSchema>;
 
-export const CORPUS_SOURCE_OUTCOMES = ["resolved", "moved", "deleted", "unavailable"] as const;
+const CORPUS_SOURCE_OUTCOMES = ["resolved", "moved", "deleted", "unavailable"] as const;
 export type CorpusSourceOutcome = (typeof CORPUS_SOURCE_OUTCOMES)[number];
 
 export const messageWindowTargetSchema = z.discriminatedUnion("kind", [

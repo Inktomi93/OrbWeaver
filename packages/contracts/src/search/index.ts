@@ -17,10 +17,10 @@ export const MEMORY_RETRIEVAL_MODES = ["off", "mixA", "mixB", "mixC", "tiered"] 
 export type MemoryRetrievalMode = (typeof MEMORY_RETRIEVAL_MODES)[number];
 export const memoryRetrievalModeSchema = z.enum(MEMORY_RETRIEVAL_MODES) satisfies z.ZodType<MemoryRetrievalMode>;
 
-/** The `search.suggest` autocomplete page CEILING, enforced at the transport trust boundary (the
- *  `CHARACTER_LIST_MAX_LIMIT` precedent) — an over-bound ask is a BAD_REQUEST rather than an unbounded
- *  suggestion fetch. Clients ask ≤ 8. */
-export const SEARCH_SUGGEST_MAX_LIMIT = 100;
+// The `search.suggest` autocomplete page CEILING, enforced at the transport trust boundary (the
+//  `CHARACTER_LIST_MAX_LIMIT` precedent) — an over-bound ask is a BAD_REQUEST rather than an unbounded
+//  suggestion fetch. Clients ask ≤ 8.
+const SEARCH_SUGGEST_MAX_LIMIT = 100;
 
 /** The `topN` CEILING for the vector-search verbs (`search.search`, `search.fields`, `search.similarArt` /
  *  `similarCharacters`), enforced at the transport trust boundary. Same #45 class as a `limit` field — a
@@ -211,8 +211,8 @@ export interface SearchSuggestion {
   readonly score: number;
 }
 
-/** A group-scene block credits every co-star present in it, so one segment can be evidence for several characters. */
-export interface DiscoverCharacter {
+// A group-scene block credits every co-star present in it, so one segment can be evidence for several characters.
+interface DiscoverCharacter {
   readonly characterId: CharacterId;
   readonly score: number;
   readonly relevance: number;
@@ -281,27 +281,27 @@ const strictSegmentSource = segmentSource.strict();
 const strictDigestSource = digestSource.strict();
 const strictCorpusSource = z.discriminatedUnion("kind", [strictSegmentSource, strictDigestSource]);
 
-export const blockKeySchema = z.strictObject({
+const blockKeySchema = z.strictObject({
   chatId: typeIdSchema(ID_PREFIX.chat),
   tier: z.number(),
   blockIdx: z.number(),
   scopedCharacterId: typeIdSchema(ID_PREFIX.character),
 }) satisfies z.ZodType<BlockKey>;
 
-export const scoredBlockSchema = z.strictObject({
+const scoredBlockSchema = z.strictObject({
   blockKey: blockKeySchema,
   score: z.number(),
   relevance: z.number(),
 }) satisfies z.ZodType<ScoredBlock>;
 
-export const digestSearchHitSchema = scoredBlockSchema.extend({ text: z.string() }) satisfies z.ZodType<DigestSearchHit>;
-export const digestSourceHitSchema = digestSearchHitSchema.extend({
+const digestSearchHitSchema = scoredBlockSchema.extend({ text: z.string() }) satisfies z.ZodType<DigestSearchHit>;
+const digestSourceHitSchema = digestSearchHitSchema.extend({
   source: strictDigestSource,
   chatTitle: z.string().nullable(),
   scopedCharacterName: z.string().nullable(),
 }) satisfies z.ZodType<DigestSourceHit>;
 
-export const discoverSegmentSchema = z.strictObject({
+const discoverSegmentSchema = z.strictObject({
   source: strictSegmentSource,
   chatId: typeIdSchema(ID_PREFIX.chat),
   blockIdx: z.number(),
@@ -311,7 +311,7 @@ export const discoverSegmentSchema = z.strictObject({
   chatTitle: z.string().nullable(),
 }) satisfies z.ZodType<DiscoverSegment>;
 
-export const imageSearchHitSchema = z.strictObject({
+const imageSearchHitSchema = z.strictObject({
   assetId: typeIdSchema(ID_PREFIX.asset),
   hash: z.string(),
   characterId: typeIdSchema(ID_PREFIX.character).nullable(),
@@ -322,13 +322,13 @@ export const imageSearchHitSchema = z.strictObject({
   caption: z.string().nullable(),
 }) satisfies z.ZodType<ImageSearchHit>;
 
-export const searchHitSchema = z.strictObject({
+const searchHitSchema = z.strictObject({
   characterId: typeIdSchema(ID_PREFIX.character),
   score: z.number(),
   relevance: z.number(),
 }) satisfies z.ZodType<SearchHit>;
 
-export const characterCardHitSchema = searchHitSchema.extend({
+const characterCardHitSchema = searchHitSchema.extend({
   name: z.string(),
   avatarHash: z.string().nullable(),
   genre: z.string().nullable(),
@@ -336,13 +336,13 @@ export const characterCardHitSchema = searchHitSchema.extend({
   elevatorPitch: z.string().nullable(),
 }) satisfies z.ZodType<CharacterCardHit>;
 
-export const segmentSearchHitSchema = z.strictObject({
+const segmentSearchHitSchema = z.strictObject({
   blockKey: blockKeySchema,
   score: z.number(),
   text: z.string(),
 }) satisfies z.ZodType<SegmentSearchHit>;
 
-export const corpusHitSchema = z.strictObject({
+const corpusHitSchema = z.strictObject({
   source: strictCorpusSource,
   blockKeys: z.array(blockKeySchema).readonly(),
   chatTitle: z.string().nullable(),
@@ -351,7 +351,7 @@ export const corpusHitSchema = z.strictObject({
   text: z.string(),
 }) satisfies z.ZodType<CorpusHit>;
 
-export const fieldSearchHitSchema = z.strictObject({
+const fieldSearchHitSchema = z.strictObject({
   characterId: typeIdSchema(ID_PREFIX.character),
   score: z.number(),
   name: z.string(),
@@ -365,12 +365,12 @@ export const fieldSearchResultSchema = z.strictObject({
 
 export const searchSuggestionSchema = z.strictObject({ suggestion: z.string(), score: z.number() }) satisfies z.ZodType<SearchSuggestion>;
 
-export const discoverCharacterSchema = characterCardHitSchema.extend({
+const discoverCharacterSchema = characterCardHitSchema.extend({
   matchCount: z.number(),
   segments: z.array(discoverSegmentSchema).readonly(),
 }) satisfies z.ZodType<DiscoverCharacter>;
 
-export const discoverResultSchema = z.strictObject({
+const discoverResultSchema = z.strictObject({
   hits: z.array(discoverCharacterSchema).readonly(),
   standaloneSegments: z.array(discoverSegmentSchema).readonly(),
 }) satisfies z.ZodType<DiscoverResult>;
@@ -381,7 +381,7 @@ export const similarArtHitSchema = searchHitSchema.extend({
   lens: imageLensSchema,
 }) satisfies z.ZodType<SimilarArtHit>;
 
-export const documentChunkHitSchema = z.strictObject({
+const documentChunkHitSchema = z.strictObject({
   documentId: typeIdSchema(ID_PREFIX.document),
   documentName: z.string(),
   chunkId: typeIdSchema(ID_PREFIX.documentChunk),
@@ -398,7 +398,7 @@ const searchCoverageSchema = z.strictObject({
   reranked: z.boolean(),
 }) satisfies z.ZodType<SearchCoverage>;
 
-export const unifiedSearchRowsSchema = z.discriminatedUnion("over", [
+const unifiedSearchRowsSchema = z.discriminatedUnion("over", [
   z.strictObject({ over: z.literal("entities"), hits: z.array(searchHitSchema).readonly() }),
   z.strictObject({ over: z.literal("characters"), hits: z.array(characterCardHitSchema).readonly() }),
   discoverResultSchema.extend({ over: z.literal("discover") }),
@@ -461,13 +461,13 @@ export type SearchScope =
     }
   | { readonly kind: "character"; readonly characterId: CharacterId };
 
-/** The retrieval-surface axis the unified `search()` dispatches over — one member per underlying verb.
- *  A new member fails `tsc` at the `UnifiedSearchResult` union + the exhaustive dispatch (no inline
- *  re-declaration; `SEARCH_TARGETS` is the one home). */
-export const SEARCH_TARGETS = ["entities", "characters", "discover", "segments", "digests", "corpus", "images", "documents"] as const;
+// The retrieval-surface axis the unified `search()` dispatches over — one member per underlying verb.
+//  A new member fails `tsc` at the `UnifiedSearchResult` union + the exhaustive dispatch (no inline
+//  re-declaration; `SEARCH_TARGETS` is the one home).
+const SEARCH_TARGETS = ["entities", "characters", "discover", "segments", "digests", "corpus", "images", "documents"] as const;
 export type SearchTarget = (typeof SEARCH_TARGETS)[number];
 
-export const searchScopeInputSchema = z.discriminatedUnion("kind", [
+const searchScopeInputSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("owner") }),
   z.object({
     kind: z.literal("chat"),

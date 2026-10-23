@@ -10,19 +10,19 @@
 // FUTURE `EXTRACTOR_VERSION` may succeed. Empty text is NOT an error (a scanned image-only PDF extracts to
 // near-empty; `charCount` tells the story, the upload verb surfaces a warning, not a throw).
 
-/** The document formats extraction can dispatch to. The MIME→format map + the format→loader Record derive
- *  from this ONE tuple; a new member without a loader is a tsc error in `infra/extraction`. */
-export const DOC_FORMATS = ["pdf", "html", "markdown", "text", "docx", "epub"] as const;
+// The document formats extraction can dispatch to. The MIME→format map + the format→loader Record derive
+//  from this ONE tuple; a new member without a loader is a tsc error in `infra/extraction`.
+const DOC_FORMATS = ["pdf", "html", "markdown", "text", "docx", "epub"] as const;
 
 export type DocFormat = (typeof DOC_FORMATS)[number];
 
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const EPUB_MIME = "application/epub+zip";
 
-/** The ONE accepted-type list: every mime extraction dispatches, keyed without parameters and lowercased.
- *  `text/x-markdown` is the legacy markdown alias. The server's loader dispatch and the client's type labels
- *  both read it. */
-export const MIME_TO_FORMAT: Readonly<Record<string, DocFormat>> = {
+// The ONE accepted-type list: every mime extraction dispatches, keyed without parameters and lowercased.
+//  `text/x-markdown` is the legacy markdown alias. The server's loader dispatch and the client's type labels
+//  both read it.
+const MIME_TO_FORMAT: Readonly<Record<string, DocFormat>> = {
   "application/pdf": "pdf",
   "text/html": "html",
   "text/markdown": "markdown",

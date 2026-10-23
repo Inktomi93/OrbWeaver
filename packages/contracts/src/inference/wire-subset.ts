@@ -91,9 +91,6 @@ const META_KEYWORDS = ["$schema", "$id"] as const;
 // Pure annotations, no validation semantics. `description` is never one: it is the model's instructions.
 const ANNOTATION_KEYWORDS = ["title", "default", "examples"] as const;
 
-/** Every keyword this engine spells. A file outside the engine that spells two of them is a second keyword table. */
-export const WIRE_SCHEMA_KEYWORD_VOCABULARY: readonly string[] = [...BOUND_KEYWORDS, ...META_KEYWORDS, ...ANNOTATION_KEYWORDS];
-
 /** Keys whose value is a `{ name → schema }` map: the names are data, never keywords. */
 export const NAME_MAP_KEYWORDS: ReadonlySet<string> = new Set<string>(["properties", "$defs", "definitions"]);
 export const DEF_MAP_KEYWORDS: ReadonlySet<string> = new Set<string>(["$defs", "definitions"]);

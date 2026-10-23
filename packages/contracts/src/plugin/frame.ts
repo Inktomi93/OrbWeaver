@@ -116,8 +116,8 @@ export type PluginFrameMintResponse = z.infer<typeof pluginFrameMintResponseSche
 /** The frame→embedder message key. A NAMESPACED key, not a bare `{fn, args}`, so a message meant for some other
  *  listener on the page can never be read as a host call — and so this channel is greppable. */
 const CALL_KEY = "orbPluginFrameCall";
-/** The embedder→frame reply key. */
-export const PLUGIN_FRAME_RESULT_KEY = "orbPluginFrameResult";
+// The embedder→frame reply key.
+const PLUGIN_FRAME_RESULT_KEY = "orbPluginFrameResult";
 
 /** A call's correlation id, MINTED BY THE FRAME and echoed back verbatim. It is UNTRUSTED and carries no
  *  authority whatsoever — it never keys a host-side map, never selects a plugin, and never picks a capability;

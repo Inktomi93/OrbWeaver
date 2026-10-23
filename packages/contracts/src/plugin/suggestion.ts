@@ -33,10 +33,10 @@ import type { CharacterId, SandboxWireId } from "@orb/kit/ids";
 import type { GenerateImageActionArgs } from "#imagery";
 import type { PluginWorldEntryUpsert } from "./host-v1.ts";
 
-/** The closed act axis, in the order a summary table must cover. A new member widens
- *  {@link PluginSuggestedAct} and fails `tsc` at the summary Record until it is given a question a human can
- *  answer (§5.5 string-union dispatch — one importable union, one mapped-type Record). */
-export const PLUGIN_SUGGESTED_ACT_KINDS = ["requestTurn", "worldInfoUpsert", "generatePicture"] as const;
+// The closed act axis, in the order a summary table must cover. A new member widens
+//  {@link PluginSuggestedAct} and fails `tsc` at the summary Record until it is given a question a human can
+//  answer (§5.5 string-union dispatch — one importable union, one mapped-type Record).
+const PLUGIN_SUGGESTED_ACT_KINDS = ["requestTurn", "worldInfoUpsert", "generatePicture"] as const;
 export type PluginSuggestedActKind = (typeof PLUGIN_SUGGESTED_ACT_KINDS)[number];
 
 /** ONE stashed plugin act. Inert by construction: the executing side rebuilds the plugin's own bridge from the

@@ -106,3 +106,39 @@ This selection passes scoped lint, maintained runtime tests, affected compiler p
 | Other delta, reminder and guide projection cases | Remain partial and outside this selection. No complete reference file is declared restored. |
 
 The tracker integration replacement passes runtime, affected compiler and dependency checks and independent review. Removing hint emission makes its isolated provider-fragment assertion fail while vocabulary assertions still pass. Its external execution is scripted; application composition, persistence and macro assembly remain production-owned.
+
+## Selected cache-policy ownership and obsolete audit artifacts
+
+| Finding and original purpose | Decision and qualification |
+| - | - |
+| PREFIX_CACHE_ACTIONS defines the prefix action axis | Preserve the canonical tuple as a local declaration. Derive each existing correlated literal from its tuple member, following healthResponseSchema precedent. Preserve branch order and every field constraint. |
+| Prefix parser and producer behavior | Contract owns admitted actions and correlated-field refusals. The actual resolveCachePolicy producer owns effective none, automatic-request and marker outcomes; use production-derived contexts rather than copied resolution logic. Preserve existing replay coverage. |
+| ConnectionRef audit alias | Remove the unconsumed inferred alias. Keep connectionRefSchema and its actual branded-id and model-stripping behavior; original parser cases remain separate from the unused alias spelling. |
+| WIRE_SCHEMA_KEYWORD_VOCABULARY tooling projection | Remove the unused concatenation for removed checker consumers. Preserve the engine's actual private keyword tables and public scrub behavior. No replacement checker or fabricated consumer is required. |
+
+This bounded selection passes runtime, affected compiler and dependency checks and independent review. Controlled weakening of the inactive-prefix constraint and manual-depth floor makes the selected assertions fail; both production files are restored exactly. bindingActorKindSchema remains held for its separate actual admission-boundary comparison.
+
+## Selected plugin and knowledge contract surfaces
+
+| Purpose | Decision and boundary |
+| - | - |
+| Plugin UI vocabularies, caps, recursive schema anchors and supporting types | Localize unused owner exports only. Preserve public node/spec contracts, all validation and recursive type conformance. Independent SDK mirrors are not application import consumers. |
+| Plugin manifest budgets, frame result key and snippet/suggestion axes | Keep canonical declarations and every runtime use; remove unused export modifiers. Preserve generator inputs, SDK distribution doors and actual template authoring types. |
+| PluginUpdateSource audit alias | Remove the unconsumed alias and correct its stale comment reference. Keep the update-source tuple and actual PluginView wire contract. |
+| Embedding metadata axes, prune variants, extraction format tables and search parser components | Localize selected unused exports while retaining every definition, constraint, readonly field, presence distinction and enclosing public contract. |
+| Original plugin and knowledge boundary cases | Preserve meaningful cap, refusal, serialization, branding and type-conformance purposes. Modifier cleanup does not declare their broader restoration complete. |
+| Memory clip reservations | Retain the file and vocabulary under D55. The world-state plan is parked pending owner scope and terminology; leave the unused-file finding visible without fabricated wiring. |
+
+This selection passes bounded JSSG preservation checks, maintained runtime tests, affected compiler programs, dependency checks and independent review. SDK packages, templates, generators and application behavior remain unchanged.
+
+## Selected patch-expressibility and exact-zero grammar cases
+
+| Original purpose | Primary home and decision |
+| - | - |
+| Every real tool field is patch-expressible | Rebuild through actual tool generation, generated patch schema and public decoder. Independently authored complete canonical inputs and patch entries must round-trip without loss. Check nested canonical shapes explicitly; comparing outputs of the same walker is insufficient. |
+| Patch grammar has no optional or union-valued object properties | Rebuild raw and scrubbed checks through public countWireSchemas and checkWireSchema with explicit zero ceilings. Keep this distinct from fitting nonzero vendor budgets. |
+| Closed envelopes, grouping, repeated lists and quiet tools | Retain selected contract assertions needed to prove complete generated grammar and decoded arguments. Preserve positive survivors alongside refusals. |
+| Diagnostic helper identities | Retire patchToolsOnlyFields and structuredSchemaComplexity only after replacements qualify. Preserve the live counting engine and unsupported-shape skip behavior. |
+| Other patch intent, loss-record and composed planner cases | Remain useful deferred restoration work. Pure decoder permutations belong in contract tests; actual planner selection and retry belong in production-root integration. |
+
+Build the selected tests against unchanged production before removing helpers. Require independent field-omission and nested-field compiler controls, plus nonzero counter controls. No new production test door, copied application rule or generic checker is authorized.

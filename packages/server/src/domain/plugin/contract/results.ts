@@ -57,7 +57,7 @@ export const pluginDisplayTransformResultSchema = z.strictObject({ text: z.strin
 
 /** One plugin's update-check outcome. A discriminated union rather than a flat shape with an optional
  *  `newVersion`, so `newVersion` is present EXACTLY on `update-available` — a version can be neither forgotten
- *  on the arm that needs it nor invented on an arm that does not. A row with NO {@link PluginUpdateSource} — a
+ *  on the arm that needs it nor invented on an arm that does not. A row with no update source — a
  *  hand-uploaded plugin nothing can serve a version for — is never in a batch result at all: there is nothing to
  *  check, which is distinct from "unreachable". `unreachable` is the URL arm's leak-free collapse; a showcase row
  *  cannot reach it (the bundle is on disk beside the server), and a slug this build no longer ships drops out of

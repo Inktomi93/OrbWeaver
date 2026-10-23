@@ -9,8 +9,7 @@ import type { PluginSurfaceRegistrationMeta } from "./ui.ts";
 import { pluginSurfaceRegistrationMetaSchema } from "./ui.ts";
 
 // Origin records installed bytes; update source names who can provide the next version.
-export const PLUGIN_UPDATE_SOURCES = ["url", "git", "showcase"] as const;
-export type PluginUpdateSource = (typeof PLUGIN_UPDATE_SOURCES)[number];
+const PLUGIN_UPDATE_SOURCES = ["url", "git", "showcase"] as const;
 
 const pluginIdSchema = typeIdSchema(ID_PREFIX.plugin);
 const capabilityListSchema = z.array(z.enum(PLUGIN_CAPABILITIES)).readonly();
@@ -121,7 +120,7 @@ export const distributedPluginViewSchema = z.strictObject({
  *  - `version-diverged` (uninstall fan-out): the user's row is at a different version than the distributed
  *    one, so they have taken the plugin over and an admin withdrawal must not delete their choice. */
 export const PLUGIN_FANOUT_SKIP_REASONS = ["already-installed", "version-diverged"] as const;
-export type PluginFanoutSkipReason = (typeof PLUGIN_FANOUT_SKIP_REASONS)[number];
+type PluginFanoutSkipReason = (typeof PLUGIN_FANOUT_SKIP_REASONS)[number];
 
 /** One passed-over recipient. `userHandle` rather than a bare id because the only reader is a human admin
  *  deciding whether to chase it up; the id is carried too so a surface can key rows without a second read. */

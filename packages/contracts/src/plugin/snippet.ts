@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const SNIPPET_ERROR_KINDS = ["parse", "runtime"] as const;
+const SNIPPET_ERROR_KINDS = ["parse", "runtime"] as const;
 
 export const snippetResultSchema = z.union([
   z.strictObject({

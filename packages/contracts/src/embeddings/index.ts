@@ -79,13 +79,13 @@ export const VECTOR_SCOPES_BY_TASK: Readonly<Record<EmbeddingTask, readonly Vect
 // The layer that was missing was never the looking (the captions are specific and correct); it was the
 // structured breakdown. Do not re-introduce a caption-only write path.
 
-/** Whether a facet is a single value (`json_extract` equality) or a set (`json_each` membership). Discovery's
- *  drill derives its per-facet SQL from this split, so a new facet without a nature is a tsc error there. */
-export const IMAGE_FACET_NATURES = ["scalar", "list"] as const;
+// Whether a facet is a single value (`json_extract` equality) or a set (`json_each` membership). Discovery's
+//  drill derives its per-facet SQL from this split, so a new facet without a nature is a tsc error there.
+const IMAGE_FACET_NATURES = ["scalar", "list"] as const;
 export type ImageFacetNature = (typeof IMAGE_FACET_NATURES)[number];
 
-/** Rendering technique. `other` is the escape hatch that keeps the model from forcing a wrong bucket. */
-export const IMAGE_ART_STYLES = [
+// Rendering technique. `other` is the escape hatch that keeps the model from forcing a wrong bucket.
+const IMAGE_ART_STYLES = [
   "anime",
   "semi-realistic",
   "photorealistic",
@@ -100,55 +100,43 @@ export const IMAGE_ART_STYLES = [
   "other",
 ] as const;
 
-/** Dominant colour character of the frame. */
-export const IMAGE_PALETTES = ["warm", "cool", "neutral", "vibrant", "muted", "monochrome", "pastel", "dark", "high-contrast"] as const;
+// Dominant colour character of the frame.
+const IMAGE_PALETTES = ["warm", "cool", "neutral", "vibrant", "muted", "monochrome", "pastel", "dark", "high-contrast"] as const;
 
-/** The emotional read of the IMAGE — never of the card's writing (that axis is `character_summaries.tone`). */
-export const IMAGE_MOODS = ["cheerful", "serene", "melancholic", "menacing", "sensual", "playful", "tense", "wistful", "triumphant", "neutral"] as const;
+// The emotional read of the IMAGE — never of the card's writing (that axis is `character_summaries.tone`).
+const IMAGE_MOODS = ["cheerful", "serene", "melancholic", "menacing", "sensual", "playful", "tense", "wistful", "triumphant", "neutral"] as const;
 
-/** Overall content rating of the frame. */
-export const IMAGE_RATINGS = ["safe", "suggestive", "explicit"] as const;
+// Overall content rating of the frame.
+const IMAGE_RATINGS = ["safe", "suggestive", "explicit"] as const;
 
-/** How much of the subject the frame contains. */
-export const IMAGE_SHOT_TYPES = ["portrait", "bust", "half-body", "full-body", "close-up", "wide"] as const;
+// How much of the subject the frame contains.
+const IMAGE_SHOT_TYPES = ["portrait", "bust", "half-body", "full-body", "close-up", "wide"] as const;
 
-/** Where the camera sits relative to the subject. */
-export const IMAGE_CAMERA_ANGLES = ["eye-level", "low-angle", "high-angle", "dutch", "overhead", "profile", "from-behind"] as const;
+// Where the camera sits relative to the subject.
+const IMAGE_CAMERA_ANGLES = ["eye-level", "low-angle", "high-angle", "dutch", "overhead", "profile", "from-behind"] as const;
 
-/** The subject's presented gender. `none` = no figure in frame (an object, a scene, a logo). */
-export const IMAGE_GENDERS = ["female", "male", "androgynous", "non-human", "group", "none"] as const;
+// The subject's presented gender. `none` = no figure in frame (an object, a scene, a logo).
+const IMAGE_GENDERS = ["female", "male", "androgynous", "non-human", "group", "none"] as const;
 
-/** How much skin the outfit leaves covered — the WARDROBE axis. */
-export const IMAGE_COVERAGES = ["fully-covered", "mostly-covered", "partially-exposed", "mostly-exposed", "uncovered"] as const;
+// How much skin the outfit leaves covered — the WARDROBE axis.
+const IMAGE_COVERAGES = ["fully-covered", "mostly-covered", "partially-exposed", "mostly-exposed", "uncovered"] as const;
 
-export const IMAGE_BODY_TYPES = ["slim", "average", "athletic", "curvy", "heavy", "petite", "muscular", "non-human", "not-applicable"] as const;
+const IMAGE_BODY_TYPES = ["slim", "average", "athletic", "curvy", "heavy", "petite", "muscular", "non-human", "not-applicable"] as const;
 
-export const IMAGE_CHEST_SIZES = ["flat", "small", "medium", "large", "very-large", "not-applicable"] as const;
+const IMAGE_CHEST_SIZES = ["flat", "small", "medium", "large", "very-large", "not-applicable"] as const;
 
-export const IMAGE_SKIN_TONES = ["pale", "fair", "tan", "olive", "brown", "dark", "non-human", "not-applicable"] as const;
+const IMAGE_SKIN_TONES = ["pale", "fair", "tan", "olive", "brown", "dark", "non-human", "not-applicable"] as const;
 
-export const IMAGE_OUTFIT_TYPES = [
-  "casual",
-  "formal",
-  "armor",
-  "uniform",
-  "swimwear",
-  "lingerie",
-  "traditional",
-  "streetwear",
-  "fantasy",
-  "none",
-  "other",
-] as const;
+const IMAGE_OUTFIT_TYPES = ["casual", "formal", "armor", "uniform", "swimwear", "lingerie", "traditional", "streetwear", "fantasy", "none", "other"] as const;
 
-/** The wardrobe's STATE, orthogonal to what it is (`outfitType`) and how much it covers (`coverage`). */
-export const IMAGE_CLOTHING_STATES = ["intact", "disheveled", "partially-removed", "removed", "not-applicable"] as const;
+// The wardrobe's STATE, orthogonal to what it is (`outfitType`) and how much it covers (`coverage`).
+const IMAGE_CLOTHING_STATES = ["intact", "disheveled", "partially-removed", "removed", "not-applicable"] as const;
 
-/** Explicitness of exposure — the graded axis behind the coarse `rating`. */
-export const IMAGE_NUDITY_LEVELS = ["none", "suggestive", "partial", "full"] as const;
+// Explicitness of exposure — the graded axis behind the coarse `rating`.
+const IMAGE_NUDITY_LEVELS = ["none", "suggestive", "partial", "full"] as const;
 
-/** Body regions the frame leaves bare — a SET facet (an image can show several). */
-export const IMAGE_EXPOSED_PARTS = ["shoulders", "midriff", "cleavage", "back", "legs", "thighs", "chest", "buttocks", "genitals", "feet"] as const;
+// Body regions the frame leaves bare — a SET facet (an image can show several).
+const IMAGE_EXPOSED_PARTS = ["shoulders", "midriff", "cleavage", "back", "legs", "thighs", "chest", "buttocks", "genitals", "feet"] as const;
 
 /** Every facet key a breakdown carries, with its nature. The ONE canonical member list — discovery's drill
  *  axis and the tally both derive from it, so adding a facet here is a tsc error at every consumer that has
