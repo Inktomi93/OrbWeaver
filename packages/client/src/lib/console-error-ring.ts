@@ -122,9 +122,9 @@ export function consoleErrorRing(): ConsoleErrorRing {
   return { records: [...ring], dropped, cap: RING_CAP };
 }
 
-/** Clear the ring and its drop tally (`__reset<Noun>` per the test-seam convention). Checkpoint-scoped
- *  evidence, so `__orb.resetEvidence()` sweeps it with the rest. */
-export function __resetConsoleErrors(): void {
+/** Clear the ring and its drop tally. Checkpoint-scoped evidence, so `__orb.resetEvidence()` sweeps it with
+ *  the rest. */
+export function resetConsoleErrors(): void {
   ring.length = 0;
   dropped = 0;
 }

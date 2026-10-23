@@ -71,6 +71,6 @@ export function renderHeatmap(): ReadonlyArray<{
 }
 
 /** Clear the profiler evidence between driven checkpoints while leaving the mounted profilers intact. */
-export function __resetRenderStats(): void {
+export function resetRenderStats(): void {
   renderStats.clear();
 }

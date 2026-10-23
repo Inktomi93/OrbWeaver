@@ -182,7 +182,7 @@ interface PrivateEndpointAllowlist {
 interface EgressContext {
   privateEndpointAllowlist: PrivateEndpointAllowlist;
   firewallAgent: Agent | undefined;
-  firewallLookup: LookupFunction;
+  readonly firewallLookup: LookupFunction;
   resolver: EgressResolver;
   readonly fetch: typeof fetch;
   readonly timers: NonNullable<ScopedEgressOptions["timers"]>;
@@ -561,10 +561,6 @@ function admittedByAllowlistFor(context: EgressContext, hostname: string, port: 
   return parseIp(host) !== null && addressInAdmittedRangesFor(context, host);
 }
 
-/** The DNS lookup both connector gates below judge: real `dns.lookup` in prod. A test injects its answer through
- *  {@link __setFirewallLookupForTest}, since no hostname a URL can carry makes the real resolver return an unreadable
- *  address. Read at call time, so an injection reaches an already-installed firewall. */
-
 export function installEgressFirewall(): void {
   if (!env.EGRESS_FIREWALL) {
     return;
@@ -584,13 +580,6 @@ function replaceFirewallAgentFor(context: EgressContext): ReadonlySet<string> {
     closeAgentFor(context, previous);
   }
   return allowlist;
-}
-
-/** TEST-ONLY seam: the connect function {@link installEgressFirewall} hands the global dispatcher, so a test can
- *  present a connect target no URL can carry. Throws outside NODE_ENV=test. */
-export function __firewallConnectForTest(): buildConnector.connector {
-  assertTestOnly("__firewallConnectForTest");
-  return createFirewallConnectFor(defaultContext).connect;
 }
 
 /** The env belt's host set: `EGRESS_ALLOWLIST` plus the OIDC issuer host. One read for the connect gate and
@@ -773,21 +762,6 @@ function defaultResolver(host: string): Promise<readonly string[]> {
       resolve(addresses.map((a) => a.address));
     });
   });
-}
-
-/** Guards the test-only seams: they are prod-reachable through the package front door, so refuse to run
- *  outside the test runner (env.NODE_ENV — the sanctioned reader; VITEST/CI pin it to "test"). */
-function assertTestOnly(name: string): void {
-  if (env.NODE_ENV !== "test") {
-    throw new Error(`${name}: test-only seam invoked outside the test runner (NODE_ENV=${env.NODE_ENV})`);
-  }
-}
-
-/** TEST-ONLY seam: inject the DNS lookup the global firewall's two connector gates judge; pass `null` to restore
- *  real dns.lookup. Throws outside NODE_ENV=test — NEVER usable in production. */
-export function __setFirewallLookupForTest(lookup: LookupFunction | null): void {
-  assertTestOnly("__setFirewallLookupForTest");
-  defaultContext.firewallLookup = lookup ?? dnsLookup;
 }
 
 /** A validated, pinned safeFetch answer before its body is read, and what releases it. */

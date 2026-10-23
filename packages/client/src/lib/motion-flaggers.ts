@@ -106,12 +106,10 @@ export function motionFlags(): readonly MotionFlagRecord[] {
   return flagRing;
 }
 
-/** Clear the ring + the dedupe set. Reachable as `__orb.resetFlags()` because it is a REAL harness
- *  need, not only a test seam: flags dedupe per offender for the whole session, so a probe driving a
- *  multi-step flow would see step 1's offenders suppress the identical ones in step 2 and read the
- *  later steps as clean. Reset between steps and each step's flag list is its own.
- *  (`__reset<Noun>` per the test-seam convention.) */
-export function __resetMotionFlags(): void {
+/** Clear the ring + the dedupe set. Reachable as `__orb.resetFlags()`: flags dedupe per offender for the
+ *  whole session, so a probe driving a multi-step flow would see step 1's offenders suppress the identical
+ *  ones in step 2 and read the later steps as clean. Reset between steps and each step's flag list is its own. */
+export function resetMotionFlags(): void {
   flagRing.length = 0;
   raised.clear();
   resetFrameDropFlagger();
