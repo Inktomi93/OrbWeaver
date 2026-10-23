@@ -80,6 +80,7 @@ export { useColorQuotedSpeech } from "./use-color-quoted-speech.ts";
 export { DISPLAY_PLACEMENT, useDisplayScripts, usePrefetchDisplayScripts } from "./use-display-scripts.ts";
 export { useDecisionQuery, useGatedQuery } from "./use-gated-query.ts";
 export { useHuskReaper } from "./use-husk-reaper.ts";
+export { IdsContext, useIds } from "./use-ids.ts";
 export { useInvalidation } from "./use-invalidation.ts";
 export {} from "./use-online-status.ts";
 export { useOpenRefinery } from "./use-open-refinery.ts";

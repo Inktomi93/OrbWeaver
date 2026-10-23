@@ -9,7 +9,7 @@
 //
 // The entry is minted HERE because the two halves live in different places: the upload returns the stored
 // id/hash, while `mime` + the display `name` are only on the picked `File`. `entryId` is a client-minted
-// blob-row id (`crypto.randomUUID()` — the documented shape for this field, the `regex.scripts[].id`
+// blob-row id (the runtime id source's bare UUID — the documented shape for this field, the `regex.scripts[].id`
 // precedent); `provenanceUrl` stays absent — an own-upload was never fetched from anywhere.
 
 import { blobUrl } from "@orb/contracts/assets";
@@ -22,7 +22,7 @@ import { Icon, ImagePlus } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { useUploadAsset, useUploadCaps } from "#data";
+import { useIds, useUploadAsset, useUploadCaps } from "#data";
 
 /** A human name for the entry, from the file name minus its extension (the server `deriveName` twin for the
  *  URL arm — same fallback, so a library row reads the same whichever way it came in). */
@@ -46,6 +46,7 @@ export function BackgroundUploadField({ currentHash, onUploaded }: BackgroundUpl
   // Client-side pre-check ceiling — the SERVED image cap; the server re-caps + magic-checks regardless.
   const maxBackgroundBytes = useUploadCaps().image;
   const upload = useUploadAsset();
+  const ids = useIds();
   const [previewHash, setPreviewHash] = useState<string>(currentHash);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -76,7 +77,7 @@ export function BackgroundUploadField({ currentHash, onUploaded }: BackgroundUpl
     try {
       const stored = await upload(file, "background");
       onUploaded({
-        entryId: globalThis.crypto.randomUUID(),
+        entryId: ids.uuid(),
         assetId: stored.assetId,
         assetHash: stored.hash,
         // Best-effort from the picked file (blank for a type-less pick ⇒ the image layer, the documented

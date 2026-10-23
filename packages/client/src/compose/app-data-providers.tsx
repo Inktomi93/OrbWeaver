@@ -1,6 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { TRPCProvider } from "#data";
+import { IdsContext, TRPCProvider } from "#data";
 import type { createClientRuntime } from "./client-runtime.ts";
 
 /** The boot data stack also mounts isolated trees without creating a second client or cache. */
@@ -14,7 +14,7 @@ export function AppDataProviders({
   return (
     <QueryClientProvider client={runtime.queryClient}>
       <TRPCProvider trpcClient={runtime.trpcClient} queryClient={runtime.queryClient}>
-        {children}
+        <IdsContext value={runtime.ids}>{children}</IdsContext>
       </TRPCProvider>
     </QueryClientProvider>
   );

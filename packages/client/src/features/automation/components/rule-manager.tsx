@@ -8,7 +8,7 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import type { Trpc } from "#data";
-import { useInvalidation, useTRPC } from "#data";
+import { useIds, useInvalidation, useTRPC } from "#data";
 import type { RuleCreation } from "#state";
 import { activeDurableLocalUserId, beginRuleCreation, forgetRuleCreation, pruneCompletedRuleCreations, ruleDraftOwnerCurrent, useRuleCreations } from "#state";
 import { ruleEditorDrafts } from "../lib/rule-editor-drafts.ts";
@@ -29,6 +29,7 @@ interface EditingRule {
 export function RuleManager({ chatId, rules }: { readonly chatId: ChatId | null; readonly rules: readonly Rule[] }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
+  const idSource = useIds();
   const reorder = useReorderRules({ trpc, invalidation });
   const sessions = useRuleCreations();
   const [editing, setEditing] = useState<EditingRule | null>(null);
@@ -121,7 +122,7 @@ export function RuleManager({ chatId, rules }: { readonly chatId: ChatId | null;
                 return;
               }
               opener.current = event.currentTarget;
-              const creation = beginRuleCreation(chatId, owner);
+              const creation = beginRuleCreation(chatId, owner, idSource);
               setEditing({ identity: creation.requestId, creation, ruleId: null });
             }}
           >

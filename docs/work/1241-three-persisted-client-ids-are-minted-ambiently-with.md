@@ -16,6 +16,10 @@ area: client
 
 A persisted id minted outside the runtime is the client twin of the server's optional seams; the design question (an `ids` field on `ClientRuntime` plus a hook, and whether these three keep the UUID shape or move to TypeID) is the owner's.
 
+## Ruling
+
+Owner: runtime id source, keep the UUID shape. `ClientRuntime.ids` is an `IdSource` built in `createClientRuntime`; components read it with `useIds()`. The appearance entry id, the section id and the duplicated section id are bare UUID strings from `IdSource.uuid()`. `beginRuleCreation` takes the source and mints its TypeID through it. `NEW_THEME_DRAFT_ID` is never persisted or sent, so it stays a module constant.
+
 ## Done when
 
 Ruling recorded here; if adopted, `ClientRuntime` gains an id source wired in `compose/client-runtime.ts` and the CT runtime, the three persisted mints read it, their shape decision is written on this item, and the preset and automation CT suites stay green.
