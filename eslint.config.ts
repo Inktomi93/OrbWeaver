@@ -895,7 +895,7 @@ export default [
     }),
   ),
   {
-    files: ["**/*.{ts,tsx}", "tests/support/node/**/*.mjs"],
+    files: ["**/*.{ts,tsx}"],
     plugins: { orb: localPlugin },
     rules: { "orb/commented-code": "error" },
   },

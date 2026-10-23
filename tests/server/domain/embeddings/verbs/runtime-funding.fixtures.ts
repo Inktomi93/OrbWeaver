@@ -288,7 +288,7 @@ export const test = baseTest.extend<
   nativeSdk: async ({}, use): Promise<void> => {
     const tokens: FundingSdk["tokens"] = [];
     const children: FundingSdk["children"] = [];
-    const spawn = createSdkProcessSpawner(new URL("../../../../support/node/runtime-funding-sdk.mjs", import.meta.url));
+    const spawn = createSdkProcessSpawner(new URL("../../../../support/node/runtime-funding-sdk.ts", import.meta.url));
     let observe: (() => void) | undefined;
     await use({
       tokens,

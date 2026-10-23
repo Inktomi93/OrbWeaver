@@ -64,7 +64,6 @@ export const config = {
         "node/db-holder.ts",
         "node/migrate-data-layout.ts",
         "node/sdk-private-diagnostic-root.ts",
-        "node/*.mjs",
         "{iso,node,browser}/**/*.{test,int.test,suite.int.test,test-d,dom.test-d,ct}.{ts,tsx}",
       ],
       project: ["{iso,node,browser}/**/*.{ts,tsx}"],

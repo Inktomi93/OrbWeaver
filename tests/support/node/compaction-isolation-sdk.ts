@@ -1,23 +1,23 @@
 // Trusted external process bytes; installed Query owns sessions, decoding and cancellation.
 import process from "node:process";
-import { readSdkProcessInput, writeSdkControlReply } from "./sdk-process-control.mjs";
+import type { SdkOutputFrame } from "./sdk-process-control.ts";
+import { parseSdkStdinMessage, readSdkProcessInput, sdkUserPromptText, writeSdkControlReply } from "./sdk-process-control.ts";
 
 const { sdkSessionId: sessionId, frameId, lines } = await readSdkProcessInput();
 const COMPACTION_PROMPT = "Conversation to summarize:";
-function write(value) {
+function write(value: SdkOutputFrame): void {
   process.stdout.write(`${JSON.stringify({ ...value, uuid: frameId(value.type === "system" ? "init" : value.type), ["session_id"]: sessionId })}\n`);
 }
 
 for await (const line of lines) {
-  const message = JSON.parse(line);
+  const message = parseSdkStdinMessage(line);
   if (writeSdkControlReply(message)) {
     continue;
   }
   if (message.type !== "user") {
     throw new Error(`unscripted compaction-isolation SDK input ${message.type}`);
   }
-  const content = message.message.content;
-  const prompt = typeof content === "string" ? content : content.map((block) => block.text).join("\n");
+  const prompt = sdkUserPromptText(message);
   const compaction = prompt.includes(COMPACTION_PROMPT);
   write({
     type: "system",

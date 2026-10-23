@@ -221,7 +221,7 @@ const TEST_WORLDS = [
       pathNot: [
         "^tests/support/(iso|browser)/index\\.ts$",
         "^tests/support/node/(index|helpers|composed|ct|ct-corpus|tool-fixtures|composed-real)\\.ts$",
-        "^tests/support/node/sdk-process-control\\.mjs$",
+        "^tests/support/node/sdk-process-control\\.ts$",
       ],
     },
   },

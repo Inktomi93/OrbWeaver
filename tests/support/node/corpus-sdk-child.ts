@@ -13,28 +13,29 @@ import {
   CORPUS_SDK_REPLY,
   CORPUS_SDK_REUSE,
 } from "./corpus-sdk-protocol.ts";
-import { readSdkProcessInput, readSdkResumeTranscript, writeSdkControlReply } from "./sdk-process-control.mjs";
+import type { SdkOutputFrame, SdkUserInput } from "./sdk-process-control.ts";
+import { parseSdkStdinMessage, readSdkProcessInput, readSdkResumeTranscript, sdkUserPromptText, writeSdkControlReply } from "./sdk-process-control.ts";
 
-function write(value) {
+function write(value: SdkOutputFrame): void {
   process.stdout.write(`${JSON.stringify(value)}\n`);
 }
 
-async function importedSeed(config, resume, sessionId) {
+async function importedSeed(config: string, resume: string | null, sessionId: string): Promise<{ file: string; frames: unknown[] }> {
   if (resume === null) {
     return { file: join(config, "projects", "physical-corpus", `${sessionId}.jsonl`), frames: [] };
   }
   return await readSdkResumeTranscript(config, resume);
 }
 
-function promptOf(input) {
-  const prompt = typeof input.message.content === "string" ? input.message.content : input.message.content.map((part) => part.text ?? "").join("\n");
+function promptOf(input: SdkUserInput): string {
+  const prompt = sdkUserPromptText(input);
   if (![CORPUS_SDK_HOLD, CORPUS_SDK_EMPTY, CORPUS_SDK_QUERY, CORPUS_SDK_REUSE].includes(prompt)) {
     throw new Error("unscripted physical SDK corpus prompt");
   }
   return prompt;
 }
 
-async function holdPhysicalExit(enabled) {
+async function holdPhysicalExit(enabled: boolean): Promise<void> {
   if (!enabled) {
     return;
   }
@@ -50,11 +51,11 @@ async function holdPhysicalExit(enabled) {
   }
 }
 
-async function run() {
+async function run(): Promise<void> {
   const { sdkSessionId: sessionId, frameId, lines } = await readSdkProcessInput();
   const resume = process.argv.find((argument) => argument.startsWith("--resume="))?.slice("--resume=".length) ?? null;
   // biome-ignore lint/style/noProcessEnv: the physical CLI consumes the SDK-prepared protocol environment, not application configuration.
-  const config = process.env.CLAUDE_CONFIG_DIR;
+  const config = process.env["CLAUDE_CONFIG_DIR"];
   if (config === undefined) {
     throw new Error("native SDK provided no owned configuration directory");
   }
@@ -63,7 +64,7 @@ async function run() {
   let held = false;
   process.on("SIGTERM", () => process.exit(0));
   for await (const line of lines) {
-    const input = JSON.parse(line);
+    const input = parseSdkStdinMessage(line);
     if (writeSdkControlReply(input)) {
       continue;
     }

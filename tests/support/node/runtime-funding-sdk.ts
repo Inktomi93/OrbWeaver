@@ -1,7 +1,8 @@
 // A trusted physical SDK executable: native Query still owns decoding, sessions and cancellation.
 
 import process from "node:process";
-import { readSdkProcessInput, writeSdkControlReply } from "./sdk-process-control.mjs";
+import type { SdkOutputFrame, SdkStdinMessage, SdkUserInput } from "./sdk-process-control.ts";
+import { parseSdkStdinMessage, readSdkProcessInput, writeSdkControlReply } from "./sdk-process-control.ts";
 
 const { sdkSessionId: sessionId, frameId, lines } = await readSdkProcessInput();
 
@@ -12,27 +13,28 @@ const COMPACTION_PROMPT = "Conversation to summarize:";
 const NORMAL_REPLY = "native funding reply";
 const REJECTION = "the physical compaction credential was rejected";
 
-function write(frame, identity = frame.type === "system" ? "init" : frame.type) {
+function write(frame: SdkOutputFrame, identity: string = frame.type === "system" ? "init" : frame.type): void {
   process.stdout.write(`${JSON.stringify({ ...frame, uuid: frameId(identity) })}\n`);
 }
 
-function textOf(message) {
-  const content = message.message?.content;
+function textOf(message: SdkUserInput): string {
+  const content = message.message.content;
   if (typeof content === "string") {
     return content;
   }
-  if (Array.isArray(content) && content.every((block) => block.type === "text" && typeof block.text === "string")) {
-    return content.map((block) => block.text).join("\n");
+  const texts = content.flatMap((block) => (block.type === "text" ? [block.text] : []));
+  if (texts.length === content.length) {
+    return texts.join("\n");
   }
   throw new Error("the physical SDK control received an unscripted user prompt");
 }
 
-function answer(message) {
+function answer(message: SdkStdinMessage): void {
   if (writeSdkControlReply(message)) {
     return;
   }
   if (message.type !== "user") {
-    throw new Error(`the physical SDK control received an unscripted message: ${String(message.type)}`);
+    throw new Error(`the physical SDK control received an unscripted message: ${message.type}`);
   }
   const prompt = textOf(message);
   const pre = prompt.includes(PRE_MARKER);
@@ -82,7 +84,7 @@ function answer(message) {
   writeTerminal(common, rejected, pre ? 1 : 10_000);
 }
 
-function writeTerminal(common, failed, inputTokens) {
+function writeTerminal(common: Readonly<Record<string, unknown>>, failed: boolean, inputTokens: number): void {
   write({
     ...common,
     type: "assistant",
@@ -115,6 +117,6 @@ function writeTerminal(common, failed, inputTokens) {
 
 for await (const line of lines) {
   if (line.length > 0) {
-    answer(JSON.parse(line));
+    answer(parseSdkStdinMessage(line));
   }
 }

@@ -19,7 +19,7 @@ await using harness = await createServerHarness({
   sdkNative: {
     executable: "node",
     executableArgs: ["--no-warnings"],
-    pathToClaudeCodeExecutable: fileURLToPath(new URL("./sdk-timer-process.mjs", import.meta.url)),
+    pathToClaudeCodeExecutable: fileURLToPath(new URL("./sdk-timer-process.ts", import.meta.url)),
     onNativeProcessCreated: (child): void => {
       identify(child);
       children.push(child);
