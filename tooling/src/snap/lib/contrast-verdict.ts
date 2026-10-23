@@ -55,7 +55,7 @@ export function refuseContrastVerdict(selector: string, facts: ContrastOffscreen
  *  mint it (ink and fill) must not spell it twice. */
 export function terminalEvidence(
   selector: string,
-  status: ContrastEvidence["status"],
+  status: Exclude<ContrastEvidence["status"], "ok">,
   reason: string,
   facts?: { readonly total: number; readonly inViewport?: number; readonly matchIndex?: number },
 ): ContrastEvidence {

@@ -214,31 +214,57 @@ export interface ContrastBox {
   height: number;
 }
 
-/** Lossless contrast evidence for matrix consumers. The ordinary CLI still prints `ContrastOutcome`;
- * this record prevents a matrix from mistaking a refusal, an offscreen match, or a CSS-only value for
- * a sampled framebuffer verdict. */
-export interface ContrastEvidence {
+interface ContrastEvidenceBase {
   readonly selector: string;
-  readonly status: "instrument-error" | "ok" | "refused";
   readonly candidates: number;
   readonly inViewport: number;
   readonly sampled: number;
   readonly matchIndex: number | null;
-  /** `fill-sample` (#1111) is a framebuffer verdict like `pixel-sample`, but on a FILL-ONLY subject: the
-   *  `foreground` is the loudest painted channel of the element's own box and `backdrop` is the band
-   *  outside it — never an ink colour the subject does not paint. */
-  /** `edge-sample` (#1346) is the WCAG 1.4.11 boundary read: `foreground` is the modal colour of the
-   *  border strip on the WORST side and `backdrop` is the surface immediately outside that side. */
-  readonly method: "css-resolve" | "edge-sample" | "fill-sample" | "pixel-sample" | null;
-  /** The fill arm's channel receipt (#1111) — `null` on every ink-arm and refused row. */
-  readonly fillChannel: { readonly kind: ContrastFillSample["channel"]; readonly share: number } | null;
-  readonly ratio: number | null;
-  readonly requiredRatio: number | null;
-  readonly passed: boolean | null;
-  readonly foreground: Rgb | null;
-  readonly backdrop: Rgb | null;
+}
+
+interface ContrastMeasuredEvidence extends ContrastEvidenceBase {
+  readonly status: "ok";
+  readonly ratio: number;
+  readonly requiredRatio: number;
+  readonly passed: boolean;
+  readonly foreground: Rgb;
+  readonly backdrop: Rgb;
+}
+
+interface ContrastInkEvidence extends ContrastMeasuredEvidence {
+  readonly method: "css-resolve" | "pixel-sample";
+  readonly fillChannel: null;
+  readonly reason: null;
+}
+
+interface ContrastFillEvidence extends ContrastMeasuredEvidence {
+  readonly method: "fill-sample";
+  readonly fillChannel: { readonly kind: ContrastFillSample["channel"]; readonly share: number };
+  readonly reason: null;
+}
+
+interface ContrastEdgeEvidence extends ContrastMeasuredEvidence {
+  readonly method: "edge-sample";
+  readonly fillChannel: null;
+  // Some sides can measure while others refuse; retain those partial-side diagnostics.
   readonly reason: string | null;
 }
+
+interface ContrastTerminalEvidence extends ContrastEvidenceBase {
+  readonly status: "instrument-error" | "refused";
+  readonly method: null;
+  readonly fillChannel: null;
+  readonly ratio: null;
+  readonly requiredRatio: number | null;
+  readonly passed: null;
+  // A refusal can retain observed colors without claiming a measured ratio.
+  readonly foreground: Rgb | null;
+  readonly backdrop: Rgb | null;
+  readonly reason: string;
+}
+
+/** Matrix consumers must distinguish missing measurements from sampled framebuffer verdicts. */
+export type ContrastEvidence = ContrastInkEvidence | ContrastFillEvidence | ContrastEdgeEvidence | ContrastTerminalEvidence;
 
 export interface ContrastCapture {
   readonly outcome: ContrastOutcome;

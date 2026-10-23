@@ -188,7 +188,8 @@ export async function capturePageCssEvidence(ask: CssEvidenceAsk): Promise<CssEv
       0,
     );
     const error = receiptError(repositoryDeclarations, merge, requireMerge);
-    return { status: error === null ? "ok" : "instrument-error", merge, cascade, repositoryDeclarations, error };
+    const evidence = { merge, cascade, repositoryDeclarations };
+    return error === null ? { status: "ok", ...evidence, error: null } : { status: "instrument-error", ...evidence, error };
   } catch (error) {
     const detail = errorMessage(error);
     return { status: "instrument-error", merge, cascade: queries.map((query) => errorReceipt(query, detail)), repositoryDeclarations: 0, error: detail };

@@ -12,7 +12,7 @@ import { aggregateScope } from "../../../floor/artifacts/artifact-scope.ts";
 import type { ResultPair } from "../../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmPairInput } from "../../contract/arms.ts";
-import type { EvalOutcome } from "../../contract/types.ts";
+import type { EvalOutcome, SnapEvalValue } from "../../contract/types.ts";
 import { CHURN_LINE, capEvalText, isContextChurn, wrapEvalExpr } from "../../lib/eval-text.ts";
 import { pushEval } from "../flags-support.ts";
 import { writeArmEvidenceFile } from "./evidence-file.ts";
@@ -47,22 +47,12 @@ function evalFailures({ outcomes }: ArmPairInput): number {
  *  reader replays it. Versioned like every other snap artifact schema. */
 const EVAL_EVIDENCE_SCHEMA = "snap-eval-values-v1";
 
-/** THE VALUES, filed (#1342). What stdout printed, per page, in argv order: the expression, WHICH page tab
- *  produced it, and the JSON text or the `EVAL ERROR:` message. This is the whole receipt — a reviewer
- *  quoting "Chats 0 of 6" from a run must be able to find that string in the cited slot. */
-function evalEvidenceRows({ outcomes }: ArmPairInput): readonly {
-  readonly page: number;
-  readonly expression: string;
-  readonly value: string | null;
-  readonly error: string | null;
-}[] {
+function evalEvidenceRows({ outcomes }: ArmPairInput): readonly SnapEvalValue[] {
   return outcomes.flatMap((outcome) =>
-    outcome.evalResults.map((entry) => ({
-      page: outcome.pageIndex,
-      expression: entry.expr,
-      value: entry.failed ? null : entry.text,
-      error: entry.failed ? entry.text : null,
-    })),
+    outcome.evalResults.map((entry): SnapEvalValue => {
+      const identity = { page: outcome.pageIndex, expression: entry.expr };
+      return entry.failed ? { ...identity, value: null, error: entry.text } : { ...identity, value: entry.text, error: null };
+    }),
   );
 }
 
