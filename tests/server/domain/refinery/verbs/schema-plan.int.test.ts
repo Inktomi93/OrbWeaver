@@ -1,4 +1,3 @@
-import "@orb/testkit/node/composed-real.ts";
 // @subject packages/server/src/domain/refinery/verbs/schema-plan.ts
 
 import { NoConnectionError } from "@orb/inference";

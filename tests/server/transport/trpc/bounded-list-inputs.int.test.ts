@@ -1,6 +1,5 @@
 // @subject packages/server/src/transport/trpc/router.ts
 // @subject packages/contracts/src/chat/inputs.ts
-import "@orb/testkit/node/composed-real.ts";
 import { readFile } from "node:fs/promises";
 import { CHAT_MESSAGE_LIST_MAX_LIMIT } from "@orb/contracts/chat";
 import { appRouter } from "@orb/server/transport/trpc";

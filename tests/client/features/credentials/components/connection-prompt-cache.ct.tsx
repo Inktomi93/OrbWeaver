@@ -1,4 +1,3 @@
-import "@orb/testkit/node/composed-real.ts";
 import type { PromptCacheSettings } from "@orb/contracts/inference";
 import { builtinProvider, effectivePromptCache, foldFeatures, SUMMARIZE_CONCURRENCY_MAX } from "@orb/contracts/inference";
 import { expectCacheProse } from "@orb/testkit/browser";

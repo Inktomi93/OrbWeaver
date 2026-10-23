@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/connection/contract/stored.ts
 
-import "@orb/testkit/node/composed-real.ts";
 import { modelIdSchema, providerIdSchema, SUMMARIZE_CONCURRENCY_MAX } from "@orb/contracts/inference";
 import { expect, test } from "@orb/testkit/node";
 import { sql } from "drizzle-orm";

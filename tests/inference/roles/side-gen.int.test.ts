@@ -11,11 +11,11 @@ import { getLog } from "@orb/server/foundation/observability";
 import { createManualTimer } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import type { RecordedRequest } from "@orb/testkit/node/helpers";
+import { openAiServer, recordRequest, SLEEP_PROBE_SUFFIX } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";
 import { z } from "zod";
 import { physicalSdkScenario } from "../backends/agent-sdk/regression-edge.fixtures.ts";
-import type { RecordedRequest, SseEvent } from "../conformance/transport.fixtures.ts";
-import { recordRequest } from "../conformance/transport.fixtures.ts";
 import { createRuntimeRoot, generationCapability, observeRuntimeTimers, runtimeTimers, wireConnection } from "./runtime.fixtures.ts";
 
 const LOCAL_URL = "http://box.local:8080/v1";
@@ -26,70 +26,6 @@ const NO_REASONING: Capability = generationCapability({ reasoning: { mode: "none
 
 function warnedCodes(lines: readonly (readonly unknown[])[]): readonly unknown[] {
   return lines.flatMap(([fields]) => (isPlainObject(fields) && fields["event"] === "provider.resolve-warning" ? [fields["code"]] : []));
-}
-
-interface Reply {
-  readonly status?: number;
-  readonly error?: string;
-  readonly content?: string;
-  readonly finish?: string;
-  readonly usage?: { readonly prompt: number; readonly completion: number };
-}
-
-const DEFAULT_USAGE = { prompt: 10, completion: 5 } as const;
-
-const SLEEP_PROBE_SUFFIX = "/is_sleeping";
-
-function chunk(choice: Record<string, unknown>, usage?: Record<string, unknown>): SseEvent {
-  return {
-    event: "",
-    data: { id: "gen-side", object: "chat.completion.chunk", created: 1, model: "m", choices: [choice], ...(usage === undefined ? {} : { usage }) },
-  };
-}
-
-function sse(events: readonly SseEvent[]): string {
-  return events.map((e) => `data: ${JSON.stringify(e.data)}\n\n`).join("");
-}
-
-function openAiServer(recorded: RecordedRequest[], reply: (body: Record<string, JsonValue>) => Reply, requests = 1): typeof fetch {
-  let remaining = requests;
-  return async (input, init): Promise<Response> => {
-    const request = new Request(input, init);
-    if (request.url.endsWith(SLEEP_PROBE_SUFFIX)) {
-      return Promise.resolve(Response.json({ ["is_sleeping"]: false }));
-    }
-    if (remaining-- <= 0) {
-      throw new Error(`the physical side-generation script exhausted its replies: ${request.url}`);
-    }
-    const captured = await recordRequest(request);
-    const { body } = captured;
-    recorded.push(captured);
-    const answer = reply(body);
-    if (answer.error !== undefined) {
-      return Promise.resolve(Response.json({ error: { message: answer.error, code: answer.status } }, { status: answer.status ?? 400 }));
-    }
-    const content = answer.content ?? "ok";
-    const finish = answer.finish ?? "stop";
-    const tokens = answer.usage ?? DEFAULT_USAGE;
-    const usage = { ["prompt_tokens"]: tokens.prompt, ["completion_tokens"]: tokens.completion };
-    const total = { ...usage, ["total_tokens"]: usage.prompt_tokens + usage.completion_tokens };
-    if (body["stream"] === true) {
-      const text = sse([
-        chunk({ index: 0, delta: { role: "assistant", content }, ["finish_reason"]: null }),
-        chunk({ index: 0, delta: {}, ["finish_reason"]: finish }, total),
-      ]);
-      return Promise.resolve(new Response(`${text}data: [DONE]\n\n`, { status: 200, headers: { "content-type": "text/event-stream" } }));
-    }
-    const completion = {
-      id: "gen-side",
-      object: "chat.completion",
-      created: 1,
-      model: "m",
-      choices: [{ index: 0, message: { role: "assistant", content }, ["finish_reason"]: finish }],
-      usage: total,
-    };
-    return Promise.resolve(Response.json(completion));
-  };
 }
 
 function userTextOf(body: Record<string, unknown>): string {

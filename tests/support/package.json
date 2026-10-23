@@ -14,7 +14,6 @@
     "./iso": "./iso/index.ts",
     "./node": "./node/index.ts",
     "./node/composed": "./node/composed.ts",
-    "./node/composed-real.ts": "./node/composed-real.ts",
     "./node/helpers": "./node/helpers.ts",
     "./sdk": "./node/sdk-process-control.mjs",
     "./tooling": "./node/tool-fixtures.ts"
