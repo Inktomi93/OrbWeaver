@@ -100,11 +100,11 @@ RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/
 # The browser binary AND its OS libs must be baked in at build time: the runtime
 # firewall (init-firewall.sh) blocks cdn.playwright.dev, so a runtime
 # `playwright install` dies with ENETUNREACH. Pin to the project's Playwright
-# (pnpm-workspace.yaml catalog `@playwright/test` ^1.61.1) so the baked browser
+# (pnpm-workspace.yaml catalog `@playwright/test`) so the baked browser
 # revision matches what node_modules resolves at runtime. `install-deps` (apt) needs
 # root; the browser itself installs as `node` into ~/.cache/ms-playwright (image
 # layer, not a volume — survives container restarts).
-ARG PLAYWRIGHT_VERSION=1.61.1
+ARG PLAYWRIGHT_VERSION=1.64.1
 USER root
 RUN npx --yes playwright-core@${PLAYWRIGHT_VERSION} install-deps chromium
 USER node
