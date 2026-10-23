@@ -160,7 +160,7 @@ so the owner wins within the §4.3 boundary.
 `packages/client/src/styles/index.ts`, the one CSS front door: shell.css → UI globals → client globals.
 Client globals and shell contain overlapping selectors at identical specificity, so reversing them can
 silently change the winner. CT adds only its `tests/` Tailwind source root through `playwright/index.css`;
-it carries no product import or product source. `tests/client/styles/css-home-topology.suite.test.ts` derives and closes this graph. Moving an import changes
+it carries no product import or product source. Moving an import changes
 the cascade contract and requires an explicit law change.
 
 ### 4.6 Polarity has one mechanism

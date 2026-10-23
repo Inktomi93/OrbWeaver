@@ -12,7 +12,7 @@ Some correctness claims are semantic. Examples are domain invariants such as the
 
 ## Decision
 
-These claims stay review work. `pnpm review:mirror` builds the review scope. `REVIEW_FOCUS` in `tooling/src/review-mirror/lib/focus.ts` names each semantic target by a live symbol. `tooling/src/review-mirror/ops/pending-guard.ts` records the Button/Switch pending-guard census and classifies only the shapes it can prove. No active gate, marker convention or waiver vocabulary covers these claims. Add a new semantic candidate to `REVIEW_FOCUS`, not to a gate.
+These claims stay review work. No active gate, marker convention or waiver vocabulary covers these claims. Review a new semantic candidate by hand; do not add a gate.
 
 ## Consequences
 

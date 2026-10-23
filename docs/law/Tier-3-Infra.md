@@ -110,7 +110,7 @@ Composition asymmetry: storage/crypto/network/image are *called by* domains via 
 8. **CAS writes are crash-atomic + content-verified; CAS fsyncs, the variant cache does not.** *(test-time.)*
 9. **Every storage path goes through `isAssetHash`.** *(guard-first + test-time.)*
 10. **The egress firewall never re-resolves between check and connect.** *(test-time.)*
-11. **A request for a host outside localhost, IP literals and the configured names is refused before the principal resolves, in every mode.** *(test-time: `tests/legacy/server/entry/lifecycle-host-allowlist.suite.int.test.ts` and the first-run lifecycle suite.)*
+11. **A request for a host outside localhost, IP literals and the configured names is refused before the principal resolves, in every mode.** *(test-time: the lifecycle-host-allowlist suite, a [restoration register](../plans/restoration-register/design.md) entry, and the first-run lifecycle suite.)*
 
 ## Open decisions
 

@@ -23,11 +23,11 @@ At commit, only the stages that narrow to the staged files run:
 - The type check runs every native program whose import closure contains a staged file. A deleted file selects every program.
 - The structure walk runs the file-local policies over the staged files.
 
-Every stage in `WHOLE_COMMAND_PATH_TRIGGERS` (`tooling/src/verify/lib/registry-triggers.ts`) runs its whole command or nothing. At commit it is deferred when its path trigger matches and skipped when it does not. The rule has no per-stage list: a new whole-command row is deferred at commit by construction, and `deps:knip`, which has no trigger, defers as before. Other scoped selections (`verify --changed`, `--file`, `--package`, `--scope`) still run a triggered whole command.
+Every stage in `WHOLE_COMMAND_PATH_TRIGGERS` runs its whole command or nothing. At commit it is deferred when its path trigger matches and skipped when it does not. The rule has no per-stage list: a new whole-command row is deferred at commit by construction, and `deps:knip`, which has no trigger, defers as before. Other scoped selections (`verify --changed`, `--file`, `--package`, `--scope`) still run a triggered whole command.
 
 The commit gate runs its stages in sequence, like every other run.
 
-The whole static tier stays the verdict for done. It runs at pre-push inside `verify --push`, and as the merge-train barrier on main. Homes: `lefthook.yml`, `tooling/src/verify/lib/selection.ts`, `tooling/src/verify/lib/registry-triggers.ts`, `tooling/src/verify/ops/run.ts` and `docs/law/UNIFIED-VERIFICATION-DESIGN.md` §4.3. Enforcers: `tests/tooling/verify/ops/staged-selection.suite.int.test.ts`, `tests/tooling/verify/lib/run-argv.test.ts` and `tests/tooling/verify/lib/registry.test.ts`.
+The whole static tier stays the verdict for done. It runs at pre-push inside `verify --push`, and as the merge-train barrier on main. Home: `lefthook.yml`.
 
 ## Consequences
 

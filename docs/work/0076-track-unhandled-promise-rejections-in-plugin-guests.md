@@ -19,7 +19,7 @@ The plugin-host float visibility work deferred this because quickjs-emscripten-c
 
 ## Done when
 
-A guest that rejects a promise without a handler produces one log-ring entry naming the plugin, and a test in `tests/legacy/server/infra/plugin-host/` pins it.
+A guest that rejects a promise without a handler produces one log-ring entry naming the plugin, and a test in `tests/server/infra/plugin-host/` pins it.
 
 ## Evidence
 

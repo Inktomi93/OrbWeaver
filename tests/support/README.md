@@ -14,7 +14,7 @@ Choose the least expensive layer that exercises the actual behavior. Use the pla
 - Use E2E for journeys connecting the browser, authentication, transport and persistence.
 - Keep overlapping coverage only when it catches a distinct failure.
 
-Before restoring a reference case, consult the [restoration register](../../docs/plans/test-foundation/design.md#restoration-register). Compare assertions and record keep, rebuild, move or drop decisions in the existing work item. An unreviewed area is not evidence of missing coverage.
+Before restoring a reference case, consult the [restoration register](../../docs/plans/restoration-register/design.md). Compare assertions and record keep, rebuild, move or drop decisions in the existing work item. An unreviewed area is not evidence of missing coverage.
 
 ## Use the maintained entry points
 

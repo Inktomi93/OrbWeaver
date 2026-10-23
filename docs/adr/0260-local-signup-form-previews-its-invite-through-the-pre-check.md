@@ -22,7 +22,7 @@ The client reads the preview once per form (`useSignupInvitePreview`). The read 
 
 ## Consequences
 
-The route answers whether a token is live no more than the signup route already does, under the same controls, and it spends the same per-address bucket. A token holder learns the room name, the member count and the guest mode sentence before creating an account, which the `oidc` pending join also shows. The token holder learns the host's handle only while discreet login is off. The route's tests in `tests/legacy/server/entry/http/auth-routes.int.test.ts` pin each control, the byte-identical 404, the strict preview and the discreet-login omission. `tests/legacy/server/entry/oidc-signup-roundtrip.suite.int.test.ts` pins the same omission on the pending join.
+The route answers whether a token is live no more than the signup route already does, under the same controls, and it spends the same per-address bucket. A token holder learns the room name, the member count and the guest mode sentence before creating an account, which the `oidc` pending join also shows. The token holder learns the host's handle only while discreet login is off. The route's auth-routes int case pins each control, the byte-identical 404, the strict preview and the discreet-login omission. The oidc-signup-roundtrip suite pins the same omission on the pending join. Both are [restoration register](../plans/restoration-register/design.md) entries.
 
 ## Alternatives rejected
 

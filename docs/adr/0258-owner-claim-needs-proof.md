@@ -28,7 +28,7 @@ The boot claim code. While the owner is unclaimed, an `oidc` boot mints a random
 
 Every caller states the proof: `ProvisionIdentityOptions.ownerClaimProven` is required and has no default, so a new SSO caller cannot get handle-based ownership by leaving it out. The `oidc` callback passes the proof it saw (`packages/server/src/entry/http/auth-routes.ts`). `forward-header` passes true (`packages/server/src/entry/auth/seam.ts`), because the trusted proxy is the identity authority there and its handle is the owner's word. Ownership by handle under `forward-header` is right only when the proxy's IdP has closed registration. The pending join passes false: an invite is never owner-claim proof.
 
-Checks: `tests/legacy/server/domain/sessions/contract/service.test-d.ts` (an omitted proof is a compile error), `tests/legacy/server/domain/sessions/substrate/decide-provision.test.ts`, `tests/legacy/server/domain/sessions/verbs/provision-identity.int.test.ts`, `tests/legacy/server/domain/sessions/verbs/provision-identity-owner-claim.int.test.ts`, `tests/legacy/server/entry/http/auth-routes.test.ts`, `tests/legacy/server/infra/auth/owner-claim.test.ts` and `tests/legacy/server/entry/oidc-owner-claim.suite.int.test.ts`.
+Checks: `tests/server/entry/boot/owner-claim.int.test.ts` (the boot claim code) and `tests/server/entry/compose/oidc-native.int.test.ts` (the OIDC claim URL), and the sessions service type case (an omitted proof is a compile error), decide-provision, provision-identity, provision-identity-owner-claim and auth-routes cases, each a [restoration register](../plans/restoration-register/design.md) entry.
 
 ## Consequences
 

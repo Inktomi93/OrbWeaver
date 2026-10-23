@@ -78,10 +78,11 @@ difference it happens to produce, and that stays Law 2/3/4 territory — the run
 `off-grid-transform` / `promoted-layer-offset` rules, not a token this system can retune. An
 element's absolute landing depends on its ancestors' offsets too, and that is also Law 2/3/4
 runtime territory; only the offset a primitive itself owns is its to fix. The pins are
-`tests/legacy/ui/tokens/index.test.ts` (every snapped spacing token guarded on both the base value and the
+the tokens index case (every snapped spacing token guarded on both the base value and the
 fine override, and integer at the 16px root) and
-`tests/legacy/ui/primitives/switch/switch.ct.tsx` (the four rows above, measured from the rendered boxes,
+the switch CT (the four rows above, measured from the rendered boxes,
 plus the rest landing in whole DEVICE px at both pointer classes and both rest positions).
+Both are [restoration register](../plans/restoration-register/design.md) entries.
 
 ## 3. The chosen architecture
 

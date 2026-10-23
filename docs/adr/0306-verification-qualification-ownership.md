@@ -24,7 +24,7 @@ Publication bootstrap requires positively established absence of qualified ances
 
 Use `pnpm verify --product` for explicit application qualification. Nightly runs `pnpm verify --full` with separate exact-SHA success state. Failed, cancelled and no-verdict runs cannot save success. Release promotion requires current-generation main-push success for exact synchronized main HEAD, including whole-workflow completion.
 
-Homes and enforcement: `lefthook.yml`, `.github/workflows/ci.yml`, `scripts/github-sync.sh`, `scripts/ci-qualification.ts`, `tooling/src/verify/` and `docs/law/UNIFIED-VERIFICATION-DESIGN.md` section 4. Native Git, metadata and subprocess controls prove the boundaries.
+Homes and enforcement: `lefthook.yml`, `.github/workflows/ci.yml` and `scripts/github-sync.sh`. Native Git, metadata and subprocess controls prove the boundaries.
 
 ## Consequences
 

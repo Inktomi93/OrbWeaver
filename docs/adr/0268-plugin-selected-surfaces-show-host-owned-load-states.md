@@ -12,7 +12,7 @@ A selected extension page or open plugin dialog occupies host chrome before its 
 
 ## Decision
 
-Selected extension pages and open plugin dialogs show host owned booting, ready empty, ready content, and failed states. Failed states provide Retry. Catalog reads show pending and failed states before the host confirms removal. Optional anchors remain silent without content. Tool cards retain their canonical fallback. Homes are `packages/client/src/features/plugin/` and `tests/legacy/client/features/plugin/`.
+Selected extension pages and open plugin dialogs show host owned booting, ready empty, ready content, and failed states. Failed states provide Retry. Catalog reads show pending and failed states before the host confirms removal. Optional anchors remain silent without content. Tool cards retain their canonical fallback. Homes are `packages/client/src/features/plugin/` and `tests/client/features/plugin/`.
 
 ## Consequences
 

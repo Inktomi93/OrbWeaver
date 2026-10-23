@@ -123,13 +123,13 @@ layout vars Base UI recomputes live (`--available-height`, `--anchor-width`), so
 popup lags its anchor, and it animates inherited properties the element never opted into (such as
 `scrollbarColor`). No site in this app uses `transition-all`; every transition names its
 properties: `transition-[opacity,scale]` (dialog, popover) — pinned by `transitionProperty` reads
-in `tests/legacy/ui/primitives/dialog/dialog.ct.tsx` and `tests/legacy/ui/primitives/popover/popover.ct.tsx`;
+in the dialog and popover CTs;
 `transition-[opacity,transform,translate]` (toast, pinned the same way in
-`tests/legacy/ui/primitives/toast/toast.ct.tsx`); `transition-[height]` (accordion panel, collapsible
+the toast CT); `transition-[height]` (accordion panel, collapsible
 panel — the lifecycle allowance in §4.2 item 3); `transition-[width,background-color]` (progress
 indicator); `transition-[scale]` (button press feedback — the transition must name `scale`, since
 `transition-[...transform]` would not animate it); `transition-[transform]` (tabs indicator, §4.2
-item 2, pinned by `tests/legacy/ui/primitives/tabs/tabs.ct.tsx`).
+item 2, pinned by the tabs CT).
 
 ### 1.3 Keeping the exit animation alive: `keepMounted`
 
@@ -201,7 +201,7 @@ and curve stay on the element's own classes. Two sites, and they are the whole e
   reduced-motion `data-<track>-settle` twin); every distance is composed in `shell.css` from
   the two grid tracks, and the keyframes live there too, so CSS owns even the delta.
   **Prefer this shape whenever the distance is already a CSS value.** Renaming this file
-  requires updating this citation in the same commit — `tests/tooling/doc/comment-doc-citations.suite.repo.int.test.ts` allows no exception.
+  requires updating this citation in the same commit.
 - `glideIndicator` in `packages/ui/src/primitives/tabs/tabs.tsx` — the tabs indicator glide
   (§4.2 item 2). The delta is the difference between two runtime boxes, so no CSS value
   expresses it: JS writes the inverse `transform` inline, flushes, and drops it, and the
@@ -446,7 +446,7 @@ A `transition-all` on `left`/`width` is a layout animation that relayouts the li
 and is a §3.7 violation. The obvious pure-CSS transform spelling is illegal here — `scaleX(width/base)` never rests at identity, so every
 selected tab would be a rest state carrying a non-identity scale (`rest-transform-grid`,
 integer-line-boxes §9 Law 2) and the 2px bar's `rounded-full` caps would be permanently
-stretched. Pinned by `tests/legacy/ui/primitives/tabs/tabs.ct.tsx` (the launched property set, the
+stretched. Pinned by the tabs CT (the launched property set, the
 resting transition contract, and the settled landing on the new tab's box).
 
 **3. Accordion / Collapsible height.** BUILT. Both panels transition
@@ -516,7 +516,7 @@ per-block `dir` wrapper and drops to a new line).
 
 ### 4.4 Brand canvas drawing
 
-`packages/ui/src/art/web-weave/web-weave-glow.ts` owns the brand web's palette-baked glow and bounded capture-sprite retention. Warm capture segments composite assembled round caps without repeating slice assembly. Halo length quantization changes the blurred endpoint by at most 1/32 CSS pixel; crisp silk and physics coordinates stay exact. Oversized spans retain the uncached slice painter. Palette replacement discards the associated sprites; raster-byte limits exclude browser and GPU allocation overhead. `tests/legacy/ui/art/web-weave/web-weave-glow.ct.tsx` compares native pixels, alpha, palette changes, retention and DPR behavior. Hardware comparisons must retain actual frame timing, native gestures and host-load evidence; fewer composites alone do not establish smoothness.
+`packages/ui/src/art/web-weave/web-weave-glow.ts` owns the brand web's palette-baked glow and bounded capture-sprite retention. Warm capture segments composite assembled round caps without repeating slice assembly. Halo length quantization changes the blurred endpoint by at most 1/32 CSS pixel; crisp silk and physics coordinates stay exact. Oversized spans retain the uncached slice painter. Palette replacement discards the associated sprites; raster-byte limits exclude browser and GPU allocation overhead. The web-weave-glow CT compares native pixels, alpha, palette changes, retention and DPR behavior. Hardware comparisons must retain actual frame timing, native gestures and host-load evidence; fewer composites alone do not establish smoothness.
 
 ## 5. The Base UI animation/styling contract (house law)
 

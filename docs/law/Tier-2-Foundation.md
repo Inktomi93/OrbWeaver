@@ -48,7 +48,7 @@ The DB probes need no port (`@orb/db` is a lower package). `wrapLibSqlClient` is
 
 2. **The ONE `process.env` reader discipline.** Sole reader = typed dot-access everywhere. Sessions receives one immutable role policy per graph; login still evaluates current identity-provider groups.
 
-3. **`.env` load with `override:true` + the two escape hatches.** A checked-in dev `.env` wins over a stale shell export — EXCEPT under `VITEST` (deterministic auth env) and `ORB_ENV_NO_OVERRIDE=1` (probe scripts honoring shell vars). Both matter for test determinism and one-off server fires. The parser is `node:util`'s `parseEnv`, not `dotenv`; the override MERGE is ours and explicit, because `process.loadEnvFile()` can only ever fill UNSET keys and so cannot express this direction. Asserted both ways in `tests/legacy/server/foundation/env/env-file-load.test.ts`.
+3. **`.env` load with `override:true` + the two escape hatches.** A checked-in dev `.env` wins over a stale shell export — EXCEPT under `VITEST` (deterministic auth env) and `ORB_ENV_NO_OVERRIDE=1` (probe scripts honoring shell vars). Both matter for test determinism and one-off server fires. The parser is `node:util`'s `parseEnv`, not `dotenv`; the override MERGE is ours and explicit, because `process.loadEnvFile()` can only ever fill UNSET keys and so cannot express this direction. Asserted both ways in the env-file-load case, a [restoration register](../plans/restoration-register/design.md) entry.
 
 4. **Audit never breaks the primary channel (suppress → count → drop).** A db failure inside `logAudit` logs at `error`, increments the sticky counter, drops; every 25th drop (`ALERT_EVERY`) trips a `security:true` `audit_sustained_failure` warn. Window is process-lifetime.
 

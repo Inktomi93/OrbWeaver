@@ -8,7 +8,7 @@ updated: 2026-09-23
 
 ## Context
 
-The enforcement registry once carried a backlog of gates ported from neo's `tooling/src/verify/` and a
+The enforcement registry once carried a backlog of gates ported from neo's verify tooling and a
 handful of report-only metrics. Some rows never applied to a greenfield build; others were built,
 measured, and then dropped because the property they would have checked is already held elsewhere, at
 a stronger tier, or is refuted by the house style. None of this is a standing rule, so it does not belong

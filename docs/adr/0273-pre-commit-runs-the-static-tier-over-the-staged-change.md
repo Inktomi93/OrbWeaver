@@ -10,7 +10,7 @@ superseded-by: docs/adr/0317-commit-runs-biome-and-typecheck-ci-is-the-verdict.m
 
 ## Context
 
-Pre-commit ran the whole static tier. Every whole run waits for the host-wide whole-run slot that every worktree on both accounts shares (`tooling/src/verify/lib/whole-run-queue.ts`). The whole static tier runs for minutes, and the cross-file structure policies take most of that time. When several lanes committed at once, each commit waited inside its hook behind other checkouts' runs, and lanes then skipped every check with `LEFTHOOK_EXCLUDE=check`. A commit gate scoped to the working change also judges files the commit does not record: an unstaged edit or an untracked file can fail a commit that never touches it.
+Pre-commit ran the whole static tier. Every whole run waits for the host-wide whole-run slot that every worktree on both accounts shares. The whole static tier runs for minutes, and the cross-file structure policies take most of that time. When several lanes committed at once, each commit waited inside its hook behind other checkouts' runs, and lanes then skipped every check with `LEFTHOOK_EXCLUDE=check`. A commit gate scoped to the working change also judges files the commit does not record: an unstaged edit or an untracked file can fail a commit that never touches it.
 
 ## Decision
 
@@ -19,9 +19,9 @@ Pre-commit and pre-merge-commit run `pnpm verify --static --changed staged`, by 
 - Biome, ESLint and depcruise read the staged files.
 - The type check runs every native program whose import closure contains a staged file. A deleted file selects every program.
 - The structure walk runs the file-local policies over the staged files.
-- A whole-only stage runs its whole command when its path trigger matches (`tooling/src/verify/lib/registry-triggers.ts`). A markdown-only change triggers none of the stages that read no markdown.
+- A whole-only stage runs its whole command when its path trigger matches. A markdown-only change triggers none of the stages that read no markdown.
 
-The whole static tier stays the verdict for done. It runs at pre-push inside `verify --push`, and as the merge-train barrier on main. Homes: `lefthook.yml`, `tooling/src/verify/lib/selection.ts` and `docs/law/UNIFIED-VERIFICATION-DESIGN.md` §4.3. Enforcers: `tests/tooling/verify/ops/staged-selection.suite.int.test.ts`, `tests/tooling/verify/lib/run-argv.test.ts` and `tests/tooling/verify/lib/registry.test.ts`.
+The whole static tier stays the verdict for done. It runs at pre-push inside `verify --push`, and as the merge-train barrier on main. Home: `lefthook.yml`.
 
 ## Consequences
 

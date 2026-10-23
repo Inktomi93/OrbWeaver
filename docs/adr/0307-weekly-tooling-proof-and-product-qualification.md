@@ -27,7 +27,7 @@ Publication bootstrap requires positively established absence of qualified ances
 
 Nightly full and manual product qualification retain separate exact-SHA success state, without tooling recertification. Red, cancelled and no-verdict runs cannot save success. Weekly proof has separate scheduling and success state. Release promotion requires current-generation product qualification for exact synchronized main HEAD; a sync-created merge needs qualification.
 
-Homes are `lefthook.yml`, `.github/workflows/ci.yml`, `scripts/github-sync.sh`, `scripts/ci-qualification.ts`, `tooling/src/verify/` and `docs/law/UNIFIED-VERIFICATION-DESIGN.md`.
+Homes are `lefthook.yml`, `.github/workflows/ci.yml` and `scripts/github-sync.sh`.
 
 ## Consequences
 

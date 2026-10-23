@@ -9,7 +9,7 @@ superseded-by: docs/adr/0273-pre-commit-runs-the-static-tier-over-the-staged-cha
 
 ## Context
 
-Pre-commit ran the whole static tier. Every whole run waits for the host-wide whole-run slot that every worktree on both accounts shares (`tooling/src/verify/lib/whole-run-queue.ts`). The whole static tier runs for minutes, and the cross-file structure policies take most of that time. `tooling/src/verify/lib/history.ts` records each run's stage durations. When several lanes committed at once, each commit waited inside its hook behind other checkouts' runs. Lanes then committed with `LEFTHOOK_EXCLUDE=check git commit`, which skips every pre-commit check.
+Pre-commit ran the whole static tier. Every whole run waits for the host-wide whole-run slot that every worktree on both accounts shares. The whole static tier runs for minutes, and the cross-file structure policies take most of that time. When several lanes committed at once, each commit waited inside its hook behind other checkouts' runs. Lanes then committed with `LEFTHOOK_EXCLUDE=check git commit`, which skips every pre-commit check.
 
 ## Decision
 
@@ -18,9 +18,9 @@ Pre-commit and pre-merge-commit run `pnpm verify --static --changed`, by owner r
 - Biome, ESLint and depcruise read the changed files.
 - The type check runs every native program whose import closure contains a changed file. A deleted file selects every program.
 - The structure walk runs the file-local policies over the changed files.
-- A whole-only stage runs its whole command when its path trigger matches (`tooling/src/verify/lib/registry-triggers.ts`).
+- A whole-only stage runs its whole command when its path trigger matches.
 
-The whole static tier stays the verdict for done. It runs at pre-push inside `verify --push`, and as the merge-train barrier on main. Homes: `lefthook.yml` and `docs/law/UNIFIED-VERIFICATION-DESIGN.md` §4.3.
+The whole static tier stays the verdict for done. It runs at pre-push inside `verify --push`, and as the merge-train barrier on main. Home: `lefthook.yml`.
 
 ## Consequences
 

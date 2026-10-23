@@ -28,7 +28,7 @@ Work items have four states (`open`, `doing`, `blocked`, `done`); any transition
 
 ## Consequences
 
-A new document costs its prose and nothing else: no lane row, no attestation, no regenerated catalog. The legacy catalog's hash-bound attestation is removed at once, not with the migration: its rows carry a path and an authority only, so a legacy prose edit reds nothing there either. A structural mistake is caught by the checker with the fixing command in the message. The legacy tree keeps its current checker until each folder migrates (`docs/plans/doc-migration/design.md`), and a migrated file must satisfy the new rules on landing; there is no grandfather exemption and no compatibility path, so the red is the to-do list.
+A new document costs its prose and nothing else: no lane row, no attestation, no regenerated catalog. The legacy catalog's hash-bound attestation is removed at once, not with the migration: its rows carry a path and an authority only, so a legacy prose edit reds nothing there either. A structural mistake is caught by the checker with the fixing command in the message. The legacy tree keeps its current checker until each folder migrates, and a migrated file must satisfy the new rules on landing; there is no grandfather exemption and no compatibility path, so the red is the to-do list.
 
 The ledger split is one commit that re-points the D-citation gate at the ADR tree; the five thousand bare `D<n>` citations in code do not move because the numbers do not change. A finished plan leaves no trace under `docs/plans/` beyond the repository's own commit history; a reader who wants why a removed plan existed reads the ADR or law entry its knowledge moved into, or the deletion commit itself.
 

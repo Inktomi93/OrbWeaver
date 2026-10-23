@@ -12,7 +12,7 @@ A host with no shell skill, on bare metal or Docker, takes one step and friends 
 
 ## Shape
 
-The sibling source at /home/inktomi/inktomi-stack/development/orbweaver-legacy-tests-2026-10-21 is reference-only. It is not run, compiled or included in CI.
+The sibling legacy source named in `AGENTS.md` (Test layout) is reference-only. It is not run, compiled or included in CI.
 
 Legs T, L, H, R, S, D and J are built. Docker sharing uses the pinned relay download defined by D272. Its runtime supplies system certificate authorities, and a disposable-volume proof verifies public health and cache reuse after restart. Optional IP certificates remain in `docs/work/0172-easy-sharing-leg-c-an-automatic-ip-certificate.md`. The sections below describe the design and its probes; claims marked unverified still need proof.
 
@@ -210,7 +210,7 @@ Owner forks, each with the default this plan takes: (1) ruled by the owner: the 
 - `packages/server/package.json`, `pnpm-workspace.yaml`: the `cloudflared` dependency and its `allowBuilds` row set to `false`.
 - `docker/README.md`, `README.md`.
 - Leg C: the homes D275 names, plus `packages/server/src/entry/lifecycle.ts`, `packages/server/src/transport/trpc/routers/share.ts` and `packages/client/src/features/user-admin/components/share-ip-certificate.tsx`.
-- `tests/support/node/route-trpc.ts` (answers a subscription with a 204, terminal for the class), `tests/support/node/route-orb-socket.ts`, `tests/support/node/route-impersonate-stream.ts`: the stubs match on the URL and the accept header, not the method, and must read a POST body where they read the query.
+- `tests/support/node/route-trpc.ts` (answers a subscription with a 204, terminal for the class), and `tests/support/node/route-orb-socket.ts`: the stubs match on the URL and the accept header, not the method, and must read a POST body where they read the query.
 - `legacy-source/client/data/trpc.test.ts`: the subscription request shape.
 
 ## Test plan

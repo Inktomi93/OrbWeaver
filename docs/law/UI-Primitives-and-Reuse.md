@@ -99,7 +99,7 @@ The §13.2 map is the cold-agent contract: a surface not using its primitive is 
 
 ### 13.7 The `@orb/ui` primitive & CT structural contract (BUILT)
 
-`@orb/ui` drifted into competing micro-conventions across parallel builds; this contract is the reconciled canonical shape, **machine-enforced by `tests/ui/primitives/primitive-topology.test.ts`** (file trio, variants naming, `data-slot`, co-located CT; its exemption tables are the variants-exempt and CT-exempt allowlists below) **and the `orb/ui-*` rules in `eslint.config.ts`** (private variants barrel, inline SVG, CT colors and providers, overlay anatomy). This § is the WHY a clause exists. `ui-package-design.md` points here as the canonical home of the structural contract — the §-numbering is fixed; do not renumber it.
+`@orb/ui` drifted into competing micro-conventions across parallel builds; this contract is the reconciled canonical shape, **machine-enforced by the `orb/ui-*` rules in `eslint.config.ts`** (private variants barrel, inline SVG, CT colors and providers, overlay anatomy). The file trio, variants naming, `data-slot` and co-located CT clauses have no machine check and stay review work. This § is the WHY a clause exists. `ui-package-design.md` points here as the canonical home of the structural contract — the §-numbering is fixed; do not renumber it.
 
 - **The primitive trio.** `primitives/<name>/` = `<name>.tsx` (named export, no default) + `index.ts` (the ONLY consumer import) + `variants.ts`, plus optional `handle.ts` (imperative `createHandle`). Variants-exempt allowlist: `icons`, `virtual-list`, `message-list`, `aria-announcer`, `file-trigger` (sealed satellites/barrels with no skin of their own); `code-editor`/`content/*`/`markdown`/`lib` live outside `primitives/`; `layout/` shares one `variants.ts` for the kit.
 - **Variants naming:** exactly one `tv()` export named **`{camelName}Variants`** (greppable, reserved-word-safe — `switch` forced the suffix anyway).
@@ -197,7 +197,7 @@ every reader in the same commit.
 identity (an invite handle, a persona name, an API-key label). `off` is a decision, not an omission.
 
 **Enforcement.** N2/N5/N6 plus "every interactive role has a non-empty name" are machine-checked by
-`tests/legacy/client/a11y/accessible-name-quality.suite.ct.tsx` over a growing roster of real feature stories;
+the accessible-name-quality CT suite (a [restoration register](../plans/restoration-register/design.md) entry) over a growing roster of real feature stories;
 adding a surface there is how a new pane joins the contract. N1/N3/N4/N7/N8/N9 are REVIEW rules — a CT that
 tried to score whether a verb is the user's verb would be vacuous or wrong. The suite plants each defect class
 as its own negative control, so a silently-broken predicate cannot make every surface pass.

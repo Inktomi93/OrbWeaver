@@ -91,7 +91,7 @@ that needs an upward import is in the wrong place. Move the code; never force th
 ## Test layout
 
 - Tests live under `tests/<package>/` in the directory that mirrors `packages/<package>/src/`, named for the behaviour they prove. The sibling source at /home/inktomi/inktomi-stack/development/orbweaver-legacy-tests-2026-10-21 is reference-only, not part of this repository's test, typecheck or CI population. D333 retires custom layout and presence gates; these conventions have no custom static check.
-- `tooling/src/floor/testing/test-kinds.ts` owns the test suffixes and compiler worlds. Inject clocks and ids so tests are deterministic. Policy: `Spine-Testing.md`. Before porting reference cases, consult the [restoration register](docs/plans/test-foundation/design.md#restoration-register).
+- `tooling/src/floor/testing/test-kinds.ts` owns the test suffixes and compiler worlds. Inject clocks and ids so tests are deterministic. Policy: `Spine-Testing.md`. Before porting reference cases, consult the [restoration register](docs/plans/restoration-register/design.md).
 
 ## No escape hatches
 

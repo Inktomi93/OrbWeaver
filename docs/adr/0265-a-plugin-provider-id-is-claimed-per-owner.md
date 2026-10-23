@@ -18,7 +18,7 @@ A claim is permanent for its owner. A connection and a credential keep only the 
 
 No user's claim affects another user's activation, so a refused activation's `lastError` names only the caller's own id. Admin rows stay deployment-wide and unique by id. A CHECK keeps admin ids and `plugin:` ids disjoint, and built-in ids stay unshadowable. No admin verb deletes another user's claim.
 
-Homes: `packages/db/src/schema/connection-bindings.ts`, `packages/server/src/domain/connection/persistence/provider-rows.ts`, `packages/inference/src/registry/providers.ts`. Enforcers: `tests/legacy/server/domain/plugin/activation/provider-contributions.suite.int.test.ts`, `tests/legacy/server/domain/connection/persistence/provider-rows.int.test.ts`, `tests/legacy/inference/registry/providers.test.ts`.
+Homes: `packages/db/src/schema/connection-bindings.ts`, `packages/server/src/domain/connection/persistence/provider-rows.ts`, `packages/inference/src/registry/providers.ts`. Enforcers: the provider-contributions suite, the provider-rows persistence int case and the registry providers case, each a [restoration register](../plans/restoration-register/design.md) entry.
 
 ## Consequences
 

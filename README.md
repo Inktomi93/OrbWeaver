@@ -174,7 +174,7 @@ The contributor commands use native Node on macOS and Windows; WSL2 is optional.
 
 The [application workflow](.github/workflows/ci.yml) runs native static checks, Node tests, component tests and e2e smoke on pushes to `main` and pull requests. Bug-specific captures live in the dispatch-only [diagnostics workflow](.github/workflows/diagnostics.yml).
 
-Timing budgets qualify on named hardware under [D308](docs/adr/0308-hardware-scoped-timing-budgets.md). Hosted runners retain measurements without asserting timing budgets; behavior remains blocking. [Owner-machine timing setup](docs/law/owner-timing.md) uses a local main-only controller, not a GitHub self-hosted runner.
+Timing budgets qualify on named hardware under [D308](docs/adr/0308-hardware-scoped-timing-budgets.md). Hosted runners retain measurements without asserting timing budgets; behavior remains blocking.
 
 If Actions disables a scheduled workflow after repository inactivity, open its workflow page and select **Enable workflow**.
 

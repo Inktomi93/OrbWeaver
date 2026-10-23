@@ -10,7 +10,7 @@ area: docs
 
 ## What
 
-`pnpm test:tools tests/tooling/doc/ops/check.int.test.ts` (the governed-docs check) is red: ADR rows under `docs/adr/` still cite `tests/legacy/...` paths and other files that no longer exist (0013, 0071, 0107, 0121, 0129, 0136, 0137 and more), and item 0989 is a `doing` item with no lane named. The code-side citation sweep (item 1235) covered `packages`, `tooling` and `tests` but not `docs/`.
+`pnpm test:tools tests/tooling/doc/ops/check.int.test.ts` (the governed-docs check) is red: ADR rows under `docs/adr/` still cite paths in the removed legacy test tree and other files that no longer exist (0013, 0071, 0107, 0121, 0129, 0136, 0137 and more), and item 0989 is a `doing` item with no lane named. The code-side citation sweep (item 1235) covered `packages`, `tooling` and `tests` but not `docs/`.
 
 ## Why
 
@@ -18,7 +18,7 @@ A ledger row that points at a deleted test has lost its proof; the doc check exi
 
 ## Done when
 
-Every dead citation in `docs/adr/**`, `docs/law/**` and `docs/plans/**` points at the maintained test that proves the same ruling, or the citation is removed and the row records that the proof is a restoration-register entry; 0989 names its lane or returns to open; `pnpm test:tools tests/tooling/doc` green; `rg -n 'tests/legacy' docs` prints nothing.
+Every dead citation in `docs/adr/**`, `docs/law/**` and `docs/plans/**` points at the maintained test that proves the same ruling, or the citation is removed and the row records that the proof is a restoration-register entry; 0989 names its lane or returns to open; `pnpm test:tools tests/tooling/doc` green; a search of `docs` for the removed legacy test tree prefix prints nothing.
 
 ## Evidence
 

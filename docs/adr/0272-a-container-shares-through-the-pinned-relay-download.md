@@ -14,7 +14,7 @@ A share needs a relay, and the Docker image carries none. Two shapes supply one 
 
 A container shares on the same path as bare metal. Start sharing, and a SHARE_RELAY=quick boot start, download the release CLOUDFLARED_PIN names, check its size and sha256, and run it from the data layout's relay slot (cache/relay under DATA_DIR). The binary survives a container restart in the data volume, and a later start downloads nothing. No share precondition reads whether the process runs in a container, and SHARE_REFUSALS has no container member. The image carries no relay binary, and no compose overlay runs a relay for sharing. The pin covers linux-x64 and linux-arm64, the two architectures the image builds on, and a pin move keeps both.
 
-Homes: packages/server/src/domain/share/substrate/refusal.ts, packages/server/src/entry/lifecycle.ts, packages/server/src/infra/relay/pin.ts, packages/server/src/foundation/data-layout/index.ts. Enforcers: tests/legacy/server/entry/lifecycle-share-container.suite.int.test.ts, tests/legacy/server/domain/share/substrate/refusal.test.ts, tests/legacy/server/infra/relay/pin.test.ts.
+Homes: packages/server/src/domain/share/substrate/refusal.ts, packages/server/src/entry/lifecycle.ts, packages/server/src/infra/relay/pin.ts, packages/server/src/foundation/data-layout/index.ts. Enforcers: the lifecycle-share-container suite, the share refusal case and the relay pin case, each a [restoration register](../plans/restoration-register/design.md) entry.
 
 ## Consequences
 

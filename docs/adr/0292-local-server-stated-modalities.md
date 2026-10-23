@@ -8,7 +8,7 @@ updated: 2026-10-03
 
 ## Context
 
-D143 clause (c) gives an undeclared endpoint row image and video input with modalitiesEstimated, because a launched engine cannot be asked what it takes. Ollama, llama.cpp server and KoboldCpp answer that question: Ollama lists a model's capabilities, llama.cpp server and KoboldCpp report their loaded modalities. The rig under `scripts/probes/local-servers` proves it: Ollama and llama.cpp server refuse an image part for a model they list without vision, and KoboldCpp drops the part, so the permissive guess offers a knob none of them honours.
+D143 clause (c) gives an undeclared endpoint row image and video input with modalitiesEstimated, because a launched engine cannot be asked what it takes. Ollama, llama.cpp server and KoboldCpp answer that question: Ollama lists a model's capabilities, llama.cpp server and KoboldCpp report their loaded modalities. The measured probe rig proves it: Ollama and llama.cpp server refuse an image part for a model they list without vision, and KoboldCpp drops the part, so the permissive guess offers a knob none of them honours.
 
 ## Decision
 

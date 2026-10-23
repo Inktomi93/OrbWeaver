@@ -126,10 +126,10 @@ The same disease-class as the slot registries, highest stakes: a mis-wired or un
 | Bus | Scope | Durability |
 | - | - | - |
 | chat | per-chat, member-scoped | **durable-first**: `emit` awaits the `chat_events` INSERT (assigns `seq`) before the ring push; 256-entry ring + durable replay, member-scoped; `on()` pre-buffers so the replay/live gap dedupes by `seq` |
-| user | per-person, all devices | **live-only, fire-and-forget by design** — gap-heal = `invalidateAllUserRoots()` on every connect/reconnect |  |
-| notifications | per-person durable inbox | **durable-first**: entry composes the INSERT before `publishNotification` |  |
-| rpg | per-chat game state | **live-only, self-healing** — a domain-minted `EventEmitter` singleton; a verb publishes AFTER its durable write; the client blanket-invalidates on every (re)connect |  |
-| automation | per-chat, over the `domain/automation` `notify` sink | **transient by design** — rides `defineBusChannel`; the `automation` room (`transport/trpc/stream/sources/automation.ts`) tails it rather than a standalone subscription |  |
+| user | per-person, all devices | **live-only, fire-and-forget by design** — gap-heal = `invalidateAllUserRoots()` on every connect/reconnect |
+| notifications | per-person durable inbox | **durable-first**: entry composes the INSERT before `publishNotification` |
+| rpg | per-chat game state | **live-only, self-healing** — a domain-minted `EventEmitter` singleton; a verb publishes AFTER its durable write; the client blanket-invalidates on every (re)connect |
+| automation | per-chat, over the `domain/automation` `notify` sink | **transient by design** — rides `defineBusChannel`; the `automation` room (`transport/trpc/stream/sources/automation.ts`) tails it rather than a standalone subscription |
 
 Presence rides none of these buses: it is process-local, and single-replica is the current stance.
 
@@ -139,7 +139,7 @@ connections plus a 15s grace window — server-derived, never a client-asserted 
 
 **The product rules:**
 
-1. **Durable-first, fan-out-second** for any bus carrying truth someone can miss: the durable INSERT assigns `seq` before the live publish; resume/replay reads the durable log. `tests/legacy/server/domain/chat/bus.int.test.ts` and `bus-golden.suite.int.test.ts` pin it.
+1. **Durable-first, fan-out-second** for any bus carrying truth someone can miss: the durable INSERT assigns `seq` before the live publish; resume/replay reads the durable log. `tests/server/domain/chat/bus-golden.suite.int.test.ts` pins it.
 2. **Fan scope follows visibility.** A shared-chat event fans to every present member's every device; a per-person event fans to all that person's connected devices. An event mutating state visible to others must fan beyond the actor. `packages/server/src/domain/chat/verbs/emit-chat-changed.ts` derives its recipients from the live roster (present, kind `human`, not yet left) plus any pre-captured `extraUserIds` (a member removed in the same request) — never a non-member. Use the live roster and current visibility rules to derive event recipients.
 3. **Consumer exhaustiveness is compile-time.** Every bus union ends in `assertNever` or a mapped-type-total Record on the client.
 4. **Every declared event type has a server emit site.** Keep the event union and producers aligned.
@@ -195,4 +195,4 @@ D333 ends custom static client certification. Current checks live in native conf
 | composite promotion (≥2-feature duplication → `components/`) | semantic near-duplicates (same anatomy, different fields) defeat textual clone detection; The hoist remains a design judgment. Checklist: same anatomy in 2+ features and changing together → tier 2; 3+ repeats of wiring → tier 3 factory; a genuine one-off → leave. |
 | fan-scope completeness for new multi-visibility features | Checklist at contract review: who can see this state? every seer's channel gets the event (member-fan for rooms, per-person for owned) · durable-first if a miss diverges canon (else document the heal path) · the event type joins the union and coverage-deferred before the emit lands. |
 | three-states completeness (§11) | Checklist: skeleton matches final shape (no layout shift) · error = `QueryErrorState` with real retry · empty names the next step. |
-| HTTP fetch-fn discipline (§10) | eslint rule `orb/fetch-fn-in-features` | a client feature hand-writes a global `fetch(`. Checklist: multipart/binary → a `data/` fetch fn beside the existing four; everything else → tRPC. |
+| HTTP fetch-fn discipline (§10) | eslint rule `orb/fetch-fn-in-features` flags a client feature that hand-writes a global `fetch(`. Checklist: multipart/binary → a `data/` fetch fn beside the existing four; everything else → tRPC. |

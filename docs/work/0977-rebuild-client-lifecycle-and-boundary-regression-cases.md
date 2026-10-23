@@ -12,7 +12,7 @@ plan: test-foundation
 
 Rebuild client regression cases for initial-read invalidation, PostEventSource subscription lifetimes, invalid auth-config inputs and ListPaneHeader behavior through production entries.
 
-The [restoration register](../plans/test-foundation/design.md#restoration-register) records completed invite cases, including the unavailable-card return-to-sign-in action. This item's open status does not authorize another wholesale invite port. Keep existing OIDC and first-run join journeys in E2E.
+The [restoration register](../plans/restoration-register/design.md) records completed invite cases, including the unavailable-card return-to-sign-in action. This item's open status does not authorize another wholesale invite port. Keep existing OIDC and first-run join journeys in E2E.
 
 ## Why
 
@@ -28,7 +28,7 @@ Use the external reference cases for initial-read invalidation and PostEventSour
 
 ### Invite runtime evidence
 
-The [restoration register](../plans/test-foundation/design.md#restoration-register) owns current dispositions and maintained test links. The separate [OIDC runtime qualification](../plans/test-foundation/design.md#e2e-runtime-qualification) is complete for its named journey.
+The [restoration register](../plans/restoration-register/design.md) owns current dispositions and maintained test links. The separate [OIDC runtime qualification](../plans/test-foundation/design.md#e2e-runtime-qualification) is complete for its named journey.
 
 The named CTs and pure-function test pass. Removing the production late-focus handler, in-flight confirmation guard or unnamed-room fallback fails the corresponding control. Restoring production source returns the selected tests to green. Fresh CT source maps identify the altered component source during those checks.
 

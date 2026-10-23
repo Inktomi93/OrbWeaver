@@ -124,7 +124,7 @@ exports map has one entry, so no domain can reach a backend.
 | Topic | Home |
 | - | - |
 | Packages, server tiers, the domain template and partitioning | `Core-0-Architecture-and-Structure.md` |
-| Retained tooling | `Core-0-Architecture-and-Structure.md` §9, `../../scripts/README.md` |
+| Retained tooling | `Core-0-Architecture-and-Structure.md` §9 |
 | The decision ledger | `../adr/README.md` (one decision per file) |
 | Writing a ui-audit rule | `../../tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md` |
 | Server tier law | `Tier-1-DB.md`, `Tier-2-Foundation.md`, `Tier-3-Infra.md`, `Tier-3b-Providers.md`, `Tier-4-Transport.md`, `Tier-5-Entry.md` |

@@ -1,7 +1,7 @@
 ---
 kind: work
-status: doing
-updated: 2026-10-21
+status: open
+updated: 2026-10-23
 priority: P2
 area: packages
 ---
@@ -36,7 +36,7 @@ Continue owner-authorized package batches. Keep other scopes parked and preserve
 | Generated handle tables and runtime Unicode agreement | Keep provenance and move compatibility coverage to the [repository-contract test](../../tests/kit/handle-key/unicode-version.repo.int.test.ts). Add no production import door. |
 | Tooling-only kit consumers | Keep existing pure APIs with maintained tooling consumers. Production-only findings do not establish unused code across the workspace. |
 
-Registry completeness, autocomplete, other handle-key cases and unrelated theme reference cases remain outside this selected restoration scope. The [restoration register](../plans/test-foundation/design.md#restoration-register) records these bounds.
+Registry completeness, autocomplete, other handle-key cases and unrelated theme reference cases remain outside this selected restoration scope. The [restoration register](../plans/restoration-register/design.md) records these bounds.
 
 ## Selected server boundaries
 
@@ -188,7 +188,7 @@ This modifier-only selection passes bounded preservation, scoped runtime tests, 
 | Identity | Decision and boundary |
 | - | - |
 | RESOLVED_SECRET_KINDS | Keep the canonical tuple and derived secret-kind/brand coupling; localize its unused value export. Minting, ownership, AAD and execution evidence remain unchanged. |
-| HealthResponse | Remove the unconsumed inferred alias. Keep the actual health schema, strict response arms, public parser and physical-peer identity gate. |
+| HealthResponse | Remove the unconsumed inferred alias. Keep the actual health schema, strict response variants, public parser and physical-peer identity gate. |
 | Original credential and health purposes | Keep actual authority and HTTP coverage. Drop only the private-tuple equality assertion; do not add an export-identity test or replacement harness. |
 
 This selection passes scoped preservation, real credential/health boundary tests, affected compiler and dependency checks and independent review.
@@ -319,4 +319,4 @@ Native CT cases mount the real primitives through the existing gallery. They do 
 | Appearance plane coverage | Assert directly over the real manifest; remove the test-only row-filter convenience and localize unconsumed named types. |
 | Preset template grouping | [Template tests](../../tests/client/features/preset/lib/template-addresses.test.ts) preserve partition, declared ordering, visible-copy filtering and pruning through the public grouping function. |
 
-Selected production defects fail the corresponding assertions. Exact source restoration passes the affected native cases. The [restoration register](../plans/test-foundation/design.md#restoration-register) preserves unselected behavior; export cleanup does not complete client restoration.
+Selected production defects fail the corresponding assertions. Exact source restoration passes the affected native cases. The [restoration register](../plans/restoration-register/design.md) preserves unselected behavior; export cleanup does not complete client restoration.
