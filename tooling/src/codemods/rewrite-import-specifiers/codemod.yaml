@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "rewrite-import-specifiers"
+version: "0.1.0"
+description: "Rewrite import, re-export and dynamic import specifiers by an exact old-to-new map read from the target directory."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["typescript"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

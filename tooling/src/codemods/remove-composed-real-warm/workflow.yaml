@@ -12,11 +12,11 @@ nodes:
           base_path: "."
           language: "typescript"
           include: ["**/*.ts"]
-          exclude: ["**/node_modules/**"]
+          exclude: ["**/node_modules/**", "**/codemods/*/tests*/**"]
       - name: TSX files
         js-ast-grep:
           js_file: scripts/codemod.ts
           base_path: "."
           language: "tsx"
           include: ["**/*.tsx"]
-          exclude: ["**/node_modules/**"]
+          exclude: ["**/node_modules/**", "**/codemods/*/tests*/**"]

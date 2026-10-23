@@ -34,7 +34,7 @@ Languages: `codemod:ast-grep/langs/typescript`, `tsx`, `javascript`, `css`, `jso
 
 ## SgRoot
 
-`root.root()`, `root.filename()`, `root.relativeFilename()`, `root.rename(path)` once per file.
+`root.root()`, `root.filename()`, `root.relativeFilename()`, `root.rename(path)` once per file. On a root obtained from `definition()` or `references()`, `root.write(content)` saves that other file; it is a no-op under `jssg test`.
 
 ## SgNode
 

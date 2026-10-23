@@ -67,7 +67,7 @@ export const config = {
     tooling: {
       entry: ["src/*/cli.ts", "src/*/index.ts", "src/floor/*/*.ts", "src/snap/lib/budgets.ts", "src/codemods/*/scripts/*.ts"],
       // Codemod fixtures are input/expected data for `codemod jssg test`, not modules.
-      project: ["src/**/*.ts", "!src/codemods/*/tests/**"],
+      project: ["src/**/*.ts", "!src/codemods/*/tests*/**"],
       // The heap arm loads chrome-devtools-mcp's browser-free parser through a version-pinned dynamic
       // subpath held in a constant. Knip cannot resolve that indirection, while the heap suite exercises
       // the installed module and its exact-version compatibility fence.

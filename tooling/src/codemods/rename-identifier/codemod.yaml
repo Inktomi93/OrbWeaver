@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "rename-identifier"
+version: "0.1.0"
+description: "Rename one declared identifier and every reference that resolves to it across the workspace, using semantic analysis."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["typescript"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

@@ -1,0 +1,4 @@
+{
+  "@orb/testkit/node/corpus-read.ts": "@orb/testkit/node/corpus.ts",
+  "./old-helper.ts": "./helpers/index.ts"
+}

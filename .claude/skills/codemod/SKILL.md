@@ -14,13 +14,21 @@ Each codemod is one directory under `tooling/src/codemods/`:
 | Path | Role |
 | - | - |
 | `scripts/codemod.ts` | the transform; default export plus an exported `getSelector` |
-| `tests/<case>/input.ts` and `expected.ts` | one fixture per case; a `tests/<case>/input/` and `expected/` pair when files are created or deleted |
+| `tests/<case>/input.ts` and `expected.ts` | one fixture per case; a `tests/<case>/input/` and `expected/` pair when files are created or deleted, or when the codemod reads a config file from the target |
+| `tests-crossfile/<case>/input/` and `expected/` | a case that needs cross-file semantic resolution; verify it through `jssg run`, not `jssg test` |
 | `codemod.yaml` | name, description, target languages |
 | `workflow.yaml` | one `js-ast-grep` step per language with explicit `include` globs |
 
 `tooling/src/codemods/tsconfig.json` typechecks every `scripts/` file against `@codemod.com/jssg-types`. Fixtures are data: Biome, ESLint, dependency-cruiser and knip skip them.
 
-Copy `tooling/src/codemods/remove-composed-real-warm/` to start a new codemod. Do not run `codemod init`; its scaffold does not typecheck here.
+Copy the closest existing codemod to start a new one. Do not run `codemod init`; its scaffold does not typecheck here.
+
+| Codemod | Shape it shows |
+| - | - |
+| `remove-composed-real-warm` | delete a matched statement with its line |
+| `string-union-to-tuple` | insert a declaration and rewrite a node, comments preserved |
+| `rewrite-import-specifiers` | config read from the target directory, workflow `params` |
+| `rename-identifier` | semantic `references()` with cross-file `root.write()` |
 
 ## Author
 
@@ -64,6 +72,9 @@ Run from the repository root.
 | Fixtures run in test mode | `jssgTransform` to secondary files is a no-op there; cover multi-file edits with a directory fixture. |
 | The sandbox denies `fetch`, `child_process` and disk outside the target | Declare a capability in `codemod.yaml` only when the transform needs it. No codemod here does. |
 | `validate_codemod_package` wants a `package.json` and `README.md` | It checks registry packages. Use `codemod workflow validate` here. |
+| `jssg test --semantic-workspace` resolves bindings within one fixture file only | Keep a cross-file case under `tests-crossfile/` and prove it with `jssg run --semantic-workspace <copy>` against its `expected/`. |
+| Cross-file edits order-dependent through `definition()` | Edit from the declaring file: `declaration.references()` then `fileRoot.write(...)`; `jssgTransform` and `write` are no-ops under `jssg test`. |
+| jssg-types declares `fs` and `path`, not `node:fs` and `node:path` | Import the bare names in a codemod; `biome.json` turns `useNodejsImportProtocol` off for codemod scripts. |
 
 ## Reference
 

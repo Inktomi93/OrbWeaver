@@ -795,7 +795,7 @@ const config = {
         "^packages/[^/]+/dist/(?!router-types/packages/server/src/index\\.d\\.ts$)",
         "^playwright/\\.cache/",
         "^tooling/src/snap/lib/devtools-frontend/",
-        "^tooling/src/codemods/[^/]+/tests/",
+        "^tooling/src/codemods/[^/]+/tests[^/]*/",
       ],
     },
   },
