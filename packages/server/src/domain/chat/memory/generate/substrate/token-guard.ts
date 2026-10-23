@@ -37,14 +37,12 @@ export const SUMMARIZER_CONTEXT_FLOOR = 4096;
  *  (system instruction + four role markers ≈ 30 estimated tokens) plus slack for tokenizer disagreement. */
 const EMBED_SCAFFOLD_RESERVE_TOKENS = 64;
 
-/** The PATHOLOGICAL ceiling (#172): above this many chunks a single block stops being chunked and is skipped
- *  WHOLE-and-recorded (the #165 arm, which survives for exactly this case). Sized far above the real corpus —
- *  its worst block is a 200k-char code dump, ≈5 chunks at the box's 8192-token embed window — so the ceiling
- *  only ever catches something absurd (a 100MB paste), where N thousand vectors of one block would drown the
- *  recall pool and cost more than the content is worth. A skip here is COUNTED and logged, never silent.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export const MAX_SEGMENT_CHUNKS_PER_BLOCK = 64;
+// The PATHOLOGICAL ceiling (#172): above this many chunks a single block stops being chunked and is skipped
+//  WHOLE-and-recorded (the #165 arm, which survives for exactly this case). Sized far above the real corpus —
+//  its worst block is a 200k-char code dump, ≈5 chunks at the box's 8192-token embed window — so the ceiling
+//  only ever catches something absurd (a 100MB paste), where N thousand vectors of one block would drown the
+//  recall pool and cost more than the content is worth. A skip here is COUNTED and logged, never silent.
+const MAX_SEGMENT_CHUNKS_PER_BLOCK = 64;
 
 /** One row's transcript line, pre-rendered with its token estimate — the chunker packs these. */
 interface RenderedLine {

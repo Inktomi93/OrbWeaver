@@ -23,30 +23,15 @@
 // a per-plane guard: a throwing renderer DEGRADES that plane's lines to nothing and the OTHER planes still
 // render. The block never throws, never drops whole (the DEFENSIVE arm — never a parallel healing home).
 
-import { PROSE_SLOTS, resolveProse } from "@orb/contracts/prose";
+import { resolveProse } from "@orb/contracts/prose";
 import type { RpgInventoryItem, RpgSnapshotState, RpgTrackerDef, RpgTrackerValue } from "@orb/contracts/rpg";
 import { clockTimeOfDay, rpgWeatherText, trackerCeiling, trackerNumber } from "@orb/contracts/rpg";
 import type { DeltaContext, PlaneDiffRenderer, RegisteredPlaneDiff } from "../contract/delta.ts";
 
-/** The diff heading (§2.7) — a VERSIONED PROSE-1 slot (`rpg.delta.changesHeading`, `macros:"none"`) so a copy
- *  revision is a legible `version` bump. This exported const is the DERIVED default (the byte-reference tests
- *  read); `buildDeltaBlock` resolves the slot against `ctx.prose` so a host override lands.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export const RPG_DELTA_HEADING = PROSE_SLOTS["rpg.delta.changesHeading"].text;
-/** The first-snapshot heading (§2.7 first-snapshot arm) — the born state is labelled as the scene OPENING, not
- *  as "everything just changed" (which would lie about causality on turn 1). A `rpg.delta.sceneOpensHeading`
- *  slot; the const is the derived default.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export const RPG_SCENE_OPENS_HEADING = PROSE_SLOTS["rpg.delta.sceneOpensHeading"].text;
-
-/** Bind a typed `PlaneDiffRenderer<T>` into the type-erased `RegisteredPlaneDiff` the registry holds — the ONE
- *  place `select`→`render` are threaded, so the slice `T` stays private to the renderer. P1 REGISTERS its
- *  relationship + cast-field renderers by calling this in `PLANE_DIFF_RENDERERS` — no monolith edit, no cast.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export function definePlaneDiff<T>(r: PlaneDiffRenderer<T>): RegisteredPlaneDiff {
+// Bind a typed `PlaneDiffRenderer<T>` into the type-erased `RegisteredPlaneDiff` the registry holds — the ONE
+//  place `select`→`render` are threaded, so the slice `T` stays private to the renderer. P1 REGISTERS its
+//  relationship + cast-field renderers by calling this in `PLANE_DIFF_RENDERERS` — no monolith edit, no cast.
+function definePlaneDiff<T>(r: PlaneDiffRenderer<T>): RegisteredPlaneDiff {
   return { plane: r.plane, run: (prev, cur, ctx) => r.render(r.select(prev), r.select(cur), ctx) };
 }
 
@@ -509,15 +494,13 @@ const plotRenderer: PlaneDiffRenderer<RpgSnapshotState["plot"]> = {
   },
 };
 
-/** The OPEN, ordered per-plane diff registry (§2.7.1). The delta block = the ordered concat of each renderer's
- *  lines over the two snapshots. P1 REGISTERS its relationship + cast-field renderers HERE (they are cast-plane
- *  diffs — the relationship renderer emits `Mari: friend → wary`, which is BOTH this block's steering line AND
- *  feature 1's closed-loop signal). Order mirrors the §2.7 table: numeric planes, sets, ambient, cast, quests,
- *  widgets. `journal beats` + `level` are EXCLUDED by construction (no renderer — §2.7: a beat is an append not
- *  a mutation; level is hand-only identity the prose doesn't react to).
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export const PLANE_DIFF_RENDERERS: readonly RegisteredPlaneDiff[] = [
+// The OPEN, ordered per-plane diff registry (§2.7.1). The delta block = the ordered concat of each renderer's
+//  lines over the two snapshots. P1 REGISTERS its relationship + cast-field renderers HERE (they are cast-plane
+//  diffs — the relationship renderer emits `Mari: friend → wary`, which is BOTH this block's steering line AND
+//  feature 1's closed-loop signal). Order mirrors the §2.7 table: numeric planes, sets, ambient, cast, quests,
+//  widgets. `journal beats` + `level` are EXCLUDED by construction (no renderer — §2.7: a beat is an append not
+//  a mutation; level is hand-only identity the prose doesn't react to).
+const PLANE_DIFF_RENDERERS: readonly RegisteredPlaneDiff[] = [
   definePlaneDiff(actorTrackersRenderer),
   definePlaneDiff(conditionsRenderer),
   definePlaneDiff(inventoryRenderer),

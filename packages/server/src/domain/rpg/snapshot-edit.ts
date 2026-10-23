@@ -159,7 +159,7 @@ function toColumns(state: RpgSnapshotState): StateColumns {
  *  state. The [merge-clear] contract still governs the overlay shape (`{}` = no-op, null = leaf clear).
  *
  *  THE F1 WRITE-BOUNDARY BACKSTOP APPLIES HERE TOO (D108's "canon never corrupted is STRUCTURAL"): the merged
- *  state is validated against the full contract schema BEFORE any durable write, exactly as `writeStagedSnapshot`
+ *  state is validated against the full contract schema BEFORE any durable write, exactly as `writeStagedSnapshotAndJournal`
  *  validates the model path. The hand path reaches the same columns with a caller-shaped overlay, so it can
  *  produce the same poison — a `null` cleared onto a NON-nullable leaf (`location`, the arrays, the records)
  *  is the reachable case, and the merge-clear contract is right to write it: it is the CONTRACT, not the merge,

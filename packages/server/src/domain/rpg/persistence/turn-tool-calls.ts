@@ -27,7 +27,7 @@
 
 import type { Db } from "@orb/db";
 import { rpgTurnToolCalls } from "@orb/db";
-import type { MessageVariantId, RpgGameId } from "@orb/kit/ids";
+import type { RpgGameId } from "@orb/kit/ids";
 import { and, desc, eq, inArray, max } from "drizzle-orm";
 import type { NewRpgTurnToolCalls, RpgTurnToolCallsRow } from "../contract/service.ts";
 
@@ -77,12 +77,4 @@ export function listTurnToolCalls(db: Db, gameId: RpgGameId, opts: { readonly tu
     .from(rpgTurnToolCalls)
     .where(and(eq(rpgTurnToolCalls.gameId, gameId), inArray(rpgTurnToolCalls.messageId, recentTurns)))
     .orderBy(desc(rpgTurnToolCalls.createdAt), desc(rpgTurnToolCalls.id));
-}
-
-/** The record for ONE variant (test/introspection — the CASCADE probe reads this).
- *
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export function findTurnToolCallsByVariant(db: Db, variantId: MessageVariantId): Promise<RpgTurnToolCallsRow[]> {
-  return db.select().from(rpgTurnToolCalls).where(eq(rpgTurnToolCalls.variantId, variantId));
 }

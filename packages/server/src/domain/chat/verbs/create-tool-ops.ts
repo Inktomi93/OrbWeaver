@@ -6,9 +6,7 @@ import type { BoundToolExecution, ChatToolOps, ChatToolSet } from "../contract/c
 import type { ChatToolAdapter } from "../contract/tool-adapter.ts";
 
 /** Adapt tool-use into chat through typed closures over the concrete resolved set.
- * The host Principal resolves before the request is built (D152).
- * @public Test-anchored composition surface.
- */
+ * The host Principal resolves before the request is built (D152). */
 
 export function buildChatToolOps<TSet>(toolUse: ChatToolAdapter<TSet>, resolveHostPrincipal: (userId: UserId) => Promise<Principal>): ChatToolOps {
   return {

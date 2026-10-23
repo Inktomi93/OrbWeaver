@@ -496,10 +496,8 @@ export interface LiteReminderInput {
    *  participant actors ("Kael HP 12→16", not "character HP 12→16"). Resolved by the gather from `ctx.resolveParticipants`;
    *  the pure delta reads it as DATA (no I/O in the registry — delta.ts stays pure). */
   readonly participantNames: Readonly<Record<string, string>>;
-  /** P3 hidden-channel teaching gates (§3.3) — `config.features.deception`/`omniscience`. Each `true` composes its
-   *  teaching block (`RPG_DECEPTION_TEACH`/`RPG_OFILTER_TEACH`) into the reminder, after the state/delta and before
-   *  the license; both default false ⇒ no block (byte-identical to a pre-P3 reminder). The blocks teach the
-   *  `<lie …/>`/`<ofilter …/>` tag grammar the tokenizer's `HIDDEN_TAGS` registry recognizes. */
+  /** Feature flags select the preset-resolved hidden-channel teaching blocks after the license.
+   * The blocks teach the `<lie …/>`/`<ofilter …/>` grammar recognized by the tokenizer. */
   readonly deception: boolean;
   readonly omniscience: boolean;
   /** The #9 ambient-date mode — `narrated` drops the `day N` counter from the ambient line. */

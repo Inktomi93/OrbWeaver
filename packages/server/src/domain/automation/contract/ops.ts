@@ -358,9 +358,7 @@ export type ResolveAuthorPrincipal = (userId: UserId) => Promise<Principal | nul
  *  tuple to `persona.updated`/`world-info.updated` without widening this would have left both new facts
  *  falling into that default forever: a plugin could DECLARE them, every cheap gate would pass, and delivery
  *  would silently never happen — a dead wire that reads as coverage. Fail-closed is the right DEFAULT and the
- *  wrong ANSWER.
- *
- *  @public Test-anchored module surface; its contract test is the tuple's liveness pin. */
+ *  wrong ANSWER. */
 export const DOMAIN_ROW_KINDS = ["character", "asset", "persona", "worldBook"] as const;
 export type DomainRowKind = (typeof DOMAIN_ROW_KINDS)[number];
 
@@ -588,10 +586,7 @@ export interface StashedArm {
  *
  *  `null` is the INVITATION class and is `null` by construction — `budget_refused` is decided before the
  *  predicate and before any env exists, so no rendered arm can be stashed, which is also why that path has
- *  no TOCTOU.
- *
- *  @public knip type-face false positive — it is a structural field of the exported `Suggestion` shape
- *  (its `payload` field), never referenced by its own name at any call site. */
+ *  no TOCTOU. */
 export type SuggestionPayload =
   | { readonly via: "arm"; readonly stashed: StashedArm }
   /** A plugin-origin act, re-executed through `domain/plugin`'s OWN bridge at confirm (the injected

@@ -420,12 +420,10 @@ export function appendVariantStatements(
   return stmts;
 }
 
-/** How many head allocations one append may lose before it refuses. Not a contention budget — see
- *  {@link commitCanonAppend}'s "IT IS BOUNDED" note; the sibling CAS loop in `substrate/variable-ops.ts`
- *  carries the same number for the same reason.
- *
- *  @public Test-anchored module surface; focused tests pin this production-local behavior. */
-export const MAX_CANON_APPEND_ATTEMPTS = 8;
+// How many head allocations one append may lose before it refuses. Not a contention budget — see
+//  {@link commitCanonAppend}'s "IT IS BOUNDED" note; the sibling CAS loop in `substrate/variable-ops.ts`
+//  carries the same number for the same reason.
+const MAX_CANON_APPEND_ATTEMPTS = 8;
 
 /**
  * Commit an APPEND at the canon head, re-allocating the seq if another writer took it first — the ONE home

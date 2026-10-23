@@ -13,11 +13,8 @@
 import type { TokenProvenance } from "@orb/contracts/chat";
 import type { ExtraStats } from "@orb/contracts/stats";
 
-/** 0 when the denominator is non-positive (avoids NaN/Infinity from an empty rollup).
- *
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export function div(a: number, b: number): number {
+// 0 when the denominator is non-positive (avoids NaN/Infinity from an empty rollup).
+function div(a: number, b: number): number {
   return b > 0 ? a / b : 0;
 }
 

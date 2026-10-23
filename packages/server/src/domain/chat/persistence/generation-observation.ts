@@ -145,11 +145,8 @@ export function generationObservationRemovalStatements(
   return statements;
 }
 
-/** Append observed economics and its live rollup together; a vanished source cannot leave orphan facts.
- *  @public Test-anchored persistence boundary: the atomic funding/source-fence proofs supply historical
- *  observedAt and nullable/unrecorded connection attribution that the live onObservedResult callback cannot
- *  express (it stamps the current clock and requires a resolved connection). */
-export async function appendGenerationObservation(
+// Append observed economics and its live rollup together; a vanished source cannot leave orphan facts.
+async function appendGenerationObservation(
   ctx: GenerationObservationContext,
   parent: GenerationObservationParent,
   fact: GenerationObservationFact,

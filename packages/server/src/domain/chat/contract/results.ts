@@ -59,10 +59,7 @@ export type { RequestTurnOp } from "@orb/contracts/chat";
 // The invite results are wire nodes: their strict schemas are the invite procedures' tRPC output parsers.
 export type { CreateInviteResult, TurnIntent } from "@orb/contracts/chat";
 
-/** The output axis: per-speaker (one message per speaker) vs narrator (one call voices all the seated characters).
- *
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
+/** The output axis: per-speaker (one message per speaker) vs narrator (one call voices all the seated characters). */
 export type GroupOutput = GroupConfig["output"];
 /** The card-scope axis: merged (all member cards in one block) vs scoped (own card + egocentric history).
  *  Lives only on the per-speaker arm — narrator is always merged. */

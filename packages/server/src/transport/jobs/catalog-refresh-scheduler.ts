@@ -48,12 +48,10 @@ export interface CatalogRefreshSchedulerDeps {
   readonly refreshEveryMs?: () => number;
 }
 
-/** One decision step: is a fresh catalog refresh due, and if so, enqueue it. Skips when an active row
- *  holds the slot or the newest terminal row is still within its cadence; swallows the single-active
- *  DomainConflictError (someone beat us — the goal).
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export async function runCatalogCheck(deps: CatalogRefreshSchedulerDeps): Promise<void> {
+// One decision step: is a fresh catalog refresh due, and if so, enqueue it. Skips when an active row
+//  holds the slot or the newest terminal row is still within its cadence; swallows the single-active
+//  DomainConflictError (someone beat us — the goal).
+async function runCatalogCheck(deps: CatalogRefreshSchedulerDeps): Promise<void> {
   const log = getLog().child({ component: LOG_COMPONENT });
 
   const rows = await deps.service.list({ caller: null, kind: "refresh-model-catalog", limit: 1 });

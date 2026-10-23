@@ -24,9 +24,8 @@ const GUEST_POLICY_PHRASES: Record<GroupPolicy, string> = {
   smart: "and the story picks who speaks next.",
 };
 
-/** The room's mode as one sentence a guest reads (output × policy).
- *  @public The preview's unit test walks every output and policy through it. */
-export function guestModeSentence(group: Pick<GroupConfig, "output" | "policy">): string {
+// The room's mode as one sentence a guest reads (output × policy).
+function guestModeSentence(group: Pick<GroupConfig, "output" | "policy">): string {
   return `${GUEST_OUTPUT_PHRASES[group.output]}, ${GUEST_POLICY_PHRASES[group.policy]}`;
 }
 

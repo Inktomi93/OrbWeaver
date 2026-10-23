@@ -206,7 +206,7 @@ function resolveStateRound(ctx: RpgContext, game: RpgGameRow, turn: CompletedTur
 /** Write a taken flush: the clone-forward snapshot keyed to the committed variant + the staged journal entries
  *  stamped with that variant (§2.5). `now`/`snapshot id` are injected (determinism).
  *
- *  STRUCTURAL BACKSTOP (stickler F1): `writeStagedSnapshot` returns `{ok:false, reason}` when the assembled
+ *  STRUCTURAL BACKSTOP (stickler F1): `writeStagedSnapshotAndJournal` returns `{ok:false, reason}` when the assembled
  *  state is contract-INVALID (a `max <= 0` pool from a buggy applier, present or future). On refusal the ENTIRE
  *  flush is DROPPED — no snapshot, no journal, no bus emits — errors-as-data, mirroring the extraction's
  *  non-conforming empty-delta path — AND the drop is LOGGED with the field-level reason (never silent). The

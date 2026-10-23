@@ -23,21 +23,19 @@ import { MS_PER_SECOND } from "@orb/kit/time";
 import type { NotifyFloor } from "../contract/ops.ts";
 
 const COOLDOWN_MS = AUTOMATION_NOTICE_COOLDOWN_SECONDS * MS_PER_SECOND;
-/** The HARD ceiling on tracked (plugin × chat) pairs, and therefore the whole memory cost of this belt.
- *
- *  It is a cap with eviction and not merely a sweep threshold, because the sweep alone was not a bound: it
- *  only dropped entries whose cooldown had ELAPSED, so a plugin posting into many distinct rooms INSIDE one
- *  window swept nothing and the map grew one entry per room, without limit, driven by a guest. The lazy sweep
- *  is still the first move (a dead entry is free to drop and costs nobody a notice); eviction is what happens
- *  when the sweep does not get the size back under the cap.
- *
- *  THE COST, STATED: past the cap the LEAST-RECENTLY-ADMITTED pair is forgotten, so its next notice admits
- *  again. A guest can therefore buy itself one extra notice in a room by notifying 1024 other rooms first —
- *  which is a worse deal for it than simply waiting out the 60s, and the durable half of the posture (WHO may
- *  be notified at all: the domain-resolved participants-only recipient set) is untouched by any of it.
- *
- *  @public Test-anchored module surface; focused tests pin this production-local behavior. */
-export const PLUGIN_NOTIFY_FLOOR_MAX_ENTRIES = 1024;
+// The HARD ceiling on tracked (plugin × chat) pairs, and therefore the whole memory cost of this belt.
+//
+//  It is a cap with eviction and not merely a sweep threshold, because the sweep alone was not a bound: it
+//  only dropped entries whose cooldown had ELAPSED, so a plugin posting into many distinct rooms INSIDE one
+//  window swept nothing and the map grew one entry per room, without limit, driven by a guest. The lazy sweep
+//  is still the first move (a dead entry is free to drop and costs nobody a notice); eviction is what happens
+//  when the sweep does not get the size back under the cap.
+//
+//  THE COST, STATED: past the cap the LEAST-RECENTLY-ADMITTED pair is forgotten, so its next notice admits
+//  again. A guest can therefore buy itself one extra notice in a room by notifying 1024 other rooms first —
+//  which is a worse deal for it than simply waiting out the 60s, and the durable half of the posture (WHO may
+//  be notified at all: the domain-resolved participants-only recipient set) is untouched by any of it.
+const PLUGIN_NOTIFY_FLOOR_MAX_ENTRIES = 1024;
 
 /** Bring the map back under {@link PLUGIN_NOTIFY_FLOOR_MAX_ENTRIES}: drop every entry whose cooldown has
  *  already elapsed (free — those pairs would admit anyway), then, only if that was not enough, EVICT from the

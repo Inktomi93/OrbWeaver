@@ -13,8 +13,5 @@ export type {
 } from "./contract/service.ts";
 export { createRelayController } from "./relay/controller.ts";
 export { createShareService } from "./service.ts";
-/** @public exported for the client CTs that stub the share verbs: the refusal code and sentence come from here. */
-export { certificateRefusal } from "./substrate/certificate-refusal.ts";
-/** @public exported for the client CTs that stub the share verbs: the refusal code and sentence come from here. */
-export { modeShareRefusal } from "./substrate/refusal.ts";
+
 export { createEnableShareSeating } from "./verbs/enable-share-seating.ts";

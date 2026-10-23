@@ -32,10 +32,8 @@ import { pairsAboveThreshold } from "../substrate/pair-cosine.ts";
  *  must still BE a near-dup, so the gate is on raw cosine; `cslsScore` only ranks). */
 const DEFAULT_DUP_THRESHOLD = 0.92;
 
-/** Maximum content-distinct representatives admitted in one owner/model cosine space.
- *
- *  @public Test-anchored module surface; focused tests pin this production-local behavior. */
-export const MAX_DUPLICATE_VECTORS_PER_SPACE = HUBNESS_DENSE_MAX;
+// Maximum content-distinct representatives admitted in one owner/model cosine space.
+const MAX_DUPLICATE_VECTORS_PER_SPACE = HUBNESS_DENSE_MAX;
 /** Maximum derived character pairs admitted across one atomic recompute. */
 const MAX_DUPLICATE_PAIRS_PER_RUN = 10_000;
 

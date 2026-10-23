@@ -192,20 +192,18 @@ function spendProbeValue(descriptor: RulePresetKnobDescriptor): RulePresetKnobVa
   }
 }
 
-/** Does this preset MINT A RECURRING CHARGE at its default knobs? DERIVED — the def's own builder is run and
- *  its emitted arms are tested against the contract's `SPEND_ARM_TYPES`, so the picker's spend signal cannot
- *  drift from what the mint actually creates. A hand-maintained `spends` flag on the def would be a boolean
- *  an author forgets to flip, on a money surface (#655).
- *
- *  WHY THIS ONE RUNS THE BUILDER WHILE `ruleCount` STAYS DATA — the ruling survives, its input changed. That
- *  field is DATA precisely so the picker can say "(1/2)" before a build, and it can be: a preset's rule COUNT
- *  is knob-independent. Spend is not. `clockFires` emits a `trigger_turn` under `firedArm: "narrate"` and a
- *  free `post_notification` under `"notify"`, so no static fact about the def answers the question — only the
- *  builder does. The DEFAULT bag is the honest input because it is the configuration a host mints by pressing
- *  Add without touching a knob, which is exactly the row the catalogue is labelling.
- *
- *  @public Test-anchored module surface; focused tests pin this production-local behavior. */
-export function rulePresetSpendsAtDefaults(def: ErasedRulePresetDef): boolean {
+// Does this preset MINT A RECURRING CHARGE at its default knobs? DERIVED — the def's own builder is run and
+//  its emitted arms are tested against the contract's `SPEND_ARM_TYPES`, so the picker's spend signal cannot
+//  drift from what the mint actually creates. A hand-maintained `spends` flag on the def would be a boolean
+//  an author forgets to flip, on a money surface (#655).
+//
+//  WHY THIS ONE RUNS THE BUILDER WHILE `ruleCount` STAYS DATA — the ruling survives, its input changed. That
+//  field is DATA precisely so the picker can say "(1/2)" before a build, and it can be: a preset's rule COUNT
+//  is knob-independent. Spend is not. `clockFires` emits a `trigger_turn` under `firedArm: "narrate"` and a
+//  free `post_notification` under `"notify"`, so no static fact about the def answers the question — only the
+//  builder does. The DEFAULT bag is the honest input because it is the configuration a host mints by pressing
+//  Add without touching a knob, which is exactly the row the catalogue is labelling.
+function rulePresetSpendsAtDefaults(def: ErasedRulePresetDef): boolean {
   const probe: Record<string, RulePresetKnobValue> = {};
   for (const [key, descriptor] of Object.entries(def.knobs)) {
     probe[key] = spendProbeValue(descriptor);

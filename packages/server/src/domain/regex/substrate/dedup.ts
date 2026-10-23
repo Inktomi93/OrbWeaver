@@ -20,25 +20,20 @@ import { regexScriptBehaviorSchema } from "@orb/contracts/regex";
 import type { RegexScriptId } from "@orb/kit/ids";
 import type { CardLiftInput, CardLiftPlan, PlannedInsert, SplitScript } from "../contract/dedup.ts";
 
-/** The content-equality key: name + canonical (key-sorted) behavior JSON. See the header.
- *
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export function dedupKey(name: string, behavior: RegexScriptBehavior): string {
+// The content-equality key: name + canonical (key-sorted) behavior JSON. See the header.
+function dedupKey(name: string, behavior: RegexScriptBehavior): string {
   const entries = Object.entries(behavior as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : 1));
   return `${name} ${JSON.stringify(entries)}`;
 }
 
-/** An EXISTING library row's key — the same function applied to the row's own name + body.
- *
- *  THE DESTRUCTURE IS THE FILTER, so every NON-CONTENT field of `RegexScriptRow` must be named here. It is
- *  the row's identity columns (`id`), its promoted columns (`name`/`enabled`, keyed separately or not at
- *  all) and its STAMPS (`updatedAt`) — none of which are what the script does. Missing one silently breaks
- *  dedup for every row: `updatedAt` alone made two byte-identical scripts imported an hour apart fail to
- *  match, because the stamp rode into the canonical JSON as if it were behavior.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export function rowKey(row: RegexScriptRow): string {
+// An EXISTING library row's key — the same function applied to the row's own name + body.
+//
+//  THE DESTRUCTURE IS THE FILTER, so every NON-CONTENT field of `RegexScriptRow` must be named here. It is
+//  the row's identity columns (`id`), its promoted columns (`name`/`enabled`, keyed separately or not at
+//  all) and its STAMPS (`updatedAt`) — none of which are what the script does. Missing one silently breaks
+//  dedup for every row: `updatedAt` alone made two byte-identical scripts imported an hour apart fail to
+//  match, because the stamp rode into the canonical JSON as if it were behavior.
+function rowKey(row: RegexScriptRow): string {
   const { id: _id, name: _name, enabled: _enabled, updatedAt: _updatedAt, ...behavior } = row;
   return dedupKey(row.name, behavior);
 }

@@ -65,9 +65,8 @@ export async function landProvenTarget(
   return await resolveTargetGenerationAttempt({ ctx, ownerId, ...target, proven, attempt: 0 });
 }
 
-/** What the width probe embeds.
- *  @public Test-anchored module surface; the write-path tests answer this probe apart from real embeds. */
-export const WIDTH_PROBE_TEXT = "width check";
+// What the width probe embeds.
+const WIDTH_PROBE_TEXT = "width check";
 
 /** Prove the new space's width within the runtime's route-specific bound before publishing or purging a generation. */
 export async function probeWidth(

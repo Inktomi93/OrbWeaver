@@ -193,8 +193,7 @@ type FindSyntheticGroupCharacterOp = (params: { readonly ownerId: UserId; readon
 /** The memory summarizer + the smart-arbitrate side-LLM. The SIGNAL-BEARING variant of the isomorphic
  *  `RoleClients["summarize"]` (`RoleClientsWithSignal`): chat is the one caller that already owns a
  *  cancellation — the turn's active-turn `AbortSignal` — and a side-LLM call that cannot be cancelled hangs
- *  the whole turn when the box accepts the socket and never answers.
- *  @public Test-anchored module surface; the chat/memory test harnesses type their fake summarizers with it. */
+ *  the whole turn when the box accepts the socket and never answers. */
 export type SummarizeOp = (funderUserId: UserId, ...args: Parameters<RoleClientsWithSignal["summarize"]>) => Promise<SummarizeResult>;
 
 /** The room's preset generation params for a quiet generation, which runs on the CHAT connection and so on the
@@ -749,20 +748,14 @@ type VerifyPersonaOwnedOp = (params: { readonly ownerId: UserId; readonly person
  *  `ChatContext.resolveMemoryEmbedSpace` below; callers take the whole bundle, never this member's type. */
 type ResolveMemoryEmbedSpaceOp = (ownerId: UserId) => Promise<MemoryEmbedSpace>;
 
-/** memory's digest vector write — the one write path.
- *
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
+/** memory's digest vector write — the one write path. */
 export type EmbeddingsStoreOp = (params: StoreDigestParams) => Promise<MemoryEmbedSpace>;
 
-/**
- * memory's verbatim-segment write — a BATCH, and the one place the segment phase's embed flood lives (#172,
+/** memory's verbatim-segment write — a BATCH, and the one place the segment phase's embed flood lives (#172,
  * owner batching ruling: derived-data sweeps batch BY PHASE, never per-item interleaved). The corpus sweep
  * collects every chat's pending chunks, hands them over in ONE call, and the embeddings side submits them to
  * the engine as a single flood with no client-side throttle; the live post-turn build calls the same op with
- * one chat's chunks. Nothing here decides concurrency — that is the provider surface's.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
+ * one chat's chunks. Nothing here decides concurrency — that is the provider surface's. */
 export type EmbeddingsStoreSegmentsOp = (params: readonly StoreSegmentParams[], signal?: AbortSignal) => Promise<readonly MemoryEmbedSpace[]>;
 
 type EmbeddingsPruneBlocksOp = (params: PruneMemoryBlocksParams) => Promise<void>;

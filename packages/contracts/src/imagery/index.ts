@@ -205,9 +205,7 @@ export const IMAGERY_PROSE_SLOTS = {
 /** The negative-prompt base slot — the ONE id both the resolver and the editor read. */
 export const IMAGERY_NEGATIVE_SLOT_ID: ProseSlotId = "imagery.negative.base";
 
-/** The `generate_image` tool's shipped-default description — read at REGISTRATION (no user in scope, the
- *  `RPG_STEERING_LICENSE`/`RPG_BASELINE_TOOL_DESCRIPTIONS` precedent), so a rename of the slot's `text` here
- *  is the ONE edit that reaches the wire (#578). */
+/** Registration has no user context, so it uses the canonical slot's default (`rpg.reminder.steeringLicense` precedent). */
 export const IMAGERY_GENERATE_IMAGE_TOOL_DESCRIPTION = IMAGERY_PROSE_SLOTS["imagery.tool.generateImageDescription"].text;
 
 /** Slot id per extraction mode — the ONE map both the resolver and the editor read (never a re-spelled id). */

@@ -13,7 +13,7 @@
 
 import type { AssetKind } from "@orb/contracts/assets";
 import type { GlobalSettingView, UserSettings, UserSettingsView } from "@orb/contracts/settings";
-import { appSettingsConfig, DEFAULT_USER_SETTINGS, parseUserSettings, USER_SETTINGS_SCHEMA_VERSION, userSettingsConfig } from "@orb/contracts/settings";
+import { appSettingsConfig, parseUserSettings, USER_SETTINGS_SCHEMA_VERSION, userSettingsConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { assets, settings, userSettings } from "@orb/db";
 import type { DatabaseHandle } from "@orb/db/wiring";
@@ -29,7 +29,7 @@ import { requireIntactStoredConfig } from "#primitives/stored-config";
 import { APP_SETTINGS_KEY } from "../contract/keys.ts";
 
 /** Read this user's typed/defaulted UserSettings. A never-touched account returns parsed defaults with no
- *  write (updatedAt: 0) — materializing the row is ensureUserSettings.
+ *  write (updatedAt: 0). A config write materializes the row through guarded insertion.
  *
  *  READS THROUGH `parseOutcome`, NOT `parse` (#1716): same walk, same value, plus the provenance the
  *  settings surfaces need. `writeUserConfig` below asks this EXACT question of this EXACT row before every
@@ -59,24 +59,6 @@ export async function readUserSettings(db: Db, ownerId: UserId): Promise<UserSet
     updatedAt: row.updatedAt,
     configUnreadable: outcome.intact ? null : outcome.failure,
   };
-}
-
-/** First-touch seed (idempotent), independent of `writeUserConfig`'s own guarded seed
- *  ({@link insertGuardedUserSettings}) — materializes defaults with no guard, for callers that need a row
- *  to exist without a config write (there are none on the tree today; kept as the module's public seed
- *  primitive, tested directly below).
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export async function ensureUserSettings(db: Db, ownerId: UserId, at: number): Promise<void> {
-  await db
-    .insert(userSettings)
-    .values({
-      userId: ownerId,
-      schemaVersion: USER_SETTINGS_SCHEMA_VERSION,
-      config: DEFAULT_USER_SETTINGS,
-      updatedAt: at,
-    })
-    .onConflictDoNothing();
 }
 
 // The ONE asset kind a background may be. Every writer of a `backgroundAssetId` / `backgroundLibrary`
@@ -130,8 +112,7 @@ function ownedBackgroundGuards(db: Db, ownerId: UserId, ids: readonly AssetId[])
  * no interleaving to land inside because there is only one statement. The SELECT's FROM is a bare
  * one-row derived table (`(select 1)`), never `users` (this domain's `no-direct-users-read` fence, checked
  * at gate-time) — `ownerId` itself needs no guaranteed-row source, it is a LITERAL carried by every branch,
- * and the `userId` FK on `user_settings` still rejects a nonexistent owner at the DB level exactly as the
- * unconditional `ensureUserSettings` insert always relied on. SQLite's grammar refuses a bare
+ * and the `userId` FK on `user_settings` still rejects a nonexistent owner at the DB level. SQLite's grammar refuses a bare
  * `SELECT … FROM (subquery) ON CONFLICT …` with no WHERE at all (a parser quirk, confirmed live), so an
  * absent guard (no pinned backgrounds) still carries an explicit always-true `1 = 1`.
  *

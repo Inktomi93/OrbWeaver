@@ -9,7 +9,7 @@
 // + that member's standing appearance/outfit/thoughts guides, the game-subject trackers, the ambient line,
 // active quests + open objectives, the recent journal beats);
 // (2) the DELTA BLOCK — the prev→current snapshot diff (`delta.ts`), rendered BEFORE the license so "let the
-// change land in the fiction" has its referent (always on, omitted on no-change); (3) the STEERING LICENSE (the versioned constant below — values visibly shape behaviour,
+// change land in the fiction" has its referent (always on, omitted on no-change); (3) the STEERING LICENSE (the canonical `rpg.reminder.steeringLicense` prose slot — values visibly shape behaviour,
 // acknowledge changes, never recite the numbers); (4) `config.lite.steeringNote` — the always-wins user slot, LAST.
 //
 // NO tool-update guidance here (owner ruling): the character turn is ALWAYS tool-less prose — state
@@ -42,7 +42,7 @@
 // silent drift — the marinara-derived line the D86 §4.4 posture ships.
 
 import type { ProseOverrides, ProseSlotId } from "@orb/contracts/prose";
-import { PROSE_SLOTS, resolveProse, resolveProseText } from "@orb/contracts/prose";
+import { resolveProse, resolveProseText } from "@orb/contracts/prose";
 import type {
   RpgActorVolatile,
   RpgDateMode,
@@ -69,68 +69,6 @@ import { resolveGuidedInstruction } from "@orb/kit/guided";
 import { createNamesOnlyRegistry, processMacros } from "@orb/kit/macro";
 import type { LiteReminderInput } from "../contract/params.ts";
 import { buildDeltaBlock } from "./delta.ts";
-
-// The teaches + headings below are PROSE-1 slots (`@orb/contracts/rpg/prose`, census 1-10): the shipped-default
-// BYTES live in the `RPG_PROSE_SLOTS` table (ONE home), and the reminder resolves each against the game's
-// PRESET `promptConfig.prose` overrides via {@link resolveTeach}. These exported constants are the DERIVED defaults — the
-// byte-references the substrate tests and the macro-feed sibling read — never a second copy of the string.
-
-/** The steering LICENSE (§4.7 #2) — a VERSIONED slot (a `version` bump = a legible copy revision, never a
- *  silent drift): the tracked values visibly shape behaviour, dialogue, and scene; acknowledge a change when it
- *  happens; NEVER recite the raw numbers back at the player.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export const RPG_STEERING_LICENSE = PROSE_SLOTS["rpg.reminder.steeringLicense"].text;
-
-/** The DECEPTION teaching block — a VERSIONED constant (a bump = a legible copy revision;
- *  the marinara-derived tag grammar the tokenizer's `HIDDEN_TAGS` `lie` registrant recognizes). Teaches the
- *  self-closing `<lie …/>` tag: it is HIDDEN from the reader but REMEMBERED by you (it rides the wire verbatim),
- *  so a lie stays consistent across the scene. The attrs (`character type truth reason`) match the reveal
- *  surface's field order. Composed ONLY when `config.features.deception` is on.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export const RPG_DECEPTION_TEACH = PROSE_SLOTS["rpg.reminder.deceptionTeach"].text;
-
-/** The OMNISCIENCE-FILTER teaching block — a VERSIONED constant (the marinara-derived
- *  `<ofilter …/>` grammar the tokenizer's `ofilter` registrant recognizes). Teaches the perception gate: when
- *  something happens the player's character could NOT perceive, record it in a hidden tag and narrate only what
- *  they CAN perceive. The attrs (`event reason`) match the reveal surface. The optional `who` attr (per-player
- *  perception, graft #V7) is tokenized but v1 hides uniformly — the teach does not mention it. Composed ONLY when
- *  `config.features.omniscience` is on.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export const RPG_OFILTER_TEACH = PROSE_SLOTS["rpg.reminder.omniscienceTeach"].text;
-
-// The WORKED EXAMPLE appended to both card-teach variants (spike §4h, F2b — the copy layer of the tokenizer
-// fix). Its measured job is GRAMMAR, not enthusiasm: it pins the opener line's exact bytes, and the opener is
-// where hosted Sonnet drifts (`:::card title="…">`, the stray `>` §4h measured on 27 of 203 open lines). Arm
-// G (= this teach + this example) led the set at 10/10 rendered. The example is a STILL three-line sign — no
-// scripts, no animation — so it mirrors into the static variant verbatim (§4h: "minus the JS/animation
-// clause" — there is none). It is never echoed as a card (0 "EAST CROSSING" cards in 40 example-arm turns).
-// Copy alone is NOT the fix (10/10 → 5/10 in one of two runs); it rides ON TOP of the tokenizer leniency.
-const RPG_CARD_TEACH_EXAMPLE = PROSE_SLOTS["rpg.card.example"].text;
-
-// The card TEACHING injection (parity-plus §7.5 — owner-authored copy, deliberately SHORT + permissive:
-// no schema, no component vocabulary, no allowlist; the sandbox is the wall, §4.2). A versioned constant
-// (the RPG_STEERING_LICENSE pattern). Emitted only when `features.immersiveHtml` is on; the M3
-// `immersiveHtmlInteractive` sub-toggle picks the variant — it shapes the ASK, never the render (a card
-// the model emits renders in the same sandbox either way).
-const RPG_CARD_TEACH_ASK = PROSE_SLOTS["rpg.card.askInteractive"].text;
-/** @public Test-anchored module surface; focused tests pin this production-local behavior. */
-export const RPG_CARD_TEACH = RPG_CARD_TEACH_ASK + RPG_CARD_TEACH_EXAMPLE;
-
-// The CYOA teaching block — a versioned constant (the RPG_STEERING_LICENSE pattern).
-// Teaches the `:::choices` directive fence the tokenizer's `choices` registrant recognizes; the reading
-// surface renders the options as clickable send-affordances (§5.2-5.3). Composed ONLY when
-// `config.features.cyoa` is on; the wand's one-shot "Offer choices" covers the this-turn-only ask.
-/** @public Test-anchored module surface; focused tests pin this production-local behavior. */
-export const RPG_CYOA_TEACH = PROSE_SLOTS["rpg.reminder.cyoaTeach"].text;
-
-// The M3 static-ask variant (`immersiveHtmlInteractive: false`) — the calmer table: still cards, no ask
-// for scripts/animation. The render is identical (toggle-independent); only the invitation narrows.
-const RPG_CARD_TEACH_STATIC_ASK = PROSE_SLOTS["rpg.card.askStatic"].text;
-/** @public Test-anchored module surface; focused tests pin this production-local behavior. */
-export const RPG_CARD_TEACH_STATIC = RPG_CARD_TEACH_STATIC_ASK + RPG_CARD_TEACH_EXAMPLE;
 
 /** The ambient line. `dateMode` (#9): `narrated` renders the FREEFORM date string as the date datum and
  *  DROPS the sequential `day N` counter (no forced day-count pressure on the model); `structured` keeps
@@ -448,8 +386,7 @@ function teachingBlocks(input: LiteReminderInput): string[] {
     blocks.push(resolveTeach("rpg.reminder.omniscienceTeach", input));
   }
   if (input.features.immersiveHtml) {
-    // The card teach is TWO slots — the interactive/static ASK + the shared worked EXAMPLE (`RPG_CARD_TEACH`
-    // was `ASK + EXAMPLE`); resolved separately and re-concatenated so the composed bytes stay identical.
+    // Resolve the selected ask and shared example separately so each preset override keeps its own bytes.
     const ask: ProseSlotId = input.features.immersiveHtmlInteractive ? "rpg.card.askInteractive" : "rpg.card.askStatic";
     blocks.push(resolveTeach(ask, input) + resolveTeach("rpg.card.example", input));
   }

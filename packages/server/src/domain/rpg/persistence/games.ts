@@ -41,29 +41,6 @@ function parseGameRow(row: RpgGameRow): RpgGameRow {
   return { ...row, config: parsed.data };
 }
 
-/** Insert the game row, returning it parsed. Production birth uses the statement-plan seam in
- *  `game-mint.ts`; this eager twin is the setup door the rpg suites mint a game through.
- *
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export async function insertGame(db: Db, values: NewRpgGame): Promise<RpgGameRow> {
-  const rows = await db.insert(rpgGames).values(values).returning();
-  const row = rows[0];
-  if (!row) {
-    throw new Error("insertGame: no row returned");
-  }
-  return parseGameRow(row);
-}
-
-/** The game keyed by its id, parsed, or `undefined`.
- *
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export async function findGameById(db: Db, id: RpgGameId): Promise<RpgGameRow | undefined> {
-  const rows = await db.select().from(rpgGames).where(eq(rpgGames.id, id)).limit(LIMIT_ONE);
-  return rows[0] ? parseGameRow(rows[0]) : undefined;
-}
-
 /** The game for a chat (one per chat — the UNIQUE chatId), parsed, or `undefined`. Game-ness resolves here. */
 export async function findGameByChat(db: Db, chatId: ChatId): Promise<RpgGameRow | undefined> {
   const rows = await db.select().from(rpgGames).where(eq(rpgGames.chatId, chatId)).limit(LIMIT_ONE);

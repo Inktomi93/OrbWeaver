@@ -32,7 +32,7 @@ type ParticipantActor = { readonly kind: "human"; readonly userId: UserId } | { 
 
 type ParticipantInsertRow = typeof chatParticipants.$inferInsert;
 
-/** The row shape both {@link classifyParticipant} and {@link parseParticipant} discriminate. */
+/** The row shape {@link classifyParticipant} discriminates. */
 interface ParticipantRowShape {
   readonly kind: ParticipantKind;
   readonly userId: UserId | null;
@@ -50,8 +50,7 @@ interface ParticipantRowShape {
  *  needs — 29 call sites across the domain re-spelled this inline before the 2026-08-15 consolidation
  *  (`loadParticipants`'s hot read never throws on a corrupt row; a `.filter`/`.flatMap`/`.find` site's silent-skip
  *  semantics are preserved by discarding a `null` classification exactly the way the inline guard already
- *  discarded a failed condition — zero behavior change was the whole point of splitting this off
- *  {@link parseParticipant}, which keeps the throwing contract for callers that want the loud belt). */
+ *  discarded a failed condition). */
 export function classifyParticipant(row: ParticipantRowShape): ParticipantActor | null {
   switch (row.kind) {
     case "human":
@@ -67,8 +66,7 @@ export function classifyParticipant(row: ParticipantRowShape): ParticipantActor 
  *  returned inline (#1480 item 1). The old spelling assigned `row.kind` to a `never`-typed local and
  *  RETURNED that local: compile-time exhaustive, but the raw runtime string at runtime. A row whose `kind`
  *  is neither live kind therefore classified as that STRING, which is not `null` — so
- *  {@link parseParticipant}'s `actor === null` rejection could never fire on it, and every
- *  `classifyParticipant(row)?.kind === "human"` reader saw a truthy actor carrying no `userId`. Reaching
+ *  `classifyParticipant(row)?.kind === "human"` readers saw a truthy actor carrying no `userId`. Reaching
  *  this arm needs a row that bypassed the
  *  `chat_participants_kind_check` DB CHECK (a hand-written row, a restored dump, a future kind added to the
  *  CHECK before this switch) -- exactly the corrupt-row case this classifier exists to absorb. The `never`
@@ -77,21 +75,6 @@ export function classifyParticipant(row: ParticipantRowShape): ParticipantActor 
  *  `assertNeverClassification` -- exhaustive at compile time, total and non-throwing at runtime.) */
 function classifyUnrecognizedKind(_kind: never): null {
   return null;
-}
-
-/** The loud belt for a corrupt row — throws on an XOR violation or unrecognized kind. Delegates to
- *  {@link classifyParticipant} (one home, one enforcement mechanism); kept for callers that want a hard
- *  failure rather than a silent skip (a future DB-integrity job, or a reader that never expects a corrupt
- *  row to reach it at all — see the header note above). Exercised directly by its own int suite (every
- *  XOR-violation arm).
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export function parseParticipant(row: ParticipantRowShape): ParticipantActor {
-  const actor = classifyParticipant(row);
-  if (actor === null) {
-    throw new Error(`corrupt or unrecognized participant: kind '${row.kind}' must carry the XOR of userId/characterId for its kind`);
-  }
-  return actor;
 }
 
 /** Every character seat's id, in roster order, each once (a corrupt row is skipped, as {@link classifyParticipant} does). */
@@ -120,11 +103,8 @@ export function assertForcedCharacterMember(p: { readonly kind: ParticipantKind;
   }
 }
 
-/** `leftSeq IS NULL` ⇒ present (in every union — WI/roster/arbitration).
- *
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export function isPresent(p: { readonly leftSeq: number | null }): boolean {
+// `leftSeq IS NULL` ⇒ present (in every union — WI/roster/arbitration).
+function isPresent(p: { readonly leftSeq: number | null }): boolean {
   return p.leftSeq === null;
 }
 

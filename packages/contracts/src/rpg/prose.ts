@@ -1,8 +1,7 @@
 // @orb/contracts/rpg/prose — the rpg prose slot table (PROSE-1 §4.1). TWO cohorts, one table:
 //   • census 1-10   — the steering REMINDER seam (what the NARRATOR is taught the tracked values mean).
-//     `domain/rpg/substrate/reminder.ts` + `delta.ts` DERIVE their exported constants from these rows
-//     (`RPG_STEERING_LICENSE = PROSE_SLOTS["rpg.reminder.steeringLicense"].text`), so a default is authored
-//     exactly once and the reminder can never disagree with what the registry ships.
+//     `domain/rpg/substrate/reminder.ts` + `delta.ts` resolve these rows through the prose registry,
+//     so defaults and preset overrides share one authored home.
 //   • census 11-27 + 29-36 — the EXTRACTION seam (what the EXTRACTOR is taught to write back): the per-plane
 //     teaching fragments, the six tool descriptions + the `no_changes` escape, and the two system-prompt
 //     framings. These are per-game TEMPLATES — see the cohort's own header block below for why that is a

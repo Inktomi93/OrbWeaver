@@ -1,12 +1,8 @@
 import type { GeneratePicture } from "@orb/contracts/imagery";
 import type { GeneratePictureOp } from "../contract/context.ts";
 
-/**
- * Chat's `generatePicture` op over imagery's orchestrator: forwards the request and maps imagery's
- * `GeneratedPicture` onto chat's chat-local structural result (chat cannot import imagery's types).
- *
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
+/** Chat's `generatePicture` op over imagery's orchestrator: forwards the request and maps imagery's
+ * `GeneratedPicture` onto chat's chat-local structural result (chat cannot import imagery's types). */
 
 export function createGeneratePictureOp(generatePicture: GeneratePicture): GeneratePictureOp {
   return async (p): ReturnType<GeneratePictureOp> => {

@@ -18,11 +18,9 @@ const MODE_SENTENCE: Record<Exclude<AuthMode, "local">, string> = {
   oidc: "Your identity provider returns people only to the addresses registered with it. Friends sign in at the address in OIDC_REDIRECT_URIS.",
 };
 
-/** The address in the one spelling a certificate and an ACME identifier use: a dotted quad, or RFC 5952 IPv6 text.
- *  Null for anything that is not an IP literal, and for an IPv4-mapped IPv6 address, which names no public host.
- *  @public Test-anchored module surface; tests/legacy/server/domain/share/substrate/certificate-refusal.test.ts
- *  calls it directly, in addition to the in-file use below. */
-export function canonicalAddress(raw: string): string | null {
+// The address in the one spelling a certificate and an ACME identifier use: a dotted quad, or RFC 5952 IPv6 text.
+//  Null for anything that is not an IP literal, and for an IPv4-mapped IPv6 address, which names no public host.
+function canonicalAddress(raw: string): string | null {
   const trimmed = raw.trim();
   const parsed = parseIp(trimmed);
   if (parsed === null) {

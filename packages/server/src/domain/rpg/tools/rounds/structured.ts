@@ -202,8 +202,7 @@ const STRUCTURED_FRAMES: Readonly<Record<RpgStructuredRoundShape, ProseSlotId>> 
 
 /** The round's two structured schemas and the planner's answers for this connection, the schemas built at most
  *  once and only when a caller asks: a tool row that never needs a structured round never projects either. The
- *  shape is the first candidate the plan fits, in `RPG_STRUCTURED_ROUND_SHAPES` order.
- * @public Test-anchored module surface: the structured round's vehicle pins read these plans. */
+ *  shape is the first candidate the plan fits, in `RPG_STRUCTURED_ROUND_SHAPES` order. */
 export function structuredShapes(
   conn: Resolved<"chat">,
   refs: ExtractionRefs,

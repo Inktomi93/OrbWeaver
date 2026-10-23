@@ -26,6 +26,7 @@ export interface FundingProvider {
   readonly errors: Error[];
   readonly fetch: typeof fetch;
   readonly span: InferenceDeps["span"];
+  embedding: (model: string, vector: readonly number[]) => void;
   reply: (text: string) => void;
   image: (bytes: Uint8Array) => void;
   toolReply: (name: string, argumentsJson: string) => void;
@@ -69,7 +70,7 @@ function authenticationFailure(status: number): Response {
   );
 }
 
-function embeddingResponse(body: string | null): Response {
+function embeddingResponse(body: string | null, vectors: ReadonlyMap<string, readonly number[]>): Response {
   if (body === null) {
     throw new Error("the physical embedding request carried no body");
   }
@@ -79,13 +80,17 @@ function embeddingResponse(body: string | null): Response {
   }
   const input = request["input"];
   const messages = request["messages"];
+  const model = request["model"];
+  if (typeof model !== "string") {
+    throw new Error("the physical embedding request carried no model");
+  }
   if (input === undefined && !Array.isArray(messages)) {
     throw new Error("the physical embedding request carried neither text inputs nor multimodal messages");
   }
   const count = Array.isArray(input) ? input.length : 1;
   return Response.json({
-    model: FUNDING_MODEL,
-    data: Array.from({ length: count }, (_value, index) => ({ index, embedding: [1, 0, 0] })),
+    model: vectors.has(model) ? model : FUNDING_MODEL,
+    data: Array.from({ length: count }, (_value, index) => ({ index, embedding: vectors.get(model) ?? [1, 0, 0] })),
     usage: { ["prompt_tokens"]: count, ["total_tokens"]: count },
   });
 }
@@ -96,6 +101,7 @@ function createFundingProvider(): FundingProvider {
   const authorizations: (string | null)[] = [];
   const requestBodies: string[] = [];
   const errors: Error[] = [];
+  const vectors = new Map<string, readonly number[]>();
   let reply = JSON.stringify({ answer: "funded" });
   let image = "AA==";
   let toolReply: { readonly name: string; readonly argumentsJson: string } | null = null;
@@ -132,7 +138,7 @@ function createFundingProvider(): FundingProvider {
   };
   const successResponse = (path: string, body: string | null): Response => {
     if (path.endsWith("/embeddings")) {
-      return embeddingResponse(body);
+      return embeddingResponse(body, vectors);
     }
     if (path.endsWith("/rerank")) {
       return Response.json({ results: [{ index: 0, ["relevance_score"]: 1 }], usage: { ["total_tokens"]: 1 } });
@@ -165,6 +171,9 @@ function createFundingProvider(): FundingProvider {
     authorizations,
     requestBodies,
     errors,
+    embedding: (model, vector): void => {
+      vectors.set(model, vector);
+    },
     wrapFailures: (next): void => {
       wrap = next;
     },

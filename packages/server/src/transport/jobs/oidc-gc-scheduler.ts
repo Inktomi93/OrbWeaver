@@ -41,13 +41,9 @@ export interface OidcGcSchedulerDeps {
   readonly intervalMs?: number;
 }
 
-/**
- * ONE reap step: delete every expired transaction as of `now`. The testable core — a test stubs `sweep` + a
- * frozen clock and asserts the sweep fires with the current instant. Logs the count only when something was
- * reaped (idle sweeps are silent).
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export async function runOidcGc(deps: OidcGcSchedulerDeps): Promise<void> {
+// ONE reap step: delete every expired transaction as of `now`. Logs the count only when something was
+// reaped (idle sweeps are silent).
+async function runOidcGc(deps: OidcGcSchedulerDeps): Promise<void> {
   const log = getLog().child({ component: LOG_COMPONENT });
   const reaped = await deps.sweep(deps.now());
   if (reaped > 0) {

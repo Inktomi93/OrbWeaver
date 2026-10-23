@@ -187,11 +187,9 @@ export interface DedupCandidateBook extends DedupBook {
   readonly id: WorldBookId;
 }
 
-/** The content-equality key: the SORTED per-entry canonical JSON. Two books with the same entry set produce
- *  the same key, under any names.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export function bookContentKey(book: Pick<DedupBook, "entries">): string {
+// The content-equality key: the SORTED per-entry canonical JSON. Two books with the same entry set produce
+//  the same key, under any names.
+function bookContentKey(book: Pick<DedupBook, "entries">): string {
   const entryKeys = book.entries.map((entry) => stableStringify(loreEntryIdentity(entry))).sort();
   return stableStringify({ entries: entryKeys });
 }

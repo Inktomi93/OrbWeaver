@@ -140,14 +140,12 @@ function toRowBase(row: WorkloadDecodedRow): Omit<WorkloadRowAnyKind, "kind" | "
   });
 }
 
-/** Narrow a raw row to the typed `WorkloadRowAnyKind`, or `null` when the KIND itself isn't in this build (a
- *  deploy-skew row that cannot be spelled at all). A known kind whose params blob fails its schema is NOT
- *  dropped — it surfaces as a POISON row (`params: null, poison: true`) so a broken row is visible and
- *  actionable instead of vanishing from `list`/`get`. The one place the JSON columns are narrowed; the
- *  per-kind validator is the OWNING domain's contribution schema — the queue spells no domain's vocabulary.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export function toView(contributions: WorkloadContributions, row: WorkloadDecodedRow): WorkloadRowAnyKind | null {
+// Narrow a raw row to the typed `WorkloadRowAnyKind`, or `null` when the KIND itself isn't in this build (a
+//  deploy-skew row that cannot be spelled at all). A known kind whose params blob fails its schema is NOT
+//  dropped — it surfaces as a POISON row (`params: null, poison: true`) so a broken row is visible and
+//  actionable instead of vanishing from `list`/`get`. The one place the JSON columns are narrowed; the
+//  per-kind validator is the OWNING domain's contribution schema — the queue spells no domain's vocabulary.
+function toView(contributions: WorkloadContributions, row: WorkloadDecodedRow): WorkloadRowAnyKind | null {
   if (!isKnownKind(row.kind)) {
     return null;
   }
@@ -339,11 +337,11 @@ export async function markCancelling(db: Db, id: WorkloadId, now: number): Promi
   return { status: current[0]?.status === "cancelling" ? "cancelling" : null };
 }
 
-/** Fail a queued row in place (poison-row + dependency-failed paths) — `markTerminal` only transitions
- *  from in-flight states. Returns whether it moved. */
+// Fail a queued row in place (poison-row + dependency-failed paths) — `markTerminal` only transitions
+//  from in-flight states. Returns whether it moved.
 // THE ENGINE PLANE (D20 un-principal) — the poison-row / dependency-failed fail-in-place. The id is one the engine itself polled/enumerated (`nextRunnableWorkload`), never caller input, and these writes must move ADMIN and system rows too, so an ownerId in the WHERE would make that unrepresentable. The user-facing rung is F3-AUTHZ at the verb (`isVisibleToCaller(isAdmin, caller, row.ownerId)`), the POST-FETCH arm the read half recognizes. Ends if a door writes a workload row without that check.
-/** @public Test-anchored module surface; focused tests pin this production-local behavior. */
-export async function failQueuedRow(db: Db, id: WorkloadId, error: string, now: number): Promise<boolean> {
+
+async function failQueuedRow(db: Db, id: WorkloadId, error: string, now: number): Promise<boolean> {
   const moved = await db
     .update(workloads)
     .set({ status: "failed", error, updatedAt: now })

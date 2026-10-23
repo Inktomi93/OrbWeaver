@@ -773,11 +773,10 @@ function parseProcessEnv(): z.infer<typeof envSchema> {
   return parsed.data;
 }
 
-/** The app secrets the parse reads. Every child process inherits `process.env` unless its spawn passes an `env`, so
- *  {@link scrubAppSecretsFromProcessEnv} deletes these once `env` holds them. Nothing reads them from `process.env`
- *  after the parse.
- *  @public Test-anchored module surface; the child-env spec seeds and checks these keys by name. */
-export const APP_SECRET_ENV_KEYS = [
+// The app secrets the parse reads. Every child process inherits `process.env` unless its spawn passes an `env`, so
+//  {@link scrubAppSecretsFromProcessEnv} deletes these once `env` holds them. Nothing reads them from `process.env`
+//  after the parse.
+const APP_SECRET_ENV_KEYS = [
   "SESSION_SECRET",
   "CREDENTIALS_KEY",
   "OIDC_CLIENT_SECRET",

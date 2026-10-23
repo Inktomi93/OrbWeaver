@@ -109,18 +109,16 @@ export function fitCeilingTokens(budget: HistoryBudget): number | null {
   return Number.isFinite(room) ? reportedRoom(room) + budget.reserveOutputTokens : null;
 }
 
-/** The trim chunk as a fraction of `ceiling − reserveOutputTokens`, before the hard window's estimator discount:
- *  a larger chunk moves the cut, and so breaks the cached prefix, less often.
- *
- *  @remarks The prompt cache is an exact prefix, so a fit that drops one row per turn rewrites the whole kept
- *  history every turn. The cut snaps to a grid of chunks counted from the history's start instead, so
- *  consecutive turns pick the same cut until growth crosses the next boundary. The grid is derived from the rows
- *  and the budget alone, because the fit is stateless. The room excludes the system prompt: its dynamic half
- *  changes per turn, and a chunk that changes size moves every boundary. A module constant, not config: no
- *  user or deployment varies it.
- * @public Test-anchored module surface; the fit tests bound the extra drop by this chunk.
- */
-export const HISTORY_TRIM_CHUNK_FRACTION = 0.1;
+// The trim chunk as a fraction of `ceiling − reserveOutputTokens`, before the hard window's estimator discount:
+//  a larger chunk moves the cut, and so breaks the cached prefix, less often.
+//
+//  The prompt cache is an exact prefix, so a fit that drops one row per turn rewrites the whole kept
+//  history every turn. The cut snaps to a grid of chunks counted from the history's start instead, so
+//  consecutive turns pick the same cut until growth crosses the next boundary. The grid is derived from the rows
+//  and the budget alone, because the fit is stateless. The room excludes the system prompt: its dynamic half
+//  changes per turn, and a chunk that changes size moves every boundary. A module constant, not config: no
+//  user or deployment varies it.
+const HISTORY_TRIM_CHUNK_FRACTION = 0.1;
 
 // The chunk the cut snaps to. Stable per chat: it reads only the ceiling and the output reserve.
 function trimChunkTokens(ceiling: number, reserveOutputTokens: number): number {

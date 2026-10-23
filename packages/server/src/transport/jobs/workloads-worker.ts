@@ -67,14 +67,10 @@ interface WorkerTickOutcome {
   readonly backOff: boolean;
 }
 
-/**
- * ONE poll step FOR ONE LANE: query that lane's queue head, and if a row is runnable, dispatch it through the
- * injected `run`. The testable core — a test mocks `nextRunnable`/`run`/`load` and asserts the claim +
- * dispatch with a deterministic clock. Engine throws are caught + logged (the reaper recovers a wedged row);
- * a row still `queued` after dispatch signals a back-off.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export async function claimAndRunNext(deps: WorkloadsWorkerDeps, lane: WorkloadLane): Promise<WorkerTickOutcome> {
+// ONE poll step FOR ONE LANE: query that lane's queue head, and if a row is runnable, dispatch it through the
+// injected `run`. Engine throws are caught + logged (the reaper recovers a wedged row);
+// a row still `queued` after dispatch signals a back-off.
+async function claimAndRunNext(deps: WorkloadsWorkerDeps, lane: WorkloadLane): Promise<WorkerTickOutcome> {
   const { db, contributions, now } = deps.runnerDeps;
   const log = getLog().child({ component: LOG_COMPONENT, lane });
 
@@ -118,11 +114,8 @@ export async function claimAndRunNext(deps: WorkloadsWorkerDeps, lane: WorkloadL
   return { ran: true, backOff: false };
 }
 
-/** ONE reap step: sweep orphaned in-flight rows. The testable core for the periodic reap tick + the boot
- *  reap. Errors are logged + swallowed (the reaper must never take the loop down).
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export async function reapOnce(deps: WorkloadsWorkerDeps, reason: WorkloadReapReason): Promise<number> {
+// ONE reap step: sweep orphaned in-flight rows. Errors are logged + swallowed (the reaper must never take the loop down).
+async function reapOnce(deps: WorkloadsWorkerDeps, reason: WorkloadReapReason): Promise<number> {
   const { db, now, emitEvent } = deps.runnerDeps;
   const log = getLog().child({ component: LOG_COMPONENT });
   try {

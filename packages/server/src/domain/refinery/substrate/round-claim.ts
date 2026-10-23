@@ -29,24 +29,20 @@ import type { RefinerySessionId } from "@orb/kit/ids";
 import { and, eq, isNull, lt, or } from "drizzle-orm";
 import type { RefineryRoundClaim } from "../contract/results.ts";
 
-/**
- * How long a taken round claim stays valid without being released.
- *
- * THIS IS A CRASH BACKSTOP, NOT A CORRECTNESS BOUND, and that is what makes the number safe to choose: if it
- * expires while a round is genuinely still running, the session degrades to EXACTLY the pre-#1568 behaviour
- * (two rounds refining off the same analysis) — never to a corrupt tally or a lost run, because the counter is
- * still incremented in SQL and the run log is still append-only. So it is set generously above a real round
- * and read as "how long a crashed process may hold a session".
- *
- * FIFTEEN MINUTES is that generous bound. One round is up to four structured model calls (rewrite + its
- * bounded retry, analyze + its bounded retry), and a streaming runner tolerates a 180s IDLE window per call
- * before it aborts a stalled socket — so ~12 minutes of stall tolerance is reachable by a round that is slow
- * but alive, and a shorter lease would expire underneath it. Fifteen clears that with margin while keeping a
- * genuinely dead round's hold to something a person will wait out rather than report as a stuck session.
- *
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export const REFINERY_ROUND_LEASE_MS = 900_000;
+// How long a taken round claim stays valid without being released.
+//
+// THIS IS A CRASH BACKSTOP, NOT A CORRECTNESS BOUND, and that is what makes the number safe to choose: if it
+// expires while a round is genuinely still running, the session degrades to EXACTLY the pre-#1568 behaviour
+// (two rounds refining off the same analysis) — never to a corrupt tally or a lost run, because the counter is
+// still incremented in SQL and the run log is still append-only. So it is set generously above a real round
+// and read as "how long a crashed process may hold a session".
+//
+// FIFTEEN MINUTES is that generous bound. One round is up to four structured model calls (rewrite + its
+// bounded retry, analyze + its bounded retry), and a streaming runner tolerates a 180s IDLE window per call
+// before it aborts a stalled socket — so ~12 minutes of stall tolerance is reachable by a round that is slow
+// but alive, and a shorter lease would expire underneath it. Fifteen clears that with margin while keeping a
+// genuinely dead round's hold to something a person will wait out rather than report as a stuck session.
+const REFINERY_ROUND_LEASE_MS = 900_000;
 
 /**
  * Take the session's round claim, or `undefined` when another round holds a LIVE one. One conditional UPDATE:

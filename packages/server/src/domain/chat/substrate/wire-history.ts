@@ -298,17 +298,6 @@ export function convertsToEmptyWireRow(content: string): boolean {
   return tokenizeContent(content, { committed: true }).every(spanConvertsToNothing);
 }
 
-/** Test-only seam: the empty-conversion table is bound to the handlers span kind by span kind.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export const __spanConvertsToNothingForTest = spanConvertsToNothing;
-
-/** Test-only seam: the CONTENT_CLASS_POLICY/dispatch binding test calls the real dispatch directly (no
- *  reason to reassemble a full turn to exercise one span → wire-part rule).
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export const __spanToWirePartForTest = spanToWirePart;
-
 /** Projects a row's spans into provider content-parts. Adjacent text parts MERGE, so a body whose spans all
  *  ride as text (the common no-image case — hidden tags and all) stays ONE text part, byte-identical to the
  *  pre-registry wire for every wire=full class. */
@@ -950,15 +939,12 @@ function shiftBreakpoint(
   return shifted ?? null;
 }
 
-/** The ROWS THE FIT PRICES — the single spelling of the fit's input (#1540). Both callers hand
- *  `fitHistory` exactly this: the turn pipeline, whose `droppedCount` then slices the kept wire rows back
- *  out of the same array, and the read verb's previews, which read only the boundary + the numbers. Spelling
- *  it once is the point of the ticket: a second `.map(w => w.costRow)` on the read side is how the two
- *  paths silently disagreed about what a card-heavy history costs.
- *
- *  @public Test-anchored module surface; tests/legacy/server/domain/chat/substrate/wire-history.test.ts asserts
- *  the CONTRACT this spelling carries directly, in addition to the in-file callers. */
-export function wireCostRows(converted: readonly WireRow[]): ShapedHistoryRow[] {
+// The ROWS THE FIT PRICES — the single spelling of the fit's input (#1540). Both callers hand
+//  `fitHistory` exactly this: the turn pipeline, whose `droppedCount` then slices the kept wire rows back
+//  out of the same array, and the read verb's previews, which read only the boundary + the numbers. Spelling
+//  it once is the point of the ticket: a second `.map(w => w.costRow)` on the read side is how the two
+//  paths silently disagreed about what a card-heavy history costs.
+function wireCostRows(converted: readonly WireRow[]): ShapedHistoryRow[] {
   return converted.map((w) => w.costRow);
 }
 

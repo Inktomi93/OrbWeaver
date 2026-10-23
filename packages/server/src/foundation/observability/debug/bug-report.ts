@@ -115,23 +115,21 @@ export function secretLiterals(environment: Readonly<Record<string, unknown>>): 
   return literals;
 }
 
-/** Serialize a report and remove every known secret literal. `null` ⇒ a literal SURVIVED, and the caller must
- *  refuse the write.
- *
- *  The check is this module's OWN post-condition — `literal is still present` — deliberately not a test for
- *  `redactKnownSecrets`'s `""` sentinel. Reading the sentinel would couple the last gate before bytes reach
- *  disk to one particular failure SPELLING inside the scrubber; asking the question the caller actually cares
- *  about survives a change there. On today's kit implementation the arm is unreachable (the scrubber loops
- *  until every literal is gone, degrading its marker to `""` when it must), which is exactly the property the
- *  spec pins — a post-condition on a security boundary earns its keep by being checked, not by firing.
- *
- *  It asks about `secretRedactionLiterals`, not about the raw `secrets` (#1785). This is a SERIALIZE-then-
- *  scrub site: `JSON.stringify` escapes `"` and `\`, so an operator credential holding either is in these
- *  bytes only as `a\"b`. A post-condition that searched for the raw literal would have certified exactly the
- *  bytes it exists to refuse.
- *
- *  @public Test-anchored module surface; focused tests pin this production-local behavior. */
-export function serializeScrubbed(record: BugReportRecord, secrets: readonly string[]): string | null {
+// Serialize a report and remove every known secret literal. `null` ⇒ a literal SURVIVED, and the caller must
+//  refuse the write.
+//
+//  The check is this module's OWN post-condition — `literal is still present` — deliberately not a test for
+//  `redactKnownSecrets`'s `""` sentinel. Reading the sentinel would couple the last gate before bytes reach
+//  disk to one particular failure SPELLING inside the scrubber; asking the question the caller actually cares
+//  about survives a change there. On today's kit implementation the arm is unreachable (the scrubber loops
+//  until every literal is gone, degrading its marker to `""` when it must), which is exactly the property the
+//  spec pins — a post-condition on a security boundary earns its keep by being checked, not by firing.
+//
+//  It asks about `secretRedactionLiterals`, not about the raw `secrets` (#1785). This is a SERIALIZE-then-
+//  scrub site: `JSON.stringify` escapes `"` and `\`, so an operator credential holding either is in these
+//  bytes only as `a\"b`. A post-condition that searched for the raw literal would have certified exactly the
+//  bytes it exists to refuse.
+function serializeScrubbed(record: BugReportRecord, secrets: readonly string[]): string | null {
   const json = JSON.stringify(record, null, 2);
   const scrubbed = redactKnownSecrets(json, secrets);
   return secretRedactionLiterals(secrets).some((literal) => scrubbed.includes(literal)) ? null : scrubbed;

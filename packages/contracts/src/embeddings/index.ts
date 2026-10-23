@@ -1,7 +1,5 @@
-// `@orb/contracts/embeddings` — the IMAGE-lens axis, promoted here so `@orb/db` can derive its
-// `image_embeddings.lens` enum column (it cannot import a server-tier `domain/*/contract/`).
-// Scope: only the image subset of the domain's broader `SourceLens` — text lenses (`card-text`/
-// `segment`/`digest`) route to distinct tables, not this column, so they aren't re-spelled here.
+// The image-lens vocabulary owns the DB `image_embeddings.lens` column.
+// Text embeddings use distinct tables and do not contribute values to this column.
 
 import { z } from "zod";
 import type { EmbeddingTask } from "./accounting.ts";

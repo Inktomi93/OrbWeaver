@@ -8,7 +8,7 @@
 //   • resolveSnapshotBeforeSlot — the state as of the slot BEFORE a turn: its WRITE base always (VER-1a — a
 //     reroll's new variant never inherits its own slot's rejected variant) AND its READ base on a REGEN
 //     (VER-1b — the reminder/delta a reroll is generated against must not describe the abandoned variant).
-//   • writeStagedSnapshot / writeStagedSnapshotAndJournal — the TURN arm: a new variant's snapshot inherits
+//   • writeStagedSnapshotAndJournal — the TURN arm: a new variant's snapshot inherits
 //     ALL fields from its resolution
 //     base, born committed=0. `writeHandSnapshot`/`writeResyncedSnapshot` and restore's unexecuted companion
 //     statement builder — the HAND arm, born committed=1. `fieldLocks` carry forward from the base unchanged
@@ -112,11 +112,8 @@ function parseSnapshotRow(row: RpgSnapshotRow): RpgSnapshotRow {
   };
 }
 
-/** The snapshot keyed on `variantId` (the UNIQUE swipe key), parsed, or `undefined`.
- *
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export async function findSnapshotByVariant(db: Db, variantId: MessageVariantId): Promise<RpgSnapshotRow | undefined> {
+// The snapshot keyed on `variantId` (the UNIQUE swipe key), parsed, or `undefined`.
+async function findSnapshotByVariant(db: Db, variantId: MessageVariantId): Promise<RpgSnapshotRow | undefined> {
   const rows = await db.select().from(rpgSnapshots).where(eq(rpgSnapshots.variantId, variantId)).limit(LIMIT_ONE);
   return rows[0] ? parseSnapshotRow(rows[0]) : undefined;
 }
@@ -127,18 +124,6 @@ export async function findSnapshotByVariant(db: Db, variantId: MessageVariantId)
 export async function listSnapshots(db: Db, gameId: RpgGameId): Promise<readonly RpgSnapshotRow[]> {
   const rows = await db.select().from(rpgSnapshots).where(eq(rpgSnapshots.gameId, gameId));
   return rows.map(parseSnapshotRow);
-}
-
-/** EVERY snapshot row a game has, both arms — a row CENSUS, not a beat count. Nothing in production reads it;
- *  it is the tests' "did this write land a row" lens (a fold writes a HAND row, and that is exactly what the
- *  census must see). The cadence counter is {@link countBeatSnapshots} below, and the two are deliberately
- *  different questions.
- *
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export async function countSnapshots(db: Db, gameId: RpgGameId): Promise<number> {
-  const rows = await db.select({ n: count() }).from(rpgSnapshots).where(eq(rpgSnapshots.gameId, gameId));
-  return rows.at(0)?.n ?? 0;
 }
 
 /** The reconcile-cadence BEAT COUNTER (crunchy-cluster §1.3): every `reconcileEveryBeats`-th flush is a
@@ -461,12 +446,10 @@ export async function resolveTurnSnapshotPair(
   return { cur, prev: prev?.row };
 }
 
-/** Insert a snapshot row (a turn flush's forwarded row, or a hand row), returning it parsed. The JSON values
- *  arrive already-typed (from a parsed base or a validated config), so the read-side parse on the returned row
- *  is the corruption belt.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export async function insertSnapshot(db: Db, values: NewRpgSnapshot): Promise<RpgSnapshotRow> {
+// Insert a snapshot row (a turn flush's forwarded row, or a hand row), returning it parsed. The JSON values
+//  arrive already-typed (from a parsed base or a validated config), so the read-side parse on the returned row
+//  is the corruption belt.
+async function insertSnapshot(db: Db, values: NewRpgSnapshot): Promise<RpgSnapshotRow> {
   const rows = await db.insert(rpgSnapshots).values(values).returning();
   const row = rows[0];
   if (!row) {
@@ -522,34 +505,9 @@ function snapshotInsertFrom(
   };
 }
 
-/** The Option-A turn flush: write the turn's accumulated effective state keyed to the selected assistant
- *  variant. A new variant inserts a snapshot born `committed=0` (the next user send's `onUserCommit` locks it
- *  in). Continue extends a variant in place, so an existing row is replaced in place while preserving its id
- *  and committed bit; inserting a second row would violate the one-snapshot-per-variant invariant and leave
- *  the panel stuck on the pre-continuation state.
- *
- *  The
- *  state arrives locks-honored (the accumulator applied `applyLockedPatch` at stage time); `fieldLocks`
- *  carry forward on the state (tools never author locks — only `editSnapshot` does, W1b).
- *
- *  STRUCTURAL canon-corruption backstop (stickler F1): validate the to-be-written state against the FULL
- *  contract schema BEFORE the durable insert. The parse-on-read belt fires AFTER `insertSnapshot` commits, so
- *  an applier bug (present OR future) producing a contract-violating state would poison the row permanently
- *  and brick every later read. This gate makes "canon NEVER corrupted" STRUCTURAL, not a per-applier promise.
- *
- *  Returns `{ok:false, reason}` when the state is contract-INVALID — the caller DROPS the delta (errors-as-data,
- *  mirroring the extraction's non-conforming empty-delta path), never commits a poisoned row, AND LOGS the
- *  reason (the drop is observable, never silent).
- *
- *  @public Test-anchored module surface: the journal-less arm of {@link writeStagedSnapshotAndJournal},
- *  which is the door `chat-ops/flush.ts` uses. Delegating rather than re-spelling is what keeps the
- *  suites that drive this one honest about the production write boundary. */
-export function writeStagedSnapshot(db: Db, state: RpgSnapshotState, target: TurnSnapshotTarget): Promise<WriteStagedSnapshotResult> {
-  return writeStagedSnapshotAndJournal(db, state, target, []);
-}
-
 /** Commit one turn snapshot and all journal rows produced by that same staged delta in ONE pure-write batch.
- * Validation happens before the batch; one UPSERT handles both fresh and existing variants, so every batched
+ * Validate before persistence: parse-on-read would reject malformed accumulated state only after it had durably poisoned canon.
+ * One UPSERT handles both fresh and existing variants, so every batched
  * statement is a write and `@orb/db/query`'s DEFERRED-batch invariant holds. A failure anywhere rolls the whole
  * beat back; the post-commit read returns the canonical row identity. */
 export async function writeStagedSnapshotAndJournal(
@@ -615,7 +573,7 @@ export async function writeHandSnapshot(
  *  arrives locks-honored (the verb applied `applyLockedPatch` — a resync never clobbers a hand-pin);
  *  `fieldLocks` carry forward on the state.
  *
- *  Rides the SAME F1 write-boundary backstop as `writeStagedSnapshot`: validate the state against the full
+ *  Rides the same write-boundary backstop as `writeStagedSnapshotAndJournal`: validate the state against the full
  *  contract schema BEFORE the durable insert, so a resync can never poison a row (errors-as-data — the verb
  *  drops on `{ok:false}`). */
 export async function writeResyncedSnapshot(db: Db, state: RpgSnapshotState, target: HandSnapshotTarget): Promise<WriteStagedSnapshotResult> {

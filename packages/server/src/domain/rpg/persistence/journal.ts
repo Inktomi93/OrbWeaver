@@ -10,7 +10,7 @@
 import type { HistoryFloorSeq } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { messages, messageVariants, rpgJournal } from "@orb/db";
-import type { MessageVariantId, RpgGameId, RpgJournalId } from "@orb/kit/ids";
+import type { RpgGameId, RpgJournalId } from "@orb/kit/ids";
 import { and, desc, eq, exists, isNull, lt, notExists, or, sql } from "drizzle-orm";
 import type { EditJournalEntryParams } from "../contract/params.ts";
 import type { NewRpgJournal, RpgJournalRow } from "../contract/service.ts";
@@ -104,14 +104,6 @@ export async function deleteJournalEntry(db: Db, gameId: RpgGameId, id: RpgJourn
     .where(and(eq(rpgJournal.id, id), eq(rpgJournal.gameId, gameId)))
     .returning({ id: rpgJournal.id });
   return rows.length > 0;
-}
-
-/** All entries stamped with a variant (test/introspection helper — the CASCADE probe reads this).
- *
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export function listJournalByVariant(db: Db, variantId: MessageVariantId): Promise<RpgJournalRow[]> {
-  return db.select().from(rpgJournal).where(eq(rpgJournal.variantId, variantId));
 }
 
 /** EVERY journal row for a game — both hand entries (`variantId` NULL) and model entries — NOT lineage-projected.

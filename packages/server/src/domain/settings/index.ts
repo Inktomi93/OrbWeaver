@@ -25,8 +25,7 @@ export { ensureSeedThemes } from "./seed-themes.ts";
 export { createDefaultBackgroundSeeder } from "./seeder/backgrounds.ts";
 export { createUserContentSeeder } from "./seeder/content.ts";
 export { createSettingsService } from "./service.ts";
-/** @public exported for the client suite that models the echo of a save through the server's own section-patch merge. */
-export { deepMergePlain } from "./substrate/merge.ts";
+
 export { SEED_THEMES } from "./substrate/seed-themes.ts";
 export { createApplyImportedAppearance } from "./verbs/apply-imported-appearance.ts";
 export { createBackgroundSeedSettings, createSeedBackgroundRewriter } from "./verbs/background-seed-ops.ts";

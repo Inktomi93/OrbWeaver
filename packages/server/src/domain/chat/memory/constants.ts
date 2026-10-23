@@ -11,12 +11,10 @@
 import { DEFAULT_MEMORY_DEFAULTS } from "@orb/contracts/settings";
 import type { MemoryConfig, ResolvedMemoryConfig } from "./types.ts";
 
-/** The baked-in resolver floor — the docs/law/Knowledge-Cluster.md §5 grounded defaults. ONE home: the values
- *  live in `@orb/contracts/settings` `DEFAULT_MEMORY_DEFAULTS` (so the admin surface reads the same floor it
- *  displays); this re-exports under the subsystem's `ResolvedMemoryConfig` type (every knob present).
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export const DEFAULTS: ResolvedMemoryConfig = DEFAULT_MEMORY_DEFAULTS;
+// The baked-in resolver floor — the docs/law/Knowledge-Cluster.md §5 grounded defaults. ONE home: the values
+//  live in `@orb/contracts/settings` `DEFAULT_MEMORY_DEFAULTS` (so the admin surface reads the same floor it
+//  displays); the local binding uses the subsystem's `ResolvedMemoryConfig` type (every knob present).
+const DEFAULTS: ResolvedMemoryConfig = DEFAULT_MEMORY_DEFAULTS;
 
 /** Resolve a partial `memoryDefaults` over {@link DEFAULTS} (each absent/undefined knob → the floor). Pure +
  *  deterministic: identical input → identical output (no ambient state). */

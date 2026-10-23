@@ -111,3 +111,51 @@ Remove `connection-cache-oracle.ts`, its package key and the unused `detectModel
 ### Connection transport type ownership
 
 Inference derives its readonly `ConnectionTransport` and `ResponseMap` views from canonical `ConnectionTransportDoc` in `@orb/contracts/inference`. The schema owns the document fields; affected compiler programs check the inference projection. Secret-bearing resolved connections and execution ports remain inference-owned.
+
+## Selected server root repairs
+
+The selected maintained files are [room reach](../../tests/server/entry/compose/room-reach.int.test.ts) and [runtime funding](../../tests/server/domain/embeddings/verbs/runtime-funding.suite.int.test.ts). Their assertions use native persistence faults and actual production generation resolution.
+
+| Selected behavior | Decision and production boundary |
+| - | - |
+| Raced regex deletion, owned bulk deletion, foreign global-book refusal and present-member document reach | Keep existing real-root cases and their exact fanout, audit, ownership and durable-event assertions. |
+| Regex reach-capture failure must not reject the confirmed delete | Rebuild with a successful same-root fanout control, then temporarily rename only the junction table through native SQL. Restore the schema in `finally`; assert actual deletion, native error observation and no fanout. Drop fabricated Error identity, not failure isolation. |
+| Document reach failure must not reject or roll back its committed rename | Rebuild with successful same-root fanout, then a native read-table fault while the document write remains operable. Restore the schema and assert committed canon, native diagnostic and no failed fanout. |
+| Pinned text/image encoders recheck consent, revocation and removed connections | Rebuild snapshots through actual binding, settlement and `app.embeddings.resolveGeneration(...).connection`. Preserve exact vectors, refusal types, provider/accounting no-purchase assertions and removal FK behavior. Construct no domain factory. |
+| Pinned encoder retains its admitted model and geometry after the saved row changes | Rebuild through actual generations. A model-specific physical response supports the newly admitted geometry; account for the real settlement probe separately. Assert the fresh generation changes while the old snapshot retains its original model and vectors. |
+| Other direct-executor, role-bundle, dispatched-key and foreign/missing funding cases | Keep unchanged. These cover distinct execution and authority paths through the actual root. |
+
+The selected cases pass. Isolated defects in regex capture isolation, post-write document reach isolation and pinned model retention fail their intended assertions. Production sources are restored exactly. Affected compiler, lint and import checks pass. The funding fixture supplies model-specific raw provider replies without replacing resolution or accounting.
+
+## Selected server definition purposes
+
+Remove unsupported mechanisms only after comparing their actual implementations, current production counterparts and original case purposes. Unselected regression matrices remain restoration work.
+
+| Selected mechanism | Decision and maintained owner |
+| - | - |
+| Private wire-classifier/converter test aliases | Remove identity aliases, not conversion or fitting. Existing production-root wire paths remain authoritative; selected content-class outputs belong in physical prompt observations, not a testkit converter copy. The wider historical wire matrix remains partial. |
+| RPG default prose aliases | Remove duplicate default aliases and their exclusive concatenation inputs. Canonical contracts prose slots and actual `resolveProse` calls own defaults and overrides. Preserve whitespace, grammar, slot versions and renderers. |
+| Eager settings, participant, handoff and RPG persistence/inspection twins | Remove unused alternate entry points. Preserve actual guarded writes, classifier, scoped statement, game birth, lineage readers and atomic snapshot/journal writer. Existing testkit root producers and raw observations are the rebuild homes; do not copy business logic there. |
+| Embedding source/lens catalogue | Remove the disconnected catalogue and exclusive imports. Actual `StoreParams` and segment inputs drive exhaustive dispatch; retain those shapes, image contracts and `VECTOR_TABLES`. The old catalogue-only membership tests do not prove writer coupling. |
+| Atlas authored-guest helper | Keep pending concrete adaptation. The guest boundary is valid under plugin law; meaningful date, continuation and import-outcome cases need a qualified authored-guest replacement before support removal. Zero current callers does not decide its usefulness. |
+
+The approved unused definitions and exports are removed. Native server Knip reports no default findings. Production-mode findings retain their actual test and tooling consumers; removed public directives do not exempt them. Affected compiler and scoped static checks pass. Maintained RPG execution, journal-floor, portable-JSON, settings-write and accepted-host handoff cases pass.
+
+This selection does not declare the full chat/RPG formatting, writer, ladder or Atlas matrices restored. Plugin hook replacements and Atlas guest adaptation remain separate work.
+
+## Selected plugin hook replacements
+
+The selected references are `server/infra/plugin-host/process-runtime.test.ts` and `heap-growth.suite.test.ts` in the external reference source. Rebuild through real guests, production composition and owned process execution. Source delivery does not establish runtime qualification.
+
+| Selected purpose | Decision and maintained boundary |
+| - | - |
+| Transparent inherited IPC delivery and normal ownership | Rebuild with the actual spawned child. Pause and release an actual synchronous request, then compare successful guest output and continued use without respawn. |
+| Unexpected process loss, explicit recovery and no replay | Rebuild through captured watchdog handles and actual root lifecycle calls. Reject interrupted work and old callbacks; require explicit activation before new effects. |
+| Connection loss before a new binding dispatches | Rebuild with actual ready and exit delivery ordering. Preserve the new binding and assert its persisted activation effect occurs once. |
+| A queued write after disposal | Rebuild by holding a real incoming frame before app delivery. Disable through production, release the frame and assert unchanged owned persistence. |
+| Continuation expiry, call limit and frozen grants | Rebuild through floated guest work and actual IPC. Advance only the injected parent scheduler for parent expiry; assert specific refusals and unchanged unauthorized persistence. |
+| Guest growth before object and string marshalling | Rebuild with retained guest allocations and exact native card-state and KV round trips. Preserve the resizable-memory conversion and native limits. |
+| Joined disposal and independent roots | Keep existing plugin-lifetime cases. Add coupled physical completion and reuse assertions where required by the replacements. |
+| Scale, showcase, RSS pressure, Worker wall-time expiry and broader cold-source lifecycle cases | Unreviewed in this bounded implementation. Do not infer qualification from ordinary teardown or the parent scheduler case. |
+
+Remove the unused observer and fault-control mechanisms with these replacements. Keep actual command authority, continuation timers, grants, liveness, reconnect guards and joined process cleanup in production. No private broker registry or production test-only door is introduced. Primary owns runtime, compiler, import and isolated defect controls before qualification.

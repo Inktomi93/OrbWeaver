@@ -46,8 +46,7 @@ const ringStream = new Writable({
   },
 });
 
-/** The serializers every log line runs: an `err` field is copied enumerable key by enumerable key.
- * @public Test-anchored module surface; focused tests pin what an error serializes to. */
+/** The serializers every log line runs: an `err` field is copied enumerable key by enumerable key. */
 export const logSerializers: { readonly err: typeof pino.stdSerializers.err } = { err: pino.stdSerializers.err };
 
 export const logger: Logger = pino(

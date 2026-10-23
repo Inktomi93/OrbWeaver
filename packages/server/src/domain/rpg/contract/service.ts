@@ -97,7 +97,7 @@ export type NewRpgGame = typeof rpgGames.$inferInsert;
 export type RpgSnapshotRow = typeof rpgSnapshots.$inferSelect;
 export type NewRpgSnapshot = typeof rpgSnapshots.$inferInsert;
 
-/** The outcome of the F1 write-boundary backstop (`writeStagedSnapshot`, `persistence/snapshots.ts`). `ok:true`
+/** The outcome of the F1 write-boundary backstop (`writeStagedSnapshotAndJournal`, `persistence/snapshots.ts`). `ok:true`
  *  carries the inserted row; `ok:false` carries the human-readable schema failure (which field / why) so the
  *  DROP is never silent — the flush logs it (the visibility violation the parity-plus program exists to kill:
  *  a backstop that refuses in silence). Homed here — a type has no home in the persistence I/O file
@@ -725,7 +725,7 @@ export interface RpgContext {
    *  (`refused`/`shadowed`, prefixed in the reason), and the round that could not RUN at all
    *  ({@link RpgStateDelta.failure} — #1468 item 2, where the variant is the correlation the vehicle's own warn
    *  cannot carry).
-   *  Called with the schema failure reason when `writeStagedSnapshot` refuses — so the drop is never silent
+   *  Called with the schema failure reason when `writeStagedSnapshotAndJournal` refuses — so the drop is never silent
    *  (a state extraction fired, produced applicable output, and vanished at the backstop is the exact
    *  visibility violation this program kills). Wired at compose to the `rpg.flush.dropped` warn log; a fake
    *  recorder asserts it fired in tests. Fire-and-forget (`void`) — a logging failure never breaks a turn. */

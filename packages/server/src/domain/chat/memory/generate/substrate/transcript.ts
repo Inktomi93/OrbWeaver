@@ -36,19 +36,17 @@ export const EMPTY_MACRO_NAMES: RowMacroNameContext = {
   personaNamesById: new Map<PersonaId, RowPersonaName>(),
 };
 
-/** The display label for a message's speaker in a transcript: the DECLARED narrator label first, then a
- *  character's resolved name (live identity — D28; falls back to the id when the name map lacks it), else a
- *  human/system role label. NAMES are used for the SUMMARIZER input only — never for the hash (the hash uses
- *  stable ids — see {@link blockHash}), so this dispatch moves no stored hash and re-digests nothing.
- *
- *  THE KIND ARM LEADS, and it is a real fix rather than a re-spelling (D129): a narrator row is authored by the
- *  room's synthetic group card, whose name is the literal string **"Group"** (`buildGroupCard`, a
- *  never-rendered memory bucket), so every narrator recap reached the summarizer labelled `Group:` — and once
- *  that card is deleted its `characterId` SET-NULLs and the row fell through to `NARRATOR_LABEL` by ACCIDENT,
- *  i.e. the label changed because an unrelated card was deleted. Declared purpose answers both.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export function speakerLabel(row: MsgRow, macroNames: RowMacroNameContext): string {
+// The display label for a message's speaker in a transcript: the DECLARED narrator label first, then a
+//  character's resolved name (live identity — D28; falls back to the id when the name map lacks it), else a
+//  human/system role label. NAMES are used for the SUMMARIZER input only — never for the hash (the hash uses
+//  stable ids — see {@link blockHash}), so this dispatch moves no stored hash and re-digests nothing.
+//
+//  THE KIND ARM LEADS, and it is a real fix rather than a re-spelling (D129): a narrator row is authored by the
+//  room's synthetic group card, whose name is the literal string **"Group"** (`buildGroupCard`, a
+//  never-rendered memory bucket), so every narrator recap reached the summarizer labelled `Group:` — and once
+//  that card is deleted its `characterId` SET-NULLs and the row fell through to `NARRATOR_LABEL` by ACCIDENT,
+//  i.e. the label changed because an unrelated card was deleted. Declared purpose answers both.
+function speakerLabel(row: MsgRow, macroNames: RowMacroNameContext): string {
   if (row.kind === "narrator") {
     return NARRATOR_LABEL;
   }

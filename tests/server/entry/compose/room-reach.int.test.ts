@@ -1,7 +1,7 @@
 // Real composed writes and transport frames prove reach authority, confirmed deletion, and failure isolation.
 import "@orb/testkit/node/composed-real.ts";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
-import { auditLogs, chatEvents, regexScripts } from "@orb/db";
+import { auditLogs, chatEvents, chatRegexScripts, regexScripts } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import type { ServicesResult } from "@orb/server/entry/compose";
@@ -10,7 +10,7 @@ import type { HeldDb } from "@orb/testkit/node/db.ts";
 import { freshHeldDb } from "@orb/testkit/node/db.ts";
 import type { Fixtures } from "@orb/testkit/node/fixtures.ts";
 import { test as baseTest, expect, OTHER_USER_ID, OWNER_USER_ID } from "@orb/testkit/node/fixtures.ts";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { onTestFinished, vi } from "vitest";
 
 const test = baseTest.extend<Pick<Fixtures, "authConfig">>({
@@ -187,6 +187,10 @@ test("a failed regex reach capture is logged and cannot fault the confirmed dele
   });
   const room = (await ownerCaller.chat.startChat({ characterIds: [] })).chat;
   await ownerCaller.regex.attachToChat({ chatId: room.id, scriptId: script.id });
+  const control = await ownerCaller.regex.createScript({
+    input: createRegexScriptSchema.parse({ name: "successful capture", findRegex: "x", replaceString: "y", placement: [] }),
+  });
+  await ownerCaller.regex.attachToChat({ chatId: room.id, scriptId: control.id });
   const frames: Parameters<Parameters<ServicesResult["liveBuses"]["chat"]["subscribeAllChatEvents"]>[0]>[0][] = [];
   onTestFinished(
     app.liveBuses.chat.subscribeAllChatEvents((frame) => {
@@ -195,48 +199,65 @@ test("a failed regex reach capture is logged and cannot fault the confirmed dele
       }
     }),
   );
-  const failure = new Error("controlled reach driver failure");
   const callerPrincipal = await harness.principalFor(OWNER_USER_ID);
-  const warn = vi.spyOn(getLog(), "warn");
-  const select = vi.spyOn(db, "select").mockImplementationOnce(() => {
-    throw failure;
-  });
+  expect(await services.regex.bulkRemoveScripts({ principal: callerPrincipal, scriptIds: [control.id] })).toEqual({ affected: 1 });
+  expect(frames).toEqual([{ seq: null, event: { type: "roomEntityChanged", chatId: room.id, entity: "regex" } }]);
+  frames.length = 0;
+  using warn = vi.spyOn(getLog(), "warn");
+  await db.run(sql`ALTER TABLE chat_regex_scripts RENAME TO unavailable_chat_regex_scripts`);
   try {
     expect(await services.regex.bulkRemoveScripts({ principal: callerPrincipal, scriptIds: [script.id] })).toEqual({
       affected: 1,
     });
+    expect(warn).toHaveBeenCalledWith(
+      expect.objectContaining({ err: expect.objectContaining({ cause: expect.objectContaining({ code: "SQLITE_ERROR" }) }), entity: "regex" }),
+      "room-reach: pre-write delete capture failed; the delete proceeds unannounced",
+    );
+    expect(frames).toEqual([]);
+    expect(await db.select().from(regexScripts).where(eq(regexScripts.id, script.id))).toEqual([]);
   } finally {
-    select.mockRestore();
+    await db.run(sql`ALTER TABLE unavailable_chat_regex_scripts RENAME TO chat_regex_scripts`);
   }
-  expect(warn).toHaveBeenCalledWith(
-    expect.objectContaining({ err: failure, entity: "regex" }),
-    "room-reach: pre-write delete capture failed; the delete proceeds unannounced",
-  );
-  expect(frames).toEqual([]);
-  expect(await db.select().from(regexScripts).where(eq(regexScripts.id, script.id))).toEqual([]);
+  expect(await db.select().from(chatRegexScripts).where(eq(chatRegexScripts.regexScriptId, script.id))).toEqual([]);
 });
 
 test("a failed document reach is logged without rejecting or rolling back its already-committed rename", async ({
   db,
   services,
+  app,
   ownerCaller,
   harness,
 }): Promise<void> => {
   const document = await ownerCaller.databank.createFromText({ name: "before", text: "real canon" });
-  const failure = new Error("controlled document reach driver failure");
+  const room = (await ownerCaller.chat.startChat({ characterIds: [] })).chat;
+  await ownerCaller.databank.attachToChat({ chatId: room.id, documentId: document.document.id });
+  const frames: Parameters<Parameters<ServicesResult["liveBuses"]["chat"]["subscribeAllChatEvents"]>[0]>[0][] = [];
+  onTestFinished(
+    app.liveBuses.chat.subscribeAllChatEvents((frame) => {
+      if (frame.event.type === "roomEntityChanged") {
+        frames.push(frame);
+      }
+    }),
+  );
   const callerPrincipal = await harness.principalFor(OWNER_USER_ID);
-  const warn = vi.spyOn(getLog(), "warn");
-  const select = vi.spyOn(db, "select").mockImplementationOnce(() => {
-    throw failure;
-  });
+  expect((await services.databank.rename({ principal: callerPrincipal, id: document.document.id, name: "positive" })).name).toBe("positive");
+  expect(frames).toEqual([{ seq: null, event: { type: "roomEntityChanged", chatId: room.id, entity: "databank" } }]);
+  frames.length = 0;
+  using warn = vi.spyOn(getLog(), "warn");
+  await db.run(sql`ALTER TABLE chat_documents RENAME TO unavailable_chat_documents`);
   try {
     expect((await services.databank.rename({ principal: callerPrincipal, id: document.document.id, name: "committed" })).name).toBe("committed");
+    expect(warn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        err: expect.objectContaining({ cause: expect.objectContaining({ code: "SQLITE_ERROR" }) }),
+        entity: "databank",
+        key: "document",
+      }),
+      "room-reach: databank reach lookup failed; the write proceeds unannounced",
+    );
+    expect(frames).toEqual([]);
   } finally {
-    select.mockRestore();
+    await db.run(sql`ALTER TABLE unavailable_chat_documents RENAME TO chat_documents`);
   }
-  expect(warn).toHaveBeenCalledWith(
-    expect.objectContaining({ err: failure, entity: "databank", key: "document" }),
-    "room-reach: databank reach lookup failed; the write proceeds unannounced",
-  );
   expect((await ownerCaller.databank.get({ id: document.document.id, includeText: true })).name).toBe("committed");
 });
