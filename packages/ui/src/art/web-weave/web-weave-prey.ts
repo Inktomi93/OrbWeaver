@@ -41,17 +41,22 @@ const REST_TURN_RATE = 0.1;
 const REST_BOB_PX = 0.9;
 const REST_BOB_HZ = 0.0009;
 
-/** The machine's mutable state — one per mounted web, owned by the component, stepped per frame. */
-export interface PreyState {
-  mode: PreyMode;
+interface PreyPosition {
   x: number;
   y: number;
   angle: number;
   /** Wall-clock ms at which the current timed mode ends (alert, inspect). */
   until: number;
-  target: WeavePoint | null;
   /** False until the first frame has placed her at the hub. */
   placed: boolean;
+}
+
+/** One mutable instance per mounted web; only resting has no chase target. */
+export type PreyState = PreyPosition & ({ mode: Extract<PreyMode, "rest">; target: null } | { mode: Exclude<PreyMode, "rest">; target: WeavePoint });
+
+function transitionPrey(state: PreyState, next: PreyState): void {
+  // The mounted animation retains this instance; a checked whole state changes its variant in place.
+  Object.assign(state, next);
 }
 
 export function createPreyState(): PreyState {
@@ -63,11 +68,11 @@ export function disturbPrey(state: PreyState, at: WeavePoint, hub: WeavePoint, n
   if (Math.hypot(at.x - hub.x, at.y - hub.y) < HUB_DEADZONE_PX) {
     return;
   }
-  state.target = at;
-  // A hit lands while she is already sprinting? Keep running — re-freezing mid-pounce reads as a stutter.
+  // A second hit retargets a sprint without freezing it again.
   if (state.mode === "rest" || state.mode === "inspect" || state.mode === "return") {
-    state.mode = "alert";
-    state.until = now + ALERT_MS;
+    transitionPrey(state, { ...state, mode: "alert", target: at, until: now + ALERT_MS });
+  } else {
+    state.target = at;
   }
 }
 
@@ -116,32 +121,29 @@ function poseOf(state: PreyState, over: { moving?: boolean; sprinting?: boolean;
 /** The chase half: alert → sprint → inspect → return. Null when she is simply resting. */
 function chasePose(state: PreyState, { hub, now, dt, character }: PreyStepInput): SpiderPose | null {
   const clock = { now, dt };
-  const target = state.target;
-  if (state.mode === "alert" && target !== null) {
-    face(state, target, ALERT_TURN_RATE);
+  if (state.mode === "alert") {
+    face(state, state.target, ALERT_TURN_RATE);
     if (now >= state.until) {
-      state.mode = "sprint";
+      transitionPrey(state, { ...state, mode: "sprint" });
     }
     return poseOf(state, {});
   }
-  if (state.mode === "sprint" && target !== null) {
-    if (!stepToward(state, target, character.sprint, clock)) {
+  if (state.mode === "sprint") {
+    if (!stepToward(state, state.target, character.sprint, clock)) {
       return poseOf(state, { moving: true, sprinting: true });
     }
-    state.mode = "inspect";
-    state.until = now + character.inspectMs;
+    transitionPrey(state, { ...state, mode: "inspect", until: now + character.inspectMs });
     return poseOf(state, { tap: 1 });
   }
   if (state.mode === "inspect") {
     if (now >= state.until) {
-      state.mode = "return";
+      transitionPrey(state, { ...state, mode: "return" });
     }
     return poseOf(state, { tap: 1 });
   }
   if (state.mode === "return") {
     if (stepToward(state, hub, character.sprint * RETURN_SPEED_FRAC, clock)) {
-      state.mode = "rest";
-      state.target = null;
+      transitionPrey(state, { ...state, mode: "rest", target: null });
       return poseOf(state, {});
     }
     return poseOf(state, { moving: true });

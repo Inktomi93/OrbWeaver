@@ -81,15 +81,13 @@ export function inferredKindOf(tasks: readonly Task[]): ModelKind {
 
 // ── the Purpose tier: the task-requirement badge rail ──────────────────────────────────────────────────
 
-export interface CapabilityBadge {
+interface CapabilityBadgeBase {
   readonly task: RoutableTask;
   readonly label: string;
-  /** `true` = this connection can serve the role; `false` renders MUTED with `✗` and the reason (§5.3a —
-   *  destructive colour is reserved for a BOUND role that has actually failed). */
-  readonly ok: boolean;
-  /** Why not, in the user's words; `null` on a servable role. */
-  readonly reason: string | null;
 }
+
+/** A servable role has no refusal; an unservable role always explains why. */
+export type CapabilityBadge = CapabilityBadgeBase & ({ readonly ok: true; readonly reason: null } | { readonly ok: false; readonly reason: string });
 
 /** `requirementMet`'s `axis:member` clauses in the user's words. A clause with no phrasing falls back to the
  *  clause itself rather than being dropped — an unnamed refusal is worse than a machine one. */

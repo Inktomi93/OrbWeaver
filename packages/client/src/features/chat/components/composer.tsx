@@ -43,6 +43,7 @@ import { useComposerFocusOnRequest } from "../hooks/use-composer-focus.ts";
 import { useComposerMediaDrop } from "../hooks/use-composer-media-drop.ts";
 import { useContinueTurn } from "../hooks/use-continue-turn.ts";
 import { useGenerateImage } from "../hooks/use-generate-image.ts";
+import type { SendRefusal } from "../hooks/use-send-availability.ts";
 import { useSendAvailability } from "../hooks/use-send-availability.ts";
 import { useSendMessage } from "../hooks/use-send-message.ts";
 import { useSharedRoom } from "../hooks/use-shared-room.ts";
@@ -263,7 +264,8 @@ export function Composer({
   };
 
   // Send stays live for a slash command in a room that cannot serve a turn: the command is not a turn.
-  const sendGated = sendAvailability.unavailable && parseSlashDraft(value).kind !== "command";
+  const sendControlAvailability: SendRefusal = parseSlashDraft(value).kind === "command" ? { unavailable: false, reason: undefined } : sendAvailability;
+  const sendGated = sendControlAvailability.unavailable;
 
   const stripOpen = slashMatches.length > 0;
   const { command: highlightedCommand, activeOptionId: activeSlashOptionId } = resolveSlashHighlight(slashMatches, slashHighlight);
@@ -406,8 +408,7 @@ export function Composer({
             busy={sendMessage.isPending}
             tailIsAssistant={tailRole === "assistant"}
             imageControls={imageControls}
-            sendUnavailable={sendAvailability.unavailable}
-            sendUnavailableReason={sendAvailability.reason}
+            sendAvailability={sendAvailability}
             refusalStatedBy={refusalStatedBy}
             chatControl={<ActiveChatOptionsMenu chatId={chatId} />}
             actionContributions={actionContributions}
@@ -422,8 +423,7 @@ export function Composer({
                 sendDisabled={sendGated || !(canSubmit || canEmptySend) || sendMessage.isPending || continueOnEmpty.isPending}
                 sendPending={sendMessage.isPending || continueOnEmpty.isPending}
                 hasDraft={canSubmit}
-                unavailable={sendGated}
-                unavailableReason={sendGated ? sendAvailability.reason : undefined}
+                availability={sendControlAvailability}
                 unavailableStatedBy={sendGated ? refusalStatedBy : undefined}
               />
             }

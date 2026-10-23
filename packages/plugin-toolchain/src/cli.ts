@@ -29,12 +29,11 @@ interface ParsedProjectArgs {
   readonly bundlePath: string | undefined;
 }
 
-interface ParsedSupportArgs {
-  readonly command: "support";
-  readonly format: PluginAuthorSupportFormat;
-  readonly writePath: string | undefined;
-  readonly checkPath: string | undefined;
-}
+/** Parsed support output has one destination, with neither path meaning stdout. */
+export type ParsedSupportArgs = { readonly command: "support"; readonly format: PluginAuthorSupportFormat } & (
+  | { readonly writePath: string; readonly checkPath: undefined }
+  | { readonly writePath: undefined; readonly checkPath: string | undefined }
+);
 
 type ParsedArgs = ParsedProjectArgs | ParsedSupportArgs;
 
@@ -71,7 +70,9 @@ function parseSupportArgs(args: readonly string[]): ParsedSupportArgs {
   if (writePath !== undefined && checkPath !== undefined) {
     fail("orb-plugin support accepts only one of --write or --check", EXIT_MISUSE);
   }
-  return { command: "support", format, writePath, checkPath };
+  return writePath === undefined
+    ? { command: "support", format, writePath: undefined, checkPath }
+    : { command: "support", format, writePath, checkPath: undefined };
 }
 
 function isProjectCommand(value: string | undefined): value is ProjectCommand {

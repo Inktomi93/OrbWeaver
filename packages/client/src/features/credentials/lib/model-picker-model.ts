@@ -395,14 +395,21 @@ export function unlistedModelSentence(listOwner: string): string {
 
 /** What the picker renders for a source. `notice: null` is the searchable list (`models: null` while it
  *  loads); a notice is the typed arm, which offers a text field only when `typingOffered`. */
-export interface ModelPickerView {
-  readonly models: readonly ModelCatalogEntry[] | null;
-  readonly notice: string | null;
-  /** The notice reports a list that failed or came back empty, not the caller's own "type it" reason. */
-  readonly warns: boolean;
-  readonly typingOffered: boolean;
-  readonly retry: (() => void) | null;
-}
+export type ModelPickerView =
+  | {
+      readonly models: readonly ModelCatalogEntry[] | null;
+      readonly notice: null;
+      readonly warns: false;
+      readonly typingOffered: false;
+      readonly retry: null;
+    }
+  | {
+      readonly models: null;
+      readonly notice: string;
+      readonly warns: boolean;
+      readonly typingOffered: boolean;
+      readonly retry: (() => void) | null;
+    };
 
 const LIST_VIEW_LOADING: ModelPickerView = { models: null, notice: null, warns: false, typingOffered: false, retry: null };
 

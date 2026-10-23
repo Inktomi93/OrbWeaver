@@ -42,6 +42,7 @@ import { useCorpusAnchor } from "../hooks/use-corpus-anchor.ts";
 import { useGreetingAlternates } from "../hooks/use-greeting-alternates.ts";
 import { useJumpToLatest } from "../hooks/use-jump-to-latest.ts";
 import { useMessageAppearance } from "../hooks/use-message-appearance.ts";
+import type { ChatRowProjection } from "../hooks/use-message-items.ts";
 import { lastUserRowIndex, messageItemKey, useMessageItems, useNewArrivalKeys } from "../hooks/use-message-items.ts";
 import { resolveRowAttribution } from "../lib/attribution.ts";
 import { CHAT_TRACK } from "../lib/chat-track.ts";
@@ -78,8 +79,8 @@ const ESTIMATED_ROW_PX_PER_CHARACTER = 0.28;
 const ESTIMATED_ROW_MAX_PX = 1200;
 const CHAT_TRANSCRIPT_PROFILER_ID = "chat:transcript";
 
-function estimateMessageRow(item: { readonly kind: "message" | "ghost"; readonly view?: { readonly content: string } }): number {
-  if (item.kind === "ghost" || item.view === undefined) {
+function estimateMessageRow(item: ChatRowProjection<"content">): number {
+  if (item.kind === "ghost") {
     return ESTIMATED_ROW_BASE_PX;
   }
   return Math.min(ESTIMATED_ROW_MAX_PX, ESTIMATED_ROW_BASE_PX + item.view.content.length * ESTIMATED_ROW_PX_PER_CHARACTER);

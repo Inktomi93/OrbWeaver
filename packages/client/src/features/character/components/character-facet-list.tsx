@@ -16,7 +16,7 @@ import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import type { AppFormInstance } from "#forms/editor";
 import type { CharacterCardFacet } from "../lib/character-card-facets.ts";
-import { CHARACTER_CARD_FACETS, CHARACTER_FACET_TIER_LABELS, CHARACTER_FACET_TIERS } from "../lib/character-card-facets.ts";
+import { CHARACTER_CARD_FACETS, CHARACTER_FACET_TIER_LABELS, CHARACTER_FACET_TIERS, facetFillState } from "../lib/character-card-facets.ts";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model.ts";
 import { EMPTY_VALUE } from "../lib/empty-vocabulary.ts";
 import { CharacterFacetRow } from "./character-facet-row.tsx";
@@ -37,58 +37,6 @@ export interface CharacterFacetListProps {
   readonly onSelect: (id: CharacterCardFacet["id"]) => void;
 }
 
-/** Whether a facet holds authored content (drives the "Set" cue). depthPrompt reads its note text; provenance
- *  is filled when either creator or version is set; regexScripts when the character has ATTACHED library rows
- *  (D121-E — a count the caller reads from the server, since scripts are no longer card content); the rest are
- *  filled when their text field is non-blank. */
-function facetFilled(id: CharacterCardFacet["id"], values: CharacterCardFormValues, attachedRegexCount: number): boolean {
-  switch (id) {
-    case "depthPrompt":
-      return values.depthPromptText.trim() !== "";
-    case "regexScripts":
-      return attachedRegexCount > 0;
-    case "provenance":
-      return values.creator.trim() !== "" || values.cardVersion.trim() !== "";
-    case "description":
-    case "personality":
-    case "scenario":
-    case "exampleMessages":
-    case "systemPrompt":
-    case "postHistoryInstructions":
-    case "creatorNotes":
-      return values[id].trim() !== "";
-  }
-}
-
-/** A short content preview for a FILLED facet row (reads as content, not metadata) — `null` when empty.
- *  depthPrompt previews its note text; regexScripts a count; provenance the creator/version; the rest the
- *  field's own text (the row truncates it). Kept in sync with `facetFilled` (same non-empty definition). */
-function facetPreview(id: CharacterCardFacet["id"], values: CharacterCardFormValues, attachedRegexCount: number): string | null {
-  switch (id) {
-    case "depthPrompt": {
-      const text = values.depthPromptText.trim();
-      return text === "" ? null : text;
-    }
-    case "regexScripts": {
-      return attachedRegexCount === 0 ? null : `${attachedRegexCount} ${attachedRegexCount === 1 ? "script" : "scripts"}`;
-    }
-    case "provenance": {
-      const parts = [values.creator.trim(), values.cardVersion.trim()].filter((part) => part !== "");
-      return parts.length === 0 ? null : parts.join(" · ");
-    }
-    case "description":
-    case "personality":
-    case "scenario":
-    case "exampleMessages":
-    case "systemPrompt":
-    case "postHistoryInstructions":
-    case "creatorNotes": {
-      const text = values[id].trim();
-      return text === "" ? null : text;
-    }
-  }
-}
-
 /** The house empty word (#502, `lib/empty-vocabulary.ts`) — BOTH what the row shows and what a screen reader
  *  hears, since the facet row renders this same string as its visible state word (see its `fillSummary`
  *  node). Aliased locally because the two summary builders below read it in every arm. */
@@ -107,7 +55,7 @@ function textFillSummary(raw: string): string {
 }
 
 /** The TERSE fill state a screen reader hears for a facet row (#254) — the filled/empty distinction the
- *  decorative preview took away. Kept in sync with `facetFilled` (same non-empty definition, one string per
+ *  decorative preview took away. Kept in sync with `facetFillState` (same non-empty definition, one string per
  *  arm); the two METADATA facets say what they hold instead of a character count, because their preview is
  *  already metadata rather than a body. NEVER the authored prose itself — that is what the preview line is
  *  for, and why it left the accessible tree. */
@@ -158,9 +106,8 @@ export function CharacterFacetList({ form, characterId, selectedFacetId, focusFa
                     key={facet.id}
                     facet={facet}
                     selected={facet.id === selectedFacetId}
-                    filled={facetFilled(facet.id, values, attachedRegexCount)}
+                    {...facetFillState(facet.id, values, attachedRegexCount)}
                     fillSummary={facetFillSummary(facet.id, values, attachedRegexCount)}
-                    preview={facetPreview(facet.id, values, attachedRegexCount)}
                     focusOnMount={facet.id === focusFacetId}
                     onSelect={onSelect}
                   />

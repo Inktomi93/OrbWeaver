@@ -15,16 +15,12 @@ import { Button } from "@orb/ui/button";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useEffect, useId, useRef } from "react";
-import type { CharacterCardFacet } from "../lib/character-card-facets.ts";
+import type { CharacterCardFacet, CharacterFacetFill } from "../lib/character-card-facets.ts";
 
-export interface CharacterFacetRowProps {
+interface CharacterFacetRowBase {
   readonly facet: CharacterCardFacet;
   /** This facet is the CONTENT-drilled / CONTEXT-inspected one (accent border + fill). */
   readonly selected: boolean;
-  /** Whether the facet currently holds authored content (drives the preview vs the "Empty" state word). */
-  readonly filled: boolean;
-  /** A short preview of the authored content for a filled row, or `null` when empty (shows "Empty"). */
-  readonly preview: string | null;
   /** The TERSE fill state this row announces ("Empty" / "Filled, 1283 characters"), computed by the list.
    *  It exists because the visible fill cues are both out of the accessible tree — see the describedby
    *  comment below (#254). Never the body itself: a state, a count, or a field name. */
@@ -33,6 +29,9 @@ export interface CharacterFacetRowProps {
   readonly focusOnMount: boolean;
   readonly onSelect: (id: CharacterCardFacet["id"]) => void;
 }
+
+/** The row's visual and accessible fill cues share the resolved preview state. */
+export type CharacterFacetRowProps = CharacterFacetRowBase & CharacterFacetFill;
 
 export function CharacterFacetRow({ facet, selected, filled, preview, fillSummary, focusOnMount, onSelect }: CharacterFacetRowProps): ReactElement {
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -46,7 +45,7 @@ export function CharacterFacetRow({ facet, selected, filled, preview, fillSummar
   // own `subtitleDecorative` rule for exactly this shape ("a truncated mono preview of a 600-character
   // template body"). The row announces "Personality, button, Filled, 44 characters" — the label, then the
   // `fillSummary` state line below; the prose itself is one activation away.
-  const showsPreview = filled && preview !== null;
+  const showsPreview = filled;
   useEffect(() => {
     if (focusOnMount) {
       buttonRef.current?.focus();

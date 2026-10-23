@@ -25,21 +25,20 @@ import { hueDistance, oklchHue } from "@orb/kit/safe-color";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { colorForCharacter } from "./speaker-color.ts";
 
-export interface RowAttribution {
-  /** `null` = render no attribution chrome. */
-  readonly name: string | null;
-  /** Which arm of the two-kind chat-identity axis this row resolved from; `null` only alongside
-   *  `name === null`. Consumers stamp it as `data-*`, never branch JSX on it. */
-  readonly kind: "character" | "persona" | null;
-  readonly avatarAssetId: AssetId | null;
-  /** The avatar's CAS hash — `null` renders the initials fallback. */
+interface RowAttributionBase {
+  /** Null renders the initials fallback. */
   readonly avatarHash: string | null;
-  /** Stable per-entity seed for the deterministic fallback hue — the same id the library card / chat
-   *  header seed with, so one entity resolves to one color everywhere. */
+  /** The same entity seed used by the library card and chat header. */
   readonly hueSeed: string;
-  /** Card-embeddable per-speaker theme tokens for the row's bubble; `null` for user rows and unresolved rows. */
-  readonly tokens: ThemeScopeTokens | null;
 }
+
+/** Only resolved characters carry card-owned avatar assets and bubble theme tokens. */
+export type RowAttribution = RowAttributionBase &
+  (
+    | { readonly name: null; readonly kind: null; readonly avatarHash: null; readonly avatarAssetId: null; readonly tokens: null }
+    | { readonly name: string; readonly kind: "persona"; readonly avatarAssetId: null; readonly tokens: null }
+    | { readonly name: string; readonly kind: "character"; readonly avatarAssetId: AssetId | null; readonly tokens: ThemeScopeTokens | null }
+  );
 
 const NO_ATTRIBUTION: RowAttribution = {
   name: null,

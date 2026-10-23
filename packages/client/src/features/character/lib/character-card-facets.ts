@@ -5,6 +5,7 @@
 
 import type { LucideIcon } from "@orb/ui/icons";
 import { Anchor, BookOpen, Drama, Hash, Info, Pencil, Send, Sparkles, Zap } from "@orb/ui/icons";
+import type { CharacterCardFormValues } from "./character-card-form-model.ts";
 
 /** The facet tiers, in render order — the CONTENT master list's group headings (the hierarchy fix). */
 export const CHARACTER_FACET_TIERS = ["voice", "extras", "advanced"] as const;
@@ -126,4 +127,39 @@ export const CHARACTER_CARD_FACETS: readonly CharacterCardFacet[] = [
 export function facetById(id: CharacterCardFacetId): CharacterCardFacet {
   // The registry is exhaustive over the id union (a `tsc`-checked tuple), so `find` always hits.
   return CHARACTER_CARD_FACETS.find((facet) => facet.id === id) as CharacterCardFacet;
+}
+
+/** A facet preview is present exactly when the facet has authored content. */
+export type CharacterFacetFill = { readonly filled: true; readonly preview: string } | { readonly filled: false; readonly preview: null };
+
+function facetPreview(id: CharacterCardFacet["id"], values: CharacterCardFormValues, attachedRegexCount: number): string | null {
+  switch (id) {
+    case "depthPrompt": {
+      const text = values.depthPromptText.trim();
+      return text === "" ? null : text;
+    }
+    case "regexScripts": {
+      return attachedRegexCount === 0 ? null : `${attachedRegexCount} ${attachedRegexCount === 1 ? "script" : "scripts"}`;
+    }
+    case "provenance": {
+      const parts = [values.creator.trim(), values.cardVersion.trim()].filter((part) => part !== "");
+      return parts.length === 0 ? null : parts.join(" · ");
+    }
+    case "description":
+    case "personality":
+    case "scenario":
+    case "exampleMessages":
+    case "systemPrompt":
+    case "postHistoryInstructions":
+    case "creatorNotes": {
+      const text = values[id].trim();
+      return text === "" ? null : text;
+    }
+  }
+}
+
+/** Resolve the preview and its fill marker from one reading of the draft. */
+export function facetFillState(id: CharacterCardFacet["id"], values: CharacterCardFormValues, attachedRegexCount: number): CharacterFacetFill {
+  const preview = facetPreview(id, values, attachedRegexCount);
+  return preview === null ? { filled: false, preview: null } : { filled: true, preview };
 }

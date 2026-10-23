@@ -143,35 +143,25 @@ function lastFailure(rows: readonly PassRow[]): PassRow | null {
   return failed[0] ?? null;
 }
 
-export interface UnderstandingPassView {
-  /** A run of this pass is queued or running right now — the card is a progress state, not a door. */
-  readonly running: boolean;
-  /** The stage sentence (`Reading your cards`), or null when nothing is running. */
-  readonly stage: string | null;
-  /** The run's own latest progress line — live off the room, else the durable column. Null before either. */
+interface UnderstandingPassBase {
+  /** Live room progress wins over the durable row; neither is required before the first frame. */
   readonly detail: string | null;
-  /** The stage's position when its producer counts (`0..1`), else null for an indeterminate bar. */
+  /** Null when the producer has no usable total, even while a run is active. */
   readonly fraction: number | null;
-  /** The last failure's reason, when the pass is not running. Null otherwise. */
-  readonly failure: string | null;
-  /** The last failure ENDED THE WORKER rather than failing cleanly — a different sentence, because a
-   *  `worker_died` row is not "the job said no", it is "nobody came back" and the fix is to run it again.
-   *  Invisible outside Settings → Jobs before issue #166. */
-  readonly failureWasCrash: boolean;
-  /** Memory is OFF, so this pass cannot produce story themes and does not pretend to enqueue them. */
   readonly memoryDisabled: boolean;
-  /** Enqueue the chain (distill → backfill → themes, or distill alone when memory is off). A no-op while a
-   *  run is already live (the dedupe). */
   readonly start: () => void;
-  /** The enqueue round-trip itself is in flight (distinct from the PASS running). */
+  /** Enqueue latency is independent of whether the workload read already sees the run. */
   readonly starting: boolean;
-  /** The active run to tail, for the room mount. Null when nothing is active. */
-  readonly liveRunId: WorkloadId | null;
-  /** Sink for the room's live progress frames. */
   readonly onLiveProgress: (progress: WorkloadProgress | null) => void;
-  /** The paid-run confirm `start` opens when the pass would call a model (its count and its Utility model). */
   readonly confirm: ModelRunConfirmDialogProps;
 }
+
+type UnderstandingPassActivity =
+  | { readonly running: true; readonly stage: string; readonly liveRunId: WorkloadId; readonly failure: null; readonly failureWasCrash: false }
+  | { readonly running: false; readonly stage: null; readonly liveRunId: null; readonly failure: string | null; readonly failureWasCrash: boolean };
+
+/** An active pass has a room identity; a prior failure is shown only when no run is active. */
+export type UnderstandingPassView = UnderstandingPassBase & UnderstandingPassActivity;
 
 /** `current/total` as a bar fraction — null unless the producer reported a usable pair. Guarded on `total`
  *  because a producer that reports `current` alone (or a zero denominator) must degrade to indeterminate,
@@ -248,17 +238,17 @@ export function useUnderstandingPass(): UnderstandingPassView {
   // The LIVE tail wins while it is connected; with no frame yet (a reload mid-pass) the row's DURABLE
   // `progress` column carries the position — the same precedence the Jobs row uses.
   const progress = liveProgress ?? run?.progress ?? null;
+  const activity: UnderstandingPassActivity =
+    run === null
+      ? { running: false, stage: null, liveRunId: null, failure: failed?.error ?? null, failureWasCrash: failed?.status === "worker_died" }
+      : { running: true, stage: STAGE_LABELS[run.kind], liveRunId: run.id, failure: null, failureWasCrash: false };
   return {
-    running: run !== null,
-    stage: run === null ? null : STAGE_LABELS[run.kind],
+    ...activity,
     detail: typeof progress?.message === "string" ? progress.message : null,
     fraction: fractionOf(progress),
-    failure: failed?.error ?? null,
-    failureWasCrash: failed?.status === "worker_died",
     memoryDisabled,
     start,
     starting: startRun.isPending,
-    liveRunId: run?.id ?? null,
     onLiveProgress: setLiveProgress,
     confirm: paidRun.dialog,
   };

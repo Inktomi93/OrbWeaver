@@ -34,24 +34,21 @@ import { runInstrumentedRegex } from "./regex-preview.ts";
 export const REGEX_SKIP_REASONS = ["disabled", "not-on-this-leg", "display-only", "prompt-only"] as const;
 type RegexSkipReason = (typeof REGEX_SKIP_REASONS)[number];
 
-/** One stage of the run: the script, the text going in, the text coming out, and what the engine did. */
-export interface RegexPipelineStage {
-  /** Stable across a re-render (the row id, or `"draft"` for an unsaved subject) — the list's React key. */
+interface RegexPipelineStageBase {
   readonly key: string;
   readonly name: string;
-  /** True for the script whose editor this panel sits under — the "you are here" mark. */
   readonly isSubject: boolean;
-  /** True when the stage is the subject APPENDED after the global tier (it is not always-on; see header). */
   readonly isAppended: boolean;
   readonly before: string;
   readonly after: string;
-  /** How many times the replacer fired. `0` with no error ⇒ valid pattern, no bite. */
-  readonly matchCount: number;
-  /** The executor's own failure message (invalid syntax, or the complexity cap), else `null`. */
-  readonly error: string | null;
-  /** `null` ⇒ the stage RAN. Otherwise the gate that skipped it, and `before === after`. */
-  readonly skipped: RegexSkipReason | null;
 }
+
+/** Skipped stages do not execute; executed stages retain the engine's match count and failure. */
+export type RegexPipelineStage = RegexPipelineStageBase &
+  (
+    | { readonly skipped: RegexSkipReason; readonly matchCount: 0; readonly error: null }
+    | { readonly skipped: null; readonly matchCount: number; readonly error: string | null }
+  );
 
 export interface RegexPipelineRun {
   readonly stages: readonly RegexPipelineStage[];

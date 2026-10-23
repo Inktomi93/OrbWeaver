@@ -27,7 +27,7 @@ export interface RpgContextTabsDeps {
 
 /** The cached `chat.getChat` for a committed chat, or `undefined` while uncached. */
 export function peekChatDetail(deps: RpgContextTabsDeps, s: CommittedChatContext): ChatDetail | undefined {
-  return peekQueryData<ChatDetail>(deps.queryClient, deps.trpc.chat.getChat.queryKey({ chatId: s.chatId }));
+  return peekQueryData(deps.queryClient, deps.trpc.chat.getChat.queryKey({ chatId: s.chatId }));
 }
 
 /** Is this a game chat? THE applicability gate for every rpg CONTEXT contribution — a committed chat whose
