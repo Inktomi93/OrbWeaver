@@ -1,5 +1,5 @@
 // Emulation the owner applied can be lost mid-run: an attached CDP client corrupts `window.screen` when it
-// detaches, and a clipped screenshot (an element shot) drops touch emulation. Both reassert through the owner.
+// detaches, and Chromium drops the touch emulation a CDP session set when that session goes. Both reassert through the owner.
 import type { Page } from "@playwright/test";
 import type { Viewport } from "../instrument/argv.ts";
 import { ownerPageSession } from "./browser-capture.ts";

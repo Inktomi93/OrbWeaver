@@ -10,7 +10,7 @@ import { scaledBudget } from "../../_load-budget.ts";
 
 vi.setConfig({ testTimeout: scaledBudget(60_000, 4), hookTimeout: scaledBudget(60_000, 4) });
 
-const STREAM_PAGE = `<!doctype html><html data-app-ready><body>stream<script>fetch("/stream", { method: "POST" });</script></body></html>`;
+const STREAM_PAGE = `<!doctype html><html data-app-ready><body>stream<script>fetch("/stream", { method: "POST" }); fetch("/pending");</script></body></html>`;
 const KEPT_PAGE = `<!doctype html><html data-app-ready><body>kept<script>
   fetch("/missing");
   const controller = new AbortController();
@@ -23,6 +23,13 @@ test("aborts from a document the harness navigated away from leave the verdict; 
   const server = createServer((request, response) => {
     const url = request.url ?? "/";
     if (url === "/stream" || url === "/app-abort") {
+      // A long-lived stream: the head is sent, the body never ends, like the app's stream.connect.
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(": open\n\n");
+      held.push(response);
+      return;
+    }
+    if (url === "/pending") {
       // A request that never answers, like the app's stream.connect before its first byte.
       held.push(response);
       return;
@@ -48,12 +55,15 @@ test("aborts from a document the harness navigated away from leave the verdict; 
     await withProbeSession(session, async () => {
       const failedPaths = (): string[] => partitionFailedRequests(session.requests.values()).failed.map((request) => new URL(request.url).pathname);
       await session.page.goto(origin);
-      await expect.poll(() => held.length).toBe(1);
+      await expect.poll(() => [...session.requests.values()].find((request) => request.url.endsWith("/stream"))?.status).toBe(200);
+      await expect.poll(() => held.length).toBe(2);
       // The warm-up re-navigation shape: the same URL again, so the discarded document's stream aborts.
       await session.page.goto(origin);
-      await expect.poll(() => held.length).toBeGreaterThanOrEqual(2);
+      await expect.poll(() => held.length).toBeGreaterThanOrEqual(4);
       await session.page.goto(`${origin}/kept`);
       await expect.poll(() => failedPaths().toSorted((a, b) => a.localeCompare(b))).toEqual(["/app-abort", "/missing"]);
+      const { navigationAborts } = partitionFailedRequests(session.requests.values());
+      expect(navigationAborts.map((request) => new URL(request.url).pathname).toSorted((a, b) => a.localeCompare(b))).toEqual(["/pending", "/stream"]);
     });
   } finally {
     for (const response of held) {
@@ -74,6 +84,8 @@ test.each(["download", "no-content"] as const)("a %s navigation keeps the page, 
   const server = createServer((request, response) => {
     const url = request.url ?? "/";
     if (url === "/app-abort") {
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(": open\n\n");
       held.push(response);
       return;
     }
