@@ -1,6 +1,7 @@
 // Scoped network execution keeps all admission in the infra owner; only physical edges vary.
 
 import type { TimerScheduler } from "@orb/kit/time";
+import type { buildConnector } from "undici";
 
 export const ENDPOINT_ADMISSIONS = ["public", "admitted", "refused", "invalid"] as const;
 
@@ -73,6 +74,8 @@ export type EgressResolver = (host: string) => Promise<readonly string[]>;
 export interface ScopedEgressOptions {
   readonly fetch?: typeof fetch | undefined;
   readonly resolver?: EgressResolver;
+  /** The physical dial: every connector this egress builds comes from here, so a script replaces the socket and keeps the address judgment. */
+  readonly buildConnector?: typeof buildConnector;
   readonly timers?: TimerScheduler;
 }
 

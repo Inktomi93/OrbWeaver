@@ -2,31 +2,26 @@ import type { LookupFunction } from "node:net";
 import type { ScopedEgressOptions } from "@orb/server/infra/network";
 import { createScopedEgress } from "@orb/server/infra/network";
 import { expect, test } from "@orb/testkit/node";
-import { vi } from "vitest";
 
-const raw = vi.hoisted((): { reached: Error; calls: string[] } => ({ reached: new Error("controlled raw dial reached"), calls: [] }));
+const raw = { reached: new Error("controlled raw dial reached"), calls: [] as string[] };
 
 // Only the physical connector is scripted. The production lookup callback makes the actual address judgment.
-vi.mock("undici", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("undici")>();
-  const build: typeof actual.buildConnector = (options) => {
-    if (options === undefined || !("lookup" in options) || typeof options.lookup !== "function") {
-      throw new Error("the connector control requires the production lookup adapter");
-    }
-    const lookup: LookupFunction = options.lookup;
-    return (target, callback): void => {
-      lookup(target.hostname, { all: true }, (error): void => {
-        if (error !== null) {
-          callback(error, null);
-          return;
-        }
-        raw.calls.push(`${target.hostname}:${target.port}`);
-        callback(raw.reached, null);
-      });
-    };
+const scriptedConnector: NonNullable<ScopedEgressOptions["buildConnector"]> = (options) => {
+  if (options === undefined || !("lookup" in options) || typeof options.lookup !== "function") {
+    throw new Error("the connector control requires the production lookup adapter");
+  }
+  const lookup: LookupFunction = options.lookup;
+  return (target, callback): void => {
+    lookup(target.hostname, { all: true }, (error): void => {
+      if (error !== null) {
+        callback(error, null);
+        return;
+      }
+      raw.calls.push(`${target.hostname}:${target.port}`);
+      callback(raw.reached, null);
+    });
   };
-  return { ...actual, buildConnector: build };
-});
+};
 
 type EgressResolver = NonNullable<ScopedEgressOptions["resolver"]>;
 
@@ -56,7 +51,7 @@ async function dialFailure(fetchPromise: Promise<Response>): Promise<unknown> {
 
 test("the actual connector rejects a wrong hostname port before the physical dial despite its resolved CIDR", async () => {
   raw.calls.length = 0;
-  await using egress = createScopedEgress({ resolver: rebindingResolver() });
+  await using egress = createScopedEgress({ resolver: rebindingResolver(), buildConnector: scriptedConnector });
   egress.publishPrivateEndpointAllowlist(["engine.lan:11434", "127.0.0.0/8"]);
   const cause = await dialFailure(egress.configuredEndpointFetch("http://engine.lan:8080/v1"));
   expect(cause).not.toBe(raw.reached);
@@ -66,7 +61,7 @@ test("the actual connector rejects a wrong hostname port before the physical dia
 
 test("the connector preserves exact-port, unrelated-CIDR-host and public-address admission", async () => {
   raw.calls.length = 0;
-  await using egress = createScopedEgress({ resolver: resolveByHost });
+  await using egress = createScopedEgress({ resolver: resolveByHost, buildConnector: scriptedConnector });
   egress.publishPrivateEndpointAllowlist(["engine.lan:11434", "public.example:11434", "127.0.0.0/8"]);
   for (const url of ["http://engine.lan:11434/v1", "http://other.lan:8080/v1", "http://public.example:8080/v1"]) {
     await expect(dialFailure(egress.configuredEndpointFetch(url))).resolves.toBe(raw.reached);

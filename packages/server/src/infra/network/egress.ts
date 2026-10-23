@@ -184,6 +184,7 @@ interface EgressContext {
   firewallAgent: Agent | undefined;
   readonly firewallLookup: LookupFunction;
   resolver: EgressResolver;
+  readonly buildConnector: typeof buildConnector;
   readonly fetch: typeof fetch;
   readonly timers: NonNullable<ScopedEgressOptions["timers"]>;
   readonly pending: Set<Promise<void>>;
@@ -202,6 +203,7 @@ function createEgressContext(options: ScopedEgressOptions, global: boolean): Egr
     firewallAgent: undefined,
     firewallLookup: options.resolver === undefined ? dnsLookup : resolverLookup(options.resolver),
     resolver: options.resolver ?? defaultResolver,
+    buildConnector: options.buildConnector ?? buildConnector,
     fetch: options.fetch ?? ((input, init): Promise<Response> => globalThis.fetch(input, init)),
     timers: options.timers ?? systemTimers,
     pending: new Set(),
@@ -639,7 +641,7 @@ function createFirewallConnectFor(context: EgressContext): { readonly connect: b
 
   const connectTarget = (target: buildConnector.Options, callback: buildConnector.Callback, declared: boolean): void => {
     const port = effectiveHttpPort(target.protocol, target.port);
-    const connector = buildConnector({
+    const connector = context.buildConnector({
       lookup: createFirewallLookupFor(context, { hostname: target.hostname, port, declared, allowlist, ranges }),
     });
     connector(target, callback);
@@ -718,7 +720,7 @@ async function configuredEndpointPin(context: EgressContext, url: URL): Promise<
   if (blocked !== undefined) {
     blockEgress("private-address", host, `host ${host} resolves to a private, reserved or unreadable address`, { address: blocked });
   }
-  const agent = pinnedAgent(addresses);
+  const agent = pinnedAgent(context, addresses);
   context.agents.add(agent);
   return agent;
 }
@@ -1118,7 +1120,7 @@ async function resolveValidatePinFor(context: EgressContext, url: URL): Promise<
     // The address is LOGGED (observability) but never surfaced in the thrown error.
     blockEgress("private-address", host, `host ${host} resolves to a private, reserved or unreadable address`, { address: blocked });
   }
-  const agent = pinnedAgent(addresses);
+  const agent = pinnedAgent(context, addresses);
   context.agents.add(agent);
   return agent;
 }
@@ -1131,9 +1133,9 @@ function socketFamily(address: string): typeof SOCKET_FAMILY_V4 | typeof SOCKET_
 
 /** A per-request undici Agent whose connector lookup hands back ONLY the pre-validated addresses and
  *  errors on reuse — undici invokes the lookup with `{all:true}` (verified). */
-function pinnedAgent(addresses: readonly string[]): Agent {
+function pinnedAgent(context: EgressContext, addresses: readonly string[]): Agent {
   let used = false;
-  const connect = buildConnector({
+  const connect = context.buildConnector({
     lookup(_hostname, lookupOptions, callback): void {
       if (used) {
         callback(new Error("safeFetch: pinned lookup reused"), [], 0);
