@@ -72,6 +72,7 @@ Runnable examples:
 | Ordinary CT authoring uses typed mounts, browser JSX and type-only story imports | Native ESLint syntax restrictions in [eslint.config.ts](../../eslint.config.ts) |
 | Inline callback props stay out of Node mount calls | The same ESLint restrictions; aliases and arbitrary dataflow remain review responsibilities |
 | Recognized internal-module mocks and replacement service constructors are refused | Existing ESLint syntax and import restrictions |
+| A test never calls `vi.mock` or `vi.doMock`; an external edge is scripted through an injected seam on the production options | `EXTERNAL_MODULE_MOCK_RESTRICTION` in [eslint.config.ts](../../eslint.config.ts); `tests/tooling` is outside it because that project isolates modules |
 | Unknown stories and render failures do not become successful empty mounts | [Gallery runtime regressions](browser/gallery.ct.tsx) |
 | Cold failures remain failures | Native runner configuration and first-navigation regression checks; no automatic warm-up navigation or test retries |
 

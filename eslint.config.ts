@@ -50,9 +50,22 @@ const REACT_HOOK_RULES: Linter.RulesRecord = {
 
 const PLAYWRIGHT_TESTS = ["tests/**/*.ct.tsx", "tests/**/*.spec.ts", "tests/e2e/**/!(*.test).{ts,tsx}"];
 
+const MOCK_CALL = String.raw`CallExpression:matches([callee.name=/^(mock|doMock)$/], [callee.property.name=/^(mock|doMock)$/], [callee.property.value=/^(mock|doMock)$/])`;
+const INTERNAL_MODULE_SPECIFIER = String.raw`:matches([arguments.0.type='Literal'][arguments.0.value=/^(@orb\/|#|\.\.?\/)/], [arguments.0.type='ImportExpression'][arguments.0.source.value=/^(@orb\/|#|\.\.?\/)/])`;
+
 const INTERNAL_MODULE_MOCK_RESTRICTION = {
-  selector: String.raw`CallExpression:matches([callee.name=/^(mock|doMock)$/], [callee.property.name=/^(mock|doMock)$/], [callee.property.value=/^(mock|doMock)$/]):matches([arguments.0.type='Literal'][arguments.0.value=/^(@orb\/|#|\.\.?\/)/], [arguments.0.type='ImportExpression'][arguments.0.source.value=/^(@orb\/|#|\.\.?\/)/])`,
+  selector: `${MOCK_CALL}${INTERNAL_MODULE_SPECIFIER}`,
   message: "Do not replace internal modules in product tests. Script external execution through the production test root.",
+};
+
+// A module mock binds by resolved module id and only for modules loaded after it, so under a shared registry
+// (`--no-isolate`, the integration project) a file that already loaded the subject keeps the real module and the
+// test dials the real thing. tests/tooling is outside this twice over: its isolated project mocks `node:fs` and
+// `node:child_process` for CLI subjects that have no seam by design.
+const EXTERNAL_MODULE_MOCK_RESTRICTION = {
+  selector: `${MOCK_CALL}:not(${INTERNAL_MODULE_SPECIFIER})`,
+  message:
+    "Do not mock a module in tests. Pass the external edge through an injected seam on the production options (as buildConnector is on ScopedEgressOptions), or add one.",
 };
 
 // The integration project shares one module registry (`isolate: false`), so a stubbed or written process
@@ -1006,7 +1019,7 @@ export default [
     // process environment at call time by design with no parameter to pass the value through.
     ignores: ["tests/tooling/**", "**/*.test-d.ts"],
     rules: {
-      "no-restricted-syntax": ["error", INTERNAL_MODULE_MOCK_RESTRICTION, ...TEST_ENVIRONMENT_RESTRICTIONS],
+      "no-restricted-syntax": ["error", INTERNAL_MODULE_MOCK_RESTRICTION, EXTERNAL_MODULE_MOCK_RESTRICTION, ...TEST_ENVIRONMENT_RESTRICTIONS],
     },
   },
   {
@@ -1015,6 +1028,7 @@ export default [
       "no-restricted-syntax": [
         "error",
         INTERNAL_MODULE_MOCK_RESTRICTION,
+        EXTERNAL_MODULE_MOCK_RESTRICTION,
         ...TEST_ENVIRONMENT_RESTRICTIONS,
         { selector: "JSXElement, JSXFragment", message: "Keep component composition in browser stories; CT specs call native mount with data props." },
         {
