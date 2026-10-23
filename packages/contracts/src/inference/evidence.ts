@@ -9,7 +9,7 @@
 //   curated       — the shipped JSON rows, cited.
 //   family-floor  — code, OR semantics only (today's `synthesizeToolAxes`: OR's catalog omits
 //                   `structured_outputs` for Claude, so a Claude id gets tools/structured OR-ed in).
-//   kind-floor    — `KIND_DEFS[kind].floor`.
+//   kind-floor    — the canonical per-kind capability floor used by synthesis.
 
 import { z } from "zod";
 

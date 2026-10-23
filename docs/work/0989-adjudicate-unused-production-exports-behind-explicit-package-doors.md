@@ -262,10 +262,24 @@ Production mode excludes maintained test, tool and generator consumers. Review d
 | Surface | Decision and evidence |
 | - | - |
 | Bus-registry assertion types | Move shared assertion machinery to `tests/support/iso/bus-registry.ts`. Keep Node and DOM cases under `tests/contracts/events/`; import actual production events. Remove the application package door. |
-| Event discriminator tuples | Keep contracts ownership. Native testkit assertions compare AUTOMATION_BUS_EVENT_TYPES, DOMAIN_EVENT_TYPES and RPG_BUS_EVENT_TYPES against actual event unions. |
+| Event discriminator declarations | Keep DOMAIN_EVENT_TYPES, which derives live DomainEventType, and RPG_BUS_EVENT_TYPES, which validates real trace events. Remove the automation mirror used only by assertion machinery; the actual client reducer remains exhaustive over AutomationBusEvent. |
 | Canonical schemas, wire types, defaults, limits and error codes | Keep production ownership when testkit builds or parses genuine product data. Tests import the owner rather than duplicate its rules. |
 | Plugin authoring vocabularies and SDK type conformance | Keep contracts ownership. The author-support generator and SDK conformance cases consume actual application contracts. Independent SDK declarations retain their distribution boundary. |
 | Debug response schemas | Keep contracts ownership. E2E readers parse actual HTTP responses; the server uses inferred response types. |
-| KIND_DEFS and KindDefs | Unresolved. The selected admin card-embed case reads the embedding floor but supplies fabricated role clients and storage. Compare its assertions with production-root embedding coverage before retaining or removing this table. Do not use that import alone as liveness authority. |
+| KIND_DEFS and KindDefs | Remove the redundant table and exclusive types. The actual capability parser uses a total, discriminator-correlated schema map; synthesis retains canonical floors and exhaustive dispatch. Rebuild the admin embedding case through production composition. |
 
 The consumer inventory establishes references, not complete restoration coverage. Preserve the wider restoration register and review unresolved harness purposes separately.
+
+## Selected capability and runtime ownership cases
+
+| Original purpose | Primary home and decision |
+| - | - |
+| Canonical kind admission and task partition | Keep public modelKindSchema, TASK_DEFS and tasksOfKind assertions in the capability contract test. Preserve image and empty-kind refusals. |
+| Capability floor validity, payload correlation and foreign-field stripping | Rebuild through actual capabilitySchema and canonical per-kind floors. Keep complete parse equality, serialization, missing and mismatched payload refusals. |
+| KIND_DEFS schema and floor identities | Drop helper-specific identities with the unused table. Preserve exact public parser payload types in native compiler assertions. |
+| Capability variant completeness | Derive the actual parser from a complete key/discriminator-correlated map over modelKindSchema. New kinds require an implemented parser variant. |
+| Admin card ownership, textless refusal and fresh model selection | Rebuild the maintained fake-collaborator case through the public admin service, production root, real bindings and persistence. Script only provider transport. |
+| Role-client task vocabulary | Import the canonical RoleClientTask into runtime resolution. Remove the private duplicate task axis. |
+| RPG tool-name completeness | Couple actual tool implementations to RpgToolName with a key/name-correlated map. Preserve handler bodies and canonical tool order. |
+
+These selections do not restore unrelated capability-reader, provider, RPG or admin cases.

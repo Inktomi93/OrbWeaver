@@ -18,10 +18,11 @@
 // `roll_dice` is the odd one: ZERO state (bake-once — the ToolCallRecord on the variant IS the canon stamp).
 // It rolls via the injected CSPRNG (`ctx.randomInt`) and returns the total + faces; no staging.
 
-import type { RpgSnapshotState } from "@orb/contracts/rpg";
+import type { RpgSnapshotState, RpgToolName } from "@orb/contracts/rpg";
 import {
   addJournalEntryArgsSchema,
   RPG_BASELINE_TOOL_DESCRIPTIONS,
+  RPG_LITE_TOOL_NAMES,
   rollDiceArgsSchema,
   setTrackerArgsSchema,
   updateInventoryArgsSchema,
@@ -53,8 +54,8 @@ import { createExtractionMints } from "./mints.ts";
 /** The sanctioned erasure (the imagery/buddy precedent): a typed `ToolDefinition<A>` is unassignable to
  *  `ToolDefinition<unknown>` (handler contravariance), so mint with its own `A` and widen for the array;
  *  `register<A>` re-narrows. */
-function rpgTool<A>(def: ToolDefinition<A>): ToolDefinition {
-  return def as ToolDefinition;
+function rpgTool<A, const Name extends RpgToolName>(def: ToolDefinition<A> & { readonly name: Name }): ToolDefinition & { readonly name: Name } {
+  return def as ToolDefinition & { readonly name: Name };
 }
 
 /** The turn context a stateful tool needs — the game + the turn's ephemeral id. Resolved once per invocation
@@ -101,8 +102,8 @@ async function participantIndexFor(ctx: RpgContext, game: RpgGameRow): Promise<A
 export function rpgToolDefinitions(input: RpgAssemblyContext): readonly ToolDefinition[] {
   const ctx = createRpgContext(input);
   const extractionMints = createExtractionMints(ctx.idSource);
-  return [
-    rpgTool({
+  const definitions = {
+    ["update_party"]: rpgTool({
       name: "update_party",
       description: RPG_BASELINE_TOOL_DESCRIPTIONS.get("update_party") ?? "",
       argsSchema: updatePartyArgsSchema,
@@ -123,7 +124,7 @@ export function rpgToolDefinitions(input: RpgAssemblyContext): readonly ToolDefi
         return { ok: true, value: { targetRef: args.targetRef } };
       },
     }),
-    rpgTool({
+    ["update_inventory"]: rpgTool({
       name: "update_inventory",
       description: RPG_BASELINE_TOOL_DESCRIPTIONS.get("update_inventory") ?? "",
       argsSchema: updateInventoryArgsSchema,
@@ -140,7 +141,7 @@ export function rpgToolDefinitions(input: RpgAssemblyContext): readonly ToolDefi
         return { ok: true, value: { targetRef: args.targetRef } };
       },
     }),
-    rpgTool({
+    ["update_scene"]: rpgTool({
       name: "update_scene",
       description: RPG_BASELINE_TOOL_DESCRIPTIONS.get("update_scene") ?? "",
       argsSchema: updateSceneArgsSchema,
@@ -158,7 +159,7 @@ export function rpgToolDefinitions(input: RpgAssemblyContext): readonly ToolDefi
         return { ok: true, value: {} };
       },
     }),
-    rpgTool({
+    ["set_tracker"]: rpgTool({
       name: "set_tracker",
       description: RPG_BASELINE_TOOL_DESCRIPTIONS.get("set_tracker") ?? "",
       argsSchema: setTrackerArgsSchema,
@@ -174,7 +175,7 @@ export function rpgToolDefinitions(input: RpgAssemblyContext): readonly ToolDefi
         return { ok: true, value: { key: args.key } };
       },
     }),
-    rpgTool({
+    ["upsert_quest"]: rpgTool({
       name: "upsert_quest",
       description: RPG_BASELINE_TOOL_DESCRIPTIONS.get("upsert_quest") ?? "",
       argsSchema: upsertQuestArgsSchema,
@@ -191,7 +192,7 @@ export function rpgToolDefinitions(input: RpgAssemblyContext): readonly ToolDefi
         return { ok: true, value: { name: args.name, action: args.action } };
       },
     }),
-    rpgTool({
+    ["add_journal_entry"]: rpgTool({
       name: "add_journal_entry",
       description: RPG_BASELINE_TOOL_DESCRIPTIONS.get("add_journal_entry") ?? "",
       argsSchema: addJournalEntryArgsSchema,
@@ -209,7 +210,7 @@ export function rpgToolDefinitions(input: RpgAssemblyContext): readonly ToolDefi
         return { ok: true, value: { title: args.title } };
       },
     }),
-    rpgTool({
+    ["roll_dice"]: rpgTool({
       name: "roll_dice",
       // PROSE-1 slot (#578): `rpg.extract.tool.rollDice`, resolved to its shipped default at module load —
       // the same "no game, no preset in scope" posture as its six siblings (`RPG_BASELINE_TOOL_DESCRIPTIONS`).
@@ -228,5 +229,6 @@ export function rpgToolDefinitions(input: RpgAssemblyContext): readonly ToolDefi
         });
       },
     }),
-  ];
+  } satisfies { readonly [Name in RpgToolName]: ToolDefinition & { readonly name: Name } };
+  return RPG_LITE_TOOL_NAMES.map((name) => definitions[name]);
 }

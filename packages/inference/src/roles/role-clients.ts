@@ -6,7 +6,7 @@ import type { Task, UnavailableCause } from "@orb/contracts/inference";
 import { canFund } from "@orb/contracts/inference";
 import { rolePresetParamsOf } from "@orb/contracts/preset";
 import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "@orb/contracts/providers";
-import type { ImageEmbedInput, RerankDocument, RerankQuery, SummarizeInput } from "@orb/contracts/role-clients";
+import type { ImageEmbedInput, RerankDocument, RerankQuery, RoleClientTask, SummarizeInput } from "@orb/contracts/role-clients";
 import type { ProviderExecutor } from "../contract/backend.ts";
 import { ProviderError } from "../contract/errors.ts";
 import type { ResolvedEmbedKnobs } from "../contract/resolve.ts";
@@ -17,10 +17,6 @@ import type { ResolverContext } from "../contract/task-resolution.ts";
 import type { BindingActor } from "../deps.ts";
 import { resolveEmbed } from "../funnel/resolve-embed.ts";
 import { NoConnectionError, resolveTask } from "../resolve/resolve-task.ts";
-
-/** The tasks the bundle serves — the derive roles; chat/agent/generateImage reach the executor directly. */
-const DERIVE_TASKS = ["embed", "rerank", "imageEmbed", "summarize", "structured"] as const satisfies readonly Task[];
-type DeriveTask = (typeof DERIVE_TASKS)[number];
 
 /** The caller's options onto the backend request. The role surface speaks `maxOutputTokens` (the posture
  *  vocabulary); the backend request keeps `maxTokens`, so this is the one place the name changes. */
@@ -62,7 +58,7 @@ export function createRoleClientsFor(args: { readonly ctx: ResolverContext; read
   const { ctx, executor } = args;
 
   return (funder: Principal, actor?: BindingActor): RoleClientsWithSignal => {
-    const live = async <T extends DeriveTask>(task: T): Promise<Resolved<T>> => {
+    const live = async <T extends RoleClientTask>(task: T): Promise<Resolved<T>> => {
       const { resolved } = await resolveTask(ctx, { task, principal: funder, ...(actor !== undefined ? { actor } : {}) });
       // The owner's per-row consent to unattended spend: a background task on a row that withholds it runs
       // nothing, and reads as the same "nothing ran" class as no binding (the callers' existing degrade).
@@ -110,7 +106,7 @@ export function createRoleClientsFor(args: { readonly ctx: ResolverContext; read
           ...samplerFields(opts),
         });
       },
-      resolved: async (task: DeriveTask): Promise<Resolved | null> => {
+      resolved: async (task: RoleClientTask): Promise<Resolved | null> => {
         try {
           return await live(task);
         } catch (err) {

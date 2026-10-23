@@ -951,18 +951,6 @@ export type AutomationBusEvent =
   | { type: "ruleAutoDisabled"; chatId: ChatId; ruleId: AutomationRuleId }
   | { type: "rulesChanged"; chatId: ChatId };
 
-/** The canonical automation event belt, checked against {@link AutomationBusEvent} by its mapped Record
- *  and the bus registry's native type assertions. */
-export const AUTOMATION_BUS_EVENT_TYPES = {
-  quickReplySurfaced: true,
-  suggestionRaised: true,
-  suggestionResolved: true,
-  ruleFired: true,
-  ruleErrored: true,
-  ruleAutoDisabled: true,
-  rulesChanged: true,
-} satisfies Record<AutomationBusEvent["type"], true>;
-
 // S3 — the rule-PRESET wire slice: the committed id tuple + the picker's read model (knob descriptors).
 // A preset is data OVER this action vocabulary — it mints ordinary rules, it adds no arm. The CEL sources
 // and the mint handlers stay domain-side (`domain/automation/contract/presets.ts`).
