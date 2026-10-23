@@ -7,7 +7,6 @@ import {
   APPEARANCE_CARRIER_PLANES,
   APPEARANCE_EDITOR_OWNERS,
   APPEARANCE_OWNER_KEYS,
-  appearanceCarrierRowsFor,
 } from "#client/lib/appearance-carrier-manifest.ts";
 
 const MANIFEST_ROWS = Object.entries(APPEARANCE_CARRIER_MANIFEST);
@@ -37,7 +36,10 @@ test("every armed row has exactly one observable and two distinct arms", () => {
 
 test("every carrier plane carries at least one appearance key", () => {
   for (const plane of APPEARANCE_CARRIER_PLANES) {
-    expect(appearanceCarrierRowsFor(plane).length, `carrier plane ${plane} reached zero appearance keys`).toBeGreaterThan(0);
+    expect(
+      MANIFEST_ROWS.some(([, row]) => row.carriers.some((carrier) => carrier === plane)),
+      `carrier plane ${plane} reached zero appearance keys`,
+    ).toBe(true);
   }
 });
 

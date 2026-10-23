@@ -173,9 +173,7 @@ export function cycleTagFilter(tagId: TagId): void {
 export function clearCharacterFilters(): void {
   useCharacterLibraryStore.setState({ favoritesOnly: false, tagFilter: [] }, false, "character-library/clearFilters");
 }
-export function __resetTagFilter(): void {
-  useCharacterLibraryStore.setState({ tagFilter: [] }, false, "character-library/__resetTagFilter");
-}
+
 /** The pane's search text (raw — a query consumer damps it itself; see the state field's note). */
 export function setCharacterSearch(search: string): void {
   useCharacterLibraryStore.setState({ search }, false, "character-library/setSearch");

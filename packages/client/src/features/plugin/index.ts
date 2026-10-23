@@ -9,11 +9,6 @@
 // Every component below them is internal — a consumer that wants a plugin surface takes it through the
 // registry the door builds, never by importing a component (client-architecture-lockdown.md §8/G8).
 
-// The console SURFACE is exported alongside the defs (the `RulesSection` precedent in features/automation):
-// a CT mounts only from a non-test module, and the surface is what the rendered proof of the console
-// exercises. The grant screen's proofs mount the Installed / Add-a-plugin CONTRIBUTIONS themselves.
-
-export { SnippetConsole } from "./components/snippet-console.tsx";
 // The two U2 CHAT-anchor contributions (seam 7) — assembled into chat's surface + section
 // registries at the door, never imported by chat itself.
 // U6 (§5.4) added the `message-footer` per-row anchor to the same two-contribution family.

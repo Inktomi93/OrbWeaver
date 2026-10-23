@@ -34,7 +34,7 @@ import { stageWarnOf, warnScopeOf } from "../lib/preflight-warn.ts";
 // Re-derived locally from the preflight hook's wire shape (§7.4 — never an exported alias).
 type StagePreflightView = NonNullable<ReturnType<typeof useRefineryPreflight>["data"]>["stages"][number];
 
-export interface LaneRunControlProps {
+interface LaneRunControlProps {
   readonly stage: RefineryStage;
   readonly stagePre: StagePreflightView | undefined;
   readonly contextTokens: number | null;

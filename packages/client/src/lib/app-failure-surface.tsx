@@ -22,7 +22,7 @@ import type { ReactElement, ReactNode } from "react";
 /** The failure surfaces the app can render instead of a surface. The VALUE is what the instrument prints,
  *  so it is the operator's vocabulary, not an internal one. */
 const APP_FAILURE_KINDS = ["not-found", "crashed"] as const;
-export type AppFailureKind = (typeof APP_FAILURE_KINDS)[number];
+type AppFailureKind = (typeof APP_FAILURE_KINDS)[number];
 
 export interface AppFailureSurfaceProps {
   /** Which failure this render is — stamped as `data-app-failure` on the surface root. */

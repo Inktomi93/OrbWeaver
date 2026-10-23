@@ -5,10 +5,10 @@ import type { MessageView } from "@orb/contracts/chat";
 import type { RowRenderPolicy } from "#lib";
 import { toContentBlocks } from "./content-blocks.ts";
 
-/** The most card rows held mounted at once. Each kept row is a live frame document whose scripts keep running
- *  off-screen, so the cap bounds that cost; the newest rows win because they are the ones a reader returns to.
- *  @public Test-anchored module surface; the unit test fills past the cap. */
-export const LIVE_CARD_ROWS_KEPT_MOUNTED = 8;
+// The most card rows held mounted at once. Each kept row is a live frame document whose scripts keep running
+//  off-screen, so the cap bounds that cost; the newest rows win because they are the ones a reader returns to.
+
+const LIVE_CARD_ROWS_KEPT_MOUNTED = 8;
 
 /**
  * The ids of the newest {@link LIVE_CARD_ROWS_KEPT_MOUNTED} message rows that render a Tier-B card frame,

@@ -55,10 +55,8 @@ function framePath(url: string, origin: string): string | null {
   return parsed.origin === origin && SAME_ORIGIN_PATH_RE.test(parsed.pathname) ? parsed.pathname : null;
 }
 
-/** The top frames of a stack, each reduced to `function@path:line:col`. Frames outside this origin are left
- *  out, never shortened, so the result names only files this app serves.
- *  @public Test-anchored module surface; the reduction is pinned against hostile stacks. */
-export function safeStackFrames(stack: string, origin: string): readonly string[] {
+// Keep only bounded same-origin frames, never the reported error message or host.
+function safeStackFrames(stack: string, origin: string): readonly string[] {
   const frames: string[] = [];
   for (const raw of stack.split("\n").slice(0, STACK_LINES_MAX)) {
     const groups = (V8_FRAME_RE.exec(raw) ?? AT_SIGN_FRAME_RE.exec(raw))?.groups;
@@ -108,10 +106,8 @@ function liveContext(): RecordContext {
   return { at: clockMs(), origin: ringGlobals.location?.origin ?? "", pathname: ringGlobals.location?.pathname ?? "" };
 }
 
-/** Record one failure from the values a browser surface reported. Only an `Error` among them contributes,
- *  and only its class and its same-origin frames.
- *  @public Test-anchored module surface; the canary tests drive it directly. */
-export function recordSafeError(source: SafeErrorSource, values: readonly unknown[], context: RecordContext = liveContext()): void {
+// Reduce errors before retention so the production ring cannot retain reported messages.
+function recordSafeError(source: SafeErrorSource, values: readonly unknown[], context: RecordContext = liveContext()): void {
   const error = values.find((value): value is Error => value instanceof Error);
   ring.push({
     source,
@@ -129,13 +125,6 @@ export function recordSafeError(source: SafeErrorSource, values: readonly unknow
 /** A copy of the ring and its drop tally. */
 export function safeErrorRing(): SafeErrorRingRead {
   return { records: [...ring], dropped };
-}
-
-/** Clear the ring (`__reset<Noun>`, the test-seam convention).
- *  @public Test-anchored module surface; the ring suites reset it between cases. */
-export function __resetSafeErrorRing(): void {
-  ring.length = 0;
-  dropped = 0;
 }
 
 /** Install the three capture channels once. The original `console.error` is chained, never replaced. */

@@ -61,9 +61,8 @@ const DEFAULT_STATE: ActiveChatState = {
 
 const CHAT_ID = typeIdSchema(ID_PREFIX.chat);
 
-/** Restore only a valid committed handle. Creation intent and husk candidacy are page-lifetime facts: a
- * reload must not reopen a modal or claim that this device is still in the middle of creating a room. */
-export function __migrateActiveChatForTest(persisted: unknown): ActiveChatState {
+// Creation intent and husk candidacy belong to this page lifetime, not the restored navigation handle.
+function migrate(persisted: unknown): ActiveChatState {
   if (persisted === null || typeof persisted !== "object") {
     return DEFAULT_STATE;
   }
@@ -83,7 +82,7 @@ export function __migrateActiveChatForTest(persisted: unknown): ActiveChatState 
 
 const useActiveChatStore = createPersistedStore<ActiveChatState, PersistedActiveChatState>("active-chat", (): ActiveChatState => DEFAULT_STATE, {
   version: 1,
-  migrate: __migrateActiveChatForTest,
+  migrate,
   partialize: (state): PersistedActiveChatState => ({ handle: state.handle }),
 });
 

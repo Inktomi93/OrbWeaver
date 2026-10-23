@@ -12,11 +12,6 @@
 //   · the composer's "generate from typed text" button stays in `features/chat` (the composer owns its own
 //     tools); `/imagine` is the richer surface (mode + preview) beside it, not a replacement.
 
-// The modal BODIES are exported for CT (the chat-feature precedent) — a story mounts the body directly with
-// the imagery-store seeded, so the flow is exercised without driving the whole app-shell ModalHost.
-export { ImageDetailBody } from "./components/image-detail-body.tsx";
-export { ImageEditBody } from "./components/image-edit-body.tsx";
-export { ImagineBody } from "./components/imagine-body.tsx";
 export { imageDetailModal } from "./lib/image-detail-modal.tsx";
 export { imageEditModal } from "./lib/image-edit-modal.tsx";
 export { imagineModal } from "./lib/imagine-modal.tsx";

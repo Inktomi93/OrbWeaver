@@ -26,23 +26,23 @@
 // working app because their wifi blinked. Unreachable is ignored; only a RESOLVED `authenticated: false` is
 // a verdict.
 
-import { timeLib } from "#lib";
+import { sessionDocument } from "#lib";
 
 /** The server's session-slide throttle — see the header for why the probe floor is exactly this. */
 const FRESHNESS_FLOOR_MS = 300_000;
 
 /** When the session was last CONFIRMED alive. Seeded at module load: this module is imported during boot,
  *  where the route guard's own `/api/auth/me` has just answered — so a fresh page starts confirmed. */
-let lastConfirmedAt = timeLib.now();
+let lastConfirmedAt = sessionDocument.now();
 let probing = false;
 
 /** Record a confirmed-alive session. Called by every path that has just seen a live auth verdict. */
-export function markSessionFresh(at: number = timeLib.now()): void {
+export function markSessionFresh(at: number = sessionDocument.now()): void {
   lastConfirmedAt = at;
 }
 
 /** How long since the session was last confirmed alive — the lens the probe (and a test) gates on. */
-export function sessionFreshnessAgeMs(now: number = timeLib.now()): number {
+function sessionFreshnessAgeMs(now: number = sessionDocument.now()): number {
   return now - lastConfirmedAt;
 }
 
@@ -91,10 +91,4 @@ export function startSessionFreshness(deps: SessionFreshnessDeps): () => void {
       },
     );
   });
-}
-
-/** Test seam — reset the module clock (and any latched in-flight probe) to a known point. */
-export function __resetSessionFreshness(at: number = timeLib.now()): void {
-  lastConfirmedAt = at;
-  probing = false;
 }

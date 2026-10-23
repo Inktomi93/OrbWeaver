@@ -77,7 +77,7 @@ export interface DurableLocalPersistApi {
 }
 
 /** The slice of zustand's `PersistStorage` the adoption move needs (values are already-parsed envelopes). */
-export interface DurableLocalStorage {
+interface DurableLocalStorage {
   readonly getItem: (name: string) => unknown;
   readonly setItem: (name: string, value: unknown) => unknown;
   readonly removeItem: (name: string) => unknown;
@@ -344,15 +344,4 @@ export function durableLocalWritesAllowed(): boolean {
 /** The bound identity — the lens a test (or the dev bridge) asserts the namespace through. */
 export function activeDurableLocalUserId(): UserId | null {
   return activeUserId;
-}
-
-/** Test seam — forget every registered store and unbind the identity (the module is page-scoped state). */
-export function __resetDurableLocal(): void {
-  registry.length = 0;
-  activeUserId = null;
-  projectionUserId = null;
-  readyUserId = null;
-  desiredUserId = null;
-  adoptionUserId = null;
-  bindTail = Promise.resolve();
 }

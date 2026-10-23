@@ -65,7 +65,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import type { FoldState } from "./face-strip-fold.ts";
 import { cellWidthClass, foldFaces, sameFold, tileName } from "./face-strip-fold.ts";
 
-export interface FaceStripItem {
+interface FaceStripItem {
   readonly id: string;
   readonly name: string;
   /** CAS key — null falls back to the hue-seeded initials blob. */

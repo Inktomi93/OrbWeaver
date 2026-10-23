@@ -87,32 +87,18 @@ const pendingTokensByChat = new Map<ChatId, PendingTokens>();
 const scheduledChats = new Set<ChatId>();
 let flushScheduled = false;
 
-/** Schedule the next batch flush. Defaults to one `requestAnimationFrame` in the browser (frame-cadence
- *  commits) and to a SYNCHRONOUS run off-browser (vitest/node — no rAF), which preserves the store's
- *  synchronous per-delta contract the unit/CT suites assert. `__setFrameSchedulerForTest` swaps it for a manual
- *  driver in a test so batch coalescing (N deltas → 1 commit) is deterministically assertable. */
+// Browser flushes share a frame; off-browser callers apply deltas synchronously.
 type FrameScheduler = (flush: () => void) => void;
 // Read rAF off globalThis via a local all-optional shape (the OrbBusHandle posture): this file rides in
 // DOM-less programs too (the node test graph imports it), where a bare `requestAnimationFrame` reference
 // does not compile. The runtime value is the real browser rAF when present, undefined under vitest/node.
 const maybeRaf = (globalThis as { requestAnimationFrame?: (cb: () => void) => number }).requestAnimationFrame;
-const defaultScheduler: FrameScheduler =
+const frameScheduler: FrameScheduler =
   maybeRaf !== undefined
     ? (flush): void => {
         maybeRaf(flush);
       }
     : (flush): void => flush();
-let frameScheduler: FrameScheduler = defaultScheduler;
-
-/** Test seam: install a manual frame scheduler (returns a restore fn). Buffered deltas then flush only when
- *  the captured callback is invoked, so a test can deliver a burst and assert it coalesced to one commit. */
-export function __setFrameSchedulerForTest(scheduler: FrameScheduler): () => void {
-  const previous = frameScheduler;
-  frameScheduler = scheduler;
-  return (): void => {
-    frameScheduler = previous;
-  };
-}
 
 /** Flush one chat's buffered tokens into its slot (pending→streaming or streaming/stopping append). No-op
  *  if nothing is buffered or the slot is no longer live (a terminal raced in). */
@@ -382,12 +368,4 @@ export function useTurnCommittedMessageId(chatId: ChatId | null): MessageId | nu
  *  ghost row unmounts the instant Stop is clicked. */
 export function isLiveTurnPhase(phase: TurnSlot["phase"]): boolean {
   return phase === "pending" || phase === "streaming" || phase === "stopping";
-}
-
-/** Transient (render-free) subscription to one chat's slot. NOT the smooth-text pacer's feed — the pacer
- *  (`@orb/ui` useSmoothText) is prop/render-fed and never subscribes here; today's only consumers are the
- *  chat-stream test suites, which use this as their live observation seam. A future render-free consumer
- *  (a DOM-direct streaming path) would enter here. */
-export function subscribeTurnSlot(chatId: ChatId, listener: (slot: TurnSlot) => void): () => void {
-  return useChatStreamStore.subscribe((s) => s.turns[chatId] ?? IDLE_TURN, listener);
 }

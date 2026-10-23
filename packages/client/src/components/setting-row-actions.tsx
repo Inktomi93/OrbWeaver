@@ -77,12 +77,8 @@ function ActionCell({ children }: { readonly children?: ReactElement | null }): 
   );
 }
 
-/**
- * THE DEVELOPER ARM — the full menu. Exported so a CT can mount it directly: `import.meta.env.DEV` is a
- * BUILD-TIME constant, so the two arms are not reachable from one another at runtime and a spec that only
- * ever mounted the dispatcher below could prove exactly one of them.
- */
-export function SettingRowDevActions({ address, label, binding }: SettingRowActionsProps): ReactElement {
+// The development build keeps copy actions beside the row reset.
+function SettingRowDevActions({ address, label, binding }: SettingRowActionsProps): ReactElement {
   const settingId = `${address.group}.${address.sub}.${address.setting}`;
   const settingLink = `${globalThis.location.origin}${formatConfigLink(address.group, address.sub, address.setting)}`;
   return (
@@ -116,8 +112,8 @@ export function SettingRowDevActions({ address, label, binding }: SettingRowActi
   );
 }
 
-/** THE END-USER ARM — one direct Reset on a modified bound row, an empty reserved cell otherwise. */
-export function SettingRowResetAction({ label, binding }: Omit<SettingRowActionsProps, "address">): ReactElement {
+// Production exposes reset directly and preserves the action track when no reset applies.
+function SettingRowResetAction({ label, binding }: Omit<SettingRowActionsProps, "address">): ReactElement {
   if (binding === null || !binding.modified) {
     return <ActionCell />;
   }

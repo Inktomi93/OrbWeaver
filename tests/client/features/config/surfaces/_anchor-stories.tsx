@@ -1,4 +1,4 @@
-import { __resetConfigNav, openConfigTo, resolveConfigSectionAnchor, useSectionRegistry } from "@orb/client/state";
+import { openConfigTo, resolveConfigSectionAnchor, useSectionRegistry } from "@orb/client/state";
 import { CtClientProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { configSections } from "@orb/testkit/browser/ct-door.ts";
 import { Button } from "@orb/ui/button";
@@ -16,7 +16,6 @@ function ConfigContent(): ReactElement {
 
 function AnchorSubject(): ReactElement {
   const [mounted, setMounted] = useState(() => {
-    __resetConfigNav();
     openConfigTo("appearance");
     return true;
   });

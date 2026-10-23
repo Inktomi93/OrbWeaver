@@ -187,16 +187,14 @@ const GroupConfigFormBoundary = createAutosaveEntityForm<GroupConfigFormValues>(
   defaultValues: toGroupConfigForm(DEFAULT_GROUP_CONFIG),
 });
 
-/**
- * The Group tab body. The boundary owns identity: it keys its private Session by `entityId`, so the whole
- * form (its FormApi + this render-prop body) dies + is reborn when the chat identity changes — this editor
- * mounts under `ContextTabsPanel`, which keys by TAB id only, so without the boundary a chat switch with
- * the tab open would keep the SAME FormApi and its frozen seed, and one field flip could autosave chat A's
- * group config into chat B. The boundary keys by `entityId` regardless of mount site, so BOTH mount arms
- * (the committed Group tab and the draft arm in `draft-context-tabs.tsx`) are protected.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps): ReactElement {
+// The Group tab body. The boundary owns identity: it keys its private Session by `entityId`, so the whole
+// form (its FormApi + this render-prop body) dies + is reborn when the chat identity changes — this editor
+// mounts under `ContextTabsPanel`, which keys by TAB id only, so without the boundary a chat switch with
+// the tab open would keep the SAME FormApi and its frozen seed, and one field flip could autosave chat A's
+// group config into chat B. The boundary keys by `entityId` regardless of mount site, so BOTH mount arms
+// (the committed Group tab and the draft arm in `draft-context-tabs.tsx`) are protected.
+
+function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps): ReactElement {
   const factorySave = (values: GroupConfigFormValues): Promise<unknown> => save(fromGroupConfigForm(values));
   // Which room's switch to Narrator turned Smart into Natural; keyed by room so a chat switch never carries it over.
   const [healedSmartIn, setHealedSmartIn] = useState<string | null>(null);

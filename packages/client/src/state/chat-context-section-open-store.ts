@@ -72,8 +72,3 @@ export function setChatContextSectionOpen(id: string, open: boolean): void {
   const { open: current } = useChatContextSectionOpenStore.getState();
   useChatContextSectionOpenStore.setState({ open: { ...current, [id]: open } }, false, "chatContextSections/setOpen");
 }
-
-/** Test seam: drop every remembered disclosure (a CT must not inherit another test's expanded set). */
-export function __resetChatContextSections(): void {
-  useChatContextSectionOpenStore.setState({ open: {} }, false, "chatContextSections/__reset");
-}

@@ -64,8 +64,3 @@ export function closeConfigGroup(id: ConfigGroupId): void {
   }
   useConfigGroupOpenStore.setState({ openIds: openIds.filter((k) => k !== id) }, false, "configGroupOpen/close");
 }
-
-/** Test seam: drop every remembered disclosure (a CT must not inherit another test's expanded set). */
-export function __resetConfigGroupOpen(): void {
-  useConfigGroupOpenStore.setState({ openIds: [] }, false, "configGroupOpen/__reset");
-}

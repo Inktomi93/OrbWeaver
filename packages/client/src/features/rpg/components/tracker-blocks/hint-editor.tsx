@@ -8,7 +8,7 @@ import { TrackerValue } from "./tracker-value.tsx";
 /** Show the counter from 80% of the cap ("a quiet counter from 80% full"). */
 const COUNTER_AT = 0.8;
 
-export interface HintEditorProps {
+interface HintEditorProps {
   /** The value's accessible name ("Grit hint"). */
   readonly ariaLabel: string;
   readonly hint: string;

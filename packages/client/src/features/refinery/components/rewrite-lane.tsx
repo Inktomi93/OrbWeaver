@@ -52,7 +52,7 @@ type RunView = inferOutput<Trpc["refinery"]["listRuns"]>[number];
  *  for a payload the lane never opens. Derived from the wire, never re-spelled. */
 type RewriteRunView = Pick<RunView, "iteration" | "model" | "payloadConfig" | "stage">;
 
-export interface RewriteLaneProps {
+interface RewriteLaneProps {
   readonly run: RewriteRunView | null;
   readonly entries: readonly ReviewEntry[];
   /** Entries the apply verb would refuse whatever is decided (`ReviewEntry.refusal`) — shown with the

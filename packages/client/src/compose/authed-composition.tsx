@@ -39,8 +39,8 @@ import {
 } from "./contributors.ts";
 import { homeTiles } from "./home-tiles.ts";
 
-/** The canonical settings vocabulary shared by every authenticated mount. */
-export const configGroups = createRegistry("config-groups", CONFIG_GROUP_IDS, {
+// The canonical settings vocabulary shared by every authenticated mount.
+const configGroups = createRegistry("config-groups", CONFIG_GROUP_IDS, {
   personas: personasGroup,
   appearance: appearanceGroup,
   "chat-behavior": chatBehaviorGroup,
@@ -58,8 +58,8 @@ export const configGroups = createRegistry("config-groups", CONFIG_GROUP_IDS, {
 // The palette hook retains module identity while reading the immutable canonical registry.
 bindConfigPaletteGroups(configGroups);
 
-/** Modal identity and triggers belong to the production door, not individual mounted stories. */
-export const modals = createRegistry("modals", MODAL_SLOT_IDS, {
+// Modal identity and triggers belong to the production door, not individual mounted stories.
+const modals = createRegistry("modals", MODAL_SLOT_IDS, {
   command: commandModal,
   newChat: newChatModal,
   addDocument: addDocumentModal,

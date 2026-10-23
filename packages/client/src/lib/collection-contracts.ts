@@ -139,8 +139,8 @@ export interface CollectionListView {
   readonly filter: string;
 }
 
-/** What the host hands a collection's CONTENT / CONTEXT halves for one selected member. */
-export interface CollectionDetailView {
+// What the host hands a collection's CONTENT / CONTEXT halves for one selected member.
+interface CollectionDetailView {
   /** Opaque at the seam; the owner re-brands through its own id schema (the stamped-id posture — the same
    *  trade every drill store already makes at `P extends string`). */
   readonly memberId: string;
@@ -166,11 +166,8 @@ export interface CollectionMemberView extends CollectionDetailView {
   readonly library: string;
 }
 
-/** A collection's CONTEXT arm — an explicit DECISION, never an absence (the `SectionDefinition.context`
- *  `{kind:"none"}` discipline one level down). `none` carries the collection's OWN copy because the host
- *  would otherwise say one sentence for a tag and for a world book, and "nothing selected" would be a lie:
- *  something IS selected, this collection just has nothing to attach. */
-export type CollectionContext =
+// A selected collection member explicitly has context content or its own explanatory empty state.
+type CollectionContext =
   | {
       readonly kind: "body";
       /** The CONTEXT BAND's title while a member of this collection is open — REQUIRED, so a new collection

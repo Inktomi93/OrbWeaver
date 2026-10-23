@@ -47,13 +47,3 @@ export function clearPluginDialog(): void {
 export function usePluginDialogSubject(): PluginDialogSubject | undefined {
   return usePluginDialogStore((s) => s.subject);
 }
-
-/** Non-reactive snapshot — for the store's own tests and reads outside a render. */
-export function __readPluginDialogSubjectForTest(): PluginDialogSubject | undefined {
-  return usePluginDialogStore.getState().subject;
-}
-
-/** Clear the slot — test-only hygiene (a module singleton must not leak state across tests). */
-export function __resetPluginDialog(): void {
-  usePluginDialogStore.setState({ subject: undefined }, false, "plugin-dialog/reset");
-}

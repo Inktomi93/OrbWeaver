@@ -1,6 +1,6 @@
 import "@orb/testkit/node/composed-real.ts";
 import type { PromptCacheSettings } from "@orb/contracts/inference";
-import { builtinProvider, effectivePromptCache } from "@orb/contracts/inference";
+import { builtinProvider, effectivePromptCache, foldFeatures, SUMMARIZE_CONCURRENCY_MAX } from "@orb/contracts/inference";
 import { expectCacheProse } from "@orb/testkit/browser/cache-prose.ts";
 import { expect, test } from "@orb/testkit/node/ct-corpus.ts";
 import type { TrpcInput, TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
@@ -173,6 +173,18 @@ test("native implicit caching explains provider ownership without invented contr
   await expect(tier.getByRole("combobox")).toHaveCount(0);
   await expect(tier.getByRole("radio")).toHaveCount(0);
   await expect(tier.getByText(/a tenth/u)).toHaveCount(0);
+  await page.getByRole("button", { name: /^Advanced/u }).click();
+  await expect(page.getByText("Endpoint quirks", { exact: true })).toBeVisible();
+  const concurrency = page.locator('[data-fact="features.concurrency.summarize"]');
+  await expect(concurrency.getByText(String(foldFeatures(builtinProvider("google")?.features).concurrency?.summarize), { exact: true })).toBeVisible();
+  await concurrency.getByRole("button", { name: "Override utility calls at once", exact: true }).click();
+  const limit = concurrency.getByRole("textbox", { name: "utility calls at once — your value", exact: true });
+  await limit.fill(String(SUMMARIZE_CONCURRENCY_MAX + 1));
+  await expect(concurrency.getByRole("alert")).toHaveText(`The maximum is ${SUMMARIZE_CONCURRENCY_MAX}.`);
+  await expect(concurrency.getByRole("button", { name: "Save your utility calls at once", exact: true })).toBeDisabled();
+  await limit.fill(String(SUMMARIZE_CONCURRENCY_MAX));
+  await expect(concurrency.getByRole("alert")).toHaveCount(0);
+  await expect(concurrency.getByRole("button", { name: "Save your utility calls at once", exact: true })).toBeEnabled();
   expect(captured.physicalRequests.length).toBeGreaterThan(0);
 });
 

@@ -6,8 +6,8 @@
 import { isPlainObject } from "@orb/kit/guards";
 import { createPersistedStore } from "./create-persisted-store.ts";
 
-/** The MRU cap for the device-local Recent group (per provider). */
-export const RECENT_MODELS_CAP = 5;
+// The MRU cap for the device-local Recent group (per provider).
+const RECENT_MODELS_CAP = 5;
 
 /** The per-provider MRU map — each provider's picked-model ids, most-recent-first. */
 type RecentBySource = Record<string, readonly string[]>;
@@ -65,15 +65,4 @@ const EMPTY: readonly string[] = [];
 /** A provider's device-local Recent-model ids (most-recent-first; `[]` when none). The reactive read. */
 export function useRecentModels(source: string): readonly string[] {
   return useRecentModelsStore((s) => s.bySource[source] ?? EMPTY);
-}
-
-/** Non-hook snapshot of a provider's MRU — for the store's own tests + any read outside a render (the
- *  `readSelectedMessageIds` precedent). */
-export function __readRecentModelsForTest(source: string): readonly string[] {
-  return useRecentModelsStore.getState().bySource[source] ?? EMPTY;
-}
-
-/** Reset every provider's MRU — test-only hygiene (a module singleton must not leak state across tests). */
-export function __resetAllRecentModels(): void {
-  useRecentModelsStore.setState({ bySource: {} }, false, "recent-models/clearAll");
 }

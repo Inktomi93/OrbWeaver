@@ -134,11 +134,10 @@ interface QualityOption {
   readonly description: string;
 }
 
-/** The quality-dial options in canonical order (fast → balanced → deep). The raw descriptor knobs
- *  above live under the panel's "advanced" reveal.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export const QUALITY_OPTIONS: readonly QualityOption[] = QUALITY_LEVELS.map((value) => ({
+// The quality-dial options in canonical order (fast → balanced → deep). The raw descriptor knobs
+//  above live under the panel's "advanced" reveal.
+
+const QUALITY_OPTIONS: readonly QualityOption[] = QUALITY_LEVELS.map((value) => ({
   value,
   label: QUALITY_META[value].label,
   description: QUALITY_META[value].description,

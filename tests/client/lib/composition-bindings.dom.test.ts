@@ -2,8 +2,9 @@ import type { Notify, SessionDocumentHost } from "@orb/client/lib";
 import { leaseNotify, leaseSessionDocumentHost, notify, sessionDocument } from "@orb/client/lib";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
-function documentHost(name: string, navigations: string[]): SessionDocumentHost {
+function documentHost(name: string, navigations: string[], at: number): SessionDocumentHost {
   return {
+    now: (): number => at,
     currentPathname: (): string => `/${name}`,
     assign: (path): void => {
       navigations.push(`${name}:${path}`);
@@ -16,14 +17,19 @@ function documentHost(name: string, navigations: string[]): SessionDocumentHost 
 test("a document owner released before its nested mount cannot be revived by that mount's teardown", () => {
   const navigations: string[] = [];
   {
-    using _baseline = leaseSessionDocumentHost(documentHost("baseline", navigations));
-    using outer = leaseSessionDocumentHost(documentHost("outer", navigations));
-    using inner = leaseSessionDocumentHost(documentHost("inner", navigations));
+    using _baseline = leaseSessionDocumentHost(documentHost("baseline", navigations, 1000));
+    expect(sessionDocument.now()).toBe(1000);
+    using outer = leaseSessionDocumentHost(documentHost("outer", navigations, 2000));
+    expect(sessionDocument.now()).toBe(2000);
+    using inner = leaseSessionDocumentHost(documentHost("inner", navigations, 3000));
     expect(sessionDocument.currentPathname()).toBe("/inner");
+    expect(sessionDocument.now()).toBe(3000);
     outer[Symbol.dispose]();
+    expect(sessionDocument.now()).toBe(3000);
     sessionDocument.assign("/login");
     expect(navigations).toEqual(["inner:/login"]);
     inner[Symbol.dispose]();
+    expect(sessionDocument.now()).toBe(1000);
     sessionDocument.assign("/login");
     expect(navigations).toEqual(["inner:/login", "baseline:/login"]);
     expect(sessionDocument.currentPathname()).toBe("/baseline");

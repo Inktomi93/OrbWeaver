@@ -30,8 +30,8 @@ import { testId } from "#lib";
 /** A registered test-id key (the registry is the API — never a new literal). */
 type TestKey = Parameters<typeof testId>[0];
 
-/** The optional PROMPT-mode footer: a Cancel/Confirm Row below `children` (the single control). */
-export interface FormDialogSubmit {
+// The optional PROMPT-mode footer: a Cancel/Confirm Row below `children` (the single control).
+interface FormDialogSubmit {
   /** The confirm button's label (e.g. "Apply" / "Create" / "Save"). */
   readonly label: string;
   /** Fires on confirm click (the caller closes the dialog itself; Cancel closes via DialogClose). */

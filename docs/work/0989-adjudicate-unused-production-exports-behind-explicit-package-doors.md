@@ -300,3 +300,23 @@ These selections do not restore unrelated capability-reader, provider, RPG or ad
 | Knip accounting | Include UI entry exports. Count locally referenced component-owned types through the existing interface/type option used by server and inference. Keep value and file findings visible. Remove public suppression markers; the installed tool ignores those markers even with an empty tag filter. |
 
 Native CT cases mount the real primitives through the existing gallery. They do not replace application services or claim browser journeys. Case maps retain unselected reference behavior explicitly; this batch does not complete the wider UI restoration.
+
+## Selected client surfaces and replacement cases
+
+| Finding or original purpose | Decision and maintained home |
+| - | - |
+| Unconsumed helper exports, canonical types and feature forwarding | Localize export modifiers and remove redundant forwards. Preserve live component bodies, registered parents, canonical signatures and application behavior. |
+| State reset, inspection and scheduler hooks | Remove unused private hooks. Keep actual actions, reactive readers, persistence, caps and native frame scheduling. The anchor story initializes through the real navigation action on a fresh document; remove its redundant reset. |
+| Edit drafts, selection, preset navigation and steer recovery | [State lifecycle CT](../../tests/client/state/state-lifecycle.ct.tsx) uses real providers, actions and hooks. It preserves footprint, isolation, empty edits, selection cleanup, overlay release and ordered deduplication. |
+| Composer replacement and Undo | [Public-action tests](../../tests/client/state/composer-replacement.dom.test.ts) preserve valid replacement, live snapshots, scope refusal and stale revision refusal. Persistence and reload permutations remain separate. |
+| Native transition and safe error capture | [Browser lifecycle CT](../../tests/client/lib/core-lifecycle.ct.tsx) observes actual browser transitions and installed error observers. No reset or direct recorder door is needed. |
+| Authored connection requirements and destination payloads | [Role tests](../../tests/client/lib/connection-roles.dom.test.ts) compare actual task clauses and production verdicts. [Native destination assertions](../../tests/client/lib/corpus-destination.dom.test-d.ts) preserve canonical payload constraints. Remove disconnected metadata and test-only oracles. |
+| Session freshness | [Recovery CT](../../tests/client/data/session-freshness.ct.tsx) uses genuine authenticated captures and the production recovery hook. The existing document capability owns injected time. Preserve the floor, visibility, unreachable retry, dead-session recovery and subscription cleanup. |
+| Durable browser storage | [Binding CT](../../tests/client/state/durable-local-binding.ct.tsx) uses verified production-derived viewers, actual emitted bytes and fresh page boots. Preserve returning-user data, foreign-hint refusal and legacy adoption. |
+| Credential quirk metadata | Actual rendered rows form a schema-total record. Preserve row bodies and order; remove disconnected path projections. [Editor CT](../../tests/client/features/credentials/components/connection-prompt-cache.ct.tsx) observes the folded value and inclusive editing bound. Key completeness does not prove recursive leaf coverage. |
+| Empty-send dispatch and generation duration | [Chat metadata tests](../../tests/client/features/chat/lib/empty-send-and-duration.test.ts) call actual public dispatch and formatting functions. Private predicate identity needs no separate export. |
+| Production-only support consumers | Retain actual mounting doors, scoped leases and native factory/payload assertions. Remove dormant placeholder/configuration and chat override helpers with their exclusive forwarding chains. Keep production registries inside the actual composition. |
+| Appearance plane coverage | Assert directly over the real manifest; remove the test-only row-filter convenience and localize unconsumed named types. |
+| Preset template grouping | [Template tests](../../tests/client/features/preset/lib/template-addresses.test.ts) preserve partition, declared ordering, visible-copy filtering and pruning through the public grouping function. |
+
+Selected production defects fail the corresponding assertions. Exact source restoration passes the affected native cases. The [restoration register](../plans/test-foundation/design.md#restoration-register) preserves unselected behavior; export cleanup does not complete client restoration.

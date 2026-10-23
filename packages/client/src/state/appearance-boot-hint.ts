@@ -88,8 +88,3 @@ export function rememberDataThemeHint(dataTheme: SeedThemeName | null): void {
 export function readAppearanceBootHint(): AppearanceBootHintState {
   return useAppearanceBootHintStore.getState();
 }
-
-/** Test seam: forget the remembered answers (a CT/unit run must not inherit another test's device). */
-export function __resetAppearanceBootHint(): void {
-  useAppearanceBootHintStore.setState({ ...DEFAULT_STATE }, false, "appearanceBootHint/__reset");
-}

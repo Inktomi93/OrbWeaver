@@ -102,13 +102,3 @@ export function forgetSurfaceBox(surfaceId: string): void {
   const rest = Object.fromEntries(Object.entries(boxes).filter(([id]) => id !== surfaceId));
   useSurfaceBoxStore.setState({ boxes: rest }, false, "surfaceBox/forget");
 }
-
-/** Test seam: the remembered box WITHOUT a React render (the `useSurfaceBox` hook needs one). */
-export function __readSurfaceBoxForTest(surfaceId: string): number | null {
-  return useSurfaceBoxStore.getState().boxes[surfaceId] ?? null;
-}
-
-/** Test seam: drop every remembered box (a CT/unit run must not inherit another test's measurements). */
-export function __resetSurfaceBoxes(): void {
-  useSurfaceBoxStore.setState({ boxes: {} }, false, "surfaceBox/__reset");
-}

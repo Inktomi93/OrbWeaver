@@ -1,9 +1,7 @@
 import type { OrbAutomationFiresFilter } from "../lib/agent-plugin-bridge.ts";
 
-/** The one debug-route path this slice reads (see the header).
- *
- *  @public Test-anchored module surface; focused tests pin this production-local behavior. */
-export const AUTOMATION_FIRES_ROUTE = "/api/_debug/automation/fires";
+// The fetch and refusal message share the debug route.
+const AUTOMATION_FIRES_ROUTE = "/api/_debug/automation/fires";
 
 /** The durable automation fire log through the debug route — `{count, fires}` on success, `{ok:false, reason}`
  *  carrying the HTTP status when the gate refuses. */

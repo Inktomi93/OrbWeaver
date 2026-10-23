@@ -10,10 +10,10 @@ export const APPEARANCE_EDITOR_OWNERS = ["sizing", "effects", "background", "rea
 export type AppearanceEditorOwner = (typeof APPEARANCE_EDITOR_OWNERS)[number];
 
 export const APPEARANCE_CARRIER_PLANES = ["root-html", "theme-scope", "shell-grid", "background-layer", "message-props", "source-catalog"] as const;
-export type AppearanceCarrierPlane = (typeof APPEARANCE_CARRIER_PLANES)[number];
+type AppearanceCarrierPlane = (typeof APPEARANCE_CARRIER_PLANES)[number];
 
 const APPEARANCE_LIFECYCLES = ["prepaint-and-hydrated", "hydrated", "hydrated-from-prepaint-hint"] as const;
-export type AppearanceLifecycle = (typeof APPEARANCE_LIFECYCLES)[number];
+type AppearanceLifecycle = (typeof APPEARANCE_LIFECYCLES)[number];
 
 const APPEARANCE_PORTAL_OBLIGATIONS = [
   "must-reach-portals",
@@ -23,9 +23,9 @@ const APPEARANCE_PORTAL_OBLIGATIONS = [
   "prop-threaded",
   "none",
 ] as const;
-export type AppearancePortalObligation = (typeof APPEARANCE_PORTAL_OBLIGATIONS)[number];
+type AppearancePortalObligation = (typeof APPEARANCE_PORTAL_OBLIGATIONS)[number];
 
-export interface AppearanceConsumerBinding {
+interface AppearanceConsumerBinding {
   readonly file: string;
   readonly symbol: string;
 }
@@ -204,7 +204,7 @@ export const APPEARANCE_CARRIER_MANIFEST = {
   messageActions: { owner: "message-details", ...MESSAGE, requiredDistinctArms: ["hover", "expanded"] },
 } as const satisfies AppearanceCarrierManifest;
 
-export type AppearanceCarrierKey = keyof typeof APPEARANCE_CARRIER_MANIFEST;
+type AppearanceCarrierKey = keyof typeof APPEARANCE_CARRIER_MANIFEST;
 
 export type AppearanceCarrierObservable =
   | { readonly kind: "attribute"; readonly selector: string; readonly signal: string }
@@ -348,10 +348,4 @@ export function appearanceMatrixContract(): AppearanceMatrixContract {
     themeObservables: THEME_CARRIER_OBSERVABLES,
     historicalRows: APPEARANCE_HISTORICAL_ROWS,
   };
-}
-
-export function appearanceCarrierRowsFor(plane: AppearanceCarrierPlane): readonly AppearanceCarrierKey[] {
-  return (Object.keys(APPEARANCE_CARRIER_MANIFEST) as AppearanceCarrierKey[]).filter((key) =>
-    (APPEARANCE_CARRIER_MANIFEST[key].carriers as readonly AppearanceCarrierPlane[]).includes(plane),
-  );
 }

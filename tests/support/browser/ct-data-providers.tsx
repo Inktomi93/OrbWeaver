@@ -3,17 +3,8 @@
 import { useSettingsViewerView } from "@orb/client/data";
 import { AppToaster, contextToggleChrome } from "@orb/client/features/app-shell";
 import { makeCharactersSection } from "@orb/client/features/character";
-import { ChatsWithCharacterPane, makeChatsSection } from "@orb/client/features/chat";
-import { makeConfigSection } from "@orb/client/features/config";
-import type {
-  CharacterDetailContribution,
-  ChatContextState,
-  ChatSurfaceContribution,
-  ContextRegionDef,
-  ContextTabDef,
-  ContributorRegistry,
-  ListPaneHeaderView,
-} from "@orb/client/lib";
+import { ChatsWithCharacterPane } from "@orb/client/features/chat";
+import type { CharacterDetailContribution, ContributorRegistry, ListPaneHeaderView } from "@orb/client/lib";
 import { createToastNotify, defineContextTabs, leaseNotify } from "@orb/client/lib";
 import type { ChromeEntry, ConfigGroupId, ConfigSectionContribution, ModalSlotId, SectionDefinition, SectionId, SectionSelection } from "@orb/client/state";
 import { assembleChrome, ConfigSectionRegistryProvider, resolveConfigSections } from "@orb/client/state";
@@ -21,16 +12,7 @@ import { Container, Stack } from "@orb/ui/layout";
 import { createToastManager, ToastProvider } from "@orb/ui/toast";
 import type { ReactElement, ReactNode } from "react";
 import { createContext, Fragment, use, useLayoutEffect, useState } from "react";
-import { placeholderConfigGroups } from "./ct-config-groups.ts";
-import {
-  AppDataProviders,
-  AuthedProviders,
-  chatSettingsSections,
-  chatSurfaceContributors,
-  configSections,
-  createAuthedComposition,
-  toolRenderers,
-} from "./ct-door.ts";
+import { AppDataProviders, AuthedProviders, configSections, createAuthedComposition } from "./ct-door.ts";
 import { isolationRegistry } from "./ct-isolation.ts";
 import type { CtRuntimeOptions } from "./ct-runtime.ts";
 import { CtRuntimeContext, useCtRuntime } from "./ct-runtime.ts";
@@ -184,21 +166,6 @@ export function CtStandInChromeRegistry({ children }: { readonly children: React
   );
 }
 
-/** Isolate the configuration host's declared placeholder branch over canonical group identity. */
-export function CtPlaceholderGroupRegistry({ children }: { readonly children: ReactNode }): ReactElement {
-  const { runtime, composition: base } = useCtComposition();
-  const sections = isolationRegistry(
-    "sections",
-    "isolates the config host placeholder branch",
-    base.sections.list().map((section) => (section.id === "config" ? makeConfigSection(placeholderConfigGroups) : section)),
-  );
-  return (
-    <CompositionProviders runtime={runtime} composition={{ ...base, sections }}>
-      {children}
-    </CompositionProviders>
-  );
-}
-
 /** A named section-context isolation consumes the caller's registry rather than assembling another roster. */
 export function CtConfigSectionRegistry({
   sections,
@@ -208,38 +175,6 @@ export function CtConfigSectionRegistry({
   readonly children: ReactNode;
 }): ReactElement {
   return <ConfigSectionRegistryProvider value={sections}>{children}</ConfigSectionRegistryProvider>;
-}
-
-/** Isolate contributed chat bodies through the real chat section factory, retaining every other production section. */
-export function CtChatContributorSectionRegistry({
-  contextContributors,
-  contextRegions,
-  surfaceContributors,
-  children,
-}: {
-  readonly contextContributors?: ContributorRegistry<ContextTabDef<ChatContextState>>;
-  readonly contextRegions?: ContributorRegistry<ContextRegionDef<ChatContextState>>;
-  readonly surfaceContributors?: ContributorRegistry<ChatSurfaceContribution>;
-  readonly children: ReactNode;
-}): ReactElement {
-  const { runtime, composition: base } = useCtComposition();
-  const chats = makeChatsSection({
-    contextTabs: contextContributors ?? base.chatContextContributors,
-    contextRegions: contextRegions ?? base.chatContextRegions,
-    surfaces: surfaceContributors ?? chatSurfaceContributors,
-    toolRenderers,
-    settingsSections: chatSettingsSections,
-  });
-  const sections = isolationRegistry(
-    "sections",
-    "isolates the chat contributor integration subject",
-    base.sections.list().map((section) => (section.id === "chats" ? chats : section)),
-  );
-  return (
-    <CompositionProviders runtime={runtime} composition={{ ...base, sections }}>
-      {children}
-    </CompositionProviders>
-  );
 }
 
 /** Isolate character contributors through the real feature factory without copying the section table. */

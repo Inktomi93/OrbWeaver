@@ -34,8 +34,7 @@ const minted = new Map<string, Promise<string | undefined>>();
  *  older keys (a since-replaced theme, a closed archive) evict rather than accreting for the tab's lifetime. */
 const MINTED_CACHE_CAP = 128;
 
-/** The wire body for one card. Pure + exported so the shape is testable without a browser. */
-export function cardFrameMintBody(request: CardFrameRequest): CardFrameMintRequest {
+function cardFrameMintBody(request: CardFrameRequest): CardFrameMintRequest {
   return {
     chatId: request.chatId,
     characterId: request.characterId,
@@ -47,7 +46,7 @@ export function cardFrameMintBody(request: CardFrameRequest): CardFrameMintReque
 }
 
 /** POST one serialized mint body; ANY failure resolves to `undefined` (the caller renders the floor). */
-export async function mintCardFrame(body: string): Promise<string | undefined> {
+async function mintCardFrame(body: string): Promise<string | undefined> {
   let parsed: CardFrameMintResponse;
   // documented in the JSDoc above — any failure resolves to undefined and the caller renders the floor. Ends if the floor stops being an acceptable fallback UI.
   try {

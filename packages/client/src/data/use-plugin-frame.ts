@@ -24,8 +24,7 @@ import { surfaceDeferredFailure } from "#lib";
 
 export type PluginFrameRequest = Readonly<z.input<typeof pluginFrameMintRequestSchema>> & Pick<PluginFrameMintRequest, "pluginId">;
 
-/** The wire body for one frame. Pure + exported so the shape is testable without a browser. */
-export function pluginFrameMintBody(request: PluginFrameRequest): PluginFrameMintRequest {
+function pluginFrameMintBody(request: PluginFrameRequest): PluginFrameMintRequest {
   return {
     pluginId: request.pluginId,
     surfaceId: request.surfaceId,
@@ -36,7 +35,7 @@ export function pluginFrameMintBody(request: PluginFrameRequest): PluginFrameMin
 }
 
 /** POST one serialized mint body; ANY failure resolves to `undefined` (the caller renders nothing). */
-export async function mintPluginFrame(body: string): Promise<string | undefined> {
+async function mintPluginFrame(body: string): Promise<string | undefined> {
   let parsed: PluginFrameMintResponse;
   // documented in the JSDoc above — any failure resolves to undefined and the caller renders nothing. Ends if rendering nothing stops being an acceptable fallback.
   try {
@@ -56,7 +55,7 @@ export async function mintPluginFrame(body: string): Promise<string | undefined>
 }
 
 /** Revoke a minted frame handle. Best-effort: teardown must never surface an error into React cleanup. */
-export async function revokePluginFrame(url: string): Promise<void> {
+async function revokePluginFrame(url: string): Promise<void> {
   // a failed DELETE strands only a server-side handle, which the frame-handle store expires on its own (`live()` drops an entry past `expiresAt`, `packages/server/src/entry/http/frame-handle-store.ts:116`, set from `FRAME_HANDLE_TTL_MS` at `plugin-frame.ts:209`). Ends if the store stops expiring unrevoked handles.
   try {
     await fetch(url, { method: "DELETE", headers: { [CSRF_HEADER]: "1" } });

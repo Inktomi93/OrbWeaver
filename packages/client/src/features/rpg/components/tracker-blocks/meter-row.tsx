@@ -14,7 +14,7 @@ import { TrackerValue } from "./tracker-value.tsx";
  *  It is the SAME mark the text/list tracker rows and the mood slot already use for "nothing written yet". */
 const UNSET_DATUM = "—";
 
-export interface MeterRowProps {
+interface MeterRowProps {
   readonly label: string;
   /** The reading — `null` when the story has never written one. NULLABLE ON PURPOSE (side-eye 08-01): every
    *  caller used to fold an unset tracker to `0`, so a pool nobody had touched announced "0/40" and drew an

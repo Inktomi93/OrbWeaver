@@ -28,11 +28,6 @@ export type { MobileCuration } from "./section-registry.ts";
  *  has a consumer this wave; the sheet lens lands §E-5. */
 export type ChromePresentation = "bar" | "sheet";
 
-/** Where a chrome entry's affordance comes from — the three sources unified (§A). A `section` or `modal`
- *  arm carries its target id and its glyph, required, so every lens that draws one has an icon; a `widget`
- *  arm carries a live body a static icon/label pair can't express, and so no glyph. */
-export type ChromeEntryBehavior = SectionBehavior | ModalBehavior | WidgetBehavior;
-
 interface SectionBehavior {
   readonly kind: "section";
   readonly sectionId: SectionId;

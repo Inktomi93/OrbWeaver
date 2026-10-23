@@ -228,43 +228,6 @@ function overrideSource(providerLabel: string, fromProvider: boolean, replaced: 
 
 // ── "Endpoint quirks" (= `features`) ───────────────────────────────────────────────────────────────────
 
-/** Every top-level `EndpointFeatures` key → the LEAF paths that render it. A `Record` over the schema's own
- *  keys, so a new feature field is a `tsc` error HERE rather than a quirk nothing renders; the unit pin
- *  closes the other half (every path named here has a `QUIRK_LEAVES` row, and no row names a path that is
- *  not here). */
-const QUIRK_LEAF_PATHS: Record<keyof Required<EndpointFeatures>, readonly string[]> = {
-  prefill: ["prefill"],
-  prefillSuppressesThinking: ["prefillSuppressesThinking"],
-  strictJson: ["strictJson"],
-  // Not an editor field: a connection's only non-body inputs are the Advanced capability settings (owner ruling,
-  // docs/adr/0301-structured-output-plan-one-home.md), so the grammar vocabulary stays the provider row's or the detected one's.
-  structuredMode: [],
-  effort: ["effort"],
-  outputCapField: ["outputCapField"],
-  reasoningKeys: ["reasoningKeys"],
-  images: ["images"],
-  rerankPath: ["rerankPath"],
-  modelInfoApi: ["modelInfoApi"],
-  nativeChat: ["nativeChat"],
-  detectServer: ["detectServer"],
-  sleep: ["sleep.isSleepingPath", "sleep.wakePath"],
-  pricing: ["pricing.inputPerMTok", "pricing.outputPerMTok", "pricing.cacheReadPerMTok", "pricing.cacheWritePerMTok"],
-  concurrency: ["concurrency.embed", "concurrency.imageEmbed", "concurrency.summarize"],
-  embedBatch: ["embedBatch.maxTokens", "embedBatch.floorTokensPerSec"],
-  requestTimeoutMs: ["requestTimeoutMs"],
-  samplerKeys: SAMPLER_KNOBS.map((knob) => `samplerKeys.${knob}`),
-  // Not an editor field: which extra spellings a server folds is the provider row's fact, and a user who wants one
-  // spelling sets it in their own body, where it stands alone.
-  samplerAliases: [],
-  samplerOrder: ["samplerOrder"],
-  bannedStrings: ["bannedStrings"],
-  tokenizeApi: ["tokenizeApi"],
-  reasoningBudgetField: ["reasoningBudgetField"],
-  keepAlive: ["keepAlive"],
-  numBatch: ["numBatch"],
-  thinkingOff: ["thinkingOff"],
-};
-
 /** The quirk rows, in the PANE's render order (the schema's declaration order is not a UI decision).
  *
  *  §5.3a's KEY rule, applied leaf by leaf: a quirk key stays in the WIRE's spelling only when that exact
@@ -272,60 +235,76 @@ const QUIRK_LEAF_PATHS: Record<keyof Required<EndpointFeatures>, readonly string
  *  technique. Every other key here is our own TypeScript property name, which no server's documentation
  *  contains, so it is written in plain words and the wire's string stays in the VALUE (`reasoning fields` →
  *  `reasoning, reasoning_content`). */
-const QUIRK_LEAVES: readonly FactLeaf[] = [
-  { path: "prefill", name: "prefill", edit: { kind: "enum", options: PREFILL_MODES }, unset: NOT_SET },
-  { path: "prefillSuppressesThinking", name: "prefill suppresses thinking", edit: { kind: "boolean" }, unset: NOT_SET },
-  { path: "strictJson", name: "strict JSON", edit: { kind: "enum", options: STRICT_JSON_MODES }, unset: NOT_SET },
-  { path: "effort", name: "effort field", edit: { kind: "enum", options: EFFORT_SPELLINGS }, unset: NOT_SET },
-  { path: "outputCapField", name: "output cap field", edit: { kind: "enum", options: OUTPUT_CAP_FIELDS }, unset: NOT_SET },
-  { path: "reasoningKeys", name: "reasoning fields", edit: { kind: "list" }, unset: NOT_SET },
-  { path: "images", name: "image generation arm", edit: { kind: "enum", options: IMAGE_ARMS }, unset: "not set — no image generation" },
-  { path: "rerankPath", name: "rerank path", edit: { kind: "text" }, unset: "not set — no reranking" },
-  { path: "modelInfoApi", name: "model info API", edit: { kind: "enum", options: MODEL_INFO_APIS }, unset: NOT_SET },
-  { path: "nativeChat", name: "native chat route", edit: { kind: "enum", options: NATIVE_CHAT_APIS }, unset: "not set — chat uses /v1" },
-  { path: "detectServer", name: "detect the server", edit: { kind: "boolean" }, unset: NOT_SET },
-  { path: "sleep.isSleepingPath", name: "sleep check path", edit: { kind: "text" } },
-  { path: "sleep.wakePath", name: "wake path", edit: { kind: "text" } },
-  ...pricingFactLeaves(NOT_SET),
-  { path: "concurrency.embed", name: "embeddings at once", edit: { kind: "number" } },
-  { path: "concurrency.imageEmbed", name: "image embeddings at once", edit: { kind: "number" } },
-  { path: "concurrency.summarize", name: "utility calls at once", edit: { kind: "number", max: SUMMARIZE_MAX } },
-  { path: "embedBatch.maxTokens", name: "embedding batch ceiling", edit: { kind: "number" }, format: tokens },
-  {
-    path: "embedBatch.floorTokensPerSec",
-    name: "embedding slow-server floor",
-    edit: { kind: "number" },
-    format: (value): string => `${String(value)} tokens/second`,
-  },
-  {
-    path: "requestTimeoutMs",
-    name: "request deadline",
-    edit: { kind: "number" },
-    format: (value): string => `${String(value)} ms`,
-    unset: NOT_SET,
-  },
-  { path: "samplerOrder", name: "sampler order vocabulary", edit: { kind: "enum", options: SAMPLER_ORDER_SPELLINGS }, unset: NOT_SET },
-  { path: "bannedStrings", name: "banned phrases form", edit: { kind: "enum", options: BANNED_STRINGS_SPELLINGS }, unset: "not set — a phrase list" },
-  { path: "tokenizeApi", name: "tokenize endpoint", edit: { kind: "enum", options: TOKENIZE_APIS }, unset: "not set — logit bias takes token ids only" },
-  {
-    path: "reasoningBudgetField",
-    name: "thinking budget field",
-    edit: { kind: "enum", options: REASONING_BUDGET_FIELDS },
-    unset: "not set — no thinking budget",
-  },
-  { path: "keepAlive", name: "keep model loaded for", edit: { kind: "text" }, unset: "not set — the server's default" },
-  { path: "numBatch", name: "prompt batch size", edit: { kind: "number" }, unset: "not set — the server's default" },
-  { path: "thinkingOff", name: "template thinking switch", edit: { kind: "enum", options: THINKING_OFF_SPELLINGS }, unset: NOT_SET },
+// The rendered row definitions are total over the schema, so every feature requires an editor decision.
+const QUIRK_LEAVES_BY_FEATURE: Record<keyof Required<EndpointFeatures>, readonly FactLeaf[]> = {
+  prefill: [{ path: "prefill", name: "prefill", edit: { kind: "enum", options: PREFILL_MODES }, unset: NOT_SET }],
+  prefillSuppressesThinking: [{ path: "prefillSuppressesThinking", name: "prefill suppresses thinking", edit: { kind: "boolean" }, unset: NOT_SET }],
+  strictJson: [{ path: "strictJson", name: "strict JSON", edit: { kind: "enum", options: STRICT_JSON_MODES }, unset: NOT_SET }],
+  effort: [{ path: "effort", name: "effort field", edit: { kind: "enum", options: EFFORT_SPELLINGS }, unset: NOT_SET }],
+  outputCapField: [{ path: "outputCapField", name: "output cap field", edit: { kind: "enum", options: OUTPUT_CAP_FIELDS }, unset: NOT_SET }],
+  reasoningKeys: [{ path: "reasoningKeys", name: "reasoning fields", edit: { kind: "list" }, unset: NOT_SET }],
+  images: [{ path: "images", name: "image generation arm", edit: { kind: "enum", options: IMAGE_ARMS }, unset: "not set — no image generation" }],
+  rerankPath: [{ path: "rerankPath", name: "rerank path", edit: { kind: "text" }, unset: "not set — no reranking" }],
+  modelInfoApi: [{ path: "modelInfoApi", name: "model info API", edit: { kind: "enum", options: MODEL_INFO_APIS }, unset: NOT_SET }],
+  nativeChat: [{ path: "nativeChat", name: "native chat route", edit: { kind: "enum", options: NATIVE_CHAT_APIS }, unset: "not set — chat uses /v1" }],
+  detectServer: [{ path: "detectServer", name: "detect the server", edit: { kind: "boolean" }, unset: NOT_SET }],
+  sleep: [
+    { path: "sleep.isSleepingPath", name: "sleep check path", edit: { kind: "text" } },
+    { path: "sleep.wakePath", name: "wake path", edit: { kind: "text" } },
+  ],
+  pricing: pricingFactLeaves(NOT_SET),
+  concurrency: [
+    { path: "concurrency.embed", name: "embeddings at once", edit: { kind: "number" } },
+    { path: "concurrency.imageEmbed", name: "image embeddings at once", edit: { kind: "number" } },
+    { path: "concurrency.summarize", name: "utility calls at once", edit: { kind: "number", max: SUMMARIZE_MAX } },
+  ],
+  embedBatch: [
+    { path: "embedBatch.maxTokens", name: "embedding batch ceiling", edit: { kind: "number" }, format: tokens },
+    {
+      path: "embedBatch.floorTokensPerSec",
+      name: "embedding slow-server floor",
+      edit: { kind: "number" },
+      format: (value): string => `${String(value)} tokens/second`,
+    },
+  ],
+  requestTimeoutMs: [
+    {
+      path: "requestTimeoutMs",
+      name: "request deadline",
+      edit: { kind: "number" },
+      format: (value): string => `${String(value)} ms`,
+      unset: NOT_SET,
+    },
+  ],
+  samplerOrder: [{ path: "samplerOrder", name: "sampler order vocabulary", edit: { kind: "enum", options: SAMPLER_ORDER_SPELLINGS }, unset: NOT_SET }],
+  bannedStrings: [
+    { path: "bannedStrings", name: "banned phrases form", edit: { kind: "enum", options: BANNED_STRINGS_SPELLINGS }, unset: "not set — a phrase list" },
+  ],
+  tokenizeApi: [
+    { path: "tokenizeApi", name: "tokenize endpoint", edit: { kind: "enum", options: TOKENIZE_APIS }, unset: "not set — logit bias takes token ids only" },
+  ],
+  reasoningBudgetField: [
+    {
+      path: "reasoningBudgetField",
+      name: "thinking budget field",
+      edit: { kind: "enum", options: REASONING_BUDGET_FIELDS },
+      unset: "not set — no thinking budget",
+    },
+  ],
+  keepAlive: [{ path: "keepAlive", name: "keep model loaded for", edit: { kind: "text" }, unset: "not set — the server's default" }],
+  numBatch: [{ path: "numBatch", name: "prompt batch size", edit: { kind: "number" }, unset: "not set — the server's default" }],
+  thinkingOff: [{ path: "thinkingOff", name: "template thinking switch", edit: { kind: "enum", options: THINKING_OFF_SPELLINGS }, unset: NOT_SET }],
   // One row per spelling the row states; a server that reads the default key needs none.
-  ...SAMPLER_KNOBS.map((knob): FactLeaf => ({ path: `samplerKeys.${knob}`, name: `${samplerWords(knob)} field`, edit: { kind: "text" } })),
-];
+  samplerKeys: SAMPLER_KNOBS.map((knob): FactLeaf => ({ path: `samplerKeys.${knob}`, name: `${samplerWords(knob)} field`, edit: { kind: "text" } })),
+  // Not an editor field: a connection's only non-body inputs are the Advanced capability settings (owner ruling,
+  // docs/adr/0301-structured-output-plan-one-home.md), so the grammar vocabulary stays the provider row's or the detected one's.
+  structuredMode: [],
+  // Not an editor field: which extra spellings a server folds is the provider row's fact, and a user who wants one
+  // spelling sets it in their own body, where it stands alone.
+  samplerAliases: [],
+};
 
-/** The leaf paths, for the completeness pin — the anchor `Record` above is the `tsc` half.
- * @public Test-anchored module surface; focused tests pin this production-local behavior. */
-export const QUIRK_LEAF_PATH_LIST: readonly string[] = Object.values(QUIRK_LEAF_PATHS).flat();
-/** The same set derived from the ROW list — the two derivations must agree.
- * @public Test-anchored module surface; focused tests pin this production-local behavior. */
-export const QUIRK_ROW_PATHS: readonly string[] = QUIRK_LEAVES.map((leaf) => leaf.path);
+const QUIRK_LEAVES: readonly FactLeaf[] = Object.values(QUIRK_LEAVES_BY_FEATURE).flat();
 
 function unstatedQuirkRow(leaf: FactLeaf, folded: EndpointFeatures, showUnset: boolean): FactRow | undefined {
   if (leaf.unset === undefined) {

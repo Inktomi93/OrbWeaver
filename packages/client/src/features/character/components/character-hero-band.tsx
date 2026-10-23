@@ -42,7 +42,7 @@ import { CharacterGreetingPreview } from "./character-greeting-preview.tsx";
 import { CharacterTagSuggestions } from "./character-tag-suggestions.tsx";
 import { CharacterTagsRow } from "./character-tags-row.tsx";
 
-export type CharacterHeroDetail = Pick<
+type CharacterHeroDetail = Pick<
   CharacterDetail,
   "id" | "handle" | "name" | "starred" | "archived" | "trustHtml" | "forbidExternalMedia" | "interactiveHtml" | "avatarHash" | "themeOverride"
 > & {

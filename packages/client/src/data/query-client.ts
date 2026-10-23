@@ -10,8 +10,8 @@ import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import { notify } from "#lib";
 import { recoverIfStaleSession } from "./stale-session.ts";
 
-/** Per-query/mutation meta — the sanctioned v5 carrier for global-handler config. */
-export interface AppMeta {
+// Per-query/mutation meta — the sanctioned v5 carrier for global-handler config.
+interface AppMeta {
   /** Toast this message (or derive one from the error) on failure; omit = fail silently to state. A
    *  FUNCTION form may return `null` to suppress the toast for a specific error (e.g. a stale turn abort,
    *  which the chat bus surfaces its own honest notice for — see `isSilencedTurnAbort`); a returned string
@@ -35,9 +35,8 @@ export function trpcErrorCode(error: unknown): string | undefined {
   return (error as { data?: { code?: string } } | null | undefined)?.data?.code;
 }
 
-/** The default retry schedule, minus a `BAD_REQUEST`: the server refused the input itself, so the same read
- *  gets the same refusal. Every query's default in `createAppQueryClient`; a query that needs another policy sets its own. */
-export function retryUnlessBadRequest(failureCount: number, error: unknown): boolean {
+// Repeating refused input cannot recover; other failures keep the shared retry schedule.
+function retryUnlessBadRequest(failureCount: number, error: unknown): boolean {
   return trpcErrorCode(error) !== "BAD_REQUEST" && failureCount < QUERY_RETRIES;
 }
 

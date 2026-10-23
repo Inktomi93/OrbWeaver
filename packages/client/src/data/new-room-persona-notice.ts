@@ -10,11 +10,8 @@ import type { Trpc } from "./trpc.ts";
 
 type ChatDetail = inferOutput<Trpc["chat"]["getChat"]>;
 
-/** The notice for a room the viewer just entered, or `null` when the default decided (or nothing could).
- *  A seat that differs from a set default was decided by the connected persona, the only step between them.
- *
- *  @public test-anchored: the derivation is pinned in its unit test. */
-export function newRoomPersonaNotice(
+// Only a non-default persona selection needs explanation when entering a room.
+function newRoomPersonaNotice(
   chat: Pick<ChatDetail, "viewerActivePersonaId" | "identities"> & {
     readonly participants: readonly Pick<ChatDetail["participants"][number], "kind" | "displayName">[];
   },

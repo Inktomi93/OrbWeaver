@@ -30,7 +30,7 @@ const IDLE_DEADLINE_FLOOR_MS = 1;
 export interface DeadClassFlaggerOptions {
   readonly scanIntervalMs: number;
   readonly onDeadClass: (token: string, element: Element) => void;
-  /** @public Test-anchored CSSOM READ seam (#852) — the same shape as `definedClassTokens`'s `tokenize`
+  /** Test-anchored CSSOM READ seam (#852) — the same shape as `definedClassTokens`'s `tokenize`
    *  parameter and for the same reason: the confirm-before-report contract is a statement about what the
    *  SECOND read sees, and a real stylesheet cannot be made to land inside a draining slice on demand. A
    *  reader that answers "absent, then present" is the only way to prove the rule that matters. Production
@@ -66,11 +66,8 @@ function markMotionFlaggersSettled(): void {
 /** Every class token any loaded stylesheet DEFINES a rule for. Walks nested rules (Tailwind v4 emits
  * variants as nesting) and tolerates cross-origin sheets. The per-selector tokenizer is `@orb/kit`'s
  * (`dead-css`), shared with `pnpm snap --dead-css` so both scans mean the same thing by "dead". */
-/** @public Test-anchored CSSOM boundary: only cross-origin SecurityError is an unreadable-sheet skip.
- *  `tokenize` is an INJECTION SEAM, not a knob: the rethrow-everything-but-SecurityError contract can only
- *  be proven by a tokenizer that throws, and faking `@orb/kit/dead-css` wholesale would be the internal
- *  mock `Spine-Testing.md` §3 bans. Production callers take the default and are unchanged. */
-export function definedClassTokens(tokenize: (selector: string) => readonly string[] = classTokensInSelector): ReadonlySet<string> {
+// Only cross-origin CSSOM SecurityError permits skipping a stylesheet; walk failures propagate.
+function definedClassTokens(tokenize: (selector: string) => readonly string[] = classTokensInSelector): ReadonlySet<string> {
   const defined = new Set<string>();
   const walk = (rules: CSSRuleList): void => {
     for (const rule of rules) {

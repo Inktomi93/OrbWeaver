@@ -1,7 +1,11 @@
 // The session lifecycle's browser-document port. Data owns the auth/recovery decisions; main.tsx binds
 // the real document once at composition, so those decisions never import DOM types or reach a feature.
 
+import { timeLib } from "./time.ts";
+
 export interface SessionDocumentHost {
+  /** Current session lifecycle time in epoch milliseconds. */
+  readonly now: () => number;
   /** Current document pathname, or null when no browser document is bound. */
   readonly currentPathname: () => string | null;
   /** Order a whole-document navigation. */
@@ -13,6 +17,7 @@ export interface SessionDocumentHost {
 }
 
 const unbound: SessionDocumentHost = {
+  now: timeLib.now,
   currentPathname: (): null => null,
   assign: (): never => {
     throw new Error("Session document host is not bound.");
@@ -46,6 +51,7 @@ export function leaseSessionDocumentHost(host: SessionDocumentHost): Disposable 
 
 /** Stable facade used by data-tier session code; every call reaches the currently bound document. */
 export const sessionDocument: SessionDocumentHost = {
+  now: () => activeHost().now(),
   currentPathname: () => activeHost().currentPathname(),
   assign: (path) => activeHost().assign(path),
   isVisible: () => activeHost().isVisible(),

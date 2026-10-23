@@ -34,8 +34,8 @@ export interface UnclaimedSettingsKey {
   readonly reason: string;
 }
 
-/** The cited gap-arm exemptions. Keep it SHORT — every entry is a knob a user cannot reach. */
-export const UNCLAIMED_SETTINGS_KEYS: readonly UnclaimedSettingsKey[] = [
+// The cited gap-arm exemptions. Keep it SHORT — every entry is a knob a user cannot reach.
+const UNCLAIMED_SETTINGS_KEYS: readonly UnclaimedSettingsKey[] = [
   {
     section: "databank",
     key: "chunk",

@@ -57,10 +57,8 @@ export interface SettingTeach {
   readonly more?: () => ReactNode;
 }
 
-/** A leaf's teaching DECLARATION — REQUIRED on every leaf (owner rider R-TEACH, 2026-08-30): either the
- *  teach itself or an EXPLICIT opt-out with a stated reason (the planned-arm honesty precedent). tsc is
- *  the wall — a new leaf without a declaration is a compile error, never a hollow pane. */
-export type SettingTeachDecl = SettingTeach | { readonly none: string };
+// Each leaf carries teaching or an explicit opt-out; an omitted declaration fails the type contract.
+type SettingTeachDecl = SettingTeach | { readonly none: string };
 
 export function isTeachNone(decl: SettingTeachDecl): decl is { readonly none: string } {
   return "none" in decl;
@@ -151,24 +149,24 @@ export interface ConfigSearchRow {
   readonly memberId?: string;
 }
 
-/** What a group RENDERS (as amended by §6.8) — an honest three-arm union:
- *  - `sections` — a pure SKIMMER: the group has no body of its own; the host renders the sections
- *    contributed at its anchor, and its LIST rows DERIVE from them (D120). Every settings-shaped group
- *    (nine of them) is this arm.
- *  - `collection` — the library arm: the `CollectionContribution` seam verbatim (rows · member editor ·
- *    context arm · create/import/bulk as DATA the host draws). The group's LIST rows are the owner's own.
- *  - `{ placeholder: true }` — the DECLARED-PLANNED arm; a group with no body can no longer silently
- *    placeholder.
- *  The `surface` arm (a feature-owned opaque render hosting its own hand-stamped anchors) was retired by
- *  §6.8: it was the old nav map beside the new one, in five groups.
- *
- *  THE PLACEHOLDER ARM HAS ZERO PRODUCTION OCCUPANTS TODAY (#1713, re-derived 2026-09-05 —
- *   ruling 3): `automation` graduated to a real surface at `e6ec0317f7` and no group literal on
- *  the tree declares `{ placeholder: true }`. Kept as live declared intent, not speculative dead code — its
- *  ONLY subject is the synthetic `placeholderConfigGroups` registry (`tests/support/browser/ct-config-groups.ts`)
- *  `config-group-placeholder.ct.tsx` mounts, standing in for the next unbuilt group. Retire the arm only if
- *  the design doc's §8 ruling 2 (the LIST-owns-feature-status landing) itself retires — it has not. */
-export type ConfigGroupBody =
+// What a group RENDERS (as amended by §6.8) — an honest three-arm union:
+//  - `sections` — a pure SKIMMER: the group has no body of its own; the host renders the sections
+//    contributed at its anchor, and its LIST rows DERIVE from them (D120). Every settings-shaped group
+//    (nine of them) is this arm.
+//  - `collection` — the library arm: the `CollectionContribution` seam verbatim (rows · member editor ·
+//    context arm · create/import/bulk as DATA the host draws). The group's LIST rows are the owner's own.
+//  - `{ placeholder: true }` — the DECLARED-PLANNED arm; a group with no body can no longer silently
+//    placeholder.
+//  The `surface` arm (a feature-owned opaque render hosting its own hand-stamped anchors) was retired by
+//  §6.8: it was the old nav map beside the new one, in five groups.
+//
+//  THE PLACEHOLDER ARM HAS ZERO PRODUCTION OCCUPANTS TODAY (#1713, re-derived 2026-09-05 —
+//   ruling 3): `automation` graduated to a real surface at `e6ec0317f7` and no group literal on
+//  the tree declares `{ placeholder: true }`. Kept as live declared intent, not speculative dead code — its
+//  ONLY subject is the synthetic `placeholderConfigGroups` registry (`tests/support/browser/ct-config-groups.ts`)
+//  `config-group-placeholder.ct.tsx` mounts, standing in for the next unbuilt group. Retire the arm only if
+//  the design doc's §8 ruling 2 (the LIST-owns-feature-status landing) itself retires — it has not.
+type ConfigGroupBody =
   | { readonly kind: "sections" }
   | { readonly kind: "collection"; readonly collection: CollectionContribution }
   | { readonly placeholder: true };

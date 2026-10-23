@@ -52,8 +52,8 @@ const GROUP_CHATS_DIR = "group chats";
 const USER_AVATARS_DIR = "User Avatars" satisfies StProfileHandledEntry;
 const WORLDS_DIR = "worlds" satisfies StProfileHandledEntry;
 
-/** The reason a file over the per-file cap is left out. */
-export const OVER_FILE_CAP_REASON = "over the per-file size cap";
+// Generic and profile plans report the same per-file cap refusal.
+const OVER_FILE_CAP_REASON = "over the per-file size cap";
 const UNHANDLED_FALLBACK = "no importer for this plane";
 /** Why `secrets.json` is left out, from the one reason map. */
 const ST_PROFILE_SECRETS_REASON = (stProfileEntryDisposition(ST_SECRETS_FILE, false) as { readonly reason: string | null }).reason ?? UNHANDLED_FALLBACK;

@@ -123,11 +123,9 @@ function admitFolderFile(selected: Map<string, File>, file: File, selection: Fol
   return { assetBytes, assetCount, root: selectedPath.root };
 }
 
-/** Pack a browser-selected folder into the one bundle shape the server judges. Files outside the admitted
- * root entries are ignored; traversal, nested assets and platform separators cannot match the closed names.
- * @public Test-anchored module surface; tests/legacy/client/features/plugin/lib/plugin-bundle.dom.test.ts calls
- * it directly. */
-export async function packPluginFolder(files: readonly File[]): Promise<Uint8Array> {
+// Pack a browser-selected folder into the one bundle shape the server judges. Files outside the admitted
+// root entries are ignored; traversal, nested assets and platform separators cannot match the closed names.
+async function packPluginFolder(files: readonly File[]): Promise<Uint8Array> {
   const selected = new Map<string, File>();
   let selection: FolderSelection = { assetBytes: 0, assetCount: 0, root: undefined };
   for (const file of files) {

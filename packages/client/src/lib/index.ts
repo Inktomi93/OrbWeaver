@@ -152,7 +152,7 @@ export { messageBubbleClass } from "./message-bubble-class.ts";
 export type { MessageRenderContext } from "./message-render.ts";
 export { renderMessageForDisplay } from "./message-render.ts";
 export { MESSAGE_ROLE_ITEMS, MESSAGE_ROLE_LABELS } from "./message-role-labels.ts";
-export type { Notify, NotifyAction, NotifyInput, NotifyNotice } from "./notify.ts";
+export type { Notify, NotifyAction, NotifyNotice } from "./notify.ts";
 export { bindNotify, leaseNotify, notify } from "./notify.ts";
 export { perfMark, perfMeasure } from "./perf-marks.ts";
 // The Tier-C plugin guest's main-thread ↔ worker wire — a contract between two
@@ -202,13 +202,7 @@ export type {
   ResolvedContextTab,
   ResolvedContextTabs,
 } from "./registry-contracts.ts";
-export {
-  CONFIG_TEACHER_TAB_IDS,
-  defineContextRegion,
-  defineContextTabs,
-  GAME_STRIP_LABEL,
-  VOID_STATE,
-} from "./registry-contracts.ts";
+export { CONFIG_TEACHER_TAB_IDS, defineContextRegion, defineContextTabs, GAME_STRIP_LABEL } from "./registry-contracts.ts";
 export { RenderProfiler } from "./render-profiler.tsx";
 export type { RowRenderPolicy } from "./render-trust.ts";
 export { DEPLOYMENT_FLOOR, resolveRowRenderPolicy } from "./render-trust.ts";
@@ -231,7 +225,7 @@ export {
 } from "./row-qualifiers.ts";
 export type { SafeErrorRingRead } from "./safe-error-ring.ts";
 export { installSafeErrorRing, safeErrorRing } from "./safe-error-ring.ts";
-export type { SessionMessage } from "./session-channel.ts";
+
 export { onSessionMessage, postSessionMessage, runSessionRecoverySingleFlight } from "./session-channel.ts";
 export type { SessionDocumentHost } from "./session-document-host.ts";
 export { bindSessionDocumentHost, leaseSessionDocumentHost, sessionDocument } from "./session-document-host.ts";
@@ -257,7 +251,7 @@ export {
 export type { TagSortMode } from "./tag-sort.ts";
 export { DEFAULT_TAG_SORT_MODE, sortTagsBy, TAG_SORT_MODES } from "./tag-sort.ts";
 export { talkativenessAccessibleName, talkativenessPercent, talkativenessReadout } from "./talkativeness.ts";
-export { TEST_IDS, testId } from "./test-ids.ts";
+export { testId } from "./test-ids.ts";
 export { DENSITY_ITEMS } from "./theme-appearance-items.ts";
 export type { ThemeColorFields } from "./theme-override-form.ts";
 export { assignThemeColorFields } from "./theme-override-form.ts";

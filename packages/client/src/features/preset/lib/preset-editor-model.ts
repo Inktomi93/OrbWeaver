@@ -116,11 +116,10 @@ export function validatePresetConfig(config: PromptConfig): { fields: Record<str
   return validatePresetProse(config);
 }
 
-/** The framing-override half of {@link validatePresetConfig} — see that function for the mount seam.
- *
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export function validatePresetProse(config: PromptConfig): { fields: Record<string, string> } | undefined {
+// The framing-override half of {@link validatePresetConfig} — see that function for the mount seam.
+//
+
+function validatePresetProse(config: PromptConfig): { fields: Record<string, string> } | undefined {
   // `isProseSlotId` rather than a cast: `Object.entries` erases the key to `string`, and the registry lookup
   // needs the union. It also correctly skips a RETIRED id left in a stored blob (the same key class
   // `proseOverridesSchema`'s preprocess strips) instead of indexing the registry with it.

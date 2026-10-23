@@ -9,7 +9,7 @@ import { builtinProvider, providerDisplayLabel } from "@orb/contracts/inference"
 import type { UserConnectionId } from "@orb/kit/ids";
 import { modelDisplayName } from "@orb/kit/model-name";
 
-export type CreditConnectionRow = Pick<ConnectionView, "id" | "label" | "providerLabel" | "tasks">;
+type CreditConnectionRow = Pick<ConnectionView, "id" | "label" | "providerLabel" | "tasks">;
 
 /** The viewer's connection list as a readout sees it. `rows` absent and `failed` false is the pending read. */
 export interface CreditConnections {
@@ -17,9 +17,9 @@ export interface CreditConnections {
   readonly failed: boolean;
 }
 
-/** The provider's shown name: the viewer's own row wins (it knows plugin and admin rows), then the shipped
- *  registry, then the raw id — a runtime provider the client has no registry for still names itself. */
-export function providerName(providerId: string, row: CreditConnectionRow | undefined): string {
+// The provider's shown name: the viewer's own row wins (it knows plugin and admin rows), then the shipped
+//  registry, then the raw id — a runtime provider the client has no registry for still names itself.
+function providerName(providerId: string, row: CreditConnectionRow | undefined): string {
   if (row !== undefined) {
     return row.providerLabel;
   }

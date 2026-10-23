@@ -23,7 +23,7 @@ export function canonicalPresetValues(values: PresetEditorValues): PromptConfig 
   return config;
 }
 
-export function presetRowIdsMatch(values: PresetEditorValues): boolean {
+function presetRowIdsMatch(values: PresetEditorValues): boolean {
   const parsed = metadataSchema.safeParse(values);
   if (!(parsed.success && macroRowIdsMatch(values)) || parsed.data.variableRowIds.length !== values.variables.length) {
     return false;

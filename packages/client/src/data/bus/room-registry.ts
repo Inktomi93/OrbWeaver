@@ -66,7 +66,7 @@ import type { StreamRoomRef } from "@orb/contracts/stream";
 import { roomKey } from "@orb/contracts/stream";
 import type { RoomRegistry, RoomSubscriber, RoomTransport, SinceSeqSource } from "./room-registry-contract.ts";
 
-export type { RoomRegistry, RoomSubscriber, RoomTransport, SinceSeqSource } from "./room-registry-contract.ts";
+export type { RoomRegistry, RoomSubscriber, SinceSeqSource } from "./room-registry-contract.ts";
 
 /** Resolve a replay request at announce time. */
 function resolveSinceSeq(source: SinceSeqSource | undefined): number | null {
@@ -116,7 +116,7 @@ function lowestSinceSeq(entry: RoomEntry): number | null {
   return lowest;
 }
 
-export function createRoomRegistry(): RoomRegistry {
+function createRoomRegistry(): RoomRegistry {
   const rooms = new Map<string, RoomEntry>();
   let transport: RoomTransport | null = null;
   // Has the SOCKET ever been live? The first live edge needs no re-announce (every joined room announced

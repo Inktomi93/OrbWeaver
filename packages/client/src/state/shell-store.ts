@@ -389,11 +389,6 @@ export function useOpenModal(): ModalSlotId | null {
   return useShellStore((s) => s.openModal);
 }
 
-/** Non-reactive read of the open modal slot — the `__readRecentSteersForTest` posture, since `useOpenModal` needs a React render. */
-export function __readOpenModalForTest(): ModalSlotId | null {
-  return useShellStore.getState().openModal;
-}
-
 /** The current CONTEXT-panel tab request (opaque; `null` = the surface's default). */
 export function useContextTab(): string | null {
   return useShellStore((s) => s.contextTab);

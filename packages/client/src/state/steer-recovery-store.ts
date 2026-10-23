@@ -8,8 +8,8 @@
 
 import { createGatedStore } from "./create-gated-store.ts";
 
-/** How many fired steers the ring remembers (the source keeps 10; match it — a modest recall list). */
-export const STEER_RECOVERY_CAP = 10;
+// How many fired steers the ring remembers (the source keeps 10; match it — a modest recall list).
+const STEER_RECOVERY_CAP = 10;
 
 interface SteerRecoveryState {
   /** The fired steer texts, most-recent-first, de-duped, capped at {@link STEER_RECOVERY_CAP}. */
@@ -36,14 +36,4 @@ const EMPTY: readonly string[] = [];
 /** Reactive: the recent fired steers (most-recent-first; `[]` when none). */
 export function useRecentSteers(): readonly string[] {
   return useSteerRecoveryStore((s) => (s.steers.length === 0 ? EMPTY : s.steers));
-}
-
-/** Non-reactive snapshot — for the store's own tests + reads outside a render. */
-export function __readRecentSteersForTest(): readonly string[] {
-  return useSteerRecoveryStore.getState().steers;
-}
-
-/** Reset the ring — test-only hygiene (a module singleton must not leak state across tests). */
-export function __resetRecentSteers(): void {
-  useSteerRecoveryStore.setState({ steers: [] }, false, "steer-recovery/clear");
 }

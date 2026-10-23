@@ -10,8 +10,8 @@
 
 import type { TagId } from "@orb/kit/ids";
 
-/** The chip's three states. `off` is the resting state and is represented by the ABSENCE of an entry. */
-export const TAG_FILTER_STATES = ["off", "include", "exclude"] as const;
+// The cycle and active stored states derive from one vocabulary.
+const TAG_FILTER_STATES = ["off", "include", "exclude"] as const;
 export type TagFilterState = (typeof TAG_FILTER_STATES)[number];
 
 /** The two states worth persisting — derived, never re-declared. */

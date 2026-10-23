@@ -21,7 +21,7 @@ export type EmptySendInput = Pick<UserSettings["chat"], "continueOnSend" | "gene
   readonly tailAssistantMessageId: MessageId | null;
 };
 
-export function isContinueEligible(tailRole: MessageRole | null): boolean {
+function isContinueEligible(tailRole: MessageRole | null): boolean {
   return tailRole === "assistant";
 }
 

@@ -43,12 +43,6 @@ import { resolvePanelRequest } from "./panel-request.ts";
 import { resolveConfigTarget } from "./resolve-config-target.ts";
 import { resolveContextTab } from "./resolve-context-tab.ts";
 
-// Re-exported for `tests/legacy/client/agent-nav/resolve-config-target.dom.test.ts` — the export map's `"./*":
-// "./src/*/index.ts"` (client package.json) means `resolve-config-target.ts` has no subpath a test can
-// reach directly, and this pure function is the unit that earns its own coverage apart from the bridge's
-// dispatch-through-the-store proof below.
-export { resolveConfigTarget } from "./resolve-config-target.ts";
-
 /** What `buildAgentNav` needs to validate a `sub`/`setting` address (#1638) — the config-section registry
  *  the compose door assembles, which the composition tier's OWN modules may not import
  *  (`client-compose-door-only` reserves `compose/` for main.tsx/routes/router.tsx/a compose/ sibling; this

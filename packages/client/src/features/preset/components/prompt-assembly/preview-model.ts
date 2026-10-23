@@ -23,12 +23,11 @@ function isTemplatedMarker(marker: string): marker is keyof typeof DEFAULT_MARKE
 // literal prose or a `{{macro}}` reference, the ONE grammar family, escape rule included). No local alias:
 // the type home is @orb/kit/macro (§7.4).
 
-/** Split a string into text + `{{macro}}` tokens — DISPLAY ONLY (no resolution). Delegates to the real kit
- *  parser's escape-aware scan so `\{{char}}` chips as LITERAL text (not a live macro), killing the second
- *  tokenizer that drifted from the engine. Empty runs are dropped so a one-macro string yields one token.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export function splitMacroTokens(text: string): readonly MacroRun[] {
+// Split a string into text + `{{macro}}` tokens — DISPLAY ONLY (no resolution). Delegates to the real kit
+//  parser's escape-aware scan so `\{{char}}` chips as LITERAL text (not a live macro), killing the second
+//  tokenizer that drifted from the engine. Empty runs are dropped so a one-macro string yields one token.
+
+function splitMacroTokens(text: string): readonly MacroRun[] {
   return scanMacroRuns(text);
 }
 

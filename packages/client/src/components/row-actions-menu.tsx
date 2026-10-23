@@ -22,8 +22,8 @@ import type { ConfirmDialogProps } from "./confirm-dialog.tsx";
 import { ConfirmDialog } from "./confirm-dialog.tsx";
 import { ROW_REVEAL } from "./row-reveal.ts";
 
-/** The optional destructive menu item + its ConfirmDialog (state owned by RowActionsMenu). */
-export interface RowDestructiveAction {
+// The optional destructive menu item + its ConfirmDialog (state owned by RowActionsMenu).
+interface RowDestructiveAction {
   /** The menu item label. @defaultValue "Delete" */
   readonly label?: string;
   /** The menu item glyph. @defaultValue Trash2 */

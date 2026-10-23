@@ -232,13 +232,12 @@ export function activityHeatmapMatrix(matrix: readonly (readonly number[])[]): H
 /** The time seam's two day forms a daily axis label picks between. */
 type DayLabelFormat = Pick<TimeLib, "formatDate" | "formatMonthDay">;
 
-/** A viewer-local day as an axis label through the time seam: `Jul 13`, EXCEPT the first bucket of a year,
- *  which keeps its year (`Jan 4, 2027`) — a ~1,100-day axis otherwise wraps `Nov 22 → Jan 24` with no mark
- *  that a year turned over. `day` is the local `YYYY-MM-DD` key and `start` an instant on it; `prevDay` is
- *  the preceding point's key in series order, and its absence (the first bucket) counts as a crossing.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export function formatDayLabel(point: { readonly day: string; readonly start: number }, prevDay: string | undefined, format: DayLabelFormat): string {
+// A viewer-local day as an axis label through the time seam: `Jul 13`, EXCEPT the first bucket of a year,
+//  which keeps its year (`Jan 4, 2027`) — a ~1,100-day axis otherwise wraps `Nov 22 → Jan 24` with no mark
+//  that a year turned over. `day` is the local `YYYY-MM-DD` key and `start` an instant on it; `prevDay` is
+//  the preceding point's key in series order, and its absence (the first bucket) counts as a crossing.
+
+function formatDayLabel(point: { readonly day: string; readonly start: number }, prevDay: string | undefined, format: DayLabelFormat): string {
   const crossesYear = prevDay === undefined || point.day.slice(0, YEAR_KEY_LENGTH) !== prevDay.slice(0, YEAR_KEY_LENGTH);
   return crossesYear ? format.formatDate(point.start) : format.formatMonthDay(point.start);
 }

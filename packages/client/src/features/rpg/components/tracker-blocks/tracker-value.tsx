@@ -10,7 +10,7 @@ import { useState } from "react";
 import type { EditSession } from "#lib";
 import { resolveCommit } from "#lib";
 
-export interface TrackerValueProps {
+interface TrackerValueProps {
   /** The current value, pre-formatted by the block (e.g. "24/30", "wary", "16"). */
   readonly display: string;
   /** The raw editable string (what seeds the input); defaults to `display`. */

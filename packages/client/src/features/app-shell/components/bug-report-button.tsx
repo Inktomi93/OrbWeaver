@@ -82,10 +82,10 @@ function reportFor(prepared: PreparedBugReport | null, note: string, when: (type
   });
 }
 
-/** The top-rail bug-report affordance. Its chrome entry below wires the real server reads; the CT mounts it
- *  directly (a CT's production build cannot reach the dev-gated capture — see the header).
- *  @public Test-anchored module surface; the CT fixtures mount it with each `devCapture` arm. */
-export function BugReportButton({ devCapture, loadServerFacts, presentation = "bar" }: BugReportButtonProps): ReactElement {
+// The top-rail bug-report affordance. Its chrome entry below wires the real server reads; the CT mounts it
+//  directly (a CT's production build cannot reach the dev-gated capture — see the header).
+
+function BugReportButton({ devCapture, loadServerFacts, presentation = "bar" }: BugReportButtonProps): ReactElement {
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState("");
   const [whenValue, setWhenValue] = useState<string>("now");

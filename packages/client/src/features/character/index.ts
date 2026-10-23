@@ -5,7 +5,6 @@ export {} from "./anchors/character-library-anchor.tsx";
 export {} from "./components/character-actions-menu.tsx";
 export {} from "./components/character-appearance-tab.tsx";
 export {} from "./components/character-bulk-bar.tsx";
-export { CharacterCardTile } from "./components/character-card.tsx";
 
 export {} from "./components/character-facet-editor.tsx";
 

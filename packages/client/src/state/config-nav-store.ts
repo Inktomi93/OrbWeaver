@@ -146,11 +146,6 @@ export function clearActiveConfigGroup(): void {
   useConfigNavStore.setState({ activeGroup: null, activeSub: null, visibleSettings: [], target: null }, false, "configNav/clear");
 }
 
-/** Test seam: drop every navigation fact (a CT must not inherit another test's active group). */
-export function __resetConfigNav(): void {
-  useConfigNavStore.setState(EMPTY, false, "configNav/__reset");
-}
-
 /** Non-reactive read for the section seam (`makeConfigSection`'s `SectionSelection`). */
 export function getActiveConfigGroup(): ConfigGroupId | null {
   return useConfigNavStore.getState().activeGroup;
@@ -181,9 +176,4 @@ export function useVisibleConfigSettings(): readonly ConfigVisibleSetting[] {
 /** Reactive: the pending landing request (`null` = nothing to land). */
 export function useConfigTarget(): ConfigTarget | null {
   return useConfigNavStore((s) => s.target);
-}
-
-/** Non-reactive read of the pending landing request, for tests outside a render. */
-export function __readConfigTargetForTest(): ConfigTarget | null {
-  return useConfigNavStore.getState().target;
 }

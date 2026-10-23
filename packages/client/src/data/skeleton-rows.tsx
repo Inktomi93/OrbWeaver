@@ -16,7 +16,7 @@ import type { ReactElement } from "react";
  *  exported tuple would be an orphan the liveness lens correctly flags. */
 const SKELETON_ROW_SHAPES = ["line", "avatar-row", "datum"] as const;
 
-export type SkeletonRowShape = (typeof SKELETON_ROW_SHAPES)[number];
+type SkeletonRowShape = (typeof SKELETON_ROW_SHAPES)[number];
 
 export interface SkeletonRowsProps {
   /** How many placeholder rows to render. */

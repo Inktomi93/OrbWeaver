@@ -65,8 +65,3 @@ export function rememberMultiHumanCapable(capable: boolean): void {
   }
   useDeploymentBootHintStore.setState({ multiHumanCapable: capable }, false, "deploymentBootHint/rememberMultiHuman");
 }
-
-/** Test seam: forget the remembered answers (a CT/unit run must not inherit another test's device). */
-export function __resetDeploymentBootHint(): void {
-  useDeploymentBootHintStore.setState({ ...DEFAULT_STATE }, false, "deploymentBootHint/__reset");
-}

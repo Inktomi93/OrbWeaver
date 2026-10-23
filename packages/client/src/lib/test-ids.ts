@@ -5,8 +5,8 @@
 // A row lives only as long as a component STAMPS it: the `testid-liveness` gate reds a row no producer
 // spends (and a test selecting one), so add the row and its `data-testid` in the same commit.
 
-/** @public Test-anchored: the testid-liveness reader test counts the real registry rows against it. */
-export const TEST_IDS = {
+// Markup and selectors share the typed testId lookup, not the registry object.
+const TEST_IDS = {
   loginPage: "login-page",
   loginLocalForm: "login-local-form",
   loginHandle: "login-handle",

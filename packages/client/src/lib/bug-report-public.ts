@@ -10,20 +10,13 @@ import { formatVersionIdentity, ORBWEAVER_REPO_URL } from "@orb/kit/version-iden
 import type { SafeErrorRecord, SafeErrorRingRead } from "./safe-error-ring.ts";
 import { sectionOfPathname } from "./safe-error-ring.ts";
 
-/** The issue form the link opens (`.github/ISSUE_TEMPLATE/`) and the ids of the two fields it prefills.
- *  @public Test-anchored module surface; the node suite pins them against the form file. */
-export const BUG_REPORT_ISSUE_TEMPLATE = "app-report.yml";
-/** @public Test-anchored module surface; the node suite pins them against the form file. */
-export const BUG_REPORT_ISSUE_FIELDS = { whatHappened: "what-happened", diagnostics: "diagnostics" } as const;
+// The issue URL targets the maintained application report form.
+const BUG_REPORT_ISSUE_TEMPLATE = "app-report.yml";
+// Match the form field identifiers when prefilling the issue URL.
+const BUG_REPORT_ISSUE_FIELDS = { whatHappened: "what-happened", diagnostics: "diagnostics" } as const;
 
-/**
- * The longest issue link this builds. GitHub answers 414 to a request line near 8 KiB, and a signed-out
- * visitor is first sent to the sign-in page with the whole link encoded again inside `return_to`, which can
- * nearly double it. Half the limit keeps both paths open; the full summary always goes to the clipboard.
- *
- * @public Test-anchored module surface; the node suite asserts every link against it.
- */
-export const BUG_REPORT_ISSUE_URL_MAX = 4000;
+// Leave room for GitHub to encode the issue URL inside its sign-in redirect.
+const BUG_REPORT_ISSUE_URL_MAX = 4000;
 
 /** The bundle's self-description, so a reader of a downloaded file knows what it is. */
 const BUG_REPORT_BUNDLE_FORMAT = "orbweaver-bug-report";
@@ -128,9 +121,8 @@ const OS_TELLS: readonly { readonly name: string; readonly re: RegExp }[] = [
   { name: "Linux", re: /Linux/u },
 ];
 
-/** A browser name and major version from a user-agent string, from a closed list.
- *  @public Test-anchored module surface; the node suite pins the list. */
-export function browserNameOf(userAgent: string): string {
+// Specific browser tells precede the engines they also identify.
+function browserNameOf(userAgent: string): string {
   for (const tell of BROWSER_TELLS) {
     const major = tell.re.exec(userAgent)?.groups?.["major"];
     if (major !== undefined) {
@@ -140,9 +132,8 @@ export function browserNameOf(userAgent: string): string {
   return "Other browser";
 }
 
-/** An operating-system name from a user-agent string, from a closed list.
- *  @public Test-anchored module surface; the node suite pins the list. */
-export function osNameOf(userAgent: string): string {
+// Mobile platform tells precede their desktop-compatible user-agent tokens.
+function osNameOf(userAgent: string): string {
   return OS_TELLS.find((tell) => tell.re.test(userAgent))?.name ?? "Other OS";
 }
 

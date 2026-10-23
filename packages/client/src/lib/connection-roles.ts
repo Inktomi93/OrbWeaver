@@ -3,7 +3,7 @@
 // barrel-free, because node-side CT specs import it; the rendered row is `components/connection-role-slot.tsx`.
 
 import type { Capability, CapabilityRequirement, RoutableTask, Task, UnavailableCause } from "@orb/contracts/inference";
-import { bindingTaskOf, CONNECTION_LABEL_SEPARATOR, canFund, requirementMet, taskDef } from "@orb/contracts/inference";
+import { CONNECTION_LABEL_SEPARATOR, canFund, requirementMet } from "@orb/contracts/inference";
 import { DEFAULT_MEMORY_DEFAULTS } from "@orb/contracts/settings";
 import { modelDisplayName } from "@orb/kit/model-name";
 import { stripLabelSuffix } from "@orb/kit/strings";
@@ -27,8 +27,8 @@ export const CONNECTION_ROLE_LABELS: Record<RoutableTask, string> = {
  *
  *  The clause list is AUTHORED rather than folded out of `TASK_DEFS`, because two of the Utility slot's
  *  three consumers are not distinct tasks: `summarize` states no `requires` at all and captioning is a
- *  `structured`/`summarize` call that happens to carry an image. `roleRequirementsCoverTaskDefs` (the unit
- *  test's oracle, exported below) is what stops the authored list drifting BELOW the contract. */
+ *  `structured`/`summarize` call that happens to carry an image. The Utility rail must therefore describe
+ *  image input as well as the task-level requirements. */
 interface RoleRequirement {
   readonly label: string;
   readonly requires: CapabilityRequirement;
@@ -133,15 +133,8 @@ export function connectionSummary(row: { readonly label: string; readonly model:
   return labelNamesModel(row.label, row.model) ? row.label : `${row.label}${CONNECTION_LABEL_SEPARATOR}${name}`;
 }
 
-/**
- * Whether a connection label already names exactly this model: a segment after the provider segment is the model
- * id or its display name, or, for a label with no separator, the whole label is.
- *
- * @remarks A label is minted once and kept when the model is edited, so a segment that only starts with or
- * contains the model (`gpt-4o` for `gpt-4`) names a different model and must not hide the real one. A minted
- * label's first segment is the provider, so a model named like its provider (`vllm`) is not named by it.
- */
-export function labelNamesModel(label: string, model: string): boolean {
+// A retained label must name the complete current model, not its provider or a partial model name.
+function labelNamesModel(label: string, model: string): boolean {
   const names = new Set([model, modelDisplayName(model)].map((name) => name.toLowerCase()));
   const segments = stripLabelSuffix(label).split(CONNECTION_LABEL_SEPARATOR);
   const modelSegments = segments.length > 1 ? segments.slice(1) : segments;
@@ -338,27 +331,6 @@ export function roleRequirementVerdicts(row: RoleRow, capability: Capability | n
     met: capability === null ? null : requirementMet(capability, requirement.requires).ok,
     unmet: requirement.unmet,
   }));
-}
-
-/** THE ORACLE the unit test runs: every clause `TASK_DEFS` states for a task RIDING this slot must be
- *  covered by an authored `RoleRequirement`. The authored list may say MORE than the contract (captions are
- *  not their own task), never less — which is the only direction that can silently stop warning a user.
- * @public Test-anchored module surface; focused tests pin this production-local behavior. */
-export function roleRequirementGaps(row: RoleRow, tasks: readonly Task[]): readonly string[] {
-  const authored = row.requirements.map((requirement) => requirement.requires);
-  const gaps: string[] = [];
-  for (const task of tasks.filter((candidate) => bindingTaskOf(candidate) === row.task)) {
-    const requires = taskDef(task).requires;
-    if (requires === undefined) {
-      continue;
-    }
-    for (const [axis, value] of Object.entries(requires)) {
-      if (value !== undefined && !authored.some((clause) => JSON.stringify(clause[axis as keyof CapabilityRequirement]) === JSON.stringify(value))) {
-        gaps.push(`${task}.${axis}`);
-      }
-    }
-  }
-  return gaps;
 }
 
 /** The connections a Model-roles row REFUSES only because the row's `allowBackground` is off — §5.3a's

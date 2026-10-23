@@ -54,9 +54,9 @@ export interface PersonaEditorProps {
   readonly onRequestDelete: () => void;
 }
 
-/** The persona DETAILS — autosaving, no repeated avatar/name (the panel-row's expand-to-edit body).
- *  Mounted through the D78 session boundary (`PersonaForm`), which owns the persona.id key. */
-export function PersonaEditor({ persona, onRequestDelete }: PersonaEditorProps): ReactElement {
+// The persona DETAILS — autosaving, no repeated avatar/name (the panel-row's expand-to-edit body).
+//  Mounted through the D78 session boundary (`PersonaForm`), which owns the persona.id key.
+function PersonaEditor({ persona, onRequestDelete }: PersonaEditorProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const update = useUpdatePersona({ trpc, invalidation });

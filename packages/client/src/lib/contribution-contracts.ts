@@ -23,11 +23,8 @@ import type { CharacterId, ChatId } from "@orb/kit/ids";
 import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
 
-/** The chat SURFACE-ANCHOR vocabulary (§6c/M8) — closed `as const` tuple, so an unlisted anchor is
- *  unspellable. `thread-flank`/`above-composer` are ROOM-level (mounted once per open room);
- *  `message-footer` is PER-ROW (mounted once per committed message). `composer-room` groups lead Message
- *  tools, ahead of its generic groups; `composer-media` groups follow its Media group. */
-export const CHAT_SURFACE_ANCHORS = ["thread-flank", "above-composer", "composer-action", "composer-room", "composer-media", "message-footer"] as const;
+// Derive room and per-message anchor types from one closed vocabulary.
+const CHAT_SURFACE_ANCHORS = ["thread-flank", "above-composer", "composer-action", "composer-room", "composer-media", "message-footer"] as const;
 export type ChatSurfaceAnchor = (typeof CHAT_SURFACE_ANCHORS)[number];
 
 /** The room-level surface projection — `thread-flank` + `above-composer` read this. `chatId` is `null`
@@ -76,13 +73,9 @@ export type ChatSurfaceContribution =
 // `<Section kicker>` its own sections use. So a grafted section can never invent its own grouping chrome,
 // and it inherits the pane's voice for free — which is precisely what the side-eye pass asked for.
 
-/** The "This chat" SECTION-anchor vocabulary (§6c) — closed `as const` tuple, so an unlisted anchor is
- *  unspellable. `host-controls` is the tab's HOST-ONLY band (Background · Group behavior · Appearance ·
- *  Tool use): the whole band is omitted for a member, so a contribution there is host-gated by MOUNT, not
- *  by a predicate it could forget to write. A member-readable anchor is one tuple entry + one named arm on
- *  the union below, the {@link CharacterDetailContribution} extension shape. */
-export const CHAT_SETTINGS_SECTION_ANCHORS = ["host-controls"] as const;
-export type ChatSettingsSectionAnchor = (typeof CHAT_SETTINGS_SECTION_ANCHORS)[number];
+// Host-control contributions inherit permission gating from their mounting band.
+const CHAT_SETTINGS_SECTION_ANCHORS = ["host-controls"] as const;
+type ChatSettingsSectionAnchor = (typeof CHAT_SETTINGS_SECTION_ANCHORS)[number];
 
 /** The "This chat" section projection — what the tab body can supply a contributor. The room's committed
  *  `chatId` and nothing else, deliberately: the anchor's own host-only mount already answers the one
@@ -129,13 +122,8 @@ export type ChatSettingsSectionContribution = ChatSettingsHostControlsContributi
 export const CHAT_CONTROL_KINDS = ["card", "chip"] as const;
 export type ChatControlKind = (typeof CHAT_CONTROL_KINDS)[number];
 
-/** The CONSUMPTION axis — what a control's click DOES, and therefore what makes it busy:
- *  `send` fires the text as the clicking member's turn (turn-phase-disabled, with the reason on `title`),
- *  `compose` seeds their composer draft (never disabled — writing a draft is always legal),
- *  `execute` calls a front-door verb (disabled only while its OWN mutation pends — it is not a turn).
- *  DERIVED from the wire tuple (`QUICK_REPLY_MODES`) rather than re-spelled, so an arm-surfaced chip's mode
- *  IS a control mode by construction; `execute` is the client-only third member no chip arm can carry. */
-export const CHAT_CONTROL_MODES = [...QUICK_REPLY_MODES, "execute"] as const;
+// Wire quick replies and client-only execution share the consumption axis.
+const CHAT_CONTROL_MODES = [...QUICK_REPLY_MODES, "execute"] as const;
 export type ChatControlMode = (typeof CHAT_CONTROL_MODES)[number];
 
 /** ONE clickable affordance on a control. The text arms carry the string the click sends or composes; the
@@ -209,12 +197,9 @@ export interface ChatControlSource {
   readonly mount: (props: ChatControlSourceMountProps) => ReactNode;
 }
 
-/** The character-DETAIL surface-anchor vocabulary (§6c) — closed `as const` tuple, so an unlisted anchor
- *  is unspellable. `editor-sections` is the review-cards region in the character editor body: the ONE
- *  named cross-feature need (crew 07-client-ui §4.2 — pending card-evolution proposals render there as
- *  review cards, owned by the agents feature, WITHOUT importing the character feature). */
-export const CHARACTER_DETAIL_ANCHORS = ["editor-sections"] as const;
-export type CharacterDetailAnchor = (typeof CHARACTER_DETAIL_ANCHORS)[number];
+// Character-detail contributions retain one closed anchor vocabulary.
+const CHARACTER_DETAIL_ANCHORS = ["editor-sections"] as const;
+type CharacterDetailAnchor = (typeof CHARACTER_DETAIL_ANCHORS)[number];
 
 /** The character-detail surface projection — what the editor body can actually supply a contributor: the
  *  id of the character being edited (the same drill subject the CONTEXT tabs read — a distinct POSITION,
@@ -240,16 +225,9 @@ interface CharacterDetailSectionsContribution {
  *  zero casts. */
 export type CharacterDetailContribution = CharacterDetailSectionsContribution;
 
-/** HOW a {@link ToolRenderer}'s `id` claims a wire tool name — a CLOSED axis (§5.5), so a claim shape is
- *  unspellable outside this tuple.
- *  - `name`: `id` IS the wire tool name (the original, and the only shape a first-party renderer needs).
- *  - `prefix`: `id` is a NAMESPACE prefix and the renderer claims every wire name starting with it. Minted for
- *    the plugin plane (#679 U3): a plugin tool's wire name is `plugin_<slug'>_<name>`, which depends on WHO
- *    installed WHAT and is therefore unknowable at door-assembly time. Without it the door would have to grow
- *    per plugin — exactly what the one-assembly law (G8) forbids — so ONE `plugin_`-prefixed contribution fans
- *    per-plugin inside its own body instead. */
-export const TOOL_RENDERER_MATCHES = ["name", "prefix"] as const;
-export type ToolRendererMatch = (typeof TOOL_RENDERER_MATCHES)[number];
+// Exact claims outrank namespace claims; the renderer contract owns both match modes.
+const TOOL_RENDERER_MATCHES = ["name", "prefix"] as const;
+type ToolRendererMatch = (typeof TOOL_RENDERER_MATCHES)[number];
 
 /** A per-tool renderer (§6c) — the cross-feature seam a feature (automation / a plugin surface) plugs a
  *  rich renderer into WITHOUT importing chat: chat consumes a `ContributorRegistry<ToolRenderer>` wired empty

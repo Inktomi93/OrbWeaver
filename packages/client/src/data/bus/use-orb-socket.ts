@@ -77,18 +77,8 @@ function routeFrame(payload: SocketPayload): void {
  *  server sentence and the client owns its own copy. */
 const SOCKET_CAP_CODE = "TOO_MANY_REQUESTS";
 
-/** The socket's failure notice, in the user's terms, with the one next step it actually has (side-eye rail
- *  sweep P2-10, 2026-08-17). This was `notify.error(error.message)` — so the socket cap surfaced verbatim
- *  as "Too many open streams (8). Close a tab and retry.": a server sentence about a server noun, naming an
- *  internal limit, with the retry it asks for available nowhere but a page reload.
- *
- *  The cap arm says what happened in the user's own vocabulary (TABS, which is the thing they can close)
- *  and deliberately does NOT quote the number: that digit lives inside the server's message string, and
- *  reading it here would key the client on message TEXT. Both arms carry the retry, because both are
- *  recoverable by exactly one action — re-subscribing.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export function socketNotice(code: string | undefined, message: string, retry: () => void): NotifyNotice {
+// A socket-cap refusal names browser tabs and offers the live subscription retry.
+function socketNotice(code: string | undefined, message: string, retry: () => void): NotifyNotice {
   const action = { label: "Try again", onClick: retry };
   if (code === SOCKET_CAP_CODE) {
     return {

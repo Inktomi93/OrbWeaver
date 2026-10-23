@@ -8,8 +8,6 @@ export { JoinInviteDialog } from "./anchors/join-invite-dialog.tsx";
 export {} from "./anchors/message-thread-anchor.tsx";
 export { ChatsWithCharacterPane } from "./components/chats-with-character-pane.tsx";
 export {} from "./components/composer.tsx";
-/** @public exported for the reaction CT story, which mounts the picker the way the message row does. */
-export { RowReactionPicker } from "./components/row-reaction-picker.tsx";
 
 export {} from "./hooks/use-send-message.ts";
 export {} from "./hooks/use-stop-turn.ts";

@@ -29,11 +29,6 @@ export function takePersonaEditorFocus(): void {
   usePersonaEditorFocusStore.setState({ request: null }, false, "personaEditorFocus/take");
 }
 
-/** Test seam: the persona a pending request names, or `null`. */
-export function __readPersonaEditorFocusForTest(): PersonaId | null {
-  return usePersonaEditorFocusStore.getState().request?.personaId ?? null;
-}
-
 /** The pending request, reactive. */
 export function usePersonaEditorFocusRequest(): PersonaEditorFocusRequest | null {
   return usePersonaEditorFocusStore((s) => s.request);

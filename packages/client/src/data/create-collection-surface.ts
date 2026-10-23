@@ -34,7 +34,7 @@ export interface CollectionSurfaceConfig<TItem, TPage, TParams, TPageParam, TErr
   readonly endApproachRows?: number;
 }
 
-export interface CollectionSelection {
+interface CollectionSelection {
   readonly selected: ReadonlySet<string>;
   readonly isSelected: (id: string) => boolean;
   readonly toggle: (id: string) => void;

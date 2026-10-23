@@ -26,7 +26,7 @@ import { testId } from "#lib";
 import { clearRefineryWorkbenchDoor, useRefineryRequestedDoor } from "#state";
 import { useUpdateRefinerySession } from "../hooks/use-refinery-mutations.ts";
 
-export interface RunControlsCardProps {
+interface RunControlsCardProps {
   readonly sessionId: RefinerySessionId;
   readonly guidance: string | null;
   /** Any stage's call is in flight — the session-wide verbs stand down while one is working. */

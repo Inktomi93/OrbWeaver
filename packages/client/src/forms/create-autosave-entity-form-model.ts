@@ -76,10 +76,8 @@ export function foldSaveState({ driver, isValid, readOnlyDirty, unsaved, unwrita
   return driver === "saved" && unsaved ? "saving" : driver;
 }
 
-/** Read-and-clear the Boundary's discard flag — `true` = this teardown was a reseed and skips its flush.
- *
- *  @public Test-anchored module surface; focused tests pin this production-local behavior. */
-export function takeDiscard(discardRef: RefObject<boolean>): boolean {
+// Consume the discard flag before checking writability so a reseed cannot suppress a later teardown.
+function takeDiscard(discardRef: RefObject<boolean>): boolean {
   const discard = discardRef.current;
   discardRef.current = false;
   return discard;

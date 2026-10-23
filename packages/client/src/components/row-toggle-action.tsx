@@ -44,30 +44,14 @@ interface RowToggleActionBaseProps {
   readonly semantics?: "toggle" | "radio";
 }
 
-/**
- * The NON-FILLING arm — any sealed glyph, the mirror of `IconProps`' own two-armed shape one level down.
- *
- * Minted for databank's `Everywhere` toggle (§6.1): `Globe` is a multi-path outline, so it is deliberately
- * NOT in the fillable seal — and demanding a `FillableIcon` on a toggle that never fills would have forced
- * either the wrong glyph or a wrong seal entry. The pressed state is still a non-color delta here: at
- * `rest:"when-on"` an unpressed toggle does not render at all, so what changes at rest is PRESENCE, not hue.
- */
-export interface RowToggleActionProps extends RowToggleActionBaseProps {
+// Non-filling toggles accept any sealed icon without claiming fill support.
+interface RowToggleActionProps extends RowToggleActionBaseProps {
   readonly icon: LucideIcon;
   readonly pressedFill?: false;
 }
 
-/**
- * The FILLING arm — `pressedFill` paints the glyph through the seal's `fill="solid"` axis while pressed, so
- * the pressed state carries a SHAPE delta and not only a color one. WCAG 1.4.1: the preset list's activate
- * control differed from its rest state by stroke color alone (side-eye F-06); a filled disc vs a hollow ring
- * is legible in greyscale, and on the preset row it is the WHOLE state readout (owner ruling O-1).
- *
- * It requires a {@link FillableIcon} — the branded, gallery-checked subset — because a fill renders as an
- * unreadable blob on a multi-path outline. TYPING that is what makes the mistake a compile error instead of
- * an ugly pressed state, which is the entire reason the brand exists.
- */
-export interface RowToggleActionFillProps extends RowToggleActionBaseProps {
+// Filled toggles require the branded icon subset so multi-path outlines cannot become solid blobs.
+interface RowToggleActionFillProps extends RowToggleActionBaseProps {
   readonly icon: FillableIcon;
   readonly pressedFill: true;
 }

@@ -39,11 +39,6 @@ export function clearConfigFocus(): void {
   useConfigFocusStore.setState(EMPTY, false, "configFocus/clear");
 }
 
-/** Test seam: a CT must not inherit another test's focused setting. */
-export function __resetConfigFocus(): void {
-  useConfigFocusStore.setState(EMPTY, false, "configFocus/__reset");
-}
-
 export function useConfigFocus(): ConfigFocus | null {
   return useConfigFocusStore((s) => s.focus);
 }

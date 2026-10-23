@@ -8,11 +8,10 @@ import { MS_PER_SECOND } from "@orb/kit/time";
 
 const SUB_SECOND_MAX_MS = MS_PER_SECOND;
 
-/** The completed generation window in ms (`gf − gs`) when both bounds are present and ordered, else null
- *  (a non-generated row, or an in-flight/rebuild row missing a bound).
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export function genDurationMs(startedAt: number | null, finishedAt: number | null): number | null {
+// The completed generation window in ms (`gf − gs`) when both bounds are present and ordered, else null
+//  (a non-generated row, or an in-flight/rebuild row missing a bound).
+
+function genDurationMs(startedAt: number | null, finishedAt: number | null): number | null {
   if (startedAt === null || finishedAt === null || finishedAt < startedAt) {
     return null;
   }

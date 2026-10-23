@@ -123,6 +123,7 @@ export const config = {
       project: ["src/**/*.ts!"],
     },
     "packages/client": {
+      includeEntryExports: true,
       // main.tsx is auto-detected as an entry from index.html's <script type="module"> tag.
       entry: ["index.html"],
       project: ["src/**/*.{ts,tsx,css}!"],

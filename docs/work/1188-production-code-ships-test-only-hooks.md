@@ -22,4 +22,8 @@ Delete unused hooks. Where a selected rebuilt case needs controlled scheduling o
 
 ## Evidence
 
-Definitions remain in client state modules and `packages/client/src/data/session-freshness.ts`. Recheck direct and computed consumers before deleting; an unused hook does not justify a replacement abstraction.
+The selected hooks are removed. [Client case decisions](0989-adjudicate-unused-production-exports-behind-explicit-package-doors.md#selected-client-surfaces-and-replacement-cases) identify their maintained replacements and explicit restoration limits.
+
+State cases use production actions and hooks. Session cases use the existing document capability with injected time and genuine authenticated recovery. No replacement reset registry or private inspection door is added.
+
+Scoped native tests, compiler programs, production defect controls and exact source restoration qualify the selected purposes. Broader persistence, frame scheduling and lifecycle matrices remain separate restoration work. The anchor story uses the real navigation action in a fresh document; its redundant reset is removed.

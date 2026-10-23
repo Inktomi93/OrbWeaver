@@ -27,7 +27,7 @@ import type { ChatId, Handle, UserId, VerifiedUserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { sessionDocument, setBootReadPending, timeLib } from "#lib";
+import { sessionDocument, setBootReadPending } from "#lib";
 import { bindDurableLocalToUser, durableLocalReadyFor, openModal, selectChat, useActiveChatId } from "#state";
 import { roomRegistry } from "./bus/room-registry.ts";
 import { createInvalidation } from "./invalidation.ts";
@@ -131,7 +131,7 @@ export function useSessionRecovery(): SessionRecoveryState {
   useEffect(
     () =>
       startSessionFreshness({
-        now: timeLib.now,
+        now: sessionDocument.now,
         isVisible: sessionDocument.isVisible,
         // ALIVE **AND STILL OURS** — the compare lives with the rest of the identity boundary, in the
         // ladder (§4.2.1). A session that comes back as a different human is not freshness.

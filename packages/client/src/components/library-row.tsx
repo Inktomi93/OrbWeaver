@@ -21,8 +21,8 @@ import type { ConfirmDialogProps } from "./confirm-dialog.tsx";
 import { RowActionsMenu } from "./row-actions-menu.tsx";
 import { ROW_REVEAL } from "./row-reveal.ts";
 
-/** The Rename · Duplicate · Delete actions for a library row (omit for a non-actionable row). */
-export interface LibraryRowActions {
+// The Rename · Duplicate · Delete actions for a library row (omit for a non-actionable row).
+interface LibraryRowActions {
   /** The entity name — seeds the menu aria-label + the delete-confirm title. */
   readonly name: string;
   /** A per-row DISAMBIGUATOR appended to the action names ('Duplicate "Default (edited)" · 9h ago').

@@ -64,15 +64,6 @@ export function useIsRegexScriptSelected(scriptId: string): boolean {
   return useRegexBulkStore((s) => s.selectedIds[scriptId] === true);
 }
 
-/** Non-reactive snapshot for specs — the reactive hooks below need a React render, and this store's rulings
- *  (leaving the mode clears; presence IS selection) are plain state transitions worth pinning without one
- *  (the `readSelectedMessageIds` posture, named per the test-seam convention since nothing in production
- *  reads it). */
-export function __readRegexBulkForTest(): { readonly active: boolean; readonly selectedIds: readonly string[] } {
-  const { active, selectedIds } = useRegexBulkStore.getState();
-  return { active, selectedIds: Object.keys(selectedIds) };
-}
-
 /** Reactive: the selected ids, as a stable-identity presence map — the bar reads its COUNT off this and the
  *  batch verbs read the keys. A map rather than an array selector so a re-render never mints a fresh array
  *  identity for an unchanged selection. */

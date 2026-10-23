@@ -103,11 +103,8 @@ function push(record: ConsoleErrorRecord): void {
   }
 }
 
-/** Record one failure. Exported for the install hooks below AND as the seam a spec drives — recording is the
- *  whole behaviour, and the browser events that trigger it are not reproducible in a node unit lane.
- *
- *  @public Test-anchored module surface; focused tests pin this production-local behavior. */
-export function recordConsoleError(source: ConsoleErrorRecord["source"], args: readonly unknown[]): void {
+// Bound retained argument text and stack data before the dev ring stores them.
+function recordConsoleError(source: ConsoleErrorRecord["source"], args: readonly unknown[]): void {
   const stack = firstStack(args);
   push({
     source,

@@ -125,21 +125,19 @@ export function showsPhaseChip(phase: IngestPhase): boolean {
   return PHASE_EARNS_A_CHIP[phase];
 }
 
-/** Is this document's ingest still running? The freshness driver for the library's bounded poll (D-3 arm b).
- *  A STALLED document is NOT in flight: it stopped moving, so polling it forever would be a 4-second request
- *  every 4 seconds, permanently, for a job that is never coming back.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export function isIngestInFlight(doc: Pick<DocumentView, "charCount" | "chunkCount" | "embeddedCount" | "updatedAt">, now: number): boolean {
+// Is this document's ingest still running? The freshness driver for the library's bounded poll (D-3 arm b).
+//  A STALLED document is NOT in flight: it stopped moving, so polling it forever would be a 4-second request
+//  every 4 seconds, permanently, for a job that is never coming back.
+
+function isIngestInFlight(doc: Pick<DocumentView, "charCount" | "chunkCount" | "embeddedCount" | "updatedAt">, now: number): boolean {
   const phase = ingestPhase(doc, now);
   return phase !== "stalled" && IN_FLIGHT_WORD[phase] !== null;
 }
 
-/** How often a documents read re-runs while ANY row is mid-ingest (D-3 arm b). Slow enough to be free at
- *  rest, fast enough that a small document's `Queued → Ready` is seen rather than reported later.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export const INGEST_POLL_MS = 4000;
+// How often a documents read re-runs while ANY row is mid-ingest (D-3 arm b). Slow enough to be free at
+//  rest, fast enough that a small document's `Queued → Ready` is seen rather than reported later.
+
+const INGEST_POLL_MS = 4000;
 
 /** The bounded-poll interval for a `databank.list` read: {@link INGEST_POLL_MS} while some row is still
  *  ingesting, `false` the moment none is (a bank at rest makes zero extra requests). ONE home for the
@@ -178,22 +176,20 @@ export function ingestEmptyHint(doc: Pick<DocumentView, "charCount" | "chunkCoun
   return countedIngestPhase(doc) === "empty" ? "No text could be extracted — re-upload a text PDF, or paste the text." : null;
 }
 
-/**
- * The passage count as a ROW states it — ONE home, because the list row and the detail readout print the
- * same fact and used to print it in two vocabularies ("12 passages" beside "Chunks 12/12 embedded").
- *
- * A PASSAGE IS AN EMBEDDED CHUNK (`@orb/contracts/databank`'s own phase note: `ready` = every chunk
- * embedded, and `BankHealthView.passages` is documented as "chunks a chat can actually retrieve"). This
- * used to print `chunkCount`, which is the chunks that EXIST — so a document mid-embed with 22 of 39
- * embedded read "39 passages", overstating its reach by 77% at exactly the moment the number is moving and
- * the user is watching it (side-eye 2026-08-19 P2). The bank-health line was fixed for this same
- * overstatement on 2026-08-08 ("286 of 1,170 passages indexed"); the row kept the old reading.
- *
- * So: both numbers while they differ, one number once they cannot. That is the same shape the health line
- * settled on, and it is why a partially-embedded row now says what a complete one does not have to.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export function passageCount(doc: Pick<DocumentView, "chunkCount" | "embeddedCount">): string {
+// The passage count as a ROW states it — ONE home, because the list row and the detail readout print the
+// same fact and used to print it in two vocabularies ("12 passages" beside "Chunks 12/12 embedded").
+//
+// A PASSAGE IS AN EMBEDDED CHUNK (`@orb/contracts/databank`'s own phase note: `ready` = every chunk
+// embedded, and `BankHealthView.passages` is documented as "chunks a chat can actually retrieve"). This
+// used to print `chunkCount`, which is the chunks that EXIST — so a document mid-embed with 22 of 39
+// embedded read "39 passages", overstating its reach by 77% at exactly the moment the number is moving and
+// the user is watching it (side-eye 2026-08-19 P2). The bank-health line was fixed for this same
+// overstatement on 2026-08-08 ("286 of 1,170 passages indexed"); the row kept the old reading.
+//
+// So: both numbers while they differ, one number once they cannot. That is the same shape the health line
+// settled on, and it is why a partially-embedded row now says what a complete one does not have to.
+
+function passageCount(doc: Pick<DocumentView, "chunkCount" | "embeddedCount">): string {
   if (doc.embeddedCount < doc.chunkCount) {
     return `${passageTally(doc)} passages`;
   }

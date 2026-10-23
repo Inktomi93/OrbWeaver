@@ -42,11 +42,6 @@ export function toggleMessageSelected(messageId: MessageId): void {
   useMessageSelectionStore.setState({ selectedIds: next }, false, "selection/toggle");
 }
 
-/** Clear the selection WITHOUT leaving select mode (the selection bar's clear button semantics). */
-export function __resetSelection(): void {
-  useMessageSelectionStore.setState({ selectedIds: {} }, false, "selection/clear");
-}
-
 /** Reactive: is bulk-select mode active? (rows read this to show checkboxes + suppress per-row actions). */
 export function useSelectionActive(): boolean {
   return useMessageSelectionStore((s) => s.active);
@@ -62,8 +57,7 @@ export function useSelectedCount(): number {
   return useMessageSelectionStore((s) => Object.keys(s.selectedIds).length);
 }
 
-/** Non-reactive snapshot of the selected ids (the delete action's read — the `__readMessageEditDraftForTest`
- *  escape-hatch precedent; a fresh array, so never a shared-ref selector footgun). */
+/** Snapshot of the selected ids for the delete action; each read returns a fresh array. */
 export function readSelectedMessageIds(): MessageId[] {
   return Object.keys(useMessageSelectionStore.getState().selectedIds) as MessageId[];
 }

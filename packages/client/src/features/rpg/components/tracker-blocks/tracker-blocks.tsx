@@ -18,7 +18,7 @@ import { TrackerValue } from "./tracker-value.tsx";
 // 2. STAT CELL — attributes: a compact cell, big value over a small caps label; hint on `title`.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-export interface StatCellProps {
+interface StatCellProps {
   /** The attribute short label ("STR"). */
   readonly label: string;
   /** The reading, or `null` when this actor's sheet carries NO value for the attribute. Null is not zero and
@@ -135,7 +135,7 @@ export function TrackerChip({ label, value, subject, guide = false, onEditValue 
 // 5. BEAT LINE — recentEvents: a timestamp-less muted one-liner. Newest-first ordering is the caller's.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-export interface BeatLineProps {
+interface BeatLineProps {
   readonly children: ReactNode;
 }
 
@@ -165,7 +165,7 @@ export function BeatLine({ children }: BeatLineProps): ReactElement {
 // 7. GOAL LINE — objectives: free-text goal + optional `n/m` clock; done gets a strikethrough.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-export interface GoalLineProps {
+interface GoalLineProps {
   readonly text: string;
   readonly done?: boolean;
   /** Optional clock segment — `filled`/`total` renders as `n/m`. */

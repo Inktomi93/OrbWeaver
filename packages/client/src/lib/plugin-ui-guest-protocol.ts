@@ -108,7 +108,7 @@ export interface UiGuestEventMessage {
 }
 
 /** Settle a host call the guest made. `ok:false` carries a message the guest sees as a rejection. */
-export type UiGuestHostResultMessage =
+type UiGuestHostResultMessage =
   | { readonly kind: "hostResult"; readonly callId: number; readonly ok: true; readonly resultJson: string }
   | { readonly kind: "hostResult"; readonly callId: number; readonly ok: false; readonly message: string };
 
@@ -118,7 +118,7 @@ export type UiGuestInbound = UiGuestBootMessage | UiGuestEventMessage | UiGuestH
 
 /** The guest published a whole TREE for one of its surfaces (retained-mode: it publishes state, never a patch).
  *  `treeJson` is re-validated host-side before it mounts — the worker boundary is not a validation. */
-export interface UiGuestRenderMessage {
+interface UiGuestRenderMessage {
   readonly kind: "render";
   readonly surfaceId: string;
   readonly treeJson: string;
@@ -126,7 +126,7 @@ export interface UiGuestRenderMessage {
 
 /** The guest asked for a host call. The HOST decides whether it goes to the network — it holds the in-flight
  *  count and the surface's room — and the server re-gates it regardless. */
-export interface UiGuestHostCallMessage {
+interface UiGuestHostCallMessage {
   readonly kind: "hostCall";
   readonly callId: number;
   readonly fn: string;
@@ -134,7 +134,7 @@ export interface UiGuestHostCallMessage {
 }
 
 /** A guest log line, already ring-bounded worker-side. */
-export interface UiGuestLogMessage {
+interface UiGuestLogMessage {
   readonly kind: "log";
   /** The ONE log-level axis — `@orb/contracts/plugin`'s `PLUGIN_LOG_LEVELS`, derived rather than re-spelled.
    *  A guest's `orb.ui(1).log.warn(…)` and a server guest's `orb.host(1).log.warn(…)` are the same severity

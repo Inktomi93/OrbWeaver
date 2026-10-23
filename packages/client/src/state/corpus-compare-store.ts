@@ -24,13 +24,6 @@ const EMPTY_PAIR: CorpusCompareState = { a: "", aName: "", b: "", bName: "" };
 
 const useCorpusCompareStore = createGatedStore<CorpusCompareState>("corpus-compare", (): CorpusCompareState => EMPTY_PAIR);
 
-/** Seed BOTH slots at once — a pair row's click on the Similarity tab, which has both ids AND both names in
- *  hand. Written as one transition so the Compare tab never renders a half-filled pair and fires a diff
- *  for it. */
-export function compareCorpusPair(a: { readonly id: string; readonly name: string }, b: { readonly id: string; readonly name: string }): void {
-  useCorpusCompareStore.setState({ a: a.id, aName: a.name, b: b.id, bName: b.name }, false, "corpus-compare/pair");
-}
-
 /** Write the FIRST slot (the tab's own picker, which knows the item's label). */
 export function setCorpusCompareA(id: string, name: string): void {
   useCorpusCompareStore.setState({ a: id, aName: name }, false, "corpus-compare/a");

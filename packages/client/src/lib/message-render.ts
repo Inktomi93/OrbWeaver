@@ -32,10 +32,8 @@ import { executeRegexScripts } from "@orb/kit/regex";
 // pass. This closes the documented `(a+)+` class; the Worker is the follow-up for the residual.
 const DISPLAY_NESTED_QUANTIFIER_RE = /[*+?}]\)[*+?{]/;
 
-/** True for a regex source that applies a quantifier to a group ALREADY containing a quantifier
- *  (`(a+)+`, `(a*)*`, `(a+){2,}`, `([a-z]+)+`, …) — the exponential-backtracking family. A group with no
- *  inner quantifier (`(abc)+`, `(a|b)+`) and a plain pattern (`/sword/g`) are NOT flagged. */
-export function isDisplayRegexTooComplex(source: string): boolean {
+// Display regex runs synchronously, so refuse nested quantified groups before executing it.
+function isDisplayRegexTooComplex(source: string): boolean {
   return DISPLAY_NESTED_QUANTIFIER_RE.test(source);
 }
 

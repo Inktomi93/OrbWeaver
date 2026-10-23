@@ -28,6 +28,6 @@ const store = createDrillSelectionStore<PluginPageKey>("plugin-page-selection");
 
 export const usePluginPageKey = store.usePrimaryId;
 export const selectPluginPageFromList = store.selectFromList;
-export const clearPluginPage = store.clear;
+
 /** The section-registry seam the SHELL reads (mobile list-as-screen + the back affordance). */
 export const pluginPageSectionSelection = store.selection;

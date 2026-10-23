@@ -84,23 +84,15 @@ export interface AutosaveBoundaryProps<TValues extends object> extends AutosaveB
   readonly save?: (values: TValues) => Promise<unknown>;
 }
 
-/** The PERSISTING arm of a boundary minted WITHOUT `config.save`: the per-instance seam is the only one,
- *  so it is REQUIRED — a seamless mount is a type error, not a runtime lie (client-forms-01). */
-export interface AutosaveBoundaryPropsPersisting<TValues extends object> extends AutosaveBoundaryPropsBase<TValues> {
+// A writable boundary without a factory save must receive its persistence seam.
+interface AutosaveBoundaryPropsPersisting<TValues extends object> extends AutosaveBoundaryPropsBase<TValues> {
   /** Per-instance persist fn closing over the live tRPC client the surface holds. */
   readonly save: (values: TValues) => Promise<unknown>;
   readonly readOnly?: never;
 }
 
-/**
- * The READ-ONLY arm: a surface that mounts this editor to DISPLAY server truth with no persistence at all
- * (the non-host member view of the chat Group / Field-overrides / Injections editors). Declaring it is
- * mandatory precisely because it used to be spelled the same way as the defect — an omitted `save`
- * (client-forms-01). Read-only is now a fact the BOUNDARY holds, not a per-field `disabled` convention the
- * next added field can forget: the save driver never arms, nothing mirrors to the crash draft, and a form
- * that is somehow dirty reads `blocked`, never "Saved".
- */
-export interface AutosaveBoundaryPropsReadOnly<TValues extends object> extends AutosaveBoundaryPropsBase<TValues> {
+// Read-only boundaries cannot carry a persistence seam.
+interface AutosaveBoundaryPropsReadOnly<TValues extends object> extends AutosaveBoundaryPropsBase<TValues> {
   readonly save?: never;
   readonly readOnly: true;
 }

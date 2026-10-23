@@ -47,12 +47,11 @@ export const CORPUS_SEARCH_TOP_N = 20;
  *  is not a similarity, so it has no honest band and never gets the banner). */
 type UnifiedTargetId = Extract<CorpusSearchTarget, { kind: "unified" }>["id"];
 
-/** Display-only nearest-result thresholds, calibrated separately for each target.
- * Scores are not comparable across targets, and query-side hubness can rank nonsense above an absent topic.
- * Low relevance changes the banner, never result visibility, server ranking, or stored values.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export const CORPUS_NEAREST_ONLY_BELOW: Record<UnifiedTargetId, number> = {
+// Display-only nearest-result thresholds, calibrated separately for each target.
+// Scores are not comparable across targets, and query-side hubness can rank nonsense above an absent topic.
+// Low relevance changes the banner, never result visibility, server ranking, or stored values.
+
+const CORPUS_NEAREST_ONLY_BELOW: Record<UnifiedTargetId, number> = {
   characters: 0.46,
   discover: 0.5,
   digests: 0.61,

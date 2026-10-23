@@ -46,10 +46,6 @@ export function useRpgRoundPending(chatId: ChatId): boolean {
   return useRpgRoundStore((state) => (state.pendingByChat[chatId]?.length ?? 0) > 0);
 }
 
-export function readRpgRoundPendingForTest(chatId: ChatId): boolean {
-  return (useRpgRoundStore.getState().pendingByChat[chatId]?.length ?? 0) > 0;
-}
-
 /** Test/reset seam; a reconnect starts from durable query truth, not stale lifecycle memory. */
 export function clearRpgRounds(chatId?: ChatId): void {
   if (chatId === undefined) {

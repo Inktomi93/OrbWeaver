@@ -4,8 +4,6 @@ import type { CharacterId, ChatId } from "@orb/kit/ids";
 
 type Cluster = Archetype | VisualArchetype;
 
-export const CORPUS_DESTINATION_KINDS = ["character", "scene", "digest", "distill", "theme", "cluster", "pair", "image", "keyword", "modelroute"] as const;
-
 /** Explore retains complete producer snapshots so section navigation cannot erase the selected evidence. */
 export type CorpusDestination =
   | { readonly kind: "character"; readonly characterId: CharacterId }

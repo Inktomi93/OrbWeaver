@@ -12,4 +12,3 @@ export { createAutosaveEntityForm } from "./create-autosave-entity-form.tsx";
 export { createSavedEntityForm } from "./create-saved-entity-form.ts";
 export { SectionSaveStatus } from "./section-save-status.tsx";
 export type { AppFormInstance } from "./use-app-form.ts";
-export { useAppForm } from "./use-app-form.ts";

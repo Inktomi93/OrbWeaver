@@ -29,12 +29,8 @@ import type { CorpusDestination } from "./corpus-destination.ts";
 import type { CorpusMode } from "./corpus-modes.ts";
 import type { ContributorRegistry } from "./registry.ts";
 
-/** STRIP MEMBERSHIP — where a CONTEXT tab is offered in the bracket (HUD-1 §4, owner decision 5; universal since
- *  the context bracket). `"game"` = the STATE rail under the header row; `"meta"` = the pane's header tablist.
- *  Membership is a property of the tab's JOB, declared by its owner, so chat's own tabs stay `"meta"` without
- *  knowing a state contributor exists (an id-prefix rule would break the moment a non-rpg contributor ships a
- *  state tab). The state rail renders only when a `"game"` tab resolved (APPLICABILITY). */
-export type ContextTabStrip = "game" | "meta";
+// Owners declare strip membership; the renderer never infers it from a tab identifier.
+type ContextTabStrip = "game" | "meta";
 
 /** The state rail's on-screen name and a11y group name — a property of the closed strip vocabulary, homed
  *  beside it. "Game state", not "Game": the crown host console in the header strip is a TAB named "Game", and
@@ -161,22 +157,8 @@ export interface ResolvedContextTabs {
  *  worldInfo's single body · refinery's nothing) unified. `kind:"none"` is an EXPLICIT decision, never
  *  an absence. NON-generic: `S` never crosses the shell seam (§6b's variance proof) — a `tabs` host's
  *  `useResolved` hook has already applied its own `S` before the shell ever sees it. */
-/**
- * THE NO-SELECTION ARM every CONTEXT pane owes (side-eye F-12, 2026-08-03; [[empty-states-are-load-bearing]]).
- *
- * Four of seven panes shipped voiceless: `worldInfo` printed the single word "Details" and nothing else,
- * and `chats` / `characters` / `refinery` shared one generic "Details / Details / Select something to see
- * its details here." — the word "Details" twice (the band's, then the body placeholder's title) over a
- * sentence that names no section, no entity and no payoff. An empty docked pane reads as UNBUILT, which is
- * the exact failure the empty-states law exists for — and the preset team had already built the model
- * answer beside them (a first-class ACTIVE PRESET / EFFECTIVE GENERATION / CAPABILITY readout), so this is
- * the sweep of that answer sideways.
- *
- * The contract is deliberately narrow: name WHAT THIS PANE WILL SHOW, in the section's own words. A shared
- * default is what produced the defect, so there is no default here — a section that wants a voice states
- * one, and a section that states none keeps the generic filler and stays legibly un-swept.
- */
-export interface ContextEmptyArm {
+// Each host names what its no-selection pane will show instead of inheriting generic copy.
+interface ContextEmptyArm {
   /** The no-selection arm's copy. `title` names the pane's SUBJECT, never the word "Details" (the band
    *  already says that); `description` names what appears once something is selected. */
   readonly empty?: { readonly title: string; readonly description: string };
@@ -224,10 +206,8 @@ export interface ContextTabsSpec<S> {
   readonly empty?: ContextEmptyArm["empty"];
 }
 
-/** The pure resolve step `defineContextTabs` closes over: own tabs → contributors, `when`-filtered, in
- *  declared order, mapped to the already-applied `ResolvedContextTab` shape. Exported for the unit test
- *  (M3.3) — `S` is confined to this one parametric function. */
-export function resolveContextTabs<S>(spec: ContextTabsSpec<S>, state: S): ResolvedContextTabs {
+// Apply the host projection once; the shell receives only resolved tabs and the first claimed band.
+function resolveContextTabs<S>(spec: ContextTabsSpec<S>, state: S): ResolvedContextTabs {
   const active = [...spec.tabs, ...(spec.contributors?.list() ?? [])].filter((tab) => tab.when?.(state) ?? true);
   const tabs: readonly ResolvedContextTab[] = active.map((tab) => ({
     id: tab.id,
@@ -275,11 +255,6 @@ export function defineContextTabs<S>(spec: ContextTabsSpec<S>): ContextDefinitio
   }
   return spec.empty === undefined ? { kind: "tabs", useResolved } : { kind: "tabs", useResolved, empty: spec.empty };
 }
-
-/** The sentinel a `void`-projection host (no shared context state) passes as its `useContextState`
- *  result — always-present and unconditionally called, so the mint never branches on a conditional hook
- *  (the rules-of-hooks constraint the optional-`useContextState?` alternative would have violated). */
-export const VOID_STATE = undefined as undefined;
 
 /** The Characters CONTEXT-panel state projection (O5 strict — a real named type, never void/any): the
  *  selected character every context tab drills into. */
@@ -343,14 +318,8 @@ export interface CommittedChatContext {
  *  surface to save one literal. */
 export type ChatContextState = CommittedChatContext;
 
-/** The chat context-tab id VOCABULARY — one home beside `ChatContextState` (feature lib is not a type
- *  home, and importing it from chats-section created a component↔section cycle). The shell's
- *  `contextTab` channel stays an opaque string (sections interpret it); this typed vocabulary is how
- *  every chat deep-link (`setContextTab`/`openContextTab`) spells a tab id — a rename becomes a compile
- *  error at every site instead of a silent first-visible fallback (the CP-1 overrides→settings rename
- *  orphaned two deep-links exactly that way). The chats `defineContextTabs` defs derive their `id`s
- *  from this type. */
-export const CHAT_CONTEXT_TAB_IDS = ["members", "settings", "preview"] as const;
+// Deep links and tab definitions derive their identifiers from the same vocabulary.
+const CHAT_CONTEXT_TAB_IDS = ["members", "settings", "preview"] as const;
 export type ChatContextTabId = (typeof CHAT_CONTEXT_TAB_IDS)[number];
 
 /** The Corpus CONTEXT-panel state projection. Every tab, own or contributed, gates on `mode`, so one pane

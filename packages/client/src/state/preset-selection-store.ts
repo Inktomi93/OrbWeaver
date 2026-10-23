@@ -14,14 +14,10 @@ const presetSelection = createDrillSelectionStore<PresetId, string>("preset-sele
 export const selectPreset = presetSelection.select;
 /** Open a preset from the LIST AND close any open LIST slide-over (no-op when the LIST is docked). */
 export const selectPresetFromList = presetSelection.selectFromList;
-/** Clear the selection (back to the Presets welcome state). Clears the section too. */
-export const __resetPresetSelection = presetSelection.clear;
+
 /** Select a rack section — a row's name-button click reveals the CONTEXT section inspector (§2.2/§3.4). */
 export const selectPresetSection = presetSelection.selectSecondary;
-/** Clear the section selection — CONTEXT collapses to its EmptyState (also fired on section delete). */
-export const __resetPresetSection = presetSelection.clearSecondary;
-/** Dismiss the CONTEXT section inspector AND close any open CONTEXT slide-over (no-op when docked). */
-export const __dismissPresetSectionForTest = presetSelection.dismissSecondary;
+
 /** Reactive: the currently-open preset id (`null` = none). A primitive selector (no fresh object). */
 export const useSelectedPresetId = presetSelection.usePrimaryId;
 /** Imperative owner check for a delayed preset write before it may retarget global selection. */

@@ -49,13 +49,3 @@ export function clearPluginCommandArgs(): void {
 export function usePluginCommandArgsSubject(): PluginCommandArgsSubject | undefined {
   return usePluginCommandArgsStore((s) => s.subject);
 }
-
-/** Non-reactive snapshot — for the store's own tests and reads outside a render. */
-export function __readPluginCommandArgsSubjectForTest(): PluginCommandArgsSubject | undefined {
-  return usePluginCommandArgsStore.getState().subject;
-}
-
-/** Clear the slot — test-only hygiene (a module singleton must not leak state across tests). */
-export function __resetPluginCommandArgs(): void {
-  usePluginCommandArgsStore.setState({ subject: undefined }, false, "plugin-command-args/reset");
-}

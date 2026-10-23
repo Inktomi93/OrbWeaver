@@ -210,36 +210,8 @@ export const ROOM_ENTITY_FILTERS: { readonly [K in RoomEntityKind]: (chatId: Cha
   databank: (chatId, trpc) => [trpc.databank.listActiveForChat.queryFilter({ chatId }), trpc.chat.previewContextFit.pathFilter()],
 };
 
-/**
- * THE LIVE-ONLY LANE'S HEAL, per entity kind (bridge §3.4). `roomEntityChanged` is fanned WITHOUT a
- * `chat_events` append, so it is never replayed: a device dark through a fan learns about it only from the
- * attach synthesis, and `chatOpened` re-fires on EVERY (re)attach. This table answers, for each kind, "which
- * read would a MISSED fan have left stale on a device that has no other driver for it".
- *
- * IT IS A RECORD OVER `RoomEntityKind`, NOT A HAND-LISTED ROW, and that is the whole point: the heal shipped
- * covering `character` alone and then sat still while `regex` (#1733) and `databank` (#2471) joined
- * `ROOM_ENTITY_KINDS` — two kinds whose member-visible room read a dark co-member could never catch up on.
- * The mapped type is the belt: a sixth kind fails `tsc` HERE until someone states its heal (`[]` with a
- * reason is a legitimate answer; silence is not). Owner ruling 2026-09-20 — the live-only ECONOMY survives,
- * the heal it depends on stops covering one kind of five.
- *
- * WHAT BELONGS IN AN ARM, and it is a narrower test than `ROOM_ENTITY_FILTERS`' own rows: a read qualifies
- * only when its reader has NO owner-plane driver. The OWNER's devices ride the user bus (`charactersChanged`
- * / `regexChanged` / `databankChanged` — and its own reconnect gap-heal, `invalidateAllUserRoots`), so an
- * owner-scoped read is already covered and would just cost a refetch. The reads below are the room-public,
- * member-readable ones: a CO-MEMBER receives no user-bus event for another human's write at all, which is
- * exactly why a single-principal test cannot see this gap.
- *
- * DELIBERATELY ABSENT, and this is the standing #514/BOOT-4X ruling, not an omission: the fit/preview family
- * (`previewContextFit`, `promptPreviewReads`). Every kind's row in `ROOM_ENTITY_FILTERS` carries them, but
- * their staleness bound is ONE TURN — the next canon terminal refetches them through the durable replay —
- * and healing them here would re-pay a BOOT-4X-class fetch on every room open. `chat.getChat` is absent for
- * the same reason it is not duplicated: the heal's caller carries it as its own row.
- *
- * @public Test-anchored module surface; tests/legacy/client/data/invalidation-reads.test.ts asserts its keys
- *  match {@link ROOM_ENTITY_KINDS} directly, in addition to the in-file use by `roomEntityHealReads`.
- */
-export const ROOM_ENTITY_HEAL_FILTERS: { readonly [K in RoomEntityKind]: (chatId: ChatId, trpc: Trpc) => readonly InvalidateFilter[] } = {
+// Heal member-readable entity data after a missed live-only fan; owner-plane reads and replay-driven previews heal elsewhere.
+const ROOM_ENTITY_HEAL_FILTERS: { readonly [K in RoomEntityKind]: (chatId: ChatId, trpc: Trpc) => readonly InvalidateFilter[] } = {
   // The D22 member-card dialog — the read this heal was born for, and the one it covered alone until today.
   // Free when the dialog is shut (`enabled: open` ⇒ no cache entry ⇒ `invalidateQueries` is a no-op).
   character: (_chatId, trpc) => [trpc.chat.getMemberCard.pathFilter(), trpc.worldInfo.listForChat.pathFilter()],

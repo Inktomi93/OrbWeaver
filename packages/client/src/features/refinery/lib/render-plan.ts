@@ -92,8 +92,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-/** `camelCase`/`snake_case` → a spaced label (presentation, not semantics). */
-export function formatLabel(key: string): string {
+// `camelCase`/`snake_case` → a spaced label (presentation, not semantics).
+function formatLabel(key: string): string {
   const spaced = key
     .replace(/([a-z0-9])([A-Z])/gu, "$1 $2")
     .replace(/[_-]+/gu, " ")

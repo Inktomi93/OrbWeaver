@@ -21,9 +21,8 @@ import type { TurnAbortReason } from "@orb/contracts/chat";
 import { TURN_ABORTED_OP_CODE, TURN_LOCKED_OP_CODE } from "@orb/contracts/chat";
 import { trpcErrorReason } from "./trpc-error-reason.ts";
 
-/** The honest stale-abort copy — plain user language, no lock vocabulary. States what happened (another
- *  session took over) AND the resulting state (nothing partial was saved) so the user isn't left guessing. */
-export const TURN_STALE_ABORT_COPY =
+// The bus owns the stale-abort notice so the awaited mutation does not duplicate it.
+const TURN_STALE_ABORT_COPY =
   "Generation stopped — the chat was taken over by another session. Your message wasn't saved, so nothing was added to the conversation.";
 
 /** Bus-side: the user-visible notice for a `turnAborted` reason, or `null` for no notice. `stale` → the
@@ -55,11 +54,8 @@ export function isSilencedTurnAbort(error: unknown): boolean {
   return trpcErrorReason(error) === TURN_ABORTED_OP_CODE;
 }
 
-/** The honest copy for a CONTENTION refusal (`locked` — the per-chat turn lock is held, engine
- *  `createTurnEngine`). States what is true (another turn is running here), what it means (nothing was
- *  written — the refusal is total, no canon, no variant) and the one next step. No lock vocabulary, same
- *  voice as the stale-abort copy above. */
-export const TURN_LOCKED_COPY = "Another reply is still generating in this room — nothing was changed. Try again once it finishes.";
+// Contention names the retryable state instead of the caller-specific generic failure.
+const TURN_LOCKED_COPY = "Another reply is still generating in this room — nothing was changed. Try again once it finishes.";
 
 /**
  * Hook-side: the toast a turn mutation (send/swipe/continue/generate/impersonate/summon) should show for a

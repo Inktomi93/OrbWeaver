@@ -3,7 +3,7 @@ interface DeviceLocalClassification {
   readonly why: string;
 }
 
-export const DEVICE_LOCAL_REGISTRY = {
+const DEVICE_LOCAL_REGISTRY = {
   "rule-creations": {
     why: "Per-device pending automation birth request and acknowledged target identities, isolated by verified owner so interrupted creation resumes without another rule.",
   },

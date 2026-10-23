@@ -69,7 +69,7 @@ export {
   useSelectedCharacterId,
 } from "./character-selection-store.ts";
 export { setChatContextSectionOpen, useChatContextSectionOpen } from "./chat-context-section-open-store.ts";
-export { type ActiveChatHandle, type ChatHandle, isLanding } from "./chat-handle.ts";
+export { type ActiveChatHandle, isLanding } from "./chat-handle.ts";
 export type { ChatListCharacterFilter } from "./chat-list-filter-store.ts";
 export {
   clearChatListCharacterFilter,
@@ -94,9 +94,8 @@ export {
   useTurnSlot,
   useTurnSpeakerCharacterId,
 } from "./chat-stream.ts";
-export type { ActionChromeEntry, ChromeEntry, ChromePresentation, ChromeZone, MobileCuration } from "./chrome-registry.ts";
+export type { ActionChromeEntry, ChromeEntry, ChromePresentation, MobileCuration } from "./chrome-registry.ts";
 export { mobileBarCuration, sheetOverflowChrome } from "./chrome-registry.ts";
-export type { ChromeRegistry } from "./chrome-registry-context.ts";
 export { useChromeRegistry } from "./chrome-registry-context.ts";
 export { ChromeRegistryProvider } from "./chrome-registry-provider.tsx";
 export { CommandPaletteSourceRegistryContext } from "./command-palette-source-registry-context.ts";
@@ -119,7 +118,6 @@ export { closeConfigGroup, useConfigGroupOpen } from "./config-group-open-store.
 export type {
   CollectionGroupDefinition,
   ConfigGroupBase,
-  ConfigGroupBody,
   ConfigGroupDefinition,
   ConfigGroupRegistry,
   ConfigSearchRow,
@@ -128,12 +126,10 @@ export type {
   ConfigSubcategory,
   SettingsViewerView,
   SettingTeach,
-  SettingTeachDecl,
 } from "./config-group-registry.ts";
 export { configSettingControlId, isCollectionGroup, isPlaceholderGroup, isTeachNone, rendersOwnBody } from "./config-group-registry.ts";
 export { formatConfigLink, parseConfigLink } from "./config-link.ts";
 export {
-  __resetConfigNav,
   type ConfigVisibleSetting,
   clearActiveConfigGroup,
   getActiveConfigGroup,
@@ -161,7 +157,6 @@ export {
   resolveConfigSectionAnchorPrefix,
   resolveConfigSections,
 } from "./config-section-registry.ts";
-export type { ConfigSectionRegistry } from "./config-section-registry-context.ts";
 // The bare context rides out beside the throwing hook for the SANCTIONED nullable read (`use(Context)`,
 // create-registry-context.tsx's own carve-out) — `useConfigLeaf` stays inert without a provider.
 export { configSectionRegistryContext, useConfigSectionRegistry, useConfigSections } from "./config-section-registry-context.ts";
@@ -204,10 +199,8 @@ export {
 } from "./corpus-selection-store.ts";
 export {} from "./create-drill-selection-store.ts";
 export { createEntityDraftStore, type EntityDraftStore } from "./create-entity-draft-store.ts";
-export { createGatedStore, type GatedSet, type GatedStoreHook } from "./create-gated-store.ts";
 export type { KindedSelection } from "./create-kinded-selection-store.ts";
 export {} from "./create-kinded-selection-store.ts";
-export type { PersistedStoreOptions } from "./create-persisted-store.ts";
 export { createPersistedStore } from "./create-persisted-store.ts";
 // `IngestPhase`/`INGEST_PHASES` are a `databank.list` input homed in `@orb/contracts/databank`; never re-export them here.
 export { clearDatabankPhaseFilter, setDatabankPhaseFilter, useDatabankPhaseFilter } from "./databank-filter-store.ts";
@@ -270,12 +263,11 @@ export {
 export { MessageToolsRendererRegistryContext } from "./message-tools-renderer-registry-context.ts";
 export { MessageToolsRendererRegistryProvider } from "./message-tools-renderer-registry-provider.tsx";
 export type { ModalDefinition } from "./modal-registry.ts";
-export type { ModalRegistry } from "./modal-registry-context.ts";
 export { useModalRegistry } from "./modal-registry-context.ts";
 export { ModalRegistryProvider } from "./modal-registry-provider.tsx";
 export type { ModalSlotId } from "./modal-slot-ids.ts";
 export { MODAL_SLOT_IDS } from "./modal-slot-ids.ts";
-export type { OverlayPanelRequest, PanelMode, PanelName } from "./panel-resolve.ts";
+export type { PanelMode, PanelName } from "./panel-resolve.ts";
 export { resolvePanelMode } from "./panel-resolve.ts";
 export { takePersonaEditorFocus, usePersonaEditorFocusRequest } from "./persona-editor-focus-store.ts";
 export { openPersonaEditor, selectPersonaEditor, usePersonaEditorId } from "./persona-editor-selection-store.ts";
@@ -352,12 +344,10 @@ export type { SectionId } from "./section-ids.ts";
 export { resolveSectionPath, SECTION_IDS } from "./section-ids.ts";
 export { LIST_OFF_SCREEN_HINT, useSectionBackTarget, useSectionHasSelection, useSectionListIsScreen, useSectionListMode } from "./section-list-projection.ts";
 export type {
-  RailZone,
   SectionDefinition,
   SectionSelection,
 } from "./section-registry.ts";
 export { NO_SELECTION_TITLE, SECTION_GROUPS } from "./section-registry.ts";
-export type { SectionRegistry } from "./section-registry-context.ts";
 export { useSectionRegistry } from "./section-registry-context.ts";
 export { SectionRegistryProvider } from "./section-registry-provider.tsx";
 export type { SaveLifecycleState } from "./settings-save-status-store.ts";
@@ -394,7 +384,6 @@ export {
   useOpenOverlayPanel,
   usePanelOverride,
 } from "./shell-store.ts";
-export type { SlashCommandRegistry } from "./slash-command-registry-context.ts";
 export { SlashCommandRegistryContext } from "./slash-command-registry-context.ts";
 export { SlashCommandRegistryProvider } from "./slash-command-registry-provider.tsx";
 export { announceStatus, useStatusAnnouncement } from "./status-announcement-store.ts";

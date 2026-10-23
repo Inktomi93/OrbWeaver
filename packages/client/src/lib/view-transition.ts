@@ -72,13 +72,6 @@ let activeTransition: TaskTransition | null = null;
  *  window (inside the callback, or from an effect that runs during the hold) is part of the transition. */
 let holdingTransition = false;
 
-/** Test seam: forget any in-flight transition so one test's hold cannot make the next one's swaps join it. */
-export function __resetViewTransition(): void {
-  taskTransition = null;
-  activeTransition = null;
-  holdingTransition = false;
-}
-
 /** Ends a detached promise by re-throwing, so a failure reaches the global handler instead of vanishing. Used where
  *  `globalThis.reportError` is not typed (the node-world tests compile this package without the DOM lib). */
 export function surfaceDeferredFailure(error: unknown): never {

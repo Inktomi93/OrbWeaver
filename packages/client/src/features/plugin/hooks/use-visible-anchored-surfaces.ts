@@ -57,7 +57,7 @@ type RenderableSurface =
 
 /** Partition the caller's own registrations into what THIS anchor can render. Pure and hook-free, so the
  *  component below stays a hook sequence plus JSX. */
-export function buildCandidates(surfaces: readonly PluginSurfaceView[], plugins: readonly PluginView[], anchor: PluginSurfaceAnchor): RenderableSurface[] {
+function buildCandidates(surfaces: readonly PluginSurfaceView[], plugins: readonly PluginView[], anchor: PluginSurfaceAnchor): RenderableSurface[] {
   const rows = new Map(plugins.map((row) => [row.id, row] as const));
   // Every SCRIPTED surface id per plugin, across every anchor — the worker's render allow-list. Built from the
   // WHOLE list rather than the filtered candidates because one worker serves a plugin's surfaces wherever they

@@ -196,12 +196,12 @@ function NpcMood({ name, mood, onEditMood }: NpcMoodProps): ReactElement | null 
 // component-size cap): emoji · name · relationship · mood, then guides, meters and the field chips.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-export interface NpcField {
+interface NpcField {
   readonly name: string;
   readonly value: string;
 }
 
-export interface NpcCardProps {
+interface NpcCardProps {
   readonly name: string;
   /** The model-written npc EMOJI — the character's face on the row (the reminder has rendered it beside the
    *  name server-side all along; the client slot was named in this file's npc-row order and never built).

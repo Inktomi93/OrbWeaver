@@ -10,8 +10,8 @@ import { Text } from "@orb/ui/text";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { useState } from "react";
 
-/** One create action the row offers for its draft (the trimmed value is handed to `onAdd`). */
-export interface AddRowAction {
+// One create action the row offers for its draft (the trimmed value is handed to `onAdd`).
+interface AddRowAction {
   /** React key + identity ("meter"). */
   readonly key: string;
   /** The button word ("New quest", "meter"). */
@@ -22,7 +22,7 @@ export interface AddRowAction {
   readonly onAdd: (value: string) => void;
 }
 
-export interface AddRowProps {
+interface AddRowProps {
   /** The draft field's accessible name ("New quest name"). */
   readonly ariaLabel: string;
   readonly placeholder: string;

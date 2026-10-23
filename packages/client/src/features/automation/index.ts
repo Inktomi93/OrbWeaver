@@ -16,7 +16,7 @@
 // the group IS automation's surface (spec §3-S3 names it as the owner-global rules home when C5 lands).
 export {} from "./components/clock-meter.tsx";
 export {} from "./components/needle-meter.tsx";
-export { RulesSection } from "./components/rules-section.tsx";
+
 export { automationActivityTab } from "./lib/activity-context-tab.tsx";
 
 export {} from "./lib/apply-automation-bus-event.ts";

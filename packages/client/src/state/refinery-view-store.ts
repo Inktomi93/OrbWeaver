@@ -58,9 +58,3 @@ export function setRefineryViewedRun(runId: string | null): void {
 export function setRefineryArmedRewrite(runId: string | null): void {
   useRefineryViewStore.setState({ armedRewriteRunId: runId }, false, "refinery-view/arm-rewrite");
 }
-
-/** Test seam (the `__…ForTest` convention): a node test cannot mount the read hooks; product code reads
- *  through them only. */
-export function __peekRefineryViewForTest(): RefineryViewState {
-  return useRefineryViewStore.getState();
-}

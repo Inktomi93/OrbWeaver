@@ -28,9 +28,9 @@
 import { isPlainObject } from "@orb/kit/guards";
 import { createPersistedStore } from "./create-persisted-store.ts";
 
-/** How many rooms' drafts survive a reload, least-recently-typed evicted first. Rooms a user typed in and
- *  never sent from are few; the cap exists so a long-lived install cannot grow this blob without bound. */
-export const COMPOSER_DRAFT_CAP = 50;
+// How many rooms' drafts survive a reload, least-recently-typed evicted first. Rooms a user typed in and
+//  never sent from are few; the cap exists so a long-lived install cannot grow this blob without bound.
+const COMPOSER_DRAFT_CAP = 50;
 
 const PERSIST_VERSION = 1;
 
@@ -109,14 +109,4 @@ export function readComposerDraft(scopeKey: string): string {
 /** Reactive: a room's current draft text (defaults to "" when unset). */
 export function useComposerDraft(scopeKey: string): string {
   return useComposerDraftStore((s) => s.drafts[scopeKey] ?? "");
-}
-
-/** Non-hook snapshot for the store's own tests and reads outside a render; the reactive hook needs React. */
-export function __readComposerDraftsForTest(): Readonly<Record<string, string>> {
-  return useComposerDraftStore.getState().drafts;
-}
-
-/** Drop every draft — test-only hygiene (a module singleton must not leak state across tests). */
-export function __resetComposerDrafts(): void {
-  useComposerDraftStore.setState({ drafts: {}, revision: useComposerDraftStore.getState().revision + 1 }, false, "composerDraft/clearAll");
 }

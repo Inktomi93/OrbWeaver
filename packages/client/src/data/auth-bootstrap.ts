@@ -267,7 +267,7 @@ export async function signOut(): Promise<void> {
  *  A6 — returns the IdP `endSessionUrl` when the deployment is OIDC and the issuer exposes an end-session
  *  endpoint, so the caller can end the UPSTREAM SSO session too (else clicking Continue signs straight back
  *  in). Null ⇒ fall back to the local /login reset. */
-export async function logout(): Promise<AuthLogoutResult> {
+async function logout(): Promise<AuthLogoutResult> {
   const res = await fetch("/api/auth/logout", {
     method: "POST",
     credentials: "same-origin",

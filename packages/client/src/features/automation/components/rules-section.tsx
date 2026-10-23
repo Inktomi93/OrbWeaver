@@ -110,9 +110,9 @@ interface RulesSectionProps {
   readonly chatId: ChatId;
 }
 
-/** The Rules section body: the live rule list + the "Add a rule" picker. Suspends on `listRules` — wrap in
- *  the tab's own `QueryBoundary`. Host-only by construction (the whole section mounts only for a host). */
-export function RulesSection({ chatId }: RulesSectionProps): ReactElement {
+// The Rules section body: the live rule list + the "Add a rule" picker. Suspends on `listRules` — wrap in
+//  the tab's own `QueryBoundary`. Host-only by construction (the whole section mounts only for a host).
+function RulesSection({ chatId }: RulesSectionProps): ReactElement {
   const trpc = useTRPC();
   const { data: rules } = useSuspenseQuery(trpc.automation.listRules.queryOptions({ chatId }));
 

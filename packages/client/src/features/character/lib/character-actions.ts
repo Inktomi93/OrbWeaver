@@ -26,12 +26,10 @@
 import type { LucideIcon } from "@orb/ui/icons";
 import { Archive, Copy, Download, Drama, FlaskConical, Handshake, LayoutGrid, Tag, Trash2 } from "@orb/ui/icons";
 
-/**
- * The three surfaces one character's verbs are offered on.
- *
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export const CHARACTER_ACTION_SCOPES = ["row", "open", "bulk"] as const;
+// The three surfaces one character's verbs are offered on.
+//
+
+const CHARACTER_ACTION_SCOPES = ["row", "open", "bulk"] as const;
 
 /** File-local — consumers derive it from the tuple or read it off a signature. */
 type CharacterActionScope = (typeof CHARACTER_ACTION_SCOPES)[number];
