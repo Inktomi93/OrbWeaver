@@ -1895,8 +1895,12 @@ interface HoverPopulationReport {
   readonly hoverPass: { readonly outcome: { readonly kind: string }; readonly subjectsForced: number; readonly forceFailures: readonly string[] } | null;
 }
 
+/** The dev nav bridge a driven run needs: `--open-chat` lands as a no-op, so the queue holds a navigation. */
+const NAV_BRIDGE_STUB =
+  "<script>globalThis.__orb={ready:true,nav:{openChat:async()=>({ok:true})},consoleErrors:()=>({records:[],dropped:0,cap:128}),resetEvidence:()=>{},shell:()=>null}</script>";
+
 /** A nav CTA that reads cleanly at rest. `hoverRule` is whatever the broader selector wins with. */
-function hoverPage(hoverRule: string): string {
+function hoverPage(hoverRule: string, bridge = ""): string {
   return `<!doctype html>
 <html data-app-ready="settled"><head><meta charset="utf-8"><title>hover</title><style>
   body { margin: 0; background: #101010; color: #ffffff; font-size: 16px }
@@ -1904,8 +1908,30 @@ function hoverPage(hoverRule: string): string {
   ${hoverRule}
 </style></head>
 <body><main><nav class="nav-links"><a class="cta" href="#">Continue the story</a></nav>
-<p style="padding:12px">a paragraph that no hover rule touches at all</p></main></body></html>`;
+<p style="padding:12px">a paragraph that no hover rule touches at all</p></main>${bridge}</body></html>`;
 }
+
+// The CTA sits at the viewport origin. A pointer left there by the page's arrival makes it read as hovered
+// AT REST, so the rest contrast family judges the hover plate and the forced-state pass has nothing to change.
+// A run that only navigates places the pointer nowhere on purpose, so it rests exactly like an undriven one.
+test.for([
+  { mode: "undriven", argv: [] },
+  { mode: "navigating", argv: ["--open-chat", "any"] },
+] as const)("a $mode run reads the CTA's rest state, so the hover-only defect is a hover finding", async ({ argv }, { runCli }) => {
+  // An origin, not a file: the nav flags drive the app's bridge, which a static file refuses.
+  const host = await serveOnce(hoverPage(".nav-links a:hover { color: #d2d2d2; background: #ffffff }", NAV_BRIDGE_STUB));
+  try {
+    const res = await runCli("snap", ["/", "--base", host.base, ...argv, ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
+    const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as HoverPopulationReport;
+
+    expect(res.stdout).not.toContain("INSTRUMENT ERROR");
+    expect(findingRows(res.stdout, "contrast")).toEqual([]);
+    expect(report.findings.filter(({ rule }) => rule === "hover-contrast")).toHaveLength(1);
+    expect(hoverRow(res.stdout, "not-restored")).toBe("0");
+  } finally {
+    host.close();
+  }
+});
 
 auditRuleTest(
   [{ rule: "hover-contrast", kind: "fires", reason: "a real forced :hover swaps in a pale plate the CTA is illegible on, driven through the real cli" }],

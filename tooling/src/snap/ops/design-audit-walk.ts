@@ -261,10 +261,11 @@ export async function walkDesignAudit(input: WalkInput): Promise<DesignAuditMeas
     return terminalMeasurement(url, refusal, input);
   }
   // A fresh document sits under a pointer at the viewport origin, so whatever paints there reads as hovered AT REST:
-  // the rest families judge the hover colors and the forced-state pass finds nothing to change. With no actions the
-  // pointer was never placed on purpose; park it outside the viewport. An action may have hovered deliberately, so
-  // a driven run keeps the pointer where the queue left it.
-  if (opts.actions.length === 0) {
+  // the rest families judge the hover colors and the forced-state pass finds nothing to change. A navigation or an
+  // eval places the pointer nowhere on purpose, so park it outside the viewport. A step after the last navigation
+  // may have hovered deliberately, so a run that ends on one keeps the pointer where the queue left it.
+  const lastNav = opts.actions.findLastIndex((action) => action.type === "nav");
+  if (!opts.actions.slice(lastNav + 1).some((action) => action.type === "step")) {
     await page.mouse.move(-1, -1);
   }
   const walk = await readSamples(page);
