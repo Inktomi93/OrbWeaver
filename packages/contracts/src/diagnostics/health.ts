@@ -9,4 +9,3 @@ export const healthResponseSchema = z.discriminatedUnion("status", [
   z.strictObject({ status: z.literal(HEALTH_STATUSES[1]), version }),
   z.strictObject({ status: z.literal(HEALTH_STATUSES[2]), version }),
 ]);
-export type HealthResponse = z.output<typeof healthResponseSchema>;

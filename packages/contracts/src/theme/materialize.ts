@@ -10,17 +10,17 @@
 import type { AssetId } from "@orb/kit/ids";
 import type { Principal } from "#identity";
 
-/** The stored asset a materialized external background resolves to — the content pointer the write persists. */
-export interface MaterializedBackgroundAsset {
+// The stored asset a materialized external background resolves to — the content pointer the write persists.
+interface MaterializedBackgroundAsset {
   readonly assetId: AssetId;
   readonly assetHash: string;
   readonly mime: string;
 }
 
-/** Why a materialize refused — collapsed from the infra belts (egress SSRF/scheme/deadline/non-2xx →
- *  `unreachable`; magic-sniff/content-type reject → `not-image`; byte/dimension caps → `too-large`) into the
- *  three reasons a user-facing message needs. NEVER carries the resolved address or internal detail. */
-export const BACKGROUND_MATERIALIZE_FAILURES = ["unreachable", "not-image", "too-large"] as const;
+// Why a materialize refused — collapsed from the infra belts (egress SSRF/scheme/deadline/non-2xx →
+//  `unreachable`; magic-sniff/content-type reject → `not-image`; byte/dimension caps → `too-large`) into the
+//  three reasons a user-facing message needs. NEVER carries the resolved address or internal detail.
+const BACKGROUND_MATERIALIZE_FAILURES = ["unreachable", "not-image", "too-large"] as const;
 export type BackgroundMaterializeFailure = (typeof BACKGROUND_MATERIALIZE_FAILURES)[number];
 
 export type MaterializeBackgroundResult =

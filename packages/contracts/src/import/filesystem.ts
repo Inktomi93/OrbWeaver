@@ -1,7 +1,7 @@
-export const FS_DIR_ENTRY_KINDS = ["file", "directory", "other"] as const;
-export type FsDirEntryKind = (typeof FS_DIR_ENTRY_KINDS)[number];
+const FS_DIR_ENTRY_KINDS = ["file", "directory", "other"] as const;
+type FsDirEntryKind = (typeof FS_DIR_ENTRY_KINDS)[number];
 
-export interface FsDirEntry {
+interface FsDirEntry {
   readonly name: string;
   readonly kind: FsDirEntryKind;
 }

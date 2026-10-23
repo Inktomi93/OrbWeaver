@@ -74,7 +74,7 @@ export type BlurSurface = (typeof BLUR_SURFACES)[number];
 // the three chrome surfaces; it is also the `.catch` self-heal target, matching the sibling knobs).
 // `messages` deliberately excluded — the Reading-Surface rule forbids blur behind long reading text by
 // default; a user may still opt it in, and an explicitly-stored `[]` is a real opt-out that survives.
-export const DEFAULT_BLUR_SURFACES: readonly BlurSurface[] = ["panels", "composer", "modals"];
+const DEFAULT_BLUR_SURFACES: readonly BlurSurface[] = ["panels", "composer", "modals"];
 
 // `asset` = an own-upload background: the picked file is stored as a `background` AssetKind and
 // pinned here by `backgroundAssetId` (GC-rooted via the settings live-source scan) + `backgroundAssetHash`
@@ -83,7 +83,7 @@ export const DEFAULT_BLUR_SURFACES: readonly BlurSurface[] = ["panels", "compose
 // vocabulary (`BACKGROUND_IMAGE_KINDS`) is homed in `#theme` (shared with the carried `ThemeBackground`
 // twin — BG-C); consumers import it from `@orb/contracts/theme` directly.
 
-export const SURFACE_TEXTURES = ["none", "grain"] as const;
+const SURFACE_TEXTURES = ["none", "grain"] as const;
 export type SurfaceTexture = (typeof SURFACE_TEXTURES)[number];
 export const APPEARANCE_BACKGROUND_FITS = ["cover", "contain", "stretch", "center"] as const;
 export type AppearanceBackgroundFit = (typeof APPEARANCE_BACKGROUND_FITS)[number];

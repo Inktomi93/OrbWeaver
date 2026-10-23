@@ -92,9 +92,9 @@ export type ThemeOverride = z.infer<typeof themeOverrideSchema>;
 // here or tsc fails, and both tuples DERIVE from it (one home, no drift). `tests/legacy/contracts/theme/
 // card-embeddable-partition.suite.test.ts` pins the derivation against the schema's own key set.
 
-/** Which plane a `ThemeOverride` key belongs to. */
-export const THEME_KEY_REACHES = ["card-embeddable", "viewer-sacred"] as const;
-export type ThemeKeyReach = (typeof THEME_KEY_REACHES)[number];
+// Which plane a `ThemeOverride` key belongs to.
+const THEME_KEY_REACHES = ["card-embeddable", "viewer-sacred"] as const;
+type ThemeKeyReach = (typeof THEME_KEY_REACHES)[number];
 
 const THEME_KEY_REACH = {
   accent: "card-embeddable",
@@ -116,15 +116,15 @@ type KeysWithReach<R extends ThemeKeyReach> = {
   [K in keyof typeof THEME_KEY_REACH]: (typeof THEME_KEY_REACH)[K] extends R ? K : never;
 }[keyof typeof THEME_KEY_REACH];
 
-/** A `ThemeOverride` key a character card may carry into a room. */
-export type CardEmbeddableThemeKey = KeysWithReach<"card-embeddable">;
-/** A `ThemeOverride` key that applies from a card NOWHERE — gate or no gate. */
-export type ViewerSacredThemeKey = KeysWithReach<"viewer-sacred">;
+// A `ThemeOverride` key a character card may carry into a room.
+type CardEmbeddableThemeKey = KeysWithReach<"card-embeddable">;
+// A `ThemeOverride` key that applies from a card NOWHERE — gate or no gate.
+type ViewerSacredThemeKey = KeysWithReach<"viewer-sacred">;
 
 const REACH_ENTRIES = Object.entries(THEME_KEY_REACH) as ReadonlyArray<readonly [keyof ThemeOverride, ThemeKeyReach]>;
 
-/** The keys a card carries — the projection surface of {@link cardEmbeddableSubset}. */
-export const CARD_EMBEDDABLE_THEME_KEYS: readonly CardEmbeddableThemeKey[] = REACH_ENTRIES.filter(([, reach]) => reach === "card-embeddable").map(
+// The keys a card carries — the projection surface of {@link cardEmbeddableSubset}.
+const CARD_EMBEDDABLE_THEME_KEYS: readonly CardEmbeddableThemeKey[] = REACH_ENTRIES.filter(([, reach]) => reach === "card-embeddable").map(
   ([key]) => key as CardEmbeddableThemeKey,
 );
 /** The keys a card may never carry (live on a theme the viewer selected; dead from a card). */

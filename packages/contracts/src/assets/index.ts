@@ -27,11 +27,11 @@ export type AssetKind = z.infer<typeof assetKindSchema>;
 /** Only portrait assets contribute image vectors and generated captions to Corpus. */
 export const EMBEDDABLE_ASSET_KINDS = ["avatar"] as const satisfies readonly AssetKind[];
 
-/** The variant kinds `/api/blob/:hash` can produce. `icon` (an omitted `?v=` defaults to it) is the
- *  width-only ladder for round/square avatar chrome. `portrait` is the 2:3 smart-cropped, face-safe
- *  variant for VN/portrait immersive modes. `banner` is the 3:1 smart-cropped variant for header art —
- *  a genuinely different crop, never a CSS stretch. */
-export const VARIANT_KINDS = ["icon", "portrait", "banner"] as const;
+// The variant kinds `/api/blob/:hash` can produce. `icon` (an omitted `?v=` defaults to it) is the
+//  width-only ladder for round/square avatar chrome. `portrait` is the 2:3 smart-cropped, face-safe
+//  variant for VN/portrait immersive modes. `banner` is the 3:1 smart-cropped variant for header art —
+//  a genuinely different crop, never a CSS stretch.
+const VARIANT_KINDS = ["icon", "portrait", "banner"] as const;
 
 export const variantKindSchema = z.enum(VARIANT_KINDS);
 
@@ -217,8 +217,6 @@ export const galleryItemViewSchema = z.strictObject({
 export const resolveBlobRefsParamsSchema = z.object({
   assetIds: z.array(assetIdSchema).max(ASSET_LIST_LIMIT_MAX),
 });
-/** @public twin: resolveBlobRefsParamsSchema — the live `resolveBlobRefs` tRPC input (cross-package PUBLIC). */
-export type ResolveBlobRefsParams = z.infer<typeof resolveBlobRefsParamsSchema>;
 
 /** One resolved reference: the `(assetId, hash, mime)` identity slice plus the stored pixel dimensions.
  *  Only the caller's own assets come back; a foreign/gone id is simply absent (no leak). `mime` rides so
@@ -247,8 +245,6 @@ export const resolveChatBlobRefsParamsSchema = z.object({
   chatId: typeIdSchema(ID_PREFIX.chat),
   assetIds: z.array(assetIdSchema).max(ASSET_LIST_LIMIT_MAX),
 });
-/** @public twin: resolveChatBlobRefsParamsSchema — the live `resolveChatBlobRefs` tRPC input (cross-package PUBLIC). */
-export type ResolveChatBlobRefsParams = z.infer<typeof resolveChatBlobRefsParamsSchema>;
 
 // ── The `assets-fsck` workload's terminal result (the workloads junk-drawer exit: a workload's result
 //    shape is authored by the OWNING domain). ──

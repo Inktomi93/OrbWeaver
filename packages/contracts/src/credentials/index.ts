@@ -106,9 +106,9 @@ export const credentialStorageStatusSchema = z.strictObject({ enabled: z.boolean
 // way to produce a `ResolvedCredential` is the domain `resolve.ts` factory's encapsulated cast.
 declare const secretBrand: unique symbol;
 
-/** WHAT the secret is, spelled from the provider row's `auth`: an API key, a pasted `claude setup-token`,
- *  an optional bearer for an `auth: endpoint` row, or nothing (`auth: none` / an open box). */
-export const RESOLVED_SECRET_KINDS = ["apiKey", "oauthToken", "bearer", "none"] as const;
+// WHAT the secret is, spelled from the provider row's `auth`: an API key, a pasted `claude setup-token`,
+//  an optional bearer for an `auth: endpoint` row, or nothing (`auth: none` / an open box).
+const RESOLVED_SECRET_KINDS = ["apiKey", "oauthToken", "bearer", "none"] as const;
 export type ResolvedSecretKind = (typeof RESOLVED_SECRET_KINDS)[number];
 
 declare const executionWitnessBrand: unique symbol;

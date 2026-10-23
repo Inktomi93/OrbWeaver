@@ -28,8 +28,8 @@ const noParams = z.object({});
  *  HERE so the wire ceiling and the backstop never drift. */
 export const WORKLOAD_LIST_MAX_LIMIT = 500;
 
-/** The params of a kind with no tunables (`{}`) — the shared type for every tunable-less kind. */
-export type NoWorkloadParams = z.infer<typeof noParams>;
+// The params of a kind with no tunables (`{}`) — the shared type for every tunable-less kind.
+type NoWorkloadParams = z.infer<typeof noParams>;
 
 /** A staged-upload handle is a SINGLE path segment minted by the import HTTP routes
  *  (`import-tree-<uuid>` / `import-bundle-<uuid>.zip`) — never a path. This is the OUTER (contract-layer) belt:

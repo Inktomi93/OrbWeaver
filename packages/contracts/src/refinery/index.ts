@@ -24,7 +24,6 @@
 
 import type { CharacterId, CharacterSnapshotId, ModelId, RefinerySessionId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { liftJsonSchema } from "@orb/kit/json-schema";
 import { z } from "zod";
 import type { CharacterCard, CharacterDetail } from "#character";
 import { characterCardViewSchema, characterDetailSchema } from "#character";
@@ -461,36 +460,12 @@ type RefineryStagePayloadSchemas = {
   readonly [Stage in RefineryStage]: z.ZodType<RefineryStagePayloadByStage[Stage]>;
 };
 
-/** The exhaustive per-stage FIXED payload-schema dispatch (spine §7.5 mapped-Record). Since the custom
- *  arm landed this is no longer the whole dispatch home — {@link payloadSchemaFor} is: fixed/manual runs
- *  resolve here, custom runs lift their EMBEDDED schema. A new stage member fails tsc here first. */
+/** Fixed/manual runs use these validators; custom history must use its own embedded schema, never the current library row. */
 export const REFINERY_STAGE_PAYLOADS = {
   score: refineryScorePayloadSchema,
   rewrite: refineryRewritePayloadSchema,
   analyze: refineryAnalyzePayloadSchema,
 } as const satisfies RefineryStagePayloadSchemas;
-
-/** The payload schema selected by the two runtime discriminants. Fixed/manual runs select the stage's
- * authored schema; a custom run lifts its embedded object schema and therefore has only the truthful
- * static `ZodObject` contract. */
-type RefineryPayloadSchemaFor<TStage extends RefineryStage, TConfig extends RefineryStagePayloadConfig> = TConfig extends RefineryCustomRunConfig
-  ? z.ZodObject
-  : (typeof REFINERY_STAGE_PAYLOADS)[TStage];
-
-/** THE payload-schema dispatch (the honest one-home once the custom arm exists):
- *  a fixed or manual run parses the stage's typed contract; a custom run parses the schema EMBEDDED in
- *  its own provenance (never a live row — P1-B). Throws `JsonSchemaLiftError` only on a corrupt embed,
- *  which the read seam treats as the payload-no-longer-parses heal. */
-export function payloadSchemaFor<TStage extends RefineryStage, TConfig extends RefineryStagePayloadConfig>(
-  stage: TStage,
-  payloadConfig: TConfig,
-): RefineryPayloadSchemaFor<TStage, TConfig>;
-export function payloadSchemaFor<TStage extends RefineryStage>(
-  stage: TStage,
-  payloadConfig: RefineryStagePayloadConfig,
-): z.ZodObject | (typeof REFINERY_STAGE_PAYLOADS)[TStage] {
-  return payloadConfig.kind === "custom" ? liftJsonSchema(payloadConfig.schema) : REFINERY_STAGE_PAYLOADS[stage];
-}
 
 // ── The stage-SYSTEM shape restatement ────────────────────────────────────────────
 // A weak-model courtesy that pairs with the real constraint (the structured-output `responseFormat`): the

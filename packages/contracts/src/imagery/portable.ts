@@ -33,7 +33,7 @@ export const portableImageryExecutionSchema = z.strictObject({
   edited: z.boolean(),
   createdAt: z.int().nonnegative(),
 });
-export const portableImageryImageSchema = z.strictObject({
+const portableImageryImageSchema = z.strictObject({
   sourceGenerationId: imageryImportSourceSchema.shape.sourceGenerationId,
   assetId: typeIdSchema(ID_PREFIX.asset),
 });

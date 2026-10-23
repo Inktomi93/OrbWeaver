@@ -64,11 +64,11 @@ function isRegexPlacement(value: string): value is RegexPlacement {
  *  the wire. */
 export const regexPlacementListSchema = z.array(z.enum(REGEX_PLACEMENTS)).max(REGEX_PLACEMENTS.length) satisfies z.ZodType<RegexPlacement[]>;
 
-/** How deep in the assembled history a `PROMPT_HISTORY` script applies — DEPTH 0 IS THE NEWEST MESSAGE,
- *  counting backwards (the kit `RegexHistoryDepth` header cites the ST source for the semantic). The two
- *  bounds live in ONE nested object rather than beside each other on the body so they cannot half-exist:
- *  a stored `min` with no `max` was the ST shape, and it made "unbounded" spellable four ways. */
-export const regexHistoryDepthSchema = z
+// How deep in the assembled history a `PROMPT_HISTORY` script applies — DEPTH 0 IS THE NEWEST MESSAGE,
+//  counting backwards (the kit `RegexHistoryDepth` header cites the ST source for the semantic). The two
+//  bounds live in ONE nested object rather than beside each other on the body so they cannot half-exist:
+//  a stored `min` with no `max` was the ST shape, and it made "unbounded" spellable four ways.
+const regexHistoryDepthSchema = z
   .object({
     min: z.int().min(0).default(0),
     max: z.int().min(0).nullable().default(null),

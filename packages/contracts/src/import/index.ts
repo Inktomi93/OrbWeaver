@@ -31,8 +31,8 @@ export const ST_SECRETS_FILE = "secrets.json";
 /** The ST per-profile settings file — the one ST marker a profile always carries. */
 export const ST_SETTINGS_FILE = "settings.json";
 
-/** The top-level profile entries the importer reads. Every other entry is reported, not imported. */
-export const ST_PROFILE_HANDLED_ENTRIES = [
+// The top-level profile entries the importer reads. Every other entry is reported, not imported.
+const ST_PROFILE_HANDLED_ENTRIES = [
   "characters",
   "chats",
   "worlds",
@@ -253,8 +253,8 @@ export function sniffTreeLayout(paths: readonly string[], nativeDirs: ReadonlySe
   return { kind: "reject", found: sortedTop(shape) };
 }
 
-/** The layouts a client may declare for one upload batch of a folder it split across several uploads. */
-export const TREE_LAYOUT_DECLARATIONS = ["orb"] as const;
+// The layouts a client may declare for one upload batch of a folder it split across several uploads.
+const TREE_LAYOUT_DECLARATIONS = ["orb"] as const;
 export const treeLayoutDeclarationSchema = z.enum(TREE_LAYOUT_DECLARATIONS);
 export type TreeLayoutDeclaration = z.infer<typeof treeLayoutDeclarationSchema>;
 

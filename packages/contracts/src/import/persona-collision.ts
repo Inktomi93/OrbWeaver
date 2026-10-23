@@ -56,8 +56,8 @@ export function personaCollisionChoiceFor(choices: PersonaCollisionChoices | und
   return choices !== undefined && Object.hasOwn(choices, key) ? (choices[key] ?? DEFAULT_PERSONA_COLLISION_CHOICE) : DEFAULT_PERSONA_COLLISION_CHOICE;
 }
 
-/** Which parts of a persona's identity differ between the owned persona and the incoming one. */
-export const PERSONA_DIFFERENCES = ["description", "avatar", "title", "placement"] as const;
+// Which parts of a persona's identity differ between the owned persona and the incoming one.
+const PERSONA_DIFFERENCES = ["description", "avatar", "title", "placement"] as const;
 export type PersonaDifference = (typeof PERSONA_DIFFERENCES)[number];
 
 const personaCollisionSchema = z.strictObject({

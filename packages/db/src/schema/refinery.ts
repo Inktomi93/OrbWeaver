@@ -15,8 +15,8 @@
 // `refinery_runs` is APPEND-ONLY (the extension's history[]): "current result per stage" = the latest
 // run per (session, stage) — no mutable current-pointer column, no updates. Each run snapshots the
 // config arm that produced it (`payload_config` — kind-tagged, so the SF custom-schema arm lands as a
-// union member with zero DDL) plus the typed stage payload, parsed at the read seam per stage through
-// `REFINERY_STAGE_PAYLOADS` (@orb/contracts/refinery).
+// union member with zero DDL). Reads validate fixed/manual payloads through REFINERY_STAGE_PAYLOADS and
+// custom payloads against the schema embedded in that run's provenance.
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type {
@@ -108,9 +108,8 @@ export const refineryRuns = sqliteTable(
     iteration: integer("iteration").notNull().default(0),
     // Provenance: the exact config arm that produced this payload (kind-tagged — the SF seam).
     payloadConfig: text("payload_config", { mode: "json" }).$type<RefineryStagePayloadConfig>().notNull(),
-    // The stage payload — parsed at the read seam via `payloadSchemaFor(stage, payload_config)`: fixed
-    // and manual runs are the typed F3 contracts; a CUSTOM run's payload is an object of its own EMBEDDED
-    // schema (the P1-B provenance embed), typed here as the honest record.
+    // Fixed/manual payloads parse through the stage validators; custom payloads parse against their embedded
+    // provenance schema so historical reads remain independent of the mutable library row.
     payload: text("payload", { mode: "json" }).$type<RefineryStagePayload | Record<string, unknown>>().notNull(),
     // NULLABLE for exactly the `manual` provenance arm (a hand-authored rewrite has no model) — an
     // honest null, never a sentinel spelling. Every model-produced run writes it.

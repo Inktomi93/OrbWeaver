@@ -255,7 +255,7 @@ export const generatePictureRequestSchema = z.discriminatedUnion("mode", [
   generatePictureRequestFields.extend({ mode: z.literal("free"), prompt: freePromptSchema }),
   generatePictureRequestFields.extend({ mode: templateModeSchema, prompt: z.string().max(MAX_PROMPT_CHARS).optional() }),
 ]);
-/** @public twin: generatePictureRequestSchema — the live `generateImage` tRPC input (cross-package PUBLIC). */
+/** Schema twin of {@link generatePictureRequestSchema} for the live `generateImage` tRPC input. */
 export type GeneratePictureRequest = z.infer<typeof generatePictureRequestSchema>;
 
 // ── IC-C mints ──────────────────────────────────────────────────────────────────────────────────────
@@ -357,13 +357,13 @@ export interface ExtractedPrompt {
   readonly costUsd: number | null;
 }
 
-export const generatedPictureImageSchema = z.strictObject({
+const generatedPictureImageSchema = z.strictObject({
   assetId: typeIdSchema(ID_PREFIX.asset),
   generationId: typeIdSchema(ID_PREFIX.imageryGeneration),
   block: messageContentBlockViewSchema,
 }) satisfies z.ZodType<GeneratedPictureImage>;
 
-export const imageryWarningSchema = z.strictObject({
+const imageryWarningSchema = z.strictObject({
   code: z.literal("image_edit_dropped"),
   detail: z.string(),
 }) satisfies z.ZodType<ImageryWarning>;
@@ -411,9 +411,9 @@ export * from "./portable.ts";
 interface GalleryCuration {
   readonly subjectCharacterId: CharacterId;
 }
-/** The reuse-gate policy (doc 03 §4.4): `"prefer"` (default) short-circuits to a matching prior portrait;
- *  `"never"` is the regenerate affordance (always a fresh generation). */
-export type ReusePolicy = z.infer<typeof reusePolicySchema>;
+// The reuse-gate policy (doc 03 §4.4): `"prefer"` (default) short-circuits to a matching prior portrait;
+//  `"never"` is the regenerate affordance (always a fresh generation).
+type ReusePolicy = z.infer<typeof reusePolicySchema>;
 /** `generatePicture` — the orchestrator's params. `caller` is the requesting human: the extraction viewer and
  *  the reader of the subject card for the reuse and avatar-reference gates. The run-as principal (`runAsUserId`, else `caller`) funds, styles and owns the
  *  picture. `chatId` is provenance + the extraction-shaper's history scope (REQUIRED unless `mode:"free"`

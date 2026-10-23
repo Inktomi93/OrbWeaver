@@ -169,7 +169,7 @@ This bounded selection passes exact JSSG preservation, maintained runtime tests,
 | Production-only findings with maintained consumers | Keep PortableTextFile, PERSONA_COLLISION_CHOICES, sniffTreeLayout and canonical/forwarded WORKLOAD_UNFUNDED. Native test usage is legitimate, not an exemption. |
 | Original parser and serialization matrices | Keep restoration partial. Preserve meaningful distinctions; do not restore obsolete free-mode assertions that omit the now-required prompt. |
 
-This selection awaits bounded JSSG preservation, scoped runtime/compiler/import qualification and independent review. No capability, schema constraint, package door or runtime body is removed.
+This selection passes bounded JSSG preservation, scoped runtime tests, affected compiler and dependency checks and independent review. No capability, schema constraint, package door or runtime body is removed.
 
 ## Selected preset, settings, theme and regex surfaces
 
@@ -181,7 +181,7 @@ This selection awaits bounded JSSG preservation, scoped runtime/compiler/import 
 | importStChatCompletionPreset, PRESET_GUIDED_SLOT_IDS and VIEWER_SACRED_THEME_KEYS | Hold definitions pending bounded original-purpose comparison and qualified current-public-entry coverage. Do not invent consumers or declare their meaningful assertions obsolete. |
 | Original stored-data compatibility and import matrices | Keep restoration partial. Reach actual parsers and typed import results, not private lift-table identity or obsolete exception wrappers. |
 
-This modifier-only selection awaits bounded preservation, scoped runtime/compiler/import qualification and independent review. No UI behavior or schema constraint changes.
+This modifier-only selection passes bounded preservation, scoped runtime tests, affected compiler and dependency checks and independent review. No UI behavior or schema constraint changes.
 
 ## Selected credential and health support identities
 
@@ -191,4 +191,14 @@ This modifier-only selection awaits bounded preservation, scoped runtime/compile
 | HealthResponse | Remove the unconsumed inferred alias. Keep the actual health schema, strict response arms, public parser and physical-peer identity gate. |
 | Original credential and health purposes | Keep actual authority and HTTP coverage. Drop only the private-tuple equality assertion; do not add an export-identity test or replacement harness. |
 
-This selection awaits scoped preservation, real credential/health boundary tests, affected compiler/import checks and independent review.
+This selection passes scoped preservation, real credential/health boundary tests, affected compiler and dependency checks and independent review.
+
+## Selected refinery payload-dispatch identity
+
+| Original assertion or purpose | Decision and maintained home |
+| - | - |
+| payloadSchemaFor fixed-schema identity and overload-only output typing | Drop obsolete helper-specific assertions with the unconsumed callable. Preserve canonical stage payload schemas and independent output contracts. |
+| Embedded custom schemas validate immutable run payloads | Keep actual corpus/listRuns coverage that reads embedded custom runs after the live schema row is deleted. Preserve current reader and generation-owned schema lifetimes. |
+| Payload dispatch implementation | Remove only the unused overloads, exclusive conditional return alias and exclusive lift import. Correct coupled stale comments; do not change actual query parsing, schema lifting or payload validation. |
+
+This selection passes current caller confirmation, real refinery corpus qualification, affected compiler and dependency checks and independent review. It introduces no replacement dispatcher or test door and does not claim broader corrupt-embed or read-heal coverage.

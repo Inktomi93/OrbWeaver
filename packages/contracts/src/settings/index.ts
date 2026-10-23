@@ -47,7 +47,7 @@ export { CATALOG_SETTINGS_PREFIX, SETTINGS_TENANT_PREFIXES } from "./kv.ts";
 
 export const LOG_LEVELS = ["fatal", "error", "warn", "info", "debug", "trace", "silent"] as const;
 export type LogLevel = (typeof LOG_LEVELS)[number];
-export const logLevelSchema = z.enum(LOG_LEVELS) satisfies z.ZodType<LogLevel>;
+const logLevelSchema = z.enum(LOG_LEVELS) satisfies z.ZodType<LogLevel>;
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════════
 // AppSettings — the admin-runtime override tier. Every field nullable+optional (null=CLEAR).
@@ -100,7 +100,7 @@ export function clampMemoryDefault(key: MemoryDefaultsBoundKey, raw: number): nu
   return b.max === null ? floored : Math.min(b.max, floored);
 }
 
-export const memoryDefaultsSchema = z.object({
+const memoryDefaultsSchema = z.object({
   blockSize: memoryKnob("blockSize", "Messages per tier-0 digest block (default 8; ≈3k BGE tok, under the 8192 cap)."),
   verbatimWindow: memoryKnob("verbatimWindow", "Recent messages never digested — the protect zone / seam buffer (default 8)."),
   queryWindow: memoryKnob("queryWindow", "Recent messages used as the retrieval query for mixB/mixC (default 2)."),
@@ -146,7 +146,7 @@ export const DEFAULT_MEMORY_DEFAULTS: ResolvedMemoryDefaults = {
 export const RATE_LIMIT_CAP_MIN = 5;
 const RATE_LIMIT_CAP_MAX = 100_000;
 const rateLimitCap = (): z.ZodOptional<z.ZodNumber> => z.int().min(RATE_LIMIT_CAP_MIN).max(RATE_LIMIT_CAP_MAX).optional();
-export const rateLimitsSchema = z.object({
+const rateLimitsSchema = z.object({
   aiTurn: rateLimitCap(),
   publicIp: rateLimitCap(),
   authed: rateLimitCap(),
@@ -351,7 +351,7 @@ export const USER_SETTINGS_SCHEMA_VERSION = 10;
 /** How the Utility role picks its preset. Absent (`null`) is task defaults: each background task runs at its
  *  own posture with no preset params. `same-as-chat` follows the active preset; `preset` names one. */
 export const ROLE_PRESET_CHOICE_KINDS = { sameAsChat: "same-as-chat", preset: "preset" } as const;
-export const rolePresetChoiceSchema = z.discriminatedUnion("kind", [
+const rolePresetChoiceSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal(ROLE_PRESET_CHOICE_KINDS.sameAsChat) }),
   // eslint-disable-next-line orb/no-raw-id -- Lenient settings choice; stale or unowned preset pointers degrade to task defaults at consumption.
   z.strictObject({ kind: z.literal(ROLE_PRESET_CHOICE_KINDS.preset), presetId: z.string().min(1) }),
@@ -941,7 +941,7 @@ export interface ThemeView {
   readonly updatedAt: number;
 }
 
-export const resolvedRateLimitsSchema = z.strictObject({
+const resolvedRateLimitsSchema = z.strictObject({
   aiTurn: z.number(),
   publicIp: z.number(),
   authed: z.number(),

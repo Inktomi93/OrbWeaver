@@ -65,17 +65,15 @@ const MIN_QUESTION_LENGTH = 1;
 const MAX_QUESTION_LENGTH = 2000;
 const MAX_SEPARATOR_LENGTH = 64;
 
-/**
- * The deploy's OWN `CLAUDE_CODE_*` pins — the isolation set the subprocess builder writes
- * (`infra/providers/backends/agent-sdk/env.ts` `ISOLATION_PINS`, which is typed BY this tuple, so the two
- * cannot drift) plus the ./CLAUDE.md suppression each builder sets. THE NAMES LIVE HERE, IN CONTRACTS,
- * BECAUSE THE WRITE SCHEMA MUST REFUSE THEM (#1536): they sit inside the `CLAUDE_*` namespace the hatch
- * admits, so an allowlist that stopped at the namespace let a preset re-enable auto-memory, background
- * tasks, cron, the full system prompt, ./CLAUDE.md injection or the cache-churning attribution header inside
- * the RP subprocess — or UNSET any of them with `null`. Their VALUES stay in the server: what the pin is
- * set to is a deploy decision, only WHICH NAMES are host-owned is shared vocabulary.
- */
-export const CLAUDE_ISOLATION_PIN_KEYS = [
+// The deploy's OWN `CLAUDE_CODE_*` pins — the isolation set the subprocess builder writes
+// (`infra/providers/backends/agent-sdk/env.ts` `ISOLATION_PINS`, which is typed BY this tuple, so the two
+// cannot drift) plus the ./CLAUDE.md suppression each builder sets. THE NAMES LIVE HERE, IN CONTRACTS,
+// BECAUSE THE WRITE SCHEMA MUST REFUSE THEM (#1536): they sit inside the `CLAUDE_*` namespace the hatch
+// admits, so an allowlist that stopped at the namespace let a preset re-enable auto-memory, background
+// tasks, cron, the full system prompt, ./CLAUDE.md injection or the cache-churning attribution header inside
+// the RP subprocess — or UNSET any of them with `null`. Their VALUES stay in the server: what the pin is
+// set to is a deploy decision, only WHICH NAMES are host-owned is shared vocabulary.
+const CLAUDE_ISOLATION_PIN_KEYS = [
   "CLAUDE_CODE_DISABLE_1M_CONTEXT",
   "CLAUDE_CODE_DISABLE_AUTO_MEMORY",
   "CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT",
@@ -186,7 +184,7 @@ export const QUALITY_SAMPLING: Record<Quality, { readonly temperature?: number }
 // role's preset params (`RolePresetParams`) win per knob, and this posture fills only the knobs they leave
 // unset. Under task defaults there are no preset params, so the posture is the whole answer. Each entry carries
 // its reason (a summary is not creative writing; a name is not prose). Retune a posture here, never at a call site.
-export const SIDE_GEN_KINDS = [
+const SIDE_GEN_KINDS = [
   "arbiter",
   "quiet_generate",
   "extract_quiet",
@@ -279,7 +277,7 @@ export const SIDE_GEN_POSTURES = {
 // `EffortLevel` set (never redeclared) so the two can't diverge.
 export const EFFORT_LEVELS = ["none", ...MODEL_EFFORT_LEVELS] as const;
 export type EffortLevel = (typeof EFFORT_LEVELS)[number];
-export const effortLevelSchema = z.enum(EFFORT_LEVELS) satisfies z.ZodType<EffortLevel>;
+const effortLevelSchema = z.enum(EFFORT_LEVELS) satisfies z.ZodType<EffortLevel>;
 
 export const THINKING_DISPLAYS = ["summarized", "omitted"] as const;
 export type ThinkingDisplay = (typeof THINKING_DISPLAYS)[number];
@@ -294,7 +292,7 @@ export type CompactionMode = (typeof COMPACTION_MODES)[number];
 // `output.modalities ∋ image` to answer with interleaved pictures (the funnel emits `modalities` on the wire
 // only then; on a text-only model the knob drops with `sampling_knob_dropped`). GLOBAL like every gen
 // setting (D154) — the per-room desire is a recorded fork (F23), not a knob.
-export const REPLY_MEDIA = ["text", "text+image"] as const;
+const REPLY_MEDIA = ["text", "text+image"] as const;
 
 // REASONING CARRY (inference program §8.8) — how much of the model's OWN prior thinking rides back into the
 // next request. ORDERED, and the order is the point: `capability.reasoning.replay` gates the rungs from the
@@ -308,7 +306,7 @@ export const REPLY_MEDIA = ["text", "text+image"] as const;
 //                      thinking loses verified reasoning every hop without it — a CORRECTNESS property).
 //   • `conversation` — additionally replay prior TURNS' thinking, materialized onto their assistant rows.
 // GLOBAL and preset-owned like every gen setting (D154).
-export const CARRY_REASONING_MODES = ["off", "tool-chain", "conversation"] as const;
+const CARRY_REASONING_MODES = ["off", "tool-chain", "conversation"] as const;
 export type CarryReasoning = (typeof CARRY_REASONING_MODES)[number];
 
 /** The rung an absent `carryReasoning` reads as — stated once so the funnel and the panel agree. */
@@ -411,7 +409,7 @@ type GenerationKnobSchemas = {
 };
 
 // ONE place per numeric bound — no split source between server/client (client accepts → server rejects).
-export const generationKnobSchemas = {
+const generationKnobSchemas = {
   thinkingBudgetTokens: z.int().positive().optional(),
   maxOutputTokens: z.int().positive().optional(),
   maxContextTokens: z.int().positive().optional(),
@@ -550,11 +548,11 @@ export type UserIntent = z.infer<typeof userIntentSchema>;
 // The two tuples partition `UserIntent`'s keys (pinned by `tests/legacy/contracts/preset/index.test-d.ts`),
 // so a new intent field reaches background tasks only after someone lists it here. A sampler knob is a role
 // field unless it is listed chat-only, which keeps the sampler catalog the one place a new knob is declared.
-/** Chat-turn-only intent: reasoning display and carry, compaction policy, reply shape, the message-handling escape
- *  hatch, and `banEos` (forcing every reply to its output cap would make a name pick ramble and pad a structured or
- *  summary reply). A background task never reads these. `maxContextTokens` is a role field: on a route whose window
- *  the request sets, every role sends its own preset's window, so tasks sharing a row run one window. */
-export const CHAT_ONLY_INTENT_FIELDS = [
+// Chat-turn-only intent: reasoning display and carry, compaction policy, reply shape, the message-handling escape
+//  hatch, and `banEos` (forcing every reply to its output cap would make a name pick ramble and pad a structured or
+//  summary reply). A background task never reads these. `maxContextTokens` is a role field: on a route whose window
+//  the request sets, every role sends its own preset's window, so tasks sharing a row run one window.
+const CHAT_ONLY_INTENT_FIELDS = [
   "quality",
   "thinkingDisplay",
   "carryReasoning",
@@ -565,11 +563,11 @@ export const CHAT_ONLY_INTENT_FIELDS = [
   "advanced",
   "banEos",
 ] as const satisfies readonly (keyof UserIntent)[];
-export type ChatOnlyIntentField = (typeof CHAT_ONLY_INTENT_FIELDS)[number];
+type ChatOnlyIntentField = (typeof CHAT_ONLY_INTENT_FIELDS)[number];
 type RoleSamplerKnob = Exclude<SamplerKnob, ChatOnlyIntentField>;
 const CHAT_ONLY_FIELD_SET: ReadonlySet<string> = new Set(CHAT_ONLY_INTENT_FIELDS);
 const ROLE_SAMPLER_KNOBS = SAMPLER_KNOBS.filter((knob): knob is RoleSamplerKnob => !CHAT_ONLY_FIELD_SET.has(knob));
-export const ROLE_PRESET_FIELDS = [
+const ROLE_PRESET_FIELDS = [
   ...ROLE_SAMPLER_KNOBS,
   "samplerOrder",
   "maxOutputTokens",
@@ -578,7 +576,7 @@ export const ROLE_PRESET_FIELDS = [
   "thinkingBudgetTokens",
   "responseCache",
 ] as const satisfies readonly (keyof UserIntent)[];
-export type RolePresetField = (typeof ROLE_PRESET_FIELDS)[number];
+type RolePresetField = (typeof ROLE_PRESET_FIELDS)[number];
 /** The inline reasoning tag pair a role's preset splits a prose reply with (its `reasoningParse`). */
 export interface ReasoningTagPair {
   readonly prefix: string;
@@ -663,7 +661,7 @@ const GUIDED_DEFAULT_ROLE: MessageRole = "system";
 // generation runs at the preset's normal generation params, exactly like every other turn. Unknown keys on
 // a stored blob are STRIPPED by this non-strict object, so a preset saved with the old `sampling` key still
 // parses and simply loses it.
-export const guidedActionConfigSchema = z.object({
+const guidedActionConfigSchema = z.object({
   /** The injection template; `{{input}}` = the user's steering text. Missing/empty falls back to `{{input}}` alone.
    *
    *  CAPPED at the shared injection-template max (owner ruling 2026-08-08). It was an unbounded `z.string()` —
@@ -897,7 +895,7 @@ const TEMPLATED_MARKERS = [
 ] as const satisfies readonly string[];
 type TemplatedMarker = (typeof TEMPLATED_MARKERS)[number];
 
-export const PLAIN_MARKERS = ["chat_history", "world_info_before", "world_info_after"] as const satisfies readonly string[];
+const PLAIN_MARKERS = ["chat_history", "world_info_before", "world_info_after"] as const satisfies readonly string[];
 
 export const MARKER_TYPES = [...TEMPLATED_MARKERS, ...PLAIN_MARKERS] as const;
 export type MarkerType = (typeof MARKER_TYPES)[number];
@@ -993,7 +991,7 @@ const templatedMarkerSection = z.object({
 });
 
 // Regular union (not discriminatedUnion): both marker branches share `type: "marker"`.
-export const promptSectionSchema = z.union([literalSection, plainMarkerSection, templatedMarkerSection]);
+const promptSectionSchema = z.union([literalSection, plainMarkerSection, templatedMarkerSection]);
 export type PromptSection = z.infer<typeof promptSectionSchema>;
 
 /** The FALLBACK the assembler uses when a preset doesn't supply a `formatStrings.<key>` — one PROSE-1 slot
@@ -2324,17 +2322,17 @@ export type UserMacroSpec = z.infer<typeof userMacroSchema>;
 const _userMacroIsKitDef = (spec: UserMacroSpec): UserMacroDef => spec;
 void _userMacroIsKitDef;
 
-/** The per-turn per-user input VALUES bag (#24): macro name → input name → pick. This is the WIRE shape
- *  the FOREIGN-inputs threading (`ResolveForeignInputsOp`, the post-P2 stint) carries UNRESHAPED into
- *  kit's `resolveUserMacroInputs` — string (single-select) · boolean (boolean-toggle) · string[]
- *  (multi-select picks / the random-pick POOL).
- *
- *  This schema bounds the value's TYPE and LENGTH and can never bound its VOCABULARY: it is per-VALUE, and
- *  the declared `options` live on the macro DEFINITION, one level up and in another row. The membership
- *  check therefore lives at the seam that holds both — `domain/chat` `setUserMacroValues` refuses a new
- *  off-vocabulary select pick (`unknown_macro_pick`, #1356) — with kit's `resolveStaticInput` as the
- *  resolve-side belt for values already stored. Do not "fix" that by reshaping this union. */
-export const userMacroInputValueSchema = z.union([
+// The per-turn per-user input VALUES bag (#24): macro name → input name → pick. This is the WIRE shape
+//  the FOREIGN-inputs threading (`ResolveForeignInputsOp`, the post-P2 stint) carries UNRESHAPED into
+//  kit's `resolveUserMacroInputs` — string (single-select) · boolean (boolean-toggle) · string[]
+//  (multi-select picks / the random-pick POOL).
+//
+//  This schema bounds the value's TYPE and LENGTH and can never bound its VOCABULARY: it is per-VALUE, and
+//  the declared `options` live on the macro DEFINITION, one level up and in another row. The membership
+//  check therefore lives at the seam that holds both — `domain/chat` `setUserMacroValues` refuses a new
+//  off-vocabulary select pick (`unknown_macro_pick`, #1356) — with kit's `resolveStaticInput` as the
+//  resolve-side belt for values already stored. Do not "fix" that by reshaping this union.
+const userMacroInputValueSchema = z.union([
   z.string().max(MAX_CHOICE_VALUE_LENGTH),
   z.boolean(),
   z.array(z.string().max(MAX_CHOICE_VALUE_LENGTH)).max(MAX_CHOICE_OPTIONS),
@@ -2440,10 +2438,10 @@ export type PromptConfig = z.infer<typeof promptConfigSchema>;
 /** One post-process switch, by the side of the pipeline it runs on. */
 export type PostProcessFlag = keyof NonNullable<PromptConfig["postProcess"]>;
 
-/** WHICH LANE EACH SWITCH RUNS ON — a TOTAL map over the schema's own keys, so a new switch cannot enter
- *  `postProcess` without answering the question `collapseNewlines` was silently answered wrong on (it sat
- *  in the reply readout while the reply path never calls it), and a renamed one fails `tsc` here. */
-export const POST_PROCESS_LANE = {
+// WHICH LANE EACH SWITCH RUNS ON — a TOTAL map over the schema's own keys, so a new switch cannot enter
+//  `postProcess` without answering the question `collapseNewlines` was silently answered wrong on (it sat
+//  in the reply readout while the reply path never calls it), and a renamed one fails `tsc` here.
+const POST_PROCESS_LANE = {
   singleLine: "receive",
   dropIncompleteSentence: "receive",
   trimTrailingWhitespace: "receive",
@@ -2647,7 +2645,7 @@ function insertChatHistoryPivot(lifted: RawSection[]): void {
   }
 }
 
-export const CONFIG_LIFTS: Record<number, (config: Record<string, unknown>) => Record<string, unknown>> = {
+const CONFIG_LIFTS: Record<number, (config: Record<string, unknown>) => Record<string, unknown>> = {
   1: (c): Record<string, unknown> => {
     const sections = Array.isArray(c["sections"]) ? (c["sections"] as RawSection[]) : [];
     const jailbreak = sections.find((s): boolean => isMarker(s, "jailbreak"));
@@ -3699,12 +3697,12 @@ export interface PresetUsageView {
 // What the generation funnel ACTUALLY produces for this preset against the caller's own chat model — the
 // editor's answer to "what will the next turn send?". Never a client mirror of the funnel.
 
-/** WHY a knob has the value it has — the funnel's four rungs, plus the engine floor that stands when the
- *  funnel itself yields nothing. `clamped` wins over its own source: a value the user (or the quality dial)
- *  asked for that the capability moved is a clamp, and the deck says so. `serverDefault` is the value a server
- *  advertised for a knob the preset leaves unset (`GenerationCapability.samplingDefaults`): never sent, the
- *  server runs it. */
-export const EFFECTIVE_PROVENANCES = ["explicit", "quality", "modelDefault", "clamped", "floor", "serverDefault"] as const;
+// WHY a knob has the value it has — the funnel's four rungs, plus the engine floor that stands when the
+//  funnel itself yields nothing. `clamped` wins over its own source: a value the user (or the quality dial)
+//  asked for that the capability moved is a clamp, and the deck says so. `serverDefault` is the value a server
+//  advertised for a knob the preset leaves unset (`GenerationCapability.samplingDefaults`): never sent, the
+//  server runs it.
+const EFFECTIVE_PROVENANCES = ["explicit", "quality", "modelDefault", "clamped", "floor", "serverDefault"] as const;
 export type EffectiveProvenance = (typeof EFFECTIVE_PROVENANCES)[number];
 
 /** The SCALAR generation knobs the funnel resolves — the KnobRow surface, in deck order. Deliberately NOT

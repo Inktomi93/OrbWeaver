@@ -72,7 +72,7 @@ export type WorkloadRunnableRow = { [K in WorkloadKind]: WorkloadRow<K> }[Worklo
  *  cannot even be spelled) and stays filtered; a known kind with unparseable params surfaces as poison. */
 export type WorkloadRowAnyKind = WorkloadRunnableRow | WorkloadPoisonRow;
 
-export const workloadProgressSchema = z
+const workloadProgressSchema = z
   .strictObject({ message: z.string().optional(), current: z.number().optional(), total: z.number().optional(), pct: z.number().optional() })
   .transform(({ message, current, total, pct }) => ({
     ...(message !== undefined ? { message } : {}),
@@ -126,7 +126,7 @@ export function workloadResultSchemaOf(kind: WorkloadKind): z.ZodType<WorkloadRe
   return workloadOutputShapes[kind].result;
 }
 
-export const workloadRunnableRowSchema = z.discriminatedUnion("kind", [
+const workloadRunnableRowSchema = z.discriminatedUnion("kind", [
   workloadRowBaseSchema.extend({
     kind: z.literal("index"),
     params: workloadOutputShapes["index"].params,
@@ -248,8 +248,8 @@ export const workloadRunnableRowSchema = z.discriminatedUnion("kind", [
     poison: z.literal(false),
   }),
 ]) satisfies z.ZodType<WorkloadRunnableRow>;
-/** A corrupt params blob is deliberately visible; its untyped stored result must not masquerade as clean. */
-export const workloadPoisonRowSchema = workloadRowBaseSchema.extend({
+// A corrupt params blob is deliberately visible; its untyped stored result must not masquerade as clean.
+const workloadPoisonRowSchema = workloadRowBaseSchema.extend({
   kind: workloadKindSchema,
   params: z.null(),
   result: z.unknown(),
@@ -279,5 +279,3 @@ export const workloadScheduleViewSchema = z.strictObject({
   createdAt: z.number(),
   updatedAt: z.number(),
 });
-/** @public twin: workloadScheduleViewSchema */
-export type WorkloadScheduleView = z.output<typeof workloadScheduleViewSchema>;
