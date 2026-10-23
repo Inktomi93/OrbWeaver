@@ -120,13 +120,6 @@ interface PendingCommand {
   readonly timer: () => void;
 }
 
-interface BridgeDeliveryPause {
-  readonly operation: Extract<BrokerParentMessage, { readonly kind: "bridge" }>["operation"];
-  readonly reached: () => void;
-  readonly wait: Promise<void>;
-  readonly resume: () => void;
-}
-
 interface MutableLiveness extends PluginInvocationLiveness {
   abort: () => void;
 }
@@ -281,24 +274,15 @@ class BrokerClient {
     this.monotonicNow = seams.monotonicNow ?? ((): number => performance.now());
   }
 
-  countAuthorityTails(): number {
-    return [...new Set([...this.logicalBindings, ...this.bindings.values()])].reduce((total, binding) => total + binding.authorityTails.size, 0);
-  }
-
   private sender: PluginIpcSender | undefined;
   private generation: string | undefined;
   private readonly readyListeners = new Set<() => void>();
   private connecting: Promise<void> | undefined;
   private managedChild: ChildProcess | undefined;
-  private managedDirectory: string | undefined;
   private directoryResources = new AsyncDisposableStack();
   private readonly pending = new Map<string, PendingCommand>();
   private readonly bridgeCalls = new Map<string, ActiveBridgeCall>();
   private closing: Promise<void> | undefined;
-  private killOnCommand: Extract<ParentBrokerMessage, { readonly kind: "command" }>["operation"] | undefined;
-  private killOnBridge: Extract<BrokerParentMessage, { readonly kind: "bridge" }>["operation"] | undefined;
-  private bridgeDeliveryPause: BridgeDeliveryPause | undefined;
-  private connectChasePause: { readonly reached: () => void; readonly wait: Promise<void>; readonly resume: () => void } | undefined;
   private nextCommand = 0;
 
   hasManagedChild(): boolean {
@@ -311,10 +295,6 @@ class BrokerClient {
 
   private isClosed(): boolean {
     return this.closed;
-  }
-
-  managedDirectoryForTest(): string | undefined {
-    return this.managedDirectory;
   }
 
   cancelBindings(owned: ReadonlySet<Binding>): void {
@@ -347,8 +327,6 @@ class BrokerClient {
       cleanup.defer(async (): Promise<void> => {
         await Promise.all([...this.children.values()]);
       });
-      this.bridgeDeliveryPause?.resume();
-      this.bridgeDeliveryPause = undefined;
       this.sender?.close();
       this.generation = undefined;
       this.onDisconnect(unavailableError());
@@ -368,7 +346,6 @@ class BrokerClient {
 
   cancelStartup(): void {
     this.closed = true;
-    this.connectChasePause?.resume();
     // Teardown retires Workers before closeManaged joins the watchdog. Idle children are unref'ed,
     // but those retirement acknowledgments still belong to this process after its HTTP listener closes.
     for (const child of this.children.keys()) {
@@ -377,70 +354,6 @@ class BrokerClient {
     if (this.generation === undefined && this.connecting !== undefined) {
       this.managedChild?.kill("SIGTERM");
     }
-  }
-
-  // Killing only the watchdog proves the broker observes inherited-channel loss itself.
-  async killWatchdogForTest(): Promise<void> {
-    const child = this.managedChild;
-    if (child === undefined || child.exitCode !== null) {
-      throw new Error("plugin host test: no live watchdog to kill");
-    }
-    child.ref();
-    await new Promise<void>((resolve) => {
-      child.once("exit", () => resolve());
-      child.kill("SIGKILL");
-    });
-  }
-
-  async terminateManagedForTest(): Promise<void> {
-    this.bridgeDeliveryPause?.resume();
-    this.bridgeDeliveryPause = undefined;
-    const child = this.managedChild;
-    if (child === undefined || child.exitCode !== null) {
-      return;
-    }
-    child.ref();
-    await new Promise<void>((resolve) => {
-      child.once("exit", () => resolve());
-      child.kill("SIGKILL");
-      this.stopConnection(unavailableError());
-    });
-    if (this.managedChild === child) {
-      this.managedChild = undefined;
-      this.managedDirectory = undefined;
-    }
-  }
-
-  killManagedOnCommandForTest(operation: Extract<ParentBrokerMessage, { readonly kind: "command" }>["operation"]): void {
-    this.killOnCommand = operation;
-  }
-
-  killManagedOnBridgeForTest(operation: Extract<BrokerParentMessage, { readonly kind: "bridge" }>["operation"]): void {
-    this.killOnBridge = operation;
-  }
-
-  pauseBridgeDeliveryForTest(operation: Extract<BrokerParentMessage, { readonly kind: "bridge" }>["operation"]): {
-    readonly reached: Promise<void>;
-    readonly release: () => void;
-  } {
-    if (this.bridgeDeliveryPause !== undefined) {
-      throw new Error("plugin host test: a bridge delivery is already paused");
-    }
-    const reached = Promise.withResolvers<void>();
-    const wait = Promise.withResolvers<void>();
-    const resume = (): void => wait.resolve();
-    this.bridgeDeliveryPause = { operation, reached: (): void => reached.resolve(), wait: wait.promise, resume };
-    return { reached: reached.promise, release: resume };
-  }
-
-  pauseConnectChaseForTest(): { readonly reached: Promise<void>; readonly release: () => void } {
-    if (this.connectChasePause !== undefined) {
-      throw new Error("plugin host test: a connect chase is already paused");
-    }
-    const reached = Promise.withResolvers<void>();
-    const wait = Promise.withResolvers<void>();
-    this.connectChasePause = { reached: (): void => reached.resolve(), wait: wait.promise, resume: (): void => wait.resolve() };
-    return { reached: reached.promise, release: (): void => wait.resolve() };
   }
 
   async command(input: {
@@ -483,12 +396,6 @@ class BrokerClient {
         timer();
         reject(error instanceof Error ? error : unavailableError());
         this.stopConnection(error instanceof Error ? error : unavailableError());
-        return;
-      }
-      if (this.killOnCommand === operation) {
-        this.killOnCommand = undefined;
-        // test-only kill hook: a failed forced termination reaches onDisconnect, which rejects pending commands (pending.reject(error)) and crashes bindings. Ends if the handler stops calling onDisconnect.
-        this.terminateManagedForTest().catch((error: unknown) => this.onDisconnect(error instanceof Error ? error : unavailableError()));
       }
     });
   }
@@ -515,14 +422,6 @@ class BrokerClient {
       throw unavailableError();
     }
     if (this.managedChild === undefined) {
-      const pause = this.connectChasePause;
-      if (pause !== undefined) {
-        pause.reached();
-        await pause.wait;
-        if (this.connectChasePause === pause) {
-          this.connectChasePause = undefined;
-        }
-      }
       if (this.isClosed()) {
         throw unavailableError();
       }
@@ -598,7 +497,6 @@ class BrokerClient {
     child.unref();
     child.channel?.unref();
     this.managedChild = child;
-    this.managedDirectory = directory;
     this.sender = new PluginIpcSender(
       (message, callback) => {
         child.send(message, callback);
@@ -610,7 +508,6 @@ class BrokerClient {
         return;
       }
       this.managedChild = undefined;
-      this.managedDirectory = undefined;
       this.sender?.close();
       this.sender = undefined;
       this.generation = undefined;
@@ -704,10 +601,11 @@ class BrokerClient {
     }
     // A bridge delivery that fails outside its RPC result path invalidates the broker connection and all
     // live command authorities. The channel's disconnect owner rejects pending work and crashes residents.
-    // a detached bridge failure calls stopConnection, whose onDisconnect rejects pending work (pending.reject(error)) and crashes resident bindings. Ends if the handler stops calling stopConnection or onDisconnect stops rejecting pending work.
-    void this.handleBridge(message).catch((error: unknown) => {
+    try {
+      this.handleBridge(message);
+    } catch (error) {
       this.stopConnection(error instanceof Error ? error : unavailableError());
-    });
+    }
   }
 
   private handleResponse(message: Extract<BrokerParentMessage, { readonly kind: "response" }>): void {
@@ -758,26 +656,7 @@ class BrokerClient {
     }
   }
 
-  private async handleBridge(message: Extract<BrokerParentMessage, { readonly kind: "bridge" }>): Promise<void> {
-    if (this.killOnBridge === message.operation) {
-      this.killOnBridge = undefined;
-      // test-only kill hook: a failed forced termination reaches onDisconnect, which crashes every dispatched binding (binding.onCrash(error)) and rejects pending work. Ends if the handler stops calling onDisconnect.
-      this.terminateManagedForTest().catch((error: unknown) => this.onDisconnect(error instanceof Error ? error : unavailableError()));
-      return;
-    }
-    const bindingBeforePause = this.bindings.get(message.runtimeId);
-    if (bindingBeforePause === undefined || bindingBeforePause.crashed !== null || bindingBeforePause.disposed) {
-      this.sendBridgeResult(message.id, false, undefined, new Error("plugin broker: stale, crashed, or disposed runtime id"));
-      return;
-    }
-    const pause = this.bridgeDeliveryPause;
-    if (pause?.operation === message.operation) {
-      pause.reached();
-      await pause.wait;
-      if (this.bridgeDeliveryPause === pause) {
-        this.bridgeDeliveryPause = undefined;
-      }
-    }
+  private handleBridge(message: Extract<BrokerParentMessage, { readonly kind: "bridge" }>): void {
     const binding = this.bindings.get(message.runtimeId);
     if (binding === undefined || binding.crashed !== null || binding.disposed) {
       this.sendBridgeResult(message.id, false, undefined, new Error("plugin broker: stale, crashed, or disposed runtime id"));
@@ -900,73 +779,6 @@ function unavailableError(): Error {
 }
 
 const PLUGIN_INSTANCE_KEYS = ["tools", "transforms", "events", "pubsub", "surfaces", "commands", "displayTransforms", "macros"] as const;
-
-const brokerObservers = new WeakMap<ProcessPluginHost, BrokerClient>();
-
-function brokerFor(host: ProcessPluginHost): BrokerClient {
-  const broker = brokerObservers.get(host);
-  if (broker === undefined) {
-    throw new Error("plugin host observer: no broker for this host");
-  }
-  return broker;
-}
-
-/** @public twin: tests/legacy/server/infra/plugin-host/process-runtime.test.ts */
-export function __terminateManagedPluginBrokerForTest(host: ProcessPluginHost): Promise<void> {
-  return brokerFor(host).terminateManagedForTest();
-}
-
-/** @public twin: tests/legacy/server/infra/plugin-host/process-runtime.test.ts */
-export function __hasManagedPluginBrokerForTest(host: ProcessPluginHost): boolean {
-  return brokerFor(host).hasManagedChild();
-}
-
-/** @public twin: tests/legacy/server/infra/plugin-host/process-runtime.test.ts */
-export function __readManagedPluginDirectoryForTest(host: ProcessPluginHost): string | undefined {
-  return brokerFor(host).managedDirectoryForTest();
-}
-
-/** @public twin: tests/legacy/server/infra/plugin-host/process-runtime.test.ts */
-export function __killManagedPluginWatchdogForTest(host: ProcessPluginHost): Promise<void> {
-  return brokerFor(host).killWatchdogForTest();
-}
-
-/** @public twin: tests/legacy/server/infra/plugin-host/process-runtime.test.ts */
-export function __killManagedPluginBrokerOnCommandForTest(
-  host: ProcessPluginHost,
-  operation: Extract<ParentBrokerMessage, { readonly kind: "command" }>["operation"],
-): void {
-  brokerFor(host).killManagedOnCommandForTest(operation);
-}
-
-/** @public twin: tests/legacy/server/infra/plugin-host/process-runtime.test.ts */
-export function __killManagedPluginBrokerOnBridgeForTest(
-  host: ProcessPluginHost,
-  operation: Extract<BrokerParentMessage, { readonly kind: "bridge" }>["operation"],
-): void {
-  brokerFor(host).killManagedOnBridgeForTest(operation);
-}
-
-/** @public twin: tests/legacy/server/infra/plugin-host/process-runtime.test.ts */
-export function __pauseManagedPluginBridgeDeliveryForTest(
-  host: ProcessPluginHost,
-  operation: Extract<BrokerParentMessage, { readonly kind: "bridge" }>["operation"],
-): {
-  readonly reached: Promise<void>;
-  readonly release: () => void;
-} {
-  return brokerFor(host).pauseBridgeDeliveryForTest(operation);
-}
-
-/** @public twin: tests/legacy/server/infra/plugin-host/process-runtime.test.ts */
-export function __pauseManagedPluginConnectChaseForTest(host: ProcessPluginHost): { readonly reached: Promise<void>; readonly release: () => void } {
-  return brokerFor(host).pauseConnectChaseForTest();
-}
-
-/** @public twin: tests/legacy/server/infra/plugin-host/process-runtime.test.ts */
-export function __countLiveAuthorityTailsForTest(host: ProcessPluginHost): number {
-  return brokerFor(host).countAuthorityTails();
-}
 
 function requireRegistrationGrant(grants: ReadonlySet<PluginCapability>, capability: PluginCapability, registrations: readonly unknown[], label: string): void {
   if (registrations.length > 0 && !grants.has(capability)) {
@@ -1544,7 +1356,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
     },
   };
 
-  // biome-ignore lint/nursery/useDisposables: the caller adopts this returned host and its identity keys explicit-host observers; local await using would close it before return.
+  // biome-ignore lint/nursery/useDisposables: the caller adopts this returned host; local await using would close it before return.
   const host: ProcessPluginHost = {
     ...operations,
     createInstance: (...args) => runOwned(() => operations.createInstance(...args)),
@@ -1586,6 +1398,5 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       return closing;
     },
   };
-  brokerObservers.set(host, broker);
   return host;
 }

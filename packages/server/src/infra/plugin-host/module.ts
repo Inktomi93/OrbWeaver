@@ -26,7 +26,6 @@ const variant: QuickJSSyncVariant =
   (variantModule as unknown as { readonly default?: QuickJSSyncVariant }).default ?? (variantModule as unknown as QuickJSSyncVariant);
 
 let modulePromise: Promise<QuickJSWASMModule> | undefined;
-let guestMemoryBuffer: ArrayBuffer | undefined;
 
 const KIBIBYTE = 1024;
 const WASM_PAGE_KIBIBYTES = 64;
@@ -36,7 +35,7 @@ function pages(bytes: number): number {
   return bytes / WASM_PAGE_BYTES;
 }
 
-function createWebAssemblyMemory(): { readonly memory: WasmMemoryOption; readonly buffer: ArrayBuffer } {
+function createWebAssemblyMemory(): WasmMemoryOption {
   const namespace: unknown = Reflect.get(globalThis, "WebAssembly");
   if (typeof namespace !== "object" || namespace === null) {
     throw new Error("plugin host: WebAssembly is unavailable");
@@ -60,17 +59,16 @@ function createWebAssemblyMemory(): { readonly memory: WasmMemoryOption; readonl
   if (typeof toResizableBuffer !== "function") {
     throw new Error("plugin host: WebAssembly.Memory.prototype.toResizableBuffer is unavailable");
   }
-  // The returned buffer resizes in place on every grow, so its byteLength tracks the live memory size.
-  const buffer = Reflect.apply(toResizableBuffer, memory, []) as ArrayBuffer;
-  return { memory, buffer };
+  // Keep cached FFI views attached when WASM memory grows.
+  Reflect.apply(toResizableBuffer, memory, []);
+  return memory;
 }
 
 /** Memoized loader for this Worker's QuickJS-ng WASM module. Idempotent within the isolate; terminating the
  *  Worker reclaims this module's linear-memory high-water allocation. */
 export function getPluginQuickJS(): Promise<QuickJSWASMModule> {
   if (modulePromise === undefined) {
-    const { memory, buffer } = createWebAssemblyMemory();
-    guestMemoryBuffer = buffer;
+    const memory = createWebAssemblyMemory();
     modulePromise = newQuickJSWASMModuleFromVariant(
       newVariant(variant, {
         // The published Emscripten loader otherwise defaults to maximum:32768 pages (2 GiB). QuickJS's
@@ -82,9 +80,4 @@ export function getPluginQuickJS(): Promise<QuickJSWASMModule> {
     );
   }
   return modulePromise;
-}
-
-/** @public twin: tests/legacy/server/infra/plugin-host/heap-growth.suite.test.ts */
-export function __readGuestMemoryBytesForTest(): number {
-  return guestMemoryBuffer?.byteLength ?? 0;
 }

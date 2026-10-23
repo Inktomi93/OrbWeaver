@@ -153,12 +153,16 @@ The selected references are `server/infra/plugin-host/process-runtime.test.ts` a
 | Unexpected process loss, explicit recovery and no replay | Rebuild through captured watchdog handles and actual root lifecycle calls. Reject interrupted work and old callbacks; require explicit activation before new effects. |
 | Connection loss before a new binding dispatches | Rebuild with actual ready and exit delivery ordering. Preserve the new binding and assert its persisted activation effect occurs once. |
 | A queued write after disposal | Rebuild by holding a real incoming frame before app delivery. Disable through production, release the frame and assert unchanged owned persistence. |
-| Continuation expiry, call limit and frozen grants | Rebuild through floated guest work and actual IPC. Advance only the injected parent scheduler for parent expiry; assert specific refusals and unchanged unauthorized persistence. |
+| Continuation expiry, call limit and frozen grants | Rebuild through floated guest work and actual IPC. Advance only the injected parent scheduler for parent expiry. Distinguish parent authorization from the guest membrane refusal. |
 | Guest growth before object and string marshalling | Rebuild with retained guest allocations and exact native card-state and KV round trips. Preserve the resizable-memory conversion and native limits. |
 | Joined disposal and independent roots | Keep existing plugin-lifetime cases. Add coupled physical completion and reuse assertions where required by the replacements. |
 | Scale, showcase, RSS pressure, Worker wall-time expiry and broader cold-source lifecycle cases | Unreviewed in this bounded implementation. Do not infer qualification from ordinary teardown or the parent scheduler case. |
 
-Remove the unused observer and fault-control mechanisms with these replacements. Keep actual command authority, continuation timers, grants, liveness, reconnect guards and joined process cleanup in production. No private broker registry or production test-only door is introduced. Primary owns runtime, compiler, import and isolated defect controls before qualification.
+The unused observer and fault-control mechanisms are removed with these replacements. Actual command authority, continuation timers, grants, liveness, reconnect guards and joined process cleanup remain in production. No private broker registry or production test-only door is introduced.
+
+The selected server integration cases call the actual composed root, real persistence and native guest execution. Maintained lifetime, corpus, codec and membrane cases remain qualified. Affected compiler, lint, dependency and native unused-export checks pass. Isolated parent-expiry, call-limit, capability and post-growth marshalling defects fail their intended controls; sources are restored exactly.
+
+These cases do not prove broker-descendant exit after watchdog loss or the necessity of each independent revocation check. Wider process-death, resource-pressure, scale and cold-source matrices remain unreviewed. Direct-child completion and parent-scheduler expiry do not substitute for those cases.
 
 ## Selected Atlas guest replacements
 
