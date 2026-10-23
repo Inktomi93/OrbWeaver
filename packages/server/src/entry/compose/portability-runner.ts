@@ -32,7 +32,7 @@ import { createStatsBatchWiring, reconcileStats } from "#domain/stats";
 import type { TagContext, TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
 import type { AttachOwnedBooksByName, ImportStandaloneLorebook, ImportWorldInfoPort, WorldInfoExportContext } from "#domain/world-info";
-import { stageDirectory, writeImportReportFile } from "#infra/storage";
+import { extractZip, stageDirectory, writeImportReportFile } from "#infra/storage";
 import type { LiveBuses } from "#transport/trpc";
 import { createNodeFsImportPort, importStagedArchive, runBundleImport, runProfileDirImport } from "../import/index.ts";
 import { buildPortabilityRegistry } from "./portability.ts";
@@ -45,7 +45,7 @@ export interface PortabilityRunnerComposeDeps {
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
   readonly publishChatChanged: LiveBuses["user"]["publishChatChanged"];
 
-  readonly idSource?: IdSource;
+  readonly idSource: IdSource;
   readonly db: DatabaseHandle;
   readonly now: () => number;
   readonly tagCtx: TagContext;
@@ -177,7 +177,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
           signal,
           personaCollisions,
         }),
-      bundle: (args) => runBundleImport({ ...args, registry: portability }),
+      bundle: (args) => runBundleImport({ ...args, registry: portability, extractArchive: extractZip }),
       staged: async ({ stagedPath, ...args }) => importStagedArchive({ ...args, registry: portability, staged: await stageDirectory(stagedPath) }),
       writeReport: (markdown, generatedAt) => writeImportReportFile(markdown, generatedAt, deps.importReportsDir),
       reconcileStats: reconcileImportStats,

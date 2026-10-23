@@ -1,10 +1,9 @@
 // The boot/shutdown protocol. index.ts constructs the lifecycle once and runs boot(); SIGTERM/SIGINT/SIGHUP run
 // shutdown(). Owns no business logic — mints the one real clock, resolves the boot chicken-egg (owner id
 // → services → owner Principal), runs the seed steps, starts the supervisors, builds + serves the Hono
-// app, and tears it all down gracefully. Entry mints the one real wall clock and threads it everywhere as
-// the injected `now`; nothing below entry reads ambient time.
+// app, and tears it all down gracefully. Entry mints the one real wall clock and the real process seams
+// (`createProcessSeams`) and threads them everywhere; nothing below entry reads ambient time or entropy.
 
-import { randomUUID } from "node:crypto";
 import type { AddressInfo } from "node:net";
 import { hostname } from "node:os";
 import { join } from "node:path";
@@ -78,7 +77,7 @@ import {
 } from "./boot/index.ts";
 import { startPlannerMaintenance } from "./boot/planner-maintenance.ts";
 
-import { createConfiguredOidc, createHttpApp, createServices, createShareGraph } from "./compose/index.ts";
+import { createConfiguredOidc, createHttpApp, createProcessSeams, createServices, createShareGraph, SESSIONS_CRYPTO } from "./compose/index.ts";
 
 /** The worker resources shutdown owns: signal it first, then join the loop before touching the DB. */
 interface OwnedWorkloadsWorker {
@@ -92,15 +91,6 @@ interface OwnedWorkloadsWorker {
 export async function drainWorkloadsWorker(worker: OwnedWorkloadsWorker): Promise<void> {
   worker.abort();
   await worker.settled;
-}
-
-/** One `setInterval` as a stop-function — the `scheduleInterval`/`scheduleTimeout` shape every scheduler and
- *  the workloads worker take. ONE home: boot wired three byte-identical copies of this closure inline. */
-function scheduleInterval(fn: () => void, ms: number): () => void {
-  const handle = setInterval(fn, ms);
-  return () => {
-    clearInterval(handle);
-  };
 }
 
 /** Serve the app on one address and await the bind: a bind failure (EADDRINUSE) is a server "error" event, not a throw,
@@ -117,15 +107,6 @@ function listenApp(options: Parameters<typeof serveHttpServer>[0]): Promise<{ re
     });
     handle.once("error", onBindError);
   });
-}
-
-/** One `setTimeout` as a cancel-function, unref'd so a pending relay restart never holds the process open. */
-function scheduleOnce(run: () => void, ms: number): () => void {
-  const handle = setTimeout(run, ms);
-  handle.unref();
-  return () => {
-    clearTimeout(handle);
-  };
 }
 
 /** The log line for the boot start of a stored IP certificate choice; the controller logs what the order does next. */
@@ -203,6 +184,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
   const log = getLog();
   // The composition root constructs the clock it injects; remove when a platform seam supplies that clock instead.
   const now = (): number => Date.now();
+  const seams = createProcessSeams();
 
   let isShuttingDown = false;
   let shutdownCompletion: Promise<void> | undefined;
@@ -333,12 +315,19 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       rolePolicy,
       db: wiringDb,
       now,
+      idSource: seams.idSource,
+      crypto: SESSIONS_CRYPTO,
       sessionSecret,
       // #2481 — the owner row is MINTED here (`seedOwner` → `ensureUser`), so this transient service needs
       // the per-user seed too: on a fresh install the sweep below would otherwise be the only thing that
       // ever seeds the owner, and it runs once per process. `workloads` does not exist yet, so an owner whose
       // encoder this seed binds is held and its sweeps are enqueued once compose has built the queue.
-      seedUserConnections: createLocalLightUserSeed({ db: wiringDb, now, onEmbedSpaceBound: (boundOwner) => ownersBoundBeforeCompose.push(boundOwner) }),
+      seedUserConnections: createLocalLightUserSeed({
+        db: wiringDb,
+        now,
+        idSource: seams.idSource,
+        onEmbedSpaceBound: (boundOwner) => ownersBoundBeforeCompose.push(boundOwner),
+      }),
     });
 
     // OIDC LAZY-MINT (#1853): in OIDC mode the owner identity comes from the IdP, not from env config.
@@ -348,7 +337,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // forward-header), seed the owner at boot as before.
     let ownerId: UserId | undefined;
     const ownerClaimFile = join(env.DATA_LAYOUT.secrets, OWNER_CLAIM_URL_FILE_NAME);
-    const ownerClaim = removeOwnerClaimFileOnSpend(createOwnerClaimCode(), ownerClaimFile);
+    const ownerClaim = removeOwnerClaimFileOnSpend(createOwnerClaimCode(), ownerClaimFile, seams.newOpaqueId);
     if (env.AUTH_MODE === "oidc") {
       ownerId = await bootSessions.getOwnerUserId();
       if (ownerId !== undefined) {
@@ -449,13 +438,15 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       relayDir: env.DATA_LAYOUT.relay,
       secretsDir: env.DATA_LAYOUT.secrets,
       now,
-      timers: { timeout: scheduleOnce, timeoutUnref: scheduleOnce, interval: scheduleInterval },
+      // Unref'd both ways so a pending relay restart never holds the process open.
+      timers: { timeout: seams.timers.timeoutUnref, timeoutUnref: seams.timers.timeoutUnref, interval: seams.timers.interval },
       ...(options.relaySeams === undefined ? {} : { relaySeams: options.relaySeams }),
     });
     const relay = sharing.share.relay;
 
     const authConfig = authConfigFromEnv();
     const built = await createServices({
+      ...seams,
       rolePolicy,
       authConfig,
       db: wiringDb,
@@ -488,7 +479,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // (#2481), not by a later boot.
     await seedDefaultPreset({ db, now });
     await seedThemes({ db, now });
-    await seedLocalLightOnBoot({ db: wiringDb, now, onEmbedSpaceBound: built.detachEmbedReindex });
+    await seedLocalLightOnBoot({ db: wiringDb, now, idSource: seams.idSource, onEmbedSpaceBound: built.detachEmbedReindex });
     for (const boundOwner of ownersBoundBeforeCompose) {
       built.detachEmbedReindex(boundOwner);
     }
@@ -545,7 +536,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
 
     await optimizeDb(db);
     const plannerDb = db;
-    stopPlannerMaintenance = startPlannerMaintenance(() => optimizeDb(plannerDb), scheduleInterval);
+    stopPlannerMaintenance = startPlannerMaintenance(() => optimizeDb(plannerDb), seams.timers.interval);
     await reclaimLocksOnBoot({ db, contributions: built.workloadContributions, now, holder, emitWorkloadEvent: built.workloadEvents.emitWorkloadEvent });
 
     // Boot-reclaim the host-offline deferred-turn queue (chat Part III §5): each row runs (consent/budget
@@ -558,7 +549,8 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
 
     built.startJobs();
 
-    const oidcWiring = env.AUTH_MODE === "oidc" ? await createConfiguredOidc({ db: wiringDb, now, built, ownerClaim }) : undefined;
+    const oidcWiring =
+      env.AUTH_MODE === "oidc" ? await createConfiguredOidc({ db: wiringDb, now, built, ownerClaim, scheduleInterval: seams.timers.interval }) : undefined;
     oidcLifetime = oidcWiring ?? null;
 
     const app = createHttpApp({
@@ -570,7 +562,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       casDir: env.ASSETS_DIR,
       sessionSecret,
       onOwnerClaimed: () => {
-        superviseDetached(`share-resume:${randomUUID()}`, "share.resumeAfterOwnerClaim", {}, async () => {
+        superviseDetached(`share-resume:${seams.newOpaqueId()}`, "share.resumeAfterOwnerClaim", {}, async () => {
           logShareBootOutcome(log, await built.services.share.resumeAfterOwnerClaim());
         });
       },
@@ -630,12 +622,12 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
 
     // After the bind: the relay forwards to the listener, so it starts only once there is one to reach.
     if (env.SHARE_RELAY !== undefined) {
-      superviseDetached(`share-boot:${randomUUID()}`, "share.startAtBoot", { relay: env.SHARE_RELAY }, async () => {
+      superviseDetached(`share-boot:${seams.newOpaqueId()}`, "share.startAtBoot", { relay: env.SHARE_RELAY }, async () => {
         logShareBootOutcome(log, await built.services.share.startAtBoot());
       });
     }
     // After the bind too: the https listener forwards to the app listener, so a stored certificate serves only once it is up.
-    superviseDetached(`ip-certificate-boot:${randomUUID()}`, "share.resumeIpCertificate", {}, async () => {
+    superviseDetached(`ip-certificate-boot:${seams.newOpaqueId()}`, "share.resumeIpCertificate", {}, async () => {
       logCertificateBootOutcome(log, await built.services.share.resumeIpCertificate());
     });
 
@@ -648,7 +640,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // principal to resolve tasks as and simply keeps the lazy path until someone logs in.
     if (bootOwner !== undefined) {
       const principal = bootOwner;
-      superviseDetached(`local-light-prefetch:${randomUUID()}`, "local-light.prefetch.plan", { enabled: env.LOCAL_LIGHT_PREFETCH }, async () => {
+      superviseDetached(`local-light-prefetch:${seams.newOpaqueId()}`, "local-light.prefetch.plan", { enabled: env.LOCAL_LIGHT_PREFETCH }, async () => {
         const targets = await planLocalLightPrefetch({
           resolve: built.runtime.resolve,
           principals: [principal],

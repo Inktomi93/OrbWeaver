@@ -34,12 +34,11 @@
 // per-lane loop stays sequential BY DESIGN (see the poll-loop comment); lanes are EXECUTION, the single-active
 // unique indexes are ADMISSION, and the two never interact.
 
-import { randomUUID } from "node:crypto";
 import type { WorkloadLane } from "@orb/contracts/workloads";
 import { WORKLOAD_LANES } from "@orb/contracts/workloads";
 import type { WorkloadId } from "@orb/kit/ids";
 import type { WorkloadReapReason, WorkloadRunnableRow } from "#domain/workloads";
-import { getLog, superviseDetached } from "#foundation/observability";
+import { getLog } from "#foundation/observability";
 import type { WorkloadsWorkerDeps } from "./contract/workloads-worker.ts";
 
 export type { WorkloadsWorkerDeps } from "./contract/workloads-worker.ts";
@@ -156,11 +155,8 @@ export async function startWorkloadsWorker(deps: WorkloadsWorkerDeps): Promise<v
     // are swallowed inside reapOnce; nothing here can kill the poll loops. This worker IS alive here, so a row
     // it finds stale genuinely stopped bumping its lease.
     clearReap = deps.scheduleInterval(() => {
-      (deps.supervise ?? superviseDetached)(
-        `workload-reap:${String(deps.runnerDeps.now())}:${randomUUID()}`,
-        "workloads.reap",
-        { reason: "heartbeat_stale" },
-        () => reapOnce(deps, "heartbeat_stale"),
+      deps.supervise(`workload-reap:${String(deps.runnerDeps.now())}:${deps.newOpaqueId()}`, "workloads.reap", { reason: "heartbeat_stale" }, () =>
+        reapOnce(deps, "heartbeat_stale"),
       );
     }, reapMs);
 

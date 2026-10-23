@@ -24,6 +24,8 @@ export interface BundleImportDeps {
   readonly registry: PortabilityRegistry;
   readonly ownerId: UserId;
   readonly archive: Uint8Array | ReadableStream<Uint8Array>;
+  /** The staging extractor the root wires from `infra/storage` (it writes the staging tree to disk). */
+  readonly extractArchive: (archive: BundleImportDeps["archive"], options?: ExtractOptions) => Promise<StagedArchive>;
   readonly extractOptions?: ExtractOptions;
   readonly signal?: AbortSignal;
 }

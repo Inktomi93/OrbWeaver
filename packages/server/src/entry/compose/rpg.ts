@@ -11,8 +11,8 @@
 // resolveRpgParticipants/postNarratorMessage) flow the OTHER way, off `chatCompose.rpgChatOps` — chat learns nothing
 // rpg-shaped, rpg learns no chat tables (§2 one-directional flow, both directions principal-free).
 
-import { randomInt } from "node:crypto";
-import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
+import type { IdSource } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import type { ScheduleOp } from "@orb/kit/time";
 import { can } from "#domain/admin";
 import { isCharacterHandleConflict } from "#domain/character";
@@ -52,8 +52,9 @@ import { minter } from "./minter.ts";
  *  classifier, wired here off character's front door) plus the ops only `RpgContext` itself consumes. */
 export interface RpgComposeDeps extends Omit<RpgRoundsDeps, "rpgChatOps" | "isHandleConflict"> {
   readonly emitRpgEvent: RpgContext["emitBus"];
-  readonly scheduleTimeout?: ScheduleOp | undefined;
-  readonly randomInt?: RpgContext["randomInt"] | undefined;
+  readonly idSource: IdSource;
+  readonly scheduleTimeout: ScheduleOp;
+  readonly randomInt: RpgContext["randomInt"];
   readonly now: () => number;
   /** chat's rpg-facing ops (getMembership/postNarratorMessage/setRpgPointer/resolveRpgParticipants) — off chat's
    *  compose result (chat composes first). rpg closes over these; chat learns nothing rpg-shaped. */
@@ -88,8 +89,8 @@ function createRpgRestorePost(post: PostNarratorMessage): RpgPostNarratorMessage
 }
 
 export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
-  const idSource = deps.idSource ?? createIdSource();
-  const rounds: RpgRoundsDeps = { ...deps, idSource, isHandleConflict: isCharacterHandleConflict };
+  const { idSource } = deps;
+  const rounds: RpgRoundsDeps = { ...deps, isHandleConflict: isCharacterHandleConflict };
   const lifetime = new AsyncDisposableStack();
   // biome-ignore lint/nursery/useDisposables: the returned RPG graph owns writes shared by its service, tools and chat hooks.
   const handWrites = lifetime.use(createRpgHandWrites());
@@ -148,7 +149,7 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
     resolveCardCorpus: deps.rpgChatOps.resolveCardCorpus,
     runPopulateExtraction: buildRunPopulateExtraction(rounds),
     // The dice CSPRNG (bake-once, server-authoritative — a client seed is never honored, §4.4).
-    randomInt: deps.randomInt ?? ((max) => randomInt(max)),
+    randomInt: deps.randomInt,
     // The bus emit, the flush observability hooks and the flush barrier.
     ...observers,
   };

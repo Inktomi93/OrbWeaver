@@ -57,6 +57,10 @@ export const adminUserViewSchema = z.strictObject({
  *  server gate keys on it. `SameSite=Lax` + this header is the whole CSRF story. */
 export const CSRF_HEADER = "x-orb-csrf";
 
+/** The cleartext local-password floor. The hashing boundary, the env's initial password and the admin verbs
+ *  all enforce this one value. */
+export const MIN_PASSWORD_LENGTH = 8;
+
 // The SSO mechanism selector; `foundation/env` and `infra/auth`'s `MODE_RESOLVERS` derive from this tuple.
 export const AUTH_MODES = ["single-user", "local", "forward-header", "oidc"] as const;
 export type AuthMode = (typeof AUTH_MODES)[number];

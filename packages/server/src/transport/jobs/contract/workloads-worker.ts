@@ -22,7 +22,9 @@ type SubscribeWakeOp = (listener: () => void) => () => void;
 
 /** The DI bundle the worker driver closes over — every cross-feature/engine/timer dep injected at entry/. */
 export interface WorkloadsWorkerDeps {
-  readonly supervise?: typeof Supervise;
+  readonly supervise: typeof Supervise;
+  /** The root's opaque nonce; it keeps each supervised reap tick name unique. */
+  readonly newOpaqueId: () => string;
   readonly track?: BackgroundWork["track"];
   /** The per-dispatch runner deps (db + the cross-feature `env` hub + the per-owner binder + the injected
    *  clock + the lease cadences). Built at entry/compose; the worker threads it straight into `run`. */

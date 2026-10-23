@@ -14,7 +14,7 @@ import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { buildCardEmbedText, DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
 import { createHostPrincipalResolver } from "@orb/server/entry/auth";
-import { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
+import { createProcessSeams, createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const output = join(root, "packages/default-content/embeddings.json");
@@ -25,6 +25,7 @@ const db = await createDb(pathToFileURL(join(scratch, "seed.sqlite")).href);
 await runMigrations(db, join(root, "packages/db/src/migrations"));
 await db.insert(settings).values({ key: "app", value: { corpusAutoindex: false, schemaVersion: APP_SETTINGS_SCHEMA_VERSION }, updatedAt: Date.now() });
 const built = await createServices({
+  ...createProcessSeams(),
   db: databaseHandle(db),
   now: Date.now,
   ownerId: undefined,

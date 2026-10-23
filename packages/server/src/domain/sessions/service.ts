@@ -9,7 +9,7 @@ import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { IdSource, UserId } from "@orb/kit/ids";
 import { createSessionsContext } from "./context.ts";
 import type { SessionsRolePolicy } from "./contract/role-policy.ts";
-import type { SessionsService } from "./contract/service.ts";
+import type { SessionsCryptoOps, SessionsService } from "./contract/service.ts";
 import { selectOwnerUserId } from "./persistence/users.ts";
 import { createAuthenticate } from "./verbs/authenticate.ts";
 import { createCreate } from "./verbs/create.ts";
@@ -32,8 +32,10 @@ interface SessionsServiceDeps {
   readonly rolePolicy: SessionsRolePolicy;
   db: DatabaseHandle;
   now: () => number;
-  readonly idSource?: IdSource;
+  readonly idSource: IdSource;
   sessionSecret: string | null;
+  /** The password hasher and cipher constructors the root wires from `infra/`. */
+  readonly crypto: SessionsCryptoOps;
   /** #2481 — the injected per-user local-light seed (`SessionsContext.seedUserConnections`). Required on
    *  purpose: a composition root that forgets it mints accounts with no vector floor, silently, which is the
    *  defect this closes. Build it with `createLocalLightUserSeed` at `entry/boot/seed-local-light.ts`. */

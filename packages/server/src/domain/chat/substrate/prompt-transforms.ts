@@ -21,7 +21,7 @@ import { DEADLINE_ABORT_REASON, PROMPT_TRANSFORM_ABORT_REASON_MAX } from "@orb/c
 import type { ChatId } from "@orb/kit/ids";
 import type { ScheduleOp } from "@orb/kit/time";
 import { getLog } from "#foundation/observability";
-import { systemTimers } from "#infra/timers";
+
 import type { PromptTransformRegistry } from "../contract/context.ts";
 
 /** The per-call deadline FLOOR each transform apply is bounded by (a LEAN — the plugin bridge is async by
@@ -101,13 +101,13 @@ async function applyBounded(
   }
 }
 
-/** Build the per-deploy PromptTransform registrar. `emit` is the chat bus (the skip warning); `deadlineMs`
- *  is a LIVE getter (read per apply so an admin retune of AppSettings.promptTransformDeadlineMs applies without
- *  a restart) — injectable so a deadline test runs fast + deterministic (defaults to the floor const). */
+/** Build the per-deploy PromptTransform registrar on the root's scoped `scheduleTimeout`. `emit` is the chat bus
+ *  (the skip warning); `deadlineMs` is a LIVE getter (read per apply so an admin retune of
+ *  AppSettings.promptTransformDeadlineMs applies without a restart) — defaults to the floor const. */
 export function createPromptTransformRegistry(
   emit: (event: DurableChatBusEvent) => Promise<void>,
+  scheduleTimeout: ScheduleOp,
   deadlineMs: () => number = () => PROMPT_TRANSFORM_DEADLINE_MS,
-  scheduleTimeout: ScheduleOp = systemTimers.timeout,
 ): PromptTransformRegistry {
   const byId = new Map<string, PromptTransform>();
 

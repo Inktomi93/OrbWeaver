@@ -7,8 +7,8 @@ import type { ResolvedIdentity } from "@orb/contracts/identity";
 import { awaitableStatementToken, statementToken } from "@orb/db/wiring-owner";
 import { admitsHandle } from "@orb/kit/handle-key";
 import type { ExternalId } from "@orb/kit/ids";
-import { createIdSource } from "@orb/kit/ids";
-import { OIDC_PENDING_JOIN_TTL_MS } from "#infra/auth";
+
+import { OIDC_PENDING_JOIN_TTL_MS } from "../contract/policy.ts";
 import type { PendingSignupPlan, ProvisionDecision, ProvisionInsert } from "../contract/results.ts";
 import type { SessionsContext, SessionsService } from "../contract/service.ts";
 import { sealedIdTokenOfPending, selectLivePendingSignup, takePendingSignupStatement, upsertPendingSignup } from "../persistence/pending-signups.ts";
@@ -106,7 +106,7 @@ export function createPendingSignup(ctx: SessionsContext): PendingSignupVerbs {
       return null;
     }
     const sealed = sealedIdTokenOfPending(row);
-    const userId = (ctx.idSource ?? createIdSource()).userId();
+    const userId = ctx.idSource.userId();
     return {
       inviteTokenHash: row.inviteTokenHash,
       userId,

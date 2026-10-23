@@ -269,7 +269,7 @@ export interface PluginUiOutbox {
 
 /** The injected-op bundle every plugin verb closes over, assembled at the composition root. */
 export interface PluginContext {
-  readonly scheduleTimeout?: ScheduleOp | undefined;
+  readonly scheduleTimeout: ScheduleOp;
   readonly db: Db;
   readonly now: () => number;
   readonly newPluginId: () => PluginId;

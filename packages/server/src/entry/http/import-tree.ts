@@ -17,7 +17,6 @@
 // declared native batch that is not wholly native — the declaration routes, it never authorizes) → owner-scoped
 // start. Every rejection is typed; a rejected path or a cap breach fails the WHOLE upload (no partial staging).
 
-import { randomUUID } from "node:crypto";
 import { constants as fsConstants } from "node:fs";
 import { mkdir, open, rm } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
@@ -74,6 +73,8 @@ export interface ImportTreeDeps {
   /** The portability registry — its entity-dir names are the native directory set layout admission reads. */
   readonly registry: PortabilityRegistry;
   readonly stagingDir?: string;
+  /** The root's opaque nonce; it keeps each staged tree's directory unique. */
+  readonly newOpaqueId: () => string;
 }
 
 /** One accepted multipart part: its browser-supplied relative path + the bytes. */
@@ -276,7 +277,7 @@ function readLayoutDeclaration(form: FormData): TreeLayoutDeclaration | null {
  *  cleans up its OWN partial dir on a staging failure so the caller only owns cleanup after this returns. */
 async function stageUpload(
   nativeDirs: ReadonlySet<string>,
-  stagingRoot: string,
+  staging: { readonly root: string; readonly newOpaqueId: () => string },
   parts: readonly UploadPart[],
   fields: { readonly choices: PersonaCollisionChoices; readonly declared: TreeLayoutDeclaration | null },
 ): Promise<{ readonly stagedRoot: string; readonly input: StartWorkloadInput }> {
@@ -290,9 +291,9 @@ async function stageUpload(
     const found = layout.found.join(", ") || "nothing";
     throw new TreeRejected(BAD_REQUEST, `unrecognized library layout (found: ${found})`);
   }
-  await mkdir(stagingRoot, { recursive: true, mode: OWNER_ONLY_DIR });
-  const token = `import-tree-${randomUUID()}`;
-  const stagedRoot = join(stagingRoot, token);
+  await mkdir(staging.root, { recursive: true, mode: OWNER_ONLY_DIR });
+  const token = `import-tree-${staging.newOpaqueId()}`;
+  const stagedRoot = join(staging.root, token);
   await mkdir(stagedRoot, { recursive: true });
   try {
     await stageTree(stagedRoot, parts, wrapper, layout.stagePrefix);
@@ -332,7 +333,8 @@ export function registerImportTree(app: Hono<PrincipalEnv>, deps: ImportTreeDeps
     try {
       const form = await c.req.formData();
       const parts = await collectParts(form);
-      const { stagedRoot, input } = await stageUpload(nativeDirs, stagedOwnerRoot(deps.stagingDir ?? DEFAULT_IMPORT_STAGING_DIR, principal.userId), parts, {
+      const staging = { root: stagedOwnerRoot(deps.stagingDir ?? DEFAULT_IMPORT_STAGING_DIR, principal.userId), newOpaqueId: deps.newOpaqueId };
+      const { stagedRoot, input } = await stageUpload(nativeDirs, staging, parts, {
         choices: readCollisionChoices(form),
         declared: readLayoutDeclaration(form),
       });

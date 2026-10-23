@@ -67,8 +67,8 @@ export interface AssetsCharacterComposeDeps {
   readonly evictFieldIndex: FieldIndexCache["evict"];
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
 
-  readonly fetchImpl?: MaterializeBackgroundDeps["fetchImpl"];
-  readonly idSource?: IdSource;
+  readonly fetchImpl: MaterializeBackgroundDeps["fetchImpl"];
+  readonly idSource: IdSource;
   readonly db: DatabaseHandle;
   readonly now: () => number;
   readonly cas: Cas;
@@ -160,7 +160,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
   // public-internet SSRF firewall (ANY_HOST, unconditional public-address pin) — this is a user-pasted URL; the
   // image magic-belt + the effective per-image byte cap bound the download (side-eye F-P0-2).
   const materializeBackgroundOp = createMaterializeBackground({
-    ...(deps.fetchImpl === undefined ? {} : { fetchImpl: deps.fetchImpl }),
+    fetchImpl: deps.fetchImpl,
     storeBackground: createBackgroundStore({ store: (params) => assets.store(params), maxBytes: () => deps.maxImageBytes() }),
     maxBytes: () => deps.maxImageBytes(),
   });

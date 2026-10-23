@@ -17,7 +17,7 @@ import {
   oidcRedirectAllowlist,
 } from "#infra/auth";
 import { createBackgroundWork } from "#infra/tasks";
-import { systemTimers } from "#infra/timers";
+
 import { startOidcGcScheduler } from "#transport/jobs";
 import type { ServicesDeps, ServicesResult } from "../compose/services.ts";
 import type { OidcRoutesDeps } from "./index.ts";
@@ -26,7 +26,7 @@ type ConfiguredOidcDeps = Pick<ServicesDeps, "db" | "now"> & {
   readonly built: Pick<ServicesResult, "sessions" | "signupInvites" | "seedUserConnections" | "egress">;
   readonly settings?: OidcSettings;
   readonly ownerClaim?: OwnerClaimCode;
-  readonly scheduleInterval?: TimerScheduler["interval"];
+  readonly scheduleInterval: TimerScheduler["interval"];
 };
 
 /** Construct the production OIDC route capabilities; discovery stays lazy, single-flight and retryable. */
@@ -48,9 +48,7 @@ export async function createConfiguredOidc(deps: ConfiguredOidcDeps): Promise<Oi
   // biome-ignore lint/nursery/useDisposables: construction.move transfers GC to the returned async owner; local disposal would stop it before route use.
   const gc = construction.use(createBackgroundWork());
   const getConfig = createOidcConfigCache(() => discovery(issuerUrl, clientId, settings.OIDC_CLIENT_SECRET, undefined, { [customFetch]: fetchIssuer }));
-  construction.defer(
-    startOidcGcScheduler({ sweep: store.deleteExpired, now: deps.now, scheduleInterval: deps.scheduleInterval ?? systemTimers.interval, track: gc.track }),
-  );
+  construction.defer(startOidcGcScheduler({ sweep: store.deleteExpired, now: deps.now, scheduleInterval: deps.scheduleInterval, track: gc.track }));
   const lifetime = construction.move();
   return {
     rolePolicy: deps.built.sessions.rolePolicy,

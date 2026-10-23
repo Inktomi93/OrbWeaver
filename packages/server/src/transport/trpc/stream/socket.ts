@@ -39,7 +39,6 @@
 // narrowing). `Last-Event-ID` on connect is deliberately IGNORED — one SSE stream has one resume id and this
 // socket carries N independent cursors; the resume truth is the per-room cursor in the cell.
 
-import { randomUUID } from "node:crypto";
 import type { Principal } from "@orb/contracts/identity";
 import type { StreamErrorCode, StreamFrame, StreamRoomRef } from "@orb/contracts/stream";
 import { roomKey, STREAM_ERROR_CODES } from "@orb/contracts/stream";
@@ -201,7 +200,7 @@ export async function* runSocket(args: RunSocketArgs): AsyncGenerator<TrackedEnv
     pumps.set(key, control);
     queue.pushControl({ channel: "control", type: "attached", ref });
     const completion = superviseSettled(
-      `stream-room:${socketId}:${key}:${randomUUID()}`,
+      `stream-room:${socketId}:${key}:${registry.newOpaqueId()}`,
       "stream.room.pump",
       { channel: ref.channel, userId: principal.userId },
       () => pumpRoom(ref, cursor, control),

@@ -1,5 +1,5 @@
 import type { Handle, UserId } from "@orb/kit/ids";
-import { castId, createIdSource } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { SessionsContext, SessionsService } from "../contract/service.ts";
 import { insertUser, selectIdByHandle } from "../persistence/users.ts";
@@ -26,7 +26,7 @@ export function createEnsureUser(ctx: SessionsContext): Pick<SessionsService, "e
     if (existing !== undefined) {
       return existing;
     }
-    const id = (ctx.idSource ?? createIdSource()).userId();
+    const id = ctx.idSource.userId();
     const now = ctx.now();
     const role = ctx.rolePolicy.determineRole(handle, []);
     await insertUser(ctx.db, {

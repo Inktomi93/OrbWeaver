@@ -10,7 +10,7 @@ import type { EmbedGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { ScheduleOp } from "@orb/kit/time";
 import type { SQL } from "drizzle-orm";
 import { and, eq } from "drizzle-orm";
-import { systemTimers } from "#infra/timers";
+
 import { connectionFingerprint, generationIdOf, vectorSpaceFingerprint } from "#primitives/embedding-generation";
 import { EmbedFailedError, SpaceMismatchError } from "../contract/errors.ts";
 import type { GenerationReceipt, GenerationTask } from "../contract/generation.ts";
@@ -69,12 +69,7 @@ export async function landProvenTarget(
 const WIDTH_PROBE_TEXT = "width check";
 
 /** Prove the new space's width within the runtime's route-specific bound before publishing or purging a generation. */
-export async function probeWidth(
-  connection: EmbeddingConnectionSnapshot,
-  via: GenerationTask,
-  dims: number,
-  scheduleTimeout: ScheduleOp = systemTimers.timeout,
-): Promise<void> {
+export async function probeWidth(connection: EmbeddingConnectionSnapshot, via: GenerationTask, dims: number, scheduleTimeout: ScheduleOp): Promise<void> {
   const bound = new AbortController();
   const cancelTimer = scheduleTimeout(() => bound.abort(), connection.execution.widthProbeTimeoutMs);
   const opts = { signal: bound.signal };

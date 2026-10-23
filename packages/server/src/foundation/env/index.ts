@@ -11,7 +11,7 @@ import { resolve } from "node:path";
 import process from "node:process";
 import { parseEnv } from "node:util";
 import type { AUTH_MODES, AuthModeSource, InstallKind } from "@orb/contracts/identity";
-import { authModeSchema, shareRelayKindSchema } from "@orb/contracts/identity";
+import { authModeSchema, MIN_PASSWORD_LENGTH, shareRelayKindSchema } from "@orb/contracts/identity";
 import { localLightCpuPercentSchema } from "@orb/contracts/inference";
 import { LOG_LEVELS } from "@orb/contracts/settings";
 import { ALLOWED_HOSTS_KEY, parseAllowedHosts } from "@orb/kit/allowed-hosts";
@@ -51,7 +51,6 @@ export { parseTrustedPrivateRanges } from "./private-ranges.ts";
 
 const DEFAULT_PORT = 8788;
 const MIN_SESSION_SECRET_CHARS = 32;
-const MIN_PASSWORD_LENGTH = 8;
 const RATE_LIMIT_WINDOW_MS_DEFAULT = 60_000;
 const RATE_LIMIT_AI_TURN_DEFAULT = 30;
 const RATE_LIMIT_PUBLIC_IP_DEFAULT = 60;

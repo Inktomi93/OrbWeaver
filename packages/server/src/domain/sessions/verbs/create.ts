@@ -1,4 +1,4 @@
-import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import { getLog, logAudit } from "#foundation/observability";
 import type { CreateSessionParams } from "../contract/params.ts";
 import type { CreateSessionResult } from "../contract/results.ts";
@@ -20,7 +20,7 @@ const SESSION_ENTITY = "session";
 export function createCreate(ctx: SessionsContext): Pick<SessionsService, "create"> {
   async function create(params: CreateSessionParams): Promise<CreateSessionResult> {
     const token = ctx.mintToken();
-    const sessionId = (ctx.idSource ?? createIdSource()).typeId(ID_PREFIX.session);
+    const sessionId = ctx.idSource.typeId(ID_PREFIX.session);
     const now = ctx.now();
     const expiresAt = now + ctx.ttlMs;
     const idToken = params.oidcIdToken ?? "";

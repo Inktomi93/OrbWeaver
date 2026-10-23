@@ -89,13 +89,15 @@ export function createAutomationOps(deps: AutomationActionOpsDeps): AutomationOp
 /** Assemble the watcher env from the per-chat firehose + the domain-event bus. */
 export function createAutomationWatcherEnv(args: {
   readonly automation: Pick<AutomationService, "handleEvent">;
-  readonly supervise: NonNullable<AutomationWatcherEnv["supervise"]>;
+  readonly supervise: AutomationWatcherEnv["supervise"];
+  readonly newOpaqueId: AutomationWatcherEnv["newOpaqueId"];
   readonly chatEvents: Pick<LiveBuses["chat"], "subscribeAllChatEvents">;
   readonly eventBus: PubSub<DomainEvent>;
 }): AutomationWatcherEnv {
   return {
     automation: args.automation,
     supervise: args.supervise,
+    newOpaqueId: args.newOpaqueId,
     onChatEvent: (handler) => args.chatEvents.subscribeAllChatEvents((entry) => handler(entry.event)),
     onDomainEvent: (handler) => args.eventBus.subscribe(handler),
   };

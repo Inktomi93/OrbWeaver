@@ -12,7 +12,6 @@
 // echoed in the uploader's own workload row). `domain/import/substrate/staging.ts` is the one home for both
 // the derivation and the app-owned default root (never the shared OS temp dir).
 
-import { randomUUID } from "node:crypto";
 import { constants as fsConstants } from "node:fs";
 import { mkdir, open, rm } from "node:fs/promises";
 import { join } from "node:path";
@@ -38,6 +37,8 @@ const OWNER_ONLY_DIR = 0o700;
 export interface ImportBundleDeps {
   readonly workloads: Pick<WorkloadService, "start">;
   readonly stagingDir?: string;
+  /** The root's opaque nonce; it keeps each staged bundle's filename unique. */
+  readonly newOpaqueId: () => string;
 }
 
 /** Write the upload stream to `path`, aborting (returning `false`) the instant it exceeds `maxBytes`.
@@ -101,7 +102,7 @@ export function registerImportBundle(app: Hono<PrincipalEnv>, deps: ImportBundle
     // only ever resolves for the account it was staged for. 0o700: the directory is not a shared inbox.
     const stagingRoot = stagedOwnerRoot(deps.stagingDir ?? DEFAULT_IMPORT_STAGING_DIR, principal.userId);
     await mkdir(stagingRoot, { recursive: true, mode: OWNER_ONLY_DIR });
-    const token = `import-bundle-${randomUUID()}.zip`;
+    const token = `import-bundle-${deps.newOpaqueId()}.zip`;
     const stagedPath = join(stagingRoot, token);
     const staged = await stageCapped(body, stagedPath, IMPORT_MAX_TOTAL_BYTES);
     if (!staged) {

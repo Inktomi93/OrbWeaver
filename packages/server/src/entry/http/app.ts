@@ -1,7 +1,6 @@
 // Production HTTP graph shared by the process lifecycle and in-process embedders. Identity still resolves
 // once in createApp; this factory binds real session, seed, rate-limit and route owners.
 
-import { randomUUID } from "node:crypto";
 import type { Principal } from "@orb/contracts/identity";
 import type { Handle, SessionToken, UserId } from "@orb/kit/ids";
 import { ownerFallbackCredentialInput, resolveOwnerFallbackCredential } from "#foundation/env";
@@ -38,6 +37,7 @@ type HttpAppDeps = Pick<
     | "rateLimit"
     | "multiHumanCapable"
     | "supervise"
+    | "newOpaqueId"
     | "sessions"
     | "presence"
     | "sockets"
@@ -99,11 +99,12 @@ function buildLocalAuthDeps(
 /** Assemble the real HTTP edge from the production services graph and one authentication snapshot. */
 export function createHttpApp(deps: HttpAppDeps): ReturnType<typeof createApp> {
   const { built, authConfig, now, db } = deps;
-  const supervise = built.supervise;
+  const { supervise, newOpaqueId } = built;
   return createApp({
     liveBuses: built.liveBuses,
     authConfig,
     now,
+    newOpaqueId,
     db,
     ...(deps.physicalPeer === undefined ? {} : { physicalPeer: deps.physicalPeer }),
     ...(deps.importStagingDir === undefined ? {} : { importStagingDir: deps.importStagingDir }),
@@ -142,13 +143,13 @@ export function createHttpApp(deps: HttpAppDeps): ReturnType<typeof createApp> {
     shareState: deps.shareState,
     seedUserCharacters: (principal: Principal): void => {
       // Cards dress through scene plates, so their seed follows the background seed in pack order.
-      supervise(`seed-user:${principal.userId}:content:${randomUUID()}`, "seed.user.content", { userId: principal.userId }, () =>
+      supervise(`seed-user:${principal.userId}:content:${newOpaqueId()}`, "seed.user.content", { userId: principal.userId }, () =>
         built.backgroundSeeder.ensureSeeded(principal).then((): Promise<void> => built.contentSeeder.ensureSeeded(principal)),
       );
-      supervise(`seed-user:${principal.userId}:example-plugin:${randomUUID()}`, "seed.user.example-plugin", { userId: principal.userId }, () =>
+      supervise(`seed-user:${principal.userId}:example-plugin:${newOpaqueId()}`, "seed.user.example-plugin", { userId: principal.userId }, () =>
         built.examplePluginSeeder.ensureSeeded(principal),
       );
-      supervise(`seed-user:${principal.userId}:distributed-plugins:${randomUUID()}`, "seed.user.distributed-plugins", { userId: principal.userId }, () =>
+      supervise(`seed-user:${principal.userId}:distributed-plugins:${newOpaqueId()}`, "seed.user.distributed-plugins", { userId: principal.userId }, () =>
         built.distributedPluginApplier.ensureApplied(principal),
       );
     },

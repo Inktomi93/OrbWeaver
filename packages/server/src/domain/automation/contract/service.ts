@@ -213,7 +213,9 @@ export interface AutomationService {
 /** The injected event sources + the service front door the watcher subsystem consumes (assembled at
  *  entry/compose — the buddy-observer / agents-scheduler env precedent). */
 export interface AutomationWatcherEnv {
-  readonly supervise?: typeof superviseDetached;
+  readonly supervise: typeof superviseDetached;
+  /** The root's opaque nonce; it keeps each supervised handler name unique. */
+  readonly newOpaqueId: () => string;
   /** The per-chat firehose subscription (the buddy/agents `subscribeAllChatEvents` seam); returns unsubscribe. */
   readonly onChatEvent: (handler: (event: ChatBusEvent) => void) => () => void;
   /** The domain-event bus subscription (wired at entry/compose/event-bus.ts, D38); returns unsubscribe. */

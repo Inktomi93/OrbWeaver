@@ -106,7 +106,7 @@ export type ListImageAssetIds = (ownerId?: UserId | null) => Promise<readonly As
 
 /** The DI bundle the embeddings verbs close over (assembled at `entry/`, surfaced via `context.ts`). */
 export interface EmbeddingsContext {
-  readonly scheduleTimeout?: ScheduleOp | undefined;
+  readonly scheduleTimeout: ScheduleOp;
   readonly precomputedEmbedding?:
     | ((
         hash: string,

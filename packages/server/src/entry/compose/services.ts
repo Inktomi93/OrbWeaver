@@ -10,9 +10,9 @@
 // Neither path falls back to the box owner. `roleClientsFor` is the one
 // binder every seam receives; it reads the funder's real `Principal` off `users.role` (D135 clause G).
 //
-// Determinism: `now` is an injected param (compose never calls Date.now()); id minters are built from
-// mintTypeId/newId. Compose order: guards → sessions → settings → runtime → credentials → connection →
-// assets-character → search-discovery → admin → imagery → databank → chat → world-info → automation/plugin →
+// Determinism: `now` and the process seams (timers, PRNGs, id source, nonce) are required deps; compose never
+// reads the ambient process, and every id minter binds `deps.idSource`. Compose order: guards → sessions →
+// settings → runtime → credentials → connection → assets-character → search-discovery → admin → imagery → databank → chat → world-info → automation/plugin →
 // portability/runner. settings' effective-config cache is warmed before the runtime (it publishes the F12
 // private-endpoint allowlist and sources the agent-sdk fan-out cap).
 //
@@ -40,7 +40,6 @@
 // `embedReindex` (bound once workloads exists), `resolveViewerVisibility` (getter threaded into imagery
 // before chat composes; the real const into automation after).
 
-import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
@@ -53,7 +52,7 @@ import type { BindingActor, InferenceDeps, InferenceRuntime, RoleClientsWithSign
 import { availableClaudeExecutable, createInferenceRuntime } from "@orb/inference";
 import { createBinding } from "@orb/kit/binding";
 import type { ChatId, IdSource, UserId } from "@orb/kit/ids";
-import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import type { PubSub } from "@orb/kit/pubsub";
 import type { TimerScheduler } from "@orb/kit/time";
 import { packShowcaseBundle, readShowcaseManifest } from "@orb/showcase-plugins";
@@ -196,6 +195,7 @@ import { buildRpg } from "./rpg.ts";
 import type { SearchDiscoveryComposeResult } from "./search-discovery.ts";
 import { buildSearchDiscovery } from "./search-discovery.ts";
 import { buildServiceJobs } from "./service-jobs.ts";
+import { SESSIONS_CRYPTO } from "./sessions-crypto.ts";
 import { createUpstreamProbes } from "./update-check.ts";
 import { buildWorkloadContributions } from "./workload-contributions.ts";
 import { buildWorldInfo } from "./world-info.ts";
@@ -222,14 +222,16 @@ type InferenceSeams = Partial<Pick<InferenceDeps, "agentSdk" | "localLight" | "c
 export interface ServicesDeps {
   readonly pluginExecution?: AutomationPluginComposeDeps["pluginExecution"];
   readonly networkExecution?: Omit<ScopedEgressOptions, "timers">;
-  readonly timers?: TimerScheduler;
+  /** The process seams are required so a forgotten one fails to compile instead of reaching the real process;
+   *  `createProcessSeams` (`./process-seams.ts`) is their one real source. */
+  readonly timers: TimerScheduler;
   readonly userRuntimeDir?: string;
   readonly authConfig?: Pick<AuthConfig, "mode">;
   readonly rolePolicy?: SessionsRolePolicy;
-  readonly random?: (() => number) | undefined;
-  readonly randomInt?: RpgContext["randomInt"] | undefined;
-  readonly idSource?: IdSource;
-  readonly newOpaqueId?: () => string;
+  readonly random: () => number;
+  readonly randomInt: RpgContext["randomInt"];
+  readonly idSource: IdSource;
+  readonly newOpaqueId: () => string;
   readonly db: DatabaseHandle;
   readonly now: () => number;
   /** The boot-time owner id. `undefined` in OIDC mode when no owner row exists yet (the first
@@ -329,6 +331,8 @@ export interface ServicesResult extends AsyncDisposable {
   readonly multiHumanCapable: ReturnType<typeof createMultiHumanCapability>;
   readonly settleBackground: BackgroundWork["settle"];
   readonly supervise: BackgroundWork["supervise"];
+  /** The root's opaque nonce, for the supervised work the HTTP app starts on this graph. */
+  readonly newOpaqueId: () => string;
   /** The automation service (D46) — surfaced top-level so A5's watcher/dispatch subsystem subscribes to the
    *  buses through it (`createAutomationWatcherEnv` reads this handle). Also on the transport `Services` bundle
    *  (the `automation` router — the §A8 rule/budget/fire lifecycle surface). */
@@ -506,14 +510,14 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     now,
     authConfig = { mode: env.AUTH_MODE },
     rolePolicy = createSessionsRolePolicy(env),
-    idSource = createIdSource(),
-    newOpaqueId = randomUUID,
+    idSource,
+    newOpaqueId,
     userRuntimeDir = env.USER_RUNTIME_DIR,
     importReportsDir = env.DATA_LAYOUT.reports,
   } = deps;
   const authMode = authConfig.mode;
   const presence = createPresenceRegistry(now);
-  const sockets = createSocketRegistry(now);
+  const sockets = createSocketRegistry(now, newOpaqueId);
 
   const audit = createAuditWiring(db, idSource).log;
   const newUserId = (): UserId => idSource.userId();
@@ -539,6 +543,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     db,
     now,
     idSource,
+    crypto: SESSIONS_CRYPTO,
     sessionSecret: deps.sessionSecret,
     seedUserConnections,
     rolePolicy,
@@ -656,7 +661,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     scheduleTimeoutUnref: timers.timeoutUnref,
     log: getLog(),
     span: inferenceSpanOf(deps),
-    superviseDetached: (name, attrs, operation) => background.supervise(`inference:${randomUUID()}`, name, attrs, operation),
+    superviseDetached: (name, attrs, operation) => background.supervise(`inference:${newOpaqueId()}`, name, attrs, operation),
     addSpanEvent,
     securityEvent: (kind, fields) => securityEvent(kind, { ...fields }),
     env: {
@@ -996,7 +1001,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // inside the plugin plane because chat composes FIRST and both sides need the same object: chat reads it per
   // turn (`ChatContext.pluginMacros`), the plugin plane writes it at activation. Minting it at the shared root
   // is what keeps this out of the late-bind shape the S4 confirmed-act runner had to take.
-  const pluginMacros = createPluginMacroRegistry(undefined, timers.timeout);
+  const pluginMacros = createPluginMacroRegistry(timers.timeout);
   const chatCompose = buildChatService({
     publishChatChanged: liveBuses.user.publishChatChanged,
     publishNotification: liveBuses.notifications.publishNotification,
@@ -1469,6 +1474,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       eventBus,
       chatEvents: liveBuses.chat,
       supervise: background.supervise,
+      newOpaqueId,
     }),
   ).stop;
   liveBuses.chatOpen.setChatOpenTap((chatId) => {
@@ -1486,6 +1492,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     services,
     ownerId: deps.ownerId ?? null,
     timers,
+    newOpaqueId,
     progress: workloadEvents,
     track: background.track,
     supervise: background.supervise,
@@ -1502,6 +1509,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     [Symbol.asyncDispose]: () => lifetime.disposeAsync(),
     settleBackground: background.settle,
     supervise: background.supervise,
+    newOpaqueId,
     services,
     rateLimit,
     multiHumanCapable,

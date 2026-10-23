@@ -83,7 +83,7 @@ type ResolveImageUrlOp = (params: {
 type StoreInlineReplyImageOp = (ownerId: UserId, image: GeneratedImage) => Promise<{ readonly assetId: AssetId } | null>;
 
 export interface EngineContext extends Pick<ChatAccountingContext, "db" | "now" | "applyStatsDelta" | "resolveRetainedChatAccountingScope"> {
-  readonly timers?: TimerScheduler;
+  readonly timers: TimerScheduler;
   readonly backgroundSignal?: AbortSignal;
   readonly trackBackground?: (settled: Promise<void>, chatId: ChatId) => void;
   /** The wire-capture outcome recorder; compose wires it only when wire capture is on. */

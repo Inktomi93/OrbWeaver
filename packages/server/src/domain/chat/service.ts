@@ -97,7 +97,7 @@ export function createChatService(
       resolveImageUrl: ctx.resolveImageUrl,
       storeInlineReplyImage: ctx.storeInlineReplyImage,
       promptTransforms: ctx.promptTransforms,
-      ...(ctx.timers === undefined ? {} : { timers: ctx.timers }),
+      timers: ctx.timers,
       ...(ctx.backgroundSignal === undefined ? {} : { backgroundSignal: ctx.backgroundSignal }),
       ...(ctx.trackBackground === undefined ? {} : { trackBackground: ctx.trackBackground }),
       ...(ctx.recordTurnOutcome === undefined ? {} : { recordTurnOutcome: ctx.recordTurnOutcome }),

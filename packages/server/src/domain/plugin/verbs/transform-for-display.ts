@@ -25,7 +25,7 @@
 import { DEADLINE_ABORT_REASON } from "@orb/contracts/chat";
 import type { PluginDisplayTransformRegistration } from "@orb/contracts/plugin";
 import type { ScheduleOp } from "@orb/kit/time";
-import { systemTimers } from "#infra/timers";
+
 import type { TransformForDisplayParams } from "../contract/params.ts";
 import type { PluginContext, PluginRegistry, PluginService } from "../contract/service.ts";
 import { listOwned } from "../persistence/plugins.ts";
@@ -106,7 +106,7 @@ export function createTransformForDisplay(ctx: PluginContext, registry: PluginRe
         return current;
       }
       const argsJson = JSON.stringify({ text: current, env: { chatId, messageId } });
-      const next = await applyBounded(step.invoke, step.transform, argsJson, ctx.scheduleTimeout ?? systemTimers.timeout);
+      const next = await applyBounded(step.invoke, step.transform, argsJson, ctx.scheduleTimeout);
       if ("skip" in next && next.skip === "deadline") {
         logPluginFailure(step.slug, "display-deadline", `display transform '${step.transform.name}' exceeded ${PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS}ms`);
         return foldFrom(index + 1, current);

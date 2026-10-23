@@ -21,7 +21,7 @@ import type { SessionSocketEviction } from "../http/index.ts";
 export interface AdminComposeDeps {
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
 
-  readonly idSource?: IdSource;
+  readonly idSource: IdSource;
   readonly db: DatabaseHandle;
   readonly now: () => number;
   readonly newUserId: () => UserId;

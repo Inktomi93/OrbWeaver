@@ -10,9 +10,10 @@
 // has no zod dep (package.json); the floors mirror the server verb's guards (invalid_handle /
 // weak_password) as teaching, with the verb remaining the enforcement floor.
 
+import { MIN_PASSWORD_LENGTH } from "@orb/contracts/identity";
 import { createSavedEntityForm } from "#forms/editor";
 import type { CreateUserFormValues } from "../lib/admin-model.ts";
-import { ADMIN_MIN_PASSWORD_LENGTH, CREATE_USER_DEFAULTS } from "../lib/admin-model.ts";
+import { CREATE_USER_DEFAULTS } from "../lib/admin-model.ts";
 
 export const useCreateUserForm = createSavedEntityForm<CreateUserFormValues>({
   defaultValues: CREATE_USER_DEFAULTS,
@@ -23,8 +24,8 @@ export const useCreateUserForm = createSavedEntityForm<CreateUserFormValues>({
         if (value.handle.trim().length === 0) {
           fields["handle"] = "A handle is required.";
         }
-        if (value.password.length < ADMIN_MIN_PASSWORD_LENGTH) {
-          fields["password"] = `At least ${ADMIN_MIN_PASSWORD_LENGTH} characters.`;
+        if (value.password.length < MIN_PASSWORD_LENGTH) {
+          fields["password"] = `At least ${MIN_PASSWORD_LENGTH} characters.`;
         }
         return Object.keys(fields).length > 0 ? { fields } : undefined;
       },

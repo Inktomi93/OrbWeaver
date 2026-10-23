@@ -7,7 +7,7 @@ import type { Db } from "@orb/db";
 import type { AwaitableStatementToken, StatementToken } from "@orb/db/wiring";
 import type { ExternalId, Handle, IdSource, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
-import type { Sealed } from "#infra/crypto";
+import type { Sealed, SecretBox } from "#infra/crypto";
 import type { CreateSessionParams, ProvisionIdentityOptions } from "./params.ts";
 import type {
   CreateSessionResult,
@@ -21,12 +21,26 @@ import type {
 } from "./results.ts";
 import type { SessionsRolePolicy } from "./role-policy.ts";
 
+/** The peppered password verifier the root's hasher supplies. `dummyHash` is a well-formed hash in the
+ *  hasher's own format that no password matches, so a missing row still burns the KDF time. */
+export interface SessionsPasswordVerifier {
+  readonly verify: (plain: string, stored: string | null | undefined) => Promise<boolean>;
+  readonly dummyHash: string;
+}
+
+/** The crypto adapter constructors the composition root injects. Sessions decides which key each purpose
+ *  gets (`tokens/`); the adapters own the algorithms, so the domain never constructs one itself. */
+export interface SessionsCryptoOps {
+  readonly createPasswordHasher: (pepper: string | null) => SessionsPasswordVerifier;
+  readonly createSecretBox: (key: Buffer | null) => SecretBox;
+}
+
 /** The DI bundle every verb closes over, wired at the composition root. */
 export interface SessionsContext {
   readonly rolePolicy: SessionsRolePolicy;
   db: Db;
   now: () => number;
-  readonly idSource?: IdSource;
+  readonly idSource: IdSource;
   /** Mint a fresh opaque session token (256 bits of CSPRNG entropy). Rides the DI seam exactly like
    *  {@link SessionsContext.hashToken}, so `verbs/create` never reaches the `tokens/` subsystem directly
    *  (`domain-substrate-mediates-subsystems`) and a test can substitute a deterministic mint without a cast. */
@@ -40,7 +54,9 @@ export interface SessionsContext {
   slideThrottleMs: number;
   /** Password verify, bound from the same `SESSION_SECRET` pepper as `hashToken`. Constant-time against a
    *  stored hash; a null/malformed stored value is a fast `false`. */
-  verifyPassword: (plain: string, stored: string | null | undefined) => Promise<boolean>;
+  verifyPassword: SessionsPasswordVerifier["verify"];
+  /** The login constant-time floor's stand-in for a missing or SSO-only row's hash. */
+  dummyPasswordHash: string;
   /** #141 — seal the OIDC `id_token` for at-rest storage on ITS OWN session row. The `sessionId` is the
    *  GCM AAD, not a lookup key: sealing against row A and storing on row B produces a blob that can never
    *  be opened. Key = HKDF over the same `SESSION_SECRET`, bound at `context.ts` (the one AAD site). */

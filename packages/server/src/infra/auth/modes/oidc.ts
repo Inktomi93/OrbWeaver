@@ -8,9 +8,6 @@ import type { RequestTransport, ResolvedIdentity } from "@orb/contracts/identity
 import type { SessionCookie } from "../contract.ts";
 import { AUTH_COOKIE_ATTRS, resolveCookieSession } from "./cookie-session.ts";
 
-/** How long a minted OIDC transaction stays consumable. The binding cookie's Max-Age is this same window. */
-export const OIDC_TRANSACTION_TTL_MS = 600_000;
-
 // THE BINDING COOKIE closes login CSRF. State, PKCE and nonce all live server-side, so none of them ties a
 // callback to the browser that started the flow: an attacker who stops their own login at the callback URL
 // can hand it to a victim, who then lands signed into the attacker's account. The authorize route writes the
@@ -41,9 +38,6 @@ export const OIDC_BINDING_COOKIES: readonly SessionCookie[] = [OIDC_BINDING_COOK
 // THE PENDING-JOIN COOKIE (D259) carries the fresh secret that names a signed-out visitor's frozen identity
 // between the callback and the confirm. It is never the `state`. `SameSite=Strict` is enough and is what we
 // want: the confirm and the preview are same-origin fetches, and a cross-site request must never carry it.
-
-/** How long a pending join stays confirmable. The cookie's Max-Age is this same window. */
-export const OIDC_PENDING_JOIN_TTL_MS = 600_000;
 
 const PENDING_JOIN_COOKIE_BY_TRANSPORT = {
   https: { name: "__Host-orb_join_pending", attrs: "Path=/; HttpOnly; Secure; SameSite=Strict" },

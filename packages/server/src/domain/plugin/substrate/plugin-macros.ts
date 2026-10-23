@@ -32,7 +32,7 @@ import type { ChatId, UserId } from "@orb/kit/ids";
 import type { UserMacroDef } from "@orb/kit/macro";
 import { neutralizeMacros } from "@orb/kit/macro";
 import type { ScheduleOp } from "@orb/kit/time";
-import { systemTimers } from "#infra/timers";
+
 import type { PluginInvokeHandler, PluginMacroRegistry, PluginRegistrationHandle } from "../contract/ops.ts";
 import { logPluginFailure } from "./failure-log.ts";
 
@@ -114,12 +114,10 @@ async function resolveOne(macro: RegisteredMacro, chat: InvocationChat | null, d
   }
 }
 
-/** Build the process-wide plugin-macro registry. `deadlineMs` is a getter (read per resolution) and injectable
- *  so a deadline test runs fast + deterministic — the `createPromptTransformRegistry` seam, same reason. */
-export function createPluginMacroRegistry(
-  deadlineMs: () => number = () => PLUGIN_MACRO_RESOLVE_DEADLINE_MS,
-  scheduleTimeout: ScheduleOp = systemTimers.timeout,
-): PluginMacroRegistry {
+/** Build the process-wide plugin-macro registry on the root's scoped `scheduleTimeout`. `deadlineMs` is a getter
+ *  (read per resolution) and injectable so a deadline test runs fast + deterministic — the
+ *  `createPromptTransformRegistry` seam, same reason. */
+export function createPluginMacroRegistry(scheduleTimeout: ScheduleOp, deadlineMs: () => number = () => PLUGIN_MACRO_RESOLVE_DEADLINE_MS): PluginMacroRegistry {
   /** installer → slug → that plugin's registered macros. Two levels because the READ is per-installer and the
    *  WRITE/UNREGISTER is per-plugin; one flat map would make either the linear scan. */
   const byInstaller = new Map<UserId, Map<string, readonly RegisteredMacro[]>>();

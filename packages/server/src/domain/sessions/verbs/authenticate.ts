@@ -1,6 +1,6 @@
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { DUMMY_PASSWORD_HASH } from "#infra/auth";
+
 import type { SessionsContext, SessionsService } from "../contract/service.ts";
 import { selectAuthByHandle } from "../persistence/users.ts";
 
@@ -14,7 +14,7 @@ export function createAuthenticate(ctx: SessionsContext): Pick<SessionsService, 
     const handle = castId<Handle>(rawHandle.trim());
     const row = await selectAuthByHandle(ctx.db, handle);
     // Constant-time floor: always run the KDF, even for a missing/SSO-only row, against the dummy hash.
-    const ok = await ctx.verifyPassword(password, row?.passwordHash ?? DUMMY_PASSWORD_HASH);
+    const ok = await ctx.verifyPassword(password, row?.passwordHash ?? ctx.dummyPasswordHash);
     if (!ok || row === undefined || !row.enabled) {
       return null;
     }

@@ -41,7 +41,7 @@ export interface DatabankComposeDeps {
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
 
   readonly fetchWebDocument?: typeof fetchWebDocument;
-  readonly idSource?: IdSource;
+  readonly idSource: IdSource;
   readonly db: DatabaseHandle;
   readonly now: () => number;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;

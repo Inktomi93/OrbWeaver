@@ -3,7 +3,7 @@ import type { SessionToken } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { MS_PER_MINUTE } from "@orb/kit/time";
 import type { SecretBox } from "#infra/crypto";
-import { createSecretBox } from "#infra/crypto";
+import type { SessionsCryptoOps } from "../contract/service.ts";
 
 // domain/sessions/tokens — token-crypto + timing subsystem. Pure crypto + constants, no db. The pepper
 // (SESSION_SECRET) is injected, not read here, so entry/ threads the bound hashToken through SessionsContext.
@@ -66,6 +66,8 @@ export function createTokenHasher(pepper: string | null | undefined): (token: st
  * SAME `SESSION_SECRET` the token hasher peppers with (owner ruling 2026-08-30: reuse the existing secret,
  * mint no new one) under this subsystem's own purpose label.
  *
+ * The cipher is the injected `createSecretBox` (`infra/crypto`, wired at the root); this subsystem only derives its key.
+ *
  * DISABLED WHEN THE PEPPER IS ABSENT, exactly like {@link createTokenHasher}: `createSecretBox(null)`
  * throws at CALL time, never at boot. That arm is unreachable in production — an unset `SESSION_SECRET`
  * already makes `hashToken` throw before any session row can be written, so there is no state where a
@@ -75,7 +77,7 @@ export function createTokenHasher(pepper: string | null | undefined): (token: st
  * The AAD is NOT derived here: the caller binds it (`context.ts` supplies the session ROW id on both
  * seal and open, one site each) the way `domain/credentials` supplies `${userId}|${provider}`.
  */
-export function createIdTokenBox(pepper: string | null | undefined): SecretBox {
+export function createIdTokenBox(pepper: string | null | undefined, createSecretBox: SessionsCryptoOps["createSecretBox"]): SecretBox {
   if (pepper === null || pepper === undefined || pepper.length === 0) {
     return createSecretBox(null);
   }

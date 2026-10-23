@@ -46,7 +46,7 @@ import { createVisibleRoomsReader } from "./visible-rooms.ts";
 export interface RegexComposeDeps {
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
 
-  readonly idSource?: IdSource;
+  readonly idSource: IdSource;
   readonly db: DatabaseHandle;
   readonly now: () => number;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;

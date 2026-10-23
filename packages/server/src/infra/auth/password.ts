@@ -16,6 +16,7 @@
 
 import type { ScryptOptions } from "node:crypto";
 import { createHmac, randomBytes, scrypt as scryptCb, timingSafeEqual } from "node:crypto";
+import { MIN_PASSWORD_LENGTH } from "@orb/contracts/identity";
 import type { PasswordHasher } from "./contract.ts";
 
 const ALGO = "scrypt";
@@ -35,14 +36,12 @@ const SCRYPT_OPTIONS: ScryptOptions = {
   p: SCRYPT_P,
   maxmem: SCRYPT_MAXMEM_BYTES,
 };
-// The cleartext floor enforced at the hashing boundary (mirrors env `LOCAL_INITIAL_PASSWORD.min(8)`).
-export const MIN_PASSWORD_LENGTH = 8;
 const STORED_PARTS = 3;
 
-/** A well-formed all-zero dummy hash for the login CONSTANT-TIME floor: an unknown handle / SSO-only
- *  (null hash) row verifies against THIS so scrypt still runs, defeating the username-enumeration timing
- *  oracle. All-zero bytes can never match a real (peppered+salted) password — it just burns KDF time. */
-export const DUMMY_PASSWORD_HASH = `${ALGO}$${Buffer.alloc(SALT_BYTES).toString("base64")}$${Buffer.alloc(KEY_LEN).toString("base64")}`;
+// A well-formed all-zero dummy hash for the login CONSTANT-TIME floor: an unknown handle / SSO-only (null hash)
+// row verifies against THIS so scrypt still runs, defeating the username-enumeration timing oracle. All-zero
+// bytes can never match a real (peppered+salted) password — it just burns KDF time.
+const DUMMY_PASSWORD_HASH = `${ALGO}$${Buffer.alloc(SALT_BYTES).toString("base64")}$${Buffer.alloc(KEY_LEN).toString("base64")}`;
 
 // promisify(scryptCb) loses the ScryptOptions overload — wrap manually so callers can pin cost.
 function scrypt(password: Buffer, salt: Buffer, keylen: number, options: ScryptOptions): Promise<Buffer> {
@@ -67,6 +66,7 @@ export function createPasswordHasher(pepperSecret: string | null | undefined): P
 
   return {
     enabled: secret !== null,
+    dummyHash: DUMMY_PASSWORD_HASH,
     async hash(plain: string): Promise<string> {
       const normalized = plain.normalize();
       if (normalized.length < MIN_PASSWORD_LENGTH) {
