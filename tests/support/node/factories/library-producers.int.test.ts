@@ -2,7 +2,6 @@
 // @subject tests/support/node/factories/preset.ts
 // @subject tests/support/node/factories/roster-preset.ts
 // @subject tests/support/node/factories/tag.ts
-import "../composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { personaDetailSchema } from "@orb/contracts/persona";
 import { parsePresetFile, presetDetailSchema, presetImportOutcomeSchema } from "@orb/contracts/preset";

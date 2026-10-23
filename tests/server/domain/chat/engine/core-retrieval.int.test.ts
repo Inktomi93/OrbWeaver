@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // Real stored digests and a genuinely unbound reranker exercise scope and per-turn degradation episodes.
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { chatDigests, chatEvents, closeDb } from "@orb/db";
 import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/chat/composed.ts";

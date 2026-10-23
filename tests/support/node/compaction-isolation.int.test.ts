@@ -1,4 +1,3 @@
-import "./composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { StartChatResult } from "@orb/contracts/chat";
 import { declaredCapabilitySchema } from "@orb/contracts/inference";

@@ -3,7 +3,6 @@
 // @subject packages/server/src/domain/assets/verbs/collect-garbage.ts
 // @subject packages/server/src/domain/assets/persistence/asset-refs.ts
 
-import "@orb/testkit/node/composed-real.ts";
 import { mkdtemp, rm, utimes } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

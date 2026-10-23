@@ -2,7 +2,6 @@
 // @subject packages/server/src/domain/admin/verbs/embed.ts
 // @subject packages/server/src/entry/compose/admin.ts
 
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { auditLogs, characterEmbeddings, embeddingCalls } from "@orb/db";
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";

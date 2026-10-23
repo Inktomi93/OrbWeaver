@@ -9,13 +9,13 @@
 // @subject packages/server/src/domain/chat/memory/generate/segments.ts
 // @subject packages/server/src/domain/chat/substrate/backfill.ts
 // @subject packages/server/src/domain/chat/workload-contributions.ts
-import { databaseHandle } from "@orb/db/wiring-driver";
-import "@orb/testkit/node/composed-real.ts";
+
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import { CADENCE_INTERVAL_MS, WORKLOAD_UNFUNDED } from "@orb/contracts/workloads";
 import { characterSummaries, characters, chatDigests, chatSegments, closeDb, embeddingCalls, embedGenerations, users } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { tickWorkloadSchedules } from "@orb/server/domain/workloads";

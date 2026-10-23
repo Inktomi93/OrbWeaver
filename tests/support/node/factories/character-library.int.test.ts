@@ -3,7 +3,6 @@
 // @subject packages/server/src/domain/character/verbs/get-snapshot.ts
 // @subject packages/server/src/domain/character/verbs/list-snapshots.ts
 // @subject packages/server/src/domain/character/verbs/list.ts
-import "../composed-real.ts";
 import { createCharacterSchema, listCharactersResultSchema, snapshotRefSchema, snapshotSummarySchema, snapshotViewSchema } from "@orb/contracts/character";
 import { characterSnapshots } from "@orb/db";
 import { eq } from "drizzle-orm";

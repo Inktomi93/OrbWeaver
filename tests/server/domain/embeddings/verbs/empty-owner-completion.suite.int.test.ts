@@ -4,7 +4,6 @@
 // @subject packages/server/src/domain/chat/persistence/backfill-scope.ts
 // @subject packages/server/src/domain/embeddings/persistence/space-state.ts
 // @subject packages/server/src/domain/search/persistence/active-space.ts
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { DEFAULT_MEMORY_DEFAULTS } from "@orb/contracts/settings";
 import {

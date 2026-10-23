@@ -1,7 +1,6 @@
 // @subject packages/server/src/domain/workloads/persistence/queries.ts
 // @subject packages/server/src/domain/workloads/engine/runner.ts
 // @subject packages/server/src/domain/workloads/engine/reaper.ts
-import "@orb/testkit/node/composed-real.ts";
 import type { Principal } from "@orb/contracts/identity";
 import { workloads } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";

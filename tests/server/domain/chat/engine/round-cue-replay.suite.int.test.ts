@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/engine/round.ts
 // Signed thinking and cue replay are observed on the actual Anthropic converter, not a prepared-turn double.
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { TurnOutcome } from "@orb/contracts/chat";
 import { builtinProvider, SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";

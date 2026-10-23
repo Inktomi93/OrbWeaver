@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // Restore keeps recorded economics; fresh continuations cannot claim replay hits for disabled cache requests.
-import "@orb/testkit/node/composed-real.ts";
 import { builtinProvider } from "@orb/contracts/inference";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { messageVariants } from "@orb/db";

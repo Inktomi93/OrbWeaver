@@ -1,5 +1,4 @@
 // @subject packages/server/src/domain/roster-preset/persistence/queries.ts
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { createRosterPresetSchema } from "@orb/contracts/roster-preset";
 import { rosterPresets } from "@orb/db";

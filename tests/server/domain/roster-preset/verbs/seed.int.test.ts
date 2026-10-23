@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/roster-preset/verbs/seed.ts
 
-import "@orb/testkit/node/composed-real.ts";
 import { SEED_MANIFEST } from "@orb/default-content";
 import { createFindSeedCharacter } from "@orb/server/domain/character";
 import { createRosterSeedStep, createSeedRosterPreset } from "@orb/server/domain/roster-preset";

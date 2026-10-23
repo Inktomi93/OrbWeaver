@@ -1,4 +1,3 @@
-import "@orb/testkit/node/composed-real.ts";
 import { authConfigSchema } from "@orb/contracts/auth-config";
 import { authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";

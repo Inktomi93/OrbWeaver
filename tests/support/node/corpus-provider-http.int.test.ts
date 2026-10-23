@@ -1,5 +1,4 @@
 // @subject tests/support/node/corpus-provider.ts
-import "./composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { characterEmbeddings, characters, embeddingCalls } from "@orb/db";
 import {

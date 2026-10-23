@@ -1,5 +1,4 @@
 // @subject packages/server/src/domain/chat/persistence/canon-write.ts
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { messageVariants } from "@orb/db";
 import type { MessageVariantId } from "@orb/kit/ids";

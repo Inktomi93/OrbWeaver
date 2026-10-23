@@ -1,7 +1,6 @@
 // @subject tests/support/node/factories/world-info.ts
 // @subject tests/support/node/factories/world-info-view.ts
 // @subject tests/support/node/corpus-library-views.ts
-import "../composed-real.ts";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
 import { isPlainObject } from "@orb/kit/guards";

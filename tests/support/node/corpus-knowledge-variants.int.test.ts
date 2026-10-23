@@ -1,7 +1,6 @@
 // @subject tests/support/node/corpus-knowledge-variants.ts
 // @subject tests/support/node/corpus-knowledge-images.ts
 // @subject tests/support/node/corpus-knowledge-wire.ts
-import "@orb/testkit/node/composed-real.ts";
 import { assertReferentialIntegrity } from "@orb/db";
 import {
   CORPUS_EMBED_MODEL,

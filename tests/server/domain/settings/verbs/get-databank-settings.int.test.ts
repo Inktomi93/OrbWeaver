@@ -1,6 +1,5 @@
 // @subject packages/server/src/entry/compose/databank.ts
 // @subject packages/server/src/domain/assets/verbs/asset-embedding-reads.ts
-import "@orb/testkit/node/composed-real.ts";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { createAssetEmbeddingReads } from "@orb/server/domain/assets";
 import { createGetDatabankSettings } from "@orb/server/domain/settings";

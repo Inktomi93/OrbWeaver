@@ -1,4 +1,3 @@
-import "@orb/testkit/node/composed-real.ts";
 import type { IncomingMessage } from "node:http";
 import { request as nodeRequest } from "node:http";
 import type { AddressInfo } from "node:net";

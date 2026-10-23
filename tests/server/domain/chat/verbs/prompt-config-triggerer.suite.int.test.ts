@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // Public stamps and native prompt voices replace private resolver-argument observations.
-import "@orb/testkit/node/composed-real.ts";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import type { PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";

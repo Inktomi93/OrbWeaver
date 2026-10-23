@@ -1,6 +1,5 @@
 // @subject tests/support/node/corpus-plugin-host.ts
 // @subject tests/support/node/factories/plugin.ts
-import "@orb/testkit/node/composed-real.ts";
 import { spawn } from "node:child_process";
 import { triggerFactSchema } from "@orb/contracts/automation";
 import { assets, characters, documents, imageryGenerations } from "@orb/db";

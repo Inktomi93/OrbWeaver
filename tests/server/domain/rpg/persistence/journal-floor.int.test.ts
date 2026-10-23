@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/rpg/persistence/journal.ts
 // @subject packages/server/src/domain/rpg/verbs/read/list-journal.ts
-import "@orb/testkit/node/composed-real.ts";
 import { messages, rpgJournal } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-owner";
 import { DomainNotFoundError } from "@orb/kit/errors";

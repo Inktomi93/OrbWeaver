@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/persistence/canon-write.ts
 // Real signed tool snapshots and a held native write distinguish stale restoration from a valid restore.
-import "@orb/testkit/node/composed-real.ts";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import { chatEvents, chatParticipants, messageVariants, statsCanonVersions } from "@orb/db";
 import { ChatNotFoundError, ChatOperationError } from "@orb/server/domain/chat";

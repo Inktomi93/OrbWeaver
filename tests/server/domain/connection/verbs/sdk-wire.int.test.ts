@@ -1,7 +1,6 @@
 // @subject packages/inference/src/backends/agent-sdk/wire-read.ts
 // @subject packages/inference/src/backends/agent-sdk/runner.ts
 // @subject packages/inference/src/backends/agent-sdk/catalog.ts
-import "@orb/testkit/node/composed-real.ts";
 import type { ChatDeltaEvent } from "@orb/contracts/chat";
 import { declaredCapabilitySchema } from "@orb/contracts/inference";
 import { settings } from "@orb/db";

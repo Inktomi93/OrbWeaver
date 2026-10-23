@@ -1,5 +1,4 @@
 // @subject tests/support/node/corpus-plugin-source.ts
-import "@orb/testkit/node/composed-real.ts";
 import { pluginManifestSchema } from "@orb/contracts/plugin";
 import { pluginGitPreviewSchema, pluginUpdateCheckSchema, pluginUrlPreviewSchema } from "@orb/server/domain/plugin";
 import { SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";

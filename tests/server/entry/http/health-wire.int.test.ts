@@ -1,5 +1,4 @@
 // @subject packages/server/src/entry/http/healthz.ts
-import "@orb/testkit/node/composed-real.ts";
 import { HEALTH_STATUSES, healthResponseSchema } from "@orb/contracts/diagnostics";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";

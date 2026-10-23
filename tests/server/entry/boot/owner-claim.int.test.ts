@@ -1,6 +1,5 @@
 // The oidc boot step hands the owner claim URL to the operator, judged on the owner row the real sessions service reads.
 // @subject packages/server/src/entry/boot/owner-claim.ts
-import "@orb/testkit/node/composed-real.ts";
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";

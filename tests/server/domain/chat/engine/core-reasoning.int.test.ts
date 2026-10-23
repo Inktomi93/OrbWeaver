@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // Real native SDK final thinking and live deltas exercise both sides of the persisted-reasoning rule.
-import "@orb/testkit/node/composed-real.ts";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { messages, messageVariants } from "@orb/db";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

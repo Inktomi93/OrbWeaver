@@ -2,11 +2,11 @@
 // @subject packages/server/src/domain/workloads/verbs/estimate-model-calls.ts
 // @subject packages/server/src/domain/discovery/persistence/embed-store-reads.ts
 // @subject packages/server/src/domain/discovery/persistence/card-reads.ts
-import { databaseHandle } from "@orb/db/wiring-driver";
-import "@orb/testkit/node/composed-real.ts";
+
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import { characterEmbeddings, characterSummaries, characters, embedGenerations, themeClusters, users, workloads } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { runWorkload } from "@orb/server/domain/workloads";

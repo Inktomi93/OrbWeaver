@@ -1,7 +1,6 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // @subject packages/server/src/domain/chat/verbs/compaction.ts
 // Native executable receipts distinguish app-owned markers from foreground dispatch through the real root.
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { parseVariantMetadata } from "@orb/contracts/chat";
 import type { UserIntent } from "@orb/contracts/preset";

@@ -1,4 +1,4 @@
-// Removes the per-file `composed-real` warm import once the integration project's `setupFiles` owns the warm.
+// Removes the per-file `composed-real` warm import from integration files; the integration project's `setupFiles` owns the warm.
 import type { Codemod, Edit, GetSelector } from "codemod:ast-grep";
 import type TS from "codemod:ast-grep/langs/typescript";
 

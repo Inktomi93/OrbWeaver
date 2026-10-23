@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // Accepted public turns must close their slot when a real lease or target disappears before start.
-import "@orb/testkit/node/composed-real.ts";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { chatLocks, closeDb, messages } from "@orb/db";
 import { CHAT_OP_CODES, ChatNotFoundError } from "@orb/server/domain/chat";

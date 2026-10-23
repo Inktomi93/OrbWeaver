@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/plugin/substrate/consent-prompt.ts
 // @subject packages/server/src/domain/rpg/snapshot-edit.ts
-import "@orb/testkit/node/composed-real.ts";
 import { setTimeout as physicalDeadline } from "node:timers/promises";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { closeDb } from "@orb/db";

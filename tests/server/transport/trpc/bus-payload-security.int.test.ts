@@ -1,5 +1,4 @@
 // Real producers own encryption and closed storage; no fixture-side emitter or notification assembly.
-import "@orb/testkit/node/composed-real.ts";
 import { notifications, userCredentials } from "@orb/db";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";

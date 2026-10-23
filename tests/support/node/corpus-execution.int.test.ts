@@ -1,6 +1,5 @@
 // @subject tests/support/node/corpus-workloads.ts
 // @subject tests/support/node/server.ts
-import "./composed-real.ts";
 import { setTimeout as physicalDelay, setImmediate as physicalTurn } from "node:timers/promises";
 import { closeDb } from "@orb/db";
 import { vi } from "vitest";

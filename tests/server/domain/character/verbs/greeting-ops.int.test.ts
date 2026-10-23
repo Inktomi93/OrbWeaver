@@ -1,7 +1,6 @@
 // @subject packages/server/src/domain/character/verbs/greeting-ops.ts
 // @subject packages/server/src/domain/preset/verbs/optional-config.ts
 
-import "@orb/testkit/node/composed-real.ts";
 import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { connectionBindings, userConnections } from "@orb/db";

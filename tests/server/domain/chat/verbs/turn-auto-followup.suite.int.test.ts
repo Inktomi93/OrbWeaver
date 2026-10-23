@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // Native finish reasons and saved settings distinguish in-place continuation, reroll precedence and bounded spend.
-import "@orb/testkit/node/composed-real.ts";
 import type { UserSettings } from "@orb/contracts/settings";
 import { messages, messageVariants } from "@orb/db";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

@@ -2,7 +2,6 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // @subject packages/server/src/domain/chat/memory/generate/turn.ts
 // @subject packages/server/src/domain/chat/memory/recall/recall.ts
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import { chatDigests, chatSegments, messages, messageVariants } from "@orb/db";

@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // Saved host and room posture must reach the actual native model input, including the explicit-off override.
-import "@orb/testkit/node/composed-real.ts";
 import { PROSE_SLOTS } from "@orb/contracts/prose";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";

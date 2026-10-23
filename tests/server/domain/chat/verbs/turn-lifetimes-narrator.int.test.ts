@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // @subject packages/contracts/src/chat/metadata.ts
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";

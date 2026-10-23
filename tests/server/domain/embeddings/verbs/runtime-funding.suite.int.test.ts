@@ -2,7 +2,6 @@
 // @subject packages/inference/src/roles/role-clients.ts
 // @subject packages/server/src/domain/embeddings/verbs/runtime-connection.ts
 
-import "@orb/testkit/node/composed-real.ts";
 import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import type { Task } from "@orb/contracts/inference";
 import { bindingTaskOf, TASKS, taskDef } from "@orb/contracts/inference";

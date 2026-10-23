@@ -1,7 +1,6 @@
 // The mounted rule birth is idempotent on its request id: a response lost after the real handler committed is
 // recovered by the retry, never minted twice. The caller is the box owner's own loopback session.
 // @subject packages/server/src/transport/trpc/routers/automation.ts
-import "@orb/testkit/node/composed-real.ts";
 import { once } from "node:events";
 import { createServer } from "node:http";
 import { ID_PREFIX } from "@orb/kit/ids";

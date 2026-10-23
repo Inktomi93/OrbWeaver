@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // Read outcomes through the authenticated debug door after real native execution and physical failures.
-import "@orb/testkit/node/composed-real.ts";
 import type { TurnOutcome } from "@orb/contracts/chat";
 import { chatEvents, messageVariants } from "@orb/db";
 import { ProviderError } from "@orb/inference";

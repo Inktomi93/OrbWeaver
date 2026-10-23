@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // Real card openings and public canon writers preserve the host-only volatile provenance contract.
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { TurnOutcome } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";

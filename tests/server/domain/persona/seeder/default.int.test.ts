@@ -2,7 +2,6 @@
 // @subject packages/server/src/domain/persona/verbs/find-seeded-default.ts
 // @subject packages/server/src/domain/settings/verbs/seed-policy.ts
 
-import "@orb/testkit/node/composed-real.ts";
 import { readSeedAvatar } from "@orb/default-content";
 import { createSeedAvatarOps } from "@orb/server/domain/assets";
 import { createDefaultPersonaSeeder, createFindSeededDefault } from "@orb/server/domain/persona";

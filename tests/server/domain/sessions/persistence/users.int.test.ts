@@ -2,7 +2,6 @@
 // @subject packages/server/src/domain/sessions/persistence/users.ts
 // @subject packages/server/src/domain/sessions/verbs/link-external-id.ts
 // @subject packages/server/src/domain/sessions/verbs/provision-identity.ts
-import "@orb/testkit/node/composed-real.ts";
 import { authMeSchema } from "@orb/contracts/identity";
 import { users } from "@orb/db";
 import { handleKey } from "@orb/kit/handle-key";

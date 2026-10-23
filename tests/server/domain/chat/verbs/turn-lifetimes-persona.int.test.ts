@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // @subject packages/server/src/domain/chat/verbs/participants.ts
-import "@orb/testkit/node/composed-real.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { attachPersonaLore, invitePerson, personaInputs, personaRoom, seatPersona } from "../persona-cache-physical.ts";
 

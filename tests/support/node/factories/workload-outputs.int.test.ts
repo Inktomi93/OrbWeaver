@@ -1,5 +1,4 @@
 // @subject tests/support/node/factories/workload.ts
-import "../composed-real.ts";
 import { setTimeout as physicalDelay } from "node:timers/promises";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";

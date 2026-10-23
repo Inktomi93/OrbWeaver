@@ -1,9 +1,9 @@
 // @subject packages/server/src/domain/chat/guard.ts
 // @subject packages/server/src/domain/chat/persistence/participants-read.ts
 // @subject packages/server/src/transport/trpc/role-output.ts
-import { databaseHandle } from "@orb/db/wiring-driver";
-import "@orb/testkit/node/composed-real.ts";
+
 import { chatParticipants, chats } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
 import { can } from "@orb/server/domain/admin";
 import { createResolveViewerVisibility, loadPresentRole } from "@orb/server/domain/chat";

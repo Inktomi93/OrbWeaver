@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/assembly/turn-personas.ts
 // The current-policy report observes native provider bytes; every persona and room mutation uses the real graph.
-import "@orb/testkit/node/composed-real.ts";
 import { mkdir, writeFile } from "node:fs/promises";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { GroupConfig } from "@orb/contracts/chat";

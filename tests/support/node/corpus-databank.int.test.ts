@@ -1,6 +1,5 @@
 // @subject tests/support/node/corpus-databank.ts
 // @subject tests/support/node/factories/databank.ts
-import "./composed-real.ts";
 import { documents, workloads } from "@orb/db";
 import { eq } from "drizzle-orm";
 import { seedCorpusDatabank } from "./corpus-databank.ts";

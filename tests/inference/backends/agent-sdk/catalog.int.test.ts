@@ -1,6 +1,5 @@
 // @subject packages/inference/src/backends/agent-sdk/catalog.ts
 // @subject packages/inference/src/catalog/listing.ts
-import "@orb/testkit/node/composed-real.ts";
 import { getLog } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";

@@ -4,7 +4,6 @@ import type { Principal } from "@orb/contracts/identity";
 import { assets } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 
-import "@orb/testkit/node/composed-real.ts";
 import type { ExternalId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { isAdmin, isOwner } from "@orb/server/domain/admin";

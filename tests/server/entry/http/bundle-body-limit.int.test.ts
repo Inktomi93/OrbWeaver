@@ -1,5 +1,4 @@
 // @subject packages/server/src/entry/http/import.ts
-import "@orb/testkit/node/composed-real.ts";
 import { readdir, readFile, statfs } from "node:fs/promises";
 import { join } from "node:path";
 import { importStartedSchema } from "@orb/contracts/import";

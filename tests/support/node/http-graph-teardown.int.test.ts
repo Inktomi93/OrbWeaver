@@ -1,4 +1,3 @@
-import "./composed-real.ts";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { closeDb } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";

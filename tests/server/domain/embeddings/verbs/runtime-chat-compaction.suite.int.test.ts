@@ -3,7 +3,6 @@
 // @subject packages/server/src/domain/chat/verbs/quiet-generate.ts
 // @subject packages/inference/src/roles/executor.ts
 
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { auditLogs, compactionSpend } from "@orb/db";
 import { ProviderError, toChatRequest } from "@orb/inference";

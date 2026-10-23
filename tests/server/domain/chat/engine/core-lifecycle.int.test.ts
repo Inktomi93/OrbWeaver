@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // @subject packages/server/src/domain/chat/persistence/stream-events.ts
-import "@orb/testkit/node/composed-real.ts";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import { chatStreamEvents, messages, messageVariants } from "@orb/db";

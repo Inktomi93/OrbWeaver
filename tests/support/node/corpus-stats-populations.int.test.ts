@@ -1,7 +1,6 @@
 // @subject tests/support/node/factories/stats.ts
 // @subject packages/server/src/domain/stats/persistence/latency.ts
 // @subject packages/server/src/domain/stats/persistence/messages-economics.ts
-import "./composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { parseVariantMetadata } from "@orb/contracts/chat";
 import { characterStatsViewSchema, latencyStatsSchema, modelStatRowSchema, ownerStatsViewSchema } from "@orb/contracts/stats";

@@ -1,6 +1,5 @@
 // Native logout verification is assembled by the real OIDC composition owner, not a private infra import.
 // @subject packages/server/src/infra/auth/backchannel.ts
-import "@orb/testkit/node/composed-real.ts";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import { createConfiguredOidc } from "@orb/server/entry/compose";
 import { test as base, expect } from "@orb/testkit/node/fixtures.ts";

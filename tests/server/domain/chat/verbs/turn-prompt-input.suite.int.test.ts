@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // Saved host settings and public steering must reach actual native model input, not a reconstructed turn request.
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";

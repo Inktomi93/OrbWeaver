@@ -1,6 +1,5 @@
 // @subject tests/support/node/corpus-plugin-outputs.ts
 // @subject tests/support/node/factories/plugin.ts
-import "@orb/testkit/node/composed-real.ts";
 import { spawn } from "node:child_process";
 import { PLUGIN_LOG_LEVELS, pluginCommandViewSchema, pluginUiOutcomeSchema, pluginViewSchema, snippetResultSchema } from "@orb/contracts/plugin";
 import { pluginKv } from "@orb/db";

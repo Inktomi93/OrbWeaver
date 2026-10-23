@@ -6,7 +6,6 @@
 // @subject packages/server/src/domain/chat/substrate/owned-citations.ts
 // @subject packages/server/src/domain/chat/persistence/message-asset-links.ts
 
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import { assetIdsInContent, contentSpanRaw } from "@orb/kit/content";

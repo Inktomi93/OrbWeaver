@@ -1,5 +1,4 @@
 // These row-derived callers exercise production authorization, not request authentication.
-import "@orb/testkit/node/composed-real.ts";
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import { tags } from "@orb/db";
 import { fetchOwned } from "@orb/db/query";

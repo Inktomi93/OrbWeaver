@@ -1,4 +1,3 @@
-import "@orb/testkit/node/composed-real.ts";
 import { CONTENT_CLASS_POLICY, contentSpansToBlocks } from "@orb/contracts/chat";
 import { tokenizeContent } from "@orb/kit/content";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

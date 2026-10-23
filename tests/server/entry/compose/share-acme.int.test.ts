@@ -7,7 +7,6 @@
 // @subject packages/server/src/infra/network/tls-terminator.ts
 // @subject packages/server/src/domain/share/certificate/controller.ts
 // @subject packages/server/src/domain/share/certificate/transitions.ts
-import "@orb/testkit/node/composed-real.ts";
 import { X509Certificate } from "node:crypto";
 import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { connect } from "node:net";

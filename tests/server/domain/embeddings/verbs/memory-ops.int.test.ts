@@ -1,9 +1,8 @@
 // A mixed-owner batch consults the production present-host query for every row before admitting any vector write.
 
-import { databaseHandle } from "@orb/db/wiring-driver";
-import "@orb/testkit/node/composed-real.ts";
 import type { StoreSegmentParams } from "@orb/contracts/chat";
 import { chatParticipants } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { loadPresentHostUserId } from "@orb/server/domain/chat";
 import { createMemoryEmbeddingOps } from "@orb/server/domain/embeddings";
 import { seedChat } from "@orb/testkit/node/factories/chat.ts";

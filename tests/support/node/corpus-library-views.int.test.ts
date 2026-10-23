@@ -1,7 +1,6 @@
 // @subject tests/support/node/corpus-library-views.ts
 // @subject tests/support/node/factories/embedding-generation.ts
 // @subject packages/server/src/domain/regex/verbs/attachments/apply-scope-order.ts
-import "./composed-real.ts";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { automationRuleUpdateSchema } from "@orb/contracts/automation";

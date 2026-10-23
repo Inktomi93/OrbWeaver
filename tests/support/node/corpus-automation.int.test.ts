@@ -1,6 +1,5 @@
 // @subject tests/support/node/corpus-seed.ts
 // @subject tests/support/node/factories/automation.ts
-import "@orb/testkit/node/composed-real.ts";
 import { AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR, ownerBudgetViewSchema } from "@orb/contracts/automation";
 import { assertReferentialIntegrity } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";

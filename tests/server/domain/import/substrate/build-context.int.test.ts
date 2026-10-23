@@ -1,7 +1,6 @@
 // @subject packages/server/src/domain/import/verbs/portable-imports.ts
 // @subject packages/server/src/domain/import/verbs/import-character.ts
 // The owner binders drive the genuine services and database; foreign arguments cannot replace the authenticated authority.
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { characters, characterTags, tags } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";

@@ -1,4 +1,3 @@
-import "@orb/testkit/node/composed-real.ts";
 import { spawn } from "node:child_process";
 import { access } from "node:fs/promises";
 import process from "node:process";

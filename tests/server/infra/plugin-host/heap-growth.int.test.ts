@@ -1,5 +1,4 @@
 // @subject packages/server/src/infra/plugin-host/module.ts
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { pluginCardStateKey } from "@orb/contracts/plugin";
 import { characters } from "@orb/db";

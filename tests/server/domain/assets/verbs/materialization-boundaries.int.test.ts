@@ -1,5 +1,4 @@
 // Background URLs and native inline images cross the actual production graph and per-owner CAS.
-import "@orb/testkit/node/composed-real.ts";
 import { backgroundMaterializeMessage } from "@orb/contracts/theme";
 import { assets } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";

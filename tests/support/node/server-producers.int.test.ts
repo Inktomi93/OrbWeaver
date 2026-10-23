@@ -1,4 +1,3 @@
-import "./composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { characterSnapshots, characters } from "@orb/db";
 import { eq } from "drizzle-orm";

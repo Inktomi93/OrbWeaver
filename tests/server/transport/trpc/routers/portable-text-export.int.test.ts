@@ -1,7 +1,6 @@
 // @subject packages/server/src/transport/trpc/routers/persona.ts
 // @subject packages/server/src/transport/trpc/routers/regex.ts
 // @subject packages/server/src/transport/trpc/routers/world-info.ts
-import "@orb/testkit/node/composed-real.ts";
 import { personaBackupSchema } from "@orb/contracts/persona";
 import { portableTextFileSchema } from "@orb/contracts/portability";
 import { createRegexScriptSchema, portableRegexScriptSchema } from "@orb/contracts/regex";

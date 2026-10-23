@@ -1,5 +1,4 @@
 // @subject tests/support/node/factories/principal.ts
-import "../composed-real.ts";
 import { users } from "@orb/db";
 import { isAdmin, isOwner } from "@orb/server/domain/admin";
 import { authConfigFromEnv } from "@orb/server/entry/auth";

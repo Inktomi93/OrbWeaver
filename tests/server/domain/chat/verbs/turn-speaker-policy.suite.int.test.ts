@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // Actual persisted speaker order distinguishes policy, mention, ban-last and self-response behavior.
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { GroupConfig } from "@orb/contracts/chat";
 import { messages } from "@orb/db";

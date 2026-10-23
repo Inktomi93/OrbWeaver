@@ -1,6 +1,5 @@
 // @subject packages/server/src/transport/trpc/router.ts
 // @subject packages/server/src/foundation/observability/client-error.ts
-import "@orb/testkit/node/composed-real.ts";
 import { RATE_LIMIT_CAP_MIN } from "@orb/contracts/settings";
 import { logger } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

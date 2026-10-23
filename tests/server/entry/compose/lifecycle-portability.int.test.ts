@@ -1,5 +1,4 @@
 // @subject packages/server/src/entry/compose/portability.ts
-import "@orb/testkit/node/composed-real.ts";
 import { characterCardV3Schema, createCharacterSchema } from "@orb/contracts/character";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { cardImportResultSchema } from "@orb/contracts/import";

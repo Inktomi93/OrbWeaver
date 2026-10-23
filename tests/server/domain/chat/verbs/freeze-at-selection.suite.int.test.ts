@@ -1,7 +1,6 @@
 // @subject packages/server/src/domain/chat/verbs/edit.ts
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // Actual card steps create the unfrozen alternate; public selection and first-user commit own its provenance.
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import type { LibSqlWrap } from "@orb/db";

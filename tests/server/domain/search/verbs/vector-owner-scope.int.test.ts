@@ -1,7 +1,6 @@
 // Vector retrieval derives owner scope from the producer; another user's search never returns the owner's rows.
 // @subject packages/server/src/domain/search/persistence/digest-rows.ts
 // @subject packages/server/src/domain/embeddings/persistence/queries.ts
-import "@orb/testkit/node/composed-real.ts";
 import type { CorpusSource } from "@orb/contracts/search";
 import { chatDigests, chatSegments } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";

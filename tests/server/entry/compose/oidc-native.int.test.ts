@@ -1,9 +1,8 @@
-import { databaseHandle } from "@orb/db/wiring-driver";
-import "@orb/testkit/node/composed-real.ts";
 import { access, readFile } from "node:fs/promises";
 import { pendingJoinConfirmResultSchema, signedOutInvitePreviewSchema } from "@orb/contracts/chat";
 import { authLogoutResultSchema, authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
 import { chatInvites, chatParticipants, closeDb, oidcPendingSignups, oidcTransactions, sessions, users } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 
 import { brandedId } from "@orb/kit/ids";
 import { MS_PER_HOUR } from "@orb/kit/time";

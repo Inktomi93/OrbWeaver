@@ -1,5 +1,4 @@
 // @subject tests/support/node/corpus-chat-outputs.ts
-import "@orb/testkit/node/composed-real.ts";
 import { assertReferentialIntegrity } from "@orb/db";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { CHAT_OUTPUT_BODY, CHAT_OUTPUT_CONNECTION_LABEL, CHAT_OUTPUT_SECRET, seedCorpusChatOutputs } from "./corpus-chat-outputs.ts";

@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/databank/verbs/scrape/scrape-web.ts
 // A user-supplied URL reaches the network only through the composed egress guard, never the ambient fetch.
-import "@orb/testkit/node/composed-real.ts";
 import { documents } from "@orb/db";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";

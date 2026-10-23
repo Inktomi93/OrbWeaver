@@ -1,5 +1,4 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { characters, messages } from "@orb/db";
 import { createChatRoot } from "@orb/testkit/node/chat/composed.ts";

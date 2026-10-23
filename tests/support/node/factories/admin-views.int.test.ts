@@ -1,6 +1,5 @@
 // @subject tests/support/node/factories/admin-user.ts
 // @subject tests/support/node/factories/sessions.ts
-import "../composed-real.ts";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "../fixtures.ts";

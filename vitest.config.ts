@@ -94,6 +94,10 @@ export function vitestConfig(): ViteUserConfig {
           test: {
             name: "integration",
             sequence: { groupOrder: NORMAL_GROUP_ORDER },
+            // One module registry per worker: every file reuses the server graph import, and no module may
+            // read the environment at import time (the harness supplies the seams instead).
+            isolate: false,
+            setupFiles: ["tests/support/node/composed-real.ts"],
             include: withIgnored([...exclusiveTestGlobs(({ family, resource }) => family === "integration" && resource === null), `!${TOOLING}`]),
           },
         },

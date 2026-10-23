@@ -1,4 +1,3 @@
-import "@orb/testkit/node/composed-real.ts";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { declaredCapabilitySchema } from "@orb/contracts/inference";
 import { streamConnectInputSchema } from "@orb/contracts/stream";

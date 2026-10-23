@@ -1,11 +1,10 @@
 // Sweep completion follows the actual admitted row's covered owners, including empty memory scopes.
 // @subject packages/server/src/domain/embeddings/verbs/vector-sweep-ops.ts
 
-import { databaseHandle } from "@orb/db/wiring-driver";
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { GenerationReceipt } from "@orb/contracts/embeddings";
 import { embedSpaceState } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
 import { runWorkload } from "@orb/server/domain/workloads";
 import {

@@ -1,4 +1,3 @@
-import "@orb/testkit/node/composed-real.ts";
 import { spawn } from "node:child_process";
 import { PLUGIN_MAIN_ENTRY, PLUGIN_UI_CHAT_MESSAGES_LIMIT_MAX, PLUGIN_UI_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { DomainNotFoundError } from "@orb/kit/errors";

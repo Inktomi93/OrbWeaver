@@ -1,6 +1,5 @@
 // @subject tests/support/iso/corpus.ts
 // @subject tests/support/node/corpus-seed.ts
-import "@orb/testkit/node/composed-real.ts";
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { createCharacterSchema } from "@orb/contracts/character";

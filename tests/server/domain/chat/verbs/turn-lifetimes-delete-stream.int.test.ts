@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/verbs/chat-lifecycle.ts
 // @subject packages/server/src/domain/chat/bus.ts
-import "@orb/testkit/node/composed-real.ts";
 import process from "node:process";
 import { setImmediate as physicalTurn } from "node:timers/promises";
 import type { ChatBusEvent } from "@orb/contracts/chat";

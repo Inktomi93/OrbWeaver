@@ -1,10 +1,10 @@
 // @subject packages/server/src/entry/compose/imagery.ts
-import { databaseHandle } from "@orb/db/wiring-driver";
-import "@orb/testkit/node/composed-real.ts";
+
 import { createCharacterSchema } from "@orb/contracts/character";
 import { INLINE_REPLY_ORIGIN } from "@orb/contracts/chat";
 import { DEFAULT_ATTACHMENT_QUALITY } from "@orb/contracts/inference";
 import { chatParticipants, messageAssets } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { AssetId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";

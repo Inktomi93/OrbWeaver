@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/engine/recover-narrative.ts
 // @subject packages/server/src/domain/rpg/chat-ops/flush.ts
-import "@orb/testkit/node/composed-real.ts";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { RPG_TOOL_ROUND_TOOL_NAMES } from "@orb/contracts/rpg";
 import { messages } from "@orb/db";

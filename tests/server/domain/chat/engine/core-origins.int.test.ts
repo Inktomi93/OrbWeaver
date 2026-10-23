@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // Actual automation actions produce origin stamps and world-info depth through the composed chat door.
-import "@orb/testkit/node/composed-real.ts";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
 import { messages } from "@orb/db";

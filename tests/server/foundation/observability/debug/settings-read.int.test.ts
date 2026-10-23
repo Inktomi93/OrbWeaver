@@ -1,5 +1,4 @@
 // The real operator route reads complete settings bytes through the owning domain, never an auth fallback.
-import "@orb/testkit/node/composed-real.ts";
 import { automationTriggerFor } from "@orb/contracts/automation";
 import type { Principal } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";

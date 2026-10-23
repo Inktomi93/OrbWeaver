@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/automation/substrate/run-now.ts
 // @subject packages/server/src/domain/automation/service.ts
-import "@orb/testkit/node/composed-real.ts";
 import { setImmediate as physicalTurn } from "node:timers/promises";
 import { ruleRefusalReason } from "@orb/contracts/automation";
 import type { ChatBusEvent } from "@orb/contracts/chat";

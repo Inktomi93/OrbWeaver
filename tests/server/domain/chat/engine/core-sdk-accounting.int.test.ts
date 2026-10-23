@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/persistence/generation-observation.ts
 // @subject packages/server/src/domain/chat/engine/engine.ts
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { parseVariantMetadata } from "@orb/contracts/chat";
 import { characters, chatGenerationObservations, closeDb, messages, messageVariants, ownerStats } from "@orb/db";

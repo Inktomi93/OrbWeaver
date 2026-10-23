@@ -1,4 +1,3 @@
-import "./composed-real.ts";
 import { access, mkdtemp, rm } from "node:fs/promises";
 import { request as nodeRequest } from "node:http";
 import { tmpdir } from "node:os";

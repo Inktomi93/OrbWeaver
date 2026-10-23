@@ -2,10 +2,9 @@
 // @subject packages/server/src/entry/boot/seed-user-content.ts
 // @subject packages/server/src/domain/tag/verbs/seed-tag.ts
 
-import { databaseHandle } from "@orb/db/wiring-driver";
-import "@orb/testkit/node/composed-real.ts";
 import type { Db } from "@orb/db";
 import { characterTags, tags, userSeedLedger } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { SEED_MANIFEST } from "@orb/default-content";
 import { createCharacterSeedStep, DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
 import { createSeedPersonaWithCompletion } from "@orb/server/domain/persona";

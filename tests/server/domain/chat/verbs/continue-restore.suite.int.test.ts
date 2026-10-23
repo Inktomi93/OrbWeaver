@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // A real driver fence holds stale writes and post-commit publication without replacing turn policy.
-import "@orb/testkit/node/composed-real.ts";
 import { chatEvents, closeDb, messages, messageVariants, statsCanonVersions } from "@orb/db";
 import { ChatOperationError } from "@orb/server/domain/chat";
 import type { ChatRoot } from "@orb/testkit/node/chat/composed.ts";

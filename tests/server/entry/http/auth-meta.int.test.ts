@@ -1,6 +1,5 @@
 // The public bootstrap routes over the request principal the seam resolved from a real credential.
 // @subject packages/server/src/entry/http/auth-meta.ts
-import "@orb/testkit/node/composed-real.ts";
 import process from "node:process";
 import { authConfigSchema } from "@orb/contracts/auth-config";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";

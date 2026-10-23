@@ -1,5 +1,4 @@
 // Real composed writes and transport frames prove reach authority, confirmed deletion, and failure isolation.
-import "@orb/testkit/node/composed-real.ts";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { auditLogs, chatEvents, chatRegexScripts, regexScripts } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";

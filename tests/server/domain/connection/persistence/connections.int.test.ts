@@ -3,7 +3,6 @@
 // @subject packages/inference/src/resolve/resolve-task.ts
 // @subject packages/inference/src/index.ts
 
-import "@orb/testkit/node/composed-real.ts";
 import { CONNECTION_OP_CODES, modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import { createHostPrincipalResolver } from "@orb/server/entry/auth";
 import { getLog } from "@orb/server/foundation/observability";

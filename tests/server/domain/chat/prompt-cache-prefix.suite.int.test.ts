@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // Persona changes are authored through the root; prefix identity is measured on native provider inputs.
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";

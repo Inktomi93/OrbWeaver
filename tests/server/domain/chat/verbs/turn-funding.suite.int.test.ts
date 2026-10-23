@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // Actual saved bindings and credentials cross the physical wire; neither funder nor role resolution is replaced.
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { chatGenerationObservations, messages, ownerStats } from "@orb/db";
 import { NoConnectionError } from "@orb/inference";

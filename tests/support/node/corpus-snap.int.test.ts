@@ -1,5 +1,4 @@
 // @subject tests/support/node/corpus-recipe.ts
-import "./composed-real.ts";
 import { readFile } from "node:fs/promises";
 import { contextFitAnswerSchema } from "@orb/contracts/chat";
 import { localPath } from "@orb/db";

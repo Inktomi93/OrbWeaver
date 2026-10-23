@@ -1,7 +1,6 @@
 // A host's chat-row write fans chatsChanged to every present member's channel, never only to the actor.
 // @subject packages/server/src/domain/chat/verbs/emit-chat-changed.ts
 // @subject packages/server/src/domain/chat/verbs/chat-lifecycle.ts
-import "@orb/testkit/node/composed-real.ts";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { UserId } from "@orb/kit/ids";
 import { authConfigFromEnv } from "@orb/server/entry/auth";

@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // Real card macros author deltas; SQLite and the canonical fold own commit and retry behavior.
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { chats, messages, messageVariants } from "@orb/db";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

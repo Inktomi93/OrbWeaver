@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // Hold or refuse actual durable delta writes; production still owns its drain and total publisher.
-import "@orb/testkit/node/composed-real.ts";
 import { setImmediate as physicalTurn } from "node:timers/promises";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { LogLevel } from "@orb/contracts/settings";

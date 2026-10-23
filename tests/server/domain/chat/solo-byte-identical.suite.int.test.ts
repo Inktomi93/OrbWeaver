@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/engine/round.ts
 // D16 compares physical requests; narrator identity has its one deliberate framing exception.
-import "@orb/testkit/node/composed-real.ts";
 import type { GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, narratorPolicyOf } from "@orb/contracts/chat";
 import { messages, messageVariants } from "@orb/db";

@@ -1,7 +1,6 @@
 // Rule C and Rule E over real logins: the session cookie follows the request's transport, logout reads only that
 // transport's cookie behind its CSRF gate, and a plain-http mint from the public internet logs once per client hour.
 // @subject packages/server/src/entry/http/auth-routes.ts
-import "@orb/testkit/node/composed-real.ts";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { isPlainObject } from "@orb/kit/guards";
 import type { Handle } from "@orb/kit/ids";

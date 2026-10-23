@@ -1,10 +1,10 @@
 // Signed-header verification uses the production graph's network owner, never an ambient transport.
 // @subject packages/server/src/entry/http/app.ts
 // @subject packages/server/src/infra/auth/jwks.ts
+
+import { authMeSchema } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import "@orb/testkit/node/composed-real.ts";
-import { authMeSchema } from "@orb/contracts/identity";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { CLIENT_ID, createNativeIssuer, ISSUER } from "@orb/testkit/node/oidc-issuer.ts";

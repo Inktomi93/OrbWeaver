@@ -10,7 +10,6 @@
 // Also proves the happy paths (owner round-trip; admin passes the gate) and that these callers ride the
 // REAL tRPC error mapping — the matchers see genuine ladder-thrown TRPCErrors, not ducks.
 
-import "./composed-real.ts";
 import { describe } from "vitest";
 import type { Fixtures } from "./fixtures.ts";
 import { expect, test } from "./fixtures.ts";

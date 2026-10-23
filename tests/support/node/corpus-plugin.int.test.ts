@@ -1,5 +1,4 @@
 // @subject tests/support/node/corpus-plugin.ts
-import "@orb/testkit/node/composed-real.ts";
 import { spawn } from "node:child_process";
 import { assertReferentialIntegrity, pluginKv, pluginProviderClaims } from "@orb/db";
 import { distributedPluginViewSchema, PluginNotFoundError, pluginFanoutResultSchema } from "@orb/server/domain/plugin";

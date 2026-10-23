@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // Saved capabilities and owned media cause real funnel warnings, never fabricated ChatResult events.
-import "@orb/testkit/node/composed-real.ts";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { jsonValueSchema } from "@orb/kit/json";

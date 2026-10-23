@@ -1,7 +1,6 @@
 // @subject packages/server/src/domain/chat/engine/smart-arbitrate.ts
 // @subject packages/server/src/domain/chat/engine/rerank-pick.ts
 // Native vendor inputs and committed canon prove the public Smart policy, not a substituted arbiter.
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { TurnOutcome } from "@orb/contracts/chat";
 import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";

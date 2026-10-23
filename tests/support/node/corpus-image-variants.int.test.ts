@@ -1,6 +1,5 @@
 // @subject tests/support/node/corpus-image-variants.ts
 // @subject tests/support/node/corpus-image-wire.ts
-import "@orb/testkit/node/composed-real.ts";
 import { randomBytes } from "node:crypto";
 import { assertReferentialIntegrity } from "@orb/db";
 import { authConfigFromEnv } from "@orb/server/entry/auth";

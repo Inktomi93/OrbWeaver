@@ -1,5 +1,4 @@
 // @subject packages/inference/src/backends/openai-compat/ollama-native.ts
-import "@orb/testkit/node/composed-real.ts";
 import { setImmediate } from "node:timers/promises";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import { makeGenerationCapability } from "@orb/testkit/iso/inference-capability.ts";

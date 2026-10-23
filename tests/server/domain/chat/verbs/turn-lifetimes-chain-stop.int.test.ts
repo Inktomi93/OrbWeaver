@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // @subject packages/server/src/domain/chat/engine/auto-mode.ts
-import "@orb/testkit/node/composed-real.ts";
 import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import { messages } from "@orb/db";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

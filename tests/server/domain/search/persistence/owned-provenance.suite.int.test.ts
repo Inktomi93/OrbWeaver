@@ -2,7 +2,6 @@
 // @subject packages/server/src/domain/search/persistence/cards.ts
 // @subject packages/server/src/domain/search/persistence/digest-rows.ts
 // @subject packages/server/src/domain/discovery/persistence/embed-store-reads.ts
-import "@orb/testkit/node/composed-real.ts";
 import { readFile } from "node:fs/promises";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { CorpusSource } from "@orb/contracts/search";

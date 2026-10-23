@@ -1,4 +1,3 @@
-import "@orb/testkit/node/composed-real.ts";
 import { automationTriggerFor } from "@orb/contracts/automation";
 import { closeDb } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";

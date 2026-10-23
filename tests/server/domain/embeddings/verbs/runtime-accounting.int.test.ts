@@ -1,6 +1,5 @@
 // @subject packages/inference/src/roles/executor.ts
 // @subject packages/server/src/domain/embeddings/verbs/record-usage.ts
-import "@orb/testkit/node/composed-real.ts";
 import type { LibSqlWrap } from "@orb/db";
 import { embeddingCalls } from "@orb/db";
 import { expect } from "@orb/testkit/node/fixtures.ts";

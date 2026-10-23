@@ -1,7 +1,6 @@
 // @subject packages/server/src/entry/http/upload.ts
 // @subject packages/server/src/entry/http/auth-routes.ts
 // @subject packages/server/src/entry/http/card-frame.ts
-import "@orb/testkit/node/composed-real.ts";
 import { request as nativeRequest } from "node:http";
 import { storedAssetSchema } from "@orb/contracts/assets";
 import { CARD_FRAME_ROUTE, cardFrameMintRequestSchema, cardFrameMintResponseSchema } from "@orb/contracts/chat";

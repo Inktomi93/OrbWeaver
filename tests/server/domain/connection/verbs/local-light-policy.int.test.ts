@@ -1,9 +1,8 @@
 // @subject packages/server/src/domain/connection/verbs/local-light-policy.ts
 // @subject packages/server/src/domain/sessions/persistence/users.ts
 
-import { databaseHandle } from "@orb/db/wiring-driver";
-import "@orb/testkit/node/composed-real.ts";
 import { connectionBindings, userConnections, users } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { castId } from "@orb/kit/ids";
 import { seedLocalLightOnBoot } from "@orb/server/entry/boot";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";

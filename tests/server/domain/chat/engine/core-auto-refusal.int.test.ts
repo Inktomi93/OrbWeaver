@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // A real recursive rule must retain its cascade depth when a peer lease refuses the accepted child.
-import "@orb/testkit/node/composed-real.ts";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { chatLocks, closeDb, messages, messageVariants } from "@orb/db";
 import type { HeldStatement } from "@orb/testkit/node/db.ts";

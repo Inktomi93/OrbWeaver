@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // Compare the actual live writer with a public reconcile over the same generated canon.
-import "@orb/testkit/node/composed-real.ts";
 import type { TurnOutcome } from "@orb/contracts/chat";
 import { parseVariantMetadata, VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";
 import { builtinProvider } from "@orb/contracts/inference";

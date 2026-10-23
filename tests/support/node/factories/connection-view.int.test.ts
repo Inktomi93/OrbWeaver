@@ -1,5 +1,4 @@
 // @subject tests/support/node/factories/connection-view.ts
-import "../composed-real.ts";
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";

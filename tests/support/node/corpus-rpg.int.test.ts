@@ -2,7 +2,6 @@
 // @subject tests/support/node/corpus-rpg-schedules.ts
 // @subject packages/server/src/domain/rpg/verbs/journal/edit-journal-entry.ts
 // @subject packages/server/src/domain/rpg/persistence/journal.ts
-import "@orb/testkit/node/composed-real.ts";
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import { assertReferentialIntegrity, closeDb } from "@orb/db";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

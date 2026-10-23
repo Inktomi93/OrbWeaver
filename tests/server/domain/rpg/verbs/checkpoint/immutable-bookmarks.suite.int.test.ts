@@ -3,7 +3,6 @@
 // @subject packages/server/src/domain/rpg/persistence/checkpoints.ts
 // @subject packages/server/src/domain/rpg/persistence/snapshots.ts
 // @subject packages/server/src/domain/rpg/snapshot-edit.ts
-import "@orb/testkit/node/composed-real.ts";
 import { declaredCapabilitySchema } from "@orb/contracts/inference";
 import { RPG_LITE_TOOL_NAMES, RPG_NO_CHANGES_TOOL } from "@orb/contracts/rpg";
 import { closeDb, messages, rpgCheckpoints, rpgSnapshots } from "@orb/db";

@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/service.ts
 // Physical FIFO replies and actual durable outcomes qualify the production root, not a replacement domain façade.
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { TurnOutcome } from "@orb/contracts/chat";
 import { chatEvents, messages, ownerStats } from "@orb/db";

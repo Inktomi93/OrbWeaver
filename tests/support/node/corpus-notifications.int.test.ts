@@ -1,7 +1,6 @@
 // @subject tests/support/node/corpus-notifications.ts
 // @subject packages/server/src/transport/trpc/stream/sources/notifications.ts
 // @subject packages/server/src/transport/trpc/routers/notifications.ts
-import "./composed-real.ts";
 import { spawn } from "node:child_process";
 import { AUTOMATION_NOTICE_MESSAGE_MAX, NOTIFICATION_TYPES } from "@orb/contracts/notifications";
 import { assertReferentialIntegrity } from "@orb/db";

@@ -1,7 +1,6 @@
 // The composed card-tag detach op carries the caller scope and applies it, so a foreign id reaches nothing.
 // @subject packages/server/src/domain/tag/verbs/detach-card-tag-by-name.ts
 // @subject packages/server/src/entry/compose/assets-character.ts
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { characterTags } from "@orb/db";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

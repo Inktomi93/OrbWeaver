@@ -1,5 +1,4 @@
 // @subject packages/server/src/infra/plugin-host/process-runtime.ts
-import "@orb/testkit/node/composed-real.ts";
 import { ChildProcess } from "node:child_process";
 import { once } from "node:events";
 import { PLUGIN_CONTINUATION_WINDOW_MS } from "@orb/contracts/plugin";

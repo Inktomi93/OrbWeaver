@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // @subject packages/server/src/domain/chat/assembly/assemble.ts
-import "@orb/testkit/node/composed-real.ts";
 import type { MessageView, TurnOutcome } from "@orb/contracts/chat";
 import { chats, messageVariants } from "@orb/db";
 import type { ChatRoot } from "@orb/testkit/node/chat/composed.ts";

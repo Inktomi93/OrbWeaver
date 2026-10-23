@@ -1,7 +1,6 @@
 // @subject tests/support/node/corpus-seed.ts
 // @subject tests/support/node/corpus-auth.ts
 // @subject packages/server/src/entry/auth/seam.ts
-import "./composed-real.ts";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { blobIconUrl, blobUrl } from "@orb/contracts/assets";

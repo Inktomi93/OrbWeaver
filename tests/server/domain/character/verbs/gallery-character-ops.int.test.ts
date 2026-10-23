@@ -1,9 +1,9 @@
 // @subject packages/server/src/domain/character/persistence/gallery-character.ts
 // @subject packages/server/src/domain/assets/verbs/export-gallery.ts
-import { databaseHandle } from "@orb/db/wiring-driver";
-import "@orb/testkit/node/composed-real.ts";
+
 import type { PortableFile } from "@orb/contracts/portability";
 import { galleryItems } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { createGalleryCharacterOps } from "@orb/server/domain/character";
 import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";

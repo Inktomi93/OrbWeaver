@@ -2,7 +2,6 @@
 // @subject packages/server/src/domain/imagery/verbs/image-provider-ops.ts
 // @subject packages/server/src/domain/rpg/tools/rounds/resync.ts
 
-import "@orb/testkit/node/composed-real.ts";
 import { RPG_NO_CHANGES_TOOL, RPG_STATE_CHANGES_FIELD } from "@orb/contracts/rpg";
 import { auditLogs } from "@orb/db";
 import { generationOf, ProviderError, toChatRequest } from "@orb/inference";

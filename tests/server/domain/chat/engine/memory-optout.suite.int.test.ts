@@ -1,5 +1,4 @@
 // @subject packages/server/src/domain/chat/memory/generate/turn.ts
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { characters, chatDigests } from "@orb/db";
 import type { ChatRoot } from "@orb/testkit/node/chat/composed.ts";

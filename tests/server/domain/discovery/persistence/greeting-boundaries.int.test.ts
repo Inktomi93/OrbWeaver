@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/discovery/persistence/card-reads.ts
 // @subject packages/server/src/domain/discovery/verbs/count-distill-calls.ts
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { characters } from "@orb/db";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

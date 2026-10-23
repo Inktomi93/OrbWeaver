@@ -1,7 +1,6 @@
 // @subject packages/server/src/domain/chat/verbs/edit.ts
 // @subject packages/server/src/domain/chat/persistence/canon-write.ts
 // @subject packages/server/src/domain/chat/persistence/queries.ts
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { isSeededGreetingRow } from "@orb/contracts/chat";
 import { closeDb, messages, messageVariants, ownerStats } from "@orb/db";

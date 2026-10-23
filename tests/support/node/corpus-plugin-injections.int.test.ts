@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/assembly/context.ts
 // @subject packages/server/src/domain/plugin/substrate/plugin-macros.ts
-import "@orb/testkit/node/composed-real.ts";
 import { spawn } from "node:child_process";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { CHAT_INJECTION_POSITIONS } from "@orb/contracts/chat";

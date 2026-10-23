@@ -3,7 +3,6 @@
 // @subject packages/server/src/domain/stats/persistence/messages-economics.ts
 // @subject packages/server/src/domain/chat/persistence/retained-canon.ts
 // @subject packages/server/src/domain/chat/verbs/participants.ts
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import {

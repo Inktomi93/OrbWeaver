@@ -1,5 +1,4 @@
 // @subject packages/server/src/entry/compose/chat-tools.ts
-import "@orb/testkit/node/composed-real.ts";
 import { CHAT_REACT_TOOL_NAME } from "@orb/contracts/chat";
 import { chatParticipants, chats, messageReactions } from "@orb/db";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";

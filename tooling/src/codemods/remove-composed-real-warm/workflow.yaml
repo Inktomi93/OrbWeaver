@@ -5,18 +5,11 @@ nodes:
     name: Remove the composed-real warm import
     type: automatic
     steps:
-      # One js-ast-grep step per language: a `typescript` step never visits `.tsx` files.
-      - name: TypeScript files
+      # Only the integration project carries the warm through setupFiles; a unit file that imports it keeps its import.
+      - name: Integration test files
         js-ast-grep:
           js_file: scripts/codemod.ts
           base_path: "."
           language: "typescript"
-          include: ["**/*.ts"]
-          exclude: ["**/node_modules/**", "**/codemods/*/tests*/**"]
-      - name: TSX files
-        js-ast-grep:
-          js_file: scripts/codemod.ts
-          base_path: "."
-          language: "tsx"
-          include: ["**/*.tsx"]
+          include: ["**/*.int.test.ts"]
           exclude: ["**/node_modules/**", "**/codemods/*/tests*/**"]

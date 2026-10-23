@@ -1,6 +1,5 @@
 // @subject tests/support/node/corpus-oidc.ts
 // @subject tests/support/node/factories/sessions.ts
-import "@orb/testkit/node/composed-real.ts";
 import { oidcPendingSignups, oidcTransactions, users } from "@orb/db";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { seedOidcCorpus } from "@orb/testkit/node/corpus-seed.ts";

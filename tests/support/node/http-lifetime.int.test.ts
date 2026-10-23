@@ -1,4 +1,3 @@
-import "./composed-real.ts";
 import { sql } from "drizzle-orm";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";

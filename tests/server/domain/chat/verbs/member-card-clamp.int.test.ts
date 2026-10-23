@@ -1,7 +1,6 @@
 // A present member reads a roster card through the one D22 clamp; the host reads it in full.
 // @subject packages/server/src/domain/chat/verbs/read.ts
 // @subject packages/server/src/domain/chat/substrate/auth/clamp.ts
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { UTC_TIME_ZONE } from "@orb/kit/time";

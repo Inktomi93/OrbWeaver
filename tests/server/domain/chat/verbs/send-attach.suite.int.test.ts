@@ -1,5 +1,4 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
-import "@orb/testkit/node/composed-real.ts";
 import { messageAssets, messages } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { ChatNotFoundError } from "@orb/server/domain/chat";

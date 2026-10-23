@@ -1,6 +1,5 @@
 // @subject tests/support/node/corpus-refinery.ts
 // @subject tests/support/node/factories/refinery.ts
-import "@orb/testkit/node/composed-real.ts";
 import {
   applyAsCopyResultSchema,
   applyFieldsResultSchema,

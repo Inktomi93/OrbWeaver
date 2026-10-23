@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/automation/engine/dispatch.ts
 // @subject packages/server/src/domain/automation/service.ts
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { createBookSchema } from "@orb/contracts/world-info";
 import { assets, chats, imageryGenerations, messages } from "@orb/db";

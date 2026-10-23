@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/engine/round.ts
 // A real expired lease changes owner at the physical release boundary between committed speakers.
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { chatLocks, closeDb, messages } from "@orb/db";
 import { createChatRoot } from "@orb/testkit/node/chat/composed.ts";

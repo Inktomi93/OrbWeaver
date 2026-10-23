@@ -1,6 +1,5 @@
 // @subject scripts/corpus-fixture.ts
 // @subject scripts/corpus-fixture-lifetime.ts
-import "./composed-real.ts";
 import { watch } from "node:fs";
 import { access, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";

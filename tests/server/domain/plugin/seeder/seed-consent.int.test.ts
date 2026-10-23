@@ -1,7 +1,6 @@
 // @subject packages/server/src/domain/plugin/seeder/showcase.ts
 // @subject packages/server/src/domain/plugin/seeder/distributed.ts
 
-import "@orb/testkit/node/composed-real.ts";
 import { plugins } from "@orb/db";
 import { createDistributedPluginApplier, createExamplePluginSeeder, createPluginSeedOps } from "@orb/server/domain/plugin";
 import { createSettingsComposedOps } from "@orb/server/domain/settings";

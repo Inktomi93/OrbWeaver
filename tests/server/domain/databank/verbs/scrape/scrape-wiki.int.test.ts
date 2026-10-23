@@ -1,5 +1,4 @@
 // @subject packages/server/src/domain/databank/verbs/scrape/scrape-wiki.ts
-import "@orb/testkit/node/composed-real.ts";
 import { assets, documents, workloads } from "@orb/db";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";

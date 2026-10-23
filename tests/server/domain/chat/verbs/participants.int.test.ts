@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/verbs/participants.ts
 // @subject packages/server/src/transport/trpc/role-output.ts
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { chatEvents, chatParticipants } from "@orb/db";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

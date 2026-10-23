@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/engine/round.ts
 // Cancellation enters through real active-turn ownership while only physical provider I/O is held.
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { chatLocks, messages } from "@orb/db";
 import { CHAT_OP_CODES, ChatOperationError } from "@orb/server/domain/chat";

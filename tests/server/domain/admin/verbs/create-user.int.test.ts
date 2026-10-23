@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/admin/verbs/create-user.ts
 // @subject packages/server/src/transport/trpc/role-output.ts
-import "@orb/testkit/node/composed-real.ts";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { auditLogs, userConnections, users } from "@orb/db";
 import { DomainForbiddenError } from "@orb/kit/errors";

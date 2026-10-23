@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/bus.ts
 // The production live channel preserves exact lifecycle order and the durable log preserves canon events.
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { ChatBusEvent, TurnOutcome } from "@orb/contracts/chat";
 import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";

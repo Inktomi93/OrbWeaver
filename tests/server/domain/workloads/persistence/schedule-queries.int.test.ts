@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/workloads/persistence/schedule-queries.ts
 // @subject packages/server/src/domain/workloads/engine/schedule-tick.ts
-import "@orb/testkit/node/composed-real.ts";
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import { workloadSchedules } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";

@@ -1,10 +1,10 @@
 // @subject packages/server/src/domain/plugin/persistence/plugins.ts
 // @subject packages/server/src/domain/plugin/verbs/set-enabled.ts
 // @subject packages/server/src/domain/plugin/verbs/set-grant.ts
-import { databaseHandle } from "@orb/db/wiring-driver";
-import "@orb/testkit/node/composed-real.ts";
+
 import { pluginGrantTasks, pluginViewSchema } from "@orb/contracts/plugin";
 import { plugins } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { createPluginGrantTasksOf } from "@orb/server/domain/plugin";
 import { SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";

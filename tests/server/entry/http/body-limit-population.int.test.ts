@@ -1,5 +1,4 @@
 // @subject packages/server/src/entry/http/app.ts
-import "@orb/testkit/node/composed-real.ts";
 import type { AuthMode } from "@orb/contracts/identity";
 import { AUTH_MODES } from "@orb/contracts/identity";
 import { authConfigFromEnv } from "@orb/server/entry/auth";

@@ -1,4 +1,3 @@
-import "@orb/testkit/node/composed-real.ts";
 import type { CredentialHealth } from "@orb/contracts/credentials";
 import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso/ids.ts";
 import { TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";

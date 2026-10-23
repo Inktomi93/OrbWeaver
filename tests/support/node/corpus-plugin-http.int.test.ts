@@ -1,5 +1,4 @@
 // @subject tests/support/node/corpus-plugin-http.ts
-import "@orb/testkit/node/composed-real.ts";
 import { spawn } from "node:child_process";
 import { pluginFrameMintResponseSchema } from "@orb/contracts/plugin";
 import { authConfigFromEnv } from "@orb/server/entry/auth";

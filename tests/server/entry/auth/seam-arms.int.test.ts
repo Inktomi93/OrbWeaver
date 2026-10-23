@@ -1,6 +1,5 @@
 // D40/D135: the seam's cookie, owner-fallback and SSO-header arms over the real HTTP graph and real credentials.
 // @subject packages/server/src/entry/auth/seam.ts
-import "@orb/testkit/node/composed-real.ts";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { users } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";

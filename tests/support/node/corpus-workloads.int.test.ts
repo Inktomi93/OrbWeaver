@@ -1,6 +1,5 @@
 // @subject tests/support/node/corpus-workloads.ts
 // @subject packages/server/src/transport/jobs/workloads-worker.ts
-import "./composed-real.ts";
 import { setTimeout as physicalDelay, setImmediate as physicalTurn } from "node:timers/promises";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { LogLevel } from "@orb/contracts/settings";

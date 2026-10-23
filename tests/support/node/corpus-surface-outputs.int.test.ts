@@ -1,6 +1,5 @@
 // @subject tests/support/node/corpus-surface-outputs.ts
 // @subject tests/support/node/corpus-surface-wire.ts
-import "./composed-real.ts";
 import { assertReferentialIntegrity } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { UNKNOWN_COMMIT } from "@orb/kit/version-identity";

@@ -1,5 +1,4 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
-import "@orb/testkit/node/composed-real.ts";
 import { messages, messageVariants } from "@orb/db";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";

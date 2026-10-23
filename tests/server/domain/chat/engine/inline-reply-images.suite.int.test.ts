@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // Native image/tool bytes cross real plugin execution, CAS, selected canon and the next native request.
-import "@orb/testkit/node/composed-real.ts";
 import { makeAsset, makeAssetBytes, seedStoredAsset } from "@orb/testkit/node/factories/asset.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import {

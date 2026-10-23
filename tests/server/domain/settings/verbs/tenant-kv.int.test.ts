@@ -1,4 +1,3 @@
-import "@orb/testkit/node/composed-real.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("the generic settings writer refuses a registered tenant namespace", async ({ services }) => {

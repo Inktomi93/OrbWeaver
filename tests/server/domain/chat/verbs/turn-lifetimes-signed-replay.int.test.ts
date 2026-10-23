@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // @subject packages/server/src/domain/chat/substrate/wire-history.ts
-import "@orb/testkit/node/composed-real.ts";
 import { messageVariants } from "@orb/db";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";

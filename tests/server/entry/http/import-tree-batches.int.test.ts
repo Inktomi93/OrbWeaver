@@ -1,5 +1,4 @@
 // @subject packages/server/src/entry/http/import-tree.ts
-import "@orb/testkit/node/composed-real.ts";
 import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join, relative } from "node:path";

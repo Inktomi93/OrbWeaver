@@ -1,6 +1,5 @@
 // Native JOSE verification and bounded key retrieval run through the actual composed server capability.
 // @subject packages/server/src/infra/auth/jwks.ts
-import "@orb/testkit/node/composed-real.ts";
 import { test as base, expect } from "@orb/testkit/node/fixtures.ts";
 import { CLIENT_ID, createNativeIssuer, ISSUER } from "@orb/testkit/node/oidc-issuer.ts";
 import type { ServerTestHarness } from "@orb/testkit/node/server.ts";

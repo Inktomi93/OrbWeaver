@@ -4,7 +4,6 @@
 // @subject packages/server/src/domain/plugin/verbs/uninstall.ts
 // @subject packages/server/src/domain/plugin/substrate/bundle-assets.ts
 
-import "@orb/testkit/node/composed-real.ts";
 import { spawn } from "node:child_process";
 import type { Principal } from "@orb/contracts/identity";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, PLUGIN_UI_ASSETS_DIR, pluginManifestSchema } from "@orb/contracts/plugin";

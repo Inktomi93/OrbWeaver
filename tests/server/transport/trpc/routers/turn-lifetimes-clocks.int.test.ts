@@ -1,6 +1,5 @@
 // @subject packages/server/src/transport/trpc/routers/chat.ts
 // @subject packages/kit/src/time/index.ts
-import "@orb/testkit/node/composed-real.ts";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import { authConfigFromEnv } from "@orb/server/entry/auth";

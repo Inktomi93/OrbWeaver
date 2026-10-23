@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/memory/generate/turn.ts
 // @subject packages/server/src/domain/chat/engine/engine.ts
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { chatDigests, chatParticipants, chatSegments } from "@orb/db";
 import { initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";

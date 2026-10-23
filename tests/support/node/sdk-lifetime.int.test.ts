@@ -1,4 +1,3 @@
-import "./composed-real.ts";
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import process from "node:process";
 import { declaredCapabilitySchema } from "@orb/contracts/inference";

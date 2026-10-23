@@ -1,4 +1,3 @@
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { ServerTestHarness } from "@orb/testkit/node/server.ts";

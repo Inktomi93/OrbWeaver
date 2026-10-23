@@ -1,5 +1,4 @@
 // @subject packages/server/src/domain/chat/verbs/edit.ts
-import "@orb/testkit/node/composed-real.ts";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { deriveRegexTierFlags } from "@orb/kit/regex";
 import { getLog } from "@orb/server/foundation/observability";

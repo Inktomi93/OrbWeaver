@@ -1,7 +1,6 @@
 // @subject tests/support/node/corpus-sdk-sessions.ts
 // @subject packages/inference/src/backends/agent-sdk/session/store.ts
 // @subject packages/server/src/domain/connection/persistence/session-entries.ts
-import "./composed-real.ts";
 import { randomBytes } from "node:crypto";
 import { assertReferentialIntegrity } from "@orb/db";
 import { toChatRequest } from "@orb/inference";

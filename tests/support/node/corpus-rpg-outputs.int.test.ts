@@ -1,5 +1,4 @@
 // @subject tests/support/node/corpus-rpg-outputs.ts
-import "@orb/testkit/node/composed-real.ts";
 import { assertReferentialIntegrity } from "@orb/db";
 import { RPG_OUTPUT_NAME, RPG_OUTPUT_NAME_MAX, RPG_OUTPUT_SECRET, seedCorpusRpgOutputs } from "./corpus-rpg-outputs.ts";
 import { expect, test } from "./fixtures.ts";

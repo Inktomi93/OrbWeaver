@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // Physical admission and SQLite boundaries distinguish heartbeat loss, commit fencing and genuine seq retry.
-import "@orb/testkit/node/composed-real.ts";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { chatLocks, closeDb, messages, messageVariants, ownerStats } from "@orb/db";
 import { freshHeldDb } from "@orb/testkit/node/db.ts";

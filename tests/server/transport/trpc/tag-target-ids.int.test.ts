@@ -1,4 +1,3 @@
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { TAG_TARGET_TYPES } from "@orb/contracts/tag";
 import { characterTags, chatTags } from "@orb/db";

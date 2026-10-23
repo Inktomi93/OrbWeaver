@@ -1,7 +1,6 @@
-import { databaseHandle } from "@orb/db/wiring-driver";
-import "@orb/testkit/node/composed-real.ts";
 import { CATALOG_SETTINGS_PREFIX } from "@orb/contracts/settings";
 import { settings } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { createSettingsKvPort } from "@orb/server/domain/settings";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";

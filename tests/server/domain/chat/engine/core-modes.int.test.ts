@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // @subject packages/server/src/domain/chat/engine/pipeline.ts
-import "@orb/testkit/node/composed-real.ts";
 import { CHAT_REACT_TOOL_NAME, reactToolArgsSchema } from "@orb/contracts/chat";
 import { messageVariants } from "@orb/db";
 import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "@orb/testkit/node/corpus-provider.ts";

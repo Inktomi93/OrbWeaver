@@ -1,7 +1,6 @@
 // Shrink must resolve the real present host and target generation before deleting only its requested bucket.
 // @subject packages/server/src/domain/embeddings/verbs/prune-memory-blocks.ts
 
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { EMBEDDING_FLOOR } from "@orb/contracts/inference";
 import { chatDigests, embedGenerations, embedGenerationTargets } from "@orb/db";

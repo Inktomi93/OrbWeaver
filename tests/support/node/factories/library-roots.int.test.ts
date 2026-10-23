@@ -3,7 +3,6 @@
 // @subject tests/support/node/factories/character.ts
 // @subject tests/support/node/factories/persona.ts
 // @subject tests/support/node/factories/preset.ts
-import "../composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { createPersonaSchema, personaDetailSchema } from "@orb/contracts/persona";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";

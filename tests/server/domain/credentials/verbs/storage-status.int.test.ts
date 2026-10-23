@@ -1,7 +1,6 @@
 // @subject packages/server/src/domain/credentials/verbs/storage-status.ts
 // @subject packages/server/src/transport/trpc/routers/credentials.ts
 // @subject packages/contracts/src/credentials/index.ts
-import "@orb/testkit/node/composed-real.ts";
 import { credentialStorageStatusSchema } from "@orb/contracts/credentials";
 import { TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

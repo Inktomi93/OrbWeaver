@@ -3,14 +3,14 @@
 // @subject packages/server/src/domain/refinery/verbs/score-sweep.ts
 // @subject packages/server/src/domain/refinery/workload-contributions.ts
 // @subject packages/server/src/entry/compose/refinery.ts
-import type { CharacterHandle } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
-import "@orb/testkit/node/composed-real.ts";
+
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import { characters, refineryRuns, refinerySessions, workloads } from "@orb/db";
+import type { CharacterHandle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { seedCorpusConnections } from "@orb/testkit/node/corpus-seed.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { ServerTestHarness } from "@orb/testkit/node/server.ts";

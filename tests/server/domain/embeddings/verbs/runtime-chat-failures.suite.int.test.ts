@@ -2,7 +2,6 @@
 // @subject packages/inference/src/roles/executor.ts
 // @subject packages/inference/src/roles/role-clients.ts
 
-import "@orb/testkit/node/composed-real.ts";
 import type { LibSqlWrap } from "@orb/db";
 import { auditLogs, userCredentials } from "@orb/db";
 import { ProviderError } from "@orb/inference";

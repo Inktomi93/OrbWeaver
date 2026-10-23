@@ -1,4 +1,3 @@
-import "@orb/testkit/node/composed-real.ts";
 import { createExamplePluginSeeder, createPluginSeedOps, createShowcaseVersionReader } from "@orb/server/domain/plugin";
 import { createSettingsComposedOps } from "@orb/server/domain/settings";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

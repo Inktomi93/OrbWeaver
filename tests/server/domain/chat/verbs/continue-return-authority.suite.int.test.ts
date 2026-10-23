@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // Current public authority can change after a valid commit without rolling canon back or leaking private channels.
-import "@orb/testkit/node/composed-real.ts";
 import type { MessageView } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { chatEvents, chatParticipants, messageVariants, statsCanonVersions } from "@orb/db";

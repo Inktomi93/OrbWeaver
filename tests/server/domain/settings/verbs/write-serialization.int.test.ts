@@ -1,5 +1,4 @@
 // Settings edits and portability imports must share the same per-user write owner.
-import "@orb/testkit/node/composed-real.ts";
 import { closeDb } from "@orb/db";
 import { freshHeldDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

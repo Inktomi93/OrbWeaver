@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/substrate/member-visibility.ts
 // The producer stamps member bytes once, so a member resuming the durable log mid-span never reads the truth.
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import {
   CORPUS_EMBED_MODEL,

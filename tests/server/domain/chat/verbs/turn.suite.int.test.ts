@@ -1,5 +1,4 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
-import "@orb/testkit/node/composed-real.ts";
 import { closeDb, messageVariants } from "@orb/db";
 import { createChatRoot } from "@orb/testkit/node/chat/composed.ts";
 import {

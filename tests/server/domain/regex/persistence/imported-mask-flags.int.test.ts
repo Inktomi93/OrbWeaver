@@ -1,4 +1,3 @@
-import "@orb/testkit/node/composed-real.ts";
 import { regexScripts } from "@orb/db";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";

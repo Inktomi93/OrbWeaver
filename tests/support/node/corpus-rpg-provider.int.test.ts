@@ -1,6 +1,5 @@
 // @subject tests/support/node/corpus-rpg-provider.ts
 // @subject tests/support/node/corpus-rpg-wire.ts
-import "@orb/testkit/node/composed-real.ts";
 import { declaredCapabilitySchema } from "@orb/contracts/inference";
 import { rpgSnapshotStateSchema } from "@orb/contracts/rpg";
 import { assertReferentialIntegrity, rpgJournal, rpgSnapshots } from "@orb/db";

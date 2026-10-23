@@ -2,7 +2,6 @@
 // @subject packages/server/src/domain/sessions/verbs/validate.ts
 // @subject packages/server/src/domain/admin/verbs/set-enabled.ts
 // @subject packages/server/src/domain/admin/verbs/set-role.ts
-import "@orb/testkit/node/composed-real.ts";
 import { authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

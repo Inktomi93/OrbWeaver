@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // Stop after a real partial native response; an unfinished swipe must never replace the selected prose.
-import "@orb/testkit/node/composed-real.ts";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { messages, messageVariants } from "@orb/db";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

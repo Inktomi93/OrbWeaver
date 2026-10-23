@@ -1,5 +1,4 @@
 // Real settings verbs keep the user's latch plane separate and retain owner governance on certificate writes.
-import "@orb/testkit/node/composed-real.ts";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import { createSettingsComposedOps } from "@orb/server/domain/settings";
 import { principal } from "@orb/testkit/node/factories/principal.ts";

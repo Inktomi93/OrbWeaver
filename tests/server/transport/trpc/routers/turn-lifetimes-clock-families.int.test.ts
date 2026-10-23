@@ -1,6 +1,5 @@
 // @subject packages/server/src/transport/trpc/routers/chat.ts
 // @subject packages/server/src/domain/chat/verbs/turn.ts
-import "@orb/testkit/node/composed-real.ts";
 import { messages, pendingTurns } from "@orb/db";
 import { parseIanaTimeZone, UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

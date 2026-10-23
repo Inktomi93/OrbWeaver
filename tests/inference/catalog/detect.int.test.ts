@@ -1,4 +1,3 @@
-import "@orb/testkit/node/composed-real.ts";
 import { makeGenerationCapability } from "@orb/testkit/iso/inference-capability.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";

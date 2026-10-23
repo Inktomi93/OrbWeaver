@@ -2,7 +2,6 @@
 // @subject packages/server/src/domain/workloads/verbs/update-schedule.ts
 // @subject packages/server/src/domain/workloads/verbs/set-schedule-enabled.ts
 // @subject packages/server/src/domain/workloads/verbs/delete-schedule.ts
-import "@orb/testkit/node/composed-real.ts";
 import type { Principal } from "@orb/contracts/identity";
 import type { WorkloadScheduleRef } from "@orb/contracts/workloads";
 import { CADENCE_INTERVAL_MS, workloadScheduleViewSchema } from "@orb/contracts/workloads";

@@ -1,5 +1,4 @@
 // @subject tests/support/node/corpus.ts
-import "./composed-real.ts";
 import { spawn } from "node:child_process";
 import { access, cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";

@@ -1,6 +1,5 @@
 // @subject tests/support/node/corpus-connection.ts
 // @subject tests/support/node/corpus-connection-wire.ts
-import "@orb/testkit/node/composed-real.ts";
 import { randomBytes } from "node:crypto";
 import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS, ROUTABLE_TASKS } from "@orb/contracts/inference";
 import { assertReferentialIntegrity, closeDb } from "@orb/db";

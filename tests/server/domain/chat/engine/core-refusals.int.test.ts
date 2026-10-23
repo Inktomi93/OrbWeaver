@@ -1,5 +1,4 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
-import "@orb/testkit/node/composed-real.ts";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { LogLevel } from "@orb/contracts/settings";
 import { chatLocks, messages, messageVariants } from "@orb/db";

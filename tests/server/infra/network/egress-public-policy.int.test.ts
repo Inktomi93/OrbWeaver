@@ -1,5 +1,4 @@
 // Public URL execution cannot acquire configured-endpoint authority from extra JavaScript options.
-import "@orb/testkit/node/composed-real.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";
 

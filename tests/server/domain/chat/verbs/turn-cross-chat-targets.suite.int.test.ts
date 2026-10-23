@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // Two actual owners and rooms expose foreign message IDs without constructing a private scenario or loader.
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { MessageView } from "@orb/contracts/chat";
 import { messages, messageVariants, statsCanonVersions } from "@orb/db";

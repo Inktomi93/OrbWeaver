@@ -1,6 +1,5 @@
 // @subject tests/support/node/corpus-stats-settings.ts
 // @subject packages/server/src/domain/settings/verbs/duplicate-theme.ts
-import "./composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { DEFAULT_USER_SETTINGS, USER_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";
 import { assertReferentialIntegrity } from "@orb/db";

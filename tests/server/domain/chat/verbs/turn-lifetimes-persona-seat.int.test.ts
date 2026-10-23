@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // @subject packages/server/src/domain/chat/verbs/read.ts
-import "@orb/testkit/node/composed-real.ts";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import { messages, messageVariants } from "@orb/db";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

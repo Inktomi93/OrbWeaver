@@ -1,5 +1,4 @@
 // @subject packages/server/src/entry/compose/services.ts
-import "@orb/testkit/node/composed-real.ts";
 import { createEnableShareSeating } from "@orb/server/domain/share";
 import { createHostPrincipalResolver } from "@orb/server/entry/auth";
 import { expect, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";

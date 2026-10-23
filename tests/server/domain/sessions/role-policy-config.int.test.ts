@@ -1,4 +1,3 @@
-import "@orb/testkit/node/composed-real.ts";
 import { authMeSchema } from "@orb/contracts/identity";
 import { users } from "@orb/db";
 

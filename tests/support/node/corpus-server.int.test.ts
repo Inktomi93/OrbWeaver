@@ -1,7 +1,6 @@
 // @subject tests/support/node/fixtures.ts
 // @subject packages/server/src/entry/auth/seam.ts
 // @subject packages/server/src/domain/persona/verbs/create.ts
-import "./composed-real.ts";
 import { spawn } from "node:child_process";
 import { authMeSchema, CSRF_HEADER, viewerViewSchema } from "@orb/contracts/identity";
 import { createPersonaSchema, personaDetailSchema } from "@orb/contracts/persona";

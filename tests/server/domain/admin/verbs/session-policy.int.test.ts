@@ -3,7 +3,6 @@
 // @subject packages/server/src/foundation/observability/audit.ts
 // @subject packages/server/src/domain/admin/substrate/audited-write.ts
 
-import "@orb/testkit/node/composed-real.ts";
 import { auditLogs, users } from "@orb/db";
 import type { SocketId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

@@ -2,7 +2,6 @@
 // @subject packages/server/src/domain/credentials/substrate/execution-witness.ts
 // @subject packages/contracts/src/credentials/index.ts
 
-import "@orb/testkit/node/composed-real.ts";
 import { credentialExecutionEvidenceOf } from "@orb/contracts/credentials";
 import { auditLogs } from "@orb/db";
 import { PROVIDER_ERROR_KINDS } from "@orb/inference";

@@ -1,7 +1,6 @@
 // @subject packages/server/src/domain/settings/effective-config/cache.ts
 // @subject packages/server/src/foundation/observability/logger.ts
 // An admin's AppSettings.logLevel moves the running logger through the settings verb, with no restart.
-import "@orb/testkit/node/composed-real.ts";
 import type { LogLevel } from "@orb/contracts/settings";
 import { logger, logRing } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

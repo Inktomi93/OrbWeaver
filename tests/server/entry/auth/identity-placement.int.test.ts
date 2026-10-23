@@ -1,7 +1,6 @@
 // D1/D40/D135: verification supplies pre-row identity; the real HTTP seam resolves the stored role.
 // @subject packages/server/src/entry/auth/seam.ts
 // @subject packages/server/src/infra/auth/modes/forward-header.ts
-import "@orb/testkit/node/composed-real.ts";
 import { authMeSchema } from "@orb/contracts/identity";
 import { users } from "@orb/db";
 import type { ExternalId, Handle } from "@orb/kit/ids";

@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // Queued identity and physical generation are observed across the actual host-offline drain.
-import "@orb/testkit/node/composed-real.ts";
 import { messages, pendingTurns } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

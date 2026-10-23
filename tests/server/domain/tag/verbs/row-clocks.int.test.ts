@@ -5,7 +5,6 @@
 // @subject packages/server/src/domain/tag/verbs/attach-chat-tag-by-name.ts
 // @subject packages/server/src/domain/tag/persistence/junctions.ts
 // @subject packages/server/src/domain/tag/persistence/queries.ts
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import type { PortableFile } from "@orb/contracts/portability";

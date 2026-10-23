@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // Stop must reach physical native HTTP and prevent tool, retry, completion and chained-generation effects.
-import "@orb/testkit/node/composed-real.ts";
 import { messages } from "@orb/db";
 import type { ChatRoot } from "@orb/testkit/node/chat/composed.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

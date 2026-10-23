@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // @subject packages/server/src/domain/automation/engine/dispatch.ts
-import "@orb/testkit/node/composed-real.ts";
 import { AUTOMATION_DEPTH_HARD_CAP } from "@orb/contracts/chat";
 import { automationFires, chatGenerationObservations, messages, messageVariants } from "@orb/db";
 import { seedCorpusConnections } from "@orb/testkit/node/corpus-seed.ts";

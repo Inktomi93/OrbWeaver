@@ -2,7 +2,6 @@
 // @subject packages/server/src/domain/chat/persistence/queries.ts
 // @subject packages/server/src/domain/chat/persistence/retained-canon.ts
 // @subject packages/server/src/domain/chat/verbs/edit.ts
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { MessageView } from "@orb/contracts/chat";
 import { parseVariantMetadata } from "@orb/contracts/chat";

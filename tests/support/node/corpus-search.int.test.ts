@@ -1,5 +1,4 @@
 // @subject tests/support/node/corpus-search.ts
-import "@orb/testkit/node/composed-real.ts";
 import type { CorpusSource } from "@orb/contracts/search";
 import { assertReferentialIntegrity } from "@orb/db";
 import { corpusKnowledgeText } from "./corpus-knowledge.ts";

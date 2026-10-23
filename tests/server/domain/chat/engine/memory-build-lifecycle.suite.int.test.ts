@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // Physical SQLite refusals exercise the real memory supervisor and total durable warning emitter.
-import "@orb/testkit/node/composed-real.ts";
 import process from "node:process";
 import type { TurnOutcome } from "@orb/contracts/chat";
 import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";

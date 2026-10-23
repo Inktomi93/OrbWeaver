@@ -1,5 +1,4 @@
 // @subject packages/server/src/domain/chat/engine/round.ts
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { GroupConfig, TurnOutcome } from "@orb/contracts/chat";
 import type { PromptConfig } from "@orb/contracts/preset";

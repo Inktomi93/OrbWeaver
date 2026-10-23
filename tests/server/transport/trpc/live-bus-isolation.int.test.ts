@@ -1,4 +1,3 @@
-import "@orb/testkit/node/composed-real.ts";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

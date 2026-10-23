@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // The real member author and frozen host connection remain distinct from retained canon accounting.
-import "@orb/testkit/node/composed-real.ts";
 import { characterStats, dailyStats, ownerStats } from "@orb/db";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { terminalSseLine } from "@orb/testkit/node/provider-stream.ts";

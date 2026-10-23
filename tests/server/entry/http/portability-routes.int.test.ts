@@ -2,7 +2,6 @@
 // member's password-login cookie. A staged bundle belongs to its uploader, and naming another's handle imports nothing.
 // @subject packages/server/src/entry/http/export.ts
 // @subject packages/server/src/entry/http/import.ts
-import "@orb/testkit/node/composed-real.ts";
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { CSRF_HEADER } from "@orb/contracts/identity";

@@ -3,13 +3,13 @@
 // @subject packages/server/src/domain/workloads/verbs/get.ts
 // @subject packages/server/src/domain/workloads/verbs/cancel.ts
 // @subject packages/server/src/domain/workloads/verbs/retry.ts
-import { databaseHandle } from "@orb/db/wiring-driver";
-import "@orb/testkit/node/composed-real.ts";
+
 import type { Principal } from "@orb/contracts/identity";
 import type { WorkloadRef } from "@orb/contracts/workloads";
 import { workloadResultSchemaOf } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { WorkloadId } from "@orb/kit/ids";
 import { createNextRunnableWorkload } from "@orb/server/domain/workloads";

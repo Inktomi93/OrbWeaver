@@ -1,6 +1,5 @@
 // The verbs outside the chat domain that write a membership-class table announce the write on the room's chat
 // channel, so a co-member's projection refreshes; the per-person user bus cannot reach them.
-import "@orb/testkit/node/composed-real.ts";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import type { ServicesResult } from "@orb/server/entry/compose";

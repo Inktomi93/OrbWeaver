@@ -2,7 +2,6 @@
 // @subject tests/support/node/corpus-rpg-flight-wire.ts
 // @subject tests/support/node/corpus-rpg-members.ts
 // @subject tests/support/node/corpus-rpg-rounds.ts
-import "@orb/testkit/node/composed-real.ts";
 import { CHAT_REACT_TOOL_NAME } from "@orb/contracts/chat";
 import { RPG_NO_CHANGES_TOOL } from "@orb/contracts/rpg";
 import { assertReferentialIntegrity } from "@orb/db";

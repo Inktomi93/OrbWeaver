@@ -13,7 +13,6 @@
 // @subject packages/server/src/entry/compose/portability.ts
 // @subject packages/server/src/entry/compose/portability-runner.ts
 // @subject packages/server/src/entry/import/run-profile-dir-import.ts
-import "@orb/testkit/node/composed-real.ts";
 import { mkdir, readFile, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createCharacterSchema } from "@orb/contracts/character";

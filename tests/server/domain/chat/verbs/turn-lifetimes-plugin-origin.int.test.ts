@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/plugin/verbs/invoke-ui-command.ts
 // @subject packages/server/src/domain/chat/verbs/turn.ts
-import "@orb/testkit/node/composed-real.ts";
 import { spawn } from "node:child_process";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";

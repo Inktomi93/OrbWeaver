@@ -1,7 +1,6 @@
 // D17: /api/_debug admits an owner credential or the operator's own loopback session, through the composed root.
 // Token cases inject the harness `debugToken`; every other case runs tokenless.
 // @subject packages/server/src/foundation/observability/debug/routes.ts
-import "@orb/testkit/node/composed-real.ts";
 import { readFile, rm } from "node:fs/promises";
 import type { AuthMode } from "@orb/contracts/identity";
 import { AUTH_MODES, CSRF_HEADER } from "@orb/contracts/identity";

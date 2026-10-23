@@ -1,4 +1,3 @@
-import "@orb/testkit/node/composed-real.ts";
 import { ENCODER_IDENTITY_NO_API, embedDimsOf, embedDtypeOf, embedSpaceOf, LOCAL_LIGHT_SEED_ROWS } from "@orb/contracts/inference";
 import { SEED_MANIFEST } from "@orb/default-content";
 import { supportsManagedCompaction } from "@orb/inference";

@@ -1,6 +1,5 @@
 // @subject tests/support/node/factories/automation-view.ts
 // @subject tests/support/node/factories/automation.ts
-import "../composed-real.ts";
 import { spawn } from "node:child_process";
 import type { AutomationBusEvent } from "@orb/contracts/automation";
 import { automationRuleCreateSchema, automationRuleToolViewSchema, RULE_PRESET_IDS } from "@orb/contracts/automation";

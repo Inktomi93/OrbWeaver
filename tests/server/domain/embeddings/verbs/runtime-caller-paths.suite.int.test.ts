@@ -2,7 +2,6 @@
 // @subject packages/server/src/domain/rpg/tools/rounds/tool-round.ts
 // @subject packages/server/src/domain/rpg/tools/rounds/populate.ts
 // @subject packages/inference/src/roles/executor.ts
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { RPG_NO_CHANGES_TOOL, RPG_STATE_CHANGES_FIELD } from "@orb/contracts/rpg";
 import { assets, auditLogs, rpgSheets } from "@orb/db";

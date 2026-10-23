@@ -1,5 +1,4 @@
 // @subject packages/server/src/domain/refinery/persistence/queries.ts
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { refinerySessions } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";

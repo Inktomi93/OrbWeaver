@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // @subject packages/server/src/domain/rpg/tools/rounds/tool-round.ts
-import "@orb/testkit/node/composed-real.ts";
 import { RPG_NO_CHANGES_TOOL } from "@orb/contracts/rpg";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";

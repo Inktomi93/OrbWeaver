@@ -1,4 +1,3 @@
-import "./composed-real.ts";
 import { access } from "node:fs/promises";
 import { sql } from "drizzle-orm";
 import { expect, test } from "./fixtures.ts";

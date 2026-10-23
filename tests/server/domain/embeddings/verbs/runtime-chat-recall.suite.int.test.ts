@@ -3,7 +3,6 @@
 // @subject packages/server/src/domain/search/verbs/digests.ts
 // @subject packages/inference/src/roles/executor.ts
 
-import "@orb/testkit/node/composed-real.ts";
 import { auditLogs } from "@orb/db";
 import { ProviderError } from "@orb/inference";
 import { seedRecallCorpus } from "@orb/testkit/node/corpus-seed.ts";

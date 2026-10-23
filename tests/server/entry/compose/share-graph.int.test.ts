@@ -4,7 +4,6 @@
 // @subject packages/server/src/infra/relay/binary.ts
 // @subject packages/server/src/infra/relay/quick-tunnel.ts
 // @subject packages/server/src/domain/share/relay/controller.ts
-import "@orb/testkit/node/composed-real.ts";
 import { stat } from "node:fs/promises";
 import process from "node:process";
 import { authConfigSchema } from "@orb/contracts/auth-config";

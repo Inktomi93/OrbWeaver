@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // Accepted slots close across real context-read faults and a foreign physical lease, without replacing turn policy.
-import "@orb/testkit/node/composed-real.ts";
 import type { ChatBusEvent, MessageView, TurnOutcome } from "@orb/contracts/chat";
 import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import type { LibSqlWrap } from "@orb/db";

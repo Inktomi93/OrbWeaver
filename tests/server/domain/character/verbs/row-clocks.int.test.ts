@@ -2,7 +2,6 @@
 // @subject packages/server/src/domain/character/verbs/mint-synthetic-group-character.ts
 // @subject packages/server/src/domain/character/persistence/card.ts
 // @subject packages/server/src/domain/character/persistence/handoff-copy-write.ts
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { characters } from "@orb/db";
 import { seedCreatedCharacter } from "@orb/testkit/node/factories/character.ts";

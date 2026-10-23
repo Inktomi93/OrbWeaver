@@ -1,7 +1,6 @@
 // @subject packages/server/src/domain/chat/verbs/admission.ts
 // @subject packages/server/src/domain/chat/substrate/handoff-barrier.ts
 // @subject packages/server/src/domain/chat/verbs/turn.ts
-import "@orb/testkit/node/composed-real.ts";
 import { setImmediate as physicalTurn } from "node:timers/promises";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { MANAGED_VERBATIM_TAIL } from "@orb/contracts/preset";

@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/assets/verbs/seed-art.ts
 
-import "@orb/testkit/node/composed-real.ts";
 import { readSeedAvatar } from "@orb/default-content";
 import { createSeedAvatarOps } from "@orb/server/domain/assets";
 import { DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";

@@ -1,7 +1,6 @@
 // @subject packages/server/src/domain/character/persistence/queries.ts
 // @subject packages/server/src/domain/character/verbs/get-snapshot.ts
 // @subject packages/server/src/domain/character/verbs/restore.ts
-import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { auditLogs, characterSnapshots, characters } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";

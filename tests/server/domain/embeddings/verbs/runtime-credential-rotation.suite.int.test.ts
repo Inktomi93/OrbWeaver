@@ -2,7 +2,6 @@
 // @subject packages/server/src/domain/credentials/verbs/replace.ts
 // @subject packages/inference/src/roles/executor.ts
 
-import "@orb/testkit/node/composed-real.ts";
 import { credentialExecutionEvidenceOf } from "@orb/contracts/credentials";
 import { auditLogs } from "@orb/db";
 import { TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";

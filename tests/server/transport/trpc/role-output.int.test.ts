@@ -1,4 +1,3 @@
-import "@orb/testkit/node/composed-real.ts";
 import { appRouter } from "@orb/server/transport/trpc";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";

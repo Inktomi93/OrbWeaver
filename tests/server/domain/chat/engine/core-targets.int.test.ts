@@ -1,6 +1,5 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // Public variant operations retain actual slot identity, history anchors and continuation snapshots.
-import "@orb/testkit/node/composed-real.ts";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { messages, messageVariants } from "@orb/db";
 import { makePromptConfig } from "@orb/testkit/iso/preset-config.ts";

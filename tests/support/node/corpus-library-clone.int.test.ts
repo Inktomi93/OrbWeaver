@@ -1,5 +1,4 @@
 // @subject tests/support/iso/corpus-library-relations.ts
-import "./composed-real.ts";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";

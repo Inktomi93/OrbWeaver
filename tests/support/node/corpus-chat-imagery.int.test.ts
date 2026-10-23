@@ -1,7 +1,6 @@
 // @subject tests/support/node/corpus-chat-lifecycle.ts
 // @subject tests/support/node/corpus-chat-wire.ts
 // @subject tests/support/node/corpus-imagery.ts
-import "@orb/testkit/node/composed-real.ts";
 import { assertReferentialIntegrity, closeDb } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { CHAT_OP_CODES } from "@orb/server/domain/chat";

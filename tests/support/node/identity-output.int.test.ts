@@ -1,7 +1,6 @@
 // @subject tests/support/node/corpus-auth.ts
 // @subject tests/support/node/share.ts
 // @subject tests/support/node/factories/notification.ts
-import "./composed-real.ts";
 import { SIGN_IN_TARGET_MODES } from "@orb/contracts/identity";
 import { PRESENCE_READ_MAX_USER_IDS } from "@orb/contracts/notifications";
 import type { LogLevel } from "@orb/contracts/settings";
