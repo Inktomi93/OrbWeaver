@@ -48,7 +48,6 @@ const codemod: Codemod<TS> = (root, options) => {
   for (const alias of aliases) {
     const parent = alias.parent();
     const statement = parent?.is("export_statement") === true ? parent : alias;
-    const exported = statement !== alias;
     // Nested aliases keep their shape; the tuple idiom is for module-level axes.
     if (statement.parent()?.kind() !== "program") {
       continue;
@@ -62,7 +61,8 @@ const codemod: Codemod<TS> = (root, options) => {
     const members = value.findAll({ rule: { kind: "literal_type" } }).map((literal) => literal.text());
     const tuple = tupleNameFor(name.text());
     const at = insertionStart(statement);
-    edits.push({ startPos: at, endPos: at, insertedText: `${exported ? "export " : ""}const ${tuple} = [${members.join(", ")}] as const;\n` });
+    // The tuple stays module-private until a dispatch table or schema imports it; an unused export is a knip finding.
+    edits.push({ startPos: at, endPos: at, insertedText: `const ${tuple} = [${members.join(", ")}] as const;\n` });
     // Replace from the name through the value so a union wrapped after `=` collapses onto one line.
     edits.push({ startPos: name.range().end.index, endPos: value.range().end.index, insertedText: ` = (typeof ${tuple})[number]` });
   }
