@@ -13,7 +13,8 @@ const SETTLE_TICKS = 24;
 
 const sources = new Map<string, Promise<string>>();
 
-function mainSourceOf(slug: string): Promise<string> {
+/** Reuse the actual author-built bundle for test-owned guest calculations without adding product exports. */
+export function mainSourceOf(slug: string): Promise<string> {
   const cached = sources.get(slug);
   if (cached !== undefined) {
     return cached;
@@ -43,8 +44,8 @@ export async function settle(): Promise<void> {
   }
 }
 
-/** Run the plugin's `main.js` against `host` (activation included) and let its floated work land. */
-export async function bootShowcase(slug: string, host: object): Promise<void> {
+/** Run the built guest under real denial; a captured publication can supply its readiness instead of queue turns. */
+export async function bootShowcase(slug: string, host: object, ready?: Promise<void>): Promise<void> {
   const source = await mainSourceOf(slug);
   const ctx = vm.createContext({});
   vm.runInContext(AMBIENT_STUBS, ctx);
@@ -57,5 +58,9 @@ export async function bootShowcase(slug: string, host: object): Promise<void> {
     },
   };
   vm.runInContext(source, ctx, { filename: "plugin-guest.js" });
-  await settle();
+  if (ready === undefined) {
+    await settle();
+  } else {
+    await ready;
+  }
 }

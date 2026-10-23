@@ -1,32 +1,12 @@
-// THE CARD-ATLAS GUEST HARNESS — the release compiler's real `main.js` bytes running in a bare `node:vm` context under the
-// realm's OWN exported `AMBIENT_STUBS`, over a fake `orb.host(1)`.
-//
-// WHY THE DENIAL COMES FROM THE REALM AND NOT FROM HERE (#805): the five "parked" hubs of the v1.3 live drive
-// were the five whose row builders fed an ISO date to `Date.parse`, which the plugin sandbox replaces with a
-// throwing stub — and the offline harness that had "proved the adapters correct" ran with a LIVE `Date`. So
-// this harness evaluates the realm's own stub text in the context; the denial IS the realm's, never a copy
-// that can drift.
-//
-// EXTRACTED HERE (#1698) because a SECOND suite needs it. `seed-atlas-realm-dates.suite.test.ts` drives the
-// search/open path with no character plane; `seed-atlas-import-outcome.suite.test.ts` drives the ADD path,
-// which needs an ingest surface, the `character.ingest` grant, and a toast that is allowed to REFUSE (the
-// host's real one is rate-limited and throws). Everything that differs between them is an option below;
-// everything that must not drift — the realm denial, the vm floor, the settle discipline — is shared.
-//
-// WHAT THE REAL SANDBOX ADDS (marshalling, caps, the belts) is pinned in `tests/legacy/server/infra/plugin-host/`;
-// the atlas's registration + activation publish in the REAL sandbox is `seed-example-plugins.int.test.ts`.
-
-import { join } from "node:path";
+// Atlas guest requests run against a scripted external host under the real realm denial.
+// The private date evaluator is test-owned; no application authorization or persistence is simulated.
 import vm from "node:vm";
+import type { PluginHostV1 } from "@orb/contracts/plugin";
 import type { CharacterId, SandboxWireId } from "@orb/kit/ids";
-import { packPluginDirectory } from "@orb/plugin-toolchain";
 import { AMBIENT_STUBS } from "@orb/server/infra/plugin-host";
-import { unzipSync } from "fflate";
+import { bootShowcase, mainSourceOf } from "./showcase-guest.ts";
 
-const REPO_ROOT = join(import.meta.dirname, "..", "..", "..");
 const FIXED_EPOCH = 1_700_000_000_000;
-/** Macrotask spins per settle — enough for the guest's floated search/open continuations to land. */
-const SETTLE_TICKS = 24;
 
 /** A canned wire body, served for any URL containing `match` (the hub's API path). */
 export interface CannedResponse {
@@ -46,7 +26,7 @@ export interface AtlasToast {
   readonly message: string;
 }
 
-/** What the harness hands back — everything the guest did, plus the two doors into it. */
+/** What the harness hands back — recorded guest requests and the public action driver. */
 export interface AtlasDrive {
   readonly published: AtlasPublish[];
   readonly logs: string[];
@@ -54,20 +34,15 @@ export interface AtlasDrive {
   readonly toasts: AtlasToast[];
   /** Every `character.ingest`/`ingestAsset` result the guest was handed, in order. */
   readonly ingests: string[];
-  /** `character.setCardData` writes, by characterId — the PROVENANCE stamp's receipt. */
+  /** Requested provenance stamps, by characterId. */
   readonly cardData: Map<string, unknown>;
-  /** The guest's private `storage.kv` — the owned index lives here. */
+  /** The scripted KV state records guest requests; it is not application persistence. */
   readonly kv: Map<string, string>;
-  readonly act: (actionId: string, values: Record<string, string>) => Promise<void>;
-  /** Call a top-level guest function by name (the date engine's own entry points). */
-  readonly call: (name: string, ...args: unknown[]) => unknown;
+  readonly act: (actionId: string, values: Record<string, string>, completed: (state: Record<string, unknown>) => boolean) => Promise<void>;
 }
 
-/** What one ingest answers: the character it landed on, and whether this call CREATED it. */
-export interface AtlasIngestOutcome {
-  readonly characterId: SandboxWireId<CharacterId>;
-  readonly created: boolean;
-}
+/** The controlled result returned at the guest's external ingest boundary. */
+export type AtlasIngestOutcome = Awaited<ReturnType<PluginHostV1["character"]["ingest"]>>;
 
 export interface AtlasBootOptions {
   /** The canned wire. Default: none — every fetch 404s. */
@@ -77,47 +52,25 @@ export interface AtlasBootOptions {
   /** Supplied ⇒ `host.character.ingest` answers it (and `ingestAsset` rejects, so the guest folds to the
    *  JSON arm the way a PNG-less hub does). Absent ⇒ there is no character plane at all. */
   readonly ingest?: (card: unknown) => AtlasIngestOutcome;
-  /** Supplied ⇒ `host.ui.toast` calls it and may THROW — which is exactly what the real outbox does when a
-   *  plugin is inside its per-plugin cooldown. Default: every toast succeeds. */
+  /** Throw to script an external toast refusal; this does not implement host rate admission. */
   readonly onToast?: (toast: AtlasToast, index: number) => void;
-}
-
-/** Spin the macrotask queue so a floated guest continuation lands. */
-async function settle(): Promise<void> {
-  for (let i = 0; i < SETTLE_TICKS; i++) {
-    await new Promise((resolve) => setImmediate(resolve));
-  }
 }
 
 const DEFAULT_GRANTS: readonly string[] = ["storage.kv", "ui.surface", "net.fetch"];
 
-const ATLAS_SOURCE = (async (): Promise<string> => {
-  const built = await packPluginDirectory({
-    pluginDirectory: join(REPO_ROOT, "packages", "showcase-plugins", "bundles", "card-atlas"),
-    sdkDirectory: join(REPO_ROOT, "packages", "plugin-sdk"),
-  });
-  if (built.diagnostics.length > 0 || built.bundle === null) {
-    throw new Error(`card-atlas author build failed: ${built.diagnostics.map(({ message }) => message).join("; ")}`);
-  }
-  const main = unzipSync(built.bundle)["main.js"];
-  if (main === undefined) {
-    throw new Error("card-atlas release bundle has no main.js");
-  }
-  return new TextDecoder().decode(main);
-})();
-
 /** Boot the real `main.js` under the realm's denial with the given wire + host surface, activation included. */
 export async function bootAtlas(options: AtlasBootOptions = {}): Promise<AtlasDrive> {
   const responses = options.responses ?? [];
-  const source = await ATLAS_SOURCE;
   const published: AtlasPublish[] = [];
+  const ready = Promise.withResolvers<void>();
+  let observe: ((state: Record<string, unknown>) => void) | undefined;
   const logs: string[] = [];
   const fetched: string[] = [];
   const toasts: AtlasToast[] = [];
   const ingests: string[] = [];
   const cardData = new Map<string, unknown>();
   const kv = new Map<string, string>();
-  let onAction: ((action: { actionId: string; values: Record<string, string> }) => Promise<void>) | null = null;
+  let onAction: NonNullable<Parameters<PluginHostV1["ui"]["register"]>[0]["onAction"]> | null = null;
   const ingest = options.ingest;
   const character =
     ingest === undefined
@@ -128,8 +81,7 @@ export async function bootAtlas(options: AtlasBootOptions = {}): Promise<AtlasDr
             ingests.push(outcome.characterId);
             return Promise.resolve(outcome);
           },
-          // No art plane here: the guest's PNG-first arm folds to the JSON arm on rejection, which is the
-          // path a PNG-less hub takes in production too.
+          // This selection exercises the JSON fold, not the art-import plane.
           ingestAsset: (): Promise<never> => Promise.reject(new Error("no art plane in this harness")),
           setCardData: (characterId: SandboxWireId<CharacterId>, data: unknown): Promise<void> => {
             cardData.set(characterId, data);
@@ -149,15 +101,18 @@ export async function bootAtlas(options: AtlasBootOptions = {}): Promise<AtlasDr
     },
     tokens: { count: (): number => 0 },
     ui: {
-      register: (registration: { onAction: typeof onAction }): void => {
-        onAction = registration.onAction;
+      register: (registration: Parameters<PluginHostV1["ui"]["register"]>[0]): void => {
+        onAction = registration.onAction ?? null;
       },
       setState: (id: string, state: Record<string, unknown>): Promise<void> => {
         published.push({ id, state });
+        if (id === "atlas_page") {
+          ready.resolve();
+          observe?.(state);
+        }
         return Promise.resolve();
       },
-      // RECORDED BEFORE THE REFUSAL, deliberately: "which notices did the guest ASK for" and "which ones
-      // landed" are different questions, and the cooldown arm needs the first one.
+      // Record before refusal so a rejected notification still proves the guest requested it.
       toast: (level: string, message: string): Promise<void> => {
         const toast: AtlasToast = { level, message };
         const index = toasts.length;
@@ -192,33 +147,25 @@ export async function bootAtlas(options: AtlasBootOptions = {}): Promise<AtlasDr
     },
     character,
   };
-  const ctx = vm.createContext({});
-  vm.runInContext(AMBIENT_STUBS, ctx);
-  ctx["orb"] = {
-    host: (major: number): typeof surface => {
-      if (major !== 1) {
-        throw new Error("HostVersionError");
-      }
-      return surface;
-    },
-  };
-  vm.runInContext(source, ctx, { filename: "plugin-guest.js" });
-  await settle();
-  const act = async (actionId: string, values: Record<string, string>): Promise<void> => {
+  await bootShowcase("card-atlas", surface, ready.promise);
+  const act: AtlasDrive["act"] = async (actionId, values, completed): Promise<void> => {
     if (onAction === null) {
       throw new Error("the atlas registered no page");
     }
-    await onAction({ actionId, values });
-    await settle();
-  };
-  const call = (name: string, ...args: unknown[]): unknown => {
-    const fn: unknown = ctx[name];
-    if (typeof fn !== "function") {
-      throw new Error(`guest has no top-level function ${name}`);
+    const publication = Promise.withResolvers<void>();
+    observe = (state): void => {
+      if (completed(state)) {
+        publication.resolve();
+      }
+    };
+    try {
+      await onAction({ actionId, values, chat: null });
+      await publication.promise;
+    } finally {
+      observe = undefined;
     }
-    return fn(...args);
   };
-  return { published, logs, fetched, toasts, ingests, cardData, kv, act, call };
+  return { published, logs, fetched, toasts, ingests, cardData, kv, act };
 }
 
 /** The guest's most recent publish — the state the page is showing. */
@@ -228,4 +175,26 @@ export function lastAtlasState(drive: AtlasDrive): Record<string, unknown> {
     throw new Error("nothing published");
   }
   return last.state;
+}
+
+/** Exercise only the private guest date calculations without activating its UI or inventing a product door. */
+export async function bootAtlasDates(): Promise<{ readonly epochMs: (value: unknown) => unknown; readonly fmtDate: (ms: number) => unknown }> {
+  const source = await mainSourceOf("card-atlas");
+  const ctx = vm.createContext({});
+  vm.runInContext(AMBIENT_STUBS, ctx);
+  ctx["orb"] = {
+    host: (major: number): object => {
+      if (major !== 1) {
+        throw new Error("HostVersionError");
+      }
+      return { grants: [], log: { info: (): void => undefined, warn: (): void => undefined } };
+    },
+  };
+  vm.runInContext(source, ctx, { filename: "card-atlas-date-guest.js" });
+  const epochMs: unknown = ctx["epochMs"];
+  const fmtDate: unknown = ctx["fmtDate"];
+  if (typeof epochMs !== "function" || typeof fmtDate !== "function") {
+    throw new Error("card-atlas bundle has no private date engine");
+  }
+  return { epochMs: (value): unknown => epochMs(value), fmtDate: (ms): unknown => fmtDate(ms) };
 }

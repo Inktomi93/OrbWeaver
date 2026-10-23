@@ -137,11 +137,11 @@ Remove unsupported mechanisms only after comparing their actual implementations,
 | RPG default prose aliases | Remove duplicate default aliases and their exclusive concatenation inputs. Canonical contracts prose slots and actual `resolveProse` calls own defaults and overrides. Preserve whitespace, grammar, slot versions and renderers. |
 | Eager settings, participant, handoff and RPG persistence/inspection twins | Remove unused alternate entry points. Preserve actual guarded writes, classifier, scoped statement, game birth, lineage readers and atomic snapshot/journal writer. Existing testkit root producers and raw observations are the rebuild homes; do not copy business logic there. |
 | Embedding source/lens catalogue | Remove the disconnected catalogue and exclusive imports. Actual `StoreParams` and segment inputs drive exhaustive dispatch; retain those shapes, image contracts and `VECTOR_TABLES`. The old catalogue-only membership tests do not prove writer coupling. |
-| Atlas authored-guest helper | Keep pending concrete adaptation. The guest boundary is valid under plugin law; meaningful date, continuation and import-outcome cases need a qualified authored-guest replacement before support removal. Zero current callers does not decide its usefulness. |
+| Atlas authored-guest helper | Keep for maintained guest cases. Reuse shared bundle loading and await actual publication. The helper contains no application persistence or authorization implementation. |
 
 The approved unused definitions and exports are removed. Native server Knip reports no default findings. Production-mode findings retain their actual test and tooling consumers; removed public directives do not exempt them. Affected compiler and scoped static checks pass. Maintained RPG execution, journal-floor, portable-JSON, settings-write and accepted-host handoff cases pass.
 
-This selection does not declare the full chat/RPG formatting, writer, ladder or Atlas matrices restored. Plugin hook replacements and Atlas guest adaptation remain separate work.
+This selection does not declare the full chat/RPG formatting, writer, ladder or Atlas application behavior restored. Plugin hook replacements remain separate work.
 
 ## Selected plugin hook replacements
 
@@ -159,3 +159,20 @@ The selected references are `server/infra/plugin-host/process-runtime.test.ts` a
 | Scale, showcase, RSS pressure, Worker wall-time expiry and broader cold-source lifecycle cases | Unreviewed in this bounded implementation. Do not infer qualification from ordinary teardown or the parent scheduler case. |
 
 Remove the unused observer and fault-control mechanisms with these replacements. Keep actual command authority, continuation timers, grants, liveness, reconnect guards and joined process cleanup in production. No private broker registry or production test-only door is introduced. Primary owns runtime, compiler, import and isolated defect controls before qualification.
+
+## Selected Atlas guest replacements
+
+The selected references are `server/entry/boot/seed-atlas-realm-dates.suite.test.ts` and `seed-atlas-import-outcome.suite.test.ts` in the external reference source. Both suites have been compared in full. The maintained showcase guest suite covers other plugins, not these Atlas behaviors.
+
+| Selected purpose | Decision and maintained boundary |
+| - | - |
+| Date-denied search, newest ordering and invalid-date row survival | Rebuild in [Atlas dates](../../tests/showcase-plugins/atlas-dates.int.test.ts) through the shipped guest's public search handler and observed nonloading publication. Preserve the Chub, Wyvern, Botbooru and Datacat wire dialects. |
+| Created and Updated detail fields | Rebuild through public search and open handlers; assert published stat rows rather than a copied formatter. |
+| Valid date grammar, invalid calendar/time data, numeric epochs and UTC formatting | Keep the calculation assertions through a narrow Atlas-owned VM evaluator. Reuse actual built bundle source and the realm's `AMBIENT_STUBS`; add no production export or generic evaluator. |
+| First versus duplicate import outcome | Rebuild in [Atlas import outcomes](../../tests/showcase-plugins/atlas-import-outcome.int.test.ts) through public search, open and add handlers with controlled external ingest outcomes. |
+| Refused notification preserves outcome, provenance and owned-index requests | Rebuild with a rejecting toast script and successful-toast positive control. Observe final publication and requested effects; do not claim application persistence or rate admission. |
+| Real ingest deduplication, provenance durability, grants, toast cooldown, sandbox marshalling and rendered accessibility | Outside this guest selection. Those behaviors require application-root, actual sandbox or browser cases. Other hubs, art import, paging, filtering and superseded continuations remain unreviewed. |
+
+Keep the Atlas testkit package entry for these maintained consumers. These guest integration cases execute the author-built bundle through the sanctioned VM boundary. Public actions use matching publication signals, not queue-spin counts. Private date calculations retain only their justified test-owned VM capability.
+
+The selected guest and unchanged generic-consumer cases pass. Affected compiler, lint and dependency checks pass. Isolated ambient-date, refused-notification and first-import defects fail the intended cases while their positive controls pass. Sources are restored exactly. Independent review confirms the selected original assertions; application persistence and authorization remain outside this guest qualification.
