@@ -85,12 +85,7 @@ export const ANALYSIS_MESSAGE_CHAR_CAP = 800;
 /** The `automation_rule_state.state` blob, parsed. `settledThroughSeq` is the C2 HIGH-WATER MARK: the
  *  settled-span cursor, advanced ONLY on a successful durable apply (`engine/analysis-arm.ts`), so a
  *  failed / unconfirmed pass re-covers its span (the legacy retryability contract). */
-export interface AnalysisState {
-  readonly arc: string;
-  readonly twists: readonly string[];
-  readonly retiredTwists: readonly string[];
-  readonly settledThroughSeq: number;
-}
+export type AnalysisState = z.infer<typeof analysisStateSchema>;
 
 /** Parse-on-read with the ruled version posture (header): per-field defaults + per-field `.catch`, so a
  *  missing or damaged FIELD degrades alone and the watermark survives everything short of garbage. */

@@ -87,11 +87,20 @@ export function taskDef(task: Task): TaskDef {
 
 /** The tasks a `connection_bindings` row may name — derived from `TASK_DEFS`, never a second list. */
 export type RoutableTask = { [T in Task]: (typeof taskDefinitions)[T]["routable"] extends true ? T : never }[Task];
-export const ROUTABLE_TASKS: readonly RoutableTask[] = TASKS.filter((task): task is RoutableTask => TASK_DEFS[task].routable);
+/** `z.enum` and the drizzle `enum` column both need a tuple the compiler knows is non-empty; a `filter` result is not. */
+function nonEmpty<T>(values: readonly T[]): readonly [T, ...T[]] {
+  const [first, ...rest] = values;
+  if (first === undefined) {
+    throw new Error("expected at least one value");
+  }
+  return [first, ...rest];
+}
+
+export const ROUTABLE_TASKS = nonEmpty(TASKS.filter((task): task is RoutableTask => TASK_DEFS[task].routable));
 
 const ROUTABLE_TASK_SET: ReadonlySet<string> = new Set<string>(ROUTABLE_TASKS);
 
-export const routableTaskSchema = z.enum(ROUTABLE_TASKS as unknown as readonly [RoutableTask, ...RoutableTask[]]) satisfies z.ZodType<RoutableTask>;
+export const routableTaskSchema = z.enum(ROUTABLE_TASKS) satisfies z.ZodType<RoutableTask>;
 
 export function isRoutableTask(task: Task): task is RoutableTask {
   return ROUTABLE_TASK_SET.has(task);

@@ -86,8 +86,8 @@ export function createRpgStagingStore(): RpgStagingStore {
       // THE FIRST OF THE TWO SUPPRESSION SITES (#77): the base carries the locks a hand edit stamped in an
       // EARLIER beat, so an ordinary turn writing a pinned path is dropped right here — before any snapshot
       // exists and long before the flush's fold, which only runs when a hand row lands mid-flight.
-      const merged = applyLockedPatchTracked(bucket.state as unknown as Record<string, unknown>, patch, bucket.state.fieldLocks);
-      bucket.state = merged.state as unknown as RpgSnapshotState;
+      const merged = applyLockedPatchTracked(bucket.state, patch, bucket.state.fieldLocks);
+      bucket.state = merged.state;
       for (const path of merged.suppressed) {
         if (!bucket.suppressed.includes(path)) {
           bucket.suppressed.push(path);

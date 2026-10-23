@@ -108,7 +108,7 @@ export function createResyncFromStory(ctx: RpgContext): Pick<RpgService, "resync
     }
 
     // Merge the delta onto the base — locks HONORED (a resync repairs the model plane, never a hand-pin).
-    const nextState = applyLockedPatch(baseState as unknown as Record<string, unknown>, statePatch, baseState.fieldLocks) as unknown as RpgSnapshotState;
+    const nextState = applyLockedPatch(baseState, statePatch, baseState.fieldLocks);
 
     // Write the reconciled state BORN COMMITTED as a HAND ROW (D124) — no message, no variant, ordered by the
     // chat's tail slot.

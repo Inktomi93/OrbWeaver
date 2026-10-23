@@ -304,21 +304,17 @@ function mergeAt(base: Record<string, unknown>, patch: Record<string, unknown>, 
 /** Apply a tool-authored patch over the current snapshot state, honoring locks and the [merge-clear]
  *  contract. `base`/`patch` are the composed snapshot state as plain JSON (the accumulator's overlay unit);
  *  `fieldLocks` rides on the state. Returns a NEW object (base untouched). */
-export function applyLockedPatch<T extends Record<string, unknown>>(base: T, patch: Record<string, unknown>, fieldLocks: RpgFieldLocks | null): T {
-  return mergeAt(base, patch, { locks: fieldLocks, sink: null }, "") as T;
+export function applyLockedPatch<T extends object>(base: T, patch: Record<string, unknown>, fieldLocks: RpgFieldLocks | null): T {
+  return mergeAt(base as Record<string, unknown>, patch, { locks: fieldLocks, sink: null }, "") as T;
 }
 
 /** {@link applyLockedPatch} with the suppression report (#77). The two writers that must answer "what did this
  *  turn lose to a hand edit" — the staging accumulator and the flush's fold — call THIS one, so the answer is
  *  observed where the drop happens instead of re-derived from a state diff that cannot tell a lock from a
  *  model that never wrote. */
-export function applyLockedPatchTracked<T extends Record<string, unknown>>(
-  base: T,
-  patch: Record<string, unknown>,
-  fieldLocks: RpgFieldLocks | null,
-): LockedPatchOutcome<T> {
+export function applyLockedPatchTracked<T extends object>(base: T, patch: Record<string, unknown>, fieldLocks: RpgFieldLocks | null): LockedPatchOutcome<T> {
   const suppressed: string[] = [];
-  return { state: mergeAt(base, patch, { locks: fieldLocks, sink: suppressed }, "") as T, suppressed };
+  return { state: mergeAt(base as Record<string, unknown>, patch, { locks: fieldLocks, sink: suppressed }, "") as T, suppressed };
 }
 
 // ── REBASING A PATCH ONTO A DIFFERENT HEAD (HAND-EDIT-VS-FLUSH) ───────────────────────────────────

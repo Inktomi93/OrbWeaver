@@ -37,11 +37,11 @@ export async function upsertRuleState(
   const guidance = args.guidance === undefined ? undefined : args.guidance.slice(0, ANALYSIS_GUIDANCE_MAX);
   await db
     .insert(automationRuleState)
-    .values({ ruleId: args.ruleId, state: args.state as unknown as Record<string, unknown>, guidance: guidance ?? "", updatedAt: args.nowMs })
+    .values({ ruleId: args.ruleId, state: args.state, guidance: guidance ?? "", updatedAt: args.nowMs })
     .onConflictDoUpdate({
       target: automationRuleState.ruleId,
       set: {
-        state: args.state as unknown as Record<string, unknown>,
+        state: args.state,
         updatedAt: args.nowMs,
         ...(guidance !== undefined ? { guidance } : {}),
       },
@@ -78,7 +78,7 @@ export async function commitPassState(
   const guidance = args.guidance === undefined ? undefined : args.guidance.slice(0, ANALYSIS_GUIDANCE_MAX);
   await db
     .insert(automationRuleState)
-    .values({ ruleId: args.ruleId, state: args.state as unknown as Record<string, unknown>, guidance: guidance ?? "", updatedAt: args.nowMs })
+    .values({ ruleId: args.ruleId, state: args.state, guidance: guidance ?? "", updatedAt: args.nowMs })
     .onConflictDoUpdate({
       target: automationRuleState.ruleId,
       set: {
@@ -109,7 +109,7 @@ export async function advanceSettledWatermark(
   const seeded: AnalysisState = { ...EMPTY_ANALYSIS_STATE, settledThroughSeq: args.throughSeq };
   await db
     .insert(automationRuleState)
-    .values({ ruleId: args.ruleId, state: seeded as unknown as Record<string, unknown>, guidance: "", updatedAt: args.nowMs })
+    .values({ ruleId: args.ruleId, state: seeded, guidance: "", updatedAt: args.nowMs })
     .onConflictDoUpdate({
       target: automationRuleState.ruleId,
       set: {
