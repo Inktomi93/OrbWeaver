@@ -576,13 +576,12 @@ async function resolveRoomInputs(
   };
 }
 
-/** The per-preview user-macro RENDER registry (WAVE MU) — resolves the preset's user macros with a STABLE
- *  prng (`() => 0`), so a random-pick previews its FIRST-pool value and a re-poll never varies (the
- *  "preview never varies per poll" precedent — `gatherAssembleContext`'s absent-prng arm). Draws are
- *  discarded (a preview persists nothing). `null` ⇒ no user macros ⇒ the process singleton (byte-identical). */
 /** The PRNG every preview render draws from: stable, so `{{random}}`/`{{roll}}`/`{{pick}}` read the same on every poll. */
 const PREVIEW_RANDOM = (): number => 0;
 
+/** The per-preview user-macro RENDER registry (WAVE MU) — resolves the preset's user macros with the stable
+ *  {@link PREVIEW_RANDOM}, so a random-pick previews its FIRST-pool value and a re-poll never varies. Draws are
+ *  discarded (a preview persists nothing). `null` ⇒ no user macros ⇒ the process singleton (byte-identical). */
 function buildPreviewRegistry(inputs: PreviewInputs): MacroRegistry | null {
   const built = buildTurnUserMacros({
     preset: { id: inputs.foreign.presetId ?? "default", defs: inputs.foreign.promptConfig.userMacros },
@@ -732,6 +731,9 @@ async function buildPreviewContext(
       ...gather.fields,
       ...(opts.guided !== undefined ? { guided: opts.guided } : {}),
       timeZone: opts.timeZone,
+      // Every build-stage render draws from the stable preview PRNG, and ChoiceBlock picks stay unresolved.
+      prng: PREVIEW_RANDOM,
+      choicePicks: "stable",
       // The preview render registry (WAVE MU) — absent ⇒ the pure build's singleton fallback (byte-identical).
       ...(opts.registry !== null ? { macroRegistry: opts.registry } : {}),
     },

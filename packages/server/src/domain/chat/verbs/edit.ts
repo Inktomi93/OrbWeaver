@@ -298,7 +298,7 @@ async function applyRunOnEditRegex(
   }
   const assembleContext = await gatherAssembleContext(
     ctx,
-    { chatId, runAsUserId: hostUserId, model, characterIds, personaIds, timeZone: args.timeZone },
+    { chatId, runAsUserId: hostUserId, model, characterIds, personaIds, timeZone: args.timeZone, prng: deps.prng, choicePicks: "stable" },
     foreign,
   );
   return executeRegexScripts({
@@ -453,6 +453,8 @@ async function freezeSelectedVariant(
       characterIds,
       personaIds: args.selectorPersonaId !== null ? [args.selectorPersonaId] : [],
       timeZone: args.timeZone,
+      prng: deps.prng,
+      choicePicks: "stable",
     },
     foreign,
   );

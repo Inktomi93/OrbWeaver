@@ -788,6 +788,7 @@ async function buildTurnContext(
       multiHuman: seatsMultipleHumans(args.presentHumanUserIds),
       generationType: GENERATION_TYPE_FOR_KIND[args.kind],
       prng: deps.prng,
+      choicePicks: "random",
       timeZone: args.timeZone,
       ...(args.pendingUserText !== undefined ? { pendingUserText: args.pendingUserText } : {}),
       ...(args.guided !== undefined ? { guided: args.guided } : {}),
