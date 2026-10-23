@@ -186,6 +186,8 @@ export interface AppDeps {
   readonly authConfig?: Pick<AuthConfig, "mode" | "defaultHandle">;
   readonly multiHumanCapable?: ReturnType<typeof createMultiHumanCapability>;
   readonly now: () => number;
+  /** The root's opaque nonce, for the staging names the import routes mint. */
+  readonly newOpaqueId: () => string;
   readonly db: DatabaseHandle;
   readonly seam: AuthSeam;
   readonly services: Services;
@@ -434,13 +436,18 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     maxDatabankBytes: () => deps.services.settings.getEffectiveConfig().maxDatabankBytes,
   });
   registerExport(app, { export: deps.exportService, registry: deps.portability });
-  registerImportBundle(app, { workloads: deps.services.workloads, stagingDir: deps.importStagingDir ?? env.IMPORT_STAGING_DIR });
+  registerImportBundle(app, {
+    workloads: deps.services.workloads,
+    stagingDir: deps.importStagingDir ?? env.IMPORT_STAGING_DIR,
+    newOpaqueId: deps.newOpaqueId,
+  });
   registerImportChat(app, { registry: deps.portability, now: deps.now, settleImportMemory: deps.settleImportMemory });
   registerImportTree(app, {
     workloads: deps.services.workloads,
     persona: deps.services.persona,
     registry: deps.portability,
     stagingDir: deps.importStagingDir ?? env.IMPORT_STAGING_DIR,
+    newOpaqueId: deps.newOpaqueId,
   });
   registerAuthRoutes(plain, {
     emitUserEvent: deps.liveBuses.user.publishUserEvent,

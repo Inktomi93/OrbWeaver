@@ -5,6 +5,7 @@
 // closes on success; a failure keeps it open with the sticky mutation error inline. Base UI unmounts
 // the closed popup, so a reopen never shows the previous password.
 
+import { MIN_PASSWORD_LENGTH } from "@orb/contracts/identity";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
@@ -16,7 +17,6 @@ import { FormDialog, FormSubmitButton } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { useResetPassword } from "../hooks/use-admin-mutations.ts";
-import { ADMIN_MIN_PASSWORD_LENGTH } from "../lib/admin-model.ts";
 
 export interface AdminResetPasswordDialogProps {
   readonly userId: UserId;
@@ -48,7 +48,7 @@ function ResetPasswordBody({ userId, onDone }: { readonly userId: UserId; readon
   const [showTooShort, setShowTooShort] = useState(false);
 
   const submit = async (): Promise<void> => {
-    if (password.length < ADMIN_MIN_PASSWORD_LENGTH) {
+    if (password.length < MIN_PASSWORD_LENGTH) {
       setShowTooShort(true);
       return;
     }
@@ -64,7 +64,7 @@ function ResetPasswordBody({ userId, onDone }: { readonly userId: UserId; readon
 
   return (
     <Stack gap="block">
-      <Field label="New password" description={`At least ${ADMIN_MIN_PASSWORD_LENGTH} characters.`}>
+      <Field label="New password" description={`At least ${MIN_PASSWORD_LENGTH} characters.`}>
         <Input
           autoComplete="new-password"
           onValueChange={(value): void => {
@@ -77,7 +77,7 @@ function ResetPasswordBody({ userId, onDone }: { readonly userId: UserId; readon
       </Field>
       {showTooShort ? (
         <Text tone="destructive" voice="label">
-          Password must be at least {ADMIN_MIN_PASSWORD_LENGTH} characters.
+          Password must be at least {MIN_PASSWORD_LENGTH} characters.
         </Text>
       ) : null}
       {!showTooShort && resetPassword.error !== null ? (

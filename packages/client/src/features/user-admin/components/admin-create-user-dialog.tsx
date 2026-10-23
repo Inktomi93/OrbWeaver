@@ -6,6 +6,7 @@
 // while closed, so every open mounts a FRESH form — a reopened dialog never shows the previous
 // attempt's values.
 
+import { MIN_PASSWORD_LENGTH } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
@@ -17,7 +18,7 @@ import { notify } from "#lib";
 import { useCreateUser } from "../hooks/use-admin-mutations.ts";
 import { useCreateUserForm } from "../hooks/use-create-user-form.ts";
 import type { CreateUserFormValues } from "../lib/admin-model.ts";
-import { ADMIN_MIN_PASSWORD_LENGTH, ROLE_ITEMS } from "../lib/admin-model.ts";
+import { ROLE_ITEMS } from "../lib/admin-model.ts";
 
 export interface AdminCreateUserDialogProps {
   readonly open: boolean;
@@ -66,7 +67,7 @@ function CreateUserFormBody({ viewerIsOwner, onDone }: { readonly viewerIsOwner:
         {(field): ReactElement => (
           <field.TextField
             label="Password"
-            description={`At least ${ADMIN_MIN_PASSWORD_LENGTH} characters. They can't change it themselves yet — you can reset it here any time.`}
+            description={`At least ${MIN_PASSWORD_LENGTH} characters. They can't change it themselves yet — you can reset it here any time.`}
             type="password"
             autoComplete="new-password"
           />

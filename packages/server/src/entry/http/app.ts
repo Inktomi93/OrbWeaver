@@ -104,6 +104,7 @@ export function createHttpApp(deps: HttpAppDeps): ReturnType<typeof createApp> {
     liveBuses: built.liveBuses,
     authConfig,
     now,
+    newOpaqueId,
     db,
     ...(deps.physicalPeer === undefined ? {} : { physicalPeer: deps.physicalPeer }),
     ...(deps.importStagingDir === undefined ? {} : { importStagingDir: deps.importStagingDir }),

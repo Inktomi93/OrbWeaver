@@ -5,6 +5,7 @@
 // form has none of the editor-factory obligations); a real `<form>` so password managers + Enter-to-submit
 // work. Two fields (password + confirm) with client-side min-length + match checks before the POST.
 
+import { MIN_PASSWORD_LENGTH } from "@orb/contracts/identity";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
@@ -14,9 +15,6 @@ import type { ReactElement, SyntheticEvent } from "react";
 import { useState } from "react";
 import { firstRunSetup } from "#data";
 import { testId } from "#lib";
-
-/** Mirrors the server + hashing floor (`MIN_PASSWORD_LENGTH` / env `LOCAL_INITIAL_PASSWORD.min(8)`). */
-const MIN_PASSWORD_LENGTH = 8;
 
 export interface LoginFirstRunFormProps {
   /** The seeded owner handle to display (from `/api/auth/config`); null under discreet login. The password

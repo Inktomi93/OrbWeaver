@@ -1,14 +1,10 @@
 // admin-model — the Admin pane's pure vocabulary: the create-user form shape + defaults, the role Select
-// options (never `owner` — the setRole verb refuses minting a second owner), the password floor mirror,
-// and the badge-intent maps. DOM-free; presentation-only labels, the enforceable truth stays server-side.
+// options (never `owner` — the setRole verb refuses minting a second owner) and the badge-intent maps. DOM-free; presentation-only labels, the enforceable truth stays server-side.
 
 import type { UserRole } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
 import type { BadgeProps } from "@orb/ui/badge";
 import type { SelectItems } from "@orb/ui/select/items";
-
-/** Mirrors the server's weak_password floor so the dialog can teach the rule before the server bounces it. */
-export const ADMIN_MIN_PASSWORD_LENGTH = 8;
 
 export interface CreateUserFormValues {
   /** The new user handle DRAFT — `""` until typed; the submit seam brands the trimmed value. */
