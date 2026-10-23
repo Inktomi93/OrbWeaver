@@ -12,7 +12,12 @@ import { spawnNicedTranscript } from "@orb/tooling/floor/process/proc";
 import { exportProcessEnv, inheritedProcessEnv, processEnvValue } from "@orb/tooling/floor/process/process-env";
 import { describeRunMarkerSweep, joinRunMarkerSweep, mintRunMarker, runMarkerEnv, runMarkerTranscriptTeardown } from "@orb/tooling/floor/process/run-marker";
 
-import { privateCorpusExecutionEnv, privateCorpusExecutionSignal, privateCorpusTranscriptTeardown } from "./corpus-fixture-lifetime.ts";
+import {
+  PRIVATE_EXECUTION_EXPIRY_ENV,
+  privateCorpusExecutionEnv,
+  privateCorpusExecutionSignal,
+  privateCorpusTranscriptTeardown,
+} from "./corpus-fixture-lifetime.ts";
 
 const CONSUMER_TIMEOUT_MS = 600_000;
 // One corpus e2e cell runs the whole single-user or local suite in one process. CI measured a signed-in cell at about
@@ -275,7 +280,7 @@ async function writePrivateIntake(directory: string | undefined, nativeArgs: rea
   const { createCorpusCapsule, writePrivateCorpusFixture, rethrowPrivateCorpusFailure } = await import("@orb/testkit/node/composed");
   const { createCorpusRecipe } = await import("@orb/testkit/node/composed");
   try {
-    const workloadExecutionSignal = privateCorpusExecutionSignal();
+    const workloadExecutionSignal = privateCorpusExecutionSignal(processEnvValue(PRIVATE_EXECUTION_EXPIRY_ENV));
     workloadExecutionSignal.throwIfAborted();
     const { options } = await createCorpusRecipe(parent);
     workloadExecutionSignal.throwIfAborted();

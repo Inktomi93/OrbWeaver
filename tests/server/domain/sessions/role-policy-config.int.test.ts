@@ -9,16 +9,17 @@ import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
-import { afterEach, vi } from "vitest";
 
-afterEach(() => vi.unstubAllEnvs());
-
-function rootForPolicy(policy: Partial<SessionsRolePolicyConfig> = {}): Promise<ServerTestHarness> {
+function rootForConfig(rolePolicyConfig: SessionsRolePolicyConfig): Promise<ServerTestHarness> {
   return createServerHarness({
-    rolePolicyConfig: { ...env, ...policy },
+    rolePolicyConfig,
     authConfig: { ...authConfigFromEnv(), mode: "forward-header", fallback: "deny", forwardTrustedProxies: ["127.0.0.1/32"] },
     physicalPeer: () => "127.0.0.1",
   });
+}
+
+function rootForPolicy(policy: Partial<SessionsRolePolicyConfig> = {}): Promise<ServerTestHarness> {
+  return rootForConfig({ ...env, ...policy });
 }
 
 function headerIdentity(groups: string, handle = "policy-member", subject = "policy-member-subject"): Headers {
@@ -31,11 +32,9 @@ async function me(root: Pick<ServerTestHarness, "http">, headers: Headers): Prom
   return authMeSchema.parse(await response.json());
 }
 
-test("a composed role policy ignores subsequent process-environment grants", async () => {
-  await using root = await createServerHarness({
-    authConfig: { ...authConfigFromEnv(), mode: "forward-header", fallback: "deny", forwardTrustedProxies: ["127.0.0.1/32"] },
-    physicalPeer: () => "127.0.0.1",
-  });
+test("a composed role policy ignores subsequent source-config grants", async () => {
+  const config = { ...env };
+  await using root = await rootForConfig(config);
   const headers = {
     "x-authentik-username": "snapshot-policy-member",
     "x-authentik-uid": brandedId("ExternalId").parse("snapshot-policy-subject"),
@@ -46,7 +45,7 @@ test("a composed role policy ignores subsequent process-environment grants", asy
   const identity = authMeSchema.parse(await before.json());
   expect(identity).toEqual({ authenticated: true, handle: headers["x-authentik-username"], role: "user" });
 
-  vi.stubEnv("OIDC_ADMIN_GROUPS", headers["x-authentik-groups"]);
+  config.OIDC_ADMIN_GROUPS = headers["x-authentik-groups"];
   const after = await root.http.request("/api/auth/me", { headers });
   expect(after.status).toBe(200);
   expect(authMeSchema.parse(await after.json())).toEqual(identity);
@@ -66,19 +65,21 @@ test.each([
   { key: "OWNER_HANDLES", value: "policy-member" },
   { key: "OWNER_GROUP", value: "late-owners" },
   { key: "OIDC_ALLOWED_GROUPS", value: "newly-required" },
-])("a live graph does not reread '$key' from process state", async ({ key, value }) => {
-  await using root = await rootForPolicy();
+] as const)("a live graph does not reread '$key' from its source config", async ({ key, value }) => {
+  const config = { ...env };
+  await using root = await rootForConfig(config);
   const headers = headerIdentity("late-owners");
   const identity = await me(root, headers);
   expect(identity).toMatchObject({ authenticated: true, role: "user" });
-  vi.stubEnv(key, value);
+  config[key] = value;
   expect(await me(root, headers)).toEqual(identity);
   expect(await root.db.select({ handle: users.handle }).from(users).where(eq(users.id, root.ownerId))).toEqual([{ handle: "owner" }]);
 });
 
-test("an identity first seen after a late process-environment admin grant is provisioned from the composed policy", async () => {
-  await using root = await rootForPolicy();
-  vi.stubEnv("OIDC_ADMIN_GROUPS", "late-process-admins");
+test("an identity first seen after a late source-config admin grant is provisioned from the composed policy", async () => {
+  const config = { ...env };
+  await using root = await rootForConfig(config);
+  config.OIDC_ADMIN_GROUPS = "late-process-admins";
   expect(await me(root, headerIdentity("late-process-admins", "late-arrival", "late-arrival-subject"))).toEqual({
     authenticated: true,
     handle: "late-arrival",
@@ -113,8 +114,12 @@ test("copied config and exposed owner handles cannot mutate a live graph's autho
   ).rejects.toMatchObject({ code: "invalid_handle" });
 });
 
-test("the legacy rederivation flag is a construction-time input, not a live process grant", async () => {
-  await using root = await rootForPolicy({ ["OIDC_ADMIN_GROUPS"]: undefined, ["OIDC_ALLOWED_GROUPS"]: undefined, ["RE_DERIVE_ROLE_ON_LOGIN"]: undefined });
+test("the legacy rederivation flag is a construction-time input, not a live source-config grant", async () => {
+  const config = { ...env };
+  config.OIDC_ADMIN_GROUPS = undefined;
+  config.OIDC_ALLOWED_GROUPS = undefined;
+  config.RE_DERIVE_ROLE_ON_LOGIN = undefined;
+  await using root = await rootForConfig(config);
   const headers = headerIdentity("");
   await me(root, headers);
   const row = await root.db
@@ -126,7 +131,7 @@ test("the legacy rederivation flag is a construction-time input, not a live proc
     throw new Error("successful header login produced no account");
   }
   await root.services.admin.setRole({ principal: await root.principalFor(root.ownerId), userId: row.id, role: "admin" });
-  vi.stubEnv("RE_DERIVE_ROLE_ON_LOGIN", "true");
+  config.RE_DERIVE_ROLE_ON_LOGIN = "true";
   expect(await me(root, headers)).toMatchObject({ role: "admin" });
   expect(await root.db.select({ role: users.role }).from(users).where(eq(users.id, row.id))).toEqual([{ role: "admin" }]);
 });

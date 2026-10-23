@@ -22,6 +22,7 @@ import { tmpdir } from "node:os";
 import { delimiter, dirname, join, relative, resolve, sep, win32 } from "node:path";
 import process from "node:process";
 import { isWithinRoot } from "@orb/kit/path-containment";
+import { exportProcessEnv, processEnvValue } from "@orb/tooling/floor/process/process-env";
 import { expect, test as houseTest } from "./fixtures.ts";
 
 /** The typed CLI outcome `toExitWith` asserts on (tests/support/node/matchers.ts). */
@@ -195,8 +196,8 @@ export const test = houseTest.extend<ToolFixtures>({
   },
   fakeBin: async ({ scratch }, use): Promise<void> => {
     const binDir = join(scratch, "fake-bin");
-    // biome-ignore lint/style/noProcessEnv: PATH manipulation IS this fixture's job — a temp executable must shadow the real one for the spawned child; restored below.
-    const originalPath = process.env["PATH"];
+    // PATH manipulation IS this fixture's job: a temp executable must shadow the real one for the spawned child; restored below.
+    const originalPath = processEnvValue("PATH");
     const state = { prepended: false };
     await use(async (name, moduleSource) => {
       if (!FAKE_BIN_NAME_RE.test(name) || name.endsWith(".") || WINDOWS_DEVICE_NAME_RE.test(name)) {
@@ -213,14 +214,12 @@ export const test = houseTest.extend<ToolFixtures>({
       ]);
       await chmod(posixLauncher, EXECUTABLE_MODE);
       if (!state.prepended) {
-        // biome-ignore lint/style/noProcessEnv: see above — the prepend is the mechanism.
-        process.env["PATH"] = `${binDir}${delimiter}${originalPath ?? ""}`;
+        exportProcessEnv("PATH", `${binDir}${delimiter}${originalPath ?? ""}`);
         state.prepended = true;
       }
     });
     if (state.prepended) {
-      // biome-ignore lint/style/noProcessEnv: see above — the restore half.
-      process.env["PATH"] = originalPath ?? "";
+      exportProcessEnv("PATH", originalPath ?? "");
     }
   },
   plantedTree: async ({ scratch }, use): Promise<void> => {

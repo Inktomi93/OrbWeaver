@@ -14,7 +14,6 @@ import { createCas } from "@orb/server/infra/storage/cas";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
-import { afterEach, vi } from "vitest";
 import { z } from "zod";
 import { createSeededIds } from "../iso/ids.ts";
 import { cloneCorpusFixture, createCorpusCapsule, loadCorpusFixture, prepareCorpusFixture, publishCorpusFixture } from "./corpus.ts";
@@ -27,7 +26,8 @@ import { seedUser } from "./factories/user.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 
-afterEach(() => vi.unstubAllEnvs());
+// Private admission refuses a CI environment; these tests run in CI, so they hand it an environment without those flags.
+const LOCAL_ENVIRONMENT = inheritedProcessEnv({ ["CI"]: undefined, ["GITHUB_ACTIONS"]: undefined });
 
 test("private intake retains the existing singleton owner and nonempty content instead of capturing a fresh replacement graph", {
   tags: "slow",
@@ -109,13 +109,14 @@ test("private intake retains the existing singleton owner and nonempty content i
   const originalBytes = await readFile(database);
   const intakeParent = join(parent, "intake");
   await mkdir(intakeParent, { mode: 0o700 });
-  vi.stubEnv("CI", undefined);
-  vi.stubEnv("GITHUB_ACTIONS", undefined);
-  vi.stubEnv("TMPDIR", parent);
-  vi.stubEnv("TMP", parent);
-  vi.stubEnv("TEMP", parent);
   const { options } = await createCorpusRecipe(parent);
-  const intake = { ...options, directory: join(intakeParent, "working"), privateSourceDirectory: layout.root };
+  const intake = {
+    ...options,
+    directory: join(intakeParent, "working"),
+    privateSourceDirectory: layout.root,
+    environment: LOCAL_ENVIRONMENT,
+    temporaryDirectory: parent,
+  };
   const capsule = ownership.use(await createCorpusCapsule(intake));
   expect(capsule.wire.reads["sessions.me"][0]?.output).toEqual({ userId: original.id, handle: original.handle, globalRole: "owner" });
   expect(capsule.wire.reads["character.list"][0]?.output.items.map(({ id }) => id)).toContain(cardId);
@@ -140,15 +141,17 @@ test("private intake retains the existing singleton owner and nonempty content i
     await preCloseHousekeeping(capturedDb);
   }
   await expect(publishCorpusFixture(capsule, join(parent, "portable-refused"))).rejects.toThrow("Private corpus cannot enter portable publication");
-  const fixture = ownership.use(await prepareCorpusFixture(capsule, join(intakeParent, "prepared")));
-  expect(loadCorpusFixture(fixture.layout.root).privateParent).toBe(intakeParent);
-  const clone = ownership.use(await cloneCorpusFixture(loadCorpusFixture(fixture.layout.root), join(intakeParent, "consumer")));
+  const fixture = ownership.use(await prepareCorpusFixture(capsule, join(intakeParent, "prepared"), LOCAL_ENVIRONMENT));
+  expect(loadCorpusFixture(fixture.layout.root, LOCAL_ENVIRONMENT).privateParent).toBe(intakeParent);
+  const clone = ownership.use(
+    await cloneCorpusFixture(loadCorpusFixture(fixture.layout.root, LOCAL_ENVIRONMENT), join(intakeParent, "consumer"), LOCAL_ENVIRONMENT),
+  );
   expect(clone.privateParent).toBe(intakeParent);
   expect(clone.wire).toEqual(capsule.wire);
   await expect(
-    Reflect.apply(publishCorpusFixture, undefined, [loadCorpusFixture(clone.layout.root), join(parent, "portable-reloaded-refused")]),
+    Reflect.apply(publishCorpusFixture, undefined, [loadCorpusFixture(clone.layout.root, LOCAL_ENVIRONMENT), join(parent, "portable-reloaded-refused")]),
   ).rejects.toThrow("Private corpus cannot enter portable publication");
-  await expect(cloneCorpusFixture(clone, join(tmpdir(), "private-corpus-escaped"))).rejects.toThrow("private parent");
+  await expect(cloneCorpusFixture(clone, join(tmpdir(), "private-corpus-escaped"), LOCAL_ENVIRONMENT)).rejects.toThrow("private parent");
   const command = [
     "--config.verify-deps-before-run=false",
     "exec",
@@ -169,11 +172,9 @@ test("private intake retains the existing singleton owner and nonempty content i
   const unsafeNetwork = runNicedSync("pnpm", command, { env });
   expect(unsafeNetwork.status, unsafeNetwork.stdout + unsafeNetwork.stderr).not.toBe(0);
   expect(unsafeNetwork.stdout + unsafeNetwork.stderr).toContain("isolated loopback-only network namespace");
-  vi.stubEnv("CI", "true");
-  await expect(cloneCorpusFixture(clone, join(intakeParent, "ci-refused"))).rejects.toThrow("local-only");
-  vi.stubEnv("CI", undefined);
+  await expect(cloneCorpusFixture(clone, join(intakeParent, "ci-refused"), { ...LOCAL_ENVIRONMENT, ["CI"]: "true" })).rejects.toThrow("local-only");
   await writeFile(join(clone.layout.root, "corpus.json"), '{"synthetic-private-field":"not-public-diagnostics"}');
-  expect(() => loadCorpusFixture(clone.layout.root)).toThrow(/^Private corpus wire is malformed$/u);
+  expect(() => loadCorpusFixture(clone.layout.root, LOCAL_ENVIRONMENT)).toThrow(/^Private corpus wire is malformed$/u);
   expect((await readFile(database)).equals(originalBytes)).toBe(true);
   const queuedSource = await createDb(layout.databaseUrl);
   let unfinished: Awaited<ReturnType<Awaited<ReturnType<typeof createServerHarness>>["services"]["workloads"]["start"]>>;
