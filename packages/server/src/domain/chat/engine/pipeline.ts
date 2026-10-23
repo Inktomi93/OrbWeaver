@@ -111,6 +111,8 @@ interface RunTurnPipelineArgs {
   /** The turn's clock (`ChatContext.now`) — the pipeline's ONE time source, used to measure the reasoning
    *  stream window. Injected, never ambient: no `Date.now()` in a verb (determinism law). */
   readonly now: () => number;
+  /** The turn PRNG (`ChatContext.prng`) the turn-stage macro context draws from. */
+  readonly random: () => number;
   readonly applyRegexReplace: ApplyRegexReplaceOp;
   /** Resolves a parsed message-image ref → a model-fetchable URL + its media kind, or null to drop it. */
   readonly resolveImageUrl: (ref: ContentImageRef) => Promise<ResolvedMediaRef | null>;
@@ -445,6 +447,7 @@ function promptHistoryEnv(ctx: AssembleContext, args: RunTurnPipelineArgs): Prom
       assembleCtx: ctx,
       model: args.connection.model,
       chatId: args.chatId,
+      random: args.random,
       onWarn: (msg, warnErr) => getLog().warn({ err: warnErr, macroWarn: msg }, "chat: macro budget/eval trip (D53)"),
       registry: args.macroRegistry,
     }),
@@ -496,6 +499,7 @@ function applyReceiveTransforms(
           assembleCtx: ctx,
           model: args.connection.model,
           chatId: args.chatId,
+          random: args.random,
           onWarn: (msg, warnErr) => getLog().warn({ err: warnErr, macroWarn: msg }, "chat: macro budget/eval trip (D53)"),
           registry: args.macroRegistry,
         })

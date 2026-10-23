@@ -144,11 +144,10 @@ interface EditDeps {
   readonly resolveForeignInputs: ResolveForeignInputsOp;
   /** The husk→real transition (R0). Applied to the WHOLE bundle by {@link claiming}, not per verb. */
   readonly claimChat: ClaimChatOp;
-  /** The service PRNG, threaded to the D129-F freeze-at-selection bake ({@link freezeSelectedVariant}).
-   *  OPTIONAL: absent ⇒ the kit macro engine's ambient `Math.random`, the same seam every other freeze caller
-   *  declares — a selection that has a stored freeze record consumes NO draw at all (it replays), so the
-   *  injection matters only for the first bake of a never-frozen alternate. */
-  readonly prng?: (() => number) | undefined;
+  /** The service PRNG, threaded to the D129-F freeze-at-selection bake ({@link freezeSelectedVariant}) and the
+   *  runOnEdit regex macro context. A selection that has a stored freeze record consumes NO draw at all (it
+   *  replays), so the bake draws only for the first freeze of a never-frozen alternate. */
+  readonly prng: () => number;
 }
 
 /** The canon-edit slice of `ChatService` this grouped file owns. */
@@ -239,7 +238,8 @@ function editPlacementFor(role: MessageView["role"]): RegexPlacement | null {
  * persist. The script set is the same union a turn resolves — ONE seam (`ctx.resolveRegexSources`), so the
  * edit path can never drift from the turn path the way three hand-assembled blob reads could.
  * Two-phase so the no-script common case stays cheap: only when a runOnEdit script exists is the full
- * assemble ctx gathered. No PRNG is threaded (stable resolution — an edit must not draw randomPick).
+ * assemble ctx gathered. The gather gets no PRNG (stable resolution — an edit must not draw randomPick); the
+ * regex macro context draws from the service PRNG.
  */
 async function applyRunOnEditRegex(
   ctx: ChatContext,
@@ -305,7 +305,7 @@ async function applyRunOnEditRegex(
     text: args.content,
     scripts,
     placement,
-    ctx: buildTurnMacroContext({ assembleCtx: assembleContext, model, chatId }),
+    ctx: buildTurnMacroContext({ assembleCtx: assembleContext, model, chatId, random: deps.prng }),
     applyReplace: ctx.applyRegexReplace,
     onScriptFailure: (err, script) =>
       getLog().warn({ err, placement, findRegex: script.findRegex }, "chat: host-tier regex script failed on an edit re-apply (D53 watchdog)"),
@@ -458,7 +458,7 @@ async function freezeSelectedVariant(
   );
   const freezes: MacroFreeze[] = [];
   const frozen = freezeVolatileMacros(source, assembleContext, {
-    ...(deps.prng !== undefined ? { random: deps.prng } : {}),
+    random: deps.prng,
     freezes,
     ...(stored.success && stored.data.length > 0 ? { frozenMacros: stored.data } : {}),
   });

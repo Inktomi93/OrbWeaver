@@ -3,6 +3,7 @@ import { request as nodeRequest } from "node:http";
 import type { AddressInfo } from "node:net";
 import { queryObjects } from "node:v8";
 import { drainHttpServer, joinNativeHttpRequest, serveHttpServer } from "@orb/server/infra/network";
+import { createControlledTimers, createFrozenClock } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 
 const HEADER = "x-native-proof";
@@ -16,6 +17,8 @@ test.each([
 ])(
   "the actual $method adapter preserves native brand, metadata, header iteration and requested clone bytes",
   async ({ method, body, cloneMethod, bodyUsed }) => {
+    // The drain deadline never fires here: a socket these proofs leave open fails the test instead of being force-closed.
+    using drainTimers = createControlledTimers(createFrozenClock());
     await using lifetime = new AsyncDisposableStack();
     const listening = Promise.withResolvers<AddressInfo>();
     const server = serveHttpServer(
@@ -47,7 +50,7 @@ test.each([
       },
       listening.resolve,
     );
-    lifetime.defer(() => drainHttpServer(server, silentDrainLog));
+    lifetime.defer(() => drainHttpServer(server, silentDrainLog, drainTimers.timeout));
     const address = await listening.promise;
     const bytes = await new Promise<string>((resolve, reject) => {
       const outgoing = nodeRequest(`http://${address.address}:${address.port}/native`, { method, headers: { [HEADER]: HEADER_VALUE } }, (incoming) => {
@@ -90,6 +93,8 @@ test.each([
 );
 
 test("owned physical cancellation aborts native clones and joins actual inbound and outbound close", async () => {
+  // The drain deadline never fires here: a socket these proofs leave open fails the test instead of being force-closed.
+  using drainTimers = createControlledTimers(createFrozenClock());
   await using lifetime = new AsyncDisposableStack();
   const stop = new AbortController();
   const listening = Promise.withResolvers<AddressInfo>();
@@ -113,7 +118,7 @@ test("owned physical cancellation aborts native clones and joins actual inbound 
     },
     listening.resolve,
   );
-  lifetime.defer(() => drainHttpServer(server, silentDrainLog));
+  lifetime.defer(() => drainHttpServer(server, silentDrainLog, drainTimers.timeout));
   const address = await listening.promise;
   const outgoing = nodeRequest(`http://${address.address}:${address.port}/held`, { method: "POST", headers: { "transfer-encoding": "chunked" } });
   const clientError = Promise.withResolvers<Error>();
@@ -143,6 +148,8 @@ test("owned physical cancellation aborts native clones and joins actual inbound 
 test.each([false, true])(
   "a real peer SSE disconnect after request GC=%s aborts its actual signal and joins both native closes without a transport fault",
   async (collectRequest) => {
+    // The drain deadline never fires here: a socket these proofs leave open fails the test instead of being force-closed.
+    using drainTimers = createControlledTimers(createFrozenClock());
     await using lifetime = new AsyncDisposableStack();
     const listening = Promise.withResolvers<AddressInfo>();
     const joined = Promise.withResolvers<PromiseSettledResult<void>[]>();
@@ -200,7 +207,7 @@ test.each([false, true])(
       },
       listening.resolve,
     );
-    lifetime.defer(() => drainHttpServer(server, silentDrainLog));
+    lifetime.defer(() => drainHttpServer(server, silentDrainLog, drainTimers.timeout));
     const address = await listening.promise;
     const response = Promise.withResolvers<IncomingMessage>();
     const delivered = Promise.withResolvers<string>();
@@ -240,6 +247,8 @@ test.each([false, true])(
 test.each([undefined, "ECONNRESET"])(
   "an unexpected native stream fault with code %s remains visible when owned cancellation races its error delivery",
   async (code) => {
+    // The drain deadline never fires here: a socket these proofs leave open fails the test instead of being force-closed.
+    using drainTimers = createControlledTimers(createFrozenClock());
     await using lifetime = new AsyncDisposableStack();
     const stop = new AbortController();
     const failure = Object.assign(new Error("controlled unexpected incoming-stream failure"), { code });
@@ -267,7 +276,7 @@ test.each([undefined, "ECONNRESET"])(
       },
       listening.resolve,
     );
-    lifetime.defer(() => drainHttpServer(server, silentDrainLog));
+    lifetime.defer(() => drainHttpServer(server, silentDrainLog, drainTimers.timeout));
     const address = await listening.promise;
     const clientClosed = Promise.withResolvers<void>();
     const clientError = Promise.withResolvers<Error>();

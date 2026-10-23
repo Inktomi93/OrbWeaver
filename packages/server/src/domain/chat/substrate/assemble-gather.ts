@@ -484,9 +484,10 @@ export async function gatherAssembleContext(
       model,
       generationType: args.generationType ?? "normal",
       nowMs: ctx.now(),
-      // Drives the SEND volatile-macro freeze ({{roll}}/{{random}}/{{pick}} bake deterministically at
-      // commit). Absent on preview/aux turns (no pending composer text to freeze there).
-      ...(args.prng !== undefined ? { prng: args.prng } : {}),
+      // Drives the SEND volatile-macro freeze ({{roll}}/{{random}}/{{pick}} bake deterministically at commit) and
+      // the turn-stage macro context. `args.prng` only selects the randomPick seed mode above; a preview/aux build
+      // still draws its turn-stage macros from the service PRNG, never kit's ambient fallback.
+      prng: args.prng ?? ctx.prng,
       ...(roomOverrides !== undefined ? { roomOverrides } : {}),
       timezone: assemblyTimeZone(args.timeZone),
       ...(lastMessage !== undefined ? { lastMessage } : {}),

@@ -12,7 +12,7 @@ import type { ChatId } from "@orb/kit/ids";
 import type { MacroContext, MacroFreeze, MacroRegistry, ProcessMacroOptions, RowMacroStamps } from "@orb/kit/macro";
 import { createMacroContext, createVolatileOnlyRegistry, globalMacroRegistry, processMacros, resolveRowMacros } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
-import type { RenderMacrosOptions } from "../contract/assembly-macros.ts";
+import type { FreezeVolatileMacrosArgs, RenderMacrosOptions, TurnMacroContextArgs } from "../contract/assembly-macros.ts";
 import type { HistoryMacroNames } from "../contract/results.ts";
 
 // Commit-time freeze registry: resolves ONLY the nondeterministic macros ({{roll}}/{{random}}/{{time}}/…),
@@ -59,7 +59,8 @@ interface MacroExtras {
   /** The routing-resolved model id (turn-stage only). */
   model?: string | undefined;
   chatId?: ChatId | undefined;
-  /** The injectable PRNG seam for `{{random}}`/`{{roll}}`/`{{pick}}`. Absent ⇒ kit ambient. */
+  /** The PRNG for `{{random}}`/`{{roll}}`/`{{pick}}`: required on the turn context and the freeze; a section render
+   *  passes none and falls to kit's ambient default. */
   random?: (() => number) | undefined;
   onWarn?: ((msg: string, err?: unknown) => void) | undefined;
   /** The commit-time VOLATILE-FREEZE sink (D129-F) — the caller's array; each volatile occurrence this pass
@@ -151,24 +152,13 @@ export function renderMacros(text: string, ctx: AssembleContext, persona: Assemb
  * these exact bytes, and re-running with fresh draws is a deliberate re-roll instead of data loss. Omitting
  * the sink is byte-identical (the record is pure provenance; `content` is unaffected either way).
  */
-export function freezeVolatileMacros(
-  text: string,
-  ctx: AssembleContext,
-  args?: {
-    readonly random?: (() => number) | undefined;
-    readonly registry?: MacroRegistry | undefined;
-    readonly freezes?: MacroFreeze[] | undefined;
-    /** A PRIOR record to REPLAY (D129-F freeze-at-selection): matched occurrences reproduce their stored value
-     *  instead of drawing, so re-freezing an already-frozen body is byte-identical and consumes no entropy. */
-    readonly frozenMacros?: readonly MacroFreeze[] | undefined;
-  },
-): string {
+export function freezeVolatileMacros(text: string, ctx: AssembleContext, args: FreezeVolatileMacrosArgs): string {
   // The per-turn FREEZE registry (WAVE MU — volatile-only + user macros) when supplied; absent ⇒ the
   // process `VOLATILE_ONLY_REGISTRY` (byte-identical — user-macro tokens pass through verbatim).
   return processMacros(
     text,
-    macroOptionsFor(ctx, ctx.activePersona, { random: args?.random, freezes: args?.freezes, frozenMacros: args?.frozenMacros }),
-    args?.registry ?? VOLATILE_ONLY_REGISTRY,
+    macroOptionsFor(ctx, ctx.activePersona, { random: args.random, freezes: args.freezes, frozenMacros: args.frozenMacros }),
+    args.registry ?? VOLATILE_ONLY_REGISTRY,
   );
 }
 
@@ -321,17 +311,7 @@ export function previewActionText(
  * Build the turn-stage `MacroContext` the engine threads through regex execution + guided-instruction
  * resolution. Built once per turn and reused everywhere so live variable state stays consistent.
  */
-export function buildTurnMacroContext(args: {
-  readonly assembleCtx: AssembleContext;
-  readonly model: string;
-  readonly chatId: ChatId;
-  readonly input?: string | undefined;
-  readonly random?: (() => number) | undefined;
-  readonly onWarn?: ((msg: string, err?: unknown) => void) | undefined;
-  /** The per-turn user-macro registry (WAVE MU) — the turn-stage regex/guided context resolves user macros
-   *  against it; absent ⇒ the process `globalMacroRegistry` (byte-identical). */
-  readonly registry?: MacroRegistry | undefined;
-}): MacroContext {
+export function buildTurnMacroContext(args: TurnMacroContextArgs): MacroContext {
   const { assembleCtx } = args;
   return createMacroContext(
     macroOptionsFor(assembleCtx, assembleCtx.activePersona, {

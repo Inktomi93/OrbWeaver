@@ -201,10 +201,12 @@ function createEgressContext(options: ScopedEgressOptions, global: boolean): Egr
   return {
     privateEndpointAllowlist: { hosts: new Set(), hostPorts: new Map(), ranges: [] },
     firewallAgent: undefined,
-    firewallLookup: options.resolver === undefined ? dnsLookup : resolverLookup(options.resolver),
-    resolver: options.resolver ?? defaultResolver,
+    // The real resolver keeps Node's own `dns.lookup` on the socket path, so a connect still honours its family and
+    // ADDRCONFIG hints; a scripted resolver answers both the pin and the socket lookup.
+    firewallLookup: options.resolver === systemResolver ? dnsLookup : resolverLookup(options.resolver),
+    resolver: options.resolver,
     buildConnector: options.buildConnector,
-    fetch: options.fetch ?? ((input, init): Promise<Response> => globalThis.fetch(input, init)),
+    fetch: options.fetch,
     timers: options.timers,
     pending: new Set(),
     requests: new Map(),
@@ -563,7 +565,7 @@ function admittedByAllowlistFor(context: EgressContext, hostname: string, port: 
 
 /** Install the process-global firewall dispatcher. It is the only process-wide egress context; every request the
  *  app makes goes through a graph-scoped `createScopedEgress`, so this context only ever backs the backstop. */
-export function installEgressFirewall(options: Pick<ScopedEgressOptions, "timers" | "buildConnector">): void {
+export function installEgressFirewall(options: ScopedEgressOptions): void {
   if (!env.EGRESS_FIREWALL) {
     return;
   }
@@ -752,9 +754,8 @@ export class EgressBlockedError extends Error {
   }
 }
 
-// Real DNS is the default; scoped execution can inject its resolver.
-
-function defaultResolver(host: string): Promise<readonly string[]> {
+/** Real DNS; a composition root passes it as `resolver`, and a test passes a scripted one. */
+export function systemResolver(host: string): Promise<readonly string[]> {
   return new Promise((resolve, reject) => {
     dnsLookup(host, { all: true, order: "verbatim" }, (err, addresses): void => {
       if (err) {
@@ -1306,6 +1307,8 @@ export type { SafeFetchOptions, SafeFetchResult } from "./contract/egress.ts";
 export const ANY_HOST: typeof ANY_HOST_POLICY = ANY_HOST_POLICY;
 /** The real physical dial; a composition root passes it as `buildConnector`, and a test passes a scripted one. */
 export const systemConnector: ScopedEgressOptions["buildConnector"] = buildConnector;
+/** The real physical request, read at call time so it always reaches the platform fetch the process installed. */
+export const systemFetch: ScopedEgressOptions["fetch"] = (input, init) => globalThis.fetch(input, init);
 export const ENDPOINT_ADMISSIONS = ENDPOINT_ADMISSION_VALUES;
 
 async function configuredEndpointFetchFor(context: EgressContext, input: Parameters<typeof fetch>[0], init?: RequestInit): Promise<Response> {

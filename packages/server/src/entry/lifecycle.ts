@@ -232,7 +232,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
 
     // Swap undici's global dispatcher for the private-IP-rejecting DNS lookup so every outbound fetch
     // below is address-gated before it can fire. No-op when EGRESS_FIREWALL=false.
-    installEgressFirewall({ timers: seams.timers, buildConnector: seams.buildConnector });
+    installEgressFirewall({ ...seams.networkExecution, timers: seams.timers, buildConnector: seams.buildConnector });
 
     // The data layout FIRST, before anything opens a file under it: a legacy flat data dir is renamed into
     // the current tree (db/, backups/, secrets/, cache/ …) under a journal. Every path below reads the layout
@@ -441,6 +441,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       // Unref'd both ways so a pending relay restart never holds the process open.
       timers: { timeout: seams.timers.timeoutUnref, timeoutUnref: seams.timers.timeoutUnref, interval: seams.timers.interval },
       buildConnector: seams.buildConnector,
+      networkExecution: seams.networkExecution,
       ...(options.relaySeams === undefined ? {} : { relaySeams: options.relaySeams }),
     });
     const relay = sharing.share.relay;
@@ -677,7 +678,10 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
 
     if (server !== null) {
       const loopback = loopbackServer;
-      await Promise.all([drainHttpServer(server, log, httpDrainMs), ...(loopback === null ? [] : [drainHttpServer(loopback, log, httpDrainMs)])]);
+      await Promise.all([
+        drainHttpServer(server, log, seams.timers.timeout, httpDrainMs),
+        ...(loopback === null ? [] : [drainHttpServer(loopback, log, seams.timers.timeout, httpDrainMs)]),
+      ]);
       server = null;
       loopbackServer = null;
       listenerAddress = null;

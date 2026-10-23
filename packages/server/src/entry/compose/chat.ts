@@ -402,6 +402,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // (principal-blind) — this composition-root helper enumerates membership.
     emitChatChanged: createEmitChatChanged({ db }, input.publishChatChanged),
     applyRegexReplace: createRegexApplyReplace(),
+    prng: input.random,
     testRegexKey: createRegexTest(),
     // D121-E: the four-scope junction dereference (global/preset/cast/room). Chat owns the UNION
     // (`substrate/regex-tier`), the regex domain owns the STORAGE — one seam, no blob copies.

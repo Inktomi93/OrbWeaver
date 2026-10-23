@@ -21,7 +21,7 @@ import { announceOwnerClaim, removeOwnerClaimFileOnSpend } from "@orb/server/ent
 import type { createConfiguredOidc, createHttpApp, ServicesDeps, ServicesResult } from "@orb/server/entry/compose";
 import { env, resolveBindPosture } from "@orb/server/foundation/env";
 import { getLog, logger } from "@orb/server/foundation/observability";
-import { systemConnector } from "@orb/server/infra/network";
+import { systemConnector, systemFetch } from "@orb/server/infra/network";
 import { createCaller, createContext } from "@orb/server/transport/trpc";
 import type { Clock } from "../iso/clock.ts";
 import { createFrozenClock } from "../iso/clock.ts";
@@ -39,7 +39,9 @@ export interface ServerHarnessOptions
   extends Partial<
     Pick<ServicesDeps, "secretBoxKey" | "casDir" | "variantDir" | "importStagingDir" | "rpgTrace" | "wireCapture" | "wireCaptureReply" | "logLevel" | "holder">
   > {
-  readonly networkExecution?: ServicesDeps["networkExecution"];
+  /** Scripted network seams; an omitted resolver refuses, an omitted fetch is the provider transport (services) or
+   *  the real platform fetch behind the refusing resolver (sharing). */
+  readonly networkExecution?: Partial<ServicesDeps["networkExecution"]> | undefined;
   readonly share?: Pick<ShareGraphOptions, "relay" | "acme">;
   readonly relayDir?: string;
   readonly secretsDir?: string;
@@ -170,12 +172,16 @@ function refusingResolver(): Promise<never> {
   return Promise.reject(new Error("server harness: unscripted external address resolution"));
 }
 
+/** The scripted network seams over a fallback fetch; an unscripted resolver always refuses. */
+function networkExecutionOf(options: Pick<ServerHarnessOptions, "networkExecution">, fallbackFetch: typeof fetch): ServicesDeps["networkExecution"] {
+  return { fetch: options.networkExecution?.fetch ?? fallbackFetch, resolver: options.networkExecution?.resolver ?? refusingResolver };
+}
+
 function providerExecutionOf(
-  options: Pick<ServerHarnessOptions, "providerFetch" | "sdkQuery" | "sdkSpawn" | "sdkNative" | "modelKernelModule" | "allowRemoteModels" | "runtimeSpan">,
+  options: Pick<ServerHarnessOptions, "sdkQuery" | "sdkSpawn" | "sdkNative" | "modelKernelModule" | "allowRemoteModels" | "runtimeSpan">,
   modelCacheDir: string,
 ): NonNullable<ServicesDeps["providerSeams"]> {
   return {
-    sdkFetch: options.providerFetch ?? refusingProviderFetch(),
     agentSdk: {
       ...(options.sdkQuery === undefined && (options.sdkSpawn !== undefined || options.sdkNative !== undefined)
         ? {}
@@ -369,7 +375,8 @@ function shareInputsFor(options: ServerHarnessOptions | UnclaimedServerHarnessOp
     buildConnector: systemConnector,
     relay: options.share?.relay ?? null,
     acme: options.share?.acme ?? null,
-    networkExecution: { ...options.networkExecution, resolver: options.networkExecution?.resolver ?? refusingResolver },
+    // Sharing's egress keeps the platform fetch behind the refusing resolver, so an unscripted name never resolves.
+    networkExecution: networkExecutionOf(options, systemFetch),
   };
 }
 
@@ -473,8 +480,9 @@ export async function createServerHarness(
     serverRestart: UNSUPERVISED_RESTART,
     share: sharing.share,
     providerSeams: providerExecutionOf(options, modelCacheDir),
-    pluginExecution: { spawn: options.pluginSpawn ?? refusingPluginSpawn, monotonicNow: clock.now },
-    networkExecution: { ...options.networkExecution, resolver: options.networkExecution?.resolver ?? refusingResolver },
+    pluginExecution: { spawn: options.pluginSpawn ?? refusingPluginSpawn },
+    monotonicNow: clock.now,
+    networkExecution: networkExecutionOf(options, options.providerFetch ?? refusingProviderFetch()),
   });
   appLifetime = app;
   const manualWorkloadAbort = new AbortController();

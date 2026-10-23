@@ -386,7 +386,7 @@ interface BuildAssembleContextInput {
   readonly nowMs?: number | undefined;
   /** Seeded turn PRNG — never ambient Math.random; drives the SEND volatile-macro freeze so a committed
    *  row's baked value is deterministic + replayable. */
-  readonly prng?: (() => number) | undefined;
+  readonly prng: () => number;
   readonly model: string;
   /** Per-turn injection token budget (0 = unbudgeted). */
   readonly injectionTokenBudget: number;
@@ -836,6 +836,7 @@ async function runSendAuthorTransforms(
       model: input.model,
       chatId: input.chatId,
       input: text,
+      random: input.prng,
       onWarn: onMacroWarn,
       registry: input.macroRegistry,
     });
@@ -955,7 +956,7 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
       hasAfterAnchor: hasActiveMarker(input.promptConfig, "world_info_after", input.generationType ?? "normal"),
       registry: reg,
     },
-    buildTurnMacroContext({ assembleCtx: base, model: input.model, chatId: input.chatId, registry: input.macroRegistry }),
+    buildTurnMacroContext({ assembleCtx: base, model: input.model, chatId: input.chatId, random: input.prng, registry: input.macroRegistry }),
   );
 
   const guided = resolveGuidedSteer(base, input, guidedSteerText ?? "");

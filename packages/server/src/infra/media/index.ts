@@ -8,8 +8,11 @@ import { join } from "node:path";
 import type { Readable } from "node:stream";
 import type { VideoMaxResolution } from "@orb/contracts/inference";
 import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
+import type { ScheduleOp } from "@orb/kit/time";
 import { ffmpegPath } from "node-av/ffmpeg";
-import type { VideoPreparationOptions } from "./contract.ts";
+import type { PrepareVideo } from "./contract.ts";
+
+export type { PrepareVideo } from "./contract.ts";
 
 const VIDEO_1080_WIDTH = 1920;
 const VIDEO_1080_HEIGHT = 1080;
@@ -30,12 +33,6 @@ const DEMUXERS = new Map([
 const TRANSCODE_TIMEOUT_MS = 60_000;
 const VIDEO_MAX_PIXELS = 40_000_000;
 const FRAGMENT_DURATION_US = 1_000_000;
-
-function scheduleWithTimer(fn: () => void, ms: number): () => void {
-  const timer = setTimeout(fn, ms);
-  timer.unref();
-  return () => clearTimeout(timer);
-}
 
 function videoArguments(input: string, demuxer: string, resolution: VideoMaxResolution, maxBytes: number): string[] {
   const argv = [
@@ -95,7 +92,7 @@ async function collectVideoOutput(
   child: ChildProcessByStdio<null, Readable, Readable>,
   maxBytes: number,
   signal: AbortSignal | undefined,
-  scheduleTimeout: (fn: () => void, ms: number) => () => void,
+  scheduleTimeout: ScheduleOp,
 ): Promise<Uint8Array> {
   const chunks: Buffer[] = [];
   let outputBytes = 0;
@@ -158,9 +155,10 @@ async function collectVideoOutput(
   return new Uint8Array(output.buffer, output.byteOffset, output.byteLength);
 }
 
-/** Bind the decoder's owned deadline without replacing the caller's cancellation signal. */
-function createVideoPreparer(scheduleTimeout: (fn: () => void, ms: number) => () => void = scheduleWithTimer) {
-  return async function prepare(bytes: Uint8Array, mime: string, resolution: VideoMaxResolution, options: VideoPreparationOptions = {}): Promise<Uint8Array> {
+/** Bind the decoder's owned deadline to the root's timer without replacing the caller's cancellation signal. The root
+ *  passes an unref'd timeout, so a pending transcode deadline never holds the process open. */
+export function createVideoPreparer(scheduleTimeout: ScheduleOp): PrepareVideo {
+  return async function prepare(bytes, mime, resolution, options = {}) {
     const { signal, maxBytes = ASSET_UPLOAD_MAX_BYTES } = options;
     signal?.throwIfAborted();
     if (bytes.byteLength > maxBytes) {
@@ -188,6 +186,3 @@ function createVideoPreparer(scheduleTimeout: (fn: () => void, ms: number) => ()
     }
   };
 }
-
-/** Resize an admitted stored video to MP4 bytes without touching its stored original. */
-export const prepareVideo = createVideoPreparer();

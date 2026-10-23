@@ -1,11 +1,11 @@
 import type { assets, Db } from "@orb/db";
 import type { AssetId, ChatId, UserId } from "@orb/kit/ids";
 import type { ImageAdapter } from "#infra/image";
-import type { prepareVideo } from "#infra/media";
+import type { PrepareVideo } from "#infra/media";
 import type { ChatContext } from "./context.ts";
 export interface ImageRefAssets {
   readonly frameCount: ImageAdapter["frameCount"];
-  readonly prepareVideo: typeof prepareVideo;
+  readonly prepareVideo: PrepareVideo;
   readonly assetCasRefById: (id: AssetId) => Promise<Pick<typeof assets.$inferSelect, "ownerId" | "mime"> | undefined>;
   readonly loadAssetBytes: (id: AssetId) => Promise<Uint8Array | null>;
 }

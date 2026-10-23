@@ -1166,7 +1166,7 @@ function previewPromptHistoryEnv(ctx: ChatContext, assembleContext: AssembleCont
   }
   return {
     scripts,
-    macroCtx: buildTurnMacroContext({ assembleCtx: assembleContext, model: inputs.model, chatId: inputs.chatId }),
+    macroCtx: buildTurnMacroContext({ assembleCtx: assembleContext, model: inputs.model, chatId: inputs.chatId, random: ctx.prng }),
     applyReplace: ctx.applyRegexReplace,
     onScriptFailure: (err, script) =>
       getLog().warn(

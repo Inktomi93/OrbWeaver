@@ -272,7 +272,7 @@ class BrokerClient {
   constructor(seams: PluginHostSeamDeps, timers: TimerScheduler) {
     this.seams = seams;
     this.timers = timers;
-    this.monotonicNow = seams.monotonicNow ?? ((): number => performance.now());
+    this.monotonicNow = seams.monotonicNow;
   }
 
   private sender: PluginIpcSender | undefined;

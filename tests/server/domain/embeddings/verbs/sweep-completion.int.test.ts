@@ -35,6 +35,7 @@ async function executeAdmitted(root: ServerTestHarness, id: WorkloadId): Promise
       emitEvent: root.app.workloadEvents.emitWorkloadEvent,
       heartbeatMs: 0,
       cancelPollMs: 0,
+      scheduleInterval: root.timers.interval,
     },
     row,
     new AbortController().signal,

@@ -14,7 +14,7 @@ export interface ShareGraphOptions {
   readonly now: () => number;
   readonly timers: TimerScheduler;
   readonly buildConnector: ScopedEgressOptions["buildConnector"];
-  readonly networkExecution?: Omit<ScopedEgressOptions, "timers" | "buildConnector">;
+  readonly networkExecution: Pick<ScopedEgressOptions, "fetch" | "resolver">;
   readonly relay?: { readonly pin?: CloudflaredPin; readonly target?: string } | null;
   readonly acme?: Pick<AcmeIssuerDeps, "directoryUrl" | "polling"> | null;
   /** Compatibility with retained lifecycle callers; the maintained harness scripts raw executable bytes instead. */

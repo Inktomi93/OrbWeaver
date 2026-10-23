@@ -71,8 +71,8 @@ export interface WorkloadRunnerDeps {
   /** The lease TIMER seam (heartbeat + cancel-poll): schedule `fn` every `ms`, returning its cancel. The
    *  house `ScheduleOp` shape (`transport/jobs/workloads-worker.ts`), so no handle type leaks. Injected for
    *  the same reason `now` is: a test ticks the lease through this seam instead of replacing the global
-   *  clock, which `vi.useFakeTimers` does and Spine-Testing.md §3 bans. Omitted ⇒ the real `setInterval`. */
-  readonly scheduleInterval?: (fn: () => void, ms: number) => () => void;
+   *  clock, which `vi.useFakeTimers` does and Spine-Testing.md §3 bans. Production passes the root's `timers.interval`. */
+  readonly scheduleInterval: (fn: () => void, ms: number) => () => void;
 }
 
 /**

@@ -68,15 +68,6 @@ import type { FlushBarrierOnTimeout, FlushBarrierScheduleTimeout, OwnedRpgFlushB
  *  a snapshot write — measured 0.8-2.9s; the bound is generous headroom, never a normal-path wait. */
 const BARRIER_TIMEOUT_MS = 15_000;
 
-/** The real timer, and the default for the injected seam below — the ONE ambient `setTimeout` this file
- *  owns. Everything else takes the seam, so the bound is drivable from a test without a global fake clock. */
-const realScheduleTimeout: FlushBarrierScheduleTimeout = (fn, ms) => {
-  const handle = setTimeout(fn, ms);
-  return (): void => {
-    clearTimeout(handle);
-  };
-};
-
 // The barrier's types (`RpgFlushBarrier`, `FlushBarrierOnTimeout`) are homed in `contract/service.ts` (a type
 // has no home in a stateful root file — substrate-not-a-type-home); this file owns only the factory + the bound.
 
@@ -90,11 +81,12 @@ interface InFlightFlush {
   tracked: Promise<void>;
 }
 
-/** Build the flush barrier (a compose-created singleton — one per server process, like the staging store). */
+/** Build the flush barrier (a compose-created singleton — one per server process, like the staging store). The
+ *  bound arms only through `scheduleTimeout`, so a test drives it without a global fake clock. */
 export function createRpgFlushBarrier(
   onTimeout: FlushBarrierOnTimeout,
+  scheduleTimeout: FlushBarrierScheduleTimeout,
   timeoutMs: number = BARRIER_TIMEOUT_MS,
-  scheduleTimeout: FlushBarrierScheduleTimeout = realScheduleTimeout,
 ): OwnedRpgFlushBarrier {
   // The SET of in-flight flushes per chat (S2). Each flush self-removes on settle; an emptied set is deleted so
   // the common fast path (no in-flight flush) is a Map miss. Two concurrent flushes on one chat are BOTH tracked.
