@@ -28,7 +28,7 @@ import type { ReactElement } from "react";
 
 /** Long enough to overflow every wrapper this fixture mounts at, at the CT harness's real font metrics
  *  (measured: ~475px rendered, comfortably past the 200px wrapper below). */
-export const LONG_UNBREAKABLE_WORD = "Grimdark GM voice long context table rules v3 unbreakable probe text repeated twice over for width";
+const LONG_UNBREAKABLE_WORD = "Grimdark GM voice long context table rules v3 unbreakable probe text repeated twice over for width";
 
 export interface ContainmentSubjectStoryProps {
   /** The `min-w-0` half — applied to the ROW, exactly where the real regex-tier-row label carries it. */

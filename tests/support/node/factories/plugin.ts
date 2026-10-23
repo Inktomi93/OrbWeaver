@@ -12,10 +12,10 @@ import type { ServerProducerRoot } from "../server.ts";
 
 type PluginService = ServicesResult["services"]["plugin"];
 
-export type PluginRow = typeof plugins.$inferSelect;
-export type AdminDistributedPluginRow = typeof adminDistributedPlugins.$inferSelect;
-export type PluginAssetRow = typeof pluginAssets.$inferSelect;
-export type PluginKvRow = typeof pluginKv.$inferSelect;
+type PluginRow = typeof plugins.$inferSelect;
+type AdminDistributedPluginRow = typeof adminDistributedPlugins.$inferSelect;
+type PluginAssetRow = typeof pluginAssets.$inferSelect;
+type PluginKvRow = typeof pluginKv.$inferSelect;
 
 export interface CapturedPluginRows {
   readonly plugin: PluginRow;

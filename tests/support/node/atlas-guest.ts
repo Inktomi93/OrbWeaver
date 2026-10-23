@@ -15,13 +15,13 @@ export interface CannedResponse {
 }
 
 /** One `host.ui.setState` call the guest made. */
-export interface AtlasPublish {
+interface AtlasPublish {
   readonly id: string;
   readonly state: Record<string, unknown>;
 }
 
 /** One `host.ui.toast` the guest ASKED for — recorded whether or not the harness then refuses it. */
-export interface AtlasToast {
+interface AtlasToast {
   readonly level: string;
   readonly message: string;
 }
@@ -42,7 +42,7 @@ export interface AtlasDrive {
 }
 
 /** The controlled result returned at the guest's external ingest boundary. */
-export type AtlasIngestOutcome = Awaited<ReturnType<PluginHostV1["character"]["ingest"]>>;
+type AtlasIngestOutcome = Awaited<ReturnType<PluginHostV1["character"]["ingest"]>>;
 
 export interface AtlasBootOptions {
   /** The canned wire. Default: none — every fetch 404s. */

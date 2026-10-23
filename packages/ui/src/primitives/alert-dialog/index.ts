@@ -1,9 +1,3 @@
-export type {
-  AlertDialogActionsProps,
-  AlertDialogDescriptionProps,
-  AlertDialogPopupProps,
-  AlertDialogTitleProps,
-} from "./alert-dialog.tsx";
 export {
   AlertDialog,
   AlertDialogActions,

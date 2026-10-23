@@ -10,14 +10,14 @@ export const RPG_RECURSION_MODEL = "corpus-rpg-recursion-v1";
 export const RPG_ROUND_MODEL = "corpus-rpg-round-v1";
 export const RPG_RECURSION_CARD = "Corpus recursive keeper";
 export const RPG_RECURSION_CUE = "Follow the recursive ledger through both observatories.";
-export const RPG_DEPTH_ZERO_LOCATION = "Outer observatory";
+const RPG_DEPTH_ZERO_LOCATION = "Outer observatory";
 export const RPG_DEPTH_ONE_LOCATION = "Inner observatory";
 export const RPG_DEPTH_TEXT = ["The keeper pauses beside the ledger. ", "The keeper answers from the inner observatory."] as const;
 export const RPG_CANCEL_CUE = "Begin the cancelled observatory round.";
 export const RPG_AFTER_CANCEL_CUE = "Continue after the cancelled observatory round.";
 export const RPG_FOREIGN_STOP_CUE = "Preserve the owner's observatory round.";
 export const RPG_ROUND_LOCATION = "Settled observatory";
-export const RPG_ROUND_TEXT = "The keeper records the observatory witness.";
+const RPG_ROUND_TEXT = "The keeper records the observatory witness.";
 export const RPG_JOURNAL_TITLES = ["Outer ledger", "Inner ledger", "Settled ledger"] as const;
 
 interface FlightTimers {

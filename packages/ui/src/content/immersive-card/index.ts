@@ -1,2 +1,2 @@
-export { ImmersiveCard, type ImmersiveCardProps } from "./immersive-card.tsx";
-export { InertCard, type InertCardProps } from "./inert-card.tsx";
+export { ImmersiveCard } from "./immersive-card.tsx";
+export { InertCard } from "./inert-card.tsx";

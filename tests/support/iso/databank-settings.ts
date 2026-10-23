@@ -2,12 +2,12 @@ import type { ChunkParamsWire, DatabankRetrievalSettings, DatabankSettings } fro
 import { chunkParamsSchema, databankRetrievalSettingsSchema, databankSettingsSchema } from "@orb/contracts/databank";
 
 /** Builds chunk configuration from the contract's complete defaults. */
-export function makeChunkParams(overrides: Partial<ChunkParamsWire> = {}): ChunkParamsWire {
+function makeChunkParams(overrides: Partial<ChunkParamsWire> = {}): ChunkParamsWire {
   return chunkParamsSchema.parse(overrides);
 }
 
 /** Builds retrieval configuration from the contract's complete defaults. */
-export function makeDatabankRetrievalSettings(overrides: Partial<DatabankRetrievalSettings> = {}): DatabankRetrievalSettings {
+function makeDatabankRetrievalSettings(overrides: Partial<DatabankRetrievalSettings> = {}): DatabankRetrievalSettings {
   return databankRetrievalSettingsSchema.parse(overrides);
 }
 

@@ -1,1 +1,1 @@
-export { Lightbox, type LightboxProps } from "./lightbox.tsx";
+export { Lightbox } from "./lightbox.tsx";

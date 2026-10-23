@@ -5,5 +5,5 @@
  */
 
 export { Chart } from "./chart.tsx";
-export type { ChartEvent, ChartProps } from "./contract.ts";
-export type { OrbChartOption, OrbEChartsInstance } from "./echarts-setup.ts";
+export type { ChartEvent } from "./contract.ts";
+export type { OrbEChartsInstance } from "./echarts-setup.ts";

@@ -29,16 +29,6 @@
 
 import type { Locator, Page } from "@playwright/test";
 
-/** One node of the parsed ARIA tree. `scope` is the ancestor chain that disambiguates a repeated name. */
-export interface AriaNode {
-  readonly role: string;
-  /** The computed accessible name, or `null` when the tree exposes the node without one. */
-  readonly name: string | null;
-  /** Ancestor `role "name"` chain, outermost first — only the SCOPING roles (see `SCOPE_ROLES`). */
-  readonly scope: readonly string[];
-  readonly line: string;
-}
-
 /** One name-quality violation, shaped for a failure message that names its own fix site. */
 export interface NameFinding {
   readonly rule: "nameless-control" | "ambiguous-duplicate" | "unnamed-landmark" | "duplicate-landmark" | "label-not-in-name";
@@ -51,25 +41,6 @@ export interface NameFinding {
  * governed by the landmark/scoping rules instead, and excludes `option`, whose name is always its own
  * content and which therefore cannot be nameless without being empty.
  */
-const INTERACTIVE_ROLES: ReadonlySet<string> = new Set([
-  "button",
-  "link",
-  "checkbox",
-  "radio",
-  "switch",
-  "tab",
-  "textbox",
-  "combobox",
-  "listbox",
-  "slider",
-  "spinbutton",
-  "searchbox",
-  "menuitem",
-  "menuitemcheckbox",
-  "menuitemradio",
-  "treeitem",
-]);
-
 /**
  * The roles WCAG 2.5.3 governs: a control whose own text content IS its visible label. Everything else is
  * excluded for a reason, and both exclusions were measured as false-fires on the first run of this suite:
@@ -96,135 +67,27 @@ const LABEL_IN_NAME_ROLES: ReadonlySet<string> = new Set([
 ]);
 
 /** ARIA landmark roles. `region` is included: a `region` reaches the tree ONLY when it has a name. */
-const LANDMARK_ROLES: ReadonlySet<string> = new Set(["banner", "complementary", "contentinfo", "form", "main", "navigation", "region", "search"]);
-
 /**
  * Roles that SCOPE a name. Two "Edit" buttons are unambiguous when they sit in differently-named rows —
  * an agent scopes into the row first. Two "Edit" buttons under the SAME scope chain are not.
  */
-const SCOPE_ROLES: ReadonlySet<string> = new Set([
-  ...LANDMARK_ROLES,
-  "article",
-  "dialog",
-  "alertdialog",
-  "group",
-  "list",
-  "listitem",
-  "menu",
-  "row",
-  "table",
-  "tabpanel",
-  "toolbar",
-  "tree",
-]);
-
-const INDENT_WIDTH = 2;
 /** `- role "name":` / `- role:` / `- 'role "na:me"':` — the name is optional, the trailing colon is too. */
-const NODE_LINE = /^-\s+(?:'(?<qrole>[a-z]+)\s+"(?<qname>.*)"'|(?<role>[a-z]+)(?:\s+"(?<name>.*?)")?)(?::.*)?$/;
-
 /** Parses one `ariaSnapshot()` YAML into flat nodes carrying their scope chain. */
-export function parseAriaSnapshot(snapshot: string): readonly AriaNode[] {
-  const nodes: AriaNode[] = [];
-  // Index = depth; value = the `role "name"` label contributed at that depth (absent for non-scoping roles).
-  const openScopes: (string | undefined)[] = [];
-  for (const raw of snapshot.split(/\r?\n/u)) {
-    const trimmed = raw.trimStart();
-    if (!trimmed.startsWith("- ")) {
-      continue;
-    }
-    const depth = Math.floor((raw.length - trimmed.length) / INDENT_WIDTH);
-    const match = NODE_LINE.exec(trimmed);
-    if (match?.groups === undefined) {
-      continue;
-    }
-    const role = match.groups["qrole"] ?? match.groups["role"] ?? "";
-    const name = match.groups["qname"] ?? match.groups["name"] ?? null;
-    openScopes.length = depth;
-    nodes.push({ role, name, scope: openScopes.filter((s): s is string => s !== undefined), line: trimmed });
-    openScopes[depth] = SCOPE_ROLES.has(role) ? `${role} "${name ?? ""}"` : undefined;
-  }
-  return nodes;
-}
-
 /** `banner`/`contentinfo`/`main` are singletons by spec — a lone one needs no distinguishing name. */
-const SINGLETON_LANDMARKS: ReadonlySet<string> = new Set(["banner", "contentinfo", "main"]);
-
 /** A node the tree exposes without a usable name. */
-function isNameless(node: AriaNode): boolean {
-  return node.name === null || node.name.trim() === "";
-}
-
 /** Buckets nodes by an arbitrary key, preserving insertion order. */
-function bucketBy(nodes: readonly AriaNode[], key: (node: AriaNode) => string): ReadonlyMap<string, readonly AriaNode[]> {
-  const out = new Map<string, AriaNode[]>();
-  for (const node of nodes) {
-    const bucket = out.get(key(node));
-    if (bucket === undefined) {
-      out.set(key(node), [node]);
-    } else {
-      bucket.push(node);
-    }
-  }
-  return out;
-}
-
 /** Predicate 1 — every interactive role carries a non-empty accessible name. */
-function namelessControlFindings(nodes: readonly AriaNode[]): readonly NameFinding[] {
-  return nodes
-    .filter((node) => INTERACTIVE_ROLES.has(node.role) && isNameless(node))
-    .map((node) => ({ rule: "nameless-control" as const, detail: `${node.line} (scope: ${node.scope.join(" › ") || "<root>"})` }));
-}
-
 /**
  * Predicate 2 — no two same-role controls share a name under the same scope chain. Scope-aware by
  * construction: an "Edit" in `listitem "Aria"` and one in `listitem "Bolt"` land in different buckets.
  */
-function ambiguousDuplicateFindings(nodes: readonly AriaNode[]): readonly NameFinding[] {
-  const candidates = nodes.filter((node) => INTERACTIVE_ROLES.has(node.role) && !isNameless(node));
-  const findings: NameFinding[] = [];
-  for (const bucket of bucketBy(candidates, (node) => `${node.scope.join(" › ")} ${node.role} ${node.name ?? ""}`).values()) {
-    const first = bucket[0];
-    if (bucket.length > 1 && first !== undefined) {
-      const scope = first.scope.join(" › ");
-      findings.push({
-        rule: "ambiguous-duplicate",
-        detail: `${String(bucket.length)}× ${first.role} "${first.name ?? ""}" under the same scope (${scope === "" ? "<root>" : scope}) — getByRole cannot resolve one`,
-      });
-    }
-  }
-  return findings;
-}
-
 /** Predicate 3 — every landmark is named (unless a lone singleton) and distinguishable from its twins. */
-function landmarkFindings(nodes: readonly AriaNode[]): readonly NameFinding[] {
-  const findings: NameFinding[] = [];
-  const landmarks = nodes.filter((node) => LANDMARK_ROLES.has(node.role));
-  for (const [role, bucket] of bucketBy(landmarks, (node) => node.role)) {
-    const needsName = bucket.length > 1 || !SINGLETON_LANDMARKS.has(role);
-    for (const node of bucket) {
-      if (needsName && isNameless(node)) {
-        findings.push({ rule: "unnamed-landmark", detail: `${node.line} — a ${role} landmark needs an accessible name` });
-      }
-    }
-    const names = bucket.map((node) => node.name ?? "");
-    for (const dupe of new Set(names.filter((name, at) => names.indexOf(name) !== at))) {
-      findings.push({ rule: "duplicate-landmark", detail: `two or more ${role} landmarks are both named "${dupe}"` });
-    }
-  }
-  return findings;
-}
-
 /**
  * The three tree-level predicates: every interactive control has a name · no two same-role controls share
  * a name under the same scope chain · every landmark is named and distinguishable from its role-twins.
  * Split into one function per predicate so each stays readable and independently testable — the
  * monolithic version tripped biome's cognitive-complexity ceiling, which was fair.
  */
-export function ariaTreeFindings(snapshot: string): readonly NameFinding[] {
-  const nodes = parseAriaSnapshot(snapshot);
-  return [...namelessControlFindings(nodes), ...ambiguousDuplicateFindings(nodes), ...landmarkFindings(nodes)];
-}
-
 /**
  * WCAG 2.5.3 Label in Name, as a mechanical probe: every alphabetic word of a control's VISIBLE text must
  * appear in its accessible name. Scoped to elements with an explicit `aria-label` (the only way the two
@@ -322,12 +185,4 @@ export async function labelInNameFindings(root: Locator | Page): Promise<readonl
  * named live regions were a HARNESS fact and `duplicate-landmark "Alerts"` had to be filtered out. The
  * harness stopped mounting a global outlet in #247, so — exactly as that carve-out's own note required —
  * the list is deleted rather than grown, and a duplicate "Alerts" is a real finding again. */
-export async function nameQualityFindings(page: Page): Promise<readonly NameFinding[]> {
-  const snapshot = await page.locator("body").ariaSnapshot();
-  return [...ariaTreeFindings(snapshot), ...(await labelInNameFindings(page))];
-}
-
 /** Formats findings for an `expect(...)` message that points straight at the fix site. */
-export function formatFindings(findings: readonly NameFinding[]): string {
-  return findings.map((f) => `  [${f.rule}] ${f.detail}`).join("\n");
-}

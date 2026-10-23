@@ -10,7 +10,7 @@ import type { ServerProducerRoot } from "../server.ts";
 type ConnectionService = ServicesResult["services"]["connection"];
 
 export type ProviderRow = typeof providerRows.$inferSelect;
-export type PluginProviderClaimRow = typeof pluginProviderClaims.$inferSelect;
+type PluginProviderClaimRow = typeof pluginProviderClaims.$inferSelect;
 
 export interface SeededPluginProvider {
   readonly definition: ProviderRow;

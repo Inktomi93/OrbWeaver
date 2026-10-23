@@ -78,10 +78,8 @@
     "@orb/ui": "workspace:*",
     "@playwright/test": "catalog:",
     "@tailwindcss/oxide": "catalog:",
-    "@tailwindcss/vite": "catalog:",
     "@tanstack/eslint-plugin-query": "catalog:",
     "@tanstack/eslint-plugin-router": "catalog:",
-    "@tanstack/react-form": "catalog:",
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-router": "catalog:",
     "@total-typescript/ts-reset": "catalog:",
@@ -118,7 +116,6 @@
     "pino-pretty": "catalog:",
     "postcss-value-parser": "catalog:",
     "puppeteer-core": "catalog:",
-    "quickjs-emscripten-core": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
     "sharp": "catalog:",
@@ -131,8 +128,7 @@
     "vite": "catalog:",
     "vitest": "catalog:",
     "yaml": "catalog:",
-    "zod": "catalog:",
-    "zustand": "catalog:"
+    "zod": "catalog:"
   },
   "devEngines": {
     "runtime": {

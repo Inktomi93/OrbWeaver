@@ -1,1 +1,1 @@
-export { AriaAnnouncer, type AriaAnnouncerProps } from "./aria-announcer.tsx";
+export { AriaAnnouncer } from "./aria-announcer.tsx";

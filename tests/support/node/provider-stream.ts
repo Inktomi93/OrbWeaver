@@ -29,7 +29,7 @@ const DEFAULT_FINISH_REASON = "stop";
 
 /** The terminal chunk's bare JSON payload (no SSE framing) — vLLM's NDJSON-per-line fixtures
  *  (`sseStream`/`streamingClient`) pass this straight through as one of their raw payload strings. */
-export function terminalChunkJson(opts: TerminalFrameOptions = {}): string {
+function terminalChunkJson(opts: TerminalFrameOptions = {}): string {
   const finishReason = opts.finishReason ?? DEFAULT_FINISH_REASON;
   const deltaField = opts.delta === undefined ? "" : `"delta":${JSON.stringify(opts.delta)},`;
   const choice = `{${deltaField}"finish_reason":${JSON.stringify(finishReason)}}`;

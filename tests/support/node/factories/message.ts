@@ -16,7 +16,7 @@ import { seedChat } from "./chat.ts";
 
 /** The full `messages` SLOT row (derived from the live schema — the factory `X`). */
 export type MessageRow = typeof messages.$inferSelect;
-export type MessageVariantRow = typeof messageVariants.$inferSelect;
+type MessageVariantRow = typeof messageVariants.$inferSelect;
 
 /** Slot overrides + the first variant's content (a variant field, so not on `Partial<X>`). */
 export interface SeedMessageOptions extends Partial<MessageRow> {
@@ -95,7 +95,7 @@ export async function captureTurnRows(db: Db, outcome: TurnOutcome): Promise<Cap
   );
 }
 
-export interface CapturedTurnRow {
+interface CapturedTurnRow {
   readonly slot: MessageRow;
   readonly variant: MessageVariantRow;
 }

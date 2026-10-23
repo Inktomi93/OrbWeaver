@@ -20,7 +20,7 @@ const ids = createIdSource(createSeededIds().next);
 
 /** Pure builder: a fully-valid persona row. `ownerId` defaults to a MINTED (dangling) id — use
  *  `seedPersona` for the FK chain. */
-export function makePersona(overrides: Partial<PersonaRow> = {}, source: IdSource = ids): PersonaRow {
+function makePersona(overrides: Partial<PersonaRow> = {}, source: IdSource = ids): PersonaRow {
   return {
     id: source.typeId(ID_PREFIX.persona),
     ownerId: source.userId(),

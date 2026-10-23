@@ -4,16 +4,11 @@
 
 import {
   chatDetailSchema,
-  chatListPageSchema,
   chatSummarySchema,
-  createInviteResultSchema,
   DEFAULT_GROUP_CONFIG,
   DEFAULT_ROOM_OVERRIDES,
   participantViewSchema,
   redeemInviteResultSchema,
-  SHAPE_BREAKPOINT_DECISIONS,
-  shapeTraceSchema,
-  startChatResultSchema,
   TALKATIVENESS_DEFAULT,
 } from "@orb/contracts/chat";
 import { viewerViewSchema } from "@orb/contracts/identity";
@@ -29,10 +24,7 @@ type ChatDetailWire = TrpcWireOutput<"chat.getChat">;
 type ParticipantWire = ChatDetailWire["participants"][number];
 type ChatListPageWire = TrpcWireOutput<"chat.listChats">;
 type ChatSummaryWire = ChatListPageWire["items"][number];
-type StartChatWire = TrpcWireOutput<"chat.startChat">;
 type RedeemInviteWire = TrpcWireOutput<"invites.redeemInvite">;
-type CreateInviteWire = TrpcWireOutput<"invites.createInvite">;
-type ShapeTraceWire = TrpcWireOutput<"chat.getShapeTrace">;
 
 /** A room id from the sequence the builders below mint from, so a caller's room never collides with theirs. */
 export function makeChatId(): ChatId {
@@ -40,7 +32,7 @@ export function makeChatId(): ChatId {
 }
 
 /** One roster seat: a character seat by default, at the shipped talkativeness. */
-export function makeParticipantView(overrides: Partial<ParticipantWire> = {}): ParticipantWire {
+function makeParticipantView(overrides: Partial<ParticipantWire> = {}): ParticipantWire {
   return {
     ...participantViewSchema.parse({
       id: ids.next(ID_PREFIX.chatParticipant),
@@ -142,20 +134,7 @@ export function makeChatSummaryView(overrides: Partial<ChatSummaryWire> = {}): C
 }
 
 /** A `chat.listChats` page over `items`; `totalCount` is the item count unless the override says otherwise. */
-export function makeChatListPage(items: ChatListPageWire["items"] = [], overrides: Partial<ChatListPageWire> = {}): ChatListPageWire {
-  return {
-    ...chatListPageSchema.parse({ items: [], nextCursor: null, totalCount: 0, viewerLastTurnAt: null }),
-    items,
-    totalCount: items.length,
-    ...overrides,
-  };
-}
-
 /** The `chat.startChat` result: a fresh room and no seeded opening. */
-export function makeStartChatResult(overrides: Partial<StartChatWire> = {}): StartChatWire {
-  return { ...startChatResultSchema.parse({ chat: makeChatDetail(), opening: null }), ...overrides };
-}
-
 /** The `invites.redeemInvite` result: the joined room and the new member's own roster row. */
 export function makeRedeemInviteResult(overrides: Partial<RedeemInviteWire> = {}): RedeemInviteWire {
   const userId = mintUserId(ids.next);
@@ -182,36 +161,4 @@ export function makeRedeemInviteResult(overrides: Partial<RedeemInviteWire> = {}
 }
 
 /** The `invites.createInvite` result: a pending open link with one minted token. */
-export function makeCreateInviteResult(overrides: Partial<CreateInviteWire> = {}): CreateInviteWire {
-  return {
-    ...createInviteResultSchema.parse({
-      invite: {
-        id: ids.next(ID_PREFIX.chatInvite),
-        chatId: makeChatId(),
-        status: "pending",
-        maxUses: null,
-        remainingUses: null,
-        expiresAt: null,
-        invitedUserId: null,
-        allowSignup: false,
-        createdAt: FROZEN_AT_MS,
-      },
-      token: "tok_ct_minted",
-    }),
-    ...overrides,
-  };
-}
-
 /** The content-free `chat.getShapeTrace` read for a single-character room that placed its cache breakpoint. */
-export function makeShapeTrace(overrides: Partial<ShapeTraceWire> = {}): ShapeTraceWire {
-  return {
-    ...shapeTraceSchema.parse({
-      multiCharacter: false,
-      stageCounts: { withTail: 0, injected: 0, squashed: 0, named: 0 },
-      squashMerges: 0,
-      breakpointDecision: SHAPE_BREAKPOINT_DECISIONS[0],
-      rows: [],
-    }),
-    ...overrides,
-  };
-}

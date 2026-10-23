@@ -1,13 +1,3 @@
-export type {
-  CommandAuxiliaryButtonProps,
-  CommandEmptyProps,
-  CommandGroupProps,
-  CommandInputProps,
-  CommandItemProps,
-  CommandListProps,
-  CommandLoadingProps,
-  CommandProps,
-} from "./command.tsx";
 export {
   Command,
   CommandAuxiliaryButton,

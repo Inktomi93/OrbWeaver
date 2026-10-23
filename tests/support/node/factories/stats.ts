@@ -6,11 +6,11 @@ import { eq, inArray } from "drizzle-orm";
 import type { ServerProducerRoot } from "../server.ts";
 
 type Reconcile = ServicesResult["services"]["stats"]["reconcile"];
-export type StatsCanonVersionRow = typeof statsCanonVersions.$inferSelect;
-export type OwnerStatsRow = typeof ownerStats.$inferSelect;
-export type CharacterStatsRow = typeof characterStats.$inferSelect;
-export type DailyStatsRow = typeof dailyStats.$inferSelect;
-export type ModelStatsRow = typeof modelStats.$inferSelect;
+type StatsCanonVersionRow = typeof statsCanonVersions.$inferSelect;
+type OwnerStatsRow = typeof ownerStats.$inferSelect;
+type CharacterStatsRow = typeof characterStats.$inferSelect;
+type DailyStatsRow = typeof dailyStats.$inferSelect;
+type ModelStatsRow = typeof modelStats.$inferSelect;
 
 /** Reconciliation does not create a canon fence for an owner with no live stats mutation. */
 export async function seedStats(root: ServerProducerRoot, ownerId: Parameters<Reconcile>[0]): Promise<SeededStats> {

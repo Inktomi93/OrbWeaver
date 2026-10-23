@@ -202,7 +202,7 @@ export const readPseudoGeometry = (el: HitElement): HitGeometry => {
  *  helper it uses must join {@link HIT_EXTENT_WALK_SOURCE}) and one function holding both sets plus the
  *  arithmetic scores past the cognitive-complexity budget. The clauses themselves are documented on
  *  {@link pseudoHitRect}. */
-export const pseudoIsEligible = (facts: PseudoStyleFacts, geometry: HitGeometry): boolean => {
+const pseudoIsEligible = (facts: PseudoStyleFacts, geometry: HitGeometry): boolean => {
   const reachable =
     facts.content !== "none" &&
     facts.content !== "normal" &&

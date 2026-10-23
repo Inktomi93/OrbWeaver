@@ -11,8 +11,8 @@ type AutomationService = ServicesResult["services"]["automation"];
 export type AutomationRuleRow = typeof automationRules.$inferSelect;
 export type AutomationOwnerBudgetRow = typeof automationOwnerBudgets.$inferSelect;
 export type GlobalVariableRow = typeof globalVariables.$inferSelect;
-export type AutomationFireRow = typeof automationFires.$inferSelect;
-export type AutomationRuleStateRow = typeof automationRuleState.$inferSelect;
+type AutomationFireRow = typeof automationFires.$inferSelect;
+type AutomationRuleStateRow = typeof automationRuleState.$inferSelect;
 
 /** Capture the exact production-returned rule identity, including later enablement and fire stamps. */
 export async function captureAutomationRule(db: Db, ruleId: AutomationRuleRow["id"]): Promise<AutomationRuleRow | undefined> {

@@ -57,8 +57,6 @@ import {
 import type { createServerHarness } from "./server.ts";
 
 export { captureCookieAuth } from "./corpus-auth.ts";
-
-export type { SeededOidcCorpus } from "./corpus-oidc.ts";
 export { seedOidcCorpus } from "./corpus-oidc.ts";
 
 type ServerHarness = Awaited<ReturnType<typeof createServerHarness>>;

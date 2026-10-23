@@ -131,7 +131,7 @@ export {
 } from "lucide-react";
 export type { FillableIcon } from "./fillable.ts";
 export { Bookmark, Circle, Crown, Droplet, FastForward, Flag, Flame, Heart, Play, Shield, Square, Star, Zap } from "./fillable.ts";
-export type { IconProps } from "./icon.tsx";
+
 export { ICON_XS, Icon } from "./icon.tsx";
 // The orb-web BRAND glyph — minted through this seal (createLucideIcon; see orb-web.ts) so the mark
 // renders like any curated icon without an inline <svg> anywhere in ui (§13.7). The GLYPH metric

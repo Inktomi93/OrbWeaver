@@ -32,32 +32,9 @@ export interface HitBox {
 /** A Button `inline`/`glyph-*` hit pseudo's resolved box. This intentionally names `::before`: #1843
  * moved the hit surface there so `::after` can remain the CTA paint layer. An unresolved dimension is an
  * absent measurement, so this refuses instead of turning `auto` into a zero-sized target. */
-export function beforeHitBox(control: Locator): Promise<HitBox> {
-  return control.evaluate((el: HTMLElement): HitBox => {
-    const before = globalThis.getComputedStyle(el, "::before");
-    const box = { x: Number.parseFloat(before.width), y: Number.parseFloat(before.height) };
-    if (!(Number.isFinite(box.x) && Number.isFinite(box.y))) {
-      throw new Error(`beforeHitBox: ::before did not resolve finite dimensions (width=${before.width}, height=${before.height})`);
-    }
-    return box;
-  });
-}
-
 /** The effective box for Button arms that may carry their floor either in their own border box or in
  * `::before`. A box that already clears the floor needs no pseudo; a smaller box must have a measurable
  * pseudo and therefore inherits {@link beforeHitBox}'s refusal. */
-export async function boxWithBeforeFloor(control: Locator, floor: number): Promise<HitBox> {
-  const border = await control.boundingBox();
-  if (border === null) {
-    throw new Error("boxWithBeforeFloor: the control has no rendered box");
-  }
-  if (border.width >= floor && border.height >= floor) {
-    return { x: border.width, y: border.height };
-  }
-  const before = await beforeHitBox(control);
-  return { x: Math.max(border.width, before.x), y: Math.max(border.height, before.y) };
-}
-
 /**
  * One `--spacing-*` custom property resolved to REAL px by the browser, at the document root.
  *
@@ -68,7 +45,7 @@ export async function boxWithBeforeFloor(control: Locator, floor: number): Promi
  * for any reader with `--font-scale` off 1. A throwaway probe makes the ENGINE do the arithmetic, so it is
  * correct under the belt, the font scale, the pointer arm and the density scope alike.
  */
-export function resolveSpacingPx(page: Page, cssVar: string): Promise<number> {
+function resolveSpacingPx(page: Page, cssVar: string): Promise<number> {
   return page.evaluate((name: string) => {
     const probe = document.createElement("div");
     // PADDING, not width, and out of flow: a probe appended inside a flex container is a FLEX ITEM whose
@@ -87,18 +64,6 @@ export function resolveSpacingPx(page: Page, cssVar: string): Promise<number> {
 /** {@link resolveSpacingPx} inside a LOCATOR's inherited scope — `--spacing-field/row/block/section` are
  *  rebound per density tier (`packages/ui/src/styles/tiers.css`), so a root-scoped read answers for the
  *  wrong tier inside a `data-density` subtree. */
-export function resolveSpacingPxIn(scope: Locator, cssVar: string): Promise<number> {
-  return scope.evaluate((node: Element, name: string) => {
-    const probe = node.ownerDocument.createElement("div");
-    probe.style.position = "absolute";
-    probe.style.paddingTop = `var(${name})`;
-    node.append(probe);
-    const px = Number.parseFloat(getComputedStyle(probe).paddingTop);
-    probe.remove();
-    return px;
-  }, cssVar);
-}
-
 /** The live `--spacing-touch-target`, in px. Pointer-CONDITIONAL (44 coarse / 28 fine) — read it only after
  *  asserting the coarse emulation landed, or it answers for the wrong pointer class. */
 export function touchFloorPx(page: Page): Promise<number> {
@@ -125,15 +90,6 @@ export async function hitExtent(cell: Locator, axis: "x" | "y"): Promise<number>
 }
 
 /** Every control's effective hit box, in DOM order. */
-export function hitBoxes(controls: Locator, count: number): Promise<readonly HitBox[]> {
-  return Promise.all(
-    Array.from({ length: count }, async (_unused, index) => {
-      const cell = controls.nth(index);
-      return { x: await hitExtent(cell, "x"), y: await hitExtent(cell, "y") };
-    }),
-  );
-}
-
 /** The run's centre-to-centre PITCH on both axes — the smallest non-zero offset from the first cell.
  *
  *  POLL THIS, never read it once, whenever the run is inside a surface that opens with a transition: a

@@ -1,12 +1,3 @@
-export type {
-  DrawerDescriptionProps,
-  DrawerIndentBackgroundProps,
-  DrawerIndentProps,
-  DrawerPopupProps,
-  DrawerProps,
-  DrawerSwipeAreaProps,
-  DrawerTitleProps,
-} from "./drawer.tsx";
 export {
   Drawer,
   DrawerClose,

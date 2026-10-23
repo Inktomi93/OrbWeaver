@@ -20,7 +20,7 @@ export function corpusEmbeddingForText(text: string): readonly number[] {
   const normalized = text.normalize("NFKC").toLowerCase().replace(/\s+/gu, " ").trim();
   return Array.from(createHash(EMBEDDING_DIGEST).update(normalized).digest(), (byte) => (byte - BYTE_MIDPOINT) / BYTE_MIDPOINT);
 }
-export const CORPUS_REFINERY_SCHEMA_NAME = "corpus_refinery_score";
+const CORPUS_REFINERY_SCHEMA_NAME = "corpus_refinery_score";
 export const CORPUS_REFINERY_SCHEMA_REVISION = "corpus_refinery_score_revision";
 
 const CUSTOM_SCORE_REPLY = JSON.stringify({ overallScore: 8, notes: "The keeper preserves the ledger's character." });

@@ -9,8 +9,6 @@ const TAG = { integer: 0x02, bitString: 0x03, octetString: 0x04, oid: 0x06, utf8
 /** The context tag of a GeneralName iPAddress: `[7]`, primitive. */
 export const GENERAL_NAME_IP_TAG = 0x87;
 /** The context tag of a GeneralName dNSName: `[2]`, primitive. */
-export const GENERAL_NAME_DNS_TAG = 0x82;
-
 const OID = {
   commonName: "2.5.4.3",
   subjectAltName: "2.5.29.17",

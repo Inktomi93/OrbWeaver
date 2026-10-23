@@ -18,7 +18,7 @@ export type PresetRow = typeof presets.$inferSelect;
 const ids = createIdSource(createSeededIds().next);
 
 /** Builds an owned row; its owner relation is persisted only by {@link seedPreset}. */
-export function makePreset(overrides: Partial<PresetRow> = {}, source: IdSource = ids): PresetRow {
+function makePreset(overrides: Partial<PresetRow> = {}, source: IdSource = ids): PresetRow {
   const config = overrides.config ?? makePromptConfig();
   return {
     id: source.typeId(ID_PREFIX.preset),

@@ -56,10 +56,6 @@ type CanonicalTrpcResponder<TPath extends TrpcProcedurePath> =
   | TrpcMarker<TPath>
   | ((input: TrpcInput<TPath>) => TrpcFullSuccess<TPath> | TrpcMarker<TPath>);
 
-export type TrpcResponder<TPath extends TrpcProcedurePath | undefined = undefined> = [TPath] extends [TrpcProcedurePath]
-  ? CanonicalTrpcResponder<Extract<TPath, TrpcProcedurePath>>
-  : unknown | ((input: unknown) => unknown);
-
 /**
  * Procedure-keyed helper map. Name a path union for a reusable map with required, contract-checked keys;
  * the default is the broad optional composition shape and is deliberately rejected as a direct route map.

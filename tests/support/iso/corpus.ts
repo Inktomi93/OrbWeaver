@@ -46,8 +46,6 @@ import { corpusSearchSchema, hydrateCorpusSearch, publishCorpusSearch } from "./
 
 export type { CorpusRegexLibrary, CorpusWorldInfoLibrary } from "./corpus-library.ts";
 export type { CorpusLibraryRelations } from "./corpus-library-relations.ts";
-export type { CorpusPluginLibrary, CorpusPluginStage } from "./corpus-plugin.ts";
-export { corpusPluginInput } from "./corpus-plugin.ts";
 export type { CorpusSearchLibrary } from "./corpus-search.ts";
 
 const PRIVATE_MATERIAL_MESSAGE = "Corpus publication contains private material";
@@ -109,7 +107,7 @@ export type CorpusCookieIdentity = z.output<typeof corpusCookieIdentitySchema>;
 const memberIdentitiesSchema = z
   .strictObject({ notificationReader: corpusCookieIdentitySchema, sharedMember: corpusCookieIdentitySchema })
   .refine(({ notificationReader, sharedMember }) => notificationReader.viewer.userId !== sharedMember.viewer.userId, "Corpus member identity cohort mismatch");
-export type CorpusMemberIdentities = z.output<typeof memberIdentitiesSchema>;
+type CorpusMemberIdentities = z.output<typeof memberIdentitiesSchema>;
 
 const corpusOidcSchema = z.strictObject({
   anonymousConfig: authConfigSchema,
@@ -193,7 +191,7 @@ const publishedCorpusSchema = z
     "Corpus plugin owner viewer mismatch",
   );
 
-export interface CorpusReads {
+interface CorpusReads {
   readonly "sessions.me": readonly CorpusRead<"sessions.me">[];
   readonly "settings.getUserSettings": readonly CorpusRead<"settings.getUserSettings">[];
   readonly "settings.listThemes": readonly CorpusRead<"settings.listThemes">[];

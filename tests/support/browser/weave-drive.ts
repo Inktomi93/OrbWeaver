@@ -11,30 +11,9 @@
 // (the web-weave.ct.tsx mouse-path precedent). Always compare a drive delta against a noise floor
 // sampled the same way — glint, dew and the spider move the frame every tick on their own.
 
-import type { CDPSession, Locator, Page } from "@playwright/test";
-
-export interface WeavePoint {
-  readonly x: number;
-  readonly y: number;
-}
+import type { Locator } from "@playwright/test";
 
 /** A real finger: touchStart → `steps` touchMoves → touchEnd, through the browser's own input path. */
-export async function touchDrag(page: Page, from: WeavePoint, to: WeavePoint, steps: number): Promise<void> {
-  const cdp: CDPSession = await page.context().newCDPSession(page);
-  const moves = Array.from({ length: steps }, (_, i) => ({
-    x: from.x + ((to.x - from.x) * (i + 1)) / steps,
-    y: from.y + ((to.y - from.y) * (i + 1)) / steps,
-  }));
-  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: from.x, y: from.y }] });
-  // A sequential chain, not an awaited loop: the ORDER of the moves is the gesture.
-  await moves.reduce(
-    (chain, point) => chain.then(async () => void (await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [point] }))),
-    Promise.resolve(),
-  );
-  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-  await cdp.detach();
-}
-
 /** A coarse whole-frame color fingerprint of a weave canvas — any recolor or deformation shifts it. */
 export function frameFingerprint(canvas: Locator): Promise<string> {
   return canvas.evaluate((el) => {
@@ -107,15 +86,7 @@ export async function frameFingerprintPair(canvases: Locator): Promise<readonly 
 }
 
 /** Channel-sum distance between two `frameFingerprint` readings. */
-export function fingerprintDelta(a: string, b: string): number {
-  const pa = a.split(":").map(Number);
-  const pb = b.split(":").map(Number);
-  return Math.abs((pa[0] ?? 0) - (pb[0] ?? 0)) + Math.abs((pa[1] ?? 0) - (pb[1] ?? 0)) + Math.abs((pa[2] ?? 0) - (pb[2] ?? 0));
-}
-
 /** Idle-frame spans the ambient ceiling samples over: several short beats plus one long one. */
-const AMBIENT_SPANS = [2, 2, 2, 2, 30] as const;
-
 /**
  * An upper bound on how far the weave's OWN motion moves the frame while nobody touches it.
  *
@@ -125,41 +96,5 @@ const AMBIENT_SPANS = [2, 2, 2, 2, 30] as const;
  * repeatedly, across both short and long spans, and take the MAX — a ring is ~1.4M, an order of
  * magnitude clear of the worst ambient beat, so the ceiling costs the assertion nothing.
  */
-export async function ambientCeiling(page: Page, canvas: Locator): Promise<number> {
-  const samples = await AMBIENT_SPANS.reduce<Promise<readonly number[]>>(
-    (chain, span) =>
-      chain.then(async (acc) => {
-        const before = await frameFingerprint(canvas);
-        await waitFrames(page, span);
-        return [...acc, fingerprintDelta(before, await frameFingerprint(canvas))];
-      }),
-    Promise.resolve([]),
-  );
-  return Math.max(...samples);
-}
-
 /** Wait N real browser frames — an rAF event condition, never a wall-clock sleep. */
-export function waitFrames(page: Page, frames: number): Promise<void> {
-  return page.evaluate(
-    (n) =>
-      new Promise<void>((resolve) => {
-        let i = 0;
-        const step = (): void => {
-          i += 1;
-          if (i >= n) {
-            resolve();
-          } else {
-            requestAnimationFrame(step);
-          }
-        };
-        requestAnimationFrame(step);
-      }),
-    frames,
-  );
-}
-
 /** The centre of a locator's box, in page coordinates (where `touchDrag` aims). */
-export async function boxCentre(locator: Locator): Promise<WeavePoint> {
-  const box = await locator.boundingBox();
-  return { x: (box?.x ?? 0) + (box?.width ?? 0) / 2, y: (box?.y ?? 0) + (box?.height ?? 0) / 2 };
-}

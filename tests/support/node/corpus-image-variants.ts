@@ -23,7 +23,7 @@ import { captureImageryGenerationRows, seedImageryGenerations } from "./factorie
 import type { TrpcInput, TrpcProcedurePath } from "./route-trpc.ts";
 import type { ServerTestHarness } from "./server.ts";
 
-export const CORPUS_VARIANT_PASSWORD = "synthetic-image-variant-reader-password";
+const CORPUS_VARIANT_PASSWORD = "synthetic-image-variant-reader-password";
 export const CORPUS_VARIANT_FREE_PROMPT = "A private native free-picture witness.";
 export const CORPUS_VARIANT_OVERRIDE = "A literal avatar-reference portrait witness.";
 export const CORPUS_VARIANT_EDIT_INSTRUCTION = "Turn the native traveller's coat green.";

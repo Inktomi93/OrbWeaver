@@ -1,2 +1,2 @@
-export { Markdown, type MarkdownProps } from "./markdown.tsx";
+export { Markdown } from "./markdown.tsx";
 export {} from "./policy.ts";

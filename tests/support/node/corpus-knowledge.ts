@@ -30,7 +30,7 @@ export function corpusKnowledgeText(requestBody: string): string {
   return "The keeper preserves the ledger and remembers its witnesses.";
 }
 
-export interface CapturedKnowledgeReads {
+interface CapturedKnowledgeReads {
   readonly home: Awaited<ReturnType<CorpusCaller["discovery"]["home"]>>;
   readonly browse: Awaited<ReturnType<CorpusCaller["discovery"]["browseCharacters"]>>;
   readonly catalog: Awaited<ReturnType<CorpusCaller["discovery"]["catalog"]>>;

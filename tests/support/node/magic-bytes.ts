@@ -10,7 +10,7 @@
 /** The formats these fixtures can produce. The first four are what `@orb/kit`'s `sniffMime` recognizes; the
  *  last two are the REFUSAL vocabulary — an SVG (valid UTF-8, no binary signature, and a script carrier) and
  *  a nested zip (the other thing an extension-trusting wall would happily admit). */
-export const MAGIC_FORMATS = ["png", "jpeg", "gif", "webp", "svg", "zip"] as const;
+const MAGIC_FORMATS = ["png", "jpeg", "gif", "webp", "svg", "zip"] as const;
 export type MagicFormat = (typeof MAGIC_FORMATS)[number];
 
 const SIGNATURES: Record<MagicFormat, readonly number[]> = {

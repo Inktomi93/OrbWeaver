@@ -28,14 +28,14 @@ import type { Page, Request, Route } from "@playwright/test";
 /** The typed TERMINAL frame `withSubscriptionErrors` yields when a subscription's source throws a
  *  DomainError (`transport/trpc/subscriptions.ts`). Spelled here rather than imported: the client
  *  discriminates it structurally, and a CT stub must be able to author one without pulling the server in. */
-export interface SubscriptionErrorPayload {
+interface SubscriptionErrorPayload {
   readonly __subscriptionError: true;
   readonly code: string;
   readonly message: string;
 }
 
 /** Anything the stub can put on the wire — a room frame, or the socket's typed terminal error. */
-export type ScriptedFrame = StreamFrame | SubscriptionErrorPayload;
+type ScriptedFrame = StreamFrame | SubscriptionErrorPayload;
 
 /** One SSE frame in the tRPC shape (fields each `\n`-terminated, then a blank line dispatches it). */
 function sseFrame(fields: { event?: string; data: string; id?: string }): string {
@@ -63,7 +63,7 @@ function socketBody(frames: readonly ScriptedFrame[], includeReturn: boolean): s
 }
 
 /** Unvalidated, unnormalized `stream.attach` wire observations; neither the ref nor cursor proves server admission. */
-export interface AttachRequest {
+interface AttachRequest {
   readonly ref: StreamRoomRef;
   readonly sinceSeq: number | null;
 }
@@ -135,7 +135,7 @@ function decodeStreamAttaches(req: Request, url: URL, wanted: "attach" | "detach
 /** Matches the ONE multiplexed socket subscription (`stream.connect`) — the procedure
  *  `use-orb-socket.ts` opens. Exported as the sibling of `isImpersonateStreamRequest`: a CT that watches
  *  socket connects needs the same predicate the stub routes on, or the two drift. */
-export function isOrbSocketRequest(request: { url: () => string }): boolean {
+function isOrbSocketRequest(request: { url: () => string }): boolean {
   return request.url().includes("stream.connect");
 }
 

@@ -7,14 +7,13 @@
  * one geometry, every scale).
  */
 
-export type { WeaveVeilProps } from "./weave-veil.tsx";
 export { WeaveVeil } from "./weave-veil.tsx";
-export type { WebGlyphGeometry, WebGlyphInput, WebGlyphSpoke } from "./web-glyph.ts";
+
 export { WEB_GLYPH_DISPLAY, webGlyph } from "./web-glyph.ts";
-export type { WebWeaveProps } from "./web-weave.tsx";
+
 export { WebWeave } from "./web-weave.tsx";
-export type { WeaveCharacter } from "./web-weave-character.ts";
-export type { BuildWebInput, SpiderLeg, WeaveDewDrop, WeavePoint, WeaveState, WeaveStrand, WovenWeb } from "./web-weave-geometry.ts";
+
+export type { BuildWebInput, WeavePoint, WeaveState } from "./web-weave-geometry.ts";
 export { buildStrandOut, buildWeb } from "./web-weave-geometry.ts";
 export { weaveJitter, wrapToPi } from "./web-weave-math.ts";
 export type { WeavePhase } from "./web-weave-timeline.ts";

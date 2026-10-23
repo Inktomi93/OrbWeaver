@@ -20,11 +20,11 @@ type DiscoveryService = ServicesResult["services"]["discovery"];
 type OwnerNarrow = NonNullable<Parameters<DiscoveryService["computeDuplicatePairs"]>[0]>["ownerId"];
 export type DuplicateCharacterPairRow = typeof duplicateCharacterPairs.$inferSelect;
 export type DuplicateChatPairRow = typeof duplicateChatPairs.$inferSelect;
-export type KeywordCooccurrenceRow = typeof keywordCooccurrence.$inferSelect;
-export type CharacterKeywordProfileRow = typeof characterKeywordProfiles.$inferSelect;
+type KeywordCooccurrenceRow = typeof keywordCooccurrence.$inferSelect;
+type CharacterKeywordProfileRow = typeof characterKeywordProfiles.$inferSelect;
 export type CharacterSummaryRow = typeof characterSummaries.$inferSelect;
-export type ThemeClusterRow = typeof themeClusters.$inferSelect;
-export type DigestThemeAssignmentRow = typeof digestThemeAssignments.$inferSelect;
+type ThemeClusterRow = typeof themeClusters.$inferSelect;
+type DigestThemeAssignmentRow = typeof digestThemeAssignments.$inferSelect;
 
 interface SeededCharacterDistillations {
   readonly result: Awaited<ReturnType<DiscoveryService["distillCharacters"]>>;
@@ -33,10 +33,6 @@ interface SeededCharacterDistillations {
 interface SeededDuplicateCharacterPairs {
   readonly result: Awaited<ReturnType<DiscoveryService["computeDuplicatePairs"]>>;
   readonly pairs: readonly DuplicateCharacterPairRow[];
-}
-interface SeededDuplicateChatPairs {
-  readonly result: Awaited<ReturnType<DiscoveryService["computeChatDuplicatePairs"]>>;
-  readonly pairs: readonly DuplicateChatPairRow[];
 }
 interface SeededKeywordCooccurrence {
   readonly result: Awaited<ReturnType<DiscoveryService["computeCooccurrence"]>>;
@@ -72,35 +68,8 @@ export async function seedDuplicateCharacterPairs(
 }
 
 /** Chat ownership is the actual present human host FK path; fork relation remains producer data. */
-export async function seedDuplicateChatPairs(
-  root: ServerProducerRoot,
-  params: NonNullable<Parameters<DiscoveryService["computeChatDuplicatePairs"]>[0]>,
-): Promise<SeededDuplicateChatPairs> {
-  const db = root.db;
-  const compute = root.services.discovery.computeChatDuplicatePairs;
-  const result = await compute(params);
-  return { result, pairs: await captureDuplicateChatPairs(db, params.ownerId) };
-}
-
 /** The pass owns normalization, hub filtering and solo/group census; missing input is not fabricated activity. */
-export async function seedKeywordCooccurrence(
-  root: ServerProducerRoot,
-  params: NonNullable<Parameters<DiscoveryService["computeCooccurrence"]>[0]>,
-): Promise<SeededKeywordCooccurrence> {
-  const db = root.db;
-  const compute = root.services.discovery.computeCooccurrence;
-  const result = await compute(params);
-  return { result, ...(await captureKeywordCooccurrence(db, params.ownerId)) };
-}
-
 /** Capture true cluster/assignment PKs and the actual story-time backfill; no digest-less replacement is invented. */
-export async function seedThemes(root: ServerProducerRoot, params: Parameters<DiscoveryService["computeThemes"]>[0]): Promise<SeededThemes> {
-  const db = root.db;
-  const compute = root.services.discovery.computeThemes;
-  const result = await compute(params);
-  return { result, ...(await captureThemeRows(db, params.ownerId)) };
-}
-
 /** Read the actual retained summary rows after a completed producer; this capture computes nothing. */
 export async function captureCharacterDistillations(
   db: Db,

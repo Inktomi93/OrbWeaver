@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 import { E2E_DEBUG_TOKEN } from "./modes.ts";
 
 /** The principal-blind whole-db reads the gate is the whole boundary for, plus the db-free info control. */
-export const DEBUG_PROBE_PATHS = ["/api/_debug/info", "/api/_debug/db/chats", "/api/_debug/config/user"] as const;
+const DEBUG_PROBE_PATHS = ["/api/_debug/info", "/api/_debug/db/chats", "/api/_debug/config/user"] as const;
 /** A relay tell: the loopback socket speaks for a third party, so the operator's own fallback session never mints. */
 export const RELAYED = { "x-forwarded-for": "203.0.113.9" } as const;
 const TOKEN_HEADER = "x-debug-token";

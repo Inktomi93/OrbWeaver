@@ -2,13 +2,6 @@
 // Keep this contract DOM-free: the browser produces the receipt and Node judges it.
 import type { LongAnimationFrameTiming } from "@orb/kit/long-animation-frame";
 
-export const APP_BLOCKING_MARKS = {
-  checkpoint: "orb:app-blocking:checkpoint",
-  click: "orb:app-blocking:click",
-  begin: "orb:app-blocking:begin",
-  end: "orb:app-blocking:end",
-} as const;
-
 export interface AppBlockingReceipt {
   readonly checkpoint: number | null;
   readonly clicks: readonly { readonly startTime: number; readonly trusted: boolean }[];

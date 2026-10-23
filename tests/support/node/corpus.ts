@@ -64,7 +64,7 @@ const PRIVATE_PERMISSION_MODULUS = 0o100;
 const SHARED_MEMBER_PASSWORD = "synthetic-corpus-shared-member-password";
 
 const corpusReplaySchema = z.strictObject({ version: z.literal(1), nowMs: z.int().nonnegative(), idCursor: z.int().min(0).max(SEEDED_ID_MAX_CURSOR) });
-export type CorpusReplayState = z.output<typeof corpusReplaySchema>;
+type CorpusReplayState = z.output<typeof corpusReplaySchema>;
 
 export interface CorpusCapsuleOptions {
   readonly directory: string;

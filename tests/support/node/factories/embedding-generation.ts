@@ -20,17 +20,17 @@ import type { EmbeddingsService } from "@orb/server/domain/embeddings";
 import { and, eq } from "drizzle-orm";
 import type { ServerProducerRoot } from "../server.ts";
 
-export type EmbedGenerationRow = typeof embedGenerations.$inferSelect;
-export type EmbedGenerationTargetRow = typeof embedGenerationTargets.$inferSelect;
-export type EmbeddingCallRow = typeof embeddingCalls.$inferSelect;
-export type CharacterEmbeddingRow = typeof characterEmbeddings.$inferSelect;
-export type EmbedSpaceStateRow = typeof embedSpaceState.$inferSelect;
-export type ImageEmbeddingRow = typeof imageEmbeddings.$inferSelect;
-export type ImageAnalysisRow = typeof imageAnalyses.$inferSelect;
-export type ImageIndexSkipRow = typeof imageIndexSkips.$inferSelect;
-export type ChatDigestRow = typeof chatDigests.$inferSelect;
-export type ChatSegmentRow = typeof chatSegments.$inferSelect;
-export type ChatDigestSpeakerRow = typeof chatDigestSpeakers.$inferSelect;
+type EmbedGenerationRow = typeof embedGenerations.$inferSelect;
+type EmbedGenerationTargetRow = typeof embedGenerationTargets.$inferSelect;
+type EmbeddingCallRow = typeof embeddingCalls.$inferSelect;
+type CharacterEmbeddingRow = typeof characterEmbeddings.$inferSelect;
+type EmbedSpaceStateRow = typeof embedSpaceState.$inferSelect;
+type ImageEmbeddingRow = typeof imageEmbeddings.$inferSelect;
+type ImageAnalysisRow = typeof imageAnalyses.$inferSelect;
+type ImageIndexSkipRow = typeof imageIndexSkips.$inferSelect;
+type ChatDigestRow = typeof chatDigests.$inferSelect;
+type ChatSegmentRow = typeof chatSegments.$inferSelect;
+type ChatDigestSpeakerRow = typeof chatDigestSpeakers.$inferSelect;
 export type DocumentChunkRow = typeof documentChunks.$inferSelect;
 
 /** Capture actual ingestion output; chunk boundaries, vector geometry and identities remain producer-owned. */

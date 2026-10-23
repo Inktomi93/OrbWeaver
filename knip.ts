@@ -36,6 +36,8 @@ export const config = {
       // Operator scripts are direct Node entry points.
       entry: [
         "scripts/**/*.ts",
+        // The Stylelint config imports its rule table from this sibling, which holds the postcss-value-parser import.
+        "stylelint-rules.js",
         "playwright/**/*.{ts,tsx}",
         // The CT Vite transform reads this stylesheet as text rather than through an ESM import.
         "playwright/index.css",

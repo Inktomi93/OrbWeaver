@@ -1,18 +1,5 @@
 export { createMenuHandle } from "./handle.ts";
-export type {
-  MenuArrowProps,
-  MenuBackdropProps,
-  MenuCheckboxItemProps,
-  MenuGroupLabelProps,
-  MenuGroupProps,
-  MenuItemProps,
-  MenuLinkItemProps,
-  MenuPopupProps,
-  MenuRadioItemProps,
-  MenuSeparatorProps,
-  MenuSubmenuTriggerProps,
-  MenuViewportProps,
-} from "./menu.tsx";
+
 export {
   Menu,
   MenuArrow,

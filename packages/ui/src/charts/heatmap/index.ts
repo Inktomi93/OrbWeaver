@@ -3,5 +3,5 @@
  * (ui-package-design §9). See heatmap.tsx for the API and the theme-reactive gradient contract.
  */
 
-export type { HeatmapMatrix, HeatmapProps } from "./heatmap.tsx";
+export type { HeatmapMatrix } from "./heatmap.tsx";
 export { Heatmap } from "./heatmap.tsx";

@@ -20,7 +20,7 @@ import { z } from "zod";
 
 export const B_CHAT_MODEL = "speaker-chat";
 export const B_UTILITY_MODEL = "speaker-utility";
-export const B_RERANK_MODEL = "speaker-rerank";
+const B_RERANK_MODEL = "speaker-rerank";
 export const B_HOST_KEY = "owned-speaker-host-key";
 
 const completionSchema = z.object({

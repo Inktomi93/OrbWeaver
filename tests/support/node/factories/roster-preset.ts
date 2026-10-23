@@ -6,8 +6,8 @@ import { asc, eq, inArray } from "drizzle-orm";
 import type { ServerProducerRoot } from "../server.ts";
 
 export type RosterPresetRow = typeof rosterPresets.$inferSelect;
-export type RosterPresetMemberRow = typeof rosterPresetMembers.$inferSelect;
-export type RosterPresetRuleRow = typeof rosterPresetRules.$inferSelect;
+type RosterPresetMemberRow = typeof rosterPresetMembers.$inferSelect;
+type RosterPresetRuleRow = typeof rosterPresetRules.$inferSelect;
 
 /** One real producer's parent and embedded FK rows, not a second application view. */
 export interface SeededRosterPreset {

@@ -1,2 +1,2 @@
-export { SandboxFrame, type SandboxFrameProps } from "./sandbox-frame.tsx";
-export { type SandboxThemeTokens, useSandboxTheme } from "./use-sandbox-theme.ts";
+export { SandboxFrame } from "./sandbox-frame.tsx";
+export { useSandboxTheme } from "./use-sandbox-theme.ts";

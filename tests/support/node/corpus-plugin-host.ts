@@ -15,7 +15,7 @@ import type { ServerTestHarness } from "./server.ts";
 type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
 type Actors = Awaited<ReturnType<typeof seedCorpusActors>>;
 
-export const CORPUS_PLUGIN_HOST_SLUG = "native-host-ledger";
+const CORPUS_PLUGIN_HOST_SLUG = "native-host-ledger";
 export const CORPUS_PLUGIN_HOST_KEYS = {
   reads: "native:reads",
   produced: "native:produced",

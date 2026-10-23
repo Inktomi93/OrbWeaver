@@ -51,4 +51,3 @@ export function userSettingsView(overrides: UserSettingsOverrides = {}, view: Pa
 }
 
 /** The production-default read of a never-touched account. */
-export const USER_SETTINGS_VIEW: UserSettingsView = userSettingsView();

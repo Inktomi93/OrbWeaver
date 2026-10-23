@@ -6,22 +6,16 @@
  * time×weather composite). Plain CSS/SVG, never the chart lib.
  */
 
-export type { CoinFigureProps } from "./coin-figure.tsx";
 export { CoinFigure } from "./coin-figure.tsx";
-export type { MeterProps } from "./meter.tsx";
+
 export { Meter } from "./meter.tsx";
-export type { RingColor, RingGaugeProps } from "./ring-gauge.tsx";
+
 export { RingGauge } from "./ring-gauge.tsx";
-export type { SegmentBarProps, SegmentBarSegment } from "./segment-bar.tsx";
+export type { SegmentBarSegment } from "./segment-bar.tsx";
 export { SegmentBar } from "./segment-bar.tsx";
-export type { SegmentedClockProps } from "./segmented-clock.tsx";
+
 export { SegmentedClock } from "./segmented-clock.tsx";
-export type { TrackBarProps, TrackColor } from "./track-bar.tsx";
+export type { TrackColor } from "./track-bar.tsx";
 export { TrackBar } from "./track-bar.tsx";
-export type { WaystoneClock, WaystoneProps } from "./waystone.tsx";
+export type { WaystoneProps } from "./waystone.tsx";
 export { Waystone } from "./waystone.tsx";
-export type {
-  WaystoneParticleLayer,
-  WaystonePhase,
-  WaystoneWeather,
-} from "./waystone-treatment.ts";

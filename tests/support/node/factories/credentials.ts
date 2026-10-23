@@ -6,7 +6,7 @@ import type { ServerProducerRoot } from "../server.ts";
 
 type CredentialsService = ServicesResult["services"]["credentials"];
 
-export type UserCredentialRow = typeof userCredentials.$inferSelect;
+type UserCredentialRow = typeof userCredentials.$inferSelect;
 export type AuditLogRow = typeof auditLogs.$inferSelect;
 
 export interface SeededUserCredential {

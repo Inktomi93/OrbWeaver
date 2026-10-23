@@ -9,7 +9,7 @@ import { isPlainObject } from "@orb/kit/guards";
 import { ipCertificatePem, readCsr } from "./x509.ts";
 
 /** One signed request as the authority decoded it. */
-export interface RecordedAcmeRequest {
+interface RecordedAcmeRequest {
   readonly path: string;
   readonly protectedHeader: Record<string, unknown>;
   /** The decoded JSON payload; null for a POST-as-GET. */

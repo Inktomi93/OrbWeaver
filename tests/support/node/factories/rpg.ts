@@ -9,7 +9,7 @@ type RpgService = ServicesResult["services"]["rpg"];
 export type RpgGameRow = typeof rpgGames.$inferSelect;
 export type RpgJournalRow = typeof rpgJournal.$inferSelect;
 export type RpgCheckpointRow = typeof rpgCheckpoints.$inferSelect;
-export type RpgSheetRow = typeof rpgSheets.$inferSelect;
+type RpgSheetRow = typeof rpgSheets.$inferSelect;
 export type RpgSnapshotRow = typeof rpgSnapshots.$inferSelect;
 export type RpgTurnToolCallsRow = typeof rpgTurnToolCalls.$inferSelect;
 

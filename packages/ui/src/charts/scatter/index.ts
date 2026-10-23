@@ -4,5 +4,5 @@
  * interactive role under the feature belt. See scatter.tsx for the API and the click→id contract.
  */
 
-export type { ScatterPoint, ScatterProps, ScatterSeries } from "./scatter.tsx";
+export type { ScatterPoint, ScatterSeries } from "./scatter.tsx";
 export { Scatter } from "./scatter.tsx";

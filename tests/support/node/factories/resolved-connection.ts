@@ -8,9 +8,6 @@ import type { ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId, createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { createSeededIds } from "../../iso/ids.ts";
 import { makeCapability, makeGenerationCapability } from "../../iso/inference-capability.ts";
-import type { TrpcWireOutput } from "../route-trpc.ts";
-
-export { makeCapability, makeGenerationCapability } from "../../iso/inference-capability.ts";
 
 const viewIds = createIdSource(createSeededIds().next);
 
@@ -118,16 +115,3 @@ export function makeCachePolicy(overrides: Partial<CachePolicy> = {}): CachePoli
 
 /** The `connection.capabilities` wire view: a generation capability that is its own baseline, no warnings,
  *  the neutral cache policy and the chat task. */
-export function makeConnectionCapabilityView(overrides: Partial<TrpcWireOutput<"connection.capabilities">> = {}): TrpcWireOutput<"connection.capabilities"> {
-  const capability = makeCapability();
-  return {
-    cache: makeCachePolicy(),
-    cacheWarnings: [],
-    cacheContext: makeResolvedCacheView().cacheContext,
-    capability,
-    baseline: capability,
-    warnings: [],
-    tasks: ["chat"],
-    ...overrides,
-  };
-}

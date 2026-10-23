@@ -38,7 +38,7 @@ export function mainSourceOf(slug: string): Promise<string> {
 }
 
 /** Spin the macrotask queue so a floated guest continuation lands. */
-export async function settle(): Promise<void> {
+async function settle(): Promise<void> {
   for (let i = 0; i < SETTLE_TICKS; i++) {
     await new Promise((resolve) => setImmediate(resolve));
   }

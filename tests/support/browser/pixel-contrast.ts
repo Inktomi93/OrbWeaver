@@ -21,7 +21,7 @@
 // 100/100. A tool caught printing a false clean is fixed in the era it is found; the planted control is
 // the locked-cell arm of `context-bracket.ct.tsx`, which is RED on the pre-#874 source and green after.
 
-import { relativeLuminance, wcagContrastRatio } from "@orb/kit/theme-derivation";
+import { wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { ringBackdrop } from "@orb/tooling/floor/instrument/pixel-backdrop";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
 import { compositeForeground, FOREGROUND_OPACITY_EPS, MEASURABLE_OPACITY_MIN } from "@orb/tooling/floor/instrument/wcag";
@@ -40,7 +40,7 @@ export interface PixelContrastReceipt {
   readonly describe: string;
 }
 
-export interface TextContrastSubjectReceipt extends PixelContrastReceipt {
+interface TextContrastSubjectReceipt extends PixelContrastReceipt {
   /** Stable within this audit only; identifies the owning element of one rendered text node. */
   readonly subject: string;
   readonly text: string;
@@ -135,7 +135,7 @@ export interface PixelSurfaceReceipt {
 }
 
 /** A sub-rectangle of the target's box, as fractions of its own width/height (0..1, `x0 < x1`). */
-export interface PixelSurfaceRegion {
+interface PixelSurfaceRegion {
   readonly x0: number;
   readonly x1: number;
   readonly y0: number;
@@ -357,17 +357,6 @@ export async function auditRenderedTextContrast(
   }
 }
 
-/** The two extreme pixels of one clip, plus the WCAG ratio between them. */
-export interface PixelExtremaReceipt {
-  /** The most luminous pixel in the box — the ink, on any polarity where ink is the lighter partner. */
-  readonly brightest: Rgb;
-  /** The least luminous pixel in the box — the backdrop, on that same polarity. */
-  readonly darkest: Rgb;
-  /** `contrastRatio(brightest, darkest)`: the BEST ratio the box achieves anywhere inside itself. */
-  readonly ratio: number;
-  readonly describe: string;
-}
-
 /**
  * The best contrast one rendered box achieves ANYWHERE inside itself, read straight off the framebuffer.
  *
@@ -396,48 +385,3 @@ export interface PixelExtremaReceipt {
  * are dissolving. Name the slice the band covers and the bound is still an upper bound, of the right box.
  * Same shape and same reason as {@link pixelSurface}'s own `region`.
  */
-export async function pixelExtremaContrast(page: Page, target: Locator, options: PixelSurfaceOptions = {}): Promise<PixelExtremaReceipt> {
-  const box = await target.boundingBox();
-  if (box === null) {
-    throw new Error("pixelExtremaContrast: the target has no box (not rendered)");
-  }
-  const viewport = page.viewportSize();
-  if (viewport === null) {
-    throw new Error("pixelExtremaContrast: the page has no viewport size");
-  }
-  const region = options.region ?? { x0: 0, x1: 1, y0: 0, y1: 1 };
-  const x = Math.max(0, Math.floor(box.x + box.width * region.x0));
-  const y = Math.max(0, Math.floor(box.y + box.height * region.y0));
-  const width = Math.min(Math.ceil(box.width * (region.x1 - region.x0)), viewport.width - x);
-  const height = Math.min(Math.ceil(box.height * (region.y1 - region.y0)), viewport.height - y);
-  if (width < 1 || height < 1) {
-    throw new Error(`pixelExtremaContrast: the target box is empty or off-screen (${JSON.stringify(box)}, region ${JSON.stringify(region)})`);
-  }
-  const shot = await page.screenshot({ clip: { x, y, width, height }, animations: "disabled" });
-  const { data, info } = await rawPixels(shot);
-  let brightest: Rgb = { r: 0, g: 0, b: 0 };
-  let darkest: Rgb = { r: 255, g: 255, b: 255 };
-  let high = Number.NEGATIVE_INFINITY;
-  let low = Number.POSITIVE_INFINITY;
-  for (let i = 0; i + info.channels - 1 < data.length; i += info.channels) {
-    const pixel: Rgb = { r: data[i] ?? 0, g: data[i + 1] ?? 0, b: data[i + 2] ?? 0 };
-    const luminance = relativeLuminance(pixel);
-    if (luminance > high) {
-      high = luminance;
-      brightest = pixel;
-    }
-    if (luminance < low) {
-      low = luminance;
-      darkest = pixel;
-    }
-  }
-  if (high === Number.NEGATIVE_INFINITY) {
-    throw new Error("pixelExtremaContrast: the clip decoded to zero pixels");
-  }
-  return {
-    brightest,
-    darkest,
-    ratio: wcagContrastRatio(brightest, darkest),
-    describe: `brightest ${show(brightest)} vs darkest ${show(darkest)} in ${String(width)}x${String(height)}`,
-  };
-}

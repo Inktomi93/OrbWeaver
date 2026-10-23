@@ -24,7 +24,7 @@ import { captureChatReplayRows } from "./factories/chat.ts";
 import { makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "./factories/plugin.ts";
 import type { ServerTestHarness } from "./server.ts";
 
-export const CORPUS_NOTIFICATION_PASSWORD = "synthetic-notification-reader-password";
+const CORPUS_NOTIFICATION_PASSWORD = "synthetic-notification-reader-password";
 export const CORPUS_NOTIFICATION_RULE_MESSAGE = "The room's ledger is ready for its witnesses.";
 export const CORPUS_NOTIFICATION_PLUGIN_MESSAGE = "The resident keeper has checked the ledger.";
 export const CORPUS_NOTIFICATION_PLUGIN_ERROR = "Resident keeper refused its scripted invocation.";

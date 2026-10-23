@@ -8,6 +8,7 @@ import type { LoadTransformersKernel, LocalLightKernelModule } from "@orb/infere
 let nativeKernel: Awaited<ReturnType<LoadTransformersKernel>> | undefined;
 const HUB_REFUSAL = new URL(import.meta.url).searchParams.has("hub-refusal");
 
+/** @public Loaded by URL at runtime as a kernel entry; no static import reaches it. */
 export const KERNEL_HOLD = { parameter: "hold-channel", ready: "ready", blocked: "blocked" } as const;
 const HOLD_CHANNEL = new URL(import.meta.url).searchParams.get(KERNEL_HOLD.parameter);
 
@@ -44,14 +45,14 @@ async function record(event: object): Promise<void> {
   await appendFile(join(directory, "kernel-execution.jsonl"), `${JSON.stringify(event)}\n`);
 }
 
-/** Refuse the actual native Hub execution hook, retaining its request before rejection. */
+/** Refuse the actual native Hub execution hook, retaining its request before rejection. @public Loaded by URL at runtime as a kernel entry; no static import reaches it. */
 export const fetch: LocalLightKernelModule["fetch"] = async (input): Promise<never> => {
   const url = input instanceof Request ? input.url : String(input);
   await record({ edge: "hub-fetch", url });
   throw new Error("reference kernel: unscripted Hub execution refused");
 };
 
-/** Bind a physical encoder to the library's real model and tensor constructors without ONNX sessions. */
+/** Bind a physical encoder to the library's real model and tensor constructors without ONNX sessions. @public Loaded by URL at runtime as a kernel entry; no static import reaches it. */
 export const loadTransformers: LocalLightKernelModule["loadTransformers"] = async (nativeLoad) => {
   const kernel = await nativeLoad();
   nativeKernel = kernel;

@@ -12,7 +12,7 @@ import type { ServerProducerRoot, ServerTestHarness } from "../server.ts";
 type SessionsService = ServicesResult["sessions"];
 type HttpRequest = ServerTestHarness["http"]["request"];
 export type BffSessionRow = typeof sessions.$inferSelect;
-export type RateLimitBucketRow = typeof rateLimitBuckets.$inferSelect;
+type RateLimitBucketRow = typeof rateLimitBuckets.$inferSelect;
 export type OidcTransactionRow = typeof oidcTransactions.$inferSelect;
 export type OidcPendingSignupRow = typeof oidcPendingSignups.$inferSelect;
 

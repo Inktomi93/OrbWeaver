@@ -57,7 +57,7 @@ export async function createCorpusHarness(directory?: string, options?: CorpusHa
 // The caller identities — FIXED ids (never the factory counters, so they can't collide with seeded
 // rows) — exported for tests that assert against a caller's own userId.
 export const OWNER_USER_ID = castId<UserId>("user_fixture_owner");
-export const ADMIN_USER_ID = castId<UserId>("user_fixture_admin");
+const ADMIN_USER_ID = castId<UserId>("user_fixture_admin");
 export const OTHER_USER_ID = castId<UserId>("user_fixture_other");
 
 function urlOf(input: Parameters<typeof fetch>[0]): string {

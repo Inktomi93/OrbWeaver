@@ -145,8 +145,8 @@ export async function seedCorpusPluginOutputs(root: ServerTestHarness): Promise<
   };
 }
 
-export const CORPUS_PLUGIN_CALLBACK_URL = "https://callbacks.example.test/held";
-export const CORPUS_PLUGIN_TYPED_ARGS = [
+const CORPUS_PLUGIN_CALLBACK_URL = "https://callbacks.example.test/held";
+const CORPUS_PLUGIN_TYPED_ARGS = [
   { name: "count", type: "number", required: true },
   { name: "choice", type: "enum", enumValues: ["keep", "drop"], required: true },
   { name: "quiet", type: "boolean", required: true },
