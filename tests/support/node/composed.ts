@@ -32,10 +32,11 @@ export { seedCorpusActors, seedCorpusConnections, seedRecallCorpus, seedRecallRo
 
 export type { HeldDb, HeldStatement } from "./db.ts";
 export { freshCountedDb, freshDb, freshHeldDb, SHIPPED_MIGRATIONS } from "./db.ts";
-export { makeAsset, makeAssetBytes, seedStoredAsset } from "./factories/asset.ts";
+export { makeAssetBytes, seedAsset } from "./factories/asset.ts";
 export { seedAutomationRule, seedAutomationTestFires } from "./factories/automation.ts";
-export { seedCharacter, seedCreatedCharacter } from "./factories/character.ts";
-export { seedChat, seedChatInvite, seedInvitedChatParticipant } from "./factories/chat.ts";
+export { seedCharacter } from "./factories/character.ts";
+export type { TranscriptLine } from "./factories/chat.ts";
+export { seedChat, seedChatInvite, seedInvitedChatParticipant, seedTranscript } from "./factories/chat.ts";
 export { captureSdkSessionRows } from "./factories/connection.ts";
 export { makeResolvedSecret } from "./factories/credentials.ts";
 export { seedCharacterDistillations } from "./factories/discovery.ts";
@@ -55,7 +56,7 @@ export { seedGlobalRegexScript, seedRegexScript } from "./factories/regex.ts";
 export { captureRpgSnapshot, seedRpgCheckpoint, seedRpgGame } from "./factories/rpg.ts";
 export { seedUserSettings } from "./factories/settings.ts";
 export { seedCreatedTag } from "./factories/tag.ts";
-export { makeUser, seedUser } from "./factories/user.ts";
+export { seedUser } from "./factories/user.ts";
 export { seedWorkloadSchedule } from "./factories/workload.ts";
 export type { ServerHarnessOptions, ServerTestHarness, UnclaimedServerTestHarness } from "./server.ts";
 export { createServerHarness } from "./server.ts";

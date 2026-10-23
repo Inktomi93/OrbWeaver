@@ -1,10 +1,10 @@
 // Background URLs and native inline images cross the actual production graph and per-owner CAS.
 import { backgroundMaterializeMessage } from "@orb/contracts/theme";
 import { assets } from "@orb/db";
-import { ID_PREFIX } from "@orb/kit/ids";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { expect, test } from "@orb/testkit/node";
-import { createServerHarness, makeAsset, makeAssetBytes } from "@orb/testkit/node/composed";
+import { createServerHarness, makeAssetBytes } from "@orb/testkit/node/composed";
 import { IMAGE_PROSE, imageRoom, nativeText } from "../../chat/engine/inline-image-physical.ts";
 
 const PUBLIC_URL = "https://public-image.test/image.png";
@@ -95,7 +95,7 @@ test("live download caps and raster dimensions refuse without changing the actua
 });
 
 test("native inline images read the live cap and refuse excessive dimensions while preserving prose and existing storage", async () => {
-  const raster = makeAssetBytes(makeAsset().id);
+  const raster = makeAssetBytes(mintTypeId(ID_PREFIX.asset));
   const padded = new Uint8Array(PAYLOAD_SIZE);
   padded.set(raster);
   const image = (bytes: Uint8Array, claimedMime = MIME): JsonValue => ({ inlineData: { mimeType: claimedMime, data: Buffer.from(bytes).toString("base64") } });

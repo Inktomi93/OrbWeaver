@@ -3,7 +3,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { pluginCardStateKey } from "@orb/contracts/plugin";
 import { characters } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
-import { createServerHarness, seedCreatedCharacter } from "@orb/testkit/node/composed";
+import { createServerHarness, seedCharacter } from "@orb/testkit/node/composed";
 import { and, eq } from "drizzle-orm";
 import { createPluginProcessEdge, installGuest } from "./process-runtime.fixtures.ts";
 
@@ -16,7 +16,7 @@ test("native object and string calls survive real guest heap growth, disposal an
   const edge = createPluginProcessEdge();
   await using root = await createServerHarness({ pluginSpawn: edge.spawn });
   const principal = await root.principalFor(root.ownerId);
-  const character = await seedCreatedCharacter(root, {
+  const character = await seedCharacter(root, {
     principal,
     input: createCharacterSchema.parse({ handle: "grown-card", name: "Grown card", description: "Native marshalling witness" }),
   });

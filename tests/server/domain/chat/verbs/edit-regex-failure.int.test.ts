@@ -1,9 +1,10 @@
 // @subject packages/server/src/domain/chat/verbs/edit.ts
+import { createCharacterSchema } from "@orb/contracts/character";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { deriveRegexTierFlags } from "@orb/kit/regex";
 import { getLog } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node";
-import { createServerHarness, seedGlobalRegexScript, seedMessage, seedRegexScript } from "@orb/testkit/node/composed";
+import { createServerHarness, seedCharacter, seedGlobalRegexScript, seedRegexScript, seedTranscript } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
 
 // A catastrophic-backtracking pattern: the host's node:vm watchdog (or the kit's complexity guard) refuses it.
@@ -26,9 +27,17 @@ test("a runOnEdit script that fails on an edit leaves the content unchanged and 
     }),
   });
   await seedGlobalRegexScript(root, { principal: host, scriptId: script.id });
-  const room = await root.services.chat.startChat({ principal: host, characterIds: [], opening: "none" });
-  const chatId = room.chat.id;
-  const slot = await seedMessage(root.db, { chatId, seq: 1, content: "seed", role: "assistant" }, root.idSource);
+  const speaker = await seedCharacter(root, { principal: host, input: createCharacterSchema.parse({ handle: "narrator", name: "Narrator", description: "" }) });
+  const transcript = await seedTranscript(root, {
+    ownerId: host.userId,
+    characterHandles: [speaker.row.handle],
+    lines: [{ role: "assistant", content: "seed" }],
+  });
+  const chatId = transcript.row.id;
+  const slot = transcript.messages[0]?.slot;
+  if (slot === undefined) {
+    throw new Error("the transcript import wrote no assistant slot");
+  }
   const warnSpy = vi.spyOn(getLog(), "warn").mockImplementation(() => undefined);
 
   try {

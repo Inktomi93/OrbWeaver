@@ -1,11 +1,7 @@
-// support/factories/chat — the membership-scoped `chats` row (D18: NO ownerId — a bare chat is valid
-// with just its own id; authority is the host PARTICIPANT). `X` is the SELECT row. Relations are ids by
-// default; roster rows are EXPLICIT opt-ins per the factory contract (`seedChat(db, { withHost: true })`
-// — the exact sanctioned shape in docs/law/Spine-Testing.md §4): `withHost` seeds a user + a `role:'host'`
-// human membership, `withCharacter` seeds a card + a `role:'member'` character membership. The opt-in
-// ids ride back on the returned row (`hostUserId` / `characterId`) so tests can act as the host.
+// Chat seeds run the membership-scoped verbs: `startChat` makes the caller host, invites seat members and the
+// native chat import writes a whole transcript. A seeded room is a husk until its first committed message.
 
-import type { PortableEntity } from "@orb/contracts/portability";
+import type { PortableEntity, PortableFile } from "@orb/contracts/portability";
 import type { Db } from "@orb/db";
 import {
   characters,
@@ -25,18 +21,19 @@ import {
   messages,
   pendingTurns,
 } from "@orb/db";
-import type { CharacterId, ChatId, IdSource, UserId } from "@orb/kit/ids";
-import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
+import type { ChatId, UserId } from "@orb/kit/ids";
 import type { ChatService } from "@orb/server/domain/chat";
+import { sha256Hex } from "@orb/server/primitives/content-hash";
+import type { PortableChat, PortableChatMessage, PortableChatVariant } from "@orb/server/primitives/serde/chat-bundle";
+import { buildChatBundleFile, CHAT_BUNDLE_EXT } from "@orb/server/primitives/serde/chat-bundle";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { FROZEN_AT_MS } from "../../iso/clock.ts";
-import { createSeededIds } from "../../iso/ids.ts";
 import type { ServerProducerRoot } from "../server.ts";
-import { seedCharacter } from "./character.ts";
-import { seedUser } from "./user.ts";
+import type { CapturedTurnRows } from "./message.ts";
+import { captureChatCanonRows } from "./message.ts";
 
 /** The full `chats` row (derived from the live schema — the factory `X`). */
-export type ChatRow = typeof chats.$inferSelect;
+type ChatRow = typeof chats.$inferSelect;
 export type ChatInviteRow = typeof chatInvites.$inferSelect;
 export type ChatParticipantRow = typeof chatParticipants.$inferSelect;
 export type MessageReactionRow = typeof messageReactions.$inferSelect;
@@ -135,97 +132,124 @@ export async function seedImportedChatRows(root: ServerProducerRoot, params: Par
   return { outcome, claims, injections, attachments: attachments.map(({ row }) => row) };
 }
 
-/** Row overrides + the explicit relation opt-ins (relations are ids by default — §4). */
-export interface SeedChatOptions extends Partial<ChatRow> {
-  /** Seed a host: a fresh user + a `kind:'human', role:'host'` membership (joinSeq 0). */
-  readonly withHost?: boolean;
-  /** Seed an AI participant: a fresh character + a `kind:'character', role:'member'` membership. */
-  readonly withCharacter?: boolean;
+export interface SeededChat {
+  readonly view: Awaited<ReturnType<ChatService["startChat"]>>;
+  readonly row: ChatRow;
+  readonly participants: readonly ChatParticipantRow[];
 }
 
-/** The seeded chat row, carrying the opt-in relation ids when requested. */
-export interface SeededChat extends ChatRow {
-  readonly hostUserId?: UserId;
-  readonly characterId?: CharacterId;
+/** The caller becomes host and the founding characters join; production owns the husk, roster and opening. */
+export async function seedChat(root: ServerProducerRoot, params: Parameters<ChatService["startChat"]>[0]): Promise<SeededChat> {
+  const startChat = root.services.chat.startChat;
+  const view = await startChat(params);
+  return { view, ...(await captureRoom(root.db, view.chat.id)) };
 }
 
-const ids = createIdSource(createSeededIds().next);
+/** One transcript line: the slot's attribution fields plus its single rendered variant. */
+export interface TranscriptLine
+  extends Pick<PortableChatMessage, "role">,
+    Partial<Pick<PortableChatMessage, "kind" | "speakerHandle" | "personaName">>,
+    Pick<PortableChatVariant, "content">,
+    Partial<Pick<PortableChatVariant, "reasoning">> {}
 
-/** Pure builder: a fully-valid bare room row (no memberships — D18 makes that legal). */
-export function makeChat(overrides: Partial<ChatRow> = {}, source: IdSource = ids): ChatRow {
-  return {
-    id: source.typeId(ID_PREFIX.chat),
-    title: null,
-    starred: false,
-    archived: false,
-    temporary: false,
-    // Born CLAIMED — a factory chat stands for a room that really exists (the `_support.ts::seedChat`
-    // rule): every list/stats assertion in the tree means a real chat. A HUSK is `startedAt: null`,
-    // passed explicitly.
-    startedAt: FROZEN_AT_MS,
-    pendingHostUserId: null,
-    pendingHandoffOffer: null,
-    anchorPersonaId: null,
-    parentChatId: null,
-    forkedAt: null,
-    compactSummary: null,
-    compactedAtSeq: null,
-    metadata: null,
-    variableValues: null,
-    userMacroValues: null,
-    runtimeVariables: null,
-    streamSeq: 0,
-    standaloneVariableDeltas: null,
-    importedFrom: null,
-    importHash: null,
+export interface SeedTranscriptParams {
+  readonly ownerId: UserId;
+  /** The seated cast, primary first; every handle must name a card the owner holds. */
+  readonly characterHandles: PortableChat["characterHandles"];
+  readonly lines: readonly TranscriptLine[];
+  readonly chat?: Partial<Pick<PortableChat, "title" | "metadata" | "anchorPersonaName">>;
+}
+
+export interface SeededTranscript extends Omit<SeededChat, "view"> {
+  readonly messages: CapturedTurnRows;
+}
+
+/** A history with assistant rows is bulk data: the native chat import writes it in one call, with no turn. */
+export async function seedTranscript(root: ServerProducerRoot, params: SeedTranscriptParams): Promise<SeededTranscript> {
+  const db = root.db;
+  const descriptor = root.app.portability.find((entity) => entity.kind === "chat");
+  if (descriptor === undefined) {
+    throw new Error("production composition has no chat portability descriptor");
+  }
+  const importFile = descriptor.importFile;
+  const [primary] = params.characterHandles;
+  if (primary === undefined) {
+    throw new Error("a transcript import needs a seated character; production refuses a characterless room");
+  }
+  const bytes = buildChatBundleFile({
+    title: params.chat?.title ?? "",
     createdAt: FROZEN_AT_MS,
     updatedAt: FROZEN_AT_MS,
-    ...overrides,
+    starred: false,
+    archived: false,
+    compactSummary: null,
+    compactedAtSeq: null,
+    metadata: params.chat?.metadata ?? null,
+    variableValues: null,
+    userMacroValues: null,
+    anchorPersonaName: params.chat?.anchorPersonaName ?? null,
+    characterHandles: params.characterHandles,
+    tagNames: [],
+    injections: [],
+    messages: params.lines.map(transcriptMessage),
+    rpg: null,
+  });
+  const file: PortableFile = { filename: `${primary}/transcript${CHAT_BUNDLE_EXT}`, bytes };
+  const outcome = await importFile(params.ownerId, file);
+  if (!(outcome.ok && outcome.created)) {
+    throw new Error(`production chat import wrote no transcript: ${outcome.ok ? "an identical transcript was already imported" : outcome.error}`);
+  }
+  // The import's dedup key is the file hash, so it names exactly the room this call wrote.
+  const imported = await db
+    .select({ id: chats.id })
+    .from(chats)
+    .where(eq(chats.importHash, sha256Hex(bytes)))
+    .get();
+  if (imported === undefined) {
+    throw new Error("production chat import left no room under the transcript's import hash");
+  }
+  const [room, captured] = await Promise.all([captureRoom(db, imported.id), captureChatCanonRows(db, imported.id)]);
+  return { ...room, messages: captured };
+}
+
+function transcriptMessage(line: TranscriptLine): PortableChatMessage {
+  return {
+    role: line.role,
+    kind: line.kind ?? "standard",
+    speakerHandle: line.speakerHandle ?? null,
+    personaName: line.personaName ?? null,
+    createdAt: FROZEN_AT_MS,
+    selectedIdx: 0,
+    // An authored transcript variant carries no generation economics, which is what an interchange import writes.
+    variants: [
+      {
+        idx: 0,
+        content: line.content,
+        model: null,
+        provider: null,
+        tokensIn: null,
+        tokensOut: null,
+        tokenProvenance: "unrecorded",
+        reasoning: line.reasoning ?? null,
+        ttftMs: null,
+        genStartedAt: null,
+        genFinishedAt: null,
+        variableDelta: null,
+        metadata: null,
+      },
+    ],
   };
 }
 
-/** `makeChat` then insert; `withHost`/`withCharacter` opt into roster rows (see the header). */
-export async function seedChat(db: Db, overrides: SeedChatOptions = {}, source?: IdSource): Promise<SeededChat> {
-  const { withHost, withCharacter, ...rowOverrides } = overrides;
-  const sequence = source ?? ids;
-  const row = makeChat(rowOverrides, sequence);
-  await db.insert(chats).values(row);
-
-  let hostUserId: UserId | undefined;
-  if (withHost === true) {
-    const host = await seedUser(db, {}, source);
-    hostUserId = host.id;
-    await db.insert(chatParticipants).values({
-      id: sequence.typeId(ID_PREFIX.chatParticipant),
-      chatId: row.id,
-      kind: "human",
-      userId: host.id,
-      role: "host",
-      joinedAt: FROZEN_AT_MS,
-      joinSeq: 0,
-    });
+async function captureRoom(db: Db, chatId: ChatId): Promise<Omit<SeededChat, "view">> {
+  const [row, participants] = await Promise.all([
+    db.select().from(chats).where(eq(chats.id, chatId)).get(),
+    db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chatId)).orderBy(chatParticipants.joinSeq, chatParticipants.id),
+  ]);
+  if (row === undefined) {
+    throw new Error("production chat creation left no canonical room row");
   }
-
-  let characterId: CharacterId | undefined;
-  if (withCharacter === true) {
-    const character = await seedCharacter(db, {}, source);
-    characterId = character.id;
-    await db.insert(chatParticipants).values({
-      id: sequence.typeId(ID_PREFIX.chatParticipant),
-      chatId: row.id,
-      kind: "character",
-      characterId: character.id,
-      role: "member",
-      joinedAt: FROZEN_AT_MS,
-      joinSeq: 0,
-    });
-  }
-
-  return {
-    ...row,
-    ...(hostUserId !== undefined ? { hostUserId } : {}),
-    ...(characterId !== undefined ? { characterId } : {}),
-  };
+  return { row, participants };
 }
 
 /** The real host-gated mint owns CSPRNG token hashing, target resolution, bounds and notification delivery. */

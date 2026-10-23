@@ -4,8 +4,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { GroupConfig } from "@orb/contracts/chat";
 import { messages } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
-import { seedMessage } from "@orb/testkit/node/composed";
-import { and, eq, gt } from "drizzle-orm";
+import { and, eq, gt, max } from "drizzle-orm";
 import { textRoom } from "../scenario-physical.ts";
 
 interface SpeakerCase {
@@ -114,26 +113,32 @@ const CASES: readonly SpeakerCase[] = [
 ];
 
 test.for(CASES)("$title", async (scene) => {
+  const prior = scene.prior === undefined ? undefined : scene.names[scene.prior];
   await using h = await textRoom(
     scene.expected.map((_, index) => `Reply ${String(index)}`),
     {
       server: { random: () => 0.99 },
       characters: scene.names.map((name) => createCharacterSchema.parse({ handle: name, name, description: `${name} has a distinct public card.` })),
       group: { output: "per-speaker", ...scene.group },
+      ...(prior === undefined
+        ? {}
+        : {
+            transcript: [
+              { role: "user", content: "hello" },
+              { role: "assistant", speakerHandle: prior, content: `${prior} answers` },
+            ],
+          }),
     },
   );
-  if (scene.prior !== undefined) {
-    const speaker = h.characters[scene.prior];
-    if (speaker === undefined) {
-      throw new Error("the canonical root did not create the prior speaker");
-    }
-    await seedMessage(h.root.db, { chatId: h.chatId, seq: 1, role: "user", authorUserId: h.owner.userId, content: "hello" }, h.root.idSource);
-    await seedMessage(h.root.db, { chatId: h.chatId, seq: 2, role: "assistant", characterId: speaker.id, content: `${speaker.name} answers` }, h.root.idSource);
-  }
+  // Production numbers the canon; the turn under test appends after whatever head the room was born with.
+  const [head] = await h.root.db
+    .select({ seq: max(messages.seq) })
+    .from(messages)
+    .where(eq(messages.chatId, h.chatId));
+  const priorSeq = head?.seq ?? 0;
   const outcome = await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: scene.content });
   expect(outcome.aborted).toBe(false);
   await h.root.settleBackground();
-  const priorSeq = scene.prior === undefined ? 0 : 2;
   const canon = await h.root.db
     .select()
     .from(messages)

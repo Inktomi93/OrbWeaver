@@ -8,7 +8,8 @@ import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { jsonValueSchema } from "@orb/kit/json";
 import { runBootMigrations } from "@orb/server/entry/boot";
 import { expect, test } from "@orb/testkit/node";
-import { SHIPPED_MIGRATIONS, seedMessage } from "@orb/testkit/node/composed";
+import { SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
+import { seedMessageRow } from "@orb/testkit/node/rows";
 import { eq, sql } from "drizzle-orm";
 
 const MIGRATION = "0004_freeze-provenance";
@@ -40,7 +41,7 @@ test("the shipped database rejects incoherent provenance on insert, update and u
   const db = await createDb(":memory:");
   try {
     await runMigrations(db, SHIPPED_MIGRATIONS);
-    const row = await seedMessage(db, { content: "Baked 1" });
+    const row = await seedMessageRow(db, { content: "Baked 1" });
     for (const invalid of ["[]", "{}", "null", "not json"]) {
       await expect(db.run(sql`update message_variants set macro_freezes=${invalid} where id=${row.variantId}`)).rejects.toThrow();
     }
@@ -80,13 +81,13 @@ test("the forward migration preserves coherent provenance and circular message s
   const db = await createDb(":memory:");
   try {
     await runMigrations(db, previous.path);
-    const row = await seedMessage(db, { content: "Baked 1" });
+    const row = await seedMessageRow(db, { content: "Baked 1" });
     await db.update(messageVariants).set({ rawContent: "Baked {{roll::1d1}}", macroFreezes: RECORD }).where(eq(messageVariants.id, row.variantId));
     const storedRecord = '[\n { "name": "roll", "args": "1d1", "value": "1" }\n]';
     await db.run(sql`update message_variants set macro_freezes=${storedRecord} where id=${row.variantId}`);
-    const regex = await seedMessage(db, { chatId: row.chatId, seq: 2, content: "Regex result" });
+    const regex = await seedMessageRow(db, { chatId: row.chatId, seq: 2, content: "Regex result" });
     await db.update(messageVariants).set({ rawContent: "Regex original" }).where(eq(messageVariants.id, regex.variantId));
-    await seedMessage(db, { chatId: row.chatId, seq: 3, content: "No provenance" });
+    await seedMessageRow(db, { chatId: row.chatId, seq: 3, content: "No provenance" });
     const variants = await db.select().from(messageVariants).orderBy(messageVariants.idx, messageVariants.id);
     const stored = await db.all(sql`select * from message_variants order by id`);
     const slots = await db.select().from(messages).orderBy(messages.seq);
@@ -107,7 +108,7 @@ test("an invalid existing row refuses the forward migration atomically without c
   const db = await createDb(":memory:");
   try {
     await runMigrations(db, previous.path);
-    const row = await seedMessage(db, { content: "same" });
+    const row = await seedMessageRow(db, { content: "same" });
     await db.update(messageVariants).set({ rawContent: "same" }).where(eq(messageVariants.id, row.variantId));
     const before = await db.select().from(messageVariants);
     const journal = await db.all(sql`select * from __drizzle_migrations order by id`);
@@ -127,7 +128,7 @@ test("production boot backs up a copied file database before the provenance rebu
   const source = await createDb(pathToFileURL(sourcePath).href);
   try {
     await runMigrations(source, previous.path);
-    const row = await seedMessage(source, { content: "Baked 1" });
+    const row = await seedMessageRow(source, { content: "Baked 1" });
     await source.update(messageVariants).set({ rawContent: "Baked {{roll::1d1}}", macroFreezes: RECORD }).where(eq(messageVariants.id, row.variantId));
   } finally {
     closeDb(source);

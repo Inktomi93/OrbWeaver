@@ -12,7 +12,7 @@ import { createBookSchema } from "@orb/contracts/world-info";
 import { characterTags, chatTags, personaTags, presetTags, tags, worldBookTags } from "@orb/db";
 import { DomainConflictError } from "@orb/kit/errors";
 import { expect, test } from "@orb/testkit/node";
-import { seedCreatedCharacter, seedCreatedTag } from "@orb/testkit/node/composed";
+import { seedCharacter, seedCreatedTag } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 
 test("tag creation uses advanced product time and a folded-name conflict preserves the existing birth", async ({ harness }) => {
@@ -32,7 +32,7 @@ test("native tag-library restore stamps new rows but preserves existing births a
   await harness.services.tag.createTag({ principal: source, input: { name: "Restore existing", color: "#123456" } });
   await harness.services.tag.createTag({ principal: source, input: { name: "Restore new" } });
   const existing = await seedCreatedTag(harness, { principal, input: { name: "Restore existing" } });
-  const character = await seedCreatedCharacter(harness, {
+  const character = await seedCharacter(harness, {
     principal,
     input: createCharacterSchema.parse({ handle: "restore-witness", name: "Restore witness", description: "" }),
   });

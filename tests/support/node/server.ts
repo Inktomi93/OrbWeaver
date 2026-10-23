@@ -29,7 +29,7 @@ import { createSeededIds } from "../iso/ids.ts";
 import type { ControlledTimers } from "../iso/timers.ts";
 import { createControlledTimers } from "../iso/timers.ts";
 import { freshDb } from "./db.ts";
-import type { UserRow } from "./factories/user.ts";
+import type { UserRow } from "./factories/rows.ts";
 import { seedUser } from "./factories/user.ts";
 import type { OwnedHttpRequests } from "./http.ts";
 import { createOwnedHttpRequests } from "./http.ts";

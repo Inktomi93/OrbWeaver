@@ -40,7 +40,7 @@ test("seed gallery keeps the actual Principal and refuses a foreign subject whil
   const stranger = await seedUser(db);
   const actor = await principal(harness, owner.id);
   const neighbor = await principal(harness, stranger.id);
-  const card = await seedCharacter(db, { ownerId: owner.id });
+  const { row: card } = await seedCharacter(harness, { principal: actor, input: CARD.input });
   const ops = createSeedAvatarOps({
     readAvatar: readSeedAvatar,
     store: (args) => services.assets.store(args),

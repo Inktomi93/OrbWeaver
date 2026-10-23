@@ -5,13 +5,13 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { characters } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
-import { seedCreatedCharacter } from "@orb/testkit/node/composed";
+import { seedCharacter } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { handoffActors } from "../../chat/substrate/handoff.fixtures.ts";
 
 test("same-owner duplication is born at the current injected instant, not the source edit or SQL time", async ({ harness }) => {
   const principal = await harness.principalFor((await harness.actor()).id);
-  const source = await seedCreatedCharacter(harness, {
+  const source = await seedCharacter(harness, {
     principal,
     input: createCharacterSchema.parse({ handle: "duplicate-clock", name: "Clock", description: "Original" }),
   });

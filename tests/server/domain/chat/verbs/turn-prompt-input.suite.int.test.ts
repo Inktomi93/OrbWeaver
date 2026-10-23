@@ -3,11 +3,13 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { messages } from "@orb/db";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
-import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL, seedMessage } from "@orb/testkit/node/composed";
+import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "@orb/testkit/node/composed";
+import { eq } from "drizzle-orm";
 import { textRoom } from "../scenario-physical.ts";
 
 async function wireBodies(h: ChatRoot): Promise<JsonValue[]> {
@@ -171,13 +173,16 @@ test.for([
   { title: "afterAssistant appends the real response nudge as the last native user message", afterAssistant: true },
   { title: "an ordinary generate after the same assistant tail does not append the response nudge", afterAssistant: false },
 ])("$title", async (scene) => {
-  await using h = await textRoom(["The next answer."]);
+  await using h = await textRoom(["The next answer."], {
+    transcript: [
+      { role: "user", content: "hello" },
+      { role: "assistant", content: "The tavern is quiet." },
+    ],
+  });
   const character = h.characters[0];
   if (character === undefined) {
     throw new Error("the response-nudge room created no character");
   }
-  await seedMessage(h.root.db, { chatId: h.chatId, seq: 1, role: "user", authorUserId: h.owner.userId, content: "hello" }, h.root.idSource);
-  await seedMessage(h.root.db, { chatId: h.chatId, seq: 2, role: "assistant", characterId: character.id, content: "The tavern is quiet." }, h.root.idSource);
   const outcome = await h.root.services.chat.generate({
     principal: h.owner,
     chatId: h.chatId,
@@ -216,20 +221,24 @@ test.for([
         { type: "literal", id: "continue-probe", name: "Continue probe", role: "system", enabled: true, content: CONTINUE_MARK, trigger: ["continue"] },
       ],
     },
+    ...(scene.kind === "send"
+      ? {}
+      : {
+          transcript: [
+            { role: "user", content: "hello" },
+            { role: "assistant", content: "The tale so far." },
+          ],
+        }),
   });
-  const character = h.characters[0];
-  if (character === undefined) {
-    throw new Error("the trigger-gate room created no character");
-  }
   if (scene.kind === "send") {
     await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "hi" });
   } else {
-    await seedMessage(h.root.db, { chatId: h.chatId, seq: 1, role: "user", authorUserId: h.owner.userId, content: "hello" }, h.root.idSource);
-    const prior = await seedMessage(
-      h.root.db,
-      { chatId: h.chatId, seq: 2, role: "assistant", characterId: character.id, content: "The tale so far." },
-      h.root.idSource,
+    const prior = (await h.root.db.select().from(messages).where(eq(messages.chatId, h.chatId)).orderBy(messages.seq)).findLast(
+      ({ role }) => role === "assistant",
     );
+    if (prior === undefined) {
+      throw new Error("the trigger-gate transcript wrote no prior reply");
+    }
     if (scene.kind === "swipe") {
       await h.root.services.chat.swipe({ principal: h.owner, chatId: h.chatId, messageId: prior.id });
     } else {

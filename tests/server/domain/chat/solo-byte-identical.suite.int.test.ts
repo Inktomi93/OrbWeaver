@@ -13,7 +13,6 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
-  seedMessage,
 } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 
@@ -43,14 +42,19 @@ async function posture(group: GroupConfig): Promise<{
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
   });
-  await using h = await createChatRoot({ providerFetch: provider.execute, group });
+  await using h = await createChatRoot({
+    providerFetch: provider.execute,
+    group,
+    transcript: [
+      { role: "user", content: "hello there" },
+      { role: "assistant", content: "well met, traveler" },
+      { role: "user", content: "tell me more" },
+    ],
+  });
   const character = h.characters[0];
   if (character === undefined) {
     throw new Error("the real solo room has no character");
   }
-  await seedMessage(h.root.db, { chatId: h.chatId, seq: 1, role: "user", authorUserId: h.owner.userId, content: "hello there" }, h.root.idSource);
-  await seedMessage(h.root.db, { chatId: h.chatId, seq: 2, characterId: character.id, content: "well met, traveler" }, h.root.idSource);
-  await seedMessage(h.root.db, { chatId: h.chatId, seq: 3, role: "user", authorUserId: h.owner.userId, content: "tell me more" }, h.root.idSource);
   const outcome = await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Continue the conversation." });
   expect(outcome.aborted).toBe(false);
   const physical = h.requests.filter((request) => request.method === "POST" && new URL(request.url).pathname.endsWith("/chat/completions"));

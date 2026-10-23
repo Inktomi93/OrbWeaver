@@ -16,7 +16,6 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
-  seedMessage,
 } from "@orb/testkit/node/composed";
 import { and, eq, gt } from "drizzle-orm";
 
@@ -77,6 +76,11 @@ async function room(): Promise<
       },
       group: { output: "per-speaker", cardScope: "merged", policy: "list", allowSelfResponses: true },
       characters: ["Aria", "Bran"].map((name) => createCharacterSchema.parse({ handle: name.toLowerCase(), name, description: `${name}'s distinct card.` })),
+      transcript: [
+        { role: "assistant", speakerHandle: "aria", content: "Aria waves." },
+        { role: "assistant", speakerHandle: "bran", content: "Bran nods." },
+        { role: "user", content: "Where to?" },
+      ],
       providerFetch: async (input, init) => {
         const request = new Request(input, init);
         if (request.method === "POST" && new URL(request.url).pathname.endsWith("/messages")) {
@@ -97,13 +101,6 @@ async function room(): Promise<
     promptCache: { ...SHIPPED_PROMPT_CACHE, enabled: false },
   });
   await h.caller.connection.setBinding({ task: "chat", connectionId: connection.id });
-  const [aria, bran] = h.characters;
-  if (aria === undefined || bran === undefined) {
-    throw new Error("the real signed group has no character roster");
-  }
-  await seedMessage(h.root.db, { chatId: h.chatId, seq: 1, characterId: aria.id, content: "Aria waves." }, h.root.idSource);
-  await seedMessage(h.root.db, { chatId: h.chatId, seq: 2, characterId: bran.id, content: "Bran nods." }, h.root.idSource);
-  await seedMessage(h.root.db, { chatId: h.chatId, seq: 3, role: "user", authorUserId: h.owner.userId, content: "Where to?" }, h.root.idSource);
   const round = async (carryReasoning: CarryReasoning): Promise<TurnOutcome> =>
     await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Go on.", intent: { carryReasoning } });
   const inputs = async (): Promise<JsonValue[][]> =>

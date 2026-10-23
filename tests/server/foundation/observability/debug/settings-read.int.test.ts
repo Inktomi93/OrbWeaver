@@ -1,8 +1,10 @@
 // The real operator route reads complete settings bytes through the owning domain, never an auth fallback.
 import { automationTriggerFor } from "@orb/contracts/automation";
+import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
-import { automationFires } from "@orb/db";
+import { createPersonaSchema } from "@orb/contracts/persona";
+import { automationFires, characters } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
@@ -17,7 +19,7 @@ import {
   seedRpgGame,
   seedUserSettings,
 } from "@orb/testkit/node/composed";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 const PASSWORD = "operator-read-control-password";
 
@@ -60,13 +62,22 @@ test("the settings probe preserves key order and stored values while rejecting a
 
   const caller = await root.internalCallerFor(root.ownerId);
   const { chat } = await caller.chat.startChat({ characterIds: [] });
-  const persona = await seedPersona(root.db, { ownerId: root.ownerId, title: null }, root.idSource);
-  const preset = await seedPreset(root.db, { ownerId: root.ownerId }, root.idSource);
-  const character = await seedCharacter(
-    root.db,
-    { ownerId: root.ownerId, description: "Stored card description", systemPrompt: "Stored private prompt", trustHtml: false, interactiveHtml: false },
-    root.idSource,
-  );
+  const { row: persona } = await seedPersona(root, { principal: owner, input: createPersonaSchema.parse({ name: "Inspector persona", description: "" }) });
+  const { row: preset } = await seedPreset(root, root.ownerId, { name: "Inspector preset", kind: "custom" });
+  const created = await seedCharacter(root, {
+    principal: owner,
+    input: createCharacterSchema.parse({
+      handle: "inspector-card",
+      name: "Inspector card",
+      description: "Stored card description",
+      systemPrompt: "Stored private prompt",
+    }),
+  });
+  await root.services.character.update({ principal: owner, characterId: created.view.id, input: { trustHtml: false, interactiveHtml: false } });
+  const character = await root.db.select().from(characters).where(eq(characters.id, created.view.id)).get();
+  if (character === undefined) {
+    throw new Error("the production character update left no canonical row");
+  }
   const settings = await seedUserSettings(root, {
     principal: owner,
     input: { section: "appearance", patch: {} },

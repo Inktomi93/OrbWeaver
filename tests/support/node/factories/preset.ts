@@ -1,54 +1,22 @@
-// Preset rows use the owner's real default config and mirror its version; view and sentinel policy stay in production.
+// Preset seeds run the routed owner verbs: the router's write schema normalizes config before the domain write.
 import type { Db } from "@orb/db";
 import { presets } from "@orb/db";
-import type { IdSource, UserId } from "@orb/kit/ids";
-import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { FROZEN_AT_MS } from "../../iso/clock.ts";
-import { createSeededIds } from "../../iso/ids.ts";
-import { makePromptConfig } from "../../iso/preset-config.ts";
 import type { ServerProducerRoot, ServerTestHarness } from "../server.ts";
-import { seedUser } from "./user.ts";
 
 type PresetCaller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>["preset"];
 type CreatePreset = PresetCaller["create"];
 
-export type PresetRow = typeof presets.$inferSelect;
+type PresetRow = typeof presets.$inferSelect;
 
-const ids = createIdSource(createSeededIds().next);
-
-/** Builds an owned row; its owner relation is persisted only by {@link seedPreset}. */
-function makePreset(overrides: Partial<PresetRow> = {}, source: IdSource = ids): PresetRow {
-  const config = overrides.config ?? makePromptConfig();
-  return {
-    id: source.typeId(ID_PREFIX.preset),
-    ownerId: source.userId(),
-    name: "Test Preset",
-    kind: "generation",
-    config,
-    schemaVersion: config.schemaVersion,
-    forkedFrom: null,
-    createdAt: FROZEN_AT_MS,
-    updatedAt: FROZEN_AT_MS,
-    ...overrides,
-  };
-}
-
-/** Reuses an explicit owner (including null); omission seeds the existing canonical user FK root. */
-export async function seedPreset(db: Db, overrides: Partial<PresetRow> = {}, source?: IdSource): Promise<PresetRow> {
-  const ownerId = overrides.ownerId === undefined ? (await seedUser(db, {}, source)).id : overrides.ownerId;
-  const row = makePreset({ ...overrides, ownerId }, source);
-  await db.insert(presets).values(row);
-  return row;
-}
-
-export interface SeededCreatedPreset {
+export interface SeededPreset {
   readonly view: Awaited<ReturnType<CreatePreset>>;
   readonly row: PresetRow;
 }
 
 /** Keep the routed creation's normalization and name de-collision, then capture only its returned identity. */
-export async function seedCreatedPreset(root: ServerProducerRoot, userId: UserId, params: Parameters<CreatePreset>[0]): Promise<SeededCreatedPreset> {
+export async function seedPreset(root: ServerProducerRoot, userId: UserId, params: Parameters<CreatePreset>[0]): Promise<SeededPreset> {
   const db = root.db;
   const create = (await root.internalCallerFor(userId)).preset.create;
   const view = await create(params);
@@ -56,7 +24,7 @@ export async function seedCreatedPreset(root: ServerProducerRoot, userId: UserId
 }
 
 /** A copy-on-write update may return a different identity; capture that row, never the requested source. */
-export async function seedUpdatedPreset(root: ServerProducerRoot, userId: UserId, params: Parameters<PresetCaller["update"]>[0]): Promise<SeededCreatedPreset> {
+export async function seedUpdatedPreset(root: ServerProducerRoot, userId: UserId, params: Parameters<PresetCaller["update"]>[0]): Promise<SeededPreset> {
   const db = root.db;
   const update = (await root.internalCallerFor(userId)).preset.update;
   const view = await update(params);
