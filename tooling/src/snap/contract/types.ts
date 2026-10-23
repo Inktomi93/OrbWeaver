@@ -24,14 +24,8 @@ import type { StageArgs } from "./stage.ts";
 
 export type { Assertion, DriveFailure, NavAction, PagedExpr, SnapAction, Step } from "./actions.ts";
 
-/** `--scale`'s resolved shape. `mode` is what Playwright's `screenshot({ scale })` receives — it accepts
- *  ONLY "css" | "device", so a numeric ask reaches the pixels through `deviceScaleFactor`, which raises
- *  the browser CONTEXT's DPR (null = leave the context's own, which a device descriptor supplies). The
- *  parse/budget/dimension logic is ../lib/shot-scale.ts. */
-export interface ShotScale {
-  readonly mode: "css" | "device";
-  readonly deviceScaleFactor: number | null;
-}
+/** Numeric screenshot scaling changes the context DPR; Playwright accepts only css or device. */
+export type ShotScale = { readonly mode: "css"; readonly deviceScaleFactor: null } | { readonly mode: "device"; readonly deviceScaleFactor: number | null };
 
 // A per-page contrast keeps its argv-order selector plus the target page.
 interface PagedSelector {
@@ -356,6 +350,23 @@ export interface EvidenceRange {
 }
 
 // ── --eval: arbitrary in-page JS ────────────────────────────────────────────
+
+interface SnapEvalValueBase {
+  readonly page: number;
+  readonly expression: string;
+}
+
+interface SnapEvalSuccess extends SnapEvalValueBase {
+  readonly value: string;
+  readonly error: null;
+}
+
+interface SnapEvalFailure extends SnapEvalValueBase {
+  readonly value: null;
+  readonly error: string;
+}
+
+export type SnapEvalValue = SnapEvalSuccess | SnapEvalFailure;
 
 export interface EvalOutcome {
   expr: string;

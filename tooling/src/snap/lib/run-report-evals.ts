@@ -1,26 +1,11 @@
-// The eval arm's VALUES, read back browser-free (seam with lane p-snap-receipts, 2026-09-04).
-//
-// `--report --arm eval` could name the artifact and never say what the expression evaluated to, which is
-// the one thing an `--eval` run exists to produce. The arm now writes `evidence/evals.json`
-// (`snap-eval-values-v1`); this reads it STRUCTURALLY — the artifact is resolved from the eval fact's own
-// `artifacts` list in run.json, never by guessing a filename, because a scenario checkpoint writes
-// `<checkpoint>-evals.json`.
-//
-// AN ARM THAT MEASURED NOTHING WRITES NO FILE. A missing artifact is "nothing measured" and prints
-// nothing; a PRESENT file that will not parse is an instrument defect and says so.
+// Resolve eval artifacts from their arm references, including scenario checkpoint files.
+// A present malformed artifact is an instrument failure, not an empty measurement.
 import { readFile } from "node:fs/promises";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { SnapRunIndex } from "../contract/run-index.ts";
+import type { SnapEvalValue } from "../contract/types.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --report <index> --arm eval");
-
-/** One expression's outcome. `value` XOR `error`: a row carrying both, or neither, is malformed. */
-export interface SnapEvalValue {
-  readonly page: number;
-  readonly expression: string;
-  readonly value: string | null;
-  readonly error: string | null;
-}
 
 function evalRow(value: unknown): SnapEvalValue | null {
   if (typeof value !== "object" || value === null) {
@@ -30,16 +15,17 @@ function evalRow(value: unknown): SnapEvalValue | null {
   const expression = Reflect.get(value, "expression");
   const text = Reflect.get(value, "value");
   const error = Reflect.get(value, "error");
-  const exclusive = (typeof text === "string") !== (typeof error === "string");
-  if (!(Number.isInteger(page) && typeof expression === "string" && exclusive)) {
+  if (!Number.isInteger(page) || typeof expression !== "string") {
     return null;
   }
-  return {
-    page: Number(page),
-    expression,
-    value: typeof text === "string" ? text : null,
-    error: typeof error === "string" ? error : null,
-  };
+  const identity = { page: Number(page), expression };
+  if (typeof text === "string" && typeof error !== "string") {
+    return { ...identity, value: text, error: null };
+  }
+  if (typeof error === "string" && typeof text !== "string") {
+    return { ...identity, value: null, error };
+  }
+  return null;
 }
 
 /** The artifacts the EVAL FACT itself points at — the binding run-bundle made by `producerArm`. */

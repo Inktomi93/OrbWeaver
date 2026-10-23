@@ -70,11 +70,20 @@ interface CssCascadeInstrumentError {
 
 export type CssCascadeReceipt = CssCascadeOkReceipt | CssCascadeInstrumentError;
 
-export interface CssEvidenceReceipt {
-  readonly status: "ok" | "instrument-error";
-  /** The unchanged #949 `window.__orb.css.read()` payload. */
+interface CssEvidenceBase {
   readonly merge: CssMergeTraceSnapshot | null;
   readonly cascade: readonly CssCascadeReceipt[];
   readonly repositoryDeclarations: number;
-  readonly error: string | null;
 }
+
+interface CssEvidenceOk extends CssEvidenceBase {
+  readonly status: "ok";
+  readonly error: null;
+}
+
+interface CssEvidenceError extends CssEvidenceBase {
+  readonly status: "instrument-error";
+  readonly error: string;
+}
+
+export type CssEvidenceReceipt = CssEvidenceOk | CssEvidenceError;
