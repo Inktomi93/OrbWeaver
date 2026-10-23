@@ -1,6 +1,5 @@
-import type { ResolvedReasoning } from "@orb/inference";
+import type { planStructuredFor, ResolvedReasoning } from "@orb/inference";
 import { expectTypeOf, test } from "vitest";
-import type { StructuredPlan } from "#inference/contract/structured.ts";
 
 test("resolved reasoning excludes fields dropped by the funnel but permits unknown metadata", () => {
   expectTypeOf<{ mode: "budget"; enabled: false; budgetTokens: number }>().not.toExtend<ResolvedReasoning>();
@@ -14,6 +13,7 @@ test("resolved reasoning excludes fields dropped by the funnel but permits unkno
   expectTypeOf<{ mode: "budget"; enabled: false; offChosen: true; offMode: "disabled" }>().toExtend<ResolvedReasoning>();
 });
 
+type StructuredPlan = Extract<ReturnType<typeof planStructuredFor>, { ok: true }>;
 type PlanBase = Pick<StructuredPlan, "ok" | "mode" | "downgrades">;
 test("format selection carries both its index and planned format, while text-only turns need neither", () => {
   expectTypeOf<PlanBase & { shape: number }>().not.toExtend<StructuredPlan>();

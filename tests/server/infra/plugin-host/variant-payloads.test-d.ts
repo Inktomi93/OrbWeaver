@@ -1,7 +1,9 @@
+import type { runBundleImport } from "@orb/server/domain/import";
 import { expectTypeOf, test } from "vitest";
-import type { BundleImportFileOutcome } from "#server/domain/import/contract/bundle.ts";
 import type { RpcResult } from "#server/infra/plugin-host/contract/process-protocol.ts";
 import type { EvalOutcome } from "#server/infra/plugin-host/sandbox.ts";
+
+type BundleImportFileOutcome = Awaited<ReturnType<typeof runBundleImport>>["outcomes"][number];
 
 test("guest results require the branch payload and RPC success still permits void", () => {
   expectTypeOf<{ ok: false; logs: [] }>().not.toExtend<EvalOutcome>();

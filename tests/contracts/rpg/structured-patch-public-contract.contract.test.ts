@@ -290,7 +290,7 @@ test.for([
     expect(countWireSchemas([patch], { mode, limits: zero, strictTools: 0 })).toEqual([]);
     for (const limitsFrom of WIRE_SCHEMA_MODES) {
       const checked = checkWireSchema([patch], mode, { ...effectiveStructuredLimits(limitsFrom, undefined), ...zero });
-      expect(checked.violations, mode + " under " + limitsFrom).toEqual([]);
+      expect(checked.violations, `${mode} under ${limitsFrom}`).toEqual([]);
       expect(checked.fits).toBe(true);
     }
   }
