@@ -6,13 +6,21 @@
 // the `chat_digests`/`chat_segments`/`chat_digest_speakers` facet columns it produced; the `embedding`/`model`/
 // `dim`/`hubScore` vector columns are search's/discovery's and are NEVER selected here.
 
-import { MEMORY_INGEST_KINDS } from "@orb/contracts/chat";
+import { buildIdentityNameContext, MEMORY_INGEST_KINDS } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chatDigestSpeakers, chatDigests, chatParticipants, chatSegments, messages, messageVariants } from "@orb/db";
 import { projectBodyForSummary } from "@orb/kit/content";
 import type { CharacterId, ChatDigestId, ChatId, EmbedGenerationId } from "@orb/kit/ids";
+import type { RowMacroNameContext } from "@orb/kit/macro";
 import { and, asc, eq, inArray, lte, max, min } from "drizzle-orm";
+import { loadChatIdentityProducer } from "../../persistence/identity.ts";
 import type { DigestRow, MsgRow, WitnessInterval } from "../types.ts";
+
+/** The speaker and persona names a transcript over `rows` renders with: the room identity producer over the
+ *  rows' own stamps, so every row's speaker resolves, including a character that joined after the room began. */
+export async function loadTranscriptNames(db: Db, rows: readonly MsgRow[]): Promise<RowMacroNameContext> {
+  return buildIdentityNameContext(await loadChatIdentityProducer(db, { messages: rows }));
+}
 
 /** The chat's canon head (`max(messages.seq)`, 0 when empty) — the build cutoff (`maxSeq − verbatimWindow`)
  *  derives from it. The MEMORY meta read (kept minimal; the full chat-row read is the feature persistence's). */

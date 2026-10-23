@@ -25,8 +25,8 @@ The readers treat absent coverage as no filter so existing 0-based imports are w
 The import writer numbers canon from seq 1 (`importedSeq` in `packages/server/src/domain/chat/persistence/import-write.ts`).
 
 - Live canon appends at the head plus 1 over an empty head of 0 (`commitCanonAppend`, `loadMaxMessageSeq`).
-- A native bundle carries messages by position and `compactedAtSeq` in the source room's seqs. A 0-based write shifts every row down one against that marker, so the row after the covered span falls under the marker without being in its summary.
-- The persona heal matches each input message to the stored room's index-aligned `messageIds`, so it heals rooms written by either origin.
+- A native bundle carries messages by position and `compactedAtSeq` in the source room's seqs. A 0-based write shifts every row down one against that marker, so the row after the covered span falls under the marker without being in its summary. The seqs line up only when the source room has no seq gaps; a source with deleted rows still misaligns its marker.
+- The persona heal matches `seq = index + origin`, where `importSeqOrigin` proves the room's origin from its import-written slots: only the 0-based writer wrote seq 0, and only the 1-based writer wrote seq `count`. A seq match survives a deleted slot. A room that lost both proving slots heals its pin and seat but no slot.
 
 ## Existing rows
 

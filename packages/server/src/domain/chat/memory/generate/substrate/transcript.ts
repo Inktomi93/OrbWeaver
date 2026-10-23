@@ -14,9 +14,10 @@
 // the authoring persona per-row (a multi-human block distinguishes two humans by persona name, not "User").
 
 import { createHash } from "node:crypto";
-import type { CharacterId, PersonaId } from "@orb/kit/ids";
-import type { RowCharacterName, RowMacroNameContext, RowPersonaName } from "@orb/kit/macro";
+import type { CharacterId } from "@orb/kit/ids";
+import type { RowMacroNameContext } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
+import { CHAT_OP_CODES, ChatOperationError } from "#src/domain/chat/contract/errors.ts";
 import type { BlockSpan, MsgRow } from "#src/domain/chat/memory/types.ts";
 
 const USER_LABEL = "User";
@@ -28,18 +29,10 @@ const SYSTEM_LABEL = "System";
  *  label vocabulary, and this one is only ever the last resort. */
 const CHARACTER_LABEL = "Character";
 
-/** The zero-name producer (a hand-built/preview/backfill probe with no loaded producer) — every row floors to
- *  its id-string label + the atom's own literal `{{char}}`/`{{user}}` floors ("Character"/"User"). Byte-
- *  identical to the pre-producer path (the `EMPTY_HISTORY_MACRO_NAMES` engine precedent). */
-export const EMPTY_MACRO_NAMES: RowMacroNameContext = {
-  characterNamesById: new Map<CharacterId, RowCharacterName>(),
-  personaNamesById: new Map<PersonaId, RowPersonaName>(),
-};
-
 // The display label for a message's speaker in a transcript: the DECLARED narrator label first, then a
-//  character's resolved name (live identity — D28; falls back to the id when the name map lacks it), else a
-//  human/system role label. NAMES are used for the SUMMARIZER input only — never for the hash (the hash uses
-//  stable ids — see {@link blockHash}), so this dispatch moves no stored hash and re-digests nothing.
+//  character's resolved name (live identity — D28), else a human/system role label. A character the name map
+//  lacks is a refusal, never its id: an internal id must not reach model input. NAMES are used for the
+//  SUMMARIZER input only — never for the hash (the hash uses stable ids — see {@link blockHash}), so this dispatch moves no stored hash and re-digests nothing.
 //
 //  THE KIND ARM LEADS, and it is a real fix rather than a re-spelling (D129): a narrator row is authored by the
 //  room's synthetic group card, whose name is the literal string **"Group"** (`buildGroupCard`, a
@@ -51,7 +44,14 @@ function speakerLabel(row: MsgRow, macroNames: RowMacroNameContext): string {
     return NARRATOR_LABEL;
   }
   if (row.characterId !== null) {
-    return macroNames.characterNamesById.get(row.characterId)?.name ?? row.characterId;
+    const named = macroNames.characterNamesById.get(row.characterId);
+    if (named === undefined) {
+      throw new ChatOperationError(
+        CHAT_OP_CODES.transcriptSpeakerUnresolved,
+        `memory transcript: no name resolves speaker ${row.characterId} at seq ${row.seq}`,
+      );
+    }
+    return named.name;
   }
   if (row.authorUserId !== null) {
     // A human post OR an agent-authored assistant row (D60 — both userId-backed, characterId NULL). An agent

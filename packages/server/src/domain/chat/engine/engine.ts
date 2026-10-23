@@ -1879,9 +1879,6 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
     // memory. Reads the same resolved host config recall does, so its tuning is honored too.
     const memoryConfig = prep.memoryConfig;
     if (memoryConfig?.mode !== "off") {
-      // Reuses the per-chat producer the SHAPE path already built (character + persona name maps), so build
-      // and assemble agree.
-      const macroNames = historyMacroNames;
       trackSettledWork(
         ctx,
         prep.chatId,
@@ -1892,7 +1889,6 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
               funderUserId: prep.funderUserId,
               runAsUserId: prep.runAsUserId,
               config: memoryConfig,
-              macroNames,
               signal: ctx.backgroundSignal,
             });
           } catch (memErr) {

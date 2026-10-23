@@ -13,7 +13,6 @@
 // The foreign DTO supplies promptConfig/personas/globalRegexScripts/scanDepth/injectionTokenBudget/
 // memoryConfig (settings/preset/persona reads chat must not perform).
 
-import type { CharacterCard } from "@orb/contracts/character";
 import type { AssembleContext, ChatInjection, MacroFreezeRecord, MemoryRecallSlice, MessageView } from "@orb/contracts/chat";
 import type { GenerationType } from "@orb/contracts/preset";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
@@ -26,6 +25,7 @@ import type { ChatContext } from "../contract/context.ts";
 import type { ForeignInputs } from "../contract/foreign.ts";
 import type { MemoryRecallInputs, MsgRow, TurnRetrievalWarningEpisode } from "../contract/memory.ts";
 import type { GuidedSteer } from "../contract/params.ts";
+import { loadTranscriptNames } from "../memory/persistence/queries.ts";
 import { recallMemory } from "../memory/recall/recall.ts";
 import { LIVE_WINDOW_FULL_HISTORY_CUTOFF } from "../memory/recall/window.ts";
 import { loadCanonHistory, loadChatInjections, loadChatRow, loadStoredVariables, loadVariableDeltas } from "../persistence/queries.ts";
@@ -145,28 +145,11 @@ function p6Fields(
   };
 }
 
-/** Resolve the present characters' live cards under the host's ownership — the regex-tier character source + the
- *  recall name map. A gone/mid-delete card (`null`) is skipped, never an error. */
-async function loadCharacterCards(
-  ctx: ChatContext,
-  ownerId: UserId,
-  characterIds: readonly CharacterId[],
-): Promise<{ cards: CharacterCard[]; names: Map<CharacterId, string> }> {
-  const loaded = await Promise.all(
-    characterIds.map(async (characterId) => ({
-      characterId,
-      card: await ctx.getCard({ ownerId, characterId }),
-    })),
-  );
-  const cards: CharacterCard[] = [];
-  const names = new Map<CharacterId, string>();
-  for (const { characterId, card } of loaded) {
-    if (card !== null) {
-      cards.push(card);
-      names.set(characterId, card.name);
-    }
-  }
-  return { cards, names };
+/** The recall query's speaker names: the room identity producer over the query window's own stamps, the same
+ *  source the memory build labels its transcripts with, so a speaker who joined or left still resolves. */
+async function loadRecallNames(ctx: ChatContext, rows: readonly MsgRow[]): Promise<ReadonlyMap<CharacterId, string>> {
+  const { characterNamesById } = await loadTranscriptNames(ctx.db, rows);
+  return new Map([...characterNamesById].map(([id, entry]) => [id, entry.name]));
 }
 
 /** Collect the per-turn user-macro registries (WAVE MU) into an omit-when-undefined object — kept a pure
@@ -360,13 +343,12 @@ export async function gatherAssembleContext(
 ): Promise<AssembleContext> {
   const { chatId, runAsUserId, model, characterIds, personaIds } = args;
 
-  const [chatRow, canon, injectionRows, storedVariables, variableDeltas, characterCards] = await Promise.all([
+  const [chatRow, canon, injectionRows, storedVariables, variableDeltas] = await Promise.all([
     loadChatRow(ctx.db, chatId),
     loadCanonHistory(ctx.db, chatId),
     loadChatInjections(ctx.db, chatId),
     loadStoredVariables(ctx.db, chatId),
     loadVariableDeltas(ctx.db, chatId),
-    loadCharacterCards(ctx, runAsUserId, characterIds),
   ]);
 
   // Two-plane env seed: resolve the config plane (ChoiceBlock picks → concrete map), then overlay the
@@ -418,7 +400,7 @@ export async function gatherAssembleContext(
         characterIds,
         foreign,
         recent: recallRecent,
-        names: characterCards.names,
+        names: await loadRecallNames(ctx, recallRecent),
         liveWindowCutoffSeq: resolveLiveWindowCutoffSeq(canon),
         warningEpisode,
       },

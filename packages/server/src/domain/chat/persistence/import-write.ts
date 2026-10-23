@@ -6,7 +6,15 @@
 // per-chat provenance while `chat_import_claims` is the scoped atomic dedup oracle. Each chat + claim commits
 // as ONE db.batch — db.transaction() is BANNED (the :memory: trap) — so a kill mid-import leaves zero rows.
 
-import type { BulkImportChatInput, BulkImportChatsResult, BulkImportVariantInput, ChatMetadata, ImportedChatIdentity, MessageKind } from "@orb/contracts/chat";
+import type {
+  BulkImportChatInput,
+  BulkImportChatsResult,
+  BulkImportVariantInput,
+  ChatMetadata,
+  ImportedChatIdentity,
+  MessageKind,
+  TurnInitiator,
+} from "@orb/contracts/chat";
 import { DEFAULT_MESSAGE_KIND } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
 import { generationUsageSchema, modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
@@ -37,6 +45,8 @@ import { carriesAssetBackground, guardedChatId } from "./background-write.ts";
 
 // Budget a scope bind alongside each varying value, so the statement's fixed scope always fits too.
 const SCOPED_FILTER_BIND_BUDGET = 2;
+// Marks a slot the bulk import wrote, never a requested turn.
+const IMPORT_INITIATOR = "import" satisfies TurnInitiator;
 
 /** The distinct inline `asset:<id>` refs in a message's content, across all its variants. */
 function assetRefsInMessage(message: BulkImportChatInput["messages"][number]): AssetId[] {
@@ -159,21 +169,21 @@ async function loadExistingImports(db: Db, characterId: CharacterId, hashes: rea
  *
  * The three planes are the same three the fresh write sets, so a healed room is indistinguishable from one
  * imported today: the room's pin, the HOST SEAT's active persona (scoped to `ownerId` — a member's seat is
- * their own business), and each user slot, matched through the room's index-aligned `messageIds` (the same
- * alignment the R6 remap reads), never through a seq formula: launched imported rooms number canon from 0 or
- * from 1, and both must heal.
+ * their own business), and each user slot, matched by `seq = index + origin` against the room's own import
+ * origin ({@link importSeqOrigin}). A seq match survives a deleted slot, which a position among the survivors
+ * does not. A room whose origin its slots cannot prove heals its pin and seat but no slot.
  */
 function healPersonaAttribution(
   ctx: ChatImportContext,
   room: {
     readonly existing: ExistingImport;
-    readonly messageIds: ImportedChatIdentity["messageIds"];
+    readonly origin: ImportSeqOrigin | null;
     readonly ownerId: UserId;
     readonly ci: BulkImportChatInput;
   },
 ): BatchStmt[] {
   const { db } = ctx;
-  const { existing, messageIds, ownerId, ci } = room;
+  const { existing, origin, ownerId, ci } = room;
   const anchor = ci.anchorPersonaId;
   // Gated twice — the stored room must still be anchor-less AND this run must have resolved a persona for it —
   // so an ordinary re-import of an already-attributed corpus produces ZERO statements.
@@ -201,10 +211,12 @@ function healPersonaAttribution(
         ),
     ),
   ];
+  if (origin === null) {
+    return stmts;
+  }
   for (const [index, m] of ci.messages.entries()) {
     const personaId = m.role === "user" ? m.personaId : null;
-    const messageId = messageIds[index];
-    if (personaId === null || messageId === undefined) {
+    if (personaId === null) {
       continue;
     }
     stmts.push(
@@ -212,11 +224,37 @@ function healPersonaAttribution(
         db
           .update(messages)
           .set({ personaId })
-          .where(and(eq(messages.chatId, existing.chatId), eq(messages.id, messageId), eq(messages.role, "user"), isNull(messages.personaId))),
+          .where(and(eq(messages.chatId, existing.chatId), eq(messages.seq, index + origin), eq(messages.role, "user"), isNull(messages.personaId))),
       ),
     );
   }
   return stmts;
+}
+
+/** The first seq each import writer numbered a room's canon from. `legacy` rooms are already in launched
+ *  databases; every new import is `current`, the origin live canon appends from (`commitCanonAppend` writes at
+ *  the head + 1 over an empty head of 0). */
+const IMPORT_SEQ_ORIGINS = { legacy: 0, current: 1 } as const;
+type ImportSeqOrigin = (typeof IMPORT_SEQ_ORIGINS)[keyof typeof IMPORT_SEQ_ORIGINS];
+
+/** The origin a stored import room was written with, proven from its own import-written slots: only the legacy
+ *  writer wrote seq 0, and only the current writer wrote seq `count` for a `count`-message transcript. `null`
+ *  when deletions removed both proofs, so the caller heals no slot rather than guess an offset. */
+async function importSeqOrigin(db: Db, chatId: ChatId, count: number): Promise<ImportSeqOrigin | null> {
+  const proofs = await db
+    .select({ seq: messages.seq })
+    .from(messages)
+    .where(
+      and(
+        eq(messages.chatId, chatId),
+        eq(messages.initiator, IMPORT_INITIATOR),
+        inArray(messages.seq, [IMPORT_SEQ_ORIGINS.legacy, count - 1 + IMPORT_SEQ_ORIGINS.current]),
+      ),
+    );
+  if (proofs.some((row) => row.seq === IMPORT_SEQ_ORIGINS.legacy)) {
+    return IMPORT_SEQ_ORIGINS.legacy;
+  }
+  return proofs.length > 0 ? IMPORT_SEQ_ORIGINS.current : null;
 }
 
 /** The founding roster for an imported chat (host human + every seated character); `joinSeq=0` (born here).
@@ -379,7 +417,7 @@ function messageStatements(args: MessageStatementsArgs): {
         personaId: isUser ? message.personaId : null,
         selectedVariantId: null,
         // Imported history was not typed in this app: the viewer's last-turn reads skip it.
-        initiator: "import",
+        initiator: IMPORT_INITIATOR,
         createdAt: message.createdAt,
       }),
     ),
@@ -583,11 +621,10 @@ function pendingObservationStmts(ctx: ChatImportContext, ownerId: UserId, ci: Bu
   return importedObservationRows(ctx.newChatTurnId, ownerId, ci, identity).map((row) => batchStmt(ctx.db.insert(chatGenerationObservations).values(row)));
 }
 
-/** The seq the import writes for `ci.messages[index]`. Canon numbers from 1 (`commitCanonAppend` appends at the
- *  head + 1 over an empty head of 0), and a carried `compactedAtSeq` names the source room's seqs, so a row from
- *  a gap-free source lands on the seq it held there. */
+/** The seq the import writes for `ci.messages[index]`: the current origin, so a carried `compactedAtSeq`, which
+ *  names the source room's seqs, lines up with its rows when the source room has no seq gaps. */
 function importedSeq(index: number): number {
-  return index + 1;
+  return index + IMPORT_SEQ_ORIGINS.current;
 }
 
 /** All statements for ONE imported chat (header + roster + message slots/variants) + the identity of what it
@@ -736,7 +773,8 @@ async function recordSkippedImport(args: {
   const identity = await loadImportedIdentity(ctx.db, existing.chatId);
   state.identities.push(identity);
   state.chatsSkipped += 1;
-  state.chatsPersonaHealed += collectInto(state.healStmts, healPersonaAttribution(ctx, { existing, messageIds: identity.messageIds, ownerId, ci }));
+  const origin = await importSeqOrigin(ctx.db, existing.chatId, ci.messages.length);
+  state.chatsPersonaHealed += collectInto(state.healStmts, healPersonaAttribution(ctx, { existing, origin, ownerId, ci }));
 }
 
 /** Commit one fresh candidate, returning the exact winning claim when another invocation won the race.
