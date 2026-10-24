@@ -1,5 +1,5 @@
-// B6/MR2 — the reaction PICKER: the emoji vocabulary as a pickable grid, opened from either of the message
-// row's two doors. B7/MR3 adds the TARGET row: react to the whole message (the default at every pointer —
+// The reaction PICKER: the emoji vocabulary as a pickable grid, opened from either of the message row's two
+// doors, with the TARGET row: react to the whole message (the default at every pointer —
 // the spec's "whole-message default at coarse" is satisfied by defaulting everywhere) or to ONE speaker's
 // line of a multi-speaker body.
 //
@@ -26,7 +26,7 @@
 // Widening the vocabulary widens this grid, in one edit, with no client change at all.
 //
 // PRESSED STATE IS REAL HERE TOO — per TARGET: the grid shows which emoji the VIEWER already has on this
-// variant for the SELECTED target (whole-message vs one line are independent toggles, MA-2 §4), so the
+// variant for the SELECTED target (whole-message vs one line are independent toggles), so the
 // picker doubles as the un-react path for a reaction whose pill has scrolled behind the "+N" tail. Same
 // toggle verb, same seat, same answer — there is no second write path to keep honest.
 
@@ -39,7 +39,7 @@ import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { PickerDialog } from "#components";
+import { PickerDialog, Tip } from "#components";
 
 /** The picked segment target: a span index + that span's speaker (the CLAIM the server re-validates). */
 interface ReactionSegmentTarget {
@@ -106,11 +106,10 @@ export function ReactionPicker({
     <PickerDialog
       title="Add a reaction"
       popupProps={{ "data-slot": "reaction-picker", "data-chat-id": chatId, "data-variant-id": variantId }}
-      // THE TARGET IS PER VISIT, AND CLOSING ENDS THE VISIT (#1502). The header above already states the
-      // rule — "whole-message is the DEFAULT target; a segment is an explicit narrowing per visit" — but
-      // the state outlived the dialog: this component stays mounted with `open=false` (the popup content is
-      // what Base UI unmounts), so a line-anchored pick, a dismiss, and a reopen on a DIFFERENT message
-      // came back still aimed at "segment 3" of a message that may not have three lines. Resetting on the
+      // THE TARGET IS PER VISIT, AND CLOSING ENDS THE VISIT — "whole-message is the DEFAULT target; a segment
+      // is an explicit narrowing per visit". This component stays mounted with `open=false` (the popup content
+      // is what Base UI unmounts), so without a reset a reopen on a DIFFERENT message would still aim at
+      // "segment 3" of a message that may not have three lines. Resetting on the
       // CLOSE edge rather than the open one keeps the default true even for a reopen that never re-renders
       // this subtree in between.
       onOpenChange={(next): void => {
@@ -137,18 +136,18 @@ export function ReactionPicker({
             Whole message
           </Toggle>
           {targets.map((t) => (
-            <Toggle
-              aria-label={`React to ${t.speaker}'s line`}
-              intent="outline"
-              key={t.index}
-              onPressedChange={(): void => setTarget({ index: t.index, speaker: t.speaker })}
-              pressed={target?.index === t.index}
-              shape="pill"
-              size="chip"
-              title={t.text.trim()}
-            >
-              {t.speaker}
-            </Toggle>
+            <Tip key={t.index} text={t.text.trim()}>
+              <Toggle
+                aria-label={`React to ${t.speaker}'s line`}
+                intent="outline"
+                onPressedChange={(): void => setTarget({ index: t.index, speaker: t.speaker })}
+                pressed={target?.index === t.index}
+                shape="pill"
+                size="chip"
+              >
+                {t.speaker}
+              </Toggle>
+            </Tip>
           ))}
         </Row>
       ) : null}

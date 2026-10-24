@@ -38,7 +38,7 @@ interface ReactionPillProps {
   readonly group: MessageReactionGroup;
   readonly viewerReacted: boolean;
   /** Pressing a chip toggles THAT chip's exact target — a segment chip re-keys the same anchor, a
-   *  whole-message chip keys none (the two are independent toggles, MA-2 §4). */
+   *  whole-message chip keys none (the two are independent toggles). */
   readonly onToggle: (group: MessageReactionGroup) => void;
 }
 
@@ -138,8 +138,14 @@ export function MessageReactions({ message }: MessageReactionsProps): ReactEleme
         />
       ))}
       {hidden.length > 0 ? (
-        <Text as="span" title={hidden.map((g) => g.emoji).join(" ")} voice="gloss">
-          +{hidden.length}
+        // The count is for the eye; the hidden reactions are spoken in full. The picker shows every one.
+        <Text as="span" voice="gloss">
+          <Text aria-hidden={true} as="span">
+            +{hidden.length}
+          </Text>
+          <Text as="span" className="sr-only">
+            {`${hidden.length} more: ${hidden.map((g) => g.emoji).join(" ")}`}
+          </Text>
         </Text>
       ) : null}
     </Row>
