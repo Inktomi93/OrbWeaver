@@ -1,9 +1,9 @@
 ---
 kind: work
 status: open
-updated: 2026-10-21
+updated: 2026-10-24
 priority: P2
-plan: test-foundation
+plan: restoration-register
 ---
 
 # Testing law holds in the test kit

@@ -1,9 +1,9 @@
 ---
 kind: work
 status: open
-updated: 2026-10-19
+updated: 2026-10-24
 priority: P2
-plan: test-foundation
+plan: restoration-register
 ---
 
 # Flow-walking CTs move to e2e

@@ -1,10 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-10-22
+updated: 2026-10-24
 priority: P2
 area: inference
-plan: test-foundation
+plan: restoration-register
 ---
 
 # Rebuild composed recall and reranking cases
