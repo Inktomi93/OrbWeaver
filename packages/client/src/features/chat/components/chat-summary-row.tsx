@@ -222,8 +222,7 @@ export function ChatSummaryRow({
                   <Row align="center" className={ROW_ACTION_INLINE}>
                     <RowToggleAction
                       icon={Star}
-                      labelOff={starName}
-                      labelOn={starName}
+                      label={starName}
                       onToggle={(): void => onToggleStar(!chat.starred)}
                       pressed={chat.starred}
                       pressedClassName="text-warning"

@@ -280,8 +280,7 @@ function ActiveDocumentRow({ document, isHost, onSetHidden, onDetach }: ActiveDo
                   // without a pressed tint. `rest="always"`: retrieval state is exactly what the eye
                   // scans this rack for, so it must not be hover-revealed.
                   icon={visible ? Eye : EyeOff}
-                  labelOff={feedName}
-                  labelOn={feedName}
+                  label={feedName}
                   onToggle={(): void => onSetHidden(visible)}
                   pressed={visible}
                   rest="always"

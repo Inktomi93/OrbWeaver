@@ -14,7 +14,7 @@ function draw(): void {
     children.push({ kind: "text", value: "Loading your destination…" });
   } else {
     children.push(
-      { kind: "select", name: "book", label: "Lore book", optionsFromHost: "owned-lore-books", value: bookId, actionId: "configure" },
+      { kind: "select", name: "book", label: "World book", optionsFromHost: "owned-lore-books", value: bookId, actionId: "configure" },
       { kind: "text", value: "This choice does not attach the book to a room. Attach it in that room's World Info settings." },
     );
     if (saved) {

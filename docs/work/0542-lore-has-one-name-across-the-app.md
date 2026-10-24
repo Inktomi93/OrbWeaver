@@ -30,4 +30,4 @@ Kept, not user-facing: `restore-card-lorebook` route, `restoreCardLorebook` and 
 
 Kept, "lore" as the content noun (an entry's text), not the book: rule trigger and action phrases in `rule-copy.ts` ("a lore entry"), `entry-editor.tsx`, `world-info-member-surface.tsx`, plugin copy, `persona-learn.tsx` and `personas-nav.ts` prose about lore entries, and the card-visibility tier "Sheet + lore" with the member card "Lore" section. These name card content, not a book.
 
-Out of scope, outside `packages/client/src`: showcase plugin `research-familiar` still says "lore book" in its own UI strings.
+Also changed outside `packages/client/src`: the `research-familiar` showcase plugin's user-facing strings (`ui.ts` select label, `main.ts` dialog title, button, notices, and the README step that names the button) now say "world book". The `owned-lore-books` host source key and the developer prose about a LORE BOOK stay.

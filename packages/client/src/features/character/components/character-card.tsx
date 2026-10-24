@@ -259,8 +259,7 @@ function NormalRowActions({
       <Row align="center" className={ROW_ACTION_INLINE}>
         <RowToggleAction
           icon={Star}
-          labelOff={starName}
-          labelOn={starName}
+          label={starName}
           onToggle={(): void => onToggleStar(character.id, !character.starred)}
           pressed={character.starred}
           pressedClassName="text-warning"

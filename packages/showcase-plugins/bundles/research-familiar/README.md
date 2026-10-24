@@ -23,7 +23,7 @@ independent second plugin — which is what you want while experimenting.
 
 ## Turning it on
 
-Open Settings → Plugins → Research Familiar → Choose lore book. Select one of your owned books in the configuration dialog.
+Open Settings → Plugins → Research Familiar → Choose world book. Select one of your owned books in the configuration dialog.
 
 The picker writes `familiar_book_id` in your own global-variable namespace. The guest receives your selected id, not your book catalog.
 
