@@ -13,7 +13,7 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
-import { Container, Row, Stack, Surface } from "@orb/ui/layout";
+import { Row, Stack, Surface } from "@orb/ui/layout";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
@@ -24,6 +24,7 @@ import type { ChatRoomSurfaceState, ChatSurfaceAnchor, ChatSurfaceContribution, 
 import { cn, deriveChatTitle, useFocusOnMount } from "#lib";
 import type { ActiveChatHandle } from "#state";
 import { MessageThreadAnchor } from "../anchors/message-thread-anchor.tsx";
+import { RoomFlankAnchor } from "../anchors/room-flank-anchor.tsx";
 import { ChatCharacterBar } from "../components/chat-character-bar.tsx";
 import { ChoiceSendProvider } from "../components/choice-send-provider.tsx";
 import { Composer } from "../components/composer.tsx";
@@ -170,12 +171,12 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                *  replaced (pinned on BOTH axes at BOTH arms by the #680 CT loop — a desktop-width-only pin is
                *  exactly how both defects went green).
                *
-               *  The `Container` + `@max-lg` is a CONTAINER query on this pane's own inline size, never the
+               *  The `RoomFlankAnchor` + `@max-lg` is a CONTAINER query on this pane's own inline size, never the
                *  viewport (the shell's docked panels can narrow it on a wide screen): below 32rem/512px the
                *  flank stacks BELOW the thread instead of crushing its reading column (the
                *  settings-shell-surface.tsx / role-slot-row.tsx `@max-md`/`@2xl` precedent, at the `lg` step
                *  since a thread+flank split needs more room than a nav+content split before beside is comfy). */}
-              <Container className="relative flex-1 min-block-0">
+              <RoomFlankAnchor>
                 <InlineFlankFitProbe />
                 {/* `relative` makes the row the parked column's containing block, so the row's `overflow-x-clip`
                     clips it; positioned against the Container, it would show through the docked Details pane. */}
@@ -223,7 +224,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                   </FlankColumn>
                 </Row>
                 <FlankEdge controlRef={flankControlRef} controls={flankId} flank={flank} />
-              </Container>
+              </RoomFlankAnchor>
               <MessageSelectionBar chatId={chatId} />
               {/* THE ROOM'S ONE TRACK (#213): a band between the transcript and the composer is part of the same
               vertical stack, so it takes the same centred box — otherwise a contribution renders at its own

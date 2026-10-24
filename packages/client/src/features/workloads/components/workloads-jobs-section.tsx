@@ -113,7 +113,7 @@ function WorkloadsJobsBody({ anchorId }: { readonly anchorId: string }): ReactEl
   };
 
   return (
-    <Section className="@container" divider={true} heading={WORKLOADS_JOBS_SUBCATEGORY.label} id={anchorId}>
+    <Section container={true} divider={true} heading={WORKLOADS_JOBS_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="block" data-testid={testId("workloadsSection")}>
         <Tabs
           value={filter}

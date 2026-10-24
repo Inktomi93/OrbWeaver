@@ -133,7 +133,7 @@ function BackgroundBody({
     }
   };
   return (
-    <Section className="@container" divider={true} heading={APPEARANCE_BACKGROUND_SUBCATEGORY.label} id={anchorId}>
+    <Section container={true} divider={true} heading={APPEARANCE_BACKGROUND_SUBCATEGORY.label} id={anchorId}>
       {/* R-BG (#866 S4): an inherently VISUAL choice picks by THUMBNAIL — one grid: None · every library
           entry (which is where the bundled scene plates live since `kind:"seeded"` retired); the selected
           tile wears the ring; `backgroundImageKind` derives from the tap and is never a user-facing

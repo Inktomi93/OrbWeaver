@@ -181,7 +181,7 @@ export function NewChatPicker(): ReactElement {
   const teaching = selectedCount === 0;
 
   return (
-    <Stack className="@container">
+    <Stack>
       {/* The temporary flag is a CREATION-ONLY parameter the user can't change later, so the picker states
           it up front rather than surprising them in the room (temp tile → this modal → a room born
           Temporary). */}

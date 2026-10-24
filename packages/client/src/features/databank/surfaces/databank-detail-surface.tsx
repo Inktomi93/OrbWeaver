@@ -23,7 +23,7 @@ import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { FileText, Icon, Pencil, RefreshCw } from "@orb/ui/icons";
-import { Container, Grid, Row, Section, Stack, Surface } from "@orb/ui/layout";
+import { Grid, Row, Section, Stack, Surface } from "@orb/ui/layout";
 import { ScrollArea } from "@orb/ui/scroll-area";
 import { Heading, Text } from "@orb/ui/text";
 import { useToastManager } from "@orb/ui/toast";
@@ -53,31 +53,29 @@ export function DatabankDetailSurface(): ReactElement {
   useFocusOnMount(surfaceRef, documentId !== null);
 
   return (
-    <Container className="block-full min-block-0">
-      <Stack
-        className="relative overflow-y-auto overscroll-contain outline-none block-full min-block-0"
-        data-slot="databank-content"
-        ref={surfaceRef}
-        tabIndex={-1}
-      >
-        {documentId === null ? (
-          <DatabankWelcome />
-        ) : (
-          /* RESERVED (#1098). Every document swap re-suspends this pane, so the CONTENT column collapsed
-             to a one-line sentence and sprang back to a full readout on each pick — the pane's scrollbar
-             and scroll offset with it. The remembered box is a good predictor here: the readout's anatomy
-             (header, chips, chunk counts, sections) is the same shape for every document. The scroll box
-             is the Stack ABOVE this boundary, so the measuring wrapper sits inside it (#1133). */
-          <QueryBoundary
-            fallback={<SkeletonRows count={5} />}
-            renderError={(_error, retry): ReactElement => <QueryErrorState label="this document" onRetry={retry} />}
-            reserveKey="databank.detail"
-          >
-            <DetailBody documentId={documentId} />
-          </QueryBoundary>
-        )}
-      </Stack>
-    </Container>
+    <Stack
+      className="relative overflow-y-auto overscroll-contain outline-none block-full min-block-0"
+      data-slot="databank-content"
+      ref={surfaceRef}
+      tabIndex={-1}
+    >
+      {documentId === null ? (
+        <DatabankWelcome />
+      ) : (
+        /* RESERVED (#1098). Every document swap re-suspends this pane, so the CONTENT column collapsed
+           to a one-line sentence and sprang back to a full readout on each pick — the pane's scrollbar
+           and scroll offset with it. The remembered box is a good predictor here: the readout's anatomy
+           (header, chips, chunk counts, sections) is the same shape for every document. The scroll box
+           is the Stack ABOVE this boundary, so the measuring wrapper sits inside it (#1133). */
+        <QueryBoundary
+          fallback={<SkeletonRows count={5} />}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="this document" onRetry={retry} />}
+          reserveKey="databank.detail"
+        >
+          <DetailBody documentId={documentId} />
+        </QueryBoundary>
+      )}
+    </Stack>
   );
 }
 

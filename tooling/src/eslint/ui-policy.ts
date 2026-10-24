@@ -19,7 +19,36 @@ export const STATE_FILES_SELECTORS = [
   },
 ];
 
+const CLASS_LITERAL_START = String.raw`(?:^["']|\s)`;
+
+const CLASS_LITERAL_END = String.raw`(?=\s|["']$)`;
+
+const CLASS_SPAN_START = String.raw`(?:^|\s)`;
+
+const CLASS_SPAN_END = String.raw`(?=\s|$)`;
+
+// The Tailwind container utilities (`@container`, `@container/name`, `@container-size`) and the arbitrary
+// `[container-type:…]` / `[container-name:…]` properties.
+const CONTAINER_UTILITY = String.raw`(?:[^\s]*:)?(?:@container(?:[-\/][^\s]*)?|\[container-(?:type|name):[^\s]*)`;
+
+const CONTAINER_STYLE_KEYS = String.raw`^container(?:Type|Name|-type|-name)$`;
+
 export const CLASS_RESTRICTIONS = [
+  {
+    id: "no-raw-container-in-features",
+    selectors: [
+      {
+        selector: `:matches(Literal[value=type(string)][raw=/${CLASS_LITERAL_START}${CONTAINER_UTILITY}${CLASS_LITERAL_END}/], TemplateElement[value.raw=/${CLASS_SPAN_START}${CONTAINER_UTILITY}${CLASS_SPAN_END}/])`,
+        message:
+          "A raw container utility in a feature: containment is written by @orb/ui. Use <Container>, or the `container` prop of Section and Stack (UI-Architecture-and-Layout.md §4).",
+      },
+      {
+        selector: `Property:matches([key.type='Identifier'][key.name=/${CONTAINER_STYLE_KEYS}/], [key.type='Literal'][key.value=/${CONTAINER_STYLE_KEYS}/])`,
+        message:
+          "A containerType or containerName style prop in a feature: containment is written by @orb/ui. Use <Container name>, or the `container` prop of Section and Stack.",
+      },
+    ],
+  },
   {
     id: "ui-skin-fragment-purity",
     selectors: [

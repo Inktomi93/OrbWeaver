@@ -1,7 +1,7 @@
 import { openConfigTo, resolveConfigSectionAnchor, useSectionRegistry } from "@orb/client/state";
 import { CtClientProviders, configSections } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";
-import { Stack } from "@orb/ui/layout";
+import { Container, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
 
@@ -36,9 +36,9 @@ function AnchorSubject(): ReactElement {
       <Button onClick={(): void => setMounted(true)}>Remount content</Button>
       <div style={{ height: 560, width: 900, minHeight: 0, display: "flex" }}>
         {mounted ? (
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <Container style={{ flex: 1, minWidth: 0 }}>
             <ConfigContent />
-          </div>
+          </Container>
         ) : null}
       </div>
     </Stack>

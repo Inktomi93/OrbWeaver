@@ -3,7 +3,7 @@
 import { Button } from "@orb/ui/button";
 import { Icon, MoreVertical, Trash2 } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
-import { Container, Row, Stack } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { Select } from "@orb/ui/select";
 import { Skeleton } from "@orb/ui/skeleton";
@@ -28,33 +28,31 @@ export function LabelsListSurface(): ReactElement {
   // The rows say nothing over an empty library (a filter miss is theirs to say), so the finder does.
   const empty = useTagCensus() === 0;
   return (
-    <Container className="block-full" name="labels-finder">
-      <Stack className="outline-none block-full min-block-0" data-slot={LABELS_FINDER_SLOT} gap="block" ref={surfaceRef} tabIndex={-1}>
-        <Row align="center" data-slot="labels-control-row" gap="field">
-          <Row align="center" className="flex-1 min-inline-0">
-            <ListSearch>
-              <Input aria-label="Filter tags" onValueChange={setLabelFilter} placeholder="Filter tags…" value={filter} />
-            </ListSearch>
-          </Row>
-          <LabelsSortSelect />
-          <LabelsOverflow />
+    <Stack className="outline-none block-full min-block-0" data-slot={LABELS_FINDER_SLOT} gap="block" ref={surfaceRef} tabIndex={-1}>
+      <Row align="center" data-slot="labels-control-row" gap="field">
+        <Row align="center" className="flex-1 min-inline-0">
+          <ListSearch>
+            <Input aria-label="Filter tags" onValueChange={setLabelFilter} placeholder="Filter tags…" value={filter} />
+          </ListSearch>
         </Row>
-        {empty ? (
-          <Text voice="gloss" data-slot="labels-finder-empty">
-            No tags yet.
-          </Text>
-        ) : null}
-        {/* The rows' windowed arm takes its height from this box, so it is a bounded flex column. */}
-        <Stack className="relative flex-1 overflow-y-auto overscroll-contain min-block-0">
-          <QueryBoundary
-            fallback={<Skeleton className="block-(--size-control-lg) inline-full" />}
-            renderError={(_error, retry): ReactElement => <QueryErrorState label="tags" onRetry={retry} />}
-          >
-            <TagCollectionRows view={{ selectedId, onSelect: selectLabelFromList, filter }} />
-          </QueryBoundary>
-        </Stack>
+        <LabelsSortSelect />
+        <LabelsOverflow />
+      </Row>
+      {empty ? (
+        <Text voice="gloss" data-slot="labels-finder-empty">
+          No tags yet.
+        </Text>
+      ) : null}
+      {/* The rows' windowed arm takes its height from this box, so it is a bounded flex column. */}
+      <Stack className="relative flex-1 overflow-y-auto overscroll-contain min-block-0">
+        <QueryBoundary
+          fallback={<Skeleton className="block-(--size-control-lg) inline-full" />}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="tags" onRetry={retry} />}
+        >
+          <TagCollectionRows view={{ selectedId, onSelect: selectLabelFromList, filter }} />
+        </QueryBoundary>
       </Stack>
-    </Container>
+    </Stack>
   );
 }
 

@@ -15,7 +15,7 @@ import { castId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
-import { Container, Row, Section, Stack } from "@orb/ui/layout";
+import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
@@ -147,102 +147,101 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
   };
 
   return (
-    <Container>
-      {/* `--width-content-col` — the EDITOR content-column cap, not a reading measure (#1175). See the tag
-          member editor's twin: this block holds controls, so the prose token is forbidden here by its own
-          contract, and `max-w-(--reading-measure-min)` was a third un-derived width. The token's stated consumption is
-          THREE classes (#1664 — centered, capped, breathing to `--width-content-col-wide` past `@5xl`);
-          the tag editor's twin carries the argument and the measured pane widths. */}
-      <Stack
-        className="mx-auto outline-none inline-full max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)"
-        data-slot="roster-member-editor"
-        gap="section"
-        ref={surfaceRef}
-        tabIndex={-1}
-      >
-        {/* THE DRILL ROW (#1747, the mock design §3.4): `← Back to <library>` · the roster's name · this
+    // `--width-content-col` — the EDITOR content-column cap, not a reading measure (#1175). See the tag
+    // member editor's twin: this block holds controls, so the prose token is forbidden here by its own
+    // contract, and `max-w-prose` was a third un-derived width. The token's stated consumption is
+    // THREE classes (#1664 — centered, capped, breathing to `--width-content-col-wide` past `@5xl`);
+    // the tag editor's twin carries the argument and the measured pane widths. The `@5xl` query measures
+    // the config member anchor's box, not one this surface owns.
+    <Stack
+      className="mx-auto outline-none inline-full max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)"
+      data-slot="roster-member-editor"
+      gap="section"
+      ref={surfaceRef}
+      tabIndex={-1}
+    >
+      {/* THE DRILL ROW (#1747, the mock design §3.4): `← Back to <library>` · the roster's name · this
             collection's ONE member verb, Start chat (§3.4 names it). SAVE STAYS WITH THE FIELDS below: it
             commits the two inputs it sits under and is not a member verb — moving it up would put a
             form's submit two rows above the form and leave the conflict notice (#1561) beside nothing. */}
-        <MemberDrillHeader
-          actions={
-            <Button disabled={busy} intent="ghost" onClick={onStart} size="sm">
-              Start chat
-            </Button>
-          }
-          back={{ label: `Back to ${view.library}`, onClick: (): void => clearCollectionSelection() }}
-          title={roster.name}
-        />
-        {/* NO `aria-label` on either cell (#1587). A `<Field>`'s label reaches its control through Base UI's
+      <MemberDrillHeader
+        actions={
+          <Button disabled={busy} intent="ghost" onClick={onStart} size="sm">
+            Start chat
+          </Button>
+        }
+        back={{ label: `Back to ${view.library}`, onClick: (): void => clearCollectionSelection() }}
+        title={roster.name}
+      />
+      {/* NO `aria-label` on either cell (#1587). A `<Field>`'s label reaches its control through Base UI's
             `aria-labelledby`, which OUTRANKS `aria-label` in the accname algorithm — so "Roster name" /
             "Roster description" named nothing and the cells already announced "Name" / "Description"
             (measured). A dead attribute is worse than none: it reads as the announced name to the next
             author. If these ever need the qualifier, it goes on the Field's own label, where it is both
             visible and announced. */}
-        <Field label="Name">
-          <Input onChange={(e): void => setName(e.target.value)} value={name} />
-        </Field>
-        <Field label="Description">
-          <Input onChange={(e): void => setDescription(e.target.value)} value={description} />
-        </Field>
-        <Row align="center" gap="field">
-          <Button disabled={busy || !dirty || name.trim().length === 0} intent="primary" size="sm" onClick={onSave}>
-            Save
-          </Button>
-        </Row>
-        {/* The two-writer collision, STATED (#1561). It rides beside the Save it qualifies rather than at
+      <Field label="Name">
+        <Input onChange={(e): void => setName(e.target.value)} value={name} />
+      </Field>
+      <Field label="Description">
+        <Input onChange={(e): void => setDescription(e.target.value)} value={description} />
+      </Field>
+      <Row align="center" gap="field">
+        <Button disabled={busy || !dirty || name.trim().length === 0} intent="primary" size="sm" onClick={onSave}>
+          Save
+        </Button>
+      </Row>
+      {/* The two-writer collision, STATED (#1561). It rides beside the Save it qualifies rather than at
             the top of the surface: the decision it changes is that press. */}
-        {contested ? (
-          <Text data-slot="roster-editor-conflict" voice="label">
-            {`This roster changed elsewhere while you were editing — it is now “${roster.name}”. Saving replaces that with your text.`}
-          </Text>
-        ) : null}
-        {/* `Section kicker` renders the SAME caps-micro band the two groupings had as bare spans — and a
+      {contested ? (
+        <Text data-slot="roster-editor-conflict" voice="label">
+          {`This roster changed elsewhere while you were editing — it is now “${roster.name}”. Saving replaces that with your text.`}
+        </Text>
+      ) : null}
+      {/* `Section kicker` renders the SAME caps-micro band the two groupings had as bare spans — and a
             real <h3> under it (side-eye P2-5: the editor's only heading was the roster name, so heading
             navigation gave a screen-reader user one stop in a two-section surface, while the sibling
             "This chat" pane names every section at level 3). */}
-        <SettingSwitchRow
-          checked={roster.game !== null}
-          disabled={busy}
-          {...(roster.game === null ? {} : { description: rulesetLine(roster.game) })}
-          label="RPG campaign"
-          onChange={onCampaignChange}
-        />
-        <Section kicker="Characters">
-          {roster.members.map((member) => (
-            <Row align="center" gap="field" key={member.characterId}>
-              <Text voice="label" className="flex-1 truncate min-inline-0">
-                {member.name}
+      <SettingSwitchRow
+        checked={roster.game !== null}
+        disabled={busy}
+        {...(roster.game === null ? {} : { description: rulesetLine(roster.game) })}
+        label="RPG campaign"
+        onChange={onCampaignChange}
+      />
+      <Section kicker="Characters">
+        {roster.members.map((member) => (
+          <Row align="center" gap="field" key={member.characterId}>
+            <Text voice="label" className="flex-1 truncate min-inline-0">
+              {member.name}
+            </Text>
+            {member.disabled ? (
+              <Text as="span" voice="gloss">
+                Muted
               </Text>
-              {member.disabled ? (
-                <Text as="span" voice="gloss">
-                  Muted
-                </Text>
-              ) : (
-                // ONE talkativeness spelling with the room's own Members tab: the readout lives in `#lib` (a
-                // feature may not import another feature), so the roster can never drift from the room. A
-                // seat that never had the knob touched carries `null` and applies the room default.
-                <Text as="span" voice="gloss">
-                  {member.talkativeness === null ? `${talkativenessReadout(TALKATIVENESS_DEFAULT)} (default)` : talkativenessReadout(member.talkativeness)}
-                </Text>
-              )}
-            </Row>
+            ) : (
+              // ONE talkativeness spelling with the room's own Members tab: the readout lives in `#lib` (a
+              // feature may not import another feature), so the roster can never drift from the room. A
+              // seat that never had the knob touched carries `null` and applies the room default.
+              <Text as="span" voice="gloss">
+                {member.talkativeness === null ? `${talkativenessReadout(TALKATIVENESS_DEFAULT)} (default)` : talkativenessReadout(member.talkativeness)}
+              </Text>
+            )}
+          </Row>
+        ))}
+        <Text voice="gloss" className="max-inline-(--reading-measure-prose)">
+          To re-compose the roster, arrange a room you host and save it as a new roster — the saved-rosters door in Members.
+        </Text>
+      </Section>
+      {roster.rules.length > 0 ? (
+        <Section kicker="Rules" data-slot="roster-rules">
+          {roster.rules.map((rule) => (
+            <RosterRuleBlock knobs={rule.knobs} key={rule.rulePresetId} preset={presetOf(rule.rulePresetId)} rulePresetId={rule.rulePresetId} />
           ))}
           <Text voice="gloss" className="max-inline-(--reading-measure-prose)">
-            To re-compose the roster, arrange a room you host and save it as a new roster — the saved-rosters door in Members.
+            Applied with the roster — re-minted into the room and switched on. To change them, configure a room and save a new roster.
           </Text>
         </Section>
-        {roster.rules.length > 0 ? (
-          <Section kicker="Rules" data-slot="roster-rules">
-            {roster.rules.map((rule) => (
-              <RosterRuleBlock knobs={rule.knobs} key={rule.rulePresetId} preset={presetOf(rule.rulePresetId)} rulePresetId={rule.rulePresetId} />
-            ))}
-            <Text voice="gloss" className="max-inline-(--reading-measure-prose)">
-              Applied with the roster — re-minted into the room and switched on. To change them, configure a room and save a new roster.
-            </Text>
-          </Section>
-        ) : null}
-      </Stack>
-    </Container>
+      ) : null}
+    </Stack>
   );
 }

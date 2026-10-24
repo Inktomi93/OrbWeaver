@@ -26,14 +26,15 @@ import type { PluginId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Blocks, Icon } from "@orb/ui/icons";
-import { Container, Stack } from "@orb/ui/layout";
+import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { useRef } from "react";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
-import { testId, useFocusOnMount } from "#lib";
+import { cn, testId, useFocusOnMount } from "#lib";
 import { openConfigTo, pluginPageKey, selectPluginPageFromList, usePluginPageKey } from "#state";
+import { ExtensionsPaneAnchor } from "../anchors/extensions-pane-anchor.tsx";
 import { PluginFrame } from "../components/plugin-frame.tsx";
 import { PluginRow } from "../components/plugin-row.tsx";
 import { PluginScriptedSurface } from "../components/plugin-scripted-surface.tsx";
@@ -62,16 +63,24 @@ function reviewFirstWaiting(plugins: ExtensionsEmptyView["awaitingPlugins"]): vo
 }
 
 /** Every non-page arm's frame: the pane's focus target, with the standard content inset. */
-function InsetPane({ surfaceRef, children }: { readonly surfaceRef: RefObject<HTMLDivElement | null>; readonly children: ReactNode }): ReactElement {
+function InsetPane({
+  surfaceRef,
+  children,
+  className,
+}: {
+  readonly surfaceRef: RefObject<HTMLDivElement | null>;
+  readonly children: ReactNode;
+  readonly className?: string;
+}): ReactElement {
   return (
-    <Container
-      className="relative overflow-y-auto px-section outline-none block-full min-block-0"
+    <Stack
+      className={cn("relative overflow-y-auto px-section outline-none block-full min-block-0", className)}
       data-testid={testId("extensionsContent")}
       ref={surfaceRef}
       tabIndex={-1}
     >
-      {children}
-    </Container>
+      <ExtensionsPaneAnchor>{children}</ExtensionsPaneAnchor>
+    </Stack>
   );
 }
 
@@ -180,14 +189,9 @@ export function ExtensionsPageSurface(): ReactElement {
 
   if (reviewed !== undefined) {
     return (
-      <Container
-        className="relative overflow-y-auto p-section outline-none block-full min-block-0"
-        data-testid={testId("extensionsContent")}
-        ref={surfaceRef}
-        tabIndex={-1}
-      >
+      <InsetPane className="py-section" surfaceRef={surfaceRef}>
         <PluginRow onApproved={(): void => openFirstPageOf(reviewed.id)} plugin={reviewed} />
-      </Container>
+      </InsetPane>
     );
   }
   if (key !== null && pageState.isPending) {

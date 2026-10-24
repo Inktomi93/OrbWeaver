@@ -15,7 +15,7 @@
 import type { CreateRegexScriptInput, RegexScriptRow } from "@orb/contracts/regex";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Code, Icon } from "@orb/ui/icons";
-import { Container, Stack } from "@orb/ui/layout";
+import { Stack } from "@orb/ui/layout";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
@@ -89,32 +89,31 @@ function RegexMemberEditorBody({
   useFocusOnMount(surfaceRef);
 
   return (
-    <Container>
-      {/* `--width-content-col` — the EDITOR content-column cap, not a reading measure (#1175). See the tag
-          member editor's twin: this block holds controls, so the prose token is forbidden here by its own
-          contract, and `max-w-(--reading-measure-min)` was a third un-derived width. The token's stated consumption is
-          THREE classes (#1664 — centered, capped, breathing to `--width-content-col-wide` past `@5xl`);
-          the tag editor's twin carries the argument and the measured pane widths. */}
-      <Stack
-        className="mx-auto outline-none inline-full max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)"
-        data-slot="regex-member-editor"
-        gap="block"
-        ref={surfaceRef}
-        tabIndex={-1}
-      >
-        {/* THE DRILL ROW (#1747, the mock design §3.4, board 05): `← Back to <library>` · the script's name · the
-            member's own verbs. The autosave readout takes the trailing cluster because it is what this
-            surface has there — a STATUS, and this editor's only report that a keystroke landed.
-            THE BOARD'S "Test against a sample" IS NOT BUILT AS A VERB and is deliberately not invented
-            here: the tester is two live PANELS at the foot of the editor (`regex-editor-fields.tsx`'s
-            `RegexTestPanel` + `RegexPipelinePanel`, the REGX2 two-questions ruling), so a header button
-            would be a second door onto a panel already on screen. The mock draws the button because it
-            draws no panels; converging the two is a design decision this lane refuses to take silently. */}
-        <MemberDrillHeader actions={<AutosaveStatus onRetry={session.retrySave} state={session.saveState} />} back={back} title={regexScriptTitle(row)} />
+    // `--width-content-col` — the EDITOR content-column cap, not a reading measure (#1175). See the tag
+    // member editor's twin: this block holds controls, so the prose token is forbidden here by its own
+    // contract, and `max-w-prose` was a third un-derived width. The token's stated consumption is
+    // THREE classes (#1664 — centered, capped, breathing to `--width-content-col-wide` past `@5xl`);
+    // the tag editor's twin carries the argument and the measured pane widths. The `@5xl` query measures
+    // the config member anchor's box, not one this surface owns.
+    <Stack
+      className="mx-auto outline-none inline-full max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)"
+      data-slot="regex-member-editor"
+      gap="block"
+      ref={surfaceRef}
+      tabIndex={-1}
+    >
+      {/* THE DRILL ROW (#1747, the mock design §3.4, board 05): `← Back to <library>` · the script's name · the
+          member's own verbs. The autosave readout takes the trailing cluster because it is what this
+          surface has there — a STATUS, and this editor's only report that a keystroke landed.
+          THE BOARD'S "Test against a sample" IS NOT BUILT AS A VERB and is deliberately not invented
+          here: the tester is two live PANELS at the foot of the editor (`regex-editor-fields.tsx`'s
+          `RegexTestPanel` + `RegexPipelinePanel`, the REGX2 two-questions ruling), so a header button
+          would be a second door onto a panel already on screen. The mock draws the button because it
+          draws no panels; converging the two is a design decision this lane refuses to take silently. */}
+      <MemberDrillHeader actions={<AutosaveStatus onRetry={session.retrySave} state={session.saveState} />} back={back} title={regexScriptTitle(row)} />
 
-        {/* Delete lives on the ROW's kebab now (config-delete #271) — the editor is autosave-only. */}
-        <RegexEditorFields form={session.form} scriptId={row.id} />
-      </Stack>
-    </Container>
+      {/* Delete lives on the ROW's kebab now (config-delete #271) — the editor is autosave-only. */}
+      <RegexEditorFields form={session.form} scriptId={row.id} />
+    </Stack>
   );
 }

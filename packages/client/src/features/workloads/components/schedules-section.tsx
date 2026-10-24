@@ -83,7 +83,7 @@ function SchedulesBody({ anchorId }: { readonly anchorId: string }): ReactElemen
   };
 
   return (
-    <Section className="@container" divider={true} heading={WORKLOADS_SCHEDULES_SUBCATEGORY.label} id={anchorId}>
+    <Section container={true} divider={true} heading={WORKLOADS_SCHEDULES_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="block" data-testid={testId("workloadsSchedulesSection")}>
         <Row align="center" justify="between" gap="row">
           <Text voice="label" tone="muted">

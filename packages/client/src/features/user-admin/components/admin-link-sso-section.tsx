@@ -50,7 +50,7 @@ function AdminLinkSsoBody({ anchorId }: { readonly anchorId: string }): ReactEle
   const linkable = users.filter((user) => user.role !== "owner" && user.externalId === null);
 
   return (
-    <Section className="@container" divider={true} heading={ADMIN_LINK_SSO_SUBCATEGORY.label} id={anchorId}>
+    <Section container={true} divider={true} heading={ADMIN_LINK_SSO_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="row" data-testid={testId("adminLinkSsoSection")}>
         <Text voice="label" tone="muted">
           Link a local account to its stable SSO subject so a switch to single sign-on migrates it in place — otherwise a user whose IdP username differs from

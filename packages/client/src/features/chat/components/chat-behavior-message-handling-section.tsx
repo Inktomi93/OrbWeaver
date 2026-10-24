@@ -85,7 +85,7 @@ function MessageHandlingBody({
 }): ReactElement {
   const { form, saveState, retrySave } = session;
   return (
-    <Section className="@container" divider={true} heading={CHAT_MESSAGE_HANDLING_SUBCATEGORY.label} id={anchorId}>
+    <Section container={true} divider={true} heading={CHAT_MESSAGE_HANDLING_SUBCATEGORY.label} id={anchorId}>
       {/* THE TEACHER LAW (#866 S3): rows are label + control — the prose (incl. the B1/B7 inherit-shape
           caveats and the reapTemporaryChats copy) lives on each leaf's `teach`. */}
       <ConfigTeachScope value={{ group: "chat-behavior", sub: CHAT_MESSAGE_HANDLING_SUBCATEGORY }}>

@@ -22,4 +22,9 @@ An ESLint rule refuses the raw Tailwind `@container` utility and `containerType`
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+- Rules in `tooling/src/eslint/ui-policy.ts` and `ui-feature-policy.ts`, wired in `eslint.config.ts`: `orb/no-raw-container-in-features`, `orb/surface-consumes-container`, `orb/anchor-provides-container`. Lint covers the layout rule, so `feature-layout.suite.test.ts` is unchanged.
+- Planted controls: `pnpm test:tools tests/tooling/eslint-container-ownership.test.ts` fails 18 of 33 with the three rules off and passes 33 of 33 with them on. It plants a raw class, a `cn()` class, a template class, style props, a surface `<Container>`, an anchor with none, and a correct anchor and surface pair.
+- `Section` had no `container` prop; `Section` and `Stack` now carry one (`container="size"` on `Stack` contains the block axis). `tests/ui/layout/container-props.ct.tsx` fails 3 of 9 with the variants blanked and passes 9 of 9.
+- `character-gallery-anchor.tsx` is the dialog case: it mounts `CharacterGalleryDialog`, which renders the dialog box.
+- Sites moved: 21 `Section` classes by codemod `section-container-prop`; the rest by hand. Surfaces with a redundant `<Container>` dropped it to the region or content host container; surfaces whose container sat inside a padded box moved it to an anchor.
+- CTs run: config, tag, preset, chat, plugin, refinery, discovery, databank, shell and dialog suites, all green.

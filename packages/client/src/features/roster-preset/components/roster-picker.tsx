@@ -79,7 +79,7 @@ function RosterRow(props: {
   const memberNames = roster.members.map((m) => m.name).join(", ");
   const counts = rosterCountsSuffix(roster);
   return (
-    <Stack gap="tight" padding="block" className="@container border-be border-border last:border-be-0" data-slot="roster-row">
+    <Stack container={true} gap="tight" padding="block" className="border-be border-border last:border-be-0" data-slot="roster-row">
       <Row align="center" gap="field" className="@max-cq-28:flex-col @max-cq-28:items-stretch">
         <Stack gap="tight" className="flex-1 min-inline-0">
           <Row align="center" gap="field">
@@ -208,7 +208,7 @@ function SaveCurrentRoster(props: {
   return (
     <Stack gap="tight">
       {/* Its own container: below `@md` the name and the Save button stack, so the input keeps its width. */}
-      <Stack className="@container">
+      <Stack container={true}>
         <Row align="center" gap="field" className="@max-cq-28:flex-col @max-cq-28:items-stretch">
           <Input
             aria-label="New roster name"
@@ -243,7 +243,7 @@ function SaveCurrentRoster(props: {
       <RosterRulesIncludeLine capture={capture} presetOf={presetOf} />
       {game.status === "none" ? null : (
         // Its own container, so the row stacks when the dialog is narrow instead of crushing the label.
-        <Stack className="@container">
+        <Stack container={true}>
           {game.status === "error" ? (
             <Stack gap="tight">
               <SettingSwitchRow

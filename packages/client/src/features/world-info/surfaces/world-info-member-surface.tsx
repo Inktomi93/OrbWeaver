@@ -13,7 +13,7 @@ import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { BookOpen, Icon, Pencil, Plus } from "@orb/ui/icons";
-import { Container, Stack } from "@orb/ui/layout";
+import { Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import type { SortableItemKey } from "@orb/ui/sortable";
 import { SortableList } from "@orb/ui/sortable";
@@ -106,94 +106,90 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
   // A selected entry drills in — the editor replaces the list until "Back to entries" clears it.
   if (selectedEntry !== null) {
     return (
-      <Container>
-        <Stack className="outline-none min-block-0" data-slot="world-info-member-editor" gap="block" ref={surfaceRef} tabIndex={-1}>
-          {/* THE ENTRY RUNG'S OWN DRILL ROW (#1747) — the same composite the book level above draws, so the
+      <Stack className="outline-none min-block-0" data-slot="world-info-member-editor" gap="block" ref={surfaceRef} tabIndex={-1}>
+        {/* THE ENTRY RUNG'S OWN DRILL ROW (#1747) — the same composite the book level above draws, so the
               two rungs of this one surface cannot speak two grammars. Its Back pops the ENTRY, never the
               book (the `makeSelectionSeam` stack's deepest rung), and it states the entry's name, which
               nothing else on this rung did: `EntryEditor` carries a Title FIELD, not a heading. */}
-          <MemberDrillHeader back={{ label: "Back to entries", onClick: (): void => clearWorldEntrySelection() }} title={selectedEntry.title} />
-          <EntryEditor entry={selectedEntry} onDeleted={(): void => clearWorldEntrySelection()} />
-        </Stack>
-      </Container>
+        <MemberDrillHeader back={{ label: "Back to entries", onClick: (): void => clearWorldEntrySelection() }} title={selectedEntry.title} />
+        <EntryEditor entry={selectedEntry} onDeleted={(): void => clearWorldEntrySelection()} />
+      </Stack>
     );
   }
 
   return (
-    <Container>
-      <Stack className="outline-none min-block-0" data-slot="world-info-member-editor" gap="block" ref={surfaceRef} tabIndex={-1}>
-        {/* THE DRILL ROW (#1747, the mock design §3.4, board 06): `← Back to <library>` · the book's name · this
+    <Stack className="outline-none min-block-0" data-slot="world-info-member-editor" gap="block" ref={surfaceRef} tabIndex={-1}>
+      {/* THE DRILL ROW (#1747, the mock design §3.4, board 06): `← Back to <library>` · the book's name · this
             book's OWN verbs — Edit details · Backfill · New entry, exactly the trio the board draws, moved
             up out of the two rows that used to carry them (the name+pencil row and the census row). No
             lifecycle chrome: Delete is the LIST row's kebab (D212, #271).
             EDIT DETAILS IS A LABELLED BUTTON NOW, not a bare pencil: the board names it, and the icon-only
             trigger's whole accessible name lived in an `aria-label` nothing on screen said. */}
-        <MemberDrillHeader
-          actions={
-            <>
-              <Button intent="secondary" onClick={(): void => setDetailsOpen(true)} size="sm">
-                <Icon icon={Pencil} size="sm" />
-                Edit details
-              </Button>
-              {/* `secondary`, NOT `ghost` (side-eye 2026-08-19 P2, the zero-resting-affordance class): at
+      <MemberDrillHeader
+        actions={
+          <>
+            <Button intent="secondary" onClick={(): void => setDetailsOpen(true)} size="sm">
+              <Icon icon={Pencil} size="sm" />
+              Edit details
+            </Button>
+            {/* `secondary`, NOT `ghost` (side-eye 2026-08-19 P2, the zero-resting-affordance class): at
                   ghost this is a transparent, borderless accent word sitting 8px from a filled primary, so
                   the pair read as "one button and a caption" rather than as two verbs of different weight.
                   Secondary is the house's non-primary CHROME — it has a box at rest, and the primary keeps
                   its rank because it is the only filled control in the row. */}
-              {canBackfill ? (
-                <Button disabled={backfill.isPending} intent="secondary" onClick={onBackfill} size="sm">
-                  Backfill titles
-                </Button>
-              ) : null}
-              <Button disabled={create.isPending} intent="primary" onClick={onCreate} size="sm">
-                <Icon icon={Plus} size="sm" />
-                New entry
+            {canBackfill ? (
+              <Button disabled={backfill.isPending} intent="secondary" onClick={onBackfill} size="sm">
+                Backfill titles
               </Button>
-            </>
-          }
-          back={back}
-          title={book.name}
-        />
-        {book.description === null || book.description === "" ? null : <Text voice="gloss">{book.description}</Text>}
+            ) : null}
+            <Button disabled={create.isPending} intent="primary" onClick={onCreate} size="sm">
+              <Icon icon={Plus} size="sm" />
+              New entry
+            </Button>
+          </>
+        }
+        back={back}
+        title={book.name}
+      />
+      {book.description === null || book.description === "" ? null : <Text voice="gloss">{book.description}</Text>}
 
-        {/* The entries census, alone on its row now that the three verbs moved up to the drill row (board
+      {/* The entries census, alone on its row now that the three verbs moved up to the drill row (board
             06 draws it at the list's leading edge). */}
-        <Text as="span" voice="datum">
-          {entries.length === 1 ? "1 entry" : `${entries.length} entries`}
-        </Text>
+      <Text as="span" voice="datum">
+        {entries.length === 1 ? "1 entry" : `${entries.length} entries`}
+      </Text>
 
-        {entries.length === 0 ? (
-          <EmptyState
-            action={
-              <Button disabled={create.isPending} intent="secondary" onClick={onCreate} size="sm">
-                New entry
-              </Button>
-            }
-            description="Add an entry — a piece of lore that fires into the prompt when its keywords come up."
-            icon={<Icon icon={BookOpen} size="lg" />}
-            title="No entries yet"
-          />
-        ) : (
-          // handle mode: only the grip drags, so each row's own click (drill into the editor) stays live.
-          <SortableList
-            getItemKey={(entry): SortableItemKey => entry.id}
-            handle={true}
-            itemLabel={(entry): string => entry.title}
-            items={entries}
-            onReorder={onReorder}
-            renderItem={(entry): ReactElement => <EntryRow entry={entry} onSelect={(id): void => selectWorldEntry(id)} />}
-          />
-        )}
-
-        <BookDetailsDialog
-          currentDescription={book.description}
-          currentName={book.name}
-          onOpenChange={setDetailsOpen}
-          onSave={(patch): void => update.mutate({ bookId, input: patch })}
-          open={detailsOpen}
+      {entries.length === 0 ? (
+        <EmptyState
+          action={
+            <Button disabled={create.isPending} intent="secondary" onClick={onCreate} size="sm">
+              New entry
+            </Button>
+          }
+          description="Add an entry — a piece of lore that fires into the prompt when its keywords come up."
+          icon={<Icon icon={BookOpen} size="lg" />}
+          title="No entries yet"
         />
-      </Stack>
-    </Container>
+      ) : (
+        // handle mode: only the grip drags, so each row's own click (drill into the editor) stays live.
+        <SortableList
+          getItemKey={(entry): SortableItemKey => entry.id}
+          handle={true}
+          itemLabel={(entry): string => entry.title}
+          items={entries}
+          onReorder={onReorder}
+          renderItem={(entry): ReactElement => <EntryRow entry={entry} onSelect={(id): void => selectWorldEntry(id)} />}
+        />
+      )}
+
+      <BookDetailsDialog
+        currentDescription={book.description}
+        currentName={book.name}
+        onOpenChange={setDetailsOpen}
+        onSave={(patch): void => update.mutate({ bookId, input: patch })}
+        open={detailsOpen}
+      />
+    </Stack>
   );
 }
 

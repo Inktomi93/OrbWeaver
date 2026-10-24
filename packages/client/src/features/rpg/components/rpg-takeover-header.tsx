@@ -217,7 +217,7 @@ export function RpgTakeoverHeader({
 
   if (ambientUnset) {
     return (
-      <Row gap="block" align="center" data-slot="rpg-takeover-header" data-compact={true}>
+      <Row gap="block" align="center" data-slot="rpg-takeover-header">
         {stone}
         <Stack gap="field" className="flex-1 min-inline-0">
           {/* The absence, in the GLOSS voice — it explains, it is not a datum, and the compressed row is
@@ -237,7 +237,7 @@ export function RpgTakeoverHeader({
   }
 
   return (
-    <Stack gap="block" data-slot="rpg-takeover-header" data-compact={false}>
+    <Stack gap="block" data-slot="rpg-takeover-header">
       <Row gap="block" align="center">
         {stone}
         <Stack gap="field" className="flex-1 min-inline-0">

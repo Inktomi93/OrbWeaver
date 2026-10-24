@@ -41,8 +41,7 @@ import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { VersionedParseFailure } from "@orb/contracts/versioned-config";
 import type { PresetId } from "@orb/kit/ids";
-// `Container` is lane B's shared content-column ruling — the panel column measures the PANE through it.
-import { Container, Stack } from "@orb/ui/layout";
+import { Stack } from "@orb/ui/layout";
 import { Tabs, TabsPanel } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
@@ -367,19 +366,15 @@ function PresetEditorBody({
             library's Import, which the copy names; for a from-a-newer-version blob the copy deliberately
             does NOT lead with Reset, because that blob is intact data this build merely cannot read. */}
         {configUnreadable === null ? null : (
-          <Container className="inline-full">
-            <Stack className="mx-auto py-block inline-full max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)">
-              <StoredConfigUnreadableNotice copy={PRESET_UNREADABLE_COPY[unreadableConfigCause(configUnreadable)]} />
-            </Stack>
-          </Container>
+          <Stack className="mx-auto py-block inline-full max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)">
+            <StoredConfigUnreadableNotice copy={PRESET_UNREADABLE_COPY[unreadableConfigCause(configUnreadable)]} />
+          </Stack>
         )}
 
         {isSystemDefault ? (
-          <Container className="inline-full">
-            <Stack className="mx-auto py-block inline-full max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)">
-              <BuiltInCopyOnWriteNotice active={active} />
-            </Stack>
-          </Container>
+          <Stack className="mx-auto py-block inline-full max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)">
+            <BuiltInCopyOnWriteNotice active={active} />
+          </Stack>
         ) : null}
 
         {PRESET_EDITOR_VIEWS.map((entry) => (
@@ -392,23 +387,20 @@ function PresetEditorBody({
                 panels are out, but when you close them it looks awful"). So the column CENTERS — the house
                 convention for a wide content-pane editor (character-editor-surface.tsx uses the same
                 `mx-auto w-full max-w-…`) — and BREATHES to `--width-content-col-wide` once the pane itself
-                clears @5xl, which is exactly the panels-collapsed regime. The `Container` is
-                what the @5xl query measures (the pane's own width), which is why the cap and the container
-                are two elements and not one. It lives HERE and not per view so no body can opt out. */}
-            <Container className="inline-full">
-              <Stack className="mx-auto py-block inline-full max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)" gap="block">
-                {entry.id === "params" ? (
-                  <Stack gap="field" data-slot="preset-editor-connection">
-                    <Text voice="label">Editing for Chat role{editorConnection === undefined ? "" : ` · ${editorConnection}`}</Text>
-                    <Text voice="gloss">
-                      Controls and effective values use your Chat connection. Connection in view changes only the readout, not this editor or your role
-                      bindings.
-                    </Text>
-                  </Stack>
-                ) : null}
-                {viewContent(entry.id, viewProps)}
-              </Stack>
-            </Container>
+                clears @5xl, which is exactly the panels-collapsed regime. The @5xl query measures the shell's
+                content region (the pane's own width), which is why the cap and the container are two
+                elements and not one. It lives HERE and not per view so no body can opt out. */}
+            <Stack className="mx-auto py-block inline-full max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)" gap="block">
+              {entry.id === "params" ? (
+                <Stack gap="field" data-slot="preset-editor-connection">
+                  <Text voice="label">Editing for Chat role{editorConnection === undefined ? "" : ` · ${editorConnection}`}</Text>
+                  <Text voice="gloss">
+                    Controls and effective values use your Chat connection. Connection in view changes only the readout, not this editor or your role bindings.
+                  </Text>
+                </Stack>
+              ) : null}
+              {viewContent(entry.id, viewProps)}
+            </Stack>
           </TabsPanel>
         ))}
       </Tabs>

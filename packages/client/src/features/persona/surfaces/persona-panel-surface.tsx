@@ -10,7 +10,7 @@ import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { CircleUser, Icon, SlidersHorizontal } from "@orb/ui/icons";
-import { Container, Row, Stack } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { Popover, PopoverClose, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Separator } from "@orb/ui/separator";
 import { Text } from "@orb/ui/text";
@@ -23,6 +23,7 @@ import type { Trpc } from "#data";
 import { useGatedQuery, useTRPC } from "#data";
 import type { ChromePresentation } from "#state";
 import { closeModal, openConfigTo } from "#state";
+import { PersonaPanelAnchor } from "../anchors/persona-panel-anchor.tsx";
 import { PersonaAccountFoot } from "../components/persona-account-foot.tsx";
 import { PersonaRoomBlock } from "../components/persona-room-block.tsx";
 import type { SwitchRoom } from "../components/persona-switch-list.tsx";
@@ -111,7 +112,7 @@ function PanelBody({ presentation }: PersonaPanelSurfaceProps): ReactElement {
         className="relative overflow-y-auto overscroll-contain inline-(--container-cq-24) max-block-(--available-height)"
         side="right"
       >
-        <Container size="md">{sections}</Container>
+        <PersonaPanelAnchor>{sections}</PersonaPanelAnchor>
       </PopoverPopup>
     </Popover>
   );

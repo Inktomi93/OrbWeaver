@@ -894,6 +894,13 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       ignores: ["packages/client/src/features/app-shell/**"],
       rules: { "orb/context-shell-chrome": "error" },
     },
+    {
+      files: ["packages/client/src/**/*.tsx", "packages/ui/src/**/*.tsx"],
+      rules: { "orb/no-layout-context-props": "error" },
+    },
+    { files: ["packages/client/src/features/**/*.{ts,tsx}"], rules: { "orb/no-raw-container-in-features": "error" } },
+    { files: ["packages/client/src/features/*/surfaces/**/*.tsx"], rules: { "orb/surface-consumes-container": "error" } },
+    { files: ["packages/client/src/features/*/anchors/**/*.tsx"], rules: { "orb/anchor-provides-container": "error" } },
     { files: ["packages/server/src/primitives/role-data/index.ts"], rules: { "orb/role-data-export-surface-0": "error" } },
     { files: ["packages/server/src/primitives/role-data/registry.ts"], rules: { "orb/role-data-export-surface-1": "error" } },
     { files: ["packages/server/src/primitives/role-data/decode/index.ts"], rules: { "orb/role-data-export-surface-2": "error" } },

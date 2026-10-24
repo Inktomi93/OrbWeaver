@@ -30,8 +30,9 @@ function spreadObjects(expression: TSESTree.Expression): readonly TSESTree.Objec
     return [expression];
   }
   if (expression.type === "ConditionalExpression") {
-    const arms = [spreadObjects(expression.consequent), spreadObjects(expression.alternate)];
-    return arms.every((arm) => arm !== undefined) ? arms.flatMap((arm) => arm ?? []) : undefined;
+    const consequent = spreadObjects(expression.consequent);
+    const alternate = spreadObjects(expression.alternate);
+    return consequent === undefined || alternate === undefined ? undefined : [...consequent, ...alternate];
   }
   return undefined;
 }

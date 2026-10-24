@@ -76,7 +76,7 @@ function AvatarsBody({
 }): ReactElement {
   const { form, saveState, retrySave } = session;
   return (
-    <Section className="@container" divider={true} heading={APPEARANCE_AVATARS_SUBCATEGORY.label} id={anchorId}>
+    <Section container={true} divider={true} heading={APPEARANCE_AVATARS_SUBCATEGORY.label} id={anchorId}>
       {/* THE TEACHER LAW (#866 S3): rows are label + control — the prose lives on each leaf's `teach`. */}
       <ConfigTeachScope value={{ group: "appearance", sub: APPEARANCE_AVATARS_SUBCATEGORY }}>
         <SettingRowGroup>

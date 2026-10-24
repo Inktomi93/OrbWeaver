@@ -119,7 +119,7 @@ function PluginDistributeBody({ anchorId }: { readonly anchorId: string }): Reac
   };
 
   return (
-    <Section className="@container" divider={true} heading={PLUGIN_DISTRIBUTE_SUBCATEGORY.label} id={anchorId}>
+    <Section container={true} divider={true} heading={PLUGIN_DISTRIBUTE_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="row">
         <Text prose={true} voice="gloss">
           Give a plugin to everyone on this server. Each account gets its own copy — switched off, allowed nothing — and the people who use it decide what it

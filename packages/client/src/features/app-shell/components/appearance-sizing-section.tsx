@@ -84,7 +84,7 @@ function SizingBody({
   const { form, saveState, retrySave } = session;
   const dialIsDead = useIsBelowShellContentFloor();
   return (
-    <Section className="@container" divider={true} heading={APPEARANCE_SIZING_SUBCATEGORY.label} id={anchorId}>
+    <Section container={true} divider={true} heading={APPEARANCE_SIZING_SUBCATEGORY.label} id={anchorId}>
       {/* THE TEACHER LAW (#866 S3): a row is label + control — the per-row
           prose re-homed into each leaf's `teach` (the context pane renders it for the focused row). The
           scope is the SAME nav const the contribution registers, so a row can never publish an address its

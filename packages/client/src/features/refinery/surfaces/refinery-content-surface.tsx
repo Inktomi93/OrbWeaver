@@ -34,7 +34,7 @@ import type { RefinerySelection, RefineryStage } from "@orb/contracts/refinery";
 import { REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
 import type { RefinerySessionId } from "@orb/kit/ids";
 import type { CompareDecision } from "@orb/ui/compare-blocks";
-import { Container, Row, Stack, Surface } from "@orb/ui/layout";
+import { Row, Stack, Surface } from "@orb/ui/layout";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
@@ -82,12 +82,7 @@ export function RefineryContentSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
   return (
-    <Container
-      className="relative overflow-y-auto overscroll-contain outline-none block-full min-block-0"
-      name="refinery-content"
-      ref={surfaceRef}
-      tabIndex={-1}
-    >
+    <Stack className="relative overflow-y-auto overscroll-contain outline-none block-full min-block-0" ref={surfaceRef} tabIndex={-1}>
       {sessionId === null ? (
         <RefineryStartPane />
       ) : (
@@ -107,7 +102,7 @@ export function RefineryContentSurface(): ReactElement {
           <RefinerySessionPane sessionId={sessionId} />
         </QueryBoundary>
       )}
-    </Container>
+    </Stack>
   );
 }
 

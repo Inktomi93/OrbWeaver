@@ -83,10 +83,9 @@ export function FallbackLetter({
   readonly className: string;
   readonly size?: string;
 }): ReactElement {
-  const sized: CSSProperties = { containerType: "size" };
   const letter: CSSProperties = { fontSize: size, lineHeight: 1 };
   return (
-    <Stack align="center" aria-hidden="true" className={className} justify="center" style={sized}>
+    <Stack align="center" aria-hidden="true" className={className} container="size" justify="center">
       <Stack className="font-medium text-primary-foreground uppercase" style={letter}>
         {initials}
       </Stack>

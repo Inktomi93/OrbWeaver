@@ -50,6 +50,9 @@ export const stackVariants = tv({
     // token at the container, because no control primitive can own PITCH and a per-row `min-h-*` is the
     // N-site spelling of the same fact (gate `no-floorless-control-in-wrap`, the vertical-pitch arm).
     rows: { control: "*:min-block-(--size-control-sm)" },
+    // The stack is itself the container its descendants query (an element never queries itself). `size` also
+    // contains the block axis, for `cqb` and `cqmin` units.
+    container: { true: "@container", size: "@container-size" },
   },
 });
 
@@ -94,6 +97,10 @@ export const sectionVariants = tv({
         `,
       },
       false: {},
+    },
+    // The section is the container its descendants query (an element never queries itself).
+    container: {
+      true: { root: "@container" },
     },
     // A hairline under the section heading — reads as a header edge over its rows, not a floating label.
     divider: {

@@ -96,7 +96,7 @@ function AdminUsersBody({ anchorId }: { readonly anchorId: string }): ReactEleme
   };
 
   return (
-    <Section className="@container" divider={true} heading={ADMIN_USERS_SUBCATEGORY.label} id={anchorId}>
+    <Section container={true} divider={true} heading={ADMIN_USERS_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="row" data-testid={testId("adminUsersSection")}>
         <Row align="center" justify="between">
           <Text voice="label" tone="muted">

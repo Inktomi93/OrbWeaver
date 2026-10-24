@@ -175,7 +175,8 @@ CARD/ROW — sub-container where it must adapt independently inside a grid/list.
 ```
 
 - **`@media` is allowed ONLY in `app-shell`**. `orb/no-media-queries-in-features` in `eslint.config.ts` also restricts viewport breakpoint class spellings outside `app-shell`.
-- **`@orb/ui/layout` owns `container-type`** (BUILT) — feature code never writes raw `container-type`/`-name`; it uses `<Container name size>` / `<Section container>`. Default `container-type: inline-size`.
+- **`@orb/ui/layout` owns `container-type`** (BUILT) — feature code never writes raw `container-type`/`-name` or the `@container` utility (`orb/no-raw-container-in-features`); it uses `<Container name size>`, or the `container` prop of `Section` and `Stack` (`container="size"` also contains the block axis). Default `container-type: inline-size`.
+- **A surface declares no container; an anchor always provides one.** `orb/surface-consumes-container` refuses `<Container>` and the `container` prop in `surfaces/`. `orb/anchor-provides-container` requires each `anchors/` file to render `<Container>`, or the dialog box it anchors (a `*Dialog` or `*Drawer` element).
 - **Density is a SEPARATE axis** from container size: `data-density="comfortable|compact"` (a user pref, attribute-driven) vs the container query (layout space). A component reads both; neither is a prop.
 - **Payoff:** "build the surface once, place it anywhere" (drawer · modal · grid cell · full pane), with zero variants and zero layout props.
 
@@ -379,7 +380,7 @@ The client targets **React 19 + the React Compiler** (the compiler runs full-com
 | **3 — device capability** | touch targets; hover affordances | **`@media (pointer/hover)`** + token sizing | **token/shell layer** (never features) |
 | **4 — mobile platform** | keyboard, safe-area, overscroll, viewport height | **CSS primitives** (`dvh`/`svh`, `env()`, viewport meta) | **shell + composer/scroll primitives** (once) |
 
-**Axis 1 (the core).** A surface adapts to *its container* — the same `<CharacterGrid>` is 4-up in a wide pane, 1-up in a drawer, automatically. No mobile variant, no `compact`/`inDrawer` prop (ESLint attribute restrictions in `eslint.config.ts`). Fluid type/spacing inside a component use `cqi`+`clamp()`, not viewport units.
+**Axis 1 (the core).** A surface adapts to *its container* — the same `<CharacterGrid>` is 4-up in a wide pane, 1-up in a drawer, automatically. No mobile variant, no `compact`/`inDrawer`/`inModal`/`isMobile`/`narrow` prop (`orb/no-layout-context-props` refuses them on JSX in `packages/client/src` and `packages/ui/src`). Fluid type/spacing inside a component use `cqi`+`clamp()`, not viewport units.
 
 **Axis 2.** The one genuinely viewport-dependent reflow, in the SHELL: 3-pane ⇄ stack, drawer ⇄ sheet. Tiny (neo: one `clamp()` width var + the overlay model, §11.2). `orb/no-media-queries-in-features` in `eslint.config.ts` also keeps viewport breakpoint class spellings out of features except `app-shell`.
 
