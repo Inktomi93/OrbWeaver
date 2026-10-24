@@ -153,13 +153,6 @@ const SETTINGS_TABLE_IMPORT = {
   message: "The settings domain owns this table; inject its registered prefix-scoped KV port.",
 };
 
-// `wiring-owner` also publishes the mint; only the `@orb/db/wiring-boot` door may hand it out (D335).
-const BOOT_GRANT_IMPORT = {
-  name: "@orb/db/wiring-owner",
-  importNames: ["bootDatabaseHandle"],
-  message: "Mint the boot grant through @orb/db/wiring-boot, whose importers query-wiring-boot-admission confines (D335).",
-};
-
 const PNG_CHUNK_IMPORT = {
   regex: "^@orb/kit/png-card-chunk(?:/|$)",
   importNames: ["readCardChunk", "writeCardChunk", "isPng"],
@@ -941,19 +934,18 @@ export default [
     block.files === undefined || block.rules === undefined ? block : { ...block, ignores: [...(block.ignores ?? []), "**/*.gen.{ts,tsx}"] },
   ),
   ...LOCAL_RULE_BLOCKS,
-  { files: ["**/*.{js,mjs,cjs,ts,tsx,mts,cts}"], rules: { "no-restricted-imports": ["error", { paths: [BOOT_GRANT_IMPORT] }] } },
   {
     files: ["packages/server/src/**/*.{ts,tsx}"],
     ignores: ["packages/server/src/domain/import/**", "packages/server/src/domain/export/**", "packages/server/src/domain/settings/**"],
-    rules: { "no-restricted-imports": ["error", { paths: [BOOT_GRANT_IMPORT], patterns: [SETTINGS_TABLE_IMPORT, PNG_CHUNK_IMPORT] }] },
+    rules: { "no-restricted-imports": ["error", { patterns: [SETTINGS_TABLE_IMPORT, PNG_CHUNK_IMPORT] }] },
   },
   {
     files: ["packages/server/src/domain/import/**/*.{ts,tsx}", "packages/server/src/domain/export/**/*.{ts,tsx}"],
-    rules: { "no-restricted-imports": ["error", { paths: [BOOT_GRANT_IMPORT], patterns: [SETTINGS_TABLE_IMPORT] }] },
+    rules: { "no-restricted-imports": ["error", { patterns: [SETTINGS_TABLE_IMPORT] }] },
   },
   {
     files: ["packages/server/src/domain/settings/**/*.{ts,tsx}"],
-    rules: { "no-restricted-imports": ["error", { paths: [BOOT_GRANT_IMPORT], patterns: [PNG_CHUNK_IMPORT] }] },
+    rules: { "no-restricted-imports": ["error", { patterns: [PNG_CHUNK_IMPORT] }] },
   },
   { files: rootSources("@server", "@inference"), rules: { "no-restricted-syntax": ["error", ...SERVER_SYNTAX] } },
   {
@@ -1059,7 +1051,7 @@ export default [
       "no-restricted-imports": [
         "error",
         {
-          paths: [BOOT_GRANT_IMPORT, { name: "vitest", importNames: ["test", "it"], message: "Use the shared @orb/testkit/node/fixtures.ts test entry." }],
+          paths: [{ name: "vitest", importNames: ["test", "it"], message: "Use the shared @orb/testkit/node/fixtures.ts test entry." }],
           patterns: [
             {
               regex: "^(@orb/server(?:/|$)|#server/|.*packages/server/)",

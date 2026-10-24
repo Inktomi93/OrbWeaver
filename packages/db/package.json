@@ -13,7 +13,7 @@
     "./wiring": "./src/client/wiring.ts",
     "./wiring-boot": "./src/client/wiring-boot.ts",
     "./wiring-driver": "./src/client/wiring-driver.ts",
-    "./wiring-owner": "./src/client/wiring-capabilities.ts",
+    "./wiring-owner": "./src/client/wiring-owner/index.ts",
     "./schema": "./src/schema/index.ts",
     "./tenancy": "./src/tenancy/index.ts"
   },

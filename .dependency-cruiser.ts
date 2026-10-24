@@ -244,9 +244,23 @@ function exportedDoors(pkg: string, exports: Readonly<Record<string, unknown>>):
 }
 // Every server door: a module's index.ts, and each subpath the package's exports map declares.
 const SERVER_DOORS = [`${SRV}[^/]+/[^/]+/index\\.ts$`, ...exportedDoors("server", serverPackage.exports)];
-// The suites that import a production constant from another module's door (Spine-Testing §9 imports constants from
-// their home): each line names the constant and why the suite needs it. No wire carries any of them.
+// The suites that import a production constant or verb from another module's door (Spine-Testing §9 imports constants
+// from their home): each line names what it imports and why the suite needs it. No wire carries any of them.
 const SERVER_TEST_REACHES = {
+  // Each cross-owner boot verb must refuse a plain handle cast to the boot grant before a row moves (D335).
+  "tests/server/entry/boot/persistence/forged-boot-grant.int.test.ts": {
+    "domain/automation": "migratePluginToolWireNames: a cross-owner boot verb",
+    "domain/character": "backfillPluginProvenance: a cross-owner boot verb",
+    "domain/chat":
+      "hasRedeemableInvite, migrateHandoffOfferVocab, migratePluginToolWireNames, reclaimChatLocksOnBoot and repairStaleJoinSeq: cross-owner boot verbs",
+    "domain/credentials": "hasSealedCredentials: a cross-owner boot verb",
+    "domain/plugin": "listEnabledAcrossOwners and readInstalledPluginSlugs: cross-owner boot verbs",
+    "domain/preset": "migrateProseSlotVocab: a cross-owner boot verb",
+    "domain/sessions": "createListSeedAccountIds and createSettleSessionSecret: cross-owner boot verbs",
+    "domain/settings": "ensureSeedThemes and healLegacyBackgroundPins: cross-owner boot verbs",
+    "domain/stats": "reconcileOwnersMissingTimeline: a cross-owner boot verb",
+    "domain/workloads": "reclaimInFlightOnBoot: a cross-owner boot verb",
+  },
   "tests/server/domain/settings/persistence/seed-ledger-tags.int.test.ts": {
     "domain/character": "DEFAULT_CHARACTER_CARDS: the authored tag list is the expected set the seeded card's tag rows must equal",
   },
@@ -847,7 +861,7 @@ const SERVER_AUTHORITY = [
       path: SRV,
       pathNot: [`${SRV}domain/`, `${SRV}foundation/observability/(audit|debug/routes)\\.ts$`, `${SRV}transport/rate-limit\\.ts$`],
     },
-    to: { path: `${DB}client/wiring-capabilities\\.ts$` },
+    to: { path: `${DB}client/(?:wiring-owner/index|wiring-capabilities)\\.ts$` },
   },
   {
     name: "query-wiring-driver-admission",
@@ -862,6 +876,14 @@ const SERVER_AUTHORITY = [
     severity: "error",
     from: { pathNot: Object.keys(BOOT_GRANT_IMPORTERS) },
     to: { path: `${DB}client/wiring-boot\\.ts$` },
+  },
+  {
+    name: "query-wiring-capabilities-inside-db",
+    comment:
+      "The capability module also exports the boot mint, so code outside packages/db enters it only through the db doors, by any specifier or import() (D335).",
+    severity: "error",
+    from: { pathNot: DB },
+    to: { path: `${DB}client/wiring-capabilities\\.ts$` },
   },
   {
     name: "query-wiring-contract-is-type-only",

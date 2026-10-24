@@ -47,10 +47,10 @@ export function databaseHandle(db: Db): DatabaseHandle {
   return handle;
 }
 
-/** Grant boot's cross-owner authority over an admitted connection; the `@orb/db/wiring-boot` importer rule confines who may call this. */
+/** Grant boot's cross-owner authority over an admitted connection; only `@orb/db/wiring-boot` publishes this, and its importer rule confines who may call it. */
 export function bootDatabaseHandle(handle: DatabaseHandle): BootDatabaseHandle {
   const boot: BootDatabaseHandle = Object.freeze({ [DATABASE]: true as const, [BOOT]: true as const });
-  databases.set(boot, databaseForOwner(handle));
+  databases.set(boot, registeredDatabase(handle));
   bootGrants.add(boot);
   return boot;
 }
@@ -60,11 +60,19 @@ export function bootDatabaseForOwner(handle: BootDatabaseHandle): Db {
   if (!bootGrants.has(handle)) {
     throw new Error("boot wiring handle is not granted");
   }
-  return databaseForOwner(handle);
+  return registeredDatabase(handle);
 }
 
-/** Recover only a connection admitted by its physical owner, never a structurally similar object. */
-export function databaseForOwner(handle: DatabaseHandle): Db {
+/**
+ * Recover only a connection admitted by its physical owner, never a structurally similar object.
+ * @remarks A boot-grant-typed argument fails tsc: a cast grant is registered as a plain handle, so this lookup
+ * would accept it, and only {@link bootDatabaseForOwner} checks the grant registry.
+ */
+export function databaseForOwner(handle: DatabaseHandle & { readonly [BOOT]?: never }): Db {
+  return registeredDatabase(handle);
+}
+
+function registeredDatabase(handle: DatabaseHandle): Db {
   const db = databases.get(handle);
   if (db === undefined) {
     throw new Error("database wiring handle is not registered");
