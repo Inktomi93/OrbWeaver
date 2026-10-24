@@ -35,7 +35,7 @@ export function createServiceJobs(deps: ServiceJobsDeps): ServiceJobs {
       clears.defer(startCatalogRefreshScheduler(deps.catalog));
       clears.defer(startWorkloadScheduleScheduler(deps.schedule));
       workerSettled = startWorkloadsWorker({ ...deps.worker, signal: workerAbort.signal }).catch((err: unknown) => {
-        getLog().error({ err: err instanceof Error ? err.message : String(err) }, "workloads worker loop exited");
+        getLog(deps.logger).error({ err: err instanceof Error ? err.message : String(err) }, "workloads worker loop exited");
       });
     },
     [Symbol.asyncDispose](): Promise<void> {

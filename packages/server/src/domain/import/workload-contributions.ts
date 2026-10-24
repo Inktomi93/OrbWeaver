@@ -11,6 +11,7 @@ import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { isStrictDescendant } from "@orb/kit/path-containment";
 import type { WorkloadContribution } from "#domain/workloads";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import type { ImportWorkloadDeps } from "./contract/workloads.ts";
 import { stagedOwnerRoot } from "./substrate/staging.ts";
@@ -22,11 +23,16 @@ function mergedField(mergedKeys: readonly string[] | undefined): { readonly merg
   return mergedKeys !== undefined && mergedKeys.length > 0 ? { mergedKeys } : {};
 }
 
-async function refreshPlannerAfterImport(refresh: ImportWorkloadDeps["refreshPlannerStats"], ownerId: UserId, report: ReportProgress): Promise<void> {
+async function refreshPlannerAfterImport(
+  refresh: ImportWorkloadDeps["refreshPlannerStats"],
+  ownerId: UserId,
+  report: ReportProgress,
+  logger: Logger,
+): Promise<void> {
   try {
     await refresh({ ownerId });
   } catch (err) {
-    getLog().error({ err, ownerId }, "post-import planner refresh failed; daily planner maintenance owns retry");
+    getLog(logger).error({ err, ownerId }, "post-import planner refresh failed; daily planner maintenance owns retry");
     report({ message: "Import committed; planner refresh deferred to daily maintenance retry." });
   }
 }
@@ -42,6 +48,7 @@ async function settleImportRun(args: {
   readonly reconcileImportStats: (a: { readonly ownerId: UserId }) => Promise<void>;
   readonly refreshPlannerStats: (a: { readonly ownerId: UserId }) => Promise<void>;
   readonly emitLibraryChanged: (a: { readonly ownerId: UserId }) => void;
+  readonly logger: Logger;
 }): Promise<void> {
   const { result, dryRun, ownerId, report, reconcileImportStats, refreshPlannerStats, emitLibraryChanged } = args;
   if (result.failed > 0) {
@@ -54,7 +61,7 @@ async function settleImportRun(args: {
   if (!dryRun && result.changed > 0) {
     report({ message: "reconciling stats post-import" });
     await reconcileImportStats({ ownerId });
-    await refreshPlannerAfterImport(refreshPlannerStats, ownerId, report);
+    await refreshPlannerAfterImport(refreshPlannerStats, ownerId, report, args.logger);
     // #23: refresh the owner's character + chat lists (background import has no other client driver).
     emitLibraryChanged({ ownerId });
   }
@@ -208,6 +215,7 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
           }
         }
         await settleImportRun({
+          logger: deps.logger,
           result,
           dryRun,
           ownerId: targetOwnerId,
@@ -262,7 +270,7 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
           // #23: a background bundle/tree import that wrote canon refreshes the owner's character + chat lists
           // (the client's own completion invalidation only fires while the import UI stayed mounted).
           if (report_.imported > 0) {
-            await refreshPlannerAfterImport(deps.refreshPlannerStats, targetOwnerId, report);
+            await refreshPlannerAfterImport(deps.refreshPlannerStats, targetOwnerId, report, deps.logger);
             deps.emitLibraryChanged({ ownerId: targetOwnerId });
           }
           // #1710 — a background run surfaces the SAME per-file notes (#1688) a sync door would: what a file

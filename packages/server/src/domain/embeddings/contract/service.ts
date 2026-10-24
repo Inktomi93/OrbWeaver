@@ -25,6 +25,7 @@ import type {
 } from "@orb/kit/ids";
 import type { ScheduleOp } from "@orb/kit/time";
 import type { SQL } from "drizzle-orm";
+import type { Logger } from "#foundation/observability";
 import type { EmbedMoveRefusal, GenerationReceipt, GenerationTask } from "./generation.ts";
 import type {
   CountDocumentChunksParams,
@@ -106,6 +107,7 @@ export type ListImageAssetIds = (ownerId?: UserId | null) => Promise<readonly As
 
 /** The DI bundle the embeddings verbs close over (assembled at `entry/`, surfaced via `context.ts`). */
 export interface EmbeddingsContext {
+  readonly logger: Logger;
   readonly scheduleTimeout: ScheduleOp;
   readonly precomputedEmbedding?:
     | ((
@@ -239,6 +241,7 @@ export interface EmbeddingsService {
 
 /** The DI bundle the indexer handlers close over (assembled at `entry/`). */
 export interface EmbeddingsIndexerContext {
+  readonly logger: Logger;
   readonly indexAsset: EmbeddingsService["indexAsset"];
   readonly store: EmbeddingsService["store"];
   readonly loadCardText: LoadCardText;

@@ -1,6 +1,7 @@
 import type { LiveOnlyChatBusEvent, RoomEntityKind } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { CharacterId, ChatId, DocumentId, PersonaId, RegexScriptId, UserId, WorldBookId } from "@orb/kit/ids";
+import type { Logger } from "#foundation/observability";
 
 /** Reach is keyed by the entity's identity; the live event never carries that identity. */
 export interface RoomEntityIdOf {
@@ -28,6 +29,7 @@ export interface RoomDeleteReachCapture {
 }
 
 export interface RoomEntityRefreshDeps {
+  readonly logger: Logger;
   readonly resolve: RoomReachResolvers;
   readonly resolveRegexScripts: (scriptIds: readonly RegexScriptId[]) => Promise<Map<RegexScriptId, ChatId[]>>;
   readonly resolveMemberRooms: RoomSeatReach["member"];

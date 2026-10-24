@@ -156,6 +156,7 @@ export function createStoreSegments(ctx: EmbeddingsContext): EmbeddingsService["
       const p = item.params;
       const embedded = embeddedByIndex.get(i) ?? { model: p.model, vector: null };
       const landed = await upsertChatSegment(ctx.db, {
+        logger: ctx.logger,
         id: ctx.newChatSegmentId(),
         chatId: p.chatId,
         blockIdx: p.blockIdx,

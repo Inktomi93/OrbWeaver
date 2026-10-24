@@ -8,6 +8,7 @@ import type { ScheduleCadence, StartWorkloadInput, WorkloadKind, WorkloadMode, W
 import type { Db, workloadSchedules } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { UserId, WorkloadScheduleId } from "@orb/kit/ids";
+import type { Logger } from "#foundation/observability";
 import type { StartWorkloadParams } from "./params.ts";
 
 /** The `workload_schedules` row, DERIVED — never re-spelled (AGENTS.md "Type homes and unions": a DB row shape's one home is `db`,
@@ -60,6 +61,7 @@ export interface WorkloadScheduleService {
 
 /** start is the workloads front door, so a scheduled run flows through dispatch + the single-active lock exactly like a manual start. */
 export interface ScheduleTickDeps {
+  readonly logger: Logger;
   readonly db: Db;
   readonly now: () => number;
   readonly start: (params: StartWorkloadParams) => Promise<WorkloadRef>;

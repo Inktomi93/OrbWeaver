@@ -6,7 +6,7 @@ import { buildToolRoundWireTools, recordToolCalls } from "@orb/contracts/rpg";
 import type { ForcedToolRoundInput, Resolved } from "@orb/inference";
 import { carriesForcedToolRound, GenerationObservationPersistenceError, generationOf, toForcedToolRoundRequest } from "@orb/inference";
 import type { ChatId } from "@orb/kit/ids";
-import { logger } from "#foundation/observability";
+import type { Logger } from "#foundation/observability";
 import { createRpgRoundsContext } from "#src/domain/rpg/context.ts";
 import type { PromptInputs, RpgRoundsAssemblyDeps } from "#src/domain/rpg/contract/rounds.ts";
 import type { RpgRunToolRound, RpgStateDelta } from "#src/domain/rpg/contract/service.ts";
@@ -17,13 +17,16 @@ import { withGenerationObservation } from "./round-connection.ts";
 import { isCancelled, logCancelled, logStructuredFallback, logToolRoundUsage, roundFailure, warnIfStructuredUnavailable } from "./round-log.ts";
 import { foldRoundCalls, runStructuredStateRound, structuredRound, structuredShapes, withInventoryAudit } from "./structured.ts";
 
-function failedToolRoundDelta(err: unknown, round: { readonly chatId: ChatId; readonly conn: Resolved<"chat">; readonly signal: AbortSignal }): RpgStateDelta {
+function failedToolRoundDelta(
+  err: unknown,
+  round: { readonly chatId: ChatId; readonly conn: Resolved<"chat">; readonly signal: AbortSignal; readonly logger: Logger },
+): RpgStateDelta {
   if (err instanceof GenerationObservationPersistenceError) {
     throw err;
   }
-  const { chatId, conn, signal } = round;
+  const { chatId, conn, signal, logger } = round;
   if (isCancelled(signal)) {
-    logCancelled({ chatId, model: conn.model, api: conn.api, vehicle: "cheap tool round", preflight: false });
+    logCancelled({ logger, chatId, model: conn.model, api: conn.api, vehicle: "cheap tool round", preflight: false });
     return { statePatch: {}, journal: [] };
   }
   logger.warn({ event: "rpg.toolround.failed", chatId, model: conn.model, api: conn.api, err }, "rpg cheap tool round failed");
@@ -51,7 +54,7 @@ export function buildRunToolRound(inputDeps: RpgRoundsAssemblyDeps): RpgRunToolR
     }
     // CANCELLED BEFORE THE CALL — no ref resolve, no model call, no spend (the structured arm's posture).
     if (isCancelled(signal)) {
-      logCancelled({ chatId, model: conn.model, api: conn.api, vehicle: "cheap tool round", preflight: true });
+      logCancelled({ logger: deps.logger, chatId, model: conn.model, api: conn.api, vehicle: "cheap tool round", preflight: true });
       return empty;
     }
     const { refs, playerDisplayName, config } = await resolveExtractionRefs(deps, chatId, baseState, reconcile);
@@ -68,7 +71,7 @@ export function buildRunToolRound(inputDeps: RpgRoundsAssemblyDeps): RpgRunToolR
       const structured = structuredRound(primary, shapes.schemas()[primary], wireTools, { lead: toolRoundSystem(inputs), prose });
       return await runStructuredStateRound(deps, { input, refs, round: structured, userPrompt, priorCalls: [] });
     }
-    warnIfStructuredUnavailable({ chatId, model: conn.model, api: conn.api, vehicle: config.stateCaptureVehicle });
+    warnIfStructuredUnavailable({ logger: deps.logger, chatId, model: conn.model, api: conn.api, vehicle: config.stateCaptureVehicle });
     const round: ForcedToolRoundInput = {
       connection: conn,
       // The wire-capture correlation key (see `ExtractCtx.chatId`): without it the one round that writes the state
@@ -86,15 +89,23 @@ export function buildRunToolRound(inputDeps: RpgRoundsAssemblyDeps): RpgRunToolR
     try {
       const result = await deps.executor.runChatTurn(toForcedToolRoundRequest(round));
       // The round's economics record — §10.1a's claim, made true on the vehicle that had no emitter.
-      logToolRoundUsage({ chatId, api: conn.api, pass: "primary", result });
+      logToolRoundUsage({ logger: deps.logger, chatId, api: conn.api, pass: "primary", result });
       calls = result.toolCalls ?? [];
     } catch (err) {
-      return failedToolRoundDelta(err, { chatId, conn, signal });
+      return failedToolRoundDelta(err, { chatId, conn, signal, logger: deps.logger });
     }
     deps.trace?.({ phase: "tool", chatId, turnId, vehicle: "cheap tool round", calls: recordToolCalls(calls) });
     const fallback = fallbackStateRound(generation, calls, shapes.plans);
     if (fallback !== null) {
-      logStructuredFallback({ chatId, model: conn.model, api: conn.api, shape: fallback, calls: calls.length, event: "rpg.toolround.structured_fallback" });
+      logStructuredFallback({
+        logger: deps.logger,
+        chatId,
+        model: conn.model,
+        api: conn.api,
+        shape: fallback,
+        calls: calls.length,
+        event: "rpg.toolround.structured_fallback",
+      });
       const structured = structuredRound(fallback, shapes.schemas()[fallback], wireTools, { lead: toolRoundSystem(inputs), prose });
       return await runStructuredStateRound(deps, { input, refs, round: structured, userPrompt, priorCalls: calls });
     }

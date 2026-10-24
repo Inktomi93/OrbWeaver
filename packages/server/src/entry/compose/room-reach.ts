@@ -5,11 +5,17 @@ import { createEmitRoomEntityChanged, createRoomEntityRefresh, createRoomSeatRea
 import { createDatabankRoomReach } from "#domain/databank";
 import { createRegexRoomReach } from "#domain/regex";
 import { createWorldInfoRoomReach } from "#domain/world-info";
+import type { Logger } from "#foundation/observability";
 
-function buildRoomRefresh(db: DatabaseHandle, emitRoomEvent: (event: LiveOnlyChatBusEvent) => void): ReturnType<typeof createRoomEntityRefresh> {
+function buildRoomRefresh(
+  db: DatabaseHandle,
+  emitRoomEvent: (event: LiveOnlyChatBusEvent) => void,
+  logger: Logger,
+): ReturnType<typeof createRoomEntityRefresh> {
   const seats = createRoomSeatReach(db);
   const regex = createRegexRoomReach(db);
   return createRoomEntityRefresh({
+    logger,
     resolve: {
       character: seats.character,
       persona: seats.persona,
@@ -26,15 +32,17 @@ function buildRoomRefresh(db: DatabaseHandle, emitRoomEvent: (event: LiveOnlyCha
 export function createRoomEntityFan(
   db: DatabaseHandle,
   emitRoomEvent: (event: LiveOnlyChatBusEvent) => void,
+  logger: Logger,
 ): ReturnType<typeof createRoomEntityRefresh>["fanEntityEvent"] {
-  return buildRoomRefresh(db, emitRoomEvent).fanEntityEvent;
+  return buildRoomRefresh(db, emitRoomEvent, logger).fanEntityEvent;
 }
 
 export function createDeleteReachCapture(
   db: DatabaseHandle,
   emitRoomEvent: (event: LiveOnlyChatBusEvent) => void,
+  logger: Logger,
 ): ReturnType<typeof createRoomEntityRefresh>["deleteReachCapture"] {
-  return buildRoomRefresh(db, emitRoomEvent).deleteReachCapture;
+  return buildRoomRefresh(db, emitRoomEvent, logger).deleteReachCapture;
 }
 
 export function createEmitRoomRegexChanged(emitRoomEvent: (event: LiveOnlyChatBusEvent) => void): ReturnType<typeof createEmitRoomEntityChanged> {
@@ -48,27 +56,31 @@ export function createEmitRoomDatabankChanged(emitRoomEvent: (event: LiveOnlyCha
 export function createFanRegexScriptRooms(
   db: DatabaseHandle,
   emitRoomEvent: (event: LiveOnlyChatBusEvent) => void,
+  logger: Logger,
 ): ReturnType<typeof createRoomEntityRefresh>["fanRegexScriptRooms"] {
-  return buildRoomRefresh(db, emitRoomEvent).fanRegexScriptRooms;
+  return buildRoomRefresh(db, emitRoomEvent, logger).fanRegexScriptRooms;
 }
 
 export function createFanDatabankDocumentRooms(
   db: DatabaseHandle,
   emitRoomEvent: (event: LiveOnlyChatBusEvent) => void,
+  logger: Logger,
 ): ReturnType<typeof createRoomEntityRefresh>["fanDatabankDocumentRooms"] {
-  return buildRoomRefresh(db, emitRoomEvent).fanDatabankDocumentRooms;
+  return buildRoomRefresh(db, emitRoomEvent, logger).fanDatabankDocumentRooms;
 }
 
 export function createFanDatabankCharacterRooms(
   db: DatabaseHandle,
   emitRoomEvent: (event: LiveOnlyChatBusEvent) => void,
+  logger: Logger,
 ): ReturnType<typeof createRoomEntityRefresh>["fanDatabankCharacterRooms"] {
-  return buildRoomRefresh(db, emitRoomEvent).fanDatabankCharacterRooms;
+  return buildRoomRefresh(db, emitRoomEvent, logger).fanDatabankCharacterRooms;
 }
 
 export function createFanDatabankMemberRooms(
   db: DatabaseHandle,
   emitRoomEvent: (event: LiveOnlyChatBusEvent) => void,
+  logger: Logger,
 ): ReturnType<typeof createRoomEntityRefresh>["fanDatabankMemberRooms"] {
-  return buildRoomRefresh(db, emitRoomEvent).fanDatabankMemberRooms;
+  return buildRoomRefresh(db, emitRoomEvent, logger).fanDatabankMemberRooms;
 }

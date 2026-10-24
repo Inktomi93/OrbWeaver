@@ -54,7 +54,7 @@ async function applyOutcome(ctx: CredentialContext, args: Outcome, result: Crede
     if (limitHit) {
       // `unreachable`, NOT `auth_failed`: nothing ever answered, so nothing has judged the key.
       await setRevokedById(ctx.db, { ownerId, credentialId, revokedAt: now, reason: "unreachable" });
-      getLog().warn({ credentialId, strikes }, "credentials: health probe strike-limit hit — marking revoked despite no auth classification");
+      getLog(ctx.logger).warn({ credentialId, strikes }, "credentials: health probe strike-limit hit — marking revoked despite no auth classification");
       return { status: "revoked", checkedAt: now, reason: result.reason };
     }
     return { status: "unreachable", checkedAt: now, reason: result.reason };

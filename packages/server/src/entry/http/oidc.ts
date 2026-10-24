@@ -21,7 +21,7 @@ import { startOidcGcScheduler } from "#transport/jobs";
 import type { ServicesDeps, ServicesResult } from "../compose/services.ts";
 import type { OidcRoutesDeps } from "./index.ts";
 
-type ConfiguredOidcDeps = Pick<ServicesDeps, "db" | "now"> & {
+type ConfiguredOidcDeps = Pick<ServicesDeps, "db" | "now" | "logger"> & {
   readonly built: Pick<ServicesResult, "sessions" | "signupInvites" | "seedUserConnections" | "egress">;
   /** The OIDC client settings, the root's env record in production. */
   readonly settings: OidcSettings;
@@ -44,11 +44,13 @@ export async function createConfiguredOidc(deps: ConfiguredOidcDeps): Promise<Oi
       ...(body === undefined ? {} : { body: body instanceof Uint8Array ? new Uint8Array(body) : body }),
       ...(signal === undefined ? {} : { signal }),
     });
-  const keys = construction.use(createJwksReader(execution));
+  const keys = construction.use(createJwksReader(execution, deps.logger));
   // biome-ignore lint/nursery/useDisposables: construction.move transfers GC to the returned async owner; local disposal would stop it before route use.
-  const gc = construction.use(createBackgroundWork());
+  const gc = construction.use(createBackgroundWork(deps.logger));
   const getConfig = createOidcConfigCache(() => discovery(issuerUrl, clientId, settings.OIDC_CLIENT_SECRET, undefined, { [customFetch]: fetchIssuer }));
-  construction.defer(startOidcGcScheduler({ sweep: store.deleteExpired, now: deps.now, scheduleInterval: deps.scheduleInterval, track: gc.track }));
+  construction.defer(
+    startOidcGcScheduler({ logger: deps.logger, sweep: store.deleteExpired, now: deps.now, scheduleInterval: deps.scheduleInterval, track: gc.track }),
+  );
   const lifetime = construction.move();
   return {
     rolePolicy: deps.built.sessions.rolePolicy,
@@ -66,7 +68,7 @@ export async function createConfiguredOidc(deps: ConfiguredOidcDeps): Promise<Oi
     requireApproval: settings.OIDC_REQUIRE_APPROVAL,
     store,
     getConfig,
-    ...(settings.OIDC_BACKCHANNEL_LOGOUT ? { backchannelLogout: { verify: createBackchannelLogoutVerifier(keys.jwksFor).verify, clientId } } : {}),
+    ...(settings.OIDC_BACKCHANNEL_LOGOUT ? { backchannelLogout: { verify: createBackchannelLogoutVerifier(keys.jwksFor, deps.logger).verify, clientId } } : {}),
     signup: {
       invites: deps.built.signupInvites,
       pending: deps.built.sessions,

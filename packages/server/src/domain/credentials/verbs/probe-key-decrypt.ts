@@ -34,7 +34,7 @@ export function createProbeKeyDecrypt(ctx: CredentialContext): CredentialsServic
     };
 
     try {
-      decryptSealed(ctx.box, sealed, aadFor(r.ownerId, r.provider));
+      decryptSealed(ctx.box, sealed, aadFor(r.ownerId, r.provider), ctx.logger);
       return true;
     } catch (error) {
       if (error instanceof CredentialsDecryptError) {

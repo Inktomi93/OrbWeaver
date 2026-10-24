@@ -3,7 +3,7 @@
 
 import type { UserId } from "@orb/kit/ids";
 import type { SpanAttrs } from "#foundation/observability";
-import { superviseDetached, superviseSettled } from "#foundation/observability";
+import { createDetachedSupervision } from "#foundation/observability";
 import type { EmbeddingReindexDeps, EmbeddingReindexTriggers } from "../contract/reindex.ts";
 
 const EMBED_REINDEX_SPAN = "embeddings.modelChangeReindex";
@@ -16,6 +16,7 @@ interface EmbedSweep {
 
 /** Build the generation-change and live-autoindex triggers over injected workload admission. */
 export function createEmbeddingReindexTriggers(deps: EmbeddingReindexDeps): EmbeddingReindexTriggers {
+  const { superviseDetached, superviseSettled } = createDetachedSupervision(deps.logger);
   const supervise = deps.supervise ?? superviseDetached;
   // Memory-off owners record a vacuous receipt instead of queueing a run admission would refuse.
   const enqueueOwnerMemory = async (ownerId: UserId, params: { readonly embedderChanged?: boolean }): Promise<unknown> => {

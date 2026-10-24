@@ -98,7 +98,7 @@ export async function collectSegments(ctx: ChatContext, args: GenerateSegmentsAr
       // previous, smaller version of this block left behind.
       skippedOverWindow += 1;
       chunkCounts.push({ blockIdx: block.blockIdx, chunkCount: 0 });
-      getLog().warn(
+      getLog(ctx.logger).warn(
         {
           chatId: args.chatId,
           blockIdx: block.blockIdx,

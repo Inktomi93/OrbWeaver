@@ -8,7 +8,6 @@ import type { LibSqlWrap } from "@orb/db";
 import { auditLogs, userCredentials } from "@orb/db";
 import { ProviderError } from "@orb/inference";
 import { expect } from "@orb/testkit/node";
-import { processObservability } from "@orb/testkit/node/composed";
 import { TEST_PROVIDER_ID } from "@orb/testkit/node/helpers";
 import { and, eq } from "drizzle-orm";
 import { vi } from "vitest";
@@ -122,7 +121,7 @@ test("a real credential persistence failure is reported without replacing the pr
     throw new Error("the actual owned credential was not persisted");
   }
   const secondary = new Error(`the observed credential write failed: ${JSON.stringify(sealed)}`);
-  using report = vi.spyOn(processObservability.logger(), "error");
+  using report = vi.spyOn(harness.logger, "error");
   using writes = failStatements(client, 'update "user_credentials" set ', secondary);
   fundingProvider.status(401);
   let received: Error | undefined;

@@ -1,14 +1,15 @@
 import {
   addSpanEvent,
+  createLogger,
+  createRequestObservability,
   getTraceByRequestId,
   initTracing,
-  observability,
-  observabilityErrorHandler,
   setSpanAttrs,
   span,
   withRequestSpan,
 } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node";
+import { createTestEnv } from "@orb/testkit/node/helpers";
 import { Hono } from "hono";
 
 const ROOT = "migration.request";
@@ -56,6 +57,7 @@ test("a handled HTTP error retains error status and redacts its invite capabilit
   const requestId = `handled:${ids.uuid()}`;
   const failure = new Error("handled-request-failure");
   const token = "private-invite-fixture";
+  const { observability, observabilityErrorHandler } = createRequestObservability(createLogger(createTestEnv().LOG_LEVEL));
   const app = new Hono();
   app.use("*", observability);
   app.onError(observabilityErrorHandler);

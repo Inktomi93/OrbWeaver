@@ -27,7 +27,7 @@ function certificateUrl(address: string): string {
 }
 
 export function createCertificateController(deps: CertificateControllerDeps): OwnedCertificateController {
-  const log = getLog();
+  const log = getLog(deps.logger);
   let status: IpCertificateStatus = { state: "off" };
   let generation = 0;
   let setting: IpCertificateSetting | null = null;

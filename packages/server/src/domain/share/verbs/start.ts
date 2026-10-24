@@ -8,7 +8,7 @@ import type { ShareContext, ShareService } from "../contract/service.ts";
 import { startSeatedRelay } from "../substrate/start-relay.ts";
 
 export function createStart(
-  ctx: Pick<ShareContext, "requireOwner" | "refusal" | "enableSeating" | "relay" | "statusFor" | "audit" | "now">,
+  ctx: Pick<ShareContext, "requireOwner" | "refusal" | "enableSeating" | "relay" | "statusFor" | "audit" | "now" | "logger">,
 ): ShareService["start"] {
   return async ({ principal }: ShareParams) => {
     ctx.requireOwner(principal);

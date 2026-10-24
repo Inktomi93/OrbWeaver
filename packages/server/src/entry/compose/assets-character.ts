@@ -53,11 +53,10 @@ import type { BulkImportLorebook, HasPrimaryBook } from "#domain/world-info";
 import { createCopyCharacterBooks } from "#domain/world-info";
 import type { Env } from "#foundation/env/record";
 import { personaAutoSeedAdmits } from "#foundation/env/record";
-import type { AuditEntry } from "#foundation/observability";
+import type { AuditEntry, Logger } from "#foundation/observability";
 import type { ImageAdapter } from "#infra/image";
 import type { Cas, VariantCache } from "#infra/storage";
 import type { LiveBuses } from "#transport/trpc";
-
 import { minter } from "./minter.ts";
 import { createSeedAvatarOps } from "./seed-avatar-ops.ts";
 
@@ -65,6 +64,7 @@ import { createSeedAvatarOps } from "./seed-avatar-ops.ts";
  *  forward-ref getters (those services compose later); `materializeBackground` is the keystone's late-bound holder
  *  (character/seeders reference it, and this seam returns the real op the keystone rebinds onto the holder). */
 export interface AssetsCharacterComposeDeps {
+  readonly logger: Logger;
   /** The automation stamps the persona auto-create policy reads (`personaAutoSeedAdmits`). */
   readonly env: Pick<Env, "E2E_HARNESS" | "DEV_SEED" | "E2E_FIRST_RUN_ASK_HANDLES">;
   readonly evictFieldIndex: FieldIndexCache["evict"];
@@ -169,6 +169,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
   });
 
   const character = createCharacterService({
+    logger: deps.logger,
     db,
     bumpStatsCanonVersion: createStatsBatchWiring(deps.idSource).bumpStatsCanonVersion,
     now,
@@ -212,6 +213,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
   // write (`assets.store`), the settings library (`domain/settings`), and the three raw-JSON rewrites that
   // retire `kind:"seeded"` across settings, cards and rooms.
   const backgroundSeeder = createDefaultBackgroundSeeder({
+    logger: deps.logger,
     plates: SEED_BACKGROUND_PLATES,
     storePlate: createSeedPlateStore({ readPlate: readSeedBackground, store: (params) => assets.store(params) }),
     newEntryId: deps.newBackgroundEntryId,
@@ -228,6 +230,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
 
   // The one idempotent instance boot + the app first-request hook share.
   const characterSeeder = createDefaultCharacterSeeder({
+    logger: deps.logger,
     resolveSeededBackground: backgroundSeeder.resolvePlate,
     importLorebook: (args) => deps.getLorebookImport().importLorebook(args),
     hasPrimaryBook: (args) => deps.getLorebookImport().hasPrimaryBook(args),
@@ -239,6 +242,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
 
   // Mirror of characterSeeder, for the default `{{user}}` persona.
   const personaSeeder = createDefaultPersonaSeeder({
+    logger: deps.logger,
     autoSeedEnabled: (principal) => personaAutoSeedAdmits(deps.env, principal.handle),
     createPersona: (params) => deps.getPersona().create(params),
     ...seedAvatars.persona,

@@ -5,11 +5,13 @@ import type { Principal } from "@orb/contracts/identity";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { CredentialsService } from "#domain/credentials";
 import { CREDENTIALS_OP_CODES } from "#domain/credentials";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 
 const OPENROUTER_PROVIDER = "openrouter" as const;
 
 export interface SeedCredentialDeps {
+  readonly logger: Logger;
   /** The credentials front door — only the existence check + the add verb are needed. */
   readonly credentials: Pick<CredentialsService, "list" | "add">;
   /** The deployment OWNER principal (rows are scoped by `principal.userId`). */
@@ -33,11 +35,11 @@ export async function seedCredentialFromEnv(deps: SeedCredentialDeps): Promise<b
     // An env key with credential storage DISABLED (no CREDENTIALS_KEY) must not kill boot — the seed is a
     // convenience, not a boot invariant. Visible skip, never silent; anything else stays fatal.
     if (err instanceof DomainOperationError && err.code === CREDENTIALS_OP_CODES.disabled) {
-      getLog().warn({ provider: OPENROUTER_PROVIDER }, "boot/seed-credential: env key present but credential storage is disabled — seed skipped");
+      getLog(deps.logger).warn({ provider: OPENROUTER_PROVIDER }, "boot/seed-credential: env key present but credential storage is disabled — seed skipped");
       return false;
     }
     throw err;
   }
-  getLog().info({ provider: OPENROUTER_PROVIDER }, "boot/seed-credential: seeded key from env");
+  getLog(deps.logger).info({ provider: OPENROUTER_PROVIDER }, "boot/seed-credential: seeded key from env");
   return true;
 }

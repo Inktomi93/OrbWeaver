@@ -4,6 +4,7 @@ import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import type { Db } from "@orb/db";
 import { assertReferentialIntegrity, backupBeforeMigrate, checkBaseline, hasPendingMigrations, pruneDbBackups, resetDevDatabase, runMigrations } from "@orb/db";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 
 // DB_LAUNCHED is a constant since the owner ruling on #316, not posture-scoped. Baseline mismatch is boot-
@@ -25,6 +26,7 @@ function resolveMigrationsFolder(): string {
 }
 
 export interface MigrateDeps {
+  readonly logger: Logger;
   readonly db: Db;
   /** libSQL URL — backed up aside (file: URLs only; `:memory:`/not-yet-created is a no-op) before migrating. */
   readonly databaseUrl: string;
@@ -71,11 +73,11 @@ export async function runBootMigrations(deps: MigrateDeps): Promise<void> {
   if (willChange) {
     const backupPath = await backupBeforeMigrate(deps.db, deps.databaseUrl, deps.backupDir);
     if (backupPath !== undefined) {
-      getLog().info({ backupPath }, "boot/migrate: backed up db before migrating");
+      getLog(deps.logger).info({ backupPath }, "boot/migrate: backed up db before migrating");
     }
   }
   if (baseline.status === "regenerated") {
-    getLog().warn(
+    getLog(deps.logger).warn(
       { appliedHash: baseline.appliedHash, currentHash: baseline.currentHash },
       "boot/migrate: BASELINE REGENERATED since this dev db was created — RESETTING the dev database (ALL DATA DROPPED, pre-launch by design) and re-migrating from the fresh 0000_baseline",
     );
@@ -83,12 +85,12 @@ export async function runBootMigrations(deps: MigrateDeps): Promise<void> {
   }
   await runMigrations(deps.db, folder);
   await assertReferentialIntegrity(deps.db);
-  getLog().info({ folder }, "boot/migrate: migrations applied; referential integrity verified");
+  getLog(deps.logger).info({ folder }, "boot/migrate: migrations applied; referential integrity verified");
   // Retention runs only on the boots that took a backup — a no-op boot touches the db directory not at all.
   if (willChange) {
     const pruned = pruneDbBackups(deps.databaseUrl, deps.backupDir);
     if (pruned.length > 0) {
-      getLog().info({ pruned: pruned.length }, "boot/migrate: pruned stale db backups");
+      getLog(deps.logger).info({ pruned: pruned.length }, "boot/migrate: pruned stale db backups");
     }
   }
 }

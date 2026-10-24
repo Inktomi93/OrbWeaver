@@ -252,6 +252,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     unregister: chatCompose.promptTransforms.unregister,
   });
   const automation = createAutomationService({
+    logger: deps.logger,
     db,
     now,
     prng: deps.random,
@@ -297,12 +298,13 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     quietLlm: createPluginRateFloor(now, { capability: "llm.quiet", limit: PLUGIN_QUIET_LLM_PER_HOUR }),
     searchQuery: createPluginRateFloor(now, { capability: "search.query", limit: PLUGIN_SEARCH_QUERY_PER_HOUR }),
   };
-  const pluginSurfaceState = createPluginSurfaceStateStore();
+  const pluginSurfaceState = createPluginSurfaceStateStore(deps.logger);
   // Private pubsub has no domain/chat event sink.
-  const pluginEventBus = createPluginEventBus();
+  const pluginEventBus = createPluginEventBus(deps.logger);
   const pluginUiOutbox = createPluginUiOutbox(now);
   const resolveChatAuthority = createPluginChatAuthority({ db, can });
   const registrarOps = createPluginRegistrarOps({
+    logger: deps.logger,
     toolUse: deps.toolUse,
     promptTransforms: chatCompose.promptTransforms,
     pluginSubscribers,
@@ -380,6 +382,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
   const plugin: PluginService = pluginResources.use(
     createPluginService(
       {
+        logger: deps.logger,
         db,
         now,
         scheduleTimeout: deps.scheduleTimeout,

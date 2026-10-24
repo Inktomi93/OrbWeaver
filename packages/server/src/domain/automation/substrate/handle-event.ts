@@ -142,6 +142,7 @@ async function handleChatEvent(ctx: AutomationContext, event: BusEvent, chatId: 
       {
         db: ctx.db,
         registry: ctx.pluginSubscribers,
+        logger: ctx.logger,
         resolveViewerVisibility: ctx.ops.chat.resolveViewerVisibility,
         // The D16 anchor resolver for a fact that REFERENCES canon without carrying it (#1428) — the same op
         // the message-shaped resolve already uses, so the gate adds no seam and no second canon reader.
@@ -202,6 +203,7 @@ async function handleDomainEvent(ctx: AutomationContext, event: DomainEvent): Pr
       {
         db: ctx.db,
         registry: ctx.pluginSubscribers,
+        logger: ctx.logger,
         resolveViewerVisibility: ctx.ops.chat.resolveViewerVisibility,
         getMessageFact: ctx.ops.chat.getMessageFact,
       },
@@ -220,7 +222,7 @@ async function handleDomainEvent(ctx: AutomationContext, event: DomainEvent): Pr
       ctx.serialLanes
         .run(automationDomainLaneKey(ownerId), () => dispatchLoadedRules(ctx, ownerRules, resolved))
         .catch((err: unknown) => {
-          getLog().warn(
+          getLog(ctx.logger).warn(
             { err: err instanceof Error ? err.message : String(err), type: event.type, ownerId },
             "automation handleEvent failed for one domain-rule owner (isolated)",
           );
@@ -255,7 +257,7 @@ export function createHandleEvent(ctx: AutomationContext): AutomationService["ha
         try {
           await handleChatEvent(ctx, event, chatId);
         } catch (err) {
-          getLog().warn({ err: err instanceof Error ? err.message : String(err), type: event.type }, "automation handleEvent failed (isolated)");
+          getLog(ctx.logger).warn({ err: err instanceof Error ? err.message : String(err), type: event.type }, "automation handleEvent failed (isolated)");
         }
       });
     }

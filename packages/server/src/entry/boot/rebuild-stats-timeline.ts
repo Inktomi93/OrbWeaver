@@ -5,9 +5,11 @@
 import type { BootDatabaseHandle } from "@orb/db/wiring";
 import type { IdSource } from "@orb/kit/ids";
 import { reconcileOwnersMissingTimeline } from "#domain/stats";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 
 export interface RebuildStatsTimelineDeps {
+  readonly logger: Logger;
   readonly db: BootDatabaseHandle;
   readonly now: () => number;
   readonly idSource: IdSource;
@@ -17,8 +19,8 @@ export interface RebuildStatsTimelineDeps {
 export async function rebuildStatsTimelineOnBoot(deps: RebuildStatsTimelineDeps): Promise<number> {
   // Logged on both ends: a large library rebuilds before the listener binds, and silence there reads as a stall.
   const startedAt = deps.now();
-  getLog().info("boot/rebuild-stats-timeline: checking for owners with an empty stats timeline");
+  getLog(deps.logger).info("boot/rebuild-stats-timeline: checking for owners with an empty stats timeline");
   const rebuilt = await reconcileOwnersMissingTimeline(deps.db, deps.now, deps.idSource);
-  getLog().info({ rebuilt, durationMs: deps.now() - startedAt }, "boot/rebuild-stats-timeline: done");
+  getLog(deps.logger).info({ rebuilt, durationMs: deps.now() - startedAt }, "boot/rebuild-stats-timeline: done");
   return rebuilt;
 }

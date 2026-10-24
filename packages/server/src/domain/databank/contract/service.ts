@@ -36,7 +36,7 @@ import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { AssetId, CharacterId, ChatId, DocumentId, UserId, WorkloadId } from "@orb/kit/ids";
 import type { EmbeddingsService } from "#domain/embeddings";
 import type { SearchService } from "#domain/search";
-import type { AuditEntry } from "#foundation/observability";
+import type { AuditEntry, Logger } from "#foundation/observability";
 import type {
   BankHealthParams,
   CharacterAttachParams,
@@ -114,6 +114,7 @@ type SafeFetchOp = (url: string) => Promise<Uint8Array>;
 
 /** The DI bundle every databank verb + the ingest subsystem close over (assembled at `entry/compose`). */
 export interface DatabankContext {
+  readonly logger: Logger;
   readonly can: Can;
   readonly db: Db;
   readonly now: () => number;

@@ -37,7 +37,7 @@ export function createCreate(ctx: PresetContext): Pick<PresetService, "create"> 
       updatedAt: now,
     };
     await insertPreset(ctx.db, row);
-    getLog().info({ userId: params.userId, presetId: id }, "preset: created");
+    getLog(ctx.logger).info({ userId: params.userId, presetId: id }, "preset: created");
     await ctx.audit(
       {
         actorUserId: params.userId,

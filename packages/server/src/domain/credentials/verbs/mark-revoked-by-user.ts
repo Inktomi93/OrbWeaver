@@ -24,7 +24,7 @@ export function createMarkRevokedByUser(ctx: CredentialContext): CredentialsServ
       { actorUserId: ownerId, action: "credential.markRevokedByUser", entityType: "credential", entityId: credentialId, metadata: { reason, path: "user" } },
       now,
     );
-    securityEvent("credential_revoked", { credentialId, reason, path: "user" }, "credentials: marked revoked (user)");
+    securityEvent("credential_revoked", { credentialId, reason, path: "user" }, "credentials: marked revoked (user)", ctx.logger);
     ctx.emitUserEvent(ownerId, { type: "credentialsChanged", credentialId });
   };
 }

@@ -23,6 +23,7 @@ import type { SQL } from "drizzle-orm";
 import { and, asc, desc, eq, getTableColumns, gt, gte, inArray, isNotNull, isNull, lt, lte, notExists, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import type { WorkloadContributions } from "../contract/contribution.ts";
 import type { CancelWorkloadResult, ListWorkloadsParams } from "../contract/params.ts";
@@ -111,6 +112,7 @@ type WorkloadInsert = Readonly<
 type WorkloadSelectRow = typeof workloads.$inferSelect;
 
 interface QueueScanInput {
+  readonly logger: Logger;
   readonly db: Db;
   readonly contributions: WorkloadContributions;
   readonly now: number;
@@ -483,7 +485,7 @@ async function evaluateQueuedRow(input: QueueScanInput, row: WorkloadTextRow): P
     if (await failQueuedRow(input.db, row.id, error.message, input.now)) {
       input.onFailure({ workloadId: row.id, kind: row.kind, error });
     }
-    getLog().warn({ workloadId: row.id, kind: row.kind }, "workloads: failed poison queue row");
+    getLog(input.logger).warn({ workloadId: row.id, kind: row.kind }, "workloads: failed poison queue row");
     return null;
   }
   // Skipped, not dispatched, so a held row never head-blocks the rows queued behind it in its lane.
@@ -507,7 +509,10 @@ async function evaluateQueuedRow(input: QueueScanInput, row: WorkloadTextRow): P
   if (await failQueuedRow(input.db, view.id, error.message, input.now)) {
     input.onFailure({ workloadId: view.id, kind: view.kind, error });
   }
-  getLog().warn({ workloadId: view.id, dependsOn: view.dependsOn }, "workloads: failed dependent — a dependency did not succeed (dependency_failed)");
+  getLog(input.logger).warn(
+    { workloadId: view.id, dependsOn: view.dependsOn },
+    "workloads: failed dependent — a dependency did not succeed (dependency_failed)",
+  );
   return null;
 }
 

@@ -12,7 +12,7 @@ import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import type { BatchHandle, DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
 import type { AssetId, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
-import type { AuditEntry } from "#foundation/observability";
+import type { AuditEntry, Logger } from "#foundation/observability";
 import type {
   AttachImportedArtParams,
   BulkAddCardTagParams,
@@ -89,6 +89,7 @@ type GenerateGreetingTextOp = (args: { readonly caller: Principal; readonly prom
 
 /** DI bundle every character verb closes over. */
 export interface CharacterContext {
+  readonly logger: Logger;
   readonly db: Db;
   readonly bumpStatsCanonVersion: BumpStatsCanonVersion<BatchStmt[], Db>;
   readonly now: () => number;

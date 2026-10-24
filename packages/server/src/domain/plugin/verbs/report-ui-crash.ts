@@ -44,7 +44,7 @@ export function createReportUiCrash(ctx: PluginContext, crashPolicy: CrashPolicy
     // The recipient of the auto-disable notice is the OWNER of the row, read off the row rather than taken from
     // the caller — they are the same principal today (viewer == installer), and writing it this way means the
     // notice still goes to the right person if that ever stops being true.
-    logPluginFailure(existing.slug, "ui-crash", `surface '${surfaceId}': ${reason.slice(0, CRASH_REASON_MAX)}`);
+    logPluginFailure(existing.slug, "ui-crash", `surface '${surfaceId}': ${reason.slice(0, CRASH_REASON_MAX)}`, ctx.logger);
     await crashPolicy.recordCrash({
       pluginId,
       recipientUserId: existing.ownerId,

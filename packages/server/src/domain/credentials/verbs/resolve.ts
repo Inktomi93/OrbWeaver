@@ -40,7 +40,7 @@ export function createResolve(ctx: CredentialContext): CredentialsService["resol
     }
     // The AAD is `${owner}|${providerId}` — a row sealed under another provider id (or lifted to another
     // owner) decrypt-fails as the typed configuration error, never as a wrong key on the wire.
-    const plaintext = decryptSealed(ctx.box, row, aadFor(ownerId, providerId));
+    const plaintext = decryptSealed(ctx.box, row, aadFor(ownerId, providerId), ctx.logger);
     return mintSecret({
       credentialId: row.id,
       executionWitness: mintCredentialExecutionWitness({

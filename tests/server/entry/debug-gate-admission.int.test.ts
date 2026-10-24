@@ -154,8 +154,9 @@ describe("the loopback owner fallback opens the door only where the posture says
     await using root = await rootFor("single-user");
     for (const mode of AUTH_MODES) {
       const config = { ...authConfigFromEnv(root.env), mode, fallback: "owner" as const };
-      const production = createAuthSeam({ emitUserEvent: root.app.liveBuses.user.publishUserEvent, sessions: root.app.sessions, config });
+      const production = createAuthSeam({ logger: root.logger, emitUserEvent: root.app.liveBuses.user.publishUserEvent, sessions: root.app.sessions, config });
       const operator = createAuthSeam({
+        logger: root.logger,
         emitUserEvent: root.app.liveBuses.user.publishUserEvent,
         sessions: root.app.sessions,
         config,

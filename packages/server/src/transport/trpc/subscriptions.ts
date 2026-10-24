@@ -15,6 +15,8 @@
 
 import type { TrackedEnvelope } from "@trpc/server";
 import { tracked } from "@trpc/server";
+// pino's own type: the published router declaration must not resolve the observability barrel's source.
+import type pino from "pino";
 import { getLog } from "#foundation/observability";
 import type { SubscriptionErrorFrame } from "./contract/subscriptions.ts";
 import { classifyDomainError, providerFaultOf } from "./error-mapping.ts";
@@ -27,6 +29,7 @@ const SUBSCRIPTION_ERROR_ID = "__error__";
  *  frame — the stream is terminal at that point. */
 export async function* withSubscriptionErrors<TData>(
   source: AsyncIterable<TrackedEnvelope<TData>>,
+  logger: pino.Logger,
 ): AsyncGenerator<TrackedEnvelope<TData> | TrackedEnvelope<SubscriptionErrorFrame>> {
   try {
     yield* source;
@@ -42,7 +45,7 @@ export async function* withSubscriptionErrors<TData>(
     // procedure name is not in scope, and `toLog()` carries the model/status/session provenance instead.
     const provider = providerFaultOf(mapped);
     if (provider !== null) {
-      getLog().warn({ ...provider.toLog(), event: "trpc.provider" }, `trpc: provider failure inside a subscription (${provider.kind})`);
+      getLog(logger).warn({ ...provider.toLog(), event: "trpc.provider" }, `trpc: provider failure inside a subscription (${provider.kind})`);
     }
     yield tracked(SUBSCRIPTION_ERROR_ID, {
       __subscriptionError: true,

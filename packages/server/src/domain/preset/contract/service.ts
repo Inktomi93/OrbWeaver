@@ -12,7 +12,7 @@ import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { ChatId, PresetId, UserId } from "@orb/kit/ids";
-import type { AuditEntry } from "#foundation/observability";
+import type { AuditEntry, Logger } from "#foundation/observability";
 import type {
   CreatePresetParams,
   GetPresetParams,
@@ -55,6 +55,7 @@ export interface PresetUsageDeps {
 
 /** The DI bundle the preset verbs close over, wired at the composition root. */
 export interface PresetContext {
+  readonly logger: Logger;
   readonly db: Db;
   readonly now: () => number;
   readonly newPresetId: () => PresetId;

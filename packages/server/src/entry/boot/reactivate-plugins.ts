@@ -34,9 +34,11 @@ import { errorMessage } from "@orb/kit/error-message";
 import type { PluginId, UserId } from "@orb/kit/ids";
 import type { PluginService } from "#domain/plugin";
 import { listEnabledAcrossOwners, PluginCrashedError } from "#domain/plugin";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 
 export interface ReactivatePluginsDeps {
+  readonly logger: Logger;
   readonly db: BootDatabaseHandle;
   /** The REAL owner-scoped verb — the same one the Plugins pane's switch drives. */
   readonly setEnabled: PluginService["setEnabled"];
@@ -71,7 +73,7 @@ async function restoreOne(
     // A refused activation (`PluginCrashedError`) was already logged by `activate` with its plugin and cause, and
     // the row is `errored`; anything else threw outside activation's own arms and is logged here, once.
     if (!(err instanceof PluginCrashedError)) {
-      getLog().error({ pluginId: row.pluginId, ownerId: row.ownerId, err: errorMessage(err) }, "boot/reactivate-plugins: a plugin failed to start");
+      getLog(deps.logger).error({ pluginId: row.pluginId, ownerId: row.ownerId, err: errorMessage(err) }, "boot/reactivate-plugins: a plugin failed to start");
     }
     return false;
   }
@@ -91,7 +93,7 @@ export async function reactivatePluginsOnBoot(deps: ReactivatePluginsDeps): Prom
   if (rows.length === 0) {
     return { restored: 0, failed: 0 };
   }
-  const log = getLog();
+  const log = getLog(deps.logger);
   const principals = new Map<UserId, Promise<Principal>>();
   let restored = 0;
   let failed = 0;

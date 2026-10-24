@@ -59,10 +59,11 @@ export const streamRouter = t.router({
       if (!wasOnline) {
         void ctx.services.chat
           .drainDeferredTurns({ hostUserId: ctx.auth.userId })
-          .catch((err: unknown) => getLog().error({ err, userId: ctx.auth.userId }, "host-return: deferred-turn drain failed"));
+          .catch((err: unknown) => getLog(ctx.logger).error({ err, userId: ctx.auth.userId }, "host-return: deferred-turn drain failed"));
       }
       return withSubscriptionErrors(
         runSocket({
+          logger: ctx.logger,
           registry: ctx.sockets,
           cell,
           principal: ctx.auth,
@@ -71,6 +72,7 @@ export const streamRouter = t.router({
           multiHumanCapable: ctx.multiHumanCapable,
           signal: sig,
         }),
+        ctx.logger,
       );
     }),
 

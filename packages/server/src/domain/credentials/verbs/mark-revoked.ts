@@ -31,6 +31,7 @@ export function createMarkRevoked(ctx: CredentialContext): CredentialsService["m
       "credential_revoked",
       { credentialId: params.credentialId, reason: params.reason, path: "runner" },
       "credentials: marked revoked (runner-internal)",
+      ctx.logger,
     );
   };
 }

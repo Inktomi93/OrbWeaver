@@ -21,6 +21,7 @@ import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import { and, like, lt, sql } from "drizzle-orm";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 
 export interface RateLimitConfig {
@@ -32,6 +33,8 @@ export interface RateLimitConfig {
   /** Window size in ms. Fixed-window: a request at second 0 and one at second 59 share a bucket. */
   readonly windowMs: number;
   readonly now: () => number;
+  /** The root's logger; a failed expiry sweep is reported through it. */
+  readonly logger: Logger;
 }
 
 export interface RateLimiter {
@@ -50,6 +53,7 @@ async function consumeWindow(
     readonly points: number;
     readonly windowMs: number;
     readonly now: number;
+    readonly logger: Logger;
   },
 ): Promise<void> {
   const prefix = `${args.scope}:`;
@@ -75,7 +79,7 @@ async function consumeWindow(
     .delete(rateLimitBuckets)
     .where(and(like(rateLimitBuckets.key, `${prefix}%`), lt(rateLimitBuckets.expiresAt, args.now)))
     .catch((error: unknown) => {
-      getLog().warn({ err: error, scope: args.scope }, "rate-limit: expiry sweep failed");
+      getLog(args.logger).warn({ err: error, scope: args.scope }, "rate-limit: expiry sweep failed");
     });
 
   if (count > args.points) {
@@ -98,6 +102,7 @@ export function createRateLimiter(handle: DatabaseHandle, cfg: RateLimitConfig):
         points: typeof cfg.points === "function" ? cfg.points() : cfg.points,
         windowMs: cfg.windowMs,
         now: cfg.now(),
+        logger: cfg.logger,
       }),
   };
 }

@@ -20,8 +20,8 @@ import type {
 import { DEADLINE_ABORT_REASON, PROMPT_TRANSFORM_ABORT_REASON_MAX } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import type { ScheduleOp } from "@orb/kit/time";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
-
 import type { PromptTransformRegistry } from "../contract/context.ts";
 
 /** The per-call deadline FLOOR each transform apply is bounded by (a LEAN — the plugin bridge is async by
@@ -105,6 +105,7 @@ async function applyBounded(
  *  (the skip warning); `deadlineMs` is a LIVE getter (read per apply so an admin retune of
  *  AppSettings.promptTransformDeadlineMs applies without a restart) — defaults to the floor const. */
 export function createPromptTransformRegistry(
+  logger: Logger,
   emit: (event: DurableChatBusEvent) => Promise<void>,
   scheduleTimeout: ScheduleOp,
   deadlineMs: () => number = () => PROMPT_TRANSFORM_DEADLINE_MS,
@@ -135,12 +136,12 @@ export function createPromptTransformRegistry(
         return foldFrom(index + 1, result.text);
       }
       if (result.kind === "abort") {
-        getLog().info({ chatId, transformId: transform.id, point }, "chat: prompt transform ABORTED the generation");
+        getLog(logger).info({ chatId, transformId: transform.id, point }, "chat: prompt transform ABORTED the generation");
         return { aborted: true, transformId: transform.id, reason: result.reason };
       }
       // A throw or deadline overrun of a transform that logs its own failures is already on the log with its cause.
       if (!(transform.logsOwnFailures === true && result.cause !== "empty")) {
-        getLog().warn({ chatId, transformId: transform.id, point }, "chat: prompt transform SKIPPED (deadline/throw/empty render) — draft unchanged");
+        getLog(logger).warn({ chatId, transformId: transform.id, point }, "chat: prompt transform SKIPPED (deadline/throw/empty render) — draft unchanged");
       }
       skipped.push(transform.id);
       return foldFrom(index + 1, current);

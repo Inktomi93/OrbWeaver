@@ -12,7 +12,7 @@ import { performance } from "node:perf_hooks";
 import type { Handle, UserId } from "@orb/kit/ids";
 import type { Context, ErrorHandler, MiddlewareHandler } from "hono";
 import type { Logger } from "./contract/logging.ts";
-import { bindRequestUser, getLog, getRequestUserId, logger, recordRequest, runInRequest } from "./logger.ts";
+import { bindRequestUser, getLog, getRequestUserId, recordRequest, runInRequest } from "./logger.ts";
 import { recordThrownRequest, withRequestSpan } from "./tracing.ts";
 
 const DEBUG_PREFIX = "/api/_debug";
@@ -106,7 +106,7 @@ function observeRequest(log: Logger): MiddlewareHandler {
       const durationMs = Math.round(performance.now() - start);
       const status = c.res.status;
       const userId = getRequestUserId();
-      getLog().info({ method, path, status, durationMs }, "request");
+      getLog(log).info({ method, path, status, durationMs }, "request");
       recordRequest({
         id: requestId,
         method,
@@ -145,7 +145,7 @@ function observeThrowAboveScope(log: Logger, err: unknown, c: Context): Promise<
   const path = redactSensitivePath(c.req.path);
   c.header(REQUEST_ID_HEADER, requestId);
   return runInRequest(log, requestId, async (): Promise<Response> => {
-    getLog().error({ err }, "request.thrown");
+    getLog(log).error({ err }, "request.thrown");
     // The root span exists only to carry the failure; `recordThrownRequest` marks the span ACTIVE INSIDE
     // this callback as error + adds the `exception` event, and `withRequestSpan`'s OK-set is guarded on
     // exactly that, so the sealed bucket reads status:"error" without this having to throw.
@@ -185,7 +185,8 @@ function observeThrownRequest(log: Logger): ErrorHandler {
   };
 }
 
-// Transitional: each request's scope children off the logger these two are built over. `entry/app.ts` mounts them
-// over the process logger until item 1271's transport and entry leg builds them over the root's.
-export const observability: MiddlewareHandler = observeRequest(logger);
-export const observabilityErrorHandler: ErrorHandler = observeThrownRequest(logger);
+/** The request middleware and its `app.onError` counterpart over a root's logger: each request's scope children
+ *  off `log`. */
+export function createRequestObservability(log: Logger): { readonly observability: MiddlewareHandler; readonly observabilityErrorHandler: ErrorHandler } {
+  return { observability: observeRequest(log), observabilityErrorHandler: observeThrownRequest(log) };
+}

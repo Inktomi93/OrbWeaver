@@ -36,6 +36,7 @@ function recordingLog(): { readonly log: { readonly warn: (fields: Record<string
 async function configuredClaim(root: ServerTestHarness): Promise<Awaited<ReturnType<typeof createConfiguredOidc>>> {
   return await createConfiguredOidc({
     db: databaseHandle(root.db),
+    logger: root.logger,
     now: root.clock.now,
     built: root.app,
     settings: NATIVE_OIDC_SETTINGS,
@@ -100,7 +101,7 @@ test("the callback that spends the code removes the claim file; a redeem that sp
   await using root = await createServerHarness();
   await using oidc = await configuredClaim(root);
   await using file = await claimFile();
-  const spending = removeOwnerClaimFileOnSpend(oidc.ownerClaim, file.path, root.app.newOpaqueId);
+  const spending = removeOwnerClaimFileOnSpend(oidc.ownerClaim, file.path, root.app.newOpaqueId, root.logger);
   const unclaimed: UserId | undefined = undefined;
   await announceOwnerClaim({
     log: recordingLog().log,

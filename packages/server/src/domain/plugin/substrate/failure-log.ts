@@ -2,6 +2,7 @@
 // (`pluginSlug`), what kind of failure (`kind`), and why (`cause`). Each failure is logged at exactly one site;
 // a caller that already logged it must not log it again higher up the stack.
 
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 
 const PLUGIN_FAILURE_KINDS = [
@@ -24,9 +25,9 @@ const ERROR_KINDS: ReadonlySet<PluginFailureKind> = new Set<PluginFailureKind>([
 const CAUSE_MAX_CHARS = 200;
 const TRUNCATION_MARK = "…[truncated]";
 
-export function logPluginFailure(pluginSlug: string, kind: PluginFailureKind, cause: string): void {
+export function logPluginFailure(pluginSlug: string, kind: PluginFailureKind, cause: string, logger: Logger): void {
   const bounded = cause.length > CAUSE_MAX_CHARS ? `${cause.slice(0, CAUSE_MAX_CHARS)}${TRUNCATION_MARK}` : cause;
-  getLog()[ERROR_KINDS.has(kind) ? "error" : "warn"]({ pluginSlug, kind, cause: bounded }, "plugin: failure");
+  getLog(logger)[ERROR_KINDS.has(kind) ? "error" : "warn"]({ pluginSlug, kind, cause: bounded }, "plugin: failure");
 }
 
 /** Classify a rejected guest invocation by the typed error name, which crosses the sandbox and broker intact. */

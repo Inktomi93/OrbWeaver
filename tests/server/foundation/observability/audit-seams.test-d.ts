@@ -7,5 +7,5 @@ test("the audit writers require their id source, so a direct audit row never tak
   expectTypeOf<Parameters<typeof createAuditWiring>>().toEqualTypeOf<Required<Parameters<typeof createAuditWiring>>>();
   expectTypeOf<Parameters<typeof createAuditWiring>[1]>().toEqualTypeOf<IdSource>();
   expectTypeOf<Parameters<typeof logAudit>>().toEqualTypeOf<Required<Parameters<typeof logAudit>>>();
-  expectTypeOf<Parameters<typeof logAudit>[3]>().toEqualTypeOf<IdSource>();
+  expectTypeOf<Parameters<typeof logAudit>[3]["idSource"]>().toEqualTypeOf<IdSource>();
 });

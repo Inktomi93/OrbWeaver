@@ -11,6 +11,7 @@ import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createChatBus, createChatPublication } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import { createTestLogger } from "@orb/testkit/node/composed";
 import { seedChatRows } from "@orb/testkit/node/rows";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
@@ -29,7 +30,7 @@ test("durable append precedes fan, a lost claim converges without fan, and a del
 }): Promise<void> => {
   const { room, host } = await hostedRoom(harness);
   const published: ChatLivePublish[] = [];
-  const bus = createChatBus({ db: databaseHandle(db), now: clock.now, newEventId: () => mintTypeId(ID_PREFIX.chatEvent) });
+  const bus = createChatBus({ db: databaseHandle(db), logger: createTestLogger(), now: clock.now, newEventId: () => mintTypeId(ID_PREFIX.chatEvent) });
   const publication = createChatPublication({
     bus,
     publish: (event): void => {
@@ -59,7 +60,7 @@ test("quiet entity churn may coalesce but a terminal delete remains live and app
   const publish = vi.fn();
   const quiet = vi.fn(() => true);
   const publication = createChatPublication({
-    bus: createChatBus({ db: databaseHandle(db), now: clock.now, newEventId: () => mintTypeId(ID_PREFIX.chatEvent) }),
+    bus: createChatBus({ db: databaseHandle(db), logger: createTestLogger(), now: clock.now, newEventId: () => mintTypeId(ID_PREFIX.chatEvent) }),
     publish,
     silenceRoomEntityFan: quiet,
   });

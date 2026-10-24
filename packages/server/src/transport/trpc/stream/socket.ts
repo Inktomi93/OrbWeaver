@@ -45,7 +45,9 @@ import { roomKey, STREAM_ERROR_CODES } from "@orb/contracts/stream";
 import type { SocketId } from "@orb/kit/ids";
 import type { TrackedEnvelope } from "@trpc/server";
 import { tracked } from "@trpc/server";
-import { getLog, superviseSettled } from "#foundation/observability";
+// pino's own type: the published router declaration must not resolve the observability barrel's source.
+import type pino from "pino";
+import { createDetachedSupervision, getLog } from "#foundation/observability";
 import { SERVER_INSTANCE_ID } from "#foundation/server-instance";
 import type { Services } from "../context.ts";
 import type { LiveBuses } from "../contract/live-buses.ts";
@@ -80,6 +82,7 @@ function roomFailure(err: unknown): { readonly code: StreamErrorCode; readonly m
 }
 
 export interface RunSocketArgs {
+  readonly logger: pino.Logger;
   readonly liveBuses: LiveBuses;
   readonly registry: SocketRegistry;
   /** ALREADY ADOPTED by the resolver — so a cross-principal socketId is a real NOT_FOUND rejection of the
@@ -95,7 +98,8 @@ export interface RunSocketArgs {
 }
 
 export async function* runSocket(args: RunSocketArgs): AsyncGenerator<TrackedEnvelope<StreamFrame>> {
-  const { registry, cell, principal, services, liveBuses, multiHumanCapable, signal } = args;
+  const { registry, cell, principal, services, liveBuses, multiHumanCapable, signal, logger } = args;
+  const { superviseSettled } = createDetachedSupervision(logger);
   const socketId: SocketId = cell.socketId;
   const queue = createFrameQueue({
     cursorFor: (key) => cell.rooms.get(key)?.cursor ?? null,
@@ -125,7 +129,7 @@ export async function* runSocket(args: RunSocketArgs): AsyncGenerator<TrackedEnv
         return; // teardown (detach / socket close), not a fault
       }
       const failure = roomFailure(err);
-      getLog().warn({ err, channel: ref.channel, userId: principal.userId }, "stream: room pump failed");
+      getLog(logger).warn({ err, channel: ref.channel, userId: principal.userId }, "stream: room pump failed");
       queue.pushControl({ channel: "control", type: "roomFailed", ref, ...failure });
       registry.detach(principal.userId, socketId, ref);
     }

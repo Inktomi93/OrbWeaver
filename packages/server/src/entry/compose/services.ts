@@ -141,7 +141,6 @@ import {
   createAuditWiring,
   createBugReportDiagnosticsRead,
   createWireCaptureSpill,
-  getLog,
   isWireCaptureEnabled,
   isWireReplyCaptureEnabled,
   recordTurnOutcome,
@@ -474,7 +473,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // biome-ignore lint/nursery/useDisposables: resources adopts this owner through the moved graph stack; local using would close it before the graph starts.
   const rpgEvents = resources.use(createRpgEventBus());
   const workloadEvents = resources.use(createWorkloadProgressBus());
-  const liveBuses = resources.use(createLiveBuses({ rpg: rpgEvents, workloads: workloadEvents }));
+  const liveBuses = resources.use(createLiveBuses({ rpg: rpgEvents, workloads: workloadEvents }, deps.logger));
   // biome-ignore lint/nursery/useDisposables: resources adopts the cache through the moved graph stack; local using would close it before graph use.
   const fieldIndex = resources.use(createFieldIndexCache());
   // biome-ignore lint/nursery/useDisposables: resources adopts the throttle through the moved graph stack; local using would close it before graph use.
@@ -556,6 +555,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // A seed that newly binds the encoder starts that owner's embed sweeps through `embedReindex` below (late-bound:
   // it derefs at call time, a mint, never during compose).
   const seedUserConnections = createLocalLightUserSeed({
+    logger: deps.logger,
     idSource,
     db,
     now,
@@ -564,6 +564,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     },
   });
   const sessions = createSessionsService({
+    logger: deps.logger,
     db,
     now,
     idSource,
@@ -628,6 +629,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const settingsCtx: SettingsContext = createSettingsContext(settingsDeps);
   const settings = createSettingsService(settingsCtx);
   const rateLimit = createRateLimitGate({
+    logger: deps.logger,
     db,
     now,
     resolveRateLimits: () => settings.getEffectiveConfig().rateLimits,
@@ -666,6 +668,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const runtimeBinding = createBinding<InferenceRuntime>("compose: inference runtime derefed before it was built");
   const runtimeRef = runtimeBinding.read;
   const credentials = createCredentialsService({
+    logger: deps.logger,
     healthThrottle,
     db,
     now,
@@ -689,11 +692,11 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     now,
     scheduleTimeout: timers.timeout,
     scheduleTimeoutUnref: timers.timeoutUnref,
-    log: getLog(),
+    log: deps.logger,
     span: inferenceSpanOf(deps),
     superviseDetached: (name, attrs, operation) => background.supervise(`inference:${newOpaqueId()}`, name, attrs, operation),
     addSpanEvent,
-    securityEvent: (kind, fields) => securityEvent(kind, { ...fields }),
+    securityEvent: (kind, fields) => securityEvent(kind, { ...fields }, undefined, deps.logger),
     env: {
       get claudeExecutable(): string | undefined {
         return availableClaudeExecutable();
@@ -797,7 +800,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // The one chat bus, built early (persona composes before buildChatService — chat needs persona.get for turn
   // assembly, a genuine cycle) and threaded into persona's write and
   // buildChatService.
-  const chatBus = createChatBus({ db, now, newEventId: minter(ID_PREFIX.chatEvent, idSource) });
+  const chatBus = createChatBus({ db, logger: deps.logger, now, newEventId: minter(ID_PREFIX.chatEvent, idSource) });
   const {
     emitChecked: emitChatEventChecked,
     emit: emitChatEvent,
@@ -822,6 +825,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // ── assets + character + the two seeders (the assets-character seam). Threads the late-bound
   // materializeBackground holder + the request-time preset/persona forward-ref getters (both compose below).
   const assetsCharacter = buildAssetsCharacter({
+    logger: deps.logger,
     env: deps.env,
     evictFieldIndex: fieldIndex.evict,
     emitUserEvent: liveBuses.user.publishUserEvent,
@@ -854,6 +858,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // search-discovery seam). Produces `persona` + `preset` (forward-referenced above) and `workloads` +
   // `enqueueEmbedReindex` (bound onto the keystone's late-bound holder below).
   const searchDiscovery = buildSearchDiscovery({
+    logger: deps.logger,
     fieldIndex,
     emitWorkloadEvent: workloadEvents.emitWorkloadEvent,
     emitUserEvent: liveBuses.user.publishUserEvent,
@@ -906,6 +911,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // ── the refinery seam (R1) — the card-refinery pipeline over the summarize rung. Needs `character`
   // (the four injected ops) + the caller-scoped preset/prose resolvers; nothing composes on top of it.
   const { refinery, refineryWorkloads } = buildRefinery({
+    logger: deps.logger,
     emitUserEvent: liveBuses.user.publishUserEvent,
     idSource,
     db,
@@ -919,7 +925,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
 
   // ── the regex script LIBRARY (D121-E). Built before admin/chat: admin's export service needs its card
   // RE-EMBED op and chat's context needs its four-scope RESOLVE op.
-  const regexCompose = buildRegex({ emitUserEvent: liveBuses.user.publishUserEvent, db, now, audit, emitChatEventLive, idSource });
+  const regexCompose = buildRegex({ logger: deps.logger, emitUserEvent: liveBuses.user.publishUserEvent, db, now, audit, emitChatEventLive, idSource });
 
   // ── admin + the ONE tool-use registry + the export service (the admin seam).
   const { admin, toolUse, exportService } = buildAdmin({
@@ -980,6 +986,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
 
   // ── databank (the databank seam) — built BEFORE chat so `gatherDatabank` (DB6) can inject into the chat build.
   const { databank, databankIngest, databankPortability } = buildDatabank({
+    logger: deps.logger,
     emitUserEvent: liveBuses.user.publishUserEvent,
     fetchWebDocument: egress.fetchWebDocument,
     idSource,
@@ -1034,7 +1041,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // inside the plugin plane because chat composes FIRST and both sides need the same object: chat reads it per
   // turn (`ChatContext.pluginMacros`), the plugin plane writes it at activation. Minting it at the shared root
   // is what keeps this out of the late-bind shape the S4 confirmed-act runner had to take.
-  const pluginMacros = createPluginMacroRegistry(timers.timeout);
+  const pluginMacros = createPluginMacroRegistry(deps.logger, timers.timeout);
   const chatCompose = buildChatService({
     publishChatChanged: liveBuses.user.publishChatChanged,
     publishNotification: liveBuses.notifications.publishNotification,
@@ -1078,6 +1085,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // per-image byte cap is a boot dep, and it is the exact `materializeBackground` shape one line up — the
     // same egress + magic belts over a response-controlled URL, only the asset `kind` differs.
     storeInlineReplyImage: createStoreInlineReplyImage({
+      logger: deps.logger,
       fetchImpl: egress.safeFetch,
       storeGenerated: createStoreGeneratedImage({
         store: (args) => assets.store(args),
@@ -1152,6 +1160,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
 
   const rpgTrace = deps.env.RPG_TRACE === "on" ? createRpgTraceRecorder({ now }) : undefined;
   const rpgCompose = buildRpg({
+    logger: deps.logger,
     emitRpgEvent: rpgEvents.publishRpgEvent,
     scheduleTimeout: timers.timeout,
     randomInt: deps.randomInt,
@@ -1191,6 +1200,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
 
   // ── world-info + the import ports + the bulk importers + the OWNER-principal resolver (the world-info seam).
   const worldInfoCompose = buildWorldInfo({
+    logger: deps.logger,
     emitUserEvent: liveBuses.user.publishUserEvent,
     idSource,
     db,
@@ -1297,6 +1307,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
 
   // ── portability + the workloads runner-env (the portability-runner seam) — built LAST.
   const { portability, importWorkloads, settleImportMemory } = buildPortabilityRunner({
+    logger: deps.logger,
     quiet: liveBuses.quiet.withQuietBulkFanout,
     emitUserEvent: liveBuses.user.publishUserEvent,
     publishChatChanged: liveBuses.user.publishChatChanged,
@@ -1395,6 +1406,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
 
   const share = resources.use(
     createShareService({
+      logger: deps.logger,
       relay: deps.share.relay,
       certificate: deps.share.certificate,
       certificateSetting: settingsComposedOps.certificateSetting,
@@ -1457,6 +1469,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // account's seed ledger. Built here, after the roster presets it creates and the two seeders it drives.
   const seedContentEnabled = deps.env.SEED_CONTENT === "on";
   const contentSeeder = createUserContentSeeder({
+    logger: deps.logger,
     enabled: () => seedContentEnabled,
     manifest: SEED_MANIFEST,
     now,
@@ -1484,6 +1497,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     applyDistributedPlugins: (args) => services.plugin.applyDistributedPlugins(args),
   });
   const examplePluginSeeder = createExamplePluginSeeder({
+    logger: deps.logger,
     packBundle: deps.showcaseBundles ?? packShowcaseBundle,
     install: pluginSeedOps.install,
     requestConsent: pluginSeedOps.requestConsent,
@@ -1496,6 +1510,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     writeSeededVersions: settingsComposedOps.writeSeededPluginVersions,
   });
   const distributedPluginApplier = createDistributedPluginApplier({
+    logger: deps.logger,
     apply: pluginSeedOps.apply,
     isApplied: settingsComposedOps.isDistributedPluginApplied,
     markApplied: settingsComposedOps.markDistributedPluginApplied,
@@ -1518,6 +1533,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
 
   // biome-ignore lint/nursery/useDisposables: jobsLifetime adopts this exact owner for graph cancellation and joins; local await using would stop it before startup.
   const jobs = buildServiceJobs({
+    logger: deps.logger,
     db,
     now,
     contributions: workloadContributions,
@@ -1536,6 +1552,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const trpcContext: ContextForRequest = (request) =>
     createContext({
       ...request,
+      logger: deps.logger,
       liveBuses,
       services,
       rateLimit,

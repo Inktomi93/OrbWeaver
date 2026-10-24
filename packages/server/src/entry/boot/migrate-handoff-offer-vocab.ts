@@ -12,9 +12,11 @@
 
 import type { BootDatabaseHandle } from "@orb/db/wiring";
 import { migrateHandoffOfferVocab } from "#domain/chat";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 
 export interface MigrateHandoffOfferVocabDeps {
+  readonly logger: Logger;
   readonly db: BootDatabaseHandle;
 }
 
@@ -23,7 +25,7 @@ export interface MigrateHandoffOfferVocabDeps {
 export async function migrateHandoffOfferVocabOnBoot(deps: MigrateHandoffOfferVocabDeps): Promise<number> {
   const rewritten = await migrateHandoffOfferVocab(deps.db);
   if (rewritten > 0) {
-    getLog().info({ rewritten }, "boot/migrate-handoff-offer-vocab: rewrote pre-#1649 handoff offers to `copyCharacters`");
+    getLog(deps.logger).info({ rewritten }, "boot/migrate-handoff-offer-vocab: rewrote pre-#1649 handoff offers to `copyCharacters`");
   }
   return rewritten;
 }

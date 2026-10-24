@@ -30,6 +30,7 @@ import { executeRegexScripts } from "@orb/kit/regex";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { EntryPosition, MatchEntryKeysOptions } from "@orb/kit/world-info";
 import { buildKeywordHaystack, matchEntryKeys } from "@orb/kit/world-info";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import type { MacroRenderEnv } from "../contract/assembly-macros.ts";
 import type { ApplyRegexReplaceOp, ChatContext, TestRegexKeyOp } from "../contract/context.ts";
@@ -47,19 +48,19 @@ interface MatchedKey {
 }
 
 /** Logs a ReDoS-watchdog/bad-regex failure; the pass proceeds fail-open on the text as-is. */
-function onHostRegexFailure(placement: "WORLD_INFO" | "USER_INPUT"): (err: unknown, script: RegexScriptInput) => void {
-  return (err, script) => getLog().warn({ err, placement, findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)");
+function onHostRegexFailure(placement: "WORLD_INFO" | "USER_INPUT", logger: Logger): (err: unknown, script: RegexScriptInput) => void {
+  return (err, script) => getLog(logger).warn({ err, placement, findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)");
 }
 
 /** Logs a bad user-authored world-info REGEX KEY (a V3 `use_regex` entry); the matcher falls back to a
  *  literal compare for that key, so the turn proceeds fail-open. */
-function onWorldInfoKeyCompileFailure(key: string, reason: string): void {
-  getLog().warn({ key, reason }, "chat: world-info regex key failed to compile — matched literally");
+function onWorldInfoKeyCompileFailure(logger: Logger): (key: string, reason: string) => void {
+  return (key, reason) => getLog(logger).warn({ key, reason }, "chat: world-info regex key failed to compile — matched literally");
 }
 
 /** Logs a macro-engine depth-cap/output-size trip; fail-open, output stays bounded. */
-function onMacroWarn(msg: string, err?: unknown): void {
-  getLog().warn({ err, macroWarn: msg }, "chat: macro budget/eval trip (D53)");
+function onMacroWarn(logger: Logger): (msg: string, err?: unknown) => void {
+  return (msg, err) => getLog(logger).warn({ err, macroWarn: msg }, "chat: macro budget/eval trip (D53)");
 }
 
 /** Where a world-info entry sits in the system region: the before/after anchor it follows, in the static half
@@ -132,6 +133,7 @@ function wrapWiFormat(content: string, wiFormat: string, ctx: AssembleContext, r
 }
 
 interface WiConversionArgs {
+  readonly logger: Logger;
   readonly regexScripts: readonly RegexScriptInput[];
   /** The injected node:vm ReDoS watchdog (D53) — the WORLD_INFO regex pass runs its `text.replace` under it. */
   readonly applyReplace: ApplyRegexReplaceOp;
@@ -211,15 +213,15 @@ function wiCandidate(entry: AssembleWorldEntry, content: string, args: WiConvers
 /** The per-entry key-compile options: a V3 `use_regex` entry's keys compile as PATTERNS, and a bad pattern
  *  warns + falls back to a literal compare rather than failing the turn. `testRegex` is the injected node:vm
  *  ReDoS watchdog so a catastrophic user-authored key `.test` is interrupted, not run unbounded (#710). */
-function keyMatchOptions(entry: AssembleWorldEntry, testRegex: TestRegexKeyOp): MatchEntryKeysOptions {
-  return { keyMode: entry.keyMode ?? "literal", onKeyCompileFailure: onWorldInfoKeyCompileFailure, testRegex };
+function keyMatchOptions(entry: AssembleWorldEntry, testRegex: TestRegexKeyOp, logger: Logger): MatchEntryKeysOptions {
+  return { keyMode: entry.keyMode ?? "literal", onKeyCompileFailure: onWorldInfoKeyCompileFailure(logger), testRegex };
 }
 
 /** Records a keyword entry's fired keys, noting which fired on the latest user text, into the trace. */
 function recordKeyHits(entry: AssembleWorldEntry, hits: readonly string[], env: WiConvEnv): void {
   const userHits =
     env.haystacks.latestUser.length > 0
-      ? new Set(matchEntryKeys(entry.keys, env.haystacks.latestUser, keyMatchOptions(entry, env.args.testRegexKey)))
+      ? new Set(matchEntryKeys(entry.keys, env.haystacks.latestUser, keyMatchOptions(entry, env.args.testRegexKey, env.args.logger)))
       : new Set<string>();
   for (const key of hits) {
     env.matchedKeys.push({ key, matchedLatestUserMessage: userHits.has(key) });
@@ -248,7 +250,7 @@ function assertNeverAttachment(entry: never): never {
  *  once via macro → regex(WORLD_INFO) → wiFormat-wrap. */
 function classifyWiEntry(entry: AssembleWorldEntry, env: WiConvEnv): InjectionCandidate | null {
   if (entry.scope === "keyword") {
-    const hits = matchEntryKeys(entry.keys, env.haystacks.full, keyMatchOptions(entry, env.args.testRegexKey));
+    const hits = matchEntryKeys(entry.keys, env.haystacks.full, keyMatchOptions(entry, env.args.testRegexKey, env.args.logger));
     if (hits.length === 0) {
       return null;
     }
@@ -261,7 +263,7 @@ function classifyWiEntry(entry: AssembleWorldEntry, env: WiConvEnv): InjectionCa
     placement: "WORLD_INFO",
     ctx: env.regexCtx,
     applyReplace: env.args.applyReplace,
-    onScriptFailure: onHostRegexFailure("WORLD_INFO"),
+    onScriptFailure: onHostRegexFailure("WORLD_INFO", env.args.logger),
   });
   // Guard against wrapping an empty entry into a dangling scaffold under a custom wiFormat template.
   if (afterRegex.trim().length === 0) {
@@ -842,7 +844,7 @@ async function runSendAuthorTransforms(
       chatId: input.chatId,
       input: text,
       random: input.prng,
-      onWarn: onMacroWarn,
+      onWarn: onMacroWarn(ctx.logger),
       registry: input.macroRegistry,
     });
     text = executeRegexScripts({
@@ -851,7 +853,7 @@ async function runSendAuthorTransforms(
       placement: "USER_INPUT",
       ctx: sendMacroCtx,
       applyReplace: ctx.applyRegexReplace,
-      onScriptFailure: onHostRegexFailure("USER_INPUT"),
+      onScriptFailure: onHostRegexFailure("USER_INPUT", ctx.logger),
     });
   }
   if (out !== undefined) {
@@ -934,6 +936,7 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
     pool,
     base,
     {
+      logger: ctx.logger,
       // The RESOLVED host-tier union (D53: host-global ∪ chat-preset ∪ present characters), i.e. the SAME set every
       // other shared leg runs — USER_INPUT above, AI_OUTPUT/REASONING in `engine/pipeline`. Reading the preset
       // slice alone dropped host-global + card scripts whose placement includes WORLD_INFO, and WORLD_INFO is

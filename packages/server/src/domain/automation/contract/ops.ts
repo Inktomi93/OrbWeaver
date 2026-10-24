@@ -40,6 +40,7 @@ import type {
 import type { VarOp } from "@orb/kit/macro";
 import type { SerialLanes } from "@orb/kit/serial-lanes";
 import type { IanaTimeZone } from "@orb/kit/time";
+import type { Logger } from "#foundation/observability";
 import type { AnalysisConfirmAct } from "./analysis.ts";
 import type { CreateRuleParams } from "./params.ts";
 
@@ -744,6 +745,7 @@ export interface DispatchOptions {
 
 /** The service-owned arm dispatcher's context slice, including the same ordering engine used by its verbs. */
 export interface ArmExecutorDeps {
+  readonly logger: Logger;
   readonly serialLanes: SerialLanes;
   readonly db: Db;
   readonly ops: AutomationOps;

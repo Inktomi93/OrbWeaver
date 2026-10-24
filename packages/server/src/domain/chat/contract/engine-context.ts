@@ -18,7 +18,7 @@ import type {
 } from "@orb/kit/ids";
 import type { RegexReplacer } from "@orb/kit/regex";
 import type { TimerScheduler } from "@orb/kit/time";
-import type { WireOutcome } from "#foundation/observability";
+import type { Logger, WireOutcome } from "#foundation/observability";
 import type { ChatAccountingContext } from "./accounting-context.ts";
 import type { BuildTurnMemoryArgs, MemoryRecallResult, RecallMemoryArgs, WitnessInterval } from "./memory.ts";
 import type { CompactResult, ResolvedMediaRef, TurnRequest, TurnStreamChunk } from "./results.ts";
@@ -83,6 +83,7 @@ type ResolveImageUrlOp = (params: {
 type StoreInlineReplyImageOp = (ownerId: UserId, image: GeneratedImage) => Promise<{ readonly assetId: AssetId } | null>;
 
 export interface EngineContext extends Pick<ChatAccountingContext, "db" | "now" | "applyStatsDelta" | "resolveRetainedChatAccountingScope"> {
+  readonly logger: Logger;
   readonly timers: TimerScheduler;
   readonly backgroundSignal?: AbortSignal;
   readonly trackBackground?: (settled: Promise<void>, chatId: ChatId) => void;

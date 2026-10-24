@@ -633,7 +633,7 @@ async function forkGameOntoFork(
       forker: args.forker,
     });
   } catch (err) {
-    getLog().warn(
+    getLog(ctx.logger).warn(
       { event: "chat.fork.game_clone_failed", err, sourceChatId: args.sourceChatId, newChatId: args.newChatId },
       "chat: fork game-clone failed — the fork ships as a plain chat",
     );

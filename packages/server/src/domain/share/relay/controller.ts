@@ -28,7 +28,7 @@ function errorText(err: unknown): string {
 }
 
 export function createRelayController(deps: RelayControllerDeps): RelayController {
-  const log = getLog();
+  const log = getLog(deps.logger);
   let status: RelayStatus = { state: "off" };
   let generation = 0;
   let running: RelayProcess | null = null;

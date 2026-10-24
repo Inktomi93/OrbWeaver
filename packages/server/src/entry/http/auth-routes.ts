@@ -45,6 +45,7 @@ import { buildAuthorizationUrl, calculatePKCECodeChallenge, randomNonce, randomP
 import type { SignupInviteOps } from "#domain/chat";
 import type { ProvisionIdentityOptions, RevokedSessionsSummary, SessionsRolePolicy, SessionsService } from "#domain/sessions";
 import { OIDC_PENDING_JOIN_TTL_MS, OIDC_TRANSACTION_TTL_MS } from "#domain/sessions";
+import type { Logger } from "#foundation/observability";
 import { getLog, groupsLogFields, securityEvent } from "#foundation/observability";
 import type { BackchannelLogoutVerifier, OidcExchange, OidcTransaction, OwnerClaimCode, PublicHttpMintNotice } from "#infra/auth";
 import {
@@ -278,6 +279,12 @@ function serializeClearedOidcBindingCookies(): readonly string[] {
   return OIDC_BINDING_COOKIES.map(({ name, attrs }) => `${name}=; Max-Age=0; ${attrs}`);
 }
 
+/** The request's trusted hops and the root's logger, which every refusal helper below reads together. */
+interface AuthEdge {
+  readonly trustedProxies: readonly string[];
+  readonly logger: Logger;
+}
+
 /**
  * Consume the callback's transaction only when this browser started it: the request must carry the binding
  * cookie the authorize leg set, under its own transport's name, holding exactly the returned `state`.
@@ -291,14 +298,15 @@ function serializeClearedOidcBindingCookies(): readonly string[] {
  * Plain `!==` is enough: both sides come from the caller's own request, so timing reveals nothing it lacks.
  * A matched binding is spent with its transaction, so it is cleared even when the transaction has expired.
  */
-async function consumeBoundTransaction(c: Context, store: OidcMintStore, state: string, trustedProxies: readonly string[]): Promise<OidcTransaction | null> {
-  const transport = requestTransport(c, trustedProxies);
+async function consumeBoundTransaction(c: Context, store: OidcMintStore, state: string, edge: AuthEdge): Promise<OidcTransaction | null> {
+  const transport = requestTransport(c, edge.trustedProxies);
   const binding = readRequestCookie(c.req.raw.headers, oidcBindingCookieFor(transport).name);
   if (binding === null || binding.length === 0 || binding !== state) {
     securityEvent(
       "oidc_callback_unbound",
       { transport, bindingPresent: binding !== null },
       "security: OIDC callback state is not bound to this browser (missing or mismatched binding cookie) — a login-CSRF attempt, a second login tab, or a callback opened in another browser; no transaction consumed, no session minted",
+      edge.logger,
     );
     return null;
   }
@@ -540,6 +548,7 @@ interface OidcSignupDeps {
 }
 
 export interface AuthRoutesDeps {
+  readonly logger: Logger;
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
   readonly sessions: AuthSessionsPort;
   /** W7a — the live-socket eviction edge, applied wherever this file ends a session. */
@@ -598,14 +607,14 @@ function throttledResponse(c: Context, err: DomainRateLimitError): Response {
 /** Consume one login-throttle point for the caller address; returns a 429 Response when over budget, else null
  *  (proceed). Keyed on the peer-first `clientIp` the ingress gate + tRPC seam share (no drift), grouped by
  *  `addressThrottleKey` so an IPv6 host cannot reset its bucket by rotating inside its /64 (D259). */
-async function throttleLogin(limiter: RateLimiter, c: Context, trustedProxies: readonly string[]): Promise<Response | null> {
-  const ip = clientIp(c, trustedProxies);
+async function throttleLogin(limiter: RateLimiter, c: Context, edge: AuthEdge): Promise<Response | null> {
+  const ip = clientIp(c, edge.trustedProxies);
   try {
     await limiter.consume(ip === null ? UNKNOWN_IP_KEY : addressThrottleKey(ip));
     return null;
   } catch (err) {
     if (err instanceof DomainRateLimitError) {
-      securityEvent("login_throttled", { clientIp: clientIp(c, trustedProxies) }, "security: login attempts over the per-IP throttle — 429");
+      securityEvent("login_throttled", { clientIp: clientIp(c, edge.trustedProxies) }, "security: login attempts over the per-IP throttle — 429", edge.logger);
       return throttledResponse(c, err);
     }
     throw err;
@@ -622,7 +631,7 @@ function handleThrottleKey(rawHandle: string): string {
 /** B1 — consume one point on the HANDLE axis; 429 when that account is over budget, else null. Runs BESIDE
  *  the per-IP consume (both must pass) and, like it, BEFORE `authenticate` — a throttle that let the KDF run
  *  first would have already tested the attacker's guess. */
-async function throttleLoginHandle(limiter: RateLimiter, c: Context, throttleKey: string, trustedProxies: readonly string[]): Promise<Response | null> {
+async function throttleLoginHandle(limiter: RateLimiter, c: Context, throttleKey: string, edge: AuthEdge): Promise<Response | null> {
   try {
     await limiter.consume(throttleKey);
     return null;
@@ -630,8 +639,9 @@ async function throttleLoginHandle(limiter: RateLimiter, c: Context, throttleKey
     if (err instanceof DomainRateLimitError) {
       securityEvent(
         "login_handle_throttled",
-        { handle: throttleKey, clientIp: clientIp(c, trustedProxies) },
+        { handle: throttleKey, clientIp: clientIp(c, edge.trustedProxies) },
         "security: login attempts against ONE handle over the per-handle throttle (a distributed brute force, or a targeted flood of the account) — 429",
+        edge.logger,
       );
       return throttledResponse(c, err);
     }
@@ -645,6 +655,7 @@ async function throttleLoginHandle(limiter: RateLimiter, c: Context, throttleKey
  *  `AppSettings.rateLimits.login` (env floor ⊕ admin override), read FRESH per attempt. */
 function loginThrottler(deps: AuthRoutesDeps): RateLimiter {
   return createRateLimiter(deps.db, {
+    logger: deps.logger,
     scope: LOGIN_RATE_SCOPE,
     points: () => deps.resolveLoginLimit(),
     windowMs: LOGIN_WINDOW_MS,
@@ -659,6 +670,7 @@ function loginThrottler(deps: AuthRoutesDeps): RateLimiter {
  *  password-set) and stays IP-only. */
 function loginHandleThrottler(deps: AuthRoutesDeps): RateLimiter {
   return createRateLimiter(deps.db, {
+    logger: deps.logger,
     scope: LOGIN_HANDLE_RATE_SCOPE,
     points: () => deps.resolveLoginLimit() * LOGIN_HANDLE_LIMIT_MULTIPLIER,
     windowMs: LOGIN_WINDOW_MS,
@@ -694,7 +706,7 @@ function registerLoginRoute(app: Hono, deps: AuthRoutesDeps, authenticate: Local
     // before the body is buffered), so a cross-site form-POST is refused before the throttle / scrypt work here.
     // The IP axis stays FIRST — it is the cheaper decision (no body parse) and it is the one that caps the
     // scrypt-CPU flood from a single source.
-    const throttled = await throttleLogin(loginLimiter, c, trustedProxies);
+    const throttled = await throttleLogin(loginLimiter, c, { trustedProxies, logger: deps.logger });
     if (throttled !== null) {
       return throttled;
     }
@@ -706,7 +718,7 @@ function registerLoginRoute(app: Hono, deps: AuthRoutesDeps, authenticate: Local
     }
     // B1 — the handle axis, AFTER the presence check (a credential-less probe mints no bucket) and BEFORE
     // `authenticate` (a throttle that ran after the KDF would have already tested the guess).
-    const handleThrottled = await throttleLoginHandle(handleLimiter, c, handleThrottleKey(handle), trustedProxies);
+    const handleThrottled = await throttleLoginHandle(handleLimiter, c, handleThrottleKey(handle), { trustedProxies, logger: deps.logger });
     if (handleThrottled !== null) {
       return handleThrottled;
     }
@@ -741,10 +753,11 @@ function registerFirstRunRoute(app: Hono, deps: AuthRoutesDeps, firstRun: FirstR
         "first_run_origin_rejected",
         { peerIp: peerIp(c) ?? null },
         "security: first-run owner-password setup from a non-loopback peer or a relayed request — rejecting (set LOCAL_INITIAL_PASSWORD for a LAN, proxied or public local deploy)",
+        deps.logger,
       );
       return c.json({ error: "first-run setup is only available on this machine, not through a proxy or tunnel" }, FORBIDDEN);
     }
-    const throttled = await throttleLogin(limiter, c, trustedProxies);
+    const throttled = await throttleLogin(limiter, c, { trustedProxies, logger: deps.logger });
     if (throttled !== null) {
       return throttled;
     }
@@ -761,6 +774,7 @@ function registerFirstRunRoute(app: Hono, deps: AuthRoutesDeps, firstRun: FirstR
         "first_run_already_claimed",
         {},
         "security: first-run owner-password setup attempted but the owner credential is already set — refusing (use admin reset-password to rotate)",
+        deps.logger,
       );
       return c.json({ error: "the owner password is already set" }, CONFLICT);
     }
@@ -776,7 +790,7 @@ function signupRefusal(c: Context, code: SignupErrorCode, status: typeof BAD_REQ
 }
 
 /** D259 — one point on the per-invite axis, keyed on the invite id the pre-check resolved; 429 when over. */
-async function throttleSignupInvite(limiter: RateLimiter, c: Context, inviteId: string, trustedProxies: readonly string[]): Promise<Response | null> {
+async function throttleSignupInvite(limiter: RateLimiter, c: Context, inviteId: string, edge: AuthEdge): Promise<Response | null> {
   try {
     await limiter.consume(inviteId);
     return null;
@@ -784,8 +798,9 @@ async function throttleSignupInvite(limiter: RateLimiter, c: Context, inviteId: 
     if (err instanceof DomainRateLimitError) {
       securityEvent(
         "signup_invite_throttled",
-        { inviteId, clientIp: clientIp(c, trustedProxies) },
+        { inviteId, clientIp: clientIp(c, edge.trustedProxies) },
         "security: signup attempts against ONE invite over the per-invite throttle — 429",
+        edge.logger,
       );
       return throttledResponse(c, err);
     }
@@ -825,18 +840,24 @@ function registerSignupRoute(app: Hono, deps: AuthRoutesDeps, signup: SignupRout
   const { trustedProxies } = deps;
   const addressLimiter = loginThrottler(deps);
   const inviteLimiter = createRateLimiter(deps.db, {
+    logger: deps.logger,
     scope: SIGNUP_INVITE_RATE_SCOPE,
     points: () => deps.resolveLoginLimit(),
     windowMs: LOGIN_WINDOW_MS,
     now: deps.now,
   });
   app.post(SIGNUP_ROUTE, csrfGuard, bodyLimit({ maxSize: SIGNUP_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
-    const request = await admitSignupRequest(c, signup, addressLimiter, trustedProxies);
+    const request = await admitSignupRequest(c, signup, addressLimiter, { trustedProxies, logger: deps.logger });
     if (request instanceof Response) {
       return request;
     }
     const handle = castId<Handle>(request.handle);
-    const refusal = await admitSignupAttempt(c, signup, { limiter: inviteLimiter, trustedProxies }, { token: request.token, handle });
+    const refusal = await admitSignupAttempt(
+      c,
+      signup,
+      { limiter: inviteLimiter, edge: { trustedProxies, logger: deps.logger } },
+      { token: request.token, handle },
+    );
     if (refusal !== null) {
       return refusal;
     }
@@ -868,11 +889,11 @@ function registerSignupPreviewRoute(
   app: Hono,
   signup: SignupRouteDeps,
   addressLimiter: RateLimiter,
-  deps: Pick<AuthRoutesDeps, "discreetLogin" | "trustedProxies">,
+  deps: Pick<AuthRoutesDeps, "discreetLogin" | "trustedProxies" | "logger">,
 ): void {
   const { discreetLogin, trustedProxies } = deps;
   app.post(SIGNUP_PREVIEW_ROUTE, csrfGuard, bodyLimit({ maxSize: SIGNUP_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
-    const refused = await admitSignedOutCaller(c, signup, addressLimiter, trustedProxies);
+    const refused = await admitSignedOutCaller(c, signup, addressLimiter, { trustedProxies, logger: deps.logger });
     if (refused !== null) {
       return refused;
     }
@@ -901,20 +922,15 @@ function signedOutPreview(preview: SignedOutInvitePreview, discreet: boolean): S
 
 /** D259, D260 — the steps every signed-out signup door runs before its body: the multi-human 404, the per-address
  *  bucket and the live-session refusal. Returns the refusal to send, or null. */
-async function admitSignedOutCaller(
-  c: Context,
-  signup: SignupRouteDeps,
-  addressLimiter: RateLimiter,
-  trustedProxies: readonly string[],
-): Promise<Response | null> {
+async function admitSignedOutCaller(c: Context, signup: SignupRouteDeps, addressLimiter: RateLimiter, edge: AuthEdge): Promise<Response | null> {
   if (!signup.multiHumanCapable()) {
     return c.body(null, NOT_FOUND);
   }
-  const throttled = await throttleLogin(addressLimiter, c, trustedProxies);
+  const throttled = await throttleLogin(addressLimiter, c, edge);
   if (throttled !== null) {
     return throttled;
   }
-  if (await carriesLiveSession(c, signup, trustedProxies)) {
+  if (await carriesLiveSession(c, signup, edge.trustedProxies)) {
     return signupRefusal(c, "already_signed_in", CONFLICT);
   }
   return null;
@@ -922,13 +938,8 @@ async function admitSignedOutCaller(
 
 /** D259 — the signup steps before any invite work: the signed-out steps, then the strict schema and the password
  *  floor. Returns the parsed request, or the refusal to send. */
-async function admitSignupRequest(
-  c: Context,
-  signup: SignupRouteDeps,
-  addressLimiter: RateLimiter,
-  trustedProxies: readonly string[],
-): Promise<Response | SignupRequest> {
-  const refused = await admitSignedOutCaller(c, signup, addressLimiter, trustedProxies);
+async function admitSignupRequest(c: Context, signup: SignupRouteDeps, addressLimiter: RateLimiter, edge: AuthEdge): Promise<Response | SignupRequest> {
+  const refused = await admitSignedOutCaller(c, signup, addressLimiter, edge);
   if (refused !== null) {
     return refused;
   }
@@ -948,14 +959,14 @@ async function admitSignupRequest(
 async function admitSignupAttempt(
   c: Context,
   signup: SignupRouteDeps,
-  invite: { readonly limiter: RateLimiter; readonly trustedProxies: readonly string[] },
+  invite: { readonly limiter: RateLimiter; readonly edge: AuthEdge },
   attempt: { readonly token: string; readonly handle: Handle },
 ): Promise<Response | null> {
   const inviteId = await signup.invites.admits(attempt.token);
   if (inviteId === null) {
     return signupRefusal(c, "invite_unavailable", NOT_FOUND);
   }
-  const inviteThrottled = await throttleSignupInvite(invite.limiter, c, inviteId, invite.trustedProxies);
+  const inviteThrottled = await throttleSignupInvite(invite.limiter, c, inviteId, invite.edge);
   if (inviteThrottled !== null) {
     return inviteThrottled;
   }
@@ -1088,7 +1099,7 @@ export function ownerClaimLoginUrl(allowlist: readonly string[], code: string): 
  * names the misconfiguration instead. The refusal names only configured values and the transport, never the request's
  * own Host.
  */
-function answerOffAllowlistLogin(c: Context, oidc: OidcRoutesDeps, transport: RequestTransport): Response {
+function answerOffAllowlistLogin(c: Context, oidc: OidcRoutesDeps, transport: RequestTransport, logger: Logger): Response {
   const callback = configuredCallback(oidc.redirectAllowlist);
   const configured = callback === undefined ? null : new URL(callback);
   const sameHost = configured !== null && requestHost(c.req.raw.headers)?.toLowerCase() === configured.host;
@@ -1103,6 +1114,7 @@ function answerOffAllowlistLogin(c: Context, oidc: OidcRoutesDeps, transport: Re
       sentTo: loginPage,
     },
     "security: OIDC login origin not in OIDC_REDIRECT_URIS allowlist — no transaction minted; sending the browser to the configured origin's login page, or refusing when it is already there",
+    logger,
   );
   if (loginPage !== null) {
     return c.redirect(loginPage, FOUND);
@@ -1126,7 +1138,7 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
     const transport = requestTransport(c, trustedProxies);
     const redirectUri = deriveRedirectUri(c.req.raw.headers, transport, oidc.redirectAllowlist);
     if (redirectUri === null) {
-      return answerOffAllowlistLogin(c, oidc, transport);
+      return answerOffAllowlistLogin(c, oidc, transport, deps.logger);
     }
     const config = await oidc.getConfig();
     const codeVerifier = randomPKCECodeVerifier();
@@ -1141,7 +1153,7 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
       createdAt: deps.now(),
       inviteTokenHash: inviteTokenHashOf(c, oidc),
     });
-    holdOwnerClaim(c, oidc, state, trustedProxies);
+    holdOwnerClaim(c, oidc, state, { trustedProxies, logger: deps.logger });
     writeSetCookies(c, [serializeOidcBindingCookie(state, transport)]);
     const url = buildAuthorizationUrl(config, {
       redirect_uri: redirectUri,
@@ -1179,7 +1191,7 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
     });
     if (provisioned.outcome === "denied") {
       // D259 — the JIT gate, and only the JIT gate, may turn into a pending join when a signup invite rode in.
-      const pending = provisioned.reason === "jit-closed" ? await offerPendingJoin(c, oidc, login, trustedProxies) : null;
+      const pending = provisioned.reason === "jit-closed" ? await offerPendingJoin(c, oidc, login, { trustedProxies, logger: deps.logger }) : null;
       // MS-W1 — a collision deny gets its own operator-actionable code; every other refusal is generic.
       return pending ?? loginErrorRedirect(c, oidcDenyErrorCode(provisioned.reason));
     }
@@ -1203,7 +1215,7 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
   // literals or `sanitizeOidcErrorCode` output), so this widens no leak surface over the prior 401/403 JSON.
   app.get(OIDC_CALLBACK_ROUTE, async (c) => {
     const incoming = new URL(c.req.url);
-    const tx = await consumeBoundTransaction(c, oidc.store, incoming.searchParams.get("state") ?? "", trustedProxies);
+    const tx = await consumeBoundTransaction(c, oidc.store, incoming.searchParams.get("state") ?? "", { trustedProxies, logger: deps.logger });
     if (tx === null) {
       return loginErrorRedirect(c, AUTH_ERROR_INVALID_STATE);
     }
@@ -1213,7 +1225,7 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
     const idpError = incoming.searchParams.get("error");
     if (idpError !== null) {
       const code = sanitizeOidcErrorCode(idpError);
-      securityEvent("oidc_callback_error", { error: code }, "security: OIDC callback carried an IdP error param — no token exchange, no session");
+      securityEvent("oidc_callback_error", { error: code }, "security: OIDC callback carried an IdP error param — no token exchange, no session", deps.logger);
       return loginErrorRedirect(c, code);
     }
     const config = await oidc.getConfig();
@@ -1227,11 +1239,15 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
         "oidc_token_exchange_failed",
         { error: exchange.code },
         "security: OIDC code→token exchange failed (replay/expiry/mismatch/transient) — no session minted",
+        deps.logger,
       );
       return loginErrorRedirect(c, exchange.code);
     }
     // #699 — the usable-identity gate refuses both no-username AND no-stable-subject logins (`oidcSessionIdentity`).
-    const identity = oidcSessionIdentity(exchange.claims, oidc.claims, oidc.groupsSeparator, oidc.rolePolicy.groupRoleGovernanceActive());
+    const identity = oidcSessionIdentity(exchange.claims, oidc.claims, oidc.groupsSeparator, {
+      governanceActive: oidc.rolePolicy.groupRoleGovernanceActive(),
+      logger: deps.logger,
+    });
     if (identity === null) {
       return loginErrorRedirect(c, AUTH_ERROR_NO_IDENTITY);
     }
@@ -1262,19 +1278,20 @@ function inviteTokenHashOf(c: Context, oidc: OidcRoutesDeps): string | null {
 
 /** Tie this login's `state` to the boot owner claim code when `?ownerClaim=` carries the live one. The presented
  *  value is never logged, matched or not. */
-function holdOwnerClaim(c: Context, oidc: OidcRoutesDeps, state: string, trustedProxies: readonly string[]): void {
+function holdOwnerClaim(c: Context, oidc: OidcRoutesDeps, state: string, edge: AuthEdge): void {
   const presented = new URL(c.req.url).searchParams.get(OWNER_CLAIM_PARAM);
   if (presented === null) {
     return;
   }
   if (oidc.ownerClaim.hold(state, presented)) {
-    getLog().info("auth: an OIDC login carries the owner claim code");
+    getLog(edge.logger).info("auth: an OIDC login carries the owner claim code");
     return;
   }
   securityEvent(
     "oidc_owner_claim_code_refused",
-    { clientIp: clientIp(c, trustedProxies) },
+    { clientIp: clientIp(c, edge.trustedProxies) },
     "security: an OIDC login presented an owner claim code that is not the live one; it proves nothing",
+    edge.logger,
   );
 }
 
@@ -1313,7 +1330,7 @@ async function offerPendingJoin(
   c: Context,
   oidc: OidcRoutesDeps,
   login: { readonly identity: ResolvedIdentity & { readonly externalId: ExternalId }; readonly tx: OidcTransaction; readonly idToken: string | null },
-  trustedProxies: readonly string[],
+  edge: AuthEdge,
 ): Promise<Response | null> {
   const { signup } = oidc;
   const inviteTokenHash = login.tx.inviteTokenHash;
@@ -1321,8 +1338,8 @@ async function offerPendingJoin(
     return null;
   }
   const secret = await signup.pending.recordPendingSignup({ identity: login.identity, inviteTokenHash, idToken: login.idToken });
-  writeSetCookies(c, [serializePendingJoinCookie(secret, requestTransport(c, trustedProxies))]);
-  getLog().info(
+  writeSetCookies(c, [serializePendingJoinCookie(secret, requestTransport(c, edge.trustedProxies))]);
+  getLog(edge.logger).info(
     { handle: login.identity.handle, externalId: login.identity.externalId },
     "auth: OIDC login held as a pending join (JIT closed, signup invite)",
   );
@@ -1348,13 +1365,13 @@ async function admitPendingConfirm(
   c: Context,
   signup: OidcSignupDeps,
   addressLimiter: RateLimiter,
-  trustedProxies: readonly string[],
+  edge: AuthEdge,
 ): Promise<Response | { readonly secret: string; readonly persona: PendingJoinConfirmRequest["persona"] }> {
-  const throttled = await throttleLogin(addressLimiter, c, trustedProxies);
+  const throttled = await throttleLogin(addressLimiter, c, edge);
   if (throttled !== null) {
     return throttled;
   }
-  const token = readSessionCookie(c.req.raw.headers, requestTransport(c, trustedProxies));
+  const token = readSessionCookie(c.req.raw.headers, requestTransport(c, edge.trustedProxies));
   if (token !== null && (await signup.sessionIsLive(token))) {
     return c.json({ error: "already_signed_in" satisfies PendingJoinErrorCode }, CONFLICT);
   }
@@ -1369,7 +1386,7 @@ async function admitPendingConfirm(
   if (!body.success) {
     return c.json({ error: "invalid_request" satisfies PendingJoinErrorCode }, BAD_REQUEST);
   }
-  const secret = pendingJoinSecret(c, trustedProxies);
+  const secret = pendingJoinSecret(c, edge.trustedProxies);
   return secret === null ? pendingJoinRefusal(c, "join_unavailable", NOT_FOUND) : { secret, persona: body.data.persona };
 }
 
@@ -1385,7 +1402,7 @@ function registerOidcPendingJoin(app: Hono, deps: AuthRoutesDeps, oidc: OidcRout
   const addressLimiter = loginThrottler(deps);
   const bodyCap = bodyLimit({ maxSize: SIGNUP_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) });
   app.post(OIDC_PENDING_PREVIEW_ROUTE, csrfGuard, bodyCap, async (c) => {
-    const throttled = await throttleLogin(addressLimiter, c, trustedProxies);
+    const throttled = await throttleLogin(addressLimiter, c, { trustedProxies, logger: deps.logger });
     if (throttled !== null) {
       return throttled;
     }
@@ -1398,7 +1415,7 @@ function registerOidcPendingJoin(app: Hono, deps: AuthRoutesDeps, oidc: OidcRout
     return c.json(signedOutPreview(preview, deps.discreetLogin()));
   });
   app.post(OIDC_PENDING_CONFIRM_ROUTE, csrfGuard, bodyCap, async (c) => {
-    const admitted = await admitPendingConfirm(c, signup, addressLimiter, trustedProxies);
+    const admitted = await admitPendingConfirm(c, signup, addressLimiter, { trustedProxies, logger: deps.logger });
     if (admitted instanceof Response) {
       return admitted;
     }
@@ -1462,6 +1479,7 @@ function registerBackchannelLogout(app: Hono, deps: AuthRoutesDeps, oidc: OidcRo
           "oidc_backchannel_sid_unsupported",
           { hasSid: subject.sid !== null },
           "security: OIDC back-channel logout — refused sid-only token because sessions have no issuer/sid binding",
+          deps.logger,
         );
         return c.json({ error: "unsupported_logout_token" }, BAD_REQUEST);
       }
@@ -1473,7 +1491,7 @@ function registerBackchannelLogout(app: Hono, deps: AuthRoutesDeps, oidc: OidcRo
       for (const userId of userIds) {
         deps.sockets.evictUser(userId);
       }
-      securityEvent("oidc_backchannel_logout", { revoked }, "security: OIDC back-channel logout — revoked all sessions for the subject");
+      securityEvent("oidc_backchannel_logout", { revoked }, "security: OIDC back-channel logout — revoked all sessions for the subject", deps.logger);
       return c.body(null, OK);
     },
   );
@@ -1564,7 +1582,7 @@ function identityFromClaims(
   claims: { readonly [claim: string]: unknown } | undefined,
   claimMap: OidcClaimMap,
   groupsSeparator: string | undefined,
-  governanceActive: boolean,
+  policy: { readonly governanceActive: boolean; readonly logger: Logger },
 ): ResolvedIdentity | null {
   if (claims === undefined) {
     return null;
@@ -1578,7 +1596,12 @@ function identityFromClaims(
   // D257: refused, never truncated — a cut IdP name could land on another member's handle, and the key's
   // normalization is quadratic in a long run of combining marks.
   if (!withinHandleLength(username)) {
-    securityEvent("oidc_username_too_long", { length: username.length }, "security: an OIDC login's username exceeds the handle cap (D257); no identity");
+    securityEvent(
+      "oidc_username_too_long",
+      { length: username.length },
+      "security: an OIDC login's username exceeds the handle cap (D257); no identity",
+      policy.logger,
+    );
     return null;
   }
   // Branded ONCE here, so the two observability calls below and the returned identity all speak about the
@@ -1591,6 +1614,7 @@ function identityFromClaims(
       "oidc_subject_claim_missing",
       { handle, uidClaim: claimMap.uidClaim },
       "security: an OIDC login carried no stable subject — OIDC_UID_CLAIM names a claim this IdP does not emit; the callback now REFUSES this login fail-closed (#699), so no session is minted and the bind-once takeover guard is never relied on, but every OIDC login stays locked out until this is fixed; point OIDC_UID_CLAIM at a claim the IdP emits (`sub` is required by OIDC Core)",
+      policy.logger,
     );
   }
   const rawGroups = readClaimPath(claims, claimMap.groupsClaim);
@@ -1600,7 +1624,7 @@ function identityFromClaims(
   // both to `[]`.
   const usableGroups = groupsClaimIsUsable(rawGroups);
   const groupsShape = groupsClaimShape(rawGroups);
-  getLog().info(
+  getLog(policy.logger).info(
     {
       event: "oidc_groups_claim",
       handle,
@@ -1611,11 +1635,12 @@ function identityFromClaims(
     },
     usableGroups ? "auth: OIDC groups claim arrived" : "auth: OIDC groups claim ABSENT — the IdP emitted no usable value at this claim path",
   );
-  if (!usableGroups && governanceActive) {
+  if (!usableGroups && policy.governanceActive) {
     securityEvent(
       "oidc_groups_claim_missing",
       { handle, groupsClaim: claimMap.groupsClaim, groupsClaimShape: groupsShape },
       "security: group governance is ACTIVE (OIDC_ADMIN_GROUPS/OIDC_ALLOWED_GROUPS) but this login carried NO usable groups claim — no group can grant admin (and a group-derived admin is demoted on this login), and OIDC_ALLOWED_GROUPS denies everyone; point OIDC_GROUPS_CLAIM at a claim the IdP emits (authentik: `groups` rides the `profile` scope — check the provider's property mapping)",
+      policy.logger,
     );
   }
   const rawEmail = readClaimPath(claims, claimMap.emailClaim);
@@ -1653,9 +1678,9 @@ function oidcSessionIdentity(
   claims: { readonly [claim: string]: unknown } | undefined,
   claimMap: OidcClaimMap,
   groupsSeparator: string | undefined,
-  governanceActive: boolean,
+  policy: { readonly governanceActive: boolean; readonly logger: Logger },
 ): (ResolvedIdentity & { readonly externalId: ExternalId }) | null {
-  const identity = identityFromClaims(claims, claimMap, groupsSeparator, governanceActive);
+  const identity = identityFromClaims(claims, claimMap, groupsSeparator, policy);
   if (identity === null || identity.externalId === null) {
     return null;
   }

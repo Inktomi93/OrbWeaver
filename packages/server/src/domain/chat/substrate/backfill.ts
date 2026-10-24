@@ -201,7 +201,7 @@ async function resolveDigestFunder(ctx: ChatContext, args: MemorySweepArgs): Pro
   if (await digestsDerivable(ctx, funderUserId)) {
     return funderUserId;
   }
-  getLog().warn({ funderUserId }, "memory backfill: no summarize connection is bound, so digests are skipped this pass (segments still embed)");
+  getLog(ctx.logger).warn({ funderUserId }, "memory backfill: no summarize connection is bound, so digests are skipped this pass (segments still embed)");
   return null;
 }
 
@@ -231,7 +231,7 @@ async function planAllBuckets(ctx: ChatContext, args: MemorySweepArgs, resolveMe
       // read as "no exception logged" because the stack block below the line was never scrolled to. `err`
       // still rides for the stack; these three are what a one-line read needs. Metadata only — an error
       // MESSAGE from a provider/db is a shape, never RP content (the logs-are-metadata doctrine holds).
-      getLog().error(
+      getLog(ctx.logger).error(
         { err, chatId, phase: "plan", errName: err instanceof Error ? err.name : typeof err, errMessage: err instanceof Error ? err.message : String(err) },
         "memory backfill: chat FAILED during plan and was skipped (unexpected error)",
       );
@@ -330,7 +330,7 @@ async function storeAllTier0(ctx: ChatContext, state: CommitState, perPlanTexts:
         throw err;
       }
       failed += 1;
-      getLog().error(
+      getLog(ctx.logger).error(
         { err, chatId: plan.scope.chatId, scopedCharacterId: plan.scope.scopedCharacterId },
         "memory backfill: bucket FAILED during tier-0 store (unexpected error)",
       );
@@ -373,7 +373,7 @@ async function collectTierAcrossBuckets(ctx: ChatContext, state: CommitState, ti
         throw err;
       }
       failed += 1;
-      getLog().error(
+      getLog(ctx.logger).error(
         { err, chatId: plan.scope.chatId, scopedCharacterId: plan.scope.scopedCharacterId, tier },
         "memory backfill: bucket FAILED during consolidation collect (unexpected error)",
       );
@@ -421,7 +421,7 @@ async function summarizeAndStoreTier(ctx: ChatContext, collected: readonly Colle
         throw err;
       }
       failed += 1;
-      getLog().error(
+      getLog(ctx.logger).error(
         { err, chatId: c.scope.chatId, scopedCharacterId: c.scope.scopedCharacterId, tier: c.cons.parentTier },
         "memory backfill: bucket FAILED during consolidation store (unexpected error)",
       );
@@ -580,7 +580,7 @@ async function storeAllSegments(
     // also cost the corpus its DIGEST half, which needs no embed of these blocks at all. Counted + logged
     // with the cause as scalars (#165), and the content-hash self-heal re-offers every unwritten chunk next
     // pass — a batch failure loses throughput, never content.
-    getLog().error(
+    getLog(ctx.logger).error(
       {
         err,
         phase: "segments",

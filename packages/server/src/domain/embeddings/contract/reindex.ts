@@ -3,7 +3,7 @@ import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { StartWorkloadOp } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
-import type { superviseDetached } from "#foundation/observability";
+import type { Logger, superviseDetached } from "#foundation/observability";
 import type { EmbeddingsService } from "./service.ts";
 
 export interface VacuousMemoryReceipt extends MemoryEmbedSpace {
@@ -11,6 +11,7 @@ export interface VacuousMemoryReceipt extends MemoryEmbedSpace {
 }
 
 export interface EmbeddingReindexDeps {
+  readonly logger: Logger;
   readonly supervise?: typeof superviseDetached | undefined;
   readonly now: () => number;
   readonly getEffectiveConfig: () => EffectiveAppConfig;

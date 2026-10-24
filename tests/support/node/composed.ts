@@ -79,3 +79,4 @@ export { configureOidc, createServerHarness } from "./server.ts";
 export { claimShareOwner, readRelayStarts, relayExecutable, relayProgram, SHARE_OWNER_PASSWORD } from "./share.ts";
 export { requireShowcaseBundle, requireShowcaseManifest } from "./showcase-bundle.ts";
 export { bootShowcase } from "./showcase-guest.ts";
+export { createTestLogger } from "./test-logger.ts";

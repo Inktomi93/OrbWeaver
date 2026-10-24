@@ -96,7 +96,7 @@ async function mintFork(
   if (admission === "ordinary") {
     await insertPreset(ctx.db, row);
   }
-  getLog().info({ userId: params.userId, presetId: forkId, intent }, "preset: copy-on-write fork of system default");
+  getLog(ctx.logger).info({ userId: params.userId, presetId: forkId, intent }, "preset: copy-on-write fork of system default");
   await ctx.audit(
     {
       actorUserId: params.userId,
@@ -154,7 +154,7 @@ async function cowFork(ctx: PresetContext, params: UpdatePresetParams, now: numb
       if (converged === undefined) {
         throw new PresetNotFoundError(target.id);
       }
-      getLog().info({ userId: params.userId, presetId: converged.id }, "preset: copy-on-write converged onto the existing fork");
+      getLog(ctx.logger).info({ userId: params.userId, presetId: converged.id }, "preset: copy-on-write converged onto the existing fork");
       await ctx.audit(
         {
           actorUserId: params.userId,

@@ -87,7 +87,7 @@ export async function resolveTurnNarrative(args: {
     return first;
   }
   const ask = resolveProseText("chat.recovery.narrativeContinuation", pipelineArgs.assembleContext.prose ?? {});
-  const log = getLog();
+  const log = getLog(pipelineArgs.logger);
   log.warn(
     {
       event: "chat.generation.recovering",

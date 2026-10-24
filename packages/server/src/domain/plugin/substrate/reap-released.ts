@@ -10,7 +10,7 @@ import type { PluginContext } from "../contract/service.ts";
  *  up after, so that error stays the one the caller sees. A skipped id stays until the scheduled assets-gc
  *  sweep can read every reference cleanly. */
 export async function reapReleasedAssets(
-  ctx: Pick<PluginContext, "assets">,
+  ctx: Pick<PluginContext, "assets" | "logger">,
   plugin: { readonly pluginId: PluginId } | { readonly slug: string },
   assetIds: readonly AssetId[],
   failure?: unknown,
@@ -18,7 +18,7 @@ export async function reapReleasedAssets(
   try {
     await ctx.assets.reapOrphans(assetIds);
   } catch (reapErr) {
-    getLog().warn(
+    getLog(ctx.logger).warn(
       { ...plugin, assetIds, reapError: errorMessage(reapErr), ...(failure === undefined ? {} : { verbError: errorMessage(failure) }) },
       "plugin: released assets were kept because their reap failed; the scheduled assets-gc sweep collects them once every reference reads cleanly",
     );

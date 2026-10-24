@@ -308,7 +308,7 @@ async function applyRunOnEditRegex(
     ctx: buildTurnMacroContext({ assembleCtx: assembleContext, model, chatId, random: deps.prng }),
     applyReplace: ctx.applyRegexReplace,
     onScriptFailure: (err, script) =>
-      getLog().warn({ err, placement, findRegex: script.findRegex }, "chat: host-tier regex script failed on an edit re-apply (D53 watchdog)"),
+      getLog(ctx.logger).warn({ err, placement, findRegex: script.findRegex }, "chat: host-tier regex script failed on an edit re-apply (D53 watchdog)"),
   });
 }
 

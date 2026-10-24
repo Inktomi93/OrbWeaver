@@ -94,7 +94,7 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
   const lifetime = new AsyncDisposableStack();
   // biome-ignore lint/nursery/useDisposables: the returned RPG graph owns writes shared by its service, tools and chat hooks.
   const handWrites = lifetime.use(createRpgHandWrites());
-  const observers = createRpgRoundObservers(deps.trace, deps.scheduleTimeout, deps.emitRpgEvent);
+  const observers = createRpgRoundObservers(deps.trace, deps.scheduleTimeout, deps.emitRpgEvent, deps.logger);
   // Rounds can reconcile through handWrites while settling; close their owner first.
   lifetime.use(observers.flushBarrier);
   const ctx: RpgContext = {

@@ -23,7 +23,7 @@ import { getLog } from "#foundation/observability";
 import type { DistributedPluginApplier, DistributedPluginApplierDeps } from "../contract/distributed-seed.ts";
 
 export function createDistributedPluginApplier(deps: DistributedPluginApplierDeps): DistributedPluginApplier {
-  const log = getLog();
+  const log = getLog(deps.logger);
   // Populated only on success — a transient failure retries on the next touch. ASSUMES(single-replica).
   const settled = new Set<UserId>();
   const inFlight = new Map<UserId, Promise<void>>();

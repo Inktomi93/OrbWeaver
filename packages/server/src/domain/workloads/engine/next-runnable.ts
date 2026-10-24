@@ -9,6 +9,7 @@ import { scanRunnableWorkloads } from "../persistence/queries.ts";
 export function createNextRunnableWorkload(deps: NextRunnableWorkloadDeps): NextRunnableWorkload {
   return async (now, lane) =>
     await scanRunnableWorkloads({
+      logger: deps.logger,
       db: deps.db,
       contributions: deps.contributions,
       now,

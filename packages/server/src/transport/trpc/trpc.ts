@@ -118,7 +118,7 @@ const tracingMiddleware = t.middleware(({ path, type, next }) =>
 // GATED ON THE CODE, not on `mapped === null`: an UNAUTHORIZED/FORBIDDEN/NOT_FOUND thrown by the gates above
 // is also un-mappable here (it is already a TRPCError, not a DomainError), and those are expected refusals
 // with their own `securityEvent` line — logging them at error would bury the real faults in 401 noise.
-const domainErrorMiddleware = t.middleware(async ({ path, type, next }) => {
+const domainErrorMiddleware = t.middleware(async ({ ctx, path, type, next }) => {
   const result = await next();
   if (!result.ok) {
     const mapped = classifyDomainError(result.error);
@@ -135,12 +135,12 @@ const domainErrorMiddleware = t.middleware(async ({ path, type, next }) => {
       // policies — keep them in step.
       const provider = providerFaultOf(mapped);
       if (provider !== null) {
-        getLog().warn({ ...provider.toLog(), event: "trpc.provider", path, type }, `trpc: provider failure on ${path} (${provider.kind})`);
+        getLog(ctx.logger).warn({ ...provider.toLog(), event: "trpc.provider", path, type }, `trpc: provider failure on ${path} (${provider.kind})`);
       }
       throw mapped;
     }
     if (result.error.code === "INTERNAL_SERVER_ERROR") {
-      getLog().error(
+      getLog(ctx.logger).error(
         { err: result.error.cause ?? result.error, event: "trpc.unhandled", path, type },
         `trpc: unmapped error on ${path} — surfaced to the caller as a 500`,
       );
@@ -156,7 +156,7 @@ const rateLimitMiddleware = t.middleware(async ({ ctx, path, type, next }) => {
     await ctx.rateLimit.enforce({ path, type, principal: ctx.auth, clientIp: ctx.clientIp });
   } catch (err) {
     if (err instanceof DomainRateLimitError) {
-      securityEvent("rate_limit", { path }, "security: request throttled");
+      securityEvent("rate_limit", { path }, "security: request throttled", ctx.logger);
     }
     throw err;
   }
@@ -186,11 +186,11 @@ export const publicProcedure = t.procedure.use(tracingMiddleware).use(domainErro
 // `AUTH_FALLBACK=owner` box.
 const authMiddleware = t.middleware(({ ctx, type, path, next }) => {
   if (ctx.auth === null) {
-    securityEvent("auth_required", { path }, "security: unauthenticated request rejected");
+    securityEvent("auth_required", { path }, "security: unauthenticated request rejected", ctx.logger);
     throw new TRPCError({ code: "UNAUTHORIZED", message: "Authentication required." });
   }
   if (type === "mutation" && ctx.auth.via === "cookie" && !ctx.csrfHeaderPresent) {
-    securityEvent("csrf_rejected", { path, handle: ctx.auth.handle }, "security: cookie mutation missing CSRF header");
+    securityEvent("csrf_rejected", { path, handle: ctx.auth.handle }, "security: cookie mutation missing CSRF header", ctx.logger);
     throw new TRPCError({ code: "FORBIDDEN", message: "Missing CSRF header." });
   }
   return next({ ctx: { auth: ctx.auth } });
@@ -203,7 +203,7 @@ export const authedProcedure = publicProcedure.use(authMiddleware);
 // the auth gate so even an anonymous probe sees the same shape tRPC gives an unmounted procedure.
 const multiHumanMiddleware = t.middleware(({ ctx, path, next }) => {
   if (!ctx.multiHumanCapable) {
-    securityEvent("multi_human_unavailable", { path }, "security: multi-human surface refused (deployment not multi-human capable)");
+    securityEvent("multi_human_unavailable", { path }, "security: multi-human surface refused (deployment not multi-human capable)", ctx.logger);
     throw new TRPCError({ code: "NOT_FOUND", message: `No procedure found on path "${path}"` });
   }
   return next();
@@ -215,13 +215,13 @@ export const multiHumanProcedure = publicProcedure.use(multiHumanMiddleware).use
 // Principal.role; no db round-trip. A deny is audited then surfaced as 403.
 const adminMiddleware = t.middleware(({ ctx, path, next }) => {
   if (ctx.auth === null) {
-    securityEvent("auth_required", { path }, "security: unauthenticated request rejected");
+    securityEvent("auth_required", { path }, "security: unauthenticated request rejected", ctx.logger);
     throw new TRPCError({ code: "UNAUTHORIZED", message: "Authentication required." });
   }
   try {
     requireAdmin(ctx.auth);
   } catch (denial) {
-    securityEvent("admin_required", { path, handle: ctx.auth.handle, role: ctx.auth.role }, "security: non-admin attempted admin endpoint");
+    securityEvent("admin_required", { path, handle: ctx.auth.handle, role: ctx.auth.role }, "security: non-admin attempted admin endpoint", ctx.logger);
     throw denial;
   }
   return next({ ctx: { auth: ctx.auth } });

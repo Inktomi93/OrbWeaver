@@ -28,3 +28,22 @@ test("an AppSettings.logLevel raise reaches the log ring at runtime and a loweri
   expect(logged("lowered")).toEqual([]);
   expect(logged("lowered-warn")).toHaveLength(1);
 });
+
+test("an AppSettings.logLevel override moves the root's own logger, the one its graph writes through", async ({ ids }) => {
+  await using root = await createServerHarness({ logLevel: BOOT_LOG_LEVEL });
+  const principal = await root.principalFor(root.ownerId);
+  const probe = `runtime-root-log-level:${ids.uuid()}`;
+  const logged = (phase: string): readonly string[] =>
+    processObservability.logLines(LOG_SCAN_LIMIT).filter((line) => line.includes(`"probe":"${probe}:${phase}"`));
+
+  root.logger.info({ probe: `${probe}:boot` }, "runtime root log level probe");
+  expect(logged("boot")).toEqual([]);
+
+  await root.services.settings.updateAppSettings({ principal, partial: { logLevel: "info" } });
+  root.logger.info({ probe: `${probe}:raised` }, "runtime root log level probe");
+  expect(logged("raised")).toHaveLength(1);
+
+  await root.services.settings.updateAppSettings({ principal, partial: { logLevel: "warn" } });
+  root.logger.info({ probe: `${probe}:lowered` }, "runtime root log level probe");
+  expect(logged("lowered")).toEqual([]);
+});

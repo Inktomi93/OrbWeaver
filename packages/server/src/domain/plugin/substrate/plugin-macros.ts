@@ -32,7 +32,7 @@ import type { ChatId, UserId } from "@orb/kit/ids";
 import type { UserMacroDef } from "@orb/kit/macro";
 import { neutralizeMacros } from "@orb/kit/macro";
 import type { ScheduleOp } from "@orb/kit/time";
-
+import type { Logger } from "#foundation/observability";
 import type { PluginInvokeHandler, PluginMacroRegistry, PluginRegistrationHandle } from "../contract/ops.ts";
 import { logPluginFailure } from "./failure-log.ts";
 
@@ -98,7 +98,7 @@ function pluginMacroLegacyName(slug: string, guestName: string): string | null {
  *  rejected invoke, or the deadline — because every one of them means the same thing to a render: this macro
  *  has no value this turn. The caller turns `null` into an empty body rather than dropping the macro, so a
  *  reference to it still renders (as "") instead of re-emitting raw `{{…}}` bytes into the prompt. */
-async function resolveOne(macro: RegisteredMacro, chat: InvocationChat | null, deadline: Promise<null>): Promise<string | null> {
+async function resolveOne(macro: RegisteredMacro, chat: InvocationChat | null, deadline: Promise<null>, logger: Logger): Promise<string | null> {
   // Aborted on the deadline so the orphaned invocation's later rejection counts a crash without a second log line.
   const orphan = new AbortController();
   // a throw or rejected invoke was already logged by the resident `invoke`, and a deadline is logged below; the caller renders `null` as an empty body. Ends if a guest failure stops being logged at those two sites.
@@ -106,7 +106,7 @@ async function resolveOne(macro: RegisteredMacro, chat: InvocationChat | null, d
     const answer = await Promise.race([macro.resolve(chat, orphan.signal), deadline]);
     if (answer === null) {
       orphan.abort(DEADLINE_ABORT_REASON);
-      logPluginFailure(macro.slug, "macro-deadline", `macro '${macro.name}' exceeded its resolve deadline`);
+      logPluginFailure(macro.slug, "macro-deadline", `macro '${macro.name}' exceeded its resolve deadline`, logger);
     }
     return answer;
   } catch {
@@ -117,7 +117,11 @@ async function resolveOne(macro: RegisteredMacro, chat: InvocationChat | null, d
 /** Build the process-wide plugin-macro registry on the root's scoped `scheduleTimeout`. `deadlineMs` is a getter
  *  (read per resolution) and injectable so a deadline test runs fast + deterministic — the
  *  `createPromptTransformRegistry` seam, same reason. */
-export function createPluginMacroRegistry(scheduleTimeout: ScheduleOp, deadlineMs: () => number = () => PLUGIN_MACRO_RESOLVE_DEADLINE_MS): PluginMacroRegistry {
+export function createPluginMacroRegistry(
+  logger: Logger,
+  scheduleTimeout: ScheduleOp,
+  deadlineMs: () => number = () => PLUGIN_MACRO_RESOLVE_DEADLINE_MS,
+): PluginMacroRegistry {
   /** installer → slug → that plugin's registered macros. Two levels because the READ is per-installer and the
    *  WRITE/UNREGISTER is per-plugin; one flat map would make either the linear scan. */
   const byInstaller = new Map<UserId, Map<string, readonly RegisteredMacro[]>>();
@@ -185,7 +189,7 @@ export function createPluginMacroRegistry(scheduleTimeout: ScheduleOp, deadlineM
       cancelTimer = scheduleTimeout(() => resolve(null), deadlineMs());
     });
     try {
-      const values = await Promise.all(macros.map((macro) => resolveOne(macro, chat, deadline)));
+      const values = await Promise.all(macros.map((macro) => resolveOne(macro, chat, deadline, logger)));
       const defs = macros.map((macro, index) => toDef(macro.name, macro, values[index] ?? null));
       return [...defs, ...legacyAliases(macros, values)];
     } finally {

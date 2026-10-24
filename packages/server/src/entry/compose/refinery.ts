@@ -16,12 +16,13 @@ import type { RefineryContext, RefineryService, RefineryWorkloadDeps, ResolveStr
 import { createPlanSchema, createRefineryService, isScoreSweepReady } from "#domain/refinery";
 import type { SettingsService } from "#domain/settings";
 import { createResolveUserProse } from "#domain/settings";
+import type { Logger } from "#foundation/observability";
 import type { LiveBuses } from "#transport/trpc";
-
 import { minter } from "./minter.ts";
 
 /** Graph inputs; the refinery owns draft planning and settings owns the prose projection. */
 export interface RefineryComposeDeps {
+  readonly logger: Logger;
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
 
   readonly idSource: IdSource;
@@ -45,6 +46,7 @@ export function buildRefinery(deps: RefineryComposeDeps): RefineryCompose {
 
   const stampRefinerySignals = createStampRefinerySignals({ db: deps.db });
   const refinery = createRefineryService({
+    logger: deps.logger,
     db: deps.db,
     now: deps.now,
     newRefinerySessionId: minter(ID_PREFIX.refinerySession, deps.idSource),
@@ -66,6 +68,7 @@ export function buildRefinery(deps: RefineryComposeDeps): RefineryCompose {
   return {
     refinery,
     refineryWorkloads: {
+      logger: deps.logger,
       roleClientsFor: deps.roleClientsFor,
       resolveUtilityPresetParams: deps.resolveUtilityPresetParams,
       resolveUserProse,

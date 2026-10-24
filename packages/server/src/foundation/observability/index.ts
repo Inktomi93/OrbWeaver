@@ -38,7 +38,7 @@ export {
   securityEvent,
 } from "./logger.ts";
 export { type MemoryLogRecord, recordMemoryLog } from "./memory-log.ts";
-export { observability, observabilityErrorHandler } from "./middleware.ts";
+export { createRequestObservability } from "./middleware.ts";
 export { traceStructuredRetry } from "./structured-retry.ts";
 export {
   addSpanEvent,

@@ -35,15 +35,15 @@ import {
   createRegexService,
   createResolveRegexSources,
 } from "#domain/regex";
-import type { AuditEntry } from "#foundation/observability";
+import type { AuditEntry, Logger } from "#foundation/observability";
 import type { LiveBuses } from "#transport/trpc";
-
 import { minter } from "./minter.ts";
 import { createDeleteReachCapture, createEmitRoomRegexChanged, createFanRegexScriptRooms } from "./room-reach.ts";
 import { createVisibleRoomsReader } from "./visible-rooms.ts";
 
 /** What the regex seam needs from the composition root. */
 export interface RegexComposeDeps {
+  readonly logger: Logger;
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
 
   readonly idSource: IdSource;
@@ -92,10 +92,10 @@ export function buildRegex(deps: RegexComposeDeps): RegexComposeResult {
     emitUserEvent: deps.emitUserEvent,
     // Regex owns room-junction reach; chat owns the live fan policy, bound together by the graph seam.
     emitRoomRegexChanged: createEmitRoomRegexChanged(deps.emitChatEventLive),
-    fanRegexScriptRooms: createFanRegexScriptRooms(db, deps.emitChatEventLive),
+    fanRegexScriptRooms: createFanRegexScriptRooms(db, deps.emitChatEventLive, deps.logger),
     // #1746 — the DELETE arm of the same reach: `chat_regex_scripts` CASCADEs with the library row, so the
     // two remove verbs snapshot through this BEFORE their delete and fan the confirmed set after.
-    captureRoomReachForDelete: createDeleteReachCapture(db, deps.emitChatEventLive).regex,
+    captureRoomReachForDelete: createDeleteReachCapture(db, deps.emitChatEventLive, deps.logger).regex,
   });
 
   const portabilityCtx = { db, now, newScriptId };

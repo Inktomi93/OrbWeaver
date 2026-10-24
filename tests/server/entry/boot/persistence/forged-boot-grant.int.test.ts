@@ -38,7 +38,7 @@ const VERBS: readonly { readonly name: string; readonly run: (grant: BootDatabas
   { name: "readInstalledPluginSlugs", run: (grant) => readInstalledPluginSlugs(grant) },
   { name: "backfillPluginProvenance", run: (grant) => backfillPluginProvenance(grant) },
   { name: "healLegacyBackgroundPins", run: (grant) => healLegacyBackgroundPins(grant) },
-  { name: "ensureSeedThemes", run: (grant, root) => ensureSeedThemes(grant, root.clock.now) },
+  { name: "ensureSeedThemes", run: (grant, root) => ensureSeedThemes(grant, root.clock.now, root.logger) },
   { name: "migrateProseSlotVocab", run: (grant) => migrateProseSlotVocab(grant) },
   { name: "reconcileOwnersMissingTimeline", run: (grant, root) => reconcileOwnersMissingTimeline(grant, root.clock.now, root.idSource) },
   {
@@ -46,6 +46,7 @@ const VERBS: readonly { readonly name: string; readonly run: (grant: BootDatabas
     run: (grant, root) =>
       reclaimInFlightOnBoot({
         db: grant,
+        logger: root.logger,
         contributions: root.app.workloadContributions,
         now: root.clock.now(),
         emitEvent: root.app.workloadEvents.emitWorkloadEvent,

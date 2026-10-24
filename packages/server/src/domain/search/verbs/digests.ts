@@ -18,6 +18,7 @@ import type { Task } from "@orb/contracts/inference";
 import type { EmbedResult } from "@orb/contracts/providers";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import { ProviderError } from "@orb/inference";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors.ts";
 import type { DigestsParams } from "../contract/params.ts";
@@ -72,14 +73,17 @@ const RERANK_ROLE: Task = "rerank";
  *  classification + provenance field forward, so `kind`/`retryable`/`apiErrorStatus` still read true
  *  downstream. A non-provider failure (a db fault, a bug of ours) is NOT ours to re-frame and passes through
  *  untouched. */
-async function embedQuery(rc: Pick<RoleClients, "embed">, text: string): Promise<EmbedResult> {
+async function embedQuery(rc: Pick<RoleClients, "embed">, text: string, logger: Logger): Promise<EmbedResult> {
   try {
     return await rc.embed(text, { inputType: "query", instruction: SCOPE_INSTRUCTIONS.digests.query });
   } catch (err) {
     if (!(err instanceof ProviderError)) {
       throw err;
     }
-    getLog().warn({ ...err.toLog(), role: EMBED_ROLE }, "search: the embed role's provider call failed — digest recall cannot run without a query vector");
+    getLog(logger).warn(
+      { ...err.toLog(), role: EMBED_ROLE },
+      "search: the embed role's provider call failed — digest recall cannot run without a query vector",
+    );
     throw err.rewrap(`the ${EMBED_ROLE} role's provider rejected this call (${err.kind}) — memory recall could not embed the query: ${err.message}`);
   }
 }
@@ -87,6 +91,7 @@ async function embedQuery(rc: Pick<RoleClients, "embed">, text: string): Promise
 /** mixC's local honest-degrade boundary. `applyRerank` itself stays strict for its other callers; only this
  * digest-recall path has a usable already-retrieved vector result to preserve. */
 async function rerankOrKeep<T extends { readonly id: string; readonly sourceText: string | null }>(env: {
+  readonly logger: Logger;
   readonly rc: RoleClients;
   readonly params: Pick<DigestsParams, "mode" | "rerankTo">;
   readonly text: string;
@@ -101,13 +106,13 @@ async function rerankOrKeep<T extends { readonly id: string; readonly sourceText
     return await applyRerank(`${SCOPE_INSTRUCTIONS.digests.rerank}\n${text}`, retrieved, rc.rerank, params.rerankTo);
   } catch (rerankErr) {
     // #405 F2: the CAUSE is logged before the degrade, matching both sibling degrade seams
-    // (`compaction_failed` / `memory_build_failed` in chat's engine, which `getLog().warn({ err })` first).
+    // (`compaction_failed` / `memory_build_failed` in chat's engine, which `getLog(env.logger).warn({ err })` first).
     // `onRerankUnavailable()` carries no payload — it is a client-facing "you got mixB" bit — so without this
     // line an operator diagnosing a rerank outage had ZERO server-side signal: the fallback is honest to the
     // user and invisible to the person who has to fix it.
     // #1603 — the ROLE rides the line too, for the same reason the embed arm above names it: two different
     // side roles fail into this one verb, each with its own credential and its own provider.
-    getLog().warn({ err: rerankErr, role: RERANK_ROLE }, "search: digest rerank unavailable — keeping the vector order (mixC → mixB)");
+    getLog(env.logger).warn({ err: rerankErr, role: RERANK_ROLE }, "search: digest rerank unavailable — keeping the vector order (mixC → mixB)");
     events?.onRerankUnavailable();
     return retrieved;
   }
@@ -125,7 +130,7 @@ export function createDigests(ctx: SearchContext): SearchService["digests"] {
 
     const rc = await ctx.roleClientsFor(params.ownerId);
     return await withActiveQuerySpace(ctx, params.ownerId, "embed", async (space) => {
-      const embedded = await embedQuery(space.connection, text);
+      const embedded = await embedQuery(space.connection, text, ctx.logger);
       const queryVector = embedded.vectors[0];
       if (queryVector === null || queryVector === undefined) {
         throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
@@ -175,7 +180,7 @@ export function createDigests(ctx: SearchContext): SearchService["digests"] {
       // shape the corpus digest scan uses — #330 P3).
       // Retrieval already completed successfully. A failed rerank keeps that exact vector/CSLS order intact
       // and lets the caller surface the narrower outage through its own user-facing channel.
-      const ordered = await rerankOrKeep({ rc, params, text, retrieved, events });
+      const ordered = await rerankOrKeep({ logger: ctx.logger, rc, params, text, retrieved, events });
 
       // `relevance` is the same `1 − distance` this verb's own minScore floor already compares against — one
       // definition of "how close is this", never a second.

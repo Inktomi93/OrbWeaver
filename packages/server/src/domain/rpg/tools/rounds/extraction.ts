@@ -4,7 +4,6 @@
 import { constrainExtractionSchema, rpgExtractionSchema, salvageExtraction } from "@orb/contracts/rpg";
 import { GenerationObservationPersistenceError } from "@orb/inference";
 import { projectJsonSchema } from "@orb/kit/json-schema";
-import { logger } from "#foundation/observability";
 import type { ExtractCtx, PromptInputs, RpgRoundsDeps } from "#src/domain/rpg/contract/rounds.ts";
 import type { RpgRunExtraction } from "#src/domain/rpg/contract/service.ts";
 import { buildActorRefIndex, extractionToStateDelta } from "../apply.ts";
@@ -30,7 +29,7 @@ export function buildRunExtraction(deps: RpgRoundsDeps): RpgRunExtraction {
     // CANCELLED BEFORE THE CALL — spend nothing, read nothing, return the empty delta (the same shape a failed
     // extraction returns; a cancelled round is byte-identical to a non-writing turn).
     if (isCancelled(signal)) {
-      logCancelled({ chatId, model: conn.model, api: conn.api, vehicle: "structured extraction", preflight: true });
+      logCancelled({ logger: deps.logger, chatId, model: conn.model, api: conn.api, vehicle: "structured extraction", preflight: true });
       return empty;
     }
     // R1 — the mis-target fix: constrain the response schema's ref fields to the ACTUAL per-call refs (the
@@ -69,10 +68,10 @@ export function buildRunExtraction(deps: RpgRoundsDeps): RpgRunExtraction {
       // thrown value differs per backend, and misfiling a user's Stop as `rpg.extraction.failed` would put a
       // normal cancellation in the same warn stream we use to diagnose broken extractions.
       if (isCancelled(signal)) {
-        logCancelled({ chatId, model: conn.model, api: conn.api, vehicle: "structured extraction", preflight: false });
+        logCancelled({ logger: deps.logger, chatId, model: conn.model, api: conn.api, vehicle: "structured extraction", preflight: false });
         return empty;
       }
-      logger.warn({ event: "rpg.extraction.failed", chatId, model: conn.model, api: conn.api, err }, "rpg structured extraction failed");
+      deps.logger.warn({ event: "rpg.extraction.failed", chatId, model: conn.model, api: conn.api, err }, "rpg structured extraction failed");
       // The tool round's twin (#1468 item 2) — and NOT an optional half of it: `runToolRound` DEGRADES to this
       // vehicle on every connection with no forced tool round, so a failure arm that stayed silent here would leave that whole class
       // of connection with the defect the tool round just lost.
@@ -91,12 +90,20 @@ export function buildRunExtraction(deps: RpgRoundsDeps): RpgRunExtraction {
       // surfaced). The set is TOTAL: failed (throw) / unparseable (this) / stripped (below) / healed
       // (logExtractionOutcome) / empty / phantom (logExtractionOutcome) / dropped (flush). A `root` drop means
       // NOTHING was salvageable.
-      logger.warn(
+      deps.logger.warn(
         { event: "rpg.extraction.unparseable", chatId, model: conn.model, api: conn.api, dropped },
         "rpg structured extraction: plane(s)/entry(ies) did not conform — DROPPED (the rest of the delta still applies)",
       );
     }
-    logStrippedKeys({ chatId, model: conn.model, api: conn.api, vehicle: "structured extraction", event: "rpg.extraction.stripped", stripped });
+    logStrippedKeys({
+      logger: deps.logger,
+      chatId,
+      model: conn.model,
+      api: conn.api,
+      vehicle: "structured extraction",
+      event: "rpg.extraction.stripped",
+      stripped,
+    });
     // The participant index resolves an extracted party/inventory target NAME to its participant ref (F2 — the same
     // first-class resolution the cheap-mode tools use; a structured write on a party member must render too).
     const participantIndex = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
@@ -105,6 +112,7 @@ export function buildRunExtraction(deps: RpgRoundsDeps): RpgRunExtraction {
     // no-ops) is a SIGNAL (mis-target or an empty beat), not a silent nothing. Log it with the ref context so
     // a dark panel is diagnosable from the provider trail.
     logExtractionOutcome({
+      logger: deps.logger,
       chatId,
       model: conn.model,
       api: conn.api,

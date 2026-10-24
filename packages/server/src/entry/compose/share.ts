@@ -12,7 +12,7 @@ import { CLOUDFLARED_PIN, createOwnedRelayLauncher } from "#infra/relay";
 export async function createShareGraph(options: ShareGraphOptions): Promise<ShareGraph> {
   await using owners = new AsyncDisposableStack();
   const network = owners.use(
-    createScopedEgress({ ...options.networkExecution, timers: options.timers, buildConnector: options.buildConnector, env: options.env }),
+    createScopedEgress({ ...options.networkExecution, timers: options.timers, buildConnector: options.buildConnector, env: options.env, log: options.logger }),
   );
   const hosts = createRelayHostRegistry();
   const pin = options.relaySeams?.pin ?? options.relay?.pin ?? CLOUDFLARED_PIN;
@@ -33,6 +33,7 @@ export async function createShareGraph(options: ShareGraphOptions): Promise<Shar
   const origin = (): string => loopbackOrigin(options.bind.host, options.appPort());
   const certificate = owners.use(
     createCertificateController({
+      logger: options.logger,
       issuer,
       store: createCertificateStore(options.secretsDir),
       startHttps: (https) => startTlsTerminator({ ...https, host: options.bind.host, upstream: origin }),
@@ -41,7 +42,15 @@ export async function createShareGraph(options: ShareGraphOptions): Promise<Shar
       schedule: options.timers.timeoutUnref,
     }),
   );
-  const relay = createRelayController({ relay: "quick", launcher, hosts: hosts.writer, origin, now: options.now, schedule: options.timers.timeoutUnref });
+  const relay = createRelayController({
+    logger: options.logger,
+    relay: "quick",
+    launcher,
+    hosts: hosts.writer,
+    origin,
+    now: options.now,
+    schedule: options.timers.timeoutUnref,
+  });
   owners.defer(() => {
     using cancellation = new DisposableStack();
     cancellation.defer(network.cancel);

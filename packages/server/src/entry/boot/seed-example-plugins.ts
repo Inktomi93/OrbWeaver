@@ -3,11 +3,13 @@
 import { SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
 import type { ExamplePluginSeeder, ExamplePluginSeederDeps as ShowcaseSeedDeps } from "#domain/plugin";
 import { createExamplePluginSeeder as createShowcaseSeedPolicy } from "#domain/plugin";
+import type { Logger } from "#foundation/observability";
 
 export type { ExamplePluginSeeder } from "#domain/plugin";
 
 /** The original graph port; shipped slugs are bound here rather than imported by a domain. */
 export interface ExamplePluginSeederDeps {
+  readonly logger: Logger;
   readonly packBundle: ShowcaseSeedDeps["packBundle"];
   readonly bundledVersion: ShowcaseSeedDeps["bundledVersion"];
   readonly install: ShowcaseSeedDeps["install"];
@@ -22,6 +24,7 @@ export interface ExamplePluginSeederDeps {
 
 export function createExamplePluginSeeder(deps: ExamplePluginSeederDeps): ExamplePluginSeeder {
   return createShowcaseSeedPolicy({
+    logger: deps.logger,
     slugs: SHOWCASE_PLUGIN_SLUGS,
     packBundle: (slug) => deps.packBundle(slug),
     bundledVersion: (slug) => deps.bundledVersion(slug),

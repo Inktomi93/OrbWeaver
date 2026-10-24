@@ -12,6 +12,7 @@ import { DomainConflictError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { MS_PER_DAY, MS_PER_HOUR } from "@orb/kit/time";
 import type { WorkloadService } from "#domain/workloads";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import type { BackgroundWork } from "#infra/tasks";
 
@@ -36,6 +37,7 @@ const REFRESH_INPUT: StartWorkloadInput = { kind: "refresh-model-catalog", param
 type ScheduleOp = (fn: () => void, ms: number) => () => void;
 
 export interface CatalogRefreshSchedulerDeps {
+  readonly logger: Logger;
   readonly track?: BackgroundWork["track"];
   readonly service: WorkloadService;
   /** Workload rows are enqueued with this owner (provenance; null = a pure system trigger). */
@@ -52,7 +54,7 @@ export interface CatalogRefreshSchedulerDeps {
 //  holds the slot or the newest terminal row is still within its cadence; swallows the single-active
 //  DomainConflictError (someone beat us — the goal).
 async function runCatalogCheck(deps: CatalogRefreshSchedulerDeps): Promise<void> {
-  const log = getLog().child({ component: LOG_COMPONENT });
+  const log = getLog(deps.logger).child({ component: LOG_COMPONENT });
 
   const rows = await deps.service.list({ caller: null, kind: "refresh-model-catalog", limit: 1 });
   const latest = rows[0];
@@ -88,7 +90,7 @@ async function runCatalogCheck(deps: CatalogRefreshSchedulerDeps): Promise<void>
 /** Start the scheduler: one immediate boot check + the recurring decision tick on the injected timer.
  *  Returns the clear closure so entry's lifecycle layer can tear the timer down on shutdown. */
 export function startCatalogRefreshScheduler(deps: CatalogRefreshSchedulerDeps): () => void {
-  const log = getLog().child({ component: LOG_COMPONENT });
+  const log = getLog(deps.logger).child({ component: LOG_COMPONENT });
   const checkMs = deps.checkIntervalMs ?? DEFAULT_CHECK_INTERVAL_MS;
 
   const safeCheck = (): void => {

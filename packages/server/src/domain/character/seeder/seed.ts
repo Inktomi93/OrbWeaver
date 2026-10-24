@@ -55,7 +55,7 @@ interface CardOutcome {
 }
 
 export function createDefaultCharacterSeeder(deps: DefaultCharacterSeederDeps): DefaultCharacterSeeder {
-  const log = getLog();
+  const log = getLog(deps.logger);
 
   async function createCardInput(principal: Principal, card: SeedCard): Promise<SeedCard["input"]> {
     if (deps.storeAvatar === undefined) {

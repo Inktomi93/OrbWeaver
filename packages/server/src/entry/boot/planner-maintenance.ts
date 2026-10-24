@@ -1,10 +1,16 @@
 // A daily planner refresh never overlaps itself; shutdown joins the running refresh before closing DB.
+
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 
 const PLANNER_REFRESH_INTERVAL_MS = 86_400_000;
 
 /** The caller has completed boot refresh; this owns only the recurring task and its settlement. */
-export function startPlannerMaintenance(refresh: () => Promise<void>, scheduleInterval: (run: () => void, ms: number) => () => void): () => Promise<void> {
+export function startPlannerMaintenance(
+  refresh: () => Promise<void>,
+  scheduleInterval: (run: () => void, ms: number) => () => void,
+  logger: Logger,
+): () => Promise<void> {
   let stopped = false;
   let running: Promise<void> | null = null;
   const cancel = scheduleInterval(() => {
@@ -12,7 +18,7 @@ export function startPlannerMaintenance(refresh: () => Promise<void>, scheduleIn
       return;
     }
     running = refresh()
-      .catch((err: unknown) => getLog().error({ err }, "planner maintenance failed; next daily tick retries"))
+      .catch((err: unknown) => getLog(logger).error({ err }, "planner maintenance failed; next daily tick retries"))
       .finally(() => {
         running = null;
       });

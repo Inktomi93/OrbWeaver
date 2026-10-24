@@ -15,9 +15,11 @@
 import type { BootDatabaseHandle } from "@orb/db/wiring";
 import type { BackfillPluginProvenanceResult } from "#domain/character";
 import { backfillPluginProvenance } from "#domain/character";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 
 export interface BackfillPluginProvenanceOnBootDeps {
+  readonly logger: Logger;
   readonly db: BootDatabaseHandle;
 }
 
@@ -27,7 +29,7 @@ export interface BackfillPluginProvenanceOnBootDeps {
 export async function backfillPluginProvenanceOnBoot(deps: BackfillPluginProvenanceOnBootDeps): Promise<BackfillPluginProvenanceResult> {
   const result = await backfillPluginProvenance(deps.db);
   if (result.backfilled > 0 || result.leftAuthored > 0) {
-    getLog().info(result, "boot/backfill-plugin-provenance: reconciled pre-#1702 plugin-ingested character provenance");
+    getLog(deps.logger).info(result, "boot/backfill-plugin-provenance: reconciled pre-#1702 plugin-ingested character provenance");
   }
   return result;
 }

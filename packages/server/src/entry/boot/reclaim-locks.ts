@@ -14,9 +14,11 @@ import type { BootDatabaseHandle } from "@orb/db/wiring";
 import { reclaimChatLocksOnBoot } from "#domain/chat";
 import type { WorkloadContributions, WorkloadProgressBus } from "#domain/workloads";
 import { reclaimInFlightOnBoot } from "#domain/workloads";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 
 export interface ReclaimLocksDeps {
+  readonly logger: Logger;
   readonly emitWorkloadEvent: WorkloadProgressBus["emitWorkloadEvent"];
   readonly db: BootDatabaseHandle;
   /** The contribution registry the row read path validates params against (poison tolerance), and the
@@ -32,13 +34,14 @@ export interface ReclaimLocksDeps {
  *  in the log line, because "N reclaimed" is what made a lost multi-hour backfill read as boot noise. */
 export async function reclaimLocksOnBoot(deps: ReclaimLocksDeps): Promise<number> {
   const workloads = await reclaimInFlightOnBoot({
+    logger: deps.logger,
     db: deps.db,
     contributions: deps.contributions,
     now: deps.now(),
     emitEvent: deps.emitWorkloadEvent,
   });
   const chatLocks = await reclaimChatLocksOnBoot(deps.db, deps.holder);
-  getLog().info(
+  getLog(deps.logger).info(
     { requeued: workloads.requeued, reaped: workloads.reaped, chatLocks },
     "boot/reclaim-locks: re-queued resumable in-flight workloads, reaped the rest, reclaimed chat turn-locks",
   );

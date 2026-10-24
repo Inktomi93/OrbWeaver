@@ -6,6 +6,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { RoutableTask } from "@orb/contracts/inference";
 import type { InferenceRuntime, LocalLightModelSlot, LocalLightPrefetchTarget } from "@orb/inference";
 import { LOCAL_LIGHT_MODEL_SLOTS, NoConnectionError } from "@orb/inference";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 
 const LOCAL_LIGHT_PROVIDER_ID = "local-light";
@@ -21,6 +22,7 @@ const TASK_SLOTS: readonly { readonly slot: LocalLightModelSlot; readonly tasks:
 ];
 
 export interface LocalLightPrefetchPlanDeps {
+  readonly logger: Logger;
   /** The runtime's resolve — the SAME fold a search uses, so the plan cannot disagree with the first request. */
   readonly resolve: InferenceRuntime["resolve"];
   /** The principals whose bindings the plan reads (the box owner at boot; empty ⇒ no plan). */
@@ -44,7 +46,7 @@ async function localLightModelFor(deps: LocalLightPrefetchPlanDeps, principal: P
     // DELIBERATE fail-closed. The owner of a resolver failure is the REQUEST that hits it — this is a speculative pre-warm asking a question it is allowed not to get an answer to, and the only consequence of `null` here is that the box keeps the lazy path it had before this file existed. `no-connection` is the ordinary answer; anything else is surfaced as a structured log naming the task + reason. Ends if the prefetch ever becomes required for correctness rather than latency.
   } catch (err) {
     if (!(err instanceof NoConnectionError)) {
-      getLog().debug(
+      getLog(deps.logger).debug(
         { task, userId: principal.userId, err: err instanceof Error ? err.message : String(err) },
         "local-light prefetch: task did not resolve; not prefetching it",
       );

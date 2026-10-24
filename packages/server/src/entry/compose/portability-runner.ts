@@ -32,6 +32,7 @@ import { createStatsBatchWiring, reconcileStats } from "#domain/stats";
 import type { TagContext, TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
 import type { AttachOwnedBooksByName, ImportStandaloneLorebook, ImportWorldInfoPort, WorldInfoExportContext } from "#domain/world-info";
+import type { Logger } from "#foundation/observability";
 import { extractZip, stageDirectory, writeImportReportFile } from "#infra/storage";
 import type { LiveBuses } from "#transport/trpc";
 import { createNodeFsImportPort, importStagedArchive, runBundleImport, runProfileDirImport } from "../import/index.ts";
@@ -41,6 +42,7 @@ const DEFAULT_ST_PROFILE_DIR = ".st-data";
 
 /** What the portability+import seam needs from the composition root. */
 export interface PortabilityRunnerComposeDeps {
+  readonly logger: Logger;
   readonly quiet: LiveBuses["quiet"]["withQuietBulkFanout"];
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
   readonly publishChatChanged: LiveBuses["user"]["publishChatChanged"];
@@ -150,6 +152,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
   const stagingRoot = deps.importStagingDir ?? DEFAULT_IMPORT_STAGING_DIR;
   const fs = createNodeFsImportPort();
   const importWorkloads: ImportWorkloadDeps = {
+    logger: deps.logger,
     stagingRoot,
     stProfileDir: deps.stProfileDir ?? DEFAULT_ST_PROFILE_DIR,
     listTokenUsageCandidates: createListImportedTokenUsageCandidates(db),

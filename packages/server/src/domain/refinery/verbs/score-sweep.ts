@@ -43,6 +43,7 @@ import { ProviderError, runStructuredTurn } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { RefineryScoreTarget } from "#domain/character";
+import type { Logger } from "#foundation/observability";
 import { getLog, traceStructuredRetry } from "#foundation/observability";
 import type { ScoreSweepEstimateOptions, ScoreSweepOptions } from "../contract/params.ts";
 import type { StageEstimateSubject } from "../contract/prompts.ts";
@@ -151,7 +152,7 @@ async function runScoreSweep(deps: RefineryWorkloadDeps, opts: ScoreSweepOptions
   signal?.throwIfAborted();
   report({ message: `scoring ${items.length} card${items.length === 1 ? "" : "s"}`, current: 0, total: items.length });
   // One batched call fills the role's parallel-slot pipeline; `items[i]` pairs 1:1 with `result.items[i]`.
-  const replies = await fetchBatchReplies(rc, items, sampleOpts);
+  const replies = await fetchBatchReplies(rc, items, sampleOpts, deps.logger);
 
   // The fan's audience is accumulated as the waves land and announced in a `finally`, so a CANCELLED sweep
   // still tells the owners whose cards it already stamped (an abort mid-pass would otherwise leave the
@@ -207,7 +208,7 @@ function readyTargetsOf(targets: readonly RefineryScoreTarget[]): { target: Refi
  *  and the bounded, per-card-contained retry path below re-fetches each of those one at a time
  *  (`SWEEP_RETRY_CONCURRENCY`-bounded) — the poison card fails alone (counted `failed`), the rest score.
  *  This is the same isolation the memory backfill's `summarizeBatchIsolated` gives its digest batch. */
-async function fetchBatchReplies(rc: RoleClients, items: readonly SweepItem[], sampleOpts: StructuredOptions): Promise<{ text: string }[]> {
+async function fetchBatchReplies(rc: RoleClients, items: readonly SweepItem[], sampleOpts: StructuredOptions, logger: Logger): Promise<{ text: string }[]> {
   const replies: { text: string }[] = [];
   for (let i = 0; i < items.length; i += SWEEP_SUBMISSION_SIZE) {
     const chunk = items.slice(i, i + SWEEP_SUBMISSION_SIZE);
@@ -218,7 +219,7 @@ async function fetchBatchReplies(rc: RoleClients, items: readonly SweepItem[], s
       );
       replies.push(...res.items.map((item) => ({ text: item.text })));
     } catch (err) {
-      getLog().warn(
+      getLog(logger).warn(
         { err, cards: chunk.length },
         "refinery score sweep: batch fetch rejected — degrading to per-card retry (one card's infra error must not fail the whole sweep)",
       );

@@ -1182,7 +1182,7 @@ function previewPromptHistoryEnv(ctx: ChatContext, assembleContext: AssembleCont
     macroCtx: buildTurnMacroContext({ assembleCtx: assembleContext, model: inputs.model, chatId: inputs.chatId, random: PREVIEW_RANDOM }),
     applyReplace: ctx.applyRegexReplace,
     onScriptFailure: (err, script) =>
-      getLog().warn(
+      getLog(ctx.logger).warn(
         { err, placement: "PROMPT_HISTORY", findRegex: script.findRegex },
         "chat: prompt-history regex script failed in a preview build (D53 watchdog)",
       ),

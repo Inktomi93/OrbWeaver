@@ -15,6 +15,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { BackgroundLibraryEntry } from "@orb/contracts/settings";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { UserId } from "@orb/kit/ids";
+import type { Logger } from "#foundation/observability";
 
 export type { SeededPlateAsset } from "@orb/contracts/assets";
 
@@ -27,6 +28,7 @@ export interface SeedBackgroundPlateRef {
 }
 
 export interface DefaultBackgroundSeederDeps {
+  readonly logger: Logger;
   /** The shipped pack, in the order the library entries are appended. */
   readonly plates: readonly SeedBackgroundPlateRef[];
   /** Lift ONE plate's shipped bytes into an owned `background` asset (CAS-deduped). `null` ⇒ the pack ships

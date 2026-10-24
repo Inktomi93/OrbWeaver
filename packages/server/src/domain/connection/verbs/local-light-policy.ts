@@ -14,7 +14,7 @@ async function seedOneUser(deps: LocalLightSeedPolicyDeps, userId: UserId): Prom
     return seeded.inserted;
   } catch (err) {
     // The connection pane repairs a missing convenience floor; an account and the server must survive it.
-    getLog().warn({ err, userId }, "seed-local-light: the local-light seed failed for a user — the pane offers a repair");
+    getLog(deps.logger).warn({ err, userId }, "seed-local-light: the local-light seed failed for a user — the pane offers a repair");
     return 0;
   }
 }
@@ -32,7 +32,7 @@ export async function seedLocalLightAccounts(deps: LocalLightBootPolicyDeps): Pr
     inserted += await seedOneUser(deps, owner);
   }
   if (inserted > 0) {
-    getLog().info({ inserted, owners: owners.length }, "boot/seed-local-light: seeded local-light connections");
+    getLog(deps.logger).info({ inserted, owners: owners.length }, "boot/seed-local-light: seeded local-light connections");
   }
   return inserted;
 }

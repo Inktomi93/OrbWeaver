@@ -11,6 +11,7 @@ import { COMPRESSIBLE_CONTENT_TYPE_REGEX, compress } from "hono/compress";
 import { etag } from "hono/etag";
 import { parseAccept } from "hono/utils/accept";
 import { getMimeType } from "hono/utils/mime";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 
 // Only vite's content-hashed output lives under /assets/ — cacheable forever. Everything name-stable
@@ -112,14 +113,14 @@ export function isApiPath(path: string): boolean {
 
 /** Resolve the bundle dir to serve, or `null` to skip SPA registration (vite is the dev front door).
  *  @throws in prod when the bundle is missing — an API-only origin posing as the app is a boot lie. */
-export function resolveSpaDistDir(opts: { readonly distDir: string; readonly prod: boolean }): string | null {
+export function resolveSpaDistDir(opts: { readonly distDir: string; readonly prod: boolean; readonly logger: Logger }): string | null {
   if (existsSync(join(opts.distDir, "index.html"))) {
     return opts.distDir;
   }
   if (opts.prod) {
     throw new Error(`spa: no client bundle at ${opts.distDir}/index.html — run \`vite build\` or point CLIENT_DIST_DIR at the bundle`);
   }
-  getLog().info({ distDir: opts.distDir }, "spa: no client bundle — static serving skipped (vite serves the SPA in dev)");
+  getLog(opts.logger).info({ distDir: opts.distDir }, "spa: no client bundle — static serving skipped (vite serves the SPA in dev)");
   return null;
 }
 

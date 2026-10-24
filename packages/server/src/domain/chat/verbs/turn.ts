@@ -37,6 +37,7 @@ import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { foreignLabelStops } from "@orb/kit/speaker-label";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import type { Logger } from "#foundation/observability";
 import { getLog, withRequestSpan } from "#foundation/observability";
 import type { ActiveTurnHandle, ActiveTurns } from "../contract/active-turns.ts";
 import type { ArbiterCandidate, AutoModeResult, SmartArbitrationResult, SpeakerCandidate, TranscriptLine } from "../contract/arbitration.ts";
@@ -550,6 +551,7 @@ async function loadTurnUserMacroInputs(
 }
 
 function buildTurnUserMacrosForTurn(args: {
+  readonly logger: Logger;
   readonly chatId: ChatId;
   readonly foreign: ForeignInputs;
   readonly prng: () => number;
@@ -570,7 +572,7 @@ function buildTurnUserMacrosForTurn(args: {
     prng: args.prng,
   });
   if (userMacros !== null && userMacros.rejected.length > 0) {
-    getLog().warn({ chatId: args.chatId, rejected: userMacros.rejected }, "chat: user macro(s) rejected at turn build");
+    getLog(args.logger).warn({ chatId: args.chatId, rejected: userMacros.rejected }, "chat: user macro(s) rejected at turn build");
   }
   return userMacros;
 }
@@ -764,6 +766,7 @@ async function buildTurnContext(
   // (`chats.user_macro_values`); read ONLY when macros are authored (no wasted read on a non-user-macro turn).
   const userMacroInputs = await loadTurnUserMacroInputs(ctx, args.chatId, args.runAsUserId, foreign.promptConfig.userMacros);
   const userMacros = buildTurnUserMacrosForTurn({
+    logger: ctx.logger,
     chatId: args.chatId,
     foreign,
     prng: deps.prng,
@@ -2470,7 +2473,7 @@ function createImpersonateStream(ctx: ChatContext, deps: TurnDeps): ChatService[
         // throw is gone. The run is cancelled above and its settlement is logged rather than dropped silently.
         // Ends if a cancelled draft gains a surface (a bus warning) that could carry the fault instead.
         void run.catch((err: unknown) => {
-          getLog().debug({ chatId, err }, "chat: impersonate draft cancelled by its consumer");
+          getLog(ctx.logger).debug({ chatId, err }, "chat: impersonate draft cancelled by its consumer");
         });
       }
     }
@@ -2775,7 +2778,7 @@ async function drainOne(
       // `isDrainVerdictDrop` admits exactly one class, so the reason is not a dispatch: the notification's
       // `consent` arm survives in the contract for the belt's own sake, but nothing raises it here.
       await notifyDeferredTurnDropped(ctx, claimed, "chat-gone");
-      getLog().info(
+      getLog(ctx.logger).info(
         { pendingTurnId: claimed.id, chatId: claimed.chatId, reason: "chat-gone", dropped: true },
         "chat: deferred turn DROPPED at drain (permanent verdict)",
       );
@@ -2792,7 +2795,10 @@ async function drainOne(
       timeZone: claimed.timeZone,
       createdAt: claimed.createdAt,
     });
-    getLog().warn({ pendingTurnId: claimed.id, chatId: claimed.chatId, err, requeued: true }, "chat: deferred turn RE-QUEUED at drain (transient fault)");
+    getLog(ctx.logger).warn(
+      { pendingTurnId: claimed.id, chatId: claimed.chatId, err, requeued: true },
+      "chat: deferred turn RE-QUEUED at drain (transient fault)",
+    );
     return "requeued";
   }
 }
@@ -2814,7 +2820,10 @@ async function notifyDeferredTurnDropped(
       reason,
     })
     .catch((err: unknown) =>
-      getLog().warn({ chatId: row.chatId, triggeredBy: row.triggeredBy, reason, err }, "chat: deferred-turn-dropped notification emit failed (best-effort)"),
+      getLog(ctx.logger).warn(
+        { chatId: row.chatId, triggeredBy: row.triggeredBy, reason, err },
+        "chat: deferred-turn-dropped notification emit failed (best-effort)",
+      ),
     );
 }
 

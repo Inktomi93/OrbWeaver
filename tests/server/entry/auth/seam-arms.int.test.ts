@@ -90,6 +90,7 @@ test("D135: the fallback Principal and the frozen-host Principal AGREE about the
   expect(request.globalRole).toBe("owner");
   // The wire projection drops externalId and via, so the Principals themselves are compared too.
   const seam = createAuthSeam({
+    logger: root.logger,
     emitUserEvent: root.app.liveBuses.user.publishUserEvent,
     sessions: root.app.sessions,
     config: authConfigFromEnv(root.env),
@@ -218,7 +219,13 @@ test("the seam hands its relay registry to the header path: an SSO header on a r
     forwardUserHeader: FORWARD_USER_HEADER,
     forwardTrustedProxies: ["127.0.0.1/32"],
   };
-  const seam = createAuthSeam({ emitUserEvent: root.app.liveBuses.user.publishUserEvent, sessions: root.app.sessions, config, relayHosts: () => [RELAY_HOST] });
+  const seam = createAuthSeam({
+    logger: root.logger,
+    emitUserEvent: root.app.liveBuses.user.publishUserEvent,
+    sessions: root.app.sessions,
+    config,
+    relayHosts: () => [RELAY_HOST],
+  });
   const loopback = { peerIp: LOOPBACK, transport: "http" as const };
   const direct = await seam.resolvePrincipal(new Headers({ host: "localhost", [FORWARD_USER_HEADER]: "relay-control" }), loopback);
   expect(direct.principal?.handle).toBe("relay-control");
@@ -251,6 +258,7 @@ test("debugGateAdmits requires a CREDENTIAL as well as the OWNER role", async ()
   await using root = await single();
   // Production binds the posture from the launch env; a seam bound without it is the strict arm.
   const strict = createAuthSeam({
+    logger: root.logger,
     emitUserEvent: root.app.liveBuses.user.publishUserEvent,
     sessions: root.app.sessions,
     config: { ...authConfigFromEnv(root.env), mode: "single-user", fallback: "owner" },

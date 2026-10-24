@@ -6,7 +6,7 @@ import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import type { IsAdmin, IsOwner, RequireOwner } from "#domain/admin";
-import type { AuditEntry } from "#foundation/observability";
+import type { AuditEntry, Logger } from "#foundation/observability";
 import type { WorkloadContributions } from "./contribution.ts";
 import type {
   CancelWorkloadParams,
@@ -58,6 +58,7 @@ export type WorkloadServiceDeps = WorkloadServiceContext;
  * `<= 0` disables the timers (deterministic test seam — a test drives cancel via `AbortSignal` instead).
  */
 export interface WorkloadRunnerDeps {
+  readonly logger: Logger;
   readonly emitEvent: WorkloadServiceContext["emitEvent"];
   readonly db: Db;
   /** The per-kind contribution registry the engine dispatches through (built at compose from the owning
@@ -117,6 +118,7 @@ export interface BootReclaimReport {
 
 /** The boot reclaim's args; `contributions` supplies each kind's declared `resume` policy. */
 export interface BootReclaimArgs {
+  readonly logger: Logger;
   readonly db: Db;
   readonly contributions: WorkloadContributions;
   readonly now: number;
@@ -134,7 +136,7 @@ export interface WorkloadService extends WorkloadScheduleService {
   readonly list: (params: ListWorkloadsParams) => Promise<readonly WorkloadRowAnyKind[]>;
 }
 
-export type NextRunnableWorkloadDeps = Pick<WorkloadRunnerDeps, "db" | "contributions"> & Pick<WorkloadServiceContext, "emitEvent">;
+export type NextRunnableWorkloadDeps = Pick<WorkloadRunnerDeps, "db" | "contributions" | "logger"> & Pick<WorkloadServiceContext, "emitEvent">;
 export type NextRunnableWorkload = (now: number, lane: WorkloadLane) => Promise<WorkloadRunnableRow | null>;
 
 export type WorkloadRunnerAssemblyDeps = DbAssemblyInput<WorkloadRunnerDeps>;

@@ -46,7 +46,7 @@ export function createImport(input: DbAssemblyInput<PresetContext>): ImportPrese
     const key = presetContentKey(config);
     const same = owned.find((row) => presetContentKey(row.config) === key);
     if (same !== undefined) {
-      getLog().info({ userId: ownerId, presetId: same.id }, "preset: import reused an equal preset");
+      getLog(input.logger).info({ userId: ownerId, presetId: same.id }, "preset: import reused an equal preset");
       return { ok: true, created: false, presetId: same.id, name: same.name, renamedFrom: null };
     }
 
@@ -79,7 +79,7 @@ export function createImport(input: DbAssemblyInput<PresetContext>): ImportPrese
       at,
     );
     ctx.emitUserEvent(ownerId, { type: "presetsChanged", presetId });
-    getLog().info({ userId: ownerId, presetId }, "preset: imported (created)");
+    getLog(input.logger).info({ userId: ownerId, presetId }, "preset: imported (created)");
     return { ok: true, created: true, presetId, name, renamedFrom: name === parsed.name ? null : parsed.name };
   };
 }

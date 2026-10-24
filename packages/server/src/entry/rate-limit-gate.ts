@@ -22,6 +22,7 @@
 
 import type { ResolvedRateLimits } from "@orb/contracts/settings";
 import type { DatabaseHandle } from "@orb/db/wiring";
+import type { Logger } from "#foundation/observability";
 import { createRateLimiter } from "../transport/rate-limit.ts";
 import type { RateLimitDecision, RateLimitGate } from "../transport/trpc/index.ts";
 
@@ -67,6 +68,7 @@ function isAiTurnPath(path: string): path is AiTurnPath {
 }
 
 export interface RateLimitGateDeps {
+  readonly logger: Logger;
   readonly db: DatabaseHandle;
   readonly now: () => number;
   /** The RESOLVED rate-limit caps (env floor ⊕ admin override), read FRESH per request — a mid-session
@@ -80,24 +82,27 @@ export interface RateLimitGateDeps {
  *  a $/GPU turn verb additionally debits the stricter per-user ai-turn bucket. */
 export function createRateLimitGate(deps: RateLimitGateDeps): RateLimitGate {
   const publicIp = createRateLimiter(deps.db, {
+    logger: deps.logger,
     scope: PUBLIC_IP_SCOPE,
     points: () => deps.resolveRateLimits().publicIp,
     windowMs: deps.windowMs,
     now: deps.now,
   });
   const authedGeneral = createRateLimiter(deps.db, {
+    logger: deps.logger,
     scope: AUTHED_GENERAL_SCOPE,
     points: () => deps.resolveRateLimits().authed,
     windowMs: deps.windowMs,
     now: deps.now,
   });
   const aiTurn = createRateLimiter(deps.db, {
+    logger: deps.logger,
     scope: AI_TURN_SCOPE,
     points: () => deps.resolveRateLimits().aiTurn,
     windowMs: deps.windowMs,
     now: deps.now,
   });
-  const restart = createRateLimiter(deps.db, { scope: RESTART_SCOPE, points: RESTART_POINTS, windowMs: RESTART_WINDOW_MS, now: deps.now });
+  const restart = createRateLimiter(deps.db, { logger: deps.logger, scope: RESTART_SCOPE, points: RESTART_POINTS, windowMs: RESTART_WINDOW_MS, now: deps.now });
 
   return {
     enforce: async (decision: RateLimitDecision): Promise<void> => {

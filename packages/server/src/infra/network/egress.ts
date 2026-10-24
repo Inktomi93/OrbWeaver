@@ -7,7 +7,7 @@ import type { Env } from "#foundation/env/record";
 import { parseTrustedPrivateRanges } from "#foundation/env/record";
 import type { Logger } from "#src/foundation/observability/contract/logging.ts";
 import { getLog, securityEvent } from "#src/foundation/observability/logger.ts";
-import { superviseSettled } from "#src/foundation/observability/tracing.ts";
+import { createDetachedSupervision, superviseSettled } from "#src/foundation/observability/tracing.ts";
 
 import type {
   EgressBlockReason,
@@ -67,7 +67,8 @@ const DEFAULT_DEADLINE_MS = 15_000;
 
 function superviseEgressCleanup(context: EgressContext, reason: string, operation: () => Promise<unknown>): void {
   context.cleanupSequence += 1;
-  const completion = superviseSettled(`egress-cleanup:${String(context.cleanupSequence)}`, "egress.cleanup", { reason }, async () => {
+  const settled = context.log === undefined ? superviseSettled : createDetachedSupervision(context.log).superviseSettled;
+  const completion = settled(`egress-cleanup:${String(context.cleanupSequence)}`, "egress.cleanup", { reason }, async () => {
     try {
       return await operation();
     } catch (error) {

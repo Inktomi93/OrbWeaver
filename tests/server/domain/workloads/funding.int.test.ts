@@ -26,7 +26,7 @@ test("a bulk schedule persists its owner's funding through the trusted tick and 
   await root.settleBackground();
   const schedule = await root.services.workloads.createSchedule({ caller: owner, ownerId: owner.userId, mode: "bulk", cadence: "daily", input: DISTILL });
   root.clock.advance(CADENCE_INTERVAL_MS.daily);
-  const tick = { db: databaseHandle(root.db), now: root.clock.now, start: root.services.workloads.start };
+  const tick = { db: databaseHandle(root.db), logger: root.logger, now: root.clock.now, start: root.services.workloads.start };
   await tickWorkloadSchedules(tick);
   const due = await root.services.workloads.list({ caller: owner, kind: "distill-characters" });
   expect(due).toHaveLength(1);

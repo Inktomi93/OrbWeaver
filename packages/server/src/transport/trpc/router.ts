@@ -48,8 +48,8 @@ export const appRouter = t.router({
   // The client error boundary's fire-and-forget report. publicProcedure (anonymous-allowed): a render
   // throw can happen before auth resolves, or because auth is broken. Always returns { ok: true } — the
   // sink is best-effort and never throws.
-  clientError: publicProcedure.input(clientErrorReportSchema).mutation(({ input }) => {
-    recordClientError(input);
+  clientError: publicProcedure.input(clientErrorReportSchema).mutation(({ ctx, input }) => {
+    recordClientError(input, ctx.logger);
     return { ok: true } as const;
   }),
 

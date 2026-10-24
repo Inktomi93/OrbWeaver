@@ -20,11 +20,10 @@ import type { SearchService } from "#domain/search";
 import type { SettingsService } from "#domain/settings";
 import { createGetDatabankSettings } from "#domain/settings";
 import type { WorkloadService } from "#domain/workloads";
-import type { AuditEntry } from "#foundation/observability";
+import type { AuditEntry, Logger } from "#foundation/observability";
 import { EXTRACTOR_VERSION } from "#infra/extraction";
 import type { ScopedEgress } from "#infra/network";
 import type { LiveBuses } from "#transport/trpc";
-
 import { minter } from "./minter.ts";
 import {
   createDeleteReachCapture,
@@ -38,6 +37,7 @@ import { createVisibleRoomsReader } from "./visible-rooms.ts";
 /** What the databank seam needs from the composition root: infra handles + the already-built sibling service
  *  front doors databank's injected ops route through. */
 export interface DatabankComposeDeps {
+  readonly logger: Logger;
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
 
   readonly fetchWebDocument: ScopedEgress["fetchWebDocument"];
@@ -76,6 +76,7 @@ export interface DatabankComposeResult {
 export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult {
   const { db, now, audit, embeddings, extractText, search, workloads, loadUserSettings } = deps;
   const databankCtx: DatabankContext = {
+    logger: deps.logger,
     db,
     can,
     now,
@@ -88,10 +89,10 @@ export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult 
     // Databank owns document-junction reach; chat owns seat reach and the room fan/capture policy.
     // This seam only assembles their typed operations over the live transport surface.
     emitRoomDatabankChanged: createEmitRoomDatabankChanged(deps.emitChatEventLive),
-    fanDatabankRoomsForDocument: createFanDatabankDocumentRooms(db, deps.emitChatEventLive),
-    fanDatabankRoomsForCharacter: createFanDatabankCharacterRooms(db, deps.emitChatEventLive),
-    fanDatabankRoomsForMember: createFanDatabankMemberRooms(db, deps.emitChatEventLive),
-    captureRoomReachForDelete: createDeleteReachCapture(db, deps.emitChatEventLive).databank,
+    fanDatabankRoomsForDocument: createFanDatabankDocumentRooms(db, deps.emitChatEventLive, deps.logger),
+    fanDatabankRoomsForCharacter: createFanDatabankCharacterRooms(db, deps.emitChatEventLive, deps.logger),
+    fanDatabankRoomsForMember: createFanDatabankMemberRooms(db, deps.emitChatEventLive, deps.logger),
+    captureRoomReachForDelete: createDeleteReachCapture(db, deps.emitChatEventLive, deps.logger).databank,
     assetsStore: deps.assetsStore,
     loadAssetBytes: deps.loadAssetBytes,
     embeddingsStore: embeddings.store,

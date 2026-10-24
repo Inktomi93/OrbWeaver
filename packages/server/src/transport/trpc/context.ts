@@ -32,7 +32,7 @@ import type { StatsService } from "#domain/stats";
 import type { TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
 import type { WorldInfoService } from "#domain/world-info";
-import type { BugReportDiagnosticsRead } from "#foundation/observability";
+import type { BugReportDiagnosticsRead, Logger } from "#foundation/observability";
 import type { LiveBuses } from "./contract/live-buses.ts";
 import type { PresenceRegistry } from "./presence-registry.ts";
 import type { SocketRegistry } from "./stream/socket-registry.ts";
@@ -97,6 +97,8 @@ export interface RateLimitGate {
 // Context stays fully typed on the server; declaration emit excludes its server-only closure.
 export interface Context {
   /** @internal */
+  readonly logger: Logger;
+  /** @internal */
   readonly liveBuses: LiveBuses;
   /** @internal */
   readonly auth: Principal | null;
@@ -160,8 +162,10 @@ export function createContext(parts: {
   readonly csrfHeaderPresent: boolean;
   readonly clientIp: string | null;
   readonly bugReportDiagnostics: BugReportDiagnosticsRead;
+  readonly logger: Logger;
 }): Context {
   return {
+    logger: parts.logger,
     liveBuses: parts.liveBuses,
     auth: parts.auth,
     sessionId: parts.sessionId,

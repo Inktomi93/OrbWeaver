@@ -15,6 +15,7 @@ import type { WireReady } from "@orb/kit/json-schema";
 import type { CharacterService } from "#domain/character";
 import type { BeginGenerationObservation, ChatService, ResolveCanonWindow, ResolveRpgParticipants } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
+import type { Logger } from "#foundation/observability";
 import type { OwnedRpgFlushBarrier, RpgContext } from "./service.ts";
 import type { RpgTraceSink } from "./trace.ts";
 
@@ -37,6 +38,7 @@ export interface RpgRoundsChatOps {
 }
 
 export interface RpgRoundsDeps {
+  readonly logger: Logger;
   readonly idSource: IdSource;
   readonly db: Db;
   /** R-OBS — the rpg flight-recorder sink, present only when tracing is enabled. Absent is the default: every emit

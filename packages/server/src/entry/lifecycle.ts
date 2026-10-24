@@ -37,7 +37,8 @@ import {
   resolveDiagnosticsPosture,
   resolveOwnerFallbackPeers,
 } from "#foundation/env";
-import { getLog, initTracing, superviseDetached, wrapLibSqlClient } from "#foundation/observability";
+import type { Logger } from "#foundation/observability";
+import { createDetachedSupervision, initTracing, wrapLibSqlClient } from "#foundation/observability";
 import { SERVER_INSTANCE_ID } from "#foundation/server-instance";
 import { versionIdentity } from "#foundation/version";
 import { createOwnerClaimCode, createPasswordHasher, oidcRedirectAllowlist } from "#infra/auth";
@@ -111,7 +112,7 @@ function listenApp(options: Parameters<typeof serveHttpServer>[0]): Promise<{ re
 }
 
 /** The log line for the boot start of a stored IP certificate choice; the controller logs what the order does next. */
-function logCertificateBootOutcome(log: ReturnType<typeof getLog>, outcome: CertificateBootOutcome): void {
+function logCertificateBootOutcome(log: Logger, outcome: CertificateBootOutcome): void {
   switch (outcome.kind) {
     case "not_configured":
       return;
@@ -132,7 +133,7 @@ function logCertificateBootOutcome(log: ReturnType<typeof getLog>, outcome: Cert
 }
 
 /** The log line for a boot-time or post-claim share start; the relay's own `up` line carries the link. */
-function logShareBootOutcome(log: ReturnType<typeof getLog>, outcome: ShareBootOutcome): void {
+function logShareBootOutcome(log: Logger, outcome: ShareBootOutcome): void {
   switch (outcome.kind) {
     case "started":
       log.info({ share: true, state: outcome.relay.state }, "share: SHARE_RELAY started the relay; its link is logged once the relay reports it");
@@ -173,6 +174,8 @@ function bootOwnerSeed(sessionSecret: string | null): BootOwnerSeed | null {
 
 /** The lifecycle handle `index.ts` drives: boot once, shut down once (idempotent). */
 export interface Lifecycle {
+  /** The production root's logger; the process entry reports a failed boot or shutdown through it. */
+  readonly logger: Logger;
   readonly boot: () => Promise<void>;
   readonly listeningAddress: () => Readonly<AddressInfo> | null;
   readonly shutdown: (options?: { readonly drainMs?: number }) => Promise<void>;
@@ -193,10 +196,11 @@ interface LifecycleOptions {
 
 /** Construct the lifecycle. Side-effect-free until `boot()` runs (so `index.ts` can wire signals first). */
 export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
-  const log = getLog();
   // The composition root constructs the clock it injects; remove when a platform seam supplies that clock instead.
   const now = (): number => Date.now();
   const seams = createProcessSeams();
+  const log = seams.logger;
+  const { superviseDetached } = createDetachedSupervision(log);
 
   let isShuttingDown = false;
   let shutdownCompletion: Promise<void> | undefined;
@@ -244,13 +248,13 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
 
     // Swap undici's global dispatcher for the private-IP-rejecting DNS lookup so every outbound fetch
     // below is address-gated before it can fire. No-op when EGRESS_FIREWALL=false.
-    installEgressFirewall({ ...seams.networkExecution, timers: seams.timers, buildConnector: seams.buildConnector, env: seams.env });
+    installEgressFirewall({ ...seams.networkExecution, timers: seams.timers, buildConnector: seams.buildConnector, env: seams.env, log });
 
     // The data layout FIRST, before anything opens a file under it: a legacy flat data dir is renamed into
     // the current tree (db/, backups/, secrets/, cache/ …) under a journal. Every path below reads the layout
     // the env resolved, so nothing here can open the old location.
     const reportKeyfile = keyfileReport(env.NODE_ENV);
-    await migrateDataLayout({ layout: env.DATA_LAYOUT, env });
+    await migrateDataLayout({ layout: env.DATA_LAYOUT, env, logger: log });
 
     // The boot secrets, phase one of two: the explicit env value, else the keyfile under `secrets/`. A
     // keyfile that does not exist yet is left ABSENT here — whether generating one is safe depends on the db
@@ -273,46 +277,46 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
 
     // `launched` is REQUIRED and passed explicitly (#1392) — the omission here is what left the
     // auto-wipe refusal inert on every real boot.
-    await runBootMigrations({ db, databaseUrl: env.DATABASE_URL, backupDir: env.DATA_LAYOUT.backups, launched: DB_LAUNCHED });
+    await runBootMigrations({ logger: seams.logger, db, databaseUrl: env.DATABASE_URL, backupDir: env.DATA_LAYOUT.backups, launched: DB_LAUNCHED });
 
     // #1649 DATA migration, immediately after the schema migrations and before anything reads a chat: the
     // host-handoff offer's `$.copyCast` key became `$.copyCharacters`, and the offer's read seam degrades an
     // unrecognised blob to NO_HANDOFF_OFFER rather than failing, so an un-migrated row silently drops a
     // departing host's recorded consent. Idempotent — a no-op on every boot after the first.
-    await migrateHandoffOfferVocabOnBoot({ db: bootDb });
+    await migrateHandoffOfferVocabOnBoot({ logger: seams.logger, db: bootDb });
 
     // #1737 DATA migration, in the same window and for the same reason: the `home:"preset"` prose slot
     // `chat.group.castMember` became `chat.group.characterHeading`, and `proseOverridesSchema` STRIPS an
     // unknown slot id at the parse seam — so an un-migrated `presets.config` silently loses the host's
     // authored narrator character heading instead of failing. Idempotent — a no-op on every boot after the
     // first. Runs before compose, which is where the first preset read lives.
-    await migrateProseSlotVocabOnBoot({ db: bootDb });
+    await migrateProseSlotVocabOnBoot({ logger: seams.logger, db: bootDb });
 
     // #1391 DATA migration, same window and same class: `pluginToolWireName` became INJECTIVE (a slug's `-`
     // now doubles to `__`), which renames every hyphen-slug plugin's model-visible tool names. A persisted
     // `ToolCallRecord.name` under the old spelling silently unmatches its plugin's `tool-card` surface, and a
     // `run_tool` automation arm under it stops firing. Idempotent, and a no-op on a box with no hyphenated
     // plugin slug installed. Runs before compose, which is where the first plugin activation lives.
-    await migratePluginToolWireNamesOnBoot({ db: bootDb });
+    await migratePluginToolWireNamesOnBoot({ logger: seams.logger, db: bootDb });
 
     // #1600 ONE-TIME DATA heal, same window: a `user_settings` row pinning a background asset that predates
     // #1478.1's ownership+kind guard (dev data, or any asset whose `kind` was never `background`) refuses
     // EVERY settings write for that user, not only a background edit. Idempotent — a no-op on every boot
     // after the first, and on a db seeded entirely post-#1478.
-    await healLegacyBackgroundPinsOnBoot({ db: bootDb });
+    await healLegacyBackgroundPinsOnBoot({ logger: seams.logger, db: bootDb });
     // #1708 DATA repair, in the same window and for the same reason: a card ingested through a plugin BEFORE
     // #1702 shipped never got an `importedFrom` stamp, and `characterProvenanceOf` collapses a null
     // `importedFrom` to `authored` — so an un-migrated row silently misreports "Made here" on every read
     // until this runs. Idempotent — a no-op on every boot once the candidate set is drained. Runs before
     // compose, which is where the first character read lives.
-    await backfillPluginProvenanceOnBoot({ db: bootDb });
+    await backfillPluginProvenanceOnBoot({ logger: seams.logger, db: bootDb });
     // #2253 DATA repair: before 39f71b2294 the invite-redeem's `canonHeadSeq` subquery was unqualified,
     // recording the table-wide max(messages.seq) instead of the per-chat head. Clamp any stale join_seq
     // to the actual per-chat canon head. Idempotent — a no-op on every boot once the candidates are drained.
-    await repairStaleJoinSeqOnBoot({ db: bootDb });
+    await repairStaleJoinSeqOnBoot({ logger: seams.logger, db: bootDb });
     // DATA repair, same window: the `daily_stats` timeline re-grain drops rows only canon can rebuild, so every
     // owner with activity and an empty timeline is rebuilt before the first Insights read.
-    await rebuildStatsTimelineOnBoot({ db: bootDb, now, idSource: seams.idSource });
+    await rebuildStatsTimelineOnBoot({ logger: seams.logger, db: bootDb, now, idSource: seams.idSource });
 
     // The boot secrets, phase two: with the schema in place, an absent keyfile is generated only when no row
     // depends on it; otherwise this REFUSES and names the file (owner ruling — a regenerated secret would
@@ -332,6 +336,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     const rolePolicy = createSessionsRolePolicy(env);
     const sessionsCrypto = SessionsCrypto.production();
     const preparedOwner = await prepareBootOwner({
+      logger: seams.logger,
       db: wiringDb,
       now,
       idSource: seams.idSource,
@@ -343,7 +348,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     const bootSessions = preparedOwner.sessions;
     const ownerId = preparedOwner.ownerId;
     const ownerClaimFile = join(env.DATA_LAYOUT.secrets, OWNER_CLAIM_URL_FILE_NAME);
-    const ownerClaim = removeOwnerClaimFileOnSpend(createOwnerClaimCode(), ownerClaimFile, seams.newOpaqueId);
+    const ownerClaim = removeOwnerClaimFileOnSpend(createOwnerClaimCode(), ownerClaimFile, seams.newOpaqueId, log);
     if (env.AUTH_MODE === "oidc") {
       await announceOwnerClaim({
         log,
@@ -401,6 +406,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // because it holds the relay registry's write side; the port is read when a relay starts, after the bind.
     const listenPort = (): number => listenerAddress?.port ?? options.listenPort ?? env.PORT;
     sharing = await createShareGraph({
+      logger: seams.logger,
       bind,
       appPort: listenPort,
       relayDir: env.DATA_LAYOUT.relay,
@@ -449,9 +455,9 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // rides here because a user row may predate the connection table on this pre-launch box. It is half the
     // story — accounts minted after this point are seeded by the per-user op wired into the minting verbs
     // (#2481), not by a later boot.
-    await seedDefaultPreset({ db: wiringDb, now });
-    await seedThemes({ db: bootDb, now });
-    await seedLocalLightOnBoot({ db: bootDb, now, idSource: seams.idSource, onEmbedSpaceBound: built.detachEmbedReindex });
+    await seedDefaultPreset({ logger: seams.logger, db: wiringDb, now });
+    await seedThemes({ logger: seams.logger, db: bootDb, now });
+    await seedLocalLightOnBoot({ logger: seams.logger, db: bootDb, now, idSource: seams.idSource, onEmbedSpaceBound: built.detachEmbedReindex });
     handOffBootOwnerSweeps(preparedOwner, built.detachEmbedReindex);
     // An owner whose stored generation no longer matches their binding (a release moved generation identity), or
     // whose rebuild died before promotion, has no user action to raise the re-index trigger, so boot raises it.
@@ -475,11 +481,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       const owner: Principal = await createHostPrincipalResolver(bootSessions)(ownerId);
       bootOwner = owner;
 
-      await seedCredentialFromEnv({
-        credentials: built.services.credentials,
-        owner,
-        openrouterApiKey: env.OPENROUTER_API_KEY,
-      });
+      await seedCredentialFromEnv({ logger: seams.logger, credentials: built.services.credentials, owner, openrouterApiKey: env.OPENROUTER_API_KEY });
       // BEFORE the cards: they dress through this seeder, and seeding it first is what lands the owner's
       // background library in pack order. It also carries the `kind:"seeded"` retirement's data rewrite for
       // this user (see `boot/seed-default-backgrounds.ts`).
@@ -492,6 +494,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       // the seeder's auto-upgrade — which re-activates the rows it swaps — lands the NEW bundle resident
       // instead of racing a second activation onto the old one.
       await reactivatePluginsOnBoot({
+        logger: seams.logger,
         db: bootDb,
         setEnabled: built.services.plugin.setEnabled,
         resolvePrincipal: createHostPrincipalResolver(bootSessions),
@@ -506,8 +509,9 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
 
     await optimizeDb(db);
     const plannerDb = db;
-    stopPlannerMaintenance = startPlannerMaintenance(() => optimizeDb(plannerDb), seams.timers.interval);
+    stopPlannerMaintenance = startPlannerMaintenance(() => optimizeDb(plannerDb), seams.timers.interval, log);
     await reclaimLocksOnBoot({
+      logger: seams.logger,
       db: bootDb,
       contributions: built.workloadContributions,
       now,
@@ -527,12 +531,13 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
 
     const oidcWiring =
       env.AUTH_MODE === "oidc"
-        ? await createConfiguredOidc({ db: wiringDb, now, built, ownerClaim, scheduleInterval: seams.timers.interval, settings: env })
+        ? await createConfiguredOidc({ logger: seams.logger, db: wiringDb, now, built, ownerClaim, scheduleInterval: seams.timers.interval, settings: env })
         : undefined;
     oidcLifetime = oidcWiring ?? null;
 
     const app = createHttpApp({
       built,
+      logger: seams.logger,
       env: seams.env,
       authConfig,
       now,
@@ -621,6 +626,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       const principal = bootOwner;
       superviseDetached(`local-light-prefetch:${seams.newOpaqueId()}`, "local-light.prefetch.plan", { enabled: env.LOCAL_LIGHT_PREFETCH }, async () => {
         const targets = await planLocalLightPrefetch({
+          logger: seams.logger,
           resolve: built.runtime.resolve,
           principals: [principal],
           enabled: env.LOCAL_LIGHT_PREFETCH === "on",
@@ -712,5 +718,5 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     }
   }
 
-  return { boot, listeningAddress: (): Readonly<AddressInfo> | null => listenerAddress, shutdown };
+  return { logger: log, boot, listeningAddress: (): Readonly<AddressInfo> | null => listenerAddress, shutdown };
 }

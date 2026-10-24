@@ -1,6 +1,7 @@
 // Provider image refusals drop only the picture; the paid-for reply prose remains deliverable.
 import type { GeneratedImage } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import { ANY_HOST, isAllowedImageBuffer } from "#infra/network";
 import type { AssetEgressFetch, InlineReplyImageDeps, StoreInlineReplyImage } from "../contract/materialize.ts";
@@ -12,7 +13,7 @@ const BASE64 = "base64";
 /** The provider's payload → raw bytes. Inline base64 decodes; a URL is DOWNLOADED THROUGH THE BELT. `null`
  *  on any refusal — including a payload that carries neither, which is a provider shape we do not model
  *  rather than an empty picture. */
-async function materialize(image: GeneratedImage, maxBytes: number, fetchImpl: AssetEgressFetch): Promise<Uint8Array | null> {
+async function materialize(image: GeneratedImage, maxBytes: number, fetchImpl: AssetEgressFetch, logger: Logger): Promise<Uint8Array | null> {
   if (image.base64 !== undefined && image.base64.length > 0) {
     return new Uint8Array(Buffer.from(image.base64, BASE64));
   }
@@ -30,7 +31,7 @@ async function materialize(image: GeneratedImage, maxBytes: number, fetchImpl: A
     }
     return await res.bytes();
   } catch (err) {
-    getLog().warn({ err }, "chat: inline reply image download refused; the picture is dropped and the prose commits");
+    getLog(logger).warn({ err }, "chat: inline reply image download refused; the picture is dropped and the prose commits");
     return null;
   }
 }
@@ -39,7 +40,7 @@ export function createStoreInlineReplyImage(deps: InlineReplyImageDeps): StoreIn
   const { fetchImpl } = deps;
   return async (ownerId: UserId, image: GeneratedImage): ReturnType<StoreInlineReplyImage> => {
     const maxBytes = deps.maxBytes();
-    const bytes = await materialize(image, maxBytes, fetchImpl);
+    const bytes = await materialize(image, maxBytes, fetchImpl, deps.logger);
     if (bytes === null) {
       return null;
     }
@@ -56,7 +57,7 @@ export function createStoreInlineReplyImage(deps: InlineReplyImageDeps): StoreIn
       // fact is the DISAGREEMENT between what the provider claimed and what the bytes are; the bytes
       // themselves never do (they are the refused content). The author is still told by
       // `absorbInlineReplyImages`'s `reply_image_failed` — this is the second owner, not the first.
-      getLog().warn(
+      getLog(deps.logger).warn(
         { err, claimedMediaType: image.mediaType, bytes: bytes.length },
         "chat: inline reply image refused by the mime/size guard; the picture is dropped and the prose commits",
       );

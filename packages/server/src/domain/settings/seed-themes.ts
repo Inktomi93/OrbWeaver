@@ -18,13 +18,14 @@
 
 import type { BootDatabaseHandle } from "@orb/db/wiring";
 import { bootDatabaseForOwner } from "@orb/db/wiring-owner";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import { RETIRED_SEED_THEME_IDS } from "./constants.ts";
 import { deleteSeedThemes, upsertSeedThemes } from "./persistence/system-themes.ts";
 import { clearSelectedThemeIds } from "./persistence/theme-queries.ts";
 import { SEED_THEMES } from "./substrate/seed-themes.ts";
 
-export async function ensureSeedThemes(handle: BootDatabaseHandle, now: () => number): Promise<void> {
+export async function ensureSeedThemes(handle: BootDatabaseHandle, now: () => number, logger: Logger): Promise<void> {
   const db = bootDatabaseForOwner(handle);
   const at = now();
   // Each upsert is an independent idempotent write keyed by its own sentinel id — no ordering between
@@ -35,5 +36,5 @@ export async function ensureSeedThemes(handle: BootDatabaseHandle, now: () => nu
   // the two leaves a dangling-but-degrading selection rather than a healed pointer with the row still live.
   const healed = await clearSelectedThemeIds(db, RETIRED_SEED_THEME_IDS, at);
   const retired = await deleteSeedThemes(db);
-  getLog().info({ themeIds: SEED_THEMES.map((t) => t.id), retired, healed }, "settings: converged theme palettes to the shipped set");
+  getLog(logger).info({ themeIds: SEED_THEMES.map((t) => t.id), retired, healed }, "settings: converged theme palettes to the shipped set");
 }

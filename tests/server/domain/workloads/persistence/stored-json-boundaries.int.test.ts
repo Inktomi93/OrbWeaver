@@ -146,6 +146,7 @@ for (const field of ["progress", "params", "result"] as const) {
     }
     const next = createNextRunnableWorkload({
       db: databaseHandle(harness.db),
+      logger: harness.logger,
       contributions: harness.app.workloadContributions,
       emitEvent: harness.app.workloadEvents.emitWorkloadEvent,
     });

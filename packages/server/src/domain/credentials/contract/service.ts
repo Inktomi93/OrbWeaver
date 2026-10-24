@@ -14,7 +14,7 @@ import type { ProviderDef } from "@orb/contracts/inference";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
-import type { AuditEntry } from "#foundation/observability";
+import type { AuditEntry, Logger } from "#foundation/observability";
 import type { SecretBox } from "#infra/crypto";
 import type { CredentialHealthThrottle } from "./health.ts";
 import type {
@@ -33,6 +33,7 @@ import type {
 
 /** The DI bundle the credential verbs close over, wired at the composition root. */
 export interface CredentialContext {
+  readonly logger: Logger;
   readonly healthThrottle: Omit<CredentialHealthThrottle, keyof Disposable>;
   readonly db: Db;
   readonly now: () => number;

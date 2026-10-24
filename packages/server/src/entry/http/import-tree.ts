@@ -40,6 +40,7 @@ import { bodyLimit } from "hono/body-limit";
 import { DEFAULT_IMPORT_STAGING_DIR, incomingPersonasOf, stagedOwnerRoot } from "#domain/import";
 import type { PersonaService } from "#domain/persona";
 import type { WorkloadService } from "#domain/workloads";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import { hasCsrfHeader } from "#infra/auth";
 import type { PrincipalEnv } from "./contract/request-env.ts";
@@ -68,6 +69,7 @@ const OWNER_ONLY_DIR = 0o700;
 const DRIVE_LETTER = /^[a-zA-Z]:/;
 const TRAILING_SLASH = /\/$/;
 export interface ImportTreeDeps {
+  readonly logger: Logger;
   readonly workloads: Pick<WorkloadService, "start">;
   readonly persona: Pick<PersonaService, "reviewImport">;
   /** The portability registry — its entity-dir names are the native directory set layout admission reads. */
@@ -170,13 +172,13 @@ function stripWrapper(path: string, wrapper: string | null): string {
 
 /** Collect + validate the multipart parts fail-closed: count, per-file bytes, path sanitization. Throws
  *  {@link TreeRejected} (nothing staged) on the first breach. A `secrets.json` part is dropped, never staged. */
-async function collectParts(form: FormData): Promise<UploadPart[]> {
+async function collectParts(form: FormData, logger: Logger): Promise<UploadPart[]> {
   const received = form.getAll(TREE_FILE_FIELD).filter((e): e is File => e instanceof File);
   // The browser never sends the credentials file; this guard holds for a caller that is not our browser.
   const files = received.filter((f) => !isStSecretsFile(f.name));
   // DIAGNOSTIC: how many parts the server actually received + their total bytes. Locates a truncated
   // whole-folder upload (client/browser vs server body cap) — a real ST library is hundreds of cards.
-  getLog().info(
+  getLog(logger).info(
     { receivedFiles: received.length, droppedSecrets: received.length - files.length, totalBytes: files.reduce((n, f) => n + f.size, 0) },
     "import-tree: multipart parts received",
   );
@@ -332,7 +334,7 @@ export function registerImportTree(app: Hono<PrincipalEnv>, deps: ImportTreeDeps
     // owned by errorResponse: it answers TreeRejected and DomainConflictError as typed responses and rethrows every other error to the app's onError. Ends if errorResponse stops rethrowing unknown errors.
     try {
       const form = await c.req.formData();
-      const parts = await collectParts(form);
+      const parts = await collectParts(form, deps.logger);
       const staging = { root: stagedOwnerRoot(deps.stagingDir ?? DEFAULT_IMPORT_STAGING_DIR, principal.userId), newOpaqueId: deps.newOpaqueId };
       const { stagedRoot, input } = await stageUpload(nativeDirs, staging, parts, {
         choices: readCollisionChoices(form),
@@ -368,7 +370,7 @@ function registerPersonaReview(app: Hono<PrincipalEnv>, deps: ImportTreeDeps): v
     }
     // owned by errorResponse: it answers TreeRejected and DomainConflictError as typed responses and rethrows every other error to the app's onError. Ends if errorResponse stops rethrowing unknown errors.
     try {
-      const parts = await collectParts(await c.req.formData());
+      const parts = await collectParts(await c.req.formData(), deps.logger);
       const incoming = incomingPersonasOf(parts);
       const collisions = await deps.persona.reviewImport({ principal, incoming });
       return c.json({ collisions });

@@ -26,6 +26,7 @@ import { castId } from "@orb/kit/ids";
 import type { Hono } from "hono";
 import type { ExportCardFormat, ExportChatFormat, ExportService } from "#domain/export";
 import { createBundlePaths } from "#domain/export";
+import type { Logger } from "#foundation/observability";
 import type { ZipEntry } from "#infra/storage";
 import { packZip } from "#infra/storage";
 import type { PrincipalEnv } from "./contract/request-env.ts";
@@ -57,6 +58,7 @@ const CARD_FORMATS: ReadonlySet<string> = new Set<ExportCardFormat>(["png", "jso
 const PORTABLE_KIND_VALUES: readonly string[] = PORTABLE_KINDS;
 
 export interface ExportDeps {
+  readonly logger: Logger;
   readonly export: Pick<ExportService, "exportCharacter" | "exportChat" | "exportChatBundle">;
   readonly registry: PortabilityRegistry;
 }
@@ -162,7 +164,7 @@ export function registerExport(app: Hono<PrincipalEnv>, deps: ExportDeps): void 
     if (invalid !== null) {
       return c.json({ error: `invalid "${KINDS_QUERY}" token: ${invalid}` }, BAD_REQUEST);
     }
-    const stream = packZip(libraryEntries(deps.registry, kinds, principal.userId));
+    const stream = packZip(libraryEntries(deps.registry, kinds, principal.userId), deps.logger);
     return new Response(stream, {
       headers: {
         "Content-Type": ZIP_MIME,

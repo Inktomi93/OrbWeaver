@@ -6,7 +6,7 @@ import { assertReferentialIntegrity, closeDb, createDb, messages, messageVariant
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { runBootMigrations } from "@orb/server/entry/boot";
 import { expect, test } from "@orb/testkit/node";
-import { migrationsBefore, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
+import { createTestLogger, migrationsBefore, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
 import { seedMessageRow } from "@orb/testkit/node/rows";
 import { eq, sql } from "drizzle-orm";
 
@@ -116,7 +116,14 @@ test("production boot backs up a copied file database before the provenance rebu
   try {
     const before = await db.select().from(messageVariants);
     const backupDir = join(importStagingDir, "backups");
-    await runBootMigrations({ db, databaseUrl, backupDir, migrationsFolder: SHIPPED_MIGRATIONS, launched: true });
+    await runBootMigrations({
+      db,
+      logger: createTestLogger(),
+      databaseUrl,
+      backupDir,
+      migrationsFolder: SHIPPED_MIGRATIONS,
+      launched: true,
+    });
     expect(await db.select().from(messageVariants)).toEqual(before);
     await expect(assertReferentialIntegrity(db)).resolves.toBeUndefined();
     const backups = await readdir(backupDir);

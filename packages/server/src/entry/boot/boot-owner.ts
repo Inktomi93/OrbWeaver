@@ -5,6 +5,7 @@ import type { DatabaseHandle } from "@orb/db/wiring";
 import type { IdSource, UserId } from "@orb/kit/ids";
 import type { SessionsRolePolicy, SessionsService } from "#domain/sessions";
 import { createSessionsService } from "#domain/sessions";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import type { SessionsCrypto } from "../compose/sessions-crypto.ts";
 import { createLocalLightUserSeed } from "./seed-local-light.ts";
@@ -17,6 +18,7 @@ export interface BootOwnerSeed {
 }
 
 export interface BootOwnerInput {
+  readonly logger: Logger;
   readonly db: DatabaseHandle;
   readonly now: () => number;
   readonly idSource: IdSource;
@@ -43,7 +45,7 @@ export function handOffBootOwnerSweeps(owner: Pick<BootOwner, "ownersBoundBefore
 }
 
 async function seededOwnerId(sessions: SessionsService, input: BootOwnerInput, seed: BootOwnerSeed): Promise<UserId> {
-  const ownerIds = await seedOwner({ db: input.db, sessions, ownerHandles: input.rolePolicy.ownerHandles(), now: input.now, ...seed });
+  const ownerIds = await seedOwner({ logger: input.logger, db: input.db, sessions, ownerHandles: input.rolePolicy.ownerHandles(), now: input.now, ...seed });
   const seededId = ownerIds[0];
   if (seededId === undefined) {
     throw new Error("boot: seedOwner returned no owner id (OWNER_HANDLES resolved empty)");
@@ -60,12 +62,12 @@ async function seededOwnerId(sessions: SessionsService, input: BootOwnerInput, s
   return seededId;
 }
 
-async function existingOwnerId(sessions: SessionsService): Promise<UserId | undefined> {
+async function existingOwnerId(sessions: SessionsService, logger: Logger): Promise<UserId | undefined> {
   const ownerId = await sessions.getOwnerUserId();
   if (ownerId !== undefined) {
-    getLog().info({ ownerId }, "boot(oidc): existing owner row found (from a prior OIDC login)");
+    getLog(logger).info({ ownerId }, "boot(oidc): existing owner row found (from a prior OIDC login)");
   } else {
-    getLog().info("boot(oidc): no owner row yet — the first owner-policy OIDC login will create it; owner-dependent boot seeds are deferred");
+    getLog(logger).info("boot(oidc): no owner row yet — the first owner-policy OIDC login will create it; owner-dependent boot seeds are deferred");
   }
   return ownerId;
 }
@@ -76,6 +78,7 @@ export function prepareBootOwner(input: BootOwnerInput): Promise<BootOwner>;
 export async function prepareBootOwner(input: BootOwnerInput): Promise<BootOwner> {
   const ownersBoundBeforeAssembly: UserId[] = [];
   const sessions = createSessionsService({
+    logger: input.logger,
     rolePolicy: input.rolePolicy,
     db: input.db,
     now: input.now,
@@ -87,12 +90,13 @@ export async function prepareBootOwner(input: BootOwnerInput): Promise<BootOwner
     // owner, and it runs once per process. `workloads` does not exist yet, so an owner whose encoder this seed
     // binds is held and its sweeps are enqueued once compose has built the queue.
     seedUserConnections: createLocalLightUserSeed({
+      logger: input.logger,
       db: input.db,
       now: input.now,
       idSource: input.idSource,
       onEmbedSpaceBound: (boundOwner) => ownersBoundBeforeAssembly.push(boundOwner),
     }),
   });
-  const ownerId = input.ownerSeed === null ? await existingOwnerId(sessions) : await seededOwnerId(sessions, input, input.ownerSeed);
+  const ownerId = input.ownerSeed === null ? await existingOwnerId(sessions, input.logger) : await seededOwnerId(sessions, input, input.ownerSeed);
   return { sessions, ownerId, ownersBoundBeforeAssembly };
 }
