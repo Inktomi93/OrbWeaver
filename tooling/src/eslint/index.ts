@@ -1,5 +1,6 @@
 import { browserNoNodeGlobalsRule, rawEgressRule, rawHttpClientRule, sessionChannelBoundaryRule, soleEnvReaderRule } from "./ambient.ts";
 import { detachedWorkRule } from "./async.ts";
+import { CLIENT_DATA_RESTRICTIONS, effectOnSharedSelectionRule } from "./client-data-policy.ts";
 import { assumesSingleReplicaRule, commentedCodeRule, rawIdRule, sideGenSamplingRule, wireJsonRule } from "./general.ts";
 import { DB_SCHEMA_RESTRICTIONS, SERVER_HARD_RESTRICTIONS, TYPE_SHAPE_RESTRICTIONS } from "./general-policy.ts";
 import { moduleStateRule } from "./module-state.ts";
@@ -42,6 +43,7 @@ export { authorClassIgnores } from "./css-classes.ts";
 const LOCAL_RESTRICTIONS = [
   TEST_FABRICATION_RESTRICTIONS,
   UI_FEATURE_RESTRICTIONS,
+  CLIENT_DATA_RESTRICTIONS,
   SERVER_EVENT_RESTRICTIONS,
   INFRA_AUTH_RESTRICTIONS,
   TABLE_IMPORT_RESTRICTIONS,
@@ -92,6 +94,7 @@ export function createOrbPlugin(options: { browserNodeGlobals: ReadonlySet<strin
       "zustand-selector-derived": storeDerivedRule,
       "no-mutating-register-api": registerApiRule,
       "state-files": stateFilesRule,
+      "no-effect-on-shared-selection": effectOnSharedSelectionRule,
       "registry-context-via-mint": registryContextRule,
       "testid-typed-only": typedTestIdRule('Freeform data-testid string; use the typed registry via testId("key").'),
       "testid-typed-only-stories": typedTestIdRule(

@@ -573,6 +573,13 @@ const PORTAL_FLOAT_HOMES = {
   "packages/ui/src/primitives/drawer/variants.ts": "its backdrop and viewport portal to the portal root",
   "packages/ui/src/art/web-weave/variants.ts": "the boot veil mounts at the document root, above the whole shell",
 } as const;
+// The only client files that touch browser storage directly; each says why it cannot mint a per-user store.
+const RAW_STORAGE_HOMES = {
+  "packages/client/src/state/durable-local.ts": "the per-user namespace pointer and adoption hints the store doors mint against",
+  "packages/client/src/data/session-resume.ts": "a tab-scoped sessionStorage bounce target, written while no verified user exists to namespace by",
+  "packages/client/src/lib/probe-mode.ts": "a read-only flag `pnpm snap --probe` seeds before navigation; the app never writes it",
+  "packages/client/src/main.tsx": "a one-shot sessionStorage reload-loop guard for a stale chunk hash, before any store exists",
+} as const;
 const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
   [
     { files: ["tests/**/*.{ts,tsx}"], rules: { "orb/no-test-fabrication": "error" } },
@@ -648,6 +655,34 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
         "orb/registry-context-via-mint": "error",
         "orb/no-fake-disabled-id": "error",
       },
+    },
+    { files: ["packages/client/src/**/*.{ts,tsx}"], ignores: Object.keys(RAW_STORAGE_HOMES), rules: { "orb/persistence-boundary": "error" } },
+    {
+      files: ["packages/client/src/**/*.{ts,tsx}"],
+      ignores: ["packages/client/src/data/**"],
+      rules: { "orb/client-cache-surgery-only-in-data": "error" },
+    },
+    {
+      files: ["packages/client/src/**/*.{ts,tsx}"],
+      ignores: ["packages/client/src/data/invalidation.ts"],
+      rules: { "orb/no-inline-invalidate-outside-seam": "error" },
+    },
+    {
+      files: ["packages/client/src/**/*.{ts,tsx}"],
+      ignores: ["packages/client/src/data/create-entity-mutation.ts"],
+      rules: { "orb/mutation-only-in-factory": "error" },
+    },
+    {
+      files: ["packages/client/src/**/*.{ts,tsx}"],
+      ignores: ["packages/client/src/features/*/lib/**"],
+      rules: { "orb/modal-definition-home": "error", "orb/config-group-definition-home": "error" },
+    },
+    { files: ["packages/client/src/**/*.{ts,tsx}"], rules: { "orb/modal-definition-literal": "error" } },
+    {
+      files: ["packages/client/src/features/**/*.{ts,tsx}"],
+      // The shell tier owns the layout and appearance root effects (ui-architecture-state-and-stack.md §5.1).
+      ignores: ["packages/client/src/features/app-shell/**"],
+      rules: { "orb/no-effect-on-shared-selection": "error" },
     },
     { files: ["packages/client/src/features/**/*.tsx"], rules: { "orb/dialog-via-composite": "error" } },
     {
@@ -1020,6 +1055,20 @@ export default [
   },
   { files: rootSources("@server", "@inference"), rules: { "no-restricted-syntax": ["error", INVISIBLE_CONTROL_SYNTAX, ...SERVER_SYNTAX] } },
   { files: rootSources("@db"), rules: { "no-restricted-syntax": ["error", INVISIBLE_CONTROL_SYNTAX, ...MODULE_LOADER_SYNTAX] } },
+  {
+    files: [CLIENT_SRC],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        INVISIBLE_CONTROL_SYNTAX,
+        {
+          selector: "Property[computed=false][key.name='queryKey'][value.type='ArrayExpression']",
+          message:
+            "A hand-built queryKey array: tRPC reads take their key from the proxy (`trpc.<path>.queryKey(input)`), so the reader and every invalidation share one key (client-architecture-state-and-gates.md §10).",
+        },
+      ],
+    },
+  },
   {
     files: ["packages/server/src/domain/settings/seed-themes.ts", "packages/server/src/domain/preset/seed.ts"],
     rules: {
