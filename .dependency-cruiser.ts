@@ -400,6 +400,9 @@ const PACKAGE_TEST_REACHES = {
   "tests/client/features/discovery/lib/corpus-duplicate-groups.test.ts": {
     "packages/client/src/features/discovery/lib/corpus-duplicate-groups.ts": "groupIdenticalArt: the feature-private duplicate grouping",
   },
+  "tests/client/features/discovery/lib/corpus-vocabulary.test.ts": {
+    "packages/client/src/features/discovery/lib/corpus-vocabulary.ts": "distilledCensus: the feature-private census phrasing both Corpus bands print",
+  },
   "tests/client/features/preset/lib/template-addresses.test.ts": {
     "packages/client/src/features/preset/lib/template-rows.ts": "templateGroups, templateRowById and templateStoredText: the feature-private template model",
   },

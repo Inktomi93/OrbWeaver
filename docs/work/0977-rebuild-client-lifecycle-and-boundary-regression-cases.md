@@ -85,9 +85,49 @@ The reference scope is `client/components/list-pane-header.ct.tsx` and its fixtu
 | Focusable named back button, callback, optional action and conditional action marker | Rebuild through the public host and browser-owned story state. | The marker is a current shell coupling, not a substitute for shell geometry coverage. |
 | A constrained unscoped title keeps its width before the count | Rebuild as a constrained-host CT. | This proves component width priority, not the feature's actual docked-pane budget. |
 | Mobile title/count shedding, retained scoped/action rows, desktop shell behavior and device-pixel alignment | Move to real shell coverage; replacement remains open. | Do not copy the legacy hand-authored shell wrapper. Existing action-motion references also require actual shell behavior. |
-| Character import/create controls at docked widths | Compare separately; this distinct feature case is outside the selected component batch. | Common header CT does not establish the character feature's control budget. |
-| Discovery denominator and plugin filtered census | Compare separately; these distinct data/hook cases are outside the selected component batch. | Compare maintained formatter and query coverage before restoring them; generic zero suppression is already assigned above. |
-| Databank maintenance/refusal states and Add-dialog behavior | Compare separately; these distinct feature/component cases are outside the selected component batch. | Do not claim these workflows from a presentational header mount. |
+| Character import/create controls at docked widths | See [feature list-header case decisions](#feature-list-header-case-decisions). | Common header CT does not establish the character feature's control budget. |
+| Discovery denominator and plugin filtered census | See [feature list-header case decisions](#feature-list-header-case-decisions). | Generic zero suppression is already assigned above. |
+| Databank maintenance/refusal states and Add-dialog behavior | See [feature list-header case decisions](#feature-list-header-case-decisions). | Do not claim these workflows from a presentational header mount. |
+
+### Feature list-header case decisions
+
+Each reference file was read in full. No maintained test covered any of these feature bands before this batch. Rebuilt cases mount the section's production `useListHeader` from `useSectionRegistry()` through the public `ListPaneHeaderHost` under `CtClientProviders`, the composition the app shell uses. Copy strings are not asserted; locators use accessible names.
+
+Reference `client/features/character/hooks/use-characters-list-header.ct.tsx`:
+
+| Reference case | Behavior and assertions | Existing coverage | Layer | Decision |
+| - | - | - | - | - |
+| Title renders in full at 307px and 272px | Real three-digit census settles; the title span is not clipped at either docked list width. | The common-header CT proves only that an unscoped title keeps its width in a constrained host. | CT geometry in the production shell | Rebuild, deferred to the item 0963 production-shell CT (`app-shell-panels.ct.tsx`, both panes docked at 1280). The widths come from the `.shell-panel` grid squeeze and `.shell-panel-header` flex box; a story cannot reproduce them without copying shell classes. |
+| Neither create door loses its touch box at 307px and 272px | Import and New each render once in the accessibility tree; each short side is at least the fine control step. | None. | CT geometry in the production shell | Rebuild, deferred to the same 0963 CT. The New pair switches on an `@container` query that resolves against `.shell-panel`. |
+
+Reference `client/features/discovery/hooks/use-corpus-list-header.ct.tsx`:
+
+| Reference case | Behavior and assertions | Existing coverage | Layer | Decision |
+| - | - | - | - | - |
+| The band states the distilled count out of the library | `discovery.catalog` 12 of 20 renders `12 of 20 distilled` in the band. | None. | Unit for the phrasing; CT for the band wiring | Rebuild: [corpus-list-header CT](../../tests/client/features/discovery/hooks/corpus-list-header.ct.tsx) proves the catalog read reaches the band through the registry; [corpus-vocabulary unit](../../tests/client/features/discovery/lib/corpus-vocabulary.test.ts) owns the production `distilledCensus` phrasing, including `0 of 5 distilled`. The mode title literal is dropped as copy. |
+| A fully distilled library still labels the count | 12 of 12 renders `12 distilled` with no `of`. | None. | Unit | Move to the corpus-vocabulary unit test. |
+| A zero distilled count renders the title alone | An empty catalog renders no `0`. | The common-header CT suppresses numeric and string zero. | Unit and common CT | Move the empty-library bare zero to the unit test; keep suppression in the common-header CT. |
+
+Reference `client/features/plugin/hooks/use-extensions-list-header.ct.tsx`:
+
+| Reference case | Behavior and assertions | Existing coverage | Layer | Decision |
+| - | - | - | - | - |
+| The band names the section and states the live page count | Two plugins with one page each render `2`. | None. | CT with data hooks | Rebuild in the [extensions-list-header CT](../../tests/client/features/plugin/hooks/extensions-list-header.ct.tsx). A third, non-page surface must not count. The section title literal is dropped as copy. |
+| Zero registered pages render the title alone | No pages renders no `0`. | The common-header CT suppresses numeric zero. | Common CT | Drop: an empty roster yields the bare zero that the common header already suppresses. |
+| Filtered census, named by this item | A finder query keeps a filtered count; a query that matches nothing renders `0 of N`. | None. | CT with data hooks | Rebuild in the same CT. The story writes the production extensions search store that the shell's finder writes. |
+
+Reference `client/features/databank/hooks/use-databank-list-header.ct.tsx`:
+
+| Reference case | Behavior and assertions | Existing coverage | Layer | Decision |
+| - | - | - | - | - |
+| Both owner-wide sweeps wait for a confirm | No `databank.reindex` call while each confirm is open; confirming sends the owner scope with `chunk-embed`, then `re-extract`. | None. | Controlled-state CT | Rebuild in the [databank-list-header CT](../../tests/client/features/databank/hooks/databank-list-header.ct.tsx), over the corpus bank-health read. |
+| Both sweeps are closed over an empty bank and say why | Items disabled; a forced click opens nothing; the reason label is visible. | None. | Controlled-state CT | Rebuild: `toBeDisabled` replaces the forced click; the reason is asserted as the menu group's accessible name, not its copy. |
+| A stocked bank shows no disabled reason | The reason label is absent over a stocked bank. | None. | Controlled-state CT | Rebuild inside the confirm case: its menu group is unnamed. |
+| Switching Add mode moves neither the mode strip nor the footer | Strip y spread at most 1px across three arms; no void under Cancel; the reserved region keeps its floor. | None. | CT geometry in the production modal host | Rebuild, deferred to the item 0963 modal CT (`app-shell-modals.ct.tsx`). Add opens the `addDocument` slot that only the shell's `ModalHost` renders, and the app-shell door does not export it. |
+| The Add dialog's teaching sentence reads at least the field-label size | Computed font size relation inside the dialog. | None. | CT in the production modal host | Rebuild, deferred to the same 0963 CT. |
+| The band prints the server census of a bank deeper than one page | A bank past `DATABANK_LIST_DEFAULT_LIMIT` prints its total, never `N+`, and reads no `databank.list`. | None. | Controlled-state CT | Rebuild. `routeTrpc` refuses an unlisted `databank.list`, so the band cannot measure a page. |
+| Every Add arm offers Cancel, and Cancel closes | Cancel in all three arms; the upload arm's Cancel closes the dialog. | None. | CT in the production modal host | Rebuild, deferred to the same 0963 CT. The band's own half, Add opening the `addDocument` slot, is rebuilt in the confirm case. |
+| A failed census does not tell a stocked bank to add a document | Failure label instead of the empty label; sweeps disabled; the re-read item refetches. | None. | Controlled-state CT | Rebuild with recovery: after the re-read succeeds the census renders and the sweeps enable. |
 
 ### Bootstrap and common-header runtime evidence
 
@@ -97,4 +137,19 @@ The [common-header CT](../../tests/client/components/list-pane-header.ct.tsx) pa
 
 The component story contains browser-owned callback state and a constrained layout host, not a copied application shell. No production code, package export or shared testkit change is required. Native DOM typechecking, scoped lint and dependency checks qualify the new test entries.
 
-Feature references awaiting maintained-coverage comparison are `client/features/character/hooks/use-characters-list-header.ct.tsx`, `client/features/discovery/hooks/use-corpus-list-header.ct.tsx`, `client/features/plugin/hooks/use-extensions-list-header.ct.tsx` and `client/features/databank/hooks/use-databank-list-header.ct.tsx`.
+### Feature list-header runtime evidence
+
+The corpus, extensions and databank band CTs and the corpus-vocabulary unit test pass. Each temporary production change below fails its named case for the stated reason. All changes are restored before the final passing run.
+
+| Production change | Failing case and observation |
+| - | - |
+| `distilledCensus` returns the bare distilled count | The unit test expects `12 of 20 distilled`; the corpus band no longer shows it. |
+| Plugin pages keep every anchor except `dialog` | The page-count case finds no `2`; the filtered case finds `0 of 3`, not `0 of 2`. |
+| The extensions census drops the filtered `0 of N` arm | The filtered case finds no `0 of 2`. |
+| A sweep request sends on menu selection instead of opening its confirm | The confirm case finds no alert dialog. |
+| The empty-bank predicate never matches | The empty-bank case finds `Rebuild all documents` enabled. |
+| The empty-bank reason renders over every bank | The confirm case finds a named menu group over a stocked bank. |
+| The failed-census re-read item is removed | The failed-census case finds no `Check the bank again`. |
+| The band caps its count at `100+` | The deep-bank case finds no full census. |
+
+The stories mount only the production registry, host and stores, and add no production or testkit export. The character docked-width cases and the Add-dialog cases remain open for the production-shell CTs in item 0963.
