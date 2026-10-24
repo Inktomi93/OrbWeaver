@@ -101,7 +101,7 @@ test.describe("on the corpus owner's own settings", () => {
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
     await expect(dialog.getByRole("button", { name: "Close", exact: true })).not.toBeFocused();
-    // Inside the popup and not the popup's frame or its dismiss: either the body anchor or a control the body itself focuses.
+    // The host's body anchor: inside the popup, not its frame, and out of the tab order so Tab still starts at the first control.
     await expect
       .poll(() =>
         page.evaluate((selector) => {
@@ -110,10 +110,10 @@ test.describe("on the corpus owner's own settings", () => {
           if (!(active instanceof HTMLElement) || popup === null || !popup.contains(active) || active === popup) {
             return "outside";
           }
-          return active.getAttribute("aria-label") === "Close" ? "close" : "body";
+          return active.tabIndex;
         }, POPUP),
       )
-      .toBe("body");
+      .toBe(-1);
     await page.keyboard.press("Enter");
     await expect(dialog).toBeVisible();
   });

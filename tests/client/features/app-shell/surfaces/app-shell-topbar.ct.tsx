@@ -3,16 +3,18 @@
 import { censusTitle } from "@orb/client/lib";
 import { createShellAmbientReads, holdCorpusProcedure, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import type { CorpusWire } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import { commandShortcutLabel } from "#client/features/app-shell/lib/command-shortcut-label.ts";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
-import { JUMP_CHIP, routeShell, SECTION_PROCEDURES, SHELL_STORIES, seedShellState } from "./app-shell-ct.ts";
+import { JUMP_CHIP, resolvedLength, routeShell, SECTION_PROCEDURES, SHELL_STORIES, seedShellState } from "./app-shell-ct.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const LIST = '.shell-panel[data-panel-side="list"]';
 const NARROW_TITLE = '.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title';
 const NARROWEST = { width: 320, height: 800 } as const;
+const PHONE_WIDTHS = [320, 390] as const;
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 
@@ -28,6 +30,18 @@ test.afterAll(async () => {
 
 function library(page: Page): Locator {
   return page.locator(LIST).getByRole("list", { name: "Character library" });
+}
+
+/** How far the list pane's body starts below the pane's own top edge: the band's row when it paints, else nothing. */
+function bodyOffset(page: Page): Promise<number> {
+  return page.locator(LIST).evaluate((pane) => {
+    const body = pane.querySelector(":scope > .shell-panel-body");
+    return (body?.getBoundingClientRect().top ?? Number.NaN) - pane.getBoundingClientRect().top;
+  });
+}
+
+async function routeSections(page: Page, corpus: CorpusWire): Promise<void> {
+  await routeShell(page, corpus, await root.internalCallerFor(root.ownerId), SECTION_PROCEDURES);
 }
 
 function touchTarget(page: Page): Promise<number> {
@@ -64,23 +78,30 @@ test.describe("on a phone", () => {
     await expect(title).toHaveText(name);
   });
 
-  test("the Characters band is shed while the list is the screen, its two doors ride the trail, and they stand down once a character opens", async ({
-    corpus,
-    mount,
-    page,
-  }) => {
-    await routeShell(page, corpus, await root.internalCallerFor(root.ownerId), SECTION_PROCEDURES);
-    await seedShellState(page, { activeSection: "characters" });
-    await mount<typeof AppShellStory>(STORY, {});
-    await expect(library(page).getByRole("button").first()).toBeVisible();
-    await expect(page.locator(`${LIST} .shell-panel-header`)).toBeHidden();
-    const trail = page.locator(".shell-topbar-trail");
-    await expect(trail.getByRole("button", { name: "New", exact: true })).toBeVisible();
-    await expect(trail.getByRole("button", { name: "Import a character card" })).toBeVisible();
-    expect((await page.locator('.shell-topbar-identity[data-identity="narrow"]').boundingBox())?.width ?? 0).toBeGreaterThan(0);
-    await library(page).getByRole("button").first().click();
-    await expect(trail.getByRole("button", { name: "New", exact: true })).toHaveCount(0);
-  });
+  for (const width of PHONE_WIDTHS) {
+    test(`at ${String(width)} the Characters band is shed, so one chrome row sits above the pane, and its doors ride the trail until a character opens`, async ({
+      corpus,
+      mount,
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await routeSections(page, corpus);
+      await seedShellState(page, { activeSection: "characters" });
+      await mount<typeof AppShellStory>(STORY, {});
+      await expect(library(page).getByRole("button").first()).toBeVisible();
+      // The band is a chrome row of its own, so a painted band puts a whole row between the pane's top and its body.
+      const offset = await bodyOffset(page);
+      expect(offset).toBeGreaterThanOrEqual(0);
+      expect(offset).toBeLessThan(await resolvedLength(page, "var(--dimension-chrome-row)"));
+      await expect(page.locator(`${LIST} .shell-panel-header`)).toBeHidden();
+      const trail = page.locator(".shell-topbar-trail");
+      await expect(trail.getByRole("button", { name: "New", exact: true })).toBeVisible();
+      await expect(trail.getByRole("button", { name: "Import a character card" })).toBeVisible();
+      expect((await page.locator('.shell-topbar-identity[data-identity="narrow"]').boundingBox())?.width ?? 0).toBeGreaterThan(0);
+      await library(page).getByRole("button").first().click();
+      await expect(trail.getByRole("button", { name: "New", exact: true })).toHaveCount(0);
+    });
+  }
 });
 
 test("on a desktop the Characters band keeps its own doors and the trail carries none", async ({ corpus, mount, page }) => {

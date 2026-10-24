@@ -113,7 +113,8 @@ export async function dropOn(target: Locator, transfer: { readonly file: string;
   return page.evaluate(() => document.body.getAttribute("data-drop-prevented") === "true");
 }
 
-// The persisted shell store's key before any viewer binds the namespace, and its version.
+// The persisted shell store's key before any viewer binds the namespace, and its version. No door exports either;
+// the panels spec polls the persisted overrides after a toggle, so a drifted key or version fails there.
 const UNBOUND_SHELL_KEY = "orb:shell";
 const SHELL_STORE_VERSION = 2;
 

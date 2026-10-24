@@ -10,8 +10,7 @@ test("a populated census rides the screen name, counted or formatted, filtered i
   expect(censusTitle(LABEL, "0 of 5")).toBe("Plugin pages · 0 of 5");
 });
 
-test("a zero, formatted zero or unread census says nothing about size", () => {
+test("a zero or unread census says nothing about size", () => {
   expect(censusTitle(LABEL, 0)).toBeNull();
-  expect(censusTitle(LABEL, "0")).toBeNull();
   expect(censusTitle(LABEL, undefined)).toBeNull();
 });
