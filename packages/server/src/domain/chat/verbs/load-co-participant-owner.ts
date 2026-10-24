@@ -1,8 +1,6 @@
-// The roster-avatar reference check assets consumes (`AssetsContext.loadCoParticipantOwner`), not a hash→any-owner
-// oracle. It returns an owner only if `hash` is the avatar of (a) a character presently rostered in a room the
-// caller is present in, or (b) a persona a present human seat holds active in such a room, or (c) an asset a
-// `message_assets` row links into a room where both the caller and the owner are present. The owner it returns is
-// `assets.ownerId`, the CAS partition holding the bytes. The arms run in that order and stop at the first answer.
+// The co-participant reference check behind `AssetsContext.loadCoParticipantOwner`, never a hash→owner oracle: the
+// asset's owner (its CAS partition) only if `hash` is a rostered character's avatar, a present seat's active persona
+// avatar, or a room-linked attachment at or above the caller's floor, in a shared room; first match in that order.
 
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";

@@ -156,8 +156,9 @@ interface TurnDeps {
    *  chat-internal half is gathered by `gatherAssembleContext`. */
   readonly resolveForeignInputs: ResolveForeignInputsOp;
   /** The husk→real transition (R0). A user line and a generated turn are the two loudest claims
-   *  there are; both fire through the two chokepoints below (`commitUserTurn` / `resolveTurnBase`),
-   *  never per-verb, so no turn-running arm can be added without one. */
+   *  there are; both fire through the chokepoints `commitUserTurn` / `resolveTurnBase`, plus the two
+   *  rounds that pass neither: `forceCharacterTurn` (after its host and seat gates) and `resolveRequestTurn`
+   *  (after its origin, presence and forced-speaker refusals). */
   readonly claimChat: ClaimChatOp;
 }
 
@@ -1813,6 +1814,9 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
     if (target === undefined || !present) {
       throw new ChatNotFoundError(chatId);
     }
+    // A forced reply is a generated turn and claims like one (R0 F4(a)): after the host and seat gates, so a
+    // refused force never claims, and before any engine write, which retained accounting refuses on a husk.
+    await deps.claimChat(chatId);
     // ACCEPTED: the caller is the host and the named character holds a present seat, so this turn IS happening
     // — open the client's slot NOW, before the connection resolve + the multi-second context build. Ordered
     // AFTER the NOT_FOUND throw above so a bad character id never opens a slot at all.
@@ -2915,13 +2919,21 @@ interface RequestTurnResolved {
  *  returns the resolved substrate. Split out so the round-driver closure stays under the complexity bar. */
 async function resolveRequestTurn(ctx: ChatContext, deps: TurnDeps, params: RequestTurnParams): Promise<RequestTurnResolved> {
   await requireRequestTurn(ctx, params);
-  const { chatId, triggeredBy } = params;
+  const { chatId, triggeredBy, speakerCharacterId } = params;
   const chat = await loadChatRow(ctx.db, chatId);
   if (chat === undefined) {
     throw new ChatNotFoundError(chatId);
   }
   // Resolves the FUNDING host from canon (never a caller-supplied id); hostless is unusable (leak-free).
   const room = await loadRoom(ctx, chatId);
+  // A forced speaker must hold a present seat (presence only, as `forceCharacterTurn` checks it); a speaker with
+  // no seat is a leak-free NOT_FOUND here, never a claim followed by a turn voiced by someone else.
+  if (speakerCharacterId !== undefined && !room.candidates.some((c) => c.ref.characterId === speakerCharacterId && c.leftSeq === null)) {
+    throw new ChatNotFoundError(chatId);
+  }
+  // A requested turn is a generated turn and claims like one (R0 F4(a)): after every refusal above, so a refused
+  // request never claims, and before any engine write, which retained accounting refuses on a husk.
+  await deps.claimChat(chatId);
   // Freeze the room's host once for funding and assembly; the responsible human remains the initiator.
   const identity = { triggeredBy, funderUserId: room.hostUserId, runAsUserId: room.hostUserId };
   const connection = await deps.resolveConnection({

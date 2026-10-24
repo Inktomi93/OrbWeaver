@@ -8,7 +8,8 @@
 // WHAT CLAIMS (F4(a), owner-ratified — the owner's words are "never started OR DID SOMETHING WITH"):
 //   • a user line committed (`send` / `commitMessage`, via `commitUserTurn`)
 //   • a generated turn run — including the founding `opening:"generate"` (via `resolveTurnBase`,
-//     `forceCharacterTurn`, `generateImage`, `postNarratorMessage`, `start-chat`'s opening arm)
+//     `forceCharacterTurn`, a plugin or automation `requestTurn` via `resolveRequestTurn`, `generateImage`,
+//     `postNarratorMessage`, `start-chat`'s opening arm)
 //   • a canon EDIT (edit/hide/delete/move/duplicate/reattribute/variant-select — `verbs/edit.ts`)
 //   • any explicit chat-row or config write (title/star/archive/anchor/variables/user-macros/injections;
 //     group config, room overrides, databank visibility, background, display scripts, tool-recurse limit;

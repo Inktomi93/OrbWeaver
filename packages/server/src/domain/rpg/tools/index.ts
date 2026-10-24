@@ -39,6 +39,7 @@ import { snapshotRowToState } from "../contract/service.ts";
 import { findGameByChat } from "../persistence/games.ts";
 import { resolveSnapshotForTurn } from "../persistence/snapshots.ts";
 import { defaultSnapshotState } from "../substrate/default-state.ts";
+import { rollNotation } from "../substrate/dice.ts";
 import {
   applySetTracker,
   applyUpdateInventory,
@@ -48,7 +49,6 @@ import {
   buildActorRefIndex,
   toStagedJournalEntry,
 } from "./apply.ts";
-import { rollNotation } from "./dice.ts";
 import { createExtractionMints } from "./mints.ts";
 
 /** The sanctioned erasure (the imagery/buddy precedent): a typed `ToolDefinition<A>` is unassignable to

@@ -3,6 +3,7 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import { messages, messageVariants } from "@orb/db";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { ChatNotFoundError } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
@@ -78,6 +79,38 @@ test("the host forces a specific character to speak (no user row)", async () => 
   expect(outcome.messages).toHaveLength(1);
   expect(outcome.messages[0]).toMatchObject({ role: "assistant", characterId: f.bryn.id });
   expect((await canon(f.h)).slice(before.length).map(({ message }) => message.role)).toEqual(["assistant"]);
+});
+
+test("a forced first reply claims the unstarted room before its canon and accounting writes", async () => {
+  await using h = await textRoom(["The forced opening."], {
+    characters: [createCharacterSchema.parse({ handle: "aria", name: "aria", description: "aria has a public character card." })],
+  });
+  const aria = h.characters[0];
+  if (aria === undefined) {
+    throw new Error("the physical root did not create the character");
+  }
+  const listed = async (): Promise<boolean> => (await h.root.services.chat.listChats({ principal: h.owner })).items.some(({ id }) => id === h.chatId);
+  expect(await listed()).toBe(false);
+  expect(await h.root.services.stats.overview(h.owner.userId)).toBeNull();
+  // The claim sits behind the host and seat gates: neither refusal may turn the husk into a real room.
+  const stranger = await h.root.principalFor((await h.root.actor()).id);
+  await expect(h.root.services.chat.forceCharacterTurn({ principal: stranger, chatId: h.chatId, characterId: aria.id })).rejects.toBeInstanceOf(
+    ChatNotFoundError,
+  );
+  await expect(
+    h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: mintTypeId(ID_PREFIX.character) }),
+  ).rejects.toBeInstanceOf(ChatNotFoundError);
+  expect(await listed()).toBe(false);
+
+  const outcome = await h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: aria.id });
+
+  expect(outcome).toMatchObject({ aborted: false, messages: [{ role: "assistant", characterId: aria.id, content: "The forced opening." }] });
+  expect((await canon(h)).map(({ message }) => message.role)).toEqual(["assistant"]);
+  expect(await listed()).toBe(true);
+  const live = await h.root.services.stats.overview(h.owner.userId);
+  expect(live).toMatchObject({ chats: 1, assistantTurns: 1 });
+  await h.root.services.stats.reconcile(h.owner.userId);
+  expect(await h.root.services.stats.overview(h.owner.userId)).toEqual(live);
 });
 
 test("a plain member is refused with not_host", async () => {

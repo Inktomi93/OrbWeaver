@@ -1,10 +1,11 @@
-// domain/rpg/tools/dice — the PURE dice-notation roller for `roll_dice` (docs/plans/rpg/design.md). Zero state,
+// domain/rpg/substrate/dice — the PURE dice-notation roller for `roll_dice` (docs/plans/rpg/design.md). Zero state,
 // zero I/O: parse `NdM(+/-K)` (e.g. `2d6+1`, `d20`, `3d8-2`) and roll each face via the INJECTED CSPRNG
 // (`ctx.randomInt` — a uniform int in `[0, max)`; the roll is server-authoritative, bake-once, a client seed
 // is never honored). Returns the total + the individual faces, or `null` on unparseable notation (the handler
 // maps that to an errors-as-data denial). Bounds keep a hostile notation from minting a huge roll loop.
+// The one home of the notation shape and its bounds, shared by the `roll_dice` tool and the member `rollDice` verb.
 
-import type { DiceRoll } from "../contract/results.ts";
+import type { DiceRoll, ParsedDiceNotation } from "../contract/results.ts";
 
 /** Max dice per roll + max faces per die — a pathological `9999d9999` is rejected (bounded parse, not a loop).
  *  MAX_MODIFIER bounds the third field for a DIFFERENT reason and it was missing (#1468 item 5): the modifier
@@ -26,15 +27,8 @@ const MAX_MODIFIER = 1000;
  *  bound above. */
 const NOTATION_RE = /^(\d{0,4})d(\d{1,4})([+-]\d{1,4})?$/iu;
 
-/** One parsed dice expression. */
-interface ParsedNotation {
-  readonly count: number;
-  readonly faces: number;
-  readonly modifier: number;
-}
-
-/** Parse `NdM(+/-K)` into its parts, or `null` if it doesn't match / is out of bounds. */
-function parseNotation(notation: string): ParsedNotation | null {
+/** Match `NdM(+/-K)` into its fields, or `null` when the shape does not match. No bound is judged here. */
+export function matchDiceNotation(notation: string): ParsedDiceNotation | null {
   const m = NOTATION_RE.exec(notation.trim());
   if (m === null) {
     return null;
@@ -42,16 +36,18 @@ function parseNotation(notation: string): ParsedNotation | null {
   const count = m[1] === "" || m[1] === undefined ? 1 : Number(m[1]);
   const faces = Number(m[2]);
   const modifier = m[3] === undefined ? 0 : Number(m[3]);
-  if (count < 1 || count > MAX_DICE || faces < 1 || faces > MAX_FACES || Math.abs(modifier) > MAX_MODIFIER) {
-    return null;
-  }
   return { count, faces, modifier };
+}
+
+/** Whether a matched notation sits inside the dice policy bounds. */
+export function diceNotationInBounds({ count, faces, modifier }: ParsedDiceNotation): boolean {
+  return count >= 1 && count <= MAX_DICE && faces >= 1 && faces <= MAX_FACES && Math.abs(modifier) <= MAX_MODIFIER;
 }
 
 /** Roll `notation` via `randomInt` (a uniform int in `[0, max)`). Returns `null` on unparseable notation. */
 export function rollNotation(notation: string, randomInt: (max: number) => number): DiceRoll | null {
-  const parsed = parseNotation(notation);
-  if (parsed === null) {
+  const parsed = matchDiceNotation(notation);
+  if (parsed === null || !diceNotationInBounds(parsed)) {
     return null;
   }
   const faces: number[] = [];

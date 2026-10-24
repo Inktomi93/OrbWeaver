@@ -1,8 +1,6 @@
-// verb: getMetadata — the blob-serve gate. Returns {mime,size} of an asset the caller can view, or
-// undefined (→ 404) when it doesn't exist or isn't accessible (the two collapse — no foreign-existence
-// leak). Normal path: owner-scoped off principal.userId; falls back to loadCoParticipantOwner (roster-
-// avatar reference-check) only if the hash is a co-participant's rostered avatar or active persona, never a
-// bare hash match — on a hit, that asset owner's ownerId is returned so the blob route reads the right CAS partition.
+// verb: getMetadata — the blob-serve gate: {mime,size} of a viewable asset, else undefined (404; missing and foreign collapse).
+// Owner-scoped first, then loadCoParticipantOwner: a co-participant's rostered avatar, active persona, or a room-linked
+// attachment at or above the caller's history floor, never a bare hash; a hit returns that owner's CAS partition.
 
 import type { GetMetadataParams } from "../contract/params.ts";
 import type { AssetMetadata } from "../contract/results.ts";

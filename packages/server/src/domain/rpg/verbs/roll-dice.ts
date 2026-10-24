@@ -6,31 +6,26 @@
 import { rpgAttributeModifier } from "@orb/contracts/rpg";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { RollDiceParams } from "../contract/params.ts";
-import type { RollDiceResult } from "../contract/results.ts";
+import type { ParsedDiceNotation, RollDiceResult } from "../contract/results.ts";
 import type { RpgContext, RpgGameRow, RpgService } from "../contract/service.ts";
 import { resolveMember } from "../guard.ts";
 import { findSheet } from "../persistence/sheets.ts";
+import { diceNotationInBounds, matchDiceNotation } from "../substrate/dice.ts";
 
-const NOTATION_RE = /^(\d*)d(\d+)([+-]\d+)?$/i;
 const ABILITY_LABEL_BREAKS = /[[\]\r\n]/g;
-const MAX_DICE = 100;
-const MAX_FACES = 1000;
+/** A member's stamped roll needs a real die; the shared policy alone admits a one-faced one. */
+const MIN_MEMBER_FACES = 2;
 
-/** Parse `NdM(+/-K)?` into `{count, faces, modifier}`; a malformed or out-of-bounds notation is a caller error. */
-function parseNotation(notation: string): { count: number; faces: number; modifier: number } {
-  const match = NOTATION_RE.exec(notation.trim());
-  if (match === null || match[2] === undefined) {
+/** Parse through the shared dice policy; a malformed or out-of-bounds notation is a caller error. */
+function parseNotation(notation: string): ParsedDiceNotation {
+  const parsed = matchDiceNotation(notation);
+  if (parsed === null) {
     throw new DomainOperationError("rpg_bad_dice_notation", `unparseable dice notation "${notation}"`);
   }
-  const countStr = match[1];
-  const count = countStr === undefined || countStr === "" ? 1 : Number.parseInt(countStr, 10);
-  const faces = Number.parseInt(match[2], 10);
-  const modStr = match[3];
-  const modifier = modStr !== undefined ? Number.parseInt(modStr, 10) : 0;
-  if (count < 1 || count > MAX_DICE || faces < 2 || faces > MAX_FACES) {
+  if (!diceNotationInBounds(parsed) || parsed.faces < MIN_MEMBER_FACES) {
     throw new DomainOperationError("rpg_dice_out_of_bounds", `dice notation "${notation}" is out of bounds`);
   }
-  return { count, faces, modifier };
+  return parsed;
 }
 
 async function resolveAbility(
