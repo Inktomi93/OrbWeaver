@@ -1,7 +1,9 @@
 // Handle copies and restore lookups outside `findByHandle`: a card stored before the handle alphabet keeps its
-// links through a handoff copy and a library round trip, and a file naming a synthetic group handle binds nothing.
-// The legacy handle has no producing verb, so the row is renamed directly.
+// links through a handoff copy and a library round trip, and a synthetic group row is never seated, copied,
+// exported or bound. A legacy handle and a seated group row have no producing verb, so those rows are written directly.
 // @subject packages/server/src/domain/character/persistence/handoff-copy-write.ts
+// @subject packages/server/src/domain/character/persistence/queries.ts
+// @subject packages/server/src/domain/chat/persistence/seat-characters.ts
 // @subject packages/server/src/domain/character/persistence/gallery-character.ts
 // @subject packages/server/src/domain/databank/persistence/portability-write.ts
 // @subject packages/server/src/domain/imagery/persistence/portability-read.ts
@@ -11,9 +13,10 @@ import { CSRF_HEADER } from "@orb/contracts/identity";
 import { portableImageryCallSchema } from "@orb/contracts/imagery";
 import { importStartedSchema } from "@orb/contracts/import";
 import type { PortableFile, PortableImportOutcome, PortableKind } from "@orb/contracts/portability";
-import { characters, imageryGenerations } from "@orb/db";
-import type { AssetId, CharacterHandle, CharacterId, DocumentId, UserId } from "@orb/kit/ids";
-import { castId, ID_PREFIX } from "@orb/kit/ids";
+import { characters, chatParticipants, imageryGenerations } from "@orb/db";
+import { DomainNotFoundError } from "@orb/kit/errors";
+import type { AssetId, CharacterHandle, CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -25,7 +28,7 @@ import {
   makeAssetBytes,
 } from "@orb/testkit/node/composed";
 import { seedChatInviteRows, seedInvitedChatParticipantRows } from "@orb/testkit/node/rows";
-import { and, eq, isNotNull } from "drizzle-orm";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 const EXPORT_ROUTE = "/api/export/library";
@@ -250,4 +253,96 @@ test("a databank or imagery file naming a synthetic group handle attaches nothin
     attachedToGroup: attachments.characters.some((ref) => ref.id === group.characterId),
     imagerySubjects: await importedSubjects(root, assetId),
   }).toEqual({ documentOk: true, imageryOk: true, attachedToGroup: false, imagerySubjects: [null] });
+});
+
+/** A room seating `characterIds`, and the synthetic group row its narrator rounds would mint. */
+async function roomWithGroupRow(
+  root: ServerTestHarness,
+  characterIds: readonly CharacterId[],
+): Promise<{ readonly chatId: ChatId; readonly groupId: CharacterId }> {
+  const { chat } = await root.services.chat.startChat({
+    principal: await root.principalFor(root.ownerId),
+    characterIds: [...characterIds],
+    title: "Outer rings",
+  });
+  const group = await root.services.character.mintSyntheticGroupCharacter({ ownerId: root.ownerId, chatId: chat.id });
+  return { chatId: chat.id, groupId: group.characterId };
+}
+
+async function refusal(attempt: Promise<unknown>): Promise<string> {
+  try {
+    await attempt;
+    return "accepted";
+  } catch (error) {
+    return error instanceof DomainNotFoundError ? "not-found" : "other";
+  }
+}
+
+test("a synthetic group row can neither found a room nor join one", async () => {
+  await using root = await createServerHarness();
+  const owner = await root.principalFor(root.ownerId);
+  const { chatId, groupId } = await roomWithGroupRow(root, [await createCharacter(root, "wanderer", NAME)]);
+  const founded = await refusal(root.services.chat.startChat({ principal: owner, characterIds: [groupId], title: "Group squat" }));
+  const joined = await refusal(root.services.chat.addCharacterToChat({ principal: owner, chatId, characterId: groupId }));
+  const seated = (await root.services.chat.getChat({ principal: owner, chatId })).participants.map((participant) => participant.characterId);
+  expect({ founded, joined, groupSeated: seated.includes(groupId) }).toEqual({ founded: "not-found", joined: "not-found", groupSeated: false });
+});
+
+test("a handoff copies a room's cards but never its seated synthetic group row", async () => {
+  await using root = await createServerHarness();
+  const owner = await root.principalFor(root.ownerId);
+  const member = await root.principalFor((await root.actor()).id);
+  const keeperId = await createCharacter(root, "keeper", "Keeper");
+  const { chatId, groupId } = await roomWithGroupRow(root, [await createCharacter(root, "wanderer", NAME), keeperId]);
+  const groupName = (await root.services.character.get({ principal: owner, characterId: groupId })).name;
+  // A room seated before the seat gate: the second character seat points at the group row.
+  await root.db
+    .update(chatParticipants)
+    .set({ characterId: groupId })
+    .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.characterId, keeperId)));
+  const invite = await seedChatInviteRows(root, { principal: owner, chatId, input: { invitedHandle: member.handle } });
+  await seedInvitedChatParticipantRows(root, { principal: member, inviteId: invite.id });
+  await root.services.chat.nominateHostHandoff({ principal: owner, chatId, userId: member.userId, offer: { copyCharacters: true, copyGmPreset: false } });
+  await root.services.chat.acceptHostHandoff({ principal: member, chatId });
+
+  const library = (await (await root.internalCallerFor(member.userId)).character.list({})).items.map((item) => item.name);
+  expect({ copiedCard: library.includes(NAME), copiedGroup: library.includes(groupName) }).toEqual({ copiedCard: true, copiedGroup: false });
+});
+
+const galleryFileSchema = z
+  .object({ items: z.array(z.object({ assetId: typeIdSchema(ID_PREFIX.asset), subjectCharacterHandle: z.string().nullable() }).loose()) })
+  .loose();
+
+test("an owner's export names no synthetic group row as a gallery, databank or imagery subject", async () => {
+  const pictures: Uint8Array[] = [];
+  await using root = await signedInBox({ pictures });
+  const owner = await root.principalFor(root.ownerId);
+  const { groupId } = await roomWithGroupRow(root, [await createCharacter(root, "wanderer", NAME)]);
+  const assetId = await portraitOf(root, pictures, groupId);
+  const documentId = await uploadDocument(root);
+  await root.services.databank.attachToCharacter({ principal: owner, documentId, characterId: groupId });
+  const nativeSubjects = await root.db
+    .select({ subject: imageryGenerations.subjectCharacterId })
+    .from(imageryGenerations)
+    .where(and(eq(imageryGenerations.assetId, assetId), isNull(imageryGenerations.importSource)));
+  const decoded = async (kind: PortableKind): Promise<unknown[]> =>
+    (await exportedFiles(root, kind, root.ownerId)).map((file) => JSON.parse(new TextDecoder().decode(file.bytes)));
+
+  expect({
+    // Each export source holds the group row, so a missing filter would carry its handle out.
+    held: {
+      gallery: (await root.services.assets.listGallery({ principal: owner, limit: 100 })).some((item) => item.subjectCharacterId === groupId),
+      databank: (await root.services.databank.listAttachments({ principal: owner, id: documentId })).characters.some((ref) => ref.id === groupId),
+      imagery: nativeSubjects.map((row) => row.subject),
+    },
+    // The first-login seed files its own gallery items; only the portrait's item is in question.
+    gallery: (await decoded("gallery")).flatMap((file) =>
+      galleryFileSchema
+        .parse(file)
+        .items.filter((item) => item.assetId === assetId)
+        .map((item) => item.subjectCharacterHandle),
+    ),
+    databank: (await decoded("databank")).flatMap((file) => documentFileSchema.parse(file).characterHandles),
+    imagery: (await decoded("imagery")).map((file) => portableImageryCallSchema.loose().parse(file).execution.subjectCharacterHandle),
+  }).toEqual({ held: { gallery: true, databank: true, imagery: [groupId] }, gallery: [null], databank: [], imagery: [null] });
 });

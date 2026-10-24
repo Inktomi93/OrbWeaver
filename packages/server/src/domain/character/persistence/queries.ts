@@ -617,8 +617,9 @@ export async function loadOwnedCharacterRow(db: Db, ownerId: UserId, characterId
 /** MANY owned character rows in one round trip — the batched twin of {@link loadOwnedCharacterRow}, for a
  *  caller holding a SET of ids (the host-handoff card copy). Owner-scoped in the WHERE, so an id that is not
  *  this owner's is simply absent from the result: the caller learns nothing about it, and the absence IS the
- *  refusal (the `getCard` "a null is skip, not an error" contract, widened to a list). An empty input reads
- *  nothing. */
+ *  refusal (the `getCard` "a null is skip, not an error" contract, widened to a list). A synthetic group row is
+ *  absent too: it is room machinery, and a copy would land in the nominee's library as a visible card. An empty
+ *  input reads nothing. */
 export function listOwnedCharacterRows(db: Db, ownerId: UserId, characterIds: readonly CharacterId[]): Promise<CharacterRow[]> {
   if (characterIds.length === 0) {
     return Promise.resolve([]);
@@ -626,7 +627,7 @@ export function listOwnedCharacterRows(db: Db, ownerId: UserId, characterIds: re
   return db
     .select()
     .from(characters)
-    .where(and(eq(characters.ownerId, ownerId), inArray(characters.id, [...characterIds])));
+    .where(and(eq(characters.ownerId, ownerId), eq(characters.synthetic, false), inArray(characters.id, [...characterIds])));
 }
 
 /** No owner scope — the embeddings indexer is a trusted system consumer; not a user-facing surface. */

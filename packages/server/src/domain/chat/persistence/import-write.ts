@@ -20,17 +20,7 @@ import { DEFAULT_MESSAGE_KIND } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
 import { generationUsageSchema, modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
-import {
-  characters,
-  chatGenerationObservations,
-  chatImportClaims,
-  chatInjections,
-  chatParticipants,
-  chats,
-  messageAssets,
-  messages,
-  messageVariants,
-} from "@orb/db";
+import { chatGenerationObservations, chatImportClaims, chatInjections, chatParticipants, chats, messageAssets, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany, batchStmt, chunkRows, isConstraintViolation } from "@orb/db/query";
 import { batchHandle, databaseForOwner } from "@orb/db/wiring-owner";
@@ -43,6 +33,7 @@ import type { BulkImportChats, ChatImportAssemblyContext, ChatImportContext } fr
 import { parseChatMetadata } from "../contract/metadata.ts";
 import { importedObservationRows } from "../substrate/import-observations.ts";
 import { carriesAssetBackground, guardedChatId } from "./background-write.ts";
+import { assertSeatableCharacters } from "./seat-characters.ts";
 
 // Budget a scope bind alongside each varying value, so the statement's fixed scope always fits too.
 const SCOPED_FILTER_BIND_BUDGET = 2;
@@ -59,27 +50,6 @@ interface PendingParent {
   readonly chatId: ChatId;
   readonly parentRef: string;
   readonly forkedAt: number;
-}
-
-/** Ownership gate: EVERY seat (the primary + any extra roster id) must be the caller's — checked before a
- *  single row is written, so a foreign id can never be seated into a room the caller hosts. Leak-free
- *  `DomainNotFoundError`, the same refusal shape a stranger's characterId got when the op was
- *  single-character. Bounded reads preserve the first missing id's input order. */
-async function assertOwnedCharacters(db: Db, ownerId: UserId, characterIds: readonly CharacterId[]): Promise<void> {
-  for (const ids of chunkRows(characterIds, SCOPED_FILTER_BIND_BUDGET)) {
-    // parameter-safe chunks complete the ownership gate before any canon write. Ends if the driver lifts its bind cap.
-    const owned = await db
-      .select({ id: characters.id })
-      .from(characters)
-      .where(and(inArray(characters.id, ids), eq(characters.ownerId, ownerId)));
-    // query-local membership Set over this chunk's returned rows. Ends if it outlives the call.
-    const ownedIds = new Set(owned.map((row) => row.id));
-    for (const characterId of ids) {
-      if (!ownedIds.has(characterId)) {
-        throw new DomainNotFoundError("character", characterId);
-      }
-    }
-  }
 }
 
 /** The DISTINCT seated character ids for one imported chat: the run's primary first (it is the header character —
@@ -715,7 +685,8 @@ async function planOneChat(args: Omit<OneChatArgs, "existingAssetIds" | "narrato
  *  caller's, and every named speaker and knob must be seated in its own room. A foreign or unseated id
  *  anywhere refuses the whole run rather than landing a partially-correct room. */
 async function assertImportPreconditions(db: Db, ownerId: UserId, characterId: CharacterId, input: readonly BulkImportChatInput[]): Promise<void> {
-  await assertOwnedCharacters(db, ownerId, everyReferencedCharacter(characterId, input));
+  // EVERY seat (the primary + any extra roster id) must be the caller's own card, checked before a row is written.
+  await assertSeatableCharacters(db, ownerId, everyReferencedCharacter(characterId, input));
   for (const ci of input) {
     assertSeatedSpeakers(ci, characterId);
     assertSeatedKnobs(ci, characterId);
