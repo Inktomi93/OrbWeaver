@@ -156,7 +156,7 @@ async function reportEvalValues(index: SnapRunIndex, query: SnapReportQuery): Pr
     // a PRESENT-but-unreadable values artifact is an instrument defect, printed as EVAL REFUSED and never as an empty value set; the strict index reader above still owns the run's verdict. Ends if that refusal line disappears.
     try {
       for (const row of await readSnapEvalValues(path)) {
-        print(`EVAL         p${String(row.page)} ${row.expression} ${row.error === null ? `= ${String(row.value)}` : `→ ${row.error}`}`);
+        print(`EVAL         p${String(row.page)} ${row.expression} ${row.error === null ? `= ${row.value}` : `→ ${row.error}`}`);
       }
     } catch (error) {
       print(`EVAL REFUSED ${path} — ${error instanceof Error ? error.message : String(error)}`);

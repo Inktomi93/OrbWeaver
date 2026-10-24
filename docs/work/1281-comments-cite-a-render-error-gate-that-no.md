@@ -22,4 +22,4 @@ Each comment states the convention and, where one exists, the test that asserts 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The four comments now state the convention (an error state renders `QueryErrorState` directly, never a wrapper) without naming a gate. No test asserts the convention, so none is cited. `rg render-error-via-battery packages tests tooling` finds nothing.

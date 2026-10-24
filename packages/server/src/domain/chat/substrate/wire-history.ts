@@ -547,7 +547,7 @@ function receivedProse(text: string, signatures: ContentSignatures): readonly Ch
 }
 
 function generatedReplyImagePart(image: GeneratedImage): ChatContentPart | null {
-  const url = image.url ?? (image.base64 !== undefined && image.mediaType !== undefined ? `data:${image.mediaType};base64,${image.base64}` : undefined);
+  const url = image.url ?? (image.mediaType !== undefined ? `data:${image.mediaType};base64,${image.base64}` : undefined);
   return url === undefined ? null : { type: "image", url, ...(image.thoughtSignature === undefined ? {} : { thoughtSignature: image.thoughtSignature }) };
 }
 

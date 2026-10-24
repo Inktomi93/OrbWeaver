@@ -49,7 +49,7 @@ export function createImportThemes(ctx: ImportContext): Pick<ImportService, "imp
       const bytes = buildThemeBackup({ themes: [{ name: t.parsed.name, override: t.parsed.override, css: null }] });
       const outcome = await importTheme(ctx.ownerId, bytes);
       if (!outcome.ok) {
-        skippedThemes.push({ file: t.sourceFile, reason: outcome.error ?? "the settings domain refused the theme" });
+        skippedThemes.push({ file: t.sourceFile, reason: outcome.error });
         continue;
       }
       themesImported += 1;

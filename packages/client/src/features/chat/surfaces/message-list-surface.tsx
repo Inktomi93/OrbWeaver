@@ -127,9 +127,8 @@ export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolR
         // the loading sibling's translucent plate because this state carries real MUTED-tone text and a
         // control, and `muted-foreground` is floored against `card` (BG_PHOTO_ERROR_PLATE states the ink
         // routing in full). Both classes are inert on a plain background.
-        // It hands the battery its SURFACE rather than wrapping it: `render-error-via-battery` REDs an arm
-        // that does not render `QueryErrorState` directly (proven — the wrapper this replaced tripped it),
-        // and that gate is right, so the plate rides the component's own `className`.
+        // It hands the battery its SURFACE rather than wrapping it: an error state renders `QueryErrorState`
+        // directly, never a wrapper, so the plate rides the component's own `className`.
         renderError={(_error, retry): ReactElement => (
           <QueryErrorState className={`${CHAT_TRACK} ${BG_PHOTO_ERROR_PLATE}`} label="this conversation" onRetry={retry} />
         )}

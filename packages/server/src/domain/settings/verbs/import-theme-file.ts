@@ -13,7 +13,7 @@ export function createImportThemeFile(deps: { readonly importTheme: ImportTheme 
     const stem = filename === undefined ? "" : fileStem(filename);
     const outcome = await deps.importTheme(principal.userId, ENC.encode(fileText), stem.length > 0 ? stem : undefined);
     if (!outcome.ok) {
-      return { ok: false, error: outcome.error ?? "That file isn't a theme." };
+      return { ok: false, error: outcome.error };
     }
     const first = outcome.landed?.[0];
     if (first === undefined) {

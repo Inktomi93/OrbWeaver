@@ -178,7 +178,7 @@ export function pluginCommandArgOffers(specs: readonly PluginCommandArgSpec[], p
     .map((spec) => ({
       id: spec.name,
       label: spec.name,
-      describe: `${spec.type}${spec.required === true ? ", required" : ""}${spec.type === "enum" ? ` (${(spec.enumValues ?? []).join("|")})` : ""}`,
+      describe: `${spec.type}${spec.required === true ? ", required" : ""}${spec.type === "enum" ? ` (${spec.enumValues.join("|")})` : ""}`,
       insert: compose(`${spec.name}=`),
     }));
 }

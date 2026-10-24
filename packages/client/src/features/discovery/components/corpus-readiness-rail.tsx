@@ -114,7 +114,7 @@ export function CorpusReadinessRail({ stages, showRerun, queue }: CorpusReadines
           "unknown" in this state, which is honest but inert on its own — the reader is owed what could not
           be asked and a way to ask again. It sits UNDER the rows and above the re-run for the reason the
           rows are ordered as they are: it qualifies the readings above it. The shared read-error block, not
-          a hand-rolled one (`render-error-via-battery`'s whole point). */}
+          a hand-rolled one: an error state renders `QueryErrorState` directly. */}
       {queue.failed ? <QueryErrorState label="which passes have run" onRetry={queue.onRetry} /> : null}
       {showRerun ? <CorpusReadinessRerun /> : null}
     </Section>

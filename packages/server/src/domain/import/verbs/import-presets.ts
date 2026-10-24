@@ -98,7 +98,7 @@ export function createImportPresets(ctx: ImportContext): Pick<ImportService, "im
     for (const p of input.presets) {
       const outcome = await importPreset({ ownerId: ctx.ownerId, bytes: ENC.encode(JSON.stringify(p.parsed.file)) });
       if (!outcome.ok) {
-        skippedPresets.push({ file: p.sourceFile, reason: outcome.error ?? "the preset domain refused the file" });
+        skippedPresets.push({ file: p.sourceFile, reason: outcome.error });
         continue;
       }
       presetsImported += 1;
