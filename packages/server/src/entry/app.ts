@@ -198,8 +198,8 @@ export interface AppDeps {
   readonly sockets: SocketRegistry;
   /** The bug-report read over the root's env record, carried on every tRPC context. */
   readonly bugReportDiagnostics: BugReportDiagnosticsRead;
-  /** R-OBS — the rpg flight recorder's read half, present ONLY when tracing is enabled (`RPG_TRACE=on` / the
-   *  `rpgTrace` compose dep). Absent ⇒ `/api/_debug/rpg/traces` is not registered at all, which is the route's
+  /** R-OBS — the rpg flight recorder's read half, present ONLY when tracing is enabled (`RPG_TRACE=on` in the
+   *  record). Absent ⇒ `/api/_debug/rpg/traces` is not registered at all, which is the route's
    *  own contract: tracing off means the door does not exist rather than answering an empty ring. */
   readonly rpgTrace?: RpgTraceInspector;
   /** #250 — the memory-recall flight recorder's read half. Present in production compose (the recorder is

@@ -34,7 +34,8 @@ export const SCRUBBER_FACTORY = "createHiddenSpanStreamScrubber";
 const RAW_EGRESS_MESSAGE =
   "D61 B5a: server and inference egress goes through infra/network (`safeFetch` or the configured-endpoint capability); a raw fetch or HTTP client skips the scheme pin, host allowlist, resolve-validate-pin and deadline.";
 
-const SOLE_ENV_MESSAGE = "Tier-2-Foundation.md invariant 1: foundation/env is the only process.env reader; import the frozen `env` and dot-access a typed key.";
+const SOLE_ENV_MESSAGE =
+  "Tier-2-Foundation.md invariant 1: foundation/env is the only process.env reader; take the parsed env record (`Env` from foundation/env/record) as a dependency and dot-access a typed key.";
 
 function valueCarrier(node: ChildNode): ChildNode {
   let carrier = node;

@@ -379,7 +379,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions): voi
   // `enabled` (#412) is what makes that empty read LEGIBLE: without it a reader cannot tell "the recorder is
   // off" (apparatus absent — a run that is not a verdict) from "the recorder is on and nothing was sent"
   // (an honest zero), and `wire-tap captures` could only print a caveat and exit clean either way. It is the
-  // REQUEST-SINK decision (compose: env OR the force flag), not a re-derivation — see `wireCaptureEnabled`.
+  // REQUEST-SINK decision (compose, from the record), not a re-derivation — see `wireCaptureEnabled`.
   app.get("/api/_debug/wire/captures", (c) => {
     // THE FILTER IS BUILT AS AN ANNOTATED LITERAL, NOT A CONDITIONAL SPREAD, AND THAT IS THE ENFORCER.
     // `?backend=` is the QUERY vocabulary (the axis a reader and `wire-tap --backend` both say); the ring's

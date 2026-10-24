@@ -392,7 +392,7 @@ export interface ServicesResult extends AsyncDisposable {
   /** #412 — whether THIS compose actually wired the provider wire-capture request sink (`WIRE_CAPTURE` in
    *  the record). `lifecycle.ts` hands it to `createApp`, which publishes it on
    *  `/api/_debug/wire/captures` as `enabled` so a reader can tell an off recorder from a quiet one. Surfaced
-   *  because the decision lives HERE and nothing downstream can re-derive the force-flag half. */
+   *  because the decision lives HERE, so no downstream reader re-reads the knob. */
   readonly wireCaptureOn: boolean;
   /** The production "Report a bug" read over this graph's env record; the tRPC context carries it. */
   readonly bugReportDiagnostics: BugReportDiagnosticsRead;

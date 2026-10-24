@@ -200,12 +200,12 @@ const envObjectSchema = z.object({
   DEBUG_TOKEN: z.string().min(1).optional(),
   // Opt-in for the rpg flight recorder (R-OBS). Default off ⇒ `RpgContext.trace` is unwired ⇒ zero-cost +
   // byte-identical turns. `on` wires the per-process ring recorder read host-only at /api/_debug/rpg/traces
-  // (the drive kit forces it on via the `rpgTrace` compose dep, bypassing this env knob).
+  // (a test root sets it in its own record).
   RPG_TRACE: z.enum(["on", "off"]).default("off"),
   // TASK-24 wire-capture: opt-in for the provider-request-body recorder (the four-layer fidelity harness).
   // Default off ⇒ compose wires NO capture sink into the backends ⇒ zero-cost + byte-identical turns +
   // zero retained bytes. `on` wires the sink; the per-process ring is read host-only at
-  // /api/_debug/wire/captures (the drive kit / an int test forces it on via the `wireCapture` compose dep).
+  // /api/_debug/wire/captures (a test root sets it in its own record).
   WIRE_CAPTURE: z.enum(["on", "off"]).default("off"),
   // §D2/§D3 REPLY TAP: also record the literal RESPONSE bytes (head-capped, secret-scrubbed) on each capture
   // entry — the only way to read OpenRouter's `debug.echo_upstream_body` first frame, or to tell a
@@ -225,7 +225,7 @@ const envObjectSchema = z.object({
   // first-run persona ask. It stays a self-stamp otherwise (`/healthz`), and nothing else branches on it.
   E2E_HARNESS: z.enum(["on", "off"]).default("off"),
   // The harness's opt-out of the persona AUTO-CREATE arm, per account: a comma list of handles that must meet the
-  // real first-run ask. It can only SUBTRACT from the harness's arm (see `isAutomatedPersonaSeedEnabled`), so on a
+  // real first-run ask. It can only SUBTRACT from the harness's arm (see `personaAutoSeedAdmits`), so on a
   // stack without `E2E_HARNESS=on` or `DEV_SEED=on` it changes nothing and no value of it can turn the auto-seed on.
   E2E_FIRST_RUN_ASK_HANDLES: z.string().optional(),
   // The DEV-STACK SEED stamp — the dev twin of `E2E_HARNESS` for automation-started stacks. `on` is set by

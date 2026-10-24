@@ -3,13 +3,13 @@
 // can prove a setting flipped at the FE propagates truthfully into the real wire (FE → assemble → WIRE → DB).
 //
 // GATING IS LOAD-BEARING — this is dev/test-only + prod-safe, mirroring the RPG flight recorder (R-OBS):
-//   • THE REPLY TAP IS A SECOND, INDEPENDENT OPT-IN (`WIRE_CAPTURE_REPLY=on` / the `wireCaptureReply` compose
-//     force flag, audit D2/D3). It adds the provider's literal reply bytes to each REQUEST entry. It is not
+//   • THE REPLY TAP IS A SECOND, INDEPENDENT OPT-IN (`WIRE_CAPTURE_REPLY=on` in the root's env record, audit
+//     D2/D3). It adds the provider's literal reply bytes to each REQUEST entry. It is not
 //     folded into `WIRE_CAPTURE` because the request body is the operator's own prompt while the reply is the
 //     model's prose — the exact thing the OUTCOME arm refuses to keep (see METADATA ONLY below). Inert with
 //     capture off: no sink is wired, so no send boundary taps anything.
-//   • OFF by default and in prod. Enabled only via `WIRE_CAPTURE=on` OR the `wireCapture` compose force flag
-//     (the harness / an int test forces it, bypassing the env). When disabled, compose injects NO sink into
+//   • OFF by default and in prod. Enabled only via `WIRE_CAPTURE=on` in the root's env record (a test root sets
+//     it in its own record). When disabled, compose injects NO sink into
 //     the backends, so a send boundary never calls `recordWireCapture` — ZERO overhead + ZERO retained bytes.
 //   • Read HOST-ONLY at /api/_debug/wire/captures (the debug-token / admin-cookie gate), read-only, no table.
 //
@@ -52,7 +52,7 @@
 // the reply text: the ring is a debug surface, and the canon row already holds the prose.
 //
 // ONE GATE FOR BOTH ARMS: compose injects the request sink and the outcome recorder together, on the same
-// decision (env OR the `wireCapture` force flag); with capture off the engine holds no recorder at all.
+// decision (`WIRE_CAPTURE` in the record); with capture off the engine holds no recorder at all.
 //
 // ── SPILL TO DISK ───────────────────────────────────────────────────────────────────────────────────────
 // The ring is in-memory and 256 slots, so a restart or a busy hour erases exactly the evidence you went
