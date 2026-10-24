@@ -7,7 +7,6 @@ import { MS_PER_HOUR } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, processObservability, withheldTable } from "@orb/testkit/node/composed";
 import { NATIVE_OIDC_SETTINGS } from "@orb/testkit/node/helpers";
-import { sql } from "drizzle-orm";
 
 const BOOT_LOG_LEVEL = "silent" satisfies LogLevel;
 const LOG_SCAN_LIMIT = 200;
@@ -24,7 +23,7 @@ test("an oidc-gc scheduler started at silent logs its failed tick once the root'
   // microtasks that follow, which the macrotask turn drains.
   const failingTick = async (): Promise<void> => {
     root.timers.advance(MS_PER_HOUR);
-    await root.db.run(sql`select 1`);
+    await root.app.sessions.getOwnerUserId();
     await new Promise<void>((resolve) => setImmediate(resolve));
   };
   await using _withheld = await withheldTable(root.db, oidcTransactions);
