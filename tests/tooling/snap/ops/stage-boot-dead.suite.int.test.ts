@@ -108,7 +108,7 @@ test("a boot-dead stage this run BOOTED leaves zero stage processes behind", { t
   const planted = await plantStage(join(scratch, "booted"));
   const row = plantRow({ dir: planted.dir, port: planted.port, checkout: join(scratch, "booted") });
   writeBands(home, [row]);
-  registerStageRunBinding({ row, home, booted: true });
+  registerStageRunBinding({ row, home, booted: true, owner: row.checkout });
 
   // RED-FIRST SHAPE: the readiness failure is planted, exactly as ops/drive.ts raises it after the warm-up
   // re-navigation has already been paid and STILL came back non-settled.
@@ -131,7 +131,7 @@ test("a boot-dead readiness failure never tears down a stage this run only REUSE
   const row = plantRow({ dir: planted.dir, port: planted.port, checkout: join(scratch, "reused") });
   writeBands(home, [row]);
   // PLANTED CONTROL: the identical failure, on a row this run did not build. #324's warm-across-runs rule.
-  registerStageRunBinding({ row, home, booted: false });
+  registerStageRunBinding({ row, home, booted: false, owner: row.checkout });
 
   markStageUnsettled(MISSED);
   settleStageReadiness(probes(false));
@@ -150,7 +150,7 @@ test("a booted stage whose server and vite answered after the first miss is kept
   const planted = await plantStage(join(scratch, "warming"));
   const row = plantRow({ dir: planted.dir, port: planted.port, checkout: join(scratch, "warming") });
   writeBands(home, [row]);
-  registerStageRunBinding({ row, home, booted: true });
+  registerStageRunBinding({ row, home, booted: true, owner: row.checkout });
 
   markStageUnsettled(MISSED);
   settleStageReadiness(probes(true));
@@ -167,7 +167,7 @@ test("the warm retry that misses again tears the stage down, though that run onl
   const planted = await plantStage(join(scratch, "retry-miss"));
   const row = plantRow({ dir: planted.dir, port: planted.port, checkout: join(scratch, "retry-miss"), warming: true });
   writeBands(home, [row]);
-  registerStageRunBinding({ row, home, booted: false });
+  registerStageRunBinding({ row, home, booted: false, owner: row.checkout });
 
   markStageUnsettled(MISSED);
   settleStageReadiness(probes(true));
@@ -183,13 +183,36 @@ test("the warm retry that settles clears the warming mark and leaves the stage u
   const planted = await plantStage(join(scratch, "retry-ok"));
   const row = plantRow({ dir: planted.dir, port: planted.port, checkout: join(scratch, "retry-ok"), warming: true });
   writeBands(home, [row]);
-  registerStageRunBinding({ row, home, booted: false });
+  registerStageRunBinding({ row, home, booted: false, owner: row.checkout });
 
   markStageSettled();
   settleStageReadiness(probes(true));
 
   expect(pidAlive(planted.pid)).toBe(true);
   expect(readBands(home).map((kept) => kept.warming)).toStrictEqual([undefined]);
+  process.kill(planted.pid, "SIGTERM");
+});
+
+test("another checkout bound to a warming stage cannot tear it down, miss or settle", { timeout: CASE_BUDGET_MS }, async ({ scratch }) => {
+  const home = join(scratch, "sibling-home");
+  mkdirSync(home, { recursive: true });
+  const planted = await plantStage(join(scratch, "sibling"));
+  const row = plantRow({ dir: planted.dir, port: planted.port, checkout: join(scratch, "sibling"), warming: true });
+  writeBands(home, [row]);
+  registerStageRunBinding({ row, home, booted: false, owner: join(scratch, "another-checkout") });
+
+  markStageUnsettled(MISSED);
+  settleStageReadiness(probes(true));
+  expect(pidAlive(planted.pid), "the owner's warm retry is not a sibling's to spend").toBe(true);
+  expect(readBands(home).map((kept) => kept.warming)).toStrictEqual([{ since: WARMING_SINCE }]);
+
+  registerStageRunBinding({ row, home, booted: false, owner: join(scratch, "another-checkout") });
+  markStageSettled();
+  settleStageReadiness(probes(true));
+  expect(
+    readBands(home).map((kept) => kept.warming),
+    "and its settle does not clear the owner's mark",
+  ).toStrictEqual([{ since: WARMING_SINCE }]);
   process.kill(planted.pid, "SIGTERM");
 });
 
@@ -201,7 +224,7 @@ test("a first miss on a stage whose vite or server did not answer is still boot-
   const planted = await plantStage(join(scratch, "silent"));
   const row = plantRow({ dir: planted.dir, port: planted.port, checkout: join(scratch, "silent") });
   writeBands(home, [row]);
-  registerStageRunBinding({ row, home, booted: true });
+  registerStageRunBinding({ row, home, booted: true, owner: row.checkout });
 
   markStageUnsettled(MISSED);
   settleStageReadiness(probes(false));

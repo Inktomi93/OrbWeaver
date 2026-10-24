@@ -53,6 +53,7 @@ function bindBootedStage(): void {
   registerStageRunBinding({
     home: "/planted/home",
     booted: true,
+    owner: "/planted",
     row: {
       band: 9,
       sha: "dirty",

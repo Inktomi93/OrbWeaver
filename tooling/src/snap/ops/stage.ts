@@ -315,7 +315,7 @@ export function ensureStage(opts: EnsureStageOpts, ops: EnsureStageOps = REAL_EN
   const row = ops.armStageKeeper(home, resolved.row);
   // …and that SAME one exit publishes what this run bound, carrying whether we BOOTED it — the one fact the
   // boot-dead teardown may act on without breaking #324's warm-across-runs rule (lib/stage-run-binding.ts).
-  registerStageRunBinding({ row, home, booted: resolved.booted });
+  registerStageRunBinding({ row, home, booted: resolved.booted, owner: stageCallerOwner(root) });
   // Every caller that binds a stage holds it for its process's life (snap runs, session daemons,
   // cache:check), so no other checkout tears it down under that use.
   holdStageUse(home, row, stageCallerOwner(root), STAGE_USE_HEARTBEAT_MS);

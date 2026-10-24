@@ -24,6 +24,7 @@
 // a session daemon (which owns its stage's lifecycle for the life of the session, and never calls the
 // consumer) therefore sets a latch that is simply never read, rather than getting its stage killed under it.
 import type { StageBoundIdentity, StageRow } from "../contract/stage.ts";
+import { rowOwner } from "../contract/stage.ts";
 import { urlStageBand } from "./stage-plan.ts";
 
 /** The stage row this run is bound to, plus the two facts a teardown decision needs about it. */
@@ -33,6 +34,13 @@ export interface StageRunBinding {
   readonly home: string;
   /** TRUE only when THIS run built the stage from nothing — never a warm reuse, never a sibling's. */
   readonly booted: boolean;
+  /** The caller's owner key. Only the row's own owner may spend or clear a warming mark. */
+  readonly owner: string;
+}
+
+/** Is this run the owner's warm retry of a warming stage? */
+function isWarmRetry(bound: StageRunBinding): boolean {
+  return bound.row.warming !== undefined && rowOwner(bound.row) === bound.owner;
 }
 
 let binding: StageRunBinding | null = null;
@@ -96,7 +104,7 @@ export function stageBindingRefusal(url: string, bound: StageRow, rows: readonly
 /** Latch "this run's first navigation never reached a ready app". A no-op unless this run BOOTED the stage or the
  *  stage is already warming, where this run is its one warm retry; a plain reuse stays untouched (#324). */
 export function markStageUnsettled(reason: string): void {
-  if (binding === null || !(binding.booted || binding.row.warming !== undefined)) {
+  if (binding === null || !(binding.booted || isWarmRetry(binding))) {
     return;
   }
   unsettledReason ??= reason;
@@ -104,7 +112,7 @@ export function markStageUnsettled(reason: string): void {
 
 /** Latch "this run's navigation reached a resolved app". Only a warming stage has a mark for it to clear. */
 export function markStageSettled(): void {
-  if (binding?.row.warming !== undefined) {
+  if (binding !== null && isWarmRetry(binding)) {
     settled = true;
   }
 }

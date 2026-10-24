@@ -173,12 +173,15 @@ function viewIsStranded(view: StageBandView, nowMs: number, ttlMs: number): bool
 }
 
 /** Is this band worth a health probe as a shared-reuse of another owner's stage? A `--stage-db` clone never is:
- *  it serves its owner's chosen data, and a sibling reusing it would review under the wrong provenance. */
+ *  it serves its owner's chosen data, and a sibling reusing it would review under the wrong provenance. A
+ *  warming stage never is either: its one warm retry belongs to its owner, and a sibling's miss would spend it. */
 export function isSharedReuseCandidate(
   row: StageRow | null,
   ask: { readonly owner: string; readonly targetSha: string | null; readonly bandBound: boolean },
 ): row is StageRow {
-  return row !== null && rowOwner(row) !== ask.owner && row.sha === ask.targetSha && ask.bandBound && row.dbProvenance?.cloned !== true;
+  return (
+    row !== null && rowOwner(row) !== ask.owner && row.sha === ask.targetSha && ask.bandBound && row.dbProvenance?.cloned !== true && row.warming === undefined
+  );
 }
 
 // ── the allocator ─────────────────────────────────────────────────────────────────────────────────────

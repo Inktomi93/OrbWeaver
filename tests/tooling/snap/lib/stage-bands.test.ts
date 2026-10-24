@@ -212,6 +212,8 @@ test("another owner's --stage-db clone is never a shared-reuse candidate, whatev
   // The clone's own owner, a different sha and an unbound band are not candidates either.
   expect(isSharedReuseCandidate({ ...theirs, dbProvenance: clone }, { ...ask, owner: `${MAIN_CHECKOUT}#side-eye-a` })).toBe(false);
   expect(isSharedReuseCandidate({ ...theirs, sha: OTHER_SHA }, ask)).toBe(false);
+  // A stage warming for its owner's one retry is not a sibling's to share: a miss there would tear it down.
+  expect(isSharedReuseCandidate({ ...theirs, warming: { since: USED_RECENTLY } }, ask)).toBe(false);
   expect(isSharedReuseCandidate(theirs, { ...ask, bandBound: false })).toBe(false);
   expect(isSharedReuseCandidate(null, ask)).toBe(false);
 });
