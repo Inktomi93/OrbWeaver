@@ -2,8 +2,8 @@ import type { UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";
 import type { AwaitableBatchStmt } from "@orb/db/query";
-import type { DatabaseHandle } from "@orb/db/wiring";
-import { databaseForOwner } from "@orb/db/wiring-owner";
+import type { BootDatabaseHandle, DatabaseHandle } from "@orb/db/wiring";
+import { bootDatabaseForOwner, databaseForOwner } from "@orb/db/wiring-owner";
 import { handleKey } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
@@ -46,8 +46,8 @@ const PROVISION_COLS = {
 } as const;
 
 /** Trusted boot convenience seeding covers every account, including disabled and nonhuman accounts. */
-export function createListSeedAccountIds(input: DatabaseHandle): () => Promise<readonly UserId[]> {
-  const db = databaseForOwner(input);
+export function createListSeedAccountIds(input: BootDatabaseHandle): () => Promise<readonly UserId[]> {
+  const db = bootDatabaseForOwner(input);
   return async () => (await db.select({ id: users.id }).from(users)).map((row) => row.id);
 }
 

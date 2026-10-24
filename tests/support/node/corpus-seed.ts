@@ -14,6 +14,7 @@ import type { SeedDemoResult } from "@orb/tooling/seed";
 import { loadDemoSeed } from "@orb/tooling/seed";
 import type { CorpusWire } from "../iso/corpus.ts";
 import { corpusReadInput } from "../iso/corpus.ts";
+import { bootGrantFor } from "./boot-grant.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
 import type { AutomationRuleRow } from "./factories/automation.ts";
 import {
@@ -438,7 +439,7 @@ interface SyntheticCorpus {
 export async function seedSyntheticCorpus(root: ServerHarness, options: SeedSyntheticCorpusOptions): Promise<SyntheticCorpus> {
   const owner = await root.principalFor(root.ownerId);
   await seedDefaultPreset({ db: databaseHandle(root.db), now: root.clock.now });
-  await seedThemes({ db: databaseHandle(root.db), now: root.clock.now });
+  await seedThemes({ db: bootGrantFor(root.db), now: root.clock.now });
   const seedLedger = await seedUserContentLedgerRows(root, owner);
 
   // The demo's optional CLI branches cannot certify a corpus whose required boot content is missing.

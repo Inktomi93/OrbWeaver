@@ -7,9 +7,15 @@ const STATEMENT = Symbol("statement-wiring-token");
 const AWAITABLE = Symbol("awaitable-statement-wiring-token");
 const RESULT = Symbol("statement-result-type");
 const BATCH = Symbol("batch-wiring-handle");
+const BOOT = Symbol("boot-wiring-handle");
 
 export interface DatabaseHandle {
   readonly [DATABASE]: true;
+}
+
+/** The boot authority to read and write rows of every owner; a plain {@link DatabaseHandle} cannot stand in for it. */
+export interface BootDatabaseHandle extends DatabaseHandle {
+  readonly [BOOT]: true;
 }
 
 export interface StatementToken {
@@ -32,12 +38,29 @@ const databases = new WeakMap<DatabaseHandle, Db>();
 const statements = new WeakMap<object, BatchStmt>();
 const awaitableStatements = new WeakSet<object>();
 const batches = new WeakMap<BatchHandle, BatchStmt[]>();
+const bootGrants = new WeakSet<BootDatabaseHandle>();
 
 /** Borrow the exact connection without transferring physical lifetime ownership. */
 export function databaseHandle(db: Db): DatabaseHandle {
   const handle: DatabaseHandle = Object.freeze({ [DATABASE]: true as const });
   databases.set(handle, db);
   return handle;
+}
+
+/** Grant boot's cross-owner authority over an admitted connection; the `@orb/db/wiring-boot` importer rule confines who may call this. */
+export function bootDatabaseHandle(handle: DatabaseHandle): BootDatabaseHandle {
+  const boot: BootDatabaseHandle = Object.freeze({ [DATABASE]: true as const, [BOOT]: true as const });
+  databases.set(boot, databaseForOwner(handle));
+  bootGrants.add(boot);
+  return boot;
+}
+
+/** Recover the connection behind a grant the mint issued; a plain handle cast to the boot type is refused here. */
+export function bootDatabaseForOwner(handle: BootDatabaseHandle): Db {
+  if (!bootGrants.has(handle)) {
+    throw new Error("boot wiring handle is not granted");
+  }
+  return databaseForOwner(handle);
 }
 
 /** Recover only a connection admitted by its physical owner, never a structurally similar object. */

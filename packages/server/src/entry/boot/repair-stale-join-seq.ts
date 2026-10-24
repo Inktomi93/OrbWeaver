@@ -1,12 +1,12 @@
 // Boot step: clamp every stale seat join floor to its own room's canon head. Chat owns the statement
 // (`repairStaleJoinSeq`); a floor above the head hides history the member was admitted to. Idempotent.
 
-import type { DatabaseHandle } from "@orb/db/wiring";
+import type { BootDatabaseHandle } from "@orb/db/wiring";
 import { repairStaleJoinSeq } from "#domain/chat";
 import { getLog } from "#foundation/observability";
 
 export interface RepairStaleJoinSeqDeps {
-  readonly db: DatabaseHandle;
+  readonly db: BootDatabaseHandle;
 }
 
 /** Clamp stale join_seq values to the per-chat canon head. Returns the count of repaired rows. */

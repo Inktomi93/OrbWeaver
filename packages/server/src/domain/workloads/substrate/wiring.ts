@@ -1,6 +1,6 @@
 // Drivers retain inert DB identity; the workload owner alone opens its existing query context.
-import type { DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
-import { databaseForOwner } from "@orb/db/wiring-owner";
+import type { BootDatabaseHandle, DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
+import { bootDatabaseForOwner, databaseForOwner } from "@orb/db/wiring-owner";
 import type { WorkloadId } from "@orb/kit/ids";
 import type { WorkloadContributions } from "../contract/contribution.ts";
 import type { ScheduleTickDeps } from "../contract/schedule.ts";
@@ -36,8 +36,8 @@ export function reapOrphanedWorkloads(input: DbAssemblyInput<ReapWorkloadsArgs>)
 }
 
 /** Boot disposes of orphans through the same status-guarded writes the reaper uses. */
-export function reclaimInFlightOnBoot(input: DbAssemblyInput<BootReclaimArgs>): Promise<BootReclaimReport> {
-  return reclaim({ ...input, db: databaseForOwner(input.db) });
+export async function reclaimInFlightOnBoot(input: Omit<BootReclaimArgs, "db"> & { readonly db: BootDatabaseHandle }): Promise<BootReclaimReport> {
+  return await reclaim({ ...input, db: bootDatabaseForOwner(input.db) });
 }
 
 /** Re-read the claimed row without giving its driver a query client. */

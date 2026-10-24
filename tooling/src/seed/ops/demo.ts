@@ -43,6 +43,7 @@ import {
   worldBooks,
   worldEntries,
 } from "@orb/db";
+import { bootDatabaseHandle } from "@orb/db/wiring-boot";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import { readSeedAvatar } from "@orb/default-content";
 import type { CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
@@ -367,7 +368,7 @@ export async function runFullSeed(deps: RunFullSeedDeps): Promise<RunFullSeedRes
 
   // The idempotent boot seeds (owner cards + avatars, default persona, preset, themes) — safe to re-run.
   await seedDefaultPreset({ db: wiringDb, now });
-  await seedThemes({ db: wiringDb, now });
+  await seedThemes({ db: bootDatabaseHandle(wiringDb), now });
   await seedUserContent({ seeder: built.contentSeeder, owner });
   log("boot seeds applied (characters + avatars, default persona, preset, themes)");
 

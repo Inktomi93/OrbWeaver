@@ -3,7 +3,6 @@ import { access, mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Principal } from "@orb/contracts/identity";
-import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId } from "@orb/kit/ids";
 import { MS_PER_HOUR } from "@orb/kit/time";
 import { settleBootSecrets } from "@orb/server/entry/boot";
@@ -11,6 +10,7 @@ import { SECRET_FILE_NAMES } from "@orb/server/foundation/data-layout";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { bootGrantFor } from "@orb/testkit/node/helpers";
 
 const SECRET_BOX_KEY = Buffer.alloc(32, 7);
 const HEX_SECRET = /^[0-9a-f]{64}$/u;
@@ -33,7 +33,7 @@ async function absentSecretsFor(root: ServerTestHarness, resources: AsyncDisposa
     sessionPath,
     settle: (now = root.clock.now) =>
       settleBootSecrets({
-        db: databaseHandle(root.db),
+        db: bootGrantFor(root.db),
         now,
         credentialsKey: { kind: "absent", path: credentialPath },
         sessionSecret: { kind: "absent", path: sessionPath },
@@ -108,7 +108,7 @@ test("resolved secrets pass through over every dependent, and a resolved null st
   const explicitSecret = "boot-secrets-explicit-session-secret-value";
   const settle = (credentialsKey: Buffer | null, sessionSecret: string | null): ReturnType<typeof settleBootSecrets> =>
     settleBootSecrets({
-      db: databaseHandle(root.db),
+      db: bootGrantFor(root.db),
       now: root.clock.now,
       credentialsKey: { kind: "resolved", value: credentialsKey, path: credentialPath },
       sessionSecret: { kind: "resolved", value: sessionSecret, path: sessionPath },

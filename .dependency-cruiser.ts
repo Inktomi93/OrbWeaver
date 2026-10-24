@@ -22,6 +22,12 @@ const ENTRY_DRIVERS = {
 const ENTRY_DRIVER_PATTERN = `${ENTRY_SOURCE}(?:${Object.keys(ENTRY_DRIVERS)
   .map((path) => RegExp.escape(path))
   .join("|")})$`;
+// The only importers of the boot grant door, each with the reason it may mint cross-owner authority (D335).
+const BOOT_GRANT_IMPORTERS = {
+  "^packages/server/src/entry/lifecycle\\.ts$": "mints the grant once and hands it to the cross-owner boot steps",
+  "^tooling/src/seed/": "seed tools run the same boot steps against the database they build",
+  "^tests/support/": "the testkit boots whole servers through the boot steps and hands suites the grant through `bootGrantFor`",
+} as const satisfies Readonly<Record<string, string>>;
 const GROUPING_DIRS = {
   server: ["entry", "transport", "domain", "infra", "foundation", "primitives"],
   inference: ["backends"],
@@ -849,6 +855,13 @@ const SERVER_AUTHORITY = [
     severity: "error",
     from: { path: SRV, pathNot: ENTRY_DRIVER_PATTERN },
     to: { path: `${DB}client/wiring-driver\\.ts$` },
+  },
+  {
+    name: "query-wiring-boot-admission",
+    comment: "A request path holds only the plain handle; the cross-owner boot grant reaches the boot steps through these importers alone (D335).",
+    severity: "error",
+    from: { pathNot: Object.keys(BOOT_GRANT_IMPORTERS) },
+    to: { path: `${DB}client/wiring-boot\\.ts$` },
   },
   {
     name: "query-wiring-contract-is-type-only",

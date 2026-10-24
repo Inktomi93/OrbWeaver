@@ -1,18 +1,21 @@
 import { closeDb, users } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
+import type { BootDatabaseHandle } from "@orb/db/wiring";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import {
   awaitableStatementForOwner,
   awaitableStatementToken,
   batchForOwner,
   batchHandle,
+  bootDatabaseForOwner,
   databaseForOwner,
   statementForOwner,
   statementToken,
 } from "@orb/db/wiring-owner";
 import { expect, test } from "@orb/testkit/node";
 import { freshDb } from "@orb/testkit/node/composed";
+import { bootGrantFor } from "@orb/testkit/node/helpers";
 import { makeUser } from "@orb/testkit/node/rows";
 import { sql } from "drizzle-orm";
 
@@ -57,6 +60,23 @@ test("wiring handles are distinct inert identities and retain the borrowed physi
     }
   } finally {
     closeDb(first);
+  }
+});
+
+test("a boot grant is a distinct inert identity over the same admitted connection, and a cast or a copy is refused", async () => {
+  const db = await freshDb();
+  try {
+    const boot = bootGrantFor(db);
+    expect(boot).not.toBe(bootGrantFor(db));
+    expect(Object.isFrozen(boot)).toBe(true);
+    expect(databaseForOwner(boot)).toBe(db);
+    expect(bootDatabaseForOwner(boot)).toBe(db);
+    // A cast is the forgery a request route could write; the grant registry refuses it at recovery.
+    expect(() => bootDatabaseForOwner(databaseHandle(db) as BootDatabaseHandle)).toThrow("boot wiring handle is not granted");
+    expect(() => bootDatabaseForOwner({ ...boot })).toThrow("boot wiring handle is not granted");
+    expect(() => databaseForOwner({ ...boot })).toThrow("database wiring handle is not registered");
+  } finally {
+    closeDb(db);
   }
 });
 

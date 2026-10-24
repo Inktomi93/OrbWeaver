@@ -11,8 +11,10 @@
       "types": "./dist/router-types/packages/server/src/index.d.ts"
     },
     "./domain/assets": "./src/domain/assets/index.ts",
+    "./domain/automation": "./src/domain/automation/index.ts",
     "./domain/character": "./src/domain/character/index.ts",
     "./domain/chat": "./src/domain/chat/index.ts",
+    "./domain/credentials": "./src/domain/credentials/index.ts",
     "./domain/embeddings": "./src/domain/embeddings/index.ts",
     "./domain/imagery": "./src/domain/imagery/index.ts",
     "./domain/import": "./src/domain/import/index.ts",

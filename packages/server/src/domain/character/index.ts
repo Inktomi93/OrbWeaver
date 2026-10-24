@@ -22,6 +22,7 @@ export type { BackfillPluginProvenanceResult } from "./contract/results.ts";
 export type { CharacterService } from "./contract/service.ts";
 
 export { createLinkCharacterAvatars } from "./persistence/avatar-link-write.ts";
+// A boot verb that reads or writes rows of every owner takes `BootDatabaseHandle`, which only boot mints (D335).
 export { backfillPluginProvenance } from "./persistence/backfill-plugin-provenance.ts";
 export { createLoadCharacterEmbeddingOwner } from "./persistence/embedding-owner.ts";
 export { createCopyHandoffCards } from "./persistence/handoff-copy-write.ts";

@@ -9,7 +9,6 @@ import { inspect } from "node:util";
 import { healthResponseSchema } from "@orb/contracts/diagnostics";
 import { ACTIVE_WORKLOAD_STATUSES } from "@orb/contracts/workloads";
 import { localPath, pendingTurns, workloads } from "@orb/db";
-import { databaseHandle } from "@orb/db/wiring-driver";
 import type { UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import type { DataLayout } from "@orb/server/foundation/data-layout";
@@ -22,6 +21,7 @@ import { createFrozenClock } from "../iso/clock.ts";
 import type { CorpusWire } from "../iso/corpus.ts";
 import { encodeCorpusWire, hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "../iso/corpus.ts";
 import { createSeededIds, SEEDED_ID_MAX_CURSOR } from "../iso/ids.ts";
+import { bootGrantFor } from "./boot-grant.ts";
 import type { seedCorpusChatLifecycle as produceCorpusChatLifecycle } from "./corpus-chat-lifecycle.ts";
 import type { seedCorpusConnection as produceCorpusConnection } from "./corpus-connection.ts";
 import type { seedCorpusImageVariants as produceCorpusImageVariants } from "./corpus-image-variants.ts";
@@ -602,7 +602,7 @@ async function initializeCorpusOwner(
     if (schedules.some(({ enabled }) => enabled)) {
       throw new Error("Private corpus requires copied enabled schedules to be resolved before native ticking");
     }
-    for (const { ownerId: pluginOwner, pluginId } of await listEnabledAcrossOwners(databaseHandle(runtime.db))) {
+    for (const { ownerId: pluginOwner, pluginId } of await listEnabledAcrossOwners(bootGrantFor(runtime.db))) {
       const caller = await authentication.principalFor(pluginOwner);
       await authentication.services.plugin.setEnabled({ caller, pluginId, enabled: false });
     }

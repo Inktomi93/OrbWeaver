@@ -1,5 +1,5 @@
 import type { Db } from "@orb/db";
-import type { DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
+import type { BootDatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
 import type { BootSecretResolution } from "#infra/crypto";
 import type { SessionsService } from "./service.ts";
 
@@ -21,7 +21,7 @@ export type SeedOwnerParams = DbAssemblyInput<SeedOwnerContext>;
 /** Pre-compose secret settlement; the sessions domain's own password and session-token probes precede the
  *  other domains' dependency probes. */
 export interface SettleSessionSecretParams {
-  readonly db: DatabaseHandle;
+  readonly db: BootDatabaseHandle;
   readonly resolution: BootSecretResolution<string>;
   readonly hasOtherDependents: () => Promise<boolean>;
   readonly createKeyfile: (path: string) => string | null;
