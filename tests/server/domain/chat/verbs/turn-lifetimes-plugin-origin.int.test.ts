@@ -11,6 +11,8 @@ import { makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "@orb/tes
 import { eq } from "drizzle-orm";
 import { textRoom } from "../scenario-physical.ts";
 
+type Room = Awaited<ReturnType<typeof textRoom>>;
+
 const COMMAND = "request_turn";
 const MANIFEST = pluginManifestSchema.parse({
   id: "tail-origin",
@@ -24,17 +26,8 @@ const MANIFEST = pluginManifestSchema.parse({
 const ENTERED = "native command entered";
 const GUEST = `const host=orb.host(1);host.ui.registerCommand({name:${JSON.stringify(COMMAND)},describe:"Request a room turn",onRun:async()=>{host.log.info(${JSON.stringify(ENTERED)});await host.chat.requestTurn(host.chat.current(),{initiator:"human",automationDepth:0});}});`;
 
-test("a native command refuses foreign rooms before guest execution and cannot turn its forged human hint into a human slot", async () => {
-  await using h = await textRoom(["The actual plugin requests this reply."], {
-    group: { output: "per-speaker", policy: "list", allowSelfResponses: true },
-    server: { pluginSpawn: spawn },
-  });
-  const foreign = await h.root.principalFor((await h.root.actor()).id);
-  const character = await h.root.services.character.create({
-    principal: foreign,
-    input: createCharacterSchema.parse({ handle: "foreign-origin-witness", name: "Foreign keeper", description: "A private foreign room." }),
-  });
-  const foreignRoom = await h.root.services.chat.startChat({ principal: foreign, characterIds: [character.id], opening: "none" });
+/** The witness plugin installed and enabled by the room's owner; returns the command that requests a turn. */
+async function enableWitness(h: Room): Promise<Omit<Parameters<Room["root"]["services"]["plugin"]["invokeUiCommand"]>[0], "chatId">> {
   const installed = await seedInstalledPlugin(h.root, {
     caller: h.owner,
     bundle: makePluginBundle(MANIFEST, GUEST, h.root.clock.now()),
@@ -48,10 +41,24 @@ test("a native command refuses foreign rooms before guest execution and cannot t
     enable: true,
   });
   expect(enabled.outcome.status).toBe("enabled");
-  const command = { caller: h.owner, pluginId: installed.plugin.id, name: COMMAND, args: "" };
+  return { caller: h.owner, pluginId: installed.plugin.id, name: COMMAND, args: "" };
+}
+
+test("a native command refuses foreign rooms before guest execution and cannot turn its forged human hint into a human slot", async () => {
+  await using h = await textRoom(["The actual plugin requests this reply."], {
+    group: { output: "per-speaker", policy: "list", allowSelfResponses: true },
+    server: { pluginSpawn: spawn },
+  });
+  const foreign = await h.root.principalFor((await h.root.actor()).id);
+  const character = await h.root.services.character.create({
+    principal: foreign,
+    input: createCharacterSchema.parse({ handle: "foreign-origin-witness", name: "Foreign keeper", description: "A private foreign room." }),
+  });
+  const foreignRoom = await h.root.services.chat.startChat({ principal: foreign, characterIds: [character.id], opening: "none" });
+  const command = await enableWitness(h);
   await expect(h.root.services.plugin.invokeUiCommand({ ...command, chatId: foreignRoom.chat.id })).rejects.toBeInstanceOf(DomainNotFoundError);
   await expect(h.root.services.plugin.invokeUiCommand({ ...command, chatId: mintTypeId(ID_PREFIX.chat) })).rejects.toBeInstanceOf(DomainNotFoundError);
-  expect((await h.root.services.plugin.getLog({ caller: h.owner, pluginId: installed.plugin.id })).filter(({ message }) => message === ENTERED)).toEqual([]);
+  expect((await h.root.services.plugin.getLog({ caller: h.owner, pluginId: command.pluginId })).filter(({ message }) => message === ENTERED)).toEqual([]);
   expect(h.requests.filter(({ method }) => method === "POST")).toEqual([]);
   expect(await h.root.db.select().from(messages)).toEqual([]);
 
@@ -67,9 +74,25 @@ test("a native command refuses foreign rooms before guest execution and cannot t
   expect((await h.root.db.select().from(messageVariants).where(eq(messageVariants.id, selected)).get())?.content).toBe(
     "The actual plugin requests this reply.",
   );
-  expect((await h.root.services.plugin.getLog({ caller: h.owner, pluginId: installed.plugin.id })).filter(({ message }) => message === ENTERED)).toHaveLength(
-    1,
-  );
+  expect((await h.root.services.plugin.getLog({ caller: h.owner, pluginId: command.pluginId })).filter(({ message }) => message === ENTERED)).toHaveLength(1);
   expect(h.requests.filter(({ method }) => method === "POST")).toHaveLength(1);
   expect(await h.root.db.select().from(messages).where(eq(messages.chatId, foreignRoom.chat.id))).toEqual([]);
+});
+
+test("a plugin-requested first reply claims the unstarted room before its canon and accounting writes", async () => {
+  await using h = await textRoom(["The plugin opens the room."], { server: { pluginSpawn: spawn } });
+  const listed = async (): Promise<boolean> => (await h.root.services.chat.listChats({ principal: h.owner })).items.some(({ id }) => id === h.chatId);
+  const command = await enableWitness(h);
+  expect(await listed()).toBe(false);
+
+  await h.root.services.plugin.invokeUiCommand({ ...command, chatId: h.chatId });
+  await h.root.settleBackground();
+
+  const page = await h.root.services.chat.listMessages({ principal: h.owner, chatId: h.chatId });
+  expect(page.messages).toMatchObject([{ role: "assistant", characterId: h.characters[0]?.id, content: "The plugin opens the room." }]);
+  expect(await listed()).toBe(true);
+  const live = await h.root.services.stats.overview(h.owner.userId);
+  expect(live).toMatchObject({ chats: 1, assistantTurns: 1 });
+  await h.root.services.stats.reconcile(h.owner.userId);
+  expect(await h.root.services.stats.overview(h.owner.userId)).toEqual(live);
 });

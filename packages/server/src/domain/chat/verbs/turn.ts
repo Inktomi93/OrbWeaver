@@ -156,8 +156,9 @@ interface TurnDeps {
    *  chat-internal half is gathered by `gatherAssembleContext`. */
   readonly resolveForeignInputs: ResolveForeignInputsOp;
   /** The husk→real transition (R0). A user line and a generated turn are the two loudest claims
-   *  there are; both fire through the chokepoints `commitUserTurn` / `resolveTurnBase`, plus
-   *  `forceCharacterTurn`, which runs a round without either and claims after its host and seat gates. */
+   *  there are; both fire through the chokepoints `commitUserTurn` / `resolveTurnBase`, plus the two
+   *  rounds that pass neither: `forceCharacterTurn` (after its host and seat gates) and `resolveRequestTurn`
+   *  (after its origin and presence walls). */
   readonly claimChat: ClaimChatOp;
 }
 
@@ -2919,6 +2920,9 @@ interface RequestTurnResolved {
 async function resolveRequestTurn(ctx: ChatContext, deps: TurnDeps, params: RequestTurnParams): Promise<RequestTurnResolved> {
   await requireRequestTurn(ctx, params);
   const { chatId, triggeredBy } = params;
+  // A requested turn is a generated turn and claims like one (R0 F4(a)): after WALLS 1+2, so a refused request
+  // never claims, and before any engine write, which retained accounting refuses on a husk.
+  await deps.claimChat(chatId);
   const chat = await loadChatRow(ctx.db, chatId);
   if (chat === undefined) {
     throw new ChatNotFoundError(chatId);
