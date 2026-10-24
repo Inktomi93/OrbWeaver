@@ -109,14 +109,14 @@ describe("every forwarded-header read believes the record's trusted proxies", ()
   });
 
   test("the auth middleware reads the session cookie of a trusted proxy's https transport", async () => {
-    await using root = await behindProxy({ authConfig: { mode: "local", fallback: "deny" } });
+    await using root = await behindProxy({ env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
     const { cookie } = await signedInMember(root, castId<Handle>("forwarded-https-member"), FORWARDED_HTTPS);
     expect(cookie).toMatch(/^__Host-orb_session=/u);
     expect((await authMe(root, { cookie, ...FORWARDED_HTTPS })).authenticated).toBe(true);
   });
 
   test("the login throttle keys a trusted proxy's forwarded client, not the proxy", async () => {
-    await using root = await behindProxy({ authConfig: { mode: "local", fallback: "deny" }, env: { ["RATE_LIMIT_LOGIN"]: "1" } });
+    await using root = await behindProxy({ env: { ["RATE_LIMIT_LOGIN"]: "1", ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
     const statuses: number[] = [];
     for (const [client, handle] of [
       [UNLISTED_PEER, "throttle-first"],

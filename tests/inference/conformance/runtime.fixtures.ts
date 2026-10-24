@@ -321,7 +321,7 @@ async function chatRequestFor(root: ServerTestHarness, wire: Wire, options: Chat
 export function conformanceRoot(options: Parameters<typeof createRuntimeRoot>[0] = {}): Promise<ServerTestHarness> {
   return createRuntimeRoot({
     ids,
-    authConfig: { mode: "single-user", fallback: "owner" },
+    env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" },
     physicalPeer: () => "127.0.0.1",
     wireCapture: true,
     ...options,

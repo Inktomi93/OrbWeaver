@@ -48,8 +48,8 @@ async function observedLocalRoot(): Promise<ObservedRoot> {
     observed = { verify: vi.spyOn(hasher, "verify"), dummyHash: hasher.dummyHash };
     return hasher;
   });
-  const root = await createServerHarness({ physicalPeer: () => LAN_PEER, authConfig: { mode: "local", fallback: "deny" }, sessionsCrypto }).finally(() =>
-    factory.mockRestore(),
+  const root = await createServerHarness({ physicalPeer: () => LAN_PEER, env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" }, sessionsCrypto }).finally(
+    () => factory.mockRestore(),
   );
   if (observed === undefined) {
     await root[Symbol.asyncDispose]();

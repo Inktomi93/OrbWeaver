@@ -6,7 +6,7 @@ import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 
 test("native frame handles slide until exact expiry and cease serving documents and passive assets after revocation", { tags: ["slow"] }, async () => {
-  await using root = await createServerHarness({ pluginSpawn: spawn, authConfig: { mode: "local", fallback: "deny" } });
+  await using root = await createServerHarness({ pluginSpawn: spawn, env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
   const result = await seedCorpusPluginFrameLifetime(root);
   expect(result.baseline.document.status).toBe(200);
   expect(result.anonymousAsset.response.status).toBe(200);
@@ -40,7 +40,7 @@ test("native frame handles slide until exact expiry and cease serving documents 
 });
 
 test("native HTTP plugin suppliers preserve inert source, scoped frame handles, CSRF and live revocation", { tags: ["slow"] }, async () => {
-  await using root = await createServerHarness({ pluginSpawn: spawn, authConfig: { mode: "local", fallback: "deny" } });
+  await using root = await createServerHarness({ pluginSpawn: spawn, env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
   const result = await seedCorpusPluginHttp(root);
   expect(result.granted.outcome.status).toBe("enabled");
   expect(result.source.status).toBe(200);

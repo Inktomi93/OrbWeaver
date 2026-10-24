@@ -27,7 +27,7 @@ test("native notification corpus retains real recipient lifecycle and bounded ph
 }, async () => {
   // The boot seeder admits the showcase plugins this corpus asks consent for; with no built bundle it skips them silently.
   await requireShowcaseBundle(SHOWCASE_PLUGIN_SLUGS[0]);
-  await using root = await createServerHarness({ authConfig: { mode: "local", fallback: "deny" }, pluginSpawn: spawn });
+  await using root = await createServerHarness({ env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" }, pluginSpawn: spawn });
   const owner = await root.principalFor(root.ownerId);
   await root.services.settings.updateAppSettings({ principal: owner, partial: { privateEndpointAllowlist: [new URL(CORPUS_PROVIDER_ENDPOINT).hostname] } });
   const result = await seedCorpusNotifications(root);

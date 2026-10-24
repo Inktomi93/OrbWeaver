@@ -24,13 +24,13 @@
 // is deliberately NOT here — this module is the pure kit half; the server threads a values bag +
 // frozen-draw record through `resolveUserMacroInputs` and hands the bindings to `registerUserMacros`.
 
+import { readOwnKey } from "#objects";
 import { macroAnalysisBinding, macroAnalysisInputBinding, macroTextIsVolatile } from "./cache-safety.ts";
 import { neutralizeMacros } from "./content.ts";
 import { isIfTruthy } from "./metadata.ts";
 import { MACRO_NAME_RE } from "./parser.ts";
 import { unitDraw } from "./prng.ts";
 import type { MacroAnalysisOptions, MacroArgDef, MacroContext, MacroHandler, MacroMetadataInput, MacroRegistry, MacroSourceRef } from "./types.ts";
-import { readVarKey } from "./variables.ts";
 
 // ── the definition vocabulary ────────────────────────────────────────────────────────────────────
 
@@ -225,7 +225,7 @@ function selectPicksOf(value: UserMacroInputValue | undefined): readonly string[
 // Macro and input names are author text, and MACRO_NAME_RE admits Object.prototype member names (`constructor`,
 // `toString`): every name-keyed read of a per-turn plane takes the plane's own entry or nothing.
 function ownEntry<T>(plane: Readonly<Record<string, T>> | undefined, name: string): T | undefined {
-  return plane === undefined ? undefined : readVarKey(plane, name);
+  return plane === undefined ? undefined : readOwnKey(plane, name);
 }
 
 // One random-pick input: frozen replay wins; else draw from the pool and report the fresh draw.

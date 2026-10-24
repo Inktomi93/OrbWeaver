@@ -9,6 +9,7 @@ import type { ComponentProps, ReactElement } from "react";
 import { useState } from "react";
 import type { EditSession } from "#lib";
 import { resolveCommit } from "#lib";
+import { UNSET_DATUM } from "../../lib/unset-datum.ts";
 
 interface TrackerValueProps {
   /** The current value, pre-formatted by the block (e.g. "24/30", "wary", "16"). */
@@ -71,7 +72,7 @@ function TrackerValueRest({
   readonly wrap: boolean;
 }): ReactElement {
   const empty = display === "";
-  const restText = empty ? (placeholder ?? "—") : display;
+  const restText = empty ? (placeholder ?? UNSET_DATUM) : display;
   return (
     <Button
       type="button"

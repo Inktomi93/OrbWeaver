@@ -8,11 +8,8 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { VALUE_ROW_TOUCH_FLOOR_AT_COARSE } from "#components";
 import { trackerFieldName } from "../../lib/tracker-names.ts";
+import { UNSET_DATUM } from "../../lib/unset-datum.ts";
 import { TrackerValue } from "./tracker-value.tsx";
-
-/** The UNSET datum (side-eye 08-01, the panel's lying-meter class): an em dash, never a synthesized `0`.
- *  It is the SAME mark the text/list tracker rows and the mood slot already use for "nothing written yet". */
-const UNSET_DATUM = "—";
 
 interface MeterRowProps {
   readonly label: string;

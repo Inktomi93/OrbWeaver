@@ -119,7 +119,7 @@ test("quiet extraction sends only the caller's visible scene through the host's 
   });
   const requests: Request[] = [];
   await using root = await createServerHarness({
-    authConfig: { mode: "forward-header", fallback: "deny" },
+    env: { ["AUTH_MODE"]: "forward-header", ["AUTH_FALLBACK"]: "deny" },
     providerFetch: async (input, init) => {
       const request = new Request(input, init);
       requests.push(request.clone());

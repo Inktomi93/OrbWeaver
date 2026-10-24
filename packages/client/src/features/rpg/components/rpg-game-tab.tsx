@@ -36,6 +36,7 @@ import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useResyncFromStory, useUpdateConfig } from "../hooks/use-rpg-mutations.ts";
 import { mintDefKey } from "../lib/mint-key.ts";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
+import { UNSET_DATUM } from "../lib/unset-datum.ts";
 import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
 import { RpgGameMacros } from "./rpg-game-macros.tsx";
 import { RpgGmVoice } from "./rpg-gm-voice.tsx";
@@ -115,7 +116,7 @@ function TrackerRow({
             </Text>
             <TrackerValue
               ariaLabel={`${def.label} default max`}
-              display={def.max === null ? "—" : String(def.max)}
+              display={def.max === null ? UNSET_DATUM : String(def.max)}
               editValue={def.max === null ? "" : String(def.max)}
               kind="numeric"
               placeholder="none"

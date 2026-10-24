@@ -140,7 +140,7 @@ export const BUILTIN_MACRO_METADATA = {
     variadic: true,
     list: { min: 1 },
   }),
-  roll: meta("roll", "random", "Rolls dice: {{roll::NdM}} sums N M-sided dice, {{roll::N}} rolls 1..N.", {
+  roll: meta("roll", "random", "Rolls dice: {{roll::NdM}} sums N M-sided dice, {{roll::NdM+K}} or {{roll::NdM-K}} adds a modifier, {{roll::N}} rolls 1..N.", {
     args: [{ name: "spec", type: "string", optional: false }],
   }),
 

@@ -21,7 +21,7 @@ const METHODS = [
 
 for (const { method, path } of METHODS) {
   test(`${method}: an overflow batch spends no budget and an admitted batch spends one debit per call`, async () => {
-    await using root = await createServerHarness({ physicalPeer: () => LOOPBACK, authConfig: { mode: "local", fallback: "deny" } });
+    await using root = await createServerHarness({ physicalPeer: () => LOOPBACK, env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
     await root.services.settings.updateAppSettings({ principal: await root.principalFor(root.ownerId), partial: { rateLimits: { authed: AUTHED_CAP } } });
     const member = await signedInMember(root, castId<Handle>(`batch-budget-${method.toLowerCase()}`));
     const call = async (count: number): Promise<number> => {

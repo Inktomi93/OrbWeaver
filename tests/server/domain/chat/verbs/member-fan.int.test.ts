@@ -10,7 +10,7 @@ import { createServerHarness } from "@orb/testkit/node/composed";
 const END: UserBusEvent = { type: "charactersChanged" };
 
 test("a host title change reaches the co-member's live channel and no outsider's", async () => {
-  await using root = await createServerHarness({ authConfig: { mode: "forward-header", fallback: "deny" } });
+  await using root = await createServerHarness({ env: { ["AUTH_MODE"]: "forward-header", ["AUTH_FALLBACK"]: "deny" } });
   const host = await root.principalFor(root.ownerId);
   const member = await root.principalFor((await root.actor()).id);
   const outsider = (await root.actor()).id;

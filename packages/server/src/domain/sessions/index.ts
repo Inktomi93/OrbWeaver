@@ -12,7 +12,6 @@ export { OIDC_PENDING_JOIN_TTL_MS, OIDC_TRANSACTION_TTL_MS } from "./contract/po
 // WHOSE half to evict those users' live sockets (W7a).
 export type { RevokedSessionsSummary, UserPrincipalFields } from "./contract/results.ts";
 export type { SessionsRolePolicy, SessionsRolePolicyConfig } from "./contract/role-policy.ts";
-export { ROLE_POLICY_ENV_KEYS } from "./contract/role-policy.ts";
 export type { SessionsCryptoOps, SessionsService } from "./contract/service.ts";
 export { createOidcStore } from "./persistence/oidc-store.ts";
 export { createListSeedAccountIds, selectHandleById, selectHandlesByIds } from "./persistence/users.ts";
