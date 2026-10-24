@@ -158,7 +158,7 @@ interface TurnDeps {
   /** The husk→real transition (R0). A user line and a generated turn are the two loudest claims
    *  there are; both fire through the chokepoints `commitUserTurn` / `resolveTurnBase`, plus the two
    *  rounds that pass neither: `forceCharacterTurn` (after its host and seat gates) and `resolveRequestTurn`
-   *  (after its origin and presence walls). */
+   *  (after its origin, presence and forced-speaker refusals). */
   readonly claimChat: ClaimChatOp;
 }
 
@@ -2919,16 +2919,21 @@ interface RequestTurnResolved {
  *  returns the resolved substrate. Split out so the round-driver closure stays under the complexity bar. */
 async function resolveRequestTurn(ctx: ChatContext, deps: TurnDeps, params: RequestTurnParams): Promise<RequestTurnResolved> {
   await requireRequestTurn(ctx, params);
-  const { chatId, triggeredBy } = params;
-  // A requested turn is a generated turn and claims like one (R0 F4(a)): after WALLS 1+2, so a refused request
-  // never claims, and before any engine write, which retained accounting refuses on a husk.
-  await deps.claimChat(chatId);
+  const { chatId, triggeredBy, speakerCharacterId } = params;
   const chat = await loadChatRow(ctx.db, chatId);
   if (chat === undefined) {
     throw new ChatNotFoundError(chatId);
   }
   // Resolves the FUNDING host from canon (never a caller-supplied id); hostless is unusable (leak-free).
   const room = await loadRoom(ctx, chatId);
+  // A forced speaker must hold a present seat (presence only, as `forceCharacterTurn` checks it); a speaker with
+  // no seat is a leak-free NOT_FOUND here, never a claim followed by a turn voiced by someone else.
+  if (speakerCharacterId !== undefined && !room.candidates.some((c) => c.ref.characterId === speakerCharacterId && c.leftSeq === null)) {
+    throw new ChatNotFoundError(chatId);
+  }
+  // A requested turn is a generated turn and claims like one (R0 F4(a)): after every refusal above, so a refused
+  // request never claims, and before any engine write, which retained accounting refuses on a husk.
+  await deps.claimChat(chatId);
   // Freeze the room's host once for funding and assembly; the responsible human remains the initiator.
   const identity = { triggeredBy, funderUserId: room.hostUserId, runAsUserId: room.hostUserId };
   const connection = await deps.resolveConnection({
