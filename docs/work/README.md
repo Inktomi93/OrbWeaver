@@ -118,8 +118,6 @@ None.
 - [0824](0824-verify-collection-responsiveness-during-local-indexing.md) triage Verify collection responsiveness during local indexing (owner)
 - [0872](0872-find-what-answered-an-api-batch-with-an.md) P3 Find what answered an API batch with an HTML page in production (owner)
 - [0971](0971-entry-and-transport-follow-their-tier-law.md) P1 Entry and transport follow their tier law (owner)
-- [1002](1002-persist-native-semantic-inventory-facts-and-release-world.md) P1 Persist native semantic inventory facts and release world programs (owner)
-- [1027](1027-deliver-verifier-typed-reads-through-native-world-owners.md) P1 Deliver verifier typed reads through native world owners (owner)
 
 ## Done
 
