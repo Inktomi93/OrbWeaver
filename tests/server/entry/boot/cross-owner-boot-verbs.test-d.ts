@@ -1,5 +1,7 @@
 // @subject packages/db/src/client/wiring-capabilities.ts
+import type { Db } from "@orb/db";
 import type { BootDatabaseHandle, DatabaseHandle } from "@orb/db/wiring";
+import { bootDatabaseForOwner, databaseForOwner } from "@orb/db/wiring-owner";
 import type { migratePluginToolWireNames as migrateAutomationArms } from "@orb/server/domain/automation";
 import type { backfillPluginProvenance } from "@orb/server/domain/character";
 import type {
@@ -23,6 +25,22 @@ test("a plain wiring handle never stands in for the boot grant", () => {
   expectTypeOf<BootDatabaseHandle>().toExtend<DatabaseHandle>();
 });
 
+test("the owner conversion door publishes no mint, so a static and a dynamic import both miss it", () => {
+  expectTypeOf<typeof import("@orb/db/wiring-owner")>().not.toHaveProperty("bootDatabaseHandle");
+  expectTypeOf<typeof import("@orb/db/wiring-owner")>().toHaveProperty("bootDatabaseForOwner");
+});
+
+test("a grant verb recovers its connection only through the registry check", () => {
+  function plantedGrantVerb(handle: BootDatabaseHandle): Db {
+    // @ts-expect-error the plain conversion would accept a cast grant; a grant recovers through bootDatabaseForOwner
+    return databaseForOwner(handle);
+  }
+  expectTypeOf(plantedGrantVerb).returns.toEqualTypeOf<Db>();
+  expectTypeOf(bootDatabaseForOwner).parameter(0).toEqualTypeOf<BootDatabaseHandle>();
+  expectTypeOf<DatabaseHandle>().toExtend<Parameters<typeof databaseForOwner>[0]>();
+});
+
+// tests/server/entry/boot/persistence/forged-boot-grant.int.test.ts runs each verb listed here against a cast grant; add a new verb to both.
 test("every verb that crosses owners at boot demands the boot grant", () => {
   expectTypeOf<Parameters<typeof listEnabledAcrossOwners>[0]>().toEqualTypeOf<BootDatabaseHandle>();
   expectTypeOf<Parameters<typeof readInstalledPluginSlugs>[0]>().toEqualTypeOf<BootDatabaseHandle>();

@@ -1,7 +1,7 @@
 import { closeDb, users } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
-import type { BootDatabaseHandle } from "@orb/db/wiring";
+import type { BootDatabaseHandle, DatabaseHandle } from "@orb/db/wiring";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import {
   awaitableStatementForOwner,
@@ -69,15 +69,25 @@ test("a boot grant is a distinct inert identity over the same admitted connectio
     const boot = bootGrantFor(db);
     expect(boot).not.toBe(bootGrantFor(db));
     expect(Object.isFrozen(boot)).toBe(true);
-    expect(databaseForOwner(boot)).toBe(db);
+    // A grant handed down as a plain handle still serves a plain-handle verb; only the grant-typed spelling fails tsc.
+    const plain: DatabaseHandle = boot;
+    expect(databaseForOwner(plain)).toBe(db);
     expect(bootDatabaseForOwner(boot)).toBe(db);
     // A cast is the forgery a request route could write; the grant registry refuses it at recovery.
     expect(() => bootDatabaseForOwner(databaseHandle(db) as BootDatabaseHandle)).toThrow("boot wiring handle is not granted");
     expect(() => bootDatabaseForOwner({ ...boot })).toThrow("boot wiring handle is not granted");
-    expect(() => databaseForOwner({ ...boot })).toThrow("database wiring handle is not registered");
+    const copy: DatabaseHandle = { ...boot };
+    expect(() => databaseForOwner(copy)).toThrow("database wiring handle is not registered");
   } finally {
     closeDb(db);
   }
+});
+
+test("the owner conversion subpath loads its recoveries without the boot mint", async () => {
+  // A dynamic import is the spelling an import-name lint never sees; the exports map is what closes it.
+  const owner = await import("@orb/db/wiring-owner");
+  expect(Object.hasOwn(owner, "bootDatabaseHandle")).toBe(false);
+  expect(Object.hasOwn(owner, "bootDatabaseForOwner")).toBe(true);
 });
 
 test("statement tokens neither assimilate nor rebuild a native awaitable statement", async () => {

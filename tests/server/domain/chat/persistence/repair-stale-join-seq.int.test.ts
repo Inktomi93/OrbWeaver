@@ -2,8 +2,6 @@
 // @subject packages/server/src/domain/chat/persistence/participant.ts
 import type { Db } from "@orb/db";
 import { chatParticipants } from "@orb/db";
-import type { BootDatabaseHandle } from "@orb/db/wiring";
-import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, ChatParticipantId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { repairStaleJoinSeq } from "@orb/server/domain/chat";
@@ -52,14 +50,4 @@ test("a room with no canon resolves its head to zero, so only a floor above zero
   expect(await repairStaleJoinSeq(bootGrantFor(db))).toBe(1);
   expect(await joinSeqOf(db, atZero)).toBe(0);
   expect(await joinSeqOf(db, above)).toBe(0);
-});
-
-test("a plain handle cast to the boot grant is refused before the repair writes", async ({ db }) => {
-  const empty = await seedChatRow(db);
-  const above = await seatMember(db, empty.id, (await seedUser(db)).id, 4);
-  // The cast is the forgery a request route could write; only a grant the mint registered may cross owners.
-  const forged = databaseHandle(db) as BootDatabaseHandle;
-
-  await expect(repairStaleJoinSeq(forged)).rejects.toThrow("boot wiring handle is not granted");
-  expect(await joinSeqOf(db, above)).toBe(4);
 });
