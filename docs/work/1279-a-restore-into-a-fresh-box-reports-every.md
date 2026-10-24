@@ -20,6 +20,10 @@ A clean restore that reads as dozens of failures teaches the user to distrust th
 
 Owner ruling recorded here on the fork: either the check answers success with a note when the same owner already holds those exact bytes, once every referrer resolves by hash or seeded identity (chat attachments, gallery, room backgrounds move onto hash or seeded identity first), or the import builds the old-to-new id remap the check's header names; a fresh-box round trip then reports zero failures with no reference left dangling, proven by the composed round trip in `tests/server/domain/import/loader/import-bundle.int.test.ts`.
 
+## Owner ruling
+
+2026-10-24: hash identity, not an id remap. Chat attachments, gallery entries and room backgrounds move onto content-hash or seeded identity first; the asset import's fourth check then answers success with a note when the same owner already holds those exact bytes. Import keeps no cross-file channel.
+
 ## Evidence
 
 Filled at landing: what ran and where its output is.

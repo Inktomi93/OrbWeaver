@@ -20,6 +20,10 @@ A sweep that refuses on an unrelated sibling blocks the whole run on a shared bo
 
 Owner ruling recorded in this item; if excluding is ruled in, the sweep skips an unreadable process whose parent is alive, readable and unmarked, with a test that plants such a process; if ruled out, the refusal names the process and its parent so the operator can act.
 
+## Owner ruling
+
+2026-10-24: exclude. The sweep skips a process whose `/proc/<pid>/environ` is unreadable when its parent is alive, readable and unmarked, since such a process cannot carry the marker. It still refuses when the parent is unreadable or marked.
+
 ## Evidence
 
 Filled at landing: what ran and where its output is.
