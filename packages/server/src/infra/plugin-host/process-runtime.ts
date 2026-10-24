@@ -969,8 +969,12 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
     }
   };
 
+  // A supervisor label needs uniqueness only. `seams.mintId` is the business id source: this runs when a worker
+  // answers, so drawing there would move every later id by however the worker's timing falls.
+  let settlements = 0;
   const releaseOwnedBinding = (binding: Binding): void => {
-    bridgeSettlement.supervise(`plugin-host:bridge-settlement:${seams.mintId()}`, "plugin.host.bridge.settlement", {}, async () => {
+    settlements += 1;
+    bridgeSettlement.supervise(`plugin-host:bridge-settlement:${String(settlements)}`, "plugin.host.bridge.settlement", {}, async () => {
       await broker.settleBindings(new Set([binding]));
       ownedBindings.delete(binding);
     });
