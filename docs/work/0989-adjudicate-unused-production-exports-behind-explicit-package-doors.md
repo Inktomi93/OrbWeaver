@@ -16,6 +16,8 @@ Two more surfaces belong to this adjudication. Every `exports` entry in a `packa
 
 Method. `pnpm knip:prod` is the first pass. Cross-file consumers it cannot see are resolved with the codemod tool's one-workspace form, `jssg run --semantic-workspace`, whose `references()` follows a symbol across files (`.claude/skills/codemod/SKILL.md`; `tooling/src/codemods/rename-identifier` is the precedent); a census codemod lists each door export's referencing files, split into production and tests. A name-string lookup (a registry keyed by name, a plugin or route table) is invisible to both, so no export is removed until a literal `rg` for its name across `packages`, `tooling` and `tests` agrees.
 
+Shape of the current report: most findings are re-exports in `index.ts` door barrels that no production module imports, and a large share are symbols that are also used inside their own file. Both are mechanical. A barrel re-export with no production importer is trimmed from the door (the module stays), and a symbol used only in its own file loses its `export`. Apply both with a codemod checked by the census and `rg`; the remaining findings are judged one by one. Widening `ignoreExportsUsedInFile` or adding ignores to make the report quiet is not a fix.
+
 ## Why
 
 Closing wildcard package paths exposes unused symbols but does not remove them. Tests and tooling must not keep production code falsely alive, and `knip.ts` ignores the `@public` tag (`tags: ["-@public"]`), so a marker is not authority.
