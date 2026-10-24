@@ -3,25 +3,14 @@ import type { IConfiguration, IForbiddenRuleType } from "dependency-cruiser";
 import { BROWSER_TEST_SUFFIXES, TEST_KIND_DEFINITIONS, TEST_KIND_SUFFIXES } from "./tooling/src/floor/testing/test-kinds.ts";
 
 const ENTRY_SOURCE = "^packages/server/src/entry/";
-// The entry files that hold the physical database (Tier-5 invariant 1). Every other entry file takes the inert
-// `DatabaseHandle`; a lower owner whose door still takes a raw `Db` is why most boot steps stay on this list.
+// The entry files that own the physical database (Tier-5 invariant 1). Every other entry file, boot steps included,
+// takes the inert `DatabaseHandle`, and the domain door it calls opens the query context inside its own persistence.
 const ENTRY_DRIVERS = {
   "index.ts": "the process entry point imports the lifecycle",
   "lifecycle.ts": "opens, migrates, optimizes and closes the physical database",
   "boot/index.ts": "the boot barrel the lifecycle reads re-exports the drivers below",
   "boot/migrate.ts": "runs the migrations, backups and integrity check, and resolves the migrations folder through node:module",
   "boot/migrate-data-layout.ts": "opens, snapshots and detaches the legacy database while the data layout moves",
-  "boot/boot-owner.ts": "hands the boot Db to seedOwner, whose sessions door takes a raw Db",
-  "boot/backfill-plugin-provenance.ts": "hands the boot Db to character's backfillPluginProvenance",
-  "boot/heal-legacy-background-pins.ts": "hands the boot Db to settings' healLegacyBackgroundPins",
-  "boot/migrate-handoff-offer-vocab.ts": "hands the boot Db to chat's migrateHandoffOfferVocab",
-  "boot/migrate-plugin-tool-wire-names.ts": "hands the boot Db to the plugin slug read and chat's and automation's rewrites",
-  "boot/migrate-prose-slot-vocab.ts": "hands the boot Db to preset's migrateProseSlotVocab",
-  "boot/reactivate-plugins.ts": "hands the boot Db to plugin's listEnabledAcrossOwners",
-  "boot/rebuild-stats-timeline.ts": "hands the boot Db to stats' reconcileOwnersMissingTimeline",
-  "boot/reclaim-locks.ts": "hands the boot Db to chat's lock reclaim and the workloads in-flight reclaim",
-  "boot/seed-default-preset.ts": "hands the boot Db to preset's ensureSystemDefaultPreset",
-  "boot/seed-themes.ts": "hands the boot Db to settings' ensureSeedThemes",
 } as const satisfies Readonly<Record<string, string>>;
 const ENTRY_DRIVER_PATTERN = `${ENTRY_SOURCE}(?:${Object.keys(ENTRY_DRIVERS)
   .map((path) => RegExp.escape(path))
