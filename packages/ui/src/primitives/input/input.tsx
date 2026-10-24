@@ -5,7 +5,8 @@ import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
 import { inputVariants } from "./variants.ts";
 
-export interface InputProps extends Omit<BaseInputProps, "type">, VariantProps<typeof inputVariants> {
+// The native `width` attribute (an image input's pixel width) gives way to the `width` variant.
+export interface InputProps extends Omit<BaseInputProps, "type" | "width">, VariantProps<typeof inputVariants> {
   className?: string;
   /**
    * The native input mode — TEXT-SHAPED values only.

@@ -84,11 +84,11 @@ export function DiscoverHitRow({ hit, rank }: { readonly hit: DiscoverHit; reado
                   title={roomNumberingHint(chatSubtitle(segment.chatTitle, hit.name))}
                   onClick={(): void => selectCorpusArtifact({ kind: "scene", hit: segment, characterName: hit.name, rank })}
                 >
-                  <Text as="span" className="truncate text-muted-foreground min-inline-0" voice="label">
+                  <Text as="span" className="truncate min-inline-0" tone="muted" voice="label">
                     {chatSubtitle(segment.chatTitle, hit.name)}
                     {occurrences.filter((candidate) => candidate.chatId === segment.chatId).length > 1 ? ` · occurrence ${index + 1}` : ""}
                   </Text>
-                  <Text aria-hidden={true} as="span" className="shrink-0 text-muted-foreground" voice="label">
+                  <Text aria-hidden={true} as="span" className="shrink-0" tone="muted" voice="label">
                     →
                   </Text>
                 </Button>

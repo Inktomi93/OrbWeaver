@@ -188,7 +188,7 @@ export function RpgTakeoverHeader({
       {trackersReadOnly ? (
         <Badge tone="soft" size="sm" title="This model can't update trackers — they still steer the story; edit them by hand.">
           <Icon icon={Lock} size="xs" />
-          <Text as="span" voice="gloss" className="text-inherit">
+          <Text as="span" voice="gloss" ink="inherit">
             Read-only
           </Text>
         </Badge>

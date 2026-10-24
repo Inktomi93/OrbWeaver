@@ -78,7 +78,7 @@ export function CorpusHomeSkeleton(): ReactElement {
         <Grid cols="auto" gap="row">
           {slots(GEM_TILES).map((i) => (
             <Row align="center" gap="row" key={i}>
-              <Skeleton className="rounded-full block-(--size-avatar-lg) inline-(--size-avatar-lg)" />
+              <Skeleton className="block-(--size-avatar-lg) inline-(--size-avatar-lg)" variant="circle" />
               <Stack className="flex-1 min-inline-0" gap="tight">
                 <Skeleton className="block-(--leading-label) inline-1/2" />
                 <Skeleton className="block-(--leading-micro) inline-full" />

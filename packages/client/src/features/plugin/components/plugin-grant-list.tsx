@@ -211,7 +211,7 @@ function GrantRow({ capability, checked, isNew, roleUnset }: GrantRowProps): Rea
         {/* An UNGRANTED row's state, as a word beside the name it refuses — adjacent, where the far-docked
             control column used to strand it (file header). */}
         {checked ? null : (
-          <Text className="text-muted-foreground" voice="label">
+          <Text tone="muted" voice="label">
             Not granted
           </Text>
         )}

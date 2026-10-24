@@ -48,7 +48,7 @@ export function AdminUserSessionsDialog(props: AdminUserSessionsDialogProps): Re
       title={`Sessions — ${props.handle}`}
     >
       <Row align="center" justify="between">
-        <Text voice="label" className="text-muted-foreground">
+        <Text voice="label" tone="muted">
           {activeCount} active{rows.length > activeCount ? ` / ${rows.length} total` : ""}
         </Text>
         <Button intent="destructive" size="sm" disabled={activeCount === 0 || mutating} onClick={(): void => setConfirmRevokeAll(true)}>

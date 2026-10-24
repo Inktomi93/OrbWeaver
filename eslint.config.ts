@@ -1,5 +1,7 @@
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import { authorClassIgnores, createOrbPlugin } from "@orb/tooling/eslint";
+import { authorClassIgnores, classClassifier, createOrbPlugin } from "@orb/tooling/eslint";
 import { BUTTON_SIZE_OVERFLOW } from "@orb/ui/button/size-hit-area";
 import { TOKENS } from "@orb/ui/tokens";
 import pluginQuery from "@tanstack/eslint-plugin-query";
@@ -16,6 +18,7 @@ import reactX from "eslint-plugin-react-x";
 import reactNoEffect from "eslint-plugin-react-you-might-not-need-an-effect";
 import regexp from "eslint-plugin-regexp";
 import tsdoc from "eslint-plugin-tsdoc";
+import { __unstable__loadDesignSystem } from "tailwindcss";
 import type { FlatConfig } from "typescript-eslint";
 import tseslint from "typescript-eslint";
 import biomeConfig from "./biome.json" with { type: "json" };
@@ -25,6 +28,11 @@ const ROOT = fileURLToPath(new URL(".", import.meta.url));
 const UI_STYLESHEET = fileURLToPath(new URL("./packages/ui/src/styles/globals.css", import.meta.url));
 const CLIENT_STYLESHEET = fileURLToPath(new URL("./packages/client/src/styles/globals.css", import.meta.url));
 const SHELL_STYLESHEET = fileURLToPath(new URL("./packages/client/src/features/app-shell/surfaces/shell.css", import.meta.url));
+const THEME_STYLESHEET = fileURLToPath(new URL("./packages/ui/src/styles/theme.css", import.meta.url));
+// The design system `feature-classname-layout-only` compiles tokens through: the stock theme plus the generated theme.
+const designSystem = await __unstable__loadDesignSystem(
+  `${readFileSync(createRequire(import.meta.url).resolve("tailwindcss/theme.css"), "utf8")}\n${readFileSync(THEME_STYLESHEET, "utf8")}`,
+);
 
 const SOURCE = ["packages/*/src/**/*.{ts,tsx}", "tooling/src/**/*.{ts,tsx}"];
 
@@ -684,6 +692,7 @@ const localPlugin = createOrbPlugin({
       .map(([size]) => size),
   ),
   shellClasses: new Set(OWNER_CSS_SHELL_CLASSES),
+  classifyClass: classClassifier((classes) => designSystem.candidatesToCss(classes)),
 });
 // The only files that may spell a portal-float z token: each is a surface that portals to
 // [data-slot="portal-root"] or mounts at the document root. A new consumer is a finding, not an entry here.

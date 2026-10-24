@@ -366,7 +366,7 @@ function GreetingGroupOnlyToggle({ form, index }: { readonly form: CardForm; rea
           <label htmlFor={switchId}>
             {/* A control's visible name IS `label` (#573); its muted ink rides className because `tone` is
                 declared before `voice` and loses the merge. */}
-            <Text id={labelId} as="span" voice="label" className="text-muted-foreground">
+            <Text id={labelId} as="span" voice="label" tone="muted">
               Group chats only
             </Text>
           </label>

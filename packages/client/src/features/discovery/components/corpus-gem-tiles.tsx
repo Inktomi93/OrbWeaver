@@ -105,7 +105,7 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
                     2 or 4 columns, where "reading order" stops being obvious.
                     INSIDE the button, so it rides the tile's accessible NAME: the rank is part of what
                     this control is, not decoration beside it. */}
-                <Text as="span" className="shrink-0 font-mono text-muted-foreground" voice="datum">
+                <Text as="span" className="shrink-0 font-mono" tone="muted" voice="datum">
                   {index + 1}
                 </Text>
                 <CharacterAvatar hash={gem.avatarHash} id={gem.characterId} name={gem.name} size="lg" />

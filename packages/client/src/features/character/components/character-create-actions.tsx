@@ -86,7 +86,7 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
       <Stack gap="field">
         {/* The four-voice grammar (density §2.3): a field caption is the NAME OF ONE DATUM → `label`.
             Tone rides a className, the landed dialog precedent (create-schedule-dialog). */}
-        <Text as="span" className="text-muted-foreground" voice="label">
+        <Text as="span" tone="muted" voice="label">
           Name
         </Text>
         {/* THE FIELD SAYS IT IS THE ONE THAT WAS REFUSED (#548, se-verify-3 P2). #542 announced the refusal
@@ -113,7 +113,7 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
             {refusal}
           </Text>
         )}
-        <Text as="span" className="text-muted-foreground" voice="label">
+        <Text as="span" tone="muted" voice="label">
           Description
         </Text>
         <Textarea
@@ -129,7 +129,7 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
           about (#548, see its note there). The string is the mapper's, so the toast and that line can
           never become two spellings of one refusal. */}
       {incomplete ? (
-        <Text className="text-muted-foreground" voice="label">
+        <Text tone="muted" voice="label">
           A name and a description are both required.
         </Text>
       ) : null}

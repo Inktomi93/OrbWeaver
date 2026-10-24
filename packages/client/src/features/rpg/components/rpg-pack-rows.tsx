@@ -129,7 +129,7 @@ function PackCellInk({ item, pinned = false }: { readonly item: RpgInventoryItem
       {QUEST_TYPE_RE.test(item.type) ? (
         // The accent quest-bound dot (primary voice = the game's pulse); the `type` text on the tile
         // title carries the datum (never color-alone).
-        <Text as="span" voice="gloss" aria-hidden={true} className="absolute inset-e-field inset-bs-field text-primary" title="quest item">
+        <Text as="span" voice="gloss" aria-hidden={true} className="absolute inset-e-field inset-bs-field" tone="accent" title="quest item">
           ●
         </Text>
       ) : null}

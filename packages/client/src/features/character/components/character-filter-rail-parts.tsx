@@ -269,7 +269,7 @@ function TagFilterChipButton({
           also repaint the ink `text-foreground`, erasing the muted-vs-selected reading that tells an off
           chip from an on one at rest. The chip's intent + selection own the colour; this span owns only
           the clip. */}
-          <Text as="span" className="truncate text-inherit min-inline-0" voice="label">
+          <Text as="span" className="truncate min-inline-0" ink="inherit" voice="label">
             {tag.name}
           </Text>
         </Button>

@@ -56,7 +56,7 @@ function RpgVeiledCue({ chatId }: { readonly chatId: ChatId }): ReactElement | n
           `interactiveKicker`, NOT `kicker` (#1216 class, #1632 item 3): this text IS the button's whole
           visible label beside the icon, and `kicker` rides `--text-micro` (10.5px), under the 11px
           functional floor for interactive copy. Same tracked register, readable 13px step. */}
-      <Text as="span" voice="interactiveKicker" className="text-inherit">
+      <Text as="span" voice="interactiveKicker" ink="inherit">
         {count} veiled
       </Text>
     </Button>

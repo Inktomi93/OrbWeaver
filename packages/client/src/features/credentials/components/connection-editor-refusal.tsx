@@ -5,7 +5,7 @@
 import type { EmbedTargetRefusal } from "@orb/contracts/inference";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { cn, EMBED_REFUSAL_SLOTS, embedderCheckingText, embedRefusalRowText, embedRefusalText } from "#lib";
+import { EMBED_REFUSAL_SLOTS, embedderCheckingText, embedRefusalRowText, embedRefusalText } from "#lib";
 
 // The editor is as wide as the settings body; a sentence capped at the prose measure never runs across it.
 const PROSE_MEASURE = "max-w-(--reading-measure-prose)";
@@ -25,7 +25,7 @@ export interface EditorEmbedderCheck {
  *  editor it also says what to set. */
 export function EmbedRefusalAlert({ refusal, onRow }: { readonly refusal: EmbedTargetRefusal; readonly onRow: boolean }): ReactElement {
   return (
-    <Text className={cn("text-warning", PROSE_MEASURE)} data-refusal={EMBED_REFUSAL_SLOTS[refusal.kind]} role="alert" voice="gloss">
+    <Text className={PROSE_MEASURE} tone="warning" data-refusal={EMBED_REFUSAL_SLOTS[refusal.kind]} role="alert" voice="gloss">
       {onRow ? embedRefusalRowText(refusal) : embedRefusalText(refusal)}
     </Text>
   );

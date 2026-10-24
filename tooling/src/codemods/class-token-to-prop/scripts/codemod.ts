@@ -84,12 +84,66 @@ function rewriteLiteral(literal: SgNode<TSX>, rules: readonly PropRule[], isBare
   return { edit: literal.replace(text === "" ? "undefined" : `${quote}${text}${quote}`), removesAttribute: false, hit };
 }
 
+/** The prop each hit rule adds; `undefined` when two hits want different values for one prop, a judgment site. */
+function propsToAdd(hits: readonly PropRule[]): ReadonlyMap<string, string> | undefined {
+  const props = new Map<string, string>();
+  for (const rule of hits) {
+    const current = props.get(rule.prop);
+    if (current !== undefined && current !== rule.value) {
+      return undefined;
+    }
+    props.set(rule.prop, rule.value);
+  }
+  return props;
+}
+
+/** The attribute names the element already carries, so an added prop never duplicates one. */
+function siblingAttributeNames(attribute: SgNode<TSX>): ReadonlySet<string> {
+  const siblings = attribute.parent()?.children() ?? [];
+  return new Set(siblings.filter((child) => child.kind() === "jsx_attribute").map((child) => child.child(0)?.text() ?? ""));
+}
+
+function carriesMappedToken(node: SgNode<TSX>, rules: readonly PropRule[]): boolean {
+  const literals = node.kind() === "string" ? [node] : node.findAll(STRING);
+  return literals.some((literal) =>
+    literal
+      .text()
+      .slice(1, -1)
+      .split(/\s+/u)
+      .some((token) => rules.some((rule) => rule.token === token)),
+  );
+}
+
+/** A literal under `&&`, `||`, `??`, or a ternary whose other arm carries no mapped token, is state the prop would lose. */
+function guardedByCondition(literal: SgNode<TSX>, attribute: SgNode<TSX>, rules: readonly PropRule[]): boolean {
+  for (let node = literal.parent(); node !== null && node.id() !== attribute.id(); node = node.parent()) {
+    if (node.kind() === "binary_expression") {
+      return true;
+    }
+    if (node.kind() === "ternary_expression") {
+      const arms = [node.field("consequence"), node.field("alternative")];
+      if (!arms.every((arm) => arm !== null && carriesMappedToken(arm, rules))) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 /** Rewrite one attribute's literals and append its prop; returns the edits for this attribute. */
 function rewriteAttribute(attribute: SgNode<TSX>, rules: readonly PropRule[]): readonly Edit[] {
   const value = attribute.child(2);
-  const rewrites = attribute.findAll(STRING).map((literal) => rewriteLiteral(literal, rules, value !== null && literal.id() === value.id()));
-  const props = new Map(rewrites.flatMap((rewrite) => rewrite.hit.map((rule) => [rule.prop, rule.value] as const)));
-  if (props.size === 0) {
+  const literals = attribute.findAll(STRING);
+  const rewrites = literals.map((literal) => rewriteLiteral(literal, rules, value !== null && literal.id() === value.id()));
+  const props = propsToAdd(rewrites.flatMap((rewrite) => rewrite.hit));
+  if (props === undefined || props.size === 0) {
+    return [];
+  }
+  if (literals.some((literal, index) => (rewrites[index]?.hit.length ?? 0) > 0 && guardedByCondition(literal, attribute, rules))) {
+    return [];
+  }
+  const existing = siblingAttributeNames(attribute);
+  if ([...props.keys()].some((prop) => existing.has(prop))) {
     return [];
   }
   const removesAttribute = rewrites.some((rewrite) => rewrite.removesAttribute);

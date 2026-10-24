@@ -216,7 +216,8 @@ export function HomeHearthRoom({
               accessible name stays the verb phrase and not a glyph name. */}
           <Text
             as="span"
-            className="ms-auto shrink-0 text-muted-foreground transition-colors duration-(--motion-fast) ease-out-expo group-hover:text-foreground"
+            className="ms-auto shrink-0 transition-colors duration-(--motion-fast) ease-out-expo group-hover:text-foreground"
+            tone="muted"
             voice="credit"
           >
             Resume <TrailingArrow className="inline-block transition-transform duration-(--motion-fast) ease-out-expo group-hover:translate-x-tight" />

@@ -136,7 +136,7 @@ function RecallIndicatorBody({ chatId, viewerIsHost, memory }: ChatRecallIndicat
             <Icon icon={BrainCircuit} size="sm" className={iconClass(recall)} />
             {count === null ? null : (
               // The count is the visible label step, the same type as the roster chip's digit (never a mono value).
-              <Text as="span" voice="label" className="shell-chat-chip-count text-inherit" aria-hidden={true}>
+              <Text as="span" voice="label" className="shell-chat-chip-count" ink="inherit" aria-hidden={true}>
                 {count}
               </Text>
             )}

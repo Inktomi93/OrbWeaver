@@ -146,7 +146,7 @@ function RosterChipButton({ count, onClick }: { readonly count: number; readonly
       onClick={onClick}
     >
       <Icon icon={Users} size="sm" />
-      <Text as="span" voice="label" className="shell-chat-chip-count text-inherit" aria-hidden={true}>
+      <Text as="span" voice="label" className="shell-chat-chip-count" ink="inherit" aria-hidden={true}>
         {String(count)}
       </Text>
     </Button>

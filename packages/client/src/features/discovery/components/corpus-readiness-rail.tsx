@@ -196,7 +196,7 @@ function CorpusReadinessRerun(): ReactElement {
       {pass.failure === null ? null : (
         <Stack data-slot="readiness-rerun-failure" gap="tight">
           <Text voice="kicker">Last run</Text>
-          <Text className="text-muted-foreground" voice="label">
+          <Text tone="muted" voice="label">
             {pass.failureWasCrash ? "The last pass stopped unexpectedly — run it again." : `The last pass stopped: ${pass.failure}`}
           </Text>
         </Stack>

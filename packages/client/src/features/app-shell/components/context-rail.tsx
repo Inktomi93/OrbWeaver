@@ -283,7 +283,7 @@ function ContextTab({ tab, isActive }: { readonly tab: ResolvedContextTab; reado
       {...(tab.disabledReason !== null ? { title: tab.disabledReason } : {})}
     >
       {renderCellIcon(tab, isActive, locked)}
-      <Text as="span" voice="label" data-slot="context-cell-caption" className="truncate text-inherit">
+      <Text as="span" voice="label" data-slot="context-cell-caption" className="truncate" ink="inherit">
         {tab.label}
       </Text>
       {locked ? <Icon icon={Lock} size="xs" aria-hidden={true} className="text-muted-foreground opacity-60" /> : null}
@@ -359,7 +359,7 @@ function ContextCell({
           the 10.5px `micro` step — under the 11px readable floor. The mock draws its captions at 10.5px and is
           NOT followed on this axis: the readable-floor ruling stands. text-inherit so the cell's own state
           colour still wins. */}
-      <Text as="span" voice="label" data-slot="context-cell-caption" className="truncate text-inherit max-inline-full">
+      <Text as="span" voice="label" data-slot="context-cell-caption" className="truncate max-inline-full" ink="inherit">
         {tab.label}
       </Text>
       {/* THE CORNER ORNAMENTS SIT ONE `field` OFF THE CELL'S OWN CORNER (side-eye 2026-08-16 #94): the rail is

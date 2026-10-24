@@ -22,6 +22,8 @@ import { restrictionRule } from "./syntax.ts";
 import { CT_SPEC_RESTRICTIONS, TEST_FABRICATION_RESTRICTIONS } from "./test-policy.ts";
 import { ctPollIntervalsSharedRule, evaluateNoScopeCaptureRule, typedTestIdRule, uiCtColorRule } from "./tests.ts";
 import { floorlessControlRule, registerApiRule, registryContextRule, stateFilesRule, storeDerivedRule } from "./ui-composition.ts";
+import type { ClassClassifier } from "./ui-feature-classname.ts";
+import { featureClassNameLayoutOnlyRule, noBuiltClassStringRule } from "./ui-feature-classname.ts";
 import { UI_FEATURE_RESTRICTIONS } from "./ui-feature-policy.ts";
 import { rawIntrinsicPaintRule } from "./ui-intrinsics.ts";
 import {
@@ -38,6 +40,7 @@ import {
 import { darkVariantRule, offTokenInlineStyleRule, recededInkRule, themeOverrideRule } from "./ui-styles.ts";
 
 export { authorClassIgnores } from "./css-classes.ts";
+export { classClassifier } from "./ui-feature-classname.ts";
 
 const LOCAL_RESTRICTIONS = [
   TEST_FABRICATION_RESTRICTIONS,
@@ -71,6 +74,7 @@ export function createOrbPlugin(options: {
   browserNodeGlobals: ReadonlySet<string>;
   floorlessButtonSizes: ReadonlySet<string>;
   shellClasses: ReadonlySet<string>;
+  classifyClass: ClassClassifier;
 }): {
   rules: Record<string, OrbRule>;
 } {
@@ -78,6 +82,8 @@ export function createOrbPlugin(options: {
     rules: {
       ...Object.fromEntries(LOCAL_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)] as const)),
       "no-raw-intrinsic-paint": rawIntrinsicPaintRule(options.shellClasses),
+      "feature-classname-layout-only": featureClassNameLayoutOnlyRule(options.classifyClass),
+      "no-built-class-string": noBuiltClassStringRule,
       ...Object.fromEntries(PRINCIPAL_RULES.map(({ id, rule }) => [id, rule] as const)),
       "ui-ct-no-color-literal": uiCtColorRule,
       "no-raw-egress": rawEgressRule,

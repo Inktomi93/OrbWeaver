@@ -99,7 +99,7 @@ function AdminUsersBody({ anchorId }: { readonly anchorId: string }): ReactEleme
     <Section className="@container" divider={true} heading={ADMIN_USERS_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="row" data-testid={testId("adminUsersSection")}>
         <Row align="center" justify="between">
-          <Text voice="label" className="text-muted-foreground">
+          <Text voice="label" tone="muted">
             {users.length} {users.length === 1 ? "account" : "accounts"}
           </Text>
           <Button size="sm" data-testid={testId("adminCreateUserButton")} onClick={(): void => setCreateOpen(true)}>

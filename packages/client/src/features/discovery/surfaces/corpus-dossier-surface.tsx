@@ -125,7 +125,11 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
               page. The token is `--reading-measure-prose` since #1145 — the masthead's headline one section
               up keeps `--reading-measure`, because the law's band is about BODY line length and a display
               line is not body copy. */}
-          {dossier.elevatorPitch !== null ? <Text className="text-muted-foreground max-inline-(--reading-measure-prose)">{dossier.elevatorPitch}</Text> : null}
+          {dossier.elevatorPitch !== null ? (
+            <Text className="max-inline-(--reading-measure-prose)" tone="muted">
+              {dossier.elevatorPitch}
+            </Text>
+          ) : null}
         </Stack>
       </Row>
 

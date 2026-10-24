@@ -301,7 +301,7 @@ export function OwnLookMark({ themeOverride }: { readonly themeOverride: ThemeOv
                       reparents at runtime, but an HTML parser (SSR/hydration, an ariaSnapshot round trip) closes
                       the button at the `<p>` and re-parents everything after it. Same voice, same accessible
                       name — this is the `character-facet-row.tsx` #235 fix, applied to the site that missed it. */}
-                  <Text as="span" voice="interactiveKicker" className="text-inherit">
+                  <Text as="span" voice="interactiveKicker" ink="inherit">
                     Own look
                   </Text>
                 </Button>

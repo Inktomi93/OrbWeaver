@@ -93,7 +93,7 @@ export function RpgActRail({ plot, edit }: { readonly plot: RpgPlot; readonly ed
                 width="avatar-md"
                 restClassName="font-semibold text-accolade"
               />
-              <Text as="span" voice="label" aria-hidden={true} className="text-muted-foreground">
+              <Text as="span" voice="label" aria-hidden={true} tone="muted">
                 —
               </Text>
               <TrackerValue

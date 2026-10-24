@@ -251,7 +251,7 @@ function OverviewRow({
             is declared before `voice` and loses the merge — the ratified spelling for an intentional tone.
             The value is a `datum` when it is mono/tabular and a `label` otherwise; both were spelled
             `size="label"` before, which is the A3-red internal axis. */}
-        <Text voice="label" className="truncate text-muted-foreground min-inline-0" id={labelId}>
+        <Text voice="label" className="truncate min-inline-0" tone="muted" id={labelId}>
           {label}
         </Text>
         <Text voice={mono ? "datum" : "label"} className="shrink-0">
