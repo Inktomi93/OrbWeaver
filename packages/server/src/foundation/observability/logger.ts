@@ -1,53 +1,35 @@
-// pino (multistream: stdout + the in-process ring) + the bounded ring buffers behind /api/_debug + the
-// AsyncLocalStorage request scope + securityEvent. A root's logger, read through `getLog(base)`, is the only sanctioned output.
-// Doctrine: logs are metadata — RP content lives in the DB, never a log line.
-//
-// ASSUMES(single-replica): the log + request rings are module-scope, per-process. An admin browsing
-// /api/_debug on a multi-replica deploy sees only the replica they hit.
+// pino (multistream: stdout + the root's log ring) + the AsyncLocalStorage request scope + securityEvent. A root's
+// logger, read through `getLog(base)`, is the only sanctioned output. Logs are metadata: RP content lives in the DB.
 
 import { AsyncLocalStorage } from "node:async_hooks";
 import process from "node:process";
 import { Writable } from "node:stream";
 import type { LogLevel } from "@orb/contracts/settings";
-import { createBoundedRing } from "@orb/kit/bounded-ring";
+import type { BoundedRing } from "@orb/kit/bounded-ring";
 import type { Handle, UserId } from "@orb/kit/ids";
 import pino from "pino";
-import type { Logger, RequestRecord } from "./contract/logging.ts";
+import type { Logger } from "./contract/logging.ts";
 
 export type { Logger, RequestRecord } from "./contract/logging.ts";
 
-const LOG_RING_CAPACITY = 2000;
-const REQUEST_RING_CAPACITY = 500;
 const LOWEST_LOG_LEVEL = "trace" satisfies LogLevel;
 
-/** The pino stream-attached ring of raw serialized log lines — strings in, parsed lazily on query (cheap
- *  writes; the parse cost only happens when someone curls /api/_debug/logs). The debug surface reads it.
- *  ASSUMES(single-replica). */
-export const logRing = createBoundedRing<string>(LOG_RING_CAPACITY);
-const requestRing = createBoundedRing<RequestRecord>(REQUEST_RING_CAPACITY);
-
-export function recordRequest(record: RequestRecord): void {
-  requestRing.push(record);
+// Captures each already-serialized JSON line into the ring. No parsing here: the debug reads parse lazily.
+function ringStream(ring: BoundedRing<string>): Writable {
+  return new Writable({
+    write(chunk: Buffer, _encoding, callback): void {
+      ring.push(chunk.toString("utf8").trimEnd());
+      callback();
+    },
+  });
 }
-
-export function recentRequests(limit: number): RequestRecord[] {
-  return requestRing.recent(limit);
-}
-
-// A stream that captures each already-serialized JSON line into the ring. No parsing here — cheap on the
-// hot path.
-const ringStream = new Writable({
-  write(chunk: Buffer, _encoding, callback): void {
-    logRing.push(chunk.toString("utf8").trimEnd());
-    callback();
-  },
-});
 
 /** The serializers every log line runs: an `err` field is copied enumerable key by enumerable key. */
 export const logSerializers: { readonly err: typeof pino.stdSerializers.err } = { err: pino.stdSerializers.err };
 
-/** A root's logger at `level`. Every root's logger writes the same process stdout and log ring. */
-export function createLogger(level: LogLevel): Logger {
+/** A root's logger at `level`, writing process stdout and `ring`, the root's log ring. `null` is a logger no
+ *  debug surface reads, such as the plugin broker's or a script's. */
+export function createLogger(level: LogLevel, ring: BoundedRing<string> | null): Logger {
   return pino(
     {
       level,
@@ -79,13 +61,9 @@ export function createLogger(level: LogLevel): Logger {
     },
     // Destinations admit every level so `logger.level` is the one gate: a fixed destination level (pino's
     // default is `info`) would drop lines after a runtime `AppSettings.logLevel` raise past the boot level.
-    pino.multistream(
-      [
-        { level: LOWEST_LOG_LEVEL, stream: process.stdout },
-        { level: LOWEST_LOG_LEVEL, stream: ringStream },
-      ],
-      { dedupe: false },
-    ),
+    pino.multistream([{ level: LOWEST_LOG_LEVEL, stream: process.stdout }, ...(ring === null ? [] : [{ level: LOWEST_LOG_LEVEL, stream: ringStream(ring) }])], {
+      dedupe: false,
+    }),
   );
 }
 

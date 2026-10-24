@@ -407,7 +407,7 @@ export async function runDemoSeed(argv: readonly string[]): Promise<ExitCode> {
   }
 
   // The layout move first, so a `--fresh` wipe and the open below both address the db's current location.
-  await migrateDataLayout({ layout: env.DATA_LAYOUT, env, logger: createLogger(env.LOG_LEVEL) });
+  await migrateDataLayout({ layout: env.DATA_LAYOUT, env, logger: createLogger(env.LOG_LEVEL, null) });
   const filePath = dbFilePath(env.DATABASE_URL);
   if (args.fresh) {
     if (filePath === null) {
@@ -424,7 +424,7 @@ export async function runDemoSeed(argv: readonly string[]): Promise<ExitCode> {
   const db = await createDb(env.DATABASE_URL);
   await runBootMigrations({
     db,
-    logger: createLogger(env.LOG_LEVEL),
+    logger: createLogger(env.LOG_LEVEL, null),
     databaseUrl: env.DATABASE_URL,
     backupDir: env.DATA_LAYOUT.backups,
     launched: DB_LAUNCHED,

@@ -3,7 +3,7 @@
 import process from "node:process";
 import { chatEvents, chatSegments } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
-import { processObservability, refuseWrites } from "@orb/testkit/node/composed";
+import { refuseWrites } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
 import { LOG_SCAN_LIMIT, room } from "./memory-build.fixtures.ts";
 
@@ -17,7 +17,7 @@ test("the memory build throwing emits warning(memory_build_failed) but the turn 
   expect(canon.map(({ id }) => id)).toContain(outcome.messages[0]?.id);
   expect(await fixture.warnings()).toMatchObject([{ type: "warning", chatId: fixture.h.chatId, code: "memory_build_failed" }]);
   expect(
-    processObservability.logLines(LOG_SCAN_LIMIT).filter((line) => line.includes(fixture.h.chatId) && line.includes("memory: post-turn build failed")),
+    fixture.h.root.observability.logLines(LOG_SCAN_LIMIT).filter((line) => line.includes(fixture.h.chatId) && line.includes("memory: post-turn build failed")),
   ).toHaveLength(1);
 });
 
@@ -39,7 +39,7 @@ test("a failing warning append neither fails the turn nor leaves an unhandled re
     expect(canon).toHaveLength(4);
     expect(canon.map(({ id }) => id)).toContain(outcome.messages[0]?.id);
     expect(await fixture.warnings()).toEqual([]);
-    const logged = processObservability.logLines(LOG_SCAN_LIMIT).filter((line) => line.includes(fixture.h.chatId));
+    const logged = fixture.h.root.observability.logLines(LOG_SCAN_LIMIT).filter((line) => line.includes(fixture.h.chatId));
     expect(logged.filter((line) => line.includes("memory: post-turn build failed"))).toHaveLength(1);
     expect(logged.filter((line) => line.includes("durable append failed on a live chat — retrying"))).toHaveLength(1);
     expect(logged.filter((line) => line.includes("DURABLE APPEND FAILED on a live chat — event dropped, its replay slot is permanently missing"))).toHaveLength(

@@ -29,7 +29,7 @@ import type { createConfiguredOidc, createHttpApp, ServicesDeps, ServicesResult 
 import { OWNER_CLAIM_URL_FILE_NAME } from "@orb/server/foundation/data-layout";
 import type { Env } from "@orb/server/foundation/env";
 import { bindPostureInput, resolveBindPosture } from "@orb/server/foundation/env";
-import { createLogger, getLog } from "@orb/server/foundation/observability";
+import { createLogger, createObservabilityRings, getLog } from "@orb/server/foundation/observability";
 import { systemConnector, systemFetch } from "@orb/server/infra/network";
 import { appRouter, createCaller } from "@orb/server/transport/trpc";
 import type { Clock } from "../iso/clock.ts";
@@ -43,7 +43,8 @@ import type { EnvSeamOptions, RawEnvInput } from "./env-seams.ts";
 import { harnessEnv } from "./env-seams.ts";
 import type { OwnedHttpRequests } from "./http.ts";
 import { createOwnedHttpRequests } from "./http.ts";
-import { processObservability } from "./observed.ts";
+import type { RootObservability } from "./observed.ts";
+import { observeRoot } from "./observed.ts";
 
 type AuthConfig = ReturnType<typeof authConfigFromEnv>;
 
@@ -170,6 +171,8 @@ export interface ServerTestHarness extends ComposedServerRoot, AsyncDisposable {
   readonly app: ServicesResult;
   /** The root's logger: every line the graph writes outside a request goes through it, so a suite spies on it. */
   readonly logger: ServicesDeps["logger"];
+  /** What this root logged and traced, read from its own rings; another root's lines never appear here. */
+  readonly observability: RootObservability;
   readonly services: ServicesResult["services"];
   readonly db: Db;
   /** The env record this root parsed and composed with. */
@@ -564,8 +567,8 @@ export async function createServerHarness(
   const env = harnessEnv(options, { rootDir });
   const authConfig: AuthConfig = { ...authConfigFromEnv(env), ...options.authConfig };
   const rolePolicy = createSessionsRolePolicy(env);
-  const logger = createLogger(env.LOG_LEVEL);
-  construction.use(processObservability.openRoot());
+  const rings = createObservabilityRings();
+  const logger = createLogger(env.LOG_LEVEL, rings.logs);
   let appLifetime: ServicesResult | undefined;
   let httpLifetime: OwnedHttpRequests | undefined;
   let oidcLifetime: Awaited<ReturnType<typeof createConfiguredOidc>> | undefined;
@@ -586,6 +589,7 @@ export async function createServerHarness(
   const app = await createServices({
     env,
     logger,
+    rings,
     hostEnvAllowlist: noHostEnv,
     authModeSource: authModeSourceOf(options),
     authConfig,
@@ -634,6 +638,7 @@ export async function createServerHarness(
   const httpApp = assembleHttp({
     built: app,
     logger,
+    rings,
     env,
     ...httpOverridesOf(options),
     authConfig,
@@ -673,6 +678,7 @@ export async function createServerHarness(
   return Object.assign(new ComposedServerRoot(app, db, internalCallerFor, http), {
     env,
     logger,
+    observability: observeRoot(rings),
     clock,
     ids,
     idSource,

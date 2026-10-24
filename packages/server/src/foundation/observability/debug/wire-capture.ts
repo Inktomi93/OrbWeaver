@@ -29,7 +29,7 @@
 // We capture whatever each backend actually sends; we do NOT normalize across backends. `body` is therefore an
 // opaque JSON object whose shape is the backend's own wire vocabulary.
 //
-// The recorder RING is a module singleton (like `logRing`/the trace ring), but WRITES are gated: the sink the
+// The recorder RING is a module singleton, unlike the per-root log, request and trace rings, and WRITES are gated: the sink the
 // backends receive is `recordWireCapture`, and compose only wires it when capture is enabled — so the ring
 // stays empty (never written) with the feature off.
 

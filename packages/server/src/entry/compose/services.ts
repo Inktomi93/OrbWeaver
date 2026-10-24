@@ -135,7 +135,7 @@ import { createAttachOwnedBooksByName, createImportStandaloneLorebook } from "#d
 import { APP_NAME, APP_URL } from "#foundation/config";
 import type { Env } from "#foundation/env/record";
 import { allowedHostsInput, installKind, publicAddresses } from "#foundation/env/record";
-import type { AuditEntry, Logger, WireCaptureSpill } from "#foundation/observability";
+import type { AuditEntry, Logger, ObservabilityRings, WireCaptureSpill } from "#foundation/observability";
 import {
   addSpanEvent,
   createAuditWiring,
@@ -220,6 +220,9 @@ export interface ServicesDeps {
   /** This root's logger (`createProcessSeams` builds it from the record's `LOG_LEVEL`; a test root builds its own).
    *  Every line this graph writes outside a request goes through it, and the settings cache rebinds its level. */
   readonly logger: Logger;
+  /** This root's log and request rings (`createProcessSeams` builds them and feeds `logger` into the log ring; a test root
+   *  builds its own). The bug-report read serves them. */
+  readonly rings: ObservabilityRings;
   /** The parsed env record (`createProcessSeams` reads the process's; a test root parses its own). Every knob this
    *  graph reads comes from here, so a root that sets a key in its record turns the same production read. */
   readonly env: Env;
@@ -1550,7 +1553,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   });
   jobsLifetime = jobs;
 
-  const bugReportDiagnostics = createBugReportDiagnosticsRead(deps.env);
+  const bugReportDiagnostics = createBugReportDiagnosticsRead(deps.env, deps.rings.logs);
   const trpcContext: ContextForRequest = (request) =>
     createContext({
       ...request,

@@ -5,7 +5,7 @@ import type { LogLevel } from "@orb/contracts/settings";
 import { oidcTransactions } from "@orb/db";
 import { MS_PER_HOUR } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node";
-import { createServerHarness, processObservability, withheldTable } from "@orb/testkit/node/composed";
+import { createServerHarness, withheldTable } from "@orb/testkit/node/composed";
 import { NATIVE_OIDC_SETTINGS } from "@orb/testkit/node/helpers";
 
 const BOOT_LOG_LEVEL = "silent" satisfies LogLevel;
@@ -18,7 +18,7 @@ test("an oidc-gc scheduler started at silent logs its failed tick once the root'
     env: { ["AUTH_MODE"]: "oidc", ["AUTH_FALLBACK"]: "deny" },
     oidc: NATIVE_OIDC_SETTINGS,
   });
-  const failures = (): number => processObservability.logLines(LOG_SCAN_LIMIT).filter((line) => line.includes(SWEEP_FAILED)).length;
+  const failures = (): number => root.observability.logLines(LOG_SCAN_LIMIT).filter((line) => line.includes(SWEEP_FAILED)).length;
   // The tick's sweep queues on the root's one connection before this probe, and its failure is logged on the
   // microtasks that follow, which the macrotask turn drains.
   const failingTick = async (): Promise<void> => {

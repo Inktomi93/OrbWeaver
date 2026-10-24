@@ -5,7 +5,7 @@ import type { RPG_TOOL_ROUND_TOOL_NAMES } from "@orb/contracts/rpg";
 import { jsonValueSchema } from "@orb/kit/json";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
-import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL, processObservability, readRoomCanon } from "@orb/testkit/node/composed";
+import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL, readRoomCanon } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
 import type { CoreWireReply } from "./core-physical.ts";
 import { coreFrame, coreHttpRoom, coreSse } from "./core-physical.ts";
@@ -80,7 +80,7 @@ test("a real folded game recovers its prose once, keeps the first pass's state a
   await h.root.settleBackground();
   expect(await h.root.services.rpg.getTrackerView({ principal: h.owner, chatId: h.chatId })).toMatchObject({ ambient: { location: "The observatory" } });
   expect(calls).toBe(2);
-  const logs = processObservability.logLines(100).filter((line) => line.includes(h.chatId));
+  const logs = h.root.observability.logLines(100).filter((line) => line.includes(h.chatId));
   expect(logs.some((line) => line.includes('"event":"chat.generation.recovering"'))).toBe(true);
   expect(logs.some((line) => line.includes('"event":"chat.generation.empty"'))).toBe(false);
 });
@@ -121,8 +121,8 @@ test.for(EMPTY_RPG_ROWS)("a real folded game refuses $label without a recovery l
   };
   await using h = await foldedRoom(row.calls ? [first, empty] : [empty]);
   const outer = `controlled-core-rpg-abort:${h.chatId}`;
-  const beforeTraces = new Set(processObservability.traces(100).map((trace) => trace.requestId));
-  const generating = processObservability.inRequestSpan(outer, "controlled public folded generation", () =>
+  const beforeTraces = new Set(h.root.observability.traces(100).map((trace) => trace.requestId));
+  const generating = h.root.observability.inRequestSpan(outer, "controlled public folded generation", () =>
     h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId, intent: { maxOutputTokens: 4096 } }),
   );
   await expect(generating).rejects.toMatchObject({ code: "empty_generation" });
@@ -131,12 +131,12 @@ test.for(EMPTY_RPG_ROWS)("a real folded game refuses $label without a recovery l
   expect(requests).toBe(row.expectedCalls);
   expect(await readRoomCanon(h.root, h.owner, h.chatId)).toEqual([]);
   expect((await h.root.services.rpg.getTrackerView({ principal: h.owner, chatId: h.chatId })).ambient).toBeNull();
-  const logs = processObservability.logLines(100).filter((line) => line.includes(h.chatId));
+  const logs = h.root.observability.logLines(100).filter((line) => line.includes(h.chatId));
   expect(logs.some((line) => line.includes('"event":"chat.generation.empty"'))).toBe(true);
   expect(logs.some((line) => line.includes('"event":"chat.generation.recovering"'))).toBe(row.calls);
   expect(logs.some((line) => line.includes('"event":"chat.generation.recoveryFailed"'))).toBe(row.calls);
   expect(logs.some((line) => line.includes("turn-abort staging clear failed"))).toBe(false);
-  const abortTraces = processObservability
+  const abortTraces = h.root.observability
     .traces(100)
     .filter(
       (trace) =>

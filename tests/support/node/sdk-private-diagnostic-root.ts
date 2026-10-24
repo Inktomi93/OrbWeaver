@@ -6,7 +6,6 @@ import { fileURLToPath } from "node:url";
 import { declaredCapabilitySchema } from "@orb/contracts/inference";
 import type { SdkPrivateDiagnosticResult } from "./contract/sdk-private-diagnostics.ts";
 import { sdkPrivateDiagnosticInputSchema } from "./contract/sdk-private-diagnostics.ts";
-import { processObservability } from "./observed.ts";
 import { createSdkProcessIdentity } from "./sdk-process.ts";
 import { createServerHarness, SECRET_BOX_TEST_KEY } from "./server.ts";
 
@@ -60,7 +59,7 @@ await harness[Symbol.asyncDispose]();
 await Promise.all(closes);
 const result: SdkPrivateDiagnosticResult = {
   errors,
-  appLogs: [...processObservability.logLines(100)],
+  appLogs: [...harness.observability.logLines(100)],
   exitCodes: children.map((child) => child.exitCode),
   signalCodes: children.map((child) => child.signalCode),
   nativeChildren: children.length,

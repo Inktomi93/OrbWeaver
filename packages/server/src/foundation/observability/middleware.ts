@@ -4,15 +4,15 @@
 //
 // ASSUMES(single-replica): `OBSERVED` holds THIS process's live Hono contexts, and a context never leaves
 // the process that built it — there is no cross-replica question to answer and therefore no DB-backed
-// replacement seam to name (unlike the rings it feeds, whose replica scope `logger.ts` declares). The
+// replacement seam to name (unlike the rings it feeds, whose replica scope `rings.ts` declares). The
 // entries are request-lifetime and collected with the context.
 
 import { randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import type { Handle, UserId } from "@orb/kit/ids";
 import type { Context, ErrorHandler, MiddlewareHandler } from "hono";
-import type { Logger } from "./contract/logging.ts";
-import { bindRequestUser, getLog, getRequestUserId, recordRequest, runInRequest } from "./logger.ts";
+import type { Logger, ObservabilityRings } from "./contract/logging.ts";
+import { bindRequestUser, getLog, getRequestUserId, runInRequest } from "./logger.ts";
 import { recordThrownRequest, withRequestSpan } from "./tracing.ts";
 
 const DEBUG_PREFIX = "/api/_debug";
@@ -68,7 +68,7 @@ function resolveRequestId(c: Context): string {
  * that stamp has to happen), binds a request-scoped logger AND the request-root span, and logs one
  * structured line per request. The stamped id is the SAME id every sink below records — never a second mint.
  */
-function observeRequest(log: Logger): MiddlewareHandler {
+function observeRequest(log: Logger, rings: ObservabilityRings): MiddlewareHandler {
   return (c, next) => {
     const requestId = resolveRequestId(c);
     const start = performance.now();
@@ -107,7 +107,7 @@ function observeRequest(log: Logger): MiddlewareHandler {
       const status = c.res.status;
       const userId = getRequestUserId();
       getLog(log).info({ method, path, status, durationMs }, "request");
-      recordRequest({
+      rings.requests.push({
         id: requestId,
         method,
         path,
@@ -139,7 +139,7 @@ function observeRequest(log: Logger): MiddlewareHandler {
  * /api/_debug/logs?requestId=… and /api/_debug/requests agree. `durationMs` is 0 because nothing measured
  * this request — the fault preceded the measurement.
  */
-function observeThrowAboveScope(log: Logger, err: unknown, c: Context): Promise<Response> {
+function observeThrowAboveScope(log: Logger, rings: ObservabilityRings, err: unknown, c: Context): Promise<Response> {
   const requestId = resolveRequestId(c);
   const method = c.req.method;
   const path = redactSensitivePath(c.req.path);
@@ -152,7 +152,7 @@ function observeThrowAboveScope(log: Logger, err: unknown, c: Context): Promise<
     await withRequestSpan(requestId, `http ${method} ${path}`, { "http.method": method, "http.path": path }, () => {
       recordThrownRequest(err);
     });
-    recordRequest({
+    rings.requests.push({
       id: requestId,
       method,
       path,
@@ -174,10 +174,10 @@ function observeThrowAboveScope(log: Logger, err: unknown, c: Context): Promise<
  * or below the middleware) corrects the already-open root span; the un-observed one is
  * {@link observeThrowAboveScope}. Both return the identical 500.
  */
-function observeThrownRequest(log: Logger): ErrorHandler {
+function observeThrownRequest(log: Logger, rings: ObservabilityRings): ErrorHandler {
   return (err, c) => {
     if (!OBSERVED.has(c)) {
-      return observeThrowAboveScope(log, err, c);
+      return observeThrowAboveScope(log, rings, err, c);
     }
     recordThrownRequest(err);
     getLog(log).error({ err }, "request.thrown");
@@ -185,8 +185,11 @@ function observeThrownRequest(log: Logger): ErrorHandler {
   };
 }
 
-/** The request middleware and its `app.onError` counterpart over a root's logger: each request's scope children
- *  off `log`. */
-export function createRequestObservability(log: Logger): { readonly observability: MiddlewareHandler; readonly observabilityErrorHandler: ErrorHandler } {
-  return { observability: observeRequest(log), observabilityErrorHandler: observeThrownRequest(log) };
+/** The request middleware and its `app.onError` counterpart over a root's logger and rings: each request's scope
+ *  children off `log`, and its record lands in that root's request ring. */
+export function createRequestObservability(
+  log: Logger,
+  rings: ObservabilityRings,
+): { readonly observability: MiddlewareHandler; readonly observabilityErrorHandler: ErrorHandler } {
+  return { observability: observeRequest(log, rings), observabilityErrorHandler: observeThrownRequest(log, rings) };
 }

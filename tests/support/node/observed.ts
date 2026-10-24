@@ -1,38 +1,30 @@
-// The process observability every root writes to: the line ring every root logger feeds, the trace ring and a request-root span.
-// Log reads cover what was written since the first live root opened (that root empties the ring); overlapping roots share lines.
+// One root's observability read through the rings its `/api/_debug` surface serves: the root logger's lines, the
+// sealed traces and a request-root span. A second root in the same worker reads only its own rings.
 
-import type { RequestTrace } from "@orb/server/foundation/observability";
-import { initTracing, logRing, logSerializers, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
+import type { ObservabilityRings, RequestTrace } from "@orb/server/foundation/observability";
+import { initTracing, logSerializers, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
 
-let liveRoots = 0;
-
-/** What production logged and traced, read through the rings `/api/_debug` serves. */
-export const processObservability = {
-  /** Open a root's log scope; disposing it closes the scope. Only the harness opens one, around a root's lifetime. */
-  openRoot: (): Disposable => {
-    if (liveRoots === 0) {
-      logRing.clear();
-    }
-    liveRoots += 1;
-    let open = true;
-    return {
-      [Symbol.dispose]: (): void => {
-        if (open) {
-          open = false;
-          liveRoots -= 1;
-        }
-      },
-    };
-  },
-  /** The newest serialized log lines written since the first live root opened, newest first. */
-  logLines: (limit?: number): readonly string[] => logRing.recent(limit),
+/** What one root logged and traced. */
+export interface RootObservability {
+  /** The root's newest serialized log lines, newest first. */
+  readonly logLines: (limit?: number) => readonly string[];
   /** What the logger's `err` serializer writes for an error, before redaction. */
-  serializeError: (error: Error): ReturnType<typeof logSerializers.err> => logSerializers.err(error),
-  /** The newest sealed request traces. */
-  traces: (limit: number): readonly RequestTrace[] => recentTraces(limit),
+  readonly serializeError: (error: Error) => ReturnType<typeof logSerializers.err>;
+  /** The root's newest sealed request traces. */
+  readonly traces: (limit: number) => readonly RequestTrace[];
   /** Run `work` under a request-root span, as the HTTP observability middleware does; tracing starts on first use. */
-  inRequestSpan: <T>(requestId: string, name: string, work: () => Promise<T> | T): Promise<T> => {
-    initTracing();
-    return withRequestSpan(requestId, name, {}, work);
-  },
-};
+  readonly inRequestSpan: <T>(requestId: string, name: string, work: () => Promise<T> | T) => Promise<T>;
+}
+
+/** The reads over one root's rings; only the harness builds one, beside the rings it composes with. */
+export function observeRoot(rings: ObservabilityRings): RootObservability {
+  return {
+    logLines: (limit) => rings.logs.recent(limit),
+    serializeError: (error) => logSerializers.err(error),
+    traces: (limit) => recentTraces(limit),
+    inRequestSpan: <T>(requestId: string, name: string, work: () => Promise<T> | T): Promise<T> => {
+      initTracing();
+      return withRequestSpan(requestId, name, {}, work);
+    },
+  };
+}

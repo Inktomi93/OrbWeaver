@@ -12,7 +12,6 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
-  processObservability,
 } from "@orb/testkit/node/composed";
 import { and, eq, max } from "drizzle-orm";
 
@@ -71,8 +70,8 @@ test("the actual scoped digest build excludes complete blocks from before a char
   }
   expect(lateReplies).toEqual([]);
   const outer = `controlled-core-memory:${h.chatId}`;
-  const beforeTraces = new Set(processObservability.traces(100).map((trace) => trace.requestId));
-  const outcome = await processObservability.inRequestSpan(outer, "controlled public memory turn", () =>
+  const beforeTraces = new Set(h.root.observability.traces(100).map((trace) => trace.requestId));
+  const outcome = await h.root.observability.inRequestSpan(outer, "controlled public memory turn", () =>
     h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: first.id }),
   );
   expect(outcome.aborted).toBe(false);
@@ -96,7 +95,7 @@ test("the actual scoped digest build excludes complete blocks from before a char
   expect(segments.some((segment) => segment.text.includes("Aria: Unwitnessed opening"))).toBe(true);
   expect(segments.some((segment) => segment.text.includes("Bryn: Joined bridge"))).toBe(true);
   expect(segments.every((segment) => !(segment.text.includes(first.id) || segment.text.includes(late.id)))).toBe(true);
-  const traces = processObservability
+  const traces = h.root.observability
     .traces(100)
     .filter(
       (trace) =>

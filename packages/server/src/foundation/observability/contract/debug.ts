@@ -4,7 +4,7 @@ import type { DatabaseHandle } from "@orb/db/wiring";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { Context } from "hono";
 import type { Env } from "#foundation/env/record";
-import type { Logger } from "./logging.ts";
+import type { Logger, ObservabilityRings } from "./logging.ts";
 
 export interface AssetInspector {
   fsck: () => Promise<object>;
@@ -63,6 +63,8 @@ export interface DebugRoutesOptions {
   auth?: DebugAuthOptions | string;
   /** The root's logger the probes' warnings fall back to outside a request. */
   readonly log: Logger;
+  /** The root's rings the log, request and bug-report reads serve. */
+  readonly rings: ObservabilityRings;
 }
 
 interface BugReportRecorder {

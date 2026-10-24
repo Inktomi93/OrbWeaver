@@ -30,6 +30,7 @@ type HttpAppDeps = Pick<
   | "physicalPeer"
   | "env"
   | "logger"
+  | "rings"
 > & {
   readonly built: Pick<
     ServicesResult,
@@ -104,6 +105,7 @@ export function createHttpApp(deps: HttpAppDeps): ReturnType<typeof createApp> {
   let seedQueue: Promise<void> = Promise.resolve();
   return createApp({
     logger: deps.logger,
+    rings: deps.rings,
     liveBuses: built.liveBuses,
     authConfig,
     now,

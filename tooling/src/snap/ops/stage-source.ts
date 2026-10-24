@@ -152,7 +152,7 @@ export async function cloneMigratedStageDb(
   try {
     await runBootMigrations({
       db,
-      logger: createLogger(env.LOG_LEVEL),
+      logger: createLogger(env.LOG_LEVEL, null),
       databaseUrl: paths.databaseUrl,
       backupDir: resolveDataLayout({ ["DATA_DIR"]: dirname(dirname(stageDb)) }).backups,
       launched: DB_LAUNCHED,

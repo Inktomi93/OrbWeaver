@@ -30,7 +30,6 @@ export {
   getLog,
   groupsLogFields,
   type Logger,
-  logRing,
   logSerializers,
   type RequestRecord,
   runInRequest,
@@ -38,6 +37,7 @@ export {
 } from "./logger.ts";
 export { type MemoryLogRecord, recordMemoryLog } from "./memory-log.ts";
 export { createRequestObservability } from "./middleware.ts";
+export { createObservabilityRings, type ObservabilityRings } from "./rings.ts";
 export { traceStructuredRetry } from "./structured-retry.ts";
 export {
   addSpanEvent,

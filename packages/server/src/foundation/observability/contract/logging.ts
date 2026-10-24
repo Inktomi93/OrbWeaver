@@ -1,3 +1,4 @@
+import type { BoundedRing } from "@orb/kit/bounded-ring";
 import type { UserId } from "@orb/kit/ids";
 import type { HonoRequest } from "hono";
 import type pino from "pino";
@@ -14,6 +15,12 @@ export interface RequestRecord {
   durationMs: number;
   at: number;
   userId?: UserId;
+}
+
+/** One root's flight recorders (`createObservabilityRings`). Log lines stay serialized; the debug reads parse them lazily. */
+export interface ObservabilityRings {
+  readonly logs: BoundedRing<string>;
+  readonly requests: BoundedRing<RequestRecord>;
 }
 
 /** The foundation sink accepts opaque metadata without importing a domain's richer event vocabulary. */

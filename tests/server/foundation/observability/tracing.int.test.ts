@@ -1,6 +1,7 @@
 import {
   addSpanEvent,
   createLogger,
+  createObservabilityRings,
   createRequestObservability,
   getTraceByRequestId,
   initTracing,
@@ -57,7 +58,8 @@ test("a handled HTTP error retains error status and redacts its invite capabilit
   const requestId = `handled:${ids.uuid()}`;
   const failure = new Error("handled-request-failure");
   const token = "private-invite-fixture";
-  const { observability, observabilityErrorHandler } = createRequestObservability(createLogger(createTestEnv().LOG_LEVEL));
+  const rings = createObservabilityRings();
+  const { observability, observabilityErrorHandler } = createRequestObservability(createLogger(createTestEnv().LOG_LEVEL, rings.logs), rings);
   const app = new Hono();
   app.use("*", observability);
   app.onError(observabilityErrorHandler);

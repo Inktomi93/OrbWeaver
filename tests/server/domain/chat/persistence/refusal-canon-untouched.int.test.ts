@@ -6,7 +6,6 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { LogLevel } from "@orb/contracts/settings";
 import { chatLocks, messages, messageVariants } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
-import { processObservability } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { eq } from "drizzle-orm";
 import { coreFrame, coreHttpRoom, coreSse } from "../engine/core-physical.ts";
@@ -91,7 +90,7 @@ test.for(REFUSAL_ROWS)("native $label refuses without changing selected canon an
   expect(events.filter((event) => event.type === "turnAborted")).toMatchObject([{ reason: "error" }]);
   expect(events.map((event) => event.type)).not.toContain("messageCommitted");
   expect(events.map((event) => event.type)).not.toContain("turnCompleted");
-  const refusal = processObservability.logLines(100).filter((line) => line.includes(h.chatId) && line.includes('"event":"chat.generation.empty"'));
+  const refusal = h.root.observability.logLines(100).filter((line) => line.includes(h.chatId) && line.includes('"event":"chat.generation.empty"'));
   expect(refusal).toHaveLength(1);
   expect(refusal[0]).toContain(`"finishReason":"${row.normalizedFinishReason}"`);
   expect(refusal[0]).toContain(`"stopReason":"${row.rawFinishReason}"`);

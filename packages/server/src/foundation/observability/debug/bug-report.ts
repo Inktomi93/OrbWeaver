@@ -1,14 +1,14 @@
 // THE BUG-REPORT CAPTURE (#1095) — the server half of the owner's dev bug-found button: one click, a typed
 // note, and everything the process knows lands in a durable file an agent session can read cold.
 //
-// WHY THIS HALF EXISTS AT ALL: the in-memory flight recorders (`logger.ts`'s log + request rings, `tracing.ts`'s
+// WHY THIS HALF EXISTS AT ALL: the in-memory flight recorders (the root's log + request rings, `tracing.ts`'s
 // trace ring, `wire-capture.ts`'s provider request/outcome rings, the injected rpg + memory-recall recorders)
 // are WIPED on every server respawn — and `node --watch` respawns on every saved source file. Asking the owner
 // to "go look at /api/_debug/wire/captures later" is asking for evidence that will not exist by then. The
 // capture happens AT REPORT TIME, in the same process that holds the rings.
 //
 // RING COVERAGE AND INTENTIONAL BOUNDARIES (#1168, inventory of #1095):
-//   COVERED: logRing (error-level log lines), requests (HTTP-level with method/path/status/duration/userId),
+//   COVERED: the root log ring (error-level log lines), requests (HTTP-level with method/path/status/duration/userId),
 //   traces (OTel spans with per-procedure timing), wireCaptures (provider request payloads),
 //   wireOutcomes (turn outcomes), rpgTraces (injected), memoryRecalls (injected).
 //   INTENTIONAL GAPS:
@@ -54,6 +54,7 @@ import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { BoundedRing } from "@orb/kit/bounded-ring";
 import type { BugReportBuildIdentity, BugReportRecord } from "@orb/kit/bug-report";
 import { BUG_REPORT_DIR, bugReportStem } from "@orb/kit/bug-report";
 import type { EvidenceSlice, EvidenceWindow } from "@orb/kit/evidence-window";
@@ -61,7 +62,7 @@ import { sliceByWindow } from "@orb/kit/evidence-window";
 import { redactKnownSecrets, secretRedactionLiterals } from "@orb/kit/secret-redaction";
 import { formatVersionIdentity } from "@orb/kit/version-identity";
 import type { BugReportInspectors } from "../contract/debug.ts";
-import { logRing, recentRequests } from "../logger.ts";
+import type { ObservabilityRings } from "../contract/logging.ts";
 import { recentTraces } from "../tracing.ts";
 import { ERROR_LEVEL, parseLogRingLine, ringLineLevel, ringLineTime } from "./log-ring-read.ts";
 import { recentTurnOutcomes, recentWireCaptures } from "./wire-capture.ts";
@@ -137,8 +138,8 @@ function serializeScrubbed(record: BugReportRecord, secrets: readonly string[]):
 
 /** The log ring's ERROR lines inside the window. Pino stamps `time` (epoch ms) on every line, which is the one
  *  wall clock the client's window can be compared against. */
-function errorLines(window: EvidenceWindow): EvidenceSlice<Record<string, unknown>> {
-  const records = logRing
+function errorLines(logs: BoundedRing<string>, window: EvidenceWindow): EvidenceSlice<Record<string, unknown>> {
+  const records = logs
     .recent(RING_READ_DEPTH)
     .map(parseLogRingLine)
     .filter((record): record is Record<string, unknown> => record !== null)
@@ -154,12 +155,12 @@ function errorLines(window: EvidenceWindow): EvidenceSlice<Record<string, unknow
 
 /** Snapshot every server-side flight recorder into the window. Called synchronously at report time — the whole
  *  reason this half exists (the rings die on the next respawn). */
-export function snapshotServerEvidence(window: EvidenceWindow, inspectors: BugReportInspectors): BugReportRecord["server"] {
+export function snapshotServerEvidence(window: EvidenceWindow, rings: ObservabilityRings, inspectors: BugReportInspectors): BugReportRecord["server"] {
   const slices: Record<string, EvidenceSlice<unknown>> = {
-    errors: errorLines(window),
+    errors: errorLines(rings.logs, window),
     requests: sliceByWindow({
       source: "requests",
-      entries: recentRequests(RING_READ_DEPTH),
+      entries: rings.requests.recent(RING_READ_DEPTH),
       at: (record) => record.at,
       window,
       cap: RING_READ_DEPTH,

@@ -536,6 +536,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     const app = createHttpApp({
       built,
       logger: seams.logger,
+      rings: seams.rings,
       env: seams.env,
       authConfig,
       now,
