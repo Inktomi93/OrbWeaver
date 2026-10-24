@@ -3,12 +3,14 @@
 // @subject packages/server/src/domain/settings/seed-themes.ts
 
 import { themes } from "@orb/db";
-import { ensureSeedThemes, RETIRED_SEED_THEME_IDS, SEED_THEMES, THEME_HEARTH_ID, THEME_MOCHA_ID } from "@orb/server/domain/settings";
+import { ensureSeedThemes } from "@orb/server/domain/settings";
 import { expect, test } from "@orb/testkit/node";
 import { createTestLogger } from "@orb/testkit/node/composed";
 import { bootGrantFor } from "@orb/testkit/node/helpers";
 import { seedUser } from "@orb/testkit/node/rows";
 import { eq, inArray } from "drizzle-orm";
+import { RETIRED_SEED_THEME_IDS, THEME_HEARTH_ID, THEME_MOCHA_ID } from "#server/domain/settings/constants.ts";
+import { SEED_THEMES } from "#server/domain/settings/substrate/seed-themes.ts";
 
 test("the boot root converges shipped palettes and retires shared rows without mutating owned sentinel collisions", async ({ db, clock }) => {
   const owner = await seedUser(db);

@@ -43,7 +43,7 @@ export {
 } from "./chat.ts";
 export type { AccountCreditsRequest, GenerationCostRequest, InspectRequest, ListModelsRequest, ProbeRequest, VerifyAuthRequest } from "./diagnostics.ts";
 export type { ProviderErrorKind, ProviderScrubSet, VectorWidthMismatch } from "./errors.ts";
-export { PROVIDER_ERROR_KINDS, ProviderError, SCHEMA_REJECTED_DETAIL } from "./errors.ts";
+export { ProviderError, SCHEMA_REJECTED_DETAIL } from "./errors.ts";
 export type { ChatDeltaEvent, ChatEvent, RateLimitSnapshot } from "./events.ts";
 export { compactionTriggerSchema, compactResultSchema } from "./events.ts";
 export type { GoogleBackend, GoogleBackendDeps, GoogleCall } from "./google.ts";

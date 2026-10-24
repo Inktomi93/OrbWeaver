@@ -329,7 +329,7 @@ const storedCharacterHandleSchema = z
   .transform((value) => castId<CharacterHandle>(value)) satisfies z.ZodType<CharacterHandle>;
 
 /** True when `value` is a handle {@link characterHandleSchema} admits. */
-export function isCharacterHandle(value: string): boolean {
+function isCharacterHandle(value: string): boolean {
   return characterHandleSchema.safeParse(value).success;
 }
 

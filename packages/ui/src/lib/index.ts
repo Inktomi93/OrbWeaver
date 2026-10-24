@@ -8,7 +8,7 @@ export { copyActionName, hideActionName, removeActionName, revealActionName, sel
 export { ANCHOR_GAP_INPUT, ANCHOR_GAP_TRIGGER } from "./anchor-gap.ts";
 // `cn` + `tv` are ONE module because they must share ONE tailwind-merge config — see class-merge.ts
 // for the import-order race that shape kills.
-export { CSS_MERGE_FAMILY_NAMES, cn, tv } from "./class-merge.ts";
+export { cn, tv } from "./class-merge.ts";
 export { type ClipboardOutcome, writeClipboardText } from "./clipboard.ts";
 export { coarsePointerNow, finePointerNow, useCoarsePointer } from "./coarse-pointer-now.ts";
 export { CHIP_BOX, CONTROL_SIZE } from "./control-size.ts";
@@ -54,7 +54,6 @@ export { sinHash } from "./sin-hash.ts";
 export { usePrefersLightColorScheme } from "./use-prefers-light-color-scheme.ts";
 export { usePrefersReducedMotion } from "./use-prefers-reduced-motion.ts";
 export {
-  STAMPED_VARIANT_AXES,
   variantAttrs,
   variantProps,
 } from "./variant-attrs.ts";

@@ -1,11 +1,11 @@
 // @subject packages/server/src/transport/debug-recorders/rpg.ts
 
-import { rpgTraceEventSchema } from "@orb/contracts/rpg";
 import type { ChatId, ChatTurnId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createRpgTraceInspector } from "@orb/server/transport/debug-recorders";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { rpgTraceEventSchema } from "#contracts/rpg/trace.ts";
 
 test("real RPG reads combine chat, raw turn and cap filters, excluding turn-less events without changing bytes or chronological stamps", async ({
   ids,

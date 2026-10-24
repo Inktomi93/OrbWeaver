@@ -5,11 +5,12 @@ import { cardImportResultSchema } from "@orb/contracts/import";
 import { PORTABLE_IMPORT_ORDER, PORTABLE_KINDS } from "@orb/contracts/portability";
 // biome-ignore lint/performance/noNamespaceImport: the census denominator is every native schema export, including future tables that named imports would omit.
 import * as schema from "@orb/db/schema";
-import { LIFECYCLE_DOORS, NON_PORTABLE_CANON, NON_PORTABLE_CLASSES, PORTABLE_CANON_TABLES } from "@orb/server/entry/compose";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { is } from "drizzle-orm";
 import { getTableConfig, SQLiteTable } from "drizzle-orm/sqlite-core";
+import { LIFECYCLE_DOORS, NON_PORTABLE_CANON, PORTABLE_CANON_TABLES } from "#server/entry/compose/portability.ts";
+import { NON_PORTABLE_CLASSES } from "#server/entry/contract/portability.ts";
 
 function nativeTables(): ReadonlyMap<SQLiteTable, string> {
   const tables = new Map<SQLiteTable, string>();

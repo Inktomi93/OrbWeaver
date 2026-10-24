@@ -58,13 +58,7 @@ import { ERROR_LEVEL, levelValue, parseLogRingLine, ringLineLevel } from "./log-
 import type { WireCaptureFilter } from "./wire-capture.ts";
 import { recentTurnOutcomes, recentWireCaptures } from "./wire-capture.ts";
 
-export type {
-  AdminAuthChecker,
-  DebugAuthOptions,
-  DebugRoutesOptions,
-  MemoryRecallInspector,
-  RpgTraceInspector,
-} from "../contract/debug.ts";
+export type { MemoryRecallInspector, RpgTraceInspector } from "../contract/debug.ts";
 
 const MAX_RING_READ = 2000;
 const DEFAULT_LOG_LIMIT = 200;

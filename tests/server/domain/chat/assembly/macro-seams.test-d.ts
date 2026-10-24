@@ -1,6 +1,7 @@
 // @subject packages/server/src/domain/chat/assembly/macros.ts
-import type { FreezeVolatileMacrosArgs, MacroRenderEnv, RenderMacrosOptions, TurnMacroContextArgs } from "@orb/server/domain/chat";
+
 import { expectTypeOf, test } from "vitest";
+import type { FreezeVolatileMacrosArgs, MacroRenderEnv, RenderMacrosOptions, TurnMacroContextArgs } from "#server/domain/chat/contract/assembly-macros.ts";
 
 test("the turn macro context and the send freeze require the turn PRNG, so no draw falls back to kit's ambient Math.random", () => {
   expectTypeOf<Pick<TurnMacroContextArgs, "random">>().toEqualTypeOf<Required<Pick<TurnMacroContextArgs, "random">>>();

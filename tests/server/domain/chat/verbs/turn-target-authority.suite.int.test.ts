@@ -3,9 +3,9 @@
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { ChatNotFoundError } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
 import { readRoomCanon } from "@orb/testkit/node/composed";
+import { ChatNotFoundError } from "#server/domain/chat/contract/errors.ts";
 import { textRoom } from "../scenario-physical.ts";
 import { muteBryn, room } from "./turn-target-authority.fixtures.ts";
 

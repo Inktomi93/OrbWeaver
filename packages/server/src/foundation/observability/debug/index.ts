@@ -2,9 +2,6 @@
 // folded into observability). The route registrar + the two structural-injection ports `entry/` fills.
 
 export {
-  type AdminAuthChecker,
-  type DebugAuthOptions,
-  type DebugRoutesOptions,
   type MemoryRecallInspector,
   type RpgTraceInspector,
   registerDebugRoutes,
@@ -15,9 +12,6 @@ export {
   isWireReplyCaptureEnabled,
   recordTurnOutcome,
   recordWireCapture,
-  type WireCaptureFilter,
   type WireCaptureSpill,
   type WireOutcome,
-  type WireToolCall,
-  type WireWarning,
 } from "./wire-capture.ts";

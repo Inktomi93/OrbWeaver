@@ -1,9 +1,10 @@
 // The real database wrapper records each query's success and failure as spans and still closes natively.
 
 import { closeDb, createDb } from "@orb/db";
-import { getTraceByRequestId, withRequestSpan, wrapLibSqlClient } from "@orb/server/foundation/observability";
+import { withRequestSpan, wrapLibSqlClient } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node";
 import { sql } from "drizzle-orm";
+import { getTraceByRequestId } from "#server/foundation/observability/tracing.ts";
 
 const DB_ROOT = "traced-client.request";
 

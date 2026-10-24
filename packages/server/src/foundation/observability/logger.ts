@@ -14,7 +14,7 @@ import type { Handle, UserId } from "@orb/kit/ids";
 import pino from "pino";
 import type { Logger, RequestRecord } from "./contract/logging.ts";
 
-export type { Logger, RequestRecord } from "./contract/logging.ts";
+export type { Logger } from "./contract/logging.ts";
 
 const LOG_RING_CAPACITY = 2000;
 const REQUEST_RING_CAPACITY = 500;

@@ -5,11 +5,9 @@ export {
   AppDataProviders,
   characterDetailContributors,
   chatSurfaceContributors,
-  chromeWidgets,
   configSections,
   createAuthedComposition,
   createClientRuntime,
-  homeTiles,
   toolRenderers,
 } from "./ct-door.ts";
 export { CtIsolation } from "./ct-isolated-subject.tsx";

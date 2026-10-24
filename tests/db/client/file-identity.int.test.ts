@@ -2,7 +2,7 @@ import { existsSync, statSync, utimesSync } from "node:fs";
 import { join, relative } from "node:path";
 import { cwd } from "node:process";
 import { pathToFileURL } from "node:url";
-import { backupBeforeMigrate, closeDb, createDb, detachWal, forecastDevDbReset, localPath, preCloseHousekeeping, pruneDbBackups } from "@orb/db";
+import { backupBeforeMigrate, closeDb, createDb, detachWal, localPath, preCloseHousekeeping, pruneDbBackups } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import { sql } from "drizzle-orm";
 
@@ -31,7 +31,6 @@ for (const form of FILE_FORMS) {
       expect(localPath(url)).toBe(expectedPath);
       expect(await db.get(sql`PRAGMA database_list`)).toMatchObject({ file: path });
       expect(existsSync(path)).toBe(true);
-      expect(await forecastDevDbReset(url, "unused-migrations")).toMatchObject({ status: "trivial", path: expectedPath });
       const backups = join(importStagingDir, "backup%20 space");
       const backup = await backupBeforeMigrate(db, url, backups);
       expect(backup).toBeDefined();
@@ -71,7 +70,6 @@ test("bare relative paths retain their cwd-relative spelling", () => {
 test("memory and remote URLs have no filesystem lifecycle", async ({ importStagingDir }) => {
   for (const url of [":memory:", "libsql://example.invalid/db", "https://example.invalid/db"]) {
     expect(localPath(url)).toBeUndefined();
-    expect(await forecastDevDbReset(url, "unused-migrations")).toEqual({ status: "no-db" });
     expect(pruneDbBackups(url, importStagingDir)).toEqual([]);
   }
   const db = await createDb(":memory:");

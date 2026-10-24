@@ -28,9 +28,8 @@ const LOCAL_LIGHT_WORKER_CLOSE_MS = 10_000;
 // calls (11 card embeds, plus the boot prefetch), so this admits five overlapping seeds and stops a flood.
 const LOCAL_LIGHT_WORKER_MAX_PENDING = 64;
 
-interface WorkerModelCacheConfig extends Omit<LocalLightWorkerOptions, "cacheModule"> {
+interface WorkerModelCacheConfig extends LocalLightWorkerOptions {
   readonly scheduleTimeout: ScheduleTimeout;
-  readonly cacheModule?: string | undefined;
   readonly closeWaitMs?: number | undefined;
   readonly maxPending?: number | undefined;
   readonly onProgress?: ((progress: LocalLightLoadProgress) => void) | undefined;
@@ -109,8 +108,6 @@ interface Live {
   joining: boolean;
 }
 
-const DEFAULT_CACHE_MODULE = new URL("./model-cache.ts", import.meta.url).href;
-
 export function createWorkerModelCache(config: WorkerModelCacheConfig): WorkerModelCache {
   const { log, onProgress } = config;
   const options: LocalLightWorkerOptions = {
@@ -120,7 +117,6 @@ export function createWorkerModelCache(config: WorkerModelCacheConfig): WorkerMo
     embedDtype: config.embedDtype,
     cacheDir: config.cacheDir,
     allowRemoteModels: config.allowRemoteModels,
-    cacheModule: config.cacheModule ?? DEFAULT_CACHE_MODULE,
   };
   const maxPending = config.maxPending ?? LOCAL_LIGHT_WORKER_MAX_PENDING;
   const failedModels = new Set<ModelId>();

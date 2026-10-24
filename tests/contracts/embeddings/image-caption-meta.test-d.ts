@@ -1,5 +1,5 @@
 // Application metadata readers expose only canonical facets, even when stored blobs preserve future fields.
-import type { ImageBreakdown, ImageCaptionMeta } from "@orb/contracts/embeddings";
+import type { ImageCaptionMeta, imageBreakdownSchema } from "@orb/contracts/embeddings";
 import type { imageAnalyses } from "@orb/db";
 import { expectTypeOf, test } from "vitest";
 
@@ -10,7 +10,7 @@ test("the persisted reader carries the canonical optional facet values", () => {
   const current: StoredCaptionMeta = { artStyle: "anime", tags: ["portrait"] };
   expectTypeOf<StoredCaptionMeta>().toEqualTypeOf<ImageCaptionMeta>();
   expectTypeOf(legacy.model).toEqualTypeOf<string | undefined>();
-  expectTypeOf(current.artStyle).toEqualTypeOf<ImageBreakdown["artStyle"] | undefined>();
+  expectTypeOf(current.artStyle).toEqualTypeOf<ReturnType<typeof imageBreakdownSchema.parse>["artStyle"] | undefined>();
   expectTypeOf(current.tags).toEqualTypeOf<string[] | undefined>();
 });
 

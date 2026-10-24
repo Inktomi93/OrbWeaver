@@ -14,7 +14,7 @@
 // every set comparison then passes vacuously.
 
 import { expect, test } from "@orb/testkit/tooling";
-import { STAMPED_VARIANT_AXES } from "@orb/ui/lib";
+import { STAMPED_VARIANT_AXES } from "#ui/lib/variant-attrs.ts";
 import { WALKER_TARGET_IDENTITY } from "../../../../../tooling/src/ui-audit/ops/walker/target-identity.ts";
 
 /** Base UI's RUNTIME state attribute — deliberately in the walker's list and deliberately NOT stamped by

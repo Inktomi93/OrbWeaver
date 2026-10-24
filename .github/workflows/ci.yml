@@ -30,6 +30,8 @@ jobs:
       - run: pnpm depcruise
       - name: Check unused files, exports and dependencies
         run: pnpm knip
+      - name: Check that production exports have production consumers
+        run: pnpm knip:prod
 
   node:
     runs-on: ubuntu-24.04
