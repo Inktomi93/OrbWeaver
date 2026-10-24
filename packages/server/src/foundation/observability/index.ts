@@ -33,7 +33,6 @@ export {
   logRing,
   logSerializers,
   type RequestRecord,
-  runInRequest,
   securityEvent,
 } from "./logger.ts";
 export { type MemoryLogRecord, recordMemoryLog } from "./memory-log.ts";

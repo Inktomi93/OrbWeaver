@@ -14,46 +14,25 @@ import { CONTAINER_MARKER_FILES } from "./container.ts";
 import type { Env } from "./record/index.ts";
 import { APP_SECRET_ENV_KEYS, parseEnv } from "./record/index.ts";
 
-export type {
-  AllowedHostsInput,
-  BindPosture,
-  BindPostureInput,
-  DiagnosticsExposure,
-  DiagnosticsPosture,
-  DiagnosticsPostureInput,
-  Env,
-  EnvKey,
-  OwnerFallbackCredentialInput,
-  OwnerFallbackPeerInput,
-  OwnerFallbackPeerPosture,
-} from "./record/index.ts";
+export type { Env } from "./record/index.ts";
 export {
   AUTH_MODE_DEFAULT_FALLBACK,
   allowedHostsInput,
   bindPostureInput,
   bindPostureWarnings,
-  DIAGNOSTICS_EXPOSURES,
   diagnosticsPostureInput,
   diagnosticsPostureWarnings,
   ENV_KEYS,
-  fileReadCommand,
   installKind,
   loopbackCompanion,
-  loopbackOrigin,
   ownerFallbackCredentialInput,
   ownerFallbackPeerInput,
   ownerFallbackPeerWarnings,
-  parseEnv,
-  parseOwnerFallbackTrustedPeers,
-  parseTrustedPrivateRanges,
   personaAutoSeedAdmits,
-  publicAddresses,
   resolveAllowedHosts,
   resolveBindPosture,
   resolveDiagnosticsPosture,
-  resolveOwnerFallbackCredential,
   resolveOwnerFallbackPeers,
-  settingInstruction,
 } from "./record/index.ts";
 
 // The `.env` file the loader below reads, cwd-relative — exactly the path dotenv resolved

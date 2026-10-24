@@ -43,6 +43,14 @@ Stories count because this item retains actual mounting doors and Spine-Testing 
 
 Continue owner-authorized package batches. Keep other scopes parked and preserve their source, reports and unfinished qualifications.
 
+### Production-view batches
+
+The census method is the same for every batch. Apply knip's own fix (`knip --production --strict --fix --fix-type exports,types`) to the whole tree. Typecheck every program separately, then read which removals break a consumer outside production. A literal `rg` for each name across `packages`, `tooling`, `tests` and `scripts` catches name lookups the compiler cannot see. Keep only the hunks whose findings break nothing.
+
+| Batch | Removed or localized | Left for judgment, with the consumer found |
+| - | - | - |
+| Mechanical, no outside consumer | `foundation/env` door: the env record's input, posture and diagnostics type forwards, `DIAGNOSTICS_EXPOSURES`, `fileReadCommand`, `loopbackOrigin`, `parseEnv`, `parseOwnerFallbackTrustedPeers`, `parseTrustedPrivateRanges`, `publicAddresses`, `resolveOwnerFallbackCredential`, `settingInstruction`; `foundation/env/record` diagnostics forwards; `runInRequest` from the observability door; the `@orb/db/wiring-owner` handle type forward; `isCharacterHandle`, `SEED_AVATAR_MIME`, `SEED_BACKGROUND_MIME`, `SeedEmbeddingResult`, `SHOWCASE_BUNDLE_DIST_DIR`, `ShowcaseBundleReader` and `createShowcaseBundleReader` localized. `SEED_ITEM_KINDS` deleted: it was not connected to the `SeedManifestItem` union and had no reader. | `ownerFallbackCredentialInput`: the script string in `tests/server/entry/http/production-debug-posture.int.test.ts` imports it by name. `allowedHostsInput` and `resolveAllowedHosts`: `tests/tooling/stack/ops/setup.test.ts` reads them off the dynamic env import. `createModelCache`: `model-worker.ts` destructures it by name from a dynamic `import(options.cacheModule)`. `UNICODE_DATA_VERSION`: the repository-contract test reads the generated declaration's source text. |
+
 ## Selected kit cases
 
 | Behavior | Decision and maintained home |
