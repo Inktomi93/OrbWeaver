@@ -1,5 +1,5 @@
 // pino (multistream: stdout + the in-process ring) + the bounded ring buffers behind /api/_debug + the
-// AsyncLocalStorage request scope + securityEvent. `getLog()`/`logger` is the only sanctioned output.
+// AsyncLocalStorage request scope + securityEvent. A root's logger, read through `getLog(base)`, is the only sanctioned output.
 // Doctrine: logs are metadata — RP content lives in the DB, never a log line.
 //
 // ASSUMES(single-replica): the log + request rings are module-scope, per-process. An admin browsing
@@ -12,7 +12,6 @@ import type { LogLevel } from "@orb/contracts/settings";
 import { createBoundedRing } from "@orb/kit/bounded-ring";
 import type { Handle, UserId } from "@orb/kit/ids";
 import pino from "pino";
-import { env } from "#foundation/env";
 import type { Logger, RequestRecord } from "./contract/logging.ts";
 
 export type { Logger, RequestRecord } from "./contract/logging.ts";
@@ -90,10 +89,6 @@ export function createLogger(level: LogLevel): Logger {
   );
 }
 
-/** The process logger that un-migrated sites still import; a root hands its own from {@link createLogger}.
- *  Transitional: item 1271's last leg deletes it with this module's process-env read. */
-export const logger: Logger = createLogger(env.LOG_LEVEL);
-
 interface RequestContext {
   requestId: string;
   log: Logger;
@@ -109,8 +104,8 @@ export function runInRequest<T>(base: Logger, requestId: string, fn: () => T): T
 }
 
 /** The current request's logger (carries requestId + — once bound — userId/handle), else `base`, the
- *  caller's root logger. An omitted `base` falls back to the process logger until item 1271 removes it. */
-export function getLog(base: Logger = logger): Logger {
+ *  caller's root logger. */
+export function getLog(base: Logger): Logger {
   return requestContext.getStore()?.log ?? base;
 }
 
@@ -132,7 +127,7 @@ export function getRequestUserId(): UserId | undefined {
 
 /** Security-relevant events. One consistently-tagged pino line so the whole security trail is greppable
  *  as `security:true` and filterable by `event`. Emitted at warn (rejections/blocks, not errors). */
-export function securityEvent(event: string, fields: Record<string, unknown> = {}, message?: string, base?: Logger): void {
+export function securityEvent(event: string, fields: Record<string, unknown>, message: string | undefined, base: Logger): void {
   getLog(base).warn({ security: true, event, ...fields }, message ?? `security: ${event}`);
 }
 

@@ -1,17 +1,13 @@
-// The process observability every root writes to: the logger, its line ring, the trace ring and a request-root span.
+// The process observability every root writes to: the line ring every root logger feeds, the trace ring and a request-root span.
 // Log reads cover what was written since the first live root opened (that root empties the ring); overlapping roots share lines.
 
 import type { RequestTrace } from "@orb/server/foundation/observability";
-import { getLog, initTracing, logRing, logSerializers, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
-
-type Logger = ReturnType<typeof getLog>;
+import { initTracing, logRing, logSerializers, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
 
 let liveRoots = 0;
 
 /** What production logged and traced, read through the rings `/api/_debug` serves. */
 export const processObservability = {
-  /** The logger a root's graph writes through outside a request scope; a suite spies on it. */
-  logger: (): Logger => getLog(),
   /** Open a root's log scope; disposing it closes the scope. Only the harness opens one, around a root's lifetime. */
   openRoot: (): Disposable => {
     if (liveRoots === 0) {

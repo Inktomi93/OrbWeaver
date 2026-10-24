@@ -21,7 +21,7 @@ import type { PluginNetEgress } from "./net-egress.ts";
 /** The determinism seams every instance's realm binds. */
 export interface PluginHostSeamDeps {
   /** The broker's launch configuration from the root's env record, passed to the watchdog and broker by argv. */
-  readonly env: Pick<Env, "PLUGIN_BROKER_WORKER_MAX" | "PLUGIN_BROKER_MEMORY_LIMIT_BYTES" | "NODE_ENV">;
+  readonly env: Pick<Env, "PLUGIN_BROKER_WORKER_MAX" | "PLUGIN_BROKER_MEMORY_LIMIT_BYTES" | "NODE_ENV" | "LOG_LEVEL">;
   readonly spawn?: (...args: Parameters<typeof spawn>) => ReturnType<typeof spawn>;
   readonly timers: TimerScheduler;
   /** The broker connect deadline's monotonic clock; the root supplies `performance.now` from `createProcessSeams`. */
@@ -32,9 +32,8 @@ export interface PluginHostSeamDeps {
   readonly nextRandom: () => number;
   readonly mintId: () => string;
   readonly mirrorLog?: (label: string, level: PluginLogLevel, message: string) => void;
-  /** The app root's logger a guest line and a settlement failure land in outside a request; absent ⇒ the
-   *  process logger until item 1271 removes it. */
-  readonly log?: pino.Logger;
+  /** The app root's logger a guest line and a settlement failure land in outside a request. */
+  readonly log: pino.Logger;
 }
 
 /** A Worker-local runtime schedules nothing, fetches nothing and launches no broker itself: the app process owns the
@@ -44,6 +43,8 @@ export type LocalPluginHostSeams = Omit<PluginHostSeamDeps, "timers" | "monotoni
   /** The broker Worker's forwarding egress: the app performs every plugin fetch against its own copy of the
    *  instance's `netHosts`. */
   readonly netEgress: PluginNetEgress;
+  /** The Worker's own record level; the Worker builds its root logger from it, since the app's cannot cross the process. */
+  readonly logLevel: Env["LOG_LEVEL"];
 };
 
 /** Instance data plus the app-owned operation bridge; no domain import crosses the infra boundary. */

@@ -47,7 +47,7 @@ function subjectFrom(payload: JWTPayload): LogoutTokenSubject | null {
 
 /** The back-channel-logout verifier the entry route injects. Returns the validated subject, or null on ANY
  *  violation (bad signature / issuer / audience / required claims / missing event / present nonce / no subject). */
-export function createBackchannelLogoutVerifier(readKeyset: JwksReader["jwksFor"], log?: Logger): BackchannelLogoutVerifier {
+export function createBackchannelLogoutVerifier(readKeyset: JwksReader["jwksFor"], log: Logger): BackchannelLogoutVerifier {
   return {
     verify: async ({ logoutToken, jwks, issuer, audience }: BackchannelVerifyArgs): Promise<LogoutTokenSubject | null> => {
       const keyset = readKeyset(jwks, []);

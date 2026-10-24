@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
 import { packZip } from "@orb/server/infra/storage/zip";
 import { prepareBackupFolder } from "./backup-folder.ts";
+import { createTestLogger } from "./test-logger.ts";
 import { expect, test } from "./tool-fixtures.ts";
 
 async function archiveAt(path: string, paths: readonly string[]): Promise<void> {
@@ -14,7 +15,7 @@ async function archiveAt(path: string, paths: readonly string[]): Promise<void> 
     }
   }
   await using file = await open(path, "wx", 0o600);
-  for await (const chunk of packZip(entries())) {
+  for await (const chunk of packZip(entries(), createTestLogger())) {
     await file.write(chunk);
   }
 }

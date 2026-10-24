@@ -59,7 +59,7 @@ import { createStatsService } from "#domain/stats";
 import type { TagService } from "#domain/tag";
 import type { WorkloadContributions, WorkloadProgressBus, WorkloadService } from "#domain/workloads";
 import { createWorkloadService } from "#domain/workloads";
-import type { AuditEntry, Logger, superviseDetached } from "#foundation/observability";
+import type { AuditEntry, DetachedSupervision, Logger } from "#foundation/observability";
 import type { LiveBuses } from "#transport/trpc";
 import { minter } from "./minter.ts";
 import { createDeleteReachCapture, createRoomEntityFan } from "./room-reach.ts";
@@ -72,7 +72,7 @@ export interface SearchDiscoveryComposeDeps {
   readonly emitWorkloadEvent: WorkloadProgressBus["emitWorkloadEvent"];
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
 
-  readonly supervise?: typeof superviseDetached | undefined;
+  readonly supervise?: DetachedSupervision["superviseDetached"] | undefined;
   readonly scheduleTimeout: EmbeddingsContext["scheduleTimeout"];
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;

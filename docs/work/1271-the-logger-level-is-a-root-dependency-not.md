@@ -22,7 +22,7 @@ The logger instance or its level is created at the composition root from the rec
 
 ## Plan
 
-The shape is a logger instance per root, injected. It runs in the legs below; legs 1 to 3 are built and leg 4 is not yet built.
+The shape is a logger instance per root, injected, built in the legs below.
 
 Survey of `packages/server/src` (`ast-grep`, `.ts` and `.tsx`), the sizing evidence for the split:
 
@@ -48,7 +48,7 @@ The legs:
 - [x] Foundation and infra helpers, the `ServicesDeps` field and the root wiring.
 - [x] `transport` and `entry`.
 - [x] Domain contexts.
-- [ ] Delete the module logger, the `getLog()` fallback and `borrowLogLevel`. Remove the Tier-2 exemption sentence and the dependency-cruiser exception, with a planted control.
+- [x] Delete the module logger, the `getLog()` fallback and `borrowLogLevel`. Remove the Tier-2 exemption sentence and the dependency-cruiser exception, with a planted control.
 
 Rejected shapes:
 
@@ -57,19 +57,15 @@ Rejected shapes:
 
 The race is not only the harness's: the settings cache already writes the process logger's level on every graph's reload.
 
-### Where legs 1 to 3 leave it
+### Where it stands
 
-`createLogger(level)` builds a root's logger. `ServicesDeps.logger` carries it: `createProcessSeams` builds it from `env.LOG_LEVEL`, and `tests/support/node/server.ts` builds it from its own record and exposes it as `root.logger`. `getLog(base)` returns the request's logger, else `base`, and `createRequestObservability(log)` children each request off the root's logger in `entry/app.ts`.
+`createLogger(level)` builds a root's logger, and no module holds one. `ServicesDeps.logger` carries it: `createProcessSeams` builds it from `env.LOG_LEVEL`, and `tests/support/node/server.ts` builds it from its own record and exposes it as `root.logger`. `getLog(base)` returns the request's logger, else `base`, and requires `base`. `createRequestObservability(log)` children each request off the root's logger in `entry/app.ts`.
 
-Every context and deps type a logging site reads carries a required `logger`, wired from the root: the tRPC context, the domain contexts, the boot, job and HTTP deps. Every `getLog()` and `securityEvent()` site passes it. A module helper takes it as a parameter or in its args. The supervision sites bind `createDetachedSupervision` over it, and the inference runtime receives `deps.logger` itself. `createEffectiveConfigCache` rebinds the logger it is handed, and `runtime-log-level.int.test.ts` proves an override moves it.
+Every context, deps type and infra helper that logs requires the root's logger. The detached-work boundaries exist only as `createDetachedSupervision(log)`. `createEffectiveConfigCache` rebinds the logger it is handed, and nothing else.
 
-Left for leg 4:
+The plugin broker Worker cannot receive the app's logger across the process. The app passes its record's `LOG_LEVEL` in the watchdog and broker launch arguments and the Worker's `workerData`, and `createLocalPluginHost` builds the Worker's own root logger from it. An admin override does not reach a running Worker; a new Worker starts at the record's boot level.
 
-- The process logger in `foundation/observability/logger.ts`, the `getLog()` default, `superviseDetached` and `superviseSettled` over it, and the second rebind in `domain/settings/effective-config/cache.ts`.
-- The optional `log` on the infra helpers (`createBackgroundWork`, `createScopedEgress`, `createCas`, `packZip`, `PluginHostSeamDeps`, the JWKS reader and verifiers, the security notices, `ResolveDeps`, `DebugRoutesOptions`, `integrityProbe`). Every production caller passes one; some infra suites still omit it.
-- `borrowLogLevel` in `tests/support/node/server.ts`, and the first case in `runtime-log-level.int.test.ts`, which reads the process logger.
-- The plugin broker Worker (`infra/plugin-host/port.ts`, `infra/plugin-host/membrane.ts`), which runs in the broker process and needs that process's own root logger.
-- The Tier-2 exemption sentence and the dependency-cruiser exception, with a planted control.
+A long-lived scheduler in `transport/jobs/` builds its component child per line, not once at start. A pino child copies the parent's level when it is built, so a start-time child would miss a later override of the root. The per-tick children (`schedule-tick.ts`, the per-run ones in the jobs) are built each tick and already read the current level.
 
 ## Evidence
 
@@ -80,3 +76,9 @@ Legs 1 to 3, on the lane branch before merge:
 - `runtime-log-level.int.test.ts` failed its root-logger case with the cache's root rebind removed, and passed with it restored.
 
 Leg 4 fills the rest: the planted control in the logger and the whole-tree run.
+
+Leg 4, on the lane branch:
+
+- A planted `import { env } from "#foundation/env"` in `foundation/observability/logger.ts` failed `process-env-composition-root-only`; with it removed the rule passes.
+- `runtime-log-level.int.test.ts` now runs two roots in one worker. With the harness sharing one logger between roots, the isolation case failed; with a logger per root it passes.
+- `pnpm typecheck` over every program, `pnpm depcruise` and `pnpm lint:eslint` on every changed file: clean.

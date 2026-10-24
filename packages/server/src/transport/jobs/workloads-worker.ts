@@ -38,6 +38,7 @@ import type { WorkloadLane } from "@orb/contracts/workloads";
 import { WORKLOAD_LANES } from "@orb/contracts/workloads";
 import type { WorkloadId } from "@orb/kit/ids";
 import type { WorkloadReapReason, WorkloadRunnableRow } from "#domain/workloads";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import type { WorkloadsWorkerDeps } from "./contract/workloads-worker.ts";
 
@@ -136,7 +137,8 @@ async function reapOnce(deps: WorkloadsWorkerDeps, reason: WorkloadReapReason): 
  * or timer — all injected.
  */
 export async function startWorkloadsWorker(deps: WorkloadsWorkerDeps): Promise<void> {
-  const log = getLog(deps.logger).child({ component: LOG_COMPONENT });
+  // Built per line: a child copies the root's level when built, so one made at start would miss a later override.
+  const log = (): Logger => getLog(deps.logger).child({ component: LOG_COMPONENT });
   const pollMs = deps.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
   const busyMs = deps.busyPollIntervalMs ?? DEFAULT_BUSY_POLL_INTERVAL_MS;
   const reapMs = deps.reapIntervalMs ?? DEFAULT_REAP_INTERVAL_MS;
@@ -227,12 +229,12 @@ export async function startWorkloadsWorker(deps: WorkloadsWorkerDeps): Promise<v
     });
 
     initialized.resolve();
-    log.info({ pollIntervalMs: pollMs, lanes: WORKLOAD_LANES, loops: loops.length }, "workloads-worker: poll loops started");
+    log().info({ pollIntervalMs: pollMs, lanes: WORKLOAD_LANES, loops: loops.length }, "workloads-worker: poll loops started");
     await Promise.all(loops);
   } finally {
     initialized.resolve();
     clearReap?.();
     unsubscribe?.();
-    log.info("workloads-worker: poll loops stopped");
+    log().info("workloads-worker: poll loops stopped");
   }
 }

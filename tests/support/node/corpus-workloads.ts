@@ -92,7 +92,7 @@ function assertSelectedWorkloadsSucceeded(requested: number, jobs: CorpusWorkloa
 
 /** Settle the actual admitted IDs; failed or cancelled jobs never become successful corpus data. */
 export async function settleCorpusWorkloads(
-  root: Pick<ServerTestHarness, "app" | "timers" | "settleBackground" | "runAdmittedWorkload" | "workloadExecutionSignal">,
+  root: Pick<ServerTestHarness, "app" | "logger" | "timers" | "settleBackground" | "runAdmittedWorkload" | "workloadExecutionSignal">,
   caller: Pick<CorpusCaller, "workloads">,
   started: readonly Awaited<ReturnType<CorpusCaller["workloads"]["start"]>>[],
 ): Promise<CorpusWorkloadRows> {
@@ -104,7 +104,7 @@ export async function settleCorpusWorkloads(
     deadline.throwIfAborted();
     const timeout = Promise.withResolvers<never>();
     using _cancellation = addAbortListener(deadline, () => timeout.reject(deadline.reason));
-    getLog().info({ phase, requested: started.length, index, deadlineAborted: deadline.aborted }, "corpus workloads initial background entry");
+    getLog(root.logger).info({ phase, requested: started.length, index, deadlineAborted: deadline.aborted }, "corpus workloads initial background entry");
     await Promise.race([Promise.resolve().then(root.settleBackground), timeout.promise]);
     deadline.throwIfAborted();
     const runAdmittedWorkload = root.runAdmittedWorkload;
@@ -113,7 +113,7 @@ export async function settleCorpusWorkloads(
         deadline.throwIfAborted();
         phase = WORKLOAD_SETTLEMENT_PHASES[1];
         index = selectedIndex;
-        getLog().info({ phase, requested: started.length, index, deadlineAborted: deadline.aborted }, "corpus workloads admitted entry");
+        getLog(root.logger).info({ phase, requested: started.length, index, deadlineAborted: deadline.aborted }, "corpus workloads admitted entry");
         await Promise.race([Promise.resolve().then(() => runAdmittedWorkload(workload.id, deadline)), timeout.promise]);
         deadline.throwIfAborted();
       }

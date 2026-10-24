@@ -1041,7 +1041,11 @@ function writeMintedSession(c: Context, deps: AuthRoutesDeps, session: { readonl
   const transport = requestTransport(c, trustedProxies);
   writeSetCookies(c, serializeMintedSessionCookies(session.token, transport, (session.expiresAt - deps.now()) / MS_PER_SECOND));
   if (transport === "http" && requestClientScope(c, trustedProxies) === "public") {
-    (deps.publicHttpMintNotice ?? reportPublicHttpMint)(clientIp(c, trustedProxies));
+    if (deps.publicHttpMintNotice === undefined) {
+      reportPublicHttpMint(clientIp(c, trustedProxies), deps.logger);
+    } else {
+      deps.publicHttpMintNotice(clientIp(c, trustedProxies));
+    }
   }
 }
 

@@ -38,8 +38,9 @@ import type {
   PluginLogView,
 } from "@orb/contracts/plugin";
 import { DomainConflictError } from "@orb/kit/errors";
-import { getLog } from "#src/foundation/observability/logger.ts";
-import { superviseDetached } from "#src/foundation/observability/tracing.ts";
+import type { Logger } from "#src/foundation/observability/contract/logging.ts";
+import { createLogger, getLog } from "#src/foundation/observability/logger.ts";
+import { createDetachedSupervision } from "#src/foundation/observability/tracing.ts";
 import { createAdmission } from "./admission.ts";
 import {
   EVENT_QUEUE_DEPTH,
@@ -167,14 +168,14 @@ function retainLog(resident: Resident, lines: readonly string[], at: number): vo
 
 /** The push-time tap into the ONE pino stream (file log + the `/api/_debug/logs` ring) for a labelled instance:
  *  the guest's `info`/`warn`/`error` are pino's own level names, so the line lands at the level the guest chose,
- *  tagged `plugin` for `?q=` filtering. `getLog()` resolves the request-scoped child when the push happens inside
- *  a request (a tool call) and the base logger when it happens in a detached pump (a float) — both the same
+ *  tagged `plugin` for `?q=` filtering. `getLog(log)` resolves the request-scoped child when the push happens inside
+ *  a request (a tool call) and the Worker root's logger when it happens in a detached pump (a float) — both the same
  *  stream. */
-function centralLogMirror(label: string | undefined, mirrorLog: PluginHostSeamDeps["mirrorLog"]): LogMirror {
+function centralLogMirror(label: string | undefined, mirrorLog: PluginHostSeamDeps["mirrorLog"], log: Logger): LogMirror {
   return {
     mirror: (level, message): void => {
       if (mirrorLog === undefined && label !== undefined) {
-        getLog()[level]({ plugin: label }, message);
+        getLog(log)[level]({ plugin: label }, message);
         return;
       }
       mirrorLog?.(label ?? "", level, message);
@@ -188,12 +189,13 @@ function residentSandboxOptions(
   input: CreateInstanceInputIn,
   grants: ReadonlySet<PluginCapability>,
   seams: LocalPluginHostSeams,
+  log: Logger,
 ): Parameters<typeof Sandbox.create>[1] {
   const { mirrorLog, netEgress } = seams;
   return {
-    membrane: { grants, bridge: input.bridge, netEgress },
+    membrane: { grants, bridge: input.bridge, netEgress, log },
     ...(input.budgets !== undefined ? { limits: input.budgets } : {}),
-    ...(input.label !== undefined || mirrorLog !== undefined ? { logMirror: centralLogMirror(input.label, mirrorLog) } : {}),
+    ...(input.label !== undefined || mirrorLog !== undefined ? { logMirror: centralLogMirror(input.label, mirrorLog, log) } : {}),
   };
 }
 
@@ -211,6 +213,9 @@ export function createLocalPluginHost(seams: LocalPluginHostSeams): {
   readonly readLog: (instance: PluginInstance) => readonly PluginLogView[];
   readonly dispose: (instance: PluginInstance) => void;
 } {
+  // This Worker's root: the app's logger cannot cross the process, so the Worker builds its own from its record.
+  const log = createLogger(seams.logLevel);
+  const { superviseDetached } = createDetachedSupervision(log);
   const runtimes = new Map<PluginInstance, Resident>();
   const hostSeams: HostSeams = { nowEpochMs: seams.nowEpochMs, nextRandom: seams.nextRandom, mintId: seams.mintId };
 
@@ -229,7 +234,7 @@ export function createLocalPluginHost(seams: LocalPluginHostSeams): {
         // Keep the WASM-module load failure surface here rather than mid-eval.
         await getPluginQuickJS();
         const grants = new Set(input.grants);
-        sandbox = await Sandbox.create(hostSeams, residentSandboxOptions(input, grants, seams));
+        sandbox = await Sandbox.create(hostSeams, residentSandboxOptions(input, grants, seams, log));
         // The activation run's chat scope (the membrane resolves `current()` against it); `null` for an installed
         // plugin's registration-only `main.js`.
         sandbox.setInvocationChat(input.chat);
@@ -350,7 +355,7 @@ export function createLocalPluginHost(seams: LocalPluginHostSeams): {
         // AFTER the context it accounts for is gone — never while a torn-down-but-not-yet-freed one lingers.
         using sandbox = await Sandbox.create(hostSeams, {
           // A snippet has no manifest, so its profile omits net.fetch; the forwarded egress is never reached.
-          membrane: { grants: new Set(input.grants), bridge: input.bridge, netEgress: seams.netEgress },
+          membrane: { grants: new Set(input.grants), bridge: input.bridge, netEgress: seams.netEgress, log },
           limits: { cpuDeadlineMs: SNIPPET_WALL_MS, memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES },
         });
         sandbox.setInvocationChat(input.chat);

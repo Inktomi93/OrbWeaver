@@ -7,7 +7,7 @@ import type { Env } from "#foundation/env/record";
 import { parseTrustedPrivateRanges } from "#foundation/env/record";
 import type { Logger } from "#src/foundation/observability/contract/logging.ts";
 import { getLog, securityEvent } from "#src/foundation/observability/logger.ts";
-import { createDetachedSupervision, superviseSettled } from "#src/foundation/observability/tracing.ts";
+import { createDetachedSupervision } from "#src/foundation/observability/tracing.ts";
 
 import type {
   EgressBlockReason,
@@ -67,7 +67,7 @@ const DEFAULT_DEADLINE_MS = 15_000;
 
 function superviseEgressCleanup(context: EgressContext, reason: string, operation: () => Promise<unknown>): void {
   context.cleanupSequence += 1;
-  const settled = context.log === undefined ? superviseSettled : createDetachedSupervision(context.log).superviseSettled;
+  const { superviseSettled: settled } = createDetachedSupervision(context.log);
   const completion = settled(`egress-cleanup:${String(context.cleanupSequence)}`, "egress.cleanup", { reason }, async () => {
     try {
       return await operation();
@@ -205,7 +205,7 @@ interface EgressContext {
   cleanupSequence: number;
   closed: boolean;
   /** The root's logger every egress line falls back to outside a request. */
-  readonly log: Logger | undefined;
+  readonly log: Logger;
 }
 
 function createEgressContext(options: ScopedEgressOptions, global: boolean): EgressContext {
@@ -1102,13 +1102,13 @@ interface EgressBlock {
   readonly fields?: Record<string, unknown>;
 }
 
-function blockEgress(log: Logger | undefined, { reason, host, detail, fields = {} }: EgressBlock): never {
+function blockEgress(log: Logger, { reason, host, detail, fields = {} }: EgressBlock): never {
   securityEvent("egress_blocked", { reason, hostname: host, ...fields }, `security: safeFetch egress blocked (${reason})`, log);
   throw new EgressBlockedError(reason, detail);
 }
 
 /** Scheme + host-allowlist + IP-literal gate — runs on the start URL and re-runs on every redirect hop. */
-function validateUrl(log: Logger | undefined, url: URL, options: SafeFetchOptions, configuredEndpoint = false): void {
+function validateUrl(log: Logger, url: URL, options: SafeFetchOptions, configuredEndpoint = false): void {
   const host = normalizeHost(url.hostname);
   if (configuredEndpoint) {
     if (url.protocol !== "https:" && url.protocol !== "http:") {

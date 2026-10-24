@@ -20,7 +20,7 @@ import {
 import { PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS } from "./watchdog-policy.ts";
 
 const SYNC_TIMEOUT_MARGIN_MS = 500;
-const { workerMaximum, generation, nodeEnvironment } = parsePluginBrokerArguments(process.argv.slice(2));
+const { workerMaximum, generation, nodeEnvironment, logLevel } = parsePluginBrokerArguments(process.argv.slice(2));
 if (process.send === undefined) {
   throw new Error("plugin broker: refusing to run without its watchdog's IPC channel");
 }
@@ -174,7 +174,7 @@ function createRuntime(runtimeId: string): Runtime {
     throw new Error(`plugin broker: physical Worker capacity (${workerMaximum}) exhausted`);
   }
   const worker = new Worker(new URL("./worker-runtime.ts", import.meta.url), {
-    workerData: { runtimeId },
+    workerData: { runtimeId, logLevel },
     // Guest Workers receive no app environment or inherited IPC authority, so do not inherit
     // process.env across this trust boundary even though QuickJS itself has no ambient Node surface.
     env: { ["NODE_ENV"]: nodeEnvironment },

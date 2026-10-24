@@ -84,9 +84,8 @@ export interface ScopedEgressOptions {
   readonly timers: TimerScheduler;
   /** The parsed env record: `EGRESS_FIREWALL`, `EGRESS_ALLOWLIST`, `TRUSTED_PRIVATE_RANGES` and the OIDC issuer host. */
   readonly env: Env;
-  /** The root's logger every egress line falls back to outside a request; absent ⇒ the process logger until
-   *  item 1271 removes it. */
-  readonly log?: pino.Logger;
+  /** The root's logger every egress line falls back to outside a request. */
+  readonly log: pino.Logger;
 }
 
 export interface ScopedEgress extends AsyncDisposable {

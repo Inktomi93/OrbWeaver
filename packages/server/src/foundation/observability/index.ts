@@ -1,6 +1,6 @@
 // foundation/observability — front door. The structured logger + request scope, OTel tracing + the libSQL
 // wrap, the per-request middleware, the best-effort audit writer, and the /api/_debug read surface. Read
-// DOWN by every tier; `getLog()`/`logger` is the only sanctioned output (the `noConsole` total ban).
+// DOWN by every tier; a root's logger, read through `getLog(base)`, is the only sanctioned output (the `noConsole` total ban).
 
 export { type AuditEntry, createAuditWiring, logAudit } from "./audit.ts";
 export type { BugReportDiagnosticsRead } from "./bug-report-diagnostics.ts";
@@ -30,7 +30,6 @@ export {
   getLog,
   groupsLogFields,
   type Logger,
-  logger,
   logRing,
   logSerializers,
   type RequestRecord,
@@ -43,6 +42,7 @@ export { traceStructuredRetry } from "./structured-retry.ts";
 export {
   addSpanEvent,
   createDetachedSupervision,
+  type DetachedSupervision,
   getTraceByRequestId,
   initTracing,
   type RequestTrace,
@@ -52,8 +52,6 @@ export {
   type SpanAttrs,
   setSpanAttrs,
   span,
-  superviseDetached,
-  superviseSettled,
   withRequestSpan,
   wrapLibSqlClient,
 } from "./tracing.ts";

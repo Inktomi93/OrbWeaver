@@ -1,6 +1,6 @@
-// The one home of the real process seams: timers, monotonic clock, PRNGs, ids, nonce, the physical network and this
+// The one home of the real process seams: timers, monotonic clock, PRNGs, ids, nonce, the physical network, the root logger and this
 // process's parsed env record, which carries the machine's container posture and name. Every non-test root passes these; the root never defaults one. Exempt: observability's
-// `middleware.ts` and `debug/bug-report.ts` read `performance.now` (measurements); `logger.ts` still builds the process logger from the process env at module init for the sites item 1271 has not moved to the root's `logger`.
+// `middleware.ts` and `debug/bug-report.ts` read `performance.now` (measurements).
 
 import { randomInt, randomUUID } from "node:crypto";
 import { createIdSource } from "@orb/kit/ids";
