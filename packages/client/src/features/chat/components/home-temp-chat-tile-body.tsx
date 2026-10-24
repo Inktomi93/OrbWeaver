@@ -22,6 +22,7 @@ import type { ReactElement } from "react";
 import { useEffect, useRef } from "react";
 import type { Trpc } from "#data";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
+import { START_TEMP_CHAT_NAME } from "#lib";
 import { openNewChatPicker } from "#state";
 
 /** Sweep the caller's OWN expired temp chats. `busDriven: false` with an explicit filter: the verb emits
@@ -118,7 +119,7 @@ function TempChatContent({ ttlHours, placeholder }: { readonly ttlHours: number;
               of identical rank in one column. Both are `secondary`/`sm` now. */}
           <Button intent="secondary" onClick={startTempChat} size="sm">
             <Icon icon={Plus} size="sm" />
-            Start a temp chat
+            {START_TEMP_CHAT_NAME}
           </Button>
         </Row>
       )}

@@ -213,6 +213,22 @@ test("local corpus admission is prepared after the last clone and cannot cross v
   }
   expect((await captureCorpusCookieIdentity(root, ownerView, ownerAdmission.cookie)).viewer).toEqual(owner);
   expect((await captureCorpusCookieIdentity(root, memberView, memberAdmission.cookie)).viewer).toEqual(member);
+  // The clone began with no session, so each re-authentication minted its own fresh session there.
+  const minted = await root.db.select({ id: sessions.id, userId: sessions.userId }).from(sessions).where(inArray(sessions.userId, accountIds));
+  expect(minted.map((row) => row.userId).toSorted()).toEqual(accountIds.toSorted());
+  // A password rotation revokes only the rotated member's cookie, and a logout revokes only the owner's.
+  const rotated = await captureCookieAuth(root, await root.principalFor(memberView.userId), `rotated-${root.ids.uuid()}`);
+  expect(rotated.identity).toEqual(memberAdmission.identity);
+  await expect(captureCorpusCookieIdentity(root, memberView, memberAdmission.cookie)).rejects.toThrow("request refused (401)");
+  expect((await captureCorpusCookieIdentity(root, ownerView, ownerAdmission.cookie)).viewer).toEqual(owner);
+  const logout = await fetch(new URL("/api/auth/logout", origin), {
+    method: "POST",
+    headers: { [CSRF_HEADER]: "1", cookie: ownerAdmission.cookie, forwarded: "" },
+  });
+  await logout.arrayBuffer();
+  expect(logout.status).toBe(200);
+  await expect(captureCorpusCookieIdentity(root, ownerView, ownerAdmission.cookie)).rejects.toThrow("request refused (401)");
+  expect((await captureCorpusCookieIdentity(root, memberView, rotated.cookie)).viewer).toEqual(member);
   await using next = await createCorpusHarness(root.corpus.layout.root);
   expect(await next.db.select({ id: sessions.id }).from(sessions)).toEqual([]);
   const nextCredentials = await next.db.select({ passwordHash: users.passwordHash }).from(users).where(inArray(users.id, accountIds));

@@ -4,12 +4,11 @@
 // restores cause: subscription lifecycle + a live count, each canon event → the keys it invalidated,
 // and a duplicate-invalidate alarm (the storm signature).
 //
-// THE CONSOLE OUTPUT IS IS_DEV-GATED; THE EVIDENCE BOOKKEEPING IS NOT (#1847). The live count and the
-// 64-entry ring are what `window.__orb.bus()` reads, and they are two integers and a bounded array —
-// cheap enough to keep honest, and keeping them unconditional is what lets the component-test bundle
-// (built in Vite PRODUCTION mode, where IS_DEV is false) drive these REAL doors instead of a pair of
-// `__…ForTest` plants that re-implemented the same arithmetic beside them. The ring stays inert in a
-// shipped app for the ordinary reason: `invalidation.ts` only calls `busInvalidate` under IS_DEV.
+// THE CONSOLE OUTPUT IS IS_DEV-GATED; THE EVIDENCE BOOKKEEPING IS NOT. The live count and the 64-entry
+// ring are what `window.__orb.bus()` reads, and they are two integers and a bounded array — cheap enough
+// to keep honest, and keeping them unconditional is what lets the component-test bundle (built in Vite
+// PRODUCTION mode, where IS_DEV is false) drive these real doors. The ring stays inert in a shipped app
+// for the ordinary reason: `invalidation.ts` only calls `busInvalidate` under IS_DEV.
 
 import type { ChatId } from "@orb/kit/ids";
 import { CONSOLE_STYLES } from "./console-styles.ts";

@@ -1,5 +1,13 @@
 // Home on the committed corpus: the first-run gate stays shut, and rooms launch from Characters and the temp-chat tile.
-import { chatWithActionName, testId } from "@orb/client/lib";
+import {
+  BLANK_CHAT_NAME,
+  chatWithActionName,
+  NO_CHAT_SELECTED_TITLE,
+  START_NEW_CHAT_NAME,
+  START_TEMP_CHAT_NAME,
+  TEMPORARY_CHAT_BADGE,
+  testId,
+} from "@orb/client/lib";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { Page, Response } from "@playwright/test";
@@ -64,8 +72,8 @@ test.describe("committed corpus room launches", () => {
     test.skip(isMobile, "The phone's Chats section opens on its list screen");
     await openHome(page);
     await goToSection(page, isMobile, "Chats");
-    await expect(page.getByText("No chat selected", { exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Start a new chat", exact: true })).toBeVisible();
+    await expect(page.getByText(NO_CHAT_SELECTED_TITLE, { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: START_NEW_CHAT_NAME, exact: true })).toBeVisible();
     await expect(page.getByRole("textbox", { name: "Message" })).toHaveCount(0);
   });
 
@@ -108,16 +116,17 @@ test.describe("committed corpus room launches", () => {
   }) => {
     const host = ownerActor(baseURL ?? "");
     await openHome(page);
-    await page.getByRole("button", { name: "Start a temp chat", exact: true }).click();
+    await page.getByRole("button", { name: START_TEMP_CHAT_NAME, exact: true }).click();
     const picker = page.getByRole("dialog");
-    await expect(picker.getByText("This room won't join your chats list, and you can't switch it later.")).toBeVisible();
+    await expect(picker.getByText(TEMPORARY_CHAT_BADGE, { exact: true })).toBeVisible();
     const started = page.waitForResponse((response) => response.url().includes("/api/trpc/chat.startChat"));
-    await picker.getByText("Blank chat").click();
+    await picker.getByRole("button", { name: BLANK_CHAT_NAME, exact: true }).click();
     const chatId = await startedChatId(await started);
     try {
+      expect((await host.trpc.chat.getChat.query({ chatId })).temporary).toBe(true);
       const composer = page.getByRole("textbox", { name: "Message" });
       await expect(composer).toBeVisible();
-      await expect(page.locator(".shell-topbar").getByText("Temporary")).toBeVisible();
+      await expect(page.locator(".shell-topbar").getByText(TEMPORARY_CHAT_BADGE, { exact: true })).toBeVisible();
       await composer.click();
       await composer.pressSequentially(UNSENT_LINE);
       await expect(composer).toHaveValue(UNSENT_LINE);
@@ -126,9 +135,9 @@ test.describe("committed corpus room launches", () => {
       await expect(page.locator('[data-home-tile="chat.tempChat"]')).toBeVisible();
       await goToSection(page, isMobile, "Chats");
 
-      await expect(page.getByText("No chat selected")).toHaveCount(0);
+      await expect(page.getByText(NO_CHAT_SELECTED_TITLE, { exact: true })).toHaveCount(0);
       await expect(composer).toHaveValue(UNSENT_LINE);
-      await expect(page.locator(".shell-topbar").getByText("Temporary")).toBeVisible();
+      await expect(page.locator(".shell-topbar").getByText(TEMPORARY_CHAT_BADGE, { exact: true })).toBeVisible();
     } finally {
       await host.trpc.chat.delete.mutate({ chatId });
     }
