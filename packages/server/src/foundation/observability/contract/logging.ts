@@ -1,5 +1,9 @@
 import type { UserId } from "@orb/kit/ids";
 import type { HonoRequest } from "hono";
+import type pino from "pino";
+
+/** A root's pino logger; pino v10 exports it only as a member of the `pino` namespace. */
+export type Logger = pino.Logger;
 
 /** Request-ring metadata carries the resolved identity only after its existing request scope binds it. */
 export interface RequestRecord {

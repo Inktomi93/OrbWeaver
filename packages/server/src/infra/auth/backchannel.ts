@@ -15,6 +15,7 @@
 import type { JWTPayload } from "jose";
 import { jwtVerify } from "jose";
 import { z } from "zod";
+import type { Logger } from "#foundation/observability";
 import { securityEvent } from "#foundation/observability";
 import type { BackchannelLogoutVerifier, BackchannelVerifyArgs, JwksReader, LogoutTokenSubject } from "./contract.ts";
 
@@ -46,7 +47,7 @@ function subjectFrom(payload: JWTPayload): LogoutTokenSubject | null {
 
 /** The back-channel-logout verifier the entry route injects. Returns the validated subject, or null on ANY
  *  violation (bad signature / issuer / audience / required claims / missing event / present nonce / no subject). */
-export function createBackchannelLogoutVerifier(readKeyset: JwksReader["jwksFor"]): BackchannelLogoutVerifier {
+export function createBackchannelLogoutVerifier(readKeyset: JwksReader["jwksFor"], log?: Logger): BackchannelLogoutVerifier {
   return {
     verify: async ({ logoutToken, jwks, issuer, audience }: BackchannelVerifyArgs): Promise<LogoutTokenSubject | null> => {
       const keyset = readKeyset(jwks, []);
@@ -62,6 +63,7 @@ export function createBackchannelLogoutVerifier(readKeyset: JwksReader["jwksFor"
           "oidc_backchannel_logout_rejected",
           { reason: "signature" },
           "security: OIDC back-channel logout_token failed signature / alg / issuer / audience / required-claim verification — rejecting",
+          log,
         );
         return null;
       }
@@ -71,11 +73,17 @@ export function createBackchannelLogoutVerifier(readKeyset: JwksReader["jwksFor"
           "oidc_backchannel_logout_rejected",
           { reason: "nonce" },
           "security: OIDC back-channel logout_token carried a nonce (an ID token replayed as a logout token) — rejecting",
+          log,
         );
         return null;
       }
       if (!logoutTokenIdSchema.safeParse(payload.jti).success) {
-        securityEvent("oidc_backchannel_logout_rejected", { reason: "jti" }, "security: OIDC back-channel logout_token has a malformed token id — rejecting");
+        securityEvent(
+          "oidc_backchannel_logout_rejected",
+          { reason: "jti" },
+          "security: OIDC back-channel logout_token has a malformed token id — rejecting",
+          log,
+        );
         return null;
       }
       if (!hasBackchannelEvent(payload)) {
@@ -83,6 +91,7 @@ export function createBackchannelLogoutVerifier(readKeyset: JwksReader["jwksFor"
           "oidc_backchannel_logout_rejected",
           { reason: "event" },
           "security: OIDC back-channel logout_token missing the backchannel-logout event — rejecting",
+          log,
         );
         return null;
       }
@@ -92,6 +101,7 @@ export function createBackchannelLogoutVerifier(readKeyset: JwksReader["jwksFor"
           "oidc_backchannel_logout_rejected",
           { reason: "subject" },
           "security: OIDC back-channel logout_token carried neither sub nor sid — rejecting",
+          log,
         );
         return null;
       }

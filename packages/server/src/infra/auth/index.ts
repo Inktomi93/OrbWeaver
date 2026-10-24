@@ -66,7 +66,11 @@ export async function resolve(headers: Headers, deps: ResolveDeps): Promise<Iden
       };
     }
     if (hasForwardingHeader(headers)) {
-      (deps.relayedFallbackNotice ?? reportRelayedFallback)(deps.peerIp);
+      if (deps.relayedFallbackNotice === undefined) {
+        reportRelayedFallback(deps.peerIp, deps.log);
+      } else {
+        deps.relayedFallbackNotice(deps.peerIp);
+      }
     }
   }
 

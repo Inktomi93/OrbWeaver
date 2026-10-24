@@ -569,7 +569,7 @@ test("default native asynchronous spawn refusal joins actual close without a PID
 test("default native decoder retains split UTF8 diagnostics with known credential redaction", async () => {
   let child: ChildProcessWithoutNullStreams | undefined;
   const logScope = "sdk-default-native-utf8";
-  await using harness = await runInRequest(logScope, () =>
+  await using harness = await runInRequest(processObservability.logger(), logScope, () =>
     createServerHarness({
       logLevel: SDK_LOG_LEVEL,
       secretBoxKey: Buffer.alloc(32, 1),
@@ -629,7 +629,7 @@ test("default native caller cancellation joins actual child while leaving its gr
 const PUBLIC_NATIVE_LONG_TOKEN = `native-public-${"N".repeat(2400)}-fixture-end`;
 test("default native stderr protects an oversized known opaque credential in application diagnostics", async () => {
   const logScope = "sdk-default-native-oversized";
-  await using harness = await runInRequest(logScope, () =>
+  await using harness = await runInRequest(processObservability.logger(), logScope, () =>
     createServerHarness({ logLevel: SDK_LOG_LEVEL, secretBoxKey: Buffer.alloc(32, 1), sdkNative: nativeSdkOptions() }),
   );
   const connection = await savedSummarizer(harness, PUBLIC_NATIVE_LONG_TOKEN);

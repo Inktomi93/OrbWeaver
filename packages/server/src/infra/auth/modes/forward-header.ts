@@ -87,16 +87,21 @@ function emailFromHeader(name: string | undefined, headers: Headers): string | n
 async function resolveSignedJwt(jwt: string, metaJwks: string | null, config: AuthConfig, deps: ResolveDeps): Promise<ResolvedIdentity | null> {
   if (metaJwks === null) {
     // JWT without its JWKS is a stripped/spoofed request — reject, do not fall through.
-    securityEvent("jwt_no_jwks", {}, "security: forwarded JWT present without its JWKS — rejecting (possible stripped/spoofed request)");
+    securityEvent("jwt_no_jwks", {}, "security: forwarded JWT present without its JWKS — rejecting (possible stripped/spoofed request)", deps.log);
     return null;
   }
   if (config.jwksAllowlist.length === 0) {
     // No trusted key source — refuse the request-supplied JWKS entirely.
-    securityEvent("jwt_no_allowlist", {}, "security: JWT verification on but no JWKS allowlist/issuer configured — refusing the request-supplied JWKS");
+    securityEvent(
+      "jwt_no_allowlist",
+      {},
+      "security: JWT verification on but no JWKS allowlist/issuer configured — refusing the request-supplied JWKS",
+      deps.log,
+    );
     return null;
   }
   if (deps.verifyForwardJwt === undefined) {
-    securityEvent("jwt_no_verifier", {}, "security: JWT verification on but no verifier injected — rejecting forwarded identity");
+    securityEvent("jwt_no_verifier", {}, "security: JWT verification on but no verifier injected — rejecting forwarded identity", deps.log);
     return null;
   }
   const claims = await deps.verifyForwardJwt.verify({
@@ -111,7 +116,7 @@ async function resolveSignedJwt(jwt: string, metaJwks: string | null, config: Au
   }
   if (claims.handle === undefined || claims.handle.length === 0) {
     // Verified but no preferred_username — refuse to fall through to the unsigned path.
-    securityEvent("jwt_no_username", {}, "security: forwarded JWT verified but has no preferred_username claim — rejecting");
+    securityEvent("jwt_no_username", {}, "security: forwarded JWT verified but has no preferred_username claim — rejecting", deps.log);
     return null;
   }
   return {
@@ -122,7 +127,7 @@ async function resolveSignedJwt(jwt: string, metaJwks: string | null, config: Au
   };
 }
 
-function resolveUnsignedHeader(headers: Headers, config: AuthConfig, peerIp: string | undefined): ResolvedIdentity | null {
+function resolveUnsignedHeader(headers: Headers, config: AuthConfig, { peerIp, log }: Pick<ResolveDeps, "peerIp" | "log">): ResolvedIdentity | null {
   const identity = readUnsignedIdentity(headers, config);
   if (identity === null) {
     return null;
@@ -134,6 +139,7 @@ function resolveUnsignedHeader(headers: Headers, config: AuthConfig, peerIp: str
       "forwarded_no_trusted_proxies",
       { handle: identity.handle },
       "security: unsigned forward-header identity but FORWARD_AUTH_TRUSTED_PROXIES is unset — rejecting (set it to the trusted proxy/client source range to enable the unsigned header path)",
+      log,
     );
     return null;
   }
@@ -144,6 +150,7 @@ function resolveUnsignedHeader(headers: Headers, config: AuthConfig, peerIp: str
       "forwarded_peer_rejected",
       { peerIp: peerIp ?? null, handle: identity.handle },
       "security: forwarded identity from an untrusted TCP peer — rejecting (the trusted-proxy gate matches the socket peer, not X-Forwarded-For)",
+      log,
     );
     return null;
   }
@@ -184,6 +191,7 @@ export function resolveForwardHeader(headers: Headers, config: AuthConfig, deps:
       "forwarded_via_relay",
       { host: relayHost, peerIp: deps.peerIp ?? null },
       "security: forward-header identity on a request through the share relay — rejecting (the relay is never the auth proxy)",
+      deps.log,
     );
     return Promise.resolve(null);
   }
@@ -191,5 +199,5 @@ export function resolveForwardHeader(headers: Headers, config: AuthConfig, deps:
   if (jwt !== null) {
     return resolveSignedJwt(jwt, headers.get("x-authentik-meta-jwks"), config, deps);
   }
-  return Promise.resolve(resolveUnsignedHeader(headers, config, deps.peerIp));
+  return Promise.resolve(resolveUnsignedHeader(headers, config, deps));
 }

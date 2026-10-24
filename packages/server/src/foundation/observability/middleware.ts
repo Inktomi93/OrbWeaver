@@ -11,7 +11,8 @@ import { randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import type { Handle, UserId } from "@orb/kit/ids";
 import type { Context, ErrorHandler, MiddlewareHandler } from "hono";
-import { bindRequestUser, getLog, getRequestUserId, recordRequest, runInRequest } from "./logger.ts";
+import type { Logger } from "./contract/logging.ts";
+import { bindRequestUser, getLog, getRequestUserId, logger, recordRequest, runInRequest } from "./logger.ts";
 import { recordThrownRequest, withRequestSpan } from "./tracing.ts";
 
 const DEBUG_PREFIX = "/api/_debug";
@@ -67,57 +68,59 @@ function resolveRequestId(c: Context): string {
  * that stamp has to happen), binds a request-scoped logger AND the request-root span, and logs one
  * structured line per request. The stamped id is the SAME id every sink below records — never a second mint.
  */
-export const observability: MiddlewareHandler = (c, next) => {
-  const requestId = resolveRequestId(c);
-  const start = performance.now();
-  OBSERVED.add(c);
+function observeRequest(log: Logger): MiddlewareHandler {
+  return (c, next) => {
+    const requestId = resolveRequestId(c);
+    const start = performance.now();
+    OBSERVED.add(c);
 
-  return runInRequest(requestId, async () => {
-    const rawPath = c.req.path;
-    const method = c.req.method;
-    // Skips both the log line and the trace root — without it every /api/_debug/* GET would land in the
-    // trace ring and evict an earlier real trace while the operator browses them.
-    if (rawPath.startsWith(DEBUG_PREFIX)) {
-      await next();
+    return runInRequest(log, requestId, async () => {
+      const rawPath = c.req.path;
+      const method = c.req.method;
+      // Skips both the log line and the trace root — without it every /api/_debug/* GET would land in the
+      // trace ring and evict an earlier real trace while the operator browses them.
+      if (rawPath.startsWith(DEBUG_PREFIX)) {
+        await next();
+        stampRequestId(c, requestId);
+        return;
+      }
+      const path = redactSensitivePath(rawPath);
+
+      // Bind the already-resolved caller onto the request-scoped logger so every line emitted during this
+      // request (and the request-ring record below) carries userId/handle. The auth middleware runs BEFORE
+      // this one (app.ts middleware order) and set the Principal on the Hono context; the logger scope only
+      // opens here (runInRequest above), so the bind must happen inside it, not at auth-resolution time. The
+      // context accessor is untyped at this tier (foundation can't import the app's Hono Env) — read it via a
+      // narrow structural cast to the two fields it binds, so the cast never claims a whole Principal (D1).
+      // Anonymous requests leave the Principal null → no bind (userId stays absent).
+      const principal = (c as { get: (key: "principal") => { readonly userId: UserId; readonly handle: Handle } | null | undefined }).get("principal");
+      if (principal !== null && principal !== undefined) {
+        bindRequestUser(principal.userId, principal.handle);
+      }
+
+      await withRequestSpan(requestId, `http ${method} ${path}`, { "http.method": method, "http.path": path }, async () => {
+        await next();
+      });
       stampRequestId(c, requestId);
-      return;
-    }
-    const path = redactSensitivePath(rawPath);
 
-    // Bind the already-resolved caller onto the request-scoped logger so every line emitted during this
-    // request (and the request-ring record below) carries userId/handle. The auth middleware runs BEFORE
-    // this one (app.ts middleware order) and set the Principal on the Hono context; the logger scope only
-    // opens here (runInRequest above), so the bind must happen inside it, not at auth-resolution time. The
-    // context accessor is untyped at this tier (foundation can't import the app's Hono Env) — read it via a
-    // narrow structural cast to the two fields it binds, so the cast never claims a whole Principal (D1).
-    // Anonymous requests leave the Principal null → no bind (userId stays absent).
-    const principal = (c as { get: (key: "principal") => { readonly userId: UserId; readonly handle: Handle } | null | undefined }).get("principal");
-    if (principal !== null && principal !== undefined) {
-      bindRequestUser(principal.userId, principal.handle);
-    }
-
-    await withRequestSpan(requestId, `http ${method} ${path}`, { "http.method": method, "http.path": path }, async () => {
-      await next();
+      const durationMs = Math.round(performance.now() - start);
+      const status = c.res.status;
+      const userId = getRequestUserId();
+      getLog().info({ method, path, status, durationMs }, "request");
+      recordRequest({
+        id: requestId,
+        method,
+        path,
+        status,
+        durationMs,
+        // performance.timeOrigin + performance.now() is wall-clock now without raw Date.now() — there is no
+        // injected clock at the middleware edge, and this is observability metadata, not domain logic.
+        at: Math.round(performance.timeOrigin + performance.now()),
+        ...(userId !== undefined ? { userId } : {}),
+      });
     });
-    stampRequestId(c, requestId);
-
-    const durationMs = Math.round(performance.now() - start);
-    const status = c.res.status;
-    const userId = getRequestUserId();
-    getLog().info({ method, path, status, durationMs }, "request");
-    recordRequest({
-      id: requestId,
-      method,
-      path,
-      status,
-      durationMs,
-      // performance.timeOrigin + performance.now() is wall-clock now without raw Date.now() — there is no
-      // injected clock at the middleware edge, and this is observability metadata, not domain logic.
-      at: Math.round(performance.timeOrigin + performance.now()),
-      ...(userId !== undefined ? { userId } : {}),
-    });
-  });
-};
+  };
+}
 
 /**
  * A throw from a middleware mounted ABOVE {@link observability} — today the principal-resolution middleware
@@ -136,12 +139,12 @@ export const observability: MiddlewareHandler = (c, next) => {
  * /api/_debug/logs?requestId=… and /api/_debug/requests agree. `durationMs` is 0 because nothing measured
  * this request — the fault preceded the measurement.
  */
-function observeThrowAboveScope(err: unknown, c: Context): Promise<Response> {
+function observeThrowAboveScope(log: Logger, err: unknown, c: Context): Promise<Response> {
   const requestId = resolveRequestId(c);
   const method = c.req.method;
   const path = redactSensitivePath(c.req.path);
   c.header(REQUEST_ID_HEADER, requestId);
-  return runInRequest(requestId, async (): Promise<Response> => {
+  return runInRequest(log, requestId, async (): Promise<Response> => {
     getLog().error({ err }, "request.thrown");
     // The root span exists only to carry the failure; `recordThrownRequest` marks the span ACTIVE INSIDE
     // this callback as error + adds the `exception` event, and `withRequestSpan`'s OK-set is guarded on
@@ -171,11 +174,18 @@ function observeThrowAboveScope(err: unknown, c: Context): Promise<Response> {
  * or below the middleware) corrects the already-open root span; the un-observed one is
  * {@link observeThrowAboveScope}. Both return the identical 500.
  */
-export const observabilityErrorHandler: ErrorHandler = (err, c) => {
-  if (!OBSERVED.has(c)) {
-    return observeThrowAboveScope(err, c);
-  }
-  recordThrownRequest(err);
-  getLog().error({ err }, "request.thrown");
-  return c.text(INTERNAL_ERROR_TEXT, INTERNAL_ERROR_STATUS);
-};
+function observeThrownRequest(log: Logger): ErrorHandler {
+  return (err, c) => {
+    if (!OBSERVED.has(c)) {
+      return observeThrowAboveScope(log, err, c);
+    }
+    recordThrownRequest(err);
+    getLog(log).error({ err }, "request.thrown");
+    return c.text(INTERNAL_ERROR_TEXT, INTERNAL_ERROR_STATUS);
+  };
+}
+
+// Transitional: each request's scope children off the logger these two are built over. `entry/app.ts` mounts them
+// over the process logger until item 1271's transport and entry leg builds them over the root's.
+export const observability: MiddlewareHandler = observeRequest(logger);
+export const observabilityErrorHandler: ErrorHandler = observeThrownRequest(logger);

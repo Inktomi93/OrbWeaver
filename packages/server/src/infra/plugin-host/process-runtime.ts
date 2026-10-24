@@ -652,7 +652,7 @@ class BrokerClient {
     }
     retainLog(binding, message.level, message.message);
     if (binding.label !== undefined) {
-      getLog()[message.level]({ plugin: binding.label }, message.message);
+      getLog(this.seams.log)[message.level]({ plugin: binding.label }, message.message);
     }
   }
 
@@ -949,7 +949,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
   const poolResources = new AsyncDisposableStack();
   const bridgeResources = new AsyncDisposableStack();
   // biome-ignore lint/nursery/useDisposables: bridgeResources owns settlement during returned host teardown; the borrowed operation view must not close at return.
-  const bridgeSettlement: Omit<BackgroundWork, keyof AsyncDisposable> = bridgeResources.use(createBackgroundWork());
+  const bridgeSettlement: Omit<BackgroundWork, keyof AsyncDisposable> = bridgeResources.use(createBackgroundWork(seams.log));
   let closed = false;
   let closing: Promise<void> | undefined;
   let pool: Pick<WarmRuntimePool<Binding>, "acquire" | "discard" | "fail" | "remove">;

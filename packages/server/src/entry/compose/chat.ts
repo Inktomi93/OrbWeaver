@@ -96,7 +96,7 @@ import type { SettingsService } from "#domain/settings";
 import { createResolveRetainedChatAccountingScope, createResolveRetainedChatRebase, createStatsBatchWiring } from "#domain/stats";
 import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
 import { createCopyHandoffBooks, createCountHandoffBooks } from "#domain/world-info";
-import type { AuditEntry } from "#foundation/observability";
+import type { AuditEntry, Logger } from "#foundation/observability";
 import { createAuditWiring, recordMemoryLog } from "#foundation/observability";
 import { waitForTimer } from "#infra/timers";
 import { createRegexApplyReplace, createRegexTest } from "#primitives/regex";
@@ -127,6 +127,8 @@ export interface ChatComposeInput {
   readonly recordTurnOutcome?: ChatContext["recordTurnOutcome"];
   readonly random: () => number;
   readonly idSource: IdSource;
+  /** The root's logger; the memory log and the best-effort audit write go through it. */
+  readonly logger: Logger;
   /** A user's Utility-role preset params (`side-gen-params.ts`), for the arbiter and the memory build. */
   readonly resolveUtilityPresetParams: ChatContext["resolveUtilityPresetParams"];
   readonly mediaProcessing: Pick<ImageRefAssets, "frameCount" | "prepareVideo">;
@@ -302,7 +304,7 @@ export interface ChatComposeResult extends AsyncDisposable {
 export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   const { db, now, emitChatEvent, timers } = input;
   const stats = createStatsBatchWiring(input.idSource);
-  const auditStatements = createAuditWiring(db, input.idSource);
+  const auditStatements = createAuditWiring(db, input.idSource, input.logger);
 
   const lifetime = new AsyncDisposableStack();
   // biome-ignore lint/nursery/useDisposables: lifetime adopts this resource for the returned owner; local using would close it before callers can use the graph.
@@ -510,7 +512,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // DB6: absent ⇒ the field stays unset ⇒ GATHER skips the databank branch (byte-identical no-op).
     ...(input.gatherDatabank !== undefined ? { gatherDatabank: input.gatherDatabank } : {}),
     ...memorySearch,
-    log: (entry) => recordMemoryLog(entry),
+    log: (entry) => recordMemoryLog(entry, input.logger),
     // #250 — absent recorder ⇒ the field stays unset ⇒ recall's `ctx.recordRecall?.()` is a no-op.
     ...(input.recallRecorder !== undefined ? { recordRecall: input.recallRecorder.sink } : {}),
     // #313 — the header brain-icon's live feed: recall (`recall/recall.ts`) BUILDS the `memoryRecall` event

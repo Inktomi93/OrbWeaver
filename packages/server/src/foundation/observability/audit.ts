@@ -16,6 +16,7 @@ import type { IdSource } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import type { AuditEntry, AuditFailureSnapshot, AuditWiring } from "./contract/audit-wiring.ts";
+import type { Logger } from "./contract/logging.ts";
 import { getLog } from "./logger.ts";
 
 export type { AuditEntry, AuditFailureSnapshot } from "./contract/audit-wiring.ts";
@@ -80,18 +81,29 @@ function buildAuditStatementIfPrecedingWrote(db: Db, entry: AuditEntry, createdA
 
 /**
  * Best-effort audit write. The audit channel must never break the primary channel: log + count + drop.
- * `db` and `createdAt` are injected — no ambient `Date.now()` here.
+ * `db` and `createdAt` are injected — no ambient `Date.now()` here. Its failure lines go to the process
+ * logger; {@link createAuditWiring} binds a root's instead, and item 1271 moves the remaining callers there.
  */
-export async function logAudit(db: Db, entry: AuditEntry, createdAt: number, idSource: IdSource): Promise<void> {
+export function logAudit(db: Db, entry: AuditEntry, createdAt: number, idSource: IdSource): Promise<void> {
+  return writeAudit(db, entry, createdAt, { idSource, log: undefined });
+}
+
+async function writeAudit(
+  db: Db,
+  entry: AuditEntry,
+  createdAt: number,
+  sinks: { readonly idSource: IdSource; readonly log: Logger | undefined },
+): Promise<void> {
   try {
-    await db.insert(auditLogs).values(auditRow(entry, createdAt, idSource));
+    await db.insert(auditLogs).values(auditRow(entry, createdAt, sinks.idSource));
   } catch (err) {
     auditFailureCount += 1;
     firstFailureAt ??= createdAt;
     lastFailureAt = createdAt;
-    getLog().error({ err, action: entry.action, entityType: entry.entityType, entityId: entry.entityId }, "audit: write failed (suppressed)");
+    const log = getLog(sinks.log);
+    log.error({ err, action: entry.action, entityType: entry.entityType, entityId: entry.entityId }, "audit: write failed (suppressed)");
     if (auditFailureCount % ALERT_EVERY === 0) {
-      getLog().warn(
+      log.warn(
         {
           security: true,
           event: "audit_sustained_failure",
@@ -105,11 +117,12 @@ export async function logAudit(db: Db, entry: AuditEntry, createdAt: number, idS
   }
 }
 
-/** Bind audit operations without handing composition an executable co-statement. */
-export function createAuditWiring(handle: DatabaseHandle, idSource: IdSource): AuditWiring {
+/** Bind audit operations without handing composition an executable co-statement; a failed best-effort write
+ *  outside a request logs through the root's `log`. */
+export function createAuditWiring(handle: DatabaseHandle, idSource: IdSource, log: Logger): AuditWiring {
   const db = databaseForOwner(handle);
   return {
-    log: (entry, at) => logAudit(db, entry, at, idSource),
+    log: (entry, at) => writeAudit(db, entry, at, { idSource, log }),
     statement: (entry, at) => statementToken(buildAuditStatement(db, entry, at, idSource)),
     statementAfterWrite: (entry, at) => statementToken(buildAuditStatementIfPrecedingWrote(db, entry, at, idSource)),
   };

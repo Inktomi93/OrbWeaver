@@ -8,6 +8,7 @@
 // request-scoped binding with the unrelated id of whatever request the client is reporting about.
 
 import type { ClientErrorReport } from "@orb/contracts/diagnostics";
+import type { Logger } from "./contract/logging.ts";
 import { getLog } from "./logger.ts";
 
 export type { ClientErrorReport } from "@orb/contracts/diagnostics";
@@ -55,8 +56,8 @@ function scrubRequestId(value: string | undefined): string | undefined {
 
 /** Record a client-reported error into the same log stream + error ring server errors use. Never throws
  *  — an oversized report degrades (truncates) rather than dropping or crashing the caller. */
-export function recordClientError(report: ClientErrorReport): void {
-  getLog().error(
+export function recordClientError(report: ClientErrorReport, base?: Logger): void {
+  getLog(base).error(
     {
       clientError: true,
       url: truncate(pathOnly(report.url)),

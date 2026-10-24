@@ -28,6 +28,7 @@ import process from "node:process";
 import { isAssetHash } from "@orb/kit/assets";
 import type { UserId } from "@orb/kit/ids";
 import { MS_PER_SECOND } from "@orb/kit/time";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import { sha256Hex } from "#primitives/content-hash";
 import type { Cas, PutResult } from "./contract.ts";
@@ -116,7 +117,7 @@ function isDirSyncUnsupported(error: unknown): boolean {
 // bug. Nothing reads it back, so there is nothing for durable state to hold.
 let dirSyncUnsupportedAnnounced = false;
 
-async function fsyncDir(dir: string): Promise<void> {
+async function fsyncDir(dir: string, log: Logger | undefined): Promise<void> {
   try {
     await using handle = await open(dir, "r");
     await handle.sync();
@@ -126,7 +127,7 @@ async function fsyncDir(dir: string): Promise<void> {
     }
     if (!dirSyncUnsupportedAnnounced) {
       dirSyncUnsupportedAnnounced = true;
-      getLog().warn(
+      getLog(log).warn(
         { platform: process.platform, code: (error as NodeJS.ErrnoException).code },
         "cas: this filesystem does not support directory fsync — blob bytes are still fsynced and the publish rename is still atomic, but a crash can lose the directory ENTRY of a just-written blob (logged once per process)",
       );
@@ -134,7 +135,8 @@ async function fsyncDir(dir: string): Promise<void> {
   }
 }
 
-export function createCas(rootDir: string): Cas {
+/** The content-addressed store under `rootDir`; `log` is the root's logger (absent ⇒ the process logger until item 1271 removes it). */
+export function createCas(rootDir: string, log?: Logger): Cas {
   const tmpDir = join(rootDir, TMP_DIRNAME);
 
   function ownerDir(ownerId: string): string {
@@ -195,7 +197,7 @@ export function createCas(rootDir: string): Cas {
     }
     await rename(tmpPath, dest);
     // rename() makes the blob appear atomically, but the parent dir entry isn't durable until fsynced too.
-    await fsyncDir(dirname(dest));
+    await fsyncDir(dirname(dest), log);
   }
 
   return {
