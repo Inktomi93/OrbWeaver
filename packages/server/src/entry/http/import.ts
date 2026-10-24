@@ -16,12 +16,12 @@ import { constants as fsConstants } from "node:fs";
 import { mkdir, open, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { importStartedSchema } from "@orb/contracts/import";
+import { IMPORT_BUNDLE_MAX_BYTES } from "@orb/contracts/uploads";
 import { DomainConflictError } from "@orb/kit/errors";
 import type { Hono } from "hono";
 import { DEFAULT_IMPORT_STAGING_DIR, stagedOwnerRoot } from "#domain/import";
 import type { WorkloadService } from "#domain/workloads";
 import { hasCsrfHeader } from "#infra/auth";
-import { IMPORT_MAX_TOTAL_BYTES } from "../import/index.ts";
 import type { PrincipalEnv } from "./contract/request-env.ts";
 
 const UNAUTHORIZED = 401;
@@ -104,7 +104,7 @@ export function registerImportBundle(app: Hono<PrincipalEnv>, deps: ImportBundle
     await mkdir(stagingRoot, { recursive: true, mode: OWNER_ONLY_DIR });
     const token = `import-bundle-${deps.newOpaqueId()}.zip`;
     const stagedPath = join(stagingRoot, token);
-    const staged = await stageCapped(body, stagedPath, IMPORT_MAX_TOTAL_BYTES);
+    const staged = await stageCapped(body, stagedPath, IMPORT_BUNDLE_MAX_BYTES);
     if (!staged) {
       return c.json({ error: "bundle exceeds the maximum upload size" }, PAYLOAD_TOO_LARGE);
     }

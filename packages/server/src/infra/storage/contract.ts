@@ -1,4 +1,5 @@
 // Storage adapter contracts are server-only injected capabilities, never application wire shapes.
+import type { FileHandle } from "node:fs/promises";
 import type { VariantKind } from "@orb/contracts/assets";
 import type { UserId } from "@orb/kit/ids";
 
@@ -66,6 +67,10 @@ export interface StagedArchive {
   readonly entries: readonly StagedEntry[];
   readonly dispose: () => Promise<void>;
 }
+
+/** An archive `extractZip` accepts: bytes in memory, a stream it buffers under the cap, or an open staged
+ *  file it reads by position under the cap, so a disk-staged backup is never held in memory whole. */
+export type ZipSource = Uint8Array | ReadableStream<Uint8Array> | AsyncIterable<Uint8Array> | FileHandle;
 
 export interface ExtractOptions {
   readonly maxTotalBytes?: number;

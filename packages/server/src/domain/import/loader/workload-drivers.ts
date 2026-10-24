@@ -1,4 +1,4 @@
-import { IMPORT_MAX_DECOMPRESSED_BYTES, IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
+import { IMPORT_BUNDLE_MAX_BYTES, IMPORT_MAX_DECOMPRESSED_BYTES } from "@orb/contracts/uploads";
 import type { BundleImportWorkloadResult } from "@orb/contracts/workloads";
 import { optimizeDb } from "@orb/db";
 import type { DatabaseHandle } from "@orb/db/wiring";
@@ -50,7 +50,7 @@ export function createImportWorkloadDrivers(deps: ImportDriverDeps): ImportWorkl
         const report = await deps.bundle({
           ownerId: args.ownerId,
           archive: args.archive,
-          extractOptions: { maxTotalBytes: IMPORT_MAX_TOTAL_BYTES, maxTotalDecompressedBytes: IMPORT_MAX_DECOMPRESSED_BYTES, stagingRoot: args.stagingRoot },
+          extractOptions: { maxTotalBytes: IMPORT_BUNDLE_MAX_BYTES, maxTotalDecompressedBytes: IMPORT_MAX_DECOMPRESSED_BYTES, stagingRoot: args.stagingRoot },
           signal: args.signal,
         });
         return settleBundle(deps, report, args.ownerId, from);

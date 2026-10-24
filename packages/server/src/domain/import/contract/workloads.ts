@@ -1,5 +1,6 @@
 // Import orchestration runs in the owner; composition supplies the foreign operations and external edges.
 
+import type { FileHandle } from "node:fs/promises";
 import type { CompareAndSetImportedTokenUsage, ImportWindow, ListImportedTokenUsageCandidates } from "@orb/contracts/chat";
 import type { PersonaCollisionChoices } from "@orb/contracts/import";
 import type { BundleImportWorkloadResult, ImportTokenUsageBackfillResult, ReportProgress } from "@orb/contracts/workloads";
@@ -55,8 +56,9 @@ export interface ImportWorkloadDeps extends ImportTokenUsageBackfillDeps {
     signal: AbortSignal;
     personaCollisions: PersonaCollisionChoices | undefined;
   }) => Promise<ImportPassCounts>;
-  /** The single-archive portability import (its own extract belts + caps). */
-  readonly runBundleImport: (args: { archive: Uint8Array; ownerId: UserId; stagingRoot: string; signal: AbortSignal }) => Promise<BundleImportWorkloadResult>;
+  /** The single-archive portability import (its own extract belts + caps). `archive` is the open staged upload,
+   *  read by position and closed by the caller. */
+  readonly runBundleImport: (args: { archive: FileHandle; ownerId: UserId; stagingRoot: string; signal: AbortSignal }) => Promise<BundleImportWorkloadResult>;
   /** The folder-upload variant: a staged directory tree walked through the SAME entity routing. */
   readonly runStagedDirImport: (args: { stagedPath: string; ownerId: UserId; signal: AbortSignal }) => Promise<BundleImportWorkloadResult>;
   /** Rebuild the freshly-imported owner's stats rollups from canon (the post-settle). The same injected op

@@ -11,7 +11,7 @@ import { WORKLOAD_LIST_MAX_LIMIT } from "@orb/contracts/workloads";
 import { formatVersionIdentity } from "@orb/kit/version-identity";
 import { prepareBackupFolder } from "@orb/testkit/node/composed";
 import { budget } from "@orb/tooling/floor/host/load-budget";
-import type { Page, Request, Response } from "@playwright/test";
+import type { Page, Response } from "@playwright/test";
 import { ownerActor } from "./support/actors.ts";
 import { openConfigGroup as openGroup } from "./support/config-flow.ts";
 import { expect, test } from "./support/corpus-test.ts";
@@ -38,25 +38,6 @@ async function toggleAndReload(page: Page, group: ConfigGroupId, label: string):
   await control.click();
   expect((await restored).ok()).toBe(true);
   return checked;
-}
-
-async function assertZipSizeRefusal(page: Page, path: string): Promise<void> {
-  let posted = 0;
-  const record = (request: Request): void => {
-    if (request.method() === "POST" && new URL(request.url()).pathname === BUNDLE_IMPORT_ROUTE) {
-      posted += 1;
-    }
-  };
-  page.on("request", record);
-  try {
-    await page.getByLabel("Import a backup or card file", { exact: true }).setInputFiles(path);
-    const zone = page.locator('[data-slot="file-dropzone"]').filter({ has: page.getByTestId(testId("backupImportDropzone")) });
-    await expect(zone.getByRole("alert")).toContainText(/exceeds the .+ limit$/u);
-    await expect(page.getByRole("group", { name: IMPORT_GROUP_NAME })).toHaveCount(0);
-    expect(posted).toBe(0);
-  } finally {
-    page.off("request", record);
-  }
 }
 
 async function chooseBackup(page: Page, path: string, folder: boolean): Promise<void> {
@@ -267,14 +248,11 @@ test.describe("committed corpus settings", () => {
     // Narrow to this archive, so a small library still fails fast.
     test.setTimeout(budget(BACKUP_CASE_BASE_MS + allowance));
     const settleMs = budget(IMPORT_SETTLE_BASE_MS + allowance);
-    const overZipCap = archiveBytes > caps.importTotal;
+    // The served ZIP cap holds every export this build writes, so the whole library restores through its ZIP.
+    expect(archiveBytes).toBeLessThanOrEqual(caps.importBundle);
     await using folder = await prepareBackupFolder(path, testInfo.outputPath("backup-folder"));
-    if (overZipCap) {
-      await assertZipSizeRefusal(page, path);
-    } else {
-      witness = await restoreBackup(page, host, witness, { path, folder: false, entries: folder.entries, exported, settleMs });
-      await openGroup(page, "backup");
-    }
+    witness = await restoreBackup(page, host, witness, { path, folder: false, entries: folder.entries, exported, settleMs });
+    await openGroup(page, "backup");
     await restoreBackup(page, host, witness, { path: folder.directory, folder: true, entries: folder.entries, exported, settleMs });
   });
 });

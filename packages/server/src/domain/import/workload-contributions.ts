@@ -2,6 +2,7 @@
 // Staged handles resolve beneath the row owner's namespace before reads and cleanup; a handle grants no authority.
 
 import { constants as fsConstants } from "node:fs";
+import type { FileHandle } from "node:fs/promises";
 import { lstat, open, realpath, rm } from "node:fs/promises";
 import { resolve, sep } from "node:path";
 import type { BundleImportWorkloadResult, ImportTokenUsageBackfillResult, MaintenanceResult, ReportProgress } from "@orb/contracts/workloads";
@@ -103,9 +104,10 @@ async function resolveStagedPath(stagingRoot: string, stagedHandle: string): Pro
 }
 
 /**
- * Read a staged FILE without following a link at the final component — O_NOFOLLOW makes the no-symlink half
- * of {@link resolveStagedPath} atomic with the read, closing the window between the check and the open
- * (the same flag the zip stager's own reader carries).
+ * Open a staged FILE without following a link at the final component — O_NOFOLLOW makes the no-symlink half
+ * of {@link resolveStagedPath} atomic with the open, closing the window between the check and the open
+ * (the same flag the zip stager's own reader carries). The caller owns the handle; the extractor reads the
+ * archive through it by position, so a backup is never held in memory whole.
  *
  * `O_NOFOLLOW` is POSIX-only — on a platform where it is not a number (Windows), the flags would silently
  * collapse to plain `O_RDONLY` and this belt's no-symlink half would vanish without a sound. There the open
@@ -116,16 +118,10 @@ async function resolveStagedPath(stagingRoot: string, stagedHandle: string): Pro
  * The seam is typed `number | null`, not `number | undefined` — a default parameter still fires when a
  * caller explicitly passes `undefined`, so `null` is the only value that reliably overrides the default.
  */
-async function readStagedFile(path: string, noFollowFlag: number | null = fsConstants.O_NOFOLLOW): Promise<Uint8Array> {
+async function openStagedFile(path: string, noFollowFlag: number | null = fsConstants.O_NOFOLLOW): Promise<FileHandle> {
   if (typeof noFollowFlag === "number") {
     // biome-ignore lint/suspicious/noBitwiseOperators: OR-ing POSIX open() flag bits is the intended API (the zip + tree staging writers carry the same exemption).
-    const handle = await open(path, fsConstants.O_RDONLY | noFollowFlag);
-    try {
-      const data = await handle.readFile();
-      return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
-    } finally {
-      await handle.close();
-    }
+    return await open(path, fsConstants.O_RDONLY | noFollowFlag);
   }
   const handle = await open(path, fsConstants.O_RDONLY);
   try {
@@ -133,11 +129,20 @@ async function readStagedFile(path: string, noFollowFlag: number | null = fsCons
     if (handleStat.dev !== pathStat.dev || handleStat.ino !== pathStat.ino) {
       throw new DomainOperationError("staged_path_escape", `staged handle names a symlink: ${path}`);
     }
-    const data = await handle.readFile();
-    return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
-  } finally {
+    return handle;
+  } catch (err) {
     await handle.close();
+    throw err;
   }
+}
+
+/** Import one staged backup ZIP through its open handle, closing the handle whatever the outcome. */
+async function importStagedZip(
+  runBundleImport: ImportWorkloadDeps["runBundleImport"],
+  args: { readonly stagedPath: string; readonly ownerId: UserId; readonly stagingRoot: string; readonly signal: AbortSignal },
+): Promise<BundleImportWorkloadResult> {
+  await using archive = await openStagedFile(args.stagedPath);
+  return await runBundleImport({ archive, ownerId: args.ownerId, stagingRoot: args.stagingRoot, signal: args.signal });
 }
 
 /**
@@ -253,7 +258,7 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
           const report_ =
             params.source === "dir"
               ? await deps.runStagedDirImport({ stagedPath, ownerId: targetOwnerId, signal })
-              : await deps.runBundleImport({ archive: await readStagedFile(stagedPath), ownerId: targetOwnerId, stagingRoot: ownerRoot, signal });
+              : await importStagedZip(deps.runBundleImport, { stagedPath, ownerId: targetOwnerId, stagingRoot: ownerRoot, signal });
           // #23: a background bundle/tree import that wrote canon refreshes the owner's character + chat lists
           // (the client's own completion invalidation only fires while the import UI stayed mounted).
           if (report_.imported > 0) {
