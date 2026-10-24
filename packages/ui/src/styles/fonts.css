@@ -1,27 +1,9 @@
 /* @orb/ui region: the self-hosted Geist faces. Imported by globals.css inside its layer. */
 @layer ui {
-  /* THE APP FACE: Geist + Geist Mono, self-hosted (owner ruling). CSS is the mechanism here: a face can only be
-   * registered with @font-face, and this is @orb/ui's universal-mechanism tier.
-  * The family NAMES below are the literal heads of the font.sans / font.mono token stacks (theme.css:
-   * `--font-sans: Geist, ...` / `--font-mono: 'Geist Mono', ...`). Spell a name differently here and the cascade
-   * silently falls back to ui-sans-serif.
-  * The faces are ui-owned design-system property, homed beside the tokens that declare them, and reach the client
-   * only through the one ordered CSS front door (client-architecture-lockdown.md §4.5). Assets are the SIL OFL
-   * 1.1 Geist releases as subset by fontsource; ../fonts/OFL-1.1.txt is the license that must travel with them.
-   * They are VENDORED rather than depended on: those packages publish the faces as `Geist Variable` / `Geist Mono
-   * Variable`, which no token names, and vendoring keeps an offline homelab install clean. The .woff2 files live
-   * at src/fonts/, not beside this file: a subdirectory under styles/ would promote styles/ from a CSS-only leaf
-   * to an exportable family owing an index.ts front door.
-  * ONE variable file per (family, style, subset) spans weight 100-900, so every weight the app asks for is a real
-   * cut, never a synthesised bolding. Italic is likewise a REAL cut, not a shear: markdown emphasis is this app's
-   * narration voice, tracker `thoughts` render italic, and shiki italicises code comments.
-  * EVERY subset the upstream face covers is registered (owner ruling), not just latin: Geist ships cyrillic ·
-   * cyrillic-ext · latin · latin-ext · vietnamese, and Geist Mono adds symbols2 (the box-drawing/arrow block a
-   * code fence full of `tree` output paints). Neither face covers greek or any other script; inventing a
-   * @font-face for a subset the font lacks would only promise glyphs it cannot draw. Breadth is close to free
-   * because `unicode-range` makes a subset declared-but-dormant: the browser fetches a file only when a glyph
-   * inside its range paints, so a Cyrillic name mid-sentence stops silently dropping to the fallback face, which
-   * no check we own can see. */
+  /* Geist and Geist Mono, vendored under the SIL Open Font License, whose text travels with the files in `../fonts/`. The family
+   * names are the heads of the `font.sans` and `font.mono` token stacks; a different spelling falls back silently.
+   * One variable file per family, style and subset spans weight 100-900 and italic is a real cut; every subset the
+   * upstream face ships is registered, and `unicode-range` keeps a subset dormant until one of its glyphs paints. */
 
   @font-face {
     font-family: "Geist";

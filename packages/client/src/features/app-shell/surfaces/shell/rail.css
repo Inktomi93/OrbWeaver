@@ -1,9 +1,7 @@
 /* shell.css region: the rail column and its brand, group, button and widget cells. The index imports the regions in cascade order; a rule's winner across regions is
  * decided there, so a rule moves between regions only with its source position. */
 @layer shell {
-  /* Rail — ONE component, ONE flat DOM list. This is the desktop icon column; the @media below reflows the
-   * SAME DOM into the mobile bottom tab bar (no twin blocks). The flex-column layout lives on .shell-rail
-   * itself now (the old .shell-rail-desktop wrapper is gone). */
+  /* One flat DOM list: the desktop icon column, which mobile.css reflows into the bottom tab bar. */
   .shell-rail {
     grid-column: 1;
     grid-row: 1;
@@ -16,14 +14,11 @@
     flex-direction: column;
     align-items: center;
     gap: var(--spacing-row);
-    /* No top padding: the brand cell is the rail's chrome-row header and must sit flush at y=0 so its
-     * bottom hairline lands on the SAME baseline as the list/topbar/context headers (P1, D66). */
+    /* No top padding: the brand cell sits flush at the top so its hairline shares the chrome-row baseline (D66). */
     padding-block-start: 0;
     padding-block-end: var(--spacing-block);
   }
-  /* The brand is the rail's chrome-row header — a full-width chrome-row cell with the shared bottom hairline,
-   * on the one shared horizon. align-self:stretch overrides the rail's align-items:center so the hairline spans
-   * the whole rail width. */
+  /* The brand cell is the rail's chrome-row header; `align-self: stretch` lets its hairline span the rail. */
   .shell-rail-brand {
     display: flex;
     align-self: stretch;
@@ -34,11 +29,8 @@
     border-block-end: var(--border-width-control) solid var(--color-sidebar-border);
     color: var(--color-muted-foreground);
   }
-  /* When a section claims the `rail.brand` zone (home), the brand cell IS that section's rail button: the same
-   * element, so the brand chrome-row geometry still applies and the active tint spans the full cell. It carries
-   * the nav zone's state grammar: muted at rest, ember + tint when active (the accent bar replaces the nav's
-   * glow/gradient pair, which reads too heavy at chrome-row height). The icon colour is what makes the state
-   * legible; an always-ember glyph leaves the active state with no delta. */
+  /* A section that claims the `rail.brand` zone makes the brand cell its rail button: muted at rest, tinted when
+   * active, with an accent bar instead of the nav's glow and ring, which read too heavy at chrome-row height. */
   .shell-rail-brand-button {
     position: relative;
     border-radius: 0;
@@ -57,7 +49,7 @@
     position: absolute;
     inset-block: var(--spacing-field);
     inset-inline-start: 0;
-    /* A 2px accent bar — the hairline-plus rule, same species as the .shell-topbar-divider's 1px. */
+    /* The accent bar is the hairline-plus width, the same species as the topbar divider. */
     inline-size: var(--border-width-accent);
     border-start-end-radius: var(--border-width-accent);
     border-end-end-radius: var(--border-width-accent);
@@ -81,9 +73,7 @@
     align-items: center;
     gap: var(--spacing-row);
   }
-  /* A live rail widget (the persona identity) — the old route-injected `.shell-rail-avatar` slot, now a
-   * registered `rail.end` chrome entry (§E-6). The extra top margin keeps the identity set apart from the
-   * footer-modal buttons above it, as the rail-foot avatar was. */
+  /* The persona identity widget, a registered `rail.end` entry; the margin sets it apart from the buttons above. */
   .shell-rail-widget {
     margin-block-start: var(--spacing-row);
   }
@@ -104,7 +94,7 @@
     color: var(--color-primary);
     position: relative;
   }
-  /* Painted on a ::before layer, not box-shadow directly — the Button's focus ring is also a box-shadow utility and would be overwritten. */
+  /* On a `::before` layer: the Button's focus ring is also a box-shadow and would overwrite a direct one. */
   .shell-rail .shell-rail-button[data-active]::before {
     content: "";
     position: absolute;
@@ -123,8 +113,7 @@
     border-radius: inherit;
   }
 
-  /* The button's label rides under the icon on the mobile bar; on the desktop icon column the tooltip
-   * carries it, so it's hidden here (but stays the accessible name via the button's aria-label). */
+  /* On the desktop column the tooltip carries the label; it stays the accessible name through `aria-label`. */
   .shell-rail-button-label {
     line-height: var(--leading-none);
     display: none;

@@ -1,26 +1,20 @@
 /* @orb/ui region: the reduced-motion floor, the last layer: it removes transitions and animations under either arm of the motion-reduce variant. Imported by globals.css inside its layer. */
 @layer motion {
-  /* The reduced-motion floor, in the last cascade layer: `!important` so it beats an inline style.
-  * TRANSITIONS ARE REMOVED, NOT SHORTENED (motion guide §3.9), and that spelling matters for performance, not
-   * only doctrine. A duration floor on `*` with `transition-property` left at its initial `all` turns every
-   * element into "transition: all 0.01ms", so every freshly inserted node fires a bogus transition for
-   * `scrollbar-color` (the one inherited property whose :root value differs from its initial on a new node; see
-   * the scrollbar block below). With the property list set to `none` nothing fires, and a duration clamp beside
-   * it would only re-document a dead property.
-  * The cost: `transitionend` never fires under reduced motion. Base UI waits on
-   * `getAnimations()`/`animation.finished` (zero animations resolves immediately, so panels and popups still
-   * unmount), and `WeaveVeil` takes its instant path without listening at all. */
+  /* The reduced-motion floor: `!important` so it beats an inline style. Transitions are removed, not shortened
+   * (motion guide §3.9): a duration floor with `transition-property` left at `all` makes every inserted node fire a
+   * transition for the inherited `scrollbar-color`. `transitionend` therefore never fires under reduced motion;
+   * Base UI waits on `getAnimations()`, which resolves at once, and `WeaveVeil` takes its instant path. */
   @variant motion-reduce {
     *,
     *::before,
     *::after {
-      /* biome-ignore lint/complexity/noImportantStyles: reduced-motion override MUST beat inline styles and high-specificity rules — removing !important silently ignores the user's a11y preference */
+      /* biome-ignore lint/complexity/noImportantStyles: the floor must beat inline styles */
       animation-duration: 0.01ms !important;
-      /* biome-ignore lint/complexity/noImportantStyles: same floor — a suppression covers only the line beneath it, so each declaration in the block carries its own */
+      /* biome-ignore lint/complexity/noImportantStyles: same floor */
       animation-iteration-count: 1 !important;
-      /* biome-ignore lint/complexity/noImportantStyles: same floor — the a11y override must beat inline styles and high-specificity rules */
+      /* biome-ignore lint/complexity/noImportantStyles: same floor */
       transition-property: none !important;
-      /* biome-ignore lint/complexity/noImportantStyles: same floor — the a11y override must beat inline styles and high-specificity rules */
+      /* biome-ignore lint/complexity/noImportantStyles: same floor */
       scroll-behavior: auto !important;
     }
   }

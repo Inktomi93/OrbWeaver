@@ -1,8 +1,6 @@
 /* @orb/ui region: the WebWeave and WebSpinner glow and keyframes. Imported by globals.css inside its layer. */
 @layer ui {
-  /* The web's ambient accent glow, centered on the hub. The component positions it via the two custom
-   * props (a radial-gradient over color-mix'd tokens has no utility spelling, so it lives here — the
-   * `.orb-weave-shimmer` precedent). */
+  /* The web's ambient accent glow, centred on the hub the component positions through the two custom properties. */
   .orb-weave-glow {
     background: radial-gradient(
       circle at var(--orb-weave-hub-x, 50%) var(--orb-weave-hub-y, 42%),
@@ -11,18 +9,10 @@
     );
   }
 
-  /* WebSpinner: the loader IS a web being WOVEN. The spiral draws out from
-   * the hub, holds a beat, then pays out — looping — while the spokes breathe and the whole glyph turns
-   * slowly. Gated on `data-animate` (JS-removed under reduced motion — guide §3.9 REMOVE, so the
-   * resting glyph is SOLID and fully drawn: the dash pattern only exists while the weave runs). The
-   * `orb-web-pulse`/`orb-web-spokes` classes are stamped by the icon seal's orb-web.ts — string-paired
-   * by name, grep both when renaming. The dash metrics ride custom props set by the component (the
-   * period is the spiral's measured arc length — see spinner.tsx).
-   *
-   * PAY-OUT DIRECTION: the loop ends at +L, not −L. With `dasharray: L`, running the offset 0 → +L hides
-   * the spiral from the HUB end outward, so the drawn silk travels away and off the rim — silk being paid
-   * out. 0 → −L would retract it back toward the hub instead (a rewind). The handoff spec's parenthetical
-   * says −L; its own browser-verified reference uses +L, and +L is what produces the word it uses. */
+  /* The web spinner weaves: the spiral draws out from the hub, holds, then pays out while the spokes breathe and
+   * the glyph turns. `data-animate` is removed under reduced motion, so the resting glyph is fully drawn. The
+   * `orb-web-pulse` and `orb-web-spokes` classes are stamped by the icon seal's orb-web.ts; the spiral length is
+   * the custom property spinner.tsx writes. The loop ends at +L so the silk pays out off the rim; -L rewinds it. */
   @keyframes orb-web-spin {
     to {
       rotate: 360deg;
