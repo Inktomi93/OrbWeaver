@@ -878,6 +878,14 @@ const SERVER_AUTHORITY = [
     to: { path: `${DB}client/wiring-boot\\.ts$` },
   },
   {
+    name: "query-wiring-capabilities-inside-db",
+    comment:
+      "The capability module also exports the boot mint, so code outside packages/db enters it only through the db doors, by any specifier or import() (D335).",
+    severity: "error",
+    from: { pathNot: DB },
+    to: { path: `${DB}client/wiring-capabilities\\.ts$` },
+  },
+  {
     name: "query-wiring-contract-is-type-only",
     comment: "The inert wiring contract cannot publish executable owner conversions.",
     severity: "error",
