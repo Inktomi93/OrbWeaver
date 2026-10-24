@@ -50,6 +50,7 @@ import type { ParticipantData } from "../contract/views.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { buildInitialParticipantRows } from "../persistence/participants-read.ts";
 import { loadChatRow } from "../persistence/queries.ts";
+import { assertSeatableCharacters } from "../persistence/seat-characters.ts";
 import { NO_HISTORY_FLOOR } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { buildGreetingSeed } from "../substrate/greeting-seed.ts";
@@ -95,8 +96,9 @@ function greetTargets(policy: OpeningPolicy, characterIds: readonly CharacterId[
 }
 
 /** Validate every founding character is a host-readable (owner-scoped) card before any roster row exists.
- *  A foreign/unknown id is a not-found (owner-scoped read makes foreign == missing, leak-free). */
+ *  A foreign, unknown or synthetic id is a not-found (owner-scoped read makes foreign == missing, leak-free). */
 async function requireFoundingCharacters(ctx: ChatContext, hostUserId: UserId, characterIds: readonly CharacterId[]): Promise<void> {
+  await assertSeatableCharacters(ctx.db, hostUserId, characterIds);
   const cards = await Promise.all(
     characterIds.map(async (characterId) => ({
       characterId,

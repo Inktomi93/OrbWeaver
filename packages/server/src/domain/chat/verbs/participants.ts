@@ -85,6 +85,7 @@ import {
 } from "../persistence/participant.ts";
 import { captureParticipantRow, characterEverSeatedInChat, characterSeatedInAnotherChat, loadParticipants } from "../persistence/participants-read.ts";
 import { loadHasUserMessage, loadMaxMessageSeq } from "../persistence/queries.ts";
+import { assertSeatableCharacters } from "../persistence/seat-characters.ts";
 import { buildGreetingSeed } from "../substrate/greeting-seed.ts";
 import { previewHandoffCopyPlan, resolveHandoffCopyPlan } from "../substrate/handoff-copy.ts";
 import { viewerHoldsHost } from "../substrate/member-visibility.ts";
@@ -720,8 +721,9 @@ function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent, claimCh
   return async ({ principal, chatId, characterId }: AddCharacterToChatParams) => {
     const { chat } = await requireHost(ctx, principal, chatId);
     await claimChat(chatId);
-    // The character must be the host's (owner-scoped read — foreign == missing, leak-free). A roster
-    // character is always host-owned, keeping the stats rebuild's ownerId attribution consistent.
+    // The character must be the host's own card (owner-scoped read — foreign or synthetic == missing, leak-free).
+    // A roster character is always host-owned, keeping the stats rebuild's ownerId attribution consistent.
+    await assertSeatableCharacters(ctx.db, principal.userId, [characterId]);
     const card = await ctx.getCard({ ownerId: principal.userId, characterId });
     if (card === null) {
       throw new DomainNotFoundError("character", characterId);
