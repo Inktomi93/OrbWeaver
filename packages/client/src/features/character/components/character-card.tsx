@@ -238,6 +238,9 @@ function NormalRowActions({
     delete: null,
   };
 
+  // One name for both states: `aria-pressed` carries on/off, so a flipping name would announce the state twice.
+  const starName = `Star ${subject}`;
+
   return (
     <>
       {/* D11, in its MARKER form (`rest="never"`): the toggle is always reveal-gated because the title-line
@@ -256,8 +259,8 @@ function NormalRowActions({
       <Row align="center" className={ROW_ACTION_INLINE}>
         <RowToggleAction
           icon={Star}
-          labelOff={`Star ${subject}`}
-          labelOn={`Unstar ${subject}`}
+          labelOff={starName}
+          labelOn={starName}
           onToggle={(): void => onToggleStar(character.id, !character.starred)}
           pressed={character.starred}
           pressedClassName="text-warning"

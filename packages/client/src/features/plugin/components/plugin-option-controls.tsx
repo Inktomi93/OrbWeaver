@@ -45,7 +45,7 @@ export function BoundSelect({
     return (
       <QueryBoundary
         fallback={<SkeletonRows count={1} shape="line" />}
-        renderError={(_error, retry): ReactElement => <QueryErrorState label="your lore books" onRetry={retry} />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="your world books" onRetry={retry} />}
         reserveKey="plugin.lore-picker"
       >
         <HostPicker node={node} setValue={setValue} submit={submit} values={values} />

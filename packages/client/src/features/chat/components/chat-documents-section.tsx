@@ -264,6 +264,8 @@ function ActiveDocumentRow({ document, isHost, onSetHidden, onDetach }: ActiveDo
   // `hidden` is only ever true in a HOST's payload (the verb filters a member's), so the muted skin and the
   // spoken "Hidden" chip are host-only by construction rather than by a second permission test.
   const visible = !document.hidden;
+  // One name for both states; `aria-pressed` carries whether the document feeds the chat.
+  const feedName = `Feed ${document.name} to this chat`;
 
   return (
     <ListRow
@@ -278,8 +280,8 @@ function ActiveDocumentRow({ document, isHost, onSetHidden, onDetach }: ActiveDo
                   // without a pressed tint. `rest="always"`: retrieval state is exactly what the eye
                   // scans this rack for, so it must not be hover-revealed.
                   icon={visible ? Eye : EyeOff}
-                  labelOff={`Let ${document.name} feed this chat again`}
-                  labelOn={`Stop ${document.name} feeding this chat`}
+                  labelOff={feedName}
+                  labelOn={feedName}
                   onToggle={(): void => onSetHidden(visible)}
                   pressed={visible}
                   rest="always"

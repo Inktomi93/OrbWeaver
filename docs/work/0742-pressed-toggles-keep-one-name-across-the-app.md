@@ -22,4 +22,6 @@ Each pressed-style toggle keeps one constant name and carries its state in aria-
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The three callers now pass one constant name as both `labelOn` and `labelOff` (the Databank row pattern, `databank-library-row.tsx`): `character-card.tsx` "Star <subject>", `chat-summary-row.tsx` "Star <row name>", `chat-documents-section.tsx` "Feed <document> to this chat". `aria-pressed` carries the state. The kebab menu items keep their Star/Unstar text; they are menu items, not pressed toggles.
+
+CTs are not written. The Databank row has no CT to copy, and none of the three components is on a front door (`export {}` in the feature indexes; `client-feature-front-door` in `.dependency-cruiser.ts`), so a CT needs a full composition mount with many routed reads. Needs an owner decision on how to mount them.
