@@ -275,7 +275,7 @@ test("drift skips a Closes trailer whose id named a different item at the closin
   expect(drift(root)).toEqual([unlanded(git(root, "rev-parse", "HEAD"))]);
 });
 
-test("drift keeps a close when no file for the id exists at the closer's parent or in its tree", async ({ plantedTree }) => {
+test("drift keeps a close whose own tree holds the current item file", async ({ plantedTree }) => {
   const item = { title: "A", kind: "work", priority: null, area: null, plan: null, lane: null } as const;
   const closes = "fix(x): closes a\n\nCloses: 1";
 
@@ -303,17 +303,58 @@ test("drift keeps a close when no file for the id exists at the closer's parent 
   commitAll(merged, "feat(x): main moves");
   git(merged, "-c", "core.hooksPath=/dev/null", "merge", "-q", "--no-ff", "lane", "-m", closes);
   expect(drift(merged)).toEqual([unlanded(git(merged, "rev-parse", "HEAD"))]);
+});
 
-  // A lane that branched before the item was filed on main: the trailer predates the item.
-  const late = await repo(plantedTree);
-  git(late, "checkout", "-qb", "lane");
-  writeFileSync(join(late, "lane.txt"), "lane\n");
-  const closer = commitAll(late, closes);
-  git(late, "checkout", "-q", "main");
-  newItem(item, late, TODAY);
-  commitAll(late, "chore(work): file on main");
-  git(late, "-c", "core.hooksPath=/dev/null", "merge", "-q", "--no-ff", "lane", "-m", "Merge lane");
-  expect(drift(late)).toEqual([unlanded(closer)]);
+// A trailer is bound to the item file in the closing commit's own tree. The tree is the only identity the
+// repository records (`NNNN-slug.md`), so a trailer whose tree holds no file for the id names nothing.
+const STALE_ITEM = { title: "A", kind: "work", priority: null, area: null, plan: null, lane: null } as const;
+
+function staleTrailerRepo(root: string): string {
+  git(root, "checkout", "-qb", "lane");
+  writeFileSync(join(root, "lane.txt"), "lane\n");
+  const closer = commitAll(root, "fix(x): closes something else\n\nCloses: 1\nCo-Authored-By: t <t@example.invalid>");
+  git(root, "checkout", "-q", "main");
+  newItem(STALE_ITEM, root, TODAY);
+  commitAll(root, "chore(work): file a later item that reuses the id");
+  git(root, "-c", "core.hooksPath=/dev/null", "merge", "-q", "--no-ff", "lane", "-m", "Merge lane");
+  return closer;
+}
+
+test("drift does not bind a trailer whose commit holds no file for the id to a later item with that id", async ({ plantedTree }) => {
+  const root = await repo(plantedTree);
+  staleTrailerRepo(root);
+  expect(drift(root)).toEqual([]);
+});
+
+test("land --merged refuses a trailer whose commit holds no file for the id, writes nothing, and a manual land still works", async ({ plantedTree }) => {
+  const root = await repo(plantedTree);
+  const closer = staleTrailerRepo(root);
+  const before = git(root, "rev-parse", "HEAD");
+  const outcome = landMerged(root, TODAY);
+  expect(outcome.written).toEqual([]);
+  expect(outcome.refusals).toHaveLength(1);
+  expect(outcome.refusals[0]).toContain(`1: commit ${closer.slice(0, 12)}`);
+  expect(existsSync(join(root, "docs/work/0001-a.md"))).toBe(true);
+  expect(git(root, "rev-parse", "HEAD")).toBe(before);
+  expect(landItems([1], before, root, TODAY).refusals).toEqual([]);
+  expect(existsSync(join(root, "docs/work/0001-a.md"))).toBe(false);
+});
+
+test("land --merged refuses a trailer whose commit held the id under a different slug than today's file", async ({ plantedTree }) => {
+  const root = await repo(plantedTree);
+  newItem({ ...STALE_ITEM, title: "Gallery" }, root, TODAY);
+  commitAll(root, "chore(work): items");
+  git(root, "checkout", "-qb", "lane");
+  writeFileSync(join(root, "lane.txt"), "lane\n");
+  commitAll(root, "fix(x): closes the gallery\n\nCloses: 1\nCo-Authored-By: t <t@example.invalid>");
+  git(root, "checkout", "-q", "main");
+  git(root, "mv", "docs/work/0001-gallery.md", "docs/work/0001-plugin-frame-assets.md");
+  commitAll(root, "chore(work): renumber");
+  git(root, "-c", "core.hooksPath=/dev/null", "merge", "-q", "--no-ff", "lane", "-m", "Merge lane");
+  const outcome = landMerged(root, TODAY);
+  expect(outcome.written).toEqual([]);
+  expect(outcome.refusals).toHaveLength(1);
+  expect(existsSync(join(root, "docs/work/0001-plugin-frame-assets.md"))).toBe(true);
 });
 
 // The two deep-history drift cases pay for 205 filler commits, one git process each. MEASURED alone: 20.4 s and

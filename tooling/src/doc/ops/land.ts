@@ -13,6 +13,7 @@ import { closesTrailer } from "../lib/drift.ts";
 import { sectionText, splitDocument, withFields } from "../lib/frontmatter-write.ts";
 import type { LandingRecord } from "../lib/items.ts";
 import { landingMessage, parseBlocker } from "../lib/items.ts";
+import { basenameOf } from "../lib/names.ts";
 import { PARKED } from "../lib/rules.ts";
 import { loadPlans } from "./board.ts";
 import { introducedDocProblems } from "./check.ts";
@@ -20,7 +21,20 @@ import { regenerateIndexes } from "./indexes.ts";
 import type { WriteOutcome } from "./items.ts";
 import { loadItems } from "./items.ts";
 import { textCiters } from "./remove.ts";
-import { commitOnMain, commitPaths, formattedDoc, headCommit, isMainBranch, landedCommit, mergedCommits, readDoc, root, today, writeDoc } from "./tree.ts";
+import {
+  commitOnMain,
+  commitPaths,
+  formattedDoc,
+  headCommit,
+  isMainBranch,
+  landedCommit,
+  mergedCommits,
+  readDoc,
+  root,
+  today,
+  workFileNamesAt,
+  writeDoc,
+} from "./tree.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm doc land <id…> --evidence <sha>");
 
@@ -117,6 +131,38 @@ export function landItems(ids: readonly number[], evidence: string, repoRoot = r
   return { written, refusals: [], skipped };
 }
 
+/** The refusals for ids whose every closing commit's own tree lacks today's file for the id. */
+function staleTrailers(
+  commits: readonly { readonly sha: string; readonly message: string }[],
+  byId: ReadonlyMap<number, WorkItem>,
+  head: string,
+  repoRoot: string,
+): readonly string[] {
+  const bound = new Set<number>();
+  const stale = new Map<number, string>();
+  for (const commit of commits) {
+    const closed = closesTrailer(commit.message).flatMap((id) => {
+      const item = byId.get(id);
+      return item === undefined ? [] : [{ id, name: basenameOf(item.path) }];
+    });
+    if (closed.length === 0) {
+      continue;
+    }
+    const names = workFileNamesAt(commit.sha, repoRoot);
+    for (const { id, name } of closed) {
+      if (names.includes(name)) {
+        bound.add(id);
+      } else if (!stale.has(id)) {
+        stale.set(
+          id,
+          `${String(id)}: commit ${commit.sha.slice(0, SHORT_SHA)} closes it but its tree holds no ${name} — the trailer names another item; if it is right, pnpm doc land ${String(id)} --evidence ${head}`,
+        );
+      }
+    }
+  }
+  return [...stale].filter(([id]) => !bound.has(id)).map(([, refusal]) => refusal);
+}
+
 /** The post-merge (and post-commit) door. On `main`, read the `Closes:` trailers of the commits the merge
  *  brought in and land those ids with the merge commit as evidence. Anywhere else, or with no trailer, it
  *  does nothing and says nothing. `headMerge` picks the range by which hook fired it, never by HEAD's
@@ -125,17 +171,20 @@ export function landItems(ids: readonly number[], evidence: string, repoRoot = r
  *  already a merge commit still fires post-merge, and reading `HEAD^1..HEAD` there would drop every id on
  *  the first-parent side. ALL-OR-NOTHING: an id that is neither on the tree nor landed in git refuses the
  *  whole trailer set before any write, and the refusal names the by-hand landing for the ids that do
- *  exist. */
+ *  exist. A trailer binds to an item only when its commit's own tree holds today's file for the id; a
+ *  trailer whose tree holds none, or another slug, refuses the set the same way (the id was reused). */
 export function landMerged(repoRoot = root, date = today(), headMerge = false): LandOutcome {
   if (!isMainBranch(repoRoot)) {
     return { written: [], refusals: [], skipped: [] };
   }
-  const ids = [...new Set(mergedCommits(repoRoot, headMerge).flatMap((commit) => closesTrailer(commit.message)))];
+  const commits = mergedCommits(repoRoot, headMerge);
+  const ids = [...new Set(commits.flatMap((commit) => closesTrailer(commit.message)))];
   const head = headCommit(repoRoot);
   if (ids.length === 0 || head === null) {
     return { written: [], refusals: [], skipped: [] };
   }
-  const onTree = new Set(loadItems(repoRoot).map((item) => item.id));
+  const byId = new Map(loadItems(repoRoot).map((item) => [item.id, item] as const));
+  const onTree = new Set(byId.keys());
   const unknown = ids.filter((id) => !onTree.has(id) && landedCommit(id, repoRoot) === null);
   if (unknown.length > 0) {
     const byHand = ids.filter((id) => onTree.has(id));
@@ -147,6 +196,10 @@ export function landMerged(repoRoot = root, date = today(), headMerge = false): 
       ),
       skipped: [],
     };
+  }
+  const refusals = staleTrailers(commits, byId, head, repoRoot);
+  if (refusals.length > 0) {
+    return { written: [], refusals, skipped: [] };
   }
   return landItems(ids, head, repoRoot, date);
 }
