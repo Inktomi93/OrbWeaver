@@ -8,7 +8,7 @@ import { createIdSource } from "@orb/kit/ids";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { createCas } from "@orb/server/infra/storage/cas";
 import { createSeededIds } from "@orb/testkit/iso";
-import { SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
+import { createTestLogger, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
 import { seedUser } from "@orb/testkit/node/rows";
 import { expect, test } from "@orb/testkit/tooling";
 import { z } from "zod";
@@ -43,7 +43,7 @@ async function olderSource(
     await runMigrations(source, migrations);
     const user = await seedUser(source, { role: "owner", passwordHash: "opaque-source-bound-password-hash" }, createIdSource(createSeededIds().next));
     const bytes = Buffer.from("existing synthetic asset bytes");
-    const asset = await createCas(layout.assets).putBytes(user.id, bytes, user.createdAt);
+    const asset = await createCas(layout.assets, createTestLogger()).putBytes(user.id, bytes, user.createdAt);
     expect(await hasPendingMigrations(source, SHIPPED_MIGRATIONS)).toBe(true);
     return { layout, user, bytes, asset };
   } finally {
@@ -68,7 +68,7 @@ test("a supported older source is migrated before current-schema scrubbing while
       { id: source.user.id, handle: source.user.handle, role: source.user.role, passwordHash: null },
     ]);
     expect(native.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
-    expect(Buffer.from(await createCas(target.assets).read(source.user.id, source.asset.hash)).equals(source.bytes)).toBe(true);
+    expect(Buffer.from(await createCas(target.assets, createTestLogger()).read(source.user.id, source.asset.hash)).equals(source.bytes)).toBe(true);
   } finally {
     await preCloseHousekeeping(clone);
   }

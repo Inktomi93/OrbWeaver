@@ -28,7 +28,8 @@
 // shape is re-filled — `skeleton-row-metrics.ts` inverts exactly that arm's pitch (its own header rules
 // `datum` out; `avatar-row`'s pitch is content-determined) — other shapes/fallbacks reserve unfilled.
 // The `data-tile-reserved`/`data-tile-reserve-source` attributes are the pinned vocabulary (#837
-// sentinel tier) shared with every consumer, home-born name and all.
+// sentinel tier) shared with every consumer, home-born name and all. `data-reserve-key` names which
+// surface a reserved box belongs to, for a test that holds several boundaries at once.
 
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -303,6 +304,7 @@ function ReservedFallback({
   }
   return (
     <Stack
+      data-reserve-key={reserveKey}
       data-tile-reserved={Math.round(box)}
       // WHICH source held the box open: "this device MEASURED it" is a different claim from "the mount
       // declared a constant" — a first-boot assertion reading only `data-tile-reserved` would silently

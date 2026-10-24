@@ -16,7 +16,7 @@
 // is its own contribution now (`home-also-open-tile.tsx`), off the SAME query key, so the frame gives it
 // the same h2 + named region every other block gets and the outline is flat. This body is the HERO alone.
 //
-// It ASKS FOR WHAT IT NEEDS (2026-08-09): `limit: RECENTS_LIMIT` rather than the whole membership list
+// It ASKS FOR WHAT IT NEEDS (2026-08-09): `limit: HOME_RECENT_CHATS_LIMIT` rather than the whole membership list
 // sliced to eight. `listChats` is keyset-paged and newest-CONVERSATION-first (#150 — it orders on the clock
 // these rows display, `lastMessageAt ?? updatedAt`), so the first eight rows of page one
 // ARE the eight recents — the tile used to pull every chat the user has (872 after a SillyTavern import) to
@@ -29,6 +29,7 @@
 // rail to chats (`#state` module actions — §12's sanctioned channel; home never wires this).
 
 import { blobUrl } from "@orb/contracts/assets";
+import { HOME_RECENT_CHATS_LIMIT } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -43,17 +44,13 @@ import { splitHearth } from "../lib/home-hearth.ts";
 import { RECENTS_EMPTY_BLOCK_PX } from "../lib/home-recents-reservation.ts";
 import { HomeHearthRoom } from "./home-hearth-room.tsx";
 
-/** How many recents this tile shows — AND, through the contribution's `skeletonRows`, how many rows its
- *  first-boot skeleton reserves (#92). Exported so the reservation cannot drift from the read. */
-export const RECENTS_LIMIT = 8;
-
 function openRecent(chatId: ChatId): void {
   resumeChat(chatId);
 }
 
 export function HomeRecentsTileBody(): ReactElement {
   const trpc = useTRPC();
-  const { data: page } = useSuspenseQuery(trpc.chat.listChats.queryOptions({ limit: RECENTS_LIMIT }));
+  const { data: page } = useSuspenseQuery(trpc.chat.listChats.queryOptions({ limit: HOME_RECENT_CHATS_LIMIT }));
   // THE DOOR WARMS THE ROOM'S ROSTER (#1126, side-eye HOME H13). "Resume" is this surface's one focal
   // action and it used to enter a room whose roster read was cold, so the character strip appeared only
   // after the transcript had painted and pushed it down 52px. The hook warms `chat.getChat` and nothing

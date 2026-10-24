@@ -16,6 +16,7 @@ import { captureCorpusCookieIdentity } from "./corpus-auth.ts";
 import { captureCookieAuth } from "./corpus-seed.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
+import { createTestLogger } from "./test-logger.ts";
 
 const PASSWORD = "native-shared-member-login-password";
 
@@ -27,7 +28,7 @@ test("committed media uses native cookie ownership, exact CAS bytes and native v
   if (hash === undefined || hash === null || reader === undefined) {
     throw new Error("The committed corpus has no native media ownership cohort");
   }
-  const bytes = Buffer.from(await createCas(source.layout.assets).read(root.ownerId, hash));
+  const bytes = Buffer.from(await createCas(source.layout.assets, createTestLogger()).read(root.ownerId, hash));
   const owner = await root.principalFor(root.ownerId);
   const ownerAuth = await captureCookieAuth(root, owner, PASSWORD);
   const member = await root.principalFor(brandedId("UserId").parse(reader.userId));
@@ -56,7 +57,7 @@ test("committed media uses native cookie ownership, exact CAS bytes and native v
   const anonymous = await request(blobUrl(hash), "");
   expect(anonymous.status).toBe(401);
   await anonymous.arrayBuffer();
-  expect(Buffer.from(await createCas(source.layout.assets).read(root.ownerId, hash)).equals(bytes)).toBe(true);
+  expect(Buffer.from(await createCas(source.layout.assets, createTestLogger()).read(root.ownerId, hash)).equals(bytes)).toBe(true);
 });
 
 test("corpus cookie capture provisions and admits the actual member rather than resetting only the owner", async () => {

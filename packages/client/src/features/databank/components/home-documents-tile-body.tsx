@@ -29,7 +29,7 @@
 // It suspends; home mounts every tile body inside its own `QueryBoundary`.
 
 import type { IngestPhase } from "@orb/contracts/databank";
-import { ingestPhase } from "@orb/contracts/databank";
+import { HOME_RECENT_DOCUMENTS_LIMIT, ingestPhase } from "@orb/contracts/databank";
 import type { DocumentId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -45,12 +45,6 @@ import { timeLib } from "#lib";
 import { openModal, selectDocumentFromList, setActiveSection, setDatabankPhaseFilter } from "#state";
 import { DATABANK_INGEST_GLOSS } from "../lib/databank-copy.ts";
 import { bankHealth, bankHealthLine, documentSubtitle, ingestBadge, ingestPollInterval, showsPhaseChip } from "../lib/databank-model.ts";
-
-/** How many documents the tile shows. FOUR, not the library's eight: this is a half-span tile carrying a
- *  health line above the rows, and the fifth-newest document is a browse, not a glance. Exported because
- *  the contribution's first-boot `skeletonRows` is this count plus the health line (#92) — the reservation
- *  is derived from the read, never a second number that can drift from it. */
-export const RECENT_DOCUMENTS_LIMIT = 4;
 
 /** Opening a document from home is a CROSS-SECTION navigation: write databank's own selection, then move
  *  the rail (the `#state` module actions — the sanctioned channel; home never wires this). */
@@ -72,7 +66,7 @@ export function HomeDocumentsTileBody(): ReactElement {
   // library pane reads it: it ADVANCES with every poll tick, so a document that wedges while home is open
   // flips to `Stalled` here on the tick that crosses the threshold.
   const { data: page, dataUpdatedAt: nowMs } = useSuspenseQuery({
-    ...trpc.databank.list.queryOptions({ limit: RECENT_DOCUMENTS_LIMIT }),
+    ...trpc.databank.list.queryOptions({ limit: HOME_RECENT_DOCUMENTS_LIMIT }),
     refetchInterval: (listQuery): number | false => ingestPollInterval(listQuery.state.data?.items, timeLib.now()),
   });
   // The census. Suspends alongside the rows (home mounts the whole body in one QueryBoundary) and rides the
@@ -152,7 +146,7 @@ export function HomeDocumentsTileBody(): ReactElement {
     );
   }
 
-  // The rows ARE the visible set (the read asks for exactly `RECENT_DOCUMENTS_LIMIT`), which is what the
+  // The rows ARE the visible set (the read asks for exactly `HOME_RECENT_DOCUMENTS_LIMIT`), which is what the
   // chip decision subtracts: a phase already named by a rendered row earns no aggregate above it.
   const health = bankHealth(census, documents, nowMs);
 

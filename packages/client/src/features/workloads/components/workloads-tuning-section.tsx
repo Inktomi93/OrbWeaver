@@ -14,7 +14,7 @@ import { FieldLayout } from "@orb/ui/field";
 import { Container, Row, Section, Stack } from "@orb/ui/layout";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
+import { QueryBoundary, useFirstBootBox } from "#components";
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { SectionSaveStatus } from "#forms/editor";
@@ -46,11 +46,13 @@ const useUpdateWorkloadsTuning = createEntityMutation<UpdateWorkloadsVars, unkno
 
 /** The Workloads analysis-tuning section body — mounted at the workloads pane's contributed-sections anchor. */
 export function WorkloadsTuningSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
+  const firstBootBox = useFirstBootBox({ wide: 5, narrow: 8 });
   return (
     // RESERVED (#1098) — a config section that settles into a knob stack.
     <QueryBoundary
       fallback={<SkeletonRows count={3} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your analysis-tuning settings" onRetry={retry} />}
+      reserveBlock={firstBootBox}
       reserveKey="config.workloads.tuning"
     >
       <WorkloadsTuningFormBody anchorId={anchorId} sectionId={sectionId} />

@@ -10,13 +10,14 @@ import type { PluginHandlerRef, PluginInstance, PluginInvocationLiveness, Plugin
 import { z } from "zod";
 import { createRemoteBridge, createRemoteNetEgress } from "./bridge-rpc.ts";
 import { PLUGIN_AUTHORITY_TAIL_MS } from "./budgets.ts";
-import type { CreateInstanceInputIn } from "./contract/port.ts";
+import type { CreateInstanceInputIn, LocalPluginHostSeams } from "./contract/port.ts";
 import type { BrokerWorkerMessage, PluginBridgeOperation, PluginSyncOperation, WorkerBrokerMessage } from "./contract/process-protocol.ts";
 import { createLocalPluginHost } from "./port.ts";
 import { decodeProcessValue, fromRpcError, PLUGIN_BROKER_SYNC_RESULT_BYTES, PLUGIN_BROKER_SYNC_TIMEOUT_MS, rpcError } from "./process-protocol.ts";
 
 interface WorkerIdentity {
   readonly runtimeId: string;
+  readonly logLevel: LocalPluginHostSeams["logLevel"];
 }
 
 interface InvokeCommandValue {
@@ -209,6 +210,7 @@ const host = createLocalPluginHost({
   mintId: () => syncStringSchema.parse(callSync("seam.mintId", [])),
   mirrorLog: (label, level, message) => post({ kind: "log", label, level, message }),
   netEgress: createRemoteNetEgress(callAsync),
+  logLevel: identity.logLevel,
 });
 
 let instance: PluginInstance | undefined;

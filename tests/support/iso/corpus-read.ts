@@ -50,6 +50,7 @@ export interface CorpusProcedures {
   readonly "chat.countChats": Capture<z.input<typeof chat.chatCensusInputSchema> | undefined, number>;
   readonly "chat.getChat": Capture<z.input<typeof chat.chatIdInputSchema>, z.output<typeof chat.chatDetailSchema>>;
   readonly "chat.listMessages": Capture<z.input<typeof chat.listMessagesInputSchema>, z.output<typeof chat.messagesPageSchema>>;
+  readonly "chat.reapTemporaryChats": InputlessCapture<z.output<typeof chat.reapResultSchema>>;
   readonly "databank.get": Capture<z.input<typeof databank.getDocumentInputSchema>, z.output<typeof databank.documentDetailViewSchema>>;
   readonly "databank.list": Capture<z.input<typeof databank.listDocumentsInputSchema>, z.output<typeof databank.listDocumentsResultSchema>>;
   readonly "databank.bankHealth": InputlessCapture<z.output<typeof databank.bankHealthViewSchema>>;

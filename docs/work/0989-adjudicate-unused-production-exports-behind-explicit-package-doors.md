@@ -1,8 +1,8 @@
 ---
 kind: work
 status: open
-updated: 2026-10-23
-priority: P2
+updated: 2026-10-24
+priority: P1
 area: packages
 ---
 
@@ -18,7 +18,7 @@ Closing wildcard package paths exposes unused symbols but does not remove them. 
 
 ## Done when
 
-`pnpm knip:prod` reports clean through the package doors, with each finding adjudicated in package or domain batches. Each batch records production roots and consumer scope. Removed exports preserve real callers; retained external APIs have explicit contracts. Add no baseline file and no new exemption. Add no custom liveness reader or fake consumer is added.
+`pnpm knip:prod` reports clean through the package doors, with each finding adjudicated in package or domain batches. Each batch records production roots and consumer scope. Removed exports preserve real callers; retained external APIs have explicit contracts. Add no baseline file and no new exemption. Add no custom liveness reader or fake consumer. CI and the pre-push check run `pnpm knip:prod`, so a production export with only test consumers fails the build; today CI runs plain `pnpm knip`, which counts tests as consumers and passes a test-only export.
 
 ## Evidence
 

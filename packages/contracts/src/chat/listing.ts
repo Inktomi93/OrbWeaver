@@ -19,6 +19,10 @@ import { z } from "zod";
  *  `Math.min` clamp for internal callers) references, homed HERE so the two never drift. */
 export const CHAT_LIST_MAX_LIMIT = 100;
 
+/** How many recents Home shows, and through its tile's `skeletonRows` how many rows the first-boot skeleton reserves,
+ *  so the reservation cannot drift from the read. Homed here so the test corpus captures the page the client asks for. */
+export const HOME_RECENT_CHATS_LIMIT = 8;
+
 /** The keyset boundary — the LAST row of the page just served, in the list's own `(recencyAt, id)` order.
  *
  *  `recencyAt` is the list's ONE recency clock (#150): the room's newest message time, falling back to the

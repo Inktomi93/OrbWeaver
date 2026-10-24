@@ -10,19 +10,32 @@ updated: 2026-10-24
 
 Every design value comes from a closed ramp, every semantic token aliases a ramp step, and Tailwind exposes only the governed vocabulary. Owner custom CSS targets a declared, test-pinned surface that a refactor cannot break silently.
 
-## Owner rulings
-
-- No compatibility shims. A rename migrates every consumer and deletes the old name. No `$deprecated`, no tombstone ledger, no re-export of a retired name. `removed.json` and the removal-history check go with it.
-- The ramp values are derived from the UI law, never from taste, and each step cites its clause (the Ramps section below).
-- The type hierarchy in `integer-line-boxes.md` (24/20/16/15/13/10.5 px, fixed integer line boxes) is approved law; the type ramp is those steps.
-- `@orb/ui` is in scope: a recurring feature re-style becomes a variant on the primitive; a one-off stays in the feature, on tokens. The theme engine (ThemeScope emit surface, derived chrome, D144 plate, density tiers, glass, elevation) keeps working through every change.
-- Tailwind namespaces reset to the tokens (leg 3), so TSX cannot drift either.
-- The system does not owe zero pixel change. Off-grid values snap to ramp steps, near-duplicates collapse, and like components share spacing and radius wherever the law allows. A law-pinned value stays pinned only while it has a reason a standard does not beat; a pinned value that a common standard (a type scale, a 4px or 8px grid step, the WCAG/Apple/Material touch floor) improves on changes, and its law clause changes in the same commit. Every change and every kept pin sits in the Ramps table with its reasoning.
-- Every leg captures the main surfaces before and after at 1440 and 390 (coarse touch) under the load gate and lists each visible change with its reason.
-- The shell boundary keeps its exact semantics: 768px and 1024px stay on the mobile and narrow sides. At 768px the desktop shell cannot fit, because `dimension.shell-content-floor` (46.625rem, 746px) plus the rail (3.5rem, 56px) exceeds the viewport.
-- Lanes: legs 1 and 2b, then 3, then 5, then 2, 4 and 6, one commit each, so the review stays readable.
-
 ## Shape
+
+### Owner rulings
+
+These bind every leg. A lane that disagrees reports the clause and a proposal; it does not work around a ruling.
+
+- Clean system over current rendering. Pixels may move; zero pixel change is not a goal, because it assumes today's values are right. Every leg captures snap before and after at 1440 and at 390 with coarse touch, and lists each visible change with its reason for side-eye.
+- No compatibility shims. Nothing stays because it is legacy: no deprecated aliases, tombstones or re-exports of renamed variables or utilities. Rename, migrate every consumer, delete the old. No one has used the app yet, so there is no stored owner data to protect.
+- Ramp values are derived from the UI law (touch-target floors, the density law, the reading measure, integer line boxes and the approved type hierarchy). A law-pinned value stays unless it is wrong and a more standard alternative exists (a common type scale, a 4px or 8px grid step, the WCAG, Apple or Material touch minimums). A changed pin names its clause, the standard, why the old value was worse and its visible effect, and updates the law clause in the same commit. The Ramps table records every change and every kept pin with its reason.
+- TSX does not drift. Every governed Tailwind namespace is reset, arbitrary values are refused, numeric inline styles and raw values in tailwind-variants definitions are refused, and runtime-built class strings are judged under `no-concatenated-classes`.
+- `@orb/ui` is in scope. Primitives expose visual choices as tailwind-variants variants on the ramps; feature code picks a variant, never a raw class or value. A restyle that recurs becomes a variant; a one-off stays in its feature on tokens. The system is built for the theme engine and appearance layers: the ThemeScope emit surface, derived chrome, the over-art plate law, density tiers, glass and elevation, grain, wallpaper, appearance profiles and per-character overrides.
+- Typography goes through the text voices in `docs/law/UI-Density-Law.md`; adding a voice is a ruling. Hand-applied `tabular-nums` moves to the `datum` voice where it fits.
+- Fonts: Geist and Geist Mono are the shipped faces; `THEME_FONT_ALLOWLIST` is the one source for owner-pickable fonts, each with one derived fallback stack. A font-smoothing or text-rendering rule is added only if the law calls for it.
+- Owner custom CSS is a supported feature. Its stable surface is one typed manifest with a pin test, and the law points at the manifest.
+- iPhone and WebKit platform rules stay legal under every lint: `dvh` and `svh` with their fallback line, `env(safe-area-inset-*)`, `overscroll-behavior: contain`, `interactive-widget=resizes-content`, input types and the input zoom floor. WebKit behavior Chromium cannot check is listed as open, not claimed.
+- The shell boundary keeps its comparison semantics: 768px is on the mobile side, because the desktop shell cannot fit there (the content floor plus the rail exceeds the viewport). 1024px keeps its side too. A check pins both widths.
+- No dead vocabulary: no breakpoint or orientation token without a consumer.
+- Bulk TSX rewrites use the pinned codemod tool with fixtures and a dry-run set compared against an independent search.
+- This plan runs on forge, an exception to the no-forge rule, and one lane builds every leg so the system lands together, with a verifier and side-eye on the whole branch before merge.
+- Heavy runs (snap, CT, e2e, broad tests) start only when the one-minute load is under the core count. No lane generates artificial load; a browser-side slow-hardware check uses snap's per-page `--cpu-throttle`.
+
+### Open questions
+
+- Whether `stylelint.config.js` and `stylelint-rules.js` can be TypeScript under the installed Stylelint, so they are typechecked and linted like the rest of the repo.
+- Whether the ramp primitives move from `@theme` to the served `:root` so owner CSS can reference them (leg 2 decides).
+- The theme suites the law names (emit surface, palette contrast, theme emit pairing, seed theme pairing) exist only in the restoration register, not in the tree.
 
 ### Legs 1 and 2b: built in commit A
 

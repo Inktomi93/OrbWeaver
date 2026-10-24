@@ -17,9 +17,9 @@ import { errorMessage } from "@orb/kit/error-message";
 import { versionIdentity } from "#foundation/version";
 import type { Logger } from "./contract/logging.ts";
 import type { DetachedSupervision, RequestTrace, SerializedSpan, SerializedSpanEvent, SpanAttrs } from "./contract/tracing.ts";
-import { getLog, logger } from "./logger.ts";
+import { getLog } from "./logger.ts";
 
-export type { RequestTrace, SerializedSpan, SerializedSpanEvent, SpanAttrs } from "./contract/tracing.ts";
+export type { DetachedSupervision, RequestTrace, SerializedSpan, SerializedSpanEvent, SpanAttrs } from "./contract/tracing.ts";
 
 const TRACER_NAME = "orbweaver";
 // The attribute the root span stamps + child spans copy down so the ring buckets a whole tree together.
@@ -325,14 +325,6 @@ export function createDetachedSupervision(log: Logger): DetachedSupervision {
       ),
   };
 }
-
-// Transitional: the free boundaries report through the process logger until item 1271 moves their callers to
-// a root's {@link createDetachedSupervision}.
-const processSupervision = createDetachedSupervision(logger);
-/** {@link createDetachedSupervision}'s detached boundary over the process logger. */
-export const superviseDetached: DetachedSupervision["superviseDetached"] = processSupervision.superviseDetached;
-/** {@link createDetachedSupervision}'s settled boundary over the process logger. */
-export const superviseSettled: DetachedSupervision["superviseSettled"] = processSupervision.superviseSettled;
 
 /** Read the SDK concrete-span status code through the same internal cast `span()` uses for `.attributes`
  *  (the OTel WRITE `Span` interface omits `.status`). Degrades to `undefined` — the OK-set path, i.e. prior

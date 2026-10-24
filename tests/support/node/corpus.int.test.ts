@@ -29,6 +29,7 @@ import { seedUserCredentialRows } from "./factories/rows/credentials.ts";
 import { expect, test } from "./fixtures.ts";
 import { NATIVE_OIDC_SETTINGS } from "./oidc-issuer.ts";
 import { createServerHarness } from "./server.ts";
+import { createTestLogger } from "./test-logger.ts";
 
 const CLONE_MARKER = 123;
 
@@ -156,8 +157,8 @@ test("a completed migrated capsule closes its real producers before cloning scru
   }
   const ownerId = capsule.privateCaptures.baseline.ownerId;
   const hash = capsule.privateCaptures.libraries.asset.hash;
-  const sourceCas = createCas(capsule.layout.assets);
-  const cloneCas = createCas(fixture.layout.assets);
+  const sourceCas = createCas(capsule.layout.assets, createTestLogger());
+  const cloneCas = createCas(fixture.layout.assets, createTestLogger());
   expect(await sourceCas.verify(ownerId, hash)).toBe(true);
   expect(await cloneCas.read(ownerId, hash)).toEqual(await sourceCas.read(ownerId, hash));
   await cloneCas.remove(ownerId, hash);

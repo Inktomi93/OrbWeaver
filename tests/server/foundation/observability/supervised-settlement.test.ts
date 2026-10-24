@@ -1,15 +1,10 @@
-import { getTraceByRequestId, logger, logRing, span, superviseDetached, superviseSettled } from "@orb/server/foundation/observability";
+import type { LogLevel } from "@orb/contracts/settings";
+import { createDetachedSupervision, createLogger, getTraceByRequestId, logRing, span } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node";
-import { beforeAll } from "vitest";
 
-// The runner's silent floor emits no log bytes; these cases read the error report from the real logger.
-beforeAll(() => {
-  const runnerLogLevel = logger.level;
-  logger.level = "error";
-  return (): void => {
-    logger.level = runnerLogLevel;
-  };
-});
+// The runner's silent floor emits no log bytes; these cases read the error report from a root logger at error.
+const REPORT_LEVEL = "error" satisfies LogLevel;
+const { superviseDetached, superviseSettled } = createDetachedSupervision(createLogger(REPORT_LEVEL));
 
 const OPERATION_KIND = "lifetime-probe";
 const SUCCESS_SPAN = "owned.success";
