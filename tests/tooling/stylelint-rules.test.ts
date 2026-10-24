@@ -23,6 +23,15 @@ test("each custom rule refuses its planted control", async () => {
   expect(await rulesHit(declaration("padding: var(--primitive-space-8);"))).toEqual(["orb/no-raw-media-condition"]);
 });
 
+test("a decorative loop owns its easing; its duration, a one-shot animation and a transition still ride tokens", async () => {
+  expect(await rulesHit(declaration("animation: spin var(--motion-ambient) ease-in-out infinite alternate;"))).toEqual([]);
+  expect(await rulesHit(declaration("animation: spin var(--motion-ambient) var(--ease-spinner) infinite;"))).toEqual([]);
+  expect(await rulesHit(declaration("animation: spin 2s linear infinite;"))).toEqual(["orb/motion-token-purity"]);
+  expect(await rulesHit(declaration("animation: enter var(--motion-transit) ease-out both;"))).toEqual(["orb/motion-token-purity"]);
+  expect(await rulesHit(declaration("transition: opacity var(--motion-fast) ease-out;"))).toEqual(["orb/motion-token-purity"]);
+  expect(await rulesHit(declaration("transition: opacity var(--motion-fast) var(--ease-out-expo);"))).toEqual([]);
+});
+
 test("a container condition is bound to the container ladder, and a shadow colour to a served variable", async () => {
   expect(await rulesHit("@container shell-main (max-width: 32rem) { .probe { opacity: 1; } }")).toEqual([]);
   expect(await rulesHit("@container (max-width: 30rem) { .probe { opacity: 1; } }")).toEqual(["orb/no-raw-media-condition"]);

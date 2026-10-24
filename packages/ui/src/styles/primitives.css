@@ -206,8 +206,7 @@
       pointer-events: none;
       border-radius: inherit;
       opacity: 0;
-      /* stylelint-disable-next-line orb/motion-token-purity -- an isolated hover fade on one element, with no coordinated partner */
-      transition: opacity var(--motion-fast) ease-out;
+      transition: opacity var(--motion-fast) var(--ease-out-expo);
       background: radial-gradient(6rem 6rem at var(--x, 50%) var(--y, 50%), oklch(from var(--color-primary) l c h / 0.18), transparent 70%);
     }
     [data-slot="media-grid-cell"]:hover::before {
@@ -284,7 +283,6 @@
   }
   .orb-typing-dot {
     opacity: 0.35;
-    /* stylelint-disable-next-line orb/motion-token-purity -- a continuous decorative loop with no coordinated partner */
     animation: orb-typing-dot var(--motion-breathe) ease-in-out infinite;
   }
   /* The stagger divides the one shared period rather than minting durations. */

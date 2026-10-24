@@ -123,35 +123,28 @@
   }
   /* The lateral drift rides an inner group, so fall and drift compose without a bespoke keyframe. */
   .orb-ws-driftx {
-    /* stylelint-disable-next-line orb/motion-token-purity -- the waystone's lateral precipitation drift: a continuous decorative loop — nothing coordinates with it, so there is no partner to drift out of sync with. Ends when this independent recipe changes or joins coordinated motion. */
     animation: orb-ws-driftx calc(var(--motion-precip) * 3) ease-in-out infinite alternate;
   }
 
   /* The cloud deck: the same sway at three speeds by weather. */
   .orb-ws-cloud-slow {
-    /* stylelint-disable-next-line orb/motion-token-purity -- the waystone's slow cloud deck: a continuous decorative loop — nothing coordinates with it, so there is no partner to drift out of sync with. Ends when this independent recipe changes or joins coordinated motion. */
     animation: orb-ws-sway var(--motion-ambient) ease-in-out infinite alternate;
   }
   .orb-ws-cloud-mid {
-    /* stylelint-disable-next-line orb/motion-token-purity -- the waystone's mid cloud deck: a continuous decorative loop — nothing coordinates with it, so there is no partner to drift out of sync with. Ends when this independent recipe changes or joins coordinated motion. */
     animation: orb-ws-sway calc(var(--motion-ambient) * 0.6) ease-in-out infinite alternate;
   }
   .orb-ws-cloud-fast {
-    /* stylelint-disable-next-line orb/motion-token-purity -- the waystone's fast cloud deck: a continuous decorative loop — nothing coordinates with it, so there is no partner to drift out of sync with. Ends when this independent recipe changes or joins coordinated motion. */
     animation: orb-ws-sway calc(var(--motion-ambient) * 0.3) ease-in-out infinite alternate;
   }
 
   /* The enveloping bands: fog drifts and breathes; wind sweeps across and out. */
   .orb-ws-sway-slow {
-    /* stylelint-disable-next-line orb/motion-token-purity -- the waystone's enveloping fog band: a continuous decorative loop — nothing coordinates with it, so there is no partner to drift out of sync with. Ends when this independent recipe changes or joins coordinated motion. */
     animation: orb-ws-sway calc(var(--motion-ambient) * 1.6) ease-in-out infinite alternate;
   }
   .orb-ws-breathe {
-    /* stylelint-disable-next-line orb/motion-token-purity -- the waystone fog's opacity breath: a continuous decorative loop — nothing coordinates with it, so there is no partner to drift out of sync with. Ends when this independent recipe changes or joins coordinated motion. */
     animation: orb-ws-breathe calc(var(--motion-ambient) / 2) ease-in-out infinite alternate;
   }
   .orb-ws-gust {
-    /* stylelint-disable-next-line orb/motion-token-purity -- the waystone's wind gust: a continuous decorative loop — nothing coordinates with it, so there is no partner to drift out of sync with. Ends when this independent recipe changes or joins coordinated motion. */
     animation: orb-ws-gust calc(var(--motion-precip) * 3) ease-in-out infinite;
   }
   /* The second gust runs half a cycle behind the first, so wind is never fully absent from a still frame. */
@@ -162,7 +155,6 @@
   /* The stars twinkle independently: the bucket count is coprime with the star count, or the field pulses in
    * synchronised pairs. */
   .orb-ws-star {
-    /* stylelint-disable-next-line orb/motion-token-purity -- the waystone's star twinkle: a continuous decorative loop — nothing coordinates with it, so there is no partner to drift out of sync with. Ends when this independent recipe changes or joins coordinated motion. */
     animation: orb-ws-twinkle var(--motion-breathe) ease-in-out infinite;
   }
   .orb-ws-star:nth-child(7n + 2) {
@@ -192,7 +184,6 @@
 
   /* The sun's glow breath, the storm's strike and the hour marker's halo pulse. */
   .orb-ws-glow {
-    /* stylelint-disable-next-line orb/motion-token-purity -- the waystone sun's glow breath: a continuous decorative loop — nothing coordinates with it, so there is no partner to drift out of sync with. Ends when this independent recipe changes or joins coordinated motion. */
     animation: orb-ws-glow var(--motion-breathe) ease-in-out infinite;
   }
   .orb-ws-strike {
@@ -201,7 +192,6 @@
   .orb-ws-marker {
     transform-box: view-box;
     transform-origin: 50% 6.25%;
-    /* stylelint-disable-next-line orb/motion-token-purity -- the waystone hour marker's halo pulse: a continuous decorative loop — nothing coordinates with it, so there is no partner to drift out of sync with. Ends when this independent recipe changes or joins coordinated motion. */
     animation: orb-ws-marker var(--motion-breathe) ease-out infinite;
   }
 
@@ -227,8 +217,7 @@
     transition: rotate var(--motion-transit) var(--ease-out-expo);
   }
   .orb-ws-enter {
-    /* stylelint-disable-next-line orb/motion-token-purity -- the waystone layer's one-shot entry — it runs once on arrival against nothing else, so a shared easing token would couple it to transitions it has no relationship with. Ends when this independent recipe changes or joins coordinated motion. */
-    animation: orb-ws-enter var(--motion-transit) ease-out both;
+    animation: orb-ws-enter var(--motion-transit) var(--ease-out-expo) both;
   }
 
   /* At the stone's smallest container step the finest layers become noise, so they drop and the stars thicken;

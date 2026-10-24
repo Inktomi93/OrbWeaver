@@ -47,12 +47,10 @@
   [data-slot="web-spinner"][data-animate] .orb-web-pulse {
     stroke-dasharray: var(--orb-web-spiral-length);
     stroke-dashoffset: var(--orb-web-spiral-length);
-    /* stylelint-disable-next-line orb/motion-token-purity -- the web spinner's weave stroke: a hand-tuned bezier shaped to the spiral's own geometry, not a member of the shared easing vocabulary, and the spinner is a self-contained loop. Ends when this independent recipe changes or joins coordinated motion. */
-    animation: orb-web-weave var(--motion-shimmer) cubic-bezier(0.45, 0.05, 0.35, 0.95) infinite;
+    animation: orb-web-weave var(--motion-shimmer) var(--ease-spinner) infinite;
   }
   /* The spokes hold the frame and breathe under the weave (they are the web that is already there). */
   [data-slot="web-spinner"][data-animate] .orb-web-spokes {
-    /* stylelint-disable-next-line orb/motion-token-purity -- the web spinner's spoke breath under the weave: a continuous decorative loop — nothing coordinates with it, so there is no partner to drift out of sync with. Ends when this independent recipe changes or joins coordinated motion. */
     animation: orb-web-breathe var(--motion-shimmer) ease-in-out infinite;
   }
 }

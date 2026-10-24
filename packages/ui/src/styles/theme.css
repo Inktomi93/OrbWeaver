@@ -280,6 +280,7 @@
   --motion-transit: 1400ms;
   --motion-ambient: 16000ms;
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spinner: cubic-bezier(0.45, 0.05, 0.35, 0.95);
   --height-scroll-sm: 10rem;
   --height-scroll-md: 16rem;
   --height-scroll-lg: 24rem;

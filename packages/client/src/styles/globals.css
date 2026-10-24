@@ -49,7 +49,6 @@
     }
   }
   .orb-weave-shimmer {
-    /* stylelint-disable-next-line orb/motion-token-purity -- a continuous decorative loop with no coordinated partner */
     animation: orb-weave-shimmer var(--motion-breathe) ease-in-out infinite;
   }
 
@@ -111,7 +110,6 @@
     vertical-align: text-bottom;
     border-inline-start: var(--border-width-accent) solid var(--color-primary);
     opacity: 1;
-    /* stylelint-disable-next-line orb/motion-token-purity -- a continuous decorative loop with no coordinated partner */
     animation: orb-stream-caret var(--motion-shimmer) ease-in-out infinite;
   }
 

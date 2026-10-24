@@ -17,7 +17,10 @@ const MOTION_PROPERTIES = new Set(["transition", "animation", "transition-durati
 const DURATION_PROPERTIES = new Set(["transition-duration", "animation-duration"]);
 const REDUCED_MOTION = /prefers-reduced-motion|motion-reduce|\[data-reduced-motion/u;
 const RAW_TIME = /(?<![\w.-])(?<num>\d+(?:\.\d+)?|\.\d+)(?:ms|s)\b/gu;
-const RAW_EASE = /\b(?:ease-in-out|ease-in|ease-out|ease)\b(?!-(?:expo|out-expo))|cubic-bezier\s*\(/gu;
+// A bare easing keyword or bezier; `--ease-*` token names are excluded by the lookbehind.
+const RAW_EASE = /(?<!-)\b(?:ease-in-out|ease-in|ease-out|ease)\b(?!-)|cubic-bezier\s*\(/gu;
+// A continuous decorative loop has no partner to drift from, so its easing is its own; its duration still rides a token.
+const DECORATIVE_LOOP = /\binfinite\b/u;
 const HEX = /#[0-9a-fA-F]{3,8}\b/u;
 const COLOR_FUNCTION = /\b(?:rgb|rgba|hsl|hsla|oklch|oklab|lab|lch)\s*\(/u;
 const TRANSFORM_PROPERTIES = new Set(["transform", "translate", "scale"]);
@@ -129,10 +132,9 @@ function valueIndexOf(declaration: Declaration, value: string): number {
   return valueIndex;
 }
 
-function motionHits(scanned: string): RegExpExecArray[] {
-  return [...[...scanned.matchAll(RAW_TIME)].filter((match) => Number(match.groups?.["num"]) !== 0), ...scanned.matchAll(RAW_EASE)].toSorted(
-    (left, right) => left.index - right.index,
-  );
+function motionHits(scanned: string, easing: boolean): RegExpExecArray[] {
+  const times = [...scanned.matchAll(RAW_TIME)].filter((match) => Number(match.groups?.["num"]) !== 0);
+  return [...times, ...(easing ? scanned.matchAll(RAW_EASE) : [])].toSorted((left, right) => left.index - right.index);
 }
 
 function reportMotionDeclaration(declaration: Declaration, result: PostcssResult): void {
@@ -143,7 +145,8 @@ function reportMotionDeclaration(declaration: Declaration, result: PostcssResult
   // Single-pass blanking is deliberate: nested calc containing a raw time remains reportable.
   const scanned = withoutValueComments(value).replace(/\b(?:var|calc)\s*\([^()]*\)/gu, blankText);
   const valueIndex = valueIndexOf(declaration, value);
-  for (const hit of motionHits(scanned)) {
+  const easing = !(declaration.prop === "animation" && DECORATIVE_LOOP.test(scanned));
+  for (const hit of motionHits(scanned, easing)) {
     const token = hit[0].startsWith("cubic-bezier") ? "cubic-bezier" : hit[0];
     stylelint.utils.report({
       result,

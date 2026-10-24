@@ -267,6 +267,7 @@ export const TOKENS = {
   "motion.transit": { cssVar: "--motion-transit", value: "1400ms" },
   "motion.ambient": { cssVar: "--motion-ambient", value: "16000ms" },
   "ease.out-expo": { cssVar: "--ease-out-expo", value: "cubic-bezier(0.16, 1, 0.3, 1)" },
+  "ease.spinner": { cssVar: "--ease-spinner", value: "cubic-bezier(0.45, 0.05, 0.35, 0.95)" },
   "height.scroll-sm": { cssVar: "--height-scroll-sm", value: "10rem" },
   "height.scroll-md": { cssVar: "--height-scroll-md", value: "16rem" },
   "height.scroll-lg": { cssVar: "--height-scroll-lg", value: "24rem" },
