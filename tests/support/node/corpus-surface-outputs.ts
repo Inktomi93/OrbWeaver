@@ -1,8 +1,9 @@
 // Native surface captures retain actual admin/owner reads, corpus identities and externally funded greeting results.
+
 import { createCharacterSchema } from "@orb/contracts/character";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { UPSTREAM_ANSWER_TTL_MS } from "@orb/server/domain/settings";
+import { UPSTREAM_ANSWER_TTL_MS } from "../../../packages/server/src/domain/settings/verbs/upstream-probes.ts";
 import { seedCorpusActors } from "./corpus-actors.ts";
 import type { createSurfaceOutputWire } from "./corpus-surface-wire.ts";
 import { SURFACE_BACKGROUND_URL, SURFACE_UPDATE_STEPS } from "./corpus-surface-wire.ts";

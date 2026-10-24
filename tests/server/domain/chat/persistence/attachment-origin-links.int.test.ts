@@ -5,7 +5,6 @@
 import { DEFAULT_ATTACHMENT_QUALITY } from "@orb/contracts/inference";
 import { messageAssets } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
-import type { ResolveMediaRefDeps } from "@orb/server/domain/chat";
 import { createResolveMediaRef } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, seedCorpusActors } from "@orb/testkit/node/composed";
@@ -32,7 +31,7 @@ test("only host or PRESENT owner assets reach byte processing; conversion remain
     attachmentAssetIds: [asset.assetId],
   });
   expect((await db.select().from(messageAssets).where(eq(messageAssets.messageId, attachedIn.slot.id))).map((link) => link.origin)).toEqual(["attached"]);
-  const prepareVideo = vi.fn<ResolveMediaRefDeps["mediaProcessing"]["prepareVideo"]>(() => Promise.resolve(bytes));
+  const prepareVideo = vi.fn<Parameters<typeof createResolveMediaRef>[0]["mediaProcessing"]["prepareVideo"]>(() => Promise.resolve(bytes));
   const read = vi.spyOn(services.assets, "loadAssetBytes");
   let forbidden = false;
   const resolve = createResolveMediaRef({

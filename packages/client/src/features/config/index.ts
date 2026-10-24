@@ -19,7 +19,6 @@
 export { appearanceGroup } from "./lib/appearance-group.tsx";
 export { appearanceLooksSection } from "./lib/appearance-looks-section.tsx";
 export { chatBehaviorGroup } from "./lib/chat-behavior-group.tsx";
-export { CONFIG_SECTION_LABEL } from "./lib/config-copy.ts";
 export { bindConfigPaletteGroups, configPaletteSource } from "./lib/config-palette-source.ts";
 export { makeConfigSection } from "./lib/config-section.tsx";
 export {} from "./lib/theme-row-names.ts";

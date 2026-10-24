@@ -39,6 +39,31 @@ Test files are not consumers. This covers `.test.ts`, `.dom.test.ts`, `.int.test
 
 Stories count because this item retains actual mounting doors and Spine-Testing §7 mounts the shipped component through its feature door. A surface no story mounts still fails. The production view does not report the consumers' own exports, files or dependencies. The default view judges them. `PRODUCTION_CONSUMERS` in `knip.ts` is the mechanism. A planted unused testkit door export fails `pnpm knip` and is absent from `pnpm knip:prod`. `tests/tooling/knip-workspace-policy.int.test.ts` holds the tooling and test-file cases.
 
+## Owner ruling: Spine-Testing §9 imports
+
+Spine-Testing §9 stands. A test imports a constant, limit, id, error class or pure rule from its production home. The gate honors that. A finding with no production consumer falls into one of three classes:
+
+| Class | Decision |
+| - | - |
+| Type forwards and types only tests name | The test derives the type with `Parameters<>`, `ReturnType<>` or the schema's parse result, then the export goes. A domain's own `.test-d.ts` may name that domain's internal types (`tests-domain-type-contracts-own-internals`). |
+| A symbol production never executes | Rewrite or delete. |
+| A §9 symbol that production executes | It stays. In production mode `ignoreExportsUsedInFile` is on, so in-file use counts. The door stops forwarding it. The suite imports the symbol from its owning file, which `TEST_CONSTANT_HOMES` in `.dependency-cruiser.ts` lists once per file with its symbols. |
+
+Knip credits a door re-export only when a file imports it through the door. It cannot credit a forward because the owning module executes the symbol, so the door forward moves to the owning file instead.
+
+## Owner ruling: @orb/ui part sets
+
+Each primitive keeps its full Base UI part set as a deliberate component-library surface, because plugin house-UI node kinds may grow. In production mode knip trusts the exports of the primitive door files (`packages/ui/src/primitives/*/index.ts`). Every other `@orb/ui` export is judged normally.
+
+## Owner ruling: compile-time registries
+
+Two registries stay in production source, although production never reads them. They are compile-time guards placed beside what they check:
+
+- `TABLE_SCOPING`, `ScopingRow` and `TableScopingRegistry` in `packages/db/src/tenancy/index.ts`, behind `@orb/db/tenancy`. Spine-Identity-and-Auth places them there.
+- `LIFECYCLE_DOORS`, `NON_PORTABLE_CANON` and `PORTABLE_CANON_TABLES` in `packages/server/src/entry/compose/portability.ts`, with their value shapes in `packages/server/src/entry/contract/portability.ts`. D329 places them there.
+
+In production mode knip trusts the exports of exactly these files (`PRODUCTION_TRUSTED` in `knip.ts`). Their suites read the portability files through `TEST_CONSTANT_HOMES`. The identity law, `.claude/rules/db.md` and D329 stay as written.
+
 ## Evidence
 
 Continue owner-authorized package batches. Keep other scopes parked and preserve their source, reports and unfinished qualifications.
@@ -50,6 +75,11 @@ The census method is the same for every batch. Apply knip's own fix (`knip --pro
 | Batch | Removed or localized | Left for judgment, with the consumer found |
 | - | - | - |
 | Mechanical, no outside consumer | `foundation/env` door: the env record's input, posture and diagnostics type forwards, `DIAGNOSTICS_EXPOSURES`, `fileReadCommand`, `loopbackOrigin`, `parseEnv`, `parseOwnerFallbackTrustedPeers`, `parseTrustedPrivateRanges`, `publicAddresses`, `resolveOwnerFallbackCredential`, `settingInstruction`; `foundation/env/record` diagnostics forwards; `runInRequest` from the observability door; the `@orb/db/wiring-owner` handle type forward; `isCharacterHandle`, `SEED_AVATAR_MIME`, `SEED_BACKGROUND_MIME`, `SeedEmbeddingResult`, `SHOWCASE_BUNDLE_DIST_DIR`, `ShowcaseBundleReader` and `createShowcaseBundleReader` localized. `SEED_ITEM_KINDS` deleted: it was not connected to the `SeedManifestItem` union and had no reader. | `ownerFallbackCredentialInput`: the script string in `tests/server/entry/http/production-debug-posture.int.test.ts` imports it by name. `allowedHostsInput` and `resolveAllowedHosts`: `tests/tooling/stack/ops/setup.test.ts` reads them off the dynamic env import. `createModelCache`: `model-worker.ts` destructures it by name from a dynamic `import(options.cacheModule)`. `UNICODE_DATA_VERSION`: the repository-contract test reads the generated declaration's source text. |
+| Class 1, types only tests name | Door forwards removed: the observability record, option and wire types; `ChatHandle`, `PluginVariableOp`, `PluginBoundGridTile`, `PluginCommandPlacement`, `PluginSurfaceTier`; `Notify`; `UploadedFile`; `OwnedTable`; `ImageryRoomAccessDeps`; `ResolveMediaRefDeps`; the chat macro seam types. Aliases deleted: `PortableTextFile`, `StreamAttachInput`, `ImageBreakdown`, `GeneratePictureRequest`. Each test derives the type from the operation or schema the door publishes. `macro-seams.test-d.ts` names its own domain's contract file. The `{} extends WireCaptureFilter` and `RequestRecord` method/path assertions were dropped: no published operation carries those types. | None. |
+| Class 2, no production execution | `forecastDevDbReset` and its forecast type, reader and threshold deleted, with the two `file-identity` assertions that called it. `UNICODE_DATA_VERSION` deleted; the repository-contract test reads the release from the generated header, and a planted `16.0.0` header fails it. `createModelCache` gets a native consumer: the worker loads `./model-cache.ts` through a literal dynamic import, and the unused `cacheModule` option is removed. | The tenancy and portability registries, by the owner ruling above. |
+| Class 3, §9 symbols production executes | The door forwards come off the chat, character, plugin, preset, settings, observability, plugin-host, relay and upstream-update doors, and off the contracts chat, import, plugin, prose, rpg, settings and workloads doors, `@orb/db`, `@orb/db/query`, the inference contract barrel, `@orb/client/data`, `@orb/client/state`, the config and rpg feature doors, and the compose door with its testkit forward. Suites import each symbol from the owning file listed in `TEST_CONSTANT_HOMES`. | `appearanceSettingsSchema`: its suites use the `@orb/contracts/settings/appearance` door, which tooling consumes. |
+
+Controls, each removed after its run: a new export in `domain/chat/contract/errors.ts` that only a test imports fails `pnpm knip:prod`, while `CHAT_OP_CODES`, imported by the same test from the same file, passes. A new export in `packages/ui/src/layout/index.ts` fails `pnpm knip:prod`, while the primitive door forwards pass.
 
 ## Selected kit cases
 
@@ -83,8 +113,8 @@ Check database findings against schema registration, relational metadata, migrat
 | Unused root codec and result-type forwards | Remove forwarding sites only. Keep the canonical codec used by schema declarations and actual lifecycle result types. |
 | Module-local constraint vocabulary, ownership-column shape, scoping type and backup pin suffix | Localize unused export modifiers. Preserve their actual declarations, classifier, query predicates, registry and backup naming behavior. |
 | Cascading lifecycle result-type exports | Localize only when removing an unused root forward leaves no named external consumer. Keep actual function signatures and inferred results unchanged. |
-| SQL literal-list formatting | Rebuild meaningful quote, backslash and canonical-member cases through the existing `@orb/db/query` function. This pure calculation belongs in unit tests, not a fabricated database service. Keep the supported entry. |
-| Reset-script construction | Rebuild transaction framing, dependent-object ordering, quoted identifiers and empty-input behavior through the existing `@orb/db` function. These unit cases prove generated SQL, not native rollback. Keep the function and remove its unused public directive. |
+| SQL literal-list formatting | Rebuild meaningful quote, backslash and canonical-member cases through the existing `checkList` function, which the suite reads from its owning file under the §9 ruling. This pure calculation belongs in unit tests, not a fabricated database service. |
+| Reset-script construction | Rebuild transaction framing, dependent-object ordering, quoted identifiers and empty-input behavior through the existing `buildResetDropScript` function, which the suite reads from its owning file under the §9 ruling. These unit cases prove generated SQL, not native rollback. |
 | Schema and migration metadata | Keep. A missing named import does not establish unused database registration. No schema, relation, migration or live database is changed by this selection. |
 
 Ordinary native Knip includes DB entry exports and reports no unused findings. Production-only findings retain actual testkit and tooling consumers without public-marker exemptions. Affected compiler, lint, dependency and selected native behavior checks pass. Isolated literal-quote and identifier-quote defects fail the intended unit assertions while their positive cases pass; sources are restored exactly.
@@ -190,8 +220,8 @@ This bounded selection passes exact JSSG preservation, maintained runtime tests,
 | Portability refusals, asset variants and imagery parser components | Localize unused owner exports while preserving serialized identities, strict schemas, refusal distinctions and enclosing public contracts. |
 | Workload resume, progress and row support declarations | Keep all behavior, transforms, poison/result parsing and readonly/presence semantics; localize unused export modifiers. |
 | ResolveBlobRefsParams, ResolveChatBlobRefsParams and WorkloadScheduleView | Remove unconsumed inferred aliases and their exclusive markers. Preserve actual mounted schemas and their input/output behavior. |
-| GeneratePictureRequest | Retain the canonical type used by maintained required-prompt assertions; remove its suppression marker. |
-| Production-only findings with maintained consumers | Keep PortableTextFile, PERSONA_COLLISION_CHOICES, sniffTreeLayout and canonical/forwarded WORKLOAD_UNFUNDED. Native test usage is legitimate, not an exemption. |
+| GeneratePictureRequest | Remove the alias. The required-prompt assertions derive the type from `generatePictureRequestSchema`. |
+| Production-only findings with maintained consumers | Keep PERSONA_COLLISION_CHOICES, sniffTreeLayout and WORKLOAD_UNFUNDED under the §9 ruling. Tests derive PortableTextFile from `portableTextFileSchema`. |
 | Original parser and serialization matrices | Keep restoration partial. Preserve meaningful distinctions; do not restore obsolete free-mode assertions that omit the now-required prompt. |
 
 This selection passes bounded JSSG preservation, scoped runtime tests, affected compiler and dependency checks and independent review. No capability, schema constraint, package door or runtime body is removed.

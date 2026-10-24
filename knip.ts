@@ -155,6 +155,17 @@ export const config = {
 // redundant-entry hint, so it is added for production alone.
 const PRODUCTION_SCRIPT_ENTRIES = { "packages/server": ["src/entry/check-media.ts!"] } as const;
 
+// PRODUCTION-TRUSTED FILES, by owner ruling on 0989; every other export is judged normally. The @orb/ui primitive
+// doors keep each primitive's full Base UI part set as a component-library surface, because plugin house-UI node
+// kinds may grow. The tenancy and portability registries are compile-time guards production never reads: the
+// identity law places TABLE_SCOPING beside the schema, and D329 places the portability registries and their value
+// shapes beside the compose root. Their suites read them, and the compiler checks them where they stand.
+const PRODUCTION_TRUSTED = {
+  "packages/ui": ["src/primitives/*/index.ts"],
+  "packages/db": ["src/tenancy/index.ts"],
+  "packages/server": ["src/entry/compose/portability.ts", "src/entry/contract/portability.ts"],
+} as const;
+
 // PRODUCTION CONSUMERS. The testkit doors, tooling, the operator scripts and the CT story modules drive production,
 // so the production view follows their imports into the shipped packages. A story mounts the shipped component
 // through its feature door (Spine-Testing §7), so a mounting door stays only while a story mounts it. A spec or test
@@ -192,7 +203,20 @@ function configFor({ production = false, strict = false }: KnipModeArgs): KnipCo
     const workspace = workspaces[name] ?? {};
     workspaces[name] = { ...workspace, ignore: [...patternList(workspace.ignore), ...ignored] };
   }
-  return { ...config, tags: [], includeEntryExports: true, workspaces };
+  // Spine-Testing §9: a test imports a constant, limit, id, error or pure rule from its production home. An export
+  // that production executes in its own file is therefore live; one that only tests use still fails.
+  for (const [name, workspace] of Object.entries(workspaces)) {
+    workspaces[name] = { ...workspace, ignoreExportsUsedInFile: true };
+  }
+  for (const [name, files] of Object.entries(PRODUCTION_TRUSTED)) {
+    const workspace = workspaces[name] ?? {};
+    const trusted: NonNullable<WorkspaceConfig["ignoreIssues"]> = {};
+    for (const file of files) {
+      trusted[file] = ["exports", "types"];
+    }
+    workspaces[name] = { ...workspace, ignoreIssues: { ...workspace.ignoreIssues, ...trusted } };
+  }
+  return { ...config, tags: [], includeEntryExports: true, ignoreExportsUsedInFile: true, workspaces };
 }
 
 // knip's config loader requires the default export; biome.json's config-file block admits it for this file.

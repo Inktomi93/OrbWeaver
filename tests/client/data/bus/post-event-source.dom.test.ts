@@ -1,4 +1,5 @@
 // The public tRPC client owns the adapter; only its HTTP response and native clock are controlled here.
+
 import { once } from "node:events";
 import type { IncomingHttpHeaders } from "node:http";
 import { createServer } from "node:http";
@@ -6,7 +7,6 @@ import { text } from "node:stream/consumers";
 import type { TrpcReadError } from "@orb/client/data";
 import { createTrpcClient } from "@orb/client/data";
 import type { ImpersonateStreamDelta } from "@orb/contracts/chat";
-import { impersonateStreamDeltaSchema } from "@orb/contracts/chat";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { StreamFrame } from "@orb/contracts/stream";
 import { STREAM_INACTIVITY_TIMEOUT_MS, streamConnectInputSchema } from "@orb/contracts/stream";
@@ -16,6 +16,7 @@ import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { TRPCClientError } from "@trpc/client";
 import { afterEach, vi } from "vitest";
+import { impersonateStreamDeltaSchema } from "#contracts/chat/impersonation.ts";
 
 const ids = createSeededIds(FIXTURE_ID_CURSOR);
 const INPUT = streamConnectInputSchema.parse({ socketId: ids.uuid() });

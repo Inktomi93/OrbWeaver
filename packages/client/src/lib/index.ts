@@ -153,7 +153,7 @@ export { messageBubbleClass } from "./message-bubble-class.ts";
 export type { MessageRenderContext } from "./message-render.ts";
 export { renderMessageForDisplay } from "./message-render.ts";
 export { MESSAGE_ROLE_ITEMS, MESSAGE_ROLE_LABELS } from "./message-role-labels.ts";
-export type { Notify, NotifyAction, NotifyNotice } from "./notify.ts";
+export type { NotifyAction, NotifyNotice } from "./notify.ts";
 export { bindNotify, leaseNotify, notify } from "./notify.ts";
 export { perfMark, perfMeasure } from "./perf-marks.ts";
 // The Tier-C plugin guest's main-thread ↔ worker wire — a contract between two

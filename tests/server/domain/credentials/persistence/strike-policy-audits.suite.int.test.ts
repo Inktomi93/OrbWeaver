@@ -6,10 +6,10 @@
 
 import { credentialExecutionEvidenceOf } from "@orb/contracts/credentials";
 import { auditLogs } from "@orb/db";
-import { PROVIDER_ERROR_KINDS } from "@orb/inference";
 import { expect } from "@orb/testkit/node";
 import { TEST_PROVIDER_ID } from "@orb/testkit/node/helpers";
 import { and, eq } from "drizzle-orm";
+import { PROVIDER_ERROR_KINDS } from "#inference/contract/errors.ts";
 import { fundingConnection, test } from "../../embeddings/verbs/runtime-funding.fixtures.ts";
 
 for (const kind of PROVIDER_ERROR_KINDS) {

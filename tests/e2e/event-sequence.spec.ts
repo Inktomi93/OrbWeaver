@@ -1,7 +1,7 @@
 // Full-stack room reads, multiplexed attachment and bus-driven rename reconciliation.
 // Ordinary tRPC queries and mutations share JSON POST batches; the tab's SSE socket is separate.
 
-import type { StreamAttachInput } from "@orb/contracts/stream";
+import type { streamAttachInputSchema } from "@orb/contracts/stream";
 import { isPlainObject } from "@orb/kit/guards";
 import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId, typeIdSchema } from "@orb/kit/ids";
@@ -135,7 +135,7 @@ test.describe("order-of-operations", () => {
     const otherRoomId = mintTypeId(ID_PREFIX.chat);
     const roomAttach = { phase: POST_REQUEST, procedure: ATTACH, chatId: roomId };
     const batch = [GET_CHAT, LIST_MESSAGES, ATTACH];
-    const extract = (ref: StreamAttachInput["ref"]): readonly TimelineEntry[] =>
+    const extract = (ref: ReturnType<typeof streamAttachInputSchema.parse>["ref"]): readonly TimelineEntry[] =>
       batchEntries(
         POST_REQUEST,
         POST_METHOD,

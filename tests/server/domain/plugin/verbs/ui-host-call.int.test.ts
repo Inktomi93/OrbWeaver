@@ -1,11 +1,12 @@
 import { spawn } from "node:child_process";
-import { PLUGIN_MAIN_ENTRY, PLUGIN_UI_CHAT_MESSAGES_LIMIT_MAX, PLUGIN_UI_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
+import { PLUGIN_MAIN_ENTRY, PLUGIN_UI_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { jsonValueSchema } from "@orb/kit/json";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, makePluginBundle, seedCorpusActors, seedInstalledPlugin, seedPluginGrant } from "@orb/testkit/node/composed";
 import { strToU8 } from "fflate";
 import { z } from "zod";
+import { PLUGIN_UI_CHAT_MESSAGES_LIMIT_MAX } from "#contracts/plugin/ui-host.ts";
 
 const VARIABLE_KEY = "relayWitness";
 const VARIABLE_VALUE = "mounted room value";

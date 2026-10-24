@@ -1,10 +1,12 @@
 // The restore race cases: one signed continuation per case, held at the native restore write while a competing write commits.
+
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import { chatEvents, chatParticipants, messageVariants, statsCanonVersions } from "@orb/db";
-import { ChatNotFoundError, ChatOperationError } from "@orb/server/domain/chat";
+import { ChatOperationError } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { and, eq } from "drizzle-orm";
+import { ChatNotFoundError } from "#server/domain/chat/contract/errors.ts";
 import { signedContinuation } from "./continue-physical.ts";
 
 const RESTORE_METHODS = ["undoContinue", "revertContinue"] as const;

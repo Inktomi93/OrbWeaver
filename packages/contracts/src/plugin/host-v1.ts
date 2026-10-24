@@ -27,7 +27,7 @@ import type {
   PluginToastLevel,
 } from "./ui.ts";
 
-export type ChatHandle = Branded<"PluginChatHandle">;
+type ChatHandle = Branded<"PluginChatHandle">;
 
 /** The `host.log` severity axis — the ONE home for the plugin log levels: the membrane surface exposes
  *  `log.{info,warn,error}`, the `domain/plugin` `PluginLogView` derives its `level` from this, and the
@@ -60,9 +60,9 @@ export interface PluginCharacterView {
   readonly avatarAssetId: SandboxWireId<AssetId> | null;
 }
 
-/** The same `set`/`add`/`inc`/`dec`/`delete` op vocabulary the delta model defines — the ONE home is the kit
- *  `VarOp` (aliased, never re-spelled); a guest write rides the SAME delta seam actions use. */
-export type PluginVariableOp = VarOp;
+// The same `set`/`add`/`inc`/`dec`/`delete` op vocabulary the delta model defines — the ONE home is the kit
+// `VarOp` (aliased, never re-spelled); a guest write rides the SAME delta seam actions use.
+type PluginVariableOp = VarOp;
 
 /** The OPTIONAL compare-and-set half of a guest variable write (#1555) — the ONE home is
  *  `@orb/contracts/chat`'s {@link VariablePrecondition}, aliased here the way {@link PluginVariableOp} aliases

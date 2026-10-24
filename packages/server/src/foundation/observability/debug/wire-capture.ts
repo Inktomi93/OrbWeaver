@@ -69,7 +69,7 @@ import { createBoundedRing } from "@orb/kit/bounded-ring";
 import type { Env } from "#foundation/env/record";
 import type { WireCaptureFilter, WireOutcome } from "../contract/wire-capture.ts";
 
-export type { WireCaptureFilter, WireOutcome, WireToolCall, WireWarning } from "../contract/wire-capture.ts";
+export type { WireCaptureFilter, WireOutcome } from "../contract/wire-capture.ts";
 
 /** How many captures the ring retains (most-recent-wins). Bounded so a long-lived dev process can't grow it. */
 const WIRE_CAPTURE_RING_CAPACITY = 256;

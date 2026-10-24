@@ -4,7 +4,7 @@ import { stat } from "node:fs/promises";
 import { testId } from "@orb/client/lib";
 import type { ConfigGroupId } from "@orb/client/state";
 import { authConfigSchema } from "@orb/contracts/auth-config";
-import type { PortableTextFile } from "@orb/contracts/portability";
+import type { portableTextFileSchema } from "@orb/contracts/portability";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import { WORKLOAD_LIST_MAX_LIMIT } from "@orb/contracts/workloads";
@@ -111,7 +111,7 @@ async function assertRestoredWitness(
   page: Page,
   host: ReturnType<typeof ownerActor>,
   witness: RegexScriptRow,
-  { exported, settleMs }: { readonly exported: PortableTextFile; readonly settleMs: number },
+  { exported, settleMs }: { readonly exported: ReturnType<typeof portableTextFileSchema.parse>; readonly settleMs: number },
 ): Promise<RegexScriptRow> {
   const restored = (await host.trpc.regex.listScripts.query(undefined)).filter((script) => script.name === witness.name);
   expect(restored).toHaveLength(1);
@@ -132,7 +132,13 @@ async function restoreBackup(
   page: Page,
   host: ReturnType<typeof ownerActor>,
   witness: RegexScriptRow,
-  input: { readonly path: string; readonly folder: boolean; readonly entries: number; readonly exported: PortableTextFile; readonly settleMs: number },
+  input: {
+    readonly path: string;
+    readonly folder: boolean;
+    readonly entries: number;
+    readonly exported: ReturnType<typeof portableTextFileSchema.parse>;
+    readonly settleMs: number;
+  },
 ): Promise<RegexScriptRow> {
   await host.trpc.regex.removeScript.mutate({ scriptId: witness.id });
   expect((await host.trpc.regex.listScripts.query(undefined)).some((script) => script.name === witness.name)).toBe(false);

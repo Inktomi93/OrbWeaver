@@ -7,7 +7,6 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { isSeededGreetingRow } from "@orb/contracts/chat";
 import { closeDb, messages, messageVariants, ownerStats } from "@orb/db";
-import { CHAT_OP_CODES } from "@orb/server/domain/chat";
 import { sha256Hex } from "@orb/server/primitives/content-hash";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -22,6 +21,7 @@ import {
   seedCorpusActors,
 } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
+import { CHAT_OP_CODES } from "#server/domain/chat/contract/errors.ts";
 
 const GREETINGS = ["The market opens.", "The keeper lifts the ledger.", "Rain taps the window."] as const;
 const AUTHORED = "The host wrote a different opening.";

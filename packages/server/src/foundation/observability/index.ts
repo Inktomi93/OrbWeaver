@@ -8,10 +8,7 @@ export { createBugReportDiagnosticsRead } from "./bug-report-diagnostics.ts";
 export { recordClientError } from "./client-error.ts";
 export type { AuditWiring } from "./contract/audit-wiring.ts";
 export {
-  type AdminAuthChecker,
   createWireCaptureSpill,
-  type DebugAuthOptions,
-  type DebugRoutesOptions,
   isWireCaptureEnabled,
   isWireReplyCaptureEnabled,
   type MemoryRecallInspector,
@@ -19,11 +16,8 @@ export {
   recordTurnOutcome,
   recordWireCapture,
   registerDebugRoutes,
-  type WireCaptureFilter,
   type WireCaptureSpill,
   type WireOutcome,
-  type WireToolCall,
-  type WireWarning,
 } from "./debug/index.ts";
 export {
   createLogger,
@@ -32,22 +26,19 @@ export {
   type Logger,
   logRing,
   logSerializers,
-  type RequestRecord,
   securityEvent,
 } from "./logger.ts";
-export { type MemoryLogRecord, recordMemoryLog } from "./memory-log.ts";
+export { recordMemoryLog } from "./memory-log.ts";
 export { createRequestObservability } from "./middleware.ts";
 export { traceStructuredRetry } from "./structured-retry.ts";
 export {
   addSpanEvent,
   createDetachedSupervision,
   type DetachedSupervision,
-  getTraceByRequestId,
   initTracing,
   type RequestTrace,
   recentTraces,
   type SerializedSpan,
-  type SerializedSpanEvent,
   type SpanAttrs,
   setSpanAttrs,
   span,

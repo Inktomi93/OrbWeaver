@@ -5,8 +5,6 @@
 //   https://www.unicode.org/Public/17.0.0/ucd/PropertyValueAliases.txt sha256 64e9a5f76f7a1e8b5a47d6a1f9a26522a251208f5276bdfa1559dac7cf2e827a
 // Entries are hex code points: `source>target` (a target may be a space-separated sequence), or `first-last`.
 
-export const UNICODE_DATA_VERSION = "17.0.0";
-
 /** CaseFolding.txt, statuses C and F: the full case folding. */
 export const CASE_FOLDING: readonly string[] = [
   "41>61;42>62;43>63;44>64;45>65;46>66;47>67;48>68;49>69;4a>6a;4b>6b;4c>6c;4d>6d;4e>6e;4f>6f;50>70;51>71;52>72;53>73;54>74;55>75;56>76;57>77;58>78;59>79;5a>7a;b5>3bc;c0>e0;c1>e1;c2>e2;c3>e3;c4>e4;c5>e5;c6>e6;c7>e7;c8>e8;c9>e9;ca>ea;cb>eb;cc>ec;cd>ed;ce>ee;cf>ef;d0>f0;d1>f1;d2>f2;d3>f3;d4>f4;d5>f5;d6>f6;d8>f8;d9>f9;da>fa;db>fb;dc>fc;dd>fd;de>fe;df>73 73;100>101;102>103;104>105;106>107;108>109;10a>10b",

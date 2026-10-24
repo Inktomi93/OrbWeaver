@@ -1,7 +1,9 @@
 // @subject tests/support/node/corpus-plugin.ts
+
 import { spawn } from "node:child_process";
 import { assertReferentialIntegrity, pluginKv, pluginProviderClaims } from "@orb/db";
-import { distributedPluginViewSchema, PluginNotFoundError, pluginFanoutResultSchema } from "@orb/server/domain/plugin";
+import { distributedPluginViewSchema, pluginFanoutResultSchema } from "@orb/server/domain/plugin";
+import { PluginNotFoundError } from "../../../packages/server/src/domain/plugin/contract/errors.ts";
 import {
   CORPUS_ADMIN_PROVIDER,
   CORPUS_PLUGIN_ASSET_PATH,
