@@ -2769,7 +2769,7 @@ async function drainOne(
   }
   // both arms report: the permanent verdict (`ChatNotFoundError` only,
   // `isDrainVerdictDrop`) notifies the member via `notifyDeferredTurnDropped` and logs at info; every other
-  // error re-inserts the row and `getLog().warn`s it with `err`. Ends if a third fault class needs its own handling.
+  // error re-inserts the row and `getLog(ctx.logger).warn`s it with `err`. Ends if a third fault class needs its own handling.
   try {
     await run(claimed);
     return "ran";

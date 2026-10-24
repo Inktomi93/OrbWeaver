@@ -186,7 +186,7 @@ type AppendOutcome =
 async function appendWithRetry(deps: ChatBusDeps, id: ChatEventId, event: ChatBusEvent): Promise<AppendOutcome> {
   for (let attempt = 1; attempt <= LIVE_APPEND_ATTEMPTS; attempt += 1) {
     // `err` goes to `handleAppendFailure`, which logs it on every live-chat
-    // arm: `getLog().warn` while attempts remain, `getLog().error` through `reportTerminalDrop` on the last. The
+    // arm: `getLog(logger).warn` while attempts remain, `getLog(logger).error` through `reportTerminalDrop` on the last. The
     // `chat-gone` arm drops a benign delete-mid-turn race at debug. Ends if `handleAppendFailure` stops logging `err`.
     try {
       const seq = await appendChatEvent(deps.db, { id, chatId: event.chatId, event, createdAt: deps.now() });

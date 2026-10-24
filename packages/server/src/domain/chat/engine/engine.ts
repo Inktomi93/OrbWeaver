@@ -1920,7 +1920,7 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
     return committedOutcome([view]);
   } catch (err) {
     // a `deltaErr` that is `err` is owned by this catch (`captureTurnFault`,
-    // the `turnAborted` emit, then `throw err` or `abortedOutcome`); a distinct one is logged by the `getLog().warn`
+    // the `turnAborted` emit, then `throw err` or `abortedOutcome`); a distinct one is logged by the `getLog(ctx.logger).warn`
     // in the handler. Ends if the `deltaErr !== err` warn is dropped.
     try {
       await deltaTail;
@@ -2049,7 +2049,7 @@ async function runInLockWithHeartbeat(ctx: EngineContext, deps: OwnedEngineDeps,
     return await Promise.race([releasedBody, lockLostBarrier]);
   } finally {
     cancelBeat();
-    // this is the SAME promise the `await Promise.race` above returns, so a body rejection that wins is thrown to the caller; when the barrier wins, the caller gets `aborted` and the lock loss was already logged by `tick` (`getLog().error`). Ends if the release moves off this promise.
+    // this is the SAME promise the `await Promise.race` above returns, so a body rejection that wins is thrown to the caller; when the barrier wins, the caller gets `aborted` and the lock loss was already logged by `tick` (`getLog(ctx.logger).error`). Ends if the release moves off this promise.
     trackSettledWork(
       ctx,
       prep.chatId,

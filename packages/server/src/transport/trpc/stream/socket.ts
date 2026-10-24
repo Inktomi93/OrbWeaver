@@ -113,7 +113,7 @@ export async function* runSocket(args: RunSocketArgs): AsyncGenerator<TrackedEnv
   const pendingPumps = new Set<Promise<void>>();
 
   async function pumpRoom(ref: StreamRoomRef, cursor: number | null, control: AbortController): Promise<void> {
-    // a non-abort failure is logged with getLog().warn, pushed to the
+    // a non-abort failure is logged with getLog(logger).warn, pushed to the
     // subscriber as a roomFailed control frame, and the room detaches; the early return is teardown after our own
     // abort. Ends if any of those three steps is removed or the abort return stops being teardown-only.
     try {
