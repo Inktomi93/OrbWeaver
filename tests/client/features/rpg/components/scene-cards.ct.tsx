@@ -67,6 +67,8 @@ test("a failed archive read renders the shared error state directly under the se
   const error = archive.locator(':scope > [data-slot="query-error"]');
   await expect(error.getByRole("status")).toHaveText("Couldn't load this game's cards.");
   await expect(archive.getByText("Cards", { exact: true })).toHaveCount(0);
+  await expect(archive).toHaveRole("region");
+  await expect(archive).toHaveAccessibleName(/\S/);
 
   failing = false;
   await error.getByRole("button", { name: "Retry", exact: true }).click();

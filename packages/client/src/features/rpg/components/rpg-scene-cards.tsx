@@ -89,7 +89,9 @@ export function RpgSceneCards({ chatId, enabled }: RpgSceneCardsProps): ReactEle
   // shared key would hand one room's box to another. `surface-box-store` never evicts, so each game chat this
   // device opens leaves one number behind; that is bounded by the rooms a person plays and costs bytes.
   return (
-    <Stack data-slot="rpg-card-archive">
+    // A named region, so the error arm (which has no kicker) is still findable by landmark; the same
+    // `role="region"` + `aria-label` pairing the preset library surface uses for its list pane.
+    <Stack aria-label="Cards" data-slot="rpg-card-archive" role="region">
       <QueryBoundary
         fallback={
           <Stack gap="field">
