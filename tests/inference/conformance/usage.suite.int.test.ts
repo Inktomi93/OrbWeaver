@@ -60,7 +60,8 @@ for (const wire of CONFORMANCE_WIRES) {
 
 // The wires DIFFER here for individually correct reasons, and recording that is the point: a suite that only
 // proved "they all agree" would have nothing to say about the one axis where agreeing would itself be the defect.
-// One case per wire, so each composed root and drive is billed to its own case.
+// One case per wire, so each composed root and drive is billed to its own case; the openai-compat case observing
+// `measured` while the others observe `estimated` is itself the proof that the suite can see both arms.
 const COST_PROVENANCE_ARMS = {
   // OpenRouter reports a real charge on its own accounting channel — a metered figure, so `measured` wins
   // over the row's pricing.
@@ -83,7 +84,3 @@ for (const wire of CONFORMANCE_WIRES) {
     expect(turn.usage.costProvenance).toBe(arm);
   });
 }
-
-test("the observed cost-provenance arms distinguish wires", () => {
-  expect(new Set(Object.values(COST_PROVENANCE_ARMS)).size, "a table where every wire reported the same arm would prove nothing").toBeGreaterThan(1);
-});

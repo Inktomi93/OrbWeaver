@@ -193,6 +193,6 @@ test.for(planted)("native entry query ownership judges $name", (row) => {
 test("the actual wiring package door cannot publish an executable private conversion", () => {
   expect(contract.result.timedOut, contract.output).toBe(false);
   expect(contract.output).not.toContain("not-to-unresolvable");
-  expect(contract.result.code, contract.output).toBe(contract.violations.length);
-  expect(contract.violations.map(({ rule }) => rule)).toContain(CONTRACT_RULE);
+  expect(contract.result.code, contract.output).toBe(1);
+  expect(contract.violations.map(({ rule }) => rule)).toEqual([CONTRACT_RULE]);
 });
