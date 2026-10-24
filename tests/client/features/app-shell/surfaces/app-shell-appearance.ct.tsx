@@ -72,21 +72,27 @@ test.afterAll(async () => {
   await root[Symbol.asyncDispose]();
 });
 
-/** Serve the shell and its sections, with the corpus viewer's settings carrying `appearance` and, when named, a selected theme. */
-async function routeAppearance(page: Page, corpus: CorpusWire, appearance: Partial<AppearanceSettings>, selectedThemeId?: string): Promise<void> {
+/** The corpus viewer's settings with the cases' pinned appearance, `appearance` over it, and a selected theme when named. */
+function appearanceSettings(
+  corpus: CorpusWire,
+  appearance: Partial<AppearanceSettings>,
+  selectedThemeId?: string,
+): CorpusWire["reads"]["settings.getUserSettings"][number]["output"] {
   const [captured] = corpus.reads["settings.getUserSettings"];
   if (captured === undefined) {
     throw new Error("The corpus has no settings capture");
   }
   const settings = captured.output;
   const theme = selectedThemeId === undefined ? settings.config.theme : { ...settings.config.theme, selectedThemeId };
+  return { ...settings, config: { ...settings.config, theme, appearance: { ...settings.config.appearance, ...BASE_APPEARANCE, ...appearance } } };
+}
+
+/** Serve the shell and its sections, with the corpus viewer's settings carrying `appearance` and, when named, a selected theme. */
+async function routeAppearance(page: Page, corpus: CorpusWire, appearance: Partial<AppearanceSettings>, selectedThemeId?: string): Promise<void> {
   await routeTrpc(page, {
     ...createShellAmbientReads(corpus),
     ...serveCorpusProcedures(await root.internalCallerFor(root.ownerId), SERVED),
-    "settings.getUserSettings": () => ({
-      ...settings,
-      config: { ...settings.config, theme, appearance: { ...settings.config.appearance, ...BASE_APPEARANCE, ...appearance } },
-    }),
+    "settings.getUserSettings": () => appearanceSettings(corpus, appearance, selectedThemeId),
     "stream.attach": null,
     "stream.detach": null,
   });
@@ -116,6 +122,40 @@ async function roomReady(page: Page): Promise<void> {
 
 function bubble(page: Page, role: (typeof ROOM_ROLES)[number]): Locator {
   return page.locator(`[data-role="${role}"] [data-slot="message-bubble"]`).first();
+}
+
+/** The corpus viewer's first saved wallpaper, as the appearance fields that select it. */
+function wallpaper(corpus: CorpusWire): Partial<AppearanceSettings> {
+  const entry = corpus.reads["settings.getUserSettings"][0]?.output.config.appearance.backgroundLibrary[0];
+  if (entry === undefined) {
+    throw new Error("The corpus viewer has no saved wallpaper");
+  }
+  return { backgroundImageKind: "asset", backgroundAssetId: entry.assetId, backgroundAssetHash: entry.assetHash, backgroundAssetMime: entry.mime };
+}
+
+/** The luminance spread of a page region, decoded in the page: grain is paint, so only the pixels say how many films landed. */
+async function noiseSpread(page: Page, box: { x: number; y: number; width: number; height: number }): Promise<number> {
+  const shot = await page.screenshot({ clip: box });
+  return page.evaluate(
+    async (url) => {
+      const image = new Image();
+      image.src = url;
+      await image.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = image.width;
+      canvas.height = image.height;
+      const context = canvas.getContext("2d");
+      context?.drawImage(image, 0, 0);
+      const data = context?.getImageData(0, 0, image.width, image.height).data ?? new Uint8ClampedArray();
+      const values: number[] = [];
+      for (let index = 0; index < data.length; index += 4) {
+        values.push(0.2126 * (data[index] ?? 0) + 0.7152 * (data[index + 1] ?? 0) + 0.0722 * (data[index + 2] ?? 0));
+      }
+      const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+      return Math.sqrt(values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length);
+    },
+    `data:image/png;base64,${shot.toString("base64")}`,
+  );
 }
 
 /** The selected theme for a case: the corpus default for dark, the seeded Light theme for light. */
@@ -508,6 +548,190 @@ test.describe("in an open room", () => {
       await expect.poll(() => borderWidths(bubble(page, role))).toBe("0px 0px 0px 0px");
       await expect.poll(() => fillAlpha(bubble(page, role))).toBeCloseTo(CONTRAST_FILL_ALPHA, 2);
     }
+  });
+});
+
+test.describe("grain", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize(WIDE);
+  });
+
+  test("the shell's grain film paints with no contrast preference and drops for contrast more", async ({ corpus, mount, page }) => {
+    await routeAppearance(page, corpus, { surfaceTexture: "grain" });
+    await mount<typeof AppShellStory>(STORY, {});
+    const grid = page.locator(".shell-grid");
+    await expect(page.locator("html")).toHaveAttribute("data-texture", "grain");
+    await expect.poll(() => computed(grid, "content", "::after")).not.toBe("none");
+    await expect.poll(() => computed(grid, "display", "::after")).not.toBe("none");
+    await emulateMedia(page, { contrast: "more" });
+    await expect.poll(() => computed(grid, "display", "::after")).toBe("none");
+  });
+
+  test("a card inside the shell wears the shell's one film, never a second of its own", async ({ corpus, mount, page }) => {
+    await routeAppearance(page, corpus, { surfaceTexture: "grain" });
+    await mount<typeof AppShellStory>(STORY, {});
+    const card = page.locator('.shell-grid [data-slot="card-root"]').first();
+    await expect(card).toBeVisible();
+    await expect.poll(() => computed(card, "content", "::after")).toBe("none");
+    await expect.poll(() => computed(page.locator(".shell-grid"), "content", "::after")).not.toBe("none");
+    // The shell's film lands on the card: a flat patch of it is grained with the texture on and flat with it off.
+    const box = await card.boundingBox();
+    const patches = Array.from({ length: Math.floor(((box?.height ?? 0) - 16) / 10) }, (_, step) => ({
+      x: Math.round(box?.x ?? 0) + 3,
+      y: Math.round(box?.y ?? 0) + 4 + step * 10,
+      width: 16,
+      height: 8,
+    }));
+    const filmed = await Promise.all(patches.map((patch) => noiseSpread(page, patch)));
+    await page.locator("html").evaluate((element) => element.removeAttribute("data-texture"));
+    const bare = await Promise.all(patches.map((patch) => noiseSpread(page, patch)));
+    const flattest = bare.indexOf(Math.min(...bare));
+    expect(bare[flattest]).toBeLessThan(filmed[flattest] ?? 0);
+  });
+
+  test("with the texture off neither the shell nor a card paints a film", async ({ corpus, mount, page }) => {
+    await routeAppearance(page, corpus, { surfaceTexture: "none" });
+    await mount<typeof AppShellStory>(STORY, {});
+    await expect(page.locator('.shell-grid [data-slot="card-root"]').first()).toBeVisible();
+    await expect(page.locator("html")).not.toHaveAttribute("data-texture", /.*/u);
+    await expect.poll(() => computed(page.locator(".shell-grid"), "content", "::after")).toBe("none");
+    await expect.poll(() => computed(page.locator('.shell-grid [data-slot="card-root"]').first(), "content", "::after")).toBe("none");
+  });
+});
+
+test.describe("over a wallpaper", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize(WIDE);
+  });
+
+  for (const art of [true, false]) {
+    test(`on Chats with ramp elevation ${art ? "the wallpaper takes .shell-main's fill and the topbar keeps its own" : "and no wallpaper .shell-main keeps its fill"}`, async ({
+      corpus,
+      mount,
+      page,
+    }) => {
+      await seedShellState(page, { activeSection: "chats" });
+      await routeAppearance(page, corpus, { elevation: "ramp", blurSurfaces: [], ...(art ? wallpaper(corpus) : {}) });
+      await mount<typeof AppShellStory>(STORY, {});
+      const grid = page.locator(".shell-grid");
+      await expect(grid).toHaveAttribute("data-elevation", "ramp");
+      await expect(grid).toHaveAttribute("data-section", "chats");
+      await expect.poll(() => grid.getAttribute("data-has-bg-image")).toBe(art ? "true" : null);
+      await expect.poll(() => fillAlpha(page.locator(".shell-main"))).toBe(art ? 0 : 1);
+      await expect.poll(() => fillAlpha(page.locator(".shell-topbar"))).toBe(1);
+    });
+  }
+
+  test("Chats stays immersive and its landing copy sits in a frosted chip, which another section and a bare Chats do not get", async ({
+    corpus,
+    mount,
+    page,
+  }) => {
+    await seedShellState(page, { activeSection: "chats" });
+    await routeAppearance(page, corpus, wallpaper(corpus));
+    await mount<typeof AppShellStory>(STORY, {});
+    const hero = page.locator('.shell-content [data-slot="empty-state-root"]').first();
+    await expect(page.locator(".shell-grid")).toHaveAttribute("data-has-bg-image", "true");
+    await expect(hero).toBeVisible();
+    await expect.poll(() => fillAlpha(page.locator(".shell-main"))).toBe(0);
+    await expect.poll(() => fillAlpha(hero)).toBeGreaterThan(0);
+    await expect.poll(() => fillAlpha(hero)).toBeLessThan(1);
+    await expect.poll(() => computed(hero, "backdrop-filter")).toContain("blur(");
+    await page.locator(".shell-rail").getByRole("button", { name: "Presets", exact: true }).click();
+    await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", "presets");
+    await expect(hero).toBeVisible();
+    await expect.poll(() => fillAlpha(hero)).toBe(0);
+  });
+
+  test("with no wallpaper the Chats landing copy is not chipped", async ({ corpus, mount, page }) => {
+    await seedShellState(page, { activeSection: "chats" });
+    await routeAppearance(page, corpus, {});
+    await mount<typeof AppShellStory>(STORY, {});
+    const hero = page.locator('.shell-content [data-slot="empty-state-root"]').first();
+    await expect(hero).toBeVisible();
+    await expect.poll(() => fillAlpha(hero)).toBe(0);
+  });
+
+  test("with the glass off another section backs its reading surface solid", async ({ corpus, mount, page }) => {
+    await seedShellState(page, { activeSection: "characters" });
+    await routeAppearance(page, corpus, { ...wallpaper(corpus), blurSurfaces: [] });
+    await mount<typeof AppShellStory>(STORY, {});
+    const main = page.locator(".shell-main");
+    await expect(page.locator(".shell-grid")).toHaveAttribute("data-has-bg-image", "true");
+    await expect.poll(() => fillAlpha(main)).toBe(1);
+  });
+
+  test("with the panel glass on, another section's reading surface is glass on its carrier and the surface itself is never promoted", async ({
+    corpus,
+    mount,
+    page,
+  }) => {
+    await seedShellState(page, { activeSection: "characters" });
+    await routeAppearance(page, corpus, { ...wallpaper(corpus), blurSurfaces: ["panels"] });
+    await mount<typeof AppShellStory>(STORY, {});
+    const main = page.locator(".shell-main");
+    await expect(page.locator(".shell-grid")).toHaveAttribute("data-has-bg-image", "true");
+    await expect.poll(() => fillAlpha(main, "::before")).toBeLessThan(1);
+    await expect.poll(() => fillAlpha(main, "::before")).toBeGreaterThan(0);
+    await expect.poll(() => computed(main, "backdrop-filter", "::before")).toContain("blur(");
+    await expect.poll(() => fillAlpha(main)).toBe(0);
+    const promotion = await main.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        backdrop: style.backdropFilter,
+        threeD: style.transformStyle === "preserve-3d" || style.transform.startsWith("matrix3d"),
+        willChange: style.willChange,
+      };
+    });
+    expect(promotion).toStrictEqual({ backdrop: "none", threeD: false, willChange: "auto" });
+    await emulateMedia(page, { transparency: "reduce" });
+    await expect.poll(() => fillAlpha(main, "::before")).toBe(1);
+    await expect.poll(() => computed(main, "backdrop-filter", "::before")).toBe("none");
+  });
+
+  test("a solo room's own wallpaper paints while its room is on screen and is gone in another section", async ({ corpus, mount, page }) => {
+    await using carried = await createCorpusHarness();
+    const caller = await carried.internalCallerFor(carried.ownerId);
+    const entry = wallpaper(corpus);
+    let soloId: ChatId | undefined;
+    for (const row of (await caller.chat.listChats({ limit: 100 })).items) {
+      const detail = await caller.chat.getChat({ chatId: row.id });
+      const humans = detail.participants.filter((participant) => participant.kind === "human").length;
+      const characters = detail.participants.filter((participant) => participant.kind === "character").length;
+      soloId ??= humans === 1 && characters === 1 ? row.id : undefined;
+    }
+    if (soloId === undefined) {
+      throw new Error("The corpus has no solo room");
+    }
+    await caller.chat.setChatBackground({
+      chatId: soloId,
+      background: {
+        kind: "asset",
+        externalUrl: "",
+        provenanceUrl: "",
+        assetId: entry.backgroundAssetId ?? "",
+        assetHash: entry.backgroundAssetHash ?? "",
+        mime: entry.backgroundAssetMime ?? "",
+      },
+    });
+    await seedShellState(page, { activeSection: "chats" });
+    await routeTrpc(page, {
+      ...createShellAmbientReads(corpus),
+      ...serveCorpusProcedures(caller, SERVED),
+      "settings.getUserSettings": () => appearanceSettings(corpus, {}),
+      "stream.attach": null,
+      "stream.detach": null,
+    });
+    await routeOrbSocket(page, { closeStream: false });
+    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: soloId });
+    const layer = page.locator('[data-slot="theme-background-layer"]');
+    await expect(page.locator(COMPOSER)).toBeVisible();
+    await expect(layer).toBeVisible();
+    await page.locator(".shell-rail").getByRole("button", { name: "Home", exact: true }).click();
+    await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", "home");
+    await expect(layer).toHaveCount(0);
+    await page.locator(".shell-rail").getByRole("button", { name: "Chats", exact: true }).click();
+    await expect(layer).toBeVisible();
   });
 });
 
