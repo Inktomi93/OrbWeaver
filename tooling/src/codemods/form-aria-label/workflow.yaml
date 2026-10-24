@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/codemod/codemod/refs/heads/main/schemas/workflow.json
+version: "1"
+params:
+  schema:
+    labels:
+      name: "Labels file"
+      description: "Path, relative to the target directory, of the JSON object mapping a file path to the aria-label its form takes"
+      type: string
+      default: "codemod-form-labels.json"
+nodes:
+  - id: form-aria-label
+    name: Name unnamed forms
+    type: automatic
+    steps:
+      - name: TSX files
+        js-ast-grep:
+          js_file: scripts/codemod.ts
+          base_path: "."
+          language: "tsx"
+          include: ["**/*.tsx"]
+          exclude: ["**/node_modules/**", "**/codemods/*/tests*/**"]

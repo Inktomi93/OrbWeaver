@@ -218,6 +218,7 @@ function CollectionCreate({ collection, inBand = false }: { readonly collection:
     // container is narrow, so asking for a name never squeezes the filter out.
     <Stack className={inBand ? "order-last basis-full @2xl:order-none @2xl:basis-auto" : undefined}>
       <form
+        aria-label={label}
         noValidate={true}
         onSubmit={(event): void => {
           event.preventDefault();

@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "form-aria-label"
+version: "0.1.0"
+description: "Give every unnamed form element the accessible name its file is mapped to in the target directory."
+author: "Orbweaver"
+license: "AGPL-3.0-only"
+targets:
+  languages: ["tsx"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

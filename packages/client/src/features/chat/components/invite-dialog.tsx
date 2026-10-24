@@ -139,6 +139,7 @@ function InviteMintForm({ chatId, onOpenSharing }: { readonly chatId: ChatId; re
   return (
     <form.AppForm>
       <form
+        aria-label="Create an invite"
         onSubmit={(event): void => {
           event.preventDefault();
           event.stopPropagation();

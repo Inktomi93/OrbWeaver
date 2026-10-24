@@ -1,5 +1,7 @@
 // The spec door: Node-side helpers a component spec drives the page with; nothing here loads client modules.
 
+export type { NameFinding } from "./accessible-names.ts";
+export { formatFindings, nameQualityFindings, unnamedLandmarkElementFindings } from "./accessible-names.ts";
 export { expectCacheProse } from "./cache-prose.ts";
 export { pixelContrast, pixelSurface } from "./pixel-contrast.ts";
 export type {

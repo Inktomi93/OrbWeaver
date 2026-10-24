@@ -251,7 +251,14 @@ export function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, 
             left for the one row that actually asks something. Decline DID move up — it is Accept's peer, a
             real second answer — but Dismiss is the escape hatch, never the row's point. */}
         {isInvite && !acted ? null : (
-          <Button type="button" disabled={isPending} intent="ghost" size="sm" onClick={dismissRow}>
+          <Button
+            aria-label={`Dismiss: ${rowCopy(item.payload, disabledPluginName)}`}
+            type="button"
+            disabled={isPending}
+            intent="ghost"
+            size="sm"
+            onClick={dismissRow}
+          >
             Dismiss
           </Button>
         )}

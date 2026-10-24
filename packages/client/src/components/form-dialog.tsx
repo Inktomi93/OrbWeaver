@@ -109,6 +109,7 @@ export function FormDialog({
   finalFocus,
 }: FormDialogProps): ReactElement {
   const promptFormId = useId();
+  const titleId = useId();
   return (
     <Dialog onOpenChange={onOpenChange} onOpenChangeComplete={onOpenChangeComplete} open={open}>
       <DialogPopup
@@ -120,12 +121,14 @@ export function FormDialog({
         {/* The popup clamps to the viewport, so a tall body scrolls inside this Stack while the sticky footer
             stays visible on a phone. */}
         <Stack className={`${DIALOG_SCROLL_CLASS} flex-1`} gap="block">
-          <DialogTitle className={closeButton ? "pe-control-md" : ""}>{title}</DialogTitle>
+          <DialogTitle className={closeButton ? "pe-control-md" : ""} id={titleId}>
+            {title}
+          </DialogTitle>
           {description === undefined ? null : <DialogDescription>{description}</DialogDescription>}
           {submit === undefined ? (
             children
           ) : (
-            <PromptBody formId={promptFormId} submit={submit}>
+            <PromptBody formId={promptFormId} submit={submit} titleId={titleId}>
               {children}
             </PromptBody>
           )}
@@ -183,10 +186,21 @@ function OwnedFooter({
  *  names it through the `form` attribute — which still makes it the form's default button for Enter.
  *  `noValidate` because the confirm's own `disabled` is this composite's validity model — a native bubble
  *  would speak a second, uncoordinated one. */
-function PromptBody({ formId, submit, children }: { readonly formId: string; readonly submit: FormDialogSubmit; readonly children: ReactNode }): ReactElement {
+function PromptBody({
+  formId,
+  submit,
+  titleId,
+  children,
+}: {
+  readonly formId: string;
+  readonly submit: FormDialogSubmit;
+  readonly titleId: string;
+  readonly children: ReactNode;
+}): ReactElement {
   const blocked = (submit.disabled ?? false) || (submit.loading ?? false);
   return (
     <form
+      aria-labelledby={titleId}
       id={formId}
       noValidate={true}
       onSubmit={(event): void => {
