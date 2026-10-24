@@ -2,10 +2,9 @@
 
 import { authMeSchema } from "@orb/contracts/identity";
 import type { SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
-import { env } from "@orb/server/foundation/env";
 import { expect } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness } from "@orb/testkit/node/composed";
+import { createServerHarness, createTestEnv } from "@orb/testkit/node/composed";
 
 export function rootForConfig(rolePolicyConfig: SessionsRolePolicyConfig): Promise<ServerTestHarness> {
   return createServerHarness({
@@ -16,7 +15,7 @@ export function rootForConfig(rolePolicyConfig: SessionsRolePolicyConfig): Promi
 }
 
 export function rootForPolicy(policy: Partial<SessionsRolePolicyConfig> = {}): Promise<ServerTestHarness> {
-  return rootForConfig({ ...env, ...policy });
+  return rootForConfig({ ...createTestEnv(), ...policy });
 }
 
 export function headerIdentity(groups: string, handle = "policy-member", subject = "policy-member-subject"): Headers {

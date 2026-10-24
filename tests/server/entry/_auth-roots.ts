@@ -4,10 +4,10 @@ import { authMeSchema, CSRF_HEADER, viewerViewSchema } from "@orb/contracts/iden
 import type { Handle, UserId } from "@orb/kit/ids";
 import type { AppRouter } from "@orb/server";
 import type { SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
-import { env } from "@orb/server/foundation/env";
 import { expect } from "@orb/testkit/node";
 import { cookieHeader, createAuthModeRoot, forwardHeaders, signInWithPassword } from "@orb/testkit/node/auth";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import { createTestEnv } from "@orb/testkit/node/composed";
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 
 type Root = Pick<ServerTestHarness, "http">;
@@ -16,9 +16,9 @@ const MEMBER_PASSWORD = "entry-auth-roots-password";
 /** The claim the forward-header verifier reads the handle from. */
 export const FORWARD_USERNAME_CLAIM = "preferred_username";
 
-/** A role policy differing from the process env only by `overrides`. */
+/** A role policy differing from a test root's parsed env only by `overrides`. */
 export function policy(overrides: Partial<SessionsRolePolicyConfig>): SessionsRolePolicyConfig {
-  return { ...env, ...overrides };
+  return { ...createTestEnv(), ...overrides };
 }
 
 /** `sessions.me` over the mounted tRPC wire, encoded by the native client. */

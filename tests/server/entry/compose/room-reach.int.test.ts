@@ -3,9 +3,8 @@ import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { chatDocuments, chatRegexScripts } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { ServicesResult } from "@orb/server/entry/compose";
-import { getLog } from "@orb/server/foundation/observability";
 import { expect } from "@orb/testkit/node";
-import { withheldTable } from "@orb/testkit/node/composed";
+import { processObservability, withheldTable } from "@orb/testkit/node/composed";
 import { onTestFinished, vi } from "vitest";
 import { test } from "./room-reach.fixtures.ts";
 
@@ -109,7 +108,7 @@ test("a failed regex reach capture is logged and cannot fault the confirmed dele
   expect(await services.regex.bulkRemoveScripts({ principal: callerPrincipal, scriptIds: [control.id] })).toEqual({ affected: 1 });
   expect(frames).toEqual([{ seq: null, event: { type: "roomEntityChanged", chatId: room.id, entity: "regex" } }]);
   frames.length = 0;
-  using warn = vi.spyOn(getLog(), "warn");
+  using warn = vi.spyOn(processObservability.logger(), "warn");
   await using withheld = await withheldTable(db, chatRegexScripts);
   try {
     expect(await services.regex.bulkRemoveScripts({ principal: callerPrincipal, scriptIds: [script.id] })).toEqual({
@@ -149,7 +148,7 @@ test("a failed document reach is logged without rejecting or rolling back its al
   expect((await services.databank.rename({ principal: callerPrincipal, id: document.document.id, name: "positive" })).name).toBe("positive");
   expect(frames).toEqual([{ seq: null, event: { type: "roomEntityChanged", chatId: room.id, entity: "databank" } }]);
   frames.length = 0;
-  using warn = vi.spyOn(getLog(), "warn");
+  using warn = vi.spyOn(processObservability.logger(), "warn");
   await using withheld = await withheldTable(db, chatDocuments);
   try {
     expect((await services.databank.rename({ principal: callerPrincipal, id: document.document.id, name: "committed" })).name).toBe("committed");

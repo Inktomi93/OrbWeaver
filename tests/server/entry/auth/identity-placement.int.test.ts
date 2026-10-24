@@ -4,8 +4,8 @@
 import { authMeSchema } from "@orb/contracts/identity";
 import type { ExternalId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { isAdmin, isOwner } from "@orb/server/domain/admin";
 import { expect, test } from "@orb/testkit/node";
+import { isAdmin, isOwner } from "@orb/testkit/node/auth";
 import { createServerHarness, damageOwnerRow, readAccounts } from "@orb/testkit/node/composed";
 import { createTestEnv } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";

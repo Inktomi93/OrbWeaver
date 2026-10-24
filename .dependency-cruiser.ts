@@ -1,5 +1,6 @@
 import { builtinModules } from "node:module";
 import type { IConfiguration, IForbiddenRuleType } from "dependency-cruiser";
+import serverPackage from "./packages/server/package.json" with { type: "json" };
 import { BROWSER_TEST_SUFFIXES, TEST_KIND_DEFINITIONS, TEST_KIND_SUFFIXES } from "./tooling/src/floor/testing/test-kinds.ts";
 
 const ENTRY_SOURCE = "^packages/server/src/entry/";
@@ -206,6 +207,117 @@ const ROWS_IMPORTERS = [
   "^tests/support/node/corpus-stats-settings\\.ts$",
 ];
 
+// A server suite's directory names its subject: tests/server/<tier>/<name>/ tests that module, and a file directly
+// under tests/server/<tier>/ (every entry suite included) tests that tier. Its runtime reach to any other module goes
+// through the composed root; a type-only import of another door stays legal, as domain-no-cross-feature allows in
+// production. Primitives are the server's pure floor, the Node twin of @orb/kit, so every suite may call them.
+const SERVER_TEST_TIERS = "(?:entry|transport|domain|infra|foundation|primitives)";
+const SERVER_TEST_OWN_MODULE = `^tests/server/((?!entry/)${SERVER_TEST_TIERS})/([^/]+)/`;
+const SERVER_TEST_OWN_TIER = `^tests/server/(entry(?=/)|${SERVER_TEST_TIERS}(?=/[^/]+$))/`;
+const SERVER_TEST_PRIMITIVES = `${SRV}primitives/`;
+// Every server door: a module's index.ts, and each subpath the package's exports map declares.
+const SERVER_DOORS = [
+  `${SRV}[^/]+/[^/]+/index\\.ts$`,
+  ...Object.values(serverPackage.exports)
+    .filter((target) => typeof target === "string")
+    .map((target) => `^${RegExp.escape(target.replace(/^\.\//u, "packages/server/"))}$`),
+];
+// The suites that import a production constant from another module's door (Spine-Testing §9 imports constants from
+// their home): each line names the constant and why the suite needs it. No wire carries any of them.
+const SERVER_TEST_REACHES = {
+  "tests/server/domain/settings/persistence/seed-ledger-tags.int.test.ts": {
+    "domain/character": "DEFAULT_CHARACTER_CARDS: the authored tag list is the expected set the seeded card's tag rows must equal",
+  },
+  "tests/server/entry/boot/boot-secrets.int.test.ts": {
+    "foundation/data-layout": "SECRET_FILE_NAMES: the suite plants and removes the boot secret files by their production names",
+  },
+  "tests/server/entry/boot/identity-ownership.int.test.ts": {
+    "foundation/data-layout": "SECRET_FILE_NAMES: the suite plants the boot secret files by their production names",
+  },
+  "tests/server/entry/compose/share-acme.int.test.ts": {
+    "foundation/data-layout": "IP_CERTIFICATE_FILE_NAMES: the suite reads and corrupts the stored certificate files by their production names",
+  },
+  "tests/server/entry/compose/share-graph.int.test.ts": {
+    "infra/relay": "RELAY_STOP_GRACE_MS: the suite advances the scheduler by exactly the relay's own stop grace",
+  },
+  "tests/server/entry/compose/scoped-timers.int.test.ts": {
+    "domain/plugin": "pluginMacroName: no wire lists a plugin's registered macros, so the suite names the token by the plugin domain's own rule",
+  },
+} as const satisfies Readonly<Record<string, Readonly<Record<string, string>>>>;
+
+function serverTestMirrorRules(): IForbiddenRuleType[] {
+  const reachers = Object.keys(SERVER_TEST_REACHES).map((path) => `^${RegExp.escape(path)}$`);
+  const mirror = (name: string, comment: string, from: string, own: string): IForbiddenRuleType[] => [
+    {
+      name,
+      comment,
+      severity: "error",
+      from: { path: from, pathNot: reachers },
+      to: { path: SRV, pathNot: [own, SERVER_TEST_PRIMITIVES], dependencyTypesNot: ["type-only", "type-import"] },
+    },
+    // A listed suite gets its own copy of the rule with its mirror spelled out and its named modules added. Each copy
+    // needs its own name: `extends` merges forbidden rules by name, so a second rule of one name replaces the first.
+    ...Object.entries(SERVER_TEST_REACHES).flatMap(([path, modules]): IForbiddenRuleType[] => {
+      const groups = new RegExp(from, "u").exec(path);
+      if (groups === null) {
+        return [];
+      }
+      const mirrored = own.replaceAll(/\$(\d)/gu, (_, index: string) => RegExp.escape(groups[Number(index)] ?? ""));
+      return [
+        {
+          name: `${name}-listed-${path
+            .replace(/^tests\/server\//u, "")
+            .replace(/\.[^/]*$/u, "")
+            .replaceAll("/", "-")}`,
+          comment,
+          severity: "error",
+          from: { path: `^${RegExp.escape(path)}$` },
+          to: {
+            path: SRV,
+            pathNot: [mirrored, SERVER_TEST_PRIMITIVES, ...Object.keys(modules).map((module) => `${SRV}${RegExp.escape(module)}/`)],
+            dependencyTypesNot: ["type-only", "type-import"],
+          },
+        },
+      ];
+    }),
+  ];
+  return [
+    ...mirror(
+      "tests-server-mirror-own-module",
+      "A suite under tests/server/<tier>/<name>/ runs only its own module and the primitives; other production reaches it through the composed root.",
+      SERVER_TEST_OWN_MODULE,
+      `${SRV}$1/$2/`,
+    ),
+    ...mirror(
+      "tests-server-mirror-own-tier",
+      "An entry suite, or a suite directly under its tier, runs only that tier and the primitives.",
+      SERVER_TEST_OWN_TIER,
+      `${SRV}$1/`,
+    ),
+    {
+      name: "tests-server-front-doors-only",
+      comment: "A server suite enters a module through its door.",
+      severity: "error",
+      from: { path: "^tests/server/", pathNot: "\\.test-d\\.ts$" },
+      to: { path: `${SRV}(?!domain/)`, pathNot: SERVER_DOORS },
+    },
+    {
+      name: "tests-server-type-contracts-own-internals",
+      comment: "A .test-d.ts type contract may name its own module's internal types; every other module enters through its door.",
+      severity: "error",
+      from: { path: `${SERVER_TEST_OWN_MODULE}.*\\.test-d\\.ts$` },
+      to: { path: `${SRV}(?!domain/)`, pathNot: [...SERVER_DOORS, `${SRV}$1/$2/`] },
+    },
+    {
+      name: "tests-server-type-contracts-tier-doors",
+      comment: "An entry or tier-level .test-d.ts type contract names only door types; no internal file of any module.",
+      severity: "error",
+      from: { path: `${SERVER_TEST_OWN_TIER}.*\\.test-d\\.ts$` },
+      to: { path: `${SRV}(?!domain/)`, pathNot: SERVER_DOORS },
+    },
+  ];
+}
+
 const TEST_WORLDS = [
   {
     name: "client-persisted-store-implementation",
@@ -297,6 +409,7 @@ const TEST_WORLDS = [
     from: { path: "^(tests|scripts|playwright)/", pathNot: ["^tests/support/", "^tests/db/", "^tests/.*/persistence/"] },
     to: { path: "^tests/.*/persistence/" },
   },
+  ...serverTestMirrorRules(),
   {
     name: "tooling-no-testkit",
     severity: "error",

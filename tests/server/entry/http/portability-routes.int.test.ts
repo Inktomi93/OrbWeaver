@@ -9,11 +9,9 @@ import { importStartedSchema } from "@orb/contracts/import";
 import { PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
 import type { Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { stagedOwnerRoot } from "@orb/server/domain/import";
-import { extractZip } from "@orb/server/infra/storage/zip";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness } from "@orb/testkit/node/composed";
+import { createServerHarness, extractZip } from "@orb/testkit/node/composed";
 import { describe, vi } from "vitest";
 import { signedInMember } from "../_auth-roots.ts";
 
@@ -162,7 +160,7 @@ describe("registerImportBundle — owner scoping + the server-minted staging tok
     expect(workload).toMatchObject({ kind: "import-bundle", ownerId: member.id });
     const token = await stagedToken(root, id, member.id);
     expect(token).toMatch(STAGED_TOKEN);
-    expect(await readdir(stagedOwnerRoot(root.importStagingDir, member.id))).toEqual([token]);
+    expect(await readdir(root.stagedImportsOf(member.id))).toEqual([token]);
   });
 
   test("the staged file lands under the UPLOADER's own subdir, never at the shared root", async () => {

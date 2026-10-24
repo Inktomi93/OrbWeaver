@@ -5,9 +5,7 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { GenerationReceipt } from "@orb/contracts/embeddings";
 import { embedSpaceState } from "@orb/db";
-import { databaseHandle } from "@orb/db/wiring-driver";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
-import { runWorkload } from "@orb/server/domain/workloads";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -22,25 +20,13 @@ import {
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
 
+// The root's own manual workload driver: the engine's claim and run, with no worker racing the case.
 async function executeAdmitted(root: ServerTestHarness, id: WorkloadId): Promise<void> {
-  const row = await root.services.workloads.get({ caller: null, id });
-  if (row.poison) {
-    throw new Error("the admitted vector sweep has malformed params");
+  const run = root.runAdmittedWorkload;
+  if (run === undefined) {
+    throw new Error("the harness owns its workload execution only with startJobs: false");
   }
-  await runWorkload(
-    {
-      db: databaseHandle(root.db),
-      contributions: root.app.workloadContributions,
-      now: root.clock.now,
-      audit: root.app.audit,
-      emitEvent: root.app.workloadEvents.emitWorkloadEvent,
-      heartbeatMs: 0,
-      cancelPollMs: 0,
-      scheduleInterval: root.timers.interval,
-    },
-    row,
-    new AbortController().signal,
-  );
+  await run(id, new AbortController().signal);
   expect(await root.services.workloads.get({ caller: null, id })).toMatchObject({ status: "succeeded" });
 }
 
@@ -52,7 +38,7 @@ test("actual owned and bulk vector sweeps complete exactly their covered owners 
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
   });
-  await using root = await createServerHarness({ providerFetch: wire.execute });
+  await using root = await createServerHarness({ providerFetch: wire.execute, startJobs: false });
   const owner = await root.principalFor(root.ownerId);
   const neighbor = await root.principalFor((await root.actor()).id);
   const bystander = await root.principalFor((await root.actor()).id);

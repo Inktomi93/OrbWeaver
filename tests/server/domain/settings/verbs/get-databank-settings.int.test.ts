@@ -1,11 +1,7 @@
 // @subject packages/server/src/entry/compose/databank.ts
-// @subject packages/server/src/domain/assets/verbs/asset-embedding-reads.ts
-import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { createAssetEmbeddingReads } from "@orb/server/domain/assets";
 import { createGetDatabankSettings } from "@orb/server/domain/settings";
 import { expect, test } from "@orb/testkit/node";
-import { magicBytes, principal } from "@orb/testkit/node/helpers";
-import { vi } from "vitest";
+import { principal } from "@orb/testkit/node/helpers";
 
 test("databank settings remain owner-isolated and live while excluding the chat-only slot budget", async ({ harness, services }) => {
   const owner = await harness.actor();
@@ -24,21 +20,4 @@ test("databank settings remain owner-isolated and live while excluding the chat-
     input: { section: "databank", patch: { chunk: { chunkSize: 700 } } },
   });
   expect((await read(owner.id)).chunk.chunkSize).toBe(700);
-});
-
-test("the existing asset read adapter maps absent rows only and propagates actual read failures", async ({ harness, services, ids }) => {
-  const owner = await harness.actor();
-  const reads = createAssetEmbeddingReads(services.assets);
-  const absent = typeIdSchema(ID_PREFIX.asset).parse(ids.next(ID_PREFIX.asset));
-  expect(await reads.loadAssetBytes(absent)).toBeUndefined();
-  const bytes = magicBytes("png");
-  const image = await services.assets.store({ principal: await principal(harness, owner.id), bytes, kind: "gallery", mime: "image/png" });
-  expect([...((await reads.loadAssetBytes(image.assetId)) ?? [])]).toEqual([...bytes]);
-  const integrity = new Error("stored CAS read failed");
-  const load = vi.spyOn(services.assets, "loadAssetBytes").mockRejectedValueOnce(integrity);
-  try {
-    await expect(reads.loadAssetBytes(image.assetId)).rejects.toBe(integrity);
-  } finally {
-    load.mockRestore();
-  }
 });

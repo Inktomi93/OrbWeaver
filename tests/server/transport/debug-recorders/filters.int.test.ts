@@ -3,16 +3,24 @@
 import { rpgTraceEventSchema } from "@orb/contracts/rpg";
 import type { ChatId, ChatTurnId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createRpgTraceRecorder } from "@orb/server/domain/rpg";
 import { createRpgTraceInspector } from "@orb/server/transport/debug-recorders";
 import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
 
-test("real RPG reads combine chat, raw turn and cap filters, excluding turn-less events without changing bytes or chronological stamps", ({ ids, clock }) => {
+test("real RPG reads combine chat, raw turn and cap filters, excluding turn-less events without changing bytes or chronological stamps", async ({
+  ids,
+  clock,
+}) => {
   const chatId = castId<ChatId>(ids.next("chat"));
   const otherChatId = castId<ChatId>(ids.next("chat"));
   const turnId = castId<ChatTurnId>(ids.next("chat_turn"));
   const otherTurnId = castId<ChatTurnId>(ids.next("chat_turn"));
-  const recorder = createRpgTraceRecorder({ now: clock.now });
+  // The flight recorder a root composes with RPG tracing on, stamping from the root's clock.
+  await using root = await createServerHarness({ rpgTrace: true, clock });
+  const recorder = root.app.rpgTrace;
+  if (recorder === undefined) {
+    throw new Error("a root with RPG tracing on composed no flight recorder");
+  }
   const events = [
     { phase: "mount", chatId, toolNames: ["update_scene"] },
     { phase: "flushed", chatId, turnId, outcome: "wrote", droppedReason: null },

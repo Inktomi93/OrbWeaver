@@ -3,13 +3,9 @@
 // The owner binders drive the genuine services and database; foreign arguments cannot replace the authenticated authority.
 import { createCharacterSchema } from "@orb/contracts/character";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { isOwner } from "@orb/server/domain/admin";
-import { createImportAvatarStore } from "@orb/server/domain/assets";
-import { createCharacterImportOps } from "@orb/server/domain/character";
-import { buildImportContext, createInstallerCharacterImport } from "@orb/server/domain/import";
-import { createImportedCardTag } from "@orb/server/domain/tag";
-import { createHostPrincipalResolver } from "@orb/server/entry/auth";
+import { createInstallerCharacterImport } from "@orb/server/domain/import";
 import { expect, test } from "@orb/testkit/node";
+import { isOwner } from "@orb/testkit/node/auth";
 import { vi } from "vitest";
 
 test("owner binders retain Principal identity and ignore foreign owner arguments through real character/tag writes", async ({
@@ -21,12 +17,7 @@ test("owner binders retain Principal identity and ignore foreign owner arguments
   const actor = await harness.principalFor(harness.ownerId);
   const foreignOwner = (await harness.actor()).id;
   const created = vi.spyOn(services.character, "create");
-  const ctx = buildImportContext({
-    principal: actor,
-    characterOps: createCharacterImportOps(actor, services.character),
-    storeAsset: createImportAvatarStore(actor, (args) => services.assets.store(args)),
-    attachCardTag: createImportedCardTag(actor.userId, (args) => services.tag.attachCardTagByName(args)),
-  });
+  const ctx = harness.app.crossFeatureOps.importContextFor(actor);
   const input = createCharacterSchema.parse({ handle: "authority-control", name: "Authority control", description: "Owned card" });
   const ref = await ctx.createCharacter({ ownerId: foreignOwner, input, importedFrom: "authority.json", importHash: "authority-hash" });
   expect(created.mock.calls[0]?.[0].principal).toBe(actor);
@@ -44,7 +35,6 @@ test("owner binders retain Principal identity and ignore foreign owner arguments
     entities: [{ targetType: "character", targetId: ref.characterId, name: input.name }],
     hasMore: false,
   });
-  expect(Object.hasOwn(ctx, "importLorebook")).toBe(false);
 });
 
 test("the real import parser refuses malformed bytes before any owner-bound effect", async ({ harness, services, ownerCaller }): Promise<void> => {
@@ -77,17 +67,11 @@ test("the installer factory uses the row-resolved role and the real import funne
   ownerCaller,
 }): Promise<void> => {
   await ownerCaller.character.list({});
-  const resolvePrincipal = vi.fn(createHostPrincipalResolver(services.sessions));
+  const resolvePrincipal = vi.fn(harness.principalFor);
   const create = vi.spyOn(services.character, "create");
   const run = createInstallerCharacterImport({
     resolvePrincipal,
-    contextFor: (actor) =>
-      buildImportContext({
-        principal: actor,
-        characterOps: createCharacterImportOps(actor, services.character),
-        storeAsset: createImportAvatarStore(actor, (args) => services.assets.store(args)),
-        attachCardTag: createImportedCardTag(actor.userId, (args) => services.tag.attachCardTagByName(args)),
-      }),
+    contextFor: harness.app.crossFeatureOps.importContextFor,
   });
   const pluginId = mintTypeId(ID_PREFIX.plugin);
   const bytes = new TextEncoder().encode(

@@ -5,10 +5,8 @@ import { CSRF_HEADER } from "@orb/contracts/identity";
 import { importStartedSchema } from "@orb/contracts/import";
 import { streamConnectInputSchema } from "@orb/contracts/stream";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { stagedOwnerRoot } from "@orb/server/domain/import";
-import { recentTraces } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node";
-import { createServerHarness } from "@orb/testkit/node/composed";
+import { createServerHarness, processObservability } from "@orb/testkit/node/composed";
 
 // Every trace the ring still holds; the test filters to the names its own act started.
 const TRACE_WINDOW = 10_000;
@@ -21,7 +19,7 @@ const HEX_RADIX = 16;
 const BUNDLE_ROUTE = "/api/import/bundle";
 
 function traceIds(): ReadonlySet<string> {
-  return new Set(recentTraces(TRACE_WINDOW).map((entry) => entry.requestId));
+  return new Set(processObservability.traces(TRACE_WINDOW).map((entry) => entry.requestId));
 }
 
 /** The seeded counter behind each new supervised name under `prefix`; `null` marks a nonce of any other shape. */
@@ -89,5 +87,5 @@ test("a staged bundle upload is named with the root's seeded nonce", async () =>
   }
   const counter = SEEDED_BUNDLE_TOKEN.exec(workload.params.token)?.[1];
   expect(mintedWithin(minted, root.ids.snapshot())(counter === undefined ? null : Number.parseInt(counter, HEX_RADIX))).toBe(true);
-  expect(await readdir(stagedOwnerRoot(root.importStagingDir, root.ownerId))).toEqual([workload.params.token]);
+  expect(await readdir(root.stagedImportsOf(root.ownerId))).toEqual([workload.params.token]);
 });

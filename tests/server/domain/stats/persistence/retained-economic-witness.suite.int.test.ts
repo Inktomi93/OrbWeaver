@@ -4,10 +4,10 @@
 // @subject packages/server/src/domain/chat/verbs/edit.ts
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { MessageView } from "@orb/contracts/chat";
-import { parseVariantMetadata } from "@orb/contracts/chat";
+import { parseVariantMetadata, TURN_ABORTED_OP_CODE } from "@orb/contracts/chat";
 import { RPG_NO_CHANGES_TOOL } from "@orb/contracts/rpg";
 import { characterStats, closeDb, dailyStats, messages, messageVariants, modelStats, ownerStats, statsCanonVersions } from "@orb/db";
-import { CHAT_OP_CODES, ChatOperationError } from "@orb/server/domain/chat";
+import { DomainOperationError } from "@orb/kit/errors";
 import { sha256Hex } from "@orb/server/primitives/content-hash";
 import { expect, test } from "@orb/testkit/node";
 import {
@@ -150,7 +150,7 @@ for (const [operation, unselected] of [
       const settledMutation = mutation.then(
         () => "committed",
         (error: Error) => {
-          if (error instanceof ChatOperationError) {
+          if (error instanceof DomainOperationError) {
             return error.code;
           }
           throw error;
@@ -197,7 +197,7 @@ for (const [operation, unselected] of [
         assistantTurns: totals?.assistantTurns,
         tokensIn: totals?.tokensIn,
         tokensOut: totals?.tokensOut,
-      }).toEqual({ outcome: CHAT_OP_CODES.aborted, slots: 1, variants: 1, assistantTurns: 1, tokensIn: 170, tokensOut: 50 });
+      }).toEqual({ outcome: TURN_ABORTED_OP_CODE, slots: 1, variants: 1, assistantTurns: 1, tokensIn: 170, tokensOut: 50 });
       expect(await root.db.select().from(messages).where(eq(messages.chatId, chatId)).orderBy(messages.id)).toEqual(expectedSlots);
       expect(await root.db.select().from(messageVariants).where(eq(messageVariants.messageId, source.id)).orderBy(messageVariants.id)).toEqual(
         expectedVariants,

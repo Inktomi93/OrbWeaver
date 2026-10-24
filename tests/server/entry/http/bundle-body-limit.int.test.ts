@@ -3,7 +3,6 @@ import { readdir, readFile, stat, statfs } from "node:fs/promises";
 import { join } from "node:path";
 import { importStartedSchema } from "@orb/contracts/import";
 import { IMPORT_BUNDLE_MAX_BYTES, IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
-import { stagedOwnerRoot } from "@orb/server/domain/import";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { BUNDLE_ROUTE, bodyRequest, CSRF_HEADERS, observedBody, REQUEST_CHUNK_BYTES } from "./_body-limit-inputs.ts";
@@ -52,7 +51,7 @@ test("a backup over the in-memory import cap is staged whole and its import read
   if (queued.kind !== "import-bundle" || queued.poison) {
     throw new Error("bundle admission did not retain its typed workload");
   }
-  const staged = await stat(join(stagedOwnerRoot(root.importStagingDir, root.ownerId), queued.params.token));
+  const staged = await stat(join(root.stagedImportsOf(root.ownerId), queued.params.token));
   expect(staged.size).toBe(body.byteLength);
   await runAdmitted(workloadId, AbortSignal.timeout(WORKLOAD_DEADLINE_MS));
   const settled = await root.services.workloads.get({ id: workloadId, caller: principal });
@@ -141,7 +140,7 @@ test("actual exported ZIP bytes stage unchanged for their owning workload and co
   if (workload.kind !== "import-bundle" || workload.poison) {
     throw new Error("actual bundle admission did not retain its typed workload");
   }
-  const staged = join(stagedOwnerRoot(root.importStagingDir, root.ownerId), workload.params.token);
+  const staged = join(root.stagedImportsOf(root.ownerId), workload.params.token);
   expect(Array.from(await readFile(staged))).toEqual(Array.from(bytes));
   const before = (await readdir(root.importStagingDir, { recursive: true })).sort();
   const conflict = await root.http.request(BUNDLE_ROUTE, { method: "POST", headers: CSRF_HEADERS, body: bytes });

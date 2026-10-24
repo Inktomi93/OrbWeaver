@@ -4,6 +4,7 @@
 // @subject packages/server/src/domain/chat/persistence/retained-canon.ts
 // @subject packages/server/src/domain/chat/verbs/participants.ts
 import { createCharacterSchema } from "@orb/contracts/character";
+import { TURN_ABORTED_OP_CODE, TURN_LOCKED_OP_CODE } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import {
   characterStats,
@@ -20,7 +21,6 @@ import {
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterHandle, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { CHAT_OP_CODES } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -118,7 +118,7 @@ for (const change of ["seat", "canon", "copy-plan"] as const) {
       const expectedSeats = await root.db.select().from(chatParticipants).where(eq(chatParticipants.chatId, room.chat.id)).orderBy(chatParticipants.id);
       const expectedCanon = await root.db.select().from(messageVariants).where(eq(messageVariants.messageId, post.messageId));
       gate.release();
-      await expect(accept).rejects.toMatchObject({ code: CHAT_OP_CODES.aborted });
+      await expect(accept).rejects.toMatchObject({ code: TURN_ABORTED_OP_CODE });
       expect(await accounting(root)).toEqual(expectedAccounting);
       expect(await root.db.select().from(chats).where(eq(chats.id, room.chat.id))).toEqual(expectedRoom);
       expect(await root.db.select().from(chatParticipants).where(eq(chatParticipants.chatId, room.chat.id)).orderBy(chatParticipants.id)).toEqual(
@@ -302,7 +302,7 @@ test("a stale voice owner refuses canon even when accepted copying preserves the
     const expected = await accounting(root);
     const variants = await root.db.select().from(messageVariants).where(eq(messageVariants.messageId, source.id));
     gate.release();
-    await expect(edit).rejects.toMatchObject({ code: CHAT_OP_CODES.aborted });
+    await expect(edit).rejects.toMatchObject({ code: TURN_ABORTED_OP_CODE });
     expect(await accounting(root)).toEqual(expected);
     expect(await root.db.select().from(messageVariants).where(eq(messageVariants.messageId, source.id))).toEqual(variants);
     await root.services.chat.editMessage({ principal: nominee, chatId, messageId: source.id, content: "The current voice can edit canon." });
@@ -431,7 +431,7 @@ test("native continuation settles before handoff rebases its retained cohort and
     );
     handoffs = Promise.all(acceptances);
     // The competing refusal proves the real transition closed admission without a timing guess.
-    expect(await Promise.race(acceptances)).toMatchObject({ status: "rejected", reason: { code: CHAT_OP_CODES.locked } });
+    expect(await Promise.race(acceptances)).toMatchObject({ status: "rejected", reason: { code: TURN_LOCKED_OP_CODE } });
     expect(settledHandoffs).toBe(1);
     expect(await root.db.select().from(characters).where(eq(characters.ownerId, nominee.userId)).orderBy(characters.id)).toEqual(beforeCards);
     expect(await root.db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chatId))).toEqual(
@@ -450,7 +450,7 @@ test("native continuation settles before handoff rebases its retained cohort and
     expect(accepted).toEqual(
       expect.arrayContaining([
         { status: "fulfilled", value: undefined },
-        { status: "rejected", reason: expect.objectContaining({ code: CHAT_OP_CODES.locked }) },
+        { status: "rejected", reason: expect.objectContaining({ code: TURN_LOCKED_OP_CODE }) },
       ]),
     );
     expect(await root.db.select().from(chatGenerationObservations).where(eq(chatGenerationObservations.chatId, chatId))).toEqual([]);

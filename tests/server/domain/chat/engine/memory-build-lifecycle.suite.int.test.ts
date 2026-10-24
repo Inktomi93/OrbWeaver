@@ -2,9 +2,8 @@
 // Physical SQLite refusals exercise the real memory supervisor and total durable warning emitter.
 import process from "node:process";
 import { chatEvents, chatSegments } from "@orb/db";
-import { logRing } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node";
-import { refuseWrites } from "@orb/testkit/node/composed";
+import { processObservability, refuseWrites } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
 import { LOG_SCAN_LIMIT, room } from "./memory-build.fixtures.ts";
 
@@ -17,7 +16,9 @@ test("the memory build throwing emits warning(memory_build_failed) but the turn 
   expect(canon).toHaveLength(4);
   expect(canon.map(({ id }) => id)).toContain(outcome.messages[0]?.id);
   expect(await fixture.warnings()).toMatchObject([{ type: "warning", chatId: fixture.h.chatId, code: "memory_build_failed" }]);
-  expect(logRing.recent(LOG_SCAN_LIMIT).filter((line) => line.includes(fixture.h.chatId) && line.includes("memory: post-turn build failed"))).toHaveLength(1);
+  expect(
+    processObservability.logLines(LOG_SCAN_LIMIT).filter((line) => line.includes(fixture.h.chatId) && line.includes("memory: post-turn build failed")),
+  ).toHaveLength(1);
 });
 
 test("a failing warning append neither fails the turn nor leaves an unhandled rejection", async () => {
@@ -38,7 +39,7 @@ test("a failing warning append neither fails the turn nor leaves an unhandled re
     expect(canon).toHaveLength(4);
     expect(canon.map(({ id }) => id)).toContain(outcome.messages[0]?.id);
     expect(await fixture.warnings()).toEqual([]);
-    const logged = logRing.recent(LOG_SCAN_LIMIT).filter((line) => line.includes(fixture.h.chatId));
+    const logged = processObservability.logLines(LOG_SCAN_LIMIT).filter((line) => line.includes(fixture.h.chatId));
     expect(logged.filter((line) => line.includes("memory: post-turn build failed"))).toHaveLength(1);
     expect(logged.filter((line) => line.includes("durable append failed on a live chat — retrying"))).toHaveLength(1);
     expect(logged.filter((line) => line.includes("DURABLE APPEND FAILED on a live chat — event dropped, its replay slot is permanently missing"))).toHaveLength(

@@ -1,13 +1,12 @@
 import { authMeSchema } from "@orb/contracts/identity";
 
 import { brandedId } from "@orb/kit/ids";
-import { env } from "@orb/server/foundation/env";
 import { expect, test } from "@orb/testkit/node";
-import { createServerHarness, readAccounts } from "@orb/testkit/node/composed";
+import { createServerHarness, createTestEnv, readAccounts } from "@orb/testkit/node/composed";
 import { headerIdentity, me, rootForConfig, rootForPolicy } from "./role-policy-config.fixtures.ts";
 
 test("a composed role policy ignores subsequent source-config grants", async () => {
-  const config = { ...env };
+  const config = { ...createTestEnv() };
   await using root = await rootForConfig(config);
   const headers = {
     "x-authentik-username": "snapshot-policy-member",
@@ -42,7 +41,7 @@ test.each([
   { key: "OWNER_GROUP", value: "late-owners" },
   { key: "OIDC_ALLOWED_GROUPS", value: "newly-required" },
 ] as const)("a live graph does not reread '$key' from its source config", async ({ key, value }) => {
-  const config = { ...env };
+  const config = { ...createTestEnv() };
   await using root = await rootForConfig(config);
   const headers = headerIdentity("late-owners");
   const identity = await me(root, headers);
@@ -53,7 +52,7 @@ test.each([
 });
 
 test("an identity first seen after a late source-config admin grant is provisioned from the composed policy", async () => {
-  const config = { ...env };
+  const config = { ...createTestEnv() };
   await using root = await rootForConfig(config);
   config.OIDC_ADMIN_GROUPS = "late-process-admins";
   expect(await me(root, headerIdentity("late-process-admins", "late-arrival", "late-arrival-subject"))).toEqual({
@@ -64,7 +63,7 @@ test("an identity first seen after a late source-config admin grant is provision
 });
 
 test("copied config and exposed owner handles cannot mutate a live graph's authorization", async () => {
-  const config = { ...env };
+  const config = { ...createTestEnv() };
   config.OWNER_HANDLES = "box-owner";
   config.OWNER_GROUP = "original-owners";
   config.OIDC_ADMIN_GROUPS = "original-admins";
@@ -91,7 +90,7 @@ test("copied config and exposed owner handles cannot mutate a live graph's autho
 });
 
 test("the legacy rederivation flag is a construction-time input, not a live source-config grant", async () => {
-  const config = { ...env };
+  const config = { ...createTestEnv() };
   config.OIDC_ADMIN_GROUPS = undefined;
   config.OIDC_ALLOWED_GROUPS = undefined;
   config.RE_DERIVE_ROLE_ON_LOGIN = undefined;

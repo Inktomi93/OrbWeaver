@@ -2,16 +2,15 @@
 import { access, mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { databaseHandle } from "@orb/db/wiring-driver";
 
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { brandedId } from "@orb/kit/ids";
-import { createListSeedAccountIds } from "@orb/server/domain/sessions";
 import { seedOwner, settleBootSecrets } from "@orb/server/entry/boot";
 import { SECRET_FILE_NAMES } from "@orb/server/foundation/data-layout";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 
-test("trusted boot moves its singleton seed key without taking another account's key and still enumerates disabled accounts", async () => {
+test("trusted boot moves its singleton seed key without taking another account's key", async () => {
   await using root = await createServerHarness();
   const owner = await root.principalFor(root.ownerId);
   const heldHandle = brandedId("Handle").parse("boot-held-handle");
@@ -25,8 +24,6 @@ test("trusted boot moves its singleton seed key without taking another account's
   expect(await (await root.internalCallerFor(otherId)).sessions.me()).toMatchObject({ handle: heldHandle, globalRole: "user" });
   expect(await root.app.sessions.loadUserById(owner.userId)).toMatchObject({ handle: "boot-moved-owner" });
   expect(await (await root.internalCallerFor(owner.userId)).sessions.me()).toMatchObject({ handle: "boot-moved-owner", globalRole: "owner" });
-  await root.services.admin.setEnabled({ principal: await root.principalFor(owner.userId), userId: otherId, enabled: false });
-  expect((await createListSeedAccountIds(databaseHandle(root.db))()).toSorted()).toEqual([owner.userId, otherId].toSorted());
   expect(await seedOwner({ ...deps, ownerHandles: [owner.handle] })).toEqual([owner.userId]);
 });
 

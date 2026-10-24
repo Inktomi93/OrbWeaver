@@ -83,6 +83,14 @@ export async function seedPluginGrant(root: ServerProducerRoot, params: Paramete
   return { outcome: await root.services.plugin.setGrant(params) };
 }
 
+/** Store bytes as a guest's runtime fetch through the plugin host's own op: the store, then the plugin link. */
+export async function seedPluginFetchedAsset(
+  root: ServerProducerRoot,
+  params: Parameters<ServicesResult["storePluginFetchedAsset"]>[0],
+): Promise<Awaited<ReturnType<ServicesResult["storePluginFetchedAsset"]>>> {
+  return await root.app.storePluginFetchedAsset(params);
+}
+
 /** Publish to every user; the publication outcome names the slug each recipient's own install carries. */
 export async function seedDistributedPlugin(
   root: ServerProducerRoot,

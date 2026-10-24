@@ -6,11 +6,10 @@ import { isPlainObject } from "@orb/kit/guards";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { MS_PER_HOUR } from "@orb/kit/time";
-import { getLog } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node";
 import { cookieHeader } from "@orb/testkit/node/auth";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness } from "@orb/testkit/node/composed";
+import { createServerHarness, processObservability } from "@orb/testkit/node/composed";
 import { describe, vi } from "vitest";
 import { authMe, signedInMember } from "../_auth-roots.ts";
 
@@ -134,7 +133,7 @@ describe("Rule E — a plain-http mint from a public client logs once per client
 
   test("a router port-forward (public peer, plain http) logs one line per client per hour", async () => {
     await using forwarded = await box();
-    using warn = vi.spyOn(getLog(), "warn");
+    using warn = vi.spyOn(processObservability.logger(), "warn");
     forwarded.at(PUBLIC_PEER);
     expect((await forwarded.login()).status).toBe(200);
     await forwarded.login();
@@ -149,7 +148,7 @@ describe("Rule E — a plain-http mint from a public client logs once per client
 
   test("a public client behind a same-host proxy without TLS is keyed by its forwarded address", async () => {
     await using sameHost = await box();
-    using warn = vi.spyOn(getLog(), "warn");
+    using warn = vi.spyOn(processObservability.logger(), "warn");
     sameHost.at(LOOPBACK);
     await sameHost.login({ "x-forwarded-for": "203.0.113.20" });
     expect(noticed(warn)).toEqual(["203.0.113.20"]);
@@ -157,7 +156,7 @@ describe("Rule E — a plain-http mint from a public client logs once per client
 
   test("a LAN client over plain http and a public client over proxied https log nothing", async () => {
     await using quiet = await box();
-    using warn = vi.spyOn(getLog(), "warn");
+    using warn = vi.spyOn(processObservability.logger(), "warn");
     expect((await quiet.login()).status).toBe(200);
     quiet.at(PROXY_PEER);
     expect((await quiet.login({ "x-forwarded-for": "203.0.113.21", ...PROXY_HTTPS })).status).toBe(200);

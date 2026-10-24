@@ -7,10 +7,9 @@ import { AUTH_MODES, CSRF_HEADER } from "@orb/contracts/identity";
 import { isPlainObject } from "@orb/kit/guards";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { isOwner } from "@orb/server/domain/admin";
 import { authConfigFromEnv, createAuthSeam } from "@orb/server/entry/auth";
-import { AUTH_MODE_DEFAULT_FALLBACK } from "@orb/server/foundation/env";
 import { expect, test } from "@orb/testkit/node";
+import { isOwner } from "@orb/testkit/node/auth";
 import type { ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, damageOwnerRow } from "@orb/testkit/node/composed";
 import { NATIVE_OIDC_SETTINGS } from "@orb/testkit/node/helpers";
@@ -50,16 +49,16 @@ function rootFor(
   mode: AuthMode,
   options: Omit<ServerHarnessOptions, "authConfig"> & { readonly fallback?: "owner" | "deny" } = {},
 ): Promise<ServerTestHarness> {
-  const { fallback = AUTH_MODE_DEFAULT_FALLBACK[mode], env, ...rest } = options;
+  const { fallback, env, ...rest } = options;
   return createServerHarness({
     physicalPeer: () => LOOPBACK,
     ...(mode === "oidc" ? { oidc: NATIVE_OIDC_SETTINGS } : {}),
     ...rest,
     // The parse refuses `deny` under `single-user`, so that pairing alone rides the overlay; every other posture is
-    // the record's, which the owner-fallback credential rule also reads.
+    // the record's, which the owner-fallback credential rule also reads. An unnamed fallback is the mode's own default.
     ...(mode === "single-user" && fallback === "deny"
       ? { env: { ...env }, authConfig: { mode, fallback } }
-      : { env: { ...env, ["AUTH_MODE"]: mode, ["AUTH_FALLBACK"]: fallback } }),
+      : { env: { ...env, ["AUTH_MODE"]: mode, ...(fallback === undefined ? {} : { ["AUTH_FALLBACK"]: fallback }) } }),
   });
 }
 

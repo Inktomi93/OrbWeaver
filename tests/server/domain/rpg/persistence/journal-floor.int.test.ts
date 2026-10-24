@@ -1,9 +1,7 @@
 // @subject packages/server/src/domain/rpg/persistence/journal.ts
 // @subject packages/server/src/domain/rpg/verbs/read/list-journal.ts
 import { rpgJournal } from "@orb/db";
-import { databaseHandle } from "@orb/db/wiring-owner";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import { createResolveViewerVisibility } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, seedCorpusActors } from "@orb/testkit/node/composed";
 import { seedMessageRows } from "@orb/testkit/node/rows";
@@ -44,7 +42,7 @@ test("journal readers retain inclusive member floors, unfiltered host reads and 
   expect(await contents(member)).toEqual(["join boundary", "post-join", "hand entry"].toSorted());
   expect(await contents(host)).toEqual(all);
 
-  const visibility = createResolveViewerVisibility({ db: databaseHandle(root.db) });
-  expect(await visibility(chatId, stranger.userId)).toBeNull();
+  // The stranger cannot see the room through chat's own read, so the journal refusal below is that same verdict.
+  await expect(root.services.chat.getChat({ principal: stranger, chatId })).rejects.toBeInstanceOf(DomainNotFoundError);
   await expect(root.services.rpg.listJournal({ principal: stranger, chatId })).rejects.toBeInstanceOf(DomainNotFoundError);
 });

@@ -1,16 +1,15 @@
 // @subject packages/server/src/transport/trpc/router.ts
 // @subject packages/server/src/foundation/observability/client-error.ts
 import { RATE_LIMIT_CAP_MIN } from "@orb/contracts/settings";
-import { logger } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node";
-import { createServerHarness } from "@orb/testkit/node/composed";
+import { createServerHarness, processObservability } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
 
 test("anonymous and authenticated reports keep sink truncation, URL secrecy and client correlation isolation", async () => {
   await using root = await createServerHarness();
   const anonymous = await root.internalCallerFor(null);
   const authenticated = await root.internalCallerFor(root.ownerId);
-  const error = vi.spyOn(logger, "error");
+  const error = vi.spyOn(processObservability.logger(), "error");
   try {
     expect(
       await anonymous.clientError({
@@ -50,7 +49,7 @@ test("anonymous and authenticated reports keep sink truncation, URL secrecy and 
 test("the actual root accepts every inclusive wire ceiling and refuses over-limit reports before logging", async () => {
   await using root = await createServerHarness();
   const anonymous = await root.internalCallerFor(null);
-  const error = vi.spyOn(logger, "error");
+  const error = vi.spyOn(processObservability.logger(), "error");
   try {
     let logged = 0;
     for (const { field, maximum } of [
@@ -93,7 +92,7 @@ test("anonymous and authenticated client error reports retain their separate pro
   });
   const anonymous = await root.internalCallerFor(null);
   const authenticated = await root.internalCallerFor(root.ownerId);
-  const error = vi.spyOn(logger, "error");
+  const error = vi.spyOn(processObservability.logger(), "error");
   try {
     for (const caller of [anonymous, authenticated]) {
       for (let count = 0; count < RATE_LIMIT_CAP_MIN; count++) {

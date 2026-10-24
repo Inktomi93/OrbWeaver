@@ -15,6 +15,7 @@ import { createBinding } from "@orb/kit/binding";
 import type { ExternalId, Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId, createIdSource } from "@orb/kit/ids";
 import { isAdmin } from "@orb/server/domain/admin";
+import { stagedOwnerRoot } from "@orb/server/domain/import";
 import type { SessionsRolePolicy } from "@orb/server/domain/sessions";
 import { createSessionsRolePolicy } from "@orb/server/domain/sessions";
 import type { ShareGraph, ShareGraphOptions } from "@orb/server/domain/share";
@@ -28,7 +29,7 @@ import type { Env } from "@orb/server/foundation/env";
 import { authModeSource, bindPostureInput, hostEnvAllowlist, resolveBindPosture } from "@orb/server/foundation/env";
 import { getLog, logger } from "@orb/server/foundation/observability";
 import { systemConnector, systemFetch } from "@orb/server/infra/network";
-import { createCaller, createContext } from "@orb/server/transport/trpc";
+import { appRouter, createCaller, createContext } from "@orb/server/transport/trpc";
 import type { Clock } from "../iso/clock.ts";
 import { createFrozenClock } from "../iso/clock.ts";
 import type { SeededIds } from "../iso/ids.ts";
@@ -45,7 +46,7 @@ type AuthConfig = ReturnType<typeof authConfigFromEnv>;
 
 /** The root's options. Every env key reaches the record through its {@link ENV_SEAMS} row: the named options in
  *  {@link EnvSeamOptions}, or `env` for a raw row. */
-export interface ServerHarnessOptions extends EnvSeamOptions, Partial<Pick<ServicesDeps, "secretBoxKey" | "variantDir" | "holder">> {
+export interface ServerHarnessOptions extends EnvSeamOptions, Partial<Pick<ServicesDeps, "secretBoxKey" | "variantDir" | "holder" | "showcaseBundles">> {
   /** Raw values for the raw rows, parsed with the rest of the record by the production parse, so a value production
    *  refuses is refused here. */
   readonly env?: RawEnvInput;
@@ -180,6 +181,10 @@ export interface ServerTestHarness extends ComposedServerRoot, AsyncDisposable {
   readonly http: Pick<OwnedHttpRequests, "request" | "routes">;
   readonly listen: () => Promise<Readonly<AddressInfo>>;
   readonly importStagingDir: string;
+  /** Where the import routes stage one account's uploads under {@link ServerTestHarness.importStagingDir}. */
+  readonly stagedImportsOf: (userId: UserId) => string;
+  /** Every procedure path the root's `/api/trpc` mount serves. */
+  readonly trpcProcedures: ReadonlySet<string>;
   readonly modelCacheDir: string;
   readonly relayDir: string;
   readonly secretsDir: string;
@@ -504,6 +509,18 @@ function workloadsFor(
   return { runAdmittedWorkload, tickWorkloadSchedules: tickWorkloadSchedulesOnce };
 }
 
+type ConfiguredOidc = Awaited<ReturnType<typeof createConfiguredOidc>>;
+
+/** Assemble the production OIDC owner over a built root with `settings`, as boot does for an `oidc` record; the
+ *  caller disposes it. A root in another mode reaches the OIDC routes' owners this way. */
+export async function configureOidc(
+  root: Pick<ServerTestHarness, "db" | "app" | "clock" | "timers">,
+  settings: Parameters<typeof createConfiguredOidc>[0]["settings"],
+): Promise<ConfiguredOidc> {
+  const { createConfiguredOidc: assembleOidc } = await import("@orb/server/entry/compose");
+  return await assembleOidc({ db: databaseHandle(root.db), built: root.app, now: root.clock.now, settings, scheduleInterval: root.timers.interval });
+}
+
 /** Build an owned in-process server graph; a supplied database remains its caller's resource. */
 export function createServerHarness(options: UnclaimedServerHarnessOptions): Promise<UnclaimedServerTestHarness>;
 export function createServerHarness(options?: ServerHarnessOptions): Promise<ServerTestHarness>;
@@ -565,6 +582,7 @@ export async function createServerHarness(
     ownerId,
     secretBoxKey: options.secretBoxKey ?? null,
     ...replicaOf(options),
+    ...(options.showcaseBundles === undefined ? {} : { showcaseBundles: options.showcaseBundles }),
     sessionSecret: SESSION_SECRET,
     sessionsCrypto,
     ...dataSlots,
@@ -653,6 +671,8 @@ export async function createServerHarness(
       return address;
     },
     importStagingDir: env.IMPORT_STAGING_DIR,
+    stagedImportsOf: (userId: UserId): string => stagedOwnerRoot(env.IMPORT_STAGING_DIR, userId),
+    trpcProcedures: new Set(Object.keys(appRouter._def.procedures)),
     modelCacheDir,
     relayDir,
     secretsDir,

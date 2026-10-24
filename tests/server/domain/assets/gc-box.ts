@@ -13,8 +13,6 @@ import { closeDb } from "@orb/db";
 import { contentSpanRaw } from "@orb/kit/content";
 import type { AssetId, CharacterHandle, ChatId, MessageId, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
-import type { Cas } from "@orb/server/infra/storage/cas";
-import { createCas } from "@orb/server/infra/storage/cas";
 import type { ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBEDDING_VECTOR,
@@ -33,7 +31,7 @@ export const GC_IMAGE_MODEL = "gc-image-v1";
 
 export interface GcBox {
   readonly root: ServerTestHarness;
-  readonly cas: Cas;
+  readonly cas: ServerTestHarness["app"]["cas"];
   readonly principal: Principal;
   readonly images: Uint8Array[];
 }
@@ -78,7 +76,7 @@ export async function openBox(db?: Db, options: { readonly loopbackOwner?: boole
   await root.services.settings.updateAppSettings({ principal, partial: { privateEndpointAllowlist: [new URL(CORPUS_PROVIDER_ENDPOINT).hostname] } });
   // A committed message resolves the room's chat connection even when nothing generates; nothing here calls it.
   await seedCorpusConnections(root, principal);
-  return { root, cas: createCas(casDir), principal, images };
+  return { root, cas: root.app.cas, principal, images };
 }
 
 /** An asset a production writer stored on its own, resolved to the `(id, hash)` the sweep keys on. */

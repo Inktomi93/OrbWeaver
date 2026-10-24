@@ -3,13 +3,12 @@
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { isOwner } from "@orb/server/domain/admin";
 import type { SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
 import { authConfigFromEnv, createAuthSeam } from "@orb/server/entry/auth";
-import { env } from "@orb/server/foundation/env";
 import { expect, test } from "@orb/testkit/node";
+import { isOwner } from "@orb/testkit/node/auth";
 import type { ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness, damageOwnerRow, readAccounts } from "@orb/testkit/node/composed";
+import { createServerHarness, createTestEnv, damageOwnerRow, readAccounts } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
 import { authMe, claimedOwnerCookie, debugStatus, FORWARD_USERNAME_CLAIM, policy, signedForwardRoot, signedInMember, wireViewer } from "../_auth-roots.ts";
 
@@ -45,7 +44,7 @@ function local(peer: () => string = () => LOOPBACK): Promise<ServerTestHarness> 
   return createServerHarness({ physicalPeer: peer, env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
 }
 
-function forward(peer: () => string, rolePolicyConfig: SessionsRolePolicyConfig = env): Promise<ServerTestHarness> {
+function forward(peer: () => string, rolePolicyConfig: SessionsRolePolicyConfig = createTestEnv()): Promise<ServerTestHarness> {
   return createServerHarness({
     physicalPeer: peer,
     rolePolicyConfig,

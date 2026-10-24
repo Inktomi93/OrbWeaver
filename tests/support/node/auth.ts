@@ -18,6 +18,9 @@ import { createServerHarness } from "./server.ts";
 import type { NativeIssuer } from "./sign-in.ts";
 import { forwardHeaders, SignInRefusal, signInWithOidc, signInWithPassword } from "./sign-in.ts";
 
+// The authorization kernel's role reads. Role data decodes only behind admin's door (role-data-private-decoder), so a
+// suite reads a Principal's role through these, never a sideways import of admin.
+export { can, isAdmin, isOwner } from "@orb/server/domain/admin";
 export { beginOidcLogin, cookieHeader, finishOidcLogin, forwardHeaders, SignInRefusal, signInWithOidc, signInWithPassword } from "./sign-in.ts";
 
 /** What each auth mode admits: `members` is a second account that can sign in, `ownerFallback` the

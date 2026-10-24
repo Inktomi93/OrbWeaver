@@ -4,9 +4,8 @@
 // @subject packages/inference/src/index.ts
 
 import { CONNECTION_OP_CODES, modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
-import { createHostPrincipalResolver } from "@orb/server/entry/auth";
-import { getLog } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node";
+import { processObservability } from "@orb/testkit/node/composed";
 import { sql } from "drizzle-orm";
 import { vi } from "vitest";
 
@@ -70,7 +69,7 @@ test("foreign malformed bytes still reach the mismatch event, never decoding or 
   await db.run(sql`update connection_bindings set connection_id = ${foreign.id} where id = ${binding.id}`);
   await db.run(sql`update user_connections set transport = '{' where id = ${foreign.id}`);
 
-  using security = vi.spyOn(getLog(), "warn");
+  using security = vi.spyOn(processObservability.logger(), "warn");
   await expect(ownerCaller.connection.resolveChatCapability()).rejects.toThrow(`connection ${foreign.id} not found`);
   const mismatchEvents = (): (readonly unknown[])[] =>
     security.mock.calls.filter((call: readonly unknown[]) => {
@@ -83,7 +82,7 @@ test("foreign malformed bytes still reach the mismatch event, never decoding or 
   ];
   expect(mismatchEvents()).toEqual([expectedEvent]);
 
-  const principal = await createHostPrincipalResolver(app.sessions)(harness.ownerId);
+  const principal = await harness.principalFor(harness.ownerId);
   await expect(app.runtime.capabilities.for({ connectionId: foreign.id, principal })).rejects.toThrow(`connection ${foreign.id} not found`);
   await expect(ownerCaller.connection.get({ connectionId: foreign.id })).rejects.toMatchObject(foreignRefusal);
   await expect(ownerCaller.connection.remove({ connectionId: foreign.id })).toThrowTRPCError("BAD_REQUEST");

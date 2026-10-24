@@ -5,9 +5,8 @@ import { join, relative } from "node:path";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { importStartedSchema, TREE_FILE_FIELD } from "@orb/contracts/import";
 import { PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
-import { extractZip } from "@orb/server/infra/storage/zip";
 import { expect, test } from "@orb/testkit/node";
-import { createServerHarness, prepareBackupFolder } from "@orb/testkit/node/composed";
+import { createServerHarness, extractZip, prepareBackupFolder } from "@orb/testkit/node/composed";
 import { CSRF_HEADERS } from "./_body-limit-inputs.ts";
 
 const EXPORT_ROUTE = "/api/export/library";

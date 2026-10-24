@@ -5,11 +5,12 @@
 // @subject packages/server/src/domain/tag/verbs/seed-tag.ts
 
 import { characterTags, tags, userSeedLedger } from "@orb/db";
-import { createCharacterSeedStep, DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
+import { DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
 import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
 import { principal } from "@orb/testkit/node/helpers";
 import { and, eq } from "drizzle-orm";
-import { FIRST_CARD, ledgerPolicy } from "../seeder/content.fixtures.ts";
+import { FIRST_CARD } from "../seeder/content.fixtures.ts";
 
 test("a recorded deleted card stays deleted across a cold seed; its real tag rows remain card/pending suggestions", async ({
   harness,
@@ -35,13 +36,9 @@ test("a recorded deleted card stays deleted across a cold seed; its real tag row
   expect(attached.length).toBeGreaterThan(0);
   expect(attached.every((row) => row.source === "card" && row.status === "pending" && row.ownerId === user.id)).toBe(true);
   await services.character.remove({ principal: actor, characterId: card.characterId });
-  const cold = ledgerPolicy(db, clock.now, services.settings, [
-    {
-      key: FIRST_CARD.key,
-      seed: createCharacterSeedStep((p, handle) => app.characterSeeder.seedCard(p, handle), FIRST_CARD.handle),
-    },
-  ]);
-  await cold.ensureSeeded(actor);
+  // A restarted server on the same database is the cold seed: its seeder has settled no pass in this process.
+  await using restarted = await createServerHarness({ db, ownerId: harness.ownerId, clock, ids: harness.ids });
+  await restarted.app.contentSeeder.ensureSeeded(await restarted.principalFor(user.id));
   expect(await services.character.findByHandle({ ownerId: user.id, handle: FIRST_CARD.handle })).toBeNull();
   expect(
     await db

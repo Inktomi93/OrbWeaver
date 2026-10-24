@@ -65,7 +65,6 @@ export type {
 } from "./contract/service.ts";
 export type { ExamplePluginSeeder, ExamplePluginSeederDeps } from "./contract/showcase-seed.ts";
 export { createPluginGrantTasksOf } from "./persistence/grant-tasks.ts";
-export { recordPluginFetchedAsset } from "./persistence/plugin-assets.ts";
 // `listEnabledAcrossOwners` is the BOOT reactivation step's read (#1865) — the one deliberately
 // un-owner-scoped query in the persistence file, projected to (pluginId, ownerId) so its consumer can only
 // ever drive each row's OWN owner's `setEnabled`. Its whole argument lives on the function's own doc.

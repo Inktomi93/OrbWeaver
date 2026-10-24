@@ -6,9 +6,9 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 
 import type { ExternalId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { isAdmin, isOwner } from "@orb/server/domain/admin";
 import { createImportAvatarStore, createImportOwnedAsset } from "@orb/server/domain/assets";
 import { expect, test } from "@orb/testkit/node";
+import { isAdmin, isOwner } from "@orb/testkit/node/auth";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { principal } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";

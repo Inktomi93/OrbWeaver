@@ -1,10 +1,8 @@
 // Native logout verification is assembled by the real OIDC composition owner, not a private infra import.
 // @subject packages/server/src/infra/auth/backchannel.ts
-import { databaseHandle } from "@orb/db/wiring-driver";
-import { createConfiguredOidc } from "@orb/server/entry/compose";
 import { test as base, expect } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness } from "@orb/testkit/node/composed";
+import { configureOidc, createServerHarness } from "@orb/testkit/node/composed";
 import { CLIENT_ID, createNativeIssuer, ISSUER, NATIVE_OIDC_SETTINGS } from "@orb/testkit/node/helpers";
 
 const BACKCHANNEL_EVENT = "http://schemas.openid.net/event/backchannel-logout";
@@ -12,7 +10,7 @@ const SUBJECT = "authentik|alice";
 const KEY_URL = new URL("jwks", ISSUER).href;
 
 type Issuer = Awaited<ReturnType<typeof createNativeIssuer>>;
-type ConfiguredOidc = Awaited<ReturnType<typeof createConfiguredOidc>>;
+type ConfiguredOidc = Awaited<ReturnType<typeof configureOidc>>;
 type Verifier = NonNullable<ConfiguredOidc["backchannelLogout"]>;
 type Claims = Parameters<Issuer["logoutToken"]>[0];
 
@@ -31,13 +29,7 @@ const test = base.extend<{ issuer: Issuer; root: ServerTestHarness; verifier: Ve
     await use(root);
   },
   verifier: async ({ root }, use) => {
-    await using oidc = await createConfiguredOidc({
-      db: databaseHandle(root.db),
-      built: root.app,
-      now: root.clock.now,
-      settings: NATIVE_OIDC_SETTINGS,
-      scheduleInterval: root.timers.interval,
-    });
+    await using oidc = await configureOidc(root, NATIVE_OIDC_SETTINGS);
     if (oidc.backchannelLogout === undefined) {
       throw new Error("the actual configured OIDC owner omitted enabled logout verification");
     }
