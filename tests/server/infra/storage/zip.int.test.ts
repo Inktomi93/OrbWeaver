@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { crc32, deflateRawSync } from "node:zlib";
 import { extractZip, packZip } from "@orb/server/infra/storage/zip";
 import { expect, test } from "@orb/testkit/node";
+import { createTestLogger } from "@orb/testkit/node/composed";
 import { onTestFinished } from "vitest";
 
 // Offsets into the records this build's writer emits: a 22-byte end record with no comment.
@@ -70,7 +71,7 @@ async function packed(): Promise<Uint8Array> {
   async function* entries(): AsyncIterable<{ readonly path: string; readonly bytes: Uint8Array }> {
     yield* ENTRIES;
   }
-  return new Uint8Array(await new Response(packZip(entries())).arrayBuffer());
+  return new Uint8Array(await new Response(packZip(entries(), createTestLogger())).arrayBuffer());
 }
 
 async function stagedFiles(root: string): Promise<number> {

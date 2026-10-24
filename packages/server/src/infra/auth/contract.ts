@@ -141,9 +141,8 @@ export interface ResolveDeps {
   /** The relay registry's names (`createRelayHostRegistry`). The forward-header path refuses every identity on a
    *  request whose Host is one of them. Absent means no relay runs in this process. */
   relayHosts?: AllowedHostsReader;
-  /** The root's logger the resolution's security lines fall back to outside a request; absent ⇒ the process
-   *  logger until item 1271 removes it. */
-  log?: Logger;
+  /** The root's logger the resolution's security lines fall back to outside a request. */
+  log: Logger;
 }
 
 /** Reports one relayed request refused the owner fallback, keyed by its raw TCP peer. */

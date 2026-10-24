@@ -2,6 +2,7 @@ import type { ScopedEgressOptions } from "@orb/server/infra/network";
 import { createScopedEgress, systemConnector } from "@orb/server/infra/network";
 import { createControlledTimers, createFrozenClock } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
+import { createTestLogger } from "@orb/testkit/node/composed";
 import { createTestEnv } from "@orb/testkit/node/helpers";
 
 // A fresh scheduler per egress: these cases never wait on a deadline, so nothing advances it.
@@ -15,6 +16,7 @@ const unscriptedFetch: ScopedEgressOptions["fetch"] = () => Promise.reject(new E
 test("an exact hostname port cannot be re-widened by the resolved address's containing CIDR", async () => {
   const resolvedHosts: string[] = [];
   await using egress = createScopedEgress({
+    log: createTestLogger(),
     env: createTestEnv(),
     timers: quietTimers(),
     fetch: unscriptedFetch,
@@ -32,6 +34,7 @@ test("an exact hostname port cannot be re-widened by the resolved address's cont
 
 test("the exact declared port and a different hostname inside the CIDR remain admitted", async () => {
   await using egress = createScopedEgress({
+    log: createTestLogger(),
     env: createTestEnv(),
     timers: quietTimers(),
     fetch: unscriptedFetch,
@@ -45,6 +48,7 @@ test("the exact declared port and a different hostname inside the CIDR remain ad
 
 test("a public resolved address is not turned into a private-endpoint port restriction", async () => {
   await using egress = createScopedEgress({
+    log: createTestLogger(),
     env: createTestEnv(),
     timers: quietTimers(),
     fetch: unscriptedFetch,

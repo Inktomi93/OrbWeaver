@@ -29,7 +29,7 @@ import type { createConfiguredOidc, createHttpApp, ServicesDeps, ServicesResult 
 import { OWNER_CLAIM_URL_FILE_NAME } from "@orb/server/foundation/data-layout";
 import type { Env } from "@orb/server/foundation/env";
 import { bindPostureInput, resolveBindPosture } from "@orb/server/foundation/env";
-import { createLogger, getLog, logger as processLogger } from "@orb/server/foundation/observability";
+import { createLogger, getLog } from "@orb/server/foundation/observability";
 import { systemConnector, systemFetch } from "@orb/server/infra/network";
 import { appRouter, createCaller } from "@orb/server/transport/trpc";
 import type { Clock } from "../iso/clock.ts";
@@ -268,20 +268,6 @@ function replicaOf(options: Pick<ServerHarnessOptions, "holder">): Pick<Services
 
 function httpOverridesOf(options: Pick<ServerHarnessOptions, "physicalPeer">): Pick<Parameters<typeof createHttpApp>[0], "physicalPeer"> {
   return options.physicalPeer === undefined ? {} : { physicalPeer: options.physicalPeer };
-}
-
-// The graph writes through the root's own logger, but sites item 1271 has not moved yet still write the process
-// logger, so a root borrows that one's level too and restores it on dispose.
-function borrowLogLevel(level: ServerHarnessOptions["logLevel"]): Disposable {
-  const previous = processLogger.level;
-  if (level !== undefined) {
-    processLogger.level = level;
-  }
-  return {
-    [Symbol.dispose]: (): void => {
-      processLogger.level = previous;
-    },
-  };
 }
 
 // The record's data slots, as boot hands them to compose; compose reads the users, reports and wire-capture slots
@@ -580,7 +566,6 @@ export async function createServerHarness(
   const rolePolicy = createSessionsRolePolicy(env);
   const logger = createLogger(env.LOG_LEVEL);
   construction.use(processObservability.openRoot());
-  construction.use(borrowLogLevel(options.logLevel));
   let appLifetime: ServicesResult | undefined;
   let httpLifetime: OwnedHttpRequests | undefined;
   let oidcLifetime: Awaited<ReturnType<typeof createConfiguredOidc>> | undefined;

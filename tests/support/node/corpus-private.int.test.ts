@@ -29,6 +29,7 @@ import { makePluginBundle } from "./factories/plugin.ts";
 import { capturePluginRows, seedUser } from "./factories/rows.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
+import { createTestLogger } from "./test-logger.ts";
 
 // Private admission refuses a CI environment; these tests run in CI, so they hand it an environment without those flags.
 const LOCAL_ENVIRONMENT = inheritedProcessEnv({ ["CI"]: undefined, ["GITHUB_ACTIONS"]: undefined });
@@ -126,7 +127,7 @@ test("private intake retains the existing singleton owner and nonempty content i
   expect(capsule.wire.reads["sessions.me"][0]?.output).toEqual({ userId: original.id, handle: original.handle, globalRole: "owner" });
   expect(capsule.wire.reads["character.list"][0]?.output.items.map(({ id }) => id)).toContain(cardId);
   expect(capsule.wire.reads["chat.getChat"]).toHaveLength(2);
-  expect(Buffer.from(await createCas(capsule.layout.assets).read(original.id, assetHash)).equals(Buffer.from(assetBytes))).toBe(true);
+  expect(Buffer.from(await createCas(capsule.layout.assets, createTestLogger()).read(original.id, assetHash)).equals(Buffer.from(assetBytes))).toBe(true);
   const capturedDb = await createDb(capsule.layout.databaseUrl);
   try {
     const copiedPlugin = await capturePluginRows(capturedDb, original.id, retainedPlugin.plugin.id);

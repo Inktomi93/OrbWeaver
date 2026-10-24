@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-24
 priority: P2
 area: ui
-lane: cb-css
+lane: wt/agent-a93838f44c69f2f8c
 plan: css-system
 ---
 

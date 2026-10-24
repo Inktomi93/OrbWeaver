@@ -43,9 +43,12 @@ import { hydrateCorpusPlugins, pluginLibrarySchema, publishCorpusPlugins } from 
 import type { CorpusCapture, CorpusRead, CorpusViewerRead } from "./corpus-read.ts";
 import type { CorpusSearchLibrary } from "./corpus-search.ts";
 import { corpusSearchSchema, hydrateCorpusSearch, publishCorpusSearch } from "./corpus-search.ts";
+import type { CorpusShellAmbient } from "./corpus-shell.ts";
+import { hydrateShellAmbient, publishShellAmbient, shellAmbientSchema } from "./corpus-shell.ts";
 
 export type { CorpusRegexLibrary, CorpusWorldInfoLibrary } from "./corpus-library.ts";
 export type { CorpusLibraryRelations } from "./corpus-library-relations.ts";
+export type { CorpusShellAmbient } from "./corpus-shell.ts";
 
 const PRIVATE_MATERIAL_MESSAGE = "Corpus publication contains private material";
 
@@ -138,6 +141,7 @@ const publishedCorpusSchema = z
     worldInfoLibrary: worldInfoLibrarySchema.optional(),
     regexLibrary: regexLibrarySchema.optional(),
     libraryRelations: libraryRelationsSchema.optional(),
+    shellAmbient: shellAmbientSchema.optional(),
     searchLibrary: corpusSearchSchema.optional(),
     memberIdentities: memberIdentitiesSchema.optional(),
     reads: z.strictObject({
@@ -188,6 +192,10 @@ const publishedCorpusSchema = z
   .refine(
     ({ pluginLibrary, reads }) => pluginLibrary === undefined || pluginLibrary.ownerActive.viewerUserId === reads["sessions.me"][0]?.userId,
     "Corpus plugin owner viewer mismatch",
+  )
+  .refine(
+    ({ shellAmbient, reads }) => shellAmbient === undefined || shellAmbient.viewerUserId === reads["sessions.me"][0]?.userId,
+    "Corpus shell viewer mismatch",
   );
 
 interface CorpusReads {
@@ -226,6 +234,7 @@ export interface CorpusWireInput {
   readonly pluginLibrary?: CorpusPluginLibrary;
   readonly searchLibrary?: CorpusSearchLibrary;
   readonly libraryRelations?: CorpusLibraryRelations;
+  readonly shellAmbient?: CorpusShellAmbient;
   readonly memberIdentities?: CorpusMemberIdentities;
   readonly worldInfoLibrary?: CorpusWorldInfoLibrary;
   readonly regexLibrary?: CorpusRegexLibrary;
@@ -241,6 +250,7 @@ export interface CorpusWire {
   readonly pluginLibrary?: CorpusPluginLibrary;
   readonly searchLibrary?: CorpusSearchLibrary;
   readonly libraryRelations?: CorpusLibraryRelations;
+  readonly shellAmbient?: CorpusShellAmbient;
   readonly memberIdentities?: CorpusMemberIdentities;
   readonly worldInfoLibrary?: CorpusWorldInfoLibrary;
   readonly regexLibrary?: CorpusRegexLibrary;
@@ -268,6 +278,9 @@ function validateCorpusSections(input: CorpusWireInput): void {
   }
   if (input.libraryRelations !== undefined) {
     publishLibraryRelations(input.libraryRelations);
+  }
+  if (input.shellAmbient !== undefined) {
+    publishShellAmbient(input.shellAmbient);
   }
   if (input.memberIdentities !== undefined) {
     memberIdentitiesSchema.parse(input.memberIdentities);
@@ -297,6 +310,7 @@ export function hydrateCorpusWire(input: CorpusWireInput): CorpusWire {
     ...(input.pluginLibrary === undefined ? {} : { pluginLibrary: input.pluginLibrary }),
     ...(input.searchLibrary === undefined ? {} : { searchLibrary: input.searchLibrary }),
     ...(input.libraryRelations === undefined ? {} : { libraryRelations: input.libraryRelations }),
+    ...(input.shellAmbient === undefined ? {} : { shellAmbient: input.shellAmbient }),
     ...(input.memberIdentities === undefined ? {} : { memberIdentities: input.memberIdentities }),
     ...(input.worldInfoLibrary === undefined ? {} : { worldInfoLibrary: input.worldInfoLibrary }),
     ...(input.regexLibrary === undefined ? {} : { regexLibrary: input.regexLibrary }),
@@ -395,6 +409,7 @@ function hydratePublication(published: z.output<typeof publishedCorpusSchema>): 
     ...(published.pluginLibrary === undefined ? {} : { pluginLibrary: hydrateCorpusPlugins(published.pluginLibrary) }),
     ...(published.searchLibrary === undefined ? {} : { searchLibrary: hydrateCorpusSearch(published.searchLibrary) }),
     ...(published.libraryRelations === undefined ? {} : { libraryRelations: hydrateLibraryRelations(published.libraryRelations) }),
+    ...(published.shellAmbient === undefined ? {} : { shellAmbient: hydrateShellAmbient(published.shellAmbient) }),
     ...(published.memberIdentities === undefined ? {} : { memberIdentities: published.memberIdentities }),
     ...(published.worldInfoLibrary === undefined ? {} : { worldInfoLibrary: hydrateWorldInfoLibrary(published.worldInfoLibrary) }),
     ...(published.regexLibrary === undefined ? {} : { regexLibrary: hydrateRegexLibrary(published.regexLibrary) }),
@@ -467,6 +482,8 @@ function capturedSnapshotInputs(wire: CorpusWire): string {
     searchLibrary: Object.fromEntries(Object.entries(wire.searchLibrary?.reads ?? {}).map(([name, read]) => [name, request(read.input)])),
     searchRooms: wire.searchLibrary?.rooms.map((room) => request(room.input)) ?? [],
     libraryRelations: Object.fromEntries(Object.entries(wire.libraryRelations?.reads ?? {}).map(([name, read]) => [name, request(read.input)])),
+    shellAmbient: Object.fromEntries(Object.entries(wire.shellAmbient?.reads ?? {}).map(([name, read]) => [name, request(read.input)])),
+    shellRooms: wire.shellAmbient?.recentRooms.map((room) => request(room.input)) ?? [],
     worldInfoLibrary: Object.fromEntries(Object.entries(wire.worldInfoLibrary?.reads ?? {}).map(([name, read]) => [name, request(read.input)])),
     regexLibrary: Object.fromEntries(Object.entries(wire.regexLibrary?.reads ?? {}).map(([name, read]) => [name, request(read.input)])),
     notificationInbox: Object.fromEntries(Object.entries(wire.notificationInbox ?? {}).map(([name, snapshot]) => [name, request(snapshot.read.input)])),
@@ -483,6 +500,7 @@ export function encodeCorpusWire(wire: CorpusWire): string {
     ...(wire.pluginLibrary === undefined ? {} : { pluginLibrary: publishCorpusPlugins(wire.pluginLibrary) }),
     ...(wire.searchLibrary === undefined ? {} : { searchLibrary: publishCorpusSearch(wire.searchLibrary) }),
     ...(wire.libraryRelations === undefined ? {} : { libraryRelations: publishLibraryRelations(wire.libraryRelations) }),
+    ...(wire.shellAmbient === undefined ? {} : { shellAmbient: publishShellAmbient(wire.shellAmbient) }),
     ...(wire.memberIdentities === undefined ? {} : { memberIdentities: wire.memberIdentities }),
     ...(wire.worldInfoLibrary === undefined ? {} : { worldInfoLibrary: publishWorldInfoLibrary(wire.worldInfoLibrary) }),
     ...(wire.regexLibrary === undefined ? {} : { regexLibrary: publishRegexLibrary(wire.regexLibrary) }),

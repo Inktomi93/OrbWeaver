@@ -4,7 +4,7 @@ import type { DatabaseHandle } from "@orb/db/wiring";
 import type { WorkloadId } from "@orb/kit/ids";
 import type { ScheduleOp } from "@orb/kit/time";
 import type { ReapWorkloadsArgs, WorkloadContributions, WorkloadRowAnyKind, WorkloadRunnableRow, WorkloadRunnerDeps } from "#domain/workloads";
-import type { Logger, superviseDetached as Supervise } from "#foundation/observability";
+import type { DetachedSupervision, Logger } from "#foundation/observability";
 import type { BackgroundWork } from "#infra/tasks";
 
 // The lane-scoped queue poll bound by `createNextRunnableWorkload` at composition.
@@ -23,7 +23,7 @@ type SubscribeWakeOp = (listener: () => void) => () => void;
 /** The DI bundle the worker driver closes over — every cross-feature/engine/timer dep injected at entry/. */
 export interface WorkloadsWorkerDeps {
   readonly logger: Logger;
-  readonly supervise: typeof Supervise;
+  readonly supervise: DetachedSupervision["superviseDetached"];
   /** The root's opaque nonce; it keeps each supervised reap tick name unique. */
   readonly newOpaqueId: () => string;
   readonly track?: BackgroundWork["track"];

@@ -479,6 +479,7 @@ class BrokerClient {
         String(this.seams.env.PLUGIN_BROKER_WORKER_MAX),
         String(this.seams.env.PLUGIN_BROKER_MEMORY_LIMIT_BYTES),
         this.seams.env.NODE_ENV,
+        this.seams.env.LOG_LEVEL,
       ],
       {
         env: { ["NODE_ENV"]: this.seams.env.NODE_ENV },

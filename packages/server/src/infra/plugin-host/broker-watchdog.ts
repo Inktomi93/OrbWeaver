@@ -14,7 +14,7 @@ import { brokerWatchdogFailure, PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS } from "./wa
 
 const BROKER_ENTRY = fileURLToPath(new URL("./broker-entry.ts", import.meta.url));
 const BROKER_RESTART_DELAY_MS = 1000;
-const { directory, workerMaximum, memoryLimitBytes, nodeEnvironment } = parsePluginBrokerWatchdogArguments(process.argv.slice(2));
+const { directory, workerMaximum, memoryLimitBytes, nodeEnvironment, logLevel } = parsePluginBrokerWatchdogArguments(process.argv.slice(2));
 const stop = Promise.withResolvers<void>();
 let activeBroker: ChildProcess | undefined;
 let activeGeneration: string | undefined;
@@ -104,7 +104,7 @@ async function superviseOneBroker(): Promise<string> {
   let reportedPeakPhysicalWorkers = -1;
   const broker = spawn(
     process.execPath,
-    [...pluginBrokerExecArgv(), BROKER_ENTRY, ...formatPluginBrokerArguments({ directory, workerMaximum, generation, nodeEnvironment })],
+    [...pluginBrokerExecArgv(), BROKER_ENTRY, ...formatPluginBrokerArguments({ directory, workerMaximum, generation, nodeEnvironment, logLevel })],
     {
       env: { ["NODE_ENV"]: nodeEnvironment },
       // A guest Worker can read the broker's working directory whatever the grants say; keep it the private one.

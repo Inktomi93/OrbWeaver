@@ -89,7 +89,7 @@ function cacheKey(metaJwks: string): string {
 interface JwksReadState {
   readonly cache: LruMap<string, AnyKeySet>;
   readonly execution: typeof fetch;
-  readonly log: Logger | undefined;
+  readonly log: Logger;
 }
 
 function readJwks({ cache, execution, log }: JwksReadState, metaJwks: string, allowlist: readonly string[]): AnyKeySet | null {
@@ -139,7 +139,7 @@ function readJwks({ cache, execution, log }: JwksReadState, metaJwks: string, al
 }
 
 /** Own one configured client's key cache without replacing another graph's keys or fetch operation. */
-export function createJwksReader(execution: typeof fetch, log?: Logger): JwksReader {
+export function createJwksReader(execution: typeof fetch, log: Logger): JwksReader {
   const state: JwksReadState = { cache: new LruMap<string, AnyKeySet>(JWKS_CACHE_CAP), execution, log };
   const { cache } = state;
   let disposed = false;
@@ -171,7 +171,7 @@ function groupsFromClaim(claim: unknown): string[] {
 async function jwtVerifyOrNull(
   { jwt, issuer, audience }: Pick<ForwardJwtVerifyArgs, "jwt" | "issuer" | "audience">,
   keyset: AnyKeySet,
-  log: Logger | undefined,
+  log: Logger,
 ): Promise<JWTPayload | null> {
   try {
     const { payload } = await jwtVerify(jwt, keyset, {
@@ -206,7 +206,7 @@ function claimsFromPayload(payload: JWTPayload): ForwardJwtClaims {
 
 /** The `ForwardJwtVerifier` the seam injects into infra/auth. Wires its owned key reader → jwtVerify → claim mapping;
  *  returns null on any JWKS-build or signature/shape failure (fail-closed points 3 + 5). */
-export function createForwardJwtVerifier(readKeyset: JwksReader["jwksFor"], log?: Logger): ForwardJwtVerifier {
+export function createForwardJwtVerifier(readKeyset: JwksReader["jwksFor"], log: Logger): ForwardJwtVerifier {
   return {
     verify: async (args: ForwardJwtVerifyArgs): Promise<ForwardJwtClaims | null> => {
       const keyset = readKeyset(args.metaJwks, args.allowlist);

@@ -12,6 +12,7 @@
 // It carries the "All chats →" link that used to sit on the pick-up band, which is where the mock draws it
 // and where it stops sharing a line with the "Chats" jump pill.
 
+import { HOME_RECENT_CHATS_LIMIT } from "@orb/contracts/chat";
 import { Button } from "@orb/ui/button";
 import { MessagesSquare } from "@orb/ui/icons";
 import { useQuery } from "@tanstack/react-query";
@@ -21,7 +22,6 @@ import { useTRPC } from "#data";
 import type { HomeTileContribution } from "#state";
 import { forgetSurfaceBox, setActiveSection, useSurfaceBox } from "#state";
 import { HomeAlsoOpenTileBody } from "../components/home-also-open-tile-body.tsx";
-import { RECENTS_LIMIT } from "../components/home-recents-tile-body.tsx";
 
 /** Between the hero (10) and the jump rail (40) — the mock's order down the hearth column. */
 const ALSO_OPEN_TILE_ORDER = 15;
@@ -29,7 +29,7 @@ const ALSO_OPEN_TILE_ORDER = 15;
 /** The skeleton's authored row count, the fill fallback inside a remembered box (a device with no memory
  *  renders no box at all, see `useVisible`). The hero takes `items[0]`, so this list is at most one row
  *  short of the page the shared query asks for. Derived from that limit, never a second number that can drift from it. */
-const ALSO_OPEN_SKELETON_ROWS = RECENTS_LIMIT - 1;
+const ALSO_OPEN_SKELETON_ROWS = HOME_RECENT_CHATS_LIMIT - 1;
 
 /** The registry id, which is also this tile's key in the device's box memory. */
 const ALSO_OPEN_TILE_ID = "chat.alsoOpen";
@@ -55,7 +55,7 @@ export const chatAlsoOpenTile: HomeTileContribution = {
   // forgets its box, so the next boot does not reserve a list that is gone.
   useVisible: (): boolean => {
     const trpc = useTRPC();
-    const { data: page } = useQuery(trpc.chat.listChats.queryOptions({ limit: RECENTS_LIMIT }));
+    const { data: page } = useQuery(trpc.chat.listChats.queryOptions({ limit: HOME_RECENT_CHATS_LIMIT }));
     const remembered = useSurfaceBox(ALSO_OPEN_TILE_ID) !== null;
     const visible = page === undefined ? remembered : page.items.length > 1;
     const settledHidden = page !== undefined && !visible;

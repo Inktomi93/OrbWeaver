@@ -3,6 +3,7 @@ import type { ScopedEgressOptions } from "@orb/server/infra/network";
 import { createScopedEgress, systemFetch } from "@orb/server/infra/network";
 import { createControlledTimers, createFrozenClock } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
+import { createTestLogger } from "@orb/testkit/node/composed";
 import { createTestEnv } from "@orb/testkit/node/helpers";
 
 // A fresh scheduler per egress: these cases never wait on a deadline, so nothing advances it.
@@ -59,6 +60,7 @@ async function dialFailure(fetchPromise: Promise<Response>): Promise<unknown> {
 test("the actual connector rejects a wrong hostname port before the physical dial despite its resolved CIDR", async () => {
   raw.calls.length = 0;
   await using egress = createScopedEgress({
+    log: createTestLogger(),
     env: createTestEnv(),
     timers: quietTimers(),
     fetch: systemFetch,
@@ -75,6 +77,7 @@ test("the actual connector rejects a wrong hostname port before the physical dia
 test("the connector preserves exact-port, unrelated-CIDR-host and public-address admission", async () => {
   raw.calls.length = 0;
   await using egress = createScopedEgress({
+    log: createTestLogger(),
     env: createTestEnv(),
     timers: quietTimers(),
     fetch: systemFetch,

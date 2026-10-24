@@ -25,7 +25,7 @@
 // "<stamp> ago" otherwise, still no horizon), so the tense is the kit's job and this site never spells it.
 //
 // IT COUNTS THE CENSUS, NEVER THE PAGE (review 2026-08-17 F3). This line used to count `items.length` and
-// say "and more" whenever that hit `RECENTS_LIMIT` — which is a page size, not a total, so the ONE state
+// say "and more" whenever that hit `HOME_RECENT_CHATS_LIMIT` — which is a page size, not a total, so the ONE state
 // where the hedge was wrong was the state it fired in most cleanly: a user with EXACTLY eight rooms read
 // "Eight rooms and more, still warm." about a house with nothing else in it, and a user with eighty read
 // the same sentence as a user with nine. `ChatListPage.totalCount` is a real server `COUNT` over the same
@@ -34,6 +34,7 @@
 // covering. A user with none gets an opening that fits an empty house. The subtitle disappears entirely
 // when there is no room to have left off in — an absent fact prints nothing, never "You left off never".
 
+import { HOME_RECENT_CHATS_LIMIT } from "@orb/contracts/chat";
 import { Stack } from "@orb/ui/layout";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Heading, Text } from "@orb/ui/text";
@@ -42,7 +43,6 @@ import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { timeLib } from "#lib";
 import { isFirstRun } from "../lib/home-hearth.ts";
-import { RECENTS_LIMIT } from "./home-recents-tile-body.tsx";
 
 /** Counts up to ten spelled out — a masthead sentence reads as prose, and "6 rooms" in a warm line is a
  *  receipt, not a sentence. Past ten the numeral IS how the sentence reads ("Eighty-three" is not warmer
@@ -93,7 +93,7 @@ export function HomeMastheadSkeleton(): ReactElement {
 
 export function HomeMastheadBody(): ReactElement {
   const trpc = useTRPC();
-  const { data: page } = useSuspenseQuery(trpc.chat.listChats.queryOptions({ limit: RECENTS_LIMIT }));
+  const { data: page } = useSuspenseQuery(trpc.chat.listChats.queryOptions({ limit: HOME_RECENT_CHATS_LIMIT }));
   const firstRun = isFirstRun(page);
   return (
     <Stack gap="tight">
