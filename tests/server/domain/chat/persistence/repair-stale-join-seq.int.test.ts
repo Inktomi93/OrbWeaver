@@ -22,7 +22,7 @@ async function joinSeqOf(db: Db, id: ChatParticipantId): Promise<number | undefi
   return row?.joinSeq;
 }
 
-test("a floor above its room's head is clamped to that head, a correct floor is untouched, and a second run is a no-op", async ({ db }) => {
+test("a floor above its room's head is clamped to that head, floors at or below a head are untouched, and a second run is a no-op", async ({ db }) => {
   const quiet = await seedChatRow(db);
   for (const seq of [1, 2, 3]) {
     await seedMessageRow(db, { chatId: quiet.id, seq });
@@ -31,10 +31,14 @@ test("a floor above its room's head is clamped to that head, a correct floor is 
   await seedMessageRow(db, { chatId: busy.id, seq: 5 });
   const stale = await seatMember(db, quiet.id, (await seedUser(db)).id, 99);
   const correct = await seatMember(db, busy.id, (await seedUser(db)).id, 5);
+  // A late joiner's floor below its head is the ordinary case; raising it would hide history it was admitted to.
+  const lateJoiner = await seatMember(db, quiet.id, (await seedUser(db)).id, 2);
 
-  expect(await repairStaleJoinSeq(databaseHandle(db))).toBe(1);
+  const repaired = await repairStaleJoinSeq(databaseHandle(db));
   expect(await joinSeqOf(db, stale)).toBe(3);
   expect(await joinSeqOf(db, correct)).toBe(5);
+  expect(await joinSeqOf(db, lateJoiner)).toBe(2);
+  expect(repaired).toBe(1);
   expect(await repairStaleJoinSeq(databaseHandle(db))).toBe(0);
 });
 
