@@ -935,3 +935,9 @@ export function isUiProxyableHostFunction(fn: string): fn is UiProxyableHostFunc
 
 /** Per-field character ceiling before reduced canon, lore, search or event content enters a guest. */
 export const PLUGIN_READ_CONTENT_MAX_CHARS = 16_384;
+
+/** Guest log volume per drain interval: line count and total length in UTF-16 code units (a JS string's own
+ *  unit, at least one UTF-8 byte each). The server host and the client guest both enforce it, so a guest is cut
+ *  at the same line on either side. */
+export const PLUGIN_LOG_LINES_MAX = 256;
+export const PLUGIN_LOG_CHARS_MAX = 16_384;

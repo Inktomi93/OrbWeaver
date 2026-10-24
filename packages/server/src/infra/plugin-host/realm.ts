@@ -12,10 +12,9 @@
 // and wiring; this spike proves the realm + seam-injection + version gate the rest hangs off.
 
 import type { PluginLogLevel } from "@orb/contracts/plugin";
-import { HostVersionError, PLUGIN_HOST_VERSIONS, PLUGIN_LOG_LEVELS } from "@orb/contracts/plugin";
+import { HostVersionError, PLUGIN_HOST_VERSIONS, PLUGIN_LOG_CHARS_MAX, PLUGIN_LOG_LEVELS, PLUGIN_LOG_LINES_MAX } from "@orb/contracts/plugin";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { QuickJSContext, QuickJSHandle } from "quickjs-emscripten-core";
-import { LOG_BYTES_PER_INVOCATION, LOG_LINES_PER_INVOCATION } from "./budgets.ts";
 import type { MembraneRuntime } from "./membrane.ts";
 import { attachMembrane } from "./membrane.ts";
 
@@ -68,13 +67,13 @@ export class LogRing {
   }
 
   push(level: LogLevel, message: string): void {
-    if (this.lines.length >= LOG_LINES_PER_INVOCATION || this.bytes >= LOG_BYTES_PER_INVOCATION) {
+    if (this.lines.length >= PLUGIN_LOG_LINES_MAX || this.bytes >= PLUGIN_LOG_CHARS_MAX) {
       return;
     }
     const line = `[${level}] ${message}`;
     // Clamped, not refused: a truncated line still tells an operator WHAT ran. Accounting is in UTF-16 code
     // units — the unit a JS string actually costs, and ≥ 1 UTF-8 byte each (conservative for a memory bound).
-    const clamped = line.length <= LOG_BYTES_PER_INVOCATION - this.bytes ? line : line.slice(0, LOG_BYTES_PER_INVOCATION - this.bytes);
+    const clamped = line.length <= PLUGIN_LOG_CHARS_MAX - this.bytes ? line : line.slice(0, PLUGIN_LOG_CHARS_MAX - this.bytes);
     this.bytes += clamped.length;
     this.lines.push(clamped);
     // The mirror sees the SAME clamped text the ring keeps (never the raw message): what the central log

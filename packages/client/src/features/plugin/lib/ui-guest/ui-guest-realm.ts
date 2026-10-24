@@ -11,7 +11,7 @@
 // the whole-sandbox story.
 
 import type { PluginLogLevel, UiProxyableHostFunction } from "@orb/contracts/plugin";
-import { PLUGIN_LOG_LEVELS } from "@orb/contracts/plugin";
+import { PLUGIN_LOG_CHARS_MAX, PLUGIN_LOG_LEVELS, PLUGIN_LOG_LINES_MAX } from "@orb/contracts/plugin";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { QuickJSContext, QuickJSHandle } from "quickjs-emscripten-core";
 // The wire leaf, never the `#lib` barrel — this module runs inside the worker (see ui-guest.worker.ts).
@@ -30,10 +30,10 @@ export class LogRing {
   private chars = 0;
 
   push(level: PluginLogLevel, message: string): void {
-    if (this.lines >= UI_GUEST_BUDGETS.logLines || this.chars >= UI_GUEST_BUDGETS.logChars) {
+    if (this.lines >= PLUGIN_LOG_LINES_MAX || this.chars >= PLUGIN_LOG_CHARS_MAX) {
       return;
     }
-    const room = UI_GUEST_BUDGETS.logChars - this.chars;
+    const room = PLUGIN_LOG_CHARS_MAX - this.chars;
     const clamped = message.length <= room ? message : message.slice(0, room);
     this.lines += 1;
     this.chars += clamped.length;

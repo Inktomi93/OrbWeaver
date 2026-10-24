@@ -191,11 +191,8 @@ export const PLUGIN_DUMP_NODE_GUARD = 65_536;
  *  HARD bound on the drained volume, including for a single line: `LogRing.push` CLAMPS an oversized message
  *  to what is left of the budget, because those drained lines are RETAINED (see the runtime ring below) and a
  *  32 MiB single line would be an unbounded per-instance allocation. Accounting is in UTF-16 code units (a JS
- *  string's own unit, and ≥ 1 UTF-8 byte each) — the bound is on host memory, not on wire bytes. The names
- *  keep their `_PER_INVOCATION` spelling: an invocation is still the common interval, and every consumer of the
- *  numbers is the same. */
-export const LOG_LINES_PER_INVOCATION = 256;
-export const LOG_BYTES_PER_INVOCATION = 16_384;
+ *  string's own unit, and ≥ 1 UTF-8 byte each) — the bound is on host memory, not on wire bytes. The numbers
+ *  live in `@orb/contracts/plugin` (`PLUGIN_LOG_LINES_MAX` / `PLUGIN_LOG_CHARS_MAX`), shared with the client guest. */
 
 /** The RUNTIME log ring retained per RESIDENT instance — what `getPluginLog` reads. `LogRing` above is the
  *  per-drain staging ring (emptied by every drain — an invocation's, or the port's residue pickup of what a

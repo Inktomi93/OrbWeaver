@@ -50,10 +50,6 @@ export const UI_GUEST_BUDGETS = {
   /** Per host-call deadline, ms — `HOST_FN_DEADLINE_MS`. A host call is a network round-trip here, so this is
    *  also what stops a guest parking forever on a request the server dropped. */
   hostCallDeadlineMs: 5000,
-  /** Log lines retained per guest, and their total volume — `LOG_LINES_PER_INVOCATION` /
-   *  `LOG_BYTES_PER_INVOCATION`. A guest cannot flood the host by logging. */
-  logLines: 256,
-  logChars: 16_384,
 } as const;
 
 /** THE WALL-CLOCK DEADLINE the HOST enforces from OUTSIDE the guest — the D46 review's P1-A lesson, inherited
