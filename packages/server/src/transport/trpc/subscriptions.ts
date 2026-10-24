@@ -15,7 +15,8 @@
 
 import type { TrackedEnvelope } from "@trpc/server";
 import { tracked } from "@trpc/server";
-import type { Logger } from "#foundation/observability";
+// pino's own type: the published router declaration must not resolve the observability barrel's source.
+import type pino from "pino";
 import { getLog } from "#foundation/observability";
 import type { SubscriptionErrorFrame } from "./contract/subscriptions.ts";
 import { classifyDomainError, providerFaultOf } from "./error-mapping.ts";
@@ -28,7 +29,7 @@ const SUBSCRIPTION_ERROR_ID = "__error__";
  *  frame — the stream is terminal at that point. */
 export async function* withSubscriptionErrors<TData>(
   source: AsyncIterable<TrackedEnvelope<TData>>,
-  logger: Logger,
+  logger: pino.Logger,
 ): AsyncGenerator<TrackedEnvelope<TData> | TrackedEnvelope<SubscriptionErrorFrame>> {
   try {
     yield* source;

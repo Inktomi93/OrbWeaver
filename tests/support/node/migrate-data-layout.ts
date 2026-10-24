@@ -6,8 +6,7 @@ import { writeFileSync } from "node:fs";
 import process from "node:process";
 import { migrateDataLayout } from "@orb/server/entry/boot";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
-import { createLogger } from "@orb/server/foundation/observability";
-import { createTestEnv } from "./env.ts";
+import { createTestLogger } from "./test-logger.ts";
 
 const [root, outcomePath] = process.argv.slice(2);
 if (root === undefined || outcomePath === undefined) {
@@ -16,7 +15,7 @@ if (root === undefined || outcomePath === undefined) {
 const outcome = await migrateDataLayout({
   layout: resolveDataLayout({ ["DATA_DIR"]: root }),
   env: { ["SESSION_SECRET"]: undefined, ["NODE_ENV"]: "test" },
-  logger: createLogger(createTestEnv().LOG_LEVEL),
+  logger: createTestLogger(),
 }).then(
   (report) => ({ report }),
   (err: unknown) => ({ error: err instanceof Error ? err.message : String(err) }),

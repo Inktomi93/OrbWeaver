@@ -45,7 +45,8 @@ import { roomKey, STREAM_ERROR_CODES } from "@orb/contracts/stream";
 import type { SocketId } from "@orb/kit/ids";
 import type { TrackedEnvelope } from "@trpc/server";
 import { tracked } from "@trpc/server";
-import type { Logger } from "#foundation/observability";
+// pino's own type: the published router declaration must not resolve the observability barrel's source.
+import type pino from "pino";
 import { createDetachedSupervision, getLog } from "#foundation/observability";
 import { SERVER_INSTANCE_ID } from "#foundation/server-instance";
 import type { Services } from "../context.ts";
@@ -81,7 +82,7 @@ function roomFailure(err: unknown): { readonly code: StreamErrorCode; readonly m
 }
 
 export interface RunSocketArgs {
-  readonly logger: Logger;
+  readonly logger: pino.Logger;
   readonly liveBuses: LiveBuses;
   readonly registry: SocketRegistry;
   /** ALREADY ADOPTED by the resolver — so a cross-principal socketId is a real NOT_FOUND rejection of the
