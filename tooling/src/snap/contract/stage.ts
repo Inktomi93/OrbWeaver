@@ -115,6 +115,12 @@ interface StageDeath {
   readonly op: string;
 }
 
+/** A run's first navigation missed readiness while this stage's server and vite both still answered, so the
+ *  stage is kept for one warm retry. The retry settles it (the mark clears) or misses too (boot-dead). */
+interface StageWarming {
+  readonly since: string;
+}
+
 /** One row of the band table: a stage on band `k`, owned by one checkout, serving one sha. */
 export interface StageRow {
   /** Index into `floor/host/ports.ts` `STAGE_BANDS` — the row's key. */
@@ -154,6 +160,8 @@ export interface StageRow {
   readonly rsyncs: number;
   /** Absent for a usable stage; present until the dead band is rebuilt or swept. */
   readonly dead?: StageDeath;
+  /** Present from the first missed readiness (server and vite answering) until the warm retry settles or kills it. */
+  readonly warming?: StageWarming;
   /** The stage's OWN idle timer (#1163 arm b): a detached, niced sleeper bound to this band that tears the
    *  stage down when nothing has used it for the TTL. Absent means no timer is armed — which is a degraded
    *  state, never a protected one: the keeper is NEVER a fence, so a row whose keeper pid is dead stays
@@ -176,10 +184,11 @@ export interface StageKeeper {
  *   • `sweep`     — `--stage-sweep`, the deliberate reaper;
  *   • `down`      — `--stage-down`, an operator tearing down a stage they are finished with;
  *   • `boot-dead` — the run that BOOTED this stage never got a settled app out of it, warm-up navigation
- *     included (#1837). Distinct from `timer` on purpose: this stage was never warm, so it would otherwise
- *     hold its band, port pair and process group for the full TTL and hand the same dead app to every
- *     reuse. Never fires for a stage a run merely reused — that is #324's rule and `lib/stage-run-binding.ts`
- *     is where it is enforced. */
+ *     included (#1837), and its server and vite did not both answer; or the one warm retry of a `warming`
+ *     stage missed readiness again. Distinct from `timer` on purpose: this stage was never warm, so it would
+ *     otherwise hold its band, port pair and process group for the full TTL and hand the same dead app to
+ *     every reuse. Never fires for a stage a run merely reused unless that stage is `warming` — that is
+ *     #324's rule and `lib/stage-run-binding.ts` is where it is enforced. */
 const STAGE_REAP_ARMS = ["timer", "acquire", "sweep", "down", "boot-dead"] as const;
 export type StageReapArm = (typeof STAGE_REAP_ARMS)[number];
 

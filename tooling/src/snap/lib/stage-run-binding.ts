@@ -13,9 +13,14 @@
 // served a ready app is not a warm asset, it is a corpse holding a band, a port pair and a process group
 // for the full 60 min TTL, and every later run that reuses it re-inherits the same dead app.
 //
-// THE MARK IS ONE-WAY AND CHEAP. `markStageBootDead` on a run with no stage binding (the dev stack, `--base`,
+// ONE EXCEPTION TO "BOOTED ONLY": a stage whose server and vite still answered after the booting run's first
+// navigation missed readiness is kept WARMING (a cold dependency optimize can outlast the client's ceiling),
+// and the next run that reuses it is that stage's one warm retry. A miss on the retry is the boot-dead verdict;
+// a settle clears the mark. The decision is `ops/stage-teardown.ts` `settleStageReadiness`.
+//
+// THE MARK IS ONE-WAY AND CHEAP. `markStageUnsettled` on a run with no stage binding (the dev stack, `--base`,
 // `--file`) is a no-op by construction, so the drive path may call it unconditionally on a non-settled arm
-// without knowing whether it is on a stage. Consumption is `takeBootDeadStage()`, which clears the latch —
+// without knowing whether it is on a stage. Consumption is `takeStageOutcome()`, which clears the latch —
 // a session daemon (which owns its stage's lifecycle for the life of the session, and never calls the
 // consumer) therefore sets a latch that is simply never read, rather than getting its stage killed under it.
 import type { StageBoundIdentity, StageRow } from "../contract/stage.ts";
@@ -31,13 +36,15 @@ export interface StageRunBinding {
 }
 
 let binding: StageRunBinding | null = null;
-let bootDeadReason: string | null = null;
+let unsettledReason: string | null = null;
+let settled = false;
 
 /** Publish the stage this run bound, replacing any earlier binding and its latch. Called once, by `ensureStage`'s
  *  single exit. */
 export function registerStageRunBinding(bound: StageRunBinding): void {
   binding = bound;
-  bootDeadReason = null;
+  unsettledReason = null;
+  settled = false;
 }
 
 /** The stage row this run bound, or null. The BAND-CLAIM guard's entitlement input (#2441): the allocator
@@ -86,22 +93,41 @@ export function stageBindingRefusal(url: string, bound: StageRow, rows: readonly
     : `STAGE ERROR  ${url} no longer serves the stage this run bound — ${drift} — nothing was measured. A stage rebuilt under a run is never measured; run again to stage afresh.`;
 }
 
-/** Latch "this run's stage never served a ready app". No-op unless this run BOOTED a stage. */
-export function markStageBootDead(reason: string): void {
-  if (binding === null || !binding.booted) {
+/** Latch "this run's first navigation never reached a ready app". A no-op unless this run BOOTED the stage or the
+ *  stage is already warming, where this run is its one warm retry; a plain reuse stays untouched (#324). */
+export function markStageUnsettled(reason: string): void {
+  if (binding === null || !(binding.booted || binding.row.warming !== undefined)) {
     return;
   }
-  bootDeadReason ??= reason;
+  unsettledReason ??= reason;
 }
 
-/** The boot-dead stage to tear down, or null — clears the latch, so a second caller gets nothing. */
-export function takeBootDeadStage(): { readonly binding: StageRunBinding; readonly reason: string } | null {
-  const reason = bootDeadReason;
+/** Latch "this run's navigation reached a resolved app". Only a warming stage has a mark for it to clear. */
+export function markStageSettled(): void {
+  if (binding?.row.warming !== undefined) {
+    settled = true;
+  }
+}
+
+/** What this run learned about the readiness of the stage it bound. */
+export type StageOutcome =
+  | { readonly kind: "unsettled"; readonly binding: StageRunBinding; readonly reason: string }
+  | { readonly kind: "settled"; readonly binding: StageRunBinding };
+
+/** The readiness outcome to act on, or null — clears the latch, so a second caller gets nothing. An unsettled
+ *  navigation outranks a settled one: the first document's failure is not erased by a later healthy one. */
+export function takeStageOutcome(): StageOutcome | null {
+  const reason = unsettledReason;
+  const wasSettled = settled;
   const bound = binding;
-  bootDeadReason = null;
-  if (reason === null || bound === null) {
+  unsettledReason = null;
+  settled = false;
+  if (bound === null) {
     return null;
   }
-  binding = null;
-  return { binding: bound, reason };
+  if (reason !== null) {
+    binding = null;
+    return { kind: "unsettled", binding: bound, reason };
+  }
+  return wasSettled ? { kind: "settled", binding: bound } : null;
 }

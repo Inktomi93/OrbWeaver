@@ -25,6 +25,7 @@
 //      reclaimed here exactly as it always was;
 //   5. exhaustion — exit 2 NAMING EVERY ROW with its idle age. A refusal that says which lane holds what
 //      is an operator's next action; a bare "no bands free" is a mystery.
+import { resolve } from "node:path";
 import type {
   StageAllocation,
   StageAuthMode,
@@ -263,10 +264,11 @@ export function describeStageBandRow(view: StageBandView, nowMs: number): string
   }
   const sessions = view.liveSessions.length === 0 ? "no live sessions" : `sessions ${view.liveSessions.join(",")}`;
   const dead = view.row.dead === undefined ? "" : ` · DEAD since ${view.row.dead.detectedAt} during \`${view.row.dead.op}\``;
+  const warming = view.row.warming === undefined ? "" : ` · WARMING since ${view.row.warming.since} — one warm retry left`;
   const auth = stageRowAuth(view.row) === "local" ? "  auth local" : "";
   return (
     `  band ${view.band}  ${shortSha(view.row.sha)}${auth}  owner ${view.row.checkout} · pid ${view.row.ownerPid ?? "unknown"} · ` +
-    `idle ${describeStageAgePhrase(view.row.lastUsedAt, nowMs)} · ${sessions}${dead}`
+    `idle ${describeStageAgePhrase(view.row.lastUsedAt, nowMs)} · ${sessions}${warming}${dead}`
   );
 }
 
@@ -357,6 +359,12 @@ export function stageDecision(opts: {
     return "refuse";
   }
   return row.holders === undefined && stageIdleMs(row, opts.nowMs) < OWN_STAGE_REPLACE_IDLE_MS ? "refuse" : "rebuild";
+}
+
+/** `--stage-db` forces a rebuild so the clone is fresh, but a stage still warming from that same clone source is
+ *  the warm retry the readiness miss kept it for: rebuilding it would start the cold dependency optimize over. */
+export function resumesWarmingStage(row: StageRow, stageDb: string | undefined): boolean {
+  return row.warming !== undefined && stageDb !== undefined && row.dbProvenance?.cloned === true && row.dbProvenance.copiedFrom === resolve(stageDb);
 }
 
 /** The holders still reading the stage: a process still running, or otherwise a stamp younger than the

@@ -10,7 +10,7 @@ import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { Args, DriveFailure } from "../contract/types.ts";
 import { COLD_START_READY_TIMEOUT_MS, MOUNT_SETTLE_MS, NETWORKIDLE_TIMEOUT_MS, WAIT_SELECTOR_TIMEOUT_MS } from "../lib/budgets.ts";
 import { READ_FAILURE_SURFACE_JS } from "../lib/failure-surface.ts";
-import { markStageBootDead } from "../lib/stage-run-binding.ts";
+import { markStageSettled, markStageUnsettled } from "../lib/stage-run-binding.ts";
 import { driveBudgets } from "../lib/throttle.ts";
 import { waitDriveFailure } from "./drive-failure-naming.ts";
 import { MS_PER_SECOND } from "./flags-support.ts";
@@ -77,6 +77,15 @@ const UNSETTLED_REASON: Record<Exclude<AppReadiness, "settled">, string> = {
     'NOT-FOUND — the app rendered its own not-found boundary (data-app-failure="not-found") for this route. This is the app resolving cleanly and saying the route does not exist; it is NOT a boot failure, an empty query cache is expected here, and re-navigating (isolated or not) will not change the verdict. Check the route against the section vocabulary (packages/client/src/state/section-ids.ts SECTION_IDS), or drive client-state navigation instead of a URL with --goto <section>/--goto config:<group>.',
 };
 
+/** A resolved app (settled, or its own not-found boundary) proves the stage serves; anything else is a miss. */
+function latchStageReadiness(readiness: AppReadiness): void {
+  if (readiness === "settled" || readiness === "notFound") {
+    markStageSettled();
+  } else {
+    markStageUnsettled(`the stage's first navigation came back ${readiness}`);
+  }
+}
+
 export async function navigate(page: Page, opts: Args, url: string, failures?: DriveFailure[]): Promise<string | null> {
   // The ceilings are a function of the STAGE (a cold vite) AND of the declared LOAD ARM (#836) — see
   // lib/throttle.ts driveBudgets for why a throttled run cannot be held to the un-throttled budget.
@@ -108,9 +117,9 @@ export async function navigate(page: Page, opts: Args, url: string, failures?: D
     const readiness = await appReadiness(page, budgets.ready);
     if (readiness !== "settled") {
       navError ??= UNSETTLED_REASON[readiness];
-      if (opts.isolated && readiness !== "notFound") {
-        markStageBootDead(`the stage's first navigation came back ${readiness}`);
-      }
+    }
+    if (opts.isolated) {
+      latchStageReadiness(readiness);
     }
   }
   // Even a non-OK nav may still render something worth waiting for (SPA error page).

@@ -26,12 +26,12 @@ import {
   runSessionCall,
   SNAP_HELP,
   sessionRouteErrors,
+  settleStageReadiness,
   snap,
   snapContexts,
   snapMatrix,
   snapScenario,
   stageBandVerdictFor,
-  tearDownBootDeadStage,
   waitForStage,
 } from "./index.ts";
 
@@ -181,10 +181,11 @@ export async function main(opts: Args, argv: readonly string[]): Promise<number>
       try {
         return await runResolvedMode(opts);
       } finally {
-        // A stage THIS run booted that never served a settled app is torn down here, at the one-shot run's
-        // own exit (#1837) — inside the slot, so its stack log is preserved before the dir goes. Deliberately
-        // NOT on the `--session` leg above: a session daemon owns its stage for the life of the session.
-        tearDownBootDeadStage();
+        // A stage THIS run booted that never served a settled app is kept for one warm retry when its server
+        // and vite still answer, else torn down here, at the one-shot run's own exit (#1837) — inside the
+        // slot, so its stack log is preserved before the dir goes. Deliberately NOT on the `--session` leg
+        // above: a session daemon owns its stage for the life of the session.
+        settleStageReadiness();
       }
     },
     REPO_ROOT,
