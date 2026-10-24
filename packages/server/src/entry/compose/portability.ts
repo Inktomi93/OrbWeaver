@@ -61,6 +61,7 @@ export interface PortabilityDeps {
   readonly findPersonaByName: NonNullable<ImportProfileDeps["findPersonaByName"]>;
   readonly attachChatTagByName: NonNullable<ImportProfileDeps["attachChatTagByName"]>;
   readonly importRpgGame: NonNullable<ImportProfileDeps["importRpgGame"]>;
+  readonly findOwnedAssetIdsByHash: NonNullable<ImportProfileDeps["findOwnedAssetIdsByHash"]>;
   readonly enqueueImportIndex: (args: { readonly ownerId: UserId }) => Promise<void>;
   readonly reconcileImportStats: (args: { readonly ownerId: UserId }) => Promise<void>;
   readonly resolveOwnerPrincipal: (userId: UserId) => Promise<Principal>;
@@ -109,6 +110,7 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
       findPersonaByName: deps.findPersonaByName,
       attachChatTagByName: deps.attachChatTagByName,
       importRpgGame: deps.importRpgGame,
+      findOwnedAssetIdsByHash: deps.findOwnedAssetIdsByHash,
     },
   });
   const importGallery = createImportGallery(deps.assetsCtx);

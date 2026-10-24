@@ -14,7 +14,15 @@ export interface OwnerImportDeps {
   readonly wallClockZone: () => string;
   readonly profile: Pick<
     ImportProfileDeps,
-    "now" | "bulkImportChats" | "bulkImportPersonas" | "enqueueImportIndex" | "reconcileStats" | "findPersonaByName" | "attachChatTagByName" | "importRpgGame"
+    | "now"
+    | "bulkImportChats"
+    | "bulkImportPersonas"
+    | "enqueueImportIndex"
+    | "reconcileStats"
+    | "findPersonaByName"
+    | "attachChatTagByName"
+    | "importRpgGame"
+    | "findOwnedAssetIdsByHash"
   >;
 }
 export interface PortableImportDeps extends OwnerImportDeps {

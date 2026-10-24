@@ -10,9 +10,9 @@
 // WHAT TRAVELS AND WHY:
 //   • `importHash` rides as-is — it is the `(ownerId, importHash)` re-upload dedup key, so carrying it is
 //     what makes a re-import idempotent instead of duplicating the library.
-//   • `sourceAssetId` rides — the assets entity restores blobs under their ORIGINAL ids and imports FIRST,
-//     so the re-extract source re-links with no remap. An absent/foreign asset degrades to null (the
-//     column's own SET NULL semantics — a purged blob degrades a doc, never blocks it).
+//   • `sourceAssetId` rides by id — the assets entity imports FIRST and restores a blob under its ORIGINAL id
+//     unless the owner already holds those bytes under another id. An id that names no owned asset degrades
+//     to null (the column's own SET NULL semantics — a purged blob degrades a doc, never blocks it).
 //   • `global` rides (it is a property of this owner's own bank) and `characterHandles` ride by HANDLE (the
 //     gallery precedent — character ids are not preserved; databank imports AFTER character).
 //   • the chat junction does NOT ride: chat ids are not preserved and chats import last (accepted-lossy).
@@ -65,7 +65,7 @@ const wireDocumentSchema = z.object({
   extractorVersion: z.string(),
   createdAt: z.int().nonnegative().nullish().catch(null),
   // Prefix-strict at the portable-file boundary; the import verb still re-links this opaque carried value
-  // against the db behind its own ownership gate (the gallery `assetId` precedent).
+  // against the db behind its own ownership gate.
   sourceAssetId: typeIdSchema(ID_PREFIX.asset).nullish().catch(null),
   global: z.boolean().catch(false),
   characterHandles: z.array(z.string().trim().min(1)).catch([]),

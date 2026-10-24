@@ -95,6 +95,8 @@ export interface AssetsService {
   readonly listGallery: (params: GalleryListParams) => Promise<GalleryItemView[]>;
   /** Resolve `(assetId, hash)` pairs the owner owns among `assetIds` — inline-image render + attach boundary. */
   readonly resolveOwnedAssetRefs: (ownerId: UserId, assetIds: readonly AssetId[]) => Promise<readonly AssetBlobRef[]>;
+  /** The owner's asset id for each content hash it holds — how a restore re-links a carried reference. */
+  readonly ownedAssetIdsByHash: (ownerId: UserId, hashes: readonly string[]) => Promise<ReadonlyMap<string, AssetId>>;
 
   /** Chat-scoped sibling of {@link resolveOwnedAssetRefs}: pairs a caller may render in `chatId`, gated via
    *  {@link AssetsContext.loadChatAssetRefs}. */

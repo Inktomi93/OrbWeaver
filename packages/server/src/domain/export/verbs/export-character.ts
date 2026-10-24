@@ -87,7 +87,7 @@ export function createExportCharacter(ctx: ExportContext): ExportService["export
     const primaryBook =
       (
         await ctx.db
-          .select({ worldBookId: characterBooks.worldBookId, name: worldBooks.name })
+          .select({ worldBookId: characterBooks.worldBookId, name: worldBooks.name, description: worldBooks.description })
           .from(characterBooks)
           .innerJoin(worldBooks, and(eq(characterBooks.worldBookId, worldBooks.id), eq(worldBooks.ownerId, ownerId)))
           .where(and(eq(characterBooks.characterId, characterId), eq(characterBooks.role, "primary")))
@@ -177,6 +177,7 @@ export function createExportCharacter(ctx: ExportContext): ExportService["export
         depthPrompt: parseDepthPrompt(charRow.depthPrompt),
         attachedBooks,
         bookName: primaryBook?.name ?? null,
+        bookDescription: primaryBook?.description ?? null,
       },
       entries,
     );
