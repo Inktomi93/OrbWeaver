@@ -2,6 +2,7 @@ import { browserNoNodeGlobalsRule, rawEgressRule, rawHttpClientRule, sessionChan
 import { detachedWorkRule } from "./async.ts";
 import { assumesSingleReplicaRule, commentedCodeRule, rawIdRule, sideGenSamplingRule, wireJsonRule } from "./general.ts";
 import { DB_SCHEMA_RESTRICTIONS, SERVER_HARD_RESTRICTIONS, TYPE_SHAPE_RESTRICTIONS } from "./general-policy.ts";
+import { moduleStateRule } from "./module-state.ts";
 import { baseUiPortalContainerRule, contextReturnTypeRule, directRowReadRule, directRowWriteRule, testFactoryContractRule } from "./native.ts";
 import { PRINCIPAL_RULES } from "./principal.ts";
 import {
@@ -100,6 +101,7 @@ export function createOrbPlugin(options: { browserNodeGlobals: ReadonlySet<strin
       "no-floorless-control-in-wrap": floorlessControlRule(options.floorlessButtonSizes),
       "evaluate-no-scope-capture": evaluateNoScopeCaptureRule,
       "assumes-single-replica": assumesSingleReplicaRule,
+      "no-module-state": moduleStateRule,
       "no-hardcoded-side-gen-sampling": sideGenSamplingRule,
       "session-channel-boundary": sessionChannelBoundaryRule,
       "receded-ink-integrity": recededInkRule,

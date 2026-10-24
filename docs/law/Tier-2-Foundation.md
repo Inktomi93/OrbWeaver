@@ -53,7 +53,7 @@ The DB probes need no port (`@orb/db` is a lower package). `wrapLibSqlClient` is
 
 4. **Audit never breaks the primary channel (suppress → count → drop).** A db failure inside the wiring's best-effort `log` logs at `error`, increments that root's sticky counter, drops; every `ALERT_EVERY`th drop trips a `security:true` `audit_sustained_failure` warn. Window is the root's lifetime.
 
-5. **The in-memory rings ASSUME single-replica.** The log, request, trace and wire-capture rings (`createObservabilityRings`) and the audit failure window (`createAuditWiring`) belong to one composition root; no module holds them. Carry `ASSUMES(single-replica)` (the `orb/assumes-single-replica` lint rule); the rings are the seam to externalize if that's ever reversed.
+5. **The in-memory rings ASSUME single-replica.** The log, request, trace and wire-capture rings (`createObservabilityRings`) and the audit failure window (`createAuditWiring`) belong to one composition root; no module holds them, and `orb/no-module-state` fails module-scope state written after load anywhere in `packages/server/src` outside the own-process files `eslint.config.ts` names. Carry `ASSUMES(single-replica)` (the `orb/assumes-single-replica` lint rule); the rings are the seam to externalize if that's ever reversed.
 
 6. **Root logger level rebind on settings reload.** Pino captures `level` at construction; `reloadEffectiveConfig` (settings) sets the level of the logger its root handed it on every admin write, so an override moves only that root's logger.
 

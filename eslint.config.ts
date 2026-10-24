@@ -956,6 +956,27 @@ const PRINCIPAL_RULES: { id: string; notUnder?: string[] }[] = [
     notUnder: ["packages/server/src/entry/**"],
   },
 ];
+// Files whose module state is one process's by construction: each is its own process root or a documented
+// per-process latch, so `orb/no-module-state` does not apply. Each entry names its reason.
+const MODULE_STATE_OWN_PROCESS = [
+  // The one process.env reader: the .env file's provenance is written once, at load, from this process's file.
+  "packages/server/src/foundation/env/index.ts",
+  // The process's build identity, read once and frozen so every surface reports the same string.
+  "packages/server/src/foundation/version/index.ts",
+  // The OTel provider and context manager are process-global by design; the boot latch guards their one install.
+  "packages/server/src/foundation/observability/tracing.ts",
+  // The plugin broker, its watchdog and its guest Worker are each their own process root.
+  "packages/server/src/infra/plugin-host/broker-entry.ts",
+  "packages/server/src/infra/plugin-host/broker-watchdog.ts",
+  "packages/server/src/infra/plugin-host/worker-runtime.ts",
+  // The compiled QuickJS WASM module the guest runtime shares, compiled once per process.
+  "packages/server/src/infra/plugin-host/module.ts",
+  // A per-process log latch: one process's log says the directory-fsync capability sentence once.
+  "packages/server/src/infra/storage/cas.ts",
+  // Per-process announce and availability latches; a per-root move is a filed follow-up.
+  "packages/server/src/domain/embeddings/substrate/image-space-degrade.ts",
+  "packages/server/src/domain/embeddings/substrate/avatar-analysis-availability.ts",
+];
 const PRINCIPAL_SCOPE = rootSources("@server", "@inference");
 
 export default [
@@ -1011,6 +1032,12 @@ export default [
     ignores: ["packages/server/src/**/persistence/**"],
     plugins: { orb: localPlugin },
     rules: { "orb/assumes-single-replica": "error" },
+  },
+  {
+    files: rootSources("@server"),
+    ignores: MODULE_STATE_OWN_PROCESS,
+    plugins: { orb: localPlugin },
+    rules: { "orb/no-module-state": "error" },
   },
   { files: rootSources("@server", "@inference"), plugins: { orb: localPlugin }, rules: { "orb/detached-work-traced": "error" } },
   { files: [...rootSources("@tooling"), ...PLAYWRIGHT_TESTS], plugins: { orb: localPlugin }, rules: { "orb/evaluate-no-scope-capture": "error" } },
