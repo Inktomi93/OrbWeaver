@@ -2,6 +2,7 @@
 // @subject packages/server/src/domain/chat/persistence/participant.ts
 import type { Db } from "@orb/db";
 import { chatParticipants } from "@orb/db";
+import { bootDatabaseHandle } from "@orb/db/wiring-boot";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, ChatParticipantId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -34,12 +35,12 @@ test("a floor above its room's head is clamped to that head, floors at or below 
   // A late joiner's floor below its head is the ordinary case; raising it would hide history it was admitted to.
   const lateJoiner = await seatMember(db, quiet.id, (await seedUser(db)).id, 2);
 
-  const repaired = await repairStaleJoinSeq(databaseHandle(db));
+  const repaired = await repairStaleJoinSeq(bootDatabaseHandle(databaseHandle(db)));
   expect(await joinSeqOf(db, stale)).toBe(3);
   expect(await joinSeqOf(db, correct)).toBe(5);
   expect(await joinSeqOf(db, lateJoiner)).toBe(2);
   expect(repaired).toBe(1);
-  expect(await repairStaleJoinSeq(databaseHandle(db))).toBe(0);
+  expect(await repairStaleJoinSeq(bootDatabaseHandle(databaseHandle(db)))).toBe(0);
 });
 
 test("a room with no canon resolves its head to zero, so only a floor above zero moves", async ({ db }) => {
@@ -47,7 +48,7 @@ test("a room with no canon resolves its head to zero, so only a floor above zero
   const atZero = await seatMember(db, empty.id, (await seedUser(db)).id, 0);
   const above = await seatMember(db, empty.id, (await seedUser(db)).id, 4);
 
-  expect(await repairStaleJoinSeq(databaseHandle(db))).toBe(1);
+  expect(await repairStaleJoinSeq(bootDatabaseHandle(databaseHandle(db)))).toBe(1);
   expect(await joinSeqOf(db, atZero)).toBe(0);
   expect(await joinSeqOf(db, above)).toBe(0);
 });

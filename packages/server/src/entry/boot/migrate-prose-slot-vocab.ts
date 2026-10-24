@@ -12,12 +12,12 @@
 // second source of truth that could disagree with the data. The cost of the no-op boot is one indexless scan
 // of the preset library.
 
-import type { DatabaseHandle } from "@orb/db/wiring";
+import type { BootDatabaseHandle } from "@orb/db/wiring";
 import { migrateProseSlotVocab } from "#domain/preset";
 import { getLog } from "#foundation/observability";
 
 export interface MigrateProseSlotVocabDeps {
-  readonly db: DatabaseHandle;
+  readonly db: BootDatabaseHandle;
 }
 
 /** Re-key every pre-#1737 stored prose override onto the current slot id. Returns the number of preset rows

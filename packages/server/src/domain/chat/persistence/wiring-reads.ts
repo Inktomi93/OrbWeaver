@@ -1,4 +1,4 @@
-import type { DatabaseHandle } from "@orb/db/wiring";
+import type { BootDatabaseHandle, DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { hasRedeemableInvite as readRedeemableInvite } from "./invites.ts";
@@ -46,26 +46,29 @@ export function migrateSeededRoomBackgrounds(
 }
 
 /** Boot's join-floor repair keeps the seat writer's own canon-head expression. */
-export function repairStaleJoinSeq(db: DatabaseHandle): ReturnType<typeof repairJoinSeq> {
+export function repairStaleJoinSeq(db: BootDatabaseHandle): ReturnType<typeof repairJoinSeq> {
   return repairJoinSeq(databaseForOwner(db));
 }
 
 /** Boot's session-secret settlement asks the invite owner whether a peppered token is still redeemable. */
-export function hasRedeemableInvite(db: DatabaseHandle, now: number): ReturnType<typeof readRedeemableInvite> {
+export function hasRedeemableInvite(db: BootDatabaseHandle, now: number): ReturnType<typeof readRedeemableInvite> {
   return readRedeemableInvite(databaseForOwner(db), now);
 }
 
 /** Boot's lock reclaim stays scoped to this replica's holder tag by the lock writer. */
-export function reclaimChatLocksOnBoot(db: DatabaseHandle, holder: string): ReturnType<typeof reclaimLocks> {
+export function reclaimChatLocksOnBoot(db: BootDatabaseHandle, holder: string): ReturnType<typeof reclaimLocks> {
   return reclaimLocks(databaseForOwner(db), holder);
 }
 
 /** Boot's handoff-offer key rewrite keeps the offer writer's own idempotent predicate. */
-export function migrateHandoffOfferVocab(db: DatabaseHandle): ReturnType<typeof migrateOfferVocab> {
+export function migrateHandoffOfferVocab(db: BootDatabaseHandle): ReturnType<typeof migrateOfferVocab> {
   return migrateOfferVocab(databaseForOwner(db));
 }
 
 /** Boot's tool-call rename applies the plugin domain's renames, handed down as plain data. */
-export function migratePluginToolWireNames(db: DatabaseHandle, renames: Parameters<typeof migrateToolCallNames>[1]): ReturnType<typeof migrateToolCallNames> {
+export function migratePluginToolWireNames(
+  db: BootDatabaseHandle,
+  renames: Parameters<typeof migrateToolCallNames>[1],
+): ReturnType<typeof migrateToolCallNames> {
   return migrateToolCallNames(databaseForOwner(db), renames);
 }

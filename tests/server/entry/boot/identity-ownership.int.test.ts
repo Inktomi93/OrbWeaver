@@ -3,6 +3,7 @@ import { access, mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { bootDatabaseHandle } from "@orb/db/wiring-boot";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import { brandedId } from "@orb/kit/ids";
 import { seedOwner, settleBootSecrets } from "@orb/server/entry/boot";
@@ -44,7 +45,7 @@ test("another account's actual password blocks a missing pepper after credential
   const sessionPath = join(directory, SECRET_FILE_NAMES.sessionSecret);
   await expect(
     settleBootSecrets({
-      db: databaseHandle(root.db),
+      db: bootDatabaseHandle(databaseHandle(root.db)),
       now: root.clock.now,
       credentialsKey: { kind: "absent", path: credentialPath },
       sessionSecret: { kind: "absent", path: sessionPath },

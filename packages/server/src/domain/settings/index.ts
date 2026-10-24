@@ -16,11 +16,13 @@ export type {
 } from "./contract/service.ts";
 
 export { createEffectiveConfigCache } from "./effective-config/cache.ts";
+// A boot verb that reads or writes rows of every owner takes `BootDatabaseHandle`, which only boot mints (D335).
 export { healLegacyBackgroundPins } from "./persistence/heal-legacy-background-pins.ts";
 export { createSettingsKvPort } from "./persistence/kv.ts";
 export {} from "./persistence/migrate-seeded-background-picks.ts";
 export { readGlobalSettings } from "./persistence/queries.ts";
 export { createReadSeededKeys, recordSeededItemKeys } from "./persistence/seed-ledger.ts";
+// A boot verb that reads or writes rows of every owner takes `BootDatabaseHandle`, which only boot mints (D335).
 export { ensureSeedThemes } from "./seed-themes.ts";
 export { createDefaultBackgroundSeeder } from "./seeder/backgrounds.ts";
 export { createUserContentSeeder } from "./seeder/content.ts";

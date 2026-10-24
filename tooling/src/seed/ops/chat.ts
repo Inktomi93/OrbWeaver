@@ -20,6 +20,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import { BUILT_IN_EMBED_DIMS } from "@orb/contracts/inference";
 import { chatParticipants, chats, createDb, preCloseHousekeeping } from "@orb/db";
+import { bootDatabaseHandle } from "@orb/db/wiring-boot";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import type { CharacterHandle, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -156,7 +157,7 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
 
   // The idempotent boot seeds (owner cards, default persona, preset, themes) — safe on an already-seeded db.
   await seedDefaultPreset({ db: wiringDb, now });
-  await seedThemes({ db: wiringDb, now });
+  await seedThemes({ db: bootDatabaseHandle(wiringDb), now });
   await seedUserContent({ seeder: built.contentSeeder, owner });
 
   const characters = await ensureCharacters(built.services, owner, ownerId, args.characters);

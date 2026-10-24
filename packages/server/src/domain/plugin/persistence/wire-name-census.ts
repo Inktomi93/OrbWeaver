@@ -19,7 +19,7 @@
 // prevent.
 
 import { plugins } from "@orb/db";
-import type { DatabaseHandle } from "@orb/db/wiring";
+import type { BootDatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 
 /** Every distinct installed plugin slug, across all owners. Read by ONE caller, the boot step
@@ -31,7 +31,7 @@ import { databaseForOwner } from "@orb/db/wiring-owner";
 // the marker token in a comment is enough to trip it, which is how this note earned its careful wording. The
 // safety argument is the one in the header, and it is structural rather than promised: the projection is a
 // single column of slug strings.
-export async function readInstalledPluginSlugs(handle: DatabaseHandle): Promise<readonly string[]> {
+export async function readInstalledPluginSlugs(handle: BootDatabaseHandle): Promise<readonly string[]> {
   const db = databaseForOwner(handle);
   const rows = await db.selectDistinct({ slug: plugins.slug }).from(plugins);
   return rows.map((row) => row.slug);

@@ -3,6 +3,7 @@ import { access, mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Principal } from "@orb/contracts/identity";
+import { bootDatabaseHandle } from "@orb/db/wiring-boot";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId } from "@orb/kit/ids";
 import { MS_PER_HOUR } from "@orb/kit/time";
@@ -33,7 +34,7 @@ async function absentSecretsFor(root: ServerTestHarness, resources: AsyncDisposa
     sessionPath,
     settle: (now = root.clock.now) =>
       settleBootSecrets({
-        db: databaseHandle(root.db),
+        db: bootDatabaseHandle(databaseHandle(root.db)),
         now,
         credentialsKey: { kind: "absent", path: credentialPath },
         sessionSecret: { kind: "absent", path: sessionPath },
@@ -108,7 +109,7 @@ test("resolved secrets pass through over every dependent, and a resolved null st
   const explicitSecret = "boot-secrets-explicit-session-secret-value";
   const settle = (credentialsKey: Buffer | null, sessionSecret: string | null): ReturnType<typeof settleBootSecrets> =>
     settleBootSecrets({
-      db: databaseHandle(root.db),
+      db: bootDatabaseHandle(databaseHandle(root.db)),
       now: root.clock.now,
       credentialsKey: { kind: "resolved", value: credentialsKey, path: credentialPath },
       sessionSecret: { kind: "resolved", value: sessionSecret, path: sessionPath },

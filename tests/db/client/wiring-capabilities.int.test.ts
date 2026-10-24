@@ -1,6 +1,7 @@
 import { closeDb, users } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
+import { bootDatabaseHandle } from "@orb/db/wiring-boot";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import {
   awaitableStatementForOwner,
@@ -57,6 +58,21 @@ test("wiring handles are distinct inert identities and retain the borrowed physi
     }
   } finally {
     closeDb(first);
+  }
+});
+
+test("a boot grant is a distinct inert identity over the same admitted connection and refuses an unadmitted handle", async () => {
+  const db = await freshDb();
+  try {
+    const handle = databaseHandle(db);
+    const boot = bootDatabaseHandle(handle);
+    expect(boot).not.toBe(handle);
+    expect(Object.isFrozen(boot)).toBe(true);
+    expect(databaseForOwner(boot)).toBe(db);
+    expect(() => bootDatabaseHandle({ ...handle })).toThrow("database wiring handle is not registered");
+    expect(() => databaseForOwner({ ...boot })).toThrow("database wiring handle is not registered");
+  } finally {
+    closeDb(db);
   }
 });
 

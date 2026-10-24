@@ -2,7 +2,7 @@
 // row depends on it; otherwise the boot refuses and names the file, because a new secret would orphan
 // every sealed credential, or every local password, session and live invite link.
 
-import type { DatabaseHandle } from "@orb/db/wiring";
+import type { BootDatabaseHandle } from "@orb/db/wiring";
 import { hasRedeemableInvite } from "#domain/chat";
 import { hasSealedCredentials } from "#domain/credentials";
 import { createSettleSessionSecret } from "#domain/sessions";
@@ -10,7 +10,7 @@ import type { BootSecretResolution, KeyfileReport } from "#infra/crypto";
 import { loadOrCreateKeyfile } from "#infra/crypto";
 
 export interface BootSecretsDeps {
-  readonly db: DatabaseHandle;
+  readonly db: BootDatabaseHandle;
   readonly now: () => number;
   readonly credentialsKey: BootSecretResolution<Buffer>;
   readonly sessionSecret: BootSecretResolution<string>;

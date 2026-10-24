@@ -22,7 +22,7 @@
 
 import type { Db } from "@orb/db";
 import { automationRules } from "@orb/db";
-import type { DatabaseHandle } from "@orb/db/wiring";
+import type { BootDatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { SQL } from "drizzle-orm";
 import { sql } from "drizzle-orm";
@@ -80,7 +80,10 @@ async function applyOneRename(db: Db, from: string, to: string): Promise<number>
  * `pluginToolWireNameRenames(...)`'s answer, handed down by the boot step; an empty array is a no-op and the
  * normal case. Returns the total number of arms rewritten; 0 on every boot after the first.
  */
-export async function migratePluginToolWireNames(handle: DatabaseHandle, renames: readonly { readonly from: string; readonly to: string }[]): Promise<number> {
+export async function migratePluginToolWireNames(
+  handle: BootDatabaseHandle,
+  renames: readonly { readonly from: string; readonly to: string }[],
+): Promise<number> {
   const db = databaseForOwner(handle);
   let rewritten = 0;
   for (const rename of renames) {

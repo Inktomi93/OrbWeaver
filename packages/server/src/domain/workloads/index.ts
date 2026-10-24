@@ -18,6 +18,7 @@ export type { WorkloadRowAnyKind, WorkloadRunnableRow } from "./contract/workloa
 export { createWorkloadProgressBus } from "./engine/progress-bus.ts";
 export { createWorkloadService } from "./service.ts";
 export { createReservedWorkloadContributions } from "./substrate/reserved-contributions.ts";
+// `reclaimInFlightOnBoot` disposes of every owner's in-flight rows, so it takes `BootDatabaseHandle`, which only boot mints (D335).
 export {
   createNextRunnableWorkload,
   loadWorkload,

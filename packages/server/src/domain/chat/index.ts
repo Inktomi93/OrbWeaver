@@ -74,6 +74,7 @@ export {
 // host (databank, embeddings, memory, regex, imagery) and the reaction gates call it directly.
 // `repairStaleJoinSeq`, `hasRedeemableInvite`, `reclaimChatLocksOnBoot`, `migrateHandoffOfferVocab` and
 // `migratePluginToolWireNames` serve `entry/boot` steps; chat owns their SQL because it owns those tables.
+// Each of those crosses every owner's rows, so it takes `BootDatabaseHandle`, which only boot mints (D335).
 export {
   hasRedeemableInvite,
   isCharacterSeated,

@@ -8,4 +8,5 @@ export { createResolveRetainedChatAccountingScope, createResolveRetainedChatReba
 export { createStatsService } from "./service.ts";
 export { createStatsWorkloadContributions } from "./workload-contributions.ts";
 
+// `reconcileOwnersMissingTimeline` rebuilds every owner's timeline, so it takes `BootDatabaseHandle`, which only boot mints (D335).
 export { createStatsBatchWiring, reconcileOwnersMissingTimeline, reconcileStats } from "./write/wiring.ts";

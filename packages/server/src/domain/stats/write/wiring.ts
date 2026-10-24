@@ -1,5 +1,5 @@
 import type { ReconcileStatsResult } from "@orb/contracts/stats";
-import type { DatabaseHandle } from "@orb/db/wiring";
+import type { BootDatabaseHandle, DatabaseHandle } from "@orb/db/wiring";
 import { batchForOwner, databaseForOwner } from "@orb/db/wiring-owner";
 import type { IdSource } from "@orb/kit/ids";
 import type { ReconcileOpts } from "../contract/rebuild-from-canon.ts";
@@ -24,6 +24,6 @@ export function reconcileStats(db: DatabaseHandle, options: ReconcileOpts): Prom
 }
 
 /** Boot's timeline repair keeps the rebuild's canon-stability retry behind the query owner. */
-export function reconcileOwnersMissingTimeline(db: DatabaseHandle, now: () => number, idSource: IdSource): Promise<number> {
+export function reconcileOwnersMissingTimeline(db: BootDatabaseHandle, now: () => number, idSource: IdSource): Promise<number> {
   return rebuildMissingTimelines(databaseForOwner(db), now, idSource);
 }

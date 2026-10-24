@@ -7,9 +7,15 @@ const STATEMENT = Symbol("statement-wiring-token");
 const AWAITABLE = Symbol("awaitable-statement-wiring-token");
 const RESULT = Symbol("statement-result-type");
 const BATCH = Symbol("batch-wiring-handle");
+const BOOT = Symbol("boot-wiring-handle");
 
 export interface DatabaseHandle {
   readonly [DATABASE]: true;
+}
+
+/** The boot authority to read and write rows of every owner; a plain {@link DatabaseHandle} cannot stand in for it. */
+export interface BootDatabaseHandle extends DatabaseHandle {
+  readonly [BOOT]: true;
 }
 
 export interface StatementToken {
@@ -38,6 +44,13 @@ export function databaseHandle(db: Db): DatabaseHandle {
   const handle: DatabaseHandle = Object.freeze({ [DATABASE]: true as const });
   databases.set(handle, db);
   return handle;
+}
+
+/** Grant boot's cross-owner authority over an admitted connection; the `@orb/db/wiring-boot` importer rule confines who may call this. */
+export function bootDatabaseHandle(handle: DatabaseHandle): BootDatabaseHandle {
+  const boot: BootDatabaseHandle = Object.freeze({ [DATABASE]: true as const, [BOOT]: true as const });
+  databases.set(boot, databaseForOwner(handle));
+  return boot;
 }
 
 /** Recover only a connection admitted by its physical owner, never a structurally similar object. */

@@ -37,7 +37,7 @@
 // override would abort boot, the one thing this step must never do.
 
 import { presets } from "@orb/db";
-import type { DatabaseHandle } from "@orb/db/wiring";
+import type { BootDatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { sql } from "drizzle-orm";
 
@@ -50,7 +50,7 @@ const NEW_PROSE_PATH = '$.prose."chat.group.characterHeading"';
 /** Re-key every pre-#1737 `promptConfig.prose` override from `chat.group.castMember` to
  *  `chat.group.characterHeading`, carrying its `baseVersion` stamp. Returns the number of preset rows
  *  rewritten — 0 on every boot after the first, and on a db that never carried the old spelling. */
-export async function migrateProseSlotVocab(handle: DatabaseHandle): Promise<number> {
+export async function migrateProseSlotVocab(handle: BootDatabaseHandle): Promise<number> {
   const db = databaseForOwner(handle);
   const rows = await db
     .update(presets)

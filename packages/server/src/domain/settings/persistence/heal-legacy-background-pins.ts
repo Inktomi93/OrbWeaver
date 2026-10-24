@@ -28,7 +28,7 @@ import type { UserSettings } from "@orb/contracts/settings";
 import { userSettingsConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { assets, userSettings } from "@orb/db";
-import type { DatabaseHandle } from "@orb/db/wiring";
+import type { BootDatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { and, eq, inArray } from "drizzle-orm";
@@ -78,7 +78,7 @@ async function healOneUserBackgroundPins(db: Db, userId: UserId, storedConfig: U
 /** Clear every legacy background pin whose asset is missing or is not `kind: "background"`, across every
  *  `user_settings` row. Idempotent — a no-op on every boot after the first, and on a db seeded entirely
  *  post-#1478. Returns the number of rows rewritten. */
-export async function healLegacyBackgroundPins(handle: DatabaseHandle): Promise<number> {
+export async function healLegacyBackgroundPins(handle: BootDatabaseHandle): Promise<number> {
   const db = databaseForOwner(handle);
   const rows = await db.select({ userId: userSettings.userId, config: userSettings.config, schemaVersion: userSettings.schemaVersion }).from(userSettings);
   let healed = 0;

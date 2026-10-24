@@ -4,6 +4,7 @@ import { parsePresetFile } from "@orb/contracts/preset";
 import { createRosterPresetSchema } from "@orb/contracts/roster-preset";
 import { createTagSchema } from "@orb/contracts/tag";
 import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
+import { bootDatabaseHandle } from "@orb/db/wiring-boot";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, DocumentId, PersonaId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
@@ -438,7 +439,7 @@ interface SyntheticCorpus {
 export async function seedSyntheticCorpus(root: ServerHarness, options: SeedSyntheticCorpusOptions): Promise<SyntheticCorpus> {
   const owner = await root.principalFor(root.ownerId);
   await seedDefaultPreset({ db: databaseHandle(root.db), now: root.clock.now });
-  await seedThemes({ db: databaseHandle(root.db), now: root.clock.now });
+  await seedThemes({ db: bootDatabaseHandle(databaseHandle(root.db)), now: root.clock.now });
   const seedLedger = await seedUserContentLedger(root, owner);
 
   // The demo's optional CLI branches cannot certify a corpus whose required boot content is missing.

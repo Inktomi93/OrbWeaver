@@ -68,10 +68,12 @@ export { createPluginGrantTasksOf } from "./persistence/grant-tasks.ts";
 // `listEnabledAcrossOwners` is the BOOT reactivation step's read (#1865) — the one deliberately
 // un-owner-scoped query in the persistence file, projected to (pluginId, ownerId) so its consumer can only
 // ever drive each row's OWN owner's `setEnabled`. Its whole argument lives on the function's own doc.
+// `listEnabledAcrossOwners` crosses every owner's rows, so it takes `BootDatabaseHandle`, which only boot mints (D335).
 export { isPluginEnabledFor, listEnabledAcrossOwners } from "./persistence/plugins.ts";
 // The #1391 wire-name migration's plugin half: the slug census it reasons over, and the rename set it
 // derives. Both are read by `entry/boot/migrate-plugin-tool-wire-names`, which hands the answer DOWN to
 // chat and automation as plain data — neither of them may import this domain.
+// A boot verb that reads or writes rows of every owner takes `BootDatabaseHandle`, which only boot mints (D335).
 export { readInstalledPluginSlugs } from "./persistence/wire-name-census.ts";
 export { createDistributedPluginApplier } from "./seeder/distributed.ts";
 export { createExamplePluginSeeder } from "./seeder/showcase.ts";

@@ -2,13 +2,13 @@
 // migration dropped. Only canon can re-derive them, so a migration cannot convert them in SQL; this runs the
 // rebuild before the first Insights read. Idempotent by its predicate: a no-op on every boot after the first.
 
-import type { DatabaseHandle } from "@orb/db/wiring";
+import type { BootDatabaseHandle } from "@orb/db/wiring";
 import type { IdSource } from "@orb/kit/ids";
 import { reconcileOwnersMissingTimeline } from "#domain/stats";
 import { getLog } from "#foundation/observability";
 
 export interface RebuildStatsTimelineDeps {
-  readonly db: DatabaseHandle;
+  readonly db: BootDatabaseHandle;
   readonly now: () => number;
   readonly idSource: IdSource;
 }
