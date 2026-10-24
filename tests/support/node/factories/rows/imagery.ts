@@ -9,7 +9,7 @@ import type { ServerProducerRoot } from "../../server.ts";
 import type { ImageryGenerationRow, ImageryImportCallRow, ImageryService, SeededImageryGeneration, SeededNativeImageryImport } from "../imagery.ts";
 
 /** The owner's `reused` result distinguishes stored reuse rows from newly produced provenance. */
-export async function seedImageryGenerations(
+export async function seedImageryGenerationsRows(
   root: ServerProducerRoot,
   params: Parameters<ImageryService["generatePicture"]>[0],
 ): Promise<SeededImageryGeneration> {
@@ -33,7 +33,7 @@ export async function captureImageryGenerationRows(db: Db, picture: GeneratedPic
 }
 
 /** The native roundtrip keeps its genuinely returned call identity; imports own parsing, admission and deduplication. */
-export async function seedNativeImageryImportClaim(
+export async function seedNativeImageryImportClaimRows(
   root: ServerProducerRoot,
   params: Parameters<PortableEntity["importFile"]>,
   callId: ImageryImportCallRow["id"],

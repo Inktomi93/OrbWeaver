@@ -11,7 +11,7 @@ import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
 import { makeResolvedSecret } from "./credentials.ts";
 import { makeResolved } from "./resolved-connection.ts";
-import { seedApiKeySecret, seedUserCredential } from "./rows/credentials.ts";
+import { seedApiKeySecretRows, seedUserCredentialRows } from "./rows/credentials.ts";
 
 const KEY = "synthetic-corpus-credential";
 const REPLACEMENT_KEY = "replacement-corpus-credential";
@@ -19,7 +19,7 @@ const REPLACEMENT_KEY = "replacement-corpus-credential";
 test("a resolved credential builder carries real dispatched-key authority into the credential owner's strike", async () => {
   await using root = await createServerHarness({ secretBoxKey: randomBytes(32) });
   const principal = await root.principalFor(root.ownerId);
-  const resolved = await seedApiKeySecret(root, { principal, provider: "openrouter", key: KEY });
+  const resolved = await seedApiKeySecretRows(root, { principal, provider: "openrouter", key: KEY });
   const foreign = await root.actor();
   const caller = await root.internalCallerFor(root.ownerId);
   await expect(
@@ -71,7 +71,7 @@ test("an unknown provider cannot create resolved authority or leave credential a
   await using root = await createServerHarness({ secretBoxKey: randomBytes(32) });
   const principal = await root.principalFor(root.ownerId);
   const before = { credentials: await root.db.select().from(userCredentials), audit: await root.db.select().from(auditLogs) };
-  await expect(seedApiKeySecret(root, { principal, provider: "unregistered-test-provider", key: KEY })).rejects.toBeInstanceOf(DomainOperationError);
+  await expect(seedApiKeySecretRows(root, { principal, provider: "unregistered-test-provider", key: KEY })).rejects.toBeInstanceOf(DomainOperationError);
   expect({ credentials: await root.db.select().from(userCredentials), audit: await root.db.select().from(auditLogs) }).toEqual(before);
 });
 
@@ -79,9 +79,9 @@ test("the actual credential producer seals fresh material, preserves the returne
   await using root = await createServerHarness({ secretBoxKey: randomBytes(32) });
   const principal = await root.principalFor(root.ownerId);
   const params = { principal, provider: "custom-openai", label: "Corpus endpoint", key: KEY, metadata: { auth: "endpoint" as const } };
-  const first = await seedUserCredential(root, params);
+  const first = await seedUserCredentialRows(root, params);
   root.clock.advance(1);
-  const second = await seedUserCredential(root, params);
+  const second = await seedUserCredentialRows(root, params);
   expect(first.row.id).toBe(first.view.id);
   expect(first.row.ownerId).toBe(principal.userId);
   expect(second.row.id).not.toBe(first.row.id);
@@ -137,7 +137,7 @@ test("the actual credential producer seals fresh material, preserves the returne
 test("a foreign credential ID cannot manufacture a resolved secret or widen the real routed list", async () => {
   await using root = await createServerHarness({ secretBoxKey: randomBytes(32) });
   const owner = await root.principalFor(root.ownerId);
-  const capture = await seedUserCredential(root, { principal: owner, provider: "custom-openai", key: KEY });
+  const capture = await seedUserCredentialRows(root, { principal: owner, provider: "custom-openai", key: KEY });
   const foreign = await root.actor();
   await expect(makeResolvedSecret(root, { ownerId: foreign.id, credentialId: capture.row.id, providerId: capture.row.provider })).rejects.toBeInstanceOf(
     DomainNoCredentialError,
@@ -159,7 +159,7 @@ test("disabled deployment storage refuses before producing a credential or audit
   expect(await caller.credentials.storageStatus()).toEqual({ enabled: false });
   const credentialsBefore = await root.db.select().from(userCredentials);
   const auditBefore = await root.db.select().from(auditLogs);
-  const refused = seedApiKeySecret(root, { principal, provider: "custom-openai", key: KEY });
+  const refused = seedApiKeySecretRows(root, { principal, provider: "custom-openai", key: KEY });
   await expect(refused).rejects.toBeInstanceOf(DomainOperationError);
   await expect(refused).rejects.toThrow("Per-user credential storage is disabled");
   expect(await root.db.select().from(userCredentials)).toEqual(credentialsBefore);

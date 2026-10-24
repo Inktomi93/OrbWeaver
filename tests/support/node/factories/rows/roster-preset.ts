@@ -8,7 +8,7 @@ import type { ServerProducerRoot } from "../../server.ts";
 import type { CapturedRosterRows, RosterPresetRow, SeededRosterPreset } from "../roster-preset.ts";
 
 /** Produces the roster through its real belts and captures the complete persisted parent/child census. */
-export async function seedRosterPreset(root: ServerProducerRoot, params: Parameters<RosterPresetService["create"]>[0]): Promise<SeededRosterPreset> {
+export async function seedRosterPresetRows(root: ServerProducerRoot, params: Parameters<RosterPresetService["create"]>[0]): Promise<SeededRosterPreset> {
   const db = root.db;
   const create = root.services.rosterPreset.create;
   const view = await create(params);

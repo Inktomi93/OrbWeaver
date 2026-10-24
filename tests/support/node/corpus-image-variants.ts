@@ -17,9 +17,9 @@ import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_PROVIDER_ENDPOINT }
 import type { TrpcCapture } from "./corpus-read.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
 import { seedUserConnectionRows } from "./factories/rows/connection.ts";
-import { seedUserCredential } from "./factories/rows/credentials.ts";
-import { seedIndexedAsset } from "./factories/rows/embedding-generation.ts";
-import { captureImageryGenerationRows, seedImageryGenerations } from "./factories/rows/imagery.ts";
+import { seedUserCredentialRows } from "./factories/rows/credentials.ts";
+import { seedIndexedAssetRows } from "./factories/rows/embedding-generation.ts";
+import { captureImageryGenerationRows, seedImageryGenerationsRows } from "./factories/rows/imagery.ts";
 import type { TrpcInput, TrpcProcedurePath } from "./route-trpc.ts";
 import type { ServerTestHarness } from "./server.ts";
 
@@ -28,7 +28,7 @@ export const CORPUS_VARIANT_FREE_PROMPT = "A private native free-picture witness
 export const CORPUS_VARIANT_OVERRIDE = "A literal avatar-reference portrait witness.";
 export const CORPUS_VARIANT_EDIT_INSTRUCTION = "Turn the native traveller's coat green.";
 type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
-type Cohort = Awaited<ReturnType<typeof seedImageryGenerations>>;
+type Cohort = Awaited<ReturnType<typeof seedImageryGenerationsRows>>;
 interface NativeAuth {
   readonly origin: string;
   readonly cookie: string;
@@ -44,7 +44,7 @@ interface CorpusImageVariants {
     readonly before: Awaited<ReturnType<Caller["connection"]["listBindings"]>>;
     readonly after: Awaited<ReturnType<Caller["connection"]["listBindings"]>>;
   };
-  readonly credential: Awaited<ReturnType<typeof seedUserCredential>>;
+  readonly credential: Awaited<ReturnType<typeof seedUserCredentialRows>>;
   readonly connections: readonly Awaited<ReturnType<typeof seedUserConnectionRows>>[];
   readonly ownerId: ServerTestHarness["ownerId"];
   readonly memberId: ServerTestHarness["ownerId"];
@@ -52,9 +52,9 @@ interface CorpusImageVariants {
   readonly room: Awaited<ReturnType<Caller["chat"]["startChat"]>>;
   readonly skips: readonly {
     readonly asset: typeof assets.$inferSelect;
-    readonly first: Awaited<ReturnType<typeof seedIndexedAsset>>;
-    readonly repeated: Awaited<ReturnType<typeof seedIndexedAsset>>;
-    readonly forced: Awaited<ReturnType<typeof seedIndexedAsset>>;
+    readonly first: Awaited<ReturnType<typeof seedIndexedAssetRows>>;
+    readonly repeated: Awaited<ReturnType<typeof seedIndexedAssetRows>>;
+    readonly forced: Awaited<ReturnType<typeof seedIndexedAssetRows>>;
   }[];
   readonly skipPostsBefore: readonly string[];
   readonly skipPostsAfter: readonly string[];
@@ -135,7 +135,7 @@ export async function seedCorpusImageVariants(root: ServerTestHarness, wire: Cor
   const principal = await root.principalFor(root.ownerId);
   const caller = await root.internalCallerFor(root.ownerId);
   const previous = await caller.connection.listBindings();
-  const credential = await seedUserCredential(root, { principal, provider: "custom-openai", key: CORPUS_VARIANT_KEY });
+  const credential = await seedUserCredentialRows(root, { principal, provider: "custom-openai", key: CORPUS_VARIANT_KEY });
   const connectionBase = {
     principal,
     providerId: "custom-openai",
@@ -223,9 +223,9 @@ export async function seedCorpusImageVariants(root: ServerTestHarness, wire: Cor
     for (const bytes of [square, sliver]) {
       const stored = await root.app.assets.store({ principal, bytes, mime: "image/png", kind: "avatar", enforceMagic: true });
       await root.settleBackground();
-      const first = await seedIndexedAsset(root, [stored.assetId, { force: true }]);
-      const repeated = await seedIndexedAsset(root, [stored.assetId, { force: false }]);
-      const forced = await seedIndexedAsset(root, [stored.assetId, { force: true }]);
+      const first = await seedIndexedAssetRows(root, [stored.assetId, { force: true }]);
+      const repeated = await seedIndexedAssetRows(root, [stored.assetId, { force: false }]);
+      const forced = await seedIndexedAssetRows(root, [stored.assetId, { force: true }]);
       const asset = await root.db.select().from(assets).where(eq(assets.id, stored.assetId)).get();
       if (asset === undefined) {
         throw new Error("real image admission left no owned asset row");
@@ -255,20 +255,20 @@ export async function seedCorpusImageVariants(root: ServerTestHarness, wire: Cor
       input: captionInput,
       output: await output(await request(memberAuth, "imagery.extractPrompt", captionInput, true), extractedPromptSchema),
     };
-    const free = await seedImageryGenerations(root, {
+    const free = await seedImageryGenerationsRows(root, {
       caller: principal,
       mode: "free",
       prompt: `  ${CORPUS_VARIANT_FREE_PROMPT}  `,
       n: 1,
     });
-    const captioned = await seedImageryGenerations(root, {
+    const captioned = await seedImageryGenerationsRows(root, {
       caller: principal,
       mode: "character_multimodal",
       subjectCharacterId: character.id,
       reuse: "never",
       n: 1,
     });
-    const warning = await seedImageryGenerations(root, {
+    const warning = await seedImageryGenerationsRows(root, {
       caller: principal,
       mode: "character",
       subjectCharacterId: character.id,

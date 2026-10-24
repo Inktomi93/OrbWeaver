@@ -15,7 +15,7 @@ import { seedCorpusActors } from "./corpus-actors.ts";
 import { CORPUS_LIBRARY_RULE_PRESET, seedCorpusLibraryViews } from "./corpus-library-views.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
 import { captureCookieAuth, captureCorpusReads, seedCorpusLibraries } from "./corpus-seed.ts";
-import { seedUserCredential } from "./factories/rows/credentials.ts";
+import { seedUserCredentialRows } from "./factories/rows/credentials.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 
@@ -435,7 +435,7 @@ test("native library projections retain canonical usage, ordering, intake and re
   Reflect.deleteProperty(regexDrift.regexLibrary.reads.usage.output, "rooms");
   expect(() => serializeCorpusWire(regexDrift, authentication.secrets)).toThrow("rooms");
   const secret = 'native-library-"credential"\\959';
-  const credential = await seedUserCredential(root, { principal: actors.owner, provider: "custom-openai", key: secret });
+  const credential = await seedUserCredentialRows(root, { principal: actors.owner, provider: "custom-openai", key: secret });
   const secrets = [...authentication.secrets, secret, credential.row.ciphertext, credential.row.iv, credential.row.tag];
   expect(parseCorpusWire(serializeCorpusWire(captured, secrets))).toEqual(parsed);
   const caller = await root.internalCallerFor(root.ownerId);

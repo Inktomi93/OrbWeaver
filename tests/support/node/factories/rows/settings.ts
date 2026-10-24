@@ -8,7 +8,7 @@ import type { ServerProducerRoot } from "../../server.ts";
 import type { UserSeedLedgerRow, UserSettingsRow } from "../settings.ts";
 
 /** Off/withheld/failed seed steps remain absent; only the composed seed policy records ledger keys. */
-export async function seedUserContentLedger(
+export async function seedUserContentLedgerRows(
   root: ServerProducerRoot,
   owner: Parameters<typeof seedUserContent>[0]["owner"],
 ): Promise<readonly UserSeedLedgerRow[]> {

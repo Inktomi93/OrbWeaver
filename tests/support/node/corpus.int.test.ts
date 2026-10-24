@@ -25,7 +25,7 @@ import { eq, isNotNull, sql } from "drizzle-orm";
 import { parseCorpusWire } from "../iso/corpus.ts";
 import { createCorpusCapsule, loadCorpusFixture, prepareCorpusFixture } from "./corpus.ts";
 import { createCorpusRecipe, CORPUS_OWNER_PASSWORD as OWNER_PASSWORD, CORPUS_PROVIDER_KEY as PROVIDER_KEY } from "./corpus-recipe.ts";
-import { seedUserCredential } from "./factories/rows/credentials.ts";
+import { seedUserCredentialRows } from "./factories/rows/credentials.ts";
 import { expect, test } from "./fixtures.ts";
 import { NATIVE_OIDC_SETTINGS } from "./oidc-issuer.ts";
 import { createServerHarness } from "./server.ts";
@@ -98,7 +98,7 @@ test("a completed migrated capsule closes its real producers before cloning scru
   {
     await using echoRoot = await createServerHarness({ secretBoxKey: key });
     const principal = await echoRoot.principalFor(echoRoot.ownerId);
-    await seedUserCredential(echoRoot, { principal, provider: "custom-openai", key: PROVIDER_KEY });
+    await seedUserCredentialRows(echoRoot, { principal, provider: "custom-openai", key: PROVIDER_KEY });
     const caller = await echoRoot.internalCallerFor(echoRoot.ownerId);
     const card = await caller.character.create({
       input: createCharacterSchema.parse({ handle: "publication-echo", name: PROVIDER_KEY, description: "A publication boundary witness." }),

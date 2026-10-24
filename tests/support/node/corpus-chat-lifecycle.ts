@@ -29,7 +29,7 @@ import {
   captureChatReplayRows,
   captureCompactionSpend,
   seedImportedChatRows,
-  seedMessageReaction,
+  seedMessageReactionRows,
 } from "./factories/rows/chat.ts";
 import { seedChatInviteRows, seedInvitedChatParticipantRows } from "./factories/rows.ts";
 import type { ServerTestHarness } from "./server.ts";
@@ -53,8 +53,8 @@ interface ImportReactionCapture extends NativeRoom {
   readonly foreign: NativeImported;
   readonly beforeForeign: { readonly rooms: readonly (typeof chats.$inferSelect)[]; readonly claims: readonly (typeof chatImportClaims.$inferSelect)[] };
   readonly afterForeign: ImportReactionCapture["beforeForeign"];
-  readonly whole: Awaited<ReturnType<typeof seedMessageReaction>>;
-  readonly segment: Awaited<ReturnType<typeof seedMessageReaction>>;
+  readonly whole: Awaited<ReturnType<typeof seedMessageReactionRows>>;
+  readonly segment: Awaited<ReturnType<typeof seedMessageReactionRows>>;
   readonly removed: boolean;
   readonly remaining: readonly (typeof messageReactions.$inferSelect)[];
   readonly reactions: Awaited<ReturnType<ChatService["listReactions"]>>;
@@ -166,8 +166,8 @@ async function importAndReact(root: ServerTestHarness, foreignUserId: ServerTest
     throw new Error("native lifecycle canon has no imported room, assistant or reactor");
   }
   const params = { principal, chatId, variantId: assistant.selectedVariantId, emoji: "👍" } as const;
-  const whole = await seedMessageReaction(root, params, reactor.id);
-  const segment = await seedMessageReaction(root, { ...params, segmentIndex: 0, segmentSpeaker: null }, reactor.id);
+  const whole = await seedMessageReactionRows(root, params, reactor.id);
+  const segment = await seedMessageReactionRows(root, { ...params, segmentIndex: 0, segmentSpeaker: null }, reactor.id);
   const removed = await root.services.chat.toggleReaction(params);
   const reactions = await root.services.chat.listReactions({ principal, chatId });
   const remaining = await root.db

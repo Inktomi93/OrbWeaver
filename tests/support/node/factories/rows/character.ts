@@ -9,14 +9,14 @@ import type { ServerProducerRoot } from "../../server.ts";
 import type { CharacterPersonaRow, CharacterRow, CharacterSnapshotRow, SeededCharacterHistory } from "../character.ts";
 
 /** The owner operation captures the live card; a fixture never assembles its own snapshot blob. */
-export async function seedCharacterSnapshot(root: ServerProducerRoot, params: Parameters<CharacterService["snapshot"]>[0]): Promise<CharacterSnapshotRow> {
+export async function seedCharacterSnapshotRows(root: ServerProducerRoot, params: Parameters<CharacterService["snapshot"]>[0]): Promise<CharacterSnapshotRow> {
   const db = root.db;
   const snapshot = root.services.character.snapshot;
   return (await produceCharacterSnapshot(db, snapshot, params)).row;
 }
 
 /** History and library views remain real reads; the capture does not project them from the stored card. */
-export async function seedCharacterHistory(
+export async function seedCharacterHistoryRows(
   root: ServerProducerRoot,
   params: Parameters<CharacterService["snapshot"]>[0],
   list: Omit<Parameters<CharacterService["list"]>[0], "principal"> = {},
@@ -46,7 +46,7 @@ async function produceCharacterSnapshot(
 }
 
 /** Both real ownership gates run before capturing the junction's exact composite key. */
-export async function seedCharacterPersona(
+export async function seedCharacterPersonaRows(
   root: ServerProducerRoot,
   params: Parameters<PersonaService["connectToCharacter"]>[0],
 ): Promise<CharacterPersonaRow> {

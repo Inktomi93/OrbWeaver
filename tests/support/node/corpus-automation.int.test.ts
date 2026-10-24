@@ -8,7 +8,7 @@ import { seedCorpusConnections } from "./corpus-actors.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
 import { seedCorpusAutomation } from "./corpus-seed.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
-import { captureAutomationExecution, captureGlobalVariable, seedAutomationOwnerBudget } from "./factories/rows/automation.ts";
+import { captureAutomationExecution, captureGlobalVariable, seedAutomationOwnerBudgetRows } from "./factories/rows/automation.ts";
 import { seedAutomationRuleRows } from "./factories/rows.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
@@ -72,7 +72,7 @@ test("a stranger's real asset event cannot change the owner's admitted automatio
   await seedCorpusConnections(root, principal);
   const room = await root.services.chat.startChat({ principal, characterIds: [], opening: "none" });
   const capture = await seedCorpusAutomation(root, room.chat.id);
-  await seedAutomationOwnerBudget(root, { principal, maxFiresPerHour: capture.budget.maxFiresPerHour + 2 });
+  await seedAutomationOwnerBudgetRows(root, { principal, maxFiresPerHour: capture.budget.maxFiresPerHour + 2 });
   const actor = await root.actor();
   const foreign = await root.principalFor(actor.id);
   await root.app.assets.store({ principal: foreign, kind: "gallery", mime: "image/png", bytes: makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)) });
@@ -98,7 +98,9 @@ test("scope-invalid rules and over-bound budgets refuse before the corpus captur
     }),
   ).rejects.toThrow("needs a chat");
   expect(await automation.listOwnerRules({ principal })).toEqual(before);
-  const budget = await seedAutomationOwnerBudget(root, { principal, maxFiresPerHour: 2 });
-  await expect(seedAutomationOwnerBudget(root, { principal, maxFiresPerHour: AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR + 1 })).rejects.toThrow("maxFiresPerHour");
+  const budget = await seedAutomationOwnerBudgetRows(root, { principal, maxFiresPerHour: 2 });
+  await expect(seedAutomationOwnerBudgetRows(root, { principal, maxFiresPerHour: AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR + 1 })).rejects.toThrow(
+    "maxFiresPerHour",
+  );
   expect(await automation.getOwnerBudgets({ principal })).toEqual({ maxFiresPerHour: budget.maxFiresPerHour });
 });

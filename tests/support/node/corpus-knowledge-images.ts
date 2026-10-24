@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 import sharp from "sharp";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_PROVIDER_ENDPOINT } from "./corpus-provider.ts";
 import { seedUserConnectionRows } from "./factories/rows/connection.ts";
-import { seedEmbeddedCorpus, seedIndexedAsset } from "./factories/rows/embedding-generation.ts";
+import { seedEmbeddedCorpusRows, seedIndexedAssetRows } from "./factories/rows/embedding-generation.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 export const CORPUS_KNOWLEDGE_IMAGE_SIZES = [
@@ -19,9 +19,9 @@ interface CorpusKnowledgeImages {
   readonly connection: Awaited<ReturnType<typeof seedUserConnectionRows>>;
   readonly cards: readonly Awaited<ReturnType<CorpusCaller["character"]["create"]>>[];
   readonly assets: readonly (typeof assets.$inferSelect)[];
-  readonly indexed: readonly Awaited<ReturnType<typeof seedIndexedAsset>>[];
-  readonly repeated: readonly Awaited<ReturnType<typeof seedIndexedAsset>>[];
-  readonly cardVectors: Awaited<ReturnType<typeof seedEmbeddedCorpus>>;
+  readonly indexed: readonly Awaited<ReturnType<typeof seedIndexedAssetRows>>[];
+  readonly repeated: readonly Awaited<ReturnType<typeof seedIndexedAssetRows>>[];
+  readonly cardVectors: Awaited<ReturnType<typeof seedEmbeddedCorpusRows>>;
   readonly facets: Awaited<ReturnType<CorpusCaller["discovery"]["imageFacets"]>>;
   readonly members: Awaited<ReturnType<CorpusCaller["discovery"]["charactersByImageFacet"]>>;
   readonly families: Awaited<ReturnType<CorpusCaller["discovery"]["visualArchetypes"]>>;
@@ -76,10 +76,10 @@ export async function seedCorpusKnowledgeImages(root: ServerTestHarness): Promis
     }
     cards.push(updated);
     storedRows.push(row);
-    indexed.push(await seedIndexedAsset(root, [stored.assetId, { force: false }]));
-    repeated.push(await seedIndexedAsset(root, [stored.assetId, { force: false }]));
+    indexed.push(await seedIndexedAssetRows(root, [stored.assetId, { force: false }]));
+    repeated.push(await seedIndexedAssetRows(root, [stored.assetId, { force: false }]));
   }
-  const cardVectors = await seedEmbeddedCorpus(root, {
+  const cardVectors = await seedEmbeddedCorpusRows(root, {
     ownerId: root.ownerId,
     force: false,
     signal: new AbortController().signal,
