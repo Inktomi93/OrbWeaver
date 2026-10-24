@@ -42,8 +42,9 @@ async function openSeededRoom(page: Page, tap: StreamTap): Promise<ChatId> {
   const chatId = await startChat([characterId]);
   const title = `e2e-seq-open-${Date.now()}`;
   await trpc.chat.updateTitle.mutate({ chatId, title });
+  const since = tap.chatFrames.length;
   await openChatByTitle(page, title);
-  await waitForRoomOpened(tap, chatId);
+  await waitForRoomOpened(tap, chatId, since);
   return chatId;
 }
 
@@ -196,6 +197,13 @@ test.describe("order-of-operations", () => {
         expectInOrder(timeline, [
           { phase: POST_REQUEST, procedure: UPDATE_TITLE, chatId: roomId },
           { phase: OK_RESPONSE, procedure: UPDATE_TITLE, chatId: roomId },
+        ]);
+        // Only the room's `chatUpdated` refetches the transcript read, so this proves the client handled the
+        // frame, not just that the server sent it (the user room's `chatsChanged` refetches the other two).
+        expectInOrder(timeline, [
+          { phase: POST_REQUEST, procedure: UPDATE_TITLE, chatId: roomId },
+          { phase: POST_REQUEST, procedure: LIST_MESSAGES, chatId: roomId },
+          { phase: OK_RESPONSE, procedure: LIST_MESSAGES, chatId: roomId },
         ]);
         // SSE delivery and the mutation response travel independently; neither must arrive first.
         for (const procedure of [GET_CHAT, LIST_CHATS]) {

@@ -113,7 +113,13 @@ export function chatFrameTypes(tap: StreamTap, chatId: ChatId, since = 0): reado
   return tap.chatFrames.slice(since).flatMap((frame) => (frame.chatId === chatId ? [frame.type] : []));
 }
 
-/** Wait until the server has delivered the room's `chatOpened` frame (its attach was answered). */
-export async function waitForRoomOpened(tap: StreamTap, chatId: ChatId, since = 0): Promise<void> {
+/** The cursor to pass as `since`: take it before the action that opens the room, so an earlier attach of the
+ *  same chat on this page cannot satisfy the wait. */
+export function frameCursor(page: Page): number {
+  return streamTapOf(page).chatFrames.length;
+}
+
+/** Wait until the server has delivered the room's `chatOpened` frame at or after frame index `since`. */
+export async function waitForRoomOpened(tap: StreamTap, chatId: ChatId, since: number): Promise<void> {
   await expect.poll(() => chatFrameTypes(tap, chatId, since), { timeout: WAIT_SURFACE_MS }).toContain(CHAT_OPENED);
 }

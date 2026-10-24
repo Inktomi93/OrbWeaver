@@ -28,7 +28,7 @@ import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { assistantRows, openNewestChat, typeAndSend, waitForStreamOpen } from "./support/chat-room.ts";
-import { chatFrameTypes, tapStream } from "./support/stream-tap.ts";
+import { chatFrameTypes, frameCursor, tapStream } from "./support/stream-tap.ts";
 import { WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import { deleteChat, listCanon, listCharacters, startChat } from "./support/trpc.ts";
 
@@ -67,8 +67,9 @@ test("a real turn: ghost resolves, DOM == DB in order, bus order holds, local en
   const chatId = await startChat([characterId]);
   const tap = await tapStream(page);
   try {
+    const since = frameCursor(page);
     await openNewestChat(page);
-    await waitForStreamOpen(page, chatId);
+    await waitForStreamOpen(page, chatId, since);
 
     const beforePosts = await genPostCount();
 

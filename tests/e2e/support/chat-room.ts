@@ -84,9 +84,9 @@ export async function waitForAppReady(page: Page, timeout = 30_000): Promise<voi
 
 /** Wait until the server has delivered the room's `chatOpened` frame on the live stream — the deterministic
  *  "subscribed" gate before mutating, so a `chatUpdated` event always has a subscriber. The page needs a
- *  `tapStream` installed before its first navigation. */
-export async function waitForStreamOpen(page: Page, chatId: ChatId): Promise<void> {
-  await waitForRoomOpened(streamTapOf(page), chatId);
+ *  `tapStream` installed before its first navigation; `since` is a `frameCursor` taken before the room was opened. */
+export async function waitForStreamOpen(page: Page, chatId: ChatId, since: number): Promise<void> {
+  await waitForRoomOpened(streamTapOf(page), chatId, since);
 }
 
 /** The RAIL's "Characters" nav button, scoped to the Primary navigation. The scoping is load-bearing: the
