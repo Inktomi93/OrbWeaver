@@ -45,3 +45,13 @@ test("a filter that matches nothing keeps the library total beside its zero", as
   await component.update({ query: "no page has this name" });
   await expect(heading.getByText("0 of 2", { exact: true })).toBeVisible();
 });
+
+test("a plugin with no registered pages shows no census beside the title", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "plugin.list": () => [makePluginRow({ slug: "oracle-deck", name: "Oracle Deck" })],
+    "plugin.listSurfaces": () => [],
+  });
+  const component = await mount<typeof ExtensionsListHeaderStory>(STORY, {});
+  await expect.poll(() => trpc.count("plugin.listSurfaces")).toBeGreaterThan(0);
+  await expect(component.getByRole("heading", { level: 2 })).not.toContainText(/\d/u);
+});
