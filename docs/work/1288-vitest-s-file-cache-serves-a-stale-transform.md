@@ -22,4 +22,13 @@ Reproduced or refuted on a clean tree; if real, the cache key includes the resol
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Reproduced on a clean worktree with vitest 5.0.5. The cache is `fsModuleCache`, on by default, stored at `node_modules/.vitest-cache` in the workspace root. Each worktree has its own `node_modules`, so the cache is not shared across worktrees.
+
+Cause: `FileSystemModuleCache.generateCachePath` hashes the file id, its content and an environment hash (config, plugin names, config file contents). The lockfile hash only clears the whole cache when `pnpm-lock.yaml` changes. A workspace `exports` edit changes none of these.
+
+Planted case: scratch export `@orb/kit/cb-cache-probe` pointing at `cb-cache-a.ts` (`WHICH = "A"`), scratch test asserting `"A"`. Run 1 passes and fills the cache. The export is retargeted to `cb-cache-b.ts` (`WHICH = "B"`).
+
+- Before the fix, rerun of the unchanged test: passed (resolved the old target). After `vitest --clearCache`: failed with `expected 'B' to be 'A'`.
+- After the fix (`vitest.config.ts` plugin using `configureVitest` and `defineCacheKeyGenerator` to hash every workspace `package.json`), same flip with no cache clearing: failed with `Received: "B"`.
+
+The scratch files are deleted. `pnpm lint:eslint vitest.config.ts` and `pnpm typecheck tsconfig.json` exit 0.

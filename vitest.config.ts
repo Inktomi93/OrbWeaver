@@ -1,3 +1,6 @@
+import { createHash } from "node:crypto";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import process from "node:process";
 import { readConcurrencyProfile } from "@orb/tooling/floor/host/concurrency-profile";
 import { budget } from "@orb/tooling/floor/host/load-budget";
@@ -6,7 +9,7 @@ import { runtimeForTestFamily, SEMANTIC_CORPUS_RESOURCE, TEST_KIND_DEFINITIONS }
 import { LONG_TEST_TIMEOUT_BASE_MS, TEST_TAGS } from "@orb/tooling/floor/testing/test-tags";
 import type { ViteUserConfig } from "vitest/config";
 import { configDefaults, defineConfig } from "vitest/config";
-import type { TestUserConfig } from "vitest/node";
+import type { TestUserConfig, VitestPluginContext } from "vitest/node";
 
 // Native runner globs compose the registered vocabulary. Browser-subject .dom tests still execute in
 // Node; Playwright owns browser execution. Each project inherits the cleanup and isolation defaults.
@@ -46,8 +49,35 @@ const SEMANTIC_CORPUS_GROUP_ORDER = 2;
 // forbids it) reds naming the file instead of passing unseen.
 const WORKING_TREE_GUARD = "@orb/tooling/floor/testing/working-tree-guard";
 
+// Vitest's fs module cache keys a file on its own content, but the transform bakes in the file each import
+// resolved to. Retargeting a workspace `exports` entry would leave an unchanged test on the old target, so
+// every workspace manifest joins the key.
+const WORKSPACE_ROOTS = ["tooling", "tests/support"];
+function workspaceManifestsHash(): string {
+  const packageDirs = readdirSync("packages", { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map(({ name }) => join("packages", name));
+  const hash = createHash("sha1");
+  for (const dir of [...packageDirs, ...WORKSPACE_ROOTS].sort()) {
+    const manifest = join(dir, "package.json");
+    if (existsSync(manifest)) {
+      hash.update(manifest).update(readFileSync(manifest));
+    }
+  }
+  return hash.digest("hex");
+}
+
+const MANIFESTS_CACHE_KEY = {
+  name: "orb:workspace-manifests-cache-key",
+  configureVitest: ({ defineCacheKeyGenerator }: Pick<VitestPluginContext, "defineCacheKeyGenerator">): void => {
+    const key = workspaceManifestsHash();
+    defineCacheKeyGenerator(() => key);
+  },
+};
+
 export function vitestConfig(): ViteUserConfig {
   return defineConfig({
+    plugins: [MANIFESTS_CACHE_KEY],
     test: {
       globalSetup: [WORKING_TREE_GUARD],
       testTimeout: budget(5000),
