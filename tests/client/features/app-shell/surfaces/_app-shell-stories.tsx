@@ -1,9 +1,11 @@
 // The production AppShell under the client providers. Section and panel state arrive the way a boot has them, from
 // storage the spec seeds before mount; a modal opens through the shell store's own `openModal` action.
 import { AppShell } from "@orb/client/features/app-shell";
+import { notify } from "@orb/client/lib";
 import type { ModalSlotId } from "@orb/client/state";
 import { openModal } from "@orb/client/state";
 import { CtClientProviders } from "@orb/testkit/browser";
+import { Button } from "@orb/ui/button";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
 
@@ -21,6 +23,18 @@ function OpenModalOnMount({ modalId }: { readonly modalId: ModalSlotId }): null 
     openModal(modalId);
   }, [modalId]);
   return null;
+}
+
+/** The production shell with a control that raises a notice through the app's own `notify` facade. */
+export function AppShellNoticeStory({ title, description }: { readonly title: string; readonly description: string }): ReactElement {
+  return (
+    <CtClientProviders>
+      <AppShell />
+      <Button className="fixed start-0 bottom-0 z-(--z-toast)" onClick={(): void => notify.info({ title, description })}>
+        Raise a notice
+      </Button>
+    </CtClientProviders>
+  );
 }
 
 /** The production shell with one registered modal opened through the store, as a content trigger opens it. */
