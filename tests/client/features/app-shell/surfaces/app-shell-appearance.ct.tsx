@@ -9,10 +9,10 @@ import { createShellAmbientReads, routeOrbSocket, routeTrpc, serveCorpusProcedur
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import type { CDPSession, Locator, Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import type { AppShellModalStory, AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { ShellToPendingStory } from "./_shell-handover-stories.tsx";
-import { PHONE, pixel, ROOM_PROCEDURES, resolvedLength, SECTION_PROCEDURES, SHELL_STORIES, seedShellState } from "./app-shell-ct.ts";
+import { emulateMedia, PHONE, pixel, ROOM_PROCEDURES, resolvedLength, SECTION_PROCEDURES, SHELL_STORIES, seedShellState } from "./app-shell-ct.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const MODAL_STORY = `${SHELL_STORIES}/AppShellModalStory`;
@@ -51,12 +51,9 @@ const DIAL_PCT = 50;
 const SHIMMER_CLASS = "orb-weave-shimmer";
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
-type Media = Readonly<{ contrast: "more" | "no-preference"; transparency: "reduce" | "no-preference" }>;
 
 let root: Root;
 let lightThemeId: string;
-const sessions = new WeakMap<Page, CDPSession>();
-
 test.beforeAll(async () => {
   root = await createCorpusHarness();
   const themes = await (await root.internalCallerFor(root.ownerId)).settings.listThemes();
@@ -68,33 +65,12 @@ test.beforeAll(async () => {
 });
 
 test.beforeEach(async ({ page }) => {
-  await emulate(page, { contrast: "no-preference", transparency: "no-preference" });
+  await emulateMedia(page, { contrast: "no-preference", transparency: "no-preference" });
 });
 
 test.afterAll(async () => {
   await root[Symbol.asyncDispose]();
 });
-
-/**
- * State the whole emulated media list in one CDP call. Playwright models no reduced-transparency, and its own
- * `emulateMedia` replaces the CDP feature list, so this file emulates media only here. The session stays attached:
- * its overrides end when it detaches.
- */
-async function emulate(page: Page, media: Media): Promise<void> {
-  const session = sessions.get(page) ?? (await page.context().newCDPSession(page));
-  sessions.set(page, session);
-  const features = [
-    { name: "prefers-color-scheme", value: "dark" },
-    { name: "prefers-reduced-motion", value: "no-preference" },
-    { name: "prefers-contrast", value: media.contrast },
-    { name: "prefers-reduced-transparency", value: media.transparency },
-  ];
-  await session.send("Emulation.setEmulatedMedia", { features });
-  const missed = await page.evaluate((list) => list.filter(({ name, value }) => !matchMedia(`(${name}: ${value})`).matches), features);
-  if (missed.length > 0) {
-    throw new Error(`Chromium did not take the emulated media ${JSON.stringify(missed)}`);
-  }
-}
 
 /** Serve the shell and its sections, with the corpus viewer's settings carrying `appearance` and, when named, a selected theme. */
 async function routeAppearance(page: Page, corpus: CorpusWire, appearance: Partial<AppearanceSettings>, selectedThemeId?: string): Promise<void> {
@@ -380,7 +356,7 @@ test.describe("reduced transparency", () => {
     await expect.poll(() => fillAlpha(dialog)).toBeLessThan(1);
     await expect.poll(() => computed(dialog, "backdrop-filter", "::before")).toContain("blur(");
 
-    await emulate(page, { contrast: "no-preference", transparency: "reduce" });
+    await emulateMedia(page, { contrast: "no-preference", transparency: "reduce" });
     await expect.poll(() => fillAlpha(pane, "::before")).toBe(1);
     await expect.poll(() => carrierBlur(pane)).toBe("none");
     await expect.poll(() => fillAlpha(dialog)).toBe(1);
@@ -389,7 +365,7 @@ test.describe("reduced transparency", () => {
 
   test("leaves the phone's own pane and reading-surface fills standing", async ({ corpus, mount, page }) => {
     await page.setViewportSize(PHONE);
-    await emulate(page, { contrast: "no-preference", transparency: "reduce" });
+    await emulateMedia(page, { contrast: "no-preference", transparency: "reduce" });
     await seedShellState(page, { activeSection: "chats" });
     await routeAppearance(page, corpus, { blurSurfaces: ["panels"] });
     await mount<typeof AppShellStory>(STORY, {});
@@ -411,7 +387,7 @@ test.describe("contrast more", () => {
     await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "docked");
     await expect.poll(() => borderWidths(page.locator(LIST))).toBe("0px 1px 0px 0px");
 
-    await emulate(page, { contrast: "more", transparency: "no-preference" });
+    await emulateMedia(page, { contrast: "more", transparency: "no-preference" });
     await expect.poll(() => borderWidths(page.locator(LIST))).toBe("0px 2px 0px 0px");
     await expect.poll(() => borderWidths(page.locator(CONTEXT))).toBe("0px 0px 0px 2px");
 
@@ -429,7 +405,7 @@ test.describe("contrast more", () => {
       await expect(dialog).toBeVisible();
       await expect.poll(() => fillAlpha(pane, "::before")).toBeLessThan(CONTRAST_FILL_ALPHA);
 
-      await emulate(page, { contrast: "more", transparency: "no-preference" });
+      await emulateMedia(page, { contrast: "more", transparency: "no-preference" });
       await expect.poll(() => fillAlpha(pane, "::before")).toBeCloseTo(CONTRAST_FILL_ALPHA, 2);
       const partner = theme === "light" ? "var(--color-reading-plate)" : "transparent";
       const popover = await mixedFill(dialog, "--color-popover", CONTRAST_FILL, partner);
@@ -447,14 +423,14 @@ test.describe("contrast more", () => {
       expect(hairline).toBeGreaterThan(1);
       expect(hairline).toBeLessThan(AA_NON_TEXT_RATIO);
 
-      await emulate(page, { contrast: "more", transparency: "no-preference" });
+      await emulateMedia(page, { contrast: "more", transparency: "no-preference" });
       await expect.poll(() => computed(page.locator(LIST), "border-inline-end-width")).toBe("2px");
       await expect.poll(() => seamRatio(page)).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
     });
   }
 
   test("keeps the raised seam with the glass off", async ({ corpus, mount, page }) => {
-    await emulate(page, { contrast: "more", transparency: "no-preference" });
+    await emulateMedia(page, { contrast: "more", transparency: "no-preference" });
     await seedShellState(page, { activeSection: "chats" });
     await routeAppearance(page, corpus, { blurSurfaces: [] });
     await mount<typeof AppShellStory>(STORY, {});
@@ -465,7 +441,7 @@ test.describe("contrast more", () => {
   });
 
   test("yields the alpha to reduced transparency and keeps its border", async ({ corpus, mount, page }) => {
-    await emulate(page, { contrast: "more", transparency: "reduce" });
+    await emulateMedia(page, { contrast: "more", transparency: "reduce" });
     await seedShellState(page, { activeSection: "chats" });
     await routeAppearance(page, corpus, { blurSurfaces: ["panels", "modals"] });
     await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId: "newChat" });
@@ -509,7 +485,7 @@ test.describe("in an open room", () => {
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: await groupRoomId() });
     await roomReady(page);
     await expect.poll(() => fillAlpha(page.locator(COMPOSER))).toBeLessThan(1);
-    await emulate(page, { contrast: "no-preference", transparency: "reduce" });
+    await emulateMedia(page, { contrast: "no-preference", transparency: "reduce" });
     for (const surface of [page.locator(COMPOSER), ...ROOM_ROLES.map((role) => bubble(page, role))]) {
       await expect.poll(() => fillAlpha(surface)).toBe(1);
       await expect.poll(() => computed(surface, "backdrop-filter")).toBe("none");
@@ -526,7 +502,7 @@ test.describe("in an open room", () => {
     await roomReady(page);
     await expect.poll(() => borderWidths(page.locator(COMPOSER))).toBe("1px 1px 1px 1px");
     await expect.poll(() => fillAlpha(bubble(page, "assistant"))).toBeLessThan(CONTRAST_FILL_ALPHA);
-    await emulate(page, { contrast: "more", transparency: "no-preference" });
+    await emulateMedia(page, { contrast: "more", transparency: "no-preference" });
     await expect.poll(() => borderWidths(page.locator(COMPOSER))).toBe("2px 2px 2px 2px");
     for (const role of ROOM_ROLES) {
       await expect.poll(() => borderWidths(bubble(page, role))).toBe("0px 0px 0px 0px");
