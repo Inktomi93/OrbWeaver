@@ -33,9 +33,8 @@ import type { WorkloadError, WorkloadKind } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import type { WorkloadId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
-import type { WorkloadContributions } from "../contract/contribution.ts";
 import type { WorkloadProgressBus } from "../contract/progress-bus.ts";
-import type { BootReclaimReport, WorkloadReapReason } from "../contract/service.ts";
+import type { BootReclaimArgs, BootReclaimReport, WorkloadReapReason } from "../contract/service.ts";
 import { findInFlightForBootReclaim, markTerminal, requeueInFlight } from "../persistence/queries.ts";
 import { MAX_BOOT_RESPAWNS, reapedMessage } from "./reap-record.ts";
 
@@ -81,12 +80,7 @@ async function requeueOrphan(
  * Dispose of every orphaned in-flight row at boot: re-queue the resumable ones (bounded), reap the rest.
  * There is no lease threshold — see `findInFlightForBootReclaim` for why the heartbeat is not evidence here.
  */
-export async function reclaimInFlightOnBoot(args: {
-  db: Db;
-  contributions: WorkloadContributions;
-  now: number;
-  emitEvent: WorkloadProgressBus["emitWorkloadEvent"];
-}): Promise<BootReclaimReport> {
+export async function reclaimInFlightOnBoot(args: BootReclaimArgs): Promise<BootReclaimReport> {
   const emitEvent = args.emitEvent;
   const orphans = await findInFlightForBootReclaim(args.db);
   const dispositions = await Promise.all(

@@ -4,7 +4,7 @@ import { batchForOwner, databaseForOwner } from "@orb/db/wiring-owner";
 import type { IdSource } from "@orb/kit/ids";
 import type { ReconcileOpts } from "../contract/rebuild-from-canon.ts";
 import type { StatsBatchWiring } from "../contract/wiring.ts";
-import { reconcileStats as rebuildStats } from "../persistence/rebuild-from-canon.ts";
+import { reconcileOwnersMissingTimeline as rebuildMissingTimelines, reconcileStats as rebuildStats } from "../persistence/rebuild-from-canon.ts";
 import { settleRetainedChatRebase } from "../persistence/retained-chat-accounting.ts";
 import { applyCharacterStatsDelta, applyStatsDelta, bumpStatsCanonVersion } from "./apply-delta.ts";
 
@@ -21,4 +21,9 @@ export function createStatsBatchWiring(idSource: IdSource): StatsBatchWiring {
 /** Preserve the complete rebuild options and import settlement semantics behind the query owner. */
 export function reconcileStats(db: DatabaseHandle, options: ReconcileOpts): Promise<ReconcileStatsResult> {
   return rebuildStats(databaseForOwner(db), options);
+}
+
+/** Boot's timeline repair keeps the rebuild's canon-stability retry behind the query owner. */
+export function reconcileOwnersMissingTimeline(db: DatabaseHandle, now: () => number, idSource: IdSource): Promise<number> {
+  return rebuildMissingTimelines(databaseForOwner(db), now, idSource);
 }

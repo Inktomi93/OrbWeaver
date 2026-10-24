@@ -34,14 +34,14 @@
 // note or scenario line, which is not a row this app may rewrite. That half is served at the resolution seam
 // instead (`domain/plugin/substrate/plugin-macros.ts`'s legacy alias).
 
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
 import { migratePluginToolWireNames as migrateAutomationArms } from "#domain/automation";
 import { migratePluginToolWireNames as migrateToolCallRecords } from "#domain/chat";
 import { pluginToolWireNameRenames, pluginToolWireNameRenamesRefused, readInstalledPluginSlugs } from "#domain/plugin";
 import { getLog } from "#foundation/observability";
 
 export interface MigratePluginToolWireNamesDeps {
-  readonly db: Db;
+  readonly db: DatabaseHandle;
 }
 
 /**

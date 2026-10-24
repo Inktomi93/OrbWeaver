@@ -276,40 +276,40 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // host-handoff offer's `$.copyCast` key became `$.copyCharacters`, and the offer's read seam degrades an
     // unrecognised blob to NO_HANDOFF_OFFER rather than failing, so an un-migrated row silently drops a
     // departing host's recorded consent. Idempotent — a no-op on every boot after the first.
-    await migrateHandoffOfferVocabOnBoot({ db });
+    await migrateHandoffOfferVocabOnBoot({ db: wiringDb });
 
     // #1737 DATA migration, in the same window and for the same reason: the `home:"preset"` prose slot
     // `chat.group.castMember` became `chat.group.characterHeading`, and `proseOverridesSchema` STRIPS an
     // unknown slot id at the parse seam — so an un-migrated `presets.config` silently loses the host's
     // authored narrator character heading instead of failing. Idempotent — a no-op on every boot after the
     // first. Runs before compose, which is where the first preset read lives.
-    await migrateProseSlotVocabOnBoot({ db });
+    await migrateProseSlotVocabOnBoot({ db: wiringDb });
 
     // #1391 DATA migration, same window and same class: `pluginToolWireName` became INJECTIVE (a slug's `-`
     // now doubles to `__`), which renames every hyphen-slug plugin's model-visible tool names. A persisted
     // `ToolCallRecord.name` under the old spelling silently unmatches its plugin's `tool-card` surface, and a
     // `run_tool` automation arm under it stops firing. Idempotent, and a no-op on a box with no hyphenated
     // plugin slug installed. Runs before compose, which is where the first plugin activation lives.
-    await migratePluginToolWireNamesOnBoot({ db });
+    await migratePluginToolWireNamesOnBoot({ db: wiringDb });
 
     // #1600 ONE-TIME DATA heal, same window: a `user_settings` row pinning a background asset that predates
     // #1478.1's ownership+kind guard (dev data, or any asset whose `kind` was never `background`) refuses
     // EVERY settings write for that user, not only a background edit. Idempotent — a no-op on every boot
     // after the first, and on a db seeded entirely post-#1478.
-    await healLegacyBackgroundPinsOnBoot({ db });
+    await healLegacyBackgroundPinsOnBoot({ db: wiringDb });
     // #1708 DATA repair, in the same window and for the same reason: a card ingested through a plugin BEFORE
     // #1702 shipped never got an `importedFrom` stamp, and `characterProvenanceOf` collapses a null
     // `importedFrom` to `authored` — so an un-migrated row silently misreports "Made here" on every read
     // until this runs. Idempotent — a no-op on every boot once the candidate set is drained. Runs before
     // compose, which is where the first character read lives.
-    await backfillPluginProvenanceOnBoot({ db });
+    await backfillPluginProvenanceOnBoot({ db: wiringDb });
     // #2253 DATA repair: before 39f71b2294 the invite-redeem's `canonHeadSeq` subquery was unqualified,
     // recording the table-wide max(messages.seq) instead of the per-chat head. Clamp any stale join_seq
     // to the actual per-chat canon head. Idempotent — a no-op on every boot once the candidates are drained.
     await repairStaleJoinSeqOnBoot({ db: wiringDb });
     // DATA repair, same window: the `daily_stats` timeline re-grain drops rows only canon can rebuild, so every
     // owner with activity and an empty timeline is rebuilt before the first Insights read.
-    await rebuildStatsTimelineOnBoot({ db, now, idSource: seams.idSource });
+    await rebuildStatsTimelineOnBoot({ db: wiringDb, now, idSource: seams.idSource });
 
     // The boot secrets, phase two: with the schema in place, an absent keyfile is generated only when no row
     // depends on it; otherwise this REFUSES and names the file (owner ruling — a regenerated secret would
@@ -329,8 +329,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     const rolePolicy = createSessionsRolePolicy(env);
     const sessionsCrypto = SessionsCrypto.production();
     const preparedOwner = await prepareBootOwner({
-      db,
-      wiringDb,
+      db: wiringDb,
       now,
       idSource: seams.idSource,
       rolePolicy,
@@ -447,8 +446,8 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // rides here because a user row may predate the connection table on this pre-launch box. It is half the
     // story — accounts minted after this point are seeded by the per-user op wired into the minting verbs
     // (#2481), not by a later boot.
-    await seedDefaultPreset({ db, now });
-    await seedThemes({ db, now });
+    await seedDefaultPreset({ db: wiringDb, now });
+    await seedThemes({ db: wiringDb, now });
     await seedLocalLightOnBoot({ db: wiringDb, now, idSource: seams.idSource, onEmbedSpaceBound: built.detachEmbedReindex });
     handOffBootOwnerSweeps(preparedOwner, built.detachEmbedReindex);
     // An owner whose stored generation no longer matches their binding (a release moved generation identity), or
@@ -490,7 +489,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       // the seeder's auto-upgrade — which re-activates the rows it swaps — lands the NEW bundle resident
       // instead of racing a second activation onto the old one.
       await reactivatePluginsOnBoot({
-        db,
+        db: wiringDb,
         setEnabled: built.services.plugin.setEnabled,
         resolvePrincipal: createHostPrincipalResolver(bootSessions),
       });
@@ -505,7 +504,13 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     await optimizeDb(db);
     const plannerDb = db;
     stopPlannerMaintenance = startPlannerMaintenance(() => optimizeDb(plannerDb), seams.timers.interval);
-    await reclaimLocksOnBoot({ db, contributions: built.workloadContributions, now, holder, emitWorkloadEvent: built.workloadEvents.emitWorkloadEvent });
+    await reclaimLocksOnBoot({
+      db: wiringDb,
+      contributions: built.workloadContributions,
+      now,
+      holder,
+      emitWorkloadEvent: built.workloadEvents.emitWorkloadEvent,
+    });
 
     // Boot-reclaim the host-offline deferred-turn queue (chat Part III §5): each row runs (consent/budget
     // re-validated in-lock) or is dropped. Fire-and-forget — the drain does real generation, so it must

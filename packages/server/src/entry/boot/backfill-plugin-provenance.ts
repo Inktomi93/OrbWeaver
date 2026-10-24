@@ -12,13 +12,13 @@
 // second source of truth the data could disagree with, and the cost of the no-op boot is one indexless scan
 // of the character table for the (importedFrom IS NULL AND importHash IS NOT NULL) slice.
 
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
 import type { BackfillPluginProvenanceResult } from "#domain/character";
 import { backfillPluginProvenance } from "#domain/character";
 import { getLog } from "#foundation/observability";
 
 export interface BackfillPluginProvenanceOnBootDeps {
-  readonly db: Db;
+  readonly db: DatabaseHandle;
 }
 
 /** Stamp `importedFrom` for every pre-#1702 plugin-ingested character whose plugin identity is recoverable.

@@ -115,6 +115,14 @@ export interface BootReclaimReport {
   readonly reaped: number;
 }
 
+/** The boot reclaim's args; `contributions` supplies each kind's declared `resume` policy. */
+export interface BootReclaimArgs {
+  readonly db: Db;
+  readonly contributions: WorkloadContributions;
+  readonly now: number;
+  readonly emitEvent: WorkloadServiceContext["emitEvent"];
+}
+
 /** The `WorkloadService` surface; every verb threads `caller` as the F3 authorization subject (`null` = trusted system trigger). */
 export interface WorkloadService extends WorkloadScheduleService {
   readonly start: (params: StartWorkloadParams) => Promise<WorkloadRef>;

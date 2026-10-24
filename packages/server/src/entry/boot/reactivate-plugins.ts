@@ -29,7 +29,7 @@
 // would hide the fact that three plugins failed to start.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
 import { errorMessage } from "@orb/kit/error-message";
 import type { PluginId, UserId } from "@orb/kit/ids";
 import type { PluginService } from "#domain/plugin";
@@ -37,7 +37,7 @@ import { listEnabledAcrossOwners, PluginCrashedError } from "#domain/plugin";
 import { getLog } from "#foundation/observability";
 
 export interface ReactivatePluginsDeps {
-  readonly db: Db;
+  readonly db: DatabaseHandle;
   /** The REAL owner-scoped verb — the same one the Plugins pane's switch drives. */
   readonly setEnabled: PluginService["setEnabled"];
   /** Row owner → Principal, the boot seed's resolver (`createHostPrincipalResolver`). Reading the role off

@@ -2,10 +2,11 @@
 // Private users persistence owns the SQL; ordinary runtime role changes still require admin authority.
 
 import type { Db } from "@orb/db";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
-import type { SeedOwnerParams } from "../contract/boot.ts";
+import type { SeedOwnerContext, SeedOwnerParams } from "../contract/boot.ts";
 import {
   backfillBootstrapOwner,
   claimBootstrapPassword,
@@ -33,7 +34,7 @@ import {
  * operator's tell that a typo'd `OWNER_HANDLES` just renamed their owner (reverting the env renames it back —
  * the row is identified by `role='owner'`, not by the handle it happens to carry).
  */
-async function adoptMovedSeedKey(deps: SeedOwnerParams, seedKey: Handle, at: number): Promise<void> {
+async function adoptMovedSeedKey(deps: SeedOwnerContext, seedKey: Handle, at: number): Promise<void> {
   const { db } = deps;
   const owner = await selectBootstrapOwner(db);
   if (owner === undefined || owner.handle === seedKey) {
@@ -56,7 +57,7 @@ async function adoptMovedSeedKey(deps: SeedOwnerParams, seedKey: Handle, at: num
 
 /** Ensure every OWNER handle has a `users` row at `role=owner`. Returns the ensured owner `UserId`s in
  *  OWNER_HANDLES order. Idempotent: a row already at `owner` is left untouched. */
-async function seedOwner(deps: SeedOwnerParams): Promise<readonly UserId[]> {
+async function seedOwner(deps: SeedOwnerContext): Promise<readonly UserId[]> {
   // D17: exactly one owner. env already boot-rejects a multi-handle OWNER_HANDLES; this is the belt.
   if (deps.ownerHandles.length > 1) {
     throw new Error(
@@ -110,5 +111,6 @@ async function seedOwnerPassword(
 
 /** Build the trusted pre-compose owner bootstrap operation. */
 export function createSeedOwner(deps: SeedOwnerParams): () => Promise<readonly UserId[]> {
-  return () => seedOwner(deps);
+  const ctx: SeedOwnerContext = { ...deps, db: databaseForOwner(deps.db) };
+  return () => seedOwner(ctx);
 }
