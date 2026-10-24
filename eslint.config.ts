@@ -237,18 +237,30 @@ const PNG_CHUNK_IMPORT = {
   message: "Use the import or export domain for PNG card-chunk operations.",
 };
 
-// dependency-cruiser resolves only a literal specifier, so a computed one reaches any db door unseen (D335).
-const COMPUTED_IMPORT_SYNTAX = {
-  selector: "ImportExpression:not([source.type='Literal'])",
-  message: "Write a dynamic import with a string-literal specifier; the db admission rules see only literal specifiers (D335).",
-};
+// dependency-cruiser sees only literal import edges, so a computed specifier or a host loader reaches any db door
+// unseen (D335). `node:module` itself is a dependency-cruiser rule; these are the loaders no import names.
+const MODULE_LOADER_SYNTAX = [
+  {
+    selector: "ImportExpression:not([source.type='Literal'])",
+    message: "Write a dynamic import with a string-literal specifier; the db admission rules see only literal specifiers (D335).",
+  },
+  {
+    selector:
+      ":matches(MemberExpression[property.name='getBuiltinModule'], MemberExpression[property.value='getBuiltinModule'], Property[key.name='getBuiltinModule'])",
+    message: "Import the builtin by a literal specifier; process.getBuiltinModule hands back node:module past the db admission rules (D335).",
+  },
+  {
+    selector: ":matches(Property[key.name='importModuleDynamically'], Property[key.value='importModuleDynamically'])",
+    message: "A vm script gets no dynamic-import hook; it would load any module past the db admission rules (D335).",
+  },
+];
 
 const SERVER_SYNTAX = [
   {
     selector: String.raw`:matches(Literal[value=type(string)][raw=/corsproxy\.io/], TemplateElement[value.raw=/corsproxy\.io/])`,
     message: "D61 B5a: the rejected third-party CORS proxy cannot be spelled in server or inference literals; use the guarded network owner directly.",
   },
-  COMPUTED_IMPORT_SYNTAX,
+  ...MODULE_LOADER_SYNTAX,
 ];
 
 // Literal bidi controls and C0/C1 controls make the reviewed text differ from what runs (trojan source).
@@ -1106,7 +1118,7 @@ export default [
     rules: { "no-restricted-imports": ["error", { patterns: [PNG_CHUNK_IMPORT] }] },
   },
   { files: rootSources("@server", "@inference"), rules: { "no-restricted-syntax": ["error", INVISIBLE_CONTROL_SYNTAX, ...SERVER_SYNTAX] } },
-  { files: rootSources("@db"), rules: { "no-restricted-syntax": ["error", INVISIBLE_CONTROL_SYNTAX, COMPUTED_IMPORT_SYNTAX] } },
+  { files: rootSources("@db"), rules: { "no-restricted-syntax": ["error", INVISIBLE_CONTROL_SYNTAX, ...MODULE_LOADER_SYNTAX] } },
   {
     files: ["packages/server/src/domain/settings/seed-themes.ts", "packages/server/src/domain/preset/seed.ts"],
     rules: {

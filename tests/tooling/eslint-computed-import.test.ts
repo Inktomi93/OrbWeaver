@@ -54,6 +54,23 @@ test.for([
   expect(await findings(loader('"@orb/db/wiring-boot"'), path)).toEqual([]);
 });
 
+// The host loaders an import rule never sees: the builtin-module getter (which hands back `node:module`) and a
+// vm script's dynamic-import hook.
+const HOST_LOADERS = [
+  'export const host = process.getBuiltinModule("node:module");\n',
+  'export const host = process["getBuiltinModule"]("node:module");\n',
+  "const { getBuiltinModule } = process;\nexport const host = getBuiltinModule;\n",
+  'import vm from "node:vm";\nexport const script = new vm.Script("1", { importModuleDynamically: vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER });\n',
+] as const;
+
+test.for([
+  ["a server domain", "packages/server/src/domain/character/probe.ts"],
+  ["the db package", "packages/db/src/client/probe.ts"],
+  ["the inference package", "packages/inference/src/backends/probe.ts"],
+] as const)("a host module loader fails lint in %s", async ([, path]) => {
+  expect(await Promise.all(HOST_LOADERS.map(async (source) => (await findings(source, path)).length > 0))).toEqual(HOST_LOADERS.map(() => true));
+});
+
 test("the model-cache kernel import is the one waived computed specifier, waived by line", async () => {
   expect(await findings(await readFile(join(ROOT, MODEL_CACHE), "utf8"), MODEL_CACHE)).toEqual([]);
   expect((await findings(COMPUTED_BOOT_DOOR, MODEL_CACHE)).length).toBe(1);
