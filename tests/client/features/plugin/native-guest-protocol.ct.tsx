@@ -1,5 +1,5 @@
 import type { UiGuestInbound, UiGuestOutbound, UiGuestReadyMessage, UiGuestSettledMessage, UiGuestUnavailableMessage } from "@orb/client/lib";
-import { PLUGIN_LOG_LEVELS, PLUGIN_UI_ROUTE } from "@orb/contracts/plugin";
+import { PLUGIN_LOG_CHARS_MAX, PLUGIN_LOG_LEVELS, PLUGIN_LOG_LINES_MAX, PLUGIN_UI_ROUTE } from "@orb/contracts/plugin";
 
 import { brandedId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
@@ -9,7 +9,6 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusReadResponder, createCorpusViewerReadResponder } from "@orb/testkit/iso";
 import { makePluginRow, makePluginScriptedPage } from "@orb/testkit/node/helpers";
 import type { Page } from "@playwright/test";
-import { UI_GUEST_BUDGETS } from "#client/lib/plugin-ui-guest-protocol.ts";
 import type { PluginProtocolStory } from "./_ct-stories.tsx";
 
 const OBSERVATIONS = "orb-native-plugin-protocol";
@@ -104,15 +103,15 @@ for (const mode of ["lines", "chars"] as const) {
       mode === "lines"
         ? [
             ...PLUGIN_LOG_LEVELS.map((level) => ({ kind: "log" as const, level, message: `Native ${level}` })),
-            ...Array.from({ length: UI_GUEST_BUDGETS.logLines - PLUGIN_LOG_LEVELS.length }, (_, index) => ({
+            ...Array.from({ length: PLUGIN_LOG_LINES_MAX - PLUGIN_LOG_LEVELS.length }, (_, index) => ({
               kind: "log" as const,
               level: "info" as const,
               message: `line:${index}`,
             })),
           ]
-        : [{ kind: "log", level: "warn", message: "x".repeat(UI_GUEST_BUDGETS.logChars) }];
+        : [{ kind: "log", level: "warn", message: "x".repeat(PLUGIN_LOG_CHARS_MAX) }];
     const source = `const ui=orb.ui(1);
-      ${mode === "lines" ? `for(const level of ${JSON.stringify(PLUGIN_LOG_LEVELS)})ui.log[level]("Native "+level);for(let line=0;line<${UI_GUEST_BUDGETS.logLines + 1};line+=1)ui.log.info("line:"+line);` : `ui.log.warn("x".repeat(${UI_GUEST_BUDGETS.logChars * 2}));ui.log.error("after byte cap");`}
+      ${mode === "lines" ? `for(const level of ${JSON.stringify(PLUGIN_LOG_LEVELS)})ui.log[level]("Native "+level);for(let line=0;line<${PLUGIN_LOG_LINES_MAX + 1};line+=1)ui.log.info("line:"+line);` : `ui.log.warn("x".repeat(${PLUGIN_LOG_CHARS_MAX * 2}));ui.log.error("after byte cap");`}
       const render=(value)=>ui.render("protocol",{kind:"stack",children:[{kind:"text",value},{kind:"button",label:"Try a late log",actionId:"late"}]});
       render("Native logs settled");ui.onEvent(()=>{ui.log.error("after lifetime cap");render("Native late log settled");});`;
     await page.route(`${PLUGIN_UI_ROUTE}/${plugin.id}`, (route) => route.fulfill({ contentType: "application/octet-stream", body: source }));

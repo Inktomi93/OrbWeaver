@@ -1,7 +1,15 @@
 // @subject tests/support/node/corpus-plugin-outputs.ts
 // @subject tests/support/node/factories/plugin.ts
 import { spawn } from "node:child_process";
-import { PLUGIN_LOG_LEVELS, pluginCommandViewSchema, pluginUiOutcomeSchema, pluginViewSchema, snippetResultSchema } from "@orb/contracts/plugin";
+import {
+  PLUGIN_LOG_CHARS_MAX,
+  PLUGIN_LOG_LEVELS,
+  PLUGIN_LOG_LINES_MAX,
+  pluginCommandViewSchema,
+  pluginUiOutcomeSchema,
+  pluginViewSchema,
+  snippetResultSchema,
+} from "@orb/contracts/plugin";
 import { pluginKv } from "@orb/db";
 import {
   pluginBundleAssetViewSchema,
@@ -12,7 +20,7 @@ import {
   pluginSurfaceViewSchema,
   pluginUiHostCallResultSchema,
 } from "@orb/server/domain/plugin";
-import { LOG_BYTES_PER_INVOCATION, LOG_LINES_PER_INVOCATION, PLUGIN_LOG_RING_CHARS, PLUGIN_LOG_RING_LINES } from "@orb/server/infra/plugin-host";
+import { PLUGIN_LOG_RING_CHARS, PLUGIN_LOG_RING_LINES } from "@orb/server/infra/plugin-host";
 import {
   CORPUS_PLUGIN_CALLBACK_VALUE,
   CORPUS_PLUGIN_TYPED_VALUES,
@@ -72,15 +80,15 @@ test("native log severity, staging clamps and both resident ring bounds survive 
   await using root = await createServerHarness({ pluginSpawn: spawn });
   const captured = await seedCorpusPluginLogRing(root);
   expect(captured.initial).toEqual(PLUGIN_LOG_LEVELS.map((level) => ({ level, message: `Native ${level}`, at: root.clock.frozenAt })));
-  const retainedBatches = PLUGIN_LOG_RING_LINES / LOG_LINES_PER_INVOCATION;
+  const retainedBatches = PLUGIN_LOG_RING_LINES / PLUGIN_LOG_LINES_MAX;
   const expected = Array.from({ length: PLUGIN_LOG_RING_LINES }, (_, index) => {
-    const batch = captured.lineBatches - retainedBatches + Math.floor(index / LOG_LINES_PER_INVOCATION);
-    const line = index % LOG_LINES_PER_INVOCATION;
+    const batch = captured.lineBatches - retainedBatches + Math.floor(index / PLUGIN_LOG_LINES_MAX);
+    const line = index % PLUGIN_LOG_LINES_MAX;
     return { level: PLUGIN_LOG_LEVELS[line % PLUGIN_LOG_LEVELS.length], message: `batch:${batch}:${line}`, at: root.clock.frozenAt + batch + 1 };
   });
   expect(captured.lines).toEqual(expected);
   expect(captured.limited).toEqual(expected.slice(-5));
-  const clampedLength = LOG_BYTES_PER_INVOCATION - "[warn] ".length;
+  const clampedLength = PLUGIN_LOG_CHARS_MAX - "[warn] ".length;
   const retainedChars = Math.floor(PLUGIN_LOG_RING_CHARS / clampedLength);
   expect(captured.chars).toEqual(
     Array.from({ length: retainedChars }, (_, index) => {

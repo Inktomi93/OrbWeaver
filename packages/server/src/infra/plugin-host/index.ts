@@ -7,7 +7,7 @@
 // The evidence report lives in ./README.md. The full `PluginHostV1` surface is
 // `@orb/contracts/plugin`; lifecycle/registry/grants are this module's port/sandbox.
 
-export { LOG_BYTES_PER_INVOCATION, LOG_LINES_PER_INVOCATION, PLUGIN_LOG_RING_CHARS, PLUGIN_LOG_RING_LINES } from "./budgets.ts";
+export { PLUGIN_LOG_RING_CHARS, PLUGIN_LOG_RING_LINES } from "./budgets.ts";
 export type { PluginHostSeamDeps } from "./contract/port.ts";
 export { createPluginHost } from "./process-runtime.ts";
 export { AMBIENT_STUBS } from "./realm.ts";

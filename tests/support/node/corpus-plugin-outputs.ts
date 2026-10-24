@@ -1,10 +1,17 @@
 // Real guest registrations and callbacks supply wire values; private rows and opaque room handles stay Node-only.
 
 import type { PluginCommandArgSpec, PluginUiOutcome } from "@orb/contracts/plugin";
-import { PLUGIN_HOST_VERSIONS, PLUGIN_LOG_LEVELS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
+import {
+  PLUGIN_HOST_VERSIONS,
+  PLUGIN_LOG_CHARS_MAX,
+  PLUGIN_LOG_LEVELS,
+  PLUGIN_LOG_LINES_MAX,
+  PLUGIN_MAIN_ENTRY,
+  pluginManifestSchema,
+} from "@orb/contracts/plugin";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { PluginLogView } from "@orb/server/domain/plugin";
-import { LOG_BYTES_PER_INVOCATION, LOG_LINES_PER_INVOCATION, PLUGIN_LOG_RING_CHARS, PLUGIN_LOG_RING_LINES } from "@orb/server/infra/plugin-host";
+import { PLUGIN_LOG_RING_CHARS, PLUGIN_LOG_RING_LINES } from "@orb/server/infra/plugin-host";
 import { seedCorpusAccount } from "./corpus-auth.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
 import type { CapturedPluginOutputs } from "./factories/plugin.ts";
@@ -367,9 +374,9 @@ export async function seedCorpusPluginLogRing(root: ServerTestHarness): Promise<
   const source = `const h=orb.host(1);const levels=${JSON.stringify(PLUGIN_LOG_LEVELS)};
   for(const level of levels)h.log[level]("Native "+level);
   h.ui.registerCommand({name:"lines",describe:"Write a bounded native batch",onRun:({args})=>{
-    for(let line=0;line<${LOG_LINES_PER_INVOCATION + 1};line+=1)h.log[levels[line%levels.length]]("batch:"+args+":"+line);
+    for(let line=0;line<${PLUGIN_LOG_LINES_MAX + 1};line+=1)h.log[levels[line%levels.length]]("batch:"+args+":"+line);
   }});
-  h.ui.registerCommand({name:"chars",describe:"Write one bounded native long line",onRun:({args})=>{h.log.warn(args+":"+"x".repeat(${LOG_BYTES_PER_INVOCATION * 2}));}});`;
+  h.ui.registerCommand({name:"chars",describe:"Write one bounded native long line",onRun:({args})=>{h.log.warn(args+":"+"x".repeat(${PLUGIN_LOG_CHARS_MAX * 2}));}});`;
   const installed = await seedInstalledPluginRows(root, {
     caller,
     bundle: makePluginBundle(manifest, source, root.clock.now()),
@@ -385,14 +392,14 @@ export async function seedCorpusPluginLogRing(root: ServerTestHarness): Promise<
   const rpc = await root.internalCallerFor(root.ownerId);
   const params = { caller, pluginId: installed.plugin.id };
   const initial = await root.services.plugin.getLog(params);
-  const lineBatches = Math.floor(PLUGIN_LOG_RING_LINES / LOG_LINES_PER_INVOCATION) + 1;
+  const lineBatches = Math.floor(PLUGIN_LOG_RING_LINES / PLUGIN_LOG_LINES_MAX) + 1;
   for (let batch = 0; batch < lineBatches; batch += 1) {
     root.clock.advance(1);
     await rpc.plugin.invokeUiCommand({ pluginId: params.pluginId, name: "lines", args: String(batch), chatId: null });
   }
   const lines = await root.services.plugin.getLog(params);
   const limited = await rpc.plugin.getLog({ pluginId: params.pluginId, limit: 5 });
-  const charBatches = Math.floor(PLUGIN_LOG_RING_CHARS / LOG_BYTES_PER_INVOCATION) + 1;
+  const charBatches = Math.floor(PLUGIN_LOG_RING_CHARS / PLUGIN_LOG_CHARS_MAX) + 1;
   for (let batch = 0; batch < charBatches; batch += 1) {
     root.clock.advance(1);
     await rpc.plugin.invokeUiCommand({ pluginId: params.pluginId, name: "chars", args: String(batch), chatId: null });
