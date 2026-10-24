@@ -706,6 +706,32 @@ export async function attachArtIfMissing(
   return rows.length > 0;
 }
 
+/** A carried asset background pointed at the owner's own asset: the one holding its bytes, else the one its
+ *  id names. Null when the owner holds neither, so a restore never paints another account's asset. */
+export async function ownedCarriedBackground(db: Db, ownerId: UserId, background: ThemeBackground): Promise<ThemeBackground | null> {
+  if (background.kind !== "asset") {
+    return null;
+  }
+  const columns = { id: assets.id, hash: assets.hash, mime: assets.mime };
+  const [byBytes] =
+    background.assetHash.length === 0
+      ? []
+      : await db
+          .select(columns)
+          .from(assets)
+          .where(and(eq(assets.ownerId, ownerId), eq(assets.hash, background.assetHash)))
+          .limit(LIMIT_ONE);
+  const [held] =
+    byBytes !== undefined || background.assetId.length === 0
+      ? [byBytes]
+      : await db
+          .select(columns)
+          .from(assets)
+          .where(and(eq(assets.ownerId, ownerId), eq(assets.id, castId<AssetId>(background.assetId))))
+          .limit(LIMIT_ONE);
+  return held === undefined ? null : canonicalBackgroundSource({ ...background, assetId: held.id, assetHash: held.hash, mime: held.mime });
+}
+
 /** Write `importHash` onto an owned character that carries no import identity yet. True when written. */
 export async function stampImportHashIfUnset(
   db: Db,

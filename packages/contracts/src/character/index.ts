@@ -194,6 +194,10 @@ export const ATTACHED_BOOKS_WIRE_KEY = "orbweaver_attached_books";
  *  first, because a chat bundle names its seats by handle and a handle need not be the slug of the name. */
 export const CHARACTER_HANDLE_WIRE_KEY = "orbweaver_handle";
 
+/** The V3-wire key the card's carried background rides under. An asset reference, so a restore re-links it
+ *  by its content hash onto the importer's own asset; it is presentation, not part of the import identity. */
+export const CHARACTER_BACKGROUND_WIRE_KEY = "orbweaver_background";
+
 // ── Greeting (V3 promotion Phase B) ─────────────────────────────────────────────────────────────────────
 // ONE greetings array folds the former three ST wire fields: `first_mes` (greetings[0].text), the
 // `alternate_greetings` (the rest, `groupOnly` absent/false), and `group_only_greetings` (`groupOnly: true`) —

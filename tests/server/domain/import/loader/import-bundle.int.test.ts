@@ -21,9 +21,10 @@ import { portableImageryCallSchema } from "@orb/contracts/imagery";
 import { importStartedSchema } from "@orb/contracts/import";
 import type { PortableImportOutcome, PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
+import { themeBackgroundSchema } from "@orb/contracts/theme";
 import { ASSET_SCHEME, assetIdsInContent } from "@orb/kit/content";
 import type { AssetId, CharacterHandle, CharacterId, ChatId, UserId, WorkloadId } from "@orb/kit/ids";
-import { castId, ID_PREFIX } from "@orb/kit/ids";
+import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import { buildChatBundleFile, CHAT_BUNDLE_EXT, parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
 import { buildImageryCall } from "@orb/server/primitives/serde/imagery";
@@ -629,7 +630,7 @@ test("an imported card keeps its star, alone and through a library restore", asy
 
 const DOCUMENT_TEXT = "The orbital ledger keeps its own counsel.";
 const TEXT_MIME = "text/plain";
-const documentFileSchema = z.object({ sourceAssetId: z.string().nullable() }).loose();
+const documentFileSchema = z.object({ sourceAssetId: typeIdSchema(ID_PREFIX.asset).nullable() }).loose();
 
 /** One imagery execution naming `assetId` as its only output, through the production imagery serde. */
 function imageryCallFile(root: ServerTestHarness, assetId: AssetId): Uint8Array {
@@ -753,6 +754,51 @@ test("databank documents and imagery history restore onto bytes the owner holds 
     unheldReferrers: { documents: [null], imagery: [] },
     outcome: { status: "succeeded", failed: 0 },
     referrers: { documents: [sourceDocument.hash], imagery: [image.hash] },
+  });
+});
+
+test("a card's background travels in its export and re-links by content, never onto another account's bytes", async () => {
+  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  const owner = await source.principalFor(source.ownerId);
+  const [plate] = (await source.services.settings.getUserSettings({ principal: owner })).config.appearance.backgroundLibrary;
+  if (plate === undefined) {
+    throw new Error("the first-login seed landed no background plate");
+  }
+  const keeper = await source.services.character.create({
+    principal: owner,
+    input: createCharacterSchema.parse({ handle: CHOSEN_HANDLE, name: CHARACTER_NAME, description: "A keeper tends the orbital ledger." }),
+  });
+  const background = themeBackgroundSchema.parse({ kind: "asset", assetId: plate.assetId, assetHash: plate.assetHash, mime: plate.mime });
+  await source.services.character.update({ principal: owner, characterId: keeper.id, input: { backgroundOverride: background } });
+  const card = await source.http.request(`/api/export/character/${keeper.id}`);
+  expect(card.status).toBe(200);
+  const cardBytes = new Uint8Array(await card.arrayBuffer());
+  const bundle = await exportLibrary(source);
+
+  await using target = await signedInBox();
+  /** The keeper's restored background on `root` for `userId`, and the bytes it names there. */
+  const keeperBackground = async (userId: UserId): Promise<{ readonly kind: string; readonly resolves: string | null } | null> => {
+    const caller = await target.internalCallerFor(userId);
+    const [restored] = (await caller.character.list({})).items.filter((item) => item.name === CHARACTER_NAME);
+    const override = restored === undefined ? null : (await caller.character.get({ characterId: restored.id })).backgroundOverride;
+    return override === null ? null : { kind: override.kind, resolves: (await target.services.assets.assetCasRefById(castId(override.assetId)))?.hash ?? null };
+  };
+  // The member never signed in, so holds no plates; the owner's seeded copy of the plate must stay out of reach.
+  const member = await target.actor();
+  const characterDescriptor = target.app.portability.find((entity) => entity.kind === "character");
+  const memberRestore = await characterDescriptor?.importFile(member.id, { filename: "Keeper.png", bytes: cardBytes });
+  const outcome = await restore(target, bundle);
+
+  expect({
+    member: { ok: memberRestore?.ok, background: await keeperBackground(member.id) },
+    outcome,
+    keepers: (await charactersNamed(target, CHARACTER_NAME)).length,
+    background: await keeperBackground(target.ownerId),
+  }).toEqual({
+    member: { ok: true, background: null },
+    outcome: { status: "succeeded", failed: 0 },
+    keepers: 1,
+    background: { kind: "asset", resolves: plate.assetHash },
   });
 });
 
