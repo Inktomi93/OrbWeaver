@@ -29,8 +29,10 @@ import type {
 import {
   chatReasoningPartSchema,
   handoffOfferSchema,
+  JOIN_HISTORY_VISIBILITIES,
   macroFreezeRecordSchema,
   NO_HANDOFF_OFFER,
+  NO_HISTORY_FLOOR,
   parseVariantMetadata,
   sentPromptSchema,
   standaloneVariableDeltasSchema,
@@ -39,6 +41,7 @@ import {
   variableDeltaSchema,
 } from "@orb/contracts/chat";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
+import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
 import type { UserMacroValues } from "@orb/contracts/preset";
 import { userIntentSchema, userMacroValuesSchema } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
@@ -58,6 +61,7 @@ import type { ChatMetadata } from "../contract/metadata.ts";
 import { parseChatMetadata } from "../contract/metadata.ts";
 import type { DeliveredCue } from "../contract/results.ts";
 import type { ChatStreamReplayEvent, StreamEventBounds } from "../contract/views.ts";
+import { historyFloorFollowsJoin } from "../substrate/auth/index.ts";
 import { continuationToolsAreUndone, signaturesForContent } from "../substrate/content-signatures.ts";
 
 const LIMIT_ONE = 1;
@@ -314,15 +318,24 @@ export async function loadMemberChat(
  *  so nothing outside this module needs the name and `no-inline-types` keeps its one-home rule. */
 type MemberChatFilter = Readonly<ChatLibraryLens>;
 
-/** The caller's own canon READ FLOOR, in SQL, off the participant row this list already joins — the same
- *  verdict `resolveHistoryFloorSeq` mints in TS (host is never clamped · `full` ⇒ 0 · `from-join` ⇒ joinSeq,
- *  inclusive). It exists so the SEARCH cannot become the one read that reaches beneath D16: without it, a
- *  member floored at their join could search for a phrase and learn it appears in a room's pre-join canon
- *  they may not read. Kept beside {@link resolveHistoryFloorSeq}'s doc deliberately — two spellings of one
- *  rule, and a change to that rule has to land in both. */
+/** Every `(role, joinHistoryVisibility)` seat that {@link historyFloorFollowsJoin} floors at its join, enumerated
+ *  from the two closed tuples so the SQL below carries the clamp's own verdict rather than a second spelling. */
+const JOIN_FLOORED_SEATS = PARTICIPANT_ROLES.flatMap((role) =>
+  JOIN_HISTORY_VISIBILITIES.filter((visibility) => historyFloorFollowsJoin({ role: captureParticipantRole(role), joinHistoryVisibility: visibility })).map(
+    (visibility) => ({ role, visibility }),
+  ),
+);
+
+/** The caller's own canon read floor, in SQL, off the participant row this list already joins: the value
+ *  {@link resolveHistoryFloorSeq} resolves for that seat. Without it a member floored at their join could
+ *  search for a phrase and learn it appears in pre-join canon they may not read (D16). */
 function callerHistoryFloorSql(): SQL<number> {
-  return sql<number>`case when ${chatParticipants.role} <> 'host' and ${chatParticipants.joinHistoryVisibility} = 'from-join'
-    then max(${chatParticipants.joinSeq}, 0) else 0 end`;
+  const followsJoin = or(
+    ...JOIN_FLOORED_SEATS.map(({ role, visibility }) => and(eq(chatParticipants.role, role), eq(chatParticipants.joinHistoryVisibility, visibility))),
+  );
+  return followsJoin === undefined
+    ? sql<number>`${NO_HISTORY_FLOOR}`
+    : sql<number>`case when ${followsJoin} then max(${chatParticipants.joinSeq}, ${NO_HISTORY_FLOOR}) else ${NO_HISTORY_FLOOR} end`;
 }
 
 /** The MEMBER arm of the search's message predicate (§3.6, the D106 member-plane clamp in SQL). A hidden-class

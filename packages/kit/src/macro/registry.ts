@@ -10,23 +10,21 @@
 import { DateTime } from "luxon";
 import type { CelValue } from "#cel";
 import { evalCel, isCelParseError, parseCel } from "#cel";
+import { diceNotationInBounds, parseDiceNotation, rollDiceNotation } from "#dice";
 import { BUILTIN_MACRO_METADATA } from "./builtin-metadata.ts";
 import { isIfTruthy } from "./metadata.ts";
 import { unitDraw } from "./prng.ts";
 import type { MacroAST, MacroContext, MacroHandler, MacroMetadata, MacroMetadataInput, MacroRegisterOptions, MacroRegistry, VarOp } from "./types.ts";
 import { applyVarOp, macroValueText, readVarKey, setVarKey } from "./variables.ts";
 
-const DECIMAL_RADIX = 10;
 const RANDOM_DEFAULT_CEIL = 101; // bare {{random}} rolls 0..100 inclusive
 const RANGE_ARG_COUNT = 2;
-const ROLL_MAX = 10_000; // caps dice count/sides so a hostile card can't block the loop
 const MIN_QUOTED_LEN = 2;
 
 const BARE_IDENT = /^[\w.-]+$/;
 const COMPARATOR_OPS = ["==", "!="] as const;
 const COMPARATOR_OP_LENGTH = 2;
 const NOT_FOUND = -1;
-const DICE_SPEC = /^(\d*)d(\d+)$/;
 const PLAIN_INT = /^\d+$/;
 
 // Honors a per-request IANA `ctx.timezone` (the browser's); an absent/invalid zone falls back to UTC, never the
@@ -321,41 +319,16 @@ const randomHandler: MacroHandler = (args, ctx) => {
   return args[idx] ?? "";
 };
 
-// The "NdM" branch of {{roll}}, split out so the handler itself stays under the complexity cap.
-function rollDice(dice: RegExpMatchArray, random: () => number): string {
-  const count = dice[1] !== undefined && dice[1] !== "" ? Number.parseInt(dice[1], DECIMAL_RADIX) : 1;
-  const sides = Number.parseInt(dice[2] ?? "", DECIMAL_RADIX);
-  if (count < 1 || sides < 1 || count > ROLL_MAX || sides > ROLL_MAX) {
-    return "";
-  }
-  let total = 0;
-  for (let i = 0; i < count; i += 1) {
-    total += Math.floor(random() * sides) + 1;
-  }
-  return String(total);
-}
-
-// {{roll::NdM}} (sum of N M-sided dice) or {{roll::N}} (1..N). Empty/invalid → "".
+// {{roll::NdM(+/-K)}} (the sum of N M-sided dice plus K) or {{roll::N}} (one N-sided die). Empty/invalid → "".
 const rollHandler: MacroHandler = (args, ctx) => {
   // Every draw below rides the ONE normalising seam — an injected PRNG is untrusted (#1359, ./prng.ts).
   const source = ctx.random ?? Math.random;
-  const random = (): number => unitDraw(source);
-  const spec = args[0]?.trim().toLowerCase();
-  if (spec === undefined || spec === "") {
+  const spec = args[0]?.trim() ?? "";
+  const notation = parseDiceNotation(PLAIN_INT.test(spec) ? `d${spec}` : spec);
+  if (notation === null || !diceNotationInBounds(notation)) {
     return "";
   }
-  const dice = DICE_SPEC.exec(spec);
-  if (dice) {
-    return rollDice(dice, random);
-  }
-  if (PLAIN_INT.test(spec)) {
-    const n = Number.parseInt(spec, DECIMAL_RADIX);
-    if (n < 1 || n > ROLL_MAX) {
-      return "";
-    }
-    return String(Math.floor(random() * n) + 1);
-  }
-  return "";
+  return String(rollDiceNotation(notation, (max) => Math.floor(unitDraw(source) * max)).total);
 };
 
 // {{pick::A::B::C}} — option-pick under the injected PRNG (distinct from {{random}}, no numeric-range mode).

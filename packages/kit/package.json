@@ -21,6 +21,7 @@
     "./css-validate": "./src/css-validate/index.ts",
     "./custom-parameters": "./src/custom-parameters/index.ts",
     "./dead-css": "./src/dead-css/index.ts",
+    "./dice": "./src/dice/index.ts",
     "./env-file": "./src/env-file/index.ts",
     "./error-message": "./src/error-message/index.ts",
     "./errors": "./src/errors/index.ts",
