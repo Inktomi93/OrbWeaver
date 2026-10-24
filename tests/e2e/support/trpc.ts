@@ -18,6 +18,7 @@ import type {
   TrpcInput,
   TrpcPath,
 } from "@orb/testkit/browser/spec";
+import type { Page, Route } from "@playwright/test";
 import type { TRPCClient } from "@trpc/client";
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import { DEV_TARGET_ALLOWED, E2E_DEBUG_TOKEN, E2E_LOCAL_ENGINE_LABEL, SINGLE_USER } from "./modes.ts";
@@ -736,4 +737,45 @@ export function deleteMessages(chatId: ChatId, messageIds: Readonly<TrpcInput<"c
 /** Abort the in-flight turn on a chat (`chat.abort`) — the sad-path "cancel mid-turn" driver. */
 export function abortTurn(chatId: ChatId): Promise<unknown> {
   return trpc.chat.abort.mutate({ chatId });
+}
+
+const TRPC_PATH_PREFIX = "/api/trpc/";
+
+/** Does this request URL carry the procedure, alone or inside a batch (`/api/trpc/a,b?batch=1`)? */
+export function isTrpcRequestFor(url: string, path: TrpcPath): boolean {
+  const { pathname } = new URL(url);
+  return pathname.startsWith(TRPC_PATH_PREFIX) && pathname.slice(TRPC_PATH_PREFIX.length).split(",").includes(path);
+}
+
+/** A procedure held at the network edge: the real request waits until `release`, then reaches the real server. */
+export interface HeldTrpcProcedure {
+  /** Settles when the browser first asks for the procedure. */
+  readonly requested: Promise<void>;
+  /** Let every held and later request through, and remove the route. */
+  readonly release: () => Promise<void>;
+}
+
+/** Hold every browser request carrying `path` until released. A batch that carries it is held whole. */
+export async function holdTrpcProcedure(page: Page, path: TrpcPath): Promise<HeldTrpcProcedure> {
+  const held: Route[] = [];
+  let released = false;
+  const { promise: requested, resolve } = Promise.withResolvers<void>();
+  const matches = (url: URL): boolean => isTrpcRequestFor(url.href, path);
+  const handler = async (route: Route): Promise<void> => {
+    resolve();
+    if (released) {
+      await route.continue();
+      return;
+    }
+    held.push(route);
+  };
+  await page.route(matches, handler);
+  return {
+    requested,
+    release: async (): Promise<void> => {
+      released = true;
+      await Promise.all(held.splice(0).map(async (route) => route.continue()));
+      await page.unroute(matches, handler);
+    },
+  };
 }
