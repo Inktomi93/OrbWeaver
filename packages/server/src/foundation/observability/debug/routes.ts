@@ -411,7 +411,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions): voi
       providerId: c.req.query("backend"),
       limit: toDebugLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
     };
-    const captures = recentWireCaptures(filter);
+    const captures = recentWireCaptures(rings.wireCaptures, filter);
     return c.json({ enabled: wireCaptureEnabled(), count: captures.length, captures } satisfies WireCapturesResponse);
   });
 
@@ -424,7 +424,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions): voi
   // into the engine on exactly the gate it wires the request sink on.
   app.get("/api/_debug/wire/outcomes", (c) => {
     const chatId = c.req.query("chatId");
-    const outcomes = recentTurnOutcomes({
+    const outcomes = recentTurnOutcomes(rings.turnOutcomes, {
       ...(chatId !== undefined ? { chatId: castId<ChatId>(chatId) } : {}),
       limit: toDebugLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
     });

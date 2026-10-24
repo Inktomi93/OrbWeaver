@@ -29,9 +29,9 @@
 // We capture whatever each backend actually sends; we do NOT normalize across backends. `body` is therefore an
 // opaque JSON object whose shape is the backend's own wire vocabulary.
 //
-// The recorder RING is a module singleton, unlike the per-root log, request and trace rings, and WRITES are gated: the sink the
-// backends receive is `recordWireCapture`, and compose only wires it when capture is enabled — so the ring
-// stays empty (never written) with the feature off.
+// The capture and outcome rings belong to one composition root, like its log, request and trace rings, and WRITES
+// are gated: the sink the backends receive is `recordWireCapture`, and compose only wires it when capture is
+// enabled — so the rings stay empty (never written) with the feature off.
 
 // ── THE OUTCOME ARM (added after a live session spent hours guessing) ────────────────────────────────────
 // The request ring alone cannot answer "what came back", so a prose-less turn, a tool-terminated turn and a
@@ -65,6 +65,7 @@
 import { appendFile, mkdir, rename, stat } from "node:fs/promises";
 import { join } from "node:path";
 import type { WireCapture } from "@orb/contracts/debug";
+import type { BoundedRing } from "@orb/kit/bounded-ring";
 import { createBoundedRing } from "@orb/kit/bounded-ring";
 import type { Env } from "#foundation/env/record";
 import type { WireCaptureFilter, WireOutcome } from "../contract/wire-capture.ts";
@@ -74,11 +75,11 @@ export type { WireCaptureFilter, WireOutcome, WireToolCall, WireWarning } from "
 /** How many captures the ring retains (most-recent-wins). Bounded so a long-lived dev process can't grow it. */
 const WIRE_CAPTURE_RING_CAPACITY = 256;
 
-// The bounded ring (most-recent-first read). Module singleton — SAFE because writes are gated (see header).
-// The circular-buffer MECHANISM is @orb/kit/bounded-ring (one engine, every recorder: the log + request
-// rings ride the same one); the retention POLICY — what is worth capturing, and the gate that decides
-// whether anything is written at all — stays here.
-const ring = createBoundedRing<WireCapture>(WIRE_CAPTURE_RING_CAPACITY);
+/** A root's empty capture and outcome rings; `createObservabilityRings` builds them beside its other rings. The
+ *  circular-buffer MECHANISM is `@orb/kit/bounded-ring`; the retention POLICY and the write gate stay here. */
+export function createWireRings(): { readonly wireCaptures: BoundedRing<WireCapture>; readonly turnOutcomes: BoundedRing<WireOutcome> } {
+  return { wireCaptures: createBoundedRing(WIRE_CAPTURE_RING_CAPACITY), turnOutcomes: createBoundedRing(WIRE_CAPTURE_RING_CAPACITY) };
+}
 
 /** True iff the record enables capture. Compose decides from it whether to wire the sink into the backends — so with
  *  capture off, the sink is absent and the boundaries never write. */
@@ -93,10 +94,10 @@ export function isWireReplyCaptureEnabled(record: Pick<Env, "WIRE_CAPTURE_REPLY"
 }
 
 /** Record ONE captured wire body. This is the SINK compose injects into the backends (only when capture is
- *  enabled). Kept in the process ring for the live `/api/_debug` read AND best-effort spilled to
+ *  enabled). Kept in the root's `ring` for the live `/api/_debug` read AND best-effort spilled to
  *  `captures.jsonl` in the data layout's `wireCapture` slot (see SPILL below) — never a DB table, but not
  *  process-memory-only either. */
-export function recordWireCapture(capture: WireCapture, spill: WireCaptureSpill): void {
+export function recordWireCapture(ring: BoundedRing<WireCapture>, capture: WireCapture, spill: WireCaptureSpill): void {
   ring.push(capture);
   spill.append("request", capture);
 }
@@ -104,7 +105,7 @@ export function recordWireCapture(capture: WireCapture, spill: WireCaptureSpill)
 const DEFAULT_READ_LIMIT = 50;
 
 /** Read recent captures, newest-first, optionally filtered by chatId/backend. The host-gated debug read. */
-export function recentWireCaptures(filter: WireCaptureFilter = {}): WireCapture[] {
+export function recentWireCaptures(ring: BoundedRing<WireCapture>, filter: WireCaptureFilter = {}): WireCapture[] {
   const limit = filter.limit ?? DEFAULT_READ_LIMIT;
   const out: WireCapture[] = [];
   // LAZY newest-first + break at `limit`: the filter has to scan PAST non-matches, so a pre-sliced tail
@@ -124,13 +125,11 @@ export function recentWireCaptures(filter: WireCaptureFilter = {}): WireCapture[
   return out;
 }
 
-const outcomeRing = createBoundedRing<WireOutcome>(WIRE_CAPTURE_RING_CAPACITY);
-
 /** Cap on one rendered tool-argument string. */
 const TOOL_ARGS_MAX = 2000;
 
 /** Record ONE turn outcome. Ungated here: compose hands it to the engine only when capture is on. */
-export function recordTurnOutcome(outcome: WireOutcome, spill: WireCaptureSpill): void {
+export function recordTurnOutcome(outcomeRing: BoundedRing<WireOutcome>, outcome: WireOutcome, spill: WireCaptureSpill): void {
   const bounded: WireOutcome = {
     ...outcome,
     toolCalls: outcome.toolCalls.map((call) => ({
@@ -143,7 +142,7 @@ export function recordTurnOutcome(outcome: WireOutcome, spill: WireCaptureSpill)
 }
 
 /** Read recent outcomes, newest-first, optionally filtered by chatId. */
-export function recentTurnOutcomes(filter: Pick<WireCaptureFilter, "chatId" | "limit"> = {}): WireOutcome[] {
+export function recentTurnOutcomes(outcomeRing: BoundedRing<WireOutcome>, filter: Pick<WireCaptureFilter, "chatId" | "limit"> = {}): WireOutcome[] {
   const limit = filter.limit ?? DEFAULT_READ_LIMIT;
   const out: WireOutcome[] = [];
   for (const outcome of outcomeRing.newestFirst()) {

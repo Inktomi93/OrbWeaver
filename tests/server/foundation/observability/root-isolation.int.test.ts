@@ -1,14 +1,25 @@
 // @subject packages/server/src/foundation/observability/rings.ts
 // @subject packages/server/src/foundation/observability/audit.ts
-// Two roots composed in one worker each read only their own log, request and trace rings, audit failures and
-// instance id, through the production debug routes and the live socket.
+// Two roots composed in one worker each read only their own log, request, trace and wire-capture rings, audit
+// failures and instance id, through the production debug routes and the live socket.
 import { streamConnectInputSchema } from "@orb/contracts/stream";
 import { auditLogs } from "@orb/db";
 import { isPlainObject } from "@orb/kit/guards";
+import type { ChatId } from "@orb/kit/ids";
 import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness, withheldTable } from "@orb/testkit/node/composed";
+import {
+  CORPUS_EMBED_MODEL,
+  CORPUS_EMBEDDING_VECTOR,
+  CORPUS_PROVIDER_ENDPOINT,
+  CORPUS_STRUCTURED_REPLIES,
+  CORPUS_TEXT_MODEL,
+  createChatRoot,
+  createCorpusProviderExecution,
+  createServerHarness,
+  withheldTable,
+} from "@orb/testkit/node/composed";
 import { z } from "zod";
 
 const DEBUG_TOKEN = "root-isolation-debug-token";
@@ -22,6 +33,8 @@ const debugReads = {
   requests: z.object({ requests: records }),
   traces: z.object({ traces: records }),
   stats: z.object({ auditFailures: z.object({ count: z.number() }) }),
+  captures: z.object({ captures: records }),
+  outcomes: z.object({ outcomes: records }),
 };
 
 async function debugRead<T>(root: ServerTestHarness, path: string, schema: z.ZodType<T>): Promise<T> {
@@ -85,4 +98,43 @@ test("two roots in one worker keep their own log, request and trace rings, audit
   expect((await debugRead(second, "/api/_debug/db/stats", debugReads.stats)).auditFailures.count).toBe(0);
 
   expect(await announcedInstance(first)).not.toBe(await announcedInstance(second));
+});
+
+/** How many provider request captures and turn outcomes this root's own debug surface holds for `chatId`. */
+async function wireHeldFor(root: ServerTestHarness, chatId: ChatId): Promise<{ captures: number; outcomes: number }> {
+  const [captures, outcomes] = await Promise.all([
+    debugRead(root, `/api/_debug/wire/captures?chatId=${chatId}`, debugReads.captures),
+    debugRead(root, `/api/_debug/wire/outcomes?chatId=${chatId}`, debugReads.outcomes),
+  ]);
+  return { captures: captures.captures.length, outcomes: outcomes.outcomes.length };
+}
+
+test("a turn's wire capture and outcome land only in the ring of the root that ran it", async () => {
+  const corpus = createCorpusProviderExecution({
+    modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
+    embedding: CORPUS_EMBEDDING_VECTOR,
+    chatText: "A captured reply.",
+    structuredReplies: CORPUS_STRUCTURED_REPLIES,
+    images: [],
+  });
+  await using h = await createChatRoot({
+    memoryEnabled: false,
+    server: { wireCapture: true, debugToken: DEBUG_TOKEN },
+    providerFetch: (input, init) => corpus.execute(new Request(input, init)),
+  });
+  await using other = await createServerHarness({ wireCapture: true, debugToken: DEBUG_TOKEN, ids: createSeededIds(FIXTURE_ID_CURSOR) });
+  const connection = await h.root.services.connection.create({
+    principal: h.owner,
+    providerId: "custom-openai",
+    credentialId: null,
+    baseUrl: CORPUS_PROVIDER_ENDPOINT,
+    model: CORPUS_TEXT_MODEL,
+    declared: { kind: "generation", generation: { input: ["text"], context: { window: 32_000 } }, features: { detectServer: false } },
+  });
+  await h.caller.connection.setBinding({ task: "chat", connectionId: connection.id });
+  expect((await h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId })).aborted).toBe(false);
+  await h.root.settleBackground();
+
+  expect(await wireHeldFor(h.root, h.chatId)).toEqual({ captures: 1, outcomes: 1 });
+  expect(await wireHeldFor(other, h.chatId)).toEqual({ captures: 0, outcomes: 0 });
 });

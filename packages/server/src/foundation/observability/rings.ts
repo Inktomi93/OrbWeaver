@@ -1,9 +1,11 @@
 // The in-memory flight recorders one composition root owns: its logger feeds the log ring, its request middleware
-// the request ring, its request roots the trace ring, and its /api/_debug surface and bug report read them.
+// the request ring, its request roots the trace ring, its wire-capture sink the capture and outcome rings, and its
+// /api/_debug surface and bug report read them.
 // ASSUMES(single-replica): an admin browsing /api/_debug on a multi-replica deploy sees only the replica they hit.
 
 import { createBoundedRing } from "@orb/kit/bounded-ring";
 import type { ObservabilityRings } from "./contract/logging.ts";
+import { createWireRings } from "./debug/wire-capture.ts";
 import { createTraceRing } from "./tracing.ts";
 
 export type { ObservabilityRings } from "./contract/logging.ts";
@@ -17,5 +19,6 @@ export function createObservabilityRings(): ObservabilityRings {
     logs: createBoundedRing(LOG_RING_CAPACITY),
     requests: createBoundedRing(REQUEST_RING_CAPACITY),
     traces: createTraceRing(),
+    ...createWireRings(),
   };
 }

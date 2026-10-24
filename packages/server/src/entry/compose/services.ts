@@ -454,8 +454,12 @@ function pluginExecutionInputs(deps: ServicesDeps): Pick<AutomationPluginCompose
 }
 
 // The outcome arm rides the request sink's gate, so the two wire-capture reads can never disagree.
-function turnOutcomeRecorderOf(wireCaptureOn: boolean, spill: WireCaptureSpill): Pick<Parameters<typeof buildChatService>[0], "recordTurnOutcome"> {
-  return wireCaptureOn ? { recordTurnOutcome: (outcome): void => recordTurnOutcome(outcome, spill) } : {};
+function turnOutcomeRecorderOf(
+  wireCaptureOn: boolean,
+  rings: ServicesDeps["rings"],
+  spill: WireCaptureSpill,
+): Pick<Parameters<typeof buildChatService>[0], "recordTurnOutcome"> {
+  return wireCaptureOn ? { recordTurnOutcome: (outcome): void => recordTurnOutcome(rings.turnOutcomes, outcome, spill) } : {};
 }
 
 function inferenceSpanOf(deps: ServicesDeps): InferenceDeps["span"] {
@@ -724,7 +728,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // `MaybeRevokeParams`; an adapter here could only re-derive a fact it was handed (#1373's whole defect).
     onAuthFailed: credentials.maybeRevokeOnAuthFailed,
     // The sink stamps `at` from the injected clock (no-raw-clock) and forwards to the process ring.
-    ...(wireCaptureOn ? { captureWire: (entry): void => recordWireCapture({ ...entry, at: now() }, wireSpill) } : {}),
+    ...(wireCaptureOn ? { captureWire: (entry): void => recordWireCapture(deps.rings.wireCaptures, { ...entry, at: now() }, wireSpill) } : {}),
     // The reply tap lives at the SEND BOUNDARY (it owns the 64 KiB cap and the by-value scrub); compose only
     // carries the verdict. A second opt-in on purpose — see the recorder's header.
     captureWireReply: wireReplyCaptureOn,
@@ -1064,7 +1068,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     timers,
     backgroundSignal: background.signal,
     trackBackground: background.track,
-    ...turnOutcomeRecorderOf(wireCaptureOn, wireSpill),
+    ...turnOutcomeRecorderOf(wireCaptureOn, deps.rings, wireSpill),
     random: deps.random,
     idSource,
     logger: deps.logger,

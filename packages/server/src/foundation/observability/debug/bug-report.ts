@@ -1,8 +1,8 @@
 // THE BUG-REPORT CAPTURE (#1095) — the server half of the owner's dev bug-found button: one click, a typed
 // note, and everything the process knows lands in a durable file an agent session can read cold.
 //
-// WHY THIS HALF EXISTS AT ALL: the in-memory flight recorders (the root's log, request and trace rings,
-// `wire-capture.ts`'s provider request/outcome rings, the injected rpg + memory-recall recorders) are WIPED
+// WHY THIS HALF EXISTS AT ALL: the in-memory flight recorders (the root's log, request, trace and
+// wire-capture request/outcome rings, the injected rpg + memory-recall recorders) are WIPED
 // on every server respawn — and `node --watch` respawns on every saved source file. Asking the owner to "go look
 // at /api/_debug/wire/captures later" is asking for evidence that will not exist by then. The capture happens AT REPORT TIME, in the same process that holds the rings.
 //
@@ -179,14 +179,14 @@ export function snapshotServerEvidence(window: EvidenceWindow, rings: Observabil
     }),
     wireCaptures: sliceByWindow({
       source: "wire/captures",
-      entries: recentWireCaptures({ limit: RING_READ_DEPTH }),
+      entries: recentWireCaptures(rings.wireCaptures, { limit: RING_READ_DEPTH }),
       at: (capture) => capture.at,
       window,
       cap: RING_READ_DEPTH,
     }),
     wireOutcomes: sliceByWindow({
       source: "wire/outcomes",
-      entries: recentTurnOutcomes({ limit: RING_READ_DEPTH }),
+      entries: recentTurnOutcomes(rings.turnOutcomes, { limit: RING_READ_DEPTH }),
       at: (outcome) => outcome.at,
       window,
       cap: RING_READ_DEPTH,
