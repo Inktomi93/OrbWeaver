@@ -450,7 +450,8 @@ test("--include-hidden computes a real name for a control nested inside an aria-
   expect(capture?.mapResult).toContainEqual(expect.objectContaining({ name: "Visible" }));
 });
 
-test("--wait-for does not treat matching rendered text as a missing CSS selector", { timeout: scaledBudget(15_000) }, () => {
+// The missing selector waits out snap's own selector budget before failing, so this case keeps the file ceiling above its child.
+test("--wait-for does not treat matching rendered text as a missing CSS selector", () => {
   const page = fixture("wait-for-selector-missing", "<p>button</p>");
   const name = `${RUN_ID}_wait_for_selector_missing`;
   const result = runSnap(["--file", page, "--no-shot", "--wait-for", "button", "--json", "--no-failure-evidence", "--out", name]);

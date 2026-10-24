@@ -1,4 +1,5 @@
 // @subject tests/support/node/corpus-provider.ts
+// The population case creates the 144-card regression population and indexes it through a real workload: intrinsic producer work, slow tag.
 import { createCharacterSchema } from "@orb/contracts/character";
 import { characterEmbeddings, characters, embeddingCalls } from "@orb/db";
 import {
@@ -67,7 +68,9 @@ test("native corpus provider releases its listener when script construction fail
   await expect(fetch(`${endpoint}/models`, { signal: AbortSignal.timeout(1000) })).rejects.toThrow();
 });
 
-test("request-sensitive corpus embeddings preserve real near-duplicates without collapsing a nonempty native workload population", async () => {
+test("request-sensitive corpus embeddings preserve real near-duplicates without collapsing a nonempty native workload population", {
+  tags: "slow",
+}, async () => {
   const population = 144;
   await using provider = await createCorpusProviderServer(async (baseUrl) => (await createCorpusRecipeExecution(baseUrl)).execution);
   const transport = createCorpusProviderTransport(provider.baseUrl);

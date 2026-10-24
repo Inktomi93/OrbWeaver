@@ -311,7 +311,16 @@ async function writePrivateIntake(directory: string | undefined, nativeArgs: rea
   }
 }
 
+function publishTarget(directory: string | undefined, nativeArgs: readonly string[]): string {
+  if (directory === undefined || nativeArgs.length > 0) {
+    throw new UsageError(USAGE);
+  }
+  return directory;
+}
+
 async function runCorpusFixture(command: string, directory: string | undefined, nativeArgs: readonly string[]): Promise<number> {
+  // Refuse a malformed publish before the testkit graph loads; usage needs no server.
+  const publishTo = command === "publish" ? publishTarget(directory, nativeArgs) : undefined;
   const { createCorpusCapsule, publishCorpusFixture, loadCorpusFixture, cloneCorpusFixture } = await import("@orb/testkit/node/composed");
   const parent = await mkdtemp(join(tmpdir(), "orb-corpus-fixture-"));
   let consumerCompleted = true;
@@ -323,14 +332,11 @@ async function runCorpusFixture(command: string, directory: string | undefined, 
       process.stderr.write(`Consumer completion unconfirmed; retained corpus clone parent: ${parent}\n`);
     }
   });
-  if (command === "publish") {
-    if (directory === undefined || nativeArgs.length > 0) {
-      throw new UsageError(USAGE);
-    }
+  if (publishTo !== undefined) {
     const { createCorpusRecipe } = await import("@orb/testkit/node/composed");
     const { options } = await createCorpusRecipe(parent);
     const capsule = ownership.use(await createCorpusCapsule({ ...options, directory: join(parent, "source") }));
-    const published = await publishCorpusFixture(capsule, resolve(directory));
+    const published = await publishCorpusFixture(capsule, resolve(publishTo));
     process.stdout.write(`Published corpus: ${published.layout.root}\n`);
     return 0;
   }

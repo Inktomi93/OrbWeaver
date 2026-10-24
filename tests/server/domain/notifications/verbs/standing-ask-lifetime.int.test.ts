@@ -2,6 +2,7 @@
 // @subject packages/server/src/domain/notifications/persistence/queries.ts
 // @subject packages/server/src/domain/plugin/substrate/consent-prompt.ts
 // @subject tests/support/node/factories/plugin.ts
+// The ZIP timezone case spawns two real Node processes, one per TZ, each loading the composed testkit door; that wall time is intrinsic: slow tag.
 
 import { spawn } from "node:child_process";
 import process from "node:process";
@@ -244,7 +245,7 @@ process.stdout.write(JSON.stringify(archives));`;
   return JSON.parse(bytes) as string[];
 }
 
-test("the same raw plugin input has exact native ZIP bytes across UTC and Boise including a DST-boundary epoch", async ({
+test("the same raw plugin input has exact native ZIP bytes across UTC and Boise including a DST-boundary epoch", { tags: "slow" }, async ({
   harness,
   notificationActors: actors,
   clock,

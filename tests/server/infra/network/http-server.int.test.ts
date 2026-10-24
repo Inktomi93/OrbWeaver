@@ -1,3 +1,5 @@
+// @subject packages/server/src/infra/network/http-server.ts
+// The SSE disconnect cases force full V8 collections (queryObjects) over the shared worker heap; that wall time is intrinsic: slow tag.
 import type { IncomingMessage } from "node:http";
 import { request as nodeRequest } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -101,6 +103,7 @@ test("owned physical cancellation aborts native clones and joins actual inbound 
   const entered = Promise.withResolvers<void>();
   const joined = Promise.withResolvers<Promise<void>>();
   const reads = Promise.withResolvers<PromiseSettledResult<string>[]>();
+  const cloneAborted = Promise.withResolvers<void>();
   let cloneSignal: AbortSignal | undefined;
   const server = serveHttpServer(
     {
@@ -109,6 +112,7 @@ test("owned physical cancellation aborts native clones and joins actual inbound 
       fetch: async (input, bindings) => {
         const clone = Request.prototype.clone.call(input);
         cloneSignal = clone.signal;
+        clone.signal.addEventListener("abort", () => cloneAborted.resolve(), { once: true });
         const reading = Promise.allSettled([input.text(), clone.text()]);
         joined.resolve(joinNativeHttpRequest(bindings, stop.signal));
         entered.resolve();
@@ -130,7 +134,7 @@ test("owned physical cancellation aborts native clones and joins actual inbound 
     await entered.promise;
     expect(cloneSignal?.aborted).toBe(false);
     stop.abort();
-    await expect.poll(() => cloneSignal?.aborted).toBe(true);
+    await cloneAborted.promise;
     await joined.promise;
     await clientClosed.promise;
     expect(cloneSignal?.aborted).toBe(true);
@@ -147,6 +151,7 @@ test("owned physical cancellation aborts native clones and joins actual inbound 
 
 test.each([false, true])(
   "a real peer SSE disconnect after request GC=%s aborts its actual signal and joins both native closes without a transport fault",
+  { tags: "slow" },
   async (collectRequest) => {
     // The drain deadline never fires here: a socket these proofs leave open fails the test instead of being force-closed.
     using drainTimers = createControlledTimers(createFrozenClock());

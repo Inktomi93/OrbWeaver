@@ -1,5 +1,7 @@
 // @subject scripts/corpus-fixture.ts
 // @subject scripts/corpus-fixture-lifetime.ts
+// The native clone's module graph belongs to import time, not the case's execution budget.
+import "@orb/tooling/snap";
 import { watch } from "node:fs";
 import { access, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -106,7 +108,8 @@ test("private copy joins its native stage and removes late output instead of pro
     watcher.close();
   }
   await expect(access(directory)).rejects.toThrow();
-  expect(await readFile(database)).toEqual(before);
+  // Byte identity through Buffer#equals: a deep `toEqual` walks the multi-megabyte database one element at a time.
+  expect((await readFile(database)).equals(before)).toBe(true);
   const refused = join(parent, "pre-expired");
   await expect(writePrivateCorpusFixture(source, refused, controller.signal, LOCAL_ENVIRONMENT)).rejects.toBe(reason);
   await expect(access(refused)).rejects.toThrow();
