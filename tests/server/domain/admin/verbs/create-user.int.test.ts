@@ -1,12 +1,12 @@
 // @subject packages/server/src/domain/admin/verbs/create-user.ts
 // @subject packages/server/src/transport/trpc/role-output.ts
-import { CSRF_HEADER } from "@orb/contracts/identity";
 import { auditLogs, userConnections, users } from "@orb/db";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { test as base, expect } from "@orb/testkit/node";
+import { signInWithPassword } from "@orb/testkit/node/auth";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, refuseWrites } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
@@ -44,13 +44,7 @@ test("an admin mints a user; the password is hashed and absent from the wire vie
   const row = await root.db.select().from(users).where(eq(users.id, view.id)).get();
   expect(row?.passwordHash).toMatch(/^scrypt\$/u);
   expect(row?.passwordHash).not.toContain(PASSWORD);
-  const login = await root.http.request("/api/auth/login", {
-    method: "POST",
-    headers: { [CSRF_HEADER]: "1" },
-    body: new URLSearchParams({ handle: NEW_HANDLE, password: PASSWORD }),
-  });
-  expect(login.status).toBe(200);
-  await login.arrayBuffer();
+  await expect(signInWithPassword(root, NEW_HANDLE, PASSWORD)).resolves.not.toBe("");
   expect((await createAudits(root)).map((entry) => entry.entityId)).toEqual([view.id]);
 });
 

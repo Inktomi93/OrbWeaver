@@ -10,6 +10,7 @@ import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { createConfiguredOidc } from "@orb/server/entry/compose";
 import { createControlledTimers, createFrozenClock } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
+import { authModeHarnessOptions, beginOidcLogin, cookieHeader, finishOidcLogin, signInWithOidc } from "@orb/testkit/node/auth";
 import type { ServerHarnessOptions, ServerTestHarness, UnclaimedServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, freshDb, freshHeldDb } from "@orb/testkit/node/composed";
 import { createNativeIssuer, ISSUER, NATIVE_OIDC_SETTINGS as SETTINGS } from "@orb/testkit/node/helpers";
@@ -27,55 +28,19 @@ const LOGOUT_EVENT = "http://schemas.openid.net/event/backchannel-logout";
 type HttpRoot = Pick<ServerTestHarness, "http" | "db">;
 type Issuer = Awaited<ReturnType<typeof createNativeIssuer>>;
 
-function cookieJar(response: Response): string {
-  return response.headers
-    .getSetCookie()
-    .map((line) => line.split(";")[0])
-    .join("; ");
-}
-
 function rootFor(
   issuer: Issuer,
   oidc: Partial<NonNullable<ServerHarnessOptions["oidc"]>> = {},
   edges: Pick<ServerHarnessOptions, "clock" | "timers" | "db" | "rolePolicyConfig"> = {},
 ): Promise<UnclaimedServerTestHarness> {
+  const wiring = authModeHarnessOptions("oidc", issuer);
   return createServerHarness({
     ...edges,
+    ...wiring,
     ownerId: null,
-    authConfig: { ...authConfigFromEnv(), mode: "oidc", fallback: "deny" },
-    physicalPeer: () => "93.184.215.14",
+    authConfig: { ...wiring.authConfig, mode: "oidc" },
     oidc: { ...SETTINGS, ...oidc },
-    networkExecution: {
-      resolver: (hostname) => {
-        if (hostname !== new URL(ISSUER).hostname) {
-          return Promise.reject(new Error("unscripted OIDC address resolution"));
-        }
-        return Promise.resolve(["93.184.215.14"]);
-      },
-      fetch: (input, init) => issuer.fetch(input, init),
-    },
   });
-}
-
-async function begin(root: HttpRoot, issuer: Issuer, claims: JWTPayload = MEMBER, query = ""): Promise<{ readonly callback: URL; readonly cookie: string }> {
-  const response = await root.http.request(`/api/auth/oidc/login${query}`, { headers: { host: "localhost" } });
-  expect(response.status).toBe(302);
-  const authorization = response.headers.get("location");
-  if (authorization === null) {
-    throw new Error("actual OIDC login omitted its issuer redirect");
-  }
-  return { callback: issuer.authorize(authorization, claims), cookie: cookieJar(response) };
-}
-
-async function callback(root: HttpRoot, login: Awaited<ReturnType<typeof begin>>, cookie = login.cookie): Promise<Response> {
-  return await root.http.request(login.callback, { headers: { host: "localhost", cookie } });
-}
-
-async function signIn(root: HttpRoot, issuer: Issuer, claims: JWTPayload = MEMBER, query = ""): Promise<string> {
-  const result = await callback(root, await begin(root, issuer, claims, query));
-  expect(result.status).toBe(302);
-  expect(result.headers.get("location")).toBe("/");
-  return cookieJar(result);
 }
 
 test("the native configured flow provisions a real account/session and spends its sealed ID-token hint at logout", async () => {
@@ -83,14 +48,14 @@ test("the native configured flow provisions a real account/session and spends it
   await using root = await rootFor(issuer);
   expect("ownerId" in root).toBe(false);
   expect(await root.db.select().from(users)).toEqual([]);
-  const login = await begin(root, issuer);
+  const login = await beginOidcLogin(root, issuer, MEMBER);
   const transactions = await root.db.select().from(oidcTransactions);
   expect(transactions).toHaveLength(1);
   expect(transactions[0]?.state).toBe(login.callback.searchParams.get("state"));
   expect(transactions[0]?.codeVerifier).not.toBe("");
-  const result = await callback(root, login);
+  const result = await finishOidcLogin(root, login);
   expect(result.headers.get("location")).toBe("/");
-  const cookie = cookieJar(result);
+  const cookie = cookieHeader(result);
   const me = await root.http.request("/api/auth/me", { headers: { cookie } });
   expect(authMeSchema.parse(await me.json())).toEqual({ authenticated: true, handle: MEMBER.preferred_username, role: "user" });
   const persisted = await root.db.select().from(sessions);
@@ -114,14 +79,14 @@ test("the native configured flow provisions a real account/session and spends it
 test("a foreign browser cannot consume the real transaction, while the rightful callback succeeds once and replay refuses", async () => {
   const issuer = await createNativeIssuer();
   await using root = await rootFor(issuer);
-  const login = await begin(root, issuer);
-  const foreign = await callback(root, login, "");
+  const login = await beginOidcLogin(root, issuer, MEMBER);
+  const foreign = await finishOidcLogin(root, login, "");
   expect(foreign.headers.get("location")).toBe("/login?authError=invalid_state");
   expect(await root.db.select().from(oidcTransactions)).toHaveLength(1);
   expect(await root.db.select().from(sessions)).toEqual([]);
   expect(issuer.calls).toEqual(["GET /.well-known/openid-configuration"]);
-  expect((await callback(root, login)).headers.get("location")).toBe("/");
-  expect((await callback(root, login)).headers.get("location")).toBe("/login?authError=invalid_state");
+  expect((await finishOidcLogin(root, login)).headers.get("location")).toBe("/");
+  expect((await finishOidcLogin(root, login)).headers.get("location")).toBe("/login?authError=invalid_state");
   expect(await root.db.select().from(sessions)).toHaveLength(1);
   expect(issuer.calls.filter((call) => call === "POST /token")).toHaveLength(1);
 });
@@ -133,7 +98,7 @@ test.each([
 ])("native token processing refuses the wrong $claim without minting a session", async ({ value }) => {
   const issuer = await createNativeIssuer();
   await using root = await rootFor(issuer);
-  const result = await callback(root, await begin(root, issuer, { ...MEMBER, ...value }));
+  const result = await finishOidcLogin(root, await beginOidcLogin(root, issuer, { ...MEMBER, ...value }));
   expect(result.headers.get("location")).toBe("/login?authError=token_exchange_failed");
   expect(await root.db.select().from(users)).toEqual([]);
   expect(await root.db.select().from(sessions)).toEqual([]);
@@ -147,7 +112,7 @@ test("native code grant carries the persisted PKCE verifier and issuer refusal n
   const response = await root.http.request("/api/auth/oidc/login", { headers: { host: "localhost" } });
   const authorization = new URL(response.headers.get("location") ?? "missing issuer redirect");
   authorization.searchParams.set("code_challenge", "a-different-browser-challenge");
-  const result = await callback(root, { callback: issuer.authorize(authorization.href, MEMBER), cookie: cookieJar(response) });
+  const result = await finishOidcLogin(root, { callback: issuer.authorize(authorization.href, MEMBER), cookie: cookieHeader(response) });
   expect(result.headers.get("location")).toBe("/login?authError=invalid_grant");
   expect(await root.db.select().from(users)).toEqual([]);
   expect(await root.db.select().from(sessions)).toEqual([]);
@@ -158,7 +123,7 @@ test("a genuine fresh OIDC root refuses a guessable owner handle, then claims on
   await using root = await rootFor(issuer);
   // biome-ignore lint/style/useNamingConvention: preferred_username is the issuer's actual configured OIDC claim.
   const claims = { sub: "native-owner-subject", preferred_username: root.app.sessions.rolePolicy.ownerHandles()[0] } satisfies JWTPayload;
-  const unproven = await callback(root, await begin(root, issuer, claims));
+  const unproven = await finishOidcLogin(root, await beginOidcLogin(root, issuer, claims));
   expect(unproven.headers.get("location")).toBe("/login?authError=not_authorized");
   expect(await root.app.sessions.getOwnerUserId()).toBeUndefined();
   expect(await root.db.select().from(users)).toEqual([]);
@@ -166,7 +131,7 @@ test("a genuine fresh OIDC root refuses a guessable owner handle, then claims on
     throw new Error("configured OIDC root omitted the real claim file");
   }
   const claimUrl = new URL((await readFile(root.ownerClaimFile, "utf8")).trim());
-  const cookie = await signIn(root, issuer, claims, claimUrl.search);
+  const cookie = await signInWithOidc(root, issuer, claims, claimUrl.search);
   const me = await root.http.request("/api/auth/me", { headers: { cookie } });
   expect(authMeSchema.parse(await me.json())).toEqual({ authenticated: true, handle: claims.preferred_username, role: "owner" });
   const rows = await root.db.select().from(users);
@@ -178,7 +143,7 @@ test("native JOSE backchannel uses a cached remote keyset and never accepts a fo
   const issuer = await createNativeIssuer();
   const foreign = await createNativeIssuer();
   await using root = await rootFor(issuer);
-  const cookie = await signIn(root, issuer);
+  const cookie = await signInWithOidc(root, issuer, MEMBER);
   const claims = { sub: MEMBER.sub, events: { [LOGOUT_EVENT]: {} } } satisfies JWTPayload;
   const forged = await foreign.logoutToken(claims);
   const rejected = await root.http.request("/api/auth/oidc/backchannel-logout", { method: "POST", body: new URLSearchParams([[LOGOUT_TOKEN_PARAM, forged]]) });
@@ -208,7 +173,7 @@ test("a malformed raw issuer token response fails through native token processin
     return response;
   });
   await using root = await rootFor(issuer);
-  const result = await callback(root, await begin(root, issuer));
+  const result = await finishOidcLogin(root, await beginOidcLogin(root, issuer, MEMBER));
   expect(result.headers.get("location")).toBe("/login?authError=token_exchange_failed");
   expect(await root.db.select().from(users)).toEqual([]);
   expect(await root.db.select().from(sessions)).toEqual([]);
@@ -223,7 +188,7 @@ test.each([false, true])("a real JIT-closed pending join is consumed atomically 
   }
   const claimUrl = new URL((await readFile(root.ownerClaimFile, "utf8")).trim());
   // biome-ignore lint/style/useNamingConvention: preferred_username is the issuer's actual configured OIDC claim.
-  await signIn(root, issuer, { sub: "native-owner-subject", preferred_username: root.app.sessions.rolePolicy.ownerHandles()[0] }, claimUrl.search);
+  await signInWithOidc(root, issuer, { sub: "native-owner-subject", preferred_username: root.app.sessions.rolePolicy.ownerHandles()[0] }, claimUrl.search);
   const ownerId = await root.app.sessions.getOwnerUserId();
   if (ownerId === undefined) {
     throw new Error("real owner claim produced no owner row");
@@ -231,9 +196,9 @@ test.each([false, true])("a real JIT-closed pending join is consumed atomically 
   const owner = await root.internalCallerFor(ownerId);
   const room = (await owner.chat.startChat({ characterIds: [], opening: "none" })).chat;
   const invite = await owner.invites.createInvite({ chatId: room.id, input: { allowSignup: true, maxUses: 1, expiresAt: root.clock.now() + MS_PER_HOUR } });
-  const result = await callback(root, await begin(root, issuer, MEMBER, `?invite=${encodeURIComponent(invite.token)}`));
+  const result = await finishOidcLogin(root, await beginOidcLogin(root, issuer, MEMBER, `?invite=${encodeURIComponent(invite.token)}`));
   expect(result.headers.get("location")).toBe("/login?pendingJoin=1");
-  const pendingCookie = cookieJar(result);
+  const pendingCookie = cookieHeader(result);
   const pending = await root.db.select().from(oidcPendingSignups);
   expect(pending).toHaveLength(1);
   expect(pending[0]?.subject).toBe(MEMBER.sub);
@@ -265,7 +230,7 @@ test.each([false, true])("a real JIT-closed pending join is consumed atomically 
   expect((await root.db.select().from(chatInvites).where(eq(chatInvites.id, invite.invite.id)))[0]?.uses).toBe(1);
   const replay = await root.http.request("/api/auth/oidc/pending/confirm", confirmInit);
   expect(replay.status).toBe(404);
-  const signedIn = await root.http.request("/api/auth/me", { headers: { cookie: cookieJar(confirmed) } });
+  const signedIn = await root.http.request("/api/auth/me", { headers: { cookie: cookieHeader(confirmed) } });
   expect(authMeSchema.parse(await signedIn.json()).authenticated).toBe(!approval);
 });
 
@@ -273,12 +238,12 @@ test("native OIDC group claims fail closed under the graph's configured allowed 
   const issuer = await createNativeIssuer();
   await using root = await rootFor(issuer, {}, { rolePolicyConfig: { ["DEFAULT_USER_HANDLE"]: "owner", ["OIDC_ALLOWED_GROUPS"]: "friends" } });
   for (const groups of [undefined, null, 7, [], ["outsiders"], { value: "friends" }]) {
-    const response = await callback(root, await begin(root, issuer, { ...MEMBER, groups }));
+    const response = await finishOidcLogin(root, await beginOidcLogin(root, issuer, { ...MEMBER, groups }));
     expect(response.headers.get("location")).toBe("/login?authError=not_authorized");
     expect(await root.db.select().from(users)).toEqual([]);
     expect(await root.db.select().from(sessions)).toEqual([]);
   }
-  const cookie = await signIn(root, issuer, { ...MEMBER, groups: [" friends "] });
+  const cookie = await signInWithOidc(root, issuer, { ...MEMBER, groups: [" friends "] });
   const signedIn = await root.http.request("/api/auth/me", { headers: { cookie } });
   expect(authMeSchema.parse(await signedIn.json())).toMatchObject({ authenticated: true, role: "user" });
 });
@@ -295,7 +260,7 @@ test("a handle that became an owner seed-key look-alike after the callback is re
     throw new Error("configured OIDC omitted its actual owner claim file");
   }
   const claimUrl = new URL((await readFile(first.ownerClaimFile, "utf8")).trim());
-  await signIn(first, issuer, { sub: "restart-policy-owner", [SETTINGS.OIDC_USERNAME_CLAIM]: "original-owner" }, claimUrl.search);
+  await signInWithOidc(first, issuer, { sub: "restart-policy-owner", [SETTINGS.OIDC_USERNAME_CLAIM]: "original-owner" }, claimUrl.search);
   const ownerId = await first.app.sessions.getOwnerUserId();
   if (ownerId === undefined) {
     throw new Error("the actual owner claim produced no owner row");
@@ -303,12 +268,17 @@ test("a handle that became an owner seed-key look-alike after the callback is re
   const owner = await first.internalCallerFor(ownerId);
   const room = (await owner.chat.startChat({ characterIds: [], opening: "none" })).chat;
   const invite = await owner.invites.createInvite({ chatId: room.id, input: { allowSignup: true, maxUses: 1, expiresAt: first.clock.now() + MS_PER_HOUR } });
-  const pending = await callback(
+  const pending = await finishOidcLogin(
     first,
-    await begin(first, issuer, { sub: "restart-policy-joiner", [SETTINGS.OIDC_USERNAME_CLAIM]: "Boss" }, `?invite=${encodeURIComponent(invite.token)}`),
+    await beginOidcLogin(
+      first,
+      issuer,
+      { sub: "restart-policy-joiner", [SETTINGS.OIDC_USERNAME_CLAIM]: "Boss" },
+      `?invite=${encodeURIComponent(invite.token)}`,
+    ),
   );
   expect(pending.headers.get("location")).toBe("/login?pendingJoin=1");
-  const pendingCookie = cookieJar(pending);
+  const pendingCookie = cookieHeader(pending);
   expect(await db.select().from(oidcPendingSignups)).toHaveLength(1);
   await first[Symbol.asyncDispose]();
 
@@ -328,7 +298,7 @@ test("a handle that became an owner seed-key look-alike after the callback is re
       .where(eq(users.externalId, brandedId("ExternalId").parse("restart-policy-joiner"))),
   ).toHaveLength(0);
   expect((await db.select().from(chatInvites).where(eq(chatInvites.id, invite.invite.id)))[0]?.uses).toBe(0);
-  const signedOut = await restarted.http.request("/api/auth/me", { headers: { cookie: cookieJar(confirmed) } });
+  const signedOut = await restarted.http.request("/api/auth/me", { headers: { cookie: cookieHeader(confirmed) } });
   expect(authMeSchema.parse(await signedOut.json()).authenticated).toBe(false);
 });
 
@@ -337,8 +307,8 @@ test("native key caches are graph-local for identical issuer/kid and survive ano
   const secondIssuer = await createNativeIssuer();
   await using first = await rootFor(firstIssuer);
   await using second = await rootFor(secondIssuer);
-  await signIn(first, firstIssuer);
-  await signIn(second, secondIssuer);
+  await signInWithOidc(first, firstIssuer, MEMBER);
+  await signInWithOidc(second, secondIssuer, MEMBER);
   const claims = { sub: MEMBER.sub, events: { [LOGOUT_EVENT]: {} } } satisfies JWTPayload;
   const firstToken = await firstIssuer.logoutToken(claims);
   const secondToken = await secondIssuer.logoutToken(claims);
@@ -347,7 +317,7 @@ test("native key caches are graph-local for identical issuer/kid and survive ano
   expect((await post(first, firstToken)).status).toBe(200);
   expect((await post(second, secondToken)).status).toBe(200);
   await first[Symbol.asyncDispose]();
-  await signIn(second, secondIssuer);
+  await signInWithOidc(second, secondIssuer, MEMBER);
   expect((await post(second, secondToken)).status).toBe(200);
   expect(firstIssuer.calls.filter((call) => call === "GET /jwks")).toHaveLength(1);
   expect(secondIssuer.calls.filter((call) => call === "GET /jwks")).toHaveLength(1);
@@ -410,9 +380,9 @@ test("the actual GC timer reaps expired transactions while retaining a live logi
     return interval(tick, ms);
   });
   await using root = await rootFor(issuer, {}, { clock, timers });
-  await begin(root, issuer);
+  await beginOidcLogin(root, issuer, MEMBER);
   root.clock.advance(MS_PER_HOUR);
-  const live = await begin(root, issuer);
+  const live = await beginOidcLogin(root, issuer, MEMBER);
   if (sweep === undefined) {
     throw new Error("configured OIDC did not arm its actual hourly GC callback");
   }
@@ -442,7 +412,7 @@ test("root teardown aborts and joins native remote-JWKS body cancellation before
     return await raw(request);
   });
   await using root = await rootFor(issuer);
-  await signIn(root, issuer);
+  await signInWithOidc(root, issuer, MEMBER);
   const token = await issuer.logoutToken({ sub: MEMBER.sub, events: { [LOGOUT_EVENT]: {} } });
   const request = root.http.request("/api/auth/oidc/backchannel-logout", { method: "POST", body: new URLSearchParams([[LOGOUT_TOKEN_PARAM, token]]) });
   await reading.promise;
@@ -588,7 +558,7 @@ test.each([
 ])("a signed backchannel $label event refuses before revocation; an object event still revokes", async ({ value }) => {
   const issuer = await createNativeIssuer();
   await using root = await rootFor(issuer);
-  const cookie = await signIn(root, issuer);
+  const cookie = await signInWithOidc(root, issuer, MEMBER);
   const before = await root.db.select().from(sessions);
   expect(before).toHaveLength(1);
   const invalid = await issuer.logoutToken({ sub: MEMBER.sub, events: { [LOGOUT_EVENT]: value } });
@@ -622,7 +592,7 @@ test.each([
 ])("a signed logout token with $label refuses before the real session is revoked", async ({ omitted, patch }) => {
   const issuer = await createNativeIssuer();
   await using root = await rootFor(issuer);
-  const cookie = await signIn(root, issuer);
+  const cookie = await signInWithOidc(root, issuer, MEMBER);
   const before = await root.db.select().from(sessions);
   expect(before).toHaveLength(1);
   const token = await issuer.logoutToken({ sub: MEMBER.sub, events: { [LOGOUT_EVENT]: {} }, ...patch }, omitted);
@@ -665,12 +635,12 @@ async function expectRefusedWithoutSession(root: HttpRoot, response: Response, l
 test("a verified grant mints the session and threads the id_token to sessions.create VERBATIM", async () => {
   const issuer = await createNativeIssuer();
   await using root = await rootFor(issuer);
-  const result = await callback(root, await begin(root, issuer));
+  const result = await finishOidcLogin(root, await beginOidcLogin(root, issuer, MEMBER));
   expect(result.status).toBe(302);
   expect(result.headers.get("location")).toBe("/");
   expect(await root.db.select().from(oidcTransactions)).toEqual([]);
   const [idToken] = issuer.idTokens;
-  const logout = await root.http.request("/api/auth/logout", { method: "POST", headers: { cookie: cookieJar(result), [CSRF_HEADER]: "1" } });
+  const logout = await root.http.request("/api/auth/logout", { method: "POST", headers: { cookie: cookieHeader(result), [CSRF_HEADER]: "1" } });
   const endSession = new URL(authLogoutResultSchema.parse(await logout.json()).endSessionUrl ?? "missing end-session URL");
   expect(endSession.searchParams.get("id_token_hint")).toBe(idToken);
 });
@@ -678,14 +648,14 @@ test("a verified grant mints the session and threads the id_token to sessions.cr
 test("the mint writes the live cookie AND clears the other posture's name, in that order", async () => {
   const issuer = await createNativeIssuer();
   await using root = await rootFor(issuer);
-  const result = await callback(root, await begin(root, issuer));
+  const result = await finishOidcLogin(root, await beginOidcLogin(root, issuer, MEMBER));
   const [minted, cleared] = writes(result, SESSION_COOKIE_PATTERN);
   expect(writes(result, SESSION_COOKIE_PATTERN)).toHaveLength(2);
   expect(minted).toMatch(/^orb_session_insecure=[^;]+;/u);
   expect(minted).not.toContain("Max-Age=0");
   expect(cleared).toMatch(/^__Host-orb_session=;/u);
   expect(cleared).toContain("Max-Age=0");
-  expect(authMeSchema.parse(await (await root.http.request("/api/auth/me", { headers: { cookie: cookieJar(result) } })).json()).authenticated).toBe(true);
+  expect(authMeSchema.parse(await (await root.http.request("/api/auth/me", { headers: { cookie: cookieHeader(result) } })).json()).authenticated).toBe(true);
 });
 
 // The issuer refuses a code presented with any redirect_uri but the authorized one, so arriving on another origin
@@ -693,7 +663,7 @@ test("the mint writes the live cookie AND clears the other posture's name, in th
 test("the exchange is handed the STORED redirect_uri (not the arrival origin) and the consumed transaction", async () => {
   const issuer = await createNativeIssuer();
   await using root = await rootFor(issuer);
-  const login = await begin(root, issuer);
+  const login = await beginOidcLogin(root, issuer, MEMBER);
   const arrival = new URL(login.callback);
   arrival.host = "127.0.0.1";
   const result = await root.http.request(arrival, { headers: { host: arrival.host, cookie: login.cookie } });
@@ -712,17 +682,17 @@ test("a grant with no id_token mints no session: the #141 null-hint degrade is u
     return Response.json(rest);
   });
   await using root = await rootFor(issuer);
-  await expectRefusedWithoutSession(root, await callback(root, await begin(root, issuer)), "/login?authError=token_exchange_failed");
+  await expectRefusedWithoutSession(root, await finishOidcLogin(root, await beginOidcLogin(root, issuer, MEMBER)), "/login?authError=token_exchange_failed");
   expect(await root.db.select().from(users)).toEqual([]);
 });
 
 test("a THROWING exchange (replayed/expired code) mints no session, sets no cookie, and 302s with the sanitized code", async () => {
   const issuer = await createNativeIssuer();
   await using root = await rootFor(issuer);
-  const login = await begin(root, issuer);
+  const login = await beginOidcLogin(root, issuer, MEMBER);
   const replayed = new URL(login.callback);
   replayed.searchParams.set("code", "a-code-the-issuer-never-issued");
-  await expectRefusedWithoutSession(root, await callback(root, { ...login, callback: replayed }), "/login?authError=invalid_grant");
+  await expectRefusedWithoutSession(root, await finishOidcLogin(root, { ...login, callback: replayed }), "/login?authError=invalid_grant");
   expect(await root.db.select().from(oidcTransactions)).toEqual([]);
 });
 
@@ -730,7 +700,7 @@ test("an exchange error carrying FREE TEXT is not reflected — the generic mark
   const issuer = await createNativeIssuer();
   scriptTokenEndpoint(issuer, () => Promise.resolve(Response.json({ error: "<script>alert(1)</script>" }, { status: 400 })));
   await using root = await rootFor(issuer);
-  const result = await callback(root, await begin(root, issuer));
+  const result = await finishOidcLogin(root, await beginOidcLogin(root, issuer, MEMBER));
   expect(result.headers.get("location") ?? "").not.toContain("script");
   await expectRefusedWithoutSession(root, result, "/login?authError=token_exchange_failed");
 });
@@ -739,7 +709,7 @@ test("nothing from the thrown error's message reaches the redirect or the body",
   const issuer = await createNativeIssuer();
   scriptTokenEndpoint(issuer, () => Promise.reject(new Error(`token endpoint said: ${ID_TOKEN_SECRET}`)));
   await using root = await rootFor(issuer);
-  const result = await callback(root, await begin(root, issuer));
+  const result = await finishOidcLogin(root, await beginOidcLogin(root, issuer, MEMBER));
   expect(result.headers.get("location") ?? "").not.toContain(ID_TOKEN_SECRET);
   expect(await result.clone().text()).not.toContain(ID_TOKEN_SECRET);
   await expectRefusedWithoutSession(root, result, "/login?authError=token_exchange_failed");
@@ -749,14 +719,14 @@ test("a verified grant with NO stable subject is refused fail-closed — no sess
   const issuer = await createNativeIssuer();
   // The deployment keys accounts on a claim this issuer never emits.
   await using root = await rootFor(issuer, { ["OIDC_UID_CLAIM"]: "employee_number" });
-  await expectRefusedWithoutSession(root, await callback(root, await begin(root, issuer)), "/login?authError=no_identity");
+  await expectRefusedWithoutSession(root, await finishOidcLogin(root, await beginOidcLogin(root, issuer, MEMBER)), "/login?authError=no_identity");
   expect(await root.db.select().from(users)).toEqual([]);
 });
 
 test("a grant with NO usable username is refused too (the pre-existing null-identity arm)", async () => {
   const issuer = await createNativeIssuer();
   await using root = await rootFor(issuer);
-  await expectRefusedWithoutSession(root, await callback(root, await begin(root, issuer, { sub: MEMBER.sub })), "/login?authError=no_identity");
+  await expectRefusedWithoutSession(root, await finishOidcLogin(root, await beginOidcLogin(root, issuer, { sub: MEMBER.sub })), "/login?authError=no_identity");
   expect(await root.db.select().from(users)).toEqual([]);
 });
 
@@ -765,7 +735,7 @@ test("a DENIED provision (login gate refused) mints nothing — generic not_auth
   await using root = await rootFor(issuer, {}, { rolePolicyConfig: { ["DEFAULT_USER_HANDLE"]: "owner", ["OIDC_ALLOWED_GROUPS"]: "friends" } });
   await expectRefusedWithoutSession(
     root,
-    await callback(root, await begin(root, issuer, { ...MEMBER, groups: ["outsiders"] })),
+    await finishOidcLogin(root, await beginOidcLogin(root, issuer, { ...MEMBER, groups: ["outsiders"] })),
     "/login?authError=not_authorized",
   );
   expect(await root.db.select().from(users)).toEqual([]);
@@ -776,7 +746,7 @@ test("an ACCOUNT-EXISTS collision deny surfaces its distinct code, still with no
   await using root = await rootFor(issuer);
   const email = "native-collision@example.test";
   const local = await root.actor({ handle: brandedId("Handle").parse("native-local-holder"), email });
-  const result = await callback(root, await begin(root, issuer, { ...MEMBER, email }));
+  const result = await finishOidcLogin(root, await beginOidcLogin(root, issuer, { ...MEMBER, email }));
   await expectRefusedWithoutSession(root, result, "/login?authError=account_exists");
   expect(await root.db.select({ id: users.id, externalId: users.externalId }).from(users)).toEqual([{ id: local.id, externalId: null }]);
 });
@@ -785,14 +755,14 @@ test("a provisioned but DISABLED account mints no session", async () => {
   const issuer = await createNativeIssuer();
   await using root = await rootFor(issuer);
   await root.actor({ handle: brandedId("Handle").parse(MEMBER.preferred_username), externalId: brandedId("ExternalId").parse(MEMBER.sub), enabled: false });
-  await expectRefusedWithoutSession(root, await callback(root, await begin(root, issuer)), "/login?authError=account_disabled");
+  await expectRefusedWithoutSession(root, await finishOidcLogin(root, await beginOidcLogin(root, issuer, MEMBER)), "/login?authError=account_disabled");
   expect(await root.db.select({ enabled: users.enabled }).from(users)).toEqual([{ enabled: false }]);
 });
 
 test("the browser that started the flow completes it, and the spent binding is cleared under both names", async () => {
   const issuer = await createNativeIssuer();
   await using root = await rootFor(issuer);
-  const result = await callback(root, await begin(root, issuer));
+  const result = await finishOidcLogin(root, await beginOidcLogin(root, issuer, MEMBER));
   expect(result.headers.get("location")).toBe("/");
   const cleared = writes(result, BINDING_COOKIE_PATTERN);
   expect(cleared.map((line) => line.split("=")[0])).toEqual(["__Host-orb_oidc_state", "orb_oidc_state_insecure"]);

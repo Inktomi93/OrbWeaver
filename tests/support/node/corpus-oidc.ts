@@ -16,6 +16,7 @@ import type { BffSessionRow, OidcPendingSignupRow, OidcTransactionRow } from "./
 import { captureOidcPendingSignup, captureOidcTransaction } from "./factories/sessions.ts";
 import type { createNativeIssuer } from "./oidc-issuer.ts";
 import type { UnclaimedServerTestHarness } from "./server.ts";
+import { beginOidcLogin, cookieHeader, finishOidcLogin } from "./sign-in.ts";
 
 const OWNER_SUBJECT = "corpus-native-owner-subject";
 const JOINER_SUBJECT = "corpus-native-joiner-subject";
@@ -38,13 +39,6 @@ interface OidcLoginCapture {
   readonly secrets: readonly string[];
 }
 
-function cookieHeader(response: Response): string {
-  return response.headers
-    .getSetCookie()
-    .map((line) => line.split(";", 1).join(""))
-    .join("; ");
-}
-
 async function captureIdentity(root: UnclaimedServerTestHarness, minted: Response): Promise<AuthMe> {
   const response = await root.http.request("/api/auth/me", { headers: { cookie: cookieHeader(minted) } });
   if (!response.ok) {
@@ -59,12 +53,8 @@ async function login(
   claims: JWTPayload,
   query: string,
 ): Promise<OidcLoginCapture> {
-  const started = await root.http.request(`/api/auth/oidc/login${query}`, { headers: { host: "localhost" } });
-  const authorization = started.headers.get("location");
-  if (started.status !== 302 || authorization === null) {
-    throw new Error(`corpus OIDC login did not produce an issuer redirect (${started.status})`);
-  }
-  const callback = issuer.authorize(authorization, claims);
+  const started = await beginOidcLogin(root, issuer, claims, query);
+  const { callback } = started;
   const state = callback.searchParams.get("state");
   if (state === null) {
     throw new Error("native issuer callback omitted the actual transaction state");
@@ -73,7 +63,7 @@ async function login(
   if (transaction === undefined) {
     throw new Error("actual OIDC login produced no canonical transaction row");
   }
-  const response = await root.http.request(callback, { headers: { host: "localhost", cookie: cookieHeader(started) } });
+  const response = await finishOidcLogin(root, started);
   const cookie = cookieHeader(response);
   const headers = new Headers({ cookie });
   const transport = callback.protocol === "https:" ? "https" : "http";

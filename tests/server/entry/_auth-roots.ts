@@ -4,20 +4,15 @@ import { authMeSchema, CSRF_HEADER, viewerViewSchema } from "@orb/contracts/iden
 import type { Handle, UserId } from "@orb/kit/ids";
 import type { AppRouter } from "@orb/server";
 import type { SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { env } from "@orb/server/foundation/env";
 import { expect } from "@orb/testkit/node";
+import { cookieHeader, createAuthModeRoot, forwardHeaders, signInWithPassword } from "@orb/testkit/node/auth";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness } from "@orb/testkit/node/composed";
-import { CLIENT_ID, createNativeIssuer, ISSUER } from "@orb/testkit/node/helpers";
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 
 type Root = Pick<ServerTestHarness, "http">;
 
 const MEMBER_PASSWORD = "entry-auth-roots-password";
-const ISSUER_HOST = new URL(ISSUER).hostname;
-// A public address for the scripted issuer host and for the signed caller, so no loopback or proxy rule applies.
-const PUBLIC_ADDRESS = "93.184.215.14";
 /** The claim the forward-header verifier reads the handle from. */
 export const FORWARD_USERNAME_CLAIM = "preferred_username";
 
@@ -54,15 +49,6 @@ export async function authMe(root: Root, headers: Record<string, string> = {}): 
   return authMeSchema.parse(await response.json());
 }
 
-/** The live session cookie a mint wrote; the cleared other-transport name is dropped. */
-export function sessionCookie(response: Response): string {
-  return response.headers
-    .getSetCookie()
-    .map((line) => line.split(";")[0] ?? "")
-    .filter((pair) => !pair.endsWith("="))
-    .join("; ");
-}
-
 /** A real local account and the cookie its real password login mints. */
 export async function signedInMember(
   root: ServerTestHarness,
@@ -71,13 +57,7 @@ export async function signedInMember(
 ): Promise<{ readonly id: UserId; readonly cookie: string }> {
   const owner = await root.principalFor(root.ownerId);
   const created = await root.services.admin.createUser({ principal: owner, handle, password: MEMBER_PASSWORD });
-  const login = await root.http.request("/api/auth/login", {
-    method: "POST",
-    headers: { [CSRF_HEADER]: "1", ...headers },
-    body: new URLSearchParams({ handle, password: MEMBER_PASSWORD }),
-  });
-  expect(login.status).toBe(200);
-  return { id: created.id, cookie: sessionCookie(login) };
+  return { id: created.id, cookie: await signInWithPassword(root, handle, MEMBER_PASSWORD, headers) };
 }
 
 /** The owner's real first-run claim on a local box, and the cookie it mints. */
@@ -88,7 +68,7 @@ export async function claimedOwnerCookie(root: Root): Promise<string> {
     body: new URLSearchParams({ password: MEMBER_PASSWORD }),
   });
   expect(claimed.status).toBe(200);
-  return sessionCookie(claimed);
+  return cookieHeader(claimed);
 }
 
 /** A forward-header root that verifies JWTs against a scripted issuer, and the signer for that issuer. */
@@ -96,30 +76,6 @@ export async function signedForwardRoot(rolePolicyConfig: SessionsRolePolicyConf
   readonly root: ServerTestHarness;
   readonly signedHeaders: (claims: Record<string, unknown>) => Promise<Record<string, string>>;
 }> {
-  const issuer = await createNativeIssuer();
-  const root = await createServerHarness({
-    rolePolicyConfig,
-    physicalPeer: () => PUBLIC_ADDRESS,
-    authConfig: {
-      ...authConfigFromEnv(),
-      mode: "forward-header",
-      fallback: "deny",
-      verifyForwardJwt: true,
-      jwksAllowlist: [ISSUER_HOST],
-      jwtIssuer: ISSUER,
-      jwtAudience: CLIENT_ID,
-      forwardTrustedProxies: [],
-    },
-    networkExecution: {
-      resolver: (hostname) => (hostname === ISSUER_HOST ? Promise.resolve([PUBLIC_ADDRESS]) : Promise.reject(new Error("unscripted JWKS host"))),
-      fetch: (input, init) => issuer.fetch(input, init),
-    },
-  });
-  return {
-    root,
-    signedHeaders: async (claims) => ({
-      "x-authentik-jwt": await issuer.signedToken({ iss: ISSUER, aud: CLIENT_ID, ...claims }),
-      "x-authentik-meta-jwks": new URL("jwks", ISSUER).href,
-    }),
-  };
+  const root = await createAuthModeRoot("forward-header", { rolePolicyConfig });
+  return { root, signedHeaders: (claims) => forwardHeaders(root.issuer, claims) };
 }
