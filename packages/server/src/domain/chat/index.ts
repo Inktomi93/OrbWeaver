@@ -61,13 +61,6 @@ export { createLiveTier0Range } from "./memory/recall/live-tier-range.ts";
 // The recall flight recorder (#250) — the composition root builds ONE and wires its sink onto `ChatContext`.
 export { createMemoryRecallRecorder } from "./memory/recall/recorder.ts";
 export { createBulkImportChats } from "./persistence/import-write.ts";
-export { reclaimChatLocksOnBoot } from "./persistence/lock.ts";
-// The #1391 plugin tool wire-name rewrite over `message_variants.tool_calls` — the same boot-step shape
-// (`entry/boot/migrate-plugin-tool-wire-names` runs it); chat owns it because chat owns the table.
-export { migratePluginToolWireNames } from "./persistence/migrate-plugin-tool-wire-names.ts";
-// The #1649 handoff-offer vocabulary data migration — a boot step (`entry/boot/migrate-handoff-offer-vocab`)
-// runs it; the SQL lives beside the offer's other writes.
-export { migrateHandoffOfferVocab } from "./persistence/participant.ts";
 // The membership primitive imagery's extractQuiet compose-gate reads (leak-free NOT_FOUND for a non-member —
 // cross-tenant-sweep-enforced; the createGetMembership precedent, a pure `(db, chatId, userId)` read).
 export { loadPresentRole } from "./persistence/participants-read.ts";
@@ -79,8 +72,8 @@ export {
 } from "./persistence/token-usage-backfill.ts";
 // The room's PRESENT host read: the one home of that rule. Compose wires it into every domain that needs the
 // host (databank, embeddings, memory, regex, imagery) and the reaction gates call it directly.
-// `repairStaleJoinSeq` and `hasRedeemableInvite` are boot steps (`entry/boot/repair-stale-join-seq`,
-// `entry/boot/boot-secrets`); chat owns their SQL because it owns the seat and invite tables.
+// `repairStaleJoinSeq`, `hasRedeemableInvite`, `reclaimChatLocksOnBoot`, `migrateHandoffOfferVocab` and
+// `migratePluginToolWireNames` serve `entry/boot` steps; chat owns their SQL because it owns those tables.
 export {
   hasRedeemableInvite,
   isCharacterSeated,
@@ -88,7 +81,10 @@ export {
   loadPluginMessages,
   loadPresentCharacterSeats,
   loadPresentHostUserId,
+  migrateHandoffOfferVocab,
+  migratePluginToolWireNames,
   migrateSeededRoomBackgrounds,
+  reclaimChatLocksOnBoot,
   repairStaleJoinSeq,
 } from "./persistence/wiring-reads.ts";
 export { createChatService, createVisibleExtractQuiet } from "./service.ts";

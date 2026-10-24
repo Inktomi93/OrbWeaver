@@ -9,12 +9,12 @@
 // (a per-user, not per-message, table — bounded by the user count, not chat volume) plus one `assets` lookup
 // per row that pins a background.
 
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
 import { healLegacyBackgroundPins } from "#domain/settings";
 import { getLog } from "#foundation/observability";
 
 export interface HealLegacyBackgroundPinsDeps {
-  readonly db: Db;
+  readonly db: DatabaseHandle;
 }
 
 /** Clear every pre-#1478 stale background pin. Returns the number of `user_settings` rows rewritten — 0 on

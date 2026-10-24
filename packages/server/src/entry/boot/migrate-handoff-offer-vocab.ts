@@ -10,12 +10,12 @@
 // second source of truth that could disagree with the data. The cost of the no-op boot is one indexless scan
 // of a table with at most a handful of non-null offer blobs.
 
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
 import { migrateHandoffOfferVocab } from "#domain/chat";
 import { getLog } from "#foundation/observability";
 
 export interface MigrateHandoffOfferVocabDeps {
-  readonly db: Db;
+  readonly db: DatabaseHandle;
 }
 
 /** Rewrite every pre-#1649 `pending_handoff_offer` blob to the current key spelling. Returns the number of

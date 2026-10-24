@@ -222,7 +222,8 @@ export async function listOwned(db: Db, ownerId: UserId): Promise<PluginRow[]> {
  *  `enabled` row has no resident instance and contributes no surfaces, tools, transforms or subscriptions
  *  (#1865). The row is the record and the registry is a view of it (`activation/activate.ts`); this read is
  *  how boot re-derives the view. Ordered by `installedAt` so a restore pass is deterministic. */
-export async function listEnabledAcrossOwners(db: Db): Promise<readonly { readonly pluginId: PluginId; readonly ownerId: UserId }[]> {
+export async function listEnabledAcrossOwners(handle: DatabaseHandle): Promise<readonly { readonly pluginId: PluginId; readonly ownerId: UserId }[]> {
+  const db = databaseForOwner(handle);
   return await db
     .select({ pluginId: plugins.id, ownerId: plugins.ownerId })
     .from(plugins)

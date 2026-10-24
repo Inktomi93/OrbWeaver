@@ -10,6 +10,7 @@ import { parsePresetFile, presetDetailSchema, presetImportOutcomeSchema } from "
 import { createRosterPresetSchema, rosterPresetViewSchema } from "@orb/contracts/roster-preset";
 import { createTagSchema, pruneUnusedResultSchema, tagViewSchema } from "@orb/contracts/tag";
 import { auditLogs, characterTags, personas, presets, tags } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { ensureSystemDefaultPreset } from "@orb/server/domain/preset";
 import { eq } from "drizzle-orm";
@@ -83,7 +84,7 @@ test("character-derived personas retain native one-pass macro inversion, provena
 
 test("preset update captures the actual fork identity, convergence and explicit branch without changing the source", async () => {
   await using root = await createServerHarness();
-  await ensureSystemDefaultPreset(root.db, root.clock.now);
+  await ensureSystemDefaultPreset(databaseHandle(root.db), root.clock.now);
   const caller = await root.internalCallerFor(root.ownerId);
   const source = (await caller.preset.list()).find((row) => row.isSystemDefault);
   if (source === undefined) {
@@ -245,7 +246,7 @@ test("tag creation and isolated owner-wide pruning preserve pending and adopted 
 
 test("additional library producer captures preserve prior default, converged fork and existing outward preset rows", async () => {
   await using root = await createServerHarness();
-  await ensureSystemDefaultPreset(root.db, root.clock.now);
+  await ensureSystemDefaultPreset(databaseHandle(root.db), root.clock.now);
   const caller = await root.internalCallerFor(root.ownerId);
   const system = (await caller.preset.list()).find((row) => row.isSystemDefault);
   if (system === undefined) {

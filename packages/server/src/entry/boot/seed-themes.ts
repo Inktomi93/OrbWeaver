@@ -1,8 +1,8 @@
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
 import { ensureSeedThemes } from "#domain/settings";
 
 export interface SeedThemesDeps {
-  readonly db: Db;
+  readonly db: DatabaseHandle;
   readonly now: () => number;
 }
 

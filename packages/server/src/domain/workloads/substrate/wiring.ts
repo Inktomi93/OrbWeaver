@@ -4,8 +4,16 @@ import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { WorkloadId } from "@orb/kit/ids";
 import type { WorkloadContributions } from "../contract/contribution.ts";
 import type { ScheduleTickDeps } from "../contract/schedule.ts";
-import type { NextRunnableWorkload, NextRunnableWorkloadDeps, ReapWorkloadsArgs, WorkloadRunnerDeps } from "../contract/service.ts";
+import type {
+  BootReclaimArgs,
+  BootReclaimReport,
+  NextRunnableWorkload,
+  NextRunnableWorkloadDeps,
+  ReapWorkloadsArgs,
+  WorkloadRunnerDeps,
+} from "../contract/service.ts";
 import type { AuthorizeWorkloadRead, WorkloadRowAnyKind, WorkloadRunnableRow } from "../contract/workload-row.ts";
+import { reclaimInFlightOnBoot as reclaim } from "../engine/boot-reclaim.ts";
 import { createNextRunnableWorkload as bindNextRunnable } from "../engine/next-runnable.ts";
 import { reapOrphanedWorkloads as reap } from "../engine/reaper.ts";
 import { runWorkload as run } from "../engine/runner.ts";
@@ -25,6 +33,11 @@ export function runWorkload(input: DbAssemblyInput<WorkloadRunnerDeps>, row: Wor
 /** Reap through the same status-guarded native owner operation. */
 export function reapOrphanedWorkloads(input: DbAssemblyInput<ReapWorkloadsArgs>): Promise<number> {
   return reap({ ...input, db: databaseForOwner(input.db) });
+}
+
+/** Boot disposes of orphans through the same status-guarded writes the reaper uses. */
+export function reclaimInFlightOnBoot(input: DbAssemblyInput<BootReclaimArgs>): Promise<BootReclaimReport> {
+  return reclaim({ ...input, db: databaseForOwner(input.db) });
 }
 
 /** Re-read the claimed row without giving its driver a query client. */

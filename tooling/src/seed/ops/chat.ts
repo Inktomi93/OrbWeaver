@@ -124,7 +124,7 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
       onEmbedSpaceBound: (boundOwner) => ownersBoundBeforeCompose.push(boundOwner),
     }),
   });
-  const ownerIds = await seedOwner({ db, sessions: bootSessions, ownerHandles: handles, now });
+  const ownerIds = await seedOwner({ db: wiringDb, sessions: bootSessions, ownerHandles: handles, now });
   const ownerId = ownerIds[0];
   if (ownerId === undefined) {
     throw new Error("seed chat: seedOwner returned no owner id");
@@ -155,8 +155,8 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
   }
 
   // The idempotent boot seeds (owner cards, default persona, preset, themes) — safe on an already-seeded db.
-  await seedDefaultPreset({ db, now });
-  await seedThemes({ db, now });
+  await seedDefaultPreset({ db: wiringDb, now });
+  await seedThemes({ db: wiringDb, now });
   await seedUserContent({ seeder: built.contentSeeder, owner });
 
   const characters = await ensureCharacters(built.services, owner, ownerId, args.characters);

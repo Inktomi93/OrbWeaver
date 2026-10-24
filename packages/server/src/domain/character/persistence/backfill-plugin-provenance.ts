@@ -30,6 +30,8 @@ import { pluginImportedFrom } from "@orb/contracts/character";
 import { PLUGIN_TOOL_NAME_PREFIX } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import { characters, plugins } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { CharacterId, PluginId, UserId } from "@orb/kit/ids";
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import type { BackfillPluginProvenanceResult } from "../contract/results.ts";
@@ -73,7 +75,8 @@ async function resolveInstalledPluginId(db: Db, ownerId: UserId, slug: string): 
  *  from its card's reserved `plugin_<slug>` extensions key; leaves the rest `authored` (a heuristic derived
  *  from card content — the same honest limit `AUTHORED_CARD_CREATOR` accepts, `@orb/contracts/character`).
  *  Idempotent — see the file header. */
-export async function backfillPluginProvenance(db: Db): Promise<BackfillPluginProvenanceResult> {
+export async function backfillPluginProvenance(handle: DatabaseHandle): Promise<BackfillPluginProvenanceResult> {
+  const db = databaseForOwner(handle);
   const candidates: Candidate[] = await db
     .select({ id: characters.id, ownerId: characters.ownerId, extensions: characters.extensions, importHash: characters.importHash })
     .from(characters)
