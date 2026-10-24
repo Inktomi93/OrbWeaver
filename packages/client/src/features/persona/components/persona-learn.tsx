@@ -71,7 +71,7 @@ export function renderConnectionsLearn(): ReactElement {
 export function renderPlacementLearn(): ReactElement {
   return learnBody("Placement and lore", [
     "In the prompt is the usual choice: the description sits with the character's card, which is what prompt caching likes. At a depth puts it a number of messages back from the end, as a system, user or assistant line; depth 0 as assistant is a response prefill and isn't offered. Don't inject keeps the persona's name and avatar but sends no description.",
-    "One lore book per persona. Its entries join the chat's lore whenever this persona is playing, by keyword like any book.",
+    "One world book per persona. Its entries join the chat's lore whenever this persona is playing, by keyword like any book.",
     'From SillyTavern: "In Story String / Prompt Manager" is In the prompt, "In-chat @ Depth" is At a depth, "None" is Don\'t inject. "Top" and "Bottom of Author\'s Note" have no home yet; an imported persona on either lands on In the prompt.',
   ]);
 }

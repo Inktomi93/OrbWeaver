@@ -84,7 +84,7 @@ export const PERSONA_LIST_SUBCATEGORY: ConfigSubcategory = {
         "description",
         "placement",
         "depth",
-        "lore book",
+        "world book",
         "connected",
         "connected characters",
         "duplicate",
@@ -93,7 +93,7 @@ export const PERSONA_LIST_SUBCATEGORY: ConfigSubcategory = {
       ],
       teach: {
         summary:
-          "A row opens into its editor: name, avatar, title, description, where the description goes in the prompt, one lore book, and the characters it's connected to. Changes save as you type. Duplicate, Export and Delete are at the bottom of the editor.",
+          "A row opens into its editor: name, avatar, title, description, where the description goes in the prompt, one world book, and the characters it's connected to. Changes save as you type. Duplicate, Export and Delete are at the bottom of the editor.",
         affects: ["how the model sees you wherever this persona plays"],
         related: [leaf("placement-and-lore"), leaf("connected-characters")],
       },
@@ -152,11 +152,11 @@ export const PERSONA_LIST_SUBCATEGORY: ConfigSubcategory = {
     },
     {
       id: "placement-and-lore",
-      label: "Description placement and lore book",
-      keywords: ["placement", "in prompt", "depth", "role", "lore book", "world book", "inject"],
+      label: "Description placement and world book",
+      keywords: ["placement", "in prompt", "depth", "role", "world book", "inject"],
       teach: {
         summary:
-          "Placement is where the description goes: in the prompt beside the character's card (the default), spliced into the conversation at a depth and role, or not at all. A lore book attached to a persona fires its entries whenever that persona is playing.",
+          "Placement is where the description goes: in the prompt beside the character's card (the default), spliced into the conversation at a depth and role, or not at all. A world book attached to a persona fires its entries whenever that persona is playing.",
         affects: ["where the model reads this persona's description", "which lore entries can fire while this persona plays"],
         related: [leaf("editor")],
         more: renderPlacementLearn,

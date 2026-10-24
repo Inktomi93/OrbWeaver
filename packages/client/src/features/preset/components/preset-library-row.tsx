@@ -145,8 +145,7 @@ export function PresetLibraryRow({
           // relationship to the state it sets. `Circle` fills to a solid disc — the mock's exact grammar,
           // hollow ring at rest, filled amber disc when this row is the pick.
           icon={Circle}
-          labelOff={activateLabel}
-          labelOn={activateLabel}
+          label={activateLabel}
           onToggle={activate}
           pressed={active}
           pressedClassName="text-primary"

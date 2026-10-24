@@ -23,10 +23,9 @@ import { ROW_REVEAL } from "./row-reveal.ts";
 interface RowToggleActionBaseProps {
   readonly pressed: boolean;
   readonly onToggle: () => void;
-  /** The accessible name while PRESSED — names the UN-set ("Unstar The Crimson Court"). */
-  readonly labelOn: string;
-  /** The accessible name while unpressed — names the set ("Star The Crimson Court"). */
-  readonly labelOff: string;
+  /** The accessible name, constant across states ("Star The Crimson Court"); `aria-pressed`/`aria-checked`
+   *  carries on/off, so a name that also flipped would announce the state twice. */
+  readonly label: string;
   /** The pressed tone (e.g. `text-warning` for a star). Applies only while pressed. */
   readonly pressedClassName?: string;
   /** `when-on` (D11, the list default) = visible at rest only while pressed; `always` = never hidden;
@@ -72,13 +71,13 @@ function RowToggleGlyph(props: RowToggleFillArm): ReactElement {
 /** One row state-toggle: a ghost icon button that IS the marker (`aria-pressed`/`aria-checked` carries the
  *  datum). */
 export function RowToggleAction(props: RowToggleFillArm): ReactElement {
-  const { pressed, onToggle, labelOn, labelOff, pressedClassName, semantics = "toggle", rest = "when-on" } = props;
+  const { pressed, onToggle, label, pressedClassName, semantics = "toggle", rest = "when-on" } = props;
   const revealed = rest === "never" || (rest === "when-on" && !pressed);
   const radio = semantics === "radio";
   return (
     <Button
       aria-checked={radio ? pressed : undefined}
-      aria-label={pressed ? labelOn : labelOff}
+      aria-label={label}
       aria-pressed={radio ? undefined : pressed}
       className={cn(revealed && ROW_REVEAL, pressed && pressedClassName) ?? ""}
       intent="ghost"

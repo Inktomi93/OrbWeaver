@@ -22,4 +22,12 @@ Replace each stray with the ruled term in every label, description and help stri
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Sweep: `rg -i 'lorebook|lore book|\blore\b'` over `packages/client/src` (771 `.ts`, 816 `.tsx` files), 88 non-comment hits, each read.
+
+Changed to "world book": `rule-editor-failure.ts` refusal copy, `rule-analysis-fields.tsx` route switch and "World book application" select, `personas-nav.ts` keyword, summary, label and keywords, `persona-learn.tsx`, `persona-world-books-section.tsx` field and select labels, `plugin-option-controls.tsx` error label, `member-persona-lore-control.tsx` description.
+
+Kept, not user-facing: `restore-card-lorebook` route, `restoreCardLorebook` and `CardLorebookRestoreResult` names, `reserveKey`/`sectionId` strings, `PersonaLoreBookField`, `routes.lore` form paths, `LorebooksHeading`, and the `use-persona-lorebooks` hook import.
+
+Kept, "lore" as the content noun (an entry's text), not the book: rule trigger and action phrases in `rule-copy.ts` ("a lore entry"), `entry-editor.tsx`, `world-info-member-surface.tsx`, plugin copy, `persona-learn.tsx` and `personas-nav.ts` prose about lore entries, and the card-visibility tier "Sheet + lore" with the member card "Lore" section. These name card content, not a book.
+
+Also changed outside `packages/client/src`: the `research-familiar` showcase plugin's user-facing strings (`ui.ts` select label, `main.ts` dialog title, button, notices, and the README step that names the button) now say "world book". The `owned-lore-books` host source key and the developer prose about a LORE BOOK stay.

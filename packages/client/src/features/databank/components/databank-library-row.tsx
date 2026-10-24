@@ -113,8 +113,7 @@ export function DatabankLibraryRow({
           // never fills. Its rest delta is PRESENCE, not hue: at `when-on` an un-global row renders no globe
           // at all until the row is hovered / focused within.
           icon={Globe}
-          labelOff={everywhereName}
-          labelOn={everywhereName}
+          label={everywhereName}
           onToggle={toggleGlobal}
           pressed={global}
           // ON IS A FILLED CHIP, not only a hue: the unpressed globe a hover reveals and the pressed one
