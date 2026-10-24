@@ -123,13 +123,13 @@ layout vars Base UI recomputes live (`--available-height`, `--anchor-width`), so
 popup lags its anchor, and it animates inherited properties the element never opted into (such as
 `scrollbarColor`). No site in this app uses `transition-all`; every transition names its
 properties: `transition-[opacity,scale]` (dialog, popover) — pinned by `transitionProperty` reads
-in the dialog and popover CTs;
+in `tests/ui/primitives/dialog/native-parts.ct.tsx` and `tests/ui/primitives/popover/native-parts.ct.tsx`;
 `transition-[opacity,transform,translate]` (toast, pinned the same way in
-the toast CT); `transition-[height]` (accordion panel, collapsible
+`tests/ui/primitives/toast/transition.ct.tsx`); `transition-[height]` (accordion panel, collapsible
 panel — the lifecycle allowance in §4.2 item 3); `transition-[width,background-color]` (progress
 indicator); `transition-[scale]` (button press feedback — the transition must name `scale`, since
 `transition-[...transform]` would not animate it); `transition-[transform]` (tabs indicator, §4.2
-item 2, pinned by the tabs CT).
+item 2, pinned by `tests/ui/primitives/tabs/indicator.ct.tsx`).
 
 ### 1.3 Keeping the exit animation alive: `keepMounted`
 
@@ -211,9 +211,14 @@ and curve stay on the element's own classes. Two sites, and they are the whole e
 Anything else that reaches for JS to move pixels is a defect, not a third member: read those
 two files before writing a third, and if the delta can be spelled in CSS, the answer is the
 shell's shape. This list is enforced, not prose-only: the native `orb/no-unruled-flip-inversion` lint
-rule reds a transform write flushed by a forced layout read anywhere in `@ui`/`@client`, and the one
-member that writes a transform is that rule's `homes` entry in `eslint.config.ts`, which allows exactly one pair in its file and reports itself stale at none. Amend this list and
-that entry together, in one edit. Reduced motion needs no special case in either — the globals.css
+rule reds, anywhere in `@ui`/`@client`, an inline motion write flushed by a forced layout read, a style or
+`.animate()` write inside a `requestAnimationFrame` callback, and a `requestAnimationFrame` callback that takes
+the frame time and re-requests itself. Its `FLIP_INVERSION_HOMES` list in `eslint.config.ts` exempts whole files and gives a reason for each:
+`tabs.tsx` (the glide above), plus three frame loops that write no style, so a CSS transition has nothing to run:
+the `WebWeave` canvas paint, the `useSmoothText` string reveal and the `useCountUp` printed figure. A frame use
+that only moves focus, scroll or React state, such as the chunked tag mount and `use-enter-motion.ts`, matches nothing and needs no home.
+`tests/tooling/eslint-motion-gates.test.ts` fails a home the rule no longer matches. Amend this list and
+that list together, in one edit. Reduced motion needs no special case in either — the globals.css
 floor (`transition-property: none !important`) makes the inverse land instead of animate.
 
 ## 2. Motion taxonomy + where-to-place-it playbook
@@ -446,7 +451,7 @@ A `transition-all` on `left`/`width` is a layout animation that relayouts the li
 and is a §3.7 violation. The obvious pure-CSS transform spelling is illegal here — `scaleX(width/base)` never rests at identity, so every
 selected tab would be a rest state carrying a non-identity scale (`rest-transform-grid`,
 integer-line-boxes §9 Law 2) and the 2px bar's `rounded-full` caps would be permanently
-stretched. Pinned by the tabs CT (the launched property set, the
+stretched. Pinned by `tests/ui/primitives/tabs/indicator.ct.tsx` (the launched property set, the
 resting transition contract, and the settled landing on the new tab's box).
 
 **3. Accordion / Collapsible height.** BUILT. Both panels transition
@@ -584,7 +589,7 @@ data-attribute for the full duration of a closing animation (Base UI keeps `data
 a React boolean flips on the first event). Styling off the boolean creates a second source of truth —
 the component visually snaps while the animation is still running.
 
-**Enforcer:** `orb/baseui-state-data-attributes` in `eslint.config.ts` checks local hook-state names used in Base UI part styling. The rule consumes the committed surface manifest. Scoped metadata changes rejudge seals and invalidate native lint caches. This lexical check does not prove general state-value provenance.
+**Enforcer:** `orb/baseui-state-data-attributes` in `eslint.config.ts` reds a lifecycle-named `useState` or `useReducer` value (`open`, `closed`, `visible`, `mounted`, `entering`, `expanded` and kin) read in a Base UI part's `className`, and a hand-passed `data-open`, `data-closed`, `data-starting-style` or `data-ending-style` on a Base UI part. The check is lexical by name inside one file; it does not follow a renamed or derived value.
 
 **The closed set:** `data-starting-style` (one frame, enter "from") · `data-ending-style` (exit "to") ·
 `data-open` (while open) · `data-closed` (while closed, if `keepMounted`) · `data-disabled` ·

@@ -1,6 +1,15 @@
 import { expect, test } from "@playwright/test";
 import type { PopoverNativePartsStory } from "./_native-parts-stories.tsx";
 
+test("the popover transition names opacity and scale", async ({ mount, page }) => {
+  await mount<typeof PopoverNativePartsStory>("tests/ui/primitives/popover/_native-parts-stories/PopoverNativePartsStory");
+  await page.getByRole("button", { name: "Open remotely", exact: true }).click();
+  const popup = page.getByRole("dialog", { name: "Details", exact: true });
+  await expect(popup).toBeVisible();
+  // An unpolled read: a retrying matcher would wait out the fade and pass.
+  expect(await popup.evaluate((node) => getComputedStyle(node).transitionProperty)).toBe("opacity, scale");
+});
+
 test("an anchored handle and detached trigger retain their description through viewport composition", async ({ mount, page }) => {
   await mount<typeof PopoverNativePartsStory>("tests/ui/primitives/popover/_native-parts-stories/PopoverNativePartsStory");
   const popup = page.getByRole("dialog", { name: "Details", exact: true });
