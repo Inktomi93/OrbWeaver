@@ -13,7 +13,8 @@ import { vi } from "vitest";
 
 test("the real header seam hands sessions a pre-row identity and never trusts forged userId or role headers", async () => {
   await using root = await createServerHarness({
-    authConfig: { mode: "forward-header", fallback: "deny", forwardTrustedProxies: ["127.0.0.1/32"] },
+    env: { ["FORWARD_AUTH_TRUSTED_PROXIES"]: "127.0.0.1/32" },
+    authConfig: { mode: "forward-header", fallback: "deny" },
     physicalPeer: () => "127.0.0.1",
   });
   const provision = vi.spyOn(root.app.sessions, "provisionIdentity");

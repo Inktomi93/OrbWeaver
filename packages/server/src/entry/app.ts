@@ -267,6 +267,10 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   app.notFound((c) => (isApiPath(c.req.path) ? c.json({ error: "Not found" }, NOT_FOUND) : c.text("404 Not Found", NOT_FOUND)));
   app.use("*", timing({ totalDescription: "Response preparation" }));
 
+  // The physical peer is captured before the security headers choose their arm: a trusted hop's
+  // `X-Forwarded-Proto: https` is what makes a non-loopback origin trustworthy there.
+  app.use("*", createPhysicalPeerMiddleware(deps.physicalPeer));
+
   // Security headers cover every response — including the allowlist 403 below. The CSP's
   // external-media allowance is read PER REQUEST off the live resolved config, so flipping the admin
   // "Block external media" setting changes the very next response's header (see security-headers.ts).
@@ -291,8 +295,6 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   // the outer one a no-op for anything below it. The outer one still covers what sits BETWEEN them: the IP
   // allowlist and the principal-resolution middleware — the auth-infrastructure fault class of #1479.
   app.use("*", normalizeThrownErrors());
-
-  app.use("*", createPhysicalPeerMiddleware(deps.physicalPeer));
 
   const allowlist = parseAllowlist(deps.env.IP_ALLOWLIST);
   if (allowlist.length > 0) {

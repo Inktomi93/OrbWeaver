@@ -6,15 +6,25 @@
 // @subject packages/server/src/infra/auth/transport.ts
 // @subject packages/server/src/domain/settings/effective-config/layer.ts
 import { authConfigSchema } from "@orb/contracts/auth-config";
+import { CSRF_HEADER } from "@orb/contracts/identity";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
+import type { ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { describe } from "vitest";
+import { authMe, signedInMember } from "../_auth-roots.ts";
 
 const LISTED_PEER = "203.0.113.9";
 const UNLISTED_PEER = "198.51.100.4";
 const PROXY_PEER = "203.0.113.5";
+const OTHER_FORWARDED_CLIENT = "198.51.100.77";
 const FORBIDDEN = 403;
 const OK = 200;
+const UNAUTHORIZED = 401;
+const MISDIRECTED_REQUEST = 421;
+const FORWARDED_HTTPS = { ["x-forwarded-proto"]: "https" };
+const PUBLIC_NAME = "box.example";
 // A private literal the single-user loopback floor of the endpoint allowlist does not admit.
 const PRIVATE_TARGET = "http://10.0.0.7:8080/v1/models";
 
@@ -77,5 +87,73 @@ describe("FORWARD_AUTH_TRUSTED_PROXIES through the record", () => {
 
   test("a value production refuses is refused by the harness record", async () => {
     await expect(createServerHarness({ env: { ["TRUSTED_PRIVATE_RANGES"]: "not-a-range" } })).rejects.toThrow("TRUSTED_PRIVATE_RANGES");
+  });
+});
+
+// Each forwarded-header consumer the app wires, behind a public proxy the record alone trusts.
+describe("every forwarded-header read believes the record's trusted proxies", () => {
+  function behindProxy(options: ServerHarnessOptions = {}, trusted = true): Promise<ServerTestHarness> {
+    return createServerHarness({
+      ...options,
+      physicalPeer: () => PROXY_PEER,
+      env: { ...options.env, ...(trusted ? { ["FORWARD_AUTH_TRUSTED_PROXIES"]: `${PROXY_PEER}/32` } : {}) },
+    });
+  }
+
+  test("the Host allowlist judges a trusted proxy's X-Forwarded-Host", async () => {
+    const forwardedHost = { headers: { ["x-forwarded-host"]: "evil.example" } };
+    await using untrusted = await behindProxy({}, false);
+    expect((await untrusted.http.request("/healthz", forwardedHost)).status).toBe(OK);
+    await using trusted = await behindProxy();
+    expect((await trusted.http.request("/healthz", forwardedHost)).status).toBe(MISDIRECTED_REQUEST);
+  });
+
+  test("the auth middleware reads the session cookie of a trusted proxy's https transport", async () => {
+    await using root = await behindProxy({ authConfig: { mode: "local", fallback: "deny" } });
+    const { cookie } = await signedInMember(root, castId<Handle>("forwarded-https-member"), FORWARDED_HTTPS);
+    expect(cookie).toMatch(/^__Host-orb_session=/u);
+    expect((await authMe(root, { cookie, ...FORWARDED_HTTPS })).authenticated).toBe(true);
+  });
+
+  test("the login throttle keys a trusted proxy's forwarded client, not the proxy", async () => {
+    await using root = await behindProxy({ authConfig: { mode: "local", fallback: "deny" }, env: { ["RATE_LIMIT_LOGIN"]: "1" } });
+    const statuses: number[] = [];
+    for (const [client, handle] of [
+      [UNLISTED_PEER, "throttle-first"],
+      [OTHER_FORWARDED_CLIENT, "throttle-second"],
+    ] as const) {
+      const response = await root.http.request("/api/auth/login", {
+        method: "POST",
+        headers: { [CSRF_HEADER]: "1", ["x-forwarded-for"]: client },
+        body: new URLSearchParams({ handle, password: "not-the-password" }),
+      });
+      await response.arrayBuffer();
+      statuses.push(response.status);
+    }
+    expect(statuses).toEqual([UNAUTHORIZED, UNAUTHORIZED]);
+  });
+
+  test("the security headers take the trustworthy-origin policy over a trusted proxy's https", async () => {
+    const request = { headers: FORWARDED_HTTPS };
+    const opener = async (root: ServerTestHarness): Promise<string | null> => {
+      const response = await root.http.request(`http://${PUBLIC_NAME}/healthz`, request);
+      await response.arrayBuffer();
+      return response.headers.get("cross-origin-opener-policy");
+    };
+    await using untrusted = await behindProxy({ env: { ["ALLOWED_HOSTS"]: PUBLIC_NAME } }, false);
+    expect(await opener(untrusted)).toBeNull();
+    await using trusted = await behindProxy({ env: { ["ALLOWED_HOSTS"]: PUBLIC_NAME } });
+    expect(await opener(trusted)).toBe("same-origin");
+  });
+
+  test("the tRPC context's client address is a trusted proxy's forwarded client", async () => {
+    await using root = await behindProxy({ env: { ["RATE_LIMIT_PUBLIC_IP"]: "1" } });
+    const statuses: number[] = [];
+    for (const client of [UNLISTED_PEER, OTHER_FORWARDED_CLIENT]) {
+      const response = await root.http.request("/api/trpc/health", { headers: { ["x-forwarded-for"]: client } });
+      await response.arrayBuffer();
+      statuses.push(response.status);
+    }
+    expect(statuses).toEqual([OK, OK]);
   });
 });
