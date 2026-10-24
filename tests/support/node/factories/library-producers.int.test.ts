@@ -21,10 +21,10 @@ import { expect, test } from "../fixtures.ts";
 import type { ServerTestHarness } from "../server.ts";
 import { createServerHarness } from "../server.ts";
 import { makeAssetBytes } from "./asset.ts";
-import { seedPersonaFromCharacter } from "./rows/persona.ts";
-import { seedImportedPreset, seedUpdatedPreset } from "./rows/preset.ts";
-import { seedRosterPreset } from "./rows/roster-preset.ts";
-import { seedCharacterTag, seedPersonaTag, seedTag, seedTagPrune } from "./rows/tag.ts";
+import { seedPersonaFromCharacterRows } from "./rows/persona.ts";
+import { seedImportedPresetRows, seedUpdatedPresetRows } from "./rows/preset.ts";
+import { seedRosterPresetRows } from "./rows/roster-preset.ts";
+import { seedCharacterTagRows, seedPersonaTagRows, seedTagPruneRows, seedTagRows } from "./rows/tag.ts";
 import { seedAssetRows, seedCharacterRows, seedCreatedTagRows, seedPresetRows } from "./rows.ts";
 
 async function exportedPreset(root: ServerTestHarness, name: string): Promise<string> {
@@ -61,8 +61,8 @@ test("character-derived personas retain native one-pass macro inversion, provena
     }),
   });
   const params = { principal, characterId: source.row.id };
-  const swapped = await seedPersonaFromCharacter(root, { ...params, swapMacros: true });
-  const unchanged = await seedPersonaFromCharacter(root, { ...params, swapMacros: false });
+  const swapped = await seedPersonaFromCharacterRows(root, { ...params, swapMacros: true });
+  const unchanged = await seedPersonaFromCharacterRows(root, { ...params, swapMacros: false });
   expect(swapped.view.description).toBe("{{user}} greets {{char}} beside {{unchanged}}.");
   expect(unchanged.view.description).toBe(source.row.description);
   expect(swapped.row.id).not.toBe(unchanged.row.id);
@@ -91,10 +91,10 @@ test("preset update captures the actual fork identity, convergence and explicit 
     throw new Error("the native system preset seeder produced no default");
   }
   const before = await root.db.select().from(presets).where(eq(presets.id, source.id)).get();
-  const first = await seedUpdatedPreset(root, root.ownerId, { id: source.id, config: makePromptConfig({ params: { temperature: 0.4 } }) });
+  const first = await seedUpdatedPresetRows(root, root.ownerId, { id: source.id, config: makePromptConfig({ params: { temperature: 0.4 } }) });
   root.clock.advance(1000);
-  const converged = await seedUpdatedPreset(root, root.ownerId, { id: source.id, config: makePromptConfig({ params: { temperature: 0.7 } }) });
-  const branch = await seedUpdatedPreset(root, root.ownerId, { id: source.id, fork: { mode: "new", name: first.view.name } });
+  const converged = await seedUpdatedPresetRows(root, root.ownerId, { id: source.id, config: makePromptConfig({ params: { temperature: 0.7 } }) });
+  const branch = await seedUpdatedPresetRows(root, root.ownerId, { id: source.id, fork: { mode: "new", name: first.view.name } });
   expect(first.row.id).not.toBe(source.id);
   expect(converged.row.id).toBe(first.row.id);
   expect(converged.row.config.params.temperature).toBe(0.7);
@@ -132,8 +132,8 @@ test("genuine preset export/import captures additive collision, content reuse an
     kind: "custom",
     config: makePromptConfig({ params: { temperature: 0.2 } }),
   });
-  const imported = await seedImportedPreset(root, actor.id, { fileText: text });
-  const repeated = await seedImportedPreset(root, actor.id, { fileText: text });
+  const imported = await seedImportedPresetRows(root, actor.id, { fileText: text });
+  const repeated = await seedImportedPresetRows(root, actor.id, { fileText: text });
   expect(imported.outcome).toMatchObject({ ok: true, created: true, presetId: imported.row?.id, renamedFrom: source.view.name });
   expect(imported.row).toMatchObject({ ownerId: actor.id, config: source.row.config, forkedFrom: null });
   expect(imported.row?.id).not.toBe(collision.row.id);
@@ -143,7 +143,7 @@ test("genuine preset export/import captures additive collision, content reuse an
   expect(await root.db.select().from(presets).where(eq(presets.id, collision.row.id)).get()).toEqual(collision.row);
   const beforeRows = await root.db.select().from(presets).orderBy(presets.id);
   const beforeAudit = await root.db.select().from(auditLogs).orderBy(auditLogs.id);
-  const refused = await seedImportedPreset(root, actor.id, { fileText: "{" });
+  const refused = await seedImportedPresetRows(root, actor.id, { fileText: "{" });
   expect(refused.outcome.ok).toBe(false);
   expect(refused.row).toBeUndefined();
   expect(await root.db.select().from(presets).orderBy(presets.id)).toEqual(beforeRows);
@@ -167,7 +167,7 @@ test("roster creation retains its actual normalized and joined view alongside ca
       avatarAssetId: library.asset.assetId,
     }),
   });
-  const produced = await seedRosterPreset(root, {
+  const produced = await seedRosterPresetRows(root, {
     principal,
     input: createRosterPresetSchema.parse({
       name: "Joined keeper party",
@@ -206,7 +206,7 @@ test("tag creation and isolated owner-wide pruning preserve pending and adopted 
   const pending = await seedCreatedTagRows(root, { principal, input: createTagSchema.parse({ name: "  Pending   witness  " }) });
   const adopted = await seedCreatedTagRows(root, { principal, input: createTagSchema.parse({ name: "Adopted witness" }) });
   const orphan = await seedCreatedTagRows(root, { principal, input: createTagSchema.parse({ name: "Orphan witness" }) });
-  const rowOnly = await seedTag(root, { principal, input: createTagSchema.parse({ name: "Row-only witness" }) });
+  const rowOnly = await seedTagRows(root, { principal, input: createTagSchema.parse({ name: "Row-only witness" }) });
   expect(pending.view).toMatchObject({
     name: "Pending witness",
     color: null,
@@ -218,17 +218,17 @@ test("tag creation and isolated owner-wide pruning preserve pending and adopted 
   });
   expect(pending.row.id).toBe(pending.view.id);
   expect(pending.row).toEqual(await root.db.select().from(tags).where(eq(tags.id, pending.view.id)).get());
-  await seedCharacterTag(root, { principal, characterId: library.character.id, tagId: pending.row.id, status: "pending" });
-  await seedPersonaTag(root, { principal, personaId: library.persona.id, tagId: adopted.row.id });
+  await seedCharacterTagRows(root, { principal, characterId: library.character.id, tagId: pending.row.id, status: "pending" });
+  await seedPersonaTagRows(root, { principal, personaId: library.persona.id, tagId: adopted.row.id });
   const beforeConflict = await root.db.select().from(tags).orderBy(tags.id);
   await expect(seedCreatedTagRows(root, { principal, input: createTagSchema.parse({ name: "pending witness" }) })).rejects.toThrow();
   expect(await root.db.select().from(tags).orderBy(tags.id)).toEqual(beforeConflict);
   const foreign = await root.actor();
-  const foreignTag = await seedTag(root, {
+  const foreignTag = await seedTagRows(root, {
     principal: await root.principalFor(foreign.id),
     input: createTagSchema.parse({ name: "Foreign orphan" }),
   });
-  const pruned = await seedTagPrune(root, { principal });
+  const pruned = await seedTagPruneRows(root, { principal });
   expect(pruned.result).toEqual({ removed: 2 });
   expect(pruned.before.map((row) => row.id)).toContain(orphan.row.id);
   expect(pruned.after.map((row) => row.id)).toEqual(expect.arrayContaining([pending.row.id, adopted.row.id, library.tag.id]));
@@ -236,7 +236,7 @@ test("tag creation and isolated owner-wide pruning preserve pending and adopted 
   expect(pruned.after.map((row) => row.id)).not.toContain(rowOnly.id);
   expect(await root.db.select().from(characterTags).where(eq(characterTags.tagId, pending.row.id)).get()).toMatchObject({ status: "pending" });
   expect(await root.db.select().from(tags).where(eq(tags.id, foreignTag.id)).get()).toEqual(foreignTag);
-  expect((await seedTagPrune(root, { principal })).result).toEqual({ removed: 0 });
+  expect((await seedTagPruneRows(root, { principal })).result).toEqual({ removed: 0 });
   expect(tagViewSchema.parse(pending.view)).toEqual(pending.view);
   expect(pruneUnusedResultSchema.parse(pruned.result)).toEqual(pruned.result);
   const drifted = structuredClone(pruned.result);
@@ -252,7 +252,7 @@ test("additional library producer captures preserve prior default, converged for
   if (system === undefined) {
     throw new Error("the actual system seed is missing");
   }
-  const earlier = await seedUpdatedPreset(root, root.ownerId, { id: system.id, config: makePromptConfig({ params: { temperature: 0.3 } }) });
+  const earlier = await seedUpdatedPresetRows(root, root.ownerId, { id: system.id, config: makePromptConfig({ params: { temperature: 0.3 } }) });
   await caller.settings.updateUserSettingsSection({ section: "seeds", patch: { defaultPresetId: earlier.row.id } });
   const beforeRows = await root.db.select().from(presets).orderBy(presets.id);
   const beforeSettings = await caller.settings.getUserSettings();

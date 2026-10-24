@@ -8,7 +8,11 @@ import type { ServerProducerRoot } from "../../server.ts";
 import type { CreatePreset, PresetCaller, PresetRow, SeededImportedPreset } from "../preset.ts";
 
 /** A copy-on-write update may return a different identity; capture that row, never the requested source. */
-export async function seedUpdatedPreset(root: ServerProducerRoot, userId: UserId, params: Parameters<PresetCaller["update"]>[0]): Promise<SeededPresetRows> {
+export async function seedUpdatedPresetRows(
+  root: ServerProducerRoot,
+  userId: UserId,
+  params: Parameters<PresetCaller["update"]>[0],
+): Promise<SeededPresetRows> {
   const db = root.db;
   const update = (await root.internalCallerFor(userId)).preset.update;
   const view = await update(params);
@@ -16,7 +20,7 @@ export async function seedUpdatedPreset(root: ServerProducerRoot, userId: UserId
 }
 
 /** Refused imports have no row; successful reuse retains the native winner's exact identity. */
-export async function seedImportedPreset(
+export async function seedImportedPresetRows(
   root: ServerProducerRoot,
   userId: UserId,
   params: Parameters<PresetCaller["importFile"]>[0],

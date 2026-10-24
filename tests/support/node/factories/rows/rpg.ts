@@ -30,7 +30,7 @@ export async function captureRpgTurnToolCalls(db: Db, gameId: RpgGameId, variant
 }
 
 /** The host-gated hand writer owns label normalization and its every-lineage provenance. */
-export async function seedRpgJournalEntry(root: ServerProducerRoot, params: Parameters<RpgService["addJournalEntry"]>[0]): Promise<RpgJournalRow> {
+export async function seedRpgJournalEntryRows(root: ServerProducerRoot, params: Parameters<RpgService["addJournalEntry"]>[0]): Promise<RpgJournalRow> {
   const db = root.db;
   const addJournalEntry = root.services.rpg.addJournalEntry;
   const id = await addJournalEntry(params);
@@ -42,7 +42,7 @@ export async function seedRpgJournalEntry(root: ServerProducerRoot, params: Para
 }
 
 /** Capture the game's complete real sheet collection without minting absent actor defaults. */
-export async function seedRpgSheets(root: ServerProducerRoot, params: Parameters<RpgService["patchSheet"]>[0]): Promise<SeededRpgSheets> {
+export async function seedRpgSheetsRows(root: ServerProducerRoot, params: Parameters<RpgService["patchSheet"]>[0]): Promise<SeededRpgSheets> {
   const db = root.db;
   const operations = root.services.rpg;
   await operations.patchSheet(params);

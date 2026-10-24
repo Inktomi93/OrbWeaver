@@ -18,7 +18,7 @@ import {
 } from "./corpus-plugin-outputs.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
 import { makePluginBundle } from "./factories/plugin.ts";
-import { seedPluginProviders } from "./factories/rows/provider.ts";
+import { seedPluginProvidersRows } from "./factories/rows/provider.ts";
 import { capturePluginRows, seedAdminProviderRows, seedDistributedPluginRows, seedInstalledPluginRows, seedPluginGrantRows } from "./factories/rows.ts";
 import type { ServerTestHarness } from "./server.ts";
 
@@ -80,7 +80,7 @@ export interface SeededCorpusPlugins {
   readonly library: CorpusPluginLibrary;
   readonly wirePrivateLiterals: readonly string[];
   readonly installed: Awaited<ReturnType<typeof seedInstalledPluginRows>>;
-  readonly providers: Awaited<ReturnType<typeof seedPluginProviders>>;
+  readonly providers: Awaited<ReturnType<typeof seedPluginProvidersRows>>;
   readonly distribution: Awaited<ReturnType<typeof seedDistributedPluginRows>>;
   readonly recipient: Awaited<ReturnType<typeof seedPluginGrantRows>>;
   readonly repeated: Awaited<ReturnType<typeof seedDistributedPluginRows>>;
@@ -123,7 +123,7 @@ export async function seedCorpusPlugins(root: ServerTestHarness, recipientId: Us
   const installed = await seedInstalledPluginRows(root, { caller, bundle: bytes, grant: [] });
   const ownerIds = { pluginId: installed.outcome.id, surfaceId: CORPUS_PLUGIN_OUTPUT_SURFACE };
   const ownerPending = await captureCorpusPluginStage(root, caller.userId, ownerIds);
-  const providers = await seedPluginProviders(
+  const providers = await seedPluginProvidersRows(
     root,
     { caller, pluginId: installed.outcome.id, grant: manifest.capabilities, acknowledgedNetHosts: [], enable: true },
     (manifest.providers ?? []).map((provider) => provider.id),

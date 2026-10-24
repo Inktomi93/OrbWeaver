@@ -29,10 +29,10 @@ import type { seedCorpusLibraries } from "./corpus-seed.ts";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
 import type { AuditLogRow } from "./factories/credentials.ts";
 import { captureDocumentChunks } from "./factories/rows/embedding-generation.ts";
-import { captureRegexRows, seedCharacterRegexScript, seedChatRegexScript, seedPresetRegexScript } from "./factories/rows/regex.ts";
-import { seedRosterPreset } from "./factories/rows/roster-preset.ts";
-import { seedCharacterTag, seedChatTag, seedPersonaTag, seedPresetTag, seedTag, seedWorldBookTag } from "./factories/rows/tag.ts";
-import { captureWorldBookRows, seedCharacterBook, seedWorldBook, seedWorldEntry } from "./factories/rows/world-info.ts";
+import { captureRegexRows, seedCharacterRegexScriptRows, seedChatRegexScriptRows, seedPresetRegexScriptRows } from "./factories/rows/regex.ts";
+import { seedRosterPresetRows } from "./factories/rows/roster-preset.ts";
+import { seedCharacterTagRows, seedChatTagRows, seedPersonaTagRows, seedPresetTagRows, seedTagRows, seedWorldBookTagRows } from "./factories/rows/tag.ts";
+import { captureWorldBookRows, seedCharacterBookRows, seedWorldBookRows, seedWorldEntryRows } from "./factories/rows/world-info.ts";
 import { seedGlobalRegexScriptRows, seedRegexScriptRows } from "./factories/rows.ts";
 import type { TrpcInput, TrpcProcedurePath, TrpcWireOutput } from "./route-trpc.ts";
 import type { ServerTestHarness } from "./server.ts";
@@ -45,10 +45,10 @@ export const CORPUS_LIBRARY_RULE_PRESET = "openerChips" satisfies RulePresetId;
 
 interface WorldViews {
   readonly character: Awaited<ReturnType<Caller["character"]["create"]>>;
-  readonly book: Awaited<ReturnType<typeof seedWorldBook>>;
-  readonly first: Awaited<ReturnType<typeof seedWorldEntry>>;
-  readonly second: Awaited<ReturnType<typeof seedWorldEntry>>;
-  readonly replacement: Awaited<ReturnType<typeof seedWorldBook>>;
+  readonly book: Awaited<ReturnType<typeof seedWorldBookRows>>;
+  readonly first: Awaited<ReturnType<typeof seedWorldEntryRows>>;
+  readonly second: Awaited<ReturnType<typeof seedWorldEntryRows>>;
+  readonly replacement: Awaited<ReturnType<typeof seedWorldBookRows>>;
   readonly ordered: TrpcCapture<"worldInfo.applyEntryOrder">;
   readonly orderedEntries: TrpcCapture<"worldInfo.listEntries">;
   readonly demoted: TrpcCapture<"worldInfo.listForCharacter">;
@@ -95,10 +95,10 @@ interface RegexViews {
 }
 
 interface TagViews {
-  readonly tag: Awaited<ReturnType<typeof seedTag>>;
+  readonly tag: Awaited<ReturnType<typeof seedTagRows>>;
   readonly pending: TrpcCapture<"tag.listPendingSuggestions">;
   readonly before: TrpcCapture<"tag.listTagsWithUsage">;
-  readonly accepted: Awaited<ReturnType<typeof seedCharacterTag>>;
+  readonly accepted: Awaited<ReturnType<typeof seedCharacterTagRows>>;
   readonly list: TrpcCapture<"tag.listTags">;
   readonly usage: TrpcCapture<"tag.listTagsWithUsage">;
   readonly vocabulary: TrpcCapture<"tag.listTagFilterVocabulary">;
@@ -120,7 +120,7 @@ interface PersonaViews {
 interface RosterViews {
   readonly addedCharacter: Awaited<ReturnType<Caller["character"]["create"]>>;
   readonly room: Awaited<ReturnType<Caller["chat"]["startChat"]>>;
-  readonly persisted: Awaited<ReturnType<typeof seedRosterPreset>>;
+  readonly persisted: Awaited<ReturnType<typeof seedRosterPresetRows>>;
   readonly detail: TrpcCapture<"rosterPreset.get">;
   readonly applied: TrpcCapture<"rosterPreset.applyToChat">;
   readonly appliedAgain: TrpcCapture<"rosterPreset.applyToChat">;
@@ -265,31 +265,31 @@ export async function seedWorldInfoLibraryViews(root: ServerTestHarness, library
       description: "Keeps the native library's ordered history.",
     }),
   });
-  const book = await seedWorldBook(root, {
+  const book = await seedWorldBookRows(root, {
     principal,
     input: createBookSchema.parse({ name: "Native lifecycle ledger" }),
   });
-  const first = await seedWorldEntry(root, {
+  const first = await seedWorldEntryRows(root, {
     principal,
     bookId: book.id,
     input: createEntrySchema.parse({ title: "Outer archive", content: "The outer archive preserves the first witness.", keys: ["archive"] }),
   });
-  const second = await seedWorldEntry(root, {
+  const second = await seedWorldEntryRows(root, {
     principal,
     bookId: book.id,
     input: createEntrySchema.parse({ title: "Inner archive", content: "The inner archive preserves the second witness.", keys: ["witness"] }),
   });
-  await seedCharacterBook(root, { principal, characterId: character.id, bookId: book.id, role: "primary" });
+  await seedCharacterBookRows(root, { principal, characterId: character.id, bookId: book.id, role: "primary" });
   const ordered = await read<"worldInfo.applyEntryOrder">(
     { bookId: book.id, orderedEntryIds: [second.id, first.id, second.id] },
     caller.worldInfo.applyEntryOrder,
   );
   const orderedEntries = await read<"worldInfo.listEntries">({ bookId: book.id }, caller.worldInfo.listEntries);
-  const replacement = await seedWorldBook(root, {
+  const replacement = await seedWorldBookRows(root, {
     principal,
     input: createBookSchema.parse({ name: "Native replacement ledger" }),
   });
-  await seedCharacterBook(root, {
+  await seedCharacterBookRows(root, {
     principal,
     characterId: character.id,
     bookId: replacement.id,
@@ -358,10 +358,10 @@ export async function seedRegexLibraryViews(root: ServerTestHarness, library: Li
     throw new Error("native ordered script population omitted a real script");
   }
   await seedGlobalRegexScriptRows(root, { principal, scriptId: first.id });
-  await seedCharacterRegexScript(root, { principal, characterId: library.character.id, scriptId: first.id });
-  await seedPresetRegexScript(root, { principal, presetId: library.preset.id, scriptId: first.id });
+  await seedCharacterRegexScriptRows(root, { principal, characterId: library.character.id, scriptId: first.id });
+  await seedPresetRegexScriptRows(root, { principal, presetId: library.preset.id, scriptId: first.id });
   for (const script of scripts) {
-    await seedChatRegexScript(root, { principal, chatId: library.room.chat.id, scriptId: script.id });
+    await seedChatRegexScriptRows(root, { principal, chatId: library.room.chat.id, scriptId: script.id });
   }
   const before = await read<"regex.listForChat">({ chatId: library.room.chat.id }, caller.regex.listForChat);
   const ordered = await read<"regex.applyScopeOrder">(
@@ -413,18 +413,18 @@ export async function seedRegexLibraryViews(root: ServerTestHarness, library: Li
 /** Keep pending and adopted observations before later library changes. */
 export async function seedTagLibraryViews(root: ServerTestHarness, library: Library, caller: Caller): Promise<TagViews> {
   const principal = await root.principalFor(root.ownerId);
-  const tag = await seedTag(root, {
+  const tag = await seedTagRows(root, {
     principal,
     input: createTagSchema.parse({ name: "Native lifecycle label", source: "auto" }),
   });
-  await seedCharacterTag(root, { principal, characterId: library.character.id, tagId: tag.id, status: "pending" });
-  await seedChatTag(root, { principal, chatId: library.room.chat.id, tagId: tag.id });
-  await seedWorldBookTag(root, { principal, worldBookId: library.world.book.id, tagId: tag.id });
-  await seedPersonaTag(root, { principal, personaId: library.persona.id, tagId: tag.id });
-  await seedPresetTag(root, { principal, presetId: library.preset.id, tagId: tag.id });
+  await seedCharacterTagRows(root, { principal, characterId: library.character.id, tagId: tag.id, status: "pending" });
+  await seedChatTagRows(root, { principal, chatId: library.room.chat.id, tagId: tag.id });
+  await seedWorldBookTagRows(root, { principal, worldBookId: library.world.book.id, tagId: tag.id });
+  await seedPersonaTagRows(root, { principal, personaId: library.persona.id, tagId: tag.id });
+  await seedPresetTagRows(root, { principal, presetId: library.preset.id, tagId: tag.id });
   const pending = await read<"tag.listPendingSuggestions">({ characterId: library.character.id }, caller.tag.listPendingSuggestions);
   const before = await read<"tag.listTagsWithUsage">(undefined, caller.tag.listTagsWithUsage);
-  const accepted = await seedCharacterTag(root, { principal, characterId: library.character.id, tagId: tag.id });
+  const accepted = await seedCharacterTagRows(root, { principal, characterId: library.character.id, tagId: tag.id });
   return {
     tag,
     pending,
@@ -484,7 +484,7 @@ async function rosterViews(root: ServerTestHarness, library: Library, caller: Ca
     ],
     rules: [{ rulePresetId: CORPUS_LIBRARY_RULE_PRESET, knobs: {} }],
   });
-  const persisted = await seedRosterPreset(root, { principal, input });
+  const persisted = await seedRosterPresetRows(root, { principal, input });
   const detail = await read<"rosterPreset.get">({ presetId: persisted.preset.id }, caller.rosterPreset.get);
   const applied = await read<"rosterPreset.applyToChat">(
     { presetId: persisted.preset.id, chatId: room.chat.id, timeZone: UTC_TIME_ZONE },

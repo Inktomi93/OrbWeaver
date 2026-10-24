@@ -7,7 +7,7 @@ import type { CredentialsService, SeededUserCredential } from "../credentials.ts
 import { makeResolvedSecret } from "../credentials.ts";
 
 /** Capture the returned credential identity and its emitted audit, never a fixture-side seal or secret witness. */
-export async function seedUserCredential(root: ServerProducerRoot, params: Parameters<CredentialsService["add"]>[0]): Promise<SeededUserCredential> {
+export async function seedUserCredentialRows(root: ServerProducerRoot, params: Parameters<CredentialsService["add"]>[0]): Promise<SeededUserCredential> {
   const db = root.db;
   const add = root.services.credentials.add;
   const view = await add(params);
@@ -32,11 +32,11 @@ export async function seedUserCredential(root: ServerProducerRoot, params: Param
 }
 
 /** Persist and resolve an API key through its real owner; never manufacture execution evidence. */
-export async function seedApiKeySecret(
+export async function seedApiKeySecretRows(
   root: ServerProducerRoot,
   params: Omit<Parameters<CredentialsService["add"]>[0], "metadata">,
 ): ReturnType<CredentialsService["resolve"]> {
-  const captured = await seedUserCredential(root, { ...params, metadata: { auth: "apiKey" } });
+  const captured = await seedUserCredentialRows(root, { ...params, metadata: { auth: "apiKey" } });
   return await makeResolvedSecret(root, {
     ownerId: params.principal.userId,
     credentialId: captured.row.id,

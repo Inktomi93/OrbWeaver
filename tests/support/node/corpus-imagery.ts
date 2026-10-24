@@ -6,12 +6,12 @@ import { imageryGenerations, imageryImportCalls } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { eq, inArray } from "drizzle-orm";
 import { CORPUS_PROVIDER_ENDPOINT } from "./corpus-provider.ts";
-import { seedImageryGenerations, seedNativeImageryImportClaim } from "./factories/rows/imagery.ts";
+import { seedImageryGenerationsRows, seedNativeImageryImportClaimRows } from "./factories/rows/imagery.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 export const CORPUS_IMAGE_MODEL = "corpus-image-v1";
 type CorpusCaller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
-type NativeCohort = Awaited<ReturnType<typeof seedImageryGenerations>>;
+type NativeCohort = Awaited<ReturnType<typeof seedImageryGenerationsRows>>;
 interface CorpusImagery {
   readonly character: Awaited<ReturnType<CorpusCaller["character"]["create"]>>;
   readonly room: Awaited<ReturnType<CorpusCaller["chat"]["startChat"]>>;
@@ -21,8 +21,8 @@ interface CorpusImagery {
   readonly equalReuse: NativeCohort;
   readonly newest: NativeCohort;
   readonly newerReuse: NativeCohort;
-  readonly imported: Awaited<ReturnType<typeof seedNativeImageryImportClaim>>;
-  readonly repeated: Awaited<ReturnType<typeof seedNativeImageryImportClaim>>;
+  readonly imported: Awaited<ReturnType<typeof seedNativeImageryImportClaimRows>>;
+  readonly repeated: Awaited<ReturnType<typeof seedNativeImageryImportClaimRows>>;
   readonly foreign: Awaited<ReturnType<ServerTestHarness["app"]["portability"][number]["importFile"]>>;
   readonly rows: readonly (typeof imageryGenerations.$inferSelect)[];
   readonly foreignClaims: readonly (typeof imageryImportCalls.$inferSelect)[];
@@ -53,13 +53,13 @@ export async function seedCorpusImagery(root: ServerTestHarness, foreignUserId: 
   });
   await caller.connection.setBinding({ task: "generateImage", connectionId: connection.id });
   const params = { caller: principal, chatId: room.chat.id, subjectCharacterId: character.id, mode: "character", n: 2 } as const;
-  const first = await seedImageryGenerations(root, { ...params, reuse: "never" });
-  const tied = await seedImageryGenerations(root, { ...params, reuse: "never" });
-  const equalReuse = await seedImageryGenerations(root, { ...params, reuse: "prefer" });
+  const first = await seedImageryGenerationsRows(root, { ...params, reuse: "never" });
+  const tied = await seedImageryGenerationsRows(root, { ...params, reuse: "never" });
+  const equalReuse = await seedImageryGenerationsRows(root, { ...params, reuse: "prefer" });
   root.timers.advance(1);
   await root.settleBackground();
-  const newest = await seedImageryGenerations(root, { ...params, reuse: "never" });
-  const newerReuse = await seedImageryGenerations(root, { ...params, reuse: "prefer" });
+  const newest = await seedImageryGenerationsRows(root, { ...params, reuse: "never" });
+  const newerReuse = await seedImageryGenerationsRows(root, { ...params, reuse: "prefer" });
   const descriptor = root.app.portability.find((entity) => entity.kind === "imagery");
   const callId = newest.generations[0]?.callId;
   if (descriptor === undefined || callId === null || callId === undefined) {
@@ -76,8 +76,8 @@ export async function seedCorpusImagery(root: ServerTestHarness, foreignUserId: 
   if (file === undefined) {
     throw new Error("native imagery export omitted its returned call cohort");
   }
-  const imported = await seedNativeImageryImportClaim(root, [root.ownerId, file], callId);
-  const repeated = await seedNativeImageryImportClaim(root, [root.ownerId, file], callId);
+  const imported = await seedNativeImageryImportClaimRows(root, [root.ownerId, file], callId);
+  const repeated = await seedNativeImageryImportClaimRows(root, [root.ownerId, file], callId);
   const foreign = await descriptor.importFile(foreignUserId, file);
   const rows = await root.db
     .select()

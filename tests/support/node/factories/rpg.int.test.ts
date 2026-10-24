@@ -18,7 +18,7 @@ import {
 } from "../corpus-provider.ts";
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
-import { captureRpgTurnToolCalls, seedRpgJournalEntry, seedRpgSheets } from "./rows/rpg.ts";
+import { captureRpgTurnToolCalls, seedRpgJournalEntryRows, seedRpgSheetsRows } from "./rows/rpg.ts";
 import { captureRpgSnapshot, seedRpgCheckpointRows, seedRpgGameRows } from "./rows.ts";
 
 test("a genuine folded RPG turn retains its actual quiet tool call on the returned assistant variant without buying a second state round", async () => {
@@ -92,14 +92,14 @@ test("hand journal capture retains the actual writer's custom label and every-li
   await using root = await createServerHarness();
   const params = await gameInputs(root);
   const game = await seedRpgGameRows(root, { ...params, mode: "lite" });
-  const custom = await seedRpgJournalEntry(root, {
+  const custom = await seedRpgJournalEntryRows(root, {
     ...params,
     type: "custom",
     label: "Travel",
     title: "Reached the Loom",
     content: "The traveller reached the orbital loom.",
   });
-  const note = await seedRpgJournalEntry(root, {
+  const note = await seedRpgJournalEntryRows(root, {
     ...params,
     type: "note",
     label: "This is not a custom entry",
@@ -139,12 +139,12 @@ test("sheet capture retains the writer's keywise attributes, explicit clears and
   }
   const actorRef = { kind: "user", userId: params.principal.userId } as const;
   const value = game.config.statProfile.range.max;
-  const first = await seedRpgSheets(root, {
+  const first = await seedRpgSheetsRows(root, {
     ...params,
     actorRef,
     patch: { attributes: { [firstAttribute.key]: value }, level: 3 },
   });
-  const merged = await seedRpgSheets(root, {
+  const merged = await seedRpgSheetsRows(root, {
     ...params,
     actorRef,
     patch: { attributes: { [secondAttribute.key]: value } },
@@ -159,7 +159,7 @@ test("sheet capture retains the writer's keywise attributes, explicit clears and
       sheet: { attributes: { [firstAttribute.key]: value, [secondAttribute.key]: value }, level: 3 },
     },
   ]);
-  const cleared = await seedRpgSheets(root, {
+  const cleared = await seedRpgSheetsRows(root, {
     ...params,
     actorRef,
     patch: { attributes: { [firstAttribute.key]: null }, level: null },

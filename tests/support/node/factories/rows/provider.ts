@@ -9,7 +9,7 @@ import type { ServerProducerRoot } from "../../server.ts";
 import type { ConnectionService, ProviderRow, SeededPluginProvider } from "../provider.ts";
 
 /** Provider IDs come from the genuine parsed bundle manifest, not a fixture-side namespace/hash fold. */
-export async function seedPluginProviders(
+export async function seedPluginProvidersRows(
   root: ServerProducerRoot,
   params: Parameters<PluginService["setGrant"]>[0],
   providerIds: readonly ProviderId[],

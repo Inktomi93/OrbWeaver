@@ -33,7 +33,7 @@ export async function captureOidcPendingSignup(db: Db, subject: ExternalId): Pro
 }
 
 /** Internal session construction, not evidence of HTTP authentication or an enabled-account request grant. */
-export async function seedBffSession(root: ServerProducerRoot, params: Parameters<SessionsService["create"]>[0]): Promise<SeededBffSession> {
+export async function seedBffSessionRows(root: ServerProducerRoot, params: Parameters<SessionsService["create"]>[0]): Promise<SeededBffSession> {
   const db = root.db;
   const create = root.app.sessions.create;
   const created = await create(params);
@@ -45,12 +45,12 @@ export async function seedBffSession(root: ServerProducerRoot, params: Parameter
 }
 
 /** Retain the minted device's actual admin projection beside its private token and stored bytes. */
-export async function seedAdminSession(
+export async function seedAdminSessionRows(
   root: ServerProducerRoot,
   params: Parameters<SessionsService["create"]>[0],
   principal: Parameters<AdminService["listSessions"]>[0]["principal"],
 ): Promise<SeededAdminSession> {
-  const seeded = await seedBffSession(root, params);
+  const seeded = await seedBffSessionRows(root, params);
   const views = await root.services.admin.listSessions({ principal, userId: seeded.row.userId });
   const view = views.find((device) => device.id === seeded.row.id);
   if (view === undefined) {
@@ -60,7 +60,7 @@ export async function seedAdminSession(
 }
 
 /** Run the actual kick, then retain its exact public post-state and separate owner-scoped private rows. */
-export async function seedRevokedUserSessions(
+export async function seedRevokedUserSessionsRows(
   root: ServerProducerRoot,
   params: Parameters<AdminService["revokeUserSessions"]>[0],
 ): Promise<CapturedRevokedUserSessions> {
@@ -74,7 +74,7 @@ export async function seedRevokedUserSessions(
 }
 
 /** Drive the real login request and capture opaque producer keys; the fixture never computes a throttle window or identity. */
-export async function seedLoginBuckets(root: ServerProducerRoot, params: Parameters<HttpRequest>): Promise<CapturedLoginBuckets> {
+export async function seedLoginBucketsRows(root: ServerProducerRoot, params: Parameters<HttpRequest>): Promise<CapturedLoginBuckets> {
   const db = root.db;
   const request = root.http.request;
   const response = await request(...params);
@@ -91,7 +91,7 @@ export interface CapturedCookieAuthRows extends CapturedCookieAuth {
 export async function captureCookieAuthRows(root: ServerTestHarness, viewer: Principal, password: string): Promise<CapturedCookieAuthRows> {
   let loginBuckets: CapturedLoginBuckets["buckets"] | undefined;
   const captured = await captureCookieAuth(root, viewer, password, async (...params) => {
-    const { response, buckets } = await seedLoginBuckets(root, params);
+    const { response, buckets } = await seedLoginBucketsRows(root, params);
     loginBuckets = buckets;
     return response;
   });

@@ -42,7 +42,7 @@ export async function captureChatMemoryRows(db: Db, chatId: ChatId): Promise<Cap
   return { digests, segments, speakers: speakers.map(({ row }) => row) };
 }
 
-export async function seedEmbeddingGeneration(
+export async function seedEmbeddingGenerationRows(
   root: ServerProducerRoot,
   params: Parameters<EmbeddingsService["resolveGeneration"]>,
 ): Promise<SeededEmbeddingGeneration> {
@@ -70,7 +70,7 @@ export async function seedEmbeddingGeneration(
 }
 
 /** The real sweep owns card text, hashing, vector execution and completion; a target is not promotion proof. */
-export async function seedEmbeddedCorpus(
+export async function seedEmbeddedCorpusRows(
   root: ServerProducerRoot,
   params: Parameters<EmbeddingsService["embedCorpus"]>[0] & {
     readonly ownerId: NonNullable<Parameters<EmbeddingsService["embedCorpus"]>[0]["ownerId"]>;
@@ -91,7 +91,7 @@ export async function seedEmbeddedCorpus(
 }
 
 /** Caption/fallback/skip semantics remain the actual indexer's; null receipts do not manufacture a vector. */
-export async function seedIndexedAsset(root: ServerProducerRoot, params: Parameters<EmbeddingsService["indexAsset"]>): Promise<SeededIndexedAsset> {
+export async function seedIndexedAssetRows(root: ServerProducerRoot, params: Parameters<EmbeddingsService["indexAsset"]>): Promise<SeededIndexedAsset> {
   const db = root.db;
   const indexAsset = root.app.embeddings.indexAsset;
   const result = await indexAsset(...params);

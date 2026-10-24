@@ -125,7 +125,7 @@ async function captureRoom(db: Db, chatId: ChatId): Promise<Omit<SeededChatRows,
 }
 
 /** Requires a fresh target; production owns the seat, posture, floor and stored segment anchor. */
-export async function seedMessageReaction(
+export async function seedMessageReactionRows(
   root: ServerProducerRoot,
   params: Parameters<ChatService["toggleReaction"]>[0],
   reactorParticipantId: MessageReactionRow["reactorParticipantId"],

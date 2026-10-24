@@ -22,7 +22,7 @@ export async function captureAutomationRule(db: Db, ruleId: AutomationRuleRow["i
 }
 
 /** Retain the native public birth beside its separate author/request-bearing row. */
-export async function seedCreatedAutomationRule(
+export async function seedCreatedAutomationRuleRows(
   root: ServerProducerRoot,
   params: Parameters<AutomationService["createRule"]>[0],
 ): Promise<SeededCreatedAutomationRule> {
@@ -37,7 +37,7 @@ export async function seedCreatedAutomationRule(
 }
 
 /** Consume a genuinely raised rule ask and preserve its native outcome with the resulting provenance. */
-export async function seedAutomationConfirmation(
+export async function seedAutomationConfirmationRows(
   root: ServerProducerRoot,
   params: Parameters<AutomationService["confirmSuggestion"]>[0],
   ruleId: AutomationRuleRow["id"],
@@ -48,7 +48,7 @@ export async function seedAutomationConfirmation(
   return { result, ...(await captureAutomationExecution(db, ruleId)) };
 }
 
-export async function seedAutomationOwnerBudget(
+export async function seedAutomationOwnerBudgetRows(
   root: ServerProducerRoot,
   params: Parameters<AutomationService["setOwnerBudgets"]>[0],
 ): Promise<AutomationOwnerBudgetRow> {
@@ -62,7 +62,10 @@ export async function seedAutomationOwnerBudget(
   return row;
 }
 
-export async function seedGlobalVariable(root: ServerProducerRoot, params: Parameters<AutomationService["setGlobalVariable"]>[0]): Promise<GlobalVariableRow> {
+export async function seedGlobalVariableRows(
+  root: ServerProducerRoot,
+  params: Parameters<AutomationService["setGlobalVariable"]>[0],
+): Promise<GlobalVariableRow> {
   const db = root.db;
   const setGlobalVariable = root.services.automation.setGlobalVariable;
   await setGlobalVariable(params);
@@ -88,7 +91,7 @@ export async function captureGlobalVariable(
 }
 
 /** Paused/suggested runs may write no fire; analysis state exists only after its genuine producer runs. */
-export async function seedAutomationRun(root: ServerProducerRoot, params: Parameters<AutomationService["runRuleNow"]>[0]): Promise<SeededAutomationRun> {
+export async function seedAutomationRunRows(root: ServerProducerRoot, params: Parameters<AutomationService["runRuleNow"]>[0]): Promise<SeededAutomationRun> {
   const db = root.db;
   const runRuleNow = root.services.automation.runRuleNow;
   const result = await runRuleNow(params);
@@ -105,7 +108,7 @@ export async function captureAutomationExecution(db: Db, ruleId: AutomationRuleR
 }
 
 export async function seedAutomationRuleRows(root: ServerProducerRoot, params: Parameters<AutomationService["createRule"]>[0]): Promise<AutomationRuleRow> {
-  return (await seedCreatedAutomationRule(root, params)).row;
+  return (await seedCreatedAutomationRuleRows(root, params)).row;
 }
 
 /** The dry run executes no action, but its actual provenance ledger is not empty. */
