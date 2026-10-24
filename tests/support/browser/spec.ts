@@ -3,6 +3,7 @@
 export type { NameFinding } from "./accessible-names.ts";
 export { formatFindings, nameQualityFindings, unnamedLandmarkElementFindings } from "./accessible-names.ts";
 export { expectCacheProse } from "./cache-prose.ts";
+export { formatFormIdentityFindings, formIdentityFindings } from "./form-identity.ts";
 export { pixelContrast, pixelSurface } from "./pixel-contrast.ts";
 export type {
   ActorRefInput,

@@ -6,7 +6,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { VariantProps } from "tailwind-variants";
 import type { PortalContainer } from "#lib";
 import { ANCHOR_GAP_INPUT, cn, usePortalContainer } from "#lib";
-import { useFieldControlDocksEnd } from "#primitives/field";
+import { useFieldControlDocksEnd, useFieldIdentity } from "#primitives/field";
 import { Check, ChevronDown, Icon } from "#primitives/icons";
 import type { SelectItems, SelectOption, SelectOptionGroup } from "./items.ts";
 import { createSelectOpeningObserver } from "./opening.ts";
@@ -203,6 +203,7 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
   // The grouped shape ({ label, items }) is a Base UI `Group` structurally; the union widening to
   // Root's `items` type needs a nudge the compiler won't infer through our stricter option union.
   const rootItems = items as SelectRootProps<Value, Multiple>["items"];
+  const { id: triggerId, ...rootIdentity } = useFieldIdentity(id, rootProps.name);
   const portalContainer = usePortalContainer();
   const hasLabel = label !== undefined && label !== null;
   // Base UI's Select.Label strips any id we pass, so the association id lives on an inner span instead.
@@ -237,6 +238,7 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
       items={rootItems}
       inputRef={hiddenInputRef}
       {...rootProps}
+      {...rootIdentity}
       onOpenChange={(open, details): void => {
         const event = details.event;
         onOpenChange?.(open, details);
@@ -263,7 +265,7 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
             {...((ariaLabelledby ?? labelId) !== undefined ? { "aria-labelledby": ariaLabelledby ?? labelId } : {})}
             className={cn(slots.trigger({ layout }), className)}
             data-slot="select-trigger"
-            id={id}
+            id={triggerId}
           >
             <BaseSelect.Value className={slots.value()} data-slot="select-value" placeholder={placeholder}>
               {renderValue}

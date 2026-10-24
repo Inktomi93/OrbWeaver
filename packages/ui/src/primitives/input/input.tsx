@@ -3,6 +3,7 @@ import { Input as BaseInput } from "@base-ui/react/input";
 import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
+import { useFieldIdentity } from "#primitives/field";
 import { inputVariants } from "./variants.ts";
 
 export interface InputProps extends Omit<BaseInputProps, "type">, VariantProps<typeof inputVariants> {
@@ -60,7 +61,16 @@ const UA_RENDERED_INTERIOR: Record<NonNullable<InputProps["type"]>, boolean> = {
  *
  * Usage: `<Input placeholder="Search…" value={query} onValueChange={setQuery} />`
  */
-export function Input({ className, layout, ...rest }: InputProps): ReactElement {
+export function Input({ className, layout, id, name, ...rest }: InputProps): ReactElement {
+  const identity = useFieldIdentity(id, name);
   const uaInteriorUnset = rest.type !== undefined && UA_RENDERED_INTERIOR[rest.type] && rest.value === "";
-  return <BaseInput className={cn(inputVariants({ layout }), className)} data-slot="input-root" {...(uaInteriorUnset ? { "data-empty": "" } : {})} {...rest} />;
+  return (
+    <BaseInput
+      className={cn(inputVariants({ layout }), className)}
+      data-slot="input-root"
+      {...(uaInteriorUnset ? { "data-empty": "" } : {})}
+      {...identity}
+      {...rest}
+    />
+  );
 }
