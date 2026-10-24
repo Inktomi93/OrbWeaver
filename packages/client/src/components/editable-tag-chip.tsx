@@ -90,9 +90,7 @@ export function EditableTagChip({
       <PopoverPopup aria-label={editTitle} finalFocus={navigating ? false : triggerRef} width="stable">
         <Stack gap="block">
           <Row className="min-w-0" align="center" justify="between" gap="field">
-            <PopoverTitle className="min-w-0 truncate" title={editTitle}>
-              {editTitle}
-            </PopoverTitle>
+            <PopoverTitle className="min-w-0 truncate">{editTitle}</PopoverTitle>
             <PopoverClose
               render={
                 <Button className="shrink-0" aria-label="Close tag editor" intent="ghost" size="icon-sm" onClick={(): void => changeOpen(false)} type="button">

@@ -1,7 +1,6 @@
 // The HUD's BAND body — resolves the takeover panel state and renders the scene banner + pool orbs. It is
 // mounted by the rpg band claim (`rpg-hud-band.tsx`), in the HEAD slot of the shell's context bracket on a
-// game chat (#860): pre-HUD this rode the shell's chrome band through a contributor slot rpg did not own;
-// now it is the one slot a contributor may take, and the bracket around it is the shell's. Homed as its own
+// game chat: the one slot a contributor may take, and the bracket around it is the shell's. Homed as its own
 // component because it calls a hook (`useRpgContextState`) and must therefore BE a component
 // (rules-of-hooks). `null` from the hook (a race where the pointer cleared mid-render) collapses to nothing.
 
@@ -11,6 +10,7 @@ import { EyeOff, Icon } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { Tip } from "#components";
 import { useTRPC } from "#data";
 import { isLiveTurnPhase, revealContextPanel, useTurnPhase } from "#state";
 import { useRpgContextState } from "../hooks/use-rpg-context-state.ts";
@@ -41,25 +41,26 @@ function RpgVeiledCue({ chatId }: { readonly chatId: ChatId }): ReactElement | n
     return null;
   }
   return (
-    <Button
-      type="button"
-      intent="ghost"
-      size="inline"
-      data-slot="rpg-veiled-cue"
-      title={`${count} veiled ${count === 1 ? "truth" : "truths"} in play — host only. Opens Status → Veiled.`}
-      onClick={(): void => revealContextPanel("rpg.status")}
-      className="px-field font-medium text-accolade hover:text-accolade"
-    >
-      <Icon icon={EyeOff} size="xs" />
-      {/* text-inherit so the button's crown-gold wins — the kicker voices carry their own muted colour, and
+    <Tip text={`${count} veiled ${count === 1 ? "truth" : "truths"} in play — host only. Opens Status → Veiled.`}>
+      <Button
+        type="button"
+        intent="ghost"
+        size="inline"
+        data-slot="rpg-veiled-cue"
+        onClick={(): void => revealContextPanel("rpg.status")}
+        className="px-field font-medium text-accolade hover:text-accolade"
+      >
+        <Icon icon={EyeOff} size="xs" />
+        {/* text-inherit so the button's crown-gold wins — the kicker voices carry their own muted colour, and
           a muted cue inside a highlight button is the one thing this cue must not read as.
-          `interactiveKicker`, NOT `kicker` (#1216 class, #1632 item 3): this text IS the button's whole
+          `interactiveKicker`, NOT `kicker`: this text IS the button's whole
           visible label beside the icon, and `kicker` rides `--text-micro` (10.5px), under the 11px
           functional floor for interactive copy. Same tracked register, readable 13px step. */}
-      <Text as="span" voice="interactiveKicker" className="text-inherit">
-        {count} veiled
-      </Text>
-    </Button>
+        <Text as="span" voice="interactiveKicker" className="text-inherit">
+          {count} veiled
+        </Text>
+      </Button>
+    </Tip>
   );
 }
 
@@ -77,7 +78,7 @@ export function RpgHeaderBand({ chatId }: RpgHeaderBandProps): ReactElement | nu
   // levels; the band carries the waystone + orbs + coin, its text lines the datum).
   return (
     <RpgTakeoverHeader
-      // #878 F7 — at a large type scale the satellite row is the TAB BODY's, not the band's.
+      // At a large type scale the satellite row is the TAB BODY's, not the band's.
       satellitesInBody={state.satellitesInBody}
       ambient={state.tracker.ambient}
       actors={state.tracker.actors}

@@ -14,6 +14,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { Tip } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { notify, rowQualifiers, timeLib } from "#lib";
 import { selectPersonaEditor, usePersonaEditorId } from "#state";
@@ -46,8 +47,8 @@ export function PersonaList(): ReactElement {
       // createEntityMutation's errorToast already surfaced the failure — nothing to expand.
     }
   };
-  // F3: IMPORT is a band affordance beside the ONE primary (the ruled anatomy) — it used to live in a
-  // settings pane, three clicks and a different surface away from the personas it restores.
+  // IMPORT is a band affordance beside the ONE primary (the ruled anatomy), on the surface that holds the
+  // personas it restores.
   const onImportFile = async (file: File): Promise<void> => {
     try {
       const restored = await importPersona.mutateAsync({ fileText: await file.text() });
@@ -59,10 +60,10 @@ export function PersonaList(): ReactElement {
       notify.error(error instanceof Error ? error.message : "Couldn't restore the persona.");
     }
   };
-  // THE ROW'S CONTROLS NAME WHICH ROW THEY BELONG TO (#458, the #443 grammar). Two personas can legitimately
+  // THE ROW'S CONTROLS NAME WHICH ROW THEY BELONG TO. Two personas can legitimately
   // share a name — the user names two "Traveler", restores a backup beside its original — and the row's two
   // name-embedding controls (the stretched select target and the kebab) then announce IDENTICAL accessible
-  // names: the live mobile-sheet census read `["Actions for Traveler","Actions for Traveler"]`. A per-row
+  // names. A per-row
   // derivation cannot see that, so the qualifier is resolved HERE, with the whole list in hand.
   //
   // SPENT, NOT SPRAYED — the one deviation from the chats/presets/regex call sites. `rowQualifiers` returns
@@ -103,7 +104,7 @@ export function PersonaList(): ReactElement {
           onCreate().catch(() => notify.error("Couldn't create the persona."));
         }}
       />
-      {/* #866 S4 — the third band door: mint a persona from an owned character card (the picker IS the
+      {/* The third band door: mint a persona from an owned character card (the picker IS the
           create; the fresh row expands like the New door's). */}
       <PersonaFromCharacterDialog onCreated={setExpandedId} onOpenChange={setFromCharacterOpen} open={fromCharacterOpen} />
       <Separator />
@@ -164,17 +165,17 @@ function PersonaHeader({
 }): ReactElement {
   return (
     <Row gap="row" align="center" className="justify-between">
-      {/* Converted #582 (the #573 near-kicker ruling: "takes semibold and becomes one"): a caps-micro
-          band name, byte-identical to `kicker` once the weight axis is corrected regular→semibold. */}
+      {/* A caps-micro band name: `kicker`. */}
       <Text voice="kicker">Your personas</Text>
-      {/* Exactly ONE primary (New); Import and From-character (#866 S4) sit beside it as ghost icons — the
-          preset band's grammar. `size="icon"` (not `sm`) so the icon-only triggers keep the token-driven
-          44px coarse floor, and the native `title` is the SAME string as the aria-label so tooltip and
-          accessible name can't drift. */}
+      {/* Exactly ONE primary (New); Import and From-character sit beside it as ghost icons — the preset
+          band's grammar. `size="icon"` (not `sm`) so the icon-only triggers keep the token-driven coarse
+          floor, and each tooltip is the SAME string as the aria-label so the two can't drift. */}
       <Row gap="field" align="center">
-        <Button aria-label={FROM_CHARACTER_LABEL} intent="ghost" onClick={onFromCharacter} size="icon" title={FROM_CHARACTER_LABEL}>
-          <Icon icon={Drama} size="sm" />
-        </Button>
+        <Tip text={FROM_CHARACTER_LABEL}>
+          <Button aria-label={FROM_CHARACTER_LABEL} intent="ghost" onClick={onFromCharacter} size="icon">
+            <Icon icon={Drama} size="sm" />
+          </Button>
+        </Tip>
         <FileTrigger
           accept="application/json"
           onFilesSelected={([file]): void => {
@@ -184,9 +185,11 @@ function PersonaHeader({
           }}
         >
           {({ open }): ReactElement => (
-            <Button aria-label={IMPORT_LABEL} intent="ghost" onClick={open} size="icon" title={IMPORT_LABEL}>
-              <Icon icon={Upload} size="sm" />
-            </Button>
+            <Tip text={IMPORT_LABEL}>
+              <Button aria-label={IMPORT_LABEL} intent="ghost" onClick={open} size="icon">
+                <Icon icon={Upload} size="sm" />
+              </Button>
+            </Tip>
           )}
         </FileTrigger>
         <Button intent="primary" size="sm" onClick={onNew}>

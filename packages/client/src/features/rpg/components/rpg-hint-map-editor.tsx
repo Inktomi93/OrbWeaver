@@ -14,6 +14,7 @@ import { Button } from "@orb/ui/button";
 import { Icon, Plus, Trash2 } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
+import { Tip } from "#components";
 import { removeActionName } from "#lib";
 import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
@@ -23,9 +24,9 @@ export interface RpgHintMapEditorProps {
   /** The section's kicker line. */
   readonly kicker: string;
   /** The doorway line shown when the map is empty — it must say what an empty map MEANS for this plane, never
-   *  just "none" ([[empty-states-are-load-bearing]]). */
+   *  just "none" (an empty state is required to teach). */
   readonly emptyLine: string;
-  /** What one row's label is called, used to build the per-row accessible names ("journal type"). */
+  /** What one row's label is called; the per-row accessible names are built from it ("journal type"). */
   readonly labelNoun: string;
   /** The add field's placeholder — the plane's own example. */
   readonly addPlaceholder: string;
@@ -44,8 +45,7 @@ export function RpgHintMapEditor({ kicker, emptyLine, labelNoun, addPlaceholder,
       <Kicker>{kicker}</Kicker>
       {children}
       {entries.length === 0 ? <RpgDoorwayLine>{emptyLine}</RpgDoorwayLine> : null}
-      {/* The ROW band takes its own Stack so `rows="control"` floors the hint rows (#884 C3 — the #850
-          pitch class) without inflating the kicker/lead content above them. */}
+      {/* The ROW band takes its own Stack so `rows="control"` floors the hint rows without inflating the kicker/lead content above them. */}
       <Stack gap="field" rows="control">
         {entries.map(([label, hint]) => (
           <Row key={label} gap="field" align="center">
@@ -59,18 +59,19 @@ export function RpgHintMapEditor({ kicker, emptyLine, labelNoun, addPlaceholder,
               placeholder="how this label steers…"
               onEdit={(next): void => onCommit({ ...hints, [label]: next })}
             />
-            <Button
-              aria-label={removeActionName(label)}
-              intent="ghost"
-              size="glyph-md"
-              onClick={(): void => {
-                const { [label]: _removed, ...rest } = hints;
-                onCommit(rest);
-              }}
-              title={removeActionName(label)}
-            >
-              <Icon icon={Trash2} size="xs" />
-            </Button>
+            <Tip text={removeActionName(label)}>
+              <Button
+                aria-label={removeActionName(label)}
+                intent="ghost"
+                size="glyph-md"
+                onClick={(): void => {
+                  const { [label]: _removed, ...rest } = hints;
+                  onCommit(rest);
+                }}
+              >
+                <Icon icon={Trash2} size="xs" />
+              </Button>
+            </Tip>
           </Row>
         ))}
         <AddRow
