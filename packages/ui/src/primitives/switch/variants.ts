@@ -126,7 +126,10 @@ import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, TOUCH_TARGET_PSEUDO
 export const switchVariants = tv({
   slots: {
     root: [
-      "relative inline-flex h-(--size-switch-track-height) w-(--size-switch-track) shrink-0 cursor-pointer items-center justify-start rounded-full border-(length:--border-width-control) border-input-border bg-input py-0 px-(--size-switch-inset)",
+      `
+        relative inline-flex shrink-0 cursor-pointer items-center justify-start rounded-full border-(length:--border-width-control) border-input-border bg-input
+        px-(--size-switch-inset) py-0 block-(--size-switch-track-height) inline-(--size-switch-track)
+      `,
       "transition-colors duration-(--motion-fast) ease-out-expo",
       "outline-none",
       FOCUS_RING,
@@ -137,19 +140,19 @@ export const switchVariants = tv({
       TOUCH_TARGET_PSEUDO,
     ],
     thumb: [
-      "group relative flex aspect-square h-(--size-switch-thumb) items-center justify-center rounded-full bg-muted-foreground/80",
+      "group relative flex aspect-square items-center justify-center rounded-full bg-muted-foreground/80 block-(--size-switch-thumb)",
       "transition-transform duration-(--motion-fast) ease-out-expo",
       "data-checked:translate-x-(--size-switch-travel)",
     ],
     // Hidden by default, shown only via data-readonly. Color inverts against whichever thumb bg is live.
-    readOnlyIcon: "hidden text-background group-data-[readonly]:block",
+    readOnlyIcon: "hidden text-background group-data-readonly:block",
   },
   variants: {
     tone: {
       accent: {
         root: "data-checked:border-primary data-checked:bg-primary",
         thumb: "data-checked:bg-primary-foreground",
-        readOnlyIcon: "group-data-[checked]:text-primary",
+        readOnlyIcon: "group-data-checked:text-primary",
       },
       // MEASURED, not chosen by taste (side-eye F-08, 2026-08-02): the checked track was `--color-secondary`
       // (L 0.255) while the UNCHECKED `bg-input` (12% white over the card) composites to ≈L 0.286 — ON was
@@ -165,7 +168,7 @@ export const switchVariants = tv({
       quiet: {
         root: "data-checked:border-foreground/55 data-checked:bg-foreground/55",
         thumb: "data-checked:bg-background",
-        readOnlyIcon: "group-data-[checked]:text-foreground",
+        readOnlyIcon: "group-data-checked:text-foreground",
       },
     },
   },

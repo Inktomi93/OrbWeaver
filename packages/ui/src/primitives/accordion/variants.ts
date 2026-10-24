@@ -8,16 +8,21 @@ import { DISABLED_STATE, FOCUS_RING, tv } from "#lib";
  */
 export const accordionVariants = tv({
   slots: {
-    root: "flex w-full flex-col",
-    item: "border-b border-border",
+    root: "flex flex-col inline-full",
+    item: "border-be border-border",
     header: "flex",
-    trigger: `group flex flex-1 cursor-pointer items-center justify-between gap-block py-block text-title leading-title font-medium text-foreground outline-none ${DISABLED_STATE} ${FOCUS_RING}`,
-    chevron: "shrink-0 text-muted-foreground transition-transform duration-(--motion-base) ease-out-expo group-data-[panel-open]:rotate-180",
+    trigger: `group flex flex-1 cursor-pointer items-center justify-between gap-block py-block text-title leading-title font-medium text-foreground outline-none ${DISABLED_STATE}
+      ${FOCUS_RING}
+    `,
+    chevron: "shrink-0 text-muted-foreground transition-transform duration-(--motion-base) ease-out-expo group-data-panel-open:rotate-180",
     // `transition-all` was catching inherited non-compositor properties too (`scrollbarColor` —
     // the app's `[anim]` flagger convicted this panel OVER BUDGET on every fold). The panel only
     // ever animates `height` (the ratified #953/#1069 lifecycle allowance, guide §4.2 item 3) —
     // naming it keeps the sanctioned motion and drops everything `all` swept in by accident.
-    panel:
-      "h-(--accordion-panel-height) overflow-hidden text-body leading-body text-muted-foreground transition-[height] duration-(--motion-layout) ease-out-expo data-starting-style:h-0 data-ending-style:h-0",
+    panel: `
+      overflow-hidden text-body leading-body text-muted-foreground transition-[height] duration-(--motion-layout) ease-out-expo block-(--accordion-panel-height)
+      data-ending-style:block-0
+      data-starting-style:block-0
+    `,
   },
 });

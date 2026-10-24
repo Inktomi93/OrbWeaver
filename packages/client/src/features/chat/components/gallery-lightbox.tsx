@@ -114,12 +114,12 @@ export function GalleryLightbox({ image, removal, onClose, finalFocus, onSettled
       onOpenChangeComplete={onSettled}
     >
       {image === null ? null : (
-        <Stack gap="block" className="min-h-0" ref={setContent}>
+        <Stack gap="block" className="min-block-0" ref={setContent}>
           {/* The dialog hugs the frame: sized by height when height limits it (no grey bars), by the dialog's own
                 width otherwise, and never upscaled past the image. */}
           <Stack align="center" className="relative">
             <Stack ref={frameRef} style={{ aspectRatio: aspect, width: frameWidth, maxWidth: "100%" }}>
-              <CrossfadeImage src={blobUrl(image.hash)} alt={image.name} aspectRatio={aspect} fit="contain" className="size-full" />
+              <CrossfadeImage src={blobUrl(image.hash)} alt={image.name} aspectRatio={aspect} fit="contain" className="block-full inline-full" />
             </Stack>
           </Stack>
           {removal === undefined ? null : (

@@ -178,7 +178,7 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
   // own buttons inside it — nesting Accept/Decline in a button is invalid, and a row-level click has nowhere
   // to go (a notification is not a destination). The composed `Row`/`Stack`/`Text` grammar is the fit.
   const inbox = (
-    <Stack gap="block" className="min-w-(--width-popup-floor)">
+    <Stack gap="block" className="min-inline-(--width-popup-floor)">
       {items.length === 0 ? (
         // A STATE, not a shrug (`empty-states-are-load-bearing`): the old bare "No notifications." read as a
         // failed load. `titleAs="p"` because the sheet lens already renders a heading above this block and a
@@ -271,7 +271,7 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
                 // The TOPBAR's icon-button shape, not a bare `size="sm"`: at coarse this row's controls
                 // are 48×48 and the bell was rendering 40×44 beside three of them (side-eye leg-4 P3 —
                 // one control under the touch floor its neighbours all clear).
-                <Button intent="ghost" size="icon" className="relative shell-topbar-icon-btn" aria-label={bellLabel}>
+                <Button intent="ghost" size="icon" className="shell-topbar-icon-btn relative" aria-label={bellLabel}>
                   <Icon icon={Bell} size="sm" />
                   {/* A DOT, NOT A NUMBER (#1798, owner ruling). What rode here was a full status pill — the
                       same lozenge that marks `always` on a lore entry — printing the count INLINE beside a
@@ -279,7 +279,7 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
                       it is in the button's own accessible name (`bellLabel`) and in the popover's rows. So
                       the mark says only "something is here", and the button is its positioning context
                       (`relative`) — one `tight` step off its own top/end corner, clear of the glyph. */}
-                  {showIndicator ? <Badge intent="primary" size="dot" aria-hidden={true} className="absolute end-tight top-tight" /> : null}
+                  {showIndicator ? <Badge intent="primary" size="dot" aria-hidden={true} className="absolute inset-e-tight inset-bs-tight" /> : null}
                 </Button>
               }
             />

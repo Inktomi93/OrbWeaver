@@ -4,21 +4,24 @@ import { tv } from "#lib";
 // IS a button composes inside `Button` and inherits its own hit area.
 export const avatarVariants = tv({
   slots: {
-    root: "relative inline-flex shrink-0 items-center justify-center overflow-hidden bg-muted align-middle select-none in-data-[has-bg-image]:border-(length:--border-width-hairline) in-data-[has-bg-image]:border-solid in-data-[has-bg-image]:border-primary/50",
+    root: `
+      relative inline-flex shrink-0 items-center justify-center overflow-hidden bg-muted align-middle select-none
+      in-data-has-bg-image:border-hairline in-data-has-bg-image:border-solid in-data-has-bg-image:border-primary/50
+    `,
     // Retained native images need a box for lazy loading, but must neither paint nor share the fallback's flex space.
-    image: "size-full object-cover data-loading:absolute data-loading:invisible data-error:absolute data-error:invisible",
+    image: "object-cover block-full inline-full data-error:invisible data-error:absolute data-loading:invisible data-loading:absolute",
     // The fallback's FILL is not a variant (#103): it derives from the active theme's own `--color-primary`
     // per seed, which is a relative-color expression rather than a class — `avatar.tsx` sets it as the one
     // inline `backgroundColor` (see `hue.ts` for why a token/utility cannot carry it). The INK stays the
     // theme's own `primary-foreground`, so the pairing the palette already AA-sweeps is the one in use.
-    fallback: "flex size-full items-center justify-center bg-primary text-label leading-label font-medium text-primary-foreground uppercase",
+    fallback: "flex items-center justify-center bg-primary text-label leading-label font-medium text-primary-foreground uppercase block-full inline-full",
   },
   variants: {
     size: {
-      sm: { root: "size-(--size-avatar-sm)" },
-      md: { root: "size-(--size-avatar-md)" },
-      lg: { root: "size-(--size-avatar-lg)" },
-      hero: { root: "size-(--size-avatar-hero)" },
+      sm: { root: "block-(--size-avatar-sm) inline-(--size-avatar-sm)" },
+      md: { root: "block-(--size-avatar-md) inline-(--size-avatar-md)" },
+      lg: { root: "block-(--size-avatar-lg) inline-(--size-avatar-lg)" },
+      hero: { root: "block-(--size-avatar-hero) inline-(--size-avatar-hero)" },
       // THE CELL IS THE SIZE (added 2026-08-16, program 102 — the home face shelf). Every step above is a
       // display TOKEN: the avatar decides its own box. This one hands the decision to the layout — the
       // portrait fills a fixed grid track and stays square. It is a real variant rather than a call-site
@@ -27,14 +30,14 @@ export const avatarVariants = tv({
       // site silently defeats the sized box instead. Both are "the size is not the call site's to state"
       // (`ui-size-via-variant` exists for exactly this, and reds the call site). Only correct inside a track that HAS a width of its own —
       // in an auto-sized flow it collapses, which is the honest failure of "the cell is the size".
-      fill: { root: "aspect-square h-auto w-full" },
+      fill: { root: "aspect-square block-auto inline-full" },
       // `fill`'s PORTRAIT twin (added 2026-08-30, #864 — the Characters landing face shelf). Same ruling
       // ("the cell is the size", so the same only-inside-a-track-that-has-a-width limit), different aspect:
       // the approved artboards draw a character's art at 3/4, which is the shape a character CARD is, and
       // the `aspect` axis cannot express it here — `aspect="portrait"` is `aspect-portrait w-auto`, and its
       // `w-auto` is precisely what defeats `fill`'s `w-full` when the two are combined (tailwind-merge
       // resolves the width last-wins). One arm that states both halves is the only spelling that survives.
-      fillPortrait: { root: "aspect-portrait h-auto w-full" },
+      fillPortrait: { root: "aspect-portrait block-auto inline-full" },
     },
     shape: {
       round: { root: "rounded-full" },
@@ -47,7 +50,7 @@ export const avatarVariants = tv({
       square: {},
       // `w-auto` overrides only the width half of `size-avatar-*` — height still rides the size token,
       // and `aspect-portrait` computes the narrower width from it.
-      portrait: { root: "aspect-portrait w-auto" },
+      portrait: { root: "aspect-portrait inline-auto" },
     },
     ring: {
       none: {},

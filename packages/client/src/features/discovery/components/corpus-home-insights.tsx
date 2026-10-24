@@ -90,7 +90,7 @@ function NeverPlayedList({
           is alphabetical by name (`domain/discovery/verbs/insights.ts`), which without a caption is
           indistinguishable from a top-8 of something. Both facts in one line, bounded by the reading measure
           so it cannot become the 145-chars/line finding it sits beside. */}
-      <Text className="max-w-(--reading-measure-prose)" voice="gloss">
+      <Text className="max-inline-(--reading-measure-prose)" voice="gloss">
         {`${formatCount(characters.length)} of ${formatCount(libraryCharacters)} characters have never been played — collected and never opened. Listed A–Z.`}
       </Text>
       <Stack aria-label="Never played characters" gap="row" role="list">
@@ -198,10 +198,10 @@ export function CorpusModelEconomicsSection({
   return (
     <Section kicker="Models by genre" level={2}>
       <Stack gap="block">
-        <Text className="max-w-(--reading-measure-prose)" voice="gloss">
+        <Text className="max-inline-(--reading-measure-prose)" voice="gloss">
           {economicsSummary(routes)}
         </Text>
-        <Text className="max-w-(--reading-measure-prose)" voice="gloss">
+        <Text className="max-inline-(--reading-measure-prose)" voice="gloss">
           How often each model answered for each genre of character. A ~ marks an estimate.
         </Text>
         <BarList
@@ -215,7 +215,7 @@ export function CorpusModelEconomicsSection({
         />
         <VirtualList
           aria-label="Model routes"
-          className="max-h-(--height-scroll-lg)"
+          className="max-block-(--height-scroll-lg)"
           estimateSize={(): number => ROW_ESTIMATE_PX}
           getItemKey={(route): string => `${route.genre}|${route.model}|${route.provider ?? ""}`}
           items={routes}

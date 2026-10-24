@@ -68,7 +68,7 @@ function FactRowView({ row, busy, onOverride, onReset, note }: { readonly row: F
         <Text className="shrink-0" voice="datum">
           {row.name}
         </Text>
-        <Stack className="min-w-0 grow" gap="tight">
+        <Stack className="grow min-inline-0" gap="tight">
           <Text className={row.overridden ? "text-info" : undefined} voice="label">
             {row.value}
           </Text>
@@ -120,7 +120,7 @@ function FactOverrideEditor({
 
   return (
     <Row align="end" className="@max-cq-32:flex-col @max-cq-32:items-stretch" gap="field">
-      <Stack className="min-w-0 grow" gap="tight">
+      <Stack className="grow min-inline-0" gap="tight">
         <FactEditControl edit={row.edit} label={`${row.name} — your value`} value={draft} onChange={setDraft} />
         {refusal === null ? (
           <Text voice="gloss">{editHint(row.edit)}</Text>

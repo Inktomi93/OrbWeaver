@@ -33,14 +33,14 @@ function shortRef(messageId: MessageId): string {
 export function RpgTurnRef({ messageId, createdAt }: RpgTurnRefProps): ReactElement {
   if (createdAt === undefined) {
     return (
-      <Text as="span" voice="gloss" className="shrink-0 whitespace-nowrap font-mono tabular-nums" title="The turn this was told in" data-slot="rpg-turn-ref">
+      <Text as="span" voice="gloss" className="shrink-0 font-mono whitespace-nowrap tabular-nums" title="The turn this was told in" data-slot="rpg-turn-ref">
         {shortRef(messageId)}
       </Text>
     );
   }
   return (
     <time dateTime={new Date(createdAt).toISOString()} title={`Told ${timeLib.formatDateTime(createdAt)}`} data-slot="rpg-turn-ref">
-      <Text as="span" voice="gloss" className="whitespace-nowrap font-mono tabular-nums">
+      <Text as="span" voice="gloss" className="font-mono whitespace-nowrap tabular-nums">
         {turnStamp(createdAt)}
       </Text>
     </time>

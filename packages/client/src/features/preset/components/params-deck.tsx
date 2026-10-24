@@ -119,7 +119,7 @@ export function ParamsDeck({ form, capability, effective, capabilityError, sampl
           exists to prevent — and it reds the `params-deck.ct.tsx` pin that asserts the row IS the cap. The
           deck is centered (`mx-auto w-full`) precisely so it sits symmetrically inside the column that DOES
           breathe around it. */}
-      <Stack className="mx-auto w-full max-w-(--width-content-col)" gap="section">
+      <Stack className="mx-auto inline-full max-inline-(--width-content-col)" gap="section">
         <QualityCluster effective={effective} form={form} />
         {/* ONE gate for the model-fed clusters, never three copies of the same sentence (F-02). Its arms are
             PENDING (a skeleton) and FAILED (the server's message) — see the gate's header for why those two

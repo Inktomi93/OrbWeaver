@@ -69,7 +69,7 @@ export function CorpusReadinessRail({ stages, showRerun, queue }: CorpusReadines
     // So the stage stack is natural again: hairline rows at the tier's own `py-field` pitch, and the column
     // simply ends where its content does. `h-full` stays — the grid still stretches the track, and a Section
     // that fills a stretched track costs nothing while keeping the rail's own background band whole.
-    <Section className="h-full" data-slot="readiness-rail" kicker="Readiness" level={2}>
+    <Section className="block-full" data-slot="readiness-rail" kicker="Readiness" level={2}>
       {/* IT IS A LIST, AND IT SAYS SO (#537, corpus ARIA sweep). The rail rendered as a `<section>` full of
           role-less `<div>`s: a screen reader met five stage rows as one undifferentiated run of text with
           no count and no way to step row by row, on the ONE surface element whose whole job is "here is
@@ -91,16 +91,16 @@ export function CorpusReadinessRail({ stages, showRerun, queue }: CorpusReadines
           // what varies is how many lines the row spends, which is the honest thing to trade.
           <Row
             align="center"
-            className="flex-wrap border-border border-b py-field last:border-b-0"
+            className="flex-wrap border-be border-border py-field last:border-be-0"
             data-slot="readiness-stage"
             gap="row"
             justify="between"
             key={stage.id}
             role="listitem"
           >
-            <Row className="min-w-0" gap="field">
+            <Row className="min-inline-0" gap="field">
               <Icon className={stage.done ? "text-primary" : "text-muted-foreground"} icon={stage.done ? Check : Circle} size="xs" />
-              <Text as="span" className="min-w-0" voice="label">
+              <Text as="span" className="min-inline-0" voice="label">
                 {stage.label}
               </Text>
             </Row>

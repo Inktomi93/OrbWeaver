@@ -356,10 +356,10 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
   const showCharacters = characters.length > 0 || props.charactersAction !== undefined;
 
   return (
-    <Stack gap="row" className="h-full min-h-0" data-testid={testId("membersPanel")}>
+    <Stack gap="row" className="block-full min-block-0" data-testid={testId("membersPanel")}>
       {/* A members list scrolls vertically only, so the content wraps at the viewport width and a long member
           name truncates instead of busting the panel width. */}
-      <ScrollArea className="min-h-0 flex-1" contentClassName="w-full" wrapContent={true}>
+      <ScrollArea className="flex-1 min-block-0" contentClassName="w-full" wrapContent={true}>
         {/* THE ANNOUNCED COMPOSITE (#208 — see the header). `toolbar` + a vertical orientation is what the
             roving tabindex below has always BEHAVED as; until today it said nothing, so the arrow keys that
             are the only route to the Character rows were undiscoverable by AT and by sighted keyboard users

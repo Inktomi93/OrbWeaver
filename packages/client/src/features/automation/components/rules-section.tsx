@@ -62,18 +62,18 @@ function RulesSkeleton({ count }: RulesSkeletonProps): ReactElement {
           // Byte-for-byte the settled row's closed box: the same `padding="none"` Card, the same `p-block` trigger pad
           // at the same `min-h-(--size-control-sm)` pointer-conditional floor, the same three-line name column.
           <Card padding="none" key={index}>
-            <Row align="center" className="min-h-(--size-control-sm) p-block pr-block" gap="field">
-              <Stack className="min-w-0 flex-1" gap="tight">
-                <Skeleton className="h-(--leading-label) w-2/3" />
-                <Skeleton className="h-(--leading-label) w-full" />
-                <Skeleton className="h-(--leading-label) w-1/2" />
+            <Row align="center" className="p-block pe-block min-block-(--size-control-sm)" gap="field">
+              <Stack className="flex-1 min-inline-0" gap="tight">
+                <Skeleton className="block-(--leading-label) inline-2/3" />
+                <Skeleton className="block-(--leading-label) inline-full" />
+                <Skeleton className="block-(--leading-label) inline-1/2" />
               </Stack>
-              <Skeleton className="h-(--leading-label) w-1/6 shrink-0" />
+              <Skeleton className="shrink-0 block-(--leading-label) inline-1/6" />
             </Row>
           </Card>
         ))}
       </Stack>
-      <Skeleton className="h-(--size-control-sm) w-1/3" />
+      <Skeleton className="block-(--size-control-sm) inline-1/3" />
     </Stack>
   );
 }

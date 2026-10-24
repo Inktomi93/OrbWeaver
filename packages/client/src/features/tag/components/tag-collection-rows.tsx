@@ -53,7 +53,7 @@ export function TagCollectionRows({ view }: { readonly view: TagRowsView }): Rea
   const empty = filtered.length === 0;
   const filterMiss = empty && needle !== "";
   return (
-    <Stack className="min-h-0 flex-1" gap="tight">
+    <Stack className="flex-1 min-block-0" gap="tight">
       {filterMiss ? (
         <Stack align="start" gap="field">
           <Text role="status" voice="gloss">
@@ -74,7 +74,7 @@ export function TagCollectionRows({ view }: { readonly view: TagRowsView }): Rea
       {empty || !windowed ? null : (
         <VirtualList
           aria-label="Tags"
-          className="min-h-0 flex-1"
+          className="flex-1 min-block-0"
           estimateSize={(): number => ESTIMATED_ROW_PX}
           fadeEdge={true}
           gapToken="field"
@@ -161,7 +161,7 @@ function LabelsPruneConfirm({
         hasUnused ? (
           <VirtualList
             aria-label="Tags to delete"
-            className="h-(--height-scroll-md)"
+            className="block-(--height-scroll-md)"
             estimateSize={(): number => ESTIMATED_ROW_PX}
             getItemKey={(tag): string => tag.id}
             items={unused}

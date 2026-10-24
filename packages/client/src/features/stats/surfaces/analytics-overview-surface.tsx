@@ -72,13 +72,13 @@ export function AnalyticsOverviewSurface({ returnFocusTo = null }: { readonly re
     }
   }, [returnFocusTo]);
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" data-testid={testId("analyticsOverviewSurface")}>
+    <Stack ref={surfaceRef} tabIndex={-1} className="outline-none block-full min-block-0" data-testid={testId("analyticsOverviewSurface")}>
       {/* THE SCROLL BOX IS THE SURFACE'S, NOT THE BODY'S (#1727, the #1133 hoist — `character-editor-surface`
           paid for the class first). `reserveKey`'s measuring Stack is auto-height, so a scroller under the
           boundary resolves `h-full` to `auto` and the surface stops scrolling; hoisted, the measuring wrapper
           sits INSIDE the scroller and the scroller survives the read. The inset and the `analytics-content`
           slot ride the scroller, which is where #1200 put them. */}
-      <Stack className="relative h-full min-h-0 overflow-y-auto overscroll-contain py-section" data-slot="analytics-content">
+      <Stack className="relative overflow-y-auto overscroll-contain py-section block-full min-block-0" data-slot="analytics-content">
         <QueryBoundary
           fallback={<SkeletonRows count={3} shape="datum" />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="your insights" onRetry={retry} />}
@@ -178,7 +178,7 @@ function OverviewBody(): ReactElement {
               title={wrapped.topCharacter.name}
               subtitle={topCharacterSubtitle}
               actions={
-                <Text voice="gloss" className="whitespace-nowrap font-mono">
+                <Text voice="gloss" className="font-mono whitespace-nowrap">
                   {formatCompactNoun(wrapped.topCharacter.assistantTurns, "reply", "replies")}
                 </Text>
               }
@@ -217,7 +217,7 @@ function OverviewBody(): ReactElement {
           </Text>
           <Collapsible>
             <CollapsibleTrigger>Details</CollapsibleTrigger>
-            <CollapsiblePanel className="pt-row">
+            <CollapsiblePanel className="pbs-row">
               <Stack gap="block">
                 <Grid cols="cell" gap="block">
                   <StatFigure label={LATENCY_LABELS.avgGen} value={formatMs(overview.avgGenMs)} />
@@ -295,14 +295,14 @@ function MomentumColumn({
 }): ReactElement {
   if (rows.length === 0) {
     return (
-      <Stack gap="field" className="min-w-(--width-popup-narrow) flex-1">
+      <Stack gap="field" className="flex-1 min-inline-(--width-popup-narrow)">
         <Text voice="kicker">{label}</Text>
         <Text voice="gloss">None this month.</Text>
       </Stack>
     );
   }
   return (
-    <Stack className="min-w-(--width-popup-narrow) flex-1">
+    <Stack className="flex-1 min-inline-(--width-popup-narrow)">
       <BarList
         intent={sign > 0 ? "positive" : "negative"}
         items={rows}

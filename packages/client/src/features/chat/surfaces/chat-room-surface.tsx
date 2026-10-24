@@ -106,7 +106,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
   // With the plugin column out of the row, its edge control sits over the transcript's top corner: the thread keeps
   // that corner clear (`pe-(--size-control-lg)` is the control plus a gap; shell.css's flank distance reads the same token).
   const thread = (
-    <Stack className={cn("min-h-0 min-w-0 flex-1", !flank.occupiesRow && "pe-(--size-control-lg)")} data-slot="chat-room-thread">
+    <Stack className={cn("flex-1 min-block-0 min-inline-0", !flank.occupiesRow && "pe-(--size-control-lg)")} data-slot="chat-room-thread">
       <MessageThreadAnchor>
         {/* P5 CYOA (§5.3): the thread's choice buttons send through the room's own send capability —
             a separate useSendMessage instance from the composer's, so a pick never clears the draft. */}
@@ -135,8 +135,8 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
           // A phone keeps the transcript and composer near the screen edge (owner ruling, as Moonlit Echoes pads its
           // chat 8px): the room steps its side inset down to `tight`, the transcript adds the ring clearance.
           className={cn(
-            "h-full px-block pb-block outline-none @max-cq-28:px-tight",
-            roomTheme?.background !== undefined && "not-in-data-[has-bg-image]:bg-background",
+            "px-block pbe-block outline-none block-full @max-cq-28:px-tight",
+            roomTheme?.background !== undefined && "not-in-data-has-bg-image:bg-background",
           )}
           gap="block"
           ref={surfaceRef}
@@ -175,14 +175,14 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                *  flank stacks BELOW the thread instead of crushing its reading column (the
                *  settings-shell-surface.tsx / role-slot-row.tsx `@max-md`/`@2xl` precedent, at the `lg` step
                *  since a thread+flank split needs more room than a nav+content split before beside is comfy). */}
-              <Container className="relative min-h-0 flex-1">
+              <Container className="relative flex-1 min-block-0">
                 <InlineFlankFitProbe />
                 {/* `relative` makes the row the parked column's containing block, so the row's `overflow-x-clip`
                     clips it; positioned against the Container, it would show through the docked Details pane. */}
                 <Row
                   gap="block"
                   align="stretch"
-                  className="relative h-full min-h-0 overflow-x-clip @max-cq-32:flex-col"
+                  className="relative overflow-x-clip block-full min-block-0 @max-cq-32:flex-col"
                   data-slot="chat-room-flank-row"
                   ref={flankRowRef}
                 >
@@ -260,7 +260,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
 
 function RoomTranscriptSkeleton(): ReactElement {
   return (
-    <Stack className="min-h-0 flex-1" data-slot="chat-room-mounting">
+    <Stack className="flex-1 min-block-0" data-slot="chat-room-mounting">
       <Stack className={`${CHAT_TRACK} ${BG_PHOTO_LOADING_PLATE}`}>
         <SkeletonRows count={3} />
       </Stack>

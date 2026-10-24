@@ -242,11 +242,11 @@ function GrantRow({ capability, checked, isNew, roleUnset }: GrantRowProps): Rea
           — so 65ch reads 93-101 law characters and never satisfied the 65-75 band this comment used to claim
           it did. `--reading-measure-prose` (47ch) is the derived teaching/body measure (#1145), and it rides
           the PARAGRAPH because a `ch` resolves in the element's own font. */}
-      <Text className="max-w-(--reading-measure-prose)" id={consequenceId} prose={true} voice="gloss">
+      <Text className="max-inline-(--reading-measure-prose)" id={consequenceId} prose={true} voice="gloss">
         {copy.consequence}
       </Text>
       {roleUnset ? (
-        <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
+        <Text className="max-inline-(--reading-measure-prose)" prose={true} voice="gloss">
           {NO_IMAGE_MODEL_NOTE}
         </Text>
       ) : null}
@@ -261,9 +261,9 @@ function GrantRow({ capability, checked, isNew, roleUnset }: GrantRowProps): Rea
       {checked ? (
         <Checkbox aria-describedby={consequenceId} aria-labelledby={nameIds} checked={true} disabled={true} />
       ) : (
-        <Stack aria-hidden={true} className="w-(--size-checkbox) shrink-0" />
+        <Stack aria-hidden={true} className="shrink-0 inline-(--size-checkbox)" />
       )}
-      <Stack className="min-w-0 flex-1">{labelBlock}</Stack>
+      <Stack className="flex-1 min-inline-0">{labelBlock}</Stack>
     </Row>
   );
 }

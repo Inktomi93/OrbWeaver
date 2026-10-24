@@ -34,7 +34,7 @@ export function AssemblyPreviewDiagnostics({
 }): ReactElement {
   return (
     <Collapsible>
-      <CollapsibleTrigger className="w-full">
+      <CollapsibleTrigger className="inline-full">
         <Text voice="label">Diagnostics</Text>
       </CollapsibleTrigger>
       <CollapsiblePanel>
@@ -326,7 +326,7 @@ function TraceLine({ label, value }: { readonly label: string; readonly value: R
         {label}
       </Text>
       {/* A section list / key list can be long — wrap it inside the panel rather than overflow its edge. */}
-      <Text className="min-w-0 text-end break-words" voice="datum">
+      <Text className="text-end wrap-break-word min-inline-0" voice="datum">
         {value}
       </Text>
     </Row>

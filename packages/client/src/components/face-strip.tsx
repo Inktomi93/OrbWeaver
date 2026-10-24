@@ -223,7 +223,7 @@ function FaceButton({ item, selected, verb, caption, squeezed, selectMode, onSel
       onClick={(): void => onSelect(item.id)}
       size="media"
     >
-      <Stack align="center" className="min-w-0" gap="tight">
+      <Stack align="center" className="min-inline-0" gap="tight">
         <Avatar hueSeed={item.id} ring={selected ? "accent" : "none"} size="md" {...(item.avatarHash === null ? {} : { src: blobUrl(item.avatarHash) })}>
           {initialsFor(item.name)}
         </Avatar>
@@ -240,7 +240,9 @@ function FaceButton({ item, selected, verb, caption, squeezed, selectMode, onSel
           // keeps this functional text at the readable label step under the portrait datum. The
           // SELECTED face's accent tint is a state, not a type axis, so it stays a className on the voice.
           <Text
-            className={`${squeezed ? "max-w-full" : "max-w-(--size-avatar-hero)"} truncate text-center ${selected ? "text-primary" : "text-muted-foreground"}`}
+            className={`${squeezed ? "max-inline-full" : "max-inline-(--size-avatar-hero)"} truncate text-center ${
+              selected ? "text-primary" : "text-muted-foreground"
+            }`}
             voice="label"
           >
             {item.name}
@@ -298,8 +300,13 @@ function FaceStripPlaceholder({ caption, kicker, label }: { readonly caption: bo
       {PLACEHOLDER_SLOTS.map((slot) => (
         // The settled face's own box: `FaceButton`'s per-pointer MIN box (`size="media"` is `p-0`, so the
         // button adds nothing else) around the avatar token and its caption line.
-        <Stack align="center" className={cn("min-h-(--size-control-md) min-w-(--size-control-md) shrink-0", cellWidthClass(caption))} gap="tight" key={slot}>
-          <Skeleton className="size-(--size-avatar-md) rounded-full" />
+        <Stack
+          align="center"
+          className={cn("shrink-0 min-block-(--size-control-md) min-inline-(--size-control-md)", cellWidthClass(caption))}
+          gap="tight"
+          key={slot}
+        >
+          <Skeleton className="rounded-full block-(--size-avatar-md) inline-(--size-avatar-md)" />
           {caption ? (
             <Text aria-hidden={true} className="text-transparent" voice="label">
               {CAPTION_PLACEHOLDER}
@@ -417,7 +424,11 @@ export function FaceStrip({
                         avatar radius was the portraits' exact silhouette, so a folded strip scanned as one more
                         character named "More". The header's rhythm ruling is about the BOX, not the DRESS — a
                         dashed ring on no fill reads as a slot rather than a person at the identical pitch. */}
-                    <Row align="center" className="size-(--size-avatar-md) rounded-full border border-border border-dashed" justify="center">
+                    <Row
+                      align="center"
+                      className="rounded-full border border-dashed border-border block-(--size-avatar-md) inline-(--size-avatar-md)"
+                      justify="center"
+                    >
                       <Text className="text-muted-foreground" voice="label">{`+${hiddenCount}`}</Text>
                     </Row>
                     {caption ? (

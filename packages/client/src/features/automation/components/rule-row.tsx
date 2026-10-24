@@ -278,17 +278,17 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
             slack (`min-w-0 flex-1`, so a long name wraps instead of pushing the switch off the 384px pane)
             and the one control a host needs WITHOUT opening the row sits beside it. `pr-block` supplies the
             padding the trigger's own `p-block` does not reach. */}
-        <Row align="center" className="pr-block" gap="field">
+        <Row align="center" className="pe-block" gap="field">
           {/* `size="control"` pins the pointer-conditional `--size-control-sm` floor (44px coarse / 32px
               fine) — the same arm the fire-log disclosure and the Field-overrides triggers take. `text-start`
               because a `button`'s UA `text-align: center` would centre a multi-line summary; the single-line
               triggers of the sibling sections never showed it. The accessible name COMPUTES from the
               trigger's own content, so it can never disagree with the visible summary (WCAG 2.5.3). */}
-          <CollapsibleTrigger className="min-w-0 flex-1 p-block text-start" size="control">
+          <CollapsibleTrigger className="flex-1 p-block text-start min-inline-0" size="control">
             {/* THE CLOSED FACE — the whole of what a rule IS at a glance: its name, what it does, and when it
                 last ran. Nothing here is new copy; it is the #621 row's own name/gloss/state trio, which now
                 stands ALONE while the actions wait behind the disclosure. */}
-            <Stack className="min-w-0 flex-1" gap="tight">
+            <Stack className="flex-1 min-inline-0" gap="tight">
               <Text voice="promoted">{rule.name}</Text>
               {/* `prose`: the rule's own sentence is the same size as the connection description inside this card.
                   Shut, it keeps to one line (two on a phone) so a closed row stays dense; open, the whole sentence reads. */}
@@ -320,7 +320,7 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
             compute the identical colour — the exact defect #621 fixed, reintroduced by the container rather
             than by the controls (its CT caught it: `oklch(0.74 0.008 65)` on both). */}
         <CollapsiblePanel className="text-foreground">
-          <Stack className="px-block pb-block" gap="field">
+          <Stack className="px-block pbe-block" gap="field">
             <Row align="center" gap="field">
               {/* Test stays visually distinct from editing and the spending actions in the overflow menu. */}
               {onEdit === undefined ? null : (
@@ -379,7 +379,7 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
                     }}
                   />
                 </Row>
-                <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
+                <Text className="max-inline-(--reading-measure-prose)" prose={true} voice="gloss">
                   {SUGGEST_ON_REFUSAL_HELP}
                 </Text>
               </Stack>

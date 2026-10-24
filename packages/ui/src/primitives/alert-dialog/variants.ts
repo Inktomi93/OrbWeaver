@@ -12,9 +12,9 @@ export const alertDialogVariants = tv({
   slots: {
     backdrop: SCRIM("modal"),
     viewport: "fixed inset-0 z-(--z-modal) grid place-items-center overflow-y-auto overscroll-contain p-gutter",
-    popup: `${MODAL_SURFACE} max-w-cq-24 ${OVERLAY_MOTION.modalPopup}`,
+    popup: `${MODAL_SURFACE} max-inline-cq-24 ${OVERLAY_MOTION.modalPopup}`,
     title: "text-title leading-title font-semibold",
-    description: "mt-field text-body leading-body text-muted-foreground",
-    actions: "mt-section flex items-center justify-end gap-row",
+    description: "mbs-field text-body leading-body text-muted-foreground",
+    actions: "mbs-section flex items-center justify-end gap-row",
   },
 });

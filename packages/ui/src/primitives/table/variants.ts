@@ -10,12 +10,12 @@ import { FOCUS_RING, SELECTION_RAIL, tv } from "#lib";
 // top of whatever the factory call already baked in).
 export const tableVariants = tv({
   slots: {
-    root: "flex w-full flex-col gap-block",
-    scroll: "w-full overflow-x-auto rounded-control border border-border",
-    table: "w-full border-collapse text-left",
-    thead: "border-b border-border bg-muted",
+    root: "flex flex-col gap-block inline-full",
+    scroll: "overflow-x-auto rounded-control border border-border inline-full",
+    table: "border-collapse text-start inline-full",
+    thead: "border-be border-border bg-muted",
     th: "font-medium text-muted-foreground",
-    sortButton: ["inline-flex w-full cursor-pointer items-center gap-field bg-transparent font-medium text-muted-foreground", "outline-none", FOCUS_RING],
+    sortButton: ["inline-flex cursor-pointer items-center gap-field bg-transparent font-medium text-muted-foreground inline-full", "outline-none", FOCUS_RING],
     sortIcon: "shrink-0 text-muted-foreground/60",
     tbody: "divide-y divide-border",
     // A SELECTED ROW WEARS THE RULED ROW IDIOM (#1840, side-eye 2026-09-06 E2). It was a bare
@@ -28,8 +28,8 @@ export const tableVariants = tv({
     tr: SELECTION_RAIL,
     td: "text-foreground",
     emptyCell: "py-section text-center",
-    pager: "flex flex-wrap items-center justify-between gap-row border-t border-border px-row py-block",
-    pagerInfo: "text-label text-muted-foreground leading-label",
+    pager: "flex flex-wrap items-center justify-between gap-row border-bs border-border px-row py-block",
+    pagerInfo: "text-label leading-label text-muted-foreground",
     pagerButtons: "flex items-center gap-field",
   },
   variants: {
@@ -39,14 +39,14 @@ export const tableVariants = tv({
         td: "px-row py-block text-body leading-body",
       },
       compact: {
-        th: "px-field py-field text-label leading-label",
-        td: "px-field py-field text-label leading-label",
+        th: "p-field text-label leading-label",
+        td: "p-field text-label leading-label",
       },
     },
     align: {
-      start: { th: "text-left", td: "text-left" },
+      start: { th: "text-start", td: "text-start" },
       center: { th: "text-center", td: "text-center" },
-      end: { th: "text-right", td: "text-right" },
+      end: { th: "text-end", td: "text-end" },
     },
     sortActive: {
       true: { sortIcon: "text-foreground" },

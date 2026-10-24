@@ -130,7 +130,7 @@ export function WorldInfoCollectionRows({ view }: { readonly view: CollectionLis
           // pane and this is `min-h-0 flex-1` in the landing. `min-h-0` is the load-bearing half — a flex
           // child defaults to `min-height: auto`, which lets the scroller grow to its content and trips the
           // primitive's own unbounded-window throw.
-          className="min-h-0 flex-1"
+          className="flex-1 min-block-0"
           estimateSize={(): number => ESTIMATED_ROW_PX}
           // Same reason as the tag/regex arms (side-eye 2026-08-06 P2): a fixed cap over uniform rows ends
           // mid-row, and under overlay scrollbars that sliver is the only "there is more" cue there is.

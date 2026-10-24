@@ -3,7 +3,7 @@ import { tv } from "#lib";
 /** The `<Chart>` wrapper skin — a plain sized box; ECharts owns everything painted inside it. */
 export const chartVariants = tv({
   slots: {
-    root: "relative w-full",
+    root: "relative inline-full",
     loading: "flex items-center justify-center text-muted-foreground",
   },
   variants: {
@@ -15,7 +15,7 @@ export const chartVariants = tv({
     // Slot-keyed, not a bare string: a `tv()` with `slots` ignores a variant value that is not a
     // per-slot record, silently and without a type error.
     fill: {
-      true: { root: "h-full min-h-0 flex-1" },
+      true: { root: "flex-1 block-full min-block-0" },
       false: { root: "" },
     },
   },

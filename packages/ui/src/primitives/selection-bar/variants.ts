@@ -23,16 +23,16 @@ export const selectionBarVariants = tv({
   // (`justify-end` holds them against the dismiss instead of drifting into the middle).
   slots: {
     root: "flex items-center gap-row px-row py-field",
-    count: "flex-none whitespace-nowrap text-body leading-body text-muted-foreground",
-    actions: "flex min-w-0 flex-1 flex-wrap items-center justify-end gap-field",
+    count: "flex-none text-body leading-body whitespace-nowrap text-muted-foreground",
+    actions: "flex flex-1 flex-wrap items-center justify-end gap-field min-inline-0",
   },
   variants: {
     placement: {
       sticky: {
-        root: "sticky inset-x-0 bottom-0 z-(--z-raised) border-border border-t bg-background",
+        root: "sticky inset-x-0 inset-be-0 z-(--z-raised) border-bs border-border bg-background",
       },
       floating: {
-        root: "fixed inset-x-0 bottom-section z-(--z-overlay) mx-auto w-fit rounded-card border border-border bg-popover shadow-overlay",
+        root: "fixed inset-x-0 inset-be-section z-(--z-overlay) mx-auto rounded-card border border-border bg-popover shadow-overlay inline-fit",
       },
     },
   },

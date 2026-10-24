@@ -58,7 +58,7 @@ export function PurposeNotes({ notes }: { readonly notes: readonly string[] }): 
   return (
     <Stack data-slot="connection-purpose-notes" gap="tight">
       {notes.map((note) => (
-        <Text tone="warning" className="max-w-(--reading-measure-prose)" key={note} prose={true} voice="gloss">
+        <Text tone="warning" className="max-inline-(--reading-measure-prose)" key={note} prose={true} voice="gloss">
           {note}
         </Text>
       ))}

@@ -77,7 +77,7 @@ function AmbientVocabPicker({
         aria-label={`${fieldLabel} value`}
         title="Click to edit"
         onClick={(): void => setOpen(true)}
-        className="gap-0 border border-transparent px-field text-left"
+        className="gap-0 border border-transparent px-field text-start"
       >
         <Text as="span" size="label" tone={empty ? "muted" : "default"}>
           {restText}
@@ -154,7 +154,7 @@ function AmbientVocabPicker({
           type="button"
           intent="ghost"
           size="sm"
-          className="mt-field basis-full justify-start border-border border-t pt-field"
+          className="mbs-field basis-full justify-start border-bs border-border pbs-field"
           aria-label={`Clear ${fieldLabel.toLowerCase()}`}
           onClick={(): void => {
             onPick(null);
@@ -213,7 +213,7 @@ function AmbientFieldControl({
       // Content-sized, capped: `width="auto"` hugs the value so a short one ("the ford") is a
       // compact input and pairs pack 2+ per row (the mock's compact ambient card); `max-w-full` + `min-w-0`
       // keep a long location from overflowing the wrapping card (owner density ruling).
-      className="min-w-0 max-w-full field-sizing-content"
+      className="field-sizing-content max-inline-full min-inline-0"
       width="auto"
     />
   );
@@ -236,7 +236,7 @@ export function AmbientStrip({ location, date, timeOfDay, weather, onEditField, 
             // content-sized value/input, so 2+ pairs share a row rather than one-per-line (the owner
             // density ruling 2026-07-28). `min-w-0` lets a long location value truncate/shrink instead of
             // forcing a full-width row.
-            <Row key={key} gap="field" align="baseline" className="min-w-0">
+            <Row key={key} gap="field" align="baseline" className="min-inline-0">
               <Text as="span" size="label" tone="muted" className="shrink-0">
                 {label}
               </Text>

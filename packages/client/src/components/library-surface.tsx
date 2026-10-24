@@ -116,7 +116,7 @@ export function LibraryListFrame({
     // lists, not forms. Declared once here, so both consuming surfaces get identical density by
     // construction instead of each picking steps by taste.
     <Surface tier="instrument">
-      <Stack className="h-full" gap="row">
+      <Stack className="block-full" gap="row">
         <ListSearch>
           <Input aria-label={searchLabel} onValueChange={onSearchChange} placeholder={searchPlaceholder} value={searchValue} />
         </ListSearch>

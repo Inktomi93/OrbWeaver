@@ -8,7 +8,7 @@ import { FOCUS_RING, tv } from "#lib";
 // feature never picks island padding or radius. `rounded-base` (grouped content), never `rounded-card` —
 // D6 demoted `--radius-card` to ELEVATED/floating islands only, which is what `elevated` opts into.
 export const cardVariants = tv({
-  base: "rounded-base border border-border bg-card text-card-foreground p-block in-data-[elevation=glow]:shadow-overlay",
+  base: "rounded-base border border-border bg-card p-block text-card-foreground in-data-[elevation=glow]:shadow-overlay",
   variants: {
     tone: {
       neutral: "",
@@ -22,10 +22,17 @@ export const cardVariants = tv({
     outline: { solid: "", dashed: "border-dashed" },
     glow: {
       none: "",
-      accent:
-        "relative isolate before:pointer-events-none before:absolute before:-inset-px before:-z-(--z-raised) before:rounded-[inherit] before:shadow-glow before:content-['']",
-      focal:
-        "relative isolate before:pointer-events-none before:absolute before:-inset-px before:-z-(--z-raised) before:rounded-[inherit] before:opacity-60 before:shadow-glow before:transition-opacity before:duration-(--motion-base) before:ease-out-expo before:content-[''] hover:before:opacity-100 data-returned:before:opacity-100",
+      accent: `
+        relative isolate
+        before:pointer-events-none before:absolute before:-inset-px before:-z-(--z-raised) before:rounded-[inherit] before:shadow-glow before:content-['']
+      `,
+      focal: `
+        relative isolate
+        before:pointer-events-none before:absolute before:-inset-px before:-z-(--z-raised) before:rounded-[inherit] before:opacity-60 before:shadow-glow
+        before:transition-opacity before:duration-(--motion-base) before:ease-out-expo before:content-['']
+        hover:before:opacity-100
+        data-returned:before:opacity-100
+      `,
     },
     // The explicit floating-island opt-in (UI-Density-Law.md §2.1/§4.3): a modal/popover/composer-class
     // card that genuinely floats above the page. Its radius is re-declared unlayered in tiers.css so it
@@ -55,7 +62,7 @@ export const cardVariants = tv({
       none: "p-0",
     },
     interactive: {
-      true: `cursor-pointer transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent active:bg-accent/80 focus-visible:outline-none ${FOCUS_RING}`,
+      true: `cursor-pointer transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent focus-visible:outline-none active:bg-accent/80 ${FOCUS_RING}`,
       false: "",
     },
   },

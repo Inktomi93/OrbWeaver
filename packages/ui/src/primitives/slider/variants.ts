@@ -6,9 +6,9 @@ import { DISABLED_STATE, FOCUS_RING_HAS, tv } from "#lib";
 // the track (it is the fill, and wants the rail's clip); the thumbs are the track's SIBLINGS.
 export const sliderVariants = tv({
   slots: {
-    root: `flex w-full flex-col gap-field ${DISABLED_STATE}`,
-    header: "flex w-full items-baseline justify-between gap-row",
-    label: "text-label font-medium leading-label text-foreground",
+    root: `flex flex-col gap-field inline-full ${DISABLED_STATE}`,
+    header: "flex items-baseline justify-between gap-row inline-full",
+    label: "text-label leading-label font-medium text-foreground",
     value: "text-label leading-label text-muted-foreground tabular-nums",
     // `relative` is LOAD-BEARING, not decoration: the thumbs are siblings of the track (slider.tsx —
     // inside the CLIPPING track they rendered as 6px slivers), and Base UI positions each thumb
@@ -22,10 +22,10 @@ export const sliderVariants = tv({
     // the column-flex root, so `width:auto` fills the row MINUS the margins, where `w-full` + margins
     // would overflow. Percentages resolve against this box, so both extremes move inboard together and
     // the rail simply shortens by one thumb width.
-    control: "relative mx-(--size-slider-inset) flex h-(--size-control-sm) touch-none select-none items-center",
+    control: "relative mx-(--size-slider-inset) flex touch-none items-center select-none block-(--size-control-sm)",
     // Base UI sets data-invalid on Track (and Control/Thumb) when wrapped in an invalid <Field>
     // (FieldRootState) — the track fill is the visible surface, so it carries the destructive skin.
-    track: "relative h-field w-full grow overflow-hidden rounded-full bg-input data-invalid:bg-destructive/20",
+    track: "relative grow overflow-hidden rounded-full bg-input block-field inline-full data-invalid:bg-destructive/20",
     indicator: "rounded-full data-invalid:bg-destructive",
     thumb: [
       // Base UI's Thumb is a decorative div wrapping the real (visually-clipped) native range input and
@@ -33,7 +33,7 @@ export const sliderVariants = tv({
       // is a no-op, so `:focus-visible`/`data-focused` on the thumb never matches for a bare Slider). Key
       // the ring off the nested input's own focus-visible via :has() so EVERY slider rings on keyboard
       // focus (WCAG 2.4.7), Field-wrapped or not (focus-ring.ts _HAS is exactly this shape).
-      "size-(--size-slider-thumb) rounded-full border border-border",
+      "rounded-full border border-border block-(--size-slider-thumb) inline-(--size-slider-thumb)",
       // THE KNOB'S CENTERING IS LAYOUT, NOT A RESTING TRANSFORM (#1187, design-audit `off-grid-transform`
       // P3 on settings:chat-behavior --mobile). Base UI positions each thumb with an INLINE
       // `inset-inline-start: <pct>%; top: 50%; translate: -50% -50%` (slider/thumb/SliderThumb.js) — a
@@ -56,7 +56,7 @@ export const sliderVariants = tv({
       // axis is physical `-mt` because `orientation` is narrowed OUT of this seal (slider.tsx), so the
       // vendor's cross offset is always `top: 50%`.
       // eslint-disable-next-line better-tailwindcss/no-restricted-classes -- the `!` beats Base UI's inline `translate` on the thumb, which no variant can
-      "translate-none! -ms-(--size-slider-inset) -mt-(--size-slider-inset)",
+      "-ms-(--size-slider-inset) -mbs-(--size-slider-inset) translate-none!",
       "transition-shadow duration-(--motion-fast) ease-out-expo",
       "outline-none",
       FOCUS_RING_HAS,

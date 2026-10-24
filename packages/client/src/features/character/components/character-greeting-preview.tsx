@@ -197,7 +197,7 @@ function GreetingBody({
     <form.Subscribe selector={(s): string => s.values.greetings[index]?.text ?? ""}>
       {(active): ReactElement => (
         <ThemeScope tokens={cardTheme}>
-          <Stack gap="row" className={cn("rounded-base bg-ai-bubble p-block", spoilerBlur && "select-none blur-md")} data-slot="character-greeting-bubble">
+          <Stack gap="row" className={cn("rounded-base bg-ai-bubble p-block", spoilerBlur && "blur-md select-none")} data-slot="character-greeting-bubble">
             {active.trim() === "" ? (
               <Text voice="quiet">No first message yet.</Text>
             ) : (

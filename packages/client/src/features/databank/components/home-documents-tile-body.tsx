@@ -139,7 +139,7 @@ export function HomeDocumentsTileBody(): ReactElement {
             accident rather than a measure. A cap makes it a property of the prose — and since #1145 that
             cap is `--reading-measure-prose`, the TEACHING measure, because the house one is 75 CSS `ch`
             and a CSS `ch` is ~1.5 of the characters the design law counts. */}
-        <Text className="line-clamp-3 max-w-(--reading-measure-prose)" voice="gloss" prose={true}>
+        <Text className="line-clamp-3 max-inline-(--reading-measure-prose)" voice="gloss" prose={true}>
           {DATABANK_INGEST_GLOSS}
         </Text>
       </Stack>
@@ -223,7 +223,7 @@ export function HomeDocumentsTileBody(): ReactElement {
                       // (2026-08-19) reaches all three surfaces, not two; safe since the badge inline
                       // arm learned to keep a block svg on the line.
                       subtitleLead: (
-                        <Badge className="mr-field" intent={badge.intent} size="inline" tone="soft">
+                        <Badge className="me-field" intent={badge.intent} size="inline" tone="soft">
                           {badge.glyph === null ? null : <Icon icon={badge.glyph} size="xs" />}
                           {badge.label}
                         </Badge>

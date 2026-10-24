@@ -73,7 +73,7 @@ export function RpgActRail({ plot, edit }: { readonly plot: RpgPlot; readonly ed
               {heading}
             </Text>
           ) : (
-            <Row gap="field" align="center" className="min-w-0">
+            <Row gap="field" align="center" className="min-inline-0">
               <Text as="span" voice="kicker" className="text-accolade">
                 Act
               </Text>
@@ -101,7 +101,7 @@ export function RpgActRail({ plot, edit }: { readonly plot: RpgPlot; readonly ed
                 display={currentTitle}
                 placeholder="act title…"
                 onEdit={(next): void => edit.onEditActTitle(next.trim())}
-                className="min-w-0 max-w-full field-sizing-content"
+                className="field-sizing-content max-inline-full min-inline-0"
                 width="auto"
                 restClassName="min-w-0 text-accolade"
               />

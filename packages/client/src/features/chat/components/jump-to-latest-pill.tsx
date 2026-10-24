@@ -32,7 +32,7 @@ export function JumpToLatestPill({ count, visible, onJump }: JumpToLatestPillPro
     <Row
       justify="center"
       aria-hidden={visible ? undefined : true}
-      className="pointer-events-none absolute inset-x-0 bottom-block z-(--z-overlay)"
+      className="pointer-events-none absolute inset-x-0 inset-be-block z-(--z-overlay)"
       data-slot="jump-to-latest"
     >
       <Row align="center" className={pillClasses}>

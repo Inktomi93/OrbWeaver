@@ -188,7 +188,7 @@ function KnobControls({
         // starts the line below — and the grid's dense flow then backfills the value cell into the hole it
         // left beside the name (`@orb/ui`'s `knob` recipe carries the why). The DOM order is untouched in
         // both arms, which is what keeps the reading order the eye's order.
-        className="min-w-0 @max-cq-32:col-span-2"
+        className="min-inline-0 @max-cq-32:col-span-2"
         largeStep={largeStep}
         max={max}
         min={min}
@@ -300,7 +300,7 @@ function KnobLabel({ label, hint }: { readonly label: string; readonly hint: str
     // wherever the names fit it and grows past it where they do not. The name accordingly does NOT truncate
     // — a content-sized track has nothing to truncate against, and the clipping this fixes ("Max output
     // tokens", "Max context tokens", at every width) was the box, never the string.
-    <Row align="center" className="min-w-0" gap="field" justify="between">
+    <Row align="center" className="min-inline-0" gap="field" justify="between">
       <Text as="span" voice="label">
         {label}
       </Text>

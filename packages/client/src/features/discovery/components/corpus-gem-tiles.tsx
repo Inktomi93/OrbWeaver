@@ -75,7 +75,7 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
           because 10.5px was one of 17 `undersized-ui-text` findings. The same argument reaches a SENTENCE
           the reader is meant to read: `prose` is the length statement that lifts the step to 13px without
           leaving the gloss voice, which is the lever the tiles below already use. */}
-      <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
+      <Text className="max-inline-(--reading-measure-prose)" prose={true} voice="gloss">
         Lifetime totals per character — the most played, longest left alone.
       </Text>
       {/* auto-fit at the 16rem tile floor: a wider pane shows MORE tiles, never wider ones. `role="list"`
@@ -86,12 +86,12 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
             {/* `role="listitem"` rides the layout WRAPPER, never the Button — an interactive element given a
                 non-interactive role is a lie to AT (and eslint's own no-interactive-element-to-noninteractive-role). */}
             <Button
-              className="w-full items-start justify-start text-left"
+              className="items-start justify-start text-start inline-full"
               intent="ghost"
               onClick={(): void => selectCorpusCharacter(gem.characterId)}
               size="wrap"
             >
-              <Row align="center" className="w-full min-w-0" gap="row">
+              <Row align="center" className="inline-full min-inline-0" gap="row">
                 {/* THE RANK IS A DATUM, NOT AN IMPLICATION (side-eye populated arm, [P2-2] / #536). The
                     shelf ranks by the CONJUNCTION volume × how-long-quiet and BARS tokens returned, so at
                     320 characters the audited row 2 read left→right 510,000 · 540,000 · 570,000 — bars
@@ -109,7 +109,7 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
                   {index + 1}
                 </Text>
                 <CharacterAvatar hash={gem.avatarHash} id={gem.characterId} name={gem.name} size="lg" />
-                <Stack className="min-w-0 flex-1" gap="tight">
+                <Stack className="flex-1 min-inline-0" gap="tight">
                   {/* `block truncate`, not `line-clamp-1`: the Button base is `whitespace-nowrap`, and a
                       nowrap line inside a `-webkit-box` clamp overflows its cell with NO ellipsis at all
                       (measured on the quick-picks shelf — a long character name ran over its neighbour). */}

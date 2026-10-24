@@ -125,7 +125,7 @@ export function CharacterLibraryWelcome(): ReactElement {
     // ancestor container answers that query exactly as the frame's own did. `relative` rides along too: a
     // scroll box with no containing block dumps every `position:absolute` descendant — `sr-only` announcers
     // included — into an ANCESTOR's scrollable area, and the pane scrolls past its last shelf into blank space.
-    <Container className="relative h-full overflow-y-auto overscroll-contain">
+    <Container className="relative overflow-y-auto overscroll-contain block-full">
       <QueryBoundary
         fallback={<SkeletonRows count={3} shape="avatar-row" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your characters" onRetry={retry} />}
@@ -282,7 +282,7 @@ function FreshInstallArm({ listOffScreen, newest }: { readonly listOffScreen: bo
     <LandingFrame doors={doorsFor(listOffScreen)} gloss={listOffScreen ? FRESH_GLOSS_COLLAPSED : FRESH_GLOSS_DOCKED} title="Meet your characters">
       <Stack gap="section">
         {shippedFaces.length === 0 ? null : <CharacterShelf door="open" faces={shippedFaces} label={label} legend={null} onOpen={selectCharacter} />}
-        <Text className="max-w-(--reading-measure-prose) rounded-base border border-border border-dashed p-row" voice="quiet">
+        <Text className="rounded-base border border-dashed border-border p-row max-inline-(--reading-measure-prose)" voice="quiet">
           {FRESH_HINT}
         </Text>
       </Stack>
@@ -333,8 +333,8 @@ function ResumeArm({
           // THE RULE SPANS THE PANE, THE LINE DOES NOT: the foot's border is the shelves' bottom edge, so it
           // rides a full-width wrapper, while the measure caps the PARAGRAPH (design-audit `line-length` —
           // uncapped, this line ran to 145 characters at 1280).
-          <Stack className="border-border border-t pt-row">
-            <Text className="max-w-(--reading-measure-prose)" voice="gloss">
+          <Stack className="border-bs border-border pbs-row">
+            <Text className="max-inline-(--reading-measure-prose)" voice="gloss">
               {weekLine(addedThisWeek)}
             </Text>
           </Stack>
@@ -368,14 +368,14 @@ function LandingFrame({
             own precedent for the same shape — a row that packs by FIT rather than by breakpoint arithmetic.
             Container-queried, so it answers to the PANE (a three-pane desktop is as narrow as a phone). */}
       <Row align="start" className="@max-cq-28:flex-col" gap="section" justify="between">
-        <Stack className="min-w-0 flex-1" gap="tight">
+        <Stack className="flex-1 min-inline-0" gap="tight">
           <Heading level={2}>{title}</Heading>
           {/* The measure rides the PARAGRAPH, not its box: a `ch` resolves against the element's OWN
                 font, so the same cap on the Stack above was computed at the heading's step and let this
                 13px line run to 114 characters (design-audit `line-length`, measured at 1280). The token
                 is `--reading-measure-prose` (#1145): the house `--reading-measure`'s 75 CSS `ch` is ~117
                 of the characters that 114 was counted in, so it was never the right ceiling for prose. */}
-          <Text className="max-w-(--reading-measure-prose)" voice="quiet">
+          <Text className="max-inline-(--reading-measure-prose)" voice="quiet">
             {gloss}
           </Text>
         </Stack>

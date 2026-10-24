@@ -47,7 +47,7 @@ export function TextField(props: TextFieldProps): ReactElement {
           type={canReveal && revealed ? "text" : (props.type ?? "text")}
           autoComplete={props.autoComplete}
           disabled={props.disabled}
-          className="min-w-0 flex-1"
+          className="flex-1 min-inline-0"
         />
         {canReveal ? (
           <Button

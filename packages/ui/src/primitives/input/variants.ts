@@ -25,7 +25,7 @@ export const inputVariants = tv({
     // stronger reason for the arm to exist at all. The scale can only be chosen HERE (Button `media`/`wrap`,
     // TabsTab `stacked` precedent).
     layout: {
-      field: [FIELD_CONTROL, "h-(--size-control-sm)"],
+      field: [FIELD_CONTROL, "block-(--size-control-sm)"],
       // `text-field-dense` IS THE DENSE STEP WITH THE PLATFORM FLOOR BAKED IN (#1868, §4b axis 3). This arm
       // was `text-label` (13px), two steps under iOS Safari's 16px focus-zoom threshold, so every
       // click-to-edit on a phone zoomed the whole viewport. The token carries the pointer arm
@@ -37,7 +37,7 @@ export const inputVariants = tv({
       // that datum. A zoomed page is a far larger shift than one type step, so the floor wins and the
       // no-shift promise is a FINE-POINTER promise. If the coarse growth ever measures as a real jump at a
       // call site, the answer is that site reserving the taller box, never dropping the floor.
-      inline: [FIELD_CONTROL_BOX, "h-auto min-h-0 px-field py-0 text-field-dense leading-field-dense"],
+      inline: [FIELD_CONTROL_BOX, "px-field py-0 text-field-dense leading-field-dense block-auto min-block-0"],
     },
     // THE INPUT'S INLINE SIZE. `full` is the control box's own `w-full`. `auto` is the content-sized arm (a
     // click-to-edit datum that hugs its text); the two steps are the numeric fields that share an avatar column.
@@ -45,9 +45,9 @@ export const inputVariants = tv({
     // className, which is why the shipped sites wrote `!w-*`.
     width: {
       full: "",
-      auto: "w-auto",
-      "avatar-md": "w-(--size-avatar-md)",
-      "avatar-lg": "w-(--size-avatar-lg)",
+      auto: "inline-auto",
+      "avatar-md": "inline-(--size-avatar-md)",
+      "avatar-lg": "inline-(--size-avatar-lg)",
     },
   },
   defaultVariants: { layout: "field", width: "full" },

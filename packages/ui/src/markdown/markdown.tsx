@@ -186,7 +186,7 @@ export function Markdown({
   if (children.length > MAX_RENDER_LENGTH) {
     return (
       <pre
-        className={cn("relative max-h-(--height-prose-cap) overflow-auto overscroll-contain whitespace-pre-wrap text-body leading-body", className)}
+        className={cn("relative overflow-auto overscroll-contain text-body leading-body whitespace-pre-wrap max-block-(--height-prose-cap)", className)}
         data-slot="markdown-oversized"
       >
         {children}

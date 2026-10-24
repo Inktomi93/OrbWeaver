@@ -11,8 +11,8 @@ export const themeSwatchVariants = tv({
   variants: {
     /** The strip's own footprint: `row` is the menu-row leading chip; `card` is the wide head shape. */
     size: {
-      row: { strip: "h-(--size-glyph-sm) shrink-0", cell: "size-(--size-glyph-sm) flex-none" },
-      card: { strip: "h-(--size-preview-strip) w-full rounded-none border-0" },
+      row: { strip: "shrink-0 block-(--size-glyph-sm)", cell: "flex-none block-(--size-glyph-sm) inline-(--size-glyph-sm)" },
+      card: { strip: "rounded-none border-0 block-(--size-preview-strip) inline-full" },
     },
   },
   defaultVariants: { size: "row" },

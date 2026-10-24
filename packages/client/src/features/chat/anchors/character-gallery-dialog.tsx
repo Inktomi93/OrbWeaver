@@ -116,7 +116,7 @@ function GalleryGridBody(props: GalleryGridBodyProps): ReactElement {
       ariaLabel={galleryLabel}
       gapToken="row"
       onActivate={onActivate}
-      className="max-h-(--height-scroll-md) @cq-28:max-h-(--height-scroll-lg)"
+      className="max-block-(--height-scroll-md) @cq-28:max-block-(--height-scroll-lg)"
       ref={gridRef}
     />
   );

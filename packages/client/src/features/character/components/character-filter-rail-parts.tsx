@@ -126,7 +126,7 @@ export function TagVocabularyPanel({
         <Input
           aria-label="Filter tags"
           aria-controls={panelId}
-          className="min-w-0 flex-1"
+          className="flex-1 min-inline-0"
           onValueChange={setQuery}
           placeholder="Filter tags…"
           type="search"
@@ -212,7 +212,7 @@ export function TagFilterChip({
   return (
     // iOS WebKit fires no `contextmenu` on long-press, so touch gets a visible edit button beside the chip.
     // Fine pointers keep right-click and F2 and the rail's resting width.
-    <Row className="min-w-0 max-w-full" gap="tight">
+    <Row className="max-inline-full min-inline-0" gap="tight">
       <TagFilterChipButton onCycle={onCycle} presentation={presentation} state={state} tabIndex={tabIndex} tag={tag} />
       <Text as="span" className={SHOW_ONLY_AT_COARSE}>
         <EditableTagChip iconOnly={true} tag={tag} />
@@ -269,7 +269,7 @@ function TagFilterChipButton({
           also repaint the ink `text-foreground`, erasing the muted-vs-selected reading that tells an off
           chip from an on one at rest. The chip's intent + selection own the colour; this span owns only
           the clip. */}
-          <Text as="span" className="min-w-0 truncate text-inherit" voice="label">
+          <Text as="span" className="truncate text-inherit min-inline-0" voice="label">
             {tag.name}
           </Text>
         </Button>

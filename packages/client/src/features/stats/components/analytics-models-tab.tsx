@@ -50,7 +50,7 @@ export function AnalyticsModelsTab(): ReactElement {
     // scroller itself now survives the read instead of remounting with it. `relative` rides along: a scroll
     // box with no containing block dumps every `position:absolute` descendant into an ancestor's scrollable
     // area (the containing-block pin in the overview surface's CT is the class's fence).
-    <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" data-testid={testId("analyticsModelsTab")}>
+    <Stack className="relative flex-1 overflow-y-auto overscroll-contain min-block-0" data-testid={testId("analyticsModelsTab")}>
       <QueryBoundary
         fallback={<SkeletonRows count={3} shape="datum" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="model stats" onRetry={retry} />}
@@ -95,7 +95,7 @@ function ModelsBody(): ReactElement {
                     {...(modelName === model.model ? {} : { fullTitle: model.model })}
                     subtitle={`${model.provider ?? "unknown"} · ${formatCompactNoun(model.generations, "generation", "generations")} · ${model.charactersUsedWith === 1 ? "1 character" : `${model.charactersUsedWith} characters`}`}
                     actions={
-                      <Text voice="gloss" className="whitespace-nowrap font-mono">
+                      <Text voice="gloss" className="font-mono whitespace-nowrap">
                         {formatTokens(model.tokensOut, model.tokensOutProvenance)} · {formatUsd(model.costUsd)}
                       </Text>
                     }

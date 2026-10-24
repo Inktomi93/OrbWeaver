@@ -192,7 +192,7 @@ export function ConfigContentSurface({ groups }: ConfigContentSurfaceProps): Rea
     // a bounded flex box with NO overflow, so a member editor taller than the viewport — a 60-entry world
     // book is ~3600px — would simply have its tail unreachable. The footer sits BELOW the scroller and never
     // scrolls away (the settings shell's column, re-homed).
-    <Container className="h-full min-h-0">
+    <Container className="block-full min-block-0">
       {/* ONE GOVERNED INLINE GRID FOR THE COLUMN (#1099 F25 / N52). The footer was a bare SIBLING of the
           padded scroller, so the only save receipt on the surface rendered 24px OUTSIDE the content
           column — the reader's eye is on the control they just moved, and the answer arrived off-grid at
@@ -201,7 +201,7 @@ export function ConfigContentSurface({ groups }: ConfigContentSurfaceProps): Rea
           BLOCK inset stays INSIDE the scroller on purpose: it is scroll EXTENT, which the jump and the
           scroll-spy read — hoisting it shortened the scrollable tail and a distant section-row click
           landed on an intermediate section (caught by that CT, not by the eye). */}
-      <Stack className="h-full min-h-0 px-section" data-slot="config-pane" gap="row">
+      <Stack className="px-section block-full min-block-0" data-slot="config-pane" gap="row">
         {/* `relative` is LOAD-BEARING (owner dogfood 2026-08-13 — "the settings screen scrolls past the end
             of its results"): Base UI form primitives park `sr-only` boxes at `position:absolute`, and an
             `overflow` scroller only clips descendants whose CONTAINING BLOCK is inside it. THE COLUMN PADS,
@@ -212,7 +212,7 @@ export function ConfigContentSurface({ groups }: ConfigContentSurfaceProps): Rea
         {/* Reserve ring clearance inside the scroller without changing the column's content alignment. */}
         <Stack
           aria-label={regionLabel}
-          className="relative -mx-row h-full min-h-0 flex-1 overflow-y-auto overscroll-contain px-row py-section outline-none"
+          className="relative -mx-row flex-1 overflow-y-auto overscroll-contain px-row py-section outline-none block-full min-block-0"
           data-slot="config-content"
           ref={contentRef}
           role="region"
@@ -298,7 +298,7 @@ function ContentArm({ groups, selection, active, collection }: ContentArmProps):
       <Heading level={2} voice="masthead">
         {CONFIG_WELCOME.title}
       </Heading>
-      <Text className="max-w-(--reading-measure-prose)" voice="reading">
+      <Text className="max-inline-(--reading-measure-prose)" voice="reading">
         {CONFIG_WELCOME.teaching}
       </Text>
     </Stack>
@@ -425,7 +425,7 @@ function GroupBody({ group }: { readonly group: ConfigGroupDefinition }): ReactN
               stable semantic identity for a primary door. `aria-labelledby` over the two ids joins them
               with a space and keeps every visible word in the name (§13.10 N2). */}
           <CollapsibleTrigger aria-labelledby={fold.caption === undefined ? foldLabelId : `${foldLabelId} ${foldCaptionId}`} size="control">
-            <Row align="center" gap="field" className="min-w-0">
+            <Row align="center" gap="field" className="min-inline-0">
               {/* `interactiveKicker`, NOT `kicker` (#1216 class, #1632 item 3): this label IS the visible
                   name of a control, and `kicker` rides `--text-micro` (10.5px), under the 11px functional
                   floor for interactive copy. The voice beside it keeps the tracked instrument register while

@@ -78,7 +78,7 @@ function AnchoredThread({
           ],
         };
   return (
-    <Stack className="h-full min-h-0" gap="field">
+    <Stack className="block-full min-block-0" gap="field">
       <Row className="flex-wrap" gap="field">
         <Button
           aria-describedby={pagingDescription}

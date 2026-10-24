@@ -29,7 +29,7 @@ export interface LightboxProps {
 export function Lightbox({ open, onOpenChange, src, media, alt, dims, allowExternal }: LightboxProps): ReactElement {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogPopup className="max-w-cq-48 bg-transparent p-block shadow-none">
+      <DialogPopup className="bg-transparent p-block shadow-none max-inline-cq-48">
         <MessageMedia src={src} media={media} alt={alt} {...(dims === undefined ? {} : { dims })} {...(allowExternal === undefined ? {} : { allowExternal })} />
       </DialogPopup>
     </Dialog>

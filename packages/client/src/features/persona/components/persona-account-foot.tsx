@@ -23,7 +23,7 @@ export function PersonaAccountFoot(): ReactElement {
   const [signingOut, setSigningOut] = useState(false);
 
   if (config.data === undefined || me.data === undefined) {
-    return <Skeleton className="h-(--size-control-md) w-full" />;
+    return <Skeleton className="block-(--size-control-md) inline-full" />;
   }
 
   const { mode } = config.data;
@@ -35,7 +35,7 @@ export function PersonaAccountFoot(): ReactElement {
   return (
     <Stack gap="field" data-testid={testId("accountSurface")}>
       <Row gap="row" align="center">
-        <Text className="min-w-0 truncate" voice="label">
+        <Text className="truncate min-inline-0" voice="label">
           {handle === null ? "Signed in" : `Signed in as ${handle}`}
         </Text>
         {showRole ? <Badge>{role}</Badge> : null}

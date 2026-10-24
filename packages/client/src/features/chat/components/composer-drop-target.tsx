@@ -38,13 +38,13 @@ export function ComposerDropTarget({ dragActive, dropTargetProps, children }: Co
       // back in alpha: quiet enough to rest on for a whole session, and still a visible step past hover.
       className={cn(
         CHAT_TRACK,
-        "relative isolate rounded-card border border-border bg-card px-field py-field hover:border-input hover:bg-muted focus-within:border-ring/60 focus-within:bg-muted",
+        "relative isolate rounded-card border border-border bg-card p-field focus-within:border-ring/60 focus-within:bg-muted hover:border-input hover:bg-muted",
         // The DRAG-OVER paint is louder than focus on purpose: an armed drop target has to announce itself
         // for the moment a file hovers over it.
-        "data-[drag-over]:border-primary data-[drag-over]:bg-muted data-[drag-over]:ring-2 data-[drag-over]:ring-ring",
+        "data-drag-over:border-primary data-drag-over:bg-muted data-drag-over:ring-2 data-drag-over:ring-ring",
       )}
     >
-      <Stack className="min-w-0" data-slot="composer-content" gap="field">
+      <Stack className="min-inline-0" data-slot="composer-content" gap="field">
         {/* The drop AFFORDANCE — a designed state, not an afterthought: a drag over the composer is an empty
           state that has to name what will be taken (both media classes) or the highlight teaches nothing.
           Rendered in flow at the top of the card so it reads inside the surface it describes. */}
@@ -54,7 +54,7 @@ export function ComposerDropTarget({ dragActive, dropTargetProps, children }: Co
             align="center"
             justify="center"
             data-slot="composer-drop-affordance"
-            className="rounded-base border border-primary border-dashed py-field"
+            className="rounded-base border border-dashed border-primary py-field"
           >
             <Icon icon={ImagePlus} size="sm" />
             <Text voice="gloss">{DROP_AFFORDANCE}</Text>

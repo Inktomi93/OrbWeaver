@@ -75,7 +75,7 @@ function OverrideCollapseCard({ label, isSet, snippet, open, onOpenChange, onCle
   return (
     // `padding="none"`: the block padding lives on the trigger, so the whole row is one tap target (WCAG 2.5.8);
     // the snippet and panel carry their own inset. The card's top edge must hit the trigger (this component's CT).
-    <Card className={isSet ? "border-l-2 border-l-primary" : undefined} padding="none">
+    <Card className={isSet ? "border-s-2 border-s-primary" : undefined} padding="none">
       <Collapsible open={open} onOpenChange={onOpenChange}>
         {/* `size="control"` pins the pointer-conditional `--size-control-sm` floor (44px coarse / 32px
             fine). MEASURED at 411×40 under a coarse pointer with `::after` resolving `inset: auto` — no
@@ -85,7 +85,7 @@ function OverrideCollapseCard({ label, isSet, snippet, open, onOpenChange, onCle
             same reason; growing the floor on the VARIANT rather than with a call-site height is what keeps
             it pointer-conditional (a fine pointer's 32px is under the shipped 40px, so the desktop box is
             unchanged) and inside the `ui-size-via-variant` seal. */}
-        <CollapsibleTrigger className="w-full p-block" size="control" aria-label={`${label}, ${isSet ? "overridden" : "inheriting"}`}>
+        <CollapsibleTrigger className="p-block inline-full" size="control" aria-label={`${label}, ${isSet ? "overridden" : "inheriting"}`}>
           <Row align="center" gap="field" justify="between" className="flex-1">
             <Text voice="label">{label}</Text>
             <Text voice="gloss">{isSet ? "overridden" : "inheriting"}</Text>
@@ -96,14 +96,14 @@ function OverrideCollapseCard({ label, isSet, snippet, open, onOpenChange, onCle
           // CONTENT box while `overflow: hidden` clips at the PADDING box, so a `pb-block` on the clamped
           // element is ~12px of visible area below the clamp point that the clamped-away line 2 paints
           // into. The injections-manager site carries the full derivation.
-          <Stack className="px-block pb-block">
+          <Stack className="px-block pbe-block">
             <Text voice="gloss" className="line-clamp-1">
               {snippet}
             </Text>
           </Stack>
         ) : null}
         <CollapsiblePanel>
-          <Stack gap="field" className="px-block pb-block">
+          <Stack gap="field" className="px-block pbe-block">
             {children}
             <Row align="center" gap="field">
               {disabled ? null : (

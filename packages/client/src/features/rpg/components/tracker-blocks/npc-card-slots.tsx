@@ -124,7 +124,7 @@ function NpcGuides({ name, appearance, outfit, thoughts, onEditGuide }: NpcGuide
   return (
     <Stack gap="field" data-slot="npc-guides">
       {shown.map(({ field, text }) => (
-        <Row key={field} gap="field" align="baseline" className="min-w-0">
+        <Row key={field} gap="field" align="baseline" className="min-inline-0">
           <Text as="span" size="micro" tone="muted" className="shrink-0">
             {field}
           </Text>
@@ -140,7 +140,7 @@ function NpcGuides({ name, appearance, outfit, thoughts, onEditGuide }: NpcGuide
               tone="muted"
               onEdit={(next): void => onEditGuide(field, next)}
               wrap={true}
-              className={`max-w-full field-sizing-content ${GUIDE_CLASS[field]}`}
+              className={`field-sizing-content max-inline-full ${GUIDE_CLASS[field]}`}
               width="auto"
               restClassName={GUIDE_CLASS[field]}
             />
@@ -167,7 +167,7 @@ function NpcMood({ name, mood, onEditMood }: NpcMoodProps): ReactElement | null 
     // name+badge half under shrink pressure, collapsing the pill under the mood label (owner scene-jank
     // screenshot, 08-01). justify-end keeps the slot hugging the card's right edge like the mock.
     return (
-      <Row gap="field" align="baseline" className="min-w-0 flex-1 justify-end">
+      <Row gap="field" align="baseline" className="flex-1 justify-end min-inline-0">
         <Text as="span" size="micro" tone="muted" className="shrink-0">
           mood
         </Text>
@@ -178,7 +178,7 @@ function NpcMood({ name, mood, onEditMood }: NpcMoodProps): ReactElement | null 
           placeholder={UNSET_DATUM}
           onEdit={onEditMood}
           wrap={true}
-          className="min-w-0 max-w-full field-sizing-content"
+          className="field-sizing-content max-inline-full min-inline-0"
           width="auto"
         />
       </Row>
@@ -188,7 +188,7 @@ function NpcMood({ name, mood, onEditMood }: NpcMoodProps): ReactElement | null 
     return null;
   }
   return (
-    <Text as="span" size="label" tone="muted" className="min-w-0 break-words">
+    <Text as="span" size="label" tone="muted" className="wrap-break-word min-inline-0">
       mood — {mood}
     </Text>
   );
@@ -260,7 +260,7 @@ export function NpcCard({
     <Card tone="neutral">
       <Stack gap="block" data-slot="npc-card">
         <Row justify="between" align="baseline" gap="block">
-          <Row gap="field" align="center" className="min-w-0">
+          <Row gap="field" align="center" className="min-inline-0">
             {emoji === undefined || emoji === "" ? null : (
               <Text as="span" size="label" aria-hidden={true} className="shrink-0">
                 {emoji}

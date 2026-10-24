@@ -147,7 +147,7 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
     <Surface tier="form">
       {/* The full-width scroller owns the section inset so swipe shelves can extend to the screen edge. */}
       <Stack
-        className={`${SCROLL_FADE_Y_CLASS} relative h-full min-h-0 overflow-y-auto overscroll-contain px-section pt-section pb-gutter outline-none`}
+        className={`${SCROLL_FADE_Y_CLASS} relative overflow-y-auto overscroll-contain px-section pbs-section pbe-gutter outline-none block-full min-block-0`}
         gap="section"
         ref={surfaceRef}
         tabIndex={-1}
@@ -155,7 +155,7 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
         {/* NO `size`: the container-query context survives (the split answers to THIS pane's inline size,
             never the viewport — the shell's docked panels narrow it independently) and the max-width cap
             that was eating 37% of the page goes. */}
-        <Container className="w-full">
+        <Container className="inline-full">
           {list.length === 0 ? (
             <EmptyState
               action={
@@ -183,12 +183,12 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                     measured). The shelf paid for it: its face grid dropped from three fixed cells to two and
                     the page grew 1374px against 1177px. The declared ratio only means anything on tracks that
                     are allowed to shrink below their content. */}
-                <Stack className="min-w-0" gap="section" ref={hearthRef}>
+                <Stack className="min-inline-0" gap="section" ref={hearthRef}>
                   {hearth.map((tile) => (
                     <HomeTile column="hearth" key={tile.id} tile={tile} />
                   ))}
                 </Stack>
-                <Stack className="group/shelf min-w-0 has-[[data-home-held]]:invisible" data-home-shelf={true} gap="section" ref={shelfRef}>
+                <Stack className="group/shelf min-inline-0 has-data-home-held:invisible" data-home-shelf={true} gap="section" ref={shelfRef}>
                   {shelfLead.map((tile) => (
                     <HomeTile column="shelf" key={tile.id} tile={tile} />
                   ))}
@@ -205,14 +205,16 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                       last tile pairs beside the tile before it instead, and stacked, both span the foot. */}
                   <Grid className="grid-flow-row-dense items-start" cols="pairWide" data-home-shelf-foot={true} gap="gutter" ref={footRef}>
                     {shelfFootSide.map((tile) => (
-                      <Stack className="col-span-full min-w-0 group-data-[foot=paired]/shelf:col-auto" key={tile.id}>
+                      <Stack className="col-span-full min-inline-0 group-data-[foot=paired]/shelf:col-auto" key={tile.id}>
                         <HomeTile column="shelf" tile={tile} />
                       </Stack>
                     ))}
                     {shelfFoot.map((tile) => (
                       <Stack
                         className={
-                          hasFold ? "min-w-0 group-data-[foot=paired]/shelf:row-span-2" : "col-span-full min-w-0 group-data-[foot=paired]/shelf:col-auto"
+                          hasFold
+                            ? "min-inline-0 group-data-[foot=paired]/shelf:row-span-2"
+                            : "col-span-full min-inline-0 group-data-[foot=paired]/shelf:col-auto"
                         }
                         key={tile.id}
                       >

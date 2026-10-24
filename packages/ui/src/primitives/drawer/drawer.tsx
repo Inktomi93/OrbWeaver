@@ -166,5 +166,5 @@ export function DrawerVirtualKeyboardProvider(props: BaseVirtualKeyboardProvider
  * lands where the opening tap was cannot take a second press as its own. Empty and hidden from AT.
  */
 export function DrawerTapGuard(): ReactElement {
-  return <div aria-hidden={true} className="h-(--dimension-rail) shrink-0" data-slot="drawer-tap-guard" />;
+  return <div aria-hidden={true} className="shrink-0 block-(--dimension-rail)" data-slot="drawer-tap-guard" />;
 }

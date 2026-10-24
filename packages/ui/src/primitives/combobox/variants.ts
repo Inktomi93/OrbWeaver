@@ -16,14 +16,17 @@ import {
 export const comboboxVariants = tv({
   slots: {
     inputGroup: [
-      "relative flex min-h-(--size-control-sm) w-full min-w-0 flex-wrap items-center gap-field rounded-control border border-input-border bg-field-fill px-field py-field",
+      `
+        relative flex flex-wrap items-center gap-field rounded-control border border-input-border bg-field-fill p-field inline-full
+        min-block-(--size-control-sm) min-inline-0
+      `,
       "transition-colors duration-(--motion-fast) ease-out-expo",
       FOCUS_RING_WITHIN,
       "has-data-disabled:pointer-events-none has-data-disabled:opacity-50",
     ],
     chips: "contents",
     chip: [
-      "inline-flex items-center gap-field rounded-full bg-secondary py-field pr-field pl-block text-label leading-label text-secondary-foreground outline-none",
+      "inline-flex items-center gap-field rounded-full bg-secondary py-field ps-block pe-field text-label leading-label text-secondary-foreground outline-none",
       FOCUS_RING,
       "data-disabled:opacity-50",
     ],
@@ -34,11 +37,11 @@ export const comboboxVariants = tv({
       DISABLED_STATE_NATIVE,
     ],
     input: [
-      "min-w-(--width-title-floor) flex-1 bg-transparent px-field py-field text-field leading-field text-foreground outline-none",
+      "flex-1 bg-transparent p-field text-field leading-field text-foreground outline-none min-inline-(--width-title-floor)",
       "placeholder:text-muted-foreground",
     ],
     positioner: "z-(--z-popover) outline-none",
-    popup: [POPUP_SURFACE, "w-(--anchor-width)", OVERLAY_MOTION.anchoredPopup],
+    popup: [POPUP_SURFACE, "inline-(--anchor-width)", OVERLAY_MOTION.anchoredPopup],
     arrow: OVERLAY_ARROW,
     list: "flex flex-col gap-field",
     // Grouped suggestions — same spellings as the autocomplete seal's group/groupLabel, since the two

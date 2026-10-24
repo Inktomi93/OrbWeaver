@@ -152,7 +152,12 @@ const CLUSTER_SLOTS = 3;
  */
 function clusterSpacers(rendered: number, reserved: number): readonly ReactElement[] {
   return Array.from({ length: Math.max(0, Math.min(reserved, CLUSTER_SLOTS) - rendered) }, (_unused, at) => (
-    <Row aria-hidden={true} className="size-(--size-control-md) shrink-0" data-slot="library-row-cluster-spacer" key={`cluster-spacer-${String(at)}`} />
+    <Row
+      aria-hidden={true}
+      className="shrink-0 block-(--size-control-md) inline-(--size-control-md)"
+      data-slot="library-row-cluster-spacer"
+      key={`cluster-spacer-${String(at)}`}
+    />
   ));
 }
 

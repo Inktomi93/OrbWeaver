@@ -93,11 +93,11 @@ export function PresetEditorHeader({
           measured is a THIRD, deeper column: the Params deck's own 720px instrument cap
           (`params-deck.tsx`, side-eye 2026-08-19 P2), which is why the offset shows on Params and on no
           other tab. Fenced by a CT; the deck's cap is argued at its own site. */}
-      <Stack gap="block" className="py-block sticky top-0 z-(--z-raised) bg-card">
-        <Container className="w-full">
-          <Stack className="mx-auto w-full max-w-(--width-content-col) @cq-64:max-w-(--width-content-col-wide)" gap="block">
+      <Stack gap="block" className="sticky inset-bs-0 z-(--z-raised) bg-card py-block">
+        <Container className="inline-full">
+          <Stack className="mx-auto inline-full max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)" gap="block">
             <Row align="center" justify="between" gap="field">
-              <Row align="center" className="min-w-0" gap="field">
+              <Row align="center" className="min-inline-0" gap="field">
                 {/* The artifact's NAME is an h2 (side-eye F-28 / ARIA rec 8): it was a <p>, with the view's
                     kickers as h3s under no h2 at all, so heading navigation could not find the thing being
                     edited. It now RENDERS like the title it is (crunch-list 13): `voice="label"` held it at
@@ -114,7 +114,7 @@ export function PresetEditorHeader({
                     question (a viewport media query, not the content container's width): between 30rem and
                     the mobile breakpoint the topbar renders its WIDE arm, which for Presets is nothing at
                     all while the list is docked, so hiding on that signal would lose the name outright. */}
-                <Heading className="min-w-(--width-title-floor) shrink truncate" data-shell-identity="defer" level={2}>
+                <Heading className="shrink truncate min-inline-(--width-title-floor)" data-shell-identity="defer" level={2}>
                   {presetName}
                 </Heading>
                 {/* THE NAME HAS A DOOR HERE (#483, side-eye 2026-08-22 flow verdict 1). `New` mints a preset
@@ -231,7 +231,7 @@ export function PresetEditorHeader({
                 that halo needs, paid once, here. `.scroll-fade-x` is `@orb/ui`'s own edge-fade recipe
                 (globals.css), driven by the hook per its stated consumer contract: an edge dissolves only
                 while it is actually hiding something. */}
-            <Row className={`${SCROLL_FADE_X_CLASS} min-w-0 overflow-x-auto py-tight`} ref={stripRef}>
+            <Row className={`${SCROLL_FADE_X_CLASS} overflow-x-auto py-tight min-inline-0`} ref={stripRef}>
               {/* THE STRIP NAMES ITSELF (side-eye 2026-08-22 P3-4). Without this the tablist's accessible
                   name computed from its own contents — `ParamsPromptActionsDataTransforms` — which was
                   the ONE element of 112 mapped controls on this surface that resolved to a DOM-path

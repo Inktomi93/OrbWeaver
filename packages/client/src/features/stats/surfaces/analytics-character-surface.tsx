@@ -49,13 +49,13 @@ export function AnalyticsCharacterSurface({ characterId, onBack }: AnalyticsChar
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" data-testid={testId("analyticsCharacterSurface")}>
+    <Stack ref={surfaceRef} tabIndex={-1} className="outline-none block-full min-block-0" data-testid={testId("analyticsCharacterSurface")}>
       {/* THE SCROLL BOX IS THE SURFACE'S, NOT THE BODY'S (#1727, the #1133 hoist — `character-editor-surface`
           paid for the class first). `reserveKey`'s measuring Stack is auto-height, so a scroller under the
           boundary resolves `h-full` to `auto` and the surface stops scrolling; hoisted, the measuring wrapper
           sits INSIDE the scroller and the scroller survives the read. The inset and the `analytics-content`
           slot ride the scroller, which is where #1200 put them. */}
-      <Stack className="relative h-full min-h-0 overflow-y-auto overscroll-contain py-section" data-slot="analytics-content">
+      <Stack className="relative overflow-y-auto overscroll-contain py-section block-full min-block-0" data-slot="analytics-content">
         <QueryBoundary
           fallback={<SkeletonRows count={3} shape="datum" />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="these stats" onRetry={retry} />}
@@ -186,7 +186,7 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
 
       <Collapsible>
         <CollapsibleTrigger>Details</CollapsibleTrigger>
-        <CollapsiblePanel className="pt-row">
+        <CollapsiblePanel className="pbs-row">
           <Grid cols="cell" gap="block">
             <StatFigure label={LATENCY_LABELS.avgTtft} value={formatMs(latency.avgTtftMs)} />
             <StatFigure label={LATENCY_LABELS.p50Ttft} value={formatMs(latency.p50TtftMs)} />

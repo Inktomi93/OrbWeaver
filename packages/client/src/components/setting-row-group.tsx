@@ -41,7 +41,7 @@ export function SettingRowGroup({ children }: { readonly children: ReactNode }):
             `gap-x-block` is the label→control gutter; `gap-y-block` keeps the between-row rhythm the
             Section's own `gap-block` used to give
             these rows when they were its direct children. */}
-        <Grid className="max-w-(--reading-measure) gap-x-block gap-y-block" cols="settingTrack" data-slot="setting-row-group">
+        <Grid className="gap-block max-inline-(--reading-measure)" cols="settingTrack" data-slot="setting-row-group">
           {children}
         </Grid>
       </FieldLayout>

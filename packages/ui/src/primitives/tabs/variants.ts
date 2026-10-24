@@ -13,13 +13,16 @@ import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_INSET, tv } from "#lib";
 // `border border-border` precedent) — a 1px track + a 2px bar aren't worth a token each.
 export const tabsVariants = tv({
   slots: {
-    root: "flex w-full flex-col gap-block data-[orientation=vertical]:flex-row",
+    root: "flex flex-col gap-block inline-full data-[orientation=vertical]:flex-row",
     list: [
-      "relative inline-flex w-fit items-center gap-block border-b border-border",
+      "relative inline-flex items-center gap-block border-be border-border inline-fit",
       "data-[orientation=vertical]:flex-col data-[orientation=vertical]:items-stretch",
     ],
     tab: [
-      "relative z-(--z-raised) inline-flex cursor-pointer select-none items-center justify-center gap-field whitespace-nowrap text-label font-medium leading-label text-muted-foreground",
+      `
+        relative z-(--z-raised) inline-flex cursor-pointer items-center justify-center gap-field text-label leading-label font-medium whitespace-nowrap
+        text-muted-foreground select-none
+      `,
       "transition-colors duration-(--motion-fast) ease-out-expo hover:text-foreground",
       // The focus ring is per-LAYOUT (see the `layout` variant): a strip tab takes the offset ring every
       // control wears; a rail cell takes the INSET one, because its list can become a scroll box.
@@ -38,7 +41,10 @@ export const tabsVariants = tv({
     // switch that the app's own `[anim]` flagger correctly convicted under guide §3.7. `origin-left`
     // pins the FLIP's scale to the bar's leading edge, which is where the left var measures from.
     indicator: [
-      "absolute bottom-0 left-(--active-tab-left) z-(--z-raised) h-(--border-width-accent) w-(--active-tab-width) origin-left rounded-full bg-primary",
+      `
+        absolute inset-s-(--active-tab-left) inset-be-0 z-(--z-raised) origin-left rounded-full bg-primary block-(--border-width-accent)
+        inline-(--active-tab-width)
+      `,
       "transition-[transform] duration-(--motion-base) ease-out-expo",
     ],
     // The panel is FOCUSABLE (Base UI gives it tabindex=0 so a keyboard user can reach its content by
@@ -47,7 +53,7 @@ export const tabsVariants = tv({
     // not the offset FOCUS_RING every control wears: a panel fills its container edge-to-edge (context
     // panels, the rpg HUD), so an outward `ring-offset-2` halo paints into — and is clipped by — the
     // scroll parent, i.e. the ring would be invisible exactly where the panel is used. Inset always paints.
-    panel: ["w-full text-body leading-body text-foreground", "outline-none", FOCUS_RING_INSET],
+    panel: ["text-body leading-body text-foreground inline-full", "outline-none", FOCUS_RING_INSET],
   },
   variants: {
     // THE TAB CELL'S ARRANGEMENT — and, with it, its height rule. `inline` is the strip tab: one row, the
@@ -63,7 +69,7 @@ export const tabsVariants = tv({
     // is the variant plus the `ui-size-via-variant` gate, never a merge accident. A sealed size can only be
     // overridden HERE, the button `size="media"` precedent (F2).
     layout: {
-      inline: { tab: `h-(--size-control-sm) px-block ${FOCUS_RING}` },
+      inline: { tab: `px-block block-(--size-control-sm) ${FOCUS_RING}` },
       // `min-w-(--size-touch-target)` is the WIDTH half of the same floor the height already carries, and it is
       // sealed here for the same reason (side-eye 2026-08-07 §① P2). The rpg rail put the cells on
       // `grid-auto-columns: max-content` at a coarse pointer and three of six came out 34-43px wide — a
@@ -84,7 +90,7 @@ export const tabsVariants = tv({
       // was rebuilt for, and it is CT-pinned. The fork lives HERE rather than as an override appended to the
       // base, so each arm composes exactly one homed `lib/focus-ring.ts` fragment and neither has to
       // neutralise the other's offset.
-      stacked: { tab: `h-auto min-h-(--size-control-sm) min-w-(--size-touch-target) flex-col gap-0 px-field py-field ${FOCUS_RING_INSET}` },
+      stacked: { tab: `flex-col gap-0 p-field block-auto min-block-(--size-control-sm) min-inline-(--size-touch-target) ${FOCUS_RING_INSET}` },
     },
   },
   defaultVariants: { layout: "inline" },

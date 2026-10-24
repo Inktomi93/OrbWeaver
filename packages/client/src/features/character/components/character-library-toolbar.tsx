@@ -69,7 +69,7 @@ export function CharacterLibraryToolbar({ query, onQueryChange }: CharacterLibra
         <ListSearch>
           <Input
             aria-label="Search characters"
-            className="min-w-(--width-field-floor) flex-1"
+            className="flex-1 min-inline-(--width-field-floor)"
             onValueChange={onQueryChange}
             placeholder="Search characters…"
             value={query}
@@ -82,7 +82,7 @@ export function CharacterLibraryToolbar({ query, onQueryChange }: CharacterLibra
         <Select
           aria-label="Sort characters"
           // Content-width field Select leaves room for the filter; inline layout would also remove its field chrome.
-          className="w-auto"
+          className="inline-auto"
           items={SORT_ITEMS}
           onValueChange={(value): void => {
             if (value !== null) {

@@ -42,7 +42,11 @@ export const menuVariants = tv({
     // bottom rows become unreachable (no scroll: the popup itself has no overflow). Every long-list seal
     // already gets this via `POPUP_SURFACE`; Menu spells its own surface, so it had neither the cap nor
     // the scroller. Overscroll is contained so wheeling past the last item does not scroll the page.
-    popup: `relative max-h-(--available-height) overflow-y-auto overscroll-contain rounded-card border border-border bg-popover p-field text-popover-foreground shadow-overlay ${OVERLAY_MOTION.anchoredPopup}`,
+    popup: `
+      relative overflow-y-auto overscroll-contain rounded-card border border-border bg-popover p-field text-popover-foreground shadow-overlay
+      max-block-(--available-height)
+      ${OVERLAY_MOTION.anchoredPopup}
+    `,
     item: `${itemBase} ${LEADING_GUTTER}`,
     checkboxItem: itemBase,
     radioItem: itemBase,
@@ -57,10 +61,10 @@ export const menuVariants = tv({
     submenuChevron: "ms-auto inline-flex shrink-0 items-center justify-center text-foreground",
     arrow: OVERLAY_ARROW,
     backdrop: SCRIM("popover"),
-    separator: "my-field border-t border-border",
+    separator: "my-field border-bs border-border",
     // A labeled group of related rows — the label is the group heading (Base UI wires the
     // aria-labelledby group↔label association from nesting), styled as a muted section caption.
     group: "",
-    groupLabel: "px-row pt-field pb-field text-label leading-label font-medium text-muted-foreground",
+    groupLabel: "px-row py-field text-label leading-label font-medium text-muted-foreground",
   },
 });

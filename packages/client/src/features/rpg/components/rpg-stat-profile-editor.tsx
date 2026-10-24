@@ -59,7 +59,7 @@ function AttributeRow({
               onCommit({ ...attr, label: trimmed });
             }
           }}
-          className="min-w-0 flex-1"
+          className="flex-1 min-inline-0"
         />
         <Badge tone="soft" size="sm" title="the machine name the sheet stores this value under — minted once, kept through renames">
           {attr.key}
@@ -105,7 +105,7 @@ function RangeRow({ profile, onCommit }: { readonly profile: RpgStatProfile; rea
             onCommit({ ...profile, range: { min: n, max: Math.max(n + 1, profile.range.max) } });
           }
         }}
-        className="px-field text-right tabular-nums"
+        className="px-field text-end tabular-nums"
         width="avatar-lg"
         restClassName="tabular-nums"
       />
@@ -123,7 +123,7 @@ function RangeRow({ profile, onCommit }: { readonly profile: RpgStatProfile; rea
             onCommit({ ...profile, range: { min: profile.range.min, max: Math.max(profile.range.min + 1, n) } });
           }
         }}
-        className="px-field text-right tabular-nums"
+        className="px-field text-end tabular-nums"
         width="avatar-lg"
         restClassName="tabular-nums"
       />

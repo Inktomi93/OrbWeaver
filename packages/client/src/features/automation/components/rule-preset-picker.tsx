@@ -154,7 +154,7 @@ function RulePresetList({ presets, onPick }: RulePresetListProps): ReactElement 
           // A call-site `h-auto` would defeat the sealed box (`ui-size-via-variant`); the
           // `message-choices-block` chip is the same shape and spells it the same way.
           size="wrap"
-          className="justify-start text-left"
+          className="justify-start text-start"
           onClick={(): void => onPick(preset)}
         >
           <Stack gap="tight">

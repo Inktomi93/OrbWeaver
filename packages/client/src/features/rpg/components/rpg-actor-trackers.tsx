@@ -173,7 +173,7 @@ function ActorTrackerText({
         display={display}
         placeholder={UNSET_DATUM}
         {...(edit === undefined ? {} : { onEdit: (next: string): void => edit.onEditTrackerText(def.key, next) })}
-        className="min-w-0 flex-1 text-right"
+        className="flex-1 text-end min-inline-0"
       />
     </Row>
   );
@@ -261,7 +261,7 @@ export function StatusLine({ status, subject, edit }: { readonly status: string;
     // measurement): a text-height value's 44px hit pseudo overflows into whatever is stacked within 44px of
     // it, and on a just-started game the `+ condition` control one row down took all but ONE COLUMN of this
     // dash's pixels. Floored, each row's pseudo fits inside its own band.
-    <Row gap="field" align="center" className={`min-w-0 ${VALUE_ROW_TOUCH_FLOOR_AT_COARSE}`}>
+    <Row gap="field" align="center" className={`min-inline-0 ${VALUE_ROW_TOUCH_FLOOR_AT_COARSE}`}>
       <TrackerValue
         ariaLabel={trackerFieldName("Status line", subject)}
         display={status}
@@ -269,7 +269,7 @@ export function StatusLine({ status, subject, edit }: { readonly status: string;
         tone="muted"
         size="label"
         onEdit={edit.onEditStatus}
-        className="min-w-0 max-w-full field-sizing-content"
+        className="field-sizing-content max-inline-full min-inline-0"
         width="auto"
       />
       {edit.isLocked(".status") ? (
@@ -353,7 +353,7 @@ export function ConditionChips({
               onAdd(trimmed);
             }
           }}
-          className="w-(--width-control-col)"
+          className="inline-(--width-control-col)"
         />
       )}
     </Row>

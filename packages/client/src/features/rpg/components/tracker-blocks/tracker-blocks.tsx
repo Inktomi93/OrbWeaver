@@ -71,7 +71,7 @@ export function StatCell({ label, value, hint, onEditValue }: StatCellProps): Re
             // `text-title` keeps the revealed input at the SAME type size as the big rest value — no
             // font-size jump inside the fixed cell (the no-layout-shift bar). The REST state hugs its
             // number (no fixed width — `w-(--size-avatar-md)` inside the padded button ellipsized a 2-digit value).
-            className="w-(--size-avatar-md) text-center text-title leading-title tabular-nums"
+            className="text-center text-title leading-title tabular-nums inline-(--size-avatar-md)"
             restClassName="text-center text-title leading-title tabular-nums"
           />
         )}
@@ -118,7 +118,7 @@ export function TrackerChip({ label, value, subject, guide = false, onEditValue 
           ariaLabel={subject === undefined ? `${label} value` : `${subject} ${label}`}
           display={value}
           onEdit={onEditValue}
-          className="min-w-0 max-w-full field-sizing-content"
+          className="field-sizing-content max-inline-full min-inline-0"
           width="auto"
           restClassName="min-w-0 max-w-full"
         />
@@ -152,7 +152,7 @@ export function BeatLine({ children }: BeatLineProps): ReactElement {
       {/* min-w-0: the content is model-authored free text (journal beats, recent events) with no length
           contract — as a flex child it must be allowed to shrink so its inline content WRAPS; without it
           the line forces the tab wide (owner horizontal-scrollbar report, 08-01). */}
-      <Text as="span" size="label" tone="muted" className="min-w-0 break-words">
+      <Text as="span" size="label" tone="muted" className="wrap-break-word min-inline-0">
         {children}
       </Text>
     </Text>
@@ -179,13 +179,13 @@ interface GoalLineProps {
 /** A free-text objective with an optional `n/m` clock; done ⇒ struck through (§3.2). */
 export function GoalLine({ text, done = false, clock, onEditText }: GoalLineProps): ReactElement {
   return (
-    <Row justify="between" align="baseline" gap="block" className="min-w-0 flex-1" data-slot="goal-line">
+    <Row justify="between" align="baseline" gap="block" className="flex-1 min-inline-0" data-slot="goal-line">
       {onEditText === undefined ? (
-        <Text as="span" size="label" className={done ? "min-w-0 truncate text-muted-foreground line-through" : "min-w-0 truncate"}>
+        <Text as="span" size="label" className={done ? "truncate text-muted-foreground line-through min-inline-0" : "truncate min-inline-0"}>
           {text}
         </Text>
       ) : (
-        <TrackerValue ariaLabel="Goal" display={text} onEdit={onEditText} className="w-full" />
+        <TrackerValue ariaLabel="Goal" display={text} onEdit={onEditText} className="inline-full" />
       )}
       {clock === undefined ? null : (
         <Text as="span" size="label" tone="muted" className="tabular-nums">

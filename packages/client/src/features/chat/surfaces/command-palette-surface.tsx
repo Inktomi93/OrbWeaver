@@ -101,13 +101,13 @@ export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfacePro
   };
 
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} className="outline-none h-full">
+    <Stack ref={surfaceRef} tabIndex={-1} className="outline-none block-full">
       {/* The registered commands' invisible runner mounts — the palette is a slash-command host too. */}
       {slash.mounts}
       {/* One ranking across every group: a row whose label or keyword equals or starts with the query outranks
           any fuzzy hit, whichever source declared it. */}
       <Command
-        className="rounded-card border shadow-overlay h-full flex flex-col"
+        className="flex flex-col rounded-card border shadow-overlay block-full"
         filter={declaredTermFirstFilter}
         label="Command palette"
         onEscape={closeModal}
@@ -236,7 +236,7 @@ function PaletteSourceGroup({ source, context, onRun }: PaletteSourceGroupProps)
               <Text as="span" className="sr-only">
                 {BADGE_SEPARATOR}
               </Text>
-              <Text as="span" className="ml-auto" voice="gloss">
+              <Text as="span" className="ms-auto" voice="gloss">
                 {row.badge}
               </Text>
             </>

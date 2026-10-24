@@ -24,7 +24,7 @@ export function ReauthForm(): ReactElement {
           before `/api/auth/config` lands would bake in a blank prefill that never corrects itself. Wait for
           the read (the AccountSurface precedent) rather than ship a field the user has to retype. */}
       {config.data === undefined ? (
-        <Skeleton className="h-(--size-control-md) w-full" />
+        <Skeleton className="block-(--size-control-md) inline-full" />
       ) : (
         <LoginLocalForm
           defaultHandle={config.data.defaultHandle}

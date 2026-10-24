@@ -96,7 +96,7 @@ function RegexMemberEditorBody({
           THREE classes (#1664 — centered, capped, breathing to `--width-content-col-wide` past `@5xl`);
           the tag editor's twin carries the argument and the measured pane widths. */}
       <Stack
-        className="mx-auto w-full max-w-(--width-content-col) @cq-64:max-w-(--width-content-col-wide) outline-none"
+        className="mx-auto outline-none inline-full max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)"
         data-slot="regex-member-editor"
         gap="block"
         ref={surfaceRef}

@@ -6,7 +6,7 @@ import { ACCENT_HOVER, CHIP_BOX, CONTROL_SIZE, DISABLED_STATE, DISABLED_STATE_NA
 // Button) so the ≥44px touch floor holds by construction (§4b axis 3).
 export const toggleVariants = tv({
   base: [
-    "inline-flex select-none items-center justify-center gap-field whitespace-nowrap font-sans font-medium text-muted-foreground",
+    "inline-flex items-center justify-center gap-field font-sans font-medium whitespace-nowrap text-muted-foreground select-none",
     `transition-colors duration-(--motion-fast) ease-out-expo ${ACCENT_HOVER}`,
     "outline-none",
     FOCUS_RING,

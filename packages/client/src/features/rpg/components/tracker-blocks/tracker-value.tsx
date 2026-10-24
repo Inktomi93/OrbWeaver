@@ -88,9 +88,9 @@ function TrackerValueRest({
       // width/alignment classes still apply so the rest state lines up with the read-only arm. The
       // TRANSPARENT border reserves the edit input's 1px border box, so the click-to-reveal swap is
       // pixel-stable — no layout jump (the owner no-shift bar).
-      className={`gap-0 border border-transparent px-field text-left ${className}`}
+      className={`gap-0 border border-transparent px-field text-start ${className}`}
     >
-      <Text as="span" size={size} tone={empty ? "muted" : tone} className={wrap ? "min-w-0 whitespace-normal break-words" : "truncate"}>
+      <Text as="span" size={size} tone={empty ? "muted" : tone} className={wrap ? "wrap-break-word whitespace-normal min-inline-0" : "truncate"}>
         {restText}
       </Text>
     </Button>

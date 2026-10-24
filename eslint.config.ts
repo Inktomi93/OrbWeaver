@@ -33,7 +33,12 @@ const SOURCE = ["packages/*/src/**/*.{ts,tsx}", "tooling/src/**/*.{ts,tsx}"];
 // `(--namespace-name)` form is the one spelling for every axis and the bare forms are refused.
 const BARE_NAMESPACE_UTILITIES = Object.keys(TOKENS).flatMap((path) => {
   const [group, name] = [path.slice(0, path.indexOf(".")), path.slice(path.indexOf(".") + 1)];
-  const roots = { size: ["size"], height: ["h", "min-h", "max-h"], width: ["w", "min-w", "max-w"] }[group] ?? [];
+  const roots =
+    {
+      size: ["size"],
+      height: ["h", "min-h", "max-h", "block", "min-block", "max-block"],
+      width: ["w", "min-w", "max-w", "inline", "min-inline", "max-inline"],
+    }[group] ?? [];
   return roots.map((root) => `${root}-${name}`);
 });
 const RESTRICTED_CLASSES = [

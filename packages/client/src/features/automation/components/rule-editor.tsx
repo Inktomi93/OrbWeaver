@@ -80,7 +80,7 @@ export function RuleEditor({
   const serverValues = confirmed === null ? emptyRuleEditor(chatId) : keepRowIdentities(ruleEditorValues(editableRule(confirmed), identity), submitted);
   return (
     // Capped at the editor content column: in the full-width library pane the fields otherwise stretch past 800px.
-    <Card ref={surface} role="region" aria-label="Rule editor" tabIndex={-1} className="w-full max-w-(--width-content-col)">
+    <Card ref={surface} role="region" aria-label="Rule editor" tabIndex={-1} className="inline-full max-inline-(--width-content-col)">
       <RuleForm entityId={identity} serverValues={serverValues} save={saveRemembered}>
         {(session): ReactElement => (
           <Stack gap="section">

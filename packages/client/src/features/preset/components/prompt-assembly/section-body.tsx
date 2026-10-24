@@ -126,7 +126,7 @@ function TemplateNoteDetail({ detail }: { readonly detail: { readonly label: str
       <Button
         aria-controls={bodyId}
         aria-expanded={open}
-        className="self-start gap-tight"
+        className="gap-tight self-start"
         intent="ghost"
         onClick={(): void => setOpen((prev) => !prev)}
         size="sm"
@@ -163,7 +163,7 @@ function CarrierBody({ form, section }: { readonly form: AssemblyForm; readonly 
       <Card tone="muted">
         <Row align="start" gap="row">
           <Icon icon={Info} size="sm" />
-          <Stack className="min-w-0" gap="tight">
+          <Stack className="min-inline-0" gap="tight">
             <Text voice="label">{attribution.sentence}</Text>
             {manage === undefined ? null : (
               <Button className="self-start" intent="ghost" onClick={(): void => openConfigTo(manage.collection)} size="sm" type="button">

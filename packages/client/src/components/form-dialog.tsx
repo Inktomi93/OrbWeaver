@@ -134,7 +134,7 @@ export function FormDialog({
         {closeButton ? (
           <DialogClose
             render={
-              <Button aria-label="Close" className="absolute end-field top-field" intent="ghost" size="icon" type="button">
+              <Button aria-label="Close" className="absolute inset-e-field inset-bs-field" intent="ghost" size="icon" type="button">
                 <Icon icon={X} size="sm" />
               </Button>
             }

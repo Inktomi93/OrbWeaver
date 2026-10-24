@@ -8,8 +8,8 @@ export const separatorVariants = tv({
   base: "shrink-0 bg-border",
   variants: {
     orientation: {
-      horizontal: "h-px w-full",
-      vertical: "h-full w-px",
+      horizontal: "block-px inline-full",
+      vertical: "block-full inline-px",
     },
   },
   defaultVariants: { orientation: "horizontal" },

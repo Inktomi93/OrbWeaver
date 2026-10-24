@@ -112,7 +112,7 @@ export function ChatsWithCharacterPane({ characterId, characterName, onNewChat }
     // INSTRUMENT tier (UI-Density-Law.md §3.1): a side pane of rows, scanned — same steps as the chats pane it
     // mirrors, so the two lists of the same rows can never drift apart in density.
     <Surface tier="instrument">
-      <Stack className="h-full min-h-0" gap="row">
+      <Stack className="block-full min-block-0" gap="row">
         {items.length > SEARCH_THRESHOLD || query !== "" ? (
           <Input aria-label={`Search chats with ${characterName}`} onValueChange={setQuery} placeholder={`Search chats with ${characterName}…`} value={query} />
         ) : null}
@@ -130,11 +130,11 @@ export function ChatsWithCharacterPane({ characterId, characterName, onNewChat }
         ) : (
           // The virtualizer's scroll element needs a BOUNDED height (`assertBoundedScrollHeight` throws at
           // mount otherwise) — `h-full` inside this `min-h-0 flex-1` column is where that bound comes from.
-          <Stack aria-label={`Chats with ${characterName}`} className="min-h-0 flex-1" role="list">
+          <Stack aria-label={`Chats with ${characterName}`} className="flex-1 min-block-0" role="list">
             {/* Server order, verbatim (D4): the star is a MARKER, not a sort key — a projection ordered
               differently from the chats pane would read as a second, disagreeing list. */}
             <VirtualList
-              className="h-full"
+              className="block-full"
               endApproachRows={collection.listProps.endApproachRows}
               estimateSize={(): number => ESTIMATED_ROW_PX}
               gapToken="tight"

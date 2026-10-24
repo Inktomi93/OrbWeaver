@@ -5,23 +5,23 @@ export const meterVariants = tv({
   slots: {
     root: "flex flex-col gap-field",
     header: "flex items-center justify-between gap-block",
-    label: "text-label font-medium leading-label text-foreground",
+    label: "text-label leading-label font-medium text-foreground",
     value: "text-label leading-label text-muted-foreground tabular-nums",
   },
   variants: {
     kind: {
-      linear: { root: "w-full" },
-      bipolar: { root: "w-full" },
-      arc: { root: "w-max items-center" },
+      linear: { root: "inline-full" },
+      bipolar: { root: "inline-full" },
+      arc: { root: "items-center inline-max" },
     },
   },
 });
 
 export const linearMeterVariants = tv({
   slots: {
-    root: "relative h-field w-full overflow-hidden rounded-full bg-muted",
-    fill: "h-full rounded-full bg-primary",
-    tick: "absolute inset-y-0 w-px bg-background",
+    root: "relative overflow-hidden rounded-full bg-muted block-field inline-full",
+    fill: "rounded-full bg-primary block-full",
+    tick: "absolute inset-y-0 bg-background inline-px",
   },
   variants: {
     danger: { true: { fill: "bg-destructive" } },
@@ -42,7 +42,7 @@ export const arcMeterVariants = tv({
     // Its ONE production consumer is automation's needle meter: `ast-grep -p '<Meter $$$ARGS />' -l tsx
     // packages` (scannedFileCount=684) returns four `<Meter>` sites — this one and three refinery
     // `kind="linear"` ones — so this is that widget's size, not a ramp every surface pays for.
-    root: "block size-(--size-meter-md)",
+    root: "block block-(--size-meter-md) inline-(--size-meter-md)",
     // THE EMPTY TRACK IS A GRAPHIC, SO IT TAKES THE EDGE TOKEN, NOT THE SURFACE ONE (#685, the follow-up to
     // #682). `text-muted` is a SURFACE token one ramp step from `card`, and one step is all it can ever be:
     // measured in this browser it renders 1.131:1 (dark) / 1.140:1 (light) against the card the arc is drawn
@@ -68,10 +68,10 @@ export const arcMeterVariants = tv({
 
 export const bipolarMeterVariants = tv({
   slots: {
-    root: "relative h-field w-full overflow-hidden rounded-full bg-muted",
+    root: "relative overflow-hidden rounded-full bg-muted block-field inline-full",
     fill: "absolute inset-y-0 bg-primary",
-    origin: "absolute inset-y-0 w-px bg-foreground",
-    tick: "absolute inset-y-0 w-px bg-background",
+    origin: "absolute inset-y-0 bg-foreground inline-px",
+    tick: "absolute inset-y-0 bg-background inline-px",
   },
   variants: {
     danger: { true: { fill: "bg-destructive" } },
@@ -87,9 +87,9 @@ export const segmentedClockVariants = tv({
   },
   variants: {
     size: {
-      sm: { root: "size-(--size-control-sm)" },
-      md: { root: "size-(--size-control-md)" },
-      lg: { root: "size-(--size-control-lg)" },
+      sm: { root: "block-(--size-control-sm) inline-(--size-control-sm)" },
+      md: { root: "block-(--size-control-md) inline-(--size-control-md)" },
+      lg: { root: "block-(--size-control-lg) inline-(--size-control-lg)" },
     },
     filled: { false: { segment: "text-muted" } },
     // Dims the whole glyph — never the sole signal, paired with the lock glyph in the center-emphasis slot.
@@ -138,9 +138,9 @@ export const trackBarVariants = tv({
     // 6px rail, painting later in DOM order with no z-index, ate the bottom of it and `HP value`/`HP max`
     // resolved a 45×37 effective hit area (`elementFromPoint` at cy+20 returned `div[data-slot=track-bar]`).
     // Flooring the value would not have fixed it; the occluder had to stop being one. Now 45×45.
-    root: "pointer-events-none relative h-field overflow-hidden rounded-full bg-input",
+    root: "pointer-events-none relative overflow-hidden rounded-full bg-input block-field",
     // The fill width is data (inline style) — its COLOR is a ramp token; danger swaps to the intent.
-    fill: "h-full rounded-full",
+    fill: "rounded-full block-full",
   },
   variants: {
     danger: { true: { fill: "bg-destructive" } },
@@ -154,8 +154,8 @@ export const trackBarVariants = tv({
     // that pair now resolves last-wins and the `!` is inert) (`ui-size-via-variant`, the Button
     // `glyph-*` twin). `shrink-0` rides the arm because a fixed swatch that shrinks is not a swatch.
     width: {
-      full: { root: "w-full" },
-      swatch: { root: "w-block shrink-0" },
+      full: { root: "inline-full" },
+      swatch: { root: "inline-block shrink-0" },
     },
     // `accent` swaps the CATEGORICAL ramp for a SEMANTIC intent, for a bar whose magnitude belongs to a
     // named zone rather than to a user-defined pool. The preset budget readout is the case: its bars
@@ -182,8 +182,8 @@ export const trackBarVariants = tv({
  *  on the root, so they are NOT in this class and are left alone.) */
 export const segmentBarVariants = tv({
   slots: {
-    root: "pointer-events-none flex h-field w-full overflow-hidden rounded-full bg-input",
-    segment: "h-full",
+    root: "pointer-events-none flex overflow-hidden rounded-full bg-input block-field inline-full",
+    segment: "block-full",
   },
 });
 
@@ -279,10 +279,22 @@ export const waystoneVariants = tv({
     // replaced. Reading it off `clock === null` is the stronger form of what that flag was for — the caller
     // spells no size and makes no size decision, and this file stays the ONE sizing home (side-eye F16).
     unset: {
-      false: { root: "size-(--size-meter-hero) @max-cq-24:size-(--size-meter-lg) @max-cq-20:size-(--size-meter-md)" },
+      false: {
+        root: `
+          block-(--size-meter-hero) inline-(--size-meter-hero)
+          @max-cq-24:block-(--size-meter-lg) @max-cq-24:inline-(--size-meter-lg)
+          @max-cq-20:block-(--size-meter-md) @max-cq-20:inline-(--size-meter-md)
+        `,
+      },
       // The globals.css SIZE-GATING has a matching `[data-phase="unset"]` arm, so the sub-pixel layers drop
       // at the container step where the SMALLER stone gets too small, never one step late.
-      true: { root: "size-(--size-meter-lg) @max-cq-24:size-(--size-meter-md) @max-cq-20:size-(--size-meter-sm)" },
+      true: {
+        root: `
+          block-(--size-meter-lg) inline-(--size-meter-lg)
+          @max-cq-24:block-(--size-meter-md) @max-cq-24:inline-(--size-meter-md)
+          @max-cq-20:block-(--size-meter-sm) @max-cq-20:inline-(--size-meter-sm)
+        `,
+      },
     },
   },
   defaultVariants: { unset: false },
@@ -292,7 +304,7 @@ export const ringGaugeVariants = tv({
   slots: {
     // The orb column: the ring over an optional label + value readout (the mockup .orb stack).
     root: "flex flex-col items-center gap-field",
-    svg: "block size-(--size-control-lg)",
+    svg: "block block-(--size-control-lg) inline-(--size-control-lg)",
     // The empty ring track + the value glyph centered in the arc. The track takes the EDGE token for the
     // reason `arcMeterVariants.track` states (#685, swept here by #693 — this gauge is the arc meter's
     // twin, and it wore the same `text-muted`). MEASURED in situ on the panel these orbs ride: `muted`
@@ -305,9 +317,9 @@ export const ringGaugeVariants = tv({
     // them above the track.
     track: "text-border",
     // SVG <text> — line-height is inert in SVG text layout (position comes from x/y/dy), so there is no line box to pair. Ends if these slots stop rendering as SVG text elements.
-    valueText: "fill-foreground font-semibold text-label tabular-nums",
+    valueText: "fill-foreground text-label font-semibold tabular-nums",
     // SVG <text> — line-height is inert in SVG text layout (position comes from x/y/dy), so there is no line box to pair. Ends if these slots stop rendering as SVG text elements.
-    label: "text-micro text-muted-foreground uppercase tracking-micro",
+    label: "text-micro tracking-micro text-muted-foreground uppercase",
     // SVG <text> — line-height is inert in SVG text layout (position comes from x/y/dy), so there is no line box to pair. Ends if these slots stop rendering as SVG text elements.
     readout: "text-micro text-muted-foreground tabular-nums",
   },

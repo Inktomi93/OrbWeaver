@@ -2,8 +2,8 @@ import { tv } from "#lib";
 
 export const fieldVariants = tv({
   slots: {
-    root: "flex w-full flex-col gap-field",
-    label: "text-label font-medium leading-label text-foreground data-disabled:opacity-50",
+    root: "flex flex-col gap-field inline-full",
+    label: "text-label leading-label font-medium text-foreground data-disabled:opacity-50",
     // inline-flex so the hint trigger sits on the label's baseline instead of dropping to its own line.
     // FINE-POINTER-ONLY WIDENING (#1286): HintTrigger renders `size="inline"` here — a 12px icon box whose
     // layout-neutral touch-target pseudo (button/variants.ts's `inline` arm) is centered on the box and
@@ -31,9 +31,9 @@ export const fieldVariants = tv({
     // leave every unvisited Field uncapped. A `max-width` can only ever NARROW, and it narrows nothing that
     // is already short — the slot's non-prose occupants (a hex readout, a numeric floor, a match count) sit
     // far inside 423px and are unaffected.
-    description: "max-w-(--reading-measure-prose) text-label leading-label text-muted-foreground",
+    description: "text-label leading-label text-muted-foreground max-inline-(--reading-measure-prose)",
     error: "text-label leading-label text-destructive",
-    labelBlock: "flex min-w-0 flex-col gap-field",
+    labelBlock: "flex flex-col gap-field min-inline-0",
     controlCol: "flex shrink-0 flex-col items-end gap-field",
   },
   variants: {
@@ -43,7 +43,7 @@ export const fieldVariants = tv({
       horizontal: {
         // Stacks back to vertical below the md container breakpoint so a narrow pane doesn't starve the label block.
         root: "flex-row items-start justify-between gap-row @max-cq-28:flex-col @max-cq-28:items-stretch @max-cq-28:justify-start",
-        controlCol: "w-(--width-control-col) @max-cq-28:w-full @max-cq-28:items-stretch",
+        controlCol: "inline-(--width-control-col) @max-cq-28:items-stretch @max-cq-28:inline-full",
       },
     },
     // THE HORIZONTAL ROW'S CROSS-AXIS (side-eye 2026-08-06 P2). `items-start` is only right when one column
@@ -112,7 +112,7 @@ export const fieldVariants = tv({
         // cell, filled from its START. Not `items-end`/`stretch`: the cold contract is explicit that
         // unlike controls must not be stretched merely to equalize their visible right edge — a switch is
         // 48px wide and saying so is honest, whereas a 200px switch is a lie about its hit target.
-        controlCol: "@max-cq-32:w-full @max-cq-32:items-stretch @cq-32:col-start-2 @cq-32:row-start-1 @cq-32:w-auto @cq-32:items-start",
+        controlCol: "@max-cq-32:items-stretch @max-cq-32:inline-full @cq-32:col-start-2 @cq-32:row-start-1 @cq-32:items-start @cq-32:inline-auto",
       },
     },
   ],

@@ -311,7 +311,7 @@ function LoopbackLinkWarning({ onOpenSharing }: { readonly onOpenSharing: () => 
       <Row gap="field" align="center">
         <Badge intent="warning">Only this computer</Badge>
       </Row>
-      <Text voice="gloss" prose={true} className="max-w-(--reading-measure-prose)">
+      <Text voice="gloss" prose={true} className="max-inline-(--reading-measure-prose)">
         {isAdmin
           ? "This page is open at a local address, so a link made here opens only on this computer. To invite a friend, start sharing, or open this app at an address they can reach."
           : "This page is open at a local address, so a link made here opens only on this computer. To invite a friend, open this app at an address they can reach, or ask the owner to start sharing."}

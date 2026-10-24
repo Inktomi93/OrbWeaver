@@ -10,7 +10,7 @@ import { tv } from "#lib";
 // derived ramp member themes retint) not `--accent` — accent is reserved for hover/interaction
 // states (north-star PP2).
 export const kbdVariants = tv({
-  base: "inline-flex select-none items-center justify-center rounded-inset bg-muted px-field font-mono text-muted-foreground",
+  base: "inline-flex items-center justify-center rounded-inset bg-muted px-field font-mono text-muted-foreground select-none",
   variants: {
     size: {
       // A shortcut hint beside a control: one or two glyphs at the micro step.
@@ -18,7 +18,7 @@ export const kbdVariants = tv({
       // A whole command the user reads and types out (`claude setup-token`), set in running prose: the code
       // step, the size of the sentence around it, because micro caps make a command a squint. It never breaks
       // mid-command: a wrapped command reads as two commands.
-      command: "whitespace-nowrap text-code leading-label",
+      command: "text-code leading-label whitespace-nowrap",
     },
   },
   defaultVariants: { size: "key" },

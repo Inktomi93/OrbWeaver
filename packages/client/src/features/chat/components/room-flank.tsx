@@ -31,7 +31,7 @@ export function InlineFlankFitProbe(): ReactElement {
   return (
     <Row
       aria-hidden={true}
-      className="pointer-events-none invisible absolute h-0"
+      className="pointer-events-none invisible absolute block-0"
       ref={sentinel}
       style={{ width: "calc(var(--dimension-content-reading-floor) + var(--width-sidebar-sm) + var(--spacing-block))" }}
     />
@@ -59,12 +59,15 @@ export function FlankColumn({
         "empty:hidden",
         flank.panelMode
           ? cn(
-              "relative min-h-0 w-(--width-sidebar-sm) overflow-y-auto pt-(--size-control-sm) transition-[translate,visibility] duration-(--shell-motion) ease-(--shell-ease)",
-              !flank.occupiesRow && "absolute end-0 top-0 bottom-0",
+              `
+                relative overflow-y-auto pbs-(--size-control-sm) transition-[translate,visibility] duration-(--shell-motion) ease-(--shell-ease)
+                inline-(--width-sidebar-sm) min-block-0
+              `,
+              !flank.occupiesRow && "absolute inset-e-0 inset-bs-0 inset-be-0",
               flank.expanded ? "visible translate-x-0" : "pointer-events-none invisible translate-x-full",
               flank.expanded && !flank.inline && "z-(--z-raised) bg-card shadow-overlay",
             )
-          : "max-w-(--width-sidebar-sm) relative pt-block @max-cq-32:max-h-1/2 @max-cq-32:max-w-none @max-cq-32:overflow-y-auto @max-cq-32:pt-0",
+          : "relative pbs-block max-inline-(--width-sidebar-sm) @max-cq-32:overflow-y-auto @max-cq-32:pbs-0 @max-cq-32:max-block-1/2 @max-cq-32:max-inline-none",
       )}
       data-collapsed={flank.panelMode && !flank.expanded ? "true" : undefined}
       data-slot="chat-thread-flank"
@@ -92,7 +95,7 @@ export function FlankEdge({
     return null;
   }
   return (
-    <Row className="absolute end-0 top-0 z-(--z-raised)">
+    <Row className="absolute inset-e-0 inset-bs-0 z-(--z-raised)">
       <PanelEdgeControl controls={controls} edge="end" expanded={flank.expanded} noun="plugin panels" onToggle={flank.toggle} ref={controlRef} />
     </Row>
   );

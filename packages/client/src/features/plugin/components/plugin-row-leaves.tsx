@@ -248,8 +248,8 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
     // prose's contrast the same way. So a border-only leading rule is the zero-contrast-tax boundary: it
     // paints no ground behind the pills at all. The ruling survives ("state it apart with a warning edge,
     // never a fill"); its INPUT changed from a full box to a leading rule.
-    <Stack aria-label={`What ${plugin.name} asks for beyond what you've allowed`} className="border-l-2 border-l-warning ps-block" gap="block" role="alert">
-      <Text className="max-w-(--reading-measure-prose)" voice="promoted">
+    <Stack aria-label={`What ${plugin.name} asks for beyond what you've allowed`} className="border-s-2 border-s-warning ps-block" gap="block" role="alert">
+      <Text className="max-inline-(--reading-measure-prose)" voice="promoted">
         {firstAsk ? firstConsentLine(plugin.name, plugin.declaredCapabilities.length) : reConsentLine(ungranted, plugin.widenedNetHosts)}
       </Text>
       {/* The measure caps the body + headline (side-eye 2026-08-29 residual P2): at pane width the consent
@@ -258,7 +258,7 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
           band; `--reading-measure-prose` (47ch) is the derived one (#1145) and rides the PARAGRAPH, since a
           `ch` resolves in the element's own font. The per-capability consequence lines are capped at their
           own home (plugin-grant-list.tsx). */}
-      <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
+      <Text className="max-inline-(--reading-measure-prose)" prose={true} voice="gloss">
         {firstAsk
           ? `Review what it asks for below. Approving turns ${plugin.name} on; you can turn it off at any time.`
           : `Orbweaver did not grant the extra permissions, so ${plugin.name} stayed off. Review what it asks for below and approve all, or remove the plugin. Approving turns ${plugin.name} on; you can turn it off at any time.`}

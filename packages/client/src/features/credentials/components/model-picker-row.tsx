@@ -16,10 +16,10 @@ export function ModelPickerRow({ entry, picked, current }: { readonly entry: Pic
   const context = formatContextLength(entry.contextLength);
   const price = formatPromptPrice(entry.promptPrice);
   return (
-    <Row align="start" className="min-w-0 flex-1" gap="row">
-      <Stack className="min-w-0 flex-1" gap="field">
-        <Row align="center" className="min-w-0" gap="field">
-          <Text as="span" className="line-clamp-2 min-w-0 break-words" ink="inherit" title={entry.label}>
+    <Row align="start" className="flex-1 min-inline-0" gap="row">
+      <Stack className="flex-1 min-inline-0" gap="field">
+        <Row align="center" className="min-inline-0" gap="field">
+          <Text as="span" className="line-clamp-2 wrap-break-word min-inline-0" ink="inherit" title={entry.label}>
             {entry.label}
           </Text>
           {hasVision(entry) ? (

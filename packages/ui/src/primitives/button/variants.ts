@@ -50,7 +50,7 @@ function inlineBox(typeStep: string): string[] {
 
 export const buttonVariants = tv({
   base: [
-    "inline-flex select-none items-center justify-center gap-field whitespace-nowrap font-sans font-medium",
+    "inline-flex items-center justify-center gap-field font-sans font-medium whitespace-nowrap select-none",
     // Tailwind v4 `scale-*` sets the standalone `scale` CSS property, not the transform matrix, so the
     // transition must name `scale` — `transition-[...transform]` would not animate it.
     "transition-[scale] duration-(--motion-fast) ease-out-expo active:scale-95",
@@ -88,7 +88,7 @@ export const buttonVariants = tv({
       ...CONTROL_SIZE,
       // `shrink-0` on both square arms, for the `glyphBox` reason: a square that shrinks in a crowded row is no
       // longer its control box, and at a coarse pointer it falls under the tap floor.
-      icon: "size-(--size-control-md) shrink-0 p-0",
+      icon: "shrink-0 p-0 block-(--size-control-md) inline-(--size-control-md)",
       // The `icon` arm's SMALLER step — the `sm` control height as a SQUARE, for an icon-only control that
       // sits in an `sm`-scaled row (the credentials role-status dot) and would otherwise be a control-height
       // box with `px-block` of dead width on each side of an 8px dot. It is a CONTROL step, not a `glyph-*`
@@ -98,7 +98,7 @@ export const buttonVariants = tv({
       // target at a coarse pointer by 12px. Added at #169, geometry-PRESERVING: byte-identical to the
       // `size-(--size-control-sm) p-0` className it replaces, which was invisible to `ui-size-via-variant` for as
       // long as that gate's value class rejected hyphens.
-      "icon-sm": "size-(--size-control-sm) shrink-0 p-0",
+      "icon-sm": "shrink-0 p-0 block-(--size-control-sm) inline-(--size-control-sm)",
       // CONTENT-SIZED: the child IS the control (a portrait/media trigger). Every other size pins a
       // control height, so a display-token child larger than it (`size-(--size-avatar-hero)`, 64px) paints OUTSIDE
       // its own button and the real hit target stays the `--size-control-md` box — the stickler 2026-08-01 F2
@@ -108,7 +108,7 @@ export const buttonVariants = tv({
       // for "my button is the wrong box" is a named size, never a call-site class that silently defeats the
       // seal (`ui-size-via-variant` reds it). The child owns the touch floor here (an avatar-hero portrait
       // clears it by 20px).
-      media: "size-auto p-0",
+      media: "p-0 block-auto inline-auto",
       // MULTILINE: the `sm` step's WRAPPING twin — a choice/option affordance carrying a model-authored
       // sentence, so the label wraps (`whitespace-normal` over the base's nowrap) and the height FOLLOWS
       // the wrapped text, floored at the `sm` control height (D62: ≥ the pointer's tap floor at both
@@ -117,7 +117,7 @@ export const buttonVariants = tv({
       // tailwind-merge, so both heights survived the merge and stylesheet order picked the winner (post-#146
       // it resolves last-wins, i.e. the call site silently beats the seal) — the `media` (F2) and TabsTab
       // `layout="stacked"` precedent. The arm is where the wrapping box is NAMED.
-      wrap: "h-auto min-h-(--size-control-sm) whitespace-normal px-block py-field text-label leading-label",
+      wrap: "px-block py-field text-label leading-label whitespace-normal block-auto min-block-(--size-control-sm)",
       // INLINE: the DISPLAY-AT-REST arm — a datum/line of prose that is also the click target (a tracker
       // value, a beat line, a card row, a roster name). It wears NO control box: text-height, start-aligned,
       // regular weight, so it reads as the text it stands in for and the click-to-edit swap is pixel-stable.
@@ -207,7 +207,7 @@ export const buttonVariants = tv({
       /** SUBTRACTED from the set — the exclusion arm of a tri-state facet. It carries BOTH a hue and a
        *  strike because the state must never rest on colour alone (a red ring and an ember ring are one
        *  ring to a red-blind reader); the strike says "not this one" on its own. */
-      negated: `border-transparent ${SELECTED_FILL} inset-ring-2 inset-ring-destructive line-through ${FOCUS_RING_ON_STATE_RING}`,
+      negated: `border-transparent ${SELECTED_FILL} line-through inset-ring-2 inset-ring-destructive ${FOCUS_RING_ON_STATE_RING}`,
     },
   },
   defaultVariants: { intent: "primary", size: "md", shape: "control", selection: "none" },

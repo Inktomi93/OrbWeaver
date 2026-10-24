@@ -65,7 +65,7 @@ function reviewFirstWaiting(plugins: ExtensionsEmptyView["awaitingPlugins"]): vo
 function InsetPane({ surfaceRef, children }: { readonly surfaceRef: RefObject<HTMLDivElement | null>; readonly children: ReactNode }): ReactElement {
   return (
     <Container
-      className="relative h-full min-h-0 overflow-y-auto px-section outline-none"
+      className="relative overflow-y-auto px-section outline-none block-full min-block-0"
       data-testid={testId("extensionsContent")}
       ref={surfaceRef}
       tabIndex={-1}
@@ -78,7 +78,7 @@ function InsetPane({ surfaceRef, children }: { readonly surfaceRef: RefObject<HT
 /** One centred teaching empty with its single action. */
 function CentredEmpty({ title, description, action }: { readonly title: string; readonly description: string; readonly action: ReactElement }): ReactElement {
   return (
-    <Stack align="center" className="h-full" justify="center">
+    <Stack align="center" className="block-full" justify="center">
       <EmptyState action={action} description={description} icon={<Icon icon={Blocks} size="md" />} measure="wide" title={title} titleAs="h2" />
     </Stack>
   );
@@ -181,7 +181,7 @@ export function ExtensionsPageSurface(): ReactElement {
   if (reviewed !== undefined) {
     return (
       <Container
-        className="relative h-full min-h-0 overflow-y-auto px-section py-section outline-none"
+        className="relative overflow-y-auto p-section outline-none block-full min-block-0"
         data-testid={testId("extensionsContent")}
         ref={surfaceRef}
         tabIndex={-1}
@@ -242,7 +242,7 @@ export function ExtensionsPageSurface(): ReactElement {
     // NOT a `<Container>`: a page owns its whole CONTENT region and the page-scale shell paints the region's own
     // edges (a pinned band + a scrolling body). A container's reading-width clamp here would inset a full-page
     // surface inside a gutter it did not ask for — the shell IS the containment for this arm.
-    <Stack className="h-full min-h-0 outline-none" data-testid={testId("extensionsContent")} ref={surfaceRef} tabIndex={-1}>
+    <Stack className="outline-none block-full min-block-0" data-testid={testId("extensionsContent")} ref={surfaceRef} tabIndex={-1}>
       {content}
     </Stack>
   );

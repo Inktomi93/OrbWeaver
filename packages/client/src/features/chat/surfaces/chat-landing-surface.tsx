@@ -40,12 +40,12 @@ export function ChatLandingSurface({ onNewChat }: ChatLandingSurfaceProps): Reac
   return (
     <Stack
       align="center"
-      className="relative h-full min-h-0 justify-center overflow-y-auto overscroll-contain outline-none"
+      className="relative justify-center overflow-y-auto overscroll-contain outline-none block-full min-block-0"
       padding="section"
       ref={surfaceRef}
       tabIndex={-1}
     >
-      <Stack className="w-full max-w-(--width-shell-content)" gap="section">
+      <Stack className="inline-full max-inline-(--width-shell-content)" gap="section">
         <EmptyState
           action={
             <Button aria-label={START_NEW_CHAT_NAME} intent="primary" onClick={onNewChat}>

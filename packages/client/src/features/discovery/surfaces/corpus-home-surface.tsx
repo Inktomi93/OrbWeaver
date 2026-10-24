@@ -207,7 +207,7 @@ function CorpusHomeBody(): ReactElement {
   return (
     // NO `size`: the container-query context survives (the split answers to THIS pane's inline size — the
     // shell's docked LIST and CONTEXT panels narrow it independently) and no max-width cap centres the page.
-    <Container className="w-full">
+    <Container className="inline-full">
       <Stack gap="section">
         {/* THE MASTHEAD STACKS BEFORE IT SQUEEZES (side-eye corpus re-pass 2026-08-19, B7). This was one
             `flex-wrap` Row with a `flex-1 min-w-0` headline beside a `shrink-0` figure column — and
@@ -218,11 +218,11 @@ function CorpusHomeBody(): ReactElement {
             `@container` is genuinely wide enough for two, `items-end` only in the two-column arm — a
             right-aligned figure block under a stacked headline would read as a stray. */}
         <Row align="start" className="flex-col @cq-40:flex-row @cq-40:items-end" gap="section" justify="between">
-          <Stack className="min-w-0 flex-1" gap="tight">
+          <Stack className="flex-1 min-inline-0" gap="tight">
             <Text as="span" voice="kicker">
               Library understanding
             </Text>
-            <Heading className="max-w-(--reading-measure)" level={1} voice="masthead">
+            <Heading className="max-inline-(--reading-measure)" level={1} voice="masthead">
               {state.headline}
             </Heading>
           </Stack>
@@ -239,7 +239,7 @@ function CorpusHomeBody(): ReactElement {
               has two columns, which is the same `@2xl` the masthead itself flips on. */}
           {state.hero === null ? null : (
             <Row align="end" className="shrink-0" gap="section">
-              <Stack className="@cq-40:text-right" gap="tight">
+              <Stack className="@cq-40:text-end" gap="tight">
                 <Text as="span" voice="hero">
                   {state.hero.value}
                 </Text>
@@ -248,7 +248,7 @@ function CorpusHomeBody(): ReactElement {
                 </Text>
               </Stack>
               {state.support.map((figure) => (
-                <Stack className="@cq-40:text-right" gap="tight" key={figure.id}>
+                <Stack className="@cq-40:text-end" gap="tight" key={figure.id}>
                   <Text as="span" voice="datum">
                     {figure.value}
                   </Text>
@@ -279,13 +279,13 @@ function CorpusHomeBody(): ReactElement {
             own. The left track is unaffected: its children are content-height in a stretched flex column
             either way. */}
         <Grid cols="leadEarly" gap="gutter">
-          <Stack className="min-w-0" gap="section">
+          <Stack className="min-inline-0" gap="section">
             {mapIsFocal ? null : <CorpusUnderstandingInvitation />}
             {/* `totalDistilled` is the ARCHETYPES TAB's own gate signal (#154) — the door's viability is the
                 destination's fact, so it travels down rather than being guessed at here (A7). */}
             <CorpusFamilyMap canOpenFamilies={catalog.totalDistilled > 0} families={families} focal={mapIsFocal} />
           </Stack>
-          <Stack className="min-w-0" gap="section">
+          <Stack className="min-inline-0" gap="section">
             <CorpusReadinessRail
               queue={{ failed: runs.error !== null, onRetry: (): void => void runs.refetch().catch(globalThis.reportError) }}
               showRerun={mapIsFocal}

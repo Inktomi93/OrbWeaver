@@ -147,9 +147,9 @@ export function ContextRail({ ariaLabel, tabs, activeTab, owns, onSelect }: Cont
       data-owns={owns}
       data-overflow-start={overflow.start}
       data-overflow-end={overflow.end}
-      className={`min-w-0 shrink-0 border-border border-b ${RAIL_OWNERSHIP_CLASSES[ownership]}`}
+      className={`shrink-0 border-be border-border min-inline-0 ${RAIL_OWNERSHIP_CLASSES[ownership]}`}
     >
-      <Row align="center" gap="row" className="relative min-w-0 px-row pt-field pb-row">
+      <Row align="center" gap="row" className="relative px-row pbs-field pbe-row min-inline-0">
         {/* Its own root, so the header strip's tab map and indicator never see a state cell. */}
         <Tabs
           value={owns ? activeTab : null}
@@ -158,7 +158,7 @@ export function ContextRail({ ariaLabel, tabs, activeTab, owns, onSelect }: Cont
               onSelect(value);
             }
           }}
-          className="min-w-0 w-full gap-0"
+          className="gap-0 inline-full min-inline-0"
         >
           <TabsList
             ref={trackRef}
@@ -166,7 +166,9 @@ export function ContextRail({ ariaLabel, tabs, activeTab, owns, onSelect }: Cont
             role="toolbar"
             activateOnFocus={false}
             aria-label={ariaLabel}
-            className={`grid min-w-0 w-full ${RAIL_TRACK_CLASSES} grid-flow-col gap-tight ${tabs.length === RAIL_WRAP_CELLS ? CONTEXT_RAIL_WRAP : ""} border-y-0`}
+            className={`grid inline-full min-inline-0 ${RAIL_TRACK_CLASSES} grid-flow-col gap-tight ${tabs.length === RAIL_WRAP_CELLS ? CONTEXT_RAIL_WRAP : ""}
+              border-y-0
+            `}
           >
             {tabs.map((tab) => (
               <ContextCell key={tab.id} tab={tab} isActive={tab.id === activeTab} ownership={ownership} />
@@ -190,7 +192,7 @@ function OverflowMarks({ overflow, fill }: { readonly overflow: RailOverflow; re
           aria-hidden={true}
           data-slot="context-rail-fade"
           data-edge="start"
-          className={`pointer-events-none absolute inset-y-0 start-0 w-gutter bg-linear-to-r ${fill} via-60% to-transparent`}
+          className={`pointer-events-none absolute inset-y-0 inset-s-0 bg-linear-to-r inline-gutter ${fill} via-60% to-transparent`}
         >
           <Stack data-slot="context-rail-more" className="text-muted-foreground">
             <Icon icon={ChevronLeft} size="xs" />
@@ -204,7 +206,7 @@ function OverflowMarks({ overflow, fill }: { readonly overflow: RailOverflow; re
           aria-hidden={true}
           data-slot="context-rail-fade"
           data-edge="end"
-          className={`pointer-events-none absolute inset-y-0 end-0 w-gutter bg-linear-to-l ${fill} via-60% to-transparent`}
+          className={`pointer-events-none absolute inset-y-0 inset-e-0 bg-linear-to-l inline-gutter ${fill} via-60% to-transparent`}
         >
           <Stack data-slot="context-rail-more" className="text-muted-foreground">
             <Icon icon={ChevronRight} size="xs" />
@@ -236,20 +238,25 @@ export function ContextHeaderTabs({
   // (a plain heading, no tablist) beside the trailing controls, and the bracket's panel names the tab.
   if (tabs.length <= 1) {
     return (
-      <Row data-slot="context-tab-strip" align="center" className="min-w-0 flex-1 self-stretch px-block">
-        <Text as="span" voice="label" data-slot="context-header-title" className="min-w-0 truncate">
+      <Row data-slot="context-tab-strip" align="center" className="flex-1 self-stretch px-block min-inline-0">
+        <Text as="span" voice="label" data-slot="context-header-title" className="truncate min-inline-0">
           {paneLabel ?? ariaLabel}
         </Text>
       </Row>
     );
   }
   return (
-    <Row data-slot="context-tab-strip" data-overflow-start={overflow.start} data-overflow-end={overflow.end} className="relative min-w-0 flex-1 self-stretch">
+    <Row
+      data-slot="context-tab-strip"
+      data-overflow-start={overflow.start}
+      data-overflow-end={overflow.end}
+      className="relative flex-1 self-stretch min-inline-0"
+    >
       <TabsList
         ref={trackRef}
         activateOnFocus={false}
         aria-label={ariaLabel}
-        className="shell-context-tab-strip h-full min-w-0 w-full flex-nowrap overflow-x-auto border-b-0 px-row"
+        className="shell-context-tab-strip flex-nowrap overflow-x-auto border-be-0 px-row block-full inline-full min-inline-0"
       >
         {tabs.map((tab) => (
           <ContextTab key={tab.id} tab={tab} isActive={tab.id === activeTab} />
@@ -343,7 +350,8 @@ function ContextCell({
       // `min-w-0` wins outright and deletes the ≥44px floor the primitive's `min-w-(--size-touch-target)` carries
       // (MEASURED at 320 coarse: the cells fell to 39px). The coarse HEIGHT floor is the bracket's own:
       // `CONTEXT_CELL_FLOOR_AT_COARSE` (56px — the first token step at or above the mock's 52px cells).
-      className={`relative data-active:bg-primary/15 data-active:text-foreground ${CELL_EDGE_CLASSES} ${CELL_OWNERSHIP_CLASSES[ownership]} ${CONTEXT_CELL_FLOOR_AT_COARSE}`}
+      className={`relative data-active:bg-primary/15 data-active:text-foreground ${CELL_EDGE_CLASSES} ${CELL_OWNERSHIP_CLASSES[ownership]} ${CONTEXT_CELL_FLOOR_AT_COARSE}
+      `}
       {...(tab.disabledReason !== null ? { title: tab.disabledReason } : {})}
     >
       {renderCellIcon(tab, isActive, locked)}
@@ -351,14 +359,14 @@ function ContextCell({
           the 10.5px `micro` step — under the 11px readable floor. The mock draws its captions at 10.5px and is
           NOT followed on this axis: the readable-floor ruling stands. text-inherit so the cell's own state
           colour still wins. */}
-      <Text as="span" voice="label" data-slot="context-cell-caption" className="max-w-full truncate text-inherit">
+      <Text as="span" voice="label" data-slot="context-cell-caption" className="truncate text-inherit max-inline-full">
         {tab.label}
       </Text>
       {/* THE CORNER ORNAMENTS SIT ONE `field` OFF THE CELL'S OWN CORNER (side-eye 2026-08-16 #94): the rail is
           full-bleed, so the LAST cell's inline-end edge IS the pane's edge and a flush glyph read as clipped.
           LOGICAL (`end-*`), never `right-*`. Spelled as a whole literal at each site (not hoisted) because
           `ui-size-via-variant` reads these class strings statically. */}
-      {locked ? <Icon icon={Lock} size="xs" aria-hidden={true} className="absolute end-field top-field text-muted-foreground opacity-60" /> : null}
+      {locked ? <Icon icon={Lock} size="xs" aria-hidden={true} className="absolute inset-e-field inset-bs-field text-muted-foreground opacity-60" /> : null}
       {locked || isActive ? null : <ContextCellBadge count={count} dot={tab.badge === true} />}
     </TabsTab>
   );
@@ -378,12 +386,12 @@ function renderCellIcon(tab: ResolvedContextTab, isActive: boolean, locked: bool
 function ContextCellBadge({ count, dot }: { readonly count: number; readonly dot: boolean }): ReactElement | null {
   if (count > 0) {
     return (
-      <Badge intent="primary" size="sm" aria-hidden={true} className="absolute end-field top-field">
+      <Badge intent="primary" size="sm" aria-hidden={true} className="absolute inset-e-field inset-bs-field">
         {count}
       </Badge>
     );
   }
   // The childless dot is Badge's `size="dot"` arm (#1798/#1799) — the ALLOWLIST-conversion receipt (why
   // this call site, why 6px) is at that arm's own header, `@orb/ui/badge/variants.ts`, one home.
-  return dot ? <Badge intent="primary" size="dot" aria-hidden={true} className="absolute end-field top-field" /> : null;
+  return dot ? <Badge intent="primary" size="dot" aria-hidden={true} className="absolute inset-e-field inset-bs-field" /> : null;
 }

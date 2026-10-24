@@ -178,9 +178,9 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
                 photographed (Badge is whitespace-nowrap by design; the row must be the thing that bends);
               · below @md the controls cluster drops onto its own line under the identity block, so the
                 toggle/Update/⋯ never compete with the badge for one cramped line at all. */}
-        <Stack className="border-border border-b pb-block" gap="tight">
+        <Stack className="border-be border-border pbe-block" gap="tight">
           <Row align="start" className="@max-cq-28:flex-col @max-cq-28:items-stretch" gap="block" justify="between">
-            <Stack className="min-w-0 flex-1" gap="tight">
+            <Stack className="flex-1 min-inline-0" gap="tight">
               <Row align="center" className="flex-wrap" gap="field">
                 <Text voice="promoted">{plugin.name}</Text>
                 <Badge intent={status.intent} size="sm" tone="soft">
@@ -188,7 +188,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
                 </Badge>
               </Row>
               {/* What the plugin is for, from its own manifest: the person approving needs it before the ask. */}
-              <Text className="max-w-(--reading-measure-prose)" prose={true}>
+              <Text className="max-inline-(--reading-measure-prose)" prose={true}>
                 {plugin.description}
               </Text>
               <Text prose={true} voice="gloss">
@@ -198,7 +198,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
               {plugin.lastError === null ? null : (
                 // The raw error is developer text; the card says it plainly and keeps the detail one press away.
                 <Row align="center" className="flex-wrap" gap="field">
-                  <Text tone="destructive" className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
+                  <Text tone="destructive" className="max-inline-(--reading-measure-prose)" prose={true} voice="gloss">
                     {PLUGIN_ERROR_SENTENCE}
                   </Text>
                   <CopyButton text={plugin.lastError} what={PLUGIN_ERROR_COPY_SUBJECT} />

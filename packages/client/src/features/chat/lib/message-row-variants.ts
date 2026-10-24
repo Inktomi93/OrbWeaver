@@ -135,9 +135,9 @@ function flatInner(role: MessageRole): string {
   // variant, later in the merge), the first covers the plain-background arm.
   // On a phone the text sits a stock 10px from the avatar (SillyTavern flat), not a desktop section away.
   return cx(
-    "w-full px-section py-row @max-cq-28:px-row",
+    "px-section py-row inline-full @max-cq-28:px-row",
     BG_PHOTO_READING_PLATE,
-    role === "system" && "text-muted-foreground in-data-[has-bg-image]:text-muted-foreground",
+    role === "system" && "text-muted-foreground in-data-has-bg-image:text-muted-foreground",
   );
 }
 const iconLeftTreatment = (): AvatarTreatment => "icon-left";
@@ -206,7 +206,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     columnPlacement: "gutterCentred",
     // Stock SillyTavern's document: a full-track page with no reading cap, no avatar, name or timestamp, user
     // and character rows identical, the text inset as stock insets it.
-    inner: () => cx("w-full pt-row pl-gutter pr-gutter text-prose-body", BG_PHOTO_READING_PLATE),
+    inner: () => cx("px-gutter pbs-row text-prose-body inline-full", BG_PHOTO_READING_PLATE),
     avatarTreatment: () => "none",
     lastRowInner: "min-h-(--immersive-document-last-row-min-height)",
     bubbleLayout: "single",

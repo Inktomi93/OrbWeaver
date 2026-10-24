@@ -72,8 +72,8 @@ export function CorpusArchetypesTab(): ReactElement {
     // THE UN-RUN STATE: the invitation, and nothing that would read as a finding. Not the cluster knob
     // either — a control that re-clusters data the surface is refusing to show is a control over nothing.
     return (
-      <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="section" data-slot="archetypes-not-run">
-        <Text prose={true} className="max-w-(--reading-measure-prose)" voice="gloss">
+      <Stack className="relative flex-1 overflow-y-auto overscroll-contain min-block-0" gap="section" data-slot="archetypes-not-run">
+        <Text prose={true} className="max-inline-(--reading-measure-prose)" voice="gloss">
           Archetypes need your characters sorted first. Start that in Explore.
         </Text>
         <Button intent="ghost" size="sm" onClick={openCorpusOverview}>
@@ -84,7 +84,7 @@ export function CorpusArchetypesTab(): ReactElement {
   }
 
   return (
-    <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="section">
+    <Stack className="relative flex-1 overflow-y-auto overscroll-contain min-block-0" gap="section">
       <ParamSelect label="Clusters" value={k} items={K_ITEMS} onValueChange={setK} />
 
       {/* ART FIRST, AND THAT IS THE DOOR'S DOING (side-eye corpus re-pass A7). This tab is the destination of
@@ -249,7 +249,7 @@ function ClusterCard({ cluster, name }: { readonly cluster: ArchetypeCard; reado
               A `wrap`-sized ghost Button per name, not a link list: the same control the gem shelf and
               quick-picks use for "a grid cell whose subject is a character", so the hover/focus/press
               vocabulary is the one this section already teaches. */}
-          <Row className="min-w-0 flex-1 flex-wrap" gap="tight">
+          <Row className="flex-1 flex-wrap min-inline-0" gap="tight">
             {cluster.members.slice(0, CLUSTER_PREVIEW_MEMBERS).map((member) => (
               <Button intent="ghost" key={member.characterId} onClick={(): void => selectCorpusCharacter(member.characterId)} size="sm">
                 <Text as="span" className="truncate text-muted-foreground" voice="label">

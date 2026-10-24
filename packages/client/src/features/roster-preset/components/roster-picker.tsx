@@ -79,11 +79,11 @@ function RosterRow(props: {
   const memberNames = roster.members.map((m) => m.name).join(", ");
   const counts = rosterCountsSuffix(roster);
   return (
-    <Stack gap="tight" padding="block" className="@container border-border border-b last:border-b-0" data-slot="roster-row">
+    <Stack gap="tight" padding="block" className="@container border-be border-border last:border-be-0" data-slot="roster-row">
       <Row align="center" gap="field" className="@max-cq-28:flex-col @max-cq-28:items-stretch">
-        <Stack gap="tight" className="min-w-0 flex-1">
+        <Stack gap="tight" className="flex-1 min-inline-0">
           <Row align="center" gap="field">
-            <Text voice="label" className="min-w-0 flex-1 truncate">
+            <Text voice="label" className="flex-1 truncate min-inline-0">
               {roster.name}
             </Text>
             {roster.rules.length > 0 ? (
@@ -216,7 +216,7 @@ function SaveCurrentRoster(props: {
             value={name}
             onChange={(e): void => setName(e.target.value)}
             // Stacked, a zero-basis `flex-1` would collapse the input's height on the column axis.
-            className="min-w-0 flex-1 @max-cq-28:flex-none"
+            className="flex-1 min-inline-0 @max-cq-28:flex-none"
           />
           <Button
             aria-describedby={INCLUDE_LINE_ID}

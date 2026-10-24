@@ -89,7 +89,7 @@ export function CharacterOverviewCard({ characterId }: CharacterOverviewCardProp
   const tagNames = data.tags.filter((tag) => !tag.isHiddenOnCard).map((tag) => tag.name);
 
   return (
-    <Stack gap="section" className="relative min-h-0 overflow-y-auto overscroll-contain" data-slot="character-overview">
+    <Stack gap="section" className="relative overflow-y-auto overscroll-contain min-block-0" data-slot="character-overview">
       {/* THE INSTRUCTION LEADS THE PANE (side-eye 2026-09-02 nit 27, #1139). This line explains what the pane
           DOES — pick a field over there, read it here — and it sat BELOW Origin, Activity and Tags, i.e.
           after everything it introduces, where a reader who needed it had already scrolled past the answer.
@@ -251,7 +251,7 @@ function OverviewRow({
             is declared before `voice` and loses the merge — the ratified spelling for an intentional tone.
             The value is a `datum` when it is mono/tabular and a `label` otherwise; both were spelled
             `size="label"` before, which is the A3-red internal axis. */}
-        <Text voice="label" className="min-w-0 truncate text-muted-foreground" id={labelId}>
+        <Text voice="label" className="truncate text-muted-foreground min-inline-0" id={labelId}>
           {label}
         </Text>
         <Text voice={mono ? "datum" : "label"} className="shrink-0">
@@ -259,7 +259,7 @@ function OverviewRow({
         </Text>
       </Row>
       {gloss === undefined ? null : (
-        <Text voice="gloss" className="min-w-0 break-words">
+        <Text voice="gloss" className="wrap-break-word min-inline-0">
           {gloss}
         </Text>
       )}

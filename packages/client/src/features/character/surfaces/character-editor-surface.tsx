@@ -139,7 +139,7 @@ export function CharacterEditorSurface({ characterId, detailContributors, onReve
     // area (character-library-welcome.tsx carries the same note).
     <Stack
       ref={scrollRef}
-      className="relative h-full overflow-y-auto overscroll-contain"
+      className="relative overflow-y-auto overscroll-contain block-full"
       onScroll={(event): void => {
         const node = event.currentTarget;
         // A hidden Activity reports zero layout, not a new reader position.
@@ -265,7 +265,7 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
           form.handleSubmit().catch(() => notify.error("Couldn't save the character."));
         }}
       >
-        <Stack gap="section" className="mx-auto w-full max-w-(--container-cq-48) py-section">
+        <Stack gap="section" className="mx-auto py-section inline-full max-inline-(--container-cq-48)">
           {/* THE CENSUS IS `meta`, NOT AN ACTION (side-eye 2026-08-18 P1-4). It sat in the bar's `children`
               with every sibling `shrink-0`, so at 430px the token line took 231px and the character's NAME
               — the one thing a phone's save bar is telling you — was clipped to "Sabin…" at 54px. The
@@ -359,7 +359,7 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
       {/* Contributed review sections (§6c) — outside the autosave `<form>` (they carry their own
           mutations), in the SAME centered column so a live section can't crush the editor width. */}
       {detailSections.length === 0 ? null : (
-        <Stack gap="section" className="mx-auto w-full max-w-(--container-cq-48) py-section" data-slot="character-editor-sections">
+        <Stack gap="section" className="mx-auto py-section inline-full max-inline-(--container-cq-48)" data-slot="character-editor-sections">
           {detailSections.map((section) => (
             <Fragment key={section.id}>{section.node}</Fragment>
           ))}

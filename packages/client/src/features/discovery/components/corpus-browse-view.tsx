@@ -125,7 +125,7 @@ export function CorpusBrowseView(): ReactElement {
   );
 
   return (
-    <Stack className="min-h-0 flex-1" data-testid={testId("corpusBrowseView")} gap="block">
+    <Stack className="flex-1 min-block-0" data-testid={testId("corpusBrowseView")} gap="block">
       <Row align="center" gap="field" className="flex-wrap">
         <ParamSelect label="Genre" value={genre} items={genreItems} onValueChange={setGenre} />
         <ParamSelect label="Tone" value={tone} items={toneItems} onValueChange={setTone} />
@@ -176,10 +176,10 @@ function BrowseRows({
   return (
     // The bounded height is this Stack's — `VirtualList` throws at mount on an unbounded scroll element,
     // which is the primitive refusing to be a list that silently renders everything.
-    <Stack className="min-h-0 flex-1">
+    <Stack className="flex-1 min-block-0">
       <VirtualList
         aria-label="Distilled catalog"
-        className="h-full"
+        className="block-full"
         endApproachRows={collection.listProps.endApproachRows}
         estimateSize={(): number => ESTIMATED_ROW_PX}
         fadeEdge={true}

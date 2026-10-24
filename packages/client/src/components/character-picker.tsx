@@ -185,9 +185,9 @@ function CharacterPickerBody({
   ));
 
   return (
-    <Command className="min-h-0" label={label} {...(onEscape === undefined ? {} : { onEscape })}>
+    <Command className="min-block-0" label={label} {...(onEscape === undefined ? {} : { onEscape })}>
       <CommandInput aria-label={placeholder} onValueChange={setTerm} placeholder={placeholder} ref={searchRef} value={term} />
-      <CommandList className={listClassName ?? "max-h-(--height-scroll-lg)"} onScroll={onScroll} ref={listRef}>
+      <CommandList className={listClassName ?? "max-block-(--height-scroll-lg)"} onScroll={onScroll} ref={listRef}>
         <CommandEmpty>{emptyText}</CommandEmpty>
         {leadingGroup}
         {rowsHeading === undefined ? rows : <CommandGroup heading={rowsHeading}>{rows}</CommandGroup>}
@@ -202,7 +202,7 @@ function CharacterPickerBody({
           when it has something to say: an exhausted walk with no search is a footer about nothing. Carries
           the honest count and CLEAR — the tail load itself is now keyboard/scroll-driven, no button. */}
       {hasNextPage || term !== "" || query.isFetchNextPageError || excludedLoadedCount > 0 ? (
-        <Row align="center" className="border-border border-t" gap="row" padding="row">
+        <Row align="center" className="border-bs border-border" gap="row" padding="row">
           <Text as="span" voice="gloss">
             {excludedLoadedCount === 0 ? `Showing ${candidates.length} of ${totalCount}` : characterCountLabel(candidates.length)}
           </Text>
@@ -271,11 +271,11 @@ function CharacterPickerRow({ character, onSelect, isSelected }: CharacterPicker
   const avatarSrc = character.avatarHash === null ? {} : { src: blobUrl(character.avatarHash) };
   return (
     <CommandItem keywords={[character.name]} onSelect={(): void => onSelect(id, character.name, character.avatarHash)} value={character.id}>
-      <Row align="center" className="min-w-0 flex-1" gap="row">
+      <Row align="center" className="flex-1 min-inline-0" gap="row">
         <Avatar fallbackDelay={0} hueSeed={character.id} size="sm" {...avatarSrc}>
           {initialsFor(character.name)}
         </Avatar>
-        <Text as="span" className="min-w-0 flex-1 truncate">
+        <Text as="span" className="flex-1 truncate min-inline-0">
           {character.name}
         </Text>
         {isSelected?.(id) === true ? <Icon icon={Check} size="sm" /> : null}

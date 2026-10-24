@@ -13,10 +13,10 @@ export const toolCallBlockVariants = tv({
     summary: `flex cursor-pointer list-outside items-center gap-row px-block py-row text-body leading-body font-medium text-foreground outline-none ${FOCUS_RING}`,
     name: "font-mono text-code leading-label-relaxed",
     status: "contents",
-    duration: "ml-auto text-label leading-label text-muted-foreground",
-    body: "flex flex-col gap-block border-t border-border p-block",
+    duration: "ms-auto text-label leading-label text-muted-foreground",
+    body: "flex flex-col gap-block border-bs border-border p-block",
     section: "flex flex-col gap-field",
     sectionLabel: "text-label leading-label font-medium text-muted-foreground",
-    pre: "overflow-x-auto whitespace-pre-wrap rounded-control bg-muted p-block font-mono text-code leading-label-relaxed text-foreground",
+    pre: "overflow-x-auto rounded-control bg-muted p-block font-mono text-code leading-label-relaxed whitespace-pre-wrap text-foreground",
   },
 });

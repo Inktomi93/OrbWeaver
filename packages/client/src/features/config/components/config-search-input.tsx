@@ -214,7 +214,7 @@ export function ConfigSearchInput({ groups }: ConfigSearchInputProps): ReactElem
     <Stack aria-label="Settings search" role="search">
       <Command label="Search settings" shouldFilter={false}>
         <Row align="center" gap="tight">
-          <Stack className="min-w-0 flex-1">
+          <Stack className="flex-1 min-inline-0">
             {/* NO CALLER REF HERE (#1218's rejected arm, stated so nobody re-tries it): `CommandInput` keeps
                 its own internal ref to correct cmdk's `aria-expanded`, and a `ref` passed through its props
                 replaces that one — the correction then reads `null` and the box claims an expanded listbox
@@ -240,7 +240,7 @@ export function ConfigSearchInput({ groups }: ConfigSearchInputProps): ReactElem
           </CommandAuxiliaryButton>
         </Row>
         {expanded ? (
-          <CommandList className="max-h-(--container-cq-24)">
+          <CommandList className="max-block-(--container-cq-24)">
             {tokens !== null && partial !== null ? (
               <TokenMenu partial={partial} query={query} tokens={tokens} />
             ) : (

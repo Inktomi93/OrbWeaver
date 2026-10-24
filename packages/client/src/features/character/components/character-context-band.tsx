@@ -47,9 +47,9 @@ export function CharacterContextBand({ characterId }: CharacterContextBandProps)
 
   if (detail === undefined) {
     return (
-      <Row gap="block" align="center" aria-busy={true} className="min-w-0">
-        <Skeleton className="size-(--size-avatar-lg) shrink-0 rounded-base" data-slot="character-context-band-pending" />
-        <Skeleton className="h-(--size-control-sm) w-full max-w-cq-24" />
+      <Row gap="block" align="center" aria-busy={true} className="min-inline-0">
+        <Skeleton className="shrink-0 rounded-base block-(--size-avatar-lg) inline-(--size-avatar-lg)" data-slot="character-context-band-pending" />
+        <Skeleton className="block-(--size-control-sm) inline-full max-inline-cq-24" />
       </Row>
     );
   }
@@ -57,11 +57,11 @@ export function CharacterContextBand({ characterId }: CharacterContextBandProps)
   const chatCount = chats?.totalCount ?? 0;
   const tokens = totalTokenCount(characterCardFormFromDetail(detail), RESTING_GREETING);
   return (
-    <Row gap="block" align="center" data-slot="character-context-band" className="min-w-0">
+    <Row gap="block" align="center" data-slot="character-context-band" className="min-inline-0">
       <Avatar size="lg" alt={detail.name} hueSeed={detail.id} className="shrink-0" {...(detail.avatarHash === null ? {} : { src: blobUrl(detail.avatarHash) })}>
         {initialsFor(detail.name)}
       </Avatar>
-      <Stack gap="field" className="min-w-0 flex-1">
+      <Stack gap="field" className="flex-1 min-inline-0">
         {/* A real heading — the pane's own h2, like the LIST band's — so the character is a landmark a rotor
             can jump to; the title step + semibold are the level's own. */}
         <Heading level={2} data-slot="character-context-band-name" className="line-clamp-2 text-balance" title={detail.name}>
@@ -76,7 +76,7 @@ export function CharacterContextBand({ characterId }: CharacterContextBandProps)
             the orb row, in the row directly above it. Same fix, same reason, and now the two rows of this
             band behave alike: only a set that folds EVENLY folds, everything else keeps its whole item and
             scrolls (`context-rail.tsx` `RAIL_TRACK_CLASSES`, the house ruling). */}
-        <Row gap="field" align="center" className="min-w-0 overflow-x-auto">
+        <Row gap="field" align="center" className="overflow-x-auto min-inline-0">
           <OwnLookMark themeOverride={detail.themeOverride} />
           <Badge tone="soft" size="sm" intent="neutral" data-slot="character-context-band-chats">
             {chatCount === 1 ? "1 chat" : `${chatCount} chats`}

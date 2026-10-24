@@ -26,24 +26,24 @@ export const dialogVariants = tv({
     // registered they DO dedupe last-wins, and per-size stays because a size arm STATING its own gutter is
     // legible where an arm neutralising an inherited one is not.
     viewport: "fixed inset-0 z-(--z-modal) flex justify-center",
-    popup: `relative flex max-h-full flex-col overflow-y-auto overscroll-contain ${MODAL_SURFACE} ${OVERLAY_MOTION.modalPopup}`,
-    header: "flex shrink-0 items-center justify-between gap-row border-b border-border pb-field",
+    popup: `relative flex flex-col overflow-y-auto overscroll-contain max-block-full ${MODAL_SURFACE} ${OVERLAY_MOTION.modalPopup}`,
+    header: "flex shrink-0 items-center justify-between gap-row border-be border-border pbe-field",
     title: "text-title leading-title font-semibold",
-    description: "mt-field text-body leading-body text-muted-foreground",
+    description: "mbs-field text-body leading-body text-muted-foreground",
     // The action row: the LAST child of a DIALOG_SCROLL_CLASS region, never of the popup itself. The popup's padding
     // surrounds that region, so `sticky bottom-0` lands the buttons exactly one popup inset above the popup edge.
-    footer: "sticky bottom-0 z-(--z-raised) flex shrink-0 flex-wrap items-center justify-end gap-field bg-popover pt-field",
+    footer: "sticky inset-be-0 z-(--z-raised) flex shrink-0 flex-wrap items-center justify-end gap-field bg-popover pbs-field",
   },
   variants: {
     size: {
-      sm: { viewport: "p-gutter", popup: "max-w-(--width-dialog-sm)" },
-      md: { viewport: "p-gutter", popup: "max-w-(--width-dialog-md)" },
-      lg: { viewport: "p-gutter", popup: "max-w-(--width-dialog-lg)" },
+      sm: { viewport: "p-gutter", popup: "max-inline-(--width-dialog-sm)" },
+      md: { viewport: "p-gutter", popup: "max-inline-(--width-dialog-md)" },
+      lg: { viewport: "p-gutter", popup: "max-inline-(--width-dialog-lg)" },
       // The large shell modal: fills most of the screen but stays a centered card, capped at xl width.
-      xl: { viewport: "p-gutter", popup: "h-full max-w-(--width-dialog-xl)" },
+      xl: { viewport: "p-gutter", popup: "block-full max-inline-(--width-dialog-xl)" },
       // Hugs its content on both axes, up to the xl width (a lightbox sized by the image it holds).
-      xlFit: { viewport: "p-gutter", popup: "w-fit max-w-(--width-dialog-xl)" },
-      full: { viewport: "p-0", popup: "h-full w-full max-w-none rounded-none border-0" },
+      xlFit: { viewport: "p-gutter", popup: "inline-fit max-inline-(--width-dialog-xl)" },
+      full: { viewport: "p-0", popup: "rounded-none border-0 block-full inline-full max-inline-none" },
     },
     // Where the popup sits on the block axis. `top` pins its top edge at the viewport gutter, so a dialog whose
     // body changes height (a filter that empties a grid) keeps its heading and controls under the pointer;

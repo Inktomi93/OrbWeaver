@@ -25,7 +25,7 @@ export const listRowVariants = tv({
     // client-shared ROW_REVEAL posture and this variant's floated-action hit-test arm use the unnamed
     // `group-hover` / `group-focus-within` selectors. Dropping the unnamed group leaves the action painted
     // but pointer-inert over the clickable body (the body intercepts every attempted press).
-    root: "@container/list-row group group/row relative flex w-full min-w-0 items-center gap-row",
+    root: "group group/row @container/list-row relative flex items-center gap-row inline-full min-inline-0",
     // Keeps `min-w-0` so it can shrink and let `title`'s `truncate` engage — starvation is prevented by
     // `content`'s own `min-w-(--width-title-floor)` floor below (a floor RAISES a min-content contribution, so if it lived
     // here on `body` it would pin `body` to the title's full width and force a horizontal scrollbar in a
@@ -45,46 +45,49 @@ export const listRowVariants = tv({
     // The two declarations now come from `SELECTION_RAIL` (lib/selection-rail.ts) because the idiom gained a
     // carrier that is NOT a ListRow — the config band, a `Button`, which cannot inherit it by composition
     // (#1823). Three hand-copies of a ratified pair is how a ratified pair drifts.
-    body: ["group flex min-w-0 flex-1 items-center gap-row rounded-control outline-none", `${SELECTION_RAIL} ${DISABLED_STATE}`],
+    body: ["group flex flex-1 items-center gap-row rounded-control outline-none min-inline-0", `${SELECTION_RAIL} ${DISABLED_STATE}`],
     leading: "flex shrink-0 items-center justify-center text-muted-foreground",
     // `min-w-(--width-title-floor)` is the title-column floor: name/subtitle never collapse below a readable width, so
     // `actions` yields (shrinks + clips) instead.
-    content: "flex min-w-(--width-title-floor) flex-1 flex-col",
+    content: "flex flex-1 flex-col min-inline-(--width-title-floor)",
     // The title line: the truncating title, plus an optional trailing meta (relative-time) pinned to the
     // end so it never gets clipped by the title's truncate.
-    titleRow: "flex min-w-0 items-baseline gap-field",
+    titleRow: "flex items-baseline gap-field min-inline-0",
     // The tier-less title step (`body`); the tier map drops it to the `label` voice at 600 under an
     // instrument surface, which is where the mock's 12.5px/600 row name lives.
     //
     // `flex-1` is the BLOCK-subtitle arm's growth (the title owns the whole line); the INLINE arm below
     // replaces it with a min-width floor, because a `flex-1 min-w-0` title beside a `shrink-0` sibling
     // collapses to ZERO width — the P0 that hid three Actions row names outright (side-eye F-01).
-    title: "block min-w-0 flex-1 truncate text-left text-body font-medium leading-body text-foreground",
+    title: "block flex-1 truncate text-start text-body leading-body font-medium text-foreground min-inline-0",
     // THE TITLE'S DISAMBIGUATOR (`titleQualifier`) — rendered right after the name, in the quiet mono datum
     // treatment the same handle already wears in the row's hover reveal. `shrink-0`: the qualifier is the
     // half that TELLS TWO ROWS APART, so a squeeze must eat the name (which is identical across them
     // anyway), never the thing that separates them.
-    titleQualifier: "shrink-0 whitespace-nowrap font-mono text-label leading-label text-muted-foreground",
+    titleQualifier: "shrink-0 font-mono text-label leading-label whitespace-nowrap text-muted-foreground",
     // Rest-visible state markers on the title line, before the stamp (the mock's ⚔ / ★ / Archived cluster).
     // `shrink-0`: a glyph slot is already minimal — it must clip the TITLE, never itself.
     markers: "flex shrink-0 items-center gap-field",
     // Trailing title-line meta (e.g. relative-time): a quiet mono DATUM (tabular so a column of stamps
     // aligns), never shrinks. The tier map takes it to the `gloss` step under an instrument surface.
-    meta: "shrink-0 whitespace-nowrap font-mono text-label leading-label tabular-nums text-muted-foreground",
+    meta: "shrink-0 font-mono text-label leading-label whitespace-nowrap text-muted-foreground tabular-nums",
     // Truncation is the `subtitleWrap` variant's default arm below (a one-line dense row), never baked in:
     // a GLOSS subtitle (a sentence of teaching copy) has to be allowed to wrap.
-    subtitle: "block text-left text-label leading-label text-muted-foreground",
+    subtitle: "block text-start text-label leading-label text-muted-foreground",
     // The subtitle ⇄ reveal SWAP STACK: ONE grid cell holding both spans (`col-start-1 row-start-1`), so the
     // line's box is `max(subtitle, reveal)` and is IDENTICAL at rest and on hover. The swap itself is
     // VISIBILITY, never display — a hover-keyed `display` swap removes a box from layout under a stationary
     // pointer and re-hit-tests the row at frame rate (the preset-list P0; packages/client/src/components/
     // row-reveal.ts, gate `no-hover-display-swap`). Rendered only when a reveal is present, so a plain row's
     // DOM is untouched.
-    subtitleStack: "grid min-w-0",
+    subtitleStack: "grid min-inline-0",
     // Hover/focus-within swap of the subtitle in the SAME line, so a wide metadata span never contends with
     // the trailing `actions` buttons for width.
-    subtitleReveal:
-      "col-start-1 row-start-1 invisible truncate text-left font-mono text-label leading-label text-muted-foreground group-focus-within:visible group-hover:visible",
+    subtitleReveal: `
+      invisible col-start-1 row-start-1 truncate text-start font-mono text-label leading-label text-muted-foreground
+      group-focus-within:visible
+      group-hover:visible
+    `,
     // `shrink-0`: controls keep their intrinsic width and are never squeezed below the tap-target floor.
     actions: "flex shrink-0 items-center justify-end gap-field",
   },
@@ -148,10 +151,10 @@ export const listRowVariants = tv({
     float: {
       true: {
         actions: [
-          "pointer-fine:pointer-events-none pointer-fine:*:pointer-events-none pointer-fine:absolute pointer-fine:inset-y-0 pointer-fine:end-0",
-          "pointer-fine:group-hover:*:pointer-events-auto pointer-fine:group-focus-within:*:pointer-events-auto",
+          "pointer-fine:pointer-events-none pointer-fine:absolute pointer-fine:inset-y-0 pointer-fine:inset-e-0 pointer-fine:*:pointer-events-none",
+          "pointer-fine:group-focus-within:*:pointer-events-auto pointer-fine:group-hover:*:pointer-events-auto",
           "pointer-fine:rounded-control pointer-fine:ps-block",
-          "pointer-fine:group-hover:bg-accent pointer-fine:group-focus-within:bg-accent",
+          "pointer-fine:group-focus-within:bg-accent pointer-fine:group-hover:bg-accent",
         ],
       },
       false: {},
@@ -177,21 +180,21 @@ export const listRowVariants = tv({
     subtitlePlacement: {
       block: {},
       inline: {
-        title: "flex-none min-w-(--width-title-floor) shrink",
+        title: "flex-none shrink min-inline-(--width-title-floor)",
         // NO `truncate` here (2026-08-08): the base slot's own comment already says truncation belongs to
         // the `subtitleWrap` axis "never baked in", and a `truncate` baked into the PLACEMENT arm silently
         // beat the wrapping arm's `line-clamp-2` (`truncate` carries `whitespace-nowrap`, which collapses a
         // clamp to one line — the two utilities are not in the same tailwind-merge conflict group, so
         // neither dropped the other). Placement decides the COLUMN; `subtitleWrap` decides one line or two.
-        subtitle: "min-w-0 flex-1",
+        subtitle: "flex-1 min-inline-0",
       },
       // `w-…` is the BASIS and `shrink` is kept deliberately: under a phone-width squeeze every row's name
       // cell shrinks by the same factor from the same basis, so the shared left edge survives the squeeze
       // instead of only existing at desk widths — and `min-w-(--width-title-floor)` keeps the F-01 floor (a name may shorten,
       // never vanish) that `flex-none` alone would have traded away for a horizontal scrollbar.
       column: {
-        title: "w-(--width-label-col) flex-none min-w-(--width-title-floor) shrink",
-        subtitle: "min-w-0 flex-1",
+        title: "flex-none shrink inline-(--width-label-col) min-inline-(--width-title-floor)",
+        subtitle: "flex-1 min-inline-0",
       },
     },
     // A one-line dense row TRUNCATES (the default — a list pane scans by column). A row whose subtitle is
@@ -222,8 +225,8 @@ export const listRowVariants = tv({
       promoted: { title: "text-title leading-title font-semibold" },
     },
     density: {
-      default: { body: "min-h-(--size-control-md) px-row py-field" },
-      compact: { body: "min-h-(--size-control-sm) px-field py-field" },
+      default: { body: "px-row py-field min-block-(--size-control-md)" },
+      compact: { body: "p-field min-block-(--size-control-sm)" },
     },
     clickable: {
       true: {
@@ -247,7 +250,7 @@ export const listRowVariants = tv({
       body: {},
       row: {
         root: ["rounded-control pe-row", SELECTION_RAIL],
-        body: "rounded-none border-l-0 hover:bg-transparent active:bg-transparent data-selected:bg-transparent data-selected:border-l-transparent",
+        body: "rounded-none border-s-0 hover:bg-transparent active:bg-transparent data-selected:border-s-transparent data-selected:bg-transparent",
       },
     },
   },

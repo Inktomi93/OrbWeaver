@@ -50,38 +50,38 @@ export function CorpusHomeSkeleton(): ReactElement {
   return (
     <Stack aria-busy={true} data-slot="corpus-home-skeleton" gap="section">
       <Stack gap="tight">
-        <Skeleton className="h-(--leading-micro) w-1/6" />
-        <Skeleton className="h-(--size-avatar-md) w-2/3" />
+        <Skeleton className="block-(--leading-micro) inline-1/6" />
+        <Skeleton className="block-(--size-avatar-md) inline-2/3" />
       </Stack>
       <Grid cols="leadEarly" gap="gutter">
-        <Card className="min-w-0">
+        <Card className="min-inline-0">
           <Stack gap="row">
-            <Skeleton className="h-(--leading-label) w-1/3" />
+            <Skeleton className="block-(--leading-label) inline-1/3" />
             {slots(ISLAND_PLATES).map((i) => (
               <Row align="center" gap="row" key={i}>
-                <Skeleton className="size-(--size-avatar-lg) rounded-base" />
-                <Stack className="min-w-0 flex-1" gap="tight">
-                  <Skeleton className="h-(--leading-micro) w-1/2" />
-                  <Skeleton className="h-(--leading-micro) w-3/4" />
+                <Skeleton className="rounded-base block-(--size-avatar-lg) inline-(--size-avatar-lg)" />
+                <Stack className="flex-1 min-inline-0" gap="tight">
+                  <Skeleton className="block-(--leading-micro) inline-1/2" />
+                  <Skeleton className="block-(--leading-micro) inline-3/4" />
                 </Stack>
               </Row>
             ))}
           </Stack>
         </Card>
-        <Stack className="min-w-0" gap="row">
-          <Skeleton className="h-(--leading-micro) w-1/3" />
+        <Stack className="min-inline-0" gap="row">
+          <Skeleton className="block-(--leading-micro) inline-1/3" />
           <SkeletonRows count={READINESS_ROWS} shape="datum" />
         </Stack>
       </Grid>
       <Stack gap="row">
-        <Skeleton className="h-(--leading-micro) w-1/5" />
+        <Skeleton className="block-(--leading-micro) inline-1/5" />
         <Grid cols="auto" gap="row">
           {slots(GEM_TILES).map((i) => (
             <Row align="center" gap="row" key={i}>
-              <Skeleton className="size-(--size-avatar-lg) rounded-full" />
-              <Stack className="min-w-0 flex-1" gap="tight">
-                <Skeleton className="h-(--leading-label) w-1/2" />
-                <Skeleton className="h-(--leading-micro) w-full" />
+              <Skeleton className="rounded-full block-(--size-avatar-lg) inline-(--size-avatar-lg)" />
+              <Stack className="flex-1 min-inline-0" gap="tight">
+                <Skeleton className="block-(--leading-label) inline-1/2" />
+                <Skeleton className="block-(--leading-micro) inline-full" />
               </Stack>
             </Row>
           ))}

@@ -209,14 +209,14 @@ function RpgStatusCard({ actor, subject, edit, onOpen }: RpgStatusCardProps): Re
     <Card tone="neutral">
       <Stack gap="field" data-slot="rpg-status-card" role="group" aria-label={subject}>
         <Row gap="block" align="center" justify="between">
-          <Row gap="field" align="center" className="min-w-0">
+          <Row gap="field" align="center" className="min-inline-0">
             <Button
               intent="ghost"
               size="inline"
               onClick={onOpen}
               aria-label={`Open ${subject}`}
               title={`Open ${subject}'s sheet`}
-              className="min-w-0 px-field font-medium"
+              className="px-field font-medium min-inline-0"
             >
               <Avatar size="md" alt={actor.name} hueSeed={actor.name} {...(actor.avatar === undefined ? {} : { src: blobUrl(actor.avatar) })}>
                 {actor.name.slice(0, 1).toUpperCase()}

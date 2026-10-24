@@ -198,7 +198,7 @@ function SetupRow({ k, v, action, onAction }: { k: string; v: string; action?: s
   return (
     <Card>
       <Row align="center" gap="row" padding="row">
-        <Stack className="min-w-0 flex-1" gap="tight">
+        <Stack className="flex-1 min-inline-0" gap="tight">
           <Text voice="kicker">{k}</Text>
           <Text voice="label">{v}</Text>
         </Stack>
@@ -376,7 +376,7 @@ export function VersionsTab({ state, liveDescription }: { state: RefineryContext
             <Stack gap="tight" padding="row">
               <Row align="center" gap="field">
                 <RefineryChip tone={klass.tone}>{klass.word}</RefineryChip>
-                <Text className="min-w-0 flex-1 truncate" voice="gloss">
+                <Text className="flex-1 truncate min-inline-0" voice="gloss">
                   {snapshot.label ?? "unlabeled"}
                 </Text>
               </Row>

@@ -180,7 +180,7 @@ function OwnedAssetPicker({ characterId, failure, isOwned, onConfirm, onUploadIn
         ariaLabel="Your images"
         gapToken="row"
         selection={{ selectedIds: selected, onToggle: toggle }}
-        className="max-h-(--height-scroll-md) @cq-28:max-h-(--height-scroll-lg)"
+        className="max-block-(--height-scroll-md) @cq-28:max-block-(--height-scroll-lg)"
         ref={gridRef}
       />
     );

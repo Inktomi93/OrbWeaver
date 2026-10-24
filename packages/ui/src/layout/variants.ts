@@ -49,7 +49,7 @@ export const stackVariants = tv({
     // floor), so each row seats its own controls' hit areas instead of lending them to the row below. One
     // token at the container, because no control primitive can own PITCH and a per-row `min-h-*` is the
     // N-site spelling of the same fact (gate `no-floorless-control-in-wrap`, the vertical-pitch arm).
-    rows: { control: "*:min-h-(--size-control-sm)" },
+    rows: { control: "*:min-block-(--size-control-sm)" },
   },
 });
 
@@ -72,7 +72,7 @@ export const layerVariants = tv({
 export const sectionVariants = tv({
   slots: {
     root: "flex flex-col gap-block",
-    heading: "font-medium text-foreground text-title leading-title",
+    heading: "text-title leading-title font-medium text-foreground",
     // inline-flex so the hint trigger sits on the heading's baseline instead of dropping to its own line
     // (mirrors the Field label/hint row, field/variants.ts).
     headingRow: "inline-flex items-center gap-field",
@@ -86,13 +86,18 @@ export const sectionVariants = tv({
   variants: {
     focal: {
       true: {
-        root: "relative isolate rounded-(--radius-base) p-row [border-inline-start-width:var(--immersive-stripe-width)] [border-inline-start-style:solid] [border-inline-start-color:var(--color-speaker)] before:pointer-events-none before:absolute before:-inset-px before:-z-(--z-raised) before:rounded-(--radius-base) before:opacity-40 before:shadow-glow before:content-['']",
+        root: `
+          relative isolate rounded-(--radius-base) [border-inline-start-width:var(--immersive-stripe-width)] [border-inline-start-style:solid]
+          [border-inline-start-color:var(--color-speaker)] p-row
+          before:pointer-events-none before:absolute before:-inset-px before:-z-(--z-raised) before:rounded-(--radius-base) before:opacity-40 before:shadow-glow
+          before:content-['']
+        `,
       },
       false: {},
     },
     // A hairline under the section heading — reads as a header edge over its rows, not a floating label.
     divider: {
-      true: { heading: "border-border border-b pb-field" },
+      true: { heading: "border-be border-border pbe-field" },
     },
     // THE TWO SPELLINGS OF ONE CD1 GROUPING (added 2026-08-17, program #102 variant B). `stacked` is the
     // literal reading: the kicker stands on its own line with a rule running to the edge. `inline` moves
@@ -108,8 +113,8 @@ export const sectionVariants = tv({
     kickerLayout: {
       stacked: {},
       inline: {
-        root: "flex-row flex-wrap items-center gap-tight border-border border-t pt-row",
-        kickerRow: "mr-field shrink-0",
+        root: "flex-row flex-wrap items-center gap-tight border-bs border-border pbs-row",
+        kickerRow: "me-field shrink-0",
       },
     },
   },
@@ -230,7 +235,7 @@ export const gridVariants = tv({
       cellFixed: "grid-cols-[repeat(auto-fill,var(--orb-grid-cell-fixed))]",
       // `cellFixed`'s swipe twin: one row that scrolls and snaps sideways. The scroller clips both axes, so it pads a
       // focus ring's reach on the block axis and takes it back as negative margin: the ring shows, the box holds.
-      cellSwipe: "auto-cols-(--orb-grid-cell-fixed) grid-flow-col snap-x snap-mandatory overflow-x-auto overscroll-x-contain -my-tight py-tight",
+      cellSwipe: "-my-tight snap-x snap-mandatory auto-cols-(--orb-grid-cell-fixed) grid-flow-col overflow-x-auto overscroll-x-contain py-tight",
       // `cellFixed`'s PHONE ARM (added 2026-08-30, #864 — the Characters landing shelves). Identical at
       // every pane width the desktop shape reaches; it differs only BELOW `@md`, where the fixed 8.5rem
       // track stops being the right answer. Measured against the approved 430px artboard: a 430px CONTENT
@@ -365,21 +370,28 @@ export const gridVariants = tv({
 export const containerVariants = tv({
   base: "@container",
   variants: {
-    size: { sm: "max-w-cq-24", md: "max-w-cq-32", lg: "max-w-cq-48" },
+    size: { sm: "max-inline-cq-24", md: "max-inline-cq-32", lg: "max-inline-cq-48" },
   },
 });
 
 export const toolbarVariants = tv({
-  base: "flex h-(--size-control-md) flex-row items-center gap-row px-block",
+  base: "flex flex-row items-center gap-row px-block block-(--size-control-md)",
 });
 
 // Meets the touch floor via h-control-sm, pointer-conditional (44px coarse/unknown, 32px fine).
 export const toolbarButtonVariants = tv({
-  base: `inline-flex h-(--size-control-sm) min-w-(--size-control-sm) select-none items-center justify-center gap-field rounded-control text-foreground text-label leading-label hover:bg-accent focus-visible:outline-none ${DISABLED_STATE_NATIVE} ${FOCUS_RING}`,
+  base: `
+    inline-flex items-center justify-center gap-field rounded-control text-label leading-label text-foreground select-none block-(--size-control-sm)
+    min-inline-(--size-control-sm)
+    hover:bg-accent
+    focus-visible:outline-none
+    ${DISABLED_STATE_NATIVE}
+    ${FOCUS_RING}
+  `,
 });
 
 export const toolbarSeparatorVariants = tv({
-  base: "w-px self-stretch bg-border",
+  base: "self-stretch bg-border inline-px",
 });
 
 // A Group is a LAYOUT + SEMANTICS box inside the strip (Base UI gives it the group role wiring and a
@@ -392,14 +404,25 @@ export const toolbarGroupVariants = tv({
 // The trailing metadata link ("Edited 51m ago"). Label type, muted until hover — it is a toolbar ITEM
 // (roving tabindex), so it carries the same focus ring as ToolbarButton, not a bare underline.
 export const toolbarLinkVariants = tv({
-  base: `inline-flex h-(--size-control-sm) items-center rounded-control px-field text-label leading-label text-muted-foreground no-underline hover:text-foreground focus-visible:outline-none ${FOCUS_RING}`,
+  base: `
+    inline-flex items-center rounded-control px-field text-label leading-label text-muted-foreground no-underline block-(--size-control-sm)
+    hover:text-foreground
+    focus-visible:outline-none
+    ${FOCUS_RING}
+  `,
 });
 
 // Wears the shared field-control box so an input inside a toolbar matches every other text control.
 // Use ONE per horizontal toolbar and place it LAST — left/right arrows drive both the text caret and
 // the roving tabindex (Base UI's own usage guideline, https://base-ui.com/react/components/toolbar, "Usage guidelines").
 export const toolbarInputVariants = tv({
-  base: `h-(--size-control-sm) min-w-0 rounded-control border border-input-border bg-field-fill px-field text-body leading-body text-foreground placeholder:text-muted-foreground focus-visible:outline-none ${DISABLED_STATE_NATIVE} ${FOCUS_RING}`,
+  base: `
+    rounded-control border border-input-border bg-field-fill px-field text-body leading-body text-foreground block-(--size-control-sm) min-inline-0
+    placeholder:text-muted-foreground
+    focus-visible:outline-none
+    ${DISABLED_STATE_NATIVE}
+    ${FOCUS_RING}
+  `,
 });
 
 /** THE `gutterCentred` TRACKS AS A CLASS, for a caller that must not swap its ELEMENT (#1728 arm B).

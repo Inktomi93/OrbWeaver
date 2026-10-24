@@ -355,7 +355,7 @@ export function MediaGrid<T extends MediaGridItem>({
       role="grid"
     >
       {/* eslint-enable jsx-a11y/interactive-supports-focus -- end of the grid-root exemption */}
-      <div className="relative w-full" data-slot="media-grid-viewport" ref={rowVirtualizer.containerRef}>
+      <div className="relative inline-full" data-slot="media-grid-viewport" ref={rowVirtualizer.containerRef}>
         {rowVirtualizer.getVirtualItems().map((virtualRow) => {
           const rowStart = virtualRow.index * columns;
           const rowItems = items.slice(rowStart, rowStart + columns);

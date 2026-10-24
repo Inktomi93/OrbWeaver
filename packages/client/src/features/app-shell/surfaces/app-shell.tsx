@@ -314,7 +314,7 @@ export function AppShell(): ReactElement {
             {/* The skip precedes navigation and targets whichever pane owns the main landmark.
                 Inverse sr-only avoids the reset that removes the revealed button's padding and height. */}
             <Button
-              className="not-focus-visible:sr-only focus-visible:absolute focus-visible:start-row focus-visible:top-row focus-visible:z-(--z-overlay)"
+              className="not-focus-visible:sr-only focus-visible:absolute focus-visible:inset-s-row focus-visible:inset-bs-row focus-visible:z-(--z-overlay)"
               intent="secondary"
               onClick={(): void => (layout.listIsPrimaryContent ? listPaneRef : mainRef).current?.focus()}
               size="sm"

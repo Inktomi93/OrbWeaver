@@ -269,11 +269,11 @@ function PickerRow({
           fact is now a NAMED badge (below) and the identity cluster goes visibly inert on the one
           combination where the row is claimed and still dead. Only the identity dims — the switch keeps
           full weight, because it is still live and it is the control that got you here. */}
-      <Row align="center" className={attached && !script.enabled ? "min-w-0 opacity-60" : "min-w-0"} gap="field">
-        {reserveGrip ? <Row aria-hidden={true} className="size-(--size-control-sm) shrink-0" /> : null}
+      <Row align="center" className={attached && !script.enabled ? "opacity-60 min-inline-0" : "min-inline-0"} gap="field">
+        {reserveGrip ? <Row aria-hidden={true} className="shrink-0 block-(--size-control-sm) inline-(--size-control-sm)" /> : null}
         <RankCell position={position} reserve={reserveRank} />
-        <Stack gap="tight" className="min-w-0">
-          <Row align="center" className="min-w-0" gap="field">
+        <Stack gap="tight" className="min-inline-0">
+          <Row align="center" className="min-inline-0" gap="field">
             <Text className="truncate">{name}</Text>
             {/* IT NAMES ITS OWN SUBJECT. "off" said which of the row's two switches it meant only to
                 someone who already knew; this says the whole fact — the script is disabled in the LIBRARY,
@@ -304,7 +304,7 @@ function PickerRow({
  *  nested ternary: three states, one cell. */
 function RankCell({ position, reserve }: { readonly position: number | undefined; readonly reserve: boolean }): ReactElement | null {
   if (position === undefined) {
-    return reserve ? <Row aria-hidden={true} className="w-(--size-control-sm) shrink-0" /> : null;
+    return reserve ? <Row aria-hidden={true} className="shrink-0 inline-(--size-control-sm)" /> : null;
   }
   // The COLUMN is a layout box, not a property of the text (#169). Both states now spell the reserved
   // width on the same `Row` — a feature may size the layout kit and only the layout kit, and a `w-*` on
@@ -312,7 +312,7 @@ function RankCell({ position, reserve }: { readonly position: number | undefined
   // single-segment `w-control` and not the real `w-(--size-control-sm)` until #169 taught its value class about
   // hyphens). `justify="end"` carries what `text-end` did: one flex child, right-aligned in a fixed cell.
   return (
-    <Row className="w-(--size-control-sm) shrink-0" justify="end">
+    <Row className="shrink-0 inline-(--size-control-sm)" justify="end">
       <Text as="span" voice="datum">
         {position}
       </Text>

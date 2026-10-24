@@ -146,7 +146,7 @@ function PersonaEditorBody({ session, persona, onRequestDelete }: PersonaEditorB
     <Stack gap="row">
       <Row gap="row" align="start" data-slot="persona-editor-identity">
         <AvatarTrigger persona={persona} />
-        <Stack gap="row" className="min-w-0 flex-1">
+        <Stack gap="row" className="flex-1 min-inline-0">
           <form.AppField name="name">
             {(field): ReactElement => <field.TextField label="Name" hint="Characters call you this. It can't be empty." />}
           </form.AppField>

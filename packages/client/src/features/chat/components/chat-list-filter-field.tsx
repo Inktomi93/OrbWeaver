@@ -28,7 +28,7 @@ export const CLEAR_INSET_RESERVE = "pe-(--size-control-sm)";
  *  it needs no inset of its own. */
 export function ClearFilterGlyph({ label, onClick }: { readonly label: string; readonly onClick: () => void }): ReactElement {
   return (
-    <Button aria-label={label} className="absolute end-0" intent="ghost" onClick={onClick} size="icon-sm" title={label} type="button">
+    <Button aria-label={label} className="absolute inset-e-0" intent="ghost" onClick={onClick} size="icon-sm" title={label} type="button">
       <Icon icon={X} size="sm" />
     </Button>
   );

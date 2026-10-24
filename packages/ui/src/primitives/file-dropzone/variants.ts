@@ -11,7 +11,10 @@ export const fileDropzoneVariants = tv({
     root: [
       // `rounded-control`: the box IS the file input (the native control covers 100% of it), and
       // UI-Density-Law.md §2.1 gives anything you operate the control step — it is not a floating island.
-      "relative flex flex-col items-center justify-center gap-field rounded-control border-2 border-dashed border-input-border bg-input/30 p-section text-center",
+      `
+        relative flex flex-col items-center justify-center gap-field rounded-control border-2 border-dashed border-input-border bg-input/30 p-section
+        text-center
+      `,
       "transition-colors duration-(--motion-fast) ease-out-expo",
       FOCUS_RING_HAS,
       DISABLED_STATE,
@@ -21,14 +24,14 @@ export const fileDropzoneVariants = tv({
       "data-loading:cursor-wait data-loading:opacity-70",
       "data-success:border-success",
     ],
-    input: "absolute inset-0 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed aria-busy:cursor-wait",
+    input: "absolute inset-0 cursor-pointer opacity-0 block-full inline-full disabled:cursor-not-allowed aria-busy:cursor-wait",
     content: "pointer-events-none flex flex-col items-center gap-field",
     icon: "text-muted-foreground",
     instructions: "text-body leading-body text-foreground",
     hint: "text-label leading-label text-muted-foreground",
     // `max-w-full` + `wrap-anywhere`: a refusal names the file, and a camera-roll name has no break opportunity.
-    error: "flex max-w-full items-center gap-field text-label leading-label text-destructive",
+    error: "flex items-center gap-field text-label leading-label text-destructive max-inline-full",
     errorIcon: "shrink-0",
-    errorText: "min-w-0 wrap-anywhere",
+    errorText: "wrap-anywhere min-inline-0",
   },
 });

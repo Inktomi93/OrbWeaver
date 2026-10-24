@@ -64,7 +64,7 @@ export function CorpusListSurface(): ReactElement {
   const searching = deferredQuery.trim() !== "";
 
   return (
-    <Stack className="h-full min-h-0" data-testid={testId("corpusListSurface")} gap="block" ref={surfaceRef}>
+    <Stack className="block-full min-block-0" data-testid={testId("corpusListSurface")} gap="block" ref={surfaceRef}>
       {/* SKIP THE CHROME (#537, the #491 pane-scoped twin). The app-shell's own `Skip to content` moves
           focus to `<main>` — i.e. PAST this pane — so a keyboard user who came for the RESULTS had no
           shortcut at all: five target toggles, the omnibox and up to four typeahead rows stand in front of
@@ -96,7 +96,7 @@ export function CorpusListSurface(): ReactElement {
         value={targetId}
       />
       <SearchOmnibox inputRef={omniboxRef} query={query} deferredQuery={deferredQuery} onQuery={setCorpusSearchQuery} />
-      <Stack className="min-h-0 flex-1">
+      <Stack className="flex-1 min-block-0">
         {searching ? (
           <CorpusSearchResults
             query={deferredQuery}
