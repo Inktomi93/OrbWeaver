@@ -240,6 +240,9 @@ function isolatedDataEnv(mode: string): Readonly<Record<string, string>> {
   };
 }
 
+// The suite boots the app many times a minute for one owner, which a real session never does: a corpus cell peaked
+// near 900 tRPC requests in one window against the 600 default. Production's default is untouched.
+const E2E_RATE_LIMIT_AUTHED = "1200";
 const SINGLE_BACKEND_PORT = String(DEV_TARGET_ALLOWED ? DEV_PORTS.server : E2E_PORTS.singleUser.server);
 const SINGLE_VITE_PORT = String(DEV_TARGET_ALLOWED ? DEV_PORTS.vite : E2E_PORTS.singleUser.vite);
 export const SINGLE_USER: ModeProject = {
@@ -268,6 +271,7 @@ export const SINGLE_USER: ModeProject = {
       ? {}
       : {
           PORT: SINGLE_BACKEND_PORT,
+          RATE_LIMIT_AUTHED: E2E_RATE_LIMIT_AUTHED,
           CLIENT_DIST_DIR: E2E_CLIENT_DIR,
           VITE_PORT: SINGLE_VITE_PORT,
           VITE_API_TARGET: `http://127.0.0.1:${SINGLE_BACKEND_PORT}`,
@@ -344,6 +348,7 @@ const LOCAL: ModeProject = {
     // per-IP login throttle (10/min) 429s partway through a serial run. Raise it for the isolated test stack
     // (the throttle itself is proven in auth-routes' own tests; here it is noise on a single-tenant loopback).
     RATE_LIMIT_LOGIN: "1000",
+    RATE_LIMIT_AUTHED: E2E_RATE_LIMIT_AUTHED,
     OWNER_HANDLES: SELECTED_LOCAL_CORPUS_FIXTURE?.wire.reads["sessions.me"][0]?.output.handle ?? HARNESS_OWNER_HANDLE,
     PRIVATE_ENDPOINT_ALLOWLIST: LOOPBACK_ENDPOINT_ALLOWLIST,
     ORB_ENV_NO_FILE: "1",
