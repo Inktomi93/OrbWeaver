@@ -15,11 +15,12 @@ import { createBinding } from "@orb/kit/binding";
 import type { ExternalId, Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId, createIdSource } from "@orb/kit/ids";
 import type { SessionsRolePolicy, SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
-import { createSessionsRolePolicy, createSessionsService, ROLE_POLICY_ENV_KEYS } from "@orb/server/domain/sessions";
+import { createSessionsRolePolicy, ROLE_POLICY_ENV_KEYS } from "@orb/server/domain/sessions";
 import type { ShareGraph, ShareGraphOptions } from "@orb/server/domain/share";
 import { loadWorkload, runWorkload, tickWorkloadSchedules } from "@orb/server/domain/workloads";
 import { authConfigFromEnv, createHostPrincipalResolver } from "@orb/server/entry/auth";
-import { announceOwnerClaim, createLocalLightUserSeed, removeOwnerClaimFileOnSpend, seedOwner } from "@orb/server/entry/boot";
+import type { BootOwner } from "@orb/server/entry/boot";
+import { announceOwnerClaim, handOffBootOwnerSweeps, prepareBootOwner, removeOwnerClaimFileOnSpend } from "@orb/server/entry/boot";
 import type { createConfiguredOidc, createHttpApp, ServicesDeps, ServicesResult } from "@orb/server/entry/compose";
 import type { Env, EnvKey } from "@orb/server/foundation/env";
 import { authModeSource, hostEnvAllowlist, resolveBindPosture } from "@orb/server/foundation/env";
@@ -339,14 +340,8 @@ type HarnessConstruction = Pick<ServerTestHarness, "db" | "env" | "clock" | "idS
   readonly rootDir: string;
 };
 
-interface HarnessOwner {
-  readonly ownerId: UserId | undefined;
-  /** Owners whose pre-compose local-light seed bound an encoder; their embed sweeps start once compose exists. */
-  readonly boundBeforeCompose: readonly UserId[];
-}
-
-// Boot's owner path: compose takes the owner id, so a transient sessions service runs `seedOwner` first. A
-// supplied id names an owner an earlier root on the same database already seeded.
+// Boot's own pre-assembly owner step, seeded in every auth mode. A supplied id names an owner an earlier root on the
+// same database already seeded.
 async function prepareHarnessOwner(
   options: ServerHarnessOptions | UnclaimedServerHarnessOptions,
   {
@@ -356,32 +351,11 @@ async function prepareHarnessOwner(
     idSource,
     rolePolicy,
   }: Pick<HarnessConstruction, "db" | "clock" | "idSource" | "rolePolicy"> & { readonly wiringDb: ServicesDeps["db"] },
-  crypto: Parameters<typeof createSessionsService>[0]["crypto"],
-): Promise<HarnessOwner> {
+): Promise<Pick<BootOwner, "ownerId" | "ownersBoundBeforeAssembly">> {
   if (options.ownerId !== undefined) {
-    return { ownerId: options.ownerId ?? undefined, boundBeforeCompose: [] };
+    return { ownerId: options.ownerId ?? undefined, ownersBoundBeforeAssembly: [] };
   }
-  const boundBeforeCompose: UserId[] = [];
-  const bootSessions = createSessionsService({
-    rolePolicy,
-    db: wiringDb,
-    now: clock.now,
-    idSource,
-    crypto,
-    sessionSecret: SESSION_SECRET,
-    seedUserConnections: createLocalLightUserSeed({ db: wiringDb, now: clock.now, idSource, onEmbedSpaceBound: (owner) => boundBeforeCompose.push(owner) }),
-  });
-  const [ownerId] = await seedOwner({ db, sessions: bootSessions, ownerHandles: rolePolicy.ownerHandles(), now: clock.now });
-  if (ownerId === undefined) {
-    throw new Error("server harness: seedOwner returned no owner (OWNER_HANDLES resolved empty)");
-  }
-  return { ownerId, boundBeforeCompose };
-}
-
-function startPreComposeSweeps(app: Pick<ServicesResult, "detachEmbedReindex">, owners: HarnessOwner["boundBeforeCompose"]): void {
-  for (const owner of owners) {
-    app.detachEmbedReindex(owner);
-  }
+  return await prepareBootOwner({ db, wiringDb, now: clock.now, idSource, rolePolicy, sessionSecret: SESSION_SECRET, ownerSeed: {} });
 }
 
 const ACTOR_HANDLE_PREFIX = "actor";
@@ -445,12 +419,24 @@ function unclaimedActor({ app, db, ids }: ActorMint): UnclaimedServerTestHarness
   };
 }
 
+// ensureUser and provisionIdentity both resolve an existing handle to its account and no constraint refuses the
+// second caller, so the held-handle check is only sound when one root's mints never interleave.
+function serialMints<Spec>(mint: (spec?: Spec) => Promise<UserRow>): (spec?: Spec) => Promise<UserRow> {
+  let tail: Promise<unknown> = Promise.resolve();
+  return (spec) => {
+    const run = tail.then(() => mint(spec));
+    // The chain only orders mints; each caller still receives its own rejection through `run`.
+    tail = run.catch(() => undefined);
+    return run;
+  };
+}
+
 function actorFor(
   mint: ActorMint,
   ownerId: UserId | undefined,
   principalFor: ServerTestHarness["principalFor"],
 ): ServerTestHarness["actor"] | UnclaimedServerTestHarness["actor"] {
-  return ownerId === undefined ? unclaimedActor(mint) : claimedActor(mint, ownerId, principalFor);
+  return ownerId === undefined ? serialMints(unclaimedActor(mint)) : serialMints(claimedActor(mint, ownerId, principalFor));
 }
 
 async function configuredOidcFor(
@@ -587,9 +573,10 @@ export async function createServerHarness(
     options,
   );
   const inputs: HarnessConstruction = { db, env, clock, idSource, timers, authConfig, rolePolicy, rootDir };
-  const { createHttpApp: assembleHttp, createServices, createShareGraph, SESSIONS_CRYPTO, UNSUPERVISED_RESTART } = await import("@orb/server/entry/compose");
+  const { createHttpApp: assembleHttp, createServices, createShareGraph, UNSUPERVISED_RESTART } = await import("@orb/server/entry/compose");
   const wiringDb = databaseHandle(db);
-  const { ownerId, boundBeforeCompose } = await prepareHarnessOwner(options, { ...inputs, wiringDb }, SESSIONS_CRYPTO);
+  const harnessOwner = await prepareHarnessOwner(options, { ...inputs, wiringDb });
+  const { ownerId } = harnessOwner;
   const listener = createBinding<Readonly<AddressInfo>>("Share execution requires the server harness native listener");
   const shareInputs = shareInputsFor(options, inputs, () => listener.read().port);
   const { bind, relayDir, secretsDir } = shareInputs;
@@ -628,7 +615,7 @@ export async function createServerHarness(
     networkExecution: networkExecutionOf(options, options.providerFetch ?? refusingProviderFetch()),
   });
   appLifetime = app;
-  startPreComposeSweeps(app, boundBeforeCompose);
+  handOffBootOwnerSweeps(harnessOwner, app.detachEmbedReindex);
   const manualWorkloadAbort = new AbortController();
   construction.defer(() => manualWorkloadAbort.abort());
   const workloadExecution = {

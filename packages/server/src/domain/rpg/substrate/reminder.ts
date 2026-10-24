@@ -67,6 +67,7 @@ import {
 } from "@orb/contracts/rpg";
 import { resolveGuidedInstruction } from "@orb/kit/guided";
 import { createNamesOnlyRegistry, processMacros } from "@orb/kit/macro";
+import { readOwnKey } from "@orb/kit/objects";
 import type { LiteReminderInput } from "../contract/params.ts";
 import { buildDeltaBlock } from "./delta.ts";
 
@@ -123,7 +124,7 @@ function weatherLine(weather: RpgWeather): string {
  *  showed on every Status card reached the reminder NOWHERE, so the model could neither narrate around it
  *  nor be expected to move it. The MEANING rides {@link trackerVocabularyLine} once per turn. */
 function trackerSegs(defs: readonly RpgTrackerDef[], values: Readonly<Record<string, RpgTrackerValue>>): string[] {
-  return defs.map((def) => trackerReading(def, values[def.key]) ?? def.label);
+  return defs.map((def) => trackerReading(def, readOwnKey(values, def.key)) ?? def.label);
 }
 
 /** The tracker VOCABULARY line — every tracker the game defines, taught ONCE with its hint (the

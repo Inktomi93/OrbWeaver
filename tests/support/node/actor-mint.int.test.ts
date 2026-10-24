@@ -1,8 +1,8 @@
 // @subject tests/support/node/server.ts
 // @subject tests/support/node/fixtures.ts
 
-import { auditLogs, userConnections } from "@orb/db";
-import type { ExternalId } from "@orb/kit/ids";
+import { auditLogs, userConnections, users } from "@orb/db";
+import type { ExternalId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { expect, test } from "./fixtures.ts";
@@ -12,11 +12,14 @@ const SUBJECT = castId<ExternalId>("actor-mint-subject");
 
 test("the fixture owner is the boot-seeded owner, and every fixture caller is an account the root minted", async ({
   harness,
+  db,
   ownerCaller,
   adminCaller,
   otherCaller,
 }) => {
   expect(await ownerCaller.sessions.me()).toEqual({ userId: harness.ownerId, handle: harness.app.sessions.rolePolicy.ownerHandles()[0], globalRole: "owner" });
+  // Boot's seed mints the owner through ensureUser, which lays the local-light floor; an inserted owner row has none.
+  expect(await db.select().from(userConnections).where(eq(userConnections.ownerId, harness.ownerId))).toHaveLength(2);
   const admin = await adminCaller.sessions.me();
   const other = await otherCaller.sessions.me();
   expect([admin.globalRole, other.globalRole]).toEqual(["admin", "user"]);
@@ -48,4 +51,14 @@ test("an actor never adopts an existing account by handle", async ({ harness }) 
   const first = await harness.actor();
   await expect(harness.actor({ handle: first.handle })).rejects.toThrow(/already held/);
   await expect(harness.actor({ handle: castId(`${first.handle}-fresh`) })).resolves.toMatchObject({ role: "user", enabled: true });
+});
+
+test("two concurrent actors asking for one handle mint one account and refuse the other", async ({ harness, db }) => {
+  const handle = castId<Handle>("actor-mint-contended");
+  const settled = await Promise.allSettled([harness.actor({ handle }), harness.actor({ handle })]);
+  const minted = settled.flatMap((result) => (result.status === "fulfilled" ? [result.value.id] : []));
+  const refused = settled.flatMap((result) => (result.status === "rejected" ? [String(result.reason)] : []));
+  expect(minted).toHaveLength(1);
+  expect(refused).toEqual([expect.stringMatching(/already held/)]);
+  expect(await db.select({ id: users.id }).from(users).where(eq(users.handle, handle))).toEqual([{ id: minted[0] }]);
 });

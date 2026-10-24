@@ -15,12 +15,11 @@ import { isCookieAuthMode } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { createDb, optimizeDb, preCloseHousekeeping } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
-import type { UserId } from "@orb/kit/ids";
 import { RESTART_EXIT_CODE } from "@orb/kit/supervisor";
 import { formatVersionIdentity } from "@orb/kit/version-identity";
 import type { ServerRestartPort } from "#domain/admin";
 
-import { createSessionsRolePolicy, createSessionsService } from "#domain/sessions";
+import { createSessionsRolePolicy } from "#domain/sessions";
 import type { CertificateBootOutcome, ShareBootOutcome, ShareGraph } from "#domain/share";
 
 import { OWNER_CLAIM_URL_FILE_NAME } from "#foundation/data-layout";
@@ -47,18 +46,20 @@ import { drainHttpServer, installEgressFirewall, SHUTDOWN_DRAIN_MS, serveHttpSer
 import type { CloudflaredPin, RelayAssetFetch, SpawnRelay } from "#infra/relay";
 
 import { authConfigFromEnv, createHostPrincipalResolver } from "./auth/index.ts";
+import type { BootOwnerSeed } from "./boot/index.ts";
 import {
   announceOwnerClaim,
   backfillPluginProvenanceOnBoot,
   composeBootDisclaimer,
-  createLocalLightUserSeed,
   DB_LAUNCHED,
+  handOffBootOwnerSweeps,
   healLegacyBackgroundPinsOnBoot,
   migrateDataLayout,
   migrateHandoffOfferVocabOnBoot,
   migratePluginToolWireNamesOnBoot,
   migrateProseSlotVocabOnBoot,
   planLocalLightPrefetch,
+  prepareBootOwner,
   reactivatePluginsOnBoot,
   rebuildStatsTimelineOnBoot,
   reclaimLocksOnBoot,
@@ -71,14 +72,13 @@ import {
   seedDefaultPreset,
   seedExamplePlugins,
   seedLocalLightOnBoot,
-  seedOwner,
   seedThemes,
   seedUserContent,
   settleBootSecrets,
 } from "./boot/index.ts";
 import { startPlannerMaintenance } from "./boot/planner-maintenance.ts";
 
-import { createConfiguredOidc, createHttpApp, createProcessSeams, createServices, createShareGraph, SESSIONS_CRYPTO } from "./compose/index.ts";
+import { createConfiguredOidc, createHttpApp, createProcessSeams, createServices, createShareGraph } from "./compose/index.ts";
 
 /** The worker resources shutdown owns: signal it first, then join the loop before touching the DB. */
 interface OwnedWorkloadsWorker {
@@ -158,6 +158,17 @@ function missingSessionSecretMessage(mode: AuthMode, keyfile: string | null): st
     return `boot: AUTH_MODE=${mode} needs a session secret, and DATABASE_URL is not a local file: database, so none can be generated. Set SESSION_SECRET (32+ characters).`;
   }
   return `boot: AUTH_MODE=${mode} needs a session secret, and ${keyfile} could not be read or generated (the crypto: line above says why). Set SESSION_SECRET (32+ characters), or fix that file.`;
+}
+
+// OIDC seeds no owner; AUTH_MODE=local carries the first-boot password when one is configured.
+function bootOwnerSeed(sessionSecret: string | null): BootOwnerSeed | null {
+  if (env.AUTH_MODE === "oidc") {
+    return null;
+  }
+  if (env.AUTH_MODE === "local" && env.LOCAL_INITIAL_PASSWORD !== undefined) {
+    return { initialPassword: env.LOCAL_INITIAL_PASSWORD, hashPassword: createPasswordHasher(sessionSecret).hash };
+  }
+  return {};
 }
 
 /** The lifecycle handle `index.ts` drives: boot once, shut down once (idempotent). */
@@ -310,44 +321,27 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       throw new Error(missingSessionSecretMessage(env.AUTH_MODE, sessionSecretSource.path));
     }
 
-    // Resolve the owner id before compose (the owner role-clients bundle resolves against it). A
-    // transient sessions service is built only to run the owner seed; compose owns the real one.
-    const ownersBoundBeforeCompose: UserId[] = [];
+    // OIDC LAZY-MINT: in OIDC mode the owner identity comes from the IdP, not from env config, so boot
+    // seeds no placeholder owner row — the first OIDC login that claims the owner lazy-mints it via
+    // `provisionIdentity`: an OWNER_GROUP member, or an OWNER_HANDLES match with proof (a loopback callback or the
+    // boot claim code `announceOwnerClaim` writes). Every other mode (single-user, local, forward-header) seeds the
+    // owner here; AUTH_MODE=local also seeds the first-boot form-login password so a non-local-origin deploy isn't
+    // locked out (first-boot-only + non-clobbering, see seed-owner).
     const rolePolicy = createSessionsRolePolicy(env);
-    const bootSessions = createSessionsService({
-      rolePolicy,
-      db: wiringDb,
+    const preparedOwner = await prepareBootOwner({
+      db,
+      wiringDb,
       now,
       idSource: seams.idSource,
-      crypto: SESSIONS_CRYPTO,
+      rolePolicy,
       sessionSecret,
-      // #2481 — the owner row is MINTED here (`seedOwner` → `ensureUser`), so this transient service needs
-      // the per-user seed too: on a fresh install the sweep below would otherwise be the only thing that
-      // ever seeds the owner, and it runs once per process. `workloads` does not exist yet, so an owner whose
-      // encoder this seed binds is held and its sweeps are enqueued once compose has built the queue.
-      seedUserConnections: createLocalLightUserSeed({
-        db: wiringDb,
-        now,
-        idSource: seams.idSource,
-        onEmbedSpaceBound: (boundOwner) => ownersBoundBeforeCompose.push(boundOwner),
-      }),
+      ownerSeed: bootOwnerSeed(sessionSecret),
     });
-
-    // OIDC LAZY-MINT (#1853): in OIDC mode the owner identity comes from the IdP, not from env config.
-    // Don't seed a placeholder owner row at boot — the first OIDC login that claims the owner lazy-mints the
-    // owner row via `provisionIdentity`: an OWNER_GROUP member, or an OWNER_HANDLES match with proof (a loopback
-    // callback or the boot claim code `announceOwnerClaim` writes). For every other mode (single-user, local,
-    // forward-header), seed the owner at boot as before.
-    let ownerId: UserId | undefined;
+    const bootSessions = preparedOwner.sessions;
+    const ownerId = preparedOwner.ownerId;
     const ownerClaimFile = join(env.DATA_LAYOUT.secrets, OWNER_CLAIM_URL_FILE_NAME);
     const ownerClaim = removeOwnerClaimFileOnSpend(createOwnerClaimCode(), ownerClaimFile, seams.newOpaqueId);
     if (env.AUTH_MODE === "oidc") {
-      ownerId = await bootSessions.getOwnerUserId();
-      if (ownerId !== undefined) {
-        log.info({ ownerId }, "boot(oidc): existing owner row found (from a prior OIDC login)");
-      } else {
-        log.info("boot(oidc): no owner row yet — the first owner-policy OIDC login will create it; owner-dependent boot seeds are deferred");
-      }
       await announceOwnerClaim({
         log,
         sessions: bootSessions,
@@ -357,38 +351,6 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
         claimUrlFile: ownerClaimFile,
         inContainer: bindPostureInput(env).inContainer,
       });
-    } else {
-      const handles = rolePolicy.ownerHandles();
-      // AUTH_MODE=local: seed the owner's first-boot form-login password so a non-local-origin deploy isn't
-      // locked out. Passed only in local mode; first-boot-only + non-clobbering (see seed-owner).
-      const localPasswordSeed =
-        env.AUTH_MODE === "local" && env.LOCAL_INITIAL_PASSWORD !== undefined
-          ? {
-              initialPassword: env.LOCAL_INITIAL_PASSWORD,
-              hashPassword: createPasswordHasher(sessionSecret).hash,
-            }
-          : {};
-      const ownerIds = await seedOwner({
-        db,
-        sessions: bootSessions,
-        ownerHandles: handles,
-        now,
-        ...localPasswordSeed,
-      });
-      const seededId = ownerIds[0];
-      if (seededId === undefined) {
-        throw new Error("boot: seedOwner returned no owner id (OWNER_HANDLES resolved empty)");
-      }
-      // BELT: `ownerId` must name a REAL row, not merely be defined. Everything below binds to it — the owner
-      // role-clients bundle, the boot Principal, and every owner-scoped seed — and the boot Principal is
-      // ROW-DERIVED through `principalFromRow`, which deliberately DEGRADES an unknown id to `role:"user"`
-      // (the frozen-host bridge needs that; a boot does not). So a defined-but-dangling id would seed the whole
-      // box under a non-owner principal against a row that does not exist, silently. `ensureUser` now refuses
-      // to fabricate an id upstream; this is the boot-side floor beneath it — one read, fail-closed.
-      if ((await bootSessions.loadUserById(seededId)) === null) {
-        throw new Error(`boot: seedOwner returned owner id ${seededId} but no users row carries it — refusing to boot on a phantom owner`);
-      }
-      ownerId = seededId;
     }
 
     // The DIAGNOSTICS POSTURE report (foundation/env/diagnostics.ts holds the model): who can reach the box,
@@ -486,9 +448,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     await seedDefaultPreset({ db, now });
     await seedThemes({ db, now });
     await seedLocalLightOnBoot({ db: wiringDb, now, idSource: seams.idSource, onEmbedSpaceBound: built.detachEmbedReindex });
-    for (const boundOwner of ownersBoundBeforeCompose) {
-      built.detachEmbedReindex(boundOwner);
-    }
+    handOffBootOwnerSweeps(preparedOwner, built.detachEmbedReindex);
     // An owner whose stored generation no longer matches their binding (a release moved generation identity), or
     // whose rebuild died before promotion, has no user action to raise the re-index trigger, so boot raises it.
     // Idempotent: a rebuilt, promoted owner matches.
