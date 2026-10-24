@@ -24,8 +24,9 @@ WHERE the definition lives; G1 keys on location, never on name derivation.
 ```
 <feature>/
   surfaces/     # REGION-level bodies — what a section def's list/content, or a modal/pane, MOUNTS.
-                #   Containment CONSUMERS: pure content, @container variants, no layout-context props (§4)
-  anchors/      # containment PROVIDERS — wrap a surface in container-type: inline-size + container-name (§4)
+                #   Containment CONSUMERS: pure content, @container variants, no layout-context props, never a
+                #   <Container> or `container` prop (§4, lint)
+  anchors/      # containment PROVIDERS — each renders a <Container> that wraps a surface, or the dialog box it anchors (§4, lint)
   components/   # everything mounted INSIDE a region: leaf bits, context-tab bodies, contributed
                 #   settings-section bodies. COMPOSE @orb/ui primitives; never hand-roll UI
   hooks/        # use-*.ts — data reads via trpc.* (useGatedQuery) + createEntityMutation calls

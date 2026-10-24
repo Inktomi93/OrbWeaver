@@ -26,7 +26,7 @@
 // light the LAST section).
 
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
-import { Container, Row, Stack } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { scrollBehavior } from "@orb/ui/lib";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
@@ -54,6 +54,7 @@ import {
   useConfigSections,
   useConfigTarget,
 } from "#state";
+import { ConfigMemberAnchor } from "../anchors/config-member-anchor.tsx";
 import { ConfigCollectionLanding } from "../components/config-collection-landing.tsx";
 import { ConfigGroupPlaceholder } from "../components/config-group-placeholder.tsx";
 import { ConfigPaneGlance } from "../components/config-pane-glance.tsx";
@@ -192,37 +193,36 @@ export function ConfigContentSurface({ groups }: ConfigContentSurfaceProps): Rea
     // a bounded flex box with NO overflow, so a member editor taller than the viewport — a 60-entry world
     // book is ~3600px — would simply have its tail unreachable. The footer sits BELOW the scroller and never
     // scrolls away (the settings shell's column, re-homed).
-    <Container className="h-full min-h-0">
-      {/* ONE GOVERNED INLINE GRID FOR THE COLUMN (#1099 F25 / N52). The footer was a bare SIBLING of the
-          padded scroller, so the only save receipt on the surface rendered 24px OUTSIDE the content
-          column — the reader's eye is on the control they just moved, and the answer arrived off-grid at
-          the bottom-left corner. The INLINE inset is now declared ONCE, on the column both
-          children live in, so neither child re-spells the measure and they cannot drift apart again. The
-          BLOCK inset stays INSIDE the scroller on purpose: it is scroll EXTENT, which the jump and the
-          scroll-spy read — hoisting it shortened the scrollable tail and a distant section-row click
-          landed on an intermediate section (caught by that CT, not by the eye). */}
-      <Stack className="h-full min-h-0 px-section" data-slot="config-pane" gap="row">
-        {/* `relative` is LOAD-BEARING (owner dogfood 2026-08-13 — "the settings screen scrolls past the end
+    //
+    // ONE GOVERNED INLINE GRID FOR THE COLUMN (#1099 F25 / N52). The footer was a bare SIBLING of the
+    // padded scroller, so the only save receipt on the surface rendered 24px OUTSIDE the content
+    // column — the reader's eye is on the control they just moved, and the answer arrived off-grid at
+    // the bottom-left corner. The INLINE inset is now declared ONCE, on the column both
+    // children live in, so neither child re-spells the measure and they cannot drift apart again. The
+    // BLOCK inset stays INSIDE the scroller on purpose: it is scroll EXTENT, which the jump and the
+    // scroll-spy read — hoisting it shortened the scrollable tail and a distant section-row click
+    // landed on an intermediate section (caught by that CT, not by the eye).
+    <Stack className="h-full min-h-0 px-section" data-slot="config-pane" gap="row">
+      {/* `relative` is LOAD-BEARING (owner dogfood 2026-08-13 — "the settings screen scrolls past the end
             of its results"): Base UI form primitives park `sr-only` boxes at `position:absolute`, and an
             `overflow` scroller only clips descendants whose CONTAINING BLOCK is inside it. THE COLUMN PADS,
             NOT THE EDITORS (side-eye 2026-08-03 P1, as amended by #1099 F25): `section` is the mock's
             editor-pane inset on the token scale, and a per-editor inset is the same defect waiting for the
             next group. The INLINE half of that inset now belongs to the column above (so the receipt shares
             it); this box keeps the block half, which is scroll geometry and nobody else's. */}
-        {/* Reserve ring clearance inside the scroller without changing the column's content alignment. */}
-        <Stack
-          aria-label={regionLabel}
-          className="relative -mx-row h-full min-h-0 flex-1 overflow-y-auto overscroll-contain px-row py-section outline-none"
-          data-slot="config-content"
-          ref={contentRef}
-          role="region"
-          tabIndex={-1}
-        >
-          <ContentArm active={shownGroup} collection={landedCollection} groups={groups} selection={selection} />
-        </Stack>
-        {showsGroup ? <ConfigSaveFooter /> : null}
+      {/* Reserve ring clearance inside the scroller without changing the column's content alignment. */}
+      <Stack
+        aria-label={regionLabel}
+        className="relative -mx-row h-full min-h-0 flex-1 overflow-y-auto overscroll-contain px-row py-section outline-none"
+        data-slot="config-content"
+        ref={contentRef}
+        role="region"
+        tabIndex={-1}
+      >
+        <ContentArm active={shownGroup} collection={landedCollection} groups={groups} selection={selection} />
       </Stack>
-    </Container>
+      {showsGroup ? <ConfigSaveFooter /> : null}
+    </Stack>
   );
 }
 
@@ -340,7 +340,7 @@ function MemberBody({ group, memberId }: { readonly group: ConfigGroupDefinition
   if (!isCollectionGroup(group)) {
     return null;
   }
-  return <>{group.body.collection.detail({ memberId, library: group.label })}</>;
+  return <ConfigMemberAnchor>{group.body.collection.detail({ memberId, library: group.label })}</ConfigMemberAnchor>;
 }
 
 /** The active group's body — reads the definition blind over the §3.1 body union (as amended by §6.8): a

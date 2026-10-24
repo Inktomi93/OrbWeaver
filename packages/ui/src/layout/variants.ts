@@ -50,6 +50,9 @@ export const stackVariants = tv({
     // token at the container, because no control primitive can own PITCH and a per-row `min-h-*` is the
     // N-site spelling of the same fact (gate `no-floorless-control-in-wrap`, the vertical-pitch arm).
     rows: { control: "*:min-h-control-sm" },
+    // The stack is itself the container its descendants query (an element never queries itself). `size` also
+    // contains the block axis, for `cqb` and `cqmin` units.
+    container: { true: "@container", size: "@container-size" },
   },
 });
 
@@ -89,6 +92,10 @@ export const sectionVariants = tv({
         root: "relative isolate rounded-(--radius-base) p-row [border-inline-start-width:var(--immersive-stripe-width)] [border-inline-start-style:solid] [border-inline-start-color:var(--color-speaker)] before:pointer-events-none before:absolute before:-inset-px before:-z-(--z-raised) before:rounded-(--radius-base) before:opacity-40 before:shadow-glow before:content-['']",
       },
       false: {},
+    },
+    // The section is the container its descendants query (an element never queries itself).
+    container: {
+      true: { root: "@container" },
     },
     // A hairline under the section heading — reads as a header edge over its rows, not a floating label.
     divider: {

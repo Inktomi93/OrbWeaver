@@ -19,7 +19,7 @@
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Blocks, Icon } from "@orb/ui/icons";
-import { Container, Stack } from "@orb/ui/layout";
+import { Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import type { ReactElement } from "react";
 import { useRef } from "react";
@@ -110,7 +110,7 @@ export function ExtensionsSwitcherSurface(): ReactElement {
   return (
     // The arrival target names the pane it moved focus into. A child row's name cannot name this node for
     // assistive technology; the Presets list uses the same named-region convention for the same hook.
-    <Container
+    <Stack
       aria-label={EXTENSIONS_SECTION_LABEL}
       className="h-full min-h-0 outline-none"
       data-testid={testId("extensionsSwitcher")}
@@ -129,6 +129,6 @@ export function ExtensionsSwitcherSurface(): ReactElement {
           <ExtensionsPageList />
         </LibrarySurfaceShell>
       </LibraryListFrame>
-    </Container>
+    </Stack>
   );
 }

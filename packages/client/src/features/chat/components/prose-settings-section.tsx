@@ -136,7 +136,7 @@ interface ProseBodyProps {
 function ProseBody({ anchorId, sectionId, session, stored, onKeepMine }: ProseBodyProps): ReactElement {
   const { form, saveState, retrySave } = session;
   return (
-    <Section className="@container" divider={true} heading={PROSE_SETTINGS_SUBCATEGORY.label} id={anchorId}>
+    <Section container={true} divider={true} heading={PROSE_SETTINGS_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="block">
         <Text voice="gloss">
           The wording the app sends to a model on your behalf — summarizers, the memory writer, and the group turn arbiter. Leave a field blank to use the

@@ -86,7 +86,7 @@ function MessageStyleBody({
 }): ReactElement {
   const { form, saveState, retrySave } = session;
   return (
-    <Section className="@container" divider={true} heading={APPEARANCE_MESSAGE_STYLE_SUBCATEGORY.label} id={anchorId}>
+    <Section container={true} divider={true} heading={APPEARANCE_MESSAGE_STYLE_SUBCATEGORY.label} id={anchorId}>
       {/* THE TEACHER LAW (#866 S3): rows are label + control — the prose lives on each leaf's `teach`.
           The per-mode legend stays INSIDE the option rows (`CHAT_STYLE_DESCRIPTIONS`, side-eye 2026-08-16). */}
       <ConfigTeachScope value={{ group: "appearance", sub: APPEARANCE_MESSAGE_STYLE_SUBCATEGORY }}>

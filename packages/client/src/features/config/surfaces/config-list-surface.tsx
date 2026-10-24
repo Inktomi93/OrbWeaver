@@ -12,7 +12,7 @@
 // THE SEARCH (S2) rides the top of this scroller as a `role="search"` block, not the 48px LIST band
 // (fork F-11 — the corpus omnibox precedent).
 
-import { Container, Row, Stack } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
@@ -96,36 +96,36 @@ export function ConfigListSurface({ groups }: ConfigListSurfaceProps): ReactElem
   useConfigArrivalDefault(visible, activeGroup, onSelectGroup);
 
   return (
-    // `h-full min-h-0` on the anchor is what makes the Stack's `overflow-y-auto overscroll-contain` real: the shell's LIST
+    // `h-full min-h-0` is what makes the Stack's `overflow-y-auto overscroll-contain` real: the shell's LIST
     // region is a bounded flex box with no overflow of its own, so without a definite height here an
     // expanded 400-row group grows the pane instead of scrolling inside it.
-    <Container className="h-full min-h-0">
-      {/* THE ARRIVAL TARGET SAYS WHERE YOU LANDED (side-eye 2026-08-19 P3): `role="region"` is what makes
-          the name computable at all (a bare `aria-label` on a generic container is ignored). The name is the
-          pane's contents, not its section: the shell's LIST band already says "Settings". */}
-      <Stack
-        aria-label="Settings groups"
-        className="relative h-full min-h-0 overflow-y-auto overscroll-contain outline-none"
-        data-slot="config-list"
-        gap="section"
-        ref={surfaceRef}
-        role="region"
-        tabIndex={-1}
-      >
-        {/* THE SEARCH (S2, §3.3) — one index over every group, typed `@` filters, results in place. */}
-        <ConfigSearchInput groups={groups} />
-        {/* THE PHONE'S ONLY TEACHING FRAME (side-eye 2026-08-19 P2) — mobile viewport + no selection only. */}
-        <ConfigMobileTeaching groups={groups} />
-        {CONFIG_SHELVES.map((shelf) => {
-          const members = visible.filter((group) => group.shelf === shelf);
-          if (members.length === 0) {
-            return null;
-          }
-          return (
-            // THE SHELVES ARE NAMED GROUPS, NOT BARE PARAGRAPHS (side-eye 2026-08-16 ARIA rider): the
-            // visible kicker IS the announced name (`aria-labelledby`), so the two cannot drift.
-            <Stack aria-labelledby={configShelfLabelId(shelf)} data-config-shelf={shelf} gap="field" key={shelf} role="group">
-              {/* The shelf's kicker keeps being the shelf's NAME (`aria-labelledby` still points at it
+    //
+    // THE ARRIVAL TARGET SAYS WHERE YOU LANDED (side-eye 2026-08-19 P3): `role="region"` is what makes
+    // the name computable at all (a bare `aria-label` on a generic container is ignored). The name is the
+    // pane's contents, not its section: the shell's LIST band already says "Settings".
+    <Stack
+      aria-label="Settings groups"
+      className="relative h-full min-h-0 overflow-y-auto overscroll-contain outline-none"
+      data-slot="config-list"
+      gap="section"
+      ref={surfaceRef}
+      role="region"
+      tabIndex={-1}
+    >
+      {/* THE SEARCH (S2, §3.3) — one index over every group, typed `@` filters, results in place. */}
+      <ConfigSearchInput groups={groups} />
+      {/* THE PHONE'S ONLY TEACHING FRAME (side-eye 2026-08-19 P2) — mobile viewport + no selection only. */}
+      <ConfigMobileTeaching groups={groups} />
+      {CONFIG_SHELVES.map((shelf) => {
+        const members = visible.filter((group) => group.shelf === shelf);
+        if (members.length === 0) {
+          return null;
+        }
+        return (
+          // THE SHELVES ARE NAMED GROUPS, NOT BARE PARAGRAPHS (side-eye 2026-08-16 ARIA rider): the
+          // visible kicker IS the announced name (`aria-labelledby`), so the two cannot drift.
+          <Stack aria-labelledby={configShelfLabelId(shelf)} data-config-shelf={shelf} gap="field" key={shelf} role="group">
+            {/* The shelf's kicker keeps being the shelf's NAME (`aria-labelledby` still points at it
                   alone); the mark is content beside it, so the group's name does not change under the
                   reader as they edit.
                   THE MARK IS A BADGE, NOT A SECOND KICKER (#1214-2). As a `Text voice="kicker"` it was
@@ -134,37 +134,36 @@ export function ConfigListSurface({ groups }: ConfigListSurfaceProps): ReactElem
                   way to tell the name from the state. A `Badge` is the house's own state chrome: its own
                   box, its own contrast, and its own accessible text, which is also what stops it being read
                   as part of the shelf's name. */}
-              <Row align="center" gap="tight">
-                <Text id={configShelfLabelId(shelf)} voice="kicker">
-                  {CONFIG_SHELF_LABELS[shelf]}
-                </Text>
-                {members.some((group) => isGroupModified(group.id)) ? <ConfigModifiedMark label={CONFIG_MODIFIED_MARKER} slot="config-shelf-modified" /> : null}
-              </Row>
-              {members.map((group) => (
-                <ConfigListGroup
-                  active={activeGroup === group.id}
-                  {...(activeGroup === group.id ? { bandRef } : {})}
-                  activeSub={activeSub}
-                  erroredSubIds={erroredSubIds}
-                  group={group}
-                  key={group.id}
-                  // THE SECTION GRAIN, DOWN TO THE ROW (#1169): `useConfigModified` derives BOTH grains in one
-                  // pass and the LIST spent only the group one, so the mark propagated up to the shelf and
-                  // stopped one level above the row that names the location. Same map, same verdict, one more
-                  // reader — nothing is re-derived.
-                  modifiedSubIds={modified.subs.get(group.id) ?? NO_MODIFIED_SUBS}
-                  onSelectGroup={onSelectGroup}
-                  onSelectSub={onSelectSub}
-                  saveFailedMarker={SAVE_FAILED_MARKER}
-                  {...(isGroupModified(group.id) ? { modifiedMarker: CONFIG_MODIFIED_MARKER } : {})}
-                  subcategories={subcategoriesFor(group)}
-                />
-              ))}
-            </Stack>
-          );
-        })}
-      </Stack>
-    </Container>
+            <Row align="center" gap="tight">
+              <Text id={configShelfLabelId(shelf)} voice="kicker">
+                {CONFIG_SHELF_LABELS[shelf]}
+              </Text>
+              {members.some((group) => isGroupModified(group.id)) ? <ConfigModifiedMark label={CONFIG_MODIFIED_MARKER} slot="config-shelf-modified" /> : null}
+            </Row>
+            {members.map((group) => (
+              <ConfigListGroup
+                active={activeGroup === group.id}
+                {...(activeGroup === group.id ? { bandRef } : {})}
+                activeSub={activeSub}
+                erroredSubIds={erroredSubIds}
+                group={group}
+                key={group.id}
+                // THE SECTION GRAIN, DOWN TO THE ROW (#1169): `useConfigModified` derives BOTH grains in one
+                // pass and the LIST spent only the group one, so the mark propagated up to the shelf and
+                // stopped one level above the row that names the location. Same map, same verdict, one more
+                // reader — nothing is re-derived.
+                modifiedSubIds={modified.subs.get(group.id) ?? NO_MODIFIED_SUBS}
+                onSelectGroup={onSelectGroup}
+                onSelectSub={onSelectSub}
+                saveFailedMarker={SAVE_FAILED_MARKER}
+                {...(isGroupModified(group.id) ? { modifiedMarker: CONFIG_MODIFIED_MARKER } : {})}
+                subcategories={subcategoriesFor(group)}
+              />
+            ))}
+          </Stack>
+        );
+      })}
+    </Stack>
   );
 }
 

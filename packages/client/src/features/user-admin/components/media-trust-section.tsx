@@ -102,7 +102,7 @@ function MediaTrustBody({ anchorId, sectionId }: { readonly anchorId: string; re
   };
 
   return (
-    <Section className="@container" divider={true} heading={MEDIA_TRUST_SUBCATEGORY.label} id={anchorId}>
+    <Section container={true} divider={true} heading={MEDIA_TRUST_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="field">
         <Text voice="gloss">Deployment-wide content-render gates. A per-character override may TIGHTEN these, never loosen them.</Text>
         <AdminOverrideSwitch
