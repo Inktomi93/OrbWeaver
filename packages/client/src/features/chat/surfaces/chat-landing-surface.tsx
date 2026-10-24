@@ -13,9 +13,9 @@ import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
+import { WeaveGlyph } from "@orb/ui/web-weave";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { WeaveGlyph } from "#components";
 import { NO_CHAT_SELECTED_TITLE, START_NEW_CHAT_NAME, useFocusOnMount } from "#lib";
 import { LIST_OFF_SCREEN_HINT, useSectionListMode } from "#state";
 

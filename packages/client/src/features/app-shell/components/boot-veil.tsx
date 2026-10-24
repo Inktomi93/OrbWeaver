@@ -63,10 +63,9 @@ import { Row, Stack } from "@orb/ui/layout";
 import { usePrefersReducedMotion } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import type { WeavePhase } from "@orb/ui/web-weave";
-import { WeaveVeil, WebWeave } from "@orb/ui/web-weave";
+import { WeaveGlyph, WeaveVeil, WebWeave } from "@orb/ui/web-weave";
 import type { ReactElement } from "react";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { WeaveGlyph } from "#components";
 
 /** The readiness seam (app-ready-signal.ts — presence = stop waiting; value may be "degraded"). */
 const READY_ATTR = "data-app-ready";

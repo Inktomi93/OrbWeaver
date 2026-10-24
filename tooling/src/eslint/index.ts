@@ -23,9 +23,9 @@ import { CT_SPEC_RESTRICTIONS, TEST_FABRICATION_RESTRICTIONS } from "./test-poli
 import { ctPollIntervalsSharedRule, evaluateNoScopeCaptureRule, typedTestIdRule, uiCtColorRule } from "./tests.ts";
 import { floorlessControlRule, registerApiRule, registryContextRule, stateFilesRule, storeDerivedRule } from "./ui-composition.ts";
 import { UI_FEATURE_RESTRICTIONS } from "./ui-feature-policy.ts";
+import { rawIntrinsicPaintRule } from "./ui-intrinsics.ts";
 import {
   CLASS_RESTRICTIONS,
-  CLASS_TOKEN_RESTRICTIONS,
   CLIENT_CONFIG_HOST_RESTRICTIONS,
   CLIENT_CONTEXT_RESTRICTIONS,
   CLIENT_SEAL_RESTRICTIONS,
@@ -56,7 +56,6 @@ const LOCAL_RESTRICTIONS = [
   CLIENT_STYLE_RESTRICTIONS,
   CLIENT_CONFIG_HOST_RESTRICTIONS,
   CLIENT_SEAL_RESTRICTIONS,
-  CLASS_TOKEN_RESTRICTIONS,
   PORTAL_FLOAT_RESTRICTIONS,
   CT_SPEC_RESTRICTIONS,
   SERVER_HARD_RESTRICTIONS,
@@ -68,12 +67,17 @@ const LOCAL_RESTRICTIONS = [
 ].flat();
 
 /** Keep UI and Biome policy inputs in the root config without importing their runtime graphs. */
-export function createOrbPlugin(options: { browserNodeGlobals: ReadonlySet<string>; floorlessButtonSizes: ReadonlySet<string> }): {
+export function createOrbPlugin(options: {
+  browserNodeGlobals: ReadonlySet<string>;
+  floorlessButtonSizes: ReadonlySet<string>;
+  shellClasses: ReadonlySet<string>;
+}): {
   rules: Record<string, OrbRule>;
 } {
   return {
     rules: {
       ...Object.fromEntries(LOCAL_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)] as const)),
+      "no-raw-intrinsic-paint": rawIntrinsicPaintRule(options.shellClasses),
       ...Object.fromEntries(PRINCIPAL_RULES.map(({ id, rule }) => [id, rule] as const)),
       "ui-ct-no-color-literal": uiCtColorRule,
       "no-raw-egress": rawEgressRule,

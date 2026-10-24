@@ -7,8 +7,8 @@
 // empty/loading states); `prefers-reduced-motion` freezes the shimmer to a static mark (ui globals.css).
 
 import { Stack } from "@orb/ui/layout";
+import { WeaveGlyph } from "@orb/ui/web-weave";
 import type { ReactElement } from "react";
-import { WeaveGlyph } from "#components";
 
 /** Full-viewport brand loading mark — shown while a route's `beforeLoad` auth gate resolves. */
 export function RoutePending(): ReactElement {

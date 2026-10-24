@@ -214,9 +214,9 @@ export function TagFilterChip({
     // Fine pointers keep right-click and F2 and the rail's resting width.
     <Row className="min-w-0 max-w-full" gap="tight">
       <TagFilterChipButton onCycle={onCycle} presentation={presentation} state={state} tabIndex={tabIndex} tag={tag} />
-      <span className={SHOW_ONLY_AT_COARSE}>
+      <Text as="span" className={SHOW_ONLY_AT_COARSE}>
         <EditableTagChip iconOnly={true} tag={tag} />
-      </span>
+      </Text>
     </Row>
   );
 }

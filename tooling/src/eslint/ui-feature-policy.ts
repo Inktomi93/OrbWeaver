@@ -1,14 +1,5 @@
-import { alternation, DIRECT_CLASS_LITERAL_TEMPLATE, MATCH_MEDIA, TANSTACK_FORM_MINTS } from "./syntax.ts";
+import { alternation, MATCH_MEDIA, TANSTACK_FORM_MINTS } from "./syntax.ts";
 export const UI_FEATURE_RESTRICTIONS = [
-  {
-    id: "class-token-splice",
-    selectors: [
-      {
-        selector: `${DIRECT_CLASS_LITERAL_TEMPLATE}:matches([quasis.0.value.cooked=/\\S$/][expressions.0.value=/^\\S/], [expressions.0.value=/\\S$/][quasis.1.value.cooked=/^\\S/])`,
-        message: "A literal interpolation splits a class token; spell the complete class as one source literal.",
-      },
-    ],
-  },
   {
     id: "no-raw-zustand-persist",
     selectors: [

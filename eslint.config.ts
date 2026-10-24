@@ -19,6 +19,7 @@ import tsdoc from "eslint-plugin-tsdoc";
 import type { FlatConfig } from "typescript-eslint";
 import tseslint from "typescript-eslint";
 import biomeConfig from "./biome.json" with { type: "json" };
+import { OWNER_CSS_SHELL_CLASSES } from "./packages/client/owner-css-surface.ts";
 
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
 const UI_STYLESHEET = fileURLToPath(new URL("./packages/ui/src/styles/globals.css", import.meta.url));
@@ -55,7 +56,53 @@ const RESTRICTED_CLASSES = [
     pattern: String.raw`^(?:[^\s]*:)?!.|.!$`,
     message: "The `!` modifier escapes the cascade; add a variant in @orb/ui, or name the inline style it beats beside a disable.",
   },
+  {
+    // An arbitrary layout, size or type value; a custom property, a formula and `inherit` are structure and stay legal.
+    pattern: String.raw`^(?:[^\s]*:)?-?(?:[whz]|min-w|min-h|max-w|max-h|inline|block|min-inline|min-block|max-inline|max-block|size|p[xytrbles]?|m[xytrbles]?|gap(?:-x|-y)?|space-[xy]|inset(?:-x|-y|-s|-e)?|top|left|right|bottom|start|end|translate(?:-x|-y|-z)?|text|leading|tracking|rounded)-\[(?!(?:--|var\(|calc\(|inherit\]))[^\s:]+\]$`,
+    message: "Arbitrary Tailwind layout/size/type value bypasses the token scale; use a token utility or extend tokens.json.",
+  },
+  {
+    pattern: String.raw`^(?:[^\s]*:)?@?(?:min|max)-\[[^\s\]]+\]:`,
+    message: "An arbitrary breakpoint variant bypasses the named conditions; use a breakpoint or container token (tokens.json) or add one.",
+  },
+  {
+    pattern: String.raw`\(--primitive-[a-z0-9-]+\)`,
+    message: "A primitive ramp step is referenced directly; use the semantic token that aliases it, or add one in tokens.json.",
+  },
+  {
+    pattern: String.raw`^(?:[^\s]*:)?(?:bg|text|border|ring|fill|stroke)-(?:black|white)(?:\/\d+)?$`,
+    message: "A named non-token color bypasses the theme; use a semantic token, or bg-backdrop for a scrim.",
+  },
+  {
+    pattern: String.raw`^(?:[^\s]*:)?(?:bg|text|border|ring|fill|stroke|from|via|to|outline|decoration|accent|caret|divide|placeholder|shadow|ring-offset)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}(?:\/\d+)?$`,
+    message: "A palette-scale color bypasses the theme; use a semantic token such as text-destructive or bg-primary.",
+  },
+  {
+    pattern: String.raw`-\[#[0-9a-fA-F]{3,8}\]`,
+    message: "An arbitrary hex color bypasses the theme; use a semantic color token from theme.css.",
+  },
+  {
+    pattern: String.raw`^(?:[^\s]*:)?max-(?:w|inline)-prose$`,
+    message:
+      "Tailwind's max-w-prose matches no house reading measure. Body/teaching prose takes max-w-(--reading-measure-prose) on the paragraph; editor content takes max-w-(--width-content-col).",
+  },
 ];
+
+/** Viewport breakpoints are the shell's; a feature adapts to its pane with a container query. */
+const VIEWPORT_CLASSES = {
+  pattern: String.raw`^(?:[^\s]*:)?(?:(?:max-|min-)?(?:sm|md|lg|xl|2xl)|(?:min|max)-\[[^\s\]]+\]):`,
+  message: "Viewport breakpoints belong to app-shell; adapt to the pane with a container query or Container size.",
+};
+/** Pointer and hover capability variants are the tokens' or the shell's, never a feature's. */
+const POINTER_CLASSES = {
+  pattern: String.raw`^(?:[^\s]*:)?(?:(?:any-)?pointer-(?:coarse|fine)|\[@media\([^\s)]*(?:any-pointer|pointer|hover):[^\s)]*\)\]):`,
+  message: "Device capability adaptation belongs to shared tokens or app-shell, not feature-local pointer/hover capability variants.",
+};
+/** A raw content width; the container scale and the Container primitive own widths. */
+const WIDTH_CLASSES = {
+  pattern: String.raw`^(?:[^\s]*:)?(?:(?:max-|min-)?(?:w|inline)-\[[^\s\]]+\]|(?:max-)?(?:w|inline)-(?:[1-9]\d*|\d+\.\d+))$`,
+  message: "Raw content widths bypass the container scale; use Container size or a max-w-cq-* token utility.",
+};
 
 const REACT_SOURCE = ["packages/client/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}"];
 
@@ -491,12 +538,37 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
       "@tanstack/router/create-route-property-order": "error",
     },
   },
-  ...[
-    { name: "ui", entryPoint: UI_STYLESHEET, stylesheets: [UI_STYLESHEET] },
-    { name: "client", entryPoint: CLIENT_STYLESHEET, stylesheets: [UI_STYLESHEET, CLIENT_STYLESHEET, SHELL_STYLESHEET] },
-  ].map(
-    ({ name, entryPoint, stylesheets }): FlatConfig.Config => ({
-      files: [`packages/${name}/src/**/*.{ts,tsx}`],
+  ...(
+    [
+      // The ui package: viewport variants and raw widths are refused; the layout and markdown primitives own widths.
+      {
+        name: "ui",
+        files: ["packages/ui/src/**/*.{ts,tsx}"],
+        ignores: ["packages/ui/src/layout/**", "packages/ui/src/markdown/**"],
+        restrict: [VIEWPORT_CLASSES, WIDTH_CLASSES],
+      },
+      { name: "ui", files: ["packages/ui/src/layout/**/*.{ts,tsx}", "packages/ui/src/markdown/**/*.{ts,tsx}"], ignores: [], restrict: [VIEWPORT_CLASSES] },
+      // The app shell is the one home of viewport and pointer variants.
+      { name: "client", files: ["packages/client/src/features/app-shell/**/*.{ts,tsx}"], ignores: [], restrict: [WIDTH_CLASSES] },
+      {
+        name: "client",
+        files: ["packages/client/src/features/**/*.{ts,tsx}"],
+        ignores: ["packages/client/src/features/app-shell/**"],
+        restrict: [VIEWPORT_CLASSES, POINTER_CLASSES, WIDTH_CLASSES],
+      },
+      {
+        name: "client",
+        files: ["packages/client/src/**/*.{ts,tsx}"],
+        ignores: ["packages/client/src/features/**"],
+        restrict: [VIEWPORT_CLASSES, WIDTH_CLASSES],
+      },
+    ] as const
+  ).map(({ name, files, ignores, restrict }): FlatConfig.Config => {
+    const entryPoint = name === "ui" ? UI_STYLESHEET : CLIENT_STYLESHEET;
+    const stylesheets = name === "ui" ? [UI_STYLESHEET] : [UI_STYLESHEET, CLIENT_STYLESHEET, SHELL_STYLESHEET];
+    return {
+      files: [...files],
+      ignores: [...ignores],
       plugins: { "better-tailwindcss": betterTailwindcss },
       settings: { "better-tailwindcss": { entryPoint } },
       rules: {
@@ -506,11 +578,25 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
         "better-tailwindcss/no-conflicting-classes": "error",
         "better-tailwindcss/no-duplicate-classes": "error",
         "better-tailwindcss/no-concatenated-classes": "error",
-        // The namespace resets remove the stock scales; this closes the arbitrary spellings a reset cannot see.
-        "better-tailwindcss/no-restricted-classes": ["error", { restrict: RESTRICTED_CLASSES }],
+        // The namespace resets remove the stock scales; the patterns close the spellings a reset cannot see, per scope.
+        "better-tailwindcss/no-restricted-classes": ["error", { restrict: [...RESTRICTED_CLASSES, ...restrict] }],
+        // Tailwind's own order, so a class list reads the same everywhere; component and unknown classes keep their place.
+        "better-tailwindcss/enforce-consistent-class-order": ["error", { order: "official" }],
+        "better-tailwindcss/enforce-consistent-variant-order": "error",
+        // Canonical spellings only: `collapse` is off because it folds two house tokens with one value into the wrong name
+        // (`text-label leading-label` into `text-code/label`), and the `(--token)` forms are ignored because the bare forms
+        // it would prefer are the ones `no-restricted-classes` refuses; `logical` is enforce-logical-properties' axis.
+        "better-tailwindcss/enforce-canonical-classes": ["error", { collapse: false, logical: false, ignore: [String.raw`\(--`] }],
+        "better-tailwindcss/enforce-shorthand-classes": "error",
+        "better-tailwindcss/enforce-logical-properties": "error",
+        // The trailing form is Tailwind v4's; the modifier itself is refused above, so this governs only a named exception.
+        "better-tailwindcss/enforce-consistent-important-position": ["error", { position: "recommended" }],
+        // Biome's lineWidth is 160; the same width here means the two never fight over a class string.
+        "better-tailwindcss/enforce-consistent-line-wrapping": ["error", { printWidth: 160, group: "newLine", preferSingleLine: true, indent: 2 }],
+        "better-tailwindcss/no-unnecessary-whitespace": ["error", { allowMultiline: true }],
       },
-    }),
-  ),
+    };
+  }),
   {
     files: ["packages/server/src/**/*.ts", "packages/db/src/**/*.ts"],
     plugins: { drizzle },
@@ -580,6 +666,7 @@ const localPlugin = createOrbPlugin({
       .filter(([, overflows]) => overflows)
       .map(([size]) => size),
   ),
+  shellClasses: new Set(OWNER_CSS_SHELL_CLASSES),
 });
 // The only files that may spell a portal-float z token: each is a surface that portals to
 // [data-slot="portal-root"] or mounts at the document root. A new consumer is a finding, not an entry here.
@@ -608,14 +695,11 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     {
       files: ["packages/client/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}"],
       rules: {
-        "orb/class-token-splice": "error",
-        "orb/no-arbitrary-tw-values": "error",
-        "orb/no-color-literals": "error",
         "orb/no-off-token-inline-style": "error",
         "orb/theme-override-only-via-scope": "error",
-        "orb/no-banned-tw-utility": "error",
       },
     },
+    { files: ["packages/client/src/**/*.tsx"], rules: { "orb/no-raw-intrinsic-paint": "error" } },
     {
       files: ["packages/client/src/**/*.{ts,tsx}"],
       ignores: ["packages/client/src/state/entity-draft-store-implementation.ts", "packages/client/src/state/persisted-store-implementation.ts"],
@@ -780,19 +864,9 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     },
     { files: ["packages/ui/src/**/*.{ts,tsx}"], ignores: ["packages/ui/src/lib/**"], rules: { "orb/ui-skin-fragment-purity": "error" } },
     {
-      files: ["packages/client/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}"],
-      ignores: ["packages/client/src/features/app-shell/**"],
-      rules: { "orb/no-media-queries-in-features": "error" },
-    },
-    {
       files: ["packages/client/src/features/**/*.{ts,tsx}"],
       ignores: ["packages/client/src/features/app-shell/**"],
-      rules: { "orb/no-pointer-variants-in-features": "error", "orb/context-shell-chrome": "error" },
-    },
-    {
-      files: ["packages/client/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}"],
-      ignores: ["packages/ui/src/layout/**", "packages/ui/src/markdown/**"],
-      rules: { "orb/no-raw-container-widths": "error" },
+      rules: { "orb/context-shell-chrome": "error" },
     },
     { files: ["packages/server/src/primitives/role-data/index.ts"], rules: { "orb/role-data-export-surface-0": "error" } },
     { files: ["packages/server/src/primitives/role-data/registry.ts"], rules: { "orb/role-data-export-surface-1": "error" } },
@@ -925,7 +999,7 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     },
     { files: ["packages/db/src/schema/**/*.ts"], rules: { "orb/db-enum-from-tuple": "error" } },
     { files: ["packages/ui/src/**/index.ts"], rules: { "orb/ui-variants-barrel-private": "error" } },
-    { files: ["packages/ui/src/**/*.tsx"], ignores: ["packages/ui/src/**/charts/**"], rules: { "orb/ui-no-inline-svg": "error" } },
+    { files: ["packages/ui/src/**/*.tsx"], ignores: ["packages/ui/src/**/charts/**", "packages/ui/src/art/**"], rules: { "orb/ui-no-inline-svg": "error" } },
     { files: ["tests/ui/**/*.ct.tsx", "tests/ui/**/*.fixtures.tsx"], rules: { "orb/ui-ct-no-inline-provider": "error" } },
     {
       files: [

@@ -190,6 +190,11 @@
     --list-track-docked: var(--both-docked-list-track);
   }
 
+  /* The themed portal root: a sibling of the grid inside the theme scope that adds no box of its own. */
+  .shell-portal-root {
+    display: contents;
+  }
+
   .shell-content-primacy-sentinel {
     position: absolute;
     inset: 0 auto auto 0;

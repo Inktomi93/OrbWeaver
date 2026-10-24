@@ -97,6 +97,12 @@ const SUPPORTED = [
 ].flatMap((candidate) => [candidate, `hover:${candidate}`, `focus:${candidate}`, `[&:hover]:${candidate}`]);
 /** The important modifier, in both spellings and under a variant, is refused on an otherwise supported class. */
 const IMPORTANT = ["!p-0", "p-0!", "hover:!p-0", "hover:p-0!"];
+/** One control per class gate that moved from an `orb/` rule onto a restricted pattern. */
+const RETIRED_GATE_CONTROLS = ["pt-[13px]", "@min-[100rem]:flex", "p-(--primitive-space-8)", "bg-black", "text-red-500", "bg-[#fff]", "max-w-prose"];
+/** A viewport variant, a pointer variant, a raw width step and an arbitrary width. */
+const SCOPED_CONTROLS = ["md:flex", "pointer-coarse:flex", "w-64", "w-[20rem]"];
+// biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
+const SPLICED_CLASS = "cn(`text-${size}`);";
 const CARRIERS = [
   '<div className="CLASS" />;',
   '<div className={"CLASS"} />;',
@@ -139,11 +145,11 @@ test("generated namespace resets reject stock scales without changing supported 
 
 test("effective UI/client native rules reject stock classes in real class carriers, not copy or unrelated attributes", async ({ repoRoot }) => {
   const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: repoRoot });
-  for (const [path, entryPoint, authoredClass] of [
-    ["packages/ui/src/primitives/native-token-control.tsx", "packages/ui/src/styles/globals.css", UI_AUTHORED_CLASS],
-    ["packages/ui/src/primitives/native-token-control.ts", "packages/ui/src/styles/globals.css", UI_AUTHORED_CLASS],
-    ["packages/client/src/features/native-token-control.tsx", "packages/client/src/styles/globals.css", CLIENT_AUTHORED_CLASS],
-    ["packages/client/src/features/native-token-control.ts", "packages/client/src/styles/globals.css", CLIENT_AUTHORED_CLASS],
+  for (const [path, entryPoint, authoredClass, pointerRefusals] of [
+    ["packages/ui/src/primitives/native-token-control.tsx", "packages/ui/src/styles/globals.css", UI_AUTHORED_CLASS, 0],
+    ["packages/ui/src/primitives/native-token-control.ts", "packages/ui/src/styles/globals.css", UI_AUTHORED_CLASS, 0],
+    ["packages/client/src/features/native-token-control.tsx", "packages/client/src/styles/globals.css", CLIENT_AUTHORED_CLASS, 1],
+    ["packages/client/src/features/native-token-control.ts", "packages/client/src/styles/globals.css", CLIENT_AUTHORED_CLASS, 1],
   ] as const) {
     const config = await eslint.calculateConfigForFile(join(repoRoot, path));
     expect(config.rules[RULE]?.[0], path).toBe(2);
@@ -179,6 +185,13 @@ test("effective UI/client native rules reject stock classes in real class carrie
     expect(RESTRICTED.map((candidate) => lintWith(RESTRICTED_RULE, `cn("${candidate}");`).length)).toEqual(RESTRICTED.map(() => 1));
     expect(lintWith(RESTRICTED_RULE, `cn("${STRUCTURAL_ARBITRARY}");`)).toEqual([]);
     expect(IMPORTANT.map((candidate) => lintWith(RESTRICTED_RULE, `cn("${candidate}");`).length)).toEqual(IMPORTANT.map(() => 1));
+    expect(RETIRED_GATE_CONTROLS.map((candidate) => lintWith(RESTRICTED_RULE, `cn("${candidate}");`).length)).toEqual(RETIRED_GATE_CONTROLS.map(() => 1));
+    // The scoped patterns: viewport variants and raw widths everywhere outside the shell, pointer variants in features only.
+    expect(
+      SCOPED_CONTROLS.map((candidate) => lintWith(RESTRICTED_RULE, `cn("${candidate}");`).length),
+      path,
+    ).toEqual([1, pointerRefusals, 1, 1]);
+    expect(lintWith("better-tailwindcss/no-concatenated-classes", SPLICED_CLASS), path).toHaveLength(1);
     for (const carrier of CARRIERS) {
       if (path.endsWith(".ts") && carrier.startsWith("<")) {
         continue;

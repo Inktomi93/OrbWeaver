@@ -266,6 +266,7 @@ export const OWNER_CSS_SLOTS = [
   "drawer-indent-background",
   "drawer-popup",
   "drawer-swipe-area",
+  "drawer-tap-guard",
   "drawer-viewport",
   "elevation-cards",
   "empty-state-action",
@@ -851,7 +852,6 @@ export const OWNER_CSS_SLOTS = [
   "world-info-cache-warning",
   "world-info-member-editor",
   "you-sheet",
-  "you-sheet-tap-guard",
 ] as const;
 
 /** Every `.shell-*` class shell.css styles. */
@@ -872,6 +872,7 @@ export const OWNER_CSS_SHELL_CLASSES = [
   "shell-panel-body",
   "shell-panel-header",
   "shell-panel-header-group",
+  "shell-portal-root",
   "shell-rail",
   "shell-rail-actions",
   "shell-rail-brand",

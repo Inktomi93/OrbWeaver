@@ -7,6 +7,8 @@
  * `WebSpinner`'s icon all derive from.
  */
 
+export type { WeaveGlyphProps } from "./weave-glyph.tsx";
+export { WeaveGlyph } from "./weave-glyph.tsx";
 export { WeaveVeil } from "./weave-veil.tsx";
 
 export { WEB_GLYPH_DISPLAY } from "./web-glyph.ts";

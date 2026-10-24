@@ -303,6 +303,7 @@ export function AppShell(): ReactElement {
             data-room-screen={roomScreen.roomScreen}
             data-elevation={appearance.elevation}
             {...(hasBgImage ? { "data-has-bg-image": true } : {})}
+            // eslint-disable-next-line orb/no-raw-intrinsic-paint -- the appearance channel (css-system plan, leg 9) owns these variables; until it lands they are written here
             style={shellVars}
           >
             <CustomThemeStyle css={theme?.css ?? null} />
@@ -424,7 +425,7 @@ export function AppShell(): ReactElement {
             <ModalHost openModal={layout.openModalId} container={portalRootRef} onClose={closeModal} />
           </div>
           {/* Themed portal root for every overlay — sibling of .shell-grid but inside <ThemeScope>. */}
-          <div ref={portalRootRef} className="contents" data-slot="portal-root" />
+          <div ref={portalRootRef} className="shell-portal-root" data-slot="portal-root" />
         </PortalContainerContext>
       </ThemeScope>
     </TooltipProvider>

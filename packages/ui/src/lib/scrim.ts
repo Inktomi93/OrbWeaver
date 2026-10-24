@@ -40,6 +40,8 @@ import { OVERLAY_MOTION } from "./overlay-motion.ts";
 // the REACH half — each of the six backdrop variants modules reaching SCRIM/SCRIM_BASE rather than
 // re-spelling the fill, with a positive control so a moved module cannot empty the sweep into a false
 // clean.
-export const SCRIM_BASE = "fixed inset-0 min-h-dvh bg-backdrop supports-[-webkit-touch-callout:none]:absolute";
+/** The polarity-fixed dimming fill on its own, for a layer that positions itself (the wallpaper scrim). */
+export const BACKDROP_FILL = "bg-backdrop";
+export const SCRIM_BASE = `fixed inset-0 min-h-dvh ${BACKDROP_FILL} supports-[-webkit-touch-callout:none]:absolute`;
 
 export const SCRIM = (tier: "popover" | "modal"): string => `${SCRIM_BASE} z-(--z-${tier}) ${OVERLAY_MOTION.backdropFade(tier === "modal" ? "base" : "fast")}`;

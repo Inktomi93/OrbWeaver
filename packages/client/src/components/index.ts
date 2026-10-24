@@ -80,4 +80,3 @@ export type { UserMacrosFormValues } from "./user-macro-editor-dialog.tsx";
 export { UserMacroEditorDialog } from "./user-macro-editor-dialog.tsx";
 export { RerankModelDoor, UtilityModelDoor } from "./utility-model-door.tsx";
 export { ViewerDialog } from "./viewer-dialog.tsx";
-export { WeaveGlyph } from "./weave-glyph.tsx";
