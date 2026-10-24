@@ -96,7 +96,7 @@ test("a hold on a plain execute() reaches, holds, and releases normally", async 
   await write;
 });
 
-test("a hold on a statement issued INSIDE db.batch is fenced too — the batch is one atomic unit (#1549)", async () => {
+test("a hold on a statement issued INSIDE db.batch is fenced too — the batch is one atomic unit", async () => {
   await using resources = new AsyncDisposableStack();
   const { db, hold } = await heldDb(resources);
   const gate = hold(INSERT_SQL, 2);

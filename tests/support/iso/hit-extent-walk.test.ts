@@ -89,7 +89,7 @@ describe("pseudoHitRect", () => {
     expect(pseudoHitRect(CTA_RING, geometry(ABSENT, CTA_RING))).toBeNull();
   });
 
-  test("refuses an OUTWARD pseudo that cannot take a pointer — the pre-#1843 collision (#2300)", () => {
+  test("refuses an OUTWARD pseudo that cannot take a pointer — a CTA ring sharing the hit area's pseudo", () => {
     // The unlayered ring wins `inset`/`pointer-events`; the hit-area utilities' size and centring survive,
     // so this rect DOES reach past the border box. Geometry alone would credit it; the pointer clause is
     // the only thing that does not.
@@ -98,7 +98,7 @@ describe("pseudoHitRect", () => {
     expect(pseudoHitRect(collided, geometry(ABSENT, collided))).toBeNull();
   });
 
-  test("refuses a control under a SCALED ancestor instead of over-crediting it (#2300 ledger row 4)", () => {
+  test("refuses a control under a SCALED ancestor instead of over-crediting it", () => {
     // THE MIX THAT OVER-CREDITS. `border` is post-transform, the resolved
     // insets are local px. A 0.5-scaled ancestor halves the border rect (25px box → 12.5px on screen at
     // 120,120) while `left: 12.5px` / `right: -42.5px` stay local, so naive arithmetic answers
@@ -128,7 +128,7 @@ describe("pseudoHitRect", () => {
 });
 
 describe("pseudoHitEnvelope", () => {
-  test("is null for a control with no pseudo — an ancestor is then only the wrapper's padding (#662)", () => {
+  test("is null for a control with no pseudo — an ancestor is then only the wrapper's padding", () => {
     expect(pseudoHitEnvelope(geometry(ABSENT, ABSENT))).toBeNull();
   });
 
