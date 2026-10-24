@@ -310,7 +310,10 @@ function renderThemeCss(tokens: readonly GeneratedCssValue[]): string {
   return `/* ${HEADER}\n */\n@theme {\n${[...resets, ...primitives].join("\n")}\n}\n\n@theme static {\n${[...STRUCTURAL_SPACING, ...served].join("\n")}\n}\n`;
 }
 
-/** One `@custom-variant` per named condition; a built-in of the same name is replaced, so the query has one home. */
+/** One `@custom-variant` per named condition; a built-in of the same name is replaced, so the query has one home.
+ *  A condition is a media query only: a selector arm cannot be a variant, because `@variant` over a pseudo-element
+ *  selector expands to `:scope` or `:is()` forms that match nothing (probed), so a root-attribute twin of a query is
+ *  written as a plain rule beside it. */
 function renderConditionVariants(conditions: Readonly<Record<string, string>>): string {
   return `\n${Object.entries(conditions)
     .map(([name, query]) => `@custom-variant ${name} (@media ${query});`)
@@ -323,6 +326,12 @@ function renderRootCss(tokens: readonly GeneratedCssValue[]): string {
   }
   const lines = tokens.map((token) => `  ${cssVarName(token.path)}: ${token.value};`);
   return `\n:root {\n${lines.join("\n")}\n}\n`;
+}
+
+/** A served block inside the `theme` cascade layer, where the seed value-sets and the pointer override belong. */
+function themeLayer(css: string): string {
+  const body = css.replace(/^\n+/u, "").replace(/\n+$/u, "");
+  return body === "" ? "" : `\n@layer theme {\n${body.replace(/^(?=.)/gmu, "  ")}\n}\n`;
 }
 
 export function renderGeneratedCss(tokens: readonly GeneratedCssValue[], conditions: Readonly<Record<string, string>>): string {
@@ -592,7 +601,8 @@ export async function generateArtifacts(uiRoot = HERE): Promise<{ themeCss: stri
   const conditions = resolveConditions(contract.conditions, portableByPath);
   const seedThemes = loadSeedThemes(contract);
   return {
-    themeCss: renderGeneratedCss(flat, conditions) + renderPointerFineBlock(fine, conditions[POINTER_FINE_CONDITION]) + renderSeedThemesBlock(seedThemes),
+    themeCss:
+      renderGeneratedCss(flat, conditions) + themeLayer(renderPointerFineBlock(fine, conditions[POINTER_FINE_CONDITION]) + renderSeedThemesBlock(seedThemes)),
     tokensTs: renderTokensTs({ tokens: flat, polarityArms, snapped, conditions }),
     themesTs: renderSeedThemesTs(seedThemes),
   };

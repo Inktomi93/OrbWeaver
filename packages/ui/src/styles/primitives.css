@@ -1,0 +1,530 @@
+/* @orb/ui region: document floors and the primitive-wide treatments no utility can spell. Imported by globals.css inside its layer. */
+@layer ui {
+  /* Client writes --font-scale onto root from the synced pref; rescales every rem-derived size
+   * proportionally. Default 1 = no-op.
+   * The font rendering set (ui-package-design.md §4, owner ruling): grayscale antialiasing keeps macOS text
+   * thin on the dark themes, and no synthesised bold or italic stands in for a face Geist does not ship. */
+  :root {
+    font-size: calc(100% * var(--font-scale, 1));
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-synthesis: none;
+  }
+
+  /* Multi-palette seed value-sets are GENERATED into theme.css from src/tokens/themes/*.json (the base
+   * :root { color-scheme } + each [data-theme=…] custom-property block, per tokens.build.ts). Redefining
+   * --color-* under a [data-theme] scope reflows the whole subtree at runtime; each generated block is
+   * in the theme layer and carries its own color-scheme (Light must flip it or native controls/scrollbars stay dark)
+   * and is self-complete so it themes the app with or without the root ThemeScope. To change a seed
+   * palette, edit the value-set JSON + run `pnpm --filter @orb/ui tokens:build` — NEVER hand-write the CSS. */
+
+  /* Ambient accent aura behind the empty-state brand glyph — a static low-alpha radial glow tinted
+   * from --color-primary. Scoped to the brand/hero decoration slot only, never the muted empty-state
+   * icon chrome or message prose (reading-surface rule).
+   *
+   * `closest-side` + a CENTERED origin is load-bearing, not a style preference: a radial origin on the
+   * box edge (the former `at 50% 0%`) puts the gradient's PEAK alpha on that edge, so the aura is sliced
+   * in half and paints a hard-edged horizontal smudge above the glyph — no container clipping needed to
+   * produce it. closest-side ends the ramp exactly at the nearest edge, so the aura reaches zero alpha
+   * before the box ends on every side. */
+  [data-slot="empty-state-decoration"] {
+    position: relative;
+    isolation: isolate;
+  }
+  [data-slot="empty-state-decoration"]::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: -60% -40%;
+    pointer-events: none;
+    background: radial-gradient(closest-side at 50% 50%, oklch(from var(--color-primary) l c h / 0.14), transparent);
+  }
+
+  /* A teaching surface may promote its opening statement one ratified step without retuning every shared
+   * EmptyState consumer.
+  * IT SITS IN THE ui LAYER, AND THAT IS WHAT IT MEANS. The slot's own class list carries the container step-down
+   * (`@max-cq-24:text-body`, its variants.ts), but a ui-layer rule beats every Tailwind utility regardless of
+   * specificity or container (the `tiers.css` list-row precedent), so a `focal` title holds the DISPLAY step at
+   * every width, including inside a narrow LIST pane. That is the arm: `focal` is the surface's one focal
+   * statement, and a statement that shrinks with its column is not one. A caller who wants the container response
+   * asks for the default step instead. Pinned by computed value in empty-state.ct.tsx, never by reading this
+   * file. */
+  [data-slot="empty-state-title"][data-title-step="focal"] {
+    font-size: var(--text-display);
+    line-height: var(--leading-display);
+  }
+  /* Gradient border ring on the primary CTA: a ::after overlay (dual background-clip: transparent padding-box
+   * fill + gradient border-box) so it composes over the element's own fill instead of clobbering it. Chrome/CTA
+   * only, never message prose. The gradient's FOOT is --color-sheen, a polarity-fixed sheen highlight, a
+   * deliberate white gloss unless a theme overrides the token. The per-site alpha (the tuned ring weight) stays
+   * here; only the colour is the token's call. Same pairing in .shell-rail-button.
+  * A selected media cell does not wear this ring: a selected cell is `SELECTION_RING_SELECTED` and nothing else
+   * (packages/ui/src/lib/selection-ring.ts). A call-to-action is not a selection state. */
+  [data-slot="button"][data-cta]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    border: var(--border-width-control) solid transparent;
+    border-radius: inherit;
+    background:
+      linear-gradient(transparent, transparent) padding-box,
+      linear-gradient(180deg, oklch(from var(--color-primary) l c h / 0.55), oklch(from var(--color-sheen) l c h / 0.04)) border-box;
+  }
+  /* A disabled (not busy) primary is neutral, so its ring goes neutral too — an accent hairline round a grey button
+   * would still read as live. */
+  [data-slot="button"][data-cta]:is(:disabled, [data-disabled]):not([aria-busy="true"])::after {
+    background: none;
+    border-color: var(--color-border);
+  }
+  /* Positioning context for the ring above — Base UI's button isn't positioned by default. */
+  [data-slot="button"][data-cta] {
+    position: relative;
+  }
+
+  /* Active-tab accent gradient border, same recipe as the CTA ring above (primary head, --color-sheen foot),
+   * lower alpha.
+  * NOT A REDUNDANT SECOND SELECTION LAYER. `TabsIndicator` is an opt-in child a consumer renders itself
+   * (`tabs.tsx` exports it; `TabsList` does not draw one), and most tab lists render none, so for them this rule
+   * is the only geometric mark the active tab carries. The honest collapse to one layer present by construction
+   * (the list draws its own indicator) is a seal change with a vertical/`stacked` arm the rail would need
+   * rendered checks for; until then this rule stays. */
+  [data-slot="tabs-tab"][data-active]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    border: var(--border-width-control) solid transparent;
+    border-radius: var(--radius-control);
+    background:
+      linear-gradient(transparent, transparent) padding-box,
+      linear-gradient(180deg, oklch(from var(--color-primary) l c h / 0.3), oklch(from var(--color-sheen) l c h / 0.02)) border-box;
+  }
+
+  /* Gradient-fade dividers: long separators dissolve at their ends via a mask gradient instead of a
+   * hard 1px stub. Vertical (short) separators are left alone — a fade there reads as a bug. */
+  [data-slot="separator"][data-orientation="horizontal"] {
+    -webkit-mask-image: linear-gradient(to right, transparent, black var(--fade-edge-stop), black calc(100% - var(--fade-edge-stop)), transparent);
+    mask-image: linear-gradient(to right, transparent, black var(--fade-edge-stop), black calc(100% - var(--fade-edge-stop)), transparent);
+  }
+
+  /* AN UNSET DATE-FAMILY INPUT WEARS THE PLACEHOLDER TONE. `<input type="month|date|time|week|datetime-local">`
+   * paints its own segmented editor, so the primitive's `placeholder:text-muted-foreground` never reaches it: an
+   * unset control printed the browser's bare dashes at full foreground, the loudest text in a filter column,
+   * saying nothing. Muted, the same dashes read as "nothing chosen yet".
+  * IT IS A RULE HERE AND NOT A UTILITY because `::-webkit-datetime-edit` is a UA pseudo-element Tailwind cannot
+   * address, and it is keyed off `data-empty` (emitted by `primitives/input/input.tsx`) because CSS cannot ask
+   * the question: Chromium matches neither `:placeholder-shown` nor `:invalid` on an empty date input. Colour
+   * only. */
+  [data-slot="input-root"][data-empty]::-webkit-datetime-edit {
+    color: var(--color-muted-foreground);
+  }
+
+  /* …AND SO DOES ITS PICKER GLYPH. `::-webkit-calendar-picker-indicator` paints a masked/imaged glyph, not text,
+   * so `color` does not reach it and the tint rule above leaves it at pure white, the loudest ink in the whole
+   * filter column. `opacity` is the honest lever (it composites the glyph toward the field's own plate the way a
+   * muted tone would) and it is NOT keyed off `data-empty`: this indicator is a secondary affordance in either
+   * state, and when a value IS set it shares the field's inline end with the consumer's own ghost clear glyph,
+   * which should lead. Stated once here because Tailwind cannot address a UA pseudo-element. */
+  [data-slot="input-root"]::-webkit-calendar-picker-indicator {
+    opacity: 0.55;
+  }
+
+  /* A DRAWER'S LAST ROW CLEARS THE HOME INDICATOR. Base UI's own bottom-sheet demos pad the popup with
+   * `env(safe-area-inset-bottom)`; our sealed drawer's `content` slot is a bare `p-section`, so on a device with
+   * a home indicator the sheet's final row would sit inside the gesture band.
+  * IT IS NOT COVERED BY THE SHELL'S OWN INSETS, which is why it needs its own rule: a Drawer portals to
+   * `[data-slot="portal-root"]`, which app-shell.tsx renders as a SIBLING of `.shell-grid`, so the four-edge
+   * `padding` the frame pays structurally cannot reach a portalled float. Same anatomy as the modal-plate rule.
+  * EVERY SIDE, not just `bottom`: the left/right sheets are `inset-y-0`, so they reach the bottom edge too. A
+   * phone's modal presentation IS this component (`modal-host.tsx` routes the coarse arm to `DrawerModal`), so
+   * this is every mobile modal's last row.
+  * IT IS CSS AND NOT A VARIANT because `env()` has no token utility spelling: `variants.ts` composes token
+   * utilities and may not mint values (paint law §4.2), and an arbitrary `pb-[env(…)]` is what
+   * `no-arbitrary-tw-values` reds. This tier owns "primitive-wide treatments" and is legal "only when CSS itself
+   * is the mechanism" (§4.2/§4.3); a runtime environment value only CSS can read is exactly that case. In the ui layer,
+   * so it beats the `p-section` utility it extends. It ADDS to the section step, so a drawer on a device with no
+   * home indicator is byte-identical (`env()` resolves 0px). */
+  [data-slot="drawer-content"] {
+    padding-bottom: calc(var(--spacing-section) + env(safe-area-inset-bottom));
+  }
+
+  /* ART BLEED: the two declarations `art/art-bleed/variants.ts` cannot honestly spell as utilities. Read them
+   * together; the component's own header carries the why.
+  * `inset-inline-start` IS THE READING-SURFACE GUARANTEE. The band begins one `--reading-measure-min` in, so a
+   * host that caps its content column at the same measure has no ink over art, which is why this recipe invokes
+   * none of the D144 reading-plate machinery. `min(100%, …)` is the other half of the same expression and is what
+   * makes the band vanish on a surface narrower than the measure (the phone arm and the docked-narrow arm) with
+   * no media query and no caller branch.
+  * WHICH MEASURE: the design law's LOW reading bound (`--reading-measure-min`), not its high one. At the common
+   * desktop width the high bound resolved wider than the home hero itself, so the band measured zero pixels and
+   * the owner's "the hero gets its room's art" ruling did not fire. Both halves move together or neither does:
+   * `home-hearth-room.tsx` caps its column at the same token and says so.
+  * THE `+ --spacing-section` IS THE HOST'S OWN PADDING, PAID FOR WITHOUT NAMING IT. An absolutely positioned
+   * layer lays out against its host's padding box while the host's content starts one padding further in, so a
+   * bare measure begins the band one padding short of where the prose ends. A surface's padding is tier-resolved
+   * (styles/tiers.css), so no consumer may name it; `--spacing-section` is the top of that scale and therefore an
+   * over-estimate in every tier and every density, a guarantee rather than a tuned number. If a tier ever
+   * resolved a padding above the section step, the consumer's own geometry test reds rather than a gradient
+   * quietly covering a word.
+  * The MASK carries the fade AND its ceiling in one place: `--art-bleed-peak` is how much of the picture survives
+   * at the host's own edge; a full-strength photo there competes with the prose it frames. Prefixed twin per this
+   * file's other mask recipes. Static (no transition) ⇒ reduced-motion-safe. */
+  [data-slot="art-bleed"] {
+    --art-bleed-peak: 0.55;
+    inset-inline-start: min(100%, calc(var(--reading-measure-min) + var(--spacing-section)));
+    -webkit-mask-image: linear-gradient(to left, rgb(0 0 0 / var(--art-bleed-peak)), transparent);
+    mask-image: linear-gradient(to left, rgb(0 0 0 / var(--art-bleed-peak)), transparent);
+  }
+
+  /* Horizontal-overflow cue: a scrollable strip (a many-tab tablist too wide for a narrow panel) dissolves
+   * whichever edge has clipped content behind it, so the hidden items read as "more, scroll" instead of a hard
+   * cut. Scroll-aware and both-edge, the same mechanism as the vertical `message-list-scroll` fade: each edge
+   * fades ONLY while content is scrolled past it (the consumer toggles data-fade-start/-end on scroll/resize), so
+   * an unscrolled or fitting strip renders both edges fully opaque.
+  * IT BOTTOMS OUT AT THE FLOOR, NOT AT ZERO. A ramp to transparent dissolves the item straddling a scrolled edge,
+   * the one whose word is half the reason to scroll, into whatever sits behind the strip while a mask keeps it
+   * fully hit-testable: a user could click a view they could not read, and every contrast instrument we own
+   * resolves its subject through `getComputedStyle`, which a mask never touches, so all of them report the strip
+   * clean.
+  * ONLY THE FLOOR CROSSED THE AXIS. The block twin's band is a LENGTH because a self-scrolling SURFACE's band
+   * would otherwise grow with the pane; a strip's band is a fraction of a box that only exists while the box is
+   * too small, so a percentage is right here. The floor is a CONTRAST answer and leaves that depth ruling
+   * untouched.
+  * WHAT THE FLOOR STILL CANNOT PROMISE: a muted pair needs an alpha so high there is no perceptible fade left.
+   * The floor is set for the class the cue is actually over: a tablist's labels and a strip's chips, at full ink. */
+
+  /* THE ALPHA BOTH AXES BOTTOM OUT AT, declared ONCE for the one recipe that has two axes. It rides
+   * `--scroll-fade-*`, NOT `--fade-*`: `--fade-edge-stop` is a generated token family (tokens.json
+   * `fade.edge-stop`), and a stylesheet may not mint names inside a generated family outside theme.css. It mints
+   * no family at all, exactly as `--art-bleed-peak` above does, and stays local to this recipe because it is not
+   * portable: an alpha DERIVED from a contrast floor, derived in the `.scroll-fade-y` header below (a fade
+   * composites the ink toward whatever is behind the scroller, so a full-contrast pair clears WCAG 1.4.3's 4.5:1
+   * at alpha ≥ 0.48 on the dark arm and ≥ 0.60 on the light one; 0.62 clears both). One declaration, because one
+   * number that drifted apart on two axes of one recipe would be two cues that dim differently for no reason a
+   * reader could name. */
+  .scroll-fade-x,
+  .scroll-fade-y {
+    --scroll-fade-floor: 0.62;
+  }
+  .scroll-fade-x {
+    --fade-start-stop: 0%;
+    --fade-end-stop: 0%;
+    -webkit-mask-image: linear-gradient(
+      to right,
+      rgb(0 0 0 / var(--scroll-fade-floor)),
+      black var(--fade-start-stop),
+      black calc(100% - var(--fade-end-stop)),
+      rgb(0 0 0 / var(--scroll-fade-floor))
+    );
+    mask-image: linear-gradient(
+      to right,
+      rgb(0 0 0 / var(--scroll-fade-floor)),
+      black var(--fade-start-stop),
+      black calc(100% - var(--fade-end-stop)),
+      rgb(0 0 0 / var(--scroll-fade-floor))
+    );
+  }
+  .scroll-fade-x[data-fade-start] {
+    --fade-start-stop: var(--fade-edge-stop);
+  }
+  .scroll-fade-x[data-fade-end] {
+    --fade-end-stop: var(--fade-edge-stop);
+  }
+
+  /* Vertical-overflow cue: the SAME mechanism on the block axis, for a self-scrolling SURFACE (the home content
+   * scroller) rather than a strip. Without it the last visible line at the fold is severed mid-word and reads as
+   * a rendering fault instead of "scroll for more", with calls to action below the cut.
+  * It is not `[data-slot="message-list-scroll"]` (client globals.css) because that rule is the TRANSCRIPT's,
+   * scoped to one slot and carrying the art-arm opt-out only a chat background needs. This is the generic surface
+   * form, homed beside `.scroll-fade-x` so both axes share one recipe. The DOM drivers live in
+   * `@orb/ui/scroll-area`; selector constants remain in `@orb/ui/lib`.
+  * SCROLL-AWARE, same contract as the horizontal twin: an edge dissolves ONLY while content is scrolled past it,
+   * so a surface that fits renders both edges fully opaque. Static (no transition) ⇒ reduced-motion-safe.
+  * IT IS A BOUNDED BAND WITH A FLOOR, NOT `--fade-edge-stop` TO ZERO. The inline twin's `--fade-edge-stop` is a
+   * PERCENTAGE of the box, right for a strip and wrong for a self-scrolling surface: a tenth of a tall scroller
+   * is a deep band, and controls sit inside it at common viewports. A mask is PAINT, so those controls stay fully
+   * hit-testable while unreadable, and every contrast instrument we own resolves its subject through
+   * `getComputedStyle` and reports the surface clean.
+  * TWO CHANGES, BOTH REQUIRED. (1) The band is a LENGTH (`--spacing-section`, the surface's own rhythm), so it
+   * cannot grow with the pane: at any viewport a control more than one section-step above the cut is painted at
+   * full strength. (2) The ramp bottoms out at `--scroll-fade-floor` rather than at zero, so a control the band
+   * DOES reach still carries ink. The floor is derived, not chosen by eye: for a full-contrast pair the composite
+   * clears WCAG 1.4.3's 4.5:1 at alpha ≥ 0.48 on the dark arm and ≥ 0.60 on the light one; 0.62 clears both.
+   * Prove it by framebuffer decode, not by property.
+  * WHAT A FADE STILL CANNOT PROMISE: a MUTED pair needs alpha ≥ 0.79 to hold 4.5:1, i.e. no perceptible fade at
+   * all. No mask can keep every text weight at AA; the floor is set for the class this cue is over: controls and
+   * headings at full ink. */
+  .scroll-fade-y {
+    /* THE DEPTH RIDES `--scroll-fade-*`, NOT `--fade-*`, for the reason the shared floor above states:
+     * `--fade-edge-stop` is a generated family and a stylesheet may not mint names inside it. It mints no family
+     * at all and stays local because it is not portable, a depth in the surface's own rhythm. The floor lives in
+     * the shared rule above because the inline twin needs the same alpha; one number for one recipe, derived in
+     * this header. */
+    --scroll-fade-depth: var(--spacing-section);
+    /* The two SANCTIONED stop names carry the scroll-aware half — 0 while an edge hides nothing. They are
+       LENGTHS on this axis where the inline twin uses a percentage; see the header for why. */
+    --fade-top-stop: 0px;
+    --fade-bottom-stop: 0px;
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      rgb(0 0 0 / var(--scroll-fade-floor)),
+      black var(--fade-top-stop),
+      black calc(100% - var(--fade-bottom-stop)),
+      rgb(0 0 0 / var(--scroll-fade-floor))
+    );
+    mask-image: linear-gradient(
+      to bottom,
+      rgb(0 0 0 / var(--scroll-fade-floor)),
+      black var(--fade-top-stop),
+      black calc(100% - var(--fade-bottom-stop)),
+      rgb(0 0 0 / var(--scroll-fade-floor))
+    );
+  }
+  /* A zero stop is a HARD stop against the floor colour at the same position, so the later `black` wins and
+     an edge that hides nothing renders fully opaque — the same mechanism the inline twin's `0%` relies on. */
+  .scroll-fade-y[data-fade-top] {
+    --fade-top-stop: var(--scroll-fade-depth);
+  }
+  .scroll-fade-y[data-fade-bottom] {
+    --fade-bottom-stop: var(--scroll-fade-depth);
+  }
+
+  /* CLAMPED-MENU TAIL CUE. A menu taller than `--available-height` clamps and scrolls (see menu/variants.ts
+   * `popup`), but the clamp is invisible: the last visible row ends flush at a clean border and reads as the last
+   * row.
+  * The self-scrolling-box background recipe, NOT a mask: `mask-image` clips at the border box and would eat the
+   * popup's own `shadow-overlay` (the message-list scroller has no shadow, which is why it can mask). Two `local`
+   * cover gradients ride the CONTENT and sit exactly over two `scroll` shadow gradients pinned to the box, so a
+   * shadow shows only while content is scrolled past that edge, and a menu that fits shows neither. Pure CSS: no
+   * scroll listener, no per-menu state, correct the instant the popup opens.
+  * Base UI's Menu has no ScrollUpArrow/ScrollDownArrow part (only Select publishes those), so this is the same
+   * affordance built from the popup's own paint. */
+  /* The two COVER gradients stay opaque across the shadow's own depth (60% of --spacing-block exceeds
+   * --spacing-tight), or a resting menu shows a ghost of the shadow it is there to hide. */
+  [data-slot="menu-popup"] {
+    background-image:
+      linear-gradient(to bottom, var(--color-popover) 60%, transparent), linear-gradient(to top, var(--color-popover) 60%, transparent),
+      linear-gradient(to bottom, oklch(from var(--color-foreground) l c h / 0.35), transparent),
+      linear-gradient(to top, oklch(from var(--color-foreground) l c h / 0.35), transparent);
+    background-position: top, bottom, top, bottom;
+    background-repeat: no-repeat;
+    /* The shadow is drawn in the FOREGROUND ink, not black: on the dark popover a black scroll shadow is
+       invisible, and this has to read on every seed palette. Cover depth beats shadow depth with room to
+       spare (60% of --spacing-section = 14.4px vs --spacing-row = 8px), which is what keeps a resting menu
+       completely clean. Verified rendered, mid-scroll, in the CT browser — not inferred from the property. */
+    background-size:
+      100% var(--spacing-section),
+      100% var(--spacing-section),
+      100% var(--spacing-row),
+      100% var(--spacing-row);
+    background-attachment: local, local, scroll, scroll;
+  }
+
+  /* Spotlight hover-follow: media-grid.tsx writes pointer position into --x/--y on the hovered cell;
+   * this paints a low-alpha radial spotlight there. pointer: fine only (no touch); reduced-motion
+   * drops it entirely. */
+  @variant pointer-fine {
+    [data-slot="media-grid-cell"]::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      border-radius: inherit;
+      opacity: 0;
+      /* stylelint-disable-next-line orb/motion-token-purity -- the media-grid spotlight's opacity fade — an isolated hover effect on one element, with no coordinated partner. Ends when this independent recipe changes or joins coordinated motion. */
+      transition: opacity var(--motion-fast) ease-out;
+      background: radial-gradient(6rem 6rem at var(--x, 50%) var(--y, 50%), oklch(from var(--color-primary) l c h / 0.18), transparent 70%);
+    }
+    [data-slot="media-grid-cell"]:hover::before {
+      opacity: 1;
+    }
+    @variant motion-reduce {
+      [data-slot="media-grid-cell"]::before,
+      [data-slot="media-grid-cell"]:hover::before {
+        display: none;
+      }
+    }
+  }
+
+  ::selection {
+    background-color: var(--color-primary);
+    color: var(--color-primary-foreground);
+  }
+
+  /* Thin themed scrollbars. scrollbar-color is inherited (lives on :root); scrollbar-width is NOT
+   * inherited, so it must be set on `*` (a nested scroller otherwise falls back to the OS default). */
+  :root {
+    scrollbar-color: color-mix(in oklab, var(--color-foreground) 22%, transparent) transparent;
+  }
+  * {
+    scrollbar-width: thin;
+  }
+
+  /* TWO RESERVED LINES (`Text lines={2}`). `line-clamp-2` CAPS a run at two lines; it never RESERVES them, so in
+   * a grid of cells a one-line name and a two-line name push their captions to different baselines. The
+   * reservation is one line-height unit arithmetic: `lh` resolves against THIS element's computed line-height, so
+   * it follows whatever voice the text is set in instead of pinning a step's pixel value. It lives here, not as a
+   * Tailwind arbitrary value: `min-h-[2lh]` is off the token scale by construction (`no-arbitrary-tw-values`),
+   * and there is no design token for "as tall as this element's own two lines", the same reason
+   * `orb-skeleton-shimmer` below is a class rather than a utility stack. */
+  .orb-lines-2 {
+    min-height: 2lh;
+  }
+
+  /* Skeleton shimmer sweep: the gradient rides an oversized pseudo-element and translates on the
+   * compositor. Animating background-position repainted every skeleton on every frame. Reduced-motion
+   * removes the pseudo-element entirely, leaving the flat bg-muted fill. */
+  @keyframes orb-skeleton-shimmer {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(100%);
+    }
+  }
+  /* THE SWEEP'S TWO STOPS ARE NAMED, so a host that knows the skeleton lands on an unusual SURFACE can re-point
+   * them. The pseudo-element is 200% wide and always covers the whole bar, so these two colours, not the
+   * `bg-muted` base in `skeleton/variants.ts`, are what a reader sees whenever motion is on; the base fill only
+   * shows under reduced motion. On a light palette `muted`/`accent` sit within a few hundredths of L of the
+   * over-art reading plate, so an unpointed skeleton on the transcript's loading plate is invisible.
+  * THE DEFAULTS ARE var() FALLBACKS, NOT DECLARATIONS ON THIS CLASS, and that is required: a custom property
+   * DECLARED on the element beats one INHERITED from an ancestor, so defaulting them here would make every host's
+   * override unreachable. The fallback form leaves the properties unset, so an ancestor's value inherits in and
+   * the shipped tokens still paint for everyone else (`message-row-backing.ts` is the one caller that re-points
+   * them). */
+  .orb-skeleton-shimmer::after {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: -100%;
+    width: 200%;
+    content: "";
+    pointer-events: none;
+    background-image: linear-gradient(
+      90deg,
+      var(--orb-skeleton-sweep-base, var(--color-muted)) 30%,
+      var(--orb-skeleton-sweep-crest, var(--color-accent)) 50%,
+      var(--orb-skeleton-sweep-base, var(--color-muted)) 70%
+    );
+    animation: orb-skeleton-shimmer var(--motion-shimmer) linear infinite;
+  }
+  @variant motion-reduce {
+    .orb-skeleton-shimmer::after {
+      display: none;
+    }
+  }
+  [data-reduced-motion="true"] .orb-skeleton-shimmer::after {
+    display: none;
+  }
+
+  /* OFF-SCREEN RENDER SKIP for a long, fully-mounted list row (`commandVariants.item`). Tailwind ships no
+   * `content-visibility` utility and the property needs a companion `contain-intrinsic-size` to be honest,
+   * so the pair is one named class here rather than two arbitrary values at a call site (the tokens-only
+   * rule) — the same shape as the hairline above, which owns both halves of its own contract.
+   *
+   * WHY NOT VIRTUALIZATION for the picker this exists for: cmdk resolves arrow-roving, its filter sort and
+   * Enter through `querySelectorAll` over the MOUNTED `[cmdk-item]` rows and re-parents them to sort, so
+   * unmounting off-screen rows breaks the keyboard model outright (cmdk@1.1.1 dist). `content-visibility:
+   * auto` skips only LAYOUT AND PAINT: the row stays in the DOM, in the a11y tree, focusable, findable by
+   * find-in-page, and `scrollIntoView` renders it on arrival — which is the whole set of mechanisms cmdk
+   * and a screen reader depend on. `auto` on the intrinsic size means the browser REMEMBERS each row's
+   * last rendered height, so the token below is only ever the first-paint estimate and a taller row (an
+   * avatar row) does not permanently mis-size the scrollbar. */
+  .orb-skip-offscreen {
+    content-visibility: auto;
+    contain-intrinsic-size: auto var(--size-control-sm);
+  }
+
+  /* TypingDots' pending-window affordance: three muted dots pulse left→right. The component and this
+   * keyframe are both universal @orb/ui mechanisms; a client ghost row may compose the component without
+   * owning its paint. The reduced-motion floors at the top of this file freeze each dot at its resting,
+   * deliberately nonzero opacity. */
+  @keyframes orb-typing-dot {
+    0%,
+    60%,
+    100% {
+      opacity: 0.35;
+    }
+    30% {
+      opacity: 1;
+    }
+  }
+  .orb-typing-dot {
+    opacity: 0.35;
+    /* stylelint-disable-next-line orb/motion-token-purity -- the typing indicator's dot: a continuous decorative loop — nothing coordinates with it, so there is no partner to drift out of sync with. Ends when this independent recipe changes or joins coordinated motion. */
+    animation: orb-typing-dot var(--motion-breathe) ease-in-out infinite;
+  }
+  /* Stagger the three dots off one shared breathe period rather than minting duration values. */
+  .orb-typing-dot:nth-child(2) {
+    animation-delay: calc(var(--motion-breathe) / 6);
+  }
+  .orb-typing-dot:nth-child(3) {
+    animation-delay: calc(var(--motion-breathe) / 3);
+  }
+
+  /* #42 — the streamed-word reveal fade (the render half of `ui/src/markdown/reveal-plugin.ts`; the
+   * design + measurements: D168). Each newly revealed word arrives as a
+   * `[data-orb-reveal]` span whose inline NEGATIVE `animation-delay` anchors fade progress to when the
+   * word was first revealed — so a React node replacement mid-fade (remend emphasis repair, a dialogue
+   * re-split) RESUMES at the right opacity instead of restarting or snapping. Opacity-only (compositor,
+   * guide §3.7), house tokens only (§3.5), `fill both` so a pre-delay/finished frame is never a flash.
+   * Reduced-motion: the OS query stops the seal injecting spans at all, and the app-level
+   * `[data-reduced-motion="true"]` + OS floors at the top of this file collapse any remaining animation
+   * to instant — words simply appear (REMOVE, §3.9). */
+  @keyframes orb-word-reveal {
+    from {
+      opacity: 0;
+    }
+  }
+  [data-orb-reveal] {
+    animation: orb-word-reveal var(--motion-base) var(--ease-out-expo) both;
+  }
+
+  /* M5 — the code block's BIRTH GEOMETRY (the owner's "changes
+   * shapes then settles"). MECHANISM, not a symptom patch: Streamdown's code-block container hardcodes
+   * `style={{ contentVisibility: "auto", containIntrinsicSize: "auto 200px" }}` on its own element
+   * (streamdown/dist/chunk-BO2N2NFS.js, component `ot` — the `div[data-streamdown="code-block"]`). A
+   * `content-visibility: auto` element is SKIPPED on its very first layout (relevance-to-user is not known
+   * until after that layout), so the browser sizes it from `contain-intrinsic-size` — 200px content + the
+   * 1px border pair = the measured 202px birth box — and re-lays it out at its real height one frame
+   * later. That is the −94px self-collapse measured 5/5 runs, with every child byte-identical across the
+   * jump: the children were never laid out at all on the first frame.
+   *
+   * The container is internal to Streamdown (`CodeBlock` forwards neither `style` nor `className` to it),
+   * so the ONLY seam is CSS, and an inline style is only beatable with `!important`.
+   *
+   * Cost, priced deliberately: `content-visibility: auto` skips offscreen LAYOUT/PAINT of code blocks.
+   * The seal already owns the pathological-input policy (`MAX_RENDER_LENGTH`, markdown.tsx), Shiki
+   * tokenizes on mount regardless of visibility, and the transcript is not virtualized — so keeping the
+   * skip buys offscreen layout only, and charges for it a 94px snap on the FIRST render of every code
+   * block, both mid-stream and on scroll-in. Correct geometry wins.
+   *
+   * No animation is introduced, so there is nothing here for reduced-motion to suppress. */
+  [data-streamdown="code-block"] {
+    /* biome-ignore lint/complexity/noImportantStyles: the only way to beat Streamdown's hardcoded INLINE content-visibility on an element it never forwards style/className to */
+    content-visibility: visible !important;
+  }
+
+  /* ── The WAYSTONE's layered sky (charts/meter/waystone.tsx — RV-10) ────────────────────────────────
+   * The rpg band's focal element is a living clock: eight independently animated layers inside one 96×96
+   * SVG (sky · celestial · stars · clouds · particles · wash+lightning · horizon · the hour hand). These
+   * are @keyframes + transitions Tailwind utilities can't express (SVG geometry, per-layer loops). The
+   * component and its paint are both @orb/ui mechanisms, so they stay together in ui's layer.
+   *
+   * ENGINEERING FLOOR: `translate`/`rotate`/`opacity` ONLY (GPU-composited, zero layout thrash), CSS over
+   * any rAF loop, and everything PAUSES while the document is hidden (`[data-paused]` — the component
+   * subscribes to visibilitychange once and CSS does the rest).
+   *
+   * STATE TRANSITIONS are the showpiece: a turn that advances time or weather never hard-swaps. The sky
+   * gradients are stacked and crossfade on opacity, the sun/moon TRANSLATES along its arc, the hour hand
+   * ROTATES around the ring, the cloud deck fades its density, and a new particle/band layer enters on
+   * `.orb-ws-enter` — all on `--motion-transit`.
+   *
+   * REDUCED MOTION = REMOVE (guide §3.9), never shorten: every animation is dropped and each layer rests at
+   * its natural frame (drops at their lattice positions, stars lit, bolt drawn, hand at the hour) — the
+   * matrix still reads in full, nothing moves. The lightning FLASH rests at opacity 0, so a reduced-motion
+   * viewer never gets a frozen strobe. The transitions collapse via the floors at the top of this file. */
+}

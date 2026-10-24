@@ -151,11 +151,17 @@ elevation, never a component's skin.
 
 ### 4.5 The two cascade mechanisms
 
-**Unlayered is the mechanism.** Tailwind v4 emits utilities into `@layer utilities`; an unlayered rule
-beats a layered utility regardless of specificity — how `theme.css` and `tiers.css` repoint a primitive's
-utility-backed defaults, and how ui's document floors stay floors. There are zero `@layer` blocks in the
-authored CSS, and that count must remain zero. Owner-authored custom CSS is also deliberately unlayered
-so the owner wins within the §4.3 boundary.
+**The declared layer order is the mechanism.** `packages/ui/src/styles/globals.css` declares
+`@layer theme, base, components, utilities, ui, shell, client, appearance, preference, motion` before it
+imports Tailwind, and every authored rule sits in one of the house layers: `ui` holds
+the faces, document floors, primitive treatments and `tiers.css`; `shell` the frame regions; `client` the
+client-wide reading and document rules; `appearance` glass, grain, plates and elevation; `preference` the
+contrast and transparency arms; `motion` the reduced-motion floor. A later layer beats an earlier one
+regardless of specificity, which is how `tiers.css` repoints a primitive's utility default and how an
+appearance treatment overrides a shell paint, so no rule carries a type qualifier, a `:where()` or a
+re-stated selector for rank. Within one layer specificity and source order apply as usual. Owner-authored
+custom CSS stays unlayered, so the owner wins within the §4.3 boundary; the floor's `!important` beats
+inline styles and every layer.
 
 **Source order is critical.** Production and Playwright CT both import
 `packages/client/src/styles/index.ts`, the one CSS front door: shell.css → UI globals → client globals.
