@@ -30,7 +30,6 @@ export function RpgCardRow({ card, onOpen }: RpgCardRowProps): ReactElement {
       intent="outline"
       size="sm"
       aria-label={`Open card: ${label}, ${turnStamp(card.createdAt)}`}
-      title="Open card"
       onClick={(): void => onOpen(card.key)}
       className="w-full px-field text-left"
       data-slot="rpg-card-row"
@@ -39,7 +38,7 @@ export function RpgCardRow({ card, onOpen }: RpgCardRowProps): ReactElement {
         ✦ {label}
       </Text>
       {card.origin === "lenient" ? (
-        <Text as="span" voice="gloss" className="shrink-0" title="Auto-rendered from raw HTML in the message">
+        <Text as="span" voice="gloss" className="shrink-0">
           auto
         </Text>
       ) : null}

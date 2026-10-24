@@ -75,7 +75,6 @@ function AmbientVocabPicker({
         size="inline"
         data-slot="tracker-value-rest"
         aria-label={`${fieldLabel} value`}
-        title="Click to edit"
         onClick={(): void => setOpen(true)}
         className="gap-0 border border-transparent px-field text-left"
       >
@@ -104,14 +103,11 @@ function AmbientVocabPicker({
             key={label}
             type="button"
             intent={label === value ? "secondary" : "ghost"}
-            // A CONTROL SIZE, not `inline` (side-eye 2026-08-07 P2 + the hit-geometry probe that finding
-            // provoked). `inline` is the DISPLAY-AT-REST arm — a datum standing in for prose — and it wears
-            // no control box, carrying its touch floor in an OVERFLOWING `::after` instead. In a WRAPPING
-            // grid that pseudo is actively harmful: measured at the 320px context column, each chip's box
-            // was 13px tall while its hit area was 28px, so on a ~18px row pitch the areas OVERLAPPED and
-            // the row BELOW won hit-testing — `elementFromPoint` 10px under `clear`'s centre returned
-            // `snow`, under `storm` returned `indoors`, and under five others returned "Clear weather".
-            // Aiming at one sky and committing a different one is a destructive write to SHARED game state
+            // A CONTROL SIZE, not `inline`. `inline` is the DISPLAY-AT-REST arm — a datum standing in for prose —
+            // and it wears no control box, carrying its touch floor in an OVERFLOWING `::after` instead. In a
+            // WRAPPING grid that pseudo is actively harmful: each chip's hit area is taller than the row pitch,
+            // so the areas OVERLAP and the row BELOW wins hit-testing. Aiming at one sky and committing a
+            // different one is a destructive write to SHARED game state
             // with no visible undo, which is worse than the small target that was reported. A control size
             // fixes both: the box IS the target (≥32px fine / 44px coarse, over WCAG 2.5.8's 24px) and
             // nothing overflows to collide. The height must come from the size axis — it is the sole owner
@@ -139,15 +135,13 @@ function AmbientVocabPicker({
       {/* Offered only when there IS something to clear — an already-empty field showing a clear is a control
           that can do nothing, which is the affordance-lying class this whole strip is written against.
           The label NAMES ITS FIELD, visibly and not just to a screen reader, for two reasons: both pickers
-          can be open at once (two buttons called "Clear" is the duplicate-accessible-name defect side-eye
-          X-1 found), and the weather vocabulary CONTAINS the member `clear` — a bare "Clear" verb sitting on
+          can be open at once (two buttons called "Clear" is the duplicate-accessible-name defect), and the weather vocabulary CONTAINS the member `clear` — a bare "Clear" verb sitting on
           the same row as the `clear` sky would be a reading a user cannot disambiguate.
           `basis-full` puts it on its OWN line at every width rather than in line with the members: a verb
           rendered as the tenth chip of a nine-member closed set is the set's arity misread, and a separator
           that only works when the row does not wrap is no separator at the 320px context column.
-          THE RULE + THE GLYPH are the cold reading (side-eye 2026-08-07, its only taste note here): the
-          structure already says "not a member", but the control was styled identically to the chips and
-          landed directly under a wrapped `indoors`, so the EYE still grouped it as a tenth one. A hairline
+          THE RULE + THE GLYPH are the cold reading: the structure says "not a member", but a control styled
+          like the chips under a wrapped `indoors` would still read to the EYE as a tenth one. A hairline
           above it closes the set visually, and the ✕ makes it read as a verb before the words are read. */}
       {value === "" ? null : (
         <Button
@@ -233,7 +227,7 @@ export function AmbientStrip({ location, date, timeOfDay, weather, onEditField, 
           return (
             // Each pair packs inline (the mock's `flex-wrap; align:baseline` compact card): a label + a
             // content-sized value/input, so 2+ pairs share a row rather than one-per-line (the owner
-            // density ruling 2026-07-28). `min-w-0` lets a long location value truncate/shrink instead of
+            // density ruling). `min-w-0` lets a long location value truncate/shrink instead of
             // forcing a full-width row.
             <Row key={key} gap="field" align="baseline" className="min-w-0">
               <Text as="span" size="label" tone="muted" className="shrink-0">

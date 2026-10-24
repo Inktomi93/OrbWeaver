@@ -1,24 +1,19 @@
 // The PACK's ROW/CELL family — the two lenses over one item list, split out of the tab (the component-size
 // cap; the tab keeps the composition, these keep the anatomy). The GRID cell is the compact multi-column
-// lens; the LIST row is the same item read in full AND, for a host, the RV-5 editor: name, quantity,
+// lens; the LIST row is the same item read in full AND, for a host, the editor: name, quantity,
 // location and description are click-to-edit in place, with a confirmed drop. `PackEdit` is the one callback
 // set both lenses take (absent = the read-only member arm - PERMISSION-omit, never a disabled twin) — and
-// `PackEdit` plus the per-datum field components it drives now live one file over in `rpg-pack-fields.tsx`
+// `PackEdit` plus the per-datum field components it drives live one file over in `rpg-pack-fields.tsx`
 // (the component-size cap again): this module owns the two ANATOMIES, that one owns what a single datum
 // looks like under each permission arm.
 //
-// OWNER DOGFOOD (2026-07-31) — the grid was a 3.5rem SQUARE holding a 20px glyph: the quantity was an
-// unlabelled corner digit, the location truncated to "belt p…", the name reachable only on hover, and
-// authoring meant switching to the list lens. The tile is now the item's own CARD — glyph · name (wrapped,
-// a model writes it) · ×N · where it's kept — in a card SHORTER than the square it replaced, and for a host
-// it is the trigger for `PackTileEditor`: the SAME click-to-edit field set the list row composes, in a
+// THE TILE IS THE ITEM'S OWN CARD (an owner call) — glyph · name (wrapped, a model writes it) · ×N · where
+// it's kept — so no datum is an unlabelled corner digit or a hover-only name, and for a host it is the trigger for `PackTileEditor`: the SAME click-to-edit field set the list row composes, in a
 // popover, through the SAME `PackEdit` write path (one authoring vocabulary, one lock stamp, two lenses).
 //
-// INV-READ (owner ruling 2026-08-03, "render them"): `description` + `location` are model-written on every
-// item (the extraction guidance asks for both by name) and both now READ as text in BOTH lenses. The list row
-// already carried the pair; the grid tile carried only `location`, with `description` demoted to the hover
-// `title` — and a hover string is not a reader (invisible on touch, not a datum to a screen reader,
-// uncopyable). EMPTY IS OMITTED, never a blank labelled row: an item the story hasn't described keeps its
+// RENDER THEM (an owner ruling): `description` + `location` are model-written on every item (the extraction
+// guidance asks for both by name) and both READ as text in BOTH lenses — a hover string is not a reader
+// (invisible on touch, not a datum to a screen reader, uncopyable). EMPTY IS OMITTED, never a blank labelled row: an item the story hasn't described keeps its
 // one-line tile, and the host's editor lens is where a placeholder invites filling it in.
 
 import type { RpgInventoryItem } from "@orb/contracts/rpg";
@@ -38,18 +33,13 @@ import { ItemLockPin, ItemName, ItemProseLine, ItemQuantity } from "./rpg-pack-f
 /** The quest-bound tell - the model-written item `type` naming the quest taxonomy. */
 const QUEST_TYPE_RE = /quest/i;
 
-/** The #37c icon-picker popover body — the curated `ITEM_ICON_CHOICES` grid; picking writes the name.
+/** The icon-picker popover body — the curated `ITEM_ICON_CHOICES` grid; picking writes the name.
  *
- *  THE COARSE GAP IS THE TOUCH FLOOR (owner ruling 2026-08-07, on side-eye's measured tables). A
- *  `size="glyph-lg"` Button is FLOORLESS — its 44px coarse hit area rides an OVERFLOWING `::after`, not its
- *  32px box — so on a wrapped grid the pseudo is clipped by the gap it shares with the next cell. MEASURED at
- *  430 coarse: box 32×32, `gap-field` 6, pitch 38 both axes, effective hit box **37×37**, 7px under the
- *  floor. (The `no-floorless-control-in-wrap` gate's stated harm — "aiming at one control commits its
- *  neighbour" — was measured FALSE here: all 21 cells hit themselves, because the 6px of pseudo overlap lands
- *  entirely inside the gap. The gate's arm was right; its inherited premise was not. The defect was the floor
- *  alone.) `gap-block` is 12px, which makes the pitch exactly 44 — the cause fixed with the token that
- *  already equals the answer, and the FINE picker is untouched (still `gap-field`, still 5 columns). Cost:
- *  the grid goes 5×5 → 4×6 at coarse, +68px of popover height. */
+ *  THE COARSE GAP IS THE TOUCH FLOOR (an owner ruling). A `size="glyph-lg"` Button is FLOORLESS — its coarse
+ *  hit area rides an OVERFLOWING `::after`, not its own box — so on a wrapped grid the pseudo is clipped by the
+ *  gap it shares with the next cell and the effective hit box falls under the floor. `gap-block` makes the
+ *  coarse pitch exactly the touch target, and the FINE picker is untouched (still `gap-field`). The cost is
+ *  one fewer column and a taller popover at coarse. */
 function ItemIconPicker({ itemName, onPick }: { readonly itemName: string; readonly onPick: (icon: string) => void }): ReactElement {
   return (
     <Row gap="field" className={cn("max-w-(--width-control-col) flex-wrap", PICKER_GAP_AT_COARSE) ?? ""}>
@@ -81,7 +71,7 @@ function ItemGlyph({ item, onPickIcon }: { readonly item: RpgInventoryItem; read
     <Popover>
       <PopoverTrigger
         render={
-          <Button intent="ghost" size="inline" aria-label={`${item.name} icon`} title="Pick an icon">
+          <Button intent="ghost" size="inline" aria-label={`Pick an icon for ${item.name}`}>
             {glyph}
           </Button>
         }
@@ -93,23 +83,9 @@ function ItemGlyph({ item, onPickIcon }: { readonly item: RpgInventoryItem; read
   );
 }
 
-/** The tile's hover/focus datum — the whole item in one line. Every part of it is ALSO rendered as text on
- *  the tile (INV-READ); this stays as the one-line read a pointer user gets without scanning the card, never
- *  as the only home of a datum. */
-function tileTitle(item: RpgInventoryItem): string {
-  const parts = [item.quantity > 1 ? `${item.name} ×${item.quantity}` : item.name];
-  if (item.location !== "") {
-    parts.push(item.location);
-  }
-  if (item.description !== "") {
-    parts.push(item.description);
-  }
-  return parts.join(" — ");
-}
-
 // The tile's own skin, shared by the read-only arm and the host's Button arm so the two lenses are
 // pixel-identical at rest (PERMISSION differs in what a CLICK does, never in what the pack looks like).
-// A left-aligned card, not the old empty square: the grid track (layout/variants `cols="cell"`) gives it
+// A left-aligned card: the grid track (layout/variants `cols="cell"`) gives it
 // the width the item's own words need, and the card is only as tall as those words.
 //
 // DELIBERATE COMPOSED SKIN, not an intent (the TEACHING_ACTION_BUTTON precedent,
@@ -120,7 +96,7 @@ function tileTitle(item: RpgInventoryItem): string {
 const TILE_CLASS = "relative w-full min-w-0 items-center gap-field rounded-control border border-border bg-card px-row py-field text-left";
 
 /** The tile's INK — the glyph · the name (wrapped) · ×N · the PINNED tell · where it's kept. Shared by both
- *  arms. `pinned` is the #78 affordance's grid half: the tile is itself a Button (the editor's trigger), so it
+ *  arms. `pinned` is the per-item pin's grid half: the tile is itself a Button (the editor's trigger), so it
  *  cannot nest the Release control — it states the fact in TEXT (never colour or a hover string alone: the
  *  tracker-kit a11y model says the text is the datum) and the editor one tap in carries the gesture. */
 function PackCellInk({ item, pinned = false }: { readonly item: RpgInventoryItem; readonly pinned?: boolean }): ReactElement {
@@ -129,7 +105,7 @@ function PackCellInk({ item, pinned = false }: { readonly item: RpgInventoryItem
       {QUEST_TYPE_RE.test(item.type) ? (
         // The accent quest-bound dot (primary voice = the game's pulse); the `type` text on the tile
         // title carries the datum (never color-alone).
-        <Text as="span" voice="gloss" aria-hidden={true} className="absolute top-field right-field text-primary" title="quest item">
+        <Text as="span" voice="gloss" aria-hidden={true} className="absolute top-field right-field text-primary">
           ●
         </Text>
       ) : null}
@@ -149,12 +125,12 @@ function PackCellInk({ item, pinned = false }: { readonly item: RpgInventoryItem
               ×{item.quantity}
             </Text>
           ) : null}
-          {/* #78 — the hand-pin TELL. Without it the host had no way to know the story had been fenced off
-              this item (the trap fired silently, and the pack simply stopped tracking). */}
+          {/* The hand-pin TELL, so the host can see the story is held off this item; the tile editor one tap
+              in explains the pin and carries its Release. */}
           {pinned ? (
             // `pr-block` keeps the word clear of the quest-bound dot, which is absolutely positioned in this
             // same top-right corner — abutting, the two read as one token ("Pinned●") instead of two facts.
-            <Text as="span" voice="gloss" className="shrink-0 pr-block" title={PINNED_TITLE}>
+            <Text as="span" voice="gloss" className="shrink-0 pr-block">
               Pinned
             </Text>
           ) : null}
@@ -167,10 +143,8 @@ function PackCellInk({ item, pinned = false }: { readonly item: RpgInventoryItem
             {item.location}
           </Text>
         )}
-        {/* INV-READ (owner ruling, 2026-08-03: "render them") — WHAT IT IS, on the tile too. It was reachable
-            only through the hover `title` and the list lens, which is not a reader: a hover string is invisible
-            on touch, unreadable by a screen reader as a datum, and uncopyable. The tracker-kit a11y model says
-            the TEXT is the datum, so it renders as text. Empty ⇒ nothing at all (never a blank labelled row) —
+        {/* WHAT IT IS, on the tile too (an owner ruling: "render them"). The tracker-kit a11y model says the
+            TEXT is the datum, so it renders as text. Empty ⇒ nothing at all (never a blank labelled row) —
             the tile keeps its one-line density for the items the story hasn't described. */}
         {item.description === "" ? null : (
           <Text as="span" voice="gloss" className="min-w-0 break-words">
@@ -188,7 +162,7 @@ function PackCellInk({ item, pinned = false }: { readonly item: RpgInventoryItem
 function PackCell({ item, edit }: { readonly item: RpgInventoryItem; readonly edit?: PackEdit }): ReactElement {
   if (edit === undefined) {
     return (
-      <Row gap="field" className={TILE_CLASS} data-slot="rpg-pack-cell" title={tileTitle(item)}>
+      <Row gap="field" className={TILE_CLASS} data-slot="rpg-pack-cell">
         <PackCellInk item={item} />
       </Row>
     );
@@ -197,7 +171,7 @@ function PackCell({ item, edit }: { readonly item: RpgInventoryItem; readonly ed
   return (
     <Popover modal={true}>
       {/* `modal` — this popover carries INPUT (the click-to-edit tile form); the rule + its receipt live on
-      `Popover` in @orb/ui's popover.tsx (#2444). The ICON picker above is a one-tap commit grid and stays
+      `Popover` in @orb/ui's popover.tsx. The ICON picker above is a one-tap commit grid and stays
       unfenced. */}
       <PopoverTrigger
         render={
@@ -210,7 +184,6 @@ function PackCell({ item, edit }: { readonly item: RpgInventoryItem; readonly ed
             className={`whitespace-normal ${TILE_CLASS}`}
             aria-label={`Edit ${item.name}`}
             data-slot="rpg-pack-cell"
-            title={pinned ? `${tileTitle(item)} — ${PINNED_TITLE}` : tileTitle(item)}
           >
             <PackCellInk item={item} pinned={pinned} />
           </Button>
@@ -222,10 +195,6 @@ function PackCell({ item, edit }: { readonly item: RpgInventoryItem; readonly ed
     </Popover>
   );
 }
-
-/** The pinned tile's hover/title sentence — the grid tile states the FACT, and the tile's own editor (one tap,
- *  the same popover every other per-item gesture lives in) carries the Release. */
-const PINNED_TITLE = "Pinned by hand — the story won't change this. Open the item to release it.";
 
 /** The GRID tile's editor (owner dogfood): the SAME click-to-edit grammar the list row uses — name · ×qty ·
  *  location · description, plus the icon pick and the confirmed drop — in a popover anchored on the tile. No
@@ -249,7 +218,7 @@ function PackTileEditor({ item, edit }: { readonly item: RpgInventoryItem; reado
           confirmLabel="Drop"
           onConfirm={(): void => edit.onRemoveItem(item.id)}
           trigger={
-            <Button intent="ghost" size="sm" title={`Drop item: ${item.name}`}>
+            <Button aria-label={`Drop item: ${item.name}`} intent="ghost" size="sm">
               <Icon icon={Trash2} size="xs" />
               Drop
             </Button>
@@ -260,8 +229,8 @@ function PackTileEditor({ item, edit }: { readonly item: RpgInventoryItem; reado
   );
 }
 
-/** One LIST row (#37b) — glyph · name · ×qty · the hand pin · location · description. For a host this row IS
- *  the editor (RV-5): every datum is click-to-edit in place and the row carries a confirmed delete. */
+/** One LIST row — glyph · name · ×qty · the hand pin · location · description. For a host this row IS
+ *  the editor: every datum is click-to-edit in place and the row carries a confirmed delete. */
 function PackListRow({ item, edit }: { readonly item: RpgInventoryItem; readonly edit?: PackEdit }): ReactElement {
   return (
     <Card tone="neutral">
@@ -275,8 +244,7 @@ function PackListRow({ item, edit }: { readonly item: RpgInventoryItem; readonly
               one tap, exactly as every other pinned datum in the panel offers it. */}
             {edit === undefined ? null : <ItemLockPin item={item} edit={edit} />}
           </Row>
-          {/* #37a/RV-5 — WHERE it is kept. Stored since day one, asked of the model in the extraction guidance,
-            and until now unreachable from the product. */}
+          {/* WHERE it is kept — stored by the schema and asked of the model in the extraction guidance. */}
           <ItemProseLine item={item} value={item.location} field="location" placeholder="where it's kept…" {...(edit === undefined ? {} : { edit })} />
           <ItemProseLine item={item} value={item.description} field="description" placeholder="what it is…" {...(edit === undefined ? {} : { edit })} />
         </Stack>
@@ -298,13 +266,11 @@ function PackListRow({ item, edit }: { readonly item: RpgInventoryItem; readonly
   );
 }
 
-/** The pack body — the OSRS grid or the #37b list view (the host's EDIT lens).
+/** The pack body — the OSRS grid or the list view (the host's EDIT lens).
  *
- *  NO GHOST SOCKET (side-eye 08-01). The grid used to end on one dashed `aria-hidden` cell called "the
- *  pack's growth affordance", which is what it was NOT: 150×28px of empty bordered box, no word in it,
- *  nothing to click, and — for the member who cannot author at all — a permanent empty slot suggesting the
- *  pack was mid-load. The host's real growth affordance is the `AddRow` directly under this grid (one add
- *  home for both lenses, RV-5); a second, mute one beside it was decoration wearing an affordance's clothes. */
+ *  NO GHOST SOCKET. An empty dashed cell has no word and nothing to click, and to a member who cannot author it
+ *  reads as a pack mid-load. The host's growth affordance is the `AddRow` directly under this grid (one add home
+ *  for both lenses). */
 export function PackBody({
   view,
   items,

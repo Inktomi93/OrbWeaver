@@ -229,7 +229,7 @@ export interface RpgQuestsTabProps {
   readonly state: RpgPanelState;
 }
 
-/** The host "New quest" affordance (no dead ends): the shared `AddRow` (RV-8) firing
+/** The host "New quest" affordance (no dead ends): the shared `AddRow` firing
  *  `upsertQuest` with NO `questId` (⇒ create). Tier-2 refusal + Enter-to-commit come with the primitive. */
 function NewQuest({ onCreate }: { readonly onCreate: (name: string) => void }): ReactElement {
   return <AddRow ariaLabel="New quest name" placeholder="Start a quest…" actions={[{ key: "quest", label: "New quest", icon: Plus, onAdd: onCreate }]} />;
