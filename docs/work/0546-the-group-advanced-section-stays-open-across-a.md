@@ -22,4 +22,7 @@ Advanced keeps its open state across a rail round-trip; a CT covers it.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The fold's open state now lives in the persisted config disclosure store (`packages/client/src/state/config-group-open-store.ts`, `foldOpenIds`), read in `GroupBody` (`config-content-surface.tsx`).
+
+- `pnpm test:ct tests/client/features/config/surfaces/config-content-surface.ct.tsx`: the new rail round-trip test failed on the old local `useState` (expanded stayed `false` after remount); all 4 pass after the change.
+- `pnpm typecheck` and `pnpm lint:eslint` on the changed files are clean.

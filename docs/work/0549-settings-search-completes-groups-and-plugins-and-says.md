@@ -22,4 +22,7 @@ A user typing a filter gets no guidance and a blank result reads as broken.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+`@in:` completes from the visible groups' names, `@plugin:` from the cached `plugin.list` slugs (`config-search-input.tsx`, `nameCompletions` in `config-search.ts`). The no-match message now renders through `CommandEmpty` with a `role="status"` message. The old guard hid it whenever any group contributed dynamic rows, which is always.
+
+- `pnpm test:ct tests/client/features/config/surfaces/config-search-input.ct.tsx`: all 3 tests failed on the old source (no `@in:` or `@plugin:` options, no status region); all 3 pass after the change.
+- `pnpm typecheck` and `pnpm lint:eslint` on the changed files are clean.

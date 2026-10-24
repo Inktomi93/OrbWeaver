@@ -46,8 +46,10 @@ import {
   resolveConfigSectionAnchor,
   setActiveConfigSub,
   setConfigFocus,
+  setConfigGroupFoldOpen,
   useActiveConfigGroup,
   useCollectionSelection,
+  useConfigGroupFoldOpen,
   useConfigSectionRegistry,
   useConfigSections,
   useConfigTarget,
@@ -363,7 +365,11 @@ function GroupBody({ group }: { readonly group: ConfigGroupDefinition }): ReactN
   // `instant` (the panel's own auto-open contract): the jump scrolls to the revealed anchor in the same
   // beat, and a height animation under a programmatic scroll moves the target every frame — the spy
   // re-arms onto an intermediate section (measured: the Effects landing lit Sizing on the way).
-  const [foldOpen, setFoldOpen] = useState<{ readonly open: boolean; readonly instant: boolean }>({ open: false, instant: false });
+  // The reader's answer lives in the persisted config disclosure store, so it survives this pane unmounting
+  // on a rail round-trip. `landing` is the transient override a landing wins with until the reader toggles.
+  const storedOpen = useConfigGroupFoldOpen(group.id);
+  const [landing, setLanding] = useState<boolean>(false);
+  const foldOpen = { open: landing || storedOpen, instant: landing };
   const [seenNonce, setSeenNonce] = useState<number | null>(null);
   const foldIds = useId();
   const foldLabelId = `${foldIds}-fold-label`;
@@ -373,8 +379,14 @@ function GroupBody({ group }: { readonly group: ConfigGroupDefinition }): ReactN
   // effect): a fresh landing nonce opens the fold in the SAME commit the jump machinery will observe.
   if (landingNonce !== null && landingNonce !== seenNonce) {
     setSeenNonce(landingNonce);
-    setFoldOpen({ open: true, instant: true });
+    setLanding(true);
   }
+  // The landing's open is the reader's posture from here on, so a rail round-trip keeps it.
+  useEffect((): void => {
+    if (landingNonce !== null) {
+      setConfigGroupFoldOpen(group.id, true);
+    }
+  }, [landingNonce, group.id]);
   if (isPlaceholderGroup(group)) {
     return <ConfigGroupPlaceholder title={group.label} description={group.description} />;
   }
@@ -398,7 +410,13 @@ function GroupBody({ group }: { readonly group: ConfigGroupDefinition }): ReactN
         <Fragment key={section.id}>{section.node}</Fragment>
       ))}
       {fold === undefined || folded.length === 0 ? null : (
-        <Collapsible onOpenChange={(open): void => setFoldOpen({ open, instant: false })} open={foldOpen.open}>
+        <Collapsible
+          onOpenChange={(open): void => {
+            setLanding(false);
+            setConfigGroupFoldOpen(group.id, open);
+          }}
+          open={foldOpen.open}
+        >
           {/* #297's explicit custom arm: the fine-tuning knobs behind ONE named disclosure, collapsed by
               default — the caption names what the knobs ride on ("your changes, on top of <look>"). */}
           {/* The label and the caption are NAMED SEPARATELY (#1099 G5): as bare siblings they concatenated
