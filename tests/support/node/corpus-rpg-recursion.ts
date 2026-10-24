@@ -3,7 +3,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { CORPUS_PROVIDER_ENDPOINT } from "./corpus-provider.ts";
 import { RPG_RECURSION_CARD, RPG_RECURSION_CUE, RPG_RECURSION_MODEL } from "./corpus-rpg-flight-wire.ts";
-import { captureTurnRows } from "./factories/message.ts";
+import { captureTurnRows } from "./factories/rows.ts";
 import { captureRpgRows, captureRpgTurnToolCalls, seedRpgGame } from "./factories/rpg.ts";
 import type { ServerTestHarness } from "./server.ts";
 

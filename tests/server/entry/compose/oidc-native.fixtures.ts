@@ -1,26 +1,12 @@
 // A real HTTP root behind a scripted OIDC issuer, and the cookie and token-endpoint helpers its suites share.
 
-import { access, readFile } from "node:fs/promises";
-import { pendingJoinConfirmResultSchema, signedOutInvitePreviewSchema } from "@orb/contracts/chat";
-import { authLogoutResultSchema, authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
-import { chatInvites, chatParticipants, closeDb, oidcPendingSignups, oidcTransactions, sessions, users } from "@orb/db";
-import { databaseHandle } from "@orb/db/wiring-driver";
-
-import { brandedId } from "@orb/kit/ids";
-import { MS_PER_HOUR } from "@orb/kit/time";
-import { createConfiguredOidc } from "@orb/server/entry/compose";
-import { createControlledTimers, createFrozenClock } from "@orb/testkit/iso";
-import { expect, test } from "@orb/testkit/node";
-import { authModeHarnessOptions, beginOidcLogin, cookieHeader, finishOidcLogin, signInWithOidc } from "@orb/testkit/node/auth";
+import { authModeHarnessOptions } from "@orb/testkit/node/auth";
 import type { ServerHarnessOptions, ServerTestHarness, UnclaimedServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness, freshDb, freshHeldDb } from "@orb/testkit/node/composed";
+import { createServerHarness } from "@orb/testkit/node/composed";
 import type { createNativeIssuer } from "@orb/testkit/node/helpers";
-import { ISSUER, NATIVE_OIDC_SETTINGS as SETTINGS } from "@orb/testkit/node/helpers";
-import { eq, sql } from "drizzle-orm";
+import { NATIVE_OIDC_SETTINGS as SETTINGS } from "@orb/testkit/node/helpers";
 import type { JWTPayload } from "jose";
-import { customFetch } from "openid-client";
 import { vi } from "vitest";
-import { z } from "zod";
 
 // biome-ignore lint/style/useNamingConvention: preferred_username is the issuer's actual configured OIDC claim.
 export const MEMBER = { sub: "native-member-subject", preferred_username: "oidc-member" } satisfies JWTPayload;

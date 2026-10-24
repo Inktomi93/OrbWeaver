@@ -4,7 +4,8 @@ import { declaredCapabilitySchema } from "@orb/contracts/inference";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { CORPUS_RPG_CARD_NAME, CORPUS_RPG_FOLDED_INPUT, CORPUS_RPG_REBUILT_BEAT } from "./corpus-rpg-wire.ts";
-import { captureRpgRows, captureRpgSnapshot, captureRpgTurnToolCalls, seedRpgCheckpoint, seedRpgGame } from "./factories/rpg.ts";
+import { captureRpgSnapshot } from "./factories/rows.ts";
+import { captureRpgRows, captureRpgTurnToolCalls, seedRpgCheckpoint, seedRpgGame } from "./factories/rpg.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 type CorpusCaller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;

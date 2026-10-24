@@ -1,13 +1,13 @@
 // Controls only the inherited channel of actual watchdog children; the application owns their lifetime.
 import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
-import type { PluginCapability } from "@orb/contracts/plugin";
+import type { PluginCapability, PluginView } from "@orb/contracts/plugin";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import type { PluginHostSeamDeps } from "@orb/server/infra/plugin-host";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { capturePluginRows, makePluginBundle } from "@orb/testkit/node/composed";
+import { makePluginBundle } from "@orb/testkit/node/composed";
 
 export const PLUGIN_PROCESS_OPERATIONS = { mint: "seam.mintId", read: "storage.get", write: "storage.set", variableWrite: "variables.set" } as const;
 
@@ -142,7 +142,7 @@ interface InstalledGuest {
   readonly disable: () => ReturnType<PluginService["setEnabled"]>;
   readonly log: () => ReturnType<PluginService["getLog"]>;
   readonly read: (key: string) => Promise<JsonValue>;
-  readonly rows: () => ReturnType<typeof capturePluginRows>;
+  readonly view: () => Promise<PluginView>;
 }
 
 /** Install admitted bytes; enablement and every callback still use the actual plugin service. */
@@ -173,7 +173,13 @@ export async function installGuest(root: ServerTestHarness, slug: string, source
       jsonValueSchema.parse(
         JSON.parse((await rpc.plugin.uiHostCall({ pluginId: installed.id, fn: "storage.get", argsJson: JSON.stringify([key]) })).resultJson),
       ),
-    rows: (): ReturnType<typeof capturePluginRows> => capturePluginRows(root.db, root.ownerId, installed.id),
+    view: async (): Promise<PluginView> => {
+      const found = (await root.services.plugin.list({ caller })).find(({ id }) => id === installed.id);
+      if (found === undefined) {
+        throw new Error("the installed guest is missing from the owner's plugin list");
+      }
+      return found;
+    },
   };
 }
 
@@ -192,4 +198,16 @@ export function floatCommand(body: string): string {
     h.ui.registerCommand({name:"float",describe:"Continue after return",onRun:()=>{
       void(async()=>{await h.storage.get("gate");${body}})().catch(e=>h.log.warn(${JSON.stringify(STOPPED)}+e.name+":"+e.message));
     }});`;
+}
+
+export function firstChild(edge: ReturnType<typeof createPluginProcessEdge>): ChildProcess {
+  const child = edge.children[0];
+  if (child === undefined) {
+    throw new Error("the production host did not spawn its watchdog");
+  }
+  return child;
+}
+
+export function releasedAuthorities(edge: ReturnType<typeof createPluginProcessEdge>): number {
+  return edge.delivered.filter((value) => frameField(value, "kind") === "authority-released").length;
 }

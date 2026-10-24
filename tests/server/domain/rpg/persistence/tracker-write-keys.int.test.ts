@@ -1,6 +1,9 @@
+// Model tracker writes under inherited object keys land in the rpg_snapshots row as total own values on a plain
+// object, or refuse visibly: a __proto__ key is never stored and the turn disclosure names the drop.
 // @subject packages/server/src/domain/rpg/tools/apply.ts
 // @subject packages/contracts/src/rpg/tools.ts
 // @subject packages/server/src/domain/rpg/chat-ops/tracker-view.ts
+
 import { RPG_LITE_TOOL_NAMES, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import { rpgSnapshots } from "@orb/db";
 import type { JsonValue } from "@orb/kit/json";

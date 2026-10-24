@@ -7,7 +7,7 @@
 // @subject packages/server/src/domain/admin/verbs/set-enabled.ts
 // @subject packages/server/src/domain/admin/verbs/set-role.ts
 
-import { authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
+import { authMeSchema } from "@orb/contracts/identity";
 import { users } from "@orb/db";
 import type { ExternalId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

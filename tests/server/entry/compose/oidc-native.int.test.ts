@@ -1,25 +1,10 @@
-import { access, readFile } from "node:fs/promises";
-import { pendingJoinConfirmResultSchema, signedOutInvitePreviewSchema } from "@orb/contracts/chat";
-import { authLogoutResultSchema, authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
-import { chatInvites, chatParticipants, closeDb, oidcPendingSignups, oidcTransactions, sessions, users } from "@orb/db";
-import { databaseHandle } from "@orb/db/wiring-driver";
-
-import { brandedId } from "@orb/kit/ids";
-import { MS_PER_HOUR } from "@orb/kit/time";
-import { createConfiguredOidc } from "@orb/server/entry/compose";
-import { createControlledTimers, createFrozenClock } from "@orb/testkit/iso";
+import { authMeSchema } from "@orb/contracts/identity";
 import { expect, test } from "@orb/testkit/node";
-import { authModeHarnessOptions, beginOidcLogin, cookieHeader, finishOidcLogin, signInWithOidc } from "@orb/testkit/node/auth";
-import type { ServerHarnessOptions, ServerTestHarness, UnclaimedServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness, freshDb, freshHeldDb } from "@orb/testkit/node/composed";
-import { createNativeIssuer, ISSUER, NATIVE_OIDC_SETTINGS as SETTINGS } from "@orb/testkit/node/helpers";
-import { eq, sql } from "drizzle-orm";
+import { beginOidcLogin, cookieHeader, finishOidcLogin, signInWithOidc } from "@orb/testkit/node/auth";
+import { createNativeIssuer } from "@orb/testkit/node/helpers";
 import type { JWTPayload } from "jose";
-import { customFetch } from "openid-client";
-import { vi } from "vitest";
-import { z } from "zod";
 import type { HttpRoot } from "./oidc-native.fixtures.ts";
-import { BINDING_COOKIE_PATTERN, Issuer, LOGOUT_EVENT, LOGOUT_TOKEN_PARAM, MEMBER, rootFor, SESSION_COOKIE_PATTERN, writes } from "./oidc-native.fixtures.ts";
+import { BINDING_COOKIE_PATTERN, LOGOUT_EVENT, LOGOUT_TOKEN_PARAM, MEMBER, rootFor, SESSION_COOKIE_PATTERN, writes } from "./oidc-native.fixtures.ts";
 
 test("native JOSE backchannel uses a cached remote keyset and never accepts a foreign signature", async () => {
   const issuer = await createNativeIssuer();

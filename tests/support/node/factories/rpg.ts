@@ -10,7 +10,7 @@ export type RpgGameRow = typeof rpgGames.$inferSelect;
 export type RpgJournalRow = typeof rpgJournal.$inferSelect;
 export type RpgCheckpointRow = typeof rpgCheckpoints.$inferSelect;
 type RpgSheetRow = typeof rpgSheets.$inferSelect;
-export type RpgSnapshotRow = typeof rpgSnapshots.$inferSelect;
+type RpgSnapshotRow = typeof rpgSnapshots.$inferSelect;
 export type RpgTurnToolCallsRow = typeof rpgTurnToolCalls.$inferSelect;
 
 export interface CapturedRpgRows {
@@ -93,13 +93,4 @@ export async function seedRpgSheets(root: ServerProducerRoot, params: Parameters
 export interface SeededRpgSheets {
   readonly game: Awaited<ReturnType<RpgService["getGame"]>>;
   readonly sheets: readonly RpgSheetRow[];
-}
-
-/** A real checkpoint supplies the snapshot FK; no born/default state or canon anchor is synthesized. */
-export async function captureRpgSnapshot(db: Db, snapshotId: RpgCheckpointRow["snapshotId"]): Promise<RpgSnapshotRow> {
-  const row = await db.select().from(rpgSnapshots).where(eq(rpgSnapshots.id, snapshotId)).get();
-  if (row === undefined) {
-    throw new Error("produced checkpoint snapshot ID has no canonical RPG snapshot row");
-  }
-  return row;
 }

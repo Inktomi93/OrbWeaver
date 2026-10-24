@@ -29,8 +29,8 @@ import { buildChatBundleFile, CHAT_BUNDLE_EXT } from "@orb/server/primitives/ser
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { FROZEN_AT_MS } from "../../iso/clock.ts";
 import type { ServerProducerRoot } from "../server.ts";
-import type { CapturedTurnRows } from "./message.ts";
 import { captureChatCanonRows } from "./message.ts";
+import type { CapturedTurnRows } from "./rows.ts";
 
 /** The full `chats` row (derived from the live schema — the factory `X`). */
 type ChatRow = typeof chats.$inferSelect;

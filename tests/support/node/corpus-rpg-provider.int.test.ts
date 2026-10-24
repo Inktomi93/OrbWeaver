@@ -16,7 +16,7 @@ import {
   createCorpusRpgWire,
 } from "./corpus-rpg-wire.ts";
 import { seedCorpusActors } from "./corpus-seed.ts";
-import { captureRpgSnapshot } from "./factories/rpg.ts";
+import { captureRpgSnapshot } from "./factories/rows.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 

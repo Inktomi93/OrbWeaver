@@ -3,7 +3,8 @@ import { DomainError } from "@orb/kit/errors";
 import { buildChatBundleFile, parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
 import type { seedCorpusRpgRecursion } from "./corpus-rpg-recursion.ts";
 import { seedChatInvite, seedImportedChatRows, seedInvitedChatParticipant } from "./factories/chat.ts";
-import { captureRpgRows, captureRpgSnapshot, seedRpgCheckpoint, seedRpgJournalEntry } from "./factories/rpg.ts";
+import { captureRpgSnapshot } from "./factories/rows.ts";
+import { captureRpgRows, seedRpgCheckpoint, seedRpgJournalEntry } from "./factories/rpg.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 export const RPG_MEMBER_SECRET = "the sealed observatory witness";

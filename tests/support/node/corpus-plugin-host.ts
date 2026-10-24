@@ -9,7 +9,8 @@ import { pluginMacroName } from "@orb/server/domain/plugin";
 import { CORPUS_PROVIDER_ENDPOINT } from "./corpus-provider.ts";
 import type { SeededCorpusLibraries, seedCorpusActors } from "./corpus-seed.ts";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
-import { capturePluginRows, makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "./factories/plugin.ts";
+import { makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "./factories/plugin.ts";
+import { capturePluginRows } from "./factories/rows.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;

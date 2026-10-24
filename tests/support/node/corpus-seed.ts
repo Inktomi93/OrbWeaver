@@ -37,11 +37,11 @@ import { seedConnectionBinding, seedUserConnection } from "./factories/connectio
 import { seedCharacterDocument, seedChatDocument, seedDocument, seedGlobalDocument } from "./factories/databank.ts";
 import { captureChatMemoryRows, captureDocumentChunks } from "./factories/embedding-generation.ts";
 import { seedGalleryItem } from "./factories/gallery.ts";
-import { captureTurnRows } from "./factories/message.ts";
 import { seedPersona, seedPersonaFromCharacter } from "./factories/persona.ts";
 import { seedImportedPreset, seedPreset, seedUpdatedPreset } from "./factories/preset.ts";
 import { captureRegexRows } from "./factories/regex.ts";
 import { captureRosterRows, seedRosterPreset } from "./factories/roster-preset.ts";
+import { captureTurnRows } from "./factories/rows.ts";
 import { seedUserContentLedger } from "./factories/settings.ts";
 import { seedStats } from "./factories/stats.ts";
 import { seedCharacterTag, seedChatTag, seedCreatedTag, seedPersonaTag, seedPresetTag, seedWorldBookTag } from "./factories/tag.ts";

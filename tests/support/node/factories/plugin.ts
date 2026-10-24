@@ -1,27 +1,18 @@
 // Plugin canon is captured after the real lifecycle operation; guest storage and consent remain production-owned.
 import type { PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_MAIN_ENTRY, PLUGIN_MANIFEST_ENTRY } from "@orb/contracts/plugin";
-import type { Db } from "@orb/db";
-import { adminDistributedPlugins, pluginAssets, pluginKv, plugins } from "@orb/db";
-import type { PluginId, UserId } from "@orb/kit/ids";
+import { adminDistributedPlugins, plugins } from "@orb/db";
 import { MS_PER_SECOND } from "@orb/kit/time";
 import type { ServicesResult } from "@orb/server/entry/compose";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { strToU8, zipSync } from "fflate";
 import type { ServerProducerRoot } from "../server.ts";
+import type { CapturedPluginRows } from "./rows.ts";
+import { capturePluginRows } from "./rows.ts";
 
 type PluginService = ServicesResult["services"]["plugin"];
 
-type PluginRow = typeof plugins.$inferSelect;
 type AdminDistributedPluginRow = typeof adminDistributedPlugins.$inferSelect;
-type PluginAssetRow = typeof pluginAssets.$inferSelect;
-type PluginKvRow = typeof pluginKv.$inferSelect;
-
-export interface CapturedPluginRows {
-  readonly plugin: PluginRow;
-  readonly assets: readonly PluginAssetRow[];
-  readonly kv: readonly PluginKvRow[];
-}
 
 export interface SeededInstalledPlugin extends CapturedPluginRows {
   readonly outcome: Awaited<ReturnType<PluginService["install"]>>;
@@ -113,23 +104,4 @@ export async function seedDistributedPlugin(
   const rows = await db.select().from(plugins).where(eq(plugins.slug, outcome.slug)).orderBy(plugins.ownerId);
   const installs = await Promise.all(rows.map((row) => capturePluginRows(db, row.ownerId, row.id)));
   return { outcome, distribution, installs };
-}
-
-/** Read canonical private rows after a native guest operation; these bytes never form portable fixture data. */
-export async function capturePluginRows(db: Db, ownerId: UserId, pluginId: PluginId): Promise<CapturedPluginRows> {
-  const plugin = await db
-    .select()
-    .from(plugins)
-    .where(and(eq(plugins.id, pluginId), eq(plugins.ownerId, ownerId)))
-    .get();
-  if (plugin === undefined) {
-    throw new Error("production plugin lifecycle left no canonical owned install row");
-  }
-  const assets = await db.select().from(pluginAssets).where(eq(pluginAssets.pluginId, plugin.id)).orderBy(pluginAssets.bundlePath, pluginAssets.assetId);
-  const kv = await db
-    .select()
-    .from(pluginKv)
-    .where(and(eq(pluginKv.pluginId, plugin.id), eq(pluginKv.ownerId, ownerId)))
-    .orderBy(pluginKv.key);
-  return { plugin, assets, kv };
 }

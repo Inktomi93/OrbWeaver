@@ -17,8 +17,9 @@ import {
   CORPUS_PLUGIN_OUTPUT_SURFACE,
 } from "./corpus-plugin-outputs.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
-import { capturePluginRows, makePluginBundle, seedDistributedPlugin, seedInstalledPlugin, seedPluginGrant } from "./factories/plugin.ts";
+import { makePluginBundle, seedDistributedPlugin, seedInstalledPlugin, seedPluginGrant } from "./factories/plugin.ts";
 import { seedAdminProvider, seedPluginProviders } from "./factories/provider.ts";
+import { capturePluginRows } from "./factories/rows.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 export const CORPUS_PLUGIN_STORAGE_KEY = "ledger";

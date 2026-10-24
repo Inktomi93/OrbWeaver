@@ -3,7 +3,8 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { rpgSnapshots } from "@orb/db";
 import { eq } from "drizzle-orm";
 import { seedCorpusRpgSchedules } from "./corpus-rpg-schedules.ts";
-import { captureRpgSnapshot, seedRpgCheckpoint, seedRpgGame, seedRpgJournalEntry, seedRpgSheets } from "./factories/rpg.ts";
+import { captureRpgSnapshot } from "./factories/rows.ts";
+import { seedRpgCheckpoint, seedRpgGame, seedRpgJournalEntry, seedRpgSheets } from "./factories/rpg.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 type CorpusCaller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;

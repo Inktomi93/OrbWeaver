@@ -5,13 +5,16 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 
 import { setImmediate as physicalTurn } from "node:timers/promises";
+import type { MessageView } from "@orb/contracts/chat";
+import type { Principal } from "@orb/contracts/identity";
 import { MANAGED_VERBATIM_TAIL } from "@orb/contracts/preset";
-import { characters, chatLocks, chatParticipants, closeDb, messages, messageVariants, ownerStats, pendingTurns, rpgSnapshots } from "@orb/db";
+import { chatLocks, closeDb, pendingTurns, rpgSnapshots } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { CHAT_OP_CODES, ChatNotFoundError } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
-import { freshHeldDb, seedPeerLease } from "@orb/testkit/node/composed";
-import { and, eq } from "drizzle-orm";
+import type { ChatRoot } from "@orb/testkit/node/composed";
+import { freshHeldDb, readRoomCanon, seedPeerLease } from "@orb/testkit/node/composed";
+import { eq } from "drizzle-orm";
 import { sdkEngineRoom } from "../engine/engine-physical.ts";
 import { invitePerson } from "../persona-cache-physical.ts";
 import { ARIA, LIST, nominee, providerRefusal, queued, stillOutgoing, transferred } from "../verbs/handoff-settlement.fixtures.ts";
@@ -23,8 +26,14 @@ async function debt(room: SpeakerRoom): Promise<(typeof pendingTurns.$inferSelec
   return await room.h.root.db.select().from(pendingTurns).where(eq(pendingTurns.chatId, room.h.chatId)).orderBy(pendingTurns.createdAt, pendingTurns.id);
 }
 
-async function canon(room: SpeakerRoom): Promise<(typeof messages.$inferSelect)[]> {
-  return await room.h.root.db.select().from(messages).where(eq(messages.chatId, room.h.chatId)).orderBy(messages.seq);
+async function canon(room: SpeakerRoom): Promise<MessageView[]> {
+  return await readRoomCanon(room.h.root, room.h.owner, room.h.chatId);
+}
+
+// The room's host seats as the wire roster shows them to a present viewer.
+async function hostSeats(h: Pick<ChatRoot, "root" | "chatId">, viewer: Principal): Promise<{ readonly userId: string | null }[]> {
+  const { participants } = await (await h.root.internalCallerFor(viewer.userId)).chat.getChat({ chatId: h.chatId });
+  return participants.filter(({ role }) => role === "host");
 }
 
 test("a wrong nominee or outsider cannot close admission or make the outgoing host settle debt", async () => {
@@ -79,14 +88,8 @@ test("a later owed failure retains completed paid canon and retry executes only 
   expect(await debt(room)).toEqual(before.slice(1));
   const paid = (await canon(room)).filter((m) => m.role === "assistant");
   expect(paid).toHaveLength(1);
-  const paidVariantId = paid[0]?.selectedVariantId;
-  if (paidVariantId === null || paidVariantId === undefined) {
-    throw new Error("the actually committed reply has no selected variant");
-  }
-  expect(await h.root.db.select().from(messageVariants).where(eq(messageVariants.id, paidVariantId))).toMatchObject([
-    { content: "The first debt really commits.", connectionId: room.connection.id, tokensIn: 4, tokensOut: 2 },
-  ]);
-  expect(await h.root.db.select().from(ownerStats).where(eq(ownerStats.ownerId, h.owner.userId)).get()).toMatchObject({
+  expect(paid).toMatchObject([{ content: "The first debt really commits.", connectionId: room.connection.id, tokensIn: 4, tokensOut: 2 }]);
+  expect(await h.root.services.stats.overview(h.owner.userId)).toMatchObject({
     assistantTurns: 1,
     tokensIn: 4,
     tokensOut: 2,
@@ -395,18 +398,13 @@ test("a detached native SDK marker settles before the accepted copy and authorit
       await physicalTurn();
     }
     expect(complete).toBe(false);
-    expect(await h.root.db.select().from(characters).where(eq(characters.ownerId, recipient.userId))).toEqual([]);
+    expect((await h.root.services.character.list({ principal: recipient })).items).toEqual([]);
     expect(await fixture.marker()).toMatchObject({ compactSummary: null });
     fixture.release();
     await accepted;
     expect((await fixture.marker()).compactSummary).toBeTruthy();
     expect((await fixture.marker()).compactedAtSeq).toBe(await fixture.seqOfRow(coveredRows));
-    expect(
-      await h.root.db
-        .select()
-        .from(chatParticipants)
-        .where(and(eq(chatParticipants.chatId, h.chatId), eq(chatParticipants.role, "host"))),
-    ).toMatchObject([{ userId: recipient.userId }]);
+    expect(await hostSeats(h, recipient)).toMatchObject([{ userId: recipient.userId }]);
     expect(fixture.held.size).toBe(0);
   } finally {
     fixture.release();
@@ -460,13 +458,8 @@ test("a completed public user commit retains its real RPG snapshot tail until ha
       await physicalTurn();
     }
     expect(complete).toBe(false);
-    expect(await h.root.db.select().from(characters).where(eq(characters.ownerId, recipient.userId))).toEqual([]);
-    expect(
-      await h.root.db
-        .select()
-        .from(chatParticipants)
-        .where(and(eq(chatParticipants.chatId, h.chatId), eq(chatParticipants.role, "host"))),
-    ).toMatchObject([{ userId: h.owner.userId }]);
+    expect((await h.root.services.character.list({ principal: recipient })).items).toEqual([]);
+    expect(await hostSeats(h, h.owner)).toMatchObject([{ userId: h.owner.userId }]);
     gate.release();
     await accepted;
     expect(await h.root.db.select().from(rpgSnapshots).where(eq(rpgSnapshots.id, before.id)).get()).toMatchObject({
@@ -475,12 +468,7 @@ test("a completed public user commit retains its real RPG snapshot tail until ha
       location,
       committed: 1,
     });
-    expect(
-      await h.root.db
-        .select()
-        .from(chatParticipants)
-        .where(and(eq(chatParticipants.chatId, h.chatId), eq(chatParticipants.role, "host"))),
-    ).toMatchObject([{ userId: recipient.userId }]);
+    expect(await hostSeats(h, recipient)).toMatchObject([{ userId: recipient.userId }]);
     expect((await h.root.services.rpg.getTrackerView({ principal: recipient, chatId: h.chatId })).ambient).toMatchObject({ location });
   } finally {
     gate.release();

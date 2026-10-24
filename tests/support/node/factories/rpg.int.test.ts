@@ -17,7 +17,8 @@ import {
 import { seedCorpusActors, seedRecallRoom } from "../corpus-seed.ts";
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
-import { captureRpgSnapshot, captureRpgTurnToolCalls, seedRpgCheckpoint, seedRpgGame, seedRpgJournalEntry, seedRpgSheets } from "./rpg.ts";
+import { captureRpgSnapshot } from "./rows.ts";
+import { captureRpgTurnToolCalls, seedRpgCheckpoint, seedRpgGame, seedRpgJournalEntry, seedRpgSheets } from "./rpg.ts";
 
 test("a genuine folded RPG turn retains its actual quiet tool call on the returned assistant variant without buying a second state round", async () => {
   const provider = createCorpusProviderExecution({

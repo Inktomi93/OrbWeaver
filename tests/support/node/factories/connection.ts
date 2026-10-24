@@ -1,25 +1,13 @@
 // Actual connection writers own endpoint/credential admission, actor binding and vector-space settlement.
-import type { Db } from "@orb/db";
-import { connectionBindings, sessionEntries, userConnections } from "@orb/db";
-import type { ChatId, UserConnectionId } from "@orb/kit/ids";
+import { connectionBindings, userConnections } from "@orb/db";
 import type { ServicesResult } from "@orb/server/entry/compose";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { ServerProducerRoot } from "../server.ts";
 
 type ConnectionService = ServicesResult["services"]["connection"];
 
 export type UserConnectionRow = typeof userConnections.$inferSelect;
 export type ConnectionBindingRow = typeof connectionBindings.$inferSelect;
-export type SdkSessionEntryRow = typeof sessionEntries.$inferSelect;
-
-/** Capture only the real SDK's canon-derived lineage; no fixture computes session IDs, seed ordinals or hashes. */
-export async function captureSdkSessionRows(db: Db, chatId: ChatId, connectionId: UserConnectionId): Promise<readonly SdkSessionEntryRow[]> {
-  return await db
-    .select()
-    .from(sessionEntries)
-    .where(and(eq(sessionEntries.chatId, chatId), eq(sessionEntries.connectionId, connectionId)))
-    .orderBy(sessionEntries.seq);
-}
 
 /** Captures a real saved connection without inventing its model, provider, credential or capability facts. */
 export async function seedUserConnection(root: ServerProducerRoot, params: Parameters<ConnectionService["create"]>[0]): Promise<UserConnectionRow> {

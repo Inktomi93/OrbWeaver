@@ -1,14 +1,15 @@
 // Direct row builders for persistence-tier tests that assert a query or a schema fact (Spine-Testing §9).
 // Every other test seeds through the composed root; dependency-cruiser limits who imports this door.
 
-import type { Db } from "@orb/db";
-import { characters, chats, messages, messageVariants, users } from "@orb/db";
+import type { TurnOutcome } from "@orb/contracts/chat";
+import type { Db, rpgCheckpoints } from "@orb/db";
+import { characters, chats, messages, messageVariants, pluginAssets, pluginKv, plugins, rpgSnapshots, sessionEntries, users } from "@orb/db";
 import { handleKey } from "@orb/kit/handle-key";
-import type { CharacterHandle, Handle, IdSource, MessageVariantId } from "@orb/kit/ids";
+import type { CharacterHandle, ChatId, Handle, IdSource, MessageVariantId, PluginId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId, createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { cardTokenSize } from "@orb/server/domain/character";
 import { cardContentHash } from "@orb/server/primitives/serde/card";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { FROZEN_AT_MS } from "../../iso/clock.ts";
 import { createSeededIds } from "../../iso/ids.ts";
 
@@ -16,6 +17,20 @@ export type UserRow = typeof users.$inferSelect;
 type CharacterRow = typeof characters.$inferSelect;
 type ChatRow = typeof chats.$inferSelect;
 type MessageRow = typeof messages.$inferSelect;
+
+export type SdkSessionEntryRow = typeof sessionEntries.$inferSelect;
+type MessageVariantRow = typeof messageVariants.$inferSelect;
+interface CapturedTurnRow {
+  readonly slot: MessageRow;
+  readonly variant: MessageVariantRow;
+}
+export type CapturedTurnRows = readonly CapturedTurnRow[];
+export interface CapturedPluginRows {
+  readonly plugin: typeof plugins.$inferSelect;
+  readonly assets: readonly (typeof pluginAssets.$inferSelect)[];
+  readonly kv: readonly (typeof pluginKv.$inferSelect)[];
+}
+type RpgSnapshotRow = typeof rpgSnapshots.$inferSelect;
 
 const ids = createIdSource(createSeededIds().next);
 
@@ -179,4 +194,58 @@ export async function seedMessageRow(db: Db, overrides: SeedMessageRowOptions = 
   await db.insert(messageVariants).values({ id: variantId, messageId: slot.id, idx: 0, content: body, createdAt: FROZEN_AT_MS });
   await db.update(messages).set({ selectedVariantId: variantId }).where(eq(messages.id, slot.id));
   return { ...slot, selectedVariantId: variantId, variantId, content: body };
+}
+
+// Raw row readers: persistence-tier suites assert stored facts no read verb shows.
+
+/** Capture only the real SDK's canon-derived lineage; no fixture computes session IDs, seed ordinals or hashes. */
+export async function captureSdkSessionRows(db: Db, chatId: ChatId, connectionId: UserConnectionId): Promise<readonly SdkSessionEntryRow[]> {
+  return await db
+    .select()
+    .from(sessionEntries)
+    .where(and(eq(sessionEntries.chatId, chatId), eq(sessionEntries.connectionId, connectionId)))
+    .orderBy(sessionEntries.seq);
+}
+/** Canonical rows come only from the exact message/variant identities returned by the actual turn. */
+export async function captureTurnRows(db: Db, outcome: TurnOutcome): Promise<CapturedTurnRows> {
+  return await Promise.all(
+    outcome.messages.map(async (message) => {
+      const row = await db
+        .select({ slot: messages, variant: messageVariants })
+        .from(messages)
+        .innerJoin(messageVariants, eq(messageVariants.messageId, messages.id))
+        .where(and(eq(messages.id, message.id), eq(messages.selectedVariantId, message.selectedVariantId), eq(messageVariants.id, message.selectedVariantId)))
+        .get();
+      if (row === undefined) {
+        throw new Error("actual turn message has no matching canonical selected variant");
+      }
+      return row;
+    }),
+  );
+}
+/** Read canonical private rows after a native guest operation; these bytes never form portable fixture data. */
+export async function capturePluginRows(db: Db, ownerId: UserId, pluginId: PluginId): Promise<CapturedPluginRows> {
+  const plugin = await db
+    .select()
+    .from(plugins)
+    .where(and(eq(plugins.id, pluginId), eq(plugins.ownerId, ownerId)))
+    .get();
+  if (plugin === undefined) {
+    throw new Error("production plugin lifecycle left no canonical owned install row");
+  }
+  const assets = await db.select().from(pluginAssets).where(eq(pluginAssets.pluginId, plugin.id)).orderBy(pluginAssets.bundlePath, pluginAssets.assetId);
+  const kv = await db
+    .select()
+    .from(pluginKv)
+    .where(and(eq(pluginKv.pluginId, plugin.id), eq(pluginKv.ownerId, ownerId)))
+    .orderBy(pluginKv.key);
+  return { plugin, assets, kv };
+}
+/** A real checkpoint supplies the snapshot FK; no born/default state or canon anchor is synthesized. */
+export async function captureRpgSnapshot(db: Db, snapshotId: (typeof rpgCheckpoints.$inferSelect)["snapshotId"]): Promise<RpgSnapshotRow> {
+  const row = await db.select().from(rpgSnapshots).where(eq(rpgSnapshots.id, snapshotId)).get();
+  if (row === undefined) {
+    throw new Error("produced checkpoint snapshot ID has no canonical RPG snapshot row");
+  }
+  return row;
 }

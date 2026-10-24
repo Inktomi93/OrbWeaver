@@ -16,7 +16,7 @@ import {
 import type { seedCorpusActors } from "./corpus-seed.ts";
 import { seedUserConnection } from "./factories/connection.ts";
 import { seedUserCredential } from "./factories/credentials.ts";
-import { captureTurnRows } from "./factories/message.ts";
+import { captureTurnRows } from "./factories/rows.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;

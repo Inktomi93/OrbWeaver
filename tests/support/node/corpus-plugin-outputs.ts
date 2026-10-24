@@ -8,7 +8,8 @@ import { LOG_BYTES_PER_INVOCATION, LOG_LINES_PER_INVOCATION, PLUGIN_LOG_RING_CHA
 import { seedCorpusAccount } from "./corpus-auth.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
 import type { CapturedPluginOutputs } from "./factories/plugin.ts";
-import { capturePluginOutputs, capturePluginRows, makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "./factories/plugin.ts";
+import { capturePluginOutputs, makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "./factories/plugin.ts";
+import { capturePluginRows } from "./factories/rows.ts";
 import type { ServerHarnessOptions, ServerTestHarness } from "./server.ts";
 
 type PluginCaller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>["plugin"];

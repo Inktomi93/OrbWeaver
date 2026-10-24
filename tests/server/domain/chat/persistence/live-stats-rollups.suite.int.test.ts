@@ -15,11 +15,11 @@ import {
   CORPUS_PROVIDER_ENDPOINT,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
-  captureSdkSessionRows,
   createChatRoot,
   createCorpusProviderExecution,
 } from "@orb/testkit/node/composed";
 import { createSdkProcessSpawner, terminalSseLine } from "@orb/testkit/node/helpers";
+import { captureSdkSessionRows } from "@orb/testkit/node/rows";
 import { and, eq } from "drizzle-orm";
 import { STATS_SDK_CACHE_1H, STATS_SDK_MODEL, STATS_SDK_REPLY, STATS_SDK_THINKING } from "../engine/stats-sdk-physical.mjs";
 

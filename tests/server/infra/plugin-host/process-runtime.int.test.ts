@@ -1,13 +1,13 @@
 // @subject packages/server/src/infra/plugin-host/process-runtime.ts
 import { ChildProcess } from "node:child_process";
 import { once } from "node:events";
-import { PLUGIN_CONTINUATION_WINDOW_MS } from "@orb/contracts/plugin";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import {
   BASE_GRANTS,
   createPluginProcessEdge,
   FLOOD_HOST_CALLS,
+  firstChild,
   floatCommand,
   frameField,
   hasOperation,
@@ -15,6 +15,7 @@ import {
   NATIVE_TIMEOUT_MS,
   NOOP_COMMAND,
   PLUGIN_PROCESS_OPERATIONS as OP,
+  releasedAuthorities,
   responseResult,
 } from "./process-runtime.fixtures.ts";
 
@@ -41,18 +42,6 @@ test.for([
   expect(await settled).toMatchObject([{ status: "rejected", reason: { message: expect.stringContaining(message) } }]);
 });
 
-function firstChild(edge: ReturnType<typeof createPluginProcessEdge>): ChildProcess {
-  const child = edge.children[0];
-  if (child === undefined) {
-    throw new Error("the production host did not spawn its watchdog");
-  }
-  return child;
-}
-
-function releasedAuthorities(edge: ReturnType<typeof createPluginProcessEdge>): number {
-  return edge.delivered.filter((value) => frameField(value, "kind") === "authority-released").length;
-}
-
 test("holding an actual synchronous IPC message preserves its identity, result and live child ownership", { timeout: NATIVE_TIMEOUT_MS }, async () => {
   const edge = createPluginProcessEdge();
   await using root = await createServerHarness({ pluginSpawn: edge.spawn });
@@ -78,31 +67,6 @@ test("holding an actual synchronous IPC message preserves its identity, result a
   await root[Symbol.asyncDispose]();
   await closed;
   expect(child.exitCode).toBe(0);
-});
-
-test("watchdog loss during activation fails closed without replay and permits only an explicit fresh activation", { timeout: NATIVE_TIMEOUT_MS }, async () => {
-  const edge = createPluginProcessEdge();
-  await using root = await createServerHarness({ pluginSpawn: edge.spawn });
-  const guest = await installGuest(root, "activation-loss", `const h=orb.host(1);h.ids.mint();h.storage.set("activation","once");${NOOP_COMMAND}`, BASE_GRANTS);
-  using delivery = edge.holdNext((value) => hasOperation(value, OP.mint));
-  const activating = Promise.allSettled([guest.enable()]);
-  await delivery.reached;
-  const child = firstChild(edge);
-  const exited = once(child, "exit");
-  child.ref();
-  expect(child.kill("SIGKILL")).toBe(true);
-  await exited;
-  delivery.release();
-  expect(await activating).toMatchObject([
-    { status: "rejected", reason: { name: "PluginHostUnavailable", message: expect.stringContaining("broker became unavailable") } },
-  ]);
-  expect((await guest.rows()).plugin).toMatchObject({ status: "disabled", grantedCapabilities: [...BASE_GRANTS] });
-  expect((await guest.rows()).kv).toEqual([]);
-  expect(edge.children).toHaveLength(1);
-  expect((await guest.enable()).status).toBe("enabled");
-  expect(await guest.read("activation")).toBe("once");
-  await expect(guest.invoke("noop")).resolves.toEqual({ toasts: [] });
-  expect(edge.children).toHaveLength(2);
 });
 
 test("a binding waiting for ready survives a delayed old-child exit and activates exactly once", { timeout: NATIVE_TIMEOUT_MS }, async () => {
@@ -133,84 +97,6 @@ test("a binding waiting for ready survives a delayed old-child exit and activate
   expect(await bystander.read("activation")).toBe("x");
   expect(edge.children).toHaveLength(2);
   await expect(bystander.invoke("noop")).resolves.toEqual({ toasts: [] });
-});
-
-test("unexpected loss rejects a parked invocation and old callbacks before explicit recovery", { timeout: NATIVE_TIMEOUT_MS }, async () => {
-  const edge = createPluginProcessEdge();
-  await using root = await createServerHarness({ pluginSpawn: edge.spawn });
-  const guest = await installGuest(
-    root,
-    "invoke-loss",
-    `const h=orb.host(1);${NOOP_COMMAND}
-    h.ui.registerCommand({name:"wait",describe:"Park a read",onRun:async()=>{await h.storage.get("gate");await h.storage.set("late","forbidden");}});`,
-    BASE_GRANTS,
-  );
-  expect((await guest.enable()).status).toBe("enabled");
-  using delivery = edge.holdNext((value) => hasOperation(value, OP.read));
-  const running = Promise.allSettled([guest.invoke("wait")]);
-  await delivery.reached;
-  const child = firstChild(edge);
-  const exited = once(child, "exit");
-  child.ref();
-  expect(child.kill("SIGKILL")).toBe(true);
-  await exited;
-  delivery.release();
-  expect(await running).toMatchObject([{ status: "rejected" }]);
-  await expect(guest.invoke("noop")).rejects.toThrow();
-  expect((await guest.rows()).kv).toEqual([]);
-  expect(edge.children).toHaveLength(1);
-  await guest.disable();
-  expect((await guest.enable()).status).toBe("enabled");
-  await expect(guest.invoke("noop")).resolves.toEqual({ toasts: [] });
-  expect(edge.children).toHaveLength(2);
-});
-
-test("a real write queued before disable cannot alter owned persistence after its runtime is revoked", { timeout: NATIVE_TIMEOUT_MS }, async () => {
-  const edge = createPluginProcessEdge();
-  await using root = await createServerHarness({ pluginSpawn: edge.spawn });
-  const guest = await installGuest(
-    root,
-    "late-frame",
-    `const h=orb.host(1);h.storage.set("positive","kept");
-    h.ui.registerCommand({name:"write",describe:"Write after admission",onRun:async()=>{await h.storage.set("late","landed");}});`,
-    BASE_GRANTS,
-  );
-  expect((await guest.enable()).status).toBe("enabled");
-  expect(await guest.read("positive")).toBe("kept");
-  using delivery = edge.holdNext((value) => hasOperation(value, OP.write));
-  const running = Promise.allSettled([guest.invoke("write")]);
-  await delivery.reached;
-  const before = (await guest.rows()).kv;
-  await guest.disable();
-  delivery.release();
-  expect(await running).toMatchObject([{ status: "rejected" }]);
-  expect((await guest.rows()).kv).toEqual(before);
-  expect((await guest.rows()).plugin.status).toBe("disabled");
-  expect((await guest.enable()).status).toBe("enabled");
-  await guest.invoke("write");
-  expect(await guest.read("late")).toBe("landed");
-});
-
-test("the parent expires a returned command authority while its real Worker continuation remains parked", { timeout: NATIVE_TIMEOUT_MS }, async () => {
-  const edge = createPluginProcessEdge();
-  await using root = await createServerHarness({ pluginSpawn: edge.spawn });
-  const guest = await installGuest(root, "expired-tail", floatCommand('await h.storage.set("late","forbidden");'), BASE_GRANTS);
-  expect((await guest.enable()).status).toBe("enabled");
-  await expect.poll(() => releasedAuthorities(edge)).toBe(1);
-  await root.settleBackground();
-  const timersBefore = root.timers.pending();
-  using delivery = edge.holdNext((value) => hasOperation(value, OP.read));
-  const invoking = guest.invoke("float");
-  const settled = Promise.allSettled([invoking]);
-  await delivery.reached;
-  await expect(invoking).resolves.toEqual({ toasts: [] });
-  await settled;
-  expect(root.timers.pending()).toBeGreaterThan(timersBefore);
-  root.timers.advance(PLUGIN_CONTINUATION_WINDOW_MS);
-  delivery.release();
-  await expect.poll(async () => (await guest.log()).map((line) => line.message).join("\n")).toContain("stale command authority");
-  expect((await guest.rows()).kv).toEqual([]);
-  await expect(guest.invoke("noop")).resolves.toEqual({ toasts: [] });
 });
 
 test("a valid floated continuation persists after return and its tail timers clear on completion and retirement", { timeout: NATIVE_TIMEOUT_MS }, async () => {

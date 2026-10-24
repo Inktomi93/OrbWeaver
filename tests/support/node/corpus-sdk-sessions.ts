@@ -7,8 +7,9 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { seedCorpusAccount } from "./corpus-auth.ts";
 import { CORPUS_SDK_EMPTY, CORPUS_SDK_HOLD, CORPUS_SDK_MODEL, CORPUS_SDK_QUERY, CORPUS_SDK_REUSE, CORPUS_SDK_TOKEN } from "./corpus-sdk-protocol.ts";
 import type { createCorpusSdkExecution } from "./corpus-sdk-wire.ts";
-import { captureSdkSessionRows, seedUserConnection } from "./factories/connection.ts";
+import { seedUserConnection } from "./factories/connection.ts";
 import { seedUserCredential } from "./factories/credentials.ts";
+import { captureSdkSessionRows } from "./factories/rows.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 type SdkRows = Awaited<ReturnType<typeof captureSdkSessionRows>>;

@@ -3,7 +3,6 @@
 // @subject packages/server/src/domain/admin/verbs/create-user.ts
 // @subject packages/server/src/transport/trpc/role-output.ts
 
-import { CSRF_HEADER } from "@orb/contracts/identity";
 import { auditLogs, users } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

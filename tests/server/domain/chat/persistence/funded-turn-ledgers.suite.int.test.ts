@@ -1,105 +1,25 @@
-// Host-funded member turns and a two-party handoff credit the funding host's owner_stats row, leave the
-// member's row untouched and write no chat_generation_observations row for the room.
+// Host-funded member turns write no chat_generation_observations row for the room: member-started automatic
+// beats and the turns either side of a two-party host handoff.
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 
-import { createCharacterSchema } from "@orb/contracts/character";
-import { chatGenerationObservations, ownerStats } from "@orb/db";
+import { chatGenerationObservations } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
-import { captureTurnRows } from "@orb/testkit/node/composed";
+import type { ChatRoot } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
-import { vi } from "vitest";
-import { invitePerson } from "../persona-cache-physical.ts";
-import { B_CHAT_MODEL, B_HOST_KEY, saveSpeakerConnection, speakerInputs, speakerRoom } from "../verbs/speaker-funding-physical.ts";
+import { memberAutoBeats, twoPartyHandoff } from "../verbs/turn-funding.fixtures.ts";
 
-test("member-started automatic beats retain the actual initiator while the host funds each native call", async () => {
-  await using room = await speakerRoom(
-    { chat: ["Aria begins.", "Bryn replies.", "Aria continues.", "Bryn finishes."] },
-    {
-      group: { output: "per-speaker", policy: "list", autoMode: true, autoModeMaxTurns: 2, autoModeDelayMs: 0 },
-    },
-  );
-  const { h } = room;
-  const member = await invitePerson(h);
-  using presence = new DisposableStack();
-  const hostOnline = new AbortController();
-  presence.defer(() => hostOnline.abort());
-  h.root.app.presence.connect(h.owner.userId, hostOnline.signal);
-  const memberBefore = await h.root.db.select().from(ownerStats).where(eq(ownerStats.ownerId, member.userId));
-  // Observe the real composed collaborator; the default spy calls the actual operation unchanged.
-  const completed = vi.spyOn(h.root.app.rpgChatOps, "onTurnCompleted");
-  try {
-    const outcome = await h.root.services.chat.send({ principal: member, chatId: h.chatId, content: "go" });
-    await h.root.settleBackground();
-    expect(outcome.aborted).toBe(false);
-    expect(outcome.messages.find((m) => m.role === "user")?.authorUserId).toBe(member.userId);
-    const assistants = outcome.messages.filter((m) => m.role === "assistant");
-    expect(assistants).toHaveLength(4);
-    expect(completed.mock.calls).toHaveLength(4);
-    expect(completed.mock.calls.map((call) => call[4].triggeredBy)).toEqual(Array.from({ length: 4 }, () => member.userId));
-    const physical = room.peer.requests.filter((r) => r.method === "POST" && new URL(r.url).pathname === "/v1/chat/completions");
-    expect(await speakerInputs(physical, B_CHAT_MODEL)).toHaveLength(4);
-    expect(physical.map((r) => r.headers.get("authorization"))).toEqual(Array.from({ length: 4 }, () => `Bearer ${B_HOST_KEY}`));
-    const canon = (await captureTurnRows(h.root.db, outcome)).filter(({ slot }) => slot.role === "assistant");
-    expect(canon).toHaveLength(4);
-    expect(canon.map(({ variant }) => ({ connectionId: variant.connectionId, tokensIn: variant.tokensIn, tokensOut: variant.tokensOut }))).toEqual(
-      Array.from({ length: 4 }, () => ({ connectionId: room.connection.id, tokensIn: 4, tokensOut: 2 })),
-    );
-    expect(await h.root.db.select().from(chatGenerationObservations).where(eq(chatGenerationObservations.chatId, h.chatId))).toEqual([]);
-    expect(await h.root.db.select().from(ownerStats).where(eq(ownerStats.ownerId, h.owner.userId)).get()).toMatchObject({
-      userTurns: 1,
-      assistantTurns: 4,
-      tokensIn: 16,
-      tokensOut: 8,
-    });
-    expect(await h.root.db.select().from(ownerStats).where(eq(ownerStats.ownerId, member.userId))).toEqual(memberBefore);
-  } finally {
-    completed.mockRestore();
-  }
+async function observations(h: ChatRoot): Promise<(typeof chatGenerationObservations.$inferSelect)[]> {
+  return await h.root.db.select().from(chatGenerationObservations).where(eq(chatGenerationObservations.chatId, h.chatId));
+}
+
+test("member-started automatic beats write no generation observation row", async () => {
+  await using beats = await memberAutoBeats();
+  expect(beats.outcome.aborted).toBe(false);
+  expect(await observations(beats.room.h)).toEqual([]);
 });
 
-test("real two-party host handoff transfers subsequent native route and liability", async () => {
-  await using room = await speakerRoom(
-    { chat: ["The original host funds this.", "The new host funds this."] },
-    {
-      characters: [createCharacterSchema.parse({ handle: "aria", name: "aria", description: "The traveller aria." })],
-      group: { output: "per-speaker", policy: "list" },
-    },
-  );
-  const { h } = room;
-  const nextHost = await invitePerson(h);
-  const nextKey = "owned-speaker-next-host-key";
-  const nextConnection = await saveSpeakerConnection(h, room.peer.baseUrl, "chat", { principal: nextHost, key: nextKey });
-  using presence = new DisposableStack();
-  for (const person of [h.owner, nextHost]) {
-    const online = new AbortController();
-    presence.defer(() => online.abort());
-    h.root.app.presence.connect(person.userId, online.signal);
-  }
-  const before = await h.root.services.chat.send({ principal: nextHost, chatId: h.chatId, content: "before" });
-  expect(before.aborted).toBe(false);
-  await h.root.services.chat.nominateHostHandoff({
-    principal: h.owner,
-    chatId: h.chatId,
-    userId: nextHost.userId,
-    offer: { copyCharacters: true, copyGmPreset: false },
-  });
-  await h.root.services.chat.acceptHostHandoff({ principal: nextHost, chatId: h.chatId });
-  const after = await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "after" });
-  expect(after.aborted).toBe(false);
-  expect(before.messages.find((m) => m.role === "user")?.authorUserId).toBe(nextHost.userId);
-  expect(after.messages.find((m) => m.role === "user")?.authorUserId).toBe(h.owner.userId);
-  const physical = room.peer.requests.filter((r) => r.method === "POST" && new URL(r.url).pathname === "/v1/chat/completions");
-  expect(await speakerInputs(physical, B_CHAT_MODEL)).toHaveLength(2);
-  expect(physical.map((r) => r.headers.get("authorization"))).toEqual([`Bearer ${B_HOST_KEY}`, `Bearer ${nextKey}`]);
-  const beforeCanon = (await captureTurnRows(h.root.db, before)).filter(({ slot }) => slot.role === "assistant");
-  const afterCanon = (await captureTurnRows(h.root.db, after)).filter(({ slot }) => slot.role === "assistant");
-  expect(beforeCanon.map(({ variant }) => ({ connectionId: variant.connectionId, tokensIn: variant.tokensIn, tokensOut: variant.tokensOut }))).toEqual([
-    { connectionId: room.connection.id, tokensIn: 4, tokensOut: 2 },
-  ]);
-  expect(afterCanon.map(({ variant }) => ({ connectionId: variant.connectionId, tokensIn: variant.tokensIn, tokensOut: variant.tokensOut }))).toEqual([
-    { connectionId: nextConnection.id, tokensIn: 4, tokensOut: 2 },
-  ]);
-  expect(await h.root.db.select().from(chatGenerationObservations).where(eq(chatGenerationObservations.chatId, h.chatId))).toEqual([]);
-  const actualSeats = await h.root.services.chat.listParticipants({ principal: nextHost, chatId: h.chatId });
-  expect(actualSeats.some((s) => s.characterId === after.messages.find((m) => m.role === "assistant")?.characterId && s.leftSeq === null)).toBe(true);
+test("the turns either side of a two-party host handoff write no generation observation row", async () => {
+  await using handoff = await twoPartyHandoff();
+  expect([handoff.before.aborted, handoff.after.aborted]).toEqual([false, false]);
+  expect(await observations(handoff.room.h)).toEqual([]);
 });

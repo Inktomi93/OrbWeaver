@@ -18,7 +18,6 @@ import {
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
-  captureRpgSnapshot,
   createCorpusProviderExecution,
   createServerHarness,
   freshHeldDb,
@@ -28,6 +27,7 @@ import {
   seedRpgCheckpoint,
   seedRpgGame,
 } from "@orb/testkit/node/composed";
+import { captureRpgSnapshot } from "@orb/testkit/node/rows";
 import { eq, getTableName } from "drizzle-orm";
 
 const INTENT = { maxContextTokens: 32_000, maxOutputTokens: 128 };

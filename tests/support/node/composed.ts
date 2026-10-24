@@ -42,19 +42,17 @@ export { seedAutomationRule, seedAutomationTestFires } from "./factories/automat
 export { seedCharacter } from "./factories/character.ts";
 export type { TranscriptLine } from "./factories/chat.ts";
 export { seedChat, seedChatInvite, seedInvitedChatParticipant, seedTranscript } from "./factories/chat.ts";
-export { captureSdkSessionRows } from "./factories/connection.ts";
 export { makeResolvedSecret } from "./factories/credentials.ts";
 export type { OwnerRowDamage } from "./factories/damaged-owner.ts";
 export { damageOwnerRow } from "./factories/damaged-owner.ts";
 export { seedCharacterDistillations } from "./factories/discovery.ts";
 export { plantForeignCardBackground, plantForeignRoomBackground, plantForeignSettingsBytes, plantForeignSettingsValue } from "./factories/foreign-build.ts";
 export { plantLegacyZeroCanon } from "./factories/legacy-canon.ts";
-export { captureTurnRows, seedMessage } from "./factories/message.ts";
+export { seedMessage } from "./factories/message.ts";
 export type { PeerLease } from "./factories/peer-replica.ts";
 export { seedPeerLease } from "./factories/peer-replica.ts";
 export { seedPersona } from "./factories/persona.ts";
 export {
-  capturePluginRows,
   makePluginBundle,
   PLUGIN_ZIP_MTIME_SECONDS_RANGE,
   seedDistributedPlugin,
@@ -64,7 +62,7 @@ export {
 export { seedPreset } from "./factories/preset.ts";
 export { seedAdminProvider } from "./factories/provider.ts";
 export { seedGlobalRegexScript, seedRegexScript } from "./factories/regex.ts";
-export { captureRpgSnapshot, seedRpgCheckpoint, seedRpgGame } from "./factories/rpg.ts";
+export { seedRpgCheckpoint, seedRpgGame } from "./factories/rpg.ts";
 export { seedUserSettings } from "./factories/settings.ts";
 export { seedCreatedTag } from "./factories/tag.ts";
 export { createQueueScanner, seedWorkloadSchedule } from "./factories/workload.ts";

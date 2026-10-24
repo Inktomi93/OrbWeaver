@@ -1,5 +1,5 @@
-// A plugin verb that fails after writing CAS assets reaps them, and a refused reap never replaces the verb's own
-// error. The reap refusal is a real storage fault; lifting it proves the same failure then reaps the attempt.
+// A plugin verb that fails after writing CAS assets reaps their assets rows, and a refused reap never replaces the verb's
+// own error. The reap refusal is a real storage fault; lifting it proves the same failure then reaps the stored attempt.
 // @subject packages/server/src/domain/plugin/substrate/reap-released.ts
 // @subject packages/server/src/domain/plugin/verbs/install.ts
 // @subject packages/server/src/domain/plugin/verbs/upgrade.ts
