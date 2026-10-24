@@ -21,7 +21,7 @@ Spine-Testing keeps cold failures as failures; a stage that needs a warm retry m
 
 ## Done when
 
-Reproduced on a cold stage with the cause named: dev-server cold module transform, a client read that outlives the readiness ceiling, or stage seeding still running. The cause is fixed so a cold stage's first navigation settles, without raising the readiness ceiling or adding a retry; a cold-boot run passes first time.
+E2E: every mode serves a production build of the client, the way the OIDC project already does in `playwright.config.ts`, so no cold e2e run compiles modules on demand; a cold run on a loaded box passes its first corpus case with the readiness ceiling unchanged. Snap: the cause of a cold isolated stage's degraded first navigation is named (dev transform, a read past the ceiling, or stage seeding) and fixed without raising the ceiling or adding a retry; a cold-boot snap run passes first time.
 
 ## Evidence
 
