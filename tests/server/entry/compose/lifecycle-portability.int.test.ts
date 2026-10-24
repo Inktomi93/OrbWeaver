@@ -97,7 +97,7 @@ test("every declared single-entity door is mounted on the native composed router
 
 test("the actual HTTP character doors download native owner bytes and isolate malformed reimports", async () => {
   await using root = await createServerHarness({
-    authConfig: { mode: "single-user", fallback: "owner" },
+    env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" },
     physicalPeer: () => "127.0.0.1",
   });
   const owner = await root.internalCallerFor(root.ownerId);

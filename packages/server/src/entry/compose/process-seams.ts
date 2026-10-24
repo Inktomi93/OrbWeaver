@@ -1,5 +1,5 @@
 // The one home of the real process seams: timers, monotonic clock, PRNGs, ids, nonce, the physical network and this
-// process's parsed env record. Every non-test root passes these; the root never defaults one. Exempt: observability's
+// process's parsed env record, which carries the machine's container posture and name. Every non-test root passes these; the root never defaults one. Exempt: observability's
 // `middleware.ts` and `debug/bug-report.ts` read `performance.now` (measurements); `logger.ts` sets its level from the process env at module init (seamed by `borrowLogLevel`).
 
 import { randomInt, randomUUID } from "node:crypto";

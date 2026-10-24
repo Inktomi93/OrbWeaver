@@ -10,7 +10,7 @@ import { vi } from "vitest";
 
 test("actual authenticated multiplexing enforces socket ownership and withholds foreign and pre-join replay/live bytes", async () => {
   await using harness = await createServerHarness({
-    authConfig: { mode: "local", fallback: "deny" },
+    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" },
     secretBoxKey: Buffer.alloc(32, 1),
   });
   const initialOwner = await harness.internalCallerFor(harness.ownerId);

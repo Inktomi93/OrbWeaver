@@ -19,7 +19,7 @@ const PASSWORD = "native-request-owned-password-not-a-session-fake";
 const OVERSIZED_PASSWORD_REPETITIONS = 1024;
 
 test("chunked native first-run keeps the real body limit, CSRF and password/session admission", async () => {
-  await using harness = await createServerHarness({ authConfig: { mode: "local" } });
+  await using harness = await createServerHarness({ env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" } });
   const address = await harness.listen();
   const origin = `http://${address.address}:${address.port}`;
   const send = (password: string): Promise<number | undefined> =>
@@ -69,7 +69,7 @@ test("chunked native first-run keeps the real body limit, CSRF and password/sess
 });
 
 test("native ingress uses its actual peer for first-run while preserving CSRF, relay refusal and cookie admission", async () => {
-  await using harness = await createServerHarness({ authConfig: { mode: "local" } });
+  await using harness = await createServerHarness({ env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" } });
   const address = await harness.listen();
   const origin = `http://${address.address}:${address.port}`;
   const config = authConfigSchema.parse(await (await fetch(`${origin}/api/auth/config`)).json());
@@ -114,9 +114,9 @@ test("native ingress uses its actual peer for first-run while preserving CSRF, r
 });
 
 test("same-ID native roots singleflight their own listeners and out-of-order closure preserves the sibling", async () => {
-  const authConfig = { mode: "local", fallback: "deny" } satisfies NonNullable<Parameters<typeof createServerHarness>[0]>["authConfig"];
-  await using first = await createServerHarness({ authConfig });
-  await using second = await createServerHarness({ authConfig });
+  const authEnv = { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } satisfies NonNullable<Parameters<typeof createServerHarness>[0]>["env"];
+  await using first = await createServerHarness({ env: authEnv });
+  await using second = await createServerHarness({ env: authEnv });
   expect(first.ownerId).toBe(second.ownerId);
   const [firstAddress, firstAgain, secondAddress] = await Promise.all([first.listen(), first.listen(), second.listen()]);
   expect(firstAgain).toEqual(firstAddress);
@@ -150,7 +150,7 @@ test("native socket disposal joins the held actual room pump before closing ingr
   await using database = new AsyncDisposableStack();
   const held = await freshHeldDb();
   database.defer(() => closeDb(held.db));
-  await using harness = await createServerHarness({ db: held.db, authConfig: { mode: "single-user" } });
+  await using harness = await createServerHarness({ db: held.db, env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" } });
   const caller = await harness.internalCallerFor(harness.ownerId);
   const chat = (await caller.chat.startChat({ characterIds: [] })).chat;
   const { socketId } = streamConnectInputSchema.parse({ socketId: harness.ids.uuid() });

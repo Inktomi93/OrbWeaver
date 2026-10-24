@@ -62,10 +62,13 @@ export function resolveHistoryFloorSeq(membership: {
   readonly joinSeq: number;
   readonly joinHistoryVisibility: JoinHistoryVisibility;
 }): HistoryFloorSeq {
-  if (viewerHoldsHost(membership) || membership.joinHistoryVisibility === "full") {
-    return NO_HISTORY_FLOOR;
-  }
-  return historyFloor(Math.max(membership.joinSeq, NO_HISTORY_FLOOR));
+  return historyFloorFollowsJoin(membership) ? historyFloor(Math.max(membership.joinSeq, NO_HISTORY_FLOOR)) : NO_HISTORY_FLOOR;
+}
+
+/** Whether {@link resolveHistoryFloorSeq} floors this seat at its `joinSeq`; otherwise it reads from
+ *  {@link NO_HISTORY_FLOOR}. A SQL read that cannot call the resolver row by row derives its predicate from this. */
+export function historyFloorFollowsJoin(seat: { readonly role: ParticipantRoleState; readonly joinHistoryVisibility: JoinHistoryVisibility }): boolean {
+  return !viewerHoldsHost(seat) && seat.joinHistoryVisibility !== "full";
 }
 
 /**

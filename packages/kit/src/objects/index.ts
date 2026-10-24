@@ -36,7 +36,16 @@ export function stripUndefined<T extends object>(obj: T): Partial<T> {
 export const PROTO_KEY = "__proto__";
 
 /** The value `record` OWNS at `key`, else `undefined`. A plain index on an untrusted key reads an inherited
- *  member (`constructor`, `toString`) as if the record held it. */
+ *  member (`constructor`, `toString`) as if the record held it, and `__proto__` reads the prototype itself. */
 export function readOwnKey<T>(record: Readonly<Record<string, T>>, key: string): T | undefined {
   return Object.hasOwn(record, key) ? record[key] : undefined;
+}
+
+/** Set `value` as `record`'s own enumerable property at `key`. The writer for a record that must hold every
+ *  key, {@link PROTO_KEY} included: `record[key] = value` on `__proto__` runs the inherited setter, creates no
+ *  own property and drops the value from `Object.entries` and JSON.
+ *  @remarks `NoInfer` keeps the record the inference source; a `string` value would otherwise narrow `T` and
+ *  refuse a `Record<string, unknown>` record. */
+export function writeOwnKey<T>(record: Record<string, T>, key: string, value: NoInfer<T>): void {
+  Object.defineProperty(record, key, { value, writable: true, enumerable: true, configurable: true });
 }

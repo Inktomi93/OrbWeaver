@@ -9,6 +9,7 @@ import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
+import { UNSET_DATUM } from "../../lib/unset-datum.ts";
 import { TrackerValue } from "./tracker-value.tsx";
 
 export interface AmbientStripProps {
@@ -66,7 +67,7 @@ function AmbientVocabPicker({
   const [open, setOpen] = useState(false);
   if (!open) {
     const empty = value === "";
-    const restText = empty ? "—" : value;
+    const restText = empty ? UNSET_DATUM : value;
     return (
       <Button
         type="button"
@@ -207,7 +208,7 @@ function AmbientFieldControl({
     <TrackerValue
       ariaLabel={`${label} value`}
       display={value ?? ""}
-      placeholder="—"
+      placeholder={UNSET_DATUM}
       onEdit={(next): void => onEditField(fieldKey, next)}
       // Content-sized, capped: `!w-auto` beats FIELD_CONTROL's `w-full` so a short value ("the ford") is a
       // compact input and pairs pack 2+ per row (the mock's compact ambient card); `max-w-full` + `min-w-0`

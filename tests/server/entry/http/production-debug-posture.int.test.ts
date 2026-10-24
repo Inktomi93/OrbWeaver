@@ -19,8 +19,8 @@ import {createServerHarness} from "@orb/testkit/node/composed";
 const clientDistDir=await mkdtemp(join(tmpdir(),"orb-production-debug-"));
 try{
 await writeFile(join(clientDistDir,"index.html"),"<!doctype html><title>Production debug fixture</title>");
-const launch={NODE_ENV:env.NODE_ENV,AUTH_MODE:env.AUTH_MODE,AUTH_FALLBACK:env.AUTH_FALLBACK,BIND_HOST:env.BIND_HOST,OWNER_HANDLES:env.OWNER_HANDLES,...(env.DEBUG_TOKEN===undefined?{}:{DEBUG_TOKEN:env.DEBUG_TOKEN})};
-await using root=await createServerHarness({physicalPeer:()=>"127.0.0.1",startJobs:false,clientDistDir,env:launch});
+const launch={NODE_ENV:env.NODE_ENV,AUTH_MODE:env.AUTH_MODE,AUTH_FALLBACK:env.AUTH_FALLBACK};
+await using root=await createServerHarness({physicalPeer:()=>"127.0.0.1",startJobs:false,clientDistDir,env:launch,bindHost:env.BIND_HOST,rolePolicyConfig:{OWNER_HANDLES:env.OWNER_HANDLES},...(env.DEBUG_TOKEN===undefined?{}:{debugToken:env.DEBUG_TOKEN})});
 const me=await root.http.request("/api/auth/me",{headers:{host:"localhost"}});
 const auth=authMeSchema.parse(await me.json());
 const probes=[];

@@ -1,14 +1,16 @@
-// The one `process.env` reader: the `.env` load, this process's frozen `env` (the record's `parseEnv` over the loaded
-// environment), the secret scrub, and the raw snapshot the agent-sdk credential firewall spreads. Only the composition
-// root imports this module by value; every other tier takes the parsed record from `./record/index.ts`.
+// The one process and machine reader: the `.env` load, the container markers and host name, this process's frozen `env`
+// (the record's `parseEnv` over what it read), the secret scrub, and the agent-sdk firewall's raw snapshot. Only the
+// composition root imports this module by value; every other tier takes the parsed record from `./record/index.ts`.
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { hostname } from "node:os";
 import { resolve } from "node:path";
 import process from "node:process";
 import { parseEnv as parseDotenv } from "node:util";
 import type { AuthModeSource } from "@orb/contracts/identity";
 import { ENV_FROM_FILE_KEY, envFromFileKeys } from "@orb/kit/env-file";
 import { isSupervised } from "@orb/kit/supervisor";
+import { CONTAINER_MARKER_FILES } from "./container.ts";
 import type { Env } from "./record/index.ts";
 import { APP_SECRET_ENV_KEYS, parseEnv } from "./record/index.ts";
 
@@ -150,7 +152,12 @@ const AUTH_MODE_SOURCE = sourceAfterLoad("AUTH_MODE");
 
 /** This process's parsed env, read once at load. Only the composition root reads it (`createProcessSeams` hands it to
  *  every root; `entry/lifecycle.ts` reads it at boot); every other site takes the record as a dependency. */
-export const env: Env = parseEnv(process.env, envFileKeys);
+export const env: Env = parseEnv({
+  source: process.env,
+  envFileKeys,
+  host: { containerMarker: CONTAINER_MARKER_FILES.some((path) => existsSync(path)), hostname: hostname() },
+  readFile: (path) => readFileSync(path, "utf8"),
+});
 
 /** Deletes every {@link APP_SECRET_ENV_KEYS} entry from `process.env`, so no child process started afterwards inherits
  *  an app secret. The server entry calls it once, right after the parse. It cannot run at module load: the dev

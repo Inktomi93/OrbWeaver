@@ -54,4 +54,4 @@ export {
   userMacroToggleDefaultsOn,
 } from "./user-macros.ts";
 // D46 runtime variable delta model: the ordered op the mutation handlers record + the shared apply/fold.
-export { foldVarOps, parseCompleteInteger, readVarKey, setVarKey } from "./variables.ts";
+export { foldVarOps, parseCompleteInteger } from "./variables.ts";

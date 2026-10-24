@@ -68,6 +68,22 @@ Branch a case on the capability, never on the mode name. `AUTH_MODE_CAPABILITIES
 
 `members` means a second account can sign in. `ownerFallback` reads the product's unset `AUTH_FALLBACK` default, `AUTH_MODE_DEFAULT_FALLBACK` in `@orb/server/foundation/env`, and every door root composes that default. Multiplayer surfaces also need the product's `app.multiHumanCapable()`, which `local` turns on only with the `localMultiUser` app setting.
 
+## Turn a production env knob
+
+A root composes over one parsed env record, built through the production parse. `ENV_SEAMS` in [node/env-seams.ts](node/env-seams.ts) gives every env schema key and every machine fact the parse reads one row. A root runs on a bare-metal test machine with a fixed name unless its `containerMarker` or `hostname` option says otherwise:
+
+| Kind | The key | The door |
+| - | - | - |
+| `seam` | a harness option writes it into the record | the row's `option`: `env` for a raw value, else a named option such as `logLevel`, `bindHost` or `oidc` |
+| `composed` | the harness derives it from the root itself | none; the row's `derivation` says how |
+| `deploy-only` | no test root reaches it | none; the row's `reason` says why |
+
+1. Find the key's row. Set a raw row with `createServerHarness({ env: { ["KEY"]: "value" } })`, and a named row through its option.
+2. Read the result through the product. The record is the dependency production composes with, so a seam reaches the read the key reaches in production.
+3. Put the auth posture in `env`. Use `authConfig` only for a pairing the parse refuses, such as `single-user` with `deny`. A corpus capsule and `createCorpusHarness` take the posture the same way; a resumed corpus root defaults to `local` with `deny`.
+
+The `env` type takes only raw rows, so a key with a named option, a composed key or a deploy-only key fails to compile there. An untyped caller, such as a script a case evaluates, has the key refused when the root is built. A new schema key fails `tsc` until it has a row. Give it a raw row unless a named option already writes that concern.
+
 ## Author a component case
 
 Follow the [native gallery contract](../../docs/law/Spine-Testing.md#7-client--browser-tests--native-playwright).
@@ -110,6 +126,7 @@ Two publishes from one tree are byte-identical: every producer draws ids from th
 | Integration files share one module registry and never read the environment at import | `isolate: false` and the `setupFiles` warm on the integration project in [vitest.config.ts](../../vitest.config.ts); the harness seams in [node/server.ts](node/server.ts) |
 | A test never stubs or writes the process environment (`vi.stubEnv`, `process.env` writes); it uses a harness seam or the subject's own parameter | The `TEST_ENVIRONMENT_RESTRICTIONS` syntax rules in [eslint.config.ts](../../eslint.config.ts); `tests/tooling` is outside them because that project isolates modules |
 | A root's env knob is a key in its own parsed record, refused where production refuses it | `createServerHarness({ env })` and `createTestEnv` ([node/env.ts](node/env.ts)), both through the production `parseEnv` |
+| Every env schema key and machine fact has one row saying how a root reaches it, and `env` takes only raw rows | `ENV_SEAMS` is a `Record` over the schema's `EnvKey` and the parse's `HostFacts` in [node/env-seams.ts](node/env-seams.ts); [the class cases](node/env-seams.int.test.ts) and [type cases](node/env-seams.test-d.ts) |
 | Story props and updated props | Explicit native `mount<typeof Story>` and [compiler assertions](browser/gallery.dom.test-d.ts) |
 | Ordinary CT authoring uses typed mounts, browser JSX and type-only story imports | Native ESLint syntax restrictions in [eslint.config.ts](../../eslint.config.ts) |
 | Inline callback props stay out of Node mount calls | The same ESLint restrictions; aliases and arbitrary dataflow remain review responsibilities |

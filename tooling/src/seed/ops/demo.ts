@@ -60,7 +60,7 @@ import {
   seedThemes,
   seedUserContent,
 } from "@orb/server/entry/boot";
-import { createProcessSeams, createServices, NO_SHARE_RELAY, SESSIONS_CRYPTO, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
+import { createProcessSeams, createServices, NO_SHARE_RELAY, SessionsCrypto, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
 import { env } from "@orb/server/foundation/env";
 import { print } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
@@ -317,13 +317,14 @@ export async function runFullSeed(deps: RunFullSeedDeps): Promise<RunFullSeedRes
   const ownersBoundBeforeCompose: UserId[] = [];
   const wiringDb = databaseHandle(db);
   const seams = createProcessSeams();
+  const sessionsCrypto = SessionsCrypto.production();
   const bootSessions = createSessionsService({
     rolePolicy,
     db: wiringDb,
     now,
     sessionSecret,
     idSource: seams.idSource,
-    crypto: SESSIONS_CRYPTO,
+    crypto: sessionsCrypto,
     seedUserConnections: createLocalLightUserSeed({
       db: wiringDb,
       now,
@@ -349,6 +350,7 @@ export async function runFullSeed(deps: RunFullSeedDeps): Promise<RunFullSeedRes
     casDir: deps.casDir,
     variantDir: deps.variantDir,
     sessionSecret,
+    sessionsCrypto,
     holder: "seed-demo",
     // A seed run has no supervisor, so `admin.restart` refuses here.
     serverRestart: UNSUPERVISED_RESTART,

@@ -8,9 +8,9 @@ import { onTestFinished } from "vitest";
 
 type ChatFrame = Parameters<Parameters<ServicesResult["liveBuses"]["chat"]["subscribeAllChatEvents"]>[0]>[0];
 
-const test = baseTest.extend<Pick<Fixtures, "authConfig">>({
-  authConfig: async ({}, use): Promise<void> => {
-    await use({ mode: "local" });
+const test = baseTest.extend<Pick<Fixtures, "env">>({
+  env: async ({}, use): Promise<void> => {
+    await use({ ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" });
   },
 });
 

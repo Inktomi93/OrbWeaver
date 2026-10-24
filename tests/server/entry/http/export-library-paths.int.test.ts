@@ -17,7 +17,7 @@ const WORKLOAD_DEADLINE_MS = 60_000;
 
 test("same-named library rows export to distinct archive paths and the whole backup restores as a folder", async () => {
   await using root = await createServerHarness({
-    authConfig: { mode: "single-user", fallback: "owner" },
+    env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" },
     physicalPeer: () => "127.0.0.1",
     startJobs: false,
   });

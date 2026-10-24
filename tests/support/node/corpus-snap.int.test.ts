@@ -23,7 +23,7 @@ test("native corpus stage clone reaches preview retrieval without changing its p
   expect(prepared.fixture.wire).toEqual(source.wire);
   const transport = createCorpusProviderTransport(prepared.provider.baseUrl);
   await using root = await createCorpusHarness(prepared.fixture.layout.root, {
-    authConfig: { mode: "single-user" },
+    env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" },
     providerFetch: transport.fetch,
     networkExecution: transport,
   });

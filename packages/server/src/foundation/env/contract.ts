@@ -13,7 +13,7 @@ export interface BindPostureInput {
   readonly allowDevPublicBind: boolean;
   /** `AUTH_FALLBACK_TRUSTED_PEERS` names at least one range: single-user's only door to a non-loopback bind. */
   readonly ownerPeersDeclared: boolean;
-  /** `runsInContainer`: picks the fix the single-user refusal and notice name. */
+  /** The record's `INSTALL_KIND` is `container`: picks the fix the single-user refusal and notice name. */
   readonly inContainer: boolean;
 }
 

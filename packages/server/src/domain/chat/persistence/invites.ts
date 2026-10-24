@@ -47,6 +47,17 @@ export async function selectStandingInviteIds(db: Db, invitedUserId: UserId, inv
   return rows.map((row) => row.id);
 }
 
+/** Whether any invite token can still be redeemed at `now`: `pending`, and open-ended or not yet expired. Its
+ *  peppered hash depends on the session secret, so boot refuses to mint a new secret while one exists. */
+export async function hasRedeemableInvite(db: Db, now: number): Promise<boolean> {
+  const rows = await db
+    .select({ id: chatInvites.id })
+    .from(chatInvites)
+    .where(and(eq(chatInvites.status, "pending"), or(isNull(chatInvites.expiresAt), gt(chatInvites.expiresAt, now))))
+    .limit(1);
+  return rows.length > 0;
+}
+
 /** Every invite for a chat, newest-first. The token hash never leaves persistence. */
 export async function listInvitesForChat(db: Db, chatId: ChatId): Promise<(typeof chatInvites.$inferSelect)[]> {
   return await db.select().from(chatInvites).where(eq(chatInvites.chatId, chatId)).orderBy(desc(chatInvites.createdAt));

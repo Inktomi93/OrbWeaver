@@ -214,7 +214,7 @@ test("a member's room image uses the host's image connection and live negative p
     startJobs: false,
     providerFetch: wire.execute,
     secretBoxKey: Buffer.alloc(32, 3),
-    authConfig: { mode: "local", fallback: "deny" },
+    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" },
   });
   const room = await policyRoom(root);
   wire.images.push(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)), makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)));

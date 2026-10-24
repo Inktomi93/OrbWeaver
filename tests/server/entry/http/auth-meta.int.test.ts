@@ -22,7 +22,7 @@ async function authConfig(root: Root, headers: Record<string, string> = {}): Pro
 }
 
 function localRoot(options: Parameters<typeof createServerHarness>[0] = {}): Promise<ServerTestHarness> {
-  return createServerHarness({ ...options, authConfig: { mode: "local", fallback: "deny" } });
+  return createServerHarness({ ...options, env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
 }
 
 describe("GET /api/auth/config", () => {

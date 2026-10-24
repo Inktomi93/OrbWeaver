@@ -4,6 +4,7 @@
 export { NO_HISTORY_FLOOR } from "@orb/contracts/chat";
 export {
   clampMemberCard,
+  historyFloorFollowsJoin,
   isBelowHistoryFloor,
   resolveCardVisibility,
   resolveHistoryFloorSeq,

@@ -20,6 +20,7 @@
 
 import type { RpgActorEntry, RpgActorOp, RpgActorOpField, RpgActorRef, RpgActorVolatile, RpgInventoryItem, RpgTrackerValue } from "@orb/contracts/rpg";
 import { RPG_TRACKER_VALUE_EMPTY, rpgActorIdentityLockBase, rpgActorVolatileLockBase } from "@orb/contracts/rpg";
+import { readOwnKey } from "@orb/kit/objects";
 import type { ApplyActorOpsResult } from "../contract/results.ts";
 
 /** The empty ACTOR ROW a first write on an actor with no state row seeds — zero volatile state, plus (for a
@@ -154,7 +155,7 @@ function writeTracker(
   key: string,
   patch: Extract<RpgActorOp, { op: "setTracker" }>["value"],
 ): RpgActorVolatile["trackerValues"] {
-  const current: RpgTrackerValue = { ...RPG_TRACKER_VALUE_EMPTY, ...values[key] };
+  const current: RpgTrackerValue = { ...RPG_TRACKER_VALUE_EMPTY, ...readOwnKey(values, key) };
   return { ...values, [key]: { value: keep(patch.value, current.value), items: keep(patch.items, current.items), max: keep(patch.max, current.max) } };
 }
 

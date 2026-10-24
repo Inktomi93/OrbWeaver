@@ -6,7 +6,6 @@
 // ambient time, entropy or the process env.
 
 import type { AddressInfo } from "node:net";
-import { hostname } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import type { ServerType } from "@hono/node-server";
@@ -78,7 +77,7 @@ import {
 } from "./boot/index.ts";
 import { startPlannerMaintenance } from "./boot/planner-maintenance.ts";
 
-import { createConfiguredOidc, createHttpApp, createProcessSeams, createServices, createShareGraph } from "./compose/index.ts";
+import { createConfiguredOidc, createHttpApp, createProcessSeams, createServices, createShareGraph, SessionsCrypto } from "./compose/index.ts";
 
 /** The worker resources shutdown owns: signal it first, then join the loop before touching the DB. */
 interface OwnedWorkloadsWorker {
@@ -307,7 +306,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // #2253 DATA repair: before 39f71b2294 the invite-redeem's `canonHeadSeq` subquery was unqualified,
     // recording the table-wide max(messages.seq) instead of the per-chat head. Clamp any stale join_seq
     // to the actual per-chat canon head. Idempotent — a no-op on every boot once the candidates are drained.
-    await repairStaleJoinSeqOnBoot({ db });
+    await repairStaleJoinSeqOnBoot({ db: wiringDb });
     // DATA repair, same window: the `daily_stats` timeline re-grain drops rows only canon can rebuild, so every
     // owner with activity and an empty timeline is rebuilt before the first Insights read.
     await rebuildStatsTimelineOnBoot({ db, now, idSource: seams.idSource });
@@ -316,7 +315,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // depends on it; otherwise this REFUSES and names the file (owner ruling — a regenerated secret would
     // orphan every sealed credential, or every local password, session and live invite). A cookie mode still needs a
     // usable pepper after that: a filesystem fault on the first write is the one way it can still be null.
-    const { secretBoxKey, sessionSecret } = await settleBootSecrets({ db, now, credentialsKey, sessionSecret: sessionSecretSource, reportKeyfile });
+    const { secretBoxKey, sessionSecret } = await settleBootSecrets({ db: wiringDb, now, credentialsKey, sessionSecret: sessionSecretSource, reportKeyfile });
     if (sessionSecret === null && isCookieAuthMode(env.AUTH_MODE)) {
       throw new Error(missingSessionSecretMessage(env.AUTH_MODE, sessionSecretSource.path));
     }
@@ -328,6 +327,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // owner here; AUTH_MODE=local also seeds the first-boot form-login password so a non-local-origin deploy isn't
     // locked out (first-boot-only + non-clobbering, see seed-owner).
     const rolePolicy = createSessionsRolePolicy(env);
+    const sessionsCrypto = SessionsCrypto.production();
     const preparedOwner = await prepareBootOwner({
       db,
       wiringDb,
@@ -335,6 +335,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       idSource: seams.idSource,
       rolePolicy,
       sessionSecret,
+      sessionsCrypto,
       ownerSeed: bootOwnerSeed(sessionSecret),
     });
     const bootSessions = preparedOwner.sessions;
@@ -360,7 +361,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
 
     // The stable per-replica lock-holder tag — threaded into both compose (chat turn-lock) and the boot
     // reclaim (wipes this replica's own orphaned chat_locks).
-    const holder = hostname();
+    const holder = env.MACHINE_HOSTNAME;
 
     // `admin.restart`'s port: close the app as a signal does, then exit with the code the supervisor respawns on. It
     // runs on a later tick so the owner's answer is sent first. A shutdown already under way (a signal) wins:
@@ -426,6 +427,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       importStagingDir: env.IMPORT_STAGING_DIR,
       ...(env.ST_PROFILE_DIR !== undefined ? { stProfileDir: env.ST_PROFILE_DIR } : {}),
       sessionSecret,
+      sessionsCrypto,
       holder,
       ...(options.providerSeams === undefined ? {} : { providerSeams: options.providerSeams }),
       serverRestart,

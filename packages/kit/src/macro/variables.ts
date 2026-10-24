@@ -3,41 +3,16 @@
 // (`foldVarOps`) along the selected-variant chain to derive the current runtime state — derive-don't-stamp,
 // so a swipe/fork rewinds by re-folding (avoids the ST swipe-clobber issue #3263). `applyVarOp` is the ONE home for
 // mutation semantics: BOTH the live handlers (registry.ts) and the fold call it, so record-time and
-// replay-time can never diverge.
+// replay-time can never diverge. A variable key is checked only for length, so `__proto__` and `constructor`
+// are legal names: every read and write of a plane, here and in automation, uses `#objects` own-key access.
 
+import { readOwnKey, writeOwnKey } from "#objects";
 import type { MacroEnv, VarOp } from "./types.ts";
 
 /** Macro variables deliberately use native coercion, including comma-joined arrays and custom toString.
  * JSON serialization would change the public arbitrary-runtime-state variable contract. */
 export function macroValueText(value: unknown): string {
   return String(value);
-}
-
-/** THE TWO OWN-KEY ACCESSORS for a string-keyed variable plane, and the reason they exist (#1564).
- *
- *  A variable key is validated for LENGTH and nothing else, at every door: the `{{setvar}}` macro, the
- *  automation `set_variable` arm, the plugin bridge. So `__proto__` is a legal variable name — and on a plane
- *  that does not already own that key, plain property syntax silently does the wrong thing BOTH ways:
- *    • `plane[key] = value` hits the SETTER inherited from `Object.prototype` and creates NO own property.
- *      The write reports success and the value is gone — including out of `Object.entries`/`JSON.stringify`,
- *      so a `set` never reaches `chats.runtime_variables` at all.
- *    • `plane[key]` returns `Object.prototype` — an OBJECT where every caller expects a string, which is how
- *      a `.trim()` downstream becomes a crash instead of a value.
- *  `defineProperty` and `Object.hasOwn` are correct for every key, reserved or not, so these are the plane's
- *  accessors and property syntax is not used on it anywhere. (`{{hasvar}}` has always used `Object.hasOwn`,
- *  which is exactly why `hasvar::__proto__` said "false" while `getvar::__proto__` said "[object Object]".)
- *
- *  They are exported because the plane has readers and writers OUTSIDE this engine — the automation arm
- *  executors and the analysis vars route mirror onto the same in-memory map — and a second spelling of this
- *  rule is how one of them drifts back. */
-// `NoInfer` on the value is what keeps the PLANE the inference source: without it a `string` value narrows
-// `T` and a `Record<string, unknown>` plane (`MacroEnv`) stops being assignable.
-export function setVarKey<T>(plane: Record<string, T>, key: string, value: NoInfer<T>): void {
-  Object.defineProperty(plane, key, { value, writable: true, enumerable: true, configurable: true });
-}
-
-export function readVarKey<T>(plane: Record<string, T>, key: string): T | undefined {
-  return Object.hasOwn(plane, key) ? plane[key] : undefined;
 }
 
 /** A COMPLETE DECIMAL integer spelling, or null — the ONE parser for both the macro engine's `inc`/`dec` and
@@ -71,18 +46,18 @@ export function parseCompleteInteger(text: string): number | null {
 export function applyVarOp(env: MacroEnv, op: VarOp): boolean {
   switch (op.op) {
     case "set":
-      setVarKey(env, op.key, op.value);
+      writeOwnKey(env, op.key, op.value);
       return true;
     case "add":
-      setVarKey(env, op.key, `${macroValueText(readVarKey(env, op.key) ?? "")}${op.value}`);
+      writeOwnKey(env, op.key, `${macroValueText(readOwnKey(env, op.key) ?? "")}${op.value}`);
       return true;
     case "inc":
     case "dec": {
-      const current = parseCompleteInteger(macroValueText(readVarKey(env, op.key) ?? "0"));
+      const current = parseCompleteInteger(macroValueText(readOwnKey(env, op.key) ?? "0"));
       if (current === null) {
         return false;
       }
-      setVarKey(env, op.key, String(op.op === "inc" ? current + 1 : current - 1));
+      writeOwnKey(env, op.key, String(op.op === "inc" ? current + 1 : current - 1));
       return true;
     }
     case "delete":

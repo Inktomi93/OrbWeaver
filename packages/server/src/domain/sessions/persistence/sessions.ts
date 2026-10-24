@@ -45,6 +45,12 @@ interface SessionValidationRow {
   enabled: boolean;
 }
 
+/** Any session row, revoked or expired included, depends on the pepper its token hash was keyed with. */
+export async function hasSessionTokenDependents(db: Db): Promise<boolean> {
+  const rows = await db.select({ id: sessions.id }).from(sessions).limit(1);
+  return rows.length > 0;
+}
+
 export async function insertSession(db: Db, row: SessionInsert): Promise<void> {
   const { oidcIdToken, ...rest } = row;
   await db.insert(sessions).values({

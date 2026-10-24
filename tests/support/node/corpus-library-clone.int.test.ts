@@ -31,7 +31,7 @@ test("portable preset and live-rule captures equal fresh native reads in a scrub
   const sourceDb = await createDb(sourceLayout.databaseUrl);
   const clock = createFrozenClock();
   const ids = createSeededIds();
-  const authConfig = { mode: "local" as const, fallback: "deny" as const };
+  const authEnv = { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" };
   const execution = createCorpusProviderExecution({
     modelIds: [CORPUS_TEXT_MODEL, CORPUS_EMBED_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
@@ -50,7 +50,7 @@ test("portable preset and live-rule captures equal fresh native reads in a scrub
         db: sourceDb,
         clock,
         ids,
-        authConfig,
+        env: authEnv,
         providerFetch: execution.execute,
         secretBoxKey: randomBytes(32),
         casDir: sourceLayout.assets,
@@ -93,7 +93,7 @@ test("portable preset and live-rule captures equal fresh native reads in a scrub
     clock,
     ids,
     ownerId: relations.viewerUserId,
-    authConfig,
+    env: authEnv,
     secretBoxKey: randomBytes(32),
     casDir: cloneLayout.assets,
     variantDir: cloneLayout.variants,

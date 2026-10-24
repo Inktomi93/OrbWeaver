@@ -4,25 +4,28 @@
 // input at all). Zero durable state. Member-gated. Notation is `NdM(+/-K)?` (e.g. `2d6+3`, `d20`, `4d8-1`).
 
 import { rpgAttributeModifier } from "@orb/contracts/rpg";
+import type { DiceNotation } from "@orb/kit/dice";
+import { parseDiceNotation, rollDiceNotation } from "@orb/kit/dice";
 import { DomainOperationError } from "@orb/kit/errors";
+import { readOwnKey } from "@orb/kit/objects";
 import type { RollDiceParams } from "../contract/params.ts";
-import type { ParsedDiceNotation, RollDiceResult } from "../contract/results.ts";
+import type { RollDiceResult } from "../contract/results.ts";
 import type { RpgContext, RpgGameRow, RpgService } from "../contract/service.ts";
 import { resolveMember } from "../guard.ts";
 import { findSheet } from "../persistence/sheets.ts";
-import { diceNotationInBounds, matchDiceNotation } from "../substrate/dice.ts";
+import { rpgDiceInBounds } from "../substrate/dice.ts";
 
 const ABILITY_LABEL_BREAKS = /[[\]\r\n]/g;
 /** A member's stamped roll needs a real die; the shared policy alone admits a one-faced one. */
 const MIN_MEMBER_FACES = 2;
 
 /** Parse through the shared dice policy; a malformed or out-of-bounds notation is a caller error. */
-function parseNotation(notation: string): ParsedDiceNotation {
-  const parsed = matchDiceNotation(notation);
+function parseNotation(notation: string): DiceNotation {
+  const parsed = parseDiceNotation(notation);
   if (parsed === null) {
     throw new DomainOperationError("rpg_bad_dice_notation", `unparseable dice notation "${notation}"`);
   }
-  if (!diceNotationInBounds(parsed) || parsed.faces < MIN_MEMBER_FACES) {
+  if (!rpgDiceInBounds(parsed) || parsed.faces < MIN_MEMBER_FACES) {
     throw new DomainOperationError("rpg_dice_out_of_bounds", `dice notation "${notation}" is out of bounds`);
   }
   return parsed;
@@ -43,7 +46,8 @@ async function resolveAbility(
     throw new DomainOperationError("rpg_unknown_attribute", `attribute "${key}" is not in the profile`);
   }
   const sheet = await findSheet(ctx.db, game.id, { userId: params.principal.userId });
-  const score = sheet?.sheet.attributes[ability.key];
+  // A host label can mint an `Object.prototype` member name as the key; only the sheet's own score counts.
+  const score = sheet === undefined ? undefined : readOwnKey(sheet.sheet.attributes, ability.key);
   if (score === undefined) {
     throw new DomainOperationError("rpg_unset_ability", `Set your ${ability.label} score before rolling an ability check.`);
   }
@@ -57,13 +61,7 @@ export function createRollDice(ctx: RpgContext): Pick<RpgService, "rollDice"> {
     const ability = params.ability === undefined ? null : await resolveAbility(ctx, game, params, params.ability);
     const modifier = ability?.modifier ?? parsed.modifier;
     const label = ability === null ? "" : `${ability.label} `;
-    const { count, faces } = parsed;
-    const rolls: number[] = [];
-    for (let i = 0; i < count; i++) {
-      // `randomInt(faces)` is uniform in [0, faces); a die face is [1, faces].
-      rolls.push(ctx.randomInt(faces) + 1);
-    }
-    const total = rolls.reduce((sum, r) => sum + r, 0) + modifier;
+    const { rolls, total } = rollDiceNotation({ ...parsed, modifier }, ctx.randomInt);
     const notation = params.ability === undefined ? params.notation : `d20${modifier >= 0 ? "+" : ""}${modifier}`;
     const stamp = `[dice: ${label}${notation} → ${total}]`;
     return { notation: params.notation, rolls, modifier, total, stamp };
