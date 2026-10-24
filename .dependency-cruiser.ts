@@ -1,5 +1,4 @@
 import { builtinModules } from "node:module";
-import { basename } from "node:path";
 import type { IConfiguration, IForbiddenRuleType } from "dependency-cruiser";
 import serverPackage from "./packages/server/package.json" with { type: "json" };
 import { BROWSER_TEST_SUFFIXES, TEST_KIND_DEFINITIONS, TEST_KIND_SUFFIXES } from "./tooling/src/floor/testing/test-kinds.ts";
@@ -266,7 +265,10 @@ function serverTestMirrorRules(): IForbiddenRuleType[] {
       const mirrored = own.replaceAll(/\$(\d)/gu, (_, index: string) => RegExp.escape(groups[Number(index)] ?? ""));
       return [
         {
-          name: `${name}-listed-${basename(path).replace(/\..*$/u, "")}`,
+          name: `${name}-listed-${path
+            .replace(/^tests\/server\//u, "")
+            .replace(/\.[^/]*$/u, "")
+            .replaceAll("/", "-")}`,
           comment,
           severity: "error",
           from: { path: `^${RegExp.escape(path)}$` },
@@ -305,6 +307,13 @@ function serverTestMirrorRules(): IForbiddenRuleType[] {
       severity: "error",
       from: { path: `${SERVER_TEST_OWN_MODULE}.*\\.test-d\\.ts$` },
       to: { path: `${SRV}(?!domain/)`, pathNot: [...SERVER_DOORS, `${SRV}$1/$2/`] },
+    },
+    {
+      name: "tests-server-type-contracts-tier-doors",
+      comment: "An entry or tier-level .test-d.ts type contract names only door types; no internal file of any module.",
+      severity: "error",
+      from: { path: `${SERVER_TEST_OWN_TIER}.*\\.test-d\\.ts$` },
+      to: { path: `${SRV}(?!domain/)`, pathNot: SERVER_DOORS },
     },
   ];
 }

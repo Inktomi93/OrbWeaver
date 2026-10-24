@@ -170,6 +170,8 @@ export interface AutomationPluginComposeDeps {
 export interface AutomationPluginComposeResult extends AsyncDisposable {
   readonly automation: AutomationService;
   readonly plugin: PluginService;
+  /** The host op a guest's `net.fetchAsset` reaches: store the bytes, then link them to the plugin. */
+  readonly storeFetchedAsset: PluginHostOps["assets"]["storeFetched"];
 }
 
 const buildPluginQuietLlm = domainBuildPluginQuietLlm;
@@ -417,5 +419,5 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
   );
 
   const lifetime = construction.move();
-  return { automation, plugin, [Symbol.asyncDispose]: (): Promise<void> => lifetime.disposeAsync() };
+  return { automation, plugin, storeFetchedAsset: pluginRuntime.storeFetched, [Symbol.asyncDispose]: (): Promise<void> => lifetime.disposeAsync() };
 }

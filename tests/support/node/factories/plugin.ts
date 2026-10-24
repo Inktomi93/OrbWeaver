@@ -3,9 +3,7 @@
 import type { PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_MAIN_ENTRY, PLUGIN_MANIFEST_ENTRY } from "@orb/contracts/plugin";
 import type { adminDistributedPlugins } from "@orb/db";
-import type { AssetId, PluginId } from "@orb/kit/ids";
 import { MS_PER_SECOND } from "@orb/kit/time";
-import { recordPluginFetchedAsset } from "@orb/server/domain/plugin";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { strToU8, zipSync } from "fflate";
 import type { ServerProducerRoot } from "../server.ts";
@@ -85,12 +83,12 @@ export async function seedPluginGrant(root: ServerProducerRoot, params: Paramete
   return { outcome: await root.services.plugin.setGrant(params) };
 }
 
-/** Link a stored asset to a plugin as a runtime fetch, the write its guest's `storeFetched` op makes after the store. */
+/** Store bytes as a guest's runtime fetch through the plugin host's own op: the store, then the plugin link. */
 export async function seedPluginFetchedAsset(
   root: ServerProducerRoot,
-  params: { readonly pluginId: PluginId; readonly assetId: AssetId; readonly fetchedAt: number },
-): Promise<void> {
-  await recordPluginFetchedAsset(root.db, params.pluginId, params.assetId, params.fetchedAt);
+  params: Parameters<ServicesResult["storePluginFetchedAsset"]>[0],
+): Promise<Awaited<ReturnType<ServicesResult["storePluginFetchedAsset"]>>> {
+  return await root.app.storePluginFetchedAsset(params);
 }
 
 /** Publish to every user; the publication outcome names the slug each recipient's own install carries. */

@@ -93,7 +93,7 @@ import { createImageryPortability } from "#domain/imagery";
 import { buildImportContext, createInstallerCharacterImport, serializeImportCard } from "#domain/import";
 import type { DefaultPersonaSeeder, ResolvePersonasForParticipants } from "#domain/persona";
 import { createSeedPersonaWithCompletion } from "#domain/persona";
-import type { DistributedPluginApplier } from "#domain/plugin";
+import type { DistributedPluginApplier, PluginHostOps } from "#domain/plugin";
 import {
   createDistributedPluginApplier,
   createPluginGrantTasksOf,
@@ -413,6 +413,9 @@ export interface ServicesResult extends AsyncDisposable {
     /** The installer's import context: character, assets and tag binders under one Principal. */
     readonly importContextFor: (principal: Principal) => ReturnType<typeof buildImportContext>;
   };
+  /** The plugin host's fetched-asset op, surfaced so a suite stores a fetched asset through the op a guest's
+   *  `net.fetchAsset` runs, with no guest process. */
+  readonly storePluginFetchedAsset: PluginHostOps["assets"]["storeFetched"];
   /** D259 — chat's signup-invite ops, for the local signup route. */
   readonly signupInvites: SignupInviteOps;
   /** The per-user local-light seed, surfaced for the signup route (it runs after the signup commit). */
@@ -1277,7 +1280,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   });
 
   pluginLifetime = automationPlugin;
-  const { automation, plugin } = automationPlugin;
+  const { automation, plugin, storeFetchedAsset } = automationPlugin;
 
   // ── roster-preset (saved parties, D61 B6) — built AFTER chat AND after automation (moved below the
   // automation-plugin seam when B10's rules rider landed): `applyToChat` drives chat's own host-gated
@@ -1580,5 +1583,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     bugReportDiagnostics: createBugReportDiagnosticsRead(deps.env),
     cas,
     crossFeatureOps: { resolveChatHostUserId, resolvePersonasForParticipants, importContextFor: installerImportContext },
+    storePluginFetchedAsset: storeFetchedAsset,
   };
 }

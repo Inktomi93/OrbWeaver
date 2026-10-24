@@ -9,8 +9,9 @@ const OWN_TIER = "tests-server-mirror-own-tier";
 const FRONT_DOORS = "tests-server-front-doors-only";
 const TYPE_CONTRACTS = "tests-server-type-contracts-own-internals";
 // A listed suite's own copy of its mirror rule, named for the suite.
-const LISTED = "tests-server-mirror-own-tier-listed-share-graph";
-const RULES = [OWN_MODULE, OWN_TIER, FRONT_DOORS, TYPE_CONTRACTS, LISTED] as const;
+const LISTED = "tests-server-mirror-own-tier-listed-entry-compose-share-graph";
+const TIER_CONTRACTS = "tests-server-type-contracts-tier-doors";
+const RULES = [OWN_MODULE, OWN_TIER, FRONT_DOORS, TYPE_CONTRACTS, TIER_CONTRACTS, LISTED] as const;
 
 const MODULES = {
   ownDoor: "packages/server/src/domain/probe/index.ts",
@@ -29,6 +30,8 @@ const ENTRY_SUITE = "tests/server/entry/auth/probe.int.test.ts";
 const TIER_SUITE = "tests/server/domain/probe.suite.int.test.ts";
 const INFRA_SUITE = "tests/server/infra/probe/probe.int.test.ts";
 const INFRA_CONTRACT = "tests/server/infra/probe/probe.test-d.ts";
+const ENTRY_CONTRACT = "tests/server/entry/compose/probe.test-d.ts";
+const TIER_CONTRACT = "tests/server/infra/probe.test-d.ts";
 // A suite on the closed constant list, which may import exactly the module its line names.
 const REACHER = "tests/server/entry/compose/share-graph.int.test.ts";
 
@@ -56,6 +59,21 @@ test.for([
     target: MODULES.otherInfraInternal,
     typeOnly: true,
     rule: TYPE_CONTRACTS,
+  },
+  { name: "an entry type contract naming a door's type", entry: ENTRY_CONTRACT, target: MODULES.infraDoor, typeOnly: true, rule: null },
+  {
+    name: "an entry type contract naming another module's internal type",
+    entry: ENTRY_CONTRACT,
+    target: MODULES.infraInternal,
+    typeOnly: true,
+    rule: TIER_CONTRACTS,
+  },
+  {
+    name: "a tier-level type contract naming an internal type of its tier",
+    entry: TIER_CONTRACT,
+    target: MODULES.infraInternal,
+    typeOnly: true,
+    rule: TIER_CONTRACTS,
   },
   { name: "a listed suite running its listed constant's module", entry: REACHER, target: MODULES.relayDoor, typeOnly: false, rule: null },
   { name: "a listed suite running a module its line does not name", entry: REACHER, target: MODULES.networkDoor, typeOnly: false, rule: LISTED },

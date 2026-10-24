@@ -18,7 +18,7 @@ A test that imports another domain or a lower tier directly asserts on wiring th
 
 ## Done when
 
-A dependency-cruiser rule using a capture group: a module under `tests/server/<tier>/<name>/` may import production only from `packages/server/src/<tier>/<name>/index.ts` (its mirror's front door), `@orb/contracts`, `@orb/kit`, `@orb/db` types, and testkit doors; everything else reaches the test through the composed root or a harness seam; the eleven cross-domain and thirty-five cross-tier sites are swept onto `root.services.*`, `root.app.*`, `harness.authConfig` and a harness log seam (`harness.logs` or the existing capture) where one exists, or the missing seam is added to the harness; a planted probe pair proves the rule; the same shape applied to `tests/client`, `tests/inference`, `tests/kit`, `tests/contracts`, `tests/db` mirrors with the package door as the allowed import; README "What is enforced" and Spine-Testing §2 name the rule.
+A dependency-cruiser rule using a capture group: a module under `tests/server/<tier>/<name>/` may import production only from `packages/server/src/<tier>/<name>/index.ts` (its mirror's front door), `@orb/contracts`, `@orb/kit`, `@orb/db` types, and testkit doors; everything else reaches the test through the composed root or a harness seam; the eleven cross-domain and thirty-five cross-tier sites are swept onto `root.services.*`, `root.app.*`, `harness.authConfig` and a harness log seam (`harness.logs` or the existing capture) where one exists, or the missing seam is added to the harness; a planted probe pair proves the rule; the same shape for the `tests/client`, `tests/inference`, `tests/kit`, `tests/contracts` and `tests/db` mirrors is item 1282; README "What is enforced" and Spine-Testing §2 name the rule.
 
 ## Evidence
 
@@ -37,4 +37,4 @@ Measured on main `e468a413a3` with the new rules, server suites only: 108 edges 
 | A boot wrapper or the host principal resolver from `entry/` | 4 | moved: the domain's own seed function, `harness.principalFor` |
 | Refused | 0 | |
 
-A file can sit in two groups. The `tests/client`, `tests/inference`, `tests/kit`, `tests/contracts` and `tests/db` mirrors are not yet covered.
+A file can sit in two groups. The other test trees are item 1282.
