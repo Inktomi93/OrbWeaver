@@ -22,4 +22,9 @@ Each showcase builds against the packed SDK and toolchain artifacts a template l
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+- The showcase build already compiled with the toolchain's own compiler options and no repository globals. The `tsconfig.author-*.json` files fed only typed lint and `pnpm typecheck`. They now mirror the toolchain options, have no `extends`, `reset.d.ts` or `platform.d.ts`, and take the SDK through `types: ["@orb/plugin-sdk/<runtime>"]`, which resolves via the exports map. `@orb/plugin-sdk` is a showcase devDependency, and `compileShowcasePlugins` resolves the SDK directory through `@orb/plugin-sdk/package.json` as the `orb-plugin` CLI does.
+- `pnpm --filter @orb/showcase-plugins build` and `check:artifacts` exit 0 for all nine bundles; `release-entries.json` is unchanged.
+- Planted `new Map<string, number>().getOrInsert("a", 1)` in a showcase: accepted by the old author tsconfig, rejected by the new one (TS2550) and by `check:artifacts` (exit 1). Planted `import "@orb/plugin-sdk/shared"`: rejected by both (TS2882) and by the build.
+- Clean directory outside the workspace, with the SDK and toolchain tarballs from `pnpm plugin:author-release`: `orb-plugin build`, `check` and `pack` exit 0 on affinity-tracker, and its `main.js` and `ui.js` equal the shipped bundle entries byte for byte.
+- `pnpm typecheck` exit 0. `noUncheckedIndexedAccess` stays on in the author tsconfigs: it is stricter than the toolchain, and the showcases guard indexed reads.
+- Not changed: `scripts/pack-plugin.ts` and `tests/support/node/showcase-guest.ts` still pass `packages/plugin-sdk` by path.
