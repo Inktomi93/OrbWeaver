@@ -176,6 +176,7 @@ export function createExportCharacter(ctx: ExportContext): ExportService["export
         attachedRegexScripts: cardScripts.carried.map((regexScriptId) => ({ regexScriptId })),
         depthPrompt: parseDepthPrompt(charRow.depthPrompt),
         attachedBooks,
+        backgroundOverride: charRow.backgroundOverride,
         bookName: primaryBook?.name ?? null,
         bookDescription: primaryBook?.description ?? null,
       },

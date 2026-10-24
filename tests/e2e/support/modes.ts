@@ -55,10 +55,12 @@ if (E2E_RUN_IS_OWNER) {
 const CHECKOUT_ROOT = resolve(import.meta.dirname, "..", "..", "..");
 /** Disposable state belongs to one runner, never to a fixed port or auth mode. */
 export const E2E_RUN_ROOT = join(CHECKOUT_ROOT, ".cache", "e2e", "runs", runToken);
+/** The one built client every mode's server serves (`CLIENT_DIST_DIR`); the config builds it once per run. */
+export const E2E_CLIENT_DIR = join(E2E_RUN_ROOT, "client");
 
 /** One auth-mode project's boot + seed contract. `webServerEnv` is the exact env its `pnpm stack up-fg`
- *  webServer boots with; `baseUrl` is its vite origin (the specs' `E2E_BASE_URL`); `backendUrl` is the Hono
- *  origin the owner-fallback seed hits directly. */
+ *  webServer boots with; `baseUrl` is the origin the specs drive (the server, which serves the built client;
+ *  the operator's vite only under the dev-target drive); `backendUrl` is the Hono origin the seed hits. */
 export interface ModeProject extends Target {
   /** Which specs run under THIS project (Playwright per-project `testMatch`). Each mode owns a distinct set so
    *  a full `pnpm e2e` never runs a single-user spec under `local` (where login is required) or vice-versa —
@@ -69,8 +71,8 @@ export interface ModeProject extends Target {
   readonly webServerEnv: Readonly<Record<string, string>>;
   /** Whether `global-setup.ts` runs the multi-user seed (localMultiUser + a member account) for this mode. */
   readonly seedMultiUser: boolean;
-  /** The built client the SERVER origin serves (`CLIENT_DIST_DIR`); the mode's webServer builds it before boot.
-   *  Set only where the spec origin is the server rather than vite. */
+  /** The built client the SERVER origin serves (`CLIENT_DIST_DIR`), so no module compiles on demand. The config
+   *  builds it before the first booted mode. Unset only for the dev-target drive, whose origin is the operator's vite. */
   readonly servedClient?: string;
 }
 
@@ -242,8 +244,9 @@ const SINGLE_BACKEND_PORT = String(DEV_TARGET_ALLOWED ? DEV_PORTS.server : E2E_P
 const SINGLE_VITE_PORT = String(DEV_TARGET_ALLOWED ? DEV_PORTS.vite : E2E_PORTS.singleUser.vite);
 export const SINGLE_USER: ModeProject = {
   name: "single-user",
-  baseUrl: `http://localhost:${SINGLE_VITE_PORT}`,
+  baseUrl: DEV_TARGET_ALLOWED ? `http://localhost:${SINGLE_VITE_PORT}` : `http://127.0.0.1:${SINGLE_BACKEND_PORT}`,
   backendUrl: `http://127.0.0.1:${SINGLE_BACKEND_PORT}`,
+  ...(DEV_TARGET_ALLOWED ? {} : { servedClient: E2E_CLIENT_DIR }),
   // Every spec EXCEPT the mode-specific ones (`*.local.spec.ts` / `*.forward.spec.ts` / `*.oidc.spec.ts`).
   testMatch: new RegExp(`(?<!\\.(?:local|forward|oidc))${E2E_TEST_END_PATTERN}`, "u"),
   webServerEnv: {
@@ -265,6 +268,7 @@ export const SINGLE_USER: ModeProject = {
       ? {}
       : {
           PORT: SINGLE_BACKEND_PORT,
+          CLIENT_DIST_DIR: E2E_CLIENT_DIR,
           VITE_PORT: SINGLE_VITE_PORT,
           VITE_API_TARGET: `http://127.0.0.1:${SINGLE_BACKEND_PORT}`,
           // The whole data root, so the generated secrets and every cache land under .cache too.
@@ -312,8 +316,9 @@ const LOCAL_VITE_PORT = String(E2E_PORTS.local.vite);
 // Module-local (fed into MODE_PROJECTS below; only SINGLE_USER is exported — the config's reuse-check needs it).
 const LOCAL: ModeProject = {
   name: "local",
-  baseUrl: `http://localhost:${LOCAL_VITE_PORT}`,
+  baseUrl: `http://127.0.0.1:${LOCAL_BACKEND_PORT}`,
   backendUrl: `http://127.0.0.1:${LOCAL_BACKEND_PORT}`,
+  servedClient: E2E_CLIENT_DIR,
   // A corpus run takes only the corpus-prefixed local specs: the others seed through global-setup or drive live engines.
   testMatch: new RegExp(`${SELECTED_CORPUS_FIXTURE === undefined ? "" : "/corpus-[^/]*"}\\.local${E2E_TEST_END_PATTERN}`, "u"),
   webServerEnv: {
@@ -326,6 +331,7 @@ const LOCAL: ModeProject = {
     E2E_HARNESS: "on",
     E2E_FIRST_RUN_ASK_HANDLES: FIRST_RUN_ASK_HANDLES.join(","),
     PORT: LOCAL_BACKEND_PORT,
+    CLIENT_DIST_DIR: E2E_CLIENT_DIR,
     VITE_PORT: LOCAL_VITE_PORT,
     VITE_API_TARGET: `http://127.0.0.1:${LOCAL_BACKEND_PORT}`,
     ...isolatedDataEnv("local"),
@@ -361,8 +367,9 @@ const FWD_BACKEND_PORT = String(E2E_PORTS.forwardHeader.server);
 const FWD_VITE_PORT = String(E2E_PORTS.forwardHeader.vite);
 const FORWARD_HEADER: ModeProject = {
   name: "forward-header",
-  baseUrl: `http://localhost:${FWD_VITE_PORT}`,
+  baseUrl: `http://127.0.0.1:${FWD_BACKEND_PORT}`,
   backendUrl: `http://127.0.0.1:${FWD_BACKEND_PORT}`,
+  servedClient: E2E_CLIENT_DIR,
   testMatch: new RegExp(`\\.forward${E2E_TEST_END_PATTERN}`, "u"),
   webServerEnv: {
     AUTH_MODE: "forward-header",
@@ -375,6 +382,7 @@ const FORWARD_HEADER: ModeProject = {
     DEBUG_TOKEN: E2E_DEBUG_TOKEN,
     E2E_HARNESS: "on",
     PORT: FWD_BACKEND_PORT,
+    CLIENT_DIST_DIR: E2E_CLIENT_DIR,
     VITE_PORT: FWD_VITE_PORT,
     VITE_API_TARGET: `http://127.0.0.1:${FWD_BACKEND_PORT}`,
     ...isolatedDataEnv("forward"),
@@ -395,17 +403,16 @@ const FORWARD_HEADER: ModeProject = {
 // certificate through `NODE_EXTRA_CA_CERTS` alone. An env-selectable token exchange would be an authentication
 // bypass wearing a test affordance, so none exists.
 //
-// THE SPEC ORIGIN IS THE SERVER, NOT VITE. The issuer sends the browser back to the callback the server derived
+// THE SPEC ORIGIN IS THE SERVER, NOT VITE (as for every mode now). The issuer sends the browser back to the callback the server derived
 // from the request Host; through the vite proxy (`changeOrigin`, no `xfwd`) that Host is the server's own, so the
 // callback would land on an origin that serves no client. The server therefore serves a built client
-// (`CLIENT_DIST_DIR`, built by the webServer before boot), and the browser, the callback and the redirect
-// allowlist all name one origin. Vite still boots with the stack; nothing reads it.
+// (`CLIENT_DIST_DIR`, built once per run by the first booted webServer), and the browser, the callback and the
+// redirect allowlist all name one origin. Vite still boots with the stack; nothing reads it.
 const OIDC_BACKEND_PORT = String(E2E_PORTS.oidc.server);
 const OIDC_ORIGIN = `http://127.0.0.1:${OIDC_BACKEND_PORT}`;
 const OIDC_CALLBACK_ROUTE = "/api/auth/oidc/callback";
 // Absolute: the playwright config mints the certificate and the server child reads it, each from its own cwd.
 const OIDC_STATE_DIR = join(E2E_RUN_ROOT, "oidc");
-const OIDC_CLIENT_DIR = join(OIDC_STATE_DIR, "client");
 const OIDC_ISSUER_DIR = join(OIDC_STATE_DIR, "issuer");
 
 /** The issuer's loopback certificate and key. The config calls this before the oidc stack boots, so
@@ -429,7 +436,7 @@ export const OIDC_MODE: ModeProject = {
   baseUrl: OIDC_ORIGIN,
   backendUrl: OIDC_ORIGIN,
   testMatch: new RegExp(`\\.oidc${E2E_TEST_END_PATTERN}`, "u"),
-  servedClient: OIDC_CLIENT_DIR,
+  servedClient: E2E_CLIENT_DIR,
   webServerEnv: {
     AUTH_MODE: "oidc",
     SESSION_SECRET,
@@ -442,7 +449,7 @@ export const OIDC_MODE: ModeProject = {
     // OIDC_SIGNUP stays at its default, off: a new identity is JIT-closed, the gate a signup invite turns into a
     // pending join.
     NODE_EXTRA_CA_CERTS: issuerCertPath(OIDC_ISSUER_DIR),
-    CLIENT_DIST_DIR: OIDC_CLIENT_DIR,
+    CLIENT_DIST_DIR: E2E_CLIENT_DIR,
     DEBUG_TOKEN: E2E_DEBUG_TOKEN,
     E2E_HARNESS: "on",
     PORT: OIDC_BACKEND_PORT,

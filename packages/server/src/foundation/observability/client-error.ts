@@ -1,6 +1,6 @@
 // The client→server error-report sink: the browser has no pino, so a render throw the client catches
 // needs to land in the same observability surface a server error does. `recordClientError` is a thin
-// tagged `getLog().error(...)` call; the log ring already surfaces it via /api/_debug/errors, tagged
+// tagged `getLog(base).error(...)` call; the log ring already surfaces it via /api/_debug/errors, tagged
 // `clientError: true`. Fields are length-capped so a hostile/broken client can't grow an unbounded log
 // line, the URL is reduced to origin+path (a query string is where a callback code or invite token rides,
 // and the logger's key-based redaction cannot see inside a string), and the correlation id is bounded +

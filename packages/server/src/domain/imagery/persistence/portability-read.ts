@@ -8,7 +8,7 @@ import { assets, characters, imageryGenerations } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { and, asc, eq, isNull } from "drizzle-orm";
 
-function projectedCall(row: typeof imageryGenerations.$inferSelect, subjectHandle: string | null): PortableImageryCall {
+function projectedCall(row: typeof imageryGenerations.$inferSelect, subjectHandle: string | null, assetHash: string): PortableImageryCall {
   const source = imageryImportSourceSchema.nullable().parse(row.importSource);
   const responseCache = responseCacheSchema.safeParse(row.responseCache);
   const execution: PortableImageryExecution = {
@@ -38,22 +38,22 @@ function projectedCall(row: typeof imageryGenerations.$inferSelect, subjectHandl
     edited: row.edited,
     createdAt: row.createdAt,
   };
-  const image = { sourceGenerationId: source?.sourceGenerationId ?? row.id, assetId: row.assetId };
+  const image = { sourceGenerationId: source?.sourceGenerationId ?? row.id, assetId: row.assetId, assetHash };
   return { execution, images: [image] };
 }
 
 export async function readOwnedImageryCalls(db: Db, ownerId: UserId, nativeOnly = false): Promise<PortableImageryCall[]> {
   const rows = await db
-    .select({ generation: imageryGenerations, subjectHandle: characters.handle })
+    .select({ generation: imageryGenerations, subjectHandle: characters.handle, assetHash: assets.hash })
     .from(imageryGenerations)
     .innerJoin(assets, eq(assets.id, imageryGenerations.assetId))
     .leftJoin(characters, and(eq(characters.id, imageryGenerations.subjectCharacterId), eq(characters.ownerId, ownerId)))
     .where(and(eq(assets.ownerId, ownerId), nativeOnly ? isNull(imageryGenerations.importSource) : undefined))
     .orderBy(asc(imageryGenerations.createdAt), asc(imageryGenerations.id));
   const calls: { readonly key: string; readonly call: PortableImageryCall }[] = [];
-  for (const { generation: row, subjectHandle } of rows) {
+  for (const { generation: row, subjectHandle, assetHash } of rows) {
     const key = row.callId ?? row.id;
-    const call = projectedCall(row, subjectHandle);
+    const call = projectedCall(row, subjectHandle, assetHash);
     const prior = calls.find((item) => item.key === key);
     if (prior === undefined) {
       calls.push({ key, call });

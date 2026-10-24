@@ -25,4 +25,10 @@ E2E: every mode serves a production build of the client, the way the OIDC projec
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+E2E half (snap half still open):
+
+- Mechanism: every mode's server serves one client build (`E2E_CLIENT_DIR`, `tests/e2e/support/modes.ts`), as the OIDC mode did. The first booted webServer builds it (`playwright.config.ts`, `CLIENT_BUILD`); the rest reuse it. Specs drive the server origin; the dev-target drive keeps the operator's vite.
+- The build sets `NODE_ENV=development` so `import.meta.env.DEV` instruments stay: `window.__orb` is read by the specs in `tests/e2e/support/chat-room.ts` and `browser-actors.ts`. A plain production build folds them away. Owner decision open: replace those signals, then drop `NODE_ENV=development` from `CLIENT_BUILD`.
+- Smoke selection from the test-foundation design, cold, load 21.5: 32 passed, 1 skipped, 1 failed. The failure, `oidc-pending-join.oidc.spec.ts`, fails the same way on the unchanged tree (load 22.2).
+- First corpus case, cold, load 22.2 at start: `corpus-home-launch.spec.ts` under `corpus-desktop-bubble`, 4 passed, first case 8.7 s, no degraded readiness.
+- Control, single-user pointed back at vite dev, load 23.1: same file, 4 passed, first case 15.0 s.

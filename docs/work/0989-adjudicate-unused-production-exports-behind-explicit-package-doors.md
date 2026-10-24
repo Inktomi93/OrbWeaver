@@ -12,13 +12,23 @@ area: packages
 
 Use the `pnpm knip:prod` report of unused exports and types to review unused public re-exports and implementation exports in cohesive package or domain batches. Remove unnecessary surface, follow real callers, delete genuinely unused code, and retain deliberately supported external APIs with their actual contract. Explicit package paths are implemented; symbol-level adjudication is not complete.
 
+Two more surfaces belong to this adjudication. Every `exports` entry in a `packages/*/package.json` is measured for production importers against test-only importers; an entry whose only consumers are tests is a test-only door and is removed, with its tests moved onto the testkit doors, a closed reach entry or deletion. Every `SERVER_TEST_REACHES`, `PACKAGE_TEST_REACHES`, `ROWS_IMPORTERS` and `SUBPATH_LEAF_IMPORTERS` entry in `.dependency-cruiser.ts` is re-judged the same way: an entry that exists because the kit was not used is removed and its test rewritten through the kit; an entry that stays states a reason a kit door cannot meet.
+
+Method. `pnpm knip:prod` is the first pass. Cross-file consumers it cannot see are resolved with the codemod tool's one-workspace form, `jssg run --semantic-workspace`, whose `references()` follows a symbol across files (`.claude/skills/codemod/SKILL.md`; `tooling/src/codemods/rename-identifier` is the precedent); a census codemod lists each door export's referencing files, split into production and tests. A name-string lookup (a registry keyed by name, a plugin or route table) is invisible to both, so no export is removed until a literal `rg` for its name across `packages`, `tooling` and `tests` agrees.
+
+Shape of the current report: most findings are re-exports in `index.ts` door barrels that no production module imports, and a large share are symbols that are also used inside their own file. Both are mechanical. A barrel re-export with no production importer is trimmed from the door (the module stays), and a symbol used only in its own file loses its `export`. Apply both with a codemod checked by the census and `rg`; the remaining findings are judged one by one. Widening `ignoreExportsUsedInFile` or adding ignores to make the report quiet is not a fix.
+
 ## Why
 
 Closing wildcard package paths exposes unused symbols but does not remove them. Tests and tooling must not keep production code falsely alive, and `knip.ts` ignores the `@public` tag (`tags: ["-@public"]`), so a marker is not authority.
 
 ## Done when
 
-`pnpm knip:prod` reports clean through the package doors, with each finding adjudicated in package or domain batches. Each batch records production roots and consumer scope. Removed exports preserve real callers; retained external APIs have explicit contracts. Add no baseline file and no new exemption. Add no custom liveness reader or fake consumer. CI and the pre-push check run `pnpm knip:prod`, so a production export with only test consumers fails the build; today CI runs plain `pnpm knip`, which counts tests as consumers and passes a test-only export.
+`pnpm knip:prod` reports clean through the package doors, with each finding adjudicated in package or domain batches. Each batch records production roots and consumer scope. Removed exports preserve real callers; retained external APIs have explicit contracts. Add no baseline file and no new exemption. Add no custom liveness reader or fake consumer. Each kept door and reach entry carries its production consumer or reason. CI and the pre-push check run `pnpm knip` and `pnpm knip:prod`, so a production export with only test consumers fails the build; today CI runs plain `pnpm knip`, which counts tests as consumers and passes a test-only export.
+
+## Owner ruling
+
+2026-10-24: in production mode the testkit doors, tooling and the operator scripts count as consumers, because their job is to drive production; plain test files do not. `knip.ts` scopes production consumers that way, so `pnpm knip:prod` fails exactly a production export whose only consumers are tests. The default `pnpm knip` run still fails a testkit door export no test uses. Story modules (`*-stories.tsx`, and the gallery's `*-fixtures.tsx`) count as consumers too: they are the CT composition layer that mounts the shipped component through its feature door ("Retain actual mounting doors"; Spine-Testing §7); specs and other test files do not. CI and the pre-push check run both `pnpm knip` and `pnpm knip:prod`.
 
 ## Evidence
 

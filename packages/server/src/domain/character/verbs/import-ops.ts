@@ -5,8 +5,12 @@ import type { CharacterImportOps, ImportCharacterPort } from "../contract/import
 export function createCharacterImportOps(principal: Principal, character: ImportCharacterPort): CharacterImportOps {
   const ownerId = principal.userId;
   return {
-    createCharacter: async ({ input, importedFrom, importHash }): ReturnType<CharacterImportOps["createCharacter"]> => {
-      const created = await character.create({ principal, input, provenance: { importedFrom, importHash } });
+    createCharacter: async ({ input, importedFrom, importHash, background }): ReturnType<CharacterImportOps["createCharacter"]> => {
+      const created = await character.create({
+        principal,
+        input,
+        provenance: { importedFrom, importHash, ...(background === undefined ? {} : { background }) },
+      });
       return { characterId: created.id };
     },
     findByImportHash: async ({ importHash }) => (await character.findByImportHash({ ownerId, importHash }))?.characterId ?? null,

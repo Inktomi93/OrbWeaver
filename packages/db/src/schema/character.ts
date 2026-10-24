@@ -77,7 +77,8 @@ export const characters = sqliteTable(
     backgroundOverride: text("background_override", { mode: "json" }).$type<ThemeBackground>(),
     importedFrom: text("imported_from"),
     // The card import identity (`cardImportHash`: parsed card, embedded book and art; the whole-file hash on
-    // a row imported before it) — DISTINCT from `contentHash`. Null when authored.
+    // a row imported before it) — DISTINCT from `contentHash`. Null when authored; a seeded card carries the
+    // identity of its own export, so restoring that export onto a box that seeded the same card dedups.
     importHash: text("import_hash"),
     // The art-less identity a row that landed from a JSON card keeps once its PNG gives it art and `importHash`
     // re-keys to the with-art identity, so the JSON still finds it (D290). Null on every other row.

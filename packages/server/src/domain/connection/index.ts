@@ -2,7 +2,6 @@
 // Canonical inference wire shapes are imported directly from @orb/contracts/inference.
 
 export {
-  bindingViewSchema,
   catalogRefreshOutcomeSchema,
   connectionCapabilityViewSchema,
 } from "./contract/results.ts";

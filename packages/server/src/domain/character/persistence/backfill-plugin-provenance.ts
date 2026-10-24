@@ -7,8 +7,9 @@
 // row that went through it (file upload OR plugin ingest) and stays NULL for an authored row
 // (`schema/character.ts`: "Null when authored"); post-#1702 every import ALSO stamps
 // `importedFrom` (a filename, or the plugin marker). So `importedFrom IS NULL AND importHash IS NOT NULL`
-// already means "this row was imported, but provenance was never stamped" — which, after #1702 shipped, is
-// reachable ONLY by a pre-#1702 plugin ingest. That pair is the CANDIDATE predicate; the reserved key below
+// means "this row was imported, but provenance was never stamped" — reachable by a pre-#1702 plugin ingest,
+// and by a seeded card, which carries its own export's identity and no `importedFrom`. A seeded card has no
+// `plugin_<slug>` key (the pack ships no extensions), so it is counted left authored, never re-stamped. That pair is the CANDIDATE predicate; the reserved key below
 // answers a NARROWER question (which plugin), never "was this row plugin-ingested at all".
 //
 // RECOVERING WHICH PLUGIN, when possible: a plugin that later called `character.card_state`'s `setCardData`

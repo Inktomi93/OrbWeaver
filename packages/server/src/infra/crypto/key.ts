@@ -50,7 +50,7 @@ function explicitSessionSecret(raw: string | undefined): raw is string {
   return raw !== undefined;
 }
 
-/** Where the keyfile notices go for a build: stderr, NOT getLog() (the logger may not be initialized at this boot
+/** Where the keyfile notices go for a build: stderr, NOT the root logger (it may not be built at this boot
  *  point, and a logger→env→crypto import cycle is the hazard), and nowhere under a test build, which spins temp
  *  keyfiles up and down constantly. */
 export function keyfileReport(nodeEnv: Env["NODE_ENV"]): KeyfileReport {

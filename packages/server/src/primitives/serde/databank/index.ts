@@ -10,9 +10,10 @@
 // WHAT TRAVELS AND WHY:
 //   • `importHash` rides as-is — it is the `(ownerId, importHash)` re-upload dedup key, so carrying it is
 //     what makes a re-import idempotent instead of duplicating the library.
-//   • `sourceAssetId` rides by id — the assets entity imports FIRST and restores a blob under its ORIGINAL id
-//     unless the owner already holds those bytes under another id. An id that names no owned asset degrades
-//     to null (the column's own SET NULL semantics — a purged blob degrades a doc, never blocks it).
+//   • the source blob rides by content hash and id — the assets entity imports FIRST and restores a blob under
+//     its ORIGINAL id unless the owner already holds those bytes under another id, so the import re-links by
+//     the hash first. A blob the owner holds by neither degrades to null (the column's own SET NULL
+//     semantics — a purged blob degrades a doc, never blocks it). A file without the hash re-links by id.
 //   • `global` rides (it is a property of this owner's own bank) and `characterHandles` ride by HANDLE (the
 //     gallery precedent — character ids are not preserved; databank imports AFTER character).
 //   • the chat junction does NOT ride: chat ids are not preserved and chats import last (accepted-lossy).
@@ -48,6 +49,8 @@ export interface CanonicalDocument {
   readonly createdAt: number | null;
   /** The original CAS blob, re-linked when the assets entity restored it (null otherwise). */
   readonly sourceAssetId: AssetId | null;
+  /** The source blob's content hash, what the import re-links by before the id. */
+  readonly sourceAssetHash: string | null;
   /** Attached to the owner's personal (global) bank. */
   readonly global: boolean;
   /** Characters this document is attached to, by handle (ids are not preserved across a box). */
@@ -67,6 +70,7 @@ const wireDocumentSchema = z.object({
   // Prefix-strict at the portable-file boundary; the import verb still re-links this opaque carried value
   // against the db behind its own ownership gate.
   sourceAssetId: typeIdSchema(ID_PREFIX.asset).nullish().catch(null),
+  sourceAssetHash: z.string().min(1).nullish().catch(null),
   global: z.boolean().catch(false),
   characterHandles: z.array(z.string().trim().min(1)).catch([]),
 });
@@ -86,6 +90,7 @@ const documentSerde = defineJsonObjectSerde<CanonicalDocument, z.infer<typeof wi
     extractorVersion: doc.extractorVersion,
     createdAt: doc.createdAt,
     sourceAssetId: doc.sourceAssetId,
+    sourceAssetHash: doc.sourceAssetHash,
     global: doc.global,
     characterHandles: [...doc.characterHandles],
   }),
@@ -100,6 +105,7 @@ const documentSerde = defineJsonObjectSerde<CanonicalDocument, z.infer<typeof wi
     extractorVersion: body.extractorVersion,
     createdAt: body.createdAt ?? null,
     sourceAssetId: body.sourceAssetId ?? null,
+    sourceAssetHash: body.sourceAssetHash ?? null,
     global: body.global,
     characterHandles: body.characterHandles,
   }),

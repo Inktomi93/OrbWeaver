@@ -25,6 +25,7 @@ import {
   importStWorkloadParams,
   indexWorkloadParams,
   maintenanceWorkloadParams,
+  WORKLOAD_LIST_MAX_LIMIT,
 } from "./params.ts";
 import type { WorkloadResultByKind } from "./result.ts";
 import { bundleImportWorkloadResultSchema, deferredResultSchema, importTokenUsageBackfillResultSchema, maintenanceResultSchema } from "./result.ts";
@@ -279,3 +280,14 @@ export const workloadScheduleViewSchema = z.strictObject({
   createdAt: z.number(),
   updatedAt: z.number(),
 });
+
+/** `workloads.list`: the caller's run history. The limit is the ceiling at the trust boundary, never an unbounded fetch. */
+export const workloadListInputSchema = z
+  .object({
+    kind: workloadKindSchema.optional(),
+    status: workloadStatusSchema.optional(),
+    since: z.number().optional(),
+    limit: z.int().min(1).max(WORKLOAD_LIST_MAX_LIMIT).optional(),
+  })
+  .optional();
+export const workloadScheduleListInputSchema = z.object({ kind: workloadKindSchema.optional() }).optional();

@@ -27,12 +27,15 @@ import {
   ATTACHED_BOOKS_WIRE_KEY,
   CHARA_CARD_V2_SPEC,
   CHARA_CARD_V3_SPEC,
+  CHARACTER_BACKGROUND_WIRE_KEY,
   CHARACTER_HANDLE_WIRE_KEY,
   characterCardV3Schema,
   portableCharacterHandle,
 } from "@orb/contracts/character";
 import type { AttachedRegexScriptRef, RegexScriptCard } from "@orb/contracts/regex";
 import { ATTACHED_REGEX_SCRIPTS_WIRE_KEY, regexScriptCardSchema, toRegexScriptCardWire } from "@orb/contracts/regex";
+import type { ThemeBackground } from "@orb/contracts/theme";
+import { canonicalBackgroundSource } from "@orb/contracts/theme";
 import type { BulkImportLorebookInput, BulkImportLoreEntryInput } from "@orb/contracts/world-info";
 import { isPlainObject } from "@orb/kit/guards";
 import type { CharacterHandle } from "@orb/kit/ids";
@@ -238,6 +241,8 @@ const PROMOTED_DATA_KEYS = new Set([
   // The exported handle is the restore's requested handle, not card content. A residual copy would enter the
   // import hash, so a character whose handle was renamed would stop deduping against itself.
   CHARACTER_HANDLE_WIRE_KEY,
+  // The carried background is presentation re-linked onto the importer's own asset, not card content.
+  CHARACTER_BACKGROUND_WIRE_KEY,
 ]);
 
 /** TOP-LEVEL `data.*` keys MINUS the ones with a typed column (the top-level sibling of
@@ -484,6 +489,9 @@ export interface ExportCardFields {
   /** Attached world-info book REFERENCES — the OUT-emitter rides them under
    *  `data.orbweaver_attached_books`. Optional/absent-empty: a card with no attached books emits no key. */
   readonly attachedBooks?: readonly AttachedBookRef[];
+  /** The card's carried background (`characters.background_override`), emitted under
+   *  `data.orbweaver_background` only when it names an asset. */
+  readonly backgroundOverride?: ThemeBackground | null;
   /** The wire spec to EMIT (`chara_card_v2`/`chara_card_v3`). Omitted ⇒ V3 (the canonical default). Set from
    *  the imported card's `CharacterCard.spec` to round-trip V2→V2 / V3→V3. */
   readonly spec?: CardSpec;
@@ -761,6 +769,14 @@ function attachedRegexScriptsWire(refs: readonly AttachedRegexScriptRef[] | unde
   return refs !== undefined && refs.length > 0 ? { [ATTACHED_REGEX_SCRIPTS_WIRE_KEY]: refs } : {};
 }
 
+// The carried background for the OUT wire — only an asset source travels (a stored override is an asset or
+// none; `canonicalBackgroundSource` keeps the persisted shape), so a card without one emits no key.
+function backgroundWire(background: ThemeBackground | null | undefined): Record<string, unknown> {
+  return background !== undefined && background !== null && background.kind === "asset" && background.assetHash.length > 0
+    ? { [CHARACTER_BACKGROUND_WIRE_KEY]: canonicalBackgroundSource(background) }
+    : {};
+}
+
 // The V3 content promotions (`nickname`/`source`/`creation_date`/`modification_date`) emitted to `data.*`
 // only when non-null — a V2 / app-authored card omits the key entirely (the clean-omit round-trip property).
 // Extracted so `buildCardV3` stays under the cognitive-complexity gate. Keys are set via bracket-assignment
@@ -844,6 +860,7 @@ export function buildCardV3(fields: ExportCardFields, entries: ExportWorldEntry[
     ...embeddedBookWire(fields, entries),
     ...attachedBooksWire(fields.attachedBooks),
     ...attachedRegexScriptsWire(fields.attachedRegexScripts),
+    ...backgroundWire(fields.backgroundOverride),
     [CHARACTER_HANDLE_WIRE_KEY]: portableCharacterHandle(fields.handle),
   };
   const spec = fields.spec ?? CHARA_CARD_V3_SPEC;

@@ -44,7 +44,7 @@ export interface TargetProbe {
 export interface Target {
   /** The Playwright project name (also the `--project=<name>` selector). */
   readonly name: string;
-  /** vite origin — the spec baseURL + `E2E_BASE_URL` for the actor clients. `localhost` (vite binds [::1]). */
+  /** The origin the specs drive — the spec baseURL for the actor clients. The server's, or the operator's vite under the dev-target drive. */
   readonly baseUrl: string;
   /** Hono origin (127.0.0.1) — the owner-fallback seed + `/api/auth/config` probe hit this directly. */
   readonly backendUrl: string;

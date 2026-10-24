@@ -39,7 +39,7 @@ type LogLevel = PluginLogLevel;
  *  `mirror` is called for every ACCEPTED (post-cap, post-clamp) line at PUSH time — the moment the guest writes
  *  it, not the moment something drains it. This is how a guest line reaches the process-wide pino stream (file
  *  log + the `/api/_debug/logs` ring) with no read in the path, including lines a floated continuation writes
- *  between invocations (#806). Never throws back into the guest: the port's impl is a plain `getLog()` call. */
+ *  between invocations (#806). Never throws back into the guest: the port's impl is a plain call on the root's logger. */
 export interface LogMirror {
   readonly mirror: (level: LogLevel, message: string) => void;
 }

@@ -86,7 +86,7 @@ async function summarizeBatchIsolated(
   const call = { funderUserId, opts: await summarizerOpts(ctx, funderUserId) };
   // the handler re-runs each unfinished item alone through
   // `summarizeAlone`, and an item that fails alone reaches `onItemError`, which all three callers log with
-  // `getLog().error`. Items the batch finished are kept from `partialItems`. Ends if a caller stops logging `onItemError`.
+  // `getLog(ctx.logger).error`. Items the batch finished are kept from `partialItems`. Ends if a caller stops logging `onItemError`.
   try {
     const res = await ctx.summarize(call.funderUserId, [...inputs], call.opts);
     return inputs.map((_, i) => res.items.at(i)?.text ?? null);
@@ -110,7 +110,7 @@ async function summarizeAlone(
   onError: (err: unknown) => void,
 ): Promise<string | null> {
   // `onError(err)` is `onItemError` from `summarizeBatchIsolated`, which all three
-  // callers (`summarizeDigestBatch`, `consolidateOneTier`, `summarizeConsolidationBatch`) implement as `getLog().error`
+  // callers (`summarizeDigestBatch`, `consolidateOneTier`, `summarizeConsolidationBatch`) implement as `getLog(ctx.logger).error`
   // with `err`. The `null` is the retried-next-pass result the store steps read. Ends if a caller stops logging.
   try {
     const res = await ctx.summarize(call.funderUserId, [input], call.opts);
