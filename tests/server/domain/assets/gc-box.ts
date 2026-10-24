@@ -11,11 +11,12 @@ import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { assets, closeDb } from "@orb/db";
 import { contentSpanRaw } from "@orb/kit/content";
-import type { AssetId, CharacterHandle, ChatId, MessageId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, ChatId, MessageId, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
+import { authConfigFromEnv } from "@orb/server/entry/auth";
 import type { Cas } from "@orb/server/infra/storage/cas";
 import { createCas } from "@orb/server/infra/storage/cas";
-import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import type { ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_PROVIDER_ENDPOINT,
@@ -44,9 +45,12 @@ export interface StoredRef {
   readonly hash: string;
 }
 
+/** A box whose loopback HTTP requests act as its owner, so a suite can drive the export and import routes. */
+const LOOPBACK_OWNER = { physicalPeer: () => "127.0.0.1", authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "owner" } } as const;
+
 /** One harness on a scratch CAS; a supplied db is closed after the harness that used it. The scripted provider
  *  answers only an image generation, with whatever bytes a test pushes into `images` first. */
-export async function openBox(db?: Db): Promise<GcBox> {
+export async function openBox(db?: Db, options: { readonly loopbackOwner?: boolean; readonly ids?: ServerHarnessOptions["ids"] } = {}): Promise<GcBox> {
   const dir = await mkdtemp(join(tmpdir(), "orb-assets-gc-"));
   const casDir = join(dir, "cas");
   const images: Uint8Array[] = [];
@@ -57,7 +61,14 @@ export async function openBox(db?: Db): Promise<GcBox> {
     structuredReplies: new Map(),
     images,
   });
-  const root = await createServerHarness({ startJobs: false, casDir, providerFetch: wire.execute, ...(db === undefined ? {} : { db }) });
+  const root = await createServerHarness({
+    startJobs: false,
+    casDir,
+    providerFetch: wire.execute,
+    ...(db === undefined ? {} : { db }),
+    ...(options.loopbackOwner === true ? LOOPBACK_OWNER : {}),
+    ...(options.ids === undefined ? {} : { ids: options.ids }),
+  });
   onTestFinished(async () => {
     await root[Symbol.asyncDispose]();
     if (db !== undefined) {
@@ -118,20 +129,35 @@ export async function ageOnly(box: GcBox, ...refs: readonly StoredRef[]): Promis
   }
 }
 
-/** Start and run the assets-gc workload the boot seed schedules, then read its recorded outcome. */
-export async function runScheduledGc(box: GcBox): ReturnType<ServerTestHarness["services"]["workloads"]["get"]> {
-  const runAdmitted = box.root.runAdmittedWorkload;
-  if (runAdmitted === undefined) {
-    throw new Error("the harness owns its workload execution only with startJobs: false");
-  }
+/** Enqueue the assets-gc workload the boot seed schedules. */
+export async function startGc(box: GcBox): Promise<WorkloadId> {
   const started = await box.root.services.workloads.start({
     caller: box.principal,
     mode: "bulk",
     ownerId: box.root.ownerId,
     input: { kind: "assets-gc", params: {} },
   });
-  await runAdmitted(started.id, AbortSignal.timeout(WORKLOAD_DEADLINE_MS));
-  return await box.root.services.workloads.get({ caller: box.principal, id: started.id });
+  return started.id;
+}
+
+/** Dispatch one admitted row through the engine's own claim, as the worker would. */
+export async function dispatch(box: GcBox, id: WorkloadId): Promise<void> {
+  const runAdmitted = box.root.runAdmittedWorkload;
+  if (runAdmitted === undefined) {
+    throw new Error("the harness owns its workload execution only with startJobs: false");
+  }
+  await runAdmitted(id, AbortSignal.timeout(WORKLOAD_DEADLINE_MS));
+}
+
+export async function workloadRow(box: GcBox, id: WorkloadId): ReturnType<ServerTestHarness["services"]["workloads"]["get"]> {
+  return await box.root.services.workloads.get({ caller: box.principal, id });
+}
+
+/** Start and run the assets-gc workload the boot seed schedules, then read its recorded outcome. */
+export async function runScheduledGc(box: GcBox): ReturnType<ServerTestHarness["services"]["workloads"]["get"]> {
+  const id = await startGc(box);
+  await dispatch(box, id);
+  return await workloadRow(box, id);
 }
 
 export async function survives(box: GcBox, ref: StoredRef): Promise<boolean> {

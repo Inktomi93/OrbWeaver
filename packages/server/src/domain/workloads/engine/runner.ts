@@ -260,8 +260,8 @@ async function finalizeFailure(deps: WorkloadRunnerDeps, row: WorkloadRunnableRo
  * worker calls this per dispatched row; it never throws (every outcome is recorded on the row + the bus).
  */
 export async function runWorkload(deps: WorkloadRunnerDeps, row: WorkloadRunnableRow, signal: AbortSignal): Promise<void> {
-  // Idempotent claim: the loser of a two-worker race updates 0 rows → bail.
-  const claim = await markStarted(deps.db, row.id, deps.now());
+  // Idempotent claim: the loser of a two-worker race, or a row whose excluded kind is in flight, updates 0 rows → bail.
+  const claim = await markStarted(deps.db, deps.contributions, row, deps.now());
   if (claim === null) {
     return;
   }

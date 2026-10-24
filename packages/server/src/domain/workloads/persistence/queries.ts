@@ -5,8 +5,9 @@
 // `scheduledAt` DEFERRAL gate (a future-dated "Run at" row is not even in the head window until its instant),
 // tolerates poison rows (unrecognized kind OR unparseable params → failed in place, never starves the queue)
 // and enforces DAG dependsOn ordering (a dep still active → skip; any non-success terminal or absent dep →
-// fail with `dependency_failed`). Its scan is cursor-paged through the complete due queue — the page size
-// bounds each read, never admission — and reports each successful fail-in-place through an injected sink
+// fail with `dependency_failed`) and the cross-kind exclusion (a kind it excludes in flight → skip; the claim
+// re-judges it in the same UPDATE, so two replicas cannot both start). Its scan is cursor-paged through the
+// complete due queue — the page size bounds each read, never admission — and reports each successful fail-in-place through an injected sink
 // after the UPDATE settles. The engine owns the canonical bus emission; persistence remains bus-free.
 //
 // The READ path is poison-VISIBLE where the dispatch path is poison-refusing: `toView` surfaces an
@@ -19,7 +20,8 @@ import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
-import { and, asc, desc, eq, getTableColumns, gt, gte, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, gt, gte, inArray, isNotNull, isNull, lt, lte, notExists, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 import { getLog } from "#foundation/observability";
 import type { WorkloadContributions } from "../contract/contribution.ts";
@@ -245,13 +247,47 @@ export async function findActiveAdmittedWorkloadId(
   return rows[0]?.id;
 }
 
-/** Claim `queued → running` with persisted ownership; a lost race or deleted original owner returns null. */
+// A second handle on `workloads`, so the claim's own UPDATE can ask about the OTHER rows in flight.
+const peerWorkloads = alias(workloads, "peer_workloads");
+
+/** The kinds that may not be in flight while `kind` runs: those it excludes and those that exclude it
+ *  (`WorkloadContribution.excludes` binds both ways). */
+function exclusionPeers(contributions: WorkloadContributions, kind: WorkloadKind): WorkloadKind[] {
+  const own: readonly WorkloadKind[] = contributions[kind].excludes ?? [];
+  return WORKLOAD_KINDS.filter((other) => own.includes(other) || (contributions[other].excludes ?? []).includes(kind));
+}
+
+/** The one exclusion predicate the scan and the claim share: a row of a peer kind is in flight, for any owner. */
+function peerInFlight(peers: readonly WorkloadKind[]): SQL | undefined {
+  return and(inArray(peerWorkloads.kind, [...peers]), inArray(peerWorkloads.status, [...IN_FLIGHT_STATUSES]));
+}
+
+/** Whether a row of `kind` must wait for an excluded kind's in-flight row before it may run. */
+async function excludedPeerInFlight(db: Db, contributions: WorkloadContributions, kind: WorkloadKind): Promise<boolean> {
+  const peers = exclusionPeers(contributions, kind);
+  if (peers.length === 0) {
+    return false;
+  }
+  // THE ENGINE PLANE (D20 un-principal) — the exclusion probe reads only whether a peer kind is in flight on the box, never a row's content, and must see every owner's rows because the kinds it guards are whole-corpus. Ends if a Principal-bearing caller reaches it.
+  const rows = await db.select({ id: peerWorkloads.id }).from(peerWorkloads).where(peerInFlight(peers)).limit(1);
+  return rows.length > 0;
+}
+
+/** Claim `queued → running` with persisted ownership; a lost race, a deleted original owner, or an excluded
+ *  kind in flight (`WorkloadContribution.excludes`, judged in the same statement) returns null. */
 // THE ENGINE PLANE (D20 un-principal) — the idempotent queued→running claim. The id is one the engine itself polled/enumerated (`scanRunnableWorkloads`), never caller input, and these writes must move ADMIN and system rows too, so an ownerId in the WHERE would make that unrepresentable. The user-facing rung is F3-AUTHZ at the verb (`isVisibleToCaller(isAdmin, caller, row.ownerId)`), the POST-FETCH arm the read half recognizes. Ends if a door writes a workload row without that check.
-export async function markStarted(db: Db, id: WorkloadId, now: number): Promise<WorkloadClaim | null> {
+export async function markStarted(
+  db: Db,
+  contributions: WorkloadContributions,
+  row: Pick<WorkloadRunnableRow, "id" | "kind">,
+  now: number,
+): Promise<WorkloadClaim | null> {
+  const peers = exclusionPeers(contributions, row.kind);
+  const unexcluded = peers.length === 0 ? undefined : notExists(db.select({ one: sql`1` }).from(peerWorkloads).where(peerInFlight(peers)));
   const moved = await db
     .update(workloads)
     .set({ status: "running", updatedAt: now })
-    .where(and(eq(workloads.id, id), eq(workloads.status, "queued"), or(isNotNull(workloads.ownerId), eq(workloads.admissionSystem, true))))
+    .where(and(eq(workloads.id, row.id), eq(workloads.status, "queued"), or(isNotNull(workloads.ownerId), eq(workloads.admissionSystem, true)), unexcluded))
     .returning({ ownerId: workloads.ownerId, funderUserId: workloads.funderUserId });
   const claimed = moved[0];
   if (claimed === undefined) {
@@ -448,6 +484,10 @@ async function evaluateQueuedRow(input: QueueScanInput, row: WorkloadTextRow): P
       input.onFailure({ workloadId: row.id, kind: row.kind, error });
     }
     getLog().warn({ workloadId: row.id, kind: row.kind }, "workloads: failed poison queue row");
+    return null;
+  }
+  // Skipped, not dispatched, so a held row never head-blocks the rows queued behind it in its lane.
+  if (await excludedPeerInFlight(input.db, input.contributions, view.kind)) {
     return null;
   }
   if (view.dependsOn === null || view.dependsOn.length === 0) {

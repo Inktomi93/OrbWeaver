@@ -86,6 +86,9 @@ export function createAssetsWorkloadContributions(input: DbAssemblyInput<AssetsW
       // A whole-CAS mark-sweep that DELETES blobs — potentially long, and two concurrent GCs are a
       // corruption class (the bulk single-active lock is load-bearing, not a nicety).
       lane: "sweep",
+      // A restore writes its blobs before the rows that reference them, and a long one outlives the grace
+      // window, so the sweep never runs beside an import and an import never starts mid-sweep.
+      excludes: ["import-bundle", "import-st"],
       resume: "idempotent-restart",
       run: async (_ctx, params, report, signal): Promise<MaintenanceResult> => {
         const dryRun = params.dryRun ?? false;
