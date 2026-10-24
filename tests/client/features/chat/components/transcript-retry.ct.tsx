@@ -59,4 +59,14 @@ test("a transcript that settles after Retry keeps a bounded scroller", async ({ 
   const sizes = await scroller.evaluate((element) => ({ client: element.clientHeight, scroll: element.scrollHeight }));
   expect(sizes.client + (readout?.height ?? Number.NaN)).toBeCloseTo(SHORT_VIEWPORT.height, 0);
   expect(sizes.scroll).toBeGreaterThan(sizes.client);
+
+  // The hidden "jump to latest" control is in the DOM but is no tab stop; Retry must hand focus to a real one.
+  const focused = page.locator(":focus");
+  await expect(focused).toBeVisible();
+  expect(
+    await focused.evaluate((element) => ({
+      hidden: element.closest('[aria-hidden="true"], [inert]') !== null,
+      tabStop: element instanceof HTMLElement && element.tabIndex >= 0,
+    })),
+  ).toEqual({ hidden: false, tabStop: true });
 });

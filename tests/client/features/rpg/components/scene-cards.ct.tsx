@@ -7,12 +7,14 @@ import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import type { Locator } from "@playwright/test";
 import type { RpgSceneCardsStory } from "./_scene-cards-stories.tsx";
 
 const STORY = "tests/client/features/rpg/components/_scene-cards-stories/RpgSceneCardsStory";
 const ARCHIVE = '[data-slot="rpg-card-archive"]';
 const PHONE_WIDTH = 430;
 const CARD_TITLE = "The harbour ledger";
+const FOCUSED_STATUS_KEY = "__focusedStatusText";
 const CARD_FENCE = `:::card title="${CARD_TITLE}"\n<p>Tide tables for the quay.</p>\n:::`;
 
 interface ArchiveRoom {
@@ -106,17 +108,119 @@ test("Retry on a failed archive read keeps keyboard focus inside the archive and
   await page.keyboard.press("Enter");
   await retried.requested;
   await expect(archive.locator('[aria-busy="true"]')).toBeVisible();
-  await expect(archive.getByRole("status")).toBeVisible();
+  await expect(archive.getByRole("status")).toHaveText(/\S/);
 
   retried.release(settled);
   await expect(archive.getByRole("button", { name: CARD_TITLE, exact: false })).toBeVisible();
   await expect(archive.locator('[data-slot="rpg-card-row"]')).toBeFocused();
 
-  // A later, unrelated suspend under the same boundary is not a retried read and carries no status line.
+  // A later, unrelated suspend under the same boundary is not a retried read and announces nothing.
   await component.update({ chatId: other.chatId });
   await otherRead.requested;
   await expect(archive.locator('[aria-busy="true"]')).toBeVisible();
-  await expect(archive.getByRole("status")).toHaveCount(0);
+  await expect(archive.getByRole("status").filter({ hasText: /\S/ })).toHaveCount(0);
+});
+
+test("Retry that settles on an empty archive lands focus on the announced recovery", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness();
+  const room = await archiveRoom(root, corpusChatId(corpus));
+  const settled = await room.messages();
+  let failing = true;
+  await routeTrpc(page, {
+    ...room.reads,
+    "chat.listMessages": () => (failing ? trpcError({ code: "INTERNAL_SERVER_ERROR" }) : settled),
+  });
+  await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
+  const archive = page.locator(ARCHIVE);
+  const retry = archive.getByRole("button", { name: "Retry", exact: true });
+  await expect(retry).toBeVisible();
+
+  // Record what the status says at the moment it takes focus: that is what a screen reader reads out.
+  await page.evaluate((key) => {
+    document.addEventListener("focusin", (event) => {
+      if (event.target instanceof HTMLElement && event.target.matches('[role="status"]')) {
+        Reflect.set(globalThis, key, event.target.textContent);
+      }
+    });
+  }, FOCUSED_STATUS_KEY);
+
+  failing = false;
+  await retry.focus();
+  await page.keyboard.press("Enter");
+  await expect(archive.getByText("No cards yet", { exact: false })).toBeVisible();
+  const focused = archive.locator(":focus");
+  await expect(focused).toHaveRole("status");
+  await expect(focused).toHaveAccessibleName(/\S/);
+  await expect(archive.getByRole("status").filter({ hasText: /\S/ })).toHaveCount(1);
+  const settledText = await focused.textContent();
+  expect(await page.evaluate((key) => Reflect.get(globalThis, key), FOCUSED_STATUS_KEY)).toBe(settledText);
+});
+
+// Where focus sits once the empty archive has settled: the recovery status, or the page after a click on blank space.
+const FOCUS_HOLDS = [
+  { name: "stays on the recovery status", leave: null, holder: "status" },
+  { name: "moves to the page", leave: async (archive: Locator): Promise<void> => archive.click({ position: { x: 1, y: 1 } }), holder: "body" },
+] as const;
+
+for (const hold of FOCUS_HOLDS) {
+  test(`a card that lands after an empty Retry settles leaves focus where it is when focus ${hold.name}`, async ({ corpus, mount, page }) => {
+    await using root = await createCorpusHarness();
+    const room = await archiveRoom(root, corpusChatId(corpus));
+    let messages = await room.messages();
+    let failing = true;
+    await routeTrpc(page, {
+      ...room.reads,
+      "chat.listMessages": () => (failing ? trpcError({ code: "INTERNAL_SERVER_ERROR" }) : messages),
+    });
+    const component = await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
+    const archive = page.locator(ARCHIVE);
+    const retry = archive.getByRole("button", { name: "Retry", exact: true });
+    await expect(retry).toBeVisible();
+
+    failing = false;
+    await retry.focus();
+    await page.keyboard.press("Enter");
+    await expect(archive.getByText("No cards yet", { exact: false })).toBeVisible();
+    await expect(archive.locator(":focus")).toHaveRole("status");
+    await hold.leave?.(archive);
+    const holder = (): Promise<string | null> =>
+      page.evaluate(() => (document.activeElement === document.body ? "body" : (document.activeElement?.getAttribute("role") ?? null)));
+    expect(await holder()).toBe(hold.holder);
+
+    // A refetch in place, as a bus invalidation does: the card row mounts without the archive suspending.
+    await room.plantCard();
+    messages = await room.messages();
+    await component.update({ chatId: room.chatId, revision: 1 });
+    await expect(archive.getByRole("button", { name: CARD_TITLE, exact: false })).toBeVisible();
+    expect(await holder()).toBe(hold.holder);
+  });
+}
+
+test("a retried read's pending box is the first load's pending box", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness();
+  const room = await archiveRoom(root, corpusChatId(corpus));
+  await room.plantCard();
+  const firstLoad = trpcHold<"chat.listMessages">();
+  const retried = trpcHold<"chat.listMessages">();
+  let pending = firstLoad;
+  await routeTrpc(page, { ...room.reads, "chat.listMessages": () => pending });
+  await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
+  const archive = page.locator(ARCHIVE);
+  const height = async (): Promise<number> => (await archive.boundingBox())?.height ?? Number.NaN;
+  await firstLoad.requested;
+  await expect(archive.locator('[aria-busy="true"]')).toBeVisible();
+  const firstPending = await height();
+
+  firstLoad.release(trpcError({ code: "INTERNAL_SERVER_ERROR" }));
+  const retry = archive.getByRole("button", { name: "Retry", exact: true });
+  await expect(retry).toBeVisible();
+  pending = retried;
+  await retry.click();
+  await retried.requested;
+  await expect(archive.locator('[aria-busy="true"]')).toBeVisible();
+  expect(await height()).toBeCloseTo(firstPending, 0);
+  retried.release(await room.messages());
+  await expect(archive.getByRole("button", { name: CARD_TITLE, exact: false })).toBeVisible();
 });
 
 test("a Retry that fails again hands keyboard focus to the new Retry button", async ({ corpus, mount, page }) => {

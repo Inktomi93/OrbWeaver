@@ -8,9 +8,13 @@
 //
 // FOCUS AFTER RETRY. The pressed Retry button unmounts with the error state, so once the read settles focus
 // would sit on `<body>`. A retried mount wraps its settled children in a `display: contents` element (no box,
-// so no sizing chain breaks) and focuses the first focusable control inside it on commit, only if focus is
-// still on `<body>`; a retried read that fails again focuses the new Retry button the same way. The pending
-// fallback shows the one status line while the retried read is in flight. A first load is never wrapped.
+// so no sizing chain breaks) and, only if focus is still on `<body>`, focuses the first visible tab stop inside
+// it, once, one commit after settling so a windowed list's rows exist; with none it lands on the recovery status. A
+// retried read that fails again focuses the new Retry button the same way. A first load is never wrapped.
+//
+// THE RECOVERY STATUS. A boundary that has failed once keeps ONE screen-reader-only `role="status"` mounted
+// beside its arm, empty until Retry writes into it, so the reloading and recovered messages are text changes
+// a screen reader announces. It is out of flow, so the pending box is exactly a first load's.
 //
 // THE RESERVATION SEAM (#885, lifted from home-tile.tsx's TileFallback/TileBody — this file is now the
 // ONE home). A boundary that passes
@@ -29,8 +33,8 @@
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { QueryErrorResetBoundary } from "@tanstack/react-query";
-import type { ReactElement, ReactNode } from "react";
-import { Component, isValidElement, Suspense, useEffect, useRef } from "react";
+import type { ReactElement, ReactNode, Ref, RefObject } from "react";
+import { Component, isValidElement, Suspense, useEffect, useId, useRef } from "react";
 import { rememberSurfaceBox, useSurfaceBox } from "#state";
 import { QueryErrorState } from "../data/query-error-state.tsx";
 import { skeletonRowCountFor } from "../data/skeleton-row-metrics.ts";
@@ -68,90 +72,179 @@ export interface QueryBoundaryProps {
 
 const defaultRenderError = (_error: unknown, retry: () => void): ReactNode => <QueryErrorState label="this" onRetry={retry} />;
 
+const RECOVERY_PHASES = ["idle", "reloading", "recovered"] as const;
+type RecoveryPhase = (typeof RECOVERY_PHASES)[number];
+
+const RECOVERY_MESSAGES: Readonly<Record<RecoveryPhase, string>> = { idle: "", reloading: "Reloading…", recovered: "Loaded again." };
+
 interface CatchState {
   readonly error: unknown | null;
   /** True once the user pressed Retry on this mount; it never clears, because the settled wrapper must keep its place in the tree. */
   readonly retried: boolean;
-  /** True from a Retry press until that read settles or fails again; drives the pending status line only. */
-  readonly retrying: boolean;
+  /** What the recovery status says: reloading from a Retry press, recovered once that read settles, idle otherwise. */
+  readonly recovery: RecoveryPhase;
+  /** True once a settled retry with no tab stop at commit has committed its recovered message; the focus hand-off waits for it. */
+  readonly handoff: boolean;
 }
 
-/** What the catch hands its render prop: the retry phase flags and the settle signal. */
+/** What the catch hands its render prop: the retry and hand-off flags, the settle and pending signals, and the focus landing. */
 interface RetryPhase {
   readonly retried: boolean;
-  readonly retrying: boolean;
-  readonly onSettled: () => void;
+  readonly handoff: boolean;
+  readonly onSettled: (needsHandoff: boolean) => void;
+  readonly onPending: () => void;
+  readonly landing: RefObject<HTMLParagraphElement | null>;
 }
 
 interface CatchProps {
   readonly onReset: () => void;
   readonly renderError: NonNullable<QueryBoundaryProps["renderError"]>;
+  readonly landing: RefObject<HTMLParagraphElement | null>;
   readonly children: (phase: RetryPhase) => ReactNode;
 }
 
 class QueryErrorCatch extends Component<CatchProps, CatchState> {
-  override state: CatchState = { error: null, retried: false, retrying: false };
+  override state: CatchState = { error: null, retried: false, recovery: "idle", handoff: false };
 
-  static getDerivedStateFromError(error: unknown): Pick<CatchState, "error" | "retrying"> {
-    return { error, retrying: false };
+  static getDerivedStateFromError(error: unknown): Pick<CatchState, "error" | "recovery"> {
+    return { error, recovery: "idle" };
   }
 
   private readonly retry = (): void => {
     // Order matters: clear the QUERY error first (so the remount refetches instead of re-throwing
     // the cached error), then clear the boundary to remount the children.
     this.props.onReset();
-    this.setState({ error: null, retried: true, retrying: true });
+    this.setState({ error: null, retried: true, recovery: "reloading", handoff: false });
   };
 
-  private readonly onSettled = (): void => {
-    this.setState({ retrying: false });
+  // One state update carries both, so the landing is focused only after it already says the settled message.
+  private readonly onSettled = (needsHandoff: boolean): void => {
+    this.setState({ recovery: "recovered", handoff: needsHandoff });
   };
 
-  override render(): ReactNode {
+  // A later suspend that is not a retry clears the recovered message, so the status never repeats a stale one.
+  private readonly onPending = (): void => {
+    if (this.state.recovery === "recovered") {
+      this.setState({ recovery: "idle" });
+    }
+  };
+
+  private renderArm(): ReactNode {
     if (this.state.error !== null) {
       const errorState = this.props.renderError(this.state.error, this.retry);
       // A read that fails again lands on a fresh Retry button; hand it the focus the pressed one lost.
       return this.state.retried ? <RetriedFocus>{errorState}</RetriedFocus> : errorState;
     }
-    return this.props.children({ retried: this.state.retried, retrying: this.state.retrying, onSettled: this.onSettled });
+    return this.props.children({
+      retried: this.state.retried,
+      handoff: this.state.handoff,
+      onSettled: this.onSettled,
+      onPending: this.onPending,
+      landing: this.props.landing,
+    });
+  }
+
+  override render(): ReactNode {
+    // The status stays in the second slot across the error, pending and settled arms, so React keeps the one node.
+    const failed = this.state.error !== null || this.state.retried;
+    return (
+      <>
+        {this.renderArm()}
+        {failed ? <RecoveryStatus phase={this.state.recovery} ref={this.props.landing} /> : null}
+      </>
+    );
   }
 }
 
-/** The pending fallback + its one status line. Offline AND pending is the paused-forever state
- *  (`networkMode:"online"` never rejects a paused query), so it gets an explicit affordance; a pending
- *  read the user just retried says so, because the Retry button that had focus is already gone. */
-function PendingFallback({ retrying, children }: { readonly retrying: boolean; readonly children: ReactNode }): ReactElement {
+/** The recovery live region, which doubles as the focus landing of a retried read that settles with no tab stop.
+ *  A `status` takes no name from its content, so it names itself to be read when focused. */
+function RecoveryStatus({ phase, ref }: { readonly phase: RecoveryPhase; readonly ref: Ref<HTMLParagraphElement> }): ReactElement {
+  const id = useId();
+  return (
+    <Text aria-labelledby={id} className="sr-only" data-slot="query-boundary-status" id={id} ref={ref} role="status" tabIndex={-1}>
+      {RECOVERY_MESSAGES[phase]}
+    </Text>
+  );
+}
+
+/** The pending fallback + the offline line. Offline AND pending is the paused-forever state
+ *  (`networkMode:"online"` never rejects a paused query), so it gets an explicit affordance. A retried read's
+ *  pending message is the recovery status's, not a line here. `onPending` tells the catch a read is pending. */
+function PendingFallback({ onPending, children }: { readonly onPending: () => void; readonly children: ReactNode }): ReactElement {
   const online = useOnlineStatus();
+  useEffect(() => onPending(), [onPending]);
   return (
     <>
       {children}
-      {online && !retrying ? null : (
+      {online ? null : (
         <Text role="status" size="micro" tone="muted" className="text-center">
-          {online ? "Reloading…" : "Waiting for connection…"}
+          Waiting for connection…
         </Text>
       )}
     </>
   );
 }
 
-// Natively focusable controls only: a disabled control is skipped, and `tabindex="-1"` is not a tab stop.
-const FIRST_FOCUSABLE =
-  'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+// Everything that can hold a tab stop; `isVisibleTabStop` rejects the ones that are not one right now.
+const TAB_STOP_CANDIDATES = 'a[href], button, input:not([type="hidden"]), select, textarea, summary, [contenteditable="true"], [tabindex]';
+
+// A control kept mounted but hidden (`tabindex="-1"`, under `aria-hidden` or `inert`, boxless) is no place for focus.
+function isVisibleTabStop(element: HTMLElement): boolean {
+  if (element.tabIndex < 0 || element.matches(":disabled") || element.closest('[aria-hidden="true"], [inert]') !== null) {
+    return false;
+  }
+  const box = element.getBoundingClientRect();
+  return box.width > 0 && box.height > 0 && element.checkVisibility({ visibilityProperty: true });
+}
+
+function firstVisibleTabStop(root: HTMLElement): HTMLElement | null {
+  return [...root.querySelectorAll<HTMLElement>(TAB_STOP_CANDIDATES)].find(isVisibleTabStop) ?? null;
+}
 
 /** The wrapper of a retried mount, around the settled children and around a repeat error state. It is
  *  layout-neutral (`display: contents`) because a wrapper box would cut every `h-full` child of a boundary off
- *  from its parent's height. The pressed Retry button unmounts with the error state, so focus would fall to `<body>`;
- *  once the arm commits (a Suspense child commits only when settled) the first focusable control inside takes
- *  it, unless the user already moved focus somewhere real while the read was pending. An arm with no
- *  focusable control keeps focus on `<body>`. `onSettled` tells the catch the retried read has landed. */
-function RetriedFocus({ onSettled, children }: { readonly onSettled?: () => void; readonly children: ReactNode }): ReactElement {
+ *  from its parent's height. Focus is handed off exactly once per retried settle, and only from `<body>`, where
+ *  the pressed Retry left it. On commit (a Suspense child commits only when settled) the first visible tab stop
+ *  takes it. With none, the catch commits the recovered message and then `handoff` re-checks one commit later,
+ *  when a windowed list has mounted the rows it renders after its own commit, and falls back to the landing.
+ *  Nothing claims focus after the hand-off, so a row that mounts later never takes it. */
+function RetriedFocus({
+  onSettled,
+  handoff = false,
+  landing,
+  children,
+}: {
+  readonly onSettled?: (needsHandoff: boolean) => void;
+  readonly handoff?: boolean;
+  readonly landing?: RefObject<HTMLElement | null>;
+  readonly children: ReactNode;
+}): ReactElement {
   const rootRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (document.activeElement === document.body) {
-      rootRef.current?.querySelector<HTMLElement>(FIRST_FOCUSABLE)?.focus({ preventScroll: true });
+    const root = rootRef.current;
+    if (root === null || document.activeElement !== document.body) {
+      onSettled?.(false);
+      return;
     }
-    onSettled?.();
+    const stop = firstVisibleTabStop(root);
+    if (stop !== null) {
+      stop.focus({ preventScroll: true });
+      onSettled?.(false);
+      return;
+    }
+    onSettled?.(true);
   }, [onSettled]);
+  useEffect(() => {
+    if (!handoff) {
+      return;
+    }
+    const root = rootRef.current;
+    const pad = landing?.current ?? null;
+    if (root === null || pad === null || document.activeElement !== document.body) {
+      return;
+    }
+    (firstVisibleTabStop(root) ?? pad).focus({ preventScroll: true });
+  }, [handoff, landing]);
   return (
     <Stack className="contents" data-slot="query-boundary-settled" ref={rootRef}>
       {children}
@@ -160,11 +253,15 @@ function RetriedFocus({ onSettled, children }: { readonly onSettled?: () => void
 }
 
 /** Only a retried mount pays for the focus wrapper; every first load renders its children unwrapped. */
-function settledChildren(retried: boolean, onSettled: () => void, children: ReactNode): ReactNode {
-  if (!retried) {
+function settledChildren(phase: RetryPhase, children: ReactNode): ReactNode {
+  if (!phase.retried) {
     return children;
   }
-  return <RetriedFocus onSettled={onSettled}>{children}</RetriedFocus>;
+  return (
+    <RetriedFocus handoff={phase.handoff} landing={phase.landing} onSettled={phase.onSettled}>
+      {children}
+    </RetriedFocus>
+  );
 }
 
 /** A `SkeletonRows` fallback with a static count, re-filled to the reserved box; anything else
@@ -248,6 +345,7 @@ export function QueryBoundary({
   renderError = defaultRenderError,
   children,
 }: QueryBoundaryProps): ReactElement {
+  const landing = useRef<HTMLParagraphElement>(null);
   const reservedFallback =
     reserveKey === undefined ? (
       fallback
@@ -267,10 +365,10 @@ export function QueryBoundary({
   return (
     <QueryErrorResetBoundary>
       {({ reset }): ReactElement => (
-        <QueryErrorCatch onReset={reset} renderError={renderError}>
-          {({ retried, retrying, onSettled }): ReactElement => (
-            <Suspense fallback={<PendingFallback retrying={retrying}>{reservedFallback}</PendingFallback>}>
-              {settledChildren(retried, onSettled, measuredChildren)}
+        <QueryErrorCatch landing={landing} onReset={reset} renderError={renderError}>
+          {(phase): ReactElement => (
+            <Suspense fallback={<PendingFallback onPending={phase.onPending}>{reservedFallback}</PendingFallback>}>
+              {settledChildren(phase, measuredChildren)}
             </Suspense>
           )}
         </QueryErrorCatch>
