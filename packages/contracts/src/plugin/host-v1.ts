@@ -39,7 +39,7 @@ export type PluginLogLevel = (typeof PLUGIN_LOG_LEVELS)[number];
  *  no params, no `promptSnapshot`/`rawRequest` (those carry other participants' prompt internals + credential-
  *  adjacent request metadata; operator-tier, never plugin-tier). */
 export interface PluginMessageView {
-  readonly id: string;
+  readonly id: SandboxWireId<MessageId>;
   readonly role: MessageRole;
   // @view-server-only: the PluginHostV1 membrane is the GUEST's surface — its reader is the plugin sandbox (infra/plugin-host), never packages/client. Ends if a host UI surface starts rendering guest message projections.
   readonly authorDisplayName: string;
@@ -79,7 +79,7 @@ type PluginVariableWriteResult = VariableWriteResult;
 /** Mirror of the `insert_world_info_entry` action's entry fields — attached-book-only, entryKey-
  *  updatable, host-side idempotent. */
 export interface PluginWorldEntryUpsert {
-  readonly bookId: string;
+  readonly bookId: SandboxWireId<WorldBookId>;
   readonly entryKey: string;
   readonly keys: readonly string[];
   readonly contentTemplate: string;
@@ -170,10 +170,9 @@ export interface PluginQuietOptions {
   /** Present ⇒ a schema-CONSTRAINED generation on the `structured` role; the result is the model's JSON text. */
   readonly schema?: PluginQuietSchema;
   /** Assets in the INSTALLER's own CAS to attach to the user turn — at most {@link PLUGIN_QUIET_IMAGES_MAX}.
-   *  UNBRANDED by the same rule the rest of this file follows: a guest's JSON is untrusted until the DOMAIN
-   *  resolves it (here, through the owner-gated CAS read), and branding the wire type would claim a validation
-   *  this boundary has not performed. Vision-capable families attach them; text-only families ignore them. */
-  readonly imageAssetIds?: readonly string[];
+   *  Each id is unvalidated sandbox text until the DOMAIN resolves it through the owner-gated CAS read.
+   *  Vision-capable families attach them; text-only families ignore them. */
+  readonly imageAssetIds?: readonly SandboxWireId<AssetId>[];
 }
 
 // ── The surface ────────────────────────────────────────────────────────────────────────────────────────────
@@ -238,7 +237,7 @@ export interface PluginHostV1 {
     /** Request an autonomous turn — capability: turn.trigger. Budget/consent-gated EXACTLY like the
      *  trigger_turn action: counts against the chat's fire-rate cap, carries
      *  initiator:"plugin" + automationDepth, and hits D17 unchanged. */
-    requestTurn: (chat: ChatHandle, p?: { speakerCharacterId?: string; guided?: string }) => Promise<void>;
+    requestTurn: (chat: ChatHandle, p?: { speakerCharacterId?: SandboxWireId<CharacterId>; guided?: string }) => Promise<void>;
   };
 
   readonly worldInfo: {
@@ -251,7 +250,7 @@ export interface PluginHostV1 {
      *  `upsertEntry`). Leak-free: a `bookId` not attached to THIS chat (or not owned) resolves to `[]`,
      *  indistinguishable from an attached-but-empty book — no existence oracle for another room's or owner's
      *  books. capability: worldinfo.read */
-    listEntries: (chat: ChatHandle, bookId: string) => Promise<readonly PluginWorldEntryView[]>;
+    listEntries: (chat: ChatHandle, bookId: SandboxWireId<WorldBookId>) => Promise<readonly PluginWorldEntryView[]>;
     /** Same op + idempotency semantics as the insert_world_info_entry action — attached-book-only,
      *  entryKey-updatable, 64-entries-per-owner cap. capability: worldinfo.write */
     upsertEntry: (chat: ChatHandle, e: PluginWorldEntryUpsert) => Promise<void>;

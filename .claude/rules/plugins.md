@@ -19,7 +19,7 @@ paths:
   server-owned data the guest lacks. Exclude host-mediated effects such as toast or openDialog.
 - Type an id that crosses the sandbox boundary as `SandboxWireId<Brand>` from `@orb/kit/ids`.
   It stays a bare string, because a brand would claim a validation the boundary never performs.
-  `orb/brand-in-name-position` checks the brand only in a position named for it.
+  `orb/sandbox-wire-id` refuses a bare `string` at an id position in `packages/contracts/src/plugin/`.
 - A verb that executes user-supplied code under the caller's principal takes no cross-owner admin
   branch. Judge a management verb by what it does, not what it reads.
 - A capability whose reach is set by a manifest field can widen on upgrade with

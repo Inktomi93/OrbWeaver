@@ -9,6 +9,9 @@
 // makes the CONTEXT panel BE the HUD on an engaged game chat. Same deps, same predicate, same one-directional
 // flow — the tabs supply the content, the region supplies the arrangement.
 
+/** The Scene tab's card archive, exported for its CT story: a story entering the slice relatively mounts
+ *  against a different React context instance. The Scene tab itself imports it relatively. */
+export { RpgSceneCards } from "./components/rpg-scene-cards.tsx";
 // B8/D269: the ASK lives in the composer utility menu; the RESULT is an in-thread tool renderer.
 // rpg NEVER imports chat, chat NEVER imports rpg; the door imports both.
 export { rpgDiceComposerMediaSurface } from "./lib/dice-composer-media.tsx";

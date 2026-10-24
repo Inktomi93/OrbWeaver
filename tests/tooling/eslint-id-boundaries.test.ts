@@ -15,6 +15,8 @@ const FAKE_DISABLED = "orb/no-fake-disabled-id";
 
 const RAW_ID = "orb/no-raw-id";
 const WIRE_JSON = "orb/wire-json-parsed-at-consumer";
+const SANDBOX_WIRE_ID = "orb/sandbox-wire-id";
+const PLUGIN_CONTRACT = "packages/contracts/src/plugin/probe.ts";
 
 const CLIENT = "packages/client/src/data/probe.ts";
 const SERVER = "packages/server/src/probe.ts";
@@ -158,6 +160,26 @@ test(
   },
   CONFIG_LOAD_TIMEOUT_MS,
 );
+
+const WIRE_IDS = 'import type { AssetId, CharacterId, MessageId, SandboxWireId } from "@orb/kit/ids";\n';
+
+rows(SANDBOX_WIRE_ID, PLUGIN_CONTRACT, [
+  ["a bare id field", "export interface Upsert { readonly bookId: string }\n", 1],
+  ["a nullable bare id field", "export interface View { readonly characterId: string | null }\n", 1],
+  ["a readonly bare id list", "export interface Quiet { readonly imageAssetIds?: readonly string[] }\n", 1],
+  ["a mutable bare id list", "export interface Quiet { imageAssetIds: string[] }\n", 1],
+  ["a bare id parameter of a host function type", "export interface Host { listEntries: (chat: string, bookId: string) => void }\n", 1],
+  ["a bare id inside an inline argument object", "export interface Host { requestTurn: (p?: { speakerCharacterId?: string }) => void }\n", 1],
+  ["a guest-facing view's own id", "export interface PluginMessageView { readonly id: string }\n", 1],
+  ["the typed wire id", `${WIRE_IDS}export interface View { readonly characterId: SandboxWireId<CharacterId> | null }\n`, 0],
+  ["a typed wire id list", `${WIRE_IDS}export interface Quiet { readonly imageAssetIds?: readonly SandboxWireId<AssetId>[] }\n`, 0],
+  ["a typed view id", `${WIRE_IDS}export interface PluginMessageView { readonly id: SandboxWireId<MessageId> }\n`, 0],
+  ["guest-authored keys are not entity ids", "export interface Act { readonly actionId: string; readonly surfaceId: string; readonly callId: string }\n", 0],
+  ["an author key named id outside a view", "export interface PluginGridTile { readonly id: string }\n", 0],
+  ["a lowercase suffix is not an id name", "export interface Row { readonly valid: string }\n", 0],
+]);
+
+rows(SANDBOX_WIRE_ID, SERVER, [["the rule judges only the plugin contracts", "export interface Row { readonly bookId: string }\n", 0]]);
 
 const ROW_TYPE = "interface Row { readonly id: string }\n";
 
