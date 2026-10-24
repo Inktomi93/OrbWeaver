@@ -73,6 +73,36 @@ test("a failed archive read renders the shared error state directly under the se
   await expect(archive.locator('[data-slot="query-error"]')).toHaveCount(0);
 });
 
+test("Retry on a failed archive read keeps keyboard focus inside the archive and announces the pending read", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness();
+  const room = await archiveRoom(root, corpusChatId(corpus));
+  await room.plantCard();
+  const settled = await room.messages();
+  const retried = trpcHold<"chat.listMessages">();
+  let failing = true;
+  await routeTrpc(page, {
+    ...room.reads,
+    "chat.listMessages": () => (failing ? trpcError({ code: "INTERNAL_SERVER_ERROR" }) : retried),
+  });
+  await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
+  const archive = page.locator(ARCHIVE);
+  const retry = archive.getByRole("button", { name: "Retry", exact: true });
+  await expect(retry).toBeVisible();
+
+  failing = false;
+  await retry.focus();
+  await page.keyboard.press("Enter");
+  await retried.requested;
+  await expect(archive.locator('[aria-busy="true"]')).toBeVisible();
+  await expect(archive.getByRole("status")).toBeVisible();
+
+  retried.release(settled);
+  await expect(archive.getByRole("button", { name: CARD_TITLE, exact: false })).toBeVisible();
+  const focused = archive.locator(":focus");
+  await expect(focused).toHaveCount(1);
+  await expect(focused).toHaveAttribute("data-slot", "query-boundary-settled");
+});
+
 test("a pending archive read shows the labelled skeleton, then the settled card list with its count", async ({ corpus, mount, page }) => {
   await using root = await createCorpusHarness();
   const room = await archiveRoom(root, corpusChatId(corpus));

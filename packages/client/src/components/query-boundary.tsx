@@ -6,6 +6,11 @@
 // spin its skeleton forever with zero feedback. The line renders ONLY while actually offline (never a
 // flash on a normal load), and every surface inherits it here — zero per-feature edits.
 //
+// FOCUS AFTER RETRY. The pressed Retry button unmounts with the error state, so once the read settles focus
+// would sit on `<body>`. A retried mount wraps its settled children in a `tabIndex -1` root that takes focus on
+// commit (only if focus is still on `<body>`), and its pending fallback shows the one status line. A first
+// load is never wrapped.
+//
 // THE RESERVATION SEAM (#885, lifted from home-tile.tsx's TileFallback/TileBody — this file is now the
 // ONE home). A boundary that passes
 // `reserveKey` opts into measure-then-remember: the fallback is wrapped in the box this device saw the
@@ -64,18 +69,20 @@ const defaultRenderError = (_error: unknown, retry: () => void): ReactNode => <Q
 
 interface CatchState {
   readonly error: unknown | null;
+  /** True once the user pressed Retry on this mount: the pressed button is gone by the time the read settles. */
+  readonly retried: boolean;
 }
 
 interface CatchProps {
   readonly onReset: () => void;
   readonly renderError: NonNullable<QueryBoundaryProps["renderError"]>;
-  readonly children: ReactNode;
+  readonly children: (retried: boolean) => ReactNode;
 }
 
 class QueryErrorCatch extends Component<CatchProps, CatchState> {
-  override state: CatchState = { error: null };
+  override state: CatchState = { error: null, retried: false };
 
-  static getDerivedStateFromError(error: unknown): CatchState {
+  static getDerivedStateFromError(error: unknown): Pick<CatchState, "error"> {
     return { error };
   }
 
@@ -83,30 +90,48 @@ class QueryErrorCatch extends Component<CatchProps, CatchState> {
     // Order matters: clear the QUERY error first (so the remount refetches instead of re-throwing
     // the cached error), then clear the boundary to remount the children.
     this.props.onReset();
-    this.setState({ error: null });
+    this.setState({ error: null, retried: true });
   };
 
   override render(): ReactNode {
     if (this.state.error !== null) {
       return this.props.renderError(this.state.error, this.retry);
     }
-    return this.props.children;
+    return this.props.children(this.state.retried);
   }
 }
 
-/** The pending fallback + the offline line: offline AND pending is the paused-forever state
- *  (`networkMode:"online"` never rejects a paused query), so it gets an explicit affordance. */
-function PendingFallback({ children }: { readonly children: ReactNode }): ReactElement {
+/** The pending fallback + its one status line. Offline AND pending is the paused-forever state
+ *  (`networkMode:"online"` never rejects a paused query), so it gets an explicit affordance; a pending
+ *  read the user just retried says so, because the Retry button that had focus is already gone. */
+function PendingFallback({ retried, children }: { readonly retried: boolean; readonly children: ReactNode }): ReactElement {
   const online = useOnlineStatus();
   return (
     <>
       {children}
-      {online ? null : (
+      {online && !retried ? null : (
         <Text role="status" size="micro" tone="muted" className="text-center">
-          Waiting for connection…
+          {online ? "Reloading…" : "Waiting for connection…"}
         </Text>
       )}
     </>
+  );
+}
+
+/** The settled root after a Retry. The Retry button unmounts with the error state, so focus would fall to
+ *  `<body>`; this root takes it once the read settles (a Suspense child commits only when settled), unless
+ *  the user already moved focus somewhere real while the read was pending. */
+function RetriedSettle({ fill, children }: { readonly fill: boolean; readonly children: ReactNode }): ReactElement {
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (document.activeElement === document.body) {
+      rootRef.current?.focus();
+    }
+  }, []);
+  return (
+    <Stack className={fill ? "h-full min-h-0 flex-1 outline-none" : "outline-none"} data-slot="query-boundary-settled" ref={rootRef} tabIndex={-1}>
+      {children}
+    </Stack>
   );
 }
 
@@ -183,6 +208,14 @@ function MeasuredSettle({ reserveKey, fill, children }: { readonly reserveKey: s
   );
 }
 
+/** Only a retried mount pays for the focus root; every first load renders its children unwrapped. */
+function settledChildren(retried: boolean, fill: boolean, children: ReactNode): ReactNode {
+  if (!retried) {
+    return children;
+  }
+  return <RetriedSettle fill={fill}>{children}</RetriedSettle>;
+}
+
 export function QueryBoundary({
   fallback,
   reserveKey,
@@ -211,7 +244,11 @@ export function QueryBoundary({
     <QueryErrorResetBoundary>
       {({ reset }): ReactElement => (
         <QueryErrorCatch onReset={reset} renderError={renderError}>
-          <Suspense fallback={<PendingFallback>{reservedFallback}</PendingFallback>}>{measuredChildren}</Suspense>
+          {(retried): ReactElement => (
+            <Suspense fallback={<PendingFallback retried={retried}>{reservedFallback}</PendingFallback>}>
+              {settledChildren(retried, fill, measuredChildren)}
+            </Suspense>
+          )}
         </QueryErrorCatch>
       )}
     </QueryErrorResetBoundary>
