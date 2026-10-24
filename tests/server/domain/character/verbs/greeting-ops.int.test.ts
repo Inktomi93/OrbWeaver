@@ -127,6 +127,7 @@ test("a foreign preset degrades to the shipped template, but a real preset datab
   await services.character.generateGreeting({ principal: actor, characterId: card.id, steer: "hi" });
   await services.settings.updateUserSettingsSection({ principal: actor, input: { section: "seeds", patch: { defaultPresetId: foreign.id } } });
   await services.character.generateGreeting({ principal: actor, characterId: card.id, steer: "hi" });
+  expect(requests).toHaveLength(2);
   const [shipped, degraded] = await Promise.all(requests.map((request) => request.clone().json()));
   expect(JSON.stringify(degraded)).not.toContain("FOREIGN TEMPLATE");
   expect(degraded).toEqual(shipped);
