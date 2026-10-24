@@ -23,6 +23,41 @@ function failureCode(error: unknown): TrpcErrorCode {
   return typeof code === "string" ? (code as TrpcErrorCode) : "INTERNAL_SERVER_ERROR";
 }
 
+/** A served procedure whose answer waits for the test: the in-flight state is stable until `release()`. */
+export interface HeldCorpusProcedure<TPath extends TrpcProcedurePath> {
+  /** The one-entry route map to spread into `routeTrpc` after the served set, so this path is held. */
+  readonly routes: TrpcRoutes<TPath>;
+  /** Resolves once the client's request has reached the stub. */
+  readonly requested: Promise<void>;
+  /** Answer the held request with the server's output for the input the client sent. */
+  readonly release: () => void;
+}
+
+/** Hold one procedure's request, then answer it from `caller` like {@link serveCorpusProcedures} once released. */
+export function holdCorpusProcedure<const TPath extends TrpcProcedurePath>(caller: object, path: TPath): HeldCorpusProcedure<TPath> {
+  const call = procedureAt(caller, path);
+  const hold = trpcHold<TPath>();
+  type Release = Parameters<typeof hold.release>[0];
+  let sent: { readonly input: unknown } | null = null;
+  const respond = (input: unknown): unknown => {
+    sent = { input };
+    return hold;
+  };
+  return {
+    routes: { [path]: respond } as TrpcRoutes<TPath>,
+    requested: hold.requested,
+    release: (): void => {
+      if (sent === null) {
+        throw new Error(`${path} was released before it was requested`);
+      }
+      call(sent.input).then(
+        (output) => hold.release(JSON.parse(JSON.stringify(output ?? null)) as Release),
+        (error: unknown) => hold.release(trpcError({ code: failureCode(error), message: String(error) }) as Release),
+      );
+    },
+  };
+}
+
 /**
  * Serve each named procedure from `caller`, a composed root's `internalCallerFor(...)`, with the server's own
  * output for the request the client sent. The answer is held until the server settles, so it can never be a
