@@ -7,7 +7,7 @@ import { PLAN_KIND } from "../contract/vocab.ts";
 import { closesTrailer, driftLines, planWakeConditions, wakeConditions } from "../lib/drift.ts";
 import { splitDocument } from "../lib/frontmatter-write.ts";
 import { planSlugOf } from "../lib/indexes.ts";
-import { basenameOf, padId, parseNumberedName } from "../lib/names.ts";
+import { basenameOf, padId } from "../lib/names.ts";
 import { loadItems } from "./items.ts";
 import { closingCommits, governedPaths, pathExists, readDoc, root, unmergedBranches, workFileNamesAt, worktreeBranches } from "./tree.ts";
 
@@ -73,10 +73,10 @@ export function loadPlans(repoRoot = root): readonly PlanState[] {
   });
 }
 
-/** A `Closes: N` is dropped only when the closer's parent or its own tree held a file for N and none of
- *  those files is today's file for N: a renumbering reused N for a different item, which was never
- *  closed. No file for N in either place (filed later, filed on a merge's other side, a root commit)
- *  keeps the close. Only ids still open on the tree pay for the git reads. */
+/** A `Closes: N` for an item still open counts only when the closer's own tree holds today's file for N
+ *  (`NNNN-slug.md`, the one identity the tree records). A tree with no file for N, or another slug, names
+ *  a different item: the id was reused later and that item was never closed. Only ids still open on the
+ *  tree pay for the git read. */
 function closedOnMain(items: readonly WorkItem[], repoRoot: string): DriftFacts["closedOnMain"] {
   const open = new Map(items.flatMap((item) => (item.state === "done" ? [] : [[item.id, item] as const])));
   return closingCommits(repoRoot).map((commit) => {
@@ -84,13 +84,12 @@ function closedOnMain(items: readonly WorkItem[], repoRoot: string): DriftFacts[
     if (!ids.some((id) => open.has(id))) {
       return { sha: commit.sha, ids };
     }
-    const names = [...workFileNamesAt(`${commit.sha}^`, repoRoot), ...workFileNamesAt(commit.sha, repoRoot)];
+    const names = workFileNamesAt(commit.sha, repoRoot);
     return {
       sha: commit.sha,
       ids: ids.filter((id) => {
         const item = open.get(id);
-        const then = names.filter((name) => parseNumberedName(name)?.id === id);
-        return item === undefined || then.length === 0 || then.includes(basenameOf(item.path));
+        return item === undefined || names.includes(basenameOf(item.path));
       }),
     };
   });
