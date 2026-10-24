@@ -18,7 +18,11 @@ The handle alphabet and the synthetic-row exclusion hold only where findByHandle
 
 ## Done when
 
-The handoff copy derives the handle through portableCharacterHandle; the three exporters write portableCharacterHandle; the databank and imagery restore lookups exclude synthetic rows (or filter handles through carriedHandle); red-first tests for a legacy-handle handoff, a legacy-handle gallery/databank/imagery round trip, and a crafted **group** handle in a databank and an imagery restore.
+The handoff copy derives the handle through portableCharacterHandle; the three exporters write portableCharacterHandle; the databank and imagery restore lookups exclude synthetic rows (or filter handles through carriedHandle); the alphabet and `slugifyHandle` exclude the invisible code points D257 refuses, with a contract test that enumerates them; red-first tests for a legacy-handle handoff, a legacy-handle gallery/databank/imagery round trip, and a crafted **group** handle in a databank and an imagery restore.
+
+## Owner ruling
+
+2026-10-24: character handles follow the D257 invisible-character rule. `slugifyHandle` drops invisible code points and `SLUG_HANDLE_PATTERN` refuses them; a name made only of invisibles takes the existing empty-slug path. Legacy reads stay length-only.
 
 ## Evidence
 
