@@ -17,11 +17,10 @@
 // last (`findImportedCharacter`).
 
 import type { AttachedBookRef } from "@orb/contracts/character";
-import { pluginImportedFrom } from "@orb/contracts/character";
+import { deriveCharacterHandle, pluginImportedFrom } from "@orb/contracts/character";
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { CharacterHandle, CharacterId, RegexScriptId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { isPng } from "@orb/kit/png-card-chunk";
 import { fileStem } from "@orb/kit/strings";
 import { ImportCardError } from "../contract/errors.ts";
@@ -51,7 +50,7 @@ async function freeHandle(ctx: ImportContext, base: CharacterHandle): Promise<Ch
   let handle: CharacterHandle = base;
   let n = 2;
   while ((await ctx.findByHandle({ ownerId: ctx.ownerId, handle })) !== null) {
-    handle = castId<CharacterHandle>(`${base}-${n}`);
+    handle = deriveCharacterHandle(base, `-${n}`);
     n += 1;
   }
   return handle;

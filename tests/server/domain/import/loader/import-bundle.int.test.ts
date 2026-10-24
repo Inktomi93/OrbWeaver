@@ -5,10 +5,10 @@
 // @subject packages/server/src/domain/import/substrate/handle.ts
 // @subject packages/server/src/domain/settings/verbs/import-user-settings.ts
 
-import { createCharacterSchema } from "@orb/contracts/character";
+import { CHARACTER_HANDLE_WIRE_KEY, characterCardV3Schema, characterHandleSchema, createCharacterSchema } from "@orb/contracts/character";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { importStartedSchema } from "@orb/contracts/import";
-import type { PortableKind } from "@orb/contracts/portability";
+import type { PortableImportOutcome, PortableKind } from "@orb/contracts/portability";
 import type { CharacterHandle, WorkloadId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { createSeededIds } from "@orb/testkit/iso";
@@ -90,6 +90,75 @@ test("a chat restores with its character when the character's handle is not the 
     outcome: { status: "succeeded", failed: 0 },
     handles: [CHOSEN_HANDLE],
     transcripts: [lines.map((line) => line.content)],
+  });
+});
+
+/** A real exported card of a fresh character, as JSON, with its carried handle replaced by `handle`. */
+async function cardCarrying(
+  root: ServerTestHarness,
+  input: { readonly handle: string; readonly name: string; readonly description: string },
+  carried: string,
+): Promise<Uint8Array> {
+  const created = await root.services.character.create({
+    principal: await root.principalFor(root.ownerId),
+    input: createCharacterSchema.parse({ handle: input.handle, name: input.name, description: input.description }),
+  });
+  const response = await root.http.request(`/api/export/character/${created.id}?format=json`);
+  expect(response.status).toBe(200);
+  const card = characterCardV3Schema.parse(await response.json());
+  return new TextEncoder().encode(JSON.stringify({ ...card, data: { ...card.data, [CHARACTER_HANDLE_WIRE_KEY]: carried } }));
+}
+
+/** Restore one card file through the production character descriptor the bundle loader routes it to. */
+async function restoreCard(root: ServerTestHarness, filename: string, bytes: Uint8Array): Promise<PortableImportOutcome> {
+  const descriptor = root.app.portability.find((entity) => entity.kind === "character");
+  if (descriptor === undefined) {
+    throw new Error("production composition has no character portability descriptor");
+  }
+  return await descriptor.importFile(root.ownerId, { filename, bytes });
+}
+
+test("a carried handle that is not a minted slug restores under the name slug, and the next library export still succeeds", async () => {
+  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  const card = await cardCarrying(source, { handle: "wanderer", name: "Wanderer", description: "A wanderer maps the outer rings." }, "..");
+
+  await using target = await signedInBox();
+  const outcome = await restoreCard(target, "wanderer.json", card);
+  const caller = await target.internalCallerFor(target.ownerId);
+  const handles = (await caller.character.list({})).items.filter((item) => item.name === "Wanderer").map((item) => item.handle);
+  expect({ outcome, handles }).toEqual({ outcome: { ok: true, created: true }, handles: ["wanderer"] });
+  await seedTranscript(target, {
+    ownerId: target.ownerId,
+    characterHandles: [castId<CharacterHandle>("wanderer")],
+    lines: [{ role: "user", content: "Where does the ring end?" }],
+  });
+  expect((await exportLibrary(target, ["character", "chat"])).byteLength).toBeGreaterThan(0);
+});
+
+test("two different cards carrying one over-long handle both restore inside the handle cap", async () => {
+  const cap = characterHandleSchema.in.maxLength;
+  if (cap === null) {
+    throw new Error("the handle contract states no length cap");
+  }
+  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  // At the cap exactly: a collision suffix appended to it would overflow the contract.
+  const longHandle = "a".repeat(cap);
+  const first = await cardCarrying(source, { handle: "twin", name: "Twin", description: "The elder twin keeps the lamps." }, longHandle);
+  const second = await cardCarrying(source, { handle: "twin-b", name: "Twin", description: "The younger twin trims the wicks." }, longHandle);
+
+  await using target = await signedInBox();
+  const outcomes = [await restoreCard(target, "twin.json", first), await restoreCard(target, "twin-b.json", second)];
+  const handles = (await (await target.internalCallerFor(target.ownerId)).character.list({})).items
+    .filter((item) => item.name === "Twin")
+    .map((item) => item.handle);
+
+  expect({ outcomes, handles: handles.toSorted(), withinCap: handles.every((handle) => characterHandleSchema.safeParse(handle).success) }).toEqual({
+    outcomes: [
+      { ok: true, created: true },
+      { ok: true, created: true },
+    ],
+    handles: ["twin", "twin-2"],
+    withinCap: true,
   });
 });
 
