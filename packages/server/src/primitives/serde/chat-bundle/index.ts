@@ -180,6 +180,15 @@ export interface PortableRpgGame {
   readonly checkpoints: readonly PortableRpgCheckpoint[];
 }
 
+/** The import identity of the card exported beside one seat (`characterHandles` entry `handle`): the three
+ *  hashes the character restore looks a card up by, so the seat binds to whatever that card restored as. */
+export interface PortableSeatCard {
+  readonly handle: string;
+  readonly importHash: string;
+  readonly textHash: string;
+  readonly fileHash: string;
+}
+
 /** One chat, whole. `characterHandles` is the seated cast with the PRIMARY first (the run's fallback voice);
  *  `importHash` is the per-chat dedup oracle that makes a re-import idempotent instead of duplicating. */
 export interface PortableChat {
@@ -199,6 +208,8 @@ export interface PortableChat {
   readonly userMacroValues: z.infer<typeof userMacroValuesSchema> | null;
   readonly anchorPersonaName: string | null;
   readonly characterHandles: readonly string[];
+  /** Absent from a bundle written before seats carried their card identity; those seats bind by handle. */
+  readonly seatCards?: readonly PortableSeatCard[];
   readonly tagNames: readonly string[];
   readonly injections: readonly PortableChatInjection[];
   readonly messages: readonly PortableChatMessage[];
@@ -333,6 +344,11 @@ const wireChatSchema = z.object({
   userMacroValues: userMacroValuesSchema.nullish().catch(null),
   anchorPersonaName: z.string().nullish().catch(null),
   characterHandles: z.array(z.string().trim().min(1)).catch([]),
+  // A malformed list degrades to the handle binding an older bundle gets, never a refused chat.
+  seatCards: z
+    .array(z.object({ handle: z.string().trim().min(1), importHash: z.string().min(1), textHash: z.string().min(1), fileHash: z.string().min(1) }))
+    .optional()
+    .catch(undefined),
   tagNames: z.array(z.string().trim().min(1)).catch([]),
   injections: z.array(wireInjectionSchema).catch([]),
   messages: z.array(wireMessageSchema),
@@ -548,6 +564,7 @@ const chatBundleSerde = defineJsonObjectSerde<PortableChat, WireChat>({
     userMacroValues: chat.userMacroValues,
     anchorPersonaName: chat.anchorPersonaName,
     characterHandles: [...chat.characterHandles],
+    ...(chat.seatCards === undefined ? {} : { seatCards: chat.seatCards.map((card) => ({ ...card })) }),
     tagNames: [...chat.tagNames],
     injections: chat.injections.map((i) => ({
       position: i.position,
@@ -595,6 +612,7 @@ const chatBundleSerde = defineJsonObjectSerde<PortableChat, WireChat>({
       userMacroValues: body.userMacroValues ?? null,
       anchorPersonaName: body.anchorPersonaName ?? null,
       characterHandles: body.characterHandles,
+      ...(body.seatCards === undefined ? {} : { seatCards: body.seatCards }),
       tagNames: body.tagNames,
       injections: body.injections.map(
         (i): PortableChatInjection => ({

@@ -90,7 +90,7 @@ import type { EmbeddingsIndexer, EmbeddingsService } from "#domain/embeddings";
 import { createRecordUsage, createResolveEmbeddingConnection, createVectorSweepOps } from "#domain/embeddings";
 import type { ExportService } from "#domain/export";
 import { createImageryPortability } from "#domain/imagery";
-import { buildImportContext, createInstallerCharacterImport, serializeImportCard } from "#domain/import";
+import { buildImportContext, cardPngIdentity, createInstallerCharacterImport, serializeImportCard } from "#domain/import";
 import type { DefaultPersonaSeeder, ResolvePersonasForParticipants } from "#domain/persona";
 import { createSeedPersonaWithCompletion } from "#domain/persona";
 import type { DistributedPluginApplier, PluginHostOps } from "#domain/plugin";
@@ -941,6 +941,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // R6 — the chat-anchored campaign READ the orb-native chat-bundle export carries. A standalone factory
     // (db only), so it wires here rather than waiting on the rpg compose seam below.
     exportRpgGame: createExportRpgGame({ db }),
+    cardPngIdentity,
     serverRestart: deps.serverRestart,
   });
 

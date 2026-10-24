@@ -53,6 +53,8 @@ export interface AdminComposeDeps {
   readonly exportCardScripts: Parameters<typeof createExportService>[0]["exportCardScripts"];
   /** R6: the chat-anchored rpg CAMPAIGN read the orb-native chat-bundle export carries. */
   readonly exportRpgGame: Parameters<typeof createExportService>[0]["exportRpgGame"];
+  /** The character restore's card identity, so an exported chat seat names the row its card restores as. */
+  readonly cardPngIdentity: Parameters<typeof createExportService>[0]["cardPngIdentity"];
   /** The process restart `admin.restart` drives; the lifecycle owns the close and the exit. */
   readonly serverRestart: ServerRestartPort;
 }
@@ -106,6 +108,7 @@ export function buildAdmin(deps: AdminComposeDeps): AdminComposeResult {
     imageTransform: deps.imageTransform,
     exportCardScripts: deps.exportCardScripts,
     exportRpgGame: deps.exportRpgGame,
+    cardPngIdentity: deps.cardPngIdentity,
   });
 
   return { admin, toolUse, exportService };

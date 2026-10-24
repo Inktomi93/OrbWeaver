@@ -11,6 +11,7 @@
 // `expectedBasis`, and only then does the write carry the basis predicates (`persistence/card.ts`) and
 // refuse TOTALLY with `CHARACTER_STALE_BASIS` rather than overwrite the edit that landed in between.
 
+import { characterHandleSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import { backgroundMaterializeMessage } from "@orb/contracts/theme";
 import type { CharacterId, UserId } from "@orb/kit/ids";
@@ -46,9 +47,13 @@ function changedIdentityFields(input: UpdateCharacterParams["input"], current: R
 }
 
 function guardHandle(input: UpdateCharacterParams["input"]): void {
-  if (input.handle !== undefined && isReservedGroupHandle(input.handle)) {
+  if (input.handle === undefined) {
+    return;
+  }
+  if (isReservedGroupHandle(input.handle)) {
     throw new CharacterOperationError(CHARACTER_HANDLE_RESERVED, `handle "${input.handle}" is reserved for synthetic group characters`);
   }
+  characterHandleSchema.parse(input.handle);
 }
 
 /** Throws CharacterNotFoundError if the row vanished mid-edit. */

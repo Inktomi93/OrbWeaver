@@ -21,7 +21,7 @@ import { isPng } from "@orb/kit/png-card-chunk";
 import type { RestoreCharacterBookInput } from "../contract/params.ts";
 import type { RestoreCharacterBookResult } from "../contract/results.ts";
 import type { ImportContext, ImportService } from "../contract/service.ts";
-import { findImportedCharacter, parseCardJson, parseCardPng, parsedCardImportHash, parsedCardTextHash } from "../substrate/card.ts";
+import { findImportedCharacter, importFileHash, parseCardJson, parseCardPng, parsedCardImportHash, parsedCardTextHash } from "../substrate/card.ts";
 
 const FALLBACK_NAME = "Imported Character";
 
@@ -43,7 +43,7 @@ export function createRestoreCharacterBook(ctx: ImportContext): Pick<ImportServi
     const found = await findImportedCharacter((importHash) => ctx.findByImportHash({ ownerId: ctx.ownerId, importHash }), {
       importHash: parsedCardImportHash(parsed),
       textHash: parsedCardTextHash(parsed),
-      bytes,
+      fileHash: importFileHash(bytes),
     });
     const characterId = found?.characterId ?? null;
     if (characterId === null) {
