@@ -1,5 +1,4 @@
-// THE CONTAINMENT ANCHOR (#1765, closing the tautology #1754's regex-section lane found live —
-// cb-regex-label, 697516da3): "does this element actually fit inside a REAL fixed-width box?"
+// THE CONTAINMENT ANCHOR: "does this element actually fit inside a REAL fixed-width box?"
 //
 // THE FAILURE THIS REPLACES. A `boundingBox()` comparison anchored at a BLOCK CONTAINER (a `<Stack>`/
 // `<div>` with no `width`/`max-width` of its own) is tautological — the container's own box GROWS to wrap

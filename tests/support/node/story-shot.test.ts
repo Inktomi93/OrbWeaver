@@ -1,4 +1,4 @@
-// THE STORY-SHOT FAMILY (#1201) — the planted-control proof that a CT/e2e screenshot cannot rewrite a
+// THE STORY-SHOT FAMILY — the planted-control proof that a CT/e2e screenshot cannot rewrite a
 // FINISHED instrument run's evidence.
 //
 // WHY A CONTROL AND NOT JUST A STRING ASSERTION: the claim under test is about the FILESYSTEM, not about a
@@ -11,7 +11,7 @@ import { join } from "node:path";
 import { expect, test } from "vitest";
 import { STORY_SHOT_DIR, storyShot } from "./story-shot.ts";
 
-/** Every `reports/` family that publishes `latest` POINTERS (#1029/#1164). A story shot landing in one of
+/** Every `reports/` family that publishes `latest` POINTERS. A story shot landing in one of
  *  these is the defect: the write follows the alias into whichever run it names. */
 const POINTER_FAMILIES = ["reports/snaps", "reports/traces", "reports/baselines", "reports/design-audit", "reports/perf-meter", "reports/recordings"];
 

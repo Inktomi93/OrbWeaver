@@ -1,5 +1,5 @@
-// CT: `expectContainedWithin` (contained-within.ts, #1765) — the containment anchor that closes the
-// `boundingBox()`-on-a-block-container tautology #1754's regex-section lane found live. Both fixture
+// CT: `expectContainedWithin` (contained-within.ts) — the containment anchor that closes the
+// `boundingBox()`-on-a-block-container tautology. Both fixture
 // toggles are proven to be caught, and only through the metric each one actually escapes on
 // (contained-within-fixtures.tsx's header states which); the non-ancestor arm proves the anchor check
 // fires before any measurement, never after.

@@ -70,10 +70,9 @@ describe("the owner happy path", () => {
 // the arms split: the refusal MESSAGE is pinned at the fixture value, and the WIRING is pinned through the
 // verb by substituting the transport and reading the substituted answer back.
 //
-// WHY THIS IS PINNED. `InferenceDeps.sdkFetch` used to be optional with a `?? globalThis.fetch` fallback, and
-// `buildBackends` resolves it ONCE during the `app` fixture's own `createServices()` — before any test body
-// runs. A composed-real test therefore could not spy the transport, and one silently reached a real vLLM
-// engine listening on this box and asserted against its real answer.
+// WHY THIS IS PINNED. `buildBackends` resolves `InferenceDeps.sdkFetch` ONCE during the `app` fixture's own
+// `createServices()` — before any test body runs. A fallback to `globalThis.fetch` would leave a composed-real
+// test unable to spy the transport and let it reach a real engine listening on the box.
 const DRAFT_ENDPOINT = "https://models.example.invalid/v1";
 const DRAFT_PROVIDER = "custom-openai";
 

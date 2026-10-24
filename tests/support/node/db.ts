@@ -272,12 +272,11 @@ function heldBatch(invoke: (args: unknown[]) => unknown, current: () => Statemen
 }
 
 /** Proxy shape mirrors {@link countingClient}: bind all private-field methods to the target and intercept
- *  `execute` AND `batch` — the two planes a real statement can arrive on (#1549). A held invocation has
+ *  `execute` AND `batch` — the two planes a real statement can arrive on. A held invocation has
  *  not entered SQLite yet, so unrelated statements can establish the exact mid-race state before release.
- *  Before this, only `execute` was intercepted: a hold armed for a statement that only ever runs inside
- *  `db.batch` (a common `refinery`/`chat` write shape) never saw it — `execute` never fired,
- *  `gate.remaining` never decremented, and the pin hung to the 5s vitest timeout instead of fencing
- *  anything, which reads as "flaky", not "the fence is on the wrong plane". */
+ *  Intercepting only `execute` would miss a statement that only ever runs inside `db.batch`: the gate
+ *  would never decrement and the pin would hang to the vitest timeout, which reads as "flaky", not "the
+ *  fence is on the wrong plane". */
 function holdingClient<T extends object>(client: T, current: () => StatementGate | undefined): T {
   return new Proxy(client, {
     get(target, prop): unknown {

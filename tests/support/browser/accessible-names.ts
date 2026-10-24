@@ -123,7 +123,7 @@ export async function labelInNameFindings(root: Locator | Page): Promise<readonl
        * The control's VISIBLE label: its text with the `aria-describedby` target and every `aria-hidden`
        * subtree removed. TEXT NODES ARE JOINED WITH A SPACE, never read via `textContent`: two sibling
        * `<span>`s reading "Talks" and "50%" concatenate to "Talks50%", which mints the phantom word
-       * "talks50" and misses the real one — measured on the Members row, 2026-08-07.
+       * "talks50" and misses the real one.
        */
       const visibleLabelOf = (node: Element): string => {
         const clone = node.ownerDocument.importNode(node, true);
@@ -152,7 +152,7 @@ export async function labelInNameFindings(root: Locator | Page): Promise<readonl
           continue;
         }
         const visible = visibleLabelOf(node);
-        // TOKENS, NOT SUBSTRINGS (#1492). `lowered.includes(word)` passed the visible word "art" against
+        // TOKENS, NOT SUBSTRINGS. `lowered.includes(word)` passed the visible word "art" against
         // the accessible name "cart" — WCAG 2.5.3 is about the WORD appearing in the name, and a check
         // that accepts any name merely CONTAINING the letters reports a clean row for a real violation.
         // Both sides are tokenized with the SAME regex, so "Add to cart" still matches "add to cart" and
@@ -179,9 +179,6 @@ export async function labelInNameFindings(root: Locator | Page): Promise<readonl
 
 /** Runs BOTH engines over the page and returns every finding, newest lens last.
  *
- * NO HARNESS CARVE-OUT. There used to be one: `ct-providers.tsx` mounted a `<Toaster />` for EVERY CT
- * (its `region "Alerts"`) while a story ending in a `notify.*` call mounted its own, so two identically
- * named live regions were a HARNESS fact and `duplicate-landmark "Alerts"` had to be filtered out. The
- * harness stopped mounting a global outlet in #247, so — exactly as that carve-out's own note required —
- * the list is deleted rather than grown, and a duplicate "Alerts" is a real finding again. */
+ * NO HARNESS CARVE-OUT. `ct-providers.tsx` mounts no global toast outlet, so a duplicate
+ * `duplicate-landmark "Alerts"` is a real finding, never a harness fact to filter. */
 /** Formats findings for an `expect(...)` message that points straight at the fix site. */

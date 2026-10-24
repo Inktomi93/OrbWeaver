@@ -1,9 +1,8 @@
-// A SETTLED proof for a TRANSIENT status lie (issue #81 P0). The defect — "Saved" rendered over text that
+// A SETTLED proof for a TRANSIENT status lie. The defect — "Saved" rendered over text that
 // is still sitting in the autosave debounce window — is a WINDOW, not a resting state: by the time the
 // debounced write lands, every editor legitimately reads "Saved" again. A polled `expect` cannot pin it
-// (on the defective tree the poll races a ~500ms window and reads the same word at both ends), and
-// asserting a state that only exists mid-flight is exactly the CT flake class this repo has already paid
-// for twice.
+// (the poll races a ~500ms window and reads the same word at both ends), and
+// asserting a state that only exists mid-flight is a CT flake class.
 //
 // So the browser records the transition itself. A MutationObserver on the document writes every DISTINCT
 // value of the one `[data-slot="autosave-status"]` readout into a sink; the test starts the recorder,
