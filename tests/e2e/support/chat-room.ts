@@ -16,15 +16,16 @@
 //     visible is unambiguous proof regardless of the list-vs-header duplication.
 //   • Rename/Star live behind the ⋯ "Chat options" menu (chat-options-menu.tsx) + the per-row kebab "Chat
 //     actions" menu (chat-list-row-menu.tsx). Rename opens a Dialog with an `aria-label="Chat title"` input.
-//   • stream-open is observed via the production `data-room-attached` attribute on the transcript surface
-//     (message-list-surface.tsx); orb has no `chat-stream-state` testid.
+//   • stream-open is observed on the wire (`stream-tap.ts`: the room's `chatOpened` frame); orb has no
+//     `chat-stream-state` testid.
 
 import { rowActionsName } from "@orb/client/lib";
-import type { MessageId } from "@orb/kit/ids";
+import type { ChatId, MessageId } from "@orb/kit/ids";
 import { HOST_BAND, openContextSections } from "@orb/testkit/ct";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
+import { streamTapOf, waitForRoomOpened } from "./stream-tap.ts";
 import { WAIT_SETTLE_MS, WAIT_SHORT_MS, WAIT_STREAM_MS, WAIT_SURFACE_MS } from "./timeouts.ts";
 
 // The character row's chat affordance (character-card.tsx `NormalRowActions`): the dual-purpose resume-or-new
@@ -36,7 +37,6 @@ import { WAIT_SETTLE_MS, WAIT_SHORT_MS, WAIT_STREAM_MS, WAIT_SURFACE_MS } from "
 const CHARACTER_ROW_CHAT_CTA = /^Chat with /u;
 const APP_READY_ATTRIBUTE = "data-app-ready";
 const APP_READY = `html[${APP_READY_ATTRIBUTE}]`;
-const ROOM_ATTACHED = "[data-room-attached]";
 const BOOTSTRAP_MESSAGE = "Hi";
 // Wait for the lazy Chats surface without replaying the navigation action.
 const CHAT_SURFACE_TIMEOUT = budget(45_000);
@@ -82,11 +82,11 @@ export async function waitForAppReady(page: Page, timeout = 30_000): Promise<voi
   }
 }
 
-/** Wait until the open room's chat-bus stream has answered its attach (the transcript surface carries
- *  `data-room-attached`) — the deterministic "subscribed" gate before mutating, so a `chatUpdated` event
- *  always has a subscriber. */
-export async function waitForStreamOpen(page: Page): Promise<void> {
-  await expect(page.locator(ROOM_ATTACHED)).toHaveCount(1, { timeout: WAIT_SURFACE_MS });
+/** Wait until the server has delivered the room's `chatOpened` frame on the live stream — the deterministic
+ *  "subscribed" gate before mutating, so a `chatUpdated` event always has a subscriber. The page needs a
+ *  `tapStream` installed before its first navigation. */
+export async function waitForStreamOpen(page: Page, chatId: ChatId): Promise<void> {
+  await waitForRoomOpened(streamTapOf(page), chatId);
 }
 
 /** The RAIL's "Characters" nav button, scoped to the Primary navigation. The scoping is load-bearing: the

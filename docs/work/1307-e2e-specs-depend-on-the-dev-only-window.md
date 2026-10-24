@@ -23,7 +23,8 @@ Each spec that reads window.\_\_orb waits on a production-visible signal instead
 
 ## Evidence
 
-- `rg __orb tests/e2e` finds nothing. Stream open waits on the production `data-room-attached` attribute on the transcript surface (`useChatBus` returns true once the room's `chatOpened` attach frame arrives). Members tab opens the chat by unique list-row title. The chatUpdated bus-event ring read is replaced by the bus-driven room/list refetch order in the network timeline.
+- `rg __orb tests/e2e` finds nothing, and there is no production change. The live stream is a POST event-stream, not a WebSocket, so `tests/e2e/support/stream-tap.ts` reads its frames through Chromium `Network.streamResourceContent`. Stream open waits on the room's `chatOpened` frame; the rename test waits on the `chatUpdated` frame on the chat room's stream; the live turn spec reads message and turn frame order. The members tab opens the chat by unique list-row title.
 - `CLIENT_BUILD` is a plain production `vite build`.
-- Production build, single-user and local: `event-sequence.spec.ts` and `members-tab-views.local.spec.ts` pass (4 passed). Smoke selection from the design doc: 32 passed, 1 corpus skip, 1 failure in `oidc-pending-join.oidc.spec.ts` (lands signed in on the join dialog instead of `/login?pendingJoin=1`); it fails identically with the old development build, so it is not caused by this item. Corpus: `corpus-home-launch` and `corpus-conversation` pass on `corpus-desktop-bubble`.
+- Production build: `event-sequence.spec.ts` and `members-tab-views.local.spec.ts` pass (4 passed). Control: with the chat-room `chatUpdated` emit removed from `hostRowUpdate`, the rename test fails (`chatUpdated` never arrives); the emit is restored. Smoke selection: 32 passed, 1 corpus skip, 1 failure in `oidc-pending-join.oidc.spec.ts`, which fails the same way on the old development build. Corpus: `corpus-home-launch` and `corpus-conversation` pass on `corpus-desktop-bubble`.
+- The `@live` specs were not run (no local engine in the worktree).
 - `pnpm typecheck` exit 0; Biome and ESLint on changed files exit 0.

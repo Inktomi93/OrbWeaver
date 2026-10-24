@@ -7,8 +7,11 @@ import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId, typeIdSchema } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { openOrCreateChat, renameOpenChat, waitForStreamOpen } from "./support/chat-room.ts";
+import { openChatByTitle, renameOpenChat } from "./support/chat-room.ts";
+import type { StreamTap } from "./support/stream-tap.ts";
+import { chatFrameTypes, tapStream, waitForRoomOpened } from "./support/stream-tap.ts";
 import { WAIT_SHORT_MS, WAIT_UI_MS } from "./support/timeouts.ts";
+import { deleteChat, listCharacters, startChat, trpc } from "./support/trpc.ts";
 
 const POST_METHOD = "POST";
 const POST_REQUEST = `→ ${POST_METHOD}`;
@@ -20,6 +23,7 @@ const LIST_MESSAGES = "chat.listMessages";
 const ATTACH = "stream.attach";
 const CONNECT = "stream.connect";
 const UPDATE_TITLE = "chat.updateTitle";
+const CHAT_UPDATED = "chatUpdated";
 
 interface TimelineEntry {
   readonly phase: string;
@@ -28,14 +32,19 @@ interface TimelineEntry {
   readonly batchSize?: number;
 }
 
-// The room the client attached last: its `stream.attach` request names the chat. Read after the room's
-// attach marker is on screen, so the attach request is already in the timeline.
-function openedRoomId(timeline: readonly TimelineEntry[]): ChatId {
-  const attach = timeline.findLast((entry) => entry.phase === POST_REQUEST && entry.procedure === ATTACH && entry.chatId !== undefined);
-  if (attach?.chatId === undefined) {
-    throw new Error("The client sent no chat attach for the rendered room");
+// Seed a uniquely titled chat through the API, open it through the Chats list, and wait for the server's
+// `chatOpened` frame for THAT chat: attaching any other room leaves this wait unmet.
+async function openSeededRoom(page: Page, tap: StreamTap): Promise<ChatId> {
+  const characterId = (await listCharacters())[0]?.id;
+  if (characterId === undefined) {
+    throw new Error("global-setup seeds a character on every stack");
   }
-  return attach.chatId;
+  const chatId = await startChat([characterId]);
+  const title = `e2e-seq-open-${Date.now()}`;
+  await trpc.chat.updateTitle.mutate({ chatId, title });
+  await openChatByTitle(page, title);
+  await waitForRoomOpened(tap, chatId);
+  return chatId;
 }
 
 // The recorder observes the client's raw batch body, so each input stays unknown until one field is read.
@@ -147,53 +156,58 @@ test.describe("order-of-operations", () => {
   });
 
   test("opening a chat reads its room and attaches on the ONE POST socket", async ({ page }) => {
+    const tap = await tapStream(page);
     const timeline = captureTimeline(page);
-    await openOrCreateChat(page);
-    await waitForStreamOpen(page);
-
-    const roomId = openedRoomId(timeline);
-
-    // Mount reads and room attachment dispatch concurrently; each must complete, not win a race.
-    await expect(() => {
-      for (const procedure of [GET_CHAT, LIST_MESSAGES, ATTACH]) {
-        expectInOrder(timeline, [
-          { phase: POST_REQUEST, procedure, chatId: roomId },
-          { phase: OK_RESPONSE, procedure, chatId: roomId },
-        ]);
-      }
-      const socketRequests = timeline.filter((entry) => entry.phase.startsWith("→ ") && entry.procedure === CONNECT);
-      expect(socketRequests.length).toBeGreaterThanOrEqual(1);
-      expect(socketRequests.every((entry) => entry.phase === POST_REQUEST && entry.batchSize === 1)).toBe(true);
-      // StrictMode can cancel a start, but only one socket may successfully open.
-      expect(timeline.filter((entry) => entry.phase === OK_RESPONSE && entry.procedure === CONNECT)).toHaveLength(1);
-    }).toPass({ timeout: WAIT_UI_MS });
+    const roomId = await openSeededRoom(page, tap);
+    try {
+      // Mount reads and room attachment dispatch concurrently; each must complete, not win a race.
+      await expect(() => {
+        for (const procedure of [GET_CHAT, LIST_MESSAGES, ATTACH]) {
+          expectInOrder(timeline, [
+            { phase: POST_REQUEST, procedure, chatId: roomId },
+            { phase: OK_RESPONSE, procedure, chatId: roomId },
+          ]);
+        }
+        const socketRequests = timeline.filter((entry) => entry.phase.startsWith("→ ") && entry.procedure === CONNECT);
+        expect(socketRequests.length).toBeGreaterThanOrEqual(1);
+        expect(socketRequests.every((entry) => entry.phase === POST_REQUEST && entry.batchSize === 1)).toBe(true);
+        // StrictMode can cancel a start, but only one socket may successfully open.
+        expect(timeline.filter((entry) => entry.phase === OK_RESPONSE && entry.procedure === CONNECT)).toHaveLength(1);
+      }).toPass({ timeout: WAIT_UI_MS });
+    } finally {
+      await deleteChat(roomId);
+    }
   });
 
-  // The title mutation is bus-driven (it never invalidates itself), so a room/list refetch after its response
-  // is the chatUpdated delivery reaching the client.
-  test("rename → POST updateTitle → bus-driven POST room/list refetch", async ({ page }) => {
+  // A rename also emits `chatsChanged` on the user room, which alone refetches the room and list reads, so the
+  // refetch order cannot prove chat-room delivery. The `chatUpdated` frame on the chat room's own stream does.
+  test("rename → POST updateTitle → chatUpdated frame on the room's stream → POST room/list refetch", async ({ page }) => {
+    const tap = await tapStream(page);
     const timeline = captureTimeline(page);
-    await openOrCreateChat(page);
-    await waitForStreamOpen(page);
+    const roomId = await openSeededRoom(page, tap);
+    try {
+      const framesBefore = tap.chatFrames.length;
+      const newTitle = `e2e-seq-${Date.now()}`;
+      await renameOpenChat(page, newTitle);
+      await expect(page.getByText(newTitle).first()).toBeVisible({ timeout: WAIT_SHORT_MS });
+      await expect.poll(() => chatFrameTypes(tap, roomId, framesBefore), { timeout: WAIT_UI_MS }).toContain(CHAT_UPDATED);
 
-    const roomId = openedRoomId(timeline);
-    const newTitle = `e2e-seq-${Date.now()}`;
-    await renameOpenChat(page, newTitle);
-    await expect(page.getByText(newTitle).first()).toBeVisible({ timeout: WAIT_SHORT_MS });
-
-    await expect(() => {
-      expectInOrder(timeline, [
-        { phase: POST_REQUEST, procedure: UPDATE_TITLE, chatId: roomId },
-        { phase: OK_RESPONSE, procedure: UPDATE_TITLE, chatId: roomId },
-      ]);
-      // SSE delivery and the mutation response travel independently; neither must arrive first.
-      for (const procedure of [GET_CHAT, LIST_CHATS]) {
+      await expect(() => {
         expectInOrder(timeline, [
           { phase: POST_REQUEST, procedure: UPDATE_TITLE, chatId: roomId },
-          { phase: POST_REQUEST, procedure, ...(procedure === GET_CHAT ? { chatId: roomId } : {}) },
-          { phase: OK_RESPONSE, procedure, ...(procedure === GET_CHAT ? { chatId: roomId } : {}) },
+          { phase: OK_RESPONSE, procedure: UPDATE_TITLE, chatId: roomId },
         ]);
-      }
-    }).toPass({ timeout: WAIT_UI_MS });
+        // SSE delivery and the mutation response travel independently; neither must arrive first.
+        for (const procedure of [GET_CHAT, LIST_CHATS]) {
+          expectInOrder(timeline, [
+            { phase: POST_REQUEST, procedure: UPDATE_TITLE, chatId: roomId },
+            { phase: POST_REQUEST, procedure, ...(procedure === GET_CHAT ? { chatId: roomId } : {}) },
+            { phase: OK_RESPONSE, procedure, ...(procedure === GET_CHAT ? { chatId: roomId } : {}) },
+          ]);
+        }
+      }).toPass({ timeout: WAIT_UI_MS });
+    } finally {
+      await deleteChat(roomId);
+    }
   });
 });

@@ -1,13 +1,15 @@
 // E2E FLAGSHIP (@live): the turn-honesty chain — drive ONE real turn on the local vLLM 8B and prove, against
 // the running system, that what the DOM renders IS what landed in the DB, in order, produced by the local
-// engine. Three links, all asserted on the SAME turn:
+// engine. Four links, all asserted on the SAME turn:
 //   (a) GHOST LIFECYCLE — after send the streaming ghost appears, carries `data-streaming` mid-stream, then
 //       RESOLVES into a durable assistant row (ghost gone, durable row present + non-empty).
 //   (b) DOM↔DB PARITY IN ORDER — the DOM transcript (ordered message-row role+text) equals canon
 //       (chat.listMessages, seq-ascending): same length, pairwise roles, and each user row's text is
 //       contained in the DOM (canon is markdown-RENDERED in the DOM, so we assert containment of the
 //       distinctive user text — see the parity note below for exactly what is compared and why).
-//   (c) ENGINE HONESTY — the local gen engine log (.cache/stack/vllm-gen.log) gained ≥1
+//   (c) BUS EVENT ORDER — the room's chat frames on the live stream (read on the wire) show the turn's real
+//       invalidating sequence: messageCommitted (user) → messageCommitted (assistant) → turnCompleted.
+//   (d) ENGINE HONESTY — the local gen engine log (.cache/stack/vllm-gen.log) gained ≥1
 //       `POST /v1/chat/completions` during the turn, AND the new assistant canon row's `model` is the LOCAL leaf
 //       alias "Qwen3-VL-8B-Instruct" (the served-model-name leaf, vllm-engine.sh) — never a hosted id.
 //
@@ -26,6 +28,7 @@ import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { assistantRows, openNewestChat, typeAndSend, waitForStreamOpen } from "./support/chat-room.ts";
+import { chatFrameTypes, tapStream } from "./support/stream-tap.ts";
 import { WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import { deleteChat, listCanon, listCharacters, startChat } from "./support/trpc.ts";
 
@@ -62,9 +65,10 @@ test("a real turn: ghost resolves, DOM == DB in order, bus order holds, local en
   const characterId = (await listCharacters())[0]?.id ?? castId<CharacterId>("");
   expect(characterId).not.toBe("");
   const chatId = await startChat([characterId]);
+  const tap = await tapStream(page);
   try {
     await openNewestChat(page);
-    await waitForStreamOpen(page);
+    await waitForStreamOpen(page, chatId);
 
     const beforePosts = await genPostCount();
 
@@ -130,7 +134,18 @@ test("a real turn: ghost resolves, DOM == DB in order, bus order holds, local en
     expect(dom[userIdx]?.role).toBe("user");
     expect(dom[userIdx]?.text).toContain(USER_PROMPT);
 
-    // ── (c) ENGINE HONESTY ──
+    // ── (c) BUS EVENT ORDER ──
+    // The room's chat frames on the wire, in order: user commit and assistant commit, both before turnCompleted.
+    // turnStarted and delta frames also ride the wire; only the invalidating events are pinned here.
+    await expect.poll(async () => chatFrameTypes(tap, chatId), { timeout: WAIT_SURFACE_MS }).toContain("turnCompleted");
+    const events = chatFrameTypes(tap, chatId);
+    const commitIdxs = events.flatMap((t, i) => (t === "messageCommitted" ? [i] : []));
+    const completeIdx = events.lastIndexOf("turnCompleted");
+    expect(commitIdxs.length).toBeGreaterThanOrEqual(2); // user + assistant commits
+    expect(commitIdxs[0]).toBeLessThan(completeIdx);
+    expect(commitIdxs.at(-1)).toBeLessThan(completeIdx);
+
+    // ── (d) ENGINE HONESTY ──
     // The local gen engine logged ≥1 message-POST during the turn (real local traffic, not a hosted call).
     await expect.poll(async () => genPostCount(), { timeout: WAIT_SURFACE_MS }).toBeGreaterThan(beforePosts);
     // The freshly-generated assistant canon row is stamped with the LOCAL leaf model alias — NOT a hosted id.

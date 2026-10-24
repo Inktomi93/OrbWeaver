@@ -56,7 +56,7 @@
 // replay does not already carry.
 
 import type { ChatId } from "@orb/kit/ids";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { busSubscribe, busUnsubscribe, notify } from "#lib";
 import type { ChatBusDeps } from "./apply-chat-bus-event.ts";
 import { applyChatBusEvent } from "./apply-chat-bus-event.ts";
@@ -78,11 +78,8 @@ const seqGuard = createChatEventSeqGuard();
 // What covers the equivalent gap now is the CANON READ, not a replay: `startChat` seeds the greeting rows
 // server-side BEFORE the client can attach, and the room's own `listMessages` fetch at mount carries them.
 
-/** Attach the room's live event stream and reduce it into client state. Mount once per open chat.
- *  Returns whether the server has answered this room's attach (its `chatOpened` frame arrived), so the surface
- *  can state that the room is live. */
-export function useChatBus(chatId: ChatId, deps: ChatBusDeps): boolean {
-  const [openedChatId, setOpenedChatId] = useState<ChatId | null>(null);
+/** Attach the room's live event stream and reduce it into client state. Mount once per open chat. */
+export function useChatBus(chatId: ChatId, deps: ChatBusDeps): void {
   // THE ATTACH FLOOR (see the header) — the room's durable high-water as of THIS client's attach, learned
   // from the `chatOpened` synthetic's own frame seq. A REF, not state: it feeds the `sinceSeq` THUNK (re-read
   // at every re-announce) and never a render, so adopting it must not re-render the room.
@@ -103,7 +100,6 @@ export function useChatBus(chatId: ChatId, deps: ChatBusDeps): boolean {
         // the cursor a reconnect needs before this client has applied a durable frame. Monotonic client-side
         // too: a later attach never lowers it.
         if (frame.event.type === "chatOpened") {
-          setOpenedChatId(chatId);
           attachFloor.current = Math.max(attachFloor.current ?? 0, frame.seq);
         }
         // Drop a stale re-delivery (a from-zero replay on re-attach) before it reaches the reducer — a
@@ -127,5 +123,4 @@ export function useChatBus(chatId: ChatId, deps: ChatBusDeps): boolean {
       sinceSeq: (): number | null => seqGuard.highWater(chatId) ?? attachFloor.current,
     },
   );
-  return openedChatId === chatId;
 }

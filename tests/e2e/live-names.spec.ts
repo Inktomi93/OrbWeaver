@@ -16,6 +16,7 @@ import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { openNewestChat, renameOpenChat, reopenFirstChat, typeAndSend, waitForStreamOpen } from "./support/chat-room.ts";
+import { tapStream } from "./support/stream-tap.ts";
 import { WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS, WAIT_SHORT_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import { deleteChat, listCharacters, startChat } from "./support/trpc.ts";
 
@@ -42,9 +43,10 @@ test("row speaker names are DB-true and survive a chat rename + reload", {
   const characterId = (await listCharacters())[0]?.id ?? castId<CharacterId>("");
   expect(characterId).not.toBe("");
   const chatId = await startChat([characterId]);
+  await tapStream(page);
   try {
     await openNewestChat(page);
-    await waitForStreamOpen(page);
+    await waitForStreamOpen(page, chatId);
 
     // The committed chat opens with a character; capture its speaker name from the seeded assistant greeting
     // row (present before any turn). This is the CHARACTER name the assistant rows must show.

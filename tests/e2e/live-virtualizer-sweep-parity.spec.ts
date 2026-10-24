@@ -15,6 +15,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { gotoChatsList, waitForStreamOpen } from "./support/chat-room.ts";
+import { tapStream } from "./support/stream-tap.ts";
 import { WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import { listCanon, listCharacters, sendTurn, startChat, trpc } from "./support/trpc.ts";
 import { assertVirtualListMatchesCanon, collectVirtualRows } from "./support/virtualizer.ts";
@@ -47,12 +48,13 @@ test("collectVirtualRows sweeps a transcript longer than the viewport and matche
   const chatTitle = `sweep-parity-${Date.now()}`;
   await trpc.chat.updateTitle.mutate({ chatId, title: chatTitle });
 
+  await tapStream(page);
   await gotoChatsList(page);
   const targetRow = page.getByRole("list", { name: "Chats list" }).getByRole("button", { name: new RegExp(chatTitle, "u") });
   await expect(targetRow).toBeVisible({ timeout: WAIT_SURFACE_MS });
   await targetRow.click();
   await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: WAIT_SURFACE_MS });
-  await waitForStreamOpen(page);
+  await waitForStreamOpen(page, chatId);
 
   // Prove the windowed DOM genuinely does NOT show every row at rest (the sweep is load-bearing, not a
   // no-op on an already-fully-mounted list).
