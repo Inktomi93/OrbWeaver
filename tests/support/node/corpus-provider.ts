@@ -1,9 +1,7 @@
 // Only raw vendor HTTP bytes vary. Resolution, structured validation, vector decoding and accounting stay real.
 import { createHash } from "node:crypto";
-import { getLog } from "@orb/server/foundation/observability";
-import { drainHttpServer, serveHttpServer } from "@orb/server/infra/network";
-import { systemTimers } from "@orb/server/infra/timers";
 import { z } from "zod";
+import { servePhysicalPeer } from "./physical-peer.ts";
 import type { TerminalFrameOptions } from "./provider-stream.ts";
 import { terminalSseLine } from "./provider-stream.ts";
 
@@ -325,53 +323,37 @@ export interface CorpusProviderServer extends AsyncDisposable {
 /** Bind only a dynamically allocated loopback socket; errors never echo request bodies or credentials. */
 export async function createCorpusProviderServer(createExecution: (baseUrl: string) => Promise<CorpusProviderExecution>): Promise<CorpusProviderServer> {
   let execution: CorpusProviderExecution | undefined;
-  const listener = Promise.withResolvers<string>();
-  const server = serveHttpServer(
-    {
-      hostname: "127.0.0.1",
-      port: 0,
-      fetch: async (request): Promise<Response> => {
-        try {
-          if (execution === undefined) {
-            return new Response("Corpus provider is starting", { status: 503 });
+  await using construction = new AsyncDisposableStack();
+  // biome-ignore lint/nursery/useDisposables: construction owns this peer and construction.move transfers it to the returned server; local using would close it before return.
+  const peer = await servePhysicalPeer(async (request): Promise<Response> => {
+    try {
+      if (execution === undefined) {
+        return new Response("Corpus provider is starting", { status: 503 });
+      }
+      const chunks: Uint8Array[] = [];
+      let length = 0;
+      if (request.body !== null) {
+        for await (const chunk of request.body) {
+          length += chunk.byteLength;
+          if (length > CORPUS_PROVIDER_BODY_LIMIT_BYTES) {
+            return new Response("Corpus provider request is too large", { status: 413 });
           }
-          const chunks: Uint8Array[] = [];
-          let length = 0;
-          if (request.body !== null) {
-            for await (const chunk of request.body) {
-              length += chunk.byteLength;
-              if (length > CORPUS_PROVIDER_BODY_LIMIT_BYTES) {
-                return new Response("Corpus provider request is too large", { status: 413 });
-              }
-              chunks.push(chunk);
-            }
-          }
-          return await execution.execute(request.url, {
-            method: request.method,
-            signal: request.signal,
-            ...(chunks.length === 0 ? {} : { body: Buffer.concat(chunks) }),
-          });
-        } catch {
-          // Invalid or unscripted physical input is a failed request, never a server crash or a private diagnostic.
-          return new Response("Corpus provider rejected an unscripted request", { status: 400 });
+          chunks.push(chunk);
         }
-      },
-    },
-    (address) => listener.resolve(`http://127.0.0.1:${address.port}/v1`),
-  );
-  server.once("error", listener.reject);
-  let disposal: Promise<void> | undefined;
-  const dispose = (): Promise<void> => {
-    // The real deadline, chosen: this physical peer serves live provider streams, and the forced close is its only bound.
-    disposal ??= drainHttpServer(server, getLog(), systemTimers.timeout);
-    return disposal;
-  };
-  try {
-    const baseUrl = await listener.promise;
-    execution = await createExecution(baseUrl);
-    return { baseUrl, requests: execution.requests, [Symbol.asyncDispose]: dispose };
-  } catch (error) {
-    await dispose();
-    throw error;
-  }
+      }
+      return await execution.execute(request.url, {
+        method: request.method,
+        signal: request.signal,
+        ...(chunks.length === 0 ? {} : { body: Buffer.concat(chunks) }),
+      });
+    } catch {
+      // Invalid or unscripted physical input is a failed request, never a server crash or a private diagnostic.
+      return new Response("Corpus provider rejected an unscripted request", { status: 400 });
+    }
+  });
+  construction.use(peer);
+  const baseUrl = `${peer.origin}/v1`;
+  execution = await createExecution(baseUrl);
+  const lifetime = construction.move();
+  return { baseUrl, requests: execution.requests, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
 }

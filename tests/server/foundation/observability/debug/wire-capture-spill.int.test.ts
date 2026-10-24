@@ -7,8 +7,8 @@ import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { promisify } from "node:util";
 import { wireCaptureSchema } from "@orb/contracts/debug";
-import { DATA_LAYOUT_DIRS, resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { expect, test } from "@orb/testkit/node";
+import { createTestEnv } from "@orb/testkit/node/composed";
 
 const SPILL_FILE = "captures.jsonl";
 // A stack started from a checkout used to spill here; private request bodies must never reach it.
@@ -28,11 +28,14 @@ test("a wire capture spills under the data root and never into the process check
     const checkoutBefore = await sizeOf(CHECKOUT_SPILL);
     const { createWireCaptureSpill, recordWireCapture } = await import("@orb/server/foundation/observability");
     const marker = `spill-witness-${dataDir.split("-").at(-1) ?? ""}`;
+    // The data layout a root's parsed record resolves for this data root, as boot hands it to the spill.
+    const layout = createTestEnv({ ["DATA_DIR"]: dataDir }).DATA_LAYOUT;
     recordWireCapture(
       wireCaptureSchema.parse({ api: "chat", wire: "literal", providerId: "spill-witness", model: marker, at: 1, body: { marker } }),
-      createWireCaptureSpill(resolveDataLayout({ ["DATA_DIR"]: dataDir }).wireCapture),
+      createWireCaptureSpill(layout.wireCapture),
     );
-    const spilled = join(dataDir, DATA_LAYOUT_DIRS.wireCapture, SPILL_FILE);
+    const spilled = join(layout.wireCapture, SPILL_FILE);
+    expect(spilled.startsWith(dataDir)).toBe(true);
     await expect.poll(() => sizeOf(spilled)).toBeGreaterThan(0);
     expect(await readFile(spilled, "utf8")).toContain(marker);
     expect(await sizeOf(CHECKOUT_SPILL)).toBe(checkoutBefore);

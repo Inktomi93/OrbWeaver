@@ -6,7 +6,6 @@ import { PORTABLE_IMPORT_ORDER, PORTABLE_KINDS } from "@orb/contracts/portabilit
 // biome-ignore lint/performance/noNamespaceImport: the census denominator is every native schema export, including future tables that named imports would omit.
 import * as schema from "@orb/db/schema";
 import { LIFECYCLE_DOORS, NON_PORTABLE_CANON, NON_PORTABLE_CLASSES, PORTABLE_CANON_TABLES } from "@orb/server/entry/compose";
-import { appRouter } from "@orb/server/transport/trpc";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { is } from "drizzle-orm";
@@ -78,8 +77,8 @@ test("the production descriptor graph and import order each cover PortableKind e
 });
 
 test("every declared single-entity door is mounted on the native composed router or HTTP graph", ({ harness }) => {
-  const procedures = appRouter._def.procedures;
-  expect(Object.keys(procedures).length).toBeGreaterThan(0);
+  const procedures = harness.trpcProcedures;
+  expect(procedures.size).toBeGreaterThan(0);
   expect(harness.http.routes.some(({ method, path }) => method === "ALL" && path === "/api/trpc/*")).toBe(true);
   const http = new Set(harness.http.routes.filter(({ method }) => method !== "ALL").map(({ method, path }) => `${method} ${path}`));
   expect(http.size).toBeGreaterThan(0);
@@ -91,7 +90,7 @@ test("every declared single-entity door is mounted on the native composed router
   const trpcDoors = doors.filter((door) => "transport" in door && door.transport === "trpc");
   const httpDoors = doors.filter((door) => "transport" in door && door.transport === "http");
   expect(rulings.filter((door) => door.ruled.trim().length === 0)).toEqual([]);
-  expect(trpcDoors.filter((door) => !Object.hasOwn(procedures, door.cite)).map((door) => door.cite)).toEqual([]);
+  expect(trpcDoors.filter((door) => !procedures.has(door.cite)).map((door) => door.cite)).toEqual([]);
   expect(httpDoors.filter((door) => !http.has(`${door.method} ${door.cite}`)).map((door) => `${door.method} ${door.cite}`)).toEqual([]);
 });
 

@@ -8,10 +8,9 @@ import { handleKey } from "@orb/kit/handle-key";
 import type { ExternalId, Handle } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import type { SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
-import { env } from "@orb/server/foundation/env";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness } from "@orb/testkit/node/composed";
+import { createServerHarness, createTestEnv } from "@orb/testkit/node/composed";
 import type { SQL } from "drizzle-orm";
 import { eq } from "drizzle-orm";
 
@@ -21,8 +20,8 @@ const subject = (value: string): ExternalId => brandedId("ExternalId").parse(val
 const handle = (value: string): Handle => brandedId("Handle").parse(value);
 
 function forwardHeaderRoot(policy: Partial<SessionsRolePolicyConfig> = {}): Promise<ServerTestHarness> {
-  // A developer's local group policy must not decide who may sign in here.
-  const { OIDC_ADMIN_GROUPS: _admins, OIDC_ALLOWED_GROUPS: _allowed, OWNER_GROUP: _owners, ...base } = env;
+  // Only this suite's group policy decides who may sign in here, never a record default.
+  const { OIDC_ADMIN_GROUPS: _admins, OIDC_ALLOWED_GROUPS: _allowed, OWNER_GROUP: _owners, ...base } = createTestEnv();
   return createServerHarness({
     rolePolicyConfig: { ...base, ["OIDC_ALLOWED_GROUPS"]: MEMBER_GROUP, ...policy },
     env: { ["AUTH_MODE"]: "forward-header", ["AUTH_FALLBACK"]: "deny", ["FORWARD_AUTH_TRUSTED_PROXIES"]: "127.0.0.1/32" },

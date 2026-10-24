@@ -6,7 +6,6 @@ import { databaseHandle } from "@orb/db/wiring-driver";
 import type { AssetId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { isAdmin, isOwner } from "@orb/server/domain/admin";
 import type { ImageryRoomAccessDeps } from "@orb/server/domain/chat";
 import {
   createImageryRoomAccess,
@@ -16,6 +15,7 @@ import {
   loadPresentHostUserId,
 } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
+import { isAdmin, isOwner } from "@orb/testkit/node/auth";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,

@@ -1,3 +1,4 @@
+// @subject packages/server/src/entry/boot/seed-local-light.ts
 // @subject packages/server/src/domain/connection/verbs/local-light-policy.ts
 // @subject packages/server/src/domain/sessions/persistence/users.ts
 

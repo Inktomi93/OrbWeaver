@@ -3,10 +3,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { PromptCacheSettings, RoutableTask } from "@orb/contracts/inference";
 import { jsonValueSchema } from "@orb/kit/json";
-import { getLog } from "@orb/server/foundation/observability";
 import type { NativeHttpBindings } from "@orb/server/infra/network";
-import { drainHttpServer, serveHttpServer } from "@orb/server/infra/network";
-import { systemTimers } from "@orb/server/infra/timers";
 import { createSeededIds } from "@orb/testkit/iso";
 import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/composed";
 import {
@@ -16,6 +13,7 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
+  servePhysicalPeer,
 } from "@orb/testkit/node/composed";
 import { z } from "zod";
 
@@ -76,7 +74,6 @@ async function speakerPeer(plan: SpeakerWirePlan, ownership: AsyncDisposableStac
   const reached = Promise.withResolvers<void>();
   const closed = Promise.withResolvers<void>();
   const released = Promise.withResolvers<void>();
-  const listening = Promise.withResolvers<string>();
   let chat = 0;
   let pick = 0;
   let execution: ReturnType<typeof createCorpusProviderExecution> | undefined;
@@ -98,48 +95,40 @@ async function speakerPeer(plan: SpeakerWirePlan, ownership: AsyncDisposableStac
     }
     return undefined;
   }
-  const server = serveHttpServer(
-    {
-      hostname: "127.0.0.1",
-      port: 0,
-      fetch: async (request, bindings): Promise<Response> => {
-        try {
-          requests.push(request.clone());
-          const path = new URL(request.url).pathname;
-          if (path === "/v1/rerank") {
-            if (plan.rerank === undefined) {
-              throw new Error("unplanned physical rerank request");
-            }
-            return Response.json({ results: plan.rerank });
-          }
-          if (path === "/v1/chat/completions") {
-            const response = await completion(request, bindings);
-            if (response !== undefined) {
-              return response;
-            }
-          }
-          if (execution === undefined) {
-            throw new Error("speaker peer not initialized");
-          }
-          return await execution.execute(request);
-        } catch (cause) {
-          failures.push(new Error("speaker peer rejected unscripted native input", { cause }));
-          return new Response("Unscripted physical input", { status: 400 });
+  // biome-ignore lint/nursery/useDisposables: the caller's ownership stack drains this peer after releasing held responses; local using would close it before the room runs.
+  const peer = await servePhysicalPeer(async (request, bindings): Promise<Response> => {
+    try {
+      requests.push(request.clone());
+      const path = new URL(request.url).pathname;
+      if (path === "/v1/rerank") {
+        if (plan.rerank === undefined) {
+          throw new Error("unplanned physical rerank request");
         }
-      },
-    },
-    (address) => listening.resolve(`http://127.0.0.1:${address.port}/v1`),
-  );
+        return Response.json({ results: plan.rerank });
+      }
+      if (path === "/v1/chat/completions") {
+        const response = await completion(request, bindings);
+        if (response !== undefined) {
+          return response;
+        }
+      }
+      if (execution === undefined) {
+        throw new Error("speaker peer not initialized");
+      }
+      return await execution.execute(request);
+    } catch (cause) {
+      failures.push(new Error("speaker peer rejected unscripted native input", { cause }));
+      return new Response("Unscripted physical input", { status: 400 });
+    }
+  });
   ownership.defer(async (): Promise<void> => {
     released.resolve();
-    // The real deadline, chosen: this physical peer serves live provider streams, and the forced close is its only bound.
-    await drainHttpServer(server, getLog(), systemTimers.timeout);
+    await peer[Symbol.asyncDispose]();
     if (failures.length > 0) {
       throw new AggregateError(failures, "speaker peer had unscripted native requests");
     }
   });
-  server.once("error", listening.reject);
-  const baseUrl = await listening.promise;
+  const baseUrl = `${peer.origin}/v1`;
   const structuredReplies = new Map(CORPUS_STRUCTURED_REPLIES);
   if (plan.pitch !== undefined) {
     const original = jsonValueSchema.parse(JSON.parse(structuredReplies.get("character_distillation") ?? "null"));

@@ -4,10 +4,9 @@
 import type { UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_COMPACT_INSTRUCTIONS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
 import { makePromptConfig } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "@orb/testkit/node/composed";
+import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL, processObservability } from "@orb/testkit/node/composed";
 import { sdkEngineRoom } from "./engine-physical.ts";
 import { ENGINE_SDK_MARKER, ENGINE_SDK_MODEL, ENGINE_SDK_REPLY } from "./engine-sdk-physical.mjs";
 
@@ -30,19 +29,20 @@ test("agent-sdk fit drops rebuild the durable marker through the chat's own nati
 });
 
 test("the detached post-turn marker opens its own successful request trace", async () => {
-  initTracing();
   await using fixture = await sdkEngineRoom({ history: 8 });
-  const before = new Set(recentTraces(50).map(({ requestId }) => requestId));
+  const before = new Set(processObservability.traces(50).map(({ requestId }) => requestId));
   const outer = `controlled-foreground-compaction:${fixture.h.chatId}`;
-  expect((await withRequestSpan(outer, "controlled public generate", {}, () => fixture.turn(SMALL_INTENT))).aborted).toBe(false);
+  expect((await processObservability.inRequestSpan(outer, "controlled public generate", () => fixture.turn(SMALL_INTENT))).aborted).toBe(false);
   await fixture.h.root.settleBackground();
   expect(await fixture.marker()).toMatchObject({ compactSummary: ENGINE_SDK_MARKER });
-  const traces = recentTraces(50).filter(
-    (trace) =>
-      !before.has(trace.requestId) &&
-      trace.rootName === "chat.managedCompaction" &&
-      trace.spans.some((span) => span.name === "chat.managedCompaction" && span.attributes["chatId"] === fixture.h.chatId),
-  );
+  const traces = processObservability
+    .traces(50)
+    .filter(
+      (trace) =>
+        !before.has(trace.requestId) &&
+        trace.rootName === "chat.managedCompaction" &&
+        trace.spans.some((span) => span.name === "chat.managedCompaction" && span.attributes["chatId"] === fixture.h.chatId),
+    );
   expect(traces).toHaveLength(1);
   const currentTrace = traces[0];
   const root = currentTrace?.spans.find((span) => span.name === "chat.managedCompaction" && span.attributes["chatId"] === fixture.h.chatId);

@@ -3,8 +3,8 @@
 // @subject packages/inference/src/backends/agent-sdk/catalog.ts
 import type { ChatDeltaEvent } from "@orb/contracts/chat";
 import { ProviderError, toChatRequest } from "@orb/inference";
-import { logger, logRing, logSerializers } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node";
+import { processObservability } from "@orb/testkit/node/composed";
 import { MODEL, rootFor, SDK_TOKEN, savedConnection } from "./sdk-wire.fixtures.ts";
 
 test("native SDK numeric accounting preserves two real model costs without coercion", async () => {
@@ -163,11 +163,11 @@ test("native SDK malformed property paths never survive in error serialization o
       },
     );
   const caseId = ids.uuid();
-  logger.error({ err: failure, caseId }, "native SDK malformed wire refusal");
-  const logged = logRing.recent(100).filter((line) => line.includes(caseId));
+  processObservability.logger().error({ err: failure, caseId }, "native SDK malformed wire refusal");
+  const logged = processObservability.logLines(100).filter((line) => line.includes(caseId));
   expect(logged).toHaveLength(1);
   expect(logged.join("\n")).not.toContain(SDK_TOKEN);
-  expect(JSON.stringify(logSerializers.err(failure))).not.toContain(SDK_TOKEN);
+  expect(JSON.stringify(processObservability.serializeError(failure))).not.toContain(SDK_TOKEN);
   expect(failure.message).toBe("agent-sdk: malformed external message fields");
   expect(failure.toLog()).toMatchObject({ kind: "server", retryable: true });
   expect(JSON.stringify(failure.toLog())).not.toContain(SDK_TOKEN);

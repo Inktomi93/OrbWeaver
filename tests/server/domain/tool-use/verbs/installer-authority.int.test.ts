@@ -3,7 +3,6 @@
 import { spawn } from "node:child_process";
 import type { Principal } from "@orb/contracts/identity";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, PLUGIN_MANIFEST_ENTRY, pluginManifestSchema, pluginToolWireName } from "@orb/contracts/plugin";
-import { loadPresentRole } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
 import {
   CORPUS_EMBED_MODEL,
@@ -74,7 +73,11 @@ test("a real resident guest follows fresh installer handoff, departure and disab
   const name = pluginToolWireName(MANIFEST.id, "stamp");
   const runtimeVariables = async (): Promise<Record<string, string>> => await root.services.chat.getRuntimeVariables({ principal: owner, chatId });
   const invokeAs = async (caller: Principal, value: string): ReturnType<typeof root.app.toolUse.executeToolCalls> => {
-    const role = await loadPresentRole(root.db, chatId, caller.userId);
+    // The caller's present seat role, read through chat's own room read as the turn engine's membership carries it.
+    const seat = (await root.services.chat.getChat({ principal: caller, chatId })).participants.find(
+      (participant) => participant.userId === caller.userId && participant.leftSeq === null,
+    );
+    const role = seat?.role ?? null;
     return await root.app.toolUse.executeToolCalls(
       root.app.toolUse.resolveTools(installer.userId, [name]),
       [{ toolCallId: "installer-ceiling-control", name, arguments: JSON.stringify({ value }) }],

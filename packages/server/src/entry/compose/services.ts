@@ -42,7 +42,7 @@
 
 import { resolve } from "node:path";
 import type { DomainEvent } from "@orb/contracts/events";
-import type { AuthModeSource } from "@orb/contracts/identity";
+import type { AuthModeSource, Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import { CATALOG_SETTINGS_PREFIX } from "@orb/contracts/settings";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
@@ -91,7 +91,7 @@ import { createRecordUsage, createResolveEmbeddingConnection, createVectorSweepO
 import type { ExportService } from "#domain/export";
 import { createImageryPortability } from "#domain/imagery";
 import { buildImportContext, createInstallerCharacterImport, serializeImportCard } from "#domain/import";
-import type { DefaultPersonaSeeder } from "#domain/persona";
+import type { DefaultPersonaSeeder, ResolvePersonasForParticipants } from "#domain/persona";
 import { createSeedPersonaWithCompletion } from "#domain/persona";
 import type { DistributedPluginApplier } from "#domain/plugin";
 import {
@@ -160,6 +160,7 @@ import { createImageAdapter } from "#infra/image";
 import { createVideoPreparer } from "#infra/media";
 import type { ScopedEgress, ScopedEgressOptions } from "#infra/network";
 import { createScopedEgress } from "#infra/network";
+import type { Cas } from "#infra/storage";
 import { createCas, createUserRuntimeDirs, createVariantCache } from "#infra/storage";
 import type { BackgroundWork } from "#infra/tasks";
 import { createBackgroundWork } from "#infra/tasks";
@@ -226,6 +227,9 @@ export interface ServicesDeps {
   /** Where this process's `AUTH_MODE` came from (`createProcessSeams`); the share panel names it. */
   readonly authModeSource: AuthModeSource;
   readonly pluginExecution?: AutomationPluginComposeDeps["pluginExecution"];
+  /** Reads a shipped showcase bundle's bytes for the example-plugin seeder; absent ⇒ the `@orb/showcase-plugins` pack.
+   *  A test root withholds a bundle here to reach the seeder's missing-bundle retry. */
+  readonly showcaseBundles?: typeof packShowcaseBundle;
   /** The fetch and resolver every egress this graph builds uses (`systemFetch` and `systemResolver` from `createProcessSeams`). */
   readonly networkExecution: Pick<ScopedEgressOptions, "fetch" | "resolver">;
   /** The physical dial every egress this graph builds uses (`systemConnector` from `createProcessSeams`). */
@@ -398,6 +402,17 @@ export interface ServicesResult extends AsyncDisposable {
   readonly wireCaptureOn: boolean;
   /** The production "Report a bug" read over this graph's env record; the tRPC context carries it. */
   readonly bugReportDiagnostics: BugReportDiagnosticsRead;
+  /** The content store this graph writes, surfaced so a suite ages a blob past the GC grace window: a blob's
+   *  mtime is a filesystem fact no injected clock moves. */
+  readonly cas: Cas;
+  /** The ops the root binds into one domain from another, surfaced so a domain suite drives its own factory
+   *  against the op production wires (Spine-Testing §3) instead of importing the other domain. */
+  readonly crossFeatureOps: {
+    readonly resolveChatHostUserId: (chatId: ChatId) => Promise<UserId | null>;
+    readonly resolvePersonasForParticipants: ResolvePersonasForParticipants;
+    /** The installer's import context: character, assets and tag binders under one Principal. */
+    readonly importContextFor: (principal: Principal) => ReturnType<typeof buildImportContext>;
+  };
   /** D259 — chat's signup-invite ops, for the local signup route. */
   readonly signupInvites: SignupInviteOps;
   /** The per-user local-light seed, surfaced for the signup route (it runs after the signup commit). */
@@ -1193,20 +1208,18 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // which mints `importedFrom` from the plugin's OWN verified identity + the card's content hash — never from
   // guest-authored card content, which is unspoofable-or-bust the whole reason it lives at contracts
   // (`pluginImportedFrom`, `@orb/contracts/character`).
-  const runInstallerCharacterImport = createInstallerCharacterImport({
-    resolvePrincipal: resolveOwnerPrincipal,
-    contextFor: (principal) =>
-      buildImportContext({
-        principal,
-        characterOps: createCharacterImportOps(principal, character),
-        storeAsset: createImportAvatarStore(principal, (args) => assets.store(args)),
-        attachCardTag: createImportedCardTag(principal.userId, (args) => tag.attachCardTagByName(args)),
-        importLorebook: (args) => importWorldInfo.importLorebook(args),
-        hasPrimaryBook: (args) => importWorldInfo.hasPrimaryBook(args),
-        linkCarriedBooks: (args) => importWorldInfo.linkCarriedBooks(args),
-        importCardScripts: (args) => regexCompose.importCardScripts(args),
-      }),
-  });
+  const installerImportContext = (principal: Principal): ReturnType<typeof buildImportContext> =>
+    buildImportContext({
+      principal,
+      characterOps: createCharacterImportOps(principal, character),
+      storeAsset: createImportAvatarStore(principal, (args) => assets.store(args)),
+      attachCardTag: createImportedCardTag(principal.userId, (args) => tag.attachCardTagByName(args)),
+      importLorebook: (args) => importWorldInfo.importLorebook(args),
+      hasPrimaryBook: (args) => importWorldInfo.hasPrimaryBook(args),
+      linkCarriedBooks: (args) => importWorldInfo.linkCarriedBooks(args),
+      importCardScripts: (args) => regexCompose.importCardScripts(args),
+    });
+  const runInstallerCharacterImport = createInstallerCharacterImport({ resolvePrincipal: resolveOwnerPrincipal, contextFor: installerImportContext });
 
   // ── automation + plugin (the automation-plugin seam) — built LAST of the domain services (both close over
   // chat/world-info/imagery/notifications + resolveOwnerPrincipal; plugin reuses automation's op objects).
@@ -1461,7 +1474,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     applyDistributedPlugins: (args) => services.plugin.applyDistributedPlugins(args),
   });
   const examplePluginSeeder = createExamplePluginSeeder({
-    packBundle: packShowcaseBundle,
+    packBundle: deps.showcaseBundles ?? packShowcaseBundle,
     install: pluginSeedOps.install,
     requestConsent: pluginSeedOps.requestConsent,
     upgrade: pluginSeedOps.upgrade,
@@ -1565,5 +1578,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     },
     wireCaptureOn,
     bugReportDiagnostics: createBugReportDiagnosticsRead(deps.env),
+    cas,
+    crossFeatureOps: { resolveChatHostUserId, resolvePersonasForParticipants, importContextFor: installerImportContext },
   };
 }

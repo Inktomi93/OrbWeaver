@@ -10,9 +10,9 @@ import { auditLogs, compactionSpend } from "@orb/db";
 import { ProviderError, toChatRequest } from "@orb/inference";
 import { DomainNoCredentialError } from "@orb/kit/errors";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { getLog } from "@orb/server/foundation/observability";
 import type { Fixtures } from "@orb/testkit/node";
 import { expect } from "@orb/testkit/node";
+import { processObservability } from "@orb/testkit/node/composed";
 import { captureSdkSessionRows } from "@orb/testkit/node/rows";
 import { and, eq } from "drizzle-orm";
 import { vi } from "vitest";
@@ -74,7 +74,7 @@ for (const phase of PHASES) {
     }
     const principal = await harness.principalFor(harness.ownerId);
     const priorSpawns = nativeSdk.tokens.length;
-    const warn = vi.spyOn(getLog(), "warn");
+    const warn = vi.spyOn(processObservability.logger(), "warn");
     try {
       const call = app.services.chat.send({ principal, chatId, content: `${phase}-compaction funding trigger`, intent: GENERATION_INTENT });
       const committed = await SETTLEMENT[phase](call);

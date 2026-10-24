@@ -10,9 +10,8 @@ import { RPG_NO_CHANGES_TOOL, RPG_STATE_CHANGES_FIELD } from "@orb/contracts/rpg
 import { assets, auditLogs, rpgSheets } from "@orb/db";
 import { ProviderError } from "@orb/inference";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { getLog } from "@orb/server/foundation/observability";
 import { expect } from "@orb/testkit/node";
-import { createServerHarness, makeAssetBytes } from "@orb/testkit/node/composed";
+import { createServerHarness, makeAssetBytes, processObservability } from "@orb/testkit/node/composed";
 import { TEST_PROVIDER_ID } from "@orb/testkit/node/helpers";
 import { and, eq } from "drizzle-orm";
 import { vi } from "vitest";
@@ -87,7 +86,7 @@ for (const vehicle of ["structured", "tools"] as const) {
       throw new Error("the genuine RPG round never called its provider");
     }
     fundingProvider.statusFor(path, 401, 1);
-    using warn = vi.spyOn(getLog(), "warn");
+    using warn = vi.spyOn(processObservability.logger(), "warn");
     const committed = await root.services.chat.send({ principal, chatId, content: "The ledger remains open after the next beat." });
     await root.settleBackground();
     await vi.waitFor(async () => {

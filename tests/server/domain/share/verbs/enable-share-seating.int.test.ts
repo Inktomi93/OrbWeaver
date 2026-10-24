@@ -2,7 +2,6 @@
 
 import { settings } from "@orb/db";
 import { createEnableShareSeating } from "@orb/server/domain/share";
-import { createHostPrincipalResolver } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node";
 import { refuseWrites } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
@@ -14,7 +13,7 @@ test("share seating writes as the canonical owner and restores stored false vers
   ownerCaller,
 }) => {
   await ownerCaller.settings.getAppSettings();
-  const resolvePrincipal = createHostPrincipalResolver(app.sessions);
+  const resolvePrincipal = harness.principalFor;
   const owner = await resolvePrincipal(harness.ownerId);
   await services.settings.updateAppSettings({ principal: owner, partial: { localMultiUser: null, discreetLogin: false } });
   const before = await services.settings.getAppSettingsWithOverrides({ principal: owner });
@@ -44,7 +43,7 @@ test("restoration leaves already-on settings alone and an actual stored-write fa
   ownerCaller,
 }) => {
   await ownerCaller.settings.getAppSettings();
-  const resolvePrincipal = createHostPrincipalResolver(app.sessions);
+  const resolvePrincipal = harness.principalFor;
   const owner = await resolvePrincipal(harness.ownerId);
   await services.settings.updateAppSettings({ principal: owner, partial: { localMultiUser: true, discreetLogin: false } });
   const enable = createEnableShareSeating({

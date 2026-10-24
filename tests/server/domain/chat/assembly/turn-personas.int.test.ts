@@ -1,10 +1,8 @@
 // The production turn binder composes with the production consent/pin read over a real database.
 
 import { createPersonaSchema } from "@orb/contracts/persona";
-import { databaseHandle } from "@orb/db/wiring-driver";
 import type { UserId } from "@orb/kit/ids";
 import { createTurnPersonaResolver } from "@orb/server/domain/chat";
-import { createResolvePersonasForParticipants } from "@orb/server/domain/persona";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { seedChat, seedPersona } from "@orb/testkit/node/composed";
@@ -23,12 +21,12 @@ async function anchoredRoom(
   return (await seedChat(harness, { principal, characterIds: [], anchorPersonaId })).view.chat;
 }
 
-test("a trigger with no seat persona cannot borrow the room's anchor identity", async ({ harness, db }): Promise<void> => {
+test("a trigger with no seat persona cannot borrow the room's anchor identity", async ({ harness }): Promise<void> => {
   const host = await harness.actor();
   const member = await harness.actor();
   const anchor = await seededPersona(harness, host.id, "Anchor");
   const room = await anchoredRoom(harness, host.id, anchor.id);
-  const resolve = createTurnPersonaResolver(createResolvePersonasForParticipants({ db: databaseHandle(db) }));
+  const resolve = createTurnPersonaResolver(harness.app.crossFeatureOps.resolvePersonasForParticipants);
 
   const result = await resolve({
     chatId: room.id,
@@ -49,7 +47,7 @@ test("a trigger with no seat persona cannot borrow the room's anchor identity", 
   expect(result.people?.map((persona) => persona.name)).toEqual(["Anchor"]);
 });
 
-test("a held departed-owner pin remains the card identity but cannot authorize a foreign active persona", async ({ harness, db }): Promise<void> => {
+test("a held departed-owner pin remains the card identity but cannot authorize a foreign active persona", async ({ harness }): Promise<void> => {
   const host = await harness.actor();
   const departed = await harness.actor();
   const stranger = await harness.actor();
@@ -57,7 +55,7 @@ test("a held departed-owner pin remains the card identity but cannot authorize a
   const foreign = await seededPersona(harness, stranger.id, "Private stranger");
   // The pin's owner founded the room; production refuses an anchor the starter does not own.
   const room = await anchoredRoom(harness, departed.id, pin.id);
-  const resolve = createTurnPersonaResolver(createResolvePersonasForParticipants({ db: databaseHandle(db) }));
+  const resolve = createTurnPersonaResolver(harness.app.crossFeatureOps.resolvePersonasForParticipants);
 
   const result = await resolve({
     chatId: room.id,
@@ -75,14 +73,14 @@ test("a held departed-owner pin remains the card identity but cannot authorize a
   expect(result.people).toBeUndefined();
 });
 
-test("canon follows the anchor owner's current seat while impersonation follows the triggering member", async ({ harness, db }): Promise<void> => {
+test("canon follows the anchor owner's current seat while impersonation follows the triggering member", async ({ harness }): Promise<void> => {
   const host = await harness.actor();
   const member = await harness.actor();
   const anchor = await seededPersona(harness, host.id, "Pinned");
   const current = await seededPersona(harness, host.id, "Host current");
   const memberPersona = await seededPersona(harness, member.id, "Member current");
   const room = await anchoredRoom(harness, host.id, anchor.id);
-  const resolve = createTurnPersonaResolver(createResolvePersonasForParticipants({ db: databaseHandle(db) }));
+  const resolve = createTurnPersonaResolver(harness.app.crossFeatureOps.resolvePersonasForParticipants);
   const args = {
     chatId: room.id,
     runAsUserId: host.id,

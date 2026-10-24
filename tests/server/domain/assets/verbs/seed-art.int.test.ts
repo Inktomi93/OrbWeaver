@@ -1,16 +1,17 @@
 // @subject packages/server/src/domain/assets/verbs/seed-art.ts
 
-import { readSeedAvatar } from "@orb/default-content";
+import { createCharacterSchema } from "@orb/contracts/character";
+import { readSeedAvatar, SEED_MANIFEST } from "@orb/default-content";
 import { createSeedAvatarOps } from "@orb/server/domain/assets";
-import { DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
 import { expect, test } from "@orb/testkit/node";
 import { seedCharacter } from "@orb/testkit/node/composed";
 import { principal } from "@orb/testkit/node/helpers";
 
-const CARD = DEFAULT_CHARACTER_CARDS[0];
-if (CARD === undefined) {
-  throw new Error("the authored card pack is empty");
+const SHIPPED = SEED_MANIFEST.find((item) => item.kind === "character");
+if (SHIPPED === undefined) {
+  throw new Error("the seed manifest ships no character");
 }
+const CARD = { input: createCharacterSchema.parse({ handle: SHIPPED.handle, name: "Shipped art subject", description: "A card wearing shipped art." }) };
 
 test("truncated real shipped art is refused by the production magic guard before a CAS index row lands", async ({ harness, services }) => {
   const user = await harness.actor();

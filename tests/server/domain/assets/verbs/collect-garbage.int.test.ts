@@ -10,7 +10,6 @@ import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, PLUGIN_UI_ASSETS_DIR, pluginMa
 import { themeBackgroundSchema } from "@orb/contracts/theme";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
-import { recordPluginFetchedAsset } from "@orb/server/domain/plugin";
 import { FROZEN_AT_MS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import {
@@ -24,6 +23,7 @@ import {
   seedDistributedPlugin,
   seedInstalledPlugin,
   seedInvitedChatParticipant,
+  seedPluginFetchedAsset,
 } from "@orb/testkit/node/composed";
 import type { GcBox, StoredRef } from "../gc-box.ts";
 import {
@@ -122,7 +122,11 @@ async function plantEveryReference(box: GcBox): Promise<Record<string, StoredRef
   refs["plugins.bundle_asset_id"] = { assetId: bundle.assetId, hash: bundle.hash };
   refs["plugin_assets.asset_id (bundle image)"] = { assetId: shipped.assetId, hash: shipped.hash };
   refs["plugin_assets.asset_id (fetched)"] = await store(box, "generated");
-  await recordPluginFetchedAsset(root.db, installed.outcome.id, refs["plugin_assets.asset_id (fetched)"].assetId, root.clock.now());
+  await seedPluginFetchedAsset(root, {
+    pluginId: installed.outcome.id,
+    assetId: refs["plugin_assets.asset_id (fetched)"].assetId,
+    fetchedAt: root.clock.now(),
+  });
 
   // Published to every user, then the publisher uninstalls their own copy: the publication is the bundle's only
   // reference, and the uninstall's no-grace reap already had to honor it.
