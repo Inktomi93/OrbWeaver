@@ -32,7 +32,7 @@ Shape:
 4. `useReindexConfirm.guard` (`packages/client/src/components/reindex-confirm.tsx`) shows a preview refusal through `embedRefusalText` and opens no confirm.
 5. The preview now dials the embedder, so it handles `unreachable` and `auth` before any confirm opens.
 
-No CT mounts the credentials or role-slot panes yet; the first leg builds that harness through the public door.
+The CT mounts the credentials section through `tests/support/browser/ct-data-providers.tsx` (the production authed composition) and serves the preview read through `tests/support/browser/trpc-wire.ts`.
 
 ## Evidence
 
