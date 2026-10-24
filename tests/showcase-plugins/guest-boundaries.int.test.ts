@@ -10,25 +10,35 @@ test("story clocks refuse non-string names and replace malformed clock values ra
   const tools = new Map<string, GuestTool>();
   const vars: Record<string, unknown> = {};
   const writes: Extract<PluginVariableOp, { op: "set" }>[] = [];
-  await bootShowcase("story-clocks", {
-    grants: ["tools.register", "chat.read", "chat.variables.write"],
-    log: { info: (): void => undefined },
-    tools: { register: (registration: GuestTool): void => void tools.set(registration.name, registration) },
-    chat: {
-      current: (): string => "room",
-      getVariables: (): Promise<typeof vars> => Promise.resolve(vars),
-      applyVariableOps: (...[, ops]: Parameters<PluginHostV1["chat"]["applyVariableOps"]>): ReturnType<PluginHostV1["chat"]["applyVariableOps"]> => {
-        for (const op of ops) {
-          if (op.op !== "set") {
-            throw new Error(`unexpected clock operation ${op.op}`);
+  const registered = Promise.withResolvers<void>();
+  await bootShowcase(
+    "story-clocks",
+    {
+      grants: ["tools.register", "chat.read", "chat.variables.write"],
+      log: { info: (): void => undefined },
+      tools: {
+        register: (registration: GuestTool): void => {
+          tools.set(registration.name, registration);
+          registered.resolve();
+        },
+      },
+      chat: {
+        current: (): string => "room",
+        getVariables: (): Promise<typeof vars> => Promise.resolve(vars),
+        applyVariableOps: (...[, ops]: Parameters<PluginHostV1["chat"]["applyVariableOps"]>): ReturnType<PluginHostV1["chat"]["applyVariableOps"]> => {
+          for (const op of ops) {
+            if (op.op !== "set") {
+              throw new Error(`unexpected clock operation ${op.op}`);
+            }
+            writes.push(op);
+            vars[op.key] = op.value;
           }
-          writes.push(op);
-          vars[op.key] = op.value;
-        }
-        return Promise.resolve({ outcome: "applied" });
+          return Promise.resolve({ outcome: "applied" });
+        },
       },
     },
-  });
+    registered.promise,
+  );
   const tool = tools.get("advance_clock");
   if (tool === undefined) {
     throw new Error("story clocks registered no advance tool");
@@ -53,25 +63,36 @@ test("oracle startup logs a rejected storage read and only the retire action del
   const warnings: string[] = [];
   const deleted: string[] = [];
   const surfaces = new Map<string, GuestSurface>();
-  await bootShowcase("oracle-deck", {
-    grants: ["storage.kv", "ui.surface"],
-    log: {
-      info: (): void => undefined,
-      warn: (message: string): void => void warnings.push(message),
-    },
-    storage: {
-      get: (): Promise<never> => Promise.reject(new Error("storage unavailable")),
-      delete: (key: string): Promise<void> => {
-        deleted.push(key);
-        return Promise.resolve();
+  // The guest's startup publish ends in this warning; it is the last effect the test asserts.
+  const startupRefused = Promise.withResolvers<void>();
+  await bootShowcase(
+    "oracle-deck",
+    {
+      grants: ["storage.kv", "ui.surface"],
+      log: {
+        info: (): void => undefined,
+        warn: (message: string): void => {
+          warnings.push(message);
+          if (message.startsWith("deck page not refreshed")) {
+            startupRefused.resolve();
+          }
+        },
+      },
+      storage: {
+        get: (): Promise<never> => Promise.reject(new Error("storage unavailable")),
+        delete: (key: string): Promise<void> => {
+          deleted.push(key);
+          return Promise.resolve();
+        },
+      },
+      ui: {
+        registerCommand: (): void => undefined,
+        register: (surface: GuestSurface): void => void surfaces.set(surface.id, surface),
+        toast: (): Promise<void> => Promise.resolve(),
       },
     },
-    ui: {
-      registerCommand: (): void => undefined,
-      register: (surface: GuestSurface): void => void surfaces.set(surface.id, surface),
-      toast: (): Promise<void> => Promise.resolve(),
-    },
-  });
+    startupRefused.promise,
+  );
   expect(warnings).toEqual([
     "oracle deck is dormant: it needs tools.register + storage.kv granted (Settings → Plugins)",
     "deck page not refreshed: Error: storage unavailable",

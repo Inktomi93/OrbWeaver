@@ -2,11 +2,12 @@
 // @subject scripts/corpus-fixture-lifetime.ts
 // The native clone's module graph belongs to import time, not the case's execution budget.
 import "@orb/tooling/snap";
+import { once } from "node:events";
 import { watch } from "node:fs";
 import { access, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { setTimeout as physicalDelay, setImmediate as physicalTurn } from "node:timers/promises";
+import { setImmediate as physicalTurn } from "node:timers/promises";
 import { localPath } from "@orb/db";
 import type { BoxLoad } from "@orb/tooling/floor/host/load-budget";
 import { budget } from "@orb/tooling/floor/host/load-budget";
@@ -47,7 +48,7 @@ test("the private parent overwrites expiry before startup and reserves canonical
   expect(Number(expiry) - start + budget(TERM_GRACE_BASE_MS, quietBox)).toBe(hardBudgetMs);
   const signal = privateCorpusExecutionSignal(expiry, () => Number(expiry) - 20);
   expect(signal.aborted).toBe(false);
-  await physicalDelay(30);
+  await once(signal, "abort");
   expect(signal.aborted).toBe(true);
   expect(signal.reason).toMatchObject({ name: "TimeoutError" });
   const expired = privateCorpusExecutionSignal(expiry, () => Number(expiry));
