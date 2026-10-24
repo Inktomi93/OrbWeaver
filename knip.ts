@@ -155,7 +155,7 @@ export const config = {
 // redundant-entry hint, so it is added for production alone.
 const PRODUCTION_SCRIPT_ENTRIES = { "packages/server": ["src/entry/check-media.ts!"] } as const;
 
-// PRODUCTION-TRUSTED FILES, by owner ruling on 0989; every other export is judged normally. The @orb/ui primitive
+// PRODUCTION-TRUSTED FILES, by owner ruling; every other export is judged normally. The @orb/ui primitive
 // doors keep each primitive's full Base UI part set as a component-library surface, because plugin house-UI node
 // kinds may grow. The tenancy and portability registries are compile-time guards production never reads: the
 // identity law places TABLE_SCOPING beside the schema, and D329 places the portability registries and their value

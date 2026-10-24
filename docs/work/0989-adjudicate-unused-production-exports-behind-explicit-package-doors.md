@@ -80,7 +80,32 @@ The census method is the same for every batch. Apply knip's own fix (`knip --pro
 | Class 3, §9 symbols production executes | The door forwards come off the chat, character, plugin, preset, settings, observability, plugin-host, relay and upstream-update doors, and off the contracts chat, import, plugin, prose, rpg, settings and workloads doors, `@orb/db`, `@orb/db/query`, the inference contract barrel, `@orb/client/data`, `@orb/client/state`, the config and rpg feature doors, and the compose door with its testkit forward. Suites import each symbol from the owning file listed in `TEST_CONSTANT_HOMES`. | `appearanceSettingsSchema`: its suites use the `@orb/contracts/settings/appearance` door, which tooling consumes. |
 | @orb/ui outside the part sets, and the gate | The web-weave door stops forwarding `webGlyph`, `buildWeb`, `buildStrandOut`, `weaveJitter`, `wrapToPi`, `WEAVE_TIMELINE`, `weavePhaseAt`, `BuildWebInput` and `WeavePoint`. The lib door stops forwarding `CSS_MERGE_FAMILY_NAMES` and `STAMPED_VARIANT_AXES`. Their suites read each from its owning file. `NearDuplicateOptions` moves into `tokens.near-duplicate.ts`, its only reader. Main left two workloads forwards unused (`workloadKindSchema`, `workloadStatusSchema`); they go. The default view's three test-side reds go: `runtimeTimers` and `openFrameRoom` are file-local, and the `ct` door stops forwarding `createShellAmbientReads`, which only its own kit spec reads. Both knip modes exit 0. CI and the pre-push check run both. | The five `@internal` tags in `transport/trpc/context.ts` stay. They drive the router declaration emit, and knip reports them only as hints. |
 
-Controls, each removed after its run: a new export in `domain/chat/contract/errors.ts` that only a test imports fails `pnpm knip:prod`, while `CHAT_OP_CODES`, imported by the same test from the same file, passes. A new export in `packages/ui/src/layout/index.ts` fails `pnpm knip:prod`, while the primitive door forwards pass.
+Controls, each removed after its run: a new export in `domain/chat/contract/errors.ts` that only a test imports fails `pnpm knip:prod`, while `CHAT_OP_CODES`, imported by the same test from the same file, passes. A new export in `packages/ui/src/layout/index.ts` fails `pnpm knip:prod`, while the primitive door forwards pass. A test importing `domain/chat/bus.ts`, which no home lists, fails `tests-domain-front-door`, while the listed `contract/errors.ts` and `contract/metadata.ts` pass it.
+
+### Export-map doors
+
+The census resolves every `packages/*/package.json` exports target to a file and lists that file's importers through any specifier. Server and client production code imports through the `#` imports maps, which resolve to the same door files, so a door with only test importers by name can still have production importers.
+
+| Exports entry | Production importer of the target file | Decision |
+| - | - | - |
+| Every server, client, contracts, db, inference and kit module door | Yes, through `#` imports or relative paths | Keep. The entry publishes a production door to its suites. |
+| `@orb/client`, `@orb/contracts` and `@orb/kit` root barrels | None; each file is empty | Keep. They anchor package resolution: `import.meta.resolve("@orb/contracts")` finds the manifest in the bounded-list-inputs suite. |
+| `@orb/client/compose` | The testkit browser door | Keep: the sanctioned CT mount door (test-foundation design, "Client mounting"). |
+| `@orb/plugin-sdk` subpaths | Plugin authors outside this workspace | Keep: the released authoring contract. |
+| `@orb/ui/picker-cell` | None in this workspace | Keep under the ui part-set ruling. |
+| `@orb/ui/tokens-build` and `@orb/ui/token-contract` | Package-root build files only; suites import by name | Keep under the "UI token-authoring doors" ruling above. Removing them needs a new ruling. |
+| `@orb/ui/css-merge-contract` | Tooling | Keep: tooling is a production consumer. |
+
+### Reach lists
+
+A probe config emptied `SUBPATH_LEAF_IMPORTERS`, `SERVER_TEST_REACHES`, `PACKAGE_TEST_REACHES` and the corpus rows of `ROWS_IMPORTERS`, then ran dependency-cruiser over the tree. Every entry whose removal raised a violation still has a real importer. Each of those keeps its stated reason. No kit door serves the cross-module boot verbs, §9 constants, rows-tier captures or leaf imports they admit.
+
+| List | Result |
+| - | - |
+| `SUBPATH_LEAF_IMPORTERS` | All entries raised `package-subpath-crossing`. Keep. |
+| `ROWS_IMPORTERS` | All corpus producers raised `testkit-rows-closed-importers`. Keep. |
+| `SERVER_TEST_REACHES` | All suites raised a mirror violation. Keep. `share-graph` now reads `RELAY_STOP_GRACE_MS` from its owning file under the same module entry. |
+| `PACKAGE_TEST_REACHES` | All but one raised a violation. `native-guest-protocol.ct.tsx` no longer imports `plugin-ui-guest-protocol.ts`, so its entry is removed. `traced-client-spans` gains `tracing.ts` for `getTraceByRequestId`. |
 
 ## Selected kit cases
 

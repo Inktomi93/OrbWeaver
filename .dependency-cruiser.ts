@@ -435,10 +435,6 @@ const PACKAGE_TEST_REACHES = {
       "wrapLibSqlClient: the client wrapper createDb takes, proven through native close; the raw queries it traces are persistence-tier reads",
     "packages/server/src/foundation/observability/tracing.ts": "getTraceByRequestId: the trace ring read that shows the wrapped client's spans",
   },
-  "tests/client/features/plugin/native-guest-protocol.ct.tsx": {
-    "packages/client/src/lib/plugin-ui-guest-protocol.ts":
-      "UI_GUEST_BUDGETS: the guest's own log caps; its Worker-side importers read the leaf, so the lib door forwards no budget",
-  },
   "tests/client/features/character/lib/facet-fill.dom.test.ts": {
     "packages/client/src/features/character/lib/character-card-facets.ts": "facetFillState and CHARACTER_CARD_FACET_IDS: the feature-private facet model",
     "packages/client/src/features/character/lib/character-card-form-model.ts": "DEFAULT_CHARACTER_CARD_FORM: the empty form the facet model reads",
