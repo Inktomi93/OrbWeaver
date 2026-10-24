@@ -18,7 +18,7 @@ import type {
 } from "@orb/kit/ids";
 import type { RegexReplacer } from "@orb/kit/regex";
 import type { TimerScheduler } from "@orb/kit/time";
-import type { Logger, WireOutcome } from "#foundation/observability";
+import type { Logger, TraceRing, WireOutcome } from "#foundation/observability";
 import type { ChatAccountingContext } from "./accounting-context.ts";
 import type { BuildTurnMemoryArgs, MemoryRecallResult, RecallMemoryArgs, WitnessInterval } from "./memory.ts";
 import type { CompactResult, ResolvedMediaRef, TurnRequest, TurnStreamChunk } from "./results.ts";
@@ -84,6 +84,8 @@ type StoreInlineReplyImageOp = (ownerId: UserId, image: GeneratedImage) => Promi
 
 export interface EngineContext extends Pick<ChatAccountingContext, "db" | "now" | "applyStatsDelta" | "resolveRetainedChatAccountingScope"> {
   readonly logger: Logger;
+  /** The root's trace ring the engine's detached post-turn roots seal into. */
+  readonly traces: TraceRing;
   readonly timers: TimerScheduler;
   readonly backgroundSignal?: AbortSignal;
   readonly trackBackground?: (settled: Promise<void>, chatId: ChatId) => void;

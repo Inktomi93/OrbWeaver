@@ -7,11 +7,8 @@
 //       (chat.listMessages, seq-ascending): same length, pairwise roles, and each user row's text is
 //       contained in the DOM (canon is markdown-RENDERED in the DOM, so we assert containment of the
 //       distinctive user text — see the parity note below for exactly what is compared and why).
-//   (c) BUS EVENT ORDER — the client's canon-event ring (window.__orb.bus().events) shows the turn's real
+//   (c) BUS EVENT ORDER — the room's chat frames on the live stream (read on the wire) show the turn's real
 //       invalidating sequence: messageCommitted (user) → messageCommitted (assistant) → turnCompleted.
-//       FINDING pinned here: turnStarted + delta are PURE-TRANSIENT (they never call the invalidation seam,
-//       bus-devlog.ts §"Pure-transient events never reach here"), so they are NOT in this ring — we pin the
-//       real invalidating order, not an invented one.
 //   (d) ENGINE HONESTY — the local gen engine log (.cache/stack/vllm-gen.log) gained ≥1
 //       `POST /v1/chat/completions` during the turn, AND the new assistant canon row's `model` is the LOCAL leaf
 //       alias "Qwen3-VL-8B-Instruct" (the served-model-name leaf, vllm-engine.sh) — never a hosted id.
@@ -30,7 +27,8 @@ import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { assistantRows, busEventTypes, openNewestChat, typeAndSend, waitForStreamOpen } from "./support/chat-room.ts";
+import { assistantRows, openNewestChat, typeAndSend, waitForStreamOpen } from "./support/chat-room.ts";
+import { chatFrameTypes, frameCursor, tapStream } from "./support/stream-tap.ts";
 import { WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import { deleteChat, listCanon, listCharacters, startChat } from "./support/trpc.ts";
 
@@ -67,9 +65,11 @@ test("a real turn: ghost resolves, DOM == DB in order, bus order holds, local en
   const characterId = (await listCharacters())[0]?.id ?? castId<CharacterId>("");
   expect(characterId).not.toBe("");
   const chatId = await startChat([characterId]);
+  const tap = await tapStream(page);
   try {
+    const since = frameCursor(page);
     await openNewestChat(page);
-    await waitForStreamOpen(page);
+    await waitForStreamOpen(page, chatId, since);
 
     const beforePosts = await genPostCount();
 
@@ -136,10 +136,10 @@ test("a real turn: ghost resolves, DOM == DB in order, bus order holds, local en
     expect(dom[userIdx]?.text).toContain(USER_PROMPT);
 
     // ── (c) BUS EVENT ORDER ──
-    // The invalidating canon-event ring for this turn, in order: user commit → assistant commit → turnCompleted.
-    // (turnStarted/delta are pure-transient — not in this ring; see header FINDING.)
-    await expect.poll(async () => busEventTypes(page), { timeout: WAIT_SURFACE_MS }).toContain("turnCompleted");
-    const events = await busEventTypes(page);
+    // The room's chat frames on the wire, in order: user commit and assistant commit, both before turnCompleted.
+    // turnStarted and delta frames also ride the wire; only the invalidating events are pinned here.
+    await expect.poll(async () => chatFrameTypes(tap, chatId), { timeout: WAIT_SURFACE_MS }).toContain("turnCompleted");
+    const events = chatFrameTypes(tap, chatId);
     const commitIdxs = events.flatMap((t, i) => (t === "messageCommitted" ? [i] : []));
     const completeIdx = events.lastIndexOf("turnCompleted");
     expect(commitIdxs.length).toBeGreaterThanOrEqual(2); // user + assistant commits

@@ -1,11 +1,11 @@
-import type { Logger } from "#foundation/observability";
+import type { Logger, TraceRing } from "#foundation/observability";
 import { createDetachedSupervision } from "#foundation/observability";
 import type { BackgroundWork } from "./contract/background.ts";
 
-/** Own the cancellation and settlement of work that outlives its initiating request; a failure outside a
- *  request reports through the root's `log`. */
-export function createBackgroundWork(log: Logger): BackgroundWork {
-  const { superviseSettled: settled } = createDetachedSupervision(log);
+/** Own the cancellation and settlement of work that outlives its initiating request; each task's tree seals into the
+ *  root's `traces`, and a failure outside a request reports through the root's `log`. */
+export function createBackgroundWork(log: Logger, traces: TraceRing | null): BackgroundWork {
+  const { superviseSettled: settled } = createDetachedSupervision(log, traces);
   const controller = new AbortController();
   const pending = new Set<Promise<void>>();
   let closed = false;

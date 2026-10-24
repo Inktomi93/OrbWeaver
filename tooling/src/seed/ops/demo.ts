@@ -63,7 +63,7 @@ import {
 } from "@orb/server/entry/boot";
 import { createProcessSeams, createServices, NO_SHARE_RELAY, SessionsCrypto, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
 import { env } from "@orb/server/foundation/env";
-import { createLogger } from "@orb/server/foundation/observability";
+import { createAuditWiring, createLogger } from "@orb/server/foundation/observability";
 import { print } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ExitCode } from "../../floor/cli/exit-contract.ts";
@@ -320,7 +320,9 @@ export async function runFullSeed(deps: RunFullSeedDeps): Promise<RunFullSeedRes
   const wiringDb = databaseHandle(db);
   const seams = createProcessSeams();
   const sessionsCrypto = SessionsCrypto.production();
+  const audit = createAuditWiring(wiringDb, seams.idSource, seams.logger);
   const bootSessions = createSessionsService({
+    audit: audit.log,
     rolePolicy,
     db: wiringDb,
     now,
@@ -346,6 +348,7 @@ export async function runFullSeed(deps: RunFullSeedDeps): Promise<RunFullSeedRes
 
   const built = await createServices({
     ...seams,
+    audit,
     rolePolicy,
     db: wiringDb,
     now,
@@ -407,7 +410,7 @@ export async function runDemoSeed(argv: readonly string[]): Promise<ExitCode> {
   }
 
   // The layout move first, so a `--fresh` wipe and the open below both address the db's current location.
-  await migrateDataLayout({ layout: env.DATA_LAYOUT, env, logger: createLogger(env.LOG_LEVEL) });
+  await migrateDataLayout({ layout: env.DATA_LAYOUT, env, logger: createLogger(env.LOG_LEVEL, null) });
   const filePath = dbFilePath(env.DATABASE_URL);
   if (args.fresh) {
     if (filePath === null) {
@@ -424,7 +427,7 @@ export async function runDemoSeed(argv: readonly string[]): Promise<ExitCode> {
   const db = await createDb(env.DATABASE_URL);
   await runBootMigrations({
     db,
-    logger: createLogger(env.LOG_LEVEL),
+    logger: createLogger(env.LOG_LEVEL, null),
     databaseUrl: env.DATABASE_URL,
     backupDir: env.DATA_LAYOUT.backups,
     launched: DB_LAUNCHED,

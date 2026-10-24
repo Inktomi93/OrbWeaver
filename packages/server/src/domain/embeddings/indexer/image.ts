@@ -8,7 +8,6 @@ import { existingCaptionedRow, existingImageHash, existingImageSkip, insertImage
 import { resolveImageTargetGeneration } from "../substrate/generation.ts";
 import { contentHash } from "../substrate/hash.ts";
 import { imageBelowFloor } from "../substrate/image-admission.ts";
-import { reportImageSpaceDegrade } from "../substrate/image-space-degrade.ts";
 
 interface ImageIndexerDeps {
   readonly store: EmbeddingsService["store"];
@@ -72,7 +71,7 @@ async function indexAsset(
   const { generation, ownerId, space } = resolved;
   const model = space.model;
   if (space.via === "embed") {
-    reportImageSpaceDegrade(ownerId, model, space.degraded, ctx.logger);
+    ctx.latches.reportImageSpaceDegrade(ownerId, model, space.degraded, ctx.logger);
   }
   const hash = contentHash(bytes);
   const rawCurrent = space.via === "embed" || (await existingImageHash(ctx.db, assetId, "image-raw", generation.id)) === hash;

@@ -8,12 +8,14 @@
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { AvatarAnalysis } from "./contract/results.ts";
-import type { EmbeddingsContext, EmbeddingsService } from "./contract/service.ts";
+import type { EmbeddingLatches, EmbeddingsContext, EmbeddingsService } from "./contract/service.ts";
 import { analyzeAvatarImage, avatarAnalysisCallsModel } from "./indexer/caption.ts";
 import { createImageAnalysisCounter, createImageIndexer } from "./indexer/image.ts";
 import { countOwnedVectors } from "./persistence/owned-vector-counts.ts";
 import { readTargetSnapshot } from "./persistence/space-state.ts";
+import { createAvatarAnalysisAvailability } from "./substrate/avatar-analysis-availability.ts";
 import { pendingTargetMove, resolveTargetGeneration } from "./substrate/generation.ts";
+import { createImageSpaceDegradeReport } from "./substrate/image-space-degrade.ts";
 import { createCountDocumentChunks } from "./verbs/count-document-chunks.ts";
 import { createCountDocumentChunksByOwner } from "./verbs/count-document-chunks-by-owner.ts";
 import { createEmbedAssets } from "./verbs/embed-assets.ts";
@@ -29,13 +31,21 @@ import { createStoreSegments } from "./verbs/store-segments.ts";
 import { createSyncTargetGenerations } from "./verbs/sync-target-generations.ts";
 import { createWriteHubScores } from "./verbs/write-hub-scores.ts";
 
+/** A root's empty embeddings latches; its composition root builds them once and passes them in the context. */
+export function createEmbeddingLatches(): EmbeddingLatches {
+  return { avatarAnalysis: createAvatarAnalysisAvailability(), reportImageSpaceDegrade: createImageSpaceDegradeReport() };
+}
+
 export function createEmbeddingsService(input: DbAssemblyInput<EmbeddingsContext>): EmbeddingsService {
   const ctx: EmbeddingsContext = { ...input, db: databaseForOwner(input.db) };
   const store = createStore(ctx);
   const indexAsset = createImageIndexer(ctx, {
     store,
     analyze: async (ownerId, bytes): Promise<AvatarAnalysis> =>
-      analyzeAvatarImage(await ctx.roleClientsFor(ownerId), bytes, await ctx.resolveUtilityPresetParams(ownerId), input.logger),
+      analyzeAvatarImage(await ctx.roleClientsFor(ownerId), bytes, await ctx.resolveUtilityPresetParams(ownerId), {
+        logger: input.logger,
+        availability: ctx.latches.avatarAnalysis,
+      }),
   });
   return {
     purgeDisallowedImages: createPurgeDisallowedImages(ctx),
@@ -53,7 +63,7 @@ export function createEmbeddingsService(input: DbAssemblyInput<EmbeddingsContext
     embedCorpus: createEmbedCorpus(ctx, { store }),
     embedAssets: createEmbedAssets(ctx, { indexAsset }),
     countAssetAnalysisCalls: createImageAnalysisCounter(ctx, {
-      analysisCallsModel: async (ownerId): Promise<boolean> => avatarAnalysisCallsModel(await ctx.roleClientsFor(ownerId)),
+      analysisCallsModel: async (ownerId): Promise<boolean> => avatarAnalysisCallsModel(await ctx.roleClientsFor(ownerId), ctx.latches.avatarAnalysis),
     }),
     purgeMemoryVectors: createPurgeMemoryVectors(ctx),
     pruneDocumentChunks: createPruneDocumentChunks(ctx),

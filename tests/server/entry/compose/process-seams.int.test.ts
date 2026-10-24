@@ -6,7 +6,8 @@ import { importStartedSchema } from "@orb/contracts/import";
 import { streamConnectInputSchema } from "@orb/contracts/stream";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
-import { createServerHarness, processObservability } from "@orb/testkit/node/composed";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import { createServerHarness } from "@orb/testkit/node/composed";
 
 // Every trace the ring still holds; the test filters to the names its own act started.
 const TRACE_WINDOW = 10_000;
@@ -18,13 +19,13 @@ const SEEDED_BUNDLE_TOKEN = new RegExp(`^import-bundle-${SEEDED_UUID}\\.zip$`, "
 const HEX_RADIX = 16;
 const BUNDLE_ROUTE = "/api/import/bundle";
 
-function traceIds(): ReadonlySet<string> {
-  return new Set(processObservability.traces(TRACE_WINDOW).map((entry) => entry.requestId));
+function traceIds(root: Pick<ServerTestHarness, "observability">): ReadonlySet<string> {
+  return new Set(root.observability.traces(TRACE_WINDOW).map((entry) => entry.requestId));
 }
 
 /** The seeded counter behind each new supervised name under `prefix`; `null` marks a nonce of any other shape. */
-function startedCounters(before: ReadonlySet<string>, prefix: string): readonly (number | null)[] {
-  return [...traceIds()]
+function startedCounters(root: Pick<ServerTestHarness, "observability">, before: ReadonlySet<string>, prefix: string): readonly (number | null)[] {
+  return [...traceIds(root)]
     .filter((requestId) => requestId.startsWith(prefix) && !before.has(requestId))
     .map((requestId) => {
       const counter = SEEDED_NONCE.exec(requestId)?.[1];
@@ -38,13 +39,13 @@ function mintedWithin(after: number, through: number): (counter: number | null) 
 }
 
 test("a domain event's bus dispatch and automation watcher name their supervised work with the root's seeded nonce", async ({ harness }) => {
-  const before = traceIds();
+  const before = traceIds(harness);
   const minted = harness.ids.snapshot();
   harness.app.eventBus.emit({ type: "character.updated", characterId: harness.idSource.typeId(ID_PREFIX.character), contentChanged: false });
   await harness.settleBackground();
   const inWindow = mintedWithin(minted, harness.ids.snapshot());
   for (const prefix of ["domain-event:character.updated:", "automation:domain:character.updated:"]) {
-    const counters = startedCounters(before, prefix);
+    const counters = startedCounters(harness, before, prefix);
     expect(counters.length, prefix).toBeGreaterThan(0);
     expect(
       counters.filter((counter) => !inWindow(counter)),
@@ -57,15 +58,15 @@ test("a stream socket's room pump is supervised under the root's seeded nonce", 
   const room = (await ownerCaller.chat.startChat({ characterIds: [] })).chat;
   const { socketId } = streamConnectInputSchema.parse({ socketId: harness.ids.uuid() });
   const prefix = `stream-room:${socketId}:`;
-  const before = traceIds();
+  const before = traceIds(harness);
   const frames = (await ownerCaller.stream.connect({ socketId }))[Symbol.asyncIterator]();
   try {
     expect((await frames.next()).done).toBe(false);
     const minted = harness.ids.snapshot();
     await ownerCaller.stream.attach({ socketId, ref: { channel: "chat", chatId: room.id }, sinceSeq: null });
     await ownerCaller.stream.detach({ socketId, ref: { channel: "chat", chatId: room.id } });
-    await expect.poll(() => startedCounters(before, prefix)).toHaveLength(1);
-    expect(startedCounters(before, prefix).every(mintedWithin(minted, harness.ids.snapshot()))).toBe(true);
+    await expect.poll(() => startedCounters(harness, before, prefix)).toHaveLength(1);
+    expect(startedCounters(harness, before, prefix).every(mintedWithin(minted, harness.ids.snapshot()))).toBe(true);
   } finally {
     await frames.return?.();
   }

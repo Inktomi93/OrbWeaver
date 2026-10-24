@@ -15,7 +15,7 @@ async function archiveAt(path: string, paths: readonly string[]): Promise<void> 
     }
   }
   await using file = await open(path, "wx", 0o600);
-  for await (const chunk of packZip(entries(), createTestLogger())) {
+  for await (const chunk of packZip(entries(), createTestLogger(), null)) {
     await file.write(chunk);
   }
 }

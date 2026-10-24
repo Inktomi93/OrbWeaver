@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { createEntrySchema } from "@orb/contracts/world-info";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { createServerHarness, processObservability } from "@orb/testkit/node/composed";
+import { createServerHarness } from "@orb/testkit/node/composed";
 import { z } from "zod";
 
 const mode = z.enum(["normal", "full", "latest"]).parse(process.argv[2]);
@@ -88,7 +88,7 @@ await test("actual composed world-info matcher", async () => {
         mode === "latest",
       );
     }
-    const warnings = processObservability.logLines().flatMap((line) => {
+    const warnings = root.observability.logLines().flatMap((line) => {
       const parsed = warningSchema.safeParse(JSON.parse(line));
       return parsed.success ? [parsed.data] : [];
     });

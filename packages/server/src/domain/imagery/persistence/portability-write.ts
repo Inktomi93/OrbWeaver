@@ -115,6 +115,7 @@ async function subjectIsLinked(db: Db, ownerId: UserId, call: PortableImageryCal
       and(
         eq(assets.ownerId, ownerId),
         eq(characters.ownerId, ownerId),
+        eq(characters.synthetic, false),
         eq(characters.handle, castId<CharacterHandle>(handle)),
         or(eq(imageryGenerations.callId, sql`(${claim})`), nativeLegacy),
       ),
@@ -145,13 +146,20 @@ function outputStatement(
     .select({ id: imageryImportCalls.id })
     .from(imageryImportCalls)
     .where(and(eq(imageryImportCalls.ownerId, ownerId), eq(imageryImportCalls.identity, imageryCallImportHash(call))));
+  // SECURITY: the carried handle is untrusted; a synthetic group row is never a restored subject.
   const subject =
     execution.subjectCharacterHandle === null
       ? sql`null`
       : sql`(${db
           .select({ id: characters.id })
           .from(characters)
-          .where(and(eq(characters.ownerId, ownerId), eq(characters.handle, castId<CharacterHandle>(execution.subjectCharacterHandle))))
+          .where(
+            and(
+              eq(characters.ownerId, ownerId),
+              eq(characters.synthetic, false),
+              eq(characters.handle, castId<CharacterHandle>(execution.subjectCharacterHandle)),
+            ),
+          )
           .limit(1)})`;
   return db.insert(imageryGenerations).select(
     db

@@ -79,9 +79,8 @@ if (!collecting && bootedModes.includes(OIDC_MODE)) {
 const STACK_UP = "node tooling/src/stack/cli.ts up-fg";
 // Every mode's server serves the ONE built client in E2E_CLIENT_DIR, so no cold run compiles modules on demand.
 // Playwright starts the webServers in order, each ready before the next begins: the first mode that serves a
-// client builds it and the rest reuse it. NODE_ENV=development keeps the `import.meta.env.DEV` instruments
-// (`window.__orb`) the specs read; the output is still a bundled, minified build.
-const CLIENT_BUILD = `NODE_ENV=development pnpm --filter @orb/client exec vite build --configLoader native --mode development --outDir ${E2E_CLIENT_DIR}`;
+// client builds it and the rest reuse it. A plain production build: specs wait on production-visible signals.
+const CLIENT_BUILD = `pnpm --filter @orb/client exec vite build --configLoader native --outDir ${E2E_CLIENT_DIR}`;
 const clientBuilder = bootedModes.find((mode) => mode.servedClient !== undefined);
 const webServers = bootedModes.map((mode) => ({
   command: mode === clientBuilder ? `${CLIENT_BUILD} && ${STACK_UP}` : STACK_UP,

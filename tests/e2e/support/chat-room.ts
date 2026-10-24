@@ -16,15 +16,16 @@
 //     visible is unambiguous proof regardless of the list-vs-header duplication.
 //   • Rename/Star live behind the ⋯ "Chat options" menu (chat-options-menu.tsx) + the per-row kebab "Chat
 //     actions" menu (chat-list-row-menu.tsx). Rename opens a Dialog with an `aria-label="Chat title"` input.
-//   • stream-open is observed via the DEV `window.__orb.bus().live` count (agent-bridge.ts) — vite serves
-//     the e2e app in dev mode so the handle exists; orb has no `chat-stream-state` testid.
+//   • stream-open is observed on the wire (`stream-tap.ts`: the room's `chatOpened` frame); orb has no
+//     `chat-stream-state` testid.
 
 import { rowActionsName } from "@orb/client/lib";
-import type { MessageId } from "@orb/kit/ids";
+import type { ChatId, MessageId } from "@orb/kit/ids";
 import { HOST_BAND, openContextSections } from "@orb/testkit/ct";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
+import { streamTapOf, waitForRoomOpened } from "./stream-tap.ts";
 import { WAIT_SETTLE_MS, WAIT_SHORT_MS, WAIT_STREAM_MS, WAIT_SURFACE_MS } from "./timeouts.ts";
 
 // The character row's chat affordance (character-card.tsx `NormalRowActions`): the dual-purpose resume-or-new
@@ -55,37 +56,6 @@ export function assistantRows(page: Page): ReturnType<Page["locator"]> {
   return page.locator('[data-slot="message-row"][data-role="assistant"]');
 }
 
-/** The live SSE-subscription count off the dev handle (0 if the handle isn't installed yet).
- *
- *  `__orb` is a dev-only global no lib declares, so the browser-side read stays `unknown` and is narrowed
- *  in page. Each `page.evaluate` callback is serialized alone, so the two bus reads each repeat it. */
-export function busLive(page: Page): Promise<number> {
-  return page.evaluate(() => {
-    const handle: unknown = Reflect.get(globalThis, "__orb");
-    if (typeof handle !== "object" || handle === null || !("bus" in handle) || typeof handle.bus !== "function") {
-      return 0;
-    }
-    const bus: unknown = Reflect.apply(handle.bus, handle, []);
-    return typeof bus === "object" && bus !== null && "live" in bus && typeof bus.live === "number" ? bus.live : 0;
-  });
-}
-
-/** The recent bus-event types the client has reduced (dev introspection ring; empty if not installed). */
-export function busEventTypes(page: Page): Promise<readonly string[]> {
-  return page.evaluate(() => {
-    const handle: unknown = Reflect.get(globalThis, "__orb");
-    if (typeof handle !== "object" || handle === null || !("bus" in handle) || typeof handle.bus !== "function") {
-      return [];
-    }
-    const bus: unknown = Reflect.apply(handle.bus, handle, []);
-    if (typeof bus !== "object" || bus === null || !("events" in bus) || !Array.isArray(bus.events)) {
-      return [];
-    }
-    const events: readonly unknown[] = bus.events;
-    return events.flatMap((event) => (typeof event === "object" && event !== null && "type" in event && typeof event.type === "string" ? [event.type] : []));
-  });
-}
-
 /** Wait for the app shell + its initial reads to settle (the app-ready idle signal). */
 export async function waitForAppReady(page: Page, timeout = 30_000): Promise<void> {
   try {
@@ -112,11 +82,11 @@ export async function waitForAppReady(page: Page, timeout = 30_000): Promise<voi
   }
 }
 
-/** Poll until the room's chat-bus SSE stream is observably open (≥1 live subscription via the dev
- *  introspection handle) — the deterministic "subscribed" gate before mutating, so a `chatUpdated` event
- *  always has a subscriber (no race; the orb equivalent of neo's `chat-stream-state` == "open"). */
-export async function waitForStreamOpen(page: Page): Promise<void> {
-  await expect.poll(async (): Promise<number> => busLive(page), { timeout: WAIT_SURFACE_MS }).toBeGreaterThanOrEqual(1);
+/** Wait until the server has delivered the room's `chatOpened` frame on the live stream — the deterministic
+ *  "subscribed" gate before mutating, so a `chatUpdated` event always has a subscriber. The page needs a
+ *  `tapStream` installed before its first navigation; `since` is a `frameCursor` taken before the room was opened. */
+export async function waitForStreamOpen(page: Page, chatId: ChatId, since: number): Promise<void> {
+  await waitForRoomOpened(streamTapOf(page), chatId, since);
 }
 
 /** The RAIL's "Characters" nav button, scoped to the Primary navigation. The scoping is load-bearing: the

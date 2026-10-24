@@ -1581,7 +1581,7 @@ function rpgUserCommitRequestId(messageId: MessageId): string {
 function fireRpgUserCommit(ctx: ChatContext, chatId: ChatId, messageId: MessageId): void {
   if (ctx.rpg !== null) {
     const rpg = ctx.rpg;
-    const settled = withRequestSpan(rpgUserCommitRequestId(messageId), RPG_USER_COMMIT_SPAN, { chatId, messageId }, () =>
+    const settled = withRequestSpan({ traces: ctx.traces, requestId: rpgUserCommitRequestId(messageId) }, RPG_USER_COMMIT_SPAN, { chatId, messageId }, () =>
       rpg.onUserCommit(chatId, messageId),
     ).catch(() => undefined);
     ctx.trackBackground?.(settled, chatId);

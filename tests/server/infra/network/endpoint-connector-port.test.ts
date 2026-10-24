@@ -60,6 +60,7 @@ async function dialFailure(fetchPromise: Promise<Response>): Promise<unknown> {
 test("the actual connector rejects a wrong hostname port before the physical dial despite its resolved CIDR", async () => {
   raw.calls.length = 0;
   await using egress = createScopedEgress({
+    traces: null,
     log: createTestLogger(),
     env: createTestEnv(),
     timers: quietTimers(),
@@ -77,6 +78,7 @@ test("the actual connector rejects a wrong hostname port before the physical dia
 test("the connector preserves exact-port, unrelated-CIDR-host and public-address admission", async () => {
   raw.calls.length = 0;
   await using egress = createScopedEgress({
+    traces: null,
     log: createTestLogger(),
     env: createTestEnv(),
     timers: quietTimers(),

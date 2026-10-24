@@ -19,7 +19,7 @@ export type {
 export { createEmbeddingsIndexer } from "./indexer/index.ts";
 export { createEmbeddingsIndexerSubscription } from "./indexer/subscription.ts";
 export { createHandoffRestampStatements } from "./persistence/handoff-restamp.ts";
-export { createEmbeddingsService } from "./service.ts";
+export { createEmbeddingLatches, createEmbeddingsService } from "./service.ts";
 export { precomputedSeedEmbedding } from "./substrate/seed-embedding.ts";
 export { createEmbeddingReindexTriggers } from "./verbs/embedding-reindex-triggers.ts";
 export { createGetLiveEmbedSpace } from "./verbs/get-live-embed-space.ts";

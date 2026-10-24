@@ -79,6 +79,8 @@ export interface AutomationPluginComposeDeps {
   readonly env: PluginHostSeamDeps["env"];
   /** The root's logger the plugin host's guest lines and settlement failures land in. */
   readonly logger: NonNullable<PluginHostSeamDeps["log"]>;
+  /** The root's trace ring the plugin host's settlements and the plugin event deliveries seal into. */
+  readonly traces: PluginHostSeamDeps["traces"];
   readonly pluginExecution?: Pick<PluginHostSeamDeps, "spawn">;
   readonly monotonicNow: PluginHostSeamDeps["monotonicNow"];
   readonly timers: TimerScheduler;
@@ -288,6 +290,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       mintId: newOpaqueId,
       safeFetch: deps.egress.safeFetch,
       log: deps.logger,
+      traces: deps.traces,
     }),
   );
   // Activation and confirmed acts share the same process-wide belts.
@@ -300,11 +303,12 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
   };
   const pluginSurfaceState = createPluginSurfaceStateStore(deps.logger);
   // Private pubsub has no domain/chat event sink.
-  const pluginEventBus = createPluginEventBus(deps.logger);
+  const pluginEventBus = createPluginEventBus(deps.logger, deps.traces);
   const pluginUiOutbox = createPluginUiOutbox(now);
   const resolveChatAuthority = createPluginChatAuthority({ db, can });
   const registrarOps = createPluginRegistrarOps({
     logger: deps.logger,
+    traces: deps.traces,
     toolUse: deps.toolUse,
     promptTransforms: chatCompose.promptTransforms,
     pluginSubscribers,

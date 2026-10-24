@@ -5,7 +5,7 @@
 
 import { closeDb, rpgSnapshots } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
-import { freshHeldDb, processObservability } from "@orb/testkit/node/composed";
+import { freshHeldDb } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { eq } from "drizzle-orm";
 import { coreFrame, coreSse } from "../../chat/engine/core-physical.ts";
@@ -32,7 +32,7 @@ test("the actual detached RPG round seals a fresh trace after its outer SEND has
   const outer = `rpg-round-outer:${h.chatId}`;
   const gate = held.hold(/^insert into "rpg_snapshots"/u);
   try {
-    const sending = processObservability.inRequestSpan(outer, "controlled public SEND", () =>
+    const sending = h.root.observability.inRequestSpan(outer, "controlled public SEND", () =>
       h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Reach the observatory." }),
     );
     await gate.reached;
@@ -42,14 +42,14 @@ test("the actual detached RPG round seals a fresh trace after its outer SEND has
     if (assistant === undefined) {
       throw new Error("the traced turn has no selected assistant");
     }
-    expect(processObservability.traces(100).find((trace) => trace.requestId === outer)).toMatchObject({ rootName: "controlled public SEND", status: "ok" });
+    expect(h.root.observability.traces(100).find((trace) => trace.requestId === outer)).toMatchObject({ rootName: "controlled public SEND", status: "ok" });
     expect(await h.root.db.select().from(rpgSnapshots).where(eq(rpgSnapshots.variantId, assistant.selectedVariantId))).toEqual([]);
     gate.release();
     await h.root.settleBackground();
     expect(await h.root.db.select().from(rpgSnapshots).where(eq(rpgSnapshots.variantId, assistant.selectedVariantId))).toMatchObject([
       { messageId: assistant.id, location: "Detached observatory" },
     ]);
-    const rounds = processObservability
+    const rounds = h.root.observability
       .traces(100)
       .filter((trace) => trace.rootName === "rpg.turnCompleted" && trace.spans.some((span) => span.attributes["messageId"] === assistant.id));
     expect(rounds).toHaveLength(1);
@@ -90,7 +90,7 @@ test("the actual SEND user-commit confirms prior state under its own fresh trace
   const outer = `rpg-user-commit-outer:${h.chatId}`;
   const gate = held.hold(/^update "rpg_snapshots" set "committed"/u);
   try {
-    const sending = processObservability.inRequestSpan(outer, "controlled committing SEND", () =>
+    const sending = h.root.observability.inRequestSpan(outer, "controlled committing SEND", () =>
       h.root.services.chat.send({ ...params, content: "Accept that draft beat." }),
     );
     await gate.reached;
@@ -100,7 +100,7 @@ test("the actual SEND user-commit confirms prior state under its own fresh trace
     if (user === undefined) {
       throw new Error("the committing SEND has no actual user row");
     }
-    expect(processObservability.traces(100).find((trace) => trace.requestId === outer)).toMatchObject({ rootName: "controlled committing SEND", status: "ok" });
+    expect(h.root.observability.traces(100).find((trace) => trace.requestId === outer)).toMatchObject({ rootName: "controlled committing SEND", status: "ok" });
     expect(await h.root.db.select().from(rpgSnapshots).where(eq(rpgSnapshots.variantId, variantId))).toMatchObject([{ committed: 0 }]);
     gate.release();
     await h.root.db.select().from(rpgSnapshots).where(eq(rpgSnapshots.variantId, variantId));
@@ -108,7 +108,7 @@ test("the actual SEND user-commit confirms prior state under its own fresh trace
     expect(await h.root.db.select().from(rpgSnapshots).where(eq(rpgSnapshots.variantId, variantId))).toMatchObject([
       { committed: 1, location: "Committed observatory" },
     ]);
-    const commits = processObservability
+    const commits = h.root.observability
       .traces(100)
       .filter((trace) => trace.rootName === "rpg.userCommit" && trace.spans.some((span) => span.attributes["messageId"] === user.id));
     expect(commits).toHaveLength(1);

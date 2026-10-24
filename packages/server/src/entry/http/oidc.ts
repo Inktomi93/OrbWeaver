@@ -21,7 +21,7 @@ import { startOidcGcScheduler } from "#transport/jobs";
 import type { ServicesDeps, ServicesResult } from "../compose/services.ts";
 import type { OidcRoutesDeps } from "./index.ts";
 
-type ConfiguredOidcDeps = Pick<ServicesDeps, "db" | "now" | "logger"> & {
+type ConfiguredOidcDeps = Pick<ServicesDeps, "db" | "now" | "logger" | "rings"> & {
   readonly built: Pick<ServicesResult, "sessions" | "signupInvites" | "seedUserConnections" | "egress">;
   /** The OIDC client settings, the root's env record in production. */
   readonly settings: OidcSettings;
@@ -46,7 +46,7 @@ export async function createConfiguredOidc(deps: ConfiguredOidcDeps): Promise<Oi
     });
   const keys = construction.use(createJwksReader(execution, deps.logger));
   // biome-ignore lint/nursery/useDisposables: construction.move transfers GC to the returned async owner; local disposal would stop it before route use.
-  const gc = construction.use(createBackgroundWork(deps.logger));
+  const gc = construction.use(createBackgroundWork(deps.logger, deps.rings.traces));
   const getConfig = createOidcConfigCache(() => discovery(issuerUrl, clientId, settings.OIDC_CLIENT_SECRET, undefined, { [customFetch]: fetchIssuer }));
   construction.defer(
     startOidcGcScheduler({ logger: deps.logger, sweep: store.deleteExpired, now: deps.now, scheduleInterval: deps.scheduleInterval, track: gc.track }),

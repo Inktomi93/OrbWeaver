@@ -91,8 +91,6 @@ interface EmbedProducerPort {
 export interface ServerRestartPort {
   /** True when the launcher that respawns on the restart exit code started this process (`@orb/kit/supervisor`). */
   readonly supervised: boolean;
-  /** The same process-lifetime identity the live transport publishes; a request must name this instance. */
-  readonly serverInstanceId: string;
   /** Closes the app and exits with the restart code on a later tick, so the caller's answer is sent first. Never throws. */
   readonly restart: () => void;
 }
@@ -154,6 +152,8 @@ export interface AdminContext {
   readonly sessions: SessionAdminPort;
   readonly embed: EmbedProducerPort;
   readonly serverRestart: ServerRestartPort;
+  /** The root's identity the live transport publishes; a restart request must name this instance. */
+  readonly serverInstanceId: string;
 }
 
 export type AdminAssemblyContext = Omit<DbAssemblyInput<AdminContext>, "sessions" | "auditStatementAfterWrite"> & {
