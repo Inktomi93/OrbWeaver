@@ -28,7 +28,7 @@ import { freshDb } from "@orb/testkit/node/composed";
 import { expect, test } from "@orb/testkit/tooling";
 import { loadDemoSeed } from "@orb/tooling/seed";
 import { and, eq, isNotNull } from "drizzle-orm";
-import { runFullSeed } from "../../../tooling/src/seed/ops/demo.ts";
+import { runFullSeed } from "../../../../tooling/src/seed/ops/demo.ts";
 
 const FROZEN_NOW = 1_700_000_000_000;
 const SEED_SECRET = "seed-demo-test-session-secret-0000000000";

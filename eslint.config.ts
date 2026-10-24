@@ -993,8 +993,10 @@ export default [
   },
   {
     // The persistence tier matches the rows door's audience (testkit-rows-persistence-only); every other test seeds through verbs.
+    // tests/tooling is outside: those tests exercise tooling that owns its row writes and reads (seeders, migrators, snap
+    // stages), and Spine-Testing §9 governs product tests, as with the TEST_ENVIRONMENT_RESTRICTIONS tooling exemption.
     files: ["tests/**/*.{ts,tsx}", "scripts/**/*.{ts,tsx}", "playwright/**/*.{ts,tsx}"],
-    ignores: ["tests/support/**", "tests/db/**", "**/persistence/**", "**/*.d.ts"],
+    ignores: ["tests/support/**", "tests/db/**", "tests/tooling/**", "**/persistence/**", "**/*.d.ts"],
     plugins: { orb: localPlugin },
     rules: { "orb/no-direct-row-writes": "error", "orb/no-direct-row-reads": "error" },
   },

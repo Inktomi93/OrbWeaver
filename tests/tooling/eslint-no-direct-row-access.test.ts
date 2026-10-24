@@ -116,7 +116,8 @@ test.for([
   "tests/db/schema/row-access-probe.int.test.ts",
   "tests/server/domain/probe/persistence/row-access-probe.int.test.ts",
   "tests/support/node/row-access-probe.ts",
-])("the persistence tier %s may write and read rows directly", async (path) => {
+  "tests/tooling/seed/ops/row-access-probe.int.test.ts",
+])("the persistence tier or tooling test %s may write and read rows directly", async (path) => {
   const config = await eslint.calculateConfigForFile(join(ROOT, path));
   expect(config?.rules?.[WRITES]).toBeUndefined();
   expect(config?.rules?.[READS]).toBeUndefined();
