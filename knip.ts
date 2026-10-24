@@ -3,9 +3,9 @@ import type { KnipConfig, KnipConfiguration } from "knip";
 // The resolver owns public doors; Knip owns unused files, symbols and dependencies (D318).
 export const config = {
   tags: ["-@public"],
-  // The trailing ! applies only in production mode: tooling stays fully checked by the default run,
-  // while developer tools must not keep application exports alive in the shippable-only view.
-  ignoreWorkspaces: ["tooling!", "tests/support!"],
+  // A trailing ! marks a pattern production-visible. The production view counts the testkit doors, tooling, the
+  // operator scripts and the CT story modules as consumers (PRODUCTION_CONSUMERS below); test files are left out,
+  // so a production export only a test imports fails `pnpm knip:prod`.
   treatConfigHintsAsErrors: true,
   rules: {
     files: "error",
@@ -35,14 +35,16 @@ export const config = {
       typescript: { config: ["tsconfig*.json", "tooling/src/codemods/tsconfig.json"] },
       // Operator scripts are direct Node entry points.
       entry: [
-        "scripts/**/*.ts",
+        "scripts/**/*.ts!",
+        // The CT gallery discovers story modules by glob (playwright/index.tsx), which knip cannot follow.
+        "tests/**/*-stories.tsx!",
         // The Stylelint config imports its rule table from this sibling, which holds the postcss-value-parser import.
         "stylelint-rules.js",
         "playwright/**/*.{ts,tsx}",
         // The CT Vite transform reads this stylesheet as text rather than through an ESM import.
         "playwright/index.css",
       ],
-      project: ["scripts/**/*.ts", "tests/**/*.{ts,tsx}", "playwright/**/*.{ts,tsx,css}"],
+      project: ["scripts/**/*.ts!", "tests/**/*-stories.tsx!", "tests/**/*.{ts,tsx}", "playwright/**/*.{ts,tsx,css}"],
       playwright: { config: ["playwright.config.ts", "playwright-ct.config.ts"] },
       // mkfifo is the POSIX coreutils binary the orchestrator-inject hook test uses to plant a FIFO transcript path;
       // it is an OS tool, never an npm dependency, so knip has no package to credit it to.
@@ -58,24 +60,26 @@ export const config = {
     "tests/support": {
       includeEntryExports: true,
       entry: [
-        "node/composed-real.ts",
-        "node/refuse-model-kernel.ts",
-        "node/reference-head-kernel.ts",
-        "node/db-holder.ts",
-        "node/migrate-data-layout.ts",
-        "node/sdk-private-diagnostic-root.ts",
+        "node/composed-real.ts!",
+        "node/refuse-model-kernel.ts!",
+        "node/reference-head-kernel.ts!",
+        "node/db-holder.ts!",
+        "node/migrate-data-layout.ts!",
+        "node/sdk-private-diagnostic-root.ts!",
+        // Gallery fixtures, discovered by the same glob as the story modules.
+        "browser/*-fixtures.tsx!",
         "{iso,node,browser}/**/*.{test,int.test,suite.int.test,test-d,dom.test-d,ct}.{ts,tsx}",
       ],
-      project: ["{iso,node,browser}/**/*.{ts,tsx}"],
+      project: ["{iso,node,browser}/**/*.{ts,tsx}!"],
       // Peer pin for @anthropic-ai/claude-agent-sdk (pnpm-workspace.yaml); never imported.
       ignoreDependencies: ["@anthropic-ai/sdk"],
     },
     // @orb/tooling: every tool's cli.ts + index.ts are entries; floor modules are entries too
     // Shared floor modules are exported package entry points.
     tooling: {
-      entry: ["src/*/cli.ts", "src/*/index.ts", "src/floor/*/*.ts", "src/snap/lib/budgets.ts", "src/codemods/*/scripts/*.ts"],
+      entry: ["src/*/cli.ts!", "src/*/index.ts!", "src/floor/*/*.ts!", "src/snap/lib/budgets.ts!", "src/codemods/*/scripts/*.ts!"],
       // Codemod fixtures are input/expected data for `codemod jssg test`, not modules.
-      project: ["src/**/*.ts", "!src/codemods/*/tests*/**"],
+      project: ["src/**/*.ts!", "!src/codemods/*/tests*/**"],
       // The heap arm loads chrome-devtools-mcp's browser-free parser through a version-pinned dynamic
       // subpath held in a constant. Knip cannot resolve that indirection, while the heap suite exercises
       // the installed module and its exact-version compatibility fence.
@@ -151,6 +155,13 @@ export const config = {
 // redundant-entry hint, so it is added for production alone.
 const PRODUCTION_SCRIPT_ENTRIES = { "packages/server": ["src/entry/check-media.ts!"] } as const;
 
+// PRODUCTION CONSUMERS. The testkit doors, tooling, the operator scripts and the CT story modules drive production,
+// so the production view follows their imports into the shipped packages. A story mounts the shipped component
+// through its feature door (Spine-Testing §7), so a mounting door stays only while a story mounts it. A spec or test
+// file is never a consumer. These consumers' own exports, files and dependencies are judged by the default view,
+// where tests are consumers too; the production view leaves them out of its report.
+const PRODUCTION_CONSUMERS = { ".": ["scripts/**", "tests/**"], "tests/support": ["**", "package.json"], tooling: ["**", "package.json"] } as const;
+
 /** The CLI flags knip hands a function config (`--production`, and `--strict`, which implies it). */
 interface KnipModeArgs {
   readonly production?: boolean;
@@ -176,6 +187,10 @@ function configFor({ production = false, strict = false }: KnipModeArgs): KnipCo
   for (const [name, entries] of Object.entries(PRODUCTION_SCRIPT_ENTRIES)) {
     const workspace = workspaces[name] ?? {};
     workspaces[name] = { ...workspace, entry: [...patternList(workspace.entry), ...entries] };
+  }
+  for (const [name, ignored] of Object.entries(PRODUCTION_CONSUMERS)) {
+    const workspace = workspaces[name] ?? {};
+    workspaces[name] = { ...workspace, ignore: [...patternList(workspace.ignore), ...ignored] };
   }
   return { ...config, tags: [], includeEntryExports: true, workspaces };
 }

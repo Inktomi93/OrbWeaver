@@ -20,11 +20,24 @@ Shape of the current report: most findings are re-exports in `index.ts` door bar
 
 ## Why
 
-Closing wildcard package paths exposes unused symbols but does not remove them. Tests and tooling must not keep production code falsely alive, and `knip.ts` ignores the `@public` tag (`tags: ["-@public"]`), so a marker is not authority.
+Closing wildcard package paths exposes unused symbols but does not remove them. Tests must not keep production code alive, and `knip.ts` ignores the `@public` tag (`tags: ["-@public"]`), so a marker is not authority.
 
 ## Done when
 
-`pnpm knip:prod` reports clean through the package doors, with each finding adjudicated in package or domain batches. Each batch records production roots and consumer scope. Removed exports preserve real callers; retained external APIs have explicit contracts. Add no baseline file and no new exemption. Add no custom liveness reader or fake consumer. Each kept door and reach entry carries its production consumer or reason. CI and the pre-push check run `pnpm knip:prod`, so a production export with only test consumers fails the build; today CI runs plain `pnpm knip`, which counts tests as consumers and passes a test-only export.
+`pnpm knip:prod` reports clean through the package doors, with each finding adjudicated in package or domain batches. Each batch records production roots and consumer scope. Removed exports preserve real callers; retained external APIs have explicit contracts. Add no baseline file and no new exemption. Add no custom liveness reader or fake consumer. Each kept door and reach entry carries its production consumer or reason. CI and the pre-push check run both `pnpm knip` and `pnpm knip:prod`. The production view fails a production export with only test consumers. The default view judges the testkit and tooling doors against their test consumers.
+
+## Owner ruling: production consumer scope
+
+The production view counts these as consumers, because their job is to drive production:
+
+- the testkit doors and the files they load;
+- tooling;
+- the operator scripts under `scripts/`;
+- the CT story modules (`tests/**/*-stories.tsx`) and the gallery fixtures (`tests/support/browser/*-fixtures.tsx`).
+
+Test files are not consumers. This covers `.test.ts`, `.dom.test.ts`, `.int.test.ts`, `.test-d.ts` and `.ct.tsx` specs.
+
+Stories count because this item retains actual mounting doors and Spine-Testing §7 mounts the shipped component through its feature door. A surface no story mounts still fails. The production view does not report the consumers' own exports, files or dependencies. The default view judges them. `PRODUCTION_CONSUMERS` in `knip.ts` is the mechanism. A planted unused testkit door export fails `pnpm knip` and is absent from `pnpm knip:prod`. `tests/tooling/knip-workspace-policy.int.test.ts` holds the tooling and test-file cases.
 
 ## Evidence
 
@@ -66,7 +79,7 @@ Check database findings against schema registration, relational metadata, migrat
 | Reset-script construction | Rebuild transaction framing, dependent-object ordering, quoted identifiers and empty-input behavior through the existing `@orb/db` function. These unit cases prove generated SQL, not native rollback. Keep the function and remove its unused public directive. |
 | Schema and migration metadata | Keep. A missing named import does not establish unused database registration. No schema, relation, migration or live database is changed by this selection. |
 
-Ordinary native Knip includes DB entry exports and reports no unused findings. Production-only findings retain actual test and tooling consumers without public-marker exemptions. Affected compiler, lint, dependency and selected native behavior checks pass. Isolated literal-quote and identifier-quote defects fail the intended unit assertions while their positive cases pass; sources are restored exactly.
+Ordinary native Knip includes DB entry exports and reports no unused findings. Production-only findings retain actual testkit and tooling consumers without public-marker exemptions. Affected compiler, lint, dependency and selected native behavior checks pass. Isolated literal-quote and identifier-quote defects fail the intended unit assertions while their positive cases pass; sources are restored exactly.
 
 The schema, relations, codec, migration inputs and existing function bodies remain unchanged. Other database reference cases need separate comparison; this batch does not qualify native reset rollback or complete database restoration.
 
@@ -261,7 +274,7 @@ Appending a distinct vocabulary member fails the native compiler at its missing 
 
 ## Production-only consumer placement
 
-Production mode excludes maintained test, tool and generator consumers. Review declaration purpose before changing its home.
+The production view follows the consumer scope in the owner ruling above. Review declaration purpose before changing its home.
 
 | Surface | Decision and evidence |
 | - | - |
