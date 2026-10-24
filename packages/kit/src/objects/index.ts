@@ -29,3 +29,14 @@ export function stripUndefined<T extends object>(obj: T): Partial<T> {
   }
   return result;
 }
+
+/** The one key a plain object cannot hold through assignment: `record[PROTO_KEY] = value` runs the inherited
+ *  setter and re-parents `record`, and a zod record drops the key on parse. A boundary that accepts an
+ *  untrusted key refuses this one. */
+export const PROTO_KEY = "__proto__";
+
+/** The value `record` OWNS at `key`, else `undefined`. A plain index on an untrusted key reads an inherited
+ *  member (`constructor`, `toString`) as if the record held it. */
+export function readOwnKey<T>(record: Readonly<Record<string, T>>, key: string): T | undefined {
+  return Object.hasOwn(record, key) ? record[key] : undefined;
+}

@@ -16,6 +16,7 @@
 // `set_tracker` with the tracked-field unification — the widget CONCEPT is gone, so keeping its name would
 // have been the only re-spell in the set.
 
+import { PROTO_KEY } from "@orb/kit/objects";
 import { z } from "zod";
 import { rpgWeatherLabelSchema, rpgWeatherTypeSchema, TIME_OF_DAY } from "./ambient.ts";
 import type { RpgJournalType } from "./enums.ts";
@@ -53,15 +54,22 @@ const targetRefField = z.string().min(1);
 // (an opaque STRING record on the npc row) and `set_widget_value` (label-addressed, game-scoped) — three
 // wire vocabularies for one concept, gone.
 
+// A tracker key the MODEL wrote. The parse accepts any string a non-enforcing backend sends, so it refuses the
+// one key a tracker record cannot store, so the turn records the loss instead of `applied` with nothing written.
+const trackerKeyField = z
+  .string()
+  .min(1)
+  .refine((key) => key !== PROTO_KEY, { message: `a tracker key cannot be ${PROTO_KEY}` });
+
 /** A `write:"delta"` tracker write — spend/restore a resource by a signed amount. */
-const trackerDeltaSchema = z.object({ key: z.string().min(1), delta: z.int() });
+const trackerDeltaSchema = z.object({ key: trackerKeyField, delta: z.int() });
 
 /** A `write:"set"` tracker write — record the new reading. `value` carries a `meter`'s number or a `text`
  *  tracker's string (the projection narrows it to the one type when this call's set-trackers are all one
  *  shape); `items` carries a `list` tracker's lines. Exactly one is meaningful per key; both omitted is a
  *  no-op the applier drops. */
 const trackerSetSchema = z.object({
-  key: z.string().min(1),
+  key: trackerKeyField,
   value: z.union([z.number(), z.string()]).optional(),
   items: z.array(z.string()).optional(),
 });
@@ -178,7 +186,7 @@ export type UpdateSceneArgs = z.infer<typeof updateSceneArgsSchema>;
  *  the game's UNLOCKED game-subject trackers and prunes the arms no live tracker needs, so a game with no
  *  game-subject trackers never sees the tool at all. */
 export const setTrackerArgsSchema = z.object({
-  key: z.string().min(1),
+  key: trackerKeyField,
   delta: z.int().optional(),
   value: z.union([z.number(), z.string()]).optional(),
   items: z.array(z.string()).optional(),

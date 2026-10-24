@@ -55,6 +55,7 @@
 // the belt to judge. The renderer keeps its union widget for those.
 
 import { RENDER_HINT_KEY } from "@orb/kit/json-schema";
+import { PROTO_KEY, readOwnKey } from "@orb/kit/objects";
 import { z } from "zod";
 import { REFINERY_VERDICTS, SCORE_MAX, SCORE_MIN } from "./core.ts";
 import type { RefinerySchemaStage } from "./schema-authoring.ts";
@@ -334,8 +335,6 @@ function hintOf(row: ForgeFieldRow | ForgeHintRow, members?: readonly string[]):
   return Object.keys(hint).length === 0 ? null : hint;
 }
 
-const PROTO_KEY = "__proto__";
-
 /** Split a path into its segments, or null when any segment is outside the segment grammar / the budget. The
  *  path is model output: `__proto__` is refused because assigning it as a property name re-parents the node. */
 function segmentsOf(path: string): readonly string[] | null {
@@ -350,18 +349,13 @@ function fieldKeyOf(segment: string): string {
   return segment.endsWith("[]") ? segment.slice(0, -2) : segment;
 }
 
-/** A node's own property; an inherited member such as `constructor` is not a field. */
-function ownProperty(properties: Record<string, unknown>, key: string): unknown {
-  return Object.hasOwn(properties, key) ? properties[key] : undefined;
-}
-
 /** The container a path segment addresses: the object node that owns the NEXT segment. A `[]` suffix wraps
  *  that object in an array first. Returns the owning object node, minting it when absent. */
 function descend(parent: Record<string, unknown>, segment: string): Record<string, unknown> | null {
   const isArray = segment.endsWith("[]");
   const key = fieldKeyOf(segment);
   const properties = parent["properties"] as Record<string, unknown>;
-  const existing = ownProperty(properties, key);
+  const existing = readOwnKey(properties, key);
   if (existing !== undefined) {
     // Re-entering a container two rows share. A leaf already sitting here is a collision, not a container.
     const node = isArray ? (existing as Record<string, unknown>)["items"] : existing;
@@ -392,7 +386,7 @@ function placeRow(root: Record<string, unknown>, row: ForgeFieldRow): string | n
   const isList = last.endsWith("[]");
   const key = fieldKeyOf(last);
   const properties = owner["properties"] as Record<string, unknown>;
-  if (ownProperty(properties, key) !== undefined) {
+  if (readOwnKey(properties, key) !== undefined) {
     return `"${key}" is declared twice`;
   }
   const leaf = leafNodeOf(row);

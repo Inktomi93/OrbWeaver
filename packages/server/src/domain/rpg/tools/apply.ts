@@ -156,33 +156,36 @@ function unsetMeterStart(defs: readonly RpgTrackerDef[], key: string, current: R
  *  `max` (the per-carrier ceiling OVERRIDE) is HOST-AUTHORED: neither arm carries
  *  a max, and the spread PRESERVES an existing override — the model moves the reading, never the ceiling.
  *
- *  The def catalogue only prices that starting value: an unknown key is written as-is. The write surface already
- *  made an unknown key unrepresentable at the schema (R6 per-actor enums), and the panel projects only DEFINED
+ *  The def catalogue only prices that starting value: an unknown key is written as-is. An enforcing backend's
+ *  grammar already confines keys to the per-actor enums (R6), and the panel projects only DEFINED
  *  trackers — so a stray key is inert data, never a phantom row, and dropping it here would silently discard
- *  a legitimate write during the beat where a host adds the def. */
+ *  a legitimate write during the beat where a host adds the def.
+ *
+ *  The keys are model-authored, so the walk runs over a `Map`: a plain-object index reads an inherited member
+ *  (`constructor`) as the current reading. The arg schemas refuse `__proto__`, the one key a record cannot store. */
 function applyTrackerWrites(
   base: Readonly<Record<string, RpgTrackerValue>>,
   defs: readonly RpgTrackerDef[],
   deltas: readonly { key: string; delta: number }[] | undefined,
   sets: readonly { key: string; value?: number | string | undefined; items?: readonly string[] | undefined }[] | undefined,
 ): Record<string, RpgTrackerValue> {
-  const out: Record<string, RpgTrackerValue> = { ...base };
+  const out = new Map(Object.entries(base));
   for (const d of deltas ?? []) {
-    const current = out[d.key];
-    out[d.key] = { ...(current ?? RPG_TRACKER_VALUE_EMPTY), value: (trackerNumber(current) ?? unsetMeterStart(defs, d.key, current)) + d.delta };
+    const current = out.get(d.key);
+    out.set(d.key, { ...(current ?? RPG_TRACKER_VALUE_EMPTY), value: (trackerNumber(current) ?? unsetMeterStart(defs, d.key, current)) + d.delta });
   }
   for (const s of sets ?? []) {
     if (s.value === undefined && s.items === undefined) {
       continue; // a set arm naming neither datum is a no-op, never a blanked tracker
     }
-    const current = out[s.key] ?? RPG_TRACKER_VALUE_EMPTY;
-    out[s.key] = {
+    const current = out.get(s.key) ?? RPG_TRACKER_VALUE_EMPTY;
+    out.set(s.key, {
       ...current,
       ...(s.value !== undefined ? { value: s.value } : {}),
       ...(s.items !== undefined ? { items: [...s.items] } : {}),
-    };
+    });
   }
-  return out;
+  return Object.fromEntries(out);
 }
 
 /** `update_party` → the new `actorState` plane (per-actor tracker/condition/status writes). `participantIndex` resolves
