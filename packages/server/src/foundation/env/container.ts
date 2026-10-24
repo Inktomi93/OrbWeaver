@@ -2,7 +2,6 @@
 // or read a boot secret on it. Every operator-facing refusal (the env parse, the Host allowlist page) names the fix
 // through `settingInstruction`, so the two shapes' fix text has one home.
 
-import { existsSync } from "node:fs";
 import type { EnvLine } from "@orb/contracts/identity";
 import {
   BARE_METAL_ENV_FILE,
@@ -15,18 +14,12 @@ import {
 } from "@orb/contracts/identity";
 
 /** The marker files a container runtime writes: Docker (Engine and Desktop), then Podman. containerd and CRI-O write
- *  neither, which is why the image also declares itself. */
+ *  neither, which is why the image also declares itself (`ORB_CONTAINER`). The process reader checks them once; the
+ *  record joins the result with the declaration into its install kind. */
 export const CONTAINER_MARKER_FILES = ["/.dockerenv", "/run/.containerenv"] as const;
 
 // The service name in the shipped `docker-compose.yaml`; the entrypoint's first-boot banner names it too.
 const COMPOSE_SERVICE = "orbweaver";
-
-/** Whether this process runs in a container: the image's own declaration (`ORB_CONTAINER`, set by the Dockerfile),
- *  else a marker file the runtime writes. It picks which fix an operator-facing message names, and whether the
- *  machine's own name is a name this server answers to. */
-export function runsInContainer(declared: boolean, exists: (path: string) => boolean = existsSync): boolean {
-  return declared || CONTAINER_MARKER_FILES.some((path) => exists(path));
-}
 
 /** How to set `lines` on this install: a lowercase clause ending in a colon, then each line indented on its own line,
  *  so a pasted line never carries its neighbours. A container takes them in its own env file (it reads no `.env` from

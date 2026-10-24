@@ -6,7 +6,6 @@
 // ambient time, entropy or the process env.
 
 import type { AddressInfo } from "node:net";
-import { hostname } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import type { ServerType } from "@hono/node-server";
@@ -360,7 +359,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
 
     // The stable per-replica lock-holder tag — threaded into both compose (chat turn-lock) and the boot
     // reclaim (wipes this replica's own orphaned chat_locks).
-    const holder = hostname();
+    const holder = env.MACHINE_HOSTNAME;
 
     // `admin.restart`'s port: close the app as a signal does, then exit with the code the supervisor respawns on. It
     // runs on a later tick so the owner's answer is sent first. A shutdown already under way (a signal) wins:

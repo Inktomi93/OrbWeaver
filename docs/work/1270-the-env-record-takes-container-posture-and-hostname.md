@@ -18,7 +18,7 @@ Item 1254 made the record a root dependency so a test can set anything productio
 
 ## Done when
 
-`parseEnv` takes the container posture and hostname as explicit inputs beside the env source and the file-key set; `createProcessSeams` supplies them from the machine; `createTestEnv` defaults to bare-metal with a fixed hostname and exposes both as `ENV_SEAMS` rows; the record module has no `node:fs` or `node:os` import and a dependency-cruiser rule or the existing `process-env-composition-root-only` rule covers it with a planted control; one test per posture shows `installKind` and the bind refusal follow the record.
+`parseEnv` takes the container posture and hostname as explicit inputs beside the env source and the file-key set; `foundation/env/index.ts` supplies them from the machine, because its module-load parse is the one the composition root, the dev preflight and the scripts share, and it runs before the entry scrubs secrets from `process.env`; `createTestEnv` defaults to bare-metal with a fixed hostname and exposes both as `ENV_SEAMS` rows; the record module has no `node:fs` or `node:os` import and a dependency-cruiser rule or the existing `process-env-composition-root-only` rule covers it with a planted control; one test per posture shows `installKind` and the bind refusal follow the record.
 
 ## Evidence
 

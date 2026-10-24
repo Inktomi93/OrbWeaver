@@ -421,6 +421,15 @@ const SERVER_AUTHORITY = [
     to: { path: `${SRV}foundation/env/index\\.ts$`, dependencyTypesNot: ["type-only"] },
   },
   {
+    name: "env-record-reads-no-host",
+    comment:
+      "The record parse takes the machine's container posture, its name and the secret-file reader as inputs, so a test root states every fact production reads. Only the process reader (foundation/env/index.ts) touches the file system, the OS or the process.",
+    severity: "error",
+    from: { path: `${SRV}foundation/env/record/index\\.ts$` },
+    // `module` is listed because `createRequire` loads any host module past the static graph.
+    to: { path: "^(node:)?(fs|fs/promises|os|process|child_process|module)$", reachable: true },
+  },
+  {
     name: "infra-no-db",
     comment: "Adapters receive database operations by injection rather than acquiring query authority.",
     severity: "error",

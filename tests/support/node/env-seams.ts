@@ -1,11 +1,12 @@
-// Where every production env key reaches a test root: a harness option writes it, the harness composes it, or no root
-// reaches it by design. The table is a `Record` over the schema's keys, so a new key fails `tsc` until it is placed.
+// Where every production parse input reaches a test root: a harness option writes it, the harness composes it, or no
+// root reaches it by design. The table is a `Record` over the schema's keys and the machine's facts, so a new key or
+// fact fails `tsc` until it is placed.
 
 import { join } from "node:path";
 import type { LogLevel } from "@orb/contracts/settings";
 import type { SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
 import type { createConfiguredOidc, ServicesDeps } from "@orb/server/entry/compose";
-import type { Env, EnvKey } from "@orb/server/foundation/env/record";
+import type { Env, EnvKey, HostFacts } from "@orb/server/foundation/env/record";
 import { ENV_KEYS } from "@orb/server/foundation/env/record";
 import { createTestEnv } from "./env.ts";
 
@@ -24,8 +25,10 @@ interface EnvSeamValues extends Required<Pick<ServicesDeps, "casDir" | "importSt
   readonly oidc: Parameters<typeof createConfiguredOidc>[0]["settings"];
 }
 
-/** The harness options that write record keys, beside `env`, which takes a key's raw value as written. */
-export type EnvSeamOptions = Partial<EnvSeamValues>;
+/** The harness options that write record keys, beside `env`, which takes a key's raw value as written. The machine's
+ *  facts are typed values the process reader reads, never env text: a root states `containerMarker` (default absent)
+ *  and `hostname` (default a fixed test name) as options. */
+export type EnvSeamOptions = Partial<EnvSeamValues & HostFacts>;
 
 type NamedSeamOption = keyof EnvSeamValues;
 
@@ -45,6 +48,11 @@ interface RawSeam {
   readonly option: "env";
 }
 
+interface HostFactSeam<Fact extends keyof HostFacts> {
+  readonly kind: "seam";
+  readonly option: Fact;
+}
+
 interface ComposedSeam {
   readonly kind: "composed";
   /** How the harness derives the key; a key the parse derives from another key carries no `compose`. */
@@ -58,7 +66,6 @@ const DEPLOY_ONLY_REASONS = {
   "boot-step": "only a boot step in `entry/lifecycle.ts` reads it, and a test root runs none of them",
   "boot-secret": "boot resolves the secret from the key or its keyfile; the root injects a fixed one",
   "injected-database": "the root composes over the database it is handed, or a fresh in-memory one",
-  container: "the root pins a bare-metal install, so a case never reads the runner's own container markers",
 } as const;
 
 interface DeployOnlySeam {
@@ -84,6 +91,10 @@ function seam<Option extends NamedSeamOption>(option: Option, read: (value: EnvS
 }
 
 const RAW: RawSeam = { kind: "seam", option: "env" };
+
+function hostFact<Fact extends keyof HostFacts>(fact: Fact): HostFactSeam<Fact> {
+  return { kind: "seam", option: fact };
+}
 
 function composed(derivation: string, compose?: (root: RootFacts) => string): ComposedSeam {
   return compose === undefined ? { kind: "composed", derivation } : { kind: "composed", derivation, compose };
@@ -123,7 +134,7 @@ export const ENV_SEAMS = {
   ["E2E_FIRST_RUN_ASK_HANDLES"]: RAW,
   ["DEV_SEED"]: RAW,
   ["SEED_CONTENT"]: RAW,
-  ["ORB_CONTAINER"]: deployOnly("container"),
+  ["ORB_CONTAINER"]: RAW,
   ["DATA_DIR"]: composed("the root's own temporary directory, under `temporaryParentDir` when one is given", ({ rootDir }) => rootDir),
   ["DATABASE_URL"]: deployOnly("injected-database"),
   ["DATA_LAYOUT_SKIP"]: deployOnly("boot-step"),
@@ -188,7 +199,10 @@ export const ENV_SEAMS = {
   ["RATE_LIMIT_PUBLIC_IP"]: RAW,
   ["RATE_LIMIT_AUTHED"]: RAW,
   ["RATE_LIMIT_LOGIN"]: RAW,
-} as const satisfies Record<EnvKey, EnvSeam>;
+  // The machine's facts are typed parse inputs, not env text, so each has a named option and no raw door.
+  ["containerMarker"]: hostFact("containerMarker"),
+  ["hostname"]: hostFact("hostname"),
+} as const satisfies Record<EnvKey, EnvSeam> & { readonly [Fact in keyof HostFacts]: HostFactSeam<Fact> };
 
 /** The keys `env` writes raw: a key a named option or the harness owns has one door, and a deploy-only key has none. */
 type RawEnvKey = { readonly [Key in EnvKey]: (typeof ENV_SEAMS)[Key] extends RawSeam ? Key : never }[EnvKey];
@@ -237,7 +251,13 @@ function refuseNonRawKeys(env: RawEnvInput | undefined): void {
   }
 }
 
-/** A root's record: each key read through its table row, then the production parse over the test posture.
+// The machine facts a root's options state; an unstated one keeps the test machine's.
+function statedHostFacts({ containerMarker, hostname }: EnvSeamOptions): Partial<HostFacts> {
+  return { ...(containerMarker === undefined ? {} : { containerMarker }), ...(hostname === undefined ? {} : { hostname }) };
+}
+
+/** A root's record: each key and machine fact read through its table row, then the production parse over the test
+ *  posture.
  *  @throws Error when `env` names a key whose row is not raw. */
 export function harnessEnv(options: EnvSeamOptions & { readonly env?: RawEnvInput }, root: RootFacts): Env {
   refuseNonRawKeys(options.env);
@@ -248,5 +268,6 @@ export function harnessEnv(options: EnvSeamOptions & { readonly env?: RawEnvInpu
         return value === undefined ? [] : [[key, value] as const];
       }),
     ),
+    statedHostFacts(options),
   );
 }
