@@ -257,7 +257,7 @@ const AUTH_MODE_REQUIRED_ENV = {
  *  judged, this table only decides what SILENCE means.
  *
  *  The implicit value is `deny` for every mode but `single-user`, so a new mode needs the right row here. */
-const AUTH_MODE_DEFAULT_FALLBACK = {
+export const AUTH_MODE_DEFAULT_FALLBACK = {
   "single-user": "owner",
   local: "deny",
   oidc: "deny",

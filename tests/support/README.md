@@ -66,7 +66,7 @@ Branch a case on the capability, never on the mode name. `AUTH_MODE_CAPABILITIES
 | `oidc` | true | false |
 | `forward-header` | true | false |
 
-`members` means a second account can sign in. Multiplayer surfaces also need the product's `app.multiHumanCapable()`, which `local` turns on only with the `localMultiUser` app setting.
+`members` means a second account can sign in. `ownerFallback` reads the product's unset `AUTH_FALLBACK` default, `AUTH_MODE_DEFAULT_FALLBACK` in `@orb/server/foundation/env`, and every door root composes that default. Multiplayer surfaces also need the product's `app.multiHumanCapable()`, which `local` turns on only with the `localMultiUser` app setting.
 
 ## Author a component case
 

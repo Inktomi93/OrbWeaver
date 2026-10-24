@@ -24,6 +24,7 @@ const REFUSED = "SignInRefusal";
 const OK = 200;
 const LOOPBACK_PEER = "127.0.0.1";
 const VIEWER_ROUTE = "/api/trpc/sessions.me";
+const RELAY_TELL = "x-forwarded-for";
 const FALLBACK_MODES = AUTH_MODES.filter((mode) => AUTH_MODE_CAPABILITIES[mode].ownerFallback);
 const MEMBERLESS_MODES = AUTH_MODES.filter((mode) => !AUTH_MODE_CAPABILITIES[mode].members);
 const listEnvelopeSchema = z.object({ result: z.object({ data: chatListPageSchema }) });
@@ -79,11 +80,20 @@ test("a wrong password or another mode's login door gets the product's refusal, 
   await expect(beginOidcLogin(root, root.issuer, { sub: alice.subject })).rejects.toMatchObject({ name: REFUSED, status: NOT_FOUND });
 });
 
-test.for(AUTH_MODES)("an un-credentialed loopback request is the owner exactly where the capability states a fallback [%s]", async (mode) => {
+// D255: a mode with a login denies an un-credentialed request by omission, even from loopback.
+test.for(AUTH_MODES)("an un-credentialed loopback request is the owner only in a mode without members [%s]", async (mode) => {
   await using root = await createAuthModeRoot(mode, { physicalPeer: () => LOOPBACK_PEER });
   const response = await root.http.request(VIEWER_ROUTE);
   await response.arrayBuffer();
-  expect(response.status).toBe(AUTH_MODE_CAPABILITIES[mode].ownerFallback ? OK : UNAUTHORIZED);
+  expect(response.status).toBe(AUTH_MODE_CAPABILITIES[mode].members ? UNAUTHORIZED : OK);
+});
+
+// D255: a relayed request is never the operator, so a relay tell refuses the fallback and leaves a credential alone.
+forEachAuthMode("a forwarding header refuses the owner fallback and leaves a credentialed owner signed in", async ({ root, capability }) => {
+  const owner = await signIn(root, await ownerSubject(root));
+  const relayed = await root.http.request(VIEWER_ROUTE, { headers: { ...owner.headers, [RELAY_TELL]: OFF_BOX_PEER } });
+  await relayed.arrayBuffer();
+  expect(relayed.status).toBe(capability.ownerFallback ? UNAUTHORIZED : OK);
 });
 
 test.for(FALLBACK_MODES)("an owner-fallback mode refuses the owner from an off-box peer with the product's 401 [%s]", async (mode) => {
