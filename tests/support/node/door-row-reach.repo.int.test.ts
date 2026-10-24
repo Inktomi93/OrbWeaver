@@ -3,11 +3,11 @@
 // through `fixtures.ts` → `corpus.ts`, so a planted re-export adds no new module edge. The walk follows exports instead.
 import { readFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
-import { expect, test } from "@orb/testkit/tooling";
 import ts from "typescript";
 import { beforeAll } from "vitest";
+import { expect, test } from "./fixtures.ts";
 
-const REPO = join(import.meta.dirname, "../..");
+const REPO = join(import.meta.dirname, "../../..");
 const SUPPORT = join(REPO, "tests/support/");
 const ROWS_DOOR = "./node/rows";
 const COMPOSED = join(SUPPORT, "node/composed.ts");

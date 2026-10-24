@@ -1275,6 +1275,9 @@ importers:
       '@types/react':
         specifier: 'catalog:'
         version: 19.3.0
+      typescript:
+        specifier: 'catalog:'
+        version: '@typescript/typescript6@6.0.2'
 
   tooling:
     dependencies:
