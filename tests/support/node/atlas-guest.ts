@@ -4,9 +4,8 @@ import vm from "node:vm";
 import type { PluginHostV1 } from "@orb/contracts/plugin";
 import type { CharacterId, SandboxWireId } from "@orb/kit/ids";
 import { AMBIENT_STUBS } from "@orb/server/infra/plugin-host";
+import { FROZEN_AT_MS } from "../iso/clock.ts";
 import { bootShowcase, mainSourceOf } from "./showcase-guest.ts";
-
-const FIXED_EPOCH = 1_700_000_000_000;
 
 /** A canned wire body, served for any URL containing `match` (the hub's API path). */
 export interface CannedResponse {
@@ -91,7 +90,7 @@ export async function bootAtlas(options: AtlasBootOptions = {}): Promise<AtlasDr
   const surface = {
     version: 1,
     grants: [...(options.grants ?? DEFAULT_GRANTS)],
-    clock: { nowEpochMs: (): number => FIXED_EPOCH },
+    clock: { nowEpochMs: (): number => FROZEN_AT_MS },
     random: { next: (): number => 0.5 },
     ids: { mint: (): string => "id-0" },
     log: {

@@ -2,7 +2,7 @@
 
 export type { BusPayloadFailure, EconomicsField } from "./bus-payload-policy.ts";
 export type { BeltMismatch, BeltMismatchOf, BusName, SubUnionEscape } from "./bus-registry.ts";
-export { createFrozenClock, createManualTimer, FROZEN_AT_MS } from "./clock.ts";
+export { createFrozenClock, FROZEN_AT_MS } from "./clock.ts";
 export type { CorpusWire } from "./corpus.ts";
 export { corpusReadInput } from "./corpus.ts";
 export { createCorpusReadResponder, createCorpusViewerReadResponder } from "./corpus-read-responder.ts";
