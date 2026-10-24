@@ -11,7 +11,7 @@ const PARENT_URL = "/__sandbox-frame-parent";
 const EXTERNAL_URL = "https://navigation-external.test/landing";
 const SAME_ORIGIN_URL = "/__sandbox-frame-same-origin";
 const BARRIER_URL = "/__sandbox-frame-barrier";
-const APP_FRAME_SOURCE = "frame-src 'self'";
+const FRAME_SRC = "frame-src";
 
 async function settle(page: Page): Promise<void> {
   await page.evaluate(
@@ -50,7 +50,8 @@ async function openProbe(page: Page, served: ServedFrame, parentPolicy: string):
     hits.push(route.request().url());
     await route.fulfill({ status: 200, contentType: "text/html", body: "<p>landed</p>" });
   };
-  await page.route("https://navigation-external.test/**", land);
+  // Context-level, so a popup's navigation lands here too: a page route covers only the page that registered it.
+  await page.context().route("https://navigation-external.test/**", land);
   await page.route(`**${SAME_ORIGIN_URL}*`, land);
   await page.route(`**${BARRIER_URL}*`, async (route) => {
     await route.fulfill({ status: 200, contentType: "text/plain", body: "ok" });
@@ -59,13 +60,16 @@ async function openProbe(page: Page, served: ServedFrame, parentPolicy: string):
   return hits;
 }
 
-/** The app policy with frames allowed anywhere: the single directive that decides where a frame may navigate, widened. */
+/**
+ * The app policy with frames allowed anywhere: the single directive that decides where a frame may navigate, widened.
+ * An explicit frame-src is replaced and an inherited one is overridden, so the control holds either way.
+ */
 async function widenedFramePolicy(room: FrameRoom): Promise<string> {
-  const policy = await room.appPolicy();
-  if (!policy.includes(APP_FRAME_SOURCE)) {
-    throw new Error("the served app policy no longer names frame-src 'self'");
-  }
-  return policy.replace(APP_FRAME_SOURCE, "frame-src *");
+  const kept = (await room.appPolicy())
+    .split(";")
+    .map((part) => part.trim())
+    .filter((part) => part !== "" && part.split(/\s+/u)[0] !== FRAME_SRC);
+  return [...kept, `${FRAME_SRC} *`].join("; ");
 }
 
 test("control: with the embedder's frame-src widened a card link navigates the frame off-origin", async ({ room, page }) => {
@@ -122,10 +126,15 @@ test("an interactive card runs its script and still reaches no top or popup navi
   ].join("");
   const served = await room.serve(`<p>lab</p><script>${code}</script>`);
   expect(served.granted.interactive).toBe(true);
+  const popups: string[] = [];
+  page.on("popup", (popup) => {
+    popups.push(popup.url());
+  });
   const hits = await openProbe(page, served, await room.appPolicy());
-  // The marker proves the script ran, so the empty hit list is about navigation and not a dead script.
+  // The marker proves the script ran, so the empty lists are about navigation and not a dead script.
   await expect(page.frameLocator("#card").locator("body")).toHaveAttribute("data-card-ran", "1");
   await settleNavigation(page);
+  expect(popups).toEqual([]);
   expect(hits).toEqual([]);
   expect(page.url()).toContain(PARENT_URL);
 });
