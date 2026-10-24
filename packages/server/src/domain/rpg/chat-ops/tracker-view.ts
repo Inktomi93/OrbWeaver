@@ -28,6 +28,7 @@ import type {
 } from "@orb/contracts/rpg";
 import { actorRefKey, gameTrackers, trackerCeiling, trackerNumber, trackersForCarrier } from "@orb/contracts/rpg";
 import type { CharacterId, MessageId, UserId } from "@orb/kit/ids";
+import { readOwnKey } from "@orb/kit/objects";
 import type { RpgContext, RpgGameRow } from "../contract/service.ts";
 import { listSheets } from "../persistence/sheets.ts";
 import { currentSnapshotState, snapshotStateBeforeSlot } from "../snapshot-edit.ts";
@@ -67,7 +68,7 @@ function sheetRef(row: { characterId: CharacterId | null; userId: UserId | null 
 
 /** Pair a carrier's trackers with their readings off a volatile row's `trackerValues`. */
 function trackerEntries(defs: readonly RpgTrackerDef[], values: RpgActorVolatile["trackerValues"] | undefined): RpgTrackerEntry[] {
-  return defs.map((def) => ({ def, value: values?.[def.key] ?? null }));
+  return defs.map((def) => ({ def, value: (values === undefined ? undefined : readOwnKey(values, def.key)) ?? null }));
 }
 
 /** Project ONE actor onto the tracker view (R2 — participants and cast through the same function): its sheet (row or
@@ -191,7 +192,7 @@ export async function buildTrackerView(ctx: RpgContext, game: RpgGameRow, tracke
       });
     });
   const actors = [...participantActors, ...npcActors];
-  const gameEntries: RpgTrackerEntry[] = gameTrackers(defs).map((def) => ({ def, value: state.trackerValues[def.key] ?? null }));
+  const gameEntries: RpgTrackerEntry[] = gameTrackers(defs).map((def) => ({ def, value: readOwnKey(state.trackerValues, def.key) ?? null }));
   const quests: RpgQuestView[] = state.quests.map((q) => ({ id: q.id, name: q.name, status: q.status, description: q.description, objectives: q.objectives }));
 
   return {

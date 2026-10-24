@@ -26,6 +26,7 @@
 import { resolveProse } from "@orb/contracts/prose";
 import type { RpgInventoryItem, RpgSnapshotState, RpgTrackerDef, RpgTrackerValue } from "@orb/contracts/rpg";
 import { clockTimeOfDay, rpgWeatherText, trackerCeiling, trackerNumber } from "@orb/contracts/rpg";
+import { readOwnKey } from "@orb/kit/objects";
 import type { DeltaContext, PlaneDiffRenderer, RegisteredPlaneDiff } from "../contract/delta.ts";
 
 // Bind a typed `PlaneDiffRenderer<T>` into the type-erased `RegisteredPlaneDiff` the registry holds — the ONE
@@ -194,7 +195,12 @@ const actorTrackersRenderer: PlaneDiffRenderer<ActorState> = {
     return perActor(cur, prev, ctx, (name, p, c) => {
       const out: string[] = [];
       for (const def of actorDefs) {
-        const line = trackerLine(name, def, p?.volatile.trackerValues[def.key], c.volatile.trackerValues[def.key]);
+        const line = trackerLine(
+          name,
+          def,
+          p === undefined ? undefined : readOwnKey(p.volatile.trackerValues, def.key),
+          readOwnKey(c.volatile.trackerValues, def.key),
+        );
         if (line !== null) {
           out.push(line);
         }
@@ -215,7 +221,7 @@ const gameTrackersRenderer: PlaneDiffRenderer<RpgSnapshotState["trackerValues"]>
       if (def.subject !== "game") {
         continue;
       }
-      const line = trackerLine("", def, prev[def.key], cur[def.key]);
+      const line = trackerLine("", def, readOwnKey(prev, def.key), readOwnKey(cur, def.key));
       if (line !== null) {
         out.push(line);
       }

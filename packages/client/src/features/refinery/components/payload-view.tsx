@@ -8,8 +8,10 @@
 // PRESENTATION ORDER (the mock anatomy, generalized): verdict banners lead (the analyze frame), then the
 // hero gauge with its docked prose (the score frame's gauge + summary), then everything else in schema
 // order. Empty/absent values are LOAD-BEARING designed states ("—" / "none listed"), never collapses.
+// Field keys are author- and model-chosen identifiers, so every payload and tone read is an own-key read.
 
 import { isPrimitive } from "@orb/kit/guards";
+import { readOwnKey } from "@orb/kit/objects";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Row, Stack } from "@orb/ui/layout";
@@ -139,7 +141,7 @@ export function PayloadView({ plan, payload, pending = false, arrived = false }:
           the local latch that used to sit beside it was unreachable in production). */}
       {hero !== null ? <HeroGauge arrived={arrived} field={hero} payload={payload} prose={heroProse} /> : null}
       {rest.map((field) => (
-        <FieldBlock field={field} key={field.key} value={payload[field.key]} />
+        <FieldBlock field={field} key={field.key} value={readOwnKey(payload, field.key)} />
       ))}
     </Stack>
   );
@@ -162,18 +164,20 @@ const BANNER_TONE_CLASSES: Record<string, string> = {
 
 function VerdictBanner({ field, payload, siblings }: { field: PlanField; payload: Record<string, unknown>; siblings: readonly PlanField[] }): ReactElement {
   const widget = field.widget as ChipEnumWidget;
-  const value = typeof payload[field.key] === "string" ? (payload[field.key] as string) : null;
-  const tone = value === null ? "neutral" : (widget.tones[value] ?? "neutral");
+  const raw = readOwnKey(payload, field.key);
+  const value = typeof raw === "string" ? raw : null;
+  const tone = value === null ? "neutral" : (readOwnKey(widget.tones, value) ?? "neutral");
   const axis = siblings.find((f) => f.widget.kind === "gauge" && !f.widget.hero && f !== field);
   const prose = siblings.find((f) => f.widget.kind === "prose");
-  const axisValue = axis !== undefined && typeof payload[axis.key] === "number" ? (payload[axis.key] as number) : null;
+  const axisRaw = axis === undefined ? undefined : readOwnKey(payload, axis.key);
+  const axisValue = typeof axisRaw === "number" ? axisRaw : null;
   const axisWidget = axis?.widget as GaugeWidget | undefined;
   return (
     <Card className={BANNER_TONE_CLASSES[tone] ?? ""} data-testid={testId("refineryVerdictBanner")} data-hint-tone={tone}>
       <Row align="center" gap="block" padding="block">
         <Stack gap="field">
           <Heading level={3}>{value ?? ABSENT_TEXT}</Heading>
-          {prose !== undefined ? <Text prose={true}>{scalarText(payload[prose.key])}</Text> : null}
+          {prose !== undefined ? <Text prose={true}>{scalarText(readOwnKey(payload, prose.key))}</Text> : null}
         </Stack>
         {axis !== undefined && axisWidget !== undefined ? (
           <Row align="center" gap="field">
@@ -211,7 +215,8 @@ function HeroGauge({
   arrived: boolean;
 }): ReactElement {
   const widget = field.widget as GaugeWidget;
-  const value = typeof payload[field.key] === "number" ? (payload[field.key] as number) : null;
+  const raw = readOwnKey(payload, field.key);
+  const value = typeof raw === "number" ? raw : null;
   const shown = useCountUp(value, arrived);
   // Decided by the SETTLED score, never by a frame of the ramp or by the absent arm: the meter reads
   // `shown`, so an unconditional threshold would paint a 9/10 danger-red on its way up from 0, and would
@@ -240,7 +245,7 @@ function HeroGauge({
           min={widget.min}
           value={value === null ? widget.min : shown}
         />
-        {prose !== null ? <Text prose={true}>{scalarText(payload[prose.key])}</Text> : null}
+        {prose !== null ? <Text prose={true}>{scalarText(readOwnKey(payload, prose.key))}</Text> : null}
       </Stack>
     </Card>
   );
@@ -313,7 +318,7 @@ function ChipRow({ field, widget, value }: { field: PlanField; widget: ChipEnumW
   return (
     <Row align="center" data-field={field.key} data-testid={testId("refineryField")} gap="row">
       <Text voice="label">{field.label}</Text>
-      {v === null ? <Text voice="gloss">{ABSENT_TEXT}</Text> : <RefineryChip tone={widget.tones[v] ?? "neutral"}>{v}</RefineryChip>}
+      {v === null ? <Text voice="gloss">{ABSENT_TEXT}</Text> : <RefineryChip tone={readOwnKey(widget.tones, v) ?? "neutral"}>{v}</RefineryChip>}
     </Row>
   );
 }
@@ -366,7 +371,7 @@ function SectionBlock({ field, widget, value }: { field: PlanField; widget: Sect
       <Stack gap="row" padding="block">
         <Text voice="kicker">{field.label}</Text>
         {widget.fields.map((child) => (
-          <FieldBlock field={child} key={child.key} value={record[child.key]} />
+          <FieldBlock field={child} key={child.key} value={readOwnKey(record, child.key)} />
         ))}
       </Stack>
     </Card>
@@ -401,7 +406,8 @@ function RowsBlock({ field, row, value }: { field: PlanField; row: RowPlan; valu
       </Row>
       {items.map((item, i) => {
         const scoreWidget = row.score?.widget as GaugeWidget | undefined;
-        const scoreValue = row.score !== null && typeof item[row.score.key] === "number" ? (item[row.score.key] as number) : null;
+        const scoreRaw = row.score === null ? undefined : readOwnKey(item, row.score.key);
+        const scoreValue = typeof scoreRaw === "number" ? scoreRaw : null;
         const open = openIndex === i;
         return (
           // biome-ignore lint/suspicious/noArrayIndexKey: assay positions belong to the immutable payload owner; production mounts reset that owner between results.
@@ -419,7 +425,7 @@ function RowsBlock({ field, row, value }: { field: PlanField; row: RowPlan; valu
                 <Row align="center" gap="row">
                   {row.header.map((h) => (
                     <Text as="span" key={h.key} voice={h === row.header[0] ? "label" : "gloss"}>
-                      {scalarText(item[h.key])}
+                      {scalarText(readOwnKey(item, h.key))}
                     </Text>
                   ))}
                   {scoreValue !== null && scoreWidget !== undefined ? (
@@ -439,7 +445,7 @@ function RowsBlock({ field, row, value }: { field: PlanField; row: RowPlan; valu
                   value={scoreValue}
                 />
               ) : null}
-              {open ? row.body.map((b) => <FieldBlock field={b} key={b.key} value={item[b.key]} />) : null}
+              {open ? row.body.map((b) => <FieldBlock field={b} key={b.key} value={readOwnKey(item, b.key)} />) : null}
             </Stack>
           </Fragment>
         );
