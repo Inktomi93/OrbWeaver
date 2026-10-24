@@ -32,7 +32,7 @@
 // `reapTemporaryChats` sweeps the caller's expired temporary chats AND expired husks, scoped to chats the
 // caller hosts. Bulk delete rides the same FK cascade as `delete`.
 // `getVariables` returns the effective config-plane view: stored ChoiceBlock picks merged over the active
-// preset's declared defaults, with `withRandomPick: false` so the read is stable.
+// preset's declared defaults, resolved with the `stable` pick mode so the read is stable.
 
 import type { ChatInjectionView, DurableChatBusEvent, LiveOnlyChatBusEvent, UserMacroPicksView, VariablePicksView } from "@orb/contracts/chat";
 import type { UserMacroSpec, UserMacroValues } from "@orb/contracts/preset";
@@ -429,13 +429,13 @@ function createReapTemporaryChats(ctx: ChatContext, emitLive: EmitChatEventLive)
 }
 
 /** `getVariables` — member. The effective config-plane view: the stored ChoiceBlock picks merged over the
- *  active preset's declared defaults, `withRandomPick: false` for a stable read. */
+ *  active preset's declared defaults, `stable` pick mode for a stable read. */
 function createGetVariables(ctx: ChatContext): ChatService["getVariables"] {
   return async ({ principal, chatId }: GetVariablesParams): Promise<VariablesResult> => {
     await requireParticipant(ctx, principal, chatId);
     const [stored, specs] = await Promise.all([loadStoredVariables(ctx.db, chatId), ctx.resolvePromptVariables(chatId)]);
-    // withRandomPick:false ⇒ prng is never invoked; a no-op stub keeps the eval path off ambient entropy.
-    return resolveChoiceVariables(specs, stored ?? {}, () => 0, { withRandomPick: false });
+    // `stable` ⇒ prng is never invoked; a no-op stub keeps the eval path off ambient entropy.
+    return resolveChoiceVariables(specs, stored ?? {}, () => 0, "stable");
   };
 }
 

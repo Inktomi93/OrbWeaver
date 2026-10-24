@@ -20,6 +20,7 @@ import type { MacroRegistry } from "@orb/kit/macro";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { humanizeDuration, UTC_TIME_ZONE } from "@orb/kit/time";
 import { buildAssembleContext } from "../assembly/context.ts";
+import type { ChoicePickMode } from "../contract/assembly-macros.ts";
 import type { ChatContext } from "../contract/context.ts";
 
 import type { ForeignInputs } from "../contract/foreign.ts";
@@ -313,9 +314,13 @@ export async function gatherAssembleContext(
     /** The one-turn typed steer — threaded to the BUILD, which resolves the action template once and
      *  delivers it via its placement. */
     readonly guided?: GuidedSteer | undefined;
-    /** The seeded turn PRNG (never ambient `Math.random`) — deterministic + replayable `randomPick`.
-     *  Absent (preview/opening) ⇒ stable resolution, so a preview never varies per poll. */
-    readonly prng?: (() => number) | undefined;
+    /** The render PRNG: every `{{random}}`/`{{roll}}`/`{{pick}}` in the build (injections, lore, personas, notes,
+     *  steers, the WI-stage macro context) draws from it. A turn passes the live seeded PRNG; a preview passes the
+     *  stable preview one. Never ambient `Math.random`. */
+    readonly prng: () => number;
+    /** How ChoiceBlock `randomPick` variables resolve — `random` draws with {@link prng} (a turn), `stable` leaves
+     *  the stored value (a preview, so it never varies per poll). Explicit, never derived from `prng`. */
+    readonly choicePicks: ChoicePickMode;
     /** The `injection_trigger` gate — maps the driving `TurnKind` → `GenerationType` at the verb so
      *  trigger-gated preset sections fire on the right turn kind. Absent ⇒ "normal". */
     readonly generationType?: GenerationType | undefined;
@@ -354,9 +359,7 @@ export async function gatherAssembleContext(
   // Two-plane env seed: resolve the config plane (ChoiceBlock picks → concrete map), then overlay the
   // runtime fold cache so a played `{{setvar}}` wins over the config default. Handed to the macro env by
   // reference — within-turn setvars mutate it in place; the turn flushes the delta at commit.
-  const resolvedConfig = resolveChoiceVariables(foreign.promptConfig.variables, storedVariables ?? {}, args.prng ?? ((): number => 0), {
-    withRandomPick: args.prng !== undefined,
-  });
+  const resolvedConfig = resolveChoiceVariables(foreign.promptConfig.variables, storedVariables ?? {}, args.prng, args.choicePicks);
   const runtimeCache = foldChain(variableDeltas);
   const mergedVariables: Record<string, string> = { ...resolvedConfig, ...runtimeCache };
 
@@ -484,10 +487,10 @@ export async function gatherAssembleContext(
       model,
       generationType: args.generationType ?? "normal",
       nowMs: ctx.now(),
-      // Drives the SEND volatile-macro freeze ({{roll}}/{{random}}/{{pick}} bake deterministically at commit) and
-      // the turn-stage macro context. `args.prng` only selects the randomPick seed mode above; a preview/aux build
-      // still draws its turn-stage macros from the service PRNG, never kit's ambient fallback.
-      prng: args.prng ?? ctx.prng,
+      // The render PRNG: drives the SEND volatile-macro freeze ({{roll}}/{{random}}/{{pick}} bake deterministically
+      // at commit), every build-stage render and the turn-stage macro context. `choicePicks` alone selects the
+      // ChoiceBlock pick mode above.
+      prng: args.prng,
       ...(roomOverrides !== undefined ? { roomOverrides } : {}),
       timezone: assemblyTimeZone(args.timeZone),
       ...(lastMessage !== undefined ? { lastMessage } : {}),

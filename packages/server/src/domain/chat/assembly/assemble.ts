@@ -28,10 +28,10 @@ import { DEFAULT_MARKER_TEMPLATES, NARRATOR_MAIN_PROMPT_TEMPLATE } from "@orb/co
 import type { ProseSlotId } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { MacroRegistry } from "@orb/kit/macro";
-import { globalMacroRegistry } from "@orb/kit/macro";
 import { normalizeExampleStart } from "@orb/kit/speaker-label";
 import type { PostProcessConfig } from "#primitives/post-process";
 import { applyAssemblePostProcess } from "#primitives/post-process";
+import type { MacroRenderEnv } from "../contract/assembly-macros.ts";
 import type { AssemblySlice } from "../contract/results.ts";
 import { injectionSource, personaContributorLabel, sectionSource } from "./budget.ts";
 import { BEFORE_HISTORY_DEPTH } from "./injections.ts";
@@ -127,9 +127,9 @@ interface BuildEnv {
   readonly trace: AssembleTrace;
   readonly originals: Originals;
   readonly pivotIndex: number;
-  /** The per-turn user-macro registry (WAVE MU) every section render + volatile-scan reads; the process
-   *  `globalMacroRegistry` when the turn authored no user macros (byte-identical). */
-  readonly registry: MacroRegistry;
+  /** The per-turn user-macro registry (WAVE MU) every section render + volatile-scan reads (the process
+   *  `globalMacroRegistry` when the turn authored no user macros) and the turn PRNG every macro draw rides. */
+  readonly render: MacroRenderEnv;
   /** The ctx every CARD-DERIVED render binds against — see {@link cardOwnerCtx}. Identical to `ctx` by
    *  REFERENCE on every non-narrator turn, so nothing outside a narrator round can change bytes. */
   readonly cardCtx: AssembleContext;
@@ -200,7 +200,7 @@ const MERGED_JOIN = "\n\n";
  *  `<START>`, so normalizing first made that nothing look non-empty and shipped `[X's example dialogue]`
  *  over a bare `<START>`. Every other field (scenario above all) already emitted nothing from the identical
  *  input because it has no post-render step; checking the render, not the raw, is what makes the two agree. */
-function renderMemberField(field: MemberField, member: AssembleCharacter, ctx: AssembleContext, registry: MacroRegistry): string {
+function renderMemberField(field: MemberField, member: AssembleCharacter, ctx: AssembleContext, render: MacroRenderEnv): string {
   const raw = member[field];
   if (typeof raw !== "string" || raw.trim().length === 0) {
     return "";
@@ -211,7 +211,7 @@ function renderMemberField(field: MemberField, member: AssembleCharacter, ctx: A
     character: member,
     speaker: { kind: "single", character: member },
   };
-  const rendered = renderMacros(raw, sub, ctx.pinnedPersona, { registry });
+  const rendered = renderMacros(raw, sub, ctx.pinnedPersona, render);
   if (rendered.trim().length === 0) {
     return "";
   }
@@ -301,7 +301,7 @@ function resolveScopeFallback(
   field: MemberField,
   ctx: AssembleContext,
   activeValue: string,
-  registry: MacroRegistry,
+  render: MacroRenderEnv,
 ): { value: string; merged: boolean; truncated: readonly string[] } {
   const co = ctx.coSpeakers;
   if (co === undefined || co.length === 0) {
@@ -309,15 +309,15 @@ function resolveScopeFallback(
   }
   const contributions = dedupeNonEmpty([
     { name: ctx.character.name, text: activeValue },
-    ...co.map((m) => ({ name: m.name, text: renderMemberField(field, m, ctx, registry) })),
+    ...co.map((m) => ({ name: m.name, text: renderMemberField(field, m, ctx, render) })),
   ]);
   const allocated = allocateMergedFallback(contributions, MERGED_FALLBACK_CAP);
   return { value: allocated.texts.join(MERGED_JOIN), merged: true, truncated: allocated.truncated };
 }
 
 /** ONE present roster member's merged card block, or "" when they contribute nothing. */
-function renderCoSpeakerBlock(member: AssembleCharacter, ctx: AssembleContext, registry: MacroRegistry): string {
-  const head = [renderMemberField("description", member, ctx, registry), renderMemberField("personality", member, ctx, registry)]
+function renderCoSpeakerBlock(member: AssembleCharacter, ctx: AssembleContext, render: MacroRenderEnv): string {
+  const head = [renderMemberField("description", member, ctx, render), renderMemberField("personality", member, ctx, render)]
     .filter((s) => s.trim().length > 0)
     .join("\n");
   if (head.trim().length === 0) {
@@ -328,8 +328,8 @@ function renderCoSpeakerBlock(member: AssembleCharacter, ctx: AssembleContext, r
   // shipped frames.
   const heading = (id: ProseSlotId): string => resolveProseText(id, ctx.prose ?? {}, { name: member.name });
   const parts = [`${heading("chat.group.characterHeading")}\n${head}`];
-  const scenario = renderMemberField("scenario", member, ctx, registry);
-  const examples = renderMemberField("exampleMessages", member, ctx, registry);
+  const scenario = renderMemberField("scenario", member, ctx, render);
+  const examples = renderMemberField("exampleMessages", member, ctx, render);
   if (scenario.trim().length > 0) {
     parts.push(`${heading("chat.group.scenarioHeading")}\n${scenario}`);
   }
@@ -342,24 +342,24 @@ function renderCoSpeakerBlock(member: AssembleCharacter, ctx: AssembleContext, r
 /** The merged co-speakers' card blocks, appended after the active character's description — kept PER MEMBER
  *  (not pre-joined) so the budget can attribute each roster member's own token cost by NAME. Empty when
  *  scoped/solo/no co-speakers. The joined form is byte-identical to the pre-split render. */
-function renderCoSpeakerBlocks(ctx: AssembleContext, registry: MacroRegistry): { name: string; text: string }[] {
+function renderCoSpeakerBlocks(ctx: AssembleContext, render: MacroRenderEnv): { name: string; text: string }[] {
   const co = ctx.coSpeakers;
   if (co === undefined || co.length === 0) {
     return [];
   }
-  return co.map((m) => ({ name: m.name, text: renderCoSpeakerBlock(m, ctx, registry) })).filter((b) => b.text.length > 0);
+  return co.map((m) => ({ name: m.name, text: renderCoSpeakerBlock(m, ctx, render) })).filter((b) => b.text.length > 0);
 }
 
 /** ONE other present human's people-block entry: the `chat.group.personaHeading` frame, then the description
  *  rendered against THAT persona (its `{{user}}` is its own name). Only an `in_prompt` description rides the
  *  block — `at_depth` rode its own injection and `none` opted out — but the heading always stays, so the model
  *  can map a row label to a person. */
-function renderPersonEntry(person: AssemblePersona, ctx: AssembleContext, registry: MacroRegistry): string {
+function renderPersonEntry(person: AssemblePersona, ctx: AssembleContext, render: MacroRenderEnv): string {
   const heading = resolveProseText("chat.group.personaHeading", ctx.prose ?? {}, { name: person.name });
   if (person.placement !== undefined && person.placement.kind !== "in_prompt") {
     return heading;
   }
-  const description = renderMacros(person.description, ctx, person, { registry }).trim();
+  const description = renderMacros(person.description, ctx, person, render).trim();
   return description.length === 0 ? heading : `${heading}\n${description}`;
 }
 
@@ -369,14 +369,14 @@ function renderPersonEntry(person: AssemblePersona, ctx: AssembleContext, regist
  *  PERSON so the budget names each one: the voice part unheaded and first, then every other human's entry in
  *  join order. Position alone marks who `{{user}}` is; no people is today's solo render, byte for byte. */
 function renderPersonaMarker(section: TemplatedMarkerSection, env: BuildEnv): string {
-  const { ctx, registry } = env;
-  const voice = ctx.activePersona && ctx.personaMarkerActive !== false ? renderMacros(templateFor(section, ctx), ctx, ctx.activePersona, { registry }) : "";
+  const { ctx, render } = env;
+  const voice = ctx.activePersona && ctx.personaMarkerActive !== false ? renderMacros(templateFor(section, ctx), ctx, ctx.activePersona, render) : "";
   if (ctx.people === undefined || ctx.people.length === 0) {
     return voice;
   }
   const blocks = [
     { name: personaLabel(ctx.activePersona?.name), text: voice.trim() },
-    ...ctx.people.map((person) => ({ name: personaLabel(person.name), text: renderPersonEntry(person, ctx, registry) })),
+    ...ctx.people.map((person) => ({ name: personaLabel(person.name), text: renderPersonEntry(person, ctx, render) })),
   ].filter((part) => part.text.length > 0);
   env.memberBlocks.set(section.id, blocks);
   return blocks.map((b) => b.text).join("\n\n");
@@ -438,17 +438,17 @@ function renderOverridable(
   cardField: "systemPrompt" | "postHistoryInstructions",
   roomOverride: string | null | undefined,
 ): { text: string; merged: boolean; truncated: readonly string[] } {
-  const { ctx, cardCtx, originals, registry } = env;
+  const { ctx, cardCtx, originals, render } = env;
   const cardOverride = ctx.character[cardField];
-  const preset = originals.renderedById.get(section.id) ?? renderMacros(templateFor(section, ctx), ctx, ctx.activePersona, { registry });
+  const preset = originals.renderedById.get(section.id) ?? renderMacros(templateFor(section, ctx), ctx, ctx.activePersona, render);
   const afterCard =
     overrideSet(cardOverride) && section.forbidCharacterOverride !== true
-      ? renderMacros(cardOverride, cardCtx, ctx.pinnedPersona, { original: preset, registry })
+      ? renderMacros(cardOverride, cardCtx, ctx.pinnedPersona, { ...render, original: preset })
       : preset;
-  const fallback = resolveScopeFallback(cardField, ctx, afterCard, registry);
+  const fallback = resolveScopeFallback(cardField, ctx, afterCard, render);
   if (overrideSet(roomOverride) && section.forbidRoomOverride !== true) {
     return {
-      text: renderMacros(roomOverride, ctx, ctx.activePersona, { original: fallback.value, registry }),
+      text: renderMacros(roomOverride, ctx, ctx.activePersona, { ...render, original: fallback.value }),
       merged: fallback.merged,
       truncated: fallback.truncated,
     };
@@ -481,7 +481,7 @@ function renderScenarioMarker(section: TemplatedMarkerSection, env: BuildEnv): s
   const room = ctx.roomOverrides?.scenario;
   // Active speaker's effective scenario only — co-speakers' scenarios are emitted once by the
   // char_description co-block; merging them here too would double-emit.
-  const value = renderMacros(templateFor(section, ctx), env.cardCtx, ctx.pinnedPersona, { registry: env.registry });
+  const value = renderMacros(templateFor(section, ctx), env.cardCtx, ctx.pinnedPersona, env.render);
   if (value.trim().length === 0) {
     return "";
   }
@@ -518,7 +518,7 @@ function renderServerMarker(section: TemplatedMarkerSection, marker: ServerMarke
     return "";
   }
   env.trace[SERVER_MARKER_FLAG[marker]] = true;
-  return renderMacros(templateFor(section, env.ctx), env.ctx, env.ctx.activePersona, { registry: env.registry });
+  return renderMacros(templateFor(section, env.ctx), env.ctx, env.ctx.activePersona, env.render);
 }
 
 function renderMarker(section: MarkerSection, env: BuildEnv): string {
@@ -533,8 +533,8 @@ function renderMarker(section: MarkerSection, env: BuildEnv): string {
       // The MERGED card section — the one section whose text belongs to several roster members at once, so it
       // records a per-member split (`env.memberBlocks`) the budget attributes by NAME. The joined string is
       // byte-identical to the pre-split render.
-      const active = renderMacros(templateFor(section, ctx), env.cardCtx, ctx.pinnedPersona, { registry: env.registry });
-      const blocks = renderCoSpeakerBlocks(ctx, env.registry);
+      const active = renderMacros(templateFor(section, ctx), env.cardCtx, ctx.pinnedPersona, env.render);
+      const blocks = renderCoSpeakerBlocks(ctx, env.render);
       if (blocks.length > 0) {
         recordMergedCacheBuster(trace);
       }
@@ -546,11 +546,11 @@ function renderMarker(section: MarkerSection, env: BuildEnv): string {
     }
     case "char_personality":
       return ctx.character.personality !== null && ctx.character.personality !== ""
-        ? renderMacros(templateFor(section, ctx), env.cardCtx, ctx.pinnedPersona, { registry: env.registry })
+        ? renderMacros(templateFor(section, ctx), env.cardCtx, ctx.pinnedPersona, env.render)
         : "";
     case "dialogue_examples":
       return ctx.character.exampleMessages !== null && ctx.character.exampleMessages !== ""
-        ? renderMacros(templateFor(section, ctx), env.cardCtx, ctx.pinnedPersona, { registry: env.registry })
+        ? renderMacros(templateFor(section, ctx), env.cardCtx, ctx.pinnedPersona, env.render)
         : "";
     case "persona":
       return renderPersonaMarker(section, env);
@@ -571,7 +571,7 @@ function renderMarker(section: MarkerSection, env: BuildEnv): string {
 
 function renderSection(section: PromptSection, env: BuildEnv): string {
   // Literal blocks are USER-authored → active persona; markers route per-marker (dual-persona inside).
-  return section.type === "literal" ? renderMacros(section.content, env.ctx, env.ctx.activePersona, { registry: env.registry }) : renderMarker(section, env);
+  return section.type === "literal" ? renderMacros(section.content, env.ctx, env.ctx.activePersona, env.render) : renderMarker(section, env);
 }
 
 function coSpeakerFieldSources(field: MemberField, ctx: AssembleContext): string[] {
@@ -637,7 +637,7 @@ function collectStaticSources(section: PromptSection, ctx: AssembleContext): str
 
 /** Pre-render the preset content of every enabled overridable section, memoized by id — renders exactly
  *  once regardless of section order. */
-function computeOriginals(config: PromptConfig, ctx: AssembleContext, registry: MacroRegistry): Originals {
+function computeOriginals(config: PromptConfig, ctx: AssembleContext, render: MacroRenderEnv): Originals {
   const overridable = config.sections.filter(
     (s): s is TemplatedMarkerSection => s.type === "marker" && s.enabled && (s.marker === "main_prompt" || s.marker === "post_history"),
   );
@@ -646,7 +646,7 @@ function computeOriginals(config: PromptConfig, ctx: AssembleContext, registry: 
   }
   const renderedById = new Map<string, string>();
   for (const s of overridable) {
-    renderedById.set(s.id, renderMacros(templateFor(s, ctx), ctx, ctx.activePersona, { registry }));
+    renderedById.set(s.id, renderMacros(templateFor(s, ctx), ctx, ctx.activePersona, render));
   }
   return { renderedById };
 }
@@ -881,7 +881,7 @@ function walkSection(section: PromptSection, idx: number, env: BuildEnv, acc: Wa
   pushAnchoredKeywordLore(section, env, acc);
   const dynamic = isSectionDynamic(section);
   if (!dynamic) {
-    scanStaticBusters(section, env.ctx, acc.cacheBusters, env.registry);
+    scanStaticBusters(section, env.ctx, acc.cacheBusters, env.render.registry);
   }
   const rendered = renderSection(section, env).trim();
   if (rendered.length === 0) {
@@ -958,8 +958,8 @@ function applySystemInjections(ctx: AssembleContext, trace: AssembleTrace, acc: 
  * Render `config` against `ctx` into the system-prompt halves + the after-history injection bucket. Each
  * enabled section is delivered into the system block or as an `in_chat` injection. Pure.
  */
-export function assemblePrompt(rawConfig: PromptConfig, ctx: AssembleContext, registry: MacroRegistry = globalMacroRegistry): AssembledPrompt {
-  return assembleWithSlices(rawConfig, ctx, registry).prompt;
+export function assemblePrompt(rawConfig: PromptConfig, ctx: AssembleContext, render: MacroRenderEnv): AssembledPrompt {
+  return assembleWithSlices(rawConfig, ctx, render).prompt;
 }
 
 /**
@@ -971,15 +971,15 @@ export function assemblePrompt(rawConfig: PromptConfig, ctx: AssembleContext, re
 export function assemblePromptWithSlices(
   rawConfig: PromptConfig,
   ctx: AssembleContext,
-  registry: MacroRegistry = globalMacroRegistry,
+  render: MacroRenderEnv,
 ): { prompt: AssembledPrompt; slices: readonly AssemblySlice[] } {
-  return assembleWithSlices(rawConfig, ctx, registry);
+  return assembleWithSlices(rawConfig, ctx, render);
 }
 
 function assembleWithSlices(
   rawConfig: PromptConfig,
   ctx: AssembleContext,
-  registry: MacroRegistry,
+  render: MacroRenderEnv,
 ): { prompt: AssembledPrompt; slices: readonly AssemblySlice[] } {
   const config = withImplicitCompactSummary(rawConfig, ctx);
   const trace = freshTrace(ctx);
@@ -998,9 +998,9 @@ function assembleWithSlices(
     ctx,
     cardCtx: cardOwnerCtx(ctx),
     trace,
-    originals: computeOriginals(config, ctx, registry),
+    originals: computeOriginals(config, ctx, render),
     pivotIndex,
-    registry,
+    render,
     memberBlocks: new Map(),
     postProcess: pp,
   };
@@ -1065,12 +1065,7 @@ function assembleWithSlices(
  * SIDE-EFFECT FREE: the variable map is cloned so a `{{setvar}}` in the preview can't bleed into the
  * caller's live `variableValues`.
  */
-export function previewSection(
-  section: PromptSection,
-  ctx: AssembleContext,
-  config: PromptConfig,
-  registry: MacroRegistry = globalMacroRegistry,
-): SectionPreview {
+export function previewSection(section: PromptSection, ctx: AssembleContext, config: PromptConfig, render: MacroRenderEnv): SectionPreview {
   const half: "static" | "dynamic" = isSectionDynamic(section) ? "dynamic" : "static";
   const trace = freshTrace(ctx);
   if (!section.enabled) {
@@ -1081,9 +1076,9 @@ export function previewSection(
     ctx: previewCtx,
     cardCtx: cardOwnerCtx(previewCtx),
     trace,
-    originals: computeOriginals(config, previewCtx, registry),
+    originals: computeOriginals(config, previewCtx, render),
     pivotIndex: -1,
-    registry,
+    render,
     memberBlocks: new Map(),
     // The single-section preview emits no budget slices, so nothing reads this — the field is carried for
     // the env's shape, and `previewSection` deliberately shows the section's OWN render (the post-process is

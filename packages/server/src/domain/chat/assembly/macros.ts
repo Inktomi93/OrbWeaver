@@ -59,9 +59,8 @@ interface MacroExtras {
   /** The routing-resolved model id (turn-stage only). */
   model?: string | undefined;
   chatId?: ChatId | undefined;
-  /** The PRNG for `{{random}}`/`{{roll}}`/`{{pick}}`: required on the turn context and the freeze; a section render
-   *  passes none and falls to kit's ambient default. */
-  random?: (() => number) | undefined;
+  /** The PRNG for `{{random}}`/`{{roll}}`/`{{pick}}`: required on every render so none reaches kit's ambient default. */
+  random: () => number;
   onWarn?: ((msg: string, err?: unknown) => void) | undefined;
   /** The commit-time VOLATILE-FREEZE sink (D129-F) — the caller's array; each volatile occurrence this pass
    *  bakes is pushed in document order. Absent ⇒ no recording (every non-freeze render). */
@@ -75,7 +74,7 @@ interface MacroExtras {
 
 /** The ONE AssembleContext → `ProcessMacroOptions` mapping, shared by `renderMacros` and
  *  `buildTurnMacroContext`. `persona` decides `{{user}}`/`{{persona}}`; `env` is the shared reference. */
-function macroOptionsFor(ctx: AssembleContext, persona: AssemblePersona | null | undefined, extras: MacroExtras = {}): ProcessMacroOptions {
+function macroOptionsFor(ctx: AssembleContext, persona: AssemblePersona | null | undefined, extras: MacroExtras): ProcessMacroOptions {
   // {{group}} = every present CHARACTER (muted included, for lore); {{groupNotMuted}} = the pre-filtered
   // character-only-not-muted field, or the full seated-character set when unset (a hand-built ctx).
   const presentCharacterNames = memberNames(ctx, ctx.characters ?? [ctx.character]);
@@ -135,8 +134,8 @@ function macroOptionsFor(ctx: AssembleContext, persona: AssemblePersona | null |
  * card-derived sections, active for user-authored). `original` is the preset Main-Prompt/Jailbreak,
  * threaded only while rendering the two overridable markers.
  */
-export function renderMacros(text: string, ctx: AssembleContext, persona: AssemblePersona | null | undefined, opts: RenderMacrosOptions = {}): string {
-  return processMacros(text, macroOptionsFor(ctx, persona, { original: opts.original }), opts.registry ?? globalMacroRegistry);
+export function renderMacros(text: string, ctx: AssembleContext, persona: AssemblePersona | null | undefined, opts: RenderMacrosOptions): string {
+  return processMacros(text, macroOptionsFor(ctx, persona, { original: opts.original, random: opts.random }), opts.registry ?? globalMacroRegistry);
 }
 
 /**
@@ -229,6 +228,8 @@ export function resolveGuidedActionText(
     readonly model?: string | undefined;
     readonly chatId?: ChatId | undefined;
     readonly person?: GuidedImpersonatePerson | undefined;
+    /** The turn PRNG every `{{random}}`/`{{roll}}`/`{{pick}}` in the template draws from. */
+    readonly random: () => number;
     /** The per-turn user-macro registry (WAVE MU) when the guided template references a user macro; absent
      *  ⇒ the process `globalMacroRegistry` (byte-identical). */
     readonly registry?: MacroRegistry | undefined;
@@ -240,10 +241,15 @@ export function resolveGuidedActionText(
     return "";
   }
   const config = ctx.promptConfig.guidedActions?.[args.action] ?? DEFAULT_GUIDED_ACTIONS[args.action];
-  return resolveGuidedInstruction(config.prompt, args.input, macroOptionsFor(ctx, ctx.activePersona, { model: args.model, chatId: args.chatId }), {
-    ...(args.person !== undefined ? { person: args.person } : {}),
-    ...(args.registry !== undefined ? { registry: args.registry } : {}),
-  });
+  return resolveGuidedInstruction(
+    config.prompt,
+    args.input,
+    macroOptionsFor(ctx, ctx.activePersona, { model: args.model, chatId: args.chatId, random: args.random }),
+    {
+      ...(args.person !== undefined ? { person: args.person } : {}),
+      ...(args.registry !== undefined ? { registry: args.registry } : {}),
+    },
+  );
 }
 
 /**
@@ -258,9 +264,9 @@ export function resolveGuidedActionText(
 export function resolveNudgeText(
   ctx: AssembleContext,
   template: string,
-  opts: { readonly person?: GuidedImpersonatePerson | undefined; readonly registry?: MacroRegistry | undefined } = {},
+  opts: { readonly random: () => number; readonly person?: GuidedImpersonatePerson | undefined; readonly registry?: MacroRegistry | undefined },
 ): string {
-  return resolveGuidedInstruction(template, "", macroOptionsFor(ctx, ctx.activePersona), {
+  return resolveGuidedInstruction(template, "", macroOptionsFor(ctx, ctx.activePersona, { random: opts.random }), {
     ...(opts.person !== undefined ? { person: opts.person } : {}),
     ...(opts.registry !== undefined ? { registry: opts.registry } : {}),
   });
@@ -298,12 +304,22 @@ const FIRE_TIME_PERSON = "\u0000orb:person\u0000";
 export function previewActionText(
   ctx: AssembleContext,
   template: string,
-  opts: { readonly model?: string | undefined; readonly chatId?: ChatId | undefined; readonly registry?: MacroRegistry | undefined } = {},
+  opts: {
+    readonly random: () => number;
+    readonly model?: string | undefined;
+    readonly chatId?: ChatId | undefined;
+    readonly registry?: MacroRegistry | undefined;
+  },
 ): string {
-  const rendered = resolveGuidedInstruction(template, FIRE_TIME_INPUT, macroOptionsFor(ctx, ctx.activePersona, { model: opts.model, chatId: opts.chatId }), {
-    person: FIRE_TIME_PERSON,
-    ...(opts.registry !== undefined ? { registry: opts.registry } : {}),
-  });
+  const rendered = resolveGuidedInstruction(
+    template,
+    FIRE_TIME_INPUT,
+    macroOptionsFor(ctx, ctx.activePersona, { model: opts.model, chatId: opts.chatId, random: opts.random }),
+    {
+      person: FIRE_TIME_PERSON,
+      ...(opts.registry !== undefined ? { registry: opts.registry } : {}),
+    },
+  );
   return rendered.replaceAll(FIRE_TIME_INPUT, "{{input}}").replaceAll(FIRE_TIME_PERSON, "{{person}}");
 }
 

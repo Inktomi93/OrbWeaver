@@ -213,7 +213,7 @@ function composeBodyWithAttachments(text: string, attachmentAssetIds: readonly A
 const nudgeOf = (
   assembleContext: AssembleContext,
   key: "continueNudge" | "impersonateNudge" | "responseNudge",
-  opts: { readonly person?: GuidedImpersonatePerson | undefined; readonly registry?: MacroRegistry | undefined } = {},
+  opts: { readonly random: () => number; readonly person?: GuidedImpersonatePerson | undefined; readonly registry?: MacroRegistry | undefined },
 ): string => {
   // PROSE-1 §4.6: the override STORAGE is still `formatStrings.<key>`; the two rungs (override else shipped
   // default) funnel through the ONE prose resolver so precedence can't drift from the registry.
@@ -788,6 +788,7 @@ async function buildTurnContext(
       multiHuman: seatsMultipleHumans(args.presentHumanUserIds),
       generationType: GENERATION_TYPE_FOR_KIND[args.kind],
       prng: deps.prng,
+      choicePicks: "random",
       timeZone: args.timeZone,
       ...(args.pendingUserText !== undefined ? { pendingUserText: args.pendingUserText } : {}),
       ...(args.guided !== undefined ? { guided: args.guided } : {}),
@@ -2242,7 +2243,7 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
       speakerCharacterId: target.characterId,
       // RENDERED (macro path parity): continue carries no `{{person}}` today; the registry render is a safe no-op
       // that substitutes any `{{user}}/{{char}}` an edited/ST-imported continue nudge holds.
-      appendUserTurn: nudgeOf(assembleContext, "continueNudge", macroRegistry !== null ? { registry: macroRegistry } : {}),
+      appendUserTurn: nudgeOf(assembleContext, "continueNudge", { random: deps.prng, ...(macroRegistry !== null ? { registry: macroRegistry } : {}) }),
       // The continue nudge is the FALLBACK spelling of "keep going" for a wire that cannot continue the
       // model's own trailing row. On a wire that CAN (`turns.assistantPrefill`), the pipeline drops it and
       // delivers the partial assistant row itself — the model extends the actual sentence instead of being
@@ -2427,6 +2428,7 @@ function createImpersonateStream(ctx: ChatContext, deps: TurnDeps): ChatService[
           // The unsteered impersonate voice-lock nudge, RENDERED: `{{user}}`→persona, `{{char}}`→character,
           // `{{person}}`→the picked perspective (guided-only). Threads the same macro registry a steered turn uses.
           appendUserTurn: nudgeOf(assembleContext, "impersonateNudge", {
+            random: deps.prng,
             person: guided?.person,
             ...(macroRegistry !== null ? { registry: macroRegistry } : {}),
           }),
@@ -2597,7 +2599,7 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
         // RENDERED (macro path parity): response carries no `{{person}}` today; the registry render substitutes any
         // `{{user}}/{{char}}` an edited/ST-imported response nudge holds (a safe no-op for the default string).
         ...(afterAssistant === true
-          ? { appendUserTurn: nudgeOf(assembleContext, "responseNudge", macroRegistry !== null ? { registry: macroRegistry } : {}) }
+          ? { appendUserTurn: nudgeOf(assembleContext, "responseNudge", { random: deps.prng, ...(macroRegistry !== null ? { registry: macroRegistry } : {}) }) }
           : {}),
         ...(shape !== undefined ? { shape } : {}),
       },
