@@ -18,7 +18,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary } from "#components";
+import { QueryBoundary, useFirstBootBox } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
@@ -53,11 +53,13 @@ function toBytes(draft: string): number | null {
 
 /** The section's own suspense/error boundary — it reads for itself, so it must recover for itself. */
 export function MediaTrustSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
+  const firstBootBox = useFirstBootBox({ wide: 5, narrow: 9 });
   return (
     // RESERVED (#1098) — an admin settings section that settles into an override knob stack.
     <QueryBoundary
       fallback={<SkeletonRows count={4} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="media & trust — administrators only" onRetry={retry} />}
+      reserveBlock={firstBootBox}
       reserveKey="config.admin.mediaTrust"
     >
       <MediaTrustBody anchorId={anchorId} sectionId={sectionId} />

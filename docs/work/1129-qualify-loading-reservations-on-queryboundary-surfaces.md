@@ -73,6 +73,53 @@ Run slots (`reports/runs/snap/`): `config:workloads`, first boot desktop `agent-
 
 The first two cold `--isolated` boots of this checkout ended in `data-app-ready came up DEGRADED` (`NAV ERROR`, `BOOT-DEAD`): `...-3640440-2026-10-24T13-26-32-478Z` and `...-3646490-2026-10-24T13-27-36-470Z`. The third run on the warmed stage passed and is not a cold pass. A later `--fresh` rebuild with `--stage-db` booted clean on its first navigation.
 
-### Open question
+### First-boot boxes
 
-Does a first-boot shift on Settings groups need a declared first-boot box? No existing reservation is wrong, so no CT was added. If the answer is yes, the fix is `reserveBlock` per width on `config.workloads.*`, `config.connections.*`, `config.admin.*` and `config.appearance.looks`, with a CT that holds the read pending and asserts the box is unchanged across settle. If the answer is no, this item closes with no change.
+`useFirstBootBox({ wide, narrow })` (`packages/client/src/components/use-first-boot-box.ts`) prices a count of skeleton rows through the live spacing tokens (`skeletonBoxFor` in `skeleton-row-metrics.ts`, the inverse of `skeletonRowCountFor`) and feeds `reserveBlock`. `wide` applies on the desktop shell, `narrow` under the mobile shell breakpoint. A fine pointer prices a row at 48px and a coarse pointer at 64px, so the phone count is smaller where content is the same height. Each count is the settled box a typical library measured at that width, rounded to whole rows.
+
+| reserveKey | wide | narrow |
+| - | - | - |
+| config.workloads.schedules | 4 | 3 |
+| config.workloads.jobs | 5 | 5 |
+| config.workloads.tuning | 5 | 8 |
+| config.connections.list | 6 | 7 |
+| config.connections.roles | 25 | 22 |
+| config.connections.keys | 4 | 4 |
+| config.admin.users | 2 | 3 |
+| config.admin.approvals | 2 | 1 |
+| config.admin.linkSso | 2 | 2 |
+| config.admin.mediaTrust | 5 | 9 |
+| config.admin.operations | 4 | 6 |
+| config.admin.memoryTuning | 11 | 21 |
+| config.admin.rateLimits | 5 | 9 |
+| config.admin.systemTuning | 7 | 13 |
+| config.admin.multiUser | 25 | 24 |
+| config.admin.multiUser.share | 15 | 13 |
+| config.appearance.looks | 7 | 14 |
+
+`config.connections.editor` is not declared: it mounts on a click, for one connection, and its settled height varies per connection.
+
+The counts come from the boxes one `--goto` tour wrote on a stage (`orb:u/<user>/surface-box`, dev db): desktop 1280, and phone 390 with `--mobile`. Rows = (box - 16) / pitch.
+
+`tests/client/features/config/surfaces/first-boot-boxes.ct.tsx` mounts the real Settings group through `CtClientProviders` and the section registry, with wire captured from an in-process server harness (shipped themes seeded). It holds the group's reads, reads each boundary's reserved box (`data-reserve-key`, source `declared`), releases the reads and compares with the height the boundary remembers once settled. Tolerance is half a skeleton row (pitch read from the live tokens) plus 1px: the declared box is a whole number of rows. For `multiUser` the Share card's `share.status` read stays held, so the section settles with the card's own reservation in place.
+
+Asserted: `workloads.tuning`, `connections.roles`, `admin.mediaTrust|operations|memoryTuning|rateLimits|systemTuning|multiUser`, `appearance.looks`, each at desktop and phone width (8 cases). Not asserted: the surfaces that settle into one row per library item (schedules, jobs, connections list, keys, users, approvals, link SSO, share). A fresh server has no rows for them, so the CT has no settled height to compare; snap measures them.
+
+Control: with `useFirstBootBox` forced to return `undefined`, all 8 cases fail (`reserves a box while its read is pending`). With it restored, 8 pass.
+
+### First-boot CLS, before and after
+
+`pnpm snap / --motion-goto config:<group> --no-shot`, one fresh browser per run, dev-db stage (not the clone, so absolute values are smaller than the table above). Before: `--ref d8049c2661`. After: `--dirty`. Phone is `--mobile --viewport 390x844` (coarse pointer, dpr 3). Reading is `nonVirtualizedCls`. Runs started only below load 24; the load on the line is the snap run's own reading.
+
+| Group | Desktop before | Desktop after | Phone before | Phone after |
+| - | - | - | - | - |
+| workloads | 0.0153 | 0 | 0.0102 | 0.0005 |
+| connections | 0.1135 | 0.0014 | 0.1456 | 0.0041 |
+| admin | 0.0542 | 0.0030 | 0.1157 | 0.0007 |
+| appearance | 0.0025 | 0 | 0.0629 | 0 |
+
+Loads at the readings: 17 to 23 of 24.
+
+Cold stage: the first `--fresh` boot of the `--dirty` stage ended in `data-app-ready came up DEGRADED` (`NAV ERROR`) twice, so the desktop workloads "after" reading is a warm-stage, fresh-browser run and not a cold-stage pass. The `before` stage and the two cold boots at load above 24 earlier in the lane are not cited.
+
+`config.appearance.library` (character feature) is still undeclared; appearance first-boot CLS reads 0 after.

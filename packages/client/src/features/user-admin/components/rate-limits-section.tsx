@@ -13,7 +13,7 @@ import { Section, Stack } from "@orb/ui/layout";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary } from "#components";
+import { QueryBoundary, useFirstBootBox } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
@@ -54,11 +54,13 @@ function diffRateLimits(baseline: ResolvedRateLimits, draft: Draft): RateLimits 
 /** The section's own suspense/error boundary so it is self-contained (renders inside the admin pane's
  *  boundary in-app, but also stands alone). */
 export function RateLimitsSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
+  const firstBootBox = useFirstBootBox({ wide: 5, narrow: 9 });
   return (
     // RESERVED (#1098) — an admin settings section that settles into one row per limit.
     <QueryBoundary
       fallback={<SkeletonRows count={4} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="rate limits — administrators only" onRetry={retry} />}
+      reserveBlock={firstBootBox}
       reserveKey="config.admin.rateLimits"
     >
       <RateLimitsBody anchorId={anchorId} sectionId={sectionId} />
