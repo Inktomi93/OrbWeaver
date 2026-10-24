@@ -6,17 +6,23 @@
 // Pure: no DB, no fs, no logger. A parse failure returns null, never throws.
 
 import type { AttachedBookRef, CharacterCard, CreateCharacterInput } from "@orb/contracts/character";
-import { ATTACHED_BOOKS_WIRE_KEY, attachedBookRefSchema, createCharacterSchema, repairImportedCardInput } from "@orb/contracts/character";
+import {
+  ATTACHED_BOOKS_WIRE_KEY,
+  attachedBookRefSchema,
+  CHARACTER_HANDLE_WIRE_KEY,
+  createCharacterSchema,
+  repairImportedCardInput,
+} from "@orb/contracts/character";
 import { ATTACHED_REGEX_SCRIPTS_WIRE_KEY, attachedRegexScriptRefSchema } from "@orb/contracts/regex";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
-import type { AssetId, CharacterId, RegexScriptId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, RegexScriptId } from "@orb/kit/ids";
 import { readCardChunk, stripCardChunks } from "@orb/kit/png-card-chunk";
-import { slugifyHandle } from "@orb/kit/slug";
 import { z } from "zod";
 import { sha256Hex } from "#primitives/content-hash";
 import { cardFromJson, cardImportHash, extractLorebook, loreEntryColumns, loreEntryMetadata, selectBestCharacterBook } from "#primitives/serde/card";
 import { ImportCardError } from "../contract/errors.ts";
 import type { CardIdentityHashes, FindCharacterByHash, ImportedCharacterMatch } from "../contract/identity.ts";
+import { carriedHandle, requestedHandle } from "./handle.ts";
 
 // UTF-8 BOM codepoint — Windows exports + some editors prepend one and `JSON.parse` rejects it.
 const UTF8_BOM = 0xfe_ff;
@@ -34,6 +40,8 @@ interface ParsedCard {
   readonly attachedRegexScripts: readonly RegexScriptId[];
   /** sha-256 hex of the PNG minus its card chunks (the art), null for a JSON card. Part of the identity. */
   readonly artHash: string | null;
+  /** The handle an orbweaver export carried; null for a foreign card. Not part of the identity. */
+  readonly handle: CharacterHandle | null;
 }
 
 const DEFAULT_BOOK_NAME = "Imported World Book";
@@ -113,6 +121,15 @@ function extractAttachedRegexScripts(raw: unknown): RegexScriptId[] {
   return out;
 }
 
+function extractCarriedHandle(raw: unknown): CharacterHandle | null {
+  const root = asRecord(raw);
+  if (root === null) {
+    return null;
+  }
+  const data = asRecord(root["data"]) ?? root;
+  return carriedHandle(data[CHARACTER_HANDLE_WIRE_KEY]);
+}
+
 function toText(input: Uint8Array | string): string {
   const raw = typeof input === "string" ? input : new TextDecoder("utf-8").decode(input);
   return raw.charCodeAt(0) === UTF8_BOM ? raw.slice(1) : raw;
@@ -147,6 +164,7 @@ function fromText(text: string, fallbackName: string, artHash: string | null): P
       attachedBooks: extractAttachedBooks(parsed),
       attachedRegexScripts: extractAttachedRegexScripts(parsed),
       artHash,
+      handle: extractCarriedHandle(parsed),
     };
   } catch {
     return null;
@@ -204,9 +222,10 @@ export async function findImportedCharacter(
 }
 
 /** @throws {@link ImportCardError} card_invalid when the normalized card fails the canonical schema. */
-export function cardToCreateInput(card: CharacterCard, avatarAssetId: AssetId | null): CreateCharacterInput {
+export function cardToCreateInput(parsed: Pick<ParsedCard, "card" | "handle">, avatarAssetId: AssetId | null): CreateCharacterInput {
+  const { card } = parsed;
   const candidate = {
-    handle: slugifyHandle(card.name),
+    handle: requestedHandle({ handle: parsed.handle, name: card.name }),
     name: card.name,
     description: card.description ?? "",
     personality: card.personality,

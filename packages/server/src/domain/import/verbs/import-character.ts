@@ -1,8 +1,8 @@
 // verb: importCharacter — one ST character card → one canonical character. Flow: parse bytes → hash the
 // PARSED CONTENT (the card, its tags and its embedded book; never the file bytes) → content dedup (the ONLY
 // dedup: equal content is the same character, never a name) → flatten+validate → mint a FREE per-owner
-// handle (a name-slug collision suffixes the HANDLE only, never the display name — two distinct "Eleni"
-// cards are two characters) → create fresh with provenance + CAS-store avatar → attach tags → re-link
+// handle from the carried handle, else the name slug (`substrate/handle.ts`; a collision suffixes the HANDLE
+// only, never the display name — two distinct "Eleni" cards are two characters) → create fresh with provenance + CAS-store avatar → attach tags → re-link
 // carried attached-book references, else carry the embedded lorebook clone (the fallback when no reference
 // resolves on this install, and only into a FREE primary seat). All cross-feature ops are injected via
 // context.ts — import never reads a db table directly.
@@ -44,7 +44,7 @@ function fallbackNameFrom(filename: string | undefined): string {
 }
 
 /** Resolve a FREE per-owner character handle: `characters.handle` is per-owner UNIQUE, so a content-new card
- *  whose name-slug is already taken gets a numeric suffix (`eleni` → `eleni-2` → `eleni-3`). This suffixes the
+ *  whose requested handle is already taken gets a numeric suffix (`eleni` → `eleni-2` → `eleni-3`). This suffixes the
  *  HANDLE only — the card's display `name` is untouched. We NEVER dedupe by name: two distinct "Eleni" cards
  *  are two characters (equal-content cards already deduped upstream by the import hash). */
 async function freeHandle(ctx: ImportContext, base: CharacterHandle): Promise<CharacterHandle> {
@@ -234,7 +234,7 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
 
     // Content-addressed store: a byte-identical re-import resolves to the same asset id.
     const avatarAssetId = png ? await ctx.storeAsset({ ownerId: ctx.ownerId, bytes, mime: PNG_MIME }) : null;
-    const baseInput = cardToCreateInput(characterCard, avatarAssetId);
+    const baseInput = cardToCreateInput(parsed, avatarAssetId);
     // A content-new card is always a NEW character; only its per-owner-unique handle is disambiguated (the name stays).
     const handle = await freeHandle(ctx, baseInput.handle);
     // Two provenance channels, never both: a file upload carries a filename; a plugin funnel carries no
