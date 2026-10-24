@@ -34,14 +34,12 @@ type HttpAppDeps = Pick<
     | "liveBuses"
     | "services"
     | "forwardJwtVerifier"
-    | "rateLimit"
+    | "trpcContext"
     | "multiHumanCapable"
     | "supervise"
     | "newOpaqueId"
     | "sessions"
-    | "presence"
     | "sockets"
-    | "bugReportDiagnostics"
     | "assets"
     | "exportService"
     | "portability"
@@ -121,11 +119,9 @@ export function createHttpApp(deps: HttpAppDeps): ReturnType<typeof createApp> {
       relayHosts: deps.relayHosts,
     }),
     services: built.services,
-    rateLimit: built.rateLimit,
+    trpcContext: built.trpcContext,
     multiHumanCapable: built.multiHumanCapable,
-    presence: built.presence,
     sockets: built.sockets,
-    bugReportDiagnostics: built.bugReportDiagnostics,
     ...(built.rpgTrace === undefined ? {} : { rpgTrace: createRpgTraceInspector(built.rpgTrace) }),
     wireCapture: built.wireCaptureOn,
     memoryRecall: createMemoryRecallInspector(built.recallRecorder),
