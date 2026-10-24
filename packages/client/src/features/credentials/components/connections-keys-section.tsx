@@ -15,17 +15,19 @@ import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
+import { QueryBoundary, useFirstBootBox } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { CONNECTIONS_KEYS_SUBCATEGORY } from "../lib/connections-nav.ts";
 import { CredentialKeyRow } from "./credential-key-row.tsx";
 
 export function ConnectionsKeysSection({ anchorId }: { readonly anchorId: string }): ReactElement {
+  const firstBootBox = useFirstBootBox({ wide: 4, narrow: 4 });
   return (
     // RESERVED (#1098) — a config section that settles into the saved-key library, with every later Connections section stacked under it.
     <QueryBoundary
       fallback={<SkeletonRows count={3} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your saved keys" onRetry={retry} />}
+      reserveBlock={firstBootBox}
       reserveKey="config.connections.keys"
     >
       <SavedKeysSection anchorId={anchorId} />

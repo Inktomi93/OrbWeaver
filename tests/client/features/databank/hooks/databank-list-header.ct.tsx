@@ -46,6 +46,18 @@ async function groupName(page: Page): Promise<string> {
   return name;
 }
 
+/** The group is named by exactly one label, and the browser's computed name is that label's visible text. */
+async function expectNamedByItsOneLabel(page: Page): Promise<void> {
+  const group = page.getByRole("menu").getByRole("group");
+  const name = await groupName(page);
+  await expect(group.locator('[data-slot="menu-group-label"]')).toHaveCount(1);
+  const labelId = await group.getAttribute("aria-labelledby");
+  expect(labelId).not.toBeNull();
+  const label = page.locator(`[id="${labelId ?? ""}"]`);
+  await expect(label).toHaveCount(1);
+  await expect(label).toHaveText(name);
+}
+
 async function openMaintenance(page: Page): Promise<void> {
   await page.getByRole("button", { name: MAINTENANCE, exact: true }).click();
   await expect(page.getByRole("menu")).toBeVisible();
@@ -141,6 +153,77 @@ test("a failed census names the failure, never the empty-bank reason", async ({ 
   const menu = page.getByRole("menu");
   await expect(menu.getByText(emptyReason, { exact: true })).toHaveCount(0);
   await expect(menu.getByText(failedReason, { exact: true })).toHaveCount(1);
+});
+
+// One mount, one query cache: the census changes under a live band, the way a recovered read or a landed
+// document changes it, and the group must carry a name for the reason that holds NOW.
+test("the maintenance group is named after every census transition", async ({ mount, page }) => {
+  const stocked = bankOf(3);
+  let answer: "failed" | "empty" | "stocked" = "failed";
+  await routeTrpc(page, {
+    "databank.bankHealth": () => {
+      if (answer === "failed") {
+        return trpcError({ message: "bank health failed" });
+      }
+      return answer === "empty" ? bankOf(0) : stocked;
+    },
+  });
+  const component = await mount<typeof DatabankListHeaderStory>(STORY, {});
+  const checkAgain = page.getByRole("menuitem", { name: CHECK_AGAIN, exact: true });
+
+  // failed
+  await openMaintenance(page);
+  await expect(checkAgain).toBeVisible();
+  await expectNamedByItsOneLabel(page);
+
+  // failed -> empty
+  answer = "empty";
+  await checkAgain.click();
+  await openMaintenance(page);
+  await expect(checkAgain).toHaveCount(0);
+  await expectNamedByItsOneLabel(page);
+  await page.keyboard.press("Escape");
+
+  // empty -> stocked
+  answer = "stocked";
+  await component.getByRole("button", { name: "Re-read census", exact: true }).click();
+  await expect(component.getByRole("heading", { level: 2 }).getByText(String(stocked.total), { exact: true })).toBeVisible();
+  await openMaintenance(page);
+  await expect(page.getByRole("menu").getByRole("group")).toHaveAccessibleName("");
+  await page.keyboard.press("Escape");
+
+  // stocked -> failed: the re-read fails while the last census is still held, so the failed reason must still show
+  answer = "failed";
+  await component.getByRole("button", { name: "Re-read census", exact: true }).click();
+  await openMaintenance(page);
+  await expect(checkAgain).toBeVisible();
+  await expectNamedByItsOneLabel(page);
+  // failed -> stocked
+  answer = "stocked";
+  await checkAgain.click();
+  await openMaintenance(page);
+  await expect(checkAgain).toHaveCount(0);
+  await expect(page.getByRole("menu").getByRole("group")).toHaveAccessibleName("");
+  await page.keyboard.press("Escape");
+
+  // stocked -> empty
+  answer = "empty";
+  await component.getByRole("button", { name: "Re-read census", exact: true }).click();
+  await openMaintenance(page);
+  await expectNamedByItsOneLabel(page);
+  await page.keyboard.press("Escape");
+
+  // empty -> failed -> empty: the failed read keeps the last census (0), so BOTH reasons hold at once;
+  // when the read recovers the group must still be named by the empty-bank reason.
+  answer = "failed";
+  await component.getByRole("button", { name: "Re-read census", exact: true }).click();
+  await openMaintenance(page);
+  await expect(checkAgain).toBeVisible();
+  answer = "empty";
+  await checkAgain.click();
+  await openMaintenance(page);
+  await expect(checkAgain).toHaveCount(0);
+  await expectNamedByItsOneLabel(page);
 });
 
 test("the band prints the server census of a bank deeper than one list page", async ({ mount, page }) => {

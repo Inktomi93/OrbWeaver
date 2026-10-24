@@ -32,3 +32,9 @@ export const DATABANK_CONTEXT_EMPTY = {
   title: "Where a document fires",
   description: "Open a document to switch it on everywhere, and to see which chats and characters it already feeds.",
 } as const;
+
+/** Why the owner-wide sweeps are closed over an empty bank: the maintenance group label. */
+export const DATABANK_SWEEPS_NEED_DOCUMENT = "Add a document first — these sweeps run over your whole bank.";
+
+/** Why they are closed when the bank-health read failed: the maintenance group label. */
+export const DATABANK_SWEEPS_CHECK_FAILED = "Couldn't check your bank, so these sweeps stay closed.";

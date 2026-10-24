@@ -17,7 +17,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { QueryBoundary } from "#components";
+import { QueryBoundary, useFirstBootBox } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
@@ -28,11 +28,13 @@ type AdminUser = inferOutput<Trpc["admin"]["listUsers"]>[number];
 
 /** The Approvals section body — mounted at the admin pane's sections anchor. */
 export function AdminApprovalsSection({ anchorId }: { readonly anchorId: string }): ReactElement {
+  const firstBootBox = useFirstBootBox({ wide: 2, narrow: 1 });
   return (
     // RESERVED (#1098) — an admin section that settles into the pending-account list; the whole admin pane stacks below it.
     <QueryBoundary
       fallback={<SkeletonRows count={3} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the admin panel — it's available to administrators only" onRetry={retry} />}
+      reserveBlock={firstBootBox}
       reserveKey="config.admin.approvals"
     >
       <AdminApprovalsBody anchorId={anchorId} />

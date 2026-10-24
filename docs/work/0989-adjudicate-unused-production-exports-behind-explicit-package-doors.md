@@ -1,8 +1,8 @@
 ---
 kind: work
 status: open
-updated: 2026-10-23
-priority: P2
+updated: 2026-10-24
+priority: P1
 area: packages
 ---
 
@@ -12,13 +12,17 @@ area: packages
 
 Use the `pnpm knip:prod` report of unused exports and types to review unused public re-exports and implementation exports in cohesive package or domain batches. Remove unnecessary surface, follow real callers, delete genuinely unused code, and retain deliberately supported external APIs with their actual contract. Explicit package paths are implemented; symbol-level adjudication is not complete.
 
+Two more surfaces belong to this adjudication. Every `exports` entry in a `packages/*/package.json` is measured for production importers against test-only importers; an entry whose only consumers are tests is a test-only door and is removed, with its tests moved onto the testkit doors, a closed reach entry or deletion. Every `SERVER_TEST_REACHES`, `PACKAGE_TEST_REACHES`, `ROWS_IMPORTERS` and `SUBPATH_LEAF_IMPORTERS` entry in `.dependency-cruiser.ts` is re-judged the same way: an entry that exists because the kit was not used is removed and its test rewritten through the kit; an entry that stays states a reason a kit door cannot meet.
+
+Method. `pnpm knip:prod` is the first pass. Cross-file consumers it cannot see are resolved with the codemod tool's one-workspace form, `jssg run --semantic-workspace`, whose `references()` follows a symbol across files (`.claude/skills/codemod/SKILL.md`; `tooling/src/codemods/rename-identifier` is the precedent); a census codemod lists each door export's referencing files, split into production and tests. A name-string lookup (a registry keyed by name, a plugin or route table) is invisible to both, so no export is removed until a literal `rg` for its name across `packages`, `tooling` and `tests` agrees.
+
 ## Why
 
 Closing wildcard package paths exposes unused symbols but does not remove them. Tests and tooling must not keep production code falsely alive, and `knip.ts` ignores the `@public` tag (`tags: ["-@public"]`), so a marker is not authority.
 
 ## Done when
 
-`pnpm knip:prod` reports clean through the package doors, with each finding adjudicated in package or domain batches. Each batch records production roots and consumer scope. Removed exports preserve real callers; retained external APIs have explicit contracts. Add no baseline file and no new exemption. Add no custom liveness reader or fake consumer is added.
+`pnpm knip:prod` reports clean through the package doors, with each finding adjudicated in package or domain batches. Each batch records production roots and consumer scope. Removed exports preserve real callers; retained external APIs have explicit contracts. Add no baseline file and no new exemption. Add no custom liveness reader or fake consumer. Each kept door and reach entry carries its production consumer or reason. CI and the pre-push check run `pnpm knip:prod`, so a production export with only test consumers fails the build; today CI runs plain `pnpm knip`, which counts tests as consumers and passes a test-only export.
 
 ## Evidence
 
