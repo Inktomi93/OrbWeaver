@@ -127,6 +127,7 @@ Lane `cb-css`, worktree `.claude/worktrees/agent-a93838f44c69f2f8c`, branch `wt/
 - Font smoothing: no `-webkit-font-smoothing`, `text-rendering`, `font-synthesis` or `text-size-adjust` rule exists in the packages or the law; Tailwind preflight sets `-webkit-text-size-adjust: 100%` on `html`. Nothing added.
 - The theme suites the law names (emit surface, palette contrast, theme emit pairing, seed theme pairing) are not in the tree; `tests/ui/content/theme-scope/*` and `tests/kit/theme-derivation` are what runs.
 - A cold isolated stage's first navigation fails as docs/work/1296 describes; every capture cited above is a warm capture, and the real-db boot is retried until the clone survives (`cb-css-snap-batch.sh`).
+- The pre-commit hook's typecheck is scoped; `5f891cad43` landed type-red in the client program (a `cn()` result on a Button `className`, an untyped `Map`), and the dev stage's native TypeScript overlay then covered every snap capture (SSIM 0.3 on all ten). Run the whole `pnpm typecheck` after the last edit, before a commit and before a capture; the fix-up commit follows `5f891cad43`.
 - The `scene-cards` component suite failed on the leg-1 tree until the `TOKENS["spacing.control-lg"]` key in `skeleton-row-metrics.ts` was repointed; a token path rename must sweep `TOKENS[...]` and `SNAPPED_LENGTH_BASE_PX[...]` keys, which the class codemod does not see.
 
 ### Remaining legs

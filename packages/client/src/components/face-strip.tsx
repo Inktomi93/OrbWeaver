@@ -216,7 +216,7 @@ function FaceButton({ item, selected, verb, caption, squeezed, selectMode, onSel
       // The squeezed face takes the tile's slot, which is the control-token box by construction — so it
       // always fits where the tile fit, and only its caption pays for it (its `max-w` clamps the captioned
       // cell width below, which is why the two can be spelled together).
-      className={cn("min-h-(--size-control-md) min-w-(--size-control-md) shrink-0", cellWidthClass(caption), squeezed && "max-w-(--size-control-md)")}
+      className={cn("min-h-(--size-control-md) min-w-(--size-control-md) shrink-0", cellWidthClass(caption), squeezed && "max-w-(--size-control-md)") ?? ""}
       data-face-key={faceKey(item)}
       data-face-squeezed={squeezed ? "" : undefined}
       intent="ghost"
@@ -405,7 +405,7 @@ export function FaceStrip({
                 // class learned hyphens); the captioned strip's uniform pitch (#153) rides cellWidthClass.
                 <Button
                   aria-label={tileName(caption, overflow.label, hiddenCount)}
-                  className={cn("shrink-0", cellWidthClass(caption))}
+                  className={cn("shrink-0", cellWidthClass(caption)) ?? ""}
                   data-face-overflow=""
                   intent="ghost"
                   size="icon"

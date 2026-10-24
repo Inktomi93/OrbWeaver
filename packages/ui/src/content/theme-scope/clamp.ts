@@ -121,7 +121,7 @@ export interface ClampedTheme {
 }
 
 /** The fallback stack each pickable font resolves to; the shipped face takes its token's own stack. */
-const THEME_FONT_STACKS: ReadonlyMap<ThemeFont, string> = new Map([
+const THEME_FONT_STACKS: ReadonlyMap<ThemeFont, string> = new Map<ThemeFont, string>([
   ["Geist", TOKENS["font.sans"].value],
   ["ui-sans-serif", "ui-sans-serif, system-ui, sans-serif"],
   ["ui-serif", "ui-serif, serif"],
