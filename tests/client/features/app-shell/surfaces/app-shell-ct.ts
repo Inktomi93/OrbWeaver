@@ -1,6 +1,7 @@
 // Node-side helpers the app-shell component specs share: story ids, accessible names and in-page probes.
+import type { Rgb } from "@orb/kit/theme-derivation";
 import type { TrpcRecorder } from "@orb/testkit/ct";
-import { createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { createShellAmbientReads, routeOrbSocket, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import type { CorpusWire } from "@orb/testkit/iso";
 import type { Locator, Page } from "@playwright/test";
 
@@ -53,6 +54,45 @@ export const SECTION_PROCEDURES = [
 /** Home's captured reads, plus every listed procedure answered by `caller`, a corpus root's internal caller. */
 export function routeShell(page: Page, corpus: CorpusWire, caller: object, served: readonly ServedPath[]): Promise<TrpcRecorder> {
   return routeTrpc(page, { ...createShellAmbientReads(corpus), ...serveCorpusProcedures(caller, served) });
+}
+
+/** Every procedure an open room sends past the section set, its own row included so a room the test changed reads live. */
+export const ROOM_PROCEDURES = [
+  "chat.getChat",
+  "chat.getRuntimeVariables",
+  "chat.checkSendAvailability",
+  "chat.listMessages",
+  "chat.listReactions",
+  "chat.previewContextFit",
+  "persona.listConnectedToCharacter",
+  "regex.listRoomDisplayScripts",
+  "plugin.listDisplayTransforms",
+] as const satisfies readonly ServedPath[];
+
+/**
+ * Home's captured reads, the section set and an open room's reads answered by `caller`, and a quiet room socket: it
+ * connects and stays open with no frames, and the room's attach and detach land as the void the server returns.
+ */
+export async function routeRoom(page: Page, corpus: CorpusWire, caller: object): Promise<TrpcRecorder> {
+  const recorder = await routeTrpc(page, {
+    ...createShellAmbientReads(corpus),
+    ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES]),
+    "stream.attach": null,
+    "stream.detach": null,
+  });
+  await routeOrbSocket(page, { closeStream: false });
+  return recorder;
+}
+
+/** The first room of a `chat.listChats` page the user named, with more than one character seated. */
+export function namedGroupRoom<const TRow extends { readonly title: string | null; readonly participantPortraits: readonly unknown[] }>(
+  rows: readonly TRow[],
+): TRow {
+  const room = rows.find((row) => (row.title ?? "") !== "" && row.participantPortraits.length > 1);
+  if (room === undefined) {
+    throw new Error("The corpus has no named group room");
+  }
+  return room;
 }
 
 export const SHELL_STORIES = "tests/client/features/app-shell/surfaces/_app-shell-stories";
@@ -154,6 +194,26 @@ export function resolvedLength(page: Page, expression: string): Promise<number> 
 export async function shellTracks(page: Page): Promise<readonly number[]> {
   const columns = await page.locator(".shell-grid").evaluate((element) => getComputedStyle(element).gridTemplateColumns);
   return columns.split(" ").map((track) => Number.parseFloat(track));
+}
+
+/** One framebuffer pixel, decoded in the page; a translucent border over glass has no computed-style answer. */
+export async function pixel(page: Page, x: number, y: number): Promise<Rgb> {
+  const shot = await page.screenshot({ clip: { height: 1, width: 1, x, y } });
+  return page.evaluate(
+    async (url) => {
+      const image = new Image();
+      image.src = url;
+      await image.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = 1;
+      canvas.height = 1;
+      const context = canvas.getContext("2d");
+      context?.drawImage(image, 0, 0);
+      const [r = 0, g = 0, b = 0] = context?.getImageData(0, 0, 1, 1).data ?? [];
+      return { b, g, r };
+    },
+    `data:image/png;base64,${shot.toString("base64")}`,
+  );
 }
 
 const TOUCH_DRAG_STEPS = 8;

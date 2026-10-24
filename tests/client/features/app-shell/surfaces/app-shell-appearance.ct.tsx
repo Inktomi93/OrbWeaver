@@ -3,7 +3,6 @@
 
 import { REDUCED_MOTION_ATTR } from "@orb/client/state";
 import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
-import type { Rgb } from "@orb/kit/theme-derivation";
 import { AA_NON_TEXT_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -12,7 +11,7 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { CDPSession, Locator, Page } from "@playwright/test";
 import type { AppShellModalStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { ShellToPendingStory } from "./_shell-handover-stories.tsx";
-import { PHONE, resolvedLength, SECTION_PROCEDURES, SHELL_STORIES, seedShellState } from "./app-shell-ct.ts";
+import { PHONE, pixel, resolvedLength, SECTION_PROCEDURES, SHELL_STORIES, seedShellState } from "./app-shell-ct.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const MODAL_STORY = `${SHELL_STORIES}/AppShellModalStory`;
@@ -150,26 +149,6 @@ function mixedFill(host: Locator, token: string, pct: string, partner: string): 
       return fill;
     },
     [token, pct, partner] as const,
-  );
-}
-
-/** One framebuffer pixel, decoded in the page; a translucent border over glass has no computed-style answer. */
-async function pixel(page: Page, x: number, y: number): Promise<Rgb> {
-  const shot = await page.screenshot({ clip: { height: 1, width: 1, x, y } });
-  return page.evaluate(
-    async (url) => {
-      const image = new Image();
-      image.src = url;
-      await image.decode();
-      const canvas = document.createElement("canvas");
-      canvas.width = 1;
-      canvas.height = 1;
-      const context = canvas.getContext("2d");
-      context?.drawImage(image, 0, 0);
-      const [r = 0, g = 0, b = 0] = context?.getImageData(0, 0, 1, 1).data ?? [];
-      return { b, g, r };
-    },
-    `data:image/png;base64,${shot.toString("base64")}`,
   );
 }
 

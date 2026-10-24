@@ -1,16 +1,19 @@
 // The shell's topbar on the production registry: the narrow screen name a phone reads, the ⌘K chip's name, the phone
-// row's geometry at the narrowest width, and the Characters band's doors moving to the trail while the list is the screen.
+// row's geometry at the narrowest width, the Characters band's doors moving to the trail while the list is the screen,
+// and an open room's identity: its participants, its name, its chips and the context pane's header on the same horizon.
 import { censusTitle } from "@orb/client/lib";
+import type { ChatId } from "@orb/kit/ids";
 import { createShellAmbientReads, holdCorpusProcedure, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import { commandShortcutLabel } from "#client/features/app-shell/lib/command-shortcut-label.ts";
-import type { AppShellStory } from "./_app-shell-stories.tsx";
-import { JUMP_CHIP, resolvedLength, routeShell, SECTION_PROCEDURES, SHELL_STORIES, seedShellState } from "./app-shell-ct.ts";
+import type { AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
+import { JUMP_CHIP, namedGroupRoom, pixel, resolvedLength, routeRoom, routeShell, SECTION_PROCEDURES, SHELL_STORIES, seedShellState } from "./app-shell-ct.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
+const ROOM_STORY = `${SHELL_STORIES}/AppShellRoomStory`;
 const LIST = '.shell-panel[data-panel-side="list"]';
 const NARROW_TITLE = '.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title';
 const NARROWEST = { width: 320, height: 800 } as const;
@@ -211,4 +214,275 @@ test.describe("the phone topbar at 320, coarse pointer", () => {
     await expect(title).toHaveText(memberName);
     expect((await title.boundingBox())?.width ?? 0).toBeGreaterThan(0);
   });
+});
+
+const WIDE_TITLE = '.shell-topbar-identity[data-identity="wide"] .shell-topbar-title';
+const MEMBERS_CHIP = '[aria-label^="Members — "]';
+const MEMORY_CHIP = '[aria-label^="Memory — "]';
+const CONTEXT = '.shell-panel[data-panel-side="context"]';
+const BOTH_DOCKED = { activeSection: "chats", panelOverrides: { chats: { list: "docked", context: "docked" } } } as const;
+const LONG_NAME = "The Extraordinarily Long Saga of the Ninth Epoch Beneath the Violet Braziers";
+
+type RoomCaller = Awaited<ReturnType<Root["internalCallerFor"]>>;
+
+function ownerCaller(): Promise<RoomCaller> {
+  return root.internalCallerFor(root.ownerId);
+}
+
+async function openNamedRoom(
+  page: Page,
+  corpus: CorpusWire,
+  caller: RoomCaller,
+): Promise<{ readonly id: ChatId; readonly title: string; readonly cast: string }> {
+  const room = namedGroupRoom((await caller.chat.listChats({ limit: 100 })).items);
+  await routeRoom(page, corpus, caller);
+  return { id: room.id, title: room.title ?? "", cast: room.participantNames.join(", ") };
+}
+
+/** The title floor resolved in the title group's own font, where `ch` takes its size. */
+function titleFloor(page: Page): Promise<number> {
+  return page
+    .locator(".shell-topbar-title-group")
+    .first()
+    .evaluate((group) => {
+      const probe = document.createElement("span");
+      probe.style.width = "var(--dimension-shell-title-floor)";
+      probe.style.flex = "none";
+      group.append(probe);
+      const width = probe.getBoundingClientRect().width;
+      probe.remove();
+      return width;
+    });
+}
+
+function visibleTitles(page: Page): Promise<number> {
+  return page.evaluate(() => [...document.querySelectorAll(".shell-topbar-title")].filter((element) => element.checkVisibility()).length);
+}
+
+function clientWidth(locator: Locator): Promise<number> {
+  return locator.evaluate((element) => element.clientWidth);
+}
+
+test.describe("an open named group room", () => {
+  test("at 1280 both docked the topbar names the cast, keeps the room name at its floor beside it, and the title renames; collapsed it still names them", async ({
+    corpus,
+    mount,
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await seedShellState(page, BOTH_DOCKED);
+    const room = await openNamedRoom(page, corpus, await ownerCaller());
+    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: room.id });
+    const title = page.locator(WIDE_TITLE);
+    await expect(title).toHaveText(room.cast);
+    await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "docked");
+    const trail = page.locator(".shell-topbar-trail");
+    await expect(trail.getByRole("button", { name: /^Notifications/u })).toBeVisible();
+    await expect(trail.getByRole("button", { name: "Report a bug", exact: true })).toBeVisible();
+    await expect(trail.getByRole("button", { name: "Plugin commands", exact: true })).toBeVisible();
+    await expect(page.locator(MEMBERS_CHIP)).toBeVisible();
+    await expect(page.locator(MEMORY_CHIP)).toBeVisible();
+    await expect(page.locator(`${MEMBERS_CHIP} .shell-chat-chip-count`)).toBeHidden();
+    const subtitle = page.locator(".shell-topbar-subtitle");
+    await expect(subtitle).toHaveText(room.title);
+    await expect
+      .poll(() => subtitle.evaluate((element) => element.clientWidth > 0 && element.clientWidth >= Number.parseFloat(getComputedStyle(element).minWidth) - 1))
+      .toBe(true);
+    const group = await page.locator('.shell-topbar-identity[data-identity="wide"] .shell-topbar-title-group').boundingBox();
+    const members = await page.locator(MEMBERS_CHIP).boundingBox();
+    expect((group?.x ?? 0) + (group?.width ?? 0)).toBeLessThanOrEqual((members?.x ?? 0) + 1);
+
+    const box = await title.boundingBox();
+    const centre = { x: (box?.x ?? 0) + (box?.width ?? 0) / 2, y: (box?.y ?? 0) + (box?.height ?? 0) / 2 };
+    await expect
+      .poll(() => page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest("button")?.getAttribute("aria-label") ?? "", centre))
+      .toMatch(/^Rename chat — /u);
+    await page.mouse.click(centre.x, centre.y);
+    const input = page.getByRole("textbox", { name: "Chat name" });
+    await expect(input).toBeVisible();
+    await expect.poll(() => clientWidth(input)).toBeGreaterThanOrEqual(await titleFloor(page));
+    await page.keyboard.press("Escape");
+
+    await page.getByRole("button", { name: "Hide details", exact: true }).click();
+    await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "collapsed");
+    await expect(page.locator(".shell-topbar-title:visible")).toHaveText(room.cast);
+    await expect(page.locator(MEMBERS_CHIP)).toBeVisible();
+    await expect(page.locator(MEMORY_CHIP)).toBeVisible();
+  });
+
+  test("a long cast and a long room name squeezed together each keep a floor and a half", async ({ corpus, mount, page }) => {
+    await using renamed = await createCorpusHarness();
+    const caller = await renamed.internalCallerFor(renamed.ownerId);
+    const named = namedGroupRoom((await caller.chat.listChats({ limit: 100 })).items);
+    await caller.chat.updateTitle({ chatId: named.id, title: LONG_NAME });
+    for (const portrait of named.participantPortraits) {
+      const character = await caller.character.get({ characterId: portrait.characterId });
+      await caller.character.update({ characterId: portrait.characterId, input: { name: `${character.name} the Magnificent of Vael` } });
+    }
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await seedShellState(page, BOTH_DOCKED);
+    await routeRoom(page, corpus, caller);
+    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: named.id });
+    const title = page.locator(WIDE_TITLE);
+    const subtitle = page.locator(".shell-topbar-subtitle");
+    await expect(subtitle).toHaveText(LONG_NAME);
+    await expect(title).toContainText("the Magnificent of Vael");
+    // Both halves are truncated, so the row really is sharing a budget too small for either.
+    await expect.poll(() => title.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
+    await expect.poll(() => subtitle.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
+    const floor = await titleFloor(page);
+    await expect.poll(() => clientWidth(title)).toBeGreaterThanOrEqual(floor * 1.5 - 1);
+    await expect.poll(() => clientWidth(subtitle)).toBeGreaterThanOrEqual(floor * 1.5 - 1);
+  });
+
+  for (const arm of [
+    { width: 1280, height: 800, identity: "wide" },
+    { width: 430, height: 740, identity: "narrow" },
+  ] as const) {
+    test(`at ${String(arm.width)} the room's ${arm.identity} title stays with the context pane open, whose band names nothing`, async ({
+      corpus,
+      mount,
+      page,
+    }) => {
+      await page.setViewportSize({ width: arm.width, height: arm.height });
+      await seedShellState(page, { activeSection: "chats" });
+      const room = await openNamedRoom(page, corpus, await ownerCaller());
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: room.id });
+      await expect(page.locator(`.shell-topbar-identity[data-identity="${arm.identity}"]`)).toHaveCount(1);
+      const grid = page.locator(".shell-grid");
+      await expect(grid).toHaveAttribute("data-context-mode", "collapsed");
+      await expect.poll(() => visibleTitles(page)).toBe(1);
+      await page.getByRole("button", { name: "Show details", exact: true }).click();
+      await expect(grid).not.toHaveAttribute("data-context-mode", "collapsed");
+      await expect(page.locator('[data-slot="context-bracket-header"]')).toBeVisible();
+      await expect(page.locator('[data-slot="context-bracket-band"] :is(h1, h2, h3)')).toHaveCount(0);
+      await expect.poll(() => visibleTitles(page)).toBe(1);
+    });
+  }
+
+  test("at 430 an open member's context band names her, so the phone title steps aside until the pane closes", async ({ corpus, mount, page }) => {
+    await page.setViewportSize({ width: 430, height: 740 });
+    await routeSections(page, corpus);
+    await seedShellState(page, { activeSection: "characters" });
+    await mount<typeof AppShellStory>(STORY, {});
+    await library(page).getByRole("button").first().click();
+    await expect(page.getByRole("button", { name: "Back to Characters", exact: true })).toBeVisible();
+    await expect.poll(() => visibleTitles(page)).toBe(1);
+    await page.getByRole("button", { name: "Show details", exact: true }).click();
+    await expect(page.locator('[data-slot="context-bracket-band"] h2')).toBeVisible();
+    await expect.poll(() => visibleTitles(page)).toBe(0);
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".shell-grid")).toHaveAttribute("data-context-mode", "collapsed");
+    await expect.poll(() => visibleTitles(page)).toBe(1);
+  });
+
+  for (const width of [1280, 1920]) {
+    test(`at ${String(width)} the context pane's header row ends on the topbar's divider, holds the one tablist, and paints the list band's surface`, async ({
+      corpus,
+      mount,
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await seedShellState(page, BOTH_DOCKED);
+      const room = await openNamedRoom(page, corpus, await ownerCaller());
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: room.id });
+      const pane = page.locator(CONTEXT);
+      const header = pane.locator('[data-slot="context-bracket-header"]');
+      const band = page.locator(`${LIST} .shell-panel-header`);
+      await expect(header).toBeVisible();
+      await expect(band).toBeVisible();
+      await expect(pane.getByRole("tablist")).toHaveCount(1);
+      await expect(header.getByRole("tablist")).toHaveCount(1);
+      const bottom = async (locator: Locator): Promise<number> => {
+        const found = await locator.boundingBox();
+        return (found?.y ?? Number.NaN) + (found?.height ?? Number.NaN);
+      };
+      const topbar = await bottom(page.locator(".shell-topbar"));
+      await expect.poll(async () => Math.abs((await bottom(header)) - topbar)).toBeLessThanOrEqual(1);
+      await expect.poll(async () => Math.abs((await bottom(band)) - topbar)).toBeLessThanOrEqual(1);
+      const inside = async (locator: Locator): Promise<{ r: number; g: number; b: number }> => {
+        const found = await locator.boundingBox();
+        return pixel(page, Math.floor((found?.x ?? 0) + (found?.width ?? 0) - 4), Math.floor((found?.y ?? 0) + 4));
+      };
+      const [headerFill, bandFill] = await Promise.all([inside(header), inside(band)]);
+      expect(Math.max(...(["r", "g", "b"] as const).map((channel) => Math.abs(headerFill[channel] - bandFill[channel])))).toBeLessThanOrEqual(1);
+    });
+  }
+});
+
+test.describe("an open named group room on a phone, coarse pointer", () => {
+  test.use({ hasTouch: true });
+
+  for (const width of [320, 390, 430]) {
+    test(`at ${String(width)} the members and memory chips stay on the row as glyphs at the touch floor, after the title`, async ({ corpus, mount, page }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await seedShellState(page, { activeSection: "chats" });
+      const room = await openNamedRoom(page, corpus, await ownerCaller());
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: room.id });
+      const members = page.locator(MEMBERS_CHIP);
+      const memory = page.locator(MEMORY_CHIP);
+      const title = page.locator(NARROW_TITLE);
+      await expect(title).toHaveText(`${room.title} · ${room.cast}`);
+      await expect(members).toBeVisible();
+      await expect(memory).toBeVisible();
+      await expect(members.locator(".shell-chat-chip-count")).toBeHidden();
+      const floor = await touchTarget(page);
+      const [membersBox, memoryBox, titleBox] = await Promise.all([members.boundingBox(), memory.boundingBox(), title.boundingBox()]);
+      expect((titleBox?.width ?? 0) > 0).toBe(true);
+      expect((titleBox?.x ?? 0) + (titleBox?.width ?? 0)).toBeLessThanOrEqual((membersBox?.x ?? 0) + 1);
+      expect((membersBox?.x ?? 0) + (membersBox?.width ?? 0)).toBeLessThanOrEqual((memoryBox?.x ?? 0) + 1);
+      expect((memoryBox?.x ?? 0) + (memoryBox?.width ?? 0)).toBeLessThanOrEqual(width);
+      for (const chip of [membersBox, memoryBox]) {
+        expect(Math.min(chip?.width ?? 0, chip?.height ?? 0)).toBeGreaterThanOrEqual(floor);
+      }
+    });
+  }
+
+  for (const width of [320, 360, 430]) {
+    test(`at ${String(width)} the room's name takes the title step over body text, ellipsed inside the row, and every control keeps the touch floor`, async ({
+      corpus,
+      mount,
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 780 });
+      await seedShellState(page, { activeSection: "chats" });
+      const room = await openNamedRoom(page, corpus, await ownerCaller());
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: room.id });
+      const title = page.locator(NARROW_TITLE);
+      await expect(title).toBeVisible();
+      await expect
+        .poll(() =>
+          title.evaluate((element) => {
+            const style = getComputedStyle(element);
+            const probe = document.createElement("span");
+            // A chat's screen title is the cast, so it takes the title step rather than the display step.
+            probe.style.fontSize = "var(--text-title)";
+            element.append(probe);
+            const step = getComputedStyle(probe).fontSize;
+            probe.style.fontSize = "var(--text-body)";
+            const body = getComputedStyle(probe).fontSize;
+            probe.remove();
+            return {
+              titleStep: style.fontSize === step,
+              largerThanBody: Number.parseFloat(style.fontSize) > Number.parseFloat(body),
+              overflow: style.textOverflow,
+              contained: element.getBoundingClientRect().right <= document.documentElement.clientWidth,
+            };
+          }),
+        )
+        .toEqual({ titleStep: true, largerThanBody: true, overflow: "ellipsis", contained: true });
+      await expect(page.locator(".shell-topbar-title:visible")).toHaveCount(1);
+      const floor = await touchTarget(page);
+      const controls = await page.locator(".shell-topbar button:visible").evaluateAll((elements) =>
+        elements.map((element) => {
+          const rect = element.getBoundingClientRect();
+          return { width: rect.width, height: rect.height, right: rect.right };
+        }),
+      );
+      expect(controls.length).toBeGreaterThan(0);
+      expect(controls.filter((control) => control.width < floor || control.height < floor || control.right > width)).toEqual([]);
+      await page.getByRole("button", { name: "Back to Chats", exact: true }).click();
+      await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "docked");
+    });
+  }
 });
