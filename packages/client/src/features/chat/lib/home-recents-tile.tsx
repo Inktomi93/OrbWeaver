@@ -21,11 +21,12 @@
 // now carries NO trailing affordance at all, which is the stronger reading of the sentence above: the hero
 // is the accent, and it is the only thing on its own band.
 
+import { HOME_RECENT_CHATS_LIMIT } from "@orb/contracts/chat";
 import { MessagesSquare } from "@orb/ui/icons";
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "#data";
 import type { HomeTileContribution } from "#state";
-import { HomeRecentsTileBody, RECENTS_LIMIT } from "../components/home-recents-tile-body.tsx";
+import { HomeRecentsTileBody } from "../components/home-recents-tile-body.tsx";
 import { isFirstRun } from "./home-hearth.ts";
 import { RECENTS_EMPTY_BLOCK_PX } from "./home-recents-reservation.ts";
 
@@ -34,7 +35,7 @@ const RECENTS_TILE_ORDER = 10;
 /** The FIRST-BOOT box, in skeleton rows (#92). The body is the HERO ALONE now that the also-open list is
  *  its own tile, and the hero is about three rows tall — a headline, two clamped prose lines, and a credit
  *  line (the 64px face strip that used to sit beside them went on the 2026-08-17 rail sweep, which makes
- *  this reservation slightly generous rather than short). It was `RECENTS_LIMIT + 2` when this body rendered the hero AND seven
+ *  this reservation slightly generous rather than short). It was `HOME_RECENT_CHATS_LIMIT + 2` when this body rendered the hero AND seven
  *  rows; leaving it there would reserve ten rows for a three-row block and snap the whole hearth column up
  *  when the read landed, which is the same defect in the other direction. Re-measure if the hero grows a
  *  line; do not re-derive it by counting DOM nodes (a skeleton ROW is a bar plus its gap, not a text line). */
@@ -47,7 +48,7 @@ const FIRST_RUN_TITLE = "Your rooms";
 // The band names the rooms available to an account that has not spoken yet.
 function useRecentsTitle(): string {
   const trpc = useTRPC();
-  const page = useQuery(trpc.chat.listChats.queryOptions({ limit: RECENTS_LIMIT })).data;
+  const page = useQuery(trpc.chat.listChats.queryOptions({ limit: HOME_RECENT_CHATS_LIMIT })).data;
   if (page?.totalCount === 0) {
     return EMPTY_TITLE;
   }

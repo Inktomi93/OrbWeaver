@@ -457,6 +457,10 @@ export type CreateDocumentFromText = (params: CreateFromTextParams) => Promise<U
 export const DATABANK_NAME_MAX = 500;
 const DATABANK_LIST_LIMIT_MIN = 1;
 const DATABANK_LIST_LIMIT_MAX = 500;
+/** How many documents Home's tile shows: four, not the library's eight, because the half-span tile also carries a health
+ *  line. The tile's first-boot `skeletonRows` is this count plus that line. Homed here so the test corpus captures the
+ *  page the client asks for. */
+export const HOME_RECENT_DOCUMENTS_LIMIT = 4;
 
 export const getDocumentInputSchema = z.object({ id: typeIdSchema(ID_PREFIX.document), includeText: z.boolean().optional() });
 

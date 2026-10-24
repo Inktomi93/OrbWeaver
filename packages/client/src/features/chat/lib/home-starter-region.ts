@@ -1,10 +1,10 @@
+import { HOME_QUICK_PICKS_LIMIT } from "@orb/contracts/character";
+import { HOME_RECENT_CHATS_LIMIT } from "@orb/contracts/chat";
 import { usePrefetchQuery, useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useTRPC } from "#data";
 import type { HomeTileRegion } from "#state";
 import { rememberHomeRegion, useRememberedHomeRegion } from "#state";
-import { QUICK_PICKS_LIMIT } from "../components/home-quick-picks-tile-body.tsx";
-import { RECENTS_LIMIT } from "../components/home-recents-tile-body.tsx";
 
 /** The quick-picks tile id, which is also its key in the device's region memory. */
 export const QUICK_PICKS_TILE_ID = "chat.quickPicks";
@@ -23,10 +23,10 @@ function regionFor(roomCount: number): HomeTileRegion {
  */
 export function useStarterRegion(): HomeTileRegion | null {
   const trpc = useTRPC();
-  const chats = useQuery(trpc.chat.listChats.queryOptions({ limit: RECENTS_LIMIT }));
+  const chats = useQuery(trpc.chat.listChats.queryOptions({ limit: HOME_RECENT_CHATS_LIMIT }));
   const page = chats.data;
   // While the tile is held its body is unmounted, so its faces read would wait behind the room list. Start it here.
-  usePrefetchQuery(trpc.character.list.queryOptions({ limit: QUICK_PICKS_LIMIT }));
+  usePrefetchQuery(trpc.character.list.queryOptions({ limit: HOME_QUICK_PICKS_LIMIT }));
   const remembered = useRememberedHomeRegion(QUICK_PICKS_TILE_ID);
   const unreachable = chats.isError || chats.isPaused;
   const fallback = unreachable ? (remembered ?? "hearth") : undefined;
