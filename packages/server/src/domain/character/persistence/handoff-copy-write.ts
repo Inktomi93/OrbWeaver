@@ -26,7 +26,7 @@
 import { deriveCharacterHandle } from "@orb/contracts/character";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import { canonicalBackgroundSource, themeBackgroundSchema, themeOverrideSchema } from "@orb/contracts/theme";
-import { batchHandle, databaseForOwner, databaseHandle } from "@orb/db/wiring-owner";
+import { batchHandle, databaseForOwner } from "@orb/db/wiring-owner";
 import type { AssetId, CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { cardContentHash } from "#primitives/serde/card";
@@ -80,8 +80,8 @@ export function createCopyHandoffCards(input: CharacterHandoffCopyAssemblyContex
   const ctx: CharacterHandoffCopyContext = {
     ...input,
     db: databaseForOwner(input.db),
-    bumpStatsCanonVersion: (batch, db, ownerId) => input.bumpStatsCanonVersion(batchHandle(batch), databaseHandle(db), ownerId),
-    applyStatsDelta: (batch, db, delta) => input.applyStatsDelta(batchHandle(batch), databaseHandle(db), delta),
+    bumpStatsCanonVersion: (batch, _db, ownerId) => input.bumpStatsCanonVersion(batchHandle(batch), input.db, ownerId),
+    applyStatsDelta: (batch, _db, delta) => input.applyStatsDelta(batchHandle(batch), input.db, delta),
   };
   return async ({ fromOwnerId, toOwnerId, chatId, characterIds }): Promise<readonly HandoffCardCopy[]> => {
     if (characterIds.length === 0) {

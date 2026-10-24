@@ -83,11 +83,13 @@ test("a boot grant is a distinct inert identity over the same admitted connectio
   }
 });
 
-test("the owner conversion subpath loads its recoveries without the boot mint", async () => {
+test("the owner conversion subpath loads its recoveries without the boot mint or the driver-admission mint", async () => {
   // A dynamic import is the spelling an import-name lint never sees; the exports map is what closes it.
   const owner = await import("@orb/db/wiring-owner");
   expect(Object.hasOwn(owner, "bootDatabaseHandle")).toBe(false);
+  expect(Object.hasOwn(owner, "databaseHandle")).toBe(false);
   expect(Object.hasOwn(owner, "bootDatabaseForOwner")).toBe(true);
+  expect(Object.hasOwn(owner, "databaseForOwner")).toBe(true);
 });
 
 test("statement tokens neither assimilate nor rebuild a native awaitable statement", async () => {
