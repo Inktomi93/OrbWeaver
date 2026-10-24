@@ -14,7 +14,7 @@ import {
 } from "../corpus-provider.ts";
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
-import { seedAutomationRun } from "./rows/automation.ts";
+import { seedAutomationRunRows } from "./rows/automation.ts";
 import { seedAutomationRuleRows, seedAutomationTestFiresRows } from "./rows.ts";
 
 test("dry-run provenance and same-clock real fires retain distinct IDs without inventing analysis state", async () => {
@@ -35,11 +35,11 @@ test("dry-run provenance and same-clock real fires retain distinct IDs without i
   expect(dry.fires.map((row) => row.outcome)).toEqual(["test_run"]);
   expect(dry.fires[0]?.detail).toEqual(dry.result);
   expect(await root.services.automation.getGlobalVariable({ principal, key: "manualRuns" })).toBeNull();
-  await expect(seedAutomationRun(root, params)).rejects.toThrow("disabled");
+  await expect(seedAutomationRunRows(root, params)).rejects.toThrow("disabled");
   await root.services.automation.setRuleEnabled({ ...params, enabled: true });
-  const first = await seedAutomationRun(root, params);
+  const first = await seedAutomationRunRows(root, params);
   expect(first.result.outcome).toBe("fired");
-  const second = await seedAutomationRun(root, params);
+  const second = await seedAutomationRunRows(root, params);
   expect(second.result.outcome).toBe("fired");
   expect(second.state).toBeUndefined();
   expect(await root.services.automation.getGlobalVariable({ principal, key: "manualRuns" })).toBe("2");
@@ -69,7 +69,7 @@ test("foreign rule captures refuse before provenance or arm effects", async () =
   await root.services.automation.setRuleEnabled({ principal, ruleId: rule.id, enabled: true });
   const foreignParams = { principal: await root.principalFor(root.ownerId), ruleId: rule.id };
   await expect(seedAutomationTestFiresRows(root, foreignParams)).rejects.toThrow();
-  await expect(seedAutomationRun(root, foreignParams)).rejects.toThrow();
+  await expect(seedAutomationRunRows(root, foreignParams)).rejects.toThrow();
   expect(await root.db.select().from(automationFires).where(eq(automationFires.ruleId, rule.id))).toEqual([]);
   expect(await root.services.automation.getGlobalVariable({ principal, key: "privateCounter" })).toBeNull();
 });
@@ -115,7 +115,7 @@ test("real structured analysis produces private state, strips the unauthored sco
   });
   const params = { principal, ruleId: rule.id };
   await root.services.automation.setRuleEnabled({ ...params, enabled: true });
-  const produced = await seedAutomationRun(root, params);
+  const produced = await seedAutomationRunRows(root, params);
   expect(produced.result.outcome).toBe("fired");
   expect(produced.state).toMatchObject({
     ruleId: rule.id,
@@ -129,7 +129,7 @@ test("real structured analysis produces private state, strips the unauthored sco
   });
   expect(await root.services.chat.getVariables({ principal, chatId: chat.id })).not.toHaveProperty("score");
   replies.set("run_analysis", JSON.stringify({ arcStatus: "active", updatedArc: 17, successorArc: null, twistOps: [], guidance: "Do not persist this." }));
-  const refused = await seedAutomationRun(root, params);
+  const refused = await seedAutomationRunRows(root, params);
   expect(refused.result.outcome).toBe("action_error");
   expect(refused.state).toEqual(produced.state);
   expect(await root.db.select().from(automationRuleState).where(eq(automationRuleState.ruleId, rule.id)).get()).toEqual(produced.state);

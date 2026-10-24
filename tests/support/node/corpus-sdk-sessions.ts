@@ -8,7 +8,7 @@ import { seedCorpusAccount } from "./corpus-auth.ts";
 import { CORPUS_SDK_EMPTY, CORPUS_SDK_HOLD, CORPUS_SDK_MODEL, CORPUS_SDK_QUERY, CORPUS_SDK_REUSE, CORPUS_SDK_TOKEN } from "./corpus-sdk-protocol.ts";
 import type { createCorpusSdkExecution } from "./corpus-sdk-wire.ts";
 import { seedUserConnectionRows } from "./factories/rows/connection.ts";
-import { seedUserCredential } from "./factories/rows/credentials.ts";
+import { seedUserCredentialRows } from "./factories/rows/credentials.ts";
 import { captureSdkSessionRows } from "./factories/rows.ts";
 import type { ServerTestHarness } from "./server.ts";
 
@@ -16,7 +16,7 @@ type SdkRows = Awaited<ReturnType<typeof captureSdkSessionRows>>;
 type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
 interface SdkActor {
   readonly principal: Awaited<ReturnType<ServerTestHarness["principalFor"]>>;
-  readonly credential: Awaited<ReturnType<typeof seedUserCredential>>;
+  readonly credential: Awaited<ReturnType<typeof seedUserCredentialRows>>;
   readonly connection: Awaited<ReturnType<typeof seedUserConnectionRows>>;
 }
 interface SdkCapture {
@@ -58,7 +58,7 @@ async function savedSdkConnection(root: ServerTestHarness, actor: Pick<SdkActor,
 /** Save a subscription connection through its actual actor, credential and binding admission. */
 export async function seedCorpusSdkActor(root: ServerTestHarness): Promise<SdkActor> {
   const principal = await seedCorpusAccount(root);
-  const credential = await seedUserCredential(root, { principal, provider: "claude-sub", key: CORPUS_SDK_TOKEN });
+  const credential = await seedUserCredentialRows(root, { principal, provider: "claude-sub", key: CORPUS_SDK_TOKEN });
   const connection = await savedSdkConnection(root, { principal, credential });
   await root.services.connection.setBinding({ principal, task: "chat", connectionId: connection.id });
   return { principal, credential, connection };

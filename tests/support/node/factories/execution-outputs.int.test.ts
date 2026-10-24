@@ -24,8 +24,8 @@ import { createServerHarness } from "../server.ts";
 import { captureAutomationViews } from "./automation.ts";
 import { makeRuleView } from "./automation-view.ts";
 import { makePluginBundle } from "./plugin.ts";
-import { seedAutomationConfirmation, seedAutomationRun, seedCreatedAutomationRule } from "./rows/automation.ts";
-import { seedChatBook, seedWorldBook } from "./rows/world-info.ts";
+import { seedAutomationConfirmationRows, seedAutomationRunRows, seedCreatedAutomationRuleRows } from "./rows/automation.ts";
+import { seedChatBookRows, seedWorldBookRows } from "./rows/world-info.ts";
 import { seedAutomationRuleRows, seedInstalledPluginRows, seedPluginGrantRows } from "./rows.ts";
 
 const TOOL_NAME = "echo";
@@ -65,7 +65,7 @@ test("the rule default admits its actual scope and matches native birth defaults
     timeZone: UTC_TIME_ZONE,
     creationRequestId: root.idSource.typeId(ID_PREFIX.automationRuleCreation),
   });
-  const created = await seedCreatedAutomationRule(root, { ...input, principal });
+  const created = await seedCreatedAutomationRuleRows(root, { ...input, principal });
   expect(created.view).toEqual({ ...expected, id: created.row.id });
   expect(created.row).toMatchObject({
     id: created.view.id,
@@ -151,7 +151,7 @@ test("native automation read suppliers keep rule scope, preset provenance, fire 
     actions: [{ type: "run_tool", name, argsTemplate: JSON.stringify({ marker: TOOL_MARKER }), resultVar: TOOL_RESULT_KEY, resultScope: "global" }],
   });
   await root.services.automation.setRuleEnabled({ principal, ruleId: invitationRule.id, enabled: true });
-  const first = await seedAutomationRun(root, { principal, ruleId: invitationRule.id });
+  const first = await seedAutomationRunRows(root, { principal, ruleId: invitationRule.id });
   expect(first.result).toEqual({ outcome: "fired" });
   const firstValue = await root.services.automation.getGlobalVariable({ principal, key: TOOL_RESULT_KEY });
   expect(firstValue).toContain(`1:${TOOL_MARKER}`);
@@ -166,7 +166,7 @@ test("native automation read suppliers keep rule scope, preset provenance, fire 
     const ask = await raised;
     expect(ask.kind).toBe("invitation");
     expect(ask.source).toEqual({ kind: "rule", ruleId: invitationRule.id });
-    const confirmed = await seedAutomationConfirmation(root, { principal, suggestionId: ask.suggestionId }, invitationRule.id);
+    const confirmed = await seedAutomationConfirmationRows(root, { principal, suggestionId: ask.suggestionId }, invitationRule.id);
     expect(confirmed.result).toEqual({ ran: "fresh-run", outcome: "fired" });
     expect(confirmed.fires.filter((fire) => fire.outcome === "fired")).toHaveLength(2);
     expect(await root.services.automation.getGlobalVariable({ principal, key: TOOL_RESULT_KEY })).toContain(`2:${TOOL_MARKER}`);
@@ -183,8 +183,8 @@ test("a genuinely raised confirmation keeps its actor and fire identity while a 
   await using root = await createServerHarness();
   const principal = await root.principalFor(root.ownerId);
   const room = await root.services.chat.startChat({ principal, characterIds: [], opening: "none" });
-  const book = await seedWorldBook(root, { principal, input: { name: "Confirmed execution ledger" } });
-  await seedChatBook(root, { principal, chatId: room.chat.id, bookId: book.id });
+  const book = await seedWorldBookRows(root, { principal, input: { name: "Confirmed execution ledger" } });
+  await seedChatBookRows(root, { principal, chatId: room.chat.id, bookId: book.id });
   const rule = await seedAutomationRuleRows(root, {
     principal,
     chatId: room.chat.id,
@@ -207,22 +207,22 @@ test("a genuinely raised confirmation keeps its actor and fire identity while a 
   const events = root.app.liveBuses.automation.subscribeAutomation(room.chat.id, cancellation.signal)[Symbol.asyncIterator]();
   try {
     const next = nextSuggestion(events);
-    const run = await seedAutomationRun(root, { principal, ruleId: rule.id });
+    const run = await seedAutomationRunRows(root, { principal, ruleId: rule.id });
     expect(run.result).toEqual({ outcome: "suggested" });
     expect(run.fires).toEqual([]);
     const raised = await next;
     expect(raised.source).toEqual({ kind: "rule", ruleId: rule.id });
     const foreign = await root.principalFor((await root.actor()).id);
     const params = { principal, suggestionId: raised.suggestionId };
-    await expect(seedAutomationConfirmation(root, { ...params, principal: foreign }, rule.id)).rejects.toThrow();
-    const confirmed = await seedAutomationConfirmation(root, params, rule.id);
+    await expect(seedAutomationConfirmationRows(root, { ...params, principal: foreign }, rule.id)).rejects.toThrow();
+    const confirmed = await seedAutomationConfirmationRows(root, params, rule.id);
     expect(confirmed.result).toEqual({ ran: "stashed-arm", outcome: "fired" });
     expect(confirmed.fires).toMatchObject([
       { ruleId: rule.id, chatId: room.chat.id, outcome: "fired", detail: { confirmedByUserId: principal.userId, suggestionId: params.suggestionId } },
     ]);
     const entries = await root.services.worldInfo.listEntries({ principal, bookId: book.id });
     expect(entries.map((entry) => [entry.worldBookId, entry.content, entry.keys])).toEqual([[book.id, "The host preserved this witnessed fact.", ["witness"]]]);
-    await expect(seedAutomationConfirmation(root, params, rule.id)).rejects.toThrow();
+    await expect(seedAutomationConfirmationRows(root, params, rule.id)).rejects.toThrow();
     expect(await root.services.worldInfo.listEntries({ principal, bookId: book.id })).toEqual(entries);
   } finally {
     cancellation.abort();

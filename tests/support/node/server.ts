@@ -41,6 +41,7 @@ import type { EnvSeamOptions, RawEnvInput } from "./env-seams.ts";
 import { harnessEnv } from "./env-seams.ts";
 import type { OwnedHttpRequests } from "./http.ts";
 import { createOwnedHttpRequests } from "./http.ts";
+import { processObservability } from "./observed.ts";
 
 type AuthConfig = ReturnType<typeof authConfigFromEnv>;
 
@@ -547,6 +548,7 @@ export async function createServerHarness(
   const env = harnessEnv(options, { rootDir });
   const authConfig: AuthConfig = { ...authConfigFromEnv(env), ...options.authConfig };
   const rolePolicy = createSessionsRolePolicy(env);
+  construction.use(processObservability.openRoot());
   construction.use(borrowLogLevel(options.logLevel));
   let appLifetime: ServicesResult | undefined;
   let httpLifetime: OwnedHttpRequests | undefined;

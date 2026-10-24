@@ -18,7 +18,7 @@ import {
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
 import { makeAssetBytes } from "./asset.ts";
-import { seedPluginProviders } from "./rows/provider.ts";
+import { seedPluginProvidersRows } from "./rows/provider.ts";
 import { seedAdminProviderRows, seedDistributedPluginRows, seedInstalledPluginRows, seedPluginGrantRows } from "./rows.ts";
 
 test("real install retains bundle assets and guest activation writes only the consenting owner's private KV", async () => {
@@ -67,7 +67,7 @@ test("actual plugin activation captures the manifest's precise provider claim an
     bundle: bundle(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)), manifest),
     grant: [],
   });
-  const captured = await seedPluginProviders(
+  const captured = await seedPluginProvidersRows(
     root,
     { caller, pluginId: installed.plugin.id, grant: manifest.capabilities, acknowledgedNetHosts: [], enable: true },
     (manifest.providers ?? []).map((provider) => provider.id),

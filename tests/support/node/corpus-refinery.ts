@@ -1,29 +1,29 @@
 // Sessions, stage provenance and apply outcomes come from the real refinery and character owners.
 import { createCharacterSchema } from "@orb/contracts/character";
 import { CORPUS_REFINERY_SCHEMA_REVISION } from "./corpus-provider.ts";
-import { seedManualRefineryRun, seedRefineryRunRows, seedRefinerySchema, seedRefinerySession } from "./factories/rows/refinery.ts";
+import { seedManualRefineryRunRows, seedRefineryRunRows, seedRefinerySchemaRows, seedRefinerySessionRows } from "./factories/rows/refinery.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 type CorpusCaller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
 
 export interface SeededCorpusRefinery {
   readonly character: Awaited<ReturnType<CorpusCaller["character"]["create"]>>;
-  readonly session: Awaited<ReturnType<typeof seedRefinerySession>>;
+  readonly session: Awaited<ReturnType<typeof seedRefinerySessionRows>>;
   readonly preflight: Awaited<ReturnType<CorpusCaller["refinery"]["preflight"]>>;
   readonly score: Awaited<ReturnType<typeof seedRefineryRunRows>>;
   readonly rewrite: Awaited<ReturnType<typeof seedRefineryRunRows>>;
   readonly analyze: Awaited<ReturnType<typeof seedRefineryRunRows>>;
   readonly review: Awaited<ReturnType<CorpusCaller["refinery"]["decideRewrite"]>>;
   readonly iteration: Awaited<ReturnType<CorpusCaller["refinery"]["iterate"]>>;
-  readonly manual: Awaited<ReturnType<typeof seedManualRefineryRun>>;
+  readonly manual: Awaited<ReturnType<typeof seedManualRefineryRunRows>>;
   readonly operateBack: Awaited<ReturnType<CorpusCaller["refinery"]["runStage"]>>;
   readonly dropped: Awaited<ReturnType<CorpusCaller["refinery"]["applyFields"]>>;
   readonly copy: Awaited<ReturnType<CorpusCaller["refinery"]["applyAsCopy"]>>;
   readonly applied: Awaited<ReturnType<CorpusCaller["refinery"]["applyFields"]>>;
   readonly forged: Awaited<ReturnType<CorpusCaller["refinery"]["generateSchema"]>>;
-  readonly schema: Awaited<ReturnType<typeof seedRefinerySchema>>;
+  readonly schema: Awaited<ReturnType<typeof seedRefinerySchemaRows>>;
   readonly revisedSchema: Awaited<ReturnType<CorpusCaller["refinery"]["updateSchema"]>>;
-  readonly customSession: Awaited<ReturnType<typeof seedRefinerySession>>;
+  readonly customSession: Awaited<ReturnType<typeof seedRefinerySessionRows>>;
   readonly customFirst: Awaited<ReturnType<typeof seedRefineryRunRows>>;
   readonly customSecond: Awaited<ReturnType<typeof seedRefineryRunRows>>;
   readonly schemaPlan: Awaited<ReturnType<CorpusCaller["refinery"]["schemaPlan"]>>;
@@ -45,14 +45,14 @@ export async function seedCorpusRefinery(root: ServerTestHarness): Promise<Seede
       personality: "Curious and careful.",
     }),
   });
-  const session = await seedRefinerySession(root, { principal, characterId: character.id, name: "Orbital ledger refinement" });
+  const session = await seedRefinerySessionRows(root, { principal, characterId: character.id, name: "Orbital ledger refinement" });
   const preflight = await caller.refinery.preflight({ sessionId: session.id });
   const score = await seedRefineryRunRows(root, { principal, sessionId: session.id, stage: "score" });
   const rewrite = await seedRefineryRunRows(root, { principal, sessionId: session.id, stage: "rewrite" });
   const analyze = await seedRefineryRunRows(root, { principal, sessionId: session.id, stage: "analyze" });
   const review = await caller.refinery.decideRewrite({ sessionId: session.id, rewriteRunId: rewrite.id, decisions: [true] });
   const iteration = await caller.refinery.iterate({ sessionId: session.id, guidance: "Keep the keeper curious." });
-  const manual = await seedManualRefineryRun(root, {
+  const manual = await seedManualRefineryRunRows(root, {
     principal,
     sessionId: session.id,
     fields: [{ field: "description", text: "A careful keeper records the orbital witnesses in a ledger." }],
@@ -77,14 +77,14 @@ export async function seedCorpusRefinery(root: ServerTestHarness): Promise<Seede
   if (forged.kind !== "draft") {
     throw new Error("actual refinery forge did not produce the corpus's required schema draft", { cause: forged });
   }
-  const schema = await seedRefinerySchema(root, {
+  const schema = await seedRefinerySchemaRows(root, {
     principal,
     name: forged.name,
     description: "Preserve the keeper and explain its score.",
     stage: "score",
     schema: forged.schema,
   });
-  const customSession = await seedRefinerySession(root, { principal, characterId: copy.character.id, name: "Custom keeper rubric" });
+  const customSession = await seedRefinerySessionRows(root, { principal, characterId: copy.character.id, name: "Custom keeper rubric" });
   await caller.refinery.updateSession({
     sessionId: customSession.id,
     patch: { stageConfig: { ...customSession.stageConfig, score: { kind: "custom", schemaId: schema.id } } },

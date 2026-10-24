@@ -18,7 +18,7 @@ import type {
 } from "../world-info.ts";
 
 /** Keep repair results tied to their actual book children, including unchanged entries. */
-export async function seedBackfilledWorldTitles(
+export async function seedBackfilledWorldTitlesRows(
   root: ServerProducerRoot,
   params: Parameters<WorldInfoService["backfillTitles"]>[0],
 ): Promise<SeededWorldTitleBackfill> {
@@ -30,7 +30,7 @@ export async function seedBackfilledWorldTitles(
 }
 
 /** Produces the book through its owner operation; persisted stamps are not replaced by fixture time. */
-export async function seedWorldBook(root: ServerProducerRoot, params: Parameters<WorldInfoService["createBook"]>[0]): Promise<WorldBookRow> {
+export async function seedWorldBookRows(root: ServerProducerRoot, params: Parameters<WorldInfoService["createBook"]>[0]): Promise<WorldBookRow> {
   const db = root.db;
   const createBook = root.services.worldInfo.createBook;
   const view = await createBook(params);
@@ -42,7 +42,7 @@ export async function seedWorldBook(root: ServerProducerRoot, params: Parameters
 }
 
 /** Captures the real entry after book ownership and metadata validation have run. */
-export async function seedWorldEntry(root: ServerProducerRoot, params: Parameters<WorldInfoService["createEntry"]>[0]): Promise<WorldEntryRow> {
+export async function seedWorldEntryRows(root: ServerProducerRoot, params: Parameters<WorldInfoService["createEntry"]>[0]): Promise<WorldEntryRow> {
   const db = root.db;
   const createEntry = root.services.worldInfo.createEntry;
   const view = await createEntry(params);
@@ -54,7 +54,7 @@ export async function seedWorldEntry(root: ServerProducerRoot, params: Parameter
 }
 
 /** The real attachment performs primary demotion atomically; the seed only reads its resulting row. */
-export async function seedCharacterBook(root: ServerProducerRoot, params: Parameters<WorldInfoService["attachToCharacter"]>[0]): Promise<CharacterBookRow> {
+export async function seedCharacterBookRows(root: ServerProducerRoot, params: Parameters<WorldInfoService["attachToCharacter"]>[0]): Promise<CharacterBookRow> {
   const db = root.db;
   const attachToCharacter = root.services.worldInfo.attachToCharacter;
   await attachToCharacter(params);
@@ -70,7 +70,7 @@ export async function seedCharacterBook(root: ServerProducerRoot, params: Parame
 }
 
 /** The real room-host gate precedes capture; idempotent reattachment returns the persisted row unchanged. */
-export async function seedChatBook(root: ServerProducerRoot, params: Parameters<WorldInfoService["attachToChat"]>[0]): Promise<ChatBookRow> {
+export async function seedChatBookRows(root: ServerProducerRoot, params: Parameters<WorldInfoService["attachToChat"]>[0]): Promise<ChatBookRow> {
   const db = root.db;
   const attachToChat = root.services.worldInfo.attachToChat;
   await attachToChat(params);
@@ -86,7 +86,7 @@ export async function seedChatBook(root: ServerProducerRoot, params: Parameters<
 }
 
 /** Captures the book-keyed global attachment after the real book-ownership gate. */
-export async function seedGlobalBook(root: ServerProducerRoot, params: Parameters<WorldInfoService["attachGlobal"]>[0]): Promise<GlobalBookRow> {
+export async function seedGlobalBookRows(root: ServerProducerRoot, params: Parameters<WorldInfoService["attachGlobal"]>[0]): Promise<GlobalBookRow> {
   const db = root.db;
   const attachGlobal = root.services.worldInfo.attachGlobal;
   await attachGlobal(params);
@@ -98,7 +98,7 @@ export async function seedGlobalBook(root: ServerProducerRoot, params: Parameter
 }
 
 /** Captures the persona junction after the real operation gates both FK endpoints. */
-export async function seedPersonaBook(root: ServerProducerRoot, params: Parameters<WorldInfoService["attachToPersona"]>[0]): Promise<PersonaBookRow> {
+export async function seedPersonaBookRows(root: ServerProducerRoot, params: Parameters<WorldInfoService["attachToPersona"]>[0]): Promise<PersonaBookRow> {
   const db = root.db;
   const attachToPersona = root.services.worldInfo.attachToPersona;
   await attachToPersona(params);

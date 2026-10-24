@@ -3,7 +3,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { rpgSnapshots } from "@orb/db";
 import { eq } from "drizzle-orm";
 import { seedCorpusRpgSchedules } from "./corpus-rpg-schedules.ts";
-import { seedRpgJournalEntry, seedRpgSheets } from "./factories/rows/rpg.ts";
+import { seedRpgJournalEntryRows, seedRpgSheetsRows } from "./factories/rows/rpg.ts";
 import { captureRpgSnapshot, seedRpgCheckpointRows, seedRpgGameRows } from "./factories/rows.ts";
 import type { ServerTestHarness } from "./server.ts";
 
@@ -18,13 +18,13 @@ interface SeededCorpusRpg {
   readonly bornSnapshots: readonly Snapshot[];
   readonly refused: Awaited<ReturnType<CorpusCaller["rpg"]["editSnapshot"]>>;
   readonly authored: Awaited<ReturnType<CorpusCaller["rpg"]["editSnapshot"]>>;
-  readonly mergedSheets: Awaited<ReturnType<typeof seedRpgSheets>>;
-  readonly clearedSheets: Awaited<ReturnType<typeof seedRpgSheets>>;
+  readonly mergedSheets: Awaited<ReturnType<typeof seedRpgSheetsRows>>;
+  readonly clearedSheets: Awaited<ReturnType<typeof seedRpgSheetsRows>>;
   readonly questBorn: Tracker;
   readonly questProgress: Tracker;
   readonly objectiveDeleted: Tracker;
   readonly questDeleted: Tracker;
-  readonly journal: Awaited<ReturnType<typeof seedRpgJournalEntry>>;
+  readonly journal: Awaited<ReturnType<typeof seedRpgJournalEntryRows>>;
   readonly journalEdited: Awaited<ReturnType<CorpusCaller["rpg"]["listJournal"]>>;
   readonly checkpoint: Awaited<ReturnType<typeof seedRpgCheckpointRows>>;
   readonly snapshot: Snapshot;
@@ -64,9 +64,9 @@ export async function seedCorpusRpg(root: ServerTestHarness): Promise<SeededCorp
     throw new Error("native d20 game has fewer than two attributes");
   }
   const value = game.config.statProfile.range.max;
-  await seedRpgSheets(root, { ...params, actorRef, patch: { attributes: { [first.key]: value }, level: 3 } });
-  const mergedSheets = await seedRpgSheets(root, { ...params, actorRef, patch: { attributes: { [second.key]: value } } });
-  const clearedSheets = await seedRpgSheets(root, { ...params, actorRef, patch: { attributes: { [first.key]: null }, level: null } });
+  await seedRpgSheetsRows(root, { ...params, actorRef, patch: { attributes: { [first.key]: value }, level: 3 } });
+  const mergedSheets = await seedRpgSheetsRows(root, { ...params, actorRef, patch: { attributes: { [second.key]: value } } });
+  const clearedSheets = await seedRpgSheetsRows(root, { ...params, actorRef, patch: { attributes: { [first.key]: null }, level: null } });
   const authored = await caller.rpg.editSnapshot({ chatId, patch: { location: "Orbital loom", calendarDate: "Founder's Day" } });
   const questId = await caller.rpg.upsertQuest({ chatId, name: "Repair the loom", objectives: [{ text: "Find the shuttle" }] });
   const questBorn = await caller.rpg.getTrackerView({ chatId });
@@ -77,7 +77,7 @@ export async function seedCorpusRpg(root: ServerTestHarness): Promise<SeededCorp
   await caller.rpg.editQuestObjective({ chatId, questId, op: { kind: "add", text: "Thread the loom" } });
   await caller.rpg.editQuestObjective({ chatId, questId, op: { kind: "setCompleted", objectiveId: objective.id, completed: true } });
   const questProgress = await caller.rpg.getTrackerView({ chatId });
-  const journal = await seedRpgJournalEntry(root, {
+  const journal = await seedRpgJournalEntryRows(root, {
     ...params,
     type: "custom",
     label: "Travel",

@@ -52,7 +52,7 @@ import type {
   SeedSyntheticCorpusOptions,
 } from "./corpus-seed.ts";
 import type { seedCorpusStatsSettings as produceCorpusStatsSettings } from "./corpus-stats-settings.ts";
-import type { seedUserCredential as produceCredential } from "./factories/rows/credentials.ts";
+import type { seedUserCredentialRows as produceCredential } from "./factories/rows/credentials.ts";
 import type { seedRecallCorpusRows as produceRecallCorpus } from "./factories/rows/recall.ts";
 import type { seedStatsRows as produceSearchStats } from "./factories/rows/stats.ts";
 import type { AuthModeEnv, ServerHarnessOptions, ServerTestHarness } from "./server.ts";
@@ -732,7 +732,7 @@ async function captureCapsule(options: CorpusCapsuleOptions & CorpusCapsuleProdu
   const { createServerHarness } = await import("./server.ts");
   const { createControlledTimers } = await import("../iso/timers.ts");
   const { NATIVE_OIDC_SETTINGS } = await import("./oidc-issuer.ts");
-  const { seedUserCredential } = await import("./factories/rows/credentials.ts");
+  const { seedUserCredentialRows } = await import("./factories/rows/credentials.ts");
   const { seedCorpusPlugins } = await import("./corpus-plugin.ts");
   const { seedCorpusKnowledge } = await import("./corpus-knowledge.ts");
   const { seedCorpusKnowledgeVariants } = await import("./corpus-knowledge-variants.ts");
@@ -821,7 +821,7 @@ async function captureCapsule(options: CorpusCapsuleOptions & CorpusCapsuleProdu
   signal?.throwIfAborted();
   const actors = await seedCorpusActors(root, privateSource);
   signal?.throwIfAborted();
-  const credential = await seedUserCredential(root, { ...options.privateCredential, principal: actors.owner });
+  const credential = await seedUserCredentialRows(root, { ...options.privateCredential, principal: actors.owner });
   signal?.throwIfAborted();
   const baseline = await seedSyntheticCorpus(root, { ...options.seed, secondUserId: actors.secondUserId });
   signal?.throwIfAborted();

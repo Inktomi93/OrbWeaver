@@ -6,7 +6,7 @@ import { seedCorpusAccount } from "./corpus-auth.ts";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
 import type { CapturedDatabankViews, SeededCreatedDocument } from "./factories/databank.ts";
 import { captureDatabankViews } from "./factories/databank.ts";
-import { seedCreatedDocument } from "./factories/rows/databank.ts";
+import { seedCreatedDocumentRows } from "./factories/rows/databank.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
@@ -47,28 +47,28 @@ export async function seedCorpusDatabank(root: ServerTestHarness): Promise<Corpu
   const invite = await root.services.chat.createInvite({ principal, chatId: room.chat.id, input: { invitedHandle: member.handle } });
   await root.services.chat.acceptInvite({ principal: member, inviteId: invite.invite.id });
   const text = "The orbital ledger records café witnesses 🪐.";
-  const created = await seedCreatedDocument(root, {
+  const created = await seedCreatedDocumentRows(root, {
     kind: "createFromText",
     userId: root.ownerId,
     params: { name: "Consented ledger", text, destination: { kind: "global" } },
   });
-  const duplicate = await seedCreatedDocument(root, {
+  const duplicate = await seedCreatedDocumentRows(root, {
     kind: "createFromText",
     userId: root.ownerId,
     params: { name: "Ignored duplicate name", text, destination: { kind: "character", characterId: character.id } },
   });
   await caller.databank.attachToChat({ documentId: created.row.id, chatId: room.chat.id });
-  const hidden = await seedCreatedDocument(root, {
+  const hidden = await seedCreatedDocumentRows(root, {
     kind: "createFromText",
     userId: root.ownerId,
     params: { name: "Host-hidden ledger", text: "Only the host sees this source name.", destination: { kind: "chat", chatId: room.chat.id } },
   });
-  const memberGlobal = await seedCreatedDocument(root, {
+  const memberGlobal = await seedCreatedDocumentRows(root, {
     kind: "createFromText",
     userId: member.userId,
     params: { name: "Member consented source", text: "A present member explicitly shares this source.", destination: { kind: "global" } },
   });
-  const memberPrivate = await seedCreatedDocument(root, {
+  const memberPrivate = await seedCreatedDocumentRows(root, {
     kind: "createFromText",
     userId: member.userId,
     params: { name: "Member private source", text: "This unattached source grants no room consent." },

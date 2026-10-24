@@ -14,7 +14,7 @@ import type { seedCorpusKnowledgeImages } from "./corpus-knowledge-images.ts";
 import type { TrpcCapture } from "./corpus-read.ts";
 import type { SeededCorpusLibraries } from "./corpus-seed.ts";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
-import { captureChatMemoryRows, seedEmbeddingGeneration } from "./factories/rows/embedding-generation.ts";
+import { captureChatMemoryRows, seedEmbeddingGenerationRows } from "./factories/rows/embedding-generation.ts";
 import type { SeededRecallCorpusRows } from "./factories/rows/recall.ts";
 import type { TrpcInput, TrpcProcedurePath, TrpcWireOutput } from "./route-trpc.ts";
 import type { ServerTestHarness } from "./server.ts";
@@ -66,8 +66,8 @@ interface NativeSearchGroup {
 interface SearchSpaceLifecycle {
   readonly actor: Awaited<ReturnType<typeof seedCorpusAccount>>;
   readonly initial: SearchReads["status"];
-  readonly text: Awaited<ReturnType<typeof seedEmbeddingGeneration>>;
-  readonly image: Awaited<ReturnType<typeof seedEmbeddingGeneration>>;
+  readonly text: Awaited<ReturnType<typeof seedEmbeddingGenerationRows>>;
+  readonly image: Awaited<ReturnType<typeof seedEmbeddingGenerationRows>>;
   readonly moving: SearchReads["status"];
   readonly refused: Awaited<ReturnType<typeof searchRefusal>>;
   readonly jobs: Awaited<ReturnType<typeof settleCorpusWorkloads>>;
@@ -213,8 +213,8 @@ async function movingSpace(root: ServerTestHarness): Promise<SearchSpaceLifecycl
   for (let scene = 0; scene <= DEFAULT_MEMORY_DEFAULTS.blockSize + DEFAULT_MEMORY_DEFAULTS.verbatimWindow; scene += 1) {
     await caller.chat.commitMessage({ chatId, content: `Moving-space native history ${scene}: The ledger records a real witness.`, timeZone: UTC_TIME_ZONE });
   }
-  const text = await seedEmbeddingGeneration(root, [principal.userId, "embed"]);
-  const image = await seedEmbeddingGeneration(root, [principal.userId, "imageEmbed", "embed"]);
+  const text = await seedEmbeddingGenerationRows(root, [principal.userId, "embed"]);
+  const image = await seedEmbeddingGenerationRows(root, [principal.userId, "imageEmbed", "embed"]);
   const moving = await caller.search.spaceStatus();
   const refused = await searchRefusal(caller.search.search({ query: "moving ledger", topN: 5, over: "entities", scope: { kind: "owner" } }));
   const callsBeforeEmpty = await root.db.select().from(embeddingCalls).where(eq(embeddingCalls.ownerId, principal.userId)).orderBy(embeddingCalls.id);

@@ -5,7 +5,6 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { LogLevel } from "@orb/contracts/settings";
 import { WORKLOAD_LIST_MAX_LIMIT } from "@orb/contracts/workloads";
 import { characterEmbeddings, closeDb, embeddingCalls } from "@orb/db";
-import { logRing } from "@orb/server/foundation/observability";
 import { createFrozenClock } from "../iso/clock.ts";
 import { createControlledTimers } from "../iso/timers.ts";
 import { seedCorpusConnections } from "./corpus-actors.ts";
@@ -14,6 +13,7 @@ import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES,
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
 import { freshHeldDb } from "./db.ts";
 import { expect, test } from "./fixtures.ts";
+import { processObservability } from "./observed.ts";
 import { createServerHarness } from "./server.ts";
 
 const WORKLOAD_LOG_LEVEL = "info" satisfies LogLevel;
@@ -350,7 +350,7 @@ test("native sleep registration refusal retains its worker error owner without r
     expect(jobs).toMatchObject([{ id: admitted.id, status: "succeeded" }]);
     await root[Symbol.asyncDispose]();
     expect(failures).toBeGreaterThan(0);
-    const errors = logRing.recent(100).filter((line) => line.includes("workloads worker loop exited") && line.includes(failure.message));
+    const errors = processObservability.logLines(100).filter((line) => line.includes("workloads worker loop exited") && line.includes(failure.message));
     expect(errors).toHaveLength(1);
     expect(root.timers.pending()).toBe(0);
   } finally {

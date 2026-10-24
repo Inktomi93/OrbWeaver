@@ -15,7 +15,7 @@ import type {
 } from "../regex.ts";
 
 /** Captures the junction after real ownership gates and idempotent append policy. */
-export async function seedCharacterRegexScript(
+export async function seedCharacterRegexScriptRows(
   root: ServerProducerRoot,
   params: Parameters<RegexService["attachToCharacter"]>[0],
 ): Promise<CharacterRegexScriptRow> {
@@ -34,7 +34,10 @@ export async function seedCharacterRegexScript(
 }
 
 /** Captures the real preset junction without substituting a status, position or timestamp. */
-export async function seedPresetRegexScript(root: ServerProducerRoot, params: Parameters<RegexService["attachToPreset"]>[0]): Promise<PresetRegexScriptRow> {
+export async function seedPresetRegexScriptRows(
+  root: ServerProducerRoot,
+  params: Parameters<RegexService["attachToPreset"]>[0],
+): Promise<PresetRegexScriptRow> {
   const db = root.db;
   const attachToPreset = root.services.regex.attachToPreset;
   await attachToPreset(params);
@@ -50,7 +53,7 @@ export async function seedPresetRegexScript(root: ServerProducerRoot, params: Pa
 }
 
 /** The actual host gate runs before the room junction is captured. */
-export async function seedChatRegexScript(root: ServerProducerRoot, params: Parameters<RegexService["attachToChat"]>[0]): Promise<ChatRegexScriptRow> {
+export async function seedChatRegexScriptRows(root: ServerProducerRoot, params: Parameters<RegexService["attachToChat"]>[0]): Promise<ChatRegexScriptRow> {
   const db = root.db;
   const attachToChat = root.services.regex.attachToChat;
   await attachToChat(params);

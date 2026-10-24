@@ -15,7 +15,7 @@ export async function seedRefineryRunRows(root: ServerProducerRoot, params: Para
   return await captureRefineryRun(db, view.id);
 }
 
-export async function seedRefinerySession(root: ServerProducerRoot, params: Parameters<RefineryService["startSession"]>[0]): Promise<RefinerySessionRow> {
+export async function seedRefinerySessionRows(root: ServerProducerRoot, params: Parameters<RefineryService["startSession"]>[0]): Promise<RefinerySessionRow> {
   const db = root.db;
   const startSession = root.services.refinery.startSession;
   const view = await startSession(params);
@@ -26,7 +26,7 @@ export async function seedRefinerySession(root: ServerProducerRoot, params: Para
   return row;
 }
 
-export async function seedRefinerySchema(root: ServerProducerRoot, params: Parameters<RefineryService["createSchema"]>[0]): Promise<RefinerySchemaRow> {
+export async function seedRefinerySchemaRows(root: ServerProducerRoot, params: Parameters<RefineryService["createSchema"]>[0]): Promise<RefinerySchemaRow> {
   const db = root.db;
   const createSchema = root.services.refinery.createSchema;
   const view = await createSchema(params);
@@ -38,7 +38,10 @@ export async function seedRefinerySchema(root: ServerProducerRoot, params: Param
 }
 
 /** This is the genuine hand-authored arm, not evidence that a model ran or reported usage. */
-export async function seedManualRefineryRun(root: ServerProducerRoot, params: Parameters<RefineryService["submitManualRewrite"]>[0]): Promise<RefineryRunRow> {
+export async function seedManualRefineryRunRows(
+  root: ServerProducerRoot,
+  params: Parameters<RefineryService["submitManualRewrite"]>[0],
+): Promise<RefineryRunRow> {
   const db = root.db;
   const submitManualRewrite = root.services.refinery.submitManualRewrite;
   const view = await submitManualRewrite(params);
