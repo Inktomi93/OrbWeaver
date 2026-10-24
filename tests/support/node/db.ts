@@ -1,9 +1,8 @@
 // tests/support/node/db — freshDb (docs/law/Spine-Testing.md §2): a libSQL `:memory:` db per call for the `.int` lane.
 // freshDb PUSHES the LIVE schema (it diffs `@orb/db/schema` against an empty snapshot via drizzle-kit's
 // programmatic API and applies the resulting CREATE statements over the real createDb handle), so a slice
-// test always runs against the current schema regardless of whether `0000_baseline.sql` has been
-// regenerated yet — fast + drift-proof for per-table tests. The committed baseline ↔ schema equivalence is covered by
-// `tests/tooling/verify/ops/db-baseline-parity.int.test.ts`.
+// test always runs against the current schema — fast for per-table tests. That the push equals the schema
+// `runMigrations(db, SHIPPED_MIGRATIONS)` builds is covered by `tests/support/node/db.int.test.ts`.
 //
 // freshCountedDb adds a QUERY-BUDGET counter over the same handle: the counting proxy rides `createDb`'s
 // `LibSqlWrap` seam — the SAME seam `foundation/observability`'s `wrapLibSqlClient` uses for OTel spans

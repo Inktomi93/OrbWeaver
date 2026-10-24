@@ -1,6 +1,5 @@
 // @subject tests/support/node/corpus-connection.ts
 // @subject tests/support/node/corpus-connection-wire.ts
-import { randomBytes } from "node:crypto";
 import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS, ROUTABLE_TASKS } from "@orb/contracts/inference";
 import { assertReferentialIntegrity, closeDb } from "@orb/db";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
@@ -22,7 +21,7 @@ import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES,
 import { freshDb } from "./db.ts";
 import { expect, test } from "./fixtures.ts";
 import type { ServerTestHarness } from "./server.ts";
-import { createServerHarness } from "./server.ts";
+import { createServerHarness, SECRET_BOX_TEST_KEY } from "./server.ts";
 
 test("native connection catalog, capability and account outputs retain real task identity while withholding actual private material", async () => {
   const wire = createCorpusConnectionWire();
@@ -34,7 +33,7 @@ test("native connection catalog, capability and account outputs retain real task
     images: [],
   });
   await using root = await createServerHarness({
-    secretBoxKey: randomBytes(32),
+    secretBoxKey: SECRET_BOX_TEST_KEY,
     providerFetch: wire.wrap(physical.execute),
     networkExecution: { fetch: wire.wrap(physical.execute), resolver: wire.resolver },
   });
@@ -216,7 +215,7 @@ test("native connection corpus spends its recipes after legitimate memory and pe
     startJobs: false,
     clock: createFrozenClock(),
     ids: createSeededIds(),
-    secretBoxKey: randomBytes(32),
+    secretBoxKey: SECRET_BOX_TEST_KEY,
     providerFetch: wire.wrap(execute),
     networkExecution: { fetch: wire.wrap(execute), resolver: wire.resolver },
   };

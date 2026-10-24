@@ -1,14 +1,13 @@
 // @subject tests/support/node/factories/credentials.ts
 // @subject tests/support/node/factories/rows/credentials.ts
 
-import { randomBytes } from "node:crypto";
 import { credentialExecutionEvidenceOf, credentialViewSchema } from "@orb/contracts/credentials";
 import { auditLogs, userCredentials } from "@orb/db";
 import { DomainNoCredentialError, DomainOperationError } from "@orb/kit/errors";
 import { and, eq } from "drizzle-orm";
 import { testProviderId } from "../../iso/inference-identities.ts";
 import { expect, test } from "../fixtures.ts";
-import { createServerHarness } from "../server.ts";
+import { createServerHarness, SECRET_BOX_TEST_KEY } from "../server.ts";
 import { makeResolvedSecret } from "./credentials.ts";
 import { makeResolved } from "./resolved-connection.ts";
 import { seedApiKeySecretRows, seedUserCredentialRows } from "./rows/credentials.ts";
@@ -17,7 +16,7 @@ const KEY = "synthetic-corpus-credential";
 const REPLACEMENT_KEY = "replacement-corpus-credential";
 
 test("a resolved credential builder carries real dispatched-key authority into the credential owner's strike", async () => {
-  await using root = await createServerHarness({ secretBoxKey: randomBytes(32) });
+  await using root = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY });
   const principal = await root.principalFor(root.ownerId);
   const resolved = await seedApiKeySecretRows(root, { principal, provider: "openrouter", key: KEY });
   const foreign = await root.actor();
@@ -68,7 +67,7 @@ test("the real keyless builder needs no storage and carries no dispatched creden
 });
 
 test("an unknown provider cannot create resolved authority or leave credential and audit effects", async () => {
-  await using root = await createServerHarness({ secretBoxKey: randomBytes(32) });
+  await using root = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY });
   const principal = await root.principalFor(root.ownerId);
   const before = { credentials: await root.db.select().from(userCredentials), audit: await root.db.select().from(auditLogs) };
   await expect(seedApiKeySecretRows(root, { principal, provider: "unregistered-test-provider", key: KEY })).rejects.toBeInstanceOf(DomainOperationError);
@@ -76,7 +75,7 @@ test("an unknown provider cannot create resolved authority or leave credential a
 });
 
 test("the actual credential producer seals fresh material, preserves the returned identity and emits secret-free audit/view data", async () => {
-  await using root = await createServerHarness({ secretBoxKey: randomBytes(32) });
+  await using root = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY });
   const principal = await root.principalFor(root.ownerId);
   const params = { principal, provider: "custom-openai", label: "Corpus endpoint", key: KEY, metadata: { auth: "endpoint" as const } };
   const first = await seedUserCredentialRows(root, params);
@@ -135,7 +134,7 @@ test("the actual credential producer seals fresh material, preserves the returne
 });
 
 test("a foreign credential ID cannot manufacture a resolved secret or widen the real routed list", async () => {
-  await using root = await createServerHarness({ secretBoxKey: randomBytes(32) });
+  await using root = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY });
   const owner = await root.principalFor(root.ownerId);
   const capture = await seedUserCredentialRows(root, { principal: owner, provider: "custom-openai", key: KEY });
   const foreign = await root.actor();

@@ -3,6 +3,7 @@ import type { Clock } from "./clock.ts";
 
 interface PendingTimer {
   readonly callback: () => void;
+  readonly ms: number;
   readonly repeatMs: number | null;
   dueAt: number;
 }
@@ -10,6 +11,8 @@ interface PendingTimer {
 export interface ControlledTimers extends TimerScheduler, Disposable {
   readonly advance: (ms: number) => void;
   readonly pending: () => number;
+  /** The requested `ms` of every pending timer, arm order: the assertion that the subject armed the bound it claims to. */
+  readonly armed: () => readonly number[];
 }
 
 const MIN_INTERVAL_MS = 1;
@@ -23,7 +26,7 @@ export function createControlledTimers(clock: Clock): ControlledTimers {
       throw new Error("cannot arm a disposed timer scheduler");
     }
     const id = nextId++;
-    pending.set(id, { callback, repeatMs, dueAt: clock.now() + ms });
+    pending.set(id, { callback, ms, repeatMs, dueAt: clock.now() + ms });
     return () => {
       pending.delete(id);
     };
@@ -33,6 +36,7 @@ export function createControlledTimers(clock: Clock): ControlledTimers {
     timeoutUnref: (callback, ms) => arm(callback, ms, null),
     interval: (callback, ms) => arm(callback, Math.max(MIN_INTERVAL_MS, ms), Math.max(MIN_INTERVAL_MS, ms)),
     pending: () => pending.size,
+    armed: () => [...pending.values()].map((timer) => timer.ms),
     advance: (ms): void => {
       const until = clock.now() + ms;
       for (;;) {

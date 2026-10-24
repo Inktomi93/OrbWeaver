@@ -1,13 +1,12 @@
 // @subject tests/support/node/corpus-image-variants.ts
 // @subject tests/support/node/corpus-image-wire.ts
-import { randomBytes } from "node:crypto";
 import { assertReferentialIntegrity } from "@orb/db";
 import { seedCorpusActors } from "./corpus-actors.ts";
 import { CORPUS_VARIANT_EDIT_INSTRUCTION, CORPUS_VARIANT_FREE_PROMPT, CORPUS_VARIANT_OVERRIDE, seedCorpusImageVariants } from "./corpus-image-variants.ts";
 import { CORPUS_VARIANT_EDIT_MODEL, CORPUS_VARIANT_IMAGE_MODEL, CORPUS_VARIANT_PROMPT, createCorpusImageWire } from "./corpus-image-wire.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
 import { expect, test } from "./fixtures.ts";
-import { createServerHarness } from "./server.ts";
+import { createServerHarness, SECRET_BOX_TEST_KEY } from "./server.ts";
 
 const OWNER_PASSWORD = "synthetic-image-variant-owner-password";
 
@@ -23,7 +22,7 @@ test("native image admission and funded output variants preserve short-edge skip
   await using root = await createServerHarness({
     env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" },
     providerFetch: wire.wrap(fallback.execute),
-    secretBoxKey: randomBytes(32),
+    secretBoxKey: SECRET_BOX_TEST_KEY,
   });
   await seedCorpusActors(root);
   const caller = await root.internalCallerFor(root.ownerId);

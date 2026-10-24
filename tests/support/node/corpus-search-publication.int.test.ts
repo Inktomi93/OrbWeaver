@@ -1,7 +1,6 @@
 // @subject tests/support/iso/corpus-search.ts
 // @subject tests/support/node/corpus-search-wire.ts
 import assert from "node:assert/strict";
-import { randomBytes } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -46,7 +45,7 @@ import { seedUserConnectionRows } from "./factories/rows/connection.ts";
 import { seedUserCredentialRows } from "./factories/rows/credentials.ts";
 import { seedRecallCorpusRows } from "./factories/rows/recall.ts";
 import { expect, test } from "./fixtures.ts";
-import { createServerHarness } from "./server.ts";
+import { createServerHarness, SECRET_BOX_TEST_KEY } from "./server.ts";
 
 test("settled search publication survives native authenticated clone reads and refuses cross-viewer, request and secret splices", {
   tags: "slow",
@@ -83,7 +82,7 @@ test("settled search publication survives native authenticated clone reads and r
         env: authEnv,
         providerFetch: (): Promise<Response> => Promise.reject(new Error("native search must use its supplied physical network edge")),
         networkExecution: { fetch: physical.execute },
-        secretBoxKey: randomBytes(32),
+        secretBoxKey: SECRET_BOX_TEST_KEY,
         casDir: sourceLayout.assets,
         variantDir: sourceLayout.variants,
         importStagingDir: sourceLayout.importStaging,

@@ -5,7 +5,8 @@
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { execPath } from "node:process";
 import type { AuthMode, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { closeDb } from "@orb/db";
@@ -26,7 +27,7 @@ import { announceOwnerClaim, handOffBootOwnerSweeps, prepareBootOwner, removeOwn
 import type { createConfiguredOidc, createHttpApp, ServicesDeps, ServicesResult } from "@orb/server/entry/compose";
 import { OWNER_CLAIM_URL_FILE_NAME } from "@orb/server/foundation/data-layout";
 import type { Env } from "@orb/server/foundation/env";
-import { authModeSource, bindPostureInput, hostEnvAllowlist, resolveBindPosture } from "@orb/server/foundation/env";
+import { bindPostureInput, resolveBindPosture } from "@orb/server/foundation/env";
 import { createLogger, getLog, logger } from "@orb/server/foundation/observability";
 import { systemConnector, systemFetch } from "@orb/server/infra/network";
 import { appRouter, createCaller, createContext } from "@orb/server/transport/trpc";
@@ -197,8 +198,19 @@ export interface ServerTestHarness extends ComposedServerRoot, AsyncDisposable {
   readonly settleSharing: ShareGraph["settle"];
 }
 
+/** The credentials key every kit root shares; a root that needs a second distinct key owns it locally. */
+export const SECRET_BOX_TEST_KEY = Buffer.alloc(32, 1);
 const SESSION_SECRET = "server-harness-session-secret-at-least-32-chars";
 const IN_PROCESS_CLIENT_IP = "127.0.0.1";
+
+// A root's agent child env is fixed, not the developer's shell: the only host fact a native child needs is the
+// directory of the node binary this run executes, so `node` resolves to the same runtime.
+const noHostEnv: ServicesDeps["hostEnvAllowlist"] = () => ({ ["PATH"]: dirname(execPath) });
+
+// The root's record is its whole environment, so a record that sets AUTH_MODE is the environment that supplied it.
+function authModeSourceOf(options: Pick<ServerHarnessOptions, "env">): ServicesDeps["authModeSource"] {
+  return options.env?.["AUTH_MODE"] === undefined ? "default" : "process-env";
+}
 
 function refusingProviderFetch(): typeof fetch {
   return (): Promise<Response> => Promise.reject(new Error("server harness: unscripted external provider execution"));
@@ -571,8 +583,8 @@ export async function createServerHarness(
   const app = await createServices({
     env,
     logger: createLogger(env.LOG_LEVEL),
-    hostEnvAllowlist,
-    authModeSource: authModeSource(),
+    hostEnvAllowlist: noHostEnv,
+    authModeSource: authModeSourceOf(options),
     authConfig,
     rolePolicy,
     db: wiringDb,

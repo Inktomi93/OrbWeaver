@@ -2,7 +2,6 @@
 // @subject tests/support/node/corpus-seed.ts
 // Real plugin-host children (plugin stages) and several actors' first-login seeding (notifications) are intrinsic wall time: both carry the slow tag.
 import { spawn } from "node:child_process";
-import { randomBytes } from "node:crypto";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { healthResponseSchema } from "@orb/contracts/diagnostics";
 import { closeDb } from "@orb/db";
@@ -29,7 +28,7 @@ import { freshHeldDb } from "./db.ts";
 import { seedUserCredentialRows } from "./factories/rows/credentials.ts";
 import { expect, test } from "./fixtures.ts";
 import type { ServerTestHarness } from "./server.ts";
-import { createServerHarness } from "./server.ts";
+import { createServerHarness, SECRET_BOX_TEST_KEY } from "./server.ts";
 
 const PRIVATE_KEY = 'native-publication-"credential"\\959';
 const OWNER_PASSWORD = "native-publication-owner-password";
@@ -177,7 +176,7 @@ test("portable stats publish final native owner reads with exact request recipes
 });
 
 test("portable stats reject real label credential echoes before malformed schema diagnostics", async () => {
-  await using root = await createServerHarness({ secretBoxKey: Buffer.alloc(32, 1), env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" } });
+  await using root = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY, env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" } });
   await seedCorpusActors(root);
   const principal = await root.principalFor(root.ownerId);
   const credential = await seedUserCredentialRows(root, { principal, provider: "custom-openai", key: PRIVATE_KEY });
@@ -204,7 +203,7 @@ test("portable stats reject real label credential echoes before malformed schema
 
 test("notification corpus preserves seven actual viewer and lifecycle snapshots in portable bytes", { tags: "slow" }, async () => {
   await using root = await createServerHarness({
-    secretBoxKey: randomBytes(32),
+    secretBoxKey: SECRET_BOX_TEST_KEY,
     env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" },
     pluginSpawn: spawn,
   });
@@ -312,7 +311,7 @@ test("portable member snapshots retain held, completed and cancelled native mess
   database.defer(() => closeDb(heldDb.db));
   await using root = await createServerHarness({
     db: heldDb.db,
-    secretBoxKey: randomBytes(32),
+    secretBoxKey: SECRET_BOX_TEST_KEY,
     providerFetch: wire.wrap(physical.execute),
     env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" },
   });
@@ -398,7 +397,7 @@ test("native member publication capture excludes host-only content and below-flo
 });
 
 test("schema-valid raw and JSON-escaped credential echoes from real card writers refuse portable publication", async () => {
-  await using root = await createServerHarness({ secretBoxKey: randomBytes(32), env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" } });
+  await using root = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY, env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" } });
   const principal = await root.principalFor(root.ownerId);
   const credential = await seedUserCredentialRows(root, { principal, provider: "custom-openai", key: PRIVATE_KEY });
   const caller = await root.internalCallerFor(root.ownerId);
@@ -420,7 +419,7 @@ test("schema-valid raw and JSON-escaped credential echoes from real card writers
 });
 
 test("a real document credential echo refuses while a clean sibling retains exact captured requests", async () => {
-  await using root = await createServerHarness({ secretBoxKey: randomBytes(32), env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" } });
+  await using root = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY, env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" } });
   const principal = await root.principalFor(root.ownerId);
   await seedUserCredentialRows(root, { principal, provider: "custom-openai", key: PRIVATE_KEY });
   const caller = await root.internalCallerFor(root.ownerId);
@@ -452,7 +451,7 @@ test("a real document credential echo refuses while a clean sibling retains exac
 });
 
 test("known native credential values cannot escape through malformed publication diagnostics", async () => {
-  await using root = await createServerHarness({ secretBoxKey: randomBytes(32), env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" } });
+  await using root = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY, env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" } });
   const principal = await root.principalFor(root.ownerId);
   await seedUserCredentialRows(root, { principal, provider: "custom-openai", key: PRIVATE_KEY });
   const wire = await publication(root);
