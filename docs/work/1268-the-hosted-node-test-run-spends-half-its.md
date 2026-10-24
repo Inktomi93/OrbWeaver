@@ -10,15 +10,15 @@ area: ci
 
 ## What
 
-The hosted Node run (`pnpm test --maxWorkers=2`, see `.github/workflows/`) took 1245 s with import at 50% of the run in its own duration line, while the same suite locally with `--no-isolate --maxWorkers=4` takes 263 s with tests at 93%. Each test file re-imports the server composition graph when files run isolated. Separately, six files take 30 to 56 s each and bound the critical path: `tests/inference/backends/agent-sdk/private-diagnostics.int.test.ts`, `tests/support/node/corpus-private.int.test.ts` (a synchronous `pnpm` spawn of the corpus CLI), `tests/server/domain/chat/persistence/continue-restore-races.suite.int.test.ts`, `tests/server/domain/chat/engine/managed-compaction.suite.int.test.ts`, `tests/support/node/corpus.int.test.ts`, `tests/server/infra/plugin-host/process-runtime.int.test.ts`.
+Six Node test files take 30 to 56 s each on the local floor and bound the critical path of every full run: `tests/inference/backends/agent-sdk/private-diagnostics.int.test.ts`, `tests/support/node/corpus-private.int.test.ts` (a synchronous `pnpm` spawn of the corpus CLI), `tests/server/domain/chat/persistence/continue-restore-races.suite.int.test.ts`, `tests/server/domain/chat/engine/managed-compaction.suite.int.test.ts`, `tests/support/node/corpus.int.test.ts`, `tests/server/infra/plugin-host/process-runtime.int.test.ts`. The full suite locally takes 263 s at four workers with tests at 93% of the run. The integration project runs with `isolate: false` in `vitest.config.ts`, so the hosted run (`pnpm test --maxWorkers=2` in `.github/workflows/ci.yml`) shares the module registry too; its last recorded run predates that change and showed import at half its duration, so the hosted figure is unmeasured until the next push.
 
 ## Why
 
-CI is the verdict (D317) and must fit a standard runner; a twenty-minute Node job that spends ten minutes on imports slows every push for no proof gained.
+CI is the verdict (D317) and must fit a standard runner; a file that holds a worker for a minute sets the floor of every run.
 
 ## Done when
 
-The hosted Node run uses the same isolation posture the local floor uses, or the reason it cannot is written in the workflow; the run's import share is under a tenth of its duration; each of the six files either states in its header why its wall time is intrinsic (a real spawn, a real timing floor) or is split so no file exceeds 20 s alone; the durations are read from the completed runner output, not estimated.
+Each of the six files either states in its header why its wall time is intrinsic (a real spawn, a real timing floor) or is split so no file exceeds 20 s alone; the next hosted run's duration line is read from the completed runner output and recorded here, and if import is still above a tenth of the run the cause is named.
 
 ## Evidence
 
