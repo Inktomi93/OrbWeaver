@@ -104,7 +104,11 @@ export const config = {
     // `avatars/**` + `demo-chats/**` are shipped BYTES no import graph reaches, so the project glob stays
     // scoped to src/ rather than accusing the content of being dead files.
     "packages/default-content": { project: ["src/**/*.ts!"] },
-    "packages/showcase-plugins": { project: ["src/**/*.ts!"] },
+    // The author tsconfigs name the SDK entries in `types`; knip credits @orb/plugin-sdk from them.
+    "packages/showcase-plugins": {
+      project: ["src/**/*.ts!"],
+      typescript: { config: ["tsconfig.json", "tsconfig.author-main.json", "tsconfig.author-ui.json", "tsconfig.author-frame.json"] },
+    },
     // Released authoring doors have consumers outside this workspace; internal modules remain checked.
     "packages/plugin-sdk": { includeEntryExports: false, project: ["**/*.ts!"] },
     "packages/plugin-toolchain": { includeEntryExports: false, project: ["src/**/*.ts!"] },
