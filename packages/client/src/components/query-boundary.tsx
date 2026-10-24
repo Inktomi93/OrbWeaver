@@ -7,9 +7,10 @@
 // flash on a normal load), and every surface inherits it here — zero per-feature edits.
 //
 // FOCUS AFTER RETRY. The pressed Retry button unmounts with the error state, so once the read settles focus
-// would sit on `<body>`. A retried mount wraps its settled children in a `tabIndex -1` root that takes focus on
-// commit (only if focus is still on `<body>`), and its pending fallback shows the one status line. A first
-// load is never wrapped.
+// would sit on `<body>`. A retried mount wraps its settled children in a `display: contents` element (no box,
+// so no sizing chain breaks) and focuses the first focusable control inside it on commit, only if focus is
+// still on `<body>`; a retried read that fails again focuses the new Retry button the same way. The pending
+// fallback shows the one status line while the retried read is in flight. A first load is never wrapped.
 //
 // THE RESERVATION SEAM (#885, lifted from home-tile.tsx's TileFallback/TileBody — this file is now the
 // ONE home). A boundary that passes
@@ -69,47 +70,62 @@ const defaultRenderError = (_error: unknown, retry: () => void): ReactNode => <Q
 
 interface CatchState {
   readonly error: unknown | null;
-  /** True once the user pressed Retry on this mount: the pressed button is gone by the time the read settles. */
+  /** True once the user pressed Retry on this mount; it never clears, because the settled wrapper must keep its place in the tree. */
   readonly retried: boolean;
+  /** True from a Retry press until that read settles or fails again; drives the pending status line only. */
+  readonly retrying: boolean;
+}
+
+/** What the catch hands its render prop: the retry phase flags and the settle signal. */
+interface RetryPhase {
+  readonly retried: boolean;
+  readonly retrying: boolean;
+  readonly onSettled: () => void;
 }
 
 interface CatchProps {
   readonly onReset: () => void;
   readonly renderError: NonNullable<QueryBoundaryProps["renderError"]>;
-  readonly children: (retried: boolean) => ReactNode;
+  readonly children: (phase: RetryPhase) => ReactNode;
 }
 
 class QueryErrorCatch extends Component<CatchProps, CatchState> {
-  override state: CatchState = { error: null, retried: false };
+  override state: CatchState = { error: null, retried: false, retrying: false };
 
-  static getDerivedStateFromError(error: unknown): Pick<CatchState, "error"> {
-    return { error };
+  static getDerivedStateFromError(error: unknown): Pick<CatchState, "error" | "retrying"> {
+    return { error, retrying: false };
   }
 
   private readonly retry = (): void => {
     // Order matters: clear the QUERY error first (so the remount refetches instead of re-throwing
     // the cached error), then clear the boundary to remount the children.
     this.props.onReset();
-    this.setState({ error: null, retried: true });
+    this.setState({ error: null, retried: true, retrying: true });
+  };
+
+  private readonly onSettled = (): void => {
+    this.setState({ retrying: false });
   };
 
   override render(): ReactNode {
     if (this.state.error !== null) {
-      return this.props.renderError(this.state.error, this.retry);
+      const errorState = this.props.renderError(this.state.error, this.retry);
+      // A read that fails again lands on a fresh Retry button; hand it the focus the pressed one lost.
+      return this.state.retried ? <RetriedFocus>{errorState}</RetriedFocus> : errorState;
     }
-    return this.props.children(this.state.retried);
+    return this.props.children({ retried: this.state.retried, retrying: this.state.retrying, onSettled: this.onSettled });
   }
 }
 
 /** The pending fallback + its one status line. Offline AND pending is the paused-forever state
  *  (`networkMode:"online"` never rejects a paused query), so it gets an explicit affordance; a pending
  *  read the user just retried says so, because the Retry button that had focus is already gone. */
-function PendingFallback({ retried, children }: { readonly retried: boolean; readonly children: ReactNode }): ReactElement {
+function PendingFallback({ retrying, children }: { readonly retrying: boolean; readonly children: ReactNode }): ReactElement {
   const online = useOnlineStatus();
   return (
     <>
       {children}
-      {online && !retried ? null : (
+      {online && !retrying ? null : (
         <Text role="status" size="micro" tone="muted" className="text-center">
           {online ? "Reloading…" : "Waiting for connection…"}
         </Text>
@@ -118,21 +134,37 @@ function PendingFallback({ retried, children }: { readonly retried: boolean; rea
   );
 }
 
-/** The settled root after a Retry. The Retry button unmounts with the error state, so focus would fall to
- *  `<body>`; this root takes it once the read settles (a Suspense child commits only when settled), unless
- *  the user already moved focus somewhere real while the read was pending. */
-function RetriedSettle({ fill, children }: { readonly fill: boolean; readonly children: ReactNode }): ReactElement {
+// Natively focusable controls only: a disabled control is skipped, and `tabindex="-1"` is not a tab stop.
+const FIRST_FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/** The wrapper of a retried mount, around the settled children and around a repeat error state. It is
+ *  layout-neutral (`display: contents`) because a wrapper box would cut every `h-full` child of a boundary off
+ *  from its parent's height. The pressed Retry button unmounts with the error state, so focus would fall to `<body>`;
+ *  once the arm commits (a Suspense child commits only when settled) the first focusable control inside takes
+ *  it, unless the user already moved focus somewhere real while the read was pending. An arm with no
+ *  focusable control keeps focus on `<body>`. `onSettled` tells the catch the retried read has landed. */
+function RetriedFocus({ onSettled, children }: { readonly onSettled?: () => void; readonly children: ReactNode }): ReactElement {
   const rootRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (document.activeElement === document.body) {
-      rootRef.current?.focus();
+      rootRef.current?.querySelector<HTMLElement>(FIRST_FOCUSABLE)?.focus({ preventScroll: true });
     }
-  }, []);
+    onSettled?.();
+  }, [onSettled]);
   return (
-    <Stack className={fill ? "h-full min-h-0 flex-1 outline-none" : "outline-none"} data-slot="query-boundary-settled" ref={rootRef} tabIndex={-1}>
+    <Stack className="contents" data-slot="query-boundary-settled" ref={rootRef}>
       {children}
     </Stack>
   );
+}
+
+/** Only a retried mount pays for the focus wrapper; every first load renders its children unwrapped. */
+function settledChildren(retried: boolean, onSettled: () => void, children: ReactNode): ReactNode {
+  if (!retried) {
+    return children;
+  }
+  return <RetriedFocus onSettled={onSettled}>{children}</RetriedFocus>;
 }
 
 /** A `SkeletonRows` fallback with a static count, re-filled to the reserved box; anything else
@@ -208,14 +240,6 @@ function MeasuredSettle({ reserveKey, fill, children }: { readonly reserveKey: s
   );
 }
 
-/** Only a retried mount pays for the focus root; every first load renders its children unwrapped. */
-function settledChildren(retried: boolean, fill: boolean, children: ReactNode): ReactNode {
-  if (!retried) {
-    return children;
-  }
-  return <RetriedSettle fill={fill}>{children}</RetriedSettle>;
-}
-
 export function QueryBoundary({
   fallback,
   reserveKey,
@@ -244,9 +268,9 @@ export function QueryBoundary({
     <QueryErrorResetBoundary>
       {({ reset }): ReactElement => (
         <QueryErrorCatch onReset={reset} renderError={renderError}>
-          {(retried): ReactElement => (
-            <Suspense fallback={<PendingFallback retried={retried}>{reservedFallback}</PendingFallback>}>
-              {settledChildren(retried, fill, measuredChildren)}
+          {({ retried, retrying, onSettled }): ReactElement => (
+            <Suspense fallback={<PendingFallback retrying={retrying}>{reservedFallback}</PendingFallback>}>
+              {settledChildren(retried, onSettled, measuredChildren)}
             </Suspense>
           )}
         </QueryErrorCatch>
