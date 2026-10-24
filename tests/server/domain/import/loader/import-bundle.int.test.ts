@@ -3,12 +3,13 @@
 // owner's appearance, through the export and import routes and the import workload.
 // @subject packages/server/src/domain/import/loader/import-bundle.ts
 // @subject packages/server/src/domain/import/substrate/handle.ts
+// @subject packages/server/src/domain/import/verbs/import-chat-bundle.ts
+// @subject packages/server/src/domain/export/verbs/export-chat-bundle.ts
 // @subject packages/server/src/domain/settings/verbs/import-user-settings.ts
 // @subject packages/server/src/primitives/serde/card/index.ts
 // @subject packages/server/src/domain/export/verbs/export-character.ts
 // @subject packages/server/src/domain/assets/verbs/import-asset.ts
 // @subject packages/server/src/domain/assets/verbs/import-gallery.ts
-// @subject packages/server/src/domain/import/verbs/import-chat-bundle.ts
 
 import { rm } from "node:fs/promises";
 import type { OwnedAssetCursor } from "@orb/contracts/assets";
@@ -22,7 +23,8 @@ import { PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
 import { ASSET_SCHEME, assetIdsInContent } from "@orb/kit/content";
 import type { CharacterHandle, CharacterId, ChatId, WorkloadId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
-import { parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
+import { slugifyHandle } from "@orb/kit/slug";
+import { buildChatBundleFile, CHAT_BUNDLE_EXT, parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
 import { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -166,25 +168,235 @@ test("two different cards carrying one over-long handle both restore inside the 
     .filter((item) => item.name === "Twin")
     .map((item) => item.handle);
 
-  expect({ outcomes, handles: handles.toSorted(), withinCap: handles.every((handle) => characterHandleSchema.safeParse(handle).success) }).toEqual({
+  expect({
+    outcomes,
+    keptCarried: handles.includes(longHandle),
+    distinct: new Set(handles).size,
+    withinCap: handles.every((handle) => characterHandleSchema.safeParse(handle).success),
+  }).toEqual({
     outcomes: [
       { ok: true, created: true },
       { ok: true, created: true },
     ],
-    handles: ["twin", "twin-2"],
+    keptCarried: true,
+    distinct: 2,
     withinCap: true,
   });
+});
+
+/** The transcript of every room the owner holds with `characterId`, as message contents. */
+async function transcriptsOf(root: ServerTestHarness, characterId: CharacterId): Promise<readonly (readonly string[])[]> {
+  const caller = await root.internalCallerFor(root.ownerId);
+  const rooms = (await caller.chat.listChats({ characterId })).items;
+  return await Promise.all(rooms.map(async (room) => (await caller.chat.listMessages({ chatId: room.id })).messages.map((m) => m.content)));
+}
+
+/** The owner's characters named `name`, as handle and id, oldest first. */
+async function charactersNamed(root: ServerTestHarness, name: string): Promise<readonly { readonly id: CharacterId; readonly handle: string }[]> {
+  const items = (await (await root.internalCallerFor(root.ownerId)).character.list({})).items;
+  return items.filter((item) => item.name === name).map((item) => ({ id: item.id, handle: item.handle }));
+}
+
+test("a chat re-links to a character whose handle slugifyHandle minted, however long or case-folded the name", async () => {
+  await using root = await signedInBox();
+  const owner = await root.principalFor(root.ownerId);
+  // Past the fold's code-point ceiling (a `-<tag>` handle), and an NFKD letter that folds to uppercase.
+  const names = ["The Extraordinarily Long-Winded Archivist of the Seventeenth Orbital Library", "ℌello"];
+  const handles = names.map((name) => slugifyHandle(name));
+  for (const [i, name] of names.entries()) {
+    await root.services.character.create({
+      principal: owner,
+      input: createCharacterSchema.parse({ handle: handles[i], name, description: "A minted handle." }),
+    });
+  }
+  const lines = [{ role: "user", content: "Who keeps the index?" }] as const;
+  for (const handle of handles) {
+    await seedTranscript(root, { ownerId: root.ownerId, characterHandles: [castId<CharacterHandle>(handle)], lines });
+  }
+  const restored = await Promise.all(names.map(async (name) => (await charactersNamed(root, name))[0]));
+
+  expect(await Promise.all(restored.map(async (c) => (c === undefined ? null : { handle: c.handle, transcripts: await transcriptsOf(root, c.id) })))).toEqual(
+    handles.map((handle) => ({ handle, transcripts: [lines.map((line) => line.content)] })),
+  );
+});
+
+test("a restored chat binds to its own card when another character already holds that card's handle", async () => {
+  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  await source.services.character.create({
+    principal: await source.principalFor(source.ownerId),
+    input: createCharacterSchema.parse({ handle: CHOSEN_HANDLE, name: CHARACTER_NAME, description: "A keeper tends the orbital ledger." }),
+  });
+  const lines = [
+    { role: "user", content: "Is the ledger balanced?" },
+    { role: "assistant", speakerHandle: CHOSEN_HANDLE, content: "Every orbit is accounted for." },
+  ] as const;
+  await seedTranscript(source, { ownerId: source.ownerId, characterHandles: [CHOSEN_HANDLE], lines });
+  const bundle = await exportLibrary(source, ["character", "chat"]);
+
+  await using target = await signedInBox();
+  await target.services.character.create({
+    principal: await target.principalFor(target.ownerId),
+    input: createCharacterSchema.parse({ handle: CHOSEN_HANDLE, name: CHARACTER_NAME, description: "A different keeper, already here." }),
+  });
+  const outcome = await restore(target, bundle);
+  const keepers = await charactersNamed(target, CHARACTER_NAME);
+
+  expect({
+    outcome,
+    keepers: await Promise.all(keepers.map(async (c) => ({ suffixed: c.handle !== CHOSEN_HANDLE, transcripts: await transcriptsOf(target, c.id) }))),
+  }).toEqual({
+    outcome: { status: "succeeded", failed: 0 },
+    keepers: expect.arrayContaining([
+      { suffixed: false, transcripts: [] },
+      { suffixed: true, transcripts: [lines.map((line) => line.content)] },
+    ]),
+  });
+  expect(keepers).toHaveLength(2);
+});
+
+test("a restored chat binds to the existing character its card deduped onto, under that character's handle", async () => {
+  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  const owner = await source.principalFor(source.ownerId);
+  const created = await source.services.character.create({
+    principal: owner,
+    input: createCharacterSchema.parse({ handle: "warden", name: "Warden", description: "The warden counts the gates." }),
+  });
+  const card = await source.http.request(`/api/export/character/${created.id}`);
+  expect(card.status).toBe(200);
+  const firstCard = new Uint8Array(await card.arrayBuffer());
+  // Renaming the handle is not a content edit, so the next export still dedups onto the first restore.
+  await source.services.character.update({ principal: owner, characterId: created.id, input: { handle: castId<CharacterHandle>("gatekeeper") } });
+  const lines = [{ role: "user", content: "How many gates tonight?" }] as const;
+  await seedTranscript(source, { ownerId: source.ownerId, characterHandles: [castId<CharacterHandle>("gatekeeper")], lines });
+  const bundle = await exportLibrary(source, ["character", "chat"]);
+
+  await using target = await signedInBox();
+  expect(await restoreCard(target, "Warden.png", firstCard)).toEqual({ ok: true, created: true });
+  const outcome = await restore(target, bundle);
+  const wardens = await charactersNamed(target, "Warden");
+
+  expect({
+    outcome,
+    wardens: await Promise.all(wardens.map(async (c) => ({ handle: c.handle, transcripts: await transcriptsOf(target, c.id) }))),
+  }).toEqual({
+    outcome: { status: "succeeded", failed: 0 },
+    wardens: [{ handle: "warden", transcripts: [lines.map((line) => line.content)] }],
+  });
+});
+
+test("a chat bundle written before seats carried their card still re-links by handle", async () => {
+  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  const owner = await source.principalFor(source.ownerId);
+  const keeperAtSource = await source.services.character.create({
+    principal: owner,
+    input: createCharacterSchema.parse({ handle: CHOSEN_HANDLE, name: CHARACTER_NAME, description: "A keeper tends the orbital ledger." }),
+  });
+  const lines = [{ role: "user", content: "Is the ledger balanced?" }] as const;
+  await seedTranscript(source, { ownerId: source.ownerId, characterHandles: [CHOSEN_HANDLE], lines });
+  const [room] = (await (await source.internalCallerFor(source.ownerId)).chat.listChats({ characterId: keeperAtSource.id })).items;
+  const exported = room === undefined ? null : await source.app.exportService.exportChatBundle({ principal: owner, chatId: room.id });
+  const parsed = exported === null ? null : parseChatBundleFile(exported.bytes);
+  if (parsed === null || !parsed.ok) {
+    throw new Error("the production exporter wrote no readable chat bundle");
+  }
+  const { seatCards, ...older } = parsed.value;
+  const cards = await exportLibrary(source, ["character"]);
+
+  await using target = await signedInBox();
+  await restore(target, cards);
+  const chat = target.app.portability.find((entity) => entity.kind === "chat");
+  if (chat === undefined) {
+    throw new Error("production composition has no chat portability descriptor");
+  }
+  const outcome = await chat.importFile(target.ownerId, { filename: `${CHOSEN_HANDLE}/older${CHAT_BUNDLE_EXT}`, bytes: buildChatBundleFile(older) });
+  const [keeper] = await charactersNamed(target, CHARACTER_NAME);
+
+  expect({ carried: seatCards?.length, outcome, transcripts: keeper === undefined ? null : await transcriptsOf(target, keeper.id) }).toEqual({
+    carried: 1,
+    outcome: expect.objectContaining({ ok: true, created: true }),
+    transcripts: [lines.map((line) => line.content)],
+  });
+});
+
+test("a chat bundle naming a synthetic group character's handle never binds to that row", async () => {
+  await using root = await signedInBox();
+  const owner = await root.principalFor(root.ownerId);
+  const hostCard = await root.services.character.create({
+    principal: owner,
+    input: createCharacterSchema.parse({ handle: "host", name: "Host", description: "Hosts a room." }),
+  });
+  await seedTranscript(root, { ownerId: root.ownerId, characterHandles: [castId<CharacterHandle>("host")], lines: [{ role: "user", content: "hello" }] });
+  const [room] = (await (await root.internalCallerFor(root.ownerId)).chat.listChats({ characterId: hostCard.id })).items;
+  if (room === undefined) {
+    throw new Error("the transcript import landed no room");
+  }
+  const group = await root.services.character.mintSyntheticGroupCharacter({ ownerId: root.ownerId, chatId: room.id });
+  const groupHandle = (await root.services.character.get({ principal: owner, characterId: group.characterId })).handle;
+  const chat = root.app.portability.find((entity) => entity.kind === "chat");
+  const exported = await root.app.exportService.exportChatBundle({ principal: owner, chatId: room.id });
+  const parsed = exported === null ? null : parseChatBundleFile(exported.bytes);
+  if (chat === undefined || parsed === null || !parsed.ok) {
+    throw new Error("the production graph produced no chat bundle or chat descriptor");
+  }
+  const { seatCards: _seatCards, ...unseated } = parsed.value;
+  const bytes = buildChatBundleFile({ ...unseated, title: "group squat", characterHandles: [groupHandle] });
+
+  const outcome = await chat.importFile(root.ownerId, { filename: `${groupHandle}/squat${CHAT_BUNDLE_EXT}`, bytes });
+  expect({ ok: outcome.ok, groupRooms: await transcriptsOf(root, group.characterId) }).toEqual({ ok: false, groupRooms: [] });
+});
+
+test("a seat's card identity resolves only inside the importing account", async () => {
+  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  const made = await source.services.character.create({
+    principal: await source.principalFor(source.ownerId),
+    input: createCharacterSchema.parse({ handle: CHOSEN_HANDLE, name: CHARACTER_NAME, description: "A keeper tends the orbital ledger." }),
+  });
+  const card = await source.http.request(`/api/export/character/${made.id}`);
+  expect(card.status).toBe(200);
+  const cardBytes = new Uint8Array(await card.arrayBuffer());
+  await seedTranscript(source, { ownerId: source.ownerId, characterHandles: [CHOSEN_HANDLE], lines: [{ role: "user", content: "theirs" }] });
+  const [room] = (await (await source.internalCallerFor(source.ownerId)).chat.listChats({ characterId: made.id })).items;
+  const exported =
+    room === undefined ? null : await source.app.exportService.exportChatBundle({ principal: await source.principalFor(source.ownerId), chatId: room.id });
+
+  // The owner restores the card the bundle's seat names, so an unscoped identity lookup would find it.
+  await using root = await signedInBox();
+  expect(await restoreCard(root, "Keeper.png", cardBytes)).toEqual({ ok: true, created: true });
+  const [keeper] = await charactersNamed(root, CHARACTER_NAME);
+  const chat = root.app.portability.find((entity) => entity.kind === "chat");
+  if (keeper === undefined || exported === null || chat === undefined) {
+    throw new Error("the production graph produced no seated chat bundle or chat descriptor");
+  }
+  // The member holds a character, under another handle, so a leaked identity match would have a room to land in.
+  const member = await root.actor();
+  await root.services.character.create({
+    principal: await root.principalFor(member.id),
+    input: createCharacterSchema.parse({ handle: "member-card", name: "Member", description: "The member's own card." }),
+  });
+
+  const outcome = await chat.importFile(member.id, { filename: `elsewhere/stolen${CHAT_BUNDLE_EXT}`, bytes: exported.bytes });
+  // Positive control: the same bundle binds for the owner who holds that card, by identity alone once the
+  // owner's copy no longer carries the seat's handle.
+  await root.services.character.update({
+    principal: await root.principalFor(root.ownerId),
+    characterId: keeper.id,
+    input: { handle: castId<CharacterHandle>("keeper-elsewhere") },
+  });
+  const ownCopy = await chat.importFile(root.ownerId, { filename: `elsewhere/own${CHAT_BUNDLE_EXT}`, bytes: exported.bytes });
+  expect({
+    member: outcome.ok,
+    // A lookup that crossed the account would hand the owner's character id to the member's write, whose own
+    // ownership belt then names it in the member's report.
+    namesOwnerCard: !outcome.ok && outcome.error.includes(keeper.id),
+    owner: ownCopy.ok,
+    ownerRooms: (await transcriptsOf(root, keeper.id)).length,
+  }).toEqual({ member: false, namesOwnerCard: false, owner: true, ownerRooms: 1 });
 });
 
 /** A SillyTavern card its author starred, whose embedded book carries a description. */
 const ARCHIVIST = "Archivist";
 // The SillyTavern wire spells its keys in snake_case, so the card is written as the bytes a user would drop in.
 const STARRED_CARD = `{"spec":"chara_card_v3","spec_version":"3.0","data":{"name":"${ARCHIVIST}","description":"An archivist of the outer stacks.","first_mes":"Welcome to the stacks.","alternate_greetings":["Mind the dust."],"extensions":{"fav":true,"talkativeness":"0.7"},"character_book":{"name":"Archive Book","description":"What the archivist remembers.","entries":[{"keys":["lantern"],"content":"The lantern burns amber.","insertion_order":10,"enabled":true,"id":0,"extensions":{}}]}}}`;
-
-async function charactersNamed(root: ServerTestHarness, name: string): Promise<CharacterId[]> {
-  const caller = await root.internalCallerFor(root.ownerId);
-  return (await caller.character.list({})).items.filter((item) => item.name === name).map((item) => item.id);
-}
 
 /** Every content hash the owner holds, through the owned-asset read the library uses. */
 async function ownedAssetHashes(root: ServerTestHarness): Promise<Set<string>> {
@@ -218,7 +430,7 @@ test("a restored card keeps its import identity through the next export and rest
     throw new Error("the restore landed no archivist");
   }
   // A star is the owner's mark on the library, not card content.
-  await target.services.character.update({ principal: await target.principalFor(target.ownerId), characterId: restored, input: { starred: true } });
+  await target.services.character.update({ principal: await target.principalFor(target.ownerId), characterId: restored.id, input: { starred: true } });
   const targetBundle = await exportLibrary(target);
 
   await using third = await signedInBox(createSeededIds(THIRD_BOX_ID_CURSOR));

@@ -20,6 +20,7 @@ export { runProfileDirectory } from "./loader/profile-directory.ts";
 export { createImportWorkloadDrivers, createRefreshImportPlannerStats } from "./loader/workload-drivers.ts";
 export { createImportService } from "./service.ts";
 export { buildImportContext } from "./substrate/build-context.ts";
+export { cardPngIdentity } from "./substrate/card.ts";
 
 export { incomingPersonasOf } from "./substrate/persona-review.ts";
 

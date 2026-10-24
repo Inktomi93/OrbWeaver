@@ -27,9 +27,9 @@
       "manifest.json": "d8125de0d922976d01a2ef4832c63cd0d121025db7c2fc1c067fc3dcd83d8158"
     },
     "research-familiar": {
-      "main.js": "35ea0042376a68da8c4ed5f0e14cd2e544cec1f11b37d1296f5ee16e8e16bdf0",
+      "main.js": "f3afce00311d2dcfc85ecd9590009eff068bd62db9fe4f8b6eed345583652a98",
       "manifest.json": "23003f79bd28cec2d9010775fba022332445e760337b8985ce4ca6187c1f3ee1",
-      "ui.js": "20c5a80b307736df87ecf8f78496eb699695e488c28789746ea26bef7f033bf4"
+      "ui.js": "543c8a0284e18329d01f7902eb29a6f8542c2bbef4d17e59d3ff7b714fa3a33b"
     },
     "scene-chips": {
       "main.js": "2d2f6305e0f1eb6f576c5038ca227734ee241147d959afdfd88774da40878afb",

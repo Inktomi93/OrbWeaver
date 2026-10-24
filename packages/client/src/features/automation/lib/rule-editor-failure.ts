@@ -43,7 +43,7 @@ const REFUSAL_COPY: Record<AutomationRuleRefusalCode, RefusalCopy> = {
   ["transform_mix"]: refused("A rule that rewrites your draft can only hold draft-rewrite actions. Move the other actions into a separate rule."),
   ["transform_not_runnable"]: refused("A rule that rewrites your draft runs as you send, so there is nothing to run on its own."),
   ["transform_trigger"]: refused("A rule that rewrites your draft must start when a turn begins. Pick that trigger."),
-  ["unattached_book"]: refusedWith("The lorebook this rule writes to is not available to it."),
+  ["unattached_book"]: refusedWith("The world book this rule writes to is not available to it."),
 };
 
 /** Domain refusal codes select field copy; unstructured transport failures retain their retry path. */

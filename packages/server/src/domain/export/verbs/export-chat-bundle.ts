@@ -17,6 +17,7 @@
 // SAME ordered canon read it serializes, so a carried anchor and the message it points at are the same
 // derivation rather than two agreeing ones.
 
+import { portableCharacterHandle } from "@orb/contracts/character";
 import type { PendingGenerationObservationInput } from "@orb/contracts/chat";
 import {
   costDetailsSchema,
@@ -42,12 +43,20 @@ import { assetIdsInContent } from "@orb/kit/content";
 import type { CharacterHandle, CharacterId, ChatId, ChatTurnId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, asc, eq, getTableColumns, inArray, isNotNull, isNull } from "drizzle-orm";
 import type { RpgPortableGame } from "#domain/rpg";
-import type { PortableChat, PortableChatInjection, PortableChatMessage, PortableChatVariant, PortableRpgGame } from "#primitives/serde/chat-bundle";
+import type {
+  PortableChat,
+  PortableChatInjection,
+  PortableChatMessage,
+  PortableChatVariant,
+  PortableRpgGame,
+  PortableSeatCard,
+} from "#primitives/serde/chat-bundle";
 import { buildChatBundleFile, CHAT_BUNDLE_EXT } from "#primitives/serde/chat-bundle";
-import type { ExportChatBundleParams } from "../contract/params.ts";
+import type { ExportChatBundleParams, SeatCardIdentity } from "../contract/params.ts";
 import type { ExportedFile } from "../contract/results.ts";
 import type { ExportContext, ExportService } from "../contract/service.ts";
 import { slug } from "../substrate/download-slug.ts";
+import { createExportCharacter } from "./export-character.ts";
 
 type ChatRow = typeof chats.$inferSelect;
 type MessageRow = typeof messages.$inferSelect;
@@ -63,7 +72,8 @@ interface VariantPosition {
 }
 
 /** The chat's seated cast, in JOIN order, as handles — the primary (the fallback voice on import) first.
- *  Departed seats ride too: a transcript voiced by a character who has since left still needs its speaker. */
+ *  Departed seats ride too: a transcript voiced by a character who has since left still needs its speaker.
+ *  Each handle is the portable one, so the seat list, the speakers and the archive directory agree. */
 async function loadSeatHandles(
   ctx: ExportContext,
   chatId: ChatId,
@@ -74,8 +84,33 @@ async function loadSeatHandles(
     .innerJoin(characters, eq(characters.id, chatParticipants.characterId))
     .where(and(eq(chatParticipants.chatId, chatId), isNotNull(chatParticipants.characterId)))
     .orderBy(asc(chatParticipants.joinSeq), asc(chatParticipants.id));
-  const byId = new Map<CharacterId, CharacterHandle>(rows.map((r) => [r.id, r.handle]));
-  return { handles: [...new Set(rows.map((r) => r.handle))], byId };
+  const byId = new Map<CharacterId, CharacterHandle>(rows.map((r) => [r.id, portableCharacterHandle(r.handle)]));
+  return { handles: [...new Set(byId.values())], byId };
+}
+
+/** The import identity of each seat's card, for the seats whose card the caller owns. A co-member's card is
+ *  not the caller's to export, so its seat carries no identity and binds by handle on restore. */
+async function loadSeatCards(args: {
+  readonly ctx: ExportContext;
+  readonly exportCharacter: ExportService["exportCharacter"];
+  readonly params: ExportChatBundleParams;
+  readonly handleById: ReadonlyMap<CharacterId, CharacterHandle>;
+}): Promise<readonly PortableSeatCard[]> {
+  const { ctx, exportCharacter, params, handleById } = args;
+  const cache = params.seatCardCache ?? new Map<CharacterId, SeatCardIdentity | null>();
+  const cards: PortableSeatCard[] = [];
+  for (const [characterId, handle] of handleById) {
+    let identity = cache.get(characterId);
+    if (identity === undefined) {
+      const card = await exportCharacter({ principal: params.principal, characterId });
+      identity = card === null ? null : await ctx.cardPngIdentity(card.bytes);
+      cache.set(characterId, identity);
+    }
+    if (identity !== null) {
+      cards.push({ handle, ...identity });
+    }
+  }
+  return cards;
 }
 
 /** The tag overlay the CALLER placed on this chat, by name. `chat_tags` is per-TAGGER (D30), so a co-member's
@@ -355,6 +390,7 @@ async function loadHostedChat(ctx: ExportContext, params: ExportChatBundleParams
 }
 
 export function createExportChatBundle(ctx: ExportContext): ExportService["exportChatBundle"] {
+  const exportCharacter = createExportCharacter(ctx);
   return async (params: ExportChatBundleParams): Promise<ExportedFile | null> => {
     const chat = await loadHostedChat(ctx, params);
     if (chat === null) {
@@ -372,7 +408,7 @@ export function createExportChatBundle(ctx: ExportContext): ExportService["expor
     if (chat.anchorPersonaId !== null && !personaIds.includes(chat.anchorPersonaId)) {
       personaIds.push(chat.anchorPersonaId);
     }
-    const personaNameById = await loadPersonaNames(ctx, personaIds);
+    const [personaNameById, seatCards] = await Promise.all([loadPersonaNames(ctx, personaIds), loadSeatCards({ ctx, exportCharacter, params, handleById })]);
     const { portable, messageIndexById, variantPositionById } = buildCanon({ slots, variantsByMessage, handleById, personaNameById });
 
     const rpg = rawRpg === null ? null : toPortableRpg({ game: rawRpg, messageIndexById, variantPositionById, handleById });
@@ -391,6 +427,7 @@ export function createExportChatBundle(ctx: ExportContext): ExportService["expor
       userMacroValues: chat.userMacroValues,
       anchorPersonaName: chat.anchorPersonaId === null ? null : (personaNameById.get(chat.anchorPersonaId) ?? null),
       characterHandles: handles,
+      seatCards,
       tagNames,
       injections,
       messages: portable,

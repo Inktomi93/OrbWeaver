@@ -82,7 +82,7 @@ function stageControlResult(opts: Args): number | null {
     return 0;
   }
   if (opts.stageDown) {
-    print(`[snap-stage] ${teardownStage({ force: opts.force, owner: opts.stageOwner })}`);
+    print(`[snap-stage] ${teardownStage({ force: opts.force, owner: opts.stageOwner, band: opts.stageBand })}`);
     return 0;
   }
   if (opts.stageSweep) {

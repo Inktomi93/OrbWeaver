@@ -187,6 +187,8 @@ export function ChatSummaryRow({
   const { title, subtitle, when } = chatSummaryRowView(chat);
   const { marked, bodyRef } = useReturnedRow(chat.id);
   const rowName = actionName ?? chatRowActionName(title, timeLib.formatRelativeCompact(when));
+  // One name for both states; `aria-pressed` carries starred or not.
+  const starName = `Star ${rowName}`;
   const markers = rowMarkers({ chat, interactive: onToggleStar !== undefined });
   // The trailing cluster is now CONTROLS ONLY (the markers moved to the title line), so every one of its
   // members is hover-revealed and the float is unconditional — the text column keeps the row's full width at
@@ -220,8 +222,7 @@ export function ChatSummaryRow({
                   <Row align="center" className={ROW_ACTION_INLINE}>
                     <RowToggleAction
                       icon={Star}
-                      labelOff={`Star ${rowName}`}
-                      labelOn={`Unstar ${rowName}`}
+                      label={starName}
                       onToggle={(): void => onToggleStar(!chat.starred)}
                       pressed={chat.starred}
                       pressedClassName="text-warning"

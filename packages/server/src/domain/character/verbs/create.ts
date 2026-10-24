@@ -7,6 +7,7 @@
 // avatar JOIN for the detail view.
 
 import type { CharacterCard } from "@orb/contracts/character";
+import { characterHandleSchema } from "@orb/contracts/character";
 import { cardContentHash } from "#primitives/serde/card";
 import { CHARACTER_HANDLE_RESERVED, CharacterNotFoundError, CharacterOperationError } from "../contract/errors.ts";
 import type { CharacterImportProvenance, CreateCharacterParams } from "../contract/params.ts";
@@ -81,6 +82,9 @@ export function createCreate(ctx: CharacterContext): CharacterService["create"] 
     if (isReservedGroupHandle(input.handle)) {
       throw new CharacterOperationError(CHARACTER_HANDLE_RESERVED, `handle "${input.handle}" is reserved for synthetic group characters`);
     }
+    // Internal producers brand a handle with an unchecked cast; the alphabet is enforced here, at the one door
+    // every non-synthetic row is minted through.
+    characterHandleSchema.parse(input.handle);
     await guardAvatarOwned(ctx, ownerId, input.avatarAssetId);
     const at = ctx.now();
     const characterId = ctx.newCharacterId();

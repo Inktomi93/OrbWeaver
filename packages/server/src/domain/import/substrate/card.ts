@@ -45,6 +45,8 @@ interface ParsedCard {
 }
 
 const DEFAULT_BOOK_NAME = "Imported World Book";
+// An exported card always names itself, so the fallback never enters a seat card's identity.
+const SEAT_CARD_FALLBACK_NAME = "Imported Character";
 
 function asRecord(v: unknown): Record<string, unknown> | null {
   return typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
@@ -202,6 +204,13 @@ export function parsedCardTextHash(parsed: ParsedCard): string {
   return cardImportHash({ card: parsed.card, book: parsed.book, artHash: null });
 }
 
+/** The keys a card PNG is looked up by, computed the way the character restore computes them — what a chat
+ *  bundle's seat carries so it binds to the row that card restored as. Null when the bytes carry no card. */
+export async function cardPngIdentity(bytes: Uint8Array): Promise<CardIdentityHashes | null> {
+  const parsed = await parseCardPng(bytes, SEAT_CARD_FALLBACK_NAME);
+  return parsed === null ? null : { importHash: parsedCardImportHash(parsed), textHash: parsedCardTextHash(parsed), fileHash: importFileHash(bytes) };
+}
+
 /** The owner's character an equal card already landed as, in ONE lookup order for every door. */
 export async function findImportedCharacter(
   find: FindCharacterByHash,
@@ -217,7 +226,7 @@ export async function findImportedCharacter(
       return { characterId: byText, match: "text" };
     }
   }
-  const byFile = await find(importFileHash(hashes.bytes));
+  const byFile = await find(hashes.fileHash);
   return byFile === null ? null : { characterId: byFile, match: "file" };
 }
 

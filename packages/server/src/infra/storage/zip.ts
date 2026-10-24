@@ -10,7 +10,8 @@ import { mkdir, mkdtemp, open, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { crc32, deflateRawSync, inflateRawSync, constants as zlibConstants } from "node:zlib";
-import { superviseDetached } from "#foundation/observability";
+import type { Logger } from "#foundation/observability";
+import { createDetachedSupervision, superviseDetached as processDetached } from "#foundation/observability";
 import type { ExtractOptions, StagedArchive, StagedEntry, ZipEntry, ZipSource } from "./contract.ts";
 
 const SIG_LOCAL = 0x04_03_4b_50;
@@ -600,7 +601,10 @@ function emitEntry(controller: ReadableStreamDefaultController<Uint8Array>, entr
   return head.length + body.length;
 }
 
-export function packZip(entries: AsyncIterable<ZipEntry>): ReadableStream<Uint8Array> {
+/** Stream `entries` as a zip; a cancelled iterator's failed return reports through the root's `log` (absent ⇒ the
+ *  process logger until item 1271 removes it). */
+export function packZip(entries: AsyncIterable<ZipEntry>, log?: Logger): ReadableStream<Uint8Array> {
+  const superviseDetached = log === undefined ? processDetached : createDetachedSupervision(log).superviseDetached;
   const centrals: PackedCentral[] = [];
   let offset = 0;
   const iterator = entries[Symbol.asyncIterator]();

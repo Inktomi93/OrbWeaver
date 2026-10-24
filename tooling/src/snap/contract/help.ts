@@ -172,6 +172,8 @@ Sessions:
                           tear down the stages your session owns (set ORB_SNAP_OWNER to a label of your
                           own; unset, the checkout is the session); name a checkout and --force for
                           deliberate, checkout-wide teardown (it kills that checkout's runs — measured, #447)
+  --stage-down --band <n> tear down only band n of your own stages; refuses a band a live session is
+                          bound to (--force overrides)
   --stage-sweep           reap a stage nothing has used past the idle TTL + prune orphan dirs
 
   STAGE DB: the stage serves its OWN db — a FRESH stage sha copies the dev db at boot; a stage dir that

@@ -15,8 +15,9 @@ import { SimpleSpanProcessor, TracerProvider } from "@opentelemetry/sdk-trace";
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from "@opentelemetry/semantic-conventions";
 import { errorMessage } from "@orb/kit/error-message";
 import { versionIdentity } from "#foundation/version";
-import type { RequestTrace, SerializedSpan, SerializedSpanEvent, SpanAttrs } from "./contract/tracing.ts";
-import { getLog } from "./logger.ts";
+import type { Logger } from "./contract/logging.ts";
+import type { DetachedSupervision, RequestTrace, SerializedSpan, SerializedSpanEvent, SpanAttrs } from "./contract/tracing.ts";
+import { getLog, logger } from "./logger.ts";
 
 export type { RequestTrace, SerializedSpan, SerializedSpanEvent, SpanAttrs } from "./contract/tracing.ts";
 
@@ -294,31 +295,44 @@ export function withRequestSpan<T>(requestId: string, name: string, attrs: SpanA
   });
 }
 
-/** Start work that deliberately outlives its caller. The operation FACTORY runs inside its own request-root
- * span; returning `void` is the explicit contract that callers receive no completion or ordering guarantee.
- * This function owns operation rejection: the root records it, then the rejection handler emits
- * one structured operator-visible error. Durable writes and canonical event emissions must be awaited by
- * their caller instead of using this boundary. */
-export function superviseDetached(requestId: string, name: string, attrs: SpanAttrs, operation: () => Promise<unknown> | unknown): void {
-  withRequestSpan(requestId, name, attrs, operation).then(
-    () => undefined,
-    (err: unknown) => reportDetachedFailure(requestId, name, attrs, err),
-  );
+/** The detached-work boundaries over a root's logger: a rejection report outside a request writes `log`.
+ *
+ * `superviseDetached` starts work that deliberately outlives its caller. The operation FACTORY runs inside its
+ * own request-root span; returning `void` is the explicit contract that callers receive no completion or
+ * ordering guarantee. It owns operation rejection: the root records it, then the rejection handler emits one
+ * structured operator-visible error. Durable writes and canonical event emissions must be awaited by their
+ * caller instead of using this boundary.
+ *
+ * `superviseSettled` is the same boundary for a caller that must know the work has settled, such as a seed tool
+ * that has to be deterministic: it awaits the closed root span and the same single operator-visible rejection
+ * report. The promise resolves after success or reported operation failure; a failure of the report itself
+ * still rejects. */
+export function createDetachedSupervision(log: Logger): DetachedSupervision {
+  const report = (requestId: string, name: string, attrs: SpanAttrs, err: unknown): void => {
+    getLog(log).error({ ...cleanAttrs(attrs), err, requestId, spanName: name }, "detached operation failed");
+  };
+  return {
+    superviseDetached: (requestId, name, attrs, operation): void => {
+      withRequestSpan(requestId, name, attrs, operation).then(
+        () => undefined,
+        (err: unknown) => report(requestId, name, attrs, err),
+      );
+    },
+    superviseSettled: (requestId, name, attrs, operation): Promise<void> =>
+      withRequestSpan(requestId, name, attrs, operation).then(
+        () => undefined,
+        (err: unknown) => report(requestId, name, attrs, err),
+      ),
+  };
 }
 
-/** {@link superviseDetached} for a caller that must know the work has settled, such as a seed tool that has to
- * be deterministic: it awaits the closed root span and the same single operator-visible rejection report.
- * The promise resolves after success or reported operation failure; a failure of the report itself still rejects. */
-export function superviseSettled(requestId: string, name: string, attrs: SpanAttrs, operation: () => Promise<unknown> | unknown): Promise<void> {
-  return withRequestSpan(requestId, name, attrs, operation).then(
-    () => undefined,
-    (err: unknown) => reportDetachedFailure(requestId, name, attrs, err),
-  );
-}
-
-function reportDetachedFailure(requestId: string, name: string, attrs: SpanAttrs, err: unknown): void {
-  getLog().error({ ...cleanAttrs(attrs), err, requestId, spanName: name }, "detached operation failed");
-}
+// Transitional: the free boundaries report through the process logger until item 1271 moves their callers to
+// a root's {@link createDetachedSupervision}.
+const processSupervision = createDetachedSupervision(logger);
+/** {@link createDetachedSupervision}'s detached boundary over the process logger. */
+export const superviseDetached: DetachedSupervision["superviseDetached"] = processSupervision.superviseDetached;
+/** {@link createDetachedSupervision}'s settled boundary over the process logger. */
+export const superviseSettled: DetachedSupervision["superviseSettled"] = processSupervision.superviseSettled;
 
 /** Read the SDK concrete-span status code through the same internal cast `span()` uses for `.attributes`
  *  (the OTel WRITE `Span` interface omits `.status`). Degrades to `undefined` — the OK-set path, i.e. prior

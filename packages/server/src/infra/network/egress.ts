@@ -5,6 +5,7 @@ import { parseIp } from "@orb/kit/ip";
 import { Agent, buildConnector, getGlobalDispatcher, setGlobalDispatcher } from "undici";
 import type { Env } from "#foundation/env/record";
 import { parseTrustedPrivateRanges } from "#foundation/env/record";
+import type { Logger } from "#src/foundation/observability/contract/logging.ts";
 import { getLog, securityEvent } from "#src/foundation/observability/logger.ts";
 import { superviseSettled } from "#src/foundation/observability/tracing.ts";
 
@@ -202,6 +203,8 @@ interface EgressContext {
   readonly global: boolean;
   cleanupSequence: number;
   closed: boolean;
+  /** The root's logger every egress line falls back to outside a request. */
+  readonly log: Logger | undefined;
 }
 
 function createEgressContext(options: ScopedEgressOptions, global: boolean): EgressContext {
@@ -226,6 +229,7 @@ function createEgressContext(options: ScopedEgressOptions, global: boolean): Egr
     global,
     cleanupSequence: 0,
     closed: false,
+    log: options.log,
   };
 }
 
@@ -446,12 +450,12 @@ function publishPrivateEndpointAllowlistFor(context: EgressContext, entries: rea
   }
   const counts = { hosts: hosts.size, hostPorts: hostPorts.size, ranges: ranges.length, narrowed, refused };
   if (refused > 0) {
-    getLog().warn(
+    getLog(context.log).warn(
       counts,
       "security: egress belt admits the deployment's private-endpoint allowlist — REFUSED entries admit nothing (unparseable, a port on a CIDR, or a never-admissible range)",
     );
   } else {
-    getLog().info(counts, "security: egress belt admits the deployment's private-endpoint allowlist");
+    getLog(context.log).info(counts, "security: egress belt admits the deployment's private-endpoint allowlist");
   }
 }
 
@@ -580,7 +584,7 @@ export function installEgressFirewall(options: ScopedEgressOptions): void {
     return;
   }
   const allowlist = replaceFirewallAgentFor(createEgressContext(options, true));
-  getLog().info({ allowlist: [...allowlist] }, "security: egress firewall installed (private egress blocked)");
+  getLog(options.log).info({ allowlist: [...allowlist] }, "security: egress firewall installed (private egress blocked)");
 }
 
 // Replacing before teardown prevents the next request from bypassing the guard on an already-admitted socket.
@@ -637,6 +641,7 @@ function createFirewallLookupFor(context: EgressContext, judgment: ConnectJudgme
           judgment.declared
             ? "security: egress SSRF blocked (allowlisted host resolved link-local/never-admissible or unreadable)"
             : "security: egress SSRF blocked (private or unreadable address)",
+          context.log,
         );
         resolved(new Error(`SSRF_BLOCKED: ${hostname} → ${blocked}`), address as string, family);
         return;
@@ -664,7 +669,7 @@ function createFirewallConnectFor(context: EgressContext): { readonly connect: b
     // to `@orb/kit/ip`, so neither gate below would judge it. WHATWG URL refuses a zone, so no URL carries one today;
     // refusing any zone mark here keeps a future input path from reaching loopback or link-local through one.
     if (options.hostname.includes(ZONE_MARK)) {
-      securityEvent("egress_blocked", { hostname: options.hostname }, "security: egress SSRF blocked (zone-scoped host)");
+      securityEvent("egress_blocked", { hostname: options.hostname }, "security: egress SSRF blocked (zone-scoped host)", context.log);
       callback(new Error(`SSRF_BLOCKED: ${options.hostname} (zone-scoped host)`), null);
       return;
     }
@@ -679,7 +684,7 @@ function createFirewallConnectFor(context: EgressContext): { readonly connect: b
     }
     const literal = literalHost(options.hostname);
     if (literal !== null && shouldBlockEgress(literal, options.hostname, allowlist, ranges)) {
-      securityEvent("egress_blocked", { hostname: options.hostname, address: literal }, "security: egress SSRF blocked (private literal address)");
+      securityEvent("egress_blocked", { hostname: options.hostname, address: literal }, "security: egress SSRF blocked (private literal address)", context.log);
       callback(new Error(`SSRF_BLOCKED: ${options.hostname} → ${literal}`), null);
       return;
     }
@@ -722,15 +727,20 @@ async function configuredEndpointPin(context: EgressContext, url: URL): Promise<
   const ranges = context.privateRanges;
   const declared = admittedByAllowlistFor(context, host, port);
   if (!declared && literal !== null && shouldBlockEgress(literal, host, allowlist, ranges)) {
-    blockEgress("private-address", host, `host ${host} is a private endpoint this deployment does not admit`);
+    blockEgress(context.log, { reason: "private-address", host, detail: `host ${host} is a private endpoint this deployment does not admit` });
   }
   const addresses = literal === null ? await context.resolver(host) : [literal];
   if (addresses.length === 0) {
-    blockEgress("unresolvable", host, `host ${host} did not resolve to any address`);
+    blockEgress(context.log, { reason: "unresolvable", host, detail: `host ${host} did not resolve to any address` });
   }
   const blocked = firstRefusedAddress(addresses, (address) => refusedResolvedEndpoint(context, address, { hostname: host, port, declared, allowlist, ranges }));
   if (blocked !== undefined) {
-    blockEgress("private-address", host, `host ${host} resolves to a private, reserved or unreadable address`, { address: blocked });
+    blockEgress(context.log, {
+      reason: "private-address",
+      host,
+      detail: `host ${host} resolves to a private, reserved or unreadable address`,
+      fields: { address: blocked },
+    });
   }
   const agent = pinnedAgent(context, addresses);
   context.agents.add(agent);
@@ -852,7 +862,7 @@ async function openSafeFetchFor(context: EgressContext, url: string | URL, optio
     context.pending.delete(completion.promise);
     completion.resolve();
     if (deadlineHit()) {
-      securityEvent("egress_blocked", { reason: "deadline", hostname: start.hostname }, "security: safeFetch egress blocked (deadline)");
+      securityEvent("egress_blocked", { reason: "deadline", hostname: start.hostname }, "security: safeFetch egress blocked (deadline)", context.log);
       // biome-ignore lint/style/useErrorCause: the cause IS forwarded — EgressBlockedError passes options to super(); biome can't see through the custom class.
       throw new EgressBlockedError("deadline", `egress deadline of ${deadlineMs}ms exceeded`, { cause: err });
     }
@@ -1084,27 +1094,34 @@ function hostAllowed(host: string, allowedHosts: readonly string[]): boolean {
   return false;
 }
 
-function blockEgress(reason: EgressBlockReason, host: string, detail: string, logExtra: Record<string, unknown> = {}): never {
-  securityEvent("egress_blocked", { reason, hostname: host, ...logExtra }, `security: safeFetch egress blocked (${reason})`);
+interface EgressBlock {
+  readonly reason: EgressBlockReason;
+  readonly host: string;
+  readonly detail: string;
+  readonly fields?: Record<string, unknown>;
+}
+
+function blockEgress(log: Logger | undefined, { reason, host, detail, fields = {} }: EgressBlock): never {
+  securityEvent("egress_blocked", { reason, hostname: host, ...fields }, `security: safeFetch egress blocked (${reason})`, log);
   throw new EgressBlockedError(reason, detail);
 }
 
 /** Scheme + host-allowlist + IP-literal gate — runs on the start URL and re-runs on every redirect hop. */
-function validateUrl(url: URL, options: SafeFetchOptions, configuredEndpoint = false): void {
+function validateUrl(log: Logger | undefined, url: URL, options: SafeFetchOptions, configuredEndpoint = false): void {
   const host = normalizeHost(url.hostname);
   if (configuredEndpoint) {
     if (url.protocol !== "https:" && url.protocol !== "http:") {
-      blockEgress("scheme", host, `scheme ${url.protocol} is not allowed`);
+      blockEgress(log, { reason: "scheme", host, detail: `scheme ${url.protocol} is not allowed` });
     }
   } else if (url.protocol !== "https:") {
-    blockEgress("scheme", host, `scheme ${url.protocol} is not allowed (https only)`);
+    blockEgress(log, { reason: "scheme", host, detail: `scheme ${url.protocol} is not allowed (https only)` });
   }
   // The user's own configured backend may legitimately be an IP literal (BYO vLLM at 192.168.x.y).
   if (!configuredEndpoint && isIpLiteralHost(url.hostname)) {
-    blockEgress("ip-literal", host, "IP-literal hosts are not allowed (a hostname is required)");
+    blockEgress(log, { reason: "ip-literal", host, detail: "IP-literal hosts are not allowed (a hostname is required)" });
   }
   if (options.allowedHosts !== ANY_HOST && !hostAllowed(host, options.allowedHosts)) {
-    blockEgress("host-not-allowed", host, `host ${host} is not in the allowlist`);
+    blockEgress(log, { reason: "host-not-allowed", host, detail: `host ${host} is not in the allowlist` });
   }
   // URL userinfo is implicit Authorization state owned by the URL parser/fetch implementation rather than
   // by our redirect header policy. Refuse it outright so credentials can neither reach hop zero nor survive
@@ -1114,7 +1131,7 @@ function validateUrl(url: URL, options: SafeFetchOptions, configuredEndpoint = f
   // `host-not-allowed`, not merely "refused") would silently stop proving anything the moment ANY userinfo
   // short-circuited the reason first.
   if (url.username !== "" || url.password !== "") {
-    blockEgress("credentials", host, "URL-embedded credentials are not allowed");
+    blockEgress(log, { reason: "credentials", host, detail: "URL-embedded credentials are not allowed" });
   }
 }
 
@@ -1123,13 +1140,18 @@ async function resolveValidatePinFor(context: EgressContext, url: URL): Promise<
   const host = normalizeHost(url.hostname);
   const addresses = await context.resolver(host);
   if (addresses.length === 0) {
-    blockEgress("unresolvable", host, `host ${host} did not resolve to any address`);
+    blockEgress(context.log, { reason: "unresolvable", host, detail: `host ${host} did not resolve to any address` });
   }
   const ranges = context.privateRanges;
   const blocked = firstRefusedAddress(addresses, (address) => isInRanges(address, ranges));
   if (blocked !== undefined) {
     // The address is LOGGED (observability) but never surfaced in the thrown error.
-    blockEgress("private-address", host, `host ${host} resolves to a private, reserved or unreadable address`, { address: blocked });
+    blockEgress(context.log, {
+      reason: "private-address",
+      host,
+      detail: `host ${host} resolves to a private, reserved or unreadable address`,
+      fields: { address: blocked },
+    });
   }
   const agent = pinnedAgent(context, addresses);
   context.agents.add(agent);
@@ -1226,7 +1248,7 @@ async function followRedirectsFor(context: EgressContext, { start, maxRedirects,
   let current = start;
   let hopHeaders: Record<string, string> | undefined = options.headers ? { ...options.headers } : undefined;
   for (let hop = 0; ; hop++) {
-    validateUrl(current, options);
+    validateUrl(context.log, current, options);
     const agent = await resolveValidatePinFor(context, current);
     const res = await fetchHopFor(context, current, buildHopInit({ options, dispatcher: agent, signal, headers: hopHeaders, hop }), agent);
     const isRedirect = res.status >= REDIRECT_STATUS_MIN && res.status < REDIRECT_STATUS_MAX;
@@ -1241,7 +1263,7 @@ async function followRedirectsFor(context: EgressContext, { start, maxRedirects,
     }
     closeAgentFor(context, agent);
     if (hop >= maxRedirects) {
-      blockEgress("too-many-redirects", normalizeHost(current.hostname), `redirect budget (${maxRedirects}) exceeded`);
+      blockEgress(context.log, { reason: "too-many-redirects", host: normalizeHost(current.hostname), detail: `redirect budget (${maxRedirects}) exceeded` });
     }
     const next = new URL(loc, current);
     if (next.origin !== current.origin && hopHeaders) {
@@ -1327,7 +1349,7 @@ async function configuredEndpointFetchFor(context: EgressContext, input: Paramet
   }
   const request = new Request(input, init);
   const url = new URL(request.url);
-  validateUrl(url, { allowedHosts: ANY_HOST }, true);
+  validateUrl(context.log, url, { allowedHosts: ANY_HOST }, true);
   const controller = new AbortController();
   const signal = AbortSignal.any([controller.signal, request.signal]);
   const completion = Promise.withResolvers<void>();

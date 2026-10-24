@@ -14,6 +14,7 @@
 import { ALLOWED_HOST_SUFFIX_MARK, ALLOWED_HOSTS_KEY, isAlwaysAllowedHost, isHostname, withoutTrailingDot } from "@orb/kit/allowed-hosts";
 import { DomainOperationError } from "@orb/kit/errors";
 import { settingInstruction } from "#foundation/env/record";
+import type { Logger } from "#foundation/observability";
 import { securityEvent } from "#foundation/observability";
 import { isTrustedHop } from "#infra/network";
 import type { AllowedHostsReader, HostFacts, HostNotAllowedNotice, RelayHostRegistry } from "./contract.ts";
@@ -118,23 +119,24 @@ export function allowedHostsReader(configured: readonly string[], relayHosts: Al
 }
 
 /** The unthrottled line for one refused host. The host rides in its own field, never in the message: the sender picks it. */
-function reportHostNotAllowed(host: string, inContainer: boolean): void {
+function reportHostNotAllowed(host: string, inContainer: boolean, log: Logger | undefined): void {
   securityEvent(
     "host_not_allowed",
     { host },
     "security: refused a request for a host that is not localhost, an IP address, this machine's name or a name in ALLOWED_HOSTS. " +
       "A name you do not recognise is a page trying to reach this server through a visitor's browser (DNS rebinding); do not add it. " +
       `If the host is your own address, ${settingInstruction(inContainer, [[ALLOWED_HOSTS_KEY, "<the host>"]])}`,
+    log,
   );
 }
 
 /** One line per refused host per hour; the key map is bounded (`notice-throttle.ts`), because the sender picks the
  *  name. `now` is the composition root's clock. */
-export function createHostNotAllowedNotice(now: () => number, inContainer: boolean): HostNotAllowedNotice {
+export function createHostNotAllowedNotice(now: () => number, inContainer: boolean, log?: Logger): HostNotAllowedNotice {
   const throttle = createKeyedNoticeThrottle(now);
   return (host) => {
     throttle(host, () => {
-      reportHostNotAllowed(host, inContainer);
+      reportHostNotAllowed(host, inContainer, log);
     });
   };
 }

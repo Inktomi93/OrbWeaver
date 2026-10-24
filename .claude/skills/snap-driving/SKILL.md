@@ -244,7 +244,9 @@ rebuild. Stage when a drive window overlaps active lanes. Band `k` owns server `
 rebuild or a full table refuses (exit 2) naming owners and never kills an incumbent. A concurrent reviewer
 runs from its own worktree or sets `ORB_SNAP_OWNER=<label>`; the checkout (or label) is the owner that
 gets its own stage dir and band. `--stage-down` targets the caller's rows; a checkout-wide or cross-checkout
-teardown needs `--stage-owner <checkout> --force`. A run refuses (exit 2) when its stage's db changed
+teardown needs `--stage-owner <checkout> --force`. `--stage-down --band <n>` releases only band `n` of your own rows and
+refuses a band a live session is bound to; `--force` overrides the refusal. Snap prints `band <n>` on every stage boot and
+reuse (`[snap-stage] ... band <n>`); release that band when the drive ends. A run refuses (exit 2) when its stage's db changed
 after it bound the band. Never
 hand-kill stage pids; that strands registry ownership instead of releasing the band. When the band is
 occupied and you need a private pair, point snap at a private stack with `--base

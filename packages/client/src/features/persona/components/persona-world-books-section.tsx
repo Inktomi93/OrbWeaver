@@ -21,7 +21,7 @@ export interface PersonaLoreBookFieldProps {
   readonly personaId: PersonaId;
 }
 
-/** The persona's single-select lore book. */
+/** The persona's single-select world book. */
 export function PersonaLoreBookField({ personaId }: PersonaLoreBookFieldProps): ReactElement {
   return (
     // RESERVED (#1098), fallback UNCHANGED — the settled child is ONE labelled Select, a constant box
@@ -63,10 +63,10 @@ function LoreBookSelect({ personaId }: PersonaLoreBookFieldProps): ReactElement 
   };
 
   return (
-    <Field label="Lore book" name="persona-lore-book">
+    <Field label="World book" name="persona-lore-book">
       <Row gap="field" align="center">
         <Icon icon={BookOpen} size="sm" />
-        <Select aria-label="Lore book" items={items} value={current?.id ?? NONE_VALUE} onValueChange={onChange} placeholder="None" />
+        <Select aria-label="World book" items={items} value={current?.id ?? NONE_VALUE} onValueChange={onChange} placeholder="None" />
       </Row>
     </Field>
   );

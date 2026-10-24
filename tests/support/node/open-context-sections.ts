@@ -1,4 +1,4 @@
-// THE "THIS CHAT" TAB'S DISCLOSURE WALK (#830) — the one spelling every CT that mounts
+// THE "THIS CHAT" TAB'S DISCLOSURE WALK — the one spelling every CT that mounts
 // `CommittedSettingsTab` uses to reach a section's BODY.
 //
 // The pane opens as an INDEX: only the two write surfaces (Field overrides, Injections) expand themselves,
@@ -24,7 +24,7 @@ export const HOST_BAND = "Host controls";
  * a defect the test would then blame on the subject. The visibility barrier before the state read is the
  * mount race (a trigger inside a band that was itself just opened).
  *
- * THE E2E SIDE WALKS THE SAME DISCLOSURES (#1851), so the root is a `Page` there and a mounted component
+ * THE E2E SIDE WALKS THE SAME DISCLOSURES, so the root is a `Page` there and a mounted component
  * `Locator` in a CT. Both spell `getByRole` identically; widening the parameter is what keeps this the ONE
  * walker rather than minting a second, drifting copy under `tests/e2e/support/`.
  */

@@ -13,6 +13,7 @@
 
 import type { ClientScope, RequestTransport } from "@orb/contracts/identity";
 import type { Context } from "hono";
+import type { Logger } from "#foundation/observability";
 import { securityEvent } from "#foundation/observability";
 import { clientIp, isInRanges, isPrivateOrLoopback, isTrustedHop, peerIp } from "#infra/network";
 import type { PublicHttpMintNotice } from "./contract.ts";
@@ -61,20 +62,21 @@ export function requestClientScope(c: Context, trustedProxies: readonly string[]
 }
 
 /** The unthrottled line: what the mint routes emit when no throttled notice is injected. */
-export function reportPublicHttpMint(ip: string | null): void {
+export function reportPublicHttpMint(ip: string | null, log?: Logger): void {
   securityEvent(
     "session_minted_over_public_http",
     { clientIp: ip },
     "security: a password and session cookie were sent in clear from the public internet; put TLS or a tunnel in front",
+    log,
   );
 }
 
 /** One line per client address per hour. `now` is the composition root's clock. */
-export function createPublicHttpMintNotice(now: () => number): PublicHttpMintNotice {
+export function createPublicHttpMintNotice(now: () => number, log?: Logger): PublicHttpMintNotice {
   const throttle = createKeyedNoticeThrottle(now);
   return (ip) => {
     throttle(ip ?? UNKNOWN_CLIENT, () => {
-      reportPublicHttpMint(ip);
+      reportPublicHttpMint(ip, log);
     });
   };
 }

@@ -1,8 +1,11 @@
-import { superviseSettled } from "#foundation/observability";
+import type { Logger } from "#foundation/observability";
+import { createDetachedSupervision, superviseSettled } from "#foundation/observability";
 import type { BackgroundWork } from "./contract/background.ts";
 
-/** Own the cancellation and settlement of work that outlives its initiating request. */
-export function createBackgroundWork(): BackgroundWork {
+/** Own the cancellation and settlement of work that outlives its initiating request; a failure outside a
+ *  request reports through the root's `log` (absent ⇒ the process logger until item 1271 removes it). */
+export function createBackgroundWork(log?: Logger): BackgroundWork {
+  const settled = log === undefined ? superviseSettled : createDetachedSupervision(log).superviseSettled;
   const controller = new AbortController();
   const pending = new Set<Promise<void>>();
   let closed = false;
@@ -26,7 +29,7 @@ export function createBackgroundWork(): BackgroundWork {
       if (closed) {
         throw new Error("cannot start work on a closed background-work lifetime");
       }
-      track(superviseSettled(...args));
+      track(settled(...args));
     },
     async [Symbol.asyncDispose](): Promise<void> {
       controller.abort();

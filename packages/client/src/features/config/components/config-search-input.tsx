@@ -14,15 +14,16 @@
 // ARIA rider, carried from the retired shell): cmdk hardcodes `expanded` because it assumes its listbox is
 // always mounted; this caller mounts it only while there is a query or a partial token.
 
-import { Command, CommandAuxiliaryButton, CommandInput, CommandList } from "@orb/ui/command";
+import { Command, CommandAuxiliaryButton, CommandEmpty, CommandInput, CommandList } from "@orb/ui/command";
 import { fuzzySearch } from "@orb/ui/fuzzy-search";
 import { HighlightedText } from "@orb/ui/highlighted-text";
 import { Icon, SlidersHorizontal } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
+import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { ListSearch } from "#components";
-import { useSettingsViewerView } from "#data";
+import { useSettingsViewerView, useTRPC } from "#data";
 import type { ConfigQueryToken, ParsedConfigQuery } from "#lib";
 import { applyConfigToken, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfigQuery, partialConfigToken, partialValueToken } from "#lib";
 import type { ConfigGroupDefinition, ConfigGroupRegistry, ConfigSearchRow } from "#state";
@@ -30,7 +31,16 @@ import { openConfigTo, selectCollectionMember, setConfigSearchMatch, setConfigSe
 import { useConfigModified } from "../hooks/use-modified-sections.ts";
 import { CONFIG_MODIFIED_MARKER } from "../lib/config-copy.ts";
 import type { ConfigSearchEntry } from "../lib/config-search.ts";
-import { buildConfigSearchEntries, filterConfigEntries, groupMatches, isConfigEntryModified, shelfCompletions, shelfMatches } from "../lib/config-search.ts";
+import {
+  buildConfigSearchEntries,
+  filterConfigEntries,
+  groupMatches,
+  groupTokenName,
+  isConfigEntryModified,
+  nameCompletions,
+  shelfCompletions,
+  shelfMatches,
+} from "../lib/config-search.ts";
 import { useConfigSubcategories } from "../lib/config-subcategories.ts";
 import { CommandRow } from "./config-search-row.tsx";
 
@@ -149,15 +159,19 @@ function TokenMenu({
 }
 
 /** What the token menu offers for the trailing partial, or null when the results show instead. Past a value
- *  token's `:` it offers the shelf names that complete it; a complete name, or a group or plugin name, is
- *  already a filter. */
-function menuTokens(partial: string): readonly ConfigQueryToken[] | null {
+ *  token's `:` it offers the names that complete it (shelves, visible groups, installed plugins); a complete
+ *  name is already a filter. */
+function menuTokens(partial: string, groupNames: readonly string[], pluginSlugs: readonly string[]): readonly ConfigQueryToken[] | null {
   const valued = partialValueToken(partial);
   if (valued === null) {
     return CONFIG_QUERY_TOKENS.filter((token) => token.token.startsWith(partial.toLowerCase()));
   }
-  const completions = valued.kind === "shelf" ? shelfCompletions(valued.value) : [];
-  return completions.length === 0 ? null : completions.map((name) => ({ token: `@shelf:${name}`, hint: `the ${name} shelf` }));
+  const completions: readonly ConfigQueryToken[] = {
+    shelf: shelfCompletions(valued.value).map((name) => ({ token: `@shelf:${name}`, hint: `the ${name} shelf` })),
+    in: nameCompletions(valued.value, groupNames).map((name) => ({ token: `@in:${name}`, hint: "a settings group" })),
+    plugin: nameCompletions(valued.value, pluginSlugs).map((name) => ({ token: `@plugin:${name}`, hint: "an installed plugin" })),
+  }[valued.kind];
+  return completions.length === 0 ? null : completions;
 }
 
 export interface ConfigSearchInputProps {
@@ -173,16 +187,22 @@ export function ConfigSearchInput({ groups }: ConfigSearchInputProps): ReactElem
   const parsed = parseConfigQuery(query);
   const partial = partialConfigToken(query);
   const hasQuery = query.trim().length > 0;
-  const tokens = partial === null ? null : menuTokens(partial);
+  // Plugin names come from the plugins page's own cache-first list read; non-suspense, so a cold cache only
+  // means no `@plugin:` completions yet.
+  const { data: plugins } = useQuery(useTRPC().plugin.list.queryOptions());
+
+  const visibleGroups = groups.list().filter((group) => group.when?.(viewer) ?? true);
+  const visible = new Set(visibleGroups.map((group) => group.id));
+  const tokens =
+    partial === null
+      ? null
+      : menuTokens(
+          partial,
+          visibleGroups.map((group) => groupTokenName(group.label)),
+          (plugins ?? []).map((plugin) => plugin.slug),
+        );
   const tokenMenu = tokens !== null;
   const expanded = hasQuery || tokenMenu;
-
-  const visible = new Set(
-    groups
-      .list()
-      .filter((group) => group.when?.(viewer) ?? true)
-      .map((group) => group.id),
-  );
   const entries = buildConfigSearchEntries(groups, (id) => visible.has(id), subcategoriesFor);
   const narrowed = filterConfigEntries(entries, parsed, modified);
   // `@plugin:<slug>` narrows to the plugins group and SEARCHES the slug like a term (the slug is row text).
@@ -225,7 +245,12 @@ export function ConfigSearchInput({ groups }: ConfigSearchInputProps): ReactElem
               <TokenMenu partial={partial} query={query} tokens={tokens} />
             ) : (
               <>
-                {hits.length === 0 && rowGroups.length === 0 ? <Text voice="gloss">{`No settings match “${query.trim()}”.`}</Text> : null}
+                {/* The group rows register from their own fibers, so only cmdk knows whether ANY row rendered: gating on
+                    `hits` alone shows the message over a results list that holds member rows. `role="status"` sits on the
+                    message because cmdk pins its own wrapper to `presentation`. */}
+                <CommandEmpty>
+                  <Text role="status" voice="gloss">{`No settings match “${query.trim()}”.`}</Text>
+                </CommandEmpty>
                 {/* EVERY MODIFIED HIT SAYS SO, in every query — not only under `@modified` (#1099 F16: the
                     filter returned five rows and not one of them carried a mark, so the reader hunting the
                     setting they changed had nothing to steer by). The mark is the SAME verdict the filter

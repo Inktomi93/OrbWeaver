@@ -4,6 +4,7 @@ import type { DatabaseHandle } from "@orb/db/wiring";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { Context } from "hono";
 import type { Env } from "#foundation/env/record";
+import type { Logger } from "./logging.ts";
 
 export interface AssetInspector {
   fsck: () => Promise<object>;
@@ -60,6 +61,9 @@ export interface DebugRoutesOptions {
   /** The live capture decision for both wire reads; compose makes it, so foundation never re-reads the knob. */
   readonly wireCaptureEnabled: () => boolean;
   auth?: DebugAuthOptions | string;
+  /** The root's logger the probes' warnings fall back to outside a request; absent ⇒ the process logger
+   *  until item 1271's entry leg passes it. */
+  readonly log?: Logger;
 }
 
 interface BugReportRecorder {

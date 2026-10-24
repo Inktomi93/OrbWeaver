@@ -130,6 +130,22 @@ function foldGroupName(name: string): string {
   return name.toLowerCase().replaceAll(/[^a-z0-9]/gu, "");
 }
 
+/** The names a partial `@in:` / `@plugin:` value can complete to: the candidates whose folded name the typed
+ *  value prefixes, minus an exact match (a complete name is a filter, not a completion). Folding matches how
+ *  `groupMatches` reads a typed value, so `chat-b` completes `chat-behavior`. */
+export function nameCompletions(typed: string, names: readonly string[]): readonly string[] {
+  const prefix = foldGroupName(typed);
+  return names.filter((name) => {
+    const folded = foldGroupName(name);
+    return folded.startsWith(prefix) && folded !== prefix;
+  });
+}
+
+/** The spelling a reader types for a group in `@in:` — its visible name, lowercased, hyphens for spaces. */
+export function groupTokenName(label: string): string {
+  return label.toLowerCase().replaceAll(/\s+/gu, "-");
+}
+
 /** Whether a typed `@in:` value names the group, by its visible name or its id. */
 export function groupMatches(group: { readonly id: string; readonly label: string }, typed: string): boolean {
   const folded = foldGroupName(typed);

@@ -19,7 +19,6 @@ import { createServerHarness } from "./server.ts";
 const WORKLOAD_LOG_LEVEL = "info" satisfies LogLevel;
 
 const DEADLINE_OBSERVATION_TIMEOUT_MS = 10_000;
-const TIMEOUT_DELIVERY_OBSERVATION_MS = 6000;
 const WORKLOAD_BY_ID_READ = /from "workloads" where "workloads"\."id" = \?/u;
 
 test(
@@ -34,20 +33,14 @@ test(
     const before = await caller.workloads.get({ id: admitted.id });
     const started = [admitted];
     const pending = held.hold(WORKLOAD_BY_ID_READ);
-    let completed = false;
     let result: Promise<unknown> | undefined;
     try {
       root.app.supervise("corpus-timeout-control", "corpus.control", {}, async () => {
         await caller.workloads.get({ id: admitted.id });
       });
       await pending.reached;
-      result = settleCorpusWorkloads(root, caller, started)
-        .catch((error: unknown) => error)
-        .finally(() => {
-          completed = true;
-        });
-      await physicalDelay(TIMEOUT_DELIVERY_OBSERVATION_MS);
-      expect(completed).toBe(true);
+      result = settleCorpusWorkloads(root, caller, started).catch((error: unknown) => error);
+      // The held read is released only in `finally`, so this settles only if the owned deadline reached its owner first.
       const failure = await result;
       expect(failure).toMatchObject({
         message: expect.stringContaining('"phase":"initial-background"'),

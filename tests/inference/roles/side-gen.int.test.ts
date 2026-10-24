@@ -7,7 +7,7 @@ import { ProviderError } from "@orb/inference";
 import { isPlainObject } from "@orb/kit/guards";
 import type { JsonValue } from "@orb/kit/json";
 import { projectJsonSchema } from "@orb/kit/json-schema";
-import { createManualTimer } from "@orb/testkit/iso";
+import { createControlledTimers, createFrozenClock } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { processObservability } from "@orb/testkit/node/composed";
@@ -16,7 +16,7 @@ import { openAiServer, recordRequest, SLEEP_PROBE_SUFFIX } from "@orb/testkit/no
 import { vi } from "vitest";
 import { z } from "zod";
 import { physicalSdkScenario } from "../backends/agent-sdk/regression-edge.fixtures.ts";
-import { createRuntimeRoot, generationCapability, observeRuntimeTimers, runtimeTimers, wireConnection } from "./runtime.fixtures.ts";
+import { createRuntimeRoot, generationCapability, observeRuntimeTimers, wireConnection } from "./runtime.fixtures.ts";
 
 const LOCAL_URL = "http://box.local:8080/v1";
 
@@ -467,8 +467,8 @@ test("(7) agent-sdk structured still refuses a turn that produced no structured_
 test("(3) a wedged agent-sdk item with no caller signal is aborted at the row's idle ceiling and fails retryably", async () => {
   const model = "claude-opus-5";
   await using edge = physicalSdkScenario({ frames: agentFrames(model).slice(0, 1), hang: true });
-  const timer = createManualTimer();
-  await using root = await createRuntimeRoot({ sdkSpawn: edge.spawn, timers: runtimeTimers(timer.schedule) });
+  using timers = createControlledTimers(createFrozenClock());
+  await using root = await createRuntimeRoot({ sdkSpawn: edge.spawn, timers });
   const executor = root.app.runtime.executor;
   const connection = await wireConnection(root, {
     task: "summarize",
@@ -489,16 +489,16 @@ test("(3) a wedged agent-sdk item with no caller signal is aborted at the row's 
     },
   };
   await edge.initialized;
-  expect(timer.armed()).toContain(50);
-  timer.fire();
+  expect(timers.armed()).toContain(50);
+  timers.advance(50);
   expect(await outcome).toMatchObject({ kind: "server", retryable: true });
   expect(edge.children).toHaveLength(1);
   expect(edge.children[0]?.exitCode !== null || edge.children[0].signalCode !== null).toBe(true);
   // The caller's own cancel inside the same window stays a non-retryable abort.
   const cancel = new AbortController();
   await using cancellationEdge = physicalSdkScenario({ frames: agentFrames(model).slice(0, 1), hang: true });
-  const callerTimer = createManualTimer();
-  await using callerRoot = await createRuntimeRoot({ sdkSpawn: cancellationEdge.spawn, timers: runtimeTimers(callerTimer.schedule) });
+  using callerTimers = createControlledTimers(createFrozenClock());
+  await using callerRoot = await createRuntimeRoot({ sdkSpawn: cancellationEdge.spawn, timers: callerTimers });
   const caller = callerRoot.app.runtime.executor;
   const callerConnection = await wireConnection(callerRoot, { task: "summarize", providerId: "claude-sub", model, declaredFeatures: { requestTimeoutMs: 50 } });
   const cancelled = caller.summarize({ connection: callerConnection, inputs: [ITEM], signal: cancel.signal }).catch((error: unknown) => error);
@@ -512,10 +512,10 @@ test("(3) a wedged agent-sdk item with no caller signal is aborted at the row's 
     },
   };
   await cancellationEdge.initialized;
-  expect(callerTimer.armed()).toContain(50);
+  expect(callerTimers.armed()).toContain(50);
   cancel.abort(new Error("network timeout"));
   expect(await cancelled).toMatchObject({ kind: "aborted", retryable: false });
-  expect(callerTimer.armed()).toEqual([]);
+  expect(callerTimers.armed()).toEqual([]);
   expect(cancellationEdge.children).toHaveLength(1);
   expect(cancellationEdge.children[0]?.exitCode !== null || cancellationEdge.children[0].signalCode !== null).toBe(true);
 });

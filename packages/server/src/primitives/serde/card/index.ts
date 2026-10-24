@@ -23,7 +23,14 @@
 
 import { createHash } from "node:crypto";
 import type { AttachedBookRef, CardDepthPrompt, CardSpec, CharacterCard, CharacterCardV3, Greeting } from "@orb/contracts/character";
-import { ATTACHED_BOOKS_WIRE_KEY, CHARA_CARD_V2_SPEC, CHARA_CARD_V3_SPEC, CHARACTER_HANDLE_WIRE_KEY, characterCardV3Schema } from "@orb/contracts/character";
+import {
+  ATTACHED_BOOKS_WIRE_KEY,
+  CHARA_CARD_V2_SPEC,
+  CHARA_CARD_V3_SPEC,
+  CHARACTER_HANDLE_WIRE_KEY,
+  characterCardV3Schema,
+  portableCharacterHandle,
+} from "@orb/contracts/character";
 import type { AttachedRegexScriptRef, RegexScriptCard } from "@orb/contracts/regex";
 import { ATTACHED_REGEX_SCRIPTS_WIRE_KEY, regexScriptCardSchema, toRegexScriptCardWire } from "@orb/contracts/regex";
 import type { BulkImportLorebookInput, BulkImportLoreEntryInput } from "@orb/contracts/world-info";
@@ -837,7 +844,7 @@ export function buildCardV3(fields: ExportCardFields, entries: ExportWorldEntry[
     ...embeddedBookWire(fields, entries),
     ...attachedBooksWire(fields.attachedBooks),
     ...attachedRegexScriptsWire(fields.attachedRegexScripts),
-    [CHARACTER_HANDLE_WIRE_KEY]: fields.handle,
+    [CHARACTER_HANDLE_WIRE_KEY]: portableCharacterHandle(fields.handle),
   };
   const spec = fields.spec ?? CHARA_CARD_V3_SPEC;
   return characterCardV3Schema.parse({

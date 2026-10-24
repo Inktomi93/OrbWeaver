@@ -8,7 +8,7 @@ import type { SdkPrivateDiagnosticResult } from "./contract/sdk-private-diagnost
 import { sdkPrivateDiagnosticInputSchema } from "./contract/sdk-private-diagnostics.ts";
 import { processObservability } from "./observed.ts";
 import { createSdkProcessIdentity } from "./sdk-process.ts";
-import { createServerHarness } from "./server.ts";
+import { createServerHarness, SECRET_BOX_TEST_KEY } from "./server.ts";
 
 const input = sdkPrivateDiagnosticInputSchema.parse(JSON.parse(process.argv[2] ?? ""));
 const identify = createSdkProcessIdentity();
@@ -16,7 +16,7 @@ const children: ChildProcessWithoutNullStreams[] = [];
 const closes: Promise<void>[] = [];
 await using harness = await createServerHarness({
   logLevel: "error",
-  secretBoxKey: Buffer.alloc(32, 1),
+  secretBoxKey: SECRET_BOX_TEST_KEY,
   sdkNative: {
     executable: "node",
     executableArgs: ["--no-warnings"],

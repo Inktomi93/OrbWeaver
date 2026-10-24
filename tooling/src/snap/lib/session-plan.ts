@@ -296,7 +296,7 @@ export function inheritSessionBinding(bootArgs: Args, merged: Args, call: Args):
 export function checkpointArgErrors(inherited: Args, label: string, rawArgv: readonly string[] = []): readonly string[] {
   const misplacedBootFlags = sessionOnlyFlagsIn(rawArgv);
   const stageAdminFlags = rawArgv.filter((token) =>
-    ["--stage-down", "--stage-status", "--stage-sweep", "--stage-owner", "--force"].includes(splitPageSuffix(token).flag),
+    ["--stage-down", "--stage-status", "--stage-sweep", "--stage-owner", "--band", "--force"].includes(splitPageSuffix(token).flag),
   );
   return (
     [

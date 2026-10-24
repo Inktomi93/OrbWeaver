@@ -36,21 +36,21 @@ import { sha256Hex } from "#primitives/content-hash";
 import type { PortableChat, PortableChatVariant, PortableRpgGame } from "#primitives/serde/chat-bundle";
 import { CHAT_BUNDLE_SCHEMA_KIND, parseChatBundleFile } from "#primitives/serde/chat-bundle";
 import { portableParseError } from "#primitives/serde/lib";
+import type { CardIdentityHashes, RestoredSeat } from "../contract/identity.ts";
 import type { ImportChatFileInput } from "../contract/params.ts";
 import type { ImportChatFileOutcome } from "../contract/results.ts";
 import type { ImportContext, ImportProfileDeps, ImportService } from "../contract/service.ts";
 import { requireProfile } from "../guard.ts";
-import { carriedHandle } from "../substrate/handle.ts";
+import { findImportedCharacter } from "../substrate/card.ts";
+import { carriedHandle, resolveSeat } from "../substrate/handle.ts";
 
-/** The handles a bundle could re-link against, in preference order: its own seat list, then the directory it
- *  sat in. Deduped, and read through the restore's one handle rule, which the card restore also mints by. */
-function candidateHandles(bundle: PortableChat, filename: string): readonly CharacterHandle[] {
+/** The seats a bundle could re-link against, in preference order: its own seat list, then the directory it
+ *  sat in, each with the identity of the card exported beside it when the bundle carries one. */
+function candidateSeats(bundle: PortableChat, filename: string): readonly RestoredSeat[] {
   const slash = filename.indexOf("/");
   const fromPath = slash === -1 ? [] : [filename.slice(0, slash)];
-  return [...new Set([...bundle.characterHandles, ...fromPath])].flatMap((handle) => {
-    const carried = carriedHandle(handle);
-    return carried === null ? [] : [carried];
-  });
+  const cards = new Map((bundle.seatCards ?? []).map(({ handle, ...hashes }) => [handle, hashes]));
+  return [...new Set([...bundle.characterHandles, ...fromPath])].map((handle) => ({ handle, card: cards.get(handle) ?? null }));
 }
 
 interface ResolvedCharacterIds {
@@ -60,13 +60,18 @@ interface ResolvedCharacterIds {
   readonly idByHandle: ReadonlyMap<string, CharacterId>;
 }
 
-/** Resolve the carried handles against the importer's own library. Null = the owner-ruled refusal case:
+/** Resolve the seats against the importer's own library. Null = the owner-ruled refusal case:
  *  nothing this account holds, so there is no character to import the transcript against. */
-async function resolveCharacterIds(ctx: ImportContext, handles: readonly CharacterHandle[]): Promise<ResolvedCharacterIds | null> {
+async function resolveCharacterIds(ctx: ImportContext, candidates: readonly RestoredSeat[]): Promise<ResolvedCharacterIds | null> {
+  const find = {
+    byIdentity: async (hashes: CardIdentityHashes): Promise<CharacterId | null> =>
+      (await findImportedCharacter((importHash) => ctx.findByImportHash({ ownerId: ctx.ownerId, importHash }), hashes))?.characterId ?? null,
+    byHandle: (handle: CharacterHandle): Promise<CharacterId | null> => ctx.findByHandle({ ownerId: ctx.ownerId, handle }),
+  };
   // Resolved in PARALLEL but consumed in the file's declared ORDER: `characterHandles[0]` is the room's
   // primary (the voice a slot naming no speaker falls back to), so the order is load-bearing even though the
   // lookups are independent.
-  const resolved = await Promise.all(handles.map(async (handle) => ({ handle, characterId: await ctx.findByHandle({ ownerId: ctx.ownerId, handle }) })));
+  const resolved = await Promise.all(candidates.map(async (seat) => ({ handle: seat.handle, characterId: await resolveSeat(seat, find) })));
   const idByHandle = new Map<string, CharacterId>();
   const seats: CharacterId[] = [];
   for (const { handle, characterId } of resolved) {
@@ -386,11 +391,13 @@ export function createImportChatBundle(ctx: ImportContext): ImportService["impor
     }
     const bundle = parsed.value;
     const profile = requireProfile(ctx);
-    const handles = candidateHandles(bundle, filename);
-    const characterIds = await resolveCharacterIds(ctx, handles);
+    const seats = candidateSeats(bundle, filename);
+    const characterIds = await resolveCharacterIds(ctx, seats);
     if (characterIds === null) {
       // THE OWNER-RULED REFUSAL. Named handles, so the operator can create/import the card and
-      // re-run rather than guessing which one this room wanted.
+      // re-run rather than guessing which one this room wanted. Only alphabet handles are echoed: the rest
+      // are untrusted file text.
+      const handles = seats.flatMap((seat) => carriedHandle(seat.handle) ?? []);
       const looked = handles.length === 0 ? "the file names none" : handles.map((h) => `"${h}"`).join(", ");
       return { ok: false, error: `no character on this account matches this chat (${looked}) — import the character first, then the chat` };
     }

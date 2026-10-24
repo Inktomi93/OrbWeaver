@@ -1,5 +1,4 @@
-// THE CONTAINMENT ANCHOR (#1765, closing the tautology #1754's regex-section lane found live —
-// cb-regex-label, 697516da3): "does this element actually fit inside a REAL fixed-width box?"
+// THE CONTAINMENT ANCHOR: "does this element actually fit inside a REAL fixed-width box?"
 //
 // THE FAILURE THIS REPLACES. A `boundingBox()` comparison anchored at a BLOCK CONTAINER (a `<Stack>`/
 // `<div>` with no `width`/`max-width` of its own) is tautological — the container's own box GROWS to wrap
@@ -56,7 +55,7 @@ export async function expectContainedWithin(subject: Locator, wrapper: Locator, 
   if (!isAncestor) {
     throw new Error(
       "expectContainedWithin: WRAPPER is not an ancestor of SUBJECT — pick a real fixed-width containing box (the story's mount root, a " +
-        "token-capped column), never a block container that grows with its own content (that is the exact tautology #1765 exists to refuse)",
+        "token-capped column), never a block container that grows with its own content (a container that grows with its content can never be narrower than it)",
     );
   }
 

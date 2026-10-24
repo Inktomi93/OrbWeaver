@@ -1,7 +1,6 @@
 // @subject tests/support/iso/corpus-library-relations.ts
 // The case runs the actors, libraries and library-view producers, then a scrubbed clone: about 4 s of real producer work with no wait, so it carries the slow tag.
 import assert from "node:assert/strict";
-import { randomBytes } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -22,7 +21,10 @@ import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES,
 import { captureCookieAuth, captureCorpusReads, seedCorpusLibraries } from "./corpus-seed.ts";
 import { SHIPPED_MIGRATIONS } from "./db.ts";
 import { expect, test } from "./fixtures.ts";
-import { createServerHarness } from "./server.ts";
+import { createServerHarness, SECRET_BOX_TEST_KEY } from "./server.ts";
+
+// The clone is a different instance from its source, so it opens under its own key.
+const CLONE_SECRET_BOX_KEY = Buffer.alloc(32, 2);
 
 test("portable preset and live-rule captures equal fresh native reads in a scrubbed clone with fresh private authentication", { tags: "slow" }, async () => {
   const parent = await mkdtemp(join(tmpdir(), "orb-library-publication-"));
@@ -53,7 +55,7 @@ test("portable preset and live-rule captures equal fresh native reads in a scrub
         ids,
         env: authEnv,
         providerFetch: execution.execute,
-        secretBoxKey: randomBytes(32),
+        secretBoxKey: SECRET_BOX_TEST_KEY,
         casDir: sourceLayout.assets,
         variantDir: sourceLayout.variants,
         importStagingDir: sourceLayout.importStaging,
@@ -95,7 +97,7 @@ test("portable preset and live-rule captures equal fresh native reads in a scrub
     ids,
     ownerId: relations.viewerUserId,
     env: authEnv,
-    secretBoxKey: randomBytes(32),
+    secretBoxKey: CLONE_SECRET_BOX_KEY,
     casDir: cloneLayout.assets,
     variantDir: cloneLayout.variants,
     importStagingDir: cloneLayout.importStaging,

@@ -83,6 +83,16 @@ function nameTag(name: string): string {
   return hash.toString(BASE36);
 }
 
+/** The alphabet every {@link slugifyHandle} output is drawn from: runs of letters, digits and marks, the first
+ *  starting on a letter or digit, joined by single hyphens.
+ *
+ *  SECURITY: this is the property that lets a handle be a path segment. It admits no `.`, separator, NUL,
+ *  control, quote or bidi-format character, and no `_`, so nothing in it reaches the reserved `__group__*`
+ *  namespace. It is the IMAGE of the fold, not its fixed points: the fold is not idempotent (a truncated long
+ *  name's `-<tag>` output re-truncates, and NFKD can emit an uppercase letter that a second pass lowercases),
+ *  so "a value the fold leaves unchanged" would refuse handles the fold itself minted. */
+export const SLUG_HANDLE_PATTERN = /^[\p{L}\p{N}][\p{L}\p{N}\p{M}]*(?:-[\p{L}\p{N}\p{M}]+)*$/u;
+
 /** A display name → its stable handle. TOTAL: every non-empty name yields a non-empty handle, and two
  *  distinct names never share one unless their letters and digits genuinely match (the case/accent-variant
  *  collapse that is this engine's job). A name whose letters and digits fold to nothing, or whose fold has to

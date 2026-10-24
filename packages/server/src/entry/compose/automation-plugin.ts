@@ -77,6 +77,8 @@ import { loadPluginCharacters, loadPluginMessages } from "./plugin-chat-reads.ts
 
 export interface AutomationPluginComposeDeps {
   readonly env: PluginHostSeamDeps["env"];
+  /** The root's logger the plugin host's guest lines and settlement failures land in. */
+  readonly logger: NonNullable<PluginHostSeamDeps["log"]>;
   readonly pluginExecution?: Pick<PluginHostSeamDeps, "spawn">;
   readonly monotonicNow: PluginHostSeamDeps["monotonicNow"];
   readonly timers: TimerScheduler;
@@ -284,6 +286,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       nextRandom: deps.random,
       mintId: newOpaqueId,
       safeFetch: deps.egress.safeFetch,
+      log: deps.logger,
     }),
   );
   // Activation and confirmed acts share the same process-wide belts.

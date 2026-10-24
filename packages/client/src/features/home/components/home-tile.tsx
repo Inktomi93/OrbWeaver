@@ -86,7 +86,9 @@ function TileBand({ title, trailing, headingId }: { readonly title: string; read
   return (
     // A declared action reserves its control height even while it renders nothing: Databank's hides itself on
     // an empty bank once its read lands, and a band that collapsed then shifted every tile below it.
-    <Row align="center" className={trailing === undefined ? undefined : "min-h-control-sm"} gap="field">
+    // The first tile of a column takes that height too, so the two columns' first kickers share one top; growing
+    // every band would push the fresh house's columns past the 120px balance budget.
+    <Row align="center" className={trailing === undefined ? "group-first/tile:min-h-control-sm" : "min-h-control-sm"} gap="field">
       {/* The `kicker` VOICE on a real heading element (density-pass §2.3); `level` keeps the document
           outline (a styled div would leave home with one heading and six anonymous blocks). */}
       <Heading id={headingId} level={2} voice="kicker">
@@ -225,7 +227,7 @@ export function HomeTile({ tile, column }: { readonly tile: HomeTileContribution
     );
   }
   return (
-    <Stack aria-labelledby={headingId} data-home-tile={tile.id} gap="row" role="region">
+    <Stack aria-labelledby={headingId} className="group/tile" data-home-tile={tile.id} gap="row" role="region">
       <TileBand headingId={headingId} title={title} trailing={tile.action} />
       <TileContent tile={tile} title={title} />
     </Stack>

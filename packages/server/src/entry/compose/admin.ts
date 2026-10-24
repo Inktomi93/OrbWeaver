@@ -11,7 +11,7 @@ import { createExportService } from "#domain/export";
 import type { SessionsService } from "#domain/sessions";
 import type { ToolUseService } from "#domain/tool-use";
 import { createToolUseService } from "#domain/tool-use";
-import type { AuditEntry } from "#foundation/observability";
+import type { AuditEntry, Logger } from "#foundation/observability";
 import { createAuditWiring } from "#foundation/observability";
 import type { LiveBuses } from "#transport/trpc";
 
@@ -22,6 +22,8 @@ export interface AdminComposeDeps {
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
 
   readonly idSource: IdSource;
+  /** The root's logger the export path's audit wiring binds. */
+  readonly logger: Logger;
   readonly db: DatabaseHandle;
   readonly now: () => number;
   readonly newUserId: () => UserId;
@@ -53,6 +55,8 @@ export interface AdminComposeDeps {
   readonly exportCardScripts: Parameters<typeof createExportService>[0]["exportCardScripts"];
   /** R6: the chat-anchored rpg CAMPAIGN read the orb-native chat-bundle export carries. */
   readonly exportRpgGame: Parameters<typeof createExportService>[0]["exportRpgGame"];
+  /** The character restore's card identity, so an exported chat seat names the row its card restores as. */
+  readonly cardPngIdentity: Parameters<typeof createExportService>[0]["cardPngIdentity"];
   /** The process restart `admin.restart` drives; the lifecycle owns the close and the exit. */
   readonly serverRestart: ServerRestartPort;
 }
@@ -75,7 +79,7 @@ export function buildAdmin(deps: AdminComposeDeps): AdminComposeResult {
     hashPassword: deps.hashPassword,
     seedUserConnections: deps.seedUserConnections,
     audit,
-    auditStatementAfterWrite: createAuditWiring(db, deps.idSource).statementAfterWrite,
+    auditStatementAfterWrite: createAuditWiring(db, deps.idSource, deps.logger).statementAfterWrite,
     emitUserEvent: deps.emitUserEvent,
     sessions: createAdminSessionPort({
       listForUser: (userId) => sessions.listForUser(userId),
@@ -106,6 +110,7 @@ export function buildAdmin(deps: AdminComposeDeps): AdminComposeResult {
     imageTransform: deps.imageTransform,
     exportCardScripts: deps.exportCardScripts,
     exportRpgGame: deps.exportRpgGame,
+    cardPngIdentity: deps.cardPngIdentity,
   });
 
   return { admin, toolUse, exportService };

@@ -12,8 +12,15 @@ export interface CardIdentityHashes {
   readonly importHash: string;
   /** The identity without the art (`parsedCardTextHash`) — what a JSON card of the same text hashes to. */
   readonly textHash: string;
-  /** The file bytes, for the whole-file hash a row imported before the content identity carries. */
-  readonly bytes: Uint8Array;
+  /** The whole-file hash (`importFileHash`) a row imported before the content identity carries. */
+  readonly fileHash: string;
+}
+
+/** One seat of a restored chat: the handle it was exported under and, when the bundle carries it, the import
+ *  identity of the card exported beside it. */
+export interface RestoredSeat {
+  readonly handle: string;
+  readonly card: CardIdentityHashes | null;
 }
 
 // In lookup order: `findImportedCharacter` tries each key in this order.

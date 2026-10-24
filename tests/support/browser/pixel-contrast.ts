@@ -1,13 +1,13 @@
-// PIXEL-SAMPLED WCAG CONTRAST, in the CT browser — the over-art family's receipt instrument for a lane
-// that cannot use `snap`.
+// PIXEL-SAMPLED WCAG CONTRAST, in the CT browser — the over-art contrast instrument for a worktree that
+// cannot use `snap`.
 //
-// WHY IT EXISTS. The over-art contrast family (#167 #217 #221 #229 #232 #236 #237 #243 #468 #674) is
-// decided by what is COMPOSITED on screen, and `getComputedStyle` cannot see it: a translucent plate over
-// a photo, or a control on a fully transparent ancestor chain, both report a class list that says nothing
-// about the pixel a reader looks at (#674's band read `rgba(0, 0, 0, 0)` all the way up while measuring
-// 1.01:1). `snap --contrast --contrast-pixel` answers that on the LIVE app — but `:5173` serves MAIN, so a
-// worktree lane's rendered proof has to come from the CT browser (the lane skill, "Rendered proof"), which is also the only place a
-// lane can choose the WORST-CASE art rather than whatever wallpaper the dev account happens to carry.
+// WHY IT EXISTS. Contrast over art is decided by what is COMPOSITED on screen, and `getComputedStyle`
+// cannot see it: a translucent plate over a photo, or a control on a fully transparent ancestor chain,
+// both report a class list that says nothing about the pixel a reader looks at (a band can read
+// `rgba(0, 0, 0, 0)` all the way up while measuring 1.01:1). `snap --contrast --contrast-pixel` answers
+// that on the LIVE app — but `:5173` serves MAIN, so a worktree's rendered proof has to come from the CT
+// browser, which is also the only place to choose the WORST-CASE art rather than whatever wallpaper the
+// dev account happens to carry.
 //
 // IT IS NOT A SECOND ALGORITHM. The ring geometry (`ringBackdrop`), the WCAG kernel (`contrastRatio`) and
 // the dim composite (`compositeForeground` / `FOREGROUND_OPACITY_EPS` / `MEASURABLE_OPACITY_MIN`) are
@@ -15,11 +15,9 @@
 // module's own header states: two instruments must not disagree about what is behind a glyph. The only
 // thing here is the screenshot→raw-pixels plumbing snap keeps private to its own op.
 //
-// IT USED TO CARRY AXE'S OWN BLIND SPOT (fixed 2026-08-30 while proving #874). It read the ink from
-// `getComputedStyle().color` and the backdrop through the SAME dimming group, so an `opacity:.6` caption
-// measured at its UNDIMMED ratio — the exact reason Lighthouse scored the bracket's 3.54:1 locked cell
-// 100/100. A tool caught printing a false clean is fixed in the era it is found; the planted control is
-// the locked-cell arm of `context-bracket.ct.tsx`, which is RED on the pre-#874 source and green after.
+// IT MUST NOT READ INK FROM `getComputedStyle().color` ALONE. The backdrop is read through the SAME
+// dimming group, so an `opacity:.6` caption would measure at its UNDIMMED ratio — axe's own blind spot. The
+// planted control is the locked-cell arm of `context-bracket.ct.tsx`, which goes red if the composite is lost.
 
 import { wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { ringBackdrop } from "@orb/tooling/floor/instrument/pixel-backdrop";
@@ -82,9 +80,8 @@ function readInk(target: Locator): Promise<{ color: Rgb; opacity: number }> {
     // TWO INDEPENDENT DIMMERS, MULTIPLIED — both invisible to a naive read of `color`:
     //  · the INK's OWN ALPHA (`text-muted-foreground/70`). The canvas hands `getImageData` back
     //    UNPREMULTIPLIED, so `r,g,b` are the pure colour and the alpha is a separate byte — reading only
-    //    the first three channels reports a `/70` ink as if it were opaque. MEASURED 2026-08-30: with that
-    //    channel dropped, this sampler read the bracket's owning and receded kickers as the SAME ink
-    //    (174,170,167 vs 174,170,166) while their authored alphas were 1.0 and 0.7.
+    //    the first three channels reports a `/70` ink as if it were opaque. With that
+    //    channel dropped, two inks of authored alpha 1.0 and 0.7 read as the SAME colour.
     //  · the ACCUMULATED ANCESTOR OPACITY, multiplied up the whole chain because `opacity` composites per
     //    GROUP: two nested 0.6 groups paint at 0.36, and the element's own `opacity` counts.
     // 255 is spelled INLINE, not hoisted to a module constant: `evaluate` serialises this function and
@@ -107,8 +104,7 @@ function rawPixels(shot: Buffer): Promise<{ data: Buffer; info: { width: number;
 
 /** The per-channel MEDIAN of every pixel in a clip — the "what colour is this strip" reading. Median, not
  *  mean: a rail's box carries glyphs and captions, and a mean would drag the fill toward the ink while the
- *  median stays on the surface that occupies most of the box (the same reasoning the side-eye lane's
- *  mode-sample used, in a form that needs no binning). */
+ *  median stays on the surface that occupies most of the box (a form of mode-sample that needs no binning). */
 function medianRgb(data: Buffer, channels: number): Rgb {
   const reds: number[] = [];
   const greens: number[] = [];
@@ -145,8 +141,8 @@ interface PixelSurfaceRegion {
 export interface PixelSurfaceOptions {
   /** Sample only part of the box. A COMPOSITE control's own fill can be mostly covered by a child —
    *  a Switch TRACK is 48px wide with an 18px thumb parked in it, and the whole-box median can return
-   *  the child's colour rather than the track's (before #1109 shrank the knob it was a 32px thumb over
-   *  2/3 of the root's pixels, and the median silently DID). Name the strip the parent actually paints
+   *  the child's colour rather than the track's (a thumb covering most of the root's pixels makes the
+   *  median silently do so). Name the strip the parent actually paints
    *  (for the switch: the end the thumb is NOT parked at). */
   readonly region?: PixelSurfaceRegion;
 }
@@ -156,8 +152,8 @@ export interface PixelSurfaceOptions {
  *
  * The companion to {@link pixelContrast}, and it exists for the same reason at one remove: an ownership
  * axis expressed as two alphas of one token (`bg-x/40` vs `bg-x/15`) is a decision taken in ALPHA space,
- * and `getComputedStyle` hands back the alpha, never the pixel. #860's F2 is exactly that failure — a
- * "quieter step of the same fill" that composited to 1.001:1 against the pane behind it. REFUSES rather
+ * and `getComputedStyle` hands back the alpha, never the pixel. A "quieter step of the same fill" can
+ * composite to 1.001:1 against the pane behind it. REFUSES rather
  * than fabricating, on the same terms as `pixelContrast`.
  */
 export async function pixelSurface(page: Page, target: Locator, options: PixelSurfaceOptions = {}): Promise<PixelSurfaceReceipt> {
@@ -187,7 +183,7 @@ export async function pixelSurface(page: Page, target: Locator, options: PixelSu
  * The pixel-sampled contrast of one element's text against what is actually painted behind it.
  *
  * REFUSES rather than fabricating: an element with no box, a box entirely outside the viewport, or a
- * screenshot/decode failure throws — "I could not measure" is never a passing number (the #211 posture).
+ * screenshot/decode failure throws — "I could not measure" is never a passing number.
  */
 export async function pixelContrast(page: Page, target: Locator): Promise<PixelContrastReceipt> {
   const box = await target.boundingBox();
@@ -214,7 +210,7 @@ export async function pixelContrast(page: Page, target: Locator): Promise<PixelC
       `pixelContrast: the target paints at α${raw.opacity.toFixed(2)} — below the measurable floor, so a ratio would be arithmetic, not evidence`,
     );
   }
-  // THE ANCESTOR-OPACITY COMPOSITE (#874, 2026-08-30 — the blind spot that made axe score a 3.5:1 caption
+  // THE ANCESTOR-OPACITY COMPOSITE (the blind spot that lets axe score a 3.5:1 caption
   // 100/100). `getComputedStyle().color` reports the AUTHORED ink whatever `opacity` an ancestor group
   // paints it at, and the perimeter ring reads the backdrop through that same group — so a dimmed glyph
   // measured naively comes out at its UNDIMMED ratio and a real WCAG failure reads clean. What the eye
@@ -365,8 +361,7 @@ export async function auditRenderedTextContrast(
  * ring. A `mask-image` is neither: it is PAINT, it does not appear on any computed property of the glyph's
  * element, and it dims the ink and its own backdrop at DIFFERENT rates across the box (a gradient). So
  * `pixelContrast` reports a masked control at its UNMASKED ratio — the same blindness `snap --contrast`,
- * axe and design-audit's whole contrast family carry (memory `mask-is-paint-invisible-to-computed-style`,
- * #1078). This asks the only question a mask can be asked: of the pixels actually on screen inside this
+ * axe and design-audit's whole contrast family carry. This asks the only question a mask can be asked: of the pixels actually on screen inside this
  * control, how far apart are the two furthest?
  *
  * It is an UPPER BOUND on legibility and that is deliberate: it cannot mistake a partly-faded control for
@@ -378,8 +373,8 @@ export async function auditRenderedTextContrast(
  * decode failure throws.
  *
  * `region` NARROWS THE QUESTION TO THE PART A GRADIENT ACTUALLY REACHES, and on the INLINE axis that is
- * the difference between a red and a false clean (#1140). A block-axis band is deep enough to swallow a
- * whole control, so #1128 could ask the whole box; an edge fade on a horizontally scrolling STRIP reaches
+ * the difference between a red and a false clean. A block-axis band is deep enough to swallow a
+ * whole control, so the whole box can be asked; an edge fade on a horizontally scrolling STRIP reaches
  * only the trailing slice of the item that straddles it, and the unfaded two-thirds of that same item
  * supplies both extremes — the upper bound comes back at the item's FULL ratio while its last characters
  * are dissolving. Name the slice the band covers and the bound is still an upper bound, of the right box.

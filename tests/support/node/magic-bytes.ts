@@ -1,5 +1,5 @@
 // Shared MAGIC-BYTE fixtures (NOT a test file — no `.test` suffix). One home for "bytes that a signature
-// sniff will call X", used by every suite that exercises a format wall: #820's bundle-asset admission
+// sniff will call X", used by every suite that exercises a format wall: the bundle-asset admission
 // (`domain/plugin/substrate/manifest`) and the install/upgrade verbs that store what it admitted.
 //
 // WHY A SHARED HOME AND NOT A LOCAL LITERAL: a format wall reads the BYTES and never the filename, so a

@@ -78,7 +78,7 @@ const DEVICE_LOCAL_REGISTRY = {
       "holds null — the pre-existing floor, i.e. exactly today's first-ever-visit behavior",
   },
   "config-group-open": {
-    why: "which Configuration-roster GROUPS are expanded — a per-device working posture (a wide screen holds two libraries open where a laptop holds one), never a preference a user expects to follow them across devices; the `character-library` browse-prefs precedent (§12.1). Groups start COLLAPSED by owner ruling, so an absent entry is the honest default, not a lost setting",
+    why: "which Configuration-roster GROUPS, and which groups' Advanced folds, are expanded — a per-device working posture (a wide screen holds two libraries open where a laptop holds one), never a preference a user expects to follow them across devices; the `character-library` browse-prefs precedent (§12.1). Groups start COLLAPSED by owner ruling, so an absent entry is the honest default, not a lost setting",
   },
   "chat-context-sections": {
     why:

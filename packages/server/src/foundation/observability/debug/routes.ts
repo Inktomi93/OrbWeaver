@@ -35,6 +35,7 @@ import { diagnosticsPostureInput, diagnosticsPostureWarnings, resolveDiagnostics
 import { versionIdentity } from "#foundation/version";
 import { getAuditFailureSnapshot } from "../audit.ts";
 import type { DebugAuthOptions, DebugRoutesOptions } from "../contract/debug.ts";
+import type { Logger } from "../contract/logging.ts";
 import { logRing, recentRequests, securityEvent } from "../logger.ts";
 import { getTraceByRequestId, recentTraces } from "../tracing.ts";
 import { captureNowMs, mintBugReportId, readBuildIdentity, secretLiterals, snapshotServerEvidence, writeBugReport } from "./bug-report.ts";
@@ -131,18 +132,21 @@ const bugReportInput = z.object({
  * The READ probes are deliberately untouched: they carry no body, and a cross-site page cannot read their
  * response.
  */
-const bugReportJsonOnly: MiddlewareHandler = (c, next) => {
-  const contentType = c.req.header("content-type");
-  if (contentType?.toLowerCase().startsWith(BUG_REPORT_MEDIA_TYPE) === true) {
-    return next();
-  }
-  securityEvent(
-    "debug_bug_report_content_type_rejected",
-    { contentType: contentType?.slice(0, REJECTED_CONTENT_TYPE_LOG_CHARS) ?? null },
-    "security: /api/_debug/bug-report POST rejected — content-type is not application/json (a CORS-simple body is cross-site forgeable)",
-  );
-  return Promise.resolve(c.body(null, UNSUPPORTED_MEDIA_TYPE));
-};
+function bugReportJsonOnly(log: Logger | undefined): MiddlewareHandler {
+  return (c, next) => {
+    const contentType = c.req.header("content-type");
+    if (contentType?.toLowerCase().startsWith(BUG_REPORT_MEDIA_TYPE) === true) {
+      return next();
+    }
+    securityEvent(
+      "debug_bug_report_content_type_rejected",
+      { contentType: contentType?.slice(0, REJECTED_CONTENT_TYPE_LOG_CHARS) ?? null },
+      "security: /api/_debug/bug-report POST rejected — content-type is not application/json (a CORS-simple body is cross-site forgeable)",
+      log,
+    );
+    return Promise.resolve(c.body(null, UNSUPPORTED_MEDIA_TYPE));
+  };
+}
 
 /** The POSTed body, or `null` when it was not JSON at all — which `safeParse` then reports as invalid. */
 async function readJsonBody(c: Context): Promise<unknown> {
@@ -265,7 +269,18 @@ function createDebugAuthMiddleware(config: DebugAuthOptions): MiddlewareHandler 
 
 /** Register the /api/_debug/* introspection routes on `app` behind the auth gate. */
 export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions): void {
-  const { db: handle, appSettingRows, assets, rpgTrace, memoryRecall, sockets, effectiveConfig, wireCaptureEnabled, auth = options.env.DEBUG_TOKEN } = options;
+  const {
+    db: handle,
+    appSettingRows,
+    assets,
+    rpgTrace,
+    memoryRecall,
+    sockets,
+    effectiveConfig,
+    wireCaptureEnabled,
+    auth = options.env.DEBUG_TOKEN,
+    log,
+  } = options;
   const db = handle === undefined ? undefined : databaseForOwner(handle);
   const authConfig = debugAuthConfigOf(auth);
   app.use("/api/_debug/*", createDebugAuthMiddleware(authConfig));
@@ -317,7 +332,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions): voi
   // before a byte of it is buffered.
   app.post(
     "/api/_debug/bug-report",
-    bugReportJsonOnly,
+    bugReportJsonOnly(log),
     bodyLimit({ maxSize: BUG_REPORT_MAX_BODY_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }),
     async (c) => {
       const parsed = bugReportInput.safeParse(await readJsonBody(c));
@@ -448,7 +463,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions): voi
 
   if (db !== undefined) {
     app.get("/api/_debug/db/stats", async (c) => c.json({ tables: await tableCounts(db), auditFailures: getAuditFailureSnapshot() }));
-    app.get("/api/_debug/db/integrity", async (c) => c.json(await integrityProbe(db)));
+    app.get("/api/_debug/db/integrity", async (c) => c.json(await integrityProbe(db, log)));
     app.get("/api/_debug/db/chat/:id", async (c) => c.json(await inspectChatState(db, castId<ChatId>(c.req.param("id")))));
     // LIST probes: id-discovery so a harness stops re-deriving ids through the client query cache.
     app.get("/api/_debug/db/chats", async (c) => {

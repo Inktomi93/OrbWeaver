@@ -4,17 +4,22 @@
 // @subject tests/support/node/corpus.ts
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, relative } from "node:path";
+import { dirname, join, relative } from "node:path";
+import { execPath } from "node:process";
 import { authConfigSchema } from "@orb/contracts/auth-config";
+import type { AgentSdkSpawn } from "@orb/inference";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { EnvRefusedError } from "@orb/server/foundation/env/refusal";
 import { createCas } from "@orb/server/infra/storage/cas";
+import { CORPUS_SDK_QUERY } from "./corpus-sdk-protocol.ts";
+import { seedCorpusSdkActor } from "./corpus-sdk-sessions.ts";
+import { createCorpusSdkExecution } from "./corpus-sdk-wire.ts";
 import { createTestEnv } from "./env.ts";
 import type { RawEnvInput } from "./env-seams.ts";
 import { ENV_SEAMS } from "./env-seams.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
 import { createCorpusHarness, expect, test } from "./fixtures.ts";
-import { createServerHarness } from "./server.ts";
+import { createServerHarness, SECRET_BOX_TEST_KEY } from "./server.ts";
 
 const EVERY_INTERFACE = "0.0.0.0";
 const PNG = "image/png";
@@ -79,6 +84,41 @@ test("a composed row follows its source: an asset the product stores lands in th
   } finally {
     await rm(parent, { recursive: true, force: true });
   }
+});
+
+// The suite shares one module registry, so a test never writes the process environment (eslint.config.ts). The
+// developer's own HOME and PATH are the shell variables the old allowlist copied into every agent child.
+test("the developer's shell variables do not reach the agent child: its env is the root's fixed one", async () => {
+  const wire = createCorpusSdkExecution({ prompts: [CORPUS_SDK_QUERY] });
+  const children: { readonly home: string | undefined; readonly path: string | undefined }[] = [];
+  const spawn: AgentSdkSpawn = (options) => {
+    children.push({ home: options.env["HOME"], path: options.env["PATH"] });
+    return wire.spawn(options);
+  };
+  await using root = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY, sdkSpawn: spawn });
+  const actor = await seedCorpusSdkActor(root);
+  const { resolved } = await root.app.runtime.resolve({ principal: actor.principal, connectionId: actor.connection.id, task: "chat", cachedFacts: true });
+  if (resolved.task !== "chat") {
+    throw new Error("the shell-isolation control did not resolve its chat task");
+  }
+  await root.app.runtime.executor.runChatTurn({
+    api: "agent-sdk",
+    connection: { ...resolved, task: resolved.task },
+    params: {},
+    prompt: CORPUS_SDK_QUERY,
+    systemPrompt: { static: "", dynamic: "" },
+  });
+  await wire.settle();
+  expect(children).toEqual([{ home: undefined, path: dirname(execPath) }]);
+});
+
+test("the sign-in source states whether the record set AUTH_MODE, whatever the process that loaded the module had", async () => {
+  const signInSource = async (env?: RawEnvInput): Promise<string> => {
+    await using root = await createServerHarness(env === undefined ? {} : { env });
+    return (await (await root.internalCallerFor(root.ownerId)).share.signInMode()).source;
+  };
+  expect(await signInSource({ ["AUTH_MODE"]: "local" })).toBe("process-env");
+  expect(await signInSource()).toBe("default");
 });
 
 test("a deploy-only row has no door: a key forced past the raw env type is refused, never composed", async () => {

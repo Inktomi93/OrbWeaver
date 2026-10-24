@@ -13,13 +13,9 @@ import { createBoundedRing } from "@orb/kit/bounded-ring";
 import type { Handle, UserId } from "@orb/kit/ids";
 import pino from "pino";
 import { env } from "#foundation/env";
-import type { RequestRecord } from "./contract/logging.ts";
+import type { Logger, RequestRecord } from "./contract/logging.ts";
 
-export type { RequestRecord } from "./contract/logging.ts";
-
-// pino v10 exports `Logger` as a member of the `pino` namespace (not a top-level named export), so it is
-// referenced as `pino.Logger`. A local, non-exported alias keeps the rest of the file readable.
-type Logger = pino.Logger;
+export type { Logger, RequestRecord } from "./contract/logging.ts";
 
 const LOG_RING_CAPACITY = 2000;
 const REQUEST_RING_CAPACITY = 500;
@@ -51,45 +47,52 @@ const ringStream = new Writable({
 /** The serializers every log line runs: an `err` field is copied enumerable key by enumerable key. */
 export const logSerializers: { readonly err: typeof pino.stdSerializers.err } = { err: pino.stdSerializers.err };
 
-export const logger: Logger = pino(
-  {
-    level: env.LOG_LEVEL,
-    // Emit the level as its string label ("warn"), not pino's numeric 40 — greppable in any aggregator.
-    formatters: { level: (label) => ({ level: label }) },
-    timestamp: pino.stdTimeFunctions.isoTime,
-    serializers: logSerializers,
-    // Auth/secrets only — RP bodies are never logged. Top-level keys + one-level *.x wildcards: pino
-    // redact is not recursive, so a bare "apiKey" misses a nested { credential: { apiKey } }.
-    redact: {
-      paths: [
-        "req.headers.authorization",
-        "req.headers.cookie",
-        "authorization",
-        "token",
-        "authToken",
-        "apiKey",
-        "password",
-        "*.authorization",
-        "*.token",
-        "*.authToken",
-        "*.apiKey",
-        "*.password",
-        "*.ciphertext",
-        "*.cookie",
-      ],
-      censor: "[redacted]",
+/** A root's logger at `level`. Every root's logger writes the same process stdout and log ring. */
+export function createLogger(level: LogLevel): Logger {
+  return pino(
+    {
+      level,
+      // Emit the level as its string label ("warn"), not pino's numeric 40 — greppable in any aggregator.
+      formatters: { level: (label) => ({ level: label }) },
+      timestamp: pino.stdTimeFunctions.isoTime,
+      serializers: logSerializers,
+      // Auth/secrets only — RP bodies are never logged. Top-level keys + one-level *.x wildcards: pino
+      // redact is not recursive, so a bare "apiKey" misses a nested { credential: { apiKey } }.
+      redact: {
+        paths: [
+          "req.headers.authorization",
+          "req.headers.cookie",
+          "authorization",
+          "token",
+          "authToken",
+          "apiKey",
+          "password",
+          "*.authorization",
+          "*.token",
+          "*.authToken",
+          "*.apiKey",
+          "*.password",
+          "*.ciphertext",
+          "*.cookie",
+        ],
+        censor: "[redacted]",
+      },
     },
-  },
-  // Destinations admit every level so `logger.level` is the one gate: a fixed destination level (pino's
-  // default is `info`) would drop lines after a runtime `AppSettings.logLevel` raise past the boot level.
-  pino.multistream(
-    [
-      { level: LOWEST_LOG_LEVEL, stream: process.stdout },
-      { level: LOWEST_LOG_LEVEL, stream: ringStream },
-    ],
-    { dedupe: false },
-  ),
-);
+    // Destinations admit every level so `logger.level` is the one gate: a fixed destination level (pino's
+    // default is `info`) would drop lines after a runtime `AppSettings.logLevel` raise past the boot level.
+    pino.multistream(
+      [
+        { level: LOWEST_LOG_LEVEL, stream: process.stdout },
+        { level: LOWEST_LOG_LEVEL, stream: ringStream },
+      ],
+      { dedupe: false },
+    ),
+  );
+}
+
+/** The process logger that un-migrated sites still import; a root hands its own from {@link createLogger}.
+ *  Transitional: item 1271's last leg deletes it with this module's process-env read. */
+export const logger: Logger = createLogger(env.LOG_LEVEL);
 
 interface RequestContext {
   requestId: string;
@@ -100,14 +103,15 @@ interface RequestContext {
 
 const requestContext = new AsyncLocalStorage<RequestContext>();
 
-/** Run `fn` with a request-scoped child logger bound to this request id. */
-export function runInRequest<T>(requestId: string, fn: () => T): T {
-  return requestContext.run({ requestId, log: logger.child({ requestId }) }, fn);
+/** Run `fn` with a request-scoped child of the root's logger, bound to this request id. */
+export function runInRequest<T>(base: Logger, requestId: string, fn: () => T): T {
+  return requestContext.run({ requestId, log: base.child({ requestId }) }, fn);
 }
 
-/** The current request's logger (carries requestId + — once bound — userId/handle), or the base logger. */
-export function getLog(): Logger {
-  return requestContext.getStore()?.log ?? logger;
+/** The current request's logger (carries requestId + — once bound — userId/handle), else `base`, the
+ *  caller's root logger. An omitted `base` falls back to the process logger until item 1271 removes it. */
+export function getLog(base: Logger = logger): Logger {
+  return requestContext.getStore()?.log ?? base;
 }
 
 /** Attach the resolved caller to the current request scope; afterwards every line carries `userId`/`handle`.
@@ -128,8 +132,8 @@ export function getRequestUserId(): UserId | undefined {
 
 /** Security-relevant events. One consistently-tagged pino line so the whole security trail is greppable
  *  as `security:true` and filterable by `event`. Emitted at warn (rejections/blocks, not errors). */
-export function securityEvent(event: string, fields: Record<string, unknown> = {}, message?: string): void {
-  getLog().warn({ security: true, event, ...fields }, message ?? `security: ${event}`);
+export function securityEvent(event: string, fields: Record<string, unknown> = {}, message?: string, base?: Logger): void {
+  getLog(base).warn({ security: true, event, ...fields }, message ?? `security: ${event}`);
 }
 
 // An IdP `groups` claim is EXTERNAL, unvalidated text arriving on the unauthenticated login path, so what

@@ -90,7 +90,7 @@ import type { EmbeddingsIndexer, EmbeddingsService } from "#domain/embeddings";
 import { createRecordUsage, createResolveEmbeddingConnection, createVectorSweepOps } from "#domain/embeddings";
 import type { ExportService } from "#domain/export";
 import { createImageryPortability } from "#domain/imagery";
-import { buildImportContext, createInstallerCharacterImport, serializeImportCard } from "#domain/import";
+import { buildImportContext, cardPngIdentity, createInstallerCharacterImport, serializeImportCard } from "#domain/import";
 import type { DefaultPersonaSeeder, ResolvePersonasForParticipants } from "#domain/persona";
 import { createSeedPersonaWithCompletion } from "#domain/persona";
 import type { DistributedPluginApplier, PluginHostOps } from "#domain/plugin";
@@ -135,7 +135,7 @@ import { createAttachOwnedBooksByName, createImportStandaloneLorebook } from "#d
 import { APP_NAME, APP_URL } from "#foundation/config";
 import type { Env } from "#foundation/env/record";
 import { allowedHostsInput, installKind, publicAddresses } from "#foundation/env/record";
-import type { AuditEntry, BugReportDiagnosticsRead, WireCaptureSpill } from "#foundation/observability";
+import type { AuditEntry, BugReportDiagnosticsRead, Logger, WireCaptureSpill } from "#foundation/observability";
 import {
   addSpanEvent,
   createAuditWiring,
@@ -219,6 +219,9 @@ type InferenceSeams = Partial<Pick<InferenceDeps, "agentSdk" | "localLight" | "c
  * config + the `env` record inside `createServices`, never passed in one by one.
  */
 export interface ServicesDeps {
+  /** This root's logger (`createProcessSeams` builds it from the record's `LOG_LEVEL`; a test root builds its own).
+   *  Every line this graph writes outside a request goes through it, and the settings cache rebinds its level. */
+  readonly logger: Logger;
   /** The parsed env record (`createProcessSeams` reads the process's; a test root parses its own). Every knob this
    *  graph reads comes from here, so a root that sets a key in its record turns the same production read. */
   readonly env: Env;
@@ -479,7 +482,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const healthThrottle = resources.use(createCredentialHealthThrottle());
   const publishUserEvent = liveBuses.user.publishUserEvent;
   // biome-ignore lint/nursery/useDisposables: backgroundResources owns this settlement through the moved graph stack; the borrowed operation view must not close at return.
-  const background: Omit<BackgroundWork, keyof AsyncDisposable> = backgroundResources.use(createBackgroundWork());
+  const background: Omit<BackgroundWork, keyof AsyncDisposable> = backgroundResources.use(createBackgroundWork(deps.logger));
   let chatLifetime: ChatComposeResult | undefined;
   let rpgLifetime: RpgComposeResult | undefined;
   let pluginLifetime: AutomationPluginComposeResult | undefined;
@@ -522,10 +525,11 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       timers,
       buildConnector: deps.buildConnector,
       env: deps.env,
+      log: deps.logger,
     }),
   );
   egressLifetime = egress;
-  const forwardJwtVerifier = createForwardJwtVerifier(resources.use(createJwksReader(egress.configuredEndpointFetch)).jwksFor);
+  const forwardJwtVerifier = createForwardJwtVerifier(resources.use(createJwksReader(egress.configuredEndpointFetch, deps.logger)).jwksFor, deps.logger);
   const {
     db,
     now,
@@ -540,7 +544,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const presence = createPresenceRegistry(now);
   const sockets = createSocketRegistry(now, newOpaqueId);
 
-  const audit = createAuditWiring(db, idSource).log;
+  const audit = createAuditWiring(db, idSource, deps.logger).log;
   const newUserId = (): UserId => idSource.userId();
   const { applyStatsDelta, bumpStatsCanonVersion } = createStatsBatchWiring(idSource);
   // biome-ignore lint/nursery/useDisposables: resources adopts this owner through the moved graph stack; local using would close it before the graph starts.
@@ -600,7 +604,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   let refreshAutoindex = (): void => undefined;
   const settingsDeps: SettingsServiceDeps = {
     // The root's auth snapshot decides the mode floor, so the floor and the auth seam agree on the mode.
-    effectiveConfig: createEffectiveConfigCache(db, { ...deps.env, ["AUTH_MODE"]: authMode }),
+    effectiveConfig: createEffectiveConfigCache(db, { ...deps.env, ["AUTH_MODE"]: authMode }, deps.logger),
     onEffectiveConfigChanged: () => refreshAutoindex(),
     db,
     now,
@@ -647,7 +651,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const wireCaptureOn = isWireCaptureEnabled(deps.env);
   const wireReplyCaptureOn = wireCaptureOn && isWireReplyCaptureEnabled(deps.env);
   const secretBox = createSecretBox(deps.secretBoxKey);
-  const cas = createCas(deps.casDir);
+  const cas = createCas(deps.casDir, deps.logger);
   const variants = createVariantCache(deps.variantDir);
   const extractText = createExtractText();
   const passwordHasher = createPasswordHasher(deps.sessionSecret);
@@ -922,6 +926,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const { admin, toolUse, exportService } = buildAdmin({
     emitUserEvent: liveBuses.user.publishUserEvent,
     idSource,
+    logger: deps.logger,
     db,
     now,
     newUserId,
@@ -941,6 +946,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // R6 — the chat-anchored campaign READ the orb-native chat-bundle export carries. A standalone factory
     // (db only), so it wires here rather than waiting on the rpg compose seam below.
     exportRpgGame: createExportRpgGame({ db }),
+    cardPngIdentity,
     serverRestart: deps.serverRestart,
   });
 
@@ -1039,6 +1045,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     ...turnOutcomeRecorderOf(wireCaptureOn, wireSpill),
     random: deps.random,
     idSource,
+    logger: deps.logger,
     resolveUtilityPresetParams,
     mediaProcessing: { frameCount: imageAdapter.frameCount, prepareVideo: createVideoPreparer(timers.timeoutUnref) },
     toolUse,
@@ -1228,6 +1235,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // chat/world-info/imagery/notifications + resolveOwnerPrincipal; plugin reuses automation's op objects).
   const automationPlugin = await buildAutomationPlugin({
     env: deps.env,
+    logger: deps.logger,
     ...pluginExecutionInputs(deps),
     monotonicNow: deps.monotonicNow,
     timers,

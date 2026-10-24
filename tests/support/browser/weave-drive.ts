@@ -1,4 +1,4 @@
-// CT support for driving + reading the brand weave under a COARSE pointer (#152).
+// CT support for driving + reading the brand weave under a COARSE pointer.
 //
 // `touchDrag` goes through chromium's REAL touch pipeline (CDP `Input.dispatchTouchEvent`), not a
 // hand-built DOM `TouchEvent`: a synthesized event would skip touch-action arbitration and gesture

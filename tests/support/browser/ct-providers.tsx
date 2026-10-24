@@ -9,9 +9,8 @@
 //     (`CtToastSurface` mounts the production `AppToaster`; the preset action/rack stories mount
 //     `Toaster`). That made `[data-slot="toast-viewport"]` resolve to TWO nodes — a strict-mode
 //     violation class where the harness copy is always the EMPTY one — and put two live regions named
-//     "Alerts" on the page (#247). The outlet is now owned by whoever needs it: a story that expects a
-//     toast to PAINT renders its own. Forgetting is loud (the toast never appears), where the old
-//     default was silent.
+//     "Alerts" on the page. The outlet is owned by whoever needs it: a story that expects a
+//     toast to PAINT renders its own. Forgetting is loud (the toast never appears).
 //   • drawer's DrawerProvider / DrawerVirtualKeyboardProvider — drawer-scoped context, not global
 //     chrome; they stay in the drawer fixture.
 //   • a DirectionProvider — Base UI defaults to `ltr` and no CT exercises RTL, so it would be an
