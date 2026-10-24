@@ -1,6 +1,12 @@
 import { builtinModules } from "node:module";
-import type { IConfiguration, IForbiddenRuleType } from "dependency-cruiser";
+import type { DependencyType, IConfiguration, IForbiddenRuleType } from "dependency-cruiser";
+import clientPackage from "./packages/client/package.json" with { type: "json" };
+import contractsPackage from "./packages/contracts/package.json" with { type: "json" };
+import dbPackage from "./packages/db/package.json" with { type: "json" };
+import inferencePackage from "./packages/inference/package.json" with { type: "json" };
+import kitPackage from "./packages/kit/package.json" with { type: "json" };
 import serverPackage from "./packages/server/package.json" with { type: "json" };
+import uiPackage from "./packages/ui/package.json" with { type: "json" };
 import { BROWSER_TEST_SUFFIXES, TEST_KIND_DEFINITIONS, TEST_KIND_SUFFIXES } from "./tooling/src/floor/testing/test-kinds.ts";
 
 const ENTRY_SOURCE = "^packages/server/src/entry/";
@@ -90,11 +96,20 @@ const SUBPATH_LEAF_IMPORTERS = [
   "packages/client/src/features/chat/components/message-row.tsx",
 ].map((path) => `^${path.replaceAll(".", "\\.")}$`);
 
+// The packages each package may import; a test tree of the package runs production only from the same set.
+const CAKE = {
+  kit: "^packages/kit/",
+  contracts: "^packages/(contracts|kit)/",
+  db: "^packages/(db|contracts|kit)/",
+  inference: "^packages/(inference|contracts|kit)/",
+  client: "^packages/(client|contracts|kit|ui)/",
+} as const;
+
 const PACKAGE_DIRECTION = [
-  { name: "kit-purity", from: "^packages/kit/", allowed: "^packages/kit/" },
-  { name: "contracts-cake", from: "^packages/contracts/", allowed: "^packages/(contracts|kit)/" },
-  { name: "db-cake", from: "^packages/db/", allowed: "^packages/(db|contracts|kit)/" },
-  { name: "inference-cake", from: "^packages/inference/", allowed: "^packages/(inference|contracts|kit)/" },
+  { name: "kit-purity", from: "^packages/kit/", allowed: CAKE.kit },
+  { name: "contracts-cake", from: "^packages/contracts/", allowed: CAKE.contracts },
+  { name: "db-cake", from: "^packages/db/", allowed: CAKE.db },
+  { name: "inference-cake", from: "^packages/inference/", allowed: CAKE.inference },
   { name: "default-content-cake", from: "^packages/default-content/", allowed: "^packages/(default-content|kit)/" },
   { name: "showcase-plugins-cake", from: "^packages/showcase-plugins/", allowed: "^packages/(showcase-plugins|kit|contracts)/" },
   { name: "server-cake", from: "^packages/server/", allowed: "^packages/(server|contracts|db|default-content|inference|kit|showcase-plugins)/" },
@@ -215,13 +230,14 @@ const SERVER_TEST_TIERS = "(?:entry|transport|domain|infra|foundation|primitives
 const SERVER_TEST_OWN_MODULE = `^tests/server/((?!entry/)${SERVER_TEST_TIERS})/([^/]+)/`;
 const SERVER_TEST_OWN_TIER = `^tests/server/(entry(?=/)|${SERVER_TEST_TIERS}(?=/[^/]+$))/`;
 const SERVER_TEST_PRIMITIVES = `${SRV}primitives/`;
-// Every server door: a module's index.ts, and each subpath the package's exports map declares.
-const SERVER_DOORS = [
-  `${SRV}[^/]+/[^/]+/index\\.ts$`,
-  ...Object.values(serverPackage.exports)
+// The file each subpath of a package's exports map names; a types-only conditional entry is no source door.
+function exportedDoors(pkg: string, exports: Readonly<Record<string, unknown>>): string[] {
+  return Object.values(exports)
     .filter((target) => typeof target === "string")
-    .map((target) => `^${RegExp.escape(target.replace(/^\.\//u, "packages/server/"))}$`),
-];
+    .map((target) => `^${RegExp.escape(target.replace(/^\.\//u, `packages/${pkg}/`))}$`);
+}
+// Every server door: a module's index.ts, and each subpath the package's exports map declares.
+const SERVER_DOORS = [`${SRV}[^/]+/[^/]+/index\\.ts$`, ...exportedDoors("server", serverPackage.exports)];
 // The suites that import a production constant from another module's door (Spine-Testing §9 imports constants from
 // their home): each line names the constant and why the suite needs it. No wire carries any of them.
 const SERVER_TEST_REACHES = {
@@ -318,6 +334,180 @@ function serverTestMirrorRules(): IForbiddenRuleType[] {
   ];
 }
 
+// A suite under tests/<pkg>/ runs production only from its package's cake (CAKE), and enters every package through
+// a subpath its exports map declares. Kit, contracts, db and inference mirror their package as one module: the exports
+// map is the door. A client suite under tests/client/features/<name>/, its stories included, runs only its own
+// feature's door and the client's other exported doors; a client tier suite runs no feature door. Another feature
+// reaches a story through the registries `@orb/testkit/browser` composes. A type-only import of any door stays legal.
+const SOURCE = "^packages/[^/]+/src/";
+const PACKAGE_DOORS = [
+  ...exportedDoors("client", clientPackage.exports),
+  ...exportedDoors("contracts", contractsPackage.exports),
+  ...exportedDoors("db", dbPackage.exports),
+  ...exportedDoors("inference", inferencePackage.exports),
+  ...exportedDoors("kit", kitPackage.exports),
+  ...exportedDoors("server", serverPackage.exports),
+  ...exportedDoors("ui", uiPackage.exports),
+];
+const TEST_TYPE_CONTRACT = "\\.test-d\\.ts$";
+const RUNTIME_ONLY: DependencyType[] = ["type-only", "type-import"];
+// The suites that run a file no door of their cake admits, each line naming the file and why. A feature-private pure
+// model stays off its door because a door forwards only what production consumes through it (`pnpm knip:prod`).
+const PACKAGE_TEST_REACHES = {
+  "tests/db/schema/chat-freeze-provenance.repo.int.test.ts": {
+    "packages/server/src/entry/boot/index.ts":
+      "runBootMigrations: the case proves boot backs up the pre-migration file before the provenance rebuild, and only the persistence tier may seed that schema",
+  },
+  "tests/db/client/traced-client-spans.int.test.ts": {
+    "packages/server/src/foundation/observability/index.ts":
+      "wrapLibSqlClient: the client wrapper createDb takes, proven through native close; the raw queries it traces are persistence-tier reads",
+  },
+  "tests/client/features/plugin/native-guest-protocol.ct.tsx": {
+    "packages/client/src/lib/plugin-ui-guest-protocol.ts":
+      "UI_GUEST_BUDGETS: the guest's own log caps; its Worker-side importers read the leaf, so the lib door forwards no budget",
+  },
+  "tests/client/features/character/lib/facet-fill.dom.test.ts": {
+    "packages/client/src/features/character/lib/character-card-facets.ts": "facetFillState and CHARACTER_CARD_FACET_IDS: the feature-private facet model",
+    "packages/client/src/features/character/lib/character-card-form-model.ts": "DEFAULT_CHARACTER_CARD_FORM: the empty form the facet model reads",
+  },
+  "tests/client/features/chat/lib/empty-send-and-duration.test.ts": {
+    "packages/client/src/features/chat/lib/continue-on-empty.ts": "resolveEmptySendAction: the feature-private empty-send dispatch",
+    "packages/client/src/features/chat/lib/gen-duration.ts": "durationLabel and genDurationLabel: the feature-private duration formatting",
+  },
+  "tests/client/features/discovery/lib/corpus-duplicate-groups.test.ts": {
+    "packages/client/src/features/discovery/lib/corpus-duplicate-groups.ts": "groupIdenticalArt: the feature-private duplicate grouping",
+  },
+  "tests/client/features/preset/lib/template-addresses.test.ts": {
+    "packages/client/src/features/preset/lib/template-rows.ts": "templateGroups, templateRowById and templateStoredText: the feature-private template model",
+  },
+  "tests/client/features/workloads/lib/import-notes.dom.test.ts": {
+    "packages/client/src/features/workloads/lib/portability-model.ts": "summarizeCardImport: the feature-private import summary",
+  },
+  "tests/client/lib/appearance-carrier-manifest.test.ts": {
+    "packages/client/src/lib/appearance-carrier-manifest.ts":
+      "the carrier manifest tables the suite reconciles; the lib door forwards only the owner keys production reads",
+  },
+} as const satisfies Readonly<Record<string, Readonly<Record<string, string>>>>;
+
+interface MirrorRule {
+  readonly name: string;
+  readonly comment: string;
+  readonly from: string;
+  readonly fromNot?: string;
+  readonly to: string;
+  readonly toNot: readonly string[];
+  readonly runtime: boolean;
+}
+
+function mirrorRule({ name, comment, from, fromNot, to, toNot, runtime }: MirrorRule, exempt: readonly string[] = []): IForbiddenRuleType {
+  return {
+    name,
+    comment,
+    severity: "error",
+    from: { path: from, pathNot: [...(fromNot === undefined ? [] : [fromNot]), ...exempt] },
+    to: { path: to, pathNot: [...toNot], ...(runtime ? { dependencyTypesNot: RUNTIME_ONLY } : {}) },
+  };
+}
+
+// The rule for every suite of the tree but the listed ones, then one copy per listed suite with its named files
+// admitted. Each copy needs its own name: `extends` merges forbidden rules by name, so a second rule of one name
+// replaces the first.
+function withListedCopies(pkg: string, rule: MirrorRule): IForbiddenRuleType[] {
+  const listed = Object.entries(PACKAGE_TEST_REACHES).filter(([path]) => path.startsWith(`tests/${pkg}/`));
+  return [
+    mirrorRule(
+      rule,
+      listed.map(([path]) => `^${RegExp.escape(path)}$`),
+    ),
+    ...listed.map(([path, files]) =>
+      mirrorRule({
+        name: `${rule.name}-listed-${path
+          .replace(/^tests\/[^/]+\//u, "")
+          .replace(/\.[^/]*$/u, "")
+          .replaceAll("/", "-")}`,
+        comment: rule.comment,
+        from: `^${RegExp.escape(path)}$`,
+        to: rule.to,
+        toNot: [...rule.toNot, ...Object.keys(files).map((file) => `^${RegExp.escape(file)}$`)],
+        runtime: rule.runtime,
+      }),
+    ),
+  ];
+}
+
+function packageTestMirrorRules([pkg, packageCake]: readonly [string, string]): IForbiddenRuleType[] {
+  const tree = `^tests/${pkg}/`;
+  // The credential firewall (providers-public-surface-only) already holds every inference internal behind its door.
+  const typeContracts = pkg !== "inference";
+  return [
+    ...withListedCopies(pkg, {
+      name: `tests-${pkg}-mirror-cake`,
+      comment: `A ${pkg} suite runs production only from the packages ${pkg} may import; other production reaches it through a testkit door.`,
+      from: tree,
+      to: SOURCE,
+      toNot: [packageCake],
+      runtime: true,
+    }),
+    ...withListedCopies(pkg, {
+      name: `tests-${pkg}-front-doors-only`,
+      comment: `A ${pkg} suite enters every package through a subpath its exports map declares.`,
+      from: tree,
+      ...(typeContracts ? { fromNot: TEST_TYPE_CONTRACT } : {}),
+      to: SOURCE,
+      toNot: PACKAGE_DOORS,
+      runtime: false,
+    }),
+    ...(typeContracts && pkg !== "client"
+      ? [
+          mirrorRule({
+            name: `tests-${pkg}-type-contracts-own-internals`,
+            comment: `A ${pkg} type contract may name its own package's internal types; every other package enters through its door.`,
+            from: `${tree}.*${TEST_TYPE_CONTRACT}`,
+            to: SOURCE,
+            toNot: [...PACKAGE_DOORS, `^packages/${pkg}/src/`],
+            runtime: false,
+          }),
+        ]
+      : []),
+    ...(pkg === "client"
+      ? [
+          mirrorRule({
+            name: "tests-client-mirror-own-feature",
+            comment: "A feature suite or story runs only its own feature's door; another feature reaches it through the composed registries.",
+            from: "^tests/client/features/([^/]+)/",
+            to: `${CLIENT}features/`,
+            toNot: [`${CLIENT}features/$1/`],
+            runtime: true,
+          }),
+          mirrorRule({
+            name: "tests-client-mirror-own-tier",
+            comment: "A suite of a client tier below the features runs no feature door.",
+            from: "^tests/client/(?!features/)[^/]+/",
+            to: `${CLIENT}features/`,
+            toNot: [],
+            runtime: true,
+          }),
+          mirrorRule({
+            name: "tests-client-type-contracts-own-internals",
+            comment: "A type contract under a feature or tier directory may name that directory's internal types; every other module enters through its door.",
+            from: `^tests/client/(features/[^/]+|(?!features/)[^/]+)/.*${TEST_TYPE_CONTRACT}`,
+            to: SOURCE,
+            toNot: [...PACKAGE_DOORS, `${CLIENT}$1/`],
+            runtime: false,
+          }),
+          mirrorRule({
+            name: "tests-client-type-contracts-tier-doors",
+            comment: "A type contract directly under tests/client/ or tests/client/features/ names only door types.",
+            from: `^tests/client/(?:features/)?[^/]+${TEST_TYPE_CONTRACT}`,
+            to: SOURCE,
+            toNot: PACKAGE_DOORS,
+            runtime: false,
+          }),
+        ]
+      : []),
+  ];
+}
+
 const TEST_WORLDS = [
   {
     name: "client-persisted-store-implementation",
@@ -410,6 +600,7 @@ const TEST_WORLDS = [
     to: { path: "^tests/.*/persistence/" },
   },
   ...serverTestMirrorRules(),
+  ...Object.entries(CAKE).flatMap(packageTestMirrorRules),
   {
     name: "tooling-no-testkit",
     severity: "error",
@@ -435,7 +626,7 @@ const CLIENT_BOUNDARIES = [
     name: "client-cake",
     severity: "error",
     from: { path: "^packages/client/" },
-    to: { path: "^packages/", pathNot: ["^packages/(client|contracts|kit|ui)/", SERVER_ROOT] },
+    to: { path: "^packages/", pathNot: [CAKE.client, SERVER_ROOT] },
   },
   {
     name: "client-no-backend-runtime",
