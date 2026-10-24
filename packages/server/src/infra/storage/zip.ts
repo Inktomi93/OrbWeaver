@@ -235,14 +235,18 @@ async function readEocd(archive: ArchiveReader): Promise<CentralDirLocation> {
   return { count, cdOffset };
 }
 
-// No deflate encoder expands its input by more than a few bytes per 16 KiB block; this bound is several
-// times looser than zlib's own worst case. A record claiming more is a size lie, refused before its
-// compressed bytes are read, so one entry never costs more memory than its declared output allows.
-const DEFLATE_EXPANSION_DIVISOR = 1024;
-const DEFLATE_EXPANSION_SLACK = 64;
+// zlib's conservative `deflateBound`, the ceiling it promises for ANY windowBits/memLevel/strategy: U + U/8 +
+// U/64 + 5 in current zlib, which covers the older U + U/8 + U/256 + U/512 + 4, about 14% over the input. A
+// low-memLevel encoder really writes about 4% over random input, so the default-parameter bound (about 0.1%)
+// would refuse an honest archive. A record claiming more is a size lie, refused before its compressed bytes are
+// read, so one entry never costs more memory than this multiple of its declared output. The slack also covers
+// the 2-byte stream an empty entry deflates to.
+const DEFLATE_BOUND_EIGHTH = 8;
+const DEFLATE_BOUND_64TH = 64;
+const DEFLATE_BOUND_SLACK = 16;
 
 function maxDeflatedBytes(uncompressedSize: number): number {
-  return uncompressedSize + Math.ceil(uncompressedSize / DEFLATE_EXPANSION_DIVISOR) + DEFLATE_EXPANSION_SLACK;
+  return uncompressedSize + Math.ceil(uncompressedSize / DEFLATE_BOUND_EIGHTH) + Math.ceil(uncompressedSize / DEFLATE_BOUND_64TH) + DEFLATE_BOUND_SLACK;
 }
 
 interface EntryLimits {
@@ -355,7 +359,9 @@ async function inflateEntry(archive: ArchiveReader, rec: CentralRecord): Promise
 function inflateWithCap(compressed: Uint8Array, rec: CentralRecord): Uint8Array {
   try {
     return inflateRawSync(compressed, {
-      maxOutputLength: rec.uncompressedSize,
+      // zlib rejects a zero output cap outright, so an empty entry (the 2-byte stream Java writes) gets one
+      // byte of room; any byte it really produces fails the declared-size check after this call.
+      maxOutputLength: Math.max(rec.uncompressedSize, 1),
       finishFlush: zlibConstants.Z_FINISH,
     });
   } catch (err) {

@@ -248,7 +248,7 @@ test.describe("committed corpus settings", () => {
     // Narrow to this archive, so a small library still fails fast.
     test.setTimeout(budget(BACKUP_CASE_BASE_MS + allowance));
     const settleMs = budget(IMPORT_SETTLE_BASE_MS + allowance);
-    // The served ZIP cap holds every export this build writes, so the whole library restores through its ZIP.
+    // The served ZIP cap holds any export this build can write, so the library restores through its ZIP.
     expect(archiveBytes).toBeLessThanOrEqual(caps.importBundle);
     await using folder = await prepareBackupFolder(path, testInfo.outputPath("backup-folder"));
     witness = await restoreBackup(page, host, witness, { path, folder: false, entries: folder.entries, exported, settleMs });

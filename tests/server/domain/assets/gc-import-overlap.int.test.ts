@@ -10,8 +10,7 @@ import type { CharacterHandle, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import { freshHeldDb } from "@orb/testkit/node/composed";
-import { createQueueScanner } from "../workloads/funding.fixtures.ts";
+import { createQueueScanner, freshHeldDb } from "@orb/testkit/node/composed";
 import type { GcBox, StoredRef } from "./gc-box.ts";
 import { ageOnly, attach, aWeekAgo, dispatch, openBox, openRoom, stampEveryBlob, startGc, store, survives, workloadRow } from "./gc-box.ts";
 

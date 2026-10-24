@@ -7,7 +7,7 @@ import { stagedOwnerRoot } from "@orb/server/domain/import";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
-import { BUNDLE_ROUTE, bodyRequest, CSRF_HEADERS, observedBody } from "./_body-limit-inputs.ts";
+import { BUNDLE_ROUTE, bodyRequest, CSRF_HEADERS, observedBody, REQUEST_CHUNK_BYTES } from "./_body-limit-inputs.ts";
 
 const WORKLOAD_DEADLINE_MS = 60_000;
 /** The extractor's rejection kind for bytes that are not a zip, as opposed to its `too-large` size refusal. */
@@ -58,6 +58,51 @@ test("a backup over the in-memory import cap is staged whole and its import read
   await runAdmitted(workloadId, AbortSignal.timeout(WORKLOAD_DEADLINE_MS));
   const settled = await root.services.workloads.get({ id: workloadId, caller: principal });
   expect({ status: settled.status, error: settled.error }).toEqual({ status: "failed", error: expect.stringMatching(MALFORMED_ARCHIVE) });
+});
+
+test("a second upload by an owner whose first is still staging is refused before its body is read", async () => {
+  await using root = await createServerHarness({
+    authConfig: { ...authConfigFromEnv(), mode: "single-user", fallback: "owner" },
+    physicalPeer: () => "127.0.0.1",
+    startJobs: false,
+  });
+  // The first upload delivers one chunk, then stays open until the test lets it end.
+  const firstPulled = Promise.withResolvers<void>();
+  const finishFirst = Promise.withResolvers<void>();
+  const first = new ReadableStream<Uint8Array>(
+    {
+      pull: async (controller): Promise<void> => {
+        controller.enqueue(new Uint8Array(REQUEST_CHUNK_BYTES));
+        firstPulled.resolve();
+        await finishFirst.promise;
+        controller.close();
+      },
+    },
+    { highWaterMark: 0 },
+  );
+  const firstResponse = bodyRequest(root, BUNDLE_ROUTE, first);
+  await firstPulled.promise;
+  // A complete one-chunk body that counts what the route pulled from it.
+  let secondRead = 0;
+  const second = new ReadableStream<Uint8Array>(
+    {
+      pull: (controller): void => {
+        secondRead += REQUEST_CHUNK_BYTES;
+        controller.enqueue(new Uint8Array(REQUEST_CHUNK_BYTES));
+        controller.close();
+      },
+    },
+    { highWaterMark: 0 },
+  );
+  const secondResponse = await bodyRequest(root, BUNDLE_ROUTE, second);
+  const secondOutcome = { status: secondResponse.status, body: await secondResponse.json(), read: secondRead };
+  finishFirst.resolve();
+  const firstStatus = (await firstResponse).status;
+
+  expect({ secondOutcome, firstStatus }).toEqual({
+    secondOutcome: { status: 409, body: { error: "a bundle import is already running for this account" }, read: 0 },
+    firstStatus: 202,
+  });
 });
 
 test("a faulting raw upload removes its small pre-dispatch staging prefix", async () => {

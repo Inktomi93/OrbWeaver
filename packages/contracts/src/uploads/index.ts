@@ -49,7 +49,8 @@ export const IMPORT_MAX_TOTAL_BYTES = IMPORT_TOTAL_MIB * BYTES_PER_MIB;
 /** The COMPRESSED backup ZIP cap (4 GiB): the HTTP edge stages the upload to disk under it, aborting
  *  mid-stream and removing the partial file past it, and the extractor reads the staged file by position
  *  under it, never buffering the archive. 4 GiB is the ZIP32 ceiling the library export itself writes
- *  within, so every export this build produces restores directly. */
+ *  within, so no export is refused for its compressed size. An export whose entries inflate past
+ *  {@link IMPORT_MAX_DECOMPRESSED_BYTES} is still refused by that floor. */
 export const IMPORT_BUNDLE_MAX_BYTES = IMPORT_BUNDLE_MIB * BYTES_PER_MIB;
 
 /** SECURITY FLOOR (not served) — the aggregate DECOMPRESSED cap (10 GiB, disk-staged). Sized so a genuine

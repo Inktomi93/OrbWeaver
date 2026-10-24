@@ -2,9 +2,11 @@
 // stage the same entries and refuse the same hostile shapes, leaving nothing staged.
 // @subject packages/server/src/infra/storage/zip.ts
 
+import { createCipheriv } from "node:crypto";
 import { mkdtemp, open, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { crc32, deflateRawSync } from "node:zlib";
 import { extractZip, packZip } from "@orb/server/infra/storage/zip";
 import { expect, test } from "@orb/testkit/node";
 import { onTestFinished } from "vitest";
@@ -18,6 +20,31 @@ const LOCAL_NAME_AT = 30;
 /** Same length as the first entry's path, so a rename leaves every offset intact. */
 const ESCAPING_PATH = "../es/entry.txt";
 const REJECTION_KIND = /zip rejected \((?<kind>[a-z-]+)\)/u;
+// The ZIP record layout (APPNOTE 4.3), for archives another writer produces.
+const ZIP_LOCAL_SIGNATURE = 0x04_03_4b_50;
+const ZIP_CENTRAL_SIGNATURE = 0x02_01_4b_50;
+const ZIP_EOCD_SIGNATURE = 0x06_05_4b_50;
+const ZIP_VERSION_AT = 4;
+const ZIP_VERSION = 20;
+const DEFLATE_METHOD = 8;
+const LOCAL_METHOD_AT = 8;
+const LOCAL_CRC_AT = 14;
+const LOCAL_COMPRESSED_AT = 18;
+const LOCAL_UNCOMPRESSED_AT = 22;
+const LOCAL_NAME_LENGTH_AT = 26;
+const CENTRAL_METHOD_AT = 10;
+const CENTRAL_CRC_AT = 16;
+const CENTRAL_UNCOMPRESSED_AT = 24;
+const CENTRAL_NAME_LENGTH_AT = 28;
+const CENTRAL_LOCAL_OFFSET_AT = 42;
+const EOCD_DISK_ENTRIES_AT = 8;
+const EOCD_TOTAL_ENTRIES_AT = 10;
+const EOCD_CD_SIZE_AT = 12;
+const KEYSTREAM_CIPHER = "aes-128-ctr";
+const KEYSTREAM_KEY_BYTES = 16;
+const LOW_MEMORY_SAMPLE_BYTES = 8 * 1024 * 1024;
+/** The expansion the previous size-lie bound allowed: one byte per KiB. */
+const OLD_BOUND_RATIO = 1 + 1 / 1024;
 /** Past what any encoder writes for the second entry's 14 bytes, yet short of the archive's end after its data. */
 const INFLATED_CLAIM = 100;
 
@@ -132,4 +159,90 @@ test.each(SOURCES)("a hostile archive read from %s is refused with its kind and 
     "over the total cap": { refused: "too-large", leftovers: 0 },
   });
   expect((await cases["more compressed bytes than any encoder writes"]).reason).toMatch(`declares ${String(INFLATED_CLAIM)} compressed bytes`);
+});
+
+interface ForeignEntry {
+  readonly path: string;
+  readonly bytes: Uint8Array;
+  /** The deflate stream another writer produced for `bytes`. */
+  readonly deflated: Uint8Array;
+}
+
+/** A single-disk archive as another writer lays it out: every entry deflated, whatever its size. This build's
+ *  writer stores an entry that deflate cannot shrink, so these shapes only arrive from elsewhere. */
+function foreignZip(entries: readonly ForeignEntry[]): Uint8Array {
+  const parts: Uint8Array[] = [];
+  const centrals: Uint8Array[] = [];
+  let offset = 0;
+  for (const entry of entries) {
+    const name = new TextEncoder().encode(entry.path);
+    const crc = crc32(entry.bytes);
+    const local = new Uint8Array(LOCAL_NAME_AT + name.length);
+    const lv = new DataView(local.buffer);
+    lv.setUint32(0, ZIP_LOCAL_SIGNATURE, true);
+    lv.setUint16(ZIP_VERSION_AT, ZIP_VERSION, true);
+    lv.setUint16(LOCAL_METHOD_AT, DEFLATE_METHOD, true);
+    lv.setUint32(LOCAL_CRC_AT, crc, true);
+    lv.setUint32(LOCAL_COMPRESSED_AT, entry.deflated.length, true);
+    lv.setUint32(LOCAL_UNCOMPRESSED_AT, entry.bytes.length, true);
+    lv.setUint16(LOCAL_NAME_LENGTH_AT, name.length, true);
+    local.set(name, LOCAL_NAME_AT);
+    const central = new Uint8Array(CENTRAL_NAME_AT + name.length);
+    const cv = new DataView(central.buffer);
+    cv.setUint32(0, ZIP_CENTRAL_SIGNATURE, true);
+    cv.setUint16(CENTRAL_METHOD_AT, DEFLATE_METHOD, true);
+    cv.setUint32(CENTRAL_CRC_AT, crc, true);
+    cv.setUint32(CENTRAL_COMPRESSED_AT, entry.deflated.length, true);
+    cv.setUint32(CENTRAL_UNCOMPRESSED_AT, entry.bytes.length, true);
+    cv.setUint16(CENTRAL_NAME_LENGTH_AT, name.length, true);
+    cv.setUint32(CENTRAL_LOCAL_OFFSET_AT, offset, true);
+    central.set(name, CENTRAL_NAME_AT);
+    parts.push(local, entry.deflated);
+    centrals.push(central);
+    offset += local.length + entry.deflated.length;
+  }
+  const centralSize = centrals.reduce((sum, central) => sum + central.length, 0);
+  const eocd = new Uint8Array(EOCD_BYTES);
+  const ev = new DataView(eocd.buffer);
+  ev.setUint32(0, ZIP_EOCD_SIGNATURE, true);
+  ev.setUint16(EOCD_DISK_ENTRIES_AT, entries.length, true);
+  ev.setUint16(EOCD_TOTAL_ENTRIES_AT, entries.length, true);
+  ev.setUint32(EOCD_CD_SIZE_AT, centralSize, true);
+  ev.setUint32(EOCD_CD_OFFSET_AT, offset, true);
+  const out = new Uint8Array(offset + centralSize + EOCD_BYTES);
+  let at = 0;
+  for (const part of [...parts, ...centrals, eocd]) {
+    out.set(part, at);
+    at += part.length;
+  }
+  return out;
+}
+
+/** Bytes deflate cannot shrink, the same every run: an AES-CTR keystream under a fixed key. */
+function incompressible(size: number): Uint8Array {
+  return new Uint8Array(
+    createCipheriv(KEYSTREAM_CIPHER, new Uint8Array(KEYSTREAM_KEY_BYTES), new Uint8Array(KEYSTREAM_KEY_BYTES)).update(new Uint8Array(size)),
+  );
+}
+
+test("a staged archive from a low-memory deflate writer, which expands what it cannot shrink, stages its entry", async () => {
+  const random = incompressible(LOW_MEMORY_SAMPLE_BYTES);
+  // memLevel 1 trades ratio for memory; on bytes it cannot shrink it writes about 4% more than it read.
+  const lowMemory = { path: "notes/low-memory.bin", bytes: random, deflated: new Uint8Array(deflateRawSync(random, { memLevel: 1 })) };
+  // Positive control: the fixture really expands, past the 0.1% bound this build used to apply.
+  expect(lowMemory.deflated.length / random.length).toBeGreaterThan(OLD_BOUND_RATIO);
+
+  const outcome = await extract("staged file", foreignZip([lowMemory]));
+
+  expect(outcome.refused).toBeNull();
+  expect(Buffer.compare(Buffer.from(outcome.entries?.[0]?.bytes ?? []), Buffer.from(random))).toBe(0);
+});
+
+test("a staged archive whose writer deflated an empty file stages it empty", async () => {
+  // The 2-byte empty stream a Java ZipOutputStream writes for a zero-byte file.
+  const empty = { path: "notes/empty.txt", bytes: new Uint8Array(0), deflated: new Uint8Array(deflateRawSync(new Uint8Array(0))) };
+
+  const outcome = await extract("staged file", foreignZip([empty]));
+
+  expect({ refused: outcome.refused, entries: outcome.entries }).toEqual({ refused: null, entries: [{ path: empty.path, bytes: [] }] });
 });

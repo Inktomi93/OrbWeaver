@@ -75,10 +75,8 @@ export interface WorkloadContribution<K extends WorkloadKind = WorkloadKind> {
   readonly modelCalls?: (args: WorkloadEstimateScope & { readonly funderUserId: UserId | null; readonly params: WorkloadParamsByKind[K] }) => Promise<number>;
   readonly resume: WorkloadResumePolicy;
   /**
-   * The kinds this one must never run BESIDE, for any owner, on any lane or replica. A queued row is neither
-   * scanned nor claimed while a row of an excluded kind is in flight, and the exclusion binds both ways, so
-   * the kind that cares declares it once. EXECUTION, like the lane: it decides WHEN a row runs, never whether
-   * it is admitted, so the single-active locks are untouched. OMIT IT when the kind can run beside any other.
+   * The kinds this one must never run BESIDE, for any owner, on any lane or replica (D334). The exclusion binds
+   * both ways, so the kind that cares declares it once. OMIT IT when the kind can run beside any other.
    */
   readonly excludes?: readonly WorkloadKind[];
   /** The run body — a compose-built closure over the OWNING domain's own verbs. No shared env hub. */
