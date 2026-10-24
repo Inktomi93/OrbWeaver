@@ -164,7 +164,7 @@ test("local corpus admission is prepared after the last clone and cannot cross v
   const memberView = viewerViewSchema.parse(member);
   const sourceBytes = await readFile(sourceDatabase);
   const sourceWire = await readFile(join(source.layout.root, "corpus.json"));
-  await using root = await createCorpusHarness(undefined, { authConfig: { mode: "local", fallback: "owner" } });
+  await using root = await createCorpusHarness(undefined, { env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" } });
   const cloneWire = await readFile(join(root.corpus.layout.root, "corpus.json"));
   const accountIds = [ownerView.userId, memberView.userId];
   expect(root.ownerId).toBe(owner.userId);

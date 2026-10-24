@@ -96,11 +96,12 @@ async function seedInternalCaller(harness: ServerTestHarness, spec: ActorSpec): 
 // FixtureParseError); `{}` = depends on no other fixture. noEmptyPattern is off for tests/** (biome.json
 // override) precisely so this idiom needs no per-fixture suppression.
 export const test = base.extend<Fixtures>({
-  corpusHarness: async ({ providerFetch, networkExecution, authConfig, sdkQuery, sdkSpawn, runtimeSpan, secretBoxKey }, use): Promise<void> => {
+  corpusHarness: async ({ providerFetch, networkExecution, env, authConfig, sdkQuery, sdkSpawn, runtimeSpan, secretBoxKey }, use): Promise<void> => {
     await using root = await createCorpusHarness(undefined, {
       providerFetch,
       networkExecution,
       secretBoxKey,
+      ...(env === undefined ? {} : { env }),
       ...(authConfig === undefined ? {} : { authConfig }),
       ...(sdkQuery === undefined ? {} : { sdkQuery }),
       ...(sdkSpawn === undefined ? {} : { sdkSpawn }),

@@ -1,5 +1,6 @@
 // The Node harness assembles the production graph once. Only clocks, business entropy, scheduling and
 // external execution vary; identity, policy, persistence and accounting stay with their production owners.
+// A root binds a public interface only with `allowPublicBind: true`: a production record binds every interface.
 
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
@@ -403,7 +404,14 @@ function actorFor(
 
 async function configuredOidcFor(
   app: ServicesResult,
-  { db, env, authConfig, clock, timers }: Omit<HarnessConstruction, "idSource" | "db"> & Pick<ServicesDeps, "db">,
+  {
+    db,
+    env,
+    authConfig,
+    clock,
+    timers,
+    secretsDir,
+  }: Omit<HarnessConstruction, "idSource" | "db"> & Pick<ServicesDeps, "db"> & Pick<ShareGraphOptions, "secretsDir">,
 ): Promise<(Awaited<ReturnType<typeof createConfiguredOidc>> & { readonly ownerClaimFile: string }) | undefined> {
   if (authConfig.mode !== "oidc") {
     return;
@@ -419,7 +427,8 @@ async function configuredOidcFor(
       settings: env,
     }),
   );
-  const ownerClaimFile = join(env.DATA_LAYOUT.secrets, OWNER_CLAIM_URL_FILE_NAME);
+  // Boot writes the claim beside the root's other secrets, so it follows a caller's `secretsDir` as sharing does.
+  const ownerClaimFile = join(secretsDir, OWNER_CLAIM_URL_FILE_NAME);
   await announceOwnerClaim({
     log: getLog(),
     sessions: app.sessions,
@@ -442,6 +451,12 @@ function shareInputsFor(options: ServerHarnessOptions | UnclaimedServerHarnessOp
   // Boot's own bind input, with the install pinned bare-metal (the `ORB_CONTAINER` row); the parse already refused
   // every refused bind, so this posture carries none.
   const bind = resolveBindPosture({ ...bindPostureInput(inputs.env), inContainer: false });
+  // Production binds every interface by design, which a test root on a dev box must never do by accident.
+  if (bind.publicBind && options.allowPublicBind !== true) {
+    throw new Error(
+      `server harness: this record binds ${bind.host ?? "every interface"} publicly; pass allowPublicBind: true for a root that must listen there`,
+    );
+  }
   return {
     bind,
     appPort,
@@ -572,7 +587,7 @@ export async function createServerHarness(
   } satisfies Parameters<typeof runWorkload>[0];
   const principalFor = createHostPrincipalResolver(app.sessions);
   const credentialsKeyOk = await app.services.credentials.probeKeyDecrypt();
-  const configuredOidc = await configuredOidcFor(app, { ...inputs, db: wiringDb });
+  const configuredOidc = await configuredOidcFor(app, { ...inputs, db: wiringDb, secretsDir });
   oidcLifetime = configuredOidc;
   let closing = false;
   const httpApp = assembleHttp({

@@ -20,7 +20,16 @@ const AUTH_CONFIG_PAIR: RuleConfig<TS> = {
   },
 };
 
-export const getSelector: GetSelector<TS> = () => AUTH_CONFIG_PAIR;
+// The overlay bound to a `const authConfig` first, then handed over as the shorthand `{ authConfig }`.
+const AUTH_CONFIG_CONST: RuleConfig<TS> = {
+  rule: { kind: "variable_declarator", has: { field: "name", regex: "^authConfig$" } },
+};
+// The renamed binding, so it never shadows an `env` already in scope.
+const ENV_BINDING = "authEnv";
+const OVERLAY_TYPE_SUFFIX = '["authConfig"]';
+const ENV_TYPE_SUFFIX = '["env"]';
+
+export const getSelector: GetSelector<TS> = () => ({ rule: { any: [AUTH_CONFIG_PAIR.rule, AUTH_CONFIG_CONST.rule] } });
 
 function keyOf(pair: SgNode<TS>): string | undefined {
   const key = pair.field("key");
@@ -196,13 +205,65 @@ function rewriteWith(pair: SgNode<TS>, container: SgNode<TS>, entries: ReadonlyM
   return [merged, deletion(pair)];
 }
 
+// The object a `const` binds, bare or under `satisfies <type>["authConfig"]`, with the type rewritten to `["env"]`.
+function boundOverlay(declarator: SgNode<TS>): { readonly overlay: SgNode<TS>; readonly typeText: string } | undefined {
+  const value = declarator.field("value");
+  if (value?.is("object") === true) {
+    return { overlay: value, typeText: "" };
+  }
+  const [overlay, type] = value?.is("satisfies_expression") === true ? named(value) : [];
+  if (overlay?.is("object") !== true || type?.text().endsWith(OVERLAY_TYPE_SUFFIX) !== true) {
+    return;
+  }
+  return { overlay, typeText: ` satisfies ${type.text().slice(0, -OVERLAY_TYPE_SUFFIX.length)}${ENV_TYPE_SUFFIX}` };
+}
+
+// Every use of the binding must be a shorthand `{ authConfig }` in an object with no `env` of its own; any other
+// read of the binding is a judgment edit.
+function shorthandUses(declarator: SgNode<TS>): SgNode<TS>[] | undefined {
+  const scope = declarator.ancestors().find((node) => node.is("statement_block") || node.is("program"));
+  if (scope === undefined) {
+    return;
+  }
+  const shorthands = scope.findAll({ rule: { kind: "shorthand_property_identifier", regex: "^authConfig$" } });
+  const otherReads = scope.findAll({ rule: { kind: "identifier", regex: "^authConfig$" } }).filter((node) => node.id() !== declarator.field("name")?.id());
+  const ownEnv = shorthands.some((use) => {
+    const container = use.parent();
+    return container === null || siblingPair(container, "env") !== undefined;
+  });
+  return shorthands.length === 0 || otherReads.length > 0 || ownEnv ? undefined : shorthands;
+}
+
+function rewriteConst(declarator: SgNode<TS>): Edit[] | undefined {
+  const bound = boundOverlay(declarator);
+  const entries = bound === undefined ? undefined : entriesOf(bound.overlay);
+  const mode = entries?.get("AUTH_MODE");
+  // A bound `oidc` overlay cannot show the use sites' client keys, so it stays a judgment edit.
+  if (bound === undefined || entries === undefined || mode === undefined || mode === OIDC_MODE) {
+    return;
+  }
+  if (mode === REFUSED_MODE && entries.get("AUTH_FALLBACK") === REFUSED_FALLBACK) {
+    return;
+  }
+  const uses = shorthandUses(declarator);
+  if (uses === undefined) {
+    return;
+  }
+  return [
+    declarator.replace(`${ENV_BINDING} = { ${renderEntries(withFallback(entries))} }${bound.typeText}`),
+    ...uses.map((use) => use.replace(`env: ${ENV_BINDING}`)),
+  ];
+}
+
 const codemod: Codemod<TS> = (root, options) => {
   const skipped = new Set((options.params["skip"] ?? "").split(",").filter((path) => path.length > 0));
   if (skipped.has(root.relativeFilename())) {
     return Promise.resolve(null);
   }
   const rootNode = root.root();
-  const edits = (options.matches ?? rootNode.findAll(AUTH_CONFIG_PAIR)).flatMap((pair) => rewrite(pair) ?? []);
+  const pairs = rootNode.findAll(AUTH_CONFIG_PAIR).flatMap((pair) => rewrite(pair) ?? []);
+  const consts = rootNode.findAll(AUTH_CONFIG_CONST).flatMap((declarator) => rewriteConst(declarator) ?? []);
+  const edits = [...pairs, ...consts];
   return Promise.resolve(edits.length === 0 ? null : rootNode.commitEdits(edits));
 };
 

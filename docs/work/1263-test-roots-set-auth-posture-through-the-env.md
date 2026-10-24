@@ -22,4 +22,8 @@ Every suite whose `authConfig` pairing the parse accepts sets `env: { AUTH_MODE,
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+- The `auth-config-overlay-to-env` codemod (`tooling/src/codemods/auth-config-overlay-to-env/`) rewrote the inline and the `const`-bound overlays; its fixtures cover each refused and judgment shape. A dry run over `tests/` after the corpus move rewrites nothing.
+- The corpus harness composes over `env`: its default record posture is `local` with `deny`, and callers pass record keys.
+- The overlay remains for `single-user` with `deny`, in `body-limit-ordering`, `body-limit-population`, `auth-meta` and the `debug-gate-admission` builder, and as the fixtures' `authConfig` slot.
+- `debug-gate-admission` gains one strict-posture HTTP row per mode with no relay header. The red is the production change: passing `fallbackWidened: false` at `packages/server/src/entry/http/app.ts`, where the seam reads `ownerFallbackCredentialInput(deps.env)`, fails all four rows and no other case.
+- `tests/support/node/env-seams.int.test.ts` shows a resumed corpus root's record matches the mode `/api/auth/config` serves; it is red on the previous corpus harness, whose record said `single-user`.

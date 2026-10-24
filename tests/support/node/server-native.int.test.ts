@@ -114,9 +114,9 @@ test("native ingress uses its actual peer for first-run while preserving CSRF, r
 });
 
 test("same-ID native roots singleflight their own listeners and out-of-order closure preserves the sibling", async () => {
-  const authConfig = { mode: "local", fallback: "deny" } satisfies NonNullable<Parameters<typeof createServerHarness>[0]>["authConfig"];
-  await using first = await createServerHarness({ authConfig });
-  await using second = await createServerHarness({ authConfig });
+  const authEnv = { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } satisfies NonNullable<Parameters<typeof createServerHarness>[0]>["env"];
+  await using first = await createServerHarness({ env: authEnv });
+  await using second = await createServerHarness({ env: authEnv });
   expect(first.ownerId).toBe(second.ownerId);
   const [firstAddress, firstAgain, secondAddress] = await Promise.all([first.listen(), first.listen(), second.listen()]);
   expect(firstAgain).toEqual(firstAddress);

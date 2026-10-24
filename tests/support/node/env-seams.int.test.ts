@@ -1,9 +1,11 @@
 // One case per env-seam class, through the composed root: a seam row's option reaches the production read, a composed
 // row follows what it derives from, and a deploy-only row has no door.
 // @subject tests/support/node/env-seams.ts
-import { mkdtemp, rm } from "node:fs/promises";
+// @subject tests/support/node/corpus.ts
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
+import { authConfigSchema } from "@orb/contracts/auth-config";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { EnvRefusedError } from "@orb/server/foundation/env/refusal";
 import { createCas } from "@orb/server/infra/storage/cas";
@@ -11,7 +13,7 @@ import { createTestEnv } from "./env.ts";
 import type { RawEnvInput } from "./env-seams.ts";
 import { ENV_SEAMS } from "./env-seams.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
-import { expect, test } from "./fixtures.ts";
+import { createCorpusHarness, expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 
 const EVERY_INTERFACE = "0.0.0.0";
@@ -25,6 +27,27 @@ test("a seam row's option is the record key boot binds by: the parse refuses a p
   await using root = await createServerHarness({ env: { ["AUTH_MODE"]: "local" }, bindHost: EVERY_INTERFACE, allowPublicBind: true });
   expect(root.env.BIND_HOST).toBe(EVERY_INTERFACE);
   expect((await root.listen()).address).toBe(EVERY_INTERFACE);
+});
+
+test("a production record binds every interface, which a root refuses unless allowPublicBind says so", async () => {
+  const clientDistDir = await mkdtemp(join(tmpdir(), "orb-env-seams-dist-"));
+  try {
+    await writeFile(join(clientDistDir, "index.html"), "<!doctype html><title>env seams</title>");
+    const production = { ["NODE_ENV"]: "production", ["AUTH_MODE"]: "local" } as const;
+    await expect(createServerHarness({ env: production, clientDistDir, bindHost: EVERY_INTERFACE })).rejects.toThrow(/allowPublicBind: true/u);
+    await using root = await createServerHarness({ env: production, clientDistDir, bindHost: EVERY_INTERFACE, allowPublicBind: true });
+    expect((await root.listen()).address).toBe(EVERY_INTERFACE);
+  } finally {
+    await rm(clientDistDir, { recursive: true, force: true });
+  }
+});
+
+test("a resumed corpus root's record states the posture its auth config serves", async () => {
+  await using root = await createCorpusHarness();
+  const served = authConfigSchema.parse(await (await root.http.request("/api/auth/config")).json());
+  expect(served.mode).toBe("local");
+  expect(root.env.AUTH_MODE).toBe(served.mode);
+  expect(root.env.AUTH_FALLBACK).toBe("deny");
 });
 
 test("a composed row follows its source: an asset the product stores lands in the record's slot under the parent directory", async () => {

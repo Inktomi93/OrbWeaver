@@ -80,7 +80,7 @@ A root composes over one parsed env record, built through the production parse. 
 
 1. Find the key's row. Set a raw row with `createServerHarness({ env: { ["KEY"]: "value" } })`, and a named row through its option.
 2. Read the result through the product. The record is the dependency production composes with, so a seam reaches the read the key reaches in production.
-3. Put the auth posture in `env`. Use `authConfig` only for a pairing the parse refuses, such as `single-user` with `deny`.
+3. Put the auth posture in `env`. Use `authConfig` only for a pairing the parse refuses, such as `single-user` with `deny`. A corpus capsule and `createCorpusHarness` take the posture the same way; a resumed corpus root defaults to `local` with `deny`.
 
 The `env` type takes only raw rows, so a key with a named option, a composed key or a deploy-only key fails to compile there. An untyped caller, such as a script a case evaluates, has the key refused when the root is built. A new schema key fails `tsc` until it has a row. Give it a raw row unless a named option already writes that concern.
 

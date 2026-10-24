@@ -62,9 +62,9 @@ test("local HTTP admission requires its CSRF-protected password flow and recheck
 });
 
 test("identical actor IDs in independent roots cannot authenticate with the other root's minted cookie", async () => {
-  const authConfig = { mode: "local" } satisfies NonNullable<Parameters<typeof createServerHarness>[0]>["authConfig"];
-  await using first = await createServerHarness({ authConfig });
-  await using second = await createServerHarness({ authConfig });
+  const authEnv = { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" } satisfies NonNullable<Parameters<typeof createServerHarness>[0]>["env"];
+  await using first = await createServerHarness({ env: authEnv });
+  await using second = await createServerHarness({ env: authEnv });
   const firstOwner = await first.internalCallerFor(first.ownerId);
   const secondOwner = await second.internalCallerFor(second.ownerId);
   const firstUser = await firstOwner.admin.createUser({ handle: HANDLE, password: PASSWORD });
