@@ -24,6 +24,11 @@
 // output, a handle can never traverse a path, and `_` being outside the alphabet is what keeps it out of the
 // reserved `__group__*` namespace. Verified per-character against that list, not asserted.
 
+/** Code points D257 refuses because they render as nothing: default-ignorables, controls, format characters
+ *  and the two blank-rendering symbols. The fold drops them, so a name reads the same with or without one; a
+ *  blank (`White_Space`) still separates words. Some are letters or marks (the Hangul fillers, variation
+ *  selectors, the grapheme joiner), so the alphabet subtracts this class too. */
+const INVISIBLE = /[[\p{Default_Ignorable_Code_Point}\p{Cc}\p{Cf}\u{2800}\u{1D159}]--\p{White_Space}]/gv;
 /** Runs of anything that is not a Unicode letter, digit or combining mark (post-fold) → a single hyphen
  *  separator. Marks are IN the alphabet because outside Latin they are letters' vowels (see below); a
  *  Latin accent has already been folded away by then, so none reaches here on an ASCII base. */
@@ -90,15 +95,26 @@ function nameTag(name: string): string {
  *  control, quote or bidi-format character, and no `_`, so nothing in it reaches the reserved `__group__*`
  *  namespace. It is the IMAGE of the fold, not its fixed points: the fold is not idempotent (a truncated long
  *  name's `-<tag>` output re-truncates, and NFKD can emit an uppercase letter that a second pass lowercases),
- *  so "a value the fold leaves unchanged" would refuse handles the fold itself minted. */
-export const SLUG_HANDLE_PATTERN = /^[\p{L}\p{N}][\p{L}\p{N}\p{M}]*(?:-[\p{L}\p{N}\p{M}]+)*$/u;
+ *  so "a value the fold leaves unchanged" would refuse handles the fold itself minted. No {@link INVISIBLE} code
+ *  point is in it (D257). */
+export const SLUG_HANDLE_PATTERN = new RegExp(
+  String.raw`^[[\p{L}\p{N}]--${INVISIBLE.source}][[\p{L}\p{N}\p{M}]--${INVISIBLE.source}]*(?:-[[\p{L}\p{N}\p{M}]--${INVISIBLE.source}]+)*$`,
+  "v",
+);
 
 /** A display name → its stable handle. TOTAL: every non-empty name yields a non-empty handle, and two
  *  distinct names never share one unless their letters and digits genuinely match (the case/accent-variant
  *  collapse that is this engine's job). A name whose letters and digits fold to nothing, or whose fold has to
  *  be truncated, carries a `-<tag>` disambiguator derived from the original. */
 export function slugifyHandle(name: string): string {
-  const folded = name.toLowerCase().normalize("NFKD").replace(LATIN_COMBINING_MARKS, "").replace(NON_SLUG_RUN, "-").replace(EDGE_HYPHENS, "");
+  // Invisibles drop after NFKD, which can decompose one into another (U+3164 to U+1160).
+  const folded = name
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(INVISIBLE, "")
+    .replace(LATIN_COMBINING_MARKS, "")
+    .replace(NON_SLUG_RUN, "-")
+    .replace(EDGE_HYPHENS, "");
   if (folded.length === 0) {
     // An empty name has nothing to disambiguate; anything else (emoji, punctuation, symbols) does.
     return name.length === 0 ? FALLBACK_HANDLE : `${FALLBACK_HANDLE}-${nameTag(name)}`;

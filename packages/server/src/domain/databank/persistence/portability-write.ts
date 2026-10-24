@@ -7,6 +7,7 @@
 // ownership check — both are owner-gated, so a carried assetId/handle can never launder a foreign row onto
 // this document.
 
+import { portableCharacterHandle } from "@orb/contracts/character";
 import { assets, characterDocuments, characters, documents, globalDocuments } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
@@ -41,15 +42,15 @@ export function createListOwnedDocumentIds(input: DbAssemblyInput<Pick<DatabankP
   };
 }
 
-/** The handles of the owner's characters this document is attached to. Owner-scoped through the join (never
- *  a bare junction scan). */
+/** The handles of the owner's characters this document is attached to, as their exported cards carry them.
+ *  Owner-scoped through the join (never a bare junction scan); a synthetic group row names no card. */
 async function attachedHandles(ctx: Pick<DatabankPortabilityContext, "db">, ownerId: UserId, documentId: DocumentId): Promise<readonly string[]> {
   const rows = await ctx.db
     .select({ handle: characters.handle })
     .from(characterDocuments)
     .innerJoin(characters, eq(characters.id, characterDocuments.characterId))
-    .where(and(eq(characterDocuments.documentId, documentId), eq(characters.ownerId, ownerId)));
-  return rows.map((r) => r.handle);
+    .where(and(eq(characterDocuments.documentId, documentId), eq(characters.ownerId, ownerId), eq(characters.synthetic, false)));
+  return rows.map((r) => portableCharacterHandle(r.handle));
 }
 
 export function createExportDocument(input: DbAssemblyInput<Pick<DatabankPortabilityContext, "db">>): ExportDocument {
@@ -125,7 +126,9 @@ async function resolveSourceAsset(
 }
 
 /** The carried handles, resolved to the IMPORTER's own character ids. An unresolved handle is simply not
- *  attached (the gallery precedent) — never an error, never a foreign row. */
+ *  attached (the gallery precedent) — never an error, never a foreign row.
+ *  SECURITY: a carried handle is untrusted, so the lookup excludes synthetic group rows; a file naming
+ *  `__group__<chatId>` would otherwise attach a document to a room's hidden group identity. */
 async function resolveCharacters(ctx: Pick<DatabankPortabilityContext, "db">, ownerId: UserId, handles: readonly string[]): Promise<readonly CharacterId[]> {
   if (handles.length === 0) {
     return [];
@@ -136,6 +139,7 @@ async function resolveCharacters(ctx: Pick<DatabankPortabilityContext, "db">, ow
     .where(
       and(
         eq(characters.ownerId, ownerId),
+        eq(characters.synthetic, false),
         inArray(
           characters.handle,
           [...handles].map((h) => castId<CharacterHandle>(h)),

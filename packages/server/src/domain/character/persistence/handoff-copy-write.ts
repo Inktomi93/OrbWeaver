@@ -23,7 +23,7 @@
 // deletable, exportable, indistinguishable from a duplicate except for the provenance stamp. That matters
 // for the crash arm: mints that land without their room swap are not corruption and need no cleanup sweep.
 
-import { deriveCharacterHandle } from "@orb/contracts/character";
+import { deriveCharacterHandle, portableCharacterHandle } from "@orb/contracts/character";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import { canonicalBackgroundSource, themeBackgroundSchema, themeOverrideSchema } from "@orb/contracts/theme";
 import { batchHandle, databaseForOwner } from "@orb/db/wiring-owner";
@@ -42,8 +42,11 @@ import { cardOf, findByOwnerImportedFrom, listOwnedCharacterRows, listOwnerHandl
  *  turn one accept into an unbounded scan. */
 const HANDLE_ATTEMPTS = 50;
 
-/** The first `<handle>[-n]` free in the recipient's library, or `null` when every candidate is taken. */
-function freeHandle(sourceHandle: CharacterHandle, taken: ReadonlySet<string>): CharacterHandle | null {
+/** The first `<handle>[-n]` free in the recipient's library, or `null` when every candidate is taken.
+ *  SECURITY: the insert below skips the create verb's parse, so a source stored outside the handle alphabet
+ *  is folded through {@link portableCharacterHandle} first; the recipient's copy is always inside it. */
+function freeHandle(stored: CharacterHandle, taken: ReadonlySet<string>): CharacterHandle | null {
+  const sourceHandle = portableCharacterHandle(stored);
   if (!taken.has(sourceHandle)) {
     return sourceHandle;
   }
