@@ -59,12 +59,13 @@ export function Section({
   kickerLayout = "stacked",
   divider = false,
   focal = false,
+  container = false,
   hint,
   level = 3,
   children,
   ...props
 }: SectionProps): ReactElement {
-  const slots = sectionVariants({ divider, kickerLayout, focal });
+  const slots = sectionVariants({ divider, kickerLayout, focal, container });
   const hasHint = hint !== undefined && hint !== null;
   // h3 by default, not h2: a Section is normally a SUB-heading of its hosting surface (a dialog's Title and a
   // drawer's Title render h2), so h2 here flattened e.g. the settings modal's whole hierarchy to one level.

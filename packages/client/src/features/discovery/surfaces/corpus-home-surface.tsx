@@ -80,7 +80,7 @@
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Sparkles, Users } from "@orb/ui/icons";
-import { Container, Grid, Row, Stack, Surface } from "@orb/ui/layout";
+import { Grid, Row, Stack, Surface } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
@@ -205,11 +205,10 @@ function CorpusHomeBody(): ReactElement {
   const mapIsFocal = state.phase === "analysed";
 
   return (
-    // NO `size`: the container-query context survives (the split answers to THIS pane's inline size — the
-    // shell's docked LIST and CONTEXT panels narrow it independently) and no max-width cap centres the page.
-    <Container className="w-full">
-      <Stack gap="section">
-        {/* THE MASTHEAD STACKS BEFORE IT SQUEEZES (side-eye corpus re-pass 2026-08-19, B7). This was one
+    // The container-query context is the CONTENT region's (`corpus-content.tsx`): the split answers to THIS
+    // pane's inline size — the shell's docked LIST and CONTEXT panels narrow it independently.
+    <Stack gap="section">
+      {/* THE MASTHEAD STACKS BEFORE IT SQUEEZES (side-eye corpus re-pass 2026-08-19, B7). This was one
             `flex-wrap` Row with a `flex-1 min-w-0` headline beside a `shrink-0` figure column — and
             `flex-wrap` never fires for a `min-w-0` child, because it has no minimum to overflow with. So at
             430px the h1 was squeezed into a ~130px column and wrapped to SIX one-word lines while the
@@ -217,51 +216,51 @@ function CorpusHomeBody(): ReactElement {
             (`corpus-understanding-invitation.tsx`'s own spelling): one column until the surface's
             `@container` is genuinely wide enough for two, `items-end` only in the two-column arm — a
             right-aligned figure block under a stacked headline would read as a stray. */}
-        <Row align="start" className="flex-col @2xl:flex-row @2xl:items-end" gap="section" justify="between">
-          <Stack className="min-w-0 flex-1" gap="tight">
-            <Text as="span" voice="kicker">
-              Library understanding
-            </Text>
-            <Heading className="max-w-(--reading-measure)" level={1} voice="masthead">
-              {state.headline}
-            </Heading>
-          </Stack>
-          {/* The summary readout: ONE `hero` (the voice for THE value, at most one per surface by law —
+      <Row align="start" className="flex-col @2xl:flex-row @2xl:items-end" gap="section" justify="between">
+        <Stack className="min-w-0 flex-1" gap="tight">
+          <Text as="span" voice="kicker">
+            Library understanding
+          </Text>
+          <Heading className="max-w-(--reading-measure)" level={1} voice="masthead">
+            {state.headline}
+          </Heading>
+        </Stack>
+        {/* The summary readout: ONE `hero` (the voice for THE value, at most one per surface by law —
               which is why `deriveCorpusAnalysisState` MOVES it with the phase rather than pinning it to a
               column) with its companions at datum weight beside it. Never a strip of display-size zeros —
               and never a number the headline just said, which is why the whole block is absent when the
               sentence already carries the library's state (§5 `distill`). */}
-          {/* THE FIGURES ARE RIGHT-ALIGNED ONLY WHERE THERE IS A RIGHT EDGE TO ALIGN TO (side-eye corpus
+        {/* THE FIGURES ARE RIGHT-ALIGNED ONLY WHERE THERE IS A RIGHT EDGE TO ALIGN TO (side-eye corpus
               re-pass #2, P2-6). `text-right` was unconditional, so in every STACKED arm — mobile, the
               three-pane width, the reading preset — the numeral floated at the right edge of its own
               content-sized column (measured x≈79 in a container whose text edge is 24) instead of lining up
               with the h1 above it. Right-alignment is a two-column relationship; it belongs to the arm that
               has two columns, which is the same `@2xl` the masthead itself flips on. */}
-          {state.hero === null ? null : (
-            <Row align="end" className="shrink-0" gap="section">
-              <Stack className="@2xl:text-right" gap="tight">
-                <Text as="span" voice="hero">
-                  {state.hero.value}
+        {state.hero === null ? null : (
+          <Row align="end" className="shrink-0" gap="section">
+            <Stack className="@2xl:text-right" gap="tight">
+              <Text as="span" voice="hero">
+                {state.hero.value}
+              </Text>
+              <Text as="span" voice="gloss">
+                {state.hero.caption}
+              </Text>
+            </Stack>
+            {state.support.map((figure) => (
+              <Stack className="@2xl:text-right" gap="tight" key={figure.id}>
+                <Text as="span" voice="datum">
+                  {figure.value}
                 </Text>
                 <Text as="span" voice="gloss">
-                  {state.hero.caption}
+                  {figure.caption}
                 </Text>
               </Stack>
-              {state.support.map((figure) => (
-                <Stack className="@2xl:text-right" gap="tight" key={figure.id}>
-                  <Text as="span" voice="datum">
-                    {figure.value}
-                  </Text>
-                  <Text as="span" voice="gloss">
-                    {figure.caption}
-                  </Text>
-                </Stack>
-              ))}
-            </Row>
-          )}
-        </Row>
+            ))}
+          </Row>
+        )}
+      </Row>
 
-        {/* `min-w-0` IS THE SPLIT (the home leg's P1-1, paid for once already): a grid TRACK CHILD is
+      {/* `min-w-0` IS THE SPLIT (the home leg's P1-1, paid for once already): a grid TRACK CHILD is
             `min-width:auto`, so a track is floored at its content's min-content width and the declared
             1.55fr/1fr silently becomes whatever the widest island demands.
 
@@ -278,50 +277,49 @@ function CorpusHomeBody(): ReactElement {
             ~33px of ink. The rail's rows are natural again and the leftover under them is the island's to
             own. The left track is unaffected: its children are content-height in a stretched flex column
             either way. */}
-        <Grid cols="leadEarly" gap="gutter">
-          <Stack className="min-w-0" gap="section">
-            {mapIsFocal ? null : <CorpusUnderstandingInvitation />}
-            {/* `totalDistilled` is the ARCHETYPES TAB's own gate signal (#154) — the door's viability is the
+      <Grid cols="leadEarly" gap="gutter">
+        <Stack className="min-w-0" gap="section">
+          {mapIsFocal ? null : <CorpusUnderstandingInvitation />}
+          {/* `totalDistilled` is the ARCHETYPES TAB's own gate signal (#154) — the door's viability is the
                 destination's fact, so it travels down rather than being guessed at here (A7). */}
-            <CorpusFamilyMap canOpenFamilies={catalog.totalDistilled > 0} families={families} focal={mapIsFocal} />
-          </Stack>
-          <Stack className="min-w-0" gap="section">
-            <CorpusReadinessRail
-              queue={{ failed: runs.error !== null, onRetry: (): void => void runs.refetch().catch(globalThis.reportError) }}
-              showRerun={mapIsFocal}
-              stages={state.stages}
-            />
-          </Stack>
-        </Grid>
+          <CorpusFamilyMap canOpenFamilies={catalog.totalDistilled > 0} families={families} focal={mapIsFocal} />
+        </Stack>
+        <Stack className="min-w-0" gap="section">
+          <CorpusReadinessRail
+            queue={{ failed: runs.error !== null, onRetry: (): void => void runs.refetch().catch(globalThis.reportError) }}
+            showRerun={mapIsFocal}
+            stages={state.stages}
+          />
+        </Stack>
+      </Grid>
 
-        <CorpusGemTiles gems={gems} />
+      <CorpusGemTiles gems={gems} />
 
-        <CorpusThemeSection arcThemes={home.arcThemes} sceneThemes={home.sceneThemes} />
+      <CorpusThemeSection arcThemes={home.arcThemes} sceneThemes={home.sceneThemes} />
 
-        {keywords.error !== null ? (
-          // `refetch` takes an OPTIONS BAG, and `onRetry` is wired to a Button's onClick — passing the method
-          // by reference handed React's MouseEvent in as `RefetchOptions` (side-eye 2026-08-21). Every retry
-          // on this surface goes through a wrapper for that reason.
-          <QueryErrorState label="your top keywords" onRetry={(): void => void keywords.refetch().catch(globalThis.reportError)} />
-        ) : (
-          <KeywordExplorer pending={keywords.isPending} top={keywords.data} />
-        )}
-        <StoryThemeDrift />
+      {keywords.error !== null ? (
+        // `refetch` takes an OPTIONS BAG, and `onRetry` is wired to a Button's onClick — passing the method
+        // by reference handed React's MouseEvent in as `RefetchOptions` (side-eye 2026-08-21). Every retry
+        // on this surface goes through a wrapper for that reason.
+        <QueryErrorState label="your top keywords" onRetry={(): void => void keywords.refetch().catch(globalThis.reportError)} />
+      ) : (
+        <KeywordExplorer pending={keywords.isPending} top={keywords.data} />
+      )}
+      <StoryThemeDrift />
 
-        <CorpusNeverPlayedSection
-          characters={unused.data}
-          failed={unused.error !== null}
-          libraryCharacters={home.coverage.characters}
-          onRetry={(): void => void unused.refetch().catch(globalThis.reportError)}
-          pending={unused.isPending}
-        />
-        <CorpusModelEconomicsSection
-          failed={routing.error !== null}
-          onRetry={(): void => void routing.refetch().catch(globalThis.reportError)}
-          pending={routing.isPending}
-          routes={routing.data}
-        />
-      </Stack>
-    </Container>
+      <CorpusNeverPlayedSection
+        characters={unused.data}
+        failed={unused.error !== null}
+        libraryCharacters={home.coverage.characters}
+        onRetry={(): void => void unused.refetch().catch(globalThis.reportError)}
+        pending={unused.isPending}
+      />
+      <CorpusModelEconomicsSection
+        failed={routing.error !== null}
+        onRetry={(): void => void routing.refetch().catch(globalThis.reportError)}
+        pending={routing.isPending}
+        routes={routing.data}
+      />
+    </Stack>
   );
 }

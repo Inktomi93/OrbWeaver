@@ -174,7 +174,7 @@ function AvailableConnectionEditorBody({
 
   return (
     // THE NAMED CONTAINER (see the header): every reflow below keys off THIS box, not the viewport.
-    <Container className="@container/connection-editor" name="connection-editor">
+    <Container name="connection-editor">
       <Stack aria-busy={checking !== null} data-slot="connection-editor" gap="block">
         <ConnectionEditorHeader label={connection.label} onDone={onDone} />
         {reindex.dialog}

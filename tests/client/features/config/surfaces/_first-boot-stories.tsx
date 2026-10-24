@@ -1,6 +1,7 @@
 import type { ConfigGroupId } from "@orb/client/state";
 import { openConfigTo, setMobileViewport, useSectionRegistry } from "@orb/client/state";
 import { CtClientProviders } from "@orb/testkit/browser";
+import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
 
@@ -21,9 +22,9 @@ function FirstBootSubject({ group, phone, width }: { readonly group: ConfigGroup
   });
   return (
     <div style={{ height: 900, width, minHeight: 0, display: "flex" }}>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <Container style={{ flex: 1, minWidth: 0 }}>
         <ConfigContent />
-      </div>
+      </Container>
     </div>
   );
 }

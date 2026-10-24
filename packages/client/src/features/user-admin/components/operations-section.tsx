@@ -61,7 +61,7 @@ function OperationsBody({ anchorId, sectionId }: { readonly anchorId: string; re
   };
 
   return (
-    <Section className="@container" divider={true} heading={OPERATIONS_SUBCATEGORY.label} id={anchorId}>
+    <Section container={true} divider={true} heading={OPERATIONS_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="field">
         <Text voice="gloss">Indexing and log level apply live — no restart needed.</Text>
         <AdminOverrideSwitch

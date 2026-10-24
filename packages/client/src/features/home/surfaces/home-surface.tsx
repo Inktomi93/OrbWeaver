@@ -65,7 +65,7 @@ import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Plus } from "@orb/ui/icons";
-import { Container, Grid, Row, Section, Stack, Surface } from "@orb/ui/layout";
+import { Grid, Row, Section, Stack, Surface } from "@orb/ui/layout";
 import { SCROLL_FADE_Y_CLASS } from "@orb/ui/lib";
 import { useScrollFadeY } from "@orb/ui/scroll-area";
 import { Separator } from "@orb/ui/separator";
@@ -76,6 +76,7 @@ import { WeaveGlyph } from "#components";
 import type { ContributorRegistry } from "#lib";
 import { useFocusOnMount } from "#lib";
 import type { DormantDoorway, HomeTileContribution } from "#state";
+import { HomePaneAnchor } from "../anchors/home-pane-anchor.tsx";
 import { HomeDoorway, HomeTile } from "../components/home-tile.tsx";
 import { orderHomeTiles } from "../lib/order-home-tiles.ts";
 import { useBalancedFoot } from "../lib/use-balanced-foot.ts";
@@ -152,10 +153,10 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
         ref={surfaceRef}
         tabIndex={-1}
       >
-        {/* NO `size`: the container-query context survives (the split answers to THIS pane's inline size,
-            never the viewport — the shell's docked panels narrow it independently) and the max-width cap
-            that was eating 37% of the page goes. */}
-        <Container className="w-full">
+        {/* The anchor sets NO `size`: the container-query context survives (the split answers to THIS pane's
+            inline size, never the viewport — the shell's docked panels narrow it independently) and the
+            max-width cap that was eating 37% of the page goes. */}
+        <HomePaneAnchor>
           {list.length === 0 ? (
             <EmptyState
               action={
@@ -306,7 +307,7 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
               </Grid>
             </Stack>
           )}
-        </Container>
+        </HomePaneAnchor>
       </Stack>
     </Surface>
   );
