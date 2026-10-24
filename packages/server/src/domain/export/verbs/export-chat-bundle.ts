@@ -56,7 +56,6 @@ import type { ExportChatBundleParams, SeatCardIdentity } from "../contract/param
 import type { ExportedFile } from "../contract/results.ts";
 import type { ExportContext, ExportService } from "../contract/service.ts";
 import { slug } from "../substrate/download-slug.ts";
-import { createExportCharacter } from "./export-character.ts";
 
 type ChatRow = typeof chats.$inferSelect;
 type MessageRow = typeof messages.$inferSelect;
@@ -389,8 +388,7 @@ async function loadHostedChat(ctx: ExportContext, params: ExportChatBundleParams
   return chat ?? null;
 }
 
-export function createExportChatBundle(ctx: ExportContext): ExportService["exportChatBundle"] {
-  const exportCharacter = createExportCharacter(ctx);
+export function createExportChatBundle(ctx: ExportContext, exportCharacter: ExportService["exportCharacter"]): ExportService["exportChatBundle"] {
   return async (params: ExportChatBundleParams): Promise<ExportedFile | null> => {
     const chat = await loadHostedChat(ctx, params);
     if (chat === null) {
