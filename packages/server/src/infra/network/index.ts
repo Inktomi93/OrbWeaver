@@ -1,6 +1,6 @@
 // infra/network — front door. The outbound-egress adapter: the SSRF egress firewall (private-range +
-// DNS-rebind block) + the staged safeFetch wrapper and the shared CIDR matcher. Reads foundation/env DOWN
-// for the firewall config. NEVER imports @orb/db or any domain (the sealed-executor invariant).
+// DNS-rebind block) + the staged safeFetch wrapper and the shared CIDR matcher. Takes the env record in its
+// options for the firewall config. NEVER imports @orb/db or any domain (the sealed-executor invariant).
 //
 // The ingress IP-allowlist belt (`ingress.ts`): `ipAllowlistMiddleware` + `clientIp` (peer-vs-XFF
 // trust precedence, anti-spoof) + `parseAllowlist`; mounted by `entry/app.ts`, `clientIp` reused by
@@ -33,7 +33,7 @@ export {
   isTrustedHop,
   parseAllowlist,
   peerIp,
-  TRUSTED_PROXIES,
+  trustedProxiesOf,
 } from "./ingress.ts";
 export { isInRanges, isPrivateOrLoopback, isPublicUnicast } from "./ip-ranges.ts";
 

@@ -42,8 +42,8 @@
 
 import { resolve } from "node:path";
 import type { DomainEvent } from "@orb/contracts/events";
+import type { AuthModeSource } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
-import type { LogLevel } from "@orb/contracts/settings";
 import { CATALOG_SETTINGS_PREFIX } from "@orb/contracts/settings";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { DatabaseHandle } from "@orb/db/wiring";
@@ -133,11 +133,13 @@ import { createWorkloadProgressBus } from "#domain/workloads";
 import type { ImportWorldInfoPort } from "#domain/world-info";
 import { createAttachOwnedBooksByName, createImportStandaloneLorebook } from "#domain/world-info";
 import { APP_NAME, APP_URL } from "#foundation/config";
-import { allowedHostsInput, authModeSource, env, hostEnvAllowlist, installKind, publicAddresses } from "#foundation/env";
-import type { AuditEntry, WireCaptureSpill } from "#foundation/observability";
+import type { Env } from "#foundation/env/record";
+import { allowedHostsInput, installKind, publicAddresses } from "#foundation/env/record";
+import type { AuditEntry, BugReportDiagnosticsRead, WireCaptureSpill } from "#foundation/observability";
 import {
   addSpanEvent,
   createAuditWiring,
+  createBugReportDiagnosticsRead,
   createWireCaptureSpill,
   getLog,
   isWireCaptureEnabled,
@@ -213,9 +215,16 @@ type InferenceSeams = Partial<Pick<InferenceDeps, "agentSdk" | "localLight" | "c
 /**
  * What boot supplies to stand up the whole service graph. The env→config→runtime facts (the private-endpoint
  * allowlist, the agent-sdk fan-out cap, the local-light cache dir) are read from the resolved effective
- * config + `env` inside `createServices`, never passed in.
+ * config + the `env` record inside `createServices`, never passed in one by one.
  */
 export interface ServicesDeps {
+  /** The parsed env record (`createProcessSeams` reads the process's; a test root parses its own). Every knob this
+   *  graph reads comes from here, so a root that sets a key in its record turns the same production read. */
+  readonly env: Env;
+  /** The agent-sdk child-env baseline, the process environment's present variables (`createProcessSeams`). */
+  readonly hostEnvAllowlist: () => Readonly<Record<string, string>>;
+  /** Where this process's `AUTH_MODE` came from (`createProcessSeams`); the share panel names it. */
+  readonly authModeSource: AuthModeSource;
   readonly pluginExecution?: AutomationPluginComposeDeps["pluginExecution"];
   /** The fetch and resolver every egress this graph builds uses (`systemFetch` and `systemResolver` from `createProcessSeams`). */
   readonly networkExecution: Pick<ScopedEgressOptions, "fetch" | "resolver">;
@@ -254,21 +263,9 @@ export interface ServicesDeps {
   readonly providerSeams?: InferenceSeams;
   /** This replica's stable lock-holder tag — must match the boot reclaim's match key. */
   readonly holder?: string;
-  /** Force the rpg flight recorder on (R-OBS), independent of `env.RPG_TRACE` — the drive kit / a trace int test
-   *  passes `true` so it never depends on the ambient env. Absent ⇒ `env.RPG_TRACE === "on"` decides. */
-  readonly rpgTrace?: boolean;
-  /** TASK-24: force wire capture on (the backends' request sink and the engine's outcome recorder), independent
-   *  of `env.WIRE_CAPTURE` — an int test passes `true`. Absent ⇒ `isWireCaptureEnabled()` (env) decides. When
-   *  neither is on, NO recorder is wired (zero cost, zero retained bytes). */
-  readonly wireCapture?: boolean;
-  /** Audit D2/D3: force the REPLY tap on, independent of `env.WIRE_CAPTURE_REPLY`. Absent ⇒
-   *  `isWireReplyCaptureEnabled()` (env) decides. Inert unless the request sink is wired at all. */
-  readonly wireCaptureReply?: boolean;
-  /** Where both wire-capture arms spill; absent ⇒ the env data layout's `wireCapture` slot. A test root passes its
+  /** Where both wire-capture arms spill; absent ⇒ the record's data layout `wireCapture` slot. A test root passes its
    *  own directory so a capture never lands in the checkout. */
   readonly wireCaptureDir?: string;
-  /** The log-level floor `AppSettings.logLevel` overrides, independent of `env.LOG_LEVEL`; absent ⇒ the env decides. */
-  readonly logLevel?: LogLevel;
   /** The process restart `admin.restart` drives (`entry/lifecycle.ts` builds it; a test passes an unsupervised one). */
   readonly serverRestart: ServerRestartPort;
   /** The share relay `share.*` drives (`entry/lifecycle.ts` builds it; a test passes {@link NO_SHARE_RELAY}). */
@@ -392,11 +389,13 @@ export interface ServicesResult extends AsyncDisposable {
    *  to `createApp`, which registers `/api/_debug/rpg/traces` only when it is present (the route's own
    *  `rpgTrace === undefined ⇒ not registered` contract, `foundation/observability/debug/routes.ts`). */
   readonly rpgTrace: RpgTraceRecorder | undefined;
-  /** #412 — whether THIS compose actually wired the provider wire-capture request sink (`deps.wireCapture`
-   *  OR the env flag). `lifecycle.ts` hands it to `createApp`, which publishes it on
+  /** #412 — whether THIS compose actually wired the provider wire-capture request sink (`WIRE_CAPTURE` in
+   *  the record). `lifecycle.ts` hands it to `createApp`, which publishes it on
    *  `/api/_debug/wire/captures` as `enabled` so a reader can tell an off recorder from a quiet one. Surfaced
    *  because the decision lives HERE and nothing downstream can re-derive the force-flag half. */
   readonly wireCaptureOn: boolean;
+  /** The production "Report a bug" read over this graph's env record; the tRPC context carries it. */
+  readonly bugReportDiagnostics: BugReportDiagnosticsRead;
   /** D259 — chat's signup-invite ops, for the local signup route. */
   readonly signupInvites: SignupInviteOps;
   /** The per-user local-light seed, surfaced for the signup route (it runs after the signup commit). */
@@ -443,7 +442,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   await using construction = new AsyncDisposableStack();
   const resources = new AsyncDisposableStack();
   construction.defer(() => resources.disposeAsync());
-  const wireSpill = createWireCaptureSpill(deps.wireCaptureDir);
+  const wireSpill = createWireCaptureSpill(deps.wireCaptureDir ?? deps.env.DATA_LAYOUT.wireCapture);
   // Deferred first so it runs last: every turn has settled, so no wire-capture append outlives the graph.
   resources.defer(wireSpill.settle);
   const backgroundResources = new AsyncDisposableStack();
@@ -502,6 +501,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       ...deps.networkExecution,
       timers,
       buildConnector: deps.buildConnector,
+      env: deps.env,
     }),
   );
   egressLifetime = egress;
@@ -509,12 +509,12 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const {
     db,
     now,
-    authConfig = { mode: env.AUTH_MODE },
-    rolePolicy = createSessionsRolePolicy(env),
+    authConfig = { mode: deps.env.AUTH_MODE },
+    rolePolicy = createSessionsRolePolicy(deps.env),
     idSource,
     newOpaqueId,
-    userRuntimeDir = env.USER_RUNTIME_DIR,
-    importReportsDir = env.DATA_LAYOUT.reports,
+    userRuntimeDir = deps.env.USER_RUNTIME_DIR,
+    importReportsDir = deps.env.DATA_LAYOUT.reports,
   } = deps;
   const authMode = authConfig.mode;
   const presence = createPresenceRegistry(now);
@@ -579,7 +579,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const materializeBackground: MaterializeBackgroundOp = (principal, url) => materializeBackgroundOp(principal, url);
   let refreshAutoindex = (): void => undefined;
   const settingsDeps: SettingsServiceDeps = {
-    effectiveConfig: createEffectiveConfigCache(db, authMode, deps.logLevel),
+    // The root's auth snapshot decides the mode floor, so the floor and the auth seam agree on the mode.
+    effectiveConfig: createEffectiveConfigCache(db, { ...deps.env, ["AUTH_MODE"]: authMode }),
     onEffectiveConfigChanged: () => refreshAutoindex(),
     db,
     now,
@@ -603,7 +604,12 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const getWorkloadContributions = workloadBinding.read;
   const settingsCtx: SettingsContext = createSettingsContext(settingsDeps);
   const settings = createSettingsService(settingsCtx);
-  const rateLimit = createRateLimitGate({ db, now, resolveRateLimits: () => settings.getEffectiveConfig().rateLimits });
+  const rateLimit = createRateLimitGate({
+    db,
+    now,
+    resolveRateLimits: () => settings.getEffectiveConfig().rateLimits,
+    windowMs: deps.env.RATE_LIMIT_WINDOW_MS,
+  });
   const multiHumanCapable = createMultiHumanCapability(authMode, () => settings.getEffectiveConfig());
 
   // Warm the resolved-config cache from the stored override so the sync getEffectiveConfig() returns the
@@ -616,10 +622,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // Built before the runtime so the hosted image arms get the real GIF→first-frame-PNG wire-normalize
   // transform (MA-6) — the sharp adapter, wrapped inside the package so it never leaks in.
   const imageAdapter = createImageAdapter();
-  // TASK-24: wire the provider wire-capture sink ONLY when capture is enabled (env or the force flag). When
-  // off, no sink is injected → the send boundaries never record → zero cost, zero retained bytes, prod-safe.
-  const wireCaptureOn = deps.wireCapture === true || isWireCaptureEnabled();
-  const wireReplyCaptureOn = wireCaptureOn && (deps.wireCaptureReply === true || isWireReplyCaptureEnabled());
+  // TASK-24: wire the provider wire-capture sink ONLY when the record enables capture. When off, no sink is
+  // injected → the send boundaries never record → zero cost, zero retained bytes, prod-safe.
+  const wireCaptureOn = isWireCaptureEnabled(deps.env);
+  const wireReplyCaptureOn = wireCaptureOn && isWireReplyCaptureEnabled(deps.env);
   const secretBox = createSecretBox(deps.secretBoxKey);
   const cas = createCas(deps.casDir);
   const variants = createVariantCache(deps.variantDir);
@@ -669,7 +675,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       get claudeExecutable(): string | undefined {
         return availableClaudeExecutable();
       },
-      hostEnvAllowlist,
+      hostEnvAllowlist: deps.hostEnvAllowlist,
     },
     app: { name: APP_NAME, url: APP_URL },
     snapshotStore: ports.snapshotStore,
@@ -702,9 +708,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       // ABSOLUTE on purpose: transformers.js hands `env.cacheDir` straight to its FileCache, which path.joins
       // it per file and lets node's fs resolve the rest — so a cwd-relative value would follow whatever cwd
       // the process happens to have rather than the data root this knob names.
-      cacheDir: resolve(env.LOCAL_LIGHT_CACHE_DIR),
-      cpuPercent: env.LOCAL_LIGHT_CPU_PERCENT,
-      embedDtype: env.LOCAL_LIGHT_EMBED_DTYPE,
+      cacheDir: resolve(deps.env.LOCAL_LIGHT_CACHE_DIR),
+      cpuPercent: deps.env.LOCAL_LIGHT_CPU_PERCENT,
+      embedDtype: deps.env.LOCAL_LIGHT_EMBED_DTYPE,
       ...(deps.providerSeams?.localLight ?? {}),
     },
   });
@@ -793,6 +799,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // ── assets + character + the two seeders (the assets-character seam). Threads the late-bound
   // materializeBackground holder + the request-time preset/persona forward-ref getters (both compose below).
   const assetsCharacter = buildAssetsCharacter({
+    env: deps.env,
     evictFieldIndex: fieldIndex.evict,
     emitUserEvent: liveBuses.user.publishUserEvent,
     fetchImpl: egress.safeFetch,
@@ -1108,9 +1115,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // service. Registers rpg's 7 state tools into the ONE tool registry (the imagery precedent).
   // R-OBS — the rpg flight recorder. Built ONLY when tracing is enabled, and `undefined` otherwise: the emit
   // sites guard with `deps.trace?.(…)`, so an untraced deployment never even constructs an event object and
-  // its turns are byte-identical. The explicit `rpgTrace` dep wins over the env so an int test / the drive kit
-  // never depends on the ambient environment (the `wireCapture` precedent, and the [[ENV-BLEEDS-INTO-TESTS]]
-  // lesson: a test that reads the operator's `.env` is a test that passes on the wrong machine).
+  // its turns are byte-identical. The knob is the root's record, so a test root turns it in its own parse.
   // THE cross-domain viewer-visibility op (the read-visibility D-entry): membership AND the D16 canon floor as
   // ONE answer for one human over one chat. Built ONCE here and injected into every non-chat consumer that
   // decides "may this human see this chat's CONTENT" — imagery's extractQuiet (via the late-bound getter
@@ -1119,7 +1124,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // only through this op). Declared BEFORE the rpg compose because rpg consumes it; it needs only `db`.
   const resolveViewerVisibility = createResolveViewerVisibility({ db });
 
-  const rpgTrace = (deps.rpgTrace ?? env.RPG_TRACE === "on") ? createRpgTraceRecorder({ now }) : undefined;
+  const rpgTrace = deps.env.RPG_TRACE === "on" ? createRpgTraceRecorder({ now }) : undefined;
   const rpgCompose = buildRpg({
     emitRpgEvent: rpgEvents.publishRpgEvent,
     scheduleTimeout: timers.timeout,
@@ -1204,6 +1209,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // ── automation + plugin (the automation-plugin seam) — built LAST of the domain services (both close over
   // chat/world-info/imagery/notifications + resolveOwnerPrincipal; plugin reuses automation's op objects).
   const automationPlugin = await buildAutomationPlugin({
+    env: deps.env,
     ...pluginExecutionInputs(deps),
     monotonicNow: deps.monotonicNow,
     timers,
@@ -1382,11 +1388,11 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       requireOwner,
       requireAdmin,
       authMode,
-      authModeSource: authModeSource(),
-      install: installKind(),
+      authModeSource: deps.authModeSource,
+      install: installKind(deps.env),
       ownerNeedsPassword: () => sessions.ownerNeedsPassword(),
       localSetupUrl: deps.share.localSetupUrl,
-      publicAddresses: publicAddresses(authMode, allowedHostsInput()),
+      publicAddresses: publicAddresses(authMode, allowedHostsInput(deps.env)),
       liveSocketCount: (userId) => sockets.liveSocketCount(userId),
       audit,
       now,
@@ -1424,7 +1430,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
 
   // The ONE user seed (D263) boot + the app first-request hook share: the manifest's items, gated by the
   // account's seed ledger. Built here, after the roster presets it creates and the two seeders it drives.
-  const seedContentEnabled = env.SEED_CONTENT === "on";
+  const seedContentEnabled = deps.env.SEED_CONTENT === "on";
   const contentSeeder = createUserContentSeeder({
     enabled: () => seedContentEnabled,
     manifest: SEED_MANIFEST,
@@ -1556,5 +1562,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       embedReindex.detachStaleSpaceReindex();
     },
     wireCaptureOn,
+    bugReportDiagnostics: createBugReportDiagnosticsRead(deps.env),
   };
 }

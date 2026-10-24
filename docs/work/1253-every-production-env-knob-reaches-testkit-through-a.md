@@ -10,7 +10,7 @@ area: tests
 
 ## What
 
-`packages/server/src/foundation/env/index.ts` declares about eighty env keys (`AUTH_MODE`, `AUTH_FALLBACK`, `DEBUG_TOKEN`, `WIRE_CAPTURE*`, `RPG_TRACE`, `LOG_LEVEL`, `EGRESS_FIREWALL`, `EGRESS_ALLOWLIST`, `IP_ALLOWLIST`, `ALLOWED_HOSTS`, `FORWARD_AUTH_*`, `OIDC_*`, `LOCAL_LIGHT_*`, `DATA_LAYOUT*`, `IMPORT_*`, `CORPUS_AUTOINDEX`, `DEV_SEED`, …). The harness exposes a handful as seams (`authConfig`, `rolePolicyConfig`, `logLevel`, `debugToken`, `wireCapture`, `wireCaptureReply`, `rpgTrace`, `wireCaptureDir`, `importReportsDir`, `networkExecution`) and reads the rest from the composed `env` record. With env stubs now a lint error, a test that needs any other knob has no door, and nothing says which keys are test knobs, which are deploy-only, and which are already seams.
+`packages/server/src/foundation/env/record/index.ts` declares about eighty env keys (`AUTH_MODE`, `AUTH_FALLBACK`, `DEBUG_TOKEN`, `WIRE_CAPTURE*`, `RPG_TRACE`, `LOG_LEVEL`, `EGRESS_FIREWALL`, `EGRESS_ALLOWLIST`, `IP_ALLOWLIST`, `ALLOWED_HOSTS`, `FORWARD_AUTH_*`, `OIDC_*`, `LOCAL_LIGHT_*`, `DATA_LAYOUT*`, `IMPORT_*`, `CORPUS_AUTOINDEX`, `DEV_SEED`, …). The harness exposes a handful as seams (`authConfig`, `rolePolicyConfig`, `logLevel`, `debugToken`, `wireCapture`, `wireCaptureReply`, `rpgTrace`, `wireCaptureDir`, `importReportsDir`, `networkExecution`) and reads the rest from the composed `env` record. With env stubs now a lint error, a test that needs any other knob has no door, and nothing says which keys are test knobs, which are deploy-only, and which are already seams.
 
 ## Why
 

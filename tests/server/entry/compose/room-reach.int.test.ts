@@ -2,7 +2,6 @@
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { auditLogs, chatDocuments, chatEvents, chatRegexScripts, regexScripts } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { getLog } from "@orb/server/foundation/observability";
 import type { Fixtures } from "@orb/testkit/node";
@@ -14,7 +13,7 @@ import { onTestFinished, vi } from "vitest";
 
 const test = baseTest.extend<Pick<Fixtures, "authConfig">>({
   authConfig: async ({}, use): Promise<void> => {
-    await use({ ...authConfigFromEnv(), mode: "local" });
+    await use({ mode: "local" });
   },
 });
 

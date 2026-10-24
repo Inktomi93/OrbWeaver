@@ -1,7 +1,6 @@
 // @subject packages/server/src/entry/http/app.ts
 import type { AuthMode } from "@orb/contracts/identity";
 import { AUTH_MODES } from "@orb/contracts/identity";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
@@ -42,7 +41,7 @@ for (const mode of AUTH_MODES) {
   for (const backchannel of mode === "oidc" ? [false, true] : [false]) {
     test(`actual native body-limit population: ${mode}, backchannel=${backchannel}`, async () => {
       await using root = await createServerHarness({
-        authConfig: { ...authConfigFromEnv(), mode, fallback: "deny" },
+        authConfig: { mode, fallback: "deny" },
         // biome-ignore lint/style/useNamingConvention: this is the validated production OIDC startup key.
         oidc: { ...NATIVE_OIDC_SETTINGS, OIDC_BACKCHANNEL_LOGOUT: backchannel },
       });
@@ -69,7 +68,7 @@ for (const mode of AUTH_MODES) {
 for (const framing of ["declared", "streamed"] as const) {
   test(`every mounted buffered common intake refuses ${framing} oversized bytes before its tail`, async () => {
     await using root = await createServerHarness({
-      authConfig: { ...authConfigFromEnv(), mode: "single-user", fallback: "owner" },
+      authConfig: { mode: "single-user", fallback: "owner" },
       physicalPeer: () => "127.0.0.1",
     });
     for (const route of COMMON) {
@@ -91,7 +90,7 @@ for (const framing of ["declared", "streamed"] as const) {
   });
 
   test(`local helper-transitive JSON and password routes refuse ${framing} oversized bytes`, async () => {
-    await using root = await createServerHarness({ authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" } });
+    await using root = await createServerHarness({ authConfig: { mode: "local", fallback: "deny" } });
     for (const route of LOCAL_AUTH_ROUTES) {
       using input = observedBody(framing === "declared" ? 0 : route.bytes);
       const headers = new Headers(CSRF_HEADERS);
@@ -108,7 +107,7 @@ for (const framing of ["declared", "streamed"] as const) {
 
   test(`native OIDC pending and backchannel routes refuse ${framing} oversized bytes without issuer work`, async () => {
     await using root = await createServerHarness({
-      authConfig: { ...authConfigFromEnv(), mode: "oidc", fallback: "deny" },
+      authConfig: { mode: "oidc", fallback: "deny" },
       oidc: NATIVE_OIDC_SETTINGS,
     });
     for (const route of [...PENDING_ROUTES, BACKCHANNEL_ROUTE]) {

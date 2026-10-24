@@ -2,6 +2,7 @@
 
 import type { TimerScheduler } from "@orb/kit/time";
 import type { buildConnector } from "undici";
+import type { Env } from "#foundation/env/record";
 
 export const ENDPOINT_ADMISSIONS = ["public", "admitted", "refused", "invalid"] as const;
 
@@ -79,6 +80,8 @@ export interface ScopedEgressOptions {
   /** The physical dial: every connector this egress builds comes from here, so a script replaces the socket and receives the firewall's lookup and must dial only what it returns. */
   readonly buildConnector: typeof buildConnector;
   readonly timers: TimerScheduler;
+  /** The parsed env record: `EGRESS_FIREWALL`, `EGRESS_ALLOWLIST`, `TRUSTED_PRIVATE_RANGES` and the OIDC issuer host. */
+  readonly env: Env;
 }
 
 export interface ScopedEgress extends AsyncDisposable {

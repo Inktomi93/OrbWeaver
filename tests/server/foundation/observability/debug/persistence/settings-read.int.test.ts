@@ -8,7 +8,6 @@ import { createPersonaSchema } from "@orb/contracts/persona";
 import { automationFires, characters } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node";
 import {
   createServerHarness,
@@ -25,7 +24,7 @@ import { eq, sql } from "drizzle-orm";
 const PASSWORD = "operator-read-control-password";
 
 test("the settings probe preserves key order and stored values while rejecting anonymous and delegated-admin readers", async () => {
-  await using root = await createServerHarness({ authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" } });
+  await using root = await createServerHarness({ authConfig: { mode: "local", fallback: "deny" } });
   const zeta = { key: "application:debug-zeta", value: { marker: "operator-only-settings-marker", opaque: [null, true, 3] }, updatedAt: root.clock.now() };
   await root.services.settings.setGlobalSetting(zeta.key, zeta.value);
   root.clock.advance(1000);

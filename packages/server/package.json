@@ -28,6 +28,7 @@
     "./entry/compose": "./src/entry/compose/index.ts",
     "./foundation/data-layout": "./src/foundation/data-layout/index.ts",
     "./foundation/env": "./src/foundation/env/index.ts",
+    "./foundation/env/record": "./src/foundation/env/record/index.ts",
     "./foundation/env/refusal": "./src/foundation/env/refusal/index.ts",
     "./foundation/observability": "./src/foundation/observability/index.ts",
     "./infra/plugin-host": "./src/infra/plugin-host/index.ts",

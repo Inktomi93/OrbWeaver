@@ -26,14 +26,15 @@ import type { SettleImportMemory } from "#domain/import";
 import type { ImportCardScripts } from "#domain/regex";
 import { readGlobalSettings } from "#domain/settings";
 import type { ImportWorldInfoPort } from "#domain/world-info";
-import { allowedHostsInput, env, resolveAllowedHosts } from "#foundation/env";
-import type { MemoryRecallInspector, RpgTraceInspector } from "#foundation/observability";
+import type { Env } from "#foundation/env/record";
+import { allowedHostsInput, resolveAllowedHosts } from "#foundation/env/record";
+import type { BugReportDiagnosticsRead, MemoryRecallInspector, RpgTraceInspector } from "#foundation/observability";
 import { observability, observabilityErrorHandler, registerDebugRoutes, securityEvent } from "#foundation/observability";
 import { versionIdentity } from "#foundation/version";
 import type { AllowedHostsReader, AuthConfig } from "#infra/auth";
 import { allowedHostsReader, createHostNotAllowedNotice, createPublicHttpMintNotice, hasCsrfHeader, ownerFallbackAllowed, requestTransport } from "#infra/auth";
 import type { PhysicalPeerRead } from "#infra/network";
-import { clientIp, createPhysicalPeerMiddleware, ipAllowlistMiddleware, parseAllowlist, peerIp } from "#infra/network";
+import { clientIp, createPhysicalPeerMiddleware, ipAllowlistMiddleware, parseAllowlist, peerIp, trustedProxiesOf } from "#infra/network";
 import type { LiveBuses } from "#transport/trpc";
 import type { PresenceRegistry, RateLimitGate, Services, SocketRegistry } from "../transport/trpc/index.ts";
 import { appRouter, createContext } from "../transport/trpc/index.ts";
@@ -177,13 +178,13 @@ type AppEnv = PrincipalEnv;
  * Everything `createApp` needs, all built upstream by `lifecycle.ts`.
  */
 export interface AppDeps {
+  /** The parsed env record (`createProcessSeams`, or a test root's own parse): the IP and Host allowlists, the trusted
+   *  hops, the debug token, the client bundle and the build posture this app reads. */
+  readonly env: Env;
   readonly physicalPeer?: PhysicalPeerRead;
   readonly liveBuses: LiveBuses;
-  readonly importStagingDir?: string;
-  readonly clientDistDir?: Parameters<typeof resolveSpaDistDir>[0]["distDir"];
-  /** The `x-debug-token` operator credential `/api/_debug` compares against; absent ⇒ `env.DEBUG_TOKEN`. */
-  readonly debugToken?: string;
-  readonly authConfig?: Pick<AuthConfig, "mode" | "defaultHandle">;
+  readonly importStagingDir: string;
+  readonly authConfig: Pick<AuthConfig, "mode" | "defaultHandle">;
   readonly multiHumanCapable?: ReturnType<typeof createMultiHumanCapability>;
   readonly now: () => number;
   /** The root's opaque nonce, for the staging names the import routes mint. */
@@ -195,6 +196,8 @@ export interface AppDeps {
   readonly presence: PresenceRegistry;
   /** The multiplexed-socket cells (SSE-1) — read by the `stream` router and the /api/_debug counter. */
   readonly sockets: SocketRegistry;
+  /** The bug-report read over the root's env record, carried on every tRPC context. */
+  readonly bugReportDiagnostics: BugReportDiagnosticsRead;
   /** R-OBS — the rpg flight recorder's read half, present ONLY when tracing is enabled (`RPG_TRACE=on` / the
    *  `rpgTrace` compose dep). Absent ⇒ `/api/_debug/rpg/traces` is not registered at all, which is the route's
    *  own contract: tracing off means the door does not exist rather than answering an empty ring. */
@@ -202,11 +205,10 @@ export interface AppDeps {
   /** #250 — the memory-recall flight recorder's read half. Present in production compose (the recorder is
    *  built unconditionally); absent ⇒ `/api/_debug/memory/recalls` is not registered. */
   readonly memoryRecall?: MemoryRecallInspector;
-  /** #412 — compose's wire-capture decision (`env.WIRE_CAPTURE === "on"` OR its force flag), published on
-   *  `/api/_debug/wire/captures` and `/wire/outcomes` as `enabled` so `wire-tap captures` can tell "recorder off"
-   *  (apparatus absent → exit 2) from "recorder on, no traffic" (an honest zero). Absent ⇒ the route falls
-   *  back to the env half, which is the truth for a hand-built app that never forced the sink on. */
-  readonly wireCapture?: boolean;
+  /** Compose's wire-capture decision (`WIRE_CAPTURE` in the record), published on `/api/_debug/wire/captures` and
+   *  `/wire/outcomes` as `enabled` so `wire-tap captures` can tell "recorder off" (apparatus absent → exit 2) from
+   *  "recorder on, no traffic" (an honest zero). */
+  readonly wireCapture: boolean;
 
   /** The single assets handle serves the blob owner-gate + the upload `store` + the import avatar-store + the
    *  BYO pose byte-ingest. */
@@ -249,7 +251,10 @@ export interface AppDeps {
 
 export function createApp(deps: AppDeps): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
-  const authMode = deps.authConfig?.mode ?? env.AUTH_MODE;
+  const authMode = deps.authConfig.mode;
+  // SECURITY: one list for every forwarded-header read below, so the client address, the Host check and the cookie
+  // transport can never disagree about which peer is a trusted hop.
+  const trustedProxies = trustedProxiesOf(deps.env);
 
   const multiHumanCapable = deps.multiHumanCapable ?? createMultiHumanCapability(authMode, () => deps.services.settings.getEffectiveConfig());
   // One live read for the sign-in page and the signed-out invite previews, which both keep login handles off the page.
@@ -268,8 +273,9 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   app.use(
     "*",
     securityHeaders({
-      dev: env.NODE_ENV !== "production",
+      dev: deps.env.NODE_ENV !== "production",
       allowExternalMedia: () => !deps.services.settings.getEffectiveConfig().forbidExternalMedia,
+      trustedProxies,
     }),
   );
 
@@ -288,9 +294,9 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
 
   app.use("*", createPhysicalPeerMiddleware(deps.physicalPeer));
 
-  const allowlist = parseAllowlist(env.IP_ALLOWLIST);
+  const allowlist = parseAllowlist(deps.env.IP_ALLOWLIST);
   if (allowlist.length > 0) {
-    app.use("*", ipAllowlistMiddleware(allowlist));
+    app.use("*", ipAllowlistMiddleware(allowlist, trustedProxies));
   }
 
   // The DNS-rebinding guard, in every mode and with no off switch: it must run before the principal resolves,
@@ -299,9 +305,10 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   app.use(
     "*",
     hostAllowlist({
-      allowedHosts: allowedHostsReader(resolveAllowedHosts(allowedHostsInput()), deps.relayHosts),
+      allowedHosts: allowedHostsReader(resolveAllowedHosts(allowedHostsInput(deps.env)), deps.relayHosts),
       inContainer: deps.inContainer,
       notice: createHostNotAllowedNotice(deps.now, deps.inContainer),
+      trustedProxies,
     }),
   );
 
@@ -309,7 +316,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   app.use("*", async (c, next) => {
     // The transport is resolved ONCE and handed to the seam, so the name the seam reads and the name the
     // slide re-issues under are the same by construction.
-    const transport = requestTransport(c);
+    const transport = requestTransport(c, trustedProxies);
     // The SAME reader the seam authenticates with (entry/auth/seam.ts): the slide may only re-issue the
     // exact token `sessions.validate` just accepted — a second copy here could write back a different value
     // and silently log the caller out on the next request.
@@ -369,7 +376,8 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
           sockets: deps.sockets,
           multiHumanCapable: multiHumanCapable(),
           csrfHeaderPresent: hasCsrfHeader(c.req.raw.headers),
-          clientIp: clientIp(c),
+          clientIp: clientIp(c, trustedProxies),
+          bugReportDiagnostics: deps.bugReportDiagnostics,
         }),
       responseMeta: ({ errors }) => rateLimitResponseMeta(errors),
       // Subscriptions avoid buffering relays; query inputs avoid URL ceilings. Mutations stay POST-only.
@@ -383,7 +391,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   registerHealthz(plain, {
     isShuttingDown: deps.isShuttingDown,
     credentialsKeyOk: deps.credentialsKeyOk,
-    isHarnessStack: () => env.E2E_HARNESS === "on",
+    isHarnessStack: () => deps.env.E2E_HARNESS === "on",
     version: versionIdentity,
     // ADR 0076: loopback-only on purpose, with no trusted-peer widening; the owner reads the version through
     // `settings.getVersion` from anywhere.
@@ -438,7 +446,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   registerExport(app, { export: deps.exportService, registry: deps.portability });
   registerImportBundle(app, {
     workloads: deps.services.workloads,
-    stagingDir: deps.importStagingDir ?? env.IMPORT_STAGING_DIR,
+    stagingDir: deps.importStagingDir,
     newOpaqueId: deps.newOpaqueId,
   });
   registerImportChat(app, { registry: deps.portability, now: deps.now, settleImportMemory: deps.settleImportMemory });
@@ -446,7 +454,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     workloads: deps.services.workloads,
     persona: deps.services.persona,
     registry: deps.portability,
-    stagingDir: deps.importStagingDir ?? env.IMPORT_STAGING_DIR,
+    stagingDir: deps.importStagingDir,
     newOpaqueId: deps.newOpaqueId,
   });
   registerAuthRoutes(plain, {
@@ -460,6 +468,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     publicHttpMintNotice: createPublicHttpMintNotice(deps.now),
     resolveLoginLimit: () => deps.services.settings.getEffectiveConfig().rateLimits.login,
     discreetLogin,
+    trustedProxies,
     ...(deps.authenticate !== undefined ? { authenticate: deps.authenticate } : {}),
     ...(deps.firstRun !== undefined ? { firstRun: deps.firstRun } : {}),
     ...(deps.signup !== undefined ? { signup: { ...deps.signup, multiHumanCapable } } : {}),
@@ -467,7 +476,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   });
   registerAuthMeta(app, {
     mode: authMode,
-    defaultHandle: deps.authConfig?.defaultHandle ?? env.DEFAULT_USER_HANDLE,
+    defaultHandle: deps.authConfig.defaultHandle,
     oidcProviderName: deps.oidcProviderName,
     ...(deps.localFirstRun !== undefined ? { localFirstRun: deps.localFirstRun } : {}),
     discreetLogin,
@@ -484,11 +493,12 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     // deployment-wide instead of offering a capability the mint will refuse.
     allowInteractiveCards: () => deps.services.settings.getEffectiveConfig().allowInteractiveCards,
     share: deps.shareState,
+    trustedProxies,
   });
   registerJoin(plain, { multiHumanCapable });
 
-  const { debugToken = env.DEBUG_TOKEN } = deps;
   registerDebugRoutes(plain, {
+    env: deps.env,
     db: deps.db,
     appSettingRows: () => readGlobalSettings(deps.db),
     // The multiplexed-socket counter (SSE-1 §12) — the starvation regression pin. Injected as data because
@@ -504,23 +514,21 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     // #250: the memory-recall ring. Same spread shape as rpgTrace, but the recorder is unconditional in
     // production compose — the `undefined` arm only fires for a hand-built app (a route/gate test).
     ...(deps.memoryRecall === undefined ? {} : { memoryRecall: deps.memoryRecall }),
-    // #412: the recorder-state publisher. Spread like rpgTrace so an absent dep leaves the route on its env
-    // fallback rather than pinning it to a `false` this app never actually decided.
-    ...(deps.wireCapture === undefined ? {} : { wireCaptureEnabled: (): boolean => deps.wireCapture === true }),
+    // The recorder-state publisher: compose's decision, never a second read of the knob.
+    wireCaptureEnabled: (): boolean => deps.wireCapture,
     // The admin arm judges the ONE principal the auth middleware above already resolved for this request
     // (spine invariant #2). It must never re-resolve: the peer-less second resolution this replaced could not
     // mint the loopback owner arm, so a single-user/dev box's only operator was refused at its own door
     // (#1193). `?? null` is the fail-closed read for a context this middleware never ran on.
     auth: {
-      expectedToken: debugToken,
+      expectedToken: deps.env.DEBUG_TOKEN,
       adminAuth: { isAdmin: (c: Context): boolean => deps.seam.debugGateAdmits((c as Context<AppEnv>).get("principal") ?? null, c.req.raw.headers) },
     },
   });
 
   // The SPA static-serve registers LAST — every route above wins by order; only unmatched non-/api GETs
   // reach the bundle/fallback. No bundle: prod boot-fatal (inside resolve), dev skipped (vite serves it).
-  const { clientDistDir = env.CLIENT_DIST_DIR } = deps;
-  const spaDistDir = resolveSpaDistDir({ distDir: clientDistDir, prod: env.NODE_ENV === "production" });
+  const spaDistDir = resolveSpaDistDir({ distDir: deps.env.CLIENT_DIST_DIR, prod: deps.env.NODE_ENV === "production" });
   if (spaDistDir !== null) {
     registerSpa(plain, { distDir: spaDistDir });
   }

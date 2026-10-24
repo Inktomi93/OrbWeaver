@@ -32,6 +32,7 @@ import type { StatsService } from "#domain/stats";
 import type { TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
 import type { WorldInfoService } from "#domain/world-info";
+import type { BugReportDiagnosticsRead } from "#foundation/observability";
 import type { LiveBuses } from "./contract/live-buses.ts";
 import type { PresenceRegistry } from "./presence-registry.ts";
 import type { SocketRegistry } from "./stream/socket-registry.ts";
@@ -131,6 +132,10 @@ export interface Context {
   readonly csrfHeaderPresent: boolean;
   /** @internal */
   readonly clientIp: string | null;
+  /** The bug-report read bound to the root's env record (`createBugReportDiagnosticsRead`).
+   * @internal
+   */
+  readonly bugReportDiagnostics: BugReportDiagnosticsRead;
 }
 
 /** Pure packaging — the typed seam entry/app.ts calls per request after the auth seam has resolved the
@@ -148,6 +153,7 @@ export function createContext(parts: {
   readonly multiHumanCapable: boolean;
   readonly csrfHeaderPresent: boolean;
   readonly clientIp: string | null;
+  readonly bugReportDiagnostics: BugReportDiagnosticsRead;
 }): Context {
   return {
     liveBuses: parts.liveBuses,
@@ -160,5 +166,6 @@ export function createContext(parts: {
     multiHumanCapable: parts.multiHumanCapable,
     csrfHeaderPresent: parts.csrfHeaderPresent,
     clientIp: parts.clientIp,
+    bugReportDiagnostics: parts.bugReportDiagnostics,
   };
 }

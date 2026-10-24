@@ -31,7 +31,7 @@ import { castId } from "@orb/kit/ids";
 import type { Context, Hono, MiddlewareHandler, Next } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { z } from "zod";
-import { diagnosticsPostureInput, diagnosticsPostureWarnings, env, resolveDiagnosticsPosture } from "#foundation/env";
+import { diagnosticsPostureInput, diagnosticsPostureWarnings, resolveDiagnosticsPosture } from "#foundation/env/record";
 import { versionIdentity } from "#foundation/version";
 import { getAuditFailureSnapshot } from "../audit.ts";
 import type { DebugAuthOptions, DebugRoutesOptions } from "../contract/debug.ts";
@@ -55,7 +55,7 @@ import {
 } from "./inspect/index.ts";
 import { ERROR_LEVEL, levelValue, parseLogRingLine, ringLineLevel } from "./log-ring-read.ts";
 import type { WireCaptureFilter } from "./wire-capture.ts";
-import { isWireCaptureEnabled, recentTurnOutcomes, recentWireCaptures } from "./wire-capture.ts";
+import { recentTurnOutcomes, recentWireCaptures } from "./wire-capture.ts";
 
 export type {
   AdminAuthChecker,
@@ -264,18 +264,8 @@ function createDebugAuthMiddleware(config: DebugAuthOptions): MiddlewareHandler 
 }
 
 /** Register the /api/_debug/* introspection routes on `app` behind the auth gate. */
-export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = { appSettingRows: null }): void {
-  const {
-    db: handle,
-    appSettingRows,
-    assets,
-    rpgTrace,
-    memoryRecall,
-    sockets,
-    effectiveConfig,
-    wireCaptureEnabled = isWireCaptureEnabled,
-    auth = env.DEBUG_TOKEN,
-  } = options;
+export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions): void {
+  const { db: handle, appSettingRows, assets, rpgTrace, memoryRecall, sockets, effectiveConfig, wireCaptureEnabled, auth = options.env.DEBUG_TOKEN } = options;
   const db = handle === undefined ? undefined : databaseForOwner(handle);
   const authConfig = debugAuthConfigOf(auth);
   app.use("/api/_debug/*", createDebugAuthMiddleware(authConfig));
@@ -288,7 +278,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = { a
     // present — the resolver reduces the token to a boolean, and it is the gate's own token, not a re-read of env.
     // The recorders are the compose decisions the wire reads publish; an absent trace inspector means no route and no recorder.
     const diagnostics = resolveDiagnosticsPosture({
-      ...diagnosticsPostureInput(),
+      ...diagnosticsPostureInput(options.env),
       debugToken: authConfig.expectedToken,
       wireCapture: wireCaptureEnabled() ? "on" : "off",
       rpgTrace: rpgTrace === undefined ? "off" : "on",
@@ -297,12 +287,12 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = { a
       // The WHOLE identity block, not a bare version string: an operator reading this probe is nearly always
       // asking "is this box running what I think it is", and the commit is the half that answers it.
       version: versionIdentity(),
-      nodeEnv: env.NODE_ENV,
+      nodeEnv: options.env.NODE_ENV,
       pid: process.pid,
       uptimeSec: Math.round(process.uptime()),
       memory: process.memoryUsage(),
       providers: {
-        openrouter: { configured: env.OPENROUTER_API_KEY !== undefined },
+        openrouter: { configured: options.env.OPENROUTER_API_KEY !== undefined },
       },
       diagnostics: { ...diagnostics, warnings: diagnosticsPostureWarnings(diagnostics) },
     });
@@ -350,7 +340,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = { a
           ...(memoryRecall === undefined ? {} : { memoryRecall }),
         }),
       };
-      const written = await writeBugReport({ repoRoot, record, secrets: secretLiterals(env) });
+      const written = await writeBugReport({ repoRoot, record, secrets: secretLiterals(options.env) });
       if (written === null) {
         // The scrub is fail-closed (`redactKnownSecrets` returns "" when a literal survived). A blank file nobody
         // notices is the worse outcome; refuse loudly and let the owner re-report.

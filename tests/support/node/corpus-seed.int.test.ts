@@ -7,7 +7,6 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { healthResponseSchema } from "@orb/contracts/diagnostics";
 import { SEED_MANIFEST } from "@orb/default-content";
 import { NoConnectionError } from "@orb/inference";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "../iso/corpus.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
 import { seedCorpusActors, seedCorpusConnections, seedRecallCorpus, seedSyntheticCorpus } from "./corpus-seed.ts";
@@ -29,7 +28,7 @@ function corpusExecution(): ReturnType<typeof createCorpusProviderExecution> {
 
 test("a nonempty owner library retains existing cards while producing the required corpus scenario", async () => {
   const wire = corpusExecution();
-  await using root = await createServerHarness({ providerFetch: wire.execute, authConfig: { ...authConfigFromEnv(), mode: "local" } });
+  await using root = await createServerHarness({ providerFetch: wire.execute, authConfig: { mode: "local" } });
   const principal = await root.principalFor(root.ownerId);
   const existing = await root.services.character.create({
     principal,
@@ -48,7 +47,7 @@ test("a nonempty owner library retains existing cards while producing the requir
 test("the sole corpus seed retains actual turns, ingestion, library FKs and cookie-admitted wire outputs", async () => {
   const wire = corpusExecution();
   await expect(wire.execute("https://unconfigured.invalid/v1/models")).rejects.toThrow("unscripted corpus provider origin");
-  await using root = await createServerHarness({ providerFetch: wire.execute, authConfig: { ...authConfigFromEnv(), mode: "local" } });
+  await using root = await createServerHarness({ providerFetch: wire.execute, authConfig: { mode: "local" } });
   const { secondUserId } = await seedCorpusActors(root);
   const corpus = await seedSyntheticCorpus(root, { ownerPassword: OWNER_PASSWORD, log: () => undefined });
   const response = await root.http.request("/healthz");
@@ -144,7 +143,7 @@ test("the sole corpus seed retains actual turns, ingestion, library FKs and cook
 
 test("a real missing chat binding refuses corpus generation rather than certifying greeting-only success", async () => {
   const wire = corpusExecution();
-  await using root = await createServerHarness({ providerFetch: wire.execute, authConfig: { ...authConfigFromEnv(), mode: "local" } });
+  await using root = await createServerHarness({ providerFetch: wire.execute, authConfig: { mode: "local" } });
   const { owner } = await seedCorpusActors(root);
   await root.services.connection.setBinding({ principal: owner, task: "chat", connectionId: null });
   await expect(seedSyntheticCorpus(root, { ownerPassword: OWNER_PASSWORD, log: () => undefined })).rejects.toBeInstanceOf(NoConnectionError);

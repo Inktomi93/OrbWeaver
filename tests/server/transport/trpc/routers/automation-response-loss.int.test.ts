@@ -5,7 +5,6 @@ import { once } from "node:events";
 import { createServer } from "node:http";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 
@@ -19,7 +18,7 @@ const body = {
 test("lost mounted HTTP response after real commit recovers one unchanged birth with no second position", async () => {
   await using root = await createServerHarness({
     physicalPeer: () => "127.0.0.1",
-    authConfig: { ...authConfigFromEnv(), mode: "single-user", fallback: "owner" },
+    authConfig: { mode: "single-user", fallback: "owner" },
   });
   const owner = await root.internalCallerFor(root.ownerId);
   const other = await root.actor();

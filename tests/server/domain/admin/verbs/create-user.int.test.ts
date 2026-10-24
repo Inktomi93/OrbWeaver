@@ -5,7 +5,6 @@ import { auditLogs, userConnections, users } from "@orb/db";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { test as base, expect } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, refuseWrites } from "@orb/testkit/node/composed";
@@ -17,7 +16,7 @@ const NEW_HANDLE = castId<Handle>("newbie");
 const test = base.extend<{ root: ServerTestHarness }>({
   root: async ({}, use): Promise<void> => {
     await using root = await createServerHarness({
-      authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" },
+      authConfig: { mode: "local", fallback: "deny" },
       rolePolicyConfig: { ["DEFAULT_USER_HANDLE"]: "owner", ["OWNER_HANDLES"]: "owner" },
     });
     await use(root);

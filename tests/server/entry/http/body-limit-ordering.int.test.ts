@@ -7,7 +7,6 @@ import { CARD_FRAME_ROUTE, cardFrameMintRequestSchema, cardFrameMintResponseSche
 import { authMeSchema } from "@orb/contracts/identity";
 import type { ExternalId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, makeAssetBytes } from "@orb/testkit/node/composed";
 import { createNativeIssuer, ISSUER, NATIVE_OIDC_SETTINGS } from "@orb/testkit/node/helpers";
@@ -31,7 +30,7 @@ const PASSWORD = "body-limit-owner-password";
 const LOGOUT_TOKEN_FIELD = "logout_token";
 
 test("every actual ingest refuses anonymous bytes before any input pull", async () => {
-  await using root = await createServerHarness({ authConfig: { ...authConfigFromEnv(), mode: "single-user", fallback: "deny" } });
+  await using root = await createServerHarness({ authConfig: { mode: "single-user", fallback: "deny" } });
   for (const path of GUARDED_INGEST) {
     using input = observedBody(0);
     const response = await bodyRequest(root, path, input.body);
@@ -44,7 +43,7 @@ test("every actual ingest refuses anonymous bytes before any input pull", async 
 for (const credential of ["fallback", "cookie"] as const) {
   test(`every actual ingest rejects missing CSRF before ${credential} body intake`, async () => {
     await using root = await createServerHarness({
-      authConfig: { ...authConfigFromEnv(), mode: credential === "cookie" ? "local" : "single-user", fallback: credential === "cookie" ? "deny" : "owner" },
+      authConfig: { mode: credential === "cookie" ? "local" : "single-user", fallback: credential === "cookie" ? "deny" : "owner" },
       physicalPeer: () => "127.0.0.1",
     });
     const headers = new Headers();
@@ -80,7 +79,7 @@ for (const credential of ["fallback", "cookie"] as const) {
 
 test("the real trusted proxy-header identity reaches every ingest cap without ambient CSRF", async () => {
   await using root = await createServerHarness({
-    authConfig: { ...authConfigFromEnv(), mode: "forward-header", fallback: "deny", forwardTrustedProxies: ["127.0.0.1/32"] },
+    authConfig: { mode: "forward-header", fallback: "deny", forwardTrustedProxies: ["127.0.0.1/32"] },
     physicalPeer: () => "127.0.0.1",
   });
   const headers = { "x-authentik-username": "body-cap-proxy", "x-authentik-uid": "body-cap-proxy-subject" };
@@ -98,7 +97,7 @@ test("the real trusted proxy-header identity reaches every ingest cap without am
 });
 
 test("frame caps precede handler authentication, while local and pending CSRF precedes caps", async () => {
-  await using root = await createServerHarness({ authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" } });
+  await using root = await createServerHarness({ authConfig: { mode: "local", fallback: "deny" } });
   for (const route of FRAME_ROUTES) {
     using input = observedBody(route.bytes);
     const response = await bodyRequest(root, route.path, input.body, {});
@@ -113,7 +112,7 @@ test("frame caps precede handler authentication, while local and pending CSRF pr
     await response.arrayBuffer();
     expect(input.snapshot().pulls).toBe(0);
   }
-  await using oidc = await createServerHarness({ authConfig: { ...authConfigFromEnv(), mode: "oidc", fallback: "deny" }, oidc: NATIVE_OIDC_SETTINGS });
+  await using oidc = await createServerHarness({ authConfig: { mode: "oidc", fallback: "deny" }, oidc: NATIVE_OIDC_SETTINGS });
   for (const route of PENDING_ROUTES) {
     using input = observedBody(0);
     const response = await bodyRequest(oidc, route.path, input.body, { "content-length": String(route.bytes) });
@@ -125,7 +124,7 @@ test("frame caps precede handler authentication, while local and pending CSRF pr
 
 test("first-run cap remains before its in-handler origin gate", async () => {
   await using root = await createServerHarness({
-    authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" },
+    authConfig: { mode: "local", fallback: "deny" },
     physicalPeer: () => "93.184.215.14",
   });
   using input = observedBody(0);
@@ -140,7 +139,7 @@ test("first-run cap remains before its in-handler origin gate", async () => {
 
 test("intentionally uncapped mutations remain bodyless and pending preview keeps its existing cap", async () => {
   await using root = await createServerHarness({
-    authConfig: { ...authConfigFromEnv(), mode: "single-user", fallback: "owner" },
+    authConfig: { mode: "single-user", fallback: "owner" },
     physicalPeer: () => "127.0.0.1",
   });
   for (const route of [
@@ -153,7 +152,7 @@ test("intentionally uncapped mutations remain bodyless and pending preview keeps
     await response.arrayBuffer();
     expect(input.snapshot()).toMatchObject({ pulls: 0, tripwire: false });
   }
-  await using oidc = await createServerHarness({ authConfig: { ...authConfigFromEnv(), mode: "oidc", fallback: "deny" }, oidc: NATIVE_OIDC_SETTINGS });
+  await using oidc = await createServerHarness({ authConfig: { mode: "oidc", fallback: "deny" }, oidc: NATIVE_OIDC_SETTINGS });
   const preview = await oidc.http.request(PENDING_ROUTES[0]?.path ?? "", { method: "POST", headers: CSRF_HEADERS, body: "not JSON" });
   expect(preview.status).toBe(404);
   expect(await preview.json()).toEqual({ error: "join_unavailable" });
@@ -161,7 +160,7 @@ test("intentionally uncapped mutations remain bodyless and pending preview keeps
 
 test("native debug authentication and media admission run before body intake", async () => {
   await using root = await createServerHarness({
-    authConfig: { ...authConfigFromEnv(), mode: "single-user", fallback: "owner" },
+    authConfig: { mode: "single-user", fallback: "owner" },
     physicalPeer: () => "127.0.0.1",
   });
   using input = observedBody(0);
@@ -169,7 +168,7 @@ test("native debug authentication and media admission run before body intake", a
   expect(response.status).toBe(415);
   await response.arrayBuffer();
   expect(input.snapshot().pulls).toBe(0);
-  await using anonymous = await createServerHarness({ authConfig: { ...authConfigFromEnv(), mode: "single-user", fallback: "deny" } });
+  await using anonymous = await createServerHarness({ authConfig: { mode: "single-user", fallback: "deny" } });
   using refused = observedBody(0);
   const denied = await bodyRequest(anonymous, DEBUG_ROUTE.path, refused.body, { "content-type": "application/json" });
   expect([401, 404]).toContain(denied.status);
@@ -179,7 +178,7 @@ test("native debug authentication and media admission run before body intake", a
 
 test("small real multipart and JSON producers survive the native caps and retain owner-scoped output", async () => {
   await using root = await createServerHarness({
-    authConfig: { ...authConfigFromEnv(), mode: "single-user", fallback: "owner" },
+    authConfig: { mode: "single-user", fallback: "owner" },
     physicalPeer: () => "127.0.0.1",
   });
   const principal = await root.principalFor(root.ownerId);
@@ -208,7 +207,7 @@ test("small real multipart and JSON producers survive the native caps and retain
 test("native signed backchannel bytes revoke a real session only after valid authentication", async () => {
   const issuer = await createNativeIssuer();
   await using root = await createServerHarness({
-    authConfig: { ...authConfigFromEnv(), mode: "oidc", fallback: "deny" },
+    authConfig: { mode: "oidc", fallback: "deny" },
     oidc: NATIVE_OIDC_SETTINGS,
     networkExecution: {
       resolver: (hostname) => (hostname === new URL(ISSUER).hostname ? Promise.resolve(["93.184.215.14"]) : Promise.reject(new Error("unscripted issuer"))),
@@ -230,7 +229,7 @@ test("native signed backchannel bytes revoke a real session only after valid aut
 });
 
 test("the real native listener refuses an oversized auth form before password authentication", async () => {
-  await using root = await createServerHarness({ authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" } });
+  await using root = await createServerHarness({ authConfig: { mode: "local", fallback: "deny" } });
   const address = await root.listen();
   const body = new URLSearchParams({ handle: "wire-body-cap", password: PASSWORD.repeat(BACKCHANNEL_ROUTE.bytes) }).toString();
   const status = await new Promise<number>((resolve, reject) => {

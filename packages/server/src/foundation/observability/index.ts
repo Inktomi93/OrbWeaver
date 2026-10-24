@@ -3,7 +3,8 @@
 // DOWN by every tier; `getLog()`/`logger` is the only sanctioned output (the `noConsole` total ban).
 
 export { type AuditEntry, createAuditWiring, logAudit } from "./audit.ts";
-export { readBugReportDiagnostics } from "./bug-report-diagnostics.ts";
+export type { BugReportDiagnosticsRead } from "./bug-report-diagnostics.ts";
+export { createBugReportDiagnosticsRead } from "./bug-report-diagnostics.ts";
 export { recordClientError } from "./client-error.ts";
 export type { AuditWiring } from "./contract/audit-wiring.ts";
 export {

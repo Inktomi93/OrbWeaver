@@ -8,7 +8,7 @@ import { LONG_TEST_TIMEOUT_BASE_MS } from "@orb/tooling/floor/testing/test-tags"
 
 const PROBE_PATHS = ["/api/_debug/info", "/api/_debug/db/chats", "/api/_debug/wire/captures"] as const;
 const DEBUG_TOKEN = "production-debug-posture-synthetic-token";
-// A fresh native process parses the real launch config before constructing the production HTTP graph.
+// A fresh native process parses the real launch config and composes the production HTTP graph over the same keys.
 const OBSERVE_PRODUCTION = `
 import {mkdtemp,writeFile,rm} from "node:fs/promises";
 import {tmpdir} from "node:os";
@@ -19,7 +19,8 @@ import {createServerHarness} from "@orb/testkit/node/composed";
 const clientDistDir=await mkdtemp(join(tmpdir(),"orb-production-debug-"));
 try{
 await writeFile(join(clientDistDir,"index.html"),"<!doctype html><title>Production debug fixture</title>");
-await using root=await createServerHarness({physicalPeer:()=>"127.0.0.1",startJobs:false,clientDistDir});
+const launch={NODE_ENV:env.NODE_ENV,AUTH_MODE:env.AUTH_MODE,AUTH_FALLBACK:env.AUTH_FALLBACK,BIND_HOST:env.BIND_HOST,OWNER_HANDLES:env.OWNER_HANDLES,...(env.DEBUG_TOKEN===undefined?{}:{DEBUG_TOKEN:env.DEBUG_TOKEN})};
+await using root=await createServerHarness({physicalPeer:()=>"127.0.0.1",startJobs:false,clientDistDir,env:launch});
 const me=await root.http.request("/api/auth/me",{headers:{host:"localhost"}});
 const auth=authMeSchema.parse(await me.json());
 const probes=[];
@@ -33,7 +34,7 @@ tokenStatus=token.status;await token.arrayBuffer();
 }
 probes.push({path,bareStatus:bare.status,refusal:typeof body.reason==="string",tokenStatus});
 }
-console.log(JSON.stringify({posture:ownerFallbackCredentialInput(),authenticated:auth.authenticated,role:auth.role,probes}));
+console.log(JSON.stringify({posture:ownerFallbackCredentialInput(root.env),authenticated:auth.authenticated,role:auth.role,probes}));
 }finally{await rm(clientDistDir,{recursive:true,force:true});}
 `;
 

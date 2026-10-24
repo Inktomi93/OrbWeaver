@@ -6,7 +6,6 @@ import { databaseHandle } from "@orb/db/wiring-driver";
 
 import { brandedId } from "@orb/kit/ids";
 import { MS_PER_HOUR } from "@orb/kit/time";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { createConfiguredOidc } from "@orb/server/entry/compose";
 import { createControlledTimers, createFrozenClock } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
@@ -42,7 +41,7 @@ function rootFor(
   return createServerHarness({
     ...edges,
     ownerId: null,
-    authConfig: { ...authConfigFromEnv(), mode: "oidc", fallback: "deny" },
+    authConfig: { mode: "oidc", fallback: "deny" },
     physicalPeer: () => "93.184.215.14",
     oidc: { ...SETTINGS, ...oidc },
     networkExecution: {
@@ -483,7 +482,7 @@ test("failed OIDC GC construction joins its held actual database sweep and retai
   let settled = false;
   const result = createServerHarness({
     ownerId: null,
-    authConfig: { ...authConfigFromEnv(), mode: "oidc", fallback: "deny" },
+    authConfig: { mode: "oidc", fallback: "deny" },
     db: held.db,
     clock,
     timers,

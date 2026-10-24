@@ -64,7 +64,7 @@ import type { BugReportInspectors } from "../contract/debug.ts";
 import { logRing, recentRequests } from "../logger.ts";
 import { recentTraces } from "../tracing.ts";
 import { ERROR_LEVEL, parseLogRingLine, ringLineLevel, ringLineTime } from "./log-ring-read.ts";
-import { isWireCaptureEnabled, recentTurnOutcomes, recentWireCaptures } from "./wire-capture.ts";
+import { recentTurnOutcomes, recentWireCaptures } from "./wire-capture.ts";
 
 export type { BugReportInspectors } from "../contract/debug.ts";
 
@@ -154,7 +154,7 @@ function errorLines(window: EvidenceWindow): EvidenceSlice<Record<string, unknow
 
 /** Snapshot every server-side flight recorder into the window. Called synchronously at report time — the whole
  *  reason this half exists (the rings die on the next respawn). */
-export function snapshotServerEvidence(window: EvidenceWindow, inspectors: BugReportInspectors = {}): BugReportRecord["server"] {
+export function snapshotServerEvidence(window: EvidenceWindow, inspectors: BugReportInspectors): BugReportRecord["server"] {
   const slices: Record<string, EvidenceSlice<unknown>> = {
     errors: errorLines(window),
     requests: sliceByWindow({
@@ -202,7 +202,7 @@ export function snapshotServerEvidence(window: EvidenceWindow, inspectors: BugRe
   return {
     sources: named.map(([, slice]) => slice.meta),
     evidence: Object.fromEntries(named.map(([name, slice]) => [name, slice.entries])),
-    wireCaptureEnabled: (inspectors.wireCaptureEnabled ?? isWireCaptureEnabled)(),
+    wireCaptureEnabled: inspectors.wireCaptureEnabled(),
   };
 }
 

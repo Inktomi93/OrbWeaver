@@ -1,13 +1,13 @@
 // domain/settings/effective-config/layer — the floor-merge resolver: each field is "stored override ?? floor".
-// Two floor origins: env-mirrored fields read foundation/env, born-in-DB fields read a code floor only an
+// Two floor origins: env-mirrored fields read the root's env record, born-in-DB fields read a code floor only an
 // admin override moves. Pure (no I/O, no cache) — cache + reload live in cache.ts.
 
 import type { AuthMode } from "@orb/contracts/identity";
-import type { AppSettings, EffectiveAppConfig, LogLevel, RateLimits, ResolvedRateLimits } from "@orb/contracts/settings";
+import type { AppSettings, EffectiveAppConfig, RateLimits, ResolvedRateLimits } from "@orb/contracts/settings";
 import { DEFAULT_DISCREET_LOGIN, DEFAULT_LOCAL_MULTI_USER, DEFAULT_MAX_IMAGE_BYTES, PROMPT_CACHE_MIN_DEPTH_FLOOR } from "@orb/contracts/settings";
 import { DATABANK_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
 import { MS_PER_DAY } from "@orb/kit/time";
-import { env } from "#foundation/env";
+import type { SettingsEnvFloor } from "../contract/service.ts";
 
 // Born-in-DB floors (no env var; only an admin override moves them).
 const FORBID_EXTERNAL_MEDIA_FLOOR = true;
@@ -50,9 +50,9 @@ function resolveBornInDbScalars(o: AppSettings): {
 /** The F12 allowlist's env floor: the operator's `PRIVATE_ENDPOINT_ALLOWLIST` when set; else BORN loopback
  *  under `AUTH_MODE=single-user` (one human, one box — the threat the allowlist exists for does not exist)
  *  and EMPTY on every multi-user mode (hosted providers only until an admin admits a host). */
-function privateEndpointAllowlistFloor(authMode: AuthMode): string[] {
-  if (env.PRIVATE_ENDPOINT_ALLOWLIST !== undefined) {
-    return splitCsv(env.PRIVATE_ENDPOINT_ALLOWLIST);
+function privateEndpointAllowlistFloor(authMode: AuthMode, declared: string | undefined): string[] {
+  if (declared !== undefined) {
+    return splitCsv(declared);
   }
   return authMode === "single-user" ? [...SINGLE_USER_LOOPBACK_ALLOWLIST] : [];
 }
@@ -66,12 +66,12 @@ function splitCsv(raw: string): string[] {
     .filter(Boolean);
 }
 
-function resolveRateLimits(o: RateLimits | null | undefined): ResolvedRateLimits {
+function resolveRateLimits(o: RateLimits | null | undefined, floor: SettingsEnvFloor): ResolvedRateLimits {
   return {
-    aiTurn: o?.aiTurn ?? env.RATE_LIMIT_AI_TURN,
-    publicIp: o?.publicIp ?? env.RATE_LIMIT_PUBLIC_IP,
-    authed: o?.authed ?? env.RATE_LIMIT_AUTHED,
-    login: o?.login ?? env.RATE_LIMIT_LOGIN,
+    aiTurn: o?.aiTurn ?? floor.RATE_LIMIT_AI_TURN,
+    publicIp: o?.publicIp ?? floor.RATE_LIMIT_PUBLIC_IP,
+    authed: o?.authed ?? floor.RATE_LIMIT_AUTHED,
+    login: o?.login ?? floor.RATE_LIMIT_LOGIN,
   };
 }
 
@@ -79,19 +79,18 @@ function resolveRateLimits(o: RateLimits | null | undefined): ResolvedRateLimits
  * Resolve the stored override blob against the floor → the fully-present `EffectiveAppConfig`. Each field
  * is `override ?? floor`: `undefined` (absent) AND a stored `null` (the CLEAR sentinel) both fall through
  * to the floor — so an admin PATCH `{ field: null }` wipes the override and the floor reads back.
- * `logLevelFloor` is the composition root's log level, `env.LOG_LEVEL` unless the root supplies its own.
  */
-export function layer(overrides: AppSettings, authMode: AuthMode = env.AUTH_MODE, logLevelFloor: LogLevel = env.LOG_LEVEL): EffectiveAppConfig {
+export function layer(overrides: AppSettings, floor: SettingsEnvFloor): EffectiveAppConfig {
   return {
-    corpusAutoindex: overrides.corpusAutoindex ?? env.CORPUS_AUTOINDEX,
-    importSkipCharacters: overrides.importSkipCharacters ?? splitCsv(env.IMPORT_SKIP_CHARACTERS),
-    logLevel: overrides.logLevel ?? logLevelFloor,
+    corpusAutoindex: overrides.corpusAutoindex ?? floor.CORPUS_AUTOINDEX,
+    importSkipCharacters: overrides.importSkipCharacters ?? splitCsv(floor.IMPORT_SKIP_CHARACTERS),
+    logLevel: overrides.logLevel ?? floor.LOG_LEVEL,
     forbidExternalMedia: overrides.forbidExternalMedia ?? FORBID_EXTERNAL_MEDIA_FLOOR,
     trustHtml: overrides.trustHtml ?? TRUST_HTML_FLOOR,
     allowInteractiveCards: overrides.allowInteractiveCards ?? ALLOW_INTERACTIVE_CARDS_FLOOR,
     memoryDefaults: overrides.memoryDefaults ?? {},
-    rateLimits: resolveRateLimits(overrides.rateLimits),
-    privateEndpointAllowlist: overrides.privateEndpointAllowlist ?? privateEndpointAllowlistFloor(authMode),
+    rateLimits: resolveRateLimits(overrides.rateLimits, floor),
+    privateEndpointAllowlist: overrides.privateEndpointAllowlist ?? privateEndpointAllowlistFloor(floor.AUTH_MODE, floor.PRIVATE_ENDPOINT_ALLOWLIST),
     maxImageBytes: overrides.maxImageBytes ?? DEFAULT_MAX_IMAGE_BYTES,
     maxDatabankBytes: resolveMaxDatabankBytes(overrides.maxDatabankBytes),
     ...resolveBornInDbScalars(overrides),

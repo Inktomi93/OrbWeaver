@@ -76,6 +76,7 @@ import { loadPluginCharacters, loadPluginMessages } from "./plugin-chat-reads.ts
 /** What the automation+plugin seam needs from the composition root. */
 
 export interface AutomationPluginComposeDeps {
+  readonly env: PluginHostSeamDeps["env"];
   readonly pluginExecution?: Pick<PluginHostSeamDeps, "spawn">;
   readonly monotonicNow: PluginHostSeamDeps["monotonicNow"];
   readonly timers: TimerScheduler;
@@ -274,6 +275,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
   const pluginHost: PluginHostPort = hostResources.use(
     createPluginHost({
       ...deps.pluginExecution,
+      env: deps.env,
       timers: deps.timers,
       monotonicNow: deps.monotonicNow,
       nowEpochMs: now,

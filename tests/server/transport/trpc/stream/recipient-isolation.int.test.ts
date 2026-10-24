@@ -4,14 +4,13 @@ import { streamConnectInputSchema } from "@orb/contracts/stream";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
 
 test("actual authenticated multiplexing enforces socket ownership and withholds foreign and pre-join replay/live bytes", async () => {
   await using harness = await createServerHarness({
-    authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" },
+    authConfig: { mode: "local", fallback: "deny" },
     secretBoxKey: Buffer.alloc(32, 1),
   });
   const initialOwner = await harness.internalCallerFor(harness.ownerId);

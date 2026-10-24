@@ -8,7 +8,6 @@ import { stat } from "node:fs/promises";
 import process from "node:process";
 import { authConfigSchema } from "@orb/contracts/auth-config";
 import { CSRF_HEADER } from "@orb/contracts/identity";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { RELAY_STOP_GRACE_MS } from "@orb/server/infra/relay";
 import { expect, test } from "@orb/testkit/node";
 import { claimShareOwner, createServerHarness, readRelayStarts, relayExecutable, relayProgram } from "@orb/testkit/node/composed";
@@ -20,7 +19,7 @@ test("the server root runs the pinned native relay and shares its live host with
   const { bytes, pin } = relayProgram(RELAY_URL);
   let downloads = 0;
   const options = {
-    authConfig: { ...authConfigFromEnv(), mode: "local" as const },
+    authConfig: { mode: "local" as const },
     share: { relay: { pin } },
     networkExecution: {
       resolver: () => Promise.resolve(["93.184.215.14"]),
@@ -61,7 +60,7 @@ test("a bad pinned download restores real seating overrides and never reaches na
   const corrupt = new Uint8Array(bytes);
   corrupt[0] = 0;
   await using harness = await createServerHarness({
-    authConfig: { ...authConfigFromEnv(), mode: "local" },
+    authConfig: { mode: "local" },
     share: { relay: { pin } },
     networkExecution: { resolver: () => Promise.resolve(["93.184.215.14"]), fetch: () => Promise.resolve(new Response(corrupt)) },
   });
@@ -78,7 +77,7 @@ test("a bad pinned download restores real seating overrides and never reaches na
 test("native child release is joined after immediate host invalidation, and the injected timer ends a child that ignores SIGINT", async () => {
   const { bytes, pin } = relayProgram(RELAY_URL, true);
   await using harness = await createServerHarness({
-    authConfig: { ...authConfigFromEnv(), mode: "local" },
+    authConfig: { mode: "local" },
     share: { relay: { pin } },
     networkExecution: { resolver: () => Promise.resolve(["93.184.215.14"]), fetch: () => Promise.resolve(new Response(bytes)) },
   });
@@ -128,7 +127,7 @@ test("native child release is joined after immediate host invalidation, and the 
 test("unscripted roots refuse relay and ACME before raw network execution and preserve owner-only authority", async () => {
   let outbound = 0;
   await using harness = await createServerHarness({
-    authConfig: { ...authConfigFromEnv(), mode: "local" },
+    authConfig: { mode: "local" },
     bindHost: "0.0.0.0",
     allowPublicBind: true,
     networkExecution: {
@@ -175,7 +174,7 @@ test("a held raw download keeps owned storage until physical execution acknowled
   const reached = Promise.withResolvers<AbortSignal>();
   const release = Promise.withResolvers<Response>();
   await using harness = await createServerHarness({
-    authConfig: { ...authConfigFromEnv(), mode: "local" },
+    authConfig: { mode: "local" },
     share: { relay: { pin: program.pin } },
     networkExecution: {
       resolver: () => Promise.resolve(["93.184.215.14"]),
@@ -215,7 +214,7 @@ test("a named native interface shares through its real loopback companion and di
   const program = relayProgram(RELAY_URL);
   const host = lanAddress();
   await using harness = await createServerHarness({
-    authConfig: { ...authConfigFromEnv(), mode: "local" },
+    authConfig: { mode: "local" },
     bindHost: host,
     allowPublicBind: true,
     share: { relay: { pin: program.pin } },

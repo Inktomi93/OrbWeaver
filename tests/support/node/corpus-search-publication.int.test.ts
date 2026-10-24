@@ -16,7 +16,6 @@ import {
 } from "@orb/contracts/search";
 import { closeDb, createDb, localPath, optimizeDb, preCloseHousekeeping, runMigrations } from "@orb/db";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { cloneStageDb } from "@orb/tooling/snap";
 import { z } from "zod";
@@ -57,7 +56,7 @@ test("settled search publication survives native authenticated clone reads and r
   const sourceDb = await createDb(sourceLayout.databaseUrl);
   const clock = createFrozenClock();
   const ids = createSeededIds();
-  const authConfig = { ...authConfigFromEnv(), mode: "local" as const, fallback: "deny" as const };
+  const authConfig = { mode: "local" as const, fallback: "deny" as const };
   const physical = createCorpusSearchWire(
     createCorpusProviderExecution({
       modelIds: [CORPUS_TEXT_MODEL, CORPUS_EMBED_MODEL],

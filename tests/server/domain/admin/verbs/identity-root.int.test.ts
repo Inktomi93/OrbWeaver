@@ -5,14 +5,13 @@
 import { authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 
 const PASSWORD = "identity-root-target-password";
 
 test("an admin role change and disable reach a live cookie session on its next request", async () => {
-  await using root = await createServerHarness({ authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" } });
+  await using root = await createServerHarness({ authConfig: { mode: "local", fallback: "deny" } });
   const owner = await root.principalFor(root.ownerId);
   const handle = castId<Handle>("identity-root-target");
   const target = await root.services.admin.createUser({ principal: owner, handle, password: PASSWORD });

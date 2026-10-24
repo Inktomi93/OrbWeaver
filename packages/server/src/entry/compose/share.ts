@@ -2,7 +2,7 @@
 import process from "node:process";
 import type { ShareGraph, ShareGraphOptions } from "#domain/share";
 import { createCertificateController, createRelayController } from "#domain/share";
-import { loopbackOrigin } from "#foundation/env";
+import { loopbackOrigin } from "#foundation/env/record";
 import { ACME_POLLING, createCertificateStore, createOwnedAcmeIssuer, LETS_ENCRYPT_DIRECTORY } from "#infra/acme";
 import { createRelayHostRegistry } from "#infra/auth";
 import { createScopedEgress, startTlsTerminator } from "#infra/network";
@@ -11,7 +11,9 @@ import { CLOUDFLARED_PIN, createOwnedRelayLauncher } from "#infra/relay";
 /** Assemble native sharing over raw execution inputs, with physical joins before the caller releases storage. */
 export async function createShareGraph(options: ShareGraphOptions): Promise<ShareGraph> {
   await using owners = new AsyncDisposableStack();
-  const network = owners.use(createScopedEgress({ ...options.networkExecution, timers: options.timers, buildConnector: options.buildConnector }));
+  const network = owners.use(
+    createScopedEgress({ ...options.networkExecution, timers: options.timers, buildConnector: options.buildConnector, env: options.env }),
+  );
   const hosts = createRelayHostRegistry();
   const pin = options.relaySeams?.pin ?? options.relay?.pin ?? CLOUDFLARED_PIN;
   // biome-ignore lint/nursery/useDisposables: the moved graph stack owns this exact launcher until native child and download completion.

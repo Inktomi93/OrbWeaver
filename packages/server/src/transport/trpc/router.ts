@@ -6,7 +6,7 @@ import { bugReportDiagnosticsSchema, clientErrorReportSchema } from "@orb/contra
 import type * as TRPCCore from "@trpc/server/unstable-core-do-not-import";
 import { z } from "zod";
 import { isOwner } from "#domain/admin";
-import { readBugReportDiagnostics, recordClientError } from "#foundation/observability";
+import { recordClientError } from "#foundation/observability";
 import { adminRouter } from "./routers/admin.ts";
 import { assetsRouter } from "./routers/assets.ts";
 import { automationRouter } from "./routers/automation.ts";
@@ -58,7 +58,7 @@ export const appRouter = t.router({
   // posture). No input, no db read. Never the dev capture, which stays behind `/api/_debug`.
   bugReportDiagnostics: authedProcedure
     .output(bugReportDiagnosticsSchema)
-    .query(({ ctx }) => readBugReportDiagnostics({ includeServerErrors: isOwner(ctx.auth) })),
+    .query(({ ctx }) => ctx.bugReportDiagnostics({ includeServerErrors: isOwner(ctx.auth) })),
 
   admin: adminRouter,
   assets: assetsRouter,

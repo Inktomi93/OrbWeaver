@@ -96,7 +96,7 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
   }
 
   const now = (): number => Date.now();
-  await migrateDataLayout({ layout: env.DATA_LAYOUT });
+  await migrateDataLayout({ layout: env.DATA_LAYOUT, env });
   const db = await createDb(env.DATABASE_URL);
   await runBootMigrations({ db, databaseUrl: env.DATABASE_URL, backupDir: env.DATA_LAYOUT.backups, launched: DB_LAUNCHED });
 

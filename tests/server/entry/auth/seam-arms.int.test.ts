@@ -38,12 +38,12 @@ function single(options: Omit<ServerHarnessOptions, "authConfig"> & { readonly d
   return createServerHarness({
     physicalPeer: () => LOOPBACK,
     ...rest,
-    authConfig: { ...authConfigFromEnv(), mode: "single-user", fallback: "owner", ...(defaultHandle === undefined ? {} : { defaultHandle }) },
+    authConfig: { mode: "single-user", fallback: "owner", ...(defaultHandle === undefined ? {} : { defaultHandle }) },
   });
 }
 
 function local(peer: () => string = () => LOOPBACK): Promise<ServerTestHarness> {
-  return createServerHarness({ physicalPeer: peer, authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" } });
+  return createServerHarness({ physicalPeer: peer, authConfig: { mode: "local", fallback: "deny" } });
 }
 
 function forward(peer: () => string, rolePolicyConfig: SessionsRolePolicyConfig = env): Promise<ServerTestHarness> {
@@ -51,7 +51,6 @@ function forward(peer: () => string, rolePolicyConfig: SessionsRolePolicyConfig 
     physicalPeer: peer,
     rolePolicyConfig,
     authConfig: {
-      ...authConfigFromEnv(),
       mode: "forward-header",
       fallback: "owner",
       forwardUserHeader: FORWARD_USER_HEADER,
@@ -215,7 +214,7 @@ test("B1 anti-spoof: an SSO header from an UNTRUSTED peer is rejected even with 
 test("the seam hands its relay registry to the header path: an SSO header on a relay Host from a trusted loopback peer is refused", async () => {
   await using root = await createServerHarness();
   const config = {
-    ...authConfigFromEnv(),
+    ...authConfigFromEnv(root.env),
     mode: "forward-header" as const,
     fallback: "deny" as const,
     forwardUserHeader: FORWARD_USER_HEADER,
@@ -260,7 +259,7 @@ test("debugGateAdmits requires a CREDENTIAL as well as the OWNER role", async ()
   const strict = createAuthSeam({
     emitUserEvent: root.app.liveBuses.user.publishUserEvent,
     sessions: root.app.sessions,
-    config: { ...authConfigFromEnv(), mode: "single-user", fallback: "owner" },
+    config: { ...authConfigFromEnv(root.env), mode: "single-user", fallback: "owner" },
   });
   const owner = (await strict.resolvePrincipal(new Headers(), { peerIp: LOOPBACK, transport: "http" })).principal;
   expect(owner === null ? null : isOwner(owner)).toBe(true);
@@ -284,7 +283,7 @@ test("debugGateAdmits requires a CREDENTIAL as well as the OWNER role", async ()
 test("debugGateAdmits takes a VERIFIED SSO identity, never a proxy-asserted one", async () => {
   await using root = await createServerHarness({
     physicalPeer: () => LOOPBACK,
-    authConfig: { ...authConfigFromEnv(), mode: "forward-header", fallback: "deny", forwardTrustedProxies: ["127.0.0.1/32"] },
+    authConfig: { mode: "forward-header", fallback: "deny", forwardTrustedProxies: ["127.0.0.1/32"] },
   });
   const ownerHandle = (await root.principalFor(root.ownerId)).handle;
   const unsigned = { "remote-user": ownerHandle };

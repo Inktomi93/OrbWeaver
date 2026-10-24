@@ -4,14 +4,13 @@ import { join } from "node:path";
 import { importStartedSchema } from "@orb/contracts/import";
 import { IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import { stagedOwnerRoot } from "@orb/server/domain/import";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { BUNDLE_ROUTE, bodyRequest, CSRF_HEADERS, observedBody } from "./_body-limit-inputs.ts";
 
 test("actual raw bundle overflow cancels its source and removes the partial staged file without a workload", async () => {
   await using root = await createServerHarness({
-    authConfig: { ...authConfigFromEnv(), mode: "single-user", fallback: "owner" },
+    authConfig: { mode: "single-user", fallback: "owner" },
     physicalPeer: () => "127.0.0.1",
   });
   const capacity = await statfs(root.importStagingDir);
@@ -30,7 +29,7 @@ test("actual raw bundle overflow cancels its source and removes the partial stag
 
 test("a faulting raw upload removes its small pre-dispatch staging prefix", async () => {
   await using root = await createServerHarness({
-    authConfig: { ...authConfigFromEnv(), mode: "single-user", fallback: "owner" },
+    authConfig: { mode: "single-user", fallback: "owner" },
     physicalPeer: () => "127.0.0.1",
   });
   const principal = await root.principalFor(root.ownerId);
@@ -48,7 +47,7 @@ test("a faulting raw upload removes its small pre-dispatch staging prefix", asyn
 
 test("actual exported ZIP bytes stage unchanged for their owning workload and conflict cleans only the refused upload", async () => {
   await using root = await createServerHarness({
-    authConfig: { ...authConfigFromEnv(), mode: "single-user", fallback: "owner" },
+    authConfig: { mode: "single-user", fallback: "owner" },
     physicalPeer: () => "127.0.0.1",
   });
   const principal = await root.principalFor(root.ownerId);
@@ -77,7 +76,7 @@ test("actual exported ZIP bytes stage unchanged for their owning workload and co
 
 test("an absent raw body fails without creating a staging namespace or workload", async () => {
   await using root = await createServerHarness({
-    authConfig: { ...authConfigFromEnv(), mode: "single-user", fallback: "owner" },
+    authConfig: { mode: "single-user", fallback: "owner" },
     physicalPeer: () => "127.0.0.1",
   });
   const response = await root.http.request(BUNDLE_ROUTE, { method: "POST", headers: CSRF_HEADERS });

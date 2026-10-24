@@ -3,8 +3,8 @@ import { closeSync, fsyncSync, linkSync, lstatSync, mkdirSync, openSync, readFil
 import { basename, dirname, join } from "node:path";
 import process from "node:process";
 import { SECRET_FILE_NAMES } from "#foundation/data-layout";
-import { env } from "#foundation/env";
-import type { BootSecretResolution, BootSecretSource } from "./contract.ts";
+import type { Env } from "#foundation/env/record";
+import type { BootSecretResolution, BootSecretSource, KeyfileReport } from "./contract.ts";
 
 // The boot secrets: the credentials SecretBox key and the SESSION_SECRET pepper. An explicit env value wins;
 // otherwise each lives in a keyfile under the data layout's `secrets/` dir (mode 0600), read back on every
@@ -50,12 +50,15 @@ function explicitSessionSecret(raw: string | undefined): raw is string {
   return raw !== undefined;
 }
 
-// Use stderr, NOT getLog(): the logger may not be initialized at this boot point, and a logger→env→crypto
-// import cycle is the hazard. Silenced under tests, which spin temp keyfiles up and down constantly.
-function reportKeyfile(line: string): void {
-  if (env.NODE_ENV !== "test") {
-    process.stderr.write(`crypto: ${line}\n`);
-  }
+/** Where the keyfile notices go for a build: stderr, NOT getLog() (the logger may not be initialized at this boot
+ *  point, and a logger→env→crypto import cycle is the hazard), and nowhere under a test build, which spins temp
+ *  keyfiles up and down constantly. */
+export function keyfileReport(nodeEnv: Env["NODE_ENV"]): KeyfileReport {
+  return nodeEnv === "test"
+    ? (): void => undefined
+    : (line): void => {
+        process.stderr.write(`crypto: ${line}\n`);
+      };
 }
 
 function errorText(err: unknown): string {
@@ -64,7 +67,7 @@ function errorText(err: unknown): string {
 
 // Reads THROUGH a symlink on purpose: an operator may point the keyfile at a secrets mount. A dangling one
 // throws ENOENT here, which the caller turns into a fail-closed null.
-function readKeyfile(keyPath: string): Buffer | null {
+function readKeyfile(keyPath: string, reportKeyfile: KeyfileReport): Buffer | null {
   const key = decode32Bytes(readFileSync(keyPath, "utf-8"));
   if (key === null) {
     reportKeyfile(`${keyPath} exists but is not a 32-byte hex or base64 key; leaving it in place and not generating a new one.`);
@@ -72,8 +75,8 @@ function readKeyfile(keyPath: string): Buffer | null {
   return key;
 }
 
-// owned by `reportKeyfile`, which the catch calls with the fault text and which writes it to process.stderr (silent only under NODE_ENV=test). The key is already linked with its bytes fsynced, so the fault costs only crash durability of the directory entry. Ends if the directory fsync becomes required for the key to be valid.
-function fsyncDirectory(dir: string): void {
+// owned by `reportKeyfile`, which the catch calls with the fault text and which writes it to process.stderr (silent only under a test build, `keyfileReport`). The key is already linked with its bytes fsynced, so the fault costs only crash durability of the directory entry. Ends if the directory fsync becomes required for the key to be valid.
+function fsyncDirectory(dir: string, reportKeyfile: KeyfileReport): void {
   try {
     const fd = openSync(dir, "r");
     try {
@@ -90,7 +93,7 @@ function fsyncDirectory(dir: string): void {
 // (O_EXCL, 0600, fsynced) that is hard-linked into place. link(2) fails with EEXIST on ANY existing entry,
 // including a planted symlink (dangling or not), and never follows it. A rename would clobber a racing boot's
 // key; an open without O_EXCL would write through a symlink. `false` means another entry won the path.
-function publishKeyfile(keyPath: string, key: Buffer): boolean {
+function publishKeyfile(keyPath: string, key: Buffer, reportKeyfile: KeyfileReport): boolean {
   const dir = dirname(keyPath);
   mkdirSync(dir, { recursive: true });
   const tempPath = join(dir, `${basename(keyPath)}.${randomBytes(TEMP_NAME_BYTES).toString("hex")}.tmp`);
@@ -113,7 +116,7 @@ function publishKeyfile(keyPath: string, key: Buffer): boolean {
   } finally {
     unlinkSync(tempPath);
   }
-  fsyncDirectory(dir);
+  fsyncDirectory(dir, reportKeyfile);
   return true;
 }
 
@@ -123,18 +126,22 @@ function publishKeyfile(keyPath: string, key: Buffer): boolean {
  *  @remarks Creation is atomic and never clobbers: two boots racing on an empty data dir both return the one
  *  key that won the path. `generate` is the entropy source, injectable so a test can interleave a second
  *  creator between the absence check and the publish. */
-export function loadOrCreateKeyfile(keyPath: string, generate: () => Buffer = () => randomBytes(CREDENTIALS_KEY_BYTES)): Buffer | null {
-  // owned by `reportKeyfile` (the fault goes to process.stderr, silent only under NODE_ENV=test) and by the null return: `settleBootSecrets` hands it to `entry/lifecycle.ts`, which refuses a cookie mode whose session secret is null, and a null credentials key leaves the SecretBox disabled. Fail-closed so no caller re-keys over the only recovery copy. Ends if a caller stops receiving the null.
+export function loadOrCreateKeyfile(
+  keyPath: string,
+  reportKeyfile: KeyfileReport,
+  generate: () => Buffer = () => randomBytes(CREDENTIALS_KEY_BYTES),
+): Buffer | null {
+  // owned by the injected `reportKeyfile` (stderr, silent only under a test build — `keyfileReport`) and by the null return: `settleBootSecrets` hands it to `entry/lifecycle.ts`, which refuses a cookie mode whose session secret is null, and a null credentials key leaves the SecretBox disabled. Fail-closed so no caller re-keys over the only recovery copy. Ends if a caller stops receiving the null.
   try {
     // lstat, not exists: a dangling symlink is an entry, and it must fail closed rather than read as absent.
     if (lstatSync(keyPath, { throwIfNoEntry: false }) === undefined) {
       const fresh = generate();
-      if (publishKeyfile(keyPath, fresh)) {
+      if (publishKeyfile(keyPath, fresh, reportKeyfile)) {
         reportKeyfile(`generated ${keyPath} (mode 0600). Back it up with the database.`);
         return fresh;
       }
     }
-    return readKeyfile(keyPath);
+    return readKeyfile(keyPath, reportKeyfile);
   } catch (err) {
     reportKeyfile(`${keyPath} could not be read or created (${errorText(err)}); not generating a new one.`);
     return null;
@@ -143,10 +150,10 @@ export function loadOrCreateKeyfile(keyPath: string, generate: () => Buffer = ()
 
 // Read a keyfile that is known to exist. The same fail-closed contract as `loadOrCreateKeyfile`'s read arm:
 // a corrupt, unreadable or dangling entry is null and is never touched.
-function readExistingKeyfile(keyPath: string): Buffer | null {
-  // owned by `reportKeyfile` (the fault goes to process.stderr, silent only under NODE_ENV=test) and by the null return: `resolveKeyfile` hands it to `resolveSessionSecret`, where `entry/lifecycle.ts` refuses a cookie mode with a null secret, and a null credentials key leaves the SecretBox disabled. Fail-closed so no caller re-keys over the only recovery copy. Ends if a caller stops receiving the null.
+function readExistingKeyfile(keyPath: string, reportKeyfile: KeyfileReport): Buffer | null {
+  // owned by the injected `reportKeyfile` (stderr, silent only under a test build — `keyfileReport`) and by the null return: `resolveKeyfile` hands it to `resolveSessionSecret`, where `entry/lifecycle.ts` refuses a cookie mode with a null secret, and a null credentials key leaves the SecretBox disabled. Fail-closed so no caller re-keys over the only recovery copy. Ends if a caller stops receiving the null.
   try {
-    return readKeyfile(keyPath);
+    return readKeyfile(keyPath, reportKeyfile);
   } catch (err) {
     reportKeyfile(`${keyPath} could not be read (${errorText(err)}); not generating a new one.`);
     return null;
@@ -160,8 +167,8 @@ function sessionPepper(key: Buffer | null): string | null {
 
 /** The pepper a session-secret keyfile known to exist holds, read the way `resolveSessionSecret` reads its own
  *  keyfile; `null` when the file is not a usable key. Never writes. */
-export function readSessionSecretKeyfile(path: string): string | null {
-  return sessionPepper(readExistingKeyfile(path));
+export function readSessionSecretKeyfile(path: string, reportKeyfile: KeyfileReport): string | null {
+  return sessionPepper(readExistingKeyfile(path, reportKeyfile));
 }
 
 // Where a boot secret's keyfile lives, or null for a remote db that has no local backup unit to join.
@@ -171,19 +178,12 @@ function keyfilePath(source: BootSecretSource, name: string): string | null {
 
 /** Where each boot secret comes from: the explicit env value, else its keyfile under the layout's secrets dir
  *  (`null` for a remote db). The boot disclaimer names it back to the operator. */
-export function bootSecretProvenance(
-  source: {
-    readonly sessionSecret: string | undefined;
-    readonly credentialsKey: string | undefined;
-    readonly databaseUrl: string;
-    readonly secretsDir: string;
-  } = {
-    sessionSecret: env.SESSION_SECRET,
-    credentialsKey: env.CREDENTIALS_KEY,
-    databaseUrl: env.DATABASE_URL,
-    secretsDir: env.DATA_LAYOUT.secrets,
-  },
-): {
+export function bootSecretProvenance(source: {
+  readonly sessionSecret: string | undefined;
+  readonly credentialsKey: string | undefined;
+  readonly databaseUrl: string;
+  readonly secretsDir: string;
+}): {
   readonly sessionSecret: { readonly explicit: boolean; readonly keyfile: string | null };
   readonly credentialsKey: { readonly explicit: boolean; readonly keyfile: string | null };
 } {
@@ -196,7 +196,7 @@ export function bootSecretProvenance(
 
 // The keyfile half of a resolution, shared by both secrets: remote db → resolved null; an entry at the path
 // (a file, a symlink, anything) → read it; nothing there → absent, and nothing is written.
-function resolveKeyfile(source: BootSecretSource, name: string, remoteNotice: string): BootSecretResolution<Buffer> {
+function resolveKeyfile(source: BootSecretSource, name: string, remoteNotice: string, reportKeyfile: KeyfileReport): BootSecretResolution<Buffer> {
   const path = keyfilePath(source, name);
   if (path === null) {
     reportKeyfile(remoteNotice);
@@ -205,15 +205,13 @@ function resolveKeyfile(source: BootSecretSource, name: string, remoteNotice: st
   if (lstatSync(path, { throwIfNoEntry: false }) === undefined) {
     return { kind: "absent", path };
   }
-  return { kind: "resolved", value: readExistingKeyfile(path), path };
+  return { kind: "resolved", value: readExistingKeyfile(path, reportKeyfile), path };
 }
 
 /** The credentials SecretBox key: an explicit CREDENTIALS_KEY (hex or base64, exactly 32 bytes), else the
  *  `credentials_key` keyfile under the layout's secrets dir. Never throws: a bad or unusable key resolves
  *  to `null` (a DISABLED box); a keyfile that does not exist yet resolves to `absent`. */
-export function resolveCredentialsKey(
-  source: BootSecretSource = { explicit: env.CREDENTIALS_KEY, databaseUrl: env.DATABASE_URL, secretsDir: env.DATA_LAYOUT.secrets },
-): BootSecretResolution<Buffer> {
+export function resolveCredentialsKey(source: BootSecretSource, reportKeyfile: KeyfileReport): BootSecretResolution<Buffer> {
   if (explicitCredentialsKey(source.explicit)) {
     return { kind: "resolved", value: decode32Bytes(source.explicit), path: null };
   }
@@ -221,15 +219,14 @@ export function resolveCredentialsKey(
     source,
     SECRET_FILE_NAMES.credentialsKey,
     `DATABASE_URL is not a local file: database, so no ${SECRET_FILE_NAMES.credentialsKey} keyfile can be generated; set CREDENTIALS_KEY to store provider keys.`,
+    reportKeyfile,
   );
 }
 
 /** The SESSION_SECRET pepper: an explicit SESSION_SECRET, else the `session_secret` keyfile under the
  *  layout's secrets dir as 64 hex chars. `null` for a remote db or an unusable keyfile; `absent` for a keyfile
  *  that does not exist yet. The value is returned, never written to `process.env`. */
-export function resolveSessionSecret(
-  source: BootSecretSource = { explicit: env.SESSION_SECRET, databaseUrl: env.DATABASE_URL, secretsDir: env.DATA_LAYOUT.secrets },
-): BootSecretResolution<string> {
+export function resolveSessionSecret(source: BootSecretSource, reportKeyfile: KeyfileReport): BootSecretResolution<string> {
   if (explicitSessionSecret(source.explicit)) {
     return { kind: "resolved", value: source.explicit, path: null };
   }
@@ -237,6 +234,7 @@ export function resolveSessionSecret(
     source,
     SECRET_FILE_NAMES.sessionSecret,
     `DATABASE_URL is not a local file: database, so no ${SECRET_FILE_NAMES.sessionSecret} keyfile can be generated.`,
+    reportKeyfile,
   );
   if (keyfile.kind === "absent") {
     return keyfile;

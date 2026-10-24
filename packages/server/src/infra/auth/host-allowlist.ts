@@ -13,7 +13,7 @@
 
 import { ALLOWED_HOST_SUFFIX_MARK, ALLOWED_HOSTS_KEY, isAlwaysAllowedHost, isHostname, withoutTrailingDot } from "@orb/kit/allowed-hosts";
 import { DomainOperationError } from "@orb/kit/errors";
-import { settingInstruction } from "#foundation/env";
+import { settingInstruction } from "#foundation/env/record";
 import { securityEvent } from "#foundation/observability";
 import { isTrustedHop } from "#infra/network";
 import type { AllowedHostsReader, HostFacts, HostNotAllowedNotice, RelayHostRegistry } from "./contract.ts";

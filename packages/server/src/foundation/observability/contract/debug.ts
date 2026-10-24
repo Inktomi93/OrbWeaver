@@ -3,6 +3,7 @@ import type { EffectiveAppConfig, GlobalSettingView } from "@orb/contracts/setti
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { Context } from "hono";
+import type { Env } from "#foundation/env/record";
 
 export interface AssetInspector {
   fsck: () => Promise<object>;
@@ -46,6 +47,8 @@ export interface DebugAuthOptions {
 }
 
 export interface DebugRoutesOptions {
+  /** The parsed env record: the build posture, the diagnostics inputs and the secret literals the bug report scrubs. */
+  readonly env: Env;
   /** Required selection prevents a configured app from silently omitting its stored settings view. */
   readonly appSettingRows: (() => Promise<readonly GlobalSettingView[]>) | null;
   db?: DatabaseHandle;
@@ -54,8 +57,8 @@ export interface DebugRoutesOptions {
   memoryRecall?: MemoryRecallInspector;
   sockets?: SocketInspector;
   effectiveConfig?: () => EffectiveAppConfig;
-  /** The live capture decision for both wire reads; it includes composition overrides unavailable to foundation. */
-  wireCaptureEnabled?: () => boolean;
+  /** The live capture decision for both wire reads; compose makes it, so foundation never re-reads the knob. */
+  readonly wireCaptureEnabled: () => boolean;
   auth?: DebugAuthOptions | string;
 }
 
@@ -67,6 +70,6 @@ interface BugReportRecorder {
 export interface BugReportInspectors {
   readonly rpgTrace?: BugReportRecorder;
   readonly memoryRecall?: BugReportRecorder;
-  /** The live wire-capture decision the debug routes report; absent ⇒ the env flag alone. */
-  readonly wireCaptureEnabled?: () => boolean;
+  /** The live wire-capture decision the debug routes report. */
+  readonly wireCaptureEnabled: () => boolean;
 }

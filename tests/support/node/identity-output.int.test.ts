@@ -6,7 +6,6 @@ import { PRESENCE_READ_MAX_USER_IDS } from "@orb/contracts/notifications";
 import type { LogLevel } from "@orb/contracts/settings";
 import type { ExternalId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { authModeSource, installKind } from "@orb/server/foundation/env";
 import { logger } from "@orb/server/foundation/observability";
 import { captureAccountViews } from "./corpus-auth.ts";
@@ -18,7 +17,7 @@ import { captureShareViews } from "./share.ts";
 const OUTPUT_LOG_LEVEL = "error" satisfies LogLevel;
 
 test("native account and sharing suppliers keep request identity and owner-only diagnostics separate from delegated sign-in guidance", async () => {
-  await using root = await createServerHarness({ logLevel: OUTPUT_LOG_LEVEL, authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" } });
+  await using root = await createServerHarness({ logLevel: OUTPUT_LOG_LEVEL, authConfig: { mode: "local", fallback: "deny" } });
   const owner = await root.principalFor(root.ownerId);
   const admin = await root.actor({ role: "admin" });
   const subject = "private-native-supplier-subject";
@@ -61,7 +60,7 @@ test("native account and sharing suppliers keep request identity and owner-only 
   }
   const sharing = await captureShareViews(ownerCaller.share);
   expect(sharing.status).toMatchObject({ relay: { state: "off" }, certificate: { state: "off" }, liveSocketCount: 0 });
-  expect(sharing.signInMode).toMatchObject({ mode: "local", source: authModeSource(), install: installKind() });
+  expect(sharing.signInMode).toMatchObject({ mode: "local", source: authModeSource(), install: installKind(root.env) });
   expect(sharing.signInMode.targets.map((target) => target.mode)).toEqual([...SIGN_IN_TARGET_MODES]);
   expect(sharing.signInMode.targets).toMatchObject([
     { mode: "local", shareRefusal: null },
@@ -80,7 +79,7 @@ test("native account and sharing suppliers keep request identity and owner-only 
 });
 
 test("native notification snapshots distinguish offline and unknown IDs from unavailable disclosure without leaking last-seen state", async () => {
-  await using root = await createServerHarness({ logLevel: OUTPUT_LOG_LEVEL, authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" } });
+  await using root = await createServerHarness({ logLevel: OUTPUT_LOG_LEVEL, authConfig: { mode: "local", fallback: "deny" } });
   const owner = await root.principalFor(root.ownerId);
   await root.services.settings.updateAppSettings({ principal: owner, partial: { localMultiUser: true } });
   const reader = await root.actor();

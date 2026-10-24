@@ -69,5 +69,5 @@ test("debug admission remains synchronous and context-based with required nullab
   expectTypeOf<{ expectedToken: undefined }>().toExtend<DebugAuthOptions>();
   // biome-ignore lint/complexity/noBannedTypes: The type assertion tests property presence against the empty object type.
   expectTypeOf<{}>().not.toExtend<DebugRoutesOptions>();
-  expectTypeOf<{ appSettingRows: null }>().toExtend<DebugRoutesOptions>();
+  expectTypeOf<{ appSettingRows: null }>().toExtend<Pick<DebugRoutesOptions, "appSettingRows">>();
 });

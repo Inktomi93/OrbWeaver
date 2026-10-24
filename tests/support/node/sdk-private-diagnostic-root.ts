@@ -15,6 +15,7 @@ const identify = createSdkProcessIdentity();
 const children: ChildProcessWithoutNullStreams[] = [];
 const closes: Promise<void>[] = [];
 await using harness = await createServerHarness({
+  logLevel: "error",
   secretBoxKey: Buffer.alloc(32, 1),
   sdkNative: {
     executable: "node",

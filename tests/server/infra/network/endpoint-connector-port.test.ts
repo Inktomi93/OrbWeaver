@@ -3,6 +3,7 @@ import type { ScopedEgressOptions } from "@orb/server/infra/network";
 import { createScopedEgress, systemFetch } from "@orb/server/infra/network";
 import { createControlledTimers, createFrozenClock } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
+import { createTestEnv } from "@orb/testkit/node/helpers";
 
 // A fresh scheduler per egress: these cases never wait on a deadline, so nothing advances it.
 function quietTimers(): ReturnType<typeof createControlledTimers> {
@@ -57,7 +58,13 @@ async function dialFailure(fetchPromise: Promise<Response>): Promise<unknown> {
 
 test("the actual connector rejects a wrong hostname port before the physical dial despite its resolved CIDR", async () => {
   raw.calls.length = 0;
-  await using egress = createScopedEgress({ timers: quietTimers(), fetch: systemFetch, resolver: rebindingResolver(), buildConnector: scriptedConnector });
+  await using egress = createScopedEgress({
+    env: createTestEnv(),
+    timers: quietTimers(),
+    fetch: systemFetch,
+    resolver: rebindingResolver(),
+    buildConnector: scriptedConnector,
+  });
   egress.publishPrivateEndpointAllowlist(["engine.lan:11434", "127.0.0.0/8"]);
   const cause = await dialFailure(egress.configuredEndpointFetch("http://engine.lan:8080/v1"));
   expect(cause).not.toBe(raw.reached);
@@ -67,7 +74,13 @@ test("the actual connector rejects a wrong hostname port before the physical dia
 
 test("the connector preserves exact-port, unrelated-CIDR-host and public-address admission", async () => {
   raw.calls.length = 0;
-  await using egress = createScopedEgress({ timers: quietTimers(), fetch: systemFetch, resolver: resolveByHost, buildConnector: scriptedConnector });
+  await using egress = createScopedEgress({
+    env: createTestEnv(),
+    timers: quietTimers(),
+    fetch: systemFetch,
+    resolver: resolveByHost,
+    buildConnector: scriptedConnector,
+  });
   egress.publishPrivateEndpointAllowlist(["engine.lan:11434", "public.example:11434", "127.0.0.0/8"]);
   for (const url of ["http://engine.lan:11434/v1", "http://other.lan:8080/v1", "http://public.example:8080/v1"]) {
     await expect(dialFailure(egress.configuredEndpointFetch(url))).resolves.toBe(raw.reached);

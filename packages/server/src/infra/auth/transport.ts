@@ -14,7 +14,7 @@
 import type { ClientScope, RequestTransport } from "@orb/contracts/identity";
 import type { Context } from "hono";
 import { securityEvent } from "#foundation/observability";
-import { clientIp, isInRanges, isPrivateOrLoopback, isTrustedHop, peerIp, TRUSTED_PROXIES } from "#infra/network";
+import { clientIp, isInRanges, isPrivateOrLoopback, isTrustedHop, peerIp } from "#infra/network";
 import type { PublicHttpMintNotice } from "./contract.ts";
 import { createKeyedNoticeThrottle } from "./notice-throttle.ts";
 
@@ -38,9 +38,9 @@ function resolveTransport(args: {
   return forwardedProto.split(",").every((value) => value.trim().toLowerCase() === HTTPS) ? "https" : "http";
 }
 
-/** The transport of a live request. */
-export function requestTransport(c: Context): RequestTransport {
-  return resolveTransport({ peer: peerIp(c), forwardedProto: c.req.raw.headers.get(X_FORWARDED_PROTO), trustedProxies: TRUSTED_PROXIES });
+/** The transport of a live request; `trustedProxies` is the deployment list `clientIp` reads too (`trustedProxiesOf`). */
+export function requestTransport(c: Context, trustedProxies: readonly string[]): RequestTransport {
+  return resolveTransport({ peer: peerIp(c), forwardedProto: c.req.raw.headers.get(X_FORWARDED_PROTO), trustedProxies });
 }
 
 /** Pure scope rule over the resolved client address. Only a warning rides on it, so an unresolved address
@@ -56,8 +56,8 @@ function resolveClientScope(ip: string | null): ClientScope {
 }
 
 /** The scope of a live request's resolved client (`X-Forwarded-For`-aware behind a trusted hop). */
-export function requestClientScope(c: Context): ClientScope {
-  return resolveClientScope(clientIp(c));
+export function requestClientScope(c: Context, trustedProxies: readonly string[]): ClientScope {
+  return resolveClientScope(clientIp(c, trustedProxies));
 }
 
 /** The unthrottled line: what the mint routes emit when no throttled notice is injected. */

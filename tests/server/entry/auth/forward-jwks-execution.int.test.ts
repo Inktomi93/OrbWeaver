@@ -5,7 +5,6 @@
 import { authMeSchema } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
@@ -18,7 +17,6 @@ const KEY_URL = new URL("jwks", ISSUER).href;
 function rootFor(execution: typeof fetch): Promise<ServerTestHarness> {
   return createServerHarness({
     authConfig: {
-      ...authConfigFromEnv(),
       mode: "forward-header",
       fallback: "deny",
       verifyForwardJwt: true,

@@ -10,6 +10,7 @@ export {
   terminateChromiumIdentities,
   watchChromiumDescendants,
 } from "./chromium-processes.ts";
+export { createTestEnv } from "./env.ts";
 export { makeRuleView } from "./factories/automation-view.ts";
 export { makeChatDetail, makeChatId, makeChatSummaryView, makeRedeemInviteResult } from "./factories/chat-view.ts";
 export { makePluginRow, makePluginScriptedPage } from "./factories/plugin-view.ts";

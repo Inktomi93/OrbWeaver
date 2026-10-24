@@ -10,7 +10,6 @@ import { PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { createThemeInputSchema } from "@orb/contracts/theme";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, makeAssetBytes, prepareBackupFolder } from "@orb/testkit/node/composed";
@@ -31,7 +30,7 @@ interface BackupEntry {
 
 function harness(): Promise<ServerTestHarness> {
   return createServerHarness({
-    authConfig: { ...authConfigFromEnv(), mode: "single-user", fallback: "owner" },
+    authConfig: { mode: "single-user", fallback: "owner" },
     physicalPeer: () => "127.0.0.1",
     startJobs: false,
   });

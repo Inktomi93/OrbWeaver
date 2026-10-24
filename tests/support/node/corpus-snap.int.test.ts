@@ -2,7 +2,6 @@
 import { readFile } from "node:fs/promises";
 import { contextFitAnswerSchema } from "@orb/contracts/chat";
 import { localPath } from "@orb/db";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { z } from "zod";
 import { createCorpusHarness, loadCorpusFixture } from "./corpus.ts";
 import { CORPUS_PROVIDER_ENDPOINT } from "./corpus-provider.ts";
@@ -22,7 +21,7 @@ test("native corpus stage clone reaches preview retrieval without changing its p
   expect(prepared.fixture.wire).toEqual(source.wire);
   const transport = createCorpusProviderTransport(prepared.provider.baseUrl);
   await using root = await createCorpusHarness(prepared.fixture.layout.root, {
-    authConfig: { ...authConfigFromEnv(), mode: "single-user" },
+    authConfig: { mode: "single-user" },
     providerFetch: transport.fetch,
     networkExecution: transport,
   });

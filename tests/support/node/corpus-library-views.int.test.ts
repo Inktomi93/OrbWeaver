@@ -9,7 +9,6 @@ import { DOCUMENT_SCOPE_SOURCES } from "@orb/contracts/databank";
 import { healthResponseSchema } from "@orb/contracts/diagnostics";
 import { TAG_TARGET_TYPES } from "@orb/contracts/tag";
 import { assertReferentialIntegrity } from "@orb/db";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "../iso/corpus.ts";
 import { createCorpusReadResponder, createCorpusViewerReadResponder } from "../iso/corpus-read-responder.ts";
 import { CORPUS_LIBRARY_RULE_PRESET, seedCorpusLibraryViews } from "./corpus-library-views.ts";
@@ -30,7 +29,7 @@ test("native library projections retain canonical usage, ordering, intake and re
   await using root = await createServerHarness({
     providerFetch: wire.execute,
     secretBoxKey: randomBytes(32),
-    authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" },
+    authConfig: { mode: "local", fallback: "deny" },
   });
   const actors = await seedCorpusActors(root);
   const library = await seedCorpusLibraries(root);

@@ -15,6 +15,7 @@ const warningSchema = z.object({ key: z.string(), reason: z.string() });
 await test("actual composed world-info matcher", async () => {
   {
     await using root = await createServerHarness({
+      logLevel: "warn",
       temporaryParentDir: z.string().parse(process.argv[3]),
       providerFetch: (input, init): Promise<Response> => {
         const url = input instanceof Request ? new URL(input.url) : new URL(input);

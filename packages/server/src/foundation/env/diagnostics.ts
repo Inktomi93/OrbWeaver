@@ -65,7 +65,7 @@ import type { DiagnosticsExposure, DiagnosticsPosture, DiagnosticsPostureInput, 
  * same-host reverse proxy in PRODUCTION it means "any request from the internet".
  *
  * THE RULE IS PRODUCTION-EXCLUDING, and it reuses the discriminator the SSO-bypass ruling already chose
- * (NODE_ENV — `foundation/env/index.ts`'s superRefine, #298 owner ruling 2026-08-19) rather than minting a
+ * (NODE_ENV — `foundation/env/record/index.ts`'s superRefine, #298 owner ruling 2026-08-19) rather than minting a
  * second flag the two could disagree about. Two production cases are deliberately NOT covered even though
  * their fallback arm is live:
  *   • `single-user` in production, where `AUTH_FALLBACK=owner` is forced (deny is boot-fatal there): behind a

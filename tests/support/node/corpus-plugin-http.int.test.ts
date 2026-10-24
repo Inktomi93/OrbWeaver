@@ -1,13 +1,12 @@
 // @subject tests/support/node/corpus-plugin-http.ts
 import { spawn } from "node:child_process";
 import { pluginFrameMintResponseSchema } from "@orb/contracts/plugin";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { CORPUS_PLUGIN_FRAME_TEXT, CORPUS_PLUGIN_UI_SOURCE, seedCorpusPluginFrameLifetime, seedCorpusPluginHttp } from "./corpus-plugin-http.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 
 test("native frame handles slide until exact expiry and cease serving documents and passive assets after revocation", { tags: ["slow"] }, async () => {
-  await using root = await createServerHarness({ pluginSpawn: spawn, authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" } });
+  await using root = await createServerHarness({ pluginSpawn: spawn, authConfig: { mode: "local", fallback: "deny" } });
   const result = await seedCorpusPluginFrameLifetime(root);
   expect(result.baseline.document.status).toBe(200);
   expect(result.anonymousAsset.response.status).toBe(200);
@@ -41,7 +40,7 @@ test("native frame handles slide until exact expiry and cease serving documents 
 });
 
 test("native HTTP plugin suppliers preserve inert source, scoped frame handles, CSRF and live revocation", { tags: ["slow"] }, async () => {
-  await using root = await createServerHarness({ pluginSpawn: spawn, authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" } });
+  await using root = await createServerHarness({ pluginSpawn: spawn, authConfig: { mode: "local", fallback: "deny" } });
   const result = await seedCorpusPluginHttp(root);
   expect(result.granted.outcome.status).toBe("enabled");
   expect(result.source.status).toBe(200);

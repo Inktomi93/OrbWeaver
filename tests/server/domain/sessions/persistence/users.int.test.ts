@@ -8,7 +8,6 @@ import { handleKey } from "@orb/kit/handle-key";
 import type { ExternalId, Handle } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import type { SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { env } from "@orb/server/foundation/env";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -26,7 +25,7 @@ function forwardHeaderRoot(policy: Partial<SessionsRolePolicyConfig> = {}): Prom
   const { OIDC_ADMIN_GROUPS: _admins, OIDC_ALLOWED_GROUPS: _allowed, OWNER_GROUP: _owners, ...base } = env;
   return createServerHarness({
     rolePolicyConfig: { ...base, ["OIDC_ALLOWED_GROUPS"]: MEMBER_GROUP, ...policy },
-    authConfig: { ...authConfigFromEnv(), mode: "forward-header", fallback: "deny", forwardTrustedProxies: ["127.0.0.1/32"] },
+    authConfig: { mode: "forward-header", fallback: "deny", forwardTrustedProxies: ["127.0.0.1/32"] },
     physicalPeer: () => "127.0.0.1",
   });
 }

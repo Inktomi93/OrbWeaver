@@ -18,6 +18,7 @@ import type { ThemeId, UserId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import type { UpdateCheck, UpstreamProbes, VersionIdentity } from "@orb/kit/version-identity";
 import type { RequireAdmin, RequireOwner } from "#domain/admin";
+import type { Env } from "#foundation/env/record";
 import type { AuditEntry } from "#foundation/observability";
 import type {
   AddExternalBackgroundParams,
@@ -67,9 +68,24 @@ export interface SettingsContext {
   readonly probeUpstream: UpstreamProbes;
 }
 
+/** The env floors the effective-config resolver reads: the root's env record, with the root's auth mode and log level. */
+export type SettingsEnvFloor = Pick<
+  Env,
+  | "AUTH_MODE"
+  | "LOG_LEVEL"
+  | "CORPUS_AUTOINDEX"
+  | "IMPORT_SKIP_CHARACTERS"
+  | "PRIVATE_ENDPOINT_ALLOWLIST"
+  | "RATE_LIMIT_AI_TURN"
+  | "RATE_LIMIT_PUBLIC_IP"
+  | "RATE_LIMIT_AUTHED"
+  | "RATE_LIMIT_LOGIN"
+>;
+
 /** What the entry composition root supplies to stand up the domain. */
 export interface SettingsServiceDeps {
-  readonly effectiveConfig?: Pick<SettingsContext, "getEffectiveConfig" | "reloadEffectiveConfig"> | undefined;
+  /** The resolved-config cache over the root's env floors (`createEffectiveConfigCache`). */
+  readonly effectiveConfig: Pick<SettingsContext, "getEffectiveConfig" | "reloadEffectiveConfig">;
   readonly onEffectiveConfigChanged?: ((config: EffectiveAppConfig) => void) | undefined;
   readonly db: DatabaseHandle;
   readonly now: () => number;

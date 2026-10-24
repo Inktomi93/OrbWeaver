@@ -9,7 +9,6 @@ import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_DIRECTORIES, PORTABLE_IMPORT_ORDER } from "@orb/contracts/portability";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
@@ -144,7 +143,7 @@ test("every upload of a folder near the served total fits that total as a whole 
 });
 
 test("a restore whose chat is picked before its character still links the chat once every upload has run", async () => {
-  const single = { authConfig: { ...authConfigFromEnv(), mode: "single-user", fallback: "owner" }, physicalPeer: () => "127.0.0.1", startJobs: false } as const;
+  const single = { authConfig: { mode: "single-user", fallback: "owner" }, physicalPeer: () => "127.0.0.1", startJobs: false } as const;
   await using exporter = await createServerHarness(single);
   const author = await exporter.internalCallerFor(exporter.ownerId);
   const card = await author.character.create({

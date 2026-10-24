@@ -186,7 +186,7 @@ function singleUserPosture(input: BindPostureInput): BindPosture | null {
 }
 
 /** Resolve the listen host + the boot verdict. Total over (mode × env × host × hatch × peer set); the caller
- *  that enforces `refusal` is the env parse itself (`foundation/env/index.ts`'s superRefine), so an env
+ *  that enforces `refusal` is the env parse itself (`foundation/env/record/index.ts`'s superRefine), so an env
  *  carrying a refused combination cannot come into existence at all. */
 export function resolveBindPosture(input: BindPostureInput): BindPosture {
   const singleUser = singleUserPosture(input);

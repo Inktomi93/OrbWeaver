@@ -4,7 +4,6 @@ import { authMeSchema, CSRF_HEADER, viewerViewSchema } from "@orb/contracts/iden
 import type { Handle, UserId } from "@orb/kit/ids";
 import type { AppRouter } from "@orb/server";
 import type { SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { env } from "@orb/server/foundation/env";
 import { expect } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -101,7 +100,6 @@ export async function signedForwardRoot(rolePolicyConfig: SessionsRolePolicyConf
     rolePolicyConfig,
     physicalPeer: () => PUBLIC_ADDRESS,
     authConfig: {
-      ...authConfigFromEnv(),
       mode: "forward-header",
       fallback: "deny",
       verifyForwardJwt: true,

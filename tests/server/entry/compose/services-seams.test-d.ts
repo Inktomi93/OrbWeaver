@@ -1,6 +1,7 @@
 // @subject packages/server/src/entry/compose/services.ts
 import { createIdSource } from "@orb/kit/ids";
 import type { createProcessSeams, ServicesDeps } from "@orb/server/entry/compose";
+import { createTestEnv } from "@orb/testkit/node/helpers";
 import { expectTypeOf, test } from "vitest";
 
 // The seams the real source supplies; each one is named again below so a dropped seam still fails this test.
@@ -17,29 +18,171 @@ const networkExecution: ServicesDeps["networkExecution"] = {
   resolver: () => Promise.reject(new Error("no resolve")),
 };
 const monotonicNow = (): number => 0;
+const env = createTestEnv();
+const hostEnvAllowlist = (): Readonly<Record<string, string>> => ({});
+const authModeSource: ServicesDeps["authModeSource"] = "default";
 
 test("the composition root requires every process seam, so a forgotten one cannot fall back to the ambient process", () => {
   expectTypeOf<Pick<ServicesDeps, ProcessSeam>>().toEqualTypeOf<Required<Pick<ServicesDeps, ProcessSeam>>>();
   expectTypeOf<undefined>().not.toExtend<ServicesDeps[ProcessSeam]>();
 
-  const complete: Pick<ServicesDeps, ProcessSeam> = { timers, random, randomInt, idSource, newOpaqueId, buildConnector, networkExecution, monotonicNow };
+  const complete: Pick<ServicesDeps, ProcessSeam> = {
+    timers,
+    random,
+    randomInt,
+    idSource,
+    newOpaqueId,
+    buildConnector,
+    networkExecution,
+    monotonicNow,
+    env,
+    hostEnvAllowlist,
+    authModeSource,
+  };
   expectTypeOf(complete).toExtend<Pick<ServicesDeps, ProcessSeam>>();
   // @ts-expect-error a root without `timers` must not compile
-  const withoutTimers: Pick<ServicesDeps, ProcessSeam> = { random, randomInt, idSource, newOpaqueId, buildConnector, networkExecution, monotonicNow };
+  const withoutTimers: Pick<ServicesDeps, ProcessSeam> = {
+    random,
+    randomInt,
+    idSource,
+    newOpaqueId,
+    buildConnector,
+    networkExecution,
+    monotonicNow,
+    env,
+    hostEnvAllowlist,
+    authModeSource,
+  };
   // @ts-expect-error a root without `random` must not compile
-  const withoutRandom: Pick<ServicesDeps, ProcessSeam> = { timers, randomInt, idSource, newOpaqueId, buildConnector, networkExecution, monotonicNow };
+  const withoutRandom: Pick<ServicesDeps, ProcessSeam> = {
+    timers,
+    randomInt,
+    idSource,
+    newOpaqueId,
+    buildConnector,
+    networkExecution,
+    monotonicNow,
+    env,
+    hostEnvAllowlist,
+    authModeSource,
+  };
   // @ts-expect-error a root without `randomInt` must not compile
-  const withoutRandomInt: Pick<ServicesDeps, ProcessSeam> = { timers, random, idSource, newOpaqueId, buildConnector, networkExecution, monotonicNow };
+  const withoutRandomInt: Pick<ServicesDeps, ProcessSeam> = {
+    timers,
+    random,
+    idSource,
+    newOpaqueId,
+    buildConnector,
+    networkExecution,
+    monotonicNow,
+    env,
+    hostEnvAllowlist,
+    authModeSource,
+  };
   // @ts-expect-error a root without `idSource` must not compile
-  const withoutIdSource: Pick<ServicesDeps, ProcessSeam> = { timers, random, randomInt, newOpaqueId, buildConnector, networkExecution, monotonicNow };
+  const withoutIdSource: Pick<ServicesDeps, ProcessSeam> = {
+    timers,
+    random,
+    randomInt,
+    newOpaqueId,
+    buildConnector,
+    networkExecution,
+    monotonicNow,
+    env,
+    hostEnvAllowlist,
+    authModeSource,
+  };
   // @ts-expect-error a root without `newOpaqueId` must not compile
-  const withoutNewOpaqueId: Pick<ServicesDeps, ProcessSeam> = { timers, random, randomInt, idSource, buildConnector, networkExecution, monotonicNow };
+  const withoutNewOpaqueId: Pick<ServicesDeps, ProcessSeam> = {
+    timers,
+    random,
+    randomInt,
+    idSource,
+    buildConnector,
+    networkExecution,
+    monotonicNow,
+    env,
+    hostEnvAllowlist,
+    authModeSource,
+  };
   // @ts-expect-error a root without `buildConnector` must not compile
-  const withoutBuildConnector: Pick<ServicesDeps, ProcessSeam> = { timers, random, randomInt, idSource, newOpaqueId, networkExecution, monotonicNow };
+  const withoutBuildConnector: Pick<ServicesDeps, ProcessSeam> = {
+    timers,
+    random,
+    randomInt,
+    idSource,
+    newOpaqueId,
+    networkExecution,
+    monotonicNow,
+    env,
+    hostEnvAllowlist,
+    authModeSource,
+  };
   // @ts-expect-error a root without `networkExecution` must not compile
-  const withoutNetworkExecution: Pick<ServicesDeps, ProcessSeam> = { timers, random, randomInt, idSource, newOpaqueId, buildConnector, monotonicNow };
+  const withoutNetworkExecution: Pick<ServicesDeps, ProcessSeam> = {
+    timers,
+    random,
+    randomInt,
+    idSource,
+    newOpaqueId,
+    buildConnector,
+    monotonicNow,
+    env,
+    hostEnvAllowlist,
+    authModeSource,
+  };
   // @ts-expect-error a root without `monotonicNow` must not compile
-  const withoutMonotonicNow: Pick<ServicesDeps, ProcessSeam> = { timers, random, randomInt, idSource, newOpaqueId, buildConnector, networkExecution };
+  const withoutMonotonicNow: Pick<ServicesDeps, ProcessSeam> = {
+    timers,
+    random,
+    randomInt,
+    idSource,
+    newOpaqueId,
+    buildConnector,
+    networkExecution,
+    env,
+    hostEnvAllowlist,
+    authModeSource,
+  };
+  // @ts-expect-error a root without `env` must not compile
+  const withoutEnv: Pick<ServicesDeps, ProcessSeam> = {
+    timers,
+    random,
+    randomInt,
+    idSource,
+    newOpaqueId,
+    buildConnector,
+    networkExecution,
+    monotonicNow,
+    hostEnvAllowlist,
+    authModeSource,
+  };
+  // @ts-expect-error a root without `hostEnvAllowlist` must not compile
+  const withoutHostEnvAllowlist: Pick<ServicesDeps, ProcessSeam> = {
+    timers,
+    random,
+    randomInt,
+    idSource,
+    newOpaqueId,
+    buildConnector,
+    networkExecution,
+    monotonicNow,
+    env,
+    authModeSource,
+  };
+  // @ts-expect-error a root without `authModeSource` must not compile
+  const withoutAuthModeSource: Pick<ServicesDeps, ProcessSeam> = {
+    timers,
+    random,
+    randomInt,
+    idSource,
+    newOpaqueId,
+    buildConnector,
+    networkExecution,
+    monotonicNow,
+    env,
+    hostEnvAllowlist,
+  };
   expectTypeOf([
     withoutTimers,
     withoutRandom,
@@ -49,5 +192,8 @@ test("the composition root requires every process seam, so a forgotten one canno
     withoutBuildConnector,
     withoutNetworkExecution,
     withoutMonotonicNow,
+    withoutEnv,
+    withoutHostEnvAllowlist,
+    withoutAuthModeSource,
   ]).toBeArray();
 });

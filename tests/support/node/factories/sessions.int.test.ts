@@ -3,7 +3,6 @@
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { RATE_LIMIT_CAP_MIN } from "@orb/contracts/settings";
 import { sessions } from "@orb/db";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { eq } from "drizzle-orm";
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
@@ -25,7 +24,7 @@ test("a real session mint persists only its hash and revoke settles the actual r
 });
 
 test("the real HTTP login spends its canonical buckets only after CSRF and refuses at the live configured cap", async () => {
-  await using root = await createServerHarness({ authConfig: { ...authConfigFromEnv(), mode: "local" } });
+  await using root = await createServerHarness({ authConfig: { mode: "local" } });
   const owner = await root.principalFor(root.ownerId);
   const configured = await root.services.settings.updateAppSettings({ principal: owner, partial: { rateLimits: { login: RATE_LIMIT_CAP_MIN } } });
   expect(configured.rateLimits.login).toBe(RATE_LIMIT_CAP_MIN);

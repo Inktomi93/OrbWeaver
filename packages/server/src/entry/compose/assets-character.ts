@@ -51,7 +51,8 @@ import type { TagService } from "#domain/tag";
 import { createSeedCardTag } from "#domain/tag";
 import type { BulkImportLorebook, HasPrimaryBook } from "#domain/world-info";
 import { createCopyCharacterBooks } from "#domain/world-info";
-import { isAutomatedPersonaSeedEnabled } from "#foundation/env";
+import type { Env } from "#foundation/env/record";
+import { personaAutoSeedAdmits } from "#foundation/env/record";
 import type { AuditEntry } from "#foundation/observability";
 import type { ImageAdapter } from "#infra/image";
 import type { Cas, VariantCache } from "#infra/storage";
@@ -64,6 +65,8 @@ import { createSeedAvatarOps } from "./seed-avatar-ops.ts";
  *  forward-ref getters (those services compose later); `materializeBackground` is the keystone's late-bound holder
  *  (character/seeders reference it, and this seam returns the real op the keystone rebinds onto the holder). */
 export interface AssetsCharacterComposeDeps {
+  /** The automation stamps the persona auto-create policy reads (`personaAutoSeedAdmits`). */
+  readonly env: Pick<Env, "E2E_HARNESS" | "DEV_SEED" | "E2E_FIRST_RUN_ASK_HANDLES">;
   readonly evictFieldIndex: FieldIndexCache["evict"];
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
 
@@ -236,7 +239,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
 
   // Mirror of characterSeeder, for the default `{{user}}` persona.
   const personaSeeder = createDefaultPersonaSeeder({
-    autoSeedEnabled: (principal) => isAutomatedPersonaSeedEnabled(principal.handle),
+    autoSeedEnabled: (principal) => personaAutoSeedAdmits(deps.env, principal.handle),
     createPersona: (params) => deps.getPersona().create(params),
     ...seedAvatars.persona,
     ...createPersonaSeedLatch({ settings, getPersona: deps.getPersona }),

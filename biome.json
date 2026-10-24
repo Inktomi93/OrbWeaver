@@ -749,7 +749,7 @@
       }
     },
     {
-      "includes": ["packages/server/src/foundation/env/index.ts"],
+      "includes": ["packages/server/src/foundation/env/index.ts", "packages/server/src/foundation/env/record/index.ts"],
       "linter": {
         "rules": {
           "style": {

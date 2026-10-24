@@ -1,5 +1,5 @@
 import type { TimerScheduler } from "@orb/kit/time";
-import type { BindPosture } from "#foundation/env";
+import type { BindPosture } from "#foundation/env/record";
 import type { AcmeIssuerDeps } from "#infra/acme";
 import type { AllowedHostsReader } from "#infra/auth";
 import type { ScopedEgressOptions } from "#infra/network";
@@ -15,6 +15,8 @@ export interface ShareGraphOptions {
   readonly timers: TimerScheduler;
   readonly buildConnector: ScopedEgressOptions["buildConnector"];
   readonly networkExecution: Pick<ScopedEgressOptions, "fetch" | "resolver">;
+  /** The root's env record, for the relay and certificate egress firewall. */
+  readonly env: ScopedEgressOptions["env"];
   readonly relay?: { readonly pin?: CloudflaredPin; readonly target?: string } | null;
   readonly acme?: Pick<AcmeIssuerDeps, "directoryUrl" | "polling"> | null;
   /** Compatibility with retained lifecycle callers; the maintained harness scripts raw executable bytes instead. */

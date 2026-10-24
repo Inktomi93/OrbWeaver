@@ -2,6 +2,9 @@
 
 /** Where a boot secret comes from: the explicit env value, else a keyfile under `secretsDir` — but only for a
  *  local `file:` db, because the keyfile is the db's backup unit and a remote db has none on this disk. */
+/** Where a keyfile notice goes (`keyfileReport` picks the sink for the build). */
+export type KeyfileReport = (line: string) => void;
+
 export interface BootSecretSource {
   readonly explicit: string | undefined;
   readonly databaseUrl: string;

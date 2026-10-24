@@ -2,7 +2,6 @@ import { authConfigSchema } from "@orb/contracts/auth-config";
 import { authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { vi } from "vitest";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
@@ -16,7 +15,7 @@ test.each([
   { peer: undefined, firstRun: false, scope: "public" },
 ])("actual HTTP bootstrap preserves physical peer $peer independently of forged forwarding headers", async ({ peer, firstRun, scope }) => {
   const readPeer = vi.fn(() => peer);
-  await using harness = await createServerHarness({ authConfig: { ...authConfigFromEnv(), mode: "local" }, physicalPeer: readPeer });
+  await using harness = await createServerHarness({ authConfig: { mode: "local" }, physicalPeer: readPeer });
   const response = await harness.http.request("/api/auth/config");
   expect(response.status).toBe(200);
   const config = authConfigSchema.parse(await response.json());
@@ -36,7 +35,7 @@ test.each([
 });
 
 test("local HTTP admission requires its CSRF-protected password flow and rechecks a disabled account", async () => {
-  await using harness = await createServerHarness({ authConfig: { ...authConfigFromEnv(), mode: "local" } });
+  await using harness = await createServerHarness({ authConfig: { mode: "local" } });
   const owner = await harness.internalCallerFor(harness.ownerId);
   const user = await owner.admin.createUser({ handle: HANDLE, password: PASSWORD });
   const anonymous = await harness.http.request("/api/auth/me");
@@ -63,7 +62,7 @@ test("local HTTP admission requires its CSRF-protected password flow and recheck
 });
 
 test("identical actor IDs in independent roots cannot authenticate with the other root's minted cookie", async () => {
-  const authConfig = { ...authConfigFromEnv(), mode: "local" } satisfies NonNullable<Parameters<typeof createServerHarness>[0]>["authConfig"];
+  const authConfig = { mode: "local" } satisfies NonNullable<Parameters<typeof createServerHarness>[0]>["authConfig"];
   await using first = await createServerHarness({ authConfig });
   await using second = await createServerHarness({ authConfig });
   const firstOwner = await first.internalCallerFor(first.ownerId);

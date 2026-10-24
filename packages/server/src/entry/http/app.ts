@@ -3,7 +3,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { Handle, SessionToken, UserId } from "@orb/kit/ids";
-import { ownerFallbackCredentialInput, resolveOwnerFallbackCredential } from "#foundation/env";
+import { ownerFallbackCredentialInput, resolveOwnerFallbackCredential } from "#foundation/env/record";
 import type { AuthConfig } from "#infra/auth";
 import { createPasswordHasher, createRelayedFallbackNotice, ownerFallbackAllowed } from "#infra/auth";
 import { createCas } from "#infra/storage";
@@ -25,9 +25,8 @@ type HttpAppDeps = Pick<
   | "oidcProviderName"
   | "oidc"
   | "importStagingDir"
-  | "clientDistDir"
-  | "debugToken"
   | "physicalPeer"
+  | "env"
 > & {
   readonly built: Pick<
     ServicesResult,
@@ -41,6 +40,7 @@ type HttpAppDeps = Pick<
     | "sessions"
     | "presence"
     | "sockets"
+    | "bugReportDiagnostics"
     | "assets"
     | "exportService"
     | "portability"
@@ -106,16 +106,15 @@ export function createHttpApp(deps: HttpAppDeps): ReturnType<typeof createApp> {
     now,
     newOpaqueId,
     db,
+    env: deps.env,
     ...(deps.physicalPeer === undefined ? {} : { physicalPeer: deps.physicalPeer }),
-    ...(deps.importStagingDir === undefined ? {} : { importStagingDir: deps.importStagingDir }),
-    ...(deps.clientDistDir === undefined ? {} : { clientDistDir: deps.clientDistDir }),
-    ...(deps.debugToken === undefined ? {} : { debugToken: deps.debugToken }),
+    importStagingDir: deps.importStagingDir,
     seam: createAuthSeam({
       emitUserEvent: built.liveBuses.user.publishUserEvent,
       sessions: built.sessions,
       config: authConfig,
       verifyForwardJwt: built.forwardJwtVerifier,
-      ownerFallbackIsOperatorCredential: resolveOwnerFallbackCredential(ownerFallbackCredentialInput()),
+      ownerFallbackIsOperatorCredential: resolveOwnerFallbackCredential(ownerFallbackCredentialInput(deps.env)),
       relayedFallbackNotice: createRelayedFallbackNotice(now),
       relayHosts: deps.relayHosts,
     }),
@@ -124,6 +123,7 @@ export function createHttpApp(deps: HttpAppDeps): ReturnType<typeof createApp> {
     multiHumanCapable: built.multiHumanCapable,
     presence: built.presence,
     sockets: built.sockets,
+    bugReportDiagnostics: built.bugReportDiagnostics,
     ...(built.rpgTrace === undefined ? {} : { rpgTrace: createRpgTraceInspector(built.rpgTrace) }),
     wireCapture: built.wireCaptureOn,
     memoryRecall: createMemoryRecallInspector(built.recallRecorder),

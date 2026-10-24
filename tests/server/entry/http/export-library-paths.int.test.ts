@@ -5,7 +5,6 @@ import { join, relative } from "node:path";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { importStartedSchema, TREE_FILE_FIELD } from "@orb/contracts/import";
 import { PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { extractZip } from "@orb/server/infra/storage/zip";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, prepareBackupFolder } from "@orb/testkit/node/composed";
@@ -18,7 +17,7 @@ const WORKLOAD_DEADLINE_MS = 60_000;
 
 test("same-named library rows export to distinct archive paths and the whole backup restores as a folder", async () => {
   await using root = await createServerHarness({
-    authConfig: { ...authConfigFromEnv(), mode: "single-user", fallback: "owner" },
+    authConfig: { mode: "single-user", fallback: "owner" },
     physicalPeer: () => "127.0.0.1",
     startJobs: false,
   });

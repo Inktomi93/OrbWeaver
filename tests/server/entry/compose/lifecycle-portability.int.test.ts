@@ -5,7 +5,6 @@ import { cardImportResultSchema } from "@orb/contracts/import";
 import { PORTABLE_IMPORT_ORDER, PORTABLE_KINDS } from "@orb/contracts/portability";
 // biome-ignore lint/performance/noNamespaceImport: the census denominator is every native schema export, including future tables that named imports would omit.
 import * as schema from "@orb/db/schema";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { LIFECYCLE_DOORS, NON_PORTABLE_CANON, NON_PORTABLE_CLASSES, PORTABLE_CANON_TABLES } from "@orb/server/entry/compose";
 import { appRouter } from "@orb/server/transport/trpc";
 import { expect, test } from "@orb/testkit/node";
@@ -98,7 +97,7 @@ test("every declared single-entity door is mounted on the native composed router
 
 test("the actual HTTP character doors download native owner bytes and isolate malformed reimports", async () => {
   await using root = await createServerHarness({
-    authConfig: { ...authConfigFromEnv(), mode: "single-user", fallback: "owner" },
+    authConfig: { mode: "single-user", fallback: "owner" },
     physicalPeer: () => "127.0.0.1",
   });
   const owner = await root.internalCallerFor(root.ownerId);
