@@ -1,5 +1,6 @@
 // @subject tests/support/iso/corpus.ts
 // @subject tests/support/node/corpus-seed.ts
+// Real plugin-host children (plugin stages) and several actors' first-login seeding (notifications) are intrinsic wall time: both carry the slow tag.
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { createCharacterSchema } from "@orb/contracts/character";
@@ -45,7 +46,7 @@ async function publication(root: ServerTestHarness): Promise<CorpusWire> {
   return hydrateCorpusWire({ auth: authentication.auth, reads, health });
 }
 
-test("portable plugin stages preserve native viewers and finite requests while refusing private guest echoes", async () => {
+test("portable plugin stages preserve native viewers and finite requests while refusing private guest echoes", { tags: "slow" }, async () => {
   await using root = await createServerHarness({ pluginSpawn: spawn, env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" } });
   const wire = await publication(root);
   const recipient = await root.actor();
@@ -201,7 +202,7 @@ test("portable stats reject real label credential echoes before malformed schema
   expect(parseCorpusWire(serializeCorpusWire(wire, secrets))).toEqual(wire);
 });
 
-test("notification corpus preserves seven actual viewer and lifecycle snapshots in portable bytes", async () => {
+test("notification corpus preserves seven actual viewer and lifecycle snapshots in portable bytes", { tags: "slow" }, async () => {
   await using root = await createServerHarness({
     secretBoxKey: randomBytes(32),
     env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" },

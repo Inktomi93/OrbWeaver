@@ -31,7 +31,7 @@ import { scaledBudget } from "../../_load-budget.ts";
 // and never for the TESTS, so every arm here drove a real Chromium under the parallel lane's unscaled 5 s
 // default and timed out under whole-suite contention while passing standalone. A per-test annotation is
 // not the fix — the arms without one are exactly the ones that flaked.
-// 2x this file's 30 s child ceiling, so a test always outlives the CLI it is waiting on.
+// 2x this file's 30 s child ceiling, so a test always outlives the CLI it is waiting on; no case sets a shorter local timeout, which would undercut its own child.
 vi.setConfig({ testTimeout: scaledBudget(60_000), hookTimeout: scaledBudget(60_000) });
 
 // 4-up: tests/tooling/floor/<role> → repo root (re-derived at the P2 relocation — the depth-derived-root class).
@@ -450,7 +450,7 @@ test("--include-hidden computes a real name for a control nested inside an aria-
   expect(capture?.mapResult).toContainEqual(expect.objectContaining({ name: "Visible" }));
 });
 
-test("--wait-for does not treat matching rendered text as a missing CSS selector", { timeout: scaledBudget(15_000) }, () => {
+test("--wait-for does not treat matching rendered text as a missing CSS selector", () => {
   const page = fixture("wait-for-selector-missing", "<p>button</p>");
   const name = `${RUN_ID}_wait_for_selector_missing`;
   const result = runSnap(["--file", page, "--no-shot", "--wait-for", "button", "--json", "--no-failure-evidence", "--out", name]);

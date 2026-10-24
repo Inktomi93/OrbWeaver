@@ -1,5 +1,6 @@
 // @subject packages/inference/src/backends/v4/result.ts
 // @subject packages/inference/src/backends/agent-sdk/runner.ts
+import type { TokenProvenance } from "@orb/contracts/chat";
 import { TOKEN_PROVENANCES } from "@orb/contracts/chat";
 
 import type { Wire } from "@orb/contracts/inference";
@@ -57,26 +58,29 @@ for (const wire of CONFORMANCE_WIRES) {
   });
 }
 
-test("the cost-provenance ARM each wire reaches on a cost-bearing turn — an observation, not a roster", async () => {
-  const observed: Partial<Record<Wire, unknown>> = {};
-  for (const wire of CONFORMANCE_WIRES.filter((candidate) => candidate !== "local-light")) {
-    const { turn } = await driveChat(wire, { script: scriptFor(wire), pricing: true });
-    observed[wire] = turn.usage.costProvenance;
+// The wires DIFFER here for individually correct reasons, and recording that is the point: a suite that only
+// proved "they all agree" would have nothing to say about the one axis where agreeing would itself be the defect.
+// One case per wire, so each composed root and drive is billed to its own case; the openai-compat case observing
+// `measured` while the others observe `estimated` is itself the proof that the suite can see both arms.
+const COST_PROVENANCE_ARMS = {
+  // OpenRouter reports a real charge on its own accounting channel — a metered figure, so `measured` wins
+  // over the row's pricing.
+  "openai-compat": "measured",
+  // The direct Anthropic wire has NO cost channel; the row's shipped pricing × tokens is the honest arm.
+  "anthropic-messages": "estimated",
+  "google-generative-ai": "estimated",
+  // The subscription: the SDK computes what the turn WOULD have billed at API prices. No invoice exists,
+  // so it is `estimated` BY RULING even though a number is present (`contracts/inference/usage.ts`).
+  "agent-sdk": "estimated",
+} as const satisfies Record<Exclude<Wire, "local-light">, TokenProvenance>;
+
+for (const wire of CONFORMANCE_WIRES) {
+  if (wire === "local-light") {
+    continue;
   }
-  // The three wires DIFFER here for three individually correct reasons, and recording that is the point: a
-  // suite that only proved "they all agree" would have nothing to say about the one axis where agreeing
-  // would itself be the defect.
-  expect(observed).toEqual({
-    // OpenRouter reports a real charge on its own accounting channel — a metered figure, so `measured` wins
-    // over the row's pricing.
-    "openai-compat": "measured",
-    // The direct Anthropic wire has NO cost channel; the row's shipped pricing × tokens is the honest arm.
-    "anthropic-messages": "estimated",
-    "google-generative-ai": "estimated",
-    // The subscription: the SDK computes what the turn WOULD have billed at API prices. No invoice exists,
-    // so it is `estimated` BY RULING even though a number is present (`contracts/inference/usage.ts`).
-    "agent-sdk": "estimated",
+  const arm: TokenProvenance = COST_PROVENANCE_ARMS[wire];
+  test(`${wire} reaches the ${arm} cost-provenance arm on a cost-bearing turn — an observation, not a roster`, async () => {
+    const { turn } = await driveChat(wire, { script: scriptFor(wire), pricing: true });
+    expect(turn.usage.costProvenance).toBe(arm);
   });
-  // The distinguishing control: the table above is only meaningful because the suite CAN observe both arms.
-  expect(new Set(Object.values(observed)).size, "a table where every wire reported the same arm would prove nothing").toBeGreaterThan(1);
-});
+}

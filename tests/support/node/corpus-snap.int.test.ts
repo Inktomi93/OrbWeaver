@@ -1,4 +1,6 @@
 // @subject tests/support/node/corpus-recipe.ts
+// The native clone's module graph belongs to import time, not the case's execution budget.
+import "@orb/tooling/snap";
 import { readFile } from "node:fs/promises";
 import { contextFitAnswerSchema } from "@orb/contracts/chat";
 import { localPath } from "@orb/db";
@@ -8,7 +10,7 @@ import { CORPUS_PROVIDER_ENDPOINT } from "./corpus-provider.ts";
 import { createCorpusProviderTransport, prepareCorpusSnapFixture } from "./corpus-recipe.ts";
 import { expect, test } from "./fixtures.ts";
 
-test("native corpus stage clone reaches preview retrieval without changing its publication or other owners", { tags: "slow" }, async () => {
+test("native corpus stage clone reaches preview retrieval without changing its publication or other owners", async () => {
   const source = loadCorpusFixture();
   const database = localPath(source.layout.databaseUrl);
   if (database === undefined) {
@@ -50,5 +52,6 @@ test("native corpus stage clone reaches preview retrieval without changing its p
   const preview = z.object({ result: z.object({ data: contextFitAnswerSchema }) }).parse(await response.json()).result.data;
   expect(preview).not.toHaveProperty("unbound");
   expect(prepared.provider.requests.slice(requestCount)).toContain("POST /v1/embeddings");
-  expect(await readFile(database)).toEqual(before);
+  // Byte identity through Buffer#equals: a deep `toEqual` walks the multi-megabyte database one element at a time.
+  expect((await readFile(database)).equals(before)).toBe(true);
 });

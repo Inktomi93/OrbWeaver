@@ -1,5 +1,4 @@
 // Native collection is independent of the shared stack-boot/seed selector; no stack starts under --list.
-import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
@@ -8,8 +7,10 @@ import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import { isPlainObject } from "@orb/kit/guards";
 import { expect, test } from "@orb/testkit/node";
 import { pageArray, pageObject, pageString } from "@orb/tooling/floor/browser/page-validate";
-import { runNicedSync } from "@orb/tooling/floor/process/proc";
+import { budget } from "@orb/tooling/floor/host/load-budget";
+import { spawnNiced, spawnNicedTranscript } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
+import { LONG_TEST_TIMEOUT_BASE_MS } from "@orb/tooling/floor/testing/test-tags";
 import { E2E_RUN_ROOT, selectedModeProjects } from "./modes.ts";
 
 const SELECTORS = [
@@ -29,15 +30,23 @@ import config from "./playwright.config.ts";
 console.log(JSON.stringify(config.webServer.map(server => server.env.AUTH_MODE)));
 `;
 
-function collect(selector: readonly string[], configFile = "playwright.config.ts"): ReturnType<typeof runNicedSync> {
-  return runNicedSync(process.execPath, [PLAYWRIGHT_CLI, "test", "-c", configFile, ...COLLECTION_ARGS, ...selector]);
+// The public pnpm runners take seconds; an async spawn keeps the worker's event loop and runner heartbeat live meanwhile.
+function publicRunner(args: readonly string[], env: NodeJS.ProcessEnv = {}): ReturnType<typeof spawnNicedTranscript> {
+  return spawnNicedTranscript("pnpm", ["--config.verify-deps-before-run=false", ...args], {
+    cwd: process.cwd(),
+    env: inheritedProcessEnv(env),
+    timeoutMs: budget(LONG_TEST_TIMEOUT_BASE_MS),
+  });
 }
 
-test("the corpus matrix forwards one selected phone cell without accumulating default projects", { tags: ["slow"] }, () => {
+function collect(selector: readonly string[], configFile = "playwright.config.ts"): ReturnType<typeof spawnNiced> {
+  return spawnNiced(process.execPath, [PLAYWRIGHT_CLI, "test", "-c", configFile, ...COLLECTION_ARGS, ...selector]);
+}
+
+test("the corpus matrix forwards one selected phone cell without accumulating default projects", { tags: ["slow"] }, async () => {
   const project = `corpus-phone-${THEME_CHAT_STYLES[0]}`;
-  const result = runNicedSync("pnpm", ["--config.verify-deps-before-run=false", "e2e:corpus:matrix", "--list", `--project=${project}`]);
-  const transcript = result.stdout + result.stderr;
-  expect(result.status, transcript).toBe(0);
+  const { code, transcript } = await publicRunner(["e2e:corpus:matrix", "--list", `--project=${project}`]);
+  expect(code, transcript).toBe(0);
   expect(transcript.match(/^Corpus matrix cell: .+$/gmu)).toEqual([`Corpus matrix cell: ${project}`]);
   expect(transcript).toContain(`[${project}]`);
   expect(transcript).toContain("first send streams incrementally, second send works, and exact canon survives reload");
@@ -47,18 +56,10 @@ test("the corpus matrix forwards one selected phone cell without accumulating de
   expect(transcript).not.toContain("[corpus-local-");
 });
 
-test("the corpus matrix composes its selected cell before a native terminator and file filter", { tags: ["slow"] }, () => {
+test("the corpus matrix composes its selected cell before a native terminator and file filter", { tags: ["slow"] }, async () => {
   const project = `corpus-phone-${THEME_CHAT_STYLES[0]}`;
-  const result = runNicedSync("pnpm", [
-    "--config.verify-deps-before-run=false",
-    "e2e:corpus:matrix",
-    `--project=${project}`,
-    "--list",
-    "tests/e2e/smoke.spec.ts",
-    "--",
-  ]);
-  const transcript = result.stdout + result.stderr;
-  expect(result.status, transcript).toBe(0);
+  const { code, transcript } = await publicRunner(["e2e:corpus:matrix", `--project=${project}`, "--list", "tests/e2e/smoke.spec.ts", "--"]);
+  expect(code, transcript).toBe(0);
   const collected = transcript.split("\n").filter((line) => /^\s+\[corpus-/u.test(line));
   expect(collected.length).toBeGreaterThan(0);
   for (const line of collected) {
@@ -87,13 +88,24 @@ function collectedProjects(suites: readonly unknown[]): string[] {
   ]);
 }
 
-test("native repeated, variadic, equals and wildcard project selection agrees with boot configuration and the shared seed selector", { tags: ["slow"] }, () => {
+test("native repeated, variadic, equals and wildcard project selection agrees with boot configuration and the shared seed selector", {
+  tags: ["slow"],
+}, async () => {
   const runDirectory = dirname(E2E_RUN_ROOT);
   const before = existsSync(runDirectory) ? readdirSync(runDirectory).sort() : [];
-  for (const selector of SELECTORS) {
-    const argv = [...COLLECTION_ARGS, ...selector];
-    const collection = collect(selector);
-    expect(collection.status, collection.stdout + collection.stderr).toBe(0);
+  // Each selector's collection and boot probe are independent processes, so all of them run at once.
+  const observed = await Promise.all(
+    SELECTORS.map(async (selector) => {
+      const argv = [...COLLECTION_ARGS, ...selector];
+      const [collection, probe] = await Promise.all([
+        collect(selector),
+        spawnNiced(process.execPath, ["--input-type=module", "-e", CONFIG_PROBE, "--", ...argv]),
+      ]);
+      return { selector, argv, collection, probe };
+    }),
+  );
+  for (const { selector, argv, collection, probe } of observed) {
+    expect(collection.code, collection.stdout + collection.stderr).toBe(0);
     const report: unknown = JSON.parse(collection.stdout);
     expect(report).toHaveProperty("errors", []);
     const native = [...new Set(collectedProjects(arrayField(report, "suites")))].sort();
@@ -101,9 +113,8 @@ test("native repeated, variadic, equals and wildcard project selection agrees wi
     const sharedSelection = selectedModeProjects(argv)
       .map((mode) => mode.name)
       .sort();
-    const bootConfiguration: unknown = JSON.parse(
-      execFileSync(process.execPath, ["--input-type=module", "-e", CONFIG_PROBE, "--", ...argv], { encoding: "utf8" }),
-    );
+    expect(probe.code, probe.stderr).toBe(0);
+    const bootConfiguration: unknown = JSON.parse(probe.stdout);
     const bootModes = pageArray(bootConfiguration, "configuration probe auth modes").map((mode) => pageString(mode, "configuration probe auth mode"));
     expect(sharedSelection, JSON.stringify(selector)).toEqual(native);
     expect([...bootModes].sort(), JSON.stringify(selector)).toEqual(native);
@@ -111,57 +122,50 @@ test("native repeated, variadic, equals and wildcard project selection agrees wi
   expect(existsSync(runDirectory) ? readdirSync(runDirectory).sort() : []).toEqual(before);
 });
 
-test("native collection rejects an unmatched project instead of falling back to other auth modes", () => {
+test("native collection rejects an unmatched project instead of falling back to other auth modes", async () => {
   const selector = ["--project=unconfigured-auth-project"];
   const argv = [...COLLECTION_ARGS, ...selector];
-  const collection = collect(selector);
-  expect(collection.status, collection.stdout + collection.stderr).toBe(1);
+  const collection = await collect(selector);
+  expect(collection.code, collection.stdout + collection.stderr).toBe(1);
   expect(collection.stdout + collection.stderr).toContain('Project(s) "unconfigured-auth-project" not found');
   expect(selectedModeProjects(argv)).toEqual([]);
 });
 
-test("native collection rejects a missing project value instead of treating it as default selection", () => {
+test("native collection rejects a missing project value instead of treating it as default selection", async () => {
   const argv = [...COLLECTION_ARGS, "--project"];
-  const collection = collect(["--project"]);
-  expect(collection.status, collection.stdout + collection.stderr).toBe(1);
+  const collection = await collect(["--project"]);
+  expect(collection.code, collection.stdout + collection.stderr).toBe(1);
   expect(collection.stderr).toContain("argument missing");
   expect(collection.stderr).toContain("--project");
   expect(selectedModeProjects(argv)).toEqual([]);
 });
 
-test("native collection refuses a missing explicit configuration instead of silently loading the default", () => {
+test("native collection refuses a missing explicit configuration instead of silently loading the default", async () => {
   const configFile = join(import.meta.dirname, "missing-project-selection.config.ts");
-  const collection = collect([], configFile);
-  expect(collection.status, collection.stdout + collection.stderr).toBe(1);
+  const collection = await collect([], configFile);
+  expect(collection.code, collection.stdout + collection.stderr).toBe(1);
   expect(collection.stderr).toContain(`${configFile} does not exist`);
 });
 
 for (const missing of [false, true]) {
   test(`the public corpus smoke runner ${missing ? "propagates empty selection" : "selects the committed case"} and joins clone cleanup`, {
     tags: ["slow"],
-  }, () => {
-    const result = runNicedSync(
-      "pnpm",
-      ["--config.verify-deps-before-run=false", "e2e:corpus", "--list", ...(missing ? ["absent-corpus-selection.spec.ts"] : [])],
-      {
-        env: inheritedProcessEnv({
-          ["E2E_CORPUS_FIXTURE"]: undefined,
-          ["CORPUS_PUBLICATION_FIXTURE"]: undefined,
-          ["CT_CORPUS_FIXTURE"]: undefined,
-          ["E2E_ALLOW_DEV_TARGET"]: "0",
-          ["E2E_LIVE"]: "0",
-        }),
-      },
-    );
-    const transcript = result.stdout + result.stderr;
-    const clone = /^Corpus E2E clone: (.+)$/mu.exec(result.stdout)?.[1];
+  }, async () => {
+    const { code, transcript } = await publicRunner(["e2e:corpus", "--list", ...(missing ? ["absent-corpus-selection.spec.ts"] : [])], {
+      ["E2E_CORPUS_FIXTURE"]: undefined,
+      ["CORPUS_PUBLICATION_FIXTURE"]: undefined,
+      ["CT_CORPUS_FIXTURE"]: undefined,
+      ["E2E_ALLOW_DEV_TARGET"]: "0",
+      ["E2E_LIVE"]: "0",
+    });
+    const clone = /^Corpus E2E clone: (.+)$/mu.exec(transcript)?.[1];
     expect(clone, transcript).toBeDefined();
     if (clone === undefined) {
       throw new Error("The corpus runner did not identify its owned clone");
     }
-    expect(existsSync(clone)).toBe(false);
-    expect(existsSync(dirname(clone))).toBe(false);
-    expect(result.status, transcript).toBe(missing ? 1 : 0);
+    expect(existsSync(clone), transcript).toBe(false);
+    expect(existsSync(dirname(clone)), transcript).toBe(false);
+    expect(code, transcript).toBe(missing ? 1 : 0);
     const fragments = missing
       ? ["No tests found"]
       : [

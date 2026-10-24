@@ -1,8 +1,11 @@
 // @subject tests/support/node/corpus.ts
+// Intrinsic wall time: private intake runs every corpus producer against a copied, migrated database, the same capture a publish
+// performs (about 80 s on a loaded box), so this one case cannot be split below it. Output admission lives in corpus-private-admission.
 import { spawn } from "node:child_process";
 import { access, cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import process from "node:process";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import { createDb, localPath, preCloseHousekeeping, runMigrations, users } from "@orb/db";
@@ -10,22 +13,13 @@ import { createDb, localPath, preCloseHousekeeping, runMigrations, users } from 
 import { brandedId, createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { createCas } from "@orb/server/infra/storage/cas";
-import { runNicedSync } from "@orb/tooling/floor/process/proc";
+import { budget } from "@orb/tooling/floor/host/load-budget";
+import { spawnNicedTranscript } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
-import { describe, onTestFinished } from "vitest";
+import { LONG_TEST_TIMEOUT_BASE_MS } from "@orb/tooling/floor/testing/test-tags";
 import { z } from "zod";
 import { createSeededIds } from "../iso/ids.ts";
-import {
-  assertPrivateCorpusOutput,
-  assertPrivateCorpusOutputArguments,
-  cloneCorpusFixture,
-  createCorpusCapsule,
-  isPrivateCorpusConfigArgument,
-  loadCorpusFixture,
-  prepareCorpusFixture,
-  privateCorpusParent,
-  publishCorpusFixture,
-} from "./corpus.ts";
+import { cloneCorpusFixture, createCorpusCapsule, loadCorpusFixture, prepareCorpusFixture, publishCorpusFixture } from "./corpus.ts";
 import { CORPUS_PLUGIN_MANIFEST } from "./corpus-plugin.ts";
 import { createCorpusRecipe } from "./corpus-recipe.ts";
 import { SHIPPED_MIGRATIONS } from "./db.ts";
@@ -180,9 +174,9 @@ test("private intake retains the existing singleton owner and nonempty content i
     ["CI"]: undefined,
     ["GITHUB_ACTIONS"]: undefined,
   });
-  const unsafeNetwork = runNicedSync("pnpm", command, { env });
-  expect(unsafeNetwork.status, unsafeNetwork.stdout + unsafeNetwork.stderr).not.toBe(0);
-  expect(unsafeNetwork.stdout + unsafeNetwork.stderr).toContain("isolated loopback-only network namespace");
+  const unsafeNetwork = await spawnNicedTranscript("pnpm", command, { cwd: process.cwd(), env, timeoutMs: budget(LONG_TEST_TIMEOUT_BASE_MS) });
+  expect(unsafeNetwork.code, unsafeNetwork.transcript).not.toBe(0);
+  expect(unsafeNetwork.transcript).toContain("isolated loopback-only network namespace");
   await expect(cloneCorpusFixture(clone, join(intakeParent, "ci-refused"), { ...LOCAL_ENVIRONMENT, ["CI"]: "true" })).rejects.toThrow("local-only");
   await writeFile(join(clone.layout.root, "corpus.json"), '{"synthetic-private-field":"not-public-diagnostics"}');
   expect(() => loadCorpusFixture(clone.layout.root, LOCAL_ENVIRONMENT)).toThrow(/^Private corpus wire is malformed$/u);
@@ -248,66 +242,4 @@ test("private intake retains the existing singleton owner and nonempty content i
   await expect(createCorpusCapsule({ ...intake, directory: failedDirectory })).rejects.toThrow("copied enabled schedules");
   await expect(access(failedDirectory)).rejects.toThrow();
   expect((await readFile(database)).equals(beforeRefusal)).toBe(true);
-});
-
-const OVERRIDE_REFUSAL = "Private corpus artifacts cannot override native output ownership";
-
-describe("private corpus rejects native output and reporter overrides before reading captured content", () => {
-  // Only the existing routing metadata is present: refusal must precede any capture, DB or reporter load.
-  async function classifiedInput(): Promise<{ readonly parent: string; readonly directory: string; readonly escaped: string }> {
-    const parent = await mkdtemp(join(tmpdir(), "orb-private-output-admission-"));
-    onTestFinished(() => rm(parent, { recursive: true, force: true }));
-    const directory = join(parent, "classified-input");
-    await mkdir(directory, { mode: 0o700 });
-    await writeFile(join(directory, ".private-corpus.json"), JSON.stringify({ parent }));
-    return { parent, directory, escaped: join(parent, "outside-owned") };
-  }
-  const clean = inheritedProcessEnv({ ["CI"]: undefined, ["GITHUB_ACTIONS"]: undefined, ["CORPUS_PRIVATE_RUN_ROOT"]: undefined });
-  const variables = [
-    ...["JSON", "JUNIT", "BLOB"].flatMap((reporter) => ["FILE", "DIR", "NAME"].map((output) => `PLAYWRIGHT_${reporter}_OUTPUT_${output}`)),
-    "PLAYWRIGHT_HTML_OUTPUT_DIR",
-    "PLAYWRIGHT_HTML_REPORT",
-    "PLAYWRIGHT_HTML_OPEN",
-    "PLAYWRIGHT_HTML_ATTACHMENTS_BASE_URL",
-    "PLAYWRIGHT_HTML_HOST",
-    "PLAYWRIGHT_HTML_PORT",
-    "PLAYWRIGHT_LAST_RUN_OUTPUT_FILE",
-    "PW_TEST_REPORTER",
-    "PW_TEST_HTML_REPORT_OPEN",
-    "PWTEST_CACHE_DIR",
-  ];
-
-  // The CLI reads the privacy classification, then admits the owner's run directory, both with the process environment.
-  test.for(variables)("environment %s is refused by the admission the CLI runs", async (name) => {
-    const { parent, directory, escaped } = await classifiedInput();
-    const environment = { ...clean, [name]: escaped };
-    expect(() => privateCorpusParent(directory, environment)).toThrow(new Error(OVERRIDE_REFUSAL));
-    expect(() => assertPrivateCorpusOutput(parent, join(parent, "owner-corpus-run"), environment)).toThrow(new Error(OVERRIDE_REFUSAL));
-    await expect(access(escaped)).rejects.toThrow();
-  });
-
-  const argumentShapes = [
-    ...["--output", "--reporter", "--last-failed-file"].flatMap((flag) => [[`${flag}=escaped`], [flag, "escaped"]]),
-    ["--update-snapshots=all"],
-    ["--update-snapshots", "all"],
-    ["-u"],
-    ["--update-source-method=overwrite"],
-    ["--update-source-method", "overwrite"],
-  ];
-  test.for([["--config=escaped"], ["--config", "escaped"]])("arguments %j are config switches the CLI refuses", (args) => {
-    expect(args.some(isPrivateCorpusConfigArgument)).toBe(true);
-  });
-  test.for(argumentShapes)("arguments %j are refused by the admission the CLI runs", (args) => {
-    expect(() => assertPrivateCorpusOutputArguments(args)).toThrow(new Error(OVERRIDE_REFUSAL));
-  });
-
-  // One real spawn proves the CLI entry wires the admission above; a spawn costs seconds, so the case carries the slow tag.
-  test("the CLI refuses an environment override through the admission", { tags: "slow" }, async () => {
-    const command = ["--config.verify-deps-before-run=false", "exec", "node", "scripts/corpus-fixture.ts", "e2e"];
-    const { directory, escaped } = await classifiedInput();
-    const result = runNicedSync("pnpm", [...command, directory, "--list"], { env: { ...clean, ["PLAYWRIGHT_JSON_OUTPUT_FILE"]: escaped } });
-    expect(result.status).not.toBe(0);
-    expect(result.stdout + result.stderr).toContain(OVERRIDE_REFUSAL);
-    await expect(access(escaped)).rejects.toThrow();
-  });
 });

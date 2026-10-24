@@ -74,7 +74,8 @@ test("the real root obtains an IP certificate through native ACME, stores privat
   await using subject = await setup();
   const { harness, caller, authority, setting } = subject;
   await expect(caller.share.enableIpCertificate(setting)).resolves.toMatchObject({ certificate: { state: "obtaining" } });
-  await expect.poll(async () => (await caller.share.status()).certificate.state).toBe("active");
+  await harness.settleSharing();
+  expect((await caller.share.status()).certificate).toMatchObject({ state: "active" });
   expect(authority.requests.find((entry) => entry.path === "/new-order")?.payload).toEqual({
     identifiers: [{ type: "ip", value: ADDRESS }],
     profile: "shortlived",
@@ -253,7 +254,7 @@ test("native shutdown releases an accepted TCP connection that never sends a TLS
   await using subject = await setup();
   await subject.caller.share.enableIpCertificate(subject.setting);
   await subject.harness.settleSharing();
-  expect((await subject.caller.share.status()).certificate.state).toBe("active");
+  expect((await subject.caller.share.status()).certificate).toMatchObject({ state: "active" });
   await using socket = connect({ host: "127.0.0.1", port: subject.setting.httpsPort });
   const closed = new Promise<void>((resolve) => socket.once("close", () => resolve()));
   await new Promise<void>((resolve, reject) => {
@@ -287,7 +288,7 @@ test("a real TLS listener still closes and root storage releases when a supplied
   await using subject = await setup(undefined, { clock, timers });
   await subject.caller.share.enableIpCertificate(subject.setting);
   await subject.harness.settleSharing();
-  expect((await subject.caller.share.status()).certificate.state).toBe("active");
+  expect((await subject.caller.share.status()).certificate).toMatchObject({ state: "active" });
   const certificate = await readFile(join(subject.harness.secretsDir, IP_CERTIFICATE_FILE_NAMES.certificate), "utf8");
   expect((await tlsConfig(subject.setting.httpsPort, certificate)).status).toBe(200);
   refuse = true;
@@ -305,7 +306,8 @@ test("shutdown preserves borrowed certificates for real restart; a corrupt store
   resources.defer(() => closeDb(db));
   await using first = await setup(undefined, { db, secretsDir: join(directory, "secrets") });
   await first.caller.share.enableIpCertificate(first.setting);
-  await expect.poll(async () => (await first.caller.share.status()).certificate.state).toBe("active");
+  await first.harness.settleSharing();
+  expect((await first.caller.share.status()).certificate).toMatchObject({ state: "active" });
   const path = join(first.harness.secretsDir, IP_CERTIFICATE_FILE_NAMES.certificate);
   const certificate = await readFile(path, "utf8");
   await first.harness[Symbol.asyncDispose]();
@@ -330,7 +332,8 @@ test("shutdown preserves borrowed certificates for real restart; a corrupt store
   await third.listen();
   await third.services.share.resumeIpCertificate();
   const caller = await third.internalCallerFor(third.ownerId);
-  await expect.poll(async () => (await caller.share.status()).certificate.state).toBe("active");
+  await third.settleSharing();
+  expect((await caller.share.status()).certificate).toMatchObject({ state: "active" });
   expect(first.authority.requests.filter((entry) => entry.path === "/new-order")).toHaveLength(2);
   expect(await readFile(path, "utf8")).not.toBe(certificate);
 });
@@ -364,7 +367,8 @@ test("native renewals keep the serving certificate on failure, replace it on rec
   };
   await using subject = await setup(undefined, { clock, timers });
   await subject.caller.share.enableIpCertificate(subject.setting);
-  await expect.poll(async () => (await subject.caller.share.status()).certificate.state).toBe("active");
+  await subject.harness.settleSharing();
+  expect((await subject.caller.share.status()).certificate).toMatchObject({ state: "active" });
   const initial = (await subject.caller.share.status()).certificate;
   if (initial.state !== "active") {
     throw new Error("native initial certificate did not activate");
@@ -377,9 +381,8 @@ test("native renewals keep the serving certificate on failure, replace it on rec
     const next = Math.min(...[...pending].map((entry) => entry.at));
     fireAt(next);
   }
-  await expect
-    .poll(async () => (await subject.caller.share.status()).certificate)
-    .toMatchObject({ state: "active", renewalFailure: { code: "issuance_failed" } });
+  await subject.harness.settleSharing();
+  expect((await subject.caller.share.status()).certificate).toMatchObject({ state: "active", renewalFailure: { code: "issuance_failed" } });
   expect((await tlsConfig(subject.setting.httpsPort, before)).status).toBe(200);
   const failed = (await subject.caller.share.status()).certificate;
   if (failed.state !== "active") {
@@ -388,9 +391,8 @@ test("native renewals keep the serving certificate on failure, replace it on rec
   subject.authority.refuseOrders(undefined);
   subject.authority.validity(FROZEN_AT_MS, NOT_AFTER + 160 * 3_600_000);
   fireAt(failed.renewAt);
-  await expect
-    .poll(async () => (await subject.caller.share.status()).certificate)
-    .toMatchObject({ state: "active", notAfter: NOT_AFTER + 160 * 3_600_000, renewalFailure: null });
+  await subject.harness.settleSharing();
+  expect((await subject.caller.share.status()).certificate).toMatchObject({ state: "active", notAfter: NOT_AFTER + 160 * 3_600_000, renewalFailure: null });
   const renewed = await readFile(path, "utf8");
   expect(renewed).not.toBe(before);
   expect((await tlsConfig(subject.setting.httpsPort, renewed)).status).toBe(200);
@@ -405,8 +407,8 @@ test("native renewals keep the serving certificate on failure, replace it on rec
     entry.cancel();
     entry.fire();
   }
-  await expect.poll(async () => (await subject.caller.share.status()).certificate).toMatchObject({ state: "failed", failure: { code: "expired" } });
   await subject.harness.settleSharing();
+  expect((await subject.caller.share.status()).certificate).toMatchObject({ state: "failed", failure: { code: "expired" } });
   expect(subject.authority.requests.filter((entry) => entry.path === "/new-order")).toHaveLength(ordersBeforeExpiry);
   await expect(tlsConfig(subject.setting.httpsPort, renewed)).rejects.toThrow();
 });

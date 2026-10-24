@@ -3,7 +3,7 @@ import { chmod, mkdir, mkdtemp, readdir, readFile, rm, stat, symlink, unlink, wr
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { inspect } from "node:util";
-import { runNicedSync } from "@orb/tooling/floor/process/proc";
+import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { rethrowPrivateCorpusFailure } from "./corpus.ts";
 import { test as base, expect } from "./fixtures.ts";
@@ -141,14 +141,14 @@ test("nonprivate and repository output roots refuse without writing evidence", a
 });
 
 test("the actual public CLI wrong-input path creates no private artifact or private error output", async ({ privateRoot }) => {
-  const result = runNicedSync("pnpm", ["--config.verify-deps-before-run=false", "exec", "node", "scripts/corpus-fixture.ts", "publish"], {
-    env: inheritedProcessEnv({
+  const result = await spawnNiced("pnpm", ["--config.verify-deps-before-run=false", "exec", "node", "scripts/corpus-fixture.ts", "publish"], {
+    env: {
       ["npm_config_verify_deps_before_run"]: "false",
       ["PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN"]: "false",
       ["CORPUS_PRIVATE_RUN_ROOT"]: privateRoot,
-    }),
+    },
   });
-  expect(result.status).toBe(3);
+  expect(result.code).toBe(3);
   expect(result.stdout + result.stderr).toContain("corpus-fixture requires");
   expect(result.stdout + result.stderr).not.toContain(privateRoot);
   expect(await readdir(privateRoot)).toEqual([]);

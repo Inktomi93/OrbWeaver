@@ -30,8 +30,11 @@ test("a production-recorded heavy system prompt makes pre-turn and post-turn thr
   const observe = (exchanges: number): void => {
     samples.push(exchanges);
   };
-  const postRows = await firstCompactingRows({ foregroundFails: false, heavy: true, observe });
-  const preRows = await firstCompactingRows({ foregroundFails: true, heavy: true, record: recordSystemPrompt, observe });
+  // The two searches share no room, so they run side by side; each probe still runs strictly in order.
+  const [postRows, preRows] = await Promise.all([
+    firstCompactingRows({ foregroundFails: false, heavy: true, observe }),
+    firstCompactingRows({ foregroundFails: true, heavy: true, record: recordSystemPrompt, observe }),
+  ]);
   await annotate(
     JSON.stringify({ postRows, preRows, probes: samples.length, nativeExchanges: samples.reduce((sum, count) => sum + count, 0) }),
     "native-compaction-search",
