@@ -2,7 +2,7 @@
 // it reaches across each kind of thing. The finder lists the tags; this pane states what no row can.
 
 import { Button } from "@orb/ui/button";
-import { Container, Row, Section, Stack } from "@orb/ui/layout";
+import { Row, Section, Stack } from "@orb/ui/layout";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -25,18 +25,16 @@ export function LabelsLibrarySurface({ returning = false }: { readonly returning
   useFocusOnSwap(surfaceRef, returning);
   const summary = useTagLibrarySummary();
   return (
-    <Container>
-      <Stack className="outline-none" data-slot={LABELS_LIBRARY_SLOT} gap="section" ref={surfaceRef} tabIndex={-1}>
-        <Stack gap="field">
-          <Heading level={2}>{CORPUS_MODE_LABELS.labels}</Heading>
-          <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
-            {LABELS_BLURB}
-          </Text>
-        </Stack>
-        <LibraryBody summary={summary} />
-        <LabelsSuggestions />
+    <Stack className="outline-none" data-slot={LABELS_LIBRARY_SLOT} gap="section" ref={surfaceRef} tabIndex={-1}>
+      <Stack gap="field">
+        <Heading level={2}>{CORPUS_MODE_LABELS.labels}</Heading>
+        <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
+          {LABELS_BLURB}
+        </Text>
       </Stack>
-    </Container>
+      <LibraryBody summary={summary} />
+      <LabelsSuggestions />
+    </Stack>
   );
 }
 

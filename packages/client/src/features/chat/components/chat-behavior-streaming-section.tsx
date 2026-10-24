@@ -82,7 +82,7 @@ function StreamingBody({
 }): ReactElement {
   const { form, saveState, retrySave } = session;
   return (
-    <Section className="@container" divider={true} heading={CHAT_STREAMING_SUBCATEGORY.label} id={anchorId}>
+    <Section container={true} divider={true} heading={CHAT_STREAMING_SUBCATEGORY.label} id={anchorId}>
       {/* THE TEACHER LAW (#866 S3): rows are label + control — the prose lives on each leaf's `teach`. */}
       <ConfigTeachScope value={{ group: "chat-behavior", sub: CHAT_STREAMING_SUBCATEGORY }}>
         <SettingRowGroup>

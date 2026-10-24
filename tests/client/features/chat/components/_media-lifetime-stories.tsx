@@ -2,7 +2,7 @@ import { useChatBusDeps, useTRPC } from "@orb/client/data";
 import { MessageListSurface } from "@orb/client/features/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { CtClientProviders, chatSurfaceContributors, toolRenderers } from "@orb/testkit/browser";
-import { Stack } from "@orb/ui/layout";
+import { Container, Stack } from "@orb/ui/layout";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
@@ -23,7 +23,9 @@ function ChatRead({ chatId, revision }: { readonly chatId: ChatId; readonly revi
   return (
     <>
       <output aria-label="Read revision">{settled}</output>
-      <MessageListSurface chatId={chatId} busDeps={busDeps} surfaceContributors={chatSurfaceContributors} toolRenderers={toolRenderers} />
+      <Container className="h-full min-h-0">
+        <MessageListSurface chatId={chatId} busDeps={busDeps} surfaceContributors={chatSurfaceContributors} toolRenderers={toolRenderers} />
+      </Container>
     </>
   );
 }

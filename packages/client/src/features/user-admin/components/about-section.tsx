@@ -60,7 +60,7 @@ function AboutBody({ anchorId }: { readonly anchorId: string }): ReactElement {
   const { data: version } = useSuspenseQuery(trpc.settings.getVersion.queryOptions());
 
   return (
-    <Section className="@container" divider={true} heading={ABOUT_SUBCATEGORY.label} id={anchorId}>
+    <Section container={true} divider={true} heading={ABOUT_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="field" data-testid={testId("aboutSection")}>
         {/* A failed copy replaces the version line with the full report (the line plus the full sha), so the
             text shows once and the field gets the row's whole width. */}

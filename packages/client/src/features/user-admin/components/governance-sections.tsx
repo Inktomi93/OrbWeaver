@@ -104,7 +104,7 @@ function MultiUserBody({ anchorId, sectionId }: { readonly anchorId: string; rea
   };
 
   return (
-    <Section className="@container" divider={true} heading={MULTI_USER_SUBCATEGORY.label} id={anchorId}>
+    <Section container={true} divider={true} heading={MULTI_USER_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="field">
         <Text voice="gloss">Seating and sign-in posture. Multi-CHARACTER chats always work; this is about additional HUMANS.</Text>
         <SharingPosturePanel />

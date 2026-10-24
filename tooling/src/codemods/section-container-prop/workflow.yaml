@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/codemod/codemod/refs/heads/main/schemas/workflow.json
+version: "1"
+nodes:
+  - id: section-container-prop
+    name: Section container prop
+    type: automatic
+    steps:
+      - name: Client feature components
+        js-ast-grep:
+          js_file: scripts/codemod.ts
+          base_path: "."
+          language: "tsx"
+          include: ["**/features/**/*.tsx"]
+          exclude: ["**/node_modules/**", "**/codemods/*/tests*/**"]
