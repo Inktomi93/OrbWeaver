@@ -94,7 +94,6 @@ export type { ReindexPreview } from "./embedder-rebuild.ts";
 export {
   EMBED_REFUSAL_SLOTS,
   EMBED_REFUSAL_TOAST_TITLE,
-  EMBEDDER_REBUILD_KINDS,
   embedderCheckingText,
   embedderRebuildState,
   embedRefusalOf,

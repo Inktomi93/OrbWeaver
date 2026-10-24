@@ -27,6 +27,8 @@ import type { JsonValue } from "@orb/kit/json";
 import { secretRedactionLiterals } from "@orb/kit/secret-redaction";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { z } from "zod";
+import type { CorpusFirstBoot } from "./corpus-first-boot.ts";
+import { firstBootSchema, hydrateFirstBoot, publishFirstBoot } from "./corpus-first-boot.ts";
 import type { CorpusRegexLibrary, CorpusWorldInfoLibrary } from "./corpus-library.ts";
 import {
   hydrateRegexLibrary,
@@ -46,6 +48,7 @@ import { corpusSearchSchema, hydrateCorpusSearch, publishCorpusSearch } from "./
 import type { CorpusShellAmbient } from "./corpus-shell.ts";
 import { hydrateShellAmbient, publishShellAmbient, shellAmbientSchema } from "./corpus-shell.ts";
 
+export type { CorpusFirstBoot } from "./corpus-first-boot.ts";
 export type { CorpusRegexLibrary, CorpusWorldInfoLibrary } from "./corpus-library.ts";
 export type { CorpusLibraryRelations } from "./corpus-library-relations.ts";
 export type { CorpusShellAmbient } from "./corpus-shell.ts";
@@ -142,6 +145,7 @@ const publishedCorpusSchema = z
     regexLibrary: regexLibrarySchema.optional(),
     libraryRelations: libraryRelationsSchema.optional(),
     shellAmbient: shellAmbientSchema.optional(),
+    firstBoot: firstBootSchema.optional(),
     searchLibrary: corpusSearchSchema.optional(),
     memberIdentities: memberIdentitiesSchema.optional(),
     reads: z.strictObject({
@@ -235,6 +239,7 @@ export interface CorpusWireInput {
   readonly searchLibrary?: CorpusSearchLibrary;
   readonly libraryRelations?: CorpusLibraryRelations;
   readonly shellAmbient?: CorpusShellAmbient;
+  readonly firstBoot?: CorpusFirstBoot;
   readonly memberIdentities?: CorpusMemberIdentities;
   readonly worldInfoLibrary?: CorpusWorldInfoLibrary;
   readonly regexLibrary?: CorpusRegexLibrary;
@@ -251,6 +256,7 @@ export interface CorpusWire {
   readonly searchLibrary?: CorpusSearchLibrary;
   readonly libraryRelations?: CorpusLibraryRelations;
   readonly shellAmbient?: CorpusShellAmbient;
+  readonly firstBoot?: CorpusFirstBoot;
   readonly memberIdentities?: CorpusMemberIdentities;
   readonly worldInfoLibrary?: CorpusWorldInfoLibrary;
   readonly regexLibrary?: CorpusRegexLibrary;
@@ -282,6 +288,9 @@ function validateCorpusSections(input: CorpusWireInput): void {
   if (input.shellAmbient !== undefined) {
     publishShellAmbient(input.shellAmbient);
   }
+  if (input.firstBoot !== undefined) {
+    publishFirstBoot(input.firstBoot);
+  }
   if (input.memberIdentities !== undefined) {
     memberIdentitiesSchema.parse(input.memberIdentities);
   }
@@ -311,6 +320,7 @@ export function hydrateCorpusWire(input: CorpusWireInput): CorpusWire {
     ...(input.searchLibrary === undefined ? {} : { searchLibrary: input.searchLibrary }),
     ...(input.libraryRelations === undefined ? {} : { libraryRelations: input.libraryRelations }),
     ...(input.shellAmbient === undefined ? {} : { shellAmbient: input.shellAmbient }),
+    ...(input.firstBoot === undefined ? {} : { firstBoot: input.firstBoot }),
     ...(input.memberIdentities === undefined ? {} : { memberIdentities: input.memberIdentities }),
     ...(input.worldInfoLibrary === undefined ? {} : { worldInfoLibrary: input.worldInfoLibrary }),
     ...(input.regexLibrary === undefined ? {} : { regexLibrary: input.regexLibrary }),
@@ -410,6 +420,7 @@ function hydratePublication(published: z.output<typeof publishedCorpusSchema>): 
     ...(published.searchLibrary === undefined ? {} : { searchLibrary: hydrateCorpusSearch(published.searchLibrary) }),
     ...(published.libraryRelations === undefined ? {} : { libraryRelations: hydrateLibraryRelations(published.libraryRelations) }),
     ...(published.shellAmbient === undefined ? {} : { shellAmbient: hydrateShellAmbient(published.shellAmbient) }),
+    ...(published.firstBoot === undefined ? {} : { firstBoot: hydrateFirstBoot(published.firstBoot) }),
     ...(published.memberIdentities === undefined ? {} : { memberIdentities: published.memberIdentities }),
     ...(published.worldInfoLibrary === undefined ? {} : { worldInfoLibrary: hydrateWorldInfoLibrary(published.worldInfoLibrary) }),
     ...(published.regexLibrary === undefined ? {} : { regexLibrary: hydrateRegexLibrary(published.regexLibrary) }),
@@ -484,6 +495,8 @@ function capturedSnapshotInputs(wire: CorpusWire): string {
     libraryRelations: Object.fromEntries(Object.entries(wire.libraryRelations?.reads ?? {}).map(([name, read]) => [name, request(read.input)])),
     shellAmbient: Object.fromEntries(Object.entries(wire.shellAmbient?.reads ?? {}).map(([name, read]) => [name, request(read.input)])),
     shellRooms: wire.shellAmbient?.recentRooms.map((room) => request(room.input)) ?? [],
+    firstBoot: Object.fromEntries(Object.entries(wire.firstBoot?.reads ?? {}).map(([name, read]) => [name, request(read.input)])),
+    firstBootWorkloads: wire.firstBoot?.workloadLists.map((read) => request(read.input)) ?? [],
     worldInfoLibrary: Object.fromEntries(Object.entries(wire.worldInfoLibrary?.reads ?? {}).map(([name, read]) => [name, request(read.input)])),
     regexLibrary: Object.fromEntries(Object.entries(wire.regexLibrary?.reads ?? {}).map(([name, read]) => [name, request(read.input)])),
     notificationInbox: Object.fromEntries(Object.entries(wire.notificationInbox ?? {}).map(([name, snapshot]) => [name, request(snapshot.read.input)])),
@@ -501,6 +514,7 @@ export function encodeCorpusWire(wire: CorpusWire): string {
     ...(wire.searchLibrary === undefined ? {} : { searchLibrary: publishCorpusSearch(wire.searchLibrary) }),
     ...(wire.libraryRelations === undefined ? {} : { libraryRelations: publishLibraryRelations(wire.libraryRelations) }),
     ...(wire.shellAmbient === undefined ? {} : { shellAmbient: publishShellAmbient(wire.shellAmbient) }),
+    ...(wire.firstBoot === undefined ? {} : { firstBoot: publishFirstBoot(wire.firstBoot) }),
     ...(wire.memberIdentities === undefined ? {} : { memberIdentities: wire.memberIdentities }),
     ...(wire.worldInfoLibrary === undefined ? {} : { worldInfoLibrary: publishWorldInfoLibrary(wire.worldInfoLibrary) }),
     ...(wire.regexLibrary === undefined ? {} : { regexLibrary: publishRegexLibrary(wire.regexLibrary) }),

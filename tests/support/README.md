@@ -113,6 +113,8 @@ The committed synthetic corpus lives in `node/corpus-data`. Republish it when a 
 1. Run `pnpm exec node scripts/corpus-fixture.ts publish <new-directory>`. The directory must not exist.
 2. Replace `node/corpus-data` with the published directory.
 
+A case that measures first-boot geometry (a reserved box, an empty library) reads the `firstBoot` cohort, captured from a fresh server, not the finished corpus graph, which settles taller because it holds more themes, accounts and connections.
+
 Two publishes from one tree are byte-identical: every producer draws ids from the injected id source in a fixed order. `node/corpus-fixture-schema.test.ts` parses the committed fixture against the current published-corpus schema with the Node tests and names each missing or extra field.
 
 ## What is enforced
