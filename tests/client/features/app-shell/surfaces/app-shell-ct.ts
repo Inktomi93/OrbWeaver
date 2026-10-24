@@ -6,6 +6,47 @@ import type { Locator, Page } from "@playwright/test";
 
 type ServedPath = Parameters<typeof serveCorpusProcedures>[1][number];
 
+/** Every procedure a section, its context pane, the palette or the You sheet sends past Home's captures. */
+export const SECTION_PROCEDURES = [
+  "sessions.me",
+  "notifications.markAllRead",
+  "chat.listChats",
+  "chat.countChats",
+  "character.list",
+  "character.count",
+  "rosterPreset.list",
+  "discovery.home",
+  "discovery.characterFacets",
+  "discovery.browseCharacters",
+  "discovery.visualArchetypes",
+  "discovery.forgottenGems",
+  "discovery.archetypes",
+  "discovery.catalog",
+  "discovery.unusedCharacters",
+  "discovery.themeDrift",
+  "discovery.topKeywords",
+  "discovery.modelRouting",
+  "workloads.list",
+  "connection.list",
+  "connection.listBindings",
+  "connection.resolveChatCapability",
+  "plugin.list",
+  "plugin.listSurfaces",
+  "databank.listGlobal",
+  "worldInfo.listBooks",
+  "preset.list",
+  "preset.get",
+  "preset.resolveEffective",
+  "refinery.listSessions",
+  "settings.getUserSettings",
+  "settings.getAppSettingsWithOverrides",
+  "settings.listThemes",
+  "settings.getTheme",
+  "regex.countScripts",
+  "regex.listScripts",
+  "worldInfo.countBooks",
+] as const satisfies readonly ServedPath[];
+
 /** Home's captured reads, plus every listed procedure answered by `caller`, a corpus root's internal caller. */
 export function routeShell(page: Page, corpus: CorpusWire, caller: object, served: readonly ServedPath[]): Promise<TrpcRecorder> {
   return routeTrpc(page, { ...createShellAmbientReads(corpus), ...serveCorpusProcedures(caller, served) });
@@ -67,6 +108,48 @@ export async function dropOn(target: Locator, transfer: { readonly file: string;
   await target.dispatchEvent("dragover", { dataTransfer });
   await target.dispatchEvent("drop", { dataTransfer });
   return page.evaluate(() => document.body.getAttribute("data-drop-prevented") === "true");
+}
+
+// The persisted shell store's key before any viewer binds the namespace, and its version.
+const UNBOUND_SHELL_KEY = "orb:shell";
+const SHELL_STORE_VERSION = 2;
+
+/** Seed the shell store's storage before the app's modules run, the way a returning boot rehydrates it. */
+export async function seedShellState(page: Page, state: { readonly activeSection: string; readonly panelOverrides?: object }): Promise<void> {
+  await page.addInitScript(
+    ({ key, blob }) => {
+      globalThis.localStorage.setItem(key, blob);
+    },
+    { key: UNBOUND_SHELL_KEY, blob: JSON.stringify({ state: { panelOverrides: {}, ...state }, version: SHELL_STORE_VERSION }) },
+  );
+}
+
+/** The shell store's persisted panel overrides, or `null` before its first write. */
+export function persistedOverrides(page: Page): Promise<unknown> {
+  return page.evaluate((key) => {
+    const raw = globalThis.localStorage.getItem(key);
+    return raw === null ? null : ((JSON.parse(raw) as { state?: { panelOverrides?: unknown } }).state?.panelOverrides ?? null);
+  }, UNBOUND_SHELL_KEY);
+}
+
+/** A length custom property resolved to px by laying a box out at it; a computed custom property is only its token stream. */
+export function resolvedLength(page: Page, expression: string): Promise<number> {
+  return page.locator(".shell-grid").evaluate((grid, value) => {
+    const probe = grid.ownerDocument.createElement("div");
+    probe.style.position = "absolute";
+    probe.style.visibility = "hidden";
+    probe.style.width = value;
+    grid.append(probe);
+    const width = probe.getBoundingClientRect().width;
+    probe.remove();
+    return width;
+  }, expression);
+}
+
+/** rail | list | content | context, in px, off the grid's own resolved template. */
+export async function shellTracks(page: Page): Promise<readonly number[]> {
+  const columns = await page.locator(".shell-grid").evaluate((element) => getComputedStyle(element).gridTemplateColumns);
+  return columns.split(" ").map((track) => Number.parseFloat(track));
 }
 
 /** Dispatch one synthetic `k` keydown and report whether the shell cancelled its default. */

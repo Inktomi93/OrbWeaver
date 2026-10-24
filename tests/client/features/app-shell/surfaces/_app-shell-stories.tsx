@@ -3,7 +3,7 @@
 import { AppShell } from "@orb/client/features/app-shell";
 import { notify } from "@orb/client/lib";
 import type { ModalSlotId } from "@orb/client/state";
-import { openModal } from "@orb/client/state";
+import { dockListPanel, openModal } from "@orb/client/state";
 import { CtClientProviders } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";
 import type { ReactElement } from "react";
@@ -32,6 +32,18 @@ export function AppShellNoticeStory({ title, description }: { readonly title: st
       <AppShell />
       <Button className="fixed start-0 bottom-0 z-(--z-toast)" onClick={(): void => notify.info({ title, description })}>
         Raise a notice
+      </Button>
+    </CtClientProviders>
+  );
+}
+
+/** The production shell with a control that docks the LIST from outside it, as a feature's own door does. */
+export function AppShellListDockStory(): ReactElement {
+  return (
+    <CtClientProviders>
+      <AppShell />
+      <Button className="fixed start-0 bottom-0 z-(--z-toast)" onClick={dockListPanel}>
+        Dock the list from outside
       </Button>
     </CtClientProviders>
   );
