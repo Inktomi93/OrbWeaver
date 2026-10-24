@@ -306,7 +306,7 @@ function PasteBody({ onLanded, destination }: { readonly onLanded: OnLanded; rea
 }
 
 /** Three fields (source · link · the revealed caption language), so it rides the editor FACTORY rather than
- *  three hand-rolled `useState`s (D54 §13.4 / the `form-factory-for-multifield` gate): seed, key-remount,
+ *  three hand-rolled `useState`s (D54 §13.4): seed, key-remount,
  *  post-submit reset and the reseed guard are the factory's, not this dialog's to re-derive. */
 function LinkBody({ onLanded, destination }: { readonly onLanded: OnLanded; readonly destination: DocumentDestination | null }): ReactElement {
   const trpc = useTRPC();

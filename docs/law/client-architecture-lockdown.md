@@ -320,7 +320,7 @@ the feature-provided `railFoot`, which owns the account trigger itself. (b) `bod
 declared-planned case `(() => ReactElement) | { planned: string }`, mirroring `SectionDefinition`.
 Delivered via `ModalRegistryContext`, consumed blind by `ModalHost`.
 
-`orb/modal-definition-home` and `orb/modal-definition-literal` mirror the co-location design. Keep modal ownership and route registration together.
+`orb/modal-definition-home` keeps a `ModalDefinition` declaration in its feature's `lib/`. `orb/modal-definition-literal` requires the declaration to be one object literal.
 
 ## 7. The composition root — `main.tsx` (the registration door) + thin routes
 
@@ -382,7 +382,7 @@ skimmer over the contribution seam in `state/config-section-registry.ts`, assemb
 group-owned `subcategories` — persona, plugins, connections, automation and backup surfaces decompose
 into `ConfigSectionContribution`s, D120); the four collections are `collection` groups whose body is their
 `CollectionContribution`. `openConfigTo(group, sub?, setting?)` (`state/config-nav-store.ts`) is the one
-navigation verb. is the native `orb/config-group-definition-home` rule.
+navigation verb. `orb/config-group-definition-home` keeps a `ConfigGroupDefinition` declaration in its feature's `lib/`.
 
 `CONFIG_GROUP_IDS`/`ConfigGroupId` live in `state/config-group-ids.ts`, its own two-reader vocabulary
 module (§5 rule 5); `ConfigGroupDefinition`, `SettingsViewerView` (the state-owned viewer projection `when`

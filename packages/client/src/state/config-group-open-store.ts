@@ -1,5 +1,5 @@
 // Config disclosure is device-local working posture, not a preference carried to another screen
-// (#866/persistence-boundary). Groups start closed so one long library does not bury its siblings; the
+// (#866). Groups start closed so one long library does not bury its siblings; the
 // band is the map. The active group is always expanded, derived by the list rather than held independently
 // here.
 //

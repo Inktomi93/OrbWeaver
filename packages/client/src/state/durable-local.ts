@@ -41,7 +41,7 @@
 // identically, and so a store that opted into a different storage backend is never bypassed.
 //
 // The raw-`localStorage` reads/writes below are the POINTER only — the reason this file is on
-// `persistence-boundary`'s allowlist. Nothing else here touches browser storage directly.
+// `orb/persistence-boundary`'s allowlist (`RAW_STORAGE_HOMES` in eslint.config.ts). Nothing else here touches browser storage directly.
 
 import type { UserId, VerifiedUserId } from "@orb/kit/ids";
 

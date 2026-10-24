@@ -212,7 +212,7 @@ DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
             `section-registry.ts`): `rail.nav` = section entries derived from each `SectionDefinition.rail`,
             `rail.end` (`rail.zone: "rail.end"`) = the SETTINGS SECTION (`config`, label "Settings") + the persona Identity widget
             (`personaChrome`) — one flat DOM list, CSS-reflowed to the mobile bar (§C), never a hand
-            map (gate `no-parallel-section-map`; typed `ChromeEntry`). Modal triggers derive
+            map (typed `ChromeEntry`). Modal triggers derive
             by placement (`ModalTriggerPlacement` in `modal-registry.ts`); every modal is `surface`,
             `topbar.trail` (⌘K) or `mobile-tab` (the You sheet); none is `rail.end`.
   LIST    — the active section's collection: header row (micro-caps title + create "+") → search →
