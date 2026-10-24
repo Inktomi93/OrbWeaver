@@ -89,6 +89,33 @@ test("a pending archive read shows the labelled skeleton, then the settled card 
   await expect(archive.locator('[aria-busy="true"]')).toHaveCount(0);
 });
 
+test("a later archive read holds the box this device saw the archive settle at", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness();
+  const room = await archiveRoom(root, corpusChatId(corpus));
+  await room.plantCard();
+  const settled = await room.messages();
+  let pending: ReturnType<typeof trpcHold<"chat.listMessages">> | null = null;
+  await routeTrpc(page, { ...room.reads, "chat.listMessages": () => pending ?? settled });
+  const archive = page.locator(ARCHIVE);
+  const height = async (): Promise<number> => (await archive.boundingBox())?.height ?? Number.NaN;
+
+  const first = await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
+  await expect(archive.getByText("Cards — 1", { exact: true })).toBeVisible();
+  const settledHeight = await height();
+  await first.unmount();
+
+  const later = trpcHold<"chat.listMessages">();
+  pending = later;
+  await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
+  await later.requested;
+  await expect(archive.locator('[aria-busy="true"]')).toBeVisible();
+  expect(await height()).toBeCloseTo(settledHeight, 0);
+
+  later.release(settled);
+  await expect(archive.getByText("Cards — 1", { exact: true })).toBeVisible();
+  expect(await height()).toBeCloseTo(settledHeight, 0);
+});
+
 test("an archive with no cards yet renders the empty doorway under its label", async ({ corpus, mount, page }) => {
   await using root = await createCorpusHarness();
   const room = await archiveRoom(root, corpusChatId(corpus));

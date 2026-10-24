@@ -84,7 +84,8 @@ export function RpgSceneCards({ chatId, enabled }: RpgSceneCardsProps): ReactEle
     return null;
   }
   // The section root sits outside the boundary, so the error arm is the shared error state itself. The kicker
-  // stays with each arm because the settled one carries the card count.
+  // stays with each arm because the settled one carries the card count. RESERVED: the resync doorway below
+  // would otherwise jump by the gap between the skeleton and the settled list when a later read lands.
   return (
     <Stack data-slot="rpg-card-archive">
       <QueryBoundary
@@ -95,6 +96,7 @@ export function RpgSceneCards({ chatId, enabled }: RpgSceneCardsProps): ReactEle
           </Stack>
         }
         renderError={(_error, retry): ReactElement => <QueryErrorState label="the card archive" onRetry={retry} />}
+        reserveKey="rpg.cardArchive"
       >
         <ArchiveBody chatId={chatId} />
       </QueryBoundary>
