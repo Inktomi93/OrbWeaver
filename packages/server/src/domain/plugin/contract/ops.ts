@@ -129,7 +129,7 @@ export interface PluginHostOps {
       readonly triggeredBy: UserId;
       readonly chatId: ChatId;
       readonly automationDepth: number;
-      readonly speakerCharacterId?: string;
+      readonly speakerCharacterId?: SandboxWireId<CharacterId>;
       readonly guided?: string;
     }) => Promise<void>;
   };

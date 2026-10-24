@@ -6,7 +6,7 @@
 // authority-blind — every function receives an ALREADY-ADMITTED `ChatId` (the domain's invocation-chat-context
 // admission did the `can(installer,"read"/"host",chat)` check). Infra therefore never sees a Principal or roster.
 
-import type { AssetId, CharacterId, ChatId, DocumentId, SandboxWireId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, DocumentId, SandboxWireId, WorldBookId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { VariablePrecondition, VariableWriteResult } from "#chat";
 import type { GenerateImageActionArgs } from "#imagery";
@@ -68,7 +68,7 @@ export interface PluginBridge {
     readonly requestTurn: (
       chatId: ChatId,
       automationDepth: number,
-      p: { readonly speakerCharacterId?: string; readonly guided?: string },
+      p: { readonly speakerCharacterId?: SandboxWireId<CharacterId>; readonly guided?: string },
       liveness?: PluginInvocationLiveness,
     ) => Promise<void>;
   };
@@ -82,7 +82,7 @@ export interface PluginBridge {
      *  passes the ADMITTED `chatId` + the guest-supplied `bookId`; the domain builder gates the book on ATTACHMENT
      *  to this chat (the write path's own `isBookAttachedToChat`) before reading its entries, so a `bookId` not
      *  attached to this room — even one the installer owns in another chat — resolves to `[]`, leak-free. */
-    readonly listEntries: (chatId: ChatId, bookId: string, liveness?: PluginInvocationLiveness) => Promise<readonly PluginWorldEntryView[]>;
+    readonly listEntries: (chatId: ChatId, bookId: SandboxWireId<WorldBookId>, liveness?: PluginInvocationLiveness) => Promise<readonly PluginWorldEntryView[]>;
     /** Upsert one ATTACHED-book entry (`worldInfo.upsertEntry`). The entry carries its own guest-supplied
      *  `bookId`, so the ADMITTED `chatId` rides along as the domain's consent anchor: 02 §2 specifies this
      *  capability as "grant + host + book-attached-to-chat + the 64-entry cap", and only the domain can answer

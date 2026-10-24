@@ -618,6 +618,33 @@ export const PLUGIN_DUMP_SELECTORS = [
   },
 ];
 
+// A key the guest authors and names itself (an action, a surface, a frame call) is not an entity id.
+const GUEST_AUTHORED_KEYS = alternation(["actionId", "surfaceId", "callId"]);
+const ID_NAMED = "/Ids?$/";
+const BARE_STRING_SHAPES = [
+  "TSStringKeyword",
+  "TSUnionType > TSStringKeyword",
+  "TSArrayType > TSStringKeyword",
+  "TSTypeOperator > TSArrayType > TSStringKeyword",
+];
+// The guest-facing read projections whose own `id` is the entity's id.
+const SANDBOX_VIEW = "TSInterfaceDeclaration[id.name=/^Plugin\\w*View$/] > TSInterfaceBody > TSPropertySignature[key.name='id']";
+const SANDBOX_WIRE_ID_MESSAGE =
+  "An id crossing the plugin sandbox is typed `SandboxWireId<Brand>` from @orb/kit/ids, never a bare `string`: the position records which id it carries without claiming a validation the membrane never performs.";
+
+export const SANDBOX_WIRE_ID_RESTRICTIONS = [
+  {
+    id: "sandbox-wire-id",
+    selectors: BARE_STRING_SHAPES.flatMap((shape) =>
+      [
+        `TSPropertySignature[key.name=${ID_NAMED}]:not([key.name=${GUEST_AUTHORED_KEYS}]) > TSTypeAnnotation > ${shape}`,
+        `Identifier[name=${ID_NAMED}]:not([name=${GUEST_AUTHORED_KEYS}]) > TSTypeAnnotation > ${shape}`,
+        `${SANDBOX_VIEW} > TSTypeAnnotation > ${shape}`,
+      ].map((selector) => ({ selector, message: SANDBOX_WIRE_ID_MESSAGE })),
+    ),
+  },
+];
+
 export const SERVER_EVENT_RESTRICTIONS = [
   {
     id: "firehose-import-allowlist",

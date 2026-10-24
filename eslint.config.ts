@@ -981,6 +981,7 @@ export default [
   { files: ["tests/**/*.{ts,tsx}"], plugins: { orb: localPlugin }, rules: { "orb/ct-poll-intervals-shared": "error" } },
   { files: ["tests/ui/**/*.ct.tsx"], plugins: { orb: localPlugin }, rules: { "orb/ui-ct-no-color-literal": "error" } },
   { files: [PLUGIN_MEMBRANE], plugins: { orb: localPlugin }, rules: { "orb/plugin-dump-guard": "error" } },
+  { files: ["packages/contracts/src/plugin/**/*.ts"], plugins: { orb: localPlugin }, rules: { "orb/sandbox-wire-id": "error" } },
   { files: ["packages/ui/src/**/*.{ts,tsx}"], plugins: { orb: localPlugin }, rules: { "orb/baseui-portal-container-seam": "error" } },
   {
     files: ["tests/support/node/factories/**/*.{ts,tsx}", "**/tests/support/node/factories/**/*.{ts,tsx}"],
