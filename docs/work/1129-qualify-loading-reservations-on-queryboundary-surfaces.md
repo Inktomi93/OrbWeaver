@@ -20,6 +20,10 @@ Loading reservations should prevent layout shifts; source inspection alone canno
 
 Each selected defect has a corrected reservation and a rendered CT or Snap check across loading and settled states.
 
+## Owner ruling
+
+2026-10-24: declare first-boot boxes. The Settings groups that shift on a device's first visit (`config.workloads.*`, `config.connections.*`, `config.admin.*`, `config.appearance.looks`) get a per-width `reserveBlock`, with a CT that holds the read pending and asserts the box does not move.
+
 ## Evidence
 
 There is no failing-surface list. The surfaces below come from source and from `pnpm snap` runs on an isolated stage at `6a524b901ea7`.
