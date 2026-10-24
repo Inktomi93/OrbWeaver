@@ -19,6 +19,7 @@ export type ProcessSeams = Pick<
   | "randomInt"
   | "idSource"
   | "newOpaqueId"
+  | "serverInstanceId"
   | "buildConnector"
   | "networkExecution"
   | "env"
@@ -29,13 +30,15 @@ export type ProcessSeams = Pick<
 
 /** The real process seams for a production or script composition; a test root supplies seeded ones instead. */
 export function createProcessSeams(): ProcessSeams {
+  const idSource = createIdSource();
   return {
     timers: systemTimers,
     monotonicNow: () => performance.now(),
     random: Math.random,
     randomInt: (max) => randomInt(max),
-    idSource: createIdSource(),
+    idSource,
     newOpaqueId: randomUUID,
+    serverInstanceId: idSource.uuid(),
     buildConnector: systemConnector,
     networkExecution: { fetch: systemFetch, resolver: systemResolver },
     env,

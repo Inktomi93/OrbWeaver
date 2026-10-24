@@ -148,7 +148,6 @@ import {
   securityEvent,
   span,
 } from "#foundation/observability";
-import { SERVER_INSTANCE_ID } from "#foundation/server-instance";
 import { versionIdentity } from "#foundation/version";
 import type { AuthConfig, ForwardJwtVerifier } from "#infra/auth";
 import { createForwardJwtVerifier, createJwksReader, createPasswordHasher } from "#infra/auth";
@@ -248,6 +247,8 @@ export interface ServicesDeps {
   readonly randomInt: RpgContext["randomInt"];
   readonly idSource: IdSource;
   readonly newOpaqueId: () => string;
+  /** This root's identity, minted once from its id source; the live transport publishes it so a client sees a restart. */
+  readonly serverInstanceId: string;
   readonly db: DatabaseHandle;
   readonly now: () => number;
   /** The boot-time owner id. `undefined` in OIDC mode when no owner row exists yet (the first
@@ -318,7 +319,6 @@ export const NO_SHARE_RELAY: ShareComposeDeps = {
  *  unsupervised before it reaches `restart`, which throws if anything ever does. */
 export const UNSUPERVISED_RESTART: ServerRestartPort = {
   supervised: false,
-  serverInstanceId: SERVER_INSTANCE_ID,
   restart: (): void => {
     throw new Error("compose: nothing supervises this process, so nothing may restart it");
   },
@@ -954,6 +954,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     exportRpgGame: createExportRpgGame({ db }),
     cardPngIdentity,
     serverRestart: deps.serverRestart,
+    serverInstanceId: deps.serverInstanceId,
   });
 
   // ── imagery (the imagery seam). `resolveViewerVisibility` is a late-bound forward-ref (chat composes below);
@@ -1561,6 +1562,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       sockets,
       multiHumanCapable: multiHumanCapable(),
       bugReportDiagnostics,
+      serverInstanceId: deps.serverInstanceId,
     });
 
   const lifetime = construction.move();

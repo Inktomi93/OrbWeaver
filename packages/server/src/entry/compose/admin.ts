@@ -59,6 +59,7 @@ export interface AdminComposeDeps {
   readonly cardPngIdentity: Parameters<typeof createExportService>[0]["cardPngIdentity"];
   /** The process restart `admin.restart` drives; the lifecycle owns the close and the exit. */
   readonly serverRestart: ServerRestartPort;
+  readonly serverInstanceId: string;
 }
 
 /** The admin compose product: the admin service + the two singletons built here (the ONE tool-use registry and
@@ -99,6 +100,7 @@ export function buildAdmin(deps: AdminComposeDeps): AdminComposeResult {
       roleClientsFor: (userId) => deps.roleClientsFor(userId),
     }),
     serverRestart: deps.serverRestart,
+    serverInstanceId: deps.serverInstanceId,
   });
 
   // Registrants and consumers share one process-lifetime registry (D48).

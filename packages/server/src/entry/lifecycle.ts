@@ -39,7 +39,6 @@ import {
 } from "#foundation/env";
 import type { Logger } from "#foundation/observability";
 import { createDetachedSupervision, initTracing, wrapLibSqlClient } from "#foundation/observability";
-import { SERVER_INSTANCE_ID } from "#foundation/server-instance";
 import { versionIdentity } from "#foundation/version";
 import { createOwnerClaimCode, createPasswordHasher, oidcRedirectAllowlist } from "#infra/auth";
 import { bootSecretProvenance, keyfileReport, resolveCredentialsKey, resolveSessionSecret } from "#infra/crypto";
@@ -376,7 +375,6 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // respawned boot is the one that reports what is wrong.
     const serverRestart: ServerRestartPort = {
       supervised: launchedBySupervisor(),
-      serverInstanceId: SERVER_INSTANCE_ID,
       restart: (): void => {
         setImmediate(() => {
           if (isShuttingDown) {

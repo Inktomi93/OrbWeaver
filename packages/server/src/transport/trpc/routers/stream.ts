@@ -64,6 +64,7 @@ export const streamRouter = t.router({
       return withSubscriptionErrors(
         runSocket({
           logger: ctx.logger,
+          serverInstanceId: ctx.serverInstanceId,
           registry: ctx.sockets,
           cell,
           principal: ctx.auth,

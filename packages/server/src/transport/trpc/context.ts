@@ -138,6 +138,10 @@ export interface Context {
    * @internal
    */
   readonly bugReportDiagnostics: BugReportDiagnosticsRead;
+  /** The root's identity the socket's `serverReady` frame publishes.
+   * @internal
+   */
+  readonly serverInstanceId: string;
 }
 
 /** The composed graph's context factory: a request supplies these four facts; every other field is a handle of
@@ -162,6 +166,7 @@ export function createContext(parts: {
   readonly csrfHeaderPresent: boolean;
   readonly clientIp: string | null;
   readonly bugReportDiagnostics: BugReportDiagnosticsRead;
+  readonly serverInstanceId: string;
   readonly logger: Logger;
 }): Context {
   return {
@@ -177,5 +182,6 @@ export function createContext(parts: {
     csrfHeaderPresent: parts.csrfHeaderPresent,
     clientIp: parts.clientIp,
     bugReportDiagnostics: parts.bugReportDiagnostics,
+    serverInstanceId: parts.serverInstanceId,
   };
 }

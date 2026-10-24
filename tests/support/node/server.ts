@@ -596,6 +596,7 @@ export async function createServerHarness(
     buildConnector: systemConnector,
     idSource,
     newOpaqueId: ids.uuid,
+    serverInstanceId: ids.uuid(),
     random,
     randomInt: (max) => Math.floor(random() * max),
     ownerId,
