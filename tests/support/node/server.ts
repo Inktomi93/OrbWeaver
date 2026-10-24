@@ -436,7 +436,7 @@ async function configuredOidcFor(
     ownerClaim: oidc.ownerClaim,
     redirectAllowlist: oidc.redirectAllowlist,
     claimUrlFile: ownerClaimFile,
-    inContainer: false,
+    inContainer: bindPostureInput(env).inContainer,
   });
   const lifetime = construction.move();
   return {
@@ -448,9 +448,9 @@ async function configuredOidcFor(
 }
 
 function shareInputsFor(options: ServerHarnessOptions | UnclaimedServerHarnessOptions, inputs: HarnessConstruction, appPort: () => number): ShareGraphOptions {
-  // Boot's own bind input, with the install pinned bare-metal (the `ORB_CONTAINER` row); the parse already refused
-  // every refused bind, so this posture carries none.
-  const bind = resolveBindPosture({ ...bindPostureInput(inputs.env), inContainer: false });
+  // Boot's own bind input over the root's record; the parse already refused every refused bind, so this posture
+  // carries none.
+  const bind = resolveBindPosture(bindPostureInput(inputs.env));
   // Production binds every interface by design, which a test root on a dev box must never do by accident.
   if (bind.publicBind && options.allowPublicBind !== true) {
     throw new Error(
@@ -602,7 +602,7 @@ export async function createServerHarness(
     sessionSecret: SESSION_SECRET,
     isShuttingDown: () => closing,
     credentialsKeyOk: () => credentialsKeyOk,
-    inContainer: false,
+    inContainer: bindPostureInput(env).inContainer,
     relayHosts: sharing.relayHosts,
     shareState: sharing.share.relay.status,
     oidcProviderName: env.OIDC_PROVIDER_NAME,

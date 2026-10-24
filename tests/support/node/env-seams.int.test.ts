@@ -1,5 +1,5 @@
 // One case per env-seam class, through the composed root: a seam row's option reaches the production read, a composed
-// row follows what it derives from, and a deploy-only row has no door.
+// row follows what it derives from, a deploy-only row has no door, and a machine-fact row replaces the runner's machine.
 // @subject tests/support/node/env-seams.ts
 // @subject tests/support/node/corpus.ts
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -20,6 +20,9 @@ const EVERY_INTERFACE = "0.0.0.0";
 const PNG = "image/png";
 // A value every one of these keys parses, so only the door decides the outcome.
 const FORCED_PORT = "1";
+const MACHINE_NAME = "orb-seam-machine";
+const OK = 200;
+const MISDIRECTED_REQUEST = 421;
 
 test("a seam row's option is the record key boot binds by: the parse refuses a public bind the hatch does not open", async () => {
   expect(ENV_SEAMS.BIND_HOST).toMatchObject({ kind: "seam", option: "bindHost" });
@@ -27,6 +30,20 @@ test("a seam row's option is the record key boot binds by: the parse refuses a p
   await using root = await createServerHarness({ env: { ["AUTH_MODE"]: "local" }, bindHost: EVERY_INTERFACE, allowPublicBind: true });
   expect(root.env.BIND_HOST).toBe(EVERY_INTERFACE);
   expect((await root.listen()).address).toBe(EVERY_INTERFACE);
+});
+
+test("a machine-fact row reaches the Host allowlist: the root answers to its machine's name on bare metal only", async () => {
+  expect(ENV_SEAMS.hostname).toMatchObject({ kind: "seam", option: "hostname" });
+  const statusFor = async (root: Awaited<ReturnType<typeof createServerHarness>>): Promise<number> => {
+    const response = await root.http.request(`http://${MACHINE_NAME}/healthz`);
+    await response.arrayBuffer();
+    return response.status;
+  };
+  await using bareMetal = await createServerHarness({ hostname: MACHINE_NAME });
+  expect(await statusFor(bareMetal)).toBe(OK);
+  await using container = await createServerHarness({ hostname: MACHINE_NAME, containerMarker: true });
+  expect(container.env.INSTALL_KIND).toBe("container");
+  expect(await statusFor(container)).toBe(MISDIRECTED_REQUEST);
 });
 
 test("a production record binds every interface, which a root refuses unless allowPublicBind says so", async () => {

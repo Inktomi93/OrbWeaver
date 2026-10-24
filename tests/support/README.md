@@ -70,7 +70,7 @@ Branch a case on the capability, never on the mode name. `AUTH_MODE_CAPABILITIES
 
 ## Turn a production env knob
 
-A root composes over one parsed env record, built through the production parse. `ENV_SEAMS` in [node/env-seams.ts](node/env-seams.ts) gives every env schema key one row:
+A root composes over one parsed env record, built through the production parse. `ENV_SEAMS` in [node/env-seams.ts](node/env-seams.ts) gives every env schema key and every machine fact the parse reads one row. A root runs on a bare-metal test machine with a fixed name unless its `containerMarker` or `hostname` option says otherwise:
 
 | Kind | The key | The door |
 | - | - | - |
@@ -117,7 +117,7 @@ Runnable examples:
 | Integration files share one module registry and never read the environment at import | `isolate: false` and the `setupFiles` warm on the integration project in [vitest.config.ts](../../vitest.config.ts); the harness seams in [node/server.ts](node/server.ts) |
 | A test never stubs or writes the process environment (`vi.stubEnv`, `process.env` writes); it uses a harness seam or the subject's own parameter | The `TEST_ENVIRONMENT_RESTRICTIONS` syntax rules in [eslint.config.ts](../../eslint.config.ts); `tests/tooling` is outside them because that project isolates modules |
 | A root's env knob is a key in its own parsed record, refused where production refuses it | `createServerHarness({ env })` and `createTestEnv` ([node/env.ts](node/env.ts)), both through the production `parseEnv` |
-| Every env schema key has one row saying how a root reaches it, and `env` takes only raw rows | `ENV_SEAMS` is a `Record` over the schema's `EnvKey` in [node/env-seams.ts](node/env-seams.ts); [the class cases](node/env-seams.int.test.ts) and [type cases](node/env-seams.test-d.ts) |
+| Every env schema key and machine fact has one row saying how a root reaches it, and `env` takes only raw rows | `ENV_SEAMS` is a `Record` over the schema's `EnvKey` and the parse's `HostFacts` in [node/env-seams.ts](node/env-seams.ts); [the class cases](node/env-seams.int.test.ts) and [type cases](node/env-seams.test-d.ts) |
 | Story props and updated props | Explicit native `mount<typeof Story>` and [compiler assertions](browser/gallery.dom.test-d.ts) |
 | Ordinary CT authoring uses typed mounts, browser JSX and type-only story imports | Native ESLint syntax restrictions in [eslint.config.ts](../../eslint.config.ts) |
 | Inline callback props stay out of Node mount calls | The same ESLint restrictions; aliases and arbitrary dataflow remain review responsibilities |
