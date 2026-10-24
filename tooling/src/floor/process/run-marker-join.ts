@@ -83,7 +83,7 @@ function boundCompletionTable(marker: string, markerOwner: (marker: string) => n
     if (markerOwner(marker) !== process.pid || current.kind !== "live") {
       throw new Error("run-marker: completion requires this process's own fresh marker");
     }
-    return completionProcesses({ owner: { pid: process.pid, identity: current.identity } });
+    return completionProcesses({ owner: { pid: process.pid, identity: current.identity }, marker });
   };
 }
 

@@ -194,3 +194,52 @@ test.skipIf(process.platform !== "linux")("completion refusals retain sanitized 
   expect(unclassified).not.toContain(privateText);
   expect(unclassified).toContain('"metadataRead":"unclassified-error"');
 });
+
+test.skipIf(process.platform !== "linux")("an unreadable-environ process is skipped only when its parent is alive, readable and unmarked", () => {
+  const userId = process.getuid?.();
+  const marker = "4242-1700000000000-abcd1234";
+  const stat = (birth: string): string => `1 (x) S ${Array.from({ length: 18 }, () => "0").join(" ")} ${birth} 0`;
+  const denied = (): never => {
+    throw Object.assign(new Error("denied"), { code: "EACCES" });
+  };
+  const parent = { stat: stat("10") as string | null, environ: "A=b\0", cmdline: "ssh\0host", deny: false };
+  const files = (path: string): string | null => {
+    const table: Record<string, () => string | null> = {
+      [`/proc/${process.pid}/stat`]: () => stat("20"),
+      "/proc/42/stat": () => stat("30"),
+      "/proc/42/status": () => `Name:\tzygote\nUid:\t${userId}\t${userId}\t${userId}\t${userId}\nPPid:\t7\n`,
+      "/proc/42/cmdline": () => "zygote\0",
+      "/proc/42/environ": denied,
+      "/proc/7/stat": () => parent.stat,
+      "/proc/7/status": () => (parent.stat === null ? null : "Name:\tchrome\nPPid:\t1\n"),
+      "/proc/7/environ": () => (parent.deny ? denied() : parent.environ),
+      "/proc/7/cmdline": () => parent.cmdline,
+    };
+    return table[path]?.() ?? null;
+  };
+  const read = (withMarker = true): ReturnType<typeof completionProcesses> =>
+    completionProcesses({
+      platform: "linux",
+      owner: { pid: process.pid, identity: "20" },
+      readDir: () => ["42"],
+      readFile: files,
+      ...(withMarker ? { marker } : {}),
+    });
+
+  expect(read()).toEqual([{ pid: 42, ppid: 7, cmdline: "zygote", environ: null, cpuMs: 0 }]);
+
+  parent.deny = true;
+  expect(read).toThrow("process 42 (zygote) parent 7 (chrome)");
+  parent.deny = false;
+  parent.environ = `ORB_RUN_MARKER=${marker}\0`;
+  expect(read).toThrow("parent 7 (chrome)");
+  parent.environ = "";
+  parent.cmdline = `chrome\0--orb-run-marker=${marker}`;
+  expect(read).toThrow("parent 7 (chrome)");
+  parent.cmdline = "ssh";
+  parent.environ = "A=b\0";
+  parent.stat = null;
+  expect(read).toThrow("process 42 (zygote) parent 7 (?)");
+  parent.stat = stat("10");
+  expect(() => read(false)).toThrow("process 42 (zygote) parent 7 (chrome)");
+});

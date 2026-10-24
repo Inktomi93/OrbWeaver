@@ -26,4 +26,4 @@ Owner ruling recorded in this item; if excluding is ruled in, the sweep skips an
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The rule is `environLineage` in `tooling/src/floor/host/platform-probes.ts`, reached from `completionProcesses` with the run's `marker` (passed by `boundCompletionTable` in `run-marker-join.ts`). Test: `tests/tooling/floor/host/process-completion.test.ts`, "an unreadable-environ process is skipped only when its parent is alive, readable and unmarked". It failed on the old code and passes now. The refusal names the process and its parent with pid and comm. Land with `pnpm doc land 1276 --evidence <sha>` after the commit merges.
