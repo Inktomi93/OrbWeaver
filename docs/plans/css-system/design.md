@@ -20,6 +20,8 @@ Tailwind. theme.css resets each governed namespace to initial and keeps only the
 
 Stylelint. The hand-written CSS files gain declaration-property-value-allowed-list entries for radius, gap, padding, margin, font-size and z-index that admit only var(--token) references and the structural literals the shell exception in client-architecture-lockdown.md allows. The existing orb rules keep colour and motion.
 
+Conditions. Viewport, pointer, orientation and preference conditions get one vocabulary. The shell breakpoint is a token today and is also spelled as raw `@media` widths in CSS and as the Tailwind default `md:` in TSX; pointer conditions have two spellings in TSX and raw `matchMedia` strings in TS. CSS custom properties do not work inside `@media`, so the home is generated: tokens.build.ts emits the Tailwind `--breakpoint-*` namespace (defaults reset) and one `@custom-variant` per named condition (coarse, fine, reduced motion, reduced transparency, more contrast, portrait, landscape), and a typed TS module exports the same query strings for `matchMedia`. Hand-written CSS uses the generated variants or `@custom-media`-style named conditions instead of raw widths.
+
 Owner CSS surface. The stable API is the data-slot values, the .shell-\* classes and the public custom properties (the THEME_SCOPE_EMIT_VARS colours plus the ramp primitives). A pinned manifest test lists them; removing or renaming one fails the test and requires a recorded deprecation. Owner custom CSS stays unlayered and validated by validateThemeCss.
 
 Sprawl. shell.css and both globals.css files drop history comments, dead rules (found with the dead-css check in snap) and one-off literals, and shell.css splits by region.
@@ -28,6 +30,7 @@ Legs, in order:
 
 1. Primitive tier plus aliases with every current value unchanged, and the contract rule. No pixel change.
 2. The owner-CSS surface manifest and its pin test.
+   2b. The conditions vocabulary, with no pixel change.
 3. Tailwind namespace resets; the lint findings are the migration list, and each off-ramp class maps to a token.
 4. Stylelint allow-lists over the hand-written CSS.
 5. The ramp values themselves: an owner design decision, with side-eye before and after on the main surfaces.
