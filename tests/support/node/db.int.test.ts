@@ -1,7 +1,7 @@
 // support/db — self-test for freshCountedDb (the query-budget counter) AND freshHeldDb/holdingClient (the
 // statement fence). Proves: the counter's window opens EMPTY (the schema push is not the test's budget),
 // each execute counts once with its SQL recorded, a `db.batch` counts per statement, reset() reopens the
-// window, and the FENCE itself reaches a statement issued through `db.batch` (#1549) rather than hanging
+// window, and the FENCE itself reaches a statement issued through `db.batch` rather than hanging
 // to the vitest timeout. Runs against the real proxied libSQL client — the same `LibSqlWrap` seam
 // production uses for OTel.
 
@@ -16,7 +16,7 @@ const INSERT_SQL = /insert into/iu;
 const SELECT_SQL = /select/iu;
 
 /** A short race against the gate's `reached` promise — the honest way to prove "this resolved" without
- *  actually waiting out a 5s vitest timeout when it doesn't (#1549's pre-fix symptom). */
+ *  actually waiting out a 5s vitest timeout when it doesn't. */
 const TIMEOUT_TOKEN = Symbol("timeout");
 function raceTimeout<T>(promise: Promise<T>, ms: number): Promise<T | typeof TIMEOUT_TOKEN> {
   return Promise.race([promise, new Promise<typeof TIMEOUT_TOKEN>((resolve) => setTimeout(() => resolve(TIMEOUT_TOKEN), ms))]);
@@ -82,7 +82,7 @@ test("reset() reopens the window", async () => {
   expect(queries.count()).toBe(1);
 });
 
-// ── freshHeldDb's fence, and the plane a hold must reach (#1549) ─────────────────────────────────────
+// ── freshHeldDb's fence, and the plane a hold must reach ─────────────────────────────────────
 
 test("a hold on a plain execute() reaches, holds, and releases normally", async () => {
   await using resources = new AsyncDisposableStack();

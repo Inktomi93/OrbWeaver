@@ -1,9 +1,7 @@
-// The chat-completions TERMINAL FRAME every completed stream ends with (#1400: every reducer refuses a
+// The chat-completions TERMINAL FRAME every completed stream ends with (every reducer refuses a
 // stream that closes without one — `chunk.choices[0].finishReason` is the ONLY field that marks a
-// generation COMPLETE). #1547 found two stale fixtures only by RUNNING all 13 candidate suites — a grep
-// for the literal read one of them as terminal-bearing because its `finish_reason` sat in `choices[1]`, a
-// position no reader looks at (`tests/server/domain/chat/wire-capture-fidelity.suite.int.test.ts`'s header
-// has the full story). Every raw stream fixture composes its terminal frame from HERE instead of
+// generation COMPLETE). A grep for the literal cannot prove a fixture terminal-bearing: a `finish_reason`
+// in `choices[1]` is a position no reader looks at. Every raw stream fixture composes its terminal frame from HERE instead of
 // hand-spelling the JSON, so a fixture cannot go terminal-less (or mis-placed) by construction.
 //
 // Composed as template strings, never a typed object literal — the wire's snake_case field names

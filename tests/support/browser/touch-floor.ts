@@ -2,11 +2,11 @@
 // coarse-pointer control is actually hittable.
 //
 // WHY IT IS NOT A BOUNDING BOX. Our floorless Button sizes (`inline`/`glyph-*`) carry their ≥44px coarse hit
-// area on an OVERFLOWING `::before` (an `::after` until #1843 moved it off the CTA ring's layer — the
-// readers here have always probed BOTH), so the visible box and the target are DIFFERENT SHAPES — and when such a
+// area on an OVERFLOWING `::before` (`::after` is the CTA ring's layer — the
+// readers here probe BOTH), so the visible box and the target are DIFFERENT SHAPES — and when such a
 // control is repeated in a wrapping run, the pseudo is clipped by the gap it shares with the next cell and
-// the floor silently is not delivered. A `boundingBox()` assertion is blind to exactly that defect (measured
-// 2026-08-07: a 32px icon cell reporting a 37px effective target on a 38px pitch). Only `elementFromPoint`
+// the floor silently is not delivered. A `boundingBox()` assertion is blind to exactly that defect (a 32px icon
+// cell can report a 37px effective target on a 38px pitch). Only `elementFromPoint`
 // sees it, and only if you WALK OUT from the centre rather than sampling it.
 //
 // TWO INSTRUMENTS, because neither alone states the claim:
@@ -29,8 +29,8 @@ export interface HitBox {
   readonly y: number;
 }
 
-/** A Button `inline`/`glyph-*` hit pseudo's resolved box. This intentionally names `::before`: #1843
- * moved the hit surface there so `::after` can remain the CTA paint layer. An unresolved dimension is an
+/** A Button `inline`/`glyph-*` hit pseudo's resolved box. This intentionally names `::before`:
+ * the hit surface lives there so `::after` can remain the CTA paint layer. An unresolved dimension is an
  * absent measurement, so this refuses instead of turning `auto` into a zero-sized target. */
 /** The effective box for Button arms that may carry their floor either in their own border box or in
  * `::before`. A box that already clears the floor needs no pseudo; a smaller box must have a measurable
@@ -38,10 +38,10 @@ export interface HitBox {
 /**
  * One `--spacing-*` custom property resolved to REAL px by the browser, at the document root.
  *
- * NEVER `parseFloat(getComputedStyle(x).getPropertyValue("--spacing-…")) * 16`. That spelling was wrong on
- * two independent counts and both bit: a custom property's computed value is its authored TOKEN STREAM, so
- * (a) since #1640 the `--spacing-*` family is belted and the stream reads `round(up, 2.75rem, 1px)` — NaN
- * to `parseFloat`, and every downstream comparison silently vacuous — and (b) the `* 16` was already a lie
+ * NEVER `parseFloat(getComputedStyle(x).getPropertyValue("--spacing-…")) * 16`. That spelling is wrong on
+ * two independent counts: a custom property's computed value is its authored TOKEN STREAM, so
+ * (a) the `--spacing-*` family is clamped and the stream reads `round(up, 2.75rem, 1px)` — NaN
+ * to `parseFloat`, and every downstream comparison silently vacuous — and (b) the `* 16` is a lie
  * for any reader with `--font-scale` off 1. A throwaway probe makes the ENGINE do the arithmetic, so it is
  * correct under the belt, the font scale, the pointer arm and the density scope alike.
  */
@@ -74,16 +74,16 @@ export function touchFloorPx(page: Page): Promise<number> {
  *  point stops resolving inside it.
  *
  *  THE RULE ITSELF IS NOT HERE: it is `tests/support/iso/hit-extent-walk.ts`, the one home shared with the
- *  ui-audit instrument proof (`tests/tooling/ui-audit/ops/walker/hit-extent.int.test.ts`), which used to
- *  keep a hand-copied second spelling and could therefore agree with a predicate this kit no longer had.
- *  Read that file for the ownership clauses, the #2300 geometry scoping and the declared limits.
+ *  ui-audit instrument proof (`tests/tooling/ui-audit/ops/walker/hit-extent.int.test.ts`), so the two
+ *  cannot drift into separate predicates. Read that file for the ownership clauses, the geometry scoping
+ *  and the declared limits.
  *
  *  TWO PAGE ROUND TRIPS, NOT ONE, and the reason is a budget rather than a preference: the geometry read
  *  and the walk are separate serialisable functions because a single self-contained one carrying the whole
  *  algorithm scores 79 against the cognitive-complexity budget of 15, and the arithmetic between them is
  *  worth far more as a NODE-testable pure function than as another thing only a browser can check. The
  *  window between the two reads is a layout the caller must already have settled — every consumer polls
- *  (`expect.poll`) precisely because a mid-transition read was never trustworthy in one call either. */
+ *  (`expect.poll`) precisely because a mid-transition read is not trustworthy in one call either. */
 export async function hitExtent(cell: Locator, axis: "x" | "y"): Promise<number> {
   const geometry = await cell.evaluate(readPseudoGeometry);
   return await cell.evaluate(walkFrom, { axis, envelope: pseudoHitEnvelope(geometry) });
@@ -93,8 +93,8 @@ export async function hitExtent(cell: Locator, axis: "x" | "y"): Promise<number>
 /** The run's centre-to-centre PITCH on both axes — the smallest non-zero offset from the first cell.
  *
  *  POLL THIS, never read it once, whenever the run is inside a surface that opens with a transition: a
- *  same-tick read caught a popover mid-`scale: 0.95` and reported a pitch that does not exist once the
- *  animation settles (a false negative by construction — it cost a lane a round). */
+ *  same-tick read can catch a popover mid-`scale: 0.95` and report a pitch that does not exist once the
+ *  animation settles (a false negative by construction). */
 export function measurePitch(controls: Locator): Promise<HitBox> {
   return controls.first().evaluate((el: HTMLElement): HitBox => {
     const parent = el.parentElement;

@@ -187,7 +187,7 @@ export async function seedMessageRow(db: Db, overrides: SeedMessageRowOptions = 
   return { ...slot, selectedVariantId: variantId, variantId, content: body };
 }
 
-// The rows tier's capture modules: every row read a seed used to do, fenced to persistence-tier and corpus importers.
+// The rows tier's capture modules: every row read a seed does, fenced to persistence-tier and corpus importers.
 
 export { seedAssetRows } from "./rows/asset.ts";
 export { seedAutomationRuleRows, seedAutomationTestFiresRows } from "./rows/automation.ts";

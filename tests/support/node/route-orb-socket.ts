@@ -3,8 +3,7 @@
 // folded), plus the thing a per-proc stub never needed: a LIFECYCLE RECORDER.
 //
 // A chat CT authors its scripted turn as `chat` FRAMES (`{ channel: "chat", chatId, seq, event }`) — the
-// bus event rides verbatim under `event`, and `seq` is the durable cursor that used to be the tracked
-// envelope id, so the attach synthetics (`chatOpened`/`historyTruncated`) are expressed by giving them the
+// bus event rides verbatim under `event`, and `seq` is the durable cursor, so the attach synthetics (`chatOpened`/`historyTruncated`) are expressed by giving them the
 // NON-ADVANCING cursor seq exactly as the server does.
 //
 // Why a handshake instead of a sleep. Under the multiplex the client attaches AFTER the socket is live, and
@@ -215,10 +214,9 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
     const url = new URL(req.url());
 
     // The SOCKET is ONE procedure — `stream.connect` (packages/client/src/data/bus/use-orb-socket.ts's
-    // `trpc.stream.connect.subscriptionOptions`). Matching on the accept header alone (#1491) made this
+    // `trpc.stream.connect.subscriptionOptions`). Matching on the accept header alone would make this
     // stub answer EVERY tRPC subscription in the CT, `chat.impersonateStream` included: a story that opens
-    // both got socket frames on its impersonation stream, and any CT that depended on that was passing
-    // because of the stub's reach rather than the app's behaviour. A non-socket stream falls through.
+    // both would get socket frames on its impersonation stream. A non-socket stream falls through.
     if ((req.headers()["accept"] ?? "").includes("text/event-stream") && isOrbSocketRequest(req)) {
       connects += 1;
       // The handshake: hold the stream open until the rooms this script targets have attached. A route

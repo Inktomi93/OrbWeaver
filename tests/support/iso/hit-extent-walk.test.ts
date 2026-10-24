@@ -4,7 +4,7 @@
 // `readPseudoGeometry` is a dumb reader — see the module header): the eligibility clauses and the rect
 // arithmetic are the part that decides whether a control's tap target is 26px or 161px, and they should
 // not be reachable only through a browser run. Every `PseudoStyleFacts` below is a VERBATIM capture from
-// `pnpm snap --file … --mobile --eval "getComputedStyle(el, '::before')…"` on 2026-09-13, not a
+// `pnpm snap --file … --mobile --eval "getComputedStyle(el, '::before')…"`, not a
 // hand-written guess — a hand-written guess is how "the resolved value is `auto`" style assumptions get
 // baked into an instrument.
 import { describe, expect, test } from "vitest";
@@ -99,15 +99,15 @@ describe("pseudoHitRect", () => {
   });
 
   test("refuses a control under a SCALED ancestor instead of over-crediting it (#2300 ledger row 4)", () => {
-    // THE MIX THAT OVER-CREDITED (cb-v-hit-geometry, 2026-09-13). `border` is post-transform, the resolved
+    // THE MIX THAT OVER-CREDITS. `border` is post-transform, the resolved
     // insets are local px. A 0.5-scaled ancestor halves the border rect (25px box → 12.5px on screen at
-    // 120,120) while `left: 12.5px` / `right: -42.5px` stay local, so the old arithmetic answered
+    // 120,120) while `left: 12.5px` / `right: -42.5px` stay local, so naive arithmetic answers
     // {111.25, 111.25, 153.75, 153.75} — a band running ~14px PAST the pseudo's real reach of
     // {112.5, 112.5, 140, 140}. The layout box is transform-free, so its disagreement with the border rect
     // is the tell, and the answer is a refusal (under-report), never a guessed conversion.
     const scaled: HitGeometry = { ...geometry(HIT_BEFORE, ABSENT), border: { left: 120, top: 120, right: 132.5, bottom: 132.5 } };
     const overCredited = { left: 111.25, top: 111.25, right: 153.75, bottom: 153.75 };
-    // The OLD answer, reconstructed exactly: with the layout box lying about the scale, nothing refuses.
+    // The naive answer, reconstructed exactly: with the layout box lying about the scale, nothing refuses.
     expect(pseudoHitRect(HIT_BEFORE, { ...scaled, layoutWidth: 12.5, layoutHeight: 12.5 }), "the over-credit this arm exists to stop").toEqual(overCredited);
     // The NEW answer: the real layout box (25px, untransformed) disagrees with the 12.5px border rect.
     expect(pseudoHitRect(HIT_BEFORE, scaled)).toBeNull();
