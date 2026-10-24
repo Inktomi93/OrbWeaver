@@ -5,6 +5,7 @@ export { formatFindings, nameQualityFindings, unnamedLandmarkElementFindings } f
 export { expectCacheProse } from "./cache-prose.ts";
 export { formatFormIdentityFindings, formIdentityFindings } from "./form-identity.ts";
 export { pixelContrast, pixelSurface } from "./pixel-contrast.ts";
+export { touchTargetFindings } from "./touch-floor.ts";
 export type {
   ActorRefInput,
   CompactionIntent,
