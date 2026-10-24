@@ -1,5 +1,6 @@
 // @subject packages/client/src/features/databank/hooks/use-databank-list-header.tsx
 // @subject packages/client/src/features/databank/hooks/use-owner-sweep.tsx
+import { DATABANK_SWEEPS_CHECK_FAILED, DATABANK_SWEEPS_NEED_DOCUMENT } from "@orb/client/features/databank";
 import { DATABANK_LIST_DEFAULT_LIMIT } from "@orb/contracts/databank";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { TrpcWireOutput } from "@orb/testkit/ct";
@@ -141,6 +142,77 @@ test("a failed census names the failure, never the empty-bank reason", async ({ 
   const menu = page.getByRole("menu");
   await expect(menu.getByText(emptyReason, { exact: true })).toHaveCount(0);
   await expect(menu.getByText(failedReason, { exact: true })).toHaveCount(1);
+});
+
+// One mount, one query cache: the census changes under a live band, the way a recovered read or a landed
+// document changes it, and the group must carry a name for the reason that holds NOW.
+test("the maintenance group is named after every census transition", async ({ mount, page }) => {
+  const stocked = bankOf(3);
+  let answer: "failed" | "empty" | "stocked" = "failed";
+  await routeTrpc(page, {
+    "databank.bankHealth": () => {
+      if (answer === "failed") {
+        return trpcError({ message: "bank health failed" });
+      }
+      return answer === "empty" ? bankOf(0) : stocked;
+    },
+  });
+  const component = await mount<typeof DatabankListHeaderStory>(STORY, {});
+  const checkAgain = page.getByRole("menuitem", { name: CHECK_AGAIN, exact: true });
+
+  // failed
+  await openMaintenance(page);
+  await expect(checkAgain).toBeVisible();
+  expect(await groupName(page)).toBe(DATABANK_SWEEPS_CHECK_FAILED);
+
+  // failed -> empty
+  answer = "empty";
+  await checkAgain.click();
+  await openMaintenance(page);
+  await expect(checkAgain).toHaveCount(0);
+  expect(await groupName(page)).toBe(DATABANK_SWEEPS_NEED_DOCUMENT);
+  await page.keyboard.press("Escape");
+
+  // empty -> stocked
+  answer = "stocked";
+  await component.getByRole("button", { name: "Re-read census", exact: true }).click();
+  await expect(component.getByRole("heading", { level: 2 }).getByText(String(stocked.total), { exact: true })).toBeVisible();
+  await openMaintenance(page);
+  await expect(page.getByRole("menu").getByRole("group")).toHaveAccessibleName("");
+  await page.keyboard.press("Escape");
+
+  // stocked -> failed: the re-read fails while the last census is still held, so the failed reason must still show
+  answer = "failed";
+  await component.getByRole("button", { name: "Re-read census", exact: true }).click();
+  await openMaintenance(page);
+  await expect(checkAgain).toBeVisible();
+  expect(await groupName(page)).toBe(DATABANK_SWEEPS_CHECK_FAILED);
+  // failed -> stocked
+  answer = "stocked";
+  await checkAgain.click();
+  await openMaintenance(page);
+  await expect(checkAgain).toHaveCount(0);
+  await expect(page.getByRole("menu").getByRole("group")).toHaveAccessibleName("");
+  await page.keyboard.press("Escape");
+
+  // stocked -> empty
+  answer = "empty";
+  await component.getByRole("button", { name: "Re-read census", exact: true }).click();
+  await openMaintenance(page);
+  expect(await groupName(page)).toBe(DATABANK_SWEEPS_NEED_DOCUMENT);
+  await page.keyboard.press("Escape");
+
+  // empty -> failed -> empty: the failed read keeps the last census (0), so BOTH reasons hold at once;
+  // when the read recovers the group must still be named by the empty-bank reason.
+  answer = "failed";
+  await component.getByRole("button", { name: "Re-read census", exact: true }).click();
+  await openMaintenance(page);
+  await expect(checkAgain).toBeVisible();
+  answer = "empty";
+  await checkAgain.click();
+  await openMaintenance(page);
+  await expect(checkAgain).toHaveCount(0);
+  expect(await groupName(page)).toBe(DATABANK_SWEEPS_NEED_DOCUMENT);
 });
 
 test("the band prints the server census of a bank deeper than one list page", async ({ mount, page }) => {
