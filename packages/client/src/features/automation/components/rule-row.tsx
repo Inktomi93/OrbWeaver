@@ -1,91 +1,66 @@
 // ONE automation rule as a row — the surface BOTH rule lists render (the chat's "This chat → Rules" section
-// and the owner-global Automation settings pane). Extracted from `rules-section.tsx` at C5 rather than
-// copied, because everything a row IS was decided once by side-eye #621 and re-deciding it per surface is
-// how two lists of the same thing start disagreeing about what an affordance costs.
+// and the owner-global Automation settings pane). One component, because re-deciding what a row IS per
+// surface is how two lists of the same thing start disagreeing about what an affordance costs.
 //
-// THE ROW IS THE SURFACE (side-eye #621, the single highest-value fix). It used to be a `label`-voice name
-// over `turnCompleted · 1 action` — the raw wire discriminator plus an arm COUNT — with three ghost buttons
-// beside it that computed the IDENTICAL colour: Test (free), Run now (SPENDS a model call or an image) and
-// Delete (irreversible, and it fired straight off the click). Two rules minted from one catalogue entry were
-// byte-identical rows. Now:
+// THE ROW IS THE SURFACE:
 //   · the name speaks at `promoted` and the row's own gloss is the rule's DESCRIPTION — the catalogue's
-//     plain-English sentence, which `createRuleFromPreset` already stores on every minted rule;
-//   · `lastFiredAt` — on the view since B2 and rendered nowhere — is the state line ("Last ran 5m ago");
+//     plain-English sentence, which `createRuleFromPreset` stores on every minted rule;
+//   · `lastFiredAt` is the state line ("Last ran 5m ago");
 //   · ONE primary action stays in the cluster (Test, the free dry run). Run-now and Delete are DEMOTED into
 //     the row's own `RowActionsMenu`, where Run-now names its spend (driven by the contract's
-//     `SPEND_ARM_TYPES`, whose first client consumer this is) and Delete rides the composite's
-//     ConfirmDialog. Three affordances at three weights, and the irreversible one can no longer be reached
-//     by a single click 12px from the one that spends.
+//     `SPEND_ARM_TYPES`) and Delete rides the composite's ConfirmDialog. Three affordances at three weights,
+//     and the irreversible one is never a single click from the one that spends.
 //
-// COLLAPSE-UNTIL-NEEDED (#886, owner ruling 2026-09-06 on side-eye
-// 2026-08-30 §5-P3-Rules/§7). The row above rendered every one of
-// the affordances below at once — measured 704px desktop / 1,296px mobile for three rules against a 185px /
-// 233px reserve, an under-reserve that scored ~0 CLS only because the section sat at y≈2200, below the fold.
-// #821 collapsed the Injections rows and moved Rules ~800px UP, which is exactly where that geometry
-// accident stops protecting it. The row now wears the SAME clothes as the Field-overrides section and the
-// injection rows: a `Collapsible` in a `!p-0` Card whose trigger carries the whole of what a rule IS at a
-// glance — name, what it does, when it last ran, plus the unreadable verdict when there is one — with the
-// enable switch beside it and everything else behind the disclosure.
+// COLLAPSE-UNTIL-NEEDED (an owner ruling). Every affordance at once costs a scan-list far more height than its
+// reserve. The row wears the SAME clothes as the Field-overrides section and the injection rows: a
+// `Collapsible` in a `!p-0` Card whose trigger carries the whole of what a rule IS at a glance — name, what it
+// does, when it last ran, plus the unreadable verdict when there is one — with the enable switch beside it
+// and everything else behind the disclosure. Each affordance keeps its weight one press further in. ONE
+// affordance stays on the closed face: the enable switch. On/off is the question a host scanning a rule list
+// is actually asking, and it is neither destructive nor spending.
 //
-// NOTHING #621 DECIDED IS REMOVED; it MOVED behind the trigger. Test keeps its `secondary` skin and its one
-// primary slot, Run-now keeps its spend-naming demotion in `RowActionsMenu`, Delete keeps its confirm, and
-// each is still reachable at the same weight — one press further in, which is the price of a scan-list.
-// ONE affordance stays on the closed face: the enable switch. On/off is the question a host scanning a rule
-// list is actually asking, and it is neither destructive nor spending.
-//
-// B4 (2026-08-29) added the row's SECOND switch: RULED F4's per-rule opt-out, "Offer to run it when
-// rate-capped". It is conditional on the rule carrying a SPEND arm — the same condition the server ANDs the
-// stored knob with — so most rows are unchanged, and it sits in its OWN labelled row rather than in the
-// trailing cluster, which was already measured tight at this pane's 384px context width.
+// THE SECOND SWITCH is the per-rule opt-out, "Offer to run it when rate-capped". It is conditional on the rule
+// carrying a SPEND arm — the same condition the server ANDs the stored knob with — and it sits in its OWN
+// labelled row because the trailing cluster is already tight at this pane's context width.
 //
 // SCOPE rides as `chatId: ChatId | null` and reaches only the MUTATIONS, where it addresses which cached
 // rule list a settle repaints (`lib/rule-mutations.ts`). Nothing a host SEES differs between the two
 // surfaces, which is the point: a rule is a rule, and where it watches is what the enclosing list already
 // says.
 //
-// #1558 GAVE THE ROW ITS FOURTH STATE — the rule whose stored actions cannot be READ. `actionsCorrupt` has
-// ridden `RuleView` since #1422 and had no reader anywhere on the client, so an unreadable rule and a rule
-// nobody has added an arm to yet projected identically (`actions: []` for both) and rendered identically,
-// with a live enable switch on top. The three empty-state tiers do not describe it: it is an ERROR, and it
-// gets error anatomy — a `danger` badge carrying the verdict as a WORD, its own sentence with the engine's
-// `lastError` when there is one, and NO enable door. The switch is `readOnly` rather than removed: the
-// primitive's own "you cannot touch this" arm keeps the rule's REAL on/off value visible (an unreadable rule
-// left switched on is exactly the thing a host needs to see) and paints the Lock glyph as the non-colour
-// signal, where a vanished control would silently answer a different question. Its accessible name states
+// THE UNREADABLE RULE — `actionsCorrupt`, whose stored actions cannot be READ. It projects `actions: []` like a
+// rule nobody has added an arm to, so it needs its own reader: it is an ERROR, and it gets error anatomy — a
+// `danger` badge carrying the verdict as a WORD, its own sentence with the engine's `lastError` when there is
+// one, and NO enable door. The switch is `readOnly` rather than removed: the primitive's own "you cannot touch
+// this" arm keeps the rule's REAL on/off value visible (an unreadable rule left switched on is exactly the
+// thing a host needs to see) and paints the Lock glyph as the non-colour signal. Its accessible name states
 // the refusal, so a screen-reader user meets the reason at the control rather than only above it.
 //
-// #1655 CLOSED THE OTHER DOOR ON THAT SAME STATE. #1558 removed the enable door and left Run-now standing
-// in the overflow menu, so the row refused to switch the rule ON while still offering to RUN it — two
-// answers to one question. And the offer could not succeed: dispatch re-parses the blob, fails, and
-// auto-disables the rule (`engine/dispatch.ts::runRule`), so pressing it turned the rule off behind the
-// host's back. Run-now is now refused in the enable control's own grammar, with the reason on `title`
-// (Base UI's disabled MenuItem is an `aria-disabled` div, so the reason reaches hover AND the a11y tree).
-// The badge sentence is UNCHANGED and did not need to change: it already says the rule can't run and names
-// the one repair, which is exactly what both doors now say.
+// RUN-NOW IS REFUSED ON THE SAME STATE. Dispatch re-parses the blob, fails, and auto-disables the rule
+// (`engine/dispatch.ts::runRule`), so a live Run-now would turn the rule off behind the host's back. It is
+// refused in the enable control's own grammar, with the reason as the item's visible detail line. The badge
+// sentence already says the rule can't run and names the one repair, which is what both doors say.
 //
-// #1673 IS THAT SAME DEAD END ONE ARM TYPE OVER, which is why the two share one resolver
-// (`runNowRefusal`) rather than two ternaries in the render. A `transform_draft` rule never dispatches —
-// it registers a `PromptTransform` into chat's turn pipeline — so a manual run reaches no terminal and
-// `verbs/run-rule-now.ts` throws `transform_not_runnable`. Pressing Run-now on one could only ever produce
-// an error toast. It is refused in the same grammar, and unlike the unreadable rule it keeps every other
-// affordance: a draft rewriter is a perfectly healthy rule that simply has no out-of-turn meaning, so its
-// enable switch, Test and Delete all stay live.
+// A `transform_draft` RULE GETS THE SAME REFUSAL, which is why the two share one resolver (`runNowRefusal`)
+// rather than two ternaries in the render. It never dispatches — it registers a `PromptTransform` into chat's
+// turn pipeline — so a manual run reaches no terminal and `verbs/run-rule-now.ts` throws
+// `transform_not_runnable`. Unlike the unreadable rule it keeps every other affordance: a draft rewriter is a
+// healthy rule that simply has no out-of-turn meaning, so its enable switch, Test and Delete all stay live.
 
 import type { ChatId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
-import { Coins, Icon, Play } from "@orb/ui/icons";
+import { Coins, Play } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
-import { MenuItem } from "@orb/ui/menu";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { QueryBoundary, RowActionsMenu } from "#components";
+import { DescribedMenuItem, QueryBoundary, RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
@@ -141,8 +116,8 @@ interface TestResultViewProps {
 /** The dry-run verdict: whether the predicate WOULD match on a synthetic event, and each arm's rendered
  *  preview or render error — the "does my template work" answer, executing nothing.
  *
- *  `role="status"` (side-eye #621 ARIA): the verdict appears asynchronously in response to a button press,
- *  so a screen-reader user pressing Test heard NOTHING at all. And the badge carries the verdict as a WORD,
+ *  `role="status"`: the verdict appears asynchronously in response to a button press, so without a live
+ *  region a screen-reader user pressing Test hears nothing at all. And the badge carries the verdict as a WORD,
  *  never intent colour alone. */
 function TestResultView({ rule, result }: TestResultViewProps): ReactElement {
   const trpc = useTRPC();
@@ -246,13 +221,11 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
   };
 
   const onTest = (): void => {
-    // A FAILED RETEST CLEARS THE VERDICT — it does not leave the last one standing (#1502). The rejection
-    // handler used to be `() => undefined`, so a dry run that errored (or was refused) left the PREVIOUS
-    // run's "would have matched" on screen, attached to a button the user had just pressed: the surface
-    // said the rule was tested and passed when the test never produced an answer at all. `null` is the
-    // honest state here — the same one the row starts in — and the mutation's own error surface owns the
-    // reason. Clearing FIRST also removes the window where a slow retest shows the old verdict as if it
-    // were the new one.
+    // A FAILED RETEST CLEARS THE VERDICT — it does not leave the last one standing. A kept verdict beside a
+    // dry run that errored (or was refused) would say the rule was tested and passed when the test produced
+    // no answer at all. `null` is the honest state here — the same one the row starts in — and the
+    // mutation's own error surface owns the reason. Clearing FIRST also removes the window where a slow
+    // retest shows the prior verdict as if it were the new one.
     setTestResult(null);
     testRule.mutateAsync({ ruleId: rule.id, chatId }).then(
       (result) => setTestResult({ result, rule }),
@@ -271,7 +244,7 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
 
   return (
     // `!p-0` so the block padding lives on the trigger and the whole closed row is one tap target — the
-    // Field-overrides card's own reasoning, and the `!` is load-bearing there for the same reason (the tier
+    // Field-overrides card's own reasoning, and the `!` is required there for the same reason (the tier
     // padding map is UNLAYERED, so a plain `p-0` utility loses to it inside a Surface).
     <Card className="!p-0">
       <Collapsible open={open} onOpenChange={setOpen}>
@@ -288,8 +261,8 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
               trigger's own content, so it can never disagree with the visible summary (WCAG 2.5.3). */}
           <CollapsibleTrigger className="min-w-0 flex-1 p-block text-start" size="control">
             {/* THE CLOSED FACE — the whole of what a rule IS at a glance: its name, what it does, and when it
-                last ran. Nothing here is new copy; it is the #621 row's own name/gloss/state trio, which now
-                stands ALONE while the actions wait behind the disclosure. */}
+                last ran. It is the row's own name/gloss/state trio, standing ALONE while the actions wait
+                behind the disclosure. */}
             <Stack className="min-w-0 flex-1" gap="tight">
               <Text voice="promoted">{rule.name}</Text>
               {/* `prose`: the rule's own sentence is the same size as the connection description inside this card.
@@ -304,7 +277,7 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
           </CollapsibleTrigger>
           {/* `readOnly`, never `disabled`: the value stays legible (a broken rule left ON is the state a host
               most needs to see), the Lock glyph carries the refusal without colour, and the accessible name
-              says WHY instead of offering an action the surface will not perform (#1558). The ONE affordance
+              says WHY instead of offering an action the surface will not perform. The ONE affordance
               that stays on the closed face — on/off is the question a host scanning a rule list is asking,
               and it is neither destructive nor spending. */}
           <Switch
@@ -319,8 +292,7 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
         {/* `text-foreground`, the `chat-context-disclosure-section.tsx:51` arm: the panel primitive paints
             `text-muted-foreground` for running prose, and both `Button` intents this row uses are
             `text-current`. Without it Test and the ghost overflow trigger BOTH resolve to the receded ink and
-            compute the identical colour — the exact defect #621 fixed, reintroduced by the container rather
-            than by the controls (its CT caught it: `oklch(0.74 0.008 65)` on both). */}
+            compute the identical colour, which erases the three-weights reading of the row. */}
         <CollapsiblePanel className="text-foreground">
           <Stack className="px-block pb-block" gap="field">
             <Row align="center" gap="field">
@@ -342,21 +314,17 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
                   onConfirm: (): void => deleteRule.mutate({ ruleId: rule.id, chatId }),
                 }}
               >
-                {/* THE DOORS AGREE (#1655, #1673). #1558 took the enable switch away from an unreadable rule
-                    and left Run-now beside it, so the row refused to switch the rule ON while still offering to
-                    RUN it; #1673 is the same shape one arm type over. Both offers reach a server that cannot
-                    perform them, and the reason rides `title`: Base UI renders a disabled MenuItem as
-                    `div[role=menuitem][aria-disabled]` (never the native attribute), so the element still takes
-                    pointer events and `title` genuinely surfaces on hover AND reaches the a11y tree as the
-                    item's description — which a tooltip on a disabled trigger would not. The unreadable rule's
-                    badge sentence already says it can't run and names the one repair, so nothing there has to
-                    change for the doors to agree.
+                {/* THE DOORS AGREE: a rule the enable control refuses is refused here too, with the reason as
+                    visible detail copy, which reaches a touch user and the item's accessible description alike.
                     A TRANSIENT pending disable carries NO reason (there is nothing to explain and it is gone in
                     a moment); only the persistent gate states explain themselves. */}
-                <MenuItem disabled={runRefusal !== null || runNow.isPending} onClick={onRunNow} title={runRefusal ?? undefined}>
-                  <Icon icon={spends ? Coins : Play} size="sm" />
-                  {spends ? "Run now — spends a model call" : "Run now"}
-                </MenuItem>
+                <DescribedMenuItem
+                  detail={runRefusal ?? undefined}
+                  disabled={runRefusal !== null || runNow.isPending}
+                  icon={spends ? Coins : Play}
+                  label={spends ? "Run now — spends a model call" : "Run now"}
+                  onClick={onRunNow}
+                />
               </RowActionsMenu>
             </Row>
 
@@ -404,8 +372,8 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
 
             <Collapsible>
               {/* The NAME disambiguates, the LABEL does not repeat it (WCAG 2.5.3 is satisfied by containment —
-                  the accessible name contains the visible one): N rules used to give N disclosures all announced
-                  as a bare "Recent activity" (side-eye #621 ARIA), and spelling the rule's name a second time in
+                  the accessible name contains the visible one): without the name, N rules give N disclosures all
+                  announced as a bare "Recent activity", and spelling the rule's name a second time in
                   the visible row is noise a sighted host already has above it. */}
               {/* `size="control"` — the disclosure IS a row of its own, and it is the ONLY door to the fire log,
                   the "why didn't my rule fire" surface. It shipped `inline` (text-height): measured 413×16 at a

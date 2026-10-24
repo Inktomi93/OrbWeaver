@@ -11,6 +11,7 @@ import { Button } from "@orb/ui/button";
 import { Icon, Plus, Upload } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { useState } from "react";
+import { Tip } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { ListPaneHeaderView } from "#lib";
 import { notify } from "#lib";
@@ -28,11 +29,10 @@ const IMPORT_LABEL = "Import a preset";
 export function usePresetListHeader(): ListPaneHeaderView {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  // The census (its two side-eye rulings and the lens they ride) moved to `hooks/use-preset-census.ts` with
-  // #1676, because the phone topbar's screen title reads the same number: on a phone the ONE-NAME rule
-  // (shell.css) sheds this band's title and the census travels INSIDE it (`list-pane-header.tsx`: "THE COUNT
-  // TRAVELS WITH THE TITLE"), so the library's size was printed NOWHERE there. One hook, two readers — still
-  // exactly one visible census per regime, and the filter lens is not re-derived.
+  // The census lives in `hooks/use-preset-census.ts` because the phone topbar's screen title reads the same
+  // number: on a phone the ONE-NAME rule (shell.css) sheds this band's title and the census travels INSIDE it
+  // (`list-pane-header.tsx`: "THE COUNT TRAVELS WITH THE TITLE"). One hook, two readers — exactly one visible
+  // census per regime, and the filter lens is not re-derived.
   const census = usePresetCensus();
   const create = useCreatePreset({ trpc, invalidation });
   const importFile = useImportPresetFile({ trpc, invalidation });
@@ -62,15 +62,15 @@ export function usePresetListHeader(): ListPaneHeaderView {
   return {
     action: (
       <Row align="center" gap="field">
-        {/* O-3: icon-only, so the aria-label served AT and left sighted users with nothing on hover —
-                the native `title` is the same string, so the tooltip and the accessible name can't drift.
-                `size="icon"`, not `sm` (side-eye F-22): the `sm` box is width-fitted to a LABEL, so an
-                icon-only trigger measured 40×44 under coarse-pointer emulation — the only sub-44 target on
-                the surface. `size="icon"` is `size-control-md`, which is 34px fine / 48px coarse BY TOKEN
+        {/* Icon-only, so the tooltip is the same string as the aria-label and the two can't drift.
+                `size="icon"`, not `sm`: the `sm` box is width-fitted to a LABEL, so an icon-only trigger
+                would miss the coarse touch floor. `size="icon"` is `size-control-md`, which is 34px fine / 48px coarse BY TOKEN
                 (D62 P1), so the touch floor holds without any hand math here. */}
-        <Button aria-label={IMPORT_LABEL} intent="ghost" onClick={(): void => setImportOpen(true)} size="icon" title={IMPORT_LABEL}>
-          <Icon icon={Upload} size="sm" />
-        </Button>
+        <Tip text={IMPORT_LABEL}>
+          <Button aria-label={IMPORT_LABEL} intent="ghost" onClick={(): void => setImportOpen(true)} size="icon">
+            <Icon icon={Upload} size="sm" />
+          </Button>
+        </Tip>
         <Button disabled={create.isPending} intent="primary" onClick={onCreate} size="sm">
           <Icon icon={Plus} size="sm" />
           New

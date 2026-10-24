@@ -3,7 +3,7 @@
 // and `latency` scoped to that character (on-read TTFT/gen percentiles the rollup can't store). Its
 // ONE affordance is Back to the dashboard; there is no primary action (Analytics is read-only).
 //
-// THE INSET RIDES THIS SURFACE'S OWN SCROLLER (#1200) — see `analytics-overview-surface.tsx`'s header for
+// THE INSET RIDES THIS SURFACE'S OWN SCROLLER — see `analytics-overview-surface.tsx`'s header for
 // why Analytics' twin surfaces each carry their own inset rather than a shared one at `analytics-content.tsx`.
 
 import type { CharacterId } from "@orb/kit/ids";
@@ -50,11 +50,11 @@ export function AnalyticsCharacterSurface({ characterId, onBack }: AnalyticsChar
   useFocusOnMount(surfaceRef);
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" data-testid={testId("analyticsCharacterSurface")}>
-      {/* THE SCROLL BOX IS THE SURFACE'S, NOT THE BODY'S (#1727, the #1133 hoist — `character-editor-surface`
-          paid for the class first). `reserveKey`'s measuring Stack is auto-height, so a scroller under the
+      {/* THE SCROLL BOX IS THE SURFACE'S, NOT THE BODY'S (the `character-editor-surface` hoist).
+          `reserveKey`'s measuring Stack is auto-height, so a scroller under the
           boundary resolves `h-full` to `auto` and the surface stops scrolling; hoisted, the measuring wrapper
           sits INSIDE the scroller and the scroller survives the read. The inset and the `analytics-content`
-          slot ride the scroller, which is where #1200 put them. */}
+          slot ride the scroller. */}
       <Stack className="relative h-full min-h-0 overflow-y-auto overscroll-contain py-section" data-slot="analytics-content">
         <QueryBoundary
           fallback={<SkeletonRows count={3} shape="datum" />}
@@ -122,10 +122,8 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
           This character · Aggregate only
         </Text>
         {stats.lastActivityAt === null ? null : (
-          // Relative in the text, the exact stamp in `title=` — the one time vocabulary this column speaks.
-          <Text voice="gloss" title={timeLib.formatDateTime(stats.lastActivityAt)}>
-            Last active {timeLib.formatRelative(stats.lastActivityAt)}
-          </Text>
+          // Relative — the one time vocabulary this column speaks.
+          <Text voice="gloss">Last active {timeLib.formatRelative(stats.lastActivityAt)}</Text>
         )}
       </Stack>
 
@@ -136,16 +134,15 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
 
       <Section heading="Activity">
         <Stack gap="block">
-          {/* A real grid, not flex-wrap (side-eye rail-analytics 2026-08-19 Taste) — even 1fr tracks at a
+          {/* A real grid, not flex-wrap — even 1fr tracks at a
               fixed column-min, so the column-gap is uniform at every width instead of the flex voids. */}
           <Grid cols="cell" gap="block">
             <StatFigure label="Chats" value={formatCompact(stats.chats)} />
             <StatFigure label="Replies" value={formatCompact(stats.assistantTurns)} />
             <StatFigure label="Your turns" value={formatCompact(stats.userTurns)} />
             <StatFigure label="Swipes" value={formatCompact(stats.swipes)} />
-            {/* ONE definition of "Words" across both surfaces (P2d): your turns + the replies you kept.
-                This tile used to be `assistantWords` under the same label the dashboard used for the
-                TOTAL, so the drill's number could never be reconciled with the dashboard's. */}
+            {/* ONE definition of "Words" across both surfaces: your turns + the replies you kept, so the
+                drill's number reconciles with the dashboard's. */}
             <StatFigure label="Words" value={formatCompact(stats.userWords + stats.assistantWords)} />
             <StatFigure label="Assistant words" value={formatCompact(stats.assistantWords)} />
             <StatFigure label="Forked chats" value={formatCompact(stats.forkedChats)} />
@@ -173,7 +170,7 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
                 reads the em dash the absence has always deserved. */}
             <StatFigure label="Cache hits (of input)" value={formatPercent(stats.cacheHitRate, stats.tokensInProvenance)} />
             <StatFigure label={REASONING_LABEL} value={formatPercent(stats.assistantTurns + stats.swipes === 0 ? null : stats.reasoningRate)} />
-            {/* The reasoning WINDOW beside the reasoning RATE (#184) — the per-character half of the same
+            {/* The reasoning WINDOW beside the reasoning RATE — the per-character half of the same
                 unrendered rollup column. */}
             <StatFigure label="Time reasoning" value={formatDurationMs(stats.reasoningMs)} />
           </Grid>

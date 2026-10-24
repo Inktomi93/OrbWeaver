@@ -74,22 +74,16 @@ export function TagEditorBody({
 
   return (
     <Container>
-      {/* `--width-content-col` — the ruled cap for an EDITOR's content column, not a reading measure
-          (#1175). This block holds controls, and the prose token's own contract forbids it here: a `ch`
-          resolves in the element's own font, so a measure inherited from a wrapper reads at the wrong scale
-          (the #213/#1130 failure) and "a block holding controls keeps the wider measure while the paragraph
-          inside it takes this one". It used to spell `max-w-prose`, a third un-derived width.
+      {/* `--width-content-col` — the ruled cap for an EDITOR's content column, not a reading measure. This
+          block holds controls, and the prose token's own contract forbids it here: a `ch` resolves in the
+          element's own font, so a measure inherited from a wrapper reads at the wrong scale.
 
-          THE TOKEN'S STATED CONSUMPTION IS THREE CLASSES, NOT ONE (#1664). `--width-content-col`'s own
+          THE TOKEN'S STATED CONSUMPTION IS THREE CLASSES, NOT ONE. `--width-content-col`'s own
           `$description` says the column is CENTERED and BREATHES to `--width-content-col-wide` once its
-          container clears `@5xl`; the first spelling took the bare cap, so this editor LEFT-PINNED 720px
-          inside the pane and left the rest dead — the exact defect the breathe step was minted for (owner,
-          2026-08-02: "looks okay when both panels are out, but when you close them it looks awful").
-          MEASURED on the real shell (snap --isolated, 2026-09-05): the config CONTENT pane this editor
-          lands in is 520px at 1280 both-docked, 869px list-only, 1176px with both collapsed, and 920 / 1816px at
-          1920 — so the `@5xl` arm is REACHED (both collapsed at every desktop width) and is not dead code. The
-          query container is the `<Container>` directly above, which is why the cap and the container are
-          two elements. `w-full` rides with `mx-auto` because the pane is a flex column. */}
+          container clears `@5xl`; the bare cap alone left-pins the editor and leaves the rest of the pane
+          dead. The `@5xl` arm is reached whenever both side panels are collapsed on a desktop. The query
+          container is the `<Container>` directly above, which is why the cap and the container are two
+          elements. `w-full` rides with `mx-auto` because the pane is a flex column. */}
       <Stack
         className="mx-auto min-w-0 w-full max-w-(--width-content-col) @5xl:max-w-(--width-content-col-wide) outline-none"
         data-slot="tag-member-editor"
@@ -97,12 +91,12 @@ export function TagEditorBody({
         ref={surfaceRef}
         tabIndex={-1}
       >
-        {/* THE DRILL ROW (#1747, the mock design §3.4, board 03): `← Back to <library>` · the name · this tag's
+        {/* THE DRILL ROW (the mock design §3.4): `← Back to <library>` · the name · this tag's
             own verbs — of which a tag has NONE (§3.4 names each collection's set and tags' is empty: Merge
             is a field below because it needs the target picker, Delete is the row's kebab, D212). The
             usage census rides `meta` beside the name it is about — a FACT, not a verb. */}
         {back === undefined ? (
-          <Heading className="min-w-0 truncate" title={tag.name} level={2}>
+          <Heading className="min-w-0 truncate" level={2}>
             {tag.name}
           </Heading>
         ) : (
@@ -134,7 +128,7 @@ export function TagEditorBody({
         <TagColorControls patchStyle={patchStyle} tag={tag} />
         <TagBehaviorControls patchStyle={patchStyle} tag={tag} />
 
-        {/* Merge is the editor's one destructive verb (Delete converged onto the row's kebab — #271). It
+        {/* Merge is the editor's one destructive verb (Delete lives on the row's kebab, D212). It
             stays here because it needs the target picker; the row cannot carry a fold-into-another affordance. */}
         <Row gap="field">
           <TagMergeControl invalidation={invalidation} others={others} tag={tag} trpc={trpc} onMerged={onMerged} />
@@ -147,23 +141,17 @@ export function TagEditorBody({
 /** The two colour pickers (chip background + text). An empty value maps to `null` (clear to the theme
  *  default) — the tri-state the row-era control already spoke. */
 function TagColorControls({ tag, patchStyle }: { readonly tag: TagWithUsage; readonly patchStyle: PatchStyle }): ReactElement {
-  // `*:w-auto` — a `<Field>` root is `w-full`, so two of them in a flex row each took HALF the pane and the
-  // two 32px swatches ended up 250px apart with nothing between them (side-eye 2026-08-03: the tell that the
-  // editor "never got its container"). Intrinsic width puts the pair beside each other, where a pair belongs.
+  // `*:w-auto` — a `<Field>` root is `w-full`, so two of them in a flex row each take HALF the pane and the
+  // two swatches end up far apart with nothing between them. Intrinsic width puts the pair beside each other.
   //
-  // …AND EACH ONE SAYS WHAT IT HOLDS (side-eye 2026-08-06 P3). The editor never previews the chip these two
-  // values paint, so a cleared colour and a colour set to something the current theme happens to swallow
-  // looked identical: two 32px swatches and no words. The VALUE is the cheap honest readout — rather than a
-  // preview surface, which would be a second place for the chip to be drawn wrong.
+  // …AND EACH ONE SAYS WHAT IT HOLDS. The editor never previews the chip these two values paint, so without
+  // words a cleared colour and a colour the current theme happens to swallow look identical. The VALUE is the
+  // cheap honest readout — a preview surface would be a second place for the chip to be drawn wrong.
   //
-  // IT RIDES THE FIELD'S OWN DESCRIPTION CHANNEL (side-eye 2026-08-08 P2). The first pass hung it as a loose
-  // `<Text>` sibling inside the `<Field>`, which paints the words but wires NOTHING: a swatch trigger has no
-  // text of its own, so its `aria-describedby` stayed null and the one readout the surface exists to give was
-  // invisible to a screen reader — the sibling folder-type Select in this same pane was already doing it the
-  // wired way. `description` renders through `BaseField.Description`, which registers its id on the Field's
-  // labelable control, so the value IS the button's accessible description. The readout is UNKEYED here
-  // (`tagColorValueLabel`); the label 20px above carries the key, and only the list's label-less swatch
-  // tooltip still spends `tagColorLabel`'s keyed form.
+  // IT RIDES THE FIELD'S OWN DESCRIPTION CHANNEL. A swatch trigger has no text of its own, so a loose `<Text>`
+  // sibling would paint the words and wire nothing. `description` renders through `BaseField.Description`,
+  // which registers its id on the Field's labelable control, so the value IS the button's accessible
+  // description. The readout is UNKEYED here (`tagColorValueLabel`); the label above carries the key.
   return (
     <Row align="start" className="*:w-auto" gap="block">
       <Field description={<TagColorReadout value={tag.color} />} label="Background" name="tag-color">
@@ -176,13 +164,11 @@ function TagColorControls({ tag, patchStyle }: { readonly tag: TagWithUsage; rea
   );
 }
 
-/** The colour slot's readout — and its VOICE follows what the words ARE (side-eye 2026-08-08 P3).
+/** The colour slot's readout — and its VOICE follows what the words ARE.
  *
- *  Both states rode `voice="datum"`, which is the MONO tabular value voice: right for `#3366aa` (that is a
- *  value, and mono is what makes a column of hexes readable), wrong for "Not set — uses the theme default",
- *  which is a SENTENCE. Prose set in tabular mono reads as machine output — the one voice that says "this
- *  string is data" applied to the one string that is explanation. The unset arm takes `gloss`, the quiet
- *  explanatory sans voice the rest of the editor's descriptions already speak. */
+ *  A hex value takes `datum`, the MONO tabular value voice that makes a column of hexes readable. "Not set —
+ *  uses the theme default" is a SENTENCE, and prose set in tabular mono reads as machine output, so the unset
+ *  arm takes `gloss`, the quiet explanatory voice the rest of the editor's descriptions speak. */
 function TagColorReadout({ value }: { readonly value: string | null }): ReactElement {
   return (
     <Text as="span" voice={value === null ? "gloss" : "datum"}>
@@ -195,10 +181,10 @@ function TagColorReadout({ value }: { readonly value: string | null }): ReactEle
 function TagBehaviorControls({ tag, patchStyle }: { readonly tag: TagWithUsage; readonly patchStyle: PatchStyle }): ReactElement {
   return (
     <Stack gap="block">
-      {/* C9-1d: the description says what the value DOES today, including the part that isn't built. An
+      {/* The description says what the value DOES today, including the part that isn't built. An
           Open folder starts expanded in the library's categorized view; a Plain tag still groups, it just
           starts collapsed behind its name + count. Closed's hide-until-you-enter drilldown is deferred by
-          ruling (2026-08-09), so the option is named as what it currently is rather than promising
+          ruling, so the option is named as what it currently is rather than promising
           navigation that does not exist. */}
       <Field
         description="In the library's grouped view, an Open folder starts expanded and a Plain tag starts collapsed behind its name and count. Closed folders (hidden until you enter them) aren't built yet — they behave like Plain."
@@ -221,20 +207,13 @@ function TagBehaviorControls({ tag, patchStyle }: { readonly tag: TagWithUsage; 
           value={tag.folderType}
         />
       </Field>
-      {/* THE ONE SWITCH ROW, FACING THE HOUSE DIRECTION (#980 F22). This was a hand-rolled
-          `<Row><Switch/><Text voice="gloss"/></Row>` — the CONTROL on the left and the sentence on the
-          right, measured 2026-09-06 at switch x=561 / label x=615: the only polarity INVERSION on the
-          surface, 40px under a `Field` whose label sits above its control, i.e. three control orientations
-          in one 720px form. `SettingSwitchRow` is the ruled row (label left, control right, `Field
-          orientation="horizontal"`) and it already had six consumers.
-          It also fixes a quieter half: the gloss was a `<Text>`, not a `<label>`, so clicking the sentence
-          did nothing while every other row in the pane is click-to-focus. Base UI's `Field` mints the
-          association from context, which is why no id is passed (see the component's own header). The
-          clause that was welded onto the label with an em dash becomes the `description` — the slot that is
-          `aria-describedby`-wired and reading-measure capped — so the label is the switch's NAME and the
-          gloss stays a gloss. The name loses the tag's own word ("Hide the {name} chip on cards" →
-          "Hide chip on cards"); the surface is that tag's editor and its drill header states the name, so
-          the row no longer repeats it. */}
+      {/* THE ONE SWITCH ROW, FACING THE HOUSE DIRECTION. `SettingSwitchRow` is the ruled row (label left,
+          control right, `Field orientation="horizontal"`), so this form keeps one control orientation. Its
+          label is a real `<label>`, so clicking the sentence focuses the switch like every other row in the
+          pane; Base UI's `Field` mints the association from context, which is why no id is passed. The
+          explanation is the `description` — the `aria-describedby`-wired, reading-measure-capped slot — so
+          the label is the switch's NAME. The name omits the tag's own word because the drill header above
+          already states it. */}
       <SettingSwitchRow
         checked={tag.isHiddenOnCard}
         description="It still filters."

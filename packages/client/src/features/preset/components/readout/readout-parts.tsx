@@ -25,10 +25,8 @@ import { formatCount } from "#src/features/preset/lib/format-count.ts";
 import { PARAMS_VIEW_LABEL } from "#src/features/preset/lib/preset-nav.ts";
 import { resolveFailureCopy, resolveFailureMessage } from "#src/features/preset/lib/resolve-failure.ts";
 
-/** ONE number format across the whole readout (side-eye F-29): a cluster printed `1,500` beside `8192`
- *  because two producers formatted independently. EVERY integer groups (`2048` → `2,048`) — this comment
- *  used to claim a `≥ 10 000` threshold that `formatCount` has never had, and a CT written to the prose
- *  rather than the code found it. A fraction prints as authored (a temperature is not a magnitude you
+/** ONE number format across the whole readout, so two producers never print `1,500` beside `8192`. EVERY
+ *  integer groups (`2048` → `2,048`). A fraction prints as authored (a temperature is not a magnitude you
  *  group); a non-number passes through untouched. */
 function formatKnobValue(value: number | string | undefined): string {
   if (typeof value !== "number") {
@@ -42,21 +40,14 @@ export interface DatumRowProps {
   readonly value: string;
   /** The terse rung/source suffix, quieter than the value (`2048 default`). */
   readonly suffix?: string | null;
-  /** The UNABBREVIATED datum, when `value` is a derived short form. The `model` row prints
-   *  `@orb/kit/model-name`'s display name and glosses the full identifier here (#115) — a self-hosted
-   *  engine's 106-character weights path wrapped this row onto four lines. Omit it whenever `value` IS the
-   *  whole fact: a `title` that merely repeats the visible text is a screen-reader stutter. */
-  readonly valueTitle?: string | undefined;
 }
 
-export function DatumRow({ label, value, suffix, valueTitle }: DatumRowProps): ReactElement {
+export function DatumRow({ label, value, suffix }: DatumRowProps): ReactElement {
   return (
     <Row align="baseline" gap="row" justify="between">
       <Text voice="label">{label}</Text>
       <Row align="baseline" gap="field">
-        <Text title={valueTitle} voice="datum">
-          {value}
-        </Text>
+        <Text voice="datum">{value}</Text>
         {suffix === undefined || suffix === null ? null : <Text voice="gloss">{suffix}</Text>}
       </Row>
     </Row>
@@ -66,10 +57,9 @@ export function DatumRow({ label, value, suffix, valueTitle }: DatumRowProps): R
 /** One placeholder ROW per row the settled profile will fill (the funnel's knobs + the window row) — enough
  *  to hold the panel's height so the readout does not jump when the resolve lands.
  *
- *  It rides `shape="datum"`, not the default `line` (side-eye 2026-08-08 P2). A skeleton that does not
- *  shape-match its settled state is a skeleton doing the opposite of its stated job: four `control-lg` bars
- *  measured 233px against an 89px settled panel, so every landing resolve COLLAPSED the readout by ~144px —
- *  the jump the placeholder is here to prevent. The `datum` arm is `DatumRow`'s own anatomy (a label bar and
+ *  It rides `shape="datum"`, not the default `line`. A skeleton that does not shape-match its settled state
+ *  does the opposite of its stated job: `control-lg` bars are far taller than the settled panel, so every
+ *  landing resolve would COLLAPSE the readout — the jump the placeholder is here to prevent. The `datum` arm is `DatumRow`'s own anatomy (a label bar and
  *  a value bar on one text-height line, stacked on `tight`), so pending and settled are the same box. */
 const PENDING_ROWS = 4;
 
@@ -87,21 +77,17 @@ function readingSuffix(
 
 /** The resolved generation profile — the funnel's OWN output (§4.3), never a client re-derivation.
  *
- *  PENDING IS NOT AN EMPTY STATE (the F-02 class, applied here 2026-08-07 — the same fix `CapabilityGate`
- *  took). `preset.resolveEffective` returns a REQUIRED `EffectivePreset` and resolves against whatever chat
+ *  PENDING IS NOT AN EMPTY STATE (the rule `CapabilityGate` follows). `preset.resolveEffective` returns a REQUIRED `EffectivePreset` and resolves against whatever chat
  *  model the caller has, THROWING when routing is broken — so an absent profile is a read that has not
  *  LANDED or one that FAILED, and there is no settled "you have no chat model" arm for this component to
- *  render. It used to print "Connect a chat model in Connections…" on every absent read, which meant every
- *  open of the CONTEXT panel flashed that line at users who have one connected, and on a routing failure it
- *  stood there permanently naming the wrong cause. The two REACHABLE arms are now rendered as themselves: a
+ *  render. A "Connect a chat model" line on every absent read would flash at users who have one connected,
+ *  and on a routing failure it would name the wrong cause. The two REACHABLE arms render as themselves: a
  *  shape-matched skeleton that asserts nothing while `error === null`, and the server's own message when the
  *  read has failed.
  *
- *  WHICH CAUSE THAT FAILURE NAMES IS NOW DERIVED, NOT ASSERTED (side-eye 2026-08-08 P2 — the SECOND
- *  wrong-confident-cause on this panel). The F-02 fix above replaced a false "missing connection" claim with
- *  an unconditional "this is a routing problem", printed over a RAW TRANSPORT STRING: a preset deleted in
- *  another tab (`NOT_FOUND`), a 500 and a dropped socket all got told they had a routing fault. The verdict
- *  is kept VERBATIM for the error that earns it and withheld otherwise — see `lib/resolve-failure.ts`, which
+ *  WHICH CAUSE THAT FAILURE NAMES IS DERIVED, NOT ASSERTED. An unconditional "this is a routing problem"
+ *  over a RAW TRANSPORT STRING would tell a preset deleted in another tab (`NOT_FOUND`), a 500 and a dropped
+ *  socket that they had a routing fault. The verdict is kept VERBATIM for the error that earns it and withheld otherwise — see `lib/resolve-failure.ts`, which
  *  states the fork and the code map. A `Retry` sits under the band because a transient read failure must not
  *  be a dead end (UI-Arch §4.3 rule 1, the `QueryErrorState` grammar). */
 export function EffectiveProfile({
@@ -140,7 +126,7 @@ export function EffectiveProfile({
       return (
         <Section kicker="Effective generation">
           {/* The ONE placeholder-row home (`SkeletonRows`) — never a hand-assembled stack of `Skeleton`s and
-              never a spinner flash (UIP-309). It carries its own `aria-busy`. */}
+              never a spinner flash. It carries its own `aria-busy`. */}
           <SkeletonRows count={PENDING_ROWS} shape="datum" />
         </Section>
       );
@@ -172,9 +158,9 @@ export function EffectiveProfile({
         {resolvedForLabel(effective.model)} · {subject}
         {effective.stale.length === 0
           ? ""
-          : /* IT NAMES THE TAB, NOT THE MODULE (side-eye 2026-08-22 P3-3). "the deck" is this feature's
-               internal name for the Params view and appears nowhere in the UI, so the one sentence on the
-               surface that reports a problem sent the reader to a place that does not exist on screen.
+          : /* IT NAMES THE TAB, NOT THE MODULE. "the deck" is this feature's internal name for the Params
+               view and appears nowhere in the UI, so naming it would send the reader to a place that does
+               not exist on screen.
                `PARAMS_VIEW_LABEL` is the strip's own word, read from the view tuple. */
             ` · ${String(effective.stale.length)} stored knob${effective.stale.length === 1 ? "" : "s"} this model ignores — clear them in ${PARAMS_VIEW_LABEL}`}
       </Text>
@@ -240,17 +226,10 @@ export function CapabilityCard({
   return (
     <Section kicker="Capability">
       <Stack gap="tight">
-        {/* The DISPLAY name, with the full identifier on the row's `title` (#115). A self-hosted engine
-            names its model by local weights path — 106 characters here, which wrapped this row onto four
-            lines AND was restated by the `resolved for …` gloss ~100px below. The panel now states the
-            readable name in both places and the raw identifier in neither; it survives on hover, in the
-            DOM, and in Connections, which is the identifier's real home.
-            The `title` is conditional on the derivation having DONE something: a hosted id
-            (`claude-opus-4-8`) derives to itself, and a tooltip that repeats the visible text is a
-            hover-noise and a screen-reader stutter, not a gloss. */}
-        {model === undefined || modelName === undefined ? null : (
-          <DatumRow label="Model" value={modelName} valueTitle={modelName === model ? undefined : model} />
-        )}
+        {/* The DISPLAY name. A self-hosted engine names its model by a long local weights path that would
+            wrap this row onto several lines, so the panel states the readable name and leaves the raw
+            identifier to Connections, which is its home. */}
+        {model === undefined || modelName === undefined ? null : <DatumRow label="Model" value={modelName} />}
         <DatumRow label="Context window" suffix={contextWindowSuffix(capability.context)} value={formatKnobValue(capability.context.window)} />
         <DatumRow label="Output cap" value={formatKnobValue(capability.output.maxTokens.max)} />
       </Stack>

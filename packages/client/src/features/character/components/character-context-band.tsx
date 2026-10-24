@@ -1,6 +1,5 @@
 // The Characters CONTEXT pane's HEAD BAND — the open character's identity in the context bracket's band slot
-// (#860, owner-ruled 2026-08-30, D150): the
-// portrait beside the NAME over the handle line, then three chips — Own look · N chats · N tokens. It is fed
+// (D150): the portrait beside the NAME over the handle line, then three chips — Own look · N chats · N tokens. It is fed
 // through the section's `defineContextTabs` `header` slot (`characters-section.tsx`); the six-cell meta rail
 // (Overview · Chats · Links · Look · History · Trust) sits at the pane's foot, named "Character".
 //
@@ -22,6 +21,7 @@ import { initialsFor } from "@orb/kit/initials";
 import { groupThousands } from "@orb/kit/strings";
 import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
+import { HintTrigger } from "@orb/ui/hint-trigger";
 import { Row, Stack } from "@orb/ui/layout";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Heading, Text } from "@orb/ui/text";
@@ -30,6 +30,8 @@ import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { characterCardFormFromDetail, totalTokenCount } from "../lib/character-card-form-model.ts";
 import { OwnLookMark } from "./character-hero-band.tsx";
+
+const TOKEN_CHIP_HINT = "Estimated tokens the card spends at its first greeting — the editor's own count.";
 
 /** The census read is a page-of-ONE — only `totalCount` is spent here (the Overview card's key). */
 const CENSUS_PAGE = 1;
@@ -64,36 +66,28 @@ export function CharacterContextBand({ characterId }: CharacterContextBandProps)
       <Stack gap="field" className="min-w-0 flex-1">
         {/* A real heading — the pane's own h2, like the LIST band's — so the character is a landmark a rotor
             can jump to; the title step + semibold are the level's own. */}
-        <Heading level={2} data-slot="character-context-band-name" className="line-clamp-2 text-balance" title={detail.name}>
+        <Heading level={2} data-slot="character-context-band-name" className="line-clamp-2 text-balance">
           {detail.name}
         </Heading>
-        <Text voice="gloss" className="truncate font-mono" data-slot="character-context-band-handle" title={`@${detail.handle}`}>
+        <Text voice="gloss" className="truncate font-mono" data-slot="character-context-band-handle">
           @{detail.handle}
         </Text>
-        {/* THE CHIP ROW DOES NOT WRAP — IT SCROLLS (#899 N4, post-fix verification 2026-08-30). At a 383px
-            pane it wrapped 2+1: `3 members` and `Memory — idle` on row one, `Built-in preset` alone on row
-            two with the whole right half empty — the exact ragged-void shape #875 F14 had just fixed for
-            the orb row, in the row directly above it. Same fix, same reason, and now the two rows of this
-            band behave alike: only a set that folds EVENLY folds, everything else keeps its whole item and
-            scrolls (`context-rail.tsx` `RAIL_TRACK_CLASSES`, the house ruling). */}
+        {/* THE CHIP ROW DOES NOT WRAP — IT SCROLLS. A narrow pane would wrap the chips 2+1 and leave a
+            ragged void beside the orphan; only a set that folds EVENLY folds, everything else keeps its whole
+            item and scrolls (`context-rail.tsx` `RAIL_TRACK_CLASSES`, the house ruling). */}
         <Row gap="field" align="center" className="min-w-0 overflow-x-auto">
           <OwnLookMark themeOverride={detail.themeOverride} />
           <Badge tone="soft" size="sm" intent="neutral" data-slot="character-context-band-chats">
             {chatCount === 1 ? "1 chat" : `${chatCount} chats`}
           </Badge>
-          <Badge
-            tone="soft"
-            size="sm"
-            intent="neutral"
-            data-slot="character-context-band-tokens"
-            title="Estimated tokens the card spends at its first greeting — the editor's own count"
-          >
-            {/* GROUPED (#878 F13): a four-digit run with no separator reads as an id, not a magnitude —
-                `1257 tokens` was the review's example. `groupThousands` is the ONE house grouper
-                (`@orb/kit/strings`; `.toLocaleString()` stays banned repo-wide), so this chip and the
-                editor's own save-bar census cannot print the same number two ways. */}
+          <Badge tone="soft" size="sm" intent="neutral" data-slot="character-context-band-tokens">
+            {/* GROUPED: a four-digit run with no separator reads as an id, not a magnitude. `groupThousands`
+                is the ONE house grouper (`@orb/kit/strings`; `.toLocaleString()` stays banned repo-wide), so
+                this chip and the editor's own save-bar census cannot print the same number two ways. */}
             {`${groupThousands(tokens)} tokens`}
           </Badge>
+          {/* The count's meaning is a hint, not hover-only copy: the press-opened popover reaches a touch user. */}
+          <HintTrigger className="" hint={TOKEN_CHIP_HINT} subject="the token count" />
         </Row>
       </Stack>
     </Row>

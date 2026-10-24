@@ -1,39 +1,33 @@
-// The LOOKS appearance SECTION (#866 S4 / #297, as amended by the owner's
-// 2026-08-30 ruling): ONE COLLECTION, ONE CARD SHAPE. Verbatim: *"i dont want to separate our themes from
-// a user's, that's clunky — one spot for themes, they all should have same shape."* That supersedes §7.3's
-// three tiers — the shipped looks as fixed CARDS over "Your themes" as `ListRow`s — which rendered one
-// concept in two anatomies and made a user learn two layouts to do one job. Whether a theme shipped with
-// the app is a PROPERTY of that theme, not a different kind of thing.
+// The LOOKS appearance SECTION: ONE COLLECTION, ONE CARD SHAPE. The owner, verbatim: *"i dont want to
+// separate our themes from a user's, that's clunky — one spot for themes, they all should have same shape."*
+// One concept gets one anatomy. Whether a theme shipped with the app is a PROPERTY of that theme, not a
+// different kind of thing.
 //
 // SO: one grid, every theme, the same cell. `isSeed` changes CAPABILITY only (the ⋯ menu's item list, in
 // theme-row-menu.tsx) — never anatomy, never a provenance word, never a separate list. The client keeps NO
 // allowlist of shipped names: it renders the server's one readable collection in the order it arrives, so
-// a fourth seed appears with no client change (the deleted `SHIPPED_ORDER`/`shipped`/`own` split is what
-// made that impossible).
+// a new seed appears with no client change.
 //
-// APPLY-NOT-MODE (#297): picking a cell APPLIES the look through the D71 pipeline — `theme.selectedThemeId`
+// APPLY-NOT-MODE: picking a cell APPLIES the look through the D71 pipeline — `theme.selectedThemeId`
 // — and THE DEFAULT CARD WRITES NULL (the base `@theme`, no `[data-theme]` block, and the anti-brick reset
 // in one gesture). Every other cell writes its id. WHICH card that is comes from the view's derived
-// `isDefault` (#1671), never from its display name (#1667) and never from a client-side sentinel id.
+// `isDefault`, never from its display name (a renamable word) and never from a client-side sentinel id.
 //
-// THE CELL IS THE APP'S ONE PICKER CELL (#929 E6) inside a real `RadioGroupPicker`: one tab stop, roving
-// focus, arrows change selection (#981 F20). The thumbnail is `ThemeMiniSurface`, which paints each row
+// THE CELL IS THE APP'S ONE PICKER CELL inside a real `RadioGroupPicker`: one tab stop, roving focus,
+// arrows change selection. The thumbnail is `ThemeMiniSurface`, which paints each row
 // from its OWN pipeline (see that file for the seed-vs-custom provenance invariants). The ⋯ is a SIBLING
 // of the radio root, never nested inside it — a control inside a control is unreachable by keyboard and
 // illegal ARIA.
 //
-// MAKE — ONE builder door, "New theme from <current>…": the retired picker's draft/mint machinery verbatim
-// (the duplicate is minted at the FIRST REAL EDIT, never on the click), opening the builder INLINE as this
+// MAKE — ONE builder door, "New theme from <current>…", with draft/mint machinery (the duplicate is minted at the FIRST REAL EDIT, never on the click), opening the builder INLINE as this
 // section's editing state. There is NO freestanding color knob anywhere — a color decision always saves as
 // a named theme.
 //
-// THE SECTION CHROME IS OUTSIDE THE READ, AND THE READ RESERVES ITS BOX (#1100, the re-drive's G1). This
-// was the last config section still rendering its `<Section>` INSIDE the suspending body behind a one-line
-// "Loading your themes…" gloss: clicking the Appearance group painted a pane with no Looks heading and no
-// anchor, then dropped 337px of collection into it ~230ms later and shoved everything below down — a 0.1624
-// input-adjacent shift, measured again on this tree after the picker rebuild (`<section> moved 0px,365px`).
-// So the heading + registry-supplied anchor render immediately (a jump target that does not exist until
-// a query lands is not a jump target), and the body rides the #885 reservation seam — `reserveKey` holds
+// THE SECTION CHROME IS OUTSIDE THE READ, AND THE READ RESERVES ITS BOX. A `<Section>` inside the
+// suspending body would paint a pane with no Looks heading and no anchor, then drop the collection in and
+// shove everything below down. So the heading + registry-supplied anchor render immediately (a jump target
+// that does not exist until a query lands is not a jump target), and the body rides the reservation seam —
+// `reserveKey` holds
 // the box this device last saw the collection settle at, with the authored skeleton count as the first-boot
 // guess. It is the same shape every other anchored config section already used (plugins, automation).
 //
@@ -52,7 +46,7 @@ import { RadioGroupPicker, RadioGroupPickerItem } from "@orb/ui/radio-group";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useId, useState } from "react";
-import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup, useFirstBootBox } from "#components";
+import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup, Tip, useFirstBootBox } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { downloadTextFile, notify } from "#lib";
 import { useCreateTheme, useDuplicateTheme, useImportThemeFile, useRemoveTheme, useSelectTheme } from "../hooks/use-theme-mutations.ts";
@@ -107,9 +101,8 @@ function importedThemeMessage({
 }
 
 /** How many skeleton bars the loading box paints on a device that has never seen this section settle
- *  (#885's "the authored count survives as the first-boot guess"). MEASURED, not guessed: the settled
- *  `setting-row-group` is 337px at the 869px content-pane width with the three seed themes, and the
- *  `line` arm's pitch inverts to `16 + 48N` px, so seven bars is the nearest honest box. Every later open
+ *  (the authored count is the first-boot guess). It is measured from the settled `setting-row-group` with
+ *  the seed themes at the docked content-pane width, through the `line` arm's `16 + 48N` px pitch. Every later open
  *  reserves what THIS device actually measured. */
 const LOOKS_SKELETON_ROWS = 7;
 
@@ -144,14 +137,13 @@ function LooksBody(): ReactElement {
   const [editing, setEditing] = useState<EditorSession | null>(null);
   const ids = useId();
 
-  // ONE collection, in the SERVER's order — no client allowlist, no shipped/own split (#920). WITH NO
-  // EXPLICIT SELECTION the current row is the one the SERVER flags as default (#1671): the sentinel id is
-  // domain-internal and the display name is a user-visible word that can be renamed, so `isDefault` is the
-  // only honest predicate — comparing the name is #1667, which marked no card (or the wrong one).
+  // ONE collection, in the SERVER's order — no client allowlist, no shipped/own split. WITH NO EXPLICIT
+  // SELECTION the current row is the one the SERVER flags as default: the sentinel id is domain-internal and
+  // the display name is a user-visible word that can be renamed, so `isDefault` is the only honest predicate.
   const isActive = (theme: Theme): boolean => (selectedId === null ? theme.isDefault : theme.id === selectedId);
   const current = themes.find(isActive) ?? themes[0];
 
-  // Applying: the ONE applying act (#297). The DEFAULT card writes NULL.
+  // Applying: the ONE applying act. The DEFAULT card writes NULL.
   const applyById = (id: string | null): void => selectTheme.mutate({ section: "theme", patch: { selectedThemeId: id } });
   const apply = (theme: Theme): void => applyById(theme.isDefault ? null : theme.id);
 
@@ -192,7 +184,7 @@ function LooksBody(): ReactElement {
         </Stack>
       ) : (
         <ConfigTeachScope value={{ group: "appearance", sub: APPEARANCE_LOOKS_SUBCATEGORY }}>
-          {/* #932: the two Looks rows are CANVAS rows — one collection, one builder door — so each takes
+          {/* The two Looks rows are CANVAS rows — one collection, one builder door — so each takes
               `span`, which draws the registry lead (name · `i` · gloss) above the canvas. */}
           <SettingRowGroup>
             <SettingRow settingId="shipped-looks" span={true}>
@@ -207,9 +199,11 @@ function LooksBody(): ReactElement {
                     }}
                   >
                     {({ open }): ReactElement => (
-                      <Button aria-label="Import a theme file" intent="ghost" onClick={open} size="icon" title="Import a theme file">
-                        <Icon icon={Upload} size="sm" />
-                      </Button>
+                      <Tip text="Import a theme file">
+                        <Button aria-label="Import a theme file" intent="ghost" onClick={open} size="icon">
+                          <Icon icon={Upload} size="sm" />
+                        </Button>
+                      </Tip>
                     )}
                   </FileTrigger>
                 </Row>
@@ -260,7 +254,7 @@ function LooksBody(): ReactElement {
                   <Icon icon={Plus} size="sm" />
                   {/* The door names the row the collection says is CURRENT. An EMPTY collection has no
                       such row and no name to borrow — that arm opens the from-scratch draft above, so it
-                      says so rather than naming a palette that is not on screen (#1671). */}
+                      says so rather than naming a palette that is not on screen. */}
                   {current === undefined ? "New theme…" : `New theme from ${current.name}…`}
                 </Button>
               </Row>

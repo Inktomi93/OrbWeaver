@@ -2,7 +2,7 @@
 // instrument list. D132 made this tab the one home for authorable prompt text, which took it from 15 rows to
 // 67; the IA that carries that: kind kickers (unchanged), disclosure-banded SUB-CLUSTERS for the kind that
 // outgrew a glance (extract, 41 rows — collapsed by default, on the SHARED `Band` the config list's own
-// bands render; #1723 retired the hand-copied "borrow of the config band anatomy" this used to be), and a
+// bands render), and a
 // tab-level filter (67 > COLLECTION_LARGE_GROUP). Mock: `mocks/preset-redesign/actions-and-sections.html`.
 //
 // EVERY CELL IS REGISTRY-DERIVED (§6.6): groups, cluster bands, row copy and the drill-in's fields all come
@@ -91,7 +91,7 @@ export function ActionsView({ form, onSelectSection }: ActionsViewProps): ReactE
   const drilledId = useDrilledPresetTemplateId();
   // READ-ONLY here: the row highlight mirrors the same selection the READOUT projects, so the two panes can
   // never disagree about which template is being inspected — through the SHARED `inspectedTemplateRow`
-  // fallback (side-eye 2026-08-08 P2), so at tab open row 1 is visibly selected rather than the readout
+  // fallback, so at tab open row 1 is visibly selected rather than the readout
   // silently describing a row nothing on screen points at.
   const selectedId = inspectedTemplateRow(useSelectedPresetTemplateId()).def.id;
   // The tab-level filter (IA §2.2 — 67 rows > COLLECTION_LARGE_GROUP, the config-list precedent). Local
@@ -142,7 +142,7 @@ export function ActionsView({ form, onSelectSection }: ActionsViewProps): ReactE
         </Row>
 
         {groups.length === 0 ? (
-          // The all-filtered-out state states its CONDITION (empty states are load-bearing) — a silent blank
+          // The all-filtered-out state states its CONDITION (an empty state is required) — a silent blank
           // list reads as a broken tab, and the next step is the filter box one row up.
           <Text voice="gloss">No template matches "{filter.trim()}" — clear the filter to see all of them.</Text>
         ) : null}
@@ -180,14 +180,10 @@ export function ActionsView({ form, onSelectSection }: ActionsViewProps): ReactE
  *  is one click, and a collapsed band's rows are UNMOUNTED (which is most of the tab-switch commit the 67-row
  *  flat list paid).
  *
- *  IT RENDERS THE SHARED `Band`, IT NO LONGER *RESEMBLES* ONE (#1723). This doc used to say the band was
- *  "the config collection-group band anatomy (chevron · kicker-voice label · mono count)" — a BORROW stated
- *  in prose, which #1169's census then misread the direction of, and which the copy stopped honouring the
- *  moment the original moved: the config side landed #978 F1 (a band Button inside a VERTICAL `Stack` must
- *  be `w-full`, never `flex-1`, or `flex-basis: 0%` lands on the BLOCK axis and defeats the sealed
- *  `h-control-sm`) at both of its bands, and this one kept `flex-1` and rendered **16px tall against a
- *  32px fine / 44px coarse `--spacing-control-sm`** — measured on all six cluster bands, a tap target under
- *  every floor. The chassis is `#components`' `Band` now, so that class of drift is not spellable here.
+ *  IT RENDERS THE SHARED `Band`, never a hand copy of the config band anatomy: a copy drifts the moment the
+ *  original changes (a band Button inside a VERTICAL `Stack` must be `w-full`, never `flex-1`, or its tap
+ *  target collapses under every floor). With `#components`' `Band` as the chassis that drift is not
+ *  spellable here.
  *  Two deltas from a config band, both stated at the call site: no region glyph (a cluster is named, not
  *  iconified), and the census sits BESIDE the label rather than at the trailing edge, because this band
  *  spans a CONTENT pane rather than a ~290px LIST door.
@@ -269,8 +265,8 @@ function TemplateListRow({
   return (
     // WHICH FIELD holds this row's text is the row model's answer, not a second copy of the split here: the
     // registry has three storage arms (guided prompt · format string · `prose` slot) and spelling the
-    // ternary inline was already one home too many at two. `templateStoredText` reads "" for an unset slot,
-    // which `isCustomized` treats exactly as the old `undefined` did.
+    // ternary inline would be a second home. `templateStoredText` reads "" for an unset slot, which
+    // `isCustomized` treats as unset.
     <form.Subscribe selector={(state): string => templateStoredText(state.values, def.id)}>
       {(value): ReactElement => {
         const customized = isCustomized(value, factoryDefault);
@@ -308,11 +304,10 @@ function TemplateListRow({
             // fires gloss at 1fr") always specified.
             subtitle={def.fires}
             subtitlePlacement="column"
-            // TWO LINES, NOT ONE (side-eye 2026-08-08 P2). `column` fixed WHERE the gloss starts; it still
-            // truncated, and on the Group-rounds cluster all seven rows lost up to 38% of their text — with
-            // the DISCRIMINATING word inside the cut ("…once per other present character" vs "…once per
-            // character whose card rides beside the primary"), so the one cell that tells the rows apart
-            // was the cell being hidden. `subtitleWrap` is the house arm for a subtitle that is a SENTENCE:
+            // TWO LINES, NOT ONE. `column` fixes WHERE the gloss starts; one line would truncate, and on the
+            // Group-rounds cluster the DISCRIMINATING words sit inside the cut ("…once per other present
+            // character" vs "…once per character whose card rides beside the primary"), so the one cell that
+            // tells the rows apart would be the cell being hidden. `subtitleWrap` is the house arm for a subtitle that is a SENTENCE:
             // clamp to two lines, raised leading. Titles fit — the name column is untouched.
             subtitleWrap={true}
             title={def.label}
@@ -342,19 +337,11 @@ function MarkerCrossLink({
       onSelectSection(marker.id);
     }
   };
-  // The ↗ lives INSIDE the pill (side-eye F-34): the mock draws one chip, and a glyph parked outside the
+  // The ↗ lives INSIDE the pill: the mock draws one chip, and a glyph parked outside the
   // badge reads as a second, unlabelled control sitting next to it. `size="inline"` keeps the button a
   // text-height wrapper so the pill IS the visible box, rather than a pill floating in a control box.
   return (
-    <Button
-      className="self-start"
-      disabled={health === "absent"}
-      intent="ghost"
-      onClick={onClick}
-      size="inline"
-      title={health === "absent" ? MARKER_HEALTH_LABEL.absent : undefined}
-      type="button"
-    >
+    <Button className="self-start" disabled={health === "absent"} intent="ghost" onClick={onClick} size="inline" type="button">
       <Badge intent={health === "healthy" ? "info" : "warning"} size="sm" tone="soft">
         {MARKER_HEALTH_LABEL[health]}
         <Icon icon={ExternalLink} size="xs" />
