@@ -16,6 +16,7 @@ const CARD_FENCE = `:::card title="${CARD_TITLE}"\n<p>Tide tables for the quay.<
 
 interface ArchiveRoom {
   readonly chatId: ChatId;
+  readonly detail: TrpcWireOutput<"chat.getChat">;
   readonly reads: TrpcRoutes<"sessions.me" | "settings.getUserSettings" | "chat.getChat">;
   readonly messages: () => Promise<TrpcWireOutput<"chat.listMessages">>;
   readonly plantCard: () => Promise<void>;
@@ -29,6 +30,7 @@ async function archiveRoom(root: Awaited<ReturnType<typeof createCorpusHarness>>
   const detail = await caller.chat.getChat({ chatId });
   return {
     chatId: detail.id,
+    detail,
     reads: { "sessions.me": () => viewer, "settings.getUserSettings": () => settings, "chat.getChat": () => detail },
     messages: () => caller.chat.listMessages({ chatId: detail.id }),
     plantCard: async (): Promise<void> => {
@@ -62,7 +64,7 @@ test("a failed archive read renders the shared error state directly under the se
   await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
   const archive = page.locator(ARCHIVE);
   const error = archive.locator(':scope > [data-slot="query-error"]');
-  await expect(error.getByRole("status")).toHaveText("Couldn't load the card archive.");
+  await expect(error.getByRole("status")).toHaveText("Couldn't load this game's cards.");
   await expect(archive.getByText("Cards", { exact: true })).toHaveCount(0);
 
   failing = false;
@@ -114,6 +116,54 @@ test("a later archive read holds the box this device saw the archive settle at",
   later.release(settled);
   await expect(archive.getByText("Cards — 1", { exact: true })).toBeVisible();
   expect(await height()).toBeCloseTo(settledHeight, 0);
+});
+
+test("each chat reserves its own settled box and never another chat's", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness();
+  const withCard = await archiveRoom(root, corpusChatId(corpus));
+  await withCard.plantCard();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const empty = await archiveRoom(root, (await caller.chat.startChat({ characterIds: [], opening: "none" })).chat.id);
+  const cardPage = await withCard.messages();
+  const emptyPage = await empty.messages();
+  let pending: ReturnType<typeof trpcHold<"chat.listMessages">> | null = null;
+  await routeTrpc(page, {
+    ...withCard.reads,
+    "chat.getChat": (input) => (input.chatId === empty.chatId ? empty.detail : withCard.detail),
+    "chat.listMessages": (input) => pending ?? (input.chatId === empty.chatId ? emptyPage : cardPage),
+  });
+  const archive = page.locator(ARCHIVE);
+  const height = async (): Promise<number> => (await archive.boundingBox())?.height ?? Number.NaN;
+  // The reservation's own sentinel attribute: present only while a remembered box holds the fallback.
+  const reserved = archive.locator("[data-tile-reserved]");
+
+  const cardMount = await mount<typeof RpgSceneCardsStory>(STORY, { chatId: withCard.chatId });
+  await expect(archive.getByText("Cards — 1", { exact: true })).toBeVisible();
+  const cardHeight = await height();
+  await cardMount.unmount();
+
+  const firstVisit = trpcHold<"chat.listMessages">();
+  pending = firstVisit;
+  const emptyMount = await mount<typeof RpgSceneCardsStory>(STORY, { chatId: empty.chatId });
+  await firstVisit.requested;
+  await expect(archive.locator('[aria-busy="true"]')).toBeVisible();
+  await expect(reserved).toHaveCount(0);
+  expect(await height()).not.toBeCloseTo(cardHeight, 0);
+  pending = null;
+  firstVisit.release(emptyPage);
+  await expect(archive.getByText("No cards yet", { exact: false })).toBeVisible();
+  const emptyHeight = await height();
+  expect(emptyHeight).not.toBeCloseTo(cardHeight, 0);
+  await emptyMount.unmount();
+
+  const revisit = trpcHold<"chat.listMessages">();
+  pending = revisit;
+  await mount<typeof RpgSceneCardsStory>(STORY, { chatId: empty.chatId });
+  await revisit.requested;
+  await expect(reserved).toHaveCount(1);
+  expect(await height()).toBeCloseTo(emptyHeight, 0);
+  revisit.release(emptyPage);
+  await expect(archive.getByText("No cards yet", { exact: false })).toBeVisible();
 });
 
 test("an archive with no cards yet renders the empty doorway under its label", async ({ corpus, mount, page }) => {

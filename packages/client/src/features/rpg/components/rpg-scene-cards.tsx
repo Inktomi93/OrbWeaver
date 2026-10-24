@@ -84,8 +84,10 @@ export function RpgSceneCards({ chatId, enabled }: RpgSceneCardsProps): ReactEle
     return null;
   }
   // The section root sits outside the boundary, so the error arm is the shared error state itself. The kicker
-  // stays with each arm because the settled one carries the card count. RESERVED: the resync doorway below
-  // would otherwise jump by the gap between the skeleton and the settled list when a later read lands.
+  // stays with each arm because the settled one carries the card count. RESERVED per chat: the resync doorway
+  // below would otherwise jump when a later read lands, and the settled height is that chat's card count, so a
+  // shared key would hand one room's box to another. `surface-box-store` never evicts, so each game chat this
+  // device opens leaves one number behind; that is bounded by the rooms a person plays and costs bytes.
   return (
     <Stack data-slot="rpg-card-archive">
       <QueryBoundary
@@ -95,8 +97,8 @@ export function RpgSceneCards({ chatId, enabled }: RpgSceneCardsProps): ReactEle
             <SkeletonRows count={ARCHIVE_PENDING_ROWS} />
           </Stack>
         }
-        renderError={(_error, retry): ReactElement => <QueryErrorState label="the card archive" onRetry={retry} />}
-        reserveKey="rpg.cardArchive"
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="this game's cards" onRetry={retry} />}
+        reserveKey={`rpg.cardArchive.${chatId}`}
       >
         <ArchiveBody chatId={chatId} />
       </QueryBoundary>
