@@ -1,6 +1,6 @@
 ---
 kind: work
-status: open
+status: done
 updated: 2026-10-24
 priority: P3
 area: tooling
@@ -20,14 +20,12 @@ History rots and buries the reason; git holds history.
 
 2026-10-24: build the rule. Existing hits are baselined per file; new hits fail.
 
+2026-10-24: dropped — no comment hunting. `.claude/rules/comments.md` stays as review guidance, with no lint behind it.
+
 ## Done when
 
-An ESLint rule over `packages/**` and `tooling/**` source comments flags the history patterns, with planted controls; existing hits sit in a per-file baseline the rule reads, which only shrinks; the baseline count is reported, and a file that drops to zero leaves it.
+Dropped by the owner ruling above: no lint enforces the history rule, and no drain runs.
 
 ## Evidence
 
-`orb/no-history-comments` (`tooling/src/eslint/general.ts`) runs over `packages/**/*.{ts,tsx}` and `tooling/**/*.{ts,tsx}`. It flags issue numbers (two digits or more), `side-eye YYYY-MM-DD`, bare ISO dates, ticket ids (standard names such as `UTF-8`, `SHA-256` and `TEST-NET-1` excepted), "used to" (not the passive "is used to"), "formerly", "the old" followed within two words by a past-tense verb (so runtime state such as "the old one" passes), "previously" (not the compound "previously-seen") and `load-bearing`. D-numbers and law sections never match.
-
-The per-file baseline is `tooling/src/eslint/history-comment-baseline.json`: 10,444 hits in 2,186 files at landing (client 4,468, server 2,392, tooling 1,563, contracts 835, ui 605, kit 251, db 143, inference 129, showcase-plugins 50, default-content 6, plugin-sdk 2). A file over its count reports every hit, and a file under its count reports once, so an unrecorded shrink fails wherever ESLint runs. After the comment rewrites and the narrowed pattern the baseline holds 9,606 hits in 2,104 files.
-
-`pnpm test:tools tests/tooling/eslint-history-comments.test.ts` passes 17 tests: a planted control per pattern fails at its span, the allowed anchors pass, and a baselined file passes at its count and fails above it. The ratchet test lints every population file and requires each count to equal its baseline entry, so growth, a new file and an unrecorded shrink all fail. A planted `(#1999)` in an unlisted file turned the ratchet red with `{ "tooling/src/eslint/css-classes.ts": [0, 1] }`.
+Dropped before landing; the rule, its test and its wiring were removed.
