@@ -49,8 +49,6 @@ Run only the named component suites for the changed behavior.
 
 - Stories import client modules through declared `@orb/client/*` doors. Keep shared values in `.ts` helpers.
 - Seed first-run state with `addInitScript` before native `mount()` navigates.
-- A lane touching app-shell, the first-run persona gate, the home launcher, or the ambient-route feed runs
-  `app-root.ct.tsx` and `route-pending.ct.tsx`.
 - When a gate trigger changes, retire every story that mounts it.
 
 ## Instrument facts
