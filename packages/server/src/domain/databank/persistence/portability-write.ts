@@ -64,6 +64,16 @@ export function createExportDocument(input: DbAssemblyInput<Pick<DatabankPortabi
       .from(globalDocuments)
       .where(and(eq(globalDocuments.documentId, documentId), eq(globalDocuments.ownerId, ownerId)))
       .limit(LIMIT_ONE);
+    const source =
+      row.sourceAssetId === null
+        ? undefined
+        : (
+            await ctx.db
+              .select({ hash: assets.hash })
+              .from(assets)
+              .where(and(eq(assets.id, row.sourceAssetId), eq(assets.ownerId, ownerId)))
+              .limit(LIMIT_ONE)
+          )[0];
     const doc: CanonicalDocument = {
       name: row.name,
       mime: row.mime,
@@ -75,6 +85,7 @@ export function createExportDocument(input: DbAssemblyInput<Pick<DatabankPortabi
       extractorVersion: row.extractorVersion,
       createdAt: row.createdAt,
       sourceAssetId: row.sourceAssetId,
+      sourceAssetHash: source?.hash ?? null,
       global: globalRows.length > 0,
       characterHandles: await attachedHandles(ctx, ownerId, documentId),
     };
@@ -83,17 +94,32 @@ export function createExportDocument(input: DbAssemblyInput<Pick<DatabankPortabi
   };
 }
 
-/** The carried source blob, re-linked only when the owner actually holds it on THIS box (the assets entity
- *  restores blobs under their original ids and imports first). Absent/foreign ⇒ null — the column's own
- *  SET NULL semantics: a purged blob degrades a document, never blocks it. */
-async function resolveSourceAsset(ctx: Pick<DatabankPortabilityContext, "db">, ownerId: UserId, assetId: AssetId | null): Promise<AssetId | null> {
-  if (assetId === null) {
-    return null;
+/** The carried source blob, re-linked only when the owner actually holds it on THIS box: by its bytes first,
+ *  since an owner who already held them keeps its own asset row, then by the id the assets entity restored it
+ *  under. Absent/foreign ⇒ null — the column's own SET NULL semantics: a purged blob degrades a document,
+ *  never blocks it. */
+async function resolveSourceAsset(
+  ctx: Pick<DatabankPortabilityContext, "db">,
+  ownerId: UserId,
+  doc: Pick<CanonicalDocument, "sourceAssetId" | "sourceAssetHash">,
+): Promise<AssetId | null> {
+  const byHash =
+    doc.sourceAssetHash === null
+      ? undefined
+      : (
+          await ctx.db
+            .select({ id: assets.id })
+            .from(assets)
+            .where(and(eq(assets.hash, doc.sourceAssetHash), eq(assets.ownerId, ownerId)))
+            .limit(LIMIT_ONE)
+        )[0];
+  if (byHash !== undefined || doc.sourceAssetId === null) {
+    return byHash?.id ?? null;
   }
   const rows = await ctx.db
     .select({ id: assets.id })
     .from(assets)
-    .where(and(eq(assets.id, assetId), eq(assets.ownerId, ownerId)))
+    .where(and(eq(assets.id, doc.sourceAssetId), eq(assets.ownerId, ownerId)))
     .limit(LIMIT_ONE);
   return rows[0]?.id ?? null;
 }
@@ -158,7 +184,7 @@ export function createImportDocument(input: DbAssemblyInput<DatabankPortabilityC
     }
 
     const documentId = ctx.newDocumentId();
-    const sourceAssetId = await resolveSourceAsset(ctx, ownerId, doc.sourceAssetId);
+    const sourceAssetId = await resolveSourceAsset(ctx, ownerId, doc);
     const stmts: BatchStmt[] = [
       ctx.db.insert(documents).values({
         id: documentId,

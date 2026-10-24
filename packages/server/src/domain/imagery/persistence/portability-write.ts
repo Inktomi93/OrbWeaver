@@ -204,8 +204,31 @@ function outputStatement(
   );
 }
 
-export async function writeImportedImageryCall(ctx: ImageryPortabilityContext, ownerId: UserId, call: PortableImageryCall): Promise<ImageryImportWriteResult> {
+/** The call with each output pointed at the owner's own asset holding its carried bytes: an owner who already
+ *  held them keeps its own asset row, so the carried id names nothing here. Owner-scoped; a miss keeps the id. */
+async function relinkOwnedOutputs(db: Db, ownerId: UserId, call: PortableImageryCall): Promise<PortableImageryCall> {
+  const hashes = call.images.flatMap((image) => (image.assetHash === undefined ? [] : [image.assetHash]));
+  if (hashes.length === 0) {
+    return call;
+  }
+  const rows = await db
+    .select({ id: assets.id, hash: assets.hash })
+    .from(assets)
+    .where(and(eq(assets.ownerId, ownerId), inArray(assets.hash, hashes)));
+  const held = new Map(rows.map((row) => [row.hash, row.id]));
+  return {
+    ...call,
+    images: call.images.map((image) => ({ ...image, assetId: (image.assetHash === undefined ? undefined : held.get(image.assetHash)) ?? image.assetId })),
+  };
+}
+
+export async function writeImportedImageryCall(
+  ctx: ImageryPortabilityContext,
+  ownerId: UserId,
+  carried: PortableImageryCall,
+): Promise<ImageryImportWriteResult> {
   const { db } = ctx;
+  const call = await relinkOwnedOutputs(db, ownerId, carried);
   const first = call.images[0];
   if (first === undefined) {
     throw new Error("An imagery call must contain an output");

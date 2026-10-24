@@ -17,18 +17,21 @@ import { ASSET_LIST_LIMIT_MAX } from "@orb/contracts/assets";
 import { CHARACTER_HANDLE_WIRE_KEY, characterCardV3Schema, characterHandleSchema, createCharacterSchema } from "@orb/contracts/character";
 import { parseVariantMetadata } from "@orb/contracts/chat";
 import { CSRF_HEADER } from "@orb/contracts/identity";
+import { portableImageryCallSchema } from "@orb/contracts/imagery";
 import { importStartedSchema } from "@orb/contracts/import";
 import type { PortableImportOutcome, PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
 import { ASSET_SCHEME, assetIdsInContent } from "@orb/kit/content";
-import type { CharacterHandle, CharacterId, ChatId, WorkloadId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, ChatId, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import { buildChatBundleFile, CHAT_BUNDLE_EXT, parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
+import { buildImageryCall } from "@orb/server/primitives/serde/imagery";
 import { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, extractZip, makeAssetBytes, seedTranscript } from "@orb/testkit/node/composed";
+import { z } from "zod";
 
 const EXPORT_ROUTE = "/api/export/library";
 const BUNDLE_ROUTE = "/api/import/bundle";
@@ -622,6 +625,135 @@ test("an imported card keeps its star, alone and through a library restore", asy
   };
 
   expect({ source: await starredOn(source), target: await starredOn(target) }).toEqual({ source: [true], target: [true] });
+});
+
+const DOCUMENT_TEXT = "The orbital ledger keeps its own counsel.";
+const TEXT_MIME = "text/plain";
+const documentFileSchema = z.object({ sourceAssetId: z.string().nullable() }).loose();
+
+/** One imagery execution naming `assetId` as its only output, through the production imagery serde. */
+function imageryCallFile(root: ServerTestHarness, assetId: AssetId): Uint8Array {
+  const usage = {
+    tokensIn: null,
+    tokensOut: null,
+    cacheReadTokens: null,
+    cacheWriteTokens: null,
+    reasoningTokens: null,
+    servedModel: null,
+    tokenDetails: null,
+    costDetails: null,
+    costProvenance: null,
+  };
+  const execution = {
+    sourceCallId: root.idSource.typeId(ID_PREFIX.imageryCall),
+    mode: "character",
+    prompt: "A keeper at the ledger.",
+    negativePrompt: null,
+    model: "corpus-image-v1",
+    provider: "custom-openai",
+    costUsd: null,
+    usage,
+    subjectCharacterHandle: null,
+    chatId: null,
+    connectionId: null,
+    identityHash: null,
+    edited: false,
+    createdAt: 1,
+  };
+  return buildImageryCall(
+    portableImageryCallSchema.parse({ execution, images: [{ sourceGenerationId: root.idSource.typeId(ID_PREFIX.imageryGeneration), assetId }] }),
+  );
+}
+
+/** The bytes each of the owner's databank source blobs and imagery outputs names, read off the owner's own export. */
+async function referrerHashes(
+  root: ServerTestHarness,
+  ownerId: UserId,
+): Promise<{ readonly documents: readonly (string | null)[]; readonly imagery: readonly (string | null)[] }> {
+  const hashOf = async (assetId: string | null): Promise<string | null> =>
+    assetId === null ? null : ((await root.services.assets.assetCasRefById(castId(assetId)))?.hash ?? null);
+  const files = async (kind: PortableKind): Promise<unknown[]> => {
+    const descriptor = root.app.portability.find((entity) => entity.kind === kind);
+    if (descriptor === undefined) {
+      throw new Error(`production composition has no ${kind} portability descriptor`);
+    }
+    const out: unknown[] = [];
+    for await (const file of descriptor.exportAll(ownerId)) {
+      out.push(JSON.parse(new TextDecoder().decode(file.bytes)));
+    }
+    return out;
+  };
+  const documents = (await files("databank")).map((file) => documentFileSchema.parse(file).sourceAssetId);
+  const imagery = (await files("imagery")).flatMap((file) =>
+    portableImageryCallSchema
+      .loose()
+      .parse(file)
+      .images.map((image) => image.assetId),
+  );
+  return { documents: await Promise.all(documents.map(hashOf)), imagery: await Promise.all(imagery.map(hashOf)) };
+}
+
+/** Restore every non-asset file of `bundle` for `ownerId`, each through its own production descriptor. */
+async function restoreReferrersOnly(root: ServerTestHarness, ownerId: UserId, bundle: Uint8Array): Promise<readonly PortableImportOutcome[]> {
+  const staged = await extractZip(bundle);
+  try {
+    const outcomes: PortableImportOutcome[] = [];
+    for (const entry of staged.entries) {
+      const descriptor = root.app.portability.find((entity) => entity.kind !== "assets" && entry.path.startsWith(PORTABLE_DIRECTORIES[entity.kind]));
+      if (descriptor !== undefined) {
+        outcomes.push(await descriptor.importFile(ownerId, { filename: entry.path, bytes: await entry.read() }));
+      }
+    }
+    return outcomes;
+  } finally {
+    await staged.dispose();
+  }
+}
+
+test("databank documents and imagery history restore onto bytes the owner holds under another id, never another account's", async () => {
+  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  const owner = await source.principalFor(source.ownerId);
+  const documentBytes = new TextEncoder().encode(DOCUMENT_TEXT);
+  await source.services.databank.upload({ principal: owner, bytes: documentBytes, mime: TEXT_MIME, name: "Ledger" });
+  const [sourceDocument] = await source.services.assets.listOwned({ principal: owner, kind: "document", limit: 1 });
+  const imageBytes = makeAssetBytes(source.idSource.typeId(ID_PREFIX.asset));
+  const image = await source.services.assets.store({ principal: owner, kind: "generated", mime: PNG, bytes: imageBytes });
+  const imagery = source.app.portability.find((entity) => entity.kind === "imagery");
+  if (imagery === undefined || sourceDocument === undefined) {
+    throw new Error("production composition has no imagery descriptor, or the upload kept no source blob");
+  }
+  expect(await imagery.importFile(source.ownerId, { filename: "call.json", bytes: imageryCallFile(source, image.assetId) })).toMatchObject({ ok: true });
+  const bundle = await exportLibrary(source, ["assets", "databank", "imagery"]);
+
+  await using target = await signedInBox();
+  // The member holds the same bytes, so a hash lookup that crossed accounts would find them for the owner.
+  const member = await target.actor();
+  const memberPrincipal = await target.principalFor(member.id);
+  await target.services.assets.store({ principal: memberPrincipal, kind: "document", mime: TEXT_MIME, bytes: documentBytes });
+  await target.services.assets.store({ principal: memberPrincipal, kind: "generated", mime: PNG, bytes: imageBytes });
+  const unheld = await restoreReferrersOnly(target, target.ownerId, bundle);
+  const unheldReferrers = await referrerHashes(target, target.ownerId);
+
+  // Positive control: an owner who already holds the bytes under its own ids gets the full restore re-linked onto them.
+  await using held = await signedInBox();
+  const heldOwner = await held.principalFor(held.ownerId);
+  const heldDocument = await held.services.assets.store({ principal: heldOwner, kind: "document", mime: TEXT_MIME, bytes: documentBytes });
+  const heldImage = await held.services.assets.store({ principal: heldOwner, kind: "generated", mime: PNG, bytes: imageBytes });
+  const outcome = await restore(held, bundle);
+
+  expect({
+    heldUnderOwnIds: heldDocument.assetId !== sourceDocument.assetId && heldImage.assetId !== image.assetId,
+    unheldRefused: unheld.filter((result) => !result.ok).length,
+    unheldReferrers,
+    outcome,
+    referrers: await referrerHashes(held, held.ownerId),
+  }).toEqual({
+    heldUnderOwnIds: true,
+    unheldRefused: 1,
+    unheldReferrers: { documents: [null], imagery: [] },
+    outcome: { status: "succeeded", failed: 0 },
+    referrers: { documents: [sourceDocument.hash], imagery: [image.hash] },
+  });
 });
 
 test("restoring bytes the owner holds under another id repairs that asset when its stored file is gone", async () => {
