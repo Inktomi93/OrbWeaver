@@ -22,4 +22,19 @@ A dependency-cruiser rule using a capture group: a module under `tests/server/<t
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Measured on main `e468a413a3` with the new rules, server suites only: 108 edges in 80 files (type-only included); 89 edges in 72 files once a type-only import of another door is legal. After the sweep: 0.
+
+| Group | Files | Outcome |
+| - | - | - |
+| Type-only import of another door's type (`role-data`, `query-capability`, `env-record-seams`, `egress-seams`, `timers-seams`, `variant-payloads`, `room-reach-rows`, `live-bus-isolation`) | 9 | legal under the rule, unchanged |
+| Log and trace reads from `foundation/observability` | 20 | seam: `processObservability` on the composed door |
+| A physical loopback peer built from `infra/network` and `infra/timers` | 1 | seam: `servePhysicalPeer`, also the corpus provider server's one home |
+| A Principal's role through `isOwner`, `isAdmin`, `can` | 7 | seam: re-exported from `@orb/testkit/node/auth`, moved by `move-import-names` |
+| A constant another module owns | 10 | moved: 4 (`TURN_ABORTED_OP_CODE`/`TURN_LOCKED_OP_CODE` from `@orb/contracts/chat`, `SEED_MANIFEST` from `@orb/default-content`, the record's own `AUTH_FALLBACK` default); constant: 6 listed in `SERVER_TEST_REACHES` |
+| Another domain's op factory assembled by hand | 16 | moved to composed objects or product verbs: 10 (`app.contentSeeder`, `app.personaSeeder`, `app.examplePluginSeeder`, `app.distributedPluginApplier`, `app.rpgTrace`, `chat.getChat`, `character.generateGreeting`, a restarted root as the cold seed, the user-settings export, the root's workload driver); seam: 6 (`showcaseBundles`, `app.cas`, `app.crossFeatureOps`) |
+| A test whose subject lives in another mirror | 5 | moved to the owner's mirror (assets, embeddings, imagery, `entry/boot`, sessions persistence) |
+| Suites reaching `entry/compose`, `domain/import`, `domain/plugin`, `infra/storage`, `foundation/env`, `foundation/data-layout`, `transport/trpc` | 15 | seam: `createTestEnv`, `configureOidc`, `SessionsCrypto`, `extractZip`, `stagedImportsOf`, `trpcProcedures`, `seedPluginFetchedAsset` |
+| A boot wrapper or the host principal resolver from `entry/` | 4 | moved: the domain's own seed function, `harness.principalFor` |
+| Refused | 0 | |
+
+A file can sit in two groups. The `tests/client`, `tests/inference`, `tests/kit`, `tests/contracts` and `tests/db` mirrors are not yet covered.

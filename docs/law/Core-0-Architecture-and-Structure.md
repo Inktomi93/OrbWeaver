@@ -205,7 +205,7 @@ The `test-helper-world-direction` rule in `.dependency-cruiser.ts` keeps the dir
 
 The kit holds deterministic inputs, production-derived builders, external-edge adapters and recorders. Product logic stays in its owning layer behind its public API. `Spine-Testing.md` §2 owns the server test composition home; rebuilt tests do not assemble another domain graph.
 
-**Tests enter packages through their doors.** Tests import workspace packages through their public entry (`@orb/<package>`) or an exported subpath. They use the production composition root for integration behavior. D333 ends custom test-reach grants and enforcement; package direction remains in workspace dependencies and runtime composition.
+**Tests enter packages through their doors.** Tests import workspace packages through their public entry (`@orb/<package>`) or an exported subpath. They use the production composition root for integration behavior. D333 ends custom test-reach grants and enforcement; package direction remains in workspace dependencies and runtime composition. A server suite's reach to its own mirror is a native dependency-cruiser rule (`Spine-Testing.md` §2).
 
 Two named exceptions replace copies. The browser world re-exports the client door's registry lists from
 `@orb/client/compose`, the reviewed exception in `client-compose-door-only`. The kit takes tRPC types from the
