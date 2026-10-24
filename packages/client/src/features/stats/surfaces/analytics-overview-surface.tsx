@@ -18,6 +18,7 @@ import { BarList } from "@orb/ui/bar-list";
 import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { EmptyState } from "@orb/ui/empty-state";
+import { HintTrigger } from "@orb/ui/hint-trigger";
 import { ChartColumn, Crown, Icon } from "@orb/ui/icons";
 import { Grid, Row, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
@@ -134,8 +135,11 @@ function OverviewBody(): ReactElement {
       </Text>
       <AccountingCoverageNotice />
       <Row align="center" justify="between" gap="row">
-        {/* ONE time vocabulary in this column: relative. */}
-        <Text voice="gloss">{`Updated ${timeLib.formatRelative(freshness.computedAt)}`}</Text>
+        {/* ONE time vocabulary in this column: relative, with the exact stamp a press away. */}
+        <Row align="center" gap="field">
+          <Text voice="gloss">{`Updated ${timeLib.formatRelative(freshness.computedAt)}`}</Text>
+          <HintTrigger className="" hint={timeLib.formatDateTime(freshness.computedAt)} subject="the update time" />
+        </Row>
         <RecomputeButton />
       </Row>
 

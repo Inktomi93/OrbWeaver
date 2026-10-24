@@ -31,6 +31,7 @@ import { meterDisplayNumber, RPG_TRACKER_VALUE_EMPTY, trackerCeiling } from "@or
 import { readOwnKey } from "@orb/kit/objects";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
+import { HintTrigger } from "@orb/ui/hint-trigger";
 import { Icon, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -124,7 +125,7 @@ function ActorTrackerMeter({
       value={reading}
       max={max}
       valueWarning={reading !== null && max !== null && reading > max}
-      {...(def.hint === "" ? {} : { labelTitle: def.hint })}
+      {...(def.hint === "" ? {} : { labelHint: def.hint })}
       {...trackColorProps(resolveTrackerColor(def.color, ordinal))}
       {...(subject === undefined ? {} : { subject })}
       {...(release === undefined ? {} : { leading: <RpgFieldLock field={trackerFieldName(def.label, subject)} onRelease={release} /> })}
@@ -163,9 +164,12 @@ function ActorTrackerText({
   const display = def.shape === "list" ? (value.items ?? []).join(", ") : String(value.value ?? "");
   return (
     <Row gap="field" align="baseline" justify="between">
-      <Text as="span" voice="label" {...(def.hint === "" ? {} : { title: def.hint })}>
-        {def.label}
-      </Text>
+      <Row gap="field" align="center">
+        <Text as="span" voice="label">
+          {def.label}
+        </Text>
+        {def.hint === "" ? null : <HintTrigger className="" hint={def.hint} subject={def.label} />}
+      </Row>
       <TrackerValue
         ariaLabel={trackerFieldName(`${def.label} value`, subject)}
         display={display}

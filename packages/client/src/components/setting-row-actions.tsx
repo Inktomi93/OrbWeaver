@@ -41,10 +41,10 @@ import { MenuItem, MenuSeparator } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { cn, copyWithNotice, IS_DEV, rowActionsName } from "#lib";
 import { formatConfigLink } from "#state";
+import { DescribedMenuItem } from "./described-menu-item.tsx";
 import { HIDE_AT_COARSE } from "./pointer-variants.ts";
 import { RowActionsMenu } from "./row-actions-menu.tsx";
 import { SETTING_ROW_REVEAL } from "./row-reveal.ts";
-import { Tip } from "./tip.tsx";
 import type { ConfigLeafAddress, ConfigLeafValue } from "./use-config-leaf.ts";
 
 /** A failed copy's next step: the toast description carries the text itself, where it can be selected. */
@@ -82,16 +82,15 @@ function SettingRowDevActions({ address, label, binding }: SettingRowActionsProp
       <RowActionsMenu label={rowActionsName(label)} triggerSize="inline">
         {binding === null ? null : (
           <>
-            <MenuItem
+            <DescribedMenuItem
+              detail={binding.modified ? undefined : "Already at its default."}
               disabled={!binding.modified || binding.resetPending}
+              icon={RotateCcw}
+              label="Reset to default"
               onClick={binding.reset}
-              {...(binding.modified ? {} : { title: "Already at its default." })}
-            >
-              <Icon icon={RotateCcw} size="sm" />
-              Reset to default
-            </MenuItem>
-            {/* Nit 7: the copy verbs are a DIFFERENT KIND of act from Reset — an address you take away vs
-                a value you change — and three flat items said they were siblings. */}
+            />
+            {/* The copy verbs are a DIFFERENT KIND of act from Reset — an address you take away vs
+                a value you change — so a separator keeps them from reading as siblings. */}
             <MenuSeparator />
           </>
         )}
@@ -116,11 +115,11 @@ function SettingRowResetAction({ label, binding }: Omit<SettingRowActionsProps, 
   const name = `Reset ${label} to its default`;
   return (
     <ActionCell>
-      <Tip text={name}>
-        <Button aria-label={name} disabled={binding.resetPending} intent="ghost" onClick={binding.reset} size="inline" type="button">
-          <Icon icon={RotateCcw} size="sm" />
-        </Button>
-      </Tip>
+      {/* No tooltip: this button is disabled while the reset is pending, and a tooltip never wraps a disabled
+          control. The name says what it does. */}
+      <Button aria-label={name} disabled={binding.resetPending} intent="ghost" onClick={binding.reset} size="inline" type="button">
+        <Icon icon={RotateCcw} size="sm" />
+      </Button>
     </ActionCell>
   );
 }

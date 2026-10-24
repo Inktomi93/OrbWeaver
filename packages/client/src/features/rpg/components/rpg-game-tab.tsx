@@ -314,7 +314,7 @@ function JournalTypeHintsEditor({ chatId, config }: { readonly chatId: ChatId; r
  *  plain chat). Checked, the caller's own user rows are re-stamped to their current chat persona FIRST, so the
  *  deep story window the rebuild re-reads resolves the NEW name per row (`resolveCanonWindow` resolves identity
  *  macros off each row's stamp) and the re-extracted planes are written with it. Order matters: a rebuild
- *  that ran first would bake the prior name in again. The copy is honest about the limit — assistant
+ *  that ran first would bake the old name in again. The copy is honest about the limit — assistant
  *  PROSE keeps the vocatives the model wrote, because we never edit message content (D26). */
 function ResyncControl({ chatId }: { readonly chatId: ChatId }): ReactElement {
   const trpc = useTRPC();
@@ -328,7 +328,7 @@ function ResyncControl({ chatId }: { readonly chatId: ChatId }): ReactElement {
   const busy = resync.isPending || restamp.isPending;
 
   // Sequential by necessity (restamp → rebuild). A failed restamp ABORTS the rebuild: the mutation's own
-  // error toast has already spoken, and rebuilding on the prior stamps is exactly what the host didn't ask for.
+  // error toast has already spoken, and rebuilding on the old stamps is exactly what the host didn't ask for.
   const onResync = async (): Promise<void> => {
     // both awaited mutations toast their own failure:
     // `errorToast: "Couldn't restamp your messages."` (packages/client/src/data/use-reattribute-persona.ts) and

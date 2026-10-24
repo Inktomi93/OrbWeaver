@@ -69,6 +69,18 @@ test.for([
     'import { Button } from "@orb/ui/button";\nexport const Probe = (): ReactElement => <Button aria-label="Reset" title="Reset the value" />;',
   ],
   ["a text primitive", 'import { Text } from "@orb/ui/text";\nexport const Probe = (): ReactElement => <Text title="full name">name</Text>;'],
+  [
+    "an object spread",
+    'import { Button } from "@orb/ui/button";\nexport const Probe = ({ reason }: { readonly reason: string }): ReactElement => <Button aria-label="Go" {...{ title: reason }} />;',
+  ],
+  [
+    "a conditional spread",
+    'import { Button } from "@orb/ui/button";\nexport const Probe = ({ reason }: { readonly reason: string | undefined }): ReactElement => <Button aria-label="Go" {...(reason === undefined ? {} : { title: reason })} />;',
+  ],
+  [
+    "a spread identifier",
+    'import { Button } from "@orb/ui/button";\nexport function Probe({ reason }: { readonly reason: string }): ReactElement {\n  const extra = { title: reason };\n  return <Button aria-label="Go" {...extra} />;\n}',
+  ],
 ] as const)("flags %s", async ([, body]) => {
   expect(await findings(body)).toHaveLength(1);
 });
@@ -82,6 +94,14 @@ test.for([
   [
     "a local component's own title prop",
     'function Card({ title }: { readonly title: string }): ReactElement {\n  return <h3>{title}</h3>;\n}\nexport const Probe = (): ReactElement => <Card title="Heading" />;',
+  ],
+  [
+    "a rest of DOM props forwarded on",
+    'import type { ComponentProps } from "react";\nimport { Button } from "@orb/ui/button";\nexport const Probe = (props: ComponentProps<typeof Button>): ReactElement => <Button {...props} />;',
+  ],
+  [
+    "a spread with no title",
+    'import { Button } from "@orb/ui/button";\nexport const Probe = ({ off }: { readonly off: boolean }): ReactElement => <Button aria-label="Go" {...(off ? { disabled: true } : {})} />;',
   ],
 ] as const)("passes %s", async ([, body]) => {
   expect(await findings(body)).toEqual([]);

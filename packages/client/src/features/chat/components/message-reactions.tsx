@@ -26,6 +26,7 @@ import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import type { ReactElement } from "react";
+import { Tip } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { useReactionsForVariant, useViewerSeatId } from "../hooks/use-message-reactions.ts";
 import { useToggleReactionMutation } from "../lib/reaction-mutations.ts";
@@ -58,39 +59,40 @@ function segmentQualifier(group: MessageReactionGroup): string | null {
  *  sentence because an emoji's own text is not one (§13.10 N3: stable identity first, volatile count after,
  *  so a `getByRole("button", {name: /React with/})` query survives the count changing).
  *
- *  A SEGMENT-anchored chip (B7) prints its target as a gloss (`→ Bob`) and carries the captured snippet on
- *  `title` — the stored qualifier is DATA display; staleness against an edited body is re-judged where it
+ *  A SEGMENT-anchored chip prints its target as a gloss (`→ Bob`) and carries the captured snippet in its
+ *  tooltip — the stored qualifier is DATA display; staleness against an edited body is re-judged where it
  *  changes behavior (the write validation + the prompt attribution), never re-parsed per painted chip. */
 function ReactionPill({ group, viewerReacted, onToggle }: ReactionPillProps): ReactElement {
   const count = group.reactorParticipantIds.length;
   const qualifier = segmentQualifier(group);
   return (
-    <Toggle
-      aria-label={
-        qualifier === null
-          ? `React with ${group.emoji} — ${String(count)} so far`
-          : `React with ${group.emoji} to ${qualifier}'s line — ${String(count)} so far`
-      }
-      data-slot="message-reaction-pill"
-      intent="outline"
-      onPressedChange={(): void => onToggle(group)}
-      pressed={viewerReacted}
-      shape="pill"
-      size="chip"
-      {...(group.segmentSnippet !== null ? { title: group.segmentSnippet } : {})}
-    >
-      {/* The glyph is decoration for AT — the accessible name above already says which emoji it is, and a
+    <Tip text={group.segmentSnippet ?? undefined}>
+      <Toggle
+        aria-label={
+          qualifier === null
+            ? `React with ${group.emoji} — ${String(count)} so far`
+            : `React with ${group.emoji} to ${qualifier}'s line — ${String(count)} so far`
+        }
+        data-slot="message-reaction-pill"
+        intent="outline"
+        onPressedChange={(): void => onToggle(group)}
+        pressed={viewerReacted}
+        shape="pill"
+        size="chip"
+      >
+        {/* The glyph is decoration for AT — the accessible name above already says which emoji it is, and a
           screen reader announcing the raw codepoint's own name a second time is noise. */}
-      <span aria-hidden={true}>{group.emoji}</span>
-      <Text as="span" voice="gloss">
-        {count}
-      </Text>
-      {qualifier !== null ? (
+        <span aria-hidden={true}>{group.emoji}</span>
         <Text as="span" voice="gloss">
-          → {qualifier}
+          {count}
         </Text>
-      ) : null}
-    </Toggle>
+        {qualifier !== null ? (
+          <Text as="span" voice="gloss">
+            → {qualifier}
+          </Text>
+        ) : null}
+      </Toggle>
+    </Tip>
   );
 }
 

@@ -3,6 +3,7 @@
 
 import { Badge } from "@orb/ui/badge";
 import { Card } from "@orb/ui/card";
+import { HintTrigger } from "@orb/ui/hint-trigger";
 import { Gauge, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -27,7 +28,7 @@ interface StatCellProps {
    *  above and the sheet contract's "a sheet read treats a MISSING key as absent". Printing the range floor
    *  for an unset attribute is what made a clobbered `20` read as a *revert* to `1` rather than as data loss. */
   readonly value: number | null;
-  /** The profile hint — rides `title` (§3.2). */
+  /** The profile hint, opened on demand from a HintTrigger under the label (§3.2). */
   readonly hint?: string;
   /** Commit a new value — present ⇒ editable; absent ⇒ read-only. A `null` is the CLEAR (a blanked field),
    *  the same grammar the sheet's `Level` chip uses: the value's own editor is the only place to unset it. */
@@ -38,8 +39,9 @@ interface StatCellProps {
  *  3-up (wide) by the caller. */
 export function StatCell({ label, value, hint, onEditValue }: StatCellProps): ReactElement {
   return (
-    <Card tone="neutral" {...(hint === undefined ? {} : { title: hint })}>
+    <Card tone="neutral">
       <Stack gap="field" align="center" data-slot="stat-cell">
+        {hint === undefined ? null : <HintTrigger className="" hint={hint} subject={label} />}
         {onEditValue === undefined ? (
           <Text as="span" size="title" tone={value === null ? "muted" : "default"} className="tabular-nums">
             {/* `??`, never `||` — a real reading of ZERO is a reading, and must not fall through to the em-dash. */}

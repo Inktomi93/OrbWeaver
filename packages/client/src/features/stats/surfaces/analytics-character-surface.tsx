@@ -11,8 +11,9 @@ import { formatUsd } from "@orb/kit/strings";
 import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { EmptyState } from "@orb/ui/empty-state";
+import { HintTrigger } from "@orb/ui/hint-trigger";
 import { ArrowLeft, ChartColumn, Icon } from "@orb/ui/icons";
-import { Grid, Section, Stack } from "@orb/ui/layout";
+import { Grid, Row, Section, Stack } from "@orb/ui/layout";
 import { StatFigure } from "@orb/ui/stat-figure";
 import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
@@ -122,8 +123,11 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
           This character · Aggregate only
         </Text>
         {stats.lastActivityAt === null ? null : (
-          // Relative — the one time vocabulary this column speaks.
-          <Text voice="gloss">Last active {timeLib.formatRelative(stats.lastActivityAt)}</Text>
+          // Relative in the text — the one time vocabulary this column speaks — with the exact stamp a press away.
+          <Row align="center" gap="field">
+            <Text voice="gloss">Last active {timeLib.formatRelative(stats.lastActivityAt)}</Text>
+            <HintTrigger className="" hint={timeLib.formatDateTime(stats.lastActivityAt)} subject="the last activity time" />
+          </Row>
         )}
       </Stack>
 

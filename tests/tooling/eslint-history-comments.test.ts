@@ -64,16 +64,20 @@ test.for([
   ["a compound previously", "// Insert after the last previously-seen key."],
   ["an ordinal, a hex colour and a url anchor", "// Step #2 paints #000 and links docs#12."],
   ["history-shaped text outside a comment", 'export const label = "#1789 used to be load-bearing";'],
+  ["the old as runtime state", "// A switch never shares the index with the old one, and the old host retains edit."],
 ] as const)("passes %s", async ([, source]) => {
   expect(await findings(`${source}\nexport const value = 1;\n`)).toEqual([]);
 });
 
-test("a baselined file passes at its count and reports every hit above it", async () => {
+test("a baselined file passes at its count, reports every hit above it, and reports once below it", async () => {
   const [path, count] = Object.entries(baseline).find(([file]) => file.endsWith(".ts")) ?? ["", 0];
   const lines = (n: number): string =>
     `${Array.from({ length: n }, (_, index) => `// Fixed by #${String(1000 + index)}.`).join("\n")}\nexport const value = 1;\n`;
   expect(await findings(lines(count), path)).toEqual([]);
   expect(await findings(lines(count + 1), path)).toHaveLength(count + 1);
+  const below = await findings(lines(count - 1), path);
+  expect(below).toHaveLength(1);
+  expect(below[0]?.line).toBe(1);
 });
 
 // The ratchet: every population file's count equals its baseline entry, so a grown count, a new file and an

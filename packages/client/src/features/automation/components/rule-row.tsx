@@ -225,7 +225,7 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
     // dry run that errored (or was refused) would say the rule was tested and passed when the test produced
     // no answer at all. `null` is the honest state here — the same one the row starts in — and the
     // mutation's own error surface owns the reason. Clearing FIRST also removes the window where a slow
-    // retest shows the prior verdict as if it were the new one.
+    // retest shows the old verdict as if it were the new one.
     setTestResult(null);
     testRule.mutateAsync({ ruleId: rule.id, chatId }).then(
       (result) => setTestResult({ result, rule }),

@@ -39,7 +39,9 @@ const HISTORY_PATTERNS = [
   // The passive `is used to build` states a purpose, not a past.
   { kind: '"used to"', pattern: /(?<!\b(?:is|are|be|been|being|was|were|gets?|got|getting|and|or|not|never|only),?\s)\bused to\b/giu },
   { kind: '"formerly"', pattern: /\bformerly\b/giu },
-  { kind: '"the old"', pattern: /\bthe old\b/giu },
+  // Only a past-tense verb within two words makes it history (`the old latch` + `was per-tab`); `the old one` and
+  // `the old host retains` name runtime state.
+  { kind: '"the old"', pattern: /\bthe old(?=(?:\s+\S+){0,2}?\s+(?:was|were|had|did|\w+ed)\b)/giu },
   // A compound adjective (`previously-seen key`) describes runtime state.
   { kind: '"previously"', pattern: /\bpreviously\b(?!-)/giu },
   { kind: '"load-bearing"', pattern: /\bload-bearing\b/giu },
@@ -65,7 +67,8 @@ function historyHits(text: string): { kind: string; index: number; length: numbe
 const historyBaseline: Readonly<Record<string, number>> = HISTORY_COMMENT_BASELINE;
 
 // Existing hits are counted per file in history-comment-baseline.json. A file over its count reports every hit so
-// the author sees all of them; tests/tooling/eslint-history-comments.test.ts holds the baseline to the tree.
+// the author sees all of them; a file under it reports once, so a shrink is recorded wherever ESLint runs.
+// tests/tooling/eslint-history-comments.test.ts also catches a stale entry for a file ESLint no longer sees.
 export const historyCommentRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
@@ -77,7 +80,14 @@ export const historyCommentRule: OrbRule = {
           return historyHits(comment.value).map((hit) => ({ ...hit, start: start + hit.index }));
         });
         const allowed = historyBaseline[relative(context.cwd, context.filename).replaceAll("\\", "/")] ?? 0;
-        if (hits.length <= allowed) {
+        if (hits.length < allowed) {
+          context.report({
+            loc: { line: 1, column: 0 },
+            message: `This file has ${hits.length} history comment hits against a baseline of ${allowed}; set its entry in tooling/src/eslint/history-comment-baseline.json to ${hits.length}, or remove the entry at 0, so the baseline only shrinks.`,
+          });
+          return;
+        }
+        if (hits.length === allowed) {
           return;
         }
         for (const hit of hits) {

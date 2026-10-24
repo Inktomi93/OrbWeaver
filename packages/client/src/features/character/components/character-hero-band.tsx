@@ -168,8 +168,8 @@ function HeroPortrait({ detail, trpc }: { readonly detail: CharacterHeroDetail; 
       const stored = await upload(file, "avatar");
       // UPLOAD-COMPLETE IS NOT COMMIT. The blob landing in the CAS says nothing about the character row
       // pointing at it: swapping the portrait on `.mutate` would leave a rejected `character.update`'s new
-      // face on screen — over a card that still wears its prior one everywhere else. Both the preview and its
-      // confirmation are the WRITE's, not the upload's; a failure keeps the prior portrait and speaks through
+      // face on screen — over a card that still wears the old one everywhere else. Both the preview and its
+      // confirmation are the WRITE's, not the upload's; a failure keeps the old portrait and speaks through
       // the mutation's own errorToast.
       update.mutate(
         { characterId: detail.id, input: { avatarAssetId: stored.assetId } },
