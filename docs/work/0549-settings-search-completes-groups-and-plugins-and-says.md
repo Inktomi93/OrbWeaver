@@ -10,7 +10,7 @@ area: client
 
 ## What
 
-After 0484, only @shelf: values get completions; typing @in:chat opens an empty 12px dropdown with no message, @plugin: with no value lists all 158 rows (menuTokens in config-search-input.tsx returns \[] for those kinds). A search with no matches renders an empty listbox with no text and nothing announced (pre-existing).
+`menuTokens` (`packages/client/src/features/config/components/config-search-input.tsx:154-160`) completes only @shelf: values. For @in: and @plugin: it returns no completions. A no-match search renders "No settings match" (line 228); whether it is announced is unchecked.
 
 ## Why
 
@@ -18,7 +18,7 @@ A user typing a filter gets no guidance and a blank result reads as broken.
 
 ## Done when
 
-@in: and @plugin: offer name completions like shelfCompletions; a no-match search shows and announces an empty state; CT covers both.
+@in: and @plugin: offer name completions like shelfCompletions. The no-match empty state is announced to assistive technology. A CT covers both.
 
 ## Evidence
 

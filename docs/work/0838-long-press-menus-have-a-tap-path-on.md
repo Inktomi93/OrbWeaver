@@ -10,7 +10,7 @@ area: client
 
 ## What
 
-member-row\.tsx:81 and character-filter-rail-parts.tsx:224 open menus from onContextMenu, which iOS WebKit does not fire on long-press. Unverified on device. Source: ~/Archives/orbweaver-reviews/phone-pass-oct10.md Suspicions.
+The tag chip at `packages/client/src/features/character/components/character-filter-rail-parts.tsx:224` opens its edit action only from onContextMenu, which iOS WebKit does not fire on long-press. Unverified on device. The row body in `packages/client/src/features/chat/components/member-row.tsx:81` is the menu trigger, so a tap already opens it; its onContextMenu serves the keyboard ContextMenu key only.
 
 ## Why
 
@@ -18,7 +18,7 @@ The owner uses iOS; a long-press-only door is dead there.
 
 ## Done when
 
-Every onContextMenu-opened menu has a visible tap fallback, or a long-press handler that fires on iOS, with a CT for the tap path.
+The tag chip has a visible tap path to its edit action, or a long-press handler that fires on iOS, with a CT for the tap path.
 
 ## Evidence
 
