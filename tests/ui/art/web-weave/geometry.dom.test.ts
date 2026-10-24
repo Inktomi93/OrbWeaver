@@ -1,6 +1,9 @@
 import { expect, test } from "@orb/testkit/node";
-import type { BuildWebInput, WeavePoint } from "@orb/ui/web-weave";
-import { buildStrandOut, buildWeb, WEAVE_TIMELINE, weaveJitter, weavePhaseAt, webGlyph, wrapToPi } from "@orb/ui/web-weave";
+import { webGlyph } from "#ui/art/web-weave/web-glyph.ts";
+import type { BuildWebInput, WeavePoint } from "#ui/art/web-weave/web-weave-geometry.ts";
+import { buildStrandOut, buildWeb } from "#ui/art/web-weave/web-weave-geometry.ts";
+import { weaveJitter, wrapToPi } from "#ui/art/web-weave/web-weave-math.ts";
+import { WEAVE_TIMELINE, weavePhaseAt } from "#ui/art/web-weave/web-weave-timeline.ts";
 
 const HOSTS = [
   { width: 1280, height: 800, hub: { x: 0.5, y: 0.42 }, seed: 7 },

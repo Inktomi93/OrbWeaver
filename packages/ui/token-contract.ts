@@ -123,11 +123,6 @@ export interface GeneratedCssValue {
   readonly placement: CssValuePlacement;
 }
 
-export interface NearDuplicateOptions {
-  readonly lightSource?: JsonObject;
-  readonly allowed?: Readonly<Record<string, string>>;
-}
-
 interface TokenContractDiagnostic {
   readonly path: string;
   readonly message: string;

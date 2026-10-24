@@ -29,9 +29,7 @@ export {
   WORKLOAD_KINDS,
   WORKLOAD_MODES,
   WORKLOAD_STATUSES,
-  workloadKindSchema,
   workloadModeSchema,
-  workloadStatusSchema,
 } from "./axes.ts";
 export type { WorkloadError, WorkloadEvent } from "./events.ts";
 export type {
