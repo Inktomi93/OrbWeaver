@@ -4,12 +4,16 @@
 // @subject packages/server/src/domain/import/loader/import-bundle.ts
 // @subject packages/server/src/domain/import/substrate/handle.ts
 // @subject packages/server/src/domain/settings/verbs/import-user-settings.ts
+// @subject packages/server/src/primitives/serde/card/index.ts
+// @subject packages/server/src/domain/export/verbs/export-character.ts
 
+import type { OwnedAssetCursor } from "@orb/contracts/assets";
+import { ASSET_LIST_LIMIT_MAX } from "@orb/contracts/assets";
 import { CHARACTER_HANDLE_WIRE_KEY, characterCardV3Schema, characterHandleSchema, createCharacterSchema } from "@orb/contracts/character";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { importStartedSchema } from "@orb/contracts/import";
 import type { PortableImportOutcome, PortableKind } from "@orb/contracts/portability";
-import type { CharacterHandle, WorkloadId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, WorkloadId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
@@ -23,6 +27,8 @@ const SIGNED_IN_ROUTE = "/api/trpc/sessions.me";
 const WORKLOAD_DEADLINE_MS = 60_000;
 /** Asset ids restore verbatim, so the exporting box mints from its own band. */
 const SOURCE_ID_CURSOR = 2 ** 29;
+/** A second restore target, which also restores ids it did not mint. */
+const THIRD_BOX_ID_CURSOR = 2 ** 30;
 const PNG = "image/png";
 /** A handle the owner chose, which is not the slug of the character's name. */
 const CHOSEN_HANDLE = castId<CharacterHandle>("lantern-warden");
@@ -160,6 +166,68 @@ test("two different cards carrying one over-long handle both restore inside the 
     handles: ["twin", "twin-2"],
     withinCap: true,
   });
+});
+
+/** A SillyTavern card its author starred, whose embedded book carries a description. */
+const ARCHIVIST = "Archivist";
+// The SillyTavern wire spells its keys in snake_case, so the card is written as the bytes a user would drop in.
+const STARRED_CARD = `{"spec":"chara_card_v3","spec_version":"3.0","data":{"name":"${ARCHIVIST}","description":"An archivist of the outer stacks.","first_mes":"Welcome to the stacks.","alternate_greetings":["Mind the dust."],"extensions":{"fav":true,"talkativeness":"0.7"},"character_book":{"name":"Archive Book","description":"What the archivist remembers.","entries":[{"keys":["lantern"],"content":"The lantern burns amber.","insertion_order":10,"enabled":true,"id":0,"extensions":{}}]}}}`;
+
+async function charactersNamed(root: ServerTestHarness, name: string): Promise<CharacterId[]> {
+  const caller = await root.internalCallerFor(root.ownerId);
+  return (await caller.character.list({})).items.filter((item) => item.name === name).map((item) => item.id);
+}
+
+/** Every content hash the owner holds, through the owned-asset read the library uses. */
+async function ownedAssetHashes(root: ServerTestHarness): Promise<Set<string>> {
+  const caller = await root.internalCallerFor(root.ownerId);
+  const hashes = new Set<string>();
+  let cursor: OwnedAssetCursor | undefined;
+  for (;;) {
+    const page = await caller.assets.listOwned({ limit: ASSET_LIST_LIMIT_MAX, ...(cursor === undefined ? {} : { cursor }) });
+    for (const item of page) {
+      hashes.add(item.hash);
+    }
+    const last = page.at(-1);
+    if (page.length < ASSET_LIST_LIMIT_MAX || last === undefined) {
+      return hashes;
+    }
+    cursor = { uploadedAt: last.uploadedAt, assetId: last.assetId };
+  }
+}
+
+// A restore into a box that already holds the card dedups onto it only when the two identities match, so one
+// character per box after every crossing is the identity holding across exports.
+test("a restored card keeps its import identity through the next export and restore, whatever its star", async () => {
+  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  expect(await restoreCard(source, "archivist.json", new TextEncoder().encode(STARRED_CARD))).toEqual({ ok: true, created: true });
+  const sourceBundle = await exportLibrary(source);
+
+  await using target = await signedInBox();
+  await restore(target, sourceBundle);
+  const [restored] = await charactersNamed(target, ARCHIVIST);
+  if (restored === undefined) {
+    throw new Error("the restore landed no archivist");
+  }
+  // A star is the owner's mark on the library, not card content.
+  await target.services.character.update({ principal: await target.principalFor(target.ownerId), characterId: restored, input: { starred: true } });
+  const targetBundle = await exportLibrary(target);
+
+  await using third = await signedInBox(createSeededIds(THIRD_BOX_ID_CURSOR));
+  await restore(third, targetBundle);
+  const [sourceAssets, targetAssets, thirdAssets] = [await ownedAssetHashes(source), await ownedAssetHashes(target), await ownedAssetHashes(third)];
+  // The target's own re-export, now starred, back into the target.
+  await restore(target, targetBundle);
+  await restore(source, targetBundle);
+
+  expect({
+    charactersPerBox: [
+      (await charactersNamed(source, ARCHIVIST)).length,
+      (await charactersNamed(target, ARCHIVIST)).length,
+      (await charactersNamed(third, ARCHIVIST)).length,
+    ],
+    assetsLost: [[...sourceAssets].filter((hash) => !targetAssets.has(hash)), [...targetAssets].filter((hash) => !thirdAssets.has(hash))],
+  }).toEqual({ charactersPerBox: [1, 1, 1], assetsLost: [[], []] });
 });
 
 test("user settings restore onto the background art the fresh box already seeded", async () => {

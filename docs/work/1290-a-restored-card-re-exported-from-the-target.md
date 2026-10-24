@@ -22,4 +22,13 @@ Reproduced or refuted with a composed round trip (export A, restore into B, expo
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Reproduced with a composed round trip in `tests/server/domain/import/loader/import-bundle.int.test.ts` ("a restored card keeps its import identity through the next export and restore, whatever its star"): a starred SillyTavern card with a described embedded book is imported on box A, restored A to B, starred on B, then B's export is restored into a third box, back into B and back into A. A restore onto a box that holds the card dedups only when the identities match. Before the fix, A and B each held two Archivists.
+
+Two fields drifted:
+
+- The star. `cardFromJson` promotes `extensions.fav` to `starred` (`packages/server/src/primitives/serde/card/index.ts`), `cardImportHash` hashed it, the create verb drops it (`createCharacterSchema` has no `starred`), and the export writes the live star. A star is the owner's mark on the library, so the identity now excludes it. It pins the key to `false` instead of dropping it, so every stored identity of an unstarred card keeps its hash.
+- The embedded book's description. The import stores it on the world book, but `embeddedBookWire` wrote only the name and entries. The description is book content, so the export now writes it (`bookDescription` from `export-character.ts`).
+
+Each fix alone leaves the test red: the identity fix alone leaves two Archivists on A (the description), and the export fix alone leaves two on B (the star).
+
+Asset content hashes are stable across a restore: every asset hash on A lands on B and every hash on B lands on the third box (`assetsLost: [[], []]` in the same test). After one pass through an export, card identities were already a fixed point (B equalled the third box) for unstarred cards without a book description.

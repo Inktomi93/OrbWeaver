@@ -403,11 +403,15 @@ export interface CardImportIdentity {
 
 /** sha-256 hex over the normalized parsed content — the import dedup key stored as `characters.importHash`.
  *  Two files that parse to the same card hash the same; two cards that differ anywhere (a note, a script, a
- *  book entry, the art) do not, even when they share a name; a tag set is not identity. Two things that are NOT identity: a script's
- *  `id` (ST's client-minted id on the way in, the library row id on the way out) and the wire `spec` (a V2
- *  card re-saved as V3 is the same character, and the row keeps no spec), so an export re-imports as itself. */
+ *  book entry, the art) do not, even when they share a name; a tag set is not identity. Three things that are NOT identity: a script's
+ *  `id` (ST's client-minted id on the way in, the library row id on the way out), the wire `spec` (a V2
+ *  card re-saved as V3 is the same character, and the row keeps no spec) and the star (`extensions.fav`, the
+ *  owner's mark on the library, which an export writes from the live row), so an export re-imports as itself. */
 export function cardImportHash(identity: CardImportIdentity): string {
-  const { regexScripts, spec: _spec, ...card } = identity.card;
+  const { regexScripts, spec: _spec, ...parsed } = identity.card;
+  // Pinned rather than dropped: every identity already stored was hashed with the key present, and an
+  // unstarred card must keep the hash it was stored under.
+  const card = { ...parsed, starred: false };
   const scripts = (regexScripts ?? []).map(({ id: _id, ...behavior }) => behavior);
   // The book by its entry identities (order-independent, residue-free), so an export's book is its import's.
   const book =
@@ -440,6 +444,9 @@ export interface ExportCardFields {
   /** The embedded book's own name (`character_book.name`), so a re-import names it as it is here, not by
    *  the import's fallback. Absent or null emits the entries without a name. */
   readonly bookName?: string | null;
+  /** The embedded book's own description (`character_book.description`), part of the card's import identity.
+   *  Absent or null emits none. */
+  readonly bookDescription?: string | null;
   readonly description: string | null;
   readonly personality: string | null;
   readonly scenario: string | null;
@@ -784,6 +791,9 @@ function embeddedBookWire(fields: ExportCardFields, entries: ExportWorldEntry[])
   const book: Record<string, unknown> = {};
   if (fields.bookName !== undefined && fields.bookName !== null) {
     book["name"] = fields.bookName;
+  }
+  if (fields.bookDescription !== undefined && fields.bookDescription !== null) {
+    book["description"] = fields.bookDescription;
   }
   book["entries"] = entries.map(exportBookEntry);
   const out: Record<string, unknown> = {};
