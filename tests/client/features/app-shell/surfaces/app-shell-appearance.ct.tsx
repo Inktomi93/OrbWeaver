@@ -4,7 +4,8 @@
 import { REDUCED_MOTION_ATTR } from "@orb/client/state";
 import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
 import type { ChatId } from "@orb/kit/ids";
-import { AA_NON_TEXT_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
+import type { Rgb } from "@orb/kit/theme-derivation";
+import { AA_NON_TEXT_RATIO, AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { createShellAmbientReads, routeOrbSocket, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
@@ -89,10 +90,22 @@ function appearanceSettings(
 
 /** Serve the shell and its sections, with the corpus viewer's settings carrying `appearance` and, when named, a selected theme. */
 async function routeAppearance(page: Page, corpus: CorpusWire, appearance: Partial<AppearanceSettings>, selectedThemeId?: string): Promise<void> {
+  await routeLiveAppearance(page, corpus, () => ({ appearance, selectedThemeId }));
+}
+
+/** {@link routeAppearance} with the settings read each time the shell asks, so a case can remount on a different answer. */
+async function routeLiveAppearance(
+  page: Page,
+  corpus: CorpusWire,
+  read: () => { readonly appearance: Partial<AppearanceSettings>; readonly selectedThemeId?: string | undefined },
+): Promise<void> {
   await routeTrpc(page, {
     ...createShellAmbientReads(corpus),
     ...serveCorpusProcedures(await root.internalCallerFor(root.ownerId), SERVED),
-    "settings.getUserSettings": () => appearanceSettings(corpus, appearance, selectedThemeId),
+    "settings.getUserSettings": () => {
+      const { appearance, selectedThemeId } = read();
+      return appearanceSettings(corpus, appearance, selectedThemeId);
+    },
     "stream.attach": null,
     "stream.detach": null,
   });
@@ -156,6 +169,35 @@ async function noiseSpread(page: Page, box: { x: number; y: number; width: numbe
     },
     `data:image/png;base64,${shot.toString("base64")}`,
   );
+}
+
+/** A design token resolved to the RGB it paints, through a canvas, inside `host` so it takes that box's theme. */
+function tokenInk(host: Locator, token: string): Promise<Rgb> {
+  return host.evaluate((element, name) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = 1;
+    const context = canvas.getContext("2d");
+    if (context === null) {
+      throw new Error("no 2d context");
+    }
+    context.fillStyle = getComputedStyle(element).getPropertyValue(name).trim();
+    context.fillRect(0, 0, 1, 1);
+    const [r = 0, g = 0, b = 0] = context.getImageData(0, 0, 1, 1).data;
+    return { b, g, r };
+  }, token);
+}
+
+/** The surface's weakest ink, `--color-muted-foreground`, against the pixel that lands at its centre over the wallpaper. */
+async function landedMutedContrast(page: Page, surface: Locator, label: string): Promise<number> {
+  const box = await surface.boundingBox();
+  if (box === null) {
+    throw new Error(`${label} is not laid out`);
+  }
+  const landed = await pixel(page, Math.floor(box.x + box.width / 2), Math.floor(box.y + box.height / 2));
+  const ratio = wcagContrastRatio(await tokenInk(surface, "--color-muted-foreground"), landed);
+  test.info().annotations.push({ type: "over-art-contrast", description: `${label} ${ratio.toFixed(2)}:1 over ${JSON.stringify(landed)}` });
+  return ratio;
 }
 
 /** The selected theme for a case: the corpus default for dark, the seeded Light theme for light. */
@@ -732,6 +774,126 @@ test.describe("over a wallpaper", () => {
     await expect(layer).toHaveCount(0);
     await page.locator(".shell-rail").getByRole("button", { name: "Chats", exact: true }).click();
     await expect(layer).toBeVisible();
+  });
+});
+
+test.describe("the light arm's plate over a wallpaper", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize(WIDE);
+  });
+
+  test("a light pane's glass takes the reading plate's floor over a wallpaper, while a dark pane's glass is the same with or without one", async ({
+    corpus,
+    mount,
+    page,
+  }) => {
+    let state: { readonly appearance: Partial<AppearanceSettings>; readonly selectedThemeId?: string | undefined } = {
+      appearance: { ...wallpaper(corpus), blurSurfaces: ["panels"] },
+      selectedThemeId: lightThemeId,
+    };
+    await seedShellState(page, { activeSection: "chats" });
+    await routeLiveAppearance(page, corpus, () => state);
+    const pane = page.locator(LIST);
+    const light = await mount<typeof AppShellStory>(STORY, {});
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await expect(page.locator(".shell-grid")).toHaveAttribute("data-has-bg-image", "true");
+    const plate = await computed(pane, "--color-reading-plate");
+    await expect.poll(async () => fillAlpha(pane, "::before")).toBeGreaterThanOrEqual(alphaOf(plate.trim()));
+    expect(await landedMutedContrast(page, pane, "light pane")).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+    await light.unmount();
+
+    state = { appearance: { ...wallpaper(corpus), blurSurfaces: ["panels"] } };
+    const overArt = await mount<typeof AppShellStory>(STORY, {});
+    await expect(page.locator(".shell-grid")).toHaveAttribute("data-has-bg-image", "true");
+    await expect.poll(() => fillAlpha(pane, "::before")).toBeLessThan(1);
+    const darkOverArt = await computed(pane, "background-color", "::before");
+    await overArt.unmount();
+
+    state = { appearance: { blurSurfaces: ["panels"] } };
+    await mount<typeof AppShellStory>(STORY, {});
+    await expect(page.locator(".shell-grid")).toBeVisible();
+    await expect.poll(() => page.locator(".shell-grid").getAttribute("data-has-bg-image")).toBeNull();
+    await expect.poll(() => computed(pane, "background-color", "::before")).toBe(darkOverArt);
+  });
+
+  test("another section's light reading surface takes the plate's floor and clears AA on its weakest ink over a wallpaper", async ({ corpus, mount, page }) => {
+    await seedShellState(page, { activeSection: "characters" });
+    await routeAppearance(page, corpus, { ...wallpaper(corpus), blurSurfaces: ["panels"] }, lightThemeId);
+    await mount<typeof AppShellStory>(STORY, {});
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await expect(page.locator(".shell-grid")).toHaveAttribute("data-has-bg-image", "true");
+    const plate = (await computed(page.locator(".shell-main"), "--color-reading-plate")).trim();
+    await expect.poll(() => fillAlpha(page.locator(".shell-main"), "::before")).toBeGreaterThanOrEqual(alphaOf(plate));
+    expect(await landedMutedContrast(page, page.locator(".shell-main"), "light reading surface")).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+  });
+
+  test("a light dialog takes the plated fill with or without a wallpaper and clears AA over one, while a dark dialog stays glass and does not move", async ({
+    corpus,
+    mount,
+    page,
+  }) => {
+    let state: { readonly appearance: Partial<AppearanceSettings>; readonly selectedThemeId?: string | undefined } = {
+      appearance: { ...wallpaper(corpus), blurSurfaces: ["modals"] },
+      selectedThemeId: lightThemeId,
+    };
+    await seedShellState(page, { activeSection: "chats" });
+    await routeLiveAppearance(page, corpus, () => state);
+    const dialog = page.locator(DIALOG);
+    const reads: Record<string, string> = {};
+    for (const arm of [
+      { name: "lightArt", appearance: { ...wallpaper(corpus), blurSurfaces: ["modals"] }, selectedThemeId: lightThemeId },
+      { name: "lightPlain", appearance: { blurSurfaces: ["modals"] }, selectedThemeId: lightThemeId },
+      { name: "darkArt", appearance: { ...wallpaper(corpus), blurSurfaces: ["modals"] }, selectedThemeId: undefined },
+      { name: "darkPlain", appearance: { blurSurfaces: ["modals"] }, selectedThemeId: undefined },
+    ] satisfies readonly { name: string; appearance: Partial<AppearanceSettings>; selectedThemeId: string | undefined }[]) {
+      state = arm;
+      const mounted = await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId: "newChat" });
+      await expect(dialog).toBeVisible();
+      await expect.poll(() => page.locator("html").getAttribute("data-theme")).toBe(arm.selectedThemeId === undefined ? null : "light");
+      await expect.poll(() => fillAlpha(dialog)).toBeGreaterThan(0);
+      reads[arm.name] = await computed(dialog, "background-color");
+      reads[`${arm.name}Plate`] = (await computed(dialog, "--color-reading-plate")).trim();
+      reads[`${arm.name}Contrast`] = String(arm.name === "lightArt" ? await landedMutedContrast(page, dialog, "light dialog") : 0);
+      await mounted.unmount();
+    }
+    test.info().annotations.push({ type: "dialog-fills", description: JSON.stringify(reads) });
+    expect(Number(reads["lightArtContrast"])).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+    expect(reads["lightPlain"]).toBe(reads["lightArt"]);
+    expect(alphaOf(reads["lightPlain"] ?? "")).toBeGreaterThanOrEqual(alphaOf(reads["lightPlainPlate"] ?? ""));
+    expect(reads["darkArt"]).toBe(reads["darkPlain"]);
+    expect(alphaOf(reads["darkPlain"] ?? "")).toBeLessThan(1);
+  });
+
+  test("in a room over a wallpaper the light composer and bubbles clear AA on their weakest ink, and the dark ones are the same as with no wallpaper", async ({
+    corpus,
+    mount,
+    page,
+  }) => {
+    let state: { readonly appearance: Partial<AppearanceSettings>; readonly selectedThemeId?: string | undefined } = {
+      appearance: {},
+    };
+    await seedShellState(page, { activeSection: "chats" });
+    await routeLiveAppearance(page, corpus, () => state);
+    const chatId = await groupRoomId();
+    const surfaces = [page.locator(COMPOSER), ...ROOM_ROLES.map((role) => bubble(page, role))];
+    const fills: Record<string, string[]> = {};
+    for (const arm of [
+      { name: "light", appearance: { ...wallpaper(corpus), blurSurfaces: ["composer", "messages"] }, selectedThemeId: lightThemeId },
+      { name: "darkArt", appearance: { ...wallpaper(corpus), blurSurfaces: ["composer", "messages"] }, selectedThemeId: undefined },
+      { name: "darkPlain", appearance: { blurSurfaces: ["composer", "messages"] }, selectedThemeId: undefined },
+    ] satisfies readonly { name: string; appearance: Partial<AppearanceSettings>; selectedThemeId: string | undefined }[]) {
+      state = arm;
+      const mounted = await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
+      await roomReady(page);
+      await expect.poll(() => page.locator("html").getAttribute("data-theme")).toBe(arm.selectedThemeId === undefined ? null : "light");
+      await expect.poll(() => fillAlpha(page.locator(COMPOSER))).toBeLessThan(1);
+      fills[arm.name] = await Promise.all(surfaces.map((surface) => computed(surface, "background-color")));
+      const ratios =
+        arm.name === "light" ? await Promise.all(surfaces.map((surface, index) => landedMutedContrast(page, surface, `light ${String(index)}`))) : [];
+      expect(ratios.filter((ratio) => ratio < AA_NORMAL_RATIO)).toStrictEqual([]);
+      await mounted.unmount();
+    }
+    expect(fills["darkArt"]).toStrictEqual(fills["darkPlain"]);
   });
 });
 
