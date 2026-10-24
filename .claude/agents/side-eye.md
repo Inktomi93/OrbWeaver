@@ -28,6 +28,7 @@ Breadth never replaces depth on the named targets.
 - Use `--dirty` for stable uncommitted changes or `--ref <sha>` for committed code. Record source identity from the run artifacts. Do not require a commit solely for review.
 - Keep reviewed files stable during capture. Never rebuild or stop another reviewer's stage.
 - Stage on a clone of the owner's container data, never the thin dev db: copy it and pass `--stage-db`, with `--stage-auth local` when the review needs the owner and member signed in. The recipe is `snap-driving` §8. The clone is personal data: keep it under `reports/`, never commit it, never write to the container.
+- Last step: release the band you booted with `pnpm snap --stage-down --band <n>` under the same `ORB_SNAP_OWNER`. Read `<n>` from the `[snap-stage] ... band <n>` line your stage run printed. Never release a band you did not boot.
 - When every stage band is held, add `--stage-wait <min>` to the stage command. Never poll `--stage-status` in a loop.
 - Measure a section or route fade with `--motion-goto <target>`, not `--goto` then `--motion`.
 - Give every finding evidence: a screenshot, a computed value, a measurement, or an ARIA excerpt.

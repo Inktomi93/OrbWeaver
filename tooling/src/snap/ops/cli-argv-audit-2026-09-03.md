@@ -243,6 +243,7 @@ The normal roster was derived from `tooling/src/snap/ops/parse.ts`, `flags-class
 | `--open-chat` | `V,R,@N` chat id | action; app-specific chat navigation | checkpoint | SPA bridge ergonomic distinct from raw goto/click | owned | KEEP (owner ruling) |
 | `--out` | `V,L` artifact base/name | capture/output and session-export destination | checkpoint/admin export | typed through the session request; custom JSON/HAR/trace artifacts enter the immutable index | owned | KEEP |
 | `--stage-owner` | `V,L` owner id | stage admin targeting | admin | child of stage-down | owned | KEEP; old `--owner` refuses by name |
+| `--band` | `V` | stage admin targeting | admin | child of stage-down; one band of your own rows, excludes `--stage-owner` | owned | KEEP |
 | `--pages` | `V,L` integer | boot/call; page count | outer/session boot | page suffix targets created pages | owned | KEEP |
 | `--panel` | `V,R,@N` panel name | action; open/select panel | checkpoint | `--panels` lists/sets collection | owned | KEEP |
 | `--panels` | `V,L` panel-set spec | boot/action appearance | outer/checkpoint contract-dependent | not singular alias | owned | KEEP |

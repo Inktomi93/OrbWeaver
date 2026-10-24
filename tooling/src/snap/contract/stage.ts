@@ -461,4 +461,6 @@ export interface StageArgs {
   /** Explicit checkout selector for stage teardown. Cross-checkout teardown is deliberate per band and
    *  therefore requires --force; a bare --force never broadens the default owned-row selection. */
   stageOwner: string | null;
+  /** `--band <n>`: with `--stage-down`, release only that band of the caller's own rows. null = every owned row. */
+  stageBand: number | null;
 }
