@@ -4,9 +4,9 @@ import { writeFile } from "node:fs/promises";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { declaredCapabilitySchema } from "@orb/contracts/inference";
-import { logRing } from "@orb/server/foundation/observability";
 import type { SdkPrivateDiagnosticResult } from "./contract/sdk-private-diagnostics.ts";
 import { sdkPrivateDiagnosticInputSchema } from "./contract/sdk-private-diagnostics.ts";
+import { processObservability } from "./observed.ts";
 import { createSdkProcessIdentity } from "./sdk-process.ts";
 import { createServerHarness } from "./server.ts";
 
@@ -60,7 +60,7 @@ await harness[Symbol.asyncDispose]();
 await Promise.all(closes);
 const result: SdkPrivateDiagnosticResult = {
   errors,
-  appLogs: logRing.recent(100),
+  appLogs: [...processObservability.logLines(100)],
   exitCodes: children.map((child) => child.exitCode),
   signalCodes: children.map((child) => child.signalCode),
   nativeChildren: children.length,

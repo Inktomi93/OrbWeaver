@@ -5,11 +5,12 @@ import type { VerifyAuthResult } from "@orb/contracts/providers";
 import type { LogLevel } from "@orb/contracts/settings";
 import type { AgentSdkNativeOptions, AgentSdkQuery, AgentSdkSpawn, ChatResult, Resolved } from "@orb/inference";
 import { ProviderError, toChatRequest } from "@orb/inference";
-import { logRing, runInRequest } from "@orb/server/foundation/observability";
+import { runInRequest } from "@orb/server/foundation/observability";
 import { sql } from "drizzle-orm";
 import { vi } from "vitest";
 import { z } from "zod";
 import { expect, test } from "./fixtures.ts";
+import { processObservability } from "./observed.ts";
 import { createSdkProcessIdentity, createSdkProcessSpawner } from "./sdk-process.ts";
 import { createServerHarness } from "./server.ts";
 
@@ -229,7 +230,7 @@ test("raw SDK startup failure retains scrubbed split-UTF8 stderr diagnostics and
     harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_DIAGNOSTIC_CRASH" }] }),
   ).rejects.toMatchObject({ kind: "server" });
   expect(child?.exitCode).toBe(7);
-  const diagnostics = logRing.recent(100).filter((line) => line.includes("sdk-diagnostic:"));
+  const diagnostics = processObservability.logLines(100).filter((line) => line.includes("sdk-diagnostic:"));
   expect(diagnostics).toHaveLength(1);
   const text = diagnostics.join("\n");
   expect(text).toContain("café");
@@ -297,7 +298,7 @@ test("native raw exit diagnostics include stderr drained by a real descendant af
     { kind: "server" },
   );
   expect(child?.exitCode).toBe(7);
-  const lines = logRing.recent(100).filter((line) => line.includes("sdk-late-diagnostic:"));
+  const lines = processObservability.logLines(100).filter((line) => line.includes("sdk-late-diagnostic:"));
   expect(lines).toHaveLength(1);
   expect(lines[0]).toContain("café complete");
 });
@@ -316,7 +317,7 @@ test("native stderr never publishes overlapping public fixture credential fragme
   await expect(
     harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_OVERLAP_DIAGNOSTIC" }] }),
   ).rejects.toMatchObject({ kind: "server" });
-  const lines = logRing.recent(100).filter((line) => line.includes("sdk-overlap-diagnostic:"));
+  const lines = processObservability.logLines(100).filter((line) => line.includes("sdk-overlap-diagnostic:"));
   expect(lines).toHaveLength(1);
   expect(lines.some((line) => line.includes(PUBLIC_OVERLAP_TOKEN.slice(0, 8)))).toBe(false);
   expect(lines[0]).toContain("complete");
@@ -338,7 +339,7 @@ test.each(["intact", "split"] as const)("native stderr protects a known sk-shape
   await expect(
     harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: `SDK_SHAPED_DIAGNOSTIC:${mode}` }] }),
   ).rejects.toMatchObject({ kind: "server" });
-  const lines = logRing.recent(100).filter((line) => line.includes(`sdk-shaped-diagnostic:${mode}:`));
+  const lines = processObservability.logLines(100).filter((line) => line.includes(`sdk-shaped-diagnostic:${mode}:`));
   expect(lines).toHaveLength(1);
   expect(lines.some((line) => line.includes(PUBLIC_SHAPED_TOKEN))).toBe(false);
   expect(lines.some((line) => line.includes(PUBLIC_SHAPED_TOKEN.slice(32)))).toBe(false);
@@ -582,7 +583,7 @@ test("default native decoder retains split UTF8 diagnostics with known credentia
     harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_DIAGNOSTIC_CRASH" }] }),
   ).rejects.toMatchObject({ kind: "server" });
   expect(child?.exitCode).toBe(7);
-  const lines = logRing.recent().filter((line) => line.includes(`"requestId":"${logScope}"`) && line.includes("sdk-diagnostic:"));
+  const lines = processObservability.logLines().filter((line) => line.includes(`"requestId":"${logScope}"`) && line.includes("sdk-diagnostic:"));
   expect(lines).toHaveLength(1);
   expect(lines[0]).toContain("café");
   expect(lines[0]).toContain("complete");
@@ -635,8 +636,8 @@ test("default native stderr protects an oversized known opaque credential in app
   await expect(
     harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_SHAPED_DIAGNOSTIC:intact" }] }),
   ).rejects.toMatchObject({ kind: "server" });
-  const lines = logRing
-    .recent()
+  const lines = processObservability
+    .logLines()
     .filter(
       (line) =>
         line.includes(`"requestId":"${logScope}"`) &&
@@ -733,7 +734,7 @@ test.each(["chat", "agent", "verify"] as const)("default native startup diagnost
   expect(failure.cause.stack?.includes("N".repeat(32))).toBe(false);
   expect(failure.cause.cause).toBeUndefined();
   expect(closed).toBe(true);
-  const lines = logRing.recent(100).filter((line) => line.includes("sdk-native-startup-failure:"));
+  const lines = processObservability.logLines(100).filter((line) => line.includes("sdk-native-startup-failure:"));
   expect(lines.some((line) => line.includes("N".repeat(32)))).toBe(false);
 });
 
@@ -760,7 +761,7 @@ test("default native catalog refusal uses safe owned exit diagnostics", async ()
   expect(result.reason.includes("N".repeat(32))).toBe(false);
   expect(result.reason).toContain("code 7");
   expect(closed).toBe(true);
-  const lines = logRing.recent(100).filter((line) => line.includes("sdk-native-startup-failure:"));
+  const lines = processObservability.logLines(100).filter((line) => line.includes("sdk-native-startup-failure:"));
   expect(lines.some((line) => line.includes("N".repeat(32)))).toBe(false);
 });
 
@@ -819,7 +820,7 @@ test("default native stderr never publishes a confirmed known credential prefix 
   await expect(harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_PREFIX_EOF" }] })).rejects.toMatchObject({
     kind: "server",
   });
-  const lines = logRing.recent(100).filter((line) => line.includes("sdk-prefix-eof:"));
+  const lines = processObservability.logLines(100).filter((line) => line.includes("sdk-prefix-eof:"));
   expect(lines).toHaveLength(1);
   expect(lines.some((line) => line.includes("N".repeat(32)))).toBe(false);
   expect(lines[0]).toContain("█");
