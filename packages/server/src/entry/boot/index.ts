@@ -1,6 +1,8 @@
 // Front door for the boot protocol's step functions, run in order by entry/lifecycle.ts.
 
 export { backfillPluginProvenanceOnBoot } from "./backfill-plugin-provenance.ts";
+export type { BootOwner, BootOwnerSeed } from "./boot-owner.ts";
+export { handOffBootOwnerSweeps, prepareBootOwner } from "./boot-owner.ts";
 export { settleBootSecrets } from "./boot-secrets.ts";
 export { composeBootDisclaimer } from "./disclaimer.ts";
 export { healLegacyBackgroundPinsOnBoot } from "./heal-legacy-background-pins.ts";
