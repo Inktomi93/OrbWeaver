@@ -13,6 +13,8 @@ import type { RpgSceneCardsStory } from "./_scene-cards-stories.tsx";
 const STORY = "tests/client/features/rpg/components/_scene-cards-stories/RpgSceneCardsStory";
 const ARCHIVE = '[data-slot="rpg-card-archive"]';
 const PHONE_WIDTH = 430;
+const MS_PER_DAY = 86_400_000;
+const OTHER_YEAR_DAYS = 400;
 const CARD_TITLE = "The harbour ledger";
 const FOCUSED_STATUS_KEY = "__focusedStatusText";
 const CARD_FENCE = `:::card title="${CARD_TITLE}"\n<p>Tide tables for the quay.</p>\n:::`;
@@ -368,6 +370,8 @@ test.describe("at phone width with a coarse pointer", () => {
     if (origin === undefined) {
       throw new Error("Committed corpus chat omitted its user message");
     }
+    // The page's clock reads the day after the origin, so the turn is older but in the same year.
+    await page.clock.setFixedTime(origin.createdAt + MS_PER_DAY);
     await routeTrpc(page, { ...room.reads, "chat.listMessages": () => settled });
     await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
     const archive = page.locator(ARCHIVE);
@@ -413,5 +417,25 @@ test.describe("at phone width with a coarse pointer", () => {
     await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
     const chip = page.locator(ARCHIVE).locator('time[data-slot="rpg-turn-ref"]');
     await expect(chip).toHaveText(createTimeLib({ timeZone: UTC_TIME_ZONE }).formatTime(origin.createdAt));
+  });
+
+  test("a card from another year carries the year in its chip and its row name", async ({ corpus, mount, page }) => {
+    await using root = await createCorpusHarness();
+    const room = await archiveRoom(root, corpusChatId(corpus));
+    await room.plantCard();
+    const settled = await room.messages();
+    const origin = settled.messages.find((message) => message.role === "user");
+    if (origin === undefined) {
+      throw new Error("Committed corpus chat omitted its user message");
+    }
+    // More than a year after the origin, so the turn cannot share the page clock's year.
+    await page.clock.setFixedTime(origin.createdAt + OTHER_YEAR_DAYS * MS_PER_DAY);
+    await routeTrpc(page, { ...room.reads, "chat.listMessages": () => settled });
+    await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
+    const row = page.locator(ARCHIVE).locator('[data-slot="rpg-card-row"]');
+    const stamp = createTimeLib({ timeZone: UTC_TIME_ZONE }).formatDateTime(origin.createdAt);
+    await expect(row.locator('time[data-slot="rpg-turn-ref"]')).toHaveText(stamp);
+    await expect(row).toHaveAccessibleName(`Open card: ${CARD_TITLE}, ${stamp}`);
+    expect(stamp).toContain(String(new Date(origin.createdAt).getUTCFullYear()));
   });
 });

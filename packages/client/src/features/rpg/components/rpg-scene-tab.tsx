@@ -10,9 +10,6 @@
 // overlay under [merge-clear]); a npc's TRACKED VALUES ride `patchActor` (the op door — an npc's
 // values live on the per-actor plane, which left the image contract in R1); goals ride `upsertQuest`. Beats
 // are a log (read-only by nature).
-//
-// LANDMARKS: Kicker sections are headings; the tab panel is the landmark. The context bracket already names each
-// tab panel a region, so a section here is never a region of its own.
 
 import type { RpgActorOp, RpgActorRef, RpgSnapshotState, RpgTrackerEntry, RpgTrackerView } from "@orb/contracts/rpg";
 import { clockTimeOfDay, RPG_TRACKER_VALUE_EMPTY, RPG_WEATHER_TYPES, TIME_OF_DAY_HOURS, trackerCeiling, trackerNumber } from "@orb/contracts/rpg";

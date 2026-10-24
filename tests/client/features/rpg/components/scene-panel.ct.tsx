@@ -69,9 +69,11 @@ test.describe("at phone width", () => {
     // The seed fills on stage, known characters, goals, trackers, just now and the card archive.
     expect(await headings.count()).toBeGreaterThanOrEqual(6);
     await expect(page.getByRole("heading", { level: 3 })).toHaveCount(await headings.count());
-    // The tab panel's own region comes from the context bracket, outside this story.
-    // The providers' own toast viewport is the one region the story adds.
-    await expect(page.locator('[role="region"]:not([data-slot="toast-viewport"])')).toHaveCount(0);
+    // The tab panel's own region comes from the context bracket, outside this story; the providers' toast
+    // viewport is the one region the story adds.
+    const regions = page.getByRole("region");
+    await expect(regions).toHaveCount(1);
+    await expect(regions).toHaveAttribute("data-slot", "toast-viewport");
   });
 
   test("a long goal name is clipped inside the panel instead of scrolling it sideways", async ({ mount, page }) => {
