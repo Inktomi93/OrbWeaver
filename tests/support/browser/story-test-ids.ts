@@ -362,7 +362,7 @@ export const STORY_TEST_IDS = {
   seamlessDraft: "seamless-draft",
   seamlessState: "seamless-state",
   sectionBand: "section-band",
-  seedPreset: "seed-preset",
+  seedPresetRows: "seed-preset",
   seededRoom: "seeded-room",
   selected: "selected",
   selectedId: "selected-id",

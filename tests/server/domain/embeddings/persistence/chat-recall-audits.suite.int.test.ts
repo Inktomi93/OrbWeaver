@@ -7,8 +7,8 @@
 import { auditLogs } from "@orb/db";
 import { ProviderError } from "@orb/inference";
 import { expect } from "@orb/testkit/node";
-import { seedRecallCorpus } from "@orb/testkit/node/composed";
 import { TEST_PROVIDER_ID } from "@orb/testkit/node/helpers";
+import { seedRecallCorpusRows } from "@orb/testkit/node/rows";
 import { and, eq } from "drizzle-orm";
 import { fundingConnection, test } from "../verbs/runtime-funding.fixtures.ts";
 
@@ -23,7 +23,7 @@ for (const failedRole of ["embed", "chat"] as const) {
     const embedConnection = await fundingConnection({ ownerCaller, harness, task: "embed", credentialId: embedKey.id });
     const summaryConnection = await fundingConnection({ ownerCaller, harness, task: "summarize", credentialId: summaryKey.id });
     let beforeRecall = 0;
-    const seeded = await seedRecallCorpus(harness, {
+    const seeded = await seedRecallCorpusRows(harness, {
       chatConnectionId: chatConnection.connectionId,
       embedConnectionId: embedConnection.connectionId,
       summarizeConnectionId: summaryConnection.connectionId,

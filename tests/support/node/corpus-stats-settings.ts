@@ -9,7 +9,7 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { and, eq, inArray } from "drizzle-orm";
 import { seedCorpusAccount } from "./corpus-auth.ts";
 import type { TrpcCapture } from "./corpus-read.ts";
-import { seedStats } from "./factories/stats.ts";
+import { seedStats } from "./factories/rows/stats.ts";
 import type { TrpcInput, TrpcProcedurePath, TrpcWireOutput } from "./route-trpc.ts";
 import type { ServerTestHarness } from "./server.ts";
 

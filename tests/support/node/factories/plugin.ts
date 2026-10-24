@@ -1,27 +1,27 @@
-// Plugin canon is captured after the real lifecycle operation; guest storage and consent remain production-owned.
+// Plugin seeds run the production verbs and return their outcomes; rows-tier twins in `rows/plugin.ts` read the rows.
+
 import type { PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_MAIN_ENTRY, PLUGIN_MANIFEST_ENTRY } from "@orb/contracts/plugin";
-import { adminDistributedPlugins, plugins } from "@orb/db";
+import type { adminDistributedPlugins } from "@orb/db";
 import { MS_PER_SECOND } from "@orb/kit/time";
 import type { ServicesResult } from "@orb/server/entry/compose";
-import { eq } from "drizzle-orm";
 import { strToU8, zipSync } from "fflate";
 import type { ServerProducerRoot } from "../server.ts";
-import type { CapturedPluginRows } from "./rows.ts";
-import { capturePluginRows } from "./rows.ts";
 
-type PluginService = ServicesResult["services"]["plugin"];
+export type PluginService = ServicesResult["services"]["plugin"];
 
-type AdminDistributedPluginRow = typeof adminDistributedPlugins.$inferSelect;
+export type AdminDistributedPluginRow = typeof adminDistributedPlugins.$inferSelect;
 
-export interface SeededInstalledPlugin extends CapturedPluginRows {
+export interface SeededInstalledPlugin {
   readonly outcome: Awaited<ReturnType<PluginService["install"]>>;
+}
+
+export interface SeededPluginGrant {
+  readonly outcome: Awaited<ReturnType<PluginService["setGrant"]>>;
 }
 
 export interface SeededDistributedPlugin {
   readonly outcome: Awaited<ReturnType<PluginService["installForAllUsers"]>>;
-  readonly distribution: AdminDistributedPluginRow;
-  readonly installs: readonly CapturedPluginRows[];
 }
 
 export interface CapturedPluginOutputs {
@@ -73,35 +73,20 @@ export function makePluginBundle(manifest: PluginManifest, source: string, mtime
   );
 }
 
-/** Store validated bundle bytes through the actual install funnel, then capture its returned identity. */
+/** Store validated bundle bytes through the actual install funnel; the install outcome is the seed's result. */
 export async function seedInstalledPlugin(root: ServerProducerRoot, params: Parameters<PluginService["install"]>[0]): Promise<SeededInstalledPlugin> {
-  const db = root.db;
-  const install = root.services.plugin.install;
-  const outcome = await install(params);
-  return { outcome, ...(await capturePluginRows(db, params.caller.userId, outcome.id)) };
+  return { outcome: await root.services.plugin.install(params) };
 }
 
-/** Capture the actual grant/activation outcome, including contained activation failure rather than inventing enablement. */
-export async function seedPluginGrant(root: ServerProducerRoot, params: Parameters<PluginService["setGrant"]>[0]): Promise<SeededInstalledPlugin> {
-  const db = root.db;
-  const setGrant = root.services.plugin.setGrant;
-  const outcome = await setGrant(params);
-  return { outcome, ...(await capturePluginRows(db, params.caller.userId, outcome.id)) };
+/** The actual grant and activation outcome, including a contained activation failure, is the seed's result. */
+export async function seedPluginGrant(root: ServerProducerRoot, params: Parameters<PluginService["setGrant"]>[0]): Promise<SeededPluginGrant> {
+  return { outcome: await root.services.plugin.setGrant(params) };
 }
 
-/** The returned slug is the distribution PK; each recipient keeps its own canonical install and CAS ownership. */
+/** Publish to every user; the publication outcome names the slug each recipient's own install carries. */
 export async function seedDistributedPlugin(
   root: ServerProducerRoot,
   params: Parameters<PluginService["installForAllUsers"]>[0],
 ): Promise<SeededDistributedPlugin> {
-  const db = root.db;
-  const installForAllUsers = root.services.plugin.installForAllUsers;
-  const outcome = await installForAllUsers(params);
-  const distribution = await db.select().from(adminDistributedPlugins).where(eq(adminDistributedPlugins.slug, outcome.slug)).get();
-  if (distribution === undefined) {
-    throw new Error("production plugin distribution left no canonical publication row");
-  }
-  const rows = await db.select().from(plugins).where(eq(plugins.slug, outcome.slug)).orderBy(plugins.ownerId);
-  const installs = await Promise.all(rows.map((row) => capturePluginRows(db, row.ownerId, row.id)));
-  return { outcome, distribution, installs };
+  return { outcome: await root.services.plugin.installForAllUsers(params) };
 }

@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "seed-verb-outcomes"
+version: "0.1.0"
+description: "Rewrite verb-suite reads of a door seed's old row result to the verb outcome the seed returns."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["typescript"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

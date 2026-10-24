@@ -1,6 +1,7 @@
 // @subject tests/support/node/corpus-provider.ts
 import { createCharacterSchema } from "@orb/contracts/character";
 import { characterEmbeddings, characters, embeddingCalls } from "@orb/db";
+import { seedCorpusConnections } from "./corpus-actors.ts";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -9,7 +10,6 @@ import {
   createCorpusProviderServer,
 } from "./corpus-provider.ts";
 import { createCorpusProviderTransport, createCorpusRecipeExecution } from "./corpus-recipe.ts";
-import { seedCorpusConnections } from "./corpus-seed.ts";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";

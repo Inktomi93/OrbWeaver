@@ -7,8 +7,8 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { CORPUS_PROVIDER_ENDPOINT } from "./corpus-provider.ts";
 import type { createRpgFlightTimers, createRpgFlightWire } from "./corpus-rpg-flight-wire.ts";
 import { RPG_AFTER_CANCEL_CUE, RPG_CANCEL_CUE, RPG_FOREIGN_STOP_CUE, RPG_ROUND_MODEL } from "./corpus-rpg-flight-wire.ts";
-import { seedChatInvite, seedInvitedChatParticipant } from "./factories/chat.ts";
-import { captureRpgRows, captureRpgTurnToolCalls, seedRpgGame } from "./factories/rpg.ts";
+import { captureRpgRows, captureRpgTurnToolCalls } from "./factories/rows/rpg.ts";
+import { seedChatInviteRows, seedInvitedChatParticipantRows, seedRpgGameRows } from "./factories/rows.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
@@ -19,8 +19,8 @@ type Trace = ReturnType<NonNullable<ServerTestHarness["app"]["rpgTrace"]>["recen
 interface NativeRoundRoom {
   readonly character: Awaited<ReturnType<Caller["character"]["create"]>>;
   readonly room: Awaited<ReturnType<Caller["chat"]["startChat"]>>;
-  readonly game: Awaited<ReturnType<typeof seedRpgGame>>;
-  readonly participant: Awaited<ReturnType<typeof seedInvitedChatParticipant>>;
+  readonly game: Awaited<ReturnType<typeof seedRpgGameRows>>;
+  readonly participant: Awaited<ReturnType<typeof seedInvitedChatParticipantRows>>;
 }
 interface CancelledRound extends NativeRoundRoom {
   readonly turn: NativeTurn;
@@ -60,10 +60,10 @@ async function roundRoom(root: ServerTestHarness, memberUserId: ServerTestHarnes
   const room = await caller.chat.startChat({ characterIds: [character.id], opening: "none" });
   const chatId = room.chat.id;
   await caller.chat.setGroupConfig({ chatId, config: { output: "per-speaker", cardScope: "scoped", policy: "list" } });
-  const game = await seedRpgGame(root, { principal, chatId, mode: "lite" });
+  const game = await seedRpgGameRows(root, { principal, chatId, mode: "lite" });
   await caller.rpg.updateConfig({ chatId, extractionMode: "cheap" });
-  const invite = await seedChatInvite(root, { principal, chatId, input: { invitedHandle: member.handle } });
-  const participant = await seedInvitedChatParticipant(root, { principal: member, inviteId: invite.id });
+  const invite = await seedChatInviteRows(root, { principal, chatId, input: { invitedHandle: member.handle } });
+  const participant = await seedInvitedChatParticipantRows(root, { principal: member, inviteId: invite.id });
   return { character, room, game, participant };
 }
 

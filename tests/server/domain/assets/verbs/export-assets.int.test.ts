@@ -43,7 +43,7 @@ test("a co-member's quote exports nothing the sweep would reclaim, while the own
   await seedCorpusConnections(box.root, member);
   const room = await openRoom(box, castId<CharacterHandle>("export-shared-room"));
   const invite = await seedChatInvite(box.root, { principal: box.principal, chatId: room, input: { invitedHandle: member.handle } });
-  await seedInvitedChatParticipant(box.root, { principal: member, inviteId: invite.id });
+  await seedInvitedChatParticipant(box.root, { principal: member, inviteId: invite.invite.id });
   const quoted = await witness(box);
   const owned = await witness(box);
   await say(box, room, { content: `Quoting the host. ${inlineImage(quoted.ref)}`, as: member });

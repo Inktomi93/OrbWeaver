@@ -4,8 +4,8 @@ import { declaredCapabilitySchema } from "@orb/contracts/inference";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { CORPUS_RPG_CARD_NAME, CORPUS_RPG_FOLDED_INPUT, CORPUS_RPG_REBUILT_BEAT } from "./corpus-rpg-wire.ts";
-import { captureRpgSnapshot } from "./factories/rows.ts";
-import { captureRpgRows, captureRpgTurnToolCalls, seedRpgCheckpoint, seedRpgGame } from "./factories/rpg.ts";
+import { captureRpgRows, captureRpgTurnToolCalls } from "./factories/rows/rpg.ts";
+import { captureRpgSnapshot, seedRpgCheckpointRows, seedRpgGameRows } from "./factories/rows.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 type CorpusCaller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
@@ -13,7 +13,7 @@ type Tracker = Awaited<ReturnType<CorpusCaller["rpg"]["getTrackerView"]>>;
 type CorpusRpgRows = Awaited<ReturnType<typeof captureRpgRows>>;
 interface SeededCorpusRpgProvider {
   readonly character: Awaited<ReturnType<CorpusCaller["character"]["create"]>>;
-  readonly game: Awaited<ReturnType<typeof seedRpgGame>>;
+  readonly game: Awaited<ReturnType<typeof seedRpgGameRows>>;
   readonly populate: Awaited<ReturnType<CorpusCaller["rpg"]["populateFromCharacter"]>>;
   readonly populated: Tracker;
   readonly populatedRows: CorpusRpgRows;
@@ -33,7 +33,7 @@ interface SeededCorpusRpgProvider {
   readonly folded: Tracker;
   readonly foldedRows: CorpusRpgRows;
   readonly calls: Awaited<ReturnType<typeof captureRpgTurnToolCalls>>;
-  readonly checkpoint: Awaited<ReturnType<typeof seedRpgCheckpoint>>;
+  readonly checkpoint: Awaited<ReturnType<typeof seedRpgCheckpointRows>>;
   readonly snapshot: Awaited<ReturnType<typeof captureRpgSnapshot>>;
   readonly journal: Awaited<ReturnType<CorpusCaller["rpg"]["listJournal"]>>;
 }
@@ -56,7 +56,7 @@ export async function seedCorpusRpgProvider(root: ServerTestHarness, connectionI
   const { chat } = await caller.chat.startChat({ characterIds: [character.id], opening: "none" });
   const chatId = chat.id;
   const params = { principal, chatId };
-  const game = await seedRpgGame(root, { ...params, mode: "lite" });
+  const game = await seedRpgGameRows(root, { ...params, mode: "lite" });
   const actorRef = { kind: "character", characterId: character.id } as const;
   const populate = await caller.rpg.populateFromCharacter({ chatId, actorRef });
   const populated = await caller.rpg.getTrackerView({ chatId });
@@ -105,7 +105,7 @@ export async function seedCorpusRpgProvider(root: ServerTestHarness, connectionI
   const foldedRows = await captureRpgRows(root.db, game.id);
   const variants = turn.messages.filter((message) => message.role === "assistant").map((message) => message.selectedVariantId);
   const calls = await captureRpgTurnToolCalls(root.db, game.id, variants);
-  const checkpoint = await seedRpgCheckpoint(root, { ...params, label: "Folded loom" });
+  const checkpoint = await seedRpgCheckpointRows(root, { ...params, label: "Folded loom" });
   const snapshot = await captureRpgSnapshot(root.db, checkpoint.snapshotId);
   const journal = await caller.rpg.listJournal({ chatId });
   return {

@@ -48,6 +48,32 @@ const REACT_HOOK_RULES: Linter.RulesRecord = {
   "react-hooks/incompatible-library": "warn",
 };
 
+// The only tests/support files that may read rows directly; each line says why its read cannot go through a verb.
+const ROW_READ_HOMES = [
+  // The rows door: persistence-tier suites assert stored facts no read verb shows, and dependency-cruiser fences its importers.
+  "tests/support/node/factories/rows.ts",
+  // The rows tier behind that door: each `<seed>Rows` twin and capture reads what its verb-only seed left.
+  "tests/support/node/factories/rows/*.ts",
+  // Testkit self-tests prove a seed or capture stored what it claims; they are the testkit's own persistence tier.
+  "tests/support/**/*.test.ts",
+  // A child process with no server: its one query takes the WAL lock a layout migration must refuse to move under.
+  "tests/support/node/db-holder.ts",
+  // The corpus publication snapshots stored rows into the fixture its CT and snap consumers replay; each file is one producer.
+  "tests/support/node/corpus.ts", // refuses a copied private db holding unfinished work before the server that would resume it boots
+  "tests/support/node/corpus-chat-lifecycle.ts", // import claims, chats and reactions the lifecycle left
+  "tests/support/node/corpus-connection.ts", // connections, bindings, credentials and their audit rows
+  "tests/support/node/corpus-image-variants.ts", // variant generations and their assets
+  "tests/support/node/corpus-imagery.ts", // imagery generations and import calls
+  "tests/support/node/corpus-knowledge-images.ts", // the knowledge images' assets
+  "tests/support/node/corpus-knowledge-variants.ts", // messages and their variants
+  "tests/support/node/corpus-library-views.ts", // library canon: personas, presets, rosters, tags, world books and audits
+  "tests/support/node/corpus-notifications.ts", // notification rows
+  "tests/support/node/corpus-oidc.ts", // OIDC-minted users and sessions
+  "tests/support/node/corpus-plugin.ts", // plugin provider claims
+  "tests/support/node/corpus-rpg.ts", // RPG snapshots
+  "tests/support/node/corpus-search.ts", // embeddings, digests, segments, chunks and embedding calls behind search
+  "tests/support/node/corpus-stats-settings.ts", // settings, themes and their audit rows
+];
 const PLAYWRIGHT_TESTS = ["tests/**/*.ct.tsx", "tests/**/*.spec.ts", "tests/e2e/**/!(*.test).{ts,tsx}"];
 
 const MOCK_CALL = String.raw`CallExpression:matches([callee.name=/^(mock|doMock)$/], [callee.property.name=/^(mock|doMock)$/], [callee.property.value=/^(mock|doMock)$/])`;
@@ -998,7 +1024,14 @@ export default [
     files: ["tests/**/*.{ts,tsx}", "scripts/**/*.{ts,tsx}", "playwright/**/*.{ts,tsx}"],
     ignores: ["tests/support/**", "tests/db/**", "tests/tooling/**", "**/persistence/**", "**/*.d.ts"],
     plugins: { orb: localPlugin },
-    rules: { "orb/no-direct-row-writes": "error", "orb/no-direct-row-reads": "error" },
+    rules: { "orb/no-direct-row-writes": "error" },
+  },
+  {
+    // Reads take a closed list inside tests/support, so a seed or door helper cannot read a row and hand it to a verb suite.
+    files: ["tests/**/*.{ts,tsx}", "scripts/**/*.{ts,tsx}", "playwright/**/*.{ts,tsx}"],
+    ignores: ["tests/db/**", "tests/tooling/**", "**/persistence/**", "**/*.d.ts", ...ROW_READ_HOMES],
+    plugins: { orb: localPlugin },
+    rules: { "orb/no-direct-row-reads": "error" },
   },
   {
     files: AUTHORED_SRC.map((glob) => [glob, "**/context.ts"]),

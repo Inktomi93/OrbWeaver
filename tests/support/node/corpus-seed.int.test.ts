@@ -8,8 +8,10 @@ import { healthResponseSchema } from "@orb/contracts/diagnostics";
 import { SEED_MANIFEST } from "@orb/default-content";
 import { NoConnectionError } from "@orb/inference";
 import { hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "../iso/corpus.ts";
+import { seedCorpusActors, seedCorpusConnections } from "./corpus-actors.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
-import { seedCorpusActors, seedCorpusConnections, seedRecallCorpus, seedSyntheticCorpus } from "./corpus-seed.ts";
+import { seedSyntheticCorpus } from "./corpus-seed.ts";
+import { seedRecallCorpusRows } from "./factories/rows/recall.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 
@@ -155,7 +157,7 @@ test("the shared recall preparation captures genuine memory rows and fresh nonem
   const owner = await root.principalFor(root.ownerId);
   await root.services.settings.updateAppSettings({ principal: owner, partial: { privateEndpointAllowlist: ["127.0.0.1"] } });
   const connections = await seedCorpusConnections(root, owner);
-  const recall = await seedRecallCorpus(root, {
+  const recall = await seedRecallCorpusRows(root, {
     chatConnectionId: connections.text.id,
     embedConnectionId: connections.embed.id,
     summarizeConnectionId: connections.text.id,

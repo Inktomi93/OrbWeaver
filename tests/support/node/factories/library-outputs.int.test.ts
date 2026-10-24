@@ -8,7 +8,7 @@ import { seedPersonaLibraryViews, seedRegexLibraryViews, seedTagLibraryViews, se
 import { seedCorpusLibraries } from "../corpus-seed.ts";
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
-import { seedBackfilledWorldTitles } from "./world-info.ts";
+import { seedBackfilledWorldTitles } from "./rows/world-info.ts";
 import { makeWorldInfoImportResult } from "./world-info-view.ts";
 
 test("world book import defaults admit a native named book and title repair captures only its changed children", async () => {

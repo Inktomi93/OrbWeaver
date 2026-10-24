@@ -20,7 +20,9 @@ const ORIGINAL_PASSWORD = "the-original-password";
 test("the composed guarded audit stays adjacent and atomic with the password and session kick", async ({ harness, db, app, ids }) => {
   const actor = await harness.actor({ role: "admin" });
   const target = await harness.actor({ password: ORIGINAL_PASSWORD });
-  expect(target.passwordHash).not.toBeNull();
+  const storedHash = async (): Promise<string | null | undefined> => (await db.select().from(users).where(eq(users.id, target.id)))[0]?.passwordHash;
+  const originalHash = await storedHash();
+  expect(originalHash).not.toBeNull();
   const session = await app.sessions.create({ userId: target.id });
   const evicted = vi.fn();
   app.sockets.goLive(app.sockets.adopt(target.id, castId<SocketId>(ids.next("socket")), null), {
@@ -32,7 +34,7 @@ test("the composed guarded audit stays adjacent and atomic with the password and
   await using refusal = await refuseWrites(db, { table: auditLogs, event: "INSERT", when: "NEW.action = 'admin.resetPassword'", message: "audit refused" });
   const params = { principal: await principal(harness, actor.id), userId: target.id, password: PASSWORD };
   await expect(app.services.admin.resetPassword(params)).rejects.toThrow();
-  expect((await db.select().from(users).where(eq(users.id, target.id)))[0]?.passwordHash).toBe(target.passwordHash);
+  expect(await storedHash()).toBe(originalHash);
   expect(await app.sessions.validate(session.token)).toMatchObject({ userId: target.id });
   expect(evicted).not.toHaveBeenCalled();
   await refusal.lift();

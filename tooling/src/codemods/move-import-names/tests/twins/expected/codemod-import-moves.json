@@ -1,0 +1,15 @@
+{
+  "moves": [
+    {
+      "from": "@orb/testkit/node/composed",
+      "to": "@orb/testkit/node/rows",
+      "names": {
+        "seedCharacter": "seedCharacterRows",
+        "SeededCharacter": "SeededCharacterRows",
+        "captureTurnRows": "captureTurnRows",
+        "seedPeerLease": "seedPeerLeaseRows"
+      },
+      "files": ["persistence/stored-rows.int.test.ts", "persistence/merged.int.test.ts"]
+    }
+  ]
+}

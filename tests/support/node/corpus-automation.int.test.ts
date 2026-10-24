@@ -4,10 +4,12 @@ import { AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR, ownerBudgetViewSchema } from "@or
 import { assertReferentialIntegrity } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { seedCorpusConnections } from "./corpus-actors.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
-import { seedCorpusAutomation, seedCorpusConnections } from "./corpus-seed.ts";
+import { seedCorpusAutomation } from "./corpus-seed.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
-import { captureAutomationExecution, captureGlobalVariable, seedAutomationOwnerBudget, seedAutomationRule } from "./factories/automation.ts";
+import { captureAutomationExecution, captureGlobalVariable, seedAutomationOwnerBudget } from "./factories/rows/automation.ts";
+import { seedAutomationRuleRows } from "./factories/rows.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 
@@ -86,7 +88,7 @@ test("scope-invalid rules and over-bound budgets refuse before the corpus captur
   const automation = root.services.automation;
   const before = await automation.listOwnerRules({ principal });
   await expect(
-    seedAutomationRule(root, {
+    seedAutomationRuleRows(root, {
       principal,
       chatId: null,
       name: "Invalid global director",

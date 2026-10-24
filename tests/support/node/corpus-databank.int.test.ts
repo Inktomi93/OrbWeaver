@@ -2,10 +2,10 @@
 // @subject tests/support/node/factories/databank.ts
 import { documents, workloads } from "@orb/db";
 import { eq } from "drizzle-orm";
+import { seedCorpusConnections } from "./corpus-actors.ts";
 import { seedCorpusDatabank } from "./corpus-databank.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
-import { seedCorpusConnections } from "./corpus-seed.ts";
-import { seedCreatedDocument } from "./factories/databank.ts";
+import { seedCreatedDocument } from "./factories/rows/databank.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 

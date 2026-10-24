@@ -3,6 +3,7 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { messageReactions } from "@orb/db";
 import { eq } from "drizzle-orm";
+import { seedCorpusConnections } from "../corpus-actors.ts";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -10,10 +11,9 @@ import {
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
 } from "../corpus-provider.ts";
-import { seedCorpusConnections } from "../corpus-seed.ts";
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
-import { seedMessageReaction } from "./chat.ts";
+import { seedMessageReaction } from "./rows/chat.ts";
 
 test("whole-message and segment reactions retain separate canonical rows and exact removal targets", async () => {
   const wire = createCorpusProviderExecution({

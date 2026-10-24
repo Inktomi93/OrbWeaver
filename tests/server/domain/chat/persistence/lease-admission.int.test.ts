@@ -7,8 +7,9 @@ import { chatLocks, closeDb, messages } from "@orb/db";
 import { CHAT_OP_CODES, ChatNotFoundError } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
 import type { HeldStatement } from "@orb/testkit/node/composed";
-import { freshHeldDb, seedPeerLease } from "@orb/testkit/node/composed";
+import { freshHeldDb } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
+import { seedPeerLeaseRows } from "@orb/testkit/node/rows";
 import { eq } from "drizzle-orm";
 import { coreFrame, coreHttpRoom, coreSse } from "../engine/core-physical.ts";
 
@@ -29,7 +30,7 @@ test("an accepted swipe closes exactly once on a real held lease while public lo
   if (voice === undefined) {
     throw new Error("the actual locked-swipe room has no voice for the peer replica");
   }
-  await using peer = await seedPeerLease(h.root, { chatId: h.chatId, characterId: voice.id, hostUserId: h.owner.userId, holder: "controlled-peer-holder" });
+  await using peer = await seedPeerLeaseRows(h.root, { chatId: h.chatId, characterId: voice.id, hostUserId: h.owner.userId, holder: "controlled-peer-holder" });
   const events: ChatBusEvent[] = [];
   using subscription = new DisposableStack();
   subscription.defer(

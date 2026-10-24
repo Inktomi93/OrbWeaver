@@ -97,7 +97,7 @@ async function admit(box: Box, chatId: ChatId, guest: Principal): Promise<void> 
     chatId,
     input: { invitedHandle: guest.handle },
   });
-  await seedInvitedChatParticipant(box.root, { principal: guest, inviteId: invite.id });
+  await seedInvitedChatParticipant(box.root, { principal: guest, inviteId: invite.invite.id });
 }
 
 async function store(box: Box, owner: Principal, kind: "attachment" | "gallery"): Promise<AssetId> {

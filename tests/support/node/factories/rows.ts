@@ -1,11 +1,10 @@
 // Direct row builders for persistence-tier tests that assert a query or a schema fact (Spine-Testing §9).
 // Every other test seeds through the composed root; dependency-cruiser limits who imports this door.
 
-import type { TurnOutcome } from "@orb/contracts/chat";
 import type { Db, rpgCheckpoints } from "@orb/db";
-import { characters, chats, messages, messageVariants, pluginAssets, pluginKv, plugins, rpgSnapshots, sessionEntries, users } from "@orb/db";
+import { characters, chats, messages, messageVariants, rpgSnapshots, sessionEntries, users } from "@orb/db";
 import { handleKey } from "@orb/kit/handle-key";
-import type { CharacterHandle, ChatId, Handle, IdSource, MessageVariantId, PluginId, UserConnectionId, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, ChatId, Handle, IdSource, MessageVariantId, UserConnectionId } from "@orb/kit/ids";
 import { castId, createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { cardTokenSize } from "@orb/server/domain/character";
 import { cardContentHash } from "@orb/server/primitives/serde/card";
@@ -13,23 +12,15 @@ import { and, eq } from "drizzle-orm";
 import { FROZEN_AT_MS } from "../../iso/clock.ts";
 import { createSeededIds } from "../../iso/ids.ts";
 
-export type UserRow = typeof users.$inferSelect;
+import type { UserRow } from "./admin-user.ts";
+
+export type { UserRow } from "./admin-user.ts";
+
 type CharacterRow = typeof characters.$inferSelect;
 type ChatRow = typeof chats.$inferSelect;
 type MessageRow = typeof messages.$inferSelect;
 
 export type SdkSessionEntryRow = typeof sessionEntries.$inferSelect;
-type MessageVariantRow = typeof messageVariants.$inferSelect;
-interface CapturedTurnRow {
-  readonly slot: MessageRow;
-  readonly variant: MessageVariantRow;
-}
-export type CapturedTurnRows = readonly CapturedTurnRow[];
-export interface CapturedPluginRows {
-  readonly plugin: typeof plugins.$inferSelect;
-  readonly assets: readonly (typeof pluginAssets.$inferSelect)[];
-  readonly kv: readonly (typeof pluginKv.$inferSelect)[];
-}
 type RpgSnapshotRow = typeof rpgSnapshots.$inferSelect;
 
 const ids = createIdSource(createSeededIds().next);
@@ -196,6 +187,28 @@ export async function seedMessageRow(db: Db, overrides: SeedMessageRowOptions = 
   return { ...slot, selectedVariantId: variantId, variantId, content: body };
 }
 
+// The rows tier's capture modules: every row read a seed used to do, fenced to persistence-tier and corpus importers.
+
+export { seedAssetRows } from "./rows/asset.ts";
+export { seedAutomationRuleRows, seedAutomationTestFiresRows } from "./rows/automation.ts";
+export type { SeededCharacterRows } from "./rows/character.ts";
+export { seedCharacterRows } from "./rows/character.ts";
+export { seedChatInviteRows, seedChatRows, seedInvitedChatParticipantRows, seedTranscriptRows } from "./rows/chat.ts";
+export { seedCharacterDistillationsRows } from "./rows/discovery.ts";
+export { captureTurnRows, seedMessageRows } from "./rows/message.ts";
+export type { PeerLeaseRows } from "./rows/peer-replica.ts";
+export { captureChatLock, seedPeerLeaseRows } from "./rows/peer-replica.ts";
+export { seedPersonaRows } from "./rows/persona.ts";
+export { capturePluginRows, seedDistributedPluginRows, seedInstalledPluginRows, seedPluginGrantRows } from "./rows/plugin.ts";
+export { seedPresetRows } from "./rows/preset.ts";
+export { seedAdminProviderRows } from "./rows/provider.ts";
+export { seedRecallCorpusRows } from "./rows/recall.ts";
+export { seedGlobalRegexScriptRows, seedRegexScriptRows } from "./rows/regex.ts";
+export { seedRpgCheckpointRows, seedRpgGameRows } from "./rows/rpg.ts";
+export { seedUserSettingsRows } from "./rows/settings.ts";
+export { seedCreatedTagRows } from "./rows/tag.ts";
+export { seedWorkloadScheduleRows } from "./rows/workload.ts";
+
 // Raw row readers: persistence-tier suites assert stored facts no read verb shows.
 
 /** Capture only the real SDK's canon-derived lineage; no fixture computes session IDs, seed ordinals or hashes. */
@@ -205,41 +218,6 @@ export async function captureSdkSessionRows(db: Db, chatId: ChatId, connectionId
     .from(sessionEntries)
     .where(and(eq(sessionEntries.chatId, chatId), eq(sessionEntries.connectionId, connectionId)))
     .orderBy(sessionEntries.seq);
-}
-/** Canonical rows come only from the exact message/variant identities returned by the actual turn. */
-export async function captureTurnRows(db: Db, outcome: TurnOutcome): Promise<CapturedTurnRows> {
-  return await Promise.all(
-    outcome.messages.map(async (message) => {
-      const row = await db
-        .select({ slot: messages, variant: messageVariants })
-        .from(messages)
-        .innerJoin(messageVariants, eq(messageVariants.messageId, messages.id))
-        .where(and(eq(messages.id, message.id), eq(messages.selectedVariantId, message.selectedVariantId), eq(messageVariants.id, message.selectedVariantId)))
-        .get();
-      if (row === undefined) {
-        throw new Error("actual turn message has no matching canonical selected variant");
-      }
-      return row;
-    }),
-  );
-}
-/** Read canonical private rows after a native guest operation; these bytes never form portable fixture data. */
-export async function capturePluginRows(db: Db, ownerId: UserId, pluginId: PluginId): Promise<CapturedPluginRows> {
-  const plugin = await db
-    .select()
-    .from(plugins)
-    .where(and(eq(plugins.id, pluginId), eq(plugins.ownerId, ownerId)))
-    .get();
-  if (plugin === undefined) {
-    throw new Error("production plugin lifecycle left no canonical owned install row");
-  }
-  const assets = await db.select().from(pluginAssets).where(eq(pluginAssets.pluginId, plugin.id)).orderBy(pluginAssets.bundlePath, pluginAssets.assetId);
-  const kv = await db
-    .select()
-    .from(pluginKv)
-    .where(and(eq(pluginKv.pluginId, plugin.id), eq(pluginKv.ownerId, ownerId)))
-    .orderBy(pluginKv.key);
-  return { plugin, assets, kv };
 }
 /** A real checkpoint supplies the snapshot FK; no born/default state or canon anchor is synthesized. */
 export async function captureRpgSnapshot(db: Db, snapshotId: (typeof rpgCheckpoints.$inferSelect)["snapshotId"]): Promise<RpgSnapshotRow> {

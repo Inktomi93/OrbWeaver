@@ -1,11 +1,12 @@
 // @subject tests/support/node/corpus-knowledge.ts
 // @subject tests/support/node/factories/discovery.ts
 import { assertReferentialIntegrity } from "@orb/db";
+import { seedCorpusConnections } from "./corpus-actors.ts";
 import { corpusKnowledgeText, seedCorpusKnowledge } from "./corpus-knowledge.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
-import { seedCorpusConnections, seedRecallCorpus } from "./corpus-seed.ts";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
-import { captureDuplicateCharacterPairs, captureDuplicateChatPairs, captureKeywordCooccurrence, captureThemeRows } from "./factories/discovery.ts";
+import { captureDuplicateCharacterPairs, captureDuplicateChatPairs, captureKeywordCooccurrence, captureThemeRows } from "./factories/rows/discovery.ts";
+import { seedRecallCorpusRows } from "./factories/rows/recall.ts";
 import { expect, test } from "./fixtures.ts";
 import type { ServerTestHarness } from "./server.ts";
 import { createServerHarness } from "./server.ts";
@@ -23,7 +24,7 @@ function physicalScript(replies: ReadonlyMap<string, string> = CORPUS_STRUCTURED
 
 async function prepareKnowledge(root: ServerTestHarness): Promise<Awaited<ReturnType<typeof seedCorpusKnowledge>>> {
   const connections = await seedCorpusConnections(root, await root.principalFor(root.ownerId));
-  const recall = await seedRecallCorpus(root, {
+  const recall = await seedRecallCorpusRows(root, {
     chatConnectionId: connections.text.id,
     summarizeConnectionId: connections.text.id,
     embedConnectionId: connections.embed.id,

@@ -9,6 +9,7 @@ import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
 import { CHAT_OP_CODES } from "@orb/server/domain/chat";
 import { createFrozenClock } from "../iso/clock.ts";
 import { createControlledTimers } from "../iso/timers.ts";
+import { seedCorpusActors } from "./corpus-actors.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
 import {
   createRpgFlightTimers,
@@ -24,7 +25,6 @@ import { RPG_HOST_STEERING, RPG_MEMBER_HIDDEN, RPG_MEMBER_SECRET, seedCorpusRpgM
 import { seedCorpusRpgRecursion } from "./corpus-rpg-recursion.ts";
 import { seedCorpusRpgRounds } from "./corpus-rpg-rounds.ts";
 import { CORPUS_RPG_JOURNAL_TOOL, CORPUS_RPG_SCENE_TOOL } from "./corpus-rpg-wire.ts";
-import { seedCorpusActors } from "./corpus-seed.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 

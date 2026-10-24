@@ -11,10 +11,11 @@ import { TAG_TARGET_TYPES } from "@orb/contracts/tag";
 import { assertReferentialIntegrity } from "@orb/db";
 import { hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "../iso/corpus.ts";
 import { createCorpusReadResponder, createCorpusViewerReadResponder } from "../iso/corpus-read-responder.ts";
+import { seedCorpusActors } from "./corpus-actors.ts";
 import { CORPUS_LIBRARY_RULE_PRESET, seedCorpusLibraryViews } from "./corpus-library-views.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
-import { captureCookieAuth, captureCorpusReads, seedCorpusActors, seedCorpusLibraries } from "./corpus-seed.ts";
-import { seedUserCredential } from "./factories/credentials.ts";
+import { captureCookieAuth, captureCorpusReads, seedCorpusLibraries } from "./corpus-seed.ts";
+import { seedUserCredential } from "./factories/rows/credentials.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 

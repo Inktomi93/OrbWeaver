@@ -2,9 +2,9 @@
 import { DomainError } from "@orb/kit/errors";
 import { buildChatBundleFile, parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
 import type { seedCorpusRpgRecursion } from "./corpus-rpg-recursion.ts";
-import { seedChatInvite, seedImportedChatRows, seedInvitedChatParticipant } from "./factories/chat.ts";
-import { captureRpgSnapshot } from "./factories/rows.ts";
-import { captureRpgRows, seedRpgCheckpoint, seedRpgJournalEntry } from "./factories/rpg.ts";
+import { seedImportedChatRows } from "./factories/rows/chat.ts";
+import { captureRpgRows, seedRpgJournalEntry } from "./factories/rows/rpg.ts";
+import { captureRpgSnapshot, seedChatInviteRows, seedInvitedChatParticipantRows, seedRpgCheckpointRows } from "./factories/rows.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 export const RPG_MEMBER_SECRET = "the sealed observatory witness";
@@ -21,10 +21,10 @@ interface HistoricalPointerRecovery {
   readonly repeated: Awaited<ReturnType<Caller["chat"]["getChat"]>>;
 }
 interface CorpusRpgMembers {
-  readonly participant: Awaited<ReturnType<typeof seedInvitedChatParticipant>>;
+  readonly participant: Awaited<ReturnType<typeof seedInvitedChatParticipantRows>>;
   readonly preset: Awaited<ReturnType<Caller["preset"]["create"]>>;
   readonly journal: Awaited<ReturnType<typeof seedRpgJournalEntry>>;
-  readonly checkpoint: Awaited<ReturnType<typeof seedRpgCheckpoint>>;
+  readonly checkpoint: Awaited<ReturnType<typeof seedRpgCheckpointRows>>;
   readonly checkpointBefore: Awaited<ReturnType<typeof captureRpgSnapshot>>;
   readonly checkpointAfter: Awaited<ReturnType<typeof captureRpgSnapshot>>;
   readonly attributeKey: string;
@@ -106,8 +106,8 @@ export async function seedCorpusRpgMembers(root: ServerTestHarness, source: Recu
   const memberCaller = await root.internalCallerFor(memberUserId);
   const chatId = source.room.chat.id;
   const actorRef = { kind: "character", characterId: source.character.id } as const;
-  const invite = await seedChatInvite(root, { principal, chatId, input: { invitedHandle: member.handle } });
-  const participant = await seedInvitedChatParticipant(root, { principal: member, inviteId: invite.id });
+  const invite = await seedChatInviteRows(root, { principal, chatId, input: { invitedHandle: member.handle } });
+  const participant = await seedInvitedChatParticipantRows(root, { principal: member, inviteId: invite.id });
   const preset = await caller.preset.create({ name: "Offered observatory GM preset", kind: "custom" });
   await caller.rpg.updateConfig({ chatId, gmPresetId: preset.id, patch: { ruleset: "d20", steeringNote: RPG_HOST_STEERING } });
   const config = await caller.rpg.getConfigView({ chatId });
@@ -138,7 +138,7 @@ export async function seedCorpusRpgMembers(root: ServerTestHarness, source: Recu
     title: "Host ledger",
     content: `An open record ${RPG_MEMBER_HIDDEN}`,
   });
-  const checkpoint = await seedRpgCheckpoint(root, { principal, chatId, label: "Observatory recovery" });
+  const checkpoint = await seedRpgCheckpointRows(root, { principal, chatId, label: "Observatory recovery" });
   const checkpointBefore = await captureRpgSnapshot(root.db, checkpoint.snapshotId);
   await caller.rpg.editSnapshot({ chatId, patch: { location: "Temporary observatory drift" } });
   const checkpointAfter = await captureRpgSnapshot(root.db, checkpoint.snapshotId);

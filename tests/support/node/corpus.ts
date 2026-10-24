@@ -47,13 +47,13 @@ import type {
   seedCorpusAutomation as produceCorpusAutomation,
   seedCorpusLibraries as produceCorpusLibraries,
   seedOidcCorpus as produceOidcCorpus,
-  seedRecallCorpus as produceRecallCorpus,
   seedSyntheticCorpus as produceSyntheticCorpus,
   SeedSyntheticCorpusOptions,
 } from "./corpus-seed.ts";
 import type { seedCorpusStatsSettings as produceCorpusStatsSettings } from "./corpus-stats-settings.ts";
-import type { seedUserCredential as produceCredential } from "./factories/credentials.ts";
-import type { seedStats as produceSearchStats } from "./factories/stats.ts";
+import type { seedUserCredential as produceCredential } from "./factories/rows/credentials.ts";
+import type { seedRecallCorpusRows as produceRecallCorpus } from "./factories/rows/recall.ts";
+import type { seedStats as produceSearchStats } from "./factories/rows/stats.ts";
 import type { ServerHarnessOptions, ServerTestHarness } from "./server.ts";
 
 const CORPUS_WIRE_FILE = "corpus.json";
@@ -720,7 +720,7 @@ async function captureCapsule(options: CorpusCapsuleOptions & CorpusCapsuleProdu
   const { createServerHarness } = await import("./server.ts");
   const { createControlledTimers } = await import("../iso/timers.ts");
   const { NATIVE_OIDC_SETTINGS } = await import("./oidc-issuer.ts");
-  const { seedUserCredential } = await import("./factories/credentials.ts");
+  const { seedUserCredential } = await import("./factories/rows/credentials.ts");
   const { seedCorpusPlugins } = await import("./corpus-plugin.ts");
   const { seedCorpusKnowledge } = await import("./corpus-knowledge.ts");
   const { seedCorpusKnowledgeVariants } = await import("./corpus-knowledge-variants.ts");
@@ -732,7 +732,7 @@ async function captureCapsule(options: CorpusCapsuleOptions & CorpusCapsuleProdu
   const { seedCorpusRpgRounds } = await import("./corpus-rpg-rounds.ts");
   const { seedCorpusSearch, captureCorpusSearchPublication, settleCorpusSearchImages: settleSearchImages } = await import("./corpus-search.ts");
   const { createCorpusSearchWire } = await import("./corpus-search-wire.ts");
-  const { seedStats } = await import("./factories/stats.ts");
+  const { seedStats } = await import("./factories/rows/stats.ts");
   const { seedCorpusConnection } = await import("./corpus-connection.ts");
   const { seedCorpusStatsSettings } = await import("./corpus-stats-settings.ts");
   const { seedCorpusSdkSessions } = await import("./corpus-sdk-sessions.ts");
@@ -743,9 +743,9 @@ async function captureCapsule(options: CorpusCapsuleOptions & CorpusCapsuleProdu
     "./corpus-connection-wire.ts"
   );
   const { createRpgFlightWire, createRpgFlightTimers } = await import("./corpus-rpg-flight-wire.ts");
-  const { captureCookieAuth, seedCorpusActors, seedCorpusAutomation, seedCorpusLibraries, seedRecallCorpus, seedSyntheticCorpus } = await import(
-    "./corpus-seed.ts"
-  );
+  const { seedRecallCorpusRows } = await import("./factories/rows/recall.ts");
+  const { seedCorpusActors } = await import("./corpus-actors.ts");
+  const { captureCookieAuth, seedCorpusAutomation, seedCorpusLibraries, seedSyntheticCorpus } = await import("./corpus-seed.ts");
   const { seedCorpusAccount } = await import("./corpus-auth.ts");
   signal?.throwIfAborted();
   await using lifetimes = new AsyncDisposableStack();
@@ -821,7 +821,7 @@ async function captureCapsule(options: CorpusCapsuleOptions & CorpusCapsuleProdu
     const graph = { root, db, signal, options, oidcClientSecret: NATIVE_OIDC_SETTINGS.OIDC_CLIENT_SECRET, baseline, libraries, credential, oidc, clock, ids };
     return await captureCloneBoundary(graph, () => seedCorpusChatLifecycle(root, chatWire, actors.secondUserId, dbHold));
   }
-  const recall = await seedRecallCorpus(root, {
+  const recall = await seedRecallCorpusRows(root, {
     chatConnectionId: actors.connections.text.id,
     embedConnectionId: actors.connections.embed.id,
     summarizeConnectionId: actors.connections.text.id,

@@ -3,6 +3,7 @@ import { setTimeout as physicalDelay } from "node:timers/promises";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import { MS_PER_SECOND } from "@orb/kit/time";
+import { seedCorpusConnections } from "../corpus-actors.ts";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -10,10 +11,9 @@ import {
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
 } from "../corpus-provider.ts";
-import { seedCorpusConnections } from "../corpus-seed.ts";
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
-import { seedWorkload } from "./workload.ts";
+import { seedWorkload } from "./rows/workload.ts";
 
 test("native cancellation outputs distinguish queued, running and terminal work without granting a stranger its identity", async () => {
   const physical = createCorpusProviderExecution({

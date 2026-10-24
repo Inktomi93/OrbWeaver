@@ -1,6 +1,7 @@
 // @subject tests/support/node/factories/stats.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";
+import { seedCorpusConnections } from "../corpus-actors.ts";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -8,10 +9,9 @@ import {
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
 } from "../corpus-provider.ts";
-import { seedCorpusConnections } from "../corpus-seed.ts";
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
-import { seedStats } from "./stats.ts";
+import { seedStats } from "./rows/stats.ts";
 
 test("computed-empty reconciliation does not invent a live canon fence or activity rows", async () => {
   await using root = await createServerHarness();

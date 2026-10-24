@@ -1,7 +1,7 @@
 // Sessions, stage provenance and apply outcomes come from the real refinery and character owners.
 import { createCharacterSchema } from "@orb/contracts/character";
 import { CORPUS_REFINERY_SCHEMA_REVISION } from "./corpus-provider.ts";
-import { seedManualRefineryRun, seedRefineryRun, seedRefinerySchema, seedRefinerySession } from "./factories/refinery.ts";
+import { seedManualRefineryRun, seedRefineryRun, seedRefinerySchema, seedRefinerySession } from "./factories/rows/refinery.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 type CorpusCaller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;

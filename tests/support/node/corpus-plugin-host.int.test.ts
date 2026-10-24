@@ -8,6 +8,7 @@ import { jsonValueSchema } from "@orb/kit/json";
 import { estimateTokens } from "@orb/kit/tokens";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
+import { seedCorpusActors } from "./corpus-actors.ts";
 import {
   CORPUS_PLUGIN_HOST_DRAFT,
   CORPUS_PLUGIN_HOST_IMAGE_MODEL,
@@ -28,9 +29,10 @@ import {
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
 } from "./corpus-provider.ts";
-import { seedCorpusActors, seedCorpusLibraries } from "./corpus-seed.ts";
+import { seedCorpusLibraries } from "./corpus-seed.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
-import { makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "./factories/plugin.ts";
+import { makePluginBundle } from "./factories/plugin.ts";
+import { seedInstalledPluginRows, seedPluginGrantRows } from "./factories/rows.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 
@@ -182,7 +184,7 @@ test("the native resident guest captures admitted host returns and real prompt/e
     chatId: null,
   });
   const foreign = await root.principalFor(actors.secondUserId);
-  const foreignInstall = await seedInstalledPlugin(root, {
+  const foreignInstall = await seedInstalledPluginRows(root, {
     caller: foreign,
     bundle: makePluginBundle(
       CORPUS_PLUGIN_HOST_MANIFEST,
@@ -194,7 +196,7 @@ test("the native resident guest captures admitted host returns and real prompt/e
     ),
     grant: [],
   });
-  await seedPluginGrant(root, {
+  await seedPluginGrantRows(root, {
     caller: foreign,
     pluginId: foreignInstall.plugin.id,
     grant: CORPUS_PLUGIN_HOST_MANIFEST.capabilities,

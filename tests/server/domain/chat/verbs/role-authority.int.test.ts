@@ -77,12 +77,12 @@ test("real member reads, author checks and a sole-human fork preserve the hidden
   const room = await root.services.chat.startChat({ principal: host, characterIds: [], opening: "none" });
   const chatId = room.chat.id;
   await seedMessage(root, { principal: host, chatId, content: "pre-join-secret" });
-  const { slot: boundary } = await seedMessage(root, { principal: host, chatId, content: "join boundary" });
+  const boundary = await seedMessage(root, { principal: host, chatId, content: "join boundary" });
   const invite = await root.services.chat.createInvite({ principal: host, chatId, input: { invitedHandle: member.handle } });
   await root.services.chat.acceptInvite({ principal: member, inviteId: invite.invite.id });
   await root.services.chat.setMemberHistoryVisibility({ principal: host, chatId, userId: member.userId, visibility: "from-join" });
   const body = 'Visible <lie character="Witness" truth="hidden-role-secret"/>';
-  const { slot: authored } = await seedMessage(root, { principal: member, chatId, content: body });
+  const authored = await seedMessage(root, { principal: member, chatId, content: body });
   const ownEdit = await root.services.chat.editMessage({ principal: member, chatId, messageId: authored.id, content: body });
   expect(ownEdit.content).toBe("Visible ");
   await expect(root.services.chat.editMessage({ principal: member, chatId, messageId: boundary.id, content: "must-not-land" })).rejects.toMatchObject({

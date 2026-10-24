@@ -19,9 +19,10 @@ import type { CorpusNotificationInbox } from "../iso/corpus.ts";
 import { corpusReadInput } from "../iso/corpus.ts";
 import { captureCorpusCookieIdentity, seedCorpusAccount } from "./corpus-auth.ts";
 import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "./corpus-provider.ts";
-import { seedAutomationRule, seedAutomationRun } from "./factories/automation.ts";
-import { captureChatReplayRows } from "./factories/chat.ts";
-import { makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "./factories/plugin.ts";
+import { makePluginBundle } from "./factories/plugin.ts";
+import { seedAutomationRun } from "./factories/rows/automation.ts";
+import { captureChatReplayRows } from "./factories/rows/chat.ts";
+import { seedAutomationRuleRows, seedInstalledPluginRows, seedPluginGrantRows } from "./factories/rows.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 const CORPUS_NOTIFICATION_PASSWORD = "synthetic-notification-reader-password";
@@ -81,10 +82,10 @@ interface ReaderAdmission {
   readonly answeredPending: readonly Awaited<ReturnType<ServerTestHarness["services"]["plugin"]["setGrant"]>>[];
 }
 interface ProducerCapture {
-  readonly rule: Awaited<ReturnType<typeof seedAutomationRule>>;
+  readonly rule: Awaited<ReturnType<typeof seedAutomationRuleRows>>;
   readonly ruleRun: Awaited<ReturnType<typeof seedAutomationRun>>;
   readonly ruleNotice: InboxView;
-  readonly plugin: Awaited<ReturnType<typeof seedPluginGrant>>;
+  readonly plugin: Awaited<ReturnType<typeof seedPluginGrantRows>>;
   readonly notifyRun: Awaited<ReturnType<typeof seedAutomationRun>>;
   readonly pluginNotice: InboxView;
   readonly failedBeforeClean: Awaited<ReturnType<typeof seedAutomationRun>>;
@@ -324,7 +325,7 @@ async function requiredView(caller: Caller, type: InboxView["type"]): Promise<In
 }
 
 async function consentFor(root: ServerTestHarness, actors: NotificationActors, stream: NotificationStream): Promise<ConsentCapture> {
-  const pending = async (): Promise<Awaited<ReturnType<typeof seedInstalledPlugin>>> => {
+  const pending = async (): Promise<Awaited<ReturnType<typeof seedInstalledPluginRows>>> => {
     const manifest = pluginManifestSchema.parse({
       id: `notice-${root.idSource.typeId(ID_PREFIX.plugin).slice(-12)}`,
       name: "Corpus notification consent",
@@ -334,12 +335,12 @@ async function consentFor(root: ServerTestHarness, actors: NotificationActors, s
       entry: PLUGIN_MAIN_ENTRY,
       capabilities: ["storage.kv"],
     });
-    const installed = await seedInstalledPlugin(root, {
+    const installed = await seedInstalledPluginRows(root, {
       caller: actors.reader,
       bundle: makePluginBundle(manifest, "const host = orb.host(1);", root.clock.now()),
       grant: [],
     });
-    return await seedPluginGrant(root, {
+    return await seedPluginGrantRows(root, {
       caller: actors.reader,
       pluginId: installed.plugin.id,
       grant: [],
@@ -354,7 +355,7 @@ async function consentFor(root: ServerTestHarness, actors: NotificationActors, s
   await stream.readThrough(grown.id);
   await actors.caller.notifications.markAllRead();
   const quietOffset = stream.bytes().length;
-  await seedPluginGrant(root, {
+  await seedPluginGrantRows(root, {
     caller: actors.reader,
     pluginId: firstPlugin.plugin.id,
     grant: firstPlugin.plugin.manifest.capabilities,
@@ -414,7 +415,7 @@ async function producersFor(
   const automation = root.services.automation;
   const principal = actors.reader;
   const author = { principal, chatId, trigger: { bus: "chat", type: "turnCompleted" }, timeZone: UTC_TIME_ZONE } as const;
-  const rule = await seedAutomationRule(root, {
+  const rule = await seedAutomationRuleRows(root, {
     ...author,
     name: "Corpus room notice",
     cooldownSeconds: AUTOMATION_NOTICE_COOLDOWN_SECONDS,
@@ -450,12 +451,12 @@ host.tools.register({ name: ${JSON.stringify(NOTICE_TOOL_NAME)}, description: "C
     return "Ledger checked.";
   }
 });`;
-  const installed = await seedInstalledPlugin(root, {
+  const installed = await seedInstalledPluginRows(root, {
     caller: principal,
     bundle: makePluginBundle(manifest, source, root.clock.now()),
     grant: [],
   });
-  const plugin = await seedPluginGrant(root, {
+  const plugin = await seedPluginGrantRows(root, {
     caller: principal,
     pluginId: installed.outcome.id,
     grant: manifest.capabilities,
@@ -463,8 +464,8 @@ host.tools.register({ name: ${JSON.stringify(NOTICE_TOOL_NAME)}, description: "C
     enable: true,
   });
   const toolName = pluginToolWireName(manifest.id, NOTICE_TOOL_NAME);
-  const toolRule = async (mode: string): Promise<Awaited<ReturnType<typeof seedAutomationRule>>> => {
-    const row = await seedAutomationRule(root, {
+  const toolRule = async (mode: string): Promise<Awaited<ReturnType<typeof seedAutomationRuleRows>>> => {
+    const row = await seedAutomationRuleRows(root, {
       ...author,
       name: `Corpus resident ${mode}`,
       actions: [{ type: "run_tool", name: toolName, argsTemplate: JSON.stringify({ mode }) }],

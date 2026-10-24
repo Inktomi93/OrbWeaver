@@ -8,8 +8,8 @@ import { LOG_BYTES_PER_INVOCATION, LOG_LINES_PER_INVOCATION, PLUGIN_LOG_RING_CHA
 import { seedCorpusAccount } from "./corpus-auth.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
 import type { CapturedPluginOutputs } from "./factories/plugin.ts";
-import { capturePluginOutputs, makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "./factories/plugin.ts";
-import { capturePluginRows } from "./factories/rows.ts";
+import { capturePluginOutputs, makePluginBundle } from "./factories/plugin.ts";
+import { capturePluginRows, seedInstalledPluginRows, seedPluginGrantRows } from "./factories/rows.ts";
 import type { ServerHarnessOptions, ServerTestHarness } from "./server.ts";
 
 type PluginCaller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>["plugin"];
@@ -17,8 +17,8 @@ type PluginCaller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>[
 export interface CorpusPluginOutputs {
   readonly caller: Awaited<ReturnType<ServerTestHarness["principalFor"]>>;
   readonly room: Awaited<ReturnType<Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>["chat"]["startChat"]>>["chat"];
-  readonly installed: Awaited<ReturnType<typeof seedInstalledPlugin>>;
-  readonly granted: Awaited<ReturnType<typeof seedPluginGrant>>;
+  readonly installed: Awaited<ReturnType<typeof seedInstalledPluginRows>>;
+  readonly granted: Awaited<ReturnType<typeof seedPluginGrantRows>>;
   readonly pending: Awaited<ReturnType<typeof capturePluginOutputs>>;
   readonly active: Awaited<ReturnType<typeof capturePluginOutputs>>;
   readonly disabled: Awaited<ReturnType<typeof capturePluginOutputs>>;
@@ -79,7 +79,7 @@ export async function seedCorpusPluginOutputs(root: ServerTestHarness): Promise<
   const caller = await root.principalFor(root.ownerId);
   const rpc = await root.internalCallerFor(root.ownerId);
   const room = (await rpc.chat.startChat({ characterIds: [] })).chat;
-  const installed = await seedInstalledPlugin(root, {
+  const installed = await seedInstalledPluginRows(root, {
     caller,
     bundle: makePluginBundle(CORPUS_PLUGIN_OUTPUT_MANIFEST, CORPUS_PLUGIN_OUTPUT_SOURCE, root.clock.now(), {
       "ui/assets/ledger.png": makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)),
@@ -88,7 +88,7 @@ export async function seedCorpusPluginOutputs(root: ServerTestHarness): Promise<
   });
   const params = { caller, pluginId: installed.outcome.id, surfaceId: CORPUS_PLUGIN_OUTPUT_SURFACE };
   const pending = await capturePluginOutputs(root, params);
-  const granted = await seedPluginGrant(root, {
+  const granted = await seedPluginGrantRows(root, {
     caller,
     pluginId: installed.outcome.id,
     grant: CORPUS_PLUGIN_OUTPUT_MANIFEST.capabilities,
@@ -163,7 +163,7 @@ export interface CorpusPluginCallbackNetwork {
 }
 
 export interface CorpusPluginCallbackLifecycle {
-  readonly installed: Awaited<ReturnType<typeof seedInstalledPlugin>>;
+  readonly installed: Awaited<ReturnType<typeof seedInstalledPluginRows>>;
   readonly retained: CapturedPluginOutputs;
   readonly stale: CapturedPluginOutputs;
   readonly beforeRefusals: CapturedPluginOutputs;
@@ -176,7 +176,7 @@ export interface CorpusPluginCallbackLifecycle {
   readonly afterClean: CapturedPluginOutputs;
   readonly afterCleanRows: Awaited<ReturnType<typeof capturePluginRows>>;
   readonly storage: CapturedPluginOutputs;
-  readonly narrowed: Awaited<ReturnType<typeof seedPluginGrant>>;
+  readonly narrowed: Awaited<ReturnType<typeof seedPluginGrantRows>>;
   readonly revokedStorage: CapturedPluginOutputs;
   readonly retiredDraft: readonly PromiseSettledResult<PluginUiOutcome>[];
   readonly disabled: CapturedPluginOutputs;
@@ -186,7 +186,7 @@ export interface CorpusPluginCallbackLifecycle {
 }
 
 export interface CorpusPluginLogRing {
-  readonly installed: Awaited<ReturnType<typeof seedInstalledPlugin>>;
+  readonly installed: Awaited<ReturnType<typeof seedInstalledPluginRows>>;
   readonly initial: readonly PluginLogView[];
   readonly lineBatches: number;
   readonly lines: readonly PluginLogView[];
@@ -257,12 +257,12 @@ export async function seedCorpusPluginCallbackLifecycle(root: ServerTestHarness,
   }});
   if(h.grants.includes("storage.kv"))h.storage.set("entry",${JSON.stringify(CORPUS_PLUGIN_CALLBACK_VALUE)});
   h.ui.setState("ledger",{calls:0});`;
-  const installed = await seedInstalledPlugin(root, {
+  const installed = await seedInstalledPluginRows(root, {
     caller,
     bundle: makePluginBundle(manifest, source, root.clock.now()),
     grant: [],
   });
-  await seedPluginGrant(root, {
+  await seedPluginGrantRows(root, {
     caller,
     pluginId: installed.plugin.id,
     grant: manifest.capabilities,
@@ -302,7 +302,7 @@ export async function seedCorpusPluginCallbackLifecycle(root: ServerTestHarness,
   const afterCleanRows = await capturePluginRows(root.db, caller.userId, pluginId);
   await rpc.plugin.invokeUiCommand({ pluginId, name: "storage", args: "", chatId: null });
   const storage = await capture();
-  const narrowed = await seedPluginGrant(root, {
+  const narrowed = await seedPluginGrantRows(root, {
     caller,
     pluginId,
     grant: ["ui.surface", "chat.read", "net.fetch"],
@@ -370,12 +370,12 @@ export async function seedCorpusPluginLogRing(root: ServerTestHarness): Promise<
     for(let line=0;line<${LOG_LINES_PER_INVOCATION + 1};line+=1)h.log[levels[line%levels.length]]("batch:"+args+":"+line);
   }});
   h.ui.registerCommand({name:"chars",describe:"Write one bounded native long line",onRun:({args})=>{h.log.warn(args+":"+"x".repeat(${LOG_BYTES_PER_INVOCATION * 2}));}});`;
-  const installed = await seedInstalledPlugin(root, {
+  const installed = await seedInstalledPluginRows(root, {
     caller,
     bundle: makePluginBundle(manifest, source, root.clock.now()),
     grant: [],
   });
-  await seedPluginGrant(root, {
+  await seedPluginGrantRows(root, {
     caller,
     pluginId: installed.plugin.id,
     grant: manifest.capabilities,

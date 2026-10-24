@@ -47,10 +47,12 @@ test("an actor's password is the root's own credential, so local authentication 
   expect(await harness.app.sessions.authenticate(plain.handle, PASSWORD)).toBeNull();
 });
 
-test("an actor never adopts an existing account by handle", async ({ harness }) => {
+test("an actor never adopts an existing account by handle", async ({ harness, db }) => {
   const first = await harness.actor();
   await expect(harness.actor({ handle: first.handle })).rejects.toThrow(/already held/);
-  await expect(harness.actor({ handle: castId(`${first.handle}-fresh`) })).resolves.toMatchObject({ role: "user", enabled: true });
+  const fresh = await harness.actor({ handle: castId(`${first.handle}-fresh`) });
+  expect(fresh.id).not.toBe(first.id);
+  expect(await db.select({ role: users.role, enabled: users.enabled }).from(users).where(eq(users.id, fresh.id))).toEqual([{ role: "user", enabled: true }]);
 });
 
 test("two concurrent actors asking for one handle mint one account and refuse the other", async ({ harness, db }) => {

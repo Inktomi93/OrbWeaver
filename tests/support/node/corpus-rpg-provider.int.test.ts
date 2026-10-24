@@ -4,6 +4,7 @@ import { declaredCapabilitySchema } from "@orb/contracts/inference";
 import { rpgSnapshotStateSchema } from "@orb/contracts/rpg";
 import { assertReferentialIntegrity, rpgJournal, rpgSnapshots } from "@orb/db";
 import { eq } from "drizzle-orm";
+import { seedCorpusActors } from "./corpus-actors.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
 import { seedCorpusRpgProvider } from "./corpus-rpg-provider.ts";
 import {
@@ -15,7 +16,6 @@ import {
   CORPUS_RPG_SCENE_TOOL,
   createCorpusRpgWire,
 } from "./corpus-rpg-wire.ts";
-import { seedCorpusActors } from "./corpus-seed.ts";
 import { captureRpgSnapshot } from "./factories/rows.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";

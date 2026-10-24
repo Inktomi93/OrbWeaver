@@ -6,6 +6,7 @@ import { assertReferentialIntegrity, closeDb } from "@orb/db";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import { createFrozenClock } from "../iso/clock.ts";
 import { createSeededIds } from "../iso/ids.ts";
+import { seedCorpusActors } from "./corpus-actors.ts";
 import { seedCorpusConnection } from "./corpus-connection.ts";
 import {
   CORPUS_CONNECTION_FOREIGN_KEY,
@@ -18,7 +19,6 @@ import {
   createCorpusConnectionWire,
 } from "./corpus-connection-wire.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
-import { seedCorpusActors } from "./corpus-seed.ts";
 import { freshDb } from "./db.ts";
 import { expect, test } from "./fixtures.ts";
 import type { ServerTestHarness } from "./server.ts";

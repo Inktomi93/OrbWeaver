@@ -6,11 +6,12 @@ import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { pluginMacroName } from "@orb/server/domain/plugin";
+import type { seedCorpusActors } from "./corpus-actors.ts";
 import { CORPUS_PROVIDER_ENDPOINT } from "./corpus-provider.ts";
-import type { SeededCorpusLibraries, seedCorpusActors } from "./corpus-seed.ts";
+import type { SeededCorpusLibraries } from "./corpus-seed.ts";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
-import { makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "./factories/plugin.ts";
-import { capturePluginRows } from "./factories/rows.ts";
+import { makePluginBundle } from "./factories/plugin.ts";
+import { capturePluginRows, seedInstalledPluginRows, seedPluginGrantRows } from "./factories/rows.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
@@ -65,8 +66,8 @@ export const CORPUS_PLUGIN_HOST_MANIFEST = pluginManifestSchema.parse({
 });
 
 export interface CorpusPluginHost {
-  readonly plugin: Awaited<ReturnType<typeof seedPluginGrant>>;
-  readonly installed: Awaited<ReturnType<typeof seedInstalledPlugin>>;
+  readonly plugin: Awaited<ReturnType<typeof seedPluginGrantRows>>;
+  readonly installed: Awaited<ReturnType<typeof seedInstalledPluginRows>>;
   readonly observations: Readonly<Record<string, JsonValue>>;
   readonly privateRows: Awaited<ReturnType<typeof capturePluginRows>>;
   readonly turn: Awaited<ReturnType<ServerTestHarness["services"]["chat"]["send"]>>;
@@ -154,12 +155,12 @@ h.ui.registerCommand({name:"emit",describe:"Publish installer-scoped private dat
   await h.pubsub.emit("ledger",{witness:values.witness});
 }});`;
   await caller.chat.commitMessage({ chatId: library.room.chat.id, content: "Native host transcript witness.", timeZone: UTC_TIME_ZONE });
-  const installed = await seedInstalledPlugin(root, {
+  const installed = await seedInstalledPluginRows(root, {
     caller: principal,
     bundle: makePluginBundle(CORPUS_PLUGIN_HOST_MANIFEST, source, root.clock.now()),
     grant: [],
   });
-  const plugin = await seedPluginGrant(root, {
+  const plugin = await seedPluginGrantRows(root, {
     caller: principal,
     pluginId: installed.outcome.id,
     grant: CORPUS_PLUGIN_HOST_MANIFEST.capabilities,

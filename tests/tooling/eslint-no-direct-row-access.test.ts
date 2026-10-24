@@ -115,15 +115,29 @@ test("writes are not reads, reads are not writes, and same-named members on othe
 test.for([
   "tests/db/schema/row-access-probe.int.test.ts",
   "tests/server/domain/probe/persistence/row-access-probe.int.test.ts",
-  "tests/support/node/row-access-probe.ts",
+  "tests/support/node/factories/rows.ts",
+  "tests/support/node/factories/rows/row-access-probe.ts",
+  "tests/support/node/row-access-probe.int.test.ts",
+  "tests/support/node/corpus-search.ts",
   "tests/tooling/seed/ops/row-access-probe.int.test.ts",
-])("the persistence tier or tooling test %s may write and read rows directly", async (path) => {
+])("the persistence tier, a testkit row-read home or tooling test %s may write and read rows directly", async (path) => {
   const config = await eslint.calculateConfigForFile(join(ROOT, path));
   expect(config?.rules?.[WRITES]).toBeUndefined();
   expect(config?.rules?.[READS]).toBeUndefined();
   expect(await findings(WRITES, `await db.insert(rows).values({ id: "a" });`, path)).toEqual([]);
   expect(await findings(READS, "await db.select().from(rows);\nvoid db.query;", path)).toEqual([]);
 });
+
+// A door seed or helper outside the closed home list may write through testkit's sanctioned states but never read.
+test.for(["tests/support/node/factories/row-access-probe.ts", "tests/support/node/row-access-probe.ts", "tests/support/node/corpus-actors.ts"])(
+  "the testkit door module %s writes rows but every read is a finding",
+  async (path) => {
+    const config = await eslint.calculateConfigForFile(join(ROOT, path));
+    expect(config?.rules?.[WRITES]).toBeUndefined();
+    expect(await findings(WRITES, `await db.insert(rows).values({ id: "a" });`, path)).toEqual([]);
+    expect(await findings(READS, "await db.select().from(rows);", path)).toHaveLength(1);
+  },
+);
 
 test.for(["scripts/row-access-probe.ts", "playwright/row-access-probe.ts", "tests/e2e/row-access-probe.spec.ts"])(
   "%s is in scope of both rules",

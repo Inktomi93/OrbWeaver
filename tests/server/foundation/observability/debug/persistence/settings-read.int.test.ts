@@ -9,16 +9,16 @@ import { ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node";
 import { signInWithPassword } from "@orb/testkit/node/auth";
+import { createServerHarness } from "@orb/testkit/node/composed";
 import {
-  createServerHarness,
-  seedAutomationRule,
-  seedAutomationTestFires,
-  seedCharacter,
-  seedPersona,
-  seedPreset,
-  seedRpgGame,
-  seedUserSettings,
-} from "@orb/testkit/node/composed";
+  seedAutomationRuleRows,
+  seedAutomationTestFiresRows,
+  seedCharacterRows,
+  seedPersonaRows,
+  seedPresetRows,
+  seedRpgGameRows,
+  seedUserSettingsRows,
+} from "@orb/testkit/node/rows";
 import { eq, sql } from "drizzle-orm";
 
 const PASSWORD = "operator-read-control-password";
@@ -53,9 +53,9 @@ test("the settings probe preserves key order and stored values while rejecting a
 
   const caller = await root.internalCallerFor(root.ownerId);
   const { chat } = await caller.chat.startChat({ characterIds: [] });
-  const { row: persona } = await seedPersona(root, { principal: owner, input: createPersonaSchema.parse({ name: "Inspector persona", description: "" }) });
-  const { row: preset } = await seedPreset(root, root.ownerId, { name: "Inspector preset", kind: "custom" });
-  const created = await seedCharacter(root, {
+  const { row: persona } = await seedPersonaRows(root, { principal: owner, input: createPersonaSchema.parse({ name: "Inspector persona", description: "" }) });
+  const { row: preset } = await seedPresetRows(root, root.ownerId, { name: "Inspector preset", kind: "custom" });
+  const created = await seedCharacterRows(root, {
     principal: owner,
     input: createCharacterSchema.parse({
       handle: "inspector-card",
@@ -69,12 +69,12 @@ test("the settings probe preserves key order and stored values while rejecting a
   if (character === undefined) {
     throw new Error("the production character update left no canonical row");
   }
-  const settings = await seedUserSettings(root, {
+  const settings = await seedUserSettingsRows(root, {
     principal: owner,
     input: { section: "appearance", patch: {} },
   });
-  const game = await seedRpgGame(root, { principal: owner, chatId: chat.id, mode: "lite" });
-  const rule = await seedAutomationRule(root, {
+  const game = await seedRpgGameRows(root, { principal: owner, chatId: chat.id, mode: "lite" });
+  const rule = await seedAutomationRuleRows(root, {
     principal: owner,
     chatId: chat.id,
     name: "Inspector terminal control",
@@ -82,7 +82,7 @@ test("the settings probe preserves key order and stored values while rejecting a
     trigger: automationTriggerFor("chatOpened"),
     actions: [{ type: "set_variable", scope: "global", key: "inspector_control", op: "set", value: "1" }],
   });
-  const dryRun = await seedAutomationTestFires(root, { principal: owner, ruleId: rule.id });
+  const dryRun = await seedAutomationTestFiresRows(root, { principal: owner, ruleId: rule.id });
   const terminal = dryRun.fires[0];
   if (terminal === undefined) {
     throw new Error("The production dry run did not supply its terminal fire.");

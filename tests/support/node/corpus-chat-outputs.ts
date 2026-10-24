@@ -4,7 +4,7 @@ import { groupConfigSchema } from "@orb/contracts/chat";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { TOOL_RECURSE_LIMIT_DEFAULT } from "@orb/server/domain/chat";
-import { seedCorpusActors } from "./corpus-seed.ts";
+import { seedCorpusActors } from "./corpus-actors.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;

@@ -6,7 +6,7 @@ import { sessions } from "@orb/db";
 import { eq } from "drizzle-orm";
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
-import { seedBffSession, seedLoginBuckets } from "./sessions.ts";
+import { seedBffSession, seedLoginBuckets } from "./rows/sessions.ts";
 
 test("a real session mint persists only its hash and revoke settles the actual returned session identity", async () => {
   await using root = await createServerHarness();

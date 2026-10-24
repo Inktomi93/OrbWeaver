@@ -15,12 +15,13 @@ import { seedCorpusAccount } from "./corpus-auth.ts";
 import { CORPUS_PLUGIN_MANIFEST } from "./corpus-plugin.ts";
 import { captureCookieAuth } from "./corpus-seed.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
-import { makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "./factories/plugin.ts";
+import { makePluginBundle } from "./factories/plugin.ts";
+import { seedInstalledPluginRows, seedPluginGrantRows } from "./factories/rows.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 export interface CorpusPluginHttp {
-  readonly installed: Awaited<ReturnType<typeof seedInstalledPlugin>>;
-  readonly granted: Awaited<ReturnType<typeof seedPluginGrant>>;
+  readonly installed: Awaited<ReturnType<typeof seedInstalledPluginRows>>;
+  readonly granted: Awaited<ReturnType<typeof seedPluginGrantRows>>;
   readonly ownerAuth: Awaited<ReturnType<typeof captureCookieAuth>>;
   readonly foreignAuth: Awaited<ReturnType<typeof captureCookieAuth>>;
   readonly source: Response;
@@ -58,7 +59,7 @@ export async function seedCorpusPluginHttp(root: ServerTestHarness): Promise<Cor
     capabilities: ["ui.surface", "ui.frame"],
   });
   const expectedImage = makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset));
-  const installed = await seedInstalledPlugin(root, {
+  const installed = await seedInstalledPluginRows(root, {
     caller,
     bundle: makePluginBundle(manifest, FRAME_GUEST_SOURCE, root.clock.now(), {
       [PLUGIN_UI_ENTRY]: strToU8(CORPUS_PLUGIN_UI_SOURCE),
@@ -66,7 +67,7 @@ export async function seedCorpusPluginHttp(root: ServerTestHarness): Promise<Cor
     }),
     grant: [],
   });
-  const granted = await seedPluginGrant(root, {
+  const granted = await seedPluginGrantRows(root, {
     caller,
     pluginId: installed.outcome.id,
     grant: manifest.capabilities,
@@ -159,7 +160,7 @@ export interface CorpusPluginFrameLifetime {
   readonly deleted: Response;
   readonly deletedDocument: FrameDocumentCapture;
   readonly deletedAsset: FrameAssetCapture;
-  readonly narrowed: Awaited<ReturnType<typeof seedPluginGrant>>;
+  readonly narrowed: Awaited<ReturnType<typeof seedPluginGrantRows>>;
   readonly revokedDocument: FrameDocumentCapture;
   readonly revokedAsset: FrameAssetCapture;
   readonly upgrade: Awaited<ReturnType<ServerTestHarness["services"]["plugin"]["upgrade"]>>;
@@ -225,7 +226,7 @@ export async function seedCorpusPluginFrameLifetime(root: ServerTestHarness): Pr
   const deletedAsset = await readAsset(disposable.assetUrl);
 
   const consent = await mint();
-  const narrowed = await seedPluginGrant(root, { caller, pluginId, grant: ["ui.surface"], acknowledgedNetHosts: [] });
+  const narrowed = await seedPluginGrantRows(root, { caller, pluginId, grant: ["ui.surface"], acknowledgedNetHosts: [] });
   const revokedDocument = await readDocument(consent.frame.url);
   const revokedAsset = await readAsset(consent.assetUrl);
   await root.services.plugin.setGrant({ caller, pluginId, grant: ["ui.surface", "ui.frame"], acknowledgedNetHosts: [], enable: true });

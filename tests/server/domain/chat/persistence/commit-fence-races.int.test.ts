@@ -5,9 +5,10 @@
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { chatLocks, closeDb, messages, messageVariants, ownerStats } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
-import type { PeerLease } from "@orb/testkit/node/composed";
-import { freshHeldDb, seedPeerLease } from "@orb/testkit/node/composed";
+import { freshHeldDb } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
+import type { PeerLeaseRows } from "@orb/testkit/node/rows";
+import { seedPeerLeaseRows } from "@orb/testkit/node/rows";
 import { eq } from "drizzle-orm";
 import { coreFrame, coreHeldReply, coreHttpRoom, coreSse } from "../engine/core-physical.ts";
 
@@ -24,7 +25,7 @@ test.for([
   const now = h.root.clock.now();
   const running = h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: character.id });
   const settled = Promise.allSettled([running]);
-  let peer: PeerLease | undefined;
+  let peer: PeerLeaseRows | undefined;
   try {
     const signal = await Promise.race([
       physical.reached,
@@ -37,7 +38,7 @@ test.for([
       throw new Error("the actual commit-fence turn owns no real lease");
     }
     if (row.stolen) {
-      peer = await seedPeerLease(h.root, {
+      peer = await seedPeerLeaseRows(h.root, {
         chatId: h.chatId,
         characterId: character.id,
         hostUserId: h.owner.userId,

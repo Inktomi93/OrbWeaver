@@ -3,8 +3,8 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { CORPUS_PROVIDER_ENDPOINT } from "./corpus-provider.ts";
 import { RPG_RECURSION_CARD, RPG_RECURSION_CUE, RPG_RECURSION_MODEL } from "./corpus-rpg-flight-wire.ts";
-import { captureTurnRows } from "./factories/rows.ts";
-import { captureRpgRows, captureRpgTurnToolCalls, seedRpgGame } from "./factories/rpg.ts";
+import { captureRpgRows, captureRpgTurnToolCalls } from "./factories/rows/rpg.ts";
+import { captureTurnRows, seedRpgGameRows } from "./factories/rows.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
@@ -12,7 +12,7 @@ interface CorpusRpgRecursion {
   readonly character: Awaited<ReturnType<Caller["character"]["create"]>>;
   readonly room: Awaited<ReturnType<Caller["chat"]["startChat"]>>;
   readonly connection: Awaited<ReturnType<ServerTestHarness["services"]["connection"]["create"]>>;
-  readonly game: Awaited<ReturnType<typeof seedRpgGame>>;
+  readonly game: Awaited<ReturnType<typeof seedRpgGameRows>>;
   readonly turn: Awaited<ReturnType<ServerTestHarness["services"]["chat"]["send"]>>;
   readonly canon: Awaited<ReturnType<typeof captureTurnRows>>;
   readonly rows: Awaited<ReturnType<typeof captureRpgRows>>;
@@ -54,7 +54,7 @@ export async function seedCorpusRpgRecursion(root: ServerTestHarness): Promise<C
   await caller.chat.setGroupConfig({ chatId, config: { output: "per-speaker", cardScope: "scoped", policy: "list" } });
   await caller.chat.setCharactersCanReact({ chatId, enabled: true });
   await caller.chat.setReactionsEnabled({ chatId, enabled: true });
-  const game = await seedRpgGame(root, { principal, chatId, mode: "lite" });
+  const game = await seedRpgGameRows(root, { principal, chatId, mode: "lite" });
   await caller.rpg.updateConfig({ chatId, extractionMode: "folded" });
   const turn = await root.services.chat.send({
     principal,

@@ -2,10 +2,10 @@
 // @subject tests/support/node/corpus-image-wire.ts
 import { randomBytes } from "node:crypto";
 import { assertReferentialIntegrity } from "@orb/db";
+import { seedCorpusActors } from "./corpus-actors.ts";
 import { CORPUS_VARIANT_EDIT_INSTRUCTION, CORPUS_VARIANT_FREE_PROMPT, CORPUS_VARIANT_OVERRIDE, seedCorpusImageVariants } from "./corpus-image-variants.ts";
 import { CORPUS_VARIANT_EDIT_MODEL, CORPUS_VARIANT_IMAGE_MODEL, CORPUS_VARIANT_PROMPT, createCorpusImageWire } from "./corpus-image-wire.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
-import { seedCorpusActors } from "./corpus-seed.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 

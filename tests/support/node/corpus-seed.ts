@@ -1,50 +1,41 @@
 import { createCharacterSchema } from "@orb/contracts/character";
-import { assemblyPreviewSchema } from "@orb/contracts/chat";
-import type { Principal } from "@orb/contracts/identity";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import { parsePresetFile } from "@orb/contracts/preset";
 import { createRosterPresetSchema } from "@orb/contracts/roster-preset";
 import { createTagSchema } from "@orb/contracts/tag";
 import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
-import type { ChatId, DocumentId, PersonaId, UserConnectionId } from "@orb/kit/ids";
-import { brandedId, ID_PREFIX } from "@orb/kit/ids";
+import type { ChatId, DocumentId, PersonaId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
 import { seedDefaultPreset, seedThemes } from "@orb/server/entry/boot";
 import type { SeedDemoResult } from "@orb/tooling/seed";
-import { loadDemoSeed, SECOND_HUMAN_HANDLE } from "@orb/tooling/seed";
+import { loadDemoSeed } from "@orb/tooling/seed";
 import type { CorpusWire } from "../iso/corpus.ts";
 import { corpusReadInput } from "../iso/corpus.ts";
-import type { CapturedCookieAuth } from "./corpus-auth.ts";
-import { captureCookieAuth, seedCorpusAccount } from "./corpus-auth.ts";
-import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "./corpus-provider.ts";
-import { settleCorpusWorkloads } from "./corpus-workloads.ts";
-import { makeAssetBytes, seedAsset } from "./factories/asset.ts";
+import { makeAssetBytes } from "./factories/asset.ts";
 import type { AutomationRuleRow } from "./factories/automation.ts";
 import {
   captureAutomationExecution,
   captureAutomationRule,
   captureGlobalVariable,
   seedAutomationOwnerBudget,
-  seedAutomationRule,
   seedAutomationRun,
-  seedAutomationTestFires,
   seedGlobalVariable,
-} from "./factories/automation.ts";
-import { seedCharacter, seedCharacterHistory, seedCharacterPersona } from "./factories/character.ts";
-import type { UserConnectionRow } from "./factories/connection.ts";
-import { seedConnectionBinding, seedUserConnection } from "./factories/connection.ts";
-import { seedCharacterDocument, seedChatDocument, seedDocument, seedGlobalDocument } from "./factories/databank.ts";
-import { captureChatMemoryRows, captureDocumentChunks } from "./factories/embedding-generation.ts";
-import { seedGalleryItem } from "./factories/gallery.ts";
-import { seedPersona, seedPersonaFromCharacter } from "./factories/persona.ts";
-import { seedImportedPreset, seedPreset, seedUpdatedPreset } from "./factories/preset.ts";
-import { captureRegexRows } from "./factories/regex.ts";
-import { captureRosterRows, seedRosterPreset } from "./factories/roster-preset.ts";
-import { captureTurnRows } from "./factories/rows.ts";
-import { seedUserContentLedger } from "./factories/settings.ts";
-import { seedStats } from "./factories/stats.ts";
-import { seedCharacterTag, seedChatTag, seedCreatedTag, seedPersonaTag, seedPresetTag, seedWorldBookTag } from "./factories/tag.ts";
+} from "./factories/rows/automation.ts";
+import { seedCharacterHistory, seedCharacterPersona } from "./factories/rows/character.ts";
+import { seedCharacterDocument, seedChatDocument, seedDocument, seedGlobalDocument } from "./factories/rows/databank.ts";
+import { captureDocumentChunks } from "./factories/rows/embedding-generation.ts";
+import { seedGalleryItem } from "./factories/rows/gallery.ts";
+import { seedPersonaFromCharacter } from "./factories/rows/persona.ts";
+import { seedImportedPreset, seedUpdatedPreset } from "./factories/rows/preset.ts";
+import { captureRegexRows } from "./factories/rows/regex.ts";
+import { captureRosterRows, seedRosterPreset } from "./factories/rows/roster-preset.ts";
+import type { CapturedCookieAuthRows } from "./factories/rows/sessions.ts";
+import { captureCookieAuthRows } from "./factories/rows/sessions.ts";
+import { seedUserContentLedger } from "./factories/rows/settings.ts";
+import { seedStats } from "./factories/rows/stats.ts";
+import { seedCharacterTag, seedChatTag, seedPersonaTag, seedPresetTag, seedWorldBookTag } from "./factories/rows/tag.ts";
 import {
   captureWorldBookRows,
   seedCharacterBook,
@@ -53,7 +44,17 @@ import {
   seedPersonaBook,
   seedWorldBook,
   seedWorldEntry,
-} from "./factories/world-info.ts";
+} from "./factories/rows/world-info.ts";
+import {
+  captureTurnRows,
+  seedAssetRows,
+  seedAutomationRuleRows,
+  seedAutomationTestFiresRows,
+  seedCharacterRows,
+  seedCreatedTagRows,
+  seedPersonaRows,
+  seedPresetRows,
+} from "./factories/rows.ts";
 import type { createServerHarness } from "./server.ts";
 
 export { captureCookieAuth } from "./corpus-auth.ts";
@@ -61,20 +62,18 @@ export { seedOidcCorpus } from "./corpus-oidc.ts";
 
 type ServerHarness = Awaited<ReturnType<typeof createServerHarness>>;
 type CorpusCaller = Awaited<ReturnType<ServerHarness["internalCallerFor"]>>;
-type CorpusTurn = Awaited<ReturnType<ServerHarness["services"]["chat"]["send"]>>;
-type RecallRecord = ReturnType<ServerHarness["app"]["recallRecorder"]["recent"]>[number];
 
 export interface SeededCorpusLibraries {
   readonly derivedPersona: Awaited<ReturnType<typeof seedPersonaFromCharacter>>;
   readonly branchedPreset: Awaited<ReturnType<typeof seedUpdatedPreset>>;
   readonly importedPreset: Awaited<ReturnType<typeof seedImportedPreset>>;
   readonly roster: Awaited<ReturnType<typeof seedRosterPreset>>;
-  readonly createdTag: Awaited<ReturnType<typeof seedCreatedTag>>;
+  readonly createdTag: Awaited<ReturnType<typeof seedCreatedTagRows>>;
   readonly rows: {
-    readonly asset: Awaited<ReturnType<typeof seedAsset>>["row"];
-    readonly character: Awaited<ReturnType<typeof seedCharacter>>["row"];
-    readonly persona: Awaited<ReturnType<typeof seedPersona>>["row"];
-    readonly preset: Awaited<ReturnType<typeof seedPreset>>["row"];
+    readonly asset: Awaited<ReturnType<typeof seedAssetRows>>["row"];
+    readonly character: Awaited<ReturnType<typeof seedCharacterRows>>["row"];
+    readonly persona: Awaited<ReturnType<typeof seedPersonaRows>>["row"];
+    readonly preset: Awaited<ReturnType<typeof seedPresetRows>>["row"];
   };
   readonly character: Awaited<ReturnType<ServerHarness["services"]["character"]["create"]>>;
   readonly persona: Awaited<ReturnType<ServerHarness["services"]["persona"]["create"]>>;
@@ -92,7 +91,7 @@ export interface SeededCorpusLibraries {
     readonly chat: Awaited<ReturnType<typeof seedChatDocument>>;
     readonly global: Awaited<ReturnType<typeof seedGlobalDocument>>;
   };
-  readonly tag: Awaited<ReturnType<typeof seedCreatedTag>>["row"];
+  readonly tag: Awaited<ReturnType<typeof seedCreatedTagRows>>["row"];
   readonly tags: {
     readonly character: Awaited<ReturnType<typeof seedCharacterTag>>;
     readonly chat: Awaited<ReturnType<typeof seedChatTag>>;
@@ -106,17 +105,17 @@ export interface SeededCorpusLibraries {
 export async function seedCorpusLibraries(root: ServerHarness): Promise<SeededCorpusLibraries> {
   const principal = await root.principalFor(root.ownerId);
   const caller = await root.internalCallerFor(root.ownerId);
-  const createdCharacter = await seedCharacter(root, {
+  const createdCharacter = await seedCharacterRows(root, {
     principal,
     input: createCharacterSchema.parse({ handle: "corpus-library", name: "The ledger archivist", description: "An archivist preserving the orbital ledger." }),
   });
   const character = createdCharacter.view;
-  const createdPersona = await seedPersona(root, {
+  const createdPersona = await seedPersonaRows(root, {
     principal,
     input: createPersonaSchema.parse({ name: "The ledger keeper", description: "Keeper of the orbital ledger." }),
   });
   const persona = createdPersona.view;
-  const createdPreset = await seedPreset(root, root.ownerId, { name: "Corpus library preset", kind: "custom" });
+  const createdPreset = await seedPresetRows(root, root.ownerId, { name: "Corpus library preset", kind: "custom" });
   const preset = createdPreset.view;
   const room = await root.services.chat.startChat({ principal, characterIds: [character.id], opening: "none" });
   const history = await seedCharacterHistory(root, {
@@ -130,7 +129,7 @@ export async function seedCorpusLibraries(root: ServerHarness): Promise<SeededCo
     characterId: character.id,
     personaId: persona.id,
   });
-  const storedAsset = await seedAsset(root, {
+  const storedAsset = await seedAssetRows(root, {
     principal,
     kind: "gallery",
     mime: "image/png",
@@ -163,7 +162,7 @@ export async function seedCorpusLibraries(root: ServerHarness): Promise<SeededCo
     chat: await seedChatDocument(root, { principal, chatId: room.chat.id, documentId: document.id }),
     global: await seedGlobalDocument(root, { principal, documentId: document.id }),
   };
-  const createdTag = await seedCreatedTag(root, {
+  const createdTag = await seedCreatedTagRows(root, {
     principal,
     input: createTagSchema.parse({ name: "Orbital ledger", source: "auto" }),
   });
@@ -249,7 +248,7 @@ const AUTOMATION_OWNER_CAP = 2;
 export interface SeededCorpusAutomation {
   readonly budget: Awaited<ReturnType<typeof seedAutomationOwnerBudget>>;
   readonly globalRule: AutomationRuleRow;
-  readonly dry: Awaited<ReturnType<typeof seedAutomationTestFires>>;
+  readonly dry: Awaited<ReturnType<typeof seedAutomationTestFiresRows>>;
   readonly firstMiss: Awaited<ReturnType<typeof captureAutomationCounter>>;
   readonly firstHit: Awaited<ReturnType<typeof captureAutomationCounter>>;
   readonly secondMiss: Awaited<ReturnType<typeof captureAutomationCounter>>;
@@ -286,7 +285,7 @@ export async function seedCorpusAutomation(root: ServerHarness, chatId: ChatId):
   await seedGlobalVariable(root, { principal, key: AUTOMATION_COUNTER_KEY, value: "0" });
   const gate = { principal, key: AUTOMATION_GATE_KEY };
   await seedGlobalVariable(root, { ...gate, value: "no" });
-  const globalRule = await seedAutomationRule(root, {
+  const globalRule = await seedAutomationRuleRows(root, {
     principal,
     chatId: null,
     name: "Corpus owned asset counter",
@@ -296,7 +295,7 @@ export async function seedCorpusAutomation(root: ServerHarness, chatId: ChatId):
     actions: [{ type: "set_variable", scope: "global", key: AUTOMATION_COUNTER_KEY, op: "inc" }],
   });
   const params = { principal, ruleId: globalRule.id };
-  const dry = await seedAutomationTestFires(root, params);
+  const dry = await seedAutomationTestFiresRows(root, params);
   await automation.setRuleEnabled({ ...params, enabled: true });
   const watchedAsset = async (): Promise<Awaited<ReturnType<typeof captureAutomationCounter>>> => {
     await root.app.assets.store({ principal, kind: "gallery", mime: "image/png", bytes: makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)) });
@@ -315,7 +314,7 @@ export async function seedCorpusAutomation(root: ServerHarness, chatId: ChatId):
   const completed = await captureAutomationCounter(root, globalRule.id);
 
   await root.services.chat.commitMessage({ principal, chatId, content: "The keeper preserves the completed orbital ledger." });
-  const analysisRule = await seedAutomationRule(root, {
+  const analysisRule = await seedAutomationRuleRows(root, {
     principal,
     chatId,
     name: "Corpus private ledger direction",
@@ -350,110 +349,10 @@ export async function seedCorpusAutomation(root: ServerHarness, chatId: ChatId):
   };
 }
 
-const RECALL_INTENT = { maxContextTokens: 2048, maxOutputTokens: 64 };
-const memoryRecallSchema = assemblyPreviewSchema.shape.trace.shape.memoryRecall.unwrap();
-
-export interface SeedRecallCorpusOptions {
-  readonly chatConnectionId: UserConnectionId;
-  readonly embedConnectionId: UserConnectionId;
-  readonly summarizeConnectionId: UserConnectionId;
-  readonly beforeRecall?: () => void;
-}
-
-export interface SeededRecallCorpus {
-  readonly chatId: ChatId;
-  readonly historyTurn: CorpusTurn;
-  readonly first: CorpusTurn;
-  readonly recalled: CorpusTurn;
-  readonly memory: Awaited<ReturnType<typeof captureChatMemoryRows>>;
-  readonly jobs: Awaited<ReturnType<CorpusCaller["workloads"]["list"]>>;
-  readonly traces: readonly RecallRecord["trace"][];
-}
-
-/** Author the room and host preset through their real public writes. */
-export async function seedRecallRoom(caller: CorpusCaller): Promise<ChatId> {
-  const preset = await caller.preset.create({ name: "Funding control preset", kind: "custom" });
-  await caller.settings.updateUserSettingsSection({ section: "seeds", patch: { defaultPresetId: preset.id } });
-  const card = await caller.character.create({
-    input: createCharacterSchema.parse({ handle: "funding-control", name: "Funding control", description: "A deterministic funding control." }),
-  });
-  return (await caller.chat.startChat({ characterIds: [card.id], opening: "none" })).chat.id;
-}
-
-/** Produce memory through actual turns and workers; only fresh, owner-parsed recall traces are captured. */
-export async function seedRecallCorpus(root: ServerHarness, options: SeedRecallCorpusOptions): Promise<SeededRecallCorpus> {
-  const caller = await root.internalCallerFor(root.ownerId);
-  await caller.settings.updateUserSettingsSection({ section: "memory", patch: { enabled: true } });
-  await caller.settings.updateAppSettings({ partial: { memoryDefaults: { mode: "mixB", maxTier: 0 } } });
-  const chatId = await seedRecallRoom(caller);
-  await caller.chat.setGroupConfig({ chatId, config: { output: "per-speaker", cardScope: "scoped", policy: "list" } });
-  await caller.connection.setBinding({ task: "chat", connectionId: options.chatConnectionId });
-  await caller.connection.setBinding({ task: "summarize", connectionId: options.summarizeConnectionId });
-  await caller.connection.setBinding({ task: "embed", connectionId: options.embedConnectionId });
-  const principal = await root.principalFor(root.ownerId);
-  const historyTurn = await root.services.chat.send({ principal, chatId, content: "Witness the opening ledger scene.", intent: RECALL_INTENT });
-  if (historyTurn.aborted || historyTurn.messages.length === 0) {
-    throw new Error("synthetic recall corpus produced no completed history turn");
-  }
-  for (let seq = 0; seq < 16; seq += 1) {
-    await caller.chat.commitMessage({
-      chatId,
-      timeZone: UTC_TIME_ZONE,
-      content: `Funding memory scene ${seq}: ${"The ledger records the remembered scene and its witnesses. ".repeat(32)}`,
-    });
-  }
-  const first = await root.services.chat.send({ principal, chatId, content: "Remember the ledger.", intent: RECALL_INTENT });
-  if (first.aborted || first.messages.length === 0) {
-    throw new Error("synthetic recall corpus produced no completed first turn");
-  }
-  const started = [
-    await caller.workloads.start({ input: { kind: "index", params: { source: "text" } }, mode: "singular" }),
-    await caller.workloads.start({ input: { kind: "memory-backfill", params: {} }, mode: "singular" }),
-    await caller.workloads.start({ input: { kind: "databank-reindex", params: { scope: { kind: "owner" }, mode: "chunk-embed" } }, mode: "singular" }),
-  ];
-  const jobs = await settleCorpusWorkloads(root, caller, started);
-  const memory = await captureChatMemoryRows(root.db, chatId);
-  if (memory.digests.length === 0 || memory.segments.length === 0) {
-    throw new Error("synthetic recall corpus workers produced no genuine digests or segments");
-  }
-  const previous = new Set(root.app.recallRecorder.recent({ chatId }).map((record) => record.seq));
-  options.beforeRecall?.();
-  const recalled = await root.services.chat.send({ principal, chatId, content: "Which remembered scene held the ledger?", intent: RECALL_INTENT });
-  if (recalled.aborted || recalled.messages.length === 0) {
-    throw new Error("synthetic recall corpus produced no completed scoped recall turn");
-  }
-  const traces = root.app.recallRecorder
-    .recent({ chatId })
-    .filter((record) => !previous.has(record.seq))
-    .map((record) => memoryRecallSchema.parse(record.trace));
-  if (!traces.some((trace) => trace.queryEmbedded && trace.poolSize > 0)) {
-    throw new Error("synthetic recall corpus produced no fresh nonempty recall trace");
-  }
-  return { chatId, historyTurn, first, recalled, memory, jobs, traces };
-}
-
 export interface SeedSyntheticCorpusOptions {
   readonly secondUserId?: Awaited<ReturnType<ServerHarness["app"]["sessions"]["ensureUser"]>>;
   readonly ownerPassword: string;
   readonly log: (message: string) => void;
-}
-
-interface CorpusActors {
-  readonly owner: Principal;
-  readonly secondUserId: Awaited<ReturnType<ServerHarness["app"]["sessions"]["ensureUser"]>>;
-  readonly connections: Awaited<ReturnType<typeof seedCorpusConnections>>;
-}
-
-/** Configure actual actors and hosted execution bindings through their owners, not a runtime resolver substitute. */
-export async function seedCorpusActors(root: ServerHarness, freshAccount = false): Promise<CorpusActors> {
-  const owner = await root.principalFor(root.ownerId);
-  await root.services.settings.updateAppSettings({ principal: owner, partial: { privateEndpointAllowlist: [new URL(CORPUS_PROVIDER_ENDPOINT).hostname] } });
-  const connections = await seedCorpusConnections(root, owner);
-  const secondUserId = freshAccount
-    ? (await seedCorpusAccount(root)).userId
-    : await root.app.sessions.ensureUser(brandedId("Handle").parse(SECOND_HUMAN_HANDLE));
-  await seedCorpusConnections(root, await root.principalFor(secondUserId));
-  return { owner, secondUserId, connections };
 }
 
 interface CorpusReadIdentities {
@@ -512,11 +411,6 @@ export async function captureCorpusReads(root: ServerHarness, identities: Corpus
   };
 }
 
-interface CorpusConnections {
-  readonly embed: UserConnectionRow;
-  readonly text: UserConnectionRow;
-}
-
 interface SyntheticCorpus {
   readonly ownerId: ServerHarness["ownerId"];
   readonly secrets: readonly string[];
@@ -533,41 +427,10 @@ interface SyntheticCorpus {
     readonly seedLedger: Awaited<ReturnType<typeof seedUserContentLedger>>;
     readonly ownerStats: Awaited<ReturnType<typeof seedStats>>;
     readonly secondUserStats: Awaited<ReturnType<typeof seedStats>>;
-    readonly loginBuckets: CapturedCookieAuth["loginBuckets"];
+    readonly loginBuckets: CapturedCookieAuthRows["loginBuckets"];
   };
   readonly auth: CorpusWire["auth"];
   readonly reads: CorpusWire["reads"];
-}
-
-/** Configure explicit physical corpus models through real owner admission; no runtime/role resolver is replaced. */
-export async function seedCorpusConnections(root: ServerHarness, principal: Principal): Promise<CorpusConnections> {
-  const embed = await seedUserConnection(root, {
-    principal,
-    providerId: "custom-openai",
-    credentialId: null,
-    baseUrl: CORPUS_PROVIDER_ENDPOINT,
-    model: CORPUS_EMBED_MODEL,
-    allowBackground: true,
-    declared: { kind: "embedding", embedding: { dims: CORPUS_EMBEDDING_VECTOR.length, maxInputTokens: 8192 }, features: { detectServer: false } },
-  });
-  const text = await seedUserConnection(root, {
-    principal,
-    providerId: "custom-openai",
-    credentialId: null,
-    baseUrl: CORPUS_PROVIDER_ENDPOINT,
-    model: CORPUS_TEXT_MODEL,
-    allowBackground: true,
-    declared: {
-      kind: "generation",
-      generation: { input: ["text", "image"], context: { window: 32_000 }, output: { structured: true } },
-      features: { detectServer: false, structuredMode: "guided-decoding" },
-    },
-  });
-  await seedConnectionBinding(root, { principal, task: "embed", connectionId: embed.id });
-  await seedConnectionBinding(root, { principal, task: "chat", connectionId: text.id });
-  await seedConnectionBinding(root, { principal, task: "summarize", connectionId: text.id });
-  await root.services.connection.setBinding({ principal, task: "imageEmbed", connectionId: null });
-  return { embed, text };
 }
 
 /** Uses the caller's graph; raw execution and its lifetime remain owned by the actual server harness. */
@@ -632,7 +495,7 @@ export async function seedSyntheticCorpus(root: ServerHarness, options: SeedSynt
     throw new Error("synthetic corpus document ingestion produced no canonical embedded chunks");
   }
 
-  const { auth, loginBuckets, secrets } = await captureCookieAuth(root, owner, options.ownerPassword);
+  const { auth, loginBuckets, secrets } = await captureCookieAuthRows(root, owner, options.ownerPassword);
   await root.settleBackground();
   const ownerStats = await seedStats(root, root.ownerId);
   const secondUserStats = await seedStats(root, seed.secondUserId);

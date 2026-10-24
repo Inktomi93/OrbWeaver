@@ -9,18 +9,18 @@ import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { seedChat, seedPersona } from "@orb/testkit/node/composed";
 
-async function seededPersona(harness: ServerTestHarness, ownerId: UserId, name: string): Promise<Awaited<ReturnType<typeof seedPersona>>["row"]> {
+async function seededPersona(harness: ServerTestHarness, ownerId: UserId, name: string): Promise<Awaited<ReturnType<typeof seedPersona>>["view"]> {
   const principal = await harness.principalFor(ownerId);
-  return (await seedPersona(harness, { principal, input: createPersonaSchema.parse({ name, description: "" }) })).row;
+  return (await seedPersona(harness, { principal, input: createPersonaSchema.parse({ name, description: "" }) })).view;
 }
 
 async function anchoredRoom(
   harness: ServerTestHarness,
   hostId: UserId,
   anchorPersonaId: Awaited<ReturnType<typeof seededPersona>>["id"],
-): Promise<Awaited<ReturnType<typeof seedChat>>["row"]> {
+): Promise<Awaited<ReturnType<typeof seedChat>>["view"]["chat"]> {
   const principal = await harness.principalFor(hostId);
-  return (await seedChat(harness, { principal, characterIds: [], anchorPersonaId })).row;
+  return (await seedChat(harness, { principal, characterIds: [], anchorPersonaId })).view.chat;
 }
 
 test("a trigger with no seat persona cannot borrow the room's anchor identity", async ({ harness, db }): Promise<void> => {

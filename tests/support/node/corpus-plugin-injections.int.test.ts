@@ -8,11 +8,12 @@ import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@
 import { neutralizeMacros } from "@orb/kit/macro";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { pluginMacroName } from "@orb/server/domain/plugin";
+import { seedCorpusActors } from "./corpus-actors.ts";
 import { captureCorpusPluginHost } from "./corpus-plugin-host.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
-import { seedCorpusActors, seedCorpusLibraries } from "./corpus-seed.ts";
-import { seedCharacter } from "./factories/character.ts";
-import { makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "./factories/plugin.ts";
+import { seedCorpusLibraries } from "./corpus-seed.ts";
+import { makePluginBundle } from "./factories/plugin.ts";
+import { seedCharacterRows, seedInstalledPluginRows, seedPluginGrantRows } from "./factories/rows.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 
@@ -60,12 +61,12 @@ test("native plugin values render once in authored injections without re-expandi
   const caller = await root.internalCallerFor(root.ownerId);
   const chatId = library.room.chat.id;
   await root.services.chat.setChatAnchorPersona({ principal: actors.owner, chatId, personaId: library.persona.id });
-  const installed = await seedInstalledPlugin(root, {
+  const installed = await seedInstalledPluginRows(root, {
     caller: actors.owner,
     bundle: makePluginBundle(manifest, guest(OWNER_VALUE), root.clock.now()),
     grant: [],
   });
-  await seedPluginGrant(root, {
+  await seedPluginGrantRows(root, {
     caller: actors.owner,
     pluginId: installed.plugin.id,
     grant: manifest.capabilities,
@@ -138,12 +139,12 @@ test("native plugin values render once in authored injections without re-expandi
     principal: member,
     input: createPersonaSchema.parse({ name: "Native member persona", description: "Member identity witness." }),
   });
-  const memberInstall = await seedInstalledPlugin(root, {
+  const memberInstall = await seedInstalledPluginRows(root, {
     caller: member,
     bundle: makePluginBundle(manifest, guest(MEMBER_VALUE), root.clock.now()),
     grant: [],
   });
-  await seedPluginGrant(root, {
+  await seedPluginGrantRows(root, {
     caller: member,
     pluginId: memberInstall.plugin.id,
     grant: manifest.capabilities,
@@ -174,7 +175,7 @@ test("native plugin values render once in authored injections without re-expandi
   expect((await captureCorpusPluginHost(root, installed.plugin.id)).observations[COUNT]).toBe(2);
   expect(await caller.chat.getRuntimeVariables({ chatId })).toMatchObject({ injectionRuns: "3" });
   expect(await caller.chat.listChatInjections({ chatId })).toEqual(expect.arrayContaining(templates));
-  const memberCharacter = await seedCharacter(root, {
+  const memberCharacter = await seedCharacterRows(root, {
     principal: member,
     input: createCharacterSchema.parse({ handle: "member-injection", name: "Member native character", description: "Owned member character." }),
   });

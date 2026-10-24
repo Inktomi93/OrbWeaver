@@ -126,7 +126,7 @@ async function policyRoom(root: ServerTestHarness): Promise<{
   });
   const { chat } = await root.services.chat.startChat({ principal: host, characterIds: [character.id], opening: "none" });
   const invite = await seedChatInvite(root, { principal: host, chatId: chat.id, input: { invitedHandle: member.handle } });
-  await seedInvitedChatParticipant(root, { principal: member, inviteId: invite.id });
+  await seedInvitedChatParticipant(root, { principal: member, inviteId: invite.invite.id });
   await root.services.chat.commitMessage({ principal: host, chatId: chat.id, content: "The traveller stands beside the loom." });
   await root.services.settings.updateUserSettingsSection({
     principal: member,

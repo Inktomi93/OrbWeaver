@@ -45,7 +45,7 @@ test("a genuinely installed and granted native teaching tool reaches public SEND
   });
   const enabled = await seedPluginGrant(h.root, {
     caller: h.owner,
-    pluginId: installed.plugin.id,
+    pluginId: installed.outcome.id,
     grant: MANIFEST.capabilities,
     acknowledgedNetHosts: [],
     enable: true,

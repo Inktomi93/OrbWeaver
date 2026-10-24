@@ -25,7 +25,7 @@ import { eq, isNotNull, sql } from "drizzle-orm";
 import { parseCorpusWire } from "../iso/corpus.ts";
 import { createCorpusCapsule, loadCorpusFixture, prepareCorpusFixture } from "./corpus.ts";
 import { createCorpusRecipe, CORPUS_OWNER_PASSWORD as OWNER_PASSWORD, CORPUS_PROVIDER_KEY as PROVIDER_KEY } from "./corpus-recipe.ts";
-import { seedUserCredential } from "./factories/credentials.ts";
+import { seedUserCredential } from "./factories/rows/credentials.ts";
 import { expect, test } from "./fixtures.ts";
 import { NATIVE_OIDC_SETTINGS } from "./oidc-issuer.ts";
 import { createServerHarness } from "./server.ts";

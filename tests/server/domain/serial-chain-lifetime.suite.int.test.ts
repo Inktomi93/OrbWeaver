@@ -35,7 +35,7 @@ async function installConsentSubject(root: ServerTestHarness, slug: string): Pro
     bundle: makePluginBundle(manifest, "orb.host(1);", root.clock.now()),
     grant: [],
   });
-  return { caller, pluginId: installed.plugin.id, grant: [], acknowledgedNetHosts: [] } as const;
+  return { caller, pluginId: installed.outcome.id, grant: [], acknowledgedNetHosts: [] } as const;
 }
 
 async function consentCount(root: ServerTestHarness): Promise<number | undefined> {
@@ -54,7 +54,7 @@ async function createGameSubject(root: ServerTestHarness): Promise<{
   const caller = await root.internalCallerFor(root.ownerId);
   const { chat } = await caller.chat.startChat({ characterIds: [], opening: "none" });
   const game = await seedRpgGame(root, { principal, chatId: chat.id, mode: "lite" });
-  return { principal, chatId: chat.id, gameId: game.id };
+  return { principal, chatId: chat.id, gameId: game.gameId };
 }
 
 test("one plugin service serializes consent across installed rows and publishes the final committed count", async () => {

@@ -11,7 +11,8 @@ import { chatLocks, closeDb, messages, messageVariants, statsCanonVersions } fro
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { createFrozenClock } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import { freshHeldDb, seedPeerLease } from "@orb/testkit/node/composed";
+import { freshHeldDb } from "@orb/testkit/node/composed";
+import { seedPeerLeaseRows } from "@orb/testkit/node/rows";
 import { eq } from "drizzle-orm";
 import { textRoom } from "../scenario-physical.ts";
 import { withCancellationPeer } from "../verbs/turn-cancellation-physical.ts";
@@ -222,7 +223,7 @@ test("a foreign real lease makes send yield its round while public generate stil
   if (voice === undefined) {
     throw new Error("the lock-free room has no voice for the peer replica");
   }
-  await using peer = await seedPeerLease(h.root, { chatId: h.chatId, characterId: voice.id, hostUserId: h.owner.userId, holder: "physical-competitor" });
+  await using peer = await seedPeerLeaseRows(h.root, { chatId: h.chatId, characterId: voice.id, hostUserId: h.owner.userId, holder: "physical-competitor" });
   const locked = await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "blocked" });
   expect(locked.messages).toHaveLength(1);
   expect(locked.messages[0]).toMatchObject({ role: "user", content: "blocked", seq: 2 });

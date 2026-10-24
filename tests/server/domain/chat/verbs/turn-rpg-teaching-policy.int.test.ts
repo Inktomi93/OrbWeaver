@@ -33,7 +33,7 @@ async function installGuest(root: ServerTestHarness, caller: Principal, descript
   });
   const enabled = await seedPluginGrant(root, {
     caller,
-    pluginId: installed.plugin.id,
+    pluginId: installed.outcome.id,
     grant: MANIFEST.capabilities,
     acknowledgedNetHosts: [],
     enable: true,
@@ -90,7 +90,7 @@ test("native plugin deactivation removes its tool from the next actual SEND rath
   const params = { principal: h.owner, chatId: h.chatId, content: "Describe this beat." };
   expect((await h.root.services.chat.send(params)).aborted).toBe(false);
   expect(JSON.stringify(wires[0]?.["tools"])).toContain(WIRE_NAME);
-  await h.root.services.plugin.setEnabled({ caller: h.owner, pluginId: enabled.plugin.id, enabled: false });
+  await h.root.services.plugin.setEnabled({ caller: h.owner, pluginId: enabled.outcome.id, enabled: false });
   expect(h.root.app.toolUse.listDrivableToolNames(h.owner.userId)).not.toContain(WIRE_NAME);
   expect((await h.root.services.chat.send(params)).aborted).toBe(false);
   expect(wires).toHaveLength(2);

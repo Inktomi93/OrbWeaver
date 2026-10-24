@@ -12,8 +12,8 @@ import { oidcPendingJoinCookieFor, readRequestCookie, readSessionCookie } from "
 import { eq } from "drizzle-orm";
 import type { JWTPayload } from "jose";
 import type { CorpusWire } from "../iso/corpus.ts";
+import { captureOidcPendingSignup, captureOidcTransaction } from "./factories/rows/sessions.ts";
 import type { BffSessionRow, OidcPendingSignupRow, OidcTransactionRow } from "./factories/sessions.ts";
-import { captureOidcPendingSignup, captureOidcTransaction } from "./factories/sessions.ts";
 import type { createNativeIssuer } from "./oidc-issuer.ts";
 import type { UnclaimedServerTestHarness } from "./server.ts";
 import { beginOidcLogin, cookieHeader, finishOidcLogin } from "./sign-in.ts";

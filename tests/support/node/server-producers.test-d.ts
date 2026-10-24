@@ -2,8 +2,9 @@ import type { Db } from "@orb/db";
 import type { CharacterService } from "@orb/server/domain/character";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { expectTypeOf, test } from "vitest";
-import { seedCharacter, seedCharacterHistory } from "./factories/character.ts";
-import { seedCreatedDocument } from "./factories/databank.ts";
+import { seedCharacterHistory } from "./factories/rows/character.ts";
+import { seedCreatedDocument } from "./factories/rows/databank.ts";
+import { seedCharacterRows } from "./factories/rows.ts";
 import type { ServerTestHarness, UnclaimedServerTestHarness } from "./server.ts";
 
 declare const db: Db;
@@ -16,7 +17,7 @@ declare const root: ServerTestHarness;
 
 test("persisted producers refuse caller-supplied business callbacks and structural service bags", async () => {
   // @ts-expect-error — a same-shaped creation callback is not a composed production root.
-  await seedCharacter(db, create, createParams);
+  await seedCharacterRows(db, create, createParams);
   // @ts-expect-error — a same-shaped operation bag is not a composed production root.
   await seedCharacterHistory(db, operations, snapshotParams);
   // @ts-expect-error — an arbitrary document-producing closure is not a native origin.
@@ -24,7 +25,7 @@ test("persisted producers refuse caller-supplied business callbacks and structur
   // @ts-expect-error — even a genuine root cannot admit a replacement document-producing closure.
   await seedCreatedDocument(root, upload);
 
-  expectTypeOf<Pick<ServerTestHarness, keyof ServerTestHarness>>().not.toExtend<Parameters<typeof seedCharacter>[0]>();
-  expectTypeOf<ServerTestHarness>().toExtend<Parameters<typeof seedCharacter>[0]>();
-  expectTypeOf<UnclaimedServerTestHarness>().toExtend<Parameters<typeof seedCharacter>[0]>();
+  expectTypeOf<Pick<ServerTestHarness, keyof ServerTestHarness>>().not.toExtend<Parameters<typeof seedCharacterRows>[0]>();
+  expectTypeOf<ServerTestHarness>().toExtend<Parameters<typeof seedCharacterRows>[0]>();
+  expectTypeOf<UnclaimedServerTestHarness>().toExtend<Parameters<typeof seedCharacterRows>[0]>();
 });

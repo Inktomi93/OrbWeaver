@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "move-import-names"
+version: "0.1.0"
+description: "Move named imports between modules in the files a plan lists, renaming each moved binding and its references."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["typescript"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

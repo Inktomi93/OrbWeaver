@@ -11,8 +11,12 @@ import { vi } from "vitest";
 test("a later foreign-owner segment refuses the entire flood; a departed host refuses before the store", async ({ harness, db, app }): Promise<void> => {
   const ownHost = await harness.principalFor((await harness.actor()).id);
   const neighborHost = await harness.principalFor((await harness.actor()).id);
-  const { row: own } = await seedChat(harness, { principal: ownHost, characterIds: [] });
-  const { row: neighbor } = await seedChat(harness, { principal: neighborHost, characterIds: [] });
+  const {
+    view: { chat: own },
+  } = await seedChat(harness, { principal: ownHost, characterIds: [] });
+  const {
+    view: { chat: neighbor },
+  } = await seedChat(harness, { principal: neighborHost, characterIds: [] });
   await app.seedUserConnections(ownHost.userId);
   const generation = await app.embeddings.resolveGeneration(ownHost.userId, "embed");
   if (generation === null) {

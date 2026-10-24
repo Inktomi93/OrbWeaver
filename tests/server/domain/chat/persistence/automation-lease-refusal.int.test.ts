@@ -6,8 +6,9 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import { chatLocks, closeDb, messages, messageVariants } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import type { HeldStatement } from "@orb/testkit/node/composed";
-import { freshHeldDb, seedPeerLease } from "@orb/testkit/node/composed";
+import { freshHeldDb } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
+import { seedPeerLeaseRows } from "@orb/testkit/node/rows";
 import { eq } from "drizzle-orm";
 import { enabledRule } from "../../automation/runtime.fixtures.ts";
 import { coreFrame, coreHttpRoom, coreSse } from "../engine/core-physical.ts";
@@ -68,7 +69,7 @@ test("a real depth-two automation child refused by a peer lease closes its accep
       throw new Error("the actual recursive room has no voice for the peer replica");
     }
     const peer = ownership.use(
-      await seedPeerLease(h.root, { chatId: h.chatId, characterId: voice.id, hostUserId: h.owner.userId, holder: "controlled-recursive-peer" }),
+      await seedPeerLeaseRows(h.root, { chatId: h.chatId, characterId: voice.id, hostUserId: h.owner.userId, holder: "controlled-recursive-peer" }),
     );
     gate.release();
     await finished;

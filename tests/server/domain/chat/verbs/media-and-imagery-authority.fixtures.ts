@@ -19,10 +19,10 @@ export async function seatMember(
   member: Principal,
 ): Promise<void> {
   const invite = await seedChatInvite(harness, { principal: host, chatId, input: { invitedHandle: member.handle } });
-  await seedInvitedChatParticipant(harness, { principal: member, inviteId: invite.id });
+  await seedInvitedChatParticipant(harness, { principal: member, inviteId: invite.invite.id });
 }
 
-export async function subjectOf(harness: ServerTestHarness, owner: Principal): Promise<Awaited<ReturnType<typeof seedCharacter>>["row"]> {
+export async function subjectOf(harness: ServerTestHarness, owner: Principal): Promise<Awaited<ReturnType<typeof seedCharacter>>["view"]> {
   const input = createCharacterSchema.parse({ handle: "imagery-subject", name: "Imagery subject", description: "" });
-  return (await seedCharacter(harness, { principal: owner, input })).row;
+  return (await seedCharacter(harness, { principal: owner, input })).view;
 }

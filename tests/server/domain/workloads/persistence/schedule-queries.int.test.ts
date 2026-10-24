@@ -8,15 +8,16 @@ import { ID_PREFIX } from "@orb/kit/ids";
 import { tickWorkloadSchedules } from "@orb/server/domain/workloads";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness, seedWorkloadSchedule } from "@orb/testkit/node/composed";
+import { createServerHarness } from "@orb/testkit/node/composed";
+import { seedWorkloadScheduleRows } from "@orb/testkit/node/rows";
 import { eq } from "drizzle-orm";
 
 async function schedule(
   root: ServerTestHarness,
   enabled = true,
   cadence: keyof typeof CADENCE_INTERVAL_MS = "daily",
-): Promise<Awaited<ReturnType<typeof seedWorkloadSchedule>>> {
-  return await seedWorkloadSchedule(root, {
+): Promise<Awaited<ReturnType<typeof seedWorkloadScheduleRows>>> {
+  return await seedWorkloadScheduleRows(root, {
     caller: await root.principalFor(root.ownerId),
     ownerId: root.ownerId,
     input: { kind: "reconcile-stats", params: {} },
@@ -78,7 +79,7 @@ test("schedule listing filters by owner while the authorized deployment view see
   const own = await schedule(root);
   const other = await root.actor();
   const otherPrincipal = await root.principalFor(other.id);
-  const theirs = await seedWorkloadSchedule(root, {
+  const theirs = await seedWorkloadScheduleRows(root, {
     caller: otherPrincipal,
     ownerId: other.id,
     input: { kind: "reconcile-stats", params: {} },

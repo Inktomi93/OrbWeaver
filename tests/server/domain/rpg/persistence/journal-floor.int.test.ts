@@ -5,7 +5,8 @@ import { databaseHandle } from "@orb/db/wiring-owner";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { createResolveViewerVisibility } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
-import { createServerHarness, seedCorpusActors, seedMessage } from "@orb/testkit/node/composed";
+import { createServerHarness, seedCorpusActors } from "@orb/testkit/node/composed";
+import { seedMessageRows } from "@orb/testkit/node/rows";
 import { eq } from "drizzle-orm";
 
 test("journal readers retain inclusive member floors, unfiltered host reads and anchorless hand entries", async () => {
@@ -17,11 +18,11 @@ test("journal readers retain inclusive member floors, unfiltered host reads and 
   const { chat } = await root.services.chat.startChat({ principal: host, characterIds: [], opening: "none" });
   const chatId = chat.id;
   await root.services.rpg.createGame({ principal: host, chatId, mode: "lite" });
-  const preJoin = await seedMessage(root, { principal: host, chatId, content: "Before the member arrives." });
-  const boundary = await seedMessage(root, { principal: host, chatId, content: "The member is invited." });
+  const preJoin = await seedMessageRows(root, { principal: host, chatId, content: "Before the member arrives." });
+  const boundary = await seedMessageRows(root, { principal: host, chatId, content: "The member is invited." });
   const invitation = await root.services.chat.createInvite({ principal: host, chatId, input: { invitedHandle: member.handle } });
   await root.services.chat.acceptInvite({ principal: member, inviteId: invitation.invite.id });
-  const postJoin = await seedMessage(root, { principal: host, chatId, content: "The member has arrived." });
+  const postJoin = await seedMessageRows(root, { principal: host, chatId, content: "The member has arrived." });
 
   for (const [message, content] of [
     [preJoin, "pre-join"],

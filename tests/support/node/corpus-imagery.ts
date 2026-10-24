@@ -6,7 +6,7 @@ import { imageryGenerations, imageryImportCalls } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { eq, inArray } from "drizzle-orm";
 import { CORPUS_PROVIDER_ENDPOINT } from "./corpus-provider.ts";
-import { seedImageryGenerations, seedNativeImageryImportClaim } from "./factories/imagery.ts";
+import { seedImageryGenerations, seedNativeImageryImportClaim } from "./factories/rows/imagery.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 export const CORPUS_IMAGE_MODEL = "corpus-image-v1";

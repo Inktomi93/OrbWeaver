@@ -13,8 +13,8 @@ import {
   createChatRoot,
   createCorpusProviderExecution,
   freshHeldDb,
-  seedPeerLease,
 } from "@orb/testkit/node/composed";
+import { seedPeerLeaseRows } from "@orb/testkit/node/rows";
 import { eq } from "drizzle-orm";
 
 test("a mid-round locked refusal returns the committed-so-far without throwing", async () => {
@@ -54,7 +54,7 @@ test("a mid-round locked refusal returns the committed-so-far without throwing",
       throw new Error("the completed round has no voice for the peer replica");
     }
     const peer = ownership.use(
-      await seedPeerLease(h.root, {
+      await seedPeerLeaseRows(h.root, {
         chatId: h.chatId,
         characterId: voice.id,
         hostUserId: h.owner.userId,

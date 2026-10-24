@@ -6,7 +6,7 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { characterSummaries, characters } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
-import { seedCharacterDistillations } from "@orb/testkit/node/composed";
+import { seedCharacterDistillationsRows } from "@orb/testkit/node/rows";
 import { eq } from "drizzle-orm";
 import { send, smartRoom } from "../verbs/smart-picker.fixtures.ts";
 import { B_UTILITY_MODEL, saveSpeakerConnection, speakerInputs } from "../verbs/speaker-funding-physical.ts";
@@ -26,7 +26,7 @@ test("the real owned distillation writer supplies the native candidate pitch", a
   if (bryn === undefined) {
     throw new Error("missing actual bryn card");
   }
-  const distilled = await seedCharacterDistillations(room.h.root, {
+  const distilled = await seedCharacterDistillationsRows(room.h.root, {
     ownerId: room.h.owner.userId,
     funderUserId: room.h.owner.userId,
     characterId: bryn.id,

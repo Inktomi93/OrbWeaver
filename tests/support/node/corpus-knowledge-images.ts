@@ -6,8 +6,8 @@ import { WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
 import { eq } from "drizzle-orm";
 import sharp from "sharp";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_PROVIDER_ENDPOINT } from "./corpus-provider.ts";
-import { seedUserConnection } from "./factories/connection.ts";
-import { seedEmbeddedCorpus, seedIndexedAsset } from "./factories/embedding-generation.ts";
+import { seedUserConnection } from "./factories/rows/connection.ts";
+import { seedEmbeddedCorpus, seedIndexedAsset } from "./factories/rows/embedding-generation.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 export const CORPUS_KNOWLEDGE_IMAGE_SIZES = [

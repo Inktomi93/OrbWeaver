@@ -10,7 +10,7 @@ test("the canonical internal Principal delegate preserves row identity, fresh ro
   await using root = await createServerHarness({ authConfig: { mode: "local", fallback: "deny" } });
   const row = await root.actor({ role: "admin" });
   const first = await principal(root, row.id);
-  expect(first).toMatchObject({ userId: row.id, handle: row.handle, externalId: row.externalId, via: "fallback" });
+  expect(first).toMatchObject({ userId: row.id, handle: row.handle, externalId: null, via: "fallback" });
   expect(isAdmin(first)).toBe(true);
   expect(isOwner(first)).toBe(false);
   expect(Object.isFrozen(first.role)).toBe(true);

@@ -16,10 +16,10 @@ import { CORPUS_VARIANT_EDIT_MODEL, CORPUS_VARIANT_IMAGE_MODEL, CORPUS_VARIANT_K
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_PROVIDER_ENDPOINT } from "./corpus-provider.ts";
 import type { TrpcCapture } from "./corpus-read.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
-import { seedUserConnection } from "./factories/connection.ts";
-import { seedUserCredential } from "./factories/credentials.ts";
-import { seedIndexedAsset } from "./factories/embedding-generation.ts";
-import { captureImageryGenerationRows, seedImageryGenerations } from "./factories/imagery.ts";
+import { seedUserConnection } from "./factories/rows/connection.ts";
+import { seedUserCredential } from "./factories/rows/credentials.ts";
+import { seedIndexedAsset } from "./factories/rows/embedding-generation.ts";
+import { captureImageryGenerationRows, seedImageryGenerations } from "./factories/rows/imagery.ts";
 import type { TrpcInput, TrpcProcedurePath } from "./route-trpc.ts";
 import type { ServerTestHarness } from "./server.ts";
 

@@ -4,7 +4,8 @@
 
 import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
-import { makeAssetBytes, seedAsset } from "@orb/testkit/node/composed";
+import { makeAssetBytes } from "@orb/testkit/node/composed";
+import { seedAssetRows } from "@orb/testkit/node/rows";
 import {
   AFTER_SIGNATURE,
   BEFORE_SIGNATURE,
@@ -69,7 +70,7 @@ test("native image and text signatures stay private and replay only with their s
 
 test("the real narrator illustration writer in the same room cannot launder its stored image into model media", async () => {
   await using fixture = await imageRoom([[nativeText("A quiet beat.")]]);
-  const stored = await seedAsset(fixture.h.root, {
+  const stored = await seedAssetRows(fixture.h.root, {
     principal: fixture.h.owner,
     bytes: makeAssetBytes(fixture.h.root.idSource.typeId(ID_PREFIX.asset)),
     kind: "generated",

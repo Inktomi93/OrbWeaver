@@ -14,14 +14,14 @@ import { createBookSchema } from "@orb/contracts/world-info";
 import { characterTags, chatTags, personaTags, presetTags, tags, worldBookTags } from "@orb/db";
 import { DomainConflictError } from "@orb/kit/errors";
 import { expect, test } from "@orb/testkit/node";
-import { seedCharacter, seedCreatedTag } from "@orb/testkit/node/composed";
+import { seedCharacterRows, seedCreatedTagRows } from "@orb/testkit/node/rows";
 import { eq } from "drizzle-orm";
 
 test("tag creation uses advanced product time and a folded-name conflict preserves the existing birth", async ({ harness }) => {
   const principal = await harness.principalFor((await harness.actor()).id);
   harness.clock.advance(12_345);
   const at = harness.clock.now();
-  const created = await seedCreatedTag(harness, { principal, input: { name: "Clock witness" } });
+  const created = await seedCreatedTagRows(harness, { principal, input: { name: "Clock witness" } });
   expect(created.row.createdAt).toBe(at);
   harness.clock.advance(5000);
   await expect(harness.services.tag.createTag({ principal, input: { name: "CLOCK WITNESS" } })).rejects.toBeInstanceOf(DomainConflictError);
@@ -33,8 +33,8 @@ test("native tag-library restore stamps new rows but preserves existing births a
   const principal = await harness.principalFor((await harness.actor()).id);
   await harness.services.tag.createTag({ principal: source, input: { name: "Restore existing", color: "#123456" } });
   await harness.services.tag.createTag({ principal: source, input: { name: "Restore new" } });
-  const existing = await seedCreatedTag(harness, { principal, input: { name: "Restore existing" } });
-  const character = await seedCharacter(harness, {
+  const existing = await seedCreatedTagRows(harness, { principal, input: { name: "Restore existing" } });
+  const character = await seedCharacterRows(harness, {
     principal,
     input: createCharacterSchema.parse({ handle: "restore-witness", name: "Restore witness", description: "" }),
   });

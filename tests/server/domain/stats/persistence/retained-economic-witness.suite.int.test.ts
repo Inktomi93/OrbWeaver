@@ -20,8 +20,8 @@ import {
   createServerHarness,
   freshHeldDb,
   seedCorpusActors,
-  seedRpgGame,
 } from "@orb/testkit/node/composed";
+import { seedRpgGameRows } from "@orb/testkit/node/rows";
 import { eq } from "drizzle-orm";
 
 const REQUIRED_TOOL_CHOICE = '"tool_choice":"required"';
@@ -105,7 +105,7 @@ for (const [operation, unselected] of [
     const room = await caller.chat.startChat({ characterIds: [character.id], opening: "none" });
     const chatId = room.chat.id;
     await caller.chat.setGroupConfig({ chatId, config: { output: "per-speaker", cardScope: "scoped", policy: "list" } });
-    await seedRpgGame(root, { principal: actors.owner, chatId, mode: "lite" });
+    await seedRpgGameRows(root, { principal: actors.owner, chatId, mode: "lite" });
     await caller.rpg.updateConfig({ chatId, extractionMode: "cheap" });
     // biome-ignore lint/suspicious/noConfusingVoidType: The fixture preserves native void-returning contracts; undefined is not a substitute for void.
     let mutation: Promise<void | MessageView> | undefined;

@@ -21,6 +21,7 @@ export {
   rethrowPrivateCorpusFailure,
   writePrivateCorpusFixture,
 } from "./corpus.ts";
+export { seedCorpusActors, seedCorpusConnections, seedRecallCorpus, seedRecallRoom } from "./corpus-actors.ts";
 export { captureCookieAuth, seedCorpusAccount } from "./corpus-auth.ts";
 export {
   CORPUS_EMBED_MODEL,
@@ -31,7 +32,6 @@ export {
   createCorpusProviderExecution,
 } from "./corpus-provider.ts";
 export { createCorpusRecipe, prepareCorpusSnapFixture, runCorpusSnapConsumer } from "./corpus-recipe.ts";
-export { seedCorpusActors, seedCorpusConnections, seedRecallCorpus, seedRecallRoom } from "./corpus-seed.ts";
 
 export type { HeldDb, HeldStatement } from "./db.ts";
 export { freshCountedDb, freshDb, freshHeldDb, migrationsBefore, SHIPPED_MIGRATIONS } from "./db.ts";

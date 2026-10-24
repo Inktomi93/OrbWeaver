@@ -12,7 +12,8 @@ import { ID_PREFIX } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { DbFault, ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness, makeAssetBytes, makePluginBundle, refuseWrites, seedInstalledPlugin } from "@orb/testkit/node/composed";
+import { createServerHarness, makeAssetBytes, makePluginBundle, refuseWrites } from "@orb/testkit/node/composed";
+import { seedInstalledPluginRows } from "@orb/testkit/node/rows";
 import { and, eq, notInArray } from "drizzle-orm";
 
 const SLUG = "reap-witness";
@@ -102,7 +103,7 @@ test("a failed install surfaces its own store error when the reap of its written
 test("a failed upgrade store surfaces its own error when the reap is refused and leaves the installed version", async () => {
   await using root = await createServerHarness();
   const caller = await root.principalFor((await root.actor()).id);
-  const installed = await seedInstalledPlugin(root, { caller, bundle: witnessBundle(root, "1.0.0", 0), grant: [] });
+  const installed = await seedInstalledPluginRows(root, { caller, bundle: witnessBundle(root, "1.0.0", 0), grant: [] });
   const pluginId = installed.plugin.id;
   const before = await installedVersion(root, pluginId);
   const bundle = witnessBundle(root, "2.0.0", 2);
@@ -122,7 +123,7 @@ test("a failed upgrade store surfaces its own error when the reap is refused and
 test("a failed upgrade swap surfaces its own error when the repair's reap is refused, and the row is repaired", async () => {
   await using root = await createServerHarness();
   const caller = await root.principalFor((await root.actor()).id);
-  const installed = await seedInstalledPlugin(root, { caller, bundle: witnessBundle(root, "1.0.0", 0), grant: [] });
+  const installed = await seedInstalledPluginRows(root, { caller, bundle: witnessBundle(root, "1.0.0", 0), grant: [] });
   const pluginId = installed.plugin.id;
   const bundle = witnessBundle(root, "2.0.0", 1);
   await using swapFault = await refuseWrites(root.db, {

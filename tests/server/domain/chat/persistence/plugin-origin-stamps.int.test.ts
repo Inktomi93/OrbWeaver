@@ -10,7 +10,8 @@ import { messages, messageVariants } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
-import { makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "@orb/testkit/node/composed";
+import { makePluginBundle } from "@orb/testkit/node/composed";
+import { seedInstalledPluginRows, seedPluginGrantRows } from "@orb/testkit/node/rows";
 import { eq } from "drizzle-orm";
 import { textRoom } from "../scenario-physical.ts";
 
@@ -35,12 +36,12 @@ const GUEST = requestingGuest({ initiator: "human", automationDepth: 0 });
 
 /** The witness plugin installed and enabled by the room's owner; returns the command that requests a turn. */
 async function enableWitness(h: Room, guest = GUEST): Promise<Omit<Parameters<Room["root"]["services"]["plugin"]["invokeUiCommand"]>[0], "chatId">> {
-  const installed = await seedInstalledPlugin(h.root, {
+  const installed = await seedInstalledPluginRows(h.root, {
     caller: h.owner,
     bundle: makePluginBundle(MANIFEST, guest, h.root.clock.now()),
     grant: [],
   });
-  const enabled = await seedPluginGrant(h.root, {
+  const enabled = await seedPluginGrantRows(h.root, {
     caller: h.owner,
     pluginId: installed.plugin.id,
     grant: MANIFEST.capabilities,

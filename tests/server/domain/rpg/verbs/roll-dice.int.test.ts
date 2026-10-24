@@ -17,7 +17,7 @@ interface Table extends AsyncDisposable {
   readonly root: ServerTestHarness;
   readonly owner: Principal;
   readonly chatId: ChatId;
-  readonly game: Awaited<ReturnType<typeof seedRpgGame>>;
+  readonly config: Awaited<ReturnType<ServerTestHarness["services"]["rpg"]["getConfigView"]>>;
   readonly caller: Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
   /** Every draw the root's seeded entropy has served so far. */
   readonly draws: () => number;
@@ -34,8 +34,9 @@ async function openTable(): Promise<Table> {
   const { owner } = await seedCorpusActors(root);
   const caller = await root.internalCallerFor(owner.userId);
   const chatId = await seedRecallRoom(caller);
-  const game = await seedRpgGame(root, { principal: owner, chatId, mode: "lite", ruleset: "d20" });
-  return { root, owner, chatId, game, caller, draws: () => draws, [Symbol.asyncDispose]: () => root[Symbol.asyncDispose]() };
+  await seedRpgGame(root, { principal: owner, chatId, mode: "lite", ruleset: "d20" });
+  const config = await root.services.rpg.getConfigView({ principal: owner, chatId });
+  return { root, owner, chatId, config, caller, draws: () => draws, [Symbol.asyncDispose]: () => root[Symbol.asyncDispose]() };
 }
 
 const REFUSED = [
@@ -77,8 +78,8 @@ test("a roll at the modifier bound stays finite and draws once per die on the se
 
 test("an ability check still rolls a bare d20 with the sheet's modifier and refuses a caller modifier before drawing", async () => {
   await using table = await openTable();
-  const { game } = table;
-  const ability = game.config.statProfile.attributes[0];
+  const { config } = table;
+  const ability = config.statProfile.attributes[0];
   if (ability === undefined) {
     throw new Error("the born game profile has no attribute");
   }
@@ -95,7 +96,7 @@ test("an ability check still rolls a bare d20 with the sheet's modifier and refu
     patch: { attributes: { [ability.key]: score } },
   });
   const rolled = await table.root.services.rpg.rollDice({ ...params, notation: "d20" });
-  const modifier = rpgAttributeModifier(game.config.statProfile, score);
+  const modifier = rpgAttributeModifier(config.statProfile, score);
   expect(rolled).toMatchObject({ notation: "d20", modifier, total: (rolled.rolls[0] ?? Number.NaN) + modifier });
   expect(rolled.rolls).toHaveLength(1);
   expect(rolled.stamp).toBe(`[dice: ${ability.label} d20${modifier >= 0 ? "+" : ""}${modifier} → ${rolled.total}]`);

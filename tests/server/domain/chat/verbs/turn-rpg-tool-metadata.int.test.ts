@@ -69,7 +69,7 @@ test("a native installed guest preserves supplied display and true or false repl
   });
   const enabled = await seedPluginGrant(h.root, {
     caller: h.owner,
-    pluginId: installed.plugin.id,
+    pluginId: installed.outcome.id,
     grant: MANIFEST.capabilities,
     acknowledgedNetHosts: [],
     enable: true,

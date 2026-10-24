@@ -26,6 +26,7 @@ import { createCorpusViewerReadResponder } from "../iso/corpus-read-responder.ts
 import type { CorpusSearchLibrary } from "../iso/corpus-search.ts";
 import { publishCorpusSearch } from "../iso/corpus-search.ts";
 import { createSeededIds } from "../iso/ids.ts";
+import { seedCorpusActors } from "./corpus-actors.ts";
 import { captureCorpusCookieIdentity } from "./corpus-auth.ts";
 import { corpusKnowledgeText } from "./corpus-knowledge.ts";
 import { seedCorpusKnowledgeImages } from "./corpus-knowledge-images.ts";
@@ -39,10 +40,11 @@ import {
 } from "./corpus-provider.ts";
 import { captureCorpusSearchPublication, seedCorpusSearch, settleCorpusSearchImages } from "./corpus-search.ts";
 import { createCorpusSearchWire, replayCorpusSearchWire } from "./corpus-search-wire.ts";
-import { captureCookieAuth, captureCorpusReads, seedCorpusActors, seedCorpusLibraries, seedRecallCorpus } from "./corpus-seed.ts";
+import { captureCookieAuth, captureCorpusReads, seedCorpusLibraries } from "./corpus-seed.ts";
 import { SHIPPED_MIGRATIONS } from "./db.ts";
-import { seedUserConnection } from "./factories/connection.ts";
-import { seedUserCredential } from "./factories/credentials.ts";
+import { seedUserConnection } from "./factories/rows/connection.ts";
+import { seedUserCredential } from "./factories/rows/credentials.ts";
+import { seedRecallCorpusRows } from "./factories/rows/recall.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 
@@ -88,7 +90,7 @@ test("settled search publication survives native authenticated clone reads and r
       });
       const actors = await seedCorpusActors(root);
       const libraries = await seedCorpusLibraries(root);
-      const recall = await seedRecallCorpus(root, {
+      const recall = await seedRecallCorpusRows(root, {
         chatConnectionId: actors.connections.text.id,
         embedConnectionId: actors.connections.embed.id,
         summarizeConnectionId: actors.connections.text.id,

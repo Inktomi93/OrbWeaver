@@ -4,7 +4,7 @@ import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { deriveRegexTierFlags } from "@orb/kit/regex";
 import { getLog } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node";
-import { createServerHarness, seedCharacter, seedGlobalRegexScript, seedRegexScript, seedTranscript } from "@orb/testkit/node/composed";
+import { createServerHarness, readRoomCanon, seedCharacter, seedGlobalRegexScript, seedRegexScript, seedTranscript } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
 
 // A catastrophic-backtracking pattern: the host's node:vm watchdog (or the kit's complexity guard) refuses it.
@@ -30,11 +30,11 @@ test("a runOnEdit script that fails on an edit leaves the content unchanged and 
   const speaker = await seedCharacter(root, { principal: host, input: createCharacterSchema.parse({ handle: "narrator", name: "Narrator", description: "" }) });
   const transcript = await seedTranscript(root, {
     ownerId: host.userId,
-    characterHandles: [speaker.row.handle],
+    characterHandles: [speaker.view.handle],
     lines: [{ role: "assistant", content: "seed" }],
   });
-  const chatId = transcript.row.id;
-  const slot = transcript.messages[0]?.slot;
+  const { chatId } = transcript;
+  const [slot] = await readRoomCanon(root, host, chatId);
   if (slot === undefined) {
     throw new Error("the transcript import wrote no assistant slot");
   }

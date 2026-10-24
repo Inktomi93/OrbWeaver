@@ -3,6 +3,8 @@
 // @subject packages/server/src/domain/assets/verbs/collect-garbage.ts
 // @subject packages/server/src/domain/assets/persistence/asset-refs.ts
 
+import type { AssetListItem } from "@orb/contracts/assets";
+import { ASSET_LIST_LIMIT_MAX } from "@orb/contracts/assets";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, PLUGIN_UI_ASSETS_DIR, pluginManifestSchema } from "@orb/contracts/plugin";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
@@ -101,32 +103,41 @@ async function plantEveryReference(box: GcBox): Promise<Record<string, StoredRef
   }
   refs["documents.source_asset_id"] = { assetId: source.assetId, hash: source.hash };
 
+  // The owner's plugin-kind library gains exactly the bundle zip and its shipped image on install.
+  const pluginAssets = async (): Promise<readonly AssetListItem[]> =>
+    await root.services.assets.listOwned({ principal, kind: "plugin", limit: ASSET_LIST_LIMIT_MAX });
+  const beforeInstall = new Set((await pluginAssets()).map(({ assetId }) => assetId));
   const installed = await seedInstalledPlugin(root, {
     caller: principal,
     bundle: gcPluginBundle("gc-witness", makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset))),
     grant: [],
   });
-  refs["plugins.bundle_asset_id"] = await storedRow(box, installed.plugin.bundleAssetId);
-  const shipped = installed.assets[0];
-  if (shipped === undefined) {
-    throw new Error("plugin install linked no bundle-shipped image");
+  const installedAssets = (await pluginAssets()).filter(({ assetId }) => !beforeInstall.has(assetId));
+  // The bundle-shipped image is the image; the bundle is the other.
+  const shipped = installedAssets.find(({ mime }) => mime.startsWith("image/"));
+  const bundle = installedAssets.find(({ mime }) => !mime.startsWith("image/"));
+  if (bundle === undefined || shipped === undefined || installedAssets.length !== 2) {
+    throw new Error("plugin install stored no single bundle and bundle-shipped image");
   }
-  refs["plugin_assets.asset_id (bundle image)"] = await storedRow(box, shipped.assetId);
+  refs["plugins.bundle_asset_id"] = { assetId: bundle.assetId, hash: bundle.hash };
+  refs["plugin_assets.asset_id (bundle image)"] = { assetId: shipped.assetId, hash: shipped.hash };
   refs["plugin_assets.asset_id (fetched)"] = await store(box, "generated");
-  await recordPluginFetchedAsset(root.db, installed.plugin.id, refs["plugin_assets.asset_id (fetched)"].assetId, root.clock.now());
+  await recordPluginFetchedAsset(root.db, installed.outcome.id, refs["plugin_assets.asset_id (fetched)"].assetId, root.clock.now());
 
   // Published to every user, then the publisher uninstalls their own copy: the publication is the bundle's only
   // reference, and the uninstall's no-grace reap already had to honor it.
+  const beforePublish = new Set((await pluginAssets()).map(({ assetId }) => assetId));
   const published = await seedDistributedPlugin(root, {
     caller: principal,
     bundle: gcPluginBundle("gc-published", makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset))),
   });
-  const ownCopy = published.installs.find((install) => install.plugin.ownerId === root.ownerId);
-  if (ownCopy === undefined) {
-    throw new Error("publishing installed no copy for the publisher");
+  const publishedBundle = (await pluginAssets()).find(({ assetId, mime }) => !(beforePublish.has(assetId) || mime.startsWith("image/")));
+  const ownCopy = (await root.services.plugin.list({ caller: principal })).find(({ slug }) => slug === published.outcome.slug);
+  if (publishedBundle === undefined || ownCopy === undefined) {
+    throw new Error("publishing stored no bundle or installed no copy for the publisher");
   }
-  await root.services.plugin.uninstall({ caller: principal, pluginId: ownCopy.plugin.id });
-  refs["admin_distributed_plugins.bundle_asset_id"] = await storedRow(box, published.distribution.bundleAssetId);
+  await root.services.plugin.uninstall({ caller: principal, pluginId: ownCopy.id });
+  refs["admin_distributed_plugins.bundle_asset_id"] = { assetId: publishedBundle.assetId, hash: publishedBundle.hash };
 
   const imageConnection = await root.services.connection.create({
     principal,
@@ -304,7 +315,7 @@ test("a co-member's quote keeps nothing once the owner's own attachment message 
     chatId: room,
     input: { invitedHandle: member.handle },
   });
-  await seedInvitedChatParticipant(box.root, { principal: member, inviteId: invite.id });
+  await seedInvitedChatParticipant(box.root, { principal: member, inviteId: invite.invite.id });
   const attached = await store(box, "attachment");
   const posted = await attach(box, room, attached);
   await say(box, room, { content: `Quoting the host. ${inlineImage(attached)}`, as: member });

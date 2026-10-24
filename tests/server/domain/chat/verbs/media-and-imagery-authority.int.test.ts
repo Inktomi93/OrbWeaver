@@ -35,7 +35,9 @@ test("composed imagery card reads carry the row-derived host role rather than a 
   const host = await actor(harness, "admin");
   const member = await actor(harness);
   const subject = await subjectOf(harness, host);
-  const { row: room } = await seedChat(harness, { principal: host, characterIds: [subject.id] });
+  const {
+    view: { chat: room },
+  } = await seedChat(harness, { principal: host, characterIds: [subject.id] });
   await seatMember(harness, host, room.id, member);
   const getCard = vi.spyOn(services.character, "getCard");
   await expect(services.imagery.extractPrompt({ caller: member, chatId: room.id, mode: "character", subjectCharacterId: subject.id })).rejects.toThrow();
@@ -56,7 +58,9 @@ test("room admission and subject seating run before host principal, card or Util
   const member = await actor(harness);
   const outsider = await actor(harness, "admin");
   const subject = await subjectOf(harness, host);
-  const { row: room } = await seedChat(harness, { principal: host, characterIds: [] });
+  const {
+    view: { chat: room },
+  } = await seedChat(harness, { principal: host, characterIds: [] });
   const resolveHostPrincipal = vi.fn(() => Promise.resolve(host));
   const resolveChatHostUserId = vi.fn<ImageryRoomAccessDeps["resolveChatHostUserId"]>((chatId) => loadPresentHostUserId(databaseHandle(db), chatId));
   const access = createImageryRoomAccess({
@@ -152,7 +156,9 @@ test("a present member's picture the room never placed reads no bytes, while a p
   const { owner: host, secondUserId } = await seedCorpusActors(root);
   const member = await root.principalFor(secondUserId);
   const { services, db } = root;
-  const { row: room } = await seedChat(root, { principal: host, characterIds: [] });
+  const {
+    view: { chat: room },
+  } = await seedChat(root, { principal: host, characterIds: [] });
   await seatMember(root, host, room.id, member);
   const picture = (caller: Principal): Promise<{ readonly assetId: AssetId }> =>
     services.assets.store({ principal: caller, bytes: makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)), kind: "attachment", mime: PNG });

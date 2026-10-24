@@ -3,7 +3,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { UPSTREAM_ANSWER_TTL_MS } from "@orb/server/domain/settings";
-import { seedCorpusActors } from "./corpus-seed.ts";
+import { seedCorpusActors } from "./corpus-actors.ts";
 import type { createSurfaceOutputWire } from "./corpus-surface-wire.ts";
 import { SURFACE_BACKGROUND_URL, SURFACE_UPDATE_STEPS } from "./corpus-surface-wire.ts";
 import { makeAssetBytes } from "./factories/asset.ts";

@@ -1,11 +1,12 @@
 // Native document envelopes and room projections stay separate from private canon and workload evidence.
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { UserId } from "@orb/kit/ids";
+import { seedCorpusConnections } from "./corpus-actors.ts";
 import { seedCorpusAccount } from "./corpus-auth.ts";
-import { seedCorpusConnections } from "./corpus-seed.ts";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
 import type { CapturedDatabankViews, SeededCreatedDocument } from "./factories/databank.ts";
-import { captureDatabankViews, seedCreatedDocument } from "./factories/databank.ts";
+import { captureDatabankViews } from "./factories/databank.ts";
+import { seedCreatedDocument } from "./factories/rows/databank.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;

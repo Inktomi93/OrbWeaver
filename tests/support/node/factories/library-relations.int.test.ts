@@ -18,10 +18,10 @@ import { createCorpusReadResponder } from "../../iso/corpus-read-responder.ts";
 import { captureCorpusReads, seedCorpusLibraries } from "../corpus-seed.ts";
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
-import { seedChatInvite, seedInvitedChatParticipant } from "./chat.ts";
-import { seedGalleryItem } from "./gallery.ts";
-import { seedCharacterTag, seedChatTag, seedTag } from "./tag.ts";
-import { captureWorldBookRows, seedCharacterBook, seedWorldBook } from "./world-info.ts";
+import { seedGalleryItem } from "./rows/gallery.ts";
+import { seedCharacterTag, seedChatTag, seedTag } from "./rows/tag.ts";
+import { captureWorldBookRows, seedCharacterBook, seedWorldBook } from "./rows/world-info.ts";
+import { seedChatInviteRows, seedInvitedChatParticipantRows } from "./rows.ts";
 
 test("world-info creation and first edits persist one injected clock rather than reversing a database wall-clock stamp", async () => {
   const clock = createFrozenClock(1_100_000_000_123);
@@ -101,12 +101,12 @@ test("real chat taggers retain separate overlays and foreign relation targets re
   const principal = await root.principalFor(root.ownerId);
   const actor = await root.actor();
   const member = await root.principalFor(actor.id);
-  const invitation = await seedChatInvite(root, {
+  const invitation = await seedChatInviteRows(root, {
     principal,
     chatId: library.room.chat.id,
     input: { invitedHandle: actor.handle },
   });
-  await seedInvitedChatParticipant(root, { principal: member, inviteId: invitation.id });
+  await seedInvitedChatParticipantRows(root, { principal: member, inviteId: invitation.id });
   const memberTag = await seedTag(root, { principal: member, input: createTagSchema.parse({ name: "Member ledger label" }) });
   const memberOverlay = await seedChatTag(root, { principal: member, chatId: library.room.chat.id, tagId: memberTag.id });
   expect(memberOverlay.ownerId).toBe(actor.id);

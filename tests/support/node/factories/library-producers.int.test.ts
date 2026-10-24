@@ -17,12 +17,12 @@ import { seedCorpusLibraries } from "../corpus-seed.ts";
 import { expect, test } from "../fixtures.ts";
 import type { ServerTestHarness } from "../server.ts";
 import { createServerHarness } from "../server.ts";
-import { makeAssetBytes, seedAsset } from "./asset.ts";
-import { seedCharacter } from "./character.ts";
-import { seedPersonaFromCharacter } from "./persona.ts";
-import { seedImportedPreset, seedPreset, seedUpdatedPreset } from "./preset.ts";
-import { seedRosterPreset } from "./roster-preset.ts";
-import { seedCharacterTag, seedCreatedTag, seedPersonaTag, seedTag, seedTagPrune } from "./tag.ts";
+import { makeAssetBytes } from "./asset.ts";
+import { seedPersonaFromCharacter } from "./rows/persona.ts";
+import { seedImportedPreset, seedUpdatedPreset } from "./rows/preset.ts";
+import { seedRosterPreset } from "./rows/roster-preset.ts";
+import { seedCharacterTag, seedPersonaTag, seedTag, seedTagPrune } from "./rows/tag.ts";
+import { seedAssetRows, seedCharacterRows, seedCreatedTagRows, seedPresetRows } from "./rows.ts";
 
 async function exportedPreset(root: ServerTestHarness, name: string): Promise<string> {
   const descriptor = root.app.portability.find((entity) => entity.kind === "preset");
@@ -42,13 +42,13 @@ async function exportedPreset(root: ServerTestHarness, name: string): Promise<st
 test("character-derived personas retain native one-pass macro inversion, provenance and avatar projections", async () => {
   await using root = await createServerHarness();
   const principal = await root.principalFor(root.ownerId);
-  const avatar = await seedAsset(root, {
+  const avatar = await seedAssetRows(root, {
     principal,
     kind: "avatar",
     mime: "image/png",
     bytes: makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)),
   });
-  const source = await seedCharacter(root, {
+  const source = await seedCharacterRows(root, {
     principal,
     input: createCharacterSchema.parse({
       handle: "persona-source",
@@ -117,14 +117,14 @@ test("preset update captures the actual fork identity, convergence and explicit 
 
 test("genuine preset export/import captures additive collision, content reuse and refusal without inventing rows", async () => {
   await using root = await createServerHarness();
-  const source = await seedPreset(root, root.ownerId, {
+  const source = await seedPresetRows(root, root.ownerId, {
     name: "Imported keeper",
     kind: "custom",
     config: makePromptConfig({ params: { temperature: 0.4 } }),
   });
   const text = await exportedPreset(root, source.view.name);
   const actor = await root.actor();
-  const collision = await seedPreset(root, actor.id, {
+  const collision = await seedPresetRows(root, actor.id, {
     name: source.view.name,
     kind: "custom",
     config: makePromptConfig({ params: { temperature: 0.2 } }),
@@ -155,7 +155,7 @@ test("roster creation retains its actual normalized and joined view alongside ca
   await using root = await createServerHarness();
   const library = await seedCorpusLibraries(root);
   const principal = await root.principalFor(root.ownerId);
-  const second = await seedCharacter(root, {
+  const second = await seedCharacterRows(root, {
     principal,
     input: createCharacterSchema.parse({
       handle: "roster-second",
@@ -200,9 +200,9 @@ test("tag creation and isolated owner-wide pruning preserve pending and adopted 
   await using root = await createServerHarness();
   const library = await seedCorpusLibraries(root);
   const principal = await root.principalFor(root.ownerId);
-  const pending = await seedCreatedTag(root, { principal, input: createTagSchema.parse({ name: "  Pending   witness  " }) });
-  const adopted = await seedCreatedTag(root, { principal, input: createTagSchema.parse({ name: "Adopted witness" }) });
-  const orphan = await seedCreatedTag(root, { principal, input: createTagSchema.parse({ name: "Orphan witness" }) });
+  const pending = await seedCreatedTagRows(root, { principal, input: createTagSchema.parse({ name: "  Pending   witness  " }) });
+  const adopted = await seedCreatedTagRows(root, { principal, input: createTagSchema.parse({ name: "Adopted witness" }) });
+  const orphan = await seedCreatedTagRows(root, { principal, input: createTagSchema.parse({ name: "Orphan witness" }) });
   const rowOnly = await seedTag(root, { principal, input: createTagSchema.parse({ name: "Row-only witness" }) });
   expect(pending.view).toMatchObject({
     name: "Pending witness",
@@ -218,7 +218,7 @@ test("tag creation and isolated owner-wide pruning preserve pending and adopted 
   await seedCharacterTag(root, { principal, characterId: library.character.id, tagId: pending.row.id, status: "pending" });
   await seedPersonaTag(root, { principal, personaId: library.persona.id, tagId: adopted.row.id });
   const beforeConflict = await root.db.select().from(tags).orderBy(tags.id);
-  await expect(seedCreatedTag(root, { principal, input: createTagSchema.parse({ name: "pending witness" }) })).rejects.toThrow();
+  await expect(seedCreatedTagRows(root, { principal, input: createTagSchema.parse({ name: "pending witness" }) })).rejects.toThrow();
   expect(await root.db.select().from(tags).orderBy(tags.id)).toEqual(beforeConflict);
   const foreign = await root.actor();
   const foreignTag = await seedTag(root, {

@@ -2,6 +2,7 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { auditLogs, connectionBindings, settings, userConnections, userCredentials } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import type { seedCorpusActors } from "./corpus-actors.ts";
 import type { createCorpusConnectionWire } from "./corpus-connection-wire.ts";
 import {
   CORPUS_CONNECTION_ENDPOINT,
@@ -13,9 +14,8 @@ import {
   CORPUS_CONNECTION_MODEL,
   CORPUS_CONNECTION_TURN_CUE,
 } from "./corpus-connection-wire.ts";
-import type { seedCorpusActors } from "./corpus-seed.ts";
-import { seedUserConnection } from "./factories/connection.ts";
-import { seedUserCredential } from "./factories/credentials.ts";
+import { seedUserConnection } from "./factories/rows/connection.ts";
+import { seedUserCredential } from "./factories/rows/credentials.ts";
 import { captureTurnRows } from "./factories/rows.ts";
 import type { ServerTestHarness } from "./server.ts";
 

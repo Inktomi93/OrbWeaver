@@ -3,7 +3,6 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { DEFAULT_MEMORY_DEFAULTS } from "@orb/contracts/settings";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { seedCorpusRefinery } from "./corpus-refinery.ts";
-import type { SeededRecallCorpus } from "./corpus-seed.ts";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
 import {
   captureCharacterDistillations,
@@ -11,8 +10,9 @@ import {
   captureDuplicateChatPairs,
   captureKeywordCooccurrence,
   captureThemeRows,
-} from "./factories/discovery.ts";
-import { captureChatMemoryRows } from "./factories/embedding-generation.ts";
+} from "./factories/rows/discovery.ts";
+import { captureChatMemoryRows } from "./factories/rows/embedding-generation.ts";
+import type { SeededRecallCorpusRows } from "./factories/rows/recall.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 type CorpusCaller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
@@ -63,7 +63,7 @@ interface CapturedKnowledgeReads {
 }
 
 export interface SeededCorpusKnowledge {
-  readonly sourceChatId: SeededRecallCorpus["chatId"];
+  readonly sourceChatId: SeededRecallCorpusRows["chatId"];
   readonly history: readonly Awaited<ReturnType<CorpusCaller["chat"]["commitMessage"]>>[];
   readonly memory: Awaited<ReturnType<typeof captureChatMemoryRows>>;
   readonly refinery: Awaited<ReturnType<typeof seedCorpusRefinery>>;
@@ -81,7 +81,7 @@ export interface SeededCorpusKnowledge {
 }
 
 /** Existing recall contributes real canon and memory; actual queue rows retain their admitted scopes. */
-export async function seedCorpusKnowledge(root: ServerTestHarness, recall: SeededRecallCorpus): Promise<SeededCorpusKnowledge> {
+export async function seedCorpusKnowledge(root: ServerTestHarness, recall: SeededRecallCorpusRows): Promise<SeededCorpusKnowledge> {
   const caller = await root.internalCallerFor(root.ownerId);
   const refinery = await seedCorpusRefinery(root);
   const comparisonCard = await caller.character.create({

@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/codemod/codemod/refs/heads/main/schemas/workflow.json
+version: "1"
+params:
+  schema:
+    plan:
+      name: "Plan file"
+      description: "Path, relative to the target directory, of the JSON { moves: [{ from, to, names, files }] } plan"
+      type: string
+      default: "codemod-import-moves.json"
+nodes:
+  - id: move-import-names
+    name: Move named imports by plan
+    type: automatic
+    steps:
+      - name: TypeScript files
+        js-ast-grep:
+          js_file: scripts/codemod.ts
+          base_path: "."
+          language: "typescript"
+          include: ["**/*.ts"]
+          exclude: ["**/node_modules/**", "**/codemods/*/tests*/**"]

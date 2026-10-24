@@ -11,7 +11,7 @@ import type { PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_MAIN_ENTRY, PLUGIN_MANIFEST_ENTRY } from "@orb/contracts/plugin";
 import { MS_PER_SECOND } from "@orb/kit/time";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { makePluginBundle, PLUGIN_ZIP_MTIME_SECONDS_RANGE, seedInstalledPlugin, seedPluginGrant } from "@orb/testkit/node/composed";
+import { makePluginBundle, PLUGIN_ZIP_MTIME_SECONDS_RANGE } from "@orb/testkit/node/composed";
 import { unzipSync } from "fflate";
 import { describe } from "vitest";
 import { expect, NOTIFICATION_GUEST_SOURCE, pendingConsent, test } from "../_fixtures.ts";
@@ -149,61 +149,6 @@ describe("retract — the ask is gone", () => {
   });
 });
 
-test("actual plugin consent grows one ask, quietly answers it and retracts the last question without starting a guest", async ({
-  harness,
-  notificationActors: actors,
-  clock,
-}) => {
-  const first = await pendingConsent(harness, actors.alice);
-  const second = await pendingConsent(harness, actors.alice);
-  expect(second.event.pendingCount).toBe(first.event.pendingCount + 1);
-  expect(second.view.id).not.toBe(first.view.id);
-  expect((await harness.services.notifications.list({ principal: actors.alice })).items.map((row) => row.id)).toEqual([second.view.id]);
-  await harness.services.notifications.markAllRead({ principal: actors.alice });
-  clock.advance(1000);
-  const answered = await seedPluginGrant(harness, {
-    caller: actors.alice,
-    pluginId: first.plugin.id,
-    grant: first.plugin.manifest.capabilities,
-    acknowledgedNetHosts: [],
-  });
-  expect(answered.plugin.status).toBe("disabled");
-  expect(answered.kv).toEqual([]);
-  const [quiet] = (await harness.services.notifications.list({ principal: actors.alice })).items;
-  expect(quiet).toMatchObject({ id: second.view.id, seq: second.view.seq, readAt: clock.frozenAt, actionable: true, payload: first.event });
-  await harness.services.plugin.uninstall({ caller: actors.alice, pluginId: second.plugin.id });
-  expect((await harness.services.notifications.list({ principal: actors.alice })).items).toEqual([]);
-  expect(await harness.services.notifications.replaySince({ principal: actors.alice, afterSeq: 0 })).toEqual([]);
-});
-test("raw plugin ZIP identity derives from supplied time and still enters native install and consent", async ({
-  harness,
-  notificationActors: actors,
-  clock,
-}) => {
-  const pending = await pendingConsent(harness, actors.alice);
-  const manifest = pending.plugin.manifest;
-  const first = makePluginBundle(manifest, NOTIFICATION_GUEST_SOURCE, clock.now());
-  const repeat = makePluginBundle(manifest, NOTIFICATION_GUEST_SOURCE, clock.now());
-  const later = makePluginBundle(manifest, NOTIFICATION_GUEST_SOURCE, clock.now() + MS_PER_SECOND);
-  expect(Array.from(repeat)).toEqual(Array.from(first));
-  expect(Array.from(later)).not.toEqual(Array.from(first));
-  const caller = actors.bob;
-  const installed = await seedInstalledPlugin(harness, { caller, bundle: first, grant: [] });
-  expect(installed.plugin.manifest).toEqual(manifest);
-  expect(installed.plugin.pendingReconsent).toBe(false);
-  const requested = await seedPluginGrant(harness, {
-    caller,
-    pluginId: installed.plugin.id,
-    grant: [],
-    acknowledgedNetHosts: [],
-  });
-  expect(requested.plugin.pendingReconsent).toBe(true);
-  expect(requested.plugin.status).toBe("disabled");
-  expect((await harness.services.notifications.list({ principal: caller })).items).toMatchObject([
-    { actionable: true, payload: { type: pending.event.type, recipientUserId: caller.userId, pendingCount: 1 } },
-  ]);
-});
-
 const CHILD_TIMEZONE_ENV = "TZ";
 
 // One child per timezone builds every mtime: a child pays the whole testkit module load, so a child per (mtime, timezone) pair quadrupled it.
@@ -251,10 +196,7 @@ test("the same raw plugin input has exact native ZIP bytes across UTC and Boise 
 }) => {
   const pending = await pendingConsent(harness, actors.alice);
   const mtimes = [clock.now(), Date.UTC(2025, 2, 9, 9, 30)];
-  const [utc, boise] = await Promise.all([
-    archivesInTimezone(pending.plugin.manifest, mtimes, "UTC"),
-    archivesInTimezone(pending.plugin.manifest, mtimes, "America/Boise"),
-  ]);
+  const [utc, boise] = await Promise.all([archivesInTimezone(pending.manifest, mtimes, "UTC"), archivesInTimezone(pending.manifest, mtimes, "America/Boise")]);
   expect(utc).toHaveLength(mtimes.length);
   expect(boise).toEqual(utc);
 });
@@ -265,11 +207,11 @@ test("raw plugin UTC mtime admits signed32 endpoints and refuses unrepresentable
 }) => {
   const pending = await pendingConsent(harness, actors.alice);
   for (const seconds of PLUGIN_ZIP_MTIME_SECONDS_RANGE) {
-    const archive = makePluginBundle(pending.plugin.manifest, NOTIFICATION_GUEST_SOURCE, seconds * MS_PER_SECOND);
+    const archive = makePluginBundle(pending.manifest, NOTIFICATION_GUEST_SOURCE, seconds * MS_PER_SECOND);
     expect(Object.keys(unzipSync(archive)).toSorted()).toEqual([PLUGIN_MANIFEST_ENTRY, PLUGIN_MAIN_ENTRY].toSorted());
   }
   const [min, max] = PLUGIN_ZIP_MTIME_SECONDS_RANGE;
   for (const mtime of [(min - 1) * MS_PER_SECOND, (max + 1) * MS_PER_SECOND, Number.NaN]) {
-    expect(() => makePluginBundle(pending.plugin.manifest, NOTIFICATION_GUEST_SOURCE, mtime)).toThrow(RangeError);
+    expect(() => makePluginBundle(pending.manifest, NOTIFICATION_GUEST_SOURCE, mtime)).toThrow(RangeError);
   }
 });

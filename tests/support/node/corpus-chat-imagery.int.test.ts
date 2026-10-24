@@ -4,11 +4,11 @@
 import { assertReferentialIntegrity, closeDb } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { CHAT_OP_CODES } from "@orb/server/domain/chat";
+import { seedCorpusActors } from "./corpus-actors.ts";
 import { seedCorpusChatLifecycle } from "./corpus-chat-lifecycle.ts";
 import { CORPUS_CHAT_MODEL, CORPUS_CHAT_REPLY, corpusImageryPhysicalBytes, createCorpusChatWire } from "./corpus-chat-wire.ts";
 import { CORPUS_IMAGE_MODEL, seedCorpusImagery } from "./corpus-imagery.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
-import { seedCorpusActors } from "./corpus-seed.ts";
 import { freshHeldDb } from "./db.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";

@@ -6,8 +6,8 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import { chatLocks, messages } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
-import { seedPeerLease } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
+import { seedPeerLeaseRows } from "@orb/testkit/node/rows";
 import { eq } from "drizzle-orm";
 import { coreFrame, coreHeldReply, coreHttpRoom, coreSse } from "../engine/core-physical.ts";
 
@@ -96,7 +96,7 @@ test("a stolen actual lease aborts physical I/O before canon and leaves the repl
     if (character === undefined) {
       throw new Error("the actual lease fixture has no voice for the peer replica");
     }
-    await using peer = await seedPeerLease(h.root, {
+    await using peer = await seedPeerLeaseRows(h.root, {
       chatId: h.chatId,
       characterId: character.id,
       hostUserId: h.owner.userId,

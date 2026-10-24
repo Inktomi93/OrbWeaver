@@ -6,12 +6,15 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { CHAT_REACT_TOOL_NAME } from "@orb/contracts/chat";
 import { messageReactions } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
-import { seedCharacter, seedTranscript } from "@orb/testkit/node/composed";
+import { seedCharacterRows, seedTranscriptRows } from "@orb/testkit/node/rows";
 
 test("the real registered react tool attributes the character seat, preserves repeat data, and rechecks changed room posture", async ({ harness, app, db }) => {
   const host = await harness.principalFor((await harness.actor()).id);
-  const character = await seedCharacter(harness, { principal: host, input: createCharacterSchema.parse({ handle: "aria", name: "Aria", description: "" }) });
-  const room = await seedTranscript(harness, {
+  const character = await seedCharacterRows(harness, {
+    principal: host,
+    input: createCharacterSchema.parse({ handle: "aria", name: "Aria", description: "" }),
+  });
+  const room = await seedTranscriptRows(harness, {
     ownerId: host.userId,
     characterHandles: [character.row.handle],
     lines: [{ role: "assistant", content: "Aria: That worked." }],

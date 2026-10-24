@@ -7,8 +7,8 @@ import { eq } from "drizzle-orm";
 import { seedCorpusKnowledgeImages } from "./corpus-knowledge-images.ts";
 import { CORPUS_KNOWLEDGE_SWIPE_CUE } from "./corpus-knowledge-wire.ts";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
-import { captureThemeRows } from "./factories/discovery.ts";
-import { captureChatMemoryRows } from "./factories/embedding-generation.ts";
+import { captureThemeRows } from "./factories/rows/discovery.ts";
+import { captureChatMemoryRows } from "./factories/rows/embedding-generation.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 const ARC_STORY_MESSAGES = 80;

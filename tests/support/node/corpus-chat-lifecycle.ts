@@ -28,11 +28,10 @@ import {
   captureChatHandoffResumption,
   captureChatReplayRows,
   captureCompactionSpend,
-  seedChatInvite,
   seedImportedChatRows,
-  seedInvitedChatParticipant,
   seedMessageReaction,
-} from "./factories/chat.ts";
+} from "./factories/rows/chat.ts";
+import { seedChatInviteRows, seedInvitedChatParticipantRows } from "./factories/rows.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 type ChatWire = ReturnType<typeof createCorpusChatWire>;
@@ -75,7 +74,7 @@ interface CompactRefusalCapture {
 interface HeldTurnCapture extends NativeRoom {
   readonly memberDuring: CorpusMemberMessagesRead;
   readonly memberCompleted: CorpusMemberMessagesRead;
-  readonly invite: Awaited<ReturnType<typeof seedChatInvite>>;
+  readonly invite: Awaited<ReturnType<typeof seedChatInviteRows>>;
   readonly during: NativeReplay | undefined;
   readonly foreignRefusal: string | undefined;
   readonly turn: NativeTurn;
@@ -85,8 +84,8 @@ interface HeldTurnCapture extends NativeRoom {
   readonly canon: Awaited<ReturnType<ChatService["listMessages"]>>;
 }
 interface DeferredHandoffCapture extends NativeRoom {
-  readonly invite: Awaited<ReturnType<typeof seedChatInvite>>;
-  readonly participant: Awaited<ReturnType<typeof seedInvitedChatParticipant>>;
+  readonly invite: Awaited<ReturnType<typeof seedChatInviteRows>>;
+  readonly participant: Awaited<ReturnType<typeof seedInvitedChatParticipantRows>>;
   readonly submitted: NativeTurn;
   readonly deferred: NativeReplay;
   readonly drained: Awaited<ReturnType<ChatService["drainDeferredTurns"]>>;
@@ -229,8 +228,8 @@ async function heldTurn(root: ServerTestHarness, wire: ChatWire, memberUserId: S
   const source = await lifecycleRoom(root, castId<CharacterHandle>(abort ? "corpus-lifecycle-abort" : "corpus-lifecycle-held"));
   const chatId = source.room.chat.id;
   const member = await root.principalFor(memberUserId);
-  const invite = await seedChatInvite(root, { principal, chatId, input: { invitedHandle: member.handle } });
-  await seedInvitedChatParticipant(root, { principal: member, inviteId: invite.id });
+  const invite = await seedChatInviteRows(root, { principal, chatId, input: { invitedHandle: member.handle } });
+  await seedInvitedChatParticipantRows(root, { principal: member, inviteId: invite.id });
   const cue = abort ? CORPUS_CHAT_ABORT_CUE : CORPUS_CHAT_HELD_CUE;
   const hold = wire.hold(cue);
   const sending = root.services.chat.send({ principal, chatId, content: cue, timeZone: UTC_TIME_ZONE });
@@ -281,8 +280,8 @@ async function deferAndHandoff(
   const memberCaller = await root.internalCallerFor(member.userId);
   const source = await lifecycleRoom(root, castId<CharacterHandle>("corpus-lifecycle-deferred"));
   const chatId = source.room.chat.id;
-  const invite = await seedChatInvite(root, { principal, chatId, input: { invitedHandle: member.handle } });
-  const participant = await seedInvitedChatParticipant(root, { principal: member, inviteId: invite.id });
+  const invite = await seedChatInviteRows(root, { principal, chatId, input: { invitedHandle: member.handle } });
+  const participant = await seedInvitedChatParticipantRows(root, { principal: member, inviteId: invite.id });
   const submitted = await root.services.chat.send({ principal: member, chatId, content: CORPUS_CHAT_DEFERRED_CUE, timeZone: UTC_TIME_ZONE });
   const deferred = await captureChatReplayRows(root.db, chatId);
   const drained = await root.services.chat.drainDeferredTurns({ hostUserId: root.ownerId });

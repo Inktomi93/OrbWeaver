@@ -11,8 +11,8 @@ import { createCorpusProviderExecution } from "../corpus-provider.ts";
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
 import { makeAssetBytes } from "./asset.ts";
-import { seedImageryGenerations, seedNativeImageryImportClaim } from "./imagery.ts";
 import { makeGenerationProvenance } from "./imagery-view.ts";
+import { seedImageryGenerations, seedNativeImageryImportClaim } from "./rows/imagery.ts";
 
 const ENDPOINT = "http://127.0.0.1:8703/v1";
 const MODEL = "corpus-image-model";

@@ -65,7 +65,7 @@ test("a real resident guest follows fresh installer handoff, departure and disab
   });
   const enabled = await seedPluginGrant(root, {
     caller: installer,
-    pluginId: installed.plugin.id,
+    pluginId: installed.outcome.id,
     grant: MANIFEST.capabilities,
     acknowledgedNetHosts: [],
     enable: true,
@@ -98,7 +98,7 @@ test("a real resident guest follows fresh installer handoff, departure and disab
   expect(departedAttempt).toMatchObject([{ isError: true, result: JSON.stringify({ error: `not permitted: ${name}` }) }]);
   expect((await runtimeVariables())[VARIABLE]).toBe("installer-host");
 
-  await root.services.plugin.setEnabled({ caller: installer, pluginId: installed.plugin.id, enabled: false });
+  await root.services.plugin.setEnabled({ caller: installer, pluginId: installed.outcome.id, enabled: false });
   expect(root.app.toolUse.isToolDrivableBy(name, installer.userId)).toBe(false);
   expect(() => root.app.toolUse.resolveTools(installer.userId, [name])).toThrow();
 });

@@ -14,7 +14,8 @@ import { ID_PREFIX } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness, makeAssetBytes, makePluginBundle, seedInstalledPlugin } from "@orb/testkit/node/composed";
+import { createServerHarness, makeAssetBytes, makePluginBundle } from "@orb/testkit/node/composed";
+import { seedInstalledPluginRows } from "@orb/testkit/node/rows";
 import { eq, inArray, sql } from "drizzle-orm";
 
 const SLUG = "reap-refusal-witness";
@@ -36,7 +37,7 @@ function bundleOf(root: ServerTestHarness, version: string): Uint8Array {
 
 /** An enabled install whose bundle and cover would both be orphaned by the next upgrade or uninstall. */
 async function enabledInstall(root: ServerTestHarness, caller: Principal): Promise<{ readonly pluginId: PluginId; readonly held: AssetId[] }> {
-  const installed = await seedInstalledPlugin(root, { caller, bundle: bundleOf(root, "1.0.0"), grant: [] });
+  const installed = await seedInstalledPluginRows(root, { caller, bundle: bundleOf(root, "1.0.0"), grant: [] });
   await root.services.plugin.setEnabled({ caller, pluginId: installed.plugin.id, enabled: true });
   expect(await statusOf(root, installed.plugin.id)).toMatchObject({ status: "enabled", lastError: null });
   expect(installed.assets).toHaveLength(1);

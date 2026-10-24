@@ -4,7 +4,7 @@
 import { users } from "@orb/db";
 import { eq } from "drizzle-orm";
 import type { ServerProducerRoot } from "../server.ts";
-import type { UserRow } from "./rows.ts";
+import type { UserRow } from "./admin-user.ts";
 
 /** The owner-row columns the D135 and D218 cases damage. */
 export type OwnerRowDamage = Partial<Pick<UserRow, "role" | "enabled">>;

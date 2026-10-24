@@ -8,7 +8,6 @@ import { readSessionCookie } from "@orb/server/entry/auth";
 import { z } from "zod";
 import type { CorpusCookieIdentity, CorpusWire } from "../iso/corpus.ts";
 import { corpusCookieIdentitySchema } from "../iso/corpus.ts";
-import { seedLoginBuckets } from "./factories/sessions.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
@@ -60,12 +59,19 @@ export interface CapturedCookieAuth {
   readonly auth: CorpusWire["auth"];
   readonly identity: Awaited<ReturnType<typeof captureCorpusCookieIdentity>>;
   readonly cookie: string;
-  readonly loginBuckets: Awaited<ReturnType<typeof seedLoginBuckets>>["buckets"];
   readonly secrets: readonly string[];
 }
 
+/** Sends the login request; the rows twin substitutes one that also reads the throttle buckets the login wrote. */
+export type CorpusLoginRequest = (...params: Parameters<ServerTestHarness["http"]["request"]>) => ReturnType<ServerTestHarness["http"]["request"]>;
+
 /** Capture the actual HTTP cookie path for Node corpus readers. */
-export async function captureCookieAuth(root: ServerTestHarness, viewer: Principal, password: string): Promise<CapturedCookieAuth> {
+export async function captureCookieAuth(
+  root: ServerTestHarness,
+  viewer: Principal,
+  password: string,
+  login: CorpusLoginRequest = root.http.request,
+): Promise<CapturedCookieAuth> {
   const caller = await root.internalCallerFor(root.ownerId);
   const expected = await (await root.internalCallerFor(viewer.userId)).sessions.me();
   await caller.admin.resetPassword({ userId: viewer.userId, password });
@@ -85,19 +91,16 @@ export async function captureCookieAuth(root: ServerTestHarness, viewer: Princip
   if (anonymousMe.authenticated) {
     throw new Error("synthetic corpus anonymous identity request unexpectedly admitted a principal");
   }
-  const { response: login, buckets: loginBuckets } = await seedLoginBuckets(root, [
-    "/api/auth/login",
-    {
-      method: "POST",
-      headers: { [CSRF_HEADER]: "1", "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ handle: viewer.handle, password }),
-    },
-  ]);
-  if (!login.ok) {
-    throw new Error(`synthetic corpus viewer login failed (${login.status})`);
+  const signedIn = await login("/api/auth/login", {
+    method: "POST",
+    headers: { [CSRF_HEADER]: "1", "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ handle: viewer.handle, password }),
+  });
+  if (!signedIn.ok) {
+    throw new Error(`synthetic corpus viewer login failed (${signedIn.status})`);
   }
-  await login.arrayBuffer();
-  const cookie = login.headers
+  await signedIn.arrayBuffer();
+  const cookie = signedIn.headers
     .getSetCookie()
     .map((line) => line.split(";", 1).join(""))
     .join("; ");
@@ -121,7 +124,6 @@ export async function captureCookieAuth(root: ServerTestHarness, viewer: Princip
     auth: { anonymousConfig, anonymousMe, signedInConfig, signedInMe },
     identity: await captureCorpusCookieIdentity(root, expected, cookie),
     cookie,
-    loginBuckets,
     secrets: [password, cookie, readSessionCookie(new Headers({ cookie }), "http")].filter((value) => value !== null),
   };
 }

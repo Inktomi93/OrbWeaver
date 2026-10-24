@@ -4,14 +4,13 @@
 import { readFile } from "node:fs/promises";
 import type { AuthMode, Principal, ViewerView } from "@orb/contracts/identity";
 import { AUTH_MODES, viewerViewSchema } from "@orb/contracts/identity";
-import { users } from "@orb/db";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { AUTH_MODE_DEFAULT_FALLBACK } from "@orb/server/foundation/env";
-import { eq } from "drizzle-orm";
 import type { JWTPayload } from "jose";
 import type { TestAPI, TestFunction } from "vitest";
 import { z } from "zod";
+import { readAccounts } from "./admin/accounts.ts";
 import { test } from "./fixtures.ts";
 import { CLIENT_ID, createNativeIssuer, ISSUER, NATIVE_OIDC_SETTINGS } from "./oidc-issuer.ts";
 import type { ActorSpec, ServerHarnessOptions, ServerTestHarness } from "./server.ts";
@@ -168,12 +167,16 @@ export async function mintMember(root: AuthModeRoot, spec: Omit<ActorSpec, "pass
   return { userId: row.id, handle: row.handle, password: SIGN_IN_PASSWORD, subject };
 }
 
+// An account's bound SSO subject, as the owner's admin list shows it.
+async function accountSubject(root: AuthModeRoot, userId: UserId): Promise<ExternalId | null> {
+  return (await readAccounts(root)).find(({ id }) => id === userId)?.externalId ?? null;
+}
+
 /** The harness owner as a sign-in subject; its local password is set through the owner's own reset verb. */
 export async function ownerSubject(root: AuthModeRoot): Promise<AuthSubject> {
   const owner = await root.principalFor(root.ownerId);
   await root.services.admin.resetPassword({ principal: owner, userId: owner.userId, password: SIGN_IN_PASSWORD });
-  const row = await root.db.select({ externalId: users.externalId }).from(users).where(eq(users.id, owner.userId)).get();
-  return { userId: owner.userId, handle: owner.handle, password: SIGN_IN_PASSWORD, subject: row?.externalId ?? OWNER_SUBJECT };
+  return { userId: owner.userId, handle: owner.handle, password: SIGN_IN_PASSWORD, subject: (await accountSubject(root, owner.userId)) ?? OWNER_SUBJECT };
 }
 
 /** A signed-in request identity: send `headers` with every `root.http.request`. `viewer` is what the wire admitted;
@@ -194,8 +197,7 @@ async function ownerClaimQuery(root: AuthModeRoot, who: AuthSubject): Promise<st
   if (who.userId !== root.ownerId || root.ownerClaimFile === undefined) {
     return "";
   }
-  const owner = await root.db.select({ externalId: users.externalId }).from(users).where(eq(users.id, who.userId)).get();
-  if (owner?.externalId !== null) {
+  if ((await accountSubject(root, who.userId)) !== null) {
     return "";
   }
   return new URL((await readFile(root.ownerClaimFile, "utf8")).trim()).search;

@@ -158,6 +158,42 @@ const UI_SATELLITE_OWNERS = [
   }),
 );
 
+// The rows door and the tier behind it.
+const ROWS_TIER = "^tests/support/node/factories/rows(\\.ts$|/)";
+// The only testkit files that may import ROWS_TIER; each line says why its rows cannot come from a verb.
+const ROWS_IMPORTERS = [
+  "^tests/support/node/factories/rows(\\.ts$|/)", // the tier composes its own captures and twins
+  "\\.test(-d)?\\.ts$", // testkit self-tests prove a seed or capture stored what it claims
+  // Corpus publication producers snapshot the rows they left into the fixture CT and snap consumers replay:
+  "^tests/support/node/corpus\\.ts$", // the capsule's private-source idle check and the publication's row snapshots
+  "^tests/support/node/corpus-seed\\.ts$", // the synthetic corpus's turn, world-info, regex, roster, stats and login-bucket rows
+  "^tests/support/node/corpus-chat-lifecycle\\.ts$", // import claims, chats and reactions
+  "^tests/support/node/corpus-connection\\.ts$", // connections, bindings, credentials and their audits
+  "^tests/support/node/corpus-databank\\.ts$", // document rows the databank producers left
+  "^tests/support/node/corpus-image-variants\\.ts$", // variant generations and their assets
+  "^tests/support/node/corpus-imagery\\.ts$", // imagery generations and import calls
+  "^tests/support/node/corpus-knowledge\\.ts$", // memory digests behind the knowledge captures
+  "^tests/support/node/corpus-knowledge-images\\.ts$", // the knowledge images' assets
+  "^tests/support/node/corpus-knowledge-variants\\.ts$", // messages and their variants
+  "^tests/support/node/corpus-library-views\\.ts$", // library canon and its audits
+  "^tests/support/node/corpus-notifications\\.ts$", // notification rows
+  "^tests/support/node/corpus-oidc\\.ts$", // OIDC-minted users and sessions
+  "^tests/support/node/corpus-plugin\\.ts$", // plugin provider claims
+  "^tests/support/node/corpus-plugin-host\\.ts$", // plugin rows the host captures snapshot
+  "^tests/support/node/corpus-plugin-http\\.ts$", // plugin rows the HTTP captures snapshot
+  "^tests/support/node/corpus-plugin-outputs\\.ts$", // plugin output rows
+  "^tests/support/node/corpus-refinery\\.ts$", // refinery rows
+  "^tests/support/node/corpus-rpg\\.ts$", // RPG snapshots
+  "^tests/support/node/corpus-rpg-members\\.ts$", // RPG member rows
+  "^tests/support/node/corpus-rpg-provider\\.ts$", // RPG provider-round rows
+  "^tests/support/node/corpus-rpg-recursion\\.ts$", // RPG recursion rows
+  "^tests/support/node/corpus-rpg-rounds\\.ts$", // RPG round rows
+  "^tests/support/node/corpus-rpg-schedules\\.ts$", // RPG schedule rows
+  "^tests/support/node/corpus-sdk-sessions\\.ts$", // SDK session entry rows
+  "^tests/support/node/corpus-search\\.ts$", // embeddings, digests, segments, chunks and embedding calls
+  "^tests/support/node/corpus-stats-settings\\.ts$", // settings, themes and their audits
+];
+
 const TEST_WORLDS = [
   {
     name: "client-persisted-store-implementation",
@@ -232,7 +268,14 @@ const TEST_WORLDS = [
     comment: "Only persistence-tier tests insert rows directly; every other test seeds through the composed root's verbs.",
     severity: "error",
     from: { path: "^(tests|scripts|playwright)/", pathNot: ["^tests/support/", "^tests/db/", "^tests/.*/persistence/"] },
-    to: { path: "^tests/support/node/factories/rows\\.ts$" },
+    to: { path: ROWS_TIER },
+  },
+  {
+    name: "testkit-rows-closed-importers",
+    comment: "Inside testkit only the closed list may import a row reader, so a door seed cannot hand a row to a verb suite.",
+    severity: "error",
+    from: { path: "^tests/support/", pathNot: ROWS_IMPORTERS },
+    to: { path: ROWS_TIER },
   },
   {
     name: "testkit-persistence-helpers-own-tier",

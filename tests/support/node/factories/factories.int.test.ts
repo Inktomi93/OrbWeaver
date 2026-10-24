@@ -9,14 +9,11 @@ import { createIdSource } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { createSeededIds } from "../../iso/ids.ts";
-import { seedCorpusActors } from "../corpus-seed.ts";
+import { seedCorpusActors } from "../corpus-actors.ts";
 import { freshDb } from "../db.ts";
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
-import { seedCharacter } from "./character.ts";
-import { seedChat, seedTranscript } from "./chat.ts";
-import { seedMessage } from "./message.ts";
-import { makeUser, seedMessageRow } from "./rows.ts";
+import { makeUser, seedCharacterRows, seedChatRows, seedMessageRow, seedMessageRows, seedTranscriptRows } from "./rows.ts";
 
 describe("rows — direct builders for persistence suites", () => {
   test("user defaults consume the injected production prefixless mint, not a prefixed fixture id", () => {
@@ -46,17 +43,17 @@ describe("root seeds — production verbs and their canonical rows", () => {
     await using root = await createServerHarness();
     // A committed line is funded through the host's chat binding.
     const { owner } = await seedCorpusActors(root);
-    const card = await seedCharacter(root, {
+    const card = await seedCharacterRows(root, {
       principal: owner,
       input: createCharacterSchema.parse({ handle: "seed-witness", name: "Witness", description: "" }),
     });
-    const room = await seedChat(root, { principal: owner, characterIds: [card.row.id] });
+    const room = await seedChatRows(root, { principal: owner, characterIds: [card.row.id] });
     expect(room.row).toMatchObject({ id: room.view.chat.id, startedAt: null });
     expect(room.participants.map(({ kind, role, userId, characterId }) => ({ kind, role, userId, characterId }))).toEqual([
       { kind: "human", role: "host", userId: owner.userId, characterId: null },
       { kind: "character", role: "member", userId: null, characterId: card.row.id },
     ]);
-    const committed = await seedMessage(root, { principal: owner, chatId: room.row.id, content: "The first committed line." });
+    const committed = await seedMessageRows(root, { principal: owner, chatId: room.row.id, content: "The first committed line." });
     expect(committed.slot).toMatchObject({ chatId: room.row.id, role: "user", authorUserId: owner.userId, selectedVariantId: committed.variant.id });
     expect(committed.variant).toMatchObject({ messageId: committed.slot.id, content: "The first committed line." });
     const page = await root.services.chat.listMessages({ principal: owner, chatId: room.row.id });
@@ -69,7 +66,8 @@ describe("root seeds — production verbs and their canonical rows", () => {
     const owner = await root.principalFor(root.ownerId);
     const [aria, bryn] = await Promise.all(
       ["aria", "bryn"].map(
-        async (handle) => (await seedCharacter(root, { principal: owner, input: createCharacterSchema.parse({ handle, name: handle, description: "" }) })).row,
+        async (handle) =>
+          (await seedCharacterRows(root, { principal: owner, input: createCharacterSchema.parse({ handle, name: handle, description: "" }) })).row,
       ),
     );
     if (aria === undefined || bryn === undefined) {
@@ -84,7 +82,7 @@ describe("root seeds — production verbs and their canonical rows", () => {
         { role: "assistant", speakerHandle: bryn.handle, content: "Bryn checks it." },
       ],
     } as const;
-    const transcript = await seedTranscript(root, params);
+    const transcript = await seedTranscriptRows(root, params);
     expect(transcript.messages.map(({ slot, variant }) => [slot.role, slot.authorUserId, slot.characterId, variant.content])).toEqual([
       ["user", owner.userId, null, "Who keeps the ledger?"],
       ["assistant", null, aria.id, "Aria keeps it."],
@@ -93,6 +91,6 @@ describe("root seeds — production verbs and their canonical rows", () => {
     expect(transcript.participants.filter(({ kind }) => kind === "character").map(({ characterId }) => characterId)).toEqual([aria.id, bryn.id]);
     const page = await root.services.chat.listMessages({ principal: owner, chatId: transcript.row.id });
     expect(page.messages.map(({ id }) => id)).toEqual(transcript.messages.map(({ slot }) => slot.id));
-    await expect(seedTranscript(root, params)).rejects.toThrow("an identical transcript was already imported");
+    await expect(seedTranscriptRows(root, params)).rejects.toThrow("an identical transcript was already imported");
   });
 });

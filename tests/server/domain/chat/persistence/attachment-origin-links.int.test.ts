@@ -8,7 +8,8 @@ import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ResolveMediaRefDeps } from "@orb/server/domain/chat";
 import { createResolveMediaRef } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
-import { createServerHarness, seedChat, seedCorpusActors, seedMessage } from "@orb/testkit/node/composed";
+import { createServerHarness, seedCorpusActors } from "@orb/testkit/node/composed";
+import { seedChatRows, seedMessageRows } from "@orb/testkit/node/rows";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
 import { seatMember } from "../verbs/media-and-imagery-authority.fixtures.ts";
@@ -19,12 +20,12 @@ test("only host or PRESENT owner assets reach byte processing; conversion remain
   const { owner: host, secondUserId } = await seedCorpusActors(root);
   const member = await root.principalFor(secondUserId);
   const { services, db } = root;
-  const { row: room } = await seedChat(root, { principal: host, characterIds: [] });
+  const { row: room } = await seedChatRows(root, { principal: host, characterIds: [] });
   await seatMember(root, host, room.id, member);
   const bytes = new Uint8Array([9, 8, 7]);
   const asset = await services.assets.store({ principal: member, bytes, kind: "attachment", mime: "video/webm" });
   // The member's own attachment link places the clip in the room; this case pins presence and deferral.
-  const attachedIn = await seedMessage(root, {
+  const attachedIn = await seedMessageRows(root, {
     principal: member,
     chatId: room.id,
     content: `![clip](asset:${asset.assetId})`,

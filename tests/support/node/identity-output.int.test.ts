@@ -52,7 +52,7 @@ test("native account and sharing suppliers keep request identity and owner-only 
     [member, memberCaller],
   ] as const) {
     const captured = await captureAccountViews(caller);
-    expect(captured.viewer).toEqual({ userId: actor.id, handle: actor.handle, globalRole: actor.role });
+    expect(captured.viewer).toEqual({ userId: actor.id, handle: actor.handle, globalRole: actor === admin ? "admin" : "user" });
     expect(captured.diagnostics).toEqual({ runtime: owned.diagnostics.runtime, serverErrors: { kind: "owner-only" } });
     expect(JSON.stringify(captured)).not.toContain(subject);
     expect(captured.viewer).not.toHaveProperty("externalId");

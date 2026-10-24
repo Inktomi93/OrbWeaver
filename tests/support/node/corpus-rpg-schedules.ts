@@ -2,7 +2,8 @@
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import { MS_PER_MINUTE } from "@orb/kit/time";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
-import { seedWorkload, seedWorkloadSchedule } from "./factories/workload.ts";
+import { seedWorkload } from "./factories/rows/workload.ts";
+import { seedWorkloadScheduleRows } from "./factories/rows.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 type CorpusCaller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
@@ -13,7 +14,7 @@ interface SeededCorpusRpgSchedules {
   readonly beforeDue: Job;
   readonly cancellation: Awaited<ReturnType<CorpusCaller["workloads"]["cancel"]>>;
   readonly cancelled: Job;
-  readonly schedule: Awaited<ReturnType<typeof seedWorkloadSchedule>>;
+  readonly schedule: Awaited<ReturnType<typeof seedWorkloadScheduleRows>>;
   readonly retuned: Schedule;
   readonly disabled: Schedule;
   readonly paused: readonly Schedule[];
@@ -23,7 +24,7 @@ interface SeededCorpusRpgSchedules {
   readonly admitted: readonly Job[];
   readonly completed: readonly Job[];
   readonly stopped: Schedule;
-  readonly deletedSchedule: Awaited<ReturnType<typeof seedWorkloadSchedule>>;
+  readonly deletedSchedule: Awaited<ReturnType<typeof seedWorkloadScheduleRows>>;
   readonly finalSchedules: readonly Schedule[];
 }
 
@@ -43,7 +44,7 @@ export async function seedCorpusRpgSchedules(root: ServerTestHarness): Promise<S
   const beforeDue = await caller.workloads.get({ id: queued.id });
   const cancellation = await caller.workloads.cancel({ id: queued.id });
   const cancelled = await caller.workloads.get({ id: queued.id });
-  const schedule = await seedWorkloadSchedule(root, {
+  const schedule = await seedWorkloadScheduleRows(root, {
     caller: principal,
     ownerId: root.ownerId,
     mode: "singular",
@@ -70,7 +71,7 @@ export async function seedCorpusRpgSchedules(root: ServerTestHarness): Promise<S
   }
   const completed = await settleCorpusWorkloads(root, caller, admitted);
   const stopped = await caller.workloads.setScheduleEnabled({ id: schedule.id, enabled: false });
-  const deletedSchedule = await seedWorkloadSchedule(root, {
+  const deletedSchedule = await seedWorkloadScheduleRows(root, {
     caller: principal,
     ownerId: root.ownerId,
     mode: "singular",

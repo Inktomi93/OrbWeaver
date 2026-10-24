@@ -1,11 +1,13 @@
 // @subject tests/support/node/corpus-search.ts
 import type { CorpusSource } from "@orb/contracts/search";
 import { assertReferentialIntegrity } from "@orb/db";
+import { seedCorpusActors } from "./corpus-actors.ts";
 import { corpusKnowledgeText } from "./corpus-knowledge.ts";
 import { seedCorpusKnowledgeImages } from "./corpus-knowledge-images.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
 import { CORPUS_SEARCH_FOREIGN_TERM, CORPUS_SEARCH_TERM, seedCorpusSearch } from "./corpus-search.ts";
-import { seedCorpusActors, seedCorpusLibraries, seedRecallCorpus } from "./corpus-seed.ts";
+import { seedCorpusLibraries } from "./corpus-seed.ts";
+import { seedRecallCorpusRows } from "./factories/rows/recall.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 
@@ -126,7 +128,7 @@ test("native search exposes all eight routed arms and five output families with 
   await using root = await createServerHarness({ providerFetch: physical.execute });
   const actors = await seedCorpusActors(root);
   const libraries = await seedCorpusLibraries(root);
-  const recall = await seedRecallCorpus(root, {
+  const recall = await seedRecallCorpusRows(root, {
     chatConnectionId: actors.connections.text.id,
     embedConnectionId: actors.connections.embed.id,
     summarizeConnectionId: actors.connections.text.id,

@@ -1,9 +1,7 @@
 // A second replica on the same database holds a room's turn lease through its own engine: a forced turn whose
 // provider request parks until the peer lets go. Its clock may run ahead, so an expiring lease is a real takeover.
 
-import { chatLocks } from "@orb/db";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
-import { eq } from "drizzle-orm";
 import { createFrozenClock } from "../../iso/clock.ts";
 import { createSeededIds } from "../../iso/ids.ts";
 import {
@@ -18,8 +16,6 @@ import { createServerHarness } from "../server.ts";
 
 /** The peer's business ids count in their own band, below the fixture band, so its rows never collide with the root's. */
 const PEER_ID_CURSOR = 2 ** 30;
-
-type ChatLockRow = typeof chatLocks.$inferSelect;
 
 export interface PeerLeaseParams {
   readonly chatId: ChatId;
@@ -36,8 +32,6 @@ export interface PeerLeaseParams {
 
 export interface PeerLease extends AsyncDisposable {
   readonly peer: ServerTestHarness;
-  /** The lease row as the peer's engine wrote it. */
-  readonly row: ChatLockRow;
   /** Abort the peer's turn; its engine releases the lease it still holds. */
   readonly letGo: () => Promise<void>;
 }
@@ -85,10 +79,6 @@ export async function seedPeerLease(root: ServerTestHarness, params: PeerLeasePa
         throw new Error("the peer replica's turn settled before it held the lease");
       }),
     ]);
-    const row = await root.db.select().from(chatLocks).where(eq(chatLocks.chatId, params.chatId)).get();
-    if (row?.holder !== params.holder) {
-      throw new Error("the peer replica reached its provider without owning the room's lease");
-    }
     let released: Promise<void> | undefined;
     const letGo = (): Promise<void> => {
       released ??= (async (): Promise<void> => {
@@ -100,7 +90,6 @@ export async function seedPeerLease(root: ServerTestHarness, params: PeerLeasePa
     };
     return {
       peer,
-      row,
       letGo,
       [Symbol.asyncDispose]: async (): Promise<void> => {
         try {

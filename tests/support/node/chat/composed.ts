@@ -7,7 +7,7 @@ import type { CreatePersonaInput } from "@orb/contracts/persona";
 import type { PromptConfig } from "@orb/contracts/preset";
 import type { MemoryDefaults } from "@orb/contracts/settings";
 import type { ChatId } from "@orb/kit/ids";
-import { seedCorpusActors } from "../corpus-seed.ts";
+import { seedCorpusActors } from "../corpus-actors.ts";
 import type { TranscriptLine } from "../factories/chat.ts";
 import { seedTranscript } from "../factories/chat.ts";
 import type { AppCaller } from "../fixtures.ts";
@@ -71,7 +71,7 @@ export async function createChatRoot(options: ChatRootOptions): Promise<ChatRoot
   const chatId =
     options.transcript === undefined
       ? (await caller.chat.startChat({ characterIds: characters.map(({ id }) => id), opening: "none" })).chat.id
-      : (await seedTranscript(root, { ownerId: owner.userId, characterHandles: characters.map(({ handle }) => handle), lines: options.transcript })).row.id;
+      : (await seedTranscript(root, { ownerId: owner.userId, characterHandles: characters.map(({ handle }) => handle), lines: options.transcript })).chatId;
   if (options.group !== undefined) {
     await caller.chat.setGroupConfig({ chatId, config: options.group });
   }

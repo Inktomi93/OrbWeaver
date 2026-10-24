@@ -5,6 +5,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { parseVariantMetadata } from "@orb/contracts/chat";
 import { characterStatsViewSchema, latencyStatsSchema, modelStatRowSchema, ownerStatsViewSchema } from "@orb/contracts/stats";
 import { createFrozenClock } from "../iso/clock.ts";
+import { seedCorpusActors } from "./corpus-actors.ts";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -13,9 +14,8 @@ import {
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
 } from "./corpus-provider.ts";
-import { seedCorpusActors } from "./corpus-seed.ts";
-import { seedUserConnection } from "./factories/connection.ts";
-import { captureStatsPopulations } from "./factories/stats.ts";
+import { seedUserConnection } from "./factories/rows/connection.ts";
+import { captureStatsPopulations } from "./factories/rows/stats.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 

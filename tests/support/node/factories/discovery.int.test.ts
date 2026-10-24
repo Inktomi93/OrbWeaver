@@ -5,6 +5,7 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { characterEmbeddings, embeddingCalls } from "@orb/db";
 import { and, eq, inArray } from "drizzle-orm";
+import { seedCorpusConnections } from "../corpus-actors.ts";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -12,11 +13,11 @@ import {
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
 } from "../corpus-provider.ts";
-import { seedCorpusConnections } from "../corpus-seed.ts";
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
-import { seedCharacterDistillations, seedDuplicateCharacterPairs } from "./discovery.ts";
-import { seedEmbeddedCorpus, seedEmbeddingGeneration } from "./embedding-generation.ts";
+import { seedDuplicateCharacterPairs } from "./rows/discovery.ts";
+import { seedEmbeddedCorpus, seedEmbeddingGeneration } from "./rows/embedding-generation.ts";
+import { seedCharacterDistillationsRows } from "./rows.ts";
 
 type MutablePhysicalScript = Omit<Parameters<typeof createCorpusProviderExecution>[0], "embedding"> & { embedding: number[] };
 
@@ -59,7 +60,7 @@ test("real admitted embedding and distillation produce owned summaries, vectors,
   expect(new Set(vectors.map((row) => row.contentHash)).size).toBe(2);
   expect(corpus.calls.filter((row) => row.connectionId === embed.id && row.outcome === "completed").length).toBeGreaterThan(0);
   for (const id of ids) {
-    const distilled = await seedCharacterDistillations(root, {
+    const distilled = await seedCharacterDistillationsRows(root, {
       ownerId: root.ownerId,
       funderUserId: root.ownerId,
       characterId: id,
@@ -73,7 +74,7 @@ test("real admitted embedding and distillation produce owned summaries, vectors,
   expect(await root.services.discovery.duplicateCharacters(foreign.id)).toEqual([]);
   const beforeForeign = [...wire.requests];
   await expect(
-    seedCharacterDistillations(root, {
+    seedCharacterDistillationsRows(root, {
       ownerId: foreign.id,
       funderUserId: foreign.id,
       characterId: first.id,

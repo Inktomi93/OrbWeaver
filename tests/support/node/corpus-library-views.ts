@@ -23,22 +23,17 @@ import {
 import { deriveRegexTierFlags } from "@orb/kit/regex";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { CorpusLibraryRelations, CorpusRegexLibrary, CorpusWorldInfoLibrary } from "../iso/corpus.ts";
+import type { seedCorpusActors } from "./corpus-actors.ts";
 import type { TrpcCapture } from "./corpus-read.ts";
-import type { seedCorpusActors, seedCorpusLibraries } from "./corpus-seed.ts";
+import type { seedCorpusLibraries } from "./corpus-seed.ts";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
 import type { AuditLogRow } from "./factories/credentials.ts";
-import { captureDocumentChunks } from "./factories/embedding-generation.ts";
-import {
-  captureRegexRows,
-  seedCharacterRegexScript,
-  seedChatRegexScript,
-  seedGlobalRegexScript,
-  seedPresetRegexScript,
-  seedRegexScript,
-} from "./factories/regex.ts";
-import { seedRosterPreset } from "./factories/roster-preset.ts";
-import { seedCharacterTag, seedChatTag, seedPersonaTag, seedPresetTag, seedTag, seedWorldBookTag } from "./factories/tag.ts";
-import { captureWorldBookRows, seedCharacterBook, seedWorldBook, seedWorldEntry } from "./factories/world-info.ts";
+import { captureDocumentChunks } from "./factories/rows/embedding-generation.ts";
+import { captureRegexRows, seedCharacterRegexScript, seedChatRegexScript, seedPresetRegexScript } from "./factories/rows/regex.ts";
+import { seedRosterPreset } from "./factories/rows/roster-preset.ts";
+import { seedCharacterTag, seedChatTag, seedPersonaTag, seedPresetTag, seedTag, seedWorldBookTag } from "./factories/rows/tag.ts";
+import { captureWorldBookRows, seedCharacterBook, seedWorldBook, seedWorldEntry } from "./factories/rows/world-info.ts";
+import { seedGlobalRegexScriptRows, seedRegexScriptRows } from "./factories/rows.ts";
 import type { TrpcInput, TrpcProcedurePath, TrpcWireOutput } from "./route-trpc.ts";
 import type { ServerTestHarness } from "./server.ts";
 
@@ -76,9 +71,9 @@ interface WorldViews {
 }
 
 interface RegexViews {
-  readonly scripts: readonly Awaited<ReturnType<typeof seedRegexScript>>[];
-  readonly first: Awaited<ReturnType<typeof seedRegexScript>>;
-  readonly second: Awaited<ReturnType<typeof seedRegexScript>>;
+  readonly scripts: readonly Awaited<ReturnType<typeof seedRegexScriptRows>>[];
+  readonly first: Awaited<ReturnType<typeof seedRegexScriptRows>>;
+  readonly second: Awaited<ReturnType<typeof seedRegexScriptRows>>;
   readonly before: TrpcCapture<"regex.listForChat">;
   readonly ordered: TrpcCapture<"regex.applyScopeOrder">;
   readonly after: TrpcCapture<"regex.listForChat">;
@@ -342,11 +337,11 @@ export async function seedWorldInfoLibraryViews(root: ServerTestHarness, library
 /** Isolate the actual regex-library stages from unrelated corpus producers. */
 export async function seedRegexLibraryViews(root: ServerTestHarness, library: Library, caller: Caller, other: Caller): Promise<RegexViews> {
   const principal = await root.principalFor(root.ownerId);
-  const scripts: Awaited<ReturnType<typeof seedRegexScript>>[] = [];
+  const scripts: Awaited<ReturnType<typeof seedRegexScriptRows>>[] = [];
   const placement = ["DISPLAY"] as const;
   for (const [index, replacement] of ["archivist", "witness"].entries()) {
     scripts.push(
-      await seedRegexScript(root, {
+      await seedRegexScriptRows(root, {
         principal,
         input: createRegexScriptSchema.parse({
           name: `Native display ledger ${index}`,
@@ -362,7 +357,7 @@ export async function seedRegexLibraryViews(root: ServerTestHarness, library: Li
   if (first === undefined || second === undefined) {
     throw new Error("native ordered script population omitted a real script");
   }
-  await seedGlobalRegexScript(root, { principal, scriptId: first.id });
+  await seedGlobalRegexScriptRows(root, { principal, scriptId: first.id });
   await seedCharacterRegexScript(root, { principal, characterId: library.character.id, scriptId: first.id });
   await seedPresetRegexScript(root, { principal, presetId: library.preset.id, scriptId: first.id });
   for (const script of scripts) {

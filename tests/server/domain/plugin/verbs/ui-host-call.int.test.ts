@@ -33,7 +33,7 @@ test("scripted chat reads use admitted mount scope, reject main-host argument sh
     grant: [],
     bundle: makePluginBundle(manifest, MAIN_SOURCE, root.clock.now(), { [PLUGIN_UI_ENTRY]: strToU8("orb.ui(1);") }),
   });
-  const pluginId = installed.plugin.id;
+  const pluginId = installed.outcome.id;
   expect((await seedPluginGrant(root, { caller, pluginId, grant: manifest.capabilities, acknowledgedNetHosts: [], enable: true })).outcome.status).toBe(
     "enabled",
   );

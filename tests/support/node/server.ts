@@ -8,12 +8,13 @@ import { join } from "node:path";
 import type { UserRole } from "@orb/contracts/identity";
 import type { LogLevel } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
-import { closeDb, users } from "@orb/db";
+import { closeDb } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import type { AgentSdkNativeOptions, AgentSdkQuery, AgentSdkSpawn } from "@orb/inference";
 import { createBinding } from "@orb/kit/binding";
 import type { ExternalId, Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId, createIdSource } from "@orb/kit/ids";
+import { isAdmin } from "@orb/server/domain/admin";
 import type { SessionsRolePolicy, SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
 import { createSessionsRolePolicy, ROLE_POLICY_ENV_KEYS } from "@orb/server/domain/sessions";
 import type { ShareGraph, ShareGraphOptions } from "@orb/server/domain/share";
@@ -27,7 +28,6 @@ import { authModeSource, hostEnvAllowlist, resolveBindPosture } from "@orb/serve
 import { getLog, logger } from "@orb/server/foundation/observability";
 import { systemConnector, systemFetch } from "@orb/server/infra/network";
 import { createCaller, createContext } from "@orb/server/transport/trpc";
-import { eq } from "drizzle-orm";
 import type { Clock } from "../iso/clock.ts";
 import { createFrozenClock } from "../iso/clock.ts";
 import type { SeededIds } from "../iso/ids.ts";
@@ -36,7 +36,6 @@ import type { ControlledTimers } from "../iso/timers.ts";
 import { createControlledTimers } from "../iso/timers.ts";
 import { freshDb } from "./db.ts";
 import { createTestEnv } from "./env.ts";
-import type { UserRow } from "./factories/rows.ts";
 import type { OwnedHttpRequests } from "./http.ts";
 import { createOwnedHttpRequests } from "./http.ts";
 
@@ -98,6 +97,12 @@ export type UnclaimedServerHarnessOptions = Omit<ServerHarnessOptions, "ownerId"
 };
 
 /** The account a claimed root mints: `sessions.ensureUser`, then the owner's audited admin verbs for each field. */
+/** What an actor mint hands back: the account's id and handle, never a stored users row (Spine-Testing §9). */
+interface ActorAccount {
+  readonly id: UserId;
+  readonly handle: Handle;
+}
+
 export interface ActorSpec {
   /** Defaults to a fresh seeded handle; an already-held handle is refused, never adopted. */
   readonly handle?: Handle;
@@ -159,7 +164,7 @@ class ComposedServerRoot {
 export type ServerProducerRoot = ComposedServerRoot;
 
 export interface UnclaimedServerTestHarness extends ComposedServerRoot, Omit<ServerTestHarness, "ownerId" | "actor"> {
-  readonly actor: (spec?: UnclaimedActorSpec) => Promise<UserRow>;
+  readonly actor: (spec?: UnclaimedActorSpec) => Promise<ActorAccount>;
 }
 
 export interface ServerTestHarness extends ComposedServerRoot, AsyncDisposable {
@@ -176,7 +181,7 @@ export interface ServerTestHarness extends ComposedServerRoot, AsyncDisposable {
   readonly principalFor: ReturnType<typeof createHostPrincipalResolver>;
   /** Internal row-derived tRPC calls, not request authentication; HTTP owns cookie/session admission proof. */
   readonly internalCallerFor: (userId: UserId | null) => Promise<ReturnType<typeof createCaller>>;
-  readonly actor: (spec?: ActorSpec) => Promise<UserRow>;
+  readonly actor: (spec?: ActorSpec) => Promise<ActorAccount>;
   readonly http: Pick<OwnedHttpRequests, "request" | "routes">;
   readonly listen: () => Promise<Readonly<AddressInfo>>;
   readonly importStagingDir: string;
@@ -360,39 +365,32 @@ async function prepareHarnessOwner(
 
 const ACTOR_HANDLE_PREFIX = "actor";
 
-async function readActor(db: Db, userId: UserId): Promise<UserRow> {
-  const row = await db.select().from(users).where(eq(users.id, userId)).get();
-  if (row === undefined) {
-    throw new Error("server harness: the production mint left no users row");
-  }
-  return row;
-}
-
 // Both mint verbs resolve an existing handle to its account, so an actor refuses a held handle instead of adopting it.
-async function unheldHandle(db: Db, ids: SeededIds, requested: Handle | undefined): Promise<Handle> {
+async function unheldHandle(app: ServicesResult, ids: SeededIds, requested: Handle | undefined): Promise<Handle> {
   const handle = requested ?? castId<Handle>(ids.next(ACTOR_HANDLE_PREFIX));
-  const held = await db.select({ id: users.id }).from(users).where(eq(users.handle, handle)).get();
-  if (held !== undefined) {
-    throw new Error(`server harness: actor handle "${handle}" is already held by ${held.id}`);
+  const held = await app.sessions.resolveHandle(handle);
+  if (held !== null) {
+    throw new Error(`server harness: actor handle "${handle}" is already held by ${held}`);
   }
   return handle;
 }
 
 interface ActorMint {
   readonly app: ServicesResult;
-  readonly db: Db;
   readonly ids: SeededIds;
 }
 
-function claimedActor({ app, db, ids }: ActorMint, ownerId: UserId, principalFor: ServerTestHarness["principalFor"]): ServerTestHarness["actor"] {
+function claimedActor({ app, ids }: ActorMint, ownerId: UserId, principalFor: ServerTestHarness["principalFor"]): ServerTestHarness["actor"] {
   return async (spec = {}) => {
-    const userId = await app.sessions.ensureUser(await unheldHandle(db, ids, spec.handle));
+    const handle = await unheldHandle(app, ids, spec.handle);
+    const userId = await app.sessions.ensureUser(handle);
     const principal = await principalFor(ownerId);
     const { admin } = app.services;
     if (spec.externalId !== undefined) {
       await admin.linkSsoIdentity({ principal, userId, externalId: spec.externalId });
     }
-    if (spec.role !== undefined && spec.role !== (await readActor(db, userId)).role) {
+    // The role policy may already have minted the requested role; the actor's own principal says which it holds.
+    if (spec.role !== undefined && (spec.role === "admin") !== isAdmin(await principalFor(userId))) {
       await admin.setRole({ principal, userId, role: spec.role });
     }
     if (spec.enabled === false) {
@@ -401,13 +399,13 @@ function claimedActor({ app, db, ids }: ActorMint, ownerId: UserId, principalFor
     if (spec.password !== undefined) {
       await admin.resetPassword({ principal, userId, password: spec.password });
     }
-    return await readActor(db, userId);
+    return { id: userId, handle };
   };
 }
 
-function unclaimedActor({ app, db, ids }: ActorMint): UnclaimedServerTestHarness["actor"] {
+function unclaimedActor({ app, ids }: ActorMint): UnclaimedServerTestHarness["actor"] {
   return async (spec = {}) => {
-    const handle = await unheldHandle(db, ids, spec.handle);
+    const handle = await unheldHandle(app, ids, spec.handle);
     const provisioned = await app.sessions.provisionIdentity(
       { externalId: spec.externalId ?? null, handle, groups: [], email: spec.email ?? null },
       { ownerClaimProven: false, requireApproval: spec.enabled === false },
@@ -415,13 +413,13 @@ function unclaimedActor({ app, db, ids }: ActorMint): UnclaimedServerTestHarness
     if (provisioned.outcome !== "provisioned") {
       throw new Error(`server harness: provisionIdentity refused the actor (${provisioned.reason ?? "denied"})`);
     }
-    return await readActor(db, provisioned.userId);
+    return { id: provisioned.userId, handle };
   };
 }
 
 // ensureUser and provisionIdentity both resolve an existing handle to its account and no constraint refuses the
 // second caller, so the held-handle check is only sound when one root's mints never interleave.
-function serialMints<Spec>(mint: (spec?: Spec) => Promise<UserRow>): (spec?: Spec) => Promise<UserRow> {
+function serialMints<Spec>(mint: (spec?: Spec) => Promise<ActorAccount>): (spec?: Spec) => Promise<ActorAccount> {
   let tail: Promise<unknown> = Promise.resolve();
   return (spec) => {
     const run = tail.then(() => mint(spec));
@@ -673,7 +671,7 @@ export async function createServerHarness(
         bugReportDiagnostics: app.bugReportDiagnostics,
       }),
     );
-  const actor = actorFor({ app, db, ids }, ownerId, principalFor);
+  const actor = actorFor({ app, ids }, ownerId, principalFor);
   const workloadDriver = workloadsFor(app, workloadExecution, manualWorkloadAbort.signal, options.startJobs);
   const lifetime = construction.move();
   return Object.assign(new ComposedServerRoot(app, db, internalCallerFor, http), {

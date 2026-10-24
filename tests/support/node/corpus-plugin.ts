@@ -17,9 +17,9 @@ import {
   CORPUS_PLUGIN_OUTPUT_SURFACE,
 } from "./corpus-plugin-outputs.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
-import { makePluginBundle, seedDistributedPlugin, seedInstalledPlugin, seedPluginGrant } from "./factories/plugin.ts";
-import { seedAdminProvider, seedPluginProviders } from "./factories/provider.ts";
-import { capturePluginRows } from "./factories/rows.ts";
+import { makePluginBundle } from "./factories/plugin.ts";
+import { seedPluginProviders } from "./factories/rows/provider.ts";
+import { capturePluginRows, seedAdminProviderRows, seedDistributedPluginRows, seedInstalledPluginRows, seedPluginGrantRows } from "./factories/rows.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 export const CORPUS_PLUGIN_STORAGE_KEY = "ledger";
@@ -79,14 +79,14 @@ export function corpusPluginBundle(
 export interface SeededCorpusPlugins {
   readonly library: CorpusPluginLibrary;
   readonly wirePrivateLiterals: readonly string[];
-  readonly installed: Awaited<ReturnType<typeof seedInstalledPlugin>>;
+  readonly installed: Awaited<ReturnType<typeof seedInstalledPluginRows>>;
   readonly providers: Awaited<ReturnType<typeof seedPluginProviders>>;
-  readonly distribution: Awaited<ReturnType<typeof seedDistributedPlugin>>;
-  readonly recipient: Awaited<ReturnType<typeof seedPluginGrant>>;
-  readonly repeated: Awaited<ReturnType<typeof seedDistributedPlugin>>;
+  readonly distribution: Awaited<ReturnType<typeof seedDistributedPluginRows>>;
+  readonly recipient: Awaited<ReturnType<typeof seedPluginGrantRows>>;
+  readonly repeated: Awaited<ReturnType<typeof seedDistributedPluginRows>>;
   readonly tombstones: readonly (typeof pluginProviderClaims.$inferSelect)[];
-  readonly admin: Awaited<ReturnType<typeof seedAdminProvider>>;
-  readonly refused: Awaited<ReturnType<typeof seedPluginGrant>>;
+  readonly admin: Awaited<ReturnType<typeof seedAdminProviderRows>>;
+  readonly refused: Awaited<ReturnType<typeof seedPluginGrantRows>>;
   readonly publication: Awaited<ReturnType<ServerTestHarness["services"]["plugin"]["listDistributedPlugins"]>>;
 }
 
@@ -120,7 +120,7 @@ export async function seedCorpusPlugins(root: ServerTestHarness, recipientId: Us
     `${CORPUS_PLUGIN_OUTPUT_SOURCE}\n${GUEST_SOURCE}`,
     root.clock.now(),
   );
-  const installed = await seedInstalledPlugin(root, { caller, bundle: bytes, grant: [] });
+  const installed = await seedInstalledPluginRows(root, { caller, bundle: bytes, grant: [] });
   const ownerIds = { pluginId: installed.outcome.id, surfaceId: CORPUS_PLUGIN_OUTPUT_SURFACE };
   const ownerPending = await captureCorpusPluginStage(root, caller.userId, ownerIds);
   const providers = await seedPluginProviders(
@@ -129,12 +129,12 @@ export async function seedCorpusPlugins(root: ServerTestHarness, recipientId: Us
     (manifest.providers ?? []).map((provider) => provider.id),
   );
   const ownerActive = await captureCorpusPluginStage(root, caller.userId, ownerIds);
-  const distribution = await seedDistributedPlugin(root, { caller, bundle: bytes });
+  const distribution = await seedDistributedPluginRows(root, { caller, bundle: bytes });
   const recipientInstall = distribution.installs.find(({ plugin }) => plugin.ownerId === recipientCaller.userId);
   if (recipientInstall === undefined) {
     throw new Error("actual corpus plugin distribution omitted the required recipient");
   }
-  const recipient = await seedPluginGrant(root, {
+  const recipient = await seedPluginGrantRows(root, {
     caller: recipientCaller,
     pluginId: recipientInstall.plugin.id,
     grant: manifest.capabilities,
@@ -156,15 +156,15 @@ export async function seedCorpusPlugins(root: ServerTestHarness, recipientId: Us
         ),
       ),
     );
-  const repeated = await seedDistributedPlugin(root, { caller, bundle: bytes });
-  const admin = await seedAdminProvider(root, CORPUS_ADMIN_PROVIDER, { admin: caller.userId });
+  const repeated = await seedDistributedPluginRows(root, { caller, bundle: bytes });
+  const admin = await seedAdminProviderRows(root, CORPUS_ADMIN_PROVIDER, { admin: caller.userId });
   const refusedManifest = pluginManifestSchema.parse({ ...CORPUS_PLUGIN_MANIFEST, id: "corpus-refused", name: "Corpus refused activation" });
-  const refusedInstall = await seedInstalledPlugin(root, {
+  const refusedInstall = await seedInstalledPluginRows(root, {
     caller,
     bundle: corpusPluginBundle(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)), refusedManifest, REFUSED_GUEST_SOURCE, root.clock.now()),
     grant: [],
   });
-  const refused = await seedPluginGrant(root, {
+  const refused = await seedPluginGrantRows(root, {
     caller,
     pluginId: refusedInstall.outcome.id,
     grant: refusedManifest.capabilities,
@@ -199,7 +199,7 @@ export async function seedCorpusPlugins(root: ServerTestHarness, recipientId: Us
 type PluginService = ServerTestHarness["services"]["plugin"];
 
 export interface CorpusPluginWithdrawal {
-  readonly published: Awaited<ReturnType<typeof seedDistributedPlugin>>;
+  readonly published: Awaited<ReturnType<typeof seedDistributedPluginRows>>;
   readonly upgraded: Awaited<ReturnType<PluginService["upgrade"]>>;
   readonly before: Awaited<ReturnType<typeof capturePluginRows>>;
   readonly refused: readonly PromiseSettledResult<Awaited<ReturnType<PluginService["uninstallForAllUsers"]>>>[];
@@ -216,12 +216,12 @@ export async function seedCorpusPluginWithdrawal(root: ServerTestHarness, recipi
   const owner = await root.principalFor(root.ownerId);
   const recipient = await root.principalFor(recipientId);
   const bytes = corpusPluginBundle(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)), CORPUS_PLUGIN_MANIFEST, GUEST_SOURCE, root.clock.now());
-  const published = await seedDistributedPlugin(root, { caller: owner, bundle: bytes });
+  const published = await seedDistributedPluginRows(root, { caller: owner, bundle: bytes });
   const selected = published.installs.find(({ plugin }) => plugin.ownerId === recipient.userId);
   if (selected === undefined) {
     throw new Error("Native distribution omitted the withdrawal recipient");
   }
-  await seedPluginGrant(root, {
+  await seedPluginGrantRows(root, {
     caller: recipient,
     pluginId: selected.plugin.id,
     grant: CORPUS_PLUGIN_MANIFEST.capabilities,

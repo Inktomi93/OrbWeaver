@@ -3,17 +3,17 @@
 
 import { messages } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
-import { asc, eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { ServerProducerRoot } from "../server.ts";
 
 /** Shift a room's canon so its oldest slot sits at seq 0, the shape the earlier import writer left behind. */
 export async function plantLegacyZeroCanon(root: ServerProducerRoot, chatId: ChatId): Promise<void> {
-  const oldest = await root.db.select({ seq: messages.seq }).from(messages).where(eq(messages.chatId, chatId)).orderBy(asc(messages.seq)).get();
-  if (oldest === undefined) {
+  const shifted = await root.db
+    .update(messages)
+    .set({ seq: sql`${messages.seq} - (SELECT min(${messages.seq}) FROM ${messages} WHERE ${messages.chatId} = ${chatId})` })
+    .where(eq(messages.chatId, chatId))
+    .returning({ id: messages.id });
+  if (shifted.length === 0) {
     throw new Error("the room has no canon to re-number");
   }
-  await root.db
-    .update(messages)
-    .set({ seq: sql`${messages.seq} - ${oldest.seq}` })
-    .where(eq(messages.chatId, chatId));
 }

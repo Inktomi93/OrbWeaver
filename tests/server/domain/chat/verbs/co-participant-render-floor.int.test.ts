@@ -68,7 +68,7 @@ async function admit(room: Room, handle: string, visibility: "full" | "from-join
   const signedIn = await signedInMember(room.root, castId<Handle>(handle));
   const guest = await room.root.principalFor(signedIn.id);
   const invite = await seedChatInvite(room.root, { principal: room.host, chatId: room.chatId, input: { invitedHandle: guest.handle } });
-  await seedInvitedChatParticipant(room.root, { principal: guest, inviteId: invite.id });
+  await seedInvitedChatParticipant(room.root, { principal: guest, inviteId: invite.invite.id });
   await room.root.services.chat.setMemberHistoryVisibility({ principal: room.host, chatId: room.chatId, userId: guest.userId, visibility });
   return { principal: guest, cookie: signedIn.cookie };
 }

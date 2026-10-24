@@ -3,11 +3,11 @@
 // @subject tests/support/node/corpus-knowledge-wire.ts
 import { assertReferentialIntegrity } from "@orb/db";
 import sharp from "sharp";
+import { seedCorpusActors } from "./corpus-actors.ts";
 import { CORPUS_KNOWLEDGE_IMAGE_SIZES } from "./corpus-knowledge-images.ts";
 import { seedCorpusKnowledgeVariants } from "./corpus-knowledge-variants.ts";
 import { CORPUS_KNOWLEDGE_SWIPE_TAKES, corpusKnowledgeVariantsText, createKnowledgeSwipeWire } from "./corpus-knowledge-wire.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
-import { seedCorpusActors } from "./corpus-seed.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 

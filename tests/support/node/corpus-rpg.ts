@@ -3,8 +3,8 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { rpgSnapshots } from "@orb/db";
 import { eq } from "drizzle-orm";
 import { seedCorpusRpgSchedules } from "./corpus-rpg-schedules.ts";
-import { captureRpgSnapshot } from "./factories/rows.ts";
-import { seedRpgCheckpoint, seedRpgGame, seedRpgJournalEntry, seedRpgSheets } from "./factories/rpg.ts";
+import { seedRpgJournalEntry, seedRpgSheets } from "./factories/rows/rpg.ts";
+import { captureRpgSnapshot, seedRpgCheckpointRows, seedRpgGameRows } from "./factories/rows.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 type CorpusCaller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
@@ -13,7 +13,7 @@ type Snapshot = Awaited<ReturnType<typeof captureRpgSnapshot>>;
 interface SeededCorpusRpg {
   readonly character: Awaited<ReturnType<CorpusCaller["character"]["create"]>>;
   readonly room: Awaited<ReturnType<CorpusCaller["chat"]["startChat"]>>;
-  readonly game: Awaited<ReturnType<typeof seedRpgGame>>;
+  readonly game: Awaited<ReturnType<typeof seedRpgGameRows>>;
   readonly born: Tracker;
   readonly bornSnapshots: readonly Snapshot[];
   readonly refused: Awaited<ReturnType<CorpusCaller["rpg"]["editSnapshot"]>>;
@@ -26,10 +26,10 @@ interface SeededCorpusRpg {
   readonly questDeleted: Tracker;
   readonly journal: Awaited<ReturnType<typeof seedRpgJournalEntry>>;
   readonly journalEdited: Awaited<ReturnType<CorpusCaller["rpg"]["listJournal"]>>;
-  readonly checkpoint: Awaited<ReturnType<typeof seedRpgCheckpoint>>;
+  readonly checkpoint: Awaited<ReturnType<typeof seedRpgCheckpointRows>>;
   readonly snapshot: Snapshot;
   readonly deletedSnapshot: Snapshot;
-  readonly restoredCheckpoint: Awaited<ReturnType<typeof seedRpgCheckpoint>>;
+  readonly restoredCheckpoint: Awaited<ReturnType<typeof seedRpgCheckpointRows>>;
   readonly restoredSnapshot: Snapshot;
   readonly reads: {
     readonly game: Awaited<ReturnType<CorpusCaller["rpg"]["getGame"]>>;
@@ -54,7 +54,7 @@ export async function seedCorpusRpg(root: ServerTestHarness): Promise<SeededCorp
   const room = await caller.chat.startChat({ characterIds: [character.id], opening: "none" });
   const chatId = room.chat.id;
   const params = { principal, chatId };
-  const game = await seedRpgGame(root, { ...params, mode: "lite", ruleset: "d20" });
+  const game = await seedRpgGameRows(root, { ...params, mode: "lite", ruleset: "d20" });
   const born = await caller.rpg.getTrackerView({ chatId });
   const bornSnapshots = await root.db.select().from(rpgSnapshots).where(eq(rpgSnapshots.gameId, game.id));
   const refused = await caller.rpg.editSnapshot({ chatId, patch: { actorState: [] } });
@@ -84,7 +84,7 @@ export async function seedCorpusRpg(root: ServerTestHarness): Promise<SeededCorp
     title: "The missing shuttle",
     content: "The traveller found the orbital shuttle.",
   });
-  const checkpoint = await seedRpgCheckpoint(root, { ...params, label: "Shuttle found" });
+  const checkpoint = await seedRpgCheckpointRows(root, { ...params, label: "Shuttle found" });
   const snapshot = await captureRpgSnapshot(root.db, checkpoint.snapshotId);
   await caller.rpg.editJournalEntry({ chatId, entryId: journal.id, patch: { type: "note" } });
   const journalEdited = await caller.rpg.listJournal({ chatId });
@@ -92,11 +92,11 @@ export async function seedCorpusRpg(root: ServerTestHarness): Promise<SeededCorp
   const objectiveDeleted = await caller.rpg.getTrackerView({ chatId });
   await caller.rpg.deleteQuest({ chatId, questId });
   const questDeleted = await caller.rpg.getTrackerView({ chatId });
-  const deletedCheckpoint = await seedRpgCheckpoint(root, { ...params, label: "Quest removed" });
+  const deletedCheckpoint = await seedRpgCheckpointRows(root, { ...params, label: "Quest removed" });
   const deletedSnapshot = await captureRpgSnapshot(root.db, deletedCheckpoint.snapshotId);
   await caller.rpg.editSnapshot({ chatId, patch: { location: "Harbor" } });
   await caller.rpg.restoreCheckpoint({ chatId, checkpointId: checkpoint.id });
-  const restoredCheckpoint = await seedRpgCheckpoint(root, { ...params, label: "Restored loom" });
+  const restoredCheckpoint = await seedRpgCheckpointRows(root, { ...params, label: "Restored loom" });
   const restoredSnapshot = await captureRpgSnapshot(root.db, restoredCheckpoint.snapshotId);
   await caller.rpg.deleteJournalEntry({ chatId, entryId: journal.id });
   const reads = {

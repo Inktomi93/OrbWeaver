@@ -3,6 +3,7 @@
 import { declaredCapabilitySchema } from "@orb/contracts/inference";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { CHAT_OP_CODES } from "@orb/server/domain/chat";
+import { seedCorpusActors, seedRecallRoom } from "../corpus-actors.ts";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -10,10 +11,10 @@ import {
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
 } from "../corpus-provider.ts";
-import { seedCorpusActors, seedRecallRoom } from "../corpus-seed.ts";
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
-import { captureChatGenerationObservations, captureChatReplayRows, captureCompactionSpend, seedChatInvite, seedInvitedChatParticipant } from "./chat.ts";
+import { captureChatGenerationObservations, captureChatReplayRows, captureCompactionSpend } from "./rows/chat.ts";
+import { seedChatInviteRows, seedInvitedChatParticipantRows } from "./rows.ts";
 
 const REPLY = "The ledger's orbital witness is complete.";
 
@@ -143,12 +144,12 @@ test("a real member send defers without a lock while its host is offline and the
   const { owner, secondUserId } = await seedCorpusActors(root);
   const member = await root.principalFor(secondUserId);
   const chatId = await seedRecallRoom(await root.internalCallerFor(root.ownerId));
-  const invite = await seedChatInvite(root, {
+  const invite = await seedChatInviteRows(root, {
     principal: owner,
     chatId,
     input: { invitedHandle: member.handle },
   });
-  await seedInvitedChatParticipant(root, { principal: member, inviteId: invite.id });
+  await seedInvitedChatParticipantRows(root, { principal: member, inviteId: invite.id });
   const outcome = await root.services.chat.send({ principal: member, chatId, content: "Record the absent host's orbital witness.", timeZone: UTC_TIME_ZONE });
   expect(outcome.aborted).toBe(false);
   expect(outcome.messages.map((message) => [message.role, message.authorUserId])).toEqual([["user", secondUserId]]);

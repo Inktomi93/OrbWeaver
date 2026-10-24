@@ -42,7 +42,7 @@ test("the real greeting gate precedes template/funding reads; each completion re
   const stranger = await harness.actor();
   const actor = await principal(harness, owner.id);
   const neighbor = await principal(harness, stranger.id);
-  const { row: card } = await seedCharacter(harness, {
+  const { view: card } = await seedCharacter(harness, {
     principal: actor,
     input: createCharacterSchema.parse({ handle: "greeter", name: "Greeter", description: "" }),
   });
@@ -100,7 +100,7 @@ test("a foreign preset degrades to the shipped template, but a real preset datab
   const owner = await harness.actor();
   const stranger = await harness.actor();
   const actor = await principal(harness, owner.id);
-  const { row: card } = await seedCharacter(harness, {
+  const { view: card } = await seedCharacter(harness, {
     principal: actor,
     input: createCharacterSchema.parse({ handle: "greeter", name: "Greeter", description: "" }),
   });

@@ -8,8 +8,9 @@ import { and, eq } from "drizzle-orm";
 import { testProviderId } from "../../iso/inference-identities.ts";
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
-import { makeResolvedSecret, seedApiKeySecret, seedUserCredential } from "./credentials.ts";
+import { makeResolvedSecret } from "./credentials.ts";
 import { makeResolved } from "./resolved-connection.ts";
+import { seedApiKeySecret, seedUserCredential } from "./rows/credentials.ts";
 
 const KEY = "synthetic-corpus-credential";
 const REPLACEMENT_KEY = "replacement-corpus-credential";

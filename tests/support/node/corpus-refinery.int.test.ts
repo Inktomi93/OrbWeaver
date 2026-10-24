@@ -10,9 +10,9 @@ import {
 } from "@orb/contracts/refinery";
 import { assertReferentialIntegrity } from "@orb/db";
 import { vi } from "vitest";
+import { seedCorpusConnections } from "./corpus-actors.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
 import { seedCorpusRefinery } from "./corpus-refinery.ts";
-import { seedCorpusConnections } from "./corpus-seed.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 

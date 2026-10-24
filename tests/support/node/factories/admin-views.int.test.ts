@@ -4,8 +4,8 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
-import { seedCreatedAdminUser } from "./admin-user.ts";
-import { seedAdminSession, seedBffSession, seedRevokedUserSessions } from "./sessions.ts";
+import { seedCreatedAdminUser } from "./rows/admin-user.ts";
+import { seedAdminSession, seedBffSession, seedRevokedUserSessions } from "./rows/sessions.ts";
 
 const PASSWORD = "admin-output-corpus-password";
 const ID_TOKEN = "admin-output-private-id-token";

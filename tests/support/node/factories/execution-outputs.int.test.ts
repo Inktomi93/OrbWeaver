@@ -7,6 +7,7 @@ import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema, pluginTo
 import { ID_PREFIX } from "@orb/kit/ids";
 import { liftJsonSchema, projectJsonSchema } from "@orb/kit/json-schema";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { seedCorpusConnections } from "../corpus-actors.ts";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -14,13 +15,15 @@ import {
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
 } from "../corpus-provider.ts";
-import { seedCorpusAutomation, seedCorpusConnections } from "../corpus-seed.ts";
+import { seedCorpusAutomation } from "../corpus-seed.ts";
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
-import { captureAutomationViews, seedAutomationConfirmation, seedAutomationRule, seedAutomationRun, seedCreatedAutomationRule } from "./automation.ts";
+import { captureAutomationViews } from "./automation.ts";
 import { makeRuleView } from "./automation-view.ts";
-import { makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "./plugin.ts";
-import { seedChatBook, seedWorldBook } from "./world-info.ts";
+import { makePluginBundle } from "./plugin.ts";
+import { seedAutomationConfirmation, seedAutomationRun, seedCreatedAutomationRule } from "./rows/automation.ts";
+import { seedChatBook, seedWorldBook } from "./rows/world-info.ts";
+import { seedAutomationRuleRows, seedInstalledPluginRows, seedPluginGrantRows } from "./rows.ts";
 
 const TOOL_NAME = "echo";
 const TOOL_DESCRIPTION = "Return the authored execution marker.";
@@ -85,12 +88,12 @@ test("native automation read suppliers keep rule scope, preset provenance, fire 
   await seedCorpusConnections(root, principal);
   const room = await root.services.chat.startChat({ principal, characterIds: [], opening: "none" });
   const produced = await seedCorpusAutomation(root, room.chat.id);
-  const installed = await seedInstalledPlugin(root, {
+  const installed = await seedInstalledPluginRows(root, {
     caller: principal,
     bundle: makePluginBundle(TOOL_MANIFEST, TOOL_SOURCE, root.clock.now()),
     grant: [],
   });
-  const enabled = await seedPluginGrant(root, {
+  const enabled = await seedPluginGrantRows(root, {
     caller: principal,
     pluginId: installed.plugin.id,
     grant: TOOL_MANIFEST.capabilities,
@@ -135,7 +138,7 @@ test("native automation read suppliers keep rule scope, preset provenance, fire 
   expect((await other.automation.listRuleTools()).map((tool) => tool.name)).not.toContain(name);
   expect((await other.automation.listOwnerRules()).map((rule) => rule.id)).not.toContain(produced.globalRule.id);
   await expect(other.automation.listChatActivity({ chatId: room.chat.id })).rejects.toMatchObject({ code: "NOT_FOUND" });
-  const invitationRule = await seedAutomationRule(root, {
+  const invitationRule = await seedAutomationRuleRows(root, {
     principal,
     chatId: room.chat.id,
     name: "Rate-limited native tool",
@@ -179,7 +182,7 @@ test("a genuinely raised confirmation keeps its actor and fire identity while a 
   const room = await root.services.chat.startChat({ principal, characterIds: [], opening: "none" });
   const book = await seedWorldBook(root, { principal, input: { name: "Confirmed execution ledger" } });
   await seedChatBook(root, { principal, chatId: room.chat.id, bookId: book.id });
-  const rule = await seedAutomationRule(root, {
+  const rule = await seedAutomationRuleRows(root, {
     principal,
     chatId: room.chat.id,
     name: "Ask before preserving canon",

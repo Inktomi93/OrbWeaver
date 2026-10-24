@@ -11,15 +11,15 @@ import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createChatBus, createChatPublication } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { seedChat } from "@orb/testkit/node/composed";
+import { seedChatRows } from "@orb/testkit/node/rows";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
 
 async function hostedRoom(
   harness: ServerTestHarness,
-): Promise<{ readonly room: Awaited<ReturnType<typeof seedChat>>["row"]; readonly host: Awaited<ReturnType<ServerTestHarness["principalFor"]>> }> {
+): Promise<{ readonly room: Awaited<ReturnType<typeof seedChatRows>>["row"]; readonly host: Awaited<ReturnType<ServerTestHarness["principalFor"]>> }> {
   const host = await harness.principalFor((await harness.actor()).id);
-  return { room: (await seedChat(harness, { principal: host, characterIds: [] })).row, host };
+  return { room: (await seedChatRows(harness, { principal: host, characterIds: [] })).row, host };
 }
 
 test("durable append precedes fan, a lost claim converges without fan, and a deleted room never fans an unlogged event", async ({

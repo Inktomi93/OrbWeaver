@@ -9,12 +9,13 @@ import { eq } from "drizzle-orm";
 import { seedCorpusLibraries } from "../corpus-seed.ts";
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
-import { seedCharacter, seedCharacterHistory, seedCharacterSnapshot } from "./character.ts";
+import { seedCharacterHistory, seedCharacterSnapshot } from "./rows/character.ts";
+import { seedCharacterRows } from "./rows.ts";
 
 test("history captures preserve the selected stored card after later live edits and keep one snapshot per producer call", async () => {
   await using root = await createServerHarness();
   const principal = await root.principalFor(root.ownerId);
-  const character = await seedCharacter(root, {
+  const character = await seedCharacterRows(root, {
     principal,
     input: createCharacterSchema.parse({ handle: "history-subject", name: "Ledger keeper", description: "The original testimony." }),
   });
@@ -46,14 +47,14 @@ test("history captures preserve the selected stored card after later live edits 
 test("library history pages retain the real whole-library census, keyset order and cross-page name ambiguity", async () => {
   await using root = await createServerHarness();
   const principal = await root.principalFor(root.ownerId);
-  const created: Awaited<ReturnType<typeof seedCharacter>>[] = [];
+  const created: Awaited<ReturnType<typeof seedCharacterRows>>[] = [];
   for (const [handle, name] of [
     ["page-first", "Alpha"],
     ["page-second", "Alpha"],
     ["page-last", "Beta"],
   ]) {
     created.push(
-      await seedCharacter(root, {
+      await seedCharacterRows(root, {
         principal,
         input: createCharacterSchema.parse({ handle, name, description: "A page witness." }),
       }),

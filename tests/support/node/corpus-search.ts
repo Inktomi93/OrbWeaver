@@ -7,13 +7,15 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { eq } from "drizzle-orm";
 import type { CorpusSearchLibrary } from "../iso/corpus-search.ts";
 import { corpusSearchInput, corpusSearchRoomIds } from "../iso/corpus-search.ts";
+import type { seedCorpusActors } from "./corpus-actors.ts";
+import { seedCorpusConnections, seedRecallRoom } from "./corpus-actors.ts";
 import { seedCorpusAccount } from "./corpus-auth.ts";
 import type { seedCorpusKnowledgeImages } from "./corpus-knowledge-images.ts";
 import type { TrpcCapture } from "./corpus-read.ts";
-import type { SeededCorpusLibraries, SeededRecallCorpus, seedCorpusActors } from "./corpus-seed.ts";
-import { seedCorpusConnections, seedRecallRoom } from "./corpus-seed.ts";
+import type { SeededCorpusLibraries } from "./corpus-seed.ts";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
-import { captureChatMemoryRows, seedEmbeddingGeneration } from "./factories/embedding-generation.ts";
+import { captureChatMemoryRows, seedEmbeddingGeneration } from "./factories/rows/embedding-generation.ts";
+import type { SeededRecallCorpusRows } from "./factories/rows/recall.ts";
 import type { TrpcInput, TrpcProcedurePath, TrpcWireOutput } from "./route-trpc.ts";
 import type { ServerTestHarness } from "./server.ts";
 
@@ -22,7 +24,7 @@ export const CORPUS_SEARCH_FOREIGN_TERM = "copperwitness";
 type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
 interface Sources {
   readonly libraries: SeededCorpusLibraries;
-  readonly recall: SeededRecallCorpus;
+  readonly recall: SeededRecallCorpusRows;
   readonly images: Awaited<ReturnType<typeof seedCorpusKnowledgeImages>>;
   readonly actors: Awaited<ReturnType<typeof seedCorpusActors>>;
 }

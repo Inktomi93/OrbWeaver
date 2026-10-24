@@ -8,8 +8,9 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { auditLogs, characterEmbeddings, embeddingCalls } from "@orb/db";
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
 import { expect } from "@orb/testkit/node";
-import { createServerHarness, seedCharacter } from "@orb/testkit/node/composed";
+import { createServerHarness } from "@orb/testkit/node/composed";
 import { TEST_BASE_URL, TEST_PROVIDER_ID } from "@orb/testkit/node/helpers";
+import { seedCharacterRows } from "@orb/testkit/node/rows";
 import { eq } from "drizzle-orm";
 import { FUNDING_KEY, FUNDING_MODEL, fundingConnection, test } from "../../embeddings/verbs/runtime-funding.fixtures.ts";
 
@@ -31,7 +32,7 @@ test("admin authority does not widen card ownership; foreign and synthetic refus
   const owner = await root.principalFor(cardOwner.id);
   const delegate = await root.actor({ role: "admin" });
   const ordinary = await root.actor();
-  const { row: card } = await seedCharacter(root, {
+  const { row: card } = await seedCharacterRows(root, {
     principal: owner,
     input: createCharacterSchema.parse({
       handle: "private-admin-card",
@@ -41,7 +42,7 @@ test("admin authority does not widen card ownership; foreign and synthetic refus
   });
   const { chat } = await root.services.chat.startChat({ principal: owner, characterIds: [card.id], opening: "none" });
   const synthetic = await root.services.character.mintSyntheticGroupCharacter({ ownerId: owner.userId, chatId: chat.id });
-  const { row: ordinaryCard } = await seedCharacter(root, {
+  const { row: ordinaryCard } = await seedCharacterRows(root, {
     principal: await root.principalFor(ordinary.id),
     input: createCharacterSchema.parse({ handle: "ordinary-card", name: "Ordinary archivist", description: "An ordinary account owns this card." }),
   });
@@ -108,7 +109,7 @@ test("the inline admin producer follows the owner's changed binding and persists
   await using root = await createServerHarness({ startJobs: false, providerFetch: fundingProvider.fetch, networkExecution });
   const principal = await root.principalFor(root.ownerId);
   const caller = await root.internalCallerFor(root.ownerId);
-  const { row: card } = await seedCharacter(root, {
+  const { row: card } = await seedCharacterRows(root, {
     principal,
     input: createCharacterSchema.parse({
       handle: "rebound-card",

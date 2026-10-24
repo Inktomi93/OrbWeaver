@@ -9,6 +9,7 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { CorpusWire } from "../iso/corpus.ts";
 import { hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "../iso/corpus.ts";
 import { createCorpusReadResponder, createCorpusViewerReadResponder } from "../iso/corpus-read-responder.ts";
+import { seedCorpusActors } from "./corpus-actors.ts";
 import { captureCorpusMemberMessages, seedCorpusChatLifecycle } from "./corpus-chat-lifecycle.ts";
 import { CORPUS_CHAT_MODEL, CORPUS_CHAT_REPLY, createCorpusChatWire } from "./corpus-chat-wire.ts";
 import { CORPUS_NOTIFICATION_RULE_MESSAGE, seedCorpusNotifications } from "./corpus-notifications.ts";
@@ -22,9 +23,9 @@ import {
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
 } from "./corpus-provider.ts";
-import { captureCookieAuth, captureCorpusReads, seedCorpusActors, seedCorpusLibraries } from "./corpus-seed.ts";
+import { captureCookieAuth, captureCorpusReads, seedCorpusLibraries } from "./corpus-seed.ts";
 import { freshHeldDb } from "./db.ts";
-import { seedUserCredential } from "./factories/credentials.ts";
+import { seedUserCredential } from "./factories/rows/credentials.ts";
 import { expect, test } from "./fixtures.ts";
 import type { ServerTestHarness } from "./server.ts";
 import { createServerHarness } from "./server.ts";

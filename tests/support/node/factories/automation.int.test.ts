@@ -4,6 +4,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { automationFires, automationRuleState } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { eq } from "drizzle-orm";
+import { seedCorpusConnections } from "../corpus-actors.ts";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -11,15 +12,15 @@ import {
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
 } from "../corpus-provider.ts";
-import { seedCorpusConnections } from "../corpus-seed.ts";
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
-import { seedAutomationRule, seedAutomationRun, seedAutomationTestFires } from "./automation.ts";
+import { seedAutomationRun } from "./rows/automation.ts";
+import { seedAutomationRuleRows, seedAutomationTestFiresRows } from "./rows.ts";
 
 test("dry-run provenance and same-clock real fires retain distinct IDs without inventing analysis state", async () => {
   await using root = await createServerHarness();
   const principal = await root.principalFor(root.ownerId);
-  const rule = await seedAutomationRule(root, {
+  const rule = await seedAutomationRuleRows(root, {
     principal,
     chatId: null,
     name: "Count manual runs",
@@ -29,7 +30,7 @@ test("dry-run provenance and same-clock real fires retain distinct IDs without i
     actions: [{ type: "set_variable", scope: "global", key: "manualRuns", op: "inc" }],
   });
   const params = { principal, ruleId: rule.id };
-  const dry = await seedAutomationTestFires(root, params);
+  const dry = await seedAutomationTestFiresRows(root, params);
   expect(dry.result.predicate).toBe(false);
   expect(dry.fires.map((row) => row.outcome)).toEqual(["test_run"]);
   expect(dry.fires[0]?.detail).toEqual(dry.result);
@@ -57,7 +58,7 @@ test("foreign rule captures refuse before provenance or arm effects", async () =
   await using root = await createServerHarness();
   const actor = await root.actor();
   const principal = await root.principalFor(actor.id);
-  const rule = await seedAutomationRule(root, {
+  const rule = await seedAutomationRuleRows(root, {
     principal,
     chatId: null,
     name: "Private counter",
@@ -67,7 +68,7 @@ test("foreign rule captures refuse before provenance or arm effects", async () =
   });
   await root.services.automation.setRuleEnabled({ principal, ruleId: rule.id, enabled: true });
   const foreignParams = { principal: await root.principalFor(root.ownerId), ruleId: rule.id };
-  await expect(seedAutomationTestFires(root, foreignParams)).rejects.toThrow();
+  await expect(seedAutomationTestFiresRows(root, foreignParams)).rejects.toThrow();
   await expect(seedAutomationRun(root, foreignParams)).rejects.toThrow();
   expect(await root.db.select().from(automationFires).where(eq(automationFires.ruleId, rule.id))).toEqual([]);
   expect(await root.services.automation.getGlobalVariable({ principal, key: "privateCounter" })).toBeNull();
@@ -103,7 +104,7 @@ test("real structured analysis produces private state, strips the unauthored sco
   });
   const { chat } = await root.services.chat.startChat({ principal, characterIds: [character.id], opening: "none" });
   await root.services.chat.commitMessage({ principal, chatId: chat.id, content: "The crew reaches the orbital loom." });
-  const rule = await seedAutomationRule(root, {
+  const rule = await seedAutomationRuleRows(root, {
     principal,
     chatId: chat.id,
     name: "Private story direction",

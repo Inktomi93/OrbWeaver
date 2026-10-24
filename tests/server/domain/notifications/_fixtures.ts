@@ -1,5 +1,6 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { InboxView, NotificationEvent } from "@orb/contracts/notifications";
+import type { PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { test as base } from "@orb/testkit/node";
@@ -10,7 +11,7 @@ interface NotificationActors {
   readonly host: Principal;
   readonly alice: Principal;
   readonly bob: Principal;
-  readonly room: Awaited<ReturnType<typeof seedChat>>["row"];
+  readonly room: Awaited<ReturnType<typeof seedChat>>["view"]["chat"];
   readonly aliceRaised: InboxView;
   readonly bobRaised: InboxView;
   readonly aliceInvite: Extract<NotificationEvent, { readonly type: "invite" }>;
@@ -31,7 +32,9 @@ async function recipientInvite(harness: ServerTestHarness, host: Principal, room
 }
 
 interface PendingConsent {
-  readonly plugin: Awaited<ReturnType<typeof seedInstalledPlugin>>["plugin"];
+  readonly plugin: Awaited<ReturnType<typeof seedInstalledPlugin>>["outcome"];
+  /** The manifest the fixture built and installed. */
+  readonly manifest: PluginManifest;
   readonly view: InboxView;
   readonly event: Extract<NotificationEvent, { readonly type: "plugins-awaiting-consent" }>;
 }
@@ -53,7 +56,9 @@ interface NotificationDecisions {
 // A fresh actor founds the room, so production seats it as host.
 async function hostedRoom(harness: ServerTestHarness): Promise<{ readonly host: Principal; readonly room: NotificationActors["room"] }> {
   const host = await harness.principalFor((await harness.actor()).id);
-  const { row: room } = await seedChat(harness, { principal: host, characterIds: [] });
+  const {
+    view: { chat: room },
+  } = await seedChat(harness, { principal: host, characterIds: [] });
   return { host, room };
 }
 
@@ -84,7 +89,7 @@ export async function pendingConsent(harness: ServerTestHarness, caller: Princip
   });
   await seedPluginGrant(harness, {
     caller,
-    pluginId: installed.plugin.id,
+    pluginId: installed.outcome.id,
     grant: [],
     acknowledgedNetHosts: [],
   });
@@ -93,7 +98,7 @@ export async function pendingConsent(harness: ServerTestHarness, caller: Princip
   if (view === undefined || view.payload.type !== "plugins-awaiting-consent") {
     throw new Error("the real pending grant did not produce its consent notification");
   }
-  return { plugin: installed.plugin, view, event: view.payload };
+  return { plugin: installed.outcome, manifest, view, event: view.payload };
 }
 
 export const test = base.extend<{
@@ -119,7 +124,7 @@ export const test = base.extend<{
     await seedPluginGrant(harness, {
       caller: actors.alice,
       pluginId: first.plugin.id,
-      grant: first.plugin.manifest.capabilities,
+      grant: first.manifest.capabilities,
       acknowledgedNetHosts: [],
     });
     const [corrected] = (await harness.services.notifications.list({ principal: actors.alice })).items.filter(

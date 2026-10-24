@@ -4,6 +4,7 @@
 import { readSeedAvatar } from "@orb/default-content";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
+import { seedCorpusConnections } from "../corpus-actors.ts";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -11,11 +12,10 @@ import {
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
 } from "../corpus-provider.ts";
-import { seedCorpusConnections } from "../corpus-seed.ts";
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
 import { makeAssetBytes } from "./asset.ts";
-import { seedIndexedAsset } from "./embedding-generation.ts";
+import { seedIndexedAsset } from "./rows/embedding-generation.ts";
 
 function imageProvider(): ReturnType<typeof createCorpusProviderExecution> {
   return createCorpusProviderExecution({

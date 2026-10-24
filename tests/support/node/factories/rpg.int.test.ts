@@ -7,6 +7,7 @@ import { messages, rpgCheckpoints, rpgSnapshots } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
+import { seedCorpusActors, seedRecallRoom } from "../corpus-actors.ts";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -14,11 +15,10 @@ import {
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
 } from "../corpus-provider.ts";
-import { seedCorpusActors, seedRecallRoom } from "../corpus-seed.ts";
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
-import { captureRpgSnapshot } from "./rows.ts";
-import { captureRpgTurnToolCalls, seedRpgCheckpoint, seedRpgGame, seedRpgJournalEntry, seedRpgSheets } from "./rpg.ts";
+import { captureRpgTurnToolCalls, seedRpgJournalEntry, seedRpgSheets } from "./rows/rpg.ts";
+import { captureRpgSnapshot, seedRpgCheckpointRows, seedRpgGameRows } from "./rows.ts";
 
 test("a genuine folded RPG turn retains its actual quiet tool call on the returned assistant variant without buying a second state round", async () => {
   const provider = createCorpusProviderExecution({
@@ -43,7 +43,7 @@ test("a genuine folded RPG turn retains its actual quiet tool call on the return
   });
   const caller = await root.internalCallerFor(root.ownerId);
   const chatId = await seedRecallRoom(caller);
-  const game = await seedRpgGame(root, { principal: owner, chatId, mode: "lite" });
+  const game = await seedRpgGameRows(root, { principal: owner, chatId, mode: "lite" });
   expect((await root.services.rpg.getGame({ principal: owner, chatId })).effectiveDelivery.path).toBe("folded");
   const outcome = await root.services.chat.send({
     principal: owner,
@@ -68,7 +68,7 @@ test("a genuine folded RPG turn retains its actual quiet tool call on the return
   expect(await root.db.select().from(rpgSnapshots).where(eq(rpgSnapshots.gameId, game.id))).toEqual([]);
 });
 
-async function gameInputs(root: Awaited<ReturnType<typeof createServerHarness>>): Promise<Pick<Parameters<typeof seedRpgGame>[1], "principal" | "chatId">> {
+async function gameInputs(root: Awaited<ReturnType<typeof createServerHarness>>): Promise<Pick<Parameters<typeof seedRpgGameRows>[1], "principal" | "chatId">> {
   const principal = await root.principalFor(root.ownerId);
   const character = await root.services.character.create({
     principal,
@@ -81,16 +81,16 @@ async function gameInputs(root: Awaited<ReturnType<typeof createServerHarness>>)
 test("real game birth leaves snapshots absent and checkpoint seeding preserves that refusal", async () => {
   await using root = await createServerHarness();
   const params = await gameInputs(root);
-  const game = await seedRpgGame(root, { ...params, mode: "lite" });
+  const game = await seedRpgGameRows(root, { ...params, mode: "lite" });
   expect(await root.db.select().from(rpgSnapshots).where(eq(rpgSnapshots.gameId, game.id))).toEqual([]);
-  await expect(seedRpgCheckpoint(root, { ...params, label: "No authored state" })).rejects.toBeInstanceOf(DomainNotFoundError);
+  await expect(seedRpgCheckpointRows(root, { ...params, label: "No authored state" })).rejects.toBeInstanceOf(DomainNotFoundError);
   expect(await root.db.select().from(rpgCheckpoints).where(eq(rpgCheckpoints.gameId, game.id))).toEqual([]);
 });
 
 test("hand journal capture retains the actual writer's custom label and every-lineage provenance", async () => {
   await using root = await createServerHarness();
   const params = await gameInputs(root);
-  const game = await seedRpgGame(root, { ...params, mode: "lite" });
+  const game = await seedRpgGameRows(root, { ...params, mode: "lite" });
   const custom = await seedRpgJournalEntry(root, {
     ...params,
     type: "custom",
@@ -113,9 +113,9 @@ test("hand journal capture retains the actual writer's custom label and every-li
 test("checkpoint capture references the real hand snapshot without manufacturing a canon anchor", async () => {
   await using root = await createServerHarness();
   const params = await gameInputs(root);
-  const game = await seedRpgGame(root, { ...params, mode: "lite" });
+  const game = await seedRpgGameRows(root, { ...params, mode: "lite" });
   expect(await root.services.rpg.editSnapshot({ ...params, patch: { location: "Orbital loom" } })).toEqual({ ok: true });
-  const checkpoint = await seedRpgCheckpoint(root, { ...params, label: "The loom" });
+  const checkpoint = await seedRpgCheckpointRows(root, { ...params, label: "The loom" });
   const snapshot = await captureRpgSnapshot(root.db, checkpoint.snapshotId);
   expect(snapshot).toMatchObject({
     gameId: game.id,
@@ -131,7 +131,7 @@ test("checkpoint capture references the real hand snapshot without manufacturing
 test("sheet capture retains the writer's keywise attributes, explicit clears and actor identity", async () => {
   await using root = await createServerHarness();
   const params = await gameInputs(root);
-  const game = await seedRpgGame(root, { ...params, mode: "lite", ruleset: "d20" });
+  const game = await seedRpgGameRows(root, { ...params, mode: "lite", ruleset: "d20" });
   const [firstAttribute, secondAttribute] = game.config.statProfile.attributes;
   if (firstAttribute === undefined || secondAttribute === undefined) {
     throw new Error("production d20 birth returned fewer than two profile attributes");
