@@ -1,6 +1,5 @@
 import type { Db } from "@orb/db";
 import { characters, tags } from "@orb/db";
-import type { OwnedTable } from "@orb/db/query";
 import { fetchOwned } from "@orb/db/query";
 import type { CharacterId, TagId, UserId } from "@orb/kit/ids";
 import { expectTypeOf, test } from "vitest";
@@ -10,6 +9,8 @@ declare const ownerId: UserId;
 declare const characterId: CharacterId;
 declare const tagId: TagId;
 declare const rawId: string;
+// The door publishes the reader; its table bound is read off the signature.
+type OwnedTable = Parameters<typeof fetchOwned>[1];
 declare const erasedTable: OwnedTable;
 
 test("the selected table fixes the entity id and inferred row", async () => {

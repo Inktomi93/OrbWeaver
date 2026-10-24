@@ -1,9 +1,10 @@
 // @subject packages/server/src/infra/upstream-update/adapter.ts
 
 import type { UpstreamFetchDeps } from "@orb/server/infra/upstream-update";
-import { createUpstreamFetches, parseLatestRelease, parseMainHead } from "@orb/server/infra/upstream-update";
+import { createUpstreamFetches } from "@orb/server/infra/upstream-update";
 import { expect, test } from "@orb/testkit/node";
 import { vi } from "vitest";
+import { parseLatestRelease, parseMainHead } from "#server/infra/upstream-update/adapter.ts";
 
 type FetchResult = Awaited<ReturnType<NonNullable<UpstreamFetchDeps["fetchImpl"]>>>;
 const COMMIT = "1234567890abcdef1234567890abcdef12345678";

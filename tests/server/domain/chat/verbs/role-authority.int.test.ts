@@ -4,10 +4,11 @@
 
 import { databaseHandle } from "@orb/db/wiring-driver";
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
-import { createResolveViewerVisibility, loadPresentRole } from "@orb/server/domain/chat";
+import { createResolveViewerVisibility } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
 import { can } from "@orb/testkit/node/auth";
 import { createServerHarness, seedCorpusActors, seedMessage } from "@orb/testkit/node/composed";
+import { loadPresentRole } from "#server/domain/chat/persistence/participants-read.ts";
 
 test("real membership, roster and wire owners keep role data separate from global privilege and fresh chat authority", async () => {
   await using root = await createServerHarness({ env: { ["AUTH_MODE"]: "forward-header", ["AUTH_FALLBACK"]: "deny" } });

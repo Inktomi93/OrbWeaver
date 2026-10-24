@@ -1,13 +1,14 @@
 // @subject tests/support/node/corpus-library-views.ts
 // @subject tests/support/node/factories/embedding-generation.ts
 // @subject packages/server/src/domain/regex/verbs/attachments/apply-scope-order.ts
+
 import assert from "node:assert/strict";
 import { automationRuleUpdateSchema } from "@orb/contracts/automation";
-import { CHAT_WARNING_CODES } from "@orb/contracts/chat";
 import { DOCUMENT_SCOPE_SOURCES } from "@orb/contracts/databank";
 import { healthResponseSchema } from "@orb/contracts/diagnostics";
 import { TAG_TARGET_TYPES } from "@orb/contracts/tag";
 import { assertReferentialIntegrity } from "@orb/db";
+import { CHAT_WARNING_CODES } from "../../../packages/contracts/src/chat/bus.ts";
 import { hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "../iso/corpus.ts";
 import { createCorpusReadResponder, createCorpusViewerReadResponder } from "../iso/corpus-read-responder.ts";
 import { seedCorpusActors } from "./corpus-actors.ts";

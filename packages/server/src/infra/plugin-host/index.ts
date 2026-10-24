@@ -11,4 +11,3 @@ export { PLUGIN_LOG_RING_CHARS, PLUGIN_LOG_RING_LINES } from "./budgets.ts";
 export type { PluginHostSeamDeps } from "./contract/port.ts";
 export { createPluginHost } from "./process-runtime.ts";
 export { AMBIENT_STUBS } from "./realm.ts";
-export { Sandbox } from "./sandbox.ts";

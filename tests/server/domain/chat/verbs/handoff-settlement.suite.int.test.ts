@@ -1,11 +1,12 @@
 // @subject packages/server/src/domain/chat/verbs/admission.ts
 // @subject packages/server/src/domain/chat/substrate/handoff-barrier.ts
 // @subject packages/server/src/domain/chat/verbs/turn.ts
+
 import { setImmediate as physicalTurn } from "node:timers/promises";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { CHAT_OP_CODES, ChatNotFoundError } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
 import { readRoomCanon } from "@orb/testkit/node/composed";
+import { CHAT_OP_CODES, ChatNotFoundError } from "#server/domain/chat/contract/errors.ts";
 import { invitePerson } from "../persona-cache-physical.ts";
 import { ARIA, LIST, nominee, stillOutgoing, transferred } from "./handoff-settlement.fixtures.ts";
 import { B_CHAT_MODEL, speakerInputs, speakerRoom } from "./speaker-funding-physical.ts";

@@ -42,8 +42,7 @@ import type { CharacterHandle } from "@orb/kit/ids";
 
 import type { SeedAssetBytes, SeedBackgroundPlate } from "./contract/index.ts";
 
-export type { SeedAssetBytes, SeedBackgroundPlate, SeedEmbeddingResult, SeedManifestItem } from "./contract/index.ts";
-export { SEED_ITEM_KINDS } from "./contract/index.ts";
+export type { SeedAssetBytes, SeedBackgroundPlate, SeedManifestItem } from "./contract/index.ts";
 export { findSeedEmbedding } from "./embeddings.ts";
 export { SEED_MANIFEST } from "./manifest.ts";
 
@@ -53,7 +52,7 @@ const CONTENT_DIR = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 /** The MIME of a shipped avatar (PNG — matches the card-avatar precedent + the byte signature the assets
  *  store sniffs with `enforceMagic`). */
-export const SEED_AVATAR_MIME = "image/png";
+const SEED_AVATAR_MIME = "image/png";
 
 /** The shipped avatar PNG for a character HANDLE / the persona key (`persona-you`), or `null` when this
  *  package ships none for it — so a missing file seeds ONE card art-less instead of failing the whole seed. */
@@ -71,7 +70,7 @@ export async function readSeedAvatar(handle: CharacterHandle): Promise<SeedAsset
 
 /** The MIME of a shipped scene plate (JPEG — matches the byte signature the assets store sniffs with
  *  `enforceMagic`, the `SEED_AVATAR_MIME` precedent). */
-export const SEED_BACKGROUND_MIME = "image/jpeg";
+const SEED_BACKGROUND_MIME = "image/jpeg";
 
 /** THE SHIPPED SCENE PLATES — one per default character, slugged `<handle>-bg` so a card and its plate
  *  cannot drift apart silently. The seeder lifts each into an owned `background`-kind asset plus an

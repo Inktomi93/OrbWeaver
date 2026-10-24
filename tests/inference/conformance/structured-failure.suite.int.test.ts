@@ -1,8 +1,9 @@
 // @subject packages/inference/src/roles/side-gen.ts
 // @subject packages/inference/src/backends/agent-sdk/runner.ts
+
 import type { Wire } from "@orb/contracts/inference";
-import { PROVIDER_ERROR_KINDS } from "@orb/inference";
 import { expect, test } from "@orb/testkit/node";
+import { PROVIDER_ERROR_KINDS } from "#inference/contract/errors.ts";
 
 import { CONFORMANCE_WIRES, cellTest, driveStructuredMalformed, settledProviderError } from "./runtime.fixtures.ts";
 

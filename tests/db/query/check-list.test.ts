@@ -1,7 +1,8 @@
 // @subject packages/db/src/query/check-list.ts
+
 import { USER_ROLES } from "@orb/contracts/identity";
-import { checkList } from "@orb/db/query";
 import { expect, test } from "@orb/testkit/node";
+import { checkList } from "#db/query/check-list.ts";
 
 test("canonical enum members retain their SQL literal spelling", () => {
   expect(checkList(USER_ROLES)).toBe("'owner', 'admin', 'user'");

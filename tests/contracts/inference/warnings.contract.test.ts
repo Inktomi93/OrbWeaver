@@ -1,6 +1,7 @@
-import { ADJUSTED_KNOBS, CHAT_WARNING_CODES, PROVIDER_ADJUSTMENT_KINDS } from "@orb/contracts/chat";
+import { ADJUSTED_KNOBS } from "@orb/contracts/chat";
 import { resolvedWarningSchema, WARNING_CODES } from "@orb/contracts/inference";
 import { expect, test } from "@orb/testkit/node";
+import { CHAT_WARNING_CODES, PROVIDER_ADJUSTMENT_KINDS } from "#contracts/chat/bus.ts";
 
 test("cold inference and chat imports initialize shared warning vocabulary without merging independent axes", () => {
   for (const code of WARNING_CODES) {

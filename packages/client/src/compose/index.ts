@@ -8,5 +8,4 @@ export { AuthedProviders } from "./authed-providers.tsx";
 export { characterDetailContributors } from "./chat-context.ts";
 export { browserSessionDocumentHost, createClientRuntime } from "./client-runtime.ts";
 export { configSections } from "./config-sections.ts";
-export { chatSurfaceContributors, chromeWidgets, toolRenderers } from "./contributors.ts";
-export { homeTiles } from "./home-tiles.ts";
+export { chatSurfaceContributors, toolRenderers } from "./contributors.ts";

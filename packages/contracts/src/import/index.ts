@@ -16,7 +16,6 @@ export {
   DEFAULT_PERSONA_COLLISION_CHOICE,
   decodePersonaCollisionChoices,
   encodePersonaCollisionChoices,
-  PERSONA_COLLISION_CHOICES,
   PERSONA_COLLISION_FIELD,
   personaCollisionChoiceFor,
   personaCollisionChoicesSchema,

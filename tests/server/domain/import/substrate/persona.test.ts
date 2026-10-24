@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
 import { ST_SETTINGS_FILE } from "@orb/contracts/import";
-import type { UploadedFile } from "@orb/server/domain/import";
 import { incomingPersonasOf } from "@orb/server/domain/import";
 import { expect, test } from "@orb/testkit/node";
+
+type UploadedFile = Parameters<typeof incomingPersonasOf>[0][number];
 
 const encoder = new TextEncoder();
 

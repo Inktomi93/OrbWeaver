@@ -2,7 +2,7 @@
 // an unset value on every rpg panel until the game sets it, then shows and computes its own value: the dice
 // ability check, the Status meter, the character attribute cell and the Scene character card. Reads come from a
 // real corpus root.
-import { UNSET_DATUM } from "@orb/client/features/rpg";
+
 import type { RpgStatProfile } from "@orb/contracts/rpg";
 import { RPG_PROFILE_D20, rpgAttributeModifier, rpgNpcSlug, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { ChatId, UserId } from "@orb/kit/ids";
@@ -10,6 +10,7 @@ import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/ct";
 import { routeTrpc } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
+import { UNSET_DATUM } from "#client/features/rpg/lib/unset-datum.ts";
 import type { RpgContextTabStory, RpgDiceComposerStory } from "./_own-key-panels-stories.tsx";
 
 const TAB_STORY = "tests/client/features/rpg/components/_own-key-panels-stories/RpgContextTabStory";

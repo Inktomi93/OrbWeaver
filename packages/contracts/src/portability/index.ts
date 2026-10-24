@@ -82,7 +82,6 @@ export const PORTABLE_IMPORT_ORDER = [
 
 /** A text download returned by a single-entity export; its contents retain the entity's own codec. */
 export const portableTextFileSchema = z.object({ filename: z.string(), fileText: z.string() });
-export type PortableTextFile = z.infer<typeof portableTextFileSchema>;
 
 // ── the uniform file envelope (spec R7/R8) ───────────────────────────────────────────────────────────
 // Every orb-NATIVE portable file carries this header. Re-minted 2026-08-03 WITH consumers (the original

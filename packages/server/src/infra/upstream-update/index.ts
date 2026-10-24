@@ -1,2 +1,2 @@
-export { createUpstreamFetches, parseLatestRelease, parseMainHead } from "./adapter.ts";
+export { createUpstreamFetches } from "./adapter.ts";
 export type { UpstreamFetchDeps } from "./contract.ts";

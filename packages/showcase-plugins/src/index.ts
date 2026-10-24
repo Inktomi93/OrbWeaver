@@ -22,19 +22,19 @@ export const SHOWCASE_PLUGIN_SLUGS = [
   "card-atlas",
 ] as const;
 
-export const SHOWCASE_BUNDLE_DIST_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "dist", "bundles");
+const SHOWCASE_BUNDLE_DIST_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "dist", "bundles");
 
 /** The installable entries of a release-built showcase bundle. */
 export function showcaseBundleEntries(bytes: Uint8Array): Readonly<Record<string, Uint8Array>> {
   return unzipSync(bytes);
 }
 
-export interface ShowcaseBundleReader {
+interface ShowcaseBundleReader {
   readonly packBundle: (slug: string) => Promise<Uint8Array | null>;
   readonly readManifest: (slug: string) => Promise<PluginManifest | null>;
 }
 
-export function createShowcaseBundleReader(bundleDirectory: string): ShowcaseBundleReader {
+function createShowcaseBundleReader(bundleDirectory: string): ShowcaseBundleReader {
   const packBundle = async (slug: string): Promise<Uint8Array | null> => {
     try {
       return new Uint8Array(await readFile(join(bundleDirectory, `${slug}.zip`)));

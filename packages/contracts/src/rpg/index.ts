@@ -44,13 +44,9 @@ export {
   clampActorCardName,
   RPG_NPC_GUIDE_FIELDS,
   rpgActorEntrySchema,
-  rpgActorIdentitySchema,
   rpgActorRefSchema,
-  rpgActorVolatileSchema,
-  rpgInventoryItemSchema,
   rpgNpcSlug,
   rpgPromotedCardDescription,
-  rpgRelationshipSchema,
 } from "./actor.ts";
 export type { RpgClockTime, RpgWeather } from "./ambient.ts";
 export {
@@ -227,7 +223,6 @@ export {
 export { describePatchFields, patchChangesToToolCalls, stateRoundPatchSchema } from "./structured-patch.ts";
 export type { RpgStateRoundTool, RpgStructuredChanges, RpgStructuredRoundShape } from "./structured-round.ts";
 export {
-  RPG_STATE_CHANGES_FIELD,
   RPG_STRUCTURED_ROUND_SHAPES,
   stateRoundChangesSchema,
   structuredChangesToToolCalls,
@@ -257,7 +252,7 @@ export {
   upsertQuestArgsSchema,
 } from "./tools.ts";
 export type { RpgFlushOutcome, RpgTraceEvent, RpgTraceRecord } from "./trace.ts";
-export { rpgTraceEventSchema, rpgTraceRecordSchema } from "./trace.ts";
+export { rpgTraceRecordSchema } from "./trace.ts";
 export type {
   RpgTrackerCarrier,
   RpgTrackerDef,
@@ -273,7 +268,6 @@ export {
   RPG_TRACKER_VALUE_EMPTY,
   resolveTrackerMaxOverride,
   rpgTrackerDefSchema,
-  rpgTrackerValueSchema,
   rpgTrackerValuesSchema,
   sortTrackers,
   trackerCeiling,

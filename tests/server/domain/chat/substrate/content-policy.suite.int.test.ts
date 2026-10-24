@@ -1,6 +1,7 @@
-import { CONTENT_CLASS_POLICY, contentSpansToBlocks } from "@orb/contracts/chat";
+import { contentSpansToBlocks } from "@orb/contracts/chat";
 import { tokenizeContent } from "@orb/kit/content";
 import { expect, test } from "@orb/testkit/node";
+import { CONTENT_CLASS_POLICY } from "#contracts/chat/content-classes.ts";
 import { textRoom } from "../scenario-physical.ts";
 
 const VISIBLE = "The witness speaks.";

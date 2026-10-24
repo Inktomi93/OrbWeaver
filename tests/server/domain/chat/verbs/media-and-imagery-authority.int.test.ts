@@ -6,7 +6,6 @@ import { databaseHandle } from "@orb/db/wiring-driver";
 import type { AssetId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import type { ImageryRoomAccessDeps } from "@orb/server/domain/chat";
 import {
   createImageryRoomAccess,
   createResolveMediaRef,
@@ -62,7 +61,9 @@ test("room admission and subject seating run before host principal, card or Util
     view: { chat: room },
   } = await seedChat(harness, { principal: host, characterIds: [] });
   const resolveHostPrincipal = vi.fn(() => Promise.resolve(host));
-  const resolveChatHostUserId = vi.fn<ImageryRoomAccessDeps["resolveChatHostUserId"]>((chatId) => loadPresentHostUserId(databaseHandle(db), chatId));
+  const resolveChatHostUserId = vi.fn<Parameters<typeof createImageryRoomAccess>[0]["resolveChatHostUserId"]>((chatId) =>
+    loadPresentHostUserId(databaseHandle(db), chatId),
+  );
   const access = createImageryRoomAccess({
     resolveViewerVisibility: createResolveViewerVisibility({ db: databaseHandle(db) }),
     resolveChatHostUserId,

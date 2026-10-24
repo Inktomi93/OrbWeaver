@@ -5,7 +5,6 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { messageVariants } from "@orb/db";
 import type { MessageVariantId } from "@orb/kit/ids";
-import { CHAT_OP_CODES } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -18,6 +17,7 @@ import {
   seedCorpusActors,
 } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
+import { CHAT_OP_CODES } from "#server/domain/chat/contract/errors.ts";
 
 const RAW_A = "The first keeper rolls {{roll::1d1}}.";
 const RAW_B = "The second keeper rolls {{roll::1d1}}.";

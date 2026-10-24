@@ -6,7 +6,7 @@ import type { ChatInspection } from "@orb/contracts/debug";
 import type { StoreResult } from "@orb/contracts/embeddings";
 import type { ExtractionMeta } from "@orb/contracts/extraction";
 import type { AuthConfigShare } from "@orb/contracts/identity";
-import type { GenerateImageActionArgs, GeneratePictureParams, GeneratePictureRequest } from "@orb/contracts/imagery";
+import type { GenerateImageActionArgs, GeneratePictureParams, generatePictureRequestSchema } from "@orb/contracts/imagery";
 import type { CachePolicy, ConnectionBinding, TaskDef } from "@orb/contracts/inference";
 import type { InboxView } from "@orb/contracts/notifications";
 import type { RegexScriptBehavior } from "@orb/contracts/regex";
@@ -68,7 +68,7 @@ test("freshness and free imagery close impossible states while foreign regex mas
   expectTypeOf<{ hasData: true; computedAt: null; stale: false }>().not.toExtend<StatsFreshness>();
   type Regex = Pick<RegexScriptBehavior, Exclude<keyof RegexScriptBehavior, "markdownOnly" | "promptOnly">>;
   expectTypeOf<Regex & { markdownOnly: true; promptOnly: true }>().toExtend<RegexScriptBehavior>();
-  expectTypeOf<{ mode: "free" }>().not.toExtend<GeneratePictureRequest>();
+  expectTypeOf<{ mode: "free" }>().not.toExtend<ReturnType<typeof generatePictureRequestSchema.parse>>();
   type Args = Pick<GenerateImageActionArgs, Exclude<keyof GenerateImageActionArgs, "mode" | "prompt">>;
   expectTypeOf<Args & { mode: "free" }>().not.toExtend<GenerateImageActionArgs>();
   expectTypeOf<Args & { mode: "free"; prompt: string }>().toExtend<GenerateImageActionArgs>();

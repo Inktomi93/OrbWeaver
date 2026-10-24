@@ -201,7 +201,6 @@ export {} from "./create-drill-selection-store.ts";
 export { createEntityDraftStore, type EntityDraftStore } from "./create-entity-draft-store.ts";
 export type { KindedSelection } from "./create-kinded-selection-store.ts";
 export {} from "./create-kinded-selection-store.ts";
-export { createPersistedStore } from "./create-persisted-store.ts";
 // `IngestPhase`/`INGEST_PHASES` are a `databank.list` input homed in `@orb/contracts/databank`; never re-export them here.
 export { clearDatabankPhaseFilter, setDatabankPhaseFilter, useDatabankPhaseFilter } from "./databank-filter-store.ts";
 export { clearDocumentSelection, databankSectionSelection, selectDocumentFromList, useSelectedDocumentId } from "./databank-selection-store.ts";

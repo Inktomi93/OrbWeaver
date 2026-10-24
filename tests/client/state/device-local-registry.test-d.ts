@@ -1,6 +1,8 @@
 // Actual public factories reject unclassified names through every typed reference to their API.
-import { createEntityDraftStore, createPersistedStore as persisted } from "@orb/client/state";
+
+import { createEntityDraftStore } from "@orb/client/state";
 import { expectTypeOf, test } from "vitest";
+import { createPersistedStore as persisted } from "#client/state/create-persisted-store.ts";
 
 declare const state: typeof import("@orb/client/state");
 

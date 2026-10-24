@@ -22,9 +22,10 @@
 // which is what makes "these are the same value" decidable rather than a taste call. Dimension ramps
 // step deliberately at the 2pt sub-grid, where a numeric-proximity rule would only relitigate design.
 
-import type { NearDuplicateOptions } from "./token-contract.ts";
-
-export type { NearDuplicateOptions } from "./token-contract.ts";
+export interface NearDuplicateOptions {
+  readonly lightSource?: Readonly<Record<string, unknown>>;
+  readonly allowed?: Readonly<Record<string, string>>;
+}
 
 /** A raw DTCG node (pre-resolution): `$value` is still `{color.x}` for a reference. */
 type RawNode = NonNullable<NearDuplicateOptions["lightSource"]>;

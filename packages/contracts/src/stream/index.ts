@@ -138,7 +138,6 @@ export const streamAttachInputSchema = z.object({
   ref: streamRoomRefSchema,
   sinceSeq: z.int().min(0).nullish(),
 });
-export type StreamAttachInput = z.output<typeof streamAttachInputSchema>;
 
 /** `stream.detach` — drop one room. Idempotent (detaching an unattached room is a no-op). */
 export const streamDetachInputSchema = z.object({

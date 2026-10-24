@@ -10,7 +10,7 @@ import type { Handle, UserId } from "@orb/kit/ids";
 import pino from "pino";
 import type { Logger } from "./contract/logging.ts";
 
-export type { Logger, RequestRecord } from "./contract/logging.ts";
+export type { Logger } from "./contract/logging.ts";
 
 const LOWEST_LOG_LEVEL = "trace" satisfies LogLevel;
 

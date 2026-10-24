@@ -1,5 +1,5 @@
-import { impersonateStreamDeltaSchema } from "@orb/contracts/chat";
 import { expect, test } from "@orb/testkit/node";
+import { impersonateStreamDeltaSchema } from "#contracts/chat/impersonation.ts";
 
 test("impersonation deltas round-trip partial text and reject non-text output", () => {
   const delta = impersonateStreamDeltaSchema.parse({ delta: "Partial \nreply" });

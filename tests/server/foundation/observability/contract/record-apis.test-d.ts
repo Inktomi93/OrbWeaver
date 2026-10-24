@@ -2,28 +2,29 @@ import type { ToolCallRecord } from "@orb/contracts/chat";
 import type { GenerationUsageLeg } from "@orb/contracts/inference";
 import type { auditLogs } from "@orb/db";
 import type {
-  AdminAuthChecker,
   AuditEntry,
-  DebugAuthOptions,
-  DebugRoutesOptions,
-  MemoryLogRecord,
-  RequestRecord,
   RequestTrace,
   RpgTraceInspector,
+  recordMemoryLog,
+  registerDebugRoutes,
   SerializedSpan,
-  SerializedSpanEvent,
   SpanAttrs,
   span,
-  WireCaptureFilter,
   WireOutcome,
-  WireToolCall,
-  WireWarning,
 } from "@orb/server/foundation/observability";
-import type { Context, HonoRequest } from "hono";
+import type { Context } from "hono";
 import { expectTypeOf, test } from "vitest";
 
 type NativeSpan = Parameters<Parameters<typeof span>[1]>[0];
 type NativeSpanContext = ReturnType<NativeSpan["spanContext"]>;
+// The door publishes the operations; each record and option type is read off the operation that takes it.
+type SerializedSpanEvent = SerializedSpan["events"][number];
+type MemoryLogRecord = Parameters<typeof recordMemoryLog>[0];
+type WireToolCall = WireOutcome["toolCalls"][number];
+type WireWarning = WireOutcome["warnings"][number];
+type DebugRoutesOptions = Parameters<typeof registerDebugRoutes>[1];
+type DebugAuthOptions = Exclude<NonNullable<DebugRoutesOptions["auth"]>, string>;
+type AdminAuthChecker = NonNullable<DebugAuthOptions["adminAuth"]>;
 
 test("recorded native fields derive their actual owners without copying native readonly modifiers", () => {
   expectTypeOf<SerializedSpan["spanId"]>().toEqualTypeOf<NativeSpanContext["spanId"]>();
@@ -35,8 +36,6 @@ test("recorded native fields derive their actual owners without copying native r
   // biome-ignore lint/complexity/noBannedTypes: The type assertion tests property presence against the empty object type.
   expectTypeOf<{}>().toExtend<Pick<SerializedSpanEvent, "attributes">>();
   expectTypeOf<RequestTrace["status"]>().toEqualTypeOf<SerializedSpan["status"]>();
-  expectTypeOf<RequestRecord["method"]>().toEqualTypeOf<HonoRequest["method"]>();
-  expectTypeOf<RequestRecord["path"]>().toEqualTypeOf<HonoRequest["path"]>();
   expectTypeOf<AuditEntry["actorUserId"]>().toEqualTypeOf<(typeof auditLogs.$inferSelect)["actorUserId"]>();
   expectTypeOf<AuditEntry["metadata"]>().toEqualTypeOf<NonNullable<(typeof auditLogs.$inferSelect)["metadata"]> | undefined>();
 });
@@ -57,7 +56,6 @@ test("diagnostic inputs preserve opaque metadata, raw strings and explicit optio
   expectTypeOf<WireWarning["code"]>().toEqualTypeOf<string>();
   expectTypeOf<WireOutcome["finishReason"]>().toEqualTypeOf<string | null>();
   expectTypeOf<WireOutcome["reasoningEffort"]>().toEqualTypeOf<string | null>();
-  expectTypeOf<{ providerId: undefined }>().toExtend<WireCaptureFilter>();
   expectTypeOf<{ turnId: undefined }>().not.toExtend<Parameters<RpgTraceInspector["recent"]>[0]>();
 });
 

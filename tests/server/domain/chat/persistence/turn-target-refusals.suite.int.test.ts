@@ -5,10 +5,10 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import { messages, messageVariants } from "@orb/db";
-import { ChatNotFoundError } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
+import { ChatNotFoundError } from "#server/domain/chat/contract/errors.ts";
 import { drain, room } from "../verbs/turn-target-authority.fixtures.ts";
 
 async function canon(h: ChatRoot): Promise<{ readonly message: typeof messages.$inferSelect; readonly variant: typeof messageVariants.$inferSelect }[]> {

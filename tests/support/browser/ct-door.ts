@@ -7,10 +7,8 @@ export {
   browserSessionDocumentHost,
   characterDetailContributors,
   chatSurfaceContributors,
-  chromeWidgets,
   configSections,
   createAuthedComposition,
   createClientRuntime,
-  homeTiles,
   toolRenderers,
 } from "@orb/client/compose";

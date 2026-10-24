@@ -1,8 +1,6 @@
 // FRONT DOOR: the only legal external import. Cross-boundary shapes the views carry (PromptConfig,
 // UserIntent, guided-action) are never re-exported here — callers import them from @orb/contracts/preset.
 
-export { SYSTEM_DEFAULT_PRESET_ID, SYSTEM_DEFAULT_PRESET_KIND, SYSTEM_DEFAULT_PRESET_NAME } from "./constants.ts";
-
 export type { LoadOptionalPreset } from "./contract/optional-read.ts";
 
 export type {

@@ -65,6 +65,4 @@ export interface LocalLightWorkerOptions {
   readonly embedDtype?: string | undefined;
   readonly cacheDir?: string | undefined;
   readonly allowRemoteModels?: boolean | undefined;
-  /** The module whose `createModelCache` builds the in-worker cache; tests point it at a stub. */
-  readonly cacheModule: string;
 }

@@ -18,12 +18,10 @@ export type { Db, LibSqlWrap, ReadOnlyDb } from "./client/index.ts";
 export {
   assertReferentialIntegrity,
   backupBeforeMigrate,
-  buildResetDropScript,
   checkBaseline,
   closeDb,
   createDb,
   detachWal,
-  forecastDevDbReset,
   hasPendingMigrations,
   listBackupFiles,
   localPath,

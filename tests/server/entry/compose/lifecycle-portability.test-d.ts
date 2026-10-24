@@ -1,6 +1,7 @@
 import type { PortableKind } from "@orb/contracts/portability";
-import type { LIFECYCLE_DOORS, LifecycleDoor, NonPortableCanon, PORTABLE_CANON_TABLES, PortabilityTableName } from "@orb/server/entry/compose";
 import { expectTypeOf, test } from "vitest";
+import type { LIFECYCLE_DOORS, PORTABLE_CANON_TABLES } from "#server/entry/compose/portability.ts";
+import type { LifecycleDoor, NonPortableCanon, PortabilityTableName } from "#server/entry/contract/portability.ts";
 
 test("portability metadata is total over real kinds and closed over native schema identities", () => {
   expectTypeOf<keyof typeof PORTABLE_CANON_TABLES>().toEqualTypeOf<PortableKind>();

@@ -1,9 +1,6 @@
 // Package-owned seed manifest and reader results; shipped content remains in its owning modules.
 import type { CharacterHandle } from "@orb/kit/ids";
 
-/** The kinds of seeded item; the seeder handles each kind in its own door. */
-export const SEED_ITEM_KINDS = ["character", "persona", "rosterPreset"] as const;
-
 /** One seeded item. `key` is the ledger key and never changes once shipped: renaming it reseeds the item. */
 export type SeedManifestItem =
   /** A shipped card, by its handle; the server's card pack holds its content, avatar, greetings and scene plate. */

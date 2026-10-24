@@ -2,41 +2,50 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
-import knipConfig, { config } from "../../knip.ts";
+import knipConfig from "../../knip.ts";
 
-test("native Knip checks tooling by default while production keeps the application-only dependency lens", ({ repoRoot, scratch }) => {
-  const { ignoreWorkspaces = [] } = config;
+test("production Knip counts tooling as a consumer and plain tests as none, while the default view judges tooling", ({ repoRoot, scratch }) => {
+  const kit = "packages/kit";
   writeFileSync(join(scratch, "package.json"), JSON.stringify({ name: "knip-workspace-control", private: true, workspaces: ["packages/*", "tooling"] }));
   writeFileSync(join(scratch, "pnpm-workspace.yaml"), 'packages:\n  - "packages/*"\n  - "tooling"\n');
-  for (const [path, name, dependency] of [
-    ["packages/kit", "@control/app", "unused-app-dependency"],
-    ["tooling", "@control/tooling", "unused-tool-dependency"],
-  ] as const) {
-    mkdirSync(join(scratch, path, "src"), { recursive: true });
-    writeFileSync(join(scratch, path, "package.json"), JSON.stringify({ name, private: true, dependencies: { [dependency]: "1.0.0" } }));
-    writeFileSync(join(scratch, path, "src/index.ts"), "export {};\n");
-  }
+  mkdirSync(join(scratch, kit, "src/door"), { recursive: true });
   writeFileSync(
-    join(scratch, "knip.json"),
-    JSON.stringify({
-      ignoreWorkspaces,
-      workspaces: {
-        ".": { entry: [], project: [] },
-        "packages/kit": { entry: ["src/index.ts!"], project: ["src/**/*.ts!"] },
-        tooling: { entry: ["src/index.ts"], project: ["src/**/*.ts"] },
-      },
-    }),
+    join(scratch, kit, "package.json"),
+    JSON.stringify({ name: "@control/kit", private: true, exports: { "./door": "./src/door/index.ts" }, dependencies: { "unused-app-dependency": "1.0.0" } }),
   );
+  writeFileSync(join(scratch, kit, "src/door/index.ts"), "export const kitToolUsed = 1;\nexport const kitTestOnly = 2;\nexport const kitOrphan = 3;\n");
+  mkdirSync(join(scratch, "tooling/src/probe"), { recursive: true });
+  writeFileSync(
+    join(scratch, "tooling/package.json"),
+    JSON.stringify({ name: "@control/tooling", private: true, dependencies: { "unused-tool-dependency": "1.0.0" } }),
+  );
+  writeFileSync(
+    join(scratch, "tooling/src/probe/index.ts"),
+    'import { kitToolUsed } from "../../../packages/kit/src/door/index.ts";\nconsole.log(kitToolUsed);\n',
+  );
+  mkdirSync(join(scratch, "tests"), { recursive: true });
+  writeFileSync(join(scratch, "tests/door.test.ts"), 'import { kitTestOnly } from "../packages/kit/src/door/index.ts";\nconsole.log(kitTestOnly);\n');
+  const run = (mode: Parameters<typeof knipConfig>[0], flags: readonly string[]): ReturnType<typeof runNicedSync> => {
+    const { workspaces = {}, ...rest } = knipConfig(mode);
+    const root = { entry: ["tests/**/*.test.ts"], project: ["tests/**/*.ts"] };
+    writeFileSync(join(scratch, "knip.json"), JSON.stringify({ ...rest, workspaces: { ".": root, [kit]: workspaces[kit], tooling: workspaces["tooling"] } }));
+    return runNicedSync("pnpm", ["exec", "knip", "--directory", scratch, "--reporter", "json", ...flags], { cwd: repoRoot });
+  };
 
-  const normal = runNicedSync("pnpm", ["exec", "knip", "--directory", scratch, "--reporter", "json"], { cwd: repoRoot });
+  const normal = run({}, []);
   expect(normal.status, `${normal.stdout}\n${normal.stderr}`).toBe(1);
   expect(normal.stdout).toContain("unused-tool-dependency");
   expect(normal.stdout).toContain("unused-app-dependency");
+  expect(normal.stdout).toContain("kitOrphan");
+  expect(normal.stdout).not.toContain("kitTestOnly");
 
-  const production = runNicedSync("pnpm", ["exec", "knip", "--directory", scratch, "--production", "--strict", "--reporter", "json"], { cwd: repoRoot });
+  const production = run({ production: true, strict: true }, ["--production", "--strict"]);
   expect(production.status, `${production.stdout}\n${production.stderr}`).toBe(1);
   expect(production.stdout).not.toContain("unused-tool-dependency");
   expect(production.stdout).toContain("unused-app-dependency");
+  expect(production.stdout).toContain("kitTestOnly");
+  expect(production.stdout).toContain("kitOrphan");
+  expect(production.stdout).not.toContain("kitToolUsed");
 });
 
 test("native Knip checks shipped and author-time symbols without baseline suppression", ({ repoRoot, scratch }) => {

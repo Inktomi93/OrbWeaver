@@ -5,8 +5,6 @@
 import type { Logger, MemoryLogRecord } from "./contract/logging.ts";
 import { getLog } from "./logger.ts";
 
-export type { MemoryLogRecord } from "./contract/logging.ts";
-
 /** Record a memory-subsystem event into the shared pino log stream + ring, tagged `memory: true`, through the
  *  request's logger or else the root's `base`. Never throws — a log call must not break the memory pipeline
  *  that fired it. */

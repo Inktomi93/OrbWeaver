@@ -4,7 +4,7 @@
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import { chatLocks, messages } from "@orb/db";
-import { CHAT_OP_CODES, ChatOperationError } from "@orb/server/domain/chat";
+import { ChatOperationError } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
@@ -17,6 +17,7 @@ import {
   seedPeerLease,
 } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
+import { CHAT_OP_CODES } from "#server/domain/chat/contract/errors.ts";
 
 async function heldRound(
   stopAt: number,

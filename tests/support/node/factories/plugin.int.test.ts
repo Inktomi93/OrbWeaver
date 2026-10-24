@@ -4,8 +4,8 @@
 import { spawn } from "node:child_process";
 import { pluginKv, pluginProviderClaims } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { PluginNotFoundError } from "@orb/server/domain/plugin";
 import { and, eq, inArray } from "drizzle-orm";
+import { PluginNotFoundError } from "../../../../packages/server/src/domain/plugin/contract/errors.ts";
 import {
   CORPUS_PLUGIN_ASSET_PATH as ASSET_PATH,
   corpusPluginBundle as bundle,

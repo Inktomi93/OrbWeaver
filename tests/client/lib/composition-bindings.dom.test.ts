@@ -1,6 +1,9 @@
-import type { Notify, SessionDocumentHost } from "@orb/client/lib";
+import type { SessionDocumentHost } from "@orb/client/lib";
 import { leaseNotify, leaseSessionDocumentHost, notify, sessionDocument } from "@orb/client/lib";
 import { expect, test } from "@orb/testkit/node";
+
+// The door publishes the binding; the sink shape is read off it.
+type Notify = Parameters<typeof leaseNotify>[0];
 
 function documentHost(name: string, navigations: string[], at: number): SessionDocumentHost {
   return {

@@ -13,12 +13,12 @@
 // @subject packages/server/src/domain/chat/workload-contributions.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";
-import { WORKLOAD_UNFUNDED } from "@orb/contracts/workloads";
 import { characterSummaries, characters, chatDigests, chatSegments, closeDb, embeddingCalls, embedGenerations } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node";
 import { CORPUS_EMBEDDING_VECTOR, createServerHarness, freshDb, seedRecallRoom } from "@orb/testkit/node/composed";
 import { and, eq, inArray } from "drizzle-orm";
+import { WORKLOAD_UNFUNDED } from "#contracts/workloads/admission.ts";
 import type { HostedFundingRoom } from "../funding.fixtures.ts";
 import { card, DISTILL, executeAdmitted, fundedOwner, physicalWire } from "../funding.fixtures.ts";
 

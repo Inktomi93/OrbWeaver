@@ -4,14 +4,15 @@
 // @subject packages/server/src/infra/relay/binary.ts
 // @subject packages/server/src/infra/relay/quick-tunnel.ts
 // @subject packages/server/src/domain/share/relay/controller.ts
+
 import { stat } from "node:fs/promises";
 import process from "node:process";
 import { authConfigSchema } from "@orb/contracts/auth-config";
 import { CSRF_HEADER } from "@orb/contracts/identity";
-import { RELAY_STOP_GRACE_MS } from "@orb/server/infra/relay";
 import { expect, test } from "@orb/testkit/node";
 import { claimShareOwner, createServerHarness, readRelayStarts, relayExecutable, relayProgram } from "@orb/testkit/node/composed";
 import { lanAddress, requestWithHost } from "@orb/testkit/node/helpers";
+import { RELAY_STOP_GRACE_MS } from "#server/infra/relay/quick-tunnel.ts";
 
 const RELAY_URL = "https://calm-river-four-birds.trycloudflare.com";
 

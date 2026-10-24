@@ -2,11 +2,11 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
-import { CSS_MERGE_FAMILY_NAMES } from "@orb/ui/lib";
 // Devtime build/verify machinery at the @orb/ui package ROOT — no `exports` subpath by design (#1847).
 import { assertTokenContract } from "@orb/ui/token-contract";
 import { Scanner } from "@tailwindcss/oxide";
 import { compile } from "tailwindcss";
+import { CSS_MERGE_FAMILY_NAMES } from "#ui/lib/class-merge.ts";
 
 interface CompilerFamilyProbe {
   readonly family: string;

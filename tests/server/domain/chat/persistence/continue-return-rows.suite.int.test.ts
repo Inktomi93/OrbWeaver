@@ -5,9 +5,9 @@
 import type { MessageView } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { chatEvents, chatParticipants, messageVariants, statsCanonVersions } from "@orb/db";
-import { ChatNotFoundError } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
 import { and, eq, gt } from "drizzle-orm";
+import { ChatNotFoundError } from "#server/domain/chat/contract/errors.ts";
 import { IMAGE_TOOL, TOOL_SIGNATURE } from "../engine/inline-image-physical.ts";
 import {
   ADDITION,

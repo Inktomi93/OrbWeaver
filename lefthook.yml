@@ -37,3 +37,9 @@ pre-push:
     eslint:
       priority: 4
       run: pnpm lint:eslint
+    knip:
+      priority: 5
+      run: pnpm knip
+    knip-prod:
+      priority: 6
+      run: pnpm knip:prod

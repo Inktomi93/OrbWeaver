@@ -1,9 +1,10 @@
 // Native room projections retain their stage and viewer; only the external provider is scripted.
+
 import { createCharacterSchema } from "@orb/contracts/character";
 import { groupConfigSchema } from "@orb/contracts/chat";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { TOOL_RECURSE_LIMIT_DEFAULT } from "@orb/server/domain/chat";
+import { TOOL_RECURSE_LIMIT_DEFAULT } from "../../../packages/server/src/domain/chat/contract/metadata.ts";
 import { seedCorpusActors } from "./corpus-actors.ts";
 import type { ServerTestHarness } from "./server.ts";
 

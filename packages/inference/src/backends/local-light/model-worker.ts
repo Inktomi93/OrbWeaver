@@ -15,15 +15,11 @@ import type {
   LocalLightWorkerValue,
 } from "#src/contract/local-light-worker.ts";
 import type { InferenceLog } from "#src/deps.ts";
-import type { LocalLightModelCache, ModelCacheConfig } from "../../contract/local-light.ts";
+import type { LocalLightModelCache } from "../../contract/local-light.ts";
 import { toWorkerFailure } from "./worker-cache.ts";
 
 // While idle, the worker collects garbage this often: a finished model load keeps allocating for tens of seconds.
 const IDLE_COLLECT_MS = 10_000;
-
-interface CacheModule {
-  readonly createModelCache: (config: ModelCacheConfig) => LocalLightModelCache;
-}
 
 async function run(cache: LocalLightModelCache, call: LocalLightWorkerCall): Promise<LocalLightWorkerValue> {
   switch (call.op) {
@@ -76,7 +72,7 @@ async function main(port: MessagePort, options: LocalLightWorkerOptions): Promis
       post({ type: "log", level, fields: { ...fields }, message });
     };
   const log: InferenceLog = { debug: logAt("debug"), info: logAt("info"), warn: logAt("warn"), error: logAt("error") };
-  const { createModelCache } = (await import(options.cacheModule)) as CacheModule;
+  const { createModelCache } = await import("./model-cache.ts");
   const cache = createModelCache({
     kernelModule: options.kernelModule,
     cpuPercent: options.cpuPercent,

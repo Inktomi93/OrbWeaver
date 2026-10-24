@@ -4,11 +4,12 @@
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { closeDb, presets } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
-import { ensureSystemDefaultPreset, SYSTEM_DEFAULT_PRESET_ID, SYSTEM_DEFAULT_PRESET_KIND, SYSTEM_DEFAULT_PRESET_NAME } from "@orb/server/domain/preset";
+import { ensureSystemDefaultPreset } from "@orb/server/domain/preset";
 import { expect, test } from "@orb/testkit/node";
 import { createTestLogger, freshHeldDb } from "@orb/testkit/node/composed";
 import { seedUser } from "@orb/testkit/node/rows";
 import { eq } from "drizzle-orm";
+import { SYSTEM_DEFAULT_PRESET_ID, SYSTEM_DEFAULT_PRESET_KIND, SYSTEM_DEFAULT_PRESET_NAME } from "#server/domain/preset/constants.ts";
 
 test("the boot root creates the shipped default and upgrades only its shared sentinel row", async ({ db, clock }) => {
   const at = clock.now();

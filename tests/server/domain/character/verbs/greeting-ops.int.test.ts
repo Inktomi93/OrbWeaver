@@ -7,12 +7,12 @@ import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { presets } from "@orb/db";
 import type { UserConnectionId } from "@orb/kit/ids";
-import { CharacterNotFoundError } from "@orb/server/domain/character";
 import { makeGenerationCapability } from "@orb/testkit/iso";
 import { test as base, expect } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { seedCharacter, withheldTable } from "@orb/testkit/node/composed";
 import { principal, TEST_BASE_URL, TEST_PROVIDER_ID, terminalSseLine } from "@orb/testkit/node/helpers";
+import { CharacterNotFoundError } from "#server/domain/character/contract/errors.ts";
 
 const test = base.extend<{ requests: Request[]; providerFetch: typeof fetch }>({
   requests: async ({}, use) => {

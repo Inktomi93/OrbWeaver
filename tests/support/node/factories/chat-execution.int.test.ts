@@ -2,7 +2,7 @@
 
 import { declaredCapabilitySchema } from "@orb/contracts/inference";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { CHAT_OP_CODES } from "@orb/server/domain/chat";
+import { CHAT_OP_CODES } from "../../../../packages/server/src/domain/chat/contract/errors.ts";
 import { seedCorpusActors, seedRecallRoom } from "../corpus-actors.ts";
 import {
   CORPUS_EMBED_MODEL,

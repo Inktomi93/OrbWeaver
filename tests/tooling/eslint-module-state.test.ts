@@ -71,6 +71,26 @@ test.for([
   ["an id minted by randomUUID at load", 'import { randomUUID } from "node:crypto";\nexport const INSTANCE = randomUUID();\n', "INSTANCE"],
   ["an id minted by crypto.randomUUID at load", "export const INSTANCE = crypto.randomUUID();\n", "INSTANCE"],
   ["a clock read by Date.now at load", "export const BOOTED_AT = Date.now();\n", "BOOTED_AT"],
+  ["a clock read by performance.now at load", "export const STARTED_AT = performance.now();\n", "STARTED_AT"],
+  ["a clock read by new Date() at load", "export const BOOTED = new Date();\n", "BOOTED"],
+  ["a PRNG read by Math.random at load", "export const SEED = Math.random();\n", "SEED"],
+  ["an array written with sort", "const order: number[] = [3, 1];\nexport function settle(): void {\n  order.sort();\n}\n", "order"],
+  ["an array written with reverse", "const order: number[] = [3, 1];\nexport function flip(): void {\n  order.reverse();\n}\n", "order"],
+  ["an array written with fill", "const slots: number[] = [0, 0];\nexport function reset(): void {\n  slots.fill(1);\n}\n", "slots"],
+  ["an array written with copyWithin", "const slots: number[] = [0, 1];\nexport function shift(): void {\n  slots.copyWithin(0, 1);\n}\n", "slots"],
+  [
+    "a write through a non-null assertion",
+    "const queue: string[] | undefined = [];\nexport function enqueue(x: string): void {\n  queue!.push(x);\n}\n",
+    "queue",
+  ],
+  [
+    "a write through an as cast",
+    "const cache = new Map<string, number>();\nexport function remember(key: string): void {\n  (cache as Map<string, number>).set(key, 1);\n}\n",
+    "cache",
+  ],
+  ["a write by Object.assign", "const state = { open: false };\nexport function open(): void {\n  Object.assign(state, { open: true });\n}\n", "state"],
+  ["a write by Reflect.set", 'const state = { open: false };\nexport function open(): void {\n  Reflect.set(state, "open", true);\n}\n', "state"],
+  ["a let inside a top-level block", "{\n  let count = 0;\n  count += 1;\n}\n", "count"],
 ] as const)("flags %s at the declared name", async ([, source, name]) => {
   const found = await findings(source);
   expect(found).toHaveLength(1);
@@ -99,6 +119,11 @@ test.for([
     "const queue: string[] = [];\nexport function other(): number {\n  const queue = [1];\n  queue.push(2);\n  return queue.length;\n}\n",
   ],
   ["a clock read inside a function", "export function now(): number {\n  return Date.now();\n}\n"],
+  ["a dated constant from a fixed instant", "export const EPOCH = new Date(0);\n"],
+  [
+    "a module object only read by Object.assign as its source",
+    "const DEFAULTS = { open: false };\nexport function fresh(): { open: boolean } {\n  return Object.assign({}, DEFAULTS);\n}\n",
+  ],
 ] as const)("passes %s", async ([, source]) => {
   expect(await findings(source)).toEqual([]);
 });

@@ -29,14 +29,11 @@ export type {
   AllowedHostsInput,
   BindPosture,
   BindPostureInput,
-  DiagnosticsExposure,
-  DiagnosticsPosture,
   DiagnosticsPostureInput,
   OwnerFallbackCredentialInput,
   OwnerFallbackPeerInput,
   OwnerFallbackPeerPosture,
 } from "../contract.ts";
-export { DIAGNOSTICS_EXPOSURES } from "../contract.ts";
 export { diagnosticsPostureWarnings, resolveDiagnosticsPosture, resolveOwnerFallbackCredential } from "../diagnostics.ts";
 export { ownerFallbackPeerWarnings, parseOwnerFallbackTrustedPeers, resolveOwnerFallbackPeers } from "../fallback-peers.ts";
 export { parseTrustedPrivateRanges } from "../private-ranges.ts";

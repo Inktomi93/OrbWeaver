@@ -1,4 +1,4 @@
-import type { PluginHostV1, PluginSurfaceRegistration, PluginToolRegistration, PluginVariableOp } from "@orb/contracts/plugin";
+import type { PluginHostV1, PluginSurfaceRegistration, PluginToolRegistration } from "@orb/contracts/plugin";
 import { expect, test } from "@orb/testkit/node";
 import { bootShowcase } from "@orb/testkit/node/composed";
 
@@ -9,7 +9,7 @@ type GuestSurface = Omit<PluginSurfaceRegistration, "onAction"> & { readonly onA
 test("story clocks refuse non-string names and replace malformed clock values rather than ticking their coercion", async () => {
   const tools = new Map<string, GuestTool>();
   const vars: Record<string, unknown> = {};
-  const writes: Extract<PluginVariableOp, { op: "set" }>[] = [];
+  const writes: Extract<Parameters<PluginHostV1["chat"]["applyVariableOps"]>[1][number], { op: "set" }>[] = [];
   const registered = Promise.withResolvers<void>();
   await bootShowcase(
     "story-clocks",

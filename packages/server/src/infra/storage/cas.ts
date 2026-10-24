@@ -111,11 +111,10 @@ function isDirSyncUnsupported(error: unknown): boolean {
   return errnoIs(error, "ENOTSUP") || (process.platform === "win32" && (errnoIs(error, "EISDIR") || errnoIs(error, "EPERM")));
 }
 
-// ASSUMES(single-replica): a per-PROCESS latch over a per-PROCESS log stream. It exists only to keep one
-// box's log from repeating the same filesystem-capability sentence on every asset write; a second replica
-// SHOULD say it once too (its operator reads its own log), and a restart re-announcing it is correct, not a
-// bug. Nothing reads it back, so there is nothing for durable state to hold.
-let dirSyncUnsupportedAnnounced = false;
+// ASSUMES(single-replica): a once-per-root latch, keyed by the root's logger, so each root's log says the
+// filesystem-capability sentence once instead of on every asset write; a restart re-announcing it is correct.
+// Nothing reads it back, so there is nothing for durable state to hold.
+const dirSyncUnsupportedAnnounced = new WeakSet<Logger>();
 
 async function fsyncDir(dir: string, log: Logger): Promise<void> {
   try {
@@ -125,11 +124,11 @@ async function fsyncDir(dir: string, log: Logger): Promise<void> {
     if (!isDirSyncUnsupported(error)) {
       throw error;
     }
-    if (!dirSyncUnsupportedAnnounced) {
-      dirSyncUnsupportedAnnounced = true;
+    if (!dirSyncUnsupportedAnnounced.has(log)) {
+      dirSyncUnsupportedAnnounced.add(log);
       getLog(log).warn(
         { platform: process.platform, code: (error as NodeJS.ErrnoException).code },
-        "cas: this filesystem does not support directory fsync — blob bytes are still fsynced and the publish rename is still atomic, but a crash can lose the directory ENTRY of a just-written blob (logged once per process)",
+        "cas: this filesystem does not support directory fsync — blob bytes are still fsynced and the publish rename is still atomic, but a crash can lose the directory ENTRY of a just-written blob (logged once per root)",
       );
     }
   }

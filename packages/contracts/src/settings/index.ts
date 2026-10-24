@@ -34,7 +34,6 @@ import { appearanceSettingsSchema } from "./appearance.ts";
 export type { AppearanceBackgroundFit, AppearanceSettings, BackgroundLibraryEntry, BlurSurface, SurfaceTexture } from "./appearance.ts";
 export {
   APPEARANCE_BACKGROUND_FITS,
-  appearanceSettingsSchema,
   BLUR_SURFACES,
   backgroundLibraryEntrySchema,
 } from "./appearance.ts";

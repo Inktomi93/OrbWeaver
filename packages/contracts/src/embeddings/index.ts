@@ -194,7 +194,6 @@ export const imageBreakdownSchema = z.object({
    *  library. Bounded so a degenerate reply can't write a hundred one-off buckets. */
   tags: z.array(z.string()).min(MIN_IMAGE_TAGS).max(MAX_IMAGE_TAGS),
 });
-export type ImageBreakdown = z.infer<typeof imageBreakdownSchema>;
 
 /** A stored `caption_meta` blob, read back from a column that outlives any one build: `model` has always been
  *  there, every facet is OPTIONAL because the 2026-08-18 backfill boundary means older rows carry none, and

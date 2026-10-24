@@ -2,6 +2,7 @@
 // A guest that never answers is unblocked only by its deadline. Each phase stalls on ONE deadline and first lets
 // real time pass it, so the work proceeds only when the harness scheduler the root scoped is ticked. The
 // turn-lock heartbeat has its own proof (`tests/server/domain/chat/engine/core-concurrency.int.test.ts`).
+
 import { spawn } from "node:child_process";
 import { setTimeout as realDelay } from "node:timers/promises";
 import type { ChatBusEvent } from "@orb/contracts/chat";
@@ -10,7 +11,6 @@ import type { PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { pluginMacroName } from "@orb/server/domain/plugin";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
@@ -25,6 +25,7 @@ import {
   seedPluginGrant,
 } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
+import { pluginMacroName } from "#server/domain/plugin/substrate/plugin-macros.ts";
 
 const MACRO = "omen";
 const NEVER = "const h = orb.host(1); const never = () => new Promise(() => {});";

@@ -35,7 +35,6 @@ export {
 export type { PluginGrantTask } from "./grant-tasks.ts";
 export { pluginGrantTasks } from "./grant-tasks.ts";
 export type {
-  ChatHandle,
   HostFunctionRef,
   PluginCharacterView,
   PluginHostV1,
@@ -44,7 +43,6 @@ export type {
   PluginQuietOptions,
   PluginQuietSchema,
   PluginSearchHit,
-  PluginVariableOp,
   PluginWorldBookView,
   PluginWorldEntryUpsert,
   PluginWorldEntryView,
@@ -130,13 +128,11 @@ export { summarizePluginAct } from "./suggestion.ts";
 export type {
   PluginBadgeNode,
   PluginBoundBoolean,
-  PluginBoundGridTile,
   PluginBoundNumber,
   PluginBoundString,
   PluginButtonNode,
   PluginCommandArgSpec,
   PluginCommandArgValue,
-  PluginCommandPlacement,
   PluginCommandPlacementTarget,
   PluginCommandRegistrationMeta,
   PluginConfirmButtonNode,
@@ -164,7 +160,6 @@ export type {
   PluginSurfaceNode,
   PluginSurfaceRegistrationMeta,
   PluginSurfaceSpec,
-  PluginSurfaceTier,
   PluginTabsNode,
   PluginTextFieldNode,
   PluginTextNode,
@@ -215,7 +210,7 @@ export {
   resolvePluginBoundTiles,
   resolvePluginPrimaryButton,
 } from "./ui.ts";
-export { PLUGIN_UI_CHAT_MESSAGES_LIMIT_MAX, pluginUiHostArgsSchemas } from "./ui-host.ts";
+export { pluginUiHostArgsSchemas } from "./ui-host.ts";
 export type {
   DistributedPluginView,
   PluginBundleAssetView,
@@ -229,7 +224,6 @@ export type {
 } from "./view.ts";
 export {
   distributedPluginViewSchema,
-  PLUGIN_FANOUT_SKIP_REASONS,
   pluginBundleAssetViewSchema,
   pluginDisplayTransformViewSchema,
   pluginFanoutResultSchema,

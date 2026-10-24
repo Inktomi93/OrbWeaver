@@ -7,10 +7,10 @@ import type { MessageView } from "@orb/contracts/chat";
 import { messages, messageVariants, statsCanonVersions } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { ChatNotFoundError } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
+import { ChatNotFoundError } from "#server/domain/chat/contract/errors.ts";
 import { textRoom } from "../scenario-physical.ts";
 
 interface TwoRooms extends AsyncDisposable {

@@ -1,6 +1,5 @@
 import {
   distributedPluginViewSchema,
-  PLUGIN_FANOUT_SKIP_REASONS,
   PLUGIN_LOG_LEVELS,
   pluginBundleAssetViewSchema,
   pluginDisplayTransformViewSchema,
@@ -9,10 +8,10 @@ import {
   pluginSurfaceStateSchema,
   pluginSurfaceViewSchema,
 } from "@orb/contracts/plugin";
-
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import { makePluginScriptedPage } from "@orb/testkit/node/helpers";
+import { PLUGIN_FANOUT_SKIP_REASONS } from "#contracts/plugin/view.ts";
 
 test("public plugin registration parsers retain native metadata refinements and refuse private handler or row fields", ({ ids }) => {
   const pluginId = typeIdSchema(ID_PREFIX.plugin).parse(ids.next(ID_PREFIX.plugin));

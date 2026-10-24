@@ -4,13 +4,13 @@
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { chatLocks, closeDb, messages } from "@orb/db";
-import { CHAT_OP_CODES, ChatNotFoundError } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
 import type { HeldStatement } from "@orb/testkit/node/composed";
 import { freshHeldDb } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { seedPeerLeaseRows } from "@orb/testkit/node/rows";
 import { eq } from "drizzle-orm";
+import { CHAT_OP_CODES, ChatNotFoundError } from "#server/domain/chat/contract/errors.ts";
 import { coreFrame, coreHttpRoom, coreSse } from "../engine/core-physical.ts";
 
 function reply(): Response {

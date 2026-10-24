@@ -1,9 +1,9 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 
 import { ID_PREFIX } from "@orb/kit/ids";
-import { ChatNotFoundError } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
 import { makeAssetBytes, readRoomCanon } from "@orb/testkit/node/composed";
+import { ChatNotFoundError } from "#server/domain/chat/contract/errors.ts";
 import { room } from "./send-attach.fixtures.ts";
 
 test("a non-member attaching to a foreign chat is a leak-free NOT_FOUND (the post gate wins first)", async () => {

@@ -6,7 +6,7 @@
 // @subject packages/inference/src/roles/executor.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";
-import { RPG_NO_CHANGES_TOOL, RPG_STATE_CHANGES_FIELD } from "@orb/contracts/rpg";
+import { RPG_NO_CHANGES_TOOL } from "@orb/contracts/rpg";
 import { assets, auditLogs, rpgSheets } from "@orb/db";
 import { ProviderError } from "@orb/inference";
 import { ID_PREFIX } from "@orb/kit/ids";
@@ -15,6 +15,7 @@ import { createServerHarness, makeAssetBytes } from "@orb/testkit/node/composed"
 import { TEST_PROVIDER_ID } from "@orb/testkit/node/helpers";
 import { and, eq } from "drizzle-orm";
 import { vi } from "vitest";
+import { RPG_STATE_CHANGES_FIELD } from "#contracts/rpg/structured-round.ts";
 import { FUNDING_KEY, fundingConnection, fundingRoom, test } from "../verbs/runtime-funding.fixtures.ts";
 
 test("the composed imagery orchestrator stores real image provenance and strikes only its failed foreground call", async ({

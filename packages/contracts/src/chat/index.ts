@@ -117,12 +117,10 @@ export type {
 export {
   AUTOMATION_DEPTH_HARD_CAP,
   CHAT_BUS_EVENT_TYPES,
-  CHAT_WARNING_CODES,
   DEADLINE_ABORT_REASON,
   LIVE_ONLY_CHAT_EVENT_TYPES,
   PROMPT_TRANSFORM_ABORT_REASON_MAX,
   PROMPT_TRANSFORM_POINTS,
-  PROVIDER_ADJUSTMENT_KINDS,
   ROOM_ENTITY_KINDS,
   TURN_ABORTED_OP_CODE,
   TURN_INITIATORS,
@@ -133,13 +131,11 @@ export type { CardFrameMintRequest, CardFrameMintResponse } from "./card-frame.t
 export { CARD_FRAME_MINT_BODY_MAX_BYTES, CARD_FRAME_ROUTE, cardFrameMintRequestSchema, cardFrameMintResponseSchema, cardFrameUrl } from "./card-frame.ts";
 export type { CardTrust, ContentSpansToBlocksOptions, MessageContentBlock } from "./content-blocks.ts";
 export { contentSpansToBlocks, messageContentBlockSchema } from "./content-blocks.ts";
-export { CONTENT_CLASS_POLICY } from "./content-classes.ts";
 
 export type { AnchorState, ChatDetail, RedeemInviteResult } from "./detail.ts";
 export { chatDetailSchema, redeemInviteResultSchema, viewerGalleryCharacter } from "./detail.ts";
 export type { HandoffCardCopy, HandoffCardPair, HandoffHealArgs } from "./handoff-context.ts";
 export type { ImpersonateStreamDelta } from "./impersonation.ts";
-export { impersonateStreamDeltaSchema } from "./impersonation.ts";
 export { chatIdInputSchema, chatListInputSchema, listMessagesInputSchema } from "./inputs.ts";
 export type { ChatLibraryLens } from "./library.ts";
 export { chatCensusInputSchema } from "./library.ts";

@@ -1,11 +1,12 @@
 // Native guest returns are retained in private plugin KV, never projected into the portable corpus.
+
 import { characterCardV3Schema } from "@orb/contracts/character";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { DEFAULT_MEMORY_DEFAULTS } from "@orb/contracts/settings";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { pluginMacroName } from "@orb/server/domain/plugin";
+import { pluginMacroName } from "../../../packages/server/src/domain/plugin/substrate/plugin-macros.ts";
 import type { seedCorpusActors } from "./corpus-actors.ts";
 import { CORPUS_PROVIDER_ENDPOINT } from "./corpus-provider.ts";
 import type { SeededCorpusLibraries } from "./corpus-seed.ts";

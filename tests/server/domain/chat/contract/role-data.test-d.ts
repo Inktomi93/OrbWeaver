@@ -1,8 +1,10 @@
 // @subject packages/server/src/domain/chat/persistence/participants-read.ts
 // @subject packages/server/src/domain/chat/contract/service.ts
-import type { ChatService, loadPresentRole } from "@orb/server/domain/chat";
+
+import type { ChatService } from "@orb/server/domain/chat";
 import type { createCaller } from "@orb/server/transport/trpc";
 import { expectTypeOf, test } from "vitest";
+import type { loadPresentRole } from "#server/domain/chat/persistence/participants-read.ts";
 
 type MembershipRole = NonNullable<Awaited<ReturnType<typeof loadPresentRole>>>;
 type RosterSeat = Awaited<ReturnType<ChatService["listParticipants"]>>[number];

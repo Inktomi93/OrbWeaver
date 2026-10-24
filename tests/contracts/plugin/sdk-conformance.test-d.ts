@@ -3,26 +3,28 @@ import "../../../packages/plugin-sdk/frame.d.ts";
 
 import type {
   PluginSurfaceAnchor as ContractAnchor,
-  PluginBoundGridTile as ContractBoundGridTile,
   PluginCapability as ContractCapability,
-  ChatHandle as ContractChatHandle,
   PluginCommandArgSpec as ContractCommandArgSpec,
-  PluginCommandPlacement as ContractCommandPlacement,
   PluginGridTile as ContractGridTile,
   PluginHostV1 as ContractHost,
   PluginSurfaceNode as ContractNode,
   PluginPageHero as ContractPageHero,
-  PluginSurfaceTier as ContractTier,
   PluginToastLevel as ContractToastLevel,
   PluginFrameCall,
   pluginFrameResultMessage,
   pluginUiHostArgsSchemas,
+  resolvePluginBoundTiles,
   UiProxyableHostFunction,
 } from "@orb/contracts/plugin";
 import type { AssetId, CharacterId } from "@orb/kit/ids";
 import { expectTypeOf, test } from "vitest";
 import type { z } from "zod";
 
+// The door publishes the host membrane and its readers; each vocabulary is read off the signature that carries it.
+type ContractChatHandle = ReturnType<ContractHost["chat"]["current"]>;
+type ContractTier = Parameters<ContractHost["ui"]["register"]>[0]["tier"];
+type ContractCommandPlacement = NonNullable<Parameters<ContractHost["ui"]["registerCommand"]>[0]["placements"]>[number];
+type ContractBoundGridTile = ReturnType<typeof resolvePluginBoundTiles>[number];
 type GuestBrand = ContractChatHandle | AssetId | CharacterId;
 type DeepUnbrand<T> = T extends GuestBrand
   ? string
