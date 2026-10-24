@@ -10,7 +10,7 @@ area: connection
 
 ## What
 
-(1) Read Ollama /api/show capabilities (tools, vision, embedding) as advertised evidence and kind, so a local model gets tools without a declaration. (2) Add an exampleBaseUrl provider-row field plus db migration for per-provider Server URL placeholders. (3) A live width probe before binding an own-server embedder whose width is unstated (dimsEstimated). (4) Zero-padding narrower embedders needs an owner ruling against the never-padded rule in the capability embedding headers; it also touches assertSpace and the search dim filter. (5) fitsSpace refuses a wider non-MRL embedder while resolveEmbed truncates it; reconcile.
+(1) A live width probe before binding an own-server embedder whose width is unstated (dimsEstimated). (2) Zero-padding narrower embedders needs an owner ruling against the never-padded rule in the capability embedding headers; it also touches assertSpace and the search dim filter. (3) fitsSpace refuses a wider non-MRL embedder while resolveEmbed truncates it; reconcile.
 
 ## Why
 
@@ -22,4 +22,4 @@ Each sub-point is built or explicitly ruled, with a test where built.
 
 ## Evidence
 
-Owner ruling on sub-point 2: exampleBaseUrl is a static hint on built-in provider rows only, with no schema change.
+The Ollama /api/show capabilities feed tools, vision and kind in `packages/inference/src/catalog/endpoint.ts:383-441`. The exampleBaseUrl function serves the Server URL placeholder at `packages/contracts/src/inference/providers.ts:38`.

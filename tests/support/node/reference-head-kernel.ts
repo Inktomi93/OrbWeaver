@@ -8,7 +8,7 @@ import type { LoadTransformersKernel, LocalLightKernelModule } from "@orb/infere
 let nativeKernel: Awaited<ReturnType<LoadTransformersKernel>> | undefined;
 const HUB_REFUSAL = new URL(import.meta.url).searchParams.has("hub-refusal");
 
-/** @public Loaded by URL at runtime as a kernel entry; no static import reaches it. */
+/** The URL parameter and channel messages a case uses to hold the kernel inside synchronous execution. */
 export const KERNEL_HOLD = { parameter: "hold-channel", ready: "ready", blocked: "blocked" } as const;
 const HOLD_CHANNEL = new URL(import.meta.url).searchParams.get(KERNEL_HOLD.parameter);
 

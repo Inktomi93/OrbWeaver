@@ -10,7 +10,7 @@ area: client
 
 ## What
 
-Thirteen P3 findings from the phone pass: alternate greeting stamps edited (edit.ts:606), nine-item message actions menu, context chip inconsistency, gutters 8 vs 24px, greeting/opening and every-chat naming splits, desktop-only dropzone copy, suggested tags push card fields, triple Connections heading, oversized switch with tiny label, empty role picker has no next step, double empty state on Home, avatar gutter width, dead shell-list-toggle class. Source: ~/Archives/orbweaver-reviews/phone-pass-oct10.md P3 items 1-13. Also: side-eye the phone topbar with Report a bug.
+P3 findings from the phone pass: alternate greeting stamps edited (edit.ts:606), nine-item message actions menu, context chip inconsistency, gutters 8 vs 24px, greeting/opening and every-chat naming splits, desktop-only dropzone copy, suggested tags push card fields, triple Connections heading, oversized switch with tiny label, empty role picker has no next step, double empty state on Home, avatar gutter width. Source: ~/Archives/orbweaver-reviews/phone-pass-oct10.md P3 items. Also: side-eye the phone topbar with Report a bug.
 
 ## Why
 

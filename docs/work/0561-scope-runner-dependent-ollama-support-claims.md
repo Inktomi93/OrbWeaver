@@ -10,7 +10,7 @@ area: inference
 
 ## What
 
-G13: MLX-ignored options and native-runner reasoning replay differ by Ollama runner; no evidence current deployments use those paths. Evidence: local-provider audit ~/homelab/development/probe-archive/local-server-audit/reports/local-provider-gaps/REPORT.md.
+Ollama option support and native-runner reasoning replay differ by runner, and no evidence shows current deployments use those paths. Support and request records must scope each claim to the runner it holds for.
 
 ## Why
 

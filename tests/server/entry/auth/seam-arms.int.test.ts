@@ -91,7 +91,15 @@ test("D135: the fallback Principal and the frozen-host Principal AGREE about the
   const request = await wireViewer(root);
   expect(request).toEqual(await (await root.internalCallerFor(root.ownerId)).sessions.me());
   expect(request.globalRole).toBe("owner");
-  expect(isOwner(await root.principalFor(request.userId))).toBe(true);
+  // The wire projection drops externalId and via, so the Principals themselves are compared too.
+  const seam = createAuthSeam({
+    emitUserEvent: root.app.liveBuses.user.publishUserEvent,
+    sessions: root.app.sessions,
+    config: authConfigFromEnv(root.env),
+  });
+  const { principal } = await seam.resolvePrincipal(new Headers(), { peerIp: LOOPBACK, transport: "http" });
+  expect(principal).toEqual(await root.principalFor(request.userId));
+  expect(principal === null ? null : isOwner(principal)).toBe(true);
 });
 
 test("D135: the fallback lands on the OWNER_HANDLES row and mints NO second-class twin", async () => {

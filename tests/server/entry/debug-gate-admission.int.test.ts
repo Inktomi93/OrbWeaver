@@ -88,12 +88,15 @@ function bugReport(root: Root, headers: Record<string, string> = {}): Promise<Re
   );
 }
 
-describe("un-credentialed callers never reach /api/_debug", () => {
+// This process launches on the operator posture, where a direct loopback single-user caller is the operator and is
+// admitted; that row is relayed here, and the production-posture HTTP row is production-debug-posture.int.test.ts.
+describe("un-credentialed callers, and a relayed single-user loopback caller, never reach /api/_debug", () => {
   for (const mode of AUTH_MODES) {
+    const relayed = mode === "single-user";
     for (const { name, headers } of HOST_CASES) {
-      test(`${mode}: NO token configured, ${name} → 404 (surface off), never a handler`, async () => {
+      test(`${mode}: NO token configured, ${relayed ? "relayed, " : ""}${name} → 404 (surface off), never a handler`, async () => {
         await using root = await rootFor(mode);
-        expect(await outcomes(root, { ...headers, ...RELAYED })).toEqual(ALL_REFUSED_TOKENLESS);
+        expect(await outcomes(root, relayed ? { ...headers, ...RELAYED } : headers)).toEqual(ALL_REFUSED_TOKENLESS);
       });
     }
     // A Host this box does not answer to is refused by the rebinding guard, before any principal resolves.

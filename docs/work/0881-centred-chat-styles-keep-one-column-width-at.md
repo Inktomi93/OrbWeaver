@@ -10,7 +10,7 @@ area: chat
 
 ## What
 
-At 1920 in flat, hush and document, rows holding a code block render 541px wide and indented against 750px prose rows, the chip jumping from x=773 to 878 (the Moonlit desktop-mobile parity side-eye report, F12). Likely the unlayered :has(pre) width rule at globals.css:803 beating the 4xl centred-column width at row-placement.ts:49.
+At 1920 in flat, hush and document, rows holding a code block render 541px wide and indented against 750px prose rows, the chip jumping from x=773 to 878 (the Moonlit desktop-mobile parity side-eye report, F12). Likely the unlayered :has(pre) width rule at `packages/client/src/styles/globals.css:792-794` beating `CENTRED_COLUMN` (`@4xl:w-(--centred-column-width)`) at `packages/client/src/features/chat/lib/row-placement.ts:48`.
 
 ## Why
 

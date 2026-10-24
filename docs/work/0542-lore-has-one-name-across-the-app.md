@@ -10,15 +10,15 @@ area: client
 
 ## What
 
-The same concept is called lore, Lorebooks, Lore book (persona editor) and World books across screens (found by the 0510 side-eye).
+`docs/law/vocabulary-map.md:58` rules the noun "World book" and the library group "World Info". Stray user-facing spellings remain: "lorebook" in `packages/client/src/features/automation/lib/rule-editor-failure.ts:46`, and "Lore" and "Lore application" in `packages/client/src/features/automation/components/rule-analysis-fields.tsx:84,106`.
 
 ## Why
 
-Four names for one thing make users think they are different features.
+Several names for one thing make users think they are different features.
 
 ## Done when
 
-One user-facing term (SillyTavern users know World Info / lorebooks; pick one with the owner) used in every label, description and help string; a sweep shows no stray spelling.
+Replace each stray with the ruled term in every label, description and help string. A sweep shows no stray spelling.
 
 ## Evidence
 

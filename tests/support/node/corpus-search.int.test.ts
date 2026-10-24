@@ -112,7 +112,10 @@ function assertNativeSource(source: CorpusSource, result: SearchCapture): void {
   }
 }
 
-test("native search exposes all eight routed arms and five output families with genuine provenance, scopes and lexical publication", async () => {
+// Producing the whole search corpus takes about 6 s of real producer work, with no held resource and no wall-clock wait.
+test("native search exposes all eight routed arms and five output families with genuine provenance, scopes and lexical publication", {
+  tags: ["slow"],
+}, async () => {
   const physical = createCorpusProviderExecution({
     modelIds: [CORPUS_TEXT_MODEL, CORPUS_EMBED_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
