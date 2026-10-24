@@ -10,6 +10,7 @@ import type { MessageId } from "@orb/kit/ids";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { timeLib } from "#lib";
+import { turnStamp } from "../lib/turn-stamp.ts";
 
 /** How many trailing id chars the compact ref shows (a stable, glanceable anchor — not the full id). */
 const REF_TAIL_LEN = 4;
@@ -27,13 +28,6 @@ function shortRef(messageId: MessageId): string {
   return `t${messageId.slice(-REF_TAIL_LEN)}`;
 }
 
-/** The transcript stamps a message with `timeLib.formatTime`; the chip shows that same form for a turn from
- *  today and the short date for an older one, so a chip never prints a different time than the transcript. */
-function stamp(createdAt: number): string {
-  const today = timeLib.calendarPosition(timeLib.now()).day;
-  return timeLib.calendarPosition(createdAt).day === today ? timeLib.formatTime(createdAt) : timeLib.formatDate(createdAt);
-}
-
 /** The mono TurnRef chip (display-only in v1 — see the file header). A timed chip is a `time` element whose
  *  `dateTime` carries the instant; its hover text names the turn by that instant, never by the message id. */
 export function RpgTurnRef({ messageId, createdAt }: RpgTurnRefProps): ReactElement {
@@ -45,9 +39,9 @@ export function RpgTurnRef({ messageId, createdAt }: RpgTurnRefProps): ReactElem
     );
   }
   return (
-    <time dateTime={new Date(createdAt).toISOString()} title={`Turn of ${timeLib.formatDateTime(createdAt)}`} data-slot="rpg-turn-ref">
+    <time dateTime={new Date(createdAt).toISOString()} title={`Told ${timeLib.formatDateTime(createdAt)}`} data-slot="rpg-turn-ref">
       <Text as="span" voice="gloss" className="shrink-0 whitespace-nowrap font-mono tabular-nums">
-        {stamp(createdAt)}
+        {turnStamp(createdAt)}
       </Text>
     </time>
   );

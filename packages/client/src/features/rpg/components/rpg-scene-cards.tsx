@@ -9,9 +9,10 @@ import type { ChatId } from "@orb/kit/ids";
 import { ImmersiveCard } from "@orb/ui/immersive-card";
 import { Stack } from "@orb/ui/layout";
 import { useSandboxTheme } from "@orb/ui/sandbox-frame";
+import { Text } from "@orb/ui/text";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useId, useState } from "react";
+import { useState } from "react";
 import { QueryBoundary, ViewerDialog } from "#components";
 import { QueryErrorState, SkeletonRows, useCardFrameSrc, useTRPC } from "#data";
 import type { ArchivedCard } from "../lib/archived-cards.ts";
@@ -80,36 +81,29 @@ export interface RpgSceneCardsProps {
  *  doorway — the section is silent-when-empty ONLY for a game that can't have cards at all (RV-2: an
  *  invisible section reads as an absent feature, and the Journal "Cards" scope already words this state). */
 export function RpgSceneCards({ chatId, enabled }: RpgSceneCardsProps): ReactElement | null {
-  const headingId = useId();
   if (!enabled) {
     return null;
   }
-  // The section root sits outside the boundary, so the error arm is the shared error state itself. The kicker
-  // stays with each arm because the settled one carries the card count. RESERVED per chat: the resync doorway
+  // The kicker sits outside the boundary so the heading names the section in every arm, the error arm included;
+  // that arm is the shared error state itself. RESERVED per chat: the resync doorway
   // below would otherwise jump when a later read lands, and the settled height is that chat's card count, so a
   // shared key would hand one room's box to another. `surface-box-store` never evicts, so each game chat this
   // device opens leaves one number behind; that is bounded by the rooms a person plays and costs bytes.
   return (
-    // A region named by its kicker. The error arm renders no kicker, so `aria-label` is the name that arm falls
-    // back to (an `aria-labelledby` that matches no element is skipped).
-    <Stack aria-label="Cards" aria-labelledby={headingId} data-slot="rpg-card-archive" role="region">
+    <Stack gap="field" data-slot="rpg-card-archive">
+      <Kicker>Cards</Kicker>
       <QueryBoundary
-        fallback={
-          <Stack gap="field">
-            <Kicker id={headingId}>Cards</Kicker>
-            <SkeletonRows count={ARCHIVE_PENDING_ROWS} />
-          </Stack>
-        }
+        fallback={<SkeletonRows count={ARCHIVE_PENDING_ROWS} />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="this game's cards" onRetry={retry} />}
         reserveKey={`rpg.cardArchive.${chatId}`}
       >
-        <ArchiveBody chatId={chatId} headingId={headingId} />
+        <ArchiveBody chatId={chatId} />
       </QueryBoundary>
     </Stack>
   );
 }
 
-function ArchiveBody({ chatId, headingId }: Pick<RpgSceneCardsProps, "chatId"> & { readonly headingId: string }): ReactElement {
+function ArchiveBody({ chatId }: Pick<RpgSceneCardsProps, "chatId">): ReactElement {
   const trpc = useTRPC();
   const [{ data: messages }, { data: chat }] = useSuspenseQueries({
     queries: [trpc.chat.listMessages.queryOptions({ chatId }), trpc.chat.getChat.queryOptions({ chatId })],
@@ -117,16 +111,11 @@ function ArchiveBody({ chatId, headingId }: Pick<RpgSceneCardsProps, "chatId"> &
   const [openKey, setOpenKey] = useState<string | null>(null);
   const cards = collectArchivedCards(messages.messages, { participants: chat.participants, viewerUserId: chat.viewerUserId }).toReversed();
   if (cards.length === 0) {
-    return (
-      <Stack gap="field">
-        <Kicker id={headingId}>Cards</Kicker>
-        <RpgDoorwayLine>No cards yet — the story crafts them, and they land here.</RpgDoorwayLine>
-      </Stack>
-    );
+    return <RpgDoorwayLine>No cards yet — the story crafts them, and they land here.</RpgDoorwayLine>;
   }
   return (
     <Stack gap="field">
-      <Kicker id={headingId}>Cards — {cards.length}</Kicker>
+      <Text voice="gloss">{cards.length} total</Text>
       {cards.map((card) => (
         <RpgCardRow key={card.key} card={card} onOpen={setOpenKey} />
       ))}

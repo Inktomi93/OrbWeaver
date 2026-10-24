@@ -68,9 +68,8 @@ test("a failed archive read renders the shared error state directly under the se
   const archive = page.locator(ARCHIVE);
   const error = archive.locator(':scope > [data-slot="query-error"]');
   await expect(error.getByRole("status")).toHaveText("Couldn't load this game's cards.");
-  await expect(archive.getByText("Cards", { exact: true })).toHaveCount(0);
-  await expect(archive).toHaveRole("region");
-  await expect(archive).toHaveAccessibleName(/\S/);
+  await expect(archive.getByRole("heading", { level: 3 })).toHaveCount(1);
+  await expect(archive).not.toHaveRole("region");
 
   failing = false;
   await error.getByRole("button", { name: "Retry", exact: true }).click();
@@ -261,7 +260,7 @@ test("a pending archive read shows the labelled skeleton, then the settled card 
   await expect(archive.locator('[aria-busy="true"]')).toBeVisible();
 
   messages.release(await room.messages());
-  await expect(archive.getByText("Cards — 1", { exact: true })).toBeVisible();
+  await expect(archive.getByText("1 total", { exact: true })).toBeVisible();
   await expect(archive.getByRole("button", { name: CARD_TITLE, exact: false })).toBeVisible();
   await expect(archive.locator('[aria-busy="true"]')).toHaveCount(0);
 });
@@ -277,7 +276,7 @@ test("a later archive read holds the box this device saw the archive settle at",
   const height = async (): Promise<number> => (await archive.boundingBox())?.height ?? Number.NaN;
 
   const first = await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
-  await expect(archive.getByText("Cards — 1", { exact: true })).toBeVisible();
+  await expect(archive.getByText("1 total", { exact: true })).toBeVisible();
   const settledHeight = await height();
   await first.unmount();
 
@@ -289,7 +288,7 @@ test("a later archive read holds the box this device saw the archive settle at",
   expect(await height()).toBeCloseTo(settledHeight, 0);
 
   later.release(settled);
-  await expect(archive.getByText("Cards — 1", { exact: true })).toBeVisible();
+  await expect(archive.getByText("1 total", { exact: true })).toBeVisible();
   expect(await height()).toBeCloseTo(settledHeight, 0);
 });
 
@@ -313,7 +312,7 @@ test("each chat reserves its own settled box and never another chat's", async ({
   const reserved = archive.locator("[data-tile-reserved]");
 
   const cardMount = await mount<typeof RpgSceneCardsStory>(STORY, { chatId: withCard.chatId });
-  await expect(archive.getByText("Cards — 1", { exact: true })).toBeVisible();
+  await expect(archive.getByText("1 total", { exact: true })).toBeVisible();
   const cardHeight = await height();
   await cardMount.unmount();
 
@@ -356,7 +355,7 @@ test("an archive with no cards yet renders the empty doorway under its label", a
 test.describe("at phone width with a coarse pointer", () => {
   test.use({ viewport: { width: PHONE_WIDTH, height: 900 }, hasTouch: true, isMobile: true });
 
-  test("the section is a region named by its heading and the card row is a touch-sized control with an older turn's date chip", async ({
+  test("the archive is a heading, not a region, and its card row is a touch-sized control stamped with an older turn's day and time", async ({
     corpus,
     mount,
     page,
@@ -375,15 +374,16 @@ test.describe("at phone width with a coarse pointer", () => {
     const row = archive.locator('[data-slot="rpg-card-row"]');
     await expect(row).toBeVisible();
 
-    const heading = archive.getByRole("heading", { level: 3 });
-    await expect(heading).toHaveCount(1);
-    // The heading names the region: the settled heading carries the count, which the fallback `aria-label` does not.
-    await expect(archive).toHaveRole("region");
-    await expect(archive).toHaveAccessibleName((await heading.textContent()) ?? "");
+    await expect(archive.getByRole("heading", { level: 3 })).toHaveCount(1);
+    await expect(archive).not.toHaveRole("region");
+    const kit = createTimeLib({ timeZone: UTC_TIME_ZONE });
+    const stamp = `${kit.formatMonthDay(origin.createdAt)}, ${kit.formatTime(origin.createdAt)}`;
     const chip = row.locator('time[data-slot="rpg-turn-ref"]');
-    await expect(chip).toHaveText(createTimeLib({ timeZone: UTC_TIME_ZONE }).formatDate(origin.createdAt));
+    await expect(chip).toHaveText(stamp);
     await expect(chip).toHaveAttribute("datetime", new Date(origin.createdAt).toISOString());
-    await expect(chip).not.toHaveAttribute("title", new RegExp(origin.id));
+    await expect(chip).toHaveAttribute("title", `Told ${kit.formatDateTime(origin.createdAt)}`);
+    // The row's name carries the stamp, so two cards from one earlier day differ to a screen reader too.
+    await expect(row).toHaveAccessibleName(`Open card: ${CARD_TITLE}, ${stamp}`);
 
     expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
     const touchTarget = await page.evaluate(() => {

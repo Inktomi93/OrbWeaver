@@ -10,6 +10,9 @@
 // overlay under [merge-clear]); a npc's TRACKED VALUES ride `patchActor` (the op door — an npc's
 // values live on the per-actor plane, which left the image contract in R1); goals ride `upsertQuest`. Beats
 // are a log (read-only by nature).
+//
+// LANDMARKS: Kicker sections are headings; the tab panel is the landmark. The context bracket already names each
+// tab panel a region, so a section here is never a region of its own.
 
 import type { RpgActorOp, RpgActorRef, RpgSnapshotState, RpgTrackerEntry, RpgTrackerView } from "@orb/contracts/rpg";
 import { clockTimeOfDay, RPG_TRACKER_VALUE_EMPTY, RPG_WEATHER_TYPES, TIME_OF_DAY_HOURS, trackerCeiling, trackerNumber } from "@orb/contracts/rpg";
@@ -17,7 +20,6 @@ import { Button } from "@orb/ui/button";
 import { Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
-import { useId } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { revealContextPanel } from "#state";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
@@ -288,13 +290,12 @@ function SceneResyncDoorway({ state }: { readonly state: RpgPanelState }): React
  *  (keyboard-reachable, named by its GoalLine text). The Quests tab opens with nothing highlighted, so the
  *  name never promises a specific quest; `title` says where the row goes. */
 function SceneGoals({ quests }: { readonly quests: RpgTrackerView["quests"] }): ReactElement | null {
-  const headingId = useId();
   if (quests.length === 0) {
     return null;
   }
   return (
-    <Stack gap="field" role="region" aria-labelledby={headingId}>
-      <Kicker id={headingId}>Goals</Kicker>
+    <Stack gap="field">
+      <Kicker>Goals</Kicker>
       {quests.map((quest) => {
         const total = quest.objectives.length;
         const filled = quest.objectives.filter((o) => o.completed).length;
@@ -327,15 +328,12 @@ function SceneGameTrackers({
    *  so the pin renders once beside the section label. `null` when unlocked/not-host. */
   readonly lockPin?: ReactNode;
 }): ReactElement | null {
-  const headingId = useId();
   if (trackers.length === 0) {
     return null;
   }
   return (
-    <Stack gap="field" role="region" aria-labelledby={headingId}>
-      <Kicker id={headingId} trailing={lockPin}>
-        Trackers
-      </Kicker>
+    <Stack gap="field">
+      <Kicker trailing={lockPin}>Trackers</Kicker>
       {trackers.map((entry, i) => (
         <MeterRow
           key={entry.def.key}
@@ -357,13 +355,12 @@ function SceneGameTrackers({
 }
 
 function SceneBeats({ beats }: { readonly beats: readonly string[] }): ReactElement | null {
-  const headingId = useId();
   if (beats.length === 0) {
     return null;
   }
   return (
-    <Stack gap="field" role="region" aria-labelledby={headingId}>
-      <Kicker id={headingId}>Just now</Kicker>
+    <Stack gap="field">
+      <Kicker>Just now</Kicker>
       {beats.map((beat, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: the rolling beat window renders plain BeatLine text; its slots hold no local state or actions.
         <BeatLine key={i}>{beat}</BeatLine>
