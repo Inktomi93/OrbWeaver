@@ -114,7 +114,7 @@ export type { ConfigFocus } from "./config-focus-store.ts";
 export { setConfigFocus, useConfigFocus } from "./config-focus-store.ts";
 export type { ConfigGroupId, ConfigShelf } from "./config-group-ids.ts";
 export { CONFIG_GROUP_IDS, CONFIG_SHELVES, MULTI_USER_CONFIG_SUB } from "./config-group-ids.ts";
-export { closeConfigGroup, setConfigGroupFoldOpen, useConfigGroupFoldOpen, useConfigGroupOpen } from "./config-group-open-store.ts";
+export { setConfigGroupFoldOpen, useConfigGroupFoldOpen, useConfigGroupOpen } from "./config-group-open-store.ts";
 export type {
   CollectionGroupDefinition,
   ConfigGroupBase,
@@ -130,6 +130,7 @@ export type {
 export { configSettingControlId, isCollectionGroup, isPlaceholderGroup, isTeachNone, rendersOwnBody } from "./config-group-registry.ts";
 export { formatConfigLink, parseConfigLink } from "./config-link.ts";
 export {
+  arriveAtConfigGroup,
   type ConfigVisibleSetting,
   clearActiveConfigGroup,
   getActiveConfigGroup,

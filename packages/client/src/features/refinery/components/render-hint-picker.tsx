@@ -8,7 +8,7 @@
 // `x-orb-ui` hint OBJECT at the textarea's cursor, so the author positions inside the schema node they
 // want to elevate and drops in a compiling, correctly-spelled hint rather than typing it freehand.
 //
-// Split out of `schema-editor-dialog.tsx` (component-size + form-factory-for-multifield gates, #73) — the
+// Split out of `schema-editor-dialog.tsx` (component size, #73) — the
 // hint-role state is self-contained here; the dialog owns only the JSON textarea ref + its setter.
 
 import type { RenderHintRole } from "@orb/contracts/refinery";

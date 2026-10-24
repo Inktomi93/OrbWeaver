@@ -1,6 +1,6 @@
 // Central invalidation seam: bus handlers call invalidate(event)/invalidateUser(event), mutations
 // route `invalidates` filters through invalidateFilters — nothing else calls invalidateQueries
-// directly (gate `no-inline-invalidate-outside-seam`).
+// directly (gate `orb/no-inline-invalidate-outside-seam`).
 //
 // The chat half ALSO APPLIES the event's `view` carrier into the room's message-list cache before it
 // invalidates (`applyCanonView`) — the refetch stays, but the row it will confirm is already correct.

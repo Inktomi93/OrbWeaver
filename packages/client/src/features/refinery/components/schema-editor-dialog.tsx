@@ -367,8 +367,7 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
         <Field label="Schema (JSON — the full vocabulary)">
           <Textarea onChange={(e): void => setSchemaText(e.target.value)} ref={schemaTextRef} rows={8} value={schemaText} />
         </Field>
-        {/* THE RENDER-HINT ROLE PICKER (#73) — split out (`render-hint-picker.tsx`, component-size +
-            form-factory-for-multifield gates): a typed source for the `x-orb-ui` role string, so an
+        {/* THE RENDER-HINT ROLE PICKER (#73) — split out (`render-hint-picker.tsx`, component size): a typed source for the `x-orb-ui` role string, so an
             author elevates a node by PICKING a vocabulary member instead of hand-typing one of 8 magic
             strings (a typo silently heals to "no hint applied" — render-plan.ts's own header). Insert
             drops the hint object at the JSON pane's cursor; the author positions inside the node they

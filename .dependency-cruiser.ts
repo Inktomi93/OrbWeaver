@@ -770,6 +770,20 @@ const CLIENT_BOUNDARIES = [
     to: { path: "^packages/ui/src/primitives/alert-dialog/" },
   },
   {
+    name: "client-tanstack-form-only-in-forms-editor",
+    comment: "One createFormHook instance owns TanStack Form; every other form goes through the editor factories.",
+    severity: "error",
+    from: { path: CLIENT, pathNot: `${CLIENT}forms/editor/` },
+    to: { path: "node_modules/@tanstack/(react-form|form-core)/" },
+  },
+  {
+    name: "client-forms-editor-front-door",
+    comment: "useAppForm and the bound fields stay behind forms/editor/index.ts, which exports the factories only.",
+    severity: "error",
+    from: { path: CLIENT, pathNot: `${CLIENT}forms/editor/` },
+    to: { path: `${CLIENT}forms/editor/`, pathNot: `${CLIENT}forms/editor/index\\.ts$` },
+  },
+  {
     name: "view-transition-fence",
     severity: "error",
     from: {

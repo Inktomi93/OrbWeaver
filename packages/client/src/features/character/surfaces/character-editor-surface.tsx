@@ -195,8 +195,8 @@ interface CharacterEditorFormProps {
  *  form handle it publishes to the CONTEXT inspector is always the current character's. */
 function CharacterEditorForm({ data, trpc, session, detailContributors, onRevealField }: CharacterEditorFormProps): ReactElement {
   // The session hands a widened AppForm surface with `reset` type-removed; the editor threads `form` into
-  // ~6 children typed against the full AppFormInstance, so widen once here (reset MISUSE is caught by the
-  // no-form-reset-in-autosave gate, not the type — the feature has zero `.reset(` call sites).
+  // ~6 children typed against the full AppFormInstance, so widen once here (the autosave type is what
+  // bans `reset`; the feature has zero `.reset(` call sites).
   const form = session.form as AppFormInstance<CharacterCardFormValues>;
 
   const surfaceRef = useRef<HTMLDivElement>(null);

@@ -1,7 +1,7 @@
 // The active-chat store: which chat is the CONTENT hero showing. Writers only call a module action;
 // readers are render-only (the composition reader in routes/app-root.tsx, or mirror readers like the
 // persona panel's "This chat" section that key a Query off the returned id). Subscribe-and-effect on
-// the pointer is banned (gate `no-effect-on-shared-selection`) — derive in render instead.
+// the pointer is banned (gate `orb/no-effect-on-shared-selection`) — derive in render instead.
 //
 // Also homes `NewChatIntent` — the creation-only parameters a launcher hands the picker (and the picker
 // hands `chat.startChat`). It is an INTENT, not state a room carries: once the row exists there is nothing

@@ -40,7 +40,7 @@
 // the door brings it back, with the band's trailing COUNT derived from the doorways it holds.
 //
 // NO PERSISTENCE, deliberately (the brief's fork, taken): the house device-local disclosure precedent
-// (`config-group-open-store`) is a whole persisted store + a `persistence-boundary` registration, and
+// (`config-group-open-store`) is a whole persisted store, and
 // what it would remember here is a glance at a list of things that do not exist yet — not a working
 // posture like "tags open, regex closed" on a roster you return to. Collapsed every boot IS the ruled
 // default, and re-opening costs one keypress.
