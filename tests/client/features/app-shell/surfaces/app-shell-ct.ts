@@ -14,6 +14,9 @@ export const SECTION_PROCEDURES = [
   "chat.countChats",
   "character.list",
   "character.count",
+  "character.get",
+  "tag.listPendingSuggestions",
+  "regex.listForCharacter",
   "rosterPreset.list",
   "discovery.home",
   "discovery.characterFacets",
@@ -150,6 +153,21 @@ export function resolvedLength(page: Page, expression: string): Promise<number> 
 export async function shellTracks(page: Page): Promise<readonly number[]> {
   const columns = await page.locator(".shell-grid").evaluate((element) => getComputedStyle(element).gridTemplateColumns);
   return columns.split(" ").map((track) => Number.parseFloat(track));
+}
+
+const TOUCH_DRAG_STEPS = 8;
+
+/** A finger drag through Chromium's real touch pipeline, so a touch-scroll region scrolls the way a phone scrolls it. */
+export async function touchDrag(page: Page, from: { x: number; y: number }, to: { x: number; y: number }): Promise<void> {
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [from] });
+  for (let step = 1; step <= TOUCH_DRAG_STEPS; step += 1) {
+    const x = from.x + ((to.x - from.x) * step) / TOUCH_DRAG_STEPS;
+    const y = from.y + ((to.y - from.y) * step) / TOUCH_DRAG_STEPS;
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y }] });
+  }
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await cdp.detach();
 }
 
 /** Dispatch one synthetic `k` keydown and report whether the shell cancelled its default. */
