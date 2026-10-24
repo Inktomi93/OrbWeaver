@@ -5,6 +5,7 @@
 import { themes } from "@orb/db";
 import { ensureSeedThemes, RETIRED_SEED_THEME_IDS, SEED_THEMES, THEME_HEARTH_ID, THEME_MOCHA_ID } from "@orb/server/domain/settings";
 import { expect, test } from "@orb/testkit/node";
+import { createTestLogger } from "@orb/testkit/node/composed";
 import { bootGrantFor } from "@orb/testkit/node/helpers";
 import { seedUser } from "@orb/testkit/node/rows";
 import { eq, inArray } from "drizzle-orm";
@@ -24,8 +25,8 @@ test("the boot root converges shipped palettes and retires shared rows without m
   ]);
   const ownedBefore = await db.select().from(themes).where(eq(themes.ownerId, owner.id)).orderBy(themes.id);
   clock.advance(10);
-  await ensureSeedThemes(bootGrantFor(db), clock.now);
-  await ensureSeedThemes(bootGrantFor(db), clock.now);
+  await ensureSeedThemes(bootGrantFor(db), clock.now, createTestLogger());
+  await ensureSeedThemes(bootGrantFor(db), clock.now, createTestLogger());
 
   expect(await db.select().from(themes).where(eq(themes.ownerId, owner.id)).orderBy(themes.id)).toEqual(ownedBefore);
   expect(await db.select().from(themes).where(eq(themes.id, sharedRetired))).toEqual([]);

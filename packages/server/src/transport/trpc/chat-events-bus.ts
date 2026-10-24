@@ -18,6 +18,7 @@
 
 import type { ChatLivePublish } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import { defineBusChannel } from "./bus-channel.ts";
 
@@ -26,7 +27,7 @@ import type { ChatEventsBus, ChatLiveEvent } from "./contract/live-buses.ts";
 const channelFor = (chatId: ChatId): string => `chat:${chatId}`;
 
 /** Create one graph-owned live channel; admission and durable writes remain at their existing callers. */
-export function createChatEventsBus(): ChatEventsBus {
+export function createChatEventsBus(logger: Logger): ChatEventsBus {
   // biome-ignore lint/nursery/useDisposables: the returned bus delegates disposal to this channel; local using would close it before graph subscribers start.
   const bus = defineBusChannel<ChatId, ChatLiveEvent>(channelFor, { firehose: true });
 
@@ -45,7 +46,7 @@ export function createChatEventsBus(): ChatEventsBus {
       } catch (err) {
         // The event is already durable. A callback-style observer cannot roll back that truth or make its
         // producer report failure; isolate and report the observer fault at the subscription boundary.
-        getLog().error({ err, chatId: entry.event.chatId, type: entry.event.type }, "chat live firehose listener failed after durable publish");
+        getLog(logger).error({ err, chatId: entry.event.chatId, type: entry.event.type }, "chat live firehose listener failed after durable publish");
       }
     });
   }

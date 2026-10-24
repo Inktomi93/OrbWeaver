@@ -5,7 +5,6 @@
 
 import { CONNECTION_OP_CODES, modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import { expect, test } from "@orb/testkit/node";
-import { processObservability } from "@orb/testkit/node/composed";
 import { sql } from "drizzle-orm";
 import { vi } from "vitest";
 
@@ -69,7 +68,7 @@ test("foreign malformed bytes still reach the mismatch event, never decoding or 
   await db.run(sql`update connection_bindings set connection_id = ${foreign.id} where id = ${binding.id}`);
   await db.run(sql`update user_connections set transport = '{' where id = ${foreign.id}`);
 
-  using security = vi.spyOn(processObservability.logger(), "warn");
+  using security = vi.spyOn(harness.logger, "warn");
   await expect(ownerCaller.connection.resolveChatCapability()).rejects.toThrow(`connection ${foreign.id} not found`);
   const mismatchEvents = (): (readonly unknown[])[] =>
     security.mock.calls.filter((call: readonly unknown[]) => {

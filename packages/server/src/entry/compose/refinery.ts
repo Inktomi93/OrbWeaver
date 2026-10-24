@@ -68,6 +68,7 @@ export function buildRefinery(deps: RefineryComposeDeps): RefineryCompose {
   return {
     refinery,
     refineryWorkloads: {
+      logger: deps.logger,
       roleClientsFor: deps.roleClientsFor,
       resolveUtilityPresetParams: deps.resolveUtilityPresetParams,
       resolveUserProse,

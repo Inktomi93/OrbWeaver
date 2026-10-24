@@ -43,6 +43,7 @@ import type { ResolvedTaskView, ResponseFormat, RoleClients } from "@orb/contrac
 import type { SideGenSampling } from "@orb/inference";
 import { ProviderError, resolveSideGenSampling, runStructuredTurn } from "@orb/inference";
 import { projectJsonSchema } from "@orb/kit/json-schema";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import type { AvatarAnalysis } from "../contract/results.ts";
 import { announceAvatarAnalysisSkip, avatarAnalysisUnservable, markAvatarAnalysisUnservable } from "../substrate/avatar-analysis-availability.ts";
@@ -92,7 +93,12 @@ export async function avatarAnalysisCallsModel(roleClients: RoleClients): Promis
  * `presetParams` is the owner's Utility-role preset params (D299). Pass `undefined` under task defaults or
  * when no preset context is available — the `caption` posture stands alone.
  */
-export async function analyzeAvatarImage(roleClients: RoleClients, bytes: Uint8Array, presetParams?: SideGenSampling | undefined): Promise<AvatarAnalysis> {
+export async function analyzeAvatarImage(
+  roleClients: RoleClients,
+  bytes: Uint8Array,
+  presetParams: SideGenSampling | undefined,
+  logger: Logger,
+): Promise<AvatarAnalysis> {
   // The CAPTION lens is a `structured` call WITH an image input (inference program §7.5-1): it names its task
   // and reads the vision requirement off the resolved capability — `accepts(cap, "input", "image")`.
   const resolved = await roleClients.resolved("structured");
@@ -107,7 +113,7 @@ export async function analyzeAvatarImage(roleClients: RoleClients, bytes: Uint8A
   }
   if (skipCause === "no-image-input") {
     if (announceAvatarAnalysisSkip(model)) {
-      getLog().warn(
+      getLog(logger).warn(
         { model },
         "embeddings indexer: the resolved summarize model declares no image input - avatar analysis skipped for this model (no provider call made)",
       );
@@ -128,7 +134,7 @@ export async function analyzeAvatarImage(roleClients: RoleClients, bytes: Uint8A
     // A validated-but-blank caption is still the skip signal, and shipping its facets without it would leave
     // a row the backfill pre-check reads as complete while the captioned lens has no text to embed.
     if (caption.trim().length === 0) {
-      getLog().warn({ model }, "embeddings indexer: avatar analysis returned an empty caption — asset skipped, will retry next sweep");
+      getLog(logger).warn({ model }, "embeddings indexer: avatar analysis returned an empty caption — asset skipped, will retry next sweep");
       return skipped(model);
     }
     return { caption, captionMeta: { model, ...facets } };
@@ -146,7 +152,7 @@ export async function analyzeAvatarImage(roleClients: RoleClients, bytes: Uint8A
     // between a diagnosable outage and a silent one, and it is the catch's OWNER under
     // `caught-failure-ownership`: a guarded early exit ahead of the governed log would leave the
     // model-unavailable arm an unproven absorb, because the walk credits the first top-level statement.
-    getLog().warn(
+    getLog(logger).warn(
       { model, err: error, unservable, latched },
       "embeddings indexer: avatar analysis failed — asset skipped, will retry next sweep (unservable=true means the summarize backend does not serve this model at all and analysis is now disabled for it until restart; point the summarize role at the model the engine serves)",
     );

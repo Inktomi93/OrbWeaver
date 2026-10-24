@@ -118,7 +118,7 @@ const tracingMiddleware = t.middleware(({ path, type, next }) =>
 // GATED ON THE CODE, not on `mapped === null`: an UNAUTHORIZED/FORBIDDEN/NOT_FOUND thrown by the gates above
 // is also un-mappable here (it is already a TRPCError, not a DomainError), and those are expected refusals
 // with their own `securityEvent` line — logging them at error would bury the real faults in 401 noise.
-const domainErrorMiddleware = t.middleware(async ({ path, type, next }) => {
+const domainErrorMiddleware = t.middleware(async ({ ctx, path, type, next }) => {
   const result = await next();
   if (!result.ok) {
     const mapped = classifyDomainError(result.error);
@@ -135,12 +135,12 @@ const domainErrorMiddleware = t.middleware(async ({ path, type, next }) => {
       // policies — keep them in step.
       const provider = providerFaultOf(mapped);
       if (provider !== null) {
-        getLog().warn({ ...provider.toLog(), event: "trpc.provider", path, type }, `trpc: provider failure on ${path} (${provider.kind})`);
+        getLog(ctx.logger).warn({ ...provider.toLog(), event: "trpc.provider", path, type }, `trpc: provider failure on ${path} (${provider.kind})`);
       }
       throw mapped;
     }
     if (result.error.code === "INTERNAL_SERVER_ERROR") {
-      getLog().error(
+      getLog(ctx.logger).error(
         { err: result.error.cause ?? result.error, event: "trpc.unhandled", path, type },
         `trpc: unmapped error on ${path} — surfaced to the caller as a 500`,
       );

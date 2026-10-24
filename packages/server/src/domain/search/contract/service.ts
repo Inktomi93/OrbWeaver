@@ -6,6 +6,7 @@ import type { ReadOnlyDb } from "@orb/db";
 import type { DocumentId, EmbedGenerationId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import type { EmbeddingConnectionSnapshot, ResolveEmbeddingConnection } from "#domain/embeddings";
+import type { Logger } from "#foundation/observability";
 import type { FieldIndexCache } from "./field-index.ts";
 import type {
   CorpusParams,
@@ -72,6 +73,7 @@ export interface ActiveQuerySpace {
 
 /** DI bundle the search verbs close over. Read-only (ReadOnlyDb — a write call is a tsc error). */
 export interface SearchContext {
+  readonly logger: Logger;
   readonly fieldIndex: Pick<FieldIndexCache, "fields" | "suggest">;
   readonly resolveViewerVisibility: ResolveViewerVisibility;
   readonly db: ReadOnlyDb;

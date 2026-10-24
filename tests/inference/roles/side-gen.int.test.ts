@@ -10,7 +10,6 @@ import { projectJsonSchema } from "@orb/kit/json-schema";
 import { createManualTimer } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { processObservability } from "@orb/testkit/node/composed";
 import type { RecordedRequest } from "@orb/testkit/node/helpers";
 import { openAiServer, recordRequest, SLEEP_PROBE_SUFFIX } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";
@@ -79,7 +78,7 @@ test("(1) an OpenRouter Claude summarize with no routing of its own is pinned to
 
 test("(2) an extras key the OpenRouter transport cannot take is named on the item's log, not dropped silently", async () => {
   await using root = await createRuntimeRoot({ providerFetch: openAiServer([], () => ({})) });
-  using warning = vi.spyOn(processObservability.logger(), "warn");
+  using warning = vi.spyOn(root.logger, "warn");
   const executor = root.app.runtime.executor;
   await executor.summarize({
     connection: await openRouterConnection(root, "summarize", "anthropic/claude-sonnet-5", { ["top_secret_knob"]: 1 }),
@@ -439,7 +438,7 @@ test("(7) agent-sdk summarize runs a preset's effort with thinking on, and drops
   await using edge = physicalSdkScenario({ frames: agentFrames("claude-opus-5") });
   const model = "claude-opus-5";
   await using root = await createRuntimeRoot({ sdkSpawn: edge.spawn });
-  using warning = vi.spyOn(processObservability.logger(), "warn");
+  using warning = vi.spyOn(root.logger, "warn");
   const executor = root.app.runtime.executor;
   const result = await executor.summarize({ connection: await agentConnection(root, "summarize", model), inputs: [ITEM], effort: "high", temperature: 0.5 });
   expect(result.items.map((item) => item.text)).toEqual(["a summary"]);

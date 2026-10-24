@@ -105,6 +105,6 @@ export async function reclaimInFlightOnBoot(args: BootReclaimArgs): Promise<Boot
     requeued: dispositions.filter((disposition) => disposition === "requeued").length,
     reaped: dispositions.filter((disposition) => disposition === "reaped").length,
   };
-  getLog().info(report, "workloads: boot reclaim of orphaned in-flight rows (resumable kinds re-queued, the rest reaped)");
+  getLog(args.logger).info(report, "workloads: boot reclaim of orphaned in-flight rows (resumable kinds re-queued, the rest reaped)");
   return report;
 }

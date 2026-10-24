@@ -37,6 +37,7 @@ import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { foreignLabelStops } from "@orb/kit/speaker-label";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import type { Logger } from "#foundation/observability";
 import { getLog, withRequestSpan } from "#foundation/observability";
 import type { ActiveTurnHandle, ActiveTurns } from "../contract/active-turns.ts";
 import type { ArbiterCandidate, AutoModeResult, SmartArbitrationResult, SpeakerCandidate, TranscriptLine } from "../contract/arbitration.ts";
@@ -550,6 +551,7 @@ async function loadTurnUserMacroInputs(
 }
 
 function buildTurnUserMacrosForTurn(args: {
+  readonly logger: Logger;
   readonly chatId: ChatId;
   readonly foreign: ForeignInputs;
   readonly prng: () => number;
@@ -570,7 +572,7 @@ function buildTurnUserMacrosForTurn(args: {
     prng: args.prng,
   });
   if (userMacros !== null && userMacros.rejected.length > 0) {
-    getLog().warn({ chatId: args.chatId, rejected: userMacros.rejected }, "chat: user macro(s) rejected at turn build");
+    getLog(args.logger).warn({ chatId: args.chatId, rejected: userMacros.rejected }, "chat: user macro(s) rejected at turn build");
   }
   return userMacros;
 }
@@ -764,6 +766,7 @@ async function buildTurnContext(
   // (`chats.user_macro_values`); read ONLY when macros are authored (no wasted read on a non-user-macro turn).
   const userMacroInputs = await loadTurnUserMacroInputs(ctx, args.chatId, args.runAsUserId, foreign.promptConfig.userMacros);
   const userMacros = buildTurnUserMacrosForTurn({
+    logger: ctx.logger,
     chatId: args.chatId,
     foreign,
     prng: deps.prng,

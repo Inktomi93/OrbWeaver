@@ -45,7 +45,7 @@ export function createCreate(ctx: SessionsContext): Pick<SessionsService, "creat
         entityId: sessionId,
       },
       now,
-      ctx.idSource,
+      { idSource: ctx.idSource, log: ctx.logger },
     );
     return { token, sessionId, expiresAt };
   }

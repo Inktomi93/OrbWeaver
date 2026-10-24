@@ -81,19 +81,10 @@ function buildAuditStatementIfPrecedingWrote(db: Db, entry: AuditEntry, createdA
 
 /**
  * Best-effort audit write. The audit channel must never break the primary channel: log + count + drop.
- * `db` and `createdAt` are injected — no ambient `Date.now()` here. Its failure lines go to the process
- * logger; {@link createAuditWiring} binds a root's instead, and item 1271 moves the remaining callers there.
+ * `db` and `createdAt` are injected — no ambient `Date.now()` here. A failure outside a request logs through
+ * the root's `sinks.log`.
  */
-export function logAudit(db: Db, entry: AuditEntry, createdAt: number, idSource: IdSource): Promise<void> {
-  return writeAudit(db, entry, createdAt, { idSource, log: undefined });
-}
-
-async function writeAudit(
-  db: Db,
-  entry: AuditEntry,
-  createdAt: number,
-  sinks: { readonly idSource: IdSource; readonly log: Logger | undefined },
-): Promise<void> {
+export async function logAudit(db: Db, entry: AuditEntry, createdAt: number, sinks: { readonly idSource: IdSource; readonly log: Logger }): Promise<void> {
   try {
     await db.insert(auditLogs).values(auditRow(entry, createdAt, sinks.idSource));
   } catch (err) {
@@ -122,7 +113,7 @@ async function writeAudit(
 export function createAuditWiring(handle: DatabaseHandle, idSource: IdSource, log: Logger): AuditWiring {
   const db = databaseForOwner(handle);
   return {
-    log: (entry, at) => writeAudit(db, entry, at, { idSource, log }),
+    log: (entry, at) => logAudit(db, entry, at, { idSource, log }),
     statement: (entry, at) => statementToken(buildAuditStatement(db, entry, at, idSource)),
     statementAfterWrite: (entry, at) => statementToken(buildAuditStatementIfPrecedingWrote(db, entry, at, idSource)),
   };

@@ -29,7 +29,7 @@ import type { ImportWorldInfoPort } from "#domain/world-info";
 import type { Env } from "#foundation/env/record";
 import { allowedHostsInput, resolveAllowedHosts } from "#foundation/env/record";
 import type { BugReportDiagnosticsRead, Logger, MemoryRecallInspector, RpgTraceInspector } from "#foundation/observability";
-import { observability, observabilityErrorHandler, registerDebugRoutes, securityEvent } from "#foundation/observability";
+import { createRequestObservability, registerDebugRoutes, securityEvent } from "#foundation/observability";
 import { versionIdentity } from "#foundation/version";
 import type { AllowedHostsReader, AuthConfig } from "#infra/auth";
 import { allowedHostsReader, createHostNotAllowedNotice, createPublicHttpMintNotice, hasCsrfHeader, ownerFallbackAllowed, requestTransport } from "#infra/auth";
@@ -128,18 +128,21 @@ function selectsTrpcJsonHandler(contentType: string | undefined): boolean {
  * stamps the id on `c.res.headers` AFTER `next()`, so the header rides EVERY response through this mount,
  * including the tRPC handler's own Response objects, not just the context-built refusals like this one).
  */
-const trpcJsonOnly: MiddlewareHandler = (c, next) => {
-  const contentType = c.req.header("content-type");
-  if (c.req.method !== "POST" || selectsTrpcJsonHandler(contentType)) {
-    return next();
-  }
-  securityEvent(
-    "trpc_content_type_rejected",
-    { contentType: contentType?.slice(0, REJECTED_CONTENT_TYPE_LOG_CHARS) ?? null, path: c.req.path },
-    "security: tRPC POST rejected — content-type is not application/json",
-  );
-  return Promise.resolve(c.body(null, UNSUPPORTED_MEDIA_TYPE));
-};
+function trpcJsonOnly(logger: Logger): MiddlewareHandler {
+  return (c, next) => {
+    const contentType = c.req.header("content-type");
+    if (c.req.method !== "POST" || selectsTrpcJsonHandler(contentType)) {
+      return next();
+    }
+    securityEvent(
+      "trpc_content_type_rejected",
+      { contentType: contentType?.slice(0, REJECTED_CONTENT_TYPE_LOG_CHARS) ?? null, path: c.req.path },
+      "security: tRPC POST rejected — content-type is not application/json",
+      logger,
+    );
+    return Promise.resolve(c.body(null, UNSUPPORTED_MEDIA_TYPE));
+  };
+}
 
 // The tRPC `responseMeta` hook: on a TOO_MANY_REQUESTS response, surface the throttle hint from the
 // `DomainRateLimitError` cause chain (the limiter/gate's only rate-limit throw) as `Retry-After` (seconds,
@@ -253,6 +256,7 @@ export interface AppDeps {
 export function createApp(deps: AppDeps): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
   const authMode = deps.authConfig.mode;
+  const { observability, observabilityErrorHandler } = createRequestObservability(deps.logger);
   // SECURITY: one list for every forwarded-header read below, so the client address, the Host check and the cookie
   // transport can never disagree about which peer is a trusted hop.
   const trustedProxies = trustedProxiesOf(deps.env);
@@ -310,7 +314,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     hostAllowlist({
       allowedHosts: allowedHostsReader(resolveAllowedHosts(allowedHostsInput(deps.env)), deps.relayHosts),
       inContainer: deps.inContainer,
-      notice: createHostNotAllowedNotice(deps.now, deps.inContainer),
+      notice: createHostNotAllowedNotice(deps.now, deps.inContainer, deps.logger),
       trustedProxies,
     }),
   );
@@ -355,7 +359,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
 
   // The CSRF content-type belt — the whole WHY lives on `trpcJsonOnly` above. FIRST of the two mount belts,
   // so a refused non-JSON POST is never buffered at all.
-  app.use(TRPC_MOUNT, trpcJsonOnly);
+  app.use(TRPC_MOUNT, trpcJsonOnly(deps.logger));
 
   // Cap tRPC JSON bodies (1 MiB) before the handler buffers them. Returns a bare 413 rather than throwing
   // an HTTPException (which the app's observability onError would flatten to a 500 — an ugly shape for a
@@ -447,7 +451,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     maxImageBytes: () => deps.services.settings.getEffectiveConfig().maxImageBytes,
     maxDatabankBytes: () => deps.services.settings.getEffectiveConfig().maxDatabankBytes,
   });
-  registerExport(app, { export: deps.exportService, registry: deps.portability });
+  registerExport(app, { logger: deps.logger, export: deps.exportService, registry: deps.portability });
   registerImportBundle(app, {
     workloads: deps.services.workloads,
     stagingDir: deps.importStagingDir,
@@ -455,6 +459,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   });
   registerImportChat(app, { registry: deps.portability, now: deps.now, settleImportMemory: deps.settleImportMemory });
   registerImportTree(app, {
+    logger: deps.logger,
     workloads: deps.services.workloads,
     persona: deps.services.persona,
     registry: deps.portability,
@@ -470,7 +475,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     sockets: { evictSession: (sessionId) => deps.sockets.evictSession(sessionId), evictUser: (userId) => deps.sockets.evictUser(userId) },
     now: deps.now,
     db: deps.db,
-    publicHttpMintNotice: createPublicHttpMintNotice(deps.now),
+    publicHttpMintNotice: createPublicHttpMintNotice(deps.now, deps.logger),
     resolveLoginLimit: () => deps.services.settings.getEffectiveConfig().rateLimits.login,
     discreetLogin,
     trustedProxies,
@@ -503,6 +508,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   registerJoin(plain, { multiHumanCapable });
 
   registerDebugRoutes(plain, {
+    log: deps.logger,
     env: deps.env,
     db: deps.db,
     appSettingRows: () => readGlobalSettings(deps.db),
@@ -533,7 +539,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
 
   // The SPA static-serve registers LAST — every route above wins by order; only unmatched non-/api GETs
   // reach the bundle/fallback. No bundle: prod boot-fatal (inside resolve), dev skipped (vite serves it).
-  const spaDistDir = resolveSpaDistDir({ distDir: deps.env.CLIENT_DIST_DIR, prod: deps.env.NODE_ENV === "production" });
+  const spaDistDir = resolveSpaDistDir({ distDir: deps.env.CLIENT_DIST_DIR, prod: deps.env.NODE_ENV === "production", logger: deps.logger });
   if (spaDistDir !== null) {
     registerSpa(plain, { distDir: spaDistDir });
   }

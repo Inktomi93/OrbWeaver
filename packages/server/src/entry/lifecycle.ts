@@ -37,7 +37,8 @@ import {
   resolveDiagnosticsPosture,
   resolveOwnerFallbackPeers,
 } from "#foundation/env";
-import { getLog, initTracing, superviseDetached, wrapLibSqlClient } from "#foundation/observability";
+import type { Logger } from "#foundation/observability";
+import { createDetachedSupervision, initTracing, wrapLibSqlClient } from "#foundation/observability";
 import { SERVER_INSTANCE_ID } from "#foundation/server-instance";
 import { versionIdentity } from "#foundation/version";
 import { createOwnerClaimCode, createPasswordHasher, oidcRedirectAllowlist } from "#infra/auth";
@@ -111,7 +112,7 @@ function listenApp(options: Parameters<typeof serveHttpServer>[0]): Promise<{ re
 }
 
 /** The log line for the boot start of a stored IP certificate choice; the controller logs what the order does next. */
-function logCertificateBootOutcome(log: ReturnType<typeof getLog>, outcome: CertificateBootOutcome): void {
+function logCertificateBootOutcome(log: Logger, outcome: CertificateBootOutcome): void {
   switch (outcome.kind) {
     case "not_configured":
       return;
@@ -132,7 +133,7 @@ function logCertificateBootOutcome(log: ReturnType<typeof getLog>, outcome: Cert
 }
 
 /** The log line for a boot-time or post-claim share start; the relay's own `up` line carries the link. */
-function logShareBootOutcome(log: ReturnType<typeof getLog>, outcome: ShareBootOutcome): void {
+function logShareBootOutcome(log: Logger, outcome: ShareBootOutcome): void {
   switch (outcome.kind) {
     case "started":
       log.info({ share: true, state: outcome.relay.state }, "share: SHARE_RELAY started the relay; its link is logged once the relay reports it");
@@ -173,6 +174,8 @@ function bootOwnerSeed(sessionSecret: string | null): BootOwnerSeed | null {
 
 /** The lifecycle handle `index.ts` drives: boot once, shut down once (idempotent). */
 export interface Lifecycle {
+  /** The production root's logger; the process entry reports a failed boot or shutdown through it. */
+  readonly logger: Logger;
   readonly boot: () => Promise<void>;
   readonly listeningAddress: () => Readonly<AddressInfo> | null;
   readonly shutdown: (options?: { readonly drainMs?: number }) => Promise<void>;
@@ -193,10 +196,11 @@ interface LifecycleOptions {
 
 /** Construct the lifecycle. Side-effect-free until `boot()` runs (so `index.ts` can wire signals first). */
 export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
-  const log = getLog();
   // The composition root constructs the clock it injects; remove when a platform seam supplies that clock instead.
   const now = (): number => Date.now();
   const seams = createProcessSeams();
+  const log = seams.logger;
+  const { superviseDetached } = createDetachedSupervision(log);
 
   let isShuttingDown = false;
   let shutdownCompletion: Promise<void> | undefined;
@@ -244,13 +248,13 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
 
     // Swap undici's global dispatcher for the private-IP-rejecting DNS lookup so every outbound fetch
     // below is address-gated before it can fire. No-op when EGRESS_FIREWALL=false.
-    installEgressFirewall({ ...seams.networkExecution, timers: seams.timers, buildConnector: seams.buildConnector, env: seams.env });
+    installEgressFirewall({ ...seams.networkExecution, timers: seams.timers, buildConnector: seams.buildConnector, env: seams.env, log });
 
     // The data layout FIRST, before anything opens a file under it: a legacy flat data dir is renamed into
     // the current tree (db/, backups/, secrets/, cache/ …) under a journal. Every path below reads the layout
     // the env resolved, so nothing here can open the old location.
     const reportKeyfile = keyfileReport(env.NODE_ENV);
-    await migrateDataLayout({ layout: env.DATA_LAYOUT, env });
+    await migrateDataLayout({ layout: env.DATA_LAYOUT, env, logger: log });
 
     // The boot secrets, phase one of two: the explicit env value, else the keyfile under `secrets/`. A
     // keyfile that does not exist yet is left ABSENT here — whether generating one is safe depends on the db
@@ -344,7 +348,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     const bootSessions = preparedOwner.sessions;
     const ownerId = preparedOwner.ownerId;
     const ownerClaimFile = join(env.DATA_LAYOUT.secrets, OWNER_CLAIM_URL_FILE_NAME);
-    const ownerClaim = removeOwnerClaimFileOnSpend(createOwnerClaimCode(), ownerClaimFile, seams.newOpaqueId);
+    const ownerClaim = removeOwnerClaimFileOnSpend(createOwnerClaimCode(), ownerClaimFile, seams.newOpaqueId, log);
     if (env.AUTH_MODE === "oidc") {
       await announceOwnerClaim({
         log,
@@ -451,8 +455,8 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // rides here because a user row may predate the connection table on this pre-launch box. It is half the
     // story — accounts minted after this point are seeded by the per-user op wired into the minting verbs
     // (#2481), not by a later boot.
-    await seedDefaultPreset({ db: wiringDb, now });
-    await seedThemes({ db: bootDb, now });
+    await seedDefaultPreset({ logger: seams.logger, db: wiringDb, now });
+    await seedThemes({ logger: seams.logger, db: bootDb, now });
     await seedLocalLightOnBoot({ logger: seams.logger, db: bootDb, now, idSource: seams.idSource, onEmbedSpaceBound: built.detachEmbedReindex });
     handOffBootOwnerSweeps(preparedOwner, built.detachEmbedReindex);
     // An owner whose stored generation no longer matches their binding (a release moved generation identity), or
@@ -505,7 +509,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
 
     await optimizeDb(db);
     const plannerDb = db;
-    stopPlannerMaintenance = startPlannerMaintenance(() => optimizeDb(plannerDb), seams.timers.interval);
+    stopPlannerMaintenance = startPlannerMaintenance(() => optimizeDb(plannerDb), seams.timers.interval, log);
     await reclaimLocksOnBoot({
       logger: seams.logger,
       db: bootDb,
@@ -714,5 +718,5 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     }
   }
 
-  return { boot, listeningAddress: (): Readonly<AddressInfo> | null => listenerAddress, shutdown };
+  return { logger: log, boot, listeningAddress: (): Readonly<AddressInfo> | null => listenerAddress, shutdown };
 }

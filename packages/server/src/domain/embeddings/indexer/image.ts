@@ -72,7 +72,7 @@ async function indexAsset(
   const { generation, ownerId, space } = resolved;
   const model = space.model;
   if (space.via === "embed") {
-    reportImageSpaceDegrade(ownerId, model, space.degraded);
+    reportImageSpaceDegrade(ownerId, model, space.degraded, ctx.logger);
   }
   const hash = contentHash(bytes);
   const rawCurrent = space.via === "embed" || (await existingImageHash(ctx.db, assetId, "image-raw", generation.id)) === hash;

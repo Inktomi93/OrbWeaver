@@ -16,6 +16,7 @@
 
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { ChatId, PluginId } from "@orb/kit/ids";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import type { PluginHostOps } from "../contract/ops.ts";
 import type { PluginSurfaceStateStore } from "../contract/service.ts";
@@ -60,9 +61,9 @@ function stateKey(pluginId: PluginId, surfaceId: string, chatId: ChatId | null):
  *  suggestion-store precedent), shared by the write op + the read verb + the deactivate sweep. The
  *  {@link PluginSurfaceStateStore} type is homed in `contract/service.ts` (the SnippetGate/NotifyFloor
  *  convention: the seam TYPE lives in contract, the factory in substrate). */
-export function createPluginSurfaceStateStore(): PluginSurfaceStateStore {
+export function createPluginSurfaceStateStore(logger: Logger): PluginSurfaceStateStore {
   const states = new Map<string, Record<string, unknown>>();
-  const log = getLog();
+  const log = getLog(logger);
   return {
     set: (pluginId, surfaceId, chatId, state): void => {
       if (utf8ByteLength(JSON.stringify(state)) > SURFACE_STATE_MAX_BYTES) {

@@ -454,7 +454,7 @@ async function configuredOidcFor(
   const lifetime = construction.move();
   return {
     ...oidc,
-    ownerClaim: removeOwnerClaimFileOnSpend(oidc.ownerClaim, ownerClaimFile, app.newOpaqueId),
+    ownerClaim: removeOwnerClaimFileOnSpend(oidc.ownerClaim, ownerClaimFile, app.newOpaqueId, logger),
     ownerClaimFile,
     [Symbol.asyncDispose]: () => lifetime.disposeAsync(),
   };

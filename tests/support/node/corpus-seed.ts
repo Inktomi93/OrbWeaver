@@ -183,7 +183,7 @@ export async function seedCorpusLibraries(root: ServerHarness): Promise<SeededCo
   });
   let source = (await caller.preset.list()).find((row) => row.isSystemDefault);
   if (source === undefined) {
-    await seedDefaultPreset({ db: databaseHandle(root.db), now: root.clock.now });
+    await seedDefaultPreset({ db: databaseHandle(root.db), logger: root.logger, now: root.clock.now });
     source = (await caller.preset.list()).find((row) => row.isSystemDefault);
   }
   if (source === undefined) {
@@ -438,8 +438,8 @@ interface SyntheticCorpus {
 /** Uses the caller's graph; raw execution and its lifetime remain owned by the actual server harness. */
 export async function seedSyntheticCorpus(root: ServerHarness, options: SeedSyntheticCorpusOptions): Promise<SyntheticCorpus> {
   const owner = await root.principalFor(root.ownerId);
-  await seedDefaultPreset({ db: databaseHandle(root.db), now: root.clock.now });
-  await seedThemes({ db: bootGrantFor(root.db), now: root.clock.now });
+  await seedDefaultPreset({ logger: root.logger, db: databaseHandle(root.db), now: root.clock.now });
+  await seedThemes({ logger: root.logger, db: bootGrantFor(root.db), now: root.clock.now });
   const seedLedger = await seedUserContentLedgerRows(root, owner);
 
   // The demo's optional CLI branches cannot certify a corpus whose required boot content is missing.

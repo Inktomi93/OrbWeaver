@@ -101,7 +101,7 @@ test("the callback that spends the code removes the claim file; a redeem that sp
   await using root = await createServerHarness();
   await using oidc = await configuredClaim(root);
   await using file = await claimFile();
-  const spending = removeOwnerClaimFileOnSpend(oidc.ownerClaim, file.path, root.app.newOpaqueId);
+  const spending = removeOwnerClaimFileOnSpend(oidc.ownerClaim, file.path, root.app.newOpaqueId, root.logger);
   const unclaimed: UserId | undefined = undefined;
   await announceOwnerClaim({
     log: recordingLog().log,

@@ -3,15 +3,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { deriveRegexTierFlags } from "@orb/kit/regex";
 import { expect, test } from "@orb/testkit/node";
-import {
-  createServerHarness,
-  processObservability,
-  readRoomCanon,
-  seedCharacter,
-  seedGlobalRegexScript,
-  seedRegexScript,
-  seedTranscript,
-} from "@orb/testkit/node/composed";
+import { createServerHarness, readRoomCanon, seedCharacter, seedGlobalRegexScript, seedRegexScript, seedTranscript } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
 
 // A catastrophic-backtracking pattern: the host's node:vm watchdog (or the kit's complexity guard) refuses it.
@@ -45,7 +37,7 @@ test("a runOnEdit script that fails on an edit leaves the content unchanged and 
   if (slot === undefined) {
     throw new Error("the transcript import wrote no assistant slot");
   }
-  const warnSpy = vi.spyOn(processObservability.logger(), "warn").mockImplementation(() => undefined);
+  const warnSpy = vi.spyOn(root.logger, "warn").mockImplementation(() => undefined);
 
   try {
     const edited = await root.services.chat.editMessage({ principal: host, chatId, messageId: slot.id, content: RUNAWAY_TEXT });

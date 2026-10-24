@@ -2,6 +2,7 @@
 import type { LiveOnlyChatBusEvent, RoomEntityKind } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { ChatId, RegexScriptId } from "@orb/kit/ids";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import type { RoomEntityRefresh, RoomEntityRefreshDeps } from "../contract/room-reach.ts";
 
@@ -15,9 +16,10 @@ async function captureRooms(
   resolve: () => Promise<ChatId[]>,
   entity: RoomEntityKind,
   emitRoomEvent: (event: LiveOnlyChatBusEvent) => void,
+  logger: Logger,
 ): Promise<() => void> {
   const rooms = await resolve().catch((err: unknown): ChatId[] => {
-    getLog().warn({ err, entity }, "room-reach: pre-write delete capture failed; the delete proceeds unannounced");
+    getLog(logger).warn({ err, entity }, "room-reach: pre-write delete capture failed; the delete proceeds unannounced");
     return [];
   });
   return (): void => {
@@ -29,9 +31,10 @@ async function captureRegexScriptRooms(
   resolve: RoomEntityRefreshDeps["resolveRegexScripts"],
   scriptIds: readonly RegexScriptId[],
   emitRoomEvent: (event: LiveOnlyChatBusEvent) => void,
+  logger: Logger,
 ): Promise<(deleted: readonly RegexScriptId[]) => void> {
   const byScript = await resolve(scriptIds).catch((err: unknown): Map<RegexScriptId, ChatId[]> => {
-    getLog().warn({ err, entity: "regex" }, "room-reach: pre-write delete capture failed; the delete proceeds unannounced");
+    getLog(logger).warn({ err, entity: "regex" }, "room-reach: pre-write delete capture failed; the delete proceeds unannounced");
     return new Map();
   });
   return (deleted): void => {
@@ -43,9 +46,9 @@ async function captureRegexScriptRooms(
   };
 }
 
-function resolveRoomsOrNone(resolve: () => Promise<ChatId[]>, key: string): Promise<ChatId[]> {
+function resolveRoomsOrNone(resolve: () => Promise<ChatId[]>, key: string, logger: Logger): Promise<ChatId[]> {
   return resolve().catch((err: unknown): ChatId[] => {
-    getLog().warn({ err, entity: "databank", key }, "room-reach: databank reach lookup failed; the write proceeds unannounced");
+    getLog(logger).warn({ err, entity: "databank", key }, "room-reach: databank reach lookup failed; the write proceeds unannounced");
     return [];
   });
 }
@@ -88,10 +91,10 @@ export function createRoomEntityRefresh(deps: RoomEntityRefreshDeps): RoomEntity
   return {
     fanEntityEvent,
     deleteReachCapture: {
-      persona: (personaId) => captureRooms(() => deps.resolve.persona(personaId), "persona", emitRoomEvent),
-      "world-info": (bookId) => captureRooms(() => deps.resolve["world-info"](bookId), "world-info", emitRoomEvent),
-      regex: (scriptIds) => captureRegexScriptRooms(deps.resolveRegexScripts, scriptIds, emitRoomEvent),
-      databank: (documentId) => captureRooms(() => deps.resolve.databank(documentId), "databank", emitRoomEvent),
+      persona: (personaId) => captureRooms(() => deps.resolve.persona(personaId), "persona", emitRoomEvent, deps.logger),
+      "world-info": (bookId) => captureRooms(() => deps.resolve["world-info"](bookId), "world-info", emitRoomEvent, deps.logger),
+      regex: (scriptIds) => captureRegexScriptRooms(deps.resolveRegexScripts, scriptIds, emitRoomEvent, deps.logger),
+      databank: (documentId) => captureRooms(() => deps.resolve.databank(documentId), "databank", emitRoomEvent, deps.logger),
     },
     fanRegexScriptRooms: async (scriptId): Promise<void> => {
       const rooms = await deps.resolve.regex(scriptId).catch((err: unknown): ChatId[] => {
@@ -101,13 +104,13 @@ export function createRoomEntityRefresh(deps: RoomEntityRefreshDeps): RoomEntity
       fanTo(emitRoomEvent, "regex", rooms);
     },
     fanDatabankDocumentRooms: async (documentId): Promise<void> => {
-      fanTo(emitRoomEvent, "databank", await resolveRoomsOrNone(() => deps.resolve.databank(documentId), "document"));
+      fanTo(emitRoomEvent, "databank", await resolveRoomsOrNone(() => deps.resolve.databank(documentId), "document", deps.logger));
     },
     fanDatabankCharacterRooms: async (characterId): Promise<void> => {
-      fanTo(emitRoomEvent, "databank", await resolveRoomsOrNone(() => deps.resolve.character(characterId), "character"));
+      fanTo(emitRoomEvent, "databank", await resolveRoomsOrNone(() => deps.resolve.character(characterId), "character", deps.logger));
     },
     fanDatabankMemberRooms: async (ownerId): Promise<void> => {
-      fanTo(emitRoomEvent, "databank", await resolveRoomsOrNone(() => deps.resolveMemberRooms(ownerId), "member"));
+      fanTo(emitRoomEvent, "databank", await resolveRoomsOrNone(() => deps.resolveMemberRooms(ownerId), "member", deps.logger));
     },
   };
 }

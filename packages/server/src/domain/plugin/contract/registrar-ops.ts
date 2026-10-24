@@ -2,9 +2,11 @@ import type { PluginSubscriberRegistry } from "@orb/contracts/automation";
 import type { PromptTransform } from "@orb/contracts/chat";
 import type { ResolvePluginChatAuthority } from "@orb/contracts/plugin";
 import type { ToolUseService } from "#domain/tool-use";
+import type { Logger } from "#foundation/observability";
 import type { PluginHostOps } from "./ops.ts";
 
 export interface PluginRegistrarDeps {
+  readonly logger: Logger;
   readonly toolUse: Pick<ToolUseService, "registerPluginTool">;
   readonly promptTransforms: { readonly register: (transform: PromptTransform) => void; readonly unregister: (id: string) => void };
   readonly pluginSubscribers: PluginSubscriberRegistry;

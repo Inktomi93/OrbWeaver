@@ -628,6 +628,7 @@ export const chatRouter = t.router({
     const { lastEventId: _resume, ...params } = input;
     return withSubscriptionErrors(
       trackedImpersonationDeltas(ctx.services.chat.impersonateStream({ principal: ctx.auth, ...params, signal: signal ?? new AbortController().signal })),
+      ctx.logger,
     );
   }),
   generate: authedProcedure

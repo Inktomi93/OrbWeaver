@@ -159,7 +159,10 @@ async function notifyAutoDisabled(rc: RuleCtx): Promise<void> {
       message,
     });
   } catch (err) {
-    getLog().warn({ err: err instanceof Error ? err.message : String(err), ruleId: rc.rule.id }, "automation: auto-disable author notice failed (isolated)");
+    getLog(rc.ctx.logger).warn(
+      { err: err instanceof Error ? err.message : String(err), ruleId: rc.rule.id },
+      "automation: auto-disable author notice failed (isolated)",
+    );
   }
 }
 
@@ -474,7 +477,7 @@ async function dispatchRule(rc: RuleCtx, actions: readonly AutomationAction[]): 
     armsResult = await runArms(rc.ctx, actions, frame);
   } catch (err) {
     // A throwing arm (a bad op / db fault mid-rule) — treat as `action_error`.
-    getLog().warn({ err: err instanceof Error ? err.message : String(err), ruleId: rc.rule.id }, "automation dispatch: arm threw (isolated)");
+    getLog(rc.ctx.logger).warn({ err: err instanceof Error ? err.message : String(err), ruleId: rc.rule.id }, "automation dispatch: arm threw (isolated)");
     armsResult = { detail: { error: err instanceof Error ? err.message : String(err) }, suggested: false, paused: false };
   }
   return finalizeRule(rc, armsResult, reservationId);

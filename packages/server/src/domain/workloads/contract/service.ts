@@ -118,6 +118,7 @@ export interface BootReclaimReport {
 
 /** The boot reclaim's args; `contributions` supplies each kind's declared `resume` policy. */
 export interface BootReclaimArgs {
+  readonly logger: Logger;
   readonly db: Db;
   readonly contributions: WorkloadContributions;
   readonly now: number;
@@ -135,7 +136,7 @@ export interface WorkloadService extends WorkloadScheduleService {
   readonly list: (params: ListWorkloadsParams) => Promise<readonly WorkloadRowAnyKind[]>;
 }
 
-export type NextRunnableWorkloadDeps = Pick<WorkloadRunnerDeps, "db" | "contributions"> & Pick<WorkloadServiceContext, "emitEvent">;
+export type NextRunnableWorkloadDeps = Pick<WorkloadRunnerDeps, "db" | "contributions" | "logger"> & Pick<WorkloadServiceContext, "emitEvent">;
 export type NextRunnableWorkload = (now: number, lane: WorkloadLane) => Promise<WorkloadRunnableRow | null>;
 
 export type WorkloadRunnerAssemblyDeps = DbAssemblyInput<WorkloadRunnerDeps>;

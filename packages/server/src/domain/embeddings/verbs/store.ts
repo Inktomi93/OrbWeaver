@@ -111,6 +111,7 @@ async function storeCardText(ctx: EmbeddingsContext, p: CardTextStoreParams, gen
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
   assertSpace(embedded.model, generation.dims, vector);
   const landed = await upsertCharacterEmbedding(ctx.db, {
+    logger: ctx.logger,
     id: ctx.newCharacterEmbeddingId(),
     characterId: p.characterId,
     embedding: vector,
@@ -206,6 +207,7 @@ async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | Image
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
   assertSpace(embedded.model, generation.dims, vector);
   const landed = await upsertImageEmbedding(ctx.db, {
+    logger: ctx.logger,
     ownerId: p.ownerId,
     id: ctx.newImageEmbeddingId(),
     assetId: p.assetId,
@@ -257,6 +259,7 @@ async function storeDigest(ctx: EmbeddingsContext, p: DigestStoreParams): Promis
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
   assertSpace(embedded.model, generation.dims, vector);
   const landed = await upsertChatDigest(ctx.db, {
+    logger: ctx.logger,
     id: ctx.newChatDigestId(),
     chatId: p.chatId,
     scopedCharacterId: p.scopedCharacterId,
@@ -308,6 +311,7 @@ async function storeChunk(ctx: EmbeddingsContext, p: DocumentChunkStoreParams): 
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
   assertSpace(embedded.model, generation.dims, vector);
   const landed = await upsertDocumentChunk(ctx.db, {
+    logger: ctx.logger,
     id: ctx.newDocumentChunkId(),
     documentId: p.fkRefs.documentId,
     chunkIdx: p.fkRefs.chunkIdx,

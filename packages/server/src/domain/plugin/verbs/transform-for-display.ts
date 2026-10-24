@@ -108,7 +108,12 @@ export function createTransformForDisplay(ctx: PluginContext, registry: PluginRe
       const argsJson = JSON.stringify({ text: current, env: { chatId, messageId } });
       const next = await applyBounded(step.invoke, step.transform, argsJson, ctx.scheduleTimeout);
       if ("skip" in next && next.skip === "deadline") {
-        logPluginFailure(step.slug, "display-deadline", `display transform '${step.transform.name}' exceeded ${PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS}ms`);
+        logPluginFailure(
+          step.slug,
+          "display-deadline",
+          `display transform '${step.transform.name}' exceeded ${PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS}ms`,
+          ctx.logger,
+        );
         return foldFrom(index + 1, current);
       }
       return foldFrom(index + 1, "text" in next ? next.text : current);

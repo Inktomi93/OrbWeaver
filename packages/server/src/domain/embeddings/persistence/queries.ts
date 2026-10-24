@@ -41,8 +41,8 @@ import type {
 import { castId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
-
 import type { HubScoreUpdate, VectorTable } from "../contract/params.ts";
 import type { ExistingCaptionedRow } from "../contract/results.ts";
 
@@ -69,11 +69,11 @@ function retiredGeneration(generationId: EmbedGenerationId): SQL {
 }
 
 /** Whether a guarded upsert's row survived its batch. A refused late write is the expected end of a race. */
-function landed(table: VectorTable, generationId: EmbedGenerationId, refused: readonly unknown[]): boolean {
+function landed(table: VectorTable, generationId: EmbedGenerationId, refused: readonly unknown[], logger: Logger): boolean {
   if (refused.length === 0) {
     return true;
   }
-  getLog().debug({ table, generationId }, "embeddings store: a write for a generation that is no longer the target was refused");
+  getLog(logger).debug({ table, generationId }, "embeddings store: a write for a generation that is no longer the target was refused");
   return false;
 }
 
@@ -153,6 +153,7 @@ export async function insertImageSkip(db: Db, input: InsertImageSkipInput): Prom
 
 /** The persistence-internal arg bundle for {@link upsertCharacterEmbedding} (file-local). */
 interface UpsertCharacterInput {
+  readonly logger: Logger;
   readonly id: CharacterEmbeddingId;
   readonly characterId: CharacterId;
   readonly embedding: Float32Array;
@@ -198,11 +199,12 @@ export async function upsertCharacterEmbedding(db: Db, input: UpsertCharacterInp
     )
     .returning({ id: characterEmbeddings.id });
   const [, refused] = await db.batch([upsert, refuse]);
-  return landed("character_embeddings", input.generationId, refused);
+  return landed("character_embeddings", input.generationId, refused, input.logger);
 }
 
 /** The persistence-internal arg bundle for {@link upsertImageEmbedding} (file-local). */
 interface UpsertImageInput {
+  readonly logger: Logger;
   readonly ownerId: UserId;
   readonly id: ImageEmbeddingId;
   readonly assetId: AssetId;
@@ -268,7 +270,7 @@ export async function upsertImageEmbedding(db: Db, input: UpsertImageInput): Pro
     )
     .returning({ id: imageEmbeddings.id });
   const [written, refused] = await db.batch([upsert, refuse]);
-  return written.length > 0 && landed("image_embeddings", input.generationId, refused);
+  return written.length > 0 && landed("image_embeddings", input.generationId, refused, input.logger);
 }
 
 /** The stored `content_hash` for a chat segment CHUNK `(chatId, blockIdx, chunkIdx, model)`, or `undefined`
@@ -320,6 +322,7 @@ export async function existingDigestHash(
 
 /** The persistence-internal arg bundle for {@link upsertChatSegment} (file-local — types-in-contract). */
 interface UpsertSegmentInput {
+  readonly logger: Logger;
   readonly id: ChatSegmentId;
   readonly chatId: ChatId;
   readonly blockIdx: number;
@@ -382,11 +385,12 @@ export async function upsertChatSegment(db: Db, input: UpsertSegmentInput): Prom
     )
     .returning({ id: chatSegments.id });
   const [, refused] = await db.batch([upsert, refuse]);
-  return landed("chat_segments", input.generationId, refused);
+  return landed("chat_segments", input.generationId, refused, input.logger);
 }
 
 /** The persistence-internal arg bundle for {@link upsertChatDigest} (file-local). */
 interface UpsertDigestInput {
+  readonly logger: Logger;
   readonly id: ChatDigestId;
   readonly chatId: ChatId;
   readonly scopedCharacterId: CharacterId;
@@ -473,7 +477,7 @@ export async function upsertChatDigest(db: Db, input: UpsertDigestInput): Promis
     .returning({ id: chatDigests.id });
   statements.push(batchStmt(refuse));
   const results = await db.batch(batchMany(statements));
-  return landed("chat_digests", input.generationId, results.at(-1) ?? []);
+  return landed("chat_digests", input.generationId, results.at(-1) ?? [], input.logger);
 }
 
 /** The stored `content_hash` for a document chunk `(documentId, chunkIdx, model)`, or `undefined` when no row
@@ -525,6 +529,7 @@ export async function countDocumentChunksByOwner(db: Db, ownerId: UserId, model:
 
 /** The persistence-internal arg bundle for {@link upsertDocumentChunk} (file-local). */
 interface UpsertDocumentChunkInput {
+  readonly logger: Logger;
   readonly id: DocumentChunkId;
   readonly documentId: DocumentId;
   readonly chunkIdx: number;
@@ -583,7 +588,7 @@ export async function upsertDocumentChunk(db: Db, input: UpsertDocumentChunkInpu
     )
     .returning({ id: documentChunks.id });
   const [, refused] = await db.batch([upsert, refuse]);
-  return landed("document_chunks", input.generationId, refused);
+  return landed("document_chunks", input.generationId, refused, input.logger);
 }
 
 function assertNever(value: never): never {

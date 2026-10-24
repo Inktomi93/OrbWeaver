@@ -37,7 +37,7 @@ for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"] as const) {
         process.exit(0);
       })
       .catch((err: unknown) => {
-        getLog().error({ err, signal }, "entry: shutdown failed — exiting non-zero");
+        getLog(lifecycle.logger).error({ err, signal }, "entry: shutdown failed — exiting non-zero");
         process.exit(EXIT_BOOT_FAILURE);
       });
   });
@@ -45,6 +45,6 @@ for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"] as const) {
 
 // owned: the handler logs through getLog and exits non-zero; getLog is imported after the env parse, where this policy cannot resolve it as the logger. Ends if getLog returns to a static import.
 lifecycle.boot().catch((err: unknown) => {
-  getLog().error({ err }, "entry: boot failed — exiting");
+  getLog(lifecycle.logger).error({ err }, "entry: boot failed — exiting");
   process.exit(EXIT_BOOT_FAILURE);
 });

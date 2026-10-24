@@ -39,6 +39,7 @@ import type { Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { isOwner } from "#domain/admin";
 import type { SessionsService, UserPrincipalFields } from "#domain/sessions";
+import type { Logger } from "#foundation/observability";
 import type { AllowedHostsReader, AuthConfig, ForwardJwtVerifier, IdentityResolution, OidcTransactionStore, RelayedFallbackNotice } from "#infra/auth";
 import { hasCsrfHeader, readRequestCookie, resolve, selectSignedForwardJwt, sessionCookieFor } from "#infra/auth";
 import { captureUserRole } from "#primitives/role-data";
@@ -49,6 +50,7 @@ import { mintPrincipal } from "./principal-mint.ts";
  *  parsed env record). `verifyForwardJwt`/`oidcStore` are the ports the SSO paths need; absent ⇒ that layer is
  *  inert (fail-closed). */
 export interface AuthSeamDeps {
+  readonly logger: Logger;
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
   readonly sessions: SessionsService;
   readonly verifyForwardJwt?: ForwardJwtVerifier;
@@ -360,6 +362,7 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
 
     const res = await resolve(headers, {
       config,
+      log: deps.logger,
       ...(deps.verifyForwardJwt !== undefined && { verifyForwardJwt: deps.verifyForwardJwt }),
       ...(deps.oidcStore !== undefined && { oidcStore: deps.oidcStore }),
       ...(deps.relayedFallbackNotice !== undefined && { relayedFallbackNotice: deps.relayedFallbackNotice }),

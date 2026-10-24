@@ -1,7 +1,7 @@
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
 import { admitsHandle } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
-
+import type { Logger } from "#foundation/observability";
 import { getLog, groupsLogFields, securityEvent } from "#foundation/observability";
 import { captureUserRole } from "#primitives/role-data";
 import type { ProvisionIdentityOptions } from "../contract/params.ts";
@@ -358,8 +358,8 @@ async function bindOwnerSubject(ctx: SessionsContext, owner: ProvisionCandidate,
 }
 
 /** The owner singleton downgrade (D17: exactly one owner) is decided pure; the warn names the kept owner. */
-function reportOwnerSingletonDowngrade(identity: ResolvedIdentity, ownerId: UserId | undefined): void {
-  getLog().warn(
+function reportOwnerSingletonDowngrade(identity: ResolvedIdentity, ownerId: UserId | undefined, logger: Logger): void {
+  getLog(logger).warn(
     { handle: identity.handle, externalId: identity.externalId, ...groupsLogFields(identity.groups), existingOwnerId: ownerId },
     "user: owner policy matched but an owner already exists (D17: exactly one owner) — provisioning as `user`; grant admin via setRole",
   );
@@ -382,7 +382,7 @@ function reportOwnerSingletonDowngrade(identity: ResolvedIdentity, ownerId: User
  * OBSERVABILITY ONLY — the login proceeds byte-identically. Widening the guard to refuse null-subject logins
  * would break `forward-header`, where null is the normal shape (again, the scope note).
  */
-function reportNullSubjectOnBoundRow(existing: ProvisionCandidate | undefined, identity: ResolvedIdentity): void {
+function reportNullSubjectOnBoundRow(existing: ProvisionCandidate | undefined, identity: ResolvedIdentity, logger: Logger): void {
   if (identity.externalId !== null || existing === undefined || existing.externalId === null) {
     return;
   }
@@ -390,6 +390,7 @@ function reportNullSubjectOnBoundRow(existing: ProvisionCandidate | undefined, i
     "sso_null_subject_on_bound_row",
     { handle: identity.handle, userId: existing.id },
     "security: a login carrying NO stable subject matched by HANDLE onto a row already bound to one — the bind-once account-takeover guard cannot evaluate this login, so the handle alone authorizes the row; expected under forward-header (the proxy is the identity authority), a MISCONFIGURATION under oidc (check OIDC_UID_CLAIM)",
+    logger,
   );
 }
 
@@ -415,8 +416,8 @@ function reportNullSubjectOnBoundRow(existing: ProvisionCandidate | undefined, i
  * refusal warns with the operator's next action (link via B5) and returns the `account-exists` deny the
  * callback maps to a DISTINCT authError. No row is created or updated.
  */
-function denyAccountExists(identity: ResolvedIdentity, by: "handle" | "email"): ProvisionResult {
-  getLog().warn(
+function denyAccountExists(identity: ResolvedIdentity, by: "handle" | "email", logger: Logger): ProvisionResult {
+  getLog(logger).warn(
     { handle: identity.handle, externalId: identity.externalId, collision: by },
     "user: SSO login refused — this identity collides with an EXISTING account (mode-switch orphan guard, MS-W1); refusing to auto-link (W1 takeover) or mint a duplicate — an admin must link the row to this stable subject via admin.linkSsoIdentity (B5)",
   );
@@ -425,10 +426,10 @@ function denyAccountExists(identity: ResolvedIdentity, by: "handle" | "email"): 
 
 /** Each refusal's log line and result. `handle-collision` is the MS-W1 deny (`account-exists`); the rest
  *  collapse to the generic deny. Exhaustive: a new cause fails `tsc` here. */
-function refuse(identity: ResolvedIdentity, cause: ProvisionDenyCause): ProvisionResult {
+function refuse(identity: ResolvedIdentity, cause: ProvisionDenyCause, logger: Logger): ProvisionResult {
   switch (cause) {
     case "subject-mismatch":
-      getLog().warn(
+      getLog(logger).warn(
         { handle: identity.handle, externalId: identity.externalId },
         "user: SSO login refused — the handle resolves to a row already bound to a DIFFERENT stable subject (impostor / handle re-registration); externalId is the identity key",
       );
@@ -437,15 +438,15 @@ function refuse(identity: ResolvedIdentity, cause: ProvisionDenyCause): Provisio
       // #140 — the groups the identity DID carry are the whole diagnosis here: an empty list means the claim
       // never arrived (see the mapper's `oidc_groups_claim` line), a populated one that misses the allowlist
       // means the operator's group names disagree with the IdP's.
-      getLog().warn(
+      getLog(logger).warn(
         { handle: identity.handle, externalId: identity.externalId, ...groupsLogFields(identity.groups) },
         "user: SSO login denied — identity is in none of OIDC_ALLOWED_GROUPS (fail-closed access gate)",
       );
       return { outcome: "denied" };
     case "handle-collision":
-      return denyAccountExists(identity, "handle");
+      return denyAccountExists(identity, "handle", logger);
     case "jit-closed":
-      getLog().warn(
+      getLog(logger).warn(
         { handle: identity.handle, externalId: identity.externalId },
         "user: SSO login denied — JIT provisioning is off (OIDC_SIGNUP) and this identity has no existing account (deny-by-default; set OIDC_SIGNUP=on to allow it)",
       );
@@ -456,6 +457,7 @@ function refuse(identity: ResolvedIdentity, cause: ProvisionDenyCause): Provisio
         "sso_owner_claim_unproven",
         { handle: identity.handle, externalId: identity.externalId },
         "security: an SSO login claimed the owner, or a new account under the owner seed key or a look-alike of it, without proof — refused, nothing bound or created; the owner claims from a loopback callback, with the claim URL the boot log printed while the owner is unclaimed, or through OWNER_GROUP",
+        logger,
       );
       return { outcome: "denied" };
     default: {
@@ -473,7 +475,7 @@ async function write(
   decision: ProvisionInsert | ProvisionUpdate,
 ): Promise<ProvisionResult> {
   if (decision.ownerSingletonDowngrade) {
-    reportOwnerSingletonDowngrade(identity, ownerId);
+    reportOwnerSingletonDowngrade(identity, ownerId, ctx.logger);
   }
   if (decision.kind === "update") {
     return await updateExisting(ctx, decision.existing, identity, { resolvedRole: decision.resolvedRole, isBootstrapOwner: decision.isBootstrapOwner });
@@ -485,7 +487,7 @@ async function write(
 async function apply(ctx: SessionsContext, identity: ResolvedIdentity, ownerId: UserId | undefined, decision: ProvisionDecision): Promise<ProvisionResult> {
   switch (decision.kind) {
     case "deny":
-      return refuse(identity, decision.cause);
+      return refuse(identity, decision.cause, ctx.logger);
     case "insert":
     case "update":
       return await write(ctx, identity, ownerId, decision);
@@ -495,7 +497,7 @@ async function apply(ctx: SessionsContext, identity: ResolvedIdentity, ownerId: 
       return await bindOwnerSubject(ctx, decision.owner, identity, decision.externalId);
     case "require-free-email":
       if ((await selectUserIdByEmail(ctx.db, decision.email)) !== undefined) {
-        return denyAccountExists(identity, "email");
+        return denyAccountExists(identity, "email", ctx.logger);
       }
       return await apply(ctx, identity, ownerId, decision.otherwise);
     default: {
@@ -508,7 +510,7 @@ async function apply(ctx: SessionsContext, identity: ResolvedIdentity, ownerId: 
 export function createProvisionIdentity(ctx: SessionsContext): Pick<SessionsService, "provisionIdentity"> {
   async function provisionIdentity(identity: ResolvedIdentity, options: ProvisionIdentityOptions): Promise<ProvisionResult> {
     const existing = await findExisting(ctx, identity);
-    reportNullSubjectOnBoundRow(existing, identity);
+    reportNullSubjectOnBoundRow(existing, identity, ctx.logger);
     // OPERATOR RECOVERY for the subject-mismatch refusal (the accepted trade, owner-ruled 2026-08-08): the ONE
     // legitimate way to reach it is an IdP that genuinely RE-ISSUED a stable subject (an authentik
     // migration/rebuild), which locks that user — owner included — out of their own row. The repair is

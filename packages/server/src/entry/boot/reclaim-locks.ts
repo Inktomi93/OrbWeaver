@@ -34,6 +34,7 @@ export interface ReclaimLocksDeps {
  *  in the log line, because "N reclaimed" is what made a lost multi-hour backfill read as boot noise. */
 export async function reclaimLocksOnBoot(deps: ReclaimLocksDeps): Promise<number> {
   const workloads = await reclaimInFlightOnBoot({
+    logger: deps.logger,
     db: deps.db,
     contributions: deps.contributions,
     now: deps.now(),

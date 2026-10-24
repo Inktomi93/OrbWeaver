@@ -67,7 +67,7 @@ export function createRevoke(
         entityId: revoked.id,
       },
       now,
-      ctx.idSource,
+      { idSource: ctx.idSource, log: ctx.logger },
     );
     // WHICH session this logout ended (W7a) + its OIDC end-session hint (#141). The row is the only place
     // the id exists — the caller holds a token, and the token is not an identity. Returning it is what lets

@@ -12,9 +12,10 @@ export type WorkloadScheduleRow = typeof workloadSchedules.$inferSelect;
 export type WorkloadDbRow = typeof workloads.$inferSelect;
 
 /** The engine's own queue scan bound to the root, so a suite reads what a lane's worker would claim next. */
-export function createQueueScanner(root: Pick<ServerTestHarness, "db" | "app">): ReturnType<typeof createNextRunnableWorkload> {
+export function createQueueScanner(root: Pick<ServerTestHarness, "db" | "app" | "logger">): ReturnType<typeof createNextRunnableWorkload> {
   return createNextRunnableWorkload({
     db: databaseHandle(root.db),
+    logger: root.logger,
     contributions: root.app.workloadContributions,
     emitEvent: root.app.workloadEvents.emitWorkloadEvent,
   });

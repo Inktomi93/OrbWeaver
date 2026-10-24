@@ -1042,7 +1042,7 @@ function attachTerminalTools(
   }
   const collided = requested.filter((tool) => registryNames.has(tool.name)).map((tool) => tool.name);
   if (collided.length > 0) {
-    getLog().warn(
+    getLog(args.logger).warn(
       { chatId: args.chatId, collided },
       "chat: terminal tool declarations collided with registry tool names — the registry owns the name, so the whole terminal channel is withheld this turn",
     );

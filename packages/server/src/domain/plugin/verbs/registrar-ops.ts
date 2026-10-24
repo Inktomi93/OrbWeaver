@@ -4,13 +4,14 @@ import type { InvocationChat, PluginHandlerRef } from "@orb/contracts/plugin";
 import { PLUGIN_READ_CONTENT_MAX_CHARS, pluginToolWireName } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { superviseDetached } from "#foundation/observability";
+import { createDetachedSupervision } from "#foundation/observability";
 import type { PluginRegistrarDeps, PluginRegistrarOps } from "../contract/registrar-ops.ts";
 import { buildPluginPromptTransform, capFactContent } from "../substrate/registrar.ts";
 
 const PLUGIN_TRANSFORM_ORDER_BASE = 1000;
 /** Bind registration identity, host gating and supervised event delivery to the process registries. */
 export function createPluginRegistrarOps(deps: PluginRegistrarDeps): PluginRegistrarOps {
+  const { superviseDetached } = createDetachedSupervision(deps.logger);
   let pluginTransformSeq = 0;
   const { pluginSubscribers } = deps;
   return {
@@ -29,6 +30,7 @@ export function createPluginRegistrarOps(deps: PluginRegistrarDeps): PluginRegis
     registerTransform: (reg, invoke, scope): ReturnType<PluginRegistrarOps["registerTransform"]> => {
       const id = `plugin:${scope.slug}:${reg.name}:${pluginTransformSeq}`;
       const transform = buildPluginPromptTransform(reg, {
+        logger: deps.logger,
         id,
         slug: scope.slug,
         order: PLUGIN_TRANSFORM_ORDER_BASE + pluginTransformSeq,

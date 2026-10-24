@@ -62,12 +62,12 @@ async function seededOwnerId(sessions: SessionsService, input: BootOwnerInput, s
   return seededId;
 }
 
-async function existingOwnerId(sessions: SessionsService): Promise<UserId | undefined> {
+async function existingOwnerId(sessions: SessionsService, logger: Logger): Promise<UserId | undefined> {
   const ownerId = await sessions.getOwnerUserId();
   if (ownerId !== undefined) {
-    getLog().info({ ownerId }, "boot(oidc): existing owner row found (from a prior OIDC login)");
+    getLog(logger).info({ ownerId }, "boot(oidc): existing owner row found (from a prior OIDC login)");
   } else {
-    getLog().info("boot(oidc): no owner row yet — the first owner-policy OIDC login will create it; owner-dependent boot seeds are deferred");
+    getLog(logger).info("boot(oidc): no owner row yet — the first owner-policy OIDC login will create it; owner-dependent boot seeds are deferred");
   }
   return ownerId;
 }
@@ -97,6 +97,6 @@ export async function prepareBootOwner(input: BootOwnerInput): Promise<BootOwner
       onEmbedSpaceBound: (boundOwner) => ownersBoundBeforeAssembly.push(boundOwner),
     }),
   });
-  const ownerId = input.ownerSeed === null ? await existingOwnerId(sessions) : await seededOwnerId(sessions, input, input.ownerSeed);
+  const ownerId = input.ownerSeed === null ? await existingOwnerId(sessions, input.logger) : await seededOwnerId(sessions, input, input.ownerSeed);
   return { sessions, ownerId, ownersBoundBeforeAssembly };
 }

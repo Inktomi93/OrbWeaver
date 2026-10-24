@@ -139,6 +139,7 @@ export type ScoreSweep = (opts: ScoreSweepOptions) => Promise<RefineryScoreSweep
  *  session, so it needs no session id minter, no clock, and none of the four apply-path character ops — it
  *  reads the library, asks the model, and stamps. */
 export interface RefineryWorkloadDeps {
+  readonly logger: Logger;
   readonly roleClientsFor: RoleClientsFor;
   readonly resolveUtilityPresetParams: ResolveUtilityPresetParams;
   readonly resolveUserProse: ResolveUserProse;

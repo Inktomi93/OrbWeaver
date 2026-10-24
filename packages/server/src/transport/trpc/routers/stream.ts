@@ -63,6 +63,7 @@ export const streamRouter = t.router({
       }
       return withSubscriptionErrors(
         runSocket({
+          logger: ctx.logger,
           registry: ctx.sockets,
           cell,
           principal: ctx.auth,
@@ -71,6 +72,7 @@ export const streamRouter = t.router({
           multiHumanCapable: ctx.multiHumanCapable,
           signal: sig,
         }),
+        ctx.logger,
       );
     }),
 

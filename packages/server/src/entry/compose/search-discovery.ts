@@ -271,6 +271,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   // `resolveActiveDocumentIds` is databank's ONE scope-union home, injected into search — the
   // documents lens never re-derives which documents a scope may see.
   const search = createSearchService({
+    logger: deps.logger,
     fieldIndex: deps.fieldIndex,
     resolveViewerVisibility: createResolveViewerVisibility({ db }),
     digestConsolidationHash: consolidationHash,
@@ -341,6 +342,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   const vacuousMemoryReceipt = createVacuousMemoryReceipt({ isMemoryEnabled: deps.isMemoryEnabled, emptyMemoryScope: deps.emptyMemoryScope, embeddings });
 
   const reindex = createEmbeddingReindexTriggers({
+    logger: deps.logger,
     supervise: deps.supervise,
     now,
     getEffectiveConfig: deps.getEffectiveConfig,

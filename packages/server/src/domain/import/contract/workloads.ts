@@ -5,6 +5,7 @@ import type { CompareAndSetImportedTokenUsage, ImportWindow, ListImportedTokenUs
 import type { PersonaCollisionChoices } from "@orb/contracts/import";
 import type { BundleImportWorkloadResult, ImportTokenUsageBackfillResult, ReportProgress } from "@orb/contracts/workloads";
 import type { ChatId, UserId } from "@orb/kit/ids";
+import type { Logger } from "#foundation/observability";
 
 export interface ImportTokenUsageBackfillDeps {
   readonly listTokenUsageCandidates: ListImportedTokenUsageCandidates;
@@ -44,6 +45,7 @@ export type SettleImportMemory = (args: {
 }) => Promise<ImportWindow | null>;
 
 export interface ImportWorkloadDeps extends ImportTokenUsageBackfillDeps {
+  readonly logger: Logger;
   /** The staging root the HTTP upload routes wrote under — every staged handle resolves strictly inside it. */
   readonly stagingRoot: string;
   /** The ST profile directory `import-st` reads when the row carries no `stagedDir` override. */

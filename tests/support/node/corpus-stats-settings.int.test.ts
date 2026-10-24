@@ -23,7 +23,7 @@ test("native stats preserve nonzero retained history and user preferences surviv
   });
   await using root = await createServerHarness({ providerFetch: execution.execute });
   const actors = await seedCorpusActors(root);
-  await seedThemes({ db: bootGrantFor(root.db), now: root.clock.now });
+  await seedThemes({ db: bootGrantFor(root.db), logger: root.logger, now: root.clock.now });
   const libraries = await seedCorpusLibraries(root);
   const caller = await root.internalCallerFor(root.ownerId);
   await caller.settings.updateUserSettingsSection({

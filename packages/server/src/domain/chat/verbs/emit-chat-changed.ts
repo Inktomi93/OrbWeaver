@@ -11,7 +11,7 @@ import { getLog } from "#foundation/observability";
 import type { ChatContext, EmitChatChanged, PublishChatChangedOp } from "../contract/context.ts";
 import { loadPresentHumanUserIds } from "../persistence/participants-read.ts";
 
-export function createEmitChatChanged(input: DbAssemblyInput<Pick<ChatContext, "db">>, publishChatChanged: PublishChatChangedOp): EmitChatChanged {
+export function createEmitChatChanged(input: DbAssemblyInput<Pick<ChatContext, "db" | "logger">>, publishChatChanged: PublishChatChangedOp): EmitChatChanged {
   const ctx = { db: databaseForOwner(input.db) };
   return async (chatId, options = {}): Promise<void> => {
     const payloadChatId = options.detail === true ? chatId : undefined;
@@ -23,7 +23,7 @@ export function createEmitChatChanged(input: DbAssemblyInput<Pick<ChatContext, "
     } catch (err) {
       // Best-effort live delivery — a failed roster read fans only the pre-captured extras (a
       // just-kicked/deleted member still gets their drop); the rest heals on the next client reconnect.
-      getLog().warn({ err, chatId }, "chat: chatsChanged roster read failed — fanning only the pre-captured recipients");
+      getLog(input.logger).warn({ err, chatId }, "chat: chatsChanged roster read failed — fanning only the pre-captured recipients");
     }
     for (const userId of recipients) {
       publishChatChanged(userId, payloadChatId);

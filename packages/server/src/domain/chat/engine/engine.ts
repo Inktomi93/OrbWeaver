@@ -49,8 +49,8 @@ import { isConstraintViolation } from "@orb/db/query";
 import type { Resolved, ResolvedWarning } from "@orb/inference";
 import { GenerationObservationPersistenceError, generationOf, ProviderError, supportsManagedCompaction } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, ModelId, UserConnectionId } from "@orb/kit/ids";
+import type { Logger } from "#foundation/observability";
 import { getLog, withRequestSpan } from "#foundation/observability";
-
 import type { EngineContext, EngineContextInput, EngineDeps } from "../contract/engine-context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { GenerationObservationParent, GenerationObservationSession, RetainedTurnStats } from "../contract/generation-observation.ts";
@@ -1489,7 +1489,7 @@ async function absorbInlineReplyImages(
   };
 }
 
-function assertGeneratedContent(result: Awaited<ReturnType<typeof runTurnPipeline>>, chatId: ChatId): void {
+function assertGeneratedContent(result: Awaited<ReturnType<typeof runTurnPipeline>>, chatId: ChatId, logger: Logger): void {
   if (result.content.trim().length > 0) {
     return;
   }
@@ -1502,7 +1502,7 @@ function assertGeneratedContent(result: Awaited<ReturnType<typeof runTurnPipelin
   // `ToolCallRecord` — the character turn is tool-less on the variant), so read `finishReason` as the tell
   // there: a tool-terminated turn with empty prose is the VER-1b tool-only completion.
   const economics = result.economics;
-  getLog().warn(
+  getLog(logger).warn(
     {
       event: "chat.generation.empty",
       chatId,
@@ -1816,7 +1816,7 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
     // VER-1b — refuse a prose-less generation BEFORE any canon write (see `assertGeneratedContent`). Placed
     // after the drop warnings on purpose: those name WHY the prose is missing (tools dropped, image dropped),
     // and everything below this line is about a reply that does not exist.
-    assertGeneratedContent(absorbed.result, prep.chatId);
+    assertGeneratedContent(absorbed.result, prep.chatId, ctx.logger);
     // A display affordance only, distinct from turnCompleted (fires after persist below).
     if (result.reasoning !== null) {
       await deps.emit({ type: "reasoningStreamDone", chatId: prep.chatId });

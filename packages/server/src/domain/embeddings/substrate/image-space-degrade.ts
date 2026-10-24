@@ -15,6 +15,7 @@
 // ASSUMES(single-replica): module scope, per process. A restart re-announces, which is the right window.
 
 import type { UserId } from "@orb/kit/ids";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import type { ImageSpaceDegrade } from "../contract/results.ts";
 
@@ -25,13 +26,13 @@ const announced = new Set<string>();
  *  The message names the cause AND the fix, because the user can act on both. Called by the on-write
  *  handler and the bulk sweep — one home for the wording so the two paths cannot describe the same state
  *  differently. */
-export function reportImageSpaceDegrade(ownerId: UserId, space: string, cause: ImageSpaceDegrade): void {
+export function reportImageSpaceDegrade(ownerId: UserId, space: string, cause: ImageSpaceDegrade, logger: Logger): void {
   const key = `${ownerId}|${space}|${cause}`;
   if (announced.has(key)) {
     return;
   }
   announced.add(key);
-  getLog().warn(
+  getLog(logger).warn(
     { ownerId, space, cause },
     "embeddings indexer: no image-capable embedder for this owner - images are indexed by their CAPTION only, in the text embed space (the image-raw lens is unavailable and visual similarity will be weaker). Bind an imageEmbed connection whose model accepts image input to restore the joint lens.",
   );

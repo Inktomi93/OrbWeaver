@@ -56,7 +56,7 @@ function scrubRequestId(value: string | undefined): string | undefined {
 
 /** Record a client-reported error into the same log stream + error ring server errors use. Never throws
  *  — an oversized report degrades (truncates) rather than dropping or crashing the caller. */
-export function recordClientError(report: ClientErrorReport, base?: Logger): void {
+export function recordClientError(report: ClientErrorReport, base: Logger): void {
   getLog(base).error(
     {
       clientError: true,

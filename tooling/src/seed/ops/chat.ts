@@ -98,7 +98,7 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
 
   const now = (): number => Date.now();
   const seams = createProcessSeams();
-  await migrateDataLayout({ layout: env.DATA_LAYOUT, env });
+  await migrateDataLayout({ layout: env.DATA_LAYOUT, env, logger: seams.logger });
   const db = await createDb(env.DATABASE_URL);
   await runBootMigrations({ db, logger: seams.logger, databaseUrl: env.DATABASE_URL, backupDir: env.DATA_LAYOUT.backups, launched: DB_LAUNCHED });
 
@@ -158,8 +158,8 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
   }
 
   // The idempotent boot seeds (owner cards, default persona, preset, themes) — safe on an already-seeded db.
-  await seedDefaultPreset({ db: wiringDb, now });
-  await seedThemes({ db: bootDatabaseHandle(wiringDb), now });
+  await seedDefaultPreset({ db: wiringDb, logger: seams.logger, now });
+  await seedThemes({ db: bootDatabaseHandle(wiringDb), logger: seams.logger, now });
   await seedUserContent({ seeder: built.contentSeeder, owner });
 
   const characters = await ensureCharacters(built.services, owner, ownerId, args.characters);

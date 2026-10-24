@@ -11,6 +11,7 @@ import type { PromptTransform } from "@orb/contracts/chat";
 import { DEADLINE_ABORT_REASON } from "@orb/contracts/chat";
 import type { PluginHandlerRef, PluginTransformRegistration } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
+import type { Logger } from "#foundation/observability";
 import { logPluginFailure } from "./failure-log.ts";
 
 /** Truncate a delivered fact's message content to `maxContentChars` BEFORE it is JSON-marshalled into the guest
@@ -40,6 +41,7 @@ export function buildPluginPromptTransform(
     readonly order: number;
     readonly isInstallerHost: (chatId: ChatId) => Promise<boolean>;
     readonly invoke: (handler: PluginHandlerRef, argsJson: string, signal?: AbortSignal) => Promise<string>;
+    readonly logger: Logger;
   },
 ): PromptTransform {
   return {
@@ -55,7 +57,7 @@ export function buildPluginPromptTransform(
       const reportDeadline = (): void => {
         if (!reported && signal?.reason === DEADLINE_ABORT_REASON) {
           reported = true;
-          logPluginFailure(deps.slug, "prompt-deadline", `prompt transform '${reg.name}' exceeded its deadline`);
+          logPluginFailure(deps.slug, "prompt-deadline", `prompt transform '${reg.name}' exceeded its deadline`, deps.logger);
         }
       };
       signal?.addEventListener("abort", reportDeadline, { once: true });

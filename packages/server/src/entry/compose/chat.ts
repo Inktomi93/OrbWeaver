@@ -368,6 +368,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     withRetrievalDegrade,
   });
   const promptTransformRegistry = createPromptTransformRegistry(
+    input.logger,
     emitChatEvent,
     timers.timeout,
     () => input.settings.getEffectiveConfig().promptTransformDeadlineMs,
@@ -403,7 +404,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     auditStatement: auditStatements.statement,
     // Fans chatsChanged to every present human member's channel; the engine passes a bare chatId
     // (principal-blind) — this composition-root helper enumerates membership.
-    emitChatChanged: createEmitChatChanged({ db }, input.publishChatChanged),
+    emitChatChanged: createEmitChatChanged({ db, logger: input.logger }, input.publishChatChanged),
     applyRegexReplace: createRegexApplyReplace(),
     prng: input.random,
     testRegexKey: createRegexTest(),

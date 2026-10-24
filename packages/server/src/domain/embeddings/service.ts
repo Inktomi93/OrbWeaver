@@ -35,7 +35,7 @@ export function createEmbeddingsService(input: DbAssemblyInput<EmbeddingsContext
   const indexAsset = createImageIndexer(ctx, {
     store,
     analyze: async (ownerId, bytes): Promise<AvatarAnalysis> =>
-      analyzeAvatarImage(await ctx.roleClientsFor(ownerId), bytes, await ctx.resolveUtilityPresetParams(ownerId)),
+      analyzeAvatarImage(await ctx.roleClientsFor(ownerId), bytes, await ctx.resolveUtilityPresetParams(ownerId), input.logger),
   });
   return {
     purgeDisallowedImages: createPurgeDisallowedImages(ctx),

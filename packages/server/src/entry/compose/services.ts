@@ -474,7 +474,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // biome-ignore lint/nursery/useDisposables: resources adopts this owner through the moved graph stack; local using would close it before the graph starts.
   const rpgEvents = resources.use(createRpgEventBus());
   const workloadEvents = resources.use(createWorkloadProgressBus());
-  const liveBuses = resources.use(createLiveBuses({ rpg: rpgEvents, workloads: workloadEvents }));
+  const liveBuses = resources.use(createLiveBuses({ rpg: rpgEvents, workloads: workloadEvents }, deps.logger));
   // biome-ignore lint/nursery/useDisposables: resources adopts the cache through the moved graph stack; local using would close it before graph use.
   const fieldIndex = resources.use(createFieldIndexCache());
   // biome-ignore lint/nursery/useDisposables: resources adopts the throttle through the moved graph stack; local using would close it before graph use.
@@ -630,6 +630,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const settingsCtx: SettingsContext = createSettingsContext(settingsDeps);
   const settings = createSettingsService(settingsCtx);
   const rateLimit = createRateLimitGate({
+    logger: deps.logger,
     db,
     now,
     resolveRateLimits: () => settings.getEffectiveConfig().rateLimits,
@@ -800,7 +801,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // The one chat bus, built early (persona composes before buildChatService — chat needs persona.get for turn
   // assembly, a genuine cycle) and threaded into persona's write and
   // buildChatService.
-  const chatBus = createChatBus({ db, now, newEventId: minter(ID_PREFIX.chatEvent, idSource) });
+  const chatBus = createChatBus({ db, logger: deps.logger, now, newEventId: minter(ID_PREFIX.chatEvent, idSource) });
   const {
     emitChecked: emitChatEventChecked,
     emit: emitChatEvent,
@@ -1040,7 +1041,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // inside the plugin plane because chat composes FIRST and both sides need the same object: chat reads it per
   // turn (`ChatContext.pluginMacros`), the plugin plane writes it at activation. Minting it at the shared root
   // is what keeps this out of the late-bind shape the S4 confirmed-act runner had to take.
-  const pluginMacros = createPluginMacroRegistry(timers.timeout);
+  const pluginMacros = createPluginMacroRegistry(deps.logger, timers.timeout);
   const chatCompose = buildChatService({
     publishChatChanged: liveBuses.user.publishChatChanged,
     publishNotification: liveBuses.notifications.publishNotification,
@@ -1306,6 +1307,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
 
   // ── portability + the workloads runner-env (the portability-runner seam) — built LAST.
   const { portability, importWorkloads, settleImportMemory } = buildPortabilityRunner({
+    logger: deps.logger,
     quiet: liveBuses.quiet.withQuietBulkFanout,
     emitUserEvent: liveBuses.user.publishUserEvent,
     publishChatChanged: liveBuses.user.publishChatChanged,

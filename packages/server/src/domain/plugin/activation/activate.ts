@@ -177,7 +177,7 @@ async function providerActivationError(
 /** The stored bundle could not be read or re-validated, so it holds no slug: the row names the plugin. */
 async function failUnreadableBundle(ctx: PluginContext, input: ActivateInput, error: string): Promise<{ readonly ok: false; readonly error: string }> {
   const row = await getById(ctx.db, input.caller.userId, input.pluginId);
-  logPluginFailure(row?.slug ?? input.pluginId, "activation-failed", `bundle re-validation failed: ${error}`);
+  logPluginFailure(row?.slug ?? input.pluginId, "activation-failed", `bundle re-validation failed: ${error}`, ctx.logger);
   await setStatus(ctx.db, input.pluginId, { status: "errored", lastError: `bundle re-validation failed: ${error}`, updatedAt: ctx.now() });
   return { ok: false, error };
 }
@@ -195,7 +195,7 @@ export function createActivate(
     }
     const { mainJs, slug, displayName, netHosts, matchAutomationEvents, providers } = revalidated.bundle;
     const activationFailed = async (error: string, lastError: string): Promise<{ readonly ok: false; readonly error: string }> => {
-      logPluginFailure(slug, "activation-failed", lastError);
+      logPluginFailure(slug, "activation-failed", lastError, ctx.logger);
       await setStatus(ctx.db, input.pluginId, { status: "errored", lastError, updatedAt: ctx.now() });
       return { ok: false, error };
     };
@@ -240,7 +240,7 @@ export function createActivate(
           }
           // A caller that gave up on the call at its deadline already logged the overrun; the rejection still counts.
           if (signal?.reason !== DEADLINE_ABORT_REASON) {
-            logPluginFailure(slug, invokeFailureKind(err), errorMessage(err));
+            logPluginFailure(slug, invokeFailureKind(err), errorMessage(err), ctx.logger);
           }
           await crashPolicy.recordCrash({ pluginId: input.pluginId, recipientUserId: input.caller.userId, error: errorMessage(err) });
           throw err;
@@ -254,7 +254,7 @@ export function createActivate(
       // Discard the partial activation: nothing this run registered survives, and the instance is disposed.
       ctx.host.dispose(instance);
       const error = err instanceof Error ? err.message : String(err);
-      logPluginFailure(slug, "activation-failed", `registration failed: ${error}`);
+      logPluginFailure(slug, "activation-failed", `registration failed: ${error}`, ctx.logger);
       await setStatus(ctx.db, input.pluginId, { status: "errored", lastError: `registration failed: ${error}`, updatedAt: ctx.now() });
       return { ok: false, error };
     }

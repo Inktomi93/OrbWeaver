@@ -31,8 +31,8 @@ import {
   LEGACY_SECRET_FILE_NAMES,
 } from "#foundation/data-layout";
 import type { Env } from "#foundation/env/record";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
-import type { KeyfileReport } from "#infra/crypto";
 import { keyfileReport, readSessionSecretKeyfile } from "#infra/crypto";
 
 /** The in-progress marker at the data root: present only between the first rename and the last. */
@@ -73,6 +73,7 @@ interface Journal {
 
 export interface MigrateDataLayoutDeps {
   readonly layout: DataLayout;
+  readonly logger: Logger;
   /** This process's pid, written to the journal and recognised on resume; injectable so a test can plant
    *  a live or dead holder. */
   readonly pid?: number;
@@ -339,8 +340,8 @@ function leftInPlace(root: string): string[] {
     .sort();
 }
 
-function logReport(root: string, layout: DataLayout, report: DataLayoutMigrationReport): void {
-  const log = getLog();
+function logReport(root: string, layout: DataLayout, report: DataLayoutMigrationReport, logger: Logger): void {
+  const log = getLog(logger);
   log.info(
     { root, resumed: report.resumed, moves: report.moved.map((move) => `${move.from} -> ${move.to}`) },
     `boot/data-layout: moved ${report.moved.length} entries of ${root} into the current layout`,
@@ -371,7 +372,9 @@ function logReport(root: string, layout: DataLayout, report: DataLayoutMigration
 // local password, session and live invite was hashed with. When the explicit value differs (the container
 // mints a fresh one for a volume switched to a cookie mode), those stop matching with no refusal, so every
 // boot says so while the two differ. Only this step sees both: the entrypoint cannot read a keyfile's pepper.
-function warnStrandedSessionSecret(root: string, layout: DataLayout, sessionSecret: string | undefined, reportKeyfile: KeyfileReport): void {
+function warnStrandedSessionSecret(root: string, deps: Pick<MigrateDataLayoutDeps, "layout" | "env" | "logger">): void {
+  const { layout, logger } = deps;
+  const sessionSecret = deps.env.SESSION_SECRET;
   if (!layout.explicit.has("SESSION_SECRET") || sessionSecret === undefined) {
     return;
   }
@@ -379,11 +382,11 @@ function warnStrandedSessionSecret(root: string, layout: DataLayout, sessionSecr
   if (!holdsData(path)) {
     return;
   }
-  const legacy = readSessionSecretKeyfile(path, reportKeyfile);
+  const legacy = readSessionSecretKeyfile(path, keyfileReport(deps.env.NODE_ENV));
   if (legacy === null || legacy === sessionSecret) {
     return;
   }
-  getLog().warn(
+  getLog(logger).warn(
     { root, legacyKeyfile: path, keptBy: "SESSION_SECRET" },
     `boot/data-layout: ${path} holds another session secret than the SESSION_SECRET in use, so every local password, session and live invite hashed with it no longer matches: ${keeperRemedy("SESSION_SECRET", path)}, or delete ${path} once nothing depends on it`,
   );
@@ -405,7 +408,7 @@ export async function migrateDataLayout(deps: MigrateDataLayoutDeps): Promise<Da
     ensureContainerDirs(root, new Set());
     return NO_MIGRATION;
   }
-  warnStrandedSessionSecret(root, deps.layout, deps.env.SESSION_SECRET, keyfileReport(deps.env.NODE_ENV));
+  warnStrandedSessionSecret(root, deps);
   const journalPath = join(root, LAYOUT_JOURNAL);
   if (existsSync(journalPath)) {
     const journal = readJournal(journalPath);
@@ -419,7 +422,7 @@ export async function migrateDataLayout(deps: MigrateDataLayoutDeps): Promise<Da
     rmSync(journalPath);
     ensureContainerDirs(root, new Set());
     const report = { moved, leftInPlace: leftInPlace(root), resumed: true };
-    logReport(root, deps.layout, report);
+    logReport(root, deps.layout, report, deps.logger);
     return report;
   }
 
@@ -449,6 +452,6 @@ export async function migrateDataLayout(deps: MigrateDataLayoutDeps): Promise<Da
   }
   rmSync(journalPath);
   const report = { moved: moves, leftInPlace: leftInPlace(root), resumed: false };
-  logReport(root, deps.layout, report);
+  logReport(root, deps.layout, report, deps.logger);
   return report;
 }

@@ -67,6 +67,7 @@ import { batchMany } from "@orb/db/query";
 import type { DbAssemblyInput, StatementToken } from "@orb/db/wiring";
 import { databaseForOwner, statementForOwner, statementToken } from "@orb/db/wiring-owner";
 import type { ChatEventId, ChatId } from "@orb/kit/ids";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "./contract/context.ts";
 import { appendChatEvent, appendChatEventAfterClaimStatement, insertChatEventStatement } from "./persistence/events.ts";
@@ -110,7 +111,7 @@ interface ChatBus {
   readonly readRing: (chatId: ChatId, afterSeq?: number) => ChatRingEntry[];
 }
 
-type ChatBusDeps = Pick<ChatContext, "db" | "now" | "newEventId">;
+type ChatBusDeps = Pick<ChatContext, "db" | "now" | "newEventId" | "logger">;
 
 /** How many recent events the in-process ring retains per chat; a deeper resume falls back to `chat_events`. */
 const RING_CAPACITY = 256;
@@ -126,7 +127,7 @@ const RING_CAPACITY = 256;
  *  It reports ONLY the benign arm. The live-fault arm's report belongs to the CALLER, because what that
  *  failure MEANS differs by door: `emit` can retry (so the first look is a warn and only the last is an
  *  error), while `emitAfterClaim` carries a single-consumption claim statement and is terminal on sight. */
-async function classifyFailedAppend(db: Db, event: ChatBusEvent): Promise<"chat-gone" | "live-fault"> {
+async function classifyFailedAppend(db: Db, event: ChatBusEvent, logger: Logger): Promise<"chat-gone" | "live-fault"> {
   const chatId = event.chatId;
   let chatGone = false;
   // a failed probe leaves `chatGone` false, so the verdict is `live-fault`,
@@ -138,7 +139,7 @@ async function classifyFailedAppend(db: Db, event: ChatBusEvent): Promise<"chat-
     // The probe failed ⇒ we cannot claim the benign race; fall through to the loud arm.
   }
   if (chatGone) {
-    getLog().debug({ chatId, type: event.type }, "chat bus: event dropped — the chat was deleted mid-turn (expected race)");
+    getLog(logger).debug({ chatId, type: event.type }, "chat bus: event dropped — the chat was deleted mid-turn (expected race)");
     return "chat-gone";
   }
   return "live-fault";
@@ -153,18 +154,19 @@ type AppendFailureVerdict = { readonly kind: "chat-gone" } | { readonly kind: "r
 async function handleAppendFailure(
   db: Db,
   failure: { readonly id: ChatEventId; readonly event: ChatBusEvent; readonly err: unknown; readonly attempt: number },
+  logger: Logger,
 ): Promise<AppendFailureVerdict> {
   const { id, event, err, attempt } = failure;
   // A deleted chat is terminal on the first look (a cascade-dropped row does not come back), so only the
   // live-chat arm is worth another attempt — and only while attempts remain.
-  if ((await classifyFailedAppend(db, event)) === "chat-gone") {
+  if ((await classifyFailedAppend(db, event, logger)) === "chat-gone") {
     return { kind: "chat-gone" };
   }
   if (attempt < LIVE_APPEND_ATTEMPTS) {
-    getLog().warn({ err, chatId: event.chatId, type: event.type, attempt }, "chat bus: durable append failed on a live chat — retrying");
+    getLog(logger).warn({ err, chatId: event.chatId, type: event.type, attempt }, "chat bus: durable append failed on a live chat — retrying");
     return { kind: "retry" };
   }
-  return { kind: "terminal", committedSeq: await reportTerminalDrop(db, { id, event, err, attempts: attempt }) };
+  return { kind: "terminal", committedSeq: await reportTerminalDrop(db, { id, event, err, attempts: attempt }, logger) };
 }
 
 /** The outcome of the whole retry loop, collapsed to what `emit` needs to decide its return: `"gone"` and
@@ -190,7 +192,7 @@ async function appendWithRetry(deps: ChatBusDeps, id: ChatEventId, event: ChatBu
       const seq = await appendChatEvent(deps.db, { id, chatId: event.chatId, event, createdAt: deps.now() });
       return { kind: "seq", seq };
     } catch (err) {
-      const verdict = await handleAppendFailure(deps.db, { id, event, err, attempt });
+      const verdict = await handleAppendFailure(deps.db, { id, event, err, attempt }, deps.logger);
       if (verdict.kind === "chat-gone") {
         return { kind: "gone" };
       }
@@ -247,15 +249,15 @@ interface TerminalDrop {
  *  since `committedRowSeq` PROVES that row's seq, the live fan is no longer lost either — the caller
  *  publishes it with the same emission the normal path makes, so "its replay slot is permanently missing"
  *  (and "only the live fan was lost") are both exactly backwards on this branch. */
-async function reportTerminalDrop(db: Db, drop: TerminalDrop): Promise<number | null> {
+async function reportTerminalDrop(db: Db, drop: TerminalDrop, logger: Logger): Promise<number | null> {
   const { id, event, err, attempts } = drop;
   const fields = { err, chatId: event.chatId, type: event.type, attempts };
   const committedSeq = await committedRowSeq(db, id, event);
   if (committedSeq === null) {
-    getLog().error(fields, "chat bus: DURABLE APPEND FAILED on a live chat — event dropped, its replay slot is permanently missing");
+    getLog(logger).error(fields, "chat bus: DURABLE APPEND FAILED on a live chat — event dropped, its replay slot is permanently missing");
     return null;
   }
-  getLog().error(
+  getLog(logger).error(
     { ...fields, seq: committedSeq },
     "chat bus: DURABLE APPEND reported failure AFTER committing on a live chat — recovered from ground truth: the row, its replay slot, and the live fan all stand",
   );
@@ -321,7 +323,7 @@ export function createChatBus(input: DbAssemblyInput<ChatBusDeps>): ChatBus {
   const emitAfterClaim: EmitChatEventAfterClaim = async (raw, claimStatement) => {
     const chatId = raw.chatId;
     const event = stamper.stamp(raw);
-    // the catch below logs `err` with `getLog().error` whenever
+    // the catch below logs `err` with `getLog(deps.logger).error` whenever
     // `classifyFailedAppend` says `live-fault`; the other verdict is the benign delete-mid-turn race, logged at debug
     // there. Not retried: the batch carries a single-consumption claim. Ends if the `live-fault` log is dropped.
     try {
@@ -343,8 +345,8 @@ export function createChatBus(input: DbAssemblyInput<ChatBusDeps>): ChatBus {
       // than merely careful: this append rides the CALLER's claim in one batch, so a failure means the thing
       // being announced did not happen (nothing to replay) — or it did, durably, and only the live fan was
       // lost (a reconnect replays it). Neither case is a retry's to fix.
-      if ((await classifyFailedAppend(deps.db, event)) === "live-fault") {
-        getLog().error({ err, chatId, type: event.type }, "chat bus: DURABLE APPEND FAILED on a live chat — claimed event dropped");
+      if ((await classifyFailedAppend(deps.db, event, deps.logger)) === "live-fault") {
+        getLog(deps.logger).error({ err, chatId, type: event.type }, "chat bus: DURABLE APPEND FAILED on a live chat — claimed event dropped");
       }
       return null;
     }

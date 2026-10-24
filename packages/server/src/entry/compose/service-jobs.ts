@@ -20,7 +20,12 @@ type ServiceJobDeps = Pick<WorkloadRunnerDeps, "db" | "now" | "contributions" | 
 
 /** Bind existing owners; transport owns startup state, cancellation and actual worker completion. */
 export function buildServiceJobs(deps: ServiceJobDeps): ServiceJobs {
-  const nextRunnable = createNextRunnableWorkload({ db: deps.db, contributions: deps.contributions, emitEvent: deps.progress.emitWorkloadEvent });
+  const nextRunnable = createNextRunnableWorkload({
+    logger: deps.logger,
+    db: deps.db,
+    contributions: deps.contributions,
+    emitEvent: deps.progress.emitWorkloadEvent,
+  });
   return createServiceJobs({
     logger: deps.logger,
     catalog: {

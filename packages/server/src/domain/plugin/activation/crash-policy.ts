@@ -42,7 +42,7 @@ export function createCrashPolicy(ctx: PluginContext, deactivate: (pluginId: Plu
           // by a deploy must still disable a row already parked above it.
           if (previous < PLUGIN_CRASH_DISABLE_THRESHOLD) {
             const row = await getById(ctx.db, recipientUserId, pluginId);
-            logPluginFailure(row?.slug ?? pluginId, "auto-disabled", `${count} consecutive crashes; last: ${error}`);
+            logPluginFailure(row?.slug ?? pluginId, "auto-disabled", `${count} consecutive crashes; last: ${error}`, ctx.logger);
             // "the owner is notified" — the closed `plugin-disabled` member (recipient = the installing
             // owner; a human, an agent has no inbox). Rides the SAME injected notifications emit an automation
             // action uses (one durable-first inbox path — never a re-rolled delivery).

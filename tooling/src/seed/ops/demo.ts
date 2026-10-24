@@ -370,8 +370,8 @@ export async function runFullSeed(deps: RunFullSeedDeps): Promise<RunFullSeedRes
   }
 
   // The idempotent boot seeds (owner cards + avatars, default persona, preset, themes) — safe to re-run.
-  await seedDefaultPreset({ db: wiringDb, now });
-  await seedThemes({ db: bootDatabaseHandle(wiringDb), now });
+  await seedDefaultPreset({ logger: seams.logger, db: wiringDb, now });
+  await seedThemes({ logger: seams.logger, db: bootDatabaseHandle(wiringDb), now });
   await seedUserContent({ seeder: built.contentSeeder, owner });
   log("boot seeds applied (characters + avatars, default persona, preset, themes)");
 
@@ -407,7 +407,7 @@ export async function runDemoSeed(argv: readonly string[]): Promise<ExitCode> {
   }
 
   // The layout move first, so a `--fresh` wipe and the open below both address the db's current location.
-  await migrateDataLayout({ layout: env.DATA_LAYOUT, env });
+  await migrateDataLayout({ layout: env.DATA_LAYOUT, env, logger: createLogger(env.LOG_LEVEL) });
   const filePath = dbFilePath(env.DATABASE_URL);
   if (args.fresh) {
     if (filePath === null) {
