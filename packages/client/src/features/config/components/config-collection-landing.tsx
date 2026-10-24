@@ -338,7 +338,14 @@ function CollectionInsightList({ insights }: { readonly insights: readonly Colle
           </Text>
           <CountText>{insight.value}</CountText>
           {insight.open === undefined ? null : (
-            <Button className="ms-auto" intent="ghost" onClick={insight.open.run} size="sm" type="button">
+            <Button
+              aria-label={`${insight.open.label}: ${insight.label}`}
+              className="ms-auto"
+              intent="ghost"
+              onClick={insight.open.run}
+              size="sm"
+              type="button"
+            >
               {insight.open.label}
             </Button>
           )}

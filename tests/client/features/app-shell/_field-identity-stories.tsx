@@ -84,3 +84,23 @@ export function FieldWrappedPrimitivesStory(): ReactElement {
     </CtIsolation>
   );
 }
+
+/** A form of Field-wrapped controls, each with the caller's own name or none, whose submitted keys the suite reads. */
+export function FormKeysStory({ named }: { readonly named: boolean }): ReactElement {
+  const caller = (name: string): { readonly name?: string } => (named ? { name } : {});
+  return (
+    <CtIsolation subject="Submitted form keys" isolates="isolates Field-wrapped controls in one form so FormData shows the names they submit under">
+      <form aria-label="Keys">
+        <Field label="Email">
+          <Input {...caller("email")} />
+        </Field>
+        <Field label="Agree">
+          <Checkbox defaultChecked={true} {...caller("agree")} />
+        </Field>
+        <Field label="Kind">
+          <Select defaultValue="a" items={[{ value: "a", label: "A" }]} {...caller("kind")} />
+        </Field>
+      </form>
+    </CtIsolation>
+  );
+}

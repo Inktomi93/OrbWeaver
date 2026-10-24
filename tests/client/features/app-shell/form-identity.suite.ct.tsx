@@ -1,10 +1,11 @@
 // Form identity (UI-Primitives-and-Reuse §13.10): every native form field of every registered section, modal and settings
 // group carries an `id` or `name` and an associated label. The rosters are the production tuples, never a list here.
 import { CONFIG_GROUP_IDS, MODAL_SLOT_IDS, SECTION_IDS } from "@orb/client/state";
-import { formatFormIdentityFindings, formIdentityFindings } from "@orb/testkit/browser/spec";
+import { formatFormIdentityFindings, formIdentityFindings, settleSurface } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import type { BareFieldPrimitivesStory, FieldWrappedPrimitivesStory } from "./_field-identity-stories.tsx";
-import { routeSurfaceReads, settleSurface } from "./_surface-harness.tsx";
+import type { Page } from "@playwright/test";
+import type { BareFieldPrimitivesStory, FieldWrappedPrimitivesStory, FormKeysStory } from "./_field-identity-stories.tsx";
+import { routeSurfaceReads } from "./_surface-harness.ts";
 import type { ConfigGroupStory, ModalShellStory, SectionShellStory } from "./_surface-stories.tsx";
 
 const STORIES = "tests/client/features/app-shell/_surface-stories";
@@ -23,6 +24,24 @@ test("every @orb/ui field primitive inside a Field emits an id and a name", asyn
   await mount<typeof FieldWrappedPrimitivesStory>("tests/client/features/app-shell/_field-identity-stories/FieldWrappedPrimitivesStory", {});
   await settleSurface(page);
   expect(formatFormIdentityFindings(await formIdentityFindings(page, { both: true }))).toBe("");
+});
+
+test.describe("submitted form keys", () => {
+  const submittedKeys = (page: Page): Promise<string[]> => page.evaluate(() => [...new FormData(document.querySelector("form") as HTMLFormElement).keys()]);
+
+  test("a caller's own name is the key a Field-wrapped Input, Checkbox and Select submit under", async ({ mount, page }) => {
+    await mount<typeof FormKeysStory>("tests/client/features/app-shell/_field-identity-stories/FormKeysStory", { named: true });
+    await settleSurface(page);
+    expect((await submittedKeys(page)).sort()).toEqual(["agree", "email", "kind"]);
+  });
+
+  test("unnamed controls still submit under distinct minted keys", async ({ mount, page }) => {
+    await mount<typeof FormKeysStory>("tests/client/features/app-shell/_field-identity-stories/FormKeysStory", { named: false });
+    await settleSurface(page);
+    const keys = await submittedKeys(page);
+    expect(new Set(keys).size).toBe(3);
+    expect(keys.every((key) => key !== "")).toBe(true);
+  });
 });
 
 test.describe("planted defects", () => {

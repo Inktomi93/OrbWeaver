@@ -1,11 +1,11 @@
 // Every field primitive emits an `id` and a `name`, so a control is always addressable by autofill, by a label's `for`
-// and by Chrome's form-field audit. A `<Field>` owns the pair for the controls it wraps: it mints a name when the caller
-// gave none and publishes it here, and Base UI mints the control id. A bare control mints the pair itself.
+// and by Chrome's form-field audit. A `<Field>` publishes the name the caller gave it and Base UI mints the control id, so
+// a control inside a Field mints a name only when neither the Field nor the control has one. A bare control mints the pair.
 
 import { createContext, use, useId } from "react";
 import { useFieldLabelled } from "./field-labelled.ts";
 
-/** The wrapping Field's name, for the inputs Base UI does not name itself (a number field's visible input). */
+/** The wrapping Field's own name (absent when the caller gave none), for the inputs Base UI does not name itself (a number field's visible input). */
 export const FieldNameContext = createContext<string | undefined>(undefined);
 
 interface FieldIdentity {
@@ -19,6 +19,6 @@ export function useFieldIdentity(id: string | undefined, name: string | undefine
   const inField = useFieldLabelled();
   const fieldName = use(FieldNameContext);
   const resolvedId = inField ? id : (id ?? generated);
-  const resolvedName = inField ? (name ?? fieldName) : (name ?? id ?? generated);
-  return { ...(resolvedId === undefined ? {} : { id: resolvedId }), ...(resolvedName === undefined ? {} : { name: resolvedName }) };
+  const resolvedName = inField ? (name ?? fieldName ?? generated) : (name ?? id ?? generated);
+  return { ...(resolvedId === undefined ? {} : { id: resolvedId }), name: resolvedName };
 }

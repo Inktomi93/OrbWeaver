@@ -1,7 +1,7 @@
 import type { FieldRootProps, FieldValidityProps } from "@base-ui/react/field";
 import { Field as BaseField } from "@base-ui/react/field";
 import type { ReactElement, ReactNode } from "react";
-import { createContext, use, useId } from "react";
+import { createContext, use } from "react";
 import { cn } from "#lib";
 import { HintTrigger } from "#primitives/hint-trigger";
 // `<Field>` is this context's ONE provider — the consumer half (`useFieldLabelled`) and the reason it has
@@ -115,9 +115,6 @@ export function Field({
   invalid,
   ...rest
 }: FieldProps): ReactElement {
-  // A Field always carries a name, so every control inside emits the id/name pair even when the caller keyed no data.
-  const generatedName = useId();
-  const resolvedName = name ?? generatedName;
   const ambient = use(FieldOrientationContext);
   const align = use(FieldAlignContext);
   const resolved = orientation ?? ambient;
@@ -182,11 +179,11 @@ export function Field({
       disabled={disabled}
       // Leave `invalid` undefined at rest so Base UI's own validate-driven computation still runs.
       invalid={invalid ?? (hasError || undefined)}
-      name={resolvedName}
+      name={name}
       {...rest}
     >
       <FieldLabelledContext value={true}>
-        <FieldNameContext value={resolvedName}>
+        <FieldNameContext value={name}>
           <FieldControlDockContext value={resolved === "horizontal"}>
             {resolved === "horizontal" ? (
               <>

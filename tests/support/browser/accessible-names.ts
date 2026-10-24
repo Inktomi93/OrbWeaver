@@ -32,8 +32,10 @@ import type { Locator, Page } from "@playwright/test";
 export interface NameFinding {
   readonly rule: "nameless-control" | "ambiguous-duplicate" | "unnamed-landmark" | "duplicate-landmark" | "label-not-in-name";
   readonly detail: string;
-  /** The control name a duplicate finding is about, so a caller can judge whether the name came from data. */
+  /** The control name a duplicate finding is about. */
   readonly subject?: string;
+  /** The ARIA role of the duplicated controls. */
+  readonly role?: string;
   /** How many controls share that name, for a duplicate finding. */
   readonly count?: number;
 }
@@ -154,6 +156,7 @@ function ambiguousDuplicateFindings(nodes: readonly AriaNode[]): readonly NameFi
       findings.push({
         rule: "ambiguous-duplicate",
         subject: first.name ?? "",
+        role: first.role,
         count: bucket.length,
         detail: `${String(bucket.length)}× ${first.role} "${first.name ?? ""}" under the same scope (${scope === "" ? "<root>" : scope}) — getByRole cannot resolve one`,
       });
@@ -341,4 +344,36 @@ export async function nameQualityFindings(page: Page): Promise<readonly NameFind
 /** Formats findings for an `expect(...)` message that points straight at the fix site. */
 export function formatFindings(findings: readonly NameFinding[]): string {
   return findings.map((f) => `  [${f.rule}] ${f.detail}`).join("\n");
+}
+
+/** A repeating row is a list item, table row, or a slot named for a row. */
+const ROW_SELECTOR = "li, tr, [role='listitem'], [role='row'], [data-slot$='row']";
+
+/**
+ * A duplicate is the data's, not the product's, when every duplicated control sits in a row and the whole row sentence is the
+ * same in each: only the records are alike, so no name could tell them apart. Controls outside any row are the product's to name.
+ */
+async function isIdenticalDataDuplicate(page: Page, finding: NameFinding): Promise<boolean> {
+  if (finding.role === undefined || finding.subject === undefined) {
+    return false;
+  }
+  const controls = page.getByRole(finding.role as Parameters<Page["getByRole"]>[0], { name: finding.subject, exact: true });
+  const rows = await controls.evaluateAll(
+    (elements: Element[], selector: string) => elements.map((element) => (element.closest(selector)?.textContent ?? "").replace(/\s+/g, " ").trim()),
+    ROW_SELECTOR,
+  );
+  const [first] = rows;
+  // A row that is only the control's own name carries no data to tell the records apart, so it is the product's to name.
+  return rows.length > 1 && first !== undefined && first !== "" && first !== finding.subject && rows.every((row) => row === first);
+}
+
+/** The name findings that bind the product: {@link nameQualityFindings} minus duplicates only the data can tell apart. */
+export async function productNameFindings(page: Page): Promise<readonly NameFinding[]> {
+  const kept: NameFinding[] = [];
+  for (const finding of await nameQualityFindings(page)) {
+    if (finding.rule !== "ambiguous-duplicate" || !(await isIdenticalDataDuplicate(page, finding))) {
+      kept.push(finding);
+    }
+  }
+  return kept;
 }
