@@ -6,10 +6,9 @@
 // external edit-draft store's mode. The whole cluster's rest/reveal posture is `messageActionsRevealClass`
 // (one home); the ⋯ arm is the sanctioned `RowActionsMenu` composite, which owns Delete's ConfirmDialog.
 //
-// WIREBTN (owner nit, 2026-08-03) — "View wire trace…" LIVES HERE, not on the metadata row. RAWVIEW grafted
-// the host-only per-variant wire trigger onto `MessageMetadataRow` because that was the only per-VARIANT
-// surface built at the time; the result was a lone quiet button under every message, outside the row-action
-// grammar (D62 §12 — the kebab IS the action home). It is an action on this reply, so it is a menu item.
+// "View wire trace…" LIVES HERE, not on the metadata row (an owner ruling): a lone quiet button under every
+// message would sit outside the row-action grammar (D62 §12 — the kebab IS the action home). It is an action on
+// this reply, so it is a menu item.
 //
 // WHY THE DIALOG IS A SIBLING OF THE MENU, NOT A CHILD: `MenuPopup` portals through `BaseMenu.Portal` with no
 // `keepMounted`, and a `MenuItem` click closes the menu — a dialog rendered inside the popup would unmount in
@@ -17,10 +16,10 @@
 // (the item is a child, the `ConfirmDialog` is a sibling); the wire viewer follows that precedent, which is
 // also why the `open` state has to live in THIS component rather than in a split-out trigger file.
 //
-// THREE RATIFIED SECOND DOORS HANG OFF THIS ROW (#568 — the duplicate-action-doors budgets
+// THREE RATIFIED SECOND DOORS HANG OFF THIS ROW (the duplicate-action-doors budgets
 // `chats::chat.deleteMessages: 2`, `chats::chat.undoContinue: 2`, `chats::chat.revertContinue: 2`). This is
-// the per-MESSAGE plane; each twin is a different plane with a different reach, so none is the #539 echo
-// class (two controls in one home, one carrying a strict subset of the other's payload):
+// the per-MESSAGE plane; each twin is a different plane with a different reach, so none is an echo (two
+// controls in one home, one carrying a strict subset of the other's payload):
 //   • deleteMessages ← `message-selection-bar.tsx`: bulk-select mode, the whole selected SET, a counted
 //     confirm. This door deletes ONE row at rest, with no mode to enter first.
 //   • undoContinue / revertContinue ← `use-composer-utilities.ts` (the ✨ menu): composer-side and pinned to
@@ -37,6 +36,7 @@ import { Row } from "@orb/ui/layout";
 import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
+import { DescribedMenuItem } from "#components";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { copyWithNotice, NEEDS_CONTINUATION, notify, testId } from "#lib";
 import { selectChat, startEditingMessage } from "#state";
@@ -199,7 +199,7 @@ export function MessageActionsRow({
   // "what did this send?" about. Not a disabled-with-reason item: this is APPLICABILITY, not a phase gate.
   const showWireTrace = showWireTraceFor(viewerIsHost, role);
 
-  // #245 — MEASURE THE ROW'S FOOTPRINT HERE, in the click handler, because this is the last moment it
+  // MEASURE THE ROW'S FOOTPRINT HERE, in the click handler, because this is the last moment it
   // exists: React has already committed the read→edit swap by the time any effect runs, and a render-time
   // ref read is illegal (react-hooks/refs). THIS click is the one frame where the read-mode box is still on
   // screen.
@@ -207,8 +207,7 @@ export function MessageActionsRow({
   // The measured box is the CONTENT COLUMN, not the bubble. Everything edit mode removes or replaces lives
   // inside it — the action cluster (suppressed by this very row), the metadata row, the tool records, the
   // swipe pager, and the prose the editor stands in for — and the column is content-sized, so losing any of
-  // them shrinks it. Measured on the shared-track stage: a two-word reply's column went 221px → 114px
-  // (bubble skin) and 221px → 138px plus a 42px sideways slide (flat).
+  // them shrinks it — and on the flat skin also slides it sideways.
   // Measured off the CLUSTER's own node, not the clicked control: the coarse arm's door is a `MenuItem`
   // inside a PORTALLED popup, which has no ancestor column to walk up to. This element is inside the
   // column at every pointer, so both doors reserve the same box.
@@ -322,16 +321,22 @@ export function MessageActionsRow({
             {/* The continue undo/redo pair (F2) — only on an assistant reply (the sole role that carries a
             continue snapshot), disabled-with-reason until a continue has run on the shown swipe. */}
             {showContinueRestore ? (
-              <MenuItem disabled={!hasContinuation} title={continueRestoreReason} onClick={onUndoContinue}>
-                <Icon icon={Undo2} size="sm" />
-                Undo last continuation
-              </MenuItem>
+              <DescribedMenuItem
+                detail={continueRestoreReason}
+                disabled={!hasContinuation}
+                icon={Undo2}
+                label="Undo last continuation"
+                onClick={onUndoContinue}
+              />
             ) : null}
             {showContinueRestore ? (
-              <MenuItem disabled={!hasContinuation} title={continueRestoreReason} onClick={onRevertContinue}>
-                <Icon icon={Redo2} size="sm" />
-                Re-apply continuation
-              </MenuItem>
+              <DescribedMenuItem
+                detail={continueRestoreReason}
+                disabled={!hasContinuation}
+                icon={Redo2}
+                label="Re-apply continuation"
+                onClick={onRevertContinue}
+              />
             ) : null}
             {showWireTrace ? (
               <MenuItem data-testid={testId("variantWireTrigger")} onClick={(): void => setWireOpen(true)}>

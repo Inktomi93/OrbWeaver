@@ -1,6 +1,7 @@
 // RPG meters keep the value text as the datum and the rail decorative.
 // Unset readings and ceilings stay null rather than becoming invented zeroes.
 
+import { HintTrigger } from "@orb/ui/hint-trigger";
 import { Row, Stack } from "@orb/ui/layout";
 import type { TrackColor } from "@orb/ui/meter";
 import { TrackBar } from "@orb/ui/meter";
@@ -13,10 +14,9 @@ import { TrackerValue } from "./tracker-value.tsx";
 
 interface MeterRowProps {
   readonly label: string;
-  /** The reading — `null` when the story has never written one. NULLABLE ON PURPOSE (side-eye 08-01): every
-   *  caller used to fold an unset tracker to `0`, so a pool nobody had touched announced "0/40" and drew an
-   *  empty bar as FACT — and the screen reader read the invention out loud (TEXT is the datum). Unset now
-   *  renders the em-dash arm: no numerator, an unfilled track, nothing to mistake for a measurement. */
+  /** The reading — `null` when the story has never written one. NULLABLE ON PURPOSE: folding an unset tracker
+   *  to `0` would announce "0/40" for a pool nobody touched and draw an empty bar as FACT (TEXT is the datum).
+   *  Unset renders the em-dash arm: no numerator, an unfilled track, nothing to mistake for a measurement. */
   readonly value: number | null;
   /** The effective ceiling — `null` when the tracker has none (a poolless quantity; the `/max` half is then
    *  simply absent rather than a fabricated `0`). */
@@ -39,12 +39,12 @@ interface MeterRowProps {
   /** Commit a new MAX — present ⇒ the `/max` is editable (the caller owns the value-drag tell). */
   readonly onEditMax?: (next: number) => void;
   /** What the MAX edit actually writes, when "Click to edit" understates it (per-carrier ceilings: the
-   *  caller states this-character-vs-default semantics here; it rides the rest button's `title`).
+   *  caller states this-character-vs-default semantics here; it rides the rest button's tooltip).
    *  Absent ⇒ the plain "Click to edit". */
   readonly maxEditTitle?: string;
-  /** The label's hover `title` — the host-authored HINT rides here instead of an inline microline (owner
-   *  ruling 08-01: the same hint echoed under every carrier's row is noise; hover reveals it on demand). */
-  readonly labelTitle?: string;
+  /** The host-authored HINT, opened on demand from a HintTrigger beside the label rather than as an inline
+   *  microline (an owner ruling: the same hint echoed under every carrier's row is noise). */
+  readonly labelHint?: string;
   /** A transient consequence microline under the row (clamp-and-tell — "Vitality 24 → 20, max
    *  lowered"). The caller owns its lifecycle (shows it after a drag, clears it). */
   readonly note?: ReactNode;
@@ -75,8 +75,8 @@ function MaxCell({
   }
   return (
     <Row gap="field" align="center">
-      {/* PUNCTUATION, not a datum (#1383): in the editable arm the slash is its own text node between two
-          NAMED fields, so an aria walk of a roster read "17", "/", "20" as three peer readings. The
+      {/* PUNCTUATION, not a datum: in the editable arm the slash is its own text node between two NAMED
+          fields, so an aria walk of a roster would read "17", "/", "20" as three peer readings. The
           read-only arm has no such node — its `/max` is part of the one datum string. */}
       <Text as="span" size="label" tone="muted" aria-hidden="true">
         /
@@ -148,41 +148,34 @@ function ValueCell({
   );
 }
 
-/** The meter's label cluster — glyph + name, with the host hint riding the hover `title` (never an inline
+/** The meter's label cluster — glyph + name, with the host hint behind a HintTrigger (never an inline
  *  echo). Extracted from MeterRow for the complexity cap; deliberately takes `| undefined` props so the
  *  caller passes straight through without conditional spreads. */
 function MeterLabel({
   label,
   leading,
-  labelTitle,
+  labelHint,
   nameCarried,
 }: {
   readonly label: string;
   readonly leading: ReactNode | undefined;
-  readonly labelTitle: string | undefined;
+  readonly labelHint: string | undefined;
   readonly nameCarried: boolean;
 }): ReactElement {
   return (
     <Row gap="field" align="center" className="min-w-0">
       {leading}
-      {/* THE LABEL IS PROGRAMMATICALLY ASSOCIATED, OR IT IS LOOSE TEXT (#1383). In the EDITABLE arm both
-          fields carry this label verbatim inside their accessible names (`<subject> HP value` /
-          `<subject> HP max`), so the visible text is a sighted-reader duplicate — announcing it a second
-          time as an unassociated node is what made a roster read "HP", "button 17", "/", "button 20" with
-          nothing binding them. It stays in the DOM (it is the visual label) and leaves the a11y tree.
+      {/* THE LABEL IS PROGRAMMATICALLY ASSOCIATED, OR IT IS LOOSE TEXT. In the EDITABLE arm both fields carry
+          this label verbatim inside their accessible names (`<subject> HP value` / `<subject> HP max`), so the
+          visible text is a sighted-reader duplicate — announced again as an unassociated node, a roster would
+          read "HP", "button 17", "/", "button 20" with nothing binding them. It stays in the DOM (it is the visual label) and leaves the a11y tree.
           The READ-ONLY arm keeps it: there the datum is plain text with no name of its own to carry it,
           so hiding the label would orphan the number. `leading` (the lock pin, a real button) is outside
           the hidden node on purpose. */}
-      <Text
-        as="span"
-        size="label"
-        tone="muted"
-        className="truncate"
-        {...(nameCarried ? { "aria-hidden": true } : {})}
-        {...(labelTitle === undefined ? {} : { title: labelTitle })}
-      >
+      <Text as="span" size="label" tone="muted" className="truncate" {...(nameCarried ? { "aria-hidden": true } : {})}>
         {label}
       </Text>
+      {labelHint === undefined ? null : <HintTrigger className="" hint={labelHint} subject={label} />}
     </Row>
   );
 }
@@ -236,7 +229,7 @@ export function MeterRow({
   onEditValue,
   onEditMax,
   maxEditTitle,
-  labelTitle,
+  labelHint,
   note,
   valueWarning,
 }: MeterRowProps): ReactElement {
@@ -245,18 +238,16 @@ export function MeterRow({
   // the subject (the card already says whose card it is).
   const named = trackerFieldName(label, subject);
   return (
-    // THE BLOCK CARRIES THE COARSE TOUCH FLOOR (#869). Two meter rows stack their editable value cells 36px
-    // apart (18px text-height line + the track + `gap-field`), and each cell's 44px hit `::after` therefore
-    // ends 14px below its own centre instead of 22 — the row BELOW, painted later, takes the rest. MEASURED at
-    // 430 coarse on the rpg Status card: `Mira Vitality value` yExtent=36 against a 44 floor, its bottom band
-    // resolving to `Mira Resolve value`. Flooring the BLOCK (never the value — `tracker-value.tsx` states the
+    // THE BLOCK CARRIES THE COARSE TOUCH FLOOR. Two meter rows stack their editable value cells closer than
+    // the touch target, so each cell's hit `::after` would reach into the row BELOW, which is painted later and
+    // takes the rest. Flooring the BLOCK (never the value — `tracker-value.tsx` states the
     // no-shift rule the rest→edit swap depends on) makes the pitch ≥44 so each cell's pseudo fits its own band.
     <Stack gap="field" className={VALUE_ROW_TOUCH_FLOOR_AT_COARSE} data-slot="meter-row" data-unset={value === null}>
       {/* `center` (not `baseline`): the click-to-edit input's border-box baseline sits lower than the
           label's text baseline, so baseline alignment GROWS the row ~4px on reveal — center keeps the
           rest→edit swap pixel-stable (the no-layout-shift bar). */}
       <Row justify="between" align="center" gap="block">
-        <MeterLabel label={label} leading={leading} labelTitle={labelTitle} nameCarried={onEditValue !== undefined} />
+        <MeterLabel label={label} leading={leading} labelHint={labelHint} nameCarried={onEditValue !== undefined} />
         {onEditValue === undefined ? (
           <Text as="span" size="label" tone={valueWarning === true ? "warning" : undefined} className="tabular-nums">
             {meterDatum(value, max)}

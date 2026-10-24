@@ -11,6 +11,7 @@
 import { Button } from "@orb/ui/button";
 import { Icon, Pin } from "@orb/ui/icons";
 import type { ReactElement } from "react";
+import { Tip } from "#components";
 
 export interface RpgFieldLockProps {
   /** WHAT this pin holds, in the caller's own words ("Vitality", "the present characters", "the pack"). REQUIRED
@@ -27,16 +28,10 @@ export interface RpgFieldLockProps {
  *  low-stakes, self-healing action — any hand edit re-pins). The title states the state AND the gesture. */
 export function RpgFieldLock({ field, onRelease }: RpgFieldLockProps): ReactElement {
   return (
-    <Button
-      type="button"
-      intent="ghost"
-      size="glyph-sm"
-      className="text-muted-foreground"
-      aria-label={`Release ${field} to the model`}
-      title={`${field} is pinned by hand — the story won't change it. Click to release it back to the model.`}
-      onClick={onRelease}
-    >
-      <Icon icon={Pin} size="xs" />
-    </Button>
+    <Tip text={`${field} is pinned by hand — the story won't change it. Click to release it back to the model.`}>
+      <Button type="button" intent="ghost" size="glyph-sm" className="text-muted-foreground" aria-label={`Release ${field} to the model`} onClick={onRelease}>
+        <Icon icon={Pin} size="xs" />
+      </Button>
+    </Tip>
   );
 }

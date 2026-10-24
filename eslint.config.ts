@@ -1099,6 +1099,11 @@ export default [
     rules: { "orb/commented-code": "error" },
   },
   {
+    files: ["packages/**/*.{ts,tsx}", "tooling/**/*.{ts,tsx}"],
+    plugins: { orb: localPlugin },
+    rules: { "orb/no-history-comments": "error" },
+  },
+  {
     files: rootSources("@server", "@inference"),
     ignores: ["packages/server/src/**/persistence/**"],
     plugins: { orb: localPlugin },
@@ -1134,7 +1139,11 @@ export default [
     plugins: { orb: localPlugin },
     rules: { "orb/browser-no-node-globals": "error" },
   },
-  { files: [CLIENT_SRC], plugins: { orb: localPlugin }, rules: { "orb/zustand-selector-derived": "error", "orb/testid-typed-only": "error" } },
+  {
+    files: [CLIENT_SRC],
+    plugins: { orb: localPlugin },
+    rules: { "orb/zustand-selector-derived": "error", "orb/testid-typed-only": "error", "orb/no-native-title": "error" },
+  },
   {
     files: [CLIENT_SRC],
     ignores: ["packages/client/src/lib/session-channel.ts"],

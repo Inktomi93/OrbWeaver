@@ -1,11 +1,12 @@
 // The generation credit in a message's reveal cluster: the model, provider and connection that produced the
 // shown swipe, read off the persisted swipe record. Its posture is owner-ruled: the glyph is the only
-// rendering, the sentence lives on `title` and in sr-only text, and it drops at a coarse pointer, where there
-// is no hover to reveal it. The `message-metadata-model` slot is kept (rule 0.7).
+// rendering, the sentence shows in a hover tooltip and lives in sr-only text, and it drops at a coarse
+// pointer, where there is no hover to reveal it. The `message-metadata-model` slot is kept (rule 0.7).
 
 import type { MessageView } from "@orb/contracts/chat";
 import { Cpu, Icon } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { HIDE_AT_COARSE } from "#components";
 import { cn } from "#lib";
@@ -22,13 +23,23 @@ const CREDIT_SLOT = "message-metadata-model";
 /** The credit's box. The streaming row's footprint renders it with no sentence, under its own `slot`, to reserve the
  *  width the settled credit takes without a second `message-metadata-model` on the page. */
 export function GenerationCreditGlyph({ sentence, slot = CREDIT_SLOT }: { readonly sentence?: string; readonly slot?: string }): ReactElement {
-  return (
-    <Text as="span" voice="gloss" className={cn("inline-flex items-center", HIDE_AT_COARSE)} data-slot={slot} title={sentence}>
+  const glyph = (
+    <Text as="span" voice="gloss" className={cn("inline-flex items-center", HIDE_AT_COARSE)} data-slot={slot}>
       <Icon aria-hidden={true} className={MESSAGE_ACTION_ICON_CLASS} icon={Cpu} size="sm" />
       <Text as="span" className="sr-only">
         {sentence}
       </Text>
     </Text>
+  );
+  if (sentence === undefined) {
+    return glyph;
+  }
+  // The sr-only copy already speaks the sentence, so the tooltip is visual only and describes nothing.
+  return (
+    <Tooltip describesTrigger={false}>
+      <TooltipTrigger render={glyph} />
+      <TooltipPopup side="top">{sentence}</TooltipPopup>
+    </Tooltip>
   );
 }
 
