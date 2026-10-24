@@ -1,17 +1,16 @@
 // transport/jobs/workload-schedule-scheduler — the WHEN-to-tick DRIVER for recurring schedules (the TIME
-// dimension over the queue). The decision + enqueue LOGIC is `tickWorkloadSchedules` (the domain front door);
-// this driver only fires it at boot + on the injected interval, guarding errors so one bad tick never takes
-// the process down (the next tick retries). Single-replica (the `orb/assumes-single-replica` stance): a per-process
-// interval — the DB single-active lock makes a cross-replica double-enqueue benign regardless.
+// dimension over the queue). The decision + enqueue LOGIC is the injected `tick` (the workloads front door's
+// `tickWorkloadSchedules`, wired at entry/); this driver only fires it at boot + on the injected interval, guarding
+// errors so one bad tick never takes the process down (the next tick retries). Single-replica (the
+// `orb/assumes-single-replica` stance): a per-process interval — the DB single-active lock makes a cross-replica
+// double-enqueue benign regardless.
 //
-// BOUNDARIES: the driver enters ONLY the workloads front door (`tickWorkloadSchedules`) + `start` (threaded
-// into the tick deps). ONE feature, zero cross-feature composition. The db, the clock, `start`, and the timer
-// are ALL injected at entry/ — the driver constructs nothing.
+// BOUNDARIES: the driver imports only types from the workloads front door. The tick, the db, the clock, `start`,
+// and the timer are ALL injected at entry/ — the driver constructs nothing.
 
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { MS_PER_MINUTE } from "@orb/kit/time";
 import type { ScheduleTickDeps } from "#domain/workloads";
-import { tickWorkloadSchedules } from "#domain/workloads";
 import { getLog } from "#foundation/observability";
 import type { BackgroundWork } from "#infra/tasks";
 
@@ -23,11 +22,14 @@ const DEFAULT_CHECK_INTERVAL_MS = MS_PER_MINUTE;
 
 /** A timer seam (entry wires `setInterval`; tests pass a synchronous fake). Returns a `clear` closure. */
 type ScheduleOp = (fn: () => void, ms: number) => () => void;
+// `tickWorkloadSchedules` — advance every due schedule and enqueue its workload (front door).
+type TickSchedulesOp = (deps: ScheduleTickDeps) => Promise<void>;
 
-/** The DI bundle the scheduler driver closes over — the tick deps (db + clock + `start`) + the timer, all
- *  injected at entry/. */
+/** The DI bundle the scheduler driver closes over — the tick op and its deps (db + clock + `start`) + the
+ *  timer, all injected at entry/. */
 export interface WorkloadScheduleSchedulerDeps {
   readonly track?: BackgroundWork["track"];
+  readonly tick: TickSchedulesOp;
   readonly db: DatabaseHandle;
   readonly now: () => number;
   readonly start: ScheduleTickDeps["start"];
@@ -46,7 +48,7 @@ export function startWorkloadScheduleScheduler(deps: WorkloadScheduleSchedulerDe
   const tickDeps: ScheduleTickDeps = { db: deps.db, now: deps.now, start: deps.start };
 
   const safeTick = (): void => {
-    const completion = tickWorkloadSchedules(tickDeps).catch((err: unknown) => {
+    const completion = deps.tick(tickDeps).catch((err: unknown) => {
       log.error({ err }, "schedule-scheduler: tick failed (next tick retries)");
     });
     deps.track?.(completion);

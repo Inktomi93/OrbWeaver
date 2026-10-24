@@ -26,7 +26,7 @@ import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
 import type { CharacterId, ChatId, ChatInviteId, ChatParticipantId, PersonaId, UserId } from "@orb/kit/ids";
 import type { AnyColumn, SQL } from "drizzle-orm";
-import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, eq, gt, isNotNull, isNull, sql } from "drizzle-orm";
 
 type ParticipantActor = { readonly kind: "human"; readonly userId: UserId } | { readonly kind: "character"; readonly characterId: CharacterId };
 
@@ -219,6 +219,15 @@ export function insertMemberAfterInviteClaimStatement(
       setWhere: isNotNull(chatParticipants.leftSeq),
     })
     .returning();
+}
+
+/** Clamp every seat whose join floor sits above its own room's canon head to that head, and return the count.
+ *  No message in the room carries a seq above its head, so such a floor is stale: it hides history the member
+ *  was admitted to. Idempotent by its predicate; the head is the seat writer's own {@link canonHeadSeq}. */
+export async function repairStaleJoinSeq(db: Db): Promise<number> {
+  const head = canonHeadSeq(chatParticipants.chatId);
+  const rows = await db.update(chatParticipants).set({ joinSeq: head }).where(gt(chatParticipants.joinSeq, head)).returning({ id: chatParticipants.id });
+  return rows.length;
 }
 
 /** Self-leave / kick-a-human: stamp `leftSeq` on the caller's present row (atomic). Returns the row left this

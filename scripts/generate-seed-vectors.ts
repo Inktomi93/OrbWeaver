@@ -14,7 +14,7 @@ import { castId } from "@orb/kit/ids";
 import { buildCardEmbedText, DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
 import { createSessionsRolePolicy } from "@orb/server/domain/sessions";
 import { createHostPrincipalResolver } from "@orb/server/entry/auth";
-import { createProcessSeams, createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
+import { createProcessSeams, createServices, NO_SHARE_RELAY, SessionsCrypto, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
 import { env } from "@orb/server/foundation/env";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -34,6 +34,7 @@ const built = await createServices({
   rolePolicy: createSessionsRolePolicy({ ...env, ["OWNER_HANDLES"]: SEED_AUTHOR }),
   secretBoxKey: null,
   sessionSecret: null,
+  sessionsCrypto: SessionsCrypto.production(),
   casDir: join(scratch, "cas"),
   variantDir: join(scratch, "variants"),
   serverRestart: UNSUPERVISED_RESTART,

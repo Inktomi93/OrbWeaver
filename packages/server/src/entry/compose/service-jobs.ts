@@ -3,7 +3,7 @@
 import type { UserId } from "@orb/kit/ids";
 import type { TimerScheduler } from "@orb/kit/time";
 import type { WorkloadProgressBus, WorkloadRunnerDeps } from "#domain/workloads";
-import { createNextRunnableWorkload, loadWorkload, reapOrphanedWorkloads, runWorkload } from "#domain/workloads";
+import { createNextRunnableWorkload, loadWorkload, reapOrphanedWorkloads, runWorkload, tickWorkloadSchedules } from "#domain/workloads";
 import type { BackgroundWork } from "#infra/tasks";
 import type { ServiceJobs } from "#transport/jobs";
 import { createServiceJobs } from "#transport/jobs";
@@ -31,6 +31,7 @@ export function buildServiceJobs(deps: ServiceJobDeps): ServiceJobs {
       track: deps.track,
     },
     schedule: {
+      tick: tickWorkloadSchedules,
       db: deps.db,
       now: deps.now,
       start: (params) => deps.services.workloads.start(params),
