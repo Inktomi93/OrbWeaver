@@ -5,6 +5,7 @@ import { defineConfig, devices } from "@playwright/test";
 import {
   BROWSER_PROJECTS,
   DEV_TARGET_ALLOWED,
+  E2E_CLIENT_DIR,
   E2E_REPORT_PREFIX,
   OIDC_MODE,
   oidcIssuerTls,
@@ -23,14 +24,15 @@ import {
 //   • single-user — the DEFAULT lane (ports 8796/5181, no login; the pre-existing e2e specs run here unchanged).
 //   • local       — cookie/BFF sessions (ports 8799/5183); global-setup seeds a member for the multi-human specs.
 //   • forward-header — SSO trusted-proxy signed-JWT (ports 8798/5182); the actor mints the JWT in-test.
-//   • oidc         — the app as an OIDC client of an HTTPS mock issuer (ports 8795/5184, issuer 8794); its specs
-//                    run on the SERVER origin, which serves a client the webServer builds first. See modes.ts.
+//   • oidc         — the app as an OIDC client of an HTTPS mock issuer (ports 8795/5184, issuer 8794).
+// Every mode's specs run on the SERVER origin, which serves the one client build the first booted webServer makes.
+// (The vite port of each pair is still booted by the stack; nothing reads it.) See modes.ts.
 // A spec targets its mode by the Playwright PROJECT name (a project-scoped `test.describe` / the runner's
 // `--project=<name>`); the default `pnpm e2e` runs every project.
 //
 // The stack: `pnpm stack up-fg` — the SAME leader body the detached dev supervisor runs (one source of
 // truth), foreground so Playwright owns + reaps the child tree. Boot order inside it is server →
-// healthz-gated → vite, so vite answering (the baseURL origin) == everything-ready.
+// healthz-gated → vite, so the server answering (the baseURL origin) is ready once its healthz gate has passed.
 
 const inCI = process.env["CI"] !== undefined;
 
@@ -46,7 +48,7 @@ const reporters: ReporterDescription[] = [
 ];
 
 // One Playwright project per mode. Every project shares the browser/use defaults; each pins its own baseURL
-// (its vite origin) + `E2E_BASE_URL` (via the webServer env) so the support tRPC + actor clients hit THAT
+// (its server origin) + `E2E_BASE_URL` (via the webServer env) so the support tRPC + actor clients hit THAT
 // mode's stack.
 const projects = BROWSER_PROJECTS.map(({ name, mode, device, chatStyle }) => ({
   name,
@@ -75,10 +77,14 @@ if (!collecting && bootedModes.includes(OIDC_MODE)) {
 }
 
 const STACK_UP = "node tooling/src/stack/cli.ts up-fg";
+// Every mode's server serves the ONE built client in E2E_CLIENT_DIR, so no cold run compiles modules on demand.
+// Playwright starts the webServers in order, each ready before the next begins: the first mode that serves a
+// client builds it and the rest reuse it. NODE_ENV=development keeps the `import.meta.env.DEV` instruments
+// (`window.__orb`) the specs read; the output is still a bundled, minified build.
+const CLIENT_BUILD = `NODE_ENV=development pnpm --filter @orb/client exec vite build --configLoader native --mode development --outDir ${E2E_CLIENT_DIR}`;
+const clientBuilder = bootedModes.find((mode) => mode.servedClient !== undefined);
 const webServers = bootedModes.map((mode) => ({
-  // A mode whose spec origin is the server builds the client it serves before the stack boots.
-  command:
-    mode.servedClient === undefined ? STACK_UP : `pnpm --filter @orb/client exec vite build --configLoader native --outDir ${mode.servedClient} && ${STACK_UP}`,
+  command: mode === clientBuilder ? `${CLIENT_BUILD} && ${STACK_UP}` : STACK_UP,
   url: mode.baseUrl,
   reuseExistingServer: mode.name === SINGLE_USER.name && DEV_TARGET_ALLOWED && !inCI,
   gracefulShutdown: { signal: "SIGTERM" as const, timeout: budget(15_000) },
