@@ -113,7 +113,7 @@ Reference `client/features/plugin/hooks/use-extensions-list-header.ct.tsx`:
 | Reference case | Behavior and assertions | Existing coverage | Layer | Decision |
 | - | - | - | - | - |
 | The band names the section and states the live page count | Two plugins with one page each render `2`. | None. | CT with data hooks | Rebuild in the [extensions-list-header CT](../../tests/client/features/plugin/hooks/extensions-list-header.ct.tsx). A third, non-page surface must not count. The section title literal is dropped as copy. |
-| Zero registered pages render the title alone | No pages renders no `0`. | The common-header CT suppresses numeric zero. | Common CT | Drop: an empty roster yields the bare zero that the common header already suppresses. |
+| Zero registered pages render the title alone | One plugin with no surfaces renders no census. | The common-header CT suppresses numeric zero, but the roster guard `pages.length > 0` decides whether the band receives `0 of 0` or a bare zero. | CT with data hooks | Rebuild in the same CT. The case fails when the roster guard is dropped. |
 | Filtered census, named by this item | A finder query keeps a filtered count; a query that matches nothing renders `0 of N`. | None. | CT with data hooks | Rebuild in the same CT. The story writes the production extensions search store that the shell's finder writes. |
 
 Reference `client/features/databank/hooks/use-databank-list-header.ct.tsx`:
@@ -127,7 +127,7 @@ Reference `client/features/databank/hooks/use-databank-list-header.ct.tsx`:
 | The Add dialog's teaching sentence reads at least the field-label size | Computed font size relation inside the dialog. | None. | CT in the production modal host | Rebuild, deferred to the same 0963 CT. |
 | The band prints the server census of a bank deeper than one page | A bank past `DATABANK_LIST_DEFAULT_LIMIT` prints its total, never `N+`, and reads no `databank.list`. | None. | Controlled-state CT | Rebuild. `routeTrpc` refuses an unlisted `databank.list`, so the band cannot measure a page. |
 | Every Add arm offers Cancel, and Cancel closes | Cancel in all three arms; the upload arm's Cancel closes the dialog. | None. | CT in the production modal host | Rebuild, deferred to the same 0963 CT. The band's own half, Add opening the `addDocument` slot, is rebuilt in the confirm case. |
-| A failed census does not tell a stocked bank to add a document | Failure label instead of the empty label; sweeps disabled; the re-read item refetches. | None. | Controlled-state CT | Rebuild with recovery: after the re-read succeeds the census renders and the sweeps enable. |
+| A failed census does not tell a stocked bank to add a document | Failure label instead of the empty label; sweeps disabled; the re-read item refetches. | None. | Controlled-state CT | Rebuild with recovery: after the re-read succeeds the census renders and the sweeps enable. A second case reads the empty-bank reason from a mounted empty bank, then asserts a failed census renders that text nowhere in the menu and renders its own reason once. The group name alone is not the evidence: it carries only one label. |
 
 ### Bootstrap and common-header runtime evidence
 
@@ -146,10 +146,14 @@ The corpus, extensions and databank band CTs and the corpus-vocabulary unit test
 | `distilledCensus` returns the bare distilled count | The unit test expects `12 of 20 distilled`; the corpus band no longer shows it. |
 | Plugin pages keep every anchor except `dialog` | The page-count case finds no `2`; the filtered case finds `0 of 3`, not `0 of 2`. |
 | The extensions census drops the filtered `0 of N` arm | The filtered case finds no `0 of 2`. |
+| The extensions census drops the `pages.length > 0` guard | The empty-roster case finds `0 of 0` in the heading. |
 | A sweep request sends on menu selection instead of opening its confirm | The confirm case finds no alert dialog. |
 | The empty-bank predicate never matches | The empty-bank case finds `Rebuild all documents` enabled. |
 | The empty-bank reason renders over every bank | The confirm case finds a named menu group over a stocked bank. |
+| The empty-bank predicate treats an unread census as empty (`(census ?? 0) === 0`) | The failed-census reason case finds the empty-bank reason rendered in the menu. |
 | The failed-census re-read item is removed | The failed-census case finds no `Check the bank again`. |
 | The band caps its count at `100+` | The deep-bank case finds no full census. |
+
+The databank cases build empty and deep banks from the production `BankHealthView` type with every field agreeing (total, passages, chunks, per-phase counts, stale extraction). The corpus holds one stocked bank-health capture and no empty or deep bank. The `discovery.catalog` and `plugin.listSurfaces` reads have no corpus capture yet; item 0977 does not add them, the corpus shell-read work does.
 
 The stories mount only the production registry, host and stores, and add no production or testkit export. The character docked-width cases and the Add-dialog cases remain open for the production-shell CTs in item 0963.
