@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { authorClassIgnores, createOrbPlugin } from "@orb/tooling/eslint";
+import { authorClassIgnores, baseUiDoors, createOrbPlugin } from "@orb/tooling/eslint";
 import { BUTTON_SIZE_OVERFLOW } from "@orb/ui/button/size-hit-area";
 import pluginQuery from "@tanstack/eslint-plugin-query";
 import pluginRouter from "@tanstack/eslint-plugin-router";
@@ -550,6 +550,7 @@ if (browserGlobalsOverride?.linter?.rules.style?.noRestrictedGlobals === undefin
   throw new Error("The browser Node-global policy must be configured in Biome");
 }
 const localPlugin = createOrbPlugin({
+  baseUiDoors: baseUiDoors(fileURLToPath(new URL("./packages/ui", import.meta.url))),
   browserNodeGlobals: new Set([...Object.keys(browserGlobalsOverride.linter.rules.style.noRestrictedGlobals.options.deniedGlobals), "process"]),
   floorlessButtonSizes: new Set(
     Object.entries(BUTTON_SIZE_OVERFLOW)

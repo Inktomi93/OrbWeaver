@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { dirname, join, resolve, sep } from "node:path";
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
 import { accessedName, isStyleMember, staticTextValue, unwrapTsValue } from "./static-values.ts";
@@ -240,12 +242,62 @@ function handedLifecycleAttributes(opening: TSESTree.JSXOpeningElement): TSESTre
   );
 }
 
+/** Where Base UI is wrapped inside `@orb/ui`: the directories whose files import it, and the package doors that reach them. */
+export interface BaseUiDoors {
+  readonly srcRoot: string;
+  readonly dirs: readonly string[];
+  readonly doors: ReadonlyMap<string, string>;
+}
+
+const UI_PACKAGE = "@orb/ui";
+
+/** Derive the Base UI-backed directories and their `@orb/ui/<door>` specifiers from the package tree itself. */
+export function baseUiDoors(uiRoot: string): BaseUiDoors {
+  const srcRoot = join(uiRoot, "src");
+  const dirs = new Set<string>();
+  for (const entry of readdirSync(srcRoot, { recursive: true, withFileTypes: true })) {
+    if (entry.isFile() && /\.tsx?$/u.test(entry.name) && readFileSync(join(entry.parentPath, entry.name), "utf8").includes("@base-ui/react")) {
+      dirs.add(entry.parentPath);
+    }
+  }
+  const { exports } = JSON.parse(readFileSync(join(uiRoot, "package.json"), "utf8")) as { exports: Record<string, unknown> };
+  const doors = new Map(
+    Object.entries(exports).flatMap(([key, target]): [string, string][] =>
+      typeof target === "string" && key.startsWith("./") && key.length > 2 ? [[`${UI_PACKAGE}/${key.slice(2)}`, dirname(resolve(uiRoot, target))]] : [],
+    ),
+  );
+  return { srcRoot, dirs: [...dirs], doors };
+}
+
+/** The path an import specifier reaches inside `@orb/ui`, or undefined for anything else. */
+function uiImportTarget(source: string, filename: string, { srcRoot, doors }: BaseUiDoors): string | undefined {
+  const door = doors.get(source);
+  if (door !== undefined) {
+    return door;
+  }
+  if (source.startsWith(".")) {
+    return resolve(dirname(filename), source);
+  }
+  // The `#<dir>` alias is the ui package's own; the client's `#lib` is another package's.
+  return source.startsWith("#") && filename.startsWith(`${srcRoot}${sep}`) ? join(srcRoot, source.slice(1)) : undefined;
+}
+
+function isBaseUiPartSource(source: string, filename: string, ui: BaseUiDoors): boolean {
+  if (source.startsWith("@base-ui/react")) {
+    return true;
+  }
+  const target = uiImportTarget(source, filename, ui);
+  return target !== undefined && ui.dirs.some((dir) => target === dir || target.startsWith(`${dir}${sep}`));
+}
+
 /**
  * On a Base UI part, lifecycle styling comes from the part's own state attributes. Matches a lifecycle-named
  * `useState`/`useReducer` value read inside the part's `className`, and a hand-passed lifecycle `data-*` attribute.
+ * A part is any value imported from `@base-ui/react` or from a `@orb/ui` directory that wraps it, reached by its
+ * package door, the `#` alias or a relative path.
  * Limit: lexical by name inside one file, so a state value renamed or derived first is not followed.
  */
-export const baseUiStateDataAttributesRule: OrbRule = {
+export const baseUiStateDataAttributesRule = (ui: BaseUiDoors): OrbRule => ({
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
     const partRoots = new Set<string>();
@@ -254,8 +306,8 @@ export const baseUiStateDataAttributesRule: OrbRule = {
     const classReads: { readonly identifier: TSESTree.Identifier; readonly opening: TSESTree.JSXOpeningElement }[] = [];
 
     return {
-      ImportDeclaration: (node: TSESTree.ImportDeclaration): void => {
-        if (node.importKind === "type" || !node.source.value.startsWith("@base-ui/react")) {
+      "ImportDeclaration[importKind!='type']": (node: TSESTree.ImportDeclaration): void => {
+        if (node.importKind === "type" || !isBaseUiPartSource(node.source.value, context.filename, ui)) {
           return;
         }
         for (const specifier of node.specifiers) {
@@ -264,13 +316,13 @@ export const baseUiStateDataAttributesRule: OrbRule = {
           }
         }
       },
-      VariableDeclarator: (node: TSESTree.VariableDeclarator): void => {
+      "VariableDeclarator[init.type='CallExpression']": (node: TSESTree.VariableDeclarator): void => {
         const name = lifecycleStateName(node);
         if (name !== undefined) {
           stateNames.add(name);
         }
       },
-      JSXOpeningElement: (node: TSESTree.JSXOpeningElement): void => {
+      "JSXOpeningElement[name]": (node: TSESTree.JSXOpeningElement): void => {
         const root = jsxRoot(node.name);
         if (root !== undefined) {
           openings.push({ opening: node, root });
@@ -297,4 +349,4 @@ export const baseUiStateDataAttributesRule: OrbRule = {
       },
     };
   },
-};
+});
