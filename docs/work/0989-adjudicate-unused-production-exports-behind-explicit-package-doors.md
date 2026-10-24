@@ -14,6 +14,8 @@ Use the `pnpm knip:prod` report of unused exports and types to review unused pub
 
 Two more surfaces belong to this adjudication. Every `exports` entry in a `packages/*/package.json` is measured for production importers against test-only importers; an entry whose only consumers are tests is a test-only door and is removed, with its tests moved onto the testkit doors, a closed reach entry or deletion. Every `SERVER_TEST_REACHES`, `PACKAGE_TEST_REACHES`, `ROWS_IMPORTERS` and `SUBPATH_LEAF_IMPORTERS` entry in `.dependency-cruiser.ts` is re-judged the same way: an entry that exists because the kit was not used is removed and its test rewritten through the kit; an entry that stays states a reason a kit door cannot meet.
 
+Method. `pnpm knip:prod` is the first pass. Cross-file consumers it cannot see are resolved with the codemod tool's one-workspace form, `jssg run --semantic-workspace`, whose `references()` follows a symbol across files (`.claude/skills/codemod/SKILL.md`; `tooling/src/codemods/rename-identifier` is the precedent); a census codemod lists each door export's referencing files, split into production and tests. A name-string lookup (a registry keyed by name, a plugin or route table) is invisible to both, so no export is removed until a literal `rg` for its name across `packages`, `tooling` and `tests` agrees.
+
 ## Why
 
 Closing wildcard package paths exposes unused symbols but does not remove them. Tests and tooling must not keep production code falsely alive, and `knip.ts` ignores the `@public` tag (`tags: ["-@public"]`), so a marker is not authority.
