@@ -1,12 +1,22 @@
 {
-  "extends": "../../tsconfig.base.json",
+  // Mirrors the author toolchain's compiler options for the main runtime, with no repository base, reset.d.ts or platform.d.ts.
+  // The SDK resolves through the @orb/plugin-sdk exports map, as it does in a template checkout.
+  // moduleDetection stays "force" only because this one program holds every showcase file; the toolchain compiles them one at a time.
+  // noUncheckedIndexedAccess is the one option stricter than the toolchain: the showcases guard indexed reads and the lint rules expect it.
   "compilerOptions": {
+    "noUncheckedIndexedAccess": true,
     "lib": ["es2023"],
+    "module": "esnext",
     "moduleDetection": "force",
+    "moduleResolution": "bundler",
+    "noEmit": true,
+    "noImplicitReturns": true,
     "skipLibCheck": false,
+    "strict": true,
     "target": "es2023",
-    "types": []
+    "types": ["@orb/plugin-sdk/main"],
+    "useDefineForClassFields": true
   },
-  "include": ["bundles/*/main.ts", "../plugin-sdk/main.d.ts", "../plugin-sdk/shared.d.ts", "../../reset.d.ts", "../../platform.d.ts"],
+  "include": ["bundles/*/main.ts"],
   "exclude": ["**/node_modules"]
 }

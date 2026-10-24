@@ -3,8 +3,8 @@
 
 import type { EmbedSpaceChangePreview, EmbedTargetRefusal, RoutableTask } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
-import type { WorkloadKind, WorkloadStatus } from "@orb/contracts/workloads";
-import { ACTIVE_WORKLOAD_STATUSES } from "@orb/contracts/workloads";
+import type { WorkloadStatus } from "@orb/contracts/workloads";
+import { ACTIVE_WORKLOAD_STATUSES, EMBEDDER_REBUILD_KINDS } from "@orb/contracts/workloads";
 import { groupThousands } from "@orb/kit/strings";
 import { trpcErrorDetailFlag, trpcErrorDetailNumber, trpcErrorReason } from "./trpc-error-reason.ts";
 
@@ -174,9 +174,6 @@ interface RebuildRow {
   readonly createdAt: number;
   readonly params: unknown;
 }
-
-/** The workload kinds an embedder change queues, one per scope search waits on: cards and pictures, documents, memory. */
-export const EMBEDDER_REBUILD_KINDS = ["index", "databank-reindex", "memory-backfill"] as const satisfies readonly WorkloadKind[];
 
 function isEmbedderRebuild(row: RebuildRow): boolean {
   const { params } = row;

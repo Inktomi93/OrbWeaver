@@ -11,7 +11,7 @@ plan: restoration-register
 
 ## What
 
-computeBridge, formatMemory, buildRecallQuery, inLiveWindow, the rerankPick name and ambiguity rules, applyRerank's unscorable and omitted ordering and rejection propagation, and the openai-compat minimum-window refusal are pure rules with no door, so they have no unit home.
+computeBridge, formatMemory, buildRecallQuery, inLiveWindow, the rerankPick name and ambiguity rules, applyRerank's unscorable placement (rejection propagation, omitted-hit order and the openai-compat minimum-window refusal are rebuilt in the composed rerank suite) are pure rules with no door, so they have no unit home.
 
 ## Why
 
