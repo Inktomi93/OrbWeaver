@@ -10,7 +10,7 @@ area: chat
 
 ## What
 
-ChatService.peekPrompt and previewSection have no router procedure and no caller; they now render in UTC.
+ChatService.peekPrompt and previewSection have no router or product caller; `packages/server/src/transport/trpc/routers/chat.ts:267` says they stay unexposed on purpose. Only `tests/server/domain/chat/assembly/section-render-prng.int.test.ts` (lines 70 and 103) calls them.
 
 ## Why
 
@@ -18,7 +18,7 @@ Unwired code is a question about intent.
 
 ## Done when
 
-Each is wired to a caller or deleted with a reason.
+Wire each verb to a router procedure or product caller, or delete it and its test use with a reason.
 
 ## Evidence
 
