@@ -1,6 +1,6 @@
 // Renames one declared identifier and every reference that resolves to it, by binding, never by text.
-// The declaring file performs every edit through `references()` and `root.write()`, so no file order matters.
-// `jssg test` resolves within one file; `tests-crossfile/` holds the multi-file case for the skill's `jssg run` step.
+// Every edit runs from the declaring file through `references()`; `tests-crossfile/` holds the multi-file cases for `jssg run`.
+// An aliased type-only import and a `const { x } = await import()` destructure are not references: `move-import-names` rename-in-place finishes them.
 
 import type { Codemod, Edit, SgNode, SgRoot } from "codemod:ast-grep";
 import type TS from "codemod:ast-grep/langs/typescript";
