@@ -59,11 +59,9 @@ Rebuilt tests need stable inputs and the actual production graph, not copied dom
 - No test in `node/db.int.test.ts` leaves a database handle open.
 - The root reads no real process input beyond the record it parsed.
 
-The item names provider recipes, cancellation reporting and software snapshots. No file under `tests/`, `packages/` or `docs/` defines those terms apart from this item. Leg 7 asks the owner to name them or drop the clause.
-
 ## Plan
 
-Run the legs in order. Legs 1, 2, 5 and 6 touch only `tests/support`. Leg 3 needs production exports. Run each leg's named tests bare and by full path.
+Run the legs in order. Legs 1, 2, 4, 5 and 6 touch only `tests/support`. Leg 3 reads production builders through their existing doors. Run each leg's named tests bare and by full path.
 
 ### Leg 1: one secret-box key (codemod candidate)
 
@@ -81,11 +79,11 @@ Files: `corpus-fixture-lifetime.int.test.ts`, `corpus-execution.int.test.ts`, `c
 
 Done: no `physicalDelay` or turn loop decides completion in these files. Each negative assertion keeps a positive control.
 
-### Leg 3: root builds from production owners (per-site judgment, touches `packages/server`)
+### Leg 3: root builds from production owners (per-site judgment)
 
-Export the workload runner deps and the internal context parts from the compose graph. Then delete `workloadExecution`, `workloadsFor` and the `createContext` literal from `server.ts`. This changes production exports, so it follows D318 and the standing rule to export before reuse.
+Call the production builders, `buildServiceJobs` and the `createContext` assembly, through the doors they already have. Add no production export that only tests use (0989). If a builder has no door, route its parts through the composition root's existing output instead. Then delete `workloadExecution`, `workloadsFor` and the `createContext` literal from `server.ts`.
 
-Files: `tests/support/node/server.ts`, `packages/server/src/entry/compose/service-jobs.ts`, `packages/server/src/entry/compose/services.ts`, `packages/server/src/entry/app.ts`.
+Files: `tests/support/node/server.ts`, and read-only `packages/server/src/entry/compose/service-jobs.ts`, `packages/server/src/entry/compose/services.ts`, `packages/server/src/entry/app.ts`.
 
 Done: `server.ts` holds no copy of either literal. `corpus-execution.int.test.ts`, `corpus-workloads.int.test.ts` and `server-lifetime.int.test.ts` pass. A production defect in runner deps fails them.
 
@@ -112,10 +110,6 @@ Replace `hostEnvAllowlist` and `authModeSource()` in `server.ts` with values fro
 Files: `tests/support/node/server.ts`, `tests/support/node/env-seams.int.test.ts`, `tests/support/node/db.int.test.ts`.
 
 Done: the control fails on the old code with a planted shell variable. The handles close.
-
-### Leg 7: owner question
-
-Name the referent of "provider recipes, cancellation reporting and software snapshots", or drop the clause from Done. Default: drop it at closure.
 
 ## Evidence
 
