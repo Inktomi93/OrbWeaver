@@ -15,7 +15,7 @@ import {
   CORPUS_CONNECTION_TURN_CUE,
 } from "./corpus-connection-wire.ts";
 import { seedUserConnectionRows } from "./factories/rows/connection.ts";
-import { seedUserCredential } from "./factories/rows/credentials.ts";
+import { seedUserCredentialRows } from "./factories/rows/credentials.ts";
 import { captureTurnRows } from "./factories/rows.ts";
 import type { ServerTestHarness } from "./server.ts";
 
@@ -24,7 +24,7 @@ type Wire = ReturnType<typeof createCorpusConnectionWire>;
 type Actors = Awaited<ReturnType<typeof seedCorpusActors>>;
 type View = Awaited<ReturnType<Caller["connection"]["get"]>>;
 type Listing = Awaited<ReturnType<Caller["connection"]["catalogModels"]>>;
-type Credential = Awaited<ReturnType<typeof seedUserCredential>>;
+type Credential = Awaited<ReturnType<typeof seedUserCredentialRows>>;
 interface OwnedConnection {
   readonly credential: Credential;
   readonly row: Awaited<ReturnType<typeof seedUserConnectionRows>>;
@@ -152,7 +152,7 @@ async function effects(root: ServerTestHarness): Promise<ConnectionEffects> {
 async function ownedEndpoint(root: ServerTestHarness, ownerId: ServerTestHarness["ownerId"], key: string, model: string): Promise<OwnedConnection> {
   const principal = await root.principalFor(ownerId);
   const caller = await root.internalCallerFor(ownerId);
-  const credential = await seedUserCredential(root, { principal, provider: "custom-openai", key });
+  const credential = await seedUserCredentialRows(root, { principal, provider: "custom-openai", key });
   const row = await seedUserConnectionRows(root, {
     principal,
     providerId: "custom-openai",
@@ -286,7 +286,7 @@ async function diagnosticReads(parties: ConnectionParties, wire: Wire): Promise<
 
 async function accountReads(root: ServerTestHarness, caller: Caller, wire: Wire): Promise<ConnectionAccount> {
   const principal = await root.principalFor(root.ownerId);
-  const credential = await seedUserCredential(root, { principal, provider: "openrouter", key: CORPUS_CONNECTION_HOSTED_KEY });
+  const credential = await seedUserCredentialRows(root, { principal, provider: "openrouter", key: CORPUS_CONNECTION_HOSTED_KEY });
   const row = await seedUserConnectionRows(root, {
     principal,
     providerId: "openrouter",

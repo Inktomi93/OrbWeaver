@@ -9,7 +9,7 @@ import type { ServerProducerRoot } from "../../server.ts";
 import type { SeededAdminUser } from "../admin-user.ts";
 
 /** Mint through the actual privileged writer; the password-bearing row remains separate from its strict view. */
-export async function seedCreatedAdminUser(
+export async function seedCreatedAdminUserRows(
   root: ServerProducerRoot,
   userId: UserId,
   params: Parameters<ReturnType<typeof createCaller>["admin"]["createUser"]>[0],

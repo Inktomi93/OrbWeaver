@@ -26,7 +26,7 @@ import {
 } from "./corpus-provider.ts";
 import { captureCookieAuth, captureCorpusReads, seedCorpusLibraries } from "./corpus-seed.ts";
 import { freshHeldDb } from "./db.ts";
-import { seedUserCredential } from "./factories/rows/credentials.ts";
+import { seedUserCredentialRows } from "./factories/rows/credentials.ts";
 import { expect, test } from "./fixtures.ts";
 import type { ServerTestHarness } from "./server.ts";
 import { createServerHarness } from "./server.ts";
@@ -180,7 +180,7 @@ test("portable stats reject real label credential echoes before malformed schema
   await using root = await createServerHarness({ secretBoxKey: Buffer.alloc(32, 1), env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" } });
   await seedCorpusActors(root);
   const principal = await root.principalFor(root.ownerId);
-  const credential = await seedUserCredential(root, { principal, provider: "custom-openai", key: PRIVATE_KEY });
+  const credential = await seedUserCredentialRows(root, { principal, provider: "custom-openai", key: PRIVATE_KEY });
   const caller = await root.internalCallerFor(root.ownerId);
   const character = await caller.character.create({
     input: createCharacterSchema.parse({ handle: "stats-publication", name: "Public stats witness", description: "A native stats publication witness." }),
@@ -243,7 +243,7 @@ test("notification corpus preserves seven actual viewer and lifecycle snapshots 
   const publicBytes = serializeCorpusWire(extended, secrets);
   expect(secrets.some((secret) => publicBytes.includes(secret))).toBe(false);
   for (const identity of Object.values(memberIdentities)) {
-    const witness = await seedUserCredential(root, { principal, provider: "custom-openai", key: identity.viewer.handle });
+    const witness = await seedUserCredentialRows(root, { principal, provider: "custom-openai", key: identity.viewer.handle });
     const knownIdentitySecret = [...secrets, identity.viewer.handle, witness.row.ciphertext, witness.row.iv, witness.row.tag];
     expect(parseCorpusWire(serializeCorpusWire(wire, knownIdentitySecret))).toEqual(wire);
     expect(() => serializeCorpusWire({ ...wire, memberIdentities }, knownIdentitySecret)).toThrow("Corpus publication contains private material");
@@ -285,7 +285,7 @@ test("notification corpus preserves seven actual viewer and lifecycle snapshots 
   const drifted = structuredClone(snapshots);
   Reflect.deleteProperty(drifted.readerFinal.read.output, "nextCursor");
   expect(() => serializeCorpusWire({ ...wire, notificationInbox: drifted }, secrets)).toThrow("nextCursor");
-  const credential = await seedUserCredential(root, {
+  const credential = await seedUserCredentialRows(root, {
     principal,
     provider: "custom-openai",
     key: CORPUS_NOTIFICATION_RULE_MESSAGE,
@@ -353,7 +353,7 @@ test("portable member snapshots retain held, completed and cancelled native mess
   Reflect.deleteProperty(drifted.heldCompleted.read.output, "identities");
   expect(() => serializeCorpusWire({ ...base, chatLifecycleMember: drifted }, [OWNER_PASSWORD])).toThrow("identities");
   const principal = await root.principalFor(root.ownerId);
-  const credential = await seedUserCredential(root, { principal, provider: "custom-openai", key: CORPUS_CHAT_REPLY });
+  const credential = await seedUserCredentialRows(root, { principal, provider: "custom-openai", key: CORPUS_CHAT_REPLY });
   const secrets = [OWNER_PASSWORD, CORPUS_CHAT_REPLY, credential.row.ciphertext, credential.row.iv, credential.row.tag];
   expect(parseCorpusWire(serializeCorpusWire(base, secrets))).toEqual(base);
   expect(() => serializeCorpusWire(extended, secrets)).toThrow("Corpus publication contains private material");
@@ -400,7 +400,7 @@ test("native member publication capture excludes host-only content and below-flo
 test("schema-valid raw and JSON-escaped credential echoes from real card writers refuse portable publication", async () => {
   await using root = await createServerHarness({ secretBoxKey: randomBytes(32), env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" } });
   const principal = await root.principalFor(root.ownerId);
-  const credential = await seedUserCredential(root, { principal, provider: "custom-openai", key: PRIVATE_KEY });
+  const credential = await seedUserCredentialRows(root, { principal, provider: "custom-openai", key: PRIVATE_KEY });
   const caller = await root.internalCallerFor(root.ownerId);
   const card = await caller.character.create({
     input: createCharacterSchema.parse({ handle: "publication-card", name: "Public witness", description: "A native public witness." }),
@@ -422,7 +422,7 @@ test("schema-valid raw and JSON-escaped credential echoes from real card writers
 test("a real document credential echo refuses while a clean sibling retains exact captured requests", async () => {
   await using root = await createServerHarness({ secretBoxKey: randomBytes(32), env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" } });
   const principal = await root.principalFor(root.ownerId);
-  await seedUserCredential(root, { principal, provider: "custom-openai", key: PRIVATE_KEY });
+  await seedUserCredentialRows(root, { principal, provider: "custom-openai", key: PRIVATE_KEY });
   const caller = await root.internalCallerFor(root.ownerId);
   const wire = await publication(root);
   const secrets = [PRIVATE_KEY, OWNER_PASSWORD];
@@ -454,7 +454,7 @@ test("a real document credential echo refuses while a clean sibling retains exac
 test("known native credential values cannot escape through malformed publication diagnostics", async () => {
   await using root = await createServerHarness({ secretBoxKey: randomBytes(32), env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" } });
   const principal = await root.principalFor(root.ownerId);
-  await seedUserCredential(root, { principal, provider: "custom-openai", key: PRIVATE_KEY });
+  await seedUserCredentialRows(root, { principal, provider: "custom-openai", key: PRIVATE_KEY });
   const wire = await publication(root);
   const secrets = [PRIVATE_KEY, OWNER_PASSWORD];
   const clean = serializeCorpusWire(wire, secrets);

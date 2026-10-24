@@ -19,9 +19,9 @@ import { createCorpusReadResponder } from "../../iso/corpus-read-responder.ts";
 import { captureCorpusReads, seedCorpusLibraries } from "../corpus-seed.ts";
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
-import { seedGalleryItem } from "./rows/gallery.ts";
-import { seedCharacterTag, seedChatTag, seedTag } from "./rows/tag.ts";
-import { captureWorldBookRows, seedCharacterBook, seedWorldBook } from "./rows/world-info.ts";
+import { seedGalleryItemRows } from "./rows/gallery.ts";
+import { seedCharacterTagRows, seedChatTagRows, seedTagRows } from "./rows/tag.ts";
+import { captureWorldBookRows, seedCharacterBookRows, seedWorldBookRows } from "./rows/world-info.ts";
 import { seedChatInviteRows, seedInvitedChatParticipantRows } from "./rows.ts";
 
 test("world-info creation and first edits persist one injected clock rather than reversing a database wall-clock stamp", async () => {
@@ -56,7 +56,7 @@ test("shared library producers preserve every real relation and pending acceptan
   expect(library.snapshot.characterId).toBe(library.character.id);
   expect(library.characterPersona).toMatchObject({ characterId: library.character.id, personaId: library.persona.id });
   expect(library.gallery).toMatchObject({ assetId: library.asset.assetId, subjectCharacterId: library.character.id });
-  expect(await seedGalleryItem(root, { principal, assetId: library.asset.assetId, subjectCharacterId: library.character.id })).toEqual(library.gallery);
+  expect(await seedGalleryItemRows(root, { principal, assetId: library.asset.assetId, subjectCharacterId: library.character.id })).toEqual(library.gallery);
   expect(library.world.entries.map((row) => row.worldBookId)).toEqual([library.world.book.id]);
   expect(library.world.character).toMatchObject([{ characterId: library.character.id, worldBookId: library.world.book.id, role: "primary" }]);
   expect(library.world.chat).toMatchObject([{ chatId: library.room.chat.id, worldBookId: library.world.book.id }]);
@@ -79,13 +79,13 @@ test("shared library producers preserve every real relation and pending acceptan
   const persona = createCorpusReadResponder("persona.get", reads["persona.get"]);
   expect(persona({ personaId: library.persona.id })).toEqual(library.persona);
   expect(reads["tag.listPendingSuggestions"].flatMap((capture) => capture.output.map((tag) => tag.id))).toContain(library.tag.id);
-  const accepted = await seedCharacterTag(root, { principal, characterId: library.character.id, tagId: library.tag.id });
+  const accepted = await seedCharacterTagRows(root, { principal, characterId: library.character.id, tagId: library.tag.id });
   expect(accepted.status).toBe("accepted");
-  const replacement = await seedWorldBook(root, {
+  const replacement = await seedWorldBookRows(root, {
     principal,
     input: createBookSchema.parse({ name: "The new primary ledger" }),
   });
-  await seedCharacterBook(root, {
+  await seedCharacterBookRows(root, {
     principal,
     characterId: library.character.id,
     bookId: replacement.id,
@@ -108,8 +108,8 @@ test("real chat taggers retain separate overlays and foreign relation targets re
     input: { invitedHandle: actor.handle },
   });
   await seedInvitedChatParticipantRows(root, { principal: member, inviteId: invitation.id });
-  const memberTag = await seedTag(root, { principal: member, input: createTagSchema.parse({ name: "Member ledger label" }) });
-  const memberOverlay = await seedChatTag(root, { principal: member, chatId: library.room.chat.id, tagId: memberTag.id });
+  const memberTag = await seedTagRows(root, { principal: member, input: createTagSchema.parse({ name: "Member ledger label" }) });
+  const memberOverlay = await seedChatTagRows(root, { principal: member, chatId: library.room.chat.id, tagId: memberTag.id });
   expect(memberOverlay.ownerId).toBe(actor.id);
   const overlays = await root.db.select().from(chatTags).where(eq(chatTags.chatId, library.room.chat.id));
   expect(overlays.map((row) => [row.ownerId, row.tagId])).toEqual(
@@ -130,14 +130,14 @@ test("real chat taggers retain separate overlays and foreign relation targets re
   const booksBefore = await root.db.select().from(characterBooks);
   const tagsBefore = await root.db.select().from(characterTags);
   await expect(
-    seedCharacterBook(root, {
+    seedCharacterBookRows(root, {
       principal,
       characterId: foreignCharacter.id,
       bookId: library.world.book.id,
       role: "primary",
     }),
   ).rejects.toBeInstanceOf(DomainNotFoundError);
-  await expect(seedCharacterTag(root, { principal, characterId: foreignCharacter.id, tagId: library.tag.id })).rejects.toBeInstanceOf(DomainNotFoundError);
+  await expect(seedCharacterTagRows(root, { principal, characterId: foreignCharacter.id, tagId: library.tag.id })).rejects.toBeInstanceOf(DomainNotFoundError);
   expect(await root.db.select().from(characterBooks)).toEqual(booksBefore);
   expect(await root.db.select().from(characterTags)).toEqual(tagsBefore);
 });

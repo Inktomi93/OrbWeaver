@@ -27,7 +27,7 @@ import type {
 } from "../discovery.ts";
 
 /** Captures the actual scoped replacement, not a test-computed similarity or canonical pair. */
-export async function seedDuplicateCharacterPairs(
+export async function seedDuplicateCharacterPairsRows(
   root: ServerProducerRoot,
   params: NonNullable<Parameters<DiscoveryService["computeDuplicatePairs"]>[0]>,
 ): Promise<SeededDuplicateCharacterPairs> {

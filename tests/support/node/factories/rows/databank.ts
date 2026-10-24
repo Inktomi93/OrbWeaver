@@ -16,7 +16,7 @@ import type {
 } from "../databank.ts";
 
 /** Retain the complete native envelope and private canon for a composed document-creation origin. */
-export async function seedCreatedDocument(root: ServerProducerRoot, origin: DocumentOrigin): Promise<SeededCreatedDocument> {
+export async function seedCreatedDocumentRows(root: ServerProducerRoot, origin: DocumentOrigin): Promise<SeededCreatedDocument> {
   const result = await (async (): Promise<UploadResult> => {
     switch (origin.kind) {
       case "upload":
@@ -43,12 +43,12 @@ async function captureCreatedDocument(db: Db, result: UploadResult): Promise<See
 }
 
 /** Captures text-origin canon through the actual hash/dedup/destination producer, including an existing winner. */
-export async function seedDocument(root: ServerProducerRoot, params: Parameters<DatabankService["createFromText"]>[0]): Promise<DocumentRow> {
+export async function seedDocumentRows(root: ServerProducerRoot, params: Parameters<DatabankService["createFromText"]>[0]): Promise<DocumentRow> {
   return (await captureCreatedDocument(root.db, await root.services.databank.createFromText(params))).row;
 }
 
 /** Reads the caller's exact personal-global PK after the real document-ownership gate. */
-export async function seedGlobalDocument(root: ServerProducerRoot, params: Parameters<DatabankService["attachGlobal"]>[0]): Promise<GlobalDocumentRow> {
+export async function seedGlobalDocumentRows(root: ServerProducerRoot, params: Parameters<DatabankService["attachGlobal"]>[0]): Promise<GlobalDocumentRow> {
   const db = root.db;
   const attachGlobal = root.services.databank.attachGlobal;
   await attachGlobal(params);
@@ -64,7 +64,7 @@ export async function seedGlobalDocument(root: ServerProducerRoot, params: Param
 }
 
 /** Captures the actual character junction only after the producer admits both FK endpoints. */
-export async function seedCharacterDocument(
+export async function seedCharacterDocumentRows(
   root: ServerProducerRoot,
   params: Parameters<DatabankService["attachToCharacter"]>[0],
 ): Promise<CharacterDocumentRow> {
@@ -83,7 +83,7 @@ export async function seedCharacterDocument(
 }
 
 /** The real room-host and document-ownership gates precede this exact junction capture. */
-export async function seedChatDocument(root: ServerProducerRoot, params: Parameters<DatabankService["attachToChat"]>[0]): Promise<ChatDocumentRow> {
+export async function seedChatDocumentRows(root: ServerProducerRoot, params: Parameters<DatabankService["attachToChat"]>[0]): Promise<ChatDocumentRow> {
   const db = root.db;
   const attachToChat = root.services.databank.attachToChat;
   await attachToChat(params);

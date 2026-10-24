@@ -12,7 +12,7 @@ import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
 import { makeAssetBytes } from "./asset.ts";
 import { makeGenerationProvenance } from "./imagery-view.ts";
-import { seedImageryGenerations, seedNativeImageryImportClaim } from "./rows/imagery.ts";
+import { seedImageryGenerationsRows, seedNativeImageryImportClaimRows } from "./rows/imagery.ts";
 
 const ENDPOINT = "http://127.0.0.1:8703/v1";
 const MODEL = "corpus-image-model";
@@ -75,14 +75,14 @@ test("equal-clock reuse returns one exact real call cohort without another provi
   await using root = await createServerHarness({ providerFetch: wire.execute });
   wire.images.push(...Array.from({ length: 4 }, () => makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset))));
   const params = await hostedSubject(root);
-  const first = await seedImageryGenerations(root, { ...params, reuse: "never" });
-  const second = await seedImageryGenerations(root, { ...params, reuse: "never" });
+  const first = await seedImageryGenerationsRows(root, { ...params, reuse: "never" });
+  const second = await seedImageryGenerationsRows(root, { ...params, reuse: "never" });
   expect(first.picture.reused).toBe(false);
   expect(second.picture.reused).toBe(false);
   expect(new Set([...first.generations, ...second.generations].map((row) => row.createdAt))).toEqual(new Set([root.clock.now()]));
   expect(new Set([...first.generations, ...second.generations].map((row) => row.callId)).size).toBe(2);
   const beforePrefer = [...wire.requests];
-  const reused = await seedImageryGenerations(root, { ...params, reuse: "prefer" });
+  const reused = await seedImageryGenerationsRows(root, { ...params, reuse: "prefer" });
   expect(reused.picture.reused).toBe(true);
   expect([first.picture.images, second.picture.images]).toContainEqual(reused.picture.images);
   expect([first.generations, second.generations]).toContainEqual(reused.generations);
@@ -94,12 +94,12 @@ test("later-clock reuse returns the newest complete real cohort without another 
   await using root = await createServerHarness({ providerFetch: wire.execute });
   wire.images.push(...Array.from({ length: 4 }, () => makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset))));
   const params = await hostedSubject(root);
-  const first = await seedImageryGenerations(root, { ...params, reuse: "never" });
+  const first = await seedImageryGenerationsRows(root, { ...params, reuse: "never" });
   root.clock.advance(1);
-  const newest = await seedImageryGenerations(root, { ...params, reuse: "never" });
+  const newest = await seedImageryGenerationsRows(root, { ...params, reuse: "never" });
   expect(first.generations.map((row) => row.createdAt)).not.toEqual(newest.generations.map((row) => row.createdAt));
   const beforePrefer = [...wire.requests];
-  const reused = await seedImageryGenerations(root, { ...params, reuse: "prefer" });
+  const reused = await seedImageryGenerationsRows(root, { ...params, reuse: "prefer" });
   expect(reused.picture.reused).toBe(true);
   expect(reused.picture.images).toEqual(newest.picture.images);
   expect(reused.generations).toEqual(newest.generations);
@@ -111,7 +111,7 @@ test("a real native export/import records one actual call claim without duplicat
   await using root = await createServerHarness({ providerFetch: wire.execute });
   wire.images.push(...Array.from({ length: 2 }, () => makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset))));
   const params = await hostedSubject(root);
-  const native = await seedImageryGenerations(root, { ...params, reuse: "never" });
+  const native = await seedImageryGenerationsRows(root, { ...params, reuse: "never" });
   const callId = native.generations[0]?.callId;
   const descriptor = root.app.portability.find((entity) => entity.kind === "imagery");
   if (callId === null || callId === undefined || descriptor === undefined) {
@@ -127,8 +127,8 @@ test("a real native export/import records one actual call claim without duplicat
     throw new Error("actual imagery export returned no file");
   }
   const beforeImport = [...wire.requests];
-  const imported = await seedNativeImageryImportClaim(root, [root.ownerId, file], callId);
-  const repeated = await seedNativeImageryImportClaim(root, [root.ownerId, file], callId);
+  const imported = await seedNativeImageryImportClaimRows(root, [root.ownerId, file], callId);
+  const repeated = await seedNativeImageryImportClaimRows(root, [root.ownerId, file], callId);
   expect(imported.outcome).toMatchObject({ ok: true, created: false });
   expect(repeated).toEqual(imported);
   expect(imported.claim).toMatchObject({ id: callId, ownerId: root.ownerId });

@@ -20,7 +20,7 @@ import { corpusReadInput } from "../iso/corpus.ts";
 import { captureCorpusCookieIdentity, seedCorpusAccount } from "./corpus-auth.ts";
 import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "./corpus-provider.ts";
 import { makePluginBundle } from "./factories/plugin.ts";
-import { seedAutomationRun } from "./factories/rows/automation.ts";
+import { seedAutomationRunRows } from "./factories/rows/automation.ts";
 import { captureChatReplayRows } from "./factories/rows/chat.ts";
 import { seedAutomationRuleRows, seedInstalledPluginRows, seedPluginGrantRows } from "./factories/rows.ts";
 import type { ServerTestHarness } from "./server.ts";
@@ -83,20 +83,20 @@ interface ReaderAdmission {
 }
 interface ProducerCapture {
   readonly rule: Awaited<ReturnType<typeof seedAutomationRuleRows>>;
-  readonly ruleRun: Awaited<ReturnType<typeof seedAutomationRun>>;
+  readonly ruleRun: Awaited<ReturnType<typeof seedAutomationRunRows>>;
   readonly ruleNotice: InboxView;
   readonly plugin: Awaited<ReturnType<typeof seedPluginGrantRows>>;
-  readonly notifyRun: Awaited<ReturnType<typeof seedAutomationRun>>;
+  readonly notifyRun: Awaited<ReturnType<typeof seedAutomationRunRows>>;
   readonly pluginNotice: InboxView;
-  readonly failedBeforeClean: Awaited<ReturnType<typeof seedAutomationRun>>;
-  readonly clean: Awaited<ReturnType<typeof seedAutomationRun>>;
+  readonly failedBeforeClean: Awaited<ReturnType<typeof seedAutomationRunRows>>;
+  readonly clean: Awaited<ReturnType<typeof seedAutomationRunRows>>;
   readonly cleanView: Awaited<ReturnType<ServerTestHarness["services"]["plugin"]["list"]>>[number];
   readonly crashes: readonly {
-    readonly run: Awaited<ReturnType<typeof seedAutomationRun>>;
+    readonly run: Awaited<ReturnType<typeof seedAutomationRunRows>>;
     readonly view: ProducerCapture["cleanView"];
     readonly disabled: readonly InboxView[];
   }[];
-  readonly paused: Awaited<ReturnType<typeof seedAutomationRun>>;
+  readonly paused: Awaited<ReturnType<typeof seedAutomationRunRows>>;
   readonly disabled: InboxView;
   readonly foreignBefore: Page;
   readonly foreignAfter: Page;
@@ -430,7 +430,7 @@ async function producersFor(
     },
     (error: Error) => error,
   );
-  const ruleRun = await seedAutomationRun(root, { principal, ruleId: rule.id });
+  const ruleRun = await seedAutomationRunRows(root, { principal, ruleId: rule.id });
   const ruleNotice = await requiredView(actors.caller, "automation-notice");
   await stream.readThrough(ruleNotice.id);
   const manifest = pluginManifestSchema.parse({
@@ -474,12 +474,12 @@ host.tools.register({ name: ${JSON.stringify(NOTICE_TOOL_NAME)}, description: "C
     return row;
   };
   const notifyRule = await toolRule("notify");
-  const notifyRun = await seedAutomationRun(root, { principal, ruleId: notifyRule.id });
+  const notifyRun = await seedAutomationRunRows(root, { principal, ruleId: notifyRule.id });
   const pluginNotice = await requiredView(actors.caller, "automation-notice");
   await stream.readThrough(pluginNotice.id);
   const crashRule = await toolRule("crash");
   const cleanRule = await toolRule("clean");
-  const run = (): ReturnType<typeof seedAutomationRun> => seedAutomationRun(root, { principal, ruleId: crashRule.id });
+  const run = (): ReturnType<typeof seedAutomationRunRows> => seedAutomationRunRows(root, { principal, ruleId: crashRule.id });
   const view = async (): Promise<ProducerCapture["cleanView"]> => {
     const item = (await root.services.plugin.list({ caller: principal })).find((candidate) => candidate.id === plugin.outcome.id);
     if (item === undefined) {
@@ -488,7 +488,7 @@ host.tools.register({ name: ${JSON.stringify(NOTICE_TOOL_NAME)}, description: "C
     return item;
   };
   const failedBeforeClean = await run();
-  const clean = await seedAutomationRun(root, { principal, ruleId: cleanRule.id });
+  const clean = await seedAutomationRunRows(root, { principal, ruleId: cleanRule.id });
   const cleanView = await view();
   const crashes: ProducerCapture["crashes"][number][] = [];
   for (let count = 0; count < PLUGIN_CRASH_DISABLE_THRESHOLD; count += 1) {

@@ -9,7 +9,7 @@ import { eq } from "drizzle-orm";
 import { seedCorpusLibraries } from "../corpus-seed.ts";
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
-import { seedCharacterHistory, seedCharacterSnapshot } from "./rows/character.ts";
+import { seedCharacterHistoryRows, seedCharacterSnapshotRows } from "./rows/character.ts";
 import { seedCharacterRows } from "./rows.ts";
 
 test("history captures preserve the selected stored card after later live edits and keep one snapshot per producer call", async () => {
@@ -21,7 +21,7 @@ test("history captures preserve the selected stored card after later live edits 
   });
   const params = { principal, characterId: character.row.id };
   expect(await root.services.character.listSnapshots(params)).toEqual([]);
-  const first = await seedCharacterHistory(root, { ...params, label: "Original" });
+  const first = await seedCharacterHistoryRows(root, { ...params, label: "Original" });
   expect(first.row).toEqual(await root.db.select().from(characterSnapshots).where(eq(characterSnapshots.id, first.ref.id)).get());
   expect(first.view).toMatchObject({
     id: first.ref.id,
@@ -31,7 +31,7 @@ test("history captures preserve the selected stored card after later live edits 
   });
   root.clock.advance(2000);
   await root.services.character.update({ ...params, input: { description: "The revised testimony." } });
-  const second = await seedCharacterHistory(root, { ...params, label: "Revised" });
+  const second = await seedCharacterHistoryRows(root, { ...params, label: "Revised" });
   expect(second.ref.id).not.toBe(first.ref.id);
   expect(second.summaries.map((row) => row.id)).toEqual([second.ref.id, first.ref.id]);
   expect(second.view.content.description).toBe("The revised testimony.");
@@ -39,7 +39,7 @@ test("history captures preserve the selected stored card after later live edits 
   expect(selected).toEqual(first.view);
   expect(selected.content.description).not.toBe((await root.services.character.get(params)).description);
   root.clock.advance(2000);
-  const rowOnly = await seedCharacterSnapshot(root, { ...params, label: "Row-only API" });
+  const rowOnly = await seedCharacterSnapshotRows(root, { ...params, label: "Row-only API" });
   expect(await root.db.select().from(characterSnapshots).where(eq(characterSnapshots.characterId, character.row.id))).toHaveLength(3);
   expect(rowOnly).toMatchObject({ characterId: character.row.id, label: "Row-only API", content: { description: "The revised testimony." } });
 });
@@ -64,7 +64,7 @@ test("library history pages retain the real whole-library census, keyset order a
   if (first === undefined || second === undefined || last === undefined) {
     throw new Error("the production library did not create its page witnesses");
   }
-  const history = await seedCharacterHistory(root, { principal, characterId: first.row.id }, { sort: "alpha", limit: 1 });
+  const history = await seedCharacterHistoryRows(root, { principal, characterId: first.row.id }, { sort: "alpha", limit: 1 });
   expect(history.page.items.map((row) => [row.id, row.nameIsAmbiguous])).toEqual([[first.row.id, true]]);
   expect(history.page.totalCount).toBe(3);
   const cursor = history.page.nextCursor;

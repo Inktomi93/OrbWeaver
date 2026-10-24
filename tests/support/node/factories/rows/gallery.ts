@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 import type { ServerProducerRoot } from "../../server.ts";
 import type { GalleryItemRow } from "../gallery.ts";
 
-export async function seedGalleryItem(root: ServerProducerRoot, params: Parameters<AssetsService["addToGallery"]>[0]): Promise<GalleryItemRow> {
+export async function seedGalleryItemRows(root: ServerProducerRoot, params: Parameters<AssetsService["addToGallery"]>[0]): Promise<GalleryItemRow> {
   const db = root.db;
   const addToGallery = root.services.assets.addToGallery;
   const view = await addToGallery(params);

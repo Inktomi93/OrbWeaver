@@ -3,7 +3,7 @@ import { DomainError } from "@orb/kit/errors";
 import { buildChatBundleFile, parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
 import type { seedCorpusRpgRecursion } from "./corpus-rpg-recursion.ts";
 import { seedImportedChatRows } from "./factories/rows/chat.ts";
-import { captureRpgRows, seedRpgJournalEntry } from "./factories/rows/rpg.ts";
+import { captureRpgRows, seedRpgJournalEntryRows } from "./factories/rows/rpg.ts";
 import { captureRpgSnapshot, seedChatInviteRows, seedInvitedChatParticipantRows, seedRpgCheckpointRows } from "./factories/rows.ts";
 import type { ServerTestHarness } from "./server.ts";
 
@@ -23,7 +23,7 @@ interface HistoricalPointerRecovery {
 interface CorpusRpgMembers {
   readonly participant: Awaited<ReturnType<typeof seedInvitedChatParticipantRows>>;
   readonly preset: Awaited<ReturnType<Caller["preset"]["create"]>>;
-  readonly journal: Awaited<ReturnType<typeof seedRpgJournalEntry>>;
+  readonly journal: Awaited<ReturnType<typeof seedRpgJournalEntryRows>>;
   readonly checkpoint: Awaited<ReturnType<typeof seedRpgCheckpointRows>>;
   readonly checkpointBefore: Awaited<ReturnType<typeof captureRpgSnapshot>>;
   readonly checkpointAfter: Awaited<ReturnType<typeof captureRpgSnapshot>>;
@@ -130,7 +130,7 @@ export async function seedCorpusRpgMembers(root: ServerTestHarness, source: Recu
     ops: [{ op: "addItem", item: { name: `Observatory key ${RPG_MEMBER_HIDDEN}`, description: `A hidden witness ${RPG_MEMBER_HIDDEN}` } }],
   });
   await caller.rpg.editSnapshot({ chatId, patch: { location: `Open observatory ${RPG_MEMBER_HIDDEN}` } });
-  const journal = await seedRpgJournalEntry(root, {
+  const journal = await seedRpgJournalEntryRows(root, {
     principal,
     chatId,
     type: "custom",

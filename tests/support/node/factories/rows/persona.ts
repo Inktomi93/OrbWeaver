@@ -8,7 +8,7 @@ import type { ServerProducerRoot } from "../../server.ts";
 import type { PersonaRow } from "../persona.ts";
 
 /** Macro inversion and source provenance belong to the actual character-derived persona writer. */
-export async function seedPersonaFromCharacter(
+export async function seedPersonaFromCharacterRows(
   root: ServerProducerRoot,
   params: Parameters<PersonaService["createFromCharacter"]>[0],
 ): Promise<SeededPersonaRows> {

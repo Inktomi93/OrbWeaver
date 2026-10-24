@@ -43,7 +43,7 @@ import { createCorpusSearchWire, replayCorpusSearchWire } from "./corpus-search-
 import { captureCookieAuth, captureCorpusReads, seedCorpusLibraries } from "./corpus-seed.ts";
 import { SHIPPED_MIGRATIONS } from "./db.ts";
 import { seedUserConnectionRows } from "./factories/rows/connection.ts";
-import { seedUserCredential } from "./factories/rows/credentials.ts";
+import { seedUserCredentialRows } from "./factories/rows/credentials.ts";
 import { seedRecallCorpusRows } from "./factories/rows/recall.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
@@ -210,7 +210,7 @@ test("settled search publication survives native authenticated clone reads and r
       });
       expect.soft(() => parseCorpusWire(serialized.replace(sectionMarker, memberPublished))).toThrow("retrieval cohort mismatch");
       const secret = 'native-search-"credential"\\959';
-      const credential = await seedUserCredential(root, { principal: actors.owner, provider: "custom-openai", key: secret });
+      const credential = await seedUserCredentialRows(root, { principal: actors.owner, provider: "custom-openai", key: secret });
       const secrets = [...authentication.secrets, secret, credential.row.ciphertext, credential.row.iv, credential.row.tag];
       const witness = images.cards[0];
       assert(witness !== undefined);

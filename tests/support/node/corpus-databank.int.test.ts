@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { seedCorpusConnections } from "./corpus-actors.ts";
 import { seedCorpusDatabank } from "./corpus-databank.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
-import { seedCreatedDocument } from "./factories/rows/databank.ts";
+import { seedCreatedDocumentRows } from "./factories/rows/databank.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 
@@ -115,13 +115,17 @@ test("native upload and scraper envelopes use the same retained SQL metadata as 
   await seedCorpusConnections(root, principal);
   const caller = await root.internalCallerFor(root.ownerId);
   const uploadParams = { principal, bytes: new TextEncoder().encode("Upload café 🪐."), mime: "text/plain", name: "Upload witness" };
-  const uploaded = await seedCreatedDocument(root, { kind: "upload", params: uploadParams });
-  const duplicate = await seedCreatedDocument(root, { kind: "upload", params: uploadParams });
+  const uploaded = await seedCreatedDocumentRows(root, { kind: "upload", params: uploadParams });
+  const duplicate = await seedCreatedDocumentRows(root, { kind: "upload", params: uploadParams });
   expect(duplicate.result).toEqual({ document: uploaded.result.document, outcome: "duplicate", ingest: "skipped" });
-  const web = await seedCreatedDocument(root, { kind: "scrapeWeb", userId: root.ownerId, params: { url: "https://source.example/article" } });
-  const video = await seedCreatedDocument(root, { kind: "scrapeYoutube", userId: root.ownerId, params: { url: "https://youtube.com/watch?v=dQw4w9WgXcQ" } });
-  const wiki = await seedCreatedDocument(root, { kind: "scrapeWiki", userId: root.ownerId, params: { url: "https://wiki.example/wiki/Unicode" } });
-  const empty = await seedCreatedDocument(root, { kind: "scrapeWeb", userId: root.ownerId, params: { url: "https://empty.example/article" } });
+  const web = await seedCreatedDocumentRows(root, { kind: "scrapeWeb", userId: root.ownerId, params: { url: "https://source.example/article" } });
+  const video = await seedCreatedDocumentRows(root, {
+    kind: "scrapeYoutube",
+    userId: root.ownerId,
+    params: { url: "https://youtube.com/watch?v=dQw4w9WgXcQ" },
+  });
+  const wiki = await seedCreatedDocumentRows(root, { kind: "scrapeWiki", userId: root.ownerId, params: { url: "https://wiki.example/wiki/Unicode" } });
+  const empty = await seedCreatedDocumentRows(root, { kind: "scrapeWeb", userId: root.ownerId, params: { url: "https://empty.example/article" } });
   expect(empty.result).toMatchObject({ outcome: "created", ingest: "queued", warning: "empty-extraction", document: { charCount: 0 } });
   const page = await caller.databank.list({ limit: 10 });
   for (const capture of [uploaded, web, video, wiki]) {

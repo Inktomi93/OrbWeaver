@@ -6,12 +6,12 @@ import { sessions } from "@orb/db";
 import { eq } from "drizzle-orm";
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
-import { seedBffSession, seedLoginBuckets } from "./rows/sessions.ts";
+import { seedBffSessionRows, seedLoginBucketsRows } from "./rows/sessions.ts";
 
 test("a real session mint persists only its hash and revoke settles the actual returned session identity", async () => {
   await using root = await createServerHarness();
   const actor = await root.actor();
-  const capture = await seedBffSession(root, { userId: actor.id, userAgent: "Corpus BFF device" });
+  const capture = await seedBffSessionRows(root, { userId: actor.id, userAgent: "Corpus BFF device" });
   expect(capture.row.id).toBe(capture.created.sessionId);
   expect(capture.row.userId).toBe(actor.id);
   expect(capture.row.expiresAt).toBe(capture.created.expiresAt);
@@ -29,23 +29,23 @@ test("the real HTTP login spends its canonical buckets only after CSRF and refus
   const configured = await root.services.settings.updateAppSettings({ principal: owner, partial: { rateLimits: { login: RATE_LIMIT_CAP_MIN } } });
   expect(configured.rateLimits.login).toBe(RATE_LIMIT_CAP_MIN);
   const body = new URLSearchParams({ handle: owner.handle, password: "incorrect-corpus-password" });
-  const before = await seedLoginBuckets(root, ["/api/auth/login", { method: "POST", body }]);
+  const before = await seedLoginBucketsRows(root, ["/api/auth/login", { method: "POST", body }]);
   expect(before.response.status).toBe(403);
   await before.response.text();
   expect(before.buckets).toEqual([]);
   const input = { method: "POST", headers: { [CSRF_HEADER]: "1", "content-type": "application/x-www-form-urlencoded" }, body };
-  let attempt = await seedLoginBuckets(root, ["/api/auth/login", input]);
+  let attempt = await seedLoginBucketsRows(root, ["/api/auth/login", input]);
   expect(attempt.response.status).toBe(401);
   await attempt.response.text();
   expect(attempt.buckets).toHaveLength(2);
   expect(attempt.buckets.map((row) => row.count)).toEqual([1, 1]);
   for (let index = 1; index < RATE_LIMIT_CAP_MIN; index += 1) {
-    attempt = await seedLoginBuckets(root, ["/api/auth/login", input]);
+    attempt = await seedLoginBucketsRows(root, ["/api/auth/login", input]);
     expect(attempt.response.status).toBe(401);
     await attempt.response.text();
   }
   expect(attempt.buckets.map((row) => row.count)).toEqual([RATE_LIMIT_CAP_MIN, RATE_LIMIT_CAP_MIN]);
-  const throttled = await seedLoginBuckets(root, ["/api/auth/login", input]);
+  const throttled = await seedLoginBucketsRows(root, ["/api/auth/login", input]);
   expect(throttled.response.status).toBe(429);
   await throttled.response.text();
   expect(throttled.response.headers.get("retry-after")).not.toBeNull();

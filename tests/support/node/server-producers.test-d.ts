@@ -2,8 +2,8 @@ import type { Db } from "@orb/db";
 import type { CharacterService } from "@orb/server/domain/character";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { expectTypeOf, test } from "vitest";
-import { seedCharacterHistory } from "./factories/rows/character.ts";
-import { seedCreatedDocument } from "./factories/rows/databank.ts";
+import { seedCharacterHistoryRows } from "./factories/rows/character.ts";
+import { seedCreatedDocumentRows } from "./factories/rows/databank.ts";
 import { seedCharacterRows } from "./factories/rows.ts";
 import type { ServerTestHarness, UnclaimedServerTestHarness } from "./server.ts";
 
@@ -19,11 +19,11 @@ test("persisted producers refuse caller-supplied business callbacks and structur
   // @ts-expect-error — a same-shaped creation callback is not a composed production root.
   await seedCharacterRows(db, create, createParams);
   // @ts-expect-error — a same-shaped operation bag is not a composed production root.
-  await seedCharacterHistory(db, operations, snapshotParams);
+  await seedCharacterHistoryRows(db, operations, snapshotParams);
   // @ts-expect-error — an arbitrary document-producing closure is not a native origin.
-  await seedCreatedDocument(db, upload);
+  await seedCreatedDocumentRows(db, upload);
   // @ts-expect-error — even a genuine root cannot admit a replacement document-producing closure.
-  await seedCreatedDocument(root, upload);
+  await seedCreatedDocumentRows(root, upload);
 
   expectTypeOf<Pick<ServerTestHarness, keyof ServerTestHarness>>().not.toExtend<Parameters<typeof seedCharacterRows>[0]>();
   expectTypeOf<ServerTestHarness>().toExtend<Parameters<typeof seedCharacterRows>[0]>();

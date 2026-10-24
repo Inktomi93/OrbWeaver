@@ -8,7 +8,7 @@ import { seedPersonaLibraryViews, seedRegexLibraryViews, seedTagLibraryViews, se
 import { seedCorpusLibraries } from "../corpus-seed.ts";
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
-import { seedBackfilledWorldTitles } from "./rows/world-info.ts";
+import { seedBackfilledWorldTitlesRows } from "./rows/world-info.ts";
 import { makeWorldInfoImportResult } from "./world-info-view.ts";
 
 test("world book import defaults admit a native named book and title repair captures only its changed children", async () => {
@@ -55,7 +55,7 @@ test("world book import defaults admit a native named book and title repair capt
   const before = await caller.worldInfo.listEntries({ bookId: book.id });
   const foreignBefore = await other.worldInfo.listEntries({ bookId: foreignBook.id });
   root.clock.advance(2000);
-  const captured = await seedBackfilledWorldTitles(root, { principal, bookId: book.id });
+  const captured = await seedBackfilledWorldTitlesRows(root, { principal, bookId: book.id });
   expect(captured.result).toEqual({ filled: 1 });
   expect(captured.entries.map((row) => [row.id, row.worldBookId, row.title, row.content, row.updatedAt])).toEqual([
     [before[0]?.id, book.id, "archive, witness", "The keyed witness survives repair.", root.clock.now()],
@@ -63,8 +63,8 @@ test("world book import defaults admit a native named book and title repair capt
   ]);
   expect((await caller.worldInfo.listEntries({ bookId: book.id })).map((row) => row.title)).toEqual(["archive, witness", ""]);
   expect(await other.worldInfo.listEntries({ bookId: foreignBook.id })).toEqual(foreignBefore);
-  expect((await seedBackfilledWorldTitles(root, { principal, bookId: book.id })).result).toEqual({ filled: 0 });
-  await expect(seedBackfilledWorldTitles(root, { principal, bookId: foreignBook.id })).rejects.toThrow();
+  expect((await seedBackfilledWorldTitlesRows(root, { principal, bookId: book.id })).result).toEqual({ filled: 0 });
+  await expect(seedBackfilledWorldTitlesRows(root, { principal, bookId: foreignBook.id })).rejects.toThrow();
 });
 
 test("world library outputs preserve attachment roles, entry ordering, portable collisions and owner boundaries", async () => {
