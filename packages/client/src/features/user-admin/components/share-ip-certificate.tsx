@@ -90,7 +90,7 @@ function Active({ certificate }: { readonly certificate: Extract<IpCertificateSt
     <Stack gap="field">
       <ShareProse>Friends sign in over https at the address below, with the password encrypted on the way.</ShareProse>
       <CopyButton text={certificate.url} what={`the https address ${certificate.url}`}>
-        <Text voice="label" className="min-w-0 font-mono break-words" data-ip-certificate-url={certificate.url}>
+        <Text voice="label" className="font-mono wrap-break-word min-inline-0" data-ip-certificate-url={certificate.url}>
           {certificate.url}
         </Text>
       </CopyButton>

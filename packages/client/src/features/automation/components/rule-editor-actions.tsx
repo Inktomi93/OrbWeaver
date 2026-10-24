@@ -88,7 +88,7 @@ export function RuleEditorActions({
                     <Stack gap="block">
                       <Row gap="field" align="center">
                         {grip}
-                        <Text className="min-w-0 flex-1">
+                        <Text className="flex-1 min-inline-0">
                           {index + 1}. {armTitle(action.type)}
                         </Text>
                         <Button

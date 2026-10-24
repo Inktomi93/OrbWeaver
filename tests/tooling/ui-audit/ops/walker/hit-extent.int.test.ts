@@ -28,7 +28,7 @@ import { WALKER_HIT_EXTENT } from "../../../../../tooling/src/ui-audit/ops/walke
  *
  *  `.ringed` is the #2300 NEGATIVE CONTROL — the pre-#1843 `data-cta` glyph button, rebuilt from the
  *  cascade that produced it. The hit area was an `::after` (`glyphBox` at bb8b535fb8:
- *  `after:absolute after:top-1/2 after:left-1/2 after:size-touch-target after:-translate-*`) and so is the
+ *  `after:absolute after:top-1/2 after:left-1/2 after:size-(--size-touch-target) after:-translate-*`) and so is the
  *  CTA gradient ring (`globals.css [data-slot="button"][data-cta]::after`), which is UNLAYERED and
  *  therefore wins PER PROPERTY: `inset`/`pointer-events` come from the ring, while the utilities'
  *  `width`/`height`/`translate` SURVIVE. So the pseudo still describes an outward rect and a geometry-only

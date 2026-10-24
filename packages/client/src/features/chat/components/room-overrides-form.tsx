@@ -73,16 +73,11 @@ interface OverrideCollapseCardProps {
 
 function OverrideCollapseCard({ label, isSet, snippet, open, onOpenChange, onClear, disabled, children }: OverrideCollapseCardProps): ReactElement {
   return (
-    // `!p-0` so the block padding lives on the trigger instead — the whole ~49px row is then one tap target
-    // (WCAG 2.5.8), not a ~23px band with dead padding above/below. The snippet + panel carry their own
-    // horizontal + bottom padding (the trigger's pad only reaches its own row). A className, not the retired
-    // `padding` prop: island padding is tier-resolved now (density-pass §4.3, D7), and "this island delegates
-    // its padding to its own trigger" is a composition fact, not a density step. The `!` is load-bearing:
-    // the tier map is UNLAYERED, so a plain `p-0` utility (layer `utilities`) loses to it inside a Surface —
-    // proven by this component's own CT (the card's top edge must hit the trigger, not dead padding).
-    <Card className={isSet ? "!p-0 border-l-2 border-l-primary" : "!p-0"}>
+    // `padding="none"`: the block padding lives on the trigger, so the whole row is one tap target (WCAG 2.5.8);
+    // the snippet and panel carry their own inset. The card's top edge must hit the trigger (this component's CT).
+    <Card className={isSet ? "border-s-2 border-s-primary" : undefined} padding="none">
       <Collapsible open={open} onOpenChange={onOpenChange}>
-        {/* `size="control"` pins the pointer-conditional `--spacing-control-sm` floor (44px coarse / 32px
+        {/* `size="control"` pins the pointer-conditional `--size-control-sm` floor (44px coarse / 32px
             fine). MEASURED at 411×40 under a coarse pointer with `::after` resolving `inset: auto` — no
             touch layer in play at all — and `elementFromPoint` ±3px outside the box resolving to something
             else, i.e. a real 40px hit area against the 44px floor, on the tab's first three controls
@@ -90,7 +85,7 @@ function OverrideCollapseCard({ label, isSet, snippet, open, onOpenChange, onCle
             same reason; growing the floor on the VARIANT rather than with a call-site height is what keeps
             it pointer-conditional (a fine pointer's 32px is under the shipped 40px, so the desktop box is
             unchanged) and inside the `ui-size-via-variant` seal. */}
-        <CollapsibleTrigger className="w-full p-block" size="control" aria-label={`${label}, ${isSet ? "overridden" : "inheriting"}`}>
+        <CollapsibleTrigger className="p-block inline-full" size="control" aria-label={`${label}, ${isSet ? "overridden" : "inheriting"}`}>
           <Row align="center" gap="field" justify="between" className="flex-1">
             <Text voice="label">{label}</Text>
             <Text voice="gloss">{isSet ? "overridden" : "inheriting"}</Text>
@@ -101,14 +96,14 @@ function OverrideCollapseCard({ label, isSet, snippet, open, onOpenChange, onCle
           // CONTENT box while `overflow: hidden` clips at the PADDING box, so a `pb-block` on the clamped
           // element is ~12px of visible area below the clamp point that the clamped-away line 2 paints
           // into. The injections-manager site carries the full derivation.
-          <Stack className="px-block pb-block">
+          <Stack className="px-block pbe-block">
             <Text voice="gloss" className="line-clamp-1">
               {snippet}
             </Text>
           </Stack>
         ) : null}
         <CollapsiblePanel>
-          <Stack gap="field" className="px-block pb-block">
+          <Stack gap="field" className="px-block pbe-block">
             {children}
             <Row align="center" gap="field">
               {disabled ? null : (

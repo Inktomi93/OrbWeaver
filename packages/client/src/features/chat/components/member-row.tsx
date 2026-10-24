@@ -72,7 +72,7 @@ export function MemberRow(props: MemberRowProps): ReactElement {
       tabIndex={tabIndex}
       aria-label={rowAccessibleName(row)}
       {...(responding ? { "aria-describedby": descriptionId } : {})}
-      className="min-w-0 flex-1 justify-start"
+      className="flex-1 justify-start min-inline-0"
       ref={(el: HTMLButtonElement | null): void => {
         bodyRef.current = el;
         registerRef(row.key, el);
@@ -96,7 +96,11 @@ export function MemberRow(props: MemberRowProps): ReactElement {
         {initialsFor(row.displayName)}
       </Avatar>
       {row.kind === "person" ? <PresenceDot online={row.online} /> : null}
-      <Text as="span" voice="label" className={row.kind === "character" && row.disabled ? "min-w-0 truncate text-muted-foreground" : "min-w-0 truncate"}>
+      <Text
+        as="span"
+        voice="label"
+        className={row.kind === "character" && row.disabled ? "truncate text-muted-foreground min-inline-0" : "truncate min-inline-0"}
+      >
         {/* Identity ONLY. The ` · ${handle}` suffix that used to sit here rendered the raw login handle —
             an EMAIL under AUTH_MODE=oidc — beside every human's name (#162); `MemberPersonRow` no longer
             carries a handle at all, so the suffix has nothing to come back from. */}
@@ -177,7 +181,11 @@ function PresenceDot({ online }: { readonly online: boolean | null }): ReactElem
       // The SHAPE channel: `bg-success` fills the online dot, and the offline one is an unfilled ring of the
       // same box — two states distinguishable with the colour removed, per the never-colour-alone rule the
       // sibling `role-status-dot.tsx` states.
-      className={online ? "size-2 shrink-0 rounded-full bg-success" : "size-2 shrink-0 rounded-full border border-muted-foreground"}
+      className={
+        online
+          ? "shrink-0 rounded-full bg-success block-(--size-dot) inline-(--size-dot)"
+          : "shrink-0 rounded-full border border-muted-foreground block-(--size-dot) inline-(--size-dot)"
+      }
     />
   );
 }

@@ -48,7 +48,7 @@ export function CorpusCompareTab(): ReactElement {
     // against an indefinite parent and strands everything past the fold; hoisted, the wrapper sits INSIDE
     // the scroller and the scroller survives the read. (Its sibling corpus tabs key with no scroller of
     // their own.)
-    <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" data-testid={testId("corpusCompareTab")}>
+    <Stack className="relative flex-1 overflow-y-auto overscroll-contain min-block-0" data-testid={testId("corpusCompareTab")}>
       <QueryBoundary
         fallback={<SkeletonRows count={3} shape="line" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="characters" onRetry={retry} />}

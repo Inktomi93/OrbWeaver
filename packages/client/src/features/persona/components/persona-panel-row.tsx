@@ -69,7 +69,11 @@ export function PersonaPanelRow({
     <Stack gap="field">
       <Row
         align="center"
-        className="group relative min-h-control-md rounded-control transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent data-expanded:bg-accent"
+        className="
+          group relative rounded-control transition-colors duration-(--motion-fast) ease-out-expo min-block-(--size-control-md)
+          hover:bg-accent
+          data-expanded:bg-accent
+        "
         data-expanded={expanded ? "" : undefined}
         gap="row"
         padding="field"
@@ -87,7 +91,7 @@ export function PersonaPanelRow({
           {initialsFor(persona.name)}
         </Avatar>
         {/* The NAME is the row's one shrinker; every trailing control reserves its own width (leg-4 P2). */}
-        <Stack className="pointer-events-none relative min-w-0 flex-1" data-slot="persona-row-name">
+        <Stack className="pointer-events-none relative flex-1 min-inline-0" data-slot="persona-row-name">
           <Text as="span" className="truncate" weight="medium">
             {persona.name}
           </Text>

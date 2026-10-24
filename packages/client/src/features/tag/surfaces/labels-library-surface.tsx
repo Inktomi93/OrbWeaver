@@ -28,7 +28,7 @@ export function LabelsLibrarySurface({ returning = false }: { readonly returning
     <Stack className="outline-none" data-slot={LABELS_LIBRARY_SLOT} gap="section" ref={surfaceRef} tabIndex={-1}>
       <Stack gap="field">
         <Heading level={2}>{CORPUS_MODE_LABELS.labels}</Heading>
-        <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
+        <Text className="max-inline-(--reading-measure-prose)" prose={true} voice="gloss">
           {LABELS_BLURB}
         </Text>
       </Stack>
@@ -40,7 +40,7 @@ export function LabelsLibrarySurface({ returning = false }: { readonly returning
 
 function LibraryBody({ summary }: { readonly summary: ReturnType<typeof useTagLibrarySummary> }): ReactElement {
   if (summary === undefined) {
-    return <Skeleton className="h-16 w-full" />;
+    return <Skeleton className="block-(--height-row-placeholder) inline-full" />;
   }
   // An empty library TEACHES here and offers no second create verb: the finder's band carries the one
   // `New tag`, and one verb on one screen is the ruled count.
@@ -53,7 +53,7 @@ function LibraryBody({ summary }: { readonly summary: ReturnType<typeof useTagLi
   }
   return (
     <Section heading="Library">
-      <Stack className="max-w-(--width-content-col)" data-slot="labels-library-facts" gap="field">
+      <Stack className="max-inline-(--width-content-col)" data-slot="labels-library-facts" gap="field">
         {summary.facts.map((fact: TagLibraryFact) => (
           <Row align="center" gap="field" key={fact.id}>
             <Text as="span" voice="kicker">

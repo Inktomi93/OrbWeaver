@@ -234,7 +234,7 @@ function OverflowCount({ hidden, noun, slot }: { readonly hidden: number; readon
     return null;
   }
   return (
-    <Text className="text-muted-foreground" data-slot={slot} voice="datum">
+    <Text tone="muted" data-slot={slot} voice="datum">
       {controlOverflowNotice(hidden, noun)}
     </Text>
   );

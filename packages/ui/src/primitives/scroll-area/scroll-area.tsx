@@ -50,7 +50,7 @@ export function ScrollArea(props: ScrollAreaProps): ReactElement {
         data-slot="scroll-area-viewport"
       >
         <BaseScrollArea.Content
-          className={slots.content({ className: cn(wrapContent ? "min-w-0" : undefined, contentClassName) })}
+          className={slots.content({ className: cn(wrapContent ? "min-inline-0" : undefined, contentClassName) })}
           data-slot="scroll-area-content"
           style={wrapContent ? { minWidth: 0 } : undefined}
         >

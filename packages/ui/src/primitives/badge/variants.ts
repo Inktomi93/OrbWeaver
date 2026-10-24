@@ -11,7 +11,7 @@ import { tv } from "#lib";
 // are a dozen of them (UI-Density-Law §3.2 CD3 — weight solves loudness, not count).
 // The tone's own `bg-*` wins over the intent's via tailwind-merge (tone is declared after intent).
 export const badgeVariants = tv({
-  base: "inline-flex select-none items-center gap-field whitespace-nowrap rounded-full font-medium",
+  base: "inline-flex items-center gap-field rounded-full font-medium whitespace-nowrap select-none",
   variants: {
     intent: {
       neutral: "bg-muted text-muted-foreground",
@@ -66,7 +66,7 @@ export const badgeVariants = tv({
       // inside the run's own inline box, so the line rhythm is still arithmetically unchanged), and
       // `me-field` is the gap the base's `gap-field` cannot supply here — `gap` is a flex property and this
       // arm is deliberately not a flex box.
-      inline: "inline select-text rounded-inset [&>svg]:me-field [&>svg]:inline-block [&>svg]:align-middle",
+      inline: "inline rounded-inset select-text [&>svg]:me-field [&>svg]:inline-block [&>svg]:align-middle",
       // THE INDICATOR ARM (#1798) — the CHILDLESS dot: "something is here", with no number in it. The owner
       // ruled the counted pill out of the topbar bell ("ugly as fuck"): a full status pill — the lozenge that
       // marks `always` on a lore entry — was rendering INLINE beside a 16px glyph inside a 34px icon button,
@@ -93,7 +93,7 @@ export const badgeVariants = tv({
       // (shell.css:112) and `bg-accent` while the ghost button is hovered — a fixed ring colour is wrong on
       // two of the three. The dot separates by SITTING IN THE CORNER instead, which its consumer's geometry
       // pin asserts against the glyph's own box.
-      dot: "size-field shrink-0",
+      dot: "shrink-0 block-field inline-field",
     },
   },
   compoundVariants: [
@@ -111,18 +111,18 @@ export const badgeVariants = tv({
     // keeps its shape and reads as a `soft` chip, not a ghost (the destructive arm has shipped at 8% since
     // 2026-08-08 and reads correctly). Checked statically for every seed by the
     // `seed-theme-ink-contrast` gate.
-    { intent: "neutral", tone: "soft", class: "bg-muted/8 text-muted-foreground border-border" },
-    { intent: "primary", tone: "soft", class: "bg-primary/8 text-primary border-primary/30" },
-    { intent: "success", tone: "soft", class: "bg-success/8 text-success border-success/30" },
-    { intent: "warning", tone: "soft", class: "bg-warning/8 text-warning border-warning/30" },
-    { intent: "danger", tone: "soft", class: "bg-destructive/8 text-destructive border-destructive/30" },
-    { intent: "info", tone: "soft", class: "bg-info/8 text-info border-info/30" },
-    { intent: "neutral", tone: "ghost", class: "text-muted-foreground border-border" },
-    { intent: "primary", tone: "ghost", class: "text-primary border-primary/30" },
-    { intent: "success", tone: "ghost", class: "text-success border-success/30" },
-    { intent: "warning", tone: "ghost", class: "text-warning border-warning/30" },
-    { intent: "danger", tone: "ghost", class: "text-destructive border-destructive/30" },
-    { intent: "info", tone: "ghost", class: "text-info border-info/30" },
+    { intent: "neutral", tone: "soft", class: "border-border bg-muted/8 text-muted-foreground" },
+    { intent: "primary", tone: "soft", class: "border-primary/30 bg-primary/8 text-primary" },
+    { intent: "success", tone: "soft", class: "border-success/30 bg-success/8 text-success" },
+    { intent: "warning", tone: "soft", class: "border-warning/30 bg-warning/8 text-warning" },
+    { intent: "danger", tone: "soft", class: "border-destructive/30 bg-destructive/8 text-destructive" },
+    { intent: "info", tone: "soft", class: "border-info/30 bg-info/8 text-info" },
+    { intent: "neutral", tone: "ghost", class: "border-border text-muted-foreground" },
+    { intent: "primary", tone: "ghost", class: "border-primary/30 text-primary" },
+    { intent: "success", tone: "ghost", class: "border-success/30 text-success" },
+    { intent: "warning", tone: "ghost", class: "border-warning/30 text-warning" },
+    { intent: "danger", tone: "ghost", class: "border-destructive/30 text-destructive" },
+    { intent: "info", tone: "ghost", class: "border-info/30 text-info" },
     // THE IN-FLOW ARM DRAWS NO BORDER BOX, in any tone. `soft`/`ghost` carry a hairline everywhere else,
     // and everywhere else it is free — but an INLINE box's left/right borders are real horizontal ADVANCE,
     // so a bordered chip re-opens the exact gap the `inline` size exists to close (side-eye F-6: the chip's

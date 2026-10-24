@@ -19,7 +19,7 @@ export function ResponseReplayCluster({ form, effective }: { readonly form: AppF
   const replay = effective.cache.replay;
   return (
     <Section kicker="Response replay">
-      <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
+      <Text className="max-inline-(--reading-measure-prose)" prose={true} voice="gloss">
         Reuse an identical complete answer on OpenRouter, not just its prompt prefix. Changed turns normally miss. Fresh generation actions bypass replay. An
         upstream setting can prevent a hit even when replay is requested.
       </Text>
@@ -63,7 +63,7 @@ export function ResponseReplayCluster({ form, effective }: { readonly form: AppF
         </form.Subscribe>
       </SettingRowGroup>
       {effective.cacheWarnings.map((warning) => (
-        <Text className="max-w-(--reading-measure-prose)" key={warning.message} prose={true} voice="gloss">
+        <Text className="max-inline-(--reading-measure-prose)" key={warning.message} prose={true} voice="gloss">
           {warning.message}
         </Text>
       ))}

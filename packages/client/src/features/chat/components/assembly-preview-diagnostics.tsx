@@ -34,7 +34,7 @@ export function AssemblyPreviewDiagnostics({
 }): ReactElement {
   return (
     <Collapsible>
-      <CollapsibleTrigger className="w-full">
+      <CollapsibleTrigger className="inline-full">
         <Text voice="label">Diagnostics</Text>
       </CollapsibleTrigger>
       <CollapsiblePanel>
@@ -257,7 +257,7 @@ function WireRows({ rows }: { readonly rows: readonly ShapeTraceRow[] }): ReactE
           <Text prose={true} voice="gloss">
             {ROW_SOURCE_GLOSS}
           </Text>
-          {/* NO INNER SCROLLER (side-eye 2026-08-06 P2). It used to cap at `max-h-64`, which showed 7 of 24
+          {/* NO INNER SCROLLER (side-eye 2026-08-06 P2). It used to cap at `max-h-(--height-scroll-md)`, which showed 7 of 24
               rows with no scrollbar, no fade and no count — the tail was undiscoverable, in the readout whose
               entire subject is the ORDER of the whole list. The cap existed to stop a long list pushing the
               rest of the diagnostics off the panel; this is the LAST section of the drawer, so there is
@@ -326,7 +326,7 @@ function TraceLine({ label, value }: { readonly label: string; readonly value: R
         {label}
       </Text>
       {/* A section list / key list can be long — wrap it inside the panel rather than overflow its edge. */}
-      <Text className="min-w-0 text-end break-words" voice="datum">
+      <Text className="text-end wrap-break-word min-inline-0" voice="datum">
         {value}
       </Text>
     </Row>

@@ -112,7 +112,7 @@ export function PresetEditorSurface({ presetId, onRevealSection }: PresetEditorS
       ref={surfaceRef}
       role="region"
       tabIndex={-1}
-      className="relative h-full min-h-0 overflow-y-auto overscroll-contain overflow-x-hidden outline-none"
+      className="relative overflow-x-hidden overflow-y-auto overscroll-contain outline-none block-full min-block-0"
     >
       {/* RESERVED (#1098). The editor IS the CONTENT pane, so the read landing used to collapse the pane to
           a one-line sentence and pop it back to a full form — taking the scrollbar and the reader's scroll
@@ -366,13 +366,13 @@ function PresetEditorBody({
             library's Import, which the copy names; for a from-a-newer-version blob the copy deliberately
             does NOT lead with Reset, because that blob is intact data this build merely cannot read. */}
         {configUnreadable === null ? null : (
-          <Stack className="mx-auto w-full max-w-(--width-content-col) @5xl:max-w-(--width-content-col-wide) py-block">
+          <Stack className="mx-auto py-block inline-full max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)">
             <StoredConfigUnreadableNotice copy={PRESET_UNREADABLE_COPY[unreadableConfigCause(configUnreadable)]} />
           </Stack>
         )}
 
         {isSystemDefault ? (
-          <Stack className="mx-auto w-full max-w-(--width-content-col) @5xl:max-w-(--width-content-col-wide) py-block">
+          <Stack className="mx-auto py-block inline-full max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)">
             <BuiltInCopyOnWriteNotice active={active} />
           </Stack>
         ) : null}
@@ -387,10 +387,10 @@ function PresetEditorBody({
                 panels are out, but when you close them it looks awful"). So the column CENTERS — the house
                 convention for a wide content-pane editor (character-editor-surface.tsx uses the same
                 `mx-auto w-full max-w-…`) — and BREATHES to `--width-content-col-wide` once the pane itself
-                clears @5xl, which is exactly the panels-collapsed regime. The @5xl query measures the shell's
+                clears @cq-64, which is exactly the panels-collapsed regime. The @cq-64 query measures the shell's
                 content region (the pane's own width), which is why the cap and the container are two
                 elements and not one. It lives HERE and not per view so no body can opt out. */}
-            <Stack className="mx-auto w-full max-w-(--width-content-col) @5xl:max-w-(--width-content-col-wide) py-block" gap="block">
+            <Stack className="mx-auto py-block inline-full max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)" gap="block">
               {entry.id === "params" ? (
                 <Stack gap="field" data-slot="preset-editor-connection">
                   <Text voice="label">Editing for Chat role{editorConnection === undefined ? "" : ` · ${editorConnection}`}</Text>

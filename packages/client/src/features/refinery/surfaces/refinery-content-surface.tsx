@@ -82,7 +82,7 @@ export function RefineryContentSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
   return (
-    <Stack className="relative h-full min-h-0 overflow-y-auto overscroll-contain outline-none" ref={surfaceRef} tabIndex={-1}>
+    <Stack className="relative overflow-y-auto overscroll-contain outline-none block-full min-block-0" ref={surfaceRef} tabIndex={-1}>
       {sessionId === null ? (
         <RefineryStartPane />
       ) : (
@@ -193,7 +193,7 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
     // INSTRUMENT tier (UI-Density-Law.md §3.1): the workbench is a cockpit you scan — three payloads per
     // glance — so its islands resolve the dense steps and its rails are kickers + hairlines, not boxes.
     <Surface tier="instrument">
-      <Stack className="pt-block pb-gutter" data-testid={testId("refineryContent")} gap="block">
+      <Stack className="pbs-block pbe-gutter" data-testid={testId("refineryContent")} gap="block">
         <SessionMasthead
           anchoredAt={view.createdAt}
           // The live card took this session's commit: the server's lock, or an Apply this view just made. A copy
@@ -215,12 +215,12 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
         {outcome === null ? (
           // THE THREE LANES ACROSS THE WIDTH. Fixed rails either side of a fluid focal, and a container
           // query — never a viewport breakpoint — decides when the canvas can hold them: the shell's docked
-          // LIST and CONTEXT panels narrow this pane independently of the window. Below `@5xl` the lanes
+          // LIST and CONTEXT panels narrow this pane independently of the window. Below `@cq-64` the lanes
           // stack, which keeps every lane's full width at the phone/3-pane mount instead of crushing the
           // diff into a column no prose fits in. (Refinery's own `panelDefaults` collapse both panels — the
           // D62 content-first hub — so the three-lane arm is the default, not the lucky case.)
-          <Row align="start" className="@max-5xl:flex-col @max-5xl:items-stretch" gap="block">
-            <Stack className="w-full shrink-0 @5xl:w-60" gap="row">
+          <Row align="start" className="@max-cq-64:flex-col @max-cq-64:items-stretch" gap="block">
+            <Stack className="shrink-0 inline-full @cq-64:inline-(--width-lane)" gap="row">
               <PayloadLane
                 arrived={lanes.score.run !== null && landedRunIds.has(lanes.score.run.id)}
                 behind={lanes.score.behind}
@@ -233,7 +233,7 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
                 viewingBack={lanes.score.viewingBack}
               />
             </Stack>
-            <Stack className="min-w-0 flex-1" gap="row">
+            <Stack className="flex-1 min-inline-0" gap="row">
               <RewriteLane
                 behind={lanes.rewrite.behind}
                 decided={decided}
@@ -248,7 +248,7 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
                 viewingBack={lanes.rewrite.viewingBack}
               />
             </Stack>
-            <Stack className="w-full shrink-0 @5xl:w-68" gap="row">
+            <Stack className="shrink-0 inline-full @cq-64:inline-(--width-lane)" gap="row">
               <PayloadLane
                 arrived={lanes.analyze.run !== null && landedRunIds.has(lanes.analyze.run.id)}
                 behind={lanes.analyze.behind}

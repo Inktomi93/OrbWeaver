@@ -288,7 +288,7 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
           <BaseSelect.Popup className={slots.popup()} data-slot="select-popup" style={popupStyle(items)}>
             {arrow ? <BaseSelect.Arrow className={slots.arrow()} data-slot="select-arrow" /> : null}
             {scrollArrows ? (
-              <BaseSelect.ScrollUpArrow className={cn(slots.scrollArrow(), "top-0")} data-slot="select-scroll-up-arrow">
+              <BaseSelect.ScrollUpArrow className={cn(slots.scrollArrow(), "inset-bs-0")} data-slot="select-scroll-up-arrow">
                 {CHEVRON_ICON}
               </BaseSelect.ScrollUpArrow>
             ) : null}
@@ -322,7 +322,7 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
               {renderItems(items, optionIdPrefix)}
             </BaseSelect.List>
             {scrollArrows ? (
-              <BaseSelect.ScrollDownArrow className={cn(slots.scrollArrow(), "bottom-0")} data-slot="select-scroll-down-arrow">
+              <BaseSelect.ScrollDownArrow className={cn(slots.scrollArrow(), "inset-be-0")} data-slot="select-scroll-down-arrow">
                 {CHEVRON_ICON}
               </BaseSelect.ScrollDownArrow>
             ) : null}

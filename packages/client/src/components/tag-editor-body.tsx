@@ -85,7 +85,7 @@ export function TagEditorBody({
           container is the `<Container>` directly above, which is why the cap and the container are two
           elements. `w-full` rides with `mx-auto` because the pane is a flex column. */}
       <Stack
-        className="mx-auto min-w-0 w-full max-w-(--width-content-col) @5xl:max-w-(--width-content-col-wide) outline-none"
+        className="mx-auto outline-none inline-full max-inline-(--width-content-col) min-inline-0 @cq-64:max-inline-(--width-content-col-wide)"
         data-slot="tag-member-editor"
         gap="block"
         ref={surfaceRef}
@@ -96,7 +96,7 @@ export function TagEditorBody({
             is a field below because it needs the target picker, Delete is the row's kebab, D212). The
             usage census rides `meta` beside the name it is about — a FACT, not a verb. */}
         {back === undefined ? (
-          <Heading className="min-w-0 truncate" level={2}>
+          <Heading className="truncate min-inline-0" level={2}>
             {tag.name}
           </Heading>
         ) : (
@@ -153,7 +153,7 @@ function TagColorControls({ tag, patchStyle }: { readonly tag: TagWithUsage; rea
   // which registers its id on the Field's labelable control, so the value IS the button's accessible
   // description. The readout is UNKEYED here (`tagColorValueLabel`); the label above carries the key.
   return (
-    <Row align="start" className="*:w-auto" gap="block">
+    <Row align="start" className="*:inline-auto" gap="block">
       <Field description={<TagColorReadout value={tag.color} />} label="Background" name="tag-color">
         <ColorField onValueChange={(value): void => patchStyle({ color: value === "" ? null : value })} value={tag.color ?? ""} />
       </Field>

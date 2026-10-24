@@ -95,7 +95,7 @@ function MemorySettingsBody({ anchorId, sectionId }: { readonly anchorId: string
             explanation, with the SMALLER type carrying the harder fact. `prose` is the sanctioned length
             modifier (it lifts the step + leading and changes nothing else), and the end padding reserves the
             same gutter the Field's control column takes, so both paragraphs break on the same column. */}
-        <Stack className="pe-(--width-control-col) @max-md:pe-0" gap="field">
+        <Stack className="pe-(--width-control-col) @max-cq-28:pe-0" gap="field">
           <MemoryUtilityStatus enabled={enabled} />
           <Text voice="gloss" prose={true}>
             {`${MEMORY_EXISTING_CHATS_NOTE} To build every chat now, run the Memory backfill job.`}

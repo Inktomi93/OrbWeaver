@@ -108,7 +108,7 @@ export function RpgChoiceEcho({ state }: RpgChoiceEchoProps): ReactElement | nul
             focusableWhenDisabled={true}
             disabled={busy}
             {...(busy ? { "aria-describedby": reasonId } : {})}
-            className="justify-start text-left"
+            className="justify-start text-start"
             onClick={(): void => {
               if (!busy) {
                 pick(option);

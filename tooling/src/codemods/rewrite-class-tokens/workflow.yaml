@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/codemod/codemod/refs/heads/main/schemas/workflow.json
+version: "1"
+params:
+  schema:
+    map:
+      name: "Map file"
+      description: "Path, relative to the target directory, of the JSON object with `classes` and `variables` maps"
+      type: string
+      default: "codemod-class-map.json"
+nodes:
+  - id: rewrite-class-tokens
+    name: Rewrite class candidates and custom-property names by map
+    type: automatic
+    steps:
+      - name: TypeScript files
+        js-ast-grep:
+          js_file: scripts/codemod.ts
+          base_path: "."
+          language: "typescript"
+          include: ["**/*.ts"]
+          exclude: ["**/node_modules/**", "**/codemods/*/tests*/**", "**/*.gen.ts", "packages/ui/src/tokens/index.ts"]
+      - name: TSX files
+        js-ast-grep:
+          js_file: scripts/codemod.ts
+          base_path: "."
+          language: "tsx"
+          include: ["**/*.tsx"]
+          exclude: ["**/node_modules/**", "**/codemods/*/tests*/**"]

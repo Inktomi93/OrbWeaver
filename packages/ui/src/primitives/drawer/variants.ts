@@ -6,34 +6,45 @@ import { SCRIM_BASE, tv } from "#lib";
 // tracks the sliding panel, not the standard overlay fade of SCRIM(tier).
 export const drawerVariants = tv({
   slots: {
-    backdrop: `${SCRIM_BASE} z-(--z-modal) transition-opacity duration-(--motion-layout) ease-out-expo data-starting-style:opacity-0 data-ending-style:opacity-0`,
+    backdrop: `${SCRIM_BASE} z-(--z-modal) transition-opacity duration-(--motion-layout) ease-out-expo data-ending-style:opacity-0 data-starting-style:opacity-0`,
     viewport: "fixed inset-0 z-(--z-modal)",
-    popup:
-      "fixed flex flex-col bg-card text-card-foreground shadow-overlay transition-transform duration-(--motion-layout) ease-out-expo data-swiping:transition-none",
+    popup: `
+      fixed flex flex-col bg-card text-card-foreground shadow-overlay transition-transform duration-(--motion-layout) ease-out-expo
+      data-swiping:transition-none
+    `,
     // `flex-1 min-h-0` (not `h-full`) so the content scroll region resolves against the popup's max-h cap.
-    content: "relative min-h-0 w-full flex-1 flex flex-col overflow-y-auto overscroll-contain p-section",
+    content: "relative flex flex-1 flex-col overflow-y-auto overscroll-contain p-section inline-full min-block-0",
     swipeArea: "fixed z-(--z-overlay) touch-none",
     indent: "transition-transform duration-(--motion-layout) ease-out-expo data-active:scale-95",
     indentBackground: `pointer-events-none opacity-0 ${SCRIM_BASE} transition-opacity duration-(--motion-layout) ease-out-expo data-active:opacity-100`,
     title: "text-title leading-title font-semibold",
-    description: "mt-field text-body leading-body text-muted-foreground",
+    description: "mbs-field text-body leading-body text-muted-foreground",
   },
   variants: {
     side: {
       bottom: {
-        popup:
-          "inset-x-0 bottom-0 max-h-full rounded-t-card [transform:translateY(calc(var(--drawer-snap-point-offset)+var(--drawer-swipe-movement-y)))] data-starting-style:translate-y-full data-ending-style:translate-y-full",
-        swipeArea: "inset-x-0 bottom-0 h-row",
+        popup: `
+          inset-x-0 inset-be-0 [transform:translateY(calc(var(--drawer-snap-point-offset)+var(--drawer-swipe-movement-y)))] rounded-t-card max-block-full
+          data-ending-style:translate-y-full
+          data-starting-style:translate-y-full
+        `,
+        swipeArea: "inset-x-0 inset-be-0 block-row",
       },
       left: {
-        popup:
-          "inset-y-0 left-0 w-full max-w-cq-sm rounded-r-card [transform:translateX(var(--drawer-swipe-movement-x))] data-starting-style:-translate-x-full data-ending-style:-translate-x-full",
-        swipeArea: "inset-y-0 left-0 w-row",
+        popup: `
+          inset-y-0 inset-s-0 [transform:translateX(var(--drawer-swipe-movement-x))] rounded-e-card inline-full max-inline-cq-24
+          data-ending-style:-translate-x-full
+          data-starting-style:-translate-x-full
+        `,
+        swipeArea: "inset-y-0 inset-s-0 inline-row",
       },
       right: {
-        popup:
-          "inset-y-0 right-0 w-full max-w-cq-sm rounded-l-card [transform:translateX(var(--drawer-swipe-movement-x))] data-starting-style:translate-x-full data-ending-style:translate-x-full",
-        swipeArea: "inset-y-0 right-0 w-row",
+        popup: `
+          inset-y-0 inset-e-0 [transform:translateX(var(--drawer-swipe-movement-x))] rounded-s-card inline-full max-inline-cq-24
+          data-ending-style:translate-x-full
+          data-starting-style:translate-x-full
+        `,
+        swipeArea: "inset-y-0 inset-e-0 inline-row",
       },
     },
   },

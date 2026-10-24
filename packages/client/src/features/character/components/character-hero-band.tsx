@@ -96,9 +96,9 @@ export function CharacterHeroBand({
     <Stack gap="section" data-slot="character-hero">
       <Row align="start" gap="block" className="flex-wrap">
         <HeroPortrait detail={detail} trpc={trpc} />
-        <Stack className="min-w-0 flex-1" gap="field">
+        <Stack className="flex-1 min-inline-0" gap="field">
           <Row align="center" gap="row" className="flex-wrap">
-            <Stack className="min-w-0 flex-1" gap="field">
+            <Stack className="flex-1 min-inline-0" gap="field">
               <form.AppField name="name">{(field): ReactElement => <field.TextField label="Name" />}</form.AppField>
               <Text voice="gloss" className={`truncate font-mono ${HERO_ECHO_CLASS}`}>
                 @{detail.handle}
@@ -257,7 +257,10 @@ export function OwnLookMark({ themeOverride }: { readonly themeOverride: ThemeOv
                 // chat-recall-indicator.tsx carries it.) A `ghost`+`size="inline"` chip would draw nothing at
                 // rest and leave the unpressable datum chips as the row's only shaped items.
                 <Button intent="secondary" shape="pill" size="sm" type="button">
-                  <ThemeScope className="size-4 shrink-0 rounded-full bg-primary ring-1 ring-border" tokens={cardTheme}>
+                  <ThemeScope
+                    className="shrink-0 rounded-full bg-primary ring-1 ring-border block-(--size-glyph-xs) inline-(--size-glyph-xs)"
+                    tokens={cardTheme}
+                  >
                     {null}
                   </ThemeScope>
                   {/* The kicker register at its own weight. `interactiveKicker`, not `kicker`: this text is the
@@ -268,7 +271,7 @@ export function OwnLookMark({ themeOverride }: { readonly themeOverride: ThemeOv
                       and again in the CONTEXT band). `<button>` takes PHRASING content only: React-DOM constructs
                       the tree so nothing reparents at runtime, but an HTML parser (SSR/hydration, an ariaSnapshot
                       round trip) closes the button at the `<p>` and re-parents everything after it. */}
-                  <Text as="span" voice="interactiveKicker" className="text-inherit">
+                  <Text as="span" voice="interactiveKicker" ink="inherit">
                     Own look
                   </Text>
                 </Button>

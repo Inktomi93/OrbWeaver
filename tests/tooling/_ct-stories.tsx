@@ -13,7 +13,7 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { useId } from "react";
 
-/** The composite stage: ONE control (a Base UI Slider) whose pointer target is the whole `h-control-sm`
+/** The composite stage: ONE control (a Base UI Slider) whose pointer target is the whole `h-(--size-control-sm)`
  *  row, while the outward hit probe lands on `[data-slot=slider-indicator]` — a SIBLING of the thumb. The
  *  host is a fixed width so the row's geometry is the production one, not a content-sized shrink. */
 export function WalkerSliderCompositeStory(): ReactElement {
@@ -363,8 +363,8 @@ export function WalkerRowWrappedGlyphStory(): ReactElement {
 
 /** The PSEUDO-CARRIED companion (#662/#665): the ancestor-credit clause's MINTED purpose must still
  *  pass after the fix. A glyph-sm Button's visible box is far under the floor (packages/ui/src/primitives
- *  /button/variants.ts glyphBox — `size-glyph-sm`), and the floor is carried entirely by its overflowing
- *  `::before` (`TOUCH_TARGET_PSEUDO` — `before:size-touch-target`, `before:absolute`; it was an `::after`
+ *  /button/variants.ts glyphBox — `size-(--size-glyph-sm)`), and the floor is carried entirely by its overflowing
+ *  `::before` (`TOUCH_TARGET_PSEUDO` — `before:size-(--size-touch-target)`, `before:absolute`; it was an `::after`
  *  until #1843 moved it off the CTA ring's layer) — no DOM node of its own, so where an ancestor clips it
  *  the box underneath is the only thing that can answer. Isolated (no sibling in the probe band) and inset
  *  from x=0 for the same reasons as the box-carried stage above — this stage is the one shape that MUST
@@ -1053,7 +1053,7 @@ export function WalkerTruncationAffordanceStory(): ReactElement {
  *  the probe ladder could not measure.
  *
  *  `@orb/ui`'s Checkbox/Radio keep an 18px visible box at every pointer and lift the hit area onto a centred
- *  `::before size-touch-target` (packages/ui/src/lib/selection-control.ts): 44px at a coarse pointer, **28px**
+ *  `::before size-(--size-touch-target)` (packages/ui/src/lib/selection-control.ts): 44px at a coarse pointer, **28px**
  *  under the emitted `@media (pointer: fine)` override (packages/ui/src/styles/theme.css). 28 clears WCAG
  *  2.5.8's 24px AA floor, and the compositor agrees — measured on the character library's bulk row, the
  *  four-cardinal `elementFromPoint` ring answers `self` out to +/-13px.
@@ -1079,7 +1079,7 @@ export function WalkerTruncationAffordanceStory(): ReactElement {
  *  `measureHitExtent` publishes `2 x radius` and sampled the ring AT the radius, so a target of extent
  *  exactly `2r` — which occupies `[c - r, c + r)` — was asked about the neighbour's first pixel and never
  *  its own last one. 44 is both the ladder's top rung and `TAP_COARSE_WARN_PX`, so EVERY control whose
- *  coarse floor is the shared `size-touch-target` pseudo published 32 and filed a `tap-target` P2 that no
+ *  coarse floor is the shared `size-(--size-touch-target)` pseudo published 32 and filed a `tap-target` P2 that no
  *  design change could clear. Measured live on the Backup & Restore pane at `--mobile --viewport 430x860`
  *  (side-eye 2026-09-06, #980 F13): `P2, 11 of 11, short side 32px`, on eleven checkboxes whose ring
  *  answers `self` on all four cardinals at +/-21.5px and answers a sibling row's label at +/-22px — and

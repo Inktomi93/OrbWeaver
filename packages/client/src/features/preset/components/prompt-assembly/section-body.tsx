@@ -37,7 +37,7 @@ type AssemblyForm = AppFormInstance<PresetEditorValues>;
 
 const BODY_ROWS = 8;
 /** A min-height floor — the Textarea's `field-sizing: content` otherwise collapses `rows` to ~2 lines. */
-const BODY_MIN_H = "min-h-40";
+const BODY_MIN_H = "min-block-(--height-scroll-sm)";
 /** The one ghost/reset sentence, shared by every authored body so the grammar reads identically. */
 const GHOST_PLACEHOLDER_HINT = "Leave it empty and the built-in default rides — clearing the field IS the reset.";
 
@@ -126,7 +126,7 @@ function TemplateNoteDetail({ detail }: { readonly detail: { readonly label: str
       <Button
         aria-controls={bodyId}
         aria-expanded={open}
-        className="self-start gap-tight"
+        className="gap-tight self-start"
         intent="ghost"
         onClick={(): void => setOpen((prev) => !prev)}
         size="sm"
@@ -163,7 +163,7 @@ function CarrierBody({ form, section }: { readonly form: AssemblyForm; readonly 
       <Card tone="muted">
         <Row align="start" gap="row">
           <Icon icon={Info} size="sm" />
-          <Stack className="min-w-0" gap="tight">
+          <Stack className="min-inline-0" gap="tight">
             <Text voice="label">{attribution.sentence}</Text>
             {manage === undefined ? null : (
               <Button className="self-start" intent="ghost" onClick={(): void => openConfigTo(manage.collection)} size="sm" type="button">

@@ -55,7 +55,7 @@ export function AnalyticsListSurface(): ReactElement {
   const search = useAnalyticsSearchQuery();
 
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" data-testid={testId("analyticsListSurface")} gap="block">
+    <Stack ref={surfaceRef} tabIndex={-1} className="outline-none block-full min-block-0" data-testid={testId("analyticsListSurface")} gap="block">
       {/* §14 LIST anatomy: search → sort → rows. The search is the reach past the page cap; the sort orders
           the page that comes back. */}
       <ListSearch>
@@ -63,7 +63,7 @@ export function AnalyticsListSurface(): ReactElement {
       </ListSearch>
       <ToggleGroup
         aria-label="Sort characters"
-        className="grid w-full grid-cols-2"
+        className="grid grid-cols-2 inline-full"
         data-testid={testId("analyticsLeaderboardSort")}
         value={[sort]}
         onValueChange={(picked): void => setSort((picked[0] ?? ANALYTICS_DEFAULT_SORT) as SortId)}
@@ -102,7 +102,7 @@ function LeaderboardRows({ sort, search }: { readonly sort: SortId; readonly sea
   // The bounded height is this wrapper's — `VirtualList` throws at mount on an unbounded scroll element — and
   // it is also the roving container (the Arrow-key contract over the windowed row bodies).
   return (
-    <Stack ref={rowsRef} className="min-h-0 flex-1">
+    <Stack ref={rowsRef} className="flex-1 min-block-0">
       <LeaderboardBody
         isError={isError}
         isPending={isPending}
@@ -161,7 +161,7 @@ function LeaderboardBody({
   return (
     <VirtualList
       aria-label="Character leaderboard"
-      className="h-full"
+      className="block-full"
       estimateSize={(): number => ESTIMATED_ROW_PX}
       fadeEdge={true}
       gapToken="row"
@@ -183,7 +183,7 @@ function LeaderboardBody({
             title={names[row.characterId] ?? row.name}
             subtitle={`${formatCompactNoun(row.assistantTurns, "reply", "replies")} · ${formatDurationMs(row.totalGenTimeMs)}`}
             actions={
-              <Text voice="gloss" className="whitespace-nowrap font-mono">
+              <Text voice="gloss" className="font-mono whitespace-nowrap">
                 {formatTokens(row.tokensOut, row.tokensOutProvenance)}
               </Text>
             }

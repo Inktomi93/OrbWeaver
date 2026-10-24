@@ -51,7 +51,12 @@ function DescriptionBlock({ label, text, id }: { readonly label: string; readonl
     <Stack gap="tight">
       <Stack gap="tight" id={id}>
         <Text voice="label">{label}</Text>
-        <Text id={textId} voice="reading" className={`max-w-(--reading-measure-prose) whitespace-pre-wrap break-words ${long && !open ? "line-clamp-4" : ""}`}>
+        <Text
+          id={textId}
+          voice="reading"
+          className={`wrap-break-word whitespace-pre-wrap max-inline-(--reading-measure-prose) ${long && !open ? "line-clamp-4" : ""}
+        `}
+        >
           {shown}
         </Text>
       </Stack>
@@ -69,11 +74,11 @@ function DescriptionBlock({ label, text, id }: { readonly label: string; readonl
 /** An option's label: its name, then what choosing it does, in the same tap target. */
 function OptionLabel({ title, consequence }: { readonly title: string; readonly consequence: string }): ReactElement {
   return (
-    <Stack gap="tight" className="min-w-0">
+    <Stack gap="tight" className="min-inline-0">
       <Text as="span" voice="label">
         {title}
       </Text>
-      <Text as="span" voice="quiet" className="max-w-(--reading-measure-prose)">
+      <Text as="span" voice="quiet" className="max-inline-(--reading-measure-prose)">
         {consequence}
       </Text>
     </Stack>

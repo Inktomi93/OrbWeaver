@@ -218,7 +218,7 @@ function MarkerRetention({ session: { form }, generation, fixedTtl, policy, busy
     return (
       <Stack gap="tight">
         <Text voice="label">Cache retention</Text>
-        <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
+        <Text className="max-inline-(--reading-measure-prose)" prose={true} voice="gloss">
           {PROMPT_CACHE_TTL_OPTIONS.find((option) => option.value === fixedTtl)?.label} applied by this route. Other saved marker retention choices do not
           apply.{generation?.turns?.cacheRetentionRefresh === false ? " Cache hits do not extend retention." : null}
         </Text>
@@ -228,7 +228,7 @@ function MarkerRetention({ session: { form }, generation, fixedTtl, policy, busy
   if (generation?.turns?.promptCacheFormat === "openai-breakpoint") {
     const minimum = policy.implicit.minimumRetentionSeconds;
     return (
-      <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
+      <Text className="max-inline-(--reading-measure-prose)" prose={true} voice="gloss">
         {minimum === null
           ? "This route uses request-wide prefix retention options; marker TTL choices do not apply."
           : `This model requests at least ${minimum / 60} minutes of prefix retention after the latest write or reuse; the provider may retain it longer. Marker TTL choices do not apply.`}
@@ -240,7 +240,7 @@ function MarkerRetention({ session: { form }, generation, fixedTtl, policy, busy
       <Text id={ttlLabelId} voice="label">
         Keep the cache for
       </Text>
-      <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
+      <Text className="max-inline-(--reading-measure-prose)" prose={true} voice="gloss">
         {off
           ? "Turn the prefix request on to choose this."
           : "Choose the requested marker retention. Cache-write charges and retention refresh depend on the provider and model."}
@@ -332,18 +332,18 @@ function implicitSupportGloss(supported: boolean | null): string {
 function CacheFacts({ policy, warnings }: Pick<ConnectionPromptCacheProps, "policy" | "warnings">): ReactElement {
   return (
     <Stack gap="tight">
-      <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
+      <Text className="max-inline-(--reading-measure-prose)" prose={true} voice="gloss">
         {implicitSupportGloss(policy.implicit.supported)}
       </Text>
       <Text voice="gloss">App prefix request: {PREFIX_LABELS[policy.prefix.action]}.</Text>
       {policy.replay.supported ? (
-        <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
+        <Text className="max-inline-(--reading-measure-prose)" prose={true} voice="gloss">
           Complete-response replay: {policy.replay.enabled ? "requested by connection headers" : "off by default"}. This is separate from prefix caching;
           upstream settings can still prevent a replay hit.
         </Text>
       ) : null}
       {warnings.map((message) => (
-        <Text className="max-w-(--reading-measure-prose)" key={message} prose={true} voice="gloss">
+        <Text className="max-inline-(--reading-measure-prose)" key={message} prose={true} voice="gloss">
           {message}
         </Text>
       ))}
@@ -365,11 +365,11 @@ function SettingLine({
 }): ReactElement {
   return (
     <Row align="start" gap="field" justify="between">
-      <Stack className="min-w-0 grow" gap="tight">
+      <Stack className="grow min-inline-0" gap="tight">
         <Text id={labelId} voice="label">
           {label}
         </Text>
-        <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
+        <Text className="max-inline-(--reading-measure-prose)" prose={true} voice="gloss">
           {gloss}
         </Text>
       </Stack>

@@ -17,7 +17,7 @@ updated: 2026-10-17
 ## 0. TL;DR — the non-negotiables (one screen)
 
 1. **Five tiers, one direction:** `@orb/ui` → `components/` → `{data,forms,state}/` → `lib/` → `features/`; routes + `main.tsx` compose on top. A feature imports DOWN only; features never import each other at runtime (dep-cruiser).
-2. **Ordinary features touch ZERO CSS.** Do not add `className`/`style` to a raw intrinsic element or add a feature stylesheet outside the shell-frame path. The six homes, their responsibilities, and that bounded exception live in §4; do not restate the vocabulary here.
+2. **Ordinary features touch ZERO CSS.** Do not add `className`/`style` to a raw intrinsic element or add a feature stylesheet outside the shell-frame path (`orb/no-raw-intrinsic-paint` refuses `className`, `style` and spreads on a raw element in the client; the app shell's static shell.css class strings are its one exception). The six homes, their responsibilities, and that bounded exception live in §4; do not restate the vocabulary here.
 3. **One registry primitive, no static maps.** Keep each section, settings pane, modal and contributor in one definition, assembled at the composition root. Do not add a parallel registry map. "Derive, don't re-declare."
 4. **The `/` route is a thin mount.** Do not add a sections map or feature imports to a route body. Assemble feature definitions and contributors at the composition door, and it is two modules: `main.tsx` (boot) plus `client/src/compose/` (the assemblies, behind the `/` route's lazy boundary). §7 states the split and why.
 5. **Cross-feature needs have exactly one channel each** — the eleven-row decision table is §12: ephemeral client state (and navigation) → the `state/` commons; another feature's server data → `trpc.*` (cache-first — NOT a network round-trip when cached); **EXTENDING another feature's surface → a CONTRIBUTOR registry assembled at the door** (ten families live; this is the graft channel); shapes → contracts/type-only; composites → `components/`; a feature's own Content↔Context → its editor-bridge (INTRA-feature only). Anything else is a violation.
@@ -105,7 +105,7 @@ when its declarations use tokens.
 | `packages/ui/src/styles/globals.css` | ui's universal CSS mechanism tier: imports, UA/vendor normalization, reduced-motion and reset floors, shared keyframes, masks/formulas, and primitive-wide treatments — never product/shell styling | yes, only when CSS itself is the mechanism |
 | `packages/ui/src/styles/tiers.css` | density-tier slot map: semantic slot names repoint to DTCG token steps | yes (token references only) |
 | `packages/client/src/styles/globals.css` | client-wide CSS mechanisms: document appearance/defers, capability-query treatments, reading rules, and bounded recipes shared above features — never a component skin or shell-frame rule | yes, only when token/`tv()` composition cannot express it honestly |
-| `packages/client/src/features/app-shell/surfaces/shell.css` | the app frame: shell geometry, region paint, responsive regime, and coordinated compositor motion — never component skins | yes — the ONE feature-tier stylesheet |
+| `packages/client/src/features/app-shell/surfaces/shell.css`, the index that imports its `shell/` region files in cascade order | the app frame: shell geometry, region paint, responsive regime, and coordinated compositor motion — never component skins | yes — the ONE feature-tier stylesheet |
 
 `packages/ui/src/**/variants.ts` is not a CSS home. It is the component-skin mechanism: `tv()` composes token utilities and may not mint values or stylesheets.
 
@@ -129,39 +129,49 @@ not a second token vocabulary, and it is not a place for feature paint.
 
 Owner-authored custom CSS is user data, not a seventh repository CSS home. It enters through
 `CustomThemeStyle` after `validateThemeCss`, is deliberately unlayered so the owner wins, and targets the
-stable `data-slot` and `.shell-*` API. The validator warns on `@import`, rejects `position:
+stable API the manifest `packages/client/owner-css-surface.ts` declares. The validator warns on `@import`, rejects `position:
 fixed`/`sticky`, and the contracts schema caps the field at `THEME_CSS_MAX`. The full contract is
 `UI-Theming-and-Content.md` §12; this exception never licenses raw literals or another authored stylesheet
 in source.
 
 ### 4.4 Why `shell.css` is the exception
 
-`shell.css` owns the shell's structural surfaces and layout algebra: rail/list/context track arithmetic and
-the zero-width sentinel, co-motion variables, one viewport media query, and specificity-ordered elevation.
+`shell.css` is an index: it imports its `shell/` region files (grid, motion, rail, panels, chrome, content, mobile) in cascade order, so a rule's winner across regions is decided by that import order and a rule moves between regions only with its source position. Together they own the shell's structural surfaces and layout algebra: rail/list/context track arithmetic and
+the zero-width sentinel, co-motion variables, one viewport condition (`@variant shell-mobile`, generated from `breakpoint.shell`), and specificity-ordered elevation.
 Density repointing lives in `tiers.css`; shell does not own density semantics. Its panel motion uses FLIP
 because animating dynamic grid tracks causes layout shift; JS stamps `data-list-flip`, `shell.css` owns
 distance and keyframes, and the reduced-motion case settles transforms immediately. The rule for when a
 FLIP may compute its delta in JS instead lives in `motion-and-animation-guide.md` §1.5.
 
 Its structural literals are limited to viewport units, grid ratios and zero sentinels, query conditions, and
-per-site alpha composition — everything else wants a token. `shell.css`'s colour declarations are all
+per-site alpha composition — everything else wants a token. A media condition is spelled through a generated `@variant` (`stylelint` `orb/no-raw-media-condition`); the
+query strings live in `tokens.json`. Stylelint (`stylelint.config.ts`: `stylelint-config-standard` with Tailwind's
+directives declared, the house allow-lists and the `orb/` rules) owns every CSS check; Biome formats the sheets and
+lints nothing in them, so no site carries two suppressions. `shell.css`'s colour declarations are all
 token-sourced; that paint is legal because it belongs to the shell's own region fills, seams, scrim, and
 elevation, never a component's skin.
 
 ### 4.5 The two cascade mechanisms
 
-**Unlayered is the mechanism.** Tailwind v4 emits utilities into `@layer utilities`; an unlayered rule
-beats a layered utility regardless of specificity — how `theme.css` and `tiers.css` repoint a primitive's
-utility-backed defaults, and how ui's document floors stay floors. There are zero `@layer` blocks in the
-authored CSS, and that count must remain zero. Owner-authored custom CSS is also deliberately unlayered
-so the owner wins within the §4.3 boundary.
+**The declared layer order is the mechanism.** `packages/ui/src/styles/globals.css` declares
+`@layer theme, base, components, utilities, ui, shell, client, appearance, preference, motion` before it
+imports Tailwind, and every authored rule sits in one of the house layers: `ui` holds
+the faces, document floors, primitive treatments and `tiers.css`; `shell` the frame regions; `client` the
+client-wide reading and document rules; `appearance` glass, grain, plates and elevation; `preference` the
+contrast and transparency arms; `motion` the reduced-motion floor. A later layer beats an earlier one
+regardless of specificity, which is how `tiers.css` repoints a primitive's utility default and how an
+appearance treatment overrides a shell paint, so no rule carries a type qualifier, a `:where()` or a
+re-stated selector for rank. Within one layer specificity and source order apply as usual. Owner-authored
+custom CSS stays unlayered, so the owner wins within the §4.3 boundary; the floor's `!important` beats
+inline styles and every layer.
 
-**Source order is critical.** Production and Playwright CT both import
-`packages/client/src/styles/index.ts`, the one CSS front door: shell.css → UI globals → client globals.
-Client globals and shell contain overlapping selectors at identical specificity, so reversing them can
-silently change the winner. CT adds only its `tests/` Tailwind source root through `playwright/index.css`;
-it carries no product import or product source. Moving an import changes
-the cascade contract and requires an explicit law change.
+**The ui entry loads first.** Production and Playwright CT both import
+`packages/client/src/styles/index.ts`, the one CSS front door: client globals (whose first import is the
+ui entry with the layer statement) → shell.css. A layer ranks by its first appearance in the document, so
+a sheet that opened a house layer before the statement would rank it lowest; the build folds the statement
+into block order, which keeps the rank only when the statement came first. `tests/ui/styles/layer-order.ct.tsx`
+reads the served order through this door. CT adds only its `tests/` Tailwind source root through
+`playwright/index.css`; it carries no product import or product source.
 
 ### 4.6 Polarity has one mechanism
 
@@ -188,8 +198,8 @@ override's intent is honored by restoring it on re-widen, never by discarding it
 (below 48rem) is the separate, narrower regime that also can never resolve `docked`; it reads the same
 `openOverlayPanel` tracker as the narrow-desktop overlay regime, so the two never drift on separate
 state. The breakpoint is a second `matchMedia` signal (`narrowViewport`) in the `orb/no-raw-matchmedia` legal
-home — overlay is mode-gated rendering, not `@media`-gated, so the one app-shell CSS `@media` (the 48rem
-mobile column flip) stays the only one. User override wins inside each regime: an explicit
+home — overlay is mode-gated rendering, not viewport-gated, so the one app-shell viewport condition (the
+`shell-mobile` column flip) stays the only one. User override wins inside each regime: an explicit
 `overlay`/`collapsed` override passes through unchanged in both regimes; only a `docked` resolution
 auto-closes while narrow.
 

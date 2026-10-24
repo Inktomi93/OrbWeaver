@@ -1,0 +1,155 @@
+/* shell.css region: the list and context panels: modes, bands, headers, bodies and the content focus ring. The index imports the regions in cascade order; a rule's winner across regions is
+ * decided there, so a rule moves between regions only with its source position. */
+@layer shell {
+  .shell-panel {
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    min-block-size: 0;
+    overflow: hidden;
+    background: var(--color-sidebar);
+    color: var(--color-sidebar-foreground);
+    /* The query container for the pane's band, which sits outside the body's region container. Its layout
+     * containment also makes the pane the containing block for the glass carrier (`.shell-panel::before`, client
+     * globals); without it the fill escapes the pane (app-shell.ct.tsx). */
+    container-type: inline-size;
+  }
+  /* The panes and `<main>` take focus only programmatically; the ring belongs on the controls inside them. */
+  .shell-panel:focus-visible,
+  .shell-content:focus-visible {
+    outline: none;
+  }
+  .shell-panel[data-panel-side="list"] {
+    grid-column: 2;
+    border-inline-end: var(--border-width-control) solid var(--color-sidebar-border);
+  }
+  .shell-panel[data-panel-side="context"] {
+    grid-column: 4;
+    border-inline-start: var(--border-width-control) solid var(--color-sidebar-border);
+  }
+
+  .shell-panel[data-panel-mode="docked"] {
+    position: relative;
+    inline-size: auto;
+  }
+
+  .shell-panel[data-panel-mode="overlay"],
+  .shell-panel[data-panel-mode="collapsed"] {
+    position: absolute;
+    /* `grid-column: auto` moves the containing block off the grid area, so the inset targets the shell edge. */
+    grid-column: auto;
+    inline-size: var(--panel-w);
+    z-index: var(--z-overlay);
+    transition: transform var(--shell-motion) var(--shell-ease);
+  }
+  /* Only the width differs for the context pane; the co-motion stays in the shared rule above. */
+  .shell-panel[data-panel-side="context"][data-panel-mode="overlay"],
+  .shell-panel[data-panel-side="context"][data-panel-mode="collapsed"] {
+    inset-inline-end: 0;
+    inline-size: var(--panel-context-w);
+  }
+  /* A collapsed list pane is as wide as the track it left, not the clamp: a width change lands on its trailing
+   * edge, which no translate counters. Not for overlay, an on-screen sheet with no track; and the direction lives
+   * in the value, so the phone arm's `100dvw` still outranks this rule. */
+  .shell-panel[data-panel-side="list"][data-panel-mode="collapsed"] {
+    inline-size: var(--list-panel-collapsed-w);
+    /* The slide clears the rail too, since the list pane opens flush against it; it rides `transform`, not
+     * `translate`: the two add, and the FLIP keyframes (motion.css) own `translate` on these same elements. A
+     * physical axis; under a right-to-left shell the panels' slide is the known follow-up. */
+    transform: translateX(calc(-100% - var(--rail-w)));
+  }
+  /* A pane leaving a docked track slides out at its full-height box; an open overlay clears the topbar so the
+   * toggle under it stays reachable, and a sheet (`data-panel-sheet`) keeps that inset while collapsed so open
+   * and close change `transform` and nothing else. */
+  .shell-panel[data-panel-mode="collapsed"] {
+    inset-block: 0;
+  }
+  .shell-panel[data-panel-mode="overlay"],
+  .shell-panel[data-panel-sheet][data-panel-mode="collapsed"] {
+    inset-block: var(--dimension-chrome-row) 0;
+  }
+  .shell-panel[data-panel-side="list"][data-panel-mode="overlay"],
+  .shell-panel[data-panel-side="list"][data-panel-mode="collapsed"] {
+    inset-inline-start: var(--rail-w);
+  }
+  .shell-panel[data-panel-side="context"][data-panel-mode="collapsed"] {
+    transform: translateX(100%);
+  }
+  /* An overlay is a sheet (owner ruling): the content behind stays laid out full-width, so the float wears the
+   * drawer's scrim-plus-overlay-shadow idiom or the cut controls read as breakage. */
+  .shell-panel[data-panel-mode="overlay"] {
+    transform: translateX(0);
+    box-shadow: var(--shadow-overlay);
+  }
+
+  /* The band's separator is an inset shadow, not a border: a border would leave an odd content box and centre
+   * every occupant off the device-pixel grid. Two stops in two variables because two rules drop them
+   * independently (ramp drops the rule, a floating context band drops the ember); `0 0 0 transparent` is the off
+   * value, since a box-shadow list has no empty item. */
+  .shell-panel-header {
+    --shell-band-ember: 0 0 0 transparent;
+    --shell-band-rule: inset 0 calc(var(--border-width-control) * -1) 0 var(--color-sidebar-border);
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-row);
+    block-size: var(--dimension-chrome-row);
+    padding-inline: var(--spacing-block);
+    box-shadow: var(--shell-band-ember), var(--shell-band-rule);
+  }
+  /* The content-to-context binding: an ember top edge on the primary token, so a theme retints it. */
+  .shell-panel[data-panel-side="context"] .shell-panel-header {
+    --shell-band-ember: inset 0 var(--border-width-accent) 0 color-mix(in oklab, var(--color-primary) 55%, transparent);
+  }
+  /* A floating context pane binds to nothing, so its ember edge would be an orphan stripe under the topbar. */
+  .shell-panel[data-panel-side="context"][data-panel-mode="overlay"] .shell-panel-header {
+    --shell-band-ember: 0 0 0 transparent;
+  }
+  /* A claimed context pane paints its own top edge, so `SectionContextHeader` renders nothing and the empty band
+   * collapses out instead of adding a chrome row and a doubled ember edge. */
+  .shell-panel[data-panel-side="context"] .shell-panel-header:empty {
+    display: none;
+  }
+  /* The context header's content fills the band from the start edge. */
+  .shell-panel[data-panel-side="context"] .shell-panel-header > * {
+    flex: 1 1 auto;
+    min-inline-size: 0;
+  }
+  /* The overlay dismiss is a fixed control on the trailing edge and takes no share of the band. */
+  .shell-panel .shell-panel-header > [data-slot="panel-overlay-close"] {
+    flex: none;
+  }
+  /* The overlay band's content group (panel-chrome.tsx) keeps the identity-to-action split while the dismiss owns the edge. */
+  .shell-panel-header-group {
+    display: flex;
+    flex: 1 1 auto;
+    min-inline-size: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-row);
+  }
+  /* A floating bracketed (tabs) context pane owns its top edge and its own dismiss, so its empty band collapses
+   * as the docked one does; the shell's own dismiss would otherwise keep the chrome row the bracket removes. The
+   * bracket paints its own ember edge (`context-bracket.tsx`). */
+  .shell-panel[data-panel-side="context"] .shell-panel-header:has(> .shell-panel-header-group:empty) {
+    display: none;
+  }
+
+  .shell-panel-body {
+    flex: 1 1 auto;
+    min-block-size: 0;
+    /* A flex column, or the region's `flex: 1 1 auto` is inert and a section's VirtualList measures its full content. */
+    display: flex;
+    flex-direction: column;
+    overflow-block: auto;
+    overscroll-behavior: contain;
+    padding-inline: var(--spacing-row);
+    padding-block: var(--spacing-row);
+  }
+  /* A bracketed context pane runs full-bleed to the pane's edges and re-pays the padding inside its own viewport. */
+  .shell-panel[data-panel-side="context"] .shell-panel-body:has([data-context-bracket]) {
+    padding-inline: 0;
+    padding-block: 0;
+  }
+}

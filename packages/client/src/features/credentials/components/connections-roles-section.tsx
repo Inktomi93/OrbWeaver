@@ -17,7 +17,7 @@ import { CONNECTIONS_ROLES_SUBCATEGORY, ROLE_SETTING_IDS } from "../lib/connecti
 import { UtilityPresetSelect } from "./utility-preset-select.tsx";
 
 // The pane is as wide as the settings body; a sentence capped at the prose measure never runs across it.
-const PROSE_MEASURE = "max-w-(--reading-measure-prose)";
+const PROSE_MEASURE = "max-inline-(--reading-measure-prose)";
 
 // A role with a declared Model roles leaf stamps its picker as that leaf's deep-link focus target.
 function settingControlId(settingId: string | undefined): string | undefined {

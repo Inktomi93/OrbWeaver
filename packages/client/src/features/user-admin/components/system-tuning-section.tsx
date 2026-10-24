@@ -167,7 +167,7 @@ function SystemTuningBody({ anchorId, sectionId }: { readonly anchorId: string; 
   return (
     <Section divider={true} heading={SYSTEM_TUNING_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="field">
-        <Text voice="label" className="text-muted-foreground">
+        <Text voice="label" tone="muted">
           Deployment-wide runtime tuning. Each applies live (per request / batch / check). Absent knobs run on the deployment floor.
         </Text>
         {KNOBS.map((knob) => (

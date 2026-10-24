@@ -156,7 +156,7 @@ export function TagPickerDialog({
               is the sentence the confirm button is about to act on. `aria-live` because that flip (create ⇄
               attach) happens while the user is typing INTO the field it describes — a describedby alone is
               only read on focus, so the one moment it matters would be silent. */}
-          <Text aria-live="polite" className="min-w-0 flex-1" id={helperId} voice="gloss">
+          <Text aria-live="polite" className="flex-1 min-inline-0" id={helperId} voice="gloss">
             {helperText(state, candidates.length, trimmed, existing === undefined ? undefined : { name: existing.name, attached: alreadyAttached })}
           </Text>
           {state === "error" ? (

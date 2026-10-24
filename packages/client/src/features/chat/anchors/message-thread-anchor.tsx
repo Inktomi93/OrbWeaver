@@ -15,7 +15,7 @@ export interface MessageThreadAnchorProps {
 /** Provide the `chat-thread` container box the message-list surface consumes. */
 export function MessageThreadAnchor({ children }: MessageThreadAnchorProps): ReactElement {
   return (
-    <Container name="chat-thread" className="h-full">
+    <Container name="chat-thread" className="block-full">
       {children}
     </Container>
   );

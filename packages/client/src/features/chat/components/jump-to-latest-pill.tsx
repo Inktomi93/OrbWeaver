@@ -25,14 +25,14 @@ export function JumpToLatestPill({ count, visible, onJump }: JumpToLatestPillPro
   }
   const label = held === 1 ? "1 new message" : `${held} new messages`;
 
-  const stateClasses = visible ? "pointer-events-auto translate-y-0 opacity-100" : "pointer-events-none translate-y-2 opacity-0";
+  const stateClasses = visible ? "pointer-events-auto translate-y-0 opacity-100" : "pointer-events-none translate-y-row opacity-0";
   const pillClasses = `w-fit rounded-full border border-border bg-popover shadow-overlay transition-[opacity,translate] duration-(--motion-base) ease-out-expo ${stateClasses}`;
 
   return (
     <Row
       justify="center"
       aria-hidden={visible ? undefined : true}
-      className="pointer-events-none absolute inset-x-0 bottom-block z-(--z-overlay)"
+      className="pointer-events-none absolute inset-x-0 inset-be-block z-(--z-overlay)"
       data-slot="jump-to-latest"
     >
       <Row align="center" className={pillClasses}>

@@ -23,10 +23,12 @@ import { restrictionRule } from "./syntax.ts";
 import { CT_SPEC_RESTRICTIONS, TEST_FABRICATION_RESTRICTIONS } from "./test-policy.ts";
 import { ctPollIntervalsSharedRule, evaluateNoScopeCaptureRule, typedTestIdRule, uiCtColorRule } from "./tests.ts";
 import { floorlessControlRule, registerApiRule, registryContextRule, stateFilesRule, storeDerivedRule } from "./ui-composition.ts";
+import type { ClassClassifier } from "./ui-feature-classname.ts";
+import { featureClassNameLayoutOnlyRule, noBuiltClassStringRule } from "./ui-feature-classname.ts";
 import { UI_FEATURE_RESTRICTIONS } from "./ui-feature-policy.ts";
+import { rawIntrinsicPaintRule } from "./ui-intrinsics.ts";
 import {
   CLASS_RESTRICTIONS,
-  CLASS_TOKEN_RESTRICTIONS,
   CLIENT_CONFIG_HOST_RESTRICTIONS,
   CLIENT_CONTEXT_RESTRICTIONS,
   CLIENT_SEAL_RESTRICTIONS,
@@ -39,6 +41,7 @@ import {
 import { darkVariantRule, offTokenInlineStyleRule, recededInkRule, themeOverrideRule } from "./ui-styles.ts";
 
 export { authorClassIgnores } from "./css-classes.ts";
+export { classClassifier } from "./ui-feature-classname.ts";
 
 const LOCAL_RESTRICTIONS = [
   TEST_FABRICATION_RESTRICTIONS,
@@ -58,7 +61,6 @@ const LOCAL_RESTRICTIONS = [
   CLIENT_STYLE_RESTRICTIONS,
   CLIENT_CONFIG_HOST_RESTRICTIONS,
   CLIENT_SEAL_RESTRICTIONS,
-  CLASS_TOKEN_RESTRICTIONS,
   PORTAL_FLOAT_RESTRICTIONS,
   CT_SPEC_RESTRICTIONS,
   SERVER_HARD_RESTRICTIONS,
@@ -70,12 +72,20 @@ const LOCAL_RESTRICTIONS = [
 ].flat();
 
 /** Keep UI and Biome policy inputs in the root config without importing their runtime graphs. */
-export function createOrbPlugin(options: { browserNodeGlobals: ReadonlySet<string>; floorlessButtonSizes: ReadonlySet<string> }): {
+export function createOrbPlugin(options: {
+  browserNodeGlobals: ReadonlySet<string>;
+  floorlessButtonSizes: ReadonlySet<string>;
+  shellClasses: ReadonlySet<string>;
+  classifyClass: ClassClassifier;
+}): {
   rules: Record<string, OrbRule>;
 } {
   return {
     rules: {
       ...Object.fromEntries(LOCAL_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)] as const)),
+      "no-raw-intrinsic-paint": rawIntrinsicPaintRule(options.shellClasses),
+      "feature-classname-layout-only": featureClassNameLayoutOnlyRule(options.classifyClass),
+      "no-built-class-string": noBuiltClassStringRule,
       ...Object.fromEntries(PRINCIPAL_RULES.map(({ id, rule }) => [id, rule] as const)),
       "ui-ct-no-color-literal": uiCtColorRule,
       "no-raw-egress": rawEgressRule,

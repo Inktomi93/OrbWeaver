@@ -20,5 +20,5 @@ import { tv } from "#lib";
 // mask's ramp-to-nothing was drawn for. It costs nothing at a WIDE band, where `cover` scales by width and
 // the horizontal position has no slack left to choose from.
 export const artBleedVariants = tv({
-  base: "pointer-events-none absolute inset-y-0 end-0 z-(--z-base) rounded-(--radius-card) bg-right bg-cover",
+  base: "pointer-events-none absolute inset-y-0 inset-e-0 z-(--z-base) rounded-(--radius-card) bg-cover bg-right",
 });

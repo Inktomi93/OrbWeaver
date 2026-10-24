@@ -18,7 +18,7 @@
 // for this — one line, and its rows keep their existing bodies.
 //
 // THE `<Container>` IS LOAD-BEARING, not decoration: the narrow arm is a CONTAINER query on the grid
-// (`grid-cols-1 @md:…`, layout/variants.ts `settingTrack`) so the row answers to the PANE it lives in
+// (`grid-cols-1 @cq-28:…`, layout/variants.ts `settingTrack`) so the row answers to the PANE it lives in
 // rather than to the viewport — and an element cannot query itself, so the query needs this ancestor.
 // Below the step the group drops to one track and every subgrid beneath it inherits that, which is the
 // whole narrow stack: no per-row flip, no media query in a feature.
@@ -41,7 +41,7 @@ export function SettingRowGroup({ children }: { readonly children: ReactNode }):
             `gap-x-block` is the label→control gutter; `gap-y-block` keeps the between-row rhythm the
             Section's own `gap-block` used to give
             these rows when they were its direct children. */}
-        <Grid className="max-w-(--reading-measure) gap-x-block gap-y-block" cols="settingTrack" data-slot="setting-row-group">
+        <Grid className="gap-block max-inline-(--reading-measure)" cols="settingTrack" data-slot="setting-row-group">
           {children}
         </Grid>
       </FieldLayout>

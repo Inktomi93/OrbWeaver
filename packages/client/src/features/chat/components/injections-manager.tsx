@@ -13,7 +13,7 @@
 // could show, and the section's one-line `SkeletonRows` fallback stood in for 920px of forms. At 4× CPU on
 // a 430px phone that settle landed 795ms after the tap, past the browser's 500ms `hadRecentInput` cliff,
 // and the host paid 0.30837 CLS in a single shift. The row now wears the SAME clothes as the Field-overrides
-// section directly above it — a collapse row (`Collapsible` in a `!p-0` Card) whose trigger carries the
+// section directly above it — a collapse row (`Collapsible` in a `padding="none"` Card) whose trigger carries the
 // summary (where it lands, in whose voice, at what depth) plus the not-delivered chip, with a one-line
 // content excerpt under it while closed. Two adjacent sections expressing one idea in two opposite
 // presentation laws was the §7 taste finding; this retires both with one change.
@@ -163,22 +163,20 @@ function InjectionRow({ row, ordinal, isHost, onSave, onDelete }: InjectionRowPr
     // every field below remembering `disabled={!isHost}`.
     <InjectionRowBoundary entityId={row.key} serverValues={toInjectionForm(row.value)} {...(save === undefined ? ({ readOnly: true } as const) : { save })}>
       {({ form }): ReactElement => (
-        // `!p-0` so the block padding lives on the trigger instead and the whole row is one tap target —
-        // the Field-overrides card's own reasoning, and the `!` is load-bearing there for the same reason
-        // (the tier padding map is UNLAYERED, so a plain `p-0` utility loses to it inside a Surface).
-        <Card className="!p-0">
+        // `padding="none"`: the block padding lives on the trigger, so the whole closed row is one tap target.
+        <Card padding="none">
           <Collapsible open={open} onOpenChange={setOpen}>
             {/* ONE subscription for the whole collapsed face: the summary and the excerpt both read the
                 LIVE values, so collapsing after an edit shows the edit rather than the loaded row. */}
             <form.Subscribe selector={(state): InjectionFormValues => state.values}>
               {(values): ReactElement => (
                 <>
-                  {/* `size="control"` pins the pointer-conditional `--spacing-control-sm` floor (44px
+                  {/* `size="control"` pins the pointer-conditional `--size-control-sm` floor (44px
                       coarse / 32px fine) — the disclosure IS the row, and it is the only door to the
                       editor. The accessible name COMPUTES from the trigger's own content ("Injection 1 …"),
                       so it can never disagree with the visible label (WCAG 2.5.3). */}
-                  <CollapsibleTrigger className="w-full p-block" size="control">
-                    <Row gap="field" align="center" justify="between" className="min-w-0 flex-1">
+                  <CollapsibleTrigger className="p-block inline-full" size="control">
+                    <Row gap="field" align="center" justify="between" className="flex-1 min-inline-0">
                       <Text voice="label">{`Injection ${ordinal}`}</Text>
                       {/* An empty-content row is INERT: assembly skips it at every position, so it reaches
                           no prompt. With no enabled/disabled toggle ("off" = delete the row), a blank row is
@@ -192,7 +190,7 @@ function InjectionRow({ row, ordinal, isHost, onSave, onDelete }: InjectionRowPr
                           Not delivered — no content
                         </Badge>
                       ) : (
-                        <Text voice="gloss" className="min-w-0 truncate">
+                        <Text voice="gloss" className="truncate min-inline-0">
                           {rowSummary(values)}
                         </Text>
                       )}
@@ -207,7 +205,7 @@ function InjectionRow({ row, ordinal, isHost, onSave, onDelete }: InjectionRowPr
                     // where its last line does. (Measured pre-fix: clientHeight 25 = one 13.125px line +
                     // pb-block; the report's "display: flow-root defeats the clamp" reading was wrong —
                     // `flow-root` is just Chrome's computed serialization of a blockified `-webkit-box`.)
-                    <Stack className="px-block pb-block">
+                    <Stack className="px-block pbe-block">
                       <Text voice="gloss" className="line-clamp-1">
                         {values.content}
                       </Text>
@@ -217,7 +215,7 @@ function InjectionRow({ row, ordinal, isHost, onSave, onDelete }: InjectionRowPr
               )}
             </form.Subscribe>
             <CollapsiblePanel>
-              <Stack gap="field" className="px-block pb-block">
+              <Stack gap="field" className="px-block pbe-block">
                 <form.AppField name="position">
                   {(field): ReactElement => <field.SelectField label="Position" items={POSITION_ITEMS} disabled={!isHost} />}
                 </form.AppField>
@@ -279,7 +277,7 @@ export interface InjectionsSkeletonProps {
  *
  * The shared `SkeletonRows count={1} shape="line"` cannot express this box, which is why it lied by ~830px:
  * a `line` row is a `control-lg` bar, and the settled section is an intro line, N collapse CARDS (a
- * `control-sm` trigger row plus a one-line excerpt inside a `!p-0` card) and an `Add injection` button.
+ * `control-sm` trigger row plus a one-line excerpt inside a `padding="none"` card) and an `Add injection` button.
  * Every one of those is spelled below with the SAME primitives and the SAME gaps, so the reserve tracks the
  * row's own geometry — including the pointer-conditional control height — instead of a number that was
  * right on one viewport.
@@ -293,26 +291,26 @@ export function InjectionsSkeleton({ count, isHost }: InjectionsSkeletonProps): 
     <Stack aria-busy={true} gap="section">
       <Text voice="gloss">{injectionsIntro(isHost)}</Text>
       {count === 0 ? (
-        <Skeleton className="h-4 w-1/3" />
+        <Skeleton className="block-(--leading-label) inline-1/3" />
       ) : (
         <Stack gap="section">
           {rows.map((index) => (
-            <Card className="!p-0" key={index}>
-              {/* The trigger row: `min-h-control-sm` + `p-block` is byte-for-byte the collapsed trigger's
+            <Card padding="none" key={index}>
+              {/* The trigger row: `min-h-(--size-control-sm)` + `p-block` is byte-for-byte the collapsed trigger's
                   box, so this bar is the height it stands in for at BOTH pointer classes. */}
-              <Row align="center" className="min-h-control-sm p-block" gap="field" justify="between">
-                <Skeleton className="h-4 basis-1/3" />
-                <Skeleton className="h-4 min-w-0 flex-1" />
+              <Row align="center" className="p-block min-block-(--size-control-sm)" gap="field" justify="between">
+                <Skeleton className="basis-1/3 block-(--leading-label)" />
+                <Skeleton className="flex-1 block-(--leading-label) min-inline-0" />
               </Row>
               {/* The one-line content excerpt. */}
-              <Row className="px-block pb-block">
-                <Skeleton className="h-4 flex-1" />
+              <Row className="px-block pbe-block">
+                <Skeleton className="flex-1 block-(--leading-label)" />
               </Row>
             </Card>
           ))}
         </Stack>
       )}
-      {isHost ? <Skeleton className="h-control-sm w-1/3" /> : null}
+      {isHost ? <Skeleton className="block-(--size-control-sm) inline-1/3" /> : null}
     </Stack>
   );
 }

@@ -93,7 +93,7 @@ function ItemGlyph({ item, onPickIcon }: { readonly item: RpgInventoryItem; read
 // reading as "outline" or "ghost" — no intent arm owns "a bordered filled card that happens to be
 // clickable", and the member arm (`edit === undefined`) below is not even a `Button` (a plain `Row`), so the
 // skin cannot be an intent by construction. Composed here, at the one call site both lenses share.
-const TILE_CLASS = "relative w-full min-w-0 items-center gap-field rounded-control border border-border bg-card px-row py-field text-left";
+const TILE_CLASS = "relative inline-full min-inline-0 items-center gap-field rounded-control border border-border bg-card px-row py-field text-start";
 
 /** The tile's INK — the glyph · the name (wrapped) · ×N · the PINNED tell · where it's kept. Shared by both
  *  arms. `pinned` is the per-item pin's grid half: the tile is itself a Button (the editor's trigger), so it
@@ -105,18 +105,18 @@ function PackCellInk({ item, pinned = false }: { readonly item: RpgInventoryItem
       {QUEST_TYPE_RE.test(item.type) ? (
         // The accent quest-bound dot (primary voice = the game's pulse); the `type` text on the tile
         // title carries the datum (never color-alone).
-        <Text as="span" voice="gloss" aria-hidden={true} className="absolute top-field right-field text-primary">
+        <Text as="span" voice="gloss" aria-hidden={true} className="absolute inset-e-field inset-bs-field" tone="accent">
           ●
         </Text>
       ) : null}
       <Icon icon={resolveItemIcon(item.icon, item.name, item.type)} size="sm" className="shrink-0 text-muted-foreground" />
-      <Stack gap="field" className="min-w-0 flex-1">
-        <Row gap="field" align="baseline" className="min-w-0">
+      <Stack gap="field" className="flex-1 min-inline-0">
+        <Row gap="field" align="baseline" className="min-inline-0">
           {/* The NAME is the datum and a model writes it: it WRAPS inside the tile rather than
               truncating away — the tile grows a line, the pack keeps its rhythm (the grid row stretches). */}
           {/* `label` — the tile's NAME, the same voice the LIST row's `ItemName` speaks; a tile whose name
               recedes to `gloss` like its ×N and location has no head to read first. */}
-          <Text as="span" voice="label" className="min-w-0 flex-1 break-words">
+          <Text as="span" voice="label" className="flex-1 wrap-break-word min-inline-0">
             {item.name}
           </Text>
           {/* The ×N read, the list row's exact grammar — a stack of one renders nothing (no "×1" noise). */}
@@ -130,7 +130,7 @@ function PackCellInk({ item, pinned = false }: { readonly item: RpgInventoryItem
           {pinned ? (
             // `pr-block` keeps the word clear of the quest-bound dot, which is absolutely positioned in this
             // same top-right corner — abutting, the two read as one token ("Pinned●") instead of two facts.
-            <Text as="span" voice="gloss" className="shrink-0 pr-block">
+            <Text as="span" voice="gloss" className="shrink-0 pe-block">
               Pinned
             </Text>
           ) : null}
@@ -139,7 +139,7 @@ function PackCellInk({ item, pinned = false }: { readonly item: RpgInventoryItem
             Model-authored free text with no length contract: it wraps; empty ⇒ nothing (the editor is where
             an unset location gets filled in, and it says so with a placeholder). */}
         {item.location === "" ? null : (
-          <Text as="span" voice="gloss" className="min-w-0 break-words">
+          <Text as="span" voice="gloss" className="wrap-break-word min-inline-0">
             {item.location}
           </Text>
         )}
@@ -147,7 +147,7 @@ function PackCellInk({ item, pinned = false }: { readonly item: RpgInventoryItem
             TEXT is the datum, so it renders as text. Empty ⇒ nothing at all (never a blank labelled row) —
             the tile keeps its one-line density for the items the story hasn't described. */}
         {item.description === "" ? null : (
-          <Text as="span" voice="gloss" className="min-w-0 break-words">
+          <Text as="span" voice="gloss" className="wrap-break-word min-inline-0">
             {item.description}
           </Text>
         )}
@@ -202,8 +202,8 @@ function PackCell({ item, edit }: { readonly item: RpgInventoryItem; readonly ed
  *  so one authoring vocabulary serves both lenses. */
 function PackTileEditor({ item, edit }: { readonly item: RpgInventoryItem; readonly edit: PackEdit }): ReactElement {
   return (
-    <Stack gap="row" className="w-(--width-control-col)" data-slot="rpg-pack-tile-editor">
-      <Row gap="field" align="center" className="min-w-0">
+    <Stack gap="row" className="inline-(--width-control-col)" data-slot="rpg-pack-tile-editor">
+      <Row gap="field" align="center" className="min-inline-0">
         <ItemGlyph item={item} onPickIcon={(icon: string): void => edit.onPickIcon(item.id, icon)} />
         <ItemName item={item} edit={edit} />
         <ItemQuantity item={item} edit={edit} />
@@ -236,8 +236,8 @@ function PackListRow({ item, edit }: { readonly item: RpgInventoryItem; readonly
     <Card tone="neutral">
       <Row gap="field" align="center" data-slot="rpg-pack-row">
         <ItemGlyph item={item} {...(edit === undefined ? {} : { onPickIcon: (icon: string): void => edit.onPickIcon(item.id, icon) })} />
-        <Stack gap="field" className="min-w-0 flex-1">
-          <Row gap="field" align="baseline" className="min-w-0">
+        <Stack gap="field" className="flex-1 min-inline-0">
+          <Row gap="field" align="baseline" className="min-inline-0">
             <ItemName item={item} {...(edit === undefined ? {} : { edit })} />
             <ItemQuantity item={item} {...(edit === undefined ? {} : { edit })} />
             {/* The LIST lens is the EDIT lens, and it is not a Button itself — so here the pin IS the Release,

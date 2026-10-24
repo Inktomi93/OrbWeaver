@@ -12,7 +12,7 @@ export interface CorpusListAnchorProps {
 /** Provide the `corpus-navigator` container box the corpus LIST surface consumes. */
 export function CorpusListAnchor({ children }: CorpusListAnchorProps): ReactElement {
   return (
-    <Container className="h-full" name="corpus-navigator">
+    <Container className="block-full" name="corpus-navigator">
       {children}
     </Container>
   );

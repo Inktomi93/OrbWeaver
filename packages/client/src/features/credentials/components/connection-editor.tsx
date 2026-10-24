@@ -246,7 +246,7 @@ function AvailableConnectionEditorBody({
             </Stack>
             <PurposeNotes notes={purposeNotes(capabilityView.capability, provider.auth === "endpoint")} />
             <Row align="start" gap="field" justify="between">
-              <Stack className="min-w-0 grow" gap="tight">
+              <Stack className="grow min-inline-0" gap="tight">
                 <Text voice="label">Allow background work</Text>
                 <Text voice="gloss">
                   Summaries, extraction, captions, embeddings and reranking run unattended on this connection. Leave it off for anything you pay per call, or
@@ -380,8 +380,8 @@ function EditorTier({
 }): ReactElement {
   return (
     <Collapsible data-slot="connection-editor-tier" data-tier={title} defaultOpen={defaultOpen}>
-      <CollapsibleTrigger chevron={false} className="w-full">
-        <Row align="center" className="w-full flex-wrap" gap="field">
+      <CollapsibleTrigger chevron={false} className="inline-full">
+        <Row align="center" className="flex-wrap inline-full" gap="field">
           <Text voice="label">{title}</Text>
           {badge === undefined ? null : (
             <Badge intent="info" size="sm" tone="soft">
@@ -389,7 +389,7 @@ function EditorTier({
             </Badge>
           )}
           {kicker === undefined ? null : (
-            <Text className="min-w-0 truncate" voice="gloss">
+            <Text className="truncate min-inline-0" voice="gloss">
               {kicker}
             </Text>
           )}

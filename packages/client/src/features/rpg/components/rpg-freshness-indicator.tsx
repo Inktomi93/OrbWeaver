@@ -73,7 +73,7 @@ export function RpgFreshnessIndicator({ delivery, pending }: RpgFreshnessIndicat
       <>
         <Badge tone="soft" intent="success" size="sm" data-slot="rpg-freshness">
           <Icon icon={Clock} size="xs" />
-          <Text as="span" voice="gloss" className="text-inherit">
+          <Text as="span" voice="gloss" ink="inherit">
             Live
           </Text>
         </Badge>
@@ -93,7 +93,7 @@ export function RpgFreshnessIndicator({ delivery, pending }: RpgFreshnessIndicat
         <Badge tone="soft" size="sm" data-slot="rpg-freshness">
           {/* Icon is decorative by default (no `label` ⇒ aria-hidden); the pulse is purely visual. */}
           <Icon icon={History} size="xs" className="animate-pulse" />
-          <Text as="span" voice="gloss" className="text-inherit">
+          <Text as="span" voice="gloss" ink="inherit">
             Updating…
           </Text>
         </Badge>
@@ -107,7 +107,7 @@ export function RpgFreshnessIndicator({ delivery, pending }: RpgFreshnessIndicat
     <>
       <Badge tone="soft" size="sm" data-slot="rpg-freshness">
         <Icon icon={History} size="xs" />
-        <Text as="span" voice="gloss" className="text-inherit">
+        <Text as="span" voice="gloss" ink="inherit">
           Last recorded beat
         </Text>
       </Badge>

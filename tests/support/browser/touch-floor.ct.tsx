@@ -14,7 +14,7 @@
 //     wrapper's 161x161 for a control whose real target is its 25px box, and the SAME number for the
 //     control with a real hit area. A number that does not move when the answer moves is not a measurement.
 //
-// EVERY ARM RUNS AT BOTH POINTERS. `--spacing-touch-target` is pointer-CONDITIONAL (D62), the hit pseudo
+// EVERY ARM RUNS AT BOTH POINTERS. `--size-touch-target` is pointer-CONDITIONAL (D62), the hit pseudo
 // is sized on it, and a fix that only lands on one pointer is half a fix — the fine arm is also where the
 // pseudo is SMALLEST, i.e. where an over-crediting predicate is easiest to mistake for a correct one.
 import { expect, test } from "@playwright/test";

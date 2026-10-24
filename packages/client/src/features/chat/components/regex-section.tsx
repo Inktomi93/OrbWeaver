@@ -267,7 +267,7 @@ function RegexLeverStrip({
         const rows = regexTierRows(tier, homes);
         return (
           <Row align="center" gap="field" justify="between" key={tier.scope}>
-            <Row align="baseline" className="min-w-0" gap="tight">
+            <Row align="baseline" className="min-inline-0" gap="tight">
               <Text as="span" className="truncate" voice="label">
                 {label}
               </Text>

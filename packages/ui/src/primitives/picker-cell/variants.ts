@@ -36,7 +36,7 @@ export const pickerCellVariants = tv({
     // NO `@container` ANCESTOR ⇒ ONE COLUMN, which is the honest degradation (a cell is never squeezed by
     // a step that cannot be evaluated). Every config mount has one: `SettingRowGroup` wraps its rows in
     // `<Container>`.
-    grid: "grid grid-cols-1 items-stretch gap-row @sm:grid-cols-2 @lg:grid-cols-3",
+    grid: "grid grid-cols-1 items-stretch gap-row @cq-24:grid-cols-2 @cq-32:grid-cols-3",
     // `items-stretch` + `h-full` is the equal-height half of F27: an auto-fit grid gives equal WIDTHS, and
     // a cell that fills its row track gives equal HEIGHTS even when one gloss wraps to two lines.
     // `@container` (inline-size containment) makes the frame a query container so the art aperture can
@@ -45,7 +45,10 @@ export const pickerCellVariants = tv({
     // minus gaps is always a runtime fraction), and every later section on the same scrollable pane
     // INHERITS the sub-pixel offset. The declared `round(nearest, …, 1px)` length is what CSS can round.
     frame: [
-      "@container relative flex h-full min-w-0 flex-col gap-field overflow-hidden rounded-control border border-border bg-card p-field text-left outline-none",
+      `
+        @container relative flex flex-col gap-field overflow-hidden rounded-control border border-border bg-card p-field text-start outline-none block-full
+        min-inline-0
+      `,
       "transition-colors duration-(--motion-fast) ease-out-expo",
       "hover:border-ring",
       FOCUS_RING,
@@ -66,37 +69,31 @@ export const pickerCellVariants = tv({
     // (inline-size), so `100cqw` = the frame's content-box width = the art's own width (it is `w-full`).
     // `round(nearest, 100cqw * <ratio>, 1px)` pixel-snaps the height that `aspect-ratio` left fractional.
     // The variant `shape` sets the height; `w-full` sets the width; the combination replaces aspect-ratio.
-    art: "pointer-events-none relative w-full shrink-0 select-none overflow-hidden rounded-inset bg-background",
+    art: "pointer-events-none relative shrink-0 overflow-hidden rounded-inset bg-background select-none inline-full",
     // The FOOTER is reserved whether or not a description exists — the reason two cards in one row used to
     // differ by 13px of height.
-    body: "flex min-w-0 flex-1 flex-col gap-tight",
-    titleRow: "flex min-w-0 items-center justify-between gap-field",
-    label: "min-w-0 truncate",
+    body: "flex flex-1 flex-col gap-tight min-inline-0",
+    titleRow: "flex items-center justify-between gap-field min-inline-0",
+    label: "truncate min-inline-0",
     meta: "shrink-0",
     // 13px, muted — NOT `voice="gloss"` (10.5px). `undersized-ui-text` fired 8x of 16 judged on the
     // chat-style cards' glosses (#1099 F31): copy inside an interactive cell is read at the control's
     // register, so it takes the label step and carries its quiet only in tone.
-    description: "min-w-0",
+    description: "min-inline-0",
     // The check rides the frame's top-trailing corner, over the art, out of the footer's flow.
-    check: "absolute top-field right-field flex items-center justify-center rounded-full bg-primary p-tight text-primary-foreground",
+    check: "absolute inset-e-field inset-bs-field flex items-center justify-center rounded-full bg-primary p-tight text-primary-foreground",
   },
   variants: {
     /** Detailed pictures need two readable columns rather than three miniature ones. */
-    detail: { true: { grid: "@lg:grid-cols-2" } },
+    detail: { true: { grid: "@cq-32:grid-cols-2" } },
     /** The art aperture's aspect, independent of how many detailed choices share a row. */
     shape: {
-      /** A wide picture: a transcript, a shell diagram, a spacing stack, a palette.
-       *  16:9 → height = width * 9/16 = width * 0.5625, pixel-snapped. */
-      // the `1px` is the CSS `round()` rounding precision, not a design token — a structural mechanic, not a size; ends when round() accepts a token
-      landscape: { art: "h-[calc(round(nearest,100cqw*0.5625,1px))]" },
+      /** A wide picture: a transcript, a shell diagram, a spacing stack, a palette. */
+      landscape: { art: "block-(--height-picker-art-landscape)" },
       /** A 4:3 picture with room for detailed anatomy. */
-      // Snap the queried width first so cqw conversion cannot round an exact half-pixel height downward.
-      // the CSS round() precision pixel-snaps the aperture, as in landscape
-      standard: { art: "h-[calc(round(nearest,round(nearest,100cqw,1px)*0.75,1px))]" },
-      /** A square picture: a wallpaper thumbnail, an avatar shape.
-       *  1:1 → height = width, pixel-snapped. */
-      // same structural pixel-snap precision as landscape above
-      square: { art: "h-[calc(round(nearest,100cqw,1px))]" },
+      standard: { art: "block-(--height-picker-art-standard)" },
+      /** A square picture: a wallpaper thumbnail, an avatar shape. */
+      square: { art: "block-(--height-picker-art-square)" },
       /** No picture at all — a label-only cell that must still sit in the same grid as its picture siblings. */
       none: { art: "hidden" },
     },

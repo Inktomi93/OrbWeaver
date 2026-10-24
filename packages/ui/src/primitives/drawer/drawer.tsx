@@ -160,3 +160,11 @@ export function DrawerIndentBackground(props: DrawerIndentBackgroundProps): Reac
 export function DrawerVirtualKeyboardProvider(props: BaseVirtualKeyboardProviderProps): ReactElement {
   return <BaseDrawer.VirtualKeyboardProvider {...props} />;
 }
+
+/**
+ * A keep-out band the height of the mobile tab bar at the end of a bottom sheet's content, so the row that
+ * lands where the opening tap was cannot take a second press as its own. Empty and hidden from AT.
+ */
+export function DrawerTapGuard(): ReactElement {
+  return <div aria-hidden={true} className="shrink-0 block-(--dimension-rail)" data-slot="drawer-tap-guard" />;
+}

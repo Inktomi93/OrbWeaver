@@ -71,7 +71,7 @@ export function DiscoverHitRow({ hit, rank }: { readonly hit: DiscoverHit; reado
         subtitleWrap={true}
         meta={rank.toString()}
       />
-      <Stack className="pl-gutter" gap="row" data-testid={testId("corpusDiscoverEvidence")}>
+      <Stack className="ps-gutter" gap="row" data-testid={testId("corpusDiscoverEvidence")}>
         {[...passages].map(([snippet, occurrences]) => (
           <Stack key={snippet} gap="tight">
             <Text voice="gloss">“{snippet}”</Text>
@@ -79,16 +79,16 @@ export function DiscoverHitRow({ hit, rank }: { readonly hit: DiscoverHit; reado
               {occurrences.map((segment, index) => (
                 <Tip key={segment.source.rowId} text={roomNumberingHint(chatSubtitle(segment.chatTitle, hit.name))}>
                   <Button
-                    className={`max-w-full justify-start ${RECEDED_INK}`}
+                    className={`justify-start max-inline-full ${RECEDED_INK}`}
                     intent="ghost"
                     size="sm"
                     onClick={(): void => selectCorpusArtifact({ kind: "scene", hit: segment, characterName: hit.name, rank })}
                   >
-                    <Text as="span" className="min-w-0 truncate text-muted-foreground" voice="label">
+                    <Text as="span" className="truncate min-inline-0" tone="muted" voice="label">
                       {chatSubtitle(segment.chatTitle, hit.name)}
                       {occurrences.filter((candidate) => candidate.chatId === segment.chatId).length > 1 ? ` · occurrence ${index + 1}` : ""}
                     </Text>
-                    <Text aria-hidden={true} as="span" className="shrink-0 text-muted-foreground" voice="label">
+                    <Text aria-hidden={true} as="span" className="shrink-0" tone="muted" voice="label">
                       →
                     </Text>
                   </Button>

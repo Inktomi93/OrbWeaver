@@ -45,7 +45,7 @@ export function RenderHintPicker({ schemaTextRef, setSchemaText }: RenderHintPic
   const [hintRole, setHintRole] = useState<RenderHintRole>(RENDER_HINT_ROLES[0]);
   return (
     <Row align="end" gap="field">
-      <Field className="min-w-0 max-w-sm flex-1" label={RENDER_HINT_ROLE_QUESTION}>
+      <Field className="flex-1 max-inline-cq-24 min-inline-0" label={RENDER_HINT_ROLE_QUESTION}>
         <Select
           aria-label={RENDER_HINT_ROLE_QUESTION}
           items={RENDER_HINT_ROLE_ITEMS}

@@ -146,9 +146,9 @@ function atLeast(visibility: MemberCardVisibility, level: MemberCardVisibility):
  *  viewer's level a single "hidden at this level" note appears in place of the withheld tier. */
 function MemberCard({ card, onManage }: { readonly card: MemberCardView; readonly onManage: () => void }): ReactElement {
   return (
-    <Stack gap="block" className="relative min-h-0 overflow-y-auto overscroll-contain">
+    <Stack gap="block" className="relative overflow-y-auto overscroll-contain min-block-0">
       <Row gap="row" align="center">
-        <Stack gap="field" className="min-w-0">
+        <Stack gap="field" className="min-inline-0">
           <Row gap="field" align="center">
             <Badge size="sm" intent="neutral" tone="soft">
               <Icon icon={Lock} size="xs" />
@@ -318,7 +318,7 @@ function HiddenTierNote({ label, description }: { readonly label: string; readon
       <Separator />
       <Row gap="field" align="center">
         <Icon icon={EyeOff} size="sm" className="text-muted-foreground" />
-        <Stack gap="field" className="min-w-0">
+        <Stack gap="field" className="min-inline-0">
           <Text as="span" voice="label">
             {label} hidden
           </Text>

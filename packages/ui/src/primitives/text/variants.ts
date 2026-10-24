@@ -36,7 +36,7 @@ export const textVariants = tv({
     voice: {
       // A section's NAME — never a datum. The mocks' `.kicker` (9.5px caps, .09em, 650); pair with
       // <Section kicker> for the hairline rule that completes the CD1 "a grouping is not a box" swap.
-      kicker: "font-sans text-micro leading-micro tracking-micro font-semibold uppercase text-muted-foreground",
+      kicker: "font-sans text-micro leading-micro font-semibold tracking-micro text-muted-foreground uppercase",
       // A kicker that is itself the visible label of a control. Interactive copy needs the readable label
       // step (13px) while retaining the compact, tracked instrument register of the band it belongs to.
       //
@@ -53,14 +53,14 @@ export const textVariants = tv({
       // because only here is the tracked label a control's own name in a width-contended flex row (the
       // `kicker` twin sits in a Section heading row and has the identical dead column with no reported
       // symptom — flagged, deliberately not swept here).
-      interactiveKicker: "font-sans text-label leading-label tracking-micro -me-(--tracking-micro) font-semibold uppercase text-muted-foreground",
+      interactiveKicker: "-me-(--tracking-micro) font-sans text-label leading-label font-semibold tracking-micro text-muted-foreground uppercase",
       // The name of ONE datum (the mocks' `.meter .mline` label half).
-      label: "font-sans text-label leading-label tracking-normal font-medium text-foreground",
+      label: "font-sans text-label leading-label font-medium tracking-normal text-foreground",
       // The VALUE — the thing you came to read. mono + tabular so columns of numbers align and digits stop
       // jittering as they tick; rides `text-label` rather than a new 11px step (D5).
-      datum: "font-mono text-label leading-label tracking-normal tabular-nums font-normal text-foreground",
+      datum: "font-mono text-label leading-label font-normal tracking-normal text-foreground tabular-nums",
       // The quiet explanatory second line (the mocks' `.truth`/`.beat`/`.orb .vals`).
-      gloss: "font-sans text-micro leading-micro tracking-normal font-normal text-muted-foreground",
+      gloss: "font-sans text-micro leading-micro font-normal tracking-normal text-muted-foreground",
       // THE ONE NUMBER A SURFACE EXISTS TO PRODUCE (added 2026-08-09, side-eye P1-13). `datum` is the
       // voice for A value; `hero` is the voice for THE value — a run's overall score, a headline count —
       // the figure the user opened the surface to read. It was being spelled `voice="datum"`, which set
@@ -72,7 +72,7 @@ export const textVariants = tv({
       // gate exemption, and a exemption for "this number is important" would be the first of many.
       // `tabular-nums` is load-bearing, not polish: these numerals COUNT UP on settle, and proportional
       // digits make the figure jitter horizontally while it ticks.
-      hero: "font-mono text-display leading-display tracking-normal tabular-nums font-semibold text-foreground",
+      hero: "font-mono text-display leading-display font-semibold tracking-normal text-foreground tabular-nums",
       // THE CONTENT ITSELF (added 2026-08-16, program #102). Every voice above names a piece of CHROME —
       // a section's name, a datum's label, a value, a quiet second line. None of them is the prose the
       // user actually came to read, and a feature reaching for it had exactly one spelling left,
@@ -84,14 +84,14 @@ export const textVariants = tv({
       // the transcript's wider one (#1145): a reading line is capped on the PARAGRAPH, never on the page.
       // Only the chat transcript itself takes `--reading-measure`; see the token's own $description for
       // why one CSS `ch` is ~1.5 of the characters the design law counts.
-      reading: "font-sans text-body leading-body tracking-normal font-normal text-prose-body",
+      reading: "font-sans text-body leading-body font-normal tracking-normal text-prose-body",
       // THE SURFACE'S ONE OPENING STATEMENT (added 2026-08-16, program #102 — the home hearth build). A
       // landing surface opens on a SENTENCE about your own state ("Six rooms, still warm."), and the two
       // largest steps of the ramp had no sans route to a feature: `hero` is the display step for THE
       // NUMBER (mono + tabular, built to stop a counting figure jittering), which is exactly wrong for
       // prose — a sentence in tabular mono reads as a serial. So this is `hero`'s prose twin: same step,
       // sans, the tracking a display line needs, and no tabular figures. ONE per surface, like `hero`.
-      masthead: "font-sans text-display leading-display tracking-tight font-semibold text-foreground",
+      masthead: "font-sans text-display leading-display font-semibold tracking-display text-foreground",
       // THE ATTRIBUTION LINE UNDER A FOCAL ITEM (added 2026-08-16, program #102 review): who is in this
       // thing and how long ago — a film credit, not prose and not a datum you compare. The mock draws it
       // mono + UPPERCASE + tracked + muted (`home-c-hearth.html .fire .foot .meta`), and a feature has no
@@ -103,12 +103,12 @@ export const textVariants = tv({
       // interactive text, and 10.5px interactive text was the review's #15 (seven nodes under the readable
       // floor). Caps + tracking + mono carry the register; the step carries the legibility. Muted because a
       // credit stands behind the title it credits.
-      credit: "font-mono text-label leading-label tracking-micro font-medium uppercase text-muted-foreground",
+      credit: "font-mono text-label leading-label font-medium tracking-micro text-muted-foreground uppercase",
       // THE ONE ITEM PROMOTED ABOVE ITS SIBLINGS (added 2026-08-16, program #102). The headline step —
       // between the masthead and the `title` its siblings run at — for the single entry a surface has
       // decided you came for: home's resume-room hero. It is the type half of the CD3 focal (the other
       // half is the stripe + the rationed ::before glow); a surface with two of these has no focal at all.
-      focal: "font-sans text-headline leading-headline tracking-tight font-semibold text-foreground",
+      focal: "font-sans text-headline leading-headline font-semibold tracking-display text-foreground",
       // THE NAME OF ONE ITEM IN A SHELF OF ITEMS (added 2026-08-17, side-eye rail sweep P2-9/P3-18). The
       // `title` step (16px), semibold, which no CONTENT voice reached: `label` is the step for the name of
       // a datum and `focal` is the headline step reserved for the ONE entry a surface promotes above its
@@ -118,7 +118,7 @@ export const textVariants = tv({
       // title IS a surface's content rather than a directory entry. A feature cannot spell it otherwise —
       // `size="title"` is one of the four @orb/ui-internal axes the density A3 arm reds at a feature call
       // site — so the choice was a voice or an exemption.
-      promoted: "font-sans text-title leading-title tracking-normal font-semibold text-foreground",
+      promoted: "font-sans text-title leading-title font-semibold tracking-normal text-foreground",
       // THE MUTED BODY LINE (added 2026-08-23, owner ruling on #573). The most common near-miss the density
       // burn-down kept hitting: a plain `<Text tone="muted">` — an empty-state line, a "Loading…", a
       // deferred-state sentence — which is body-step regular text that has RECEDED. No voice reached it:
@@ -129,7 +129,7 @@ export const textVariants = tv({
       //
       // It resolves the SAME step the `tone="muted"` default pair produced (byte-identical but for the
       // no-op `tracking-normal` every voice spells) — this is a VOCABULARY fix, not a visual change.
-      quiet: "font-sans text-body leading-body tracking-normal font-normal text-muted-foreground",
+      quiet: "font-sans text-body leading-body font-normal tracking-normal text-muted-foreground",
       // THE MONO READOUT AT THE CODE STEP (added 2026-08-23, owner ruling on #573). An id, a hash, a byte
       // count, a raw payload — machine text a human reads but does not compare in a column. `datum` is the
       // voice for a value you DO compare (label step, tabular, foreground); this is its receded twin at the
@@ -140,15 +140,15 @@ export const textVariants = tv({
       // NO `tabular-nums`, deliberately — that is `datum`'s column-alignment property and it is wrong here
       // (a hash is not a column of numbers). Resolves the same step the `size="code" tone="muted"` pair
       // produced; call sites that carried `className="tabular-nums"` beside the old pair keep it.
-      datumMono: "font-mono text-code leading-label-relaxed tracking-normal font-normal text-muted-foreground",
+      datumMono: "font-mono text-code leading-label-relaxed font-normal tracking-normal text-muted-foreground",
       // The DECORATIVE DISPLAY GLYPH (added S6): a single-letter mark an immersive chat row skin paints on
       // its own band/tile fill — aria-hidden ornament, not prose. None of the four CONTENT voices fits it
       // (each would shrink a glyph whose entire job is to BE large), and the alternative at the call site
       // was spelling `size`/`weight` through className — a dodge the density gate structurally cannot see.
       // Deliberately sets NO COLOR: the skin that owns the band owns the ink, so the `tone` default survives
       // here and one className on the call site still beats it. Callers that need a bigger mark than the
-      // title step override `font-size` (the echo tile rides `--spacing-avatar-hero` inline).
-      monogram: "font-sans text-title leading-title tracking-normal font-semibold",
+      // title step override `font-size` (the echo tile rides `--size-avatar-hero` inline).
+      monogram: "font-sans text-title leading-title font-semibold tracking-normal",
     },
     // THE READING-LENGTH MODIFIER (side-eye F-31, 2026-08-02). `text-micro` (10.5px, leading-micro) was
     // doing five jobs — kicker, gloss, explainer prose, subtitle, status — and while contrast passes
@@ -184,7 +184,7 @@ export const textVariants = tv({
     // baseline, and each arm costs a `.orb-lines-N` rule in globals.css (the reservation cannot be a
     // Tailwind utility — see that rule's comment). A second arm arrives with its second consumer.
     lines: {
-      2: "line-clamp-2 orb-lines-2 whitespace-normal",
+      2: "line-clamp-2 whitespace-normal orb-lines-2",
     },
     tone: {
       // The base supplies default ink; leaving this empty preserves each voice colour.

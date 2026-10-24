@@ -204,7 +204,7 @@ function ThemeableVarsReference(): ReactElement {
       <Text voice="kicker">Themeable variables</Text>
       <Row gap="field" className="flex-wrap">
         {THEME_SCOPE_EMIT_VARS.map((name) => (
-          <Text key={name} as="span" voice="datum" className="rounded-control bg-muted px-field text-muted-foreground">
+          <Text key={name} as="span" voice="datum" className="rounded-control bg-muted px-field" tone="muted">
             {name}
           </Text>
         ))}

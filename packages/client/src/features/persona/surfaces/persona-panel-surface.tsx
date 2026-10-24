@@ -109,7 +109,7 @@ function PanelBody({ presentation }: PersonaPanelSurfaceProps): ReactElement {
       <PopoverPopup
         aria-label="Account & personas"
         align="end"
-        className="relative max-h-(--available-height) w-(--container-cq-sm) overflow-y-auto overscroll-contain"
+        className="relative overflow-y-auto overscroll-contain inline-(--container-cq-24) max-block-(--available-height)"
         side="right"
       >
         <PersonaPanelAnchor>{sections}</PersonaPanelAnchor>
@@ -191,11 +191,11 @@ function WhoHead({ state }: { readonly state: PlayingPersonaState }): ReactEleme
   const avatarSrc = current === null || current.avatarHash === null ? {} : { src: blobUrl(current.avatarHash) };
   return (
     <Stack gap="field" data-slot="persona-who-head">
-      <Row gap="row" align="center" className="min-w-0">
+      <Row gap="row" align="center" className="min-inline-0">
         <Avatar fallbackDelay={0} hueSeed={current?.id ?? "none"} size="md" {...avatarSrc}>
           {current === null ? <Icon icon={CircleUser} size="md" /> : initialsFor(current.name)}
         </Avatar>
-        <Stack className="min-w-0 flex-1">
+        <Stack className="flex-1 min-inline-0">
           <Text className="truncate" voice="label">
             {current?.name ?? "No persona set"}
           </Text>

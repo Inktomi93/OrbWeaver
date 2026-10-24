@@ -176,7 +176,7 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
           // pane and this is `min-h-0 flex-1` in the landing. `min-h-0` is the required half — a flex
           // child defaults to `min-height: auto`, which lets the scroller grow to its content and trips the
           // primitive's own unbounded-window throw.
-          className="min-h-0 flex-1"
+          className="flex-1 min-block-0"
           estimateSize={(): number => ESTIMATED_ROW_PX}
           // The cap is a fixed box and the rows are 51.5px, so the window ends MID-ROW every time; with
           // overlay scrollbars that half-row is the only cue there is more, and it reads as clipping (the tag

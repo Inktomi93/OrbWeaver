@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/codemod/codemod/refs/heads/main/schemas/workflow.json
+version: "1"
+params:
+  schema:
+    map:
+      name: "Map file"
+      description: "Path, relative to the target directory, of the JSON object with the `rules` list (element, attribute, token, prop, value)"
+      type: string
+      default: "codemod-class-prop-map.json"
+nodes:
+  - id: class-token-to-prop
+    name: Move class tokens onto props by map
+    type: automatic
+    steps:
+      - name: TSX files
+        js-ast-grep:
+          js_file: scripts/codemod.ts
+          base_path: "."
+          language: "tsx"
+          include: ["**/*.tsx"]
+          exclude: ["**/node_modules/**", "**/codemods/*/tests*/**"]

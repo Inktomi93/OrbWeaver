@@ -73,10 +73,10 @@ export function renderSingleBubble(args: {
       {args.mirrored ? null : args.weldedAvatar}
       {/* The column stretches the card's height and the foot takes its end, so the swipe group sits in the card's
           bottom corner beside a tall portrait instead of floating under a short reply. */}
-      <Stack gap="row" className="min-w-0 flex-1 self-stretch px-block py-row">
+      <Stack gap="row" className="flex-1 self-stretch px-block py-row min-inline-0">
         {args.header}
         {args.content}
-        {args.footer === null ? null : <Stack className="mt-auto">{args.footer}</Stack>}
+        {args.footer === null ? null : <Stack className="mbs-auto">{args.footer}</Stack>}
       </Stack>
       {args.mirrored ? args.weldedAvatar : null}
     </Row>

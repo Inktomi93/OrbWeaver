@@ -95,7 +95,7 @@ export function Slider<Value extends number | readonly number[] = number>(props:
           <BaseSlider.Indicator className={slots.indicator()} data-slot="slider-indicator" />
         </BaseSlider.Track>
         {/* THUMBS ARE SIBLINGS OF THE TRACK, never children of it. The track clips (`overflow-hidden`, so
-            the rail's rounded caps trim the Indicator's square fill); a `size-slider-thumb` (24px) knob
+            the rail's rounded caps trim the Indicator's square fill); a `size-(--size-slider-thumb)` (24px) knob
             nested inside that 6px rail was clipped to a 6px sliver — a flat rectangle where the knob should
             be, and a hit area 6px tall while its border box still measured a full 24×24 (design-audit
             `clipped-overflow` ×8 on the appearance pane, #86 lead 2; the box is why a rect-based census

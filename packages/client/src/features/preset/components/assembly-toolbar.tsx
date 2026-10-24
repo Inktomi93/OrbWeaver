@@ -29,7 +29,7 @@ export interface AssemblyToolbarProps {
 export function AssemblyToolbar({ form, onAdd }: AssemblyToolbarProps): ReactElement {
   return (
     <Toolbar aria-label="Assembly controls">
-      <Row align="center" className="ml-auto" gap="field">
+      <Row align="center" className="ms-auto" gap="field">
         <form.Subscribe selector={(state): readonly PromptSection[] => state.values.sections}>
           {(sections): ReactElement => (
             <Menu>

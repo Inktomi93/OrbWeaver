@@ -126,14 +126,14 @@ function BandWhen({ when }: { readonly when: ReturnType<typeof whenParts> }): Re
     return null;
   }
   return (
-    <Stack gap="field" className="min-w-0 tabular-nums" data-slot="rpg-band-when">
+    <Stack gap="field" className="tabular-nums min-inline-0" data-slot="rpg-band-when">
       {when.context === "" ? null : (
-        <Text as="span" voice="gloss" className="line-clamp-2 max-w-full break-words" data-slot="rpg-band-when-context">
+        <Text as="span" voice="gloss" className="line-clamp-2 wrap-break-word max-inline-full" data-slot="rpg-band-when-context">
           {when.context}
         </Text>
       )}
       {when.state === "" ? null : (
-        <Text as="span" voice="gloss" className="line-clamp-2 max-w-full break-words" data-slot="rpg-band-when-state">
+        <Text as="span" voice="gloss" className="line-clamp-2 wrap-break-word max-inline-full" data-slot="rpg-band-when-state">
           {when.state}
         </Text>
       )}
@@ -188,7 +188,7 @@ export function RpgTakeoverHeader({
         <>
           <Badge tone="soft" size="sm">
             <Icon icon={Lock} size="xs" />
-            <Text as="span" voice="gloss" className="text-inherit">
+            <Text as="span" voice="gloss" ink="inherit">
               Read-only
             </Text>
           </Badge>
@@ -220,7 +220,7 @@ export function RpgTakeoverHeader({
     return (
       <Row gap="block" align="center" data-slot="rpg-takeover-header">
         {stone}
-        <Stack gap="field" className="min-w-0 flex-1">
+        <Stack gap="field" className="flex-1 min-inline-0">
           {/* The absence, in the GLOSS voice — it explains, it is not a datum, and the compressed row is
               exactly where a 13px "No" was buying nothing (the four-voice grammar). */}
           <Text as="span" voice="gloss" className="truncate">
@@ -241,7 +241,7 @@ export function RpgTakeoverHeader({
     <Stack gap="block" data-slot="rpg-takeover-header">
       <Row gap="block" align="center">
         {stone}
-        <Stack gap="field" className="min-w-0 flex-1">
+        <Stack gap="field" className="flex-1 min-inline-0">
           {/* A clock or a date WITHOUT a place: honest about which half is missing. "No ambient set" is the
               COMPRESSED arm's copy and would be a lie here — the when-line right below it is ambient. The room's
               NAME lives in the center header, never in this band; this line is the scene's place, in the

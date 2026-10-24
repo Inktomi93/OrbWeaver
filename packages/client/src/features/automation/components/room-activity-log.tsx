@@ -55,7 +55,7 @@ export function RoomActivityLog({ chatId }: RoomActivityLogProps): ReactElement 
         return (
           <Stack key={fire.id} gap="tight" data-slot="activity-row">
             <Row gap="block" align="center" justify="between">
-              <Row className="min-w-0" gap="block" align="center">
+              <Row className="min-inline-0" gap="block" align="center">
                 <Badge intent={view.intent} tone="soft" size="sm">
                   {view.label}
                 </Badge>

@@ -110,7 +110,7 @@ function RowActionsCell({
 /** THE MODIFIED MARK (§3.4 — the VS Code left bar, a designed mark) and its a11y twin. The bar is paint
  *  only (`aria-hidden`), vertically inset + rounded so it reads as a mark rather than a border, and
  *  ABSOLUTE — out of flow, so the rest row is byte-identical whether or not a rail exists (the owner's
- *  zero-shift bar). `-left-2` sits it in the section's gutter, off the label's ink. The sr-only sentence
+ *  zero-shift bar). `-left-row` sits it in the section's gutter, off the label's ink. The sr-only sentence
  *  is the telling a screen reader gets instead. */
 function ModifiedMark({ modified }: { readonly modified: boolean }): ReactElement | null {
   if (!modified) {
@@ -118,7 +118,7 @@ function ModifiedMark({ modified }: { readonly modified: boolean }): ReactElemen
   }
   return (
     <>
-      <Row aria-hidden={true} className="-left-2 absolute inset-y-1 border-l-2 border-l-primary/60" data-slot="setting-modified-rail" />
+      <Row aria-hidden={true} className="absolute inset-y-tight -inset-s-row border-s-2 border-s-primary/60" data-slot="setting-modified-rail" />
       <Text as="span" className="sr-only">
         Modified from its default.
       </Text>
@@ -138,9 +138,9 @@ interface RowBodyProps {
 function SpanRowBody({ annotation, actions, label, children }: RowBodyProps & { readonly label: string }): ReactElement {
   return (
     <>
-      {/* `@lg:` — the same container step the group's track set uses. Ungated, `col-span-2` in the ONE-column
+      {/* `@cq-32:` — the same container step the group's track set uses. Ungated, `col-span-2` in the ONE-column
           narrow arm mints an implicit second column instead of stacking. */}
-      <Stack className="min-w-0 @lg:col-span-2" data-slot="setting-row-lead" gap="tight">
+      <Stack className="min-inline-0 @cq-32:col-span-2" data-slot="setting-row-lead" gap="tight">
         <Text as="span" className="inline-flex items-center gap-field" voice="label">
           {label}
           {annotation === null ? null : (
@@ -155,7 +155,7 @@ function SpanRowBody({ annotation, actions, label, children }: RowBodyProps & { 
           `--reading-measure-prose` (#1145), because a `ch` resolves in the element's own font and the
           group's cap is computed at the label step, not at the gloss's 10.5px one. */}
       {annotation === null ? null : (
-        <Text className="col-span-full min-w-0 max-w-(--reading-measure-prose)" data-slot="setting-row-gloss" voice="gloss">
+        <Text className="col-span-full max-inline-(--reading-measure-prose) min-inline-0" data-slot="setting-row-gloss" voice="gloss">
           {annotation.gloss}
         </Text>
       )}
@@ -165,7 +165,7 @@ function SpanRowBody({ annotation, actions, label, children }: RowBodyProps & { 
           a one-column grid (MEASURED: its control column collapsed to 58px and the input inside to 0). */}
       <ConfigRowAnnotationProvider value={null}>
         <FieldLayout align="block" orientation="horizontal">
-          <Stack className="col-span-full min-w-0" data-slot="setting-row-body" gap="field">
+          <Stack className="col-span-full min-inline-0" data-slot="setting-row-body" gap="field">
             {children}
           </Stack>
         </FieldLayout>
@@ -188,7 +188,7 @@ function FieldRowBody({ annotation, actions, details, children }: RowBodyProps &
         // `track`-aligned Field outside a real subgrid, where `grid-cols-subgrid` degrades to `none`: its
         // control column measured 58px and the number input inside it 0px.)
         <ConfigRowAnnotationProvider value={null}>
-          <Grid className="col-span-full min-w-0 grid-cols-subgrid gap-x-block gap-y-field" data-slot="setting-row-details">
+          <Grid className="col-span-full grid-cols-subgrid gap-x-block gap-y-field min-inline-0" data-slot="setting-row-details">
             {details}
           </Grid>
         </ConfigRowAnnotationProvider>

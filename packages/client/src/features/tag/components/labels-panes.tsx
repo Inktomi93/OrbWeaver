@@ -33,8 +33,8 @@ export function LabelsContent(): ReactElement {
   }
   const exit = <MemberDrillHeader back={{ label: `Back to ${CORPUS_MODE_LABELS.labels}`, onClick: clearLabelSelection }} />;
   return (
-    <Container className="h-full min-h-0">
-      <Stack className="relative h-full min-h-0 overflow-y-auto overscroll-contain py-section" data-slot="labels-content">
+    <Container className="block-full min-block-0">
+      <Stack className="relative overflow-y-auto overscroll-contain py-section block-full min-block-0" data-slot="labels-content">
         {tagId === null ? (
           <LabelsLibrarySurface returning={editorWasOpen} />
         ) : (
@@ -104,7 +104,7 @@ function TagReach({ tagId }: { readonly tagId: TagId }): ReactElement {
   const trpc = useTRPC();
   const tag = useQuery(trpc.tag.listTagsWithUsage.queryOptions()).data?.find((row) => row.id === tagId);
   if (tag === undefined) {
-    return <Skeleton className="h-16 w-full" />;
+    return <Skeleton className="block-(--height-row-placeholder) inline-full" />;
   }
   const kinds = Object.keys(USAGE_KIND_TITLES) as (keyof typeof USAGE_KIND_TITLES)[];
   return (

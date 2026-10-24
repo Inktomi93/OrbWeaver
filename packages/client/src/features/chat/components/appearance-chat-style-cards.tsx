@@ -248,7 +248,7 @@ const STYLE_DRAWINGS: Record<ChatStyle, ReactElement> = {
 /** Artwork emphasizes structural differences without claiming to reproduce the viewer's transcript. */
 function StylePreview({ style }: { readonly style: ChatStyle }): ReactElement {
   return (
-    <Stack className="h-full w-full text-foreground" data-chat-style={style} data-slot="chat-style-preview">
+    <Stack className="text-foreground block-full inline-full" data-chat-style={style} data-slot="chat-style-preview">
       <svg
         aria-hidden={true}
         focusable="false"

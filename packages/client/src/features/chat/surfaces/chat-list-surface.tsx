@@ -138,7 +138,7 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
     // islands resolve the dense steps. `<Surface>` is display:contents — it declares the tier for the
     // subtree without adding a box to the height chain.
     <Surface tier="instrument">
-      <Stack className="h-full min-h-0 outline-none" gap="row" ref={surfaceRef} tabIndex={-1}>
+      <Stack className="outline-none block-full min-block-0" gap="row" ref={surfaceRef} tabIndex={-1}>
         {/* SKIP THE PANE CHROME (#500 item 4, side-eye 2026-08-22 rail-chats P3). The app-shell's own
             "Skip to content" lands in `<main>` — it skips PAST this pane, and on the Chats surface the work
             starts in the LIST. Measured Tab order from the top of the boot: 13 stops (the rail's eight
@@ -195,7 +195,7 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
           <ListSearch>
             <Input
               aria-label={SEARCH_LABEL}
-              className={`min-w-0 flex-1 ${CLEAR_INSET_RESERVE}`}
+              className={`flex-1 min-inline-0 ${CLEAR_INSET_RESERVE}`}
               onValueChange={setChatListSearch}
               placeholder="Search chats…"
               value={query}
@@ -206,7 +206,7 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
         {/* The DESKTOP column's month bound. On a phone it is inside the Filters panel above — one home for
             the control, two positions, never two copies on screen at once. */}
         {isMobile ? null : <ChatListMonthFilter />}
-        <Stack className="min-h-0 flex-1">
+        <Stack className="flex-1 min-block-0">
           <ChatListBody
             activeChatId={activeChatId}
             beforeRecencyAt={beforeRecencyAt}
@@ -325,10 +325,10 @@ function ChatListBody({
   }
 
   return (
-    <Stack className="h-full min-h-0" gap="block">
+    <Stack className="block-full min-block-0" gap="block">
       {/* The strip renders ABOVE this body (in the surface), so it stays put across every body state —
           including an empty scope, where it is the way OUT. */}
-      <Stack className="min-h-0 flex-1">
+      <Stack className="flex-1 min-block-0">
         <ChatRows
           activeChatId={activeChatId}
           characterName={characterFilter?.name ?? null}
@@ -409,7 +409,7 @@ function ChatRows({
   return (
     // The virtualizer's scroll element needs a BOUNDED height (`assertBoundedScrollHeight` throws at mount
     // otherwise) — `h-full` inside the surface's `min-h-0 flex-1` column is where that bound comes from.
-    <Stack className="h-full min-h-0">
+    <Stack className="block-full min-block-0">
       <VirtualList
         // THE LIST NAMES ITSELF AS A LIST (side-eye HOME 2026-09-02 H20). It was `aria-label="Chats"` —
         // the same string the RAIL's own nav button carries one region over — so one document held two
@@ -420,7 +420,7 @@ function ChatRows({
         // `"<section> list"` the pane landmark used before #493 made it read its visible band). The RAIL
         // keeps "Chats" — it names the SECTION, which is what a nav button names.
         aria-label="Chats list"
-        className="h-full"
+        className="block-full"
         endApproachRows={listProps.endApproachRows}
         estimateSize={(): number => ESTIMATED_ROW_PX}
         gapToken="tight"

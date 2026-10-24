@@ -106,7 +106,7 @@ export function ConfigListSurface({ groups }: ConfigListSurfaceProps): ReactElem
     // pane's contents, not its section: the shell's LIST band already says "Settings".
     <Stack
       aria-label="Settings groups"
-      className="relative h-full min-h-0 overflow-y-auto overscroll-contain outline-none"
+      className="relative overflow-y-auto overscroll-contain outline-none block-full min-block-0"
       data-slot="config-list"
       gap="section"
       ref={surfaceRef}

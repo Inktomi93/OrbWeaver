@@ -18,11 +18,11 @@ const AUTO_DISABLED_LINE = `Turned off after ${AUTOMATION_CONSECUTIVE_ERROR_CEIL
 
 function StateNotice({ badge, slot, line }: { readonly badge: string; readonly slot: string; readonly line: string }): ReactElement {
   return (
-    <Row align="start" className="min-w-0 flex-wrap" gap="block">
+    <Row align="start" className="flex-wrap min-inline-0" gap="block">
       <Badge intent="danger" size="sm" tone="soft">
         {badge}
       </Badge>
-      <Text className="min-w-0 flex-1" data-slot={slot} voice="gloss">
+      <Text className="flex-1 min-inline-0" data-slot={slot} voice="gloss">
         {line}
       </Text>
     </Row>

@@ -121,10 +121,10 @@ export interface ListRowProps {
   stackActions?: boolean;
   /**
    * The container-breakpoint token below which a `stackActions` row stacks: at least twice the cluster's width.
-   * `cq-md` (32rem) fits a multi-control cluster; `cq-sm` (24rem) fits one compact control.
-   * @defaultValue "cq-md"
+   * `cq-32` (32rem) fits a multi-control cluster; `cq-24` (24rem) fits one compact control.
+   * @defaultValue "cq-32"
    */
-  stackActionsAt?: "cq-md" | "cq-sm";
+  stackActionsAt?: "cq-32" | "cq-24";
   /**
    * Lifts the `actions` cluster OUT OF FLOW at the row's inline end (fine pointers only), so a cluster
    * that is HIDDEN at rest stops reserving width the title/subtitle need. Pass it for a row whose
@@ -265,7 +265,7 @@ export function ListRow({
   actions,
   actionsFloat = false,
   stackActions = false,
-  stackActionsAt = "cq-md",
+  stackActionsAt = "cq-32",
   rowTint = "body",
   clickable = false,
   selected = false,

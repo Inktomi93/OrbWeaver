@@ -97,7 +97,7 @@ export function ContextBracket({ view, band, empty, railLabel, paneLabel, dismis
       data-slot="context-bracket"
       // THE COLUMN HAS NO SEAM OF ITS OWN: each slot pays its own padding — `gap-0` overrides the tabs
       // primitive's own `gap-block` base, which #146 made a deterministic merge.
-      className="flex h-full min-h-0 flex-col gap-0 border-t-2 border-primary/55"
+      className="flex flex-col gap-0 border-bs-2 border-primary/55 block-full min-block-0"
     >
       <Row data-slot="context-bracket-header" align="center" className="shell-context-header shrink-0">
         <ContextHeaderTabs ariaLabel={railLabel} paneLabel={paneLabel} tabs={metaTabs} activeTab={view.activeTab} />
@@ -137,7 +137,7 @@ export function ContextBracket({ view, band, empty, railLabel, paneLabel, dismis
           CHILDREN are deferred until first visit, cutting the initial commit-phase cost from 169-214ms
           to only the active tab's tree. */}
       {view.tabs.length === 0 ? (
-        <Stack className="relative min-h-0 overflow-y-auto overscroll-contain" padding="row">
+        <Stack className="relative overflow-y-auto overscroll-contain min-block-0" padding="row">
           {empty}
         </Stack>
       ) : null}
@@ -150,7 +150,7 @@ export function ContextBracket({ view, band, empty, railLabel, paneLabel, dismis
           role="region"
           // The tab names its panel; with one meta tab there is no strip to name it, so the panel names itself.
           {...(tab.strip === "meta" && metaTabs.length <= 1 ? { "aria-label": tab.label } : { "aria-labelledby": cellDomId(tab.id) })}
-          className={`relative min-h-0 flex-initial overflow-y-auto overscroll-contain px-row py-row ${tab.opaque ? "bg-sidebar" : ""}`}
+          className={`relative flex-initial overflow-y-auto overscroll-contain p-row min-block-0 ${tab.opaque ? "bg-sidebar" : ""}`}
         >
           {visited.has(tab.id) ? tab.node : null}
         </TabsPanel>
