@@ -36,12 +36,12 @@ Findings under the new rules before the sweep, and after:
 
 | Tree | Before | After | How each site closed |
 | - | - | - | - |
-| `tests/client` | 27 | 0 | Two tier-level variant-payload type contracts split into one `variant-payloads.dom.test-d.ts` per mirrored feature or tier (17 internal type reaches); `peek-query` through `@orb/client/data`; seven suites listed in `PACKAGE_TEST_REACHES` |
+| `tests/client` | 27 | 0 | Two tier-level variant-payload type contracts split into one `variant-payloads.dom.test-d.ts` per mirrored feature or tier (17 internal type reaches); `peek-query` through `@orb/client/data`; eight suites listed in `PACKAGE_TEST_REACHES`: seven suites of a private pure model and the native guest protocol CT |
 | `tests/inference` | 2 | 0 | The logger spy reads `processObservability.logger()` from `@orb/testkit/node/composed` |
 | `tests/kit` | 0 | 0 | none |
 | `tests/contracts` | 0 | 0 | none; the plugin SDK conformance contract reads ambient `.d.ts` files outside any `src/` |
 | `tests/db` | 2 | 0 | Both suites are listed: the provenance boot case needs `runBootMigrations`, and `traced-client-spans` proves the client wrapper `createDb` takes; each issues raw reads only the persistence tier may run |
 
-The listed client suites unit-test a feature-private pure model. Item 0989 removed every door forward that only tests consumed, and `knip.ts` sets `includeEntryExports`, so a door export for them would be a `pnpm knip:prod` finding. The native guest protocol CT reads `UI_GUEST_BUDGETS`, the client guest's own caps, instead of the server plugin host's.
+Seven listed client suites unit-test a pure model private to its feature or to `lib`. Item 0989 removed every door forward that only tests consumed, and `knip.ts` sets `includeEntryExports`, so a door export for them would be a `pnpm knip:prod` finding. The native guest protocol CT reads `UI_GUEST_BUDGETS`, the client guest's own caps, instead of the server plugin host's.
 
 Checks: `pnpm test:tools tests/tooling/native-package-test-mirror.test.ts` passes 33 rows, and 19 of them fail against the previous config. A planted sideways and internal import per tree each failed `pnpm depcruise`, then were removed.
