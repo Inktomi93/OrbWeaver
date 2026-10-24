@@ -47,7 +47,7 @@
   --orb-tier-row-atom-gap: var(--spacing-tight);
   --orb-tier-row-title-size: var(--text-label);
   --orb-tier-row-title-leading: var(--leading-label);
-  --orb-tier-row-title-weight: 600;
+  --orb-tier-row-title-weight: var(--font-weight-semibold);
   --orb-tier-row-gloss-size: var(--text-micro);
   /* THE PLATFORM FLOOR RIDES THE TOKEN, NOT THIS FILE (#1868, §4b axis 3). This was
    * `--text-label`/`--leading-label`, 13px, two steps under iOS Safari's 16px focus-zoom threshold — so
@@ -69,7 +69,7 @@
   --orb-tier-row-atom-gap: var(--spacing-field);
   --orb-tier-row-title-size: var(--text-body);
   --orb-tier-row-title-leading: var(--leading-body);
-  --orb-tier-row-title-weight: 500;
+  --orb-tier-row-title-weight: var(--font-weight-medium);
   --orb-tier-row-gloss-size: var(--text-label);
   /* `text.field` rather than `text.body` — the form tier's field step is the FIELD token now, which is the
    * same 15px on a fine pointer (so a form surface still lands exactly where an un-tiered one does, which
@@ -123,7 +123,7 @@
  * tier-INDEPENDENT on purpose — "this row is the content" is a statement about the list, not the pane. */
 [data-surface-tier] [data-slot="list-row-title"][data-title-step="promoted"] {
   font-size: var(--text-title);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   line-height: var(--leading-title);
 }
 

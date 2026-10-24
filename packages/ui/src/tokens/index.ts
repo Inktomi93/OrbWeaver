@@ -398,8 +398,6 @@ export const MEDIA_QUERIES = {
   "shell-narrow": "(width <= 64rem)",
 } as const;
 
-export type MediaCondition = keyof typeof MEDIA_QUERIES;
-
 
 /** The `snapped` serialization and its INVERSE are generated together (#1640): a runtime consumer that must read a LIVE
  *  custom property — the pointer-conditional arm no static map carries — gets the belted length decoded here rather than

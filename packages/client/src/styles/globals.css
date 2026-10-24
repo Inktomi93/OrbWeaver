@@ -132,10 +132,10 @@ body {
   content: "";
   display: inline-block;
   inline-size: 0;
-  block-size: 1em;
-  margin-inline-start: 0.1em;
+  block-size: 1lh;
+  margin-inline-start: var(--spacing-px);
   vertical-align: text-bottom;
-  border-inline-start: 2px solid var(--color-primary);
+  border-inline-start: var(--border-width-accent) solid var(--color-primary);
   opacity: 1;
   /* stylelint-disable-next-line orb/motion-token-purity -- the streaming caret's blink: a continuous decorative loop — nothing coordinates with it, so there is no partner to drift out of sync with. Ends when this independent recipe changes or joins coordinated motion. */
   animation: orb-stream-caret var(--motion-shimmer) ease-in-out infinite;
@@ -149,7 +149,7 @@ body {
   margin: calc(var(--spacing-row) * -1);
 }
 .settings-flash-anchor--lit {
-  box-shadow: inset 0 0 0 2px var(--color-ring);
+  box-shadow: inset 0 0 0 var(--border-width-accent) var(--color-ring);
 }
 
 /* Glass (appearance.blurSurfaces) + prose shadow (appearance.shadowEffects). data-blur/data-shadow
@@ -641,20 +641,20 @@ body {
       --contrast-edge-mix: 65%;
     }
     html .shell-panel[data-panel-side="list"] {
-      border-inline-end-width: 2px;
+      border-inline-end-width: var(--border-width-accent);
       border-inline-end-color: color-mix(in oklab, var(--color-sidebar-foreground) var(--contrast-edge-mix), var(--color-sidebar));
     }
     html .shell-panel[data-panel-side="context"] {
-      border-inline-start-width: 2px;
+      border-inline-start-width: var(--border-width-accent);
       border-inline-start-color: color-mix(in oklab, var(--color-sidebar-foreground) var(--contrast-edge-mix), var(--color-sidebar));
     }
     html [data-slot="composer"] {
-      border-width: 2px;
+      border-width: var(--border-width-accent);
       border-color: color-mix(in oklab, var(--color-foreground) var(--contrast-edge-mix), var(--color-card));
     }
     html [data-slot="dialog-popup"],
     html [data-slot="alert-dialog-popup"] {
-      border-width: 2px;
+      border-width: var(--border-width-accent);
       border-color: color-mix(in oklab, var(--color-popover-foreground) var(--contrast-edge-mix), var(--color-popover));
     }
   }

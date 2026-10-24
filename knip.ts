@@ -37,7 +37,7 @@ export const config = {
       entry: [
         "scripts/**/*.ts",
         // The Stylelint config imports its rule table from this sibling, which holds the postcss-value-parser import.
-        "stylelint-rules.js",
+        "stylelint-rules.ts",
         "playwright/**/*.{ts,tsx}",
         // The CT Vite transform reads this stylesheet as text rather than through an ESM import.
         "playwright/index.css",

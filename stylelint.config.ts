@@ -1,11 +1,20 @@
+import type { Config } from "stylelint";
 import tokens from "./packages/ui/src/tokens/tokens.json" with { type: "json" };
-import { CSS_RULES } from "./stylelint-rules.js";
+import {
+  CSS_RULES,
+  FONT_WEIGHT_TOKEN,
+  FONT_WEIGHT_VALUES,
+  LENGTH_FROM_TOKENS,
+  LENGTH_PROPERTIES,
+  LETTER_SPACING_VALUES,
+  Z_INDEX_VALUES,
+} from "./stylelint-rules.ts";
 
 const leadings = Object.keys(tokens.leading)
   .filter((name) => !name.startsWith("$"))
   .map((name) => `var(--leading-${name})`);
 
-export default {
+const config: Config = {
   ignoreFiles: ["**/dist/**", "**/node_modules/**"],
   plugins: CSS_RULES,
   reportNeedlessDisables: true,
@@ -21,6 +30,11 @@ export default {
     "declaration-property-value-allowed-list": {
       "line-height": [...leadings, "/^var\\(--orb-tier-[a-z-]+-leading\\)$/"],
       "/^--orb-tier-[a-z-]+-leading$/": leadings,
+      [LENGTH_PROPERTIES]: [LENGTH_FROM_TOKENS],
+      "z-index": [...Z_INDEX_VALUES],
+      "font-weight": [...FONT_WEIGHT_VALUES],
+      "/^--orb-tier-[a-z-]+-weight$/": [FONT_WEIGHT_TOKEN],
+      "letter-spacing": [...LETTER_SPACING_VALUES],
     },
   },
   overrides: [
@@ -35,3 +49,5 @@ export default {
     },
   ],
 };
+
+export default config;
