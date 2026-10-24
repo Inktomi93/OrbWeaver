@@ -16,5 +16,5 @@ export const MODAL_SURFACE = "w-full rounded-card border border-border bg-popove
 
 // The anchored-popup ITEM row — byte-identical between autocomplete and combobox; select layers
 // `justify-between gap-row` on top. (Menu's row is a genuinely different recipe — cursor-default,
-// px-row, min-h-control-sm — and stays its own `itemBase`.)
-export const ITEM_ROW = `flex min-h-touch-target cursor-pointer select-none items-center rounded-control px-block py-field text-body leading-body text-foreground outline-none data-highlighted:bg-accent data-highlighted:text-accent-foreground ${DISABLED_STATE}`;
+// px-row, min-h-(--size-control-sm) — and stays its own `itemBase`.)
+export const ITEM_ROW = `flex min-h-(--size-touch-target) cursor-pointer select-none items-center rounded-control px-block py-field text-body leading-body text-foreground outline-none data-highlighted:bg-accent data-highlighted:text-accent-foreground ${DISABLED_STATE}`;

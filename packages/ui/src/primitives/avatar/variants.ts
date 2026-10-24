@@ -15,10 +15,10 @@ export const avatarVariants = tv({
   },
   variants: {
     size: {
-      sm: { root: "size-avatar-sm" },
-      md: { root: "size-avatar-md" },
-      lg: { root: "size-avatar-lg" },
-      hero: { root: "size-avatar-hero" },
+      sm: { root: "size-(--size-avatar-sm)" },
+      md: { root: "size-(--size-avatar-md)" },
+      lg: { root: "size-(--size-avatar-lg)" },
+      hero: { root: "size-(--size-avatar-hero)" },
       // THE CELL IS THE SIZE (added 2026-08-16, program 102 — the home face shelf). Every step above is a
       // display TOKEN: the avatar decides its own box. This one hands the decision to the layout — the
       // portrait fills a fixed grid track and stays square. It is a real variant rather than a call-site

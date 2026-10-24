@@ -231,7 +231,7 @@ function KnobControls({
           the finding survived its own fix. Reversed, the number is what ends on the rail's edge and the
           reserved slot falls inboard, where it costs nothing and still never jitters. It is a CSS order, not
           a DOM one: the reading order stays name → value → its reset, which is the order the pair means. */}
-      <Row align="center" data-slot="knob-value" gap="field" justify="end" className="@max-lg:me-slider-inset @max-lg:flex-row-reverse">
+      <Row align="center" data-slot="knob-value" gap="field" justify="end" className="@max-lg:me-(--size-slider-inset) @max-lg:flex-row-reverse">
         <NumberField
           aria-describedby={describedBy}
           // THE TWIN IS NOT THE SLIDER (side-eye 2026-08-19 P1-2). Both modalities carried the IDENTICAL
@@ -312,7 +312,7 @@ function KnobLabel({ label, hint }: { readonly label: string; readonly hint: str
         // the SIZE is stated here.
         //
         // `size="icon"` IS THE TOUCH FLOOR (side-eye R-8, isolated by measurement): it pins a
-        // `--spacing-control-md` box — 48px on a coarse pointer — where the primitive's `inline` default is a
+        // `--size-control-md` box — 48px on a coarse pointer — where the primitive's `inline` default is a
         // glyph-sized box. `shrink-0` is the other half: the trigger is a FLEX ITEM in a fixed-width label
         // cell, and a long label used to eat into it ("Repetition penalty" rendered 44×48, "Max output
         // tokens" 43×48, "Max context tokens" 42×48 — the three longest labels pushed their own explainer

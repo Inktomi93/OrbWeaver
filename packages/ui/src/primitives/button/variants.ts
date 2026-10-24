@@ -43,7 +43,7 @@ function inlineBox(typeStep: string): string[] {
   return [
     "relative h-auto min-h-0 justify-start font-normal",
     typeStep,
-    "before:absolute before:top-1/2 before:left-1/2 before:h-touch-target before:w-full before:min-w-touch-target",
+    "before:absolute before:top-1/2 before:left-1/2 before:h-(--size-touch-target) before:w-full before:min-w-(--size-touch-target)",
     "before:-translate-x-1/2 before:-translate-y-1/2 before:content-['']",
   ];
 }
@@ -88,22 +88,22 @@ export const buttonVariants = tv({
       ...CONTROL_SIZE,
       // `shrink-0` on both square arms, for the `glyphBox` reason: a square that shrinks in a crowded row is no
       // longer its control box, and at a coarse pointer it falls under the tap floor.
-      icon: "size-control-md shrink-0 p-0",
+      icon: "size-(--size-control-md) shrink-0 p-0",
       // The `icon` arm's SMALLER step — the `sm` control height as a SQUARE, for an icon-only control that
       // sits in an `sm`-scaled row (the credentials role-status dot) and would otherwise be a control-height
       // box with `px-block` of dead width on each side of an 8px dot. It is a CONTROL step, not a `glyph-*`
-      // one: `--spacing-control-sm` is POINTER-CONDITIONAL (44px coarse / 32px fine), so the box IS the tap
+      // one: `--size-control-sm` is POINTER-CONDITIONAL (44px coarse / 32px fine), so the box IS the tap
       // floor and needs none of the `glyph-*` ramp's hit-area pseudo — which is exactly why the one live
       // site could not use `glyph-lg` (a pointer-INDEPENDENT 32px display box) without shrinking its visible
       // target at a coarse pointer by 12px. Added at #169, geometry-PRESERVING: byte-identical to the
-      // `size-control-sm p-0` className it replaces, which was invisible to `ui-size-via-variant` for as
+      // `size-(--size-control-sm) p-0` className it replaces, which was invisible to `ui-size-via-variant` for as
       // long as that gate's value class rejected hyphens.
-      "icon-sm": "size-control-sm shrink-0 p-0",
+      "icon-sm": "size-(--size-control-sm) shrink-0 p-0",
       // CONTENT-SIZED: the child IS the control (a portrait/media trigger). Every other size pins a
-      // control height, so a display-token child larger than it (`size-avatar-hero`, 64px) paints OUTSIDE
+      // control height, so a display-token child larger than it (`size-(--size-avatar-hero)`, 64px) paints OUTSIDE
       // its own button and the real hit target stays the 34px control box — the stickler 2026-08-01 F2
       // defect. A `className` did not fix that from a feature: `size-*` on custom tokens was opaque to
-      // tailwind-merge, so the variant's `size-control-md` survived the override and won on cascade order.
+      // tailwind-merge, so the variant's `size-(--size-control-md)` survived the override and won on cascade order.
       // Post-#146 the override would win instead — which makes this arm MORE necessary, not less: the fix
       // for "my button is the wrong box" is a named size, never a call-site class that silently defeats the
       // seal (`ui-size-via-variant` reds it). The child owns the touch floor here (an avatar-hero portrait
@@ -112,19 +112,19 @@ export const buttonVariants = tv({
       // MULTILINE: the `sm` step's WRAPPING twin — a choice/option affordance carrying a model-authored
       // sentence, so the label wraps (`whitespace-normal` over the base's nowrap) and the height FOLLOWS
       // the wrapped text, floored at the `sm` control height (D62: ≥ the pointer's tap floor at both
-      // pointer classes — `--spacing-control-sm` is 44px coarse / 32px fine, ≥ `--spacing-touch-target`).
-      // A call-site `h-auto` did not express this: a custom-token height (`h-control-sm`) was opaque to
+      // pointer classes — `--size-control-sm` is 44px coarse / 32px fine, ≥ `--size-touch-target`).
+      // A call-site `h-auto` did not express this: a custom-token height (`h-(--size-control-sm)`) was opaque to
       // tailwind-merge, so both heights survived the merge and stylesheet order picked the winner (post-#146
       // it resolves last-wins, i.e. the call site silently beats the seal) — the `media` (F2) and TabsTab
       // `layout="stacked"` precedent. The arm is where the wrapping box is NAMED.
-      wrap: "h-auto min-h-control-sm whitespace-normal px-block py-field text-label leading-label",
+      wrap: "h-auto min-h-(--size-control-sm) whitespace-normal px-block py-field text-label leading-label",
       // INLINE: the DISPLAY-AT-REST arm — a datum/line of prose that is also the click target (a tracker
       // value, a beat line, a card row, a roster name). It wears NO control box: text-height, start-aligned,
       // regular weight, so it reads as the text it stands in for and the click-to-edit swap is pixel-stable.
       // It was 13 call sites of `!h-auto min-h-0 !py-0 font-normal` — an `!important` escape from the sealed
       // control height, which is also how they escaped the `ui-size-via-variant` gate (it reads `h-auto`,
       // not `!h-auto`). MEASURED, not assumed (twMerge 3.6, PRE-#146): custom-token spacing/height utilities
-      // were unclassifiable — `twMerge("h-control-sm","h-auto")` kept BOTH, so those call sites resolved by
+      // were unclassifiable — `twMerge("h-(--size-control-sm)","h-auto")` kept BOTH, so those call sites resolved by
       // stylesheet order, i.e. luck (the `media`/`wrap`/TabsTab-`stacked` precedent). #146 registered the
       // spacing scale; that pair now resolves last-wins, and the `!` on the surviving escapes is inert.
       // The arm still sets NO padding at all: preflight already zeroes it, and the call site is the only
@@ -132,7 +132,7 @@ export const buttonVariants = tv({
       // Padding is the call site's — px-field/py-row/none — and needs no `!` because nothing fights it.
       // TOUCH FLOOR BY CONSTRUCTION: a text-height button is ~18px tall, so the arm carries its own hit-area
       // pseudo (the TOUCH_TARGET_PSEUDO idea on `::before`, stretched to the button's own width rather than
-      // square) sized on `--spacing-touch-target` — the POINTER-CONDITIONAL token: ≥44px on coarse/unknown
+      // square) sized on `--size-touch-target` — the POINTER-CONDITIONAL token: ≥44px on coarse/unknown
       // pointers, 28px on fine. Layout-neutral (absolutely positioned), so the datum's box is unchanged.
       // It is `::before` for the #1843 reason spelled out on `glyphBox` above: the CTA ring owns `::after`
       // unlayered, so an `inline` PRIMARY button's hit area was being replaced by a ring that cannot be
@@ -146,8 +146,8 @@ export const buttonVariants = tv({
       // height would be taller than the thing it hangs off. It was 13 call sites of
       // `<Button intent="ghost" size="sm" className="!size-N !p-0">` at four scales, i.e. an `!important`
       // escape from the sealed `sm` control height, which is also how they escaped the `ui-size-via-variant`
-      // gate for a day (it read `size-6`, not `!size-6`). A className CANNOT express this: `size-control-sm`
-      // was a custom token, opaque to tailwind-merge (`twMerge("size-control-sm","size-6")` kept BOTH), so
+      // gate for a day (it read `size-6`, not `!size-6`). A className CANNOT express this: `size-(--size-control-sm)`
+      // was a custom token, opaque to tailwind-merge (`twMerge("size-(--size-control-sm)","size-6")` kept BOTH), so
       // those sites resolved by stylesheet order — with `!important` bolted on to force the coin flip (#146
       // registered the scale, so that pair now resolves last-wins and the `!` is inert). The
       // `media` / `wrap` / `inline` precedent.
@@ -155,17 +155,17 @@ export const buttonVariants = tv({
       // The box is a POINTER-INDEPENDENT display size (`--spacing-glyph-*`, the avatar/checkbox/slider-thumb
       // family): it never narrows, because it is already below every control step. Which means it is below the
       // tap floor at three of its four steps, so EVERY arm carries the `inline` arm's hit-area pseudo — a
-      // square `size-touch-target` ::before, centered and absolutely positioned, so the visible glyph box is
+      // square `size-(--size-touch-target)` ::before, centered and absolutely positioned, so the visible glyph box is
       // unchanged while the real hit target is the pointer-conditional touch token. Before this arm those 13
       // sites had NO hit area at all beyond their 16–24px box.
       //
       // Four steps, not one: the sweep is geometry-PRESERVING (`done ≠ rendered` — resizing 13 live controls
       // is a design change, not a gate fix), and the four scales are four real roles the token descriptions
       // name.
-      "glyph-xs": glyphBox("size-glyph-xs"),
-      "glyph-sm": glyphBox("size-glyph-sm"),
-      "glyph-md": glyphBox("size-glyph-md"),
-      "glyph-lg": glyphBox("size-glyph-lg"),
+      "glyph-xs": glyphBox("size-(--size-glyph-xs)"),
+      "glyph-sm": glyphBox("size-(--size-glyph-sm)"),
+      "glyph-md": glyphBox("size-(--size-glyph-md)"),
+      "glyph-lg": glyphBox("size-(--size-glyph-lg)"),
       // THE WRAPPING-RAIL CELL — one home with Toggle's identical arm (`CHIP_BOX`, lib/control-size.ts),
       // because a scope toggle and a tag button sit in the SAME rail and two boxes there is the defect,
       // not the feature. Pair it with `shape="pill"` + `intent="outline"`.

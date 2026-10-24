@@ -222,8 +222,8 @@ export const listRowVariants = tv({
       promoted: { title: "text-title leading-title font-semibold" },
     },
     density: {
-      default: { body: "min-h-control-md px-row py-field" },
-      compact: { body: "min-h-control-sm px-field py-field" },
+      default: { body: "min-h-(--size-control-md) px-row py-field" },
+      compact: { body: "min-h-(--size-control-sm) px-field py-field" },
     },
     clickable: {
       true: {

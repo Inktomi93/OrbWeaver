@@ -26,7 +26,7 @@ export const collapsibleVariants = tv({
     // whole section, and the recurring defect was the opt-IN floor arm not taken (the this-chat 411×40
     // collapsible; the params deck's `Advanced` at 544×16 — below WCAG 2.5.8's 24×24 on ANY pointer, with
     // no hit expansion because `::after` resolves `content: none` here). It pins the pointer-conditional
-    // `--spacing-control-sm` floor (44px coarse / 32px fine), the same token every other tap-floor control
+    // `--size-control-sm` floor (44px coarse / 32px fine), the same token every other tap-floor control
     // rides. `text` (the renamed `inline` arm) is the OPT-OUT for a disclosure sitting in running content,
     // where a control box would shear it off the copy it belongs to — and every `size="text"` mount owes a
     // reasoned home on the `orb/sub-floor-disclosure` row of eslint.config.js. It is a
@@ -34,7 +34,7 @@ export const collapsibleVariants = tv({
     // so an override would win or lose by stylesheet order (gate `ui-size-via-variant`).
     size: {
       text: {},
-      control: { trigger: "min-h-control-sm" },
+      control: { trigger: "min-h-(--size-control-sm)" },
     },
     // Base UI completes a panel with no animations immediately.
     instant: {

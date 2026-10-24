@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "rewrite-class-tokens"
+version: "0.1.0"
+description: "Rewrite Tailwind class candidates and custom-property names inside string literals by an exact map read from the target directory."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["typescript", "tsx"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

@@ -9,7 +9,7 @@
 // hairline stub, which is worse than no third bar.
 //
 // THE PITCH IS NOT A CONSTANT, which is the reason this is arithmetic and not a literal:
-// `--spacing-control-lg` is POINTER-CONDITIONAL (2.5rem on fine pointers, 3.5rem on coarse/unknown —
+// `--size-control-lg` is POINTER-CONDITIONAL (2.5rem on fine pointers, 3.5rem on coarse/unknown —
 // theme.css), so a hard-coded 48 would be right on a desktop and wrong on a tablet. The tokens are resolved
 // from the live document the way every other runtime token read in this repo does it (`use-chart-theme.ts`,
 // `use-sandbox-theme.ts`): computed value first, the generated static `TOKENS` literal as the fallback when
@@ -19,7 +19,7 @@
 // may export nothing else but LITERAL constants (`useComponentExportOnlyModules` with
 // `allowConstantExport: true` — `export const X = 4` passes beside a component; a derived
 // `export const X = LIMIT + 1` is RED, and this module is all derived arithmetic). The arithmetic is the INVERSE of that file's
-// own layout — `padding="block"` top+bottom, N rows of `h-control-lg`, N−1 `gap="row"` gaps — so the two
+// own layout — `padding="block"` top+bottom, N rows of `h-(--size-control-lg)`, N−1 `gap="row"` gaps — so the two
 // change together or the skeleton stops fitting its box.
 
 import { snappedLengthPx, TOKENS } from "@orb/ui/tokens";
@@ -51,7 +51,7 @@ const DEFAULT_ROOT_FONT_PX = 16;
  *  resolution returned null and every tile silently fell back to the fixed 3 rows this file exists to
  *  replace. `snappedLengthPx` is the generator's own inverse of that serialization, so the belt is decoded
  *  exactly once, in the package that writes it. */
-function spacingPx(token: "spacing.control-lg" | "spacing.row" | "spacing.block"): number | null {
+function spacingPx(token: "size.control-lg" | "spacing.row" | "spacing.block"): number | null {
   const root = skeletonGlobals.document?.documentElement;
   if (root === undefined || skeletonGlobals.getComputedStyle === undefined) {
     return snappedLengthPx(TOKENS[token].value, DEFAULT_ROOT_FONT_PX);
@@ -70,7 +70,7 @@ function spacingPx(token: "spacing.control-lg" | "spacing.row" | "spacing.block"
  * the fixed count it replaces.
  */
 export function skeletonRowCountFor(boxHeight: number, fallback: number): number {
-  const rowHeight = spacingPx("spacing.control-lg");
+  const rowHeight = spacingPx("size.control-lg");
   const gap = spacingPx("spacing.row");
   const pad = spacingPx("spacing.block");
   if (rowHeight === null || gap === null || pad === null || rowHeight + gap <= 0) {

@@ -1,3 +1,5 @@
+@reference "@orb/ui/styles/globals.css";
+
 /* noDescendingSpecificity is scoped off for this file — elevation-ramp rules are deliberately declared
  * early at higher specificity so later base/glass/bg-image overrides win on their own specificity. */
 
@@ -781,7 +783,7 @@
 /* ── THE ROOM'S FLANK TRACK: THE SAME FLIP, ONE TRACK INSIDE THE ROOM ─────────────────────────────────────
  * When the room's plugin column joins or leaves its row (`use-flank-track-flip.ts` stamps `in`/`out`), the
  * thread resizes in one frame by the column, the row gap, less the corner the thread reserves for the column's
- * edge control while the column is out (`pe-control-lg`). The centred rows are the third alignment class above:
+ * edge control while the column is out (`pe-(--size-control-lg)`). The centred rows are the third alignment class above:
  * each moves by half the change of its containing block while the reading cap is not binding, so the counter is
  * the same capped arithmetic as `--shell-centre-flip-from`. `100cqi` on a row is its nearest container, the
  * message list's own (the thread's width); the scroller's gutter is the residual, and it cancels except where the
@@ -789,7 +791,7 @@
  * countered. Same `--shell-motion`/`--shell-ease`, and the same one-frame settle under reduced motion. */
 .shell-main [data-slot="chat-room-flank-row"] {
   --flank-flip-dir: 0;
-  --flank-track-delta: calc(var(--width-sidebar-sm) + var(--spacing-block) - var(--spacing-control-lg));
+  --flank-track-delta: calc(var(--width-sidebar-sm) + var(--spacing-block) - var(--size-control-lg));
   /* `max(0, x - W)` is `x - min(x, W)`, so the delta needs no zero floor: with A the thread after the toggle
    * and B before it, ((A - min(A, W)) - (B - min(B, W))) / 2 and A - B = dir * delta. */
   --flank-centre-flip-from: calc(
@@ -912,8 +914,8 @@
 }
 
 .shell-rail .shell-rail-button {
-  width: var(--spacing-control-lg);
-  height: var(--spacing-control-lg);
+  width: var(--size-control-lg);
+  height: var(--size-control-lg);
 }
 .shell-rail .shell-rail-button:hover {
   background: var(--color-sidebar-accent);
@@ -1265,7 +1267,7 @@
 .shell-topbar-divider {
   flex: none;
   width: var(--border-width-control);
-  height: var(--spacing-glyph-sm);
+  height: var(--size-glyph-sm);
   background: var(--color-border);
 }
 
@@ -1460,11 +1462,11 @@
 
 /* Tap-target floor for every topbar icon button (the lead list-panel toggle + the trail chrome icons):
  * on a coarse pointer they must clear the ≥44px touch floor, so the lead toggle can't be squeezed below
- * it by the flex row. --spacing-touch-target is pointer-conditional (44px coarse / 28px fine, D62 P1). */
-@media (pointer: coarse) {
+ * it by the flex row. --size-touch-target is pointer-conditional (44px coarse / 28px fine, D62 P1). */
+@variant pointer-coarse {
   .shell-topbar-icon-btn {
-    min-width: var(--spacing-touch-target);
-    min-height: var(--spacing-touch-target);
+    min-width: var(--size-touch-target);
+    min-height: var(--size-touch-target);
   }
 }
 /* …and it NEVER shrinks, on any pointer. `flex: none` used to ride inside the coarse-pointer block, so on a
@@ -1586,8 +1588,8 @@
   pointer-events: auto;
 }
 
-/* The one @media: desktop columns flip to a mobile bottom tab bar + sliding sheets. */
-@media (max-width: 48rem) {
+/* The one viewport condition: desktop columns flip to a mobile bottom tab bar + sliding sheets. */
+@variant shell-mobile {
   .shell-grid {
     /* THE REFUND (#1869): the base rule pays the bottom inset for every regime, and this is the one regime
      * that has something else in that band — the tab bar's grid row already carries
@@ -1866,7 +1868,7 @@
    * selectors with `backdrop-filter: none`. It never once fired: the client styles tier declares those
    * same selectors at IDENTICAL specificity and the bundle emits it AFTER this sheet, so the glass always
    * won on source order. The ruling now lives where it is order-proof — the glass rules in
-   * `packages/client/src/styles/globals.css` are themselves scoped to `@media (width > 48rem)`, the exact
+   * `packages/client/src/styles/globals.css` are themselves scoped to `@variant shell-desktop`, the exact
    * complement of this block's condition, so at this width the declarations are never emitted at all and
    * every surface keeps its own background. Do not re-add an override here; the two conditions must stay
    * in sync. */

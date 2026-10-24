@@ -183,7 +183,7 @@ export const readPseudoGeometry = (el: HitElement): HitGeometry => {
  *
  * THE RECT NEEDS NO `width`: for an absolutely positioned box the resolved `left`/`right` are the USED
  * distances from the containing block's padding edges (for example
- * a 25px `size-glyph-sm` box under a 55px `::before` answers `left: 12.5px`, `right: -42.5px`), so the
+ * a 25px `size-(--size-glyph-sm)` box under a 55px `::before` answers `left: 12.5px`, `right: -42.5px`), so the
  * two insets already carry the width — which also means an `auto` inset simply makes the rect
  * unmeasurable rather than needing a fallback branch.
  *
@@ -310,7 +310,7 @@ export const pseudoHitEnvelope = (geometry: HitGeometry): HitRect | null => {
  *
  * DECLARED LIMIT (carried from the kit): no composite-row mechanism (design-audit's `sharedCompositeOwns`)
  * and no visually-hidden arm, so a control whose real target is an ANCESTOR'S BOX — a Base UI Slider's
- * `h-control-sm` row — under-reports here to its own box and is measured with `boundingBox()` instead.
+ * `h-(--size-control-sm)` row — under-reports here to its own box and is measured with `boundingBox()` instead.
  */
 export const walkFrom = (el: HitElement, arg: { readonly axis: "x" | "y"; readonly envelope: HitRect | null }): number => {
   const box = el.getBoundingClientRect();

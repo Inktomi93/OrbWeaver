@@ -30,7 +30,7 @@ export const macroTextareaVariants = tv({
     ],
     groupLabel: "px-block py-field text-label leading-label font-semibold text-muted-foreground uppercase tracking-wide",
     item: [
-      "flex w-full min-h-touch-target cursor-pointer select-none items-start justify-between gap-block px-block py-field text-left text-body leading-body text-foreground outline-none",
+      "flex w-full min-h-(--size-touch-target) cursor-pointer select-none items-start justify-between gap-block px-block py-field text-left text-body leading-body text-foreground outline-none",
       "hover:bg-muted data-highlighted:bg-accent data-highlighted:text-accent-foreground",
     ],
     itemMain: "flex min-w-0 flex-col gap-field",

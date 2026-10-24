@@ -120,7 +120,7 @@ function countSetOverrides(overrides: RoomOverrides): number {
 // already spells (the document outline and the `heading` role are unchanged), and its accessible name
 // COMPUTES from that same content — so it can never disagree with the visible label (WCAG 2.5.3) and a
 // section reads "Documents 1" to a screen reader exactly as it reads to an eye. `size="control"` pins the
-// pointer-conditional `--spacing-control-sm` floor (44px coarse / 32px fine), so fourteen new press targets
+// pointer-conditional `--size-control-sm` floor (44px coarse / 32px fine), so fourteen new press targets
 // arrive at the tap floor rather than as text-height hairlines.
 //
 // THE LABEL WEARS `interactiveKicker`, NOT `kicker` — the voice minted for exactly this ("a kicker that is

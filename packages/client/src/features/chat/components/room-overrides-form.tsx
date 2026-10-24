@@ -82,7 +82,7 @@ function OverrideCollapseCard({ label, isSet, snippet, open, onOpenChange, onCle
     // proven by this component's own CT (the card's top edge must hit the trigger, not dead padding).
     <Card className={isSet ? "!p-0 border-l-2 border-l-primary" : "!p-0"}>
       <Collapsible open={open} onOpenChange={onOpenChange}>
-        {/* `size="control"` pins the pointer-conditional `--spacing-control-sm` floor (44px coarse / 32px
+        {/* `size="control"` pins the pointer-conditional `--size-control-sm` floor (44px coarse / 32px
             fine). MEASURED at 411×40 under a coarse pointer with `::after` resolving `inset: auto` — no
             touch layer in play at all — and `elementFromPoint` ±3px outside the box resolving to something
             else, i.e. a real 40px hit area against the 44px floor, on the tab's first three controls

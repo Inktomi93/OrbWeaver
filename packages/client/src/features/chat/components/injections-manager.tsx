@@ -173,7 +173,7 @@ function InjectionRow({ row, ordinal, isHost, onSave, onDelete }: InjectionRowPr
             <form.Subscribe selector={(state): InjectionFormValues => state.values}>
               {(values): ReactElement => (
                 <>
-                  {/* `size="control"` pins the pointer-conditional `--spacing-control-sm` floor (44px
+                  {/* `size="control"` pins the pointer-conditional `--size-control-sm` floor (44px
                       coarse / 32px fine) — the disclosure IS the row, and it is the only door to the
                       editor. The accessible name COMPUTES from the trigger's own content ("Injection 1 …"),
                       so it can never disagree with the visible label (WCAG 2.5.3). */}
@@ -298,9 +298,9 @@ export function InjectionsSkeleton({ count, isHost }: InjectionsSkeletonProps): 
         <Stack gap="section">
           {rows.map((index) => (
             <Card className="!p-0" key={index}>
-              {/* The trigger row: `min-h-control-sm` + `p-block` is byte-for-byte the collapsed trigger's
+              {/* The trigger row: `min-h-(--size-control-sm)` + `p-block` is byte-for-byte the collapsed trigger's
                   box, so this bar is the height it stands in for at BOTH pointer classes. */}
-              <Row align="center" className="min-h-control-sm p-block" gap="field" justify="between">
+              <Row align="center" className="min-h-(--size-control-sm) p-block" gap="field" justify="between">
                 <Skeleton className="h-4 basis-1/3" />
                 <Skeleton className="h-4 min-w-0 flex-1" />
               </Row>
@@ -312,7 +312,7 @@ export function InjectionsSkeleton({ count, isHost }: InjectionsSkeletonProps): 
           ))}
         </Stack>
       )}
-      {isHost ? <Skeleton className="h-control-sm w-1/3" /> : null}
+      {isHost ? <Skeleton className="h-(--size-control-sm) w-1/3" /> : null}
     </Stack>
   );
 }

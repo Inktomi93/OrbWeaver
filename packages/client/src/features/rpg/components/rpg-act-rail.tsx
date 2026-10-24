@@ -89,7 +89,7 @@ export function RpgActRail({ plot, edit }: { readonly plot: RpgPlot; readonly ed
                     edit.onEditAct(Math.max(1, n));
                   }
                 }}
-                className="!w-avatar-md px-field text-center tabular-nums"
+                className="!w-(--size-avatar-md) px-field text-center tabular-nums"
                 restClassName="font-semibold text-accolade"
               />
               <Text as="span" voice="label" aria-hidden={true} className="text-muted-foreground">

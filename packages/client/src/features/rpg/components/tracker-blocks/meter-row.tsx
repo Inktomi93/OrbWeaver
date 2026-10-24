@@ -94,7 +94,7 @@ function MaxCell({
             onEditMax(n);
           }
         }}
-        className="!w-avatar-lg px-field text-right tabular-nums"
+        className="!w-(--size-avatar-lg) px-field text-right tabular-nums"
         restClassName="tabular-nums"
       />
     </Row>
@@ -102,7 +102,7 @@ function MaxCell({
 }
 
 /** The EDITABLE reading + its `/max` half (the read-only arm is one `<Text>` in MeterRow). Its own component
- *  for the complexity cap, the MaxCell precedent. The value field sizes to ITSELF (a fixed `w-avatar-lg`, not
+ *  for the complexity cap, the MaxCell precedent. The value field sizes to ITSELF (a fixed `w-(--size-avatar-lg)`, not
  *  `w-full` inside a fixed box — that collapsed the flex input to ~14px and clipped a 2-digit value's LEADING
  *  digit); `px-field` (over FIELD_CONTROL's wider `px-block`) + `text-right` hug the `/max` suffix without
  *  clipping; `shrink-0` on the cluster keeps the label from stealing its width (the W3c input-clip fix). */
@@ -139,7 +139,7 @@ function ValueCell({
             onEditValue(n);
           }
         }}
-        className={warning ? "!w-avatar-lg px-field text-right tabular-nums text-warning" : "!w-avatar-lg px-field text-right tabular-nums"}
+        className={warning ? "!w-(--size-avatar-lg) px-field text-right tabular-nums text-warning" : "!w-(--size-avatar-lg) px-field text-right tabular-nums"}
         // At rest the value hugs its text like the read-only "24/30" (no fixed input width).
         restClassName={warning ? "tabular-nums text-warning" : "tabular-nums"}
       />

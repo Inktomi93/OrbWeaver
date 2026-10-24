@@ -281,7 +281,7 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
             and the one control a host needs WITHOUT opening the row sits beside it. `pr-block` supplies the
             padding the trigger's own `p-block` does not reach. */}
         <Row align="center" className="pr-block" gap="field">
-          {/* `size="control"` pins the pointer-conditional `--spacing-control-sm` floor (44px coarse / 32px
+          {/* `size="control"` pins the pointer-conditional `--size-control-sm` floor (44px coarse / 32px
               fine) — the same arm the fire-log disclosure and the Field-overrides triggers take. `text-start`
               because a `button`'s UA `text-align: center` would centre a multi-line summary; the single-line
               triggers of the sibling sections never showed it. The accessible name COMPUTES from the

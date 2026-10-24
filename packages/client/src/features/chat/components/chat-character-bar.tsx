@@ -33,7 +33,7 @@
 // `LABEL_TO_SR_ONLY_AT_COARSE` from `#components`. It is deliberately NOT `HIDE_AT_COARSE`: that one is
 // `display:none`, which would drop the names out of the accessibility tree as well as out of the row.
 //
-// POINTER-CONDITIONAL, not width-conditional, for the reason `--spacing-touch-target` is: the phone is the
+// POINTER-CONDITIONAL, not width-conditional, for the reason `--size-touch-target` is: the phone is the
 // host that has BOTH the scarce height (a topbar and a bottom tab bar bracket the room) and the reader
 // holding the device a foot away, where a face reads faster than a name. A narrow DESKTOP window is
 // narrow without being short, and it keeps its names.

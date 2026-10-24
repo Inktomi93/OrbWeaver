@@ -248,7 +248,7 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
             <CommandLoading label={`Loading ${listOwner} models…`}>
               <Stack data-slot="model-picker-skeleton" gap="field" padding="row">
                 {SKELETON_ROW_KEYS.map((key) => (
-                  <Skeleton className="h-control-sm w-full" key={key} />
+                  <Skeleton className="h-(--size-control-sm) w-full" key={key} />
                 ))}
               </Stack>
             </CommandLoading>
@@ -301,7 +301,7 @@ function TypedRow({ typed, onPick }: { readonly typed: string | null; readonly o
   return (
     <Row data-slot="model-picker-typed" gap="field" padding="row">
       {typed === null ? (
-        <Stack aria-hidden={true} className="h-control-sm" />
+        <Stack aria-hidden={true} className="h-(--size-control-sm)" />
       ) : (
         <CommandAuxiliaryButton intent="secondary" onClick={(): void => onPick(typed)} size="sm">
           Use “{typed}” as typed

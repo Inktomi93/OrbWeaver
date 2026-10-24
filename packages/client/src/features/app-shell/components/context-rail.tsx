@@ -340,7 +340,7 @@ function ContextCell({
       aria-label={locked ? `${tab.label} — locked` : tab.label}
       data-crown={tab.crown}
       // NO `min-w-0` HERE, EVER (#146): with the spacing scale registered in tailwind-merge a call-site
-      // `min-w-0` wins outright and deletes the ≥44px floor the primitive's `min-w-touch-target` carries
+      // `min-w-0` wins outright and deletes the ≥44px floor the primitive's `min-w-(--size-touch-target)` carries
       // (MEASURED at 320 coarse: the cells fell to 39px). The coarse HEIGHT floor is the bracket's own:
       // `CONTEXT_CELL_FLOOR_AT_COARSE` (56px — the first token step at or above the mock's 52px cells).
       className={`relative data-active:bg-primary/15 data-active:text-foreground ${CELL_EDGE_CLASSES} ${CELL_OWNERSHIP_CLASSES[ownership]} ${CONTEXT_CELL_FLOOR_AT_COARSE}`}

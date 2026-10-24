@@ -137,14 +137,15 @@ in source.
 ### 4.4 Why `shell.css` is the exception
 
 `shell.css` owns the shell's structural surfaces and layout algebra: rail/list/context track arithmetic and
-the zero-width sentinel, co-motion variables, one viewport media query, and specificity-ordered elevation.
+the zero-width sentinel, co-motion variables, one viewport condition (`@variant shell-mobile`, generated from `breakpoint.shell`), and specificity-ordered elevation.
 Density repointing lives in `tiers.css`; shell does not own density semantics. Its panel motion uses FLIP
 because animating dynamic grid tracks causes layout shift; JS stamps `data-list-flip`, `shell.css` owns
 distance and keyframes, and the reduced-motion case settles transforms immediately. The rule for when a
 FLIP may compute its delta in JS instead lives in `motion-and-animation-guide.md` §1.5.
 
 Its structural literals are limited to viewport units, grid ratios and zero sentinels, query conditions, and
-per-site alpha composition — everything else wants a token. `shell.css`'s colour declarations are all
+per-site alpha composition — everything else wants a token. A media condition is spelled through a generated `@variant` (`stylelint` `orb/no-raw-media-condition`); the
+query strings live in `tokens.json`. `shell.css`'s colour declarations are all
 token-sourced; that paint is legal because it belongs to the shell's own region fills, seams, scrim, and
 elevation, never a component's skin.
 
@@ -188,8 +189,8 @@ override's intent is honored by restoring it on re-widen, never by discarding it
 (below 48rem) is the separate, narrower regime that also can never resolve `docked`; it reads the same
 `openOverlayPanel` tracker as the narrow-desktop overlay regime, so the two never drift on separate
 state. The breakpoint is a second `matchMedia` signal (`narrowViewport`) in the `orb/no-raw-matchmedia` legal
-home — overlay is mode-gated rendering, not `@media`-gated, so the one app-shell CSS `@media` (the 48rem
-mobile column flip) stays the only one. User override wins inside each regime: an explicit
+home — overlay is mode-gated rendering, not viewport-gated, so the one app-shell viewport condition (the
+`shell-mobile` column flip) stays the only one. User override wins inside each regime: an explicit
 `overlay`/`collapsed` override passes through unchanged in both regimes; only a `docked` resolution
 auto-closes while narrow.
 

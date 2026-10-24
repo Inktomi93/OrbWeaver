@@ -9,6 +9,6 @@ import { FOCUS_RING, FOCUS_RING_DESTRUCTIVE } from "./focus-ring.ts";
 // control never has to carry the floor (§4b axis 3). Shared by checkbox/radio (via SELECTION_CONTROL)
 // and switch (composed directly — its track sizing diverges from the square selection controls).
 export const TOUCH_TARGET_PSEUDO =
-  "before:absolute before:top-1/2 before:left-1/2 before:size-touch-target before:-translate-x-1/2 before:-translate-y-1/2 before:content-['']";
+  "before:absolute before:top-1/2 before:left-1/2 before:size-(--size-touch-target) before:-translate-x-1/2 before:-translate-y-1/2 before:content-['']";
 
-export const SELECTION_CONTROL = `relative inline-flex size-checkbox shrink-0 cursor-pointer items-center justify-center border border-input-border bg-input transition-colors duration-(--motion-fast) ease-out-expo outline-none ${FOCUS_RING} ${DISABLED_STATE} data-readonly:cursor-default data-invalid:border-destructive ${FOCUS_RING_DESTRUCTIVE} ${TOUCH_TARGET_PSEUDO}`;
+export const SELECTION_CONTROL = `relative inline-flex size-(--size-checkbox) shrink-0 cursor-pointer items-center justify-center border border-input-border bg-input transition-colors duration-(--motion-fast) ease-out-expo outline-none ${FOCUS_RING} ${DISABLED_STATE} data-readonly:cursor-default data-invalid:border-destructive ${FOCUS_RING_DESTRUCTIVE} ${TOUCH_TARGET_PSEUDO}`;

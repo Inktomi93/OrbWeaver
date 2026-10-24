@@ -1,9 +1,8 @@
-// The production token contract validates the shipped vault and its removal history before generation.
+// The production token contract validates the shipped vault before generation.
 import { cpSync, lstatSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { isPlainObject } from "@orb/kit/guards";
 import { expect, test } from "@orb/testkit/node";
-import { configureFixtureGitIdentity, execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { describe } from "vitest";
 import type { TokenContractTexts } from "../../packages/ui/token-contract.ts";
 import {
@@ -12,7 +11,6 @@ import {
   REQUIRED_SEED_VALUE_SET_PATHS,
   RESOLVER_SCHEMA_SHA256,
   readTokenContractTexts,
-  readTokenRemovalBaseline,
   validateTokenContractTexts,
 } from "../../packages/ui/token-contract.ts";
 
@@ -36,6 +34,7 @@ function validFixture(): TokenContractTexts {
   const base = {
     $extensions: {
       "orb.llm": { usage: ["Use semantic tokens; do not author palette literals in components."] },
+      "orb.conditions": { "pointer-fine": "(pointer: fine)", "shell-mobile": "(width <= {dimension.gap})" },
       "orb.cssValues": {
         "--shadow-runtime": {
           value: "0 0 1rem var(--color-background)",
@@ -56,9 +55,10 @@ function validFixture(): TokenContractTexts {
       $type: "dimension",
       gap: { $value: { value: 1, unit: "rem" } },
       "runtime-blur": { $value: { value: 1, unit: "rem" }, $extensions: { "orb.output": { kind: "input" } } },
+      fine: { $value: { value: 2, unit: "rem" } },
       control: {
         $value: { value: 2.75, unit: "rem" },
-        $extensions: { "orb.pointerFine": { value: 2, unit: "rem" } },
+        $extensions: { "orb.pointerFine": "{dimension.fine}" },
       },
     },
     duration: { $type: "duration", fast: { $value: { value: 130, unit: "ms" } } },
@@ -117,7 +117,6 @@ function validFixture(): TokenContractTexts {
     light: JSON.stringify(valueSet(color(0.98, 0.004, 75))),
     mocha: JSON.stringify(valueSet(color(0.15, 0.015, 250))),
     resolver: JSON.stringify(resolver),
-    removed: JSON.stringify({ removed: [], removedTargets: [] }),
     formatSchema: official.formatSchema,
     resolverSchema: official.resolverSchema,
   };
@@ -134,7 +133,7 @@ function descend(parent: Record<string, unknown>, key: string): Record<string, u
 
 function mutate(
   texts: TokenContractTexts,
-  file: "base" | "light" | "mocha" | "resolver" | "removed",
+  file: "base" | "light" | "mocha" | "resolver",
   change: (value: Record<string, unknown>) => void,
 ): TokenContractTexts {
   const value: unknown = JSON.parse(texts[file]);
@@ -178,6 +177,40 @@ test("the real vault is conformant and preserves the exact generated target surf
     { id: "light", colorScheme: "light", source: "light" },
     { id: "mocha", colorScheme: "dark", source: "mocha" },
   ]);
+});
+
+describe("primitive ramp controls", () => {
+  const vault = (): TokenContractTexts => readTokenContractTexts(UI_ROOT);
+
+  test("a semantic dimension must alias a step of its own ramp, one hop", () => {
+    const raw = mutate(vault(), "base", (base) => {
+      descend(descend(base, "spacing"), "row")["$value"] = { value: 0.5, unit: "rem" };
+    });
+    expect(codes(raw)).toContain("ramp.raw");
+    const chained = mutate(vault(), "base", (base) => {
+      descend(descend(base, "spacing"), "row")["$value"] = "{spacing.field}";
+    });
+    expect(codes(chained)).toContain("ramp.target");
+    const foreignRamp = mutate(vault(), "base", (base) => {
+      descend(descend(base, "spacing"), "row")["$value"] = "{primitive.size.8}";
+    });
+    expect(codes(foreignRamp)).toContain("ramp.target");
+    const rawFineArm = mutate(vault(), "base", (base) => {
+      descend(descend(descend(base, "size"), "control-sm"), "$extensions")["orb.pointerFine"] = { value: 2, unit: "rem" };
+    });
+    expect(codes(rawFineArm)).toContain("orb.pointerFine");
+  });
+
+  test("a primitive step is a raw dimension that some semantic token aliases", () => {
+    const unused = mutate(vault(), "base", (base) => {
+      descend(descend(base, "primitive"), "space")["10"] = { $value: { value: 0.625, unit: "rem" } };
+    });
+    expect(codes(unused)).toContain("primitive.unused");
+    const aliased = mutate(vault(), "base", (base) => {
+      descend(descend(descend(base, "primitive"), "space"), "8")["$value"] = "{primitive.space.4}";
+    });
+    expect(codes(aliased)).toContain("primitive.raw");
+  });
 });
 
 describe("official schema controls", () => {
@@ -243,7 +276,7 @@ describe("Orb semantic controls", () => {
     expect(codes(onPx)).toContain("orb.rootFloor.type");
   });
 
-  test("closed extensions, duplicate outputs, missing var operands, and stale removed rows are refused", () => {
+  test("closed extensions, duplicate outputs, missing var operands, and dangling condition references are refused", () => {
     const extension = mutate(validFixture(), "base", (base) => {
       descend(base, "$extensions")["orb.unknown"] = {};
     });
@@ -261,11 +294,14 @@ describe("Orb semantic controls", () => {
     });
     expect(codes(operand)).toContain("orb.cssValues.var");
 
-    const removed = mutate(validFixture(), "removed", (ledger) => {
-      ledger["removed"] = [{ path: "color.background", reason: "plant" }];
+    const condition = mutate(validFixture(), "base", (base) => {
+      descend(descend(base, "$extensions"), "orb.conditions")["shell-mobile"] = "(width <= {dimension.missing})";
     });
-    expect(codes(removed)).toContain("removed.stale");
-    expect(codes({ ...validFixture(), removed: '{"$schema":"./schemas/removed.schema.json","removed":[],"removedTargets":[]}' })).toContain("removed.schema");
+    expect(codes(condition)).toContain("orb.conditions.alias");
+    const rawPointerFine = mutate(validFixture(), "base", (base) => {
+      descend(descend(descend(base, "dimension"), "control"), "$extensions")["orb.pointerFine"] = { value: 2, unit: "rem" };
+    });
+    expect(codes(rawPointerFine)).toContain("orb.pointerFine");
   });
 
   test("every runtime CSS output declares whether Tailwind or :root owns its placement", () => {
@@ -390,7 +426,6 @@ test("every token bundle member is required, nonempty and strict UTF-8", ({ impo
     "themes/light.json",
     "themes/mocha.json",
     "resolver.json",
-    "removed.json",
     "schemas/format-2025.10.schema.json",
     "schemas/resolver-2025.10.schema.json",
   ];
@@ -432,44 +467,6 @@ test("token acquisition rejects file and authored ancestor links but admits a re
   symlinkSync(root, alias, "dir");
   expect(() => readTokenContractTexts(join(alias, "packages/ui"), alias)).not.toThrow();
   expect(lstatSync(join(ui, "src/tokens/tokens.json")).isFile()).toBe(true);
-});
-
-test("native Git history distinguishes a real removal from recorded removal and unavailable history", ({ importStagingDir }) => {
-  const root = join(importStagingDir, "repository");
-  const ui = join(root, "packages/ui");
-  cpSync(join(UI_ROOT, "src/tokens"), join(ui, "src/tokens"), { recursive: true });
-  const texts = readTokenContractTexts(ui, root);
-  expect(readTokenRemovalBaseline(root).status).toBe("empty");
-  execFixtureGit(root, ["init", "--quiet"]);
-  expect(readTokenRemovalBaseline(root).status).toBe("empty");
-  configureFixtureGitIdentity(root);
-  execFixtureGit(root, ["add", "packages/ui/src/tokens"]);
-  execFixtureGit(root, ["commit", "--quiet", "-m", "fixture token baseline"]);
-  expect(readTokenRemovalBaseline(root).status).toBe("empty");
-  const baseRef = execFixtureGit(root, ["rev-parse", "HEAD"]).trim();
-  expect(readTokenRemovalBaseline(root, baseRef).status).toBe("ready");
-  const dropped = mutate(texts, "base", (base) => {
-    descend(base, "motion")["ambient"] = undefined;
-  });
-  const result = validateTokenContractTexts(dropped, root, baseRef);
-  expect(result.diagnostics.map(({ code }) => code)).toEqual(["removed.unrecorded", "removed.target.unrecorded"]);
-  const recorded = mutate(dropped, "removed", (ledger) => {
-    const rows = ledger["removed"];
-    const targets = ledger["removedTargets"];
-    if (!(Array.isArray(rows) && Array.isArray(targets))) {
-      throw new Error("fixture lost its removal ledger");
-    }
-    rows.push({ path: "motion.ambient", reason: "fixture removal" });
-    targets.push({ target: "--motion-ambient", reason: "fixture removal" });
-  });
-  expect(validateTokenContractTexts(recorded, root, baseRef).diagnostics).toEqual([]);
-  expect(validateTokenContractTexts(texts, { status: "unavailable", reason: "history unavailable" }).diagnostics).toMatchObject([{ code: "removed.baseline" }]);
-  expect(validateTokenContractTexts(texts, { status: "empty", reason: "no history" }).diagnostics).toEqual([]);
-  execFixtureGit(root, ["rm", "--quiet", "packages/ui/src/tokens/tokens.json"]);
-  execFixtureGit(root, ["commit", "--quiet", "-m", "fixture missing baseline vault"]);
-  const missingVault = execFixtureGit(root, ["rev-parse", "HEAD"]).trim();
-  expect(readTokenRemovalBaseline(root, missingVault).status).toBe("unavailable");
-  expect(validateTokenContractTexts(texts, root, missingVault).diagnostics).toMatchObject([{ code: "removed.baseline" }]);
 });
 
 test("an explicit acquisition root excludes sibling UI trees without changing standalone admission", ({ importStagingDir }) => {

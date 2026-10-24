@@ -296,7 +296,7 @@ function TagFilterChipButton({
  *     floor)", recorded on the `credit` voice in `ui/src/primitives/text/variants.ts` — and these ARE
  *     interactive text. They keep the label step; the absent edge carries the register.
  *  2. They take the `chip` BOX (the rail cell's touch-target height — which is what the mockup gives them
- *     too: `height: var(--spacing-touch-target)`, no border, no fill) rather than the floorless `inline`
+ *     too: `height: var(--size-touch-target)`, no border, no fill) rather than the floorless `inline`
  *     size a "no box at all" reading invites. `inline` is exactly what `no-floorless-control-in-wrap`
  *     exists to stop: a full-width 44px hit pseudo on an ~18px text button, repeated inside a `flex-wrap`
  *     rail, is the measured weather-picker collision. A `ghost` box paints nothing at rest anyway, so the

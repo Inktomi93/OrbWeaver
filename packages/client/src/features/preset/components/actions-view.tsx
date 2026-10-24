@@ -185,8 +185,8 @@ export function ActionsView({ form, onSelectSection }: ActionsViewProps): ReactE
  *  in prose, which #1169's census then misread the direction of, and which the copy stopped honouring the
  *  moment the original moved: the config side landed #978 F1 (a band Button inside a VERTICAL `Stack` must
  *  be `w-full`, never `flex-1`, or `flex-basis: 0%` lands on the BLOCK axis and defeats the sealed
- *  `h-control-sm`) at both of its bands, and this one kept `flex-1` and rendered **16px tall against a
- *  32px fine / 44px coarse `--spacing-control-sm`** — measured on all six cluster bands, a tap target under
+ *  `h-(--size-control-sm)`) at both of its bands, and this one kept `flex-1` and rendered **16px tall against a
+ *  32px fine / 44px coarse `--size-control-sm`** — measured on all six cluster bands, a tap target under
  *  every floor. The chassis is `#components`' `Band` now, so that class of drift is not spellable here.
  *  Two deltas from a config band, both stated at the call site: no region glyph (a cluster is named, not
  *  iconified), and the census sits BESIDE the label rather than at the trailing edge, because this band

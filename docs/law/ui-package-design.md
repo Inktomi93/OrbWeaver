@@ -186,7 +186,7 @@ Node token-authoring homes and type-only reexports follow [Spine-TypeScript §7.
 - Every styled primitive has a `variants.ts` exporting a `tv()` config; multi-part primitives use
   **`slots`** (D54). Component props extend `VariantProps<typeof x>` — **a bad variant is a `tsc`
   error**; ad-hoc `className` styling on a primitive is lint-flagged (§8).
-- Class values reference THEME tokens only (`bg-primary`, `text-foreground`, `h-control-md`,
+- Class values reference THEME tokens only (`bg-primary`, `text-foreground`, `h-(--size-control-md)`,
   `gap-row`, `rounded-control`, `z-overlay`) — raw values (`bg-[#…]`, `gap-[13px]`, `z-50`,
   `bg-black/50`) are not custom-statically enforced in ui after D333 exactly as in features (D43: **no `components/ui/` exemption**).
 - `cn` = tailwind-variants' merge, re-exported from `@orb/ui/lib` — the one class-merge home.

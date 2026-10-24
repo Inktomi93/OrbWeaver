@@ -2,7 +2,7 @@
 // `pointer-coarse:`/`pointer-fine:` utility variants. Those variants are BANNED in features/** by
 // `no-pointer-variants-in-features`, exactly as viewport width variants are by `no-media-queries-in-features`:
 // pointer/hover are a device CAPABILITY a container query cannot see, so a feature COMPOSES a named fragment
-// from here (or a pointer-conditional TOKEN like `min-w-touch-target`) instead of spelling the media variant
+// from here (or a pointer-conditional TOKEN like `min-w-(--size-touch-target)`) instead of spelling the media variant
 // inline. Behaviour is homed here so a coarse touch-floor or a fine-only reveal is retunable in ONE place.
 // Each value below is the EXACT class it replaced in a feature — the relocation is byte-for-byte
 // behaviour-preserving, and the coarse touch-floors it carries are CT-pinned (paths noted per fragment).
@@ -55,7 +55,7 @@ export const FINE_INERT_UNTIL_HOVER =
 /** The rpg tracker chip's coarse touch floor: its FLOORLESS glyph ✕ rides an overflowing `::after` that a
  *  flex-wrap gap clips, so the CHIP takes the ≥44px min-height at coarse and the pseudo fits inside its own
  *  chip. Fine is untouched (a 30px chip in a dense tracker row). */
-export const CHIP_TOUCH_FLOOR_AT_COARSE = "pointer-coarse:min-h-touch-target";
+export const CHIP_TOUCH_FLOOR_AT_COARSE = "pointer-coarse:min-h-(--size-touch-target)";
 
 /** A GLYPH-ONLY CHIP's coarse touch floor on its NARROW axis (#875 F6, side-eye 2026-08-30). `Button`'s
  *  `sm` arm carries the 44px HEIGHT everywhere it matters, and an icon+word chip is wide by construction —
@@ -64,7 +64,7 @@ export const CHIP_TOUCH_FLOOR_AT_COARSE = "pointer-coarse:min-h-touch-target";
  *  floor ({@link CHIP_TOUCH_FLOOR_AT_COARSE}) cannot answer that; this is its inline twin, and the two are
  *  separate constants because a chip that is short and a chip that is narrow are different defects with
  *  different call sites. Fine is untouched (a 34px chip in a dense topbar row). */
-export const CHIP_TOUCH_WIDTH_FLOOR_AT_COARSE = "pointer-coarse:min-w-touch-target";
+export const CHIP_TOUCH_WIDTH_FLOOR_AT_COARSE = "pointer-coarse:min-w-(--size-touch-target)";
 
 /** A STACKED TEXT-HEIGHT VALUE ROW's coarse touch floor — the row, never the value (#869).
  *
@@ -82,9 +82,9 @@ export const CHIP_TOUCH_WIDTH_FLOOR_AT_COARSE = "pointer-coarse:min-w-touch-targ
  *  The floor goes on the ROW (the chip precedent, {@link CHIP_TOUCH_FLOOR_AT_COARSE}), never on the value:
  *  a 44px rest button would break the no-shift ruling `tracker-value.tsx` states (the revealed input is
  *  `layout="inline"`, text-height at every pointer) and defeat the `inline` arm's whole contract. At
- *  `min-h-touch-target` the pseudo fits inside its own row and the neighbour keeps its datum. Fine is
+ *  `min-h-(--size-touch-target)` the pseudo fits inside its own row and the neighbour keeps its datum. Fine is
  *  untouched (a 28px target on an 18px box overflows 5px into a 6px gap — it never reaches the neighbour). */
-export const VALUE_ROW_TOUCH_FLOOR_AT_COARSE = "pointer-coarse:min-h-touch-target";
+export const VALUE_ROW_TOUCH_FLOOR_AT_COARSE = "pointer-coarse:min-h-(--size-touch-target)";
 
 /** A TEXT-HEIGHT DISCLOSURE TRIGGER's coarse touch floor. `CollapsibleTrigger` is `inline-flex` with no
  *  control box (it is a line of prose that toggles), so unlike `Button`'s `inline`/`glyph-*` arms it carries
@@ -93,7 +93,7 @@ export const VALUE_ROW_TOUCH_FLOOR_AT_COARSE = "pointer-coarse:min-h-touch-targe
  *  has width to spare and only wants HEIGHT, so the floor goes on the trigger's own box (no overflowing
  *  pseudo to collide with the rows above/below, which is the failure mode the chip floor below documents).
  *  Fine is untouched — a 16px line in a dense transcript footer. */
-export const DISCLOSURE_TOUCH_FLOOR_AT_COARSE = "pointer-coarse:min-h-touch-target";
+export const DISCLOSURE_TOUCH_FLOOR_AT_COARSE = "pointer-coarse:min-h-(--size-touch-target)";
 
 /** The rpg item-icon picker's coarse gap: `gap-block` (12px) makes the tiled 32px cells' pitch exactly 44 so
  *  each cell's overflowing hit `::after` is not clipped by the wrap gap. Fine keeps the tighter `gap-field`. */
@@ -104,7 +104,7 @@ export const PICKER_GAP_AT_COARSE = "pointer-coarse:gap-block";
  *  instead of one squeezed row, which buys each caption ~85px and keeps every word whole. At a COARSE
  *  pointer it does not fire at all — a phone stays ONE row and scrolls (the phone tab-strip idiom: 50px of
  *  rail, not 105px). The rail's caller decides WHICH rails are long enough to be worth a second row; the
- *  ≥44px cell width floor is `TabsTab`'s own sealed `min-w-touch-target`, not spelled here.
+ *  ≥44px cell width floor is `TabsTab`'s own sealed `min-w-(--size-touch-target)`, not spelled here.
  *
  *  THIS CONSTANT USED TO CARRY THE NO-CLIP TRACK SIZING TOO, and that is exactly what broke (#208,
  *  2026-08-18). It bundled the fold with `minmax(max-content,1fr)` + `overflow-x-auto` under one
@@ -131,10 +131,10 @@ export const CONTEXT_RAIL_WRAPPED_EDGE_BAR_OFF = "pointer-fine:@max-xs:data-acti
 
 /** The context rail CELL's coarse HEIGHT floor (#860 — the mock's phone arms draw 52px cells; the first
  *  token step at or above that is `control-lg`, 56px at a coarse pointer). `TabsTab`'s `stacked` arm seals
- *  `min-h-control-sm` (44px coarse), the D62 P1 floor for any control; a rail cell on a phone is the pane's
+ *  `min-h-(--size-control-sm)` (44px coarse), the D62 P1 floor for any control; a rail cell on a phone is the pane's
  *  PRIMARY navigation under a thumb and takes the taller step. Fine pointers are untouched (the seal's
  *  32px, under a content-sized two-line cell). */
-export const CONTEXT_CELL_FLOOR_AT_COARSE = "pointer-coarse:min-h-control-lg";
+export const CONTEXT_CELL_FLOOR_AT_COARSE = "pointer-coarse:min-h-(--size-control-lg)";
 
 /** The faint reveal of a row toggle that is secondary chrome (the persona crown, card pin and favorite
  *  heart, the switcher's Edit door): rest-invisible at a fine pointer and revealed FAINT on the

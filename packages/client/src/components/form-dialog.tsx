@@ -120,7 +120,7 @@ export function FormDialog({
         {/* The popup clamps to the viewport, so a tall body scrolls inside this Stack while the sticky footer
             stays visible on a phone. */}
         <Stack className={`${DIALOG_SCROLL_CLASS} flex-1`} gap="block">
-          <DialogTitle className={closeButton ? "pe-control-md" : ""}>{title}</DialogTitle>
+          <DialogTitle className={closeButton ? "pe-(--size-control-md)" : ""}>{title}</DialogTitle>
           {description === undefined ? null : <DialogDescription>{description}</DialogDescription>}
           {submit === undefined ? (
             children

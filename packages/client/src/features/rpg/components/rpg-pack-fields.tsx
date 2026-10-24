@@ -82,7 +82,7 @@ export function ItemQuantity({ item, edit }: { readonly item: RpgInventoryItem; 
             edit.onPatchItem(item.id, { quantity: Math.max(1, n) });
           }
         }}
-        className="!w-avatar-md px-field text-right tabular-nums"
+        className="!w-(--size-avatar-md) px-field text-right tabular-nums"
         restClassName="tabular-nums"
       />
     </Row>

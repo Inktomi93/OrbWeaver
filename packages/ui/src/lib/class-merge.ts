@@ -138,7 +138,7 @@ function conflictAxis(loser: string, winner: string): string {
 //
 // THE DISCRIMINATOR IS COLOR-NESS UNDER A SHARED UTILITY PREFIX, not "one side carries a scale token".
 // The broader reading is unusable: a custom token overriding a CORE keyword on the same axis (`gap-block`
-// over `gap-0`, `h-control-sm` over `h-auto`, `rounded-control` over `rounded-none`, `leading-body` over
+// over `gap-0`, `h-(--size-control-sm)` over `h-auto`, `rounded-control` over `rounded-none`, `leading-body` over
 // `leading-tight`) also has a token on exactly one side, and every one of those is a LEGITIMATE override
 // this repo's suite pins by name. What cannot be legitimate is an eviction between a color utility and a
 // non-color one: Tailwind's color groups (text-color, bg-color, border-color, …) conflict only with

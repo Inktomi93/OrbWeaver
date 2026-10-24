@@ -4,7 +4,7 @@
 // exist in jsdom, and a stubbed DOM would be a lying proof.
 //
 // WHAT IS PINNED (2026-08-16, the walker's last known false-positive class): ownership is per COMPOSITE,
-// not per element. A Base UI Slider's real drag target is the whole `h-control-sm` control row — a mouse
+// not per element. A Base UI Slider's real drag target is the whole `h-(--size-control-sm)` control row — a mouse
 // press at the row's top edge, 60px from the thumb, moves the value — but the outward probe lands on
 // `[data-slot=slider-indicator]`, a SIBLING of the thumb inside the same control. Before the widening,
 // `ownsPoint` accepted only identity/containment, stalled there, and reported a fine-pointer P1 at 22px on
@@ -84,7 +84,7 @@ function smallestSide(targets: readonly TapTarget[], match: string): number {
 }
 
 // The fine-pointer floor the walker's consumers judge against (design-audit-checks.ts) — the slider row is
-// h-control-sm (32px fine), so a correct measurement clears it and 22 does not.
+// h-(--size-control-sm) (32px fine), so a correct measurement clears it and 22 does not.
 const FINE_POINTER_FLOOR = 24;
 
 test("a slider's effective target is its whole control row, not the box the sibling probe stalls on", async ({ mount, page }) => {
@@ -129,7 +129,7 @@ test("#1067: a 28px pseudo-carried selection control measures its real extent, a
 // ── #1829: the ladder's TOP rung has to be landable, not just listed ────────────────────────────────
 // #1067 put a rung under every floor. It did not make the top one reachable: the ring was sampled AT the
 // radius, and a target of extent exactly `2r` occupies `[c - r, c + r)`, so `c + r` is the neighbour's
-// first pixel. 44 is both the top rung and TAP_COARSE_WARN_PX, so every `size-touch-target` control
+// first pixel. 44 is both the top rung and TAP_COARSE_WARN_PX, so every `size-(--size-touch-target)` control
 // published 32 and filed a P2 no design change could clear — measured live as `P2, 11 of 11, short side
 // 32px` on the eleven Backup & Restore checkboxes at `--mobile --viewport 430x860` (side-eye 2026-09-06),
 // on a ring that answers `self` at +/-21.5px and where a real mouse click there toggles the box.

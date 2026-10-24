@@ -179,9 +179,9 @@ export function HomeDocumentsTileBody(): ReactElement {
               // will happen — the chip's own text is a count, which is a fine LABEL and a terrible verb.
               <Button
                 aria-label={`Show the ${chip.label} documents in your databank`}
-                // The tap floor is `size="sm"`'s own `h-control-sm`, which is ≥ `--spacing-touch-target`
+                // The tap floor is `size="sm"`'s own `h-(--size-control-sm)`, which is ≥ `--size-touch-target`
                 // at BOTH pointer classes by construction (44/44 coarse, 32/28 fine — theme.css's
-                // `@media (pointer: fine)` block). The `min-h-touch-target` that used to sit here could
+                // `@media (pointer: fine)` block). The `min-h-(--size-touch-target)` that used to sit here could
                 // therefore never bind; it read as the thing holding the floor up while the sealed height
                 // already did (#169 — invisible to `ui-size-via-variant` until its value class learned
                 // about hyphens). `p-0` stays: the Badge inside is the whole visible chip.

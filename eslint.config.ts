@@ -611,13 +611,9 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     },
     {
       files: ["packages/client/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}"],
-      ignores: [
-        "packages/ui/src/lib/coarse-pointer-now.ts",
-        "packages/ui/src/lib/reduced-motion-now.ts",
-        "packages/client/src/features/app-shell/hooks/use-is-mobile-viewport.ts",
-        "packages/ui/src/lib/use-prefers-light-color-scheme.ts",
-        "packages/ui/src/lib/use-prefers-reduced-motion.ts",
-      ],
+      // Polarity is light-dark()'s job, not a named condition (client-architecture-lockdown.md §4.6), so the
+      // colour-scheme read keeps its own query.
+      ignores: ["packages/ui/src/lib/use-prefers-light-color-scheme.ts"],
       rules: { "orb/no-raw-matchmedia": "error" },
     },
     { files: ["packages/client/src/features/**/*.{ts,tsx}"], rules: { "orb/fetch-fn-in-features": "error" } },

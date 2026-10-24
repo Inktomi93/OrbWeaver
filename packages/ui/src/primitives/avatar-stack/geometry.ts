@@ -23,10 +23,10 @@ export const AVATAR_STACK_OVERLAP_PX: Record<AvatarSize, number> = { sm: 12, md:
 /** The display token each avatar size resolves its box from — the same `size-avatar-*` utilities the
  *  `Avatar` variants carry, as the custom properties they compile to. */
 const AVATAR_SIZE_VAR: Record<AvatarSize, string | null> = {
-  sm: "var(--spacing-avatar-sm)",
-  md: "var(--spacing-avatar-md)",
-  lg: "var(--spacing-avatar-lg)",
-  hero: "var(--spacing-avatar-hero)",
+  sm: "var(--size-avatar-sm)",
+  md: "var(--size-avatar-md)",
+  lg: "var(--size-avatar-lg)",
+  hero: "var(--size-avatar-hero)",
   // "the cell is the size" — a `fill` avatar has no intrinsic width to reserve, so there is nothing to state.
   // Its portrait twin is the same fact at a different aspect: the track decides the width either way.
   fill: null,

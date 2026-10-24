@@ -50,11 +50,11 @@ export const selectVariants = tv({
     // text-height, no box) and the popup is the affordance.
     //
     // Both arms live here rather than at the call site because the chrome they swap is custom-token
-    // (`h-control-sm`, `px-block`): twMerge cannot classify those, so an override neither wins nor loses
+    // (`h-(--size-control-sm)`, `px-block`): twMerge cannot classify those, so an override neither wins nor loses
     // deterministically — the shipped site wrote `!h-auto !w-auto !px-field` to force the cascade. Same law
     // as Button `size`/TabsTab `layout`.
     layout: {
-      field: { trigger: [FIELD_CONTROL, "h-control-sm"] },
+      field: { trigger: [FIELD_CONTROL, "h-(--size-control-sm)"] },
       inline: { trigger: [FIELD_CONTROL_BOX, "h-auto min-h-0 w-auto border-transparent bg-transparent px-field py-0 text-label leading-label"] },
     },
   },

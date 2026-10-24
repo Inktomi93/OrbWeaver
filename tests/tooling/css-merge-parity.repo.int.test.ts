@@ -27,6 +27,9 @@ const TOKEN_CONTRACT = assertTokenContract(UI_ROOT);
 const FAMILY_PROBES: readonly CompilerFamilyProbe[] = [
   { family: "color", candidate: "bg-primary" },
   { family: "spacing", candidate: "gap-block" },
+  { family: "size", candidate: "h-control-sm" },
+  { family: "primitive", candidate: "p-space-8" },
+  { family: "breakpoint", candidate: "w-shell" },
   { family: "radius", candidate: "rounded-base" },
   { family: "dimension", candidate: "w-rail" },
   { family: "shadow", candidate: "shadow-glow" },

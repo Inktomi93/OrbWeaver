@@ -110,7 +110,7 @@ export function ChatHeaderSurface({ chatId }: ChatHeaderSurfaceProps): ReactElem
       <Row gap="row" align="center" aria-busy={true} className="shell-chat-header-lead min-w-0 grow">
         {/* The identity's own footprint, capped on the container scale (never a raw width): it grows with
             the lead and stops where a title would. */}
-        <Skeleton className="h-control-sm w-full max-w-cq-sm" data-slot="chat-header-pending" />
+        <Skeleton className="h-(--size-control-sm) w-full max-w-cq-sm" data-slot="chat-header-pending" />
       </Row>
     );
   }

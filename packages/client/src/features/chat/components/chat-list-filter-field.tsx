@@ -14,12 +14,12 @@ import { Icon, X } from "@orb/ui/icons";
 import type { ReactElement } from "react";
 
 /** The inline-end room BOTH filter fields keep for their inset clear glyph. It is EXACTLY the glyph's own
- *  box (`icon-sm` is `size-control-sm`, the same pointer-conditional token as the field's height), so the
+ *  box (`icon-sm` is `size-(--size-control-sm)`, the same pointer-conditional token as the field's height), so the
  *  value can never run under the control and the control can never spill past the field. Held CONSTANT
  *  rather than gated on the value, so typing the first character does not reflow the text under the cursor;
  *  on the month field the same padding also walks the UA's own `::-webkit-calendar-picker-indicator` inboard
  *  by that much (measured in chromium 2026-08-22), which is what keeps the two glyphs from stacking. */
-export const CLEAR_INSET_RESERVE = "pe-control-sm";
+export const CLEAR_INSET_RESERVE = "pe-(--size-control-sm)";
 
 /** The way OUT of a narrowing filter, inset at the field's own inline end (#525). `icon-sm` is the
  *  `control-sm` SQUARE, i.e. the field's own height at either pointer: the button fills the field's inner end

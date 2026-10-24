@@ -107,11 +107,11 @@ function PlanSkeleton({ plan }: { plan: RenderPlan }): ReactElement {
   return (
     <Stack aria-busy={true} data-testid={testId("refineryPayloadSkeleton")} gap="block">
       {banners.map((field) => (
-        <Skeleton className="h-control-lg w-full" key={field.key} />
+        <Skeleton className="h-(--size-control-lg) w-full" key={field.key} />
       ))}
-      {hero === null ? null : <Skeleton className="h-avatar-hero w-full" />}
+      {hero === null ? null : <Skeleton className="h-(--size-avatar-hero) w-full" />}
       {rest.map((field) => (
-        <Skeleton className="h-control-md w-full" key={field.key} />
+        <Skeleton className="h-(--size-control-md) w-full" key={field.key} />
       ))}
     </Stack>
   );

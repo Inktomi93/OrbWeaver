@@ -107,7 +107,7 @@ function TempChatContent({ ttlHours, placeholder }: { readonly ttlHours: number;
     <Stack gap="row" {...(placeholder ? { "aria-busy": true, className: "relative" } : {})}>
       {/* The loading box keeps the button's row height without a second copy of its name. */}
       {placeholder ? (
-        <Row className="h-control-sm" />
+        <Row className="h-(--size-control-sm)" />
       ) : (
         <Row>
           {/* SECONDARY, not primary (CD3 re-ruled 2026-08-16, owner pick on #102). This button used to be

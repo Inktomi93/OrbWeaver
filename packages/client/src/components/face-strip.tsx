@@ -12,7 +12,7 @@
 //
 // TOUCH FLOOR (side-eye P1-3): content-sized means the box was the 32px AVATAR at every pointer — under
 // WCAG's 44px and under this app's own coarse floor. The fix is the sibling icon buttons' mechanism, not a
-// bigger portrait: a per-pointer MIN box (`min-w/min-h-control-md` = 34px fine / 48px coarse by token
+// bigger portrait: a per-pointer MIN box (`min-w/min-h-(--size-control-md)` = 34px fine / 48px coarse by token
 // construction, D62 P1) with the avatar centered inside it. The avatar display token stays 32px.
 //
 // Data-driven: an empty `items` renders NOTHING, never an empty shell (the strip is a shortcut, and a
@@ -21,9 +21,9 @@
 // which carries the measurement that bought it).
 //
 // ONE PITCH (#153, owner-observed live 2026-08-18: "inconsistent spacing between portraits that is
-// determined by the characters names"). A CAPTIONED face's cell is a fixed `w-avatar-hero` — the same 64px
+// determined by the characters names"). A CAPTIONED face's cell is a fixed `w-(--size-avatar-hero)` — the same 64px
 // ceiling the caption already truncated at — so the portraits keep one rhythm no matter what the faces are
-// called. The name still drove the CELL until now: the button was content-sized over a `min-w-control-md`
+// called. The name still drove the CELL until now: the button was content-sized over a `min-w-(--size-control-md)`
 // floor, so a face called "Bo" measured the floor and one called "Aria Nightshade" measured its caption, and
 // the gap between portraits wobbled per name across a 320-character library.
 //   · It does NOT reverse the P2a ruling below (the caption's own box stays a MAX, not a width): a short
@@ -215,7 +215,7 @@ function FaceButton({ item, selected, verb, caption, squeezed, selectMode, onSel
       // The squeezed face takes the tile's slot, which is the control-token box by construction — so it
       // always fits where the tile fit, and only its caption pays for it (its `max-w` clamps the captioned
       // cell width below, which is why the two can be spelled together).
-      className={`min-h-control-md min-w-control-md shrink-0${cellWidthClass(caption)}${squeezed ? " max-w-control-md" : ""}`}
+      className={`min-h-(--size-control-md) min-w-(--size-control-md) shrink-0${cellWidthClass(caption)}${squeezed ? " max-w-(--size-control-md)" : ""}`}
       data-face-key={faceKey(item)}
       data-face-squeezed={squeezed ? "" : undefined}
       intent="ghost"
@@ -228,7 +228,7 @@ function FaceButton({ item, selected, verb, caption, squeezed, selectMode, onSel
         </Avatar>
         {caption ? (
           // NATURAL width up to a generous ceiling (side-eye P2a): the mock prints full names, and the old
-          // fixed `w-avatar-lg` clipped nearly every one of them to ~6 characters ("Aria Ni…"). The ceiling
+          // fixed `w-(--size-avatar-lg)` clipped nearly every one of them to ~6 characters ("Aria Ni…"). The ceiling
           // is a max, not a width, so short names take exactly their own space and only a long one
           // truncates — with the FULL name still the button's accessible name.
           //
@@ -239,7 +239,7 @@ function FaceButton({ item, selected, verb, caption, squeezed, selectMode, onSel
           // keeps this functional text at the readable label step under the portrait datum. The
           // SELECTED face's accent tint is a state, not a type axis, so it stays a className on the voice.
           <Text
-            className={`${squeezed ? "max-w-full" : "max-w-avatar-hero"} truncate text-center ${selected ? "text-primary" : "text-muted-foreground"}`}
+            className={`${squeezed ? "max-w-full" : "max-w-(--size-avatar-hero)"} truncate text-center ${selected ? "text-primary" : "text-muted-foreground"}`}
             voice="label"
           >
             {item.name}
@@ -279,7 +279,7 @@ const CAPTION_PLACEHOLDER = " ";
  * THE RESERVED BOX (measured 2026-08-09: the chats LIST pane shifted 74px on data arrival, CLS 0.0070–0.0102
  * — the strip mounted ABOVE the search field and pushed the field and the whole row list down).
  *
- * The strip's height is CHROME, not data: a kicker line plus one row of `min-h-control-md` face boxes,
+ * The strip's height is CHROME, not data: a kicker line plus one row of `min-h-(--size-control-md)` face boxes,
  * known before the read lands. So while the caller is `pending` the strip paints that exact box with
  * face-shaped skeletons, and the faces land INTO their own outline instead of shoving the pane
  * (UI-Architecture-and-Layout §4.3 rule 7 — "never layout shift on data arrival").
@@ -297,8 +297,8 @@ function FaceStripPlaceholder({ caption, kicker, label }: { readonly caption: bo
       {PLACEHOLDER_SLOTS.map((slot) => (
         // The settled face's own box: `FaceButton`'s per-pointer MIN box (`size="media"` is `p-0`, so the
         // button adds nothing else) around the avatar token and its caption line.
-        <Stack align="center" className={`min-h-control-md min-w-control-md shrink-0${cellWidthClass(caption)}`} gap="tight" key={slot}>
-          <Skeleton className="size-avatar-md rounded-full" />
+        <Stack align="center" className={`min-h-(--size-control-md) min-w-(--size-control-md) shrink-0${cellWidthClass(caption)}`} gap="tight" key={slot}>
+          <Skeleton className="size-(--size-avatar-md) rounded-full" />
           {caption ? (
             <Text aria-hidden={true} className="text-transparent" voice="label">
               {CAPTION_PLACEHOLDER}
@@ -416,7 +416,7 @@ export function FaceStrip({
                         avatar radius was the portraits' exact silhouette, so a folded strip scanned as one more
                         character named "More". The header's rhythm ruling is about the BOX, not the DRESS — a
                         dashed ring on no fill reads as a slot rather than a person at the identical pitch. */}
-                    <Row align="center" className="size-avatar-md rounded-full border border-border border-dashed" justify="center">
+                    <Row align="center" className="size-(--size-avatar-md) rounded-full border border-border border-dashed" justify="center">
                       <Text className="text-muted-foreground" voice="label">{`+${hiddenCount}`}</Text>
                     </Row>
                     {caption ? (

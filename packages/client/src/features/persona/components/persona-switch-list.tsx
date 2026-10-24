@@ -180,7 +180,7 @@ function SwitchRow({
   );
 }
 
-const STATIC_ROW = "group relative min-h-control-md rounded-control";
+const STATIC_ROW = "group relative min-h-(--size-control-md) rounded-control";
 const SWITCH_ROW = `${STATIC_ROW} transition-colors duration-(--motion-fast) ease-out-expo hover:not-data-selected:bg-accent/50 data-selected:bg-accent`;
 
 /** The row body in a room: one stretched button that switches. The playing row's name says so instead of

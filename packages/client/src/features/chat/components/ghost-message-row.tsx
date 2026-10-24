@@ -76,8 +76,8 @@ function FormingCardChip({ title }: { readonly title: string | null }): ReactEle
     <Card aria-busy={true}>
       <Stack gap="row" data-slot="forming-card-chip">
         <Text voice="gloss">✦ {title !== null && title !== "" ? title : "Immersive card"} — forming…</Text>
-        <Skeleton className="h-control-md w-full" />
-        <Skeleton variant="text" className="h-control-sm" />
+        <Skeleton className="h-(--size-control-md) w-full" />
+        <Skeleton variant="text" className="h-(--size-control-sm)" />
       </Stack>
     </Card>
   );

@@ -7,9 +7,11 @@ import stylelint from "stylelint";
 const MOTION = "orb/motion-token-purity";
 const COLOR = "orb/no-raw-color-in-css";
 const REST = "orb/rest-transform-grid";
+const CONDITION = "orb/no-raw-media-condition";
+const PRIMITIVE_VAR = /var\(--primitive-/u;
 const MOTION_PROPERTIES = new Set(["transition", "animation", "transition-duration", "animation-duration", "transition-timing-function"]);
 const DURATION_PROPERTIES = new Set(["transition-duration", "animation-duration"]);
-const REDUCED_MOTION = /prefers-reduced-motion|\[data-reduced-motion/u;
+const REDUCED_MOTION = /prefers-reduced-motion|motion-reduce|\[data-reduced-motion/u;
 const RAW_TIME = /(?<![\w.-])(?<num>\d+(?:\.\d+)?|\.\d+)(?:ms|s)\b/gu;
 const RAW_EASE = /\b(?:ease-in-out|ease-in|ease-out|ease)\b(?!-(?:expo|out-expo))|cubic-bezier\s*\(/gu;
 const HEX = /#[0-9a-fA-F]{3,8}\b/u;
@@ -189,5 +191,34 @@ function restRule(primary) {
 restRule.ruleName = REST;
 restRule.messages = stylelint.utils.ruleMessages(REST, { rejected: "A fractional-pixel or percentage transform must belong to motion, not rest" });
 
+// Authored CSS names a condition through a generated `@variant` and a value through a semantic token: a raw
+// `@media` re-spells a query the vault owns, and a `--primitive-*` reference skips the semantic tier.
+function conditionRule(primary) {
+  return (root, result) => {
+    if (!stylelint.utils.validateOptions(result, CONDITION, { actual: primary, possible: [true] })) {
+      return;
+    }
+    root.walkAtRules("media", (atRule) => {
+      stylelint.utils.report({ result, ruleName: CONDITION, node: atRule, message: conditionRule.messages.media });
+    });
+    root.walkDecls((declaration) => {
+      const value = declaration.raws.value?.raw ?? declaration.value;
+      if (PRIMITIVE_VAR.test(withoutValueComments(value))) {
+        stylelint.utils.report({ result, ruleName: CONDITION, node: declaration, message: conditionRule.messages.primitive });
+      }
+    });
+  };
+}
+conditionRule.ruleName = CONDITION;
+conditionRule.messages = stylelint.utils.ruleMessages(CONDITION, {
+  media: "Spell a media condition as a generated @variant (pointer-coarse, motion-reduce, shell-mobile, …), never a raw @media",
+  primitive: "A primitive ramp step is referenced directly; use the semantic token that aliases it",
+});
+
 /** Stylesheet-only rules consumed by the native Stylelint configuration. */
-export const CSS_RULES = [stylelint.createPlugin(MOTION, motionRule), stylelint.createPlugin(COLOR, colorRule), stylelint.createPlugin(REST, restRule)];
+export const CSS_RULES = [
+  stylelint.createPlugin(MOTION, motionRule),
+  stylelint.createPlugin(COLOR, colorRule),
+  stylelint.createPlugin(REST, restRule),
+  stylelint.createPlugin(CONDITION, conditionRule),
+];

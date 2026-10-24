@@ -25,7 +25,7 @@ export interface CollapsibleTriggerProps extends Omit<BaseTriggerProps, "classNa
    *  `false` when the consumer renders its OWN chevron/icon inside the trigger, to avoid a double chevron. */
   chevron?: boolean;
   /** The trigger's BOX. `control` (the default since #884 C2 — the inversion) pins the pointer-conditional
-   *  `--spacing-control-sm` row floor: a disclosure is the thing you press to reach a whole section, and
+   *  `--size-control-sm` row floor: a disclosure is the thing you press to reach a whole section, and
    *  the recurring defect was this arm not taken. `text` is text-height, for a disclosure sitting in
    *  running content where a control box would shear it off its copy — every `size="text"` mount owes a
    *  reasoned home on the `orb/sub-floor-disclosure` row of eslint.config.js (variants.ts carries the

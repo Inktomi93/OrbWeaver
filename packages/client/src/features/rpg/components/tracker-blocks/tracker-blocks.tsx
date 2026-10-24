@@ -70,8 +70,8 @@ export function StatCell({ label, value, hint, onEditValue }: StatCellProps): Re
             }}
             // `text-title` keeps the revealed input at the SAME type size as the big rest value — no
             // font-size jump inside the fixed cell (the no-layout-shift bar). The REST state hugs its
-            // number (no fixed width — `w-avatar-md` inside the padded button ellipsized a 2-digit value).
-            className="w-avatar-md text-center text-title leading-title tabular-nums"
+            // number (no fixed width — `w-(--size-avatar-md)` inside the padded button ellipsized a 2-digit value).
+            className="w-(--size-avatar-md) text-center text-title leading-title tabular-nums"
             restClassName="text-center text-title leading-title tabular-nums"
           />
         )}

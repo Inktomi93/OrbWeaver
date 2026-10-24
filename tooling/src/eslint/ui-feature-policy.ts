@@ -56,17 +56,11 @@ export const UI_FEATURE_RESTRICTIONS = [
   },
   {
     id: "no-raw-matchmedia",
-    globals: [{ name: MATCH_MEDIA, message: "A bare `matchMedia` read outside the named media-query one-homes (UI-Gates-and-Lessons.md §11)." }],
     selectors: [
       {
-        // `typeof x.matchMedia` is a capability probe, not a read of the api, and every one-home does it first.
-        selector: `MemberExpression[computed=false][property.name='${MATCH_MEDIA}']:not(UnaryExpression[operator='typeof'] > MemberExpression)`,
+        selector: `CallExpression:matches([callee.name='${MATCH_MEDIA}'], [callee.property.name='${MATCH_MEDIA}'], [callee.property.value='${MATCH_MEDIA}']) > :matches(Literal[value=type(string)], TemplateLiteral)`,
         message:
-          "A raw `matchMedia` read outside the named media-query one-homes — use `usePrefersReducedMotion()` / `usePrefersLightColorScheme()` (render), `prefersReducedMotionNow()` / `coarsePointerNow()` / `finePointerNow()` (imperative) from `@orb/ui`'s `#lib`, or the shell's viewport hook (UI-Gates-and-Lessons.md §11).",
-      },
-      {
-        selector: `MemberExpression[computed=true][property.value='${MATCH_MEDIA}']:not(UnaryExpression[operator='typeof'] > MemberExpression)`,
-        message: "A raw `matchMedia` read outside the named media-query one-homes (UI-Gates-and-Lessons.md §11).",
+          "A media query spelled at a `matchMedia` call; read it from `MEDIA_QUERIES` (`@orb/ui/tokens`), the one home the generated `@custom-variant` rules share.",
       },
     ],
   },

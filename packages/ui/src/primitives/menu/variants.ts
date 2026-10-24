@@ -19,19 +19,19 @@ const HIGHLIGHT_INDICATOR = "data-highlighted:inset-ring-2 data-highlighted:inse
 
 // Shared item skin — every clickable menu row wears it, so highlight/disabled/touch-floor behave
 // identically. `data-highlighted` is Base UI's own hover/rove state.
-const itemBase = `flex min-h-control-sm cursor-default items-center gap-row rounded-control px-row text-body leading-body outline-none select-none transition-colors duration-(--motion-fast) ease-out-expo data-disabled:opacity-50 data-highlighted:bg-accent data-highlighted:text-accent-foreground ${HIGHLIGHT_INDICATOR}`;
+const itemBase = `flex min-h-(--size-control-sm) cursor-default items-center gap-row rounded-control px-row text-body leading-body outline-none select-none transition-colors duration-(--motion-fast) ease-out-expo data-disabled:opacity-50 data-highlighted:bg-accent data-highlighted:text-accent-foreground ${HIGHLIGHT_INDICATOR}`;
 
 // EVERY COMMAND ROW RESERVES THE LEADING GLYPH GUTTER (side-eye 2026-08-06 P2). One menu mixes iconed rows
 // (`<Icon>` as the first child) with bare-text rows, and the bare ones started their label a whole glyph +
 // gap to the LEFT of the rest — the chat-options popup read as a ragged two-column list ("Select messages…"
 // and every submenu character row against "Rename"/"Close chat"). The gutter is a ::before box exactly the
-// width of an `Icon size="sm"` (16px = --spacing-glyph-xs, the same box `itemIndicator` draws), and the
+// width of an `Icon size="sm"` (16px = --size-glyph-xs, the same box `itemIndicator` draws), and the
 // item's own `gap-row` supplies the separation — so no calc and no arbitrary length. The `:has()` arm
 // withdraws it for a row that already LEADS with a glyph; `:first-child` is load-bearing, or a submenu
 // trigger's TRAILING chevron would suppress the gutter it needs. (`::before` is not an element, so it never
 // becomes the `:first-child` it is tested against.) Checkbox/radio rows are excluded — their indicator slot
 // is their own leading grammar.
-const LEADING_GUTTER = "before:block before:size-glyph-xs before:shrink-0 before:content-[''] [&:has(>svg:first-child)]:before:hidden";
+const LEADING_GUTTER = "before:block before:size-(--size-glyph-xs) before:shrink-0 before:content-[''] [&:has(>svg:first-child)]:before:hidden";
 
 export const menuVariants = tv({
   slots: {

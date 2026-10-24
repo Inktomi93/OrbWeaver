@@ -35,7 +35,11 @@ const OFF_TOKEN = [
   "hover:shadow-lg",
   "focus:rounded-lg",
   "[&:hover]:shadow-md",
+  "md:flex",
+  "max-md:hidden",
+  "lg:grid",
 ];
+const CONDITION_VARIANTS = ["shell-mobile:hidden", "shell-desktop:flex", "shell-narrow:flex", "pointer-coarse:flex", "transparency-reduce:hidden"];
 const SUPPORTED = [
   ...Object.keys(TOKENS)
     .filter((path) => path.startsWith("radius."))
@@ -76,10 +80,12 @@ test("generated namespace resets reject stock scales without changing supported 
   const require = createRequire(join(repoRoot, "package.json"));
   const stock = readFileSync(require.resolve("tailwindcss/theme.css"), "utf8");
   const current = await __unstable__loadDesignSystem(`${stock}\n${themeCss}`);
-  const withoutResets = themeCss.replace("  --radius-*: initial;\n  --shadow-*: initial;\n", "");
+  const withoutResets = themeCss.replace("  --radius-*: initial;\n  --shadow-*: initial;\n  --breakpoint-*: initial;\n", "");
   const baseline = await __unstable__loadDesignSystem(`${stock}\n${withoutResets}`);
 
   expect(current.candidatesToCss(OFF_TOKEN).map((css) => css !== null)).toEqual(OFF_TOKEN.map(() => false));
+  // The named conditions compile as variants where the stock breakpoints no longer do.
+  expect(current.candidatesToCss(CONDITION_VARIANTS).every((css) => css !== null)).toBe(true);
   const supported = current.candidatesToCss(SUPPORTED);
   expect(supported.every((css) => css !== null)).toBe(true);
   expect(supported).toEqual(baseline.candidatesToCss(SUPPORTED));

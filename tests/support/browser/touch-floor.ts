@@ -64,10 +64,10 @@ function resolveSpacingPx(page: Page, cssVar: string): Promise<number> {
 /** {@link resolveSpacingPx} inside a LOCATOR's inherited scope — `--spacing-field/row/block/section` are
  *  rebound per density tier (`packages/ui/src/styles/tiers.css`), so a root-scoped read answers for the
  *  wrong tier inside a `data-density` subtree. */
-/** The live `--spacing-touch-target`, in px. Pointer-CONDITIONAL (44 coarse / 28 fine) — read it only after
+/** The live `--size-touch-target`, in px. Pointer-CONDITIONAL (44 coarse / 28 fine) — read it only after
  *  asserting the coarse emulation landed, or it answers for the wrong pointer class. */
 export function touchFloorPx(page: Page): Promise<number> {
-  return resolveSpacingPx(page, "--spacing-touch-target");
+  return resolveSpacingPx(page, "--size-touch-target");
 }
 
 /** A control's reachable extent on one axis — walked out from its centre with `elementFromPoint` until the

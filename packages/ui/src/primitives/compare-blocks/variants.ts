@@ -51,7 +51,7 @@ export const compareBlocksVariants = tv({
     acceptRow: "flex cursor-pointer items-center gap-row",
     acceptLabel: "text-label leading-label text-muted-foreground",
     verbRow: "flex items-center gap-row",
-    collapsedRow: "flex w-full min-h-touch-target cursor-pointer items-center gap-row rounded-control bg-muted px-block py-row text-left",
+    collapsedRow: "flex w-full min-h-(--size-touch-target) cursor-pointer items-center gap-row rounded-control bg-muted px-block py-row text-left",
     srOnly: "sr-only",
   },
   variants: {

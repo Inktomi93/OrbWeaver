@@ -34,16 +34,16 @@ export const commandVariants = tv({
     // phone). `control-sm` already varies by pointer (2.75rem coarse / 2rem fine, theme.css) but only
     // via the `pointer: fine` media query, not Tailwind's `pointer-coarse:` variant — spelling the
     // floor here keeps the tap target explicit rather than relying on that CSS-var-only coincidence.
-    inputWrapper: "flex h-control-sm items-center gap-row border-b border-border px-row pointer-coarse:h-touch-target",
+    inputWrapper: "flex h-(--size-control-sm) items-center gap-row border-b border-border px-row pointer-coarse:h-(--size-touch-target)",
     input:
-      "h-full w-full min-w-0 flex-1 bg-transparent text-body leading-body text-foreground outline-none placeholder:text-muted-foreground pointer-coarse:h-touch-target",
+      "h-full w-full min-w-0 flex-1 bg-transparent text-body leading-body text-foreground outline-none placeholder:text-muted-foreground pointer-coarse:h-(--size-touch-target)",
     list: "relative flex flex-col gap-field overflow-y-auto overscroll-contain p-field",
     // Fill a bounded list's content box so a miss reads as an intentional empty surface, not one line
     // stranded above a giant dead cavity. In an auto-sized list, percentage height resolves to auto.
     empty: "flex h-full items-center justify-center px-row text-center text-body leading-body text-muted-foreground",
     group: "flex flex-col",
     groupHeading: "px-row py-field text-label leading-label text-muted-foreground",
-    item: "orb-skip-offscreen flex min-h-control-sm cursor-default items-center gap-row rounded-control px-row text-body leading-body outline-none select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground",
+    item: "orb-skip-offscreen flex min-h-(--size-control-sm) cursor-default items-center gap-row rounded-control px-row text-body leading-body outline-none select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground",
     separator: "my-field border-t border-border",
     // A COLUMN, so its child STRETCHES: cmdk wraps the children in an unstyled aria-hidden div, and in a
     // centered row that div shrinks to its content — skeleton bars sized `w-full` then measure 0px wide.

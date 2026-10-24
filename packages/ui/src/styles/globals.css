@@ -253,7 +253,7 @@
     U+FEFF, U+FFFD;
 }
 
-/* Unlayered reduced-motion floor — a capability @media, legal outside @layer.
+/* Unlayered reduced-motion floor — a capability condition, legal outside @layer.
  *
  * TRANSITIONS ARE REMOVED, NOT SHORTENED (motion guide §3.9), and that spelling is LOAD-BEARING for
  * performance, not only for doctrine. The floor used to force `transition-duration: 0.01ms` on `*`
@@ -268,7 +268,7 @@
  * The cost: `transitionend` never fires under reduced motion. Every consumer was checked — Base UI
  * waits on `getAnimations()`/`animation.finished` (zero animations resolves immediately, so panels
  * and popups still unmount), and `WeaveVeil` takes its instant path without listening at all. */
-@media (prefers-reduced-motion: reduce) {
+@variant motion-reduce {
   *,
   *::before,
   *::after {
@@ -288,13 +288,13 @@
 [data-reduced-motion="true"] *,
 [data-reduced-motion="true"] *::before,
 [data-reduced-motion="true"] *::after {
-  /* biome-ignore lint/complexity/noImportantStyles: same as the @media block above — must override inline styles */
+  /* biome-ignore lint/complexity/noImportantStyles: same as the motion-reduce block above — must override inline styles */
   animation-duration: 0.01ms !important;
-  /* biome-ignore lint/complexity/noImportantStyles: same as the @media block above — a suppression covers only the line beneath it, so each declaration carries its own */
+  /* biome-ignore lint/complexity/noImportantStyles: same as the motion-reduce block above — a suppression covers only the line beneath it, so each declaration carries its own */
   animation-iteration-count: 1 !important;
-  /* biome-ignore lint/complexity/noImportantStyles: same as the @media block above — must override inline styles */
+  /* biome-ignore lint/complexity/noImportantStyles: same as the motion-reduce block above — must override inline styles */
   transition-property: none !important;
-  /* biome-ignore lint/complexity/noImportantStyles: same as the @media block above — must override inline styles */
+  /* biome-ignore lint/complexity/noImportantStyles: same as the motion-reduce block above — must override inline styles */
   scroll-behavior: auto !important;
 }
 
@@ -690,7 +690,7 @@
 /* Spotlight hover-follow: media-grid.tsx writes pointer position into --x/--y on the hovered cell;
  * this paints a low-alpha radial spotlight there. pointer: fine only (no touch); reduced-motion
  * drops it entirely. */
-@media (pointer: fine) {
+@variant pointer-fine {
   [data-slot="media-grid-cell"]::before {
     content: "";
     position: absolute;
@@ -706,7 +706,7 @@
   [data-slot="media-grid-cell"]:hover::before {
     opacity: 1;
   }
-  @media (prefers-reduced-motion: reduce) {
+  @variant motion-reduce {
     [data-slot="media-grid-cell"]::before,
     [data-slot="media-grid-cell"]:hover::before {
       display: none;
@@ -781,7 +781,7 @@
   );
   animation: orb-skeleton-shimmer var(--motion-shimmer) linear infinite;
 }
-@media (prefers-reduced-motion: reduce) {
+@variant motion-reduce {
   .orb-skeleton-shimmer::after {
     display: none;
   }
@@ -805,7 +805,7 @@
  * avatar row) does not permanently mis-size the scrollbar. */
 .orb-skip-offscreen {
   content-visibility: auto;
-  contain-intrinsic-size: auto var(--spacing-control-sm);
+  contain-intrinsic-size: auto var(--size-control-sm);
 }
 
 /* TypingDots' pending-window affordance: three muted dots pulse left→right. The component and this
@@ -1158,12 +1158,7 @@
   }
 }
 
-/* Hidden tab ⇒ nothing composites (the layers are decorative; nobody is looking). */
-[data-slot="waystone"][data-paused="true"] * {
-  animation-play-state: paused;
-}
-
-@media (prefers-reduced-motion: reduce) {
+@variant motion-reduce {
   [data-slot="waystone"] * {
     animation: none;
   }
@@ -1173,6 +1168,11 @@
   [data-slot="waystone"] [data-slot="waystone-bolt"] {
     opacity: 0.9;
   }
+}
+
+/* Hidden tab ⇒ nothing composites (the layers are decorative; nobody is looking). */
+[data-slot="waystone"][data-paused="true"] * {
+  animation-play-state: paused;
 }
 [data-reduced-motion="true"] [data-slot="waystone"] * {
   animation: none;

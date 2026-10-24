@@ -9,6 +9,6 @@ export const hintTriggerVariants = tv({
   slots: {
     // The at-rest DESCRIPTION slot #2443 minted here moved to the TOOLTIP SEAL in #2455 — one node per
     // `<Tooltip>` in the whole app rather than one per hint trigger.
-    trigger: "shrink-0 pointer-coarse:size-touch-target",
+    trigger: "shrink-0 pointer-coarse:size-(--size-touch-target)",
   },
 });

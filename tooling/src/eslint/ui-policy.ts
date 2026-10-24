@@ -31,6 +31,12 @@ const STATIC_CLASS_SPAN = "TemplateLiteral[expressions.length=0] > TemplateEleme
 
 const ARBITRARY_CLASS = String.raw`(?:[^\s]*:)?(?:[whz]|min-w|min-h|max-w|max-h|size|p[xytrbles]?|m[xytrbles]?|gap(-x|-y)?|space-[xy]|inset(-x|-y)?|top|left|right|bottom|start|end|translate(-x|-y|-z)?|grid-(cols|rows)|text|leading|tracking|rounded)-\[(?!(?:--|var\(|calc\())[^\s:]+\]`;
 
+/** An arbitrary viewport or container breakpoint variant: the named breakpoints and container steps are the vocabulary. */
+const ARBITRARY_BREAKPOINT_VARIANT = String.raw`(?:[^\s]*:)?@?(?:min|max)-\[[^\s\]]+\]:`;
+
+/** A primitive ramp step referenced from a component; a component speaks the semantic token that aliases the step. */
+const PRIMITIVE_REFERENCE = String.raw`\(--primitive-[a-z0-9-]+\)`;
+
 const NAMED_COLOR = String.raw`\b(bg|text|border|ring|fill|stroke)-(black|white)(\/\d+)?\b`;
 
 const PALETTE_COLOR = String.raw`\b(?:bg|text|border|ring|fill|stroke|from|via|to|outline|decoration|accent|caret|divide|placeholder|shadow|ring-offset)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}(?:\/\d+)?\b`;
@@ -50,7 +56,7 @@ export const CLASS_RESTRICTIONS = [
     id: "ui-skin-fragment-purity",
     selectors: [
       "focus-visible:ring-",
-      "before:size-touch-target",
+      "before:size-(--size-touch-target)",
       "rotate-45 border border-border bg-popover",
       "bg-backdrop",
       "data-disabled:pointer-events-none data-disabled:opacity-50",
@@ -66,6 +72,14 @@ export const CLASS_RESTRICTIONS = [
       {
         selector: `:matches(Literal[value=type(string)][raw=/${CLASS_LITERAL_START}${ARBITRARY_CLASS}${CLASS_LITERAL_END}/], ${STATIC_CLASS_SPAN}[value.raw=/${CLASS_SPAN_START}${ARBITRARY_CLASS}${CLASS_SPAN_END}/])`,
         message: "Arbitrary Tailwind layout/size/type value bypasses the token scale; use a token utility or extend tokens.json.",
+      },
+      {
+        selector: `:matches(Literal[value=type(string)][raw=/${CLASS_LITERAL_START}${ARBITRARY_BREAKPOINT_VARIANT}/], ${STATIC_CLASS_SPAN}[value.raw=/${CLASS_SPAN_START}${ARBITRARY_BREAKPOINT_VARIANT}/])`,
+        message: "An arbitrary breakpoint variant bypasses the named conditions; use a breakpoint or container token (tokens.json) or add one.",
+      },
+      {
+        selector: `:matches(Literal[value=type(string)][raw=/${PRIMITIVE_REFERENCE}/], TemplateElement[value.raw=/${PRIMITIVE_REFERENCE}/])`,
+        message: "A primitive ramp step is referenced directly; use the semantic token that aliases it, or add one in tokens.json.",
       },
     ],
   },

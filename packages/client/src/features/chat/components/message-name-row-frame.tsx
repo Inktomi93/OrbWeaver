@@ -100,7 +100,7 @@ export function NameRowFrame(args: NameRowFrameProps): ReactElement {
         // An outside header (tide's) sits on the same inset as the pager under its train, so the last action
         // ends where the forward chevron does and its touch area stays inside the scrollport.
         args.placement === "outside" && "px-field",
-        !args.shape.ownLine && "box-content h-glyph-lg -mb-glyph-lg",
+        !args.shape.ownLine && "box-content h-(--size-glyph-lg) -mb-(--size-glyph-lg)",
         // THE ACTION RAIL'S ONLY RESERVATION. The rail is centred on this row, so a content height of
         // `glyph-lg - 2 * row` makes it span exactly the container's top inset, this row and the
         // `gap-row` below it: contained in the bubble, clear of the prose, and no empty band between
@@ -108,7 +108,7 @@ export function NameRowFrame(args: NameRowFrameProps): ReactElement {
         // verdict is computed from the measured row height: any box the verdict changed would re-enter
         // its own input and oscillate. `box-content` keeps the sticky band's `pt-row` additive, so its
         // `-mt-row` cancellation stays exact.
-        args.placement === "inside" && args.shape.ownLine && "box-content min-h-[calc(var(--spacing-glyph-lg)_-_2_*_var(--spacing-row))]",
+        args.placement === "inside" && args.shape.ownLine && "box-content min-h-[calc(var(--size-glyph-lg)_-_2_*_var(--spacing-row))]",
         // At rest an inside header paints on the role bubble, so every datum must inherit that bubble's
         // paired foreground. Speaker/gloss inks derive from the scope's BASE and are invalid on an
         // independently-picked bubble fill. A pinned row paints its own reading band and keeps that

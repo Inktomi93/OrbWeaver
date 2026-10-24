@@ -297,7 +297,7 @@ function ActiveDocumentRow({ document, isHost, onSetHidden, onDetach }: ActiveDo
                   // rule, applied to a raw ListRow): only SOME rows are detachable, so without it the eye —
                   // the column a host scans this rack down — lands at two different x's row to row. Empty
                   // and aria-hidden: this is layout, never a disabled affordance.
-                  <Row aria-hidden={true} className="size-control-md shrink-0" />
+                  <Row aria-hidden={true} className="size-(--size-control-md) shrink-0" />
                 )}
               </>
             ),

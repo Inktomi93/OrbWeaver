@@ -146,13 +146,13 @@ const CLUSTER_SLOTS = 3;
  * TRAILING, not leading, is the whole point: slot 1 is then always the state toggle, at one x, on every row.
  * Padding the other end would straighten the kebab column instead — the column nobody scans.
  *
- * `size-control-md` is the `size="icon"` Button box BY TOKEN, so the reservation cannot drift from the
+ * `size-(--size-control-md)` is the `size="icon"` Button box BY TOKEN, so the reservation cannot drift from the
  * control it reserves. `aria-hidden` and empty: this is layout, never a disabled affordance (a spacer that
  * reached the a11y tree would announce three phantom controls per built-in row).
  */
 function clusterSpacers(rendered: number, reserved: number): readonly ReactElement[] {
   return Array.from({ length: Math.max(0, Math.min(reserved, CLUSTER_SLOTS) - rendered) }, (_unused, at) => (
-    <Row aria-hidden={true} className="size-control-md shrink-0" data-slot="library-row-cluster-spacer" key={`cluster-spacer-${String(at)}`} />
+    <Row aria-hidden={true} className="size-(--size-control-md) shrink-0" data-slot="library-row-cluster-spacer" key={`cluster-spacer-${String(at)}`} />
   ));
 }
 
@@ -263,7 +263,7 @@ function LibraryRowActionsMenu({
 /** The ⋯ overflow — it retains EVERY action including an inlined one (N3 mirror parity), and is the ONLY
  *  home for the destructive Delete + the dialog-opening Rename. §12.2 rest posture: it RIDES the reveal
  *  like every other row affordance (hidden at rest, hover/focus-within/coarse revealed) and sits in the
- *  `size-control-md` icon box the grammar's touch math assumes — a 40×32 `sm` box was the odd one out. */
+ *  `size-(--size-control-md)` icon box the grammar's touch math assumes — a 40×32 `sm` box was the odd one out. */
 function LibraryRowMenu({
   name,
   qualifier,

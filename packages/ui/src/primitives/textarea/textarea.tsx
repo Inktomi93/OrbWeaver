@@ -36,9 +36,9 @@ export function Textarea({ className, rows, maxRows, size, style, onValueChange,
   // `field-sizing: content` makes the browser IGNORE `rows` for sizing (it collapses to the content
   // height), so a `rows={3}` field renders as a single line. Re-floor the height off `rows` as a
   // min-height so `rows` again means "at least n lines" while the field keeps auto-growing past it.
-  // max() with --spacing-control-lg keeps the comfortable single-line control floor (e.g. the composer's
+  // max() with --size-control-lg keeps the comfortable single-line control floor (e.g. the composer's
   // rows={1}) from shrinking below the shared field height.
-  const controlFloor = size === "compact" ? "var(--spacing-control-md)" : "var(--spacing-control-lg)";
+  const controlFloor = size === "compact" ? "var(--size-control-md)" : "var(--size-control-lg)";
   const rowsFloor = rows === undefined ? undefined : { minHeight: `max(${controlFloor}, ${lineBoxHeight(rows)})` };
   // …AND THE CEILING (`maxRows`), the half that was missing. `field-sizing: content` grows without bound,
   // so a long stored value renders the WHOLE thing as one box: a 4500-character prose override measured

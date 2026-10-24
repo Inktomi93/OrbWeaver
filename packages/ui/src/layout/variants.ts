@@ -45,11 +45,11 @@ export const stackVariants = tv({
     // THE ROW-PITCH FLOOR (#884 C3 — #850's class: rows of floorless inline-edit affordances stacked at a
     // sub-floor pitch, so a Button's hit pseudo overflows onto the NEIGHBOUR ROW'S TEXT and loses
     // hit-testing to it; 28 P1 tap-targets on one rpg tab). `control` floors every DIRECT child at the
-    // pointer-conditional `--spacing-control-sm` (44px coarse / 32px fine — clears design-audit's 24px fine
+    // pointer-conditional `--size-control-sm` (44px coarse / 32px fine — clears design-audit's 24px fine
     // floor), so each row seats its own controls' hit areas instead of lending them to the row below. One
     // token at the container, because no control primitive can own PITCH and a per-row `min-h-*` is the
     // N-site spelling of the same fact (gate `no-floorless-control-in-wrap`, the vertical-pitch arm).
-    rows: { control: "*:min-h-control-sm" },
+    rows: { control: "*:min-h-(--size-control-sm)" },
   },
 });
 
@@ -302,7 +302,7 @@ export const gridVariants = tv({
       // hang into. At and above it the three tracks engage and the middle one centres.
       //
       // THE STEP IS DERIVED, THEN ROUNDED UP TO A NAMED ONE. The widest identity chip is
-      // `spacing.avatar-lg` 40px and the centred skins' column is capped at `--reading-measure` (75ch =
+      // `size.avatar-lg` 40px and the centred skins' column is capped at `--reading-measure` (75ch =
       // 750px in the prose font, measured), and a chip fits the margin when `(track - column) / 2 >= 40`,
       // i.e. `track >= 830px`. The step used is `@4xl` (56rem / 896px) — the nearest NAMED container
       // step at or above that minimum, so the consuming feature can spell its matching placement classes
@@ -387,12 +387,12 @@ export const containerVariants = tv({
 });
 
 export const toolbarVariants = tv({
-  base: "flex h-control-md flex-row items-center gap-row px-block",
+  base: "flex h-(--size-control-md) flex-row items-center gap-row px-block",
 });
 
 // Meets the touch floor via h-control-sm, pointer-conditional (44px coarse/unknown, 32px fine).
 export const toolbarButtonVariants = tv({
-  base: `inline-flex h-control-sm min-w-control-sm select-none items-center justify-center gap-field rounded-control text-foreground text-label leading-label hover:bg-accent focus-visible:outline-none ${DISABLED_STATE_NATIVE} ${FOCUS_RING}`,
+  base: `inline-flex h-(--size-control-sm) min-w-(--size-control-sm) select-none items-center justify-center gap-field rounded-control text-foreground text-label leading-label hover:bg-accent focus-visible:outline-none ${DISABLED_STATE_NATIVE} ${FOCUS_RING}`,
 });
 
 export const toolbarSeparatorVariants = tv({
@@ -409,14 +409,14 @@ export const toolbarGroupVariants = tv({
 // The trailing metadata link ("Edited 51m ago"). Label type, muted until hover — it is a toolbar ITEM
 // (roving tabindex), so it carries the same focus ring as ToolbarButton, not a bare underline.
 export const toolbarLinkVariants = tv({
-  base: `inline-flex h-control-sm items-center rounded-control px-field text-label leading-label text-muted-foreground no-underline hover:text-foreground focus-visible:outline-none ${FOCUS_RING}`,
+  base: `inline-flex h-(--size-control-sm) items-center rounded-control px-field text-label leading-label text-muted-foreground no-underline hover:text-foreground focus-visible:outline-none ${FOCUS_RING}`,
 });
 
 // Wears the shared field-control box so an input inside a toolbar matches every other text control.
 // Use ONE per horizontal toolbar and place it LAST — left/right arrows drive both the text caret and
 // the roving tabindex (Base UI's own usage guideline, https://base-ui.com/react/components/toolbar, "Usage guidelines").
 export const toolbarInputVariants = tv({
-  base: `h-control-sm min-w-0 rounded-control border border-input-border bg-field-fill px-field text-body leading-body text-foreground placeholder:text-muted-foreground focus-visible:outline-none ${DISABLED_STATE_NATIVE} ${FOCUS_RING}`,
+  base: `h-(--size-control-sm) min-w-0 rounded-control border border-input-border bg-field-fill px-field text-body leading-body text-foreground placeholder:text-muted-foreground focus-visible:outline-none ${DISABLED_STATE_NATIVE} ${FOCUS_RING}`,
 });
 
 /** THE `gutterCentred` TRACKS AS A CLASS, for a caller that must not swap its ELEMENT (#1728 arm B).

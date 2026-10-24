@@ -125,7 +125,7 @@ function TrackerRow({
                 const n = Number.parseInt(next, 10);
                 patch({ max: Number.isNaN(n) ? null : Math.max(1, n) });
               }}
-              className="!w-avatar-lg px-field text-right tabular-nums"
+              className="!w-(--size-avatar-lg) px-field text-right tabular-nums"
               restClassName="tabular-nums"
             />
           </Row>

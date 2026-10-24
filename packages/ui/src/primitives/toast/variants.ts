@@ -44,21 +44,21 @@ export const toastVariants = tv({
     warningIcon: "mt-tight shrink-0 text-warning",
     errorIcon: "mt-tight shrink-0 text-destructive",
     successIcon: "mt-tight shrink-0 text-success",
-    // `pr-control-sm` is the CLOSE BUTTON'S RESERVATION (side-eye P1-2 — the ✕ was painting over the copy,
-    // 26×26px of measured overlap). The close is `absolute top-field right-field size-control-sm`, so its
+    // `pr-(--size-control-sm)` is the CLOSE BUTTON'S RESERVATION (side-eye P1-2 — the ✕ was painting over the copy,
+    // 26×26px of measured overlap). The close is `absolute top-field right-field size-(--size-control-sm)`, so its
     // left edge sits `field + control-sm` in from the root's right edge while the content's own right edge
     // sits only `p-block` in. The shortfall is `field + control-sm − block`; reserving a full `control-sm`
     // covers it and leaves exactly `field` of breathing room — in BOTH pointer regimes, because `field`,
     // `block` and `control-sm` all shift together. Stated in tokens so it can never drift from the button.
-    content: "flex min-w-0 flex-1 flex-col gap-field pr-control-sm",
+    content: "flex min-w-0 flex-1 flex-col gap-field pr-(--size-control-sm)",
     title: "text-label leading-label font-semibold",
     description: "text-label leading-label text-muted-foreground",
-    close: `absolute top-field right-field flex size-control-sm items-center justify-center rounded-control text-muted-foreground outline-none ${ACCENT_HOVER} ${FOCUS_RING_ON_POPOVER}`,
+    close: `absolute top-field right-field flex size-(--size-control-sm) items-center justify-center rounded-control text-muted-foreground outline-none ${ACCENT_HOVER} ${FOCUS_RING_ON_POPOVER}`,
     // The action wears the house PRIMARY fill (Button's `intent="primary"` recipe, minus its page-CTA
     // shadow — a glow inside an already-elevated float is noise). `bg-secondary` FAILED WCAG 1.4.11: it is
     // one L-step off `bg-popover` (0.255 vs 0.245) for a measured 1.03:1 boundary with `border: 0`, so the
     // only actionable thing in the toast read as stray text. No border token fixes it — `--color-border` is
     // 8%-alpha white over the same fill (~1.1:1); the boundary has to come from the fill.
-    action: `mt-field inline-flex h-control-sm w-fit items-center justify-center gap-field whitespace-nowrap rounded-control bg-primary px-block text-label leading-label font-medium text-primary-foreground outline-none transition-colors duration-(--motion-fast) ease-out-expo hover:bg-primary/90 active:bg-primary/80 ${FOCUS_RING_ON_POPOVER}`,
+    action: `mt-field inline-flex h-(--size-control-sm) w-fit items-center justify-center gap-field whitespace-nowrap rounded-control bg-primary px-block text-label leading-label font-medium text-primary-foreground outline-none transition-colors duration-(--motion-fast) ease-out-expo hover:bg-primary/90 active:bg-primary/80 ${FOCUS_RING_ON_POPOVER}`,
   },
 });

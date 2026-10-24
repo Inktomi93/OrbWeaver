@@ -147,7 +147,7 @@ export const textVariants = tv({
       // was spelling `size`/`weight` through className — a dodge the density gate structurally cannot see.
       // Deliberately sets NO COLOR: the skin that owns the band owns the ink, so the `tone` default survives
       // here and one className on the call site still beats it. Callers that need a bigger mark than the
-      // title step override `font-size` (the echo tile rides `--spacing-avatar-hero` inline).
+      // title step override `font-size` (the echo tile rides `--size-avatar-hero` inline).
       monogram: "font-sans text-title leading-title tracking-normal font-semibold",
     },
     // THE READING-LENGTH MODIFIER (side-eye F-31, 2026-08-02). `text-micro` (10.5px, leading-micro) was

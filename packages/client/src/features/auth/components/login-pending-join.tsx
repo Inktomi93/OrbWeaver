@@ -72,8 +72,8 @@ export function LoginPendingJoin({ providerName, onJoined, onDismiss }: LoginPen
   if (preview.isPending) {
     return (
       <Stack gap="row" aria-label="Loading your invite">
-        <Skeleton className="h-control-md w-full" />
-        <Skeleton className="h-control-md w-full" />
+        <Skeleton className="h-(--size-control-md) w-full" />
+        <Skeleton className="h-(--size-control-md) w-full" />
       </Stack>
     );
   }

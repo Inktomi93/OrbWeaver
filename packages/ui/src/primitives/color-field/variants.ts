@@ -13,7 +13,7 @@ export const colorFieldVariants = tv({
       "shrink-0 rounded-control border border-input-border bg-field-fill data-unset:border-dashed data-unset:border-muted-foreground data-unset:bg-transparent",
     hexText: "text-label leading-label text-muted-foreground",
     swatchTrigger: [
-      "inline-flex size-control-sm shrink-0 items-center justify-center rounded-control border border-border p-0",
+      "inline-flex size-(--size-control-sm) shrink-0 items-center justify-center rounded-control border border-border p-0",
       "transition-colors duration-(--motion-fast) ease-out-expo",
       "outline-none",
       FOCUS_RING,
@@ -33,7 +33,7 @@ export const colorFieldVariants = tv({
     // `ring-offset-background` would paint a page-toned band around the swatch on a popover-toned surface.
     // The ring (a box-shadow) is safe here rather than FOCUS_RING_OUTLINE: this slot paints no shadow of its
     // own, so nothing else owns the composite. MEASURED under a real Tab in the color-field CT.
-    nativeColorInput: `h-control-md w-full cursor-pointer rounded-control border border-border p-0 outline-none disabled:cursor-not-allowed ${FOCUS_RING_ON_POPOVER}`,
+    nativeColorInput: `h-(--size-control-md) w-full cursor-pointer rounded-control border border-border p-0 outline-none disabled:cursor-not-allowed ${FOCUS_RING_ON_POPOVER}`,
     hexField: "w-full",
     // The per-field clear affordance. Left-aligned under the hex field so it
     // reads as a secondary action, not a full-width primary — it emits the empty "" clear sentinel.
@@ -42,7 +42,7 @@ export const colorFieldVariants = tv({
   variants: {
     // The display swatch's footprint. The editable trigger always uses `md`, the control size.
     swatchSize: {
-      md: { swatch: "size-control-sm" },
+      md: { swatch: "size-(--size-control-sm)" },
       sm: { swatch: "size-3" },
     },
   },

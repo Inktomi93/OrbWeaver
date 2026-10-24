@@ -60,9 +60,9 @@ function RulesSkeleton({ count }: RulesSkeletonProps): ReactElement {
       <Stack gap="section">
         {rows.map((index) => (
           // Byte-for-byte the settled row's closed box: the same `!p-0` Card, the same `p-block` trigger pad
-          // at the same `min-h-control-sm` pointer-conditional floor, the same three-line name column.
+          // at the same `min-h-(--size-control-sm)` pointer-conditional floor, the same three-line name column.
           <Card className="!p-0" key={index}>
-            <Row align="center" className="min-h-control-sm p-block pr-block" gap="field">
+            <Row align="center" className="min-h-(--size-control-sm) p-block pr-block" gap="field">
               <Stack className="min-w-0 flex-1" gap="tight">
                 <Skeleton className="h-4 w-2/3" />
                 <Skeleton className="h-4 w-full" />
@@ -73,7 +73,7 @@ function RulesSkeleton({ count }: RulesSkeletonProps): ReactElement {
           </Card>
         ))}
       </Stack>
-      <Skeleton className="h-control-sm w-1/3" />
+      <Skeleton className="h-(--size-control-sm) w-1/3" />
     </Stack>
   );
 }

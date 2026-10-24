@@ -41,7 +41,7 @@ export const WALKER_HIT_EXTENT = `  // ── the compositor hit-extent probe �
   // 24 (TAP_FINE_MIN_PX), 32 (TAP_COARSE_FAIL_PX) and 44 (TAP_COARSE_WARN_PX). The ladder was
   // [11, 16, 22] = 22 / 32 / 44: the fine floor was NOT expressible, so a control owning 24-31px could
   // only ever be published as 22 and failed a rule it already satisfied — for the whole @orb/ui selection
-  // family, whose hit area is an 18px box under a 28px \`::before size-touch-target\` at pointer:fine
+  // family, whose hit area is an 18px box under a 28px \`::before size-(--size-touch-target)\` at pointer:fine
   // (packages/ui/src/lib/selection-control.ts + the @media(pointer:fine) override in styles/theme.css).
   // Measured on the character library's bulk mode: 10 of 10 rows "short side 22px", on a compositor ring
   // that answers \`self\` out to +/-13px. 11 stays as the rung BELOW the floor — it is what keeps a genuine
@@ -72,7 +72,7 @@ export const WALKER_HIT_EXTENT = `  // ── the compositor hit-extent probe �
     return cx - HIT_PROBE_MAX >= 0 && cy - HIT_PROBE_MAX >= 0 && cx + HIT_PROBE_MAX < window.innerWidth && cy + HIT_PROBE_MAX < window.innerHeight;
   }
   // OWNERSHIP IS PER COMPOSITE, NOT PER ELEMENT (2026-08-16). A Base UI Slider's real pointer target is
-  // the whole Control row (h-control-sm — 44px coarse / 32px fine; a mouse press at the row's top edge
+  // the whole Control row (h-(--size-control-sm) — 44px coarse / 32px fine; a mouse press at the row's top edge
   // 60px from the thumb moved the value 60 to 73), but the outward probe lands on
   // [data-slot=slider-indicator], a SIBLING of the thumb inside the same control. The identity/containment
   // test alone stalled the walk there and printed a fine-pointer P1 at 22px on a 32px row.

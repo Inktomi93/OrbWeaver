@@ -55,7 +55,7 @@ const FILTERS_LABEL = "Filters";
  * #1350's PRINCIPLE SURVIVES, ITS INPUT CHANGED: "a disclosure whose TRIGGER carries the bound when one is
  * set, so folding never hides state" was written when the month bound had a trigger of its own. It has not,
  * since the two stacked disclosures (the month bound's and the faces strip's) became one row — a
- * `--spacing-control-sm` trigger is 44px at a coarse pointer, so the pane was paying that twice for two
+ * `--size-control-sm` trigger is 44px at a coarse pointer, so the pane was paying that twice for two
  * facts. What changes is that ONE name now has to carry BOTH, and it still hides neither.
  *
  * THE GRAMMAR IS DERIVED FROM THE TWO TRIGGERS IT REPLACES, not invented. They read

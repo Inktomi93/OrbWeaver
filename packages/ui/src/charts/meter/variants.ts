@@ -31,7 +31,7 @@ export const linearMeterVariants = tv({
 export const arcMeterVariants = tv({
   slots: {
     // THE DIAL IS A DISPLAY GRAPHIC, SO IT TAKES A DISPLAY SIZE (#685 — "a 138x80 card holding a 40x40 arc
-    // is a lot of card"). It was `size-control-lg`, and a CONTROL token was the wrong nature twice over: it
+    // is a lot of card"). It was `size-(--size-control-lg)`, and a CONTROL token was the wrong nature twice over: it
     // is POINTER-CONDITIONAL (D62 P1), so the dial rendered 56px on a touch device and shrank to 40px on the
     // desktop where the finding was taken — a graphic that resizes with the input device, which is exactly
     // what §13.9's display family (avatars, switch-thumb, checkbox, slider-thumb) exists to prevent — and
@@ -87,9 +87,9 @@ export const segmentedClockVariants = tv({
   },
   variants: {
     size: {
-      sm: { root: "size-control-sm" },
-      md: { root: "size-control-md" },
-      lg: { root: "size-control-lg" },
+      sm: { root: "size-(--size-control-sm)" },
+      md: { root: "size-(--size-control-md)" },
+      lg: { root: "size-(--size-control-lg)" },
     },
     filled: { false: { segment: "text-muted" } },
     // Dims the whole glyph — never the sole signal, paired with the lock glyph in the center-emphasis slot.
@@ -292,7 +292,7 @@ export const ringGaugeVariants = tv({
   slots: {
     // The orb column: the ring over an optional label + value readout (the mockup .orb stack).
     root: "flex flex-col items-center gap-field",
-    svg: "block size-control-lg",
+    svg: "block size-(--size-control-lg)",
     // The empty ring track + the value glyph centered in the arc. The track takes the EDGE token for the
     // reason `arcMeterVariants.track` states (#685, swept here by #693 — this gauge is the arc meter's
     // twin, and it wore the same `text-muted`). MEASURED in situ on the panel these orbs ride: `muted`

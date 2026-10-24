@@ -106,13 +106,13 @@ export interface RowActionsMenuProps {
  *
  * The trigger is ICON-ONLY at every arm — a glyph with an `aria-label` and no text run — so it must be
  * sized on an axis that floors BOTH sides. `triggerSize` used to be a raw passthrough, and its `"sm"`
- * value therefore named Button's TEXT step (`h-control-sm px-block text-label`): a pointer-conditional
+ * value therefore named Button's TEXT step (`h-(--size-control-sm) px-block text-label`): a pointer-conditional
  * HEIGHT with a CONTENT width of `px-block × 2 + a 16px glyph` = 40px, i.e. 40×44 under a finger. That
  * is the D62 P1 floor missed on the short side, filed by design-audit's `tap-target` against the theme
  * Looks rows (`[aria-label="Actions for Hearth"]` / "Light" / "Mocha" — 3 affected of 3 judged, short
  * side 40px, settings:appearance --mobile 2026-09-05).
  *
- * `icon-sm` is the SAME `--spacing-control-sm` box on both axes (44px coarse / 32px fine — the token is
+ * `icon-sm` is the SAME `--size-control-sm` box on both axes (44px coarse / 32px fine — the token is
  * pointer-conditional, so the box IS the tap floor and needs none of the `glyph-*` ramp's hit-area
  * pseudo; button/variants.ts states that arm's contract). Row HEIGHT is unchanged at both pointer
  * classes; the trigger gains 4px of width at a coarse pointer and sheds 8 at a fine one, which is the

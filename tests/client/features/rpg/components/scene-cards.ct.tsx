@@ -392,7 +392,7 @@ test.describe("at phone width with a coarse pointer", () => {
     expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
     const touchTarget = await page.evaluate(() => {
       const probe = document.createElement("div");
-      probe.style.blockSize = "var(--spacing-touch-target)";
+      probe.style.blockSize = "var(--size-touch-target)";
       document.body.append(probe);
       const height = probe.getBoundingClientRect().height;
       probe.remove();

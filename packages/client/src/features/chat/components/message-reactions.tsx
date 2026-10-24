@@ -11,7 +11,7 @@
 // has a two-state model ("I have reacted" / "I have not"), which is exactly what `aria-pressed` says. That
 // state is answered from the viewer's own SEAT, not from a count — a reactor total cannot tell a screen
 // reader whether the press would add or remove. `Toggle size="chip"` carries the ≥44px hit floor by
-// construction (`--spacing-touch-target` is the POINTER-CONDITIONAL token: 44px coarse, 28px fine), so the
+// construction (`--size-touch-target` is the POINTER-CONDITIONAL token: 44px coarse, 28px fine), so the
 // pill stays small in a dense desktop transcript and is thumb-sized on a phone with no feature-side
 // pointer variant (`no-pointer-variants-in-features`).
 //

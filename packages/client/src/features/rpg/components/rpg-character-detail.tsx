@@ -72,7 +72,7 @@ function SheetLevel({ level, onEditLevel }: { readonly level: number | null; rea
             const n = Number.parseInt(trimmed, 10);
             onEditLevel(trimmed === "" || Number.isNaN(n) ? null : Math.max(0, n));
           }}
-          className="!w-avatar-md px-field text-right tabular-nums"
+          className="!w-(--size-avatar-md) px-field text-right tabular-nums"
           restClassName="tabular-nums"
         />
       </Row>
@@ -144,7 +144,7 @@ function WalletChip({
                 onEditAmount(n);
               }
             }}
-            className="!w-avatar-md px-field text-right tabular-nums"
+            className="!w-(--size-avatar-md) px-field text-right tabular-nums"
             restClassName="tabular-nums"
           />
           <Text as="span" voice="gloss">

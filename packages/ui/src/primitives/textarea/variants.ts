@@ -19,8 +19,8 @@ export const textareaVariants = tv({
   ],
   variants: {
     size: {
-      default: "min-h-control-lg",
-      compact: "min-h-control-md",
+      default: "min-h-(--size-control-lg)",
+      compact: "min-h-(--size-control-md)",
     },
   },
   defaultVariants: { size: "default" },

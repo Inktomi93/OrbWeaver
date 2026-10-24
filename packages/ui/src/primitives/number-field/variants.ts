@@ -1,6 +1,6 @@
 import { DISABLED_STATE, DISABLED_STATE_NATIVE, FOCUS_RING_INSET, tv } from "#lib";
 
-// Steppers are full size-touch-target squares; rings go inset because the group clips overflow for
+// Steppers are full size-(--size-touch-target) squares; rings go inset because the group clips overflow for
 // the rounded border.
 export const numberFieldVariants = tv({
   slots: {
@@ -9,7 +9,7 @@ export const numberFieldVariants = tv({
     scrubCursor: "flex text-foreground",
     group: ["flex w-full items-stretch overflow-hidden rounded-control border border-input-border bg-field-fill", "data-invalid:border-destructive"],
     decrement: [
-      "group flex size-touch-target shrink-0 cursor-pointer select-none items-center justify-center border-r border-input-border text-foreground",
+      "group flex size-(--size-touch-target) shrink-0 cursor-pointer select-none items-center justify-center border-r border-input-border text-foreground",
       "transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent active:bg-accent/80",
       `outline-none ${FOCUS_RING_INSET}`,
       `${DISABLED_STATE_NATIVE} ${DISABLED_STATE}`,
@@ -23,7 +23,7 @@ export const numberFieldVariants = tv({
       "data-invalid:text-destructive",
     ],
     increment: [
-      "group flex size-touch-target shrink-0 cursor-pointer select-none items-center justify-center border-l border-input-border text-foreground",
+      "group flex size-(--size-touch-target) shrink-0 cursor-pointer select-none items-center justify-center border-l border-input-border text-foreground",
       "transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent active:bg-accent/80",
       `outline-none ${FOCUS_RING_INSET}`,
       `${DISABLED_STATE_NATIVE} ${DISABLED_STATE}`,
@@ -46,12 +46,12 @@ export const numberFieldVariants = tv({
   // input with centered body type). `inline` is the knob-row twin: a
   // stepper-less mono cell in `--width-number-inline`, right-aligned so a column of knob values reads down
   // one number edge, at the `code` type step because a slider's number twin is a datum, not prose. Its
-  // input keeps `h-control-sm` — the per-pointer control height (32px fine / 44px coarse), so an
+  // input keeps `h-(--size-control-sm)` — the per-pointer control height (32px fine / 44px coarse), so an
   // instrument-density knob row still meets the coarse tap floor.
   variants: {
     size: {
-      md: { root: "w-full", input: "h-touch-target text-center text-field leading-field" },
-      inline: { root: "w-number-inline", input: "h-control-sm px-field text-right font-mono text-code-field leading-code-field" },
+      md: { root: "w-full", input: "h-(--size-touch-target) text-center text-field leading-field" },
+      inline: { root: "w-number-inline", input: "h-(--size-control-sm) px-field text-right font-mono text-code-field leading-code-field" },
     },
   },
   defaultVariants: { size: "md" },

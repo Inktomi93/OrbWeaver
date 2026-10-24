@@ -132,7 +132,7 @@ function BlockView({ block, onSelect }: { readonly block: PreviewBlock; readonly
       size="sm"
       // `p-row` is LOAD-BEARING, not drift: it overrides the `sm` step's sealed `px-block` on purpose — this
       // button wraps a multi-line block (kicker + body + cue) in a `flex-col`, so it needs top/bottom padding
-      // the horizontal-only `px-block` never carries; the fixed `h-control-sm` this arm also sets is moot once
+      // the horizontal-only `px-block` never carries; the fixed `h-(--size-control-sm)` this arm also sets is moot once
       // the flex-col content grows the box past it.
       className="min-w-0 flex-1 flex-col items-start gap-field rounded-control p-row text-left"
       onClick={(): void => onSelect(block.section.id)}

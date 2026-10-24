@@ -1,6 +1,6 @@
 import { DISABLED_STATE, FOCUS_RING_HAS, tv } from "#lib";
 
-// The slider skin. The control row is h-control-sm so the drag surface meets the ≥44px touch
+// The slider skin. The control row is h-(--size-control-sm) so the drag surface meets the ≥44px touch
 // floor (§4b axis 3); the visible track stays h-field. Base UI positions Indicator/Thumb inline.
 // The header row carries the optional Label + Value readout above the control. The Indicator lives INSIDE
 // the track (it is the fill, and wants the rail's clip); the thumbs are the track's SIBLINGS.
@@ -17,12 +17,12 @@ export const sliderVariants = tv({
     // THE CONTROL IS INSET BY HALF A THUMB ON BOTH SIDES (side-eye 2026-08-22 P2-8). Base UI centres a
     // thumb ON its value position, so at `min` and `max` the knob hangs half its width outside this box.
     // Measured at a 430px coarse viewport: the max thumb ran 406→430 and the min thumb 0→24 — flush with
-    // the screen edge, its grabbable half on the OS edge-swipe bezel. `mx-slider-inset` is exactly that
-    // half (`--spacing-slider-inset`), and the `w-full` is GONE with it: the Control is a stretch item of
+    // the screen edge, its grabbable half on the OS edge-swipe bezel. `mx-(--size-slider-inset)` is exactly that
+    // half (`--size-slider-inset`), and the `w-full` is GONE with it: the Control is a stretch item of
     // the column-flex root, so `width:auto` fills the row MINUS the margins, where `w-full` + margins
     // would overflow. Percentages resolve against this box, so both extremes move inboard together and
     // the rail simply shortens by one thumb width.
-    control: "relative mx-slider-inset flex h-control-sm touch-none select-none items-center",
+    control: "relative mx-(--size-slider-inset) flex h-(--size-control-sm) touch-none select-none items-center",
     // Base UI sets data-invalid on Track (and Control/Thumb) when wrapped in an invalid <Field>
     // (FieldRootState) — the track fill is the visible surface, so it carries the destructive skin.
     track: "relative h-field w-full grow overflow-hidden rounded-full bg-input data-invalid:bg-destructive/20",
@@ -33,7 +33,7 @@ export const sliderVariants = tv({
       // is a no-op, so `:focus-visible`/`data-focused` on the thumb never matches for a bare Slider). Key
       // the ring off the nested input's own focus-visible via :has() so EVERY slider rings on keyboard
       // focus (WCAG 2.4.7), Field-wrapped or not (focus-ring.ts _HAS is exactly this shape).
-      "size-slider-thumb rounded-full border border-border",
+      "size-(--size-slider-thumb) rounded-full border border-border",
       // THE KNOB'S CENTERING IS LAYOUT, NOT A RESTING TRANSFORM (#1187, design-audit `off-grid-transform`
       // P3 on settings:chat-behavior --mobile). Base UI positions each thumb with an INLINE
       // `inset-inline-start: <pct>%; top: 50%; translate: -50% -50%` (slider/thumb/SliderThumb.js) — a
@@ -49,13 +49,13 @@ export const sliderVariants = tv({
       // the translate can reach. Taking the transform out is the fix that holds: the box lands in the same
       // place, and the browser snaps a laid-out edge where it resamples a transformed raster.
       //
-      // `-ms-slider-inset` IS the half-thumb, not a second number: `--spacing-slider-inset` is defined as
-      // half of `--spacing-slider-thumb` (the Control's own `mx-slider-inset` above rides the same fact),
+      // `-ms-(--size-slider-inset)` IS the half-thumb, not a second number: `--size-slider-inset` is defined as
+      // half of `--size-slider-thumb` (the Control's own `mx-(--size-slider-inset)` above rides the same fact),
       // and margin-inline-START is direction-correct — under RTL the inline start edge is the right one and
       // a negative start margin shifts the box the way Base UI's mirrored `translate: 50%` did. The block
       // axis is physical `-mt` because `orientation` is narrowed OUT of this seal (slider.tsx), so the
       // vendor's cross offset is always `top: 50%`.
-      "translate-none! -ms-slider-inset -mt-slider-inset",
+      "translate-none! -ms-(--size-slider-inset) -mt-(--size-slider-inset)",
       "transition-shadow duration-(--motion-fast) ease-out-expo",
       "outline-none",
       FOCUS_RING_HAS,

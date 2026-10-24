@@ -1,6 +1,6 @@
 // The shared field-chrome box worn by input, textarea, and the select trigger — the `bg-input`
 // bordered control at full width with the body-type token and horizontal padding. Each consumer
-// layers its own height (`h-control-sm` / `min-h-control-lg`), the interaction state machine, and
+// layers its own height (`h-(--size-control-sm)` / `min-h-(--size-control-lg)`), the interaction state machine, and
 // (input/textarea only) the placeholder + invalid treatment on top.
 //
 // _BOX is the same chrome MINUS the control-scale bits (padding + type). It exists because the scale is
@@ -34,7 +34,7 @@ export const FIELD_CONTROL_BOX = "w-full min-w-0 rounded-control border border-i
 //      every field inside a `<Surface>`, i.e. most of them.
 //   2. a raw `@media (any-pointer: coarse)` block in ui globals.css plus a second arm in tiers.css. Legal,
 //      and it worked, but §4b axis 3 says a capability is baked into a TOKEN so the call site carries NO
-//      variant — `spacing.touch-target` is the worked precedent, 44px coarse / 28px fine. Two CSS homes
+//      variant — `size.touch-target` is the worked precedent, 44px coarse / 28px fine. Two CSS homes
 //      re-deriving one platform fact is the thing the token layer exists to delete.
 // `text.field` carries the arm instead (tokens.json `$extensions["orb.pointerFine"]`), so the value is
 // 16px on a finger and 15px on a mouse and NOTHING here has to know which.

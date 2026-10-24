@@ -34,7 +34,7 @@ interface TrackerValueProps {
   readonly placeholder?: string;
   /** Sizing/alignment for the EDIT input (and, absent `restClassName`, the rest button too). */
   readonly className?: string;
-  /** Rest-button override — when the input needs a fixed width (`!w-avatar-lg` numerics) the rest state
+  /** Rest-button override — when the input needs a fixed width (`!w-(--size-avatar-lg)` numerics) the rest state
    *  should still hug its text like the read-only arm; pass the rest-specific classes here. */
   readonly restClassName?: string;
   /** The rest button's `title` — what this edit actually WRITES, when "Click to edit" understates it. The
@@ -165,7 +165,7 @@ export function TrackerValue({
       // COMPACT in-place editor (owner bar: the revealed input occupies the SAME visual slot the display
       // did — no clip, no overflow, no layout jump): the `inline` layout arm IS that box — text-height,
       // the rest state's `px-field` inset, the display's `text-label` type — where the default `field` arm
-      // (h-control-sm/px-block/text-body) would grow the row on reveal. Callers append width/alignment
+      // (h-(--size-control-sm)/px-block/text-body) would grow the row on reveal. Callers append width/alignment
       // only, never a height.
       layout="inline"
       className={className ?? ""}

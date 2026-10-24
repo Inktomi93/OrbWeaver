@@ -248,8 +248,8 @@ function LocalInviteArm({
   if (preview.isPending) {
     return (
       <Stack gap="row" aria-label="Loading your invite">
-        <Skeleton className="h-control-md w-full" />
-        <Skeleton className="h-control-md w-full" />
+        <Skeleton className="h-(--size-control-md) w-full" />
+        <Skeleton className="h-(--size-control-md) w-full" />
       </Stack>
     );
   }
@@ -308,8 +308,8 @@ function LoginRedirecting({ providerName }: { readonly providerName: string }): 
 function LoginLoading(): ReactElement {
   return (
     <Stack gap="row" aria-label="Loading sign-in options">
-      <Skeleton className="h-control-md w-full" />
-      <Skeleton className="h-control-md w-full" />
+      <Skeleton className="h-(--size-control-md) w-full" />
+      <Skeleton className="h-(--size-control-md) w-full" />
     </Stack>
   );
 }

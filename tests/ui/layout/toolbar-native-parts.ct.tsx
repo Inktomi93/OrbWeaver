@@ -33,7 +33,7 @@ test.describe("coarse-pointer toolbar geometry", () => {
   test("the separator remains a full-height vertical hairline in the control strip", async ({ mount }) => {
     const component = await mount<typeof ToolbarNativePartsStory>("tests/ui/layout/toolbar-native-parts-stories/ToolbarNativePartsStory");
     const toolbar = component.getByRole("toolbar", { name: "Document tools", exact: true });
-    const height = `${SNAPPED_LENGTH_BASE_PX["spacing.control-md"]}px`;
+    const height = `${SNAPPED_LENGTH_BASE_PX["size.control-md"]}px`;
     await expect(toolbar).toHaveCSS("display", "flex");
     await expect(toolbar).toHaveCSS("height", height);
     const separator = toolbar.getByRole("separator");

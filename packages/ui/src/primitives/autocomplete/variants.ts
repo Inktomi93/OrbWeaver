@@ -7,7 +7,7 @@ import { ACCENT_HOVER, FOCUS_RING_BARE, FOCUS_RING_WITHIN, ITEM_ROW, OVERLAY_ARR
 export const autocompleteVariants = tv({
   slots: {
     inputGroup: [
-      "relative flex h-control-sm w-full min-w-0 items-center rounded-control border border-input-border bg-field-fill",
+      "relative flex h-(--size-control-sm) w-full min-w-0 items-center rounded-control border border-input-border bg-field-fill",
       "transition-colors duration-(--motion-fast) ease-out-expo",
       FOCUS_RING_WITHIN,
       "has-data-disabled:pointer-events-none has-data-disabled:opacity-50",
@@ -18,7 +18,7 @@ export const autocompleteVariants = tv({
       "outline-none",
     ],
     clear: [
-      "mr-field flex size-control-sm shrink-0 items-center justify-center rounded-control text-muted-foreground outline-none",
+      "mr-field flex size-(--size-control-sm) shrink-0 items-center justify-center rounded-control text-muted-foreground outline-none",
       // Offset-less ring — the Clear sits INSIDE the input group, whose FOCUS_RING_WITHIN already
       // carries the offset ring; a second offset here would escape the box.
       `${ACCENT_HOVER} ${FOCUS_RING_BARE}`,

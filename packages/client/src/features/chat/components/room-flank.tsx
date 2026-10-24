@@ -59,7 +59,7 @@ export function FlankColumn({
         "empty:hidden",
         flank.panelMode
           ? cn(
-              "relative min-h-0 w-(--width-sidebar-sm) overflow-y-auto pt-control-sm transition-[translate,visibility] duration-(--shell-motion) ease-(--shell-ease)",
+              "relative min-h-0 w-(--width-sidebar-sm) overflow-y-auto pt-(--size-control-sm) transition-[translate,visibility] duration-(--shell-motion) ease-(--shell-ease)",
               !flank.occupiesRow && "absolute end-0 top-0 bottom-0",
               flank.expanded ? "visible translate-x-0" : "pointer-events-none invisible translate-x-full",
               flank.expanded && !flank.inline && "z-(--z-raised) bg-card shadow-overlay",

@@ -5,7 +5,7 @@ import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_INSET, tv } from "#lib";
 // bar that slides along that edge. Tabs sit above the indicator via z-(--z-raised).
 // `orientation="vertical"` (Base UI mirrors `data-orientation`
 // onto every part) is the one CSS branch: root/list flip from a stack to a side-by-side row, and the
-// list stacks its tabs in a column. Tabs ride h-control-sm (the ≥44px touch floor, §4b axis 3) in the
+// list stacks its tabs in a column. Tabs ride h-(--size-control-sm) (the ≥44px touch floor, §4b axis 3) in the
 // default `inline` layout; the `stacked` arm trades the fixed height for content height + a min-height
 // floor (see the variant's own note). The --active-tab-* vars the indicator reads are recomputed by
 // Base UI for the vertical axis; the underline reads `left`/`width` (recomputed there too), so it
@@ -51,11 +51,11 @@ export const tabsVariants = tv({
   },
   variants: {
     // THE TAB CELL'S ARRANGEMENT — and, with it, its height rule. `inline` is the strip tab: one row, the
-    // fixed `h-control-sm` chrome height. `stacked` is the HUD/rail cell: glyph OVER caption, so the height
-    // must FOLLOW the content (`h-auto`) with `min-h-control-sm` keeping the ≥44px coarse tap floor.
+    // fixed `h-(--size-control-sm)` chrome height. `stacked` is the HUD/rail cell: glyph OVER caption, so the height
+    // must FOLLOW the content (`h-auto`) with `min-h-(--size-control-sm)` keeping the ≥44px coarse tap floor.
     //
     // This is a VARIANT and not a call-site `className` for a measured reason (the 2026-08-01 side-eye P0):
-    // `h-auto` appended by a caller did NOT beat `h-control-sm` — the custom spacing scale was unregistered
+    // `h-auto` appended by a caller did NOT beat `h-(--size-control-sm)` — the custom spacing scale was unregistered
     // in tailwind-merge, both classes survived, and STYLESHEET ORDER decided (h-auto loses; `.h-auto` is
     // emitted before `.h-control-sm`). The rail's captions rendered as a 5px sliver. #146 registered the
     // scale, so the mechanism INVERTED: a call-site height now wins the merge outright. That does not undo
@@ -63,8 +63,8 @@ export const tabsVariants = tv({
     // is the variant plus the `ui-size-via-variant` gate, never a merge accident. A sealed size can only be
     // overridden HERE, the button `size="media"` precedent (F2).
     layout: {
-      inline: { tab: `h-control-sm px-block ${FOCUS_RING}` },
-      // `min-w-touch-target` is the WIDTH half of the same floor the height already carries, and it is
+      inline: { tab: `h-(--size-control-sm) px-block ${FOCUS_RING}` },
+      // `min-w-(--size-touch-target)` is the WIDTH half of the same floor the height already carries, and it is
       // sealed here for the same reason (side-eye 2026-08-07 §① P2). The rpg rail put the cells on
       // `grid-auto-columns: max-content` at a coarse pointer and three of six came out 34-43px wide — a
       // 49px-tall cell you cannot reliably hit, with no `::after` hit pseudo to make up the difference the
@@ -84,7 +84,7 @@ export const tabsVariants = tv({
       // was rebuilt for, and it is CT-pinned. The fork lives HERE rather than as an override appended to the
       // base, so each arm composes exactly one homed `lib/focus-ring.ts` fragment and neither has to
       // neutralise the other's offset.
-      stacked: { tab: `h-auto min-h-control-sm min-w-touch-target flex-col gap-0 px-field py-field ${FOCUS_RING_INSET}` },
+      stacked: { tab: `h-auto min-h-(--size-control-sm) min-w-(--size-touch-target) flex-col gap-0 px-field py-field ${FOCUS_RING_INSET}` },
     },
   },
   defaultVariants: { layout: "inline" },

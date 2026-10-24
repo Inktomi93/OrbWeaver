@@ -93,7 +93,7 @@ body {
   background-color: var(--color-primary);
   animation: orb-indeterminate-hairline var(--motion-shimmer) linear infinite;
 }
-@media (prefers-reduced-motion: reduce) {
+@variant motion-reduce {
   .orb-indeterminate-hairline::after {
     content: none;
   }
@@ -173,10 +173,9 @@ body {
  * the glass leaves each surface's own background standing (`.shell-panel`'s --color-sidebar, a bubble's
  * variant fill, the reading surface's --color-card), which is what "no glass here" is supposed to mean.
  *
- * The 48rem literal is duplicated from shell.css's `@media (max-width: 48rem)` because an @media
- * condition cannot read a custom property (dimension.shell-breakpoint's own token note says so); this
- * range condition is its exact complement, and the pair must stay in sync. */
-@media (width > 48rem) {
+ * `shell-desktop` is the exact complement of shell.css's `shell-mobile`; both are generated from
+ * `breakpoint.shell`. */
+@variant shell-desktop {
   @supports (backdrop-filter: blur(1px)) {
     /* THE PANE'S GLASS PAINTS ON A CARRIER PSEUDO, NOT ON THE PANE (#1154). `backdrop-filter` on
      * `.shell-panel` made the whole pane one composited layer, which turns OFF per-paint baseline snapping
@@ -517,7 +516,7 @@ body {
  * the compositor still pays for it, and the preference is a request to stop spending that.
  *
  * surface list = BLUR_SURFACES (@orb/contracts/settings). */
-@media (prefers-reduced-transparency: reduce) {
+@variant transparency-reduce {
   :root {
     --blur-fill-chrome: 100%;
     --blur-fill-dense: 100%;
@@ -624,7 +623,7 @@ body {
  * surface list: the four SLOTS above — it is
  * deliberately no longer the BLUR_SURFACES sync (that list is what the GLASS paints; `messages` is
  * excluded here on purpose, per 1). */
-@media (prefers-contrast: more) {
+@variant contrast-more {
   /* A noise overlay works against a stated high-contrast preference — drop it entirely here. */
   html[data-texture="grain"] .shell-grid::after,
   html[data-texture="grain"] [data-slot="card-root"]::after {
@@ -632,38 +631,42 @@ body {
   }
 }
 
-@media (prefers-contrast: more) and (width > 48rem) {
-  :root {
-    /* One dial for all four edges: how far each border is pulled from its surface toward that surface's
-       own text colour. FRAMEBUFFER-measured on the list panel's seam (app-shell.ct.tsx annotates every
-       run): 6.10:1 dark and 4.66:1 light at this value, against 1.14:1 / 1.23:1 for the hairline it
-       replaces — so both palettes clear the 3:1 non-text floor with margin, on the pixels, not on paper. */
-    --contrast-edge-mix: 65%;
-  }
-  html .shell-panel[data-panel-side="list"] {
-    border-inline-end-width: 2px;
-    border-inline-end-color: color-mix(in oklab, var(--color-sidebar-foreground) var(--contrast-edge-mix), var(--color-sidebar));
-  }
-  html .shell-panel[data-panel-side="context"] {
-    border-inline-start-width: 2px;
-    border-inline-start-color: color-mix(in oklab, var(--color-sidebar-foreground) var(--contrast-edge-mix), var(--color-sidebar));
-  }
-  html [data-slot="composer"] {
-    border-width: 2px;
-    border-color: color-mix(in oklab, var(--color-foreground) var(--contrast-edge-mix), var(--color-card));
-  }
-  html [data-slot="dialog-popup"],
-  html [data-slot="alert-dialog-popup"] {
-    border-width: 2px;
-    border-color: color-mix(in oklab, var(--color-popover-foreground) var(--contrast-edge-mix), var(--color-popover));
+@variant contrast-more {
+  @variant shell-desktop {
+    :root {
+      /* One dial for all four edges: how far each border is pulled from its surface toward that surface's
+         own text colour. FRAMEBUFFER-measured on the list panel's seam (app-shell.ct.tsx annotates every
+         run): 6.10:1 dark and 4.66:1 light at this value, against 1.14:1 / 1.23:1 for the hairline it
+         replaces — so both palettes clear the 3:1 non-text floor with margin, on the pixels, not on paper. */
+      --contrast-edge-mix: 65%;
+    }
+    html .shell-panel[data-panel-side="list"] {
+      border-inline-end-width: 2px;
+      border-inline-end-color: color-mix(in oklab, var(--color-sidebar-foreground) var(--contrast-edge-mix), var(--color-sidebar));
+    }
+    html .shell-panel[data-panel-side="context"] {
+      border-inline-start-width: 2px;
+      border-inline-start-color: color-mix(in oklab, var(--color-sidebar-foreground) var(--contrast-edge-mix), var(--color-sidebar));
+    }
+    html [data-slot="composer"] {
+      border-width: 2px;
+      border-color: color-mix(in oklab, var(--color-foreground) var(--contrast-edge-mix), var(--color-card));
+    }
+    html [data-slot="dialog-popup"],
+    html [data-slot="alert-dialog-popup"] {
+      border-width: 2px;
+      border-color: color-mix(in oklab, var(--color-popover-foreground) var(--contrast-edge-mix), var(--color-popover));
+    }
   }
 }
 
 /* The alpha half, in its own query so the reduce arm above keeps the alpha when both are set. */
-@media (prefers-contrast: more) and (not (prefers-reduced-transparency: reduce)) {
-  :root {
-    --blur-fill-chrome: 92%;
-    --blur-fill-dense: 92%;
+@variant contrast-more {
+  @variant not-transparency-reduce {
+    :root {
+      --blur-fill-chrome: 92%;
+      --blur-fill-dense: 92%;
+    }
   }
 }
 
@@ -738,7 +741,7 @@ html[data-shadow] [data-slot="message-bubble"] {
   max-width: calc(var(--reading-measure) * var(--reading-body-scale, 1));
   /* The centred skins' fixed column width (row-placement.ts): the measure, or the row less its two
    * identity rails when the row is narrower than both. `cqi` resolves against the row's own container. */
-  --centred-column-width: min(calc(var(--reading-measure) * var(--reading-body-scale, 1)), calc(100cqi - 2 * (var(--spacing-avatar-lg) + var(--spacing-row))));
+  --centred-column-width: min(calc(var(--reading-measure) * var(--reading-body-scale, 1)), calc(100cqi - 2 * (var(--size-avatar-lg) + var(--spacing-row))));
 }
 
 /* THE ROOM'S TRACK CENTRES ON THE DEVICE-PIXEL GRID (#1362 — docs/law/integer-line-boxes.md Law 3). The track used
@@ -815,7 +818,7 @@ html[data-shadow] [data-slot="message-bubble"] {
 }
 /* …and the pair is spaced so those areas never overlap: the floor less the 24px button box. */
 [data-streamdown="code-block-actions"] {
-  column-gap: calc(var(--spacing-touch-target) - var(--spacing-glyph-md));
+  column-gap: calc(var(--size-touch-target) - var(--size-glyph-md));
 }
 [data-streamdown="code-block-copy-button"]::before,
 [data-streamdown="code-block-download-button"]::before {
@@ -823,8 +826,8 @@ html[data-shadow] [data-slot="message-bubble"] {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: var(--spacing-touch-target);
-  height: var(--spacing-touch-target);
+  width: var(--size-touch-target);
+  height: var(--size-touch-target);
   translate: -50% -50%;
 }
 /* WITH THE SOFT KEYBOARD UP the transcript is what the reader needs: the plugin panels' disclosure folds

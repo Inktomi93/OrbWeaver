@@ -104,9 +104,9 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
   // `min-w-0` beside `min-h-0`: inside the flank ROW the thread is a horizontal flex child, and without it
   // a long unbreakable line in the transcript would push the column past its share instead of scrolling.
   // With the plugin column out of the row, its edge control sits over the transcript's top corner: the thread keeps
-  // that corner clear (`pe-control-lg` is the control plus a gap; shell.css's flank distance reads the same token).
+  // that corner clear (`pe-(--size-control-lg)` is the control plus a gap; shell.css's flank distance reads the same token).
   const thread = (
-    <Stack className={cn("min-h-0 min-w-0 flex-1", !flank.occupiesRow && "pe-control-lg")} data-slot="chat-room-thread">
+    <Stack className={cn("min-h-0 min-w-0 flex-1", !flank.occupiesRow && "pe-(--size-control-lg)")} data-slot="chat-room-thread">
       <MessageThreadAnchor>
         {/* P5 CYOA (§5.3): the thread's choice buttons send through the room's own send capability —
             a separate useSendMessage instance from the composer's, so a pick never clears the draft. */}

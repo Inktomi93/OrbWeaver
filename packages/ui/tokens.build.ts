@@ -1,18 +1,6 @@
-// The DTCG → derived-theme codegen (UI-Architecture §3, D42): src/tokens/tokens.json is the ONE
-// design-value source; this script derives THREE artifacts — src/styles/theme.css (the Tailwind v4
-// @theme block + the [data-theme] seed blocks), src/tokens/index.ts (the typed TS map), and
-// src/tokens/themes.gen.ts (the seed value-sets as TS, re-exported by index). The generated artifacts
-// are committed; hand-editing any
-// output, or editing tokens.json without regenerating, leaves them out of sync ("derived, never hand-authored"). Run: pnpm --filter @orb/ui tokens:build
-//
-// WHY the value-sets are their OWN module (2026-08-02, the 10-palette default-character pack): one seed
-// palette emits ~37 lines, so a growing roster pushed the single index past the 450-line
-// `component-size-ui` cap. The split keeps each artifact legible and wears the repo's generated-file
-// name (`*.gen.ts` — the same convention as client's routeTree.gen.ts, already exempted by BOTH size
-// gates' SKIP_RE and by biome's files.includes). index.ts re-exports it, so no consumer import moves.
-//
-// Style Dictionary v5 supplies the resolved token dictionary; Orb's contract owns validation and the
-// explicit type-directed CSS serialization. Runtime-only values stay concrete in orb.cssValues.
+// The DTCG codegen (UI-Architecture §3, D42): src/tokens/tokens.json is the one design-value source and this
+// script derives theme.css, tokens/index.ts and tokens/themes.gen.ts from it. Style Dictionary resolves the
+// dictionary; the contract validates the source; the CSS serialisation is type-directed here.
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, posix } from "node:path";
 import process from "node:process";
@@ -40,6 +28,7 @@ const OKLCH_COMPONENT_COUNT = 3;
 const ROOT_REM_PX = 16;
 const CUBIC_BEZIER_COORDINATE_COUNT = 4;
 const DTCG_ALIAS_RE = /^\{([^{}]+)\}$/u;
+const DTCG_EMBEDDED_ALIAS_RE = /\{([^{}]+)\}/gu;
 
 const SEED_VALUE_SET_PATHS: ReadonlySet<string> = new Set(REQUIRED_SEED_VALUE_SET_PATHS);
 const STATIC_SEED_EMIT_VARS: ReadonlySet<string> = new Set(THEME_SCOPE_STATIC_SEED_VARS);
@@ -67,11 +56,11 @@ interface GeneratedPolarityArms {
   readonly dark: string;
 }
 
-/** A pointer-conditional override: the token's fine-pointer value (DTCG `$extensions["orb.pointerFine"]`). */
+/** A pointer-conditional override: the token's resolved fine-pointer arm (`$extensions["orb.pointerFine"]`). */
 interface FineOverride {
   readonly path: readonly string[];
   readonly value: string;
-  /** The token's own `orb.output` role is `snapped` — the override inherits the device-pixel belt (#1640). */
+  /** A snapped token's override keeps the device-pixel serialisation of its base arm. */
   readonly snapped: boolean;
 }
 
@@ -304,10 +293,20 @@ function resolveCssValue(value: string, portableByPath: ReadonlyMap<string, stri
   return resolved;
 }
 
+/** Tailwind namespaces reset to the tokens: a stock step (`rounded-lg`, `md:`) must not compile beside them. */
+const RESET_NAMESPACES = ["radius", "shadow", "breakpoint"] as const;
+
 function renderThemeCss(tokens: readonly GeneratedCssValue[]): string {
+  const resets = RESET_NAMESPACES.map((namespace) => `  --${namespace}-*: initial;`);
   const lines = tokens.map((t) => `  ${cssVarName(t.path)}: ${t.value};`);
-  // These namespaces are closed: stock scales must not remain valid beside the owned tokens.
-  return `/* ${HEADER}\n */\n@theme {\n  --radius-*: initial;\n  --shadow-*: initial;\n${lines.join("\n")}\n}\n`;
+  return `/* ${HEADER}\n */\n@theme {\n${[...resets, ...lines].join("\n")}\n}\n`;
+}
+
+/** One `@custom-variant` per named condition; a built-in of the same name is replaced, so the query has one home. */
+function renderConditionVariants(conditions: Readonly<Record<string, string>>): string {
+  return `\n${Object.entries(conditions)
+    .map(([name, query]) => `@custom-variant ${name} (@media ${query});`)
+    .join("\n")}\n`;
 }
 
 function renderRootCss(tokens: readonly GeneratedCssValue[]): string {
@@ -318,8 +317,12 @@ function renderRootCss(tokens: readonly GeneratedCssValue[]): string {
   return `\n:root {\n${lines.join("\n")}\n}\n`;
 }
 
-export function renderGeneratedCss(tokens: readonly GeneratedCssValue[]): string {
-  return renderThemeCss(tokens.filter((token) => token.placement === "theme")) + renderRootCss(tokens.filter((token) => token.placement === "root"));
+export function renderGeneratedCss(tokens: readonly GeneratedCssValue[], conditions: Readonly<Record<string, string>>): string {
+  return (
+    renderThemeCss(tokens.filter((token) => token.placement === "theme")) +
+    renderConditionVariants(conditions) +
+    renderRootCss(tokens.filter((token) => token.placement === "root"))
+  );
 }
 
 /**
@@ -343,42 +346,21 @@ export function renderGeneratedCss(tokens: readonly GeneratedCssValue[]): string
  * block is authored BELOW that floor on purpose — the fine field steps are 15px and 13px. Flooring them
  * here would enlarge every desktop form and delete the dense step outright, which is the failure this block avoids.
  */
-function renderPointerFineBlock(overrides: readonly FineOverride[]): string {
+function renderPointerFineBlock(overrides: readonly FineOverride[], query: string): string {
   if (overrides.length === 0) {
     return "";
   }
   const lines = overrides.map((o) => `    ${cssVarName(o.path)}: ${o.snapped ? snappedSerialization(o.value) : o.value};`);
-  return `\n@media (pointer: fine) {\n  :root {\n${lines.join("\n")}\n  }\n}\n`;
+  return `\n@media ${query} {\n  :root {\n${lines.join("\n")}\n  }\n}\n`;
 }
 
-/** Does this raw DTCG node carry the `snapped` output role? (contract-validated; read here for the fine arm). */
-function hasSnappedOutput(node: Record<string, unknown>): boolean {
-  const output = (node["$extensions"] as Record<string, unknown> | undefined)?.["orb.output"];
-  return typeof output === "object" && output !== null && (output as Record<string, unknown>)["kind"] === "snapped";
-}
-
-/** Collect the contract-validated pointer-fine dimensions from the raw DTCG source. */
-function collectPointerFine(node: Record<string, unknown>, path: readonly string[], out: FineOverride[]): void {
-  if ("$value" in node) {
-    const ext = (node["$extensions"] as Record<string, unknown> | undefined)?.["orb.pointerFine"];
-    if (typeof ext === "object" && ext !== null) {
-      const value = (ext as Record<string, unknown>)["value"];
-      const unit = (ext as Record<string, unknown>)["unit"];
-      if (typeof value !== "number" || (unit !== "px" && unit !== "rem")) {
-        throw new Error(`orb.pointerFine at ${path.join(".")} escaped contract validation`);
-      }
-      // The role is read off the SAME node the override rides (the contract validated both keys),
-      // so the fine arm cannot drift out of the belt its base arm is in.
-      out.push({ path, value: `${value}${unit}`, snapped: hasSnappedOutput(node) });
-    }
-    return;
+/** The resolved fine-pointer arm of a token, if it carries one; Style Dictionary has already resolved its alias. */
+function pointerFineOverride(token: TransformedToken, contractToken: ContractToken): FineOverride | null {
+  const arm = (token["$extensions"] as Record<string, unknown> | undefined)?.["orb.pointerFine"];
+  if (arm === undefined) {
+    return null;
   }
-  for (const [key, child] of Object.entries(node)) {
-    if (key.startsWith("$") || typeof child !== "object" || child === null) {
-      continue;
-    }
-    collectPointerFine(child as Record<string, unknown>, [...path, key], out);
-  }
+  return { path: token.path, value: renderDimension(arm, `${contractToken.pathString}/orb.pointerFine`), snapped: contractToken.outputRole === "snapped" };
 }
 
 /** A snapped-output dimension's resolved px at the 16px root (docs/law/integer-line-boxes.md §3b). */
@@ -393,7 +375,14 @@ function snappedBasePx(token: TransformedToken, path: string): SnappedBasePx {
   return { path: token.path, px: dimension["unit"] === "rem" ? amount * ROOT_REM_PX : amount };
 }
 
-function renderTokensTs(tokens: readonly GeneratedCssValue[], polarityArms: readonly GeneratedPolarityArms[], snapped: readonly SnappedBasePx[]): string {
+interface TokensTsInput {
+  readonly tokens: readonly GeneratedCssValue[];
+  readonly polarityArms: readonly GeneratedPolarityArms[];
+  readonly snapped: readonly SnappedBasePx[];
+  readonly conditions: Readonly<Record<string, string>>;
+}
+
+function renderTokensTs({ tokens, polarityArms, snapped, conditions }: TokensTsInput): string {
   const entries = tokens.map((t) => {
     const key = t.path.join(".");
     return `  "${key}": { cssVar: "${cssVarName(t.path)}", value: ${JSON.stringify(t.value)} },`;
@@ -422,6 +411,13 @@ function renderTokensTs(tokens: readonly GeneratedCssValue[], polarityArms: read
     "export const SNAPPED_LENGTH_BASE_PX = {",
     ...snapped.map((token) => `  ${JSON.stringify(token.path.join("."))}: ${token.px},`),
     "} as const;",
+    "",
+    "/** The named media conditions, keyed by their Tailwind variant name: the one spelling `matchMedia` reads, generated from the same source as the `@custom-variant` rules in theme.css. */",
+    "export const MEDIA_QUERIES = {",
+    ...Object.entries(conditions).map(([name, query]) => `  ${JSON.stringify(name)}: ${JSON.stringify(query)},`),
+    "} as const;",
+    "",
+    "export type MediaCondition = keyof typeof MEDIA_QUERIES;",
     "",
     "",
     "/** The `snapped` serialization and its INVERSE are generated together (#1640): a runtime consumer that must read a LIVE",
@@ -549,6 +545,7 @@ export async function generateArtifacts(uiRoot = HERE): Promise<{ themeCss: stri
   const flat: GeneratedCssValue[] = [];
   const polarityArms: GeneratedPolarityArms[] = [];
   const snapped: SnappedBasePx[] = [];
+  const fine: FineOverride[] = [];
   for (const token of dictionary.allTokens) {
     const path = token.path.join(".");
     const contractToken = contractByPath.get(path);
@@ -561,6 +558,10 @@ export async function generateArtifacts(uiRoot = HERE): Promise<{ themeCss: stri
     }
     if (contractToken.outputRole === "snapped") {
       snapped.push(snappedBasePx(token, path));
+    }
+    const override = pointerFineOverride(token, contractToken);
+    if (override !== null) {
+      fine.push(override);
     }
     polarityArms.push(...generatedPolarityArms(token, contractToken, contract.lightTokens.get(path)));
   }
@@ -582,14 +583,33 @@ export async function generateArtifacts(uiRoot = HERE): Promise<{ themeCss: stri
   if (flat.some((token) => token.value.includes("[object Object]"))) {
     throw new Error("type-directed token emission produced [object Object]");
   }
-  const fine: FineOverride[] = [];
-  collectPointerFine(source as unknown as Record<string, unknown>, [], fine);
+  const conditions = resolveConditions(contract.conditions, portableByPath);
   const seedThemes = loadSeedThemes(contract);
   return {
-    themeCss: renderGeneratedCss(flat) + renderPointerFineBlock(fine) + renderSeedThemesBlock(seedThemes),
-    tokensTs: renderTokensTs(flat, polarityArms, snapped),
+    themeCss: renderGeneratedCss(flat, conditions) + renderPointerFineBlock(fine, conditions[POINTER_FINE_CONDITION]) + renderSeedThemesBlock(seedThemes),
+    tokensTs: renderTokensTs({ tokens: flat, polarityArms, snapped, conditions }),
     themesTs: renderSeedThemesTs(seedThemes),
   };
+}
+
+const POINTER_FINE_CONDITION = "pointer-fine";
+
+/** Resolve `{breakpoint.*}` references inside the named conditions; the fine-pointer condition must exist because the override block is emitted under it. */
+function resolveConditions(
+  conditions: Readonly<Record<string, string>>,
+  portableByPath: ReadonlyMap<string, string>,
+): Record<string, string> & Record<typeof POINTER_FINE_CONDITION, string> {
+  const resolved = Object.fromEntries(
+    Object.entries(conditions).map(([name, query]) => [
+      name,
+      query.replaceAll(DTCG_EMBEDDED_ALIAS_RE, (_, alias: string) => resolveCssValue(`{${alias}}`, portableByPath)),
+    ]),
+  );
+  const pointerFine = resolved[POINTER_FINE_CONDITION];
+  if (pointerFine === undefined) {
+    throw new Error(`orb.conditions has no ${POINTER_FINE_CONDITION} condition for the fine-pointer override block`);
+  }
+  return { ...resolved, [POINTER_FINE_CONDITION]: pointerFine };
 }
 
 // tsx entrypoint (`pnpm --filter @orb/ui tokens:build`): write the committed artifacts.

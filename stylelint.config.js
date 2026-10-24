@@ -16,6 +16,7 @@ export default {
     "orb/motion-token-purity": true,
     "orb/no-raw-color-in-css": true,
     "orb/rest-transform-grid": [true, { reportDisables: true }],
+    "orb/no-raw-media-condition": true,
     "property-disallowed-list": ["/^--leading-[a-z-]+$/"],
     "declaration-property-value-allowed-list": {
       "line-height": [...leadings, "/^var\\(--orb-tier-[a-z-]+-leading\\)$/"],
@@ -25,7 +26,12 @@ export default {
   overrides: [
     {
       files: ["packages/ui/src/styles/theme.css"],
-      rules: { "orb/no-raw-color-in-css": null, "property-disallowed-list": null, "declaration-property-value-allowed-list": null },
+      rules: {
+        "orb/no-raw-color-in-css": null,
+        "orb/no-raw-media-condition": null,
+        "property-disallowed-list": null,
+        "declaration-property-value-allowed-list": null,
+      },
     },
   ],
 };

@@ -10,7 +10,7 @@
 // dead editable arm on a security surface is an affordance a later revision can re-enable by accident —
 // which is exactly the shape #650 P1-3 was filed about, one level up.
 // A ROW THEREFORE HAS TWO STATES, not three: GRANTED (a checked, non-interactive checkbox — "you already
-// have this" is a true state) and NOT GRANTED (a `w-checkbox` spacer plus a word-mark, see the last
+// have this" is a true state) and NOT GRANTED (a `w-(--size-checkbox)` spacer plus a word-mark, see the last
 // paragraph of this header). Nothing here is clickable.
 //
 // THE CONTRACT THIS COMPONENT OWES, from #24: a person must be able to see exactly what they are agreeing
@@ -96,7 +96,7 @@
 // keeps the checkbox — showing what you already have is a true state, not a false affordance — only an
 // UNCHECKED read-only row swaps to a statement, because that is specifically the shape that looks tickable
 // and isn't. With the leading-control layout the word-mark moves ONTO the label row (beside the name it
-// refuses, where the eye already is) and the lead column keeps a `w-checkbox` spacer, so mixed
+// refuses, where the eye already is) and the lead column keeps a `w-(--size-checkbox)` spacer, so mixed
 // granted/ungranted rows still share one left rail.
 
 import type { PluginCapability } from "@orb/contracts/plugin";
@@ -261,7 +261,7 @@ function GrantRow({ capability, checked, isNew, roleUnset }: GrantRowProps): Rea
       {checked ? (
         <Checkbox aria-describedby={consequenceId} aria-labelledby={nameIds} checked={true} disabled={true} />
       ) : (
-        <Stack aria-hidden={true} className="w-checkbox shrink-0" />
+        <Stack aria-hidden={true} className="w-(--size-checkbox) shrink-0" />
       )}
       <Stack className="min-w-0 flex-1">{labelBlock}</Stack>
     </Row>

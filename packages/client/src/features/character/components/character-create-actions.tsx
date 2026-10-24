@@ -156,8 +156,8 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
 // THE THRESHOLD IS DERIVED, NOT PICKED. The band spends `pane − 1 (border) − 24 (padding-inline) − 8 (band
 // gap) − 6 (action gap) − 32 (import) − 74 (labelled New) = pane − 145` on the identity cluster, and the
 // identity cluster needs `127 (the word "Characters" at the display step) + 8 (the row gap) + 24 (a bare
-// three-digit census) = 159`. So the labelled arm fits exactly while `pane >= 304`, which is 19rem — the
-// clean step the measurement lands on, which is why the literal is a rem and not a pixel count.
+// three-digit census) = 159`. So the labelled arm fits exactly while `pane >= 304` (19rem); the named pane
+// step above that is `container.cq-20`, so the arm swaps at 320px with a one-step margin.
 //
 // WIDTH-KEYED, NOT VIEWPORT-KEYED, AND CSS-ONLY. The question is "how wide is THIS PANE", which no viewport
 // media query can answer (the same 1440px desktop produces both widths) — and `.shell-panel` is already an
@@ -176,12 +176,12 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
 // the narrow arm a real `icon-sm` SQUARE — 32px fine, 44px coarse — and put exactly one of the pair in
 // layout, and therefore in the a11y tree, at any given pane width.
 
-/** The LABELLED arm: stands down below the derived 19rem pane width. */
-const CREATE_LABELLED_ARM = "@max-[19rem]:hidden";
+/** The LABELLED arm: stands down below the `cq-20` pane step. */
+const CREATE_LABELLED_ARM = "@max-cq-20:hidden";
 
-/** The ICON-ONLY arm: exists only below it. Tailwind v4 emits these as the complementary range conditions
- *  (`width < 19rem` / `width >= 19rem`), so the pair can neither overlap nor leave a gap at the boundary. */
-const CREATE_ICON_ARM = "@[19rem]:hidden";
+/** The ICON-ONLY arm: exists only below it. Tailwind emits the pair as complementary range conditions
+ *  (`width < 20rem` / `width >= 20rem`), so they can neither overlap nor leave a gap at the boundary. */
+const CREATE_ICON_ARM = "@cq-20:hidden";
 
 /** The band's primary, alone — file-local (see the header for why it is no longer exported).
  *

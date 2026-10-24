@@ -8,7 +8,7 @@ export const sortableVariants = tv({
     root: "flex flex-col gap-row",
     item: ["group/sortable-item relative flex items-center gap-field rounded-control", "data-dragging:opacity-50"],
     handle: [
-      "inline-flex h-control-sm w-control-sm shrink-0 cursor-grab items-center justify-center",
+      "inline-flex h-(--size-control-sm) w-(--size-control-sm) shrink-0 cursor-grab items-center justify-center",
       "rounded-control text-muted-foreground",
       `${ACCENT_HOVER} active:cursor-grabbing`,
       "outline-none",
@@ -16,7 +16,7 @@ export const sortableVariants = tv({
       DISABLED_STATE_NATIVE,
     ],
     // A fixed row's empty grip column, so its content starts where every movable row's does.
-    handleSpacer: "h-control-sm w-control-sm shrink-0",
+    handleSpacer: "h-(--size-control-sm) w-(--size-control-sm) shrink-0",
     content: "min-w-0 flex-1",
   },
 });

@@ -139,7 +139,7 @@ export function PluginComposerActions({ chatId }: { readonly chatId: ChatId }): 
   const direct = placed.slice(0, directCount);
   const groups = groupPlacedCommands(placed.slice(directCount));
   return (
-    <Row aria-label="Plugin composer actions" className="relative min-w-control-md flex-1" gap="field" ref={rowRef} role="group">
+    <Row aria-label="Plugin composer actions" className="relative min-w-(--size-control-md) flex-1" gap="field" ref={rowRef} role="group">
       {/* The inert measurement copy keeps full attribution in the fit calculation without adding tab stops or scroll overflow. */}
       <Row aria-hidden={true} className="pointer-events-none invisible absolute inset-0 overflow-hidden" inert={true}>
         <Row className="w-max shrink-0" gap="field" ref={measureRef}>

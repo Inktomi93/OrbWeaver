@@ -6,23 +6,23 @@
 // UI-Architecture-and-Layout.md §4.1) — it has NO matching CSS @media: overlay is mode-gated rendering (PanelChrome branches
 // on data-panel-mode), not width-gated, so this stays the shell's one CSS @media.
 //
-// The 48rem/64rem literals are deliberately duplicated with shell.css where applicable (CSS can't read a
-// JS const, and a viewport breakpoint is a distinct axis from the @container tokens). Content primacy is
+// The two breakpoint queries are read from the generated MEDIA_QUERIES, the same source as shell.css's
+// variants, so the CSS and JS twins cannot drift. Content primacy is
 // different: shell.css owns its track arithmetic and exposes the live deficit as a sentinel's rendered
 // width. JS observes that result; it never respells tokens, root pixels, clamps, or a crossover.
 // useIsBelowShellContentFloor is the third kind — a viewport read against a rem TOKEN rather than a
 // breakpoint literal, so it resolves the token instead of querying it (its own doc block states why).
 
-import { snappedLengthPx, TOKENS } from "@orb/ui/tokens";
+import { MEDIA_QUERIES, snappedLengthPx, TOKENS } from "@orb/ui/tokens";
 import type { RefObject } from "react";
 import { useLayoutEffect, useSyncExternalStore } from "react";
 
-/** Must match shell.css `@media (max-width: 48rem)`. */
-const MOBILE_QUERY = "(max-width: 48rem)";
+/** The JS twin of shell.css's `@variant shell-mobile`; both are generated from `breakpoint.shell`. */
+const MOBILE_QUERY = MEDIA_QUERIES["shell-mobile"];
 
 /** The shell-narrow breakpoint (UI-Architecture-and-Layout.md §4.1) — wider than `MOBILE_QUERY`, no CSS
  *  counterpart (see file header). */
-const SHELL_NARROW_QUERY = "(max-width: 64rem)";
+const SHELL_NARROW_QUERY = MEDIA_QUERIES["shell-narrow"];
 
 const noop = (): void => undefined;
 

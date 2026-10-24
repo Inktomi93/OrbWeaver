@@ -1,10 +1,9 @@
 // DTCG source validation and token-authoring contracts for UI build and verify consumers.
 // The declared @orb/ui/token-contract door is Node-only, separate from generated browser token output.
 // Pinned schemas and semantic checks reject invalid source data before Style Dictionary emits it.
-import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
-import { join, relative, resolve as resolvePath, sep } from "node:path";
+import { lstatSync, readFileSync, realpathSync } from "node:fs";
+import { relative, resolve as resolvePath, sep } from "node:path";
 import { isWithinRoot } from "@orb/kit/path-containment";
 import type { ErrorObject, ValidateFunction } from "ajv";
 import { Ajv } from "ajv";
@@ -12,15 +11,10 @@ import { Ajv } from "ajv";
 import * as addFormatsModule from "ajv-formats";
 import { z } from "zod";
 
-// PROVENANCE of the two vendored schemas the hashes below pin — DTCG version 2025.10, fetched from
-// `https://www.designtokens.org/schemas/2025.10/{format,resolver}.json`. Stated as a comment, not as three
-// `DTCG_VERSION`/`*_SCHEMA_SOURCE` constants: nothing read them (#1847), and a constant no code reads is a
-// value that can drift away from the bytes it claims to describe without anything noticing. The VERSION is
-// load-bearing in exactly two places that DO check — the vendored filenames under `src/tokens/schemas/` and
-// the `$schema` each token file declares — and re-spelling it here bought neither of them a guarantee.
+// The vendored schemas are DTCG 2025.10, fetched from `https://www.designtokens.org/schemas/2025.10/{format,resolver}.json`;
+// the version is checked by the vendored filenames and each token file's `$schema`, so it is not a constant here.
 export const FORMAT_SCHEMA_SHA256 = "02d3362a3127834fd2fdd4e4d86748eaa4623054fabf369db8a410526b12646f";
 export const RESOLVER_SCHEMA_SHA256 = "2286caca56d683066475b93bca78fd73a9a337f20981bf98ea8ee8d60f8fd40b";
-const TOKEN_REMOVAL_BASE_REF = "origin/main";
 export const REQUIRED_SEED_VALUE_SET_PATHS: readonly string[] = Object.freeze([
   "color.primary",
   "color.ring",
@@ -72,7 +66,6 @@ const TOKEN_FILES = {
   light: "src/tokens/themes/light.json",
   mocha: "src/tokens/themes/mocha.json",
   resolver: "src/tokens/resolver.json",
-  removed: "src/tokens/removed.json",
   formatSchema: "src/tokens/schemas/format-2025.10.schema.json",
   resolverSchema: "src/tokens/schemas/resolver-2025.10.schema.json",
 } as const;
@@ -105,9 +98,14 @@ const TOKEN_TYPES = [
   "typography",
 ] as const;
 const TOKEN_TYPE_SET: ReadonlySet<string> = new Set(TOKEN_TYPES);
-const TOKEN_REPO_PATH = "packages/ui/src/tokens/tokens.json";
 const ALIAS_RE = /^\{([^{}]+)\}$/u;
+const EMBEDDED_ALIAS_RE = /\{([^{}]+)\}/gu;
 const CSS_VAR_RE = /var\((--[a-z0-9-]+)(?:\s*,[^)]*)?\)/gu;
+/** The group that holds the ramps; every token under it is a raw dimension and nothing else may be. */
+const PRIMITIVE_GROUP = "primitive";
+/** Semantic group → the ramp its dimension tokens must alias, one hop, never another semantic. */
+const RAMP_OF_GROUP: Readonly<Record<string, string>> = { spacing: "space", size: "size", radius: "radius", text: "type", leading: "leading" };
+const RAMPS: ReadonlySet<string> = new Set(Object.values(RAMP_OF_GROUP));
 
 type JsonObject = Record<string, unknown>;
 type AddFormats = (ajv: Ajv) => Ajv;
@@ -166,6 +164,8 @@ export interface TokenContractResult {
   readonly lightTokens: ReadonlyMap<string, ContractToken>;
   readonly mochaTokens: ReadonlyMap<string, ContractToken>;
   readonly cssValues: Readonly<Record<string, CssValueEntry>>;
+  /** Named media conditions, with `{breakpoint.*}` references still unresolved. */
+  readonly conditions: Readonly<Record<string, string>>;
   readonly cssTargets: ReadonlySet<string>;
   readonly themes: readonly ThemeSet[];
 }
@@ -175,13 +175,13 @@ export interface TokenContractTexts {
   readonly light: string;
   readonly mocha: string;
   readonly resolver: string;
-  readonly removed: string;
   readonly formatSchema: string;
   readonly resolverSchema: string;
 }
 
-const dimensionSchema = z.object({ value: z.number(), unit: z.enum(["px", "rem"]) }).strict();
-const pointerFineSchema = dimensionSchema;
+const aliasSchema = z.string().regex(ALIAS_RE);
+/** The fine-pointer arm is a semantic value, so it aliases a ramp step like the token's own `$value`. */
+const pointerFineSchema = aliasSchema;
 const outputSchema = z.object({ kind: z.enum(TOKEN_OUTPUT_ROLES) }).strict();
 /** `orb.rootFloor` carries no operand — the floor IS the token's own authored value at the 16px root. */
 const rootFloorSchema = z.literal(true);
@@ -199,14 +199,8 @@ const cssValueEntrySchema = z
   .strict();
 const cssValuesSchema = z.record(z.string().regex(/^--[a-z0-9-]+$/u), cssValueEntrySchema);
 const themeMetaSchema = z.object({ id: z.enum(["hearth", "light", "mocha"]), colorScheme: z.enum(["light", "dark"]) }).strict();
-const removedSchema = z
-  .object({
-    removed: z.array(z.object({ path: z.string().min(1), reason: z.string().min(1), replacement: z.string().min(1).optional() }).strict()),
-    removedTargets: z.array(
-      z.object({ target: z.string().regex(/^--[a-z0-9-]+$/u), reason: z.string().min(1), replacement: z.string().min(1).optional() }).strict(),
-    ),
-  })
-  .strict();
+// A condition name is a Tailwind variant name; its value is one parenthesised media query.
+const conditionsSchema = z.record(z.string().regex(/^[a-z][a-z0-9-]*$/u), z.string().regex(/^\(.+\)$/u));
 
 function isObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -355,7 +349,8 @@ function collectTokenNode(node: JsonObject, path: readonly string[], effectiveTy
   if (role === "light-dark" && effectiveType !== "color") {
     collector.diagnostics.push(diagnostic(jsonPath, "orb.output.type", "light-dark output requires a color token"));
   }
-  if (rootFloor && !isRemDimension(node["$value"], effectiveType)) {
+  // An aliased value is judged at its terminal in validateAliases.
+  if (rootFloor && typeof node["$value"] !== "string" && !isRemDimension(node["$value"], effectiveType)) {
     collector.diagnostics.push(diagnostic(jsonPath, "orb.rootFloor.type", "orb.rootFloor is valid only on a dimension token authored in rem"));
   }
   collector.tokens.push({ path, pathString, node, type: effectiveType, value: node["$value"] ?? node["$ref"], outputRole: role, rootFloor });
@@ -421,6 +416,9 @@ function validateAliases(tokens: readonly ContractToken[], diagnostics: TokenCon
       continue;
     }
     const terminal = resolve(token, [token.pathString]);
+    if (terminal !== null && token.rootFloor && !isRemDimension(terminal.value, terminal.type)) {
+      diagnostics.push(diagnostic(`/${token.path.join("/")}`, "orb.rootFloor.type", "orb.rootFloor is valid only on a dimension token authored in rem"));
+    }
     if (terminal !== null && token.type !== terminal.type) {
       diagnostics.push(
         diagnostic(
@@ -428,6 +426,76 @@ function validateAliases(tokens: readonly ContractToken[], diagnostics: TokenCon
           "alias.type",
           `alias type ${token.type ?? "missing"} does not match terminal ${terminal.pathString} type ${terminal.type ?? "missing"}`,
         ),
+      );
+    }
+  }
+}
+
+interface RampContext {
+  readonly referencedSteps: Set<string>;
+  readonly diagnostics: TokenContractDiagnostic[];
+}
+
+/** `primitive.<ramp>.<step>`: path depth group, ramp, step. */
+const PRIMITIVE_PATH_LENGTH = 3;
+
+function validatePrimitiveStep(token: ContractToken, diagnostics: TokenContractDiagnostic[]): void {
+  const jsonPath = `/${token.path.join("/")}`;
+  const ramp = token.path[1];
+  if (token.path.length !== PRIMITIVE_PATH_LENGTH || ramp === undefined || !RAMPS.has(ramp)) {
+    diagnostics.push(diagnostic(jsonPath, "primitive.shape", `a primitive is primitive.<${[...RAMPS].join("|")}>.<step>`));
+  }
+  if (token.type !== "dimension" || aliasTarget(token) !== null) {
+    diagnostics.push(diagnostic(jsonPath, "primitive.raw", "a primitive step holds a raw dimension"));
+  }
+}
+
+/** One semantic arm (`$value` or the fine-pointer arm) must alias a step of the token's own ramp. */
+function requireRampStep(token: ContractToken, ramp: string, arm: "$value" | "orb.pointerFine", context: RampContext): void {
+  const jsonPath = arm === "$value" ? `/${token.path.join("/")}/$value` : `/${token.path.join("/")}/$extensions/orb.pointerFine`;
+  const extensions = token.node["$extensions"];
+  const fineArm = isObject(extensions) ? extensions["orb.pointerFine"] : undefined;
+  const value = arm === "$value" ? token.value : fineArm;
+  const target = typeof value === "string" ? ALIAS_RE.exec(value)?.[1] : undefined;
+  if (target === undefined) {
+    context.diagnostics.push(diagnostic(jsonPath, "ramp.raw", `${arm} of ${token.pathString} is a raw value; alias a primitive.${ramp} step`));
+    return;
+  }
+  if (!target.startsWith(`${PRIMITIVE_GROUP}.${ramp}.`)) {
+    context.diagnostics.push(
+      diagnostic(
+        jsonPath,
+        "ramp.target",
+        `${arm} of ${token.pathString} aliases ${target}; a ${token.path[0]} token aliases a primitive.${ramp} step, never another semantic`,
+      ),
+    );
+    return;
+  }
+  context.referencedSteps.add(target);
+}
+
+/** The primitive tier: a ramp step is a raw dimension, and a semantic dimension is a one-hop alias to a step of its own ramp. */
+function validateRamps(tokens: readonly ContractToken[], diagnostics: TokenContractDiagnostic[]): void {
+  const context: RampContext = { referencedSteps: new Set(), diagnostics };
+  for (const token of tokens) {
+    if (token.path[0] === PRIMITIVE_GROUP) {
+      validatePrimitiveStep(token, diagnostics);
+      continue;
+    }
+    const ramp = token.path[0] === undefined ? undefined : RAMP_OF_GROUP[token.path[0]];
+    if (ramp === undefined || token.type !== "dimension") {
+      continue;
+    }
+    requireRampStep(token, ramp, "$value", context);
+    const extensions = token.node["$extensions"];
+    if (isObject(extensions) && extensions["orb.pointerFine"] !== undefined) {
+      requireRampStep(token, ramp, "orb.pointerFine", context);
+    }
+  }
+  for (const token of tokens) {
+    if (token.path[0] === PRIMITIVE_GROUP && !context.referencedSteps.has(token.pathString)) {
+      diagnostics.push(
+        diagnostic(`/${token.path.join("/")}`, "primitive.unused", `no semantic token aliases ${token.pathString}; a ramp holds only the steps in use`),
       );
     }
   }
@@ -458,23 +526,54 @@ function validateInheritedValues(tokens: readonly ContractToken[], formatValidat
   }
 }
 
-function parseRootExtensions(base: JsonObject, tokenPaths: ReadonlySet<string>, diagnostics: TokenContractDiagnostic[]): Record<string, CssValueEntry> {
-  const extensions = base["$extensions"];
-  if (!isObject(extensions)) {
-    diagnostics.push(diagnostic("/$extensions", "orb.extensions.missing", "root $extensions must declare orb.llm and orb.cssValues"));
+interface RootExtensions {
+  readonly cssValues: Readonly<Record<string, CssValueEntry>>;
+  readonly conditions: Readonly<Record<string, string>>;
+}
+
+const NO_ROOT_EXTENSIONS: RootExtensions = { cssValues: {}, conditions: {} };
+
+/** `orb.conditions`: a `{breakpoint.*}` reference inside a query must name a dimension token. */
+function parseConditions(
+  extensions: JsonObject,
+  byPath: ReadonlyMap<string, ContractToken>,
+  diagnostics: TokenContractDiagnostic[],
+): Readonly<Record<string, string>> {
+  const conditions = conditionsSchema.safeParse(extensions["orb.conditions"]);
+  diagnostics.push(...zodDiagnostics("/$extensions/orb.conditions", "orb.conditions", conditions));
+  if (!conditions.success) {
     return {};
   }
-  validateOrbExtensionNames(extensions, new Set(["orb.llm", "orb.cssValues"]), "/$extensions", diagnostics);
+  for (const [name, query] of Object.entries(conditions.data)) {
+    for (const [, path] of query.matchAll(EMBEDDED_ALIAS_RE)) {
+      if (byPath.get(path ?? "")?.type !== "dimension") {
+        diagnostics.push(
+          diagnostic(`/$extensions/orb.conditions/${name}`, "orb.conditions.alias", `condition ${name} references ${path}, which is not a dimension token`),
+        );
+      }
+    }
+  }
+  return conditions.data;
+}
+
+function parseRootExtensions(base: JsonObject, byPath: ReadonlyMap<string, ContractToken>, diagnostics: TokenContractDiagnostic[]): RootExtensions {
+  const extensions = base["$extensions"];
+  if (!isObject(extensions)) {
+    diagnostics.push(diagnostic("/$extensions", "orb.extensions.missing", "root $extensions must declare orb.llm, orb.cssValues and orb.conditions"));
+    return NO_ROOT_EXTENSIONS;
+  }
+  validateOrbExtensionNames(extensions, new Set(["orb.llm", "orb.cssValues", "orb.conditions"]), "/$extensions", diagnostics);
   const llm = llmSchema.safeParse(extensions["orb.llm"]);
   diagnostics.push(...zodDiagnostics("/$extensions/orb.llm", "orb.llm", llm));
+  const conditions = parseConditions(extensions, byPath, diagnostics);
   const cssValues = cssValuesSchema.safeParse(extensions["orb.cssValues"]);
   diagnostics.push(...zodDiagnostics("/$extensions/orb.cssValues", "orb.cssValues", cssValues));
   if (!cssValues.success) {
-    return {};
+    return { cssValues: {}, conditions };
   }
   for (const [target, entry] of Object.entries(cssValues.data)) {
     for (const provenance of entry.provenance) {
-      if (!tokenPaths.has(provenance)) {
+      if (!byPath.has(provenance)) {
         diagnostics.push(
           diagnostic(
             `/$extensions/orb.cssValues/${target}/provenance`,
@@ -485,7 +584,7 @@ function parseRootExtensions(base: JsonObject, tokenPaths: ReadonlySet<string>, 
       }
     }
   }
-  return cssValues.data;
+  return { cssValues: cssValues.data, conditions };
 }
 
 function cssVarFor(token: ContractToken): string {
@@ -690,169 +789,18 @@ function validateResolverSubset(resolver: JsonObject, diagnostics: TokenContract
   return themes;
 }
 
-function tokenPathsFromLegacy(value: unknown): ReadonlySet<string> {
-  if (!isObject(value)) {
-    return new Set();
-  }
-  const tokens: ContractToken[] = [];
-  collectTokens(value, [], null, { diagnostics: [], tokens });
-  return new Set(tokens.map((token) => token.pathString));
-}
+const EMPTY_RESULT: Omit<TokenContractResult, "diagnostics"> = {
+  scannedTokens: 0,
+  baseTokens: [],
+  lightTokens: new Map(),
+  mochaTokens: new Map(),
+  cssValues: {},
+  conditions: {},
+  cssTargets: new Set(),
+  themes: [],
+};
 
-interface RemovedLedger {
-  readonly paths: ReadonlySet<string>;
-  readonly targets: ReadonlySet<string>;
-}
-
-function tokenTargetsFromLegacy(value: unknown): ReadonlySet<string> {
-  if (!isObject(value)) {
-    return new Set();
-  }
-  const tokens: ContractToken[] = [];
-  collectTokens(value, [], null, { diagnostics: [], tokens });
-  const targets = new Set(tokens.filter((token) => token.outputRole !== "input").map(cssVarFor));
-  const extensions = value["$extensions"];
-  const cssValues = isObject(extensions) ? extensions["orb.cssValues"] : undefined;
-  if (isObject(cssValues)) {
-    for (const target of Object.keys(cssValues)) {
-      if (/^--[a-z0-9-]+$/u.test(target)) {
-        targets.add(target);
-      }
-    }
-  }
-  return targets;
-}
-
-function validateRemovedLedger(
-  removed: unknown,
-  currentPaths: ReadonlySet<string>,
-  currentTargets: ReadonlySet<string>,
-  diagnostics: TokenContractDiagnostic[],
-): RemovedLedger {
-  const parsed = removedSchema.safeParse(removed);
-  diagnostics.push(...zodDiagnostics("/removed", "removed.schema", parsed));
-  if (!parsed.success) {
-    return { paths: new Set(), targets: new Set() };
-  }
-  const paths = new Set<string>();
-  for (const entry of parsed.data.removed) {
-    if (paths.has(entry.path)) {
-      diagnostics.push(diagnostic("/removed", "removed.duplicate", `duplicate removed-token row ${entry.path}`));
-    }
-    paths.add(entry.path);
-    if (currentPaths.has(entry.path)) {
-      diagnostics.push(diagnostic("/removed", "removed.stale", `removed-token row ${entry.path} names a live portable token`));
-    }
-  }
-  const targets = new Set<string>();
-  for (const entry of parsed.data.removedTargets) {
-    if (targets.has(entry.target)) {
-      diagnostics.push(diagnostic("/removedTargets", "removed.target.duplicate", `duplicate removed-target row ${entry.target}`));
-    }
-    targets.add(entry.target);
-    if (currentTargets.has(entry.target)) {
-      diagnostics.push(diagnostic("/removedTargets", "removed.target.stale", `removed-target row ${entry.target} names a live CSS output`));
-    }
-  }
-  return { paths, targets };
-}
-
-// A history read that cannot supply the vault becomes a diagnostic, never a clean removal verdict.
-function previousTokenDocument(repoRoot: string, baseRef: string, diagnostics: TokenContractDiagnostic[]): unknown | null {
-  if (!existsSync(join(repoRoot, ".git"))) {
-    diagnostics.push(diagnostic("/removed", "removed.baseline", `cannot inspect token history: ${repoRoot} is not a Git worktree`));
-    return null;
-  }
-  try {
-    const mergeBase = execFileSync("git", ["merge-base", "HEAD", baseRef], { cwd: repoRoot, encoding: "utf8" }).trim();
-    const treePaths = execFileSync("git", ["ls-tree", "-r", "--name-only", mergeBase, "--", TOKEN_REPO_PATH], {
-      cwd: repoRoot,
-      encoding: "utf8",
-    })
-      .split("\n")
-      .filter(Boolean);
-    if (!treePaths.includes(TOKEN_REPO_PATH)) {
-      diagnostics.push(diagnostic("/removed", "removed.baseline", `${TOKEN_REPO_PATH} is absent from merge base ${mergeBase}`));
-      return null;
-    }
-    const text = execFileSync("git", ["show", `${mergeBase}:${TOKEN_REPO_PATH}`], { cwd: repoRoot, encoding: "utf8" });
-    return JSON.parse(text) as unknown;
-  } catch (error) {
-    diagnostics.push(
-      diagnostic("/removed", "removed.baseline", `cannot inspect token history against ${baseRef}: ${error instanceof Error ? error.message : String(error)}`),
-    );
-    return null;
-  }
-}
-
-/** The previous vault or the reason a removal comparison cannot run. */
-export type TokenRemovalBaseline =
-  | { readonly status: "ready"; readonly mergeBase: string; readonly document: unknown }
-  | { readonly status: "empty"; readonly reason: string }
-  | { readonly status: "unavailable"; readonly reason: string };
-
-interface RemovedDiffContext {
-  readonly baseline: TokenRemovalBaseline;
-  readonly currentPaths: ReadonlySet<string>;
-  readonly currentTargets: ReadonlySet<string>;
-  readonly ledger: RemovedLedger;
-  readonly diagnostics: TokenContractDiagnostic[];
-}
-
-function validateRemovedDiff(context: RemovedDiffContext): void {
-  const { baseline, currentPaths, currentTargets, ledger, diagnostics } = context;
-  if (baseline.status === "empty") {
-    return;
-  }
-  if (baseline.status !== "ready") {
-    diagnostics.push(diagnostic("/removed", "removed.baseline", baseline.reason));
-    return;
-  }
-  const previous = baseline.document;
-  for (const path of tokenPathsFromLegacy(previous)) {
-    if (!(currentPaths.has(path) || ledger.paths.has(path))) {
-      diagnostics.push(diagnostic("/removed", "removed.unrecorded", `portable token ${path} was removed without a ledger row`));
-    }
-  }
-  for (const target of tokenTargetsFromLegacy(previous)) {
-    if (!(currentTargets.has(target) || ledger.targets.has(target))) {
-      diagnostics.push(diagnostic("/removedTargets", "removed.target.unrecorded", `CSS output ${target} was removed without a removedTargets ledger row`));
-    }
-  }
-}
-
-/** Read the merge-base vault; fresh and stable-only checkouts have no mainline comparison. */
-export function readTokenRemovalBaseline(repoRoot: string, baseRef = TOKEN_REMOVAL_BASE_REF): TokenRemovalBaseline {
-  if (!existsSync(join(repoRoot, ".git"))) {
-    return { status: "empty", reason: `${repoRoot} is not a Git worktree, so there is no token history to ratchet against` };
-  }
-  try {
-    execFileSync("git", ["rev-parse", "--verify", "--quiet", "HEAD"], { cwd: repoRoot, encoding: "utf8", stdio: "pipe" });
-  } catch {
-    return { status: "empty", reason: `${repoRoot} has no commits, so there is no token history to ratchet against` };
-  }
-  try {
-    execFileSync("git", ["rev-parse", "--verify", "--quiet", `${baseRef}^{commit}`], { cwd: repoRoot, encoding: "utf8", stdio: "pipe" });
-  } catch {
-    // A user's install clones only the stable branch, so the mainline ref does not exist and nothing on it can
-    // have been removed from this checkout. `pnpm start` builds the tokens there; it must not fail on a ratchet
-    // that only development checkouts, which always carry the mainline, can answer.
-    return { status: "empty", reason: `${repoRoot} has no ${baseRef}, so there is no mainline token history to ratchet against` };
-  }
-  const diagnostics: TokenContractDiagnostic[] = [];
-  const document = previousTokenDocument(repoRoot, baseRef, diagnostics);
-  if (document === null) {
-    return { status: "unavailable", reason: diagnostics.map(({ message }) => message).join("; ") };
-  }
-  return { status: "ready", mergeBase: baseRef, document };
-}
-
-/** Supply a repository root or an acquired baseline to validate removal history as well as token data. */
-export function validateTokenContractTexts(
-  texts: TokenContractTexts,
-  baseline?: string | TokenRemovalBaseline,
-  baseRef = TOKEN_REMOVAL_BASE_REF,
-): TokenContractResult {
+export function validateTokenContractTexts(texts: TokenContractTexts): TokenContractResult {
   const diagnostics: TokenContractDiagnostic[] = [];
   const formatHash = sha256(texts.formatSchema);
   const resolverHash = sha256(texts.resolverSchema);
@@ -870,9 +818,8 @@ export function validateTokenContractTexts(
   const light = parseJson(texts.light, TOKEN_FILES.light, diagnostics);
   const mocha = parseJson(texts.mocha, TOKEN_FILES.mocha, diagnostics);
   const resolver = parseJson(texts.resolver, TOKEN_FILES.resolver, diagnostics);
-  const removed = parseJson(texts.removed, TOKEN_FILES.removed, diagnostics);
-  if (![formatSchema, resolverSchema, base, light, mocha, resolver, removed].every((value) => value !== null)) {
-    return { diagnostics, scannedTokens: 0, baseTokens: [], lightTokens: new Map(), mochaTokens: new Map(), cssValues: {}, cssTargets: new Set(), themes: [] };
+  if (![formatSchema, resolverSchema, base, light, mocha, resolver].every((value) => value !== null)) {
+    return { diagnostics, ...EMPTY_RESULT };
   }
   let formatValidate: ValidateFunction;
   let resolverValidate: ValidateFunction;
@@ -881,7 +828,7 @@ export function validateTokenContractTexts(
     resolverValidate = compileSchema(resolverSchema);
   } catch (error) {
     diagnostics.push(diagnostic("schemas", "schema.compile", error instanceof Error ? error.message : String(error)));
-    return { diagnostics, scannedTokens: 0, baseTokens: [], lightTokens: new Map(), mochaTokens: new Map(), cssValues: {}, cssTargets: new Set(), themes: [] };
+    return { diagnostics, ...EMPTY_RESULT };
   }
   diagnostics.push(...ajvDiagnostics(TOKEN_FILES.base, "format.schema", formatValidate, base));
   diagnostics.push(...ajvDiagnostics(TOKEN_FILES.light, "format.schema", formatValidate, light));
@@ -903,6 +850,7 @@ export function validateTokenContractTexts(
     diagnostics.push(diagnostic(TOKEN_FILES.base, "token.scan.empty", "token contract scanned zero tokens; clean output would be blind"));
   }
   validateAliases(baseTokens, diagnostics);
+  validateRamps(baseTokens, diagnostics);
   validateFonts(baseTokens, diagnostics);
   validateInheritedValues(baseTokens, formatValidate, diagnostics);
   validateInheritedValues(lightTokenList, formatValidate, diagnostics);
@@ -915,16 +863,11 @@ export function validateTokenContractTexts(
   ]);
   validateSeedTokens({ name: "Light", tokens: lightTokenList, basePaths, requiredPaths: requiredLightPaths, diagnostics });
   validateSeedTokens({ name: "Mocha", tokens: mochaTokenList, basePaths, requiredPaths: requiredSeedPaths, diagnostics });
-  const cssValues = isObject(base) ? parseRootExtensions(base, basePaths, diagnostics) : {};
+  const { cssValues, conditions } = isObject(base) ? parseRootExtensions(base, asTokenMap(baseTokens), diagnostics) : NO_ROOT_EXTENSIONS;
   const lightTokens = asTokenMap(lightTokenList);
   const mochaTokens = asTokenMap(mochaTokenList);
   const cssTargets = validateOutputTargets(baseTokens, lightTokens, cssValues, diagnostics);
   const themes = isObject(resolver) ? validateResolverSubset(resolver, diagnostics) : [];
-  const ledger = validateRemovedLedger(removed, basePaths, cssTargets, diagnostics);
-  if (baseline !== undefined) {
-    const resolved = typeof baseline === "string" ? readTokenRemovalBaseline(baseline, baseRef) : baseline;
-    validateRemovedDiff({ baseline: resolved, currentPaths: basePaths, currentTargets: cssTargets, ledger, diagnostics });
-  }
   return {
     diagnostics,
     scannedTokens: baseTokens.length + lightTokenList.length + mochaTokenList.length,
@@ -932,6 +875,7 @@ export function validateTokenContractTexts(
     lightTokens,
     mochaTokens,
     cssValues,
+    conditions,
     cssTargets,
     themes,
   };
@@ -962,14 +906,13 @@ export function readTokenContractTexts(uiRoot = import.meta.dirname, admittedRoo
     light: read(TOKEN_FILES.light),
     mocha: read(TOKEN_FILES.mocha),
     resolver: read(TOKEN_FILES.resolver),
-    removed: read(TOKEN_FILES.removed),
     formatSchema: read(TOKEN_FILES.formatSchema),
     resolverSchema: read(TOKEN_FILES.resolverSchema),
   };
 }
 
 function validateTokenContract(uiRoot = import.meta.dirname, repoRoot?: string): TokenContractResult {
-  return validateTokenContractTexts(readTokenContractTexts(uiRoot, repoRoot), repoRoot);
+  return validateTokenContractTexts(readTokenContractTexts(uiRoot, repoRoot));
 }
 
 export function assertTokenContract(uiRoot = import.meta.dirname, repoRoot?: string): TokenContractResult {

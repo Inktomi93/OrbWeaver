@@ -43,7 +43,7 @@
 // measured 299 of 740px of filter chrome at 430×740 and gave this control the character strip's `+N More`
 // posture: its own disclosure, whose TRIGGER carried the bound when one was set, so folding never hid
 // state. THAT PRINCIPLE SURVIVES; ITS INPUT CHANGED. Two stacked disclosures on one pane cost a
-// `--spacing-control-sm` trigger twice (44px each at a coarse pointer) to carry two facts, so the pane has
+// `--size-control-sm` trigger twice (44px each at a coarse pointer) to carry two facts, so the pane has
 // ONE phone Filters row now (`chat-list-phone-filters.tsx`) whose single trigger names BOTH states in force
 // (`phoneFiltersLabel`, `lib/chat-list-scope.ts` — the grammar table lives there).
 //
