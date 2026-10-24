@@ -83,23 +83,22 @@ export function RpgSceneCards({ chatId, enabled }: RpgSceneCardsProps): ReactEle
   if (!enabled) {
     return null;
   }
+  // The section root sits outside the boundary, so the error arm is the shared error state itself. The kicker
+  // stays with each arm because the settled one carries the card count.
   return (
-    <QueryBoundary
-      fallback={
-        <Stack gap="field" data-slot="rpg-card-archive">
-          <Kicker>Cards</Kicker>
-          <SkeletonRows count={ARCHIVE_PENDING_ROWS} />
-        </Stack>
-      }
-      renderError={(_error, retry): ReactElement => (
-        <Stack gap="field" data-slot="rpg-card-archive">
-          <Kicker>Cards</Kicker>
-          <QueryErrorState label="the card archive" onRetry={retry} />
-        </Stack>
-      )}
-    >
-      <ArchiveBody chatId={chatId} />
-    </QueryBoundary>
+    <Stack data-slot="rpg-card-archive">
+      <QueryBoundary
+        fallback={
+          <Stack gap="field">
+            <Kicker>Cards</Kicker>
+            <SkeletonRows count={ARCHIVE_PENDING_ROWS} />
+          </Stack>
+        }
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="the card archive" onRetry={retry} />}
+      >
+        <ArchiveBody chatId={chatId} />
+      </QueryBoundary>
+    </Stack>
   );
 }
 
@@ -112,14 +111,14 @@ function ArchiveBody({ chatId }: Pick<RpgSceneCardsProps, "chatId">): ReactEleme
   const cards = collectArchivedCards(messages.messages, { participants: chat.participants, viewerUserId: chat.viewerUserId }).toReversed();
   if (cards.length === 0) {
     return (
-      <Stack gap="field" data-slot="rpg-card-archive">
+      <Stack gap="field">
         <Kicker>Cards</Kicker>
         <RpgDoorwayLine>No cards yet — the story crafts them, and they land here.</RpgDoorwayLine>
       </Stack>
     );
   }
   return (
-    <Stack gap="field" data-slot="rpg-card-archive">
+    <Stack gap="field">
       <Kicker>Cards — {cards.length}</Kicker>
       {cards.map((card) => (
         <RpgCardRow key={card.key} card={card} onOpen={setOpenKey} />

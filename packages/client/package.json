@@ -33,6 +33,7 @@
     "./features/refinery": "./src/features/refinery/index.ts",
     "./features/regex": "./src/features/regex/index.ts",
     "./features/roster-preset": "./src/features/roster-preset/index.ts",
+    "./features/rpg": "./src/features/rpg/index.ts",
     "./features/stats": "./src/features/stats/index.ts",
     "./features/tag": "./src/features/tag/index.ts",
     "./features/user-admin": "./src/features/user-admin/index.ts",
