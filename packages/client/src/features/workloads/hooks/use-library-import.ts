@@ -1,8 +1,9 @@
 // use-library-import — the Backup & Restore import-upload driver. A surface-local state machine over three
 // seams: a `.zip` goes through the workload-backed bundle route (progress streams over the workloads room's
-// live tail); a picked folder is PLANNED (`planTreeImport`) and sent as one or more sequential uploads
-// through the tree route, each its own workload; a bare character card goes through the synchronous card
-// route. On finish it blanket-invalidates the user's cache, surfaces the normalized summary, and toasts a
+// live tail); a picked folder is PLANNED (`planServedFolderImport`: `planServedTreeImport` against the served
+// caps, the persona review, then a replan that charges each upload its collision answers) and sent as one or
+// more sequential uploads through the tree route, each its own workload; a bare character card goes through
+// the synchronous card route. On finish it blanket-invalidates the user's cache, surfaces the normalized summary, and toasts a
 // tally that matches the real outcome (never a fabricated success on a failed import).
 //
 // SELECTION IS STAGED, NEVER FIRED. Picking a file used to BE the import: the drop handler uploaded
@@ -24,17 +25,7 @@ import { DEFAULT_PERSONA_COLLISION_CHOICE } from "@orb/contracts/import";
 import type { WorkloadId } from "@orb/kit/ids";
 import { useRef, useState } from "react";
 import type { TreeImportCaps, TreeImportPlan } from "#data";
-import {
-  importBundle,
-  importCharacters,
-  importTree,
-  plannedFiles,
-  planServedTreeImport,
-  relativePathOf,
-  reviewTreePersonas,
-  useInvalidation,
-  useUploadCaps,
-} from "#data";
+import { importBundle, importCharacters, importTree, planServedFolderImport, relativePathOf, useInvalidation, useUploadCaps } from "#data";
 import { notify } from "#lib";
 import type { BundleCounts, ImportSummary } from "../lib/portability-model.ts";
 import { planNotes, sumBundleCounts, summarizeBundleCounts, summarizeCardImport, summaryCaption } from "../lib/portability-model.ts";
@@ -163,18 +154,8 @@ export function useLibraryImport(): LibraryImport {
     // The plan reads group definitions, so it is async; the picker's files are staged the moment it lands.
     // the .catch below calls fail(), whose
     // `setState({ status: "error", message })` and `notify.error` surface the failure (it skips only a superseded epoch). Ends if fail() stops writing that state.
-    planServedTreeImport(files, treeCaps(caps), [])
-      .then(async (reviewed) => {
-        const collisions = await reviewTreePersonas(plannedFiles(reviewed));
-        // Every upload carries the collision answers, so their fields come off each upload's file budget too.
-        const plan =
-          collisions.length === 0
-            ? reviewed
-            : await planServedTreeImport(
-                files,
-                treeCaps(caps),
-                collisions.map((c) => c.key),
-              );
+    planServedFolderImport(files, treeCaps(caps))
+      .then(({ plan, collisions }) => {
         if (epoch === requestEpoch.current) {
           const choices = Object.fromEntries(collisions.map((c): [string, PersonaCollisionChoice] => [c.key, DEFAULT_PERSONA_COLLISION_CHOICE]));
           setState({ status: "staged", files: [...files], folder: true, plan, collisions, choices });

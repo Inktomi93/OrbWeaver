@@ -51,7 +51,7 @@ export { importChats } from "./import-chats.ts";
 export { importTree, relativePathOf, reviewTreePersonas } from "./import-tree.ts";
 export type { TreeImportCaps, TreeImportPlan } from "./import-tree-plan.ts";
 export { plannedFiles, planTreeImport, skippedByReason } from "./import-tree-plan.ts";
-export { planServedTreeImport } from "./import-tree-served.ts";
+export { planServedFolderImport, planServedTreeImport } from "./import-tree-served.ts";
 export type { InvalidateFilter, Invalidation } from "./invalidation.ts";
 export {} from "./invalidation.ts";
 export {} from "./invalidation-carrier.ts";
