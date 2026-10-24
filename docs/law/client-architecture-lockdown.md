@@ -163,12 +163,13 @@ re-stated selector for rank. Within one layer specificity and source order apply
 custom CSS stays unlayered, so the owner wins within the §4.3 boundary; the floor's `!important` beats
 inline styles and every layer.
 
-**Source order is critical.** Production and Playwright CT both import
-`packages/client/src/styles/index.ts`, the one CSS front door: shell.css → UI globals → client globals.
-Client globals and shell contain overlapping selectors at identical specificity, so reversing them can
-silently change the winner. CT adds only its `tests/` Tailwind source root through `playwright/index.css`;
-it carries no product import or product source. Moving an import changes
-the cascade contract and requires an explicit law change.
+**The ui entry loads first.** Production and Playwright CT both import
+`packages/client/src/styles/index.ts`, the one CSS front door: client globals (whose first import is the
+ui entry with the layer statement) → shell.css. A layer ranks by its first appearance in the document, so
+a sheet that opened a house layer before the statement would rank it lowest; the build folds the statement
+into block order, which keeps the rank only when the statement came first. `tests/ui/styles/layer-order.ct.tsx`
+reads the served order through this door. CT adds only its `tests/` Tailwind source root through
+`playwright/index.css`; it carries no product import or product source.
 
 ### 4.6 Polarity has one mechanism
 
