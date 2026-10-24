@@ -23,4 +23,6 @@ Both files are off `MODULE_STATE_OWN_PROCESS`, `orb/no-module-state` still repor
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+- `createEmbeddingLatches()` builds the availability latch and the degrade reporter. `buildSearchDiscovery` passes them to `createEmbeddingsService` as `EmbeddingsContext.latches`, and `caption.ts` and `image.ts` read them from there. Both files are off `MODULE_STATE_OWN_PROCESS`.
+- `tests/server/foundation/observability/root-isolation.int.test.ts` "one root's unservable summarize model does not skip another root's analysis call": red on the old source (the second root made 0 analysis calls), green after the move. A planted shared latch in `createEmbeddingLatches` turns it red again.
+- `orb/no-module-state` over `packages/server`: 1812 files, 0 findings. `pnpm typecheck`, `pnpm depcruise` and `pnpm knip:prod` exit 0. `pnpm test` on `tests/server/foundation/observability`, `tests/server/domain/embeddings`, `tests/server/entry/compose` and the two corpus image suites: 34 files, 147 tests passed.

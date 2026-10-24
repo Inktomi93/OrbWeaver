@@ -971,9 +971,6 @@ const MODULE_STATE_OWN_PROCESS = [
   "packages/server/src/infra/plugin-host/worker-runtime.ts",
   // The compiled QuickJS WASM module the guest runtime shares, compiled once per process.
   "packages/server/src/infra/plugin-host/module.ts",
-  // Per-process announce and availability latches; a per-root move is a filed follow-up.
-  "packages/server/src/domain/embeddings/substrate/image-space-degrade.ts",
-  "packages/server/src/domain/embeddings/substrate/avatar-analysis-availability.ts",
 ];
 const PRINCIPAL_SCOPE = rootSources("@server", "@inference");
 

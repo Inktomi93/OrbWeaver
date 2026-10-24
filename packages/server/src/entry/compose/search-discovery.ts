@@ -31,6 +31,7 @@ import type { DiscoveryContext, DiscoveryService } from "#domain/discovery";
 import { createDiscoveryService, createDossierNeighbors, distinctCorpusOwners } from "#domain/discovery";
 import type { EmbeddingsContext, EmbeddingsIndexer, EmbeddingsService, ResolveEmbeddingConnection, VacuousMemoryReceipt } from "#domain/embeddings";
 import {
+  createEmbeddingLatches,
   createEmbeddingReindexTriggers,
   createEmbeddingsIndexer,
   createEmbeddingsIndexerSubscription,
@@ -157,6 +158,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   const tier0RangeOf = createLiveTier0Range(deps.getEffectiveConfig);
   const embeddings = createEmbeddingsService({
     logger: deps.logger,
+    latches: createEmbeddingLatches(),
     scheduleTimeout: deps.scheduleTimeout,
     precomputedEmbedding: precomputedSeedEmbedding,
     ...assetReads,

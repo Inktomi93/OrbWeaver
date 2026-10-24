@@ -1,9 +1,11 @@
 // @subject packages/server/src/foundation/observability/rings.ts
 // @subject packages/server/src/foundation/observability/audit.ts
+// @subject packages/server/src/domain/embeddings/substrate/avatar-analysis-availability.ts
 // Two roots composed in one worker each read only their own log, request, trace and wire-capture rings, audit
-// failures and instance id, through the production debug routes and the live socket.
+// failures, instance id and embeddings latches, through the production debug routes, the live socket and the indexer.
 import { streamConnectInputSchema } from "@orb/contracts/stream";
 import { auditLogs } from "@orb/db";
+import { readSeedAvatar, SEED_MANIFEST } from "@orb/default-content";
 import { isPlainObject } from "@orb/kit/guards";
 import type { ChatId } from "@orb/kit/ids";
 import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
@@ -18,6 +20,7 @@ import {
   createChatRoot,
   createCorpusProviderExecution,
   createServerHarness,
+  seedCorpusConnections,
   withheldTable,
 } from "@orb/testkit/node/composed";
 import { z } from "zod";
@@ -137,4 +140,51 @@ test("a turn's wire capture and outcome land only in the ring of the root that r
 
   expect(await wireHeldFor(h.root, h.chatId)).toEqual({ captures: 1, outcomes: 1 });
   expect(await wireHeldFor(other, h.chatId)).toEqual({ captures: 0, outcomes: 0 });
+});
+
+/** A provider whose summarize model answers every chat request with a 404, the backend's "no such model" verdict;
+ *  `analysisCalls` counts the requests it refused. */
+function refusingAnalysisProvider(): { readonly execute: typeof fetch; readonly analysisCalls: () => number } {
+  const corpus = createCorpusProviderExecution({
+    modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
+    embedding: CORPUS_EMBEDDING_VECTOR,
+    chatText: "No analysis is served.",
+    structuredReplies: CORPUS_STRUCTURED_REPLIES,
+    images: [],
+  });
+  let refused = 0;
+  const execute: typeof fetch = async (input, init) => {
+    const request = new Request(input, init);
+    if (request.method === "POST" && new URL(request.url).pathname.endsWith("/chat/completions")) {
+      refused += 1;
+      return Response.json({ error: { message: `The model \`${CORPUS_TEXT_MODEL}\` does not exist`, type: "invalid_request_error" } }, { status: 404 });
+    }
+    return await corpus.execute(request);
+  };
+  return { execute, analysisCalls: () => refused };
+}
+
+/** Index the bundled avatar on `root` and return how many analysis requests its provider refused. */
+async function analyzeAvatarOn(root: ServerTestHarness, provider: ReturnType<typeof refusingAnalysisProvider>): Promise<number> {
+  const principal = await root.principalFor(root.ownerId);
+  await seedCorpusConnections(root, principal);
+  const seeded = SEED_MANIFEST.find((item) => item.kind === "character");
+  const avatar = seeded?.kind === "character" ? await readSeedAvatar(seeded.handle) : null;
+  if (avatar === null) {
+    throw new Error("the shipped seed pack has no character avatar");
+  }
+  const stored = await root.app.assets.store({ principal, ...avatar, kind: "avatar" });
+  await root.settleBackground();
+  await root.app.embeddings.indexAsset(stored.assetId, { force: true });
+  return provider.analysisCalls();
+}
+
+test("one root's unservable summarize model does not skip another root's analysis call", async () => {
+  const firstProvider = refusingAnalysisProvider();
+  await using first = await createServerHarness({ providerFetch: firstProvider.execute });
+  expect(await analyzeAvatarOn(first, firstProvider)).toBeGreaterThan(0);
+
+  const secondProvider = refusingAnalysisProvider();
+  await using second = await createServerHarness({ providerFetch: secondProvider.execute, ids: createSeededIds(FIXTURE_ID_CURSOR) });
+  expect(await analyzeAvatarOn(second, secondProvider)).toBeGreaterThan(0);
 });

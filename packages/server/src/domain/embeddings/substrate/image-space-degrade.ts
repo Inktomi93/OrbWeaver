@@ -1,5 +1,5 @@
-// domain/embeddings/substrate/image-space-degrade — the per-process announce latch for the joint-space
-// fallback (§10-3), mirroring `avatar-analysis-availability`'s announce gate and for the same reason.
+// domain/embeddings/substrate/image-space-degrade — one root's announce latch for the joint-space fallback (§10-3),
+// mirroring `avatar-analysis-availability`'s announce gate and for the same reason.
 //
 // WHAT IT MAKES AUDIBLE. Until §10-3 an owner with no image-capable embedder had every picture DROPPED by
 // the indexer behind a debug line — their images were simply never searchable and nothing said so
@@ -10,30 +10,26 @@
 // LATCHED PER (owner, space, cause), never per asset: the verdict is a fact about the owner's BINDING, not
 // about the image, so a 350-image sweep must not emit 350 identical lines. Re-binding changes the space tag
 // and therefore the key, so the new state announces itself once — the same "a re-point gets its own first
-// say" rule the availability latch is built on.
-//
-// ASSUMES(single-replica): module scope, per process. A restart re-announces, which is the right window.
+// say" rule the availability latch is built on. One latch per composition root; a restart re-announces.
 
-import type { UserId } from "@orb/kit/ids";
-import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
-import type { ImageSpaceDegrade } from "../contract/results.ts";
+import type { ReportImageSpaceDegrade } from "../contract/service.ts";
 
-/** `${ownerId}|${space}|${cause}` keys already announced this process. */
-const announced = new Set<string>();
-
-/** Say ONCE, per owner + space + cause, that this owner's images are being indexed by their caption alone.
- *  The message names the cause AND the fix, because the user can act on both. Called by the on-write
- *  handler and the bulk sweep — one home for the wording so the two paths cannot describe the same state
- *  differently. */
-export function reportImageSpaceDegrade(ownerId: UserId, space: string, cause: ImageSpaceDegrade, logger: Logger): void {
-  const key = `${ownerId}|${space}|${cause}`;
-  if (announced.has(key)) {
-    return;
-  }
-  announced.add(key);
-  getLog(logger).warn(
-    { ownerId, space, cause },
-    "embeddings indexer: no image-capable embedder for this owner - images are indexed by their CAPTION only, in the text embed space (the image-raw lens is unavailable and visual similarity will be weaker). Bind an imageEmbed connection whose model accepts image input to restore the joint lens.",
-  );
+/** A root's degrade reporter: says ONCE, per owner + space + cause, that this owner's images are being indexed by
+ *  their caption alone. The message names the cause AND the fix, because the user can act on both. The on-write
+ *  handler and the bulk sweep both call it, so the two paths cannot describe the same state differently. */
+export function createImageSpaceDegradeReport(): ReportImageSpaceDegrade {
+  // `${ownerId}|${space}|${cause}` keys this root has already announced.
+  const announced = new Set<string>();
+  return (ownerId, space, cause, logger): void => {
+    const key = `${ownerId}|${space}|${cause}`;
+    if (announced.has(key)) {
+      return;
+    }
+    announced.add(key);
+    getLog(logger).warn(
+      { ownerId, space, cause },
+      "embeddings indexer: no image-capable embedder for this owner - images are indexed by their CAPTION only, in the text embed space (the image-raw lens is unavailable and visual similarity will be weaker). Bind an imageEmbed connection whose model accepts image input to restore the joint lens.",
+    );
+  };
 }
