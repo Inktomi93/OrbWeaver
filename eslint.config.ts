@@ -1031,6 +1031,11 @@ export default [
     rules: { "orb/commented-code": "error" },
   },
   {
+    files: ["packages/**/*.{ts,tsx}", "tooling/**/*.{ts,tsx}"],
+    plugins: { orb: localPlugin },
+    rules: { "orb/no-history-comments": "error" },
+  },
+  {
     files: rootSources("@server", "@inference"),
     ignores: ["packages/server/src/**/persistence/**"],
     plugins: { orb: localPlugin },
