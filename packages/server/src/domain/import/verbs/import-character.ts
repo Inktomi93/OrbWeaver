@@ -27,7 +27,15 @@ import { ImportCardError } from "../contract/errors.ts";
 import type { ImportCharacterInput } from "../contract/params.ts";
 import type { ImportCharacterResult } from "../contract/results.ts";
 import type { ImportContext, ImportService } from "../contract/service.ts";
-import { cardToCreateInput, findImportedCharacter, parseCardJson, parseCardPng, parsedCardImportHash, parsedCardTextHash } from "../substrate/card.ts";
+import {
+  cardToCreateInput,
+  findImportedCharacter,
+  importFileHash,
+  parseCardJson,
+  parseCardPng,
+  parsedCardImportHash,
+  parsedCardTextHash,
+} from "../substrate/card.ts";
 
 const PNG_MIME = "image/png";
 const DEFAULT_FALLBACK_NAME = "Imported Character";
@@ -185,7 +193,7 @@ async function resolveExisting({
   const found = await findImportedCharacter((hash) => ctx.findByImportHash({ ownerId: ctx.ownerId, importHash: hash }), {
     importHash,
     textHash: parsedCardTextHash(parsed),
-    bytes,
+    fileHash: importFileHash(bytes),
   });
   if (found === null) {
     return null;

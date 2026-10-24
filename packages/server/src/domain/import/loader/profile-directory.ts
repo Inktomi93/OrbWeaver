@@ -32,7 +32,7 @@ import type {
 } from "../contract/results.ts";
 import { createImportService } from "../service.ts";
 import { buildImportContext } from "../substrate/build-context.ts";
-import { findImportedCharacter } from "../substrate/card.ts";
+import { findImportedCharacter, importFileHash } from "../substrate/card.ts";
 import { collectBundlesFromDir } from "./collect.ts";
 
 const AVATAR_MIME = "image/png";
@@ -256,7 +256,7 @@ async function countWouldCreate(deps: ProfileDirImportDeps, bundles: readonly Co
       {
         importHash: b.contentHash,
         textHash: b.textHash,
-        bytes: b.cardBytes,
+        fileHash: importFileHash(b.cardBytes),
       },
     );
     if (found !== null) {
