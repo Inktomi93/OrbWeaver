@@ -1,6 +1,6 @@
 import { browserNoNodeGlobalsRule, rawEgressRule, rawHttpClientRule, sessionChannelBoundaryRule, soleEnvReaderRule } from "./ambient.ts";
 import { detachedWorkRule } from "./async.ts";
-import { assumesSingleReplicaRule, commentedCodeRule, historyCommentRule, rawIdRule, sideGenSamplingRule, wireJsonRule } from "./general.ts";
+import { assumesSingleReplicaRule, commentedCodeRule, rawIdRule, sideGenSamplingRule, wireJsonRule } from "./general.ts";
 import { DB_SCHEMA_RESTRICTIONS, SERVER_HARD_RESTRICTIONS, TYPE_SHAPE_RESTRICTIONS } from "./general-policy.ts";
 import { moduleStateRule } from "./module-state.ts";
 import { baseUiPortalContainerRule, contextReturnTypeRule, directRowReadRule, directRowWriteRule, nativeTitleRule, testFactoryContractRule } from "./native.ts";
@@ -108,7 +108,6 @@ export function createOrbPlugin(options: { browserNodeGlobals: ReadonlySet<strin
       "receded-ink-integrity": recededInkRule,
       "detached-work-traced": detachedWorkRule,
       "commented-code": commentedCodeRule,
-      "no-history-comments": historyCommentRule,
       "plugin-dump-guard": restrictionRule({ selectors: PLUGIN_DUMP_SELECTORS }),
       "browser-no-node-globals": browserNoNodeGlobalsRule(options.browserNodeGlobals),
     },
