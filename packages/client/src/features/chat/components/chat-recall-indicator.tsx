@@ -144,7 +144,7 @@ function RecallIndicatorBody({ chatId, viewerIsHost, memory }: ChatRecallIndicat
         }
       />
       <PopoverPopup side="bottom" align="end">
-        <Stack gap="block" className="min-w-56">
+        <Stack gap="block" className="min-w-(--width-popup-narrow)">
           <PopoverTitle>Memory recall</PopoverTitle>
           {memory.off ? <MemoryOffSummary onTurnOn={memory.onTurnOn} /> : <RecallSummary recall={recall} />}
           {viewerIsHost && recall !== null ? <RecallHostDetail chatId={chatId} /> : null}

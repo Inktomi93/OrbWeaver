@@ -6,7 +6,7 @@
 //
 // WHAT REPLACED THE GRID OF EQUAL ISLANDS, and why (measured on the live app 2026-08-16, before):
 //   - `main` was 1224px and the tile grid 768px — 62.7%, centred, 228px of dead void down each side. The
-//     cause was one line, `<Container size="lg">`, capping the grid at `--container-cq-lg` (48rem).
+//     cause was one line, `<Container size="lg">`, capping the grid at `--container-cq-48` (48rem).
 //   - The type ramp rendered 16/15/13/10.5 — a 1.5:1 spread. `--text-display` and `--text-headline`
 //     existed in tokens.json and appeared nowhere on the surface.
 //   - The six live rooms sat in the same island, in the same auto-fit grid, at the same weight as an

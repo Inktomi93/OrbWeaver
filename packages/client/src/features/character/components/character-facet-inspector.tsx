@@ -213,9 +213,7 @@ function DepthDetail({ form }: { readonly form: CardForm }): ReactElement {
               <Text voice="gloss" className="tabular-nums">
                 {value.length} characters
               </Text>
-              <Text voice="datumMono" className="tabular-nums">
-                ~{estimateTokens(value)} tokens
-              </Text>
+              <Text voice="datumMono">~{estimateTokens(value)} tokens</Text>
             </Row>
           )}
         </form.Subscribe>
@@ -255,11 +253,7 @@ function CountDetail({
             <Text voice="gloss" className="tabular-nums">
               {value.length} characters
             </Text>
-            {tokens ? (
-              <Text voice="datumMono" className="tabular-nums">
-                ~{estimateTokens(value)} tokens
-              </Text>
-            ) : null}
+            {tokens ? <Text voice="datumMono">~{estimateTokens(value)} tokens</Text> : null}
           </Row>
         )}
       </form.Subscribe>

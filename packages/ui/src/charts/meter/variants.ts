@@ -42,7 +42,7 @@ export const arcMeterVariants = tv({
     // Its ONE production consumer is automation's needle meter: `ast-grep -p '<Meter $$$ARGS />' -l tsx
     // packages` (scannedFileCount=684) returns four `<Meter>` sites — this one and three refinery
     // `kind="linear"` ones — so this is that widget's size, not a ramp every surface pays for.
-    root: "block size-20",
+    root: "block size-(--size-meter-md)",
     // THE EMPTY TRACK IS A GRAPHIC, SO IT TAKES THE EDGE TOKEN, NOT THE SURFACE ONE (#685, the follow-up to
     // #682). `text-muted` is a SURFACE token one ramp step from `card`, and one step is all it can ever be:
     // measured in this browser it renders 1.131:1 (dark) / 1.140:1 (light) against the card the arc is drawn
@@ -235,7 +235,7 @@ export const waystoneVariants = tv({
     //
     // ONE SIZING HOME (side-eye F16 + the owner's grow ruling): the stone was authored at 320px and shipped
     // at 76px — stars at 1.4px, a 4.75px gable, sub-pixel mush, and "the dimmest orb in a row of orbs".
-    // It now ships at 120px (`size-30`) as the panel's focal element, stepping down with its CONTAINER.
+    // It now ships at 120px (`size-(--size-meter-hero)`) as the panel's focal element, stepping down with its CONTAINER.
     // A dead `size` PROP plus a caller-supplied responsive className was two homes that never agreed;
     // this is the only one.
     //
@@ -279,10 +279,10 @@ export const waystoneVariants = tv({
     // replaced. Reading it off `clock === null` is the stronger form of what that flag was for — the caller
     // spells no size and makes no size decision, and this file stays the ONE sizing home (side-eye F16).
     unset: {
-      false: { root: "size-30 @max-sm:size-24 @max-xs:size-19" },
+      false: { root: "size-(--size-meter-hero) @max-cq-24:size-(--size-meter-lg) @max-cq-20:size-(--size-meter-md)" },
       // The globals.css SIZE-GATING has a matching `[data-phase="unset"]` arm, so the sub-pixel layers drop
       // at the container step where the SMALLER stone gets too small, never one step late.
-      true: { root: "size-24 @max-sm:size-19 @max-xs:size-15" },
+      true: { root: "size-(--size-meter-lg) @max-cq-24:size-(--size-meter-md) @max-cq-20:size-(--size-meter-sm)" },
     },
   },
   defaultVariants: { unset: false },

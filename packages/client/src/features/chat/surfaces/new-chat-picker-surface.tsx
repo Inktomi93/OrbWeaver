@@ -72,7 +72,7 @@ const SKELETON_ROW_COUNT = 6;
 
 /** The action buttons SHARE the footer row below the `@md` container step and take their natural widths at
  *  or above it (#439). Whole literals, never spliced — the Tailwind scanner never assembles a class name. */
-const ACTION_BUTTON = "min-w-0 flex-1 @md:flex-none";
+const ACTION_BUTTON = "min-w-0 flex-1 @cq-28:flex-none";
 
 /** …and the teaching arm adds the opacity override. BOTH spellings are needed: Base UI's Button sets the
  *  native `disabled` attribute AND `data-disabled`, and the primitive dims on each. The dim is a SIGNAL of
@@ -102,7 +102,7 @@ const ACTION_BUTTON = "min-w-0 flex-1 @md:flex-none";
  *  teaching control turns this into a skin decided in two features — the drift the seal exists to stop — and
  *  the fix then is a Button variant (a `quietDisabled` arm on the state axis, beside `selection`), with both
  *  sites repointed and this constant deleted. Do not mint it for one site. */
-const TEACHING_ACTION_BUTTON = "min-w-0 flex-1 @md:flex-none disabled:opacity-100 data-disabled:opacity-100";
+const TEACHING_ACTION_BUTTON = "min-w-0 flex-1 @cq-28:flex-none disabled:opacity-100 data-disabled:opacity-100";
 
 /** The Start button's full label — also its accessible name at `@md` and up. */
 function startLabelFor(count: number, pending: boolean): string {
@@ -218,7 +218,7 @@ export function NewChatPicker(): ReactElement {
         emptyText="No characters match."
         isSelected={(id): boolean => selected.has(id)}
         label="Choose characters"
-        listClassName="max-h-96"
+        listClassName="max-h-(--height-scroll-lg)"
         onEscape={dismiss}
         onSelect={toggle}
         placeholder="Search characters…"
@@ -247,8 +247,8 @@ export function NewChatPicker(): ReactElement {
           {/* Both arms are always in the DOM and the container query shows ONE (the message-row pattern) —
               a `display: none` arm is out of the a11y tree too, so the accessible name is always the arm
               on screen. */}
-          <Row className="@md:hidden">{compactStartLabel}</Row>
-          <Row className="hidden @md:flex">{startLabel}</Row>
+          <Row className="@cq-28:hidden">{compactStartLabel}</Row>
+          <Row className="hidden @cq-28:flex">{startLabel}</Row>
         </Button>
       </Row>
     </Stack>

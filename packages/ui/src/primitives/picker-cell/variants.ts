@@ -36,7 +36,7 @@ export const pickerCellVariants = tv({
     // NO `@container` ANCESTOR ⇒ ONE COLUMN, which is the honest degradation (a cell is never squeezed by
     // a step that cannot be evaluated). Every config mount has one: `SettingRowGroup` wraps its rows in
     // `<Container>`.
-    grid: "grid grid-cols-1 items-stretch gap-row @sm:grid-cols-2 @lg:grid-cols-3",
+    grid: "grid grid-cols-1 items-stretch gap-row @cq-24:grid-cols-2 @cq-32:grid-cols-3",
     // `items-stretch` + `h-full` is the equal-height half of F27: an auto-fit grid gives equal WIDTHS, and
     // a cell that fills its row track gives equal HEIGHTS even when one gloss wraps to two lines.
     // `@container` (inline-size containment) makes the frame a query container so the art aperture can
@@ -82,21 +82,15 @@ export const pickerCellVariants = tv({
   },
   variants: {
     /** Detailed pictures need two readable columns rather than three miniature ones. */
-    detail: { true: { grid: "@lg:grid-cols-2" } },
+    detail: { true: { grid: "@cq-32:grid-cols-2" } },
     /** The art aperture's aspect, independent of how many detailed choices share a row. */
     shape: {
-      /** A wide picture: a transcript, a shell diagram, a spacing stack, a palette.
-       *  16:9 → height = width * 9/16 = width * 0.5625, pixel-snapped. */
-      // the `1px` is the CSS `round()` rounding precision, not a design token — a structural mechanic, not a size; ends when round() accepts a token
-      landscape: { art: "h-[calc(round(nearest,100cqw*0.5625,1px))]" },
+      /** A wide picture: a transcript, a shell diagram, a spacing stack, a palette. */
+      landscape: { art: "h-(--height-picker-art-landscape)" },
       /** A 4:3 picture with room for detailed anatomy. */
-      // Snap the queried width first so cqw conversion cannot round an exact half-pixel height downward.
-      // the CSS round() precision pixel-snaps the aperture, as in landscape
-      standard: { art: "h-[calc(round(nearest,round(nearest,100cqw,1px)*0.75,1px))]" },
-      /** A square picture: a wallpaper thumbnail, an avatar shape.
-       *  1:1 → height = width, pixel-snapped. */
-      // same structural pixel-snap precision as landscape above
-      square: { art: "h-[calc(round(nearest,100cqw,1px))]" },
+      standard: { art: "h-(--height-picker-art-standard)" },
+      /** A square picture: a wallpaper thumbnail, an avatar shape. */
+      square: { art: "h-(--height-picker-art-square)" },
       /** No picture at all — a label-only cell that must still sit in the same grid as its picture siblings. */
       none: { art: "hidden" },
     },

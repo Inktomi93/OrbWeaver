@@ -140,7 +140,7 @@ export function echoDecoration(args: BubbleDecorationArgs): BubbleDecoration | n
 }
 
 // Moonlit Echoes' Glimmer preset: the banner is half the card, centred; a phone widens it to 55%.
-const WHISPER_BAND_WIDTH = "mx-auto w-1/2 @max-md:w-11/20";
+const WHISPER_BAND_WIDTH = "mx-auto w-1/2 @max-cq-28:w-11/20";
 
 const BUBBLE_FILL_VAR: Readonly<Record<MessageRole, string>> = {
   user: "--color-user-bubble",

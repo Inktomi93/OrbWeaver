@@ -44,6 +44,7 @@ import type { LucideIcon } from "@orb/ui/icons";
 import { ChartColumn, ChevronRight, Gauge, Icon, Pencil } from "@orb/ui/icons";
 import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
+import { snappedLengthPx, TOKENS } from "@orb/ui/tokens";
 import type { ReactElement, ReactNode } from "react";
 import { CharacterPicker } from "#components";
 import { skeletonRowCountFor } from "#data";
@@ -68,10 +69,10 @@ interface TeachingStep {
   readonly detail: string;
 }
 
-/** The reserved list box, in px — the SAME length as the `h-80` utility beside it (20rem at the 16px root).
- *  Two spellings of one number because the box is set in CSS and the skeleton's row count is arithmetic;
- *  they are adjacent and stated so they move together. */
-const PICKER_LIST_HEIGHT_PX = 320;
+/** The reserved list box in px at the 16px root: the same `height.scroll-lg` token the `h-(--height-scroll-lg)` list
+ *  class beside it spends, decoded once so the skeleton row count and the box cannot drift apart. */
+const ROOT_FONT_PX = 16;
+const PICKER_LIST_HEIGHT_PX = snappedLengthPx(TOKENS["height.scroll-lg"].value, ROOT_FONT_PX) ?? 0;
 /** `CharacterPicker`'s own fallback count, used when the tokens cannot be resolved (no document). */
 const DEFAULT_PICKER_SKELETON_ROWS = 5;
 
@@ -123,14 +124,14 @@ export function TeachingState({ onStart, starting, resume }: TeachingStateProps)
               picker suspends into `SkeletonRows`, and the settled list is taller than the fallback — so
               everything under it, the whole teaching row included, was shoved down one paint after the
               landing appeared. The config-welcome precedent is the same class and the same answer: paint
-              the box you will settle into. `h-80` fixes the scroller at the height its own `max-h-80`
+              the box you will settle into. `h-(--height-scroll-lg)` fixes the scroller at the height its own `max-h-(--height-scroll-lg)`
               default was already capping it to, and the skeleton fills that SAME box — `skeletonRowCountFor`
               inverts the fallback's own pitch from token values, so the count follows a coarse-pointer
               row height instead of a guess. */}
           <CharacterPicker
             emptyText="No characters match."
             label="Start a refinery session"
-            listClassName="h-80"
+            listClassName="h-(--height-scroll-lg)"
             onSelect={(id): void => {
               if (!starting) {
                 onStart(id);
@@ -166,7 +167,7 @@ export function TeachingState({ onStart, starting, resume }: TeachingStateProps)
                 same decoration to face the way the eye actually travels; above the step it is horizontal
                 again. It is decoration either way (`Icon` with no `label` is `aria-hidden`), so nothing
                 about the announced order changes — that is DOM order, which is the real sequence. */}
-            {index === 0 ? null : <Icon className="rotate-90 @md:rotate-0" icon={ChevronRight} size="sm" />}
+            {index === 0 ? null : <Icon className="rotate-90 @cq-28:rotate-0" icon={ChevronRight} size="sm" />}
             <Card className="h-full flex-1">
               <Stack gap="tight" padding="block">
                 <Row align="center" gap="tight">

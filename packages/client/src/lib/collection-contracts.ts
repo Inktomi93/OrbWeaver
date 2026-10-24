@@ -49,7 +49,7 @@ import type { ReactNode } from "react";
 export const COLLECTION_LARGE_GROUP = 30;
 
 /** ═══ `COLLECTION_WINDOW_MAX_HEIGHT` WAS RE-BOUND, NOT RETUNED, AND THEN DELETED (#1725, the mock design §5.4) ══
- *  It was `"max-h-96"` — a 384px CAP, spelled once for all three row files. Its premise: three collapsible
+ *  It was `"max-h-(--height-scroll-lg)"` — a 384px CAP, spelled once for all three row files. Its premise: three collapsible
  *  bands shared ONE list scroll column, so an uncapped first library pushed every sibling band below the
  *  fold. The owner moved the members into their own pane, so there are no siblings to protect.
  *

@@ -16,16 +16,16 @@ export const emptyStateVariants = tv({
     // `align-items: center` gives it `align-self: center` and it collapses toward 0, dropping the description
     // to one word per line (the automation-settings 63px ribbon). Filling the slot defeats that in EVERY
     // consumer at once — no re-parent can silently narrow it. Measured by empty-state.ct.tsx.
-    root: "@container w-full flex flex-col items-center gap-block py-section text-center @max-sm:gap-row @max-sm:py-block",
+    root: "@container w-full flex flex-col items-center gap-block py-section text-center @max-cq-24:gap-row @max-cq-24:py-block",
     decoration: "",
     icon: "text-muted-foreground",
-    title: "font-medium text-foreground text-title leading-title @max-sm:text-body @max-sm:leading-body",
+    title: "font-medium text-foreground text-title leading-title @max-cq-24:text-body @max-cq-24:leading-body",
     // NO `max-w-*` IN THE BASE — the measure is the `measure` variant's alone. A base width plus a variant
-    // width is the tailwind-merge custom-token trap (`twMerge("max-w-cq-sm","max-w-cq-md")` cannot see
+    // width is the tailwind-merge custom-token trap (`twMerge("max-w-cq-24","max-w-cq-32")` cannot see
     // through the registered custom scale reliably, so the pair would resolve by stylesheet order); one
     // home, one class, no merge to lose.
-    description: "text-body text-muted-foreground leading-body @max-sm:text-label @max-sm:leading-label",
-    action: "pt-row @max-sm:pt-field",
+    description: "text-body text-muted-foreground leading-body @max-cq-24:text-label @max-cq-24:leading-label",
+    action: "pt-row @max-cq-24:pt-field",
   },
   variants: {
     titleStep: {
@@ -38,8 +38,8 @@ export const emptyStateVariants = tv({
     // §2 65–75ch band; `wide` (32rem ≈ 60ch) is that surface's arm. Opt-in per site, because the correct
     // measure is a property of the pane the state lands in, not of the pattern.
     measure: {
-      default: { description: "max-w-cq-sm" },
-      wide: { description: "max-w-cq-md" },
+      default: { description: "max-w-cq-24" },
+      wide: { description: "max-w-cq-32" },
     },
   },
   defaultVariants: { titleStep: "default", measure: "default" },

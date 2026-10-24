@@ -243,8 +243,8 @@ function renderPortableToken(token: TransformedToken, contractToken: ContractTok
     case "cubicBezier":
       return renderCubicBezier(resolvedValue(token), path);
     case "number":
-      return `${finiteNumber(resolvedValue(token), path)}`;
     case "fontWeight":
+      return `${finiteNumber(resolvedValue(token), path)}`;
     case "strokeStyle":
     case "border":
     case "transition":
@@ -293,13 +293,15 @@ function resolveCssValue(value: string, portableByPath: ReadonlyMap<string, stri
   return resolved;
 }
 
-/** Tailwind namespaces reset to the tokens: a stock step (`rounded-lg`, `md:`) must not compile beside them. */
-const RESET_NAMESPACES = ["radius", "shadow", "breakpoint"] as const;
+/** Tailwind namespaces reset to the tokens: a stock step (`p-4`, `text-sm`, `rounded-lg`, `md:`) must not compile beside them. */
+const RESET_NAMESPACES = ["spacing", "text", "leading", "tracking", "font-weight", "container", "radius", "shadow", "breakpoint"] as const;
+/** The two spacing members that are structure, not design: `p-0`/`inset-0`/`min-w-0` and the one-pixel `w-px`. */
+const STRUCTURAL_SPACING = ["  --spacing-0: 0;", "  --spacing-px: 1px;"];
 
 function renderThemeCss(tokens: readonly GeneratedCssValue[]): string {
   const resets = RESET_NAMESPACES.map((namespace) => `  --${namespace}-*: initial;`);
   const lines = tokens.map((t) => `  ${cssVarName(t.path)}: ${t.value};`);
-  return `/* ${HEADER}\n */\n@theme {\n${[...resets, ...lines].join("\n")}\n}\n`;
+  return `/* ${HEADER}\n */\n@theme {\n${[...resets, ...STRUCTURAL_SPACING, ...lines].join("\n")}\n}\n`;
 }
 
 /** One `@custom-variant` per named condition; a built-in of the same name is replaced, so the query has one home. */

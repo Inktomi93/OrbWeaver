@@ -20,17 +20,17 @@ const slots = popoverVariants();
 // Base UI Positioner offsets are px numbers, not classes.
 const DEFAULT_SIDE_OFFSET = ANCHOR_GAP_TRIGGER;
 
-// `width="stable"` (#663): a plain `min-w-cq-sm` at the call site OVERFLOWED a docked pane — Base UI's
-// Positioner publishes `--available-width` (the same var the `max-w-cq-sm` cap on the OTHER slot half
+// `width="stable"` (#663): a plain `min-w-cq-24` at the call site OVERFLOWED a docked pane — Base UI's
+// Positioner publishes `--available-width` (the same var the `max-w-cq-24` cap on the OTHER slot half
 // already reads), and a fixed 24rem min-width ignores it, so the popup rendered 384px inside 376.09px of
 // real room. `min()` is the honest intersection (the same reasoning `select.tsx`'s `POPUP_STYLE` already
 // uses on this exact Base UI Positioner shape) — `width`, not `max-width`, because the DEFAULT behavior
-// (shrink-wrap to content, capped at `max-w-cq-sm`) is right for most popovers, but a body that SWAPS in
+// (shrink-wrap to content, capped at `max-w-cq-24`) is right for most popovers, but a body that SWAPS in
 // place across steps (a catalogue → a knob form) needs a FIXED frame or the swap reads as a resize.
 // Tailwind's bracket/paren syntax can't express two-var `min()` without tripping `no-arbitrary-tw-values`
 // (its `TOKEN_DRIVEN_RE` only exempts a body starting `var(`/`calc(`/`--`, and `min(...)` doesn't) — an
 // inline style is the one honest, gate-clean spelling, same as `select.tsx`.
-const STABLE_WIDTH_STYLE: CSSProperties = { width: "min(var(--available-width), var(--container-cq-sm))" };
+const STABLE_WIDTH_STYLE: CSSProperties = { width: "min(var(--available-width), var(--container-cq-24))" };
 
 /**
  * WHICH POPOVERS TAKE `modal`, AND WHY — the one home for that call (#2444, side-eye 2026-09-19).
@@ -74,7 +74,7 @@ export interface PopoverPopupProps extends Omit<BasePopupProps, "className" | "s
   backdrop?: boolean;
   /**
    * `"stable"` pins the popup to `min(24rem, --available-width)` instead of the default shrink-wrap-to-
-   * -content (capped at `max-w-cq-sm`). Opt in only when the body SWAPS in place across steps and a
+   * -content (capped at `max-w-cq-24`). Opt in only when the body SWAPS in place across steps and a
    * content-driven width would make the swap read as a resize/teleport rather than content changing
    * inside a fixed frame — most popovers (menus, single-line pickers) want the default. See
    * `STABLE_WIDTH_STYLE` above for the receipt that forced this.

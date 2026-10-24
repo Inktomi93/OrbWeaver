@@ -27,7 +27,7 @@ export const listRowVariants = tv({
     // but pointer-inert over the clickable body (the body intercepts every attempted press).
     root: "@container/list-row group group/row relative flex w-full min-w-0 items-center gap-row",
     // Keeps `min-w-0` so it can shrink and let `title`'s `truncate` engage — starvation is prevented by
-    // `content`'s own `min-w-24` floor below (a floor RAISES a min-content contribution, so if it lived
+    // `content`'s own `min-w-(--width-title-floor)` floor below (a floor RAISES a min-content contribution, so if it lived
     // here on `body` it would pin `body` to the title's full width and force a horizontal scrollbar in a
     // narrow panel; north-star N2). Selected reads as a 2px left ember bar + a 10% `--color-primary` tint
     // (rides the accent, so custom themes retint it), not a flat `--color-accent` fill (north-star §4 N2).
@@ -47,9 +47,9 @@ export const listRowVariants = tv({
     // (#1823). Three hand-copies of a ratified pair is how a ratified pair drifts.
     body: ["group flex min-w-0 flex-1 items-center gap-row rounded-control outline-none", `${SELECTION_RAIL} ${DISABLED_STATE}`],
     leading: "flex shrink-0 items-center justify-center text-muted-foreground",
-    // `min-w-24` is the title-column floor: name/subtitle never collapse below a readable width, so
+    // `min-w-(--width-title-floor)` is the title-column floor: name/subtitle never collapse below a readable width, so
     // `actions` yields (shrinks + clips) instead.
-    content: "flex min-w-24 flex-1 flex-col",
+    content: "flex min-w-(--width-title-floor) flex-1 flex-col",
     // The title line: the truncating title, plus an optional trailing meta (relative-time) pinned to the
     // end so it never gets clipped by the title's truncate.
     titleRow: "flex min-w-0 items-baseline gap-field",
@@ -113,8 +113,8 @@ export const listRowVariants = tv({
     // two rows of different widths at the same viewport size. Written MOBILE-FIRST (stacked is the arm's base,
     // the `stackActionsAt` token restores the inline row) because a `@max-` cancel has to win a specificity
     // contest against the rule it cancels, and this way there is no contest at all. The threshold stays at least
-    // twice the cluster's width, so it follows the cluster: `cq-md` (32rem) for a ~220px cluster (switch + gloss + kebab),
-    // `cq-sm` (24rem) for one compact control, which a `cq-md` threshold would stack in a dialog-width row
+    // twice the cluster's width, so it follows the cluster: `cq-32` (32rem) for a ~220px cluster (switch + gloss + kebab),
+    // `cq-24` (24rem) for one compact control, which a `cq-32` threshold would stack in a dialog-width row
     // that has ample room for it inline.
     //
     // OPT-IN, NOT AUTOMATIC: a row whose cluster is reveal-gated (`float`) already keeps the full width at
@@ -128,8 +128,8 @@ export const listRowVariants = tv({
     },
     // Only read by the `stackActions` compounds below; a row that does not stack ignores it.
     stackActionsAt: {
-      "cq-md": {},
-      "cq-sm": {},
+      "cq-32": {},
+      "cq-24": {},
     },
     // A cluster that is HIDDEN at rest must not spend the row's width on nothing: two ghost icon controls
     // reserve ~76px, which starves the title/subtitle in a 307px LIST pane (side-eye P1-2b). `float` lifts
@@ -162,7 +162,7 @@ export const listRowVariants = tv({
     // (`actions-and-sections.html`: a fixed name column, then the fires gloss at `1fr`, truncating).
     //
     // The inline arm is where the F-01 P0 is fixed structurally: the SUBTITLE takes the flexing column and
-    // truncates, and the TITLE keeps a `min-w-24` floor — the identifier can shorten but can never reach
+    // truncates, and the TITLE keeps a `min-w-(--width-title-floor)` floor — the identifier can shorten but can never reach
     // 0px, whatever the gloss is. Both slots are consumed by `titleRow`'s flex, so this is a layout swap,
     // never a second markup path (`ListRowContent` renders the same span in a different parent).
     //
@@ -177,7 +177,7 @@ export const listRowVariants = tv({
     subtitlePlacement: {
       block: {},
       inline: {
-        title: "flex-none min-w-24 shrink",
+        title: "flex-none min-w-(--width-title-floor) shrink",
         // NO `truncate` here (2026-08-08): the base slot's own comment already says truncation belongs to
         // the `subtitleWrap` axis "never baked in", and a `truncate` baked into the PLACEMENT arm silently
         // beat the wrapping arm's `line-clamp-2` (`truncate` carries `whitespace-nowrap`, which collapses a
@@ -187,10 +187,10 @@ export const listRowVariants = tv({
       },
       // `w-…` is the BASIS and `shrink` is kept deliberately: under a phone-width squeeze every row's name
       // cell shrinks by the same factor from the same basis, so the shared left edge survives the squeeze
-      // instead of only existing at desk widths — and `min-w-24` keeps the F-01 floor (a name may shorten,
+      // instead of only existing at desk widths — and `min-w-(--width-title-floor)` keeps the F-01 floor (a name may shorten,
       // never vanish) that `flex-none` alone would have traded away for a horizontal scrollbar.
       column: {
-        title: "w-(--width-label-col) flex-none min-w-24 shrink",
+        title: "w-(--width-label-col) flex-none min-w-(--width-title-floor) shrink",
         subtitle: "min-w-0 flex-1",
       },
     },
@@ -254,13 +254,13 @@ export const listRowVariants = tv({
   compoundVariants: [
     {
       stackActions: true,
-      stackActionsAt: "cq-md",
-      class: { actions: "@cq-md/list-row:basis-auto @cq-md/list-row:justify-end" },
+      stackActionsAt: "cq-32",
+      class: { actions: "@cq-32/list-row:basis-auto @cq-32/list-row:justify-end" },
     },
     {
       stackActions: true,
-      stackActionsAt: "cq-sm",
-      class: { actions: "@cq-sm/list-row:basis-auto @cq-sm/list-row:justify-end" },
+      stackActionsAt: "cq-24",
+      class: { actions: "@cq-24/list-row:basis-auto @cq-24/list-row:justify-end" },
     },
     {
       clickable: true,
@@ -273,7 +273,7 @@ export const listRowVariants = tv({
     clickable: false,
     float: false,
     stackActions: false,
-    stackActionsAt: "cq-md",
+    stackActionsAt: "cq-32",
     subtitleWrap: false,
     subtitlePlacement: "block",
     rowTint: "body",

@@ -19,7 +19,7 @@ export function LabelAttachedEntities({ tagId }: { readonly tagId: TagId }): Rea
       {TAG_TARGET_TYPES.map((targetType) => (
         <QueryBoundary
           key={targetType}
-          fallback={<Skeleton className="h-16 w-full" />}
+          fallback={<Skeleton className="h-(--size-control-lg) w-full" />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label={tagTargetTitle(targetType).toLowerCase()} onRetry={retry} />}
         >
           <AttachedKind tagId={tagId} targetType={targetType} />

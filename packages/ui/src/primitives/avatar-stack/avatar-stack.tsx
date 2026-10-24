@@ -3,7 +3,7 @@ import type { ComponentProps, ReactElement } from "react";
 import { cn } from "#lib";
 import type { AvatarProps } from "#primitives/avatar";
 import { Avatar } from "#primitives/avatar";
-import { AVATAR_STACK_OVERLAP_PX } from "./geometry.ts";
+import { avatarStackOverlap } from "./geometry.ts";
 import { avatarStackVariants } from "./variants.ts";
 
 export interface AvatarStackItem {
@@ -74,7 +74,7 @@ export function AvatarStack({ className, items, max = DEFAULT_MAX, size = "md", 
           role="img"
           shape={shape}
           size={size}
-          style={index === 0 ? undefined : { marginInlineStart: -AVATAR_STACK_OVERLAP_PX[size] }}
+          style={index === 0 ? undefined : { marginInlineStart: avatarStackOverlap(size) }}
         >
           {initialsFor(item.name)}
         </Avatar>
@@ -87,7 +87,7 @@ export function AvatarStack({ className, items, max = DEFAULT_MAX, size = "md", 
           role="img"
           shape={shape}
           size={size}
-          style={{ marginInlineStart: -AVATAR_STACK_OVERLAP_PX[size] }}
+          style={{ marginInlineStart: avatarStackOverlap(size) }}
         >
           {`+${overflow}`}
         </Avatar>

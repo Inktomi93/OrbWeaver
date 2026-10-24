@@ -154,7 +154,7 @@ export function EchoArtTile({
     <Stack
       aria-hidden={tappable ? undefined : "true"}
       className={cn(
-        "absolute top-0 aspect-(--aspect-portrait) max-h-full @max-md:aspect-auto @max-md:h-(--immersive-echo-art-height-phone)",
+        "absolute top-0 aspect-(--aspect-portrait) max-h-full @max-cq-28:aspect-auto @max-cq-28:h-(--immersive-echo-art-height-phone)",
         tappable ? "group/art" : "pointer-events-none",
         art.side === "left" ? "left-0" : "right-0",
       )}

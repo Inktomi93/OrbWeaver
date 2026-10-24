@@ -31,6 +31,7 @@
 import { isDeterministicColor, isSafeColor } from "@orb/kit/safe-color";
 import { accentFillLightness, derivedForegroundLightness, proseInkLightness, surfacePolarity } from "@orb/kit/theme-derivation";
 import { z } from "zod";
+import { TOKENS } from "#tokens";
 import type { ParsedOklch } from "./color-parse.ts";
 import { compositedBase, serializeOpaqueOklch, toOklch } from "./color-parse.ts";
 import { foregroundOn, surfaceVarsOn } from "./derive-vars.ts";
@@ -119,8 +120,20 @@ export interface ClampedTheme {
   readonly resolvedBackground?: string;
 }
 
-function fontStack(font: ThemeFont): string {
-  return font === "Geist" ? "Geist, ui-sans-serif, system-ui, sans-serif" : `${font}, serif`;
+/** The fallback stack each pickable font resolves to; the shipped face takes its token's own stack. */
+const THEME_FONT_STACKS: ReadonlyMap<ThemeFont, string> = new Map([
+  ["Geist", TOKENS["font.sans"].value],
+  ["ui-sans-serif", "ui-sans-serif, system-ui, sans-serif"],
+  ["ui-serif", "ui-serif, serif"],
+  ["ui-monospace", "ui-monospace, monospace"],
+  ["Georgia", "Georgia, serif"],
+  ["Times New Roman", "'Times New Roman', serif"],
+  ["Iowan Old Style", "'Iowan Old Style', serif"],
+]);
+
+/** The allowlist and the map share one key set, so a miss cannot happen; the fallback keeps the type honest. */
+function fontStackFor(font: ThemeFont): string {
+  return THEME_FONT_STACKS.get(font) ?? font;
 }
 
 /**
@@ -346,7 +359,7 @@ export function clampThemeTokens(raw: unknown, ambientBackground?: string, ambie
   put("--color-border", t.borderColor);
   put("--color-sidebar-border", t.borderColor);
   if (t.font !== undefined) {
-    vars["--font-sans"] = fontStack(t.font);
+    vars["--font-sans"] = fontStackFor(t.font);
   }
   // `radius: "card"` already means "use the scale's own card radius" — aliasing --radius-card to
   // var(--radius-card) is a self-reference that CSS treats as invalid-at-computed-value-time, so skip

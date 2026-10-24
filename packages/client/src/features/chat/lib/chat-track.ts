@@ -34,10 +34,10 @@ export const CHAT_TRACK = "orb-chat-track w-full max-w-(--width-shell-content)";
 /** A transcript ROW BODY at a phone width: below the row's `md` container step the gap tightens. The chip
  *  keeps the reader's own size and is never hidden (owner ruling, as Moonlit Echoes keeps its 40px avatar on
  *  a phone). The settled row and the streaming ghost share it, or a live turn reflows as it settles. */
-export const ROW_BODY_AT_PHONE_WIDTH = "@max-md:gap-field";
+export const ROW_BODY_AT_PHONE_WIDTH = "@max-cq-28:gap-field";
 
 /** Phone caps on a message box, below the row's `md` container step (owner ruling, after Moonlit Echoes'
  *  phone layout): a bubble takes at most 80% of its column, so the other side reads as the other speaker's,
  *  and a tide pill 90%. */
-export const BUBBLE_PHONE_CAP = "@max-md:max-w-4/5";
-export const PILL_PHONE_CAP = "@max-md:max-w-9/10";
+export const BUBBLE_PHONE_CAP = "@max-cq-28:max-w-4/5";
+export const PILL_PHONE_CAP = "@max-cq-28:max-w-9/10";

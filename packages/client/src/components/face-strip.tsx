@@ -57,6 +57,7 @@ import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { InlineList, Row, Stack } from "@orb/ui/layout";
+import { cn } from "@orb/ui/lib";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
@@ -215,7 +216,7 @@ function FaceButton({ item, selected, verb, caption, squeezed, selectMode, onSel
       // The squeezed face takes the tile's slot, which is the control-token box by construction — so it
       // always fits where the tile fit, and only its caption pays for it (its `max-w` clamps the captioned
       // cell width below, which is why the two can be spelled together).
-      className={`min-h-(--size-control-md) min-w-(--size-control-md) shrink-0${cellWidthClass(caption)}${squeezed ? " max-w-(--size-control-md)" : ""}`}
+      className={cn("min-h-(--size-control-md) min-w-(--size-control-md) shrink-0", cellWidthClass(caption), squeezed && "max-w-(--size-control-md)")}
       data-face-key={faceKey(item)}
       data-face-squeezed={squeezed ? "" : undefined}
       intent="ghost"
@@ -297,7 +298,7 @@ function FaceStripPlaceholder({ caption, kicker, label }: { readonly caption: bo
       {PLACEHOLDER_SLOTS.map((slot) => (
         // The settled face's own box: `FaceButton`'s per-pointer MIN box (`size="media"` is `p-0`, so the
         // button adds nothing else) around the avatar token and its caption line.
-        <Stack align="center" className={`min-h-(--size-control-md) min-w-(--size-control-md) shrink-0${cellWidthClass(caption)}`} gap="tight" key={slot}>
+        <Stack align="center" className={cn("min-h-(--size-control-md) min-w-(--size-control-md) shrink-0", cellWidthClass(caption))} gap="tight" key={slot}>
           <Skeleton className="size-(--size-avatar-md) rounded-full" />
           {caption ? (
             <Text aria-hidden={true} className="text-transparent" voice="label">
@@ -404,7 +405,7 @@ export function FaceStrip({
                 // class learned hyphens); the captioned strip's uniform pitch (#153) rides cellWidthClass.
                 <Button
                   aria-label={tileName(caption, overflow.label, hiddenCount)}
-                  className={`shrink-0${cellWidthClass(caption)}`}
+                  className={cn("shrink-0", cellWidthClass(caption))}
                   data-face-overflow=""
                   intent="ghost"
                   size="icon"

@@ -34,7 +34,8 @@ export const autocompleteVariants = tv({
     // `Popup` throws outside a `Positioner`) — no overlay surface, since it sits INSIDE the caller's own
     // card: a bounded scroller (~4 rows at the coarse touch floor, so a large tag library cannot grow the card
     // past its own footer) and a hairline. `data-empty:hidden` so nothing to suggest leaves NO frame behind.
-    inlineList: "relative flex max-h-40 flex-col gap-field overflow-y-auto overscroll-contain rounded-control border border-border p-field data-empty:hidden",
+    inlineList:
+      "relative flex max-h-(--height-scroll-sm) flex-col gap-field overflow-y-auto overscroll-contain rounded-control border border-border p-field data-empty:hidden",
     group: "flex flex-col gap-field",
     groupLabel: "px-block py-field text-label leading-label font-semibold text-muted-foreground",
     item: ITEM_ROW,

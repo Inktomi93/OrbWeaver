@@ -27,7 +27,7 @@ export const saveBarVariants = tv({
     // `basis-full` is the whole mechanism — a full-width flex item on a wrapping row takes a line of its
     // own — so nothing is hidden, abbreviated or put behind a tap: the full census stays on screen and
     // readable, it simply stops competing with the name for the same 430px.
-    meta: "order-last basis-full text-start @md/save-bar:order-none @md/save-bar:basis-auto @md/save-bar:text-end",
+    meta: "order-last basis-full text-start @cq-28/save-bar:order-none @cq-28/save-bar:basis-auto @cq-28/save-bar:text-end",
     actions: "flex shrink-0 items-center gap-row",
   },
   variants: {

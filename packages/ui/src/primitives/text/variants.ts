@@ -91,7 +91,7 @@ export const textVariants = tv({
       // NUMBER (mono + tabular, built to stop a counting figure jittering), which is exactly wrong for
       // prose — a sentence in tabular mono reads as a serial. So this is `hero`'s prose twin: same step,
       // sans, the tracking a display line needs, and no tabular figures. ONE per surface, like `hero`.
-      masthead: "font-sans text-display leading-display tracking-tight font-semibold text-foreground",
+      masthead: "font-sans text-display leading-display tracking-display font-semibold text-foreground",
       // THE ATTRIBUTION LINE UNDER A FOCAL ITEM (added 2026-08-16, program #102 review): who is in this
       // thing and how long ago — a film credit, not prose and not a datum you compare. The mock draws it
       // mono + UPPERCASE + tracked + muted (`home-c-hearth.html .fire .foot .meta`), and a feature has no
@@ -108,7 +108,7 @@ export const textVariants = tv({
       // between the masthead and the `title` its siblings run at — for the single entry a surface has
       // decided you came for: home's resume-room hero. It is the type half of the CD3 focal (the other
       // half is the stripe + the rationed ::before glow); a surface with two of these has no focal at all.
-      focal: "font-sans text-headline leading-headline tracking-tight font-semibold text-foreground",
+      focal: "font-sans text-headline leading-headline tracking-display font-semibold text-foreground",
       // THE NAME OF ONE ITEM IN A SHELF OF ITEMS (added 2026-08-17, side-eye rail sweep P2-9/P3-18). The
       // `title` step (16px), semibold, which no CONTENT voice reached: `label` is the step for the name of
       // a datum and `focal` is the headline step reserved for the ONE entry a surface promotes above its

@@ -4,7 +4,7 @@ export const toastVariants = tv({
   slots: {
     // A fixed overlay keeps content geometry stable; an empty stack must not intercept the page.
     viewport:
-      "pointer-events-none has-[[data-slot=toast-root]]:pointer-events-auto fixed top-(--dimension-chrome-row) right-0 z-(--z-toast) flex w-full max-w-cq-sm max-h-(--dimension-shell-notice-cap) flex-col gap-row overflow-y-auto overscroll-contain p-section",
+      "pointer-events-none has-[[data-slot=toast-root]]:pointer-events-auto fixed top-(--dimension-chrome-row) right-0 z-(--z-toast) flex w-full max-w-cq-24 max-h-(--dimension-shell-notice-cap) flex-col gap-row overflow-y-auto overscroll-contain p-section",
     root: [
       // `flex` + `gap-row`: the type GLYPH is a sibling of the content column (see `icon`), so meaning is
       // never carried by the border colour alone.

@@ -44,10 +44,10 @@ export function SkeletonRows({ count, shape = "line" }: SkeletonRowsProps): Reac
       <Stack aria-busy={true} gap="row" padding="block">
         {rows.map((i) => (
           <Row align="center" className="min-h-(--size-control-md) px-row py-field" gap="row" key={i}>
-            <Skeleton className="size-8 rounded-full" />
+            <Skeleton className="size-(--size-avatar-md) rounded-full" />
             <Stack className="min-w-0 flex-1" gap="field">
-              <Skeleton className="h-3 w-full" />
-              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-(--leading-micro) w-full" />
+              <Skeleton className="h-(--leading-micro) w-full" />
             </Stack>
           </Row>
         ))}
@@ -71,8 +71,8 @@ export function SkeletonRows({ count, shape = "line" }: SkeletonRowsProps): Reac
           // takes the row and the value bar a quarter of it, so the pair reads as `label · value` at any
           // panel width instead of two stubs floating in a wide pane.
           <Row align="center" gap="row" key={i}>
-            <Skeleton className="h-4 flex-1" />
-            <Skeleton className="h-4 shrink-0 basis-1/4" />
+            <Skeleton className="h-(--leading-label) flex-1" />
+            <Skeleton className="h-(--leading-label) shrink-0 basis-1/4" />
           </Row>
         ))}
       </Stack>

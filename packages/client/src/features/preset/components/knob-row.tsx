@@ -188,7 +188,7 @@ function KnobControls({
         // starts the line below — and the grid's dense flow then backfills the value cell into the hole it
         // left beside the name (`@orb/ui`'s `knob` recipe carries the why). The DOM order is untouched in
         // both arms, which is what keeps the reading order the eye's order.
-        className="min-w-0 @max-lg:col-span-2"
+        className="min-w-0 @max-cq-32:col-span-2"
         largeStep={largeStep}
         max={max}
         min={min}
@@ -231,7 +231,7 @@ function KnobControls({
           the finding survived its own fix. Reversed, the number is what ends on the rail's edge and the
           reserved slot falls inboard, where it costs nothing and still never jitters. It is a CSS order, not
           a DOM one: the reading order stays name → value → its reset, which is the order the pair means. */}
-      <Row align="center" data-slot="knob-value" gap="field" justify="end" className="@max-lg:me-(--size-slider-inset) @max-lg:flex-row-reverse">
+      <Row align="center" data-slot="knob-value" gap="field" justify="end" className="@max-cq-32:me-(--size-slider-inset) @max-cq-32:flex-row-reverse">
         <NumberField
           aria-describedby={describedBy}
           // THE TWIN IS NOT THE SLIDER (side-eye 2026-08-19 P1-2). Both modalities carried the IDENTICAL
@@ -279,7 +279,7 @@ function KnobGloss({ text, glossId }: { readonly text: string | null; readonly g
     return null;
   }
   return (
-    <Text as="span" className="@max-lg:col-span-2 @lg:col-span-2 @lg:col-start-2" id={glossId} voice="gloss">
+    <Text as="span" className="@max-cq-32:col-span-2 @cq-32:col-span-2 @cq-32:col-start-2" id={glossId} voice="gloss">
       {text}
     </Text>
   );

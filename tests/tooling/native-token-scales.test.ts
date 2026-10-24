@@ -11,6 +11,20 @@ import { __unstable__loadDesignSystem } from "tailwindcss";
 import tseslint from "typescript-eslint";
 
 const RULE = "better-tailwindcss/no-unknown-classes";
+const RESTRICTED_RULE = "better-tailwindcss/no-restricted-classes";
+// Classes the compiler still accepts after the resets: stock line-heights, bare namespace forms and arbitrary design numbers.
+const RESTRICTED = [
+  "leading-tight",
+  "leading-6",
+  "size-control-sm",
+  "h-scroll-md",
+  "max-h-scroll-lg",
+  "w-lane",
+  "grid-cols-[1.55fr_1fr]",
+  "max-h-[60cqh]",
+  "@cq-28:h-[8.5rem]",
+];
+const STRUCTURAL_ARBITRARY = "h-(--height-scroll-md) grid-cols-[auto_minmax(0,1fr)] grid-cols-[repeat(auto-fill,var(--width-cell-fixed))] flex-2 max-h-1/2";
 const UI_AUTHORED_CLASS = "orb-weave-glow";
 const CLIENT_AUTHORED_CLASS = "shell-panel";
 const OFF_TOKEN = [
@@ -38,8 +52,26 @@ const OFF_TOKEN = [
   "md:flex",
   "max-md:hidden",
   "lg:grid",
+  "p-4",
+  "max-h-96",
+  "size-19",
+  "gap-2",
+  "text-sm",
+  "text-base",
+  "tracking-wide",
+  "max-w-sm",
+  "@md:flex",
+  "@max-lg:hidden",
 ];
-const CONDITION_VARIANTS = ["shell-mobile:hidden", "shell-desktop:flex", "shell-narrow:flex", "pointer-coarse:flex", "transparency-reduce:hidden"];
+const CONDITION_VARIANTS = [
+  "shell-mobile:hidden",
+  "shell-desktop:flex",
+  "shell-narrow:flex",
+  "pointer-coarse:flex",
+  "transparency-reduce:hidden",
+  "@cq-28:flex",
+  "@max-cq-32:hidden",
+];
 const SUPPORTED = [
   ...Object.keys(TOKENS)
     .filter((path) => path.startsWith("radius."))
@@ -53,6 +85,15 @@ const SUPPORTED = [
   "shadow-overlay/50",
   "bg-primary",
   "gap-row",
+  "p-0",
+  "inset-0",
+  "min-w-0",
+  "w-px",
+  "font-medium",
+  "tracking-normal",
+  "leading-body",
+  "text-label",
+  "max-w-cq-24",
 ].flatMap((candidate) => [candidate, `hover:${candidate}`, `focus:${candidate}`, `[&:hover]:${candidate}`, `!${candidate}`, `${candidate}!`]);
 const CARRIERS = [
   '<div className="CLASS" />;',
@@ -80,7 +121,7 @@ test("generated namespace resets reject stock scales without changing supported 
   const require = createRequire(join(repoRoot, "package.json"));
   const stock = readFileSync(require.resolve("tailwindcss/theme.css"), "utf8");
   const current = await __unstable__loadDesignSystem(`${stock}\n${themeCss}`);
-  const withoutResets = themeCss.replace("  --radius-*: initial;\n  --shadow-*: initial;\n  --breakpoint-*: initial;\n", "");
+  const withoutResets = themeCss.replace(/^ {2}--[a-z-]+-\*: initial;\n/gmu, "");
   const baseline = await __unstable__loadDesignSystem(`${stock}\n${withoutResets}`);
 
   expect(current.candidatesToCss(OFF_TOKEN).map((css) => css !== null)).toEqual(OFF_TOKEN.map(() => false));
@@ -109,7 +150,7 @@ test("effective UI/client native rules reject stock classes in real class carrie
     expect(plugin).toBeDefined();
     const linter = new Linter();
     // Isolate the effective syntax-only rule; these virtual sources intentionally have no typed program or domain wiring.
-    const lint = (source: string): readonly string[] => {
+    const lintWith = (rule: string, source: string): readonly string[] => {
       const messages = linter.verify(
         source,
         {
@@ -117,7 +158,7 @@ test("effective UI/client native rules reject stock classes in real class carrie
           languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, ecmaFeatures: { jsx: true } } },
           plugins: plugin === undefined ? {} : { "better-tailwindcss": plugin },
           settings: config.settings,
-          rules: { [RULE]: config.rules[RULE] ?? "off" },
+          rules: { [rule]: config.rules[rule] ?? "off" },
         },
         { filename: path },
       );
@@ -126,11 +167,15 @@ test("effective UI/client native rules reject stock classes in real class carrie
         source,
       ).toEqual([]);
       expect(
-        messages.every(({ ruleId }) => ruleId === RULE),
+        messages.every(({ ruleId }) => ruleId === rule),
         source,
       ).toBe(true);
       return messages.map(({ message }) => message);
     };
+    const lint = (source: string): readonly string[] => lintWith(RULE, source);
+    expect(config.rules[RESTRICTED_RULE]?.[0], path).toBe(2);
+    expect(RESTRICTED.map((candidate) => lintWith(RESTRICTED_RULE, `cn("${candidate}");`).length)).toEqual(RESTRICTED.map(() => 1));
+    expect(lintWith(RESTRICTED_RULE, `cn("${STRUCTURAL_ARBITRARY}");`)).toEqual([]);
     for (const carrier of CARRIERS) {
       if (path.endsWith(".ts") && carrier.startsWith("<")) {
         continue;

@@ -23,10 +23,8 @@ export const cardVariants = tv({
     glow: {
       none: "",
       accent:
-        // eslint-disable-next-line orb/no-arbitrary-tw-values -- Pseudo glow inherits the computed host radius across surface tiers; ends when the glow recipe no longer inherits its host.
         "relative isolate before:pointer-events-none before:absolute before:-inset-px before:-z-(--z-raised) before:rounded-[inherit] before:shadow-glow before:content-['']",
       focal:
-        // eslint-disable-next-line orb/no-arbitrary-tw-values -- Pseudo glow inherits elevated and nested host radii; ends when the glow recipe no longer inherits its host.
         "relative isolate before:pointer-events-none before:absolute before:-inset-px before:-z-(--z-raised) before:rounded-[inherit] before:opacity-60 before:shadow-glow before:transition-opacity before:duration-(--motion-base) before:ease-out-expo before:content-[''] hover:before:opacity-100 data-returned:before:opacity-100",
     },
     // The explicit floating-island opt-in (UI-Density-Law.md §2.1/§4.3): a modal/popover/composer-class

@@ -50,7 +50,8 @@ export const PINNED_PILL: PinnedHeader = {
 
 /** Flat, hush: no box at rest, so the bar is the reading band across the column's inset, fading below. */
 export const PINNED_BAND: PinnedHeader = {
-  paint: () => `bg-reading-band text-reading-plate-foreground after:from-reading-band -mx-section px-section @max-md:-mx-row @max-md:px-row ${FADE_BELOW}`,
+  paint: () =>
+    `bg-reading-band text-reading-plate-foreground after:from-reading-band -mx-section px-section @max-cq-28:-mx-row @max-cq-28:px-row ${FADE_BELOW}`,
 };
 
 /** Document: no name to pin. The bar is the actions chip alone, and the chip's plate is the actions'

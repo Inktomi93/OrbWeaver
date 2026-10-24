@@ -397,7 +397,7 @@ export function Composer({
                 // AND an image must attach the image and still paste the text (see the hook's header).
                 onPaste={mediaDrop.onPaste}
                 disabled={sendMessage.isPending}
-                className="max-h-48 min-w-0 flex-1 resize-none border-0 bg-transparent px-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                className="max-h-(--height-scroll-md) min-w-0 flex-1 resize-none border-0 bg-transparent px-0 focus-visible:ring-0 focus-visible:ring-offset-0"
                 rows={1}
                 size="compact"
               />

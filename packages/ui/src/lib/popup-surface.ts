@@ -11,7 +11,7 @@ export const POPUP_SURFACE =
   "relative z-(--z-popover) max-h-(--available-height) overflow-y-auto overscroll-contain rounded-card border border-border bg-popover p-field text-popover-foreground";
 
 // The centered modal popup surface shared by dialog + alert-dialog. The sizing (dialog's
-// `flex max-h-full flex-col` + per-size max-width vs alert-dialog's fixed `max-w-cq-sm`) is per-seal.
+// `flex max-h-full flex-col` + per-size max-width vs alert-dialog's fixed `max-w-cq-24`) is per-seal.
 export const MODAL_SURFACE = "w-full rounded-card border border-border bg-popover p-section text-popover-foreground shadow-overlay";
 
 // The anchored-popup ITEM row — byte-identical between autocomplete and combobox; select layers

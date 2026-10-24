@@ -9,7 +9,7 @@ import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_INSET, tv } from "#lib";
 // default `inline` layout; the `stacked` arm trades the fixed height for content height + a min-height
 // floor (see the variant's own note). The --active-tab-* vars the indicator reads are recomputed by
 // Base UI for the vertical axis; the underline reads `left`/`width` (recomputed there too), so it
-// needs no orientation branch. `border`/`h-0.5` are Tailwind's untokenized hairline scale (the
+// needs no orientation branch. `border`/`h-(--border-width-accent)` are Tailwind's untokenized hairline scale (the
 // `border border-border` precedent) — a 1px track + a 2px bar aren't worth a token each.
 export const tabsVariants = tv({
   slots: {
@@ -38,7 +38,7 @@ export const tabsVariants = tv({
     // switch that the app's own `[anim]` flagger correctly convicted under guide §3.7. `origin-left`
     // pins the FLIP's scale to the bar's leading edge, which is where the left var measures from.
     indicator: [
-      "absolute bottom-0 left-(--active-tab-left) z-(--z-raised) h-0.5 w-(--active-tab-width) origin-left rounded-full bg-primary",
+      "absolute bottom-0 left-(--active-tab-left) z-(--z-raised) h-(--border-width-accent) w-(--active-tab-width) origin-left rounded-full bg-primary",
       "transition-[transform] duration-(--motion-base) ease-out-expo",
     ],
     // The panel is FOCUSABLE (Base UI gives it tabindex=0 so a keyboard user can reach its content by

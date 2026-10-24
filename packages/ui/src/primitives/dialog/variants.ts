@@ -15,8 +15,7 @@ import { MODAL_SURFACE, OVERLAY_MOTION, SCRIM, tv } from "#lib";
  * `overflow-y: auto` also clips the inline axis, and a glyph button's touch pseudo reaches past its box by up to
  * (touch target - glyph-xs) / 2. The popup's own `p-section` is wider than that, so the margin never overflows it.
  */
-export const DIALOG_SCROLL_CLASS =
-  "relative -mx-[calc((var(--size-touch-target)_-_var(--size-glyph-xs))_/_2)] min-h-0 overflow-y-auto overscroll-contain px-[calc((var(--size-touch-target)_-_var(--size-glyph-xs))_/_2)] scroll-pb-(--size-control-lg)";
+export const DIALOG_SCROLL_CLASS = "relative -mx-glyph-bleed min-h-0 overflow-y-auto overscroll-contain px-glyph-bleed scroll-pb-(--size-control-lg)";
 
 export const dialogVariants = tv({
   slots: {

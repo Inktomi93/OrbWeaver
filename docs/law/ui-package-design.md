@@ -162,7 +162,7 @@ Node token-authoring homes and type-only reexports follow [Spine-TypeScript §7.
     per-pointer tap-target CHECK lives in the design-audit probe, not the native application checks — see §8
     `touch-target-floor`). `data-density="compact"` tightens orthogonally to pointer. Avatar/switch
     display sizes are pointer-INDEPENDENT (never narrow — §13.9 D62 delta).
-  - **container breakpoints** — `--cq-sm/md/lg` (§3 — container queries use named tokens).
+  - **container breakpoints** — `--container-cq-<rem>`, one step per container width in use (§3 — container queries use named tokens).
   - **type** — the Geist scale (display/headline/title/body/label/mono per the seed table);
     **radius** (`base/control/card/full`); **z** scale; **motion** (`--motion-fast/base/layout` +
     `--ease-out-expo`, reduced-motion floor unlayered in globals.css per D43 §11.4e).

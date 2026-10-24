@@ -51,7 +51,7 @@ export function EditableTagChip({
       />
     );
   } else if (library.data === undefined) {
-    body = <Skeleton className="h-16 w-full" />;
+    body = <Skeleton className="h-(--size-control-lg) w-full" />;
   } else if (row === undefined) {
     body = <Text voice="gloss">This tag was deleted.</Text>;
   } else {

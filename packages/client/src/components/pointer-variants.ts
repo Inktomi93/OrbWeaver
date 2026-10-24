@@ -115,7 +115,7 @@ export const PICKER_GAP_AT_COARSE = "pointer-coarse:gap-block";
  *  is a property of EVERY rail at EVERY width and is now declared as one, unconditionally, at the rail
  *  (`RAIL_TRACK_CLASSES` in app-shell's context-rail.tsx); this constant is the fold and nothing else. In
  *  the folded arm the explicit `grid-cols-3` sizes the columns, so the two declarations compose. */
-export const CONTEXT_RAIL_WRAP = "pointer-fine:@max-xs:grid-flow-row pointer-fine:@max-xs:grid-cols-3";
+export const CONTEXT_RAIL_WRAP = "pointer-fine:@max-cq-20:grid-flow-row pointer-fine:@max-cq-20:grid-cols-3";
 
 /** The context rail cell's active EDGE BAR, stood down in exactly the state that makes it lie (side-eye
  *  #102, 2026-08-17). The bar sits on the cell's bottom edge — for the state rail, the seam with the
@@ -127,7 +127,7 @@ export const CONTEXT_RAIL_WRAP = "pointer-fine:@max-xs:grid-flow-row pointer-fin
  *  folds; the active treatment in the wrapped state is the cell's own fill + ink, a WHOLE-cell mark with no
  *  direction to be wrong about. The coarse arm is untouched — there the rail stays one row and scrolls.
  *  Pointer-keyed, so it is homed here and not in the feature (`no-pointer-variants-in-features`). */
-export const CONTEXT_RAIL_WRAPPED_EDGE_BAR_OFF = "pointer-fine:@max-xs:data-active:border-transparent";
+export const CONTEXT_RAIL_WRAPPED_EDGE_BAR_OFF = "pointer-fine:@max-cq-20:data-active:border-transparent";
 
 /** The context rail CELL's coarse HEIGHT floor (#860 — the mock's phone arms draw 52px cells; the first
  *  token step at or above that is `control-lg`, 56px at a coarse pointer). `TabsTab`'s `stacked` arm seals

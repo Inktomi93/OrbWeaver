@@ -82,7 +82,7 @@ export function CorpusUnderstandingInvitation(): ReactElement {
         {/* The action column drops UNDER the prose at a narrow pane rather than squeezing the reading line:
             a paragraph capped at its measure beside a button that never shrinks is how a 360px pane ends up
             rendering four words a line. */}
-        <Row align="start" className="flex-col @lg:flex-row" gap="block" justify="between">
+        <Row align="start" className="flex-col @cq-32:flex-row" gap="block" justify="between">
           <Stack className="min-w-0" gap="row">
             <Heading id={titleId} level={2} voice="focal">
               {pass.running ? "Reading your library back to you." : "Read your library back to you."}

@@ -64,7 +64,7 @@ function FactRowView({ row, busy, onOverride, onReset, note }: { readonly row: F
     // the source wrapping to three.
     // Focusable by script only: a confirm that closes over this row returns focus to the row, not to its first button.
     <Stack data-slot="connection-fact-row" data-fact={row.path} data-overridden={row.overridden} gap="tight" tabIndex={-1}>
-      <Row align="start" className="@max-lg:flex-col @max-lg:items-stretch" gap="field" justify="between">
+      <Row align="start" className="@max-cq-32:flex-col @max-cq-32:items-stretch" gap="field" justify="between">
         <Text className="shrink-0" voice="datum">
           {row.name}
         </Text>
@@ -74,7 +74,7 @@ function FactRowView({ row, busy, onOverride, onReset, note }: { readonly row: F
           </Text>
           <Text voice="gloss">{row.source}</Text>
         </Stack>
-        <Row className="shrink-0 @max-lg:justify-end" gap="field">
+        <Row className="shrink-0 @max-cq-32:justify-end" gap="field">
           {row.overridden ? (
             <Button aria-label={`Reset ${row.name}`} disabled={busy} intent="ghost" onClick={(): void => onReset(row)} size="sm">
               Reset
@@ -119,7 +119,7 @@ function FactOverrideEditor({
   const refusal = boundRefusal(row.edit, draft);
 
   return (
-    <Row align="end" className="@max-lg:flex-col @max-lg:items-stretch" gap="field">
+    <Row align="end" className="@max-cq-32:flex-col @max-cq-32:items-stretch" gap="field">
       <Stack className="min-w-0 grow" gap="tight">
         <FactEditControl edit={row.edit} label={`${row.name} — your value`} value={draft} onChange={setDraft} />
         {refusal === null ? (
@@ -130,7 +130,7 @@ function FactOverrideEditor({
           </Text>
         )}
       </Stack>
-      <Row className="shrink-0 @max-lg:justify-end" gap="field">
+      <Row className="shrink-0 @max-cq-32:justify-end" gap="field">
         <Button intent="ghost" onClick={onCancel} size="sm">
           Cancel
         </Button>

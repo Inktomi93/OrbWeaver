@@ -80,7 +80,7 @@ function RosterRow(props: {
   const counts = rosterCountsSuffix(roster);
   return (
     <Stack gap="tight" padding="block" className="@container border-border border-b last:border-b-0" data-slot="roster-row">
-      <Row align="center" gap="field" className="@max-md:flex-col @max-md:items-stretch">
+      <Row align="center" gap="field" className="@max-cq-28:flex-col @max-cq-28:items-stretch">
         <Stack gap="tight" className="min-w-0 flex-1">
           <Row align="center" gap="field">
             <Text voice="label" className="min-w-0 flex-1 truncate">
@@ -209,14 +209,14 @@ function SaveCurrentRoster(props: {
     <Stack gap="tight">
       {/* Its own container: below `@md` the name and the Save button stack, so the input keeps its width. */}
       <Stack className="@container">
-        <Row align="center" gap="field" className="@max-md:flex-col @max-md:items-stretch">
+        <Row align="center" gap="field" className="@max-cq-28:flex-col @max-cq-28:items-stretch">
           <Input
             aria-label="New roster name"
             placeholder="Name this roster…"
             value={name}
             onChange={(e): void => setName(e.target.value)}
             // Stacked, a zero-basis `flex-1` would collapse the input's height on the column axis.
-            className="min-w-0 flex-1 @max-md:flex-none"
+            className="min-w-0 flex-1 @max-cq-28:flex-none"
           />
           <Button
             aria-describedby={INCLUDE_LINE_ID}

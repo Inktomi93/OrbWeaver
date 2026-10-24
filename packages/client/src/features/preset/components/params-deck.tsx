@@ -111,7 +111,7 @@ export function ParamsDeck({ form, capability, effective, capabilityError, sampl
 
           THIS IS THE TOKEN'S ONE RATIFIED EXCEPTION, AND IT HAS NOW BEEN AUDITED AS ONE (#1682, refused).
           `--width-content-col` has eight consumers; #1664 gave seven of them the token's full stated
-          consumption (`mx-auto w-full max-w-(--width-content-col) @5xl:max-w-(--width-content-col-wide)`),
+          consumption (`mx-auto w-full max-w-(--width-content-col) @cq-64:max-w-(--width-content-col-wide)`),
           and a count over the remaining spellings read this site as the eighth oversight. It is not: an
           INSTRUMENT whose only flexing cell is a control track holds the cap and does NOT breathe, which is
           the 2026-08-19 ruling above. Measured again when the audit landed, by planting the briefed change

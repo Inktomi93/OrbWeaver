@@ -33,7 +33,7 @@ These bind every leg. A lane that disagrees reports the clause and a proposal; i
 
 ### Open questions
 
-- Whether `stylelint.config.js` and `stylelint-rules.js` can be TypeScript under the installed Stylelint, so they are typechecked and linted like the rest of the repo.
+- Stylelint config in TypeScript: verified possible under Stylelint 17.16. Its CLI lists `stylelint.config.ts` among the discovered files; cosmiconfig 9 loads a `.ts` config by transpiling it with the installed `typescript` into a temporary `.mjs` beside it, and that module's `./stylelint-rules.ts` import resolves to the real file, which Node loads with native type stripping. The root `tsconfig.json` already includes `*.config.ts`, so the config and its import join the typecheck program; `knip.ts` names the rules file and moves with it. Leg 4 makes the move, with `Config` and `Rule` types and unit tests for the custom rules.
 - Whether the ramp primitives move from `@theme` to the served `:root` so owner CSS can reference them (leg 2 decides).
 - The theme suites the law names (emit surface, palette contrast, theme emit pairing, seed theme pairing) exist only in the restoration register, not in the tree.
 
@@ -59,9 +59,34 @@ Visible changes in commit A: the Create arm swap above. Every other variable kee
 
 Lesson: a token path rename must also sweep `TOKENS["…"]` and `SNAPPED_LENGTH_BASE_PX["…"]` keys in TS, which the class codemod does not see; typecheck catches them, a CT run alone does not.
 
-### Leg 3: Tailwind namespace resets
+### Leg 3: Tailwind namespace resets, built
 
-`theme.css` resets `spacing` (keeping `--spacing-0` and `--spacing-px`), `text`, `leading`, `tracking`, `font-weight`, `container` and `breakpoint` beside the existing `radius` and `shadow` resets. Tokens that keep today's pixels: `font-weight.{normal,medium,semibold,bold}`, `tracking.normal` (0em) and the two display/caps trackings, container steps named by rem for every `@container` width in use (`cq-19 … cq-100`, replacing `cq-sm/md/lg`), and the reading measures for the `max-w-prose` sites. Each default-scale class maps to the semantic token its role names; a value with no semantic home becomes a `cssValues` entry (the switch thumb, the picker-cell art heights, the layout grid templates) rather than a primitive reference in a component. `better-tailwindcss/no-unknown-classes` turns the resets into the migration list; `no-conflicting-classes` and `no-duplicate-classes` are on. Numeric literals in inline `style` for a geometry property are rejected by `orb/no-off-token-inline-style`.
+`theme.css` resets `spacing`, `text`, `leading`, `tracking`, `font-weight`, `container` and `breakpoint` beside `radius` and `shadow`, and re-adds `--spacing-0` and `--spacing-px` as structure. New token families keep the vocabulary closed: `font-weight` (400/500/600/700), `tracking` (`normal`, `display`, `caps` beside `micro`, as em inputs serialised by `cssValues`), `height.scroll-sm/md/lg` (10/16/24rem) for every bounded scroller, `width.title-floor`, `field-floor`, `popup-narrow`, `lane`, `cell-auto`, `cell-wide` and `cell-tile`, `size.dot-sm/dot/dot-lg`, `preview-line`, `preview-strip` and `meter-sm/md/lg/hero`, `border-width.accent` (the rail marker, the context band binding and the tab indicator share one 2px edge), and `container.cq-<rem>` for every container width in use (20 to 96), replacing `cq-sm/md/lg`. Formulas that were arbitrary class values are `cssValues` outputs: the switch thumb and travel, the dialog glyph bleed, the name-row minimum, the prose cap, the three picker apertures and the two lead grid templates.
+
+Spellings. A `size`, `height` or `width` token is spelled `<utility>-(--<namespace>-<name>)` on every axis; the compiler also accepts the bare `size-<name>`, `h-<name>` and `w-<name>` on some axes, and lint refuses those so there is one form. An arbitrary bracket value is legal only when it carries no design number (`grid-cols-[auto_minmax(0,1fr)]`, `repeat(auto-fill, var(--width-cell-fixed))`); a length, a decimal or a track share other than `1fr` inside brackets is refused. Stock line-heights and the stock breakpoint and container variants are refused. Inline `style` numerics are refused for every geometry property, not only the token-backed paint properties. `no-conflicting-classes`, `no-duplicate-classes` and `no-concatenated-classes` are on.
+
+Visible changes in this leg, each with its step:
+
+| surface | before | after | reason |
+| - | - | - | - |
+| labelled Create arm swap (character list) | 304px pane | 320px | `container.cq-20` |
+| landing figures beside heading, config landing band | 42rem container | 40rem (`cq-40`) | the 4rem container ladder |
+| lead column's second breath | 100rem container | 96rem (`cq-96`) | the 8rem container ladder |
+| `wide` auto-fit grid cells | 22rem min | 24rem (`width.cell-wide`) | the 8rem ladder |
+| waystone stones and the ambient meter | 120/96/76/60px | 120/96/80/64px (`size.meter-*`) | the 8px grid |
+| skeleton gloss lines | 12px | 13px (`leading.micro`) | the line box the line stands in for |
+| skeleton blocks (labels panes, config landing) | 64px | 56px (`size.control-lg`) | the control row they stand in for |
+| scroll caps: document section, summary peek, picker list, databank area, insights, hero art, command list default and `grow` | 384/320/288px | 384px (`height.scroll-lg`) | one cap for a tall scroller |
+| scroll caps: gallery grids, log viewers, macro listbox, tag vocabulary, suggestions, composer growth, background field, tag rows | 256/192/288px | 256px (`height.scroll-md`) | one cap for a medium scroller |
+| scroll caps: inline autocomplete list, short log viewers, command list `compact`, section body floor | 160/192px | 160px (`height.scroll-sm`) | one cap for an inline scroller |
+| recall popover width | 224px | 192px (`width.popup-narrow`) | one narrow popover width |
+| refinery lanes | 240/272px | 256px (`width.lane`) | one lane width |
+| token count column (prompt assembly) | 48px | 80px (`width.number-inline`) | one numeric column |
+| avatar stack overlap | 12/14/18/28px | half the face (12/16/20/32px) | one rule for every size |
+| `tracking-tight`, `tracking-wide` | stock values | `tracking.display`, `tracking.caps` at the same em | token names |
+| `tabular-nums` beside `datum`/`datumMono`/`hero` | duplicated | dropped | the voice carries it |
+
+`tabular-nums` stays on 40 sites whose voice is `gloss`, `quiet`, a `size="label"` span or a bare `Input`; a tabular figure outside the datum voices needs a voice ruling (UI-Density-Law §2.3) and is reported rather than invented here.
 
 ### Leg 5: the ramp values
 
@@ -70,6 +95,43 @@ Not yet built. The derivation below is the design; commit B records the outcome.
 ### Legs 2, 4 and 6
 
 Not yet built. Leg 2: a typed manifest of the owner-CSS surface (the `data-slot` values, the `.shell-*` classes, `THEME_SCOPE_EMIT_VARS` and the public ramp primitives, which then move to a served block) with a pin test that fails on a planted rename or removal; the law's §12 points at the manifest. Leg 4: stylelint allow-lists over every hand-written CSS file for radius, gap, padding, margin, font-size, z-index, line-height and transitions, admitting `var(--token)` and the shell's structural literals (viewport units with their fallback line, `env(safe-area-inset-*)`, grid ratios, zero sentinels). Leg 6: the hand-written CSS drops history comments, dead rules and one-off literals, and `shell.css` splits by region.
+
+## Build state
+
+Lane `cb-css`, worktree `.claude/worktrees/agent-a93838f44c69f2f8c`, branch `wt/agent-a93838f44c69f2f8c`. A successor continues from this section.
+
+### Done
+
+- Commit `f00689848e` (legs 1 and 2b): primitive ramps, one-hop aliases, the `size` group, the named conditions, `MEDIA_QUERIES`, the stylelint and ESLint rules, the `rewrite-class-tokens` codemod (`tooling/src/codemods/rewrite-class-tokens`, kept because leg 3 reuses it). Evidence: `theme.css` variable diff 0 changed / 25 renamed / 45 added / 1 removed; snap before (`2ca0a3baba6e`) and after (`f00689848e`) on the real-db isolated stage, ten surfaces, every `--diff` SSIM 1 PASS; boundary pins at 768 and 1024 identical before and after (768 mobile, 1024 narrow). Run slots are under `reports/runs/snap/agent-a93838f44c69f2f8c-*` in the worktree; the capture scripts are in the session scratchpad (`cb-css-snap-batch.sh`, `cb-css-snap-boundary.sh`, `cb-css-geometry.js`).
+- Merge commit `ceec202f83`: main merged; the plan conflict resolved by keeping main's Owner rulings and Open questions.
+- Leg 3 (the commit after `ceec202f83`): every governed namespace reset (`spacing`, `text`, `leading`, `tracking`, `font-weight`, `container`, `breakpoint`, `radius`, `shadow`); the new token families and `cssValues` listed under "Leg 3"; every default-scale, container-variant and arbitrary-value site migrated (codemod map at `reports/cb-css/leg3-class-map.json` in the worktree, gitignored, with the capture scripts beside it; 116 files, plus the hand edits named in the leg-3 table); ESLint rules on (`no-conflicting-classes`, `no-duplicate-classes`, `no-concatenated-classes`, `no-restricted-classes` with the numeric-arbitrary, stock-leading and bare-namespace patterns; `orb/no-off-token-inline-style` over every geometry property); `tabular-nums` dropped beside `datum`/`datumMono`; the font stacks one `Map` in `clamp.ts`; the avatar stack overlap one rule.
+- Leg-3 checks run: `tokens:build`; `tests/ui/token-contract` (17 pass); `tests/tooling/native-token-scales` and `css-merge-parity` (8 pass); `pnpm exec stylelint "packages/**/*.css"` clean; `pnpm typecheck` green after the two merge-brought `TOKENS["spacing.control-lg"]` keys were repointed; 119 component tests green (`tests/ui`, touch-floor, scene-cards, first-boot-boxes, config-search-input, background-upload, durable-local-binding, media-lifetime, design-audit-walker, login-pending-join, join-invite-dialog); the planted controls (`p-4`, `max-h-96`, `size-19`, `text-sm`, `leading-tight`, `@min-[100rem]:`, `size-control-sm`, `h-[8.5rem]`, `grid-cols-[1.55fr_1fr]`, a duplicate and a conflicting class, numeric `height` and `minBlockSize` inline) each fail lint.
+
+### In progress
+
+- Whole-tree `pnpm lint:eslint packages tooling tests` for the leg-3 tree: the previous run had 14 findings, all fixed (grid templates handed to the numeric restriction, the `w-number-inline` bare form, three concatenations in `face-strip.tsx` now `cn(...)`, a stale disable in `message-bubble-class.ts`); the re-run is green (0 findings) and leg 3 is committed through the hooks.
+- Leg-3 after-captures not yet taken. Next exact step: under the load gate (one-minute load under 24) run `bash <scratchpad>/cb-css-snap-batch.sh after3 <sha> --diff` and `bash <scratchpad>/cb-css-snap-boundary.sh after3 <sha>`, read every `DIFF` line and heatmap, and check each difference against the leg-3 change table; a difference the table does not name is a defect.
+
+### Decisions since the Owner rulings
+
+- A `size`, `height` or `width` token is spelled `<utility>-(--<namespace>-<name>)` on every axis; the bare forms the compiler accepts on some axes (`size-<name>`, `h-<name>`, `w-<name>`) are refused by lint.
+- An arbitrary bracket value is legal when it carries no design number; a length, a decimal or a track share other than `1fr` is refused. Grid templates of `auto`/`1fr`/`max-content`/`var(--token)` stay as classes; the two ratio templates are `cssValues` (`--grid-lead`, `--grid-lead-wide`).
+- The transcript bubble cap is its own token (`reading.bubble-cap-ch`, `--reading-bubble-cap`, 65ch): the reading floor is a min-width and the transcript measure belongs to the column.
+- Container steps are rem-named (`cq-20` to `cq-96`); the list-row `stackActionsAt` prop values follow (`cq-24`, `cq-32`).
+- Primitives stay in `@theme` (Tailwind drops an unreferenced one from served CSS); leg 2 decides the served owner-CSS surface.
+- The pointer and preference conditions carry Tailwind's own variant names and replace the built-ins; `portrait`/`landscape` and the `sm`/`xl`/`2xl` breakpoints were not minted (no consumer).
+
+### Open forks
+
+- `tabular-nums` on 40 sites whose voice is `gloss`, `quiet`, a `size="label"` span or a bare input: a tabular figure outside the datum voices needs a voice ruling (UI-Density-Law §2.3); not invented here.
+- Font smoothing: no `-webkit-font-smoothing`, `text-rendering`, `font-synthesis` or `text-size-adjust` rule exists in the packages or the law; Tailwind preflight sets `-webkit-text-size-adjust: 100%` on `html`. Nothing added.
+- The theme suites the law names (emit surface, palette contrast, theme emit pairing, seed theme pairing) are not in the tree; `tests/ui/content/theme-scope/*` and `tests/kit/theme-derivation` are what runs.
+- A cold isolated stage's first navigation fails as docs/work/1296 describes; every capture cited above is a warm capture, and the real-db boot is retried until the clone survives (`cb-css-snap-batch.sh`).
+- The `scene-cards` component suite failed on the leg-1 tree until the `TOKENS["spacing.control-lg"]` key in `skeleton-row-metrics.ts` was repointed; a token path rename must sweep `TOKENS[...]` and `SNAPPED_LENGTH_BASE_PX[...]` keys, which the class codemod does not see.
+
+### Remaining legs
+
+5 (the ramp values against the rulings; the Ramps table gains a decision column), 2 (the owner-CSS surface manifest and pin test; decide whether primitives move to the served `:root`), 4 (stylelint allow-lists over every hand-written CSS file, and the move of `stylelint.config.js`/`stylelint-rules.js` to TypeScript with `Config`/`Rule` types and unit tests), 6 (history comments, dead rules and one-off literals out of `shell.css` and both `globals.css`; `shell.css` split by region). Each is its own commit with snap before/after at 1440 and 390 under the load gate and a change list.
 
 ## Ramps
 

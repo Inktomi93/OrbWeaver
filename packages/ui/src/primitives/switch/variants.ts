@@ -137,9 +137,9 @@ export const switchVariants = tv({
       TOUCH_TARGET_PSEUDO,
     ],
     thumb: [
-      "group relative flex aspect-square h-[calc(var(--size-switch-track-height)_-_2_*_var(--border-width-control)_-_2_*_var(--size-switch-inset))] items-center justify-center rounded-full bg-muted-foreground/80",
+      "group relative flex aspect-square h-(--size-switch-thumb) items-center justify-center rounded-full bg-muted-foreground/80",
       "transition-transform duration-(--motion-fast) ease-out-expo",
-      "data-checked:translate-x-[calc(var(--size-switch-track)_-_var(--size-switch-track-height))]",
+      "data-checked:translate-x-(--size-switch-travel)",
     ],
     // Hidden by default, shown only via data-readonly. Color inverts against whichever thumb bg is live.
     readOnlyIcon: "hidden text-background group-data-[readonly]:block",

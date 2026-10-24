@@ -85,7 +85,7 @@ function WireSection({ heading, gloss, text }: { readonly heading: string; reado
         <Text data-slot="wire-section-gloss" voice="gloss">
           {gloss}
         </Text>
-        <LogViewer lines={toLines(text)} className="max-h-64" />
+        <LogViewer lines={toLines(text)} className="max-h-(--height-scroll-md)" />
       </Stack>
     </Section>
   );
@@ -99,7 +99,7 @@ function InjectionsSection({ prompt }: { readonly prompt: VariantWireView["promp
   }
   return (
     <Section heading={<Text voice="kicker">{`In-history injections (${prompt.afterHistory.length})`}</Text>}>
-      <LogViewer lines={prompt.afterHistory.map((i) => `[${i.role} @ depth ${i.depth}] ${i.content}`)} className="max-h-40" />
+      <LogViewer lines={prompt.afterHistory.map((i) => `[${i.role} @ depth ${i.depth}] ${i.content}`)} className="max-h-(--height-scroll-sm)" />
     </Section>
   );
 }
@@ -117,7 +117,7 @@ function MacroDrawsSection({ draws }: { readonly draws: VariantWireView["macroDr
     <Section heading={<Text voice="kicker">{`Frozen random draws (${lines.length})`}</Text>}>
       <Stack gap="field">
         <Text voice="gloss">The random-pick macros this turn rolled, frozen at commit — a swipe or a continue of this reply replays these exact values.</Text>
-        <LogViewer lines={lines} className="max-h-40" />
+        <LogViewer lines={lines} className="max-h-(--height-scroll-sm)" />
       </Stack>
     </Section>
   );
@@ -136,7 +136,7 @@ function MacroFreezesSection({ freezes }: { readonly freezes: VariantWireView["m
         <Text voice="gloss">Rolls, picks and clock reads are baked destructively into the stored text at commit. These are the values that were baked in.</Text>
         <LogViewer
           lines={freezes.map((freeze) => `{{${freeze.name}${freeze.args === undefined ? "" : `::${freeze.args}`}}} → ${freeze.value}`)}
-          className="max-h-40"
+          className="max-h-(--height-scroll-sm)"
         />
       </Stack>
     </Section>
@@ -206,7 +206,7 @@ function WireBody({ wire }: { readonly wire: VariantWireView }): ReactElement {
               Not recorded for this reply.
             </Text>
           ) : (
-            <LogViewer lines={JSON.stringify(params, null, 2).split("\n")} className="max-h-40" />
+            <LogViewer lines={JSON.stringify(params, null, 2).split("\n")} className="max-h-(--height-scroll-sm)" />
           )}
         </Section>
       )}

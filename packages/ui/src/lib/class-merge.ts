@@ -30,11 +30,14 @@ export const CSS_MERGE_FAMILY_NAMES = [
   "blur",
   "border-width",
   "font",
+  "font-weight",
   "text",
   "leading",
   "tracking",
   "container",
   "width",
+  "size",
+  "height",
   "ease",
 ] as const;
 
@@ -92,17 +95,25 @@ const SPACING_SCALE = scaleOf("spacing");
 const RADIUS_SCALE = scaleOf("radius");
 // `--container-*` feeds `w`/`min-w`/`max-w`/`basis` (the `max-w-cq-*` container-query steps).
 const CONTAINER_SCALE = scaleOf("container");
-// `--width-*` is the odd one out and is NOT a theme registration: tailwind-merge 3.6 has no `width` key
-// in `DefaultThemeGroupIds` (a `theme.width` entry would be an inert no-op), and the v4.3 engine emits
-// `w-<name>` for this namespace but NOT `max-w-<name>`/`min-w-<name>` — probed, not assumed. So the one
-// group it can conflict in is `w`, and it registers as a classGroup extension (which CONCATS onto the
-// built-in `w` group, `mergeArrayProperties`), still derived from the token map.
+// `--width-*`, `--size-*` and `--height-*` are not tailwind-merge theme keys; the engine compiles their bare
+// forms on some axes only (`w-<name>`, `size-<name>`, `h-<name>`), so lint refuses the bare forms and code spells
+// the `(--namespace-name)` variable on every axis. The compiler still accepts the bare forms, so each registers
+// as a classGroup extension (which concats onto the built-in group), derived from the token map.
 const WIDTH_SCALE = scaleOf("width");
+const SIZE_SCALE = scaleOf("size");
+const HEIGHT_SCALE = scaleOf("height");
 const ASPECT_SCALE = scaleOf("aspect");
 const BLUR_SCALE = scaleOf("blur");
 const EASE_SCALE = scaleOf("ease");
 
-const CLASS_GROUPS = { ...CUSTOM_CLASS_GROUPS, w: [{ w: WIDTH_SCALE }] };
+const CLASS_GROUPS = {
+  ...CUSTOM_CLASS_GROUPS,
+  w: [{ w: WIDTH_SCALE }],
+  size: [{ size: SIZE_SCALE }],
+  h: [{ h: HEIGHT_SCALE }],
+  "min-h": [{ "min-h": HEIGHT_SCALE }],
+  "max-h": [{ "max-h": HEIGHT_SCALE }],
+};
 const THEME = {
   spacing: SPACING_SCALE,
   radius: RADIUS_SCALE,

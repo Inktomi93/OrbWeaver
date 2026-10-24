@@ -26,9 +26,9 @@ export const macroTextareaVariants = tv({
     // prescription was derived for a different font class. Flagged to the orchestrator, not decided here.
     textarea: "min-h-0 max-w-(--reading-measure) flex-1 resize-y font-mono text-code-field leading-code-field",
     listbox: [
-      "absolute top-full right-0 left-0 z-(--z-overlay) mt-field max-h-64 overflow-y-auto overscroll-contain rounded-card border border-border bg-popover py-field shadow-overlay",
+      "absolute top-full right-0 left-0 z-(--z-overlay) mt-field max-h-(--height-scroll-md) overflow-y-auto overscroll-contain rounded-card border border-border bg-popover py-field shadow-overlay",
     ],
-    groupLabel: "px-block py-field text-label leading-label font-semibold text-muted-foreground uppercase tracking-wide",
+    groupLabel: "px-block py-field text-label leading-label font-semibold text-muted-foreground uppercase tracking-caps",
     item: [
       "flex w-full min-h-(--size-touch-target) cursor-pointer select-none items-start justify-between gap-block px-block py-field text-left text-body leading-body text-foreground outline-none",
       "hover:bg-muted data-highlighted:bg-accent data-highlighted:text-accent-foreground",

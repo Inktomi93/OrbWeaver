@@ -240,7 +240,7 @@ export function ConfigSearchInput({ groups }: ConfigSearchInputProps): ReactElem
           </CommandAuxiliaryButton>
         </Row>
         {expanded ? (
-          <CommandList className="max-h-(--container-cq-sm)">
+          <CommandList className="max-h-(--container-cq-24)">
             {tokens !== null && partial !== null ? (
               <TokenMenu partial={partial} query={query} tokens={tokens} />
             ) : (

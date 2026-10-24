@@ -198,9 +198,9 @@ function GenerateRow({
     <>
       {/* VISIBLY LABELLED (P2: "arm picker unlabeled visibly"). `aria-label` alone told a screen reader
           what this control is and told a sighted user nothing — three sentence-shaped options with no
-          question above them. The Field label IS the question. `max-w-sm` caps the P1-3 squeeze at the
+          question above them. The Field label IS the question. `max-w-cq-24` caps the P1-3 squeeze at the
           source: an unbounded Select sized itself to its longest option label. */}
-      <Field className="min-w-0 max-w-sm flex-1" label={FORGE_ARM_QUESTION}>
+      <Field className="min-w-0 max-w-cq-24 flex-1" label={FORGE_ARM_QUESTION}>
         <Select
           // The `aria-label` is the SAME STRING as the visible label, from one constant. It is kept
           // because `Field` associates through Base UI context at runtime, which the static a11y lint

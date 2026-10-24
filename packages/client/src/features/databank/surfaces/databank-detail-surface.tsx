@@ -187,10 +187,10 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
           Reindex flew to the far edge of its sentence. That is the same defect the tag editor's two colour
           swatches were fixed for (side-eye 2026-08-03: "a two-column grid got stretched across 590px for two
           32px squares"), rebuilt in a pane with twice the room.
-          IT IS `--width-content-col`, NOT `max-w-prose` (#1175). The ruling survives; its SPELLING changed.
+          IT IS `--width-content-col`, NOT `max-w-(--reading-measure-min)` (#1175). The ruling survives; its SPELLING changed.
           This block holds controls, and the prose measure's own contract forbids a reading `ch` cap on one
           (it resolves in the wrapper's font, not the paragraph's — the #213/#1130 failure). The editor
-          content-column token is the one that names this job; `max-w-prose` was a third un-derived width.
+          content-column token is the one that names this job; `max-w-(--reading-measure-min)` was a third un-derived width.
 
           AND THE TOKEN'S CONSUMPTION IS THREE CLASSES, NOT ONE (#1664): its `$description` says the column
           is CENTERED and BREATHES to `--width-content-col-wide` once its container clears `@5xl`, so the
@@ -200,7 +200,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
           region (`RegionAnchor`), not a box this surface owns: `<Surface>` is `display: contents`, so it
           adds none. `w-full` rides with `mx-auto` because that region is a flex column. */}
       <Stack
-        className="mx-auto w-full max-w-(--width-content-col) @5xl:max-w-(--width-content-col-wide) py-section"
+        className="mx-auto w-full max-w-(--width-content-col) @cq-64:max-w-(--width-content-col-wide) py-section"
         data-slot="databank-detail-editor"
         gap="section"
       >
@@ -330,7 +330,7 @@ function SourceText({ documentId }: { readonly documentId: DocumentId }): ReactE
   return (
     // A read-only scroll REGION, not a form control (§2.2): the text is a readout, and `whitespace-pre-wrap`
     // is what keeps the extracted line structure legible.
-    <ScrollArea className="max-h-96">
+    <ScrollArea className="max-h-(--height-scroll-lg)">
       <Text className="whitespace-pre-wrap break-words" voice="datum">
         {query.data.extractedText ?? ""}
       </Text>
@@ -344,7 +344,7 @@ function SourceText({ documentId }: { readonly documentId: DocumentId }): ReactE
  * It used to be `justify="between"` — label hard left, value hard right — which is the settings-row
  * grammar and is wrong for a readout: the pair spends whatever width it is given, so at the real
  * ~1450px CONTENT pane "Origin" and "Upload" sat 382-475px apart and the eye had to travel a
- * hand-span to tie a two-word label to a one-word value (side-eye 2026-08-19 P2). `max-w-prose`
+ * hand-span to tie a two-word label to a one-word value (side-eye 2026-08-19 P2). `max-w-(--reading-measure-min)`
  * halved that span in the 2026-08-03 sweep and is still right — a readout inside a measure is what
  * stops it spanning the window — but a measure caps the WORST case; it does not tie the pair.
  *

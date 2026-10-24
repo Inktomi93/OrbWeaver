@@ -66,12 +66,12 @@ function MiniRoom(): ReactElement {
           it — the pair a theme exists to keep readable, and the one pair that clears 3:1 on both
           polarities without asking two ramp neighbours to do something they cannot. */}
       <Row align="center" className="min-w-0 gap-tight rounded-control border border-border bg-card p-tight">
-        <Row className="h-1.5 min-w-0 flex-1 rounded-full bg-foreground" />
+        <Row className="h-(--size-preview-line) min-w-0 flex-1 rounded-full bg-foreground" />
       </Row>
       {/* The quiet ink + the ACCENT — the one picked token no base derives (`accent-is-inherited-not-derived`). */}
       <Row align="center" className="min-w-0 gap-tight">
-        <Row className="h-1.5 min-w-0 flex-1 rounded-full bg-muted-foreground" />
-        <Row className="size-3 shrink-0 rounded-full bg-primary" />
+        <Row className="h-(--size-preview-line) min-w-0 flex-1 rounded-full bg-muted-foreground" />
+        <Row className="size-(--size-dot-lg) shrink-0 rounded-full bg-primary" />
       </Row>
     </Stack>
   );

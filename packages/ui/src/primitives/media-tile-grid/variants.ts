@@ -13,7 +13,7 @@ export const mediaTileGridVariants = tv({
   slots: {
     // THE ROOT IS THE QUERY CONTAINER AND THE TRACKS ARE ITS CHILD — two elements, deliberately. A container
     // query resolves against an ANCESTOR, never the element that declares `@container`, so a single element
-    // carrying both `@container` and `@md:grid-cols-3` never matches its own size: it silently stays at the
+    // carrying both `@container` and `@cq-28:grid-cols-3` never matches its own size: it silently stays at the
     // base column count at every width. (Measured, not theorised — the primitive's own CT caught exactly that,
     // 2 columns at 320px AND at 800px.)
     root: "@container",
@@ -22,7 +22,7 @@ export const mediaTileGridVariants = tv({
     // breakpoint would count columns for a width the grid does not have. Two columns is the floor at which a
     // cover is still a picture rather than a stamp; the track sizes are a house decision and
     // `no-arbitrary-tw-values` bars the bracket form.
-    tracks: "grid grid-cols-2 gap-block @md:grid-cols-3 @2xl:grid-cols-4",
+    tracks: "grid grid-cols-2 gap-block @cq-28:grid-cols-3 @cq-40:grid-cols-4",
     tile: ["group flex flex-col gap-field text-left outline-none", FOCUS_RING],
     cover: "relative w-full overflow-hidden rounded-control bg-muted",
     image: "h-full w-full object-cover",

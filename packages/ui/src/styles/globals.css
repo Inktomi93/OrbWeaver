@@ -337,7 +337,7 @@
  * EmptyState consumer.
  *
  * IT IS UNLAYERED, AND THAT IS WHAT IT MEANS (side-eye 2026-08-21 P4 — this comment used to claim the
- * opposite). The slot's own class list carries the container step-down (`@max-sm:text-body`, its
+ * opposite). The slot's own class list carries the container step-down (`@max-cq-24:text-body`, its
  * variants.ts), but an unlayered rule beats every Tailwind utility regardless of specificity or container
  * — the `tiers.css` list-row precedent — so a `focal` title holds the DISPLAY step at EVERY width,
  * including inside a ~307px LIST pane. That is the arm: `focal` is the surface's one focal statement, and

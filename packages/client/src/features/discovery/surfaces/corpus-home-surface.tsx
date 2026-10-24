@@ -217,7 +217,7 @@ function CorpusHomeBody(): ReactElement {
             (`corpus-understanding-invitation.tsx`'s own spelling): one column until the surface's
             `@container` is genuinely wide enough for two, `items-end` only in the two-column arm — a
             right-aligned figure block under a stacked headline would read as a stray. */}
-        <Row align="start" className="flex-col @2xl:flex-row @2xl:items-end" gap="section" justify="between">
+        <Row align="start" className="flex-col @cq-40:flex-row @cq-40:items-end" gap="section" justify="between">
           <Stack className="min-w-0 flex-1" gap="tight">
             <Text as="span" voice="kicker">
               Library understanding
@@ -239,7 +239,7 @@ function CorpusHomeBody(): ReactElement {
               has two columns, which is the same `@2xl` the masthead itself flips on. */}
           {state.hero === null ? null : (
             <Row align="end" className="shrink-0" gap="section">
-              <Stack className="@2xl:text-right" gap="tight">
+              <Stack className="@cq-40:text-right" gap="tight">
                 <Text as="span" voice="hero">
                   {state.hero.value}
                 </Text>
@@ -248,7 +248,7 @@ function CorpusHomeBody(): ReactElement {
                 </Text>
               </Stack>
               {state.support.map((figure) => (
-                <Stack className="@2xl:text-right" gap="tight" key={figure.id}>
+                <Stack className="@cq-40:text-right" gap="tight" key={figure.id}>
                   <Text as="span" voice="datum">
                     {figure.value}
                   </Text>

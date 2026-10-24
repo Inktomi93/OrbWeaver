@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { authorClassIgnores, createOrbPlugin } from "@orb/tooling/eslint";
 import { BUTTON_SIZE_OVERFLOW } from "@orb/ui/button/size-hit-area";
+import { TOKENS } from "@orb/ui/tokens";
 import pluginQuery from "@tanstack/eslint-plugin-query";
 import pluginRouter from "@tanstack/eslint-plugin-router";
 import vitest from "@vitest/eslint-plugin";
@@ -25,6 +26,31 @@ const CLIENT_STYLESHEET = fileURLToPath(new URL("./packages/client/src/styles/gl
 const SHELL_STYLESHEET = fileURLToPath(new URL("./packages/client/src/features/app-shell/surfaces/shell.css", import.meta.url));
 
 const SOURCE = ["packages/*/src/**/*.{ts,tsx}", "tooling/src/**/*.{ts,tsx}"];
+
+// Tailwind utilities the namespace resets cannot remove (the compiler still accepts them), refused here instead.
+// `size`, `height` and `width` tokens compile as bare `size-<name>`/`h-<name>`/`w-<name>` on some axes only, so the
+// `(--namespace-name)` form is the one spelling for every axis and the bare forms are refused.
+const BARE_NAMESPACE_UTILITIES = Object.keys(TOKENS).flatMap((path) => {
+  const [group, name] = [path.slice(0, path.indexOf(".")), path.slice(path.indexOf(".") + 1)];
+  const roots = { size: ["size"], height: ["h", "min-h", "max-h"], width: ["w", "min-w", "max-w"] }[group] ?? [];
+  return roots.map((root) => `${root}-${name}`);
+});
+const RESTRICTED_CLASSES = [
+  {
+    // An arbitrary class value that carries a design number: a length, a decimal, or a track share other than 1fr.
+    // A keyword, `0`, `1fr`, `100%` or a `var(--token)` inside the brackets is structure and stays legal.
+    pattern: String.raw`^(?:[^\s\[]*:)?[a-z-]+-\[[^\]]*(?:\d+(?:\.\d+)?(?:px|rem|em|ch|cq[whib]|v[wh]|dvh|svh|lvh|ms|s|deg)|\d\.\d+|(?:[2-9]|\d{2,})fr)[^\]]*\]`,
+    message: "An arbitrary value with a design number bypasses the token scale; use a token utility or add one in tokens.json.",
+  },
+  {
+    pattern: String.raw`^(?:[^\s]*:)?!?leading-(?:tight|snug|normal|relaxed|loose|\d+)!?$`,
+    message: "A stock line-height; every line box is a leading token (docs/law/integer-line-boxes.md).",
+  },
+  {
+    pattern: `^(?:[^\\s]*:)?!?-?(?:${BARE_NAMESPACE_UTILITIES.join("|")})!?$`,
+    message: "Spell a size, height or width token as <utility>-(--<namespace>-<name>), the one form that works on every axis.",
+  },
+];
 
 const REACT_SOURCE = ["packages/client/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}"];
 
@@ -465,6 +491,11 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
         "better-tailwindcss/enforce-consistent-variable-syntax": ["error", { syntax: "shorthand" }],
         "better-tailwindcss/no-deprecated-classes": "error",
         "better-tailwindcss/no-unknown-classes": ["error", { ignore: authorClassIgnores(stylesheets) }],
+        "better-tailwindcss/no-conflicting-classes": "error",
+        "better-tailwindcss/no-duplicate-classes": "error",
+        "better-tailwindcss/no-concatenated-classes": "error",
+        // The namespace resets remove the stock scales; this closes the arbitrary spellings a reset cannot see.
+        "better-tailwindcss/no-restricted-classes": ["error", { restrict: RESTRICTED_CLASSES }],
       },
     }),
   ),

@@ -84,7 +84,7 @@ export function TalkativenessPopover({
           }
         }}
       >
-        <Stack gap="field" className="min-w-48">
+        <Stack gap="field" className="min-w-(--width-popup-narrow)">
           <Row gap="field" align="center">
             {/* The popover spells what the chip's percent is a chance OF, live with the thumb. */}
             <Text as="span" voice="label">

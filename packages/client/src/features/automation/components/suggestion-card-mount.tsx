@@ -74,7 +74,7 @@ function RewriteDetail({ before, after }: { readonly before: string; readonly af
             transcript out of the room to show it. `wrapContent` because the diff is a prose column whose
             width is the viewport's — without it Base UI's fit-content Content lays it out at max-content and
             the paragraphs never wrap. */}
-        <ScrollArea viewportClassName="max-h-48" wrapContent={true}>
+        <ScrollArea viewportClassName="max-h-(--height-scroll-md)" wrapContent={true}>
           <DiffView before={before} after={after} mode="words" />
         </ScrollArea>
       </CollapsiblePanel>

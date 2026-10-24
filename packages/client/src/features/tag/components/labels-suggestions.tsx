@@ -20,7 +20,7 @@ export function LabelsSuggestions(): ReactElement {
   return (
     <Section heading="Suggested tags">
       <QueryBoundary
-        fallback={<Skeleton className="h-16 w-full" />}
+        fallback={<Skeleton className="h-(--size-control-lg) w-full" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="suggested tags" onRetry={retry} />}
       >
         <SuggestionsBody />

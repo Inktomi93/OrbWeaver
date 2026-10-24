@@ -15,7 +15,7 @@
 // the welcome and the LIST — this file names no collection (`collection` config groups only).
 //
 // THE VIEWPORT REGIME IS READ FROM `#state`, NEVER FROM A CONTAINER QUERY. The list's own root is a
-// `<Container>`, so an `@md:`/`@max-md:` variant here would ask how wide the LIST PANE is — and the docked
+// `<Container>`, so an `@cq-28:`/`@max-cq-28:` variant here would ask how wide the LIST PANE is — and the docked
 // desktop pane is 272px, narrower than any phone, so the container arm would paint this header on the
 // desktop workspace beside the welcome that already says it. `useMobileViewport` is the shell's published
 // 48rem regime and is the same input `resolvePanelMode` uses to decide list-as-screen in the first place,

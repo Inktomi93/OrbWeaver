@@ -49,7 +49,7 @@ export function CharacterContextBand({ characterId }: CharacterContextBandProps)
     return (
       <Row gap="block" align="center" aria-busy={true} className="min-w-0">
         <Skeleton className="size-(--size-avatar-lg) shrink-0 rounded-base" data-slot="character-context-band-pending" />
-        <Skeleton className="h-(--size-control-sm) w-full max-w-cq-sm" />
+        <Skeleton className="h-(--size-control-sm) w-full max-w-cq-24" />
       </Row>
     );
   }

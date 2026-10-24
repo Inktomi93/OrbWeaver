@@ -215,7 +215,7 @@ export function CorpusModelEconomicsSection({
         />
         <VirtualList
           aria-label="Model routes"
-          className="max-h-96"
+          className="max-h-(--height-scroll-lg)"
           estimateSize={(): number => ROW_ESTIMATE_PX}
           getItemKey={(route): string => `${route.genre}|${route.model}|${route.provider ?? ""}`}
           items={routes}

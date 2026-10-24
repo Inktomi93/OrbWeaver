@@ -82,7 +82,7 @@ export function skeletonRowCountFor(boxHeight: number, fallback: number): number
 /** The box `rows` `SkeletonRows shape="line"` rows occupy: the exact inverse of {@link skeletonRowCountFor}.
  *  `null` when the tokens cannot be resolved, so a caller declares no box rather than a guessed one. */
 export function skeletonBoxFor(rows: number): number | null {
-  const rowHeight = spacingPx("spacing.control-lg");
+  const rowHeight = spacingPx("size.control-lg");
   const gap = spacingPx("spacing.row");
   const pad = spacingPx("spacing.block");
   if (rowHeight === null || gap === null || pad === null) {

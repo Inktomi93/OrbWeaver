@@ -39,5 +39,5 @@ export function PluginLogPanel({ pluginId, name }: PluginLogPanelProps): ReactEl
   }
   // `max-h-*`, not `h-*`: the panel grows with a short log and CAPS at a screenful (the `variant-wire-viewer`
   // precedent — and a fixed height would leave a two-line log floating in an empty box).
-  return <LogViewer className="max-h-64" lines={lines.map((line) => ({ text: lineText(line.at, line.message), level: line.level }))} />;
+  return <LogViewer className="max-h-(--height-scroll-md)" lines={lines.map((line) => ({ text: lineText(line.at, line.message), level: line.level }))} />;
 }

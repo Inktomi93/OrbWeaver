@@ -237,7 +237,7 @@ function GrantRow({ capability, checked, isNew, roleUnset }: GrantRowProps): Rea
         ) : null}
       </Row>
       {/* The measure caps the consequence line (side-eye 2026-08-29 residual P2): inside the re-consent
-          callout these ran edge-to-edge near ~90ch. THE TOKEN, NOT `max-w-prose` (#1175): Tailwind's utility
+          callout these ran edge-to-edge near ~90ch. THE TOKEN, NOT `max-w-(--reading-measure-min)` (#1175): Tailwind's utility
           is 65 CSS `ch`, and a CSS `ch` is the ZERO-GLYPH advance — 1.43-1.56 typographic characters in Geist
           — so 65ch reads 93-101 law characters and never satisfied the 65-75 band this comment used to claim
           it did. `--reading-measure-prose` (47ch) is the derived teaching/body measure (#1145), and it rides

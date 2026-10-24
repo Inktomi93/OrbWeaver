@@ -82,7 +82,7 @@ export interface LogViewerProps {
  * LogViewer — a read-only monospace line panel. PIN-not-yank autoscroll on append (never yanks a
  * reader who scrolled up to read history), a copy-to-clipboard affordance, and a `level`
  * glyph+intent-token pair per line (never color alone). Virtualizes above `VIRTUALIZE_THRESHOLD`
- * lines via `message-list`, which then requires a bounded height on `className` (e.g. `h-64`).
+ * lines via `message-list`, which then requires a bounded height on `className` (e.g. `h-(--height-scroll-md)`).
  */
 export function LogViewer({ lines, maxLines, className }: LogViewerProps): ReactElement {
   const scrollRef = useRef<HTMLDivElement | null>(null);

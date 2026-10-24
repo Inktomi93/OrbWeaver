@@ -27,12 +27,12 @@ export const drawerVariants = tv({
       },
       left: {
         popup:
-          "inset-y-0 left-0 w-full max-w-cq-sm rounded-r-card [transform:translateX(var(--drawer-swipe-movement-x))] data-starting-style:-translate-x-full data-ending-style:-translate-x-full",
+          "inset-y-0 left-0 w-full max-w-cq-24 rounded-r-card [transform:translateX(var(--drawer-swipe-movement-x))] data-starting-style:-translate-x-full data-ending-style:-translate-x-full",
         swipeArea: "inset-y-0 left-0 w-row",
       },
       right: {
         popup:
-          "inset-y-0 right-0 w-full max-w-cq-sm rounded-l-card [transform:translateX(var(--drawer-swipe-movement-x))] data-starting-style:translate-x-full data-ending-style:translate-x-full",
+          "inset-y-0 right-0 w-full max-w-cq-24 rounded-l-card [transform:translateX(var(--drawer-swipe-movement-x))] data-starting-style:translate-x-full data-ending-style:translate-x-full",
         swipeArea: "inset-y-0 right-0 w-row",
       },
     },

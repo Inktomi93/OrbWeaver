@@ -64,7 +64,7 @@ export function FlankColumn({
               flank.expanded ? "visible translate-x-0" : "pointer-events-none invisible translate-x-full",
               flank.expanded && !flank.inline && "z-(--z-raised) bg-card shadow-overlay",
             )
-          : "max-w-(--width-sidebar-sm) relative pt-block @max-lg:max-h-1/2 @max-lg:max-w-none @max-lg:overflow-y-auto @max-lg:pt-0",
+          : "max-w-(--width-sidebar-sm) relative pt-block @max-cq-32:max-h-1/2 @max-cq-32:max-w-none @max-cq-32:overflow-y-auto @max-cq-32:pt-0",
       )}
       data-collapsed={flank.panelMode && !flank.expanded ? "true" : undefined}
       data-slot="chat-thread-flank"

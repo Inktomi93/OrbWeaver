@@ -47,7 +47,7 @@ export function LabelsListSurface(): ReactElement {
         {/* The rows' windowed arm takes its height from this box, so it is a bounded flex column. */}
         <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain">
           <QueryBoundary
-            fallback={<Skeleton className="h-16 w-full" />}
+            fallback={<Skeleton className="h-(--size-control-lg) w-full" />}
             renderError={(_error, retry): ReactElement => <QueryErrorState label="tags" onRetry={retry} />}
           >
             <TagCollectionRows view={{ selectedId, onSelect: selectLabelFromList, filter }} />

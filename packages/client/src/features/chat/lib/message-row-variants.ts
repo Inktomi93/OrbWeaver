@@ -135,7 +135,7 @@ function flatInner(role: MessageRole): string {
   // variant, later in the merge), the first covers the plain-background arm.
   // On a phone the text sits a stock 10px from the avatar (SillyTavern flat), not a desktop section away.
   return cx(
-    "w-full px-section py-row @max-md:px-row",
+    "w-full px-section py-row @max-cq-28:px-row",
     BG_PHOTO_READING_PLATE,
     role === "system" && "text-muted-foreground in-data-[has-bg-image]:text-muted-foreground",
   );

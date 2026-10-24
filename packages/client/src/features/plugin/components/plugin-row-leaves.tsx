@@ -253,7 +253,7 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
         {firstAsk ? firstConsentLine(plugin.name, plugin.declaredCapabilities.length) : reConsentLine(ungranted, plugin.widenedNetHosts)}
       </Text>
       {/* The measure caps the body + headline (side-eye 2026-08-29 residual P2): at pane width the consent
-          copy ran edge-to-edge near ~90ch, past the comfortable line length. THE TOKEN, NOT `max-w-prose`
+          copy ran edge-to-edge near ~90ch, past the comfortable line length. THE TOKEN, NOT `max-w-(--reading-measure-min)`
           (#1175) — 65 CSS `ch` is 93-101 typographic characters in Geist, so the utility never met the 65-75
           band; `--reading-measure-prose` (47ch) is the derived one (#1145) and rides the PARAGRAPH, since a
           `ch` resolves in the element's own font. The per-capability consequence lines are capped at their

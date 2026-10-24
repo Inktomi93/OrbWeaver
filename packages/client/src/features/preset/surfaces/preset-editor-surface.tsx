@@ -368,7 +368,7 @@ function PresetEditorBody({
             does NOT lead with Reset, because that blob is intact data this build merely cannot read. */}
         {configUnreadable === null ? null : (
           <Container className="w-full">
-            <Stack className="mx-auto w-full max-w-(--width-content-col) @5xl:max-w-(--width-content-col-wide) py-block">
+            <Stack className="mx-auto w-full max-w-(--width-content-col) @cq-64:max-w-(--width-content-col-wide) py-block">
               <StoredConfigUnreadableNotice copy={PRESET_UNREADABLE_COPY[unreadableConfigCause(configUnreadable)]} />
             </Stack>
           </Container>
@@ -376,7 +376,7 @@ function PresetEditorBody({
 
         {isSystemDefault ? (
           <Container className="w-full">
-            <Stack className="mx-auto w-full max-w-(--width-content-col) @5xl:max-w-(--width-content-col-wide) py-block">
+            <Stack className="mx-auto w-full max-w-(--width-content-col) @cq-64:max-w-(--width-content-col-wide) py-block">
               <BuiltInCopyOnWriteNotice active={active} />
             </Stack>
           </Container>
@@ -396,7 +396,7 @@ function PresetEditorBody({
                 what the @5xl query measures (the pane's own width), which is why the cap and the container
                 are two elements and not one. It lives HERE and not per view so no body can opt out. */}
             <Container className="w-full">
-              <Stack className="mx-auto w-full max-w-(--width-content-col) @5xl:max-w-(--width-content-col-wide) py-block" gap="block">
+              <Stack className="mx-auto w-full max-w-(--width-content-col) @cq-64:max-w-(--width-content-col-wide) py-block" gap="block">
                 {entry.id === "params" ? (
                   <Stack gap="field" data-slot="preset-editor-connection">
                     <Text voice="label">Editing for Chat role{editorConnection === undefined ? "" : ` · ${editorConnection}`}</Text>

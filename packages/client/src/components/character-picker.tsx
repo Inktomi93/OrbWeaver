@@ -73,7 +73,7 @@ export interface CharacterPickerProps {
   readonly leadingGroup?: ReactNode;
   /** When set, the character rows sit under this CommandGroup heading. */
   readonly rowsHeading?: string;
-  /** CommandList max-height utility (e.g. "max-h-80" / "max-h-96"). @defaultValue "max-h-80" */
+  /** CommandList max-height utility (e.g. "max-h-(--height-scroll-lg)" / "max-h-(--height-scroll-lg)"). @defaultValue "max-h-(--height-scroll-lg)" */
   readonly listClassName?: string;
   /** Skeleton row count for the loading fallback. @defaultValue 5 */
   readonly skeletonCount?: number;
@@ -187,7 +187,7 @@ function CharacterPickerBody({
   return (
     <Command className="min-h-0" label={label} {...(onEscape === undefined ? {} : { onEscape })}>
       <CommandInput aria-label={placeholder} onValueChange={setTerm} placeholder={placeholder} ref={searchRef} value={term} />
-      <CommandList className={listClassName ?? "max-h-80"} onScroll={onScroll} ref={listRef}>
+      <CommandList className={listClassName ?? "max-h-(--height-scroll-lg)"} onScroll={onScroll} ref={listRef}>
         <CommandEmpty>{emptyText}</CommandEmpty>
         {leadingGroup}
         {rowsHeading === undefined ? rows : <CommandGroup heading={rowsHeading}>{rows}</CommandGroup>}

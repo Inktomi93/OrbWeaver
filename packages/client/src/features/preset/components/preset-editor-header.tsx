@@ -95,7 +95,7 @@ export function PresetEditorHeader({
           other tab. Fenced by a CT; the deck's cap is argued at its own site. */}
       <Stack gap="block" className="py-block sticky top-0 z-(--z-raised) bg-card">
         <Container className="w-full">
-          <Stack className="mx-auto w-full max-w-(--width-content-col) @5xl:max-w-(--width-content-col-wide)" gap="block">
+          <Stack className="mx-auto w-full max-w-(--width-content-col) @cq-64:max-w-(--width-content-col-wide)" gap="block">
             <Row align="center" justify="between" gap="field">
               <Row align="center" className="min-w-0" gap="field">
                 {/* The artifact's NAME is an h2 (side-eye F-28 / ARIA rec 8): it was a <p>, with the view's
@@ -114,7 +114,7 @@ export function PresetEditorHeader({
                     question (a viewport media query, not the content container's width): between 30rem and
                     the mobile breakpoint the topbar renders its WIDE arm, which for Presets is nothing at
                     all while the list is docked, so hiding on that signal would lose the name outright. */}
-                <Heading className="min-w-24 shrink truncate" data-shell-identity="defer" level={2}>
+                <Heading className="min-w-(--width-title-floor) shrink truncate" data-shell-identity="defer" level={2}>
                   {presetName}
                 </Heading>
                 {/* THE NAME HAS A DOOR HERE (#483, side-eye 2026-08-22 flow verdict 1). `New` mints a preset

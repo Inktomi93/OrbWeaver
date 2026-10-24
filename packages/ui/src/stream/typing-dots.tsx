@@ -17,9 +17,9 @@ export interface TypingDotsProps {
 export function TypingDots({ label, className }: TypingDotsProps): ReactElement {
   return (
     <span role="status" aria-label={label} data-slot="typing-dots" className={cn("inline-flex items-center gap-field py-field", className)}>
-      <span aria-hidden="true" className="orb-typing-dot size-1 rounded-full bg-muted-foreground" />
-      <span aria-hidden="true" className="orb-typing-dot size-1 rounded-full bg-muted-foreground" />
-      <span aria-hidden="true" className="orb-typing-dot size-1 rounded-full bg-muted-foreground" />
+      <span aria-hidden="true" className="orb-typing-dot size-(--size-dot-sm) rounded-full bg-muted-foreground" />
+      <span aria-hidden="true" className="orb-typing-dot size-(--size-dot-sm) rounded-full bg-muted-foreground" />
+      <span aria-hidden="true" className="orb-typing-dot size-(--size-dot-sm) rounded-full bg-muted-foreground" />
     </span>
   );
 }

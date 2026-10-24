@@ -14,11 +14,12 @@ import type { AvatarProps } from "#primitives/avatar";
 
 type AvatarSize = NonNullable<AvatarProps["size"]>;
 
-// Per-item overlap offset by size — rides as an inline style rather than a class (geometry, not a styling
-// axis). `fill` is ZERO on purpose, not a placeholder: a cell-sized avatar has no px width of its own to
-// overlap BY — the layout track decided it — so a fixed offset would be an arbitrary bite out of an unknown
-// box. Stacking cell-sized portraits is a grid, not a stack; that arm degrades to a plain row.
-export const AVATAR_STACK_OVERLAP_PX: Record<AvatarSize, number> = { sm: 12, md: 14, lg: 18, hero: 28, fill: 0, fillPortrait: 0 };
+/** Each face after the first is pulled back by half its own size. `fill` is null on purpose: a cell-sized avatar
+ *  has no width of its own to overlap by (the track decided it), so that arm degrades to a plain row. */
+export function avatarStackOverlap(size: AvatarSize): string | undefined {
+  const sizeVar = AVATAR_SIZE_VAR[size];
+  return sizeVar === null ? undefined : `calc(${sizeVar} / -2)`;
+}
 
 /** The display token each avatar size resolves its box from — the same `size-avatar-*` utilities the
  *  `Avatar` variants carry, as the custom properties they compile to. */
@@ -50,5 +51,5 @@ export function avatarStackInlineSize(slots: number, size: AvatarSize): string |
   if (slots === 1) {
     return sizeVar;
   }
-  return `calc(${sizeVar} + ${slots - 1} * (${sizeVar} - ${AVATAR_STACK_OVERLAP_PX[size]}px))`;
+  return `calc(${sizeVar} * (1 + ${slots - 1} / 2))`;
 }

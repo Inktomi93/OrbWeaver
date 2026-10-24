@@ -125,7 +125,11 @@ function SnippetOutput({ result }: { readonly result: SnippetResult }): ReactEle
 
   return (
     <Stack aria-label="Snippet output" gap="block" role="status">
-      {result.logLines.length === 0 ? <Text voice="gloss">It ran and logged nothing.</Text> : <LogViewer className="max-h-48" lines={[...result.logLines]} />}
+      {result.logLines.length === 0 ? (
+        <Text voice="gloss">It ran and logged nothing.</Text>
+      ) : (
+        <LogViewer className="max-h-(--height-scroll-md)" lines={[...result.logLines]} />
+      )}
       {result.error === undefined ? null : (
         <Text tone="destructive" voice="gloss">
           {result.error}

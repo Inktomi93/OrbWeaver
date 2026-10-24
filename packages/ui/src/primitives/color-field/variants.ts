@@ -43,7 +43,7 @@ export const colorFieldVariants = tv({
     // The display swatch's footprint. The editable trigger always uses `md`, the control size.
     swatchSize: {
       md: { swatch: "size-(--size-control-sm)" },
-      sm: { swatch: "size-3" },
+      sm: { swatch: "size-(--size-dot-lg)" },
     },
   },
   defaultVariants: { swatchSize: "md" },

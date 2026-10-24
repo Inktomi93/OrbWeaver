@@ -135,7 +135,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
           // A phone keeps the transcript and composer near the screen edge (owner ruling, as Moonlit Echoes pads its
           // chat 8px): the room steps its side inset down to `tight`, the transcript adds the ring clearance.
           className={cn(
-            "h-full px-block pb-block outline-none @max-md:px-tight",
+            "h-full px-block pb-block outline-none @max-cq-28:px-tight",
             roomTheme?.background !== undefined && "not-in-data-[has-bg-image]:bg-background",
           )}
           gap="block"
@@ -152,7 +152,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                *  A `flankContributions.length === 0 ? thread : <wrapper>` fork made the room's HEIGHT CHAIN a
                *  function of whether any contributor happened to be REGISTERED, and the wrapper arm severed it:
                *  ONE ROOT CAUSE, TWO DEFECTS — `Row` BAKES `items-center` (@orb/ui layout variants) and
-               *  `@max-lg:flex-col` flips DIRECTION but not ALIGNMENT, so the baked cross-axis rule meant a
+               *  `@max-cq-32:flex-col` flips DIRECTION but not ALIGNMENT, so the baked cross-axis rule meant a
                *  different thing on each arm (the axis-disagreement family):
                *    · BESIDE (row): the transcript is a content-height child ⇒ `MessageList`'s bounded-height
                *      tripwire throws (`@orb/ui/lib/virtual-gap.ts` — thrown, not warned) ⇒ the room renders
@@ -182,7 +182,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                 <Row
                   gap="block"
                   align="stretch"
-                  className="relative h-full min-h-0 overflow-x-clip @max-lg:flex-col"
+                  className="relative h-full min-h-0 overflow-x-clip @max-cq-32:flex-col"
                   data-slot="chat-room-flank-row"
                   ref={flankRowRef}
                 >
@@ -204,7 +204,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                   retry), reachable by any wordy contributor. The bound is the house's narrow side-column
                   token, the same one the settings nav and the role-slot rows stand in, so a flank widget
                   reads as the room's side column rather than as a second content column; wide content
-                  wraps inside it instead of eating the reading column. `@max-lg:max-w-none` RELEASES it on
+                  wraps inside it instead of eating the reading column. `@max-cq-32:max-w-none` RELEASES it on
                   the stacked arm, where the flank is a full-width block under the thread and a 220px
                   island would be the clamp leaking into the arm it was never for. A contributor bounding
                   only ITSELF was the rejected arm: it leaves the house's own future widgets unprotected

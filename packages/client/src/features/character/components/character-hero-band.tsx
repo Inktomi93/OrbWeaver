@@ -283,7 +283,7 @@ export function OwnLookMark({ themeOverride }: { readonly themeOverride: ThemeOv
                 // at rest and left the row marking `1 chat` and `1,257 tokens` — which you cannot press — as the
                 // shaped items and this one as bare text.
                 <Button intent="secondary" shape="pill" size="sm" type="button">
-                  <ThemeScope className="size-4 shrink-0 rounded-full bg-primary ring-1 ring-border" tokens={cardTheme}>
+                  <ThemeScope className="size-(--size-glyph-xs) shrink-0 rounded-full bg-primary ring-1 ring-border" tokens={cardTheme}>
                     {null}
                   </ThemeScope>
                   {/* The kicker register at its own weight (#573): this mark was micro-caps-muted at REGULAR

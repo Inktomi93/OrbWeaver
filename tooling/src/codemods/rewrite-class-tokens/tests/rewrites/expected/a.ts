@@ -1,5 +1,5 @@
 const base = cn("flex h-(--size-control-sm) pointer-coarse:min-h-(--size-touch-target) !w-(--size-avatar-lg) -ms-(--size-slider-inset)");
-const chunks = `${base} before:size-(--size-glyph-xs) @max-lg:me-slider-inset data-[orientation=vertical]:h-(--size-control-sm) w-(--size-avatar-lg)/50`;
+const chunks = `${base} before:size-(--size-glyph-xs) @max-cq-32:me-slider-inset data-[orientation=vertical]:h-(--size-control-sm) w-1/2 h-(--leading-label) h-3/4 @cq-28/save-bar:order-none @cq-96:flex`;
 const variants = tv({
   base: "p-row h-(--size-control-sm)",
   variants: { size: { sm: ["size-(--size-glyph-xs)", "min-h-(--size-touch-target)"] } },

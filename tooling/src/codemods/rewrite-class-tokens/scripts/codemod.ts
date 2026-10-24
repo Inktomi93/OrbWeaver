@@ -12,6 +12,8 @@ const DEFAULT_MAP_FILE = "codemod-class-map.json";
 interface ClassMap {
   /** Core class (no variants, `!`, leading `-` or modifier) → its replacement. */
   readonly classes: ReadonlyMap<string, string>;
+  /** Variant segment (no `/name` suffix) → its replacement, for example `@md` → `@cq-28`. */
+  readonly variants: ReadonlyMap<string, string>;
   /** Custom-property name → its replacement, applied wherever the name appears in a string. */
   readonly variables: ReadonlyMap<string, string>;
 }
@@ -44,7 +46,11 @@ function readMap(targetDir: string, mapFile: string): ClassMap {
     throw new Error(`${mapFile}: expected an object with classes and variables`);
   }
   const record = parsed as Record<string, unknown>;
-  return { classes: stringRecord(record["classes"], mapFile, "classes"), variables: stringRecord(record["variables"], mapFile, "variables") };
+  return {
+    classes: stringRecord(record["classes"], mapFile, "classes"),
+    variants: stringRecord(record["variants"], mapFile, "variants"),
+    variables: stringRecord(record["variables"], mapFile, "variables"),
+  };
 }
 
 /** The index of the last `:` (variant separator) or `/` (modifier) outside brackets and parentheses, or -1. */
@@ -64,9 +70,38 @@ function lastTopLevel(candidate: string, separator: ":" | "/"): number {
   return found;
 }
 
-function rewriteCandidate(candidate: string, classes: ReadonlyMap<string, string>): string {
+/** Rename one variant segment, keeping its `/name` container or group suffix. */
+function rewriteVariant(segment: string, variants: ReadonlyMap<string, string>): string {
+  const nameStart = lastTopLevel(segment, "/");
+  const base = nameStart >= 0 ? segment.slice(0, nameStart) : segment;
+  const target = variants.get(base);
+  return target === undefined ? segment : `${target}${nameStart >= 0 ? segment.slice(nameStart) : ""}`;
+}
+
+/** Split a variant prefix into its segments at top-level colons. */
+function variantSegments(prefix: string): string[] {
+  const segments: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let index = 0; index < prefix.length; index += 1) {
+    const char = prefix[index];
+    if (char === "[" || char === "(") {
+      depth += 1;
+    } else if (char === "]" || char === ")") {
+      depth -= 1;
+    } else if (char === ":" && depth === 0) {
+      segments.push(prefix.slice(start, index));
+      start = index + 1;
+    }
+  }
+  return segments;
+}
+
+function rewriteCandidate(candidate: string, map: ClassMap): string {
   const variantEnd = lastTopLevel(candidate, ":");
-  const prefix = candidate.slice(0, variantEnd + 1);
+  const prefix = variantSegments(candidate.slice(0, variantEnd + 1))
+    .map((segment) => `${rewriteVariant(segment, map.variants)}:`)
+    .join("");
   let core = candidate.slice(variantEnd + 1);
   const modifierStart = lastTopLevel(core, "/");
   const modifier = modifierStart >= 0 ? core.slice(modifierStart) : "";
@@ -75,8 +110,9 @@ function rewriteCandidate(candidate: string, classes: ReadonlyMap<string, string
   core = core.slice(important.length);
   const negative = core.startsWith("-") ? "-" : "";
   core = core.slice(negative.length);
-  const target = classes.get(core);
-  return target === undefined ? candidate : `${prefix}${important}${negative}${target}${modifier}`;
+  // A `/modifier` marks a fraction or an opacity, never a scale step, so the class map leaves it alone.
+  const target = modifier === "" ? (map.classes.get(core) ?? core) : core;
+  return `${prefix}${important}${negative}${target}${modifier}`;
 }
 
 function rewriteText(text: string, map: ClassMap): string {
@@ -86,7 +122,7 @@ function rewriteText(text: string, map: ClassMap): string {
   }
   return next
     .split(/(\s+)/u)
-    .map((part) => (/^\s*$/u.test(part) ? part : rewriteCandidate(part, map.classes)))
+    .map((part) => (/^\s*$/u.test(part) ? part : rewriteCandidate(part, map)))
     .join("");
 }
 

@@ -161,7 +161,7 @@ function LabelsPruneConfirm({
         hasUnused ? (
           <VirtualList
             aria-label="Tags to delete"
-            className="h-64"
+            className="h-(--height-scroll-md)"
             estimateSize={(): number => ESTIMATED_ROW_PX}
             getItemKey={(tag): string => tag.id}
             items={unused}

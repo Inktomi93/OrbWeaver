@@ -133,7 +133,7 @@ export function ConfigCollectionLanding({ group }: { readonly group: CollectionG
           nothing about what a member IS. The boundary moved here with them: `collection.list` suspends on the
           library's read, and an error inside it is the library's to retry, not the pane's to swallow. */}
       <QueryBoundary
-        fallback={<Skeleton className="h-16 w-full" />}
+        fallback={<Skeleton className="h-(--size-control-lg) w-full" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label={group.label.toLowerCase()} onRetry={retry} />}
       >
         {collection.list({
@@ -216,7 +216,7 @@ function CollectionCreate({ collection, inBand = false }: { readonly collection:
   return (
     // In the control row the form takes its own full-width line under the other controls when the row's
     // container is narrow, so asking for a name never squeezes the filter out.
-    <Stack className={inBand ? "order-last basis-full @2xl:order-none @2xl:basis-auto" : undefined}>
+    <Stack className={inBand ? "order-last basis-full @cq-40:order-none @cq-40:basis-auto" : undefined}>
       <form
         noValidate={true}
         onSubmit={(event): void => {

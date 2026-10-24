@@ -155,7 +155,7 @@ export function SectionRow({ form, section, index, zone, selected, onSelect, onD
           <Text
             aria-hidden={true}
             as="span"
-            className={`w-12 shrink-0 text-right font-mono tabular-nums ${section.enabled ? "" : "line-through"}`}
+            className={`w-(--width-number-inline) shrink-0 text-right font-mono tabular-nums ${section.enabled ? "" : "line-through"}`}
             voice="gloss"
           >
             {tokens}

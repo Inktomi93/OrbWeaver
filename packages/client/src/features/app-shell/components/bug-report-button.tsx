@@ -266,7 +266,7 @@ function BugReportFrame({ presentation, open, onOpenChange, children }: BugRepor
         <TooltipPopup side="bottom">Report a bug</TooltipPopup>
       </Tooltip>
       <PopoverPopup aria-label="Report a bug">
-        <Stack className="min-w-80">{children}</Stack>
+        <Stack className="min-w-(--width-popup-floor)">{children}</Stack>
       </PopoverPopup>
     </Popover>
   );

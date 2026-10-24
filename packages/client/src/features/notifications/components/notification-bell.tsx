@@ -178,7 +178,7 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
   // own buttons inside it — nesting Accept/Decline in a button is invalid, and a row-level click has nowhere
   // to go (a notification is not a destination). The composed `Row`/`Stack`/`Text` grammar is the fit.
   const inbox = (
-    <Stack gap="block" className="min-w-80">
+    <Stack gap="block" className="min-w-(--width-popup-floor)">
       {items.length === 0 ? (
         // A STATE, not a shrug (`empty-states-are-load-bearing`): the old bare "No notifications." read as a
         // failed load. `titleAs="p"` because the sheet lens already renders a heading above this block and a

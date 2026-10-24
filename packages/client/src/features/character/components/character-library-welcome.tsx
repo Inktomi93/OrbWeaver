@@ -364,10 +364,10 @@ function LandingFrame({
     <Stack gap="section" className="py-section">
       {/* THE DOORS DROP BELOW THE LEAD ON A NARROW PANE (measured at 430, 2026-08-30): held on one line by
             `justify=between`, the two buttons took ~250px of a 398px pane and squeezed "Pick up where you
-            left off" into a ~110px column eleven lines tall. `@max-md:flex-col` is the `actionBar` recipe's
+            left off" into a ~110px column eleven lines tall. `@max-cq-28:flex-col` is the `actionBar` recipe's
             own precedent for the same shape — a row that packs by FIT rather than by breakpoint arithmetic.
             Container-queried, so it answers to the PANE (a three-pane desktop is as narrow as a phone). */}
-      <Row align="start" className="@max-md:flex-col" gap="section" justify="between">
+      <Row align="start" className="@max-cq-28:flex-col" gap="section" justify="between">
         <Stack className="min-w-0 flex-1" gap="tight">
           <Heading level={2}>{title}</Heading>
           {/* The measure rides the PARAGRAPH, not its box: a `ch` resolves against the element's OWN

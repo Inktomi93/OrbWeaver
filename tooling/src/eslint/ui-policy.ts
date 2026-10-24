@@ -29,7 +29,9 @@ const CLASS_SPAN_END = String.raw`(?=\s|$)`;
 
 const STATIC_CLASS_SPAN = "TemplateLiteral[expressions.length=0] > TemplateElement";
 
-const ARBITRARY_CLASS = String.raw`(?:[^\s]*:)?(?:[whz]|min-w|min-h|max-w|max-h|size|p[xytrbles]?|m[xytrbles]?|gap(-x|-y)?|space-[xy]|inset(-x|-y)?|top|left|right|bottom|start|end|translate(-x|-y|-z)?|grid-(cols|rows)|text|leading|tracking|rounded)-\[(?!(?:--|var\(|calc\())[^\s:]+\]`;
+// Grid templates are judged by `better-tailwindcss/no-restricted-classes` (a design number inside the brackets), because a
+// template of `auto`, `1fr`, `max-content` and `var(--token)` tracks is layout structure, not a value.
+const ARBITRARY_CLASS = String.raw`(?:[^\s]*:)?(?:[whz]|min-w|min-h|max-w|max-h|size|p[xytrbles]?|m[xytrbles]?|gap(-x|-y)?|space-[xy]|inset(-x|-y)?|top|left|right|bottom|start|end|translate(-x|-y|-z)?|text|leading|tracking|rounded)-\[(?!(?:--|var\(|calc\(|inherit\]))[^\s:]+\]`;
 
 /** An arbitrary viewport or container breakpoint variant: the named breakpoints and container steps are the vocabulary. */
 const ARBITRARY_BREAKPOINT_VARIANT = String.raw`(?:[^\s]*:)?@?(?:min|max)-\[[^\s\]]+\]:`;

@@ -179,7 +179,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
               · below @md the controls cluster drops onto its own line under the identity block, so the
                 toggle/Update/⋯ never compete with the badge for one cramped line at all. */}
         <Stack className="border-border border-b pb-block" gap="tight">
-          <Row align="start" className="@max-md:flex-col @max-md:items-stretch" gap="block" justify="between">
+          <Row align="start" className="@max-cq-28:flex-col @max-cq-28:items-stretch" gap="block" justify="between">
             <Stack className="min-w-0 flex-1" gap="tight">
               <Row align="center" className="flex-wrap" gap="field">
                 <Text voice="promoted">{plugin.name}</Text>

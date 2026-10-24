@@ -122,21 +122,17 @@ export const gridVariants = tv({
   variants: {
     gap: GAP,
     cols: {
-      // eslint-disable-next-line orb/no-arbitrary-tw-values -- Shared auto-fit tracks own the minimum/fill composition; ends when a token expresses these tracks.
-      auto: "grid-cols-[repeat(auto-fit,minmax(min(16rem,100%),1fr))]",
-      // eslint-disable-next-line orb/no-arbitrary-tw-values -- Wide auto-fit cells need their own minimum/fill composition; ends when a token expresses these tracks.
-      wide: "grid-cols-[repeat(auto-fit,minmax(min(22rem,100%),1fr))]",
+      auto: "grid-cols-[repeat(auto-fit,minmax(min(var(--width-cell-auto),100%),1fr))]",
+      wide: "grid-cols-[repeat(auto-fit,minmax(min(var(--width-cell-wide),100%),1fr))]",
       // Dense compact tiles (the OSRS stat-cell / attribute grid): a narrow
       // min so the CONTEXT panel tiles stat cells 2-up at the 17rem floor, 3-up when it has room.
-      // eslint-disable-next-line orb/no-arbitrary-tw-values -- Dense tiles use the shared compact auto-fit track recipe; ends when a token expresses these tracks.
-      tile: "grid-cols-[repeat(auto-fit,minmax(min(5rem,100%),1fr))]",
+      tile: "grid-cols-[repeat(auto-fit,minmax(min(var(--width-cell-tile),100%),1fr))]",
       // Item-cell density (the pack grid). The 3.5rem SQUARE this used to be tiled 5-up
       // but carried only a 20px glyph inside a 59px card: mostly empty box, with the item's location
       // truncated to "belt p…" and the ×N a lost corner digit (owner dogfood, 2026-07-31). An 8.5rem min
       // tiles 2-up at the 320px mobile column and 3-up in the 480px docked CONTEXT panel, at a card SHORTER
       // than the old square — the wasted space goes and the datum (name · ×N · where it's kept) fits.
-      // eslint-disable-next-line orb/no-arbitrary-tw-values -- Item cells retain their readable auto-fit minimum; ends when a token expresses these tracks.
-      cell: "grid-cols-[repeat(auto-fit,minmax(min(8.5rem,100%),1fr))]",
+      cell: "grid-cols-[repeat(auto-fit,minmax(min(var(--width-cell-fixed),100%),1fr))]",
       // A DELIBERATE TWO-COLUMN ROW whose second column is NOT optional (the preset drill-ins' DELIVERY and
       // PLACEMENT rows — role beside depth, zone beside order). Every other arm here is auto-FIT, which
       // COLLAPSES a track holding no item: a conditionally-rendered second field (O-9's depth/order, absent
@@ -145,7 +141,7 @@ export const gridVariants = tv({
       // BOTH arms. The container query — not a viewport breakpoint — stacks them back to one column in a
       // narrow pane, so the row answers to the pane it lives in; an ancestor `<Container>` is required
       // (an element cannot query itself).
-      pair: "grid-cols-1 @md:grid-cols-2",
+      pair: "grid-cols-1 @cq-28:grid-cols-2",
       // THE SETTINGS-ROW TRACK SET (#932) — four tracks a whole SECTION of rows shares by subgrid:
       // [label+gloss | control | reserved action cell | slack]. It is not a tiling and not a ratio, so no
       // arm above can express it, and the SIZING IS THE FIX: a settings row's control starts at a column
@@ -185,7 +181,7 @@ export const gridVariants = tv({
       // then Field) inherits that — the narrow arm is a container query on the group, never a per-row flip
       // and never a viewport media query. Requires an ancestor `<Container>`; `SettingRowGroup` renders one
       // (an element cannot query itself).
-      settingTrack: "grid-cols-1 @lg:grid-cols-[var(--width-control-col)_var(--width-control-col)_auto_minmax(0,1fr)]",
+      settingTrack: "grid-cols-1 @cq-32:grid-cols-[var(--width-control-col)_var(--width-control-col)_auto_minmax(0,1fr)]",
       // `pair`'s THREE-column sibling, same contract and same reason (added 2026-08-19, the refinery
       // teaching flow). Three cells that are ONE sequence — Score → Rewrite → Analyze — must be equal
       // bases: as a wrapping flex row of content-sized cards they measured 279/384/482px, i.e. the three
@@ -194,7 +190,7 @@ export const gridVariants = tv({
       // an explicit 3 makes each step exactly a third of the row. Container-queried, `pair`'s precedent:
       // below the step the cells stack to one column rather than crushing three sentences into thirds of a
       // phone. Requires an ancestor `<Container>` — an element cannot query itself.
-      triple: "grid-cols-1 @md:grid-cols-3",
+      triple: "grid-cols-1 @cq-28:grid-cols-3",
       // A DOMINANT LEAD column beside a companion RAIL (added 2026-08-16, program #102 — the landing/
       // reading shape). Every arm above is auto-FIT: equal tracks, count chosen by width. This one is
       // deliberately UNEQUAL and its two tracks are both required — a lead column you read and a rail you
@@ -205,11 +201,8 @@ export const gridVariants = tv({
       //
       // CONTAINER-query driven, `pair`'s precedent: one column until the pane can genuinely hold two, and
       // at a very wide pane the RAIL widens rather than the lead's line stretching past its measure — a
-      // bigger monitor should put more of the surface in reach, not print a longer line. The @min-[100rem]
-      // step is a raw container width because the container scale stops at @7xl (80rem) and this shape's
-      // second breath is measurably later than that.
-      // eslint-disable-next-line orb/no-arbitrary-tw-values -- Lead columns own both container-dependent track ratios; ends when tokens express these tracks.
-      lead: "grid-cols-1 @4xl:grid-cols-[1.55fr_1fr] @min-[100rem]:grid-cols-[1.5fr_1.05fr]",
+      // bigger monitor should put more of the surface in reach, not print a longer line.
+      lead: "grid-cols-1 @cq-56:grid-cols-(--grid-lead) @cq-96:grid-cols-(--grid-lead-wide)",
       // `lead`'s EARLIER FIRST BREATH (added 2026-08-18, #244 P1-2). Identical tracks at both steps; it
       // differs only in WHEN the split engages — `@3xl` (48rem/768px) instead of `@4xl` (56rem/896px).
       //
@@ -227,15 +220,13 @@ export const gridVariants = tv({
       // to engage at. Moving the
       // shared value would change a surface nobody measured. Reach for `leadEarly` when the pane holding the
       // split is a docked CONTENT region rather than a whole page.
-      // eslint-disable-next-line orb/no-arbitrary-tw-values -- The early lead keeps the same ratios at its distinct crossover; ends when tokens express these tracks.
-      leadEarly: "grid-cols-1 @3xl:grid-cols-[1.55fr_1fr] @min-[100rem]:grid-cols-[1.5fr_1.05fr]",
+      leadEarly: "grid-cols-1 @cq-48:grid-cols-(--grid-lead) @cq-96:grid-cols-(--grid-lead-wide)",
       // FIXED cells, variable COUNT (added 2026-08-16, program #102). `cell` is auto-FIT + `1fr`, so extra
       // width makes each cell BIGGER; a portrait shelf measured 250px faces at a 2000px viewport and read
       // as a gallery instead of a shelf you reach into. `auto-fill` at a fixed track spends surplus width
       // on MORE cells and leaves the cell alone — the right answer wherever the cell is a picture of a
       // thing rather than a container for text. The private track alias is 8.5rem under comfortable/default
       // and 7.5rem under compact density; `cellShelf` deliberately keeps its separate 8.5rem contract.
-      // eslint-disable-next-line orb/no-arbitrary-tw-values -- Fixed cells spend surplus width on count and retain the density token; ends when a token expresses these tracks.
       cellFixed: "grid-cols-[repeat(auto-fill,var(--orb-grid-cell-fixed))]",
       // `cellFixed`'s swipe twin: one row that scrolls and snaps sideways. The scroller clips both axes, so it pads a
       // focus ring's reach on the block axis and takes it back as negative margin: the ring shows, the box holds.
@@ -255,12 +246,11 @@ export const gridVariants = tv({
       //
       // Container-queried, `pair`'s precedent — it answers to the pane, not the viewport — so it REQUIRES an
       // ancestor `<Container>` (an element cannot query itself).
-      // eslint-disable-next-line orb/no-arbitrary-tw-values -- Shelves retain their density-independent fixed cell contract; ends when a token expresses these tracks.
-      cellShelf: "grid-cols-3 @md:grid-cols-[repeat(auto-fill,8.5rem)]",
+      cellShelf: "grid-cols-3 @cq-28:grid-cols-[repeat(auto-fill,var(--width-cell-fixed))]",
       // `pair`'s late twin: one step for Home's split and the shelf blocks that reflow with it, so they turn
       // two-up at the same container width: `@7xl`, an 80rem container, which a 1440 laptop clears at the default
       // rem (owner ruling: about 1400px).
-      pairWide: "grid-cols-1 @7xl:grid-cols-2",
+      pairWide: "grid-cols-1 @cq-80:grid-cols-2",
       // A LABEL COLUMN beside its values (added 2026-08-19, side-eye N-2 on the databank detail): a readout
       // whose left track is exactly as wide as its widest LABEL and whose right track takes the rest. Every
       // arm above sizes its tracks by the PANE; this one sizes the first by its own CONTENT, which is the
@@ -272,7 +262,6 @@ export const gridVariants = tv({
       // was introduced to close, one size smaller. `max-content` is the range property: no slack to grow,
       // whatever the labels or the pane become. The values still share ONE x, because it is one grid rather
       // than a per-row measurement.
-      // eslint-disable-next-line orb/no-arbitrary-tw-values -- Readout labels size to content rather than the control-column token; ends when a token expresses these tracks.
       readout: "grid-cols-[max-content_1fr]",
       // A CENTRED MEASURE WITH A LEADING ANNOTATION GUTTER (added 2026-09-05, #1728 arm B). Three tracks:
       // the MIDDLE one is the reading column and it is centred by construction (the two `1fr` rails are
@@ -313,11 +302,7 @@ export const gridVariants = tv({
       // NO ROLE MIRROR: the centred skins seat every role's chip LEADING (owner ruling, as Moonlit Echoes
       // leaves flat, hush and document unmirrored), so one template serves both roles and auto-placement
       // seats the chip then the column with no explicit column-start below the step.
-      gutterCentred:
-        // eslint-disable-next-line orb/no-arbitrary-tw-values -- Narrow annotation gutters stay in flow; ends when a token expresses these tracks.
-        "grid-cols-[auto_minmax(0,1fr)] " +
-        // eslint-disable-next-line orb/no-arbitrary-tw-values -- Wide annotation gutters balance both margins around the reading column; ends when a token expresses these tracks.
-        "@4xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]",
+      gutterCentred: "grid-cols-[auto_minmax(0,1fr)] @cq-56:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]",
       // AN INSTRUMENT ROW'S THREE CELLS — name · flexing rail · the value cluster (added 2026-08-19,
       // side-eye P1-1 on the preset params deck). `readout`'s sibling, and the same ruling one axis wider:
       // the first track is CONTENT-sized so a name can never be clipped by a box, and the middle track
@@ -358,8 +343,7 @@ export const gridVariants = tv({
       // must stay there: measured, an unscoped `grid-flow-row-dense` backfills the wide arm's next NAME cell
       // into the hole the gloss's `col-start-2` leaves at column one, which put a cluster's explainers on
       // two different x's (398,398,398,966,966) — the very column P3 exists to hold.
-      // eslint-disable-next-line orb/no-arbitrary-tw-values -- Knob tracks preserve the shared label floor and paired folded values; ends when tokens express these tracks.
-      knob: "grid-cols-[1fr_max-content] @max-lg:grid-flow-row-dense @lg:grid-cols-[minmax(var(--width-label-col),max-content)_1fr_max-content]",
+      knob: "grid-cols-[1fr_max-content] @max-cq-32:grid-flow-row-dense @cq-32:grid-cols-[minmax(var(--width-label-col),max-content)_1fr_max-content]",
       // Four ordered action homes. A wide container keeps the explicit four-track row (`1fr` at the third
       // home is the spacer that pushes the last two right).
       //
@@ -371,8 +355,7 @@ export const gridVariants = tv({
       // So the narrow arm packs by FIT: one row while the homes fit, a second only when they do not, and no
       // third row at all. The consumer keeps ordering the wrapped lines with its own auto margins — the
       // placement law (which home sits where) belongs to the bar, not to this recipe.
-      // eslint-disable-next-line orb/no-arbitrary-tw-values -- Ordered action homes share one spacer track before the fit-based fold; ends when a token expresses these tracks.
-      actionBar: "grid-cols-[auto_auto_1fr_auto] items-center @max-md:flex @max-md:flex-wrap",
+      actionBar: "grid-cols-[auto_auto_1fr_auto] items-center @max-cq-28:flex @max-cq-28:flex-wrap",
     },
   },
   defaultVariants: { cols: "auto" },
@@ -382,7 +365,7 @@ export const gridVariants = tv({
 export const containerVariants = tv({
   base: "@container",
   variants: {
-    size: { sm: "max-w-cq-sm", md: "max-w-cq-md", lg: "max-w-cq-lg" },
+    size: { sm: "max-w-cq-24", md: "max-w-cq-32", lg: "max-w-cq-48" },
   },
 });
 

@@ -23,9 +23,15 @@ function AttachmentPreview({ attachment, onRemove }: { readonly attachment: Pend
         // A muted first-frame/loop thumb (#317) — BackgroundVideo bakes the policy (muted, no controls,
         // aria-hidden, reduced-motion stills to the first frame); the remove button carries the file name
         // for the accessibility tree, mirroring the image arm's alt.
-        <BackgroundVideo src={attachment.url} className="size-16 rounded-base" />
+        <BackgroundVideo src={attachment.url} className="size-(--size-avatar-hero) rounded-base" />
       ) : (
-        <CrossfadeImage src={attachment.url} alt={`Attachment preview: ${attachment.file.name}`} aspectRatio={1} fit="cover" className="size-16 rounded-base" />
+        <CrossfadeImage
+          src={attachment.url}
+          alt={`Attachment preview: ${attachment.file.name}`}
+          aspectRatio={1}
+          fit="cover"
+          className="size-(--size-avatar-hero) rounded-base"
+        />
       )}
       <Button type="button" intent="ghost" size="icon" aria-label={removeActionName(attachment.file.name)} onClick={onRemove} shape="pill">
         <Icon icon={X} size="sm" />

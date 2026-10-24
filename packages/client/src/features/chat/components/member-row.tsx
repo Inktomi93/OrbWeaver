@@ -177,7 +177,7 @@ function PresenceDot({ online }: { readonly online: boolean | null }): ReactElem
       // The SHAPE channel: `bg-success` fills the online dot, and the offline one is an unfilled ring of the
       // same box — two states distinguishable with the colour removed, per the never-colour-alone rule the
       // sibling `role-status-dot.tsx` states.
-      className={online ? "size-2 shrink-0 rounded-full bg-success" : "size-2 shrink-0 rounded-full border border-muted-foreground"}
+      className={online ? "size-(--size-dot) shrink-0 rounded-full bg-success" : "size-(--size-dot) shrink-0 rounded-full border border-muted-foreground"}
     />
   );
 }

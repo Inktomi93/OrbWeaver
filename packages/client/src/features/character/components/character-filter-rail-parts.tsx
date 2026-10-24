@@ -142,7 +142,7 @@ export function TagVocabularyPanel({
           the SCROLLER is the thing that scrolls. The name is deliberately not the toolbar's
           ("Tag filter vocabulary"): a region and the toolbar inside it announcing the same words is the
           host-duplicates-its-body defect one pane over. */}
-      <ScrollArea viewportClassName="max-h-48" viewportProps={{ role: "region", "aria-label": "Tag vocabulary" }} wrapContent={true}>
+      <ScrollArea viewportClassName="max-h-(--height-scroll-md)" viewportProps={{ role: "region", "aria-label": "Tag vocabulary" }} wrapContent={true}>
         {/* `pe-row` is the SCROLLBAR's own width token (`scrollbar: w-row` in the primitive's variants):
             Base UI's scrollbar is positioned over the content, so without the inline-end gutter the last
             chip of every line renders underneath the thumb. */}

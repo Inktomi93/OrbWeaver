@@ -313,7 +313,7 @@ function RankCell({ position, reserve }: { readonly position: number | undefined
   // hyphens). `justify="end"` carries what `text-end` did: one flex child, right-aligned in a fixed cell.
   return (
     <Row className="w-(--size-control-sm) shrink-0" justify="end">
-      <Text as="span" voice="datum" className="tabular-nums">
+      <Text as="span" voice="datum">
         {position}
       </Text>
     </Row>

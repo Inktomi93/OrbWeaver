@@ -6,7 +6,7 @@ export const scatterLegendVariants = tv({
   slots: {
     root: "flex flex-wrap gap-x-block gap-y-tight",
     item: "flex min-w-0 items-center gap-field",
-    swatch: "size-2 shrink-0 rounded-full",
+    swatch: "size-(--size-dot) shrink-0 rounded-full",
     name: "min-w-0 truncate text-label leading-label text-foreground",
     count: "shrink-0 font-mono text-micro leading-micro text-muted-foreground",
   },

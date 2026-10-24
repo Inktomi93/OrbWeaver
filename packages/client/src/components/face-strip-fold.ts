@@ -49,10 +49,9 @@ export function sameFold(previous: FoldState | null, next: FoldState): boolean {
 /** THE CELL (#153): a captioned face, the overflow tile and the pending placeholder all take one fixed
  *  width, so the portrait pitch is a property of the strip and never of the faces' names — and so the
  *  widths this module folds are the strip's own rhythm rather than the faces' names. Uncaptioned cells were
- *  already uniform (portrait inside the control floor) and stay content-sized. Returned with its leading
- *  space so every call site is a plain template append. */
-export function cellWidthClass(caption: boolean): string {
-  return caption ? " w-(--size-avatar-hero)" : "";
+ *  already uniform (portrait inside the control floor) and stay content-sized. */
+export function cellWidthClass(caption: boolean): string | undefined {
+  return caption ? "w-(--size-avatar-hero)" : undefined;
 }
 
 /** THE OVERFLOW TILE'S ACCESSIBLE NAME — LABEL IN NAME (WCAG 2.5.3, #208). A CAPTIONED tile prints "More"

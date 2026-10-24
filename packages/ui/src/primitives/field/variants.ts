@@ -42,8 +42,8 @@ export const fieldVariants = tv({
       vertical: {},
       horizontal: {
         // Stacks back to vertical below the md container breakpoint so a narrow pane doesn't starve the label block.
-        root: "flex-row items-start justify-between gap-row @max-md:flex-col @max-md:items-stretch @max-md:justify-start",
-        controlCol: "w-(--width-control-col) @max-md:w-full @max-md:items-stretch",
+        root: "flex-row items-start justify-between gap-row @max-cq-28:flex-col @max-cq-28:items-stretch @max-cq-28:justify-start",
+        controlCol: "w-(--width-control-col) @max-cq-28:w-full @max-cq-28:items-stretch",
       },
     },
     // THE HORIZONTAL ROW'S CROSS-AXIS (side-eye 2026-08-06 P2). `items-start` is only right when one column
@@ -75,7 +75,7 @@ export const fieldVariants = tv({
         // point — the label track is sized over EVERY row in the section, so one long label sets the
         // control's start x for all of them and no row can drift its own. `grid` beats the horizontal
         // arm's `flex` through tailwind-merge's display group, which also retires that arm's
-        // `justify-between` (the flex property that WAS the void) and its `@max-md:flex-col` — the narrow
+        // `justify-between` (the flex property that WAS the void) and its `@max-cq-28:flex-col` — the narrow
         // stack is not a per-row flip any more, it is the GROUP dropping to one track, which every
         // subgrid in the chain then inherits.
         //
@@ -88,13 +88,13 @@ export const fieldVariants = tv({
         // one-column arm was supposed to have already answered. The ruling above survives and its INPUT is
         // corrected: the stack is still the GROUP's step, not a per-row breakpoint, so it is spelled at
         // `@lg` — the same container step every placement below uses — rather than at a new one.
-        // `@max-md:*` from the base horizontal arm stays and simply agrees inside the band it covers.
+        // `@max-cq-28:*` from the base horizontal arm stays and simply agrees inside the band it covers.
         // EVERY placement below is gated on the SAME container step the group's track set uses (`@lg`,
         // layout/variants.ts `settingTrack`), and that is not decoration: below the step the group is ONE
         // column, and an ungated `col-start-2` there does not stack — it MINTS AN IMPLICIT SECOND COLUMN
         // and the control sits beside the label again at phone width (measured: control top 1155 against
         // label bottom 1178, i.e. still side-by-side, in the narrow message-style story).
-        root: "@max-lg:flex-col @max-lg:items-stretch @lg:col-span-2 @lg:grid @lg:grid-cols-subgrid",
+        root: "@max-cq-32:flex-col @max-cq-32:items-stretch @cq-32:col-span-2 @cq-32:grid @cq-32:grid-cols-subgrid",
         // `contents` DISSOLVES the label block so its two children become grid items of this subgrid: the
         // label lands in the label track and the DESCRIPTION gets its own full-width line beneath the
         // label/control pair. That placement is the E5 half of #932 — the registry gloss has to read as
@@ -102,17 +102,17 @@ export const fieldVariants = tv({
         // very row the track set exists to tighten. The three explicit placements below are what a
         // `contents` block costs: auto-placement would otherwise push the control onto a third row once
         // the full-span description has taken the second.
-        labelBlock: "@lg:contents",
-        label: "@lg:col-start-1 @lg:row-start-1",
-        labelRow: "@lg:col-start-1 @lg:row-start-1",
+        labelBlock: "@cq-32:contents",
+        label: "@cq-32:col-start-1 @cq-32:row-start-1",
+        labelRow: "@cq-32:col-start-1 @cq-32:row-start-1",
         // The MEASURE moved to the base slot (#1653) — it is not re-spelled here, because half a migration
         // is the rot. What stays is this arm's own job: the full-width row-2 PLACEMENT inside the subgrid.
-        description: "@lg:col-span-full @lg:row-start-2",
+        description: "@cq-32:col-span-full @cq-32:row-start-2",
         // The control column stops being a fixed 200px right-hand DOCK and becomes the shared track's
         // cell, filled from its START. Not `items-end`/`stretch`: the cold contract is explicit that
         // unlike controls must not be stretched merely to equalize their visible right edge — a switch is
         // 48px wide and saying so is honest, whereas a 200px switch is a lie about its hit target.
-        controlCol: "@max-lg:w-full @max-lg:items-stretch @lg:col-start-2 @lg:row-start-1 @lg:w-auto @lg:items-start",
+        controlCol: "@max-cq-32:w-full @max-cq-32:items-stretch @cq-32:col-start-2 @cq-32:row-start-1 @cq-32:w-auto @cq-32:items-start",
       },
     },
   ],

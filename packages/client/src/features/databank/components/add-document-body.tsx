@@ -174,7 +174,7 @@ export function AddDocumentBody(): ReactElement {
             Each arm FILLS the reserved region (`flex-1`) and hangs its footer off the bottom (`mt-auto`),
             so the height is constant, the strip still holds one y, and the footer sits on the floor
             instead of floating above it. */}
-        <Stack className="min-h-96" gap="block">
+        <Stack className="min-h-(--height-scroll-lg)" gap="block">
           {bodies[mode]}
         </Stack>
       </Stack>

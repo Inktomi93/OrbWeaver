@@ -367,7 +367,7 @@ function RecoverInputSubmenu({ steers, onRecall }: { readonly steers: readonly s
       </MenuSubmenuTrigger>
       <MenuPopup>
         {steers.map((steer) => (
-          <MenuItem key={steer} title={steer} onClick={(): void => onRecall(steer)} className="max-w-xs truncate">
+          <MenuItem key={steer} title={steer} onClick={(): void => onRecall(steer)} className="max-w-(--width-popup-floor) truncate">
             {steer}
           </MenuItem>
         ))}

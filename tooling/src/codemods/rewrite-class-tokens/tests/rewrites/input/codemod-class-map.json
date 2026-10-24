@@ -5,10 +5,17 @@
     "w-avatar-lg": "w-(--size-avatar-lg)",
     "ms-slider-inset": "ms-(--size-slider-inset)",
     "size-glyph-xs": "size-(--size-glyph-xs)",
-    "p-4": "p-row"
+    "p-4": "p-row",
+    "h-4": "h-(--leading-label)",
+    "h-3": "h-(--leading-micro)"
   },
   "variables": {
     "--spacing-glyph-xs": "--size-glyph-xs",
     "--spacing-control-sm": "--size-control-sm"
+  },
+  "variants": {
+    "@max-lg": "@max-cq-32",
+    "@md": "@cq-28",
+    "@min-[100rem]": "@cq-96"
   }
 }

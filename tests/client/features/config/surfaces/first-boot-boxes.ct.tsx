@@ -223,7 +223,7 @@ async function rowPitch(page: Page): Promise<number> {
       };
       return measure(control as string) + measure(gap as string);
     },
-    [TOKENS["spacing.control-lg"].cssVar, TOKENS["spacing.row"].cssVar],
+    [TOKENS["size.control-lg"].cssVar, TOKENS["spacing.row"].cssVar],
   );
 }
 

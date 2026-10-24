@@ -78,7 +78,7 @@ export function TagEditorBody({
           (#1175). This block holds controls, and the prose token's own contract forbids it here: a `ch`
           resolves in the element's own font, so a measure inherited from a wrapper reads at the wrong scale
           (the #213/#1130 failure) and "a block holding controls keeps the wider measure while the paragraph
-          inside it takes this one". It used to spell `max-w-prose`, a third un-derived width.
+          inside it takes this one". It used to spell `max-w-(--reading-measure-min)`, a third un-derived width.
 
           THE TOKEN'S STATED CONSUMPTION IS THREE CLASSES, NOT ONE (#1664). `--width-content-col`'s own
           `$description` says the column is CENTERED and BREATHES to `--width-content-col-wide` once its
@@ -91,7 +91,7 @@ export function TagEditorBody({
           query container is the `<Container>` directly above, which is why the cap and the container are
           two elements. `w-full` rides with `mx-auto` because the pane is a flex column. */}
       <Stack
-        className="mx-auto min-w-0 w-full max-w-(--width-content-col) @5xl:max-w-(--width-content-col-wide) outline-none"
+        className="mx-auto min-w-0 w-full max-w-(--width-content-col) @cq-64:max-w-(--width-content-col-wide) outline-none"
         data-slot="tag-member-editor"
         gap="block"
         ref={surfaceRef}
