@@ -23,6 +23,7 @@ import type { ExternalId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { JWTPayload } from "jose";
 import { createLocalJWKSet, createRemoteJWKSet, customFetch, jwtVerify } from "jose";
+import type { Logger } from "#foundation/observability";
 import { securityEvent } from "#foundation/observability";
 import type { ForwardJwtClaims, ForwardJwtVerifier, ForwardJwtVerifyArgs, JwksKeySet, JwksReader } from "./contract.ts";
 import { normalizeHost } from "./host.ts";
@@ -85,7 +86,13 @@ function cacheKey(metaJwks: string): string {
  * regardless of the allowlist because it is not an egress vector; the URL path is the only user-influenced
  * outbound reference, so it is https-gated + allowlist-gated.
  */
-function readJwks(cache: LruMap<string, AnyKeySet>, execution: typeof fetch, metaJwks: string, allowlist: readonly string[]): AnyKeySet | null {
+interface JwksReadState {
+  readonly cache: LruMap<string, AnyKeySet>;
+  readonly execution: typeof fetch;
+  readonly log: Logger | undefined;
+}
+
+function readJwks({ cache, execution, log }: JwksReadState, metaJwks: string, allowlist: readonly string[]): AnyKeySet | null {
   const key = cacheKey(metaJwks);
   const cached = cache.get(key);
   if (cached !== undefined) {
@@ -99,7 +106,7 @@ function readJwks(cache: LruMap<string, AnyKeySet>, execution: typeof fetch, met
       // bad set, so the boundary cast is covered by the catch (both parse + shape errors).
       set = createLocalJWKSet(JSON.parse(trimmed) as Parameters<typeof createLocalJWKSet>[0]);
     } catch {
-      securityEvent("jwks_rejected", { reason: "parse" }, "security: forwarded JWKS literal failed to parse — rejecting");
+      securityEvent("jwks_rejected", { reason: "parse" }, "security: forwarded JWKS literal failed to parse — rejecting", log);
       return null;
     }
   } else {
@@ -107,11 +114,11 @@ function readJwks(cache: LruMap<string, AnyKeySet>, execution: typeof fetch, met
     try {
       url = new URL(trimmed);
     } catch {
-      securityEvent("jwks_rejected", { reason: "url-parse" }, "security: forwarded JWKS URL failed to parse — rejecting");
+      securityEvent("jwks_rejected", { reason: "url-parse" }, "security: forwarded JWKS URL failed to parse — rejecting", log);
       return null;
     }
     if (url.protocol !== "https:") {
-      securityEvent("jwks_rejected", { jwksHost: url.host, reason: "non-https" }, "security: forwarded JWKS URL is not https — rejecting");
+      securityEvent("jwks_rejected", { jwksHost: url.host, reason: "non-https" }, "security: forwarded JWKS URL is not https — rejecting", log);
       return null;
     }
     if (allowlist.length > 0 && !allowlist.includes(normalizeHost(url.host))) {
@@ -119,6 +126,7 @@ function readJwks(cache: LruMap<string, AnyKeySet>, execution: typeof fetch, met
         "jwks_rejected",
         { jwksHost: url.host, reason: "off-allowlist" },
         "security: forwarded JWKS URL host is not on FORWARD_AUTH_JWKS_ALLOWLIST — rejecting",
+        log,
       );
       return null;
     }
@@ -131,11 +139,12 @@ function readJwks(cache: LruMap<string, AnyKeySet>, execution: typeof fetch, met
 }
 
 /** Own one configured client's key cache without replacing another graph's keys or fetch operation. */
-export function createJwksReader(execution: typeof fetch): JwksReader {
-  const cache = new LruMap<string, AnyKeySet>(JWKS_CACHE_CAP);
+export function createJwksReader(execution: typeof fetch, log?: Logger): JwksReader {
+  const state: JwksReadState = { cache: new LruMap<string, AnyKeySet>(JWKS_CACHE_CAP), execution, log };
+  const { cache } = state;
   let disposed = false;
   return {
-    jwksFor: (metaJwks, allowlist) => (disposed ? null : readJwks(cache, execution, metaJwks, allowlist)),
+    jwksFor: (metaJwks, allowlist) => (disposed ? null : readJwks(state, metaJwks, allowlist)),
     [Symbol.dispose]: (): void => {
       disposed = true;
       cache.clear();
@@ -159,7 +168,11 @@ function groupsFromClaim(claim: unknown): string[] {
 /** Verify `jwt` against `keyset` with the pinned alg allowlist + optional issuer/audience, returning the
  *  payload — or null on ANY failure (bad signature, wrong alg, expired, issuer/audience mismatch,
  *  alg-confusion): fail-closed point 5. jose throws on every one of those; we catch and null. */
-async function jwtVerifyOrNull(jwt: string, keyset: AnyKeySet, issuer?: string, audience?: string): Promise<JWTPayload | null> {
+async function jwtVerifyOrNull(
+  { jwt, issuer, audience }: Pick<ForwardJwtVerifyArgs, "jwt" | "issuer" | "audience">,
+  keyset: AnyKeySet,
+  log: Logger | undefined,
+): Promise<JWTPayload | null> {
   try {
     const { payload } = await jwtVerify(jwt, keyset, {
       algorithms: [...PINNED_ALGS],
@@ -168,7 +181,7 @@ async function jwtVerifyOrNull(jwt: string, keyset: AnyKeySet, issuer?: string, 
     });
     return payload;
   } catch {
-    securityEvent("jwt_verify_failed", {}, "security: forwarded JWT verification failed (signature / alg / expiry / issuer / audience) — rejecting");
+    securityEvent("jwt_verify_failed", {}, "security: forwarded JWT verification failed (signature / alg / expiry / issuer / audience) — rejecting", log);
     return null;
   }
 }
@@ -193,14 +206,14 @@ function claimsFromPayload(payload: JWTPayload): ForwardJwtClaims {
 
 /** The `ForwardJwtVerifier` the seam injects into infra/auth. Wires its owned key reader → jwtVerify → claim mapping;
  *  returns null on any JWKS-build or signature/shape failure (fail-closed points 3 + 5). */
-export function createForwardJwtVerifier(readKeyset: JwksReader["jwksFor"]): ForwardJwtVerifier {
+export function createForwardJwtVerifier(readKeyset: JwksReader["jwksFor"], log?: Logger): ForwardJwtVerifier {
   return {
     verify: async (args: ForwardJwtVerifyArgs): Promise<ForwardJwtClaims | null> => {
       const keyset = readKeyset(args.metaJwks, args.allowlist);
       if (keyset === null) {
         return null;
       }
-      const payload = await jwtVerifyOrNull(args.jwt, keyset, args.issuer, args.audience);
+      const payload = await jwtVerifyOrNull(args, keyset, log);
       if (payload === null) {
         return null;
       }

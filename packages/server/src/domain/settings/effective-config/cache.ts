@@ -1,7 +1,7 @@
 // domain/settings/effective-config/cache — in-memory resolved-config cache + reload seam. getEffectiveConfig
 // is sync (hot paths must not do a per-call DB read); reloadEffectiveConfig runs at boot + after every admin
-// write. The logger.level rebind is load-bearing: Pino captures level at construction, so without the rebind
-// AppSettings.logLevel would be effective only at restart.
+// write. The level rebind of the root's logger is load-bearing: Pino captures level at construction, so without
+// it AppSettings.logLevel would be effective only at restart.
 // Each composed graph owns its cache; the DB "app" row is the multi-replica seam.
 
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
@@ -9,7 +9,8 @@ import { parseAppSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import { logger } from "#foundation/observability";
+import type { Logger } from "#foundation/observability";
+import { logger as processLogger } from "#foundation/observability";
 import type { SettingsContext, SettingsEnvFloor } from "../contract/service.ts";
 import { readAppOverrideRaw } from "../persistence/queries.ts";
 import { layer } from "./layer.ts";
@@ -17,6 +18,7 @@ import { layer } from "./layer.ts";
 export function createEffectiveConfigCache(
   handle: DatabaseHandle,
   floor: SettingsEnvFloor,
+  logger: Logger,
 ): Pick<SettingsContext, "getEffectiveConfig" | "reloadEffectiveConfig"> {
   const db = databaseForOwner(handle);
   let resolved: EffectiveAppConfig | undefined;
@@ -27,6 +29,9 @@ export function createEffectiveConfigCache(
     },
     reloadEffectiveConfig: async (): Promise<EffectiveAppConfig> => {
       resolved = await readResolvedConfig(db, floor);
+      logger.level = resolved.logLevel;
+      // Transitional: sites item 1271 has not moved to the root's logger still write the process logger.
+      processLogger.level = resolved.logLevel;
       return resolved;
     },
   };
@@ -34,7 +39,5 @@ export function createEffectiveConfigCache(
 
 async function readResolvedConfig(db: Db, floor: SettingsEnvFloor): Promise<EffectiveAppConfig> {
   const raw = await readAppOverrideRaw(db);
-  const resolved = layer(parseAppSettings(raw ?? {}), floor);
-  logger.level = resolved.logLevel;
-  return resolved;
+  return layer(parseAppSettings(raw ?? {}), floor);
 }

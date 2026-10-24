@@ -12,6 +12,8 @@ import type {
   SnippetResult,
 } from "@orb/contracts/plugin";
 import type { TimerScheduler } from "@orb/kit/time";
+// pino's own type, not the observability barrel's alias: that barrel reaches the DB, which the plugin Worker graph must not load.
+import type pino from "pino";
 import type { Env } from "#foundation/env/record";
 import type { ScopedEgress } from "#infra/network";
 import type { PluginNetEgress } from "./net-egress.ts";
@@ -30,12 +32,15 @@ export interface PluginHostSeamDeps {
   readonly nextRandom: () => number;
   readonly mintId: () => string;
   readonly mirrorLog?: (label: string, level: PluginLogLevel, message: string) => void;
+  /** The app root's logger a guest line and a settlement failure land in outside a request; absent ⇒ the
+   *  process logger until item 1271 removes it. */
+  readonly log?: pino.Logger;
 }
 
 /** A Worker-local runtime schedules nothing, fetches nothing and launches no broker itself: the app process owns the
  *  timers, the broker connect clock, the broker launch config and the scoped egress, and the Worker forwards every
  *  guest fetch to it through `netEgress`. */
-export type LocalPluginHostSeams = Omit<PluginHostSeamDeps, "timers" | "monotonicNow" | "safeFetch" | "env"> & {
+export type LocalPluginHostSeams = Omit<PluginHostSeamDeps, "timers" | "monotonicNow" | "safeFetch" | "env" | "log"> & {
   /** The broker Worker's forwarding egress: the app performs every plugin fetch against its own copy of the
    *  instance's `netHosts`. */
   readonly netEgress: PluginNetEgress;

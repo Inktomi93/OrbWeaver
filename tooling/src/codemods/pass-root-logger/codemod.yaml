@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "pass-root-logger"
+version: "0.1.0"
+description: "Pass the root's logger, read from the nearest enclosing context parameter, to every getLog() and securityEvent() site."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["typescript"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

@@ -1,6 +1,8 @@
 // Scoped network execution keeps all admission in the infra owner; only physical edges vary.
 
 import type { TimerScheduler } from "@orb/kit/time";
+// pino's own type, not the observability barrel's alias: that barrel reaches the DB, which the plugin Worker graph must not load.
+import type pino from "pino";
 import type { buildConnector } from "undici";
 import type { Env } from "#foundation/env/record";
 
@@ -82,6 +84,9 @@ export interface ScopedEgressOptions {
   readonly timers: TimerScheduler;
   /** The parsed env record: `EGRESS_FIREWALL`, `EGRESS_ALLOWLIST`, `TRUSTED_PRIVATE_RANGES` and the OIDC issuer host. */
   readonly env: Env;
+  /** The root's logger every egress line falls back to outside a request; absent ⇒ the process logger until
+   *  item 1271 removes it. */
+  readonly log?: pino.Logger;
 }
 
 export interface ScopedEgress extends AsyncDisposable {

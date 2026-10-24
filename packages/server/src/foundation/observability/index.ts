@@ -25,12 +25,24 @@ export {
   type WireToolCall,
   type WireWarning,
 } from "./debug/index.ts";
-export { getLog, groupsLogFields, logger, logRing, logSerializers, type RequestRecord, runInRequest, securityEvent } from "./logger.ts";
+export {
+  createLogger,
+  getLog,
+  groupsLogFields,
+  type Logger,
+  logger,
+  logRing,
+  logSerializers,
+  type RequestRecord,
+  runInRequest,
+  securityEvent,
+} from "./logger.ts";
 export { type MemoryLogRecord, recordMemoryLog } from "./memory-log.ts";
 export { observability, observabilityErrorHandler } from "./middleware.ts";
 export { traceStructuredRetry } from "./structured-retry.ts";
 export {
   addSpanEvent,
+  createDetachedSupervision,
   getTraceByRequestId,
   initTracing,
   type RequestTrace,

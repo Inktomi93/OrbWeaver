@@ -27,7 +27,7 @@ import type { createConfiguredOidc, createHttpApp, ServicesDeps, ServicesResult 
 import { OWNER_CLAIM_URL_FILE_NAME } from "@orb/server/foundation/data-layout";
 import type { Env } from "@orb/server/foundation/env";
 import { authModeSource, bindPostureInput, hostEnvAllowlist, resolveBindPosture } from "@orb/server/foundation/env";
-import { getLog, logger } from "@orb/server/foundation/observability";
+import { createLogger, getLog, logger } from "@orb/server/foundation/observability";
 import { systemConnector, systemFetch } from "@orb/server/infra/network";
 import { appRouter, createCaller, createContext } from "@orb/server/transport/trpc";
 import type { Clock } from "../iso/clock.ts";
@@ -255,7 +255,8 @@ function httpOverridesOf(options: Pick<ServerHarnessOptions, "physicalPeer">): P
   return options.physicalPeer === undefined ? {} : { physicalPeer: options.physicalPeer };
 }
 
-// The logger is the process singleton the root hands over, so a root borrows its level and restores it on dispose.
+// The graph writes through the root's own logger, but sites item 1271 has not moved yet still write the process
+// logger, so a root borrows that one's level too and restores it on dispose.
 function borrowLogLevel(level: ServerHarnessOptions["logLevel"]): Disposable {
   const previous = logger.level;
   if (level !== undefined) {
@@ -569,6 +570,7 @@ export async function createServerHarness(
   shareLifetime = sharing;
   const app = await createServices({
     env,
+    logger: createLogger(env.LOG_LEVEL),
     hostEnvAllowlist,
     authModeSource: authModeSource(),
     authConfig,

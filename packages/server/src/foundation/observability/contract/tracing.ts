@@ -39,3 +39,9 @@ export interface RequestTrace extends Pick<SerializedSpan, "requestId" | "starte
 export interface SpanAttrs {
   [key: string]: ScalarAttribute | undefined;
 }
+
+/** The two detached-work boundaries one root's logger reports through (`createDetachedSupervision`). */
+export interface DetachedSupervision {
+  readonly superviseDetached: (requestId: string, name: string, attrs: SpanAttrs, operation: () => Promise<unknown> | unknown) => void;
+  readonly superviseSettled: (requestId: string, name: string, attrs: SpanAttrs, operation: () => Promise<unknown> | unknown) => Promise<void>;
+}
