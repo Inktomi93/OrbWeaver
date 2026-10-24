@@ -3,6 +3,7 @@
 // @subject packages/server/src/domain/search/substrate/rerank.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";
+import { RERANK_MIN_WINDOW_TOKENS } from "@orb/contracts/inference";
 import type { CharacterId, DocumentId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
@@ -76,11 +77,20 @@ function embeddingFor(input: string): number[] {
 const rerankBodySchema = z.object({ model: z.literal(RERANK_MODEL), query: z.string(), documents: z.array(z.string()) });
 type RerankCall = z.infer<typeof rerankBodySchema>;
 
-/** The physical cross-encoder: a document scores by whether the fact reached it, so a clamped closing scores nothing. */
-function rerankReply(body: string, calls: RerankCall[]): Response {
+/** How the physical cross-encoder answers: score every document, name only the ones holding the fact, or fail. */
+const RERANK_REPLIES = ["score", "fact-only", "fail"] as const;
+type RerankReplyMode = (typeof RERANK_REPLIES)[number];
+const ENGINE_FAILURE_STATUS = 500;
+
+/** A document scores by whether the fact reached it, so a clamped closing scores nothing. */
+function rerankReply(body: string, calls: RerankCall[], mode: RerankReplyMode): Response {
   const parsed = rerankBodySchema.parse(JSON.parse(body));
   calls.push(parsed);
-  return Response.json({ results: parsed.documents.map((document, index) => ({ index, ["relevance_score"]: document.includes(NEEDLE) ? 1 : 0 })) });
+  if (mode === "fail") {
+    return Response.json({ error: { message: "Controlled rerank engine failure" } }, { status: ENGINE_FAILURE_STATUS });
+  }
+  const scored = parsed.documents.map((document, index) => ({ index, ["relevance_score"]: document.includes(NEEDLE) ? 1 : 0 }));
+  return Response.json({ results: mode === "score" ? scored : scored.filter((result) => result["relevance_score"] > 0) });
 }
 
 interface RerankWorld extends AsyncDisposable {
@@ -93,6 +103,9 @@ interface RerankWorld extends AsyncDisposable {
   /** A second account's document carrying the fact. */
   readonly foreign: DocumentId;
   readonly bindRerank: (maxInputTokens: number) => Promise<void>;
+  readonly answerRerank: (mode: RerankReplyMode) => void;
+  /** The second account's own caller, for the control that its document is retrievable at all. */
+  readonly strangerCaller: ChatRoot["caller"];
 }
 
 function generatedText(shape: Shape, body: string): string {
@@ -104,11 +117,10 @@ function generatedText(shape: Shape, body: string): string {
 }
 
 type WorkloadInput = Parameters<ChatRoot["caller"]["workloads"]["start"]>[0]["input"];
-const DATABANK_SWEEP = { kind: "databank-reindex", params: { scope: { kind: "owner" }, mode: "chunk-embed" } } as const satisfies WorkloadInput;
 const OWNER_SWEEPS = [
   { kind: "index", params: { source: "text" } },
   { kind: "memory-backfill", params: {} },
-  DATABANK_SWEEP,
+  { kind: "databank-reindex", params: { scope: { kind: "owner" }, mode: "chunk-embed" } },
 ] as const satisfies WorkloadInput[];
 
 /** Run one account's sweeps to completion, so its rows sit in an active vector space. */
@@ -130,6 +142,7 @@ async function runWorkloads(h: ChatRoot, caller: ChatRoot["caller"], inputs: rea
 /** One owner, one memory room, persona cards, a databank and a stranger's document, all through production writes. */
 async function rerankWorld(shape: Shape): Promise<RerankWorld> {
   const rerankCalls: RerankCall[] = [];
+  let replyMode: RerankReplyMode = "score";
   const physical = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL, RERANK_MODEL],
     embedding: embeddingFor,
@@ -142,7 +155,7 @@ async function rerankWorld(shape: Shape): Promise<RerankWorld> {
     await createChatRoot({
       providerFetch: async (input, init) => {
         const request = new Request(input, init);
-        return new URL(request.url).pathname === "/v1/rerank" ? rerankReply(await request.text(), rerankCalls) : await physical.execute(request);
+        return new URL(request.url).pathname === "/v1/rerank" ? rerankReply(await request.text(), rerankCalls, replyMode) : await physical.execute(request);
       },
       memoryEnabled: true,
       memoryDefaults: { mode: "mixC", blockSize: 2, verbatimWindow: 0, maxTier: 0 },
@@ -203,8 +216,10 @@ async function rerankWorld(shape: Shape): Promise<RerankWorld> {
   const workloads = new AbortController();
   construction.defer(() => workloads.abort());
   await runWorkloads(h, h.caller, OWNER_SWEEPS, workloads.signal);
-  // The stranger's chunk sits in its own active space with the same encoder; only owner scope keeps it out.
-  await runWorkloads(h, await h.root.internalCallerFor(stranger.userId), [DATABANK_SWEEP], workloads.signal);
+  // The stranger's full sweep activates its own space on the same encoder, so its chunk is retrievable to it.
+  const strangerCaller = await h.root.internalCallerFor(stranger.userId);
+  await strangerCaller.settings.updateUserSettingsSection({ section: "memory", patch: { enabled: true } });
+  await runWorkloads(h, strangerCaller, OWNER_SWEEPS, workloads.signal);
   const lifetime = construction.move();
   return {
     h,
@@ -213,6 +228,10 @@ async function rerankWorld(shape: Shape): Promise<RerankWorld> {
     elsewhere: elsewhere.document.id,
     foreign: foreign.document.id,
     bindRerank,
+    answerRerank: (mode): void => {
+      replyMode = mode;
+    },
+    strangerCaller,
     [Symbol.asyncDispose]: () => lifetime.disposeAsync(),
   };
 }
@@ -373,4 +392,42 @@ test("a late closing reaches the reranker inside a wide window and is clamped aw
   expect(narrow).not.toContain(NEEDLE);
   expect(wide?.startsWith(narrow ?? "")).toBe(true);
   expect(await firstOwned()).not.toBe(WANTED);
+});
+
+test.for(SHAPES)("the stranger's own search reaches its document, which the owner's reads never do (%s)", async (shape) => {
+  await using world = await rerankWorld(shape);
+  const own = await world.strangerCaller.search.search({ query: QUERY, topN: OMNIBOX_TOP_N, rerank: false, over: "documents", scope: { kind: "owner" } });
+  expect(placements(world, own)).toEqual(["foreign"]);
+  expect(await omniboxOrder(world, "documents", false)).not.toContain("foreign");
+});
+
+test("a failed rerank call fails the omnibox search instead of falling back to vector order", async () => {
+  await using world = await rerankWorld("text");
+  world.answerRerank("fail");
+  const before = world.rerankCalls.length;
+  await expect(omniboxOrder(world, "documents", true)).rejects.toThrow();
+  expect(world.rerankCalls.length).toBe(before + 1);
+  expect(await omniboxOrder(world, "documents", false)).toContain(WANTED);
+});
+
+test("documents the reranker leaves unscored follow the scored ones in their vector order", async () => {
+  await using world = await rerankWorld("text");
+  const vector = await omniboxOrder(world, "documents", false);
+  world.answerRerank("fact-only");
+  const reranked = await omniboxOrder(world, "documents", true);
+  const holdsFact = (placed: Placed): boolean => placed === WANTED || placed === "elsewhere";
+  expect(reranked.slice(0, 2).every(holdsFact)).toBe(true);
+  expect(reranked.slice(2)).toEqual(vector.filter((placed) => !holdsFact(placed)));
+  expect(reranked.slice(2).length).toBeGreaterThan(1);
+});
+
+test("a reranker window too small to hold any query is refused before anything is sent", async () => {
+  await using world = await rerankWorld("text");
+  await world.bindRerank(RERANK_MIN_WINDOW_TOKENS);
+  const before = world.rerankCalls.length;
+  await expect(omniboxOrder(world, "documents", true)).rejects.toThrow();
+  expect(world.rerankCalls.length).toBe(before);
+  await world.bindRerank(WIDE_WINDOW_TOKENS);
+  expect((await omniboxOrder(world, "documents", true)).find((placed) => placed !== "elsewhere")).toBe(WANTED);
+  expect(world.rerankCalls.length).toBeGreaterThan(before);
 });
