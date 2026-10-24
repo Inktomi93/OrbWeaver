@@ -1,6 +1,6 @@
 // SandboxFrame in a real browser. Every routed card document is a real response of the production mint and serve
 // routes, so the policy the browser enforces is the policy the server emits.
-import { buildCardFrameCsp, CARD_FRAME_SAFE_FLOOR, CARD_FRAME_SANDBOX, foldCardFrameHeight } from "@orb/kit/card-frame";
+import { buildCardFrameCsp, CARD_FRAME_SAFE_FLOOR, foldCardFrameHeight } from "@orb/kit/card-frame";
 import { expect } from "@orb/testkit/ct-corpus";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
@@ -14,6 +14,10 @@ const FRAME = '[data-slot="sandbox-frame"]';
 // Both bounds come from the production fold, not from a restated number.
 const HEIGHT_CAP_PX = foldCardFrameHeight(undefined, { orbCardFrameHeight: Number.MAX_SAFE_INTEGER });
 const MARK_RAN = 'document.body.setAttribute("data-card-ran","1");';
+// The reviewed sandbox grants, spelled out on purpose: they are the contract under test, so a widened production
+// constant must fail here rather than flow into both the expectation and the frame.
+const ROUTED_SANDBOX_GRANT = "allow-scripts";
+const FLOOR_SANDBOX_GRANT = "";
 
 const script = (code: string): string => `<script>${code}</script>`;
 
@@ -62,7 +66,7 @@ test("the srcdoc floor is script-dead: its sandbox grants nothing and an authore
   const root = await mount<typeof SandboxFrameStory>(STORY, { html: `<p>card</p>${script(MARK_RAN)}`, title: "floor card" });
   const frame = root.locator(FRAME);
   await expect(frame).toHaveAttribute("data-delivery", "srcdoc");
-  await expect(frame).toHaveAttribute("sandbox", CARD_FRAME_SANDBOX.meta);
+  await expect(frame).toHaveAttribute("sandbox", FLOOR_SANDBOX_GRANT);
   await expect(frame).not.toHaveAttribute("src");
   // The card parsed, so the absent marker is about execution and not a document that never loaded.
   await expect(page.frameLocator(FRAME).locator("p")).toHaveText("card");
@@ -79,14 +83,15 @@ test("the srcdoc floor carries the production meta policy, and only the external
   expect(await metaPolicy({ allowExternalMedia: true })).toBe(buildCardFrameCsp({ ...CARD_FRAME_SAFE_FLOOR, allowExternalMedia: true }, "meta", "static"));
 });
 
-test("the routed arm emits src and no srcdoc, under the sandbox grant production names for it", async ({ mount, room, page }) => {
+test("the routed arm emits src and no srcdoc, under exactly the reviewed sandbox grant on the frame and the served policy", async ({ mount, room, page }) => {
   const served = await room.serve("<p>card</p>", null);
   await routeServedFrame(page, served);
   const frame = (await mount<typeof SandboxFrameStory>(STORY, routed(served, "routed card"))).locator(FRAME);
   await expect(frame).toHaveAttribute("src", served.url);
   await expect(frame).toHaveAttribute("data-delivery", "routed");
   await expect(frame).not.toHaveAttribute("srcdoc");
-  await expect(frame).toHaveAttribute("sandbox", CARD_FRAME_SANDBOX.document);
+  await expect(frame).toHaveAttribute("sandbox", ROUTED_SANDBOX_GRANT);
+  expect(directive(served.csp, "sandbox")).toBe(`sandbox ${ROUTED_SANDBOX_GRANT}`);
 });
 
 test("an incomplete card shows a skeleton, not the frame", async ({ mount }) => {
@@ -177,13 +182,15 @@ test("an interactive card can forge the height message and the clamp is what hol
   expect(await frameHeight(frame)).toBe(HEIGHT_CAP_PX);
 });
 
-test("an interactive card reaches nothing new: no eval, no storage, no parent, no network", async ({ mount, room, page }) => {
+test("an interactive card reaches nothing new: no eval, no worker, no storage, no parent, no network", async ({ mount, room, page }) => {
   const probe = script(
     [
-      "window.__reach={};",
+      "window.__reach={violated:[]};",
+      'document.addEventListener("securitypolicyviolation",(e)=>{window.__reach.violated.push(e.effectiveDirective);});',
       'const t=(k,f)=>{try{f();window.__reach[k]="allowed";}catch(e){window.__reach[k]="refused:"+e.name;}};',
       't("eval",()=>{eval("1+1");});',
       't("newFunction",()=>{new Function("return 1")();});',
+      'try{const w=new Worker(URL.createObjectURL(new Blob(["postMessage(1)"],{type:"text/javascript"})));w.onmessage=()=>{window.__reach.blobWorker="allowed";};w.onerror=()=>{window.__reach.blobWorker="refused:error";};}catch(e){window.__reach.blobWorker="refused:"+e.name;}',
       't("cookie",()=>{void document.cookie;});',
       't("localStorage",()=>{void localStorage.length;});',
       't("parentDom",()=>{void parent.document.title;});',
@@ -207,16 +214,19 @@ test("an interactive card reaches nothing new: no eval, no storage, no parent, n
   if (handle === null) {
     throw new Error("routed iframe has no content frame");
   }
-  await expect
-    .poll(async () => await handle.evaluate(() => (globalThis as { __reach?: Record<string, string> }).__reach ?? {}))
-    .toMatchObject({
-      eval: "refused:EvalError",
-      newFunction: "refused:EvalError",
-      cookie: "refused:SecurityError",
-      localStorage: "refused:SecurityError",
-      parentDom: "refused:SecurityError",
-      fetch: "refused:TypeError",
-    });
+  const reach = async (): Promise<Record<string, unknown>> => await handle.evaluate(() => (globalThis as { __reach?: Record<string, unknown> }).__reach ?? {});
+  await expect.poll(reach).toMatchObject({
+    eval: "refused:EvalError",
+    newFunction: "refused:EvalError",
+    // A worker the policy allowed would post back and read "allowed"; a refused one fires its error event.
+    blobWorker: "refused:error",
+    cookie: "refused:SecurityError",
+    localStorage: "refused:SecurityError",
+    parentDom: "refused:SecurityError",
+    fetch: "refused:TypeError",
+  });
+  // The worker died on the served policy (worker-src falls back to script-src), not on an unrelated failure.
+  expect((await reach())["violated"]).toContain("worker-src");
   expect(exfil).toEqual([]);
 });
 
