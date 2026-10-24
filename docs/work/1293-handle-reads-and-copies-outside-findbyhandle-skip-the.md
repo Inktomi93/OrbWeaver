@@ -22,7 +22,7 @@ The handoff copy derives the handle through portableCharacterHandle; the three e
 
 ## Owner ruling
 
-2026-10-24: character handles follow the D257 invisible-character rule. `slugifyHandle` drops invisible code points and `SLUG_HANDLE_PATTERN` refuses them; a name made only of invisibles takes the existing empty-slug path. Legacy reads stay length-only.
+2026-10-24: character handles follow the D257 invisible-character rule. `slugifyHandle` drops invisible code points and `SLUG_HANDLE_PATTERN` refuses them; a name made only of invisibles takes the existing empty-slug path. Legacy reads stay length-only. A White_Space code point (NBSP, ideographic space) still folds to a hyphen, because it shows as a word gap (owner, 2026-10-24).
 
 ## Evidence
 
