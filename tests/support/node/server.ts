@@ -197,6 +197,8 @@ export interface ServerTestHarness extends ComposedServerRoot, AsyncDisposable {
   readonly settleSharing: ShareGraph["settle"];
 }
 
+/** The credentials key every kit root shares; a root that needs a second distinct key owns it locally. */
+export const SECRET_BOX_TEST_KEY = Buffer.alloc(32, 1);
 const SESSION_SECRET = "server-harness-session-secret-at-least-32-chars";
 const IN_PROCESS_CLIENT_IP = "127.0.0.1";
 

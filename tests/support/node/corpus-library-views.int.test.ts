@@ -2,7 +2,6 @@
 // @subject tests/support/node/factories/embedding-generation.ts
 // @subject packages/server/src/domain/regex/verbs/attachments/apply-scope-order.ts
 import assert from "node:assert/strict";
-import { randomBytes } from "node:crypto";
 import { automationRuleUpdateSchema } from "@orb/contracts/automation";
 import { CHAT_WARNING_CODES } from "@orb/contracts/chat";
 import { DOCUMENT_SCOPE_SOURCES } from "@orb/contracts/databank";
@@ -17,7 +16,7 @@ import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES,
 import { captureCookieAuth, captureCorpusReads, seedCorpusLibraries } from "./corpus-seed.ts";
 import { seedUserCredentialRows } from "./factories/rows/credentials.ts";
 import { expect, test } from "./fixtures.ts";
-import { createServerHarness } from "./server.ts";
+import { createServerHarness, SECRET_BOX_TEST_KEY } from "./server.ts";
 
 test("native library projections retain canonical usage, ordering, intake and repeated lifecycle identities without crossing owner scope", async () => {
   const wire = createCorpusProviderExecution({
@@ -29,7 +28,7 @@ test("native library projections retain canonical usage, ordering, intake and re
   });
   await using root = await createServerHarness({
     providerFetch: wire.execute,
-    secretBoxKey: randomBytes(32),
+    secretBoxKey: SECRET_BOX_TEST_KEY,
     env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" },
   });
   const actors = await seedCorpusActors(root);
