@@ -23,4 +23,7 @@ Each spec that reads window.\_\_orb waits on a production-visible signal instead
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+- `rg __orb tests/e2e` finds nothing. Stream open waits on the production `data-room-attached` attribute on the transcript surface (`useChatBus` returns true once the room's `chatOpened` attach frame arrives). Members tab opens the chat by unique list-row title. The chatUpdated bus-event ring read is replaced by the bus-driven room/list refetch order in the network timeline.
+- `CLIENT_BUILD` is a plain production `vite build`.
+- Production build, single-user and local: `event-sequence.spec.ts` and `members-tab-views.local.spec.ts` pass (4 passed). Smoke selection from the design doc: 32 passed, 1 corpus skip, 1 failure in `oidc-pending-join.oidc.spec.ts` (lands signed in on the join dialog instead of `/login?pendingJoin=1`); it fails identically with the old development build, so it is not caused by this item. Corpus: `corpus-home-launch` and `corpus-conversation` pass on `corpus-desktop-bubble`.
+- `pnpm typecheck` exit 0; Biome and ESLint on changed files exit 0.

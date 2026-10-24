@@ -19,10 +19,10 @@
 // Kept in the e2e-support tree, import-free of the app/package trees (the `trpc.ts`/`actors.ts` posture).
 
 import { CSRF_HEADER } from "@orb/contracts/identity";
-import type { ChatId, Handle } from "@orb/kit/ids";
-import { navResultShape } from "@orb/tooling/floor/browser/page-validate";
+import type { Handle } from "@orb/kit/ids";
 import type { Browser, BrowserContext, Page } from "@playwright/test";
 import { SESSION_COOKIE } from "./actors.ts";
+import { openChatByTitle } from "./chat-room.ts";
 
 /** One human's isolated browser session: their own cookie jar + one page, already on the app. */
 export interface BrowserActor {
@@ -61,50 +61,11 @@ export async function openBrowserActor(browser: Browser, baseUrl: string, handle
   return { handle, context, page, close: () => context.close() };
 }
 
-/** Open a chat by id through `window.__orb.nav.openChat`, the same nav-bridge call `snap --open-chat <id>`
- *  makes, after app-readiness and the bridge. Throws on a refusal or a missing bridge (a non-dev build),
- *  because a silently un-navigated page is a screenshot of the wrong surface. Module-local: the only caller
- *  is {@link openMembersTab}, and knip reds an export with no importer.
- *
- *  The handle stays unknown in page and is narrowed there; each callback is serialized alone, so each repeats
- *  the read. A renamed bridge method surfaces as the missing-bridge refusal. The raw verdict is validated on
- *  the Node side by {@link navResultShape}, the reader the browser instruments share. */
-async function openChat(page: Page, chatId: ChatId): Promise<void> {
-  await page.locator(APP_READY).waitFor({ state: "attached", timeout: READY_TIMEOUT_MS });
-  await page.waitForFunction(
-    () => {
-      const scope: object = globalThis;
-      const bridge: unknown = "__orb" in scope ? scope.__orb : undefined;
-      return typeof bridge === "object" && bridge !== null && "nav" in bridge && bridge.nav !== undefined;
-    },
-    undefined,
-    { timeout: READY_TIMEOUT_MS },
-  );
-  const verdict: unknown = await page.evaluate(async (id) => {
-    const scope: object = globalThis;
-    const bridge: unknown = "__orb" in scope ? scope.__orb : undefined;
-    const navHandle: unknown = typeof bridge === "object" && bridge !== null && "nav" in bridge ? bridge.nav : undefined;
-    if (typeof navHandle !== "object" || navHandle === null || !("openChat" in navHandle) || typeof navHandle.openChat !== "function") {
-      return;
-    }
-    const result: unknown = await navHandle.openChat(id);
-    return result;
-  }, chatId);
-  if (verdict === undefined) {
-    throw new Error("__orb.nav.openChat is unavailable (not a dev build, or the method was renamed)");
-  }
-  const result = navResultShape(verdict, `nav openChat ${chatId}`);
-  if (!result.ok) {
-    throw new Error(`__orb.nav.openChat(${chatId}) refused: ${result.reason ?? "no reason given"}`);
-  }
-}
-
-/** Open a chat AND its MEMBERS context tab through the REAL user affordance: the chat header's roster entry
- *  (accessible name `Members — <n>`). Deliberately NOT `__orb.nav.contextTab("members")` — that sets the tab
- *  request but does NOT dock the context panel, so the panel mounts at zero size and a screenshot of it is a
- *  1.9KB sliver of nothing (measured). The header entry does both (`setContextTab` +
- *  `setPanelMode("context", "docked")`, chat-header.tsx), which is why it is the one doorway a human has. */
-export async function openMembersTab(page: Page, chatId: ChatId): Promise<void> {
-  await openChat(page, chatId);
+/** Open the chat whose list row carries `title` (the real Chats-list affordance), then its MEMBERS context
+ *  tab through the chat header's roster entry (accessible name `Members — <n>`). The entry both selects the
+ *  tab and docks the context panel (`setContextTab` + `setPanelMode("context", "docked")`, chat-header.tsx),
+ *  which an undocked panel would not: it mounts at zero size. `title` must be unique on the shared DB. */
+export async function openMembersTab(page: Page, title: string): Promise<void> {
+  await openChatByTitle(page, title);
   await page.locator(MEMBERS_ENTRY).first().click({ timeout: READY_TIMEOUT_MS });
 }

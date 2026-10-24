@@ -98,7 +98,7 @@ export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolR
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
 
-  useChatBus(chatId, busDeps);
+  const roomAttached = useChatBus(chatId, busDeps);
   // OUTSIDE the boundary on purpose (#514): the display-tier regex reads are needed by the rows INSIDE it,
   // but feed nothing it waits for — so they leave now, with the canon + roster reads, instead of after them.
   // The read itself still happens where it belongs, in `ChatThread` (see `use-display-scripts.ts`'s header).
@@ -106,7 +106,8 @@ export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolR
   const chatStyle = useChatStyle();
 
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 w-full outline-none">
+    // `data-room-attached` states that the server answered this room's attach, so the live stream is delivering.
+    <Stack ref={surfaceRef} tabIndex={-1} data-room-attached={roomAttached ? "" : undefined} className="h-full min-h-0 w-full outline-none">
       <QueryBoundary
         // THE LOADING STATE IS PART OF THE COLUMN, NOT A BARE FALLBACK (#468). It takes the transcript's
         // own TRACK (`CHAT_TRACK` — the room's one answer to "where is the middle", #213) so the three

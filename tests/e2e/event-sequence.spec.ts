@@ -7,21 +7,19 @@ import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId, typeIdSchema } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { busEventTypes, busLive, openOrCreateChat, renameOpenChat, waitForStreamOpen } from "./support/chat-room.ts";
+import { openOrCreateChat, renameOpenChat, waitForStreamOpen } from "./support/chat-room.ts";
 import { WAIT_SHORT_MS, WAIT_UI_MS } from "./support/timeouts.ts";
 
 const POST_METHOD = "POST";
 const POST_REQUEST = `→ ${POST_METHOD}`;
 const TRPC_PREFIX = "/api/trpc/";
 const OK_RESPONSE = "← 200";
-const BUS_EVENT = "◆";
 const GET_CHAT = "chat.getChat";
 const LIST_CHATS = "chat.listChats";
 const LIST_MESSAGES = "chat.listMessages";
 const ATTACH = "stream.attach";
 const CONNECT = "stream.connect";
 const UPDATE_TITLE = "chat.updateTitle";
-const CHAT_UPDATED = "chatUpdated";
 
 interface TimelineEntry {
   readonly phase: string;
@@ -30,25 +28,14 @@ interface TimelineEntry {
   readonly batchSize?: number;
 }
 
-async function openedRoomId(page: Page): Promise<ChatId> {
-  // Read the already-served navigation store, not a room identity inferred from network traffic. The served
-  // module stays unknown in page; its result is parsed on the Node side with the canonical chat id schema.
-  const served: unknown = await page.evaluate(async (modulePath) => {
-    const state: unknown = await import(modulePath);
-    if (typeof state !== "object" || state === null || !(("activeChatId" satisfies keyof typeof import("@orb/client/state")) in state)) {
-      throw new Error(`${modulePath} serves no activeChatId reader`);
-    }
-    if (typeof state.activeChatId !== "function") {
-      throw new Error(`${modulePath} activeChatId is not a reader`);
-    }
-    const activeChatId: unknown = state.activeChatId();
-    return activeChatId;
-  }, "/src/state/active-chat-store.ts");
-  const chatId = typeIdSchema(ID_PREFIX.chat).nullable().parse(served);
-  if (chatId === null) {
-    throw new Error("The rendered room has no active chat identity");
+// The room the client attached last: its `stream.attach` request names the chat. Read after the room's
+// attach marker is on screen, so the attach request is already in the timeline.
+function openedRoomId(timeline: readonly TimelineEntry[]): ChatId {
+  const attach = timeline.findLast((entry) => entry.phase === POST_REQUEST && entry.procedure === ATTACH && entry.chatId !== undefined);
+  if (attach?.chatId === undefined) {
+    throw new Error("The client sent no chat attach for the rendered room");
   }
-  return chatId;
+  return attach.chatId;
 }
 
 // The recorder observes the client's raw batch body, so each input stays unknown until one field is read.
@@ -95,12 +82,6 @@ function captureTimeline(page: Page): TimelineEntry[] {
     if (response.url().includes(TRPC_PREFIX)) {
       const request = response.request();
       timeline.push(...batchEntries(`← ${response.status()}`, request.method(), proceduresOf(response.url()), request.postData()));
-    }
-  });
-  page.on("console", (message) => {
-    // Record delivery before the invalidation seam dispatches its batched reads, not at a later poll.
-    if (message.text().includes("[bus]") && message.text().includes(`◆ ${CHAT_UPDATED} `)) {
-      timeline.push({ phase: BUS_EVENT, procedure: CHAT_UPDATED });
     }
   });
   return timeline;
@@ -169,9 +150,8 @@ test.describe("order-of-operations", () => {
     const timeline = captureTimeline(page);
     await openOrCreateChat(page);
     await waitForStreamOpen(page);
-    await expect.poll(async (): Promise<number> => busLive(page)).toBeGreaterThanOrEqual(1);
 
-    const roomId = await openedRoomId(page);
+    const roomId = openedRoomId(timeline);
 
     // Mount reads and room attachment dispatch concurrently; each must complete, not win a race.
     await expect(() => {
@@ -189,20 +169,18 @@ test.describe("order-of-operations", () => {
     }).toPass({ timeout: WAIT_UI_MS });
   });
 
-  test("rename → POST updateTitle → fresh chatUpdated bus event → POST room/list refetch", async ({ page }) => {
+  // The title mutation is bus-driven (it never invalidates itself), so a room/list refetch after its response
+  // is the chatUpdated delivery reaching the client.
+  test("rename → POST updateTitle → bus-driven POST room/list refetch", async ({ page }) => {
+    const timeline = captureTimeline(page);
     await openOrCreateChat(page);
     await waitForStreamOpen(page);
 
-    const roomId = await openedRoomId(page);
-    const beforeEvents = (await busEventTypes(page)).filter((type) => type === CHAT_UPDATED).length;
-    const timeline = captureTimeline(page);
+    const roomId = openedRoomId(timeline);
     const newTitle = `e2e-seq-${Date.now()}`;
     await renameOpenChat(page, newTitle);
     await expect(page.getByText(newTitle).first()).toBeVisible({ timeout: WAIT_SHORT_MS });
 
-    await expect
-      .poll(async (): Promise<number> => (await busEventTypes(page)).filter((type) => type === CHAT_UPDATED).length, { timeout: WAIT_UI_MS })
-      .toBeGreaterThan(beforeEvents);
     await expect(() => {
       expectInOrder(timeline, [
         { phase: POST_REQUEST, procedure: UPDATE_TITLE, chatId: roomId },
@@ -212,7 +190,6 @@ test.describe("order-of-operations", () => {
       for (const procedure of [GET_CHAT, LIST_CHATS]) {
         expectInOrder(timeline, [
           { phase: POST_REQUEST, procedure: UPDATE_TITLE, chatId: roomId },
-          { phase: BUS_EVENT, procedure: CHAT_UPDATED },
           { phase: POST_REQUEST, procedure, ...(procedure === GET_CHAT ? { chatId: roomId } : {}) },
           { phase: OK_RESPONSE, procedure, ...(procedure === GET_CHAT ? { chatId: roomId } : {}) },
         ]);
