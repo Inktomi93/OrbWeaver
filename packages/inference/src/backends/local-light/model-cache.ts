@@ -50,7 +50,7 @@ async function loadExecutionKernel(module: string | undefined): Promise<Transfor
   if (module === undefined) {
     return await loadTransformers();
   }
-  // eslint-disable-next-line no-restricted-syntax -- The composition root's provider seam names this kernel module, never request input, and the shape check below refuses any other module.
+  // eslint-disable-next-line no-restricted-syntax -- Only the testkit sets this provider seam; production boot passes none. The import evaluates the module before the shape check runs, so the check refuses using a wrong module, not loading one.
   const execution: unknown = await import(module);
   if (!isKernelModule(execution)) {
     throw new ProviderError({ kind: "invalid", retryable: false, message: "local-light: kernel execution module has no library loader" });

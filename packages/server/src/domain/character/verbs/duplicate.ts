@@ -56,7 +56,8 @@ export function createDuplicate(ctx: CharacterContext): CharacterService["duplic
   return async ({ principal, characterId }: DuplicateCharacterParams) => {
     const ownerId = principal.userId;
     const source = await loadOwnedCharacterRow(ctx.db, ownerId, characterId);
-    if (source === undefined) {
+    // A synthetic group row is room machinery; its copy would land in the library as a visible card.
+    if (source === undefined || source.synthetic) {
       throw new CharacterNotFoundError(characterId);
     }
 

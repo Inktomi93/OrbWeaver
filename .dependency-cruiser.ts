@@ -28,6 +28,12 @@ const BOOT_GRANT_IMPORTERS = {
   "^tooling/src/seed/": "seed tools run the same boot steps against the database they build",
   "^tests/support/": "the testkit boots whole servers through the boot steps and hands suites the grant through `bootGrantFor`",
 } as const satisfies Readonly<Record<string, string>>;
+// The only server, db and inference importers of `node:module`, each with the reason; both call `.resolve` only.
+const MODULE_LOADER_RESOLVERS = {
+  "^packages/server/src/entry/boot/migrate\\.ts$":
+    "physical boot resolves the migrations folder; import.meta.resolve is unsupported under the vitest module runner",
+  "^packages/inference/src/backends/agent-sdk/executable\\.ts$": "resolves the agent SDK package's executable path; it loads nothing",
+} as const satisfies Readonly<Record<string, string>>;
 const GROUPING_DIRS = {
   server: ["entry", "transport", "domain", "infra", "foundation", "primitives"],
   inference: ["backends"],
@@ -911,10 +917,11 @@ const SERVER_AUTHORITY = [
     to: { path: ENTRY_DRIVER_PATTERN },
   },
   {
-    name: "entry-wiring-no-module-loader",
-    comment: "Host loaders bypass the resolved query frontier; physical boot owns the migrations resolver.",
+    name: "host-module-loader-confined",
+    comment:
+      "createRequire loads any specifier at runtime, so it walks around every db door rule; only the resolve-only sites MODULE_LOADER_RESOLVERS names may import it (D335).",
     severity: "error",
-    from: { path: ENTRY_SOURCE, pathNot: ENTRY_DRIVER_PATTERN },
+    from: { path: [SRV, DB, INFERENCE], pathNot: Object.keys(MODULE_LOADER_RESOLVERS) },
     to: { path: "^(node:)?module$" },
   },
   {
