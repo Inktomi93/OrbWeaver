@@ -48,7 +48,7 @@ export function createBulkRemove(ctx: CharacterContext): CharacterService["bulkR
       try {
         await ctx.reapAssets(reap);
       } catch (err) {
-        getLog().warn({ err, count: reap.length }, "character: bulk avatar reap failed");
+        getLog(ctx.logger).warn({ err, count: reap.length }, "character: bulk avatar reap failed");
       }
     }
   };

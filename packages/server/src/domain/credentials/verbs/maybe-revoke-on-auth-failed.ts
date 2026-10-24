@@ -32,6 +32,7 @@ async function reportOwnerMismatch(
     "credential_revoke_owner_mismatch",
     { credentialId: args.credentialId, claimedOwnerId: args.ownerId, path: "auth_failed" },
     "credentials: a post-generation strike-out named a credential this owner does not hold — nothing revoked",
+    ctx.logger,
   );
 }
 
@@ -76,9 +77,10 @@ export function createMaybeRevokeOnAuthFailed(ctx: CredentialContext): Credentia
         "credential_revoked",
         { credentialId, ownerId, reason: params.errorMessage, path: "auth_failed" },
         "credentials: marked revoked (post-generation auth_failed strike-out)",
+        ctx.logger,
       );
     } catch (err) {
-      getLog().error(
+      getLog(ctx.logger).error(
         { credentialId, err: redactKnownSecrets(errorMessage(err), sealedLiterals) },
         "credentials: failed to mark revoked (suppressed — the turn's error path still surfaces)",
       );

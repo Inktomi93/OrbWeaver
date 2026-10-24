@@ -53,6 +53,7 @@ import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { cleanPerSpeakerReply } from "@orb/kit/speaker-label";
 import { estimateTokens } from "@orb/kit/tokens";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import { applyReceivePostProcess } from "#primitives/post-process";
 import { parseReasoningTags } from "#primitives/reasoning";
@@ -106,6 +107,7 @@ import {
  *  as `Parameters<typeof runTurnPipeline>[0]` — the same derive-from-the-function pattern `engine.ts` already
  *  uses for the RESULT (`Awaited<ReturnType<typeof runTurnPipeline>>`), so there is exactly one definition. */
 interface RunTurnPipelineArgs {
+  readonly logger: Logger;
   readonly onObservedResult?: GenerationObservationCallback | undefined;
   readonly attachmentQuality?: AttachmentQuality | undefined;
   readonly runChatTurn: RunChatTurnOp;
@@ -449,12 +451,12 @@ function promptHistoryEnv(ctx: AssembleContext, args: RunTurnPipelineArgs): Prom
       model: args.connection.model,
       chatId: args.chatId,
       random: args.random,
-      onWarn: (msg, warnErr) => getLog().warn({ err: warnErr, macroWarn: msg }, "chat: macro budget/eval trip (D53)"),
+      onWarn: (msg, warnErr) => getLog(args.logger).warn({ err: warnErr, macroWarn: msg }, "chat: macro budget/eval trip (D53)"),
       registry: args.macroRegistry,
     }),
     applyReplace: args.applyRegexReplace,
     onScriptFailure: (scriptErr, script) =>
-      getLog().warn(
+      getLog(args.logger).warn(
         { err: scriptErr, placement: "PROMPT_HISTORY", findRegex: script.findRegex },
         "chat: host-tier regex script failed on the prompt-history leg — evicted for this build (D53 watchdog)",
       ),
@@ -501,7 +503,7 @@ function applyReceiveTransforms(
           model: args.connection.model,
           chatId: args.chatId,
           random: args.random,
-          onWarn: (msg, warnErr) => getLog().warn({ err: warnErr, macroWarn: msg }, "chat: macro budget/eval trip (D53)"),
+          onWarn: (msg, warnErr) => getLog(args.logger).warn({ err: warnErr, macroWarn: msg }, "chat: macro budget/eval trip (D53)"),
           registry: args.macroRegistry,
         })
       : null;
@@ -513,7 +515,7 @@ function applyReceiveTransforms(
       ctx: macroCtx,
       applyReplace: args.applyRegexReplace,
       onScriptFailure: (scriptErr, script) =>
-        getLog().warn({ err: scriptErr, placement: "AI_OUTPUT", findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)"),
+        getLog(args.logger).warn({ err: scriptErr, placement: "AI_OUTPUT", findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)"),
     });
   }
 
@@ -528,7 +530,7 @@ function applyReceiveTransforms(
       ctx: macroCtx,
       applyReplace: args.applyRegexReplace,
       onScriptFailure: (scriptErr, script) =>
-        getLog().warn({ err: scriptErr, placement: "REASONING", findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)"),
+        getLog(args.logger).warn({ err: scriptErr, placement: "REASONING", findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)"),
     });
   }
 

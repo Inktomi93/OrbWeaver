@@ -56,11 +56,11 @@ async function prove(ctx: EmbeddingsContext, ownerId: UserId, target: SyncTarget
       return { kind: "skip" };
     }
     if (error instanceof ProviderError && error.kind === "auth_failed") {
-      getLog().warn({ err: error, ownerId, task: target.task }, "embeddings: a re-point's width probe was refused its key; the write is refused");
+      getLog(ctx.logger).warn({ err: error, ownerId, task: target.task }, "embeddings: a re-point's width probe was refused its key; the write is refused");
       return { kind: "refused", refusal: { kind: "auth", task: target.task } };
     }
     if (error instanceof ProviderError || error instanceof EmbedFailedError) {
-      getLog().warn({ err: error, ownerId, task: target.task }, "embeddings: a re-point's width probe got no answer; the write is refused");
+      getLog(ctx.logger).warn({ err: error, ownerId, task: target.task }, "embeddings: a re-point's width probe got no answer; the write is refused");
       return { kind: "refused", refusal: { kind: "unreachable", task: target.task } };
     }
     throw error;

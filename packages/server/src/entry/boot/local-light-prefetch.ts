@@ -46,7 +46,7 @@ async function localLightModelFor(deps: LocalLightPrefetchPlanDeps, principal: P
     // DELIBERATE fail-closed. The owner of a resolver failure is the REQUEST that hits it — this is a speculative pre-warm asking a question it is allowed not to get an answer to, and the only consequence of `null` here is that the box keeps the lazy path it had before this file existed. `no-connection` is the ordinary answer; anything else is surfaced as a structured log naming the task + reason. Ends if the prefetch ever becomes required for correctness rather than latency.
   } catch (err) {
     if (!(err instanceof NoConnectionError)) {
-      getLog().debug(
+      getLog(deps.logger).debug(
         { task, userId: principal.userId, err: err instanceof Error ? err.message : String(err) },
         "local-light prefetch: task did not resolve; not prefetching it",
       );

@@ -45,7 +45,7 @@ export function createEnsureUser(ctx: SessionsContext): Pick<SessionsService, "e
         `ensureUser: no users row for handle "${handle}" after insert — the insert was rejected by a UNIQUE constraint other than the handle (a row already holds role='owner' under a different handle, another row holds this handle's key as a case variant or look-alike (users_handle_key_unique, D257), or its external_id is taken). Refusing to return an id that points at no row.`,
       );
     }
-    getLog().info({ handle }, "user: created tenant row");
+    getLog(ctx.logger).info({ handle }, "user: created tenant row");
     // #2481 — the new account's local-light vector floor, AFTER the row has settled and outside any batch
     // (§5.3b). Injected, total, and idempotent: when this call LOST the `onConflictDoNothing` race, `settled`
     // is the winner's id and the `(owner_id, label)` unique makes seeding it again a no-op.

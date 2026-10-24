@@ -25,7 +25,7 @@ export function createRemove(ctx: CharacterContext): CharacterService["remove"] 
       try {
         await ctx.reapAssets([avatarAssetId]);
       } catch (err) {
-        getLog().warn({ err, characterId }, "character: avatar reap failed (orphan heals on GC)");
+        getLog(ctx.logger).warn({ err, characterId }, "character: avatar reap failed (orphan heals on GC)");
       }
     }
 

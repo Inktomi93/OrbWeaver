@@ -174,7 +174,7 @@ async function deliverIfVisible(deps: VisibilityDeps, sub: PluginTriggerSubscrib
   try {
     sub.deliver(fact, resolved.automationDepth);
   } catch (err) {
-    getLog().warn({ err: err instanceof Error ? err.message : String(err), type: resolved.fact.type }, "plugin subscriber deliver threw (isolated)");
+    getLog(deps.logger).warn({ err: err instanceof Error ? err.message : String(err), type: resolved.fact.type }, "plugin subscriber deliver threw (isolated)");
   }
 }
 

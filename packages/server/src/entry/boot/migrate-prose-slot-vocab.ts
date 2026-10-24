@@ -27,7 +27,7 @@ export interface MigrateProseSlotVocabDeps {
 export async function migrateProseSlotVocabOnBoot(deps: MigrateProseSlotVocabDeps): Promise<number> {
   const rewritten = await migrateProseSlotVocab(deps.db);
   if (rewritten > 0) {
-    getLog().info({ rewritten }, "boot/migrate-prose-slot-vocab: re-keyed pre-#1737 prose overrides to `chat.group.characterHeading`");
+    getLog(deps.logger).info({ rewritten }, "boot/migrate-prose-slot-vocab: re-keyed pre-#1737 prose overrides to `chat.group.characterHeading`");
   }
   return rewritten;
 }

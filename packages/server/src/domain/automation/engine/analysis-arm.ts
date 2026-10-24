@@ -488,7 +488,7 @@ function runModelPass(
         .then((r) => r.text),
     onRetry: (summary) => {
       // Metadata only (issue count + schema paths) — never the model's own words (RP content).
-      getLog().info({ ruleId: frame.origin.ruleId, issueCount: summary.issueCount, paths: summary.paths }, "run_analysis: bounded structured retry");
+      getLog(deps.logger).info({ ruleId: frame.origin.ruleId, issueCount: summary.issueCount, paths: summary.paths }, "run_analysis: bounded structured retry");
     },
   });
 }

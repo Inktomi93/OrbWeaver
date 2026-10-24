@@ -63,7 +63,7 @@ export async function migratePluginToolWireNamesOnBoot(deps: MigratePluginToolWi
   const renames = pluginToolWireNameRenames(slugs);
   const refused = pluginToolWireNameRenamesRefused(slugs);
   if (refused.length > 0) {
-    getLog().warn(
+    getLog(deps.logger).warn(
       { refused },
       "boot/migrate-plugin-tool-wire-names: these hyphenated plugin slugs share a legacy wire namespace with another installed slug, so their persisted tool names are AMBIGUOUS and were left alone (#1391)",
     );
@@ -73,7 +73,7 @@ export async function migratePluginToolWireNamesOnBoot(deps: MigratePluginToolWi
   }
   const rewritten = (await migrateToolCallRecords(deps.db, renames)) + (await migrateAutomationArms(deps.db, renames));
   if (rewritten > 0) {
-    getLog().info({ rewritten, renames: renames.length }, "boot/migrate-plugin-tool-wire-names: re-prefixed pre-#1391 plugin tool wire names");
+    getLog(deps.logger).info({ rewritten, renames: renames.length }, "boot/migrate-plugin-tool-wire-names: re-prefixed pre-#1391 plugin tool wire names");
   }
   return rewritten;
 }

@@ -40,7 +40,7 @@ export async function reclaimLocksOnBoot(deps: ReclaimLocksDeps): Promise<number
     emitEvent: deps.emitWorkloadEvent,
   });
   const chatLocks = await reclaimChatLocksOnBoot(deps.db, deps.holder);
-  getLog().info(
+  getLog(deps.logger).info(
     { requeued: workloads.requeued, reaped: workloads.reaped, chatLocks },
     "boot/reclaim-locks: re-queued resumable in-flight workloads, reaped the rest, reclaimed chat turn-locks",
   );

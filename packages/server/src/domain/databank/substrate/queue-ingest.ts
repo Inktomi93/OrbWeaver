@@ -24,14 +24,14 @@ import type { DatabankContext } from "../contract/service.ts";
  *  as `ingest:'not-queued'` so the canon write that already landed is reported honestly (see the header).
  *  Typed on the ONE op it uses, so the Principal-less portability slice reaches it too. */
 export async function queueIngest(
-  ctx: Pick<DatabankContext, "enqueueIngest">,
+  ctx: Pick<DatabankContext, "enqueueIngest" | "logger">,
   args: { readonly documentId: DocumentId; readonly ownerId: UserId },
 ): Promise<QueuedIngest> {
   try {
     const { workloadId } = await ctx.enqueueIngest(args);
     return { ingest: "queued", workloadId };
   } catch (err) {
-    getLog().warn(
+    getLog(ctx.logger).warn(
       { err, documentId: args.documentId, ownerId: args.ownerId },
       "databank: the document was written but its ingest could not be queued — it is un-indexed until a reindex",
     );

@@ -15,7 +15,7 @@ export interface RepairStaleJoinSeqDeps {
 export async function repairStaleJoinSeqOnBoot(deps: RepairStaleJoinSeqDeps): Promise<number> {
   const repaired = await repairStaleJoinSeq(deps.db);
   if (repaired > 0) {
-    getLog().info({ repaired }, "boot/repair-stale-join-seq: clamped %d participant(s) with stale join_seq to per-chat canon head (#2253)");
+    getLog(deps.logger).info({ repaired }, "boot/repair-stale-join-seq: clamped %d participant(s) with stale join_seq to per-chat canon head (#2253)");
   }
   return repaired;
 }

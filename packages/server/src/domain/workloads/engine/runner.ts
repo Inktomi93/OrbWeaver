@@ -214,7 +214,7 @@ async function finalizeSuccess(deps: WorkloadRunnerDeps, row: WorkloadRunnableRo
   }
   // succeeded didn't move (row not `running`): pin cancelling→cancelled, or it was already reaped (zombie).
   if (!(await finishCancelled(deps, row, deps.now()))) {
-    getLog().warn({ workloadId: row.id }, "workloads: run finished but row already terminal (reaped)");
+    getLog(deps.logger).warn({ workloadId: row.id }, "workloads: run finished but row already terminal (reaped)");
   }
 }
 

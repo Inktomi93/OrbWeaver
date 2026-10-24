@@ -222,7 +222,7 @@ async function handleDomainEvent(ctx: AutomationContext, event: DomainEvent): Pr
       ctx.serialLanes
         .run(automationDomainLaneKey(ownerId), () => dispatchLoadedRules(ctx, ownerRules, resolved))
         .catch((err: unknown) => {
-          getLog().warn(
+          getLog(ctx.logger).warn(
             { err: err instanceof Error ? err.message : String(err), type: event.type, ownerId },
             "automation handleEvent failed for one domain-rule owner (isolated)",
           );
@@ -257,7 +257,7 @@ export function createHandleEvent(ctx: AutomationContext): AutomationService["ha
         try {
           await handleChatEvent(ctx, event, chatId);
         } catch (err) {
-          getLog().warn({ err: err instanceof Error ? err.message : String(err), type: event.type }, "automation handleEvent failed (isolated)");
+          getLog(ctx.logger).warn({ err: err instanceof Error ? err.message : String(err), type: event.type }, "automation handleEvent failed (isolated)");
         }
       });
     }

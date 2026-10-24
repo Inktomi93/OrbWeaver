@@ -715,7 +715,7 @@ async function assertTurnMayCommit(ctx: EngineContext, deps: EngineDeps, prep: T
   if (await holdsLock(ctx.db, prep.chatId, deps.holder)) {
     return;
   }
-  getLog().error(
+  getLog(ctx.logger).error(
     { chatId: prep.chatId, holder: deps.holder },
     "chat: turn-lock NOT held at the commit fence — refusing the canon write (stolen or gone mid-turn)",
   );
@@ -797,7 +797,7 @@ function fireRpgTurnCompleted(ctx: EngineContext, view: MessageView, turnId: Cha
       view.chatId,
       withRequestSpan(rpgRoundRequestId(turnId), RPG_ROUND_SPAN, { chatId: view.chatId, messageId: view.id, turnId }, () =>
         rpg.onTurnCompleted(view.chatId, view.id, view.selectedVariantId, turnId, turn),
-      ).catch((err: unknown) => getLog().warn({ err, chatId: view.chatId, turnId }, "rpg: post-turn flush failed (reply already committed)")),
+      ).catch((err: unknown) => getLog(ctx.logger).warn({ err, chatId: view.chatId, turnId }, "rpg: post-turn flush failed (reply already committed)")),
     );
   }
 }
@@ -828,7 +828,7 @@ function fireRpgTurnAborted(ctx: EngineContext, chatId: ChatId, turnId: ChatTurn
       ctx,
       chatId,
       withRequestSpan(rpgAbortRequestId(turnId), RPG_ABORT_SPAN, { chatId, turnId, reason }, () => rpg.onTurnAborted(chatId, turnId, reason)).catch(
-        (err: unknown) => getLog().warn({ err, chatId, turnId, reason }, "rpg: turn-abort staging clear failed (the turn is still aborted)"),
+        (err: unknown) => getLog(ctx.logger).warn({ err, chatId, turnId, reason }, "rpg: turn-abort staging clear failed (the turn is still aborted)"),
       ),
     );
   }
@@ -1090,7 +1090,7 @@ async function runPreTurnCompaction(ctx: EngineContext, deps: OwnedEngineDeps, p
       throw compactErr;
     }
     // FAILURE-HONEST: a failed pre-turn compaction NEVER blocks the turn — log + proceed with the current canon.
-    getLog().warn({ err: compactErr, chatId }, "chat: pre-turn managed compaction failed (proceeding)");
+    getLog(ctx.logger).warn({ err: compactErr, chatId }, "chat: pre-turn managed compaction failed (proceeding)");
   } finally {
     compactionInFlight.delete(chatId);
   }
@@ -1176,7 +1176,7 @@ function fireManagedCompaction(
       } catch (compactErr) {
         // FAILURE-HONEST: a thrown marker build (provider error OR empty generation) leaves the existing marker
         // untouched and surfaces the `compaction_failed` warning (the memory_build_failed mirror).
-        getLog().warn({ err: compactErr, chatId }, "chat: managed compaction failed");
+        getLog(ctx.logger).warn({ err: compactErr, chatId }, "chat: managed compaction failed");
         await emitQuiet(deps, { type: "warning", chatId, code: "compaction_failed" });
         // Rethrow so the span marks itself ERROR (I-7: previously swallowed here too). Still fire-and-forget —
         // the outer `.catch` below absorbs it.
@@ -1398,7 +1398,7 @@ function captureTurnFault(ctx: EngineContext, prep: TurnPrep, err: unknown, reas
       warnings: [],
     });
   } catch (recordErr) {
-    getLog().warn({ err: recordErr, chatId: prep.chatId }, "chat: the turn-fault outcome record failed (the original turn error is unaffected)");
+    getLog(ctx.logger).warn({ err: recordErr, chatId: prep.chatId }, "chat: the turn-fault outcome record failed (the original turn error is unaffected)");
   }
 }
 
@@ -1733,6 +1733,7 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
     // exactly these arguments with two overrides (`recover-narrative.ts`), and a second hand-built literal
     // would be a second definition of the turn, free to drift.
     const pipelineArgs = {
+      logger: ctx.logger,
       onObservedResult: observations.onObservedResult,
       runChatTurn: ctx.runChatTurn,
       attachmentQuality: prep.attachmentQuality,
@@ -1895,12 +1896,12 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
           } catch (memErr) {
             // Must never surface to the caller, but must not be invisible — log + emit a machine-dispatchable
             // warning code.
-            getLog().warn({ err: memErr, chatId: prep.chatId }, "memory: post-turn build failed");
+            getLog(ctx.logger).warn({ err: memErr, chatId: prep.chatId }, "memory: post-turn build failed");
             // A failed WARNING emit must not mask `memErr` — the build failure rethrown below is what the span must
             // record. The emit's own failure is read as a value and logged, never re-thrown out of the fire-and-forget.
             const [warned] = await Promise.allSettled([deps.emit({ type: "warning", chatId: prep.chatId, code: "memory_build_failed" })]);
             if (warned.status === "rejected") {
-              getLog().warn({ err: warned.reason, chatId: prep.chatId }, "memory: build-failure warning emit also failed");
+              getLog(ctx.logger).warn({ err: warned.reason, chatId: prep.chatId }, "memory: build-failure warning emit also failed");
             }
             // Rethrow so the span marks itself ERROR (I-7: previously swallowed here, so a failed build always
             // looked "ok" on the trace ring even though the warning above fired). Still fire-and-forget to the
@@ -1938,7 +1939,7 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
       // The belt stays because the SEAM's type permits what bus.ts's invariant currently forbids; a test that
       // injected a rejecting emitter was deleted for pinning a shape no caller can reach.
       if (deltaErr !== err) {
-        getLog().warn({ err: deltaErr, chatId: prep.chatId }, "chat: delta drain also failed while aborting turn");
+        getLog(ctx.logger).warn({ err: deltaErr, chatId: prep.chatId }, "chat: delta drain also failed while aborting turn");
       }
     }
     // An abort is a lifecycle OUTCOME, not an exception (owner ruling, lock-the-extensible-shape): the
@@ -1999,13 +2000,13 @@ async function runInLockWithHeartbeat(ctx: EngineContext, deps: OwnedEngineDeps,
         return;
       }
     } catch (err) {
-      getLog().error({ err, chatId: prep.chatId, holder: deps.holder }, "chat: turn-lock refresh FAILED (db fault) — aborting the turn");
+      getLog(ctx.logger).error({ err, chatId: prep.chatId, holder: deps.holder }, "chat: turn-lock refresh FAILED (db fault) — aborting the turn");
     }
     if (lockLost) {
       return;
     }
     lockLost = true;
-    getLog().error(
+    getLog(ctx.logger).error(
       { chatId: prep.chatId, holder: deps.holder },
       "chat: turn-lock LOST mid-turn (stolen/gone) — aborting the turn to stop the canon-write race",
     );
@@ -2020,7 +2021,7 @@ async function runInLockWithHeartbeat(ctx: EngineContext, deps: OwnedEngineDeps,
         ctx,
         prep.chatId,
         tick().catch((err: unknown): void => {
-          getLog().error({ err, chatId: prep.chatId, holder: deps.holder }, "chat: turn-lock heartbeat FAILED — aborting the turn");
+          getLog(ctx.logger).error({ err, chatId: prep.chatId, holder: deps.holder }, "chat: turn-lock heartbeat FAILED — aborting the turn");
           heartbeatController.abort(new StaleLockAbort());
           rejectLockLost(err);
         }),
@@ -2080,6 +2081,7 @@ async function generateTextUnpersisted(ctx: EngineContext, prep: TurnPrep, onTex
   const observations = createGenerationObservationSession(ctx, { chatId: prep.chatId, turnId, sourceMessageId: null, sourceVariantId: null });
   try {
     const result = await runTurnPipeline({
+      logger: ctx.logger,
       onObservedResult: observations.onObservedResult,
       runChatTurn: ctx.runChatTurn,
       attachmentQuality: prep.attachmentQuality,

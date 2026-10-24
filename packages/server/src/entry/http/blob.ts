@@ -134,7 +134,7 @@ async function serveVariant(
   try {
     variant = await deps.assets.resolveVariant({ principal, hash, width, kind });
   } catch (err) {
-    getLog().warn({ err, hash }, "blob: variant decode failed, serving original unresized");
+    getLog(deps.logger).warn({ err, hash }, "blob: variant decode failed, serving original unresized");
     return serveOriginal(deps, principal, hash);
   }
   if (variant === undefined) {

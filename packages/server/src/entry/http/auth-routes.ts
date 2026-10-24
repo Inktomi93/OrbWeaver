@@ -743,6 +743,7 @@ function registerFirstRunRoute(app: Hono, deps: AuthRoutesDeps, firstRun: FirstR
         "first_run_origin_rejected",
         { peerIp: peerIp(c) ?? null },
         "security: first-run owner-password setup from a non-loopback peer or a relayed request — rejecting (set LOCAL_INITIAL_PASSWORD for a LAN, proxied or public local deploy)",
+        deps.logger,
       );
       return c.json({ error: "first-run setup is only available on this machine, not through a proxy or tunnel" }, FORBIDDEN);
     }
@@ -763,6 +764,7 @@ function registerFirstRunRoute(app: Hono, deps: AuthRoutesDeps, firstRun: FirstR
         "first_run_already_claimed",
         {},
         "security: first-run owner-password setup attempted but the owner credential is already set — refusing (use admin reset-password to rotate)",
+        deps.logger,
       );
       return c.json({ error: "the owner password is already set" }, CONFLICT);
     }
@@ -1215,7 +1217,7 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
     const idpError = incoming.searchParams.get("error");
     if (idpError !== null) {
       const code = sanitizeOidcErrorCode(idpError);
-      securityEvent("oidc_callback_error", { error: code }, "security: OIDC callback carried an IdP error param — no token exchange, no session");
+      securityEvent("oidc_callback_error", { error: code }, "security: OIDC callback carried an IdP error param — no token exchange, no session", deps.logger);
       return loginErrorRedirect(c, code);
     }
     const config = await oidc.getConfig();
@@ -1229,6 +1231,7 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
         "oidc_token_exchange_failed",
         { error: exchange.code },
         "security: OIDC code→token exchange failed (replay/expiry/mismatch/transient) — no session minted",
+        deps.logger,
       );
       return loginErrorRedirect(c, exchange.code);
     }
@@ -1464,6 +1467,7 @@ function registerBackchannelLogout(app: Hono, deps: AuthRoutesDeps, oidc: OidcRo
           "oidc_backchannel_sid_unsupported",
           { hasSid: subject.sid !== null },
           "security: OIDC back-channel logout — refused sid-only token because sessions have no issuer/sid binding",
+          deps.logger,
         );
         return c.json({ error: "unsupported_logout_token" }, BAD_REQUEST);
       }
@@ -1475,7 +1479,7 @@ function registerBackchannelLogout(app: Hono, deps: AuthRoutesDeps, oidc: OidcRo
       for (const userId of userIds) {
         deps.sockets.evictUser(userId);
       }
-      securityEvent("oidc_backchannel_logout", { revoked }, "security: OIDC back-channel logout — revoked all sessions for the subject");
+      securityEvent("oidc_backchannel_logout", { revoked }, "security: OIDC back-channel logout — revoked all sessions for the subject", deps.logger);
       return c.body(null, OK);
     },
   );

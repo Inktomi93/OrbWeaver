@@ -45,7 +45,7 @@ export interface WorkloadScheduleSchedulerDeps {
  * timer down on shutdown. A tick error never takes the process down — it is logged and the next tick retries.
  */
 export function startWorkloadScheduleScheduler(deps: WorkloadScheduleSchedulerDeps): () => void {
-  const log = getLog().child({ component: LOG_COMPONENT });
+  const log = getLog(deps.logger).child({ component: LOG_COMPONENT });
   const checkMs = deps.checkIntervalMs ?? DEFAULT_CHECK_INTERVAL_MS;
   const tickDeps: ScheduleTickDeps = { logger: deps.logger, db: deps.db, now: deps.now, start: deps.start };
 

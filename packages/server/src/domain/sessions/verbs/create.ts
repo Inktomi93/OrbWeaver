@@ -35,7 +35,7 @@ export function createCreate(ctx: SessionsContext): Pick<SessionsService, "creat
       // Bound to THIS row (AAD = sessionId). An absent/empty token stores nothing rather than sealing "".
       oidcIdToken: idToken.length > 0 ? ctx.sealIdToken(idToken, sessionId) : null,
     });
-    getLog().info({ userId: params.userId, sessionId }, "session: created");
+    getLog(ctx.logger).info({ userId: params.userId, sessionId }, "session: created");
     await logAudit(
       ctx.db,
       {

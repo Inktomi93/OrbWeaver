@@ -74,7 +74,7 @@ const DEFAULT_PERSONA: Omit<CreatePersonaInput, "avatarAssetId"> = {
 };
 
 export function createDefaultPersonaSeeder(deps: DefaultPersonaSeederDeps): DefaultPersonaSeeder {
-  const log = getLog();
+  const log = getLog(deps.logger);
   // Populated only on success — a transient failure retries on the next touch. ASSUMES(single-replica).
   const settled = new Set<UserId>();
   const inFlight = new Map<UserId, Promise<void>>();

@@ -259,7 +259,7 @@ async function commitDigestPlan(ctx: ChatContext, plan: DigestPlan, texts: reado
  *  batch — similar-length sequences pack with less ragged-batch padding waste. */
 export function summarizeDigestBatch(ctx: ChatContext, funderUserId: UserId, inputs: readonly SummarizeInput[]): Promise<(string | null)[]> {
   return summarizeBatchIsolated(ctx, funderUserId, inputs, (i, err) =>
-    getLog().error({ err, index: i }, "memory digest: block summarize FAILED (isolated — the block retries next pass)"),
+    getLog(ctx.logger).error({ err, index: i }, "memory digest: block summarize FAILED (isolated — the block retries next pass)"),
   );
 }
 
@@ -524,7 +524,7 @@ async function consolidateOneTier(
     args.funderUserId,
     plan.pending.map((p) => p.input),
     (i, err) =>
-      getLog().error(
+      getLog(ctx.logger).error(
         { err, chatId: scope.chatId, scopedCharacterId: scope.scopedCharacterId, tier: plan.parentTier, blockIdx: plan.pending[i]?.parentBlockIdx },
         "memory digest: consolidation summarize FAILED (isolated — the parent retries next pass)",
       ),
@@ -614,7 +614,7 @@ export async function collectConsolidationTier(
  *  only the flat index; the content-hash self-heal retries the dropped parent next pass regardless. */
 export function summarizeConsolidationBatch(ctx: ChatContext, funderUserId: UserId, inputs: readonly SummarizeInput[]): Promise<(string | null)[]> {
   return summarizeBatchIsolated(ctx, funderUserId, inputs, (i, err) =>
-    getLog().error({ err, index: i }, "memory digest: consolidation summarize FAILED (isolated — the parent retries next pass)"),
+    getLog(ctx.logger).error({ err, index: i }, "memory digest: consolidation summarize FAILED (isolated — the parent retries next pass)"),
   );
 }
 

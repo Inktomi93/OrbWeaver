@@ -14,11 +14,13 @@
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { DocumentId, UserId, WorkloadId } from "@orb/kit/ids";
+import type { Logger } from "#foundation/observability";
 
 /** The DI bundle every databank portability op closes over (assembled at the entry composition root).
  *  Principal-less by design: the delivery core knows only `ownerId`, so these are standalone factories, not
  *  `DatabankService` verbs. */
 export interface DatabankPortabilityContext {
+  readonly logger: Logger;
   readonly db: Db;
   readonly now: () => number;
   readonly newDocumentId: () => DocumentId;

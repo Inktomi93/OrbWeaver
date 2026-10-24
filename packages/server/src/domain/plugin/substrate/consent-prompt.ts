@@ -42,7 +42,7 @@ export function createConsentPrompt(ctx: PluginContext): OwnedPluginConsentPromp
           try {
             await publish(ctx, recipientUserId, raised);
           } catch (err: unknown) {
-            getLog().error({ userId: recipientUserId, err: errorMessage(err) }, "plugin: could not refresh the pending-consent notification");
+            getLog(ctx.logger).error({ userId: recipientUserId, err: errorMessage(err) }, "plugin: could not refresh the pending-consent notification");
           }
         })
         .finally((): void => {

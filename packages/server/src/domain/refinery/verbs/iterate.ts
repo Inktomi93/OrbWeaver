@@ -87,7 +87,7 @@ export function createIterate(ctx: RefineryContext, deps: StageEngineDeps): Refi
       try {
         await releaseRoundClaim(ctx.db, sessionId, claim);
       } catch (err) {
-        getLog().warn({ err, sessionId }, "refinery iterate: round-claim release failed — the lease expiry will free the session");
+        getLog(ctx.logger).warn({ err, sessionId }, "refinery iterate: round-claim release failed — the lease expiry will free the session");
       }
       // ONE tick per ROUND (never per stage), and TOTAL over the mid-round failure arm named in this file's
       // header: when the analyze half throws, the rewrite run ALREADY LANDED, so the ledger moved and every

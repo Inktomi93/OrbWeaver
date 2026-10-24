@@ -549,7 +549,7 @@ async function runRule(ctx: AutomationContext, rule: RuleRow, deps: DispatchDeps
   try {
     return await dispatchRule(rc, parsed.data);
   } catch (err) {
-    getLog().warn({ err: err instanceof Error ? err.message : String(err), ruleId: rule.id }, "automation dispatch: rule body threw (isolated)");
+    getLog(ctx.logger).warn({ err: err instanceof Error ? err.message : String(err), ruleId: rule.id }, "automation dispatch: rule body threw (isolated)");
     return onRuleError(rc, "action_error", { error: err instanceof Error ? err.message : String(err) });
   }
 }

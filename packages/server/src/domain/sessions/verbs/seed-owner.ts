@@ -49,7 +49,7 @@ async function adoptMovedSeedKey(deps: SeedOwnerContext, seedKey: Handle, at: nu
     );
   }
   await deps.sessions.renameUserHandle(owner.id, seedKey, at);
-  getLog().warn(
+  getLog(deps.logger).warn(
     { ownerId: owner.id, from: owner.handle, to: seedKey },
     "boot/seed-owner: OWNER_HANDLES moved — renamed the owner row onto the new seed key (role + external_id unchanged; if this was a typo, restore OWNER_HANDLES and reboot)",
   );
@@ -87,9 +87,9 @@ async function seedOwner(deps: SeedOwnerContext): Promise<readonly UserId[]> {
       return userId;
     }),
   );
-  getLog().info({ owners: ids.length }, "boot/seed-owner: ensured OWNER_HANDLES at role=owner");
+  getLog(deps.logger).info({ owners: ids.length }, "boot/seed-owner: ensured OWNER_HANDLES at role=owner");
   if (passwordsSeeded > 0) {
-    getLog().info({ owners: passwordsSeeded }, "boot/seed-owner: seeded initial local-owner password (first boot, AUTH_MODE=local)");
+    getLog(deps.logger).info({ owners: passwordsSeeded }, "boot/seed-owner: seeded initial local-owner password (first boot, AUTH_MODE=local)");
   }
   return ids;
 }

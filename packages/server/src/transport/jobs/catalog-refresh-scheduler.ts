@@ -54,7 +54,7 @@ export interface CatalogRefreshSchedulerDeps {
 //  holds the slot or the newest terminal row is still within its cadence; swallows the single-active
 //  DomainConflictError (someone beat us — the goal).
 async function runCatalogCheck(deps: CatalogRefreshSchedulerDeps): Promise<void> {
-  const log = getLog().child({ component: LOG_COMPONENT });
+  const log = getLog(deps.logger).child({ component: LOG_COMPONENT });
 
   const rows = await deps.service.list({ caller: null, kind: "refresh-model-catalog", limit: 1 });
   const latest = rows[0];
@@ -90,7 +90,7 @@ async function runCatalogCheck(deps: CatalogRefreshSchedulerDeps): Promise<void>
 /** Start the scheduler: one immediate boot check + the recurring decision tick on the injected timer.
  *  Returns the clear closure so entry's lifecycle layer can tear the timer down on shutdown. */
 export function startCatalogRefreshScheduler(deps: CatalogRefreshSchedulerDeps): () => void {
-  const log = getLog().child({ component: LOG_COMPONENT });
+  const log = getLog(deps.logger).child({ component: LOG_COMPONENT });
   const checkMs = deps.checkIntervalMs ?? DEFAULT_CHECK_INTERVAL_MS;
 
   const safeCheck = (): void => {

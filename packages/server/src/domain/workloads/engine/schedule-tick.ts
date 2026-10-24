@@ -14,7 +14,7 @@ const LOG_COMPONENT = "workload-schedule-tick";
 
 /** Enqueue ONE schedule's workload, tolerating the benign single-active collision. */
 async function enqueueDue(deps: ScheduleTickDeps, schedule: WorkloadScheduleRow): Promise<void> {
-  const log = getLog().child({ component: LOG_COMPONENT });
+  const log = getLog(deps.logger).child({ component: LOG_COMPONENT });
   const input = { kind: schedule.kind, params: schedule.params } as StartWorkloadInput;
   try {
     await deps.start({

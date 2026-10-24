@@ -80,7 +80,7 @@ import type { ExamplePluginSeeder, ExamplePluginSeederDeps, ShowcaseSeedResult }
 import { isVersionNewer } from "../substrate/manifest.ts";
 
 export function createExamplePluginSeeder(deps: ExamplePluginSeederDeps): ExamplePluginSeeder {
-  const log = getLog();
+  const log = getLog(deps.logger);
   // Populated only on success — a transient failure retries on the next touch. ASSUMES(single-replica).
   // It also bounds the UPGRADE half to once per process per user, which is exactly right: the shipped
   // versions cannot change while the process runs, so a second look could only ever find nothing.

@@ -25,7 +25,7 @@ export interface MigrateHandoffOfferVocabDeps {
 export async function migrateHandoffOfferVocabOnBoot(deps: MigrateHandoffOfferVocabDeps): Promise<number> {
   const rewritten = await migrateHandoffOfferVocab(deps.db);
   if (rewritten > 0) {
-    getLog().info({ rewritten }, "boot/migrate-handoff-offer-vocab: rewrote pre-#1649 handoff offers to `copyCharacters`");
+    getLog(deps.logger).info({ rewritten }, "boot/migrate-handoff-offer-vocab: rewrote pre-#1649 handoff offers to `copyCharacters`");
   }
   return rewritten;
 }

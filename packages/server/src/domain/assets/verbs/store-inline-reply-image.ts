@@ -56,7 +56,7 @@ export function createStoreInlineReplyImage(deps: InlineReplyImageDeps): StoreIn
       // fact is the DISAGREEMENT between what the provider claimed and what the bytes are; the bytes
       // themselves never do (they are the refused content). The author is still told by
       // `absorbInlineReplyImages`'s `reply_image_failed` — this is the second owner, not the first.
-      getLog().warn(
+      getLog(deps.logger).warn(
         { err, claimedMediaType: image.mediaType, bytes: bytes.length },
         "chat: inline reply image refused by the mime/size guard; the picture is dropped and the prose commits",
       );

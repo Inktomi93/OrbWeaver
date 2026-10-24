@@ -71,7 +71,7 @@ interface WorkerTickOutcome {
 // a row still `queued` after dispatch signals a back-off.
 async function claimAndRunNext(deps: WorkloadsWorkerDeps, lane: WorkloadLane): Promise<WorkerTickOutcome> {
   const { db, contributions, now } = deps.runnerDeps;
-  const log = getLog().child({ component: LOG_COMPONENT, lane });
+  const log = getLog(deps.logger).child({ component: LOG_COMPONENT, lane });
 
   let row: WorkloadRunnableRow | null;
   try {
@@ -116,7 +116,7 @@ async function claimAndRunNext(deps: WorkloadsWorkerDeps, lane: WorkloadLane): P
 // ONE reap step: sweep orphaned in-flight rows. Errors are logged + swallowed (the reaper must never take the loop down).
 async function reapOnce(deps: WorkloadsWorkerDeps, reason: WorkloadReapReason): Promise<number> {
   const { db, now, emitEvent } = deps.runnerDeps;
-  const log = getLog().child({ component: LOG_COMPONENT });
+  const log = getLog(deps.logger).child({ component: LOG_COMPONENT });
   try {
     const reaped = await deps.reap({ db, now: now(), reason, emitEvent });
     if (reaped > 0) {
@@ -136,7 +136,7 @@ async function reapOnce(deps: WorkloadsWorkerDeps, reason: WorkloadReapReason): 
  * or timer — all injected.
  */
 export async function startWorkloadsWorker(deps: WorkloadsWorkerDeps): Promise<void> {
-  const log = getLog().child({ component: LOG_COMPONENT });
+  const log = getLog(deps.logger).child({ component: LOG_COMPONENT });
   const pollMs = deps.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
   const busyMs = deps.busyPollIntervalMs ?? DEFAULT_BUSY_POLL_INTERVAL_MS;
   const reapMs = deps.reapIntervalMs ?? DEFAULT_REAP_INTERVAL_MS;

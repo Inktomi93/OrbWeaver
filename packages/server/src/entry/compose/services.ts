@@ -696,7 +696,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     span: inferenceSpanOf(deps),
     superviseDetached: (name, attrs, operation) => background.supervise(`inference:${newOpaqueId()}`, name, attrs, operation),
     addSpanEvent,
-    securityEvent: (kind, fields) => securityEvent(kind, { ...fields }),
+    securityEvent: (kind, fields) => securityEvent(kind, { ...fields }, undefined, deps.logger),
     env: {
       get claudeExecutable(): string | undefined {
         return availableClaudeExecutable();

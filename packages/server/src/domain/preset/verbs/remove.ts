@@ -22,7 +22,7 @@ export function createRemove(ctx: PresetContext): Pick<PresetService, "remove"> 
     if (!removed) {
       throw new PresetNotFoundError(params.id);
     }
-    getLog().info({ userId: params.userId, presetId: params.id }, "preset: removed");
+    getLog(ctx.logger).info({ userId: params.userId, presetId: params.id }, "preset: removed");
     await ctx.audit(
       {
         actorUserId: params.userId,

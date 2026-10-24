@@ -120,7 +120,7 @@ async function updateExisting(
     // #140 — the login's GROUPS ride every provisioning line: they are what `deriveIdentityAccess` decided
     // the role from, so a `roleChanged` with no groups beside it is an un-auditable demotion. Bounded NAMES
     // only (`groupsLogFields`); the claim object and the token are never logged.
-    getLog().info(
+    getLog(ctx.logger).info(
       { handle: identity.handle, externalId: identity.externalId, ...groupsLogFields(identity.groups), ...roleChange },
       "user: provisioned SSO identity (updated)",
     );
@@ -151,6 +151,7 @@ async function renameIsFree(ctx: SessionsContext, existing: ProvisionCandidate, 
       "sso_rename_onto_reserved_handle",
       { userId: existing.id, handle: existing.handle, requested: identity.handle },
       "security: an IdP rename asked a member row for an OWNER_HANDLES seed key or a look-alike of it; keeping the current handle",
+      ctx.logger,
     );
     return false;
   }
@@ -159,6 +160,7 @@ async function renameIsFree(ctx: SessionsContext, existing: ProvisionCandidate, 
       "sso_rename_to_inadmissible_handle",
       { userId: existing.id, handle: existing.handle, requested: identity.handle },
       "security: an IdP rename asked for a mixed-script handle; keeping the current handle",
+      ctx.logger,
     );
     return false;
   }
@@ -170,6 +172,7 @@ async function renameIsFree(ctx: SessionsContext, existing: ProvisionCandidate, 
     "sso_rename_onto_held_handle_key",
     { userId: existing.id, handle: existing.handle, requested: identity.handle, holder },
     "security: an IdP rename asked for a handle that shares its key (a case variant or look-alike) with another user's; keeping the current handle",
+    ctx.logger,
   );
   return false;
 }
@@ -210,6 +213,7 @@ async function refuseLostInsertRace(ctx: SessionsContext, identity: ResolvedIden
     "sso_insert_lost_race",
     { handle: identity.handle, externalId: identity.externalId, match },
     `security: SSO first-login INSERT was absorbed by a concurrent writer that does NOT carry this stable subject — refusing the login rather than adopting the winning row; ${LOST_RACE_ADVICE[match]}`,
+    ctx.logger,
   );
   return { outcome: "denied", reason: "account-exists" };
 }
@@ -225,6 +229,7 @@ async function insertNew(ctx: SessionsContext, identity: ResolvedIdentity, resol
       "sso_insert_inadmissible_handle",
       { handle: identity.handle, externalId: identity.externalId },
       "security: SSO first login refused — the IdP handle mixes scripts (D257); no account was created",
+      ctx.logger,
     );
     return { outcome: "denied" };
   }
@@ -249,7 +254,7 @@ async function insertNew(ctx: SessionsContext, identity: ResolvedIdentity, resol
   // #2481 — the new account's local-light vector floor, AFTER the row has settled (§5.3b). Below the two
   // refusal paths on purpose: a DENIED login and a lost insert race have no row of their own to seed.
   await ctx.seedUserConnections(settled.id);
-  getLog().info(
+  getLog(ctx.logger).info(
     { handle: identity.handle, externalId: identity.externalId, ...groupsLogFields(identity.groups), role: settled.role, enabled: settled.enabled },
     settled.enabled
       ? "user: provisioned SSO identity (created)"
@@ -313,6 +318,7 @@ async function refuseLostOwnerBind(
     "sso_owner_bind_lost_race",
     { handle: identity.handle, externalId, ownerId: owner.id, boundTo: settled?.externalId ?? null },
     "security: two owner-by-policy logins raced to bind the UNBOUND owner row and this one lost the claim — refusing the login rather than rebinding the row onto this subject; an admin links it via admin.linkSsoIdentity",
+    ctx.logger,
   );
   return { outcome: "denied", reason: "account-exists" };
 }
@@ -342,7 +348,7 @@ async function bindOwnerSubject(ctx: SessionsContext, owner: ProvisionCandidate,
   if (identity.email !== null && owner.email !== identity.email) {
     await updateUser(ctx.db, owner.id, { email: identity.email, updatedAt: ctx.now() });
   }
-  getLog().info(
+  getLog(ctx.logger).info(
     { handle: identity.handle, externalId, ...groupsLogFields(identity.groups), ownerId: owner.id },
     "user: bound OIDC subject to the existing owner row (owner-flip reconciliation, D17)",
   );

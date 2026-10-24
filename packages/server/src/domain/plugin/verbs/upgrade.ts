@@ -106,7 +106,7 @@ async function repairAfterFailedSwap(ctx: PluginContext, pluginId: PluginId, cau
   try {
     await setStatus(ctx.db, pluginId, { status: "disabled", lastError: `upgrade failed: ${errorMessage(cause)}`, updatedAt: ctx.now() });
   } catch (repairErr) {
-    getLog().error(
+    getLog(ctx.logger).error(
       { pluginId, upgradeError: errorMessage(cause), repairError: errorMessage(repairErr) },
       "plugin: upgrade FAILED and the row repair failed too — the row may still read `enabled` with no resident instance (re-enable or retry the upgrade to reconcile)",
     );

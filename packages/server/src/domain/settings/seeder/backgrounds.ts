@@ -52,7 +52,7 @@ function plateSource(stored: SeededPlateAsset): ThemeBackground {
 }
 
 export function createDefaultBackgroundSeeder(deps: DefaultBackgroundSeederDeps): DefaultBackgroundSeeder {
-  const log = getLog();
+  const log = getLog(deps.logger);
   // Only populated on success — a transient failure retries on the next touch. Assumes single-replica, the
   // `DefaultCharacterSeeder` assumption.
   const settled = new Set<UserId>();

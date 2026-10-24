@@ -14,7 +14,7 @@ export async function onCharacterUpdated(ctx: EmbeddingsIndexerContext, event: C
   // change no embeddable content. The emit site stamps `contentChanged`; a flag-only edit skips entirely
   // here — zero canon read, zero store, zero model touch.
   if (!event.contentChanged) {
-    getLog().debug({ characterId: event.characterId }, "embeddings indexer: flag-only edit (no content change) — skipped");
+    getLog(ctx.logger).debug({ characterId: event.characterId }, "embeddings indexer: flag-only edit (no content change) — skipped");
     return;
   }
   const text = await ctx.loadCardText(event.characterId);
@@ -27,7 +27,7 @@ export async function onCharacterUpdated(ctx: EmbeddingsIndexerContext, event: C
   }
   const embedModel = await requireTaskModel(ctx, ownerId, "embed");
   if (embedModel === null) {
-    getLog().debug({ characterId: event.characterId, ownerId }, "embeddings indexer: the owner has no embed connection — skipped");
+    getLog(ctx.logger).debug({ characterId: event.characterId, ownerId }, "embeddings indexer: the owner has no embed connection — skipped");
     return;
   }
   const result = await ctx.store({
@@ -41,7 +41,7 @@ export async function onCharacterUpdated(ctx: EmbeddingsIndexerContext, event: C
   // A content edit whose projected embed text is nonetheless unchanged short-circuits to `noop`; surface it
   // at debug so an absent embed is explainable.
   if (result.outcome === "noop") {
-    getLog().debug({ characterId: event.characterId }, "embeddings indexer: card text unchanged — re-embed skipped");
+    getLog(ctx.logger).debug({ characterId: event.characterId }, "embeddings indexer: card text unchanged — re-embed skipped");
   }
 }
 

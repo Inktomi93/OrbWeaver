@@ -43,7 +43,7 @@ function openIdTokenHint(ctx: SessionsContext, sealed: Sealed | null, sessionId:
   try {
     return ctx.openIdToken(sealed, sessionId);
   } catch {
-    getLog().warn({ sessionId }, "session: stored OIDC id_token could not be opened — signing out without an end-session hint");
+    getLog(ctx.logger).warn({ sessionId }, "session: stored OIDC id_token could not be opened — signing out without an end-session hint");
     return null;
   }
 }
@@ -82,7 +82,7 @@ export function createRevoke(
     if (userId === undefined) {
       return null;
     }
-    getLog().info({ sessionId, userId }, "session: revoked");
+    getLog(ctx.logger).info({ sessionId, userId }, "session: revoked");
     // WHOSE session this was — the entry tier evicts that user's live sockets (W7a). `null` when the row was
     // already revoked, so a repeat kick evicts nothing.
     return userId;
@@ -91,7 +91,7 @@ export function createRevoke(
   async function revokeAllForUser(userId: UserId): Promise<number> {
     const revokedIds = await revokeAllForUserQuery(ctx.db, userId, ctx.now());
     if (revokedIds.length > 0) {
-      getLog().info({ userId, count: revokedIds.length }, "session: revoked all for user");
+      getLog(ctx.logger).info({ userId, count: revokedIds.length }, "session: revoked all for user");
     }
     return revokedIds.length;
   }
@@ -101,7 +101,7 @@ export function createRevoke(
   async function revokeByExternalId(externalId: ExternalId): Promise<RevokedSessionsSummary> {
     const revoked = await revokeAllForExternalId(ctx.db, externalId, ctx.now());
     if (revoked.length > 0) {
-      getLog().info({ externalId, count: revoked.length }, "session: revoked all for external subject (OIDC back-channel logout)");
+      getLog(ctx.logger).info({ externalId, count: revoked.length }, "session: revoked all for external subject (OIDC back-channel logout)");
     }
     // The distinct owners, so the route can evict their live sockets (W7a). Per-USER here, not per-session:
     // an IdP-initiated logout is a statement about the HUMAN, and a subject can be bound to more than one row.

@@ -14,7 +14,7 @@ function latchedKeys(steps: readonly ContentSeedStep[], latches: LegacySeedLatch
 }
 
 export function createUserContentSeeder(deps: ContentSeedPolicyDeps): UserContentSeeder {
-  const log = getLog();
+  const log = getLog(deps.logger);
   // The hook fires on every authed request: an account whose pass settled every item is skipped until the
   // process restarts, which is when a new build's manifest items arrive. Assumes single-replica.
   const settled = new Set<UserId>();

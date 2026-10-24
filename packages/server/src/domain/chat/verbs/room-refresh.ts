@@ -95,7 +95,7 @@ export function createRoomEntityRefresh(deps: RoomEntityRefreshDeps): RoomEntity
     },
     fanRegexScriptRooms: async (scriptId): Promise<void> => {
       const rooms = await deps.resolve.regex(scriptId).catch((err: unknown): ChatId[] => {
-        getLog().warn({ err, scriptId }, "room-reach: regex script reach lookup failed; the write proceeds unannounced");
+        getLog(deps.logger).warn({ err, scriptId }, "room-reach: regex script reach lookup failed; the write proceeds unannounced");
         return [];
       });
       fanTo(emitRoomEvent, "regex", rooms);

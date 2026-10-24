@@ -24,7 +24,7 @@ export interface HealLegacyBackgroundPinsDeps {
 export async function healLegacyBackgroundPinsOnBoot(deps: HealLegacyBackgroundPinsDeps): Promise<number> {
   const healed = await healLegacyBackgroundPins(deps.db);
   if (healed > 0) {
-    getLog().info({ healed }, "boot/heal-legacy-background-pins: cleared stale pre-#1478 background pins");
+    getLog(deps.logger).info({ healed }, "boot/heal-legacy-background-pins: cleared stale pre-#1478 background pins");
   }
   return healed;
 }

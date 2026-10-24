@@ -46,7 +46,7 @@ export interface OidcGcSchedulerDeps {
 // ONE reap step: delete every expired transaction as of `now`. Logs the count only when something was
 // reaped (idle sweeps are silent).
 async function runOidcGc(deps: OidcGcSchedulerDeps): Promise<void> {
-  const log = getLog().child({ component: LOG_COMPONENT });
+  const log = getLog(deps.logger).child({ component: LOG_COMPONENT });
   const reaped = await deps.sweep(deps.now());
   if (reaped > 0) {
     log.info({ reaped }, "oidc-gc: reaped expired/abandoned transactions");
@@ -59,7 +59,7 @@ async function runOidcGc(deps: OidcGcSchedulerDeps): Promise<void> {
  * on shutdown. A sweep error never takes the process down — it is logged and the next tick retries.
  */
 export function startOidcGcScheduler(deps: OidcGcSchedulerDeps): () => void {
-  const log = getLog().child({ component: LOG_COMPONENT });
+  const log = getLog(deps.logger).child({ component: LOG_COMPONENT });
   const intervalMs = deps.intervalMs ?? OIDC_GC_INTERVAL_MS;
 
   const safeSweep = (): void => {

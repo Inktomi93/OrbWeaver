@@ -73,11 +73,11 @@ export async function runBootMigrations(deps: MigrateDeps): Promise<void> {
   if (willChange) {
     const backupPath = await backupBeforeMigrate(deps.db, deps.databaseUrl, deps.backupDir);
     if (backupPath !== undefined) {
-      getLog().info({ backupPath }, "boot/migrate: backed up db before migrating");
+      getLog(deps.logger).info({ backupPath }, "boot/migrate: backed up db before migrating");
     }
   }
   if (baseline.status === "regenerated") {
-    getLog().warn(
+    getLog(deps.logger).warn(
       { appliedHash: baseline.appliedHash, currentHash: baseline.currentHash },
       "boot/migrate: BASELINE REGENERATED since this dev db was created — RESETTING the dev database (ALL DATA DROPPED, pre-launch by design) and re-migrating from the fresh 0000_baseline",
     );
@@ -85,12 +85,12 @@ export async function runBootMigrations(deps: MigrateDeps): Promise<void> {
   }
   await runMigrations(deps.db, folder);
   await assertReferentialIntegrity(deps.db);
-  getLog().info({ folder }, "boot/migrate: migrations applied; referential integrity verified");
+  getLog(deps.logger).info({ folder }, "boot/migrate: migrations applied; referential integrity verified");
   // Retention runs only on the boots that took a backup — a no-op boot touches the db directory not at all.
   if (willChange) {
     const pruned = pruneDbBackups(deps.databaseUrl, deps.backupDir);
     if (pruned.length > 0) {
-      getLog().info({ pruned: pruned.length }, "boot/migrate: pruned stale db backups");
+      getLog(deps.logger).info({ pruned: pruned.length }, "boot/migrate: pruned stale db backups");
     }
   }
 }

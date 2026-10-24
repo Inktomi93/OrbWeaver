@@ -45,7 +45,7 @@ async function deleteClone(ctx: CharacterContext, args: { readonly ownerId: User
   try {
     await deleteOwnedCharacter(ctx.db, args.cloneId, args.ownerId, ctx.bumpStatsCanonVersion);
   } catch (cleanupErr) {
-    getLog().error(
+    getLog(ctx.logger).error(
       { err: cleanupErr, cause: args.cause, characterId: args.cloneId },
       "character: duplicate rollback failed — the clone row survives its failed book copy (orphan heals on the next delete/GC)",
     );

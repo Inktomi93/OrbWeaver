@@ -73,7 +73,7 @@ async function restoreOne(
     // A refused activation (`PluginCrashedError`) was already logged by `activate` with its plugin and cause, and
     // the row is `errored`; anything else threw outside activation's own arms and is logged here, once.
     if (!(err instanceof PluginCrashedError)) {
-      getLog().error({ pluginId: row.pluginId, ownerId: row.ownerId, err: errorMessage(err) }, "boot/reactivate-plugins: a plugin failed to start");
+      getLog(deps.logger).error({ pluginId: row.pluginId, ownerId: row.ownerId, err: errorMessage(err) }, "boot/reactivate-plugins: a plugin failed to start");
     }
     return false;
   }
@@ -93,7 +93,7 @@ export async function reactivatePluginsOnBoot(deps: ReactivatePluginsDeps): Prom
   if (rows.length === 0) {
     return { restored: 0, failed: 0 };
   }
-  const log = getLog();
+  const log = getLog(deps.logger);
   const principals = new Map<UserId, Promise<Principal>>();
   let restored = 0;
   let failed = 0;

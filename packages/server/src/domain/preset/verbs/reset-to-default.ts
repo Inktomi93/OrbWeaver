@@ -37,7 +37,7 @@ export function createResetToDefault(ctx: PresetContext): Pick<PresetService, "r
     if (row === undefined) {
       throw new PresetNotFoundError(params.id);
     }
-    getLog().info({ userId: params.userId, presetId: params.id }, "preset: reset to default");
+    getLog(ctx.logger).info({ userId: params.userId, presetId: params.id }, "preset: reset to default");
     await ctx.audit(
       {
         actorUserId: params.userId,

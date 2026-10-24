@@ -29,7 +29,7 @@ export interface BackfillPluginProvenanceOnBootDeps {
 export async function backfillPluginProvenanceOnBoot(deps: BackfillPluginProvenanceOnBootDeps): Promise<BackfillPluginProvenanceResult> {
   const result = await backfillPluginProvenance(deps.db);
   if (result.backfilled > 0 || result.leftAuthored > 0) {
-    getLog().info(result, "boot/backfill-plugin-provenance: reconciled pre-#1702 plugin-ingested character provenance");
+    getLog(deps.logger).info(result, "boot/backfill-plugin-provenance: reconciled pre-#1702 plugin-ingested character provenance");
   }
   return result;
 }
