@@ -14,6 +14,7 @@ export type { RevokedSessionsSummary, UserPrincipalFields } from "./contract/res
 export type { SessionsRolePolicy, SessionsRolePolicyConfig } from "./contract/role-policy.ts";
 export type { SessionsCryptoOps, SessionsService } from "./contract/service.ts";
 export { createOidcStore } from "./persistence/oidc-store.ts";
+// `createListSeedAccountIds` enumerates every account, so it takes `BootDatabaseHandle`, which only boot mints (D335).
 export { createListSeedAccountIds, selectHandleById, selectHandlesByIds } from "./persistence/users.ts";
 export { createSessionsService } from "./service.ts";
 export { createSessionsRolePolicy } from "./substrate/role-policy.ts";
@@ -21,4 +22,5 @@ export { createTokenHasher } from "./tokens/tokens.ts";
 // The disabled-account containment read compose wires into every non-request consumer (fail-closed on a missing row).
 export { createResolveUserEnabled } from "./verbs/resolve-user-enabled.ts";
 export { createSeedOwner } from "./verbs/seed-owner.ts";
+// A boot verb that reads or writes rows of every owner takes `BootDatabaseHandle`, which only boot mints (D335).
 export { createSettleSessionSecret } from "./verbs/settle-session-secret.ts";

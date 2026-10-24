@@ -38,7 +38,7 @@
 
 import { presets } from "@orb/db";
 import type { BootDatabaseHandle } from "@orb/db/wiring";
-import { databaseForOwner } from "@orb/db/wiring-owner";
+import { bootDatabaseForOwner } from "@orb/db/wiring-owner";
 import { sql } from "drizzle-orm";
 
 /** The #1737 rename, as the two JSON paths the rewrite moves an override between. Spelled as paths rather
@@ -51,7 +51,7 @@ const NEW_PROSE_PATH = '$.prose."chat.group.characterHeading"';
  *  `chat.group.characterHeading`, carrying its `baseVersion` stamp. Returns the number of preset rows
  *  rewritten — 0 on every boot after the first, and on a db that never carried the old spelling. */
 export async function migrateProseSlotVocab(handle: BootDatabaseHandle): Promise<number> {
-  const db = databaseForOwner(handle);
+  const db = bootDatabaseForOwner(handle);
   const rows = await db
     .update(presets)
     .set({

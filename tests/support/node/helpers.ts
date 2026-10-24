@@ -1,5 +1,6 @@
 // The node helpers door: Node-side helpers that never load the server graph at import, importable outside vitest.
 
+export { bootGrantFor } from "./boot-grant.ts";
 export { assertEventSequence } from "./chat/assertions.ts";
 export type { ChromiumIdentity } from "./chromium-processes.ts";
 export {

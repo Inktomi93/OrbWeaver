@@ -9,8 +9,10 @@ import type {
   reclaimChatLocksOnBoot,
   repairStaleJoinSeq,
 } from "@orb/server/domain/chat";
+import type { hasSealedCredentials } from "@orb/server/domain/credentials";
 import type { listEnabledAcrossOwners, readInstalledPluginSlugs } from "@orb/server/domain/plugin";
 import type { migrateProseSlotVocab } from "@orb/server/domain/preset";
+import type { createListSeedAccountIds, createSettleSessionSecret } from "@orb/server/domain/sessions";
 import type { ensureSeedThemes, healLegacyBackgroundPins } from "@orb/server/domain/settings";
 import type { reconcileOwnersMissingTimeline } from "@orb/server/domain/stats";
 import type { reclaimInFlightOnBoot } from "@orb/server/domain/workloads";
@@ -36,4 +38,7 @@ test("every verb that crosses owners at boot demands the boot grant", () => {
   expectTypeOf<Parameters<typeof repairStaleJoinSeq>[0]>().toEqualTypeOf<BootDatabaseHandle>();
   expectTypeOf<Parameters<typeof hasRedeemableInvite>[0]>().toEqualTypeOf<BootDatabaseHandle>();
   expectTypeOf<Parameters<typeof migrateAutomationArms>[0]>().toEqualTypeOf<BootDatabaseHandle>();
+  expectTypeOf<Parameters<typeof hasSealedCredentials>[0]>().toEqualTypeOf<BootDatabaseHandle>();
+  expectTypeOf<Parameters<typeof createSettleSessionSecret>[0]["db"]>().toEqualTypeOf<BootDatabaseHandle>();
+  expectTypeOf<Parameters<typeof createListSeedAccountIds>[0]>().toEqualTypeOf<BootDatabaseHandle>();
 });

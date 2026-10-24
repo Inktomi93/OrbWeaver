@@ -1,12 +1,12 @@
 // A missing pepper may be minted only when no persisted identity or token still depends on it.
-import { databaseForOwner } from "@orb/db/wiring-owner";
+import { bootDatabaseForOwner } from "@orb/db/wiring-owner";
 import type { SettleSessionSecretParams } from "../contract/boot.ts";
 import { hasSessionTokenDependents } from "../persistence/sessions.ts";
 import { hasSessionSecretPasswordDependents } from "../persistence/users.ts";
 
 /** Build the pre-compose settlement without requiring an existing pepper or a constructed sessions service. */
 export function createSettleSessionSecret(deps: SettleSessionSecretParams): () => Promise<string | null> {
-  const db = databaseForOwner(deps.db);
+  const db = bootDatabaseForOwner(deps.db);
   return async () => {
     if (deps.resolution.kind !== "absent") {
       return deps.resolution.value;

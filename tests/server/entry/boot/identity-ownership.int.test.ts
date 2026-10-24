@@ -3,13 +3,13 @@ import { access, mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { bootDatabaseHandle } from "@orb/db/wiring-boot";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import { brandedId } from "@orb/kit/ids";
 import { seedOwner, settleBootSecrets } from "@orb/server/entry/boot";
 import { SECRET_FILE_NAMES } from "@orb/server/foundation/data-layout";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { bootGrantFor } from "@orb/testkit/node/helpers";
 
 test("trusted boot moves its singleton seed key without taking another account's key", async () => {
   await using root = await createServerHarness();
@@ -45,7 +45,7 @@ test("another account's actual password blocks a missing pepper after credential
   const sessionPath = join(directory, SECRET_FILE_NAMES.sessionSecret);
   await expect(
     settleBootSecrets({
-      db: bootDatabaseHandle(databaseHandle(root.db)),
+      db: bootGrantFor(root.db),
       now: root.clock.now,
       credentialsKey: { kind: "absent", path: credentialPath },
       sessionSecret: { kind: "absent", path: sessionPath },

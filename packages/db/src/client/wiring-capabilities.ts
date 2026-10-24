@@ -38,6 +38,7 @@ const databases = new WeakMap<DatabaseHandle, Db>();
 const statements = new WeakMap<object, BatchStmt>();
 const awaitableStatements = new WeakSet<object>();
 const batches = new WeakMap<BatchHandle, BatchStmt[]>();
+const bootGrants = new WeakSet<BootDatabaseHandle>();
 
 /** Borrow the exact connection without transferring physical lifetime ownership. */
 export function databaseHandle(db: Db): DatabaseHandle {
@@ -50,7 +51,16 @@ export function databaseHandle(db: Db): DatabaseHandle {
 export function bootDatabaseHandle(handle: DatabaseHandle): BootDatabaseHandle {
   const boot: BootDatabaseHandle = Object.freeze({ [DATABASE]: true as const, [BOOT]: true as const });
   databases.set(boot, databaseForOwner(handle));
+  bootGrants.add(boot);
   return boot;
+}
+
+/** Recover the connection behind a grant the mint issued; a plain handle cast to the boot type is refused here. */
+export function bootDatabaseForOwner(handle: BootDatabaseHandle): Db {
+  if (!bootGrants.has(handle)) {
+    throw new Error("boot wiring handle is not granted");
+  }
+  return databaseForOwner(handle);
 }
 
 /** Recover only a connection admitted by its physical owner, never a structurally similar object. */

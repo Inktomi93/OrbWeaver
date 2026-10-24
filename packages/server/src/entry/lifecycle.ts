@@ -451,7 +451,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // (#2481), not by a later boot.
     await seedDefaultPreset({ db: wiringDb, now });
     await seedThemes({ db: bootDb, now });
-    await seedLocalLightOnBoot({ db: wiringDb, now, idSource: seams.idSource, onEmbedSpaceBound: built.detachEmbedReindex });
+    await seedLocalLightOnBoot({ db: bootDb, now, idSource: seams.idSource, onEmbedSpaceBound: built.detachEmbedReindex });
     handOffBootOwnerSweeps(preparedOwner, built.detachEmbedReindex);
     // An owner whose stored generation no longer matches their binding (a release moved generation identity), or
     // whose rebuild died before promotion, has no user action to raise the re-index trigger, so boot raises it.

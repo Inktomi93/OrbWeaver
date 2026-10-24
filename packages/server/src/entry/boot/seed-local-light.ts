@@ -25,7 +25,7 @@
 
 // Entry binds the writer/read capabilities; connection owns refusal, notification and sweep settlement.
 
-import type { DatabaseHandle } from "@orb/db/wiring";
+import type { BootDatabaseHandle, DatabaseHandle } from "@orb/db/wiring";
 import type { IdSource, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { createLocalLightUserSeed as createUserSeedPolicy, seedLocalLightAccounts, seedLocalLightConnections } from "#domain/connection";
@@ -57,7 +57,12 @@ export function createLocalLightUserSeed(deps: SeedLocalLightDeps): (userId: Use
   });
 }
 
-export async function seedLocalLightOnBoot(deps: SeedLocalLightDeps): Promise<number> {
+/** The boot sweep enumerates every account, so it alone takes the boot grant (D335). */
+export interface SeedLocalLightBootDeps extends SeedLocalLightDeps {
+  readonly db: BootDatabaseHandle;
+}
+
+export async function seedLocalLightOnBoot(deps: SeedLocalLightBootDeps): Promise<number> {
   return await seedLocalLightAccounts({
     seedConnections: (userId) => seedLocalLightConnections(seedDepsFrom(deps), userId),
     onEmbedSpaceBound: (userId) => deps.onEmbedSpaceBound(userId),

@@ -17,7 +17,7 @@
 // the row's override is the duplicate-to-customize template.
 
 import type { BootDatabaseHandle } from "@orb/db/wiring";
-import { databaseForOwner } from "@orb/db/wiring-owner";
+import { bootDatabaseForOwner } from "@orb/db/wiring-owner";
 import { getLog } from "#foundation/observability";
 import { RETIRED_SEED_THEME_IDS } from "./constants.ts";
 import { deleteSeedThemes, upsertSeedThemes } from "./persistence/system-themes.ts";
@@ -25,7 +25,7 @@ import { clearSelectedThemeIds } from "./persistence/theme-queries.ts";
 import { SEED_THEMES } from "./substrate/seed-themes.ts";
 
 export async function ensureSeedThemes(handle: BootDatabaseHandle, now: () => number): Promise<void> {
-  const db = databaseForOwner(handle);
+  const db = bootDatabaseForOwner(handle);
   const at = now();
   // Each upsert is an independent idempotent write keyed by its own sentinel id — no ordering between
   // them, so they go out together (the `boot/seed-owner` per-owner precedent), and one clock read keeps

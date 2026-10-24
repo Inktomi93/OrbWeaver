@@ -20,8 +20,7 @@ const ENTRY_DRIVER_PATTERN = `${ENTRY_SOURCE}(?:${Object.keys(ENTRY_DRIVERS)
 const BOOT_GRANT_IMPORTERS = {
   "^packages/server/src/entry/lifecycle\\.ts$": "mints the grant once and hands it to the cross-owner boot steps",
   "^tooling/src/seed/": "seed tools run the same boot steps against the database they build",
-  "^tests/support/": "the testkit root boots whole servers and seeds the corpus through the boot steps",
-  "^tests/(db|server)/": "suites prove the grant, the boot steps and the cross-owner verbs directly, and no test serves a request",
+  "^tests/support/": "the testkit boots whole servers through the boot steps and hands suites the grant through `bootGrantFor`",
 } as const satisfies Readonly<Record<string, string>>;
 const GROUPING_DIRS = {
   server: ["entry", "transport", "domain", "infra", "foundation", "primitives"],

@@ -23,7 +23,7 @@
 import type { Db } from "@orb/db";
 import { automationRules } from "@orb/db";
 import type { BootDatabaseHandle } from "@orb/db/wiring";
-import { databaseForOwner } from "@orb/db/wiring-owner";
+import { bootDatabaseForOwner } from "@orb/db/wiring-owner";
 import type { SQL } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 
@@ -84,7 +84,7 @@ export async function migratePluginToolWireNames(
   handle: BootDatabaseHandle,
   renames: readonly { readonly from: string; readonly to: string }[],
 ): Promise<number> {
-  const db = databaseForOwner(handle);
+  const db = bootDatabaseForOwner(handle);
   let rewritten = 0;
   for (const rename of renames) {
     rewritten += await applyOneRename(db, rename.from, rename.to);

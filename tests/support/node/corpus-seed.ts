@@ -4,7 +4,6 @@ import { parsePresetFile } from "@orb/contracts/preset";
 import { createRosterPresetSchema } from "@orb/contracts/roster-preset";
 import { createTagSchema } from "@orb/contracts/tag";
 import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
-import { bootDatabaseHandle } from "@orb/db/wiring-boot";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, DocumentId, PersonaId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
@@ -15,6 +14,7 @@ import type { SeedDemoResult } from "@orb/tooling/seed";
 import { loadDemoSeed } from "@orb/tooling/seed";
 import type { CorpusWire } from "../iso/corpus.ts";
 import { corpusReadInput } from "../iso/corpus.ts";
+import { bootGrantFor } from "./boot-grant.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
 import type { AutomationRuleRow } from "./factories/automation.ts";
 import {
@@ -439,7 +439,7 @@ interface SyntheticCorpus {
 export async function seedSyntheticCorpus(root: ServerHarness, options: SeedSyntheticCorpusOptions): Promise<SyntheticCorpus> {
   const owner = await root.principalFor(root.ownerId);
   await seedDefaultPreset({ db: databaseHandle(root.db), now: root.clock.now });
-  await seedThemes({ db: bootDatabaseHandle(databaseHandle(root.db)), now: root.clock.now });
+  await seedThemes({ db: bootGrantFor(root.db), now: root.clock.now });
   const seedLedger = await seedUserContentLedgerRows(root, owner);
 
   // The demo's optional CLI branches cannot certify a corpus whose required boot content is missing.

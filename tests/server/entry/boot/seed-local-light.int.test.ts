@@ -3,11 +3,11 @@
 // @subject packages/server/src/domain/sessions/persistence/users.ts
 
 import { connectionBindings } from "@orb/db";
-import { databaseHandle } from "@orb/db/wiring-driver";
 import { castId } from "@orb/kit/ids";
 import { seedLocalLightOnBoot } from "@orb/server/entry/boot";
 import { expect, test } from "@orb/testkit/node";
 import { refuseWrites } from "@orb/testkit/node/composed";
+import { bootGrantFor } from "@orb/testkit/node/helpers";
 
 test("boot continues across a real binding refusal, and the composed post-boot account mint survives and repairs its own floor", async ({
   db,
@@ -21,7 +21,7 @@ test("boot continues across a real binding refusal, and the composed post-boot a
   const second = await harness.actor({ enabled: false });
   const bound: string[] = [];
   const deps = {
-    db: databaseHandle(db),
+    db: bootGrantFor(db),
     now: (): number => clock.now(),
     idSource: harness.idSource,
     onEmbedSpaceBound: (id: string): void => {
