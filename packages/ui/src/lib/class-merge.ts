@@ -15,6 +15,7 @@
 //
 // Enforcers (a prose-only boundary is a wish — constitution §2): dep-cruiser seals both tailwind-merge and
 // runtime tailwind-variants imports to this file. Type-only VariantProps imports remain legal.
+import type { DefaultClassGroupIds } from "tailwind-merge";
 import { extendTailwindMerge } from "tailwind-merge";
 import type { CnOptions, CnReturn, TV } from "tailwind-variants";
 import { createTV, cx } from "tailwind-variants";
@@ -226,7 +227,7 @@ export function setCssMergeObserver(observer: CssMergeObserver): void {
 // `w-*`/`h-*`/`size-*` in a horizontal writing mode, but tailwind-merge keeps them in separate groups, so a
 // caller's `w-(--token)` beside a variant's `inline-auto` kept both and the stylesheet order chose the width.
 // Lint spells new code logically while lib constants still carry the physical forms; the two must conflict.
-const LOGICAL_SIZE_CONFLICTS = {
+const LOGICAL_SIZE_CONFLICTS: Partial<Record<DefaultClassGroupIds, readonly DefaultClassGroupIds[]>> = {
   w: ["inline-size"],
   "inline-size": ["w"],
   h: ["block-size"],
