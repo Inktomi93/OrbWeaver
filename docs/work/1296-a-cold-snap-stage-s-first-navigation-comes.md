@@ -12,6 +12,8 @@ area: tooling
 
 In the 0656 lane, each cold isolated snap stage boot, or re-sync into a cleared stage, failed its first navigation: data-app-ready came up degraded (reads still in flight at the client's readiness ceiling, tooling/src/snap/ops/drive.ts). A warm retry passed. Six of fourteen runs failed this way; the runs are under reports/runs/snap/agent-a46b39870d7116c01-\* in the main checkout (gitignored).
 
+The same failure appears on the e2e path: the first corpus case of a cold `scripts/corpus-fixture.ts e2e` run reported `data-app-ready="degraded"` with the router splash still up after 30 s, while the lazy `authed-app` chunk was still compiling under vite dev, at a load average near the core count. Artifacts: the cb-shelle2e run0 copy in the session scratchpad. The cause is likely shared: a readiness ceiling shorter than a cold dev transform under load.
+
 ## Why
 
 Spine-Testing keeps cold failures as failures; a stage that needs a warm retry makes every first capture unreliable and teaches lanes to rerun until green.
