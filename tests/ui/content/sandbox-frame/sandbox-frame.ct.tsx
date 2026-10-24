@@ -186,11 +186,13 @@ test("an interactive card reaches nothing new: no eval, no worker, no storage, n
   const probe = script(
     [
       "window.__reach={violated:[]};",
-      'document.addEventListener("securitypolicyviolation",(e)=>{window.__reach.violated.push(e.effectiveDirective);});',
+      'document.addEventListener("securitypolicyviolation",(e)=>{window.__reach.violated.push(e.effectiveDirective+" "+e.blockedURI);});',
       'const t=(k,f)=>{try{f();window.__reach[k]="allowed";}catch(e){window.__reach[k]="refused:"+e.name;}};',
+      'const w=(k,u)=>{try{const x=new Worker(u);x.onmessage=()=>{window.__reach[k]="allowed";};x.onerror=()=>{window.__reach[k]="refused:error";};}catch(e){window.__reach[k]="refused:"+e.name;}};',
       't("eval",()=>{eval("1+1");});',
       't("newFunction",()=>{new Function("return 1")();});',
-      'try{const w=new Worker(URL.createObjectURL(new Blob(["postMessage(1)"],{type:"text/javascript"})));w.onmessage=()=>{window.__reach.blobWorker="allowed";};w.onerror=()=>{window.__reach.blobWorker="refused:error";};}catch(e){window.__reach.blobWorker="refused:"+e.name;}',
+      'w("blobWorker",URL.createObjectURL(new Blob(["postMessage(1)"],{type:"text/javascript"})));',
+      'w("dataWorker","data:text/javascript,postMessage(1)");',
       't("cookie",()=>{void document.cookie;});',
       't("localStorage",()=>{void localStorage.length;});',
       't("parentDom",()=>{void parent.document.title;});',
@@ -220,13 +222,14 @@ test("an interactive card reaches nothing new: no eval, no worker, no storage, n
     newFunction: "refused:EvalError",
     // A worker the policy allowed would post back and read "allowed"; a refused one fires its error event.
     blobWorker: "refused:error",
+    dataWorker: "refused:error",
     cookie: "refused:SecurityError",
     localStorage: "refused:SecurityError",
     parentDom: "refused:SecurityError",
     fetch: "refused:TypeError",
   });
-  // The worker died on the served policy (worker-src falls back to script-src), not on an unrelated failure.
-  expect((await reach())["violated"]).toContain("worker-src");
+  // Each worker died on the served policy (worker-src falls back to script-src), not on an unrelated failure.
+  expect((await reach())["violated"]).toEqual(expect.arrayContaining(["worker-src blob", "worker-src data"]));
   expect(exfil).toEqual([]);
 });
 

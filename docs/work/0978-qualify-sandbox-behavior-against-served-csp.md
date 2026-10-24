@@ -48,7 +48,7 @@ Where the policy comes from: the CT mints and serves through the production card
 | off-origin link, `_top` link, form, meta refresh blocked | CT | Rebuild | navigation spec; the embedding page carries the served app policy, not a copy |
 | interactive card runs code, top and popup navigation refused, script self-navigation refused, meta refresh refused | CT | Rebuild | navigation spec against a served interactive document; the popup leg records `page.on("popup")`, and the off-origin route is context-level so a popup's request is counted |
 | interactive script runs; height script still measures; forged height clamps; reach census (eval, storage, parent, network); focus is not taken | CT | Rebuild | `sandbox-frame.ct.tsx`; the network probe also counts requests at the far end |
-| reach census: a `blob:` worker is refused | CT | Rebuild | reach census case; the worker posts back if it runs, and the refusal must report a `worker-src` violation |
+| reach census: a `blob:` worker and a `data:` worker are refused | CT | Rebuild | reach census case; each worker posts back if it runs, and each refusal must report its own `worker-src` violation (`worker-src blob`, `worker-src data`) |
 | frame scrollbar is thin and themed | CT | Rebuild | scrollbar case over a served document with theme tokens |
 
 Distinct cross-layer purpose: the unit cases pin the policy text and the script digest; the CT cases show the browser enforces the served bytes.
@@ -63,7 +63,7 @@ Distinct cross-layer purpose: the unit cases pin the policy text and the script 
   - One character added to the height script: the kit digest case fails.
   - `CARD_FRAME_SANDBOX.document` set to `allow-scripts allow-forms allow-popups allow-modals`: the kit sandbox case fails, the CT routed-arm case fails on the rendered attribute, and the popup leg records `https://navigation-external.test/landing?via=open`.
   - The clamps removed from `buildCardFrameDocument`: the kit document case fails on the injected script. With only the font clamp removed, it fails on `url(//evil`.
-  - `worker-src blob:` added to the card policy: the reach census reads `blobWorker: "allowed"`, so the probe can see a worker that runs.
+  - `worker-src blob: data:` added to the card policy: the reach census reads `blobWorker: "allowed"` and `dataWorker: "allowed"`, so the probe can see a worker that runs, and Chromium refuses neither scheme by a platform rule.
   - `frameSrc` removed from the app security headers, with the served policy checked to name no `frame-src`: all navigation cases pass, so the widening works when `frame-src` is inherited.
 - The CT form case guards the pair of form controls: the sandbox grants no `allow-forms`, and the card policy names `form-action 'none'`. The kit unit pins each one. Under the widened-sandbox control, which grants `allow-forms`, the form case still passes, so `form-action 'none'` blocks the submit without the sandbox.
 - Residual: the base body colors are not asserted in the browser; only the served scrollbar tint is.
