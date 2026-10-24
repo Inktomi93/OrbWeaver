@@ -2,8 +2,9 @@
 kind: tooling
 status: open
 updated: 2026-10-24
-priority: P3
+priority: P2
 area: tooling
+plan: test-foundation
 ---
 
 # A cold snap stage's first navigation comes up degraded
