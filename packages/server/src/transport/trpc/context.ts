@@ -138,6 +138,12 @@ export interface Context {
   readonly bugReportDiagnostics: BugReportDiagnosticsRead;
 }
 
+/** The composed graph's context factory: a request supplies these four facts; every other field is a handle of
+ *  the graph, so each door that admits a caller reads the same handles.
+ * @internal
+ */
+export type ContextForRequest = (request: Pick<Context, "auth" | "sessionId" | "csrfHeaderPresent" | "clientIp">) => Context;
+
 /** Pure packaging — the typed seam entry/app.ts calls per request after the auth seam has resolved the
  *  Principal. No db, no header parsing, no identity resolution.
  * @internal

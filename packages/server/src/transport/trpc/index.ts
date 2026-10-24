@@ -1,7 +1,7 @@
 // The tRPC driver front door. entry/ imports the appRouter + createContext seam; @orb/client type-imports
 // AppRouter. The procedure ladder (trpc.ts) is internal — routers import it relatively, never the barrel.
 
-export type { RateLimitDecision, RateLimitGate, Services } from "./context.ts";
+export type { ContextForRequest, RateLimitDecision, RateLimitGate, Services } from "./context.ts";
 export { createContext } from "./context.ts";
 export type { LiveBuses } from "./contract/live-buses.ts";
 

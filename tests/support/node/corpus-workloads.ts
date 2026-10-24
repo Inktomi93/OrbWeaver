@@ -1,5 +1,6 @@
 // Advance logical scheduling phases only after the native graph has joined its active work.
 import { addAbortListener } from "node:events";
+import { setImmediate } from "node:timers/promises";
 import type { WorkloadEvent } from "@orb/contracts/workloads";
 import { getLog } from "@orb/server/foundation/observability";
 import type { ServerTestHarness } from "./server.ts";
@@ -140,6 +141,8 @@ export async function settleCorpusWorkloads(
       if (jobs.length === started.length && jobs.every((job) => job.status === "succeeded")) {
         return jobs;
       }
+      // Every step above can settle on microtasks alone, so a row that never settles would starve the deadline's timer.
+      await setImmediate();
     }
   } catch (error) {
     if (!ownsDeadlineFailure(deadline, error)) {

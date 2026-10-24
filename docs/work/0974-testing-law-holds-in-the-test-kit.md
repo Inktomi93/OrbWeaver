@@ -53,7 +53,7 @@ Rebuilt tests need stable inputs and the actual production graph, not copied dom
 - `rg 'randomBytes' tests/support` finds no test or factory key.
 - No fixed delay or turn count decides completion in the kit. Each negative assertion has a positive control.
 - The kit has one timer seam and one frozen epoch.
-- `server.ts` builds workload execution and internal callers from production owners, not copied literals.
+- `server.ts` builds internal callers from the root's context factory. Its workload dispatch deps are bound to the production type.
 - A control proves `freshDb` matches the migrated schema, or `freshDb` runs the migrated chain.
 - A control covers `createControlledTimers` order, repeat and disposal.
 - No test in `node/db.int.test.ts` leaves a database handle open.
@@ -85,11 +85,13 @@ Leg 2 landed in the commit that carries this line. Four sites wait on their own 
 
 ### Leg 3: root builds from production owners (per-site judgment)
 
-Call the production builders, `buildServiceJobs` and the `createContext` assembly, through the doors they already have. Add no production export that only tests use (0989). If a builder has no door, route its parts through the composition root's existing output instead. Then delete `workloadExecution`, `workloadsFor` and the `createContext` literal from `server.ts`.
+Call the production builders, `buildServiceJobs` and the `createContext` assembly, through the doors they already have. Add no production export that only tests use (0989). If a builder has no door, route its parts through the composition root's existing output instead. The root builds the tRPC context factory, and the HTTP mount and the harness both call it.
 
-Files: `tests/support/node/server.ts`, and read-only `packages/server/src/entry/compose/service-jobs.ts`, `packages/server/src/entry/compose/services.ts`, `packages/server/src/entry/app.ts`.
+Files: `tests/support/node/server.ts`, `packages/server/src/entry/compose/services.ts`, `packages/server/src/entry/app.ts`, `packages/server/src/entry/http/app.ts`, `packages/server/src/transport/trpc/context.ts`, and read-only `packages/server/src/entry/compose/service-jobs.ts`.
 
-Done: `server.ts` holds no copy of either literal. `corpus-execution.int.test.ts`, `corpus-workloads.int.test.ts` and `server-lifetime.int.test.ts` pass. A production defect in runner deps fails them.
+Done: `server.ts` holds no copy of the `createContext` parts; it calls the root's `trpcContext`, which the HTTP mount also calls. The one-shot workload dispatch driver stays in the kit as timing control. Production has no door that runs one chosen row, and returning the runner deps only for tests is banned. Its runner deps are bound to the production `WorkloadRunnerDeps` type, and it calls the production `runWorkload`, `loadWorkload` and `tickWorkloadSchedules`. `corpus-execution.int.test.ts`, `corpus-workloads.int.test.ts` and `server-lifetime.int.test.ts` pass.
+
+- [x] Landed in the commit that carries this line. `createServices` builds `trpcContext`, the HTTP mount calls it per request, and `internalCallerFor` calls it with in-process request facts.
 
 ### Leg 4: `freshDb` schema parity (one site)
 
@@ -142,6 +144,13 @@ Leg 2 evidence: each old form failed under a planted slowdown and each new form 
 | `corpus-execution.int.test.ts:132` | the signal's `abort` event, listened to before setup | test timeout 100 ms to 400 ms |
 | `corpus-workloads.int.test.ts:49` | the settled `settleCorpusWorkloads` promise while the read stays held | `RECALL_WAIT_TIMEOUT_MS` 5000 to 7000 |
 | `showcase-guest.ts:43` | the caller's `ready` promise: the tool registration, or the guest's own startup warning | storage read delayed 40 turns |
+
+Leg 3 evidence:
+
+- A planted `auth: null` in the root's `trpcContext` fails every caller case in `corpus-execution.int.test.ts` and `corpus-workloads.int.test.ts`.
+- A planted `now: () => 0` in the production worker's runner deps (`service-jobs.ts`) fails the `corpus-workloads.int.test.ts` worker-path cases. `corpus-execution.int.test.ts` and `server-lifetime.int.test.ts` do not run the worker to settlement, so they stay green under it.
+- That plant first hung the suite: the scheduled-worker loop in `corpus-workloads.ts` settled on microtasks alone and starved its own deadline timer. The loop now yields one macrotask per pass, and the same plant fails by deadline instead.
+- A planted required field on `WorkloadRunnerDeps` fails the compiler at the harness's runner-deps literal in `server.ts`.
 
 ## Selected asset and imagery cases
 
