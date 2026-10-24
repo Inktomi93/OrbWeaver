@@ -6,7 +6,7 @@ import { PRESENCE_READ_MAX_USER_IDS } from "@orb/contracts/notifications";
 import type { LogLevel } from "@orb/contracts/settings";
 import type { ExternalId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { authModeSource, installKind } from "@orb/server/foundation/env";
+import { installKind } from "@orb/server/foundation/env";
 import { logger } from "@orb/server/foundation/observability";
 import { captureAccountViews } from "./corpus-auth.ts";
 import { captureNotificationViews } from "./factories/notification.ts";
@@ -60,7 +60,7 @@ test("native account and sharing suppliers keep request identity and owner-only 
   }
   const sharing = await captureShareViews(ownerCaller.share);
   expect(sharing.status).toMatchObject({ relay: { state: "off" }, certificate: { state: "off" }, liveSocketCount: 0 });
-  expect(sharing.signInMode).toMatchObject({ mode: "local", source: authModeSource(), install: installKind(root.env) });
+  expect(sharing.signInMode).toMatchObject({ mode: "local", source: "process-env", install: installKind(root.env) });
   expect(sharing.signInMode.targets.map((target) => target.mode)).toEqual([...SIGN_IN_TARGET_MODES]);
   expect(sharing.signInMode.targets).toMatchObject([
     { mode: "local", shareRefusal: null },

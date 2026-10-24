@@ -22,14 +22,40 @@ function raceTimeout<T>(promise: Promise<T>, ms: number): Promise<T | typeof TIM
   return Promise.race([promise, new Promise<typeof TIMEOUT_TOKEN>((resolve) => setTimeout(() => resolve(TIMEOUT_TOKEN), ms))]);
 }
 
+// The scope's stack closes the handle the helper opened, so no case leaves a libSQL client behind.
+async function countedDb(resources: AsyncDisposableStack): Promise<Awaited<ReturnType<typeof freshCountedDb>>> {
+  const counted = await freshCountedDb();
+  resources.defer(() => closeDb(counted.db));
+  return counted;
+}
+
+async function heldDb(resources: AsyncDisposableStack): Promise<Awaited<ReturnType<typeof freshHeldDb>>> {
+  const held = await freshHeldDb();
+  resources.defer(() => closeDb(held.db));
+  return held;
+}
+
+test("the handles a case opens close with its scope", async () => {
+  const resources = new AsyncDisposableStack();
+  const counted = await countedDb(resources);
+  const held = await heldDb(resources);
+  expect(await counted.db.select().from(users)).toEqual([]);
+  expect(await held.db.select().from(users)).toEqual([]);
+  await resources.disposeAsync();
+  await expect(counted.db.select().from(users)).rejects.toThrow();
+  await expect(held.db.select().from(users)).rejects.toThrow();
+});
+
 test("the counter window opens empty — the schema push is excluded", async () => {
-  const { queries } = await freshCountedDb();
+  await using resources = new AsyncDisposableStack();
+  const { queries } = await countedDb(resources);
   expect(queries.count()).toBe(0);
   expect(queries.statements()).toEqual([]);
 });
 
 test("each statement counts once and records its SQL text", async () => {
-  const { db, queries } = await freshCountedDb();
+  await using resources = new AsyncDisposableStack();
+  const { db, queries } = await countedDb(resources);
   await db.insert(users).values(makeUser());
   expect(queries.count()).toBe(1);
   expect(queries.statements()[0]).toMatch(INSERT_SQL);
@@ -40,13 +66,15 @@ test("each statement counts once and records its SQL text", async () => {
 });
 
 test("db.batch counts each inner statement (a budget can see through batching)", async () => {
-  const { db, queries } = await freshCountedDb();
+  await using resources = new AsyncDisposableStack();
+  const { db, queries } = await countedDb(resources);
   await db.batch([db.insert(users).values(makeUser()), db.insert(users).values(makeUser())]);
   expect(queries.count()).toBe(2);
 });
 
 test("reset() reopens the window", async () => {
-  const { db, queries } = await freshCountedDb();
+  await using resources = new AsyncDisposableStack();
+  const { db, queries } = await countedDb(resources);
   await db.insert(users).values(makeUser());
   queries.reset();
   expect(queries.count()).toBe(0);
@@ -57,7 +85,8 @@ test("reset() reopens the window", async () => {
 // ── freshHeldDb's fence, and the plane a hold must reach (#1549) ─────────────────────────────────────
 
 test("a hold on a plain execute() reaches, holds, and releases normally", async () => {
-  const { db, hold } = await freshHeldDb();
+  await using resources = new AsyncDisposableStack();
+  const { db, hold } = await heldDb(resources);
   const gate = hold(INSERT_SQL);
   // `db.insert(...).values(...)` is a LAZY thenable — nothing is issued until something subscribes via
   // `.then()`/`await`. `Promise.resolve(...)` kicks it off on the next microtask without waiting it out.
@@ -68,7 +97,8 @@ test("a hold on a plain execute() reaches, holds, and releases normally", async 
 });
 
 test("a hold on a statement issued INSIDE db.batch is fenced too — the batch is one atomic unit (#1549)", async () => {
-  const { db, hold } = await freshHeldDb();
+  await using resources = new AsyncDisposableStack();
+  const { db, hold } = await heldDb(resources);
   const gate = hold(INSERT_SQL, 2);
   const write = db.batch([db.insert(users).values(makeUser()), db.insert(users).values(makeUser())]);
   // Pre-fix, `holdingClient` intercepted `execute` only — a statement that only ever arrives through
@@ -83,7 +113,8 @@ test("a hold on a statement issued INSIDE db.batch is fenced too — the batch i
 });
 
 test("a batch with only SOME matching statements holds the WHOLE call, never a partial release", async () => {
-  const { db, hold } = await freshHeldDb();
+  await using resources = new AsyncDisposableStack();
+  const { db, hold } = await heldDb(resources);
   const gate = hold(INSERT_SQL, 1);
   const write = db.batch([db.select().from(users), db.insert(users).values(makeUser())]);
   expect(await raceTimeout(gate.reached, 300)).not.toBe(TIMEOUT_TOKEN);
@@ -93,7 +124,8 @@ test("a batch with only SOME matching statements holds the WHOLE call, never a p
 });
 
 test("disarm lets later matching statements through while the parked one stays parked until release", async () => {
-  const { db, hold } = await freshHeldDb();
+  await using resources = new AsyncDisposableStack();
+  const { db, hold } = await heldDb(resources);
   const gate = hold(INSERT_SQL);
   const parked = Promise.resolve(db.insert(users).values(makeUser()));
   expect(await raceTimeout(gate.reached, 300)).not.toBe(TIMEOUT_TOKEN);
