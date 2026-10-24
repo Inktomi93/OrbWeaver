@@ -5,10 +5,10 @@
 import { ALLOWED_HOSTS_KEY } from "@orb/kit/allowed-hosts";
 import type { MiddlewareHandler } from "hono";
 import { html } from "hono/html";
-import { settingInstruction } from "#foundation/env";
+import { settingInstruction } from "#foundation/env/record";
 import type { AllowedHostsReader, HostNotAllowedNotice } from "#infra/auth";
 import { refusedHost } from "#infra/auth";
-import { peerIp, TRUSTED_PROXIES } from "#infra/network";
+import { peerIp } from "#infra/network";
 import { isApiPath } from "./spa.ts";
 
 // RFC 9110 §15.5.20: this server is not authoritative for the requested host. Distinct from every auth 403.
@@ -21,6 +21,8 @@ export interface HostAllowlistDeps {
   /** Picks the fix the refusal names (`settingInstruction`): the container's env file, or setup and `.env`. */
   readonly inContainer: boolean;
   readonly notice: HostNotAllowedNotice;
+  /** The deployment's trusted hops (`trustedProxiesOf`), the only peers whose `X-Forwarded-Host` is read. */
+  readonly trustedProxies: readonly string[];
 }
 
 // The fix for this install, its env line on a line of its own. `host` is canonical and length-capped by `refusedHost`.
@@ -54,7 +56,7 @@ export function hostAllowlist(deps: HostAllowlistDeps): MiddlewareHandler {
         urlHost: new URL(c.req.url).host,
         forwardedHost: c.req.header("x-forwarded-host"),
         peer: () => peerIp(c),
-        trustedProxies: TRUSTED_PROXIES,
+        trustedProxies: deps.trustedProxies,
       },
       deps.allowedHosts(),
     );

@@ -4,40 +4,37 @@
 // AppSettings.logLevel would be effective only at restart.
 // Each composed graph owns its cache; the DB "app" row is the multi-replica seam.
 
-import type { AuthMode } from "@orb/contracts/identity";
-import type { EffectiveAppConfig, LogLevel } from "@orb/contracts/settings";
+import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import { parseAppSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import { env } from "#foundation/env";
 import { logger } from "#foundation/observability";
-import type { SettingsContext } from "../contract/service.ts";
+import type { SettingsContext, SettingsEnvFloor } from "../contract/service.ts";
 import { readAppOverrideRaw } from "../persistence/queries.ts";
 import { layer } from "./layer.ts";
 
 export function createEffectiveConfigCache(
   handle: DatabaseHandle,
-  authMode: AuthMode = env.AUTH_MODE,
-  logLevelFloor: LogLevel = env.LOG_LEVEL,
+  floor: SettingsEnvFloor,
 ): Pick<SettingsContext, "getEffectiveConfig" | "reloadEffectiveConfig"> {
   const db = databaseForOwner(handle);
   let resolved: EffectiveAppConfig | undefined;
   return {
     getEffectiveConfig: (): EffectiveAppConfig => {
-      resolved ??= layer({}, authMode, logLevelFloor);
+      resolved ??= layer({}, floor);
       return resolved;
     },
     reloadEffectiveConfig: async (): Promise<EffectiveAppConfig> => {
-      resolved = await readResolvedConfig(db, authMode, logLevelFloor);
+      resolved = await readResolvedConfig(db, floor);
       return resolved;
     },
   };
 }
 
-async function readResolvedConfig(db: Db, authMode: AuthMode, logLevelFloor: LogLevel): Promise<EffectiveAppConfig> {
+async function readResolvedConfig(db: Db, floor: SettingsEnvFloor): Promise<EffectiveAppConfig> {
   const raw = await readAppOverrideRaw(db);
-  const resolved = layer(parseAppSettings(raw ?? {}), authMode, logLevelFloor);
+  const resolved = layer(parseAppSettings(raw ?? {}), floor);
   logger.level = resolved.logLevel;
   return resolved;
 }

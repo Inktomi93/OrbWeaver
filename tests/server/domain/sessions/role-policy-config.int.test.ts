@@ -3,7 +3,6 @@ import { users } from "@orb/db";
 
 import { brandedId } from "@orb/kit/ids";
 import type { SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { env } from "@orb/server/foundation/env";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -13,7 +12,7 @@ import { eq } from "drizzle-orm";
 function rootForConfig(rolePolicyConfig: SessionsRolePolicyConfig): Promise<ServerTestHarness> {
   return createServerHarness({
     rolePolicyConfig,
-    authConfig: { ...authConfigFromEnv(), mode: "forward-header", fallback: "deny", forwardTrustedProxies: ["127.0.0.1/32"] },
+    authConfig: { mode: "forward-header", fallback: "deny", forwardTrustedProxies: ["127.0.0.1/32"] },
     physicalPeer: () => "127.0.0.1",
   });
 }
@@ -95,7 +94,7 @@ test("copied config and exposed owner handles cannot mutate a live graph's autho
   config.OIDC_ALLOWED_GROUPS = undefined;
   await using root = await createServerHarness({
     rolePolicyConfig: config,
-    authConfig: { ...authConfigFromEnv(), mode: "forward-header", fallback: "deny", forwardTrustedProxies: ["127.0.0.1/32"] },
+    authConfig: { mode: "forward-header", fallback: "deny", forwardTrustedProxies: ["127.0.0.1/32"] },
     physicalPeer: () => "127.0.0.1",
   });
   config.OWNER_HANDLES = "policy-member";

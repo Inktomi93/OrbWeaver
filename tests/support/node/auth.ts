@@ -7,7 +7,6 @@ import { AUTH_MODES, viewerViewSchema } from "@orb/contracts/identity";
 import { users } from "@orb/db";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { AUTH_MODE_DEFAULT_FALLBACK } from "@orb/server/foundation/env";
 import { eq } from "drizzle-orm";
 import type { JWTPayload } from "jose";
@@ -72,19 +71,18 @@ function issuerNetwork(issuer: NativeIssuer): NonNullable<ServerHarnessOptions["
 
 const MODE_HARNESS: Record<AuthMode, (issuer: NativeIssuer) => ModeHarnessOptions> = {
   "single-user": () => ({
-    authConfig: { ...authConfigFromEnv(), mode: "single-user", fallback: AUTH_MODE_DEFAULT_FALLBACK["single-user"] },
+    authConfig: { mode: "single-user", fallback: AUTH_MODE_DEFAULT_FALLBACK["single-user"] },
     physicalPeer: atPeer(LOOPBACK_PEER),
   }),
-  local: () => ({ authConfig: { ...authConfigFromEnv(), mode: "local", fallback: AUTH_MODE_DEFAULT_FALLBACK.local }, physicalPeer: atPeer(PUBLIC_PEER) }),
+  local: () => ({ authConfig: { mode: "local", fallback: AUTH_MODE_DEFAULT_FALLBACK.local }, physicalPeer: atPeer(PUBLIC_PEER) }),
   oidc: (issuer) => ({
-    authConfig: { ...authConfigFromEnv(), mode: "oidc", fallback: AUTH_MODE_DEFAULT_FALLBACK.oidc },
+    authConfig: { mode: "oidc", fallback: AUTH_MODE_DEFAULT_FALLBACK.oidc },
     physicalPeer: atPeer(PUBLIC_PEER),
     oidc: NATIVE_OIDC_SETTINGS,
     networkExecution: issuerNetwork(issuer),
   }),
   "forward-header": (issuer) => ({
     authConfig: {
-      ...authConfigFromEnv(),
       mode: "forward-header",
       fallback: AUTH_MODE_DEFAULT_FALLBACK["forward-header"],
       verifyForwardJwt: true,

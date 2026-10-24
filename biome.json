@@ -750,10 +750,13 @@
     },
     {
       "includes": ["packages/server/src/foundation/env/index.ts"],
+      "linter": { "rules": { "style": { "noProcessEnv": "off" } } }
+    },
+    {
+      "includes": ["packages/server/src/foundation/env/index.ts", "packages/server/src/foundation/env/record/index.ts"],
       "linter": {
         "rules": {
           "style": {
-            "noProcessEnv": "off",
             "useNamingConvention": {
               "level": "error",
               "options": {

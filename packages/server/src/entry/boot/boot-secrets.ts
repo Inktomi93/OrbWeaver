@@ -6,7 +6,7 @@ import type { Db } from "@orb/db";
 import { chatInvites, sessions, userCredentials } from "@orb/db";
 import { and, eq, gt, isNull, or } from "drizzle-orm";
 import { createSettleSessionSecret } from "#domain/sessions";
-import type { BootSecretResolution } from "#infra/crypto";
+import type { BootSecretResolution, KeyfileReport } from "#infra/crypto";
 import { loadOrCreateKeyfile } from "#infra/crypto";
 
 const LIMIT_ONE = 1;
@@ -18,6 +18,8 @@ export interface BootSecretsDeps {
   readonly now: () => number;
   readonly credentialsKey: BootSecretResolution<Buffer>;
   readonly sessionSecret: BootSecretResolution<string>;
+  /** Where a generated or unreadable keyfile is reported (`keyfileReport` over the record's `NODE_ENV`). */
+  readonly reportKeyfile: KeyfileReport;
 }
 
 /** The settled secrets, in the shapes compose takes. `null` keeps the pre-db meaning: an unusable value. */
@@ -60,7 +62,7 @@ export async function settleBootSecrets(deps: BootSecretsDeps): Promise<BootSecr
     if (await hasSealedCredentials(deps.db)) {
       throw new Error(missingCredentialsKeyRefusal(deps.credentialsKey.path));
     }
-    secretBoxKey = loadOrCreateKeyfile(deps.credentialsKey.path);
+    secretBoxKey = loadOrCreateKeyfile(deps.credentialsKey.path, deps.reportKeyfile);
   } else {
     secretBoxKey = deps.credentialsKey.value;
   }
@@ -72,7 +74,7 @@ export async function settleBootSecrets(deps: BootSecretsDeps): Promise<BootSecr
       db: deps.db,
       resolution: deps.sessionSecret,
       hasOtherDependents: () => hasSessionTokenOrInviteDependents(deps.db, at),
-      createKeyfile: (path) => loadOrCreateKeyfile(path)?.toString("hex") ?? null,
+      createKeyfile: (path) => loadOrCreateKeyfile(path, deps.reportKeyfile)?.toString("hex") ?? null,
     })();
   } else {
     sessionSecret = deps.sessionSecret.value;

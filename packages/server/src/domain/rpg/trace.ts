@@ -4,8 +4,8 @@
 // records into it and the host-only read (`recent`) the `/api/_debug/rpg/traces` route tails.
 //
 // NO PERSISTENT TABLE — per-turn ephemera (D75: the debug surface is read-only introspection); the ring drops
-// the oldest record past `limit`. OPT-IN: the composition root builds ONE only when tracing is enabled (env
-// `RPG_TRACE=on`, or the `rpgTrace` compose dep an int test / the drive kit forces) and wires its `sink`
+// the oldest record past `limit`. OPT-IN: the composition root builds ONE only when tracing is enabled
+// (`RPG_TRACE=on` in its env record; a test root sets it in its own) and wires its `sink`
 // through the rpg compose deps; unwired, the sink is `undefined` and every emit site is zero-cost.
 //
 // ASSUMES(single-replica): the ring is per-process (the `bus.ts` precedent). The recorder stamps each record's

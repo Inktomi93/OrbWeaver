@@ -6,7 +6,6 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { errorMessage } from "@orb/kit/error-message";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { createFrozenClock } from "../iso/clock.ts";
 import { createSeededIds } from "../iso/ids.ts";
 import type { CorpusCapsuleOptions, CorpusHarnessOptions } from "./corpus.ts";
@@ -135,7 +134,7 @@ export async function createCorpusRecipe(parent: string): Promise<CorpusRecipe> 
     server: {
       clock,
       ids,
-      authConfig: { ...authConfigFromEnv(), mode: "local" as const },
+      authConfig: { mode: "local" as const },
       providerFetch: execution.execute,
       secretBoxKey: key,
       temporaryParentDir: parent,

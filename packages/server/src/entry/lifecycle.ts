@@ -2,7 +2,8 @@
 // shutdown(). Owns no business logic — mints the one real clock, resolves the boot chicken-egg (owner id
 // → services → owner Principal), runs the seed steps, starts the supervisors, builds + serves the Hono
 // app, and tears it all down gracefully. Entry mints the one real wall clock and the real process seams
-// (`createProcessSeams`) and threads them everywhere; nothing below entry reads ambient time or entropy.
+// (`createProcessSeams`, which carry the parsed env record) and threads them everywhere; nothing below entry reads
+// ambient time, entropy or the process env.
 
 import type { AddressInfo } from "node:net";
 import { hostname } from "node:os";
@@ -40,8 +41,8 @@ import { getLog, initTracing, superviseDetached, wrapLibSqlClient } from "#found
 import { SERVER_INSTANCE_ID } from "#foundation/server-instance";
 import { versionIdentity } from "#foundation/version";
 import { createOwnerClaimCode, createPasswordHasher, oidcRedirectAllowlist } from "#infra/auth";
-import { bootSecretProvenance, resolveCredentialsKey, resolveSessionSecret } from "#infra/crypto";
-import { drainHttpServer, installEgressFirewall, parseAllowlist, SHUTDOWN_DRAIN_MS, serveHttpServer } from "#infra/network";
+import { bootSecretProvenance, keyfileReport, resolveCredentialsKey, resolveSessionSecret } from "#infra/crypto";
+import { drainHttpServer, installEgressFirewall, SHUTDOWN_DRAIN_MS, serveHttpServer, trustedProxiesOf } from "#infra/network";
 import type { CloudflaredPin, RelayAssetFetch, SpawnRelay } from "#infra/relay";
 
 import { authConfigFromEnv, createHostPrincipalResolver } from "./auth/index.ts";
@@ -243,20 +244,22 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
 
     // Swap undici's global dispatcher for the private-IP-rejecting DNS lookup so every outbound fetch
     // below is address-gated before it can fire. No-op when EGRESS_FIREWALL=false.
-    installEgressFirewall({ ...seams.networkExecution, timers: seams.timers, buildConnector: seams.buildConnector });
+    installEgressFirewall({ ...seams.networkExecution, timers: seams.timers, buildConnector: seams.buildConnector, env: seams.env });
 
     // The data layout FIRST, before anything opens a file under it: a legacy flat data dir is renamed into
     // the current tree (db/, backups/, secrets/, cache/ …) under a journal. Every path below reads the layout
     // the env resolved, so nothing here can open the old location.
-    await migrateDataLayout({ layout: env.DATA_LAYOUT });
+    const reportKeyfile = keyfileReport(env.NODE_ENV);
+    await migrateDataLayout({ layout: env.DATA_LAYOUT, env });
 
     // The boot secrets, phase one of two: the explicit env value, else the keyfile under `secrets/`. A
     // keyfile that does not exist yet is left ABSENT here — whether generating one is safe depends on the db
     // (a pepper with passwords behind it, a key with sealed credentials behind it), so that decision waits
     // for the migrated db below. A cookie mode with an UNUSABLE secret (a remote db, a corrupt keyfile)
     // cannot authenticate anyone, so it refuses now, before the db opens and long before the listener binds.
-    const credentialsKey = resolveCredentialsKey();
-    const sessionSecretSource = resolveSessionSecret();
+    const secretLocation = { databaseUrl: env.DATABASE_URL, secretsDir: env.DATA_LAYOUT.secrets };
+    const credentialsKey = resolveCredentialsKey({ ...secretLocation, explicit: env.CREDENTIALS_KEY }, reportKeyfile);
+    const sessionSecretSource = resolveSessionSecret({ ...secretLocation, explicit: env.SESSION_SECRET }, reportKeyfile);
     if (sessionSecretSource.kind === "resolved" && sessionSecretSource.value === null && isCookieAuthMode(env.AUTH_MODE)) {
       throw new Error(missingSessionSecretMessage(env.AUTH_MODE, sessionSecretSource.path));
     }
@@ -313,7 +316,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // depends on it; otherwise this REFUSES and names the file (owner ruling — a regenerated secret would
     // orphan every sealed credential, or every local password, session and live invite). A cookie mode still needs a
     // usable pepper after that: a filesystem fault on the first write is the one way it can still be null.
-    const { secretBoxKey, sessionSecret } = await settleBootSecrets({ db, now, credentialsKey, sessionSecret: sessionSecretSource });
+    const { secretBoxKey, sessionSecret } = await settleBootSecrets({ db, now, credentialsKey, sessionSecret: sessionSecretSource, reportKeyfile });
     if (sessionSecret === null && isCookieAuthMode(env.AUTH_MODE)) {
       throw new Error(missingSessionSecretMessage(env.AUTH_MODE, sessionSecretSource.path));
     }
@@ -346,13 +349,13 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
         ownerClaim,
         redirectAllowlist: oidcRedirectAllowlist(env.OIDC_REDIRECT_URIS),
         claimUrlFile: ownerClaimFile,
-        inContainer: bindPostureInput().inContainer,
+        inContainer: bindPostureInput(env).inContainer,
       });
     }
 
     // The DIAGNOSTICS POSTURE report (foundation/env/diagnostics.ts holds the model): who can reach the box,
     // who can open /api/_debug, and what the recorders are holding. Its warnings join the boot disclaimer.
-    const diagnostics = resolveDiagnosticsPosture(diagnosticsPostureInput());
+    const diagnostics = resolveDiagnosticsPosture(diagnosticsPostureInput(env));
     log.info({ diagnostics }, "boot: diagnostics posture (perimeter × credential × retention)");
 
     // The stable per-replica lock-holder tag — threaded into both compose (chat turn-lock) and the boot
@@ -389,7 +392,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // The DEPLOY-MODE INVARIANT (foundation/env/bind.ts holds the model): `hostname` is OMITTED rather than
     // defaulted to "0.0.0.0" so the production path stays byte-identical to node's own default — passing
     // "0.0.0.0" would silently drop the IPv6 listener. The IP certificate's listeners take the same interface.
-    const bind = resolveBindPosture(bindPostureInput());
+    const bind = resolveBindPosture(bindPostureInput(env));
 
     // The share relay: the server's one long-lived child, spawned in this process group. Built once, before compose,
     // because it holds the relay registry's write side; the port is read when a relay starts, after the bind.
@@ -404,11 +407,12 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       timers: { timeout: seams.timers.timeoutUnref, timeoutUnref: seams.timers.timeoutUnref, interval: seams.timers.interval },
       buildConnector: seams.buildConnector,
       networkExecution: seams.networkExecution,
+      env: seams.env,
       ...(options.relaySeams === undefined ? {} : { relaySeams: options.relaySeams }),
     });
     const relay = sharing.share.relay;
 
-    const authConfig = authConfigFromEnv();
+    const authConfig = authConfigFromEnv(env);
     const built = await createServices({
       ...seams,
       rolePolicy,
@@ -512,11 +516,14 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     built.startJobs();
 
     const oidcWiring =
-      env.AUTH_MODE === "oidc" ? await createConfiguredOidc({ db: wiringDb, now, built, ownerClaim, scheduleInterval: seams.timers.interval }) : undefined;
+      env.AUTH_MODE === "oidc"
+        ? await createConfiguredOidc({ db: wiringDb, now, built, ownerClaim, scheduleInterval: seams.timers.interval, settings: env })
+        : undefined;
     oidcLifetime = oidcWiring ?? null;
 
     const app = createHttpApp({
       built,
+      env: seams.env,
       authConfig,
       now,
       db: wiringDb,
@@ -530,14 +537,14 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       },
       isShuttingDown: () => isShuttingDown,
       credentialsKeyOk: () => credentialsKeyOk,
-      inContainer: bindPostureInput().inContainer,
+      inContainer: bindPostureInput(env).inContainer,
       relayHosts: sharing.relayHosts,
       shareState: relay.status,
       oidcProviderName: env.OIDC_PROVIDER_NAME,
       ...(oidcWiring === undefined ? {} : { oidc: oidcWiring }),
     });
 
-    const ownerPeers = resolveOwnerFallbackPeers(ownerFallbackPeerInput());
+    const ownerPeers = resolveOwnerFallbackPeers(ownerFallbackPeerInput(env));
 
     // THE BOOT DISCLAIMER (`boot/disclaimer.ts`): ONE contiguous group, logged just before the listener binds,
     // so an operator reads what this box is, who reaches it and who is its owner in one place. Every standing
@@ -547,12 +554,12 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       authFallback: env.AUTH_FALLBACK,
       breakGlass: env.AUTH_BREAK_GLASS,
       bind,
-      bindWarnings: bindPostureWarnings(bindPostureInput(), bind),
+      bindWarnings: bindPostureWarnings(bindPostureInput(env), bind),
       ownerPeers,
       ownerPeerWarnings: ownerFallbackPeerWarnings(ownerPeers),
       diagnosticsWarnings: diagnosticsPostureWarnings(diagnostics),
-      forwardHeaderUnsignedClosed: env.AUTH_MODE === "forward-header" && parseAllowlist(env.FORWARD_AUTH_TRUSTED_PROXIES).length === 0,
-      secrets: bootSecretProvenance(),
+      forwardHeaderUnsignedClosed: env.AUTH_MODE === "forward-header" && trustedProxiesOf(env).length === 0,
+      secrets: bootSecretProvenance({ ...secretLocation, sessionSecret: env.SESSION_SECRET, credentialsKey: env.CREDENTIALS_KEY }),
     })) {
       const fields = { bootDisclaimer: true, topic: line.topic, ...(line.security ? { security: true } : {}) };
       if (line.level === "warn") {

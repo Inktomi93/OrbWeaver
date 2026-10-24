@@ -4,7 +4,6 @@ import { createServer } from "node:http";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { TRPC_BATCH_MAX_ITEMS } from "@orb/contracts/rpc";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { ownerActor, SESSION_COOKIE } from "./actors.ts";
@@ -12,7 +11,7 @@ import { createTrpcClient } from "./trpc.ts";
 
 test("native success calls preserve paths, inputs, batched output identity and persisted mutations", async () => {
   await using root = await createServerHarness({
-    authConfig: { ...authConfigFromEnv(), mode: "single-user", fallback: "owner" },
+    authConfig: { mode: "single-user", fallback: "owner" },
     physicalPeer: () => "127.0.0.1",
   });
   const address = await root.listen();
@@ -46,7 +45,7 @@ test("native success calls preserve paths, inputs, batched output identity and p
 
 test("caller cookies and CSRF remain distinct from fallback and raw status probes", async () => {
   await using root = await createServerHarness({
-    authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "owner" },
+    authConfig: { mode: "local", fallback: "owner" },
     physicalPeer: () => "127.0.0.1",
   });
   const member = await root.actor();
@@ -70,7 +69,7 @@ test("caller cookies and CSRF remain distinct from fallback and raw status probe
 
 test("upstream failures retain HTTP diagnostics and malformed success bytes reach the native parser", async () => {
   await using root = await createServerHarness({
-    authConfig: { ...authConfigFromEnv(), mode: "single-user", fallback: "owner" },
+    authConfig: { mode: "single-user", fallback: "owner" },
     physicalPeer: () => "127.0.0.1",
   });
   const productResponse = await root.http.request("/api/trpc/sessions.me?batch=1");

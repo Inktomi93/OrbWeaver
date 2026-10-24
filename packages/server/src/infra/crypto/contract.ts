@@ -8,6 +8,9 @@ export interface BootSecretSource {
   readonly secretsDir: string;
 }
 
+/** Where a keyfile notice goes (`keyfileReport` picks the sink for the build). */
+export type KeyfileReport = (line: string) => void;
+
 /** A boot secret after the env and the keyfile were consulted, before the db was. `resolved` carries the
  *  usable value or `null` (a remote db, a corrupt or unreadable keyfile, a bad explicit value) and the keyfile
  *  path when one was read. `absent` names a keyfile that does not exist yet and was NOT written. */

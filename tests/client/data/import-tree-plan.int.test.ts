@@ -10,7 +10,6 @@ import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_DIRECTORIES, PORTABLE_IMPORT_ORDER } from "@orb/contracts/portability";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
@@ -181,7 +180,7 @@ test("a served total the upload framing alone fills refuses the plan instead of 
 
 /** A single-user root whose loopback requests act as its owner, so the client's own fetches reach it unauthenticated. */
 const SINGLE_USER = {
-  authConfig: { ...authConfigFromEnv(), mode: "single-user", fallback: "owner" },
+  authConfig: { mode: "single-user", fallback: "owner" },
   physicalPeer: () => "127.0.0.1",
   startJobs: false,
 } as const;

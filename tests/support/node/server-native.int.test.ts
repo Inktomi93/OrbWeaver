@@ -8,7 +8,6 @@ import { streamConnectInputSchema } from "@orb/contracts/stream";
 import { closeDb } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { sniffMime } from "@orb/kit/image-sniff";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { sql } from "drizzle-orm";
 import { vi } from "vitest";
 import { freshDb, freshHeldDb } from "./db.ts";
@@ -20,7 +19,7 @@ const PASSWORD = "native-request-owned-password-not-a-session-fake";
 const OVERSIZED_PASSWORD_REPETITIONS = 1024;
 
 test("chunked native first-run keeps the real body limit, CSRF and password/session admission", async () => {
-  await using harness = await createServerHarness({ authConfig: { ...authConfigFromEnv(), mode: "local" } });
+  await using harness = await createServerHarness({ authConfig: { mode: "local" } });
   const address = await harness.listen();
   const origin = `http://${address.address}:${address.port}`;
   const send = (password: string): Promise<number | undefined> =>
@@ -70,7 +69,7 @@ test("chunked native first-run keeps the real body limit, CSRF and password/sess
 });
 
 test("native ingress uses its actual peer for first-run while preserving CSRF, relay refusal and cookie admission", async () => {
-  await using harness = await createServerHarness({ authConfig: { ...authConfigFromEnv(), mode: "local" } });
+  await using harness = await createServerHarness({ authConfig: { mode: "local" } });
   const address = await harness.listen();
   const origin = `http://${address.address}:${address.port}`;
   const config = authConfigSchema.parse(await (await fetch(`${origin}/api/auth/config`)).json());
@@ -115,7 +114,7 @@ test("native ingress uses its actual peer for first-run while preserving CSRF, r
 });
 
 test("same-ID native roots singleflight their own listeners and out-of-order closure preserves the sibling", async () => {
-  const authConfig = { ...authConfigFromEnv(), mode: "local", fallback: "deny" } satisfies NonNullable<Parameters<typeof createServerHarness>[0]>["authConfig"];
+  const authConfig = { mode: "local", fallback: "deny" } satisfies NonNullable<Parameters<typeof createServerHarness>[0]>["authConfig"];
   await using first = await createServerHarness({ authConfig });
   await using second = await createServerHarness({ authConfig });
   expect(first.ownerId).toBe(second.ownerId);
@@ -151,7 +150,7 @@ test("native socket disposal joins the held actual room pump before closing ingr
   await using database = new AsyncDisposableStack();
   const held = await freshHeldDb();
   database.defer(() => closeDb(held.db));
-  await using harness = await createServerHarness({ db: held.db, authConfig: { ...authConfigFromEnv(), mode: "single-user" } });
+  await using harness = await createServerHarness({ db: held.db, authConfig: { mode: "single-user" } });
   const caller = await harness.internalCallerFor(harness.ownerId);
   const chat = (await caller.chat.startChat({ characterIds: [] })).chat;
   const { socketId } = streamConnectInputSchema.parse({ socketId: harness.ids.uuid() });

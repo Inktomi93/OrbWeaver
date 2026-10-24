@@ -53,7 +53,7 @@ function rootFor(
     physicalPeer: () => LOOPBACK,
     ...(mode === "oidc" ? { oidc: NATIVE_OIDC_SETTINGS } : {}),
     ...rest,
-    authConfig: { ...authConfigFromEnv(), mode, fallback: fallback ?? (mode === "single-user" ? "owner" : "deny") },
+    authConfig: { mode, fallback: fallback ?? (mode === "single-user" ? "owner" : "deny") },
   });
 }
 
@@ -104,7 +104,7 @@ describe("un-credentialed callers never reach /api/_debug", () => {
   });
 
   test("no resolvable TCP peer is refused in every posture (the fallback arm cannot even mint)", async () => {
-    await using root = await createServerHarness({ authConfig: { ...authConfigFromEnv(), mode: "single-user", fallback: "owner" } });
+    await using root = await createServerHarness({ authConfig: { mode: "single-user", fallback: "owner" } });
     expect(await outcomes(root, { host: LOOPBACK })).toEqual(ALL_REFUSED_TOKENLESS);
   });
 });
@@ -136,7 +136,7 @@ describe("the loopback owner fallback opens the door only where the posture says
   test("the PRODUCTION posture refuses the same loopback owner, single-user included (a proxy makes everyone one)", async () => {
     await using root = await rootFor("single-user");
     for (const mode of AUTH_MODES) {
-      const config = { ...authConfigFromEnv(), mode, fallback: "owner" as const };
+      const config = { ...authConfigFromEnv(root.env), mode, fallback: "owner" as const };
       const production = createAuthSeam({ emitUserEvent: root.app.liveBuses.user.publishUserEvent, sessions: root.app.sessions, config });
       const operator = createAuthSeam({
         emitUserEvent: root.app.liveBuses.user.publishUserEvent,
@@ -182,7 +182,7 @@ describe("the two real credentials still open the gate", () => {
   test("an UNSIGNED forward-header OWNER from a trusted proxy is refused (only a verified JWT is a credential)", async () => {
     await using root = await createServerHarness({
       physicalPeer: () => LOOPBACK,
-      authConfig: { ...authConfigFromEnv(), mode: "forward-header", fallback: "deny", forwardTrustedProxies: ["127.0.0.0/8"] },
+      authConfig: { mode: "forward-header", fallback: "deny", forwardTrustedProxies: ["127.0.0.0/8"] },
     });
     const unsigned = { "x-authentik-username": (await root.principalFor(root.ownerId)).handle };
     expect((await authMe(root, unsigned)).role).toBe("owner");

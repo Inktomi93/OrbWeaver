@@ -3,7 +3,8 @@ import type { LookupFunction } from "node:net";
 import { effectiveHttpPort, parseTcpPort } from "@orb/kit/http-endpoint";
 import { parseIp } from "@orb/kit/ip";
 import { Agent, buildConnector, getGlobalDispatcher, setGlobalDispatcher } from "undici";
-import { env, parseTrustedPrivateRanges } from "#foundation/env";
+import type { Env } from "#foundation/env/record";
+import { parseTrustedPrivateRanges } from "#foundation/env/record";
 import { getLog, securityEvent } from "#src/foundation/observability/logger.ts";
 import { superviseSettled } from "#src/foundation/observability/tracing.ts";
 
@@ -31,8 +32,8 @@ import { createOwnedResponseBody } from "./response-body.ts";
 // non-safeFetch egress (provider calls, OIDC).
 //
 // DECLARED-INTENT AUTO-ALLOW, in TWO classes, both operator intent and neither ever attacker input:
-//   (1) the env belt — `EGRESS_ALLOWLIST` plus the OIDC issuer host, read once at install
-//       (`shouldBlockEgress`). HOST-keyed, ANY PORT. Unchanged.
+//   (1) the env belt — `EGRESS_ALLOWLIST` plus the OIDC issuer host, read from the options' env record once per
+//       egress (`shouldBlockEgress`). HOST-keyed, ANY PORT. Unchanged.
 //   (2) the deployment's private-endpoint allowlist (`publishPrivateEndpointAllowlist`, the second block
 //       further down — inference program F12). Hosts, CIDRs, and OPTIONALLY host:PORT.
 // Without one of them a bare private-range block SSRF-refuses the box's own loopback inference backend,
@@ -92,8 +93,8 @@ function unbracket(hostname: string): string {
   return hostname.length > 1 && hostname.startsWith("[") && hostname.endsWith("]") ? hostname.slice(1, -1) : hostname;
 }
 
-function privateEgressRanges(): readonly string[] {
-  const extra = parseTrustedPrivateRanges(env.TRUSTED_PRIVATE_RANGES);
+function privateEgressRanges(record: Pick<Env, "TRUSTED_PRIVATE_RANGES">): readonly string[] {
+  const extra = parseTrustedPrivateRanges(record.TRUSTED_PRIVATE_RANGES);
   return extra.length > 0 ? [...DEFAULT_TRUSTED_RANGES, ...extra] : DEFAULT_TRUSTED_RANGES;
 }
 
@@ -180,6 +181,12 @@ interface PrivateEndpointAllowlist {
 }
 
 interface EgressContext {
+  /** `EGRESS_FIREWALL`: off skips the connect-time gate; `safeFetch`'s own resolve→validate→pin never reads it. */
+  readonly firewall: boolean;
+  /** The private set this egress refuses: the built-in ranges plus `TRUSTED_PRIVATE_RANGES`. */
+  readonly privateRanges: readonly string[];
+  /** The env belt's declared hosts (`envEgressAllowlist`). */
+  readonly envAllowlist: ReadonlySet<string>;
   privateEndpointAllowlist: PrivateEndpointAllowlist;
   firewallAgent: Agent | undefined;
   readonly firewallLookup: LookupFunction;
@@ -199,6 +206,9 @@ interface EgressContext {
 
 function createEgressContext(options: ScopedEgressOptions, global: boolean): EgressContext {
   return {
+    firewall: options.env.EGRESS_FIREWALL,
+    privateRanges: privateEgressRanges(options.env),
+    envAllowlist: envEgressAllowlist(options.env),
     privateEndpointAllowlist: { hosts: new Set(), hostPorts: new Map(), ranges: [] },
     firewallAgent: undefined,
     // The real resolver keeps Node's own `dns.lookup` on the socket path, so a connect still honours its family and
@@ -470,7 +480,7 @@ function endpointAdmissionFor(context: EgressContext, baseUrl: string): (typeof 
   if (isInRanges(literal, NEVER_ADMISSIBLE_RANGES)) {
     return "refused";
   }
-  if (!isInRanges(literal, privateEgressRanges())) {
+  if (!isInRanges(literal, context.privateRanges)) {
     return "public";
   }
   return admittedByAllowlistFor(context, host, port) || (host === "localhost" && admittedByAllowlistFor(context, literal, port)) ? "admitted" : "refused";
@@ -493,8 +503,8 @@ async function resolvedEndpointAdmissionFor(context: EgressContext, baseUrl: str
   if (addresses.length === 0) {
     return verdict;
   }
-  const allowlist = envEgressAllowlist();
-  const ranges = privateEgressRanges();
+  const allowlist = context.envAllowlist;
+  const ranges = context.privateRanges;
   const refused = firstRefusedAddress(
     addresses,
     (address) =>
@@ -566,7 +576,7 @@ function admittedByAllowlistFor(context: EgressContext, hostname: string, port: 
 /** Install the process-global firewall dispatcher. It is the only process-wide egress context; every request the
  *  app makes goes through a graph-scoped `createScopedEgress`, so this context only ever backs the backstop. */
 export function installEgressFirewall(options: ScopedEgressOptions): void {
-  if (!env.EGRESS_FIREWALL) {
+  if (!options.env.EGRESS_FIREWALL) {
     return;
   }
   const allowlist = replaceFirewallAgentFor(createEgressContext(options, true));
@@ -586,20 +596,20 @@ function replaceFirewallAgentFor(context: EgressContext): ReadonlySet<string> {
   return allowlist;
 }
 
-/** The env belt's host set: `EGRESS_ALLOWLIST` plus the OIDC issuer host. One read for the connect gate and
- *  the write-time admission, so the two cannot disagree about a declared host. */
-function envEgressAllowlist(): Set<string> {
+/** The env belt's host set: `EGRESS_ALLOWLIST` plus the OIDC issuer host. One read per egress for the connect gate
+ *  and the write-time admission, so the two cannot disagree about a declared host. */
+function envEgressAllowlist(record: Pick<Env, "EGRESS_ALLOWLIST" | "OIDC_ISSUER">): ReadonlySet<string> {
   const allowlist = new Set(
-    (env.EGRESS_ALLOWLIST ?? "")
+    (record.EGRESS_ALLOWLIST ?? "")
       .split(",")
       .map((h) => h.trim().toLowerCase())
       .filter((h) => h.length > 0),
   );
   // Always allow the OIDC issuer host (LAN/private IP) — otherwise enabling the firewall breaks oidc mode.
-  if (env.OIDC_ISSUER !== undefined) {
+  if (record.OIDC_ISSUER !== undefined) {
     // a malformed OIDC_ISSUER URL is simply NOT added to the egress allowlist — the restrictive direction that never widens egress; env refinement already rejects a malformed issuer in oidc mode, so this only fires harmlessly in non-oidc mode. Ends if the allowlist ever becomes a denylist.
     try {
-      allowlist.add(new URL(env.OIDC_ISSUER).hostname.toLowerCase());
+      allowlist.add(new URL(record.OIDC_ISSUER).hostname.toLowerCase());
     } catch {
       // malformed issuer — env refinement would have caught it in oidc mode
     }
@@ -636,10 +646,10 @@ function createFirewallLookupFor(context: EgressContext, judgment: ConnectJudgme
   };
 }
 
-/** The global firewall's connect function, over the env belt read now and the published allowlist read live. */
+/** The global firewall's connect function, over the env belt and the published allowlist read live. */
 function createFirewallConnectFor(context: EgressContext): { readonly connect: buildConnector.connector; readonly allowlist: ReadonlySet<string> } {
-  const ranges = privateEgressRanges();
-  const allowlist = envEgressAllowlist();
+  const ranges = context.privateRanges;
+  const allowlist = context.envAllowlist;
 
   const connectTarget = (target: buildConnector.Options, callback: buildConnector.Callback, declared: boolean): void => {
     const port = effectiveHttpPort(target.protocol, target.port);
@@ -702,14 +712,14 @@ function refusedResolvedEndpoint(context: EgressContext, address: string, judgme
 
 // Raw execution receives the same connector verdict and the validated pin, never an admission callback.
 async function configuredEndpointPin(context: EgressContext, url: URL): Promise<Agent | undefined> {
-  if (!env.EGRESS_FIREWALL) {
+  if (!context.firewall) {
     return;
   }
   const host = unbracket(url.hostname).toLowerCase();
   const literal = literalHost(host);
   const port = effectiveHttpPort(url.protocol, url.port);
-  const allowlist = envEgressAllowlist();
-  const ranges = privateEgressRanges();
+  const allowlist = context.envAllowlist;
+  const ranges = context.privateRanges;
   const declared = admittedByAllowlistFor(context, host, port);
   if (!declared && literal !== null && shouldBlockEgress(literal, host, allowlist, ranges)) {
     blockEgress("private-address", host, `host ${host} is a private endpoint this deployment does not admit`);
@@ -730,7 +740,7 @@ async function configuredEndpointPin(context: EgressContext, url: URL): Promise<
 // ── safeFetch: the self-enforcing SSRF guard for any user-influenced outbound URL ──────────────────
 //
 // Per request AND per redirect hop: scheme pin (https-only) → host allowlist (or the explicit ANY_HOST escape) →
-// resolve→validate→pin (DNS resolve; every address must clear privateEgressRanges(); the validated set
+// resolve→validate→pin (DNS resolve; every address must clear the context's private ranges; the validated set
 // is pinned into a single-use per-request dispatcher so the name cannot re-resolve between check and
 // connect). Response-side: manual redirects with cross-origin credential-header + body stripping, a
 // streamed byte cap, and an optional content-type allowlist.
@@ -1115,7 +1125,7 @@ async function resolveValidatePinFor(context: EgressContext, url: URL): Promise<
   if (addresses.length === 0) {
     blockEgress("unresolvable", host, `host ${host} did not resolve to any address`);
   }
-  const ranges = privateEgressRanges();
+  const ranges = context.privateRanges;
   const blocked = firstRefusedAddress(addresses, (address) => isInRanges(address, ranges));
   if (blocked !== undefined) {
     // The address is LOGGED (observability) but never surfaced in the thrown error.
@@ -1337,7 +1347,7 @@ async function configuredEndpointFetchFor(context: EgressContext, input: Paramet
     closeAgentFor(context, pin);
     signal.throwIfAborted();
     const fetchInit: RequestInit = { signal };
-    if (env.EGRESS_FIREWALL) {
+    if (context.firewall) {
       connector = new Agent({ connect: createFirewallConnectFor(context).connect });
       context.agents.add(connector);
       Reflect.set(fetchInit, "dispatcher", connector);

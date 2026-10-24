@@ -13,7 +13,6 @@ import { assets, closeDb } from "@orb/db";
 import { contentSpanRaw } from "@orb/kit/content";
 import type { AssetId, CharacterHandle, ChatId, MessageId, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import type { Cas } from "@orb/server/infra/storage/cas";
 import { createCas } from "@orb/server/infra/storage/cas";
 import type { ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/composed";
@@ -46,7 +45,7 @@ export interface StoredRef {
 }
 
 /** A box whose loopback HTTP requests act as its owner, so a suite can drive the export and import routes. */
-const LOOPBACK_OWNER = { physicalPeer: () => "127.0.0.1", authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "owner" } } as const;
+const LOOPBACK_OWNER = { physicalPeer: () => "127.0.0.1", authConfig: { mode: "local", fallback: "owner" } } as const;
 
 /** One harness on a scratch CAS; a supplied db is closed after the harness that used it. The scripted provider
  *  answers only an image generation, with whatever bytes a test pushes into `images` first. */

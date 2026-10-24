@@ -43,7 +43,6 @@ import {
 } from "@orb/contracts/plugin";
 import { DomainConflictError } from "@orb/kit/errors";
 import type { TimerScheduler } from "@orb/kit/time";
-import { env } from "#foundation/env";
 import { getLog } from "#foundation/observability";
 import type { BackgroundWork } from "#infra/tasks";
 import { createBackgroundWork } from "#infra/tasks";
@@ -477,12 +476,12 @@ class BrokerClient {
         ...pluginWatchdogExecArgv(),
         fileURLToPath(new URL("./broker-watchdog.ts", import.meta.url)),
         directory,
-        String(env.PLUGIN_BROKER_WORKER_MAX),
-        String(env.PLUGIN_BROKER_MEMORY_LIMIT_BYTES),
-        env.NODE_ENV,
+        String(this.seams.env.PLUGIN_BROKER_WORKER_MAX),
+        String(this.seams.env.PLUGIN_BROKER_MEMORY_LIMIT_BYTES),
+        this.seams.env.NODE_ENV,
       ],
       {
-        env: { ["NODE_ENV"]: env.NODE_ENV },
+        env: { ["NODE_ENV"]: this.seams.env.NODE_ENV },
         // Workers can read their process cwd under Node permissions; keep the app's data directory outside it.
         cwd: directory,
         stdio: ["ignore", "inherit", "inherit", "ipc"],
@@ -943,7 +942,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
   const broker = new BrokerClient(seams, timers);
   const { bindings, logicalBindings } = broker;
   const acquireSnippetAdmission = createAdmission(PLUGIN_SNIPPET_RUNTIME_MAX);
-  const workerMaximum = env.PLUGIN_BROKER_WORKER_MAX;
+  const workerMaximum = seams.env.PLUGIN_BROKER_WORKER_MAX;
   const instances = new Map<PluginInstance, Binding>();
   const ownedBindings = new Set<Binding>();
   const pending = new Set<Promise<void>>();

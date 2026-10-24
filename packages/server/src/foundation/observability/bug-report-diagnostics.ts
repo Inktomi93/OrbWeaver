@@ -6,7 +6,7 @@ import process from "node:process";
 import type { BugReportDiagnostics, BugReportServerError } from "@orb/contracts/diagnostics";
 import { BUG_REPORT_SERVER_ERRORS_MAX, DIAGNOSTIC_GRAMMARS } from "@orb/contracts/diagnostics";
 import { secretRedactionLiterals } from "@orb/kit/secret-redaction";
-import { env } from "#foundation/env";
+import type { Env } from "#foundation/env/record";
 import { secretLiterals } from "./debug/bug-report.ts";
 import { ERROR_LEVEL, parseLogRingLine, ringLineLevel, ringLineTime } from "./debug/log-ring-read.ts";
 import { logRing } from "./logger.ts";
@@ -80,16 +80,18 @@ function serverErrors(secrets: readonly string[]): Extract<BugReportDiagnostics[
   return { kind: "included", records, held: lines.length };
 }
 
+/** The bug-report read bound to one env record; the tRPC context carries it. */
+export type BugReportDiagnosticsRead = (args: { readonly includeServerErrors: boolean }) => BugReportDiagnostics;
+
 /**
  * The diagnostics a bug report may carry about this server. The error census is the OWNER's only (D17: box
  * diagnostics are not a delegated admin's), decided by the caller from the request Principal; every other
- * caller still gets the runtime facts.
- *
- * @param secrets - the process's secret literals; defaults to every secret-named env value.
+ * caller still gets the runtime facts. The scrub drops every secret-named value the record holds.
  */
-export function readBugReportDiagnostics(args: { readonly includeServerErrors: boolean; readonly secrets?: readonly string[] }): BugReportDiagnostics {
-  return {
-    runtime: { node: process.version, platform: process.platform, arch: process.arch, authMode: env.AUTH_MODE },
-    serverErrors: args.includeServerErrors ? serverErrors(args.secrets ?? secretLiterals(env)) : { kind: "owner-only" },
-  };
+export function createBugReportDiagnosticsRead(record: Env): BugReportDiagnosticsRead {
+  const secrets = secretLiterals(record);
+  return (args) => ({
+    runtime: { node: process.version, platform: process.platform, arch: process.arch, authMode: record.AUTH_MODE },
+    serverErrors: args.includeServerErrors ? serverErrors(secrets) : { kind: "owner-only" },
+  });
 }

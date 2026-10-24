@@ -4,7 +4,7 @@
 
 import type { AuthMode } from "@orb/contracts/identity";
 import { isCookieAuthMode } from "@orb/contracts/identity";
-import type { BindPosture, OwnerFallbackPeerPosture } from "#foundation/env";
+import type { BindPosture, OwnerFallbackPeerPosture } from "#foundation/env/record";
 
 /** The disclaimer's closed topic set; `exposure` is the only one that can carry a security line. */
 export const BOOT_DISCLAIMER_TOPICS = ["mode", "listen", "owner", "cookie", "secrets", "caveat", "exposure"] as const;

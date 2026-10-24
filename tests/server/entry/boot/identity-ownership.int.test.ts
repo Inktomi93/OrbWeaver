@@ -51,6 +51,7 @@ test("another account's actual password blocks a missing pepper after credential
       now: root.clock.now,
       credentialsKey: { kind: "absent", path: credentialPath },
       sessionSecret: { kind: "absent", path: sessionPath },
+      reportKeyfile: () => undefined,
     }),
   ).rejects.toThrow(`SESSION_SECRET is unset and the keyfile ${sessionPath} does not exist`);
   expect((await stat(credentialPath)).isFile()).toBe(true);

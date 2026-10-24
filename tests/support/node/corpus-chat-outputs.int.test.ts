@@ -1,6 +1,5 @@
 // @subject tests/support/node/corpus-chat-outputs.ts
 import { assertReferentialIntegrity } from "@orb/db";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { CHAT_OUTPUT_BODY, CHAT_OUTPUT_CONNECTION_LABEL, CHAT_OUTPUT_SECRET, seedCorpusChatOutputs } from "./corpus-chat-outputs.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
 import { expect, test } from "./fixtures.ts";
@@ -14,7 +13,7 @@ test("native chat output suppliers retain exact canon, viewer projections, page 
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
   });
-  await using root = await createServerHarness({ providerFetch: provider.execute, authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" } });
+  await using root = await createServerHarness({ providerFetch: provider.execute, authConfig: { mode: "local", fallback: "deny" } });
   const result = await seedCorpusChatOutputs(root);
   const { reads, updates, member, invitation } = result;
   const assistant = result.turn.messages.find((message) => message.role === "assistant");

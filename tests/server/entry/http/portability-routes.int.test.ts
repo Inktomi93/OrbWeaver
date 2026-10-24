@@ -11,7 +11,6 @@ import { presets, tags, themes } from "@orb/db";
 import type { Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { stagedOwnerRoot } from "@orb/server/domain/import";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { extractZip } from "@orb/server/infra/storage/zip";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -38,7 +37,7 @@ async function box(): Promise<Box> {
   const root = await createServerHarness({
     physicalPeer: () => "127.0.0.1",
     startJobs: false,
-    authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "owner" },
+    authConfig: { mode: "local", fallback: "owner" },
   });
   const member = await signedInMember(root, castId<Handle>("portability-member"));
   const run = root.runAdmittedWorkload;

@@ -12,11 +12,14 @@ import type {
   SnippetResult,
 } from "@orb/contracts/plugin";
 import type { TimerScheduler } from "@orb/kit/time";
+import type { Env } from "#foundation/env/record";
 import type { ScopedEgress } from "#infra/network";
 import type { PluginNetEgress } from "./net-egress.ts";
 
 /** The determinism seams every instance's realm binds. */
 export interface PluginHostSeamDeps {
+  /** The broker's launch configuration from the root's env record, passed to the watchdog and broker by argv. */
+  readonly env: Pick<Env, "PLUGIN_BROKER_WORKER_MAX" | "PLUGIN_BROKER_MEMORY_LIMIT_BYTES" | "NODE_ENV">;
   readonly spawn?: (...args: Parameters<typeof spawn>) => ReturnType<typeof spawn>;
   readonly timers: TimerScheduler;
   /** The broker connect deadline's monotonic clock; the root supplies `performance.now` from `createProcessSeams`. */
@@ -29,9 +32,10 @@ export interface PluginHostSeamDeps {
   readonly mirrorLog?: (label: string, level: PluginLogLevel, message: string) => void;
 }
 
-/** A Worker-local runtime schedules nothing and fetches nothing itself: the app process owns the timers, the
- *  broker connect clock and the scoped egress, and the Worker forwards every guest fetch to it through `netEgress`. */
-export type LocalPluginHostSeams = Omit<PluginHostSeamDeps, "timers" | "monotonicNow" | "safeFetch"> & {
+/** A Worker-local runtime schedules nothing, fetches nothing and launches no broker itself: the app process owns the
+ *  timers, the broker connect clock, the broker launch config and the scoped egress, and the Worker forwards every
+ *  guest fetch to it through `netEgress`. */
+export type LocalPluginHostSeams = Omit<PluginHostSeamDeps, "timers" | "monotonicNow" | "safeFetch" | "env"> & {
   /** The broker Worker's forwarding egress: the app performs every plugin fetch against its own copy of the
    *  instance's `netHosts`. */
   readonly netEgress: PluginNetEgress;

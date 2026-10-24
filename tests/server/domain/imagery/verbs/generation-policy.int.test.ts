@@ -11,7 +11,6 @@ import { ID_PREFIX } from "@orb/kit/ids";
 import { processMacros } from "@orb/kit/macro";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { AppRouter } from "@orb/server";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -215,7 +214,7 @@ test("a member's room image uses the host's image connection and live negative p
     startJobs: false,
     providerFetch: wire.execute,
     secretBoxKey: Buffer.alloc(32, 3),
-    authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" },
+    authConfig: { mode: "local", fallback: "deny" },
   });
   const room = await policyRoom(root);
   wire.images.push(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)), makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)));

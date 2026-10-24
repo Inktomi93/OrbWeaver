@@ -6,7 +6,6 @@ import type { TimerScheduler } from "@orb/kit/time";
 import type { CustomFetch } from "openid-client";
 import { authorizationCodeGrant, customFetch, discovery } from "openid-client";
 import { createOidcStore } from "#domain/sessions";
-import { env } from "#foundation/env";
 import type { OidcSettings, OwnerClaimCode } from "#infra/auth";
 import {
   createBackchannelLogoutVerifier,
@@ -24,7 +23,8 @@ import type { OidcRoutesDeps } from "./index.ts";
 
 type ConfiguredOidcDeps = Pick<ServicesDeps, "db" | "now"> & {
   readonly built: Pick<ServicesResult, "sessions" | "signupInvites" | "seedUserConnections" | "egress">;
-  readonly settings?: OidcSettings;
+  /** The OIDC client settings, the root's env record in production. */
+  readonly settings: OidcSettings;
   readonly ownerClaim?: OwnerClaimCode;
   readonly scheduleInterval: TimerScheduler["interval"];
 };
@@ -32,7 +32,7 @@ type ConfiguredOidcDeps = Pick<ServicesDeps, "db" | "now"> & {
 /** Construct the production OIDC route capabilities; discovery stays lazy, single-flight and retryable. */
 export async function createConfiguredOidc(deps: ConfiguredOidcDeps): Promise<OidcRoutesDeps & AsyncDisposable> {
   await using construction = new AsyncDisposableStack();
-  const settings = deps.settings ?? env;
+  const { settings } = deps;
   const issuer = settings.OIDC_ISSUER ?? "";
   const issuerUrl = issuer.length > 0 ? new URL(issuer) : new URL("http://localhost");
   const clientId = settings.OIDC_CLIENT_ID ?? "";

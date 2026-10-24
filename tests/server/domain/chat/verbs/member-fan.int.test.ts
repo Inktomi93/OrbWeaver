@@ -3,7 +3,6 @@
 // @subject packages/server/src/domain/chat/verbs/chat-lifecycle.ts
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { UserId } from "@orb/kit/ids";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 
@@ -11,7 +10,7 @@ import { createServerHarness } from "@orb/testkit/node/composed";
 const END: UserBusEvent = { type: "charactersChanged" };
 
 test("a host title change reaches the co-member's live channel and no outsider's", async () => {
-  await using root = await createServerHarness({ authConfig: { ...authConfigFromEnv(), mode: "forward-header", fallback: "deny" } });
+  await using root = await createServerHarness({ authConfig: { mode: "forward-header", fallback: "deny" } });
   const host = await root.principalFor(root.ownerId);
   const member = await root.principalFor((await root.actor()).id);
   const outsider = (await root.actor()).id;

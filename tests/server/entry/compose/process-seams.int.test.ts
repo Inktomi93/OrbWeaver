@@ -6,7 +6,6 @@ import { importStartedSchema } from "@orb/contracts/import";
 import { streamConnectInputSchema } from "@orb/contracts/stream";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { stagedOwnerRoot } from "@orb/server/domain/import";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { recentTraces } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
@@ -78,7 +77,7 @@ test("a staged bundle upload is named with the root's seeded nonce", async () =>
   await using root = await createServerHarness({
     physicalPeer: () => "127.0.0.1",
     startJobs: false,
-    authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "owner" },
+    authConfig: { mode: "local", fallback: "owner" },
   });
   const minted = root.ids.snapshot();
   const response = await root.http.request(BUNDLE_ROUTE, { method: "POST", headers: { [CSRF_HEADER]: "1" }, body: new Uint8Array([1]) });

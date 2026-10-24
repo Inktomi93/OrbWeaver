@@ -2,7 +2,6 @@
 // @subject packages/kit/src/time/index.ts
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { createFrozenClock } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { textRoom } from "../../../domain/chat/scenario-physical.ts";
@@ -10,7 +9,7 @@ import { CLOCK_CONFIG, CLOCK_PREFIX, KATHMANDU, KATHMANDU_CLOCK, NOW } from "./t
 
 test("the actual mounted send refuses numeric or missing zones before provider work after a valid zoned request", async () => {
   await using h = await textRoom(["The keeper records the requested clock."], {
-    server: { clock: createFrozenClock(NOW), physicalPeer: () => "127.0.0.1", authConfig: { ...authConfigFromEnv(), mode: "single-user", fallback: "owner" } },
+    server: { clock: createFrozenClock(NOW), physicalPeer: () => "127.0.0.1", authConfig: { mode: "single-user", fallback: "owner" } },
     group: { output: "per-speaker", policy: "list" },
     promptConfig: CLOCK_CONFIG,
   });

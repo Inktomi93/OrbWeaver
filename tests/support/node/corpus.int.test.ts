@@ -40,7 +40,6 @@ import {
 import type { Handle } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { PLUGIN_CRASH_DISABLE_THRESHOLD } from "@orb/server/domain/plugin";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { createCas } from "@orb/server/infra/storage/cas";
 import { eq, inArray, isNotNull, sql } from "drizzle-orm";
 import type { CorpusSearchLibrary } from "../iso/corpus.ts";
@@ -658,7 +657,7 @@ test("a completed migrated capsule closes its real producers before cloning scru
       await using cloneRoot = await createServerHarness({
         db: clone,
         ownerId: capsule.privateCaptures.baseline.ownerId,
-        authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" },
+        authConfig: { mode: "local", fallback: "deny" },
         clock,
         ids,
         casDir: fixture.layout.assets,

@@ -7,7 +7,7 @@ import type { createLocalJWKSet, createRemoteJWKSet } from "jose";
 // `authorizationCodeGrant` is imported TYPE-ONLY (it is named solely in a `typeof` position for
 // {@link OidcCodeGrant}) so this contract module stays value-free and pulls no library code into a type import.
 import type { authorizationCodeGrant, Configuration } from "openid-client";
-import type { env } from "#foundation/env";
+import type { Env } from "#foundation/env/record";
 
 /** Parsed auth config, passed explicitly so unit tests can vary mode/fallback without re-parsing env. */
 export interface AuthConfig {
@@ -133,7 +133,7 @@ export interface ResolveDeps {
    *  LOOPBACK gate on the un-credentialed owner fallback (`ownerFallbackAllowed`, `dispatch.ts`). Absent
    *  means BOTH fail closed. */
   peerIp?: string;
-  config?: AuthConfig;
+  config: AuthConfig;
   /** Emits the `owner_fallback_relayed` security line for a refused relayed request. The composition root
    *  injects the per-peer throttled one (`createRelayedFallbackNotice`); absent, every refusal logs. */
   relayedFallbackNotice?: RelayedFallbackNotice;
@@ -190,7 +190,7 @@ export interface IdentityResolution {
 
 /** The configured OIDC client reads the same validated startup settings as production lifecycle. */
 export type OidcSettings = Pick<
-  typeof env,
+  Env,
   | "OIDC_ISSUER"
   | "OIDC_CLIENT_ID"
   | "OIDC_CLIENT_SECRET"

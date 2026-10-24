@@ -7,13 +7,12 @@ import { databaseHandle } from "@orb/db/wiring-driver";
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
 import { can } from "@orb/server/domain/admin";
 import { createResolveViewerVisibility, loadPresentRole } from "@orb/server/domain/chat";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, seedCorpusActors, seedMessage } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 
 test("real membership, roster and wire owners keep role data separate from global privilege and fresh chat authority", async () => {
-  await using root = await createServerHarness({ authConfig: { ...authConfigFromEnv(), mode: "forward-header", fallback: "deny" } });
+  await using root = await createServerHarness({ authConfig: { mode: "forward-header", fallback: "deny" } });
   const host = await root.principalFor(root.ownerId);
   const actor = await root.actor({ role: "admin" });
   const member = await root.principalFor(actor.id);

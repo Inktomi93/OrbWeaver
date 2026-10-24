@@ -1,5 +1,5 @@
-// The app-document CSP + sibling security headers. Wired first in entry/app.ts so headers apply to every
-// response, including early 403s.
+// The app-document CSP + sibling security headers. Wired in entry/app.ts ahead of every gate so the headers
+// apply to every response, including early 403s.
 //
 // `img-src`/`media-src` drop `data:` in prod (no data-URI images exist by build config); `blob:` stays for
 // client-minted object URLs. Dev re-adds `data:` only for the TanStack Devtools inline logo. Untrusted
@@ -157,6 +157,8 @@ export interface SecurityHeadersOptions {
    * Wired at `entry/app.ts` as `() => !settings.getEffectiveConfig().forbidExternalMedia`.
    */
   readonly allowExternalMedia: () => boolean;
+  /** The deployment's trusted hops (`trustedProxiesOf`), whose `X-Forwarded-Proto: https` makes an origin trustworthy. */
+  readonly trustedProxies: readonly string[];
 }
 
 /** One fully-formed policy per (dev × allowExternalMedia × trustworthy origin) arm — never a partially-mutated
@@ -221,8 +223,8 @@ function policy(opts: { readonly dev: boolean; readonly external: boolean; reado
 }
 
 // A potentially trustworthy origin as a browser judges it: https (asserted by a trusted proxy), or a loopback host.
-function trustworthyOrigin(c: Context): boolean {
-  return isLoopbackHost(new URL(c.req.url).hostname) || requestTransport(c) === "https";
+function trustworthyOrigin(c: Context, trustedProxies: readonly string[]): boolean {
+  return isLoopbackHost(new URL(c.req.url).hostname) || requestTransport(c, trustedProxies) === "https";
 }
 
 /**
@@ -260,7 +262,7 @@ export function securityHeaders(opts: SecurityHeadersOptions): MiddlewareHandler
     },
   };
   const appPolicy = (c: Context): MiddlewareHandler => {
-    const arm = trustworthyOrigin(c) ? arms.trusted : arms.untrusted;
+    const arm = trustworthyOrigin(c, opts.trustedProxies) ? arms.trusted : arms.untrusted;
     return opts.allowExternalMedia() ? arm.allowed : arm.blocked;
   };
   return async (c, next) => {

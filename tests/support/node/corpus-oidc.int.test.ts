@@ -1,7 +1,6 @@
 // @subject tests/support/node/corpus-oidc.ts
 // @subject tests/support/node/factories/sessions.ts
 import { oidcPendingSignups, oidcTransactions, users } from "@orb/db";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { seedOidcCorpus } from "./corpus-seed.ts";
 import { expect, test } from "./fixtures.ts";
 import { createNativeIssuer, ISSUER, NATIVE_OIDC_SETTINGS } from "./oidc-issuer.ts";
@@ -14,7 +13,7 @@ function oidcRoot(
 ): Promise<UnclaimedServerTestHarness> {
   return createServerHarness({
     ownerId: null,
-    authConfig: { ...authConfigFromEnv(), mode: "oidc", fallback: "deny" },
+    authConfig: { mode: "oidc", fallback: "deny" },
     oidc: { ...NATIVE_OIDC_SETTINGS, ...settings },
     networkExecution: {
       fetch: issuer.fetch,

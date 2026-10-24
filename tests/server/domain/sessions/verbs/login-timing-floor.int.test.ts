@@ -6,7 +6,6 @@ import { users } from "@orb/db";
 import type { ExternalId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsCryptoOps } from "@orb/server/domain/sessions";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { SESSIONS_CRYPTO } from "@orb/server/entry/compose";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -48,8 +47,8 @@ async function observedLocalRoot(): Promise<ObservedRoot> {
     observed = { verify: vi.spyOn(hasher, "verify"), dummyHash: hasher.dummyHash };
     return hasher;
   });
-  const root = await createServerHarness({ physicalPeer: () => LAN_PEER, authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" } }).finally(
-    () => factory.mockRestore(),
+  const root = await createServerHarness({ physicalPeer: () => LAN_PEER, authConfig: { mode: "local", fallback: "deny" } }).finally(() =>
+    factory.mockRestore(),
   );
   if (observed === undefined) {
     await root[Symbol.asyncDispose]();

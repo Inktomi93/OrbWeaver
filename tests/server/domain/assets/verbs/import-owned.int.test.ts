@@ -8,7 +8,6 @@ import type { ExternalId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { isAdmin, isOwner } from "@orb/server/domain/admin";
 import { createImportAvatarStore, createImportOwnedAsset } from "@orb/server/domain/assets";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { principal } from "@orb/testkit/node/helpers";
@@ -16,7 +15,7 @@ import { vi } from "vitest";
 
 test("foreign malformed bytes and absence share the same refusal before import; same-owner bytes retain actor and payload", async (): Promise<void> => {
   await using harness = await createServerHarness({
-    authConfig: { ...authConfigFromEnv(), mode: "forward-header", fallback: "deny", forwardTrustedProxies: ["127.0.0.1/32"] },
+    authConfig: { mode: "forward-header", fallback: "deny", forwardTrustedProxies: ["127.0.0.1/32"] },
     physicalPeer: () => "127.0.0.1",
   });
   const { services } = harness;

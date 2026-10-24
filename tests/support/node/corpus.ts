@@ -164,7 +164,6 @@ export async function createCorpusHarness(directory?: string, options: CorpusHar
   const { createDb, preCloseHousekeeping } = await import("@orb/db");
   const db = await createDb(corpus.layout.databaseUrl);
   ownership.defer(() => preCloseHousekeeping(db));
-  const { authConfigFromEnv } = await import("@orb/server/entry/auth");
   const { createServerHarness } = await import("./server.ts");
   const { timers: _timers, relayDir: _relayDir, secretsDir: _secretsDir, ...execution } = corpusServerOptions(options);
   const root = ownership.use(
@@ -175,7 +174,7 @@ export async function createCorpusHarness(directory?: string, options: CorpusHar
       ownerId: brandedId("UserId").parse(owner.userId),
       clock: createFrozenClock(source.replay.nowMs),
       ids: createSeededIds(source.replay.idCursor),
-      authConfig: options.authConfig ?? { ...authConfigFromEnv(), mode: "local", fallback: "deny", defaultHandle: owner.handle },
+      authConfig: options.authConfig ?? { mode: "local", fallback: "deny", defaultHandle: owner.handle },
       casDir: corpus.layout.assets,
       variantDir: corpus.layout.variants,
       importStagingDir: corpus.layout.importStaging,

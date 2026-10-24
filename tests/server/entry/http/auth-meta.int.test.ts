@@ -5,7 +5,6 @@ import { authConfigSchema } from "@orb/contracts/auth-config";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { claimShareOwner, createServerHarness, readRelayStarts, relayExecutable, relayProgram } from "@orb/testkit/node/composed";
@@ -23,7 +22,7 @@ async function authConfig(root: Root, headers: Record<string, string> = {}): Pro
 }
 
 function localRoot(options: Parameters<typeof createServerHarness>[0] = {}): Promise<ServerTestHarness> {
-  return createServerHarness({ ...options, authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" } });
+  return createServerHarness({ ...options, authConfig: { mode: "local", fallback: "deny" } });
 }
 
 describe("GET /api/auth/config", () => {
@@ -32,7 +31,7 @@ describe("GET /api/auth/config", () => {
     const defaultHandle = castId<Handle>("bootstrap-owner");
     await using root = await createServerHarness({
       physicalPeer: () => "127.0.0.1",
-      authConfig: { ...authConfigFromEnv(), mode: "single-user", fallback: "deny", defaultHandle },
+      authConfig: { mode: "single-user", fallback: "deny", defaultHandle },
     });
     await root.services.settings.updateAppSettings({
       principal: await root.principalFor(root.ownerId),

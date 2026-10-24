@@ -291,8 +291,8 @@ function serializeClearedOidcBindingCookies(): readonly string[] {
  * Plain `!==` is enough: both sides come from the caller's own request, so timing reveals nothing it lacks.
  * A matched binding is spent with its transaction, so it is cleared even when the transaction has expired.
  */
-async function consumeBoundTransaction(c: Context, store: OidcMintStore, state: string): Promise<OidcTransaction | null> {
-  const transport = requestTransport(c);
+async function consumeBoundTransaction(c: Context, store: OidcMintStore, state: string, trustedProxies: readonly string[]): Promise<OidcTransaction | null> {
+  const transport = requestTransport(c, trustedProxies);
   const binding = readRequestCookie(c.req.raw.headers, oidcBindingCookieFor(transport).name);
   if (binding === null || binding.length === 0 || binding !== state) {
     securityEvent(
@@ -562,6 +562,8 @@ export interface AuthRoutesDeps {
   readonly publicHttpMintNotice?: PublicHttpMintNotice;
   /** D259 — present in local mode; registers the signup-through-invite route. */
   readonly signup?: SignupRouteDeps;
+  /** The deployment's trusted hops (`trustedProxiesOf`): every client-address and transport read here believes only these. */
+  readonly trustedProxies: readonly string[];
 }
 
 /** D259 — the local signup route's collaborators. Every op is injected: the route orders them and owns the
@@ -596,14 +598,14 @@ function throttledResponse(c: Context, err: DomainRateLimitError): Response {
 /** Consume one login-throttle point for the caller address; returns a 429 Response when over budget, else null
  *  (proceed). Keyed on the peer-first `clientIp` the ingress gate + tRPC seam share (no drift), grouped by
  *  `addressThrottleKey` so an IPv6 host cannot reset its bucket by rotating inside its /64 (D259). */
-async function throttleLogin(limiter: RateLimiter, c: Context): Promise<Response | null> {
-  const ip = clientIp(c);
+async function throttleLogin(limiter: RateLimiter, c: Context, trustedProxies: readonly string[]): Promise<Response | null> {
+  const ip = clientIp(c, trustedProxies);
   try {
     await limiter.consume(ip === null ? UNKNOWN_IP_KEY : addressThrottleKey(ip));
     return null;
   } catch (err) {
     if (err instanceof DomainRateLimitError) {
-      securityEvent("login_throttled", { clientIp: clientIp(c) }, "security: login attempts over the per-IP throttle — 429");
+      securityEvent("login_throttled", { clientIp: clientIp(c, trustedProxies) }, "security: login attempts over the per-IP throttle — 429");
       return throttledResponse(c, err);
     }
     throw err;
@@ -620,7 +622,7 @@ function handleThrottleKey(rawHandle: string): string {
 /** B1 — consume one point on the HANDLE axis; 429 when that account is over budget, else null. Runs BESIDE
  *  the per-IP consume (both must pass) and, like it, BEFORE `authenticate` — a throttle that let the KDF run
  *  first would have already tested the attacker's guess. */
-async function throttleLoginHandle(limiter: RateLimiter, c: Context, throttleKey: string): Promise<Response | null> {
+async function throttleLoginHandle(limiter: RateLimiter, c: Context, throttleKey: string, trustedProxies: readonly string[]): Promise<Response | null> {
   try {
     await limiter.consume(throttleKey);
     return null;
@@ -628,7 +630,7 @@ async function throttleLoginHandle(limiter: RateLimiter, c: Context, throttleKey
     if (err instanceof DomainRateLimitError) {
       securityEvent(
         "login_handle_throttled",
-        { handle: throttleKey, clientIp: clientIp(c) },
+        { handle: throttleKey, clientIp: clientIp(c, trustedProxies) },
         "security: login attempts against ONE handle over the per-handle throttle (a distributed brute force, or a targeted flood of the account) — 429",
       );
       return throttledResponse(c, err);
@@ -682,6 +684,7 @@ const csrfGuard: MiddlewareHandler = (c, next) =>
 /** Register `POST /api/auth/login` (local mode only): CSRF belt → body cap → per-IP throttle → per-HANDLE
  *  throttle → verify → mint cookie. The two throttle axes are independent and BOTH must pass (B1). */
 function registerLoginRoute(app: Hono, deps: AuthRoutesDeps, authenticate: LocalAuthenticator): void {
+  const { trustedProxies } = deps;
   // Body-limit belt runs first so a huge POST is rejected before the body buffers; the throttles then cap
   // brute-force + scrypt-CPU-flood.
   const loginLimiter = loginThrottler(deps);
@@ -691,7 +694,7 @@ function registerLoginRoute(app: Hono, deps: AuthRoutesDeps, authenticate: Local
     // before the body is buffered), so a cross-site form-POST is refused before the throttle / scrypt work here.
     // The IP axis stays FIRST — it is the cheaper decision (no body parse) and it is the one that caps the
     // scrypt-CPU flood from a single source.
-    const throttled = await throttleLogin(loginLimiter, c);
+    const throttled = await throttleLogin(loginLimiter, c, trustedProxies);
     if (throttled !== null) {
       return throttled;
     }
@@ -703,7 +706,7 @@ function registerLoginRoute(app: Hono, deps: AuthRoutesDeps, authenticate: Local
     }
     // B1 — the handle axis, AFTER the presence check (a credential-less probe mints no bucket) and BEFORE
     // `authenticate` (a throttle that ran after the KDF would have already tested the guess).
-    const handleThrottled = await throttleLoginHandle(handleLimiter, c, handleThrottleKey(handle));
+    const handleThrottled = await throttleLoginHandle(handleLimiter, c, handleThrottleKey(handle), trustedProxies);
     if (handleThrottled !== null) {
       return handleThrottled;
     }
@@ -727,6 +730,7 @@ function registerLoginRoute(app: Hono, deps: AuthRoutesDeps, authenticate: Local
  *  with the peer gate — the owner's own browser is a loopback peer, so only the header stops a cross-origin
  *  page the owner visits from driving the owner-password set (see {@link csrfGuard}). */
 function registerFirstRunRoute(app: Hono, deps: AuthRoutesDeps, firstRun: FirstRunRouteDeps): void {
+  const { trustedProxies } = deps;
   const limiter = loginThrottler(deps);
   app.post(FIRST_RUN_ROUTE, csrfGuard, bodyLimit({ maxSize: LOGIN_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
     // Peer gate FIRST: an unauthenticated password-set must never be reachable off-box (owner-fallback
@@ -740,7 +744,7 @@ function registerFirstRunRoute(app: Hono, deps: AuthRoutesDeps, firstRun: FirstR
       );
       return c.json({ error: "first-run setup is only available on this machine, not through a proxy or tunnel" }, FORBIDDEN);
     }
-    const throttled = await throttleLogin(limiter, c);
+    const throttled = await throttleLogin(limiter, c, trustedProxies);
     if (throttled !== null) {
       return throttled;
     }
@@ -772,7 +776,7 @@ function signupRefusal(c: Context, code: SignupErrorCode, status: typeof BAD_REQ
 }
 
 /** D259 — one point on the per-invite axis, keyed on the invite id the pre-check resolved; 429 when over. */
-async function throttleSignupInvite(limiter: RateLimiter, c: Context, inviteId: string): Promise<Response | null> {
+async function throttleSignupInvite(limiter: RateLimiter, c: Context, inviteId: string, trustedProxies: readonly string[]): Promise<Response | null> {
   try {
     await limiter.consume(inviteId);
     return null;
@@ -780,7 +784,7 @@ async function throttleSignupInvite(limiter: RateLimiter, c: Context, inviteId: 
     if (err instanceof DomainRateLimitError) {
       securityEvent(
         "signup_invite_throttled",
-        { inviteId, clientIp: clientIp(c) },
+        { inviteId, clientIp: clientIp(c, trustedProxies) },
         "security: signup attempts against ONE invite over the per-invite throttle — 429",
       );
       return throttledResponse(c, err);
@@ -790,8 +794,8 @@ async function throttleSignupInvite(limiter: RateLimiter, c: Context, inviteId: 
 }
 
 /** D259 — does the request already carry a live session under its transport's cookie name? */
-async function carriesLiveSession(c: Context, signup: SignupRouteDeps): Promise<boolean> {
-  const token = readSessionCookie(c.req.raw.headers, requestTransport(c));
+async function carriesLiveSession(c: Context, signup: SignupRouteDeps, trustedProxies: readonly string[]): Promise<boolean> {
+  const token = readSessionCookie(c.req.raw.headers, requestTransport(c, trustedProxies));
   return token !== null && (await signup.sessionIsLive(token));
 }
 
@@ -818,6 +822,7 @@ async function readSignupRequest(c: Context): Promise<unknown> {
  * came back, so a refused or partial signup never leaves a session.
  */
 function registerSignupRoute(app: Hono, deps: AuthRoutesDeps, signup: SignupRouteDeps): void {
+  const { trustedProxies } = deps;
   const addressLimiter = loginThrottler(deps);
   const inviteLimiter = createRateLimiter(deps.db, {
     scope: SIGNUP_INVITE_RATE_SCOPE,
@@ -826,12 +831,12 @@ function registerSignupRoute(app: Hono, deps: AuthRoutesDeps, signup: SignupRout
     now: deps.now,
   });
   app.post(SIGNUP_ROUTE, csrfGuard, bodyLimit({ maxSize: SIGNUP_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
-    const request = await admitSignupRequest(c, signup, addressLimiter);
+    const request = await admitSignupRequest(c, signup, addressLimiter, trustedProxies);
     if (request instanceof Response) {
       return request;
     }
     const handle = castId<Handle>(request.handle);
-    const refusal = await admitSignupAttempt(c, signup, inviteLimiter, { token: request.token, handle });
+    const refusal = await admitSignupAttempt(c, signup, { limiter: inviteLimiter, trustedProxies }, { token: request.token, handle });
     if (refusal !== null) {
       return refusal;
     }
@@ -850,7 +855,7 @@ function registerSignupRoute(app: Hono, deps: AuthRoutesDeps, signup: SignupRout
     await signup.invites.announceJoined(outcome.chatId);
     return c.json(signupResultSchema.parse({ ok: true, chatId: outcome.chatId }));
   });
-  registerSignupPreviewRoute(app, signup, addressLimiter, deps.discreetLogin);
+  registerSignupPreviewRoute(app, signup, addressLimiter, deps);
 }
 
 /**
@@ -859,9 +864,15 @@ function registerSignupRoute(app: Hono, deps: AuthRoutesDeps, signup: SignupRout
  * order, and answers no more than that pre-check: a dead token gets the same 404, a live one the strict invite
  * preview. It spends no per-invite bucket, like the pre-check, and writes nothing.
  */
-function registerSignupPreviewRoute(app: Hono, signup: SignupRouteDeps, addressLimiter: RateLimiter, discreetLogin: () => boolean): void {
+function registerSignupPreviewRoute(
+  app: Hono,
+  signup: SignupRouteDeps,
+  addressLimiter: RateLimiter,
+  deps: Pick<AuthRoutesDeps, "discreetLogin" | "trustedProxies">,
+): void {
+  const { discreetLogin, trustedProxies } = deps;
   app.post(SIGNUP_PREVIEW_ROUTE, csrfGuard, bodyLimit({ maxSize: SIGNUP_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
-    const refused = await admitSignedOutCaller(c, signup, addressLimiter);
+    const refused = await admitSignedOutCaller(c, signup, addressLimiter, trustedProxies);
     if (refused !== null) {
       return refused;
     }
@@ -890,15 +901,20 @@ function signedOutPreview(preview: SignedOutInvitePreview, discreet: boolean): S
 
 /** D259, D260 — the steps every signed-out signup door runs before its body: the multi-human 404, the per-address
  *  bucket and the live-session refusal. Returns the refusal to send, or null. */
-async function admitSignedOutCaller(c: Context, signup: SignupRouteDeps, addressLimiter: RateLimiter): Promise<Response | null> {
+async function admitSignedOutCaller(
+  c: Context,
+  signup: SignupRouteDeps,
+  addressLimiter: RateLimiter,
+  trustedProxies: readonly string[],
+): Promise<Response | null> {
   if (!signup.multiHumanCapable()) {
     return c.body(null, NOT_FOUND);
   }
-  const throttled = await throttleLogin(addressLimiter, c);
+  const throttled = await throttleLogin(addressLimiter, c, trustedProxies);
   if (throttled !== null) {
     return throttled;
   }
-  if (await carriesLiveSession(c, signup)) {
+  if (await carriesLiveSession(c, signup, trustedProxies)) {
     return signupRefusal(c, "already_signed_in", CONFLICT);
   }
   return null;
@@ -906,8 +922,13 @@ async function admitSignedOutCaller(c: Context, signup: SignupRouteDeps, address
 
 /** D259 — the signup steps before any invite work: the signed-out steps, then the strict schema and the password
  *  floor. Returns the parsed request, or the refusal to send. */
-async function admitSignupRequest(c: Context, signup: SignupRouteDeps, addressLimiter: RateLimiter): Promise<Response | SignupRequest> {
-  const refused = await admitSignedOutCaller(c, signup, addressLimiter);
+async function admitSignupRequest(
+  c: Context,
+  signup: SignupRouteDeps,
+  addressLimiter: RateLimiter,
+  trustedProxies: readonly string[],
+): Promise<Response | SignupRequest> {
+  const refused = await admitSignedOutCaller(c, signup, addressLimiter, trustedProxies);
   if (refused !== null) {
     return refused;
   }
@@ -922,18 +943,19 @@ async function admitSignupRequest(c: Context, signup: SignupRouteDeps, addressLi
 }
 
 /** D259 — the steps between the parse and scrypt: the invite pre-check (a 404 that spends no invite bucket),
- *  the per-invite bucket, and the reserved and taken handles. Returns the refusal to send, or null. */
+ *  the per-invite bucket (`invite`, with the hops that name the caller in its refusal line), and the reserved and
+ *  taken handles. Returns the refusal to send, or null. */
 async function admitSignupAttempt(
   c: Context,
   signup: SignupRouteDeps,
-  inviteLimiter: RateLimiter,
+  invite: { readonly limiter: RateLimiter; readonly trustedProxies: readonly string[] },
   attempt: { readonly token: string; readonly handle: Handle },
 ): Promise<Response | null> {
   const inviteId = await signup.invites.admits(attempt.token);
   if (inviteId === null) {
     return signupRefusal(c, "invite_unavailable", NOT_FOUND);
   }
-  const inviteThrottled = await throttleSignupInvite(inviteLimiter, c, inviteId);
+  const inviteThrottled = await throttleSignupInvite(invite.limiter, c, inviteId, invite.trustedProxies);
   if (inviteThrottled !== null) {
     return inviteThrottled;
   }
@@ -946,6 +968,7 @@ async function admitSignupAttempt(
 /** Register the auth mint routes on `app`. Logout is always present; local login / first-run / signup / OIDC
  *  are registered only when their injected op is supplied. */
 export function registerAuthRoutes(app: Hono, deps: AuthRoutesDeps): void {
+  const { trustedProxies } = deps;
   const authenticate = deps.authenticate;
   if (authenticate !== undefined) {
     registerLoginRoute(app, deps, authenticate);
@@ -965,7 +988,7 @@ export function registerAuthRoutes(app: Hono, deps: AuthRoutesDeps): void {
     }
     // The SAME reader the seam authenticates with (entry/auth/seam.ts) — a second copy here could revoke a
     // different token than the one that authenticated the request, leaving the live session un-killable.
-    const transport = requestTransport(c);
+    const transport = requestTransport(c, trustedProxies);
     const token = readSessionCookie(c.req.raw.headers, transport);
     // #141 — the ended session's OIDC end-session hint, held ONLY long enough to build the URL below. It is
     // scoped to this handler and reaches no log, no audit field, and no response field of its own.
@@ -1003,10 +1026,11 @@ export function registerAuthRoutes(app: Hono, deps: AuthRoutesDeps): void {
  *  client sent a password or an IdP code and now a session cookie in clear, so it logs a security line (the
  *  owner ruled warn, not refuse). */
 function writeMintedSession(c: Context, deps: AuthRoutesDeps, session: { readonly token: SessionToken; readonly expiresAt: number }): void {
-  const transport = requestTransport(c);
+  const { trustedProxies } = deps;
+  const transport = requestTransport(c, trustedProxies);
   writeSetCookies(c, serializeMintedSessionCookies(session.token, transport, (session.expiresAt - deps.now()) / MS_PER_SECOND));
-  if (transport === "http" && requestClientScope(c) === "public") {
-    (deps.publicHttpMintNotice ?? reportPublicHttpMint)(clientIp(c));
+  if (transport === "http" && requestClientScope(c, trustedProxies) === "public") {
+    (deps.publicHttpMintNotice ?? reportPublicHttpMint)(clientIp(c, trustedProxies));
   }
 }
 
@@ -1097,8 +1121,9 @@ function misconfiguredCallback(configured: URL, transport: RequestTransport): st
 
 /** The OIDC authorize-redirect + callback handlers (openid-client v6). */
 function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDeps): void {
+  const { trustedProxies } = deps;
   app.get(OIDC_LOGIN_ROUTE, async (c) => {
-    const transport = requestTransport(c);
+    const transport = requestTransport(c, trustedProxies);
     const redirectUri = deriveRedirectUri(c.req.raw.headers, transport, oidc.redirectAllowlist);
     if (redirectUri === null) {
       return answerOffAllowlistLogin(c, oidc, transport);
@@ -1116,7 +1141,7 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
       createdAt: deps.now(),
       inviteTokenHash: inviteTokenHashOf(c, oidc),
     });
-    holdOwnerClaim(c, oidc, state);
+    holdOwnerClaim(c, oidc, state, trustedProxies);
     writeSetCookies(c, [serializeOidcBindingCookie(state, transport)]);
     const url = buildAuthorizationUrl(config, {
       redirect_uri: redirectUri,
@@ -1154,7 +1179,7 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
     });
     if (provisioned.outcome === "denied") {
       // D259 — the JIT gate, and only the JIT gate, may turn into a pending join when a signup invite rode in.
-      const pending = provisioned.reason === "jit-closed" ? await offerPendingJoin(c, oidc, login) : null;
+      const pending = provisioned.reason === "jit-closed" ? await offerPendingJoin(c, oidc, login, trustedProxies) : null;
       // MS-W1 — a collision deny gets its own operator-actionable code; every other refusal is generic.
       return pending ?? loginErrorRedirect(c, oidcDenyErrorCode(provisioned.reason));
     }
@@ -1178,7 +1203,7 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
   // literals or `sanitizeOidcErrorCode` output), so this widens no leak surface over the prior 401/403 JSON.
   app.get(OIDC_CALLBACK_ROUTE, async (c) => {
     const incoming = new URL(c.req.url);
-    const tx = await consumeBoundTransaction(c, oidc.store, incoming.searchParams.get("state") ?? "");
+    const tx = await consumeBoundTransaction(c, oidc.store, incoming.searchParams.get("state") ?? "", trustedProxies);
     if (tx === null) {
       return loginErrorRedirect(c, AUTH_ERROR_INVALID_STATE);
     }
@@ -1237,7 +1262,7 @@ function inviteTokenHashOf(c: Context, oidc: OidcRoutesDeps): string | null {
 
 /** Tie this login's `state` to the boot owner claim code when `?ownerClaim=` carries the live one. The presented
  *  value is never logged, matched or not. */
-function holdOwnerClaim(c: Context, oidc: OidcRoutesDeps, state: string): void {
+function holdOwnerClaim(c: Context, oidc: OidcRoutesDeps, state: string, trustedProxies: readonly string[]): void {
   const presented = new URL(c.req.url).searchParams.get(OWNER_CLAIM_PARAM);
   if (presented === null) {
     return;
@@ -1248,7 +1273,7 @@ function holdOwnerClaim(c: Context, oidc: OidcRoutesDeps, state: string): void {
   }
   securityEvent(
     "oidc_owner_claim_code_refused",
-    { clientIp: clientIp(c) },
+    { clientIp: clientIp(c, trustedProxies) },
     "security: an OIDC login presented an owner claim code that is not the live one; it proves nothing",
   );
 }
@@ -1288,6 +1313,7 @@ async function offerPendingJoin(
   c: Context,
   oidc: OidcRoutesDeps,
   login: { readonly identity: ResolvedIdentity & { readonly externalId: ExternalId }; readonly tx: OidcTransaction; readonly idToken: string | null },
+  trustedProxies: readonly string[],
 ): Promise<Response | null> {
   const { signup } = oidc;
   const inviteTokenHash = login.tx.inviteTokenHash;
@@ -1295,7 +1321,7 @@ async function offerPendingJoin(
     return null;
   }
   const secret = await signup.pending.recordPendingSignup({ identity: login.identity, inviteTokenHash, idToken: login.idToken });
-  writeSetCookies(c, [serializePendingJoinCookie(secret, requestTransport(c))]);
+  writeSetCookies(c, [serializePendingJoinCookie(secret, requestTransport(c, trustedProxies))]);
   getLog().info(
     { handle: login.identity.handle, externalId: login.identity.externalId },
     "auth: OIDC login held as a pending join (JIT closed, signup invite)",
@@ -1310,8 +1336,8 @@ function pendingJoinRefusal(c: Context, code: PendingJoinErrorCode, status: type
 }
 
 /** D259 — the raw pending secret under the request transport's name, or null. */
-function pendingJoinSecret(c: Context): string | null {
-  const secret = readRequestCookie(c.req.raw.headers, oidcPendingJoinCookieFor(requestTransport(c)).name);
+function pendingJoinSecret(c: Context, trustedProxies: readonly string[]): string | null {
+  const secret = readRequestCookie(c.req.raw.headers, oidcPendingJoinCookieFor(requestTransport(c, trustedProxies)).name);
   return secret !== null && secret.length > 0 ? secret : null;
 }
 
@@ -1322,12 +1348,13 @@ async function admitPendingConfirm(
   c: Context,
   signup: OidcSignupDeps,
   addressLimiter: RateLimiter,
+  trustedProxies: readonly string[],
 ): Promise<Response | { readonly secret: string; readonly persona: PendingJoinConfirmRequest["persona"] }> {
-  const throttled = await throttleLogin(addressLimiter, c);
+  const throttled = await throttleLogin(addressLimiter, c, trustedProxies);
   if (throttled !== null) {
     return throttled;
   }
-  const token = readSessionCookie(c.req.raw.headers, requestTransport(c));
+  const token = readSessionCookie(c.req.raw.headers, requestTransport(c, trustedProxies));
   if (token !== null && (await signup.sessionIsLive(token))) {
     return c.json({ error: "already_signed_in" satisfies PendingJoinErrorCode }, CONFLICT);
   }
@@ -1342,7 +1369,7 @@ async function admitPendingConfirm(
   if (!body.success) {
     return c.json({ error: "invalid_request" satisfies PendingJoinErrorCode }, BAD_REQUEST);
   }
-  const secret = pendingJoinSecret(c);
+  const secret = pendingJoinSecret(c, trustedProxies);
   return secret === null ? pendingJoinRefusal(c, "join_unavailable", NOT_FOUND) : { secret, persona: body.data.persona };
 }
 
@@ -1354,14 +1381,15 @@ async function admitPendingConfirm(
  * after that batch, and only for an enabled account: under OIDC_REQUIRE_APPROVAL the account waits disabled.
  */
 function registerOidcPendingJoin(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDeps, signup: OidcSignupDeps): void {
+  const { trustedProxies } = deps;
   const addressLimiter = loginThrottler(deps);
   const bodyCap = bodyLimit({ maxSize: SIGNUP_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) });
   app.post(OIDC_PENDING_PREVIEW_ROUTE, csrfGuard, bodyCap, async (c) => {
-    const throttled = await throttleLogin(addressLimiter, c);
+    const throttled = await throttleLogin(addressLimiter, c, trustedProxies);
     if (throttled !== null) {
       return throttled;
     }
-    const secret = pendingJoinSecret(c);
+    const secret = pendingJoinSecret(c, trustedProxies);
     const pending = secret === null ? null : await signup.pending.readPendingSignup(secret);
     const preview = pending === null ? null : await signup.invites.previewHash(pending.inviteTokenHash);
     if (preview === null) {
@@ -1370,7 +1398,7 @@ function registerOidcPendingJoin(app: Hono, deps: AuthRoutesDeps, oidc: OidcRout
     return c.json(signedOutPreview(preview, deps.discreetLogin()));
   });
   app.post(OIDC_PENDING_CONFIRM_ROUTE, csrfGuard, bodyCap, async (c) => {
-    const admitted = await admitPendingConfirm(c, signup, addressLimiter);
+    const admitted = await admitPendingConfirm(c, signup, addressLimiter, trustedProxies);
     if (admitted instanceof Response) {
       return admitted;
     }

@@ -19,7 +19,6 @@ import type {
 import { ProviderError } from "@orb/inference";
 import type { ChatId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { createSeededIds, DEFAULT_EMBED_MODEL } from "@orb/testkit/iso";
 import { test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -322,7 +321,7 @@ async function chatRequestFor(root: ServerTestHarness, wire: Wire, options: Chat
 export function conformanceRoot(options: Parameters<typeof createRuntimeRoot>[0] = {}): Promise<ServerTestHarness> {
   return createRuntimeRoot({
     ids,
-    authConfig: { ...authConfigFromEnv(), mode: "single-user", fallback: "owner" },
+    authConfig: { mode: "single-user", fallback: "owner" },
     physicalPeer: () => "127.0.0.1",
     wireCapture: true,
     ...options,

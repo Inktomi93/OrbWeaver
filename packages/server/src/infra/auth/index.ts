@@ -17,7 +17,6 @@
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { authConfigFromEnv } from "./config.ts";
 import type { IdentityResolution, ResolveDeps } from "./contract.ts";
 import { hasCsrfHeader } from "./csrf.ts";
 import { MODE_RESOLVERS, ownerFallbackAllowed } from "./dispatch.ts";
@@ -38,11 +37,10 @@ import { reportRelayedFallback } from "./relay-notice.ts";
  *     since that fallback is single-user's only credential — and a LAN peer or any relayed request gets no
  *     fallback, including one a same-host tunnel delivers over loopback.
  *
- * `config` is injectable via `deps.config` (tests vary mode/fallback without re-parsing the frozen env);
- * production omits it → `authConfigFromEnv()`.
+ * `config` is the root's one `AuthConfig` (`authConfigFromEnv` over its parsed env record).
  */
 export async function resolve(headers: Headers, deps: ResolveDeps): Promise<IdentityResolution> {
-  const config = deps.config ?? authConfigFromEnv();
+  const { config } = deps;
   const identity = await MODE_RESOLVERS[config.mode](headers, config, deps);
   const csrf = hasCsrfHeader(headers);
 

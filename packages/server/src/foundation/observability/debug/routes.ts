@@ -31,7 +31,7 @@ import { castId } from "@orb/kit/ids";
 import type { Context, Hono, MiddlewareHandler, Next } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { z } from "zod";
-import { diagnosticsPostureInput, diagnosticsPostureWarnings, env, resolveDiagnosticsPosture } from "#foundation/env";
+import { diagnosticsPostureInput, diagnosticsPostureWarnings, resolveDiagnosticsPosture } from "#foundation/env/record";
 import { versionIdentity } from "#foundation/version";
 import { getAuditFailureSnapshot } from "../audit.ts";
 import type { DebugAuthOptions, DebugRoutesOptions } from "../contract/debug.ts";
@@ -55,7 +55,7 @@ import {
 } from "./inspect/index.ts";
 import { ERROR_LEVEL, levelValue, parseLogRingLine, ringLineLevel } from "./log-ring-read.ts";
 import type { WireCaptureFilter } from "./wire-capture.ts";
-import { isWireCaptureEnabled, recentTurnOutcomes, recentWireCaptures } from "./wire-capture.ts";
+import { recentTurnOutcomes, recentWireCaptures } from "./wire-capture.ts";
 
 export type {
   AdminAuthChecker,
@@ -264,18 +264,8 @@ function createDebugAuthMiddleware(config: DebugAuthOptions): MiddlewareHandler 
 }
 
 /** Register the /api/_debug/* introspection routes on `app` behind the auth gate. */
-export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = { appSettingRows: null }): void {
-  const {
-    db: handle,
-    appSettingRows,
-    assets,
-    rpgTrace,
-    memoryRecall,
-    sockets,
-    effectiveConfig,
-    wireCaptureEnabled = isWireCaptureEnabled,
-    auth = env.DEBUG_TOKEN,
-  } = options;
+export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions): void {
+  const { db: handle, appSettingRows, assets, rpgTrace, memoryRecall, sockets, effectiveConfig, wireCaptureEnabled, auth = options.env.DEBUG_TOKEN } = options;
   const db = handle === undefined ? undefined : databaseForOwner(handle);
   const authConfig = debugAuthConfigOf(auth);
   app.use("/api/_debug/*", createDebugAuthMiddleware(authConfig));
@@ -288,7 +278,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = { a
     // present — the resolver reduces the token to a boolean, and it is the gate's own token, not a re-read of env.
     // The recorders are the compose decisions the wire reads publish; an absent trace inspector means no route and no recorder.
     const diagnostics = resolveDiagnosticsPosture({
-      ...diagnosticsPostureInput(),
+      ...diagnosticsPostureInput(options.env),
       debugToken: authConfig.expectedToken,
       wireCapture: wireCaptureEnabled() ? "on" : "off",
       rpgTrace: rpgTrace === undefined ? "off" : "on",
@@ -297,12 +287,12 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = { a
       // The WHOLE identity block, not a bare version string: an operator reading this probe is nearly always
       // asking "is this box running what I think it is", and the commit is the half that answers it.
       version: versionIdentity(),
-      nodeEnv: env.NODE_ENV,
+      nodeEnv: options.env.NODE_ENV,
       pid: process.pid,
       uptimeSec: Math.round(process.uptime()),
       memory: process.memoryUsage(),
       providers: {
-        openrouter: { configured: env.OPENROUTER_API_KEY !== undefined },
+        openrouter: { configured: options.env.OPENROUTER_API_KEY !== undefined },
       },
       diagnostics: { ...diagnostics, warnings: diagnosticsPostureWarnings(diagnostics) },
     });
@@ -350,7 +340,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = { a
           ...(memoryRecall === undefined ? {} : { memoryRecall }),
         }),
       };
-      const written = await writeBugReport({ repoRoot, record, secrets: secretLiterals(env) });
+      const written = await writeBugReport({ repoRoot, record, secrets: secretLiterals(options.env) });
       if (written === null) {
         // The scrub is fail-closed (`redactKnownSecrets` returns "" when a literal survived). A blank file nobody
         // notices is the worse outcome; refuse loudly and let the owner re-report.
@@ -389,7 +379,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = { a
   // `enabled` (#412) is what makes that empty read LEGIBLE: without it a reader cannot tell "the recorder is
   // off" (apparatus absent — a run that is not a verdict) from "the recorder is on and nothing was sent"
   // (an honest zero), and `wire-tap captures` could only print a caveat and exit clean either way. It is the
-  // REQUEST-SINK decision (compose: env OR the force flag), not a re-derivation — see `wireCaptureEnabled`.
+  // REQUEST-SINK decision (compose, from the record), not a re-derivation — see `wireCaptureEnabled`.
   app.get("/api/_debug/wire/captures", (c) => {
     // THE FILTER IS BUILT AS AN ANNOTATED LITERAL, NOT A CONDITIONAL SPREAD, AND THAT IS THE ENFORCER.
     // `?backend=` is the QUERY vocabulary (the axis a reader and `wire-tap --backend` both say); the ring's

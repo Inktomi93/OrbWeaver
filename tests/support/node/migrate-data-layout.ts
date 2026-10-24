@@ -11,7 +11,10 @@ const [root, outcomePath] = process.argv.slice(2);
 if (root === undefined || outcomePath === undefined) {
   throw new Error("usage: migrate-data-layout.ts <data root> <outcome file>");
 }
-const outcome = await migrateDataLayout({ layout: resolveDataLayout({ ["DATA_DIR"]: root }) }).then(
+const outcome = await migrateDataLayout({
+  layout: resolveDataLayout({ ["DATA_DIR"]: root }),
+  env: { ["SESSION_SECRET"]: undefined, ["NODE_ENV"]: "test" },
+}).then(
   (report) => ({ report }),
   (err: unknown) => ({ error: err instanceof Error ? err.message : String(err) }),
 );

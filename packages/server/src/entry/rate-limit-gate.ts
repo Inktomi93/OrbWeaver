@@ -11,8 +11,8 @@
 //
 // The `general` SCOPE literal is kept (existing bucket rows + the inversion suite key on `general:`); its
 // cap is `rateLimits.authed` — the "authed per-user" bucket the design doc (Tier-4-Transport §"buckets")
-// names "general". Window is env-only (`RATE_LIMIT_WINDOW_MS`, no AppSettings override — a fixed-window
-// size, not a cap).
+// names "general". Window is env-only (`RATE_LIMIT_WINDOW_MS` in the root's record, no AppSettings override — a
+// fixed-window size, not a cap).
 //
 // NOTE — the `general` SCOPE literal (below) is the AUTHED per-user bucket; its cap is `rateLimits.authed`.
 // The former `rateLimits.general` FIELD was DELETED (owner-final, D107): it was never consumed (no
@@ -22,7 +22,6 @@
 
 import type { ResolvedRateLimits } from "@orb/contracts/settings";
 import type { DatabaseHandle } from "@orb/db/wiring";
-import { env } from "#foundation/env";
 import { createRateLimiter } from "../transport/rate-limit.ts";
 import type { RateLimitDecision, RateLimitGate } from "../transport/trpc/index.ts";
 
@@ -73,6 +72,8 @@ export interface RateLimitGateDeps {
   /** The RESOLVED rate-limit caps (env floor ⊕ admin override), read FRESH per request — a mid-session
    *  admin edit reloads the effective-config cache, so the next consume sees the new cap (LIVE). */
   readonly resolveRateLimits: () => ResolvedRateLimits;
+  /** The fixed window every admin-tunable bucket counts over (`RATE_LIMIT_WINDOW_MS`). */
+  readonly windowMs: number;
 }
 
 /** Build the production `RateLimitGate`: anonymous → tight per-IP bucket; authenticated → per-user bucket;
@@ -81,19 +82,19 @@ export function createRateLimitGate(deps: RateLimitGateDeps): RateLimitGate {
   const publicIp = createRateLimiter(deps.db, {
     scope: PUBLIC_IP_SCOPE,
     points: () => deps.resolveRateLimits().publicIp,
-    windowMs: env.RATE_LIMIT_WINDOW_MS,
+    windowMs: deps.windowMs,
     now: deps.now,
   });
   const authedGeneral = createRateLimiter(deps.db, {
     scope: AUTHED_GENERAL_SCOPE,
     points: () => deps.resolveRateLimits().authed,
-    windowMs: env.RATE_LIMIT_WINDOW_MS,
+    windowMs: deps.windowMs,
     now: deps.now,
   });
   const aiTurn = createRateLimiter(deps.db, {
     scope: AI_TURN_SCOPE,
     points: () => deps.resolveRateLimits().aiTurn,
-    windowMs: env.RATE_LIMIT_WINDOW_MS,
+    windowMs: deps.windowMs,
     now: deps.now,
   });
   const restart = createRateLimiter(deps.db, { scope: RESTART_SCOPE, points: RESTART_POINTS, windowMs: RESTART_WINDOW_MS, now: deps.now });

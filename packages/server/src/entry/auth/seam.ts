@@ -40,20 +40,20 @@ import { castId } from "@orb/kit/ids";
 import { isOwner } from "#domain/admin";
 import type { SessionsService, UserPrincipalFields } from "#domain/sessions";
 import type { AllowedHostsReader, AuthConfig, ForwardJwtVerifier, IdentityResolution, OidcTransactionStore, RelayedFallbackNotice } from "#infra/auth";
-import { authConfigFromEnv, hasCsrfHeader, readRequestCookie, resolve, selectSignedForwardJwt, sessionCookieFor } from "#infra/auth";
+import { hasCsrfHeader, readRequestCookie, resolve, selectSignedForwardJwt, sessionCookieFor } from "#infra/auth";
 import { captureUserRole } from "#primitives/role-data";
 import type { LiveBuses } from "#transport/trpc";
 import { mintPrincipal } from "./principal-mint.ts";
 
-/** The boot-time deps the seam binds once. `config` is the test/override seam — production parses
- *  `authConfigFromEnv()` once at construction. `verifyForwardJwt`/`oidcStore` are the ports the SSO paths
- *  need; absent ⇒ that layer is inert (fail-closed). */
+/** The boot-time deps the seam binds once. `config` is the root's one `AuthConfig` (`authConfigFromEnv` over its
+ *  parsed env record). `verifyForwardJwt`/`oidcStore` are the ports the SSO paths need; absent ⇒ that layer is
+ *  inert (fail-closed). */
 export interface AuthSeamDeps {
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
   readonly sessions: SessionsService;
   readonly verifyForwardJwt?: ForwardJwtVerifier;
   readonly oidcStore?: OidcTransactionStore;
-  readonly config?: AuthConfig;
+  readonly config: AuthConfig;
   /**
    * Does THIS deployment's un-credentialed loopback owner fallback count as the operator's credential at the
    * /api/_debug door (#1193)? The RULE is not decided here and has one home —
@@ -340,7 +340,7 @@ function debugGateCredentialed(config: AuthConfig, headers: Headers, ownerFallba
 
 /** Construct the auth seam. Parses the auth config ONCE (production) and returns the per-request resolver. */
 export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
-  const config = deps.config ?? authConfigFromEnv();
+  const { config } = deps;
   // FAIL-CLOSED default: an omitted dep is the STRICT debug gate, never a widened one (see the dep's doc).
   const ownerFallbackIsOperatorCredential = deps.ownerFallbackIsOperatorCredential ?? false;
   const isCookieMode = isCookieAuthMode(config.mode);

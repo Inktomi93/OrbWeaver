@@ -30,9 +30,10 @@ import {
   LEGACY_ENTRIES,
   LEGACY_SECRET_FILE_NAMES,
 } from "#foundation/data-layout";
-import { env } from "#foundation/env";
+import type { Env } from "#foundation/env/record";
 import { getLog } from "#foundation/observability";
-import { readSessionSecretKeyfile } from "#infra/crypto";
+import type { KeyfileReport } from "#infra/crypto";
+import { keyfileReport, readSessionSecretKeyfile } from "#infra/crypto";
 
 /** The in-progress marker at the data root: present only between the first rename and the last. */
 const LAYOUT_JOURNAL = ".layout-migration.json";
@@ -80,9 +81,9 @@ export interface MigrateDataLayoutDeps {
   readonly deviceOf?: DeviceOf;
   /** The rename itself; injectable so a test can plant a failure the pre-flight cannot foresee. */
   readonly rename?: Rename;
-  /** The explicit SESSION_SECRET in use, compared with a legacy session keyfile it keeps in place; defaults to
-   *  the env's. */
-  readonly sessionSecret?: string | undefined;
+  /** The root's env record: the explicit `SESSION_SECRET` compared with a legacy session keyfile it keeps in place,
+   *  and the build whose `keyfileReport` reports an unreadable one. */
+  readonly env: Pick<Env, "SESSION_SECRET" | "NODE_ENV">;
 }
 
 type DeviceOf = (path: string) => number;
@@ -370,7 +371,7 @@ function logReport(root: string, layout: DataLayout, report: DataLayoutMigration
 // local password, session and live invite was hashed with. When the explicit value differs (the container
 // mints a fresh one for a volume switched to a cookie mode), those stop matching with no refusal, so every
 // boot says so while the two differ. Only this step sees both: the entrypoint cannot read a keyfile's pepper.
-function warnStrandedSessionSecret(root: string, layout: DataLayout, sessionSecret: string | undefined): void {
+function warnStrandedSessionSecret(root: string, layout: DataLayout, sessionSecret: string | undefined, reportKeyfile: KeyfileReport): void {
   if (!layout.explicit.has("SESSION_SECRET") || sessionSecret === undefined) {
     return;
   }
@@ -378,7 +379,7 @@ function warnStrandedSessionSecret(root: string, layout: DataLayout, sessionSecr
   if (!holdsData(path)) {
     return;
   }
-  const legacy = readSessionSecretKeyfile(path);
+  const legacy = readSessionSecretKeyfile(path, reportKeyfile);
   if (legacy === null || legacy === sessionSecret) {
     return;
   }
@@ -404,7 +405,7 @@ export async function migrateDataLayout(deps: MigrateDataLayoutDeps): Promise<Da
     ensureContainerDirs(root, new Set());
     return NO_MIGRATION;
   }
-  warnStrandedSessionSecret(root, deps.layout, deps.sessionSecret ?? env.SESSION_SECRET);
+  warnStrandedSessionSecret(root, deps.layout, deps.env.SESSION_SECRET, keyfileReport(deps.env.NODE_ENV));
   const journalPath = join(root, LAYOUT_JOURNAL);
   if (existsSync(journalPath)) {
     const journal = readJournal(journalPath);

@@ -8,7 +8,6 @@ import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import { createDb, localPath, preCloseHousekeeping, runMigrations, users } from "@orb/db";
 
 import { brandedId, createIdSource, ID_PREFIX } from "@orb/kit/ids";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { createCas } from "@orb/server/infra/storage/cas";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
@@ -81,7 +80,7 @@ test("private intake retains the existing singleton owner and nonempty content i
       pluginSpawn: spawn,
       ownerId: original.id,
       ids,
-      authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny", defaultHandle: original.handle },
+      authConfig: { mode: "local", fallback: "deny", defaultHandle: original.handle },
       casDir: layout.assets,
       variantDir: layout.variants,
       importStagingDir: layout.importStaging,
@@ -195,7 +194,7 @@ test("private intake retains the existing singleton owner and nonempty content i
       startJobs: false,
       ownerId: original.id,
       ids,
-      authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny", defaultHandle: original.handle },
+      authConfig: { mode: "local", fallback: "deny", defaultHandle: original.handle },
       casDir: layout.assets,
       variantDir: layout.variants,
       importStagingDir: layout.importStaging,
@@ -222,7 +221,7 @@ test("private intake retains the existing singleton owner and nonempty content i
       startJobs: false,
       ownerId: original.id,
       ids,
-      authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny", defaultHandle: original.handle },
+      authConfig: { mode: "local", fallback: "deny", defaultHandle: original.handle },
       casDir: layout.assets,
       variantDir: layout.variants,
       importStagingDir: layout.importStaging,

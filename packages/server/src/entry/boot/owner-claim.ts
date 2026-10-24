@@ -5,7 +5,7 @@
 import { resolve } from "node:path";
 import type { UserId } from "@orb/kit/ids";
 import type { SessionsService } from "#domain/sessions";
-import { fileReadCommand } from "#foundation/env";
+import { fileReadCommand } from "#foundation/env/record";
 import { superviseDetached } from "#foundation/observability";
 import type { OwnerClaimCode } from "#infra/auth";
 import { removeSecretFile, writeSecretFile } from "#infra/crypto";

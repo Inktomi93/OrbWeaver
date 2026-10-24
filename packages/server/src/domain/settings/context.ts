@@ -6,10 +6,9 @@ import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { UserId } from "@orb/kit/ids";
 import type { SettingsAssemblyContext, SettingsContext, SettingsServiceDeps } from "./contract/service.ts";
-import { createEffectiveConfigCache } from "./effective-config/cache.ts";
 
 function createSettingsContext(deps: SettingsServiceDeps): SettingsContext {
-  const effectiveConfig = deps.effectiveConfig ?? createEffectiveConfigCache(deps.db);
+  const { effectiveConfig } = deps;
   // Per-user write serializer: both user-settings write paths are read-merge-write against the same row,
   // so concurrent same-user writes would silently drop one under last-write-wins. Queues via a promise
   // chain keyed by userId; different users run concurrently.

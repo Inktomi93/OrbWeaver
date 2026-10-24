@@ -3,13 +3,13 @@
 // can prove a setting flipped at the FE propagates truthfully into the real wire (FE → assemble → WIRE → DB).
 //
 // GATING IS LOAD-BEARING — this is dev/test-only + prod-safe, mirroring the RPG flight recorder (R-OBS):
-//   • THE REPLY TAP IS A SECOND, INDEPENDENT OPT-IN (`WIRE_CAPTURE_REPLY=on` / the `wireCaptureReply` compose
-//     force flag, audit D2/D3). It adds the provider's literal reply bytes to each REQUEST entry. It is not
+//   • THE REPLY TAP IS A SECOND, INDEPENDENT OPT-IN (`WIRE_CAPTURE_REPLY=on` in the root's env record, audit
+//     D2/D3). It adds the provider's literal reply bytes to each REQUEST entry. It is not
 //     folded into `WIRE_CAPTURE` because the request body is the operator's own prompt while the reply is the
 //     model's prose — the exact thing the OUTCOME arm refuses to keep (see METADATA ONLY below). Inert with
 //     capture off: no sink is wired, so no send boundary taps anything.
-//   • OFF by default and in prod. Enabled only via `WIRE_CAPTURE=on` OR the `wireCapture` compose force flag
-//     (the harness / an int test forces it, bypassing the env). When disabled, compose injects NO sink into
+//   • OFF by default and in prod. Enabled only via `WIRE_CAPTURE=on` in the root's env record (a test root sets
+//     it in its own record). When disabled, compose injects NO sink into
 //     the backends, so a send boundary never calls `recordWireCapture` — ZERO overhead + ZERO retained bytes.
 //   • Read HOST-ONLY at /api/_debug/wire/captures (the debug-token / admin-cookie gate), read-only, no table.
 //
@@ -52,7 +52,7 @@
 // the reply text: the ring is a debug surface, and the canon row already holds the prose.
 //
 // ONE GATE FOR BOTH ARMS: compose injects the request sink and the outcome recorder together, on the same
-// decision (env OR the `wireCapture` force flag); with capture off the engine holds no recorder at all.
+// decision (`WIRE_CAPTURE` in the record); with capture off the engine holds no recorder at all.
 //
 // ── SPILL TO DISK ───────────────────────────────────────────────────────────────────────────────────────
 // The ring is in-memory and 256 slots, so a restart or a busy hour erases exactly the evidence you went
@@ -60,14 +60,13 @@
 // `wireCapture` slot, best-effort: a spill failure never touches the request path. Off with the feature off,
 // like everything else here. The spill holds provider request bodies, so it never derives from the process
 // cwd: a stack started from a checkout must not write its data's prompts into that checkout. Each composed
-// graph owns one spill queue over its directory (absent, the env data layout's slot) and passes it on every record.
+// graph owns one spill queue over its directory (the record's data layout slot in production) and passes it on every record.
 
 import { appendFile, mkdir, rename, stat } from "node:fs/promises";
 import { join } from "node:path";
 import type { WireCapture } from "@orb/contracts/debug";
 import { createBoundedRing } from "@orb/kit/bounded-ring";
-import { resolveDataLayout } from "#foundation/data-layout";
-import { env } from "#foundation/env";
+import type { Env } from "#foundation/env/record";
 import type { WireCaptureFilter, WireOutcome } from "../contract/wire-capture.ts";
 
 export type { WireCaptureFilter, WireOutcome, WireToolCall, WireWarning } from "../contract/wire-capture.ts";
@@ -81,16 +80,16 @@ const WIRE_CAPTURE_RING_CAPACITY = 256;
 // whether anything is written at all — stays here.
 const ring = createBoundedRing<WireCapture>(WIRE_CAPTURE_RING_CAPACITY);
 
-/** True iff the env flag enables capture. Compose ORs this with its force flag to decide whether to wire the
- *  sink into the backends — so with capture off, the sink is absent and the boundaries never write. */
-export function isWireCaptureEnabled(): boolean {
-  return env.WIRE_CAPTURE === "on";
+/** True iff the record enables capture. Compose decides from it whether to wire the sink into the backends — so with
+ *  capture off, the sink is absent and the boundaries never write. */
+export function isWireCaptureEnabled(record: Pick<Env, "WIRE_CAPTURE">): boolean {
+  return record.WIRE_CAPTURE === "on";
 }
 
-/** True iff the env flag enables the REPLY tap. Compose ORs this with its own force flag and hands the
- *  verdict to the runtime, which is where the tap lives (the send boundary owns the cap and the scrub). */
-export function isWireReplyCaptureEnabled(): boolean {
-  return env.WIRE_CAPTURE_REPLY === "on";
+/** True iff the record enables the REPLY tap. Compose hands the verdict to the runtime, which is where the tap lives
+ *  (the send boundary owns the cap and the scrub). */
+export function isWireReplyCaptureEnabled(record: Pick<Env, "WIRE_CAPTURE_REPLY">): boolean {
+  return record.WIRE_CAPTURE_REPLY === "on";
 }
 
 /** Record ONE captured wire body. This is the SINK compose injects into the backends (only when capture is
@@ -175,8 +174,8 @@ export interface WireCaptureSpill {
   readonly settle: () => Promise<void>;
 }
 
-/** Create a graph's spill queue. Absent a directory it writes to the env data layout's `wireCapture` slot. */
-export function createWireCaptureSpill(spillDir: string = resolveDataLayout(env).wireCapture): WireCaptureSpill {
+/** Create a graph's spill queue over its directory, the record's `DATA_LAYOUT.wireCapture` slot in production. */
+export function createWireCaptureSpill(spillDir: string): WireCaptureSpill {
   // Serializes this graph's appends so concurrent turns cannot interleave a half-written line. Failures are
   // swallowed into the chain (never rethrown) — an unwritable spill directory must not fail a chat turn.
   let chain: Promise<void> = Promise.resolve();

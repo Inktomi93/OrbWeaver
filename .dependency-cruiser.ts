@@ -410,6 +410,17 @@ const CLIENT_BOUNDARIES = [
 
 const SERVER_AUTHORITY = [
   {
+    name: "process-env-composition-root-only",
+    comment:
+      "Importing foundation/env runs this process's env parse. Only the composition root reads it; every other site takes the parsed record (foundation/env/record) as a dependency.",
+    severity: "error",
+    from: {
+      path: SRV,
+      pathNot: [`${SRV}entry/(index|lifecycle)\\.ts$`, `${SRV}entry/compose/process-seams\\.ts$`, `${SRV}foundation/observability/logger\\.ts$`],
+    },
+    to: { path: `${SRV}foundation/env/index\\.ts$`, dependencyTypesNot: ["type-only"] },
+  },
+  {
     name: "infra-no-db",
     comment: "Adapters receive database operations by injection rather than acquiring query authority.",
     severity: "error",

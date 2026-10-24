@@ -2,7 +2,6 @@ import { CSRF_HEADER } from "@orb/contracts/identity";
 import { closeDb } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { sql } from "drizzle-orm";
 import { vi } from "vitest";
 import { freshHeldDb } from "./db.ts";
@@ -13,7 +12,7 @@ test("root teardown cancels its actual service graph before joining a held real 
   await using database = new AsyncDisposableStack();
   const held = await freshHeldDb();
   database.defer(() => closeDb(held.db));
-  await using harness = await createServerHarness({ db: held.db, authConfig: { ...authConfigFromEnv(), mode: "local" } });
+  await using harness = await createServerHarness({ db: held.db, authConfig: { mode: "local" } });
   const caller = await harness.internalCallerFor(harness.ownerId);
   const handle = castId<Handle>("held-native-login");
   const password = "a-real-password-through-the-real-session-verifier";

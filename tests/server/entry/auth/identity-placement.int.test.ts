@@ -6,7 +6,6 @@ import { users } from "@orb/db";
 import type { ExternalId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { isAdmin, isOwner } from "@orb/server/domain/admin";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, damageOwnerRow } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
@@ -14,7 +13,8 @@ import { vi } from "vitest";
 
 test("the real header seam hands sessions a pre-row identity and never trusts forged userId or role headers", async () => {
   await using root = await createServerHarness({
-    authConfig: { ...authConfigFromEnv(), mode: "forward-header", fallback: "deny", forwardTrustedProxies: ["127.0.0.1/32"] },
+    env: { ["FORWARD_AUTH_TRUSTED_PROXIES"]: "127.0.0.1/32" },
+    authConfig: { mode: "forward-header", fallback: "deny" },
     physicalPeer: () => "127.0.0.1",
   });
   const provision = vi.spyOn(root.app.sessions, "provisionIdentity");
@@ -52,7 +52,7 @@ test("the real header seam hands sessions a pre-row identity and never trusts fo
 test("fallback and frozen-host identities read the same live owner row instead of granting the verification placeholder a role", async () => {
   const placeholder = castId<Handle>("verification-placeholder-is-not-owner");
   await using root = await createServerHarness({
-    authConfig: { ...authConfigFromEnv(), mode: "single-user", fallback: "owner", defaultHandle: placeholder },
+    authConfig: { mode: "single-user", fallback: "owner", defaultHandle: placeholder },
     physicalPeer: () => "127.0.0.1",
   });
   const owner = await root.principalFor(root.ownerId);

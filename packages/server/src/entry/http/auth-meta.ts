@@ -54,6 +54,8 @@ export interface AuthMetaDeps {
   readonly allowInteractiveCards: () => boolean;
   /** The share relay's live state (`domain/share`'s controller). */
   readonly share: () => RelayStatus;
+  /** The deployment's trusted hops (`trustedProxiesOf`), the only peers whose forwarded headers decide the request facts below. */
+  readonly trustedProxies: readonly string[];
 }
 
 // The relay's state for everyone; its link only for a signed-in caller, who may hand it on through a room invite.
@@ -84,8 +86,8 @@ export function registerAuthMeta(app: Hono<PrincipalEnv>, deps: AuthMetaDeps): v
       uploads: resolveUploadCaps({ maxImageBytes: deps.maxImageBytes(), maxDatabankBytes: deps.maxDatabankBytes() }),
       // Facts about THIS request, not the box: the login screen warns when a credential would cross plain
       // http, in red when the client is on the public internet (`infra/auth/transport.ts`).
-      transport: requestTransport(c),
-      clientScope: requestClientScope(c),
+      transport: requestTransport(c, deps.trustedProxies),
+      clientScope: requestClientScope(c, deps.trustedProxies),
     };
     return c.json(authConfigSchema.parse(config));
   });

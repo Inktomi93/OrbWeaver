@@ -4,7 +4,6 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 
@@ -12,7 +11,7 @@ const DESCRIPTION = "member-card-sheet-description";
 const STEERING = "member-card-host-only-steering";
 
 test("the member-card level clamps a member's roster card read at the real door and never clamps the host", async () => {
-  await using root = await createServerHarness({ authConfig: { ...authConfigFromEnv(), mode: "forward-header", fallback: "deny" } });
+  await using root = await createServerHarness({ authConfig: { mode: "forward-header", fallback: "deny" } });
   const host = await root.principalFor(root.ownerId);
   const member = await root.principalFor((await root.actor()).id);
   const outsider = await root.internalCallerFor((await root.actor()).id);

@@ -1,13 +1,13 @@
 // Ingress IP-allowlist belt. Anti-spoof rule: XFF is honored ONLY when the connection peer
 // is loopback/private or explicitly trusted (`FORWARD_AUTH_TRUSTED_PROXIES`) — an untrusted client can
-// never spoof its IP via XFF. Reads env once at module init; sealed executor, never @orb/db or a domain.
+// never spoof its IP via XFF. The trusted set is the caller's, read from the env record; sealed executor, never @orb/db or a domain.
 
 import { IncomingMessage } from "node:http";
 import { Http2ServerRequest } from "node:http2";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import { parseIp } from "@orb/kit/ip";
 import type { Context, MiddlewareHandler } from "hono";
-import { env } from "#foundation/env";
+import type { Env } from "#foundation/env/record";
 import type { PhysicalPeerRead } from "./contract/ingress.ts";
 import { isInRanges, isPrivateOrLoopback } from "./ip-ranges.ts";
 
@@ -47,9 +47,11 @@ export function parseAllowlist(raw: string | undefined): readonly string[] {
     .filter((entry) => entry.length > 0);
 }
 
-/** `FORWARD_AUTH_TRUSTED_PROXIES`, parsed once at module init. Every forwarded-header read believes the same
- *  hops: `X-Forwarded-For` here and `X-Forwarded-Proto` in `infra/auth/transport.ts`. */
-export const TRUSTED_PROXIES = parseAllowlist(env.FORWARD_AUTH_TRUSTED_PROXIES);
+/** The deployment's `FORWARD_AUTH_TRUSTED_PROXIES`. The app computes it once and hands the same list to every
+ *  forwarded-header read: `X-Forwarded-For` here, `X-Forwarded-Host` and `X-Forwarded-Proto` in `infra/auth`. */
+export function trustedProxiesOf(record: Pick<Env, "FORWARD_AUTH_TRUSTED_PROXIES">): readonly string[] {
+  return parseAllowlist(record.FORWARD_AUTH_TRUSTED_PROXIES);
+}
 
 /** A hop whose forwarded headers are believed: loopback/private, or inside `trustedProxies`. The ONE predicate
  *  for both the client address and the cookie transport, so the two reads cannot disagree about a peer. */
@@ -90,11 +92,11 @@ function resolveClientIp(args: {
 }
 
 /** Caller IP for a live request — the per-IP rate-limit key + the allowlist gate's subject. */
-export function clientIp(c: Context): string | null {
+export function clientIp(c: Context, trustedProxies: readonly string[]): string | null {
   return resolveClientIp({
     peer: peerIp(c),
     forwarded: c.req.header(XFF_HEADER),
-    trustedProxies: TRUSTED_PROXIES,
+    trustedProxies,
   });
 }
 
@@ -145,9 +147,9 @@ function isIngressAllowed(ip: string | null, cidrs: readonly string[]): boolean 
 
 /** Mounted FIRST by `entry/app.ts` when `IP_ALLOWLIST` is set; non-allowed caller gets an empty 403
  *  before any auth work. */
-export function ipAllowlistMiddleware(cidrs: readonly string[]): MiddlewareHandler {
+export function ipAllowlistMiddleware(cidrs: readonly string[], trustedProxies: readonly string[]): MiddlewareHandler {
   return async (c, next) => {
-    if (!isIngressAllowed(clientIp(c), cidrs)) {
+    if (!isIngressAllowed(clientIp(c, trustedProxies), cidrs)) {
       return c.body(null, FORBIDDEN);
     }
     return await next();

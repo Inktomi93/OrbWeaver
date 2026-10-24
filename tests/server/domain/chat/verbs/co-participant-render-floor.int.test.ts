@@ -10,7 +10,6 @@ import type { Principal } from "@orb/contracts/identity";
 import { contentSpanRaw } from "@orb/kit/content";
 import type { AssetId, ChatId, Handle, MessageId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
-import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -54,7 +53,7 @@ async function openRoom(): Promise<Room & AsyncDisposable> {
   const root = await createServerHarness({
     startJobs: false,
     providerFetch: wire.execute,
-    authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" },
+    authConfig: { mode: "local", fallback: "deny" },
   });
   const { owner: host } = await seedCorpusActors(root);
   const character = await root.services.character.create({
