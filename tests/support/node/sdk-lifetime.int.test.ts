@@ -9,7 +9,6 @@ import { sql } from "drizzle-orm";
 import { vi } from "vitest";
 import { z } from "zod";
 import { expect, test } from "./fixtures.ts";
-import { processObservability } from "./observed.ts";
 import { createSdkProcessIdentity, createSdkProcessSpawner } from "./sdk-process.ts";
 import { createServerHarness, SECRET_BOX_TEST_KEY } from "./server.ts";
 
@@ -229,7 +228,7 @@ test("raw SDK startup failure retains scrubbed split-UTF8 stderr diagnostics and
     harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_DIAGNOSTIC_CRASH" }] }),
   ).rejects.toMatchObject({ kind: "server" });
   expect(child?.exitCode).toBe(7);
-  const diagnostics = processObservability.logLines(100).filter((line) => line.includes("sdk-diagnostic:"));
+  const diagnostics = harness.observability.logLines(100).filter((line) => line.includes("sdk-diagnostic:"));
   expect(diagnostics).toHaveLength(1);
   const text = diagnostics.join("\n");
   expect(text).toContain("café");
@@ -297,7 +296,7 @@ test("native raw exit diagnostics include stderr drained by a real descendant af
     { kind: "server" },
   );
   expect(child?.exitCode).toBe(7);
-  const lines = processObservability.logLines(100).filter((line) => line.includes("sdk-late-diagnostic:"));
+  const lines = harness.observability.logLines(100).filter((line) => line.includes("sdk-late-diagnostic:"));
   expect(lines).toHaveLength(1);
   expect(lines[0]).toContain("café complete");
 });
@@ -316,7 +315,7 @@ test("native stderr never publishes overlapping public fixture credential fragme
   await expect(
     harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_OVERLAP_DIAGNOSTIC" }] }),
   ).rejects.toMatchObject({ kind: "server" });
-  const lines = processObservability.logLines(100).filter((line) => line.includes("sdk-overlap-diagnostic:"));
+  const lines = harness.observability.logLines(100).filter((line) => line.includes("sdk-overlap-diagnostic:"));
   expect(lines).toHaveLength(1);
   expect(lines.some((line) => line.includes(PUBLIC_OVERLAP_TOKEN.slice(0, 8)))).toBe(false);
   expect(lines[0]).toContain("complete");
@@ -338,7 +337,7 @@ test.each(["intact", "split"] as const)("native stderr protects a known sk-shape
   await expect(
     harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: `SDK_SHAPED_DIAGNOSTIC:${mode}` }] }),
   ).rejects.toMatchObject({ kind: "server" });
-  const lines = processObservability.logLines(100).filter((line) => line.includes(`sdk-shaped-diagnostic:${mode}:`));
+  const lines = harness.observability.logLines(100).filter((line) => line.includes(`sdk-shaped-diagnostic:${mode}:`));
   expect(lines).toHaveLength(1);
   expect(lines.some((line) => line.includes(PUBLIC_SHAPED_TOKEN))).toBe(false);
   expect(lines.some((line) => line.includes(PUBLIC_SHAPED_TOKEN.slice(32)))).toBe(false);
@@ -580,7 +579,7 @@ test("default native decoder retains split UTF8 diagnostics with known credentia
   ).rejects.toMatchObject({ kind: "server" });
   expect(child?.exitCode).toBe(7);
   // The root's ring holds only this root's lines: the first live root empties it.
-  const lines = processObservability.logLines().filter((line) => line.includes("sdk-diagnostic:"));
+  const lines = harness.observability.logLines().filter((line) => line.includes("sdk-diagnostic:"));
   expect(lines).toHaveLength(1);
   expect(lines[0]).toContain("café");
   expect(lines[0]).toContain("complete");
@@ -630,7 +629,7 @@ test("default native stderr protects an oversized known opaque credential in app
   await expect(
     harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_SHAPED_DIAGNOSTIC:intact" }] }),
   ).rejects.toMatchObject({ kind: "server" });
-  const lines = processObservability
+  const lines = harness.observability
     .logLines()
     .filter((line) => line.includes("sdk-shaped-diagnostic:intact:") || line.includes("Claude Code process exited with code 7"));
   expect(lines).toHaveLength(1);
@@ -724,7 +723,7 @@ test.each(["chat", "agent", "verify"] as const)("default native startup diagnost
   expect(failure.cause.stack?.includes("N".repeat(32))).toBe(false);
   expect(failure.cause.cause).toBeUndefined();
   expect(closed).toBe(true);
-  const lines = processObservability.logLines(100).filter((line) => line.includes("sdk-native-startup-failure:"));
+  const lines = harness.observability.logLines(100).filter((line) => line.includes("sdk-native-startup-failure:"));
   expect(lines.some((line) => line.includes("N".repeat(32)))).toBe(false);
 });
 
@@ -751,7 +750,7 @@ test("default native catalog refusal uses safe owned exit diagnostics", async ()
   expect(result.reason.includes("N".repeat(32))).toBe(false);
   expect(result.reason).toContain("code 7");
   expect(closed).toBe(true);
-  const lines = processObservability.logLines(100).filter((line) => line.includes("sdk-native-startup-failure:"));
+  const lines = harness.observability.logLines(100).filter((line) => line.includes("sdk-native-startup-failure:"));
   expect(lines.some((line) => line.includes("N".repeat(32)))).toBe(false);
 });
 
@@ -810,7 +809,7 @@ test("default native stderr never publishes a confirmed known credential prefix 
   await expect(harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_PREFIX_EOF" }] })).rejects.toMatchObject({
     kind: "server",
   });
-  const lines = processObservability.logLines(100).filter((line) => line.includes("sdk-prefix-eof:"));
+  const lines = harness.observability.logLines(100).filter((line) => line.includes("sdk-prefix-eof:"));
   expect(lines).toHaveLength(1);
   expect(lines.some((line) => line.includes("N".repeat(32)))).toBe(false);
   expect(lines[0]).toContain("█");

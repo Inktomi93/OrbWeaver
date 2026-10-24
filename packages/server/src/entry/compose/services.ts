@@ -135,10 +135,9 @@ import { createAttachOwnedBooksByName, createImportStandaloneLorebook } from "#d
 import { APP_NAME, APP_URL } from "#foundation/config";
 import type { Env } from "#foundation/env/record";
 import { allowedHostsInput, installKind, publicAddresses } from "#foundation/env/record";
-import type { AuditEntry, Logger, WireCaptureSpill } from "#foundation/observability";
+import type { AuditEntry, AuditWiring, Logger, ObservabilityRings, WireCaptureSpill } from "#foundation/observability";
 import {
   addSpanEvent,
-  createAuditWiring,
   createBugReportDiagnosticsRead,
   createWireCaptureSpill,
   isWireCaptureEnabled,
@@ -148,7 +147,6 @@ import {
   securityEvent,
   span,
 } from "#foundation/observability";
-import { SERVER_INSTANCE_ID } from "#foundation/server-instance";
 import { versionIdentity } from "#foundation/version";
 import type { AuthConfig, ForwardJwtVerifier } from "#infra/auth";
 import { createForwardJwtVerifier, createJwksReader, createPasswordHasher } from "#infra/auth";
@@ -221,6 +219,13 @@ export interface ServicesDeps {
   /** This root's logger (`createProcessSeams` builds it from the record's `LOG_LEVEL`; a test root builds its own).
    *  Every line this graph writes outside a request goes through it, and the settings cache rebinds its level. */
   readonly logger: Logger;
+  /** This root's log and request rings (`createProcessSeams` builds them and feeds `logger` into the log ring; a test root
+   *  builds its own). The bug-report read serves them. */
+  readonly rings: ObservabilityRings;
+  /** This root's one audit wiring (`createAuditWiring` over its db, id source and logger, built beside the boot owner
+   *  so the boot sessions write through it too). Every audit writer this graph builds uses it, so its failure window
+   *  counts the whole root. */
+  readonly audit: AuditWiring;
   /** The parsed env record (`createProcessSeams` reads the process's; a test root parses its own). Every knob this
    *  graph reads comes from here, so a root that sets a key in its record turns the same production read. */
   readonly env: Env;
@@ -248,6 +253,8 @@ export interface ServicesDeps {
   readonly randomInt: RpgContext["randomInt"];
   readonly idSource: IdSource;
   readonly newOpaqueId: () => string;
+  /** This root's identity, minted once from its id source; the live transport publishes it so a client sees a restart. */
+  readonly serverInstanceId: string;
   readonly db: DatabaseHandle;
   readonly now: () => number;
   /** The boot-time owner id. `undefined` in OIDC mode when no owner row exists yet (the first
@@ -318,7 +325,6 @@ export const NO_SHARE_RELAY: ShareComposeDeps = {
  *  unsupervised before it reaches `restart`, which throws if anything ever does. */
 export const UNSUPERVISED_RESTART: ServerRestartPort = {
   supervised: false,
-  serverInstanceId: SERVER_INSTANCE_ID,
   restart: (): void => {
     throw new Error("compose: nothing supervises this process, so nothing may restart it");
   },
@@ -371,6 +377,8 @@ export interface ServicesResult extends AsyncDisposable {
    *  The workloads worker binds a pass's role clients from this; entry never touches the raw executor. */
   readonly roleClientsFor: (funderUserId: UserId, actor?: BindingActor) => Promise<RoleClientsWithSignal>;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  /** The root's suppressed audit failures, for its `/api/_debug/db/stats` read. */
+  readonly auditFailures: AuditWiring["failures"];
   readonly effectiveConfig: EffectiveConfigWiring;
   readonly secretBox: SecretBox;
   /** The default-card seeder — the one instance both boot and the app first-request hook share, so the
@@ -446,8 +454,12 @@ function pluginExecutionInputs(deps: ServicesDeps): Pick<AutomationPluginCompose
 }
 
 // The outcome arm rides the request sink's gate, so the two wire-capture reads can never disagree.
-function turnOutcomeRecorderOf(wireCaptureOn: boolean, spill: WireCaptureSpill): Pick<Parameters<typeof buildChatService>[0], "recordTurnOutcome"> {
-  return wireCaptureOn ? { recordTurnOutcome: (outcome): void => recordTurnOutcome(outcome, spill) } : {};
+function turnOutcomeRecorderOf(
+  wireCaptureOn: boolean,
+  rings: ServicesDeps["rings"],
+  spill: WireCaptureSpill,
+): Pick<Parameters<typeof buildChatService>[0], "recordTurnOutcome"> {
+  return wireCaptureOn ? { recordTurnOutcome: (outcome): void => recordTurnOutcome(rings.turnOutcomes, outcome, spill) } : {};
 }
 
 function inferenceSpanOf(deps: ServicesDeps): InferenceDeps["span"] {
@@ -480,7 +492,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const healthThrottle = resources.use(createCredentialHealthThrottle());
   const publishUserEvent = liveBuses.user.publishUserEvent;
   // biome-ignore lint/nursery/useDisposables: backgroundResources owns this settlement through the moved graph stack; the borrowed operation view must not close at return.
-  const background: Omit<BackgroundWork, keyof AsyncDisposable> = backgroundResources.use(createBackgroundWork(deps.logger));
+  const background: Omit<BackgroundWork, keyof AsyncDisposable> = backgroundResources.use(createBackgroundWork(deps.logger, deps.rings.traces));
   let chatLifetime: ChatComposeResult | undefined;
   let rpgLifetime: RpgComposeResult | undefined;
   let pluginLifetime: AutomationPluginComposeResult | undefined;
@@ -524,6 +536,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       buildConnector: deps.buildConnector,
       env: deps.env,
       log: deps.logger,
+      traces: deps.rings.traces,
     }),
   );
   egressLifetime = egress;
@@ -542,7 +555,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const presence = createPresenceRegistry(now);
   const sockets = createSocketRegistry(now, newOpaqueId);
 
-  const audit = createAuditWiring(db, idSource, deps.logger).log;
+  const audit = deps.audit.log;
   const newUserId = (): UserId => idSource.userId();
   const { applyStatsDelta, bumpStatsCanonVersion } = createStatsBatchWiring(idSource);
   // biome-ignore lint/nursery/useDisposables: resources adopts this owner through the moved graph stack; local using would close it before the graph starts.
@@ -565,6 +578,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   });
   const sessions = createSessionsService({
     logger: deps.logger,
+    audit,
     db,
     now,
     idSource,
@@ -714,7 +728,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // `MaybeRevokeParams`; an adapter here could only re-derive a fact it was handed (#1373's whole defect).
     onAuthFailed: credentials.maybeRevokeOnAuthFailed,
     // The sink stamps `at` from the injected clock (no-raw-clock) and forwards to the process ring.
-    ...(wireCaptureOn ? { captureWire: (entry): void => recordWireCapture({ ...entry, at: now() }, wireSpill) } : {}),
+    ...(wireCaptureOn ? { captureWire: (entry): void => recordWireCapture(deps.rings.wireCaptures, { ...entry, at: now() }, wireSpill) } : {}),
     // The reply tap lives at the SEND BOUNDARY (it owns the 64 KiB cap and the by-value scrub); compose only
     // carries the verdict. A second opt-in on purpose — see the recorder's header.
     captureWireReply: wireReplyCaptureOn,
@@ -860,6 +874,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // `enqueueEmbedReindex` (bound onto the keystone's late-bound holder below).
   const searchDiscovery = buildSearchDiscovery({
     logger: deps.logger,
+    traces: deps.rings.traces,
     fieldIndex,
     emitWorkloadEvent: workloadEvents.emitWorkloadEvent,
     emitUserEvent: liveBuses.user.publishUserEvent,
@@ -939,6 +954,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     hashPassword: passwordHasher.hash,
     seedUserConnections,
     audit,
+    auditStatementAfterWrite: deps.audit.statementAfterWrite,
     sessions,
     // W7a — an admin revoke ends the streams those sessions opened, not just the cookies. The registry is
     // built above in this same function (transport state, entry-owned clock), so the port wires here.
@@ -954,6 +970,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     exportRpgGame: createExportRpgGame({ db }),
     cardPngIdentity,
     serverRestart: deps.serverRestart,
+    serverInstanceId: deps.serverInstanceId,
   });
 
   // ── imagery (the imagery seam). `resolveViewerVisibility` is a late-bound forward-ref (chat composes below);
@@ -1044,12 +1061,14 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // is what keeps this out of the late-bind shape the S4 confirmed-act runner had to take.
   const pluginMacros = createPluginMacroRegistry(deps.logger, timers.timeout);
   const chatCompose = buildChatService({
+    auditStatements: deps.audit,
+    traces: deps.rings.traces,
     publishChatChanged: liveBuses.user.publishChatChanged,
     publishNotification: liveBuses.notifications.publishNotification,
     timers,
     backgroundSignal: background.signal,
     trackBackground: background.track,
-    ...turnOutcomeRecorderOf(wireCaptureOn, wireSpill),
+    ...turnOutcomeRecorderOf(wireCaptureOn, deps.rings, wireSpill),
     random: deps.random,
     idSource,
     logger: deps.logger,
@@ -1246,6 +1265,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const automationPlugin = await buildAutomationPlugin({
     env: deps.env,
     logger: deps.logger,
+    traces: deps.rings.traces,
     ...pluginExecutionInputs(deps),
     monotonicNow: deps.monotonicNow,
     timers,
@@ -1535,6 +1555,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // biome-ignore lint/nursery/useDisposables: jobsLifetime adopts this exact owner for graph cancellation and joins; local await using would stop it before startup.
   const jobs = buildServiceJobs({
     logger: deps.logger,
+    traces: deps.rings.traces,
     db,
     now,
     contributions: workloadContributions,
@@ -1549,11 +1570,12 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   });
   jobsLifetime = jobs;
 
-  const bugReportDiagnostics = createBugReportDiagnosticsRead(deps.env);
+  const bugReportDiagnostics = createBugReportDiagnosticsRead(deps.env, deps.rings.logs);
   const trpcContext: ContextForRequest = (request) =>
     createContext({
       ...request,
       logger: deps.logger,
+      traces: deps.rings.traces,
       liveBuses,
       services,
       rateLimit,
@@ -1561,6 +1583,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       sockets,
       multiHumanCapable: multiHumanCapable(),
       bugReportDiagnostics,
+      serverInstanceId: deps.serverInstanceId,
     });
 
   const lifetime = construction.move();
@@ -1595,6 +1618,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     runtime,
     roleClientsFor,
     audit,
+    auditFailures: deps.audit.failures,
     effectiveConfig,
     secretBox,
     characterSeeder,

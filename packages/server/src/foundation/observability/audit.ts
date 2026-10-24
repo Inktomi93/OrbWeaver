@@ -3,8 +3,8 @@
 // action survives a degraded audit channel. The two `build*Statement` seams are the opposite bargain, for the
 // privileged writes that must NOT survive it: they hand back an UNEXECUTED insert that rides the primary
 // write's own `db.batch`, so the write and its forensic row commit together or not at all.
-// ASSUMES(single-replica): the suppressed-failure window is module-scope, per-process. Surfaced on
-// /api/_debug/db/stats via getAuditFailureSnapshot().
+// ASSUMES(single-replica): the suppressed-failure window belongs to the root's one wiring and is surfaced on
+// that root's /api/_debug/db/stats.
 
 import type { Db } from "@orb/db";
 import { auditLogs } from "@orb/db";
@@ -21,15 +21,8 @@ import { getLog } from "./logger.ts";
 
 export type { AuditEntry, AuditFailureSnapshot } from "./contract/audit-wiring.ts";
 
-let auditFailureCount = 0;
-let firstFailureAt: number | null = null;
-let lastFailureAt: number | null = null;
 // Re-raise the suppressed failure as a structural warn every Nth occurrence.
 const ALERT_EVERY = 25;
-
-export function getAuditFailureSnapshot(): AuditFailureSnapshot {
-  return { count: auditFailureCount, firstFailureAt, lastFailureAt };
-}
 
 function auditRow(entry: AuditEntry, createdAt: number, idSource: IdSource): typeof auditLogs.$inferInsert {
   return {
@@ -82,38 +75,47 @@ function buildAuditStatementIfPrecedingWrote(db: Db, entry: AuditEntry, createdA
 /**
  * Best-effort audit write. The audit channel must never break the primary channel: log + count + drop.
  * `db` and `createdAt` are injected — no ambient `Date.now()` here. A failure outside a request logs through
- * the root's `sinks.log`.
+ * the root's `sinks.log` and counts into the root's `sinks.failures` window.
  */
-export async function logAudit(db: Db, entry: AuditEntry, createdAt: number, sinks: { readonly idSource: IdSource; readonly log: Logger }): Promise<void> {
+async function logAudit(
+  db: Db,
+  entry: AuditEntry,
+  createdAt: number,
+  sinks: { readonly idSource: IdSource; readonly log: Logger; readonly failures: AuditFailureSnapshot },
+): Promise<void> {
   try {
     await db.insert(auditLogs).values(auditRow(entry, createdAt, sinks.idSource));
   } catch (err) {
-    auditFailureCount += 1;
-    firstFailureAt ??= createdAt;
-    lastFailureAt = createdAt;
+    const failures = sinks.failures;
+    failures.count += 1;
+    failures.firstFailureAt ??= createdAt;
+    failures.lastFailureAt = createdAt;
     const log = getLog(sinks.log);
     log.error({ err, action: entry.action, entityType: entry.entityType, entityId: entry.entityId }, "audit: write failed (suppressed)");
-    if (auditFailureCount % ALERT_EVERY === 0) {
+    if (failures.count % ALERT_EVERY === 0) {
       log.warn(
         {
           security: true,
           event: "audit_sustained_failure",
-          count: auditFailureCount,
-          firstFailureAt,
-          lastFailureAt,
+          count: failures.count,
+          firstFailureAt: failures.firstFailureAt,
+          lastFailureAt: failures.lastFailureAt,
         },
-        `audit: ${auditFailureCount} writes have failed since boot — the audit channel is degraded`,
+        `audit: ${failures.count} writes have failed since boot — the audit channel is degraded`,
       );
     }
   }
 }
 
-/** Bind audit operations without handing composition an executable co-statement; a failed best-effort write
+/** A root's audit operations and its suppressed-failure window. The composition root builds one and hands the same
+ *  wiring to every writer, so `failures` counts every best-effort drop that root made. A failed best-effort write
  *  outside a request logs through the root's `log`. */
 export function createAuditWiring(handle: DatabaseHandle, idSource: IdSource, log: Logger): AuditWiring {
   const db = databaseForOwner(handle);
+  const failures: AuditFailureSnapshot = { count: 0, firstFailureAt: null, lastFailureAt: null };
   return {
-    log: (entry, at) => logAudit(db, entry, at, { idSource, log }),
+    log: (entry, at) => logAudit(db, entry, at, { idSource, log, failures }),
+    failures: () => ({ ...failures }),
     statement: (entry, at) => statementToken(buildAuditStatement(db, entry, at, idSource)),
     statementAfterWrite: (entry, at) => statementToken(buildAuditStatementIfPrecedingWrote(db, entry, at, idSource)),
   };

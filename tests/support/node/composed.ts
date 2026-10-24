@@ -71,7 +71,6 @@ export { seedRpgCheckpoint, seedRpgGame } from "./factories/rpg.ts";
 export { seedUserSettings } from "./factories/settings.ts";
 export { seedCreatedTag } from "./factories/tag.ts";
 export { createQueueScanner, seedWorkloadSchedule } from "./factories/workload.ts";
-export { processObservability } from "./observed.ts";
 export type { PhysicalPeer, PhysicalPeerFetch } from "./physical-peer.ts";
 export { servePhysicalPeer } from "./physical-peer.ts";
 export type { ServerHarnessOptions, ServerTestHarness, UnclaimedServerTestHarness } from "./server.ts";

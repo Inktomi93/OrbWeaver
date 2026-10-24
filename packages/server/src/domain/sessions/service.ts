@@ -7,7 +7,7 @@
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { IdSource, UserId } from "@orb/kit/ids";
-import type { Logger } from "#foundation/observability";
+import type { AuditWiring, Logger } from "#foundation/observability";
 import { createSessionsContext } from "./context.ts";
 import type { SessionsRolePolicy } from "./contract/role-policy.ts";
 import type { SessionsCryptoOps, SessionsService } from "./contract/service.ts";
@@ -32,6 +32,7 @@ import { createValidate } from "./verbs/validate.ts";
 interface SessionsServiceDeps {
   readonly rolePolicy: SessionsRolePolicy;
   readonly logger: Logger;
+  readonly audit: AuditWiring["log"];
   db: DatabaseHandle;
   now: () => number;
   readonly idSource: IdSource;

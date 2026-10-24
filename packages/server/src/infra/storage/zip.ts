@@ -10,7 +10,7 @@ import { mkdir, mkdtemp, open, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { crc32, deflateRawSync, inflateRawSync, constants as zlibConstants } from "node:zlib";
-import type { Logger } from "#foundation/observability";
+import type { Logger, TraceRing } from "#foundation/observability";
 import { createDetachedSupervision } from "#foundation/observability";
 import type { ExtractOptions, StagedArchive, StagedEntry, ZipEntry, ZipSource } from "./contract.ts";
 
@@ -601,9 +601,9 @@ function emitEntry(controller: ReadableStreamDefaultController<Uint8Array>, entr
   return head.length + body.length;
 }
 
-/** Stream `entries` as a zip; a cancelled iterator's failed return reports through the root's `log`. */
-export function packZip(entries: AsyncIterable<ZipEntry>, log: Logger): ReadableStream<Uint8Array> {
-  const { superviseDetached } = createDetachedSupervision(log);
+/** Stream `entries` as a zip; a cancelled iterator's failed return reports through the root's `log` and `traces`. */
+export function packZip(entries: AsyncIterable<ZipEntry>, log: Logger, traces: TraceRing | null): ReadableStream<Uint8Array> {
+  const { superviseDetached } = createDetachedSupervision(log, traces);
   const centrals: PackedCentral[] = [];
   let offset = 0;
   const iterator = entries[Symbol.asyncIterator]();

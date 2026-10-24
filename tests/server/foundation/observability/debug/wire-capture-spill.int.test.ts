@@ -26,11 +26,12 @@ test("a wire capture spills under the data root and never into the process check
   const dataDir = await mkdtemp(join(tmpdir(), "orb-wire-spill-"));
   try {
     const checkoutBefore = await sizeOf(CHECKOUT_SPILL);
-    const { createWireCaptureSpill, recordWireCapture } = await import("@orb/server/foundation/observability");
+    const { createObservabilityRings, createWireCaptureSpill, recordWireCapture } = await import("@orb/server/foundation/observability");
     const marker = `spill-witness-${dataDir.split("-").at(-1) ?? ""}`;
     // The data layout a root's parsed record resolves for this data root, as boot hands it to the spill.
     const layout = createTestEnv({ ["DATA_DIR"]: dataDir }).DATA_LAYOUT;
     recordWireCapture(
+      createObservabilityRings().wireCaptures,
       wireCaptureSchema.parse({ api: "chat", wire: "literal", providerId: "spill-witness", model: marker, at: 1, body: { marker } }),
       createWireCaptureSpill(layout.wireCapture),
     );
@@ -54,14 +55,15 @@ test("one graph's blocked spill write never holds another graph's settle", async
   await mkdir(blockedDir);
   // A FIFO holds the append in `open` until a reader arrives, so this graph's write stays pending on a real filesystem.
   await mkfifo("mkfifo", [blockedFile]);
-  const { createWireCaptureSpill, recordWireCapture } = await import("@orb/server/foundation/observability");
+  const { createObservabilityRings, createWireCaptureSpill, recordWireCapture } = await import("@orb/server/foundation/observability");
+  const { wireCaptures } = createObservabilityRings();
   const capture = (marker: string): ReturnType<typeof wireCaptureSchema.parse> =>
     wireCaptureSchema.parse({ api: "chat", wire: "literal", providerId: "spill-witness", model: marker, at: 1, body: { marker } });
   const blockedGraph = createWireCaptureSpill(blockedDir);
   const freeGraph = createWireCaptureSpill(freeDir);
   try {
-    recordWireCapture(capture("blocked-graph"), blockedGraph);
-    recordWireCapture(capture("free-graph"), freeGraph);
+    recordWireCapture(wireCaptures, capture("blocked-graph"), blockedGraph);
+    recordWireCapture(wireCaptures, capture("free-graph"), freeGraph);
     const verdict = await Promise.race([freeGraph.settle().then(() => "settled"), sleep(2000, "stuck")]);
     expect(verdict).toBe("settled");
     expect(await readFile(join(freeDir, SPILL_FILE), "utf8")).toContain("free-graph");

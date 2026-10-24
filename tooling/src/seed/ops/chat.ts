@@ -38,6 +38,7 @@ import {
 } from "@orb/server/entry/boot";
 import { createProcessSeams, createServices, NO_SHARE_RELAY, SessionsCrypto, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
 import { env } from "@orb/server/foundation/env";
+import { createAuditWiring } from "@orb/server/foundation/observability";
 import { and, desc, eq } from "drizzle-orm";
 import { print } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
@@ -111,7 +112,9 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
   const ownersBoundBeforeCompose: UserId[] = [];
   const wiringDb = databaseHandle(db);
   const sessionsCrypto = SessionsCrypto.production();
+  const audit = createAuditWiring(wiringDb, seams.idSource, seams.logger);
   const bootSessions = createSessionsService({
+    audit: audit.log,
     rolePolicy,
     db: wiringDb,
     now,
@@ -136,6 +139,7 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
 
   const built = await createServices({
     ...seams,
+    audit,
     rolePolicy,
     db: wiringDb,
     now,
