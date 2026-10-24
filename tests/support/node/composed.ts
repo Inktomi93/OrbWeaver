@@ -12,6 +12,7 @@ export {
   cloneCorpusFixture,
   createCorpusCapsule,
   createCorpusHarness,
+  isPrivateCorpusConfigArgument,
   loadCorpusFixture,
   privateCorpusParent,
   publishCorpusFixture,

@@ -42,9 +42,8 @@ async function runPrivateCorpus(command: string, directory: string | undefined, 
   if (directory === undefined || directory === "--" || command === "publish") {
     return;
   }
-  const { assertPrivateCorpusOutput, assertPrivateCorpusOutputArguments, assertPrivateCorpusNetwork, privateCorpusParent } = await import(
-    "@orb/testkit/node/composed"
-  );
+  const { assertPrivateCorpusOutput, assertPrivateCorpusOutputArguments, assertPrivateCorpusNetwork, isPrivateCorpusConfigArgument, privateCorpusParent } =
+    await import("@orb/testkit/node/composed");
   const parent = command === "private" ? realpathSync(dirname(resolve(directory))) : privateCorpusParent(resolve(directory));
   if (parent === undefined) {
     return;
@@ -53,7 +52,7 @@ async function runPrivateCorpus(command: string, directory: string | undefined, 
     throw new UsageError("Private corpus Snap stages have no private output owner; use the corpus matrix");
   }
   assertPrivateCorpusOutput(parent, join(parent, "owner-corpus-run"));
-  if (args.some((argument) => /^(?:--config(?:=|$)|-c)/u.test(argument))) {
+  if (args.some(isPrivateCorpusConfigArgument)) {
     throw new UsageError("Private corpus artifacts cannot override native output ownership");
   }
   assertPrivateCorpusOutputArguments(args);

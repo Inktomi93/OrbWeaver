@@ -271,6 +271,11 @@ export function assertPrivateCorpusOutputArguments(args: readonly string[]): voi
   }
 }
 
+/** A native config switch would move the consumer off the owner's configuration; the CLI refuses it before the output-argument check. */
+export function isPrivateCorpusConfigArgument(argument: string): boolean {
+  return /^(?:--config(?:=|$)|-c)/u.test(argument);
+}
+
 /** Durably retain private diagnostic causes, then reject with the original intake failure. */
 export async function rethrowPrivateCorpusFailure(directory: string, error: unknown, environment: NodeJS.ProcessEnv = inheritedProcessEnv()): Promise<never> {
   try {
