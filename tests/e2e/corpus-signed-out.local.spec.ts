@@ -1,10 +1,12 @@
 // The router's auth guard on the local corpus: a signed-out alias or invite survives the redirect to sign-in, overlapping
 // navigations settle on the latest one, and a signed-in invite handoff scrubs only its own query fields.
+import { randomBytes } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
 import { CORPUS_MODE_LABELS, testId } from "@orb/client/lib";
 import { SIGNUP_MAX_TTL_MS } from "@orb/contracts/chat";
 import { viewerViewSchema } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { Browser, BrowserContext, Page, TestInfo } from "@playwright/test";
 import { devices } from "@playwright/test";
 import type { ActorClient } from "./support/actors.ts";
@@ -18,6 +20,7 @@ const AUTH_ME = "**/api/auth/me";
 // Long enough that a second guard read, if anything starts one, is still out when the first redirect lands.
 const SLOW_ME_MS = 1200;
 const APP_FAILURE = "[data-app-failure]";
+const PASSWORD_BYTES = 16;
 
 function capturedOwner(): { readonly handle: Handle; readonly password: string } {
   const owner = SELECTED_LOCAL_CORPUS_FIXTURE?.wire.reads["sessions.me"][0]?.output;
@@ -50,8 +53,8 @@ async function slowAuthMe(page: Page): Promise<() => number> {
   return (): number => reads;
 }
 
-/** A real invite to a fresh room the owner hosts, optionally one that may create an account; the room is deleted after `run`. */
-async function withInvite(baseURL: string, signup: boolean, run: (token: string) => Promise<void>): Promise<void> {
+/** A real signup invite to a fresh room the owner hosts; the room is deleted after `run`. */
+async function withSignupInvite(baseURL: string, run: (token: string) => Promise<void>): Promise<void> {
   const { handle, password } = capturedOwner();
   const host: ActorClient = await loginLocal(baseURL, handle, password);
   const characterId = SELECTED_LOCAL_CORPUS_FIXTURE?.wire.libraryRelations?.ids.characterId;
@@ -63,9 +66,32 @@ async function withInvite(baseURL: string, signup: boolean, run: (token: string)
     // A signup link: a signed-out visitor may create an account through it, inside the server's signup bounds.
     const invite = await host.trpc.invites.createInvite.mutate({
       chatId: started.chat.id,
-      input: signup ? { allowSignup: true, maxUses: 1, expiresAt: Date.now() + SIGNUP_MAX_TTL_MS / 2 } : {},
+      input: { allowSignup: true, maxUses: 1, expiresAt: Date.now() + SIGNUP_MAX_TTL_MS / 2 },
     });
     await run(invite.token);
+  } finally {
+    await host.trpc.chat.delete.mutate({ chatId: started.chat.id });
+  }
+}
+
+/** A real invite to a room another account hosts, so the signed-in owner meets the ready preview a stranger's link
+ *  shows; the room is deleted after `run`. */
+async function withMemberInvite(baseURL: string, info: TestInfo, run: (token: string) => Promise<void>): Promise<void> {
+  const { handle, password } = capturedOwner();
+  const owner = await loginLocal(baseURL, handle, password);
+  // The local stack's database is shared by every cell of a run, so each project mints its own host.
+  const account = {
+    handle: castId<Handle>(`rt3-host-${info.project.name.replace("corpus-local-", "")}`),
+    password: randomBytes(PASSWORD_BYTES).toString("hex"),
+  };
+  await owner.trpc.admin.createUser.mutate(account);
+  const host = await loginLocal(baseURL, account.handle, account.password);
+  const character = await host.trpc.character.create.mutate({
+    input: { handle: "handoff-host", name: "Handoff Host", description: "The room a stranger's link opens.", greetings: [{ text: "Welcome." }] },
+  });
+  const started = await host.trpc.chat.startChat.mutate({ characterIds: [character.id] });
+  try {
+    await run((await host.trpc.invites.createInvite.mutate({ chatId: started.chat.id, input: {} })).token);
   } finally {
     await host.trpc.chat.delete.mutate({ chatId: started.chat.id });
   }
@@ -101,7 +127,7 @@ test.describe("local corpus auth guard", () => {
     "a slow auth read on a signed-out invite landing reaches the invite form, not the crash fallback",
     { tag: "@smoke" },
     async ({ browser, baseURL }, info) => {
-      await withInvite(baseURL ?? "", true, async (token) => {
+      await withSignupInvite(baseURL ?? "", async (token) => {
         const context = await signedOutContext(browser, baseURL ?? "", info);
         try {
           const page = await context.newPage();
@@ -154,19 +180,32 @@ test.describe("local corpus auth guard", () => {
     }
   });
 
-  test("a signed-in invite handoff opens the join dialog once and scrubs only its own query fields", { tag: "@smoke" }, async ({ page, baseURL }) => {
-    await withInvite(baseURL ?? "", false, async (token) => {
+  test("a signed-in invite handoff opens the join dialog once and scrubs only its own query fields", { tag: "@smoke" }, async ({ page, baseURL }, info) => {
+    await withMemberInvite(baseURL ?? "", info, async (token) => {
       await page.goto("/");
       await waitForAppReady(page);
       const before = await address(page);
-      // `%6aoin` is `join` once decoded, so it is the same field and leaves with the others.
+      // `%6aoin` is `join` once decoded, so it is the same field and leaves with the others. Only the FIRST `join`
+      // is the real token: a handoff that took any other value would land on the dead-invite state, not this one.
       await page.goto(`/?space=%20&join=${token}&plus=+&join=second&tag=first&tag=second&%6aoin=third#turn-4`);
-      await expect(page.getByTestId(testId("joinInviteDialog"))).toBeVisible({ timeout: WAIT_SETTLE_MS });
+      const dialog = page.getByTestId(testId("joinInviteDialog"));
+      await expect(dialog).toBeVisible({ timeout: WAIT_SETTLE_MS });
+      await expect(dialog.getByRole("button", { name: "Join chat", exact: true })).toBeVisible();
       await expect.poll(() => address(page)).toEqual({ href: "/?space=%20&plus=+&tag=first&tag=second#turn-4", length: before.length + 1 });
       // A reload replays nothing: the token was spent when the dialog took it.
       await page.reload();
       await waitForAppReady(page);
       await expect(page.getByTestId(testId("joinInviteDialog"))).toHaveCount(0);
     });
+  });
+
+  test("a signed-in phone reaches Log out from the You sheet's account foot", { tag: "@smoke" }, async ({ page, isMobile }) => {
+    test.skip(!isMobile, "The You sheet is the phone's account door");
+    await page.goto("/");
+    await waitForAppReady(page);
+    await page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name: "You", exact: true }).click();
+    const sheet = page.getByRole("dialog");
+    await expect(sheet.getByTestId(testId("accountSurface"))).toContainText(capturedOwner().handle);
+    await expect(sheet.getByTestId(testId("accountLogout"))).toBeEnabled();
   });
 });

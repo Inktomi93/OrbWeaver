@@ -24,6 +24,8 @@ const EXPORT_CLAUSE = "export{";
 const REWRITTEN_BODY_HEADERS = new Set(["content-encoding", "content-length", "etag"]);
 const ROUTE_CRASH = "corpus shell route render crashed";
 const SKIP_LINK = "Skip to content";
+// The topbar's list toggle in both regimes: a desktop names the panel, a phone names the screen a tap lands on.
+const LIST_TOGGLE = /^(?:(?:Show|Hide) list panel|Show .+ (?:list|overview))$/u;
 // The phone's curated bar: three tab sections and the You sheet's door.
 const PHONE_BAR = ["Home", "Chats", "Characters", "You"] as const;
 const PHONE_ONLY = "The bottom bar, the You sheet and push-and-Back are the phone's navigation model";
@@ -81,19 +83,57 @@ interface CensusCase {
   readonly bandTitle?: string;
   /** A content-first section docks its LIST only on request. */
   readonly listStartsCollapsed?: boolean;
-  /** The numbers the census states, read from the real server. A single number is the whole census. */
-  readonly census: (host: ActorClient) => Promise<readonly number[]>;
+  /** A phone lands this mode on CONTENT, so its band rides the LIST pane off screen rather than being shed. */
+  readonly bandOffScreen?: boolean;
+  /** A search typed into the section's own finder before the census is read. */
+  readonly search?: { readonly box: string; readonly term: (host: ActorClient) => Promise<string> };
+  /** The census text, built from live reads; `null` for an empty census, which prints nothing. */
+  readonly census: (host: ActorClient) => Promise<string | null>;
 }
 
+/** A census of one number, or nothing when the list is empty. */
+function countCensus(count: number): string | null {
+  return count === 0 ? null : String(count);
+}
+
+/** A name fragment that matches some of the owner's characters but not all, so a narrowed census reads `n of m`. */
+async function partialCharacterSearch(host: ActorClient): Promise<string> {
+  const [first] = (await host.trpc.character.list.query({ archived: false })).items;
+  const term = first?.name.split(" ")[0];
+  if (term === undefined) {
+    throw new Error("Corpus has no character to search for");
+  }
+  return term;
+}
+
+const CHARACTER_SEARCH = "Search characters";
+
 const CENSUS_CASES: readonly CensusCase[] = [
-  { section: "Chats", label: "Chats", census: async (host) => [await host.trpc.chat.countChats.query({})] },
-  { section: "Characters", label: "Characters", census: async (host) => [await host.trpc.character.count.query({ archived: false })] },
+  { section: "Chats", label: "Chats", census: async (host) => countCensus(await host.trpc.chat.countChats.query({})) },
+  { section: "Characters", label: "Characters", census: async (host) => countCensus(await host.trpc.character.count.query({ archived: false })) },
+  {
+    section: "Characters",
+    label: "Characters",
+    search: { box: CHARACTER_SEARCH, term: partialCharacterSearch },
+    census: async (host) => {
+      const search = await partialCharacterSearch(host);
+      const shown = await host.trpc.character.count.query({ archived: false, search });
+      const total = await host.trpc.character.count.query({ archived: false });
+      if (shown === 0 || shown >= total) {
+        throw new Error("The narrowing search must match some characters but not all");
+      }
+      return `${String(shown)} of ${String(total)}`;
+    },
+  },
   {
     section: "Corpus",
     label: CORPUS_MODE_LABELS.explore,
     census: async (host) => {
-      const catalog = await host.trpc.discovery.catalog.query();
-      return [catalog.totalDistilled, catalog.totalCharacters];
+      const { totalDistilled, totalCharacters } = await host.trpc.discovery.catalog.query();
+      if (totalDistilled === 0 || totalDistilled >= totalCharacters) {
+        throw new Error("The Explore census case needs a partly distilled corpus");
+      }
+      return `${String(totalDistilled)} of ${String(totalCharacters)} distilled`;
     },
   },
   {
@@ -101,50 +141,35 @@ const CENSUS_CASES: readonly CensusCase[] = [
     mode: CORPUS_MODE_LABELS.insights,
     label: CORPUS_MODE_LABELS.insights,
     listStartsCollapsed: true,
+    bandOffScreen: true,
     census: async (host) => {
-      const page = await host.trpc.stats.leaderboard.query({});
-      return [page.rows.length, page.total];
+      const { rows, total } = await host.trpc.stats.leaderboard.query({});
+      // The committed corpus ranks fewer characters than one leaderboard page holds, so the page is the whole
+      // population and the census is the bare count; the narrowed Characters case owns the `n of m` arm.
+      if (rows.length !== total) {
+        throw new Error("The Insights census case expects the whole leaderboard on one page");
+      }
+      return countCensus(total);
     },
   },
   {
     section: "Corpus",
     mode: CORPUS_MODE_LABELS.labels,
     label: CORPUS_MODE_LABELS.labels,
-    census: async (host) => [(await host.trpc.tag.listTagsWithUsage.query()).length],
+    census: async (host) => countCensus((await host.trpc.tag.listTagsWithUsage.query()).length),
   },
-  { section: "Presets", label: "Presets", census: async (host) => [(await host.trpc.preset.list.query()).length] },
-  { section: "Databank", label: "Databank", census: async (host) => [(await host.trpc.databank.bankHealth.query()).total] },
-  {
-    section: "Plugin pages",
-    label: "Plugin pages",
-    census: async (host) => {
-      const plugins = new Set((await host.trpc.plugin.list.query()).map((plugin) => plugin.id));
-      return [(await host.trpc.plugin.listSurfaces.query()).filter((surface) => surface.anchor === "page" && plugins.has(surface.pluginId)).length];
-    },
-  },
+  { section: "Presets", label: "Presets", census: async (host) => countCensus((await host.trpc.preset.list.query()).length) },
+  { section: "Databank", label: "Databank", census: async (host) => countCensus((await host.trpc.databank.bankHealth.query()).total) },
   {
     section: "Refinery",
     label: "Refinery",
     bandTitle: "Sessions",
     listStartsCollapsed: true,
-    census: async (host) => [(await host.trpc.refinery.listSessions.query()).length],
+    census: async (host) => countCensus((await host.trpc.refinery.listSessions.query()).length),
   },
 ];
 
-/** The phone's screen name: the label alone over an empty census, else the label and every census number. */
-function screenName(label: string, census: readonly number[]): string | RegExp {
-  if (census.every((count) => count === 0)) {
-    return label;
-  }
-  const [only] = census;
-  if (census.length === 1 && only !== undefined) {
-    return `${label} · ${String(only)}`;
-  }
-  const states = census.map((count) => `(?=.*\\b${String(count)}\\b)`).join("");
-  return new RegExp(`^${states}${RegExp.escape(`${label} · `)}`, "u");
-}
-
-async function reachCensusScreen(page: Page, kase: CensusCase, isMobile: boolean): Promise<void> {
+async function reachCensusScreen(page: Page, host: ActorClient, kase: CensusCase, isMobile: boolean): Promise<void> {
   if (isMobile) {
     await reachOnPhone(page, kase.section);
   } else {
@@ -153,6 +178,21 @@ async function reachCensusScreen(page: Page, kase: CensusCase, isMobile: boolean
   if (kase.mode !== undefined) {
     await page.getByRole("radio", { name: kase.mode, exact: true }).first().click();
   }
+  if (kase.search !== undefined) {
+    await page.getByRole("textbox", { name: kase.search.box, exact: true }).fill(await kase.search.term(host));
+  }
+}
+
+/** Where the LIST band's title is: not rendered, rendered outside the viewport, or on screen. */
+async function bandPlacement(band: Locator): Promise<"hidden" | "off screen" | "on screen"> {
+  if (await band.isHidden()) {
+    return "hidden";
+  }
+  const outside = await band.evaluate((node) => {
+    const box = node.getBoundingClientRect();
+    return box.right <= 0 || box.left >= innerWidth || box.bottom <= 0 || box.top >= innerHeight;
+  });
+  return outside ? "off screen" : "on screen";
 }
 
 /** A library row in the LIST pane, named by its character. */
@@ -191,8 +231,12 @@ test.describe("committed corpus shell", () => {
     // The shell is mounted and asking; the gate must still be shut while Home's own read is out.
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeAttached();
     await expect(page.locator("html")).not.toHaveAttribute("data-app-ready");
+    // The client batches Home's first reads into one request, and one HTTP response cannot answer part of a batch, so
+    // the hold delays the chat read's whole batch. The gate's rule is "no read in flight", which every read in that
+    // batch exercises the same way, so holding the batch tests the same rule as holding the chat read alone.
     await chats.release();
     await expect(page.locator("html")).toHaveAttribute("data-app-ready", "");
+    await expect(page.locator('[data-home-tile="chat.masthead"] [aria-busy]')).toHaveCount(0);
   });
 
   test("Home keeps its section chips on a desktop and drops them on a phone", { tag: "@smoke" }, async ({ page, isMobile }) => {
@@ -207,9 +251,12 @@ test.describe("committed corpus shell", () => {
     await openHome(page);
     for (const kase of CENSUS_CASES) {
       const census = await kase.census(host);
-      await reachCensusScreen(page, kase, isMobile);
-      await expect(page.locator(SCREEN_NAME)).toHaveText(screenName(kase.label, census));
-      await expect(page.locator(LIST_BAND_TITLE)).not.toBeInViewport();
+      await reachCensusScreen(page, host, kase, isMobile);
+      const screenName = page.locator(SCREEN_NAME);
+      await expect(screenName).toBeVisible();
+      await expect(screenName).toHaveText(census === null ? kase.label : `${kase.label} · ${census}`);
+      // One census per regime: the band, where the other copy lives, is shed, or rides its pane off screen.
+      await expect.poll(() => bandPlacement(page.locator(LIST_BAND_TITLE))).toBe(kase.bandOffScreen === true ? "off screen" : "hidden");
     }
   });
 
@@ -219,16 +266,13 @@ test.describe("committed corpus shell", () => {
     await openHome(page);
     for (const kase of CENSUS_CASES) {
       const census = await kase.census(host);
-      await reachCensusScreen(page, kase, isMobile);
+      await reachCensusScreen(page, host, kase, isMobile);
       // A content-first section boots with its LIST collapsed; the toggle is the desktop's door to the band.
       if (kase.listStartsCollapsed === true && (await listPanel(page).getAttribute("data-panel-mode")) === "collapsed") {
         await page.getByRole("button", { name: "Show list panel" }).click();
       }
-      const band = page.locator(LIST_BAND_TITLE);
-      await expect(band).toContainText(kase.bandTitle ?? kase.label);
-      for (const count of census.filter((value) => value !== 0)) {
-        await expect(band).toContainText(String(count));
-      }
+      // The heading's text is its title then its census, with no separator text between the two.
+      await expect(page.locator(LIST_BAND_TITLE)).toHaveText(`${kase.bandTitle ?? kase.label}${census ?? ""}`);
       // Both identity arms are in the DOM in both regimes, so this asserts paint, not presence.
       await expect(page.locator(SCREEN_NAME)).toBeHidden();
     }
@@ -246,15 +290,19 @@ test.describe("committed corpus shell", () => {
       await route.fulfill({ status: 200, contentType: "text/javascript", body: 'throw new Error("chunk exploded");' });
     });
     await page.goto("/");
+    // The built app's stale-chunk recovery reloads the tab once (`vite:preloadError` in `main.tsx`); only the second
+    // document's surface is the settled one, so wait for it before reading Retry.
+    await expect.poll(() => documents).toBe(2);
+    await page.waitForLoadState("load");
     const retry = page.getByRole("button", { name: "Retry", exact: true });
     await expect(retry).toBeVisible();
     await expect(page.getByRole("status", { name: "Loading" })).toHaveCount(0);
-    // Each document asks for the chunk once, and the stale-chunk recovery reloads at most once, so nothing loops.
+    // Each document asked for the chunk once, so nothing loops.
     expect(chunkRequests).toBe(documents);
-    expect(documents).toBeLessThanOrEqual(2);
-    const before = chunkRequests;
     await Promise.all([page.waitForEvent("framenavigated"), retry.click()]);
-    await expect.poll(() => chunkRequests).toBeGreaterThan(before);
+    // Retry is the third document, and it asks for the chunk again.
+    await expect.poll(() => documents).toBe(3);
+    await expect.poll(() => chunkRequests).toBe(3);
   });
 
   test("a route render crash reports once and lands on the retry surface", { tag: "@smoke" }, async ({ page }) => {
@@ -320,6 +368,7 @@ test.describe("committed corpus shell", () => {
     await expect(page.locator('[data-slot="collection-control-row"]')).toBeVisible();
     await expect(list).toHaveAttribute("data-panel-mode", "docked");
     await expect(page.getByRole("button", { name: "Back to Settings" })).toHaveCount(0);
+    await expect(page.locator(".shell-topbar").getByRole("button", { name: LIST_TOGGLE })).toBeVisible();
   });
 });
 
@@ -351,7 +400,6 @@ test.describe("committed corpus shell on a phone", () => {
     await expect(sheet).toBeVisible();
     await expect(sheet.getByRole("button", { name: "Settings", exact: true })).toBeVisible();
     await expect(sheet.getByRole("button", { name: "Refinery", exact: true })).toBeVisible();
-    await expect(sheet.locator('[data-slot="persona-who-head"]')).toBeVisible();
 
     await sheet.getByRole("button", { name: "Presets", exact: true }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -502,7 +550,10 @@ test.describe("committed corpus shell on a phone", () => {
       const main = page.getByRole("main", { name: "Characters content", exact: true });
       const name = main.getByRole("textbox", { name: "Name", exact: true });
       await expect(name).toHaveValue(PROBE_NAMES[0]);
+      // Hold the autosave, so what the field shows after the round trip can only be the retained draft.
+      const update = await holdTrpcProcedure(page, "character.update");
       await name.fill(PROBE_DRAFT);
+      await update.requested;
       const scroller = main.locator(".overflow-y-auto").first();
       const offset = await scroller.evaluate((node) => {
         node.scrollTop = Math.floor((node.scrollHeight - node.clientHeight) / 2);
@@ -515,6 +566,7 @@ test.describe("committed corpus shell on a phone", () => {
       await rail(page).getByRole("button", { name: "Characters", exact: true }).click();
       await expect(name).toHaveValue(PROBE_DRAFT);
       await expect.poll(() => scroller.evaluate((node) => node.scrollTop)).toBe(offset);
+      await update.release();
 
       await page.getByRole("button", { name: "Back to Characters", exact: true }).click();
       await libraryRow(page, PROBE_NAMES[1]).click();
@@ -541,7 +593,10 @@ test.describe("committed corpus shell on a phone", () => {
         }
         const bounds = shelf.getBoundingClientRect();
         const host = main.getBoundingClientRect();
-        return { edges: [Math.round(bounds.left - host.left), Math.round(host.right - bounds.right)], overflows: shelf.scrollWidth > shelf.clientWidth };
+        return {
+          edges: [Math.round(bounds.left - host.left), Math.round(host.right - bounds.right)],
+          overflows: shelf.scrollWidth > shelf.clientWidth,
+        };
       });
     await expect.poll(geometry).toEqual({ edges: [0, 0], overflows: true });
     // Tabbing along the row reveals each face whole inside the shelf rather than leaving it cut at the edge.

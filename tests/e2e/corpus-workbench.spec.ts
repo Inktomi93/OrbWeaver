@@ -146,8 +146,12 @@ test.describe("committed corpus workbench", () => {
     await expect(main.getByTestId(testId("analyticsOverviewSurface"))).toBeVisible();
     await expect(main.getByRole("radio", { name: CORPUS_MODE_LABELS.insights })).toHaveAttribute("aria-checked", "true");
     const screenName = page.locator(".shell-topbar-title");
-    await expect(screenName).toContainText(`${CORPUS_MODE_LABELS.insights} · `);
-    await expect(screenName).toContainText(String(board.total));
+    // The committed corpus ranks fewer characters than one leaderboard page holds, so the census is the bare count;
+    // the shell spec's narrowed Characters census owns the `n of m` arm.
+    if (board.rows.length !== board.total) {
+      throw new Error("The phone Insights case expects the whole leaderboard on one page");
+    }
+    await expect(screenName).toHaveText(`${CORPUS_MODE_LABELS.insights} · ${String(board.total)}`);
 
     await main.getByRole("radio", { name: CORPUS_MODE_LABELS.labels }).click();
     await expect(list).toHaveAttribute("data-panel-mode", "docked");
