@@ -50,6 +50,10 @@ Run only the named component suites for the changed behavior.
 - Stories import client modules through declared `@orb/client/*` doors. Keep shared values in `.ts` helpers.
 - Seed first-run state with `addInitScript` before native `mount()` navigates.
 - When a gate trigger changes, retire every story that mounts it.
+- A lane touching the app shell, the first-run persona gate or the home launcher runs
+  `tests/client/features/auth/components/login-pending-join.ct.tsx` and
+  `tests/client/features/chat/anchors/join-invite-dialog.ct.tsx`. The orchestrator runs `tests/e2e/smoke.spec.ts`,
+  `tests/e2e/corpus-home-launch.spec.ts` and `tests/e2e/corpus-joiner.local.spec.ts` before merging it.
 
 ## Instrument facts
 
