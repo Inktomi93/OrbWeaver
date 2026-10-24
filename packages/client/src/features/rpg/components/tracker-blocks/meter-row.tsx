@@ -94,7 +94,8 @@ function MaxCell({
             onEditMax(n);
           }
         }}
-        className="!w-(--size-avatar-lg) px-field text-right tabular-nums"
+        className="px-field text-right tabular-nums"
+        width="avatar-lg"
         restClassName="tabular-nums"
       />
     </Row>
@@ -139,7 +140,8 @@ function ValueCell({
             onEditValue(n);
           }
         }}
-        className={warning ? "!w-(--size-avatar-lg) px-field text-right tabular-nums text-warning" : "!w-(--size-avatar-lg) px-field text-right tabular-nums"}
+        className={warning ? "px-field text-right tabular-nums text-warning" : "px-field text-right tabular-nums"}
+        width="avatar-lg"
         // At rest the value hugs its text like the read-only "24/30" (no fixed input width).
         restClassName={warning ? "tabular-nums text-warning" : "tabular-nums"}
       />

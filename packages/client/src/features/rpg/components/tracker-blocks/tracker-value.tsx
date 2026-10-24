@@ -34,7 +34,9 @@ interface TrackerValueProps {
   readonly placeholder?: string;
   /** Sizing/alignment for the EDIT input (and, absent `restClassName`, the rest button too). */
   readonly className?: string;
-  /** Rest-button override — when the input needs a fixed width (`!w-(--size-avatar-lg)` numerics) the rest state
+  /** The edit input's inline size: content-sized, or one of the numeric column steps. */
+  readonly width?: ComponentProps<typeof Input>["width"];
+  /** Rest-button override: when the input takes a fixed `width` step (the numerics) the rest state
    *  should still hug its text like the read-only arm; pass the rest-specific classes here. */
   readonly restClassName?: string;
   /** The rest button's `title` — what this edit actually WRITES, when "Click to edit" understates it. The
@@ -107,6 +109,7 @@ export function TrackerValue({
   size = "label",
   placeholder,
   className,
+  width,
   restClassName,
   editTitle = "Click to edit",
   wrap = false,
@@ -168,6 +171,7 @@ export function TrackerValue({
       // (h-(--size-control-sm)/px-block/text-body) would grow the row on reveal. Callers append width/alignment
       // only, never a height.
       layout="inline"
+      width={width}
       className={className ?? ""}
       data-slot="tracker-value-edit"
       // The CONFLICT surface. `data-conflict` carries the value that arrived (an automatable fact, and the

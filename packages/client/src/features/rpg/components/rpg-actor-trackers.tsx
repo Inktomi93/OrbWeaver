@@ -269,7 +269,8 @@ export function StatusLine({ status, subject, edit }: { readonly status: string;
         tone="muted"
         size="label"
         onEdit={edit.onEditStatus}
-        className="!w-auto min-w-0 max-w-full field-sizing-content"
+        className="min-w-0 max-w-full field-sizing-content"
+        width="auto"
       />
       {edit.isLocked(".status") ? (
         <RpgFieldLock

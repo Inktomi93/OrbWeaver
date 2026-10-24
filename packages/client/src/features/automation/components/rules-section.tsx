@@ -47,7 +47,7 @@ interface RulesSkeletonProps {
  * precisely where that geometry accident stops protecting it — so the two land together.
  *
  * Shape-matched to `RuleRow` element for element — and re-derived at #886, when the row became a COLLAPSE
- * card: what it now reserves is the row's CLOSED face (a `!p-0` Card holding the name/gloss/last-run stack
+ * card: what it now reserves is the row's CLOSED face (a `padding="none"` Card holding the name/gloss/last-run stack
  * beside the enable switch), not the fully-open anatomy. Everything the disclosure hides — Test, the
  * overflow menu, the B4 switch, the fire-log door — is behind a panel that is closed on arrival, so it costs
  * this box nothing, and its own skeleton mismatch is the term #815 fenced from the editing side.
@@ -59,9 +59,9 @@ function RulesSkeleton({ count }: RulesSkeletonProps): ReactElement {
       <Text voice="gloss">{RULES_INTRO}</Text>
       <Stack gap="section">
         {rows.map((index) => (
-          // Byte-for-byte the settled row's closed box: the same `!p-0` Card, the same `p-block` trigger pad
+          // Byte-for-byte the settled row's closed box: the same `padding="none"` Card, the same `p-block` trigger pad
           // at the same `min-h-(--size-control-sm)` pointer-conditional floor, the same three-line name column.
-          <Card className="!p-0" key={index}>
+          <Card padding="none" key={index}>
             <Row align="center" className="min-h-(--size-control-sm) p-block pr-block" gap="field">
               <Stack className="min-w-0 flex-1" gap="tight">
                 <Skeleton className="h-(--leading-label) w-2/3" />

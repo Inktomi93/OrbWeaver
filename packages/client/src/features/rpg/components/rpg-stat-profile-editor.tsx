@@ -105,7 +105,8 @@ function RangeRow({ profile, onCommit }: { readonly profile: RpgStatProfile; rea
             onCommit({ ...profile, range: { min: n, max: Math.max(n + 1, profile.range.max) } });
           }
         }}
-        className="!w-(--size-avatar-lg) px-field text-right tabular-nums"
+        className="px-field text-right tabular-nums"
+        width="avatar-lg"
         restClassName="tabular-nums"
       />
       <Text as="span" voice="gloss" aria-hidden={true}>
@@ -122,7 +123,8 @@ function RangeRow({ profile, onCommit }: { readonly profile: RpgStatProfile; rea
             onCommit({ ...profile, range: { min: profile.range.min, max: Math.max(profile.range.min + 1, n) } });
           }
         }}
-        className="!w-(--size-avatar-lg) px-field text-right tabular-nums"
+        className="px-field text-right tabular-nums"
+        width="avatar-lg"
         restClassName="tabular-nums"
       />
       <Text as="span" voice="gloss">

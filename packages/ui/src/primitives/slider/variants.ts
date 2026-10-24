@@ -55,6 +55,7 @@ export const sliderVariants = tv({
       // a negative start margin shifts the box the way Base UI's mirrored `translate: 50%` did. The block
       // axis is physical `-mt` because `orientation` is narrowed OUT of this seal (slider.tsx), so the
       // vendor's cross offset is always `top: 50%`.
+      // eslint-disable-next-line better-tailwindcss/no-restricted-classes -- the `!` beats Base UI's inline `translate` on the thumb, which no variant can
       "translate-none! -ms-(--size-slider-inset) -mt-(--size-slider-inset)",
       "transition-shadow duration-(--motion-fast) ease-out-expo",
       "outline-none",

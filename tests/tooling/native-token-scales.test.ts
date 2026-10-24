@@ -94,7 +94,9 @@ const SUPPORTED = [
   "leading-body",
   "text-label",
   "max-w-cq-24",
-].flatMap((candidate) => [candidate, `hover:${candidate}`, `focus:${candidate}`, `[&:hover]:${candidate}`, `!${candidate}`, `${candidate}!`]);
+].flatMap((candidate) => [candidate, `hover:${candidate}`, `focus:${candidate}`, `[&:hover]:${candidate}`]);
+/** The important modifier, in both spellings and under a variant, is refused on an otherwise supported class. */
+const IMPORTANT = ["!p-0", "p-0!", "hover:!p-0", "hover:p-0!"];
 const CARRIERS = [
   '<div className="CLASS" />;',
   '<div className={"CLASS"} />;',
@@ -176,6 +178,7 @@ test("effective UI/client native rules reject stock classes in real class carrie
     expect(config.rules[RESTRICTED_RULE]?.[0], path).toBe(2);
     expect(RESTRICTED.map((candidate) => lintWith(RESTRICTED_RULE, `cn("${candidate}");`).length)).toEqual(RESTRICTED.map(() => 1));
     expect(lintWith(RESTRICTED_RULE, `cn("${STRUCTURAL_ARBITRARY}");`)).toEqual([]);
+    expect(IMPORTANT.map((candidate) => lintWith(RESTRICTED_RULE, `cn("${candidate}");`).length)).toEqual(IMPORTANT.map(() => 1));
     for (const carrier of CARRIERS) {
       if (path.endsWith(".ts") && carrier.startsWith("<")) {
         continue;

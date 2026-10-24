@@ -140,7 +140,8 @@ function NpcGuides({ name, appearance, outfit, thoughts, onEditGuide }: NpcGuide
               tone="muted"
               onEdit={(next): void => onEditGuide(field, next)}
               wrap={true}
-              className={`!w-auto max-w-full field-sizing-content ${GUIDE_CLASS[field]}`}
+              className={`max-w-full field-sizing-content ${GUIDE_CLASS[field]}`}
+              width="auto"
               restClassName={GUIDE_CLASS[field]}
             />
           )}
@@ -177,7 +178,8 @@ function NpcMood({ name, mood, onEditMood }: NpcMoodProps): ReactElement | null 
           placeholder={UNSET_DATUM}
           onEdit={onEditMood}
           wrap={true}
-          className="!w-auto min-w-0 max-w-full field-sizing-content"
+          className="min-w-0 max-w-full field-sizing-content"
+          width="auto"
         />
       </Row>
     );

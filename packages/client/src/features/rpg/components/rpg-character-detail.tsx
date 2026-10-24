@@ -72,7 +72,8 @@ function SheetLevel({ level, onEditLevel }: { readonly level: number | null; rea
             const n = Number.parseInt(trimmed, 10);
             onEditLevel(trimmed === "" || Number.isNaN(n) ? null : Math.max(0, n));
           }}
-          className="!w-(--size-avatar-md) px-field text-right tabular-nums"
+          className="px-field text-right tabular-nums"
+          width="avatar-md"
           restClassName="tabular-nums"
         />
       </Row>
@@ -104,7 +105,8 @@ function SheetFlavor({ actor, onEditFlavor }: { readonly actor: RpgActorView; re
         tone="muted"
         onEdit={onEditFlavor}
         wrap={true}
-        className="!w-auto min-w-0 max-w-full field-sizing-content"
+        className="min-w-0 max-w-full field-sizing-content"
+        width="auto"
       />
     </Row>
   );
@@ -144,7 +146,8 @@ function WalletChip({
                 onEditAmount(n);
               }
             }}
-            className="!w-(--size-avatar-md) px-field text-right tabular-nums"
+            className="px-field text-right tabular-nums"
+            width="avatar-md"
             restClassName="tabular-nums"
           />
           <Text as="span" voice="gloss">
@@ -428,7 +431,8 @@ function SheetTitle({ actor, onEditTitle }: { readonly actor: RpgActorView; read
         placeholder="title…"
         onEdit={onEditTitle}
         wrap={true}
-        className="!w-auto min-w-0 max-w-full field-sizing-content"
+        className="min-w-0 max-w-full field-sizing-content"
+        width="auto"
       />
     </Row>
   );

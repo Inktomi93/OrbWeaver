@@ -73,14 +73,9 @@ interface OverrideCollapseCardProps {
 
 function OverrideCollapseCard({ label, isSet, snippet, open, onOpenChange, onClear, disabled, children }: OverrideCollapseCardProps): ReactElement {
   return (
-    // `!p-0` so the block padding lives on the trigger instead — the whole ~49px row is then one tap target
-    // (WCAG 2.5.8), not a ~23px band with dead padding above/below. The snippet + panel carry their own
-    // horizontal + bottom padding (the trigger's pad only reaches its own row). A className, not the retired
-    // `padding` prop: island padding is tier-resolved now (density-pass §4.3, D7), and "this island delegates
-    // its padding to its own trigger" is a composition fact, not a density step. The `!` is load-bearing:
-    // the tier map is UNLAYERED, so a plain `p-0` utility (layer `utilities`) loses to it inside a Surface —
-    // proven by this component's own CT (the card's top edge must hit the trigger, not dead padding).
-    <Card className={isSet ? "!p-0 border-l-2 border-l-primary" : "!p-0"}>
+    // `padding="none"`: the block padding lives on the trigger, so the whole row is one tap target (WCAG 2.5.8);
+    // the snippet and panel carry their own inset. The card's top edge must hit the trigger (this component's CT).
+    <Card className={isSet ? "border-l-2 border-l-primary" : undefined} padding="none">
       <Collapsible open={open} onOpenChange={onOpenChange}>
         {/* `size="control"` pins the pointer-conditional `--size-control-sm` floor (44px coarse / 32px
             fine). MEASURED at 411×40 under a coarse pointer with `::after` resolving `inset: auto` — no

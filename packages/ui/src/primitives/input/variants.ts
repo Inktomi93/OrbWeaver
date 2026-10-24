@@ -39,6 +39,16 @@ export const inputVariants = tv({
       // call site, the answer is that site reserving the taller box, never dropping the floor.
       inline: [FIELD_CONTROL_BOX, "h-auto min-h-0 px-field py-0 text-field-dense leading-field-dense"],
     },
+    // THE INPUT'S INLINE SIZE. `full` is the control box's own `w-full`. `auto` is the content-sized arm (a
+    // click-to-edit datum that hugs its text); the two steps are the numeric fields that share an avatar column.
+    // A variant, not a call-site class: a width built from a custom token cannot be overridden reliably by a
+    // className, which is why the shipped sites wrote `!w-*`.
+    width: {
+      full: "",
+      auto: "w-auto",
+      "avatar-md": "w-(--size-avatar-md)",
+      "avatar-lg": "w-(--size-avatar-lg)",
+    },
   },
-  defaultVariants: { layout: "field" },
+  defaultVariants: { layout: "field", width: "full" },
 });

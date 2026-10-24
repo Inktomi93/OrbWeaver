@@ -210,10 +210,11 @@ function AmbientFieldControl({
       display={value ?? ""}
       placeholder={UNSET_DATUM}
       onEdit={(next): void => onEditField(fieldKey, next)}
-      // Content-sized, capped: `!w-auto` beats FIELD_CONTROL's `w-full` so a short value ("the ford") is a
+      // Content-sized, capped: `width="auto"` hugs the value so a short one ("the ford") is a
       // compact input and pairs pack 2+ per row (the mock's compact ambient card); `max-w-full` + `min-w-0`
       // keep a long location from overflowing the wrapping card (owner density ruling).
-      className="!w-auto min-w-0 max-w-full field-sizing-content"
+      className="min-w-0 max-w-full field-sizing-content"
+      width="auto"
     />
   );
 }

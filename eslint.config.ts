@@ -50,6 +50,11 @@ const RESTRICTED_CLASSES = [
     pattern: `^(?:[^\\s]*:)?!?-?(?:${BARE_NAMESPACE_UTILITIES.join("|")})!?$`,
     message: "Spell a size, height or width token as <utility>-(--<namespace>-<name>), the one form that works on every axis.",
   },
+  {
+    // The important modifier escapes the cascade a variant should own; a site that must beat an inline style names its reason.
+    pattern: String.raw`^(?:[^\s]*:)?!.|.!$`,
+    message: "The `!` modifier escapes the cascade; add a variant in @orb/ui, or name the inline style it beats beside a disable.",
+  },
 ];
 
 const REACT_SOURCE = ["packages/client/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}"];

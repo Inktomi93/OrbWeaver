@@ -118,4 +118,10 @@
   [data-surface-tier] [data-slot="card-root"][data-nested] {
     border-radius: var(--radius-inset);
   }
+
+  /* `padding="none"`: the island delegates its inset to its own content; the `p-0` utility alone would lose to the
+   * tier rule above. */
+  [data-surface-tier] [data-slot="card-root"][data-padding="none"] {
+    padding: 0;
+  }
 }

@@ -23,7 +23,7 @@
 // 233px reserve, an under-reserve that scored ~0 CLS only because the section sat at y≈2200, below the fold.
 // #821 collapsed the Injections rows and moved Rules ~800px UP, which is exactly where that geometry
 // accident stops protecting it. The row now wears the SAME clothes as the Field-overrides section and the
-// injection rows: a `Collapsible` in a `!p-0` Card whose trigger carries the whole of what a rule IS at a
+// injection rows: a `Collapsible` in a `padding="none"` Card whose trigger carries the whole of what a rule IS at a
 // glance — name, what it does, when it last ran, plus the unreadable verdict when there is one — with the
 // enable switch beside it and everything else behind the disclosure.
 //
@@ -270,10 +270,8 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
   };
 
   return (
-    // `!p-0` so the block padding lives on the trigger and the whole closed row is one tap target — the
-    // Field-overrides card's own reasoning, and the `!` is load-bearing there for the same reason (the tier
-    // padding map is UNLAYERED, so a plain `p-0` utility loses to it inside a Surface).
-    <Card className="!p-0">
+    // `padding="none"`: the block padding lives on the trigger, so the whole closed row is one tap target.
+    <Card padding="none">
       <Collapsible open={open} onOpenChange={setOpen}>
         {/* THE ENABLE SWITCH IS A SIBLING OF THE TRIGGER, NEVER INSIDE IT. A control nested in a `button` is
             unreachable by keyboard and invalid content — so the header is a Row: the disclosure takes the

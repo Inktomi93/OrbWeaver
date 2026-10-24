@@ -13,7 +13,7 @@
 // could show, and the section's one-line `SkeletonRows` fallback stood in for 920px of forms. At 4× CPU on
 // a 430px phone that settle landed 795ms after the tap, past the browser's 500ms `hadRecentInput` cliff,
 // and the host paid 0.30837 CLS in a single shift. The row now wears the SAME clothes as the Field-overrides
-// section directly above it — a collapse row (`Collapsible` in a `!p-0` Card) whose trigger carries the
+// section directly above it — a collapse row (`Collapsible` in a `padding="none"` Card) whose trigger carries the
 // summary (where it lands, in whose voice, at what depth) plus the not-delivered chip, with a one-line
 // content excerpt under it while closed. Two adjacent sections expressing one idea in two opposite
 // presentation laws was the §7 taste finding; this retires both with one change.
@@ -163,10 +163,8 @@ function InjectionRow({ row, ordinal, isHost, onSave, onDelete }: InjectionRowPr
     // every field below remembering `disabled={!isHost}`.
     <InjectionRowBoundary entityId={row.key} serverValues={toInjectionForm(row.value)} {...(save === undefined ? ({ readOnly: true } as const) : { save })}>
       {({ form }): ReactElement => (
-        // `!p-0` so the block padding lives on the trigger instead and the whole row is one tap target —
-        // the Field-overrides card's own reasoning, and the `!` is load-bearing there for the same reason
-        // (the tier padding map is UNLAYERED, so a plain `p-0` utility loses to it inside a Surface).
-        <Card className="!p-0">
+        // `padding="none"`: the block padding lives on the trigger, so the whole closed row is one tap target.
+        <Card padding="none">
           <Collapsible open={open} onOpenChange={setOpen}>
             {/* ONE subscription for the whole collapsed face: the summary and the excerpt both read the
                 LIVE values, so collapsing after an edit shows the edit rather than the loaded row. */}
@@ -279,7 +277,7 @@ export interface InjectionsSkeletonProps {
  *
  * The shared `SkeletonRows count={1} shape="line"` cannot express this box, which is why it lied by ~830px:
  * a `line` row is a `control-lg` bar, and the settled section is an intro line, N collapse CARDS (a
- * `control-sm` trigger row plus a one-line excerpt inside a `!p-0` card) and an `Add injection` button.
+ * `control-sm` trigger row plus a one-line excerpt inside a `padding="none"` card) and an `Add injection` button.
  * Every one of those is spelled below with the SAME primitives and the SAME gaps, so the reserve tracks the
  * row's own geometry — including the pointer-conditional control height — instead of a number that was
  * right on one viewport.
@@ -297,7 +295,7 @@ export function InjectionsSkeleton({ count, isHost }: InjectionsSkeletonProps): 
       ) : (
         <Stack gap="section">
           {rows.map((index) => (
-            <Card className="!p-0" key={index}>
+            <Card padding="none" key={index}>
               {/* The trigger row: `min-h-(--size-control-sm)` + `p-block` is byte-for-byte the collapsed trigger's
                   box, so this bar is the height it stands in for at BOTH pointer classes. */}
               <Row align="center" className="min-h-(--size-control-sm) p-block" gap="field" justify="between">

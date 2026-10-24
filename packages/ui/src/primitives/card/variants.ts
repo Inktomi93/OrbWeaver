@@ -47,10 +47,17 @@ export const cardVariants = tv({
       true: "rounded-inset border-0",
       false: "",
     },
+    // The one padding arm: the island delegates its inset to its own content (a collapse row's trigger, so the
+    // whole closed row is one tap target). `tier` is the resolved tier step; a feature never picks a value.
+    // The `p-0` utility loses to the tier rule inside a Surface, so `data-padding` re-declares it in tiers.css.
+    padding: {
+      tier: "",
+      none: "p-0",
+    },
     interactive: {
       true: `cursor-pointer transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent active:bg-accent/80 focus-visible:outline-none ${FOCUS_RING}`,
       false: "",
     },
   },
-  defaultVariants: { elevated: false, interactive: false, nested: false, tone: "neutral", outline: "solid", glow: "none" },
+  defaultVariants: { elevated: false, interactive: false, nested: false, padding: "tier", tone: "neutral", outline: "solid", glow: "none" },
 });

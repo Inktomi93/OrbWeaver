@@ -118,7 +118,8 @@ export function TrackerChip({ label, value, subject, guide = false, onEditValue 
           ariaLabel={subject === undefined ? `${label} value` : `${subject} ${label}`}
           display={value}
           onEdit={onEditValue}
-          className="!w-auto min-w-0 max-w-full field-sizing-content"
+          className="min-w-0 max-w-full field-sizing-content"
+          width="auto"
           restClassName="min-w-0 max-w-full"
         />
       )}
