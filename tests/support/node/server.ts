@@ -315,18 +315,17 @@ type HarnessConstruction = Pick<ServerTestHarness, "db" | "env" | "clock" | "idS
 async function prepareHarnessOwner(
   options: ServerHarnessOptions | UnclaimedServerHarnessOptions,
   {
-    db,
     wiringDb,
     clock,
     idSource,
     rolePolicy,
     sessionsCrypto,
-  }: Pick<HarnessConstruction, "db" | "clock" | "idSource" | "rolePolicy"> & Pick<ServicesDeps, "sessionsCrypto"> & { readonly wiringDb: ServicesDeps["db"] },
+  }: Pick<HarnessConstruction, "clock" | "idSource" | "rolePolicy"> & Pick<ServicesDeps, "sessionsCrypto"> & { readonly wiringDb: ServicesDeps["db"] },
 ): Promise<Pick<BootOwner, "ownerId" | "ownersBoundBeforeAssembly">> {
   if (options.ownerId !== undefined) {
     return { ownerId: options.ownerId ?? undefined, ownersBoundBeforeAssembly: [] };
   }
-  return await prepareBootOwner({ db, wiringDb, now: clock.now, idSource, rolePolicy, sessionSecret: SESSION_SECRET, sessionsCrypto, ownerSeed: {} });
+  return await prepareBootOwner({ db: wiringDb, now: clock.now, idSource, rolePolicy, sessionSecret: SESSION_SECRET, sessionsCrypto, ownerSeed: {} });
 }
 
 const ACTOR_HANDLE_PREFIX = "actor";

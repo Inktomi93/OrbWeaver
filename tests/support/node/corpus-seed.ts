@@ -4,6 +4,7 @@ import { parsePresetFile } from "@orb/contracts/preset";
 import { createRosterPresetSchema } from "@orb/contracts/roster-preset";
 import { createTagSchema } from "@orb/contracts/tag";
 import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, DocumentId, PersonaId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -181,7 +182,7 @@ export async function seedCorpusLibraries(root: ServerHarness): Promise<SeededCo
   });
   let source = (await caller.preset.list()).find((row) => row.isSystemDefault);
   if (source === undefined) {
-    await seedDefaultPreset({ db: root.db, now: root.clock.now });
+    await seedDefaultPreset({ db: databaseHandle(root.db), now: root.clock.now });
     source = (await caller.preset.list()).find((row) => row.isSystemDefault);
   }
   if (source === undefined) {
@@ -436,8 +437,8 @@ interface SyntheticCorpus {
 /** Uses the caller's graph; raw execution and its lifetime remain owned by the actual server harness. */
 export async function seedSyntheticCorpus(root: ServerHarness, options: SeedSyntheticCorpusOptions): Promise<SyntheticCorpus> {
   const owner = await root.principalFor(root.ownerId);
-  await seedDefaultPreset({ db: root.db, now: root.clock.now });
-  await seedThemes({ db: root.db, now: root.clock.now });
+  await seedDefaultPreset({ db: databaseHandle(root.db), now: root.clock.now });
+  await seedThemes({ db: databaseHandle(root.db), now: root.clock.now });
   const seedLedger = await seedUserContentLedger(root, owner);
 
   // The demo's optional CLI branches cannot certify a corpus whose required boot content is missing.

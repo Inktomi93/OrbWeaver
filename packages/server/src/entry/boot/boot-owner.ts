@@ -1,7 +1,6 @@
 // Boot's pre-assembly owner step: compose takes the owner id, so a transient sessions service resolves or seeds the
 // owner first. Every root that stands for a booted box (the process, the test harness) runs this one step.
 
-import type { Db } from "@orb/db";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { IdSource, UserId } from "@orb/kit/ids";
 import type { SessionsRolePolicy, SessionsService } from "#domain/sessions";
@@ -18,8 +17,7 @@ export interface BootOwnerSeed {
 }
 
 export interface BootOwnerInput {
-  readonly db: Db;
-  readonly wiringDb: DatabaseHandle;
+  readonly db: DatabaseHandle;
   readonly now: () => number;
   readonly idSource: IdSource;
   readonly rolePolicy: SessionsRolePolicy;
@@ -79,7 +77,7 @@ export async function prepareBootOwner(input: BootOwnerInput): Promise<BootOwner
   const ownersBoundBeforeAssembly: UserId[] = [];
   const sessions = createSessionsService({
     rolePolicy: input.rolePolicy,
-    db: input.wiringDb,
+    db: input.db,
     now: input.now,
     idSource: input.idSource,
     crypto: input.sessionsCrypto,
@@ -89,7 +87,7 @@ export async function prepareBootOwner(input: BootOwnerInput): Promise<BootOwner
     // owner, and it runs once per process. `workloads` does not exist yet, so an owner whose encoder this seed
     // binds is held and its sweeps are enqueued once compose has built the queue.
     seedUserConnections: createLocalLightUserSeed({
-      db: input.wiringDb,
+      db: input.db,
       now: input.now,
       idSource: input.idSource,
       onEmbedSpaceBound: (boundOwner) => ownersBoundBeforeAssembly.push(boundOwner),
