@@ -3,7 +3,7 @@ import { detachedWorkRule } from "./async.ts";
 import { assumesSingleReplicaRule, commentedCodeRule, historyCommentRule, rawIdRule, sideGenSamplingRule, wireJsonRule } from "./general.ts";
 import { DB_SCHEMA_RESTRICTIONS, SERVER_HARD_RESTRICTIONS, TYPE_SHAPE_RESTRICTIONS } from "./general-policy.ts";
 import { moduleStateRule } from "./module-state.ts";
-import { baseUiPortalContainerRule, contextReturnTypeRule, directRowReadRule, directRowWriteRule, testFactoryContractRule } from "./native.ts";
+import { baseUiPortalContainerRule, contextReturnTypeRule, directRowReadRule, directRowWriteRule, nativeTitleRule, testFactoryContractRule } from "./native.ts";
 import { PRINCIPAL_RULES } from "./principal.ts";
 import {
   AMBIENT_GLOBAL_RESTRICTIONS,
@@ -80,6 +80,7 @@ export function createOrbPlugin(options: { browserNodeGlobals: ReadonlySet<strin
       "no-raw-http-client": rawHttpClientRule,
       "sole-env-reader": soleEnvReaderRule,
       "baseui-portal-container-seam": baseUiPortalContainerRule,
+      "no-native-title": nativeTitleRule,
       "test-factory-contract": testFactoryContractRule,
       "no-direct-row-writes": directRowWriteRule,
       "no-direct-row-reads": directRowReadRule,

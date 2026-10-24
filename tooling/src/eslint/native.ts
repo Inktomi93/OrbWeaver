@@ -307,3 +307,36 @@ export const baseUiPortalContainerRule: OrbRule = {
     return { JSXOpeningElement: check };
   },
 };
+
+const REACT_TYPES = /\/node_modules\/@types\/react\//u;
+
+// An iframe's `title` is its accessible name (HTML-AAM), not a hover hint, so the attribute keeps its meaning there.
+const NATIVE_TITLE_OWNERS = new Set(["iframe"]);
+
+// The `title` the checker binds to React's DOM attribute declarations is the browser's hover tooltip, whether it is
+// spelled on an intrinsic or forwarded by a primitive's props. A component that declares its own `title` prop (a
+// dialog heading, a row's visible title) binds to that declaration instead and passes.
+export const nativeTitleRule: OrbRule = {
+  meta: { type: "problem", schema: [] },
+  create(context: OrbRuleContext): RuleVisitor {
+    const native = nativeDeclarationContext(context);
+    return {
+      "JSXAttribute[name.name='title']": (node: TSESTree.JSXAttribute): void => {
+        const opening = node.parent as TSESTree.JSXOpeningElement;
+        if (opening.name.type === "JSXIdentifier" && NATIVE_TITLE_OWNERS.has(opening.name.name)) {
+          return;
+        }
+        // The attribute name binds to its own transient symbol; the props type the element expects names the declaration.
+        const attributes = native.esTreeNodeToTSNodeMap.get(node).parent;
+        const declarations = native.checker.getContextualType(attributes)?.getProperty("title")?.declarations ?? [];
+        if (declarations.some((declaration) => REACT_TYPES.test(declaration.getSourceFile().fileName.replaceAll("\\", "/")))) {
+          context.report({
+            node: node.name,
+            message:
+              "A native `title` is invisible on touch and is not the accessible name. Put the text in visible copy or an @orb/ui Tooltip (it describes its trigger through aria-describedby), or delete it when it repeats the accessible name (.claude/rules/ui-and-client.md).",
+          });
+        }
+      },
+    };
+  },
+};
