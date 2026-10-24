@@ -59,12 +59,12 @@ Use `@orb/testkit/node/auth` for any case that needs an authenticated request.
 
 Branch a case on the capability, never on the mode name. `AUTH_MODE_CAPABILITIES` in [node/auth.ts](node/auth.ts) is the table:
 
-| Mode | `members` | `ownerFallback` |
-| - | - | - |
-| `single-user` | false | true |
-| `local` | true | false |
-| `oidc` | true | false |
-| `forward-header` | true | false |
+| Mode | `members` |
+| - | - |
+| `single-user` | false |
+| `local` | true |
+| `oidc` | true |
+| `forward-header` | true |
 
 `members` means a second account can sign in. `ownerFallback` reads the product's unset `AUTH_FALLBACK` default, `AUTH_MODE_DEFAULT_FALLBACK` in `@orb/server/foundation/env`, and every door root composes that default. Multiplayer surfaces also need the product's `app.multiHumanCapable()`, which `local` turns on only with the `localMultiUser` app setting.
 

@@ -25,7 +25,6 @@ const OK = 200;
 const LOOPBACK_PEER = "127.0.0.1";
 const VIEWER_ROUTE = "/api/trpc/sessions.me";
 const RELAY_TELL = "x-forwarded-for";
-const FALLBACK_MODES = AUTH_MODES.filter((mode) => AUTH_MODE_CAPABILITIES[mode].ownerFallback);
 const MEMBERLESS_MODES = AUTH_MODES.filter((mode) => !AUTH_MODE_CAPABILITIES[mode].members);
 const listEnvelopeSchema = z.object({ result: z.object({ data: chatListPageSchema }) });
 
@@ -93,10 +92,10 @@ forEachAuthMode("a forwarding header refuses the owner fallback and leaves a cre
   const owner = await signIn(root, await ownerSubject(root));
   const relayed = await root.http.request(VIEWER_ROUTE, { headers: { ...owner.headers, [RELAY_TELL]: OFF_BOX_PEER } });
   await relayed.arrayBuffer();
-  expect(relayed.status).toBe(capability.ownerFallback ? UNAUTHORIZED : OK);
+  expect(relayed.status).toBe(capability.members ? OK : UNAUTHORIZED);
 });
 
-test.for(FALLBACK_MODES)("an owner-fallback mode refuses the owner from an off-box peer with the product's 401 [%s]", async (mode) => {
+test.for(MEMBERLESS_MODES)("a mode without members refuses the owner from an off-box peer with the product's 401 [%s]", async (mode) => {
   await using onBox = await createAuthModeRoot(mode);
   expect((await signIn(onBox, await ownerSubject(onBox))).viewer.globalRole).toBe("owner");
   await using offBox = await createAuthModeRoot(mode, { physicalPeer: () => OFF_BOX_PEER });
