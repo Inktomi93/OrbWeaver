@@ -156,8 +156,8 @@ interface TurnDeps {
    *  chat-internal half is gathered by `gatherAssembleContext`. */
   readonly resolveForeignInputs: ResolveForeignInputsOp;
   /** The husk→real transition (R0). A user line and a generated turn are the two loudest claims
-   *  there are; both fire through the two chokepoints below (`commitUserTurn` / `resolveTurnBase`),
-   *  never per-verb, so no turn-running arm can be added without one. */
+   *  there are; both fire through the chokepoints `commitUserTurn` / `resolveTurnBase`, plus
+   *  `forceCharacterTurn`, which runs a round without either and claims after its host and seat gates. */
   readonly claimChat: ClaimChatOp;
 }
 
@@ -1813,6 +1813,9 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
     if (target === undefined || !present) {
       throw new ChatNotFoundError(chatId);
     }
+    // A forced reply is a generated turn and claims like one (R0 F4(a)): after the host and seat gates, so a
+    // refused force never claims, and before any engine write, which retained accounting refuses on a husk.
+    await deps.claimChat(chatId);
     // ACCEPTED: the caller is the host and the named character holds a present seat, so this turn IS happening
     // — open the client's slot NOW, before the connection resolve + the multi-second context build. Ordered
     // AFTER the NOT_FOUND throw above so a bad character id never opens a slot at all.
