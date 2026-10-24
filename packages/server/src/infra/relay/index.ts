@@ -11,4 +11,3 @@ export type {
 export { CLOUDFLARED_TARGETS } from "./contract.ts";
 export { createOwnedRelayLauncher } from "./execution.ts";
 export { CLOUDFLARED_PIN } from "./pin.ts";
-export { RELAY_STOP_GRACE_MS } from "./quick-tunnel.ts";

@@ -1,9 +1,10 @@
 // @subject tests/support/node/corpus-chat-lifecycle.ts
 // @subject tests/support/node/corpus-chat-wire.ts
 // @subject tests/support/node/corpus-imagery.ts
+
 import { assertReferentialIntegrity, closeDb } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { CHAT_OP_CODES } from "@orb/server/domain/chat";
+import { CHAT_OP_CODES } from "../../../packages/server/src/domain/chat/contract/errors.ts";
 import { seedCorpusActors } from "./corpus-actors.ts";
 import { seedCorpusChatLifecycle } from "./corpus-chat-lifecycle.ts";
 import { CORPUS_CHAT_MODEL, CORPUS_CHAT_REPLY, corpusImageryPhysicalBytes, createCorpusChatWire } from "./corpus-chat-wire.ts";

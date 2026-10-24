@@ -1,9 +1,9 @@
 // @subject packages/server/src/domain/chat/service.ts
 // Physical FIFO replies and actual durable outcomes qualify the production root, not a replacement domain façade.
+
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { TurnOutcome } from "@orb/contracts/chat";
 import { jsonValueSchema } from "@orb/kit/json";
-import { ChatNotFoundError } from "@orb/server/domain/chat";
 import { createControlledTimers, createFrozenClock } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
@@ -17,6 +17,7 @@ import {
   readRoomCanon,
 } from "@orb/testkit/node/composed";
 import { assertEventSequence } from "@orb/testkit/node/helpers";
+import { ChatNotFoundError } from "#server/domain/chat/contract/errors.ts";
 
 async function room(
   replies: readonly string[],

@@ -1,9 +1,10 @@
 // @subject packages/server/src/domain/settings/verbs/upstream-probes.ts
 
 import type { UpstreamOf, UpstreamProbeResult } from "@orb/kit/version-identity";
-import { createCachedUpstreamProbes, UPSTREAM_ANSWER_TTL_MS } from "@orb/server/domain/settings";
+import { createCachedUpstreamProbes } from "@orb/server/domain/settings";
 import { expect, test } from "@orb/testkit/node";
 import { vi } from "vitest";
+import { UPSTREAM_ANSWER_TTL_MS } from "#server/domain/settings/verbs/upstream-probes.ts";
 
 const MAIN: UpstreamProbeResult<UpstreamOf<"main">> = { ok: true, upstream: { channel: "main", commit: "commit-one", short: "commit-one", committedAt: null } };
 const STABLE: UpstreamProbeResult<UpstreamOf<"stable">> = { ok: true, upstream: { channel: "stable", version: "1.2.3", publishedAt: null } };

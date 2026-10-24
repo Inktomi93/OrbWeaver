@@ -48,6 +48,9 @@ const SERVER_ROOT = "^packages/server/dist/router-types/packages/server/src/inde
 const INFERENCE = "^packages/inference/src/";
 const TEST_FILES = `(?:${TEST_KIND_SUFFIXES.map((suffix) => suffix.replaceAll(".", "\\.")).join("|")})$`;
 const TEST_BROWSER_SUPPORT = "^tests/support/browser/";
+// Tests and their helpers: the importers the test-side door rules judge.
+const TEST_TREES = "^tests/";
+const DOMAIN_TYPE_CONTRACT = "^tests/server/domain/([^/]+)/.*\\.test-d\\.ts$";
 const BROWSER_MOUNT_PATHS = ["^playwright/", "^(tests|scripts)/(?!support/(iso|node)/).*\\.tsx$"];
 const BROWSER_TEST_PATHS = [TEST_BROWSER_SUPPORT, ...BROWSER_MOUNT_PATHS];
 const BROWSER_TEST_FILES = `(?:${BROWSER_TEST_SUFFIXES.map((suffix) => suffix.replaceAll(".", "\\.")).join("|")})$`;
@@ -244,6 +247,55 @@ function exportedDoors(pkg: string, exports: Readonly<Record<string, unknown>>):
 }
 // Every server door: a module's index.ts, and each subpath the package's exports map declares.
 const SERVER_DOORS = [`${SRV}[^/]+/[^/]+/index\\.ts$`, ...exportedDoors("server", serverPackage.exports)];
+// The production files a suite may import directly for a Spine-Testing §9 import: a constant, limit, id, error class
+// or pure rule that production executes. A door forwards only what production consumes through it, so `pnpm knip:prod`
+// fails a door forward whose only importers are tests; the suite reads the symbol from its owning file here instead.
+// One entry per owning file, naming its symbols. The compile-time registries knip.ts trusts are read here too.
+// A suite of another module still needs its reach line below.
+const TEST_CONSTANT_HOMES = {
+  "packages/server/src/domain/character/contract/errors.ts": "CharacterNotFoundError: the refusal class greeting suites assert",
+  "packages/server/src/domain/chat/contract/errors.ts": "CHAT_OP_CODES and ChatNotFoundError: the refusal codes and class chat suites assert",
+  "packages/server/src/domain/chat/contract/metadata.ts": "TOOL_RECURSE_LIMIT_DEFAULT: the default the corpus writes back",
+  "packages/server/src/domain/chat/persistence/participants-read.ts": "loadPresentRole: the production role read the authority suite compares against",
+  "packages/server/src/domain/plugin/contract/errors.ts": "PluginNotFoundError: the refusal class plugin seed cases assert",
+  "packages/server/src/domain/plugin/substrate/plugin-macros.ts": "pluginMacroName: the token rule for a plugin's registered macro",
+  "packages/server/src/domain/preset/constants.ts":
+    "SYSTEM_DEFAULT_PRESET_ID, SYSTEM_DEFAULT_PRESET_KIND and SYSTEM_DEFAULT_PRESET_NAME: the system preset's identity",
+  "packages/server/src/domain/settings/constants.ts": "RETIRED_SEED_THEME_IDS, THEME_HEARTH_ID and THEME_MOCHA_ID: the seeded theme ids",
+  "packages/server/src/domain/settings/substrate/seed-themes.ts": "SEED_THEMES: the seeded theme table",
+  "packages/server/src/domain/settings/verbs/upstream-probes.ts": "UPSTREAM_ANSWER_TTL_MS: the probe answer lifetime",
+  "packages/server/src/foundation/observability/tracing.ts": "getTraceByRequestId: the trace ring read the span suites assert through",
+  "packages/server/src/infra/plugin-host/sandbox.ts": "Sandbox: the sandbox class its unit suite constructs",
+  "packages/server/src/infra/relay/quick-tunnel.ts": "RELAY_STOP_GRACE_MS: the relay's stop grace",
+  "packages/server/src/infra/upstream-update/adapter.ts": "parseLatestRelease and parseMainHead: the pure release and head parsers",
+  "packages/server/src/entry/compose/portability.ts":
+    "LIFECYCLE_DOORS, NON_PORTABLE_CANON and PORTABLE_CANON_TABLES: the D329 portability registries their suites check",
+  "packages/server/src/entry/contract/portability.ts": "NON_PORTABLE_CLASSES and the registry value shapes: the D329 portability vocabulary",
+  "packages/contracts/src/chat/bus.ts": "CHAT_WARNING_CODES and PROVIDER_ADJUSTMENT_KINDS: the warning vocabularies",
+  "packages/contracts/src/chat/content-classes.ts": "CONTENT_CLASS_POLICY: the content-class projection table",
+  "packages/contracts/src/chat/impersonation.ts": "impersonateStreamDeltaSchema: the impersonation delta parser",
+  "packages/contracts/src/import/persona-collision.ts": "PERSONA_COLLISION_CHOICES: the collision choice vocabulary",
+  "packages/contracts/src/plugin/ui-host.ts": "PLUGIN_UI_CHAT_MESSAGES_LIMIT_MAX: the message read cap",
+  "packages/contracts/src/plugin/view.ts": "PLUGIN_FANOUT_SKIP_REASONS: the fan-out skip vocabulary",
+  "packages/contracts/src/prose-slot/index.ts": "proseOverrideFromLegacy: the legacy text lift",
+  "packages/contracts/src/rpg/actor.ts":
+    "rpgActorIdentitySchema, rpgActorVolatileSchema, rpgInventoryItemSchema and rpgRelationshipSchema: the actor part parsers",
+  "packages/contracts/src/rpg/structured-round.ts": "RPG_STATE_CHANGES_FIELD: the structured round's state field",
+  "packages/contracts/src/rpg/trace.ts": "rpgTraceEventSchema: the trace event parser",
+  "packages/contracts/src/rpg/tracker.ts": "rpgTrackerValueSchema: the tracker value parser",
+  "packages/contracts/src/workloads/admission.ts": "WORKLOAD_UNFUNDED: the unfunded refusal code",
+  "packages/db/src/client/index.ts": "buildResetDropScript: the reset script builder",
+  "packages/db/src/query/check-list.ts": "checkList: the SQL literal-list formatter",
+  "packages/inference/src/contract/errors.ts": "PROVIDER_ERROR_KINDS: the provider error vocabulary",
+  "packages/client/src/data/import-tree-plan.ts": "planTreeImport: the folder import planner",
+  "packages/client/src/data/import-tree-served.ts": "planServedTreeImport: the served-tree import planner",
+  "packages/client/src/features/config/lib/config-copy.ts": "CONFIG_SECTION_LABEL: the settings section labels",
+  "packages/client/src/features/rpg/lib/unset-datum.ts": "UNSET_DATUM: the unset reading's text",
+  "packages/client/src/state/create-persisted-store.ts": "createPersistedStore: the persisted-store factory a type contract reads",
+  "packages/client/src/compose/contributors.ts": "chromeWidgets: the shipped chrome widget registry",
+  "packages/client/src/compose/home-tiles.ts": "homeTiles: the shipped home tile registry",
+} as const satisfies Readonly<Record<string, string>>;
+const TEST_CONSTANT_HOME_PATHS = Object.keys(TEST_CONSTANT_HOMES).map((path) => `^${RegExp.escape(path)}$`);
 // The suites that import a production constant or verb from another module's door (Spine-Testing §9 imports constants
 // from their home): each line names what it imports and why the suite needs it. No wire carries any of them.
 const SERVER_TEST_REACHES = {
@@ -335,7 +387,7 @@ function serverTestMirrorRules(): IForbiddenRuleType[] {
       comment: "A server suite enters a module through its door.",
       severity: "error",
       from: { path: "^tests/server/", pathNot: "\\.test-d\\.ts$" },
-      to: { path: `${SRV}(?!domain/)`, pathNot: SERVER_DOORS },
+      to: { path: `${SRV}(?!domain/)`, pathNot: [...SERVER_DOORS, ...TEST_CONSTANT_HOME_PATHS] },
     },
     {
       name: "tests-server-type-contracts-own-internals",
@@ -349,7 +401,7 @@ function serverTestMirrorRules(): IForbiddenRuleType[] {
       comment: "An entry or tier-level .test-d.ts type contract names only door types; no internal file of any module.",
       severity: "error",
       from: { path: `${SERVER_TEST_OWN_TIER}.*\\.test-d\\.ts$` },
-      to: { path: `${SRV}(?!domain/)`, pathNot: SERVER_DOORS },
+      to: { path: `${SRV}(?!domain/)`, pathNot: [...SERVER_DOORS, ...TEST_CONSTANT_HOME_PATHS] },
     },
   ];
 }
@@ -381,10 +433,7 @@ const PACKAGE_TEST_REACHES = {
   "tests/db/client/traced-client-spans.int.test.ts": {
     "packages/server/src/foundation/observability/index.ts":
       "wrapLibSqlClient: the client wrapper createDb takes, proven through native close; the raw queries it traces are persistence-tier reads",
-  },
-  "tests/client/features/plugin/native-guest-protocol.ct.tsx": {
-    "packages/client/src/lib/plugin-ui-guest-protocol.ts":
-      "UI_GUEST_BUDGETS: the guest's own log caps; its Worker-side importers read the leaf, so the lib door forwards no budget",
+    "packages/server/src/foundation/observability/tracing.ts": "getTraceByRequestId: the trace ring read that shows the wrapped client's spans",
   },
   "tests/client/features/character/lib/facet-fill.dom.test.ts": {
     "packages/client/src/features/character/lib/character-card-facets.ts": "facetFillState and CHARACTER_CARD_FACET_IDS: the feature-private facet model",
@@ -480,7 +529,7 @@ function packageTestMirrorRules([pkg, packageCake]: readonly [string, string]): 
       from: tree,
       ...(typeContracts ? { fromNot: TEST_TYPE_CONTRACT } : {}),
       to: SOURCE,
-      toNot: PACKAGE_DOORS,
+      toNot: [...PACKAGE_DOORS, ...TEST_CONSTANT_HOME_PATHS],
       runtime: false,
     }),
     ...(typeContracts && pkg !== "client"
@@ -781,8 +830,15 @@ const CLIENT_BOUNDARIES = [
     name: "client-compose-door-only",
     comment: "Browser test support mounts the production composition door; Node and isomorphic helpers do not.",
     severity: "error",
-    from: { pathNot: [`${CLIENT}main\\.tsx$`, `${CLIENT}routes/router\\.tsx$`, `${CLIENT}compose/`, TEST_BROWSER_SUPPORT] },
+    from: { pathNot: [`${CLIENT}main\\.tsx$`, `${CLIENT}routes/router\\.tsx$`, `${CLIENT}compose/`, TEST_BROWSER_SUPPORT, TEST_TREES] },
     to: { path: `${CLIENT}compose/` },
+  },
+  {
+    name: "tests-client-compose-door-only",
+    comment: "A test reaches the composition door through browser test support, or reads a listed registry file for its definitions.",
+    severity: "error",
+    from: { path: TEST_TREES, pathNot: TEST_BROWSER_SUPPORT },
+    to: { path: `${CLIENT}compose/`, pathNot: TEST_CONSTANT_HOME_PATHS },
   },
   {
     name: "plugin-ui-guest-worker-no-react",
@@ -934,10 +990,30 @@ const DOMAIN_AUTHORITY = [
   {
     name: "domain-feature-front-door",
     severity: "error",
-    from: { pathNot: `${SRV}domain/` },
+    from: { pathNot: [`${SRV}domain/`, TEST_TREES] },
     to: {
       path: `${SRV}domain/[^/]+/.+`,
       pathNot: `${SRV}domain/[^/]+/index\\.ts$`,
+    },
+  },
+  {
+    name: "tests-domain-front-door",
+    comment: "A test enters a domain through its door, or reads a Spine-Testing §9 symbol from its listed owning file.",
+    severity: "error",
+    from: { path: TEST_TREES, pathNot: DOMAIN_TYPE_CONTRACT },
+    to: {
+      path: `${SRV}domain/[^/]+/.+`,
+      pathNot: [`${SRV}domain/[^/]+/index\\.ts$`, ...TEST_CONSTANT_HOME_PATHS],
+    },
+  },
+  {
+    name: "tests-domain-type-contracts-own-internals",
+    comment: "A .test-d.ts type contract may name its own domain's internal types; every other domain enters through its door.",
+    severity: "error",
+    from: { path: DOMAIN_TYPE_CONTRACT },
+    to: {
+      path: `${SRV}domain/[^/]+/.+`,
+      pathNot: [`${SRV}domain/[^/]+/index\\.ts$`, `${SRV}domain/$1/`, ...TEST_CONSTANT_HOME_PATHS],
     },
   },
   {
@@ -1077,10 +1153,20 @@ const EXECUTOR_BOUNDARIES = [
     name: "providers-public-surface-only",
     comment: "Deep imports bypass the public inference surface and can expose credential-bearing backend internals.",
     severity: "error",
-    from: { pathNot: [INFERENCE, "^tooling/"] },
+    from: { pathNot: [INFERENCE, "^tooling/", TEST_TREES] },
     to: {
       path: INFERENCE,
       pathNot: `${INFERENCE}index\\.ts$`,
+    },
+  },
+  {
+    name: "tests-providers-public-surface-only",
+    comment: "A test enters inference through its public surface, or reads a listed Spine-Testing §9 symbol from its owning file.",
+    severity: "error",
+    from: { path: TEST_TREES },
+    to: {
+      path: INFERENCE,
+      pathNot: [`${INFERENCE}index\\.ts$`, ...TEST_CONSTANT_HOME_PATHS],
     },
   },
   {

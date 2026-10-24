@@ -4,7 +4,7 @@ import { CSRF_HEADER } from "@orb/contracts/identity";
 import { IMAGERY_NEGATIVE_SLOT_ID } from "@orb/contracts/imagery";
 import { providerDefSchema } from "@orb/contracts/inference";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import { proseOverrideFromLegacy, resolveProseText } from "@orb/contracts/prose";
+import { resolveProseText } from "@orb/contracts/prose";
 import { resolveImageryCaption, resolveImageryTemplate } from "@orb/contracts/settings";
 import type { Resolved } from "@orb/inference";
 import { ID_PREFIX } from "@orb/kit/ids";
@@ -25,6 +25,7 @@ import {
   seedInvitedChatParticipant,
 } from "@orb/testkit/node/composed";
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
+import { proseOverrideFromLegacy } from "#contracts/prose-slot/index.ts";
 
 const HOST_MODEL = "imagery-host-utility";
 const LIVE_MODEL = "imagery-host-utility-live";

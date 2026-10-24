@@ -1,6 +1,7 @@
 import type { LogLevel } from "@orb/contracts/settings";
-import { createDetachedSupervision, createLogger, getTraceByRequestId, logRing, span } from "@orb/server/foundation/observability";
+import { createDetachedSupervision, createLogger, logRing, span } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node";
+import { getTraceByRequestId } from "#server/foundation/observability/tracing.ts";
 
 // The runner's silent floor emits no log bytes; these cases read the error report from a root logger at error.
 const REPORT_LEVEL = "error" satisfies LogLevel;

@@ -1,8 +1,9 @@
-import { CONTENT_CLASS_POLICY, contentSpansToBlocks, messageContentBlockSchema } from "@orb/contracts/chat";
+import { contentSpansToBlocks, messageContentBlockSchema } from "@orb/contracts/chat";
 import type { ContentSpanKind } from "@orb/kit/content";
 import { tokenizeContent } from "@orb/kit/content";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
+import { CONTENT_CLASS_POLICY } from "#contracts/chat/content-classes.ts";
 
 const CLASS_BODIES = {
   text: "The witness speaks.",

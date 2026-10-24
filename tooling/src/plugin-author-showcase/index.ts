@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import type { PluginAuthorArtifact, PluginAuthorCompilerObserver, PluginAuthorDiagnostic, PluginAuthorResult } from "@orb/plugin-toolchain";
@@ -50,7 +51,8 @@ export function showcaseBundleDirectory(repoRoot: string): string {
 
 export async function compileShowcasePlugins(repoRoot: string, compilerObserver?: PluginAuthorCompilerObserver): Promise<ShowcaseAuthorResult> {
   const sourceRoot = join(repoRoot, "packages", "showcase-plugins", "bundles");
-  const sdkDirectory = join(repoRoot, "packages", "plugin-sdk");
+  // Resolve the SDK through its package exports, as the orb-plugin CLI does in a template checkout.
+  const sdkDirectory = dirname(createRequire(join(repoRoot, "packages", "showcase-plugins", "package.json")).resolve("@orb/plugin-sdk/package.json"));
   const outputRoot = join(repoRoot, "packages", "showcase-plugins", "dist", "author-js");
   const artifacts: PluginAuthorArtifact[] = [];
   const diagnostics: PluginAuthorDiagnostic[] = [];

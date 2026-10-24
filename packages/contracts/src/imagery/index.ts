@@ -255,8 +255,6 @@ export const generatePictureRequestSchema = z.discriminatedUnion("mode", [
   generatePictureRequestFields.extend({ mode: z.literal("free"), prompt: freePromptSchema }),
   generatePictureRequestFields.extend({ mode: templateModeSchema, prompt: z.string().max(MAX_PROMPT_CHARS).optional() }),
 ]);
-/** Schema twin of {@link generatePictureRequestSchema} for the live `generateImage` tRPC input. */
-export type GeneratePictureRequest = z.infer<typeof generatePictureRequestSchema>;
 
 // ── IC-C mints ──────────────────────────────────────────────────────────────────────────────────────
 // The `/imagine` trigger→mode map + the automation `generate_image` action-arm args. Both land WITH their

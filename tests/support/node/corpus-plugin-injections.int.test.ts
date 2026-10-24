@@ -1,5 +1,6 @@
 // @subject packages/server/src/domain/chat/assembly/context.ts
 // @subject packages/server/src/domain/plugin/substrate/plugin-macros.ts
+
 import { spawn } from "node:child_process";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { CHAT_INJECTION_POSITIONS } from "@orb/contracts/chat";
@@ -7,7 +8,7 @@ import { createPersonaSchema } from "@orb/contracts/persona";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { neutralizeMacros } from "@orb/kit/macro";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { pluginMacroName } from "@orb/server/domain/plugin";
+import { pluginMacroName } from "../../../packages/server/src/domain/plugin/substrate/plugin-macros.ts";
 import { seedCorpusActors } from "./corpus-actors.ts";
 import { captureCorpusPluginHost } from "./corpus-plugin-host.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";

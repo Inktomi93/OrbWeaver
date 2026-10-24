@@ -1,16 +1,8 @@
-import {
-  addSpanEvent,
-  createLogger,
-  createRequestObservability,
-  getTraceByRequestId,
-  initTracing,
-  setSpanAttrs,
-  span,
-  withRequestSpan,
-} from "@orb/server/foundation/observability";
+import { addSpanEvent, createLogger, createRequestObservability, initTracing, setSpanAttrs, span, withRequestSpan } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node";
 import { createTestEnv } from "@orb/testkit/node/helpers";
 import { Hono } from "hono";
+import { getTraceByRequestId } from "#server/foundation/observability/tracing.ts";
 
 const ROOT = "migration.request";
 const CHILD = "migration.child";

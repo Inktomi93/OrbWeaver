@@ -1,11 +1,12 @@
 // @subject packages/client/src/data/import-tree-plan.ts
 // @subject packages/client/src/data/import-tree-packer.ts
 // @subject packages/client/src/data/import-tree-served.ts
+
 import type { TreeImportCaps, TreeImportPlan } from "@orb/client/data";
-import { importTree, planServedFolderImport, planServedTreeImport, planTreeImport, relativePathOf } from "@orb/client/data";
+import { importTree, planServedFolderImport, relativePathOf } from "@orb/client/data";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { PersonaCollisionChoices } from "@orb/contracts/import";
-import { admitTreeBatch, importStartedSchema, PERSONA_COLLISION_CHOICES, treeUploadFixedFramingBytes, treeUploadPartFramingBytes } from "@orb/contracts/import";
+import { admitTreeBatch, importStartedSchema, treeUploadFixedFramingBytes, treeUploadPartFramingBytes } from "@orb/contracts/import";
 import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_DIRECTORIES, PORTABLE_IMPORT_ORDER } from "@orb/contracts/portability";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
@@ -14,6 +15,9 @@ import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
+import { planTreeImport } from "#client/data/import-tree-plan.ts";
+import { planServedTreeImport } from "#client/data/import-tree-served.ts";
+import { PERSONA_COLLISION_CHOICES } from "#contracts/import/persona-collision.ts";
 
 const WRAPPER = "backup";
 const WORKLOAD_DEADLINE_MS = 60_000;

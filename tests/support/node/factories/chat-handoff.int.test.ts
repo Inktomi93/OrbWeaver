@@ -1,7 +1,7 @@
 // @subject tests/support/node/factories/rows/chat.ts
 
 import { closeDb } from "@orb/db";
-import { CHAT_OP_CODES } from "@orb/server/domain/chat";
+import { CHAT_OP_CODES } from "../../../../packages/server/src/domain/chat/contract/errors.ts";
 import { seedRecallRoom } from "../corpus-actors.ts";
 import { freshHeldDb } from "../db.ts";
 import { expect, test } from "../fixtures.ts";

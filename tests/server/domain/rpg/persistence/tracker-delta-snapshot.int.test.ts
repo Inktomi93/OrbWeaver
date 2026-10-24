@@ -6,13 +6,14 @@
 
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
-import { rpgTrackerDefSchema, rpgTrackerValueSchema } from "@orb/contracts/rpg";
+import { rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import { rpgSnapshots } from "@orb/db";
 import { makePromptConfig } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { eq } from "drizzle-orm";
+import { rpgTrackerValueSchema } from "#contracts/rpg/tracker.ts";
 import { coreFrame, coreSse } from "../../chat/engine/core-physical.ts";
 import { TURN_SCENE_TOOL, turnRpgRoom, turnWireBody } from "../../chat/verbs/turn-rpg-physical.ts";
 

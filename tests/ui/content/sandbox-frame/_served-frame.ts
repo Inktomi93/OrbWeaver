@@ -31,7 +31,7 @@ export interface FrameRoom {
   readonly appPolicy: () => Promise<string>;
 }
 
-export async function openFrameRoom(root: Root, chatId: ChatId, defaultCharacterId: CharacterId): Promise<FrameRoom> {
+async function openFrameRoom(root: Root, chatId: ChatId, defaultCharacterId: CharacterId): Promise<FrameRoom> {
   const admitted = await captureCookieAuth(root, await root.principalFor(root.ownerId), VIEWER_PASSWORD);
   const headers = { cookie: admitted.cookie, [CSRF_HEADER]: "1", "content-type": "application/json", forwarded: "" };
   return {

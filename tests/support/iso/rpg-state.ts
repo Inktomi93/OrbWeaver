@@ -8,15 +8,9 @@ import type {
   RpgSheet,
   RpgTrackerValue,
 } from "@orb/contracts/rpg";
-import {
-  rpgActorEntrySchema,
-  rpgActorIdentitySchema,
-  rpgActorVolatileSchema,
-  rpgInventoryItemSchema,
-  rpgRelationshipSchema,
-  rpgSheetSchema,
-  rpgTrackerValueSchema,
-} from "@orb/contracts/rpg";
+import { rpgActorEntrySchema, rpgSheetSchema } from "@orb/contracts/rpg";
+import { rpgActorIdentitySchema, rpgActorVolatileSchema, rpgInventoryItemSchema, rpgRelationshipSchema } from "../../../packages/contracts/src/rpg/actor.ts";
+import { rpgTrackerValueSchema } from "../../../packages/contracts/src/rpg/tracker.ts";
 
 /** Builds a sheet from its authored defaults, not a game's birth policy. */
 export function makeRpgSheet(overrides: Partial<RpgSheet> = {}): RpgSheet {

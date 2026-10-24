@@ -5,7 +5,6 @@
 export { createActiveTurns } from "./active-turns.ts";
 export { createTurnPersonaResolver } from "./assembly/turn-personas.ts";
 export { createChatBus } from "./bus.ts";
-export type { FreezeVolatileMacrosArgs, MacroRenderEnv, RenderMacrosOptions, TurnMacroContextArgs } from "./contract/assembly-macros.ts";
 export type { ChatBoundBackfillOps } from "./contract/bound-backfill.ts";
 // Chat owns the injected RPG turn operation and its result; RPG implements them through this type-only door.
 export type {
@@ -36,13 +35,12 @@ export type {
   TeachingContribution,
 } from "./contract/context.ts";
 
-export { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "./contract/errors.ts";
+export { ChatOperationError } from "./contract/errors.ts";
 export type { BeginGenerationObservation } from "./contract/generation-observation.ts";
-export type { ImageryRoomAccessDeps } from "./contract/imagery-access.ts";
 export type { BulkImportChats } from "./contract/import.ts";
-export type { ImageRefAssets, ResolveMediaRefDeps } from "./contract/media-ref.ts";
+export type { ImageRefAssets } from "./contract/media-ref.ts";
 export type { MemoryRecallRecorder } from "./contract/memory.ts";
-export { getGroupConfig, getRoomOverrides, TOOL_RECURSE_LIMIT_DEFAULT, toolRecurseLimitSchema } from "./contract/metadata.ts";
+export { getGroupConfig, getRoomOverrides, toolRecurseLimitSchema } from "./contract/metadata.ts";
 export type { ReactToolHandlerDeps } from "./contract/react-tool.ts";
 export type { RequestTurnOp } from "./contract/results.ts";
 export type { ChatService } from "./contract/service.ts";
@@ -61,10 +59,6 @@ export { createLiveTier0Range } from "./memory/recall/live-tier-range.ts";
 // The recall flight recorder (#250) — the composition root builds ONE and wires its sink onto `ChatContext`.
 export { createMemoryRecallRecorder } from "./memory/recall/recorder.ts";
 export { createBulkImportChats } from "./persistence/import-write.ts";
-// The membership primitive imagery's extractQuiet compose-gate reads (leak-free NOT_FOUND for a non-member —
-// cross-tenant-sweep-enforced; the createGetMembership precedent, a pure `(db, chatId, userId)` read).
-export { loadPresentRole } from "./persistence/participants-read.ts";
-
 export { createRoomSeatReach } from "./persistence/room-reach.ts";
 export {
   createCompareAndSetImportedTokenUsage,

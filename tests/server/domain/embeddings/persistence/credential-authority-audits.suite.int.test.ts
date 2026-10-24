@@ -4,7 +4,7 @@
 // @subject packages/server/src/domain/imagery/verbs/image-provider-ops.ts
 // @subject packages/server/src/domain/rpg/tools/rounds/resync.ts
 
-import { RPG_NO_CHANGES_TOOL, RPG_STATE_CHANGES_FIELD } from "@orb/contracts/rpg";
+import { RPG_NO_CHANGES_TOOL } from "@orb/contracts/rpg";
 import { auditLogs } from "@orb/db";
 import { ProviderError, toChatRequest } from "@orb/inference";
 import { DomainNoCredentialError } from "@orb/kit/errors";
@@ -12,6 +12,7 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect } from "@orb/testkit/node";
 import { TEST_PROVIDER_ID } from "@orb/testkit/node/helpers";
 import { and, eq } from "drizzle-orm";
+import { RPG_STATE_CHANGES_FIELD } from "#contracts/rpg/structured-round.ts";
 import { fundingConnection, test } from "../verbs/runtime-funding.fixtures.ts";
 
 test("nested real provider failure preserves its original outer object and strikes once", async ({ app, harness, db, ownerCaller, fundingProvider }) => {

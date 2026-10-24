@@ -44,7 +44,6 @@ export type { DistributedPluginApplier } from "./contract/distributed-seed.ts";
 export {
   ManifestInvalidError,
   PluginCrashedError,
-  PluginNotFoundError,
 } from "./contract/errors.ts";
 export type {
   PluginBelts,
@@ -84,7 +83,7 @@ export { buildConfirmedActRunner } from "./substrate/confirmed-act.ts";
 export { parseBundle } from "./substrate/manifest.ts";
 export { createNotifyFloor } from "./substrate/notify-floor.ts";
 export { createPluginEventBus, createPluginEventEmitter } from "./substrate/plugin-event-bus.ts";
-export { createPluginMacroRegistry, pluginMacroName } from "./substrate/plugin-macros.ts";
+export { createPluginMacroRegistry } from "./substrate/plugin-macros.ts";
 export {
   createPluginRateFloor,
   PLUGIN_ASSET_EGRESS_PER_HOUR,

@@ -41,7 +41,6 @@ export {
   PROSE_COUNTER_AT,
   PROSE_MAX_CHARS,
   proseOverBy,
-  proseOverrideFromLegacy,
   proseOverridesSchema,
   proseOverridesViewSchema,
 } from "#prose-slot";

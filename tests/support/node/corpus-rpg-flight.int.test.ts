@@ -2,11 +2,12 @@
 // @subject tests/support/node/corpus-rpg-flight-wire.ts
 // @subject tests/support/node/corpus-rpg-members.ts
 // @subject tests/support/node/corpus-rpg-rounds.ts
+
 import { CHAT_REACT_TOOL_NAME } from "@orb/contracts/chat";
 import { RPG_NO_CHANGES_TOOL } from "@orb/contracts/rpg";
 import { assertReferentialIntegrity } from "@orb/db";
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
-import { CHAT_OP_CODES } from "@orb/server/domain/chat";
+import { CHAT_OP_CODES } from "../../../packages/server/src/domain/chat/contract/errors.ts";
 import { createFrozenClock } from "../iso/clock.ts";
 import { createControlledTimers } from "../iso/timers.ts";
 import { seedCorpusActors } from "./corpus-actors.ts";

@@ -34,7 +34,7 @@ export function createRuntimeRoot(options: ServerHarnessOptions = {}): Promise<S
 }
 
 /** Keep root interval/unref scheduling intact while controlling the task's injected idle window. */
-export function runtimeTimers(schedule: ScheduleOp): ControlledTimers {
+function runtimeTimers(schedule: ScheduleOp): ControlledTimers {
   return { ...createControlledTimers(createFrozenClock()), timeout: schedule };
 }
 
