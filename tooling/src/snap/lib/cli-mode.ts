@@ -66,6 +66,7 @@ function modalGrammar(args: Args): ModalGrammar | null {
       flags: new Map([
         ["--stage-down", "boolean"],
         ["--stage-owner", "required"],
+        ["--band", "required"],
         ["--force", "boolean"],
       ]),
     };

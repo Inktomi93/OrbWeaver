@@ -83,6 +83,14 @@ function stageKeeperValidationPairs(args: Args): ValidationPair[] {
   ];
 }
 
+/** `--band` narrows `--stage-down` to one band of the caller's own rows; `--stage-owner` selects a whole checkout. */
+function stageBandValidationPairs(args: Args): ValidationPair[] {
+  return [
+    [args.stageBand !== null && !args.stageDown, "--band <n> only selects a band for --stage-down"],
+    [args.stageBand !== null && args.stageOwner !== null, "--band <n> releases a band of your own checkout; it does not combine with --stage-owner"],
+  ];
+}
+
 /** `--stage-wait` queues the stage ask of a drive, so it needs an isolated stage and a one-shot run (a session
  *  daemon boots its own stage). `--stage-waiter` is the queue waiter's own process mode. */
 function stageWaitValidationPairs(args: Args): ValidationPair[] {
@@ -302,6 +310,7 @@ function validateParsedArgs(args: Args, context: ParsedValidationContext): strin
   const invalidModes = [
     ...sessionValidationPairs(args, contextsMode, context.inheritedSessionBinding),
     ...stageKeeperValidationPairs(args),
+    ...stageBandValidationPairs(args),
     ...stageWaitValidationPairs(args),
     ...sessionModeValidationPairs(args, contextsMode),
     ...evidenceValidationPairs(args, producesShot),
@@ -389,6 +398,7 @@ export function parseSnapArgs(
     stageStatus: false,
     stageSweep: false,
     stageOwner: null,
+    stageBand: null,
     stageKeeper: null,
     stageWait: null,
     stageWaiter: null,

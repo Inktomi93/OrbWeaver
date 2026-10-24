@@ -5,6 +5,7 @@
 // (--stage-status/--stage-down/--stage-sweep, mutually exclusive — enforced in ops/parse.ts).
 
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { STAGE_BAND_COUNT } from "../../floor/host/ports.ts";
 import { STAGE_AUTH_MODES } from "../contract/stage.ts";
 import type { Args } from "../contract/types.ts";
 
@@ -73,6 +74,14 @@ export const STAGE_FLAG_HANDLERS: Record<string, StageFlagHandler> = {
   },
   "--stage-owner": (a, rest) => {
     a.stageOwner = rest.shift() ?? null;
+  },
+  "--band": (a, rest) => {
+    const band = Number(rest.shift());
+    if (Number.isInteger(band) && band >= 0 && band < STAGE_BAND_COUNT) {
+      a.stageBand = band;
+    } else {
+      a.errors.push(`--band takes a stage band in 0..${STAGE_BAND_COUNT - 1}`);
+    }
   },
   // The band idle timer's own entry (#1163 arm b) — snap spawns it, an operator never types it. A
   // non-numeric band is left null and refused by ops/parse.ts, so a typo never starts a keeper for NaN.

@@ -217,6 +217,14 @@ function reconcileDanglingRow(root: string, home: string, row: StageRow, nowMs: 
   return `band ${row.band}: reconciled a dangling row ${shortSha(row.sha)} (band free, last used ${describeStageAge(row.lastUsedAt, nowMs)} ago)`;
 }
 
+/** What `--stage-down` was asked to release: `owner` is `--stage-owner`, `band` is `--band` (one band of the
+ *  caller's own rows; mutually exclusive with `owner`, enforced by the parser). */
+export interface TeardownSelection {
+  readonly force: boolean;
+  readonly owner: string | null;
+  readonly band: number | null;
+}
+
 /** `--stage-down`: stop the stages THIS CALLER owns and remove their worktrees/dirs. The caller is its owner
  *  key (`stageCallerOwner`): sessions of one checkout never reach each other's rows, and the checkout-wide
  *  teardown is the explicit `--stage-owner <checkout> --force`.
@@ -228,7 +236,7 @@ function reconcileDanglingRow(root: string, home: string, row: StageRow, nowMs: 
  *  foreign rows exactly as #447 left it, so the cross-checkout escape hatch #108 promised is still one flag
  *  away and `foreignStageRefusal` still advertises it truthfully. A band bound by something no row accounts
  *  for is torn down by port (the lost-row fallback), unchanged. */
-export function teardownStage(selection: { readonly force: boolean; readonly owner: string | null }): string {
+export function teardownStage(selection: TeardownSelection): string {
   const root = repoRoot();
   const home = markerRoot(root);
   const nowMs = Date.now();
@@ -237,6 +245,10 @@ export function teardownStage(selection: { readonly force: boolean; readonly own
   const results: string[] = [];
   for (const view of views) {
     results.push(...teardownView({ owner, home, view, verdict: verdicts.get(view.band) ?? "unbound", selection, nowMs }));
+  }
+  // A band-scoped release leaves the box-wide residue sweeps (stranded browsers, orphan dirs) to the full teardown.
+  if (selection.band !== null) {
+    return results.length === 0 ? `no stage of yours on band ${selection.band} to tear down — \`--stage-status\` lists every band` : results.join("\n");
   }
   // Same fourth residue as the sweep's (#1848): a browser whose snap run is gone survives every kill above,
   // because playwright gives each one its own session. `--stage-down` is a teardown too, so it reaps them.
@@ -258,17 +270,23 @@ export function teardownStage(selection: { readonly force: boolean; readonly own
   return results.join("\n");
 }
 
-function teardownView(input: {
+export function teardownView(input: {
   readonly owner: string;
   readonly home: string;
   readonly view: StageBandView;
   readonly verdict: StageSweepVerdict;
-  readonly selection: { readonly force: boolean; readonly owner: string | null };
+  readonly selection: TeardownSelection;
   readonly nowMs: number;
+  /** The per-row teardown; injected by tests so no stage process is stopped. */
+  readonly tearDown?: (owner: string, home: string, row: StageRow) => string;
 }): readonly string[] {
-  const { owner, home, view, verdict, selection, nowMs } = input;
+  const { owner, home, view, verdict, selection, nowMs, tearDown = teardownRow } = input;
+  if (selection.band !== null && view.band !== selection.band) {
+    return [];
+  }
   if (view.row === null) {
-    return selection.owner === null ? tearDownRowlessBand(view) : [];
+    // A row-less band is a process nobody's row accounts for; a band-scoped release never stops what it did not boot.
+    return selection.owner === null && selection.band === null ? tearDownRowlessBand(view) : [];
   }
   if (!selectsTeardownRow(view.row, owner, selection.owner)) {
     return [];
@@ -276,11 +294,19 @@ function teardownView(input: {
   if (rowOwner(view.row) !== owner && !selection.force) {
     return [foreignSkipLine(view.row, verdict === "live", owner, nowMs)];
   }
+  if (selection.band !== null && view.liveSessions.length > 0 && !selection.force) {
+    return [liveSessionRefusal(view.row, view.liveSessions)];
+  }
   const readers = foreignHolders(view.liveHolders ?? [], owner);
   if (readers.length > 0 && !selection.force) {
     return [heldTeardownRefusal(view.row, readers)];
   }
-  return [teardownRow(owner, home, view.row)];
+  return [tearDown(owner, home, view.row)];
+}
+
+/** A band a live session is driving: releasing it would kill that session's browser mid-run. */
+function liveSessionRefusal(row: StageRow, sessions: readonly string[]): string {
+  return `band ${row.band}: left ${shortSha(row.sha)} standing — live session ${sessions.join(", ")} is bound to it. Close the session, or \`--force\` tears it down anyway.`;
 }
 
 /** A stage another checkout's run still holds: tearing it down would kill that run's capture. */

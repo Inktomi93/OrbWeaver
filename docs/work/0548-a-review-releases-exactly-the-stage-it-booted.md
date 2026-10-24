@@ -22,4 +22,4 @@ snap gains a per-band teardown (--stage-down --band N, refusing a band with a li
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+`pnpm snap --stage-down --band <n>` releases band `n` of the caller's own rows (`tooling/src/snap/ops/stage-status.ts` `teardownView`). It refuses a band with a live session; `--force` overrides. It never touches a sibling's row or a row-less band, and skips the box-wide browser and orphan-dir sweeps. The side-eye role releases its band as its last step, reading `<n>` from the `[snap-stage] ... band <n>` line. Test: `tests/tooling/snap/ops/stage-down-band.test.ts`, red on the old code (two failures), green after. Also run: `session-plan.test.ts`, `cli-truth.suite.int.test.ts`.

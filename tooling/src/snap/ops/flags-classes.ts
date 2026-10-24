@@ -72,6 +72,7 @@ export const REQUIRED_VALUE_FLAGS = new Set([
   "--session-export",
   "--session-ttl",
   "--stage-owner",
+  "--band",
   "--stage-keeper",
   "--stage-wait",
   "--stage-waiter",
