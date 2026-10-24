@@ -5,7 +5,7 @@ import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { UserRole } from "@orb/contracts/identity";
+import type { AuthMode, UserRole } from "@orb/contracts/identity";
 import type { LogLevel } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { closeDb, users } from "@orb/db";
@@ -72,7 +72,8 @@ export interface ServerHarnessOptions extends Partial<Pick<ServicesDeps, "secret
   readonly temporaryParentDir?: ReturnType<typeof tmpdir>;
   readonly ids?: SeededIds;
   readonly random?: () => number;
-  /** Fields laid over the record's `authConfigFromEnv`; a field may hold a pairing the env parse would refuse. */
+  /** Fields laid over the record's `authConfigFromEnv`, only for a pairing the env parse refuses, such as `single-user`
+   *  with `deny`. Every reader of the record still sees the record's posture, so an accepted pairing goes in `env`. */
   readonly authConfig?: Partial<AuthConfig>;
   /** The role-policy keys in the record. */
   readonly rolePolicyConfig?: Partial<SessionsRolePolicyConfig>;
@@ -82,6 +83,7 @@ export interface ServerHarnessOptions extends Partial<Pick<ServicesDeps, "secret
   /** `DEBUG_TOKEN` in the record. */
   readonly debugToken?: string;
   readonly ownerId?: UserId;
+  /** The OIDC client keys in the record, which the configured client and every other reader of them take. */
   readonly oidc?: NonNullable<Parameters<typeof createConfiguredOidc>[0]["settings"]>;
   readonly providerFetch?: typeof fetch;
   readonly sdkQuery?: AgentSdkQuery;
@@ -92,10 +94,15 @@ export interface ServerHarnessOptions extends Partial<Pick<ServicesDeps, "secret
   readonly allowRemoteModels?: NonNullable<NonNullable<ServicesDeps["providerSeams"]>["localLight"]>["allowRemoteModels"];
 }
 
-export type UnclaimedServerHarnessOptions = Omit<ServerHarnessOptions, "ownerId" | "authConfig"> & {
-  readonly ownerId: null;
-  readonly authConfig: Partial<AuthConfig> & { readonly mode: "oidc" };
-};
+/** Raw env keys whose record composes `mode`. */
+export type AuthModeEnv<Mode extends AuthMode> = NonNullable<ServerHarnessOptions["env"]> & { readonly ["AUTH_MODE"]: Mode };
+
+/** Only `oidc` boots with no owner, so an unclaimed root states that mode in its record or, for a pairing the parse
+ *  refuses, in its overlay. */
+export type UnclaimedServerHarnessOptions = Omit<ServerHarnessOptions, "ownerId" | "authConfig" | "env"> & { readonly ownerId: null } & (
+    | { readonly env: AuthModeEnv<"oidc">; readonly authConfig?: Partial<AuthConfig> }
+    | { readonly env?: ServerHarnessOptions["env"]; readonly authConfig: Partial<AuthConfig> & { readonly mode: "oidc" } }
+  );
 
 /** The account a claimed root mints: `sessions.ensureUser`, then the owner's audited admin verbs for each field. */
 export interface ActorSpec {
@@ -257,6 +264,7 @@ function harnessEnv(options: ServerHarnessOptions | UnclaimedServerHarnessOption
     ...(options.debugToken === undefined ? {} : { ["DEBUG_TOKEN"]: options.debugToken }),
     ...(options.clientDistDir === undefined ? {} : { ["CLIENT_DIST_DIR"]: options.clientDistDir }),
     ...rolePolicyInput(options.rolePolicyConfig),
+    ...oidcInput(options.oidc),
     ...options.env,
   });
 }
@@ -264,6 +272,11 @@ function harnessEnv(options: ServerHarnessOptions | UnclaimedServerHarnessOption
 // Only the role-policy keys: a caller may hand a whole parsed record, whose non-string values are no raw input.
 function rolePolicyInput(config: ServerHarnessOptions["rolePolicyConfig"]): Partial<Record<EnvKey, string>> {
   return Object.fromEntries(ROLE_POLICY_ENV_KEYS.flatMap((key) => (config?.[key] === undefined ? [] : [[key, config[key]] as const])));
+}
+
+// The settings are parsed values; the record takes their raw spelling, which the parse reads back to the same values.
+function oidcInput(settings: ServerHarnessOptions["oidc"]): Partial<Record<EnvKey, string>> {
+  return Object.fromEntries(Object.entries(settings ?? {}).flatMap(([key, value]) => (value === undefined ? [] : [[key, String(value)] as const])));
 }
 
 // A second root on the same database is another replica only when it locks under its own holder tag.
@@ -440,7 +453,6 @@ function actorFor(
 }
 
 async function configuredOidcFor(
-  options: ServerHarnessOptions | UnclaimedServerHarnessOptions,
   app: ServicesResult,
   { db, env, authConfig, clock, timers, rootDir }: Omit<HarnessConstruction, "idSource" | "db"> & Pick<ServicesDeps, "db">,
 ): Promise<(Awaited<ReturnType<typeof createConfiguredOidc>> & { readonly ownerClaimFile: string }) | undefined> {
@@ -455,7 +467,7 @@ async function configuredOidcFor(
       now: clock.now,
       built: app,
       scheduleInterval: timers.interval,
-      settings: options.oidc ?? env,
+      settings: env,
     }),
   );
   const ownerClaimFile = join(rootDir, "owner-claim-url");
@@ -628,7 +640,7 @@ export async function createServerHarness(
   } satisfies Parameters<typeof runWorkload>[0];
   const principalFor = createHostPrincipalResolver(app.sessions);
   const credentialsKeyOk = await app.services.credentials.probeKeyDecrypt();
-  const configuredOidc = await configuredOidcFor(options, app, { ...inputs, db: wiringDb });
+  const configuredOidc = await configuredOidcFor(app, { ...inputs, db: wiringDb });
   oidcLifetime = configuredOidc;
   let closing = false;
   const httpApp = assembleHttp({

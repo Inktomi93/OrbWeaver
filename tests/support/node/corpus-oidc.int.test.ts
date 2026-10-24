@@ -13,7 +13,7 @@ function oidcRoot(
 ): Promise<UnclaimedServerTestHarness> {
   return createServerHarness({
     ownerId: null,
-    authConfig: { mode: "oidc", fallback: "deny" },
+    env: { ["AUTH_MODE"]: "oidc", ["AUTH_FALLBACK"]: "deny" },
     oidc: { ...NATIVE_OIDC_SETTINGS, ...settings },
     networkExecution: {
       fetch: issuer.fetch,

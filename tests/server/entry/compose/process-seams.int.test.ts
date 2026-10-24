@@ -77,7 +77,7 @@ test("a staged bundle upload is named with the root's seeded nonce", async () =>
   await using root = await createServerHarness({
     physicalPeer: () => "127.0.0.1",
     startJobs: false,
-    authConfig: { mode: "local", fallback: "owner" },
+    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" },
   });
   const minted = root.ids.snapshot();
   const response = await root.http.request(BUNDLE_ROUTE, { method: "POST", headers: { [CSRF_HEADER]: "1" }, body: new Uint8Array([1]) });

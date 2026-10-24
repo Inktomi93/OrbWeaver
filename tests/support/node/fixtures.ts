@@ -31,6 +31,7 @@ export interface Fixtures {
   db: Db;
   providerFetch: typeof fetch;
   networkExecution: ServerHarnessOptions["networkExecution"];
+  env: ServerHarnessOptions["env"];
   authConfig: ServerHarnessOptions["authConfig"];
   sdkQuery: ServerHarnessOptions["sdkQuery"];
   sdkSpawn: ServerHarnessOptions["sdkSpawn"];
@@ -127,6 +128,9 @@ export const test = base.extend<Fixtures>({
   networkExecution: async ({}, use): Promise<void> => {
     await use(undefined);
   },
+  env: async ({}, use): Promise<void> => {
+    await use(undefined);
+  },
   authConfig: async ({}, use): Promise<void> => {
     await use(undefined);
   },
@@ -149,7 +153,7 @@ export const test = base.extend<Fixtures>({
     await use(dir);
   },
   harness: async (
-    { db, clock, ids, providerFetch, networkExecution, authConfig, sdkQuery, sdkSpawn, runtimeSpan, secretBoxKey, importStagingDir },
+    { db, clock, ids, providerFetch, networkExecution, env, authConfig, sdkQuery, sdkSpawn, runtimeSpan, secretBoxKey, importStagingDir },
     use,
   ): Promise<void> => {
     const { createServerHarness } = await import("./server.ts");
@@ -161,6 +165,7 @@ export const test = base.extend<Fixtures>({
       importStagingDir,
       providerFetch,
       networkExecution,
+      ...(env === undefined ? {} : { env }),
       ...(authConfig === undefined ? {} : { authConfig }),
       ...(sdkQuery === undefined ? {} : { sdkQuery }),
       ...(sdkSpawn === undefined ? {} : { sdkSpawn }),

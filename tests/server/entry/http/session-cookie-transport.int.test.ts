@@ -34,7 +34,7 @@ interface Box extends AsyncDisposable {
 
 async function box(): Promise<Box> {
   let peer = LAN_PEER;
-  const root = await createServerHarness({ physicalPeer: () => peer, authConfig: { mode: "local", fallback: "deny" } });
+  const root = await createServerHarness({ physicalPeer: () => peer, env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
   await root.services.admin.createUser({ principal: await root.principalFor(root.ownerId), handle: castId<Handle>(HANDLE), password: PASSWORD });
   return {
     root,
@@ -59,7 +59,7 @@ function names(response: Response): string[] {
 
 describe("logout — CSRF gate (real app)", () => {
   test("cross-site force-logout: cookie present but NO CSRF header → 403, no revoke", async () => {
-    await using root = await createServerHarness({ physicalPeer: () => LAN_PEER, authConfig: { mode: "local", fallback: "deny" } });
+    await using root = await createServerHarness({ physicalPeer: () => LAN_PEER, env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
     const { cookie } = await signedInMember(root, castId<Handle>("force-logout-victim"));
     const forged = await root.http.request("/api/auth/logout", { method: "POST", headers: { cookie } });
     expect(forged.status).toBe(403);
@@ -68,7 +68,7 @@ describe("logout — CSRF gate (real app)", () => {
   });
 
   test("with the CSRF header → revokes + clears (200, A6)", async () => {
-    await using root = await createServerHarness({ physicalPeer: () => LAN_PEER, authConfig: { mode: "local", fallback: "deny" } });
+    await using root = await createServerHarness({ physicalPeer: () => LAN_PEER, env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
     const { cookie } = await signedInMember(root, castId<Handle>("logout-member"));
     expect((await authMe(root, { cookie })).authenticated).toBe(true);
     const logout = await root.http.request("/api/auth/logout", { method: "POST", headers: { cookie, [CSRF_HEADER]: "1" } });

@@ -21,7 +21,7 @@ test("native image admission and funded output variants preserve short-edge skip
     images: [],
   });
   await using root = await createServerHarness({
-    authConfig: { mode: "local", fallback: "deny" },
+    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" },
     providerFetch: wire.wrap(fallback.execute),
     secretBoxKey: randomBytes(32),
   });

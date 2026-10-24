@@ -11,7 +11,7 @@ const DESCRIPTION = "member-card-sheet-description";
 const STEERING = "member-card-host-only-steering";
 
 test("the member-card level clamps a member's roster card read at the real door and never clamps the host", async () => {
-  await using root = await createServerHarness({ authConfig: { mode: "forward-header", fallback: "deny" } });
+  await using root = await createServerHarness({ env: { ["AUTH_MODE"]: "forward-header", ["AUTH_FALLBACK"]: "deny" } });
   const host = await root.principalFor(root.ownerId);
   const member = await root.principalFor((await root.actor()).id);
   const outsider = await root.internalCallerFor((await root.actor()).id);

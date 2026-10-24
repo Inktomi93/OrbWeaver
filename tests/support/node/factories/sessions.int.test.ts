@@ -24,7 +24,7 @@ test("a real session mint persists only its hash and revoke settles the actual r
 });
 
 test("the real HTTP login spends its canonical buckets only after CSRF and refuses at the live configured cap", async () => {
-  await using root = await createServerHarness({ authConfig: { mode: "local" } });
+  await using root = await createServerHarness({ env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" } });
   const owner = await root.principalFor(root.ownerId);
   const configured = await root.services.settings.updateAppSettings({ principal: owner, partial: { rateLimits: { login: RATE_LIMIT_CAP_MIN } } });
   expect(configured.rateLimits.login).toBe(RATE_LIMIT_CAP_MIN);

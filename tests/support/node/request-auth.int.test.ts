@@ -15,7 +15,7 @@ test.each([
   { peer: undefined, firstRun: false, scope: "public" },
 ])("actual HTTP bootstrap preserves physical peer $peer independently of forged forwarding headers", async ({ peer, firstRun, scope }) => {
   const readPeer = vi.fn(() => peer);
-  await using harness = await createServerHarness({ authConfig: { mode: "local" }, physicalPeer: readPeer });
+  await using harness = await createServerHarness({ env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" }, physicalPeer: readPeer });
   const response = await harness.http.request("/api/auth/config");
   expect(response.status).toBe(200);
   const config = authConfigSchema.parse(await response.json());
@@ -35,7 +35,7 @@ test.each([
 });
 
 test("local HTTP admission requires its CSRF-protected password flow and rechecks a disabled account", async () => {
-  await using harness = await createServerHarness({ authConfig: { mode: "local" } });
+  await using harness = await createServerHarness({ env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" } });
   const owner = await harness.internalCallerFor(harness.ownerId);
   const user = await owner.admin.createUser({ handle: HANDLE, password: PASSWORD });
   const anonymous = await harness.http.request("/api/auth/me");

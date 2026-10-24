@@ -53,7 +53,7 @@ async function openRoom(): Promise<Room & AsyncDisposable> {
   const root = await createServerHarness({
     startJobs: false,
     providerFetch: wire.execute,
-    authConfig: { mode: "local", fallback: "deny" },
+    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" },
   });
   const { owner: host } = await seedCorpusActors(root);
   const character = await root.services.character.create({
