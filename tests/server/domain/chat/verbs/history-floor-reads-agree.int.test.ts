@@ -25,7 +25,7 @@ interface Room extends AsyncDisposable {
 }
 
 async function openRoom(): Promise<Room> {
-  const root = await createServerHarness({ startJobs: false, authConfig: { mode: "local", fallback: "deny" } });
+  const root = await createServerHarness({ startJobs: false, env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
   const { owner: host } = await seedCorpusActors(root);
   const character = await root.services.character.create({
     principal: host,

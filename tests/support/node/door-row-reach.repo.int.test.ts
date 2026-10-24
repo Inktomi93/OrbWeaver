@@ -17,7 +17,11 @@ const READ_METHODS = new Set(["select", "selectDistinct", "$count", "with", "all
 const RUN_METHOD = new Set(["run"]);
 const READING_SQL = /^\s*(select|with)\b/iu;
 const READ_MEMBERS = new Set(["query", "$with"]);
-const DRIZZLE_OWNERS = new Set(["BaseSQLiteDatabase", "LibSQLDatabase", "SQLiteTransaction", "LibSQLTransaction"]);
+const DRIZZLE = { owners: new Set(["BaseSQLiteDatabase", "LibSQLDatabase", "SQLiteTransaction", "LibSQLTransaction"]), path: "/node_modules/drizzle-orm/" };
+// The raw client under `db.$client`: each of these returns libsql ResultSets, rows included.
+const LIBSQL = { owners: new Set(["Client", "Transaction"]), path: "/node_modules/@libsql/core/" };
+const CLIENT_READS = new Set(["execute", "batch", "migrate"]);
+const RAW_CLIENT = "$client";
 // The capsule is the corpus publisher: it refuses a copied private database holding unfinished work before boot and
 // then publishes the fixture, which is a snapshot of rows (eslint.config.ts names corpus.ts for the same reasons).
 const ACCEPTED = [{ door: "./node/composed", exported: "createCorpusCapsule" }] as const;
@@ -48,6 +52,13 @@ const PLANTED_SHAPES = [
     source:
       'import { sql } from "drizzle-orm";\nimport type { ServerTestHarness as RunRoot } from "./server.ts";\n' +
       "export async function rawRun(root: RunRoot) {\n  return await root.db.run(sql`select 1`);\n}",
+  },
+  {
+    shape: "a raw client execute",
+    exported: "rawExecute",
+    source:
+      'import type { ServerTestHarness as ExecuteRoot } from "./server.ts";\n' +
+      'export async function rawExecute(root: ExecuteRoot) {\n  return await root.db.$client.execute("select * from users");\n}',
   },
 ] as const;
 
@@ -98,7 +109,18 @@ function createProgramFactory(): (roots: readonly string[], composedSource?: str
   };
 }
 
-function isDrizzleMember(declaration: ts.Declaration | undefined, names: ReadonlySet<string>): boolean {
+function isDrizzleDatabase(type: ts.Type): boolean {
+  const declaration = type.getSymbol()?.declarations?.[0];
+  return (
+    declaration !== undefined &&
+    (ts.isClassDeclaration(declaration) || ts.isInterfaceDeclaration(declaration)) &&
+    declaration.name !== undefined &&
+    DRIZZLE.owners.has(declaration.name.text) &&
+    declaration.getSourceFile().fileName.replaceAll("\\", "/").includes(DRIZZLE.path)
+  );
+}
+
+function isDrizzleMember(declaration: ts.Declaration | undefined, names: ReadonlySet<string>, library: typeof DRIZZLE = DRIZZLE): boolean {
   if (
     declaration === undefined ||
     !(ts.isMethodDeclaration(declaration) || ts.isMethodSignature(declaration) || ts.isPropertyDeclaration(declaration)) ||
@@ -111,8 +133,8 @@ function isDrizzleMember(declaration: ts.Declaration | undefined, names: Readonl
     names.has(declaration.name.text) &&
     (ts.isClassDeclaration(owner) || ts.isInterfaceDeclaration(owner)) &&
     owner.name !== undefined &&
-    DRIZZLE_OWNERS.has(owner.name.text) &&
-    owner.getSourceFile().fileName.replaceAll("\\", "/").includes("/node_modules/drizzle-orm/")
+    library.owners.has(owner.name.text) &&
+    owner.getSourceFile().fileName.replaceAll("\\", "/").includes(library.path)
   );
 }
 
@@ -232,7 +254,11 @@ function callReach(walk: Walk, node: ts.CallExpression, from: ts.Node): Reach | 
   if (target === undefined || ts.isJSDocSignature(target)) {
     return null;
   }
-  return isDrizzleMember(target, READ_METHODS) || (isDrizzleMember(target, RUN_METHOD) && readsRows(node.arguments[0])) ? directRead(node) : null;
+  const reads =
+    isDrizzleMember(target, READ_METHODS) ||
+    isDrizzleMember(target, CLIENT_READS, LIBSQL) ||
+    (isDrizzleMember(target, RUN_METHOD) && readsRows(node.arguments[0]));
+  return reads ? directRead(node) : null;
 }
 
 // The static text of a `sql\`…\`` template or a `sql.raw("…")` literal; a computed statement is not judged a read.
@@ -253,6 +279,10 @@ function nodeReach(walk: Walk, node: ts.Node, from: ts.Node): Reach | null {
   if (ts.isPropertyAccessExpression(node)) {
     const member = walk.checker.getSymbolAtLocation(node.name);
     if (READ_MEMBERS.has(node.name.text) && (member?.declarations ?? []).some((declaration) => isDrizzleMember(declaration, READ_MEMBERS))) {
+      return directRead(node);
+    }
+    // `Db` hides drizzle's runtime `$client`, so the member resolves to nothing; the receiver's type names the database.
+    if (node.name.text === RAW_CLIENT && isDrizzleDatabase(walk.checker.getTypeAtLocation(node.expression))) {
       return directRead(node);
     }
     return symbolReach(walk, node, member, from);
