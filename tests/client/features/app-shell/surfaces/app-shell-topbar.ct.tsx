@@ -10,7 +10,9 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import { commandShortcutLabel } from "#client/features/app-shell/lib/command-shortcut-label.ts";
 import type { AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
+import type { AppShellTrailProjectionStory } from "./_trail-projection-stories.tsx";
 import { JUMP_CHIP, namedGroupRoom, pixel, resolvedLength, routeRoom, routeShell, SECTION_PROCEDURES, SHELL_STORIES, seedShellState } from "./app-shell-ct.ts";
+import { STORY_TRAIL_WIDGET } from "./trail-projection.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const ROOM_STORY = `${SHELL_STORIES}/AppShellRoomStory`;
@@ -485,4 +487,29 @@ test.describe("an open named group room on a phone, coarse pointer", () => {
       await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "docked");
     });
   }
+});
+
+test.describe("the trail is a lens over the chrome registry", () => {
+  const TrailStory = "tests/client/features/app-shell/surfaces/_trail-projection-stories/AppShellTrailProjectionStory";
+
+  test.beforeEach(async ({ corpus, page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await routeSections(page, corpus);
+  });
+
+  test("with no command trigger in the registry the trail paints no ⌘K chip", async ({ mount, page }) => {
+    await mount<typeof AppShellTrailProjectionStory>(TrailStory, { includeCommand: false, widgetFirst: true });
+    const trail = page.locator(".shell-topbar-trail");
+    await expect(trail.getByRole("button", { name: STORY_TRAIL_WIDGET, exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: JUMP_CHIP })).toHaveCount(0);
+  });
+
+  test("with the trigger present the chip takes the place the registry's order gives it", async ({ mount, page }) => {
+    await mount<typeof AppShellTrailProjectionStory>(TrailStory, { includeCommand: true, widgetFirst: true });
+    const trail = page.locator(".shell-topbar-trail");
+    await expect(trail.getByRole("button", { name: JUMP_CHIP })).toBeVisible();
+    await expect
+      .poll(() => trail.locator("button").evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label") ?? "")))
+      .toStrictEqual([STORY_TRAIL_WIDGET, expect.stringMatching(JUMP_CHIP)]);
+  });
 });
