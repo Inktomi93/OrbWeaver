@@ -1,7 +1,7 @@
 import { globSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { HomeTileContribution, SectionDefinition } from "@orb/client/state";
-import { assembleChrome, CONFIG_GROUP_IDS, isCollectionGroup, SECTION_IDS } from "@orb/client/state";
+import { assembleChrome, CONFIG_GROUP_IDS, isCollectionGroup, MODAL_SLOT_IDS, SECTION_IDS } from "@orb/client/state";
 import { createAuthedComposition, createClientRuntime } from "@orb/testkit/browser";
 import { expect, test } from "@orb/testkit/node";
 import ts from "typescript";
@@ -107,6 +107,7 @@ test("assembling chrome refuses a repeated id and a zone outside CHROME_ZONES", 
 // copy would rot unseen. Discover the declarations by annotation, then demand the door holds each one.
 const DEFINITION_KINDS = [
   { type: "ChromeEntry", slot: "chrome", ids: undefined, registered: (): readonly unknown[] => composition.chrome.list() },
+  { type: "ModalDefinition", slot: "modal", ids: MODAL_SLOT_IDS.length, registered: (): readonly unknown[] => composition.modals.list() },
   { type: "HomeTileContribution", slot: "tile", ids: undefined, registered: (): readonly unknown[] => homeTiles.list() },
   { type: "SectionDefinition", slot: "section", ids: SECTION_IDS.length, registered: (): readonly unknown[] => composition.sections.list() },
   {
