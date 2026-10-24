@@ -29,7 +29,7 @@ import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { ConfirmDialog, PICKER_GAP_AT_COARSE } from "#components";
+import { ConfirmDialog, PICKER_GAP_AT_COARSE, Tip } from "#components";
 import { cn } from "#lib";
 import { ITEM_ICON_CHOICES, resolveItemIcon } from "../lib/glyphs.ts";
 import type { PackEdit } from "./rpg-pack-fields.tsx";
@@ -54,17 +54,17 @@ function ItemIconPicker({ itemName, onPick }: { readonly itemName: string; reado
   return (
     <Row gap="field" className={cn("max-w-(--width-control-col) flex-wrap", PICKER_GAP_AT_COARSE) ?? ""}>
       {Object.entries(ITEM_ICON_CHOICES).map(([name, glyph]) => (
-        <Button
-          aria-label={`${itemName}: use the ${name} icon`}
-          key={name}
-          intent="ghost"
-          // eslint-disable-next-line orb/no-floorless-control-in-wrap -- PICKER_GAP_AT_COARSE supplies the measured touch-target pitch without changing the fine picker; ends when this geometry or floorless size changes.
-          size="glyph-lg"
-          title={`${itemName}: use the ${name} icon`}
-          onClick={(): void => onPick(name)}
-        >
-          <Icon icon={glyph} size="sm" />
-        </Button>
+        <Tip key={name} text={`${itemName}: use the ${name} icon`}>
+          <Button
+            aria-label={`${itemName}: use the ${name} icon`}
+            intent="ghost"
+            // eslint-disable-next-line orb/no-floorless-control-in-wrap -- PICKER_GAP_AT_COARSE supplies the measured touch-target pitch without changing the fine picker; ends when this geometry or floorless size changes.
+            size="glyph-lg"
+            onClick={(): void => onPick(name)}
+          >
+            <Icon icon={glyph} size="sm" />
+          </Button>
+        </Tip>
       ))}
     </Row>
   );
@@ -287,7 +287,7 @@ function PackListRow({ item, edit }: { readonly item: RpgInventoryItem; readonly
             confirmLabel="Drop"
             onConfirm={(): void => edit.onRemoveItem(item.id)}
             trigger={
-              <Button aria-label={`Drop item: ${item.name}`} intent="ghost" size="glyph-sm" title={`Drop item: ${item.name}`}>
+              <Button aria-label={`Drop item: ${item.name}`} intent="ghost" size="glyph-sm">
                 <Icon icon={Trash2} size="xs" />
               </Button>
             }

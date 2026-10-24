@@ -44,6 +44,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { Tip } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { useInventoryDiff } from "../hooks/use-inventory-diff.ts";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
@@ -168,9 +169,11 @@ function PackSection({
         <Kicker trailing={onRelease === undefined ? null : <RpgFieldLock field="the pack" onRelease={onRelease} />}>Pack — {items.length}</Kicker>
         {/* #37b — the compact-grid / list view knob (a display preference, session-local). */}
         {items.length === 0 ? null : (
-          <Button intent="ghost" size="glyph-md" aria-label={toggleLabel} title={toggleLabel} onClick={onToggleView}>
-            <Icon icon={view === "grid" ? List : LayoutGrid} size="xs" />
-          </Button>
+          <Tip text={toggleLabel}>
+            <Button intent="ghost" size="glyph-md" aria-label={toggleLabel} onClick={onToggleView}>
+              <Icon icon={view === "grid" ? List : LayoutGrid} size="xs" />
+            </Button>
+          </Tip>
         )}
       </Row>
       {items.length === 0 ? (

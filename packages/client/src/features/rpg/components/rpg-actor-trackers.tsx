@@ -36,7 +36,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { CHIP_TOUCH_FLOOR_AT_COARSE, VALUE_ROW_TOUCH_FLOOR_AT_COARSE } from "#components";
+import { CHIP_TOUCH_FLOOR_AT_COARSE, Tip, VALUE_ROW_TOUCH_FLOOR_AT_COARSE } from "#components";
 import { resolveConditionGlyph } from "../lib/glyphs.ts";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
 import { UNSET_DATUM } from "../lib/unset-datum.ts";
@@ -328,16 +328,17 @@ export function ConditionChips({
           <Icon icon={resolveConditionGlyph(cond.name)} size="xs" />
           {cond.name}
           {onRemove === undefined ? null : (
-            <Button
-              aria-label={trackerActionName(`Remove ${cond.name}`, "from", subject)}
-              intent="ghost"
-              // eslint-disable-next-line orb/no-floorless-control-in-wrap -- The chip carries CHIP_TOUCH_FLOOR_AT_COARSE, so its remove target fits within the chip; ends when this geometry or floorless size changes.
-              size="glyph-xs"
-              onClick={(): void => onRemove(cond.name)}
-              title={trackerActionName(`Remove ${cond.name}`, "from", subject)}
-            >
-              <Icon icon={X} size="xs" />
-            </Button>
+            <Tip text={trackerActionName(`Remove ${cond.name}`, "from", subject)}>
+              <Button
+                aria-label={trackerActionName(`Remove ${cond.name}`, "from", subject)}
+                intent="ghost"
+                // eslint-disable-next-line orb/no-floorless-control-in-wrap -- The chip carries CHIP_TOUCH_FLOOR_AT_COARSE, so its remove target fits within the chip; ends when this geometry or floorless size changes.
+                size="glyph-xs"
+                onClick={(): void => onRemove(cond.name)}
+              >
+                <Icon icon={X} size="xs" />
+              </Button>
+            </Tip>
           )}
         </Badge>
       ))}

@@ -28,7 +28,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary, SettingCheckboxRow } from "#components";
+import { QueryBoundary, SettingCheckboxRow, Tip } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useReattributePersona, useTRPC } from "#data";
 import { notify } from "#lib";
 import { setContextTab } from "#state";
@@ -130,15 +130,21 @@ function TrackerRow({
             />
           </Row>
         ) : null}
-        <Button aria-label={bandLabel} intent="ghost" size="glyph-md" onClick={(): void => patch({ pinned: !def.pinned })} title={bandLabel}>
-          <Icon icon={def.pinned ? Eye : EyeOff} size="xs" />
-        </Button>
-        <Button aria-label={lockLabel} intent="ghost" size="glyph-md" onClick={(): void => patch({ locked: !def.locked })} title={lockLabel}>
-          <Icon icon={def.locked ? Lock : LockOpen} size="xs" />
-        </Button>
-        <Button aria-label={removeLabel} intent="ghost" size="glyph-md" onClick={(): void => onCommit({ ...def, key: "" })} title={removeLabel}>
-          <Icon icon={Trash2} size="xs" />
-        </Button>
+        <Tip text={bandLabel}>
+          <Button aria-label={bandLabel} intent="ghost" size="glyph-md" onClick={(): void => patch({ pinned: !def.pinned })}>
+            <Icon icon={def.pinned ? Eye : EyeOff} size="xs" />
+          </Button>
+        </Tip>
+        <Tip text={lockLabel}>
+          <Button aria-label={lockLabel} intent="ghost" size="glyph-md" onClick={(): void => patch({ locked: !def.locked })}>
+            <Icon icon={def.locked ? Lock : LockOpen} size="xs" />
+          </Button>
+        </Tip>
+        <Tip text={removeLabel}>
+          <Button aria-label={removeLabel} intent="ghost" size="glyph-md" onClick={(): void => onCommit({ ...def, key: "" })}>
+            <Icon icon={Trash2} size="xs" />
+          </Button>
+        </Tip>
       </Row>
       <Row gap="field" align="center" className="flex-wrap">
         <Badge tone="soft" size="sm" title="the shape decides how it renders and how the story writes it — fixed when it was named">

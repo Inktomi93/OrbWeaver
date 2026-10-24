@@ -18,6 +18,7 @@ import { Icon, Plus, Trash2 } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { Tip } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { useUpdateConfig } from "../hooks/use-rpg-mutations.ts";
 import { mintDefKey } from "../lib/mint-key.ts";
@@ -64,15 +65,11 @@ function AttributeRow({
         <Badge tone="soft" size="sm" title="the machine name the sheet stores this value under — minted once, kept through renames">
           {attr.key}
         </Badge>
-        <Button
-          aria-label={`Remove ${attr.label} from the vocabulary`}
-          intent="ghost"
-          size="glyph-md"
-          onClick={onRemove}
-          title={`Remove ${attr.label} from the vocabulary`}
-        >
-          <Icon icon={Trash2} size="xs" />
-        </Button>
+        <Tip text={`Remove ${attr.label} from the vocabulary`}>
+          <Button aria-label={`Remove ${attr.label} from the vocabulary`} intent="ghost" size="glyph-md" onClick={onRemove}>
+            <Icon icon={Trash2} size="xs" />
+          </Button>
+        </Tip>
       </Row>
       <HintEditor
         ariaLabel={`${attr.label} hint`}
