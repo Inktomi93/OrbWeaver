@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "native-title-to-tip"
+version: "0.1.0"
+description: "Move a native JSX title that repeats the element's accessible name or its only child off the element: wrap the control in the client Tip, or delete the title."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["tsx"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

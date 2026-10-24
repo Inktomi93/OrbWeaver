@@ -1,6 +1,6 @@
 ---
 kind: work
-status: open
+status: done
 updated: 2026-10-24
 priority: P3
 area: tooling
@@ -20,10 +20,12 @@ History rots and buries the reason; git holds history.
 
 2026-10-24: build the rule. Existing hits are baselined per file; new hits fail.
 
+2026-10-24: dropped — no comment hunting. `.claude/rules/comments.md` stays as review guidance, with no lint behind it.
+
 ## Done when
 
-An ESLint rule over `packages/**` and `tooling/**` source comments flags the history patterns, with planted controls; existing hits sit in a per-file baseline the rule reads, which only shrinks; the baseline count is reported, and a file that drops to zero leaves it.
+Dropped by the owner ruling above: no lint enforces the history rule, and no drain runs.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Dropped before landing; the rule, its test and its wiring were removed.

@@ -3,37 +3,32 @@
 // the OSRS item grid. The pinned line is the PARTY TOTAL derivation (no purse entity exists; totals
 // SUM per-actor wallets, "party total — N carried by <viewer>"), the Sheet chip and band coin being the
 // other two zoom levels of the same number. Grid = `cols="cell"` (container-driven: 2-up at the 320px
-// mobile column, 3-up in the 480px docked panel). Cells: resolved glyph (#37 — the host-picked `item.icon`
-// seal name wins, else the keyword resolver; aria-hidden, the NAME is the datum), the NAME, the ×N
-// read, and the item LOCATION (#37a — the data was already stored), and quest-bound = the accent dot. There
-// is NO ghost socket and no fake 28-slot pack (side-eye 08-01 killed the dashed one: an empty box with no
-// word and no click is not an affordance); the host's `AddRow` below the grid is the one growth home. No
+// mobile column, 3-up in the 480px docked panel). Cells: resolved glyph (the host-picked `item.icon` seal
+// name wins, else the keyword resolver; aria-hidden, the NAME is the datum), the NAME, the ×N read, and the
+// item LOCATION, and quest-bound = the accent dot. There is NO ghost socket and no fake 28-slot pack (an empty
+// box with no word and no click is not an affordance); the host's `AddRow` below the grid is the one growth home. No
 // encumbrance UI — not modeled.
 //
-// #37b — the COMPACT/LIST toggle: one view knob (grid default) on the Pack kicker row; the LIST view is a
+// The COMPACT/LIST toggle: one view knob (grid default) on the Pack kicker row; the LIST view is a
 // row per item (glyph · name · ×qty · location · description) for the read-it-all posture.
-// #37c — the ICON PICKER (host): clicking a cell's glyph opens a popover of `ITEM_ICON_CHOICES`; the pick
+// The ICON PICKER (host): clicking a cell's glyph opens a popover of `ITEM_ICON_CHOICES`; the pick
 // writes `item.icon` through `editSnapshot` (a hand-cosmetic write — the model can't touch `icon`, so no
 // lock is stamped). The "last change" provenance line stays the client-side ephemeral diff.
 //
-// RV-5 — HAND AUTHORING (host, `canEditShared`): the pack had no add/edit at all, and `location` (which the
-// schema stores and the extraction guidance asks the model for) was display-only. The shared `AddRow` mints an
+// HAND AUTHORING (host, `canEditShared`): `location` is stored by the schema and asked of the model by the
+// extraction guidance, so the host can author it too. The shared `AddRow` mints an
 // item (a name is required — no "Item 3" orphans), and the LIST view is the EDIT view: name · quantity ·
 // location · description are click-to-edit in place, with a confirmed delete. The GRID authors the SAME
-// field set from a tile popover (owner dogfood, 2026-07-31 — the same components, the same `PackEdit`
+// field set from a tile popover (an owner call — the same components, the same `PackEdit`
 // callbacks, so one plane still keeps one authoring home).
 //
-// #78 — THE PIN IS PER ITEM, AND IT IS VISIBLE. A hand write used to stamp the actor's whole `…inventory`
-// plane, which fenced the model out of the ENTIRE pack from the first manual add: measured live, a perfect
-// model update (the `location` of the very item the host had added) was folded away, so seeding your pack by
-// hand permanently disabled inventory tracking for that actor. The server now pins the ITEM the hand touched,
-// on the FIELDS it claimed (`…volatile.inventory.<id>.<field>`), and this panel is the other half of that
-// ruling: each pinned item carries its own chip — the list lens's one-tap Release, the grid tile's "Pinned"
-// tell plus the Release inside the tile editor it already opens — so the fence is legible and reversible
-// where it was silent and permanent. The SECTION pin survives for LEGACY plane-wide locks only (stored
-// `fieldLocks` are never rewritten), which is also the bug it hid: it was read at
-// `actorState.<key>.inventory`, a path missing the `volatile` segment the server has always written, so it
-// could never fire and the plane trap had no affordance at all.
+// THE PIN IS PER ITEM, AND IT IS VISIBLE. A plane-wide `…inventory` stamp would fence the model out of the
+// ENTIRE pack from the first manual add, so the server pins the ITEM the hand touched, on the FIELDS it claimed
+// (`…volatile.inventory.<id>.<field>`), and this panel is the other half of that ruling: each pinned item
+// carries its own chip — the list lens's one-tap Release, the grid tile's "Pinned" tell plus the Release inside
+// the tile editor it already opens — so the pin is legible and reversible. The SECTION pin survives for LEGACY
+// plane-wide locks only (stored `fieldLocks` are never rewritten), read at the full
+// `actorState.<key>.volatile.inventory` path the server writes.
 
 import type { RpgActorOp, RpgActorView, RpgInventoryItem, RpgTrackerView } from "@orb/contracts/rpg";
 import { rpgActorVolatileLockBase } from "@orb/contracts/rpg";
@@ -44,6 +39,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { Tip } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { useInventoryDiff } from "../hooks/use-inventory-diff.ts";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
@@ -105,12 +101,11 @@ export function RpgInventoryTab({ state }: RpgInventoryTabProps): ReactElement {
   const lastChange = useInventoryDiff(items);
 
   const edit = state.canEditShared && actor !== undefined ? buildPackEdit(state, actor, patchActor, editSnapshot) : undefined;
-  // The LEGACY plane-wide pack pin. Nothing MINTS this coarse path any more (#78 — a hand edit pins the ITEM
-  // it touched), but a snapshot written before that ruling carries one and stored `fieldLocks` are never
-  // rewritten, so the READ side keeps honoring it exactly as written — and a pin with no Release is a trap,
-  // so the section keeps the affordance that lets a host hand the whole pack back. The `volatile` segment is
-  // a REAL path segment: the merge walks the stored JSON, so the path without it matched nothing at all and
-  // this pin never rendered for anyone.
+  // The LEGACY plane-wide pack pin. Nothing MINTS this coarse path (a hand edit pins the ITEM it touched), but
+  // a stored snapshot can carry one and stored `fieldLocks` are never rewritten, so the READ side honors it
+  // exactly as written — and a pin with no Release is a trap, so the section keeps the affordance that lets a
+  // host hand the whole pack back. The `volatile` segment is a REAL path segment: the merge walks the stored
+  // JSON, so a path without it matches nothing.
   const lockPath = actor === undefined ? null : `${rpgActorVolatileLockBase(actor.actorRef)}.inventory`;
   const release =
     edit === undefined || lockPath === null || !state.tracker.lockedPaths.includes(lockPath)
@@ -119,7 +114,7 @@ export function RpgInventoryTab({ state }: RpgInventoryTabProps): ReactElement {
 
   return (
     <Stack gap="section" data-slot="rpg-inventory-tab">
-      {/* The subject selector IS the identity line (owner ruling 2026-07-28 — no pill shelf): whose PACK
+      {/* The subject selector IS the identity line (an owner ruling — no pill shelf): whose PACK
           is shown; clicking the name opens the member dropdown. Omitted when there is only one participant. */}
       {state.tracker.actors.length > 1 && actor !== undefined ? (
         <Row gap="field" align="center">
@@ -166,11 +161,13 @@ function PackSection({
     <Stack gap="field">
       <Row gap="field" align="center" justify="between">
         <Kicker trailing={onRelease === undefined ? null : <RpgFieldLock field="the pack" onRelease={onRelease} />}>Pack — {items.length}</Kicker>
-        {/* #37b — the compact-grid / list view knob (a display preference, session-local). */}
+        {/* The compact-grid / list view knob (a display preference, session-local). */}
         {items.length === 0 ? null : (
-          <Button intent="ghost" size="glyph-md" aria-label={toggleLabel} title={toggleLabel} onClick={onToggleView}>
-            <Icon icon={view === "grid" ? List : LayoutGrid} size="xs" />
-          </Button>
+          <Tip text={toggleLabel}>
+            <Button intent="ghost" size="glyph-md" aria-label={toggleLabel} onClick={onToggleView}>
+              <Icon icon={view === "grid" ? List : LayoutGrid} size="xs" />
+            </Button>
+          </Tip>
         )}
       </Row>
       {items.length === 0 ? (
@@ -203,14 +200,14 @@ function LastChangeLine({ lastChange }: { readonly lastChange: string | null }):
   );
 }
 
-/** Build the host's pack writers (RV-5 + #37c) — every one is a `patchActor` OP on the actor's pack (R1: the
+/** Build the host's pack writers (authoring + the icon pick) — every one is a `patchActor` OP on the actor's pack (R1: the
  *  panel names the gesture, the server applies it to the true head and derives the lock path). The ICON pick
  *  rides `autoLock:false` — the model cannot write `icon`, so there is no story write to stop and a pin there
  *  would only be one the host has to release; the DATA ops (add/patch/remove) stamp the ITEM's own claimed
- *  fields (#78), which is what the per-item chip + Release below reads back and hands away.
+ *  fields, which is what the per-item chip + Release below reads back and hands away.
  *
  *  THE RELEASE RIDES `editSnapshot`, not a verb of its own: a lock is snapshot METADATA and `editSnapshot` is
- *  its ONE author (W1b), so an empty patch + `releaseLocks` is the whole gesture — the same call the ambient
+ *  its ONE author, so an empty patch + `releaseLocks` is the whole gesture — the same call the ambient
  *  and tracker pins already make. */
 function buildPackEdit(
   state: RpgPanelState,

@@ -1,17 +1,16 @@
 // The GAME tab ("Game" — the crown host-admin console): the ONE host-authored
 // surface, crown-tinted so the privilege reads at the strip. It is DEFINITIONS & RULES (the tracked-field
-// unification): the STAT PROFILE vocabulary (add / rename / gloss / remove + the value range — RV-4/RV-12),
-// the TRACKERS (every tracked field in the game, one section, one vocabulary, one add flow — it absorbed the
-// Sheet tab's per-actor pool defs, the old cast-field schemas and the band-orb pin section), the relationship
+// unification): the STAT PROFILE vocabulary (add / rename / gloss / remove + the value range),
+// the TRACKERS (every tracked field in the game, one section, one vocabulary, one add flow, covering the per-actor
+// pools, the cast fields and the band-orb pins), the relationship
 // hints, and the scalar knobs. VALUES are never authored here — they live on the character (Status → the
 // character takeover). Everything autosaves (D66 A4 — no Save buttons).
 //
-// The CRUD grammar is the shared RV-8 primitive set (`AddRow` · `TrackerValue` · `HintEditor`), so every def
+// The CRUD grammar is the shared primitive set (`AddRow` · `TrackerValue` · `HintEditor`), so every def
 // plane in the panel creates, renames and glosses with the same gesture: a name is REQUIRED before anything
-// persists (the unification's default-name hygiene — the old "Add meter"/"+ Meter field" buttons instantly
-// wrote "Pool 4"/"Meter 3" orphans into live games), Enter commits the draft, and the hint editor is present
-// on every def (non-negotiable per the unification: the gloss is the PROVEN steering lever, R4b, and was
-// previously unauthorable from the product for half the def planes).
+// persists (the unification's default-name hygiene — an instant-add button writes "Pool 4"/"Meter 3"
+// orphans into live games), Enter commits the draft, and the hint editor is present on every def
+// (non-negotiable per the unification: the gloss is the PROVEN steering lever).
 //
 // HOST-ONLY: this tab's `when` is `isGameChat && isHost`, and the read (`getConfigView`) is a second,
 // server-side host gate (a member gets a leak-free NOT_FOUND).
@@ -21,14 +20,15 @@ import { RPG_HINT_MAX, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
+import { HintTrigger } from "@orb/ui/hint-trigger";
 import { Crown, Eye, EyeOff, Icon, Lock, LockOpen, Plus, RotateCcw, Trash2 } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { TrackBar } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
-import { QueryBoundary, SettingCheckboxRow } from "#components";
+import { useId, useState } from "react";
+import { QueryBoundary, SettingCheckboxRow, Tip } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useReattributePersona, useTRPC } from "#data";
 import { notify } from "#lib";
 import { setContextTab } from "#state";
@@ -70,6 +70,12 @@ const WRITE_LABEL: Readonly<Record<RpgTrackerDef["write"], string>> = {
   set: "observe",
 };
 
+/** What each `write` axis means and what pressing the toggle does, as visible copy beside it. */
+const WRITE_GLOSS: Readonly<Record<RpgTrackerDef["write"], string>> = {
+  delta: "a resource the story spends and restores — press to make it an observation",
+  set: "a state the story observes — press to make it a spendable resource",
+};
+
 /** ONE tracker's def row — the whole axis set: shape · write · who carries it · the label · the meter
  *  ceiling · pin · lock · remove, over the steering HINT. */
 function TrackerRow({
@@ -82,19 +88,19 @@ function TrackerRow({
   readonly onCommit: (next: RpgTrackerDef) => void;
 }): ReactElement {
   const patch = (fields: Partial<RpgTrackerDef>): void => onCommit({ ...def, ...fields });
-  // ONE string, two jobs (#1021): the accessible NAME an icon-only button has no visible text to supply,
-  // and the hover tooltip. Spelled once here so the two can never drift apart.
-  // BAND vocabulary + Eye glyph, never "pin" (owner ruling 08-01): "pin" is the HAND-LOCK's word
-  // (RpgFieldLock's "Pinned by hand"), and the band toggle even shared its Pin icon — two different
-  // concepts, one verb+glyph. Band = visibility, so it speaks visibility.
+  const writeGlossId = useId();
+  // ONE string, two jobs: the accessible NAME an icon-only button has no visible text to supply, and the
+  // tooltip. Spelled once here so the two can never drift apart.
+  // BAND vocabulary + Eye glyph, never "pin" (an owner ruling): "pin" is the HAND-LOCK's word
+  // (RpgFieldLock's "Pinned by hand"). Band = visibility, so it speaks visibility.
   const bandLabel = def.pinned ? `Remove ${def.label} from the band` : `Show ${def.label} as a band orb`;
   const lockLabel = def.locked ? `Let the story write ${def.label} again` : `Lock ${def.label} — the story can no longer write it`;
   const removeLabel = `Remove ${def.label}`;
   return (
-    // rows="control" (#884 C3, #850 fix-forward): floors this card's own three rows (label · badges/write ·
-    // hint) at the pointer-conditional control-sm height, giving the `size="inline"` buttons' touch-target
-    // ::after room inside its own row rather than overflowing onto a neighbour row's text — the parity fix
-    // to RpgStatProfileEditor's `AttributeRow` (same defect, same recipe, same #850 report).
+    // rows="control": floors this card's own three rows (label · badges/write · hint) at the
+    // pointer-conditional control-sm height, giving the `size="inline"` buttons' touch-target ::after room
+    // inside its own row rather than overflowing onto a neighbour row's text — the same recipe as
+    // RpgStatProfileEditor's `AttributeRow`.
     <Stack gap="field" rows="control" className={DEF_ROW_CLASS} data-slot="rpg-tracker-row">
       <Row gap="field" align="center">
         {def.shape === "meter" ? <TrackBar value={1} max={1} {...trackColorProps(resolveTrackerColor(def.color, index))} width="swatch" /> : null}
@@ -130,42 +136,50 @@ function TrackerRow({
             />
           </Row>
         ) : null}
-        <Button aria-label={bandLabel} intent="ghost" size="glyph-md" onClick={(): void => patch({ pinned: !def.pinned })} title={bandLabel}>
-          <Icon icon={def.pinned ? Eye : EyeOff} size="xs" />
-        </Button>
-        <Button aria-label={lockLabel} intent="ghost" size="glyph-md" onClick={(): void => patch({ locked: !def.locked })} title={lockLabel}>
-          <Icon icon={def.locked ? Lock : LockOpen} size="xs" />
-        </Button>
-        <Button aria-label={removeLabel} intent="ghost" size="glyph-md" onClick={(): void => onCommit({ ...def, key: "" })} title={removeLabel}>
-          <Icon icon={Trash2} size="xs" />
-        </Button>
+        <Tip text={bandLabel}>
+          <Button aria-label={bandLabel} intent="ghost" size="glyph-md" onClick={(): void => patch({ pinned: !def.pinned })}>
+            <Icon icon={def.pinned ? Eye : EyeOff} size="xs" />
+          </Button>
+        </Tip>
+        <Tip text={lockLabel}>
+          <Button aria-label={lockLabel} intent="ghost" size="glyph-md" onClick={(): void => patch({ locked: !def.locked })}>
+            <Icon icon={def.locked ? Lock : LockOpen} size="xs" />
+          </Button>
+        </Tip>
+        <Tip text={removeLabel}>
+          <Button aria-label={removeLabel} intent="ghost" size="glyph-md" onClick={(): void => onCommit({ ...def, key: "" })}>
+            <Icon icon={Trash2} size="xs" />
+          </Button>
+        </Tip>
       </Row>
       <Row gap="field" align="center" className="flex-wrap">
-        <Badge tone="soft" size="sm" title="the shape decides how it renders and how the story writes it — fixed when it was named">
+        <Badge tone="soft" size="sm">
           {def.shape}
         </Badge>
+        <HintTrigger
+          className=""
+          hint="the shape decides how it renders and how the story writes it — fixed when it was named"
+          subject={`${def.label}'s shape`}
+        />
         {/* The write axis is a TOGGLE, not a badge: a resource you spend reads and writes differently from a
-            state you observe, and a host who mis-picked it at birth could not fix it. */}
-        <Button
-          intent="ghost"
-          size="sm"
-          onClick={(): void => patch({ write: def.write === "delta" ? "set" : "delta" })}
-          title={
-            def.write === "delta"
-              ? "a resource the story spends and restores — click to make it an observation"
-              : "a state the story observes — click to make it a spendable resource"
-          }
-        >
+            state you observe, and a host who mis-picked it at birth could not fix it. What the current axis
+            means, and what a press does, is visible copy beside it. */}
+        <Button aria-describedby={writeGlossId} intent="ghost" size="sm" onClick={(): void => patch({ write: def.write === "delta" ? "set" : "delta" })}>
           {WRITE_LABEL[def.write]}
         </Button>
+        <Text id={writeGlossId} voice="gloss">
+          {WRITE_GLOSS[def.write]}
+        </Text>
         {def.subject === "game" ? (
-          <Badge tone="soft" size="sm" intent="neutral" title="one reading for the whole game">
+          <Badge tone="soft" size="sm" intent="neutral">
             game-wide
           </Badge>
         ) : (
-          <Button intent="ghost" size="sm" onClick={(): void => patch({ appliesTo: nextAppliesTo(def.appliesTo) })} title={`Who carries ${def.label}`}>
-            {appliesToLabel(def.appliesTo)}
-          </Button>
+          <Tip text={`Who carries ${def.label}`}>
+            <Button intent="ghost" size="sm" onClick={(): void => patch({ appliesTo: nextAppliesTo(def.appliesTo) })}>
+              {appliesToLabel(def.appliesTo)}
+            </Button>
+          </Tip>
         )}
       </Row>
       <HintEditor ariaLabel={`${def.label} hint`} hint={def.hint} max={RPG_HINT_MAX} onEdit={(next): void => patch({ hint: next })} />
@@ -209,8 +223,7 @@ function TrackersEditor({ chatId, config }: { readonly chatId: ChatId; readonly 
         and edited on the character. A meter's max here is the DEFAULT ceiling: an individual character can carry a different one on their card.
       </Text>
       {defs.length === 0 ? <RpgDoorwayLine>No trackers yet — name one below and the story starts keeping it.</RpgDoorwayLine> : null}
-      {/* The ROW band takes its own Stack so `rows="control"` floors the tracker rows (#884 C3 — the #850
-          pitch class) without inflating the kicker/gloss above them. */}
+      {/* The ROW band takes its own Stack so `rows="control"` floors the tracker rows without inflating the kicker/gloss above them. */}
       <Stack gap="field" rows="control">
         {defs.map((def, i) => (
           <TrackerRow
@@ -237,9 +250,11 @@ function AddTracker({ onAdd }: { readonly onAdd: (label: string, shape: RpgTrack
       ariaLabel="New tracker name"
       placeholder="name it first (e.g. Grit)"
       trailing={
-        <Button intent="ghost" size="sm" onClick={(): void => setSubject(subject === "actor" ? "game" : "actor")} title="Who this tracker belongs to">
-          {subject === "actor" ? "per character" : "game-wide"}
-        </Button>
+        <Tip text="Who this tracker belongs to">
+          <Button intent="ghost" size="sm" onClick={(): void => setSubject(subject === "actor" ? "game" : "actor")}>
+            {subject === "actor" ? "per character" : "game-wide"}
+          </Button>
+        </Tip>
       }
       actions={[
         { key: "meter", label: "meter", icon: Plus, intent: "primary", onAdd: (label: string): void => onAdd(label, "meter", subject) },
@@ -298,8 +313,8 @@ function JournalTypeHintsEditor({ chatId, config }: { readonly chatId: ChatId; r
  *  panel, and they are deliberately NOT fused: this one is a HOST game rebuild, that one is a self-stamp on a
  *  plain chat). Checked, the caller's own user rows are re-stamped to their current chat persona FIRST, so the
  *  deep story window the rebuild re-reads resolves the NEW name per row (`resolveCanonWindow` resolves identity
- *  macros off each row's stamp) and the re-extracted planes are written with it. Order is load-bearing: a
- *  rebuild that ran first would bake the old name in again. The copy is honest about the limit — assistant
+ *  macros off each row's stamp) and the re-extracted planes are written with it. Order matters: a rebuild
+ *  that ran first would bake the old name in again. The copy is honest about the limit — assistant
  *  PROSE keeps the vocatives the model wrote, because we never edit message content (D26). */
 function ResyncControl({ chatId }: { readonly chatId: ChatId }): ReactElement {
   const trpc = useTRPC();
@@ -435,8 +450,8 @@ export interface RpgGameTabProps {
 /** The Game tab — the HOST console (its own boundary; a config read failure is contained). */
 export function RpgGameTab({ state }: RpgGameTabProps): ReactElement {
   return (
-    // RESERVED (#1098) — the GM console settles into a full section stack (macros, resync) behind a
-    // config read, so the tab jumped its own height every time a host opened it.
+    // RESERVED — the GM console settles into a full section stack (macros, resync) behind a config read,
+    // so without a reservation the tab would jump its own height every time a host opened it.
     <QueryBoundary
       fallback={<SkeletonRows count={5} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the host console" onRetry={retry} />}

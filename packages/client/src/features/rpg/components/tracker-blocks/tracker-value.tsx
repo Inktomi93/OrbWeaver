@@ -6,7 +6,8 @@ import { Button } from "@orb/ui/button";
 import { Input } from "@orb/ui/input";
 import { Text } from "@orb/ui/text";
 import type { ComponentProps, ReactElement } from "react";
-import { useState } from "react";
+import { useId, useState } from "react";
+import { Tip } from "#components";
 import type { EditSession } from "#lib";
 import { resolveCommit } from "#lib";
 import { UNSET_DATUM } from "../../lib/unset-datum.ts";
@@ -74,24 +75,25 @@ function TrackerValueRest({
   const empty = display === "";
   const restText = empty ? (placeholder ?? UNSET_DATUM) : display;
   return (
-    <Button
-      type="button"
-      intent="ghost"
-      size="inline"
-      data-slot="tracker-value-rest"
-      aria-label={ariaLabel}
-      title={editTitle}
-      onClick={onOpen}
-      // Text-height at rest (the display-at-rest posture): the button hugs its datum text; a caller's
-      // width/alignment classes still apply so the rest state lines up with the read-only arm. The
-      // TRANSPARENT border reserves the edit input's 1px border box, so the click-to-reveal swap is
-      // pixel-stable — no layout jump (the owner no-shift bar).
-      className={`gap-0 border border-transparent px-field text-left ${className}`}
-    >
-      <Text as="span" size={size} tone={empty ? "muted" : tone} className={wrap ? "min-w-0 whitespace-normal break-words" : "truncate"}>
-        {restText}
-      </Text>
-    </Button>
+    <Tip text={editTitle}>
+      <Button
+        type="button"
+        intent="ghost"
+        size="inline"
+        data-slot="tracker-value-rest"
+        aria-label={ariaLabel}
+        onClick={onOpen}
+        // Text-height at rest (the display-at-rest posture): the button hugs its datum text; a caller's
+        // width/alignment classes still apply so the rest state lines up with the read-only arm. The
+        // TRANSPARENT border reserves the edit input's 1px border box, so the click-to-reveal swap is
+        // pixel-stable — no layout jump (the owner no-shift bar).
+        className={`gap-0 border border-transparent px-field text-left ${className}`}
+      >
+        <Text as="span" size={size} tone={empty ? "muted" : tone} className={wrap ? "min-w-0 whitespace-normal break-words" : "truncate"}>
+          {restText}
+        </Text>
+      </Button>
+    </Tip>
   );
 }
 
@@ -117,6 +119,7 @@ export function TrackerValue({
   // and `conflict` holds the value that arrived underneath an edit-in-progress. `null` IS the rest state —
   // a passive re-render can reach none of them, which is what makes the no-clobber rule structural.
   const [session, setSession] = useState<EditSession | null>(null);
+  const conflictId = useId();
 
   if (onEdit === undefined) {
     return (
@@ -156,44 +159,50 @@ export function TrackerValue({
   };
 
   return (
-    <Input
-      // The input exists ONLY after an explicit click on the rest value (click-to-edit) — moving
-      // focus into it is the expected continuation of that gesture, not a focus steal.
-      // eslint-disable-next-line jsx-a11y/no-autofocus -- click-to-edit: the input exists only after an explicit click
-      autoFocus={true}
-      aria-label={ariaLabel}
-      // COMPACT in-place editor (owner bar: the revealed input occupies the SAME visual slot the display
-      // did — no clip, no overflow, no layout jump): the `inline` layout arm IS that box — text-height,
-      // the rest state's `px-field` inset, the display's `text-label` type — where the default `field` arm
-      // (h-control-sm/px-block/text-body) would grow the row on reveal. Callers append width/alignment
-      // only, never a height.
-      layout="inline"
-      className={className ?? ""}
-      data-slot="tracker-value-edit"
-      // The CONFLICT surface. `data-conflict` carries the value that arrived (an automatable fact, and the
-      // one a reader needs), `data-invalid` lights the primitive's own destructive border — the skin the
-      // input already ships for "this is not going to land as typed" — and the title says what happened and
-      // what each key now does. No extra element: the editor must keep occupying the display's slot (the
-      // owner no-shift bar), so the signal rides the control that is already there.
-      {...(contested ? { "data-conflict": conflict, "data-invalid": "" } : {})}
-      title={contested ? `Changed to "${conflict}" while you were editing — commit again to overwrite it, Escape to keep it.` : undefined}
-      inputMode={kind === "numeric" ? "numeric" : "text"}
-      {...(placeholder === undefined ? {} : { placeholder })}
-      onBlur={commit}
-      onKeyDown={(e): void => {
-        if (e.key === "Enter") {
-          e.currentTarget.blur();
-        }
-        if (e.key === "Escape") {
-          // Cancel: drop the draft, back to rest, nothing sent — and under a conflict that is the "keep
-          // what arrived" answer, since the rest state renders the CURRENT value.
-          setSession(null);
-        }
-      }}
-      onValueChange={(next): void => {
-        setSession({ draft: next, openedFrom, conflict });
-      }}
-      value={draft}
-    />
+    <>
+      <Input
+        // The input exists ONLY after an explicit click on the rest value (click-to-edit) — moving
+        // focus into it is the expected continuation of that gesture, not a focus steal.
+        // eslint-disable-next-line jsx-a11y/no-autofocus -- click-to-edit: the input exists only after an explicit click
+        autoFocus={true}
+        aria-label={ariaLabel}
+        // COMPACT in-place editor (owner bar: the revealed input occupies the SAME visual slot the display
+        // did — no clip, no overflow, no layout jump): the `inline` layout arm IS that box — text-height,
+        // the rest state's `px-field` inset, the display's `text-label` type — where the default `field` arm
+        // (h-control-sm/px-block/text-body) would grow the row on reveal. Callers append width/alignment
+        // only, never a height.
+        layout="inline"
+        className={className ?? ""}
+        data-slot="tracker-value-edit"
+        // The CONFLICT surface. `data-conflict` carries the value that arrived (an automatable fact, and the
+        // one a reader needs), `data-invalid` lights the primitive's own destructive border — the skin the
+        // input already ships for "this is not going to land as typed" — and the description says what
+        // happened and what each key now does. The editor must keep occupying the display's slot (the owner
+        // no-shift bar), so the sentence is an out-of-flow description, never a line that moves the row.
+        {...(contested ? { "data-conflict": conflict, "data-invalid": "", "aria-describedby": conflictId } : {})}
+        inputMode={kind === "numeric" ? "numeric" : "text"}
+        {...(placeholder === undefined ? {} : { placeholder })}
+        onBlur={commit}
+        onKeyDown={(e): void => {
+          if (e.key === "Enter") {
+            e.currentTarget.blur();
+          }
+          if (e.key === "Escape") {
+            // Cancel: drop the draft, back to rest, nothing sent — and under a conflict that is the "keep
+            // what arrived" answer, since the rest state renders the CURRENT value.
+            setSession(null);
+          }
+        }}
+        onValueChange={(next): void => {
+          setSession({ draft: next, openedFrom, conflict });
+        }}
+        value={draft}
+      />
+      {contested ? (
+        <Text as="span" className="sr-only" id={conflictId}>
+          {`Changed to "${conflict}" while you were editing — commit again to overwrite it, Escape to keep it.`}
+        </Text>
+      ) : null}
+    </>
   );
 }
