@@ -34,7 +34,7 @@ for (const pointer of [
   test.describe(`${pointer.name} — the kit's own ownership rule`, () => {
     test.use({ hasTouch: pointer.hasTouch });
 
-    test("#662: a box-carried control alone in a padded wrapper measures its OWN box, not the wrapper", async ({ mount, page }) => {
+    test("a box-carried control alone in a padded wrapper measures its OWN box, not the wrapper", async ({ mount, page }) => {
       await mount<typeof TouchFloorBoxCarriedIsolatedStory>("tests/support/browser/touch-floor-fixtures/TouchFloorBoxCarriedIsolatedStory", {});
       const floor = await touchFloorPx(page);
       const control = page.getByTestId("box-carried-isolated");
@@ -48,7 +48,7 @@ for (const pointer of [
       expect(height, "a plain 16px button must not borrow its padded wrapper's height").toBeLessThan(floor);
     });
 
-    test("#662: an overflowing ::before pseudo still carries the floor when its control is isolated", async ({ mount, page }) => {
+    test("an overflowing ::before pseudo still carries the floor when its control is isolated", async ({ mount, page }) => {
       await mount<typeof TouchFloorPseudoCarriedIsolatedStory>("tests/support/browser/touch-floor-fixtures/TouchFloorPseudoCarriedIsolatedStory", {});
       const floor = await touchFloorPx(page);
       const control = page.getByTestId("pseudo-carried-isolated");
@@ -59,7 +59,7 @@ for (const pointer of [
       expect(await hitExtent(control, "y"), "a ghost glyph button's ::before must still reach the touch floor").toBeGreaterThanOrEqual(floor);
     });
 
-    test("#1843: the SAME glyph wearing the CTA ring keeps its hit area", async ({ mount, page }) => {
+    test("the SAME glyph wearing the CTA ring keeps its hit area", async ({ mount, page }) => {
       await mount<typeof TouchFloorCtaGlyphIsolatedStory>("tests/support/browser/touch-floor-fixtures/TouchFloorCtaGlyphIsolatedStory", {});
       const floor = await touchFloorPx(page);
       const control = page.getByTestId("cta-glyph-isolated");
@@ -70,7 +70,7 @@ for (const pointer of [
       expect(await hitExtent(control, "y"), "a primary (data-cta) glyph must have the same target as its ghost twin").toBeGreaterThanOrEqual(floor);
     });
 
-    test("#2300: the PRE-#1843 ringed glyph — an untappable pseudo — measures BELOW the floor", async ({ mount, page }) => {
+    test("a ringed glyph whose hit area shares the ring's pseudo — an untappable pseudo — measures BELOW the floor", async ({ mount, page }) => {
       await mount<typeof TouchFloorPreFixCtaGlyphStory>("tests/support/browser/touch-floor-fixtures/TouchFloorPreFixCtaGlyphStory", {});
       const floor = await touchFloorPx(page);
       const control = page.getByTestId("pre-fix-cta-glyph");
@@ -86,7 +86,7 @@ for (const pointer of [
       expect(height, `a ring nobody can tap is not a hit area — measured ${width}x${height} against a floor of ${floor}`).toBeLessThan(floor);
     });
 
-    test("#1843/#2301: the `inline` arm at intent=primary answers a tap over its whole hit-area ::before", async ({ mount, page }) => {
+    test("the `inline` arm at intent=primary answers a tap over its whole hit-area ::before", async ({ mount, page }) => {
       await mount<typeof TouchFloorInlinePrimaryStory>("tests/support/browser/touch-floor-fixtures/TouchFloorInlinePrimaryStory", {});
       const floor = await touchFloorPx(page);
       const control = page.getByTestId("inline-primary");

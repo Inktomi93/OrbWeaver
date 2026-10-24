@@ -55,7 +55,7 @@ export async function expectContainedWithin(subject: Locator, wrapper: Locator, 
   if (!isAncestor) {
     throw new Error(
       "expectContainedWithin: WRAPPER is not an ancestor of SUBJECT — pick a real fixed-width containing box (the story's mount root, a " +
-        "token-capped column), never a block container that grows with its own content (that is the exact tautology #1765 exists to refuse)",
+        "token-capped column), never a block container that grows with its own content (a container that grows with its content can never be narrower than it)",
     );
   }
 
