@@ -26,14 +26,14 @@
 // than no room, and the outcome still reports `ok`.
 
 import { assetIdSchema } from "@orb/contracts/assets";
-import type { BulkImportChatInput, BulkImportMessageInput, ImportedChatRemap } from "@orb/contracts/chat";
+import type { BulkImportChatInput, BulkImportMessageInput, ContentSignatures, ImportedChatRemap, VariantMetadata } from "@orb/contracts/chat";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
 import { relinkContentAssets } from "@orb/kit/content";
 import { isPlainObject } from "@orb/kit/guards";
 import type { AssetId, CharacterHandle, CharacterId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
 import type { RpgPortableGame } from "#domain/rpg";
 import { sha256Hex } from "#primitives/content-hash";
-import type { PortableChat, PortableRpgGame } from "#primitives/serde/chat-bundle";
+import type { PortableChat, PortableChatVariant, PortableRpgGame } from "#primitives/serde/chat-bundle";
 import { CHAT_BUNDLE_SCHEMA_KIND, parseChatBundleFile } from "#primitives/serde/chat-bundle";
 import { portableParseError } from "#primitives/serde/lib";
 import type { ImportChatFileInput } from "../contract/params.ts";
@@ -154,6 +154,49 @@ function carriedAssetBackground(metadata: PortableChat["metadata"]): { readonly 
   return source.success && source.data.kind === "asset" && source.data.assetHash.length > 0 ? { raw, hash: source.data.assetHash } : null;
 }
 
+// The replay provenance a variant's metadata carries: a snapshot of the exact content it signs, with its image
+// ids. It only replays while that snapshot equals the stored content, so it re-links with the content.
+const CONTENT_SIGNATURES_KEY = "contentSignatures" satisfies keyof VariantMetadata;
+const PREVIOUS_SNAPSHOT_KEY = "previous" satisfies keyof ContentSignatures;
+
+function relinkSignatureSnapshot(snapshot: unknown, relink: ReadonlyMap<AssetId, AssetId>): unknown {
+  if (!isPlainObject(snapshot)) {
+    return snapshot;
+  }
+  const { content, images } = snapshot;
+  const previous = snapshot[PREVIOUS_SNAPSHOT_KEY];
+  return {
+    ...snapshot,
+    ...(typeof content === "string" ? { content: relinkContentAssets(content, relink) } : {}),
+    ...(Array.isArray(images)
+      ? {
+          images: images.map((image: unknown) => {
+            if (!isPlainObject(image)) {
+              return image;
+            }
+            const id = assetIdSchema.safeParse(image["assetId"]);
+            const to = id.success ? relink.get(id.data) : undefined;
+            return to === undefined ? image : { ...image, assetId: to };
+          }),
+        }
+      : {}),
+    ...(previous === undefined ? {} : { [PREVIOUS_SNAPSHOT_KEY]: relinkSignatureSnapshot(previous, relink) }),
+  };
+}
+
+/** One carried variant with its inline images, and the signature snapshot of that content, re-linked. */
+function relinkVariant(variant: PortableChatVariant, relink: ReadonlyMap<AssetId, AssetId>): PortableChatVariant {
+  const signatures = variant.metadata?.[CONTENT_SIGNATURES_KEY];
+  return {
+    ...variant,
+    content: relinkContentAssets(variant.content, relink),
+    metadata:
+      signatures === undefined || variant.metadata === null
+        ? variant.metadata
+        : { ...variant.metadata, [CONTENT_SIGNATURES_KEY]: relinkSignatureSnapshot(signatures, relink) },
+  };
+}
+
 /** The bundle with its room background and inline images pointed at the owner's own assets holding the carried
  *  bytes. A miss keeps the carried id, which resolves when the asset restored under it. */
 async function relinkCarriedAssets(profile: ImportProfileDeps, ownerId: ImportContext["ownerId"], bundle: PortableChat): Promise<PortableChat> {
@@ -177,10 +220,7 @@ async function relinkCarriedAssets(profile: ImportProfileDeps, ownerId: ImportCo
     ...bundle,
     metadata:
       backgroundId === undefined || background === null ? bundle.metadata : { ...bundle.metadata, background: { ...background.raw, assetId: backgroundId } },
-    messages:
-      relink.size === 0
-        ? bundle.messages
-        : bundle.messages.map((m) => ({ ...m, variants: m.variants.map((v) => ({ ...v, content: relinkContentAssets(v.content, relink) })) })),
+    messages: relink.size === 0 ? bundle.messages : bundle.messages.map((m) => ({ ...m, variants: m.variants.map((v) => relinkVariant(v, relink)) })),
   };
 }
 

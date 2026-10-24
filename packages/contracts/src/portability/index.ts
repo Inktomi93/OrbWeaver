@@ -27,7 +27,7 @@ export const PORTABLE_KINDS = [
   "user-settings",
   "tag",
   // Curated media rows; blobs travel via `assets`, this carries the curation. Re-links the character
-  // by handle (ids aren't preserved), assetId by the preserved id.
+  // by handle (ids aren't preserved) and the image by its content hash, then by its carried id.
   "gallery",
   // The CAS blob bundle. Heterogeneous mime, so `ext: ""` + self-describing filenames (`assets/<hash>`).
   "assets",
@@ -68,8 +68,9 @@ export const PORTABLE_IMPORT_ORDER = [
   // already exist (the world-info-before-character precedent).
   "regex",
   "character",
-  // databank after character + assets: its character attachments re-link by handle and its source blobs by
-  // the preserved assetId (the gallery shape). An unresolvable handle simply leaves the document unattached.
+  // databank after character + assets: its character attachments re-link by handle and its source blob by the
+  // carried assetId, which names a row only when the asset restored under it. An unresolvable handle simply
+  // leaves the document unattached.
   "databank",
   // gallery after character + assets; an unresolvable character handle survives un-charactered.
   "gallery",

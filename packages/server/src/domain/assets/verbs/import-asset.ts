@@ -39,9 +39,13 @@ export function createImportAsset(input: DbAssemblyInput<AssetsPortabilityContex
     }
 
     // `assets_owner_hash_unique` allows one row per `(ownerId, hash)`, so the owner's existing row for these
-    // bytes (a fresh box's first-login plates and avatars) is the one every referrer resolves to.
+    // bytes (a fresh box's first-login plates and avatars) is the one every referrer resolves to. Its blob may
+    // be gone while the row stays, and the bundle file in hand repairs it, as the same-id replay does.
     const held = await assetIdForHash(ctx.db, ownerId, identity.hash);
     if (held !== undefined) {
+      if (!(await ctx.cas.exists(ownerId, identity.hash))) {
+        await restoreBlob(target);
+      }
       return alreadyHeld(identity.id, held);
     }
 

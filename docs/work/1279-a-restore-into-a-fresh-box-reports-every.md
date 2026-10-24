@@ -32,8 +32,8 @@ Each referrer now carries the content hash and re-links by it at import, as sett
 
 - Gallery entries: the `orb.gallery` row carries `assetHash` beside `assetId`; the import resolves the owner's asset by hash, then by the carried id. A file without the hash restores by id as before.
 - Room backgrounds: `chats.metadata.background` already carried `assetHash`; the chat bundle import re-points `assetId` to the owner's asset with those bytes.
-- Chat attachments: the chat bundle carries `assetHashes`, the content hash of each exporter-owned asset an inline image names; the import rewrites each `asset:<id>` image ref through `relinkContentAssets` (`packages/kit/src/content/index.ts`), so the rebuilt `message_assets` link names a real asset.
+- Chat attachments: the chat bundle carries `assetHashes`, the content hash of each exporter-owned asset an inline image names; the import rewrites each `asset:<id>` image ref through `relinkContentAssets` (`packages/kit/src/content/index.ts`), so the rebuilt `message_assets` link names a real asset. A variant's `contentSignatures` snapshot re-links with its content and image ids, so its replay provenance still matches.
 
-The asset import's fourth check (`packages/server/src/domain/assets/verbs/import-asset.ts`) answers `{ ok: true, created: false }` with a note naming both ids when the owner already holds the bytes.
+The asset import's fourth check (`packages/server/src/domain/assets/verbs/import-asset.ts`) answers `{ ok: true, created: false }` with a note naming both ids when the owner already holds the bytes. When that held asset's stored file is gone, the bundle file restores it first ("restoring bytes the owner holds under another id repairs that asset when its stored file is gone").
 
 Databank documents (`sourceAssetId`) and imagery generations still restore by the carried id. On a fresh box they name no seeded bytes, so nothing dangles there.
