@@ -63,7 +63,7 @@ export const CHIP_TOUCH_FLOOR_AT_COARSE = "pointer-coarse:min-h-(--size-touch-ta
  *  measured the chat context band's memory chip at **40×44** against the 44px short-side floor. The height
  *  floor ({@link CHIP_TOUCH_FLOOR_AT_COARSE}) cannot answer that; this is its inline twin, and the two are
  *  separate constants because a chip that is short and a chip that is narrow are different defects with
- *  different call sites. Fine is untouched (a 34px chip in a dense topbar row). */
+ *  different call sites. Fine is untouched (a `--size-control-md` chip in a dense topbar row). */
 export const CHIP_TOUCH_WIDTH_FLOOR_AT_COARSE = "pointer-coarse:min-w-(--size-touch-target)";
 
 /** A STACKED TEXT-HEIGHT VALUE ROW's coarse touch floor — the row, never the value (#869).

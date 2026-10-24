@@ -54,7 +54,7 @@ type HeaderPlacement = RowSkin["headerPlacement"];
  *  prose scrolling under it.
  *
  *  THE ACTION CLUSTER CONTRIBUTES NO HEIGHT (#204 — the owner's "phantom empty scrim bands" and "the
- *  name is separated from the messages", both one mechanism). The hover-reveal cluster is a 34px row of
+ *  name is separated from the messages", both one mechanism). The hover-reveal cluster is a `--size-control-md` row of
  *  icon buttons that is `opacity: 0` at rest but stayed IN FLOW at full height — so the painted chip
  *  measured 50px around a 16px name (50 = 34 + 2×py-row): the empty top/bottom thirds were the phantom
  *  bands, and the ~17px of painted-then-empty space below the name was the detachment. The cluster rides

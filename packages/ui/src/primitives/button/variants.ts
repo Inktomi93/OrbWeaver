@@ -101,7 +101,7 @@ export const buttonVariants = tv({
       "icon-sm": "size-(--size-control-sm) shrink-0 p-0",
       // CONTENT-SIZED: the child IS the control (a portrait/media trigger). Every other size pins a
       // control height, so a display-token child larger than it (`size-(--size-avatar-hero)`, 64px) paints OUTSIDE
-      // its own button and the real hit target stays the 34px control box — the stickler 2026-08-01 F2
+      // its own button and the real hit target stays the `--size-control-md` box — the stickler 2026-08-01 F2
       // defect. A `className` did not fix that from a feature: `size-*` on custom tokens was opaque to
       // tailwind-merge, so the variant's `size-(--size-control-md)` survived the override and won on cascade order.
       // Post-#146 the override would win instead — which makes this arm MORE necessary, not less: the fix

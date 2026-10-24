@@ -438,15 +438,39 @@ interface RampContext {
 
 /** `primitive.<ramp>.<step>`: path depth group, ramp, step. */
 const PRIMITIVE_PATH_LENGTH = 3;
+/** The ramps whose step names are the step's integer px at the 16px root; `radius` and `type` are ordinal. */
+const PX_NAMED_RAMPS: ReadonlySet<string> = new Set(["space", "size", "leading"]);
+const ROOT_PX = 16;
+
+/** A raw dimension's px at the 16px root, or `undefined` when it is not a rem or px dimension. */
+function rootPx(value: unknown): number | undefined {
+  if (!isObject(value) || typeof value["value"] !== "number") {
+    return undefined;
+  }
+  if (value["unit"] === "rem") {
+    return value["value"] * ROOT_PX;
+  }
+  return value["unit"] === "px" ? value["value"] : undefined;
+}
 
 function validatePrimitiveStep(token: ContractToken, diagnostics: TokenContractDiagnostic[]): void {
   const jsonPath = `/${token.path.join("/")}`;
-  const ramp = token.path[1];
+  const [, ramp, step] = token.path;
   if (token.path.length !== PRIMITIVE_PATH_LENGTH || ramp === undefined || !RAMPS.has(ramp)) {
     diagnostics.push(diagnostic(jsonPath, "primitive.shape", `a primitive is primitive.<${[...RAMPS].join("|")}>.<step>`));
   }
   if (token.type !== "dimension" || aliasTarget(token) !== null) {
     diagnostics.push(diagnostic(jsonPath, "primitive.raw", "a primitive step holds a raw dimension"));
+    return;
+  }
+  if (ramp === undefined || !PX_NAMED_RAMPS.has(ramp)) {
+    return;
+  }
+  const px = rootPx(token.value);
+  if (px === undefined || !Number.isInteger(px) || step !== String(px)) {
+    diagnostics.push(
+      diagnostic(jsonPath, "primitive.name", `a primitive.${ramp} step is named by its integer px at the 16px root; ${step} resolves to ${px}px`),
+    );
   }
 }
 

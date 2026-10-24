@@ -88,9 +88,16 @@ Visible changes in this leg, each with its step:
 
 `tabular-nums` stays on 40 sites whose voice is `gloss`, `quiet`, a `size="label"` span or a bare `Input`; a tabular figure outside the datum voices needs a voice ruling (UI-Density-Law §2.3) and is reported rather than invented here.
 
-### Leg 5: the ramp values
+### Leg 5: the ramp values, built
 
-Not yet built. The derivation below is the design; commit B records the outcome.
+Every step was judged against the Owner rulings: a step stays when its clause has a reason a standard does not beat, and moves when a 4px or 8px grid step, a common scale or a touch minimum beats it. The Ramps table carries the decision per step. Two steps moved; the law clauses moved in the same commit.
+
+| surface | before | after | reason |
+| - | - | - | - |
+| every `size="md"` and `size="icon"` control at a fine pointer (buttons, icon buttons, the `face-strip` and `row-toggle-action` boxes) | 34px | 36px (`size.control-md` fine) | the fine ramp is 32/36/40, a 4px ladder (D62 P1, `UI-Architecture-and-Layout.md` §4b axis 3, `ui-package-design.md` §4); 34 was the one control step off the grid, and a 2px step above `control-sm` is below the 4px atom (D2) and a 6% move, which D5's own test calls too fine to be a scale step |
+| mobile rail tab, glyph to caption | 2px | 4px (`spacing.tight`) | `spacing.micro` was the one step below the 4px atom floor (D2) and outside the six density steps (§2.2); 4dp is the Material navigation-bar icon-to-label gap; the token and `primitive.space.2` are deleted |
+
+`token-contract.ts` now refuses a `space`, `size` or `leading` step whose name is not its integer px at the 16px root (`primitive.name`), so the px name cannot lie about the value; `radius` and `type` stay ordinal.
 
 ### Legs 2, 4 and 6
 
@@ -108,9 +115,11 @@ Lane `cb-css`, worktree `.claude/worktrees/agent-a93838f44c69f2f8c`, branch `wt/
 - Leg-3 checks run: `tokens:build`; `tests/ui/token-contract` (17 pass); `tests/tooling/native-token-scales` and `css-merge-parity` (8 pass); `pnpm exec stylelint "packages/**/*.css"` clean; `pnpm typecheck` green after the two merge-brought `TOKENS["spacing.control-lg"]` keys were repointed; 119 component tests green (`tests/ui`, touch-floor, scene-cards, first-boot-boxes, config-search-input, background-upload, durable-local-binding, media-lifetime, design-audit-walker, login-pending-join, join-invite-dialog); the planted controls (`p-4`, `max-h-96`, `size-19`, `text-sm`, `leading-tight`, `@min-[100rem]:`, `size-control-sm`, `h-[8.5rem]`, `grid-cols-[1.55fr_1fr]`, a duplicate and a conflicting class, numeric `height` and `minBlockSize` inline) each fail lint. Whole-tree `pnpm lint:eslint packages tooling tests` green (0 findings).
 - Leg-3 captures on `319c7e73d6` against the `f00689848e` baselines, real-db isolated stage, ten surfaces (run slots `agent-a93838f44c69f2f8c-587254-2026-10-24T16-11-29-527Z` through `-605418-2026-10-24T16-13-11-851Z`): eight surfaces SSIM 1; `home-desktop` 0.9828 PASS, the only difference the roster avatar stacks (half-size overlap row in the leg-3 table); `refinery-desktop` 0.9379 FAIL on threshold, the only difference the character picker list growing from 320px to 384px (`height.scroll-lg`, the scroll-caps row), card and lane positions unchanged. Every phone capture SSIM 1. Both differences are named in the table; no defect. Boundary pins at 768 and 1024 (`-606994-…`, `-607681-…`) identical to the baseline (768 mobile, rail 56px, grid `768px`; 1024 narrow, grid `56px 0px 968px 0px`).
 
+- Leg 5 (the commit after `e8a3e29a5e`): `size.control-md` fine 34 → 36 (`primitive.size.34` → `36`), `spacing.micro` and `primitive.space.2` deleted (the rail tab gap is `spacing.tight`), the `primitive.name` contract check, the Ramps table decision column, the law clauses (ADR 0062 P1, `UI-Architecture-and-Layout.md` §4b axis 3, `ui-package-design.md` §4, `integer-line-boxes.md` §2) and the code comments that spelled 34px. Checks run: `tokens:build`; `tests/ui/token-contract` (18 pass, with the planted misnamed, fractional and ordinal steps); `tests/tooling/native-token-scales` and `css-merge-parity` (8 pass); stylelint over the four hand-written CSS files clean; scoped ESLint over the edited files clean; whole `pnpm typecheck` green. Leg-5 baselines were taken on `e8a3e29a5e` (run slots `-651641-2026-10-24T16-21-38-955Z` through `-669046-2026-10-24T16-24-25-805Z`).
+
 ### In progress
 
-- Nothing in flight. Next exact step: leg 5 (the Ramps table decision column and the law clauses it changes), under the load gate, with snap before (`319c7e73d6`) and after.
+- Leg-5 after-captures. Next exact step: under the load gate run `bash <scratchpad>/cb-css-snap-batch.sh after5 <sha> --diff` and `bash <scratchpad>/cb-css-snap-boundary.sh after5 <sha>`; every desktop difference must be a 2px-taller md/icon control and every phone difference the rail caption 2px lower; record the verdicts here.
 
 ### Decisions since the Owner rulings
 
@@ -136,54 +145,51 @@ Lane `cb-css`, worktree `.claude/worktrees/agent-a93838f44c69f2f8c`, branch `wt/
 
 ## Ramps
 
-Every step cites the clause that fixes it. "Off-grid" means off the 4px grid (`UI-Density-Law.md` §1).
+Every step cites the clause that fixes it and carries its leg-5 decision. "Off-grid" means off the 4px grid (`UI-Density-Law.md` §1). A step moves only when a 4px or 8px grid step, a common scale or a touch minimum beats the clause.
 
-| ramp | step | value | consumers | clause |
-| - | - | - | - | - |
-| space | 2 | 0.125rem | micro | shell rail glyph↔caption gap, below the 4px atom floor because the pair is one tab identity (`spacing.micro`) — off-grid |
-| space | 4 | 0.25rem | tight | `UI-Density-Law.md` §2.2, D2 |
-| space | 6 | 0.375rem | field, glyph-gap fine | `UI-Density-Law.md` §2.2, D3 — off-grid by ruling |
-| space | 8 | 0.5rem | row | §2.2, D1 |
-| space | 12 | 0.75rem | block, glyph-gap | §2.2 |
-| space | 16 | 1rem | density-section-compact | compact arm of section, `tiers.css` |
-| space | 24 | 1.5rem | section | §2.2 |
-| space | 32 | 2rem | gutter | §2.2 |
-| size | 6 | 0.375rem | switch-inset fine | knob inset = (32 − 2·1 − 18)/2 at the fine track (`size.switch-inset`) |
-| size | 9 | 0.5625rem | switch-inset | knob ≈55% of the 44px track (`size.switch-inset`, the #1109/#1684 rulings in its description) — off-grid |
-| size | 12 | 0.75rem | slider-inset | half the slider thumb (`size.slider-inset`) |
-| size | 16 | 1rem | glyph-xs | the glyph ramp's tightest step |
-| size | 18 | 1.125rem | checkbox | the Checkbox/Radio visible box, PP5 (D66) — off-grid |
-| size | 20 | 1.25rem | glyph-sm | the glyph row step |
-| size | 24 | 1.5rem | avatar-sm, slider-thumb, glyph-md | §13.9 display sizes |
-| size | 28 | 1.75rem | touch-target fine | D62 P1, the fine floor |
-| size | 32 | 2rem | avatar-md, glyph-lg, control-sm fine, switch-track-height fine | `UI-Architecture-and-Layout.md` §4b axis 3 |
-| size | 34 | 2.125rem | control-md fine | §4b axis 3 — off-grid by law |
-| size | 40 | 2.5rem | avatar-lg, control-lg fine | §4b axis 3 |
-| size | 44 | 2.75rem | touch-target, control-sm, switch-track-height | the ≥44px touch floor, §4b axis 3 |
-| size | 48 | 3rem | control-md, switch-track fine | §4b axis 3; the 48×32 fine switch |
-| size | 56 | 3.5rem | control-lg | §4b axis 3 |
-| size | 64 | 4rem | avatar-hero, switch-track | the 64×44 coarse switch silhouette (#420 in `size.switch-track`) |
-| radius | sm | 0.25rem | inset | `UI-Density-Law.md` §2.1 |
-| radius | md | 0.375rem | control | §2.1 |
-| radius | lg | 0.5rem | base | §2.1 |
-| radius | xl | 0.625rem | card | §2.1, D6 |
-| radius | full | 9999px | full | §2.1 |
-| type | 2xs | 0.65625rem | micro | `integer-line-boxes.md` §3a hierarchy; D11 |
-| type | xs | 0.8125rem | label, code, field-dense fine, code-field fine | hierarchy; D5 |
-| type | sm | 0.9375rem | body, field fine | hierarchy |
-| type | md | 1rem | title, field, field-dense, code-field | hierarchy; the iOS focus-zoom floor (`text.field`) |
-| type | lg | 1.25rem | headline | hierarchy |
-| type | xl | 1.5rem | display | hierarchy |
-| leading | 13 | 0.8125rem | micro | `integer-line-boxes.md` §3a table |
-| leading | 16 | 1rem | label, field-dense fine | §3a |
-| leading | 20 | 1.25rem | label-relaxed, field-dense, code-field fine | §3a |
-| leading | 22 | 1.375rem | title | §3a |
-| leading | 23 | 1.4375rem | body, field fine | §3a |
-| leading | 24 | 1.5rem | field, code-field | `text.field` pair, 24/16 |
-| leading | 26 | 1.625rem | headline | §3a |
-| leading | 30 | 1.875rem | display | §3a |
-
-Leg 5 is decided step by step against the rulings above: a step stays when its clause has a reason a standard does not beat, and moves when a standard improves on it, with the clause updated in the same commit. The table gains a decision column when leg 5 lands.
+| ramp | step | value | consumers | clause | decision |
+| - | - | - | - | - | - |
+| space | 4 | 0.25rem | tight, the mobile rail glyph-to-caption gap | `UI-Density-Law.md` §2.2, D2 | kept: the 4px atom floor; the rail gap moved here from the deleted 2px `spacing.micro` (Material navigation-bar icon-to-label gap is 4dp) |
+| space | 6 | 0.375rem | field, glyph-gap fine | `UI-Density-Law.md` §2.2, D3 — off-grid by ruling | kept: D3 rules the 2pt sub-step with `tight` present |
+| space | 8 | 0.5rem | row | §2.2, D1 | kept: the mocks measure 8px |
+| space | 12 | 0.75rem | block, glyph-gap | §2.2 | kept: 4px grid |
+| space | 16 | 1rem | density-section-compact | compact arm of section, `tiers.css` | kept: 8px grid |
+| space | 24 | 1.5rem | section | §2.2 | kept: 8px grid |
+| space | 32 | 2rem | gutter | §2.2 | kept: 8px grid |
+| size | 6 | 0.375rem | switch-inset fine | knob inset = (32 − 2·1 − 18)/2 at the fine track (`size.switch-inset`) | kept: derived from the 32px track and the 18px knob |
+| size | 9 | 0.5625rem | switch-inset | knob ≈55% of the 44px track (`size.switch-inset`, the #1109/#1684 rulings in its description) — off-grid | kept: derived, (44 − 2 − 24)/2 with the ruled 24px knob on the 8px grid; moving the inset moves the ruled knob |
+| size | 12 | 0.75rem | slider-inset | half the slider thumb (`size.slider-inset`) | kept: derived from the 24px thumb |
+| size | 16 | 1rem | glyph-xs | the glyph ramp's tightest step | kept: the common 16/20/24/32 icon ramp |
+| size | 18 | 1.125rem | checkbox | the Checkbox/Radio visible box, PP5 (D66) — off-grid | kept: Material's checkbox box is 18dp |
+| size | 20 | 1.25rem | glyph-sm | the glyph row step | kept: icon ramp |
+| size | 24 | 1.5rem | avatar-sm, slider-thumb, glyph-md | §13.9 display sizes | kept: icon ramp, Material small avatar |
+| size | 28 | 1.75rem | touch-target fine | D62 P1, the fine floor | kept: WCAG 2.5.8 AA's fine-pointer floor is 24px and the design audit's `TAP_FINE_MIN_PX` is 24 (`checks-a11y.ts`); 28 clears it on the 4px grid, and `CHIP_BOX` sets the chip rail pitch on it. The 32px hard floor is the coarse one |
+| size | 32 | 2rem | avatar-md, glyph-lg, control-sm fine, switch-track-height fine | `UI-Architecture-and-Layout.md` §4b axis 3 | kept: 8px grid |
+| size | 36 | 2.25rem | control-md fine | §4b axis 3, D62 P1 | moved from 34: the only control step off the 4px grid; the 32/36/40 ladder is the common one; the 2px step above `control-sm` was a 6% move |
+| size | 40 | 2.5rem | avatar-lg, control-lg fine | §4b axis 3 | kept: 8px grid |
+| size | 44 | 2.75rem | touch-target, control-sm, switch-track-height | the ≥44px touch floor, §4b axis 3 | kept: WCAG 2.5.5 and Apple's touch minimum |
+| size | 48 | 3rem | control-md, switch-track fine | §4b axis 3; the 48×32 fine switch | kept: Material's touch minimum, 8px grid |
+| size | 56 | 3.5rem | control-lg | §4b axis 3 | kept: 8px grid |
+| size | 64 | 4rem | avatar-hero, switch-track | the 64×44 coarse switch silhouette (#420 in `size.switch-track`) | kept: 8px grid |
+| radius | sm | 0.25rem | inset | `UI-Density-Law.md` §2.1 | kept: Material extra-small is 4dp |
+| radius | md | 0.375rem | control | §2.1 | kept: the common 6px control radius |
+| radius | lg | 0.5rem | base | §2.1 | kept: Material small is 8dp |
+| radius | xl | 0.625rem | card | §2.1, D6 | kept: the common 10px card default; D6 assigns it |
+| radius | full | 9999px | full | §2.1 | kept |
+| type | 2xs | 0.65625rem | micro | `integer-line-boxes.md` §3a hierarchy; D11 | kept: D4 forbids re-deriving the hierarchy and §1 allows a fractional size under an integer box |
+| type | xs | 0.8125rem | label, code, field-dense fine, code-field fine | hierarchy; D5 | kept: D4 |
+| type | sm | 0.9375rem | body, field fine | hierarchy | kept: D4 |
+| type | md | 1rem | title, field, field-dense, code-field | hierarchy; the iOS focus-zoom floor (`text.field`) | kept: D4 and the 16px zoom floor |
+| type | lg | 1.25rem | headline | hierarchy | kept: D4 |
+| type | xl | 1.5rem | display | hierarchy | kept: D4 |
+| leading | 13 | 0.8125rem | micro | `integer-line-boxes.md` §3a table | kept: the smallest-delta integer box for 10.5px |
+| leading | 16 | 1rem | label, field-dense fine | §3a | kept: the ratified floor pair 16/13 |
+| leading | 20 | 1.25rem | label-relaxed, field-dense, code-field fine | §3a | kept: §3a |
+| leading | 22 | 1.375rem | title | §3a | kept: §3a |
+| leading | 23 | 1.4375rem | body, field fine | §3a | kept: §3a's smallest-delta box for 15px; a 24px box was weighed there and rejected |
+| leading | 24 | 1.5rem | field, code-field | `text.field` pair, 24/16 | kept: 8px grid |
+| leading | 26 | 1.625rem | headline | §3a | kept: §3a |
+| leading | 30 | 1.875rem | display | §3a | kept: §3a |
 
 ## Rejected
 

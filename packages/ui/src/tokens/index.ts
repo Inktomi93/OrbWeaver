@@ -84,7 +84,6 @@ export const TOKENS = {
   "color.narration": { cssVar: "--color-narration", value: "oklch(0.78 0.02 70)" },
   "color.prose-body": { cssVar: "--color-prose-body", value: "oklch(0.9 0.008 72)" },
   "color.speaker": { cssVar: "--color-speaker", value: "oklch(0.72 0.175 52)" },
-  "primitive.space.2": { cssVar: "--primitive-space-2", value: "0.125rem" },
   "primitive.space.4": { cssVar: "--primitive-space-4", value: "0.25rem" },
   "primitive.space.6": { cssVar: "--primitive-space-6", value: "0.375rem" },
   "primitive.space.8": { cssVar: "--primitive-space-8", value: "0.5rem" },
@@ -103,7 +102,7 @@ export const TOKENS = {
   "primitive.size.24": { cssVar: "--primitive-size-24", value: "1.5rem" },
   "primitive.size.28": { cssVar: "--primitive-size-28", value: "1.75rem" },
   "primitive.size.32": { cssVar: "--primitive-size-32", value: "2rem" },
-  "primitive.size.34": { cssVar: "--primitive-size-34", value: "2.125rem" },
+  "primitive.size.36": { cssVar: "--primitive-size-36", value: "2.25rem" },
   "primitive.size.40": { cssVar: "--primitive-size-40", value: "2.5rem" },
   "primitive.size.44": { cssVar: "--primitive-size-44", value: "2.75rem" },
   "primitive.size.48": { cssVar: "--primitive-size-48", value: "3rem" },
@@ -131,7 +130,6 @@ export const TOKENS = {
   "primitive.leading.24": { cssVar: "--primitive-leading-24", value: "1.5rem" },
   "primitive.leading.26": { cssVar: "--primitive-leading-26", value: "1.625rem" },
   "primitive.leading.30": { cssVar: "--primitive-leading-30", value: "1.875rem" },
-  "spacing.micro": { cssVar: "--spacing-micro", value: "round(up, 0.125rem, 1px)" },
   "spacing.tight": { cssVar: "--spacing-tight", value: "round(up, 0.25rem, 1px)" },
   "spacing.field": { cssVar: "--spacing-field", value: "round(up, 0.375rem, 1px)" },
   "spacing.row": { cssVar: "--spacing-row", value: "round(up, 0.5rem, 1px)" },
@@ -350,7 +348,6 @@ export const TOKEN_POLARITY_ARMS = {
 
 /** Resolved px at the 16px root for every snapped-output dimension — build-time consumers (the ui-audit ramp bindings) read THIS and never parse the round() serialization (the TOKEN_POLARITY_ARMS precedent). */
 export const SNAPPED_LENGTH_BASE_PX = {
-  "spacing.micro": 2,
   "spacing.tight": 4,
   "spacing.field": 6,
   "spacing.row": 8,

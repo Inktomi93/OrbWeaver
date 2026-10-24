@@ -1695,7 +1695,7 @@
     width: auto;
     height: var(--rail-w);
     flex-direction: column;
-    gap: var(--spacing-micro);
+    gap: var(--spacing-tight);
     border-radius: 0;
     color: var(--color-muted-foreground);
   }

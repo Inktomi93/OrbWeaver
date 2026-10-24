@@ -156,11 +156,10 @@ Node token-authoring homes and type-only reexports follow [Spine-TypeScript §7.
   - **spacing** — the 4px scale + the intent tokens (`gap-field/row/block/section/gutter`,
     `p-row/block/section/gutter`) the token gates point at.
   - **control heights** — `--control-sm/md/lg`, **POINTER-CONDITIONAL per D62 P1**: 44/48/56px at
-    coarse (meets the touch floor), narrowing to 32/34/40px at `@media(pointer:fine)` via the token's
+    coarse (meets the touch floor), narrowing to 32/36/40px at `@media(pointer:fine)` via the token's
     `orb.pointerFine` extension. FLAG\[registry]: D62 P1 is the authority on the
-    per-pointer floor (the fine floor was raised 28→32 after side-eye/design-audit passes; the
-    per-pointer tap-target CHECK lives in the design-audit probe, not the native application checks — see §8
-    `touch-target-floor`). `data-density="compact"` tightens orthogonally to pointer. Avatar/switch
+    per-pointer floor; the per-pointer tap-target CHECK lives in the design-audit probe
+    (`tooling/src/ui-audit/lib/checks-a11y.ts`), not the native application checks. `data-density="compact"` tightens orthogonally to pointer. Avatar/switch
     display sizes are pointer-INDEPENDENT (never narrow — §13.9 D62 delta).
   - **container breakpoints** — `--container-cq-<rem>`, one step per container width in use (§3 — container queries use named tokens).
   - **type** — the Geist scale (display/headline/title/body/label/mono per the seed table);

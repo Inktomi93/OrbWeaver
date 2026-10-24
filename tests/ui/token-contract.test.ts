@@ -211,6 +211,21 @@ describe("primitive ramp controls", () => {
     });
     expect(codes(aliased)).toContain("primitive.raw");
   });
+
+  test("a space, size or leading step is named by its integer px at the 16px root", () => {
+    const misnamed = mutate(vault(), "base", (base) => {
+      descend(descend(descend(base, "primitive"), "space"), "8")["$value"] = { value: 0.5625, unit: "rem" };
+    });
+    expect(codes(misnamed)).toContain("primitive.name");
+    const fractional = mutate(vault(), "base", (base) => {
+      descend(descend(descend(base, "primitive"), "leading"), "23")["$value"] = { value: 23.5, unit: "px" };
+    });
+    expect(codes(fractional)).toContain("primitive.name");
+    const ordinal = mutate(vault(), "base", (base) => {
+      descend(descend(descend(base, "primitive"), "type"), "sm")["$value"] = { value: 0.9375, unit: "rem" };
+    });
+    expect(codes(ordinal)).not.toContain("primitive.name");
+  });
 });
 
 describe("official schema controls", () => {

@@ -12,7 +12,7 @@
 //
 // TOUCH FLOOR (side-eye P1-3): content-sized means the box was the 32px AVATAR at every pointer — under
 // WCAG's 44px and under this app's own coarse floor. The fix is the sibling icon buttons' mechanism, not a
-// bigger portrait: a per-pointer MIN box (`min-w/min-h-(--size-control-md)` = 34px fine / 48px coarse by token
+// bigger portrait: a per-pointer MIN box (`min-w/min-h-(--size-control-md)` = 36px fine / 48px coarse by token
 // construction, D62 P1) with the avatar centered inside it. The avatar display token stays 32px.
 //
 // Data-driven: an empty `items` renders NOTHING, never an empty shell (the strip is a shortcut, and a
