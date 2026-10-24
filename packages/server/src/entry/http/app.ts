@@ -58,6 +58,7 @@ type HttpAppDeps = Pick<
     | "contentSeeder"
     | "examplePluginSeeder"
     | "distributedPluginApplier"
+    | "auditFailures"
   >;
   readonly authConfig: AuthConfig;
   readonly casDir: Parameters<typeof createCas>[0];
@@ -106,6 +107,7 @@ export function createHttpApp(deps: HttpAppDeps): ReturnType<typeof createApp> {
   return createApp({
     logger: deps.logger,
     rings: deps.rings,
+    auditFailures: built.auditFailures,
     liveBuses: built.liveBuses,
     authConfig,
     now,

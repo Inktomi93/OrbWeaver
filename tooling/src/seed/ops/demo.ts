@@ -63,7 +63,7 @@ import {
 } from "@orb/server/entry/boot";
 import { createProcessSeams, createServices, NO_SHARE_RELAY, SessionsCrypto, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
 import { env } from "@orb/server/foundation/env";
-import { createLogger } from "@orb/server/foundation/observability";
+import { createAuditWiring, createLogger } from "@orb/server/foundation/observability";
 import { print } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ExitCode } from "../../floor/cli/exit-contract.ts";
@@ -320,7 +320,9 @@ export async function runFullSeed(deps: RunFullSeedDeps): Promise<RunFullSeedRes
   const wiringDb = databaseHandle(db);
   const seams = createProcessSeams();
   const sessionsCrypto = SessionsCrypto.production();
+  const audit = createAuditWiring(wiringDb, seams.idSource, seams.logger);
   const bootSessions = createSessionsService({
+    audit: audit.log,
     rolePolicy,
     db: wiringDb,
     now,
@@ -346,6 +348,7 @@ export async function runFullSeed(deps: RunFullSeedDeps): Promise<RunFullSeedRes
 
   const built = await createServices({
     ...seams,
+    audit,
     rolePolicy,
     db: wiringDb,
     now,

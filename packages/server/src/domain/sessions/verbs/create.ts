@@ -1,5 +1,5 @@
 import { ID_PREFIX } from "@orb/kit/ids";
-import { getLog, logAudit } from "#foundation/observability";
+import { getLog } from "#foundation/observability";
 import type { CreateSessionParams } from "../contract/params.ts";
 import type { CreateSessionResult } from "../contract/results.ts";
 import type { SessionsContext, SessionsService } from "../contract/service.ts";
@@ -12,7 +12,7 @@ import { insertSession } from "../persistence/sessions.ts";
 // #141 — an OIDC mint additionally carries the IdP `id_token`, sealed here (never written in the clear) so
 // this session's own logout can present it as `id_token_hint`. It is sealed AFTER the row id is minted,
 // because that id is the GCM AAD; nothing else in this verb touches it, and it reaches no log or audit
-// field — the `logAudit` below records the session id, never the params.
+// field — the audit row below records the session id, never the params.
 
 const AUTH_LOGIN = "AUTH_LOGIN";
 const SESSION_ENTITY = "session";
@@ -36,8 +36,7 @@ export function createCreate(ctx: SessionsContext): Pick<SessionsService, "creat
       oidcIdToken: idToken.length > 0 ? ctx.sealIdToken(idToken, sessionId) : null,
     });
     getLog(ctx.logger).info({ userId: params.userId, sessionId }, "session: created");
-    await logAudit(
-      ctx.db,
+    await ctx.audit(
       {
         actorUserId: params.userId,
         action: AUTH_LOGIN,
@@ -45,7 +44,6 @@ export function createCreate(ctx: SessionsContext): Pick<SessionsService, "creat
         entityId: sessionId,
       },
       now,
-      { idSource: ctx.idSource, log: ctx.logger },
     );
     return { token, sessionId, expiresAt };
   }

@@ -34,7 +34,6 @@ import { bodyLimit } from "hono/body-limit";
 import { z } from "zod";
 import { diagnosticsPostureInput, diagnosticsPostureWarnings, resolveDiagnosticsPosture } from "#foundation/env/record";
 import { versionIdentity } from "#foundation/version";
-import { getAuditFailureSnapshot } from "../audit.ts";
 import type { DebugAuthOptions, DebugRoutesOptions } from "../contract/debug.ts";
 import type { Logger } from "../contract/logging.ts";
 import { securityEvent } from "../logger.ts";
@@ -466,7 +465,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions): voi
   }
 
   if (db !== undefined) {
-    app.get("/api/_debug/db/stats", async (c) => c.json({ tables: await tableCounts(db), auditFailures: getAuditFailureSnapshot() }));
+    app.get("/api/_debug/db/stats", async (c) => c.json({ tables: await tableCounts(db), auditFailures: options.auditFailures() }));
     app.get("/api/_debug/db/integrity", async (c) => c.json(await integrityProbe(db, log)));
     app.get("/api/_debug/db/chat/:id", async (c) => c.json(await inspectChatState(db, castId<ChatId>(c.req.param("id")))));
     // LIST probes: id-discovery so a harness stops re-deriving ids through the client query cache.

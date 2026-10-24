@@ -38,7 +38,7 @@ import {
   resolveOwnerFallbackPeers,
 } from "#foundation/env";
 import type { Logger } from "#foundation/observability";
-import { createDetachedSupervision, initTracing, wrapLibSqlClient } from "#foundation/observability";
+import { createAuditWiring, createDetachedSupervision, initTracing, wrapLibSqlClient } from "#foundation/observability";
 import { versionIdentity } from "#foundation/version";
 import { createOwnerClaimCode, createPasswordHasher, oidcRedirectAllowlist } from "#infra/auth";
 import { bootSecretProvenance, keyfileReport, resolveCredentialsKey, resolveSessionSecret } from "#infra/crypto";
@@ -273,6 +273,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     const wiringDb = databaseHandle(db);
     // The cross-owner boot steps alone receive this grant; composition and request paths keep the plain handle (D335).
     const bootDb = bootDatabaseHandle(wiringDb);
+    const audit = createAuditWiring(wiringDb, seams.idSource, log);
 
     // `launched` is REQUIRED and passed explicitly (#1392) — the omission here is what left the
     // auto-wipe refusal inert on every real boot.
@@ -336,6 +337,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     const sessionsCrypto = SessionsCrypto.production();
     const preparedOwner = await prepareBootOwner({
       logger: seams.logger,
+      audit: audit.log,
       db: wiringDb,
       now,
       idSource: seams.idSource,
@@ -422,6 +424,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     const authConfig = authConfigFromEnv(env);
     const built = await createServices({
       ...seams,
+      audit,
       rolePolicy,
       authConfig,
       db: wiringDb,

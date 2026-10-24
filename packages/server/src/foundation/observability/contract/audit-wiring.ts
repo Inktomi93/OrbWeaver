@@ -16,6 +16,8 @@ export interface AuditFailureSnapshot {
 
 export interface AuditWiring {
   readonly log: (entry: AuditEntry, at: number) => Promise<void>;
+  /** The suppressed best-effort failures this wiring has counted, a copy. */
+  readonly failures: () => AuditFailureSnapshot;
   readonly statement: (entry: AuditEntry, at: number) => StatementToken;
   readonly statementAfterWrite: (entry: AuditEntry, at: number) => StatementToken;
 }

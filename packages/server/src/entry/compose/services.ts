@@ -135,10 +135,9 @@ import { createAttachOwnedBooksByName, createImportStandaloneLorebook } from "#d
 import { APP_NAME, APP_URL } from "#foundation/config";
 import type { Env } from "#foundation/env/record";
 import { allowedHostsInput, installKind, publicAddresses } from "#foundation/env/record";
-import type { AuditEntry, Logger, ObservabilityRings, WireCaptureSpill } from "#foundation/observability";
+import type { AuditEntry, AuditWiring, Logger, ObservabilityRings, WireCaptureSpill } from "#foundation/observability";
 import {
   addSpanEvent,
-  createAuditWiring,
   createBugReportDiagnosticsRead,
   createWireCaptureSpill,
   isWireCaptureEnabled,
@@ -223,6 +222,10 @@ export interface ServicesDeps {
   /** This root's log and request rings (`createProcessSeams` builds them and feeds `logger` into the log ring; a test root
    *  builds its own). The bug-report read serves them. */
   readonly rings: ObservabilityRings;
+  /** This root's one audit wiring (`createAuditWiring` over its db, id source and logger, built beside the boot owner
+   *  so the boot sessions write through it too). Every audit writer this graph builds uses it, so its failure window
+   *  counts the whole root. */
+  readonly audit: AuditWiring;
   /** The parsed env record (`createProcessSeams` reads the process's; a test root parses its own). Every knob this
    *  graph reads comes from here, so a root that sets a key in its record turns the same production read. */
   readonly env: Env;
@@ -374,6 +377,8 @@ export interface ServicesResult extends AsyncDisposable {
    *  The workloads worker binds a pass's role clients from this; entry never touches the raw executor. */
   readonly roleClientsFor: (funderUserId: UserId, actor?: BindingActor) => Promise<RoleClientsWithSignal>;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  /** The root's suppressed audit failures, for its `/api/_debug/db/stats` read. */
+  readonly auditFailures: AuditWiring["failures"];
   readonly effectiveConfig: EffectiveConfigWiring;
   readonly secretBox: SecretBox;
   /** The default-card seeder — the one instance both boot and the app first-request hook share, so the
@@ -545,7 +550,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const presence = createPresenceRegistry(now);
   const sockets = createSocketRegistry(now, newOpaqueId);
 
-  const audit = createAuditWiring(db, idSource, deps.logger).log;
+  const audit = deps.audit.log;
   const newUserId = (): UserId => idSource.userId();
   const { applyStatsDelta, bumpStatsCanonVersion } = createStatsBatchWiring(idSource);
   // biome-ignore lint/nursery/useDisposables: resources adopts this owner through the moved graph stack; local using would close it before the graph starts.
@@ -568,6 +573,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   });
   const sessions = createSessionsService({
     logger: deps.logger,
+    audit,
     db,
     now,
     idSource,
@@ -942,6 +948,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     hashPassword: passwordHasher.hash,
     seedUserConnections,
     audit,
+    auditStatementAfterWrite: deps.audit.statementAfterWrite,
     sessions,
     // W7a — an admin revoke ends the streams those sessions opened, not just the cookies. The registry is
     // built above in this same function (transport state, entry-owned clock), so the port wires here.
@@ -1048,6 +1055,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // is what keeps this out of the late-bind shape the S4 confirmed-act runner had to take.
   const pluginMacros = createPluginMacroRegistry(deps.logger, timers.timeout);
   const chatCompose = buildChatService({
+    auditStatements: deps.audit,
     publishChatChanged: liveBuses.user.publishChatChanged,
     publishNotification: liveBuses.notifications.publishNotification,
     timers,
@@ -1600,6 +1608,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     runtime,
     roleClientsFor,
     audit,
+    auditFailures: deps.audit.failures,
     effectiveConfig,
     secretBox,
     characterSeeder,

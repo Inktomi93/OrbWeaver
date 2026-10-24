@@ -15,7 +15,7 @@ export function createSessionsContext(
   db: Db,
   now: () => number,
   sessionSecret: string | null,
-  inputs: Pick<SessionsContext, "seedUserConnections" | "rolePolicy" | "idSource" | "logger"> & { readonly crypto: SessionsCryptoOps },
+  inputs: Pick<SessionsContext, "seedUserConnections" | "rolePolicy" | "idSource" | "logger" | "audit"> & { readonly crypto: SessionsCryptoOps },
 ): SessionsContext {
   // #141 — the OIDC id_token cipher, keyed off the SAME pepper (HKDF, own purpose label — tokens/tokens.ts).
   const idTokenBox = createIdTokenBox(sessionSecret, inputs.crypto.createSecretBox);
@@ -24,6 +24,7 @@ export function createSessionsContext(
   return {
     rolePolicy: inputs.rolePolicy,
     logger: inputs.logger,
+    audit: inputs.audit,
     db,
     now,
     idSource: inputs.idSource,

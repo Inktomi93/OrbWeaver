@@ -15,7 +15,7 @@ updated: 2026-10-18
 - **`observability/logger.ts`** — `createLogger(level, ring)`, which a composition root calls once from its record and its log ring and hands every service as `logger` (logs are METADATA — RP content lives in the DB), the `AsyncLocalStorage` request scope (`runInRequest`/`getLog`/`bindRequestUser`), and `securityEvent` (the one greppable `security:true` audit-trail line).
 - **`observability/tracing.ts`** — OTel spans (`initTracing`, `span`/`withRequestSpan`/`addSpanEvent`/`setSpanAttrs`), the per-`requestId` `TraceRing` with orphan-bucket eviction, `recentTraces`/`getTraceByRequestId`, and `wrapLibSqlClient` (the libSQL Proxy turning every query into a `db.<method>` span). This IS the metrics surface — metrics are the per-trace totals + request-ring timing; no separate module unless an external sink is ever wanted (the `RingExporter` is the OTLP-replaceable seam).
 - **`observability/middleware.ts`** — the per-request Hono middleware: `X-Request-Id` (charset-guarded), request-root span, request-scoped logger, one structured `request` line + ring record. Skips `/api/_debug/*` so introspection doesn't evict real traces.
-- **`observability/audit.ts`** — `logAudit` (best-effort; suppress → count → drop) + `getAuditFailureSnapshot`. Writes the `audit_logs` row; never breaks the primary channel.
+- **`observability/audit.ts`** — `createAuditWiring`, which a composition root calls once: its best-effort `log` (suppress → count → drop), the two co-statement builders and `failures`, that root's suppressed-failure window. Writes the `audit_logs` row; never breaks the primary channel.
 - **`observability/bug-report-diagnostics.ts`** — the production "Report a bug" read behind the `bugReportDiagnostics` tRPC query. It projects the log ring through the closed grammars in `@orb/contracts/diagnostics` and drops any record that carries a secret literal. Only the owner gets the error census.
 - **`observability/debug/`** — the `/api/_debug` surface: the two-tier auth gate (admin-cookie short-circuit → `DEBUG_TOKEN` fallback), the registrar, the structural ports (`AssetInspector`, `AdminAuthChecker`), and the read-only DB probes (`inspect/`: `stats` · `integrity` · `inspect-chat`) reading `@orb/db` DOWN (a lower package — no `DbInspector` port needed). The 8-slot domain template does not apply: a foundation read-surface, not a feature.
 - **`config/`** — the process constants that are not env. Build identity is not one of them, and is not APP_VERSION: it lives in `version/`, read once at boot and reported on `/healthz`, the boot line and bug reports. That is all — no `app-config.ts`, no `layer()`, no `EffectiveAppConfig` resolver.
@@ -51,9 +51,9 @@ The DB probes need no port (`@orb/db` is a lower package). `wrapLibSqlClient` is
 
 3. **`.env` load with `override:true` + the two escape hatches.** A checked-in dev `.env` wins over a stale shell export — EXCEPT under `VITEST` (deterministic auth env) and `ORB_ENV_NO_OVERRIDE=1` (probe scripts honoring shell vars). Both matter for test determinism and one-off server fires. The parser is `node:util`'s `parseEnv`, not `dotenv`; the override MERGE is ours and explicit, because `process.loadEnvFile()` can only ever fill UNSET keys and so cannot express this direction. Asserted both ways in the env-file-load case, a [restoration register](../plans/restoration-register/design.md) entry.
 
-4. **Audit never breaks the primary channel (suppress → count → drop).** A db failure inside `logAudit` logs at `error`, increments the sticky counter, drops; every 25th drop (`ALERT_EVERY`) trips a `security:true` `audit_sustained_failure` warn. Window is process-lifetime.
+4. **Audit never breaks the primary channel (suppress → count → drop).** A db failure inside the wiring's best-effort `log` logs at `error`, increments that root's sticky counter, drops; every `ALERT_EVERY`th drop trips a `security:true` `audit_sustained_failure` warn. Window is the root's lifetime.
 
-5. **The in-memory rings ASSUME single-replica.** The log and request rings belong to one composition root (`createObservabilityRings`); the trace ring and audit failure window are module-scope, per-process. Carry `ASSUMES(single-replica)` (the `orb/assumes-single-replica` lint rule); the rings are the seam to externalize if that's ever reversed.
+5. **The in-memory rings ASSUME single-replica.** The log and request rings (`createObservabilityRings`) and the audit failure window (`createAuditWiring`) belong to one composition root; the trace ring is module-scope, per-process. Carry `ASSUMES(single-replica)` (the `orb/assumes-single-replica` lint rule); the rings are the seam to externalize if that's ever reversed.
 
 6. **Root logger level rebind on settings reload.** Pino captures `level` at construction; `reloadEffectiveConfig` (settings) sets the level of the logger its root handed it on every admin write, so an override moves only that root's logger.
 
@@ -74,7 +74,7 @@ The DB probes need no port (`@orb/db` is a lower package). `wrapLibSqlClient` is
 1. **`foundation/env` is the ONLY `process.env` reader.** *(`orb/sole-env-reader` lint rule and Biome `noProcessEnv`.)*
 2. **Foundation reaches UP to nothing.** *(resolve-time deps + dep-cruiser `foundation-reaches-up-to-nothing`.)*
 3. **The `superRefine` boot-fatality holds.** *(test-time.)*
-4. **`logAudit` never throws to the caller; the 25th drop warns.** *(test-time.)*
+4. **The best-effort audit write never throws to the caller; every `ALERT_EVERY`th drop warns.** *(test-time.)*
 5. **RP content never logged; redact + attr truncation hold.** *(lint + test-time.)*
 6. **The rings carry `ASSUMES(single-replica)`.** *(`orb/assumes-single-replica` lint rule.)*
 7. **The debug surface is OFF by default** — no `DEBUG_TOKEN` + no admin → 404; wrong token → 401; `isAdmin` throwing does NOT open the gate. *(test-time.)*

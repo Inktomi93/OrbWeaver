@@ -4,6 +4,7 @@ import type { DatabaseHandle } from "@orb/db/wiring";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { Context } from "hono";
 import type { Env } from "#foundation/env/record";
+import type { AuditWiring } from "./audit-wiring.ts";
 import type { Logger, ObservabilityRings } from "./logging.ts";
 
 export interface AssetInspector {
@@ -65,6 +66,8 @@ export interface DebugRoutesOptions {
   readonly log: Logger;
   /** The root's rings the log, request and bug-report reads serve. */
   readonly rings: ObservabilityRings;
+  /** The root's suppressed audit failures (`AuditWiring.failures`) the db stats read reports. */
+  readonly auditFailures: AuditWiring["failures"];
 }
 
 interface BugReportRecorder {

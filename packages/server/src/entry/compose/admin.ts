@@ -11,8 +11,7 @@ import { createExportService } from "#domain/export";
 import type { SessionsService } from "#domain/sessions";
 import type { ToolUseService } from "#domain/tool-use";
 import { createToolUseService } from "#domain/tool-use";
-import type { AuditEntry, Logger } from "#foundation/observability";
-import { createAuditWiring } from "#foundation/observability";
+import type { AuditEntry, AuditWiring, Logger } from "#foundation/observability";
 import type { LiveBuses } from "#transport/trpc";
 
 import type { SessionSocketEviction } from "../http/index.ts";
@@ -31,6 +30,7 @@ export interface AdminComposeDeps {
   /** The same post-commit connection seed sessions consumes. */
   readonly seedUserConnections: (userId: UserId) => Promise<void>;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  readonly auditStatementAfterWrite: AuditWiring["statementAfterWrite"];
   readonly sessions: Pick<
     SessionsService,
     | "listForUser"
@@ -80,7 +80,7 @@ export function buildAdmin(deps: AdminComposeDeps): AdminComposeResult {
     hashPassword: deps.hashPassword,
     seedUserConnections: deps.seedUserConnections,
     audit,
-    auditStatementAfterWrite: createAuditWiring(db, deps.idSource, deps.logger).statementAfterWrite,
+    auditStatementAfterWrite: deps.auditStatementAfterWrite,
     emitUserEvent: deps.emitUserEvent,
     sessions: createAdminSessionPort({
       listForUser: (userId) => sessions.listForUser(userId),

@@ -28,7 +28,7 @@ import { readGlobalSettings } from "#domain/settings";
 import type { ImportWorldInfoPort } from "#domain/world-info";
 import type { Env } from "#foundation/env/record";
 import { allowedHostsInput, resolveAllowedHosts } from "#foundation/env/record";
-import type { Logger, MemoryRecallInspector, ObservabilityRings, RpgTraceInspector } from "#foundation/observability";
+import type { AuditFailureSnapshot, Logger, MemoryRecallInspector, ObservabilityRings, RpgTraceInspector } from "#foundation/observability";
 import { createRequestObservability, registerDebugRoutes, securityEvent } from "#foundation/observability";
 import { versionIdentity } from "#foundation/version";
 import type { AllowedHostsReader, AuthConfig } from "#infra/auth";
@@ -184,6 +184,8 @@ export interface AppDeps {
   readonly logger: Logger;
   /** The root's rings: the request middleware records into them and the debug routes read them. */
   readonly rings: ObservabilityRings;
+  /** The root's suppressed audit failures the db stats probe reports. */
+  readonly auditFailures: () => AuditFailureSnapshot;
   /** The parsed env record (`createProcessSeams`, or a test root's own parse): the IP and Host allowlists, the trusted
    *  hops, the debug token, the client bundle and the build posture this app reads. */
   readonly env: Env;
@@ -502,6 +504,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   registerDebugRoutes(plain, {
     log: deps.logger,
     rings: deps.rings,
+    auditFailures: deps.auditFailures,
     env: deps.env,
     db: deps.db,
     appSettingRows: () => readGlobalSettings(deps.db),

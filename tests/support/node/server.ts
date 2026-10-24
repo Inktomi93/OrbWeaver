@@ -29,7 +29,7 @@ import type { createConfiguredOidc, createHttpApp, ServicesDeps, ServicesResult 
 import { OWNER_CLAIM_URL_FILE_NAME } from "@orb/server/foundation/data-layout";
 import type { Env } from "@orb/server/foundation/env";
 import { bindPostureInput, resolveBindPosture } from "@orb/server/foundation/env";
-import { createLogger, createObservabilityRings, getLog } from "@orb/server/foundation/observability";
+import { createAuditWiring, createLogger, createObservabilityRings, getLog } from "@orb/server/foundation/observability";
 import { systemConnector, systemFetch } from "@orb/server/infra/network";
 import { appRouter, createCaller } from "@orb/server/transport/trpc";
 import type { Clock } from "../iso/clock.ts";
@@ -332,13 +332,24 @@ async function prepareHarnessOwner(
     rolePolicy,
     sessionsCrypto,
     logger,
+    audit,
   }: Pick<HarnessConstruction, "clock" | "idSource" | "rolePolicy" | "logger"> &
-    Pick<ServicesDeps, "sessionsCrypto"> & { readonly wiringDb: ServicesDeps["db"] },
+    Pick<ServicesDeps, "sessionsCrypto" | "audit"> & { readonly wiringDb: ServicesDeps["db"] },
 ): Promise<Pick<BootOwner, "ownerId" | "ownersBoundBeforeAssembly">> {
   if (options.ownerId !== undefined) {
     return { ownerId: options.ownerId ?? undefined, ownersBoundBeforeAssembly: [] };
   }
-  return await prepareBootOwner({ db: wiringDb, logger, now: clock.now, idSource, rolePolicy, sessionSecret: SESSION_SECRET, sessionsCrypto, ownerSeed: {} });
+  return await prepareBootOwner({
+    db: wiringDb,
+    logger,
+    audit: audit.log,
+    now: clock.now,
+    idSource,
+    rolePolicy,
+    sessionSecret: SESSION_SECRET,
+    sessionsCrypto,
+    ownerSeed: {},
+  });
 }
 
 const ACTOR_HANDLE_PREFIX = "actor";
@@ -578,8 +589,9 @@ export async function createServerHarness(
   const inputs: HarnessConstruction = { db, env, clock, idSource, timers, logger, authConfig, rolePolicy };
   const { createHttpApp: assembleHttp, createServices, createShareGraph, SessionsCrypto, UNSUPERVISED_RESTART } = await import("@orb/server/entry/compose");
   const wiringDb = databaseHandle(db);
+  const audit = createAuditWiring(wiringDb, idSource, logger);
   const sessionsCrypto = options.sessionsCrypto ?? SessionsCrypto.production();
-  const harnessOwner = await prepareHarnessOwner(options, { ...inputs, wiringDb, sessionsCrypto });
+  const harnessOwner = await prepareHarnessOwner(options, { ...inputs, wiringDb, sessionsCrypto, audit });
   const { ownerId } = harnessOwner;
   const listener = createBinding<Readonly<AddressInfo>>("Share execution requires the server harness native listener");
   const shareInputs = shareInputsFor(options, inputs, () => listener.read().port);
@@ -590,6 +602,7 @@ export async function createServerHarness(
     env,
     logger,
     rings,
+    audit,
     hostEnvAllowlist: noHostEnv,
     authModeSource: authModeSourceOf(options),
     authConfig,
