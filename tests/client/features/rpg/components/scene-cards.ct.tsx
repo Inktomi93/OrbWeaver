@@ -13,6 +13,8 @@ import type { RpgSceneCardsStory } from "./_scene-cards-stories.tsx";
 const STORY = "tests/client/features/rpg/components/_scene-cards-stories/RpgSceneCardsStory";
 const ARCHIVE = '[data-slot="rpg-card-archive"]';
 const PHONE_WIDTH = 430;
+const MS_PER_DAY = 86_400_000;
+const OTHER_YEAR_DAYS = 400;
 const CARD_TITLE = "The harbour ledger";
 const FOCUSED_STATUS_KEY = "__focusedStatusText";
 const CARD_FENCE = `:::card title="${CARD_TITLE}"\n<p>Tide tables for the quay.</p>\n:::`;
@@ -68,9 +70,8 @@ test("a failed archive read renders the shared error state directly under the se
   const archive = page.locator(ARCHIVE);
   const error = archive.locator(':scope > [data-slot="query-error"]');
   await expect(error.getByRole("status")).toHaveText("Couldn't load this game's cards.");
-  await expect(archive.getByText("Cards", { exact: true })).toHaveCount(0);
-  await expect(archive).toHaveRole("region");
-  await expect(archive).toHaveAccessibleName(/\S/);
+  await expect(archive.getByRole("heading", { level: 3 })).toHaveCount(1);
+  await expect(archive).not.toHaveRole("region");
 
   failing = false;
   await error.getByRole("button", { name: "Retry", exact: true }).click();
@@ -261,7 +262,7 @@ test("a pending archive read shows the labelled skeleton, then the settled card 
   await expect(archive.locator('[aria-busy="true"]')).toBeVisible();
 
   messages.release(await room.messages());
-  await expect(archive.getByText("Cards — 1", { exact: true })).toBeVisible();
+  await expect(archive.getByText("1 total", { exact: true })).toBeVisible();
   await expect(archive.getByRole("button", { name: CARD_TITLE, exact: false })).toBeVisible();
   await expect(archive.locator('[aria-busy="true"]')).toHaveCount(0);
 });
@@ -277,7 +278,7 @@ test("a later archive read holds the box this device saw the archive settle at",
   const height = async (): Promise<number> => (await archive.boundingBox())?.height ?? Number.NaN;
 
   const first = await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
-  await expect(archive.getByText("Cards — 1", { exact: true })).toBeVisible();
+  await expect(archive.getByText("1 total", { exact: true })).toBeVisible();
   const settledHeight = await height();
   await first.unmount();
 
@@ -289,7 +290,7 @@ test("a later archive read holds the box this device saw the archive settle at",
   expect(await height()).toBeCloseTo(settledHeight, 0);
 
   later.release(settled);
-  await expect(archive.getByText("Cards — 1", { exact: true })).toBeVisible();
+  await expect(archive.getByText("1 total", { exact: true })).toBeVisible();
   expect(await height()).toBeCloseTo(settledHeight, 0);
 });
 
@@ -313,7 +314,7 @@ test("each chat reserves its own settled box and never another chat's", async ({
   const reserved = archive.locator("[data-tile-reserved]");
 
   const cardMount = await mount<typeof RpgSceneCardsStory>(STORY, { chatId: withCard.chatId });
-  await expect(archive.getByText("Cards — 1", { exact: true })).toBeVisible();
+  await expect(archive.getByText("1 total", { exact: true })).toBeVisible();
   const cardHeight = await height();
   await cardMount.unmount();
 
@@ -356,7 +357,11 @@ test("an archive with no cards yet renders the empty doorway under its label", a
 test.describe("at phone width with a coarse pointer", () => {
   test.use({ viewport: { width: PHONE_WIDTH, height: 900 }, hasTouch: true, isMobile: true });
 
-  test("the section label is a heading and the card row is a touch-sized control showing its origin time", async ({ corpus, mount, page }) => {
+  test("the archive is a heading, not a region, and its card row is a touch-sized control stamped with an older turn's day and time", async ({
+    corpus,
+    mount,
+    page,
+  }) => {
     await using root = await createCorpusHarness();
     const room = await archiveRoom(root, corpusChatId(corpus));
     await room.plantCard();
@@ -365,6 +370,8 @@ test.describe("at phone width with a coarse pointer", () => {
     if (origin === undefined) {
       throw new Error("Committed corpus chat omitted its user message");
     }
+    // The page's clock reads the day after the origin, so the turn is older but in the same year.
+    await page.clock.setFixedTime(origin.createdAt + MS_PER_DAY);
     await routeTrpc(page, { ...room.reads, "chat.listMessages": () => settled });
     await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
     const archive = page.locator(ARCHIVE);
@@ -372,7 +379,15 @@ test.describe("at phone width with a coarse pointer", () => {
     await expect(row).toBeVisible();
 
     await expect(archive.getByRole("heading", { level: 3 })).toHaveCount(1);
-    await expect(row.locator('[data-slot="rpg-turn-ref"]')).toHaveText(createTimeLib({ timeZone: UTC_TIME_ZONE }).formatDateTime(origin.createdAt));
+    await expect(archive).not.toHaveRole("region");
+    const kit = createTimeLib({ timeZone: UTC_TIME_ZONE });
+    const stamp = `${kit.formatMonthDay(origin.createdAt)}, ${kit.formatTime(origin.createdAt)}`;
+    const chip = row.locator('time[data-slot="rpg-turn-ref"]');
+    await expect(chip).toHaveText(stamp);
+    await expect(chip).toHaveAttribute("datetime", new Date(origin.createdAt).toISOString());
+    await expect(chip).toHaveAttribute("title", `Told ${kit.formatDateTime(origin.createdAt)}`);
+    // The row's name carries the stamp, so two cards from one earlier day differ to a screen reader too.
+    await expect(row).toHaveAccessibleName(`Open card: ${CARD_TITLE}, ${stamp}`);
 
     expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
     const touchTarget = await page.evaluate(() => {
@@ -385,5 +400,42 @@ test.describe("at phone width with a coarse pointer", () => {
     });
     const box = await row.boundingBox();
     expect(box?.height ?? Number.NaN).toBeGreaterThanOrEqual(touchTarget);
+  });
+
+  test("a card from today carries the transcript's time-only stamp in its chip", async ({ corpus, mount, page }) => {
+    await using root = await createCorpusHarness();
+    const room = await archiveRoom(root, corpusChatId(corpus));
+    await room.plantCard();
+    const settled = await room.messages();
+    const origin = settled.messages.find((message) => message.role === "user");
+    if (origin === undefined) {
+      throw new Error("Committed corpus chat omitted its user message");
+    }
+    // The page's clock reads the origin instant, so the origin message is from "today" before the chip renders.
+    await page.clock.setFixedTime(origin.createdAt);
+    await routeTrpc(page, { ...room.reads, "chat.listMessages": () => settled });
+    await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
+    const chip = page.locator(ARCHIVE).locator('time[data-slot="rpg-turn-ref"]');
+    await expect(chip).toHaveText(createTimeLib({ timeZone: UTC_TIME_ZONE }).formatTime(origin.createdAt));
+  });
+
+  test("a card from another year carries the year in its chip and its row name", async ({ corpus, mount, page }) => {
+    await using root = await createCorpusHarness();
+    const room = await archiveRoom(root, corpusChatId(corpus));
+    await room.plantCard();
+    const settled = await room.messages();
+    const origin = settled.messages.find((message) => message.role === "user");
+    if (origin === undefined) {
+      throw new Error("Committed corpus chat omitted its user message");
+    }
+    // More than a year after the origin, so the turn cannot share the page clock's year.
+    await page.clock.setFixedTime(origin.createdAt + OTHER_YEAR_DAYS * MS_PER_DAY);
+    await routeTrpc(page, { ...room.reads, "chat.listMessages": () => settled });
+    await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
+    const row = page.locator(ARCHIVE).locator('[data-slot="rpg-card-row"]');
+    const stamp = createTimeLib({ timeZone: UTC_TIME_ZONE }).formatDateTime(origin.createdAt);
+    await expect(row.locator('time[data-slot="rpg-turn-ref"]')).toHaveText(stamp);
+    await expect(row).toHaveAccessibleName(`Open card: ${CARD_TITLE}, ${stamp}`);
+    expect(stamp).toContain(String(new Date(origin.createdAt).getUTCFullYear()));
   });
 });

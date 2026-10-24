@@ -9,6 +9,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { ImmersiveCard } from "@orb/ui/immersive-card";
 import { Stack } from "@orb/ui/layout";
 import { useSandboxTheme } from "@orb/ui/sandbox-frame";
+import { Text } from "@orb/ui/text";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
@@ -83,22 +84,16 @@ export function RpgSceneCards({ chatId, enabled }: RpgSceneCardsProps): ReactEle
   if (!enabled) {
     return null;
   }
-  // The section root sits outside the boundary, so the error arm is the shared error state itself. The kicker
-  // stays with each arm because the settled one carries the card count. RESERVED per chat: the resync doorway
+  // The kicker sits outside the boundary so the heading names the section in every arm, the error arm included;
+  // that arm is the shared error state itself. RESERVED per chat: the resync doorway
   // below would otherwise jump when a later read lands, and the settled height is that chat's card count, so a
   // shared key would hand one room's box to another. `surface-box-store` never evicts, so each game chat this
   // device opens leaves one number behind; that is bounded by the rooms a person plays and costs bytes.
   return (
-    // A named region, so the error arm (which has no kicker) is still findable by landmark; the same
-    // `role="region"` + `aria-label` pairing the preset library surface uses for its list pane.
-    <Stack aria-label="Cards" data-slot="rpg-card-archive" role="region">
+    <Stack gap="field" data-slot="rpg-card-archive">
+      <Kicker>Cards</Kicker>
       <QueryBoundary
-        fallback={
-          <Stack gap="field">
-            <Kicker>Cards</Kicker>
-            <SkeletonRows count={ARCHIVE_PENDING_ROWS} />
-          </Stack>
-        }
+        fallback={<SkeletonRows count={ARCHIVE_PENDING_ROWS} />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="this game's cards" onRetry={retry} />}
         reserveKey={`rpg.cardArchive.${chatId}`}
       >
@@ -116,16 +111,11 @@ function ArchiveBody({ chatId }: Pick<RpgSceneCardsProps, "chatId">): ReactEleme
   const [openKey, setOpenKey] = useState<string | null>(null);
   const cards = collectArchivedCards(messages.messages, { participants: chat.participants, viewerUserId: chat.viewerUserId }).toReversed();
   if (cards.length === 0) {
-    return (
-      <Stack gap="field">
-        <Kicker>Cards</Kicker>
-        <RpgDoorwayLine>No cards yet — the story crafts them, and they land here.</RpgDoorwayLine>
-      </Stack>
-    );
+    return <RpgDoorwayLine>No cards yet — the story crafts them, and they land here.</RpgDoorwayLine>;
   }
   return (
     <Stack gap="field">
-      <Kicker>Cards — {cards.length}</Kicker>
+      <Text voice="gloss">{cards.length} total</Text>
       {cards.map((card) => (
         <RpgCardRow key={card.key} card={card} onOpen={setOpenKey} />
       ))}
