@@ -217,13 +217,11 @@ function isRenderedElement(element: Element): boolean {
 /**
  * Install `globalThis.__orb`.
  *
- * NO ENVIRONMENT GATE HERE, and the gate this used to carry was redundant, not load-bearing (#1847): the
- * only production caller is `agent-handles/index.ts`, which `main.tsx` reaches by DYNAMIC import inside its
- * literal `if (import.meta.env.DEV)` block — the one the bundler constant-folds, so nothing on this graph
- * exists in a shipped build at all (#433). A second `IS_DEV` check behind that could only ever be true, while
- * costing the component-test bundle (built in Vite PRODUCTION mode) its way in — which is why a
- * `__installAgentDebugHandleForTest` alias had grown beside it. One door, entered by the composition root
- * and by the CT host alike.
+ * NO ENVIRONMENT GATE HERE: the only production caller is `agent-handles/index.ts`, which `main.tsx`
+ * reaches by DYNAMIC import inside its literal `if (import.meta.env.DEV)` block — the one the bundler
+ * constant-folds, so nothing on this graph exists in a shipped build at all. A second `IS_DEV` check behind
+ * that could only ever be true, and it would shut out the component-test bundle, which Vite builds in
+ * PRODUCTION mode. One door, entered by the composition root and by the CT host alike.
  */
 export function installAgentDebugHandle(queryClient: QueryClient, handles: OrbAgentHandles): void {
   enableAppearanceMessageRegistry();

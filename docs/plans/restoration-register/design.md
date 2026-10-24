@@ -119,7 +119,7 @@ Legacy paths below are relative to the external reference source named in [Spine
 | `server/domain/share/substrate/certificate-refusal.test.ts` | Unreviewed | No maintained home; cited by ADR 0275. | Compare, then port or drop. |
 | `server/domain/share/substrate/refusal.test.ts` | Unreviewed | No maintained home; cited by ADR 0272. | Compare, then port or drop. |
 | `server/domain/workloads/verbs/estimate-model-calls.int.test.ts` | Unreviewed | No maintained home; cited by item 0470. | Compare, then port or drop. |
-| `server/entry/app.test.ts` | Unreviewed | No maintained home; cited by container-deployment-security. | Compare, then port or drop. |
+| `server/entry/app.test.ts` | Partial | Its cookie-mount CSRF, batch-limit and POST-subscription cases live in [CSRF gates](../../../tests/e2e/csrf-gates.local.spec.ts). [Batch budget](../../../tests/server/entry/trpc-batch-budget.int.test.ts) proves that a refused batch spends no rate-limit budget. | Compare the remaining mount, header, rate-limit response and error-classification cases individually. |
 | `server/entry/boot/boot-secrets.int.test.ts` | Unreviewed | No maintained home; cited by ADR 0253. | Compare, then port or drop. |
 | `server/entry/boot/disclaimer.test.ts` | Unreviewed | No maintained home; cited by ADR 0255. | Compare, then port or drop. |
 | `server/entry/boot/migrate-data-layout.int.test.ts` | Unreviewed | No maintained home; cited by ADR 0253. | Compare, then port or drop. |

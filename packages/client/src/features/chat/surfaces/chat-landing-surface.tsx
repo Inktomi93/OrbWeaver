@@ -16,7 +16,7 @@ import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import { WeaveGlyph } from "#components";
-import { useFocusOnMount } from "#lib";
+import { NO_CHAT_SELECTED_TITLE, START_NEW_CHAT_NAME, useFocusOnMount } from "#lib";
 import { LIST_OFF_SCREEN_HINT, useSectionListMode } from "#state";
 
 const WEAVE_SIZE = 48;
@@ -48,7 +48,7 @@ export function ChatLandingSurface({ onNewChat }: ChatLandingSurfaceProps): Reac
       <Stack className="w-full max-w-(--width-shell-content)" gap="section">
         <EmptyState
           action={
-            <Button aria-label="Start a new chat" intent="primary" onClick={onNewChat}>
+            <Button aria-label={START_NEW_CHAT_NAME} intent="primary" onClick={onNewChat}>
               <Icon icon={Plus} size="sm" />
               New chat
             </Button>
@@ -58,7 +58,7 @@ export function ChatLandingSurface({ onNewChat }: ChatLandingSurfaceProps): Reac
           // collapsed by hand — "on the left" is wrong in three of the four states. And in the state
           // where it is COLLAPSED, the footnote names the door back to it (#446).
           description={listMode === "collapsed" ? `${PICK_A_THREAD}${LIST_OFF_SCREEN_HINT}` : PICK_A_THREAD}
-          title="No chat selected"
+          title={NO_CHAT_SELECTED_TITLE}
         />
       </Stack>
     </Stack>

@@ -125,6 +125,14 @@ export interface CorpusCapsule extends AsyncDisposable {
   readonly replay: CorpusReplayState;
 }
 
+/** The producers a clone-boundary capsule runs; every other corpus section stays with its own producer suite. */
+type CloneBoundaryCaptures = Pick<CorpusPrivateCaptures, "publicationSecrets" | "oidc" | "credential" | "baseline" | "libraries" | "chatLifecycle">;
+
+/** A capsule holding only what its clone boundary needs: messages, a released lock, a credential, a session and a CAS asset. */
+export interface CloneBoundaryCorpusCapsule extends Omit<CorpusCapsule, "privateCaptures"> {
+  readonly privateCaptures: CloneBoundaryCaptures;
+}
+
 export interface PrivateCorpusCapsule extends Omit<CorpusCapsule, "privateCaptures"> {
   readonly privateParent: string;
 }
@@ -407,7 +415,7 @@ function ownedCorpusFixture(fixture: CorpusFixture): PreparedCorpusFixture {
 
 /** A private stage clone retains backend lineage; its caller owns deletion after every stage process stops. */
 export async function prepareCorpusFixture(
-  capsule: CorpusCapsule | PrivateCorpusCapsule,
+  capsule: CorpusCapsule | CloneBoundaryCorpusCapsule | PrivateCorpusCapsule,
   directory: string,
   environment?: NodeJS.ProcessEnv,
 ): Promise<PreparedCorpusFixture> {
@@ -454,21 +462,29 @@ export async function cloneCorpusFixture(fixture: CorpusFixture, directory: stri
   );
 }
 
+type CapturedCaptures<T extends { readonly oidc: CorpusPrivateCaptures["oidc"] }> = Omit<T, "oidc"> & { readonly oidc: T["oidc"] | undefined };
+
 interface CapturedCapsule {
   readonly wire: CorpusWire;
-  readonly privateCaptures: Omit<CorpusPrivateCaptures, "oidc"> & { readonly oidc: CorpusPrivateCaptures["oidc"] | undefined };
+  readonly privateCaptures: CapturedCaptures<CorpusPrivateCaptures> | CapturedCaptures<CloneBoundaryCaptures>;
   readonly publishWire: CorpusCapsule["publishWire"];
   readonly snapshotReplay: () => CorpusReplayState;
+}
+
+/** Absent runs every producer; `clone-boundary` runs only the producers {@link CloneBoundaryCaptures} names. */
+interface CorpusCapsuleProducers {
+  readonly producers?: "clone-boundary";
 }
 
 /** Create only a new directory; teardown removes only this capsule, never a pre-existing data root. */
 export function createCorpusCapsule(
   options: CorpusCapsuleOptions & CorpusAdmissionHost & { readonly privateSourceDirectory: string },
 ): Promise<PrivateCorpusCapsule>;
+export function createCorpusCapsule(options: CorpusCapsuleOptions & { readonly producers: "clone-boundary" }): Promise<CloneBoundaryCorpusCapsule>;
 export function createCorpusCapsule(options: CorpusCapsuleOptions): Promise<CorpusCapsule>;
 export async function createCorpusCapsule(
-  options: CorpusCapsuleOptions & CorpusAdmissionHost & { readonly privateSourceDirectory?: string },
-): Promise<CorpusCapsule | PrivateCorpusCapsule> {
+  options: CorpusCapsuleOptions & CorpusAdmissionHost & CorpusCapsuleProducers & { readonly privateSourceDirectory?: string },
+): Promise<CorpusCapsule | CloneBoundaryCorpusCapsule | PrivateCorpusCapsule> {
   const signal = options.server.workloadExecutionSignal;
   signal?.throwIfAborted();
   const directory = resolve(options.directory);
@@ -584,7 +600,113 @@ async function initializeCorpusOwner(
   return { ownerId: oidc.ownerId, ownerHandle: undefined, oidc };
 }
 
-async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout, privateSource = false): Promise<CapturedCapsule> {
+interface CapsuleGraph {
+  readonly root: ServerTestHarness;
+  readonly db: NonNullable<ServerHarnessOptions["db"]>;
+  readonly signal: AbortSignal | undefined;
+}
+
+/** Every capsule closes on a referential check, the served health and the captured reads, whichever producers ran. */
+async function captureHealthAndReads({
+  root,
+  db,
+  signal,
+  baseline,
+  libraries,
+}: CapsuleGraph & Pick<CorpusPrivateCaptures, "baseline" | "libraries">): Promise<Pick<Parameters<typeof hydrateCorpusWire>[0], "health" | "reads">> {
+  const { assertReferentialIntegrity } = await import("@orb/db");
+  const { captureCorpusReads } = await import("./corpus-seed.ts");
+  await assertReferentialIntegrity(db);
+  signal?.throwIfAborted();
+  const response = await root.http.request("/healthz");
+  if (!response.ok) {
+    throw new Error(`synthetic capsule health request failed (${response.status})`);
+  }
+  const health = healthResponseSchema.parse(await response.json());
+  signal?.throwIfAborted();
+  return { health, reads: await captureCorpusReads(root, { ...baseline.identities, personaIds: [libraries.persona.id] }) };
+}
+
+/** The literals every capsule withholds from publication; each producer set adds its own secrets. */
+function sharedPublicationSecrets({
+  options,
+  oidcClientSecret,
+  baseline,
+  credential,
+  oidc,
+}: {
+  readonly options: CorpusCapsuleOptions;
+  readonly oidcClientSecret: string;
+  readonly oidc: CorpusPrivateCaptures["oidc"] | undefined;
+} & Pick<CorpusPrivateCaptures, "baseline" | "credential">): readonly (string | null | undefined)[] {
+  return [
+    options.privateCredential.key,
+    options.seed.ownerPassword,
+    options.server.secretBoxKey?.toString("hex"),
+    oidcClientSecret,
+    ...baseline.secrets,
+    ...(oidc?.secrets ?? []),
+    credential.row.ciphertext,
+    credential.row.iv,
+    credential.row.tag,
+    ...(oidc === undefined
+      ? []
+      : [
+          ...oidc.transactions.flatMap((row) => [row.state, row.codeVerifier, row.nonce, row.inviteTokenHash]),
+          oidc.pending.secretHash,
+          oidc.pending.inviteTokenHash,
+          oidc.pending.idTokenCiphertext,
+          oidc.pending.idTokenIv,
+          oidc.pending.idTokenTag,
+          ...[...oidc.ownerSessions, ...oidc.joinerSessions].flatMap((row) => [
+            row.tokenHash,
+            row.oidcIdTokenCiphertext,
+            row.oidcIdTokenIv,
+            row.oidcIdTokenTag,
+          ]),
+        ]),
+  ];
+}
+
+function lifecycleSecrets(lifecycle: CorpusPrivateCaptures["chatLifecycle"]): readonly string[] {
+  return [lifecycle.held.invite.tokenHash, lifecycle.aborted.invite.tokenHash, lifecycle.handoff.invite.tokenHash];
+}
+
+/** The clone-boundary producer set: the baseline already holds chats, messages, a password session, the credential and
+ *  the libraries' CAS asset; the chat lifecycle adds the held turn lock and the handoff a clone must find released. */
+async function captureCloneBoundary(
+  graph: CapsuleGraph &
+    Pick<CorpusPrivateCaptures, "baseline" | "libraries" | "credential"> & {
+      readonly options: CorpusCapsuleOptions;
+      readonly oidcClientSecret: string;
+      readonly oidc: CorpusPrivateCaptures["oidc"] | undefined;
+      readonly clock: Pick<ReturnType<typeof createFrozenClock>, "now">;
+      readonly ids: Pick<ReturnType<typeof createSeededIds>, "snapshot">;
+    },
+  seedChatLifecycle: () => Promise<CorpusPrivateCaptures["chatLifecycle"]>,
+): Promise<CapturedCapsule> {
+  const { root, signal, baseline, libraries, credential, oidc, clock, ids } = graph;
+  const chatLifecycle = await seedChatLifecycle();
+  signal?.throwIfAborted();
+  await root.settleBackground();
+  signal?.throwIfAborted();
+  const wire = hydrateCorpusWire({
+    auth: baseline.auth,
+    ...(oidc === undefined ? {} : { oidc: oidc.wire }),
+    ...(await captureHealthAndReads(graph)),
+    chatLifecycleMember: chatLifecycle.publication,
+  });
+  signal?.throwIfAborted();
+  const secrets = [...sharedPublicationSecrets(graph), ...lifecycleSecrets(chatLifecycle)].filter((value) => value !== null && value !== undefined);
+  return {
+    wire,
+    snapshotReplay: () => ({ version: 1, nowMs: clock.now(), idCursor: ids.snapshot() }),
+    publishWire: () => serializeCorpusWire(wire, secrets),
+    privateCaptures: { publicationSecrets: secrets, oidc, credential, baseline, libraries, chatLifecycle },
+  };
+}
+
+async function captureCapsule(options: CorpusCapsuleOptions & CorpusCapsuleProducers, layout: DataLayout, privateSource = false): Promise<CapturedCapsule> {
   const server = corpusServerOptions(options.server);
   const signal = server.workloadExecutionSignal;
   signal?.throwIfAborted();
@@ -621,8 +743,9 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout,
     "./corpus-connection-wire.ts"
   );
   const { createRpgFlightWire, createRpgFlightTimers } = await import("./corpus-rpg-flight-wire.ts");
-  const { captureCookieAuth, captureCorpusReads, seedCorpusActors, seedCorpusAutomation, seedCorpusLibraries, seedRecallCorpus, seedSyntheticCorpus } =
-    await import("./corpus-seed.ts");
+  const { captureCookieAuth, seedCorpusActors, seedCorpusAutomation, seedCorpusLibraries, seedRecallCorpus, seedSyntheticCorpus } = await import(
+    "./corpus-seed.ts"
+  );
   const { seedCorpusAccount } = await import("./corpus-auth.ts");
   signal?.throwIfAborted();
   await using lifetimes = new AsyncDisposableStack();
@@ -694,6 +817,10 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout,
     patch: { currentPersonaId: libraries.persona.id, defaultPersonaId: libraries.persona.id },
   });
   signal?.throwIfAborted();
+  if (options.producers === "clone-boundary") {
+    const graph = { root, db, signal, options, oidcClientSecret: NATIVE_OIDC_SETTINGS.OIDC_CLIENT_SECRET, baseline, libraries, credential, oidc, clock, ids };
+    return await captureCloneBoundary(graph, () => seedCorpusChatLifecycle(root, chatWire, actors.secondUserId, dbHold));
+  }
   const recall = await seedRecallCorpus(root, {
     chatConnectionId: actors.connections.text.id,
     embedConnectionId: actors.connections.embed.id,
@@ -753,20 +880,10 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout,
   signal?.throwIfAborted();
   const postSearchStats = await seedStats(root, root.ownerId);
   signal?.throwIfAborted();
-  await assertReferentialIntegrity(db);
-  signal?.throwIfAborted();
-  const response = await root.http.request("/healthz");
-  if (!response.ok) {
-    throw new Error(`synthetic capsule health request failed (${response.status})`);
-  }
-  const health = healthResponseSchema.parse(await response.json());
-  signal?.throwIfAborted();
-  const reads = await captureCorpusReads(root, { ...baseline.identities, personaIds: [libraries.persona.id] });
   const wire = hydrateCorpusWire({
     auth: baseline.auth,
     ...(oidc === undefined ? {} : { oidc: oidc.wire }),
-    health,
-    reads,
+    ...(await captureHealthAndReads({ root, db, signal, baseline, libraries })),
     searchLibrary: searchFinal.value,
     pluginLibrary: plugins.library,
     notificationInbox: notifications.publication,
@@ -778,42 +895,21 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout,
   });
   signal?.throwIfAborted();
   const secrets = [
-    options.privateCredential.key,
-    options.seed.ownerPassword,
-    options.server.secretBoxKey?.toString("hex"),
-    NATIVE_OIDC_SETTINGS.OIDC_CLIENT_SECRET,
+    ...sharedPublicationSecrets({ options, oidcClientSecret: NATIVE_OIDC_SETTINGS.OIDC_CLIENT_SECRET, baseline, credential, oidc }),
     CORPUS_CONNECTION_KEY,
     CORPUS_CONNECTION_FOREIGN_KEY,
     CORPUS_CONNECTION_HOSTED_KEY,
     CORPUS_SDK_TOKEN,
-    ...baseline.secrets,
     ...sharedMemberAuthentication.secrets,
-    ...(oidc?.secrets ?? []),
     ...imageVariants.secrets,
     ...notifications.secrets,
-    ...[credential, connection.own.credential, connection.foreign.credential, connection.account.hosted.credential, sdkSessions.credential].flatMap(
-      ({ row }) => [row.ciphertext, row.iv, row.tag],
-    ),
-    ...(oidc === undefined
-      ? []
-      : [
-          ...oidc.transactions.flatMap((row) => [row.state, row.codeVerifier, row.nonce, row.inviteTokenHash]),
-          oidc.pending.secretHash,
-          oidc.pending.inviteTokenHash,
-          oidc.pending.idTokenCiphertext,
-          oidc.pending.idTokenIv,
-          oidc.pending.idTokenTag,
-          ...[...oidc.ownerSessions, ...oidc.joinerSessions].flatMap((row) => [
-            row.tokenHash,
-            row.oidcIdTokenCiphertext,
-            row.oidcIdTokenIv,
-            row.oidcIdTokenTag,
-          ]),
-        ]),
+    ...[connection.own.credential, connection.foreign.credential, connection.account.hosted.credential, sdkSessions.credential].flatMap(({ row }) => [
+      row.ciphertext,
+      row.iv,
+      row.tag,
+    ]),
     ...sdkSessions.receipts.flatMap(({ sessionId, resume }) => [sessionId, resume]),
-    chatLifecycle.held.invite.tokenHash,
-    chatLifecycle.aborted.invite.tokenHash,
-    chatLifecycle.handoff.invite.tokenHash,
+    ...lifecycleSecrets(chatLifecycle),
   ].filter((value) => value !== null && value !== undefined);
   return {
     wire,

@@ -24,6 +24,20 @@ Each selected export has a maintained consumer, a concrete replacement-case purp
 
 `tests/support/browser/ct-data-providers.tsx` mounts production composition and has maintained CT consumers. It is not a legacy-only adapter. Evaluate factories and accessibility helpers by their actual implementation and intended cases.
 
+## Current testkit export census
+
+Knip derives the testkit entries from the `exports` map in `tests/support/package.json` and checks entry exports. The default `pnpm knip` run reports no unused testkit file, export or type. A planted unused export in `tests/support/iso/clock.ts` fails that run, so the clean result is a real negative. The production view ignores `tests/support` by design.
+
+The `-@public` tag is the one remaining way to hide a testkit export from that run. It marks five exports:
+
+| Export | Decision | Consumer |
+| - | - | - |
+| `refuse-model-kernel.ts` `loadTransformers`, `fetch` | Keep. | The server harness loads the module by URL as its default `kernelModule` in `node/server.ts`. |
+| `reference-head-kernel.ts` `fetch`, `loadTransformers` | Keep. | `node/model-kernel.int.test.ts` loads the module by URL as a scripted kernel entry. |
+| `reference-head-kernel.ts` `KERNEL_HOLD` | Keep; remove its `@public` tag. | `node/model-kernel.int.test.ts` imports it statically, so the tag's claim was false and hid the export from the default run. |
+
+No export is deleted or moved. Each one has a maintained consumer.
+
 ## Selected chat support cases
 
 The selected support purposes map to the maintained [composed-root suite](../../tests/server/domain/chat/composed-root.suite.int.test.ts). The suite constructs the production graph through `chat/composed.ts` and scripts physical provider responses.
