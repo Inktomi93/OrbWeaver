@@ -107,56 +107,6 @@ const CASES = [
   ["orb/config-group-definition-home", "a group declared in state", "export const g: ConfigGroupDefinition = { id: 'x' };", STATE, 1],
   ["orb/config-group-definition-home", "a group in the feature lib", "const g: ConfigGroupDefinition = { id: 'x' };", FEATURE_LIB, 0],
   ["orb/config-group-definition-home", "a modal is another vocabulary", "const m: ModalDefinition = { id: 'x' };", STATE, 0],
-  // no-effect-on-shared-selection
-  [
-    "orb/no-effect-on-shared-selection",
-    "an effect keyed on the active chat",
-    "export function useX(): void {\n  const chatId = useActiveChatId();\n  useEffect(() => { load(chatId); }, [chatId]);\n}",
-    FEATURE,
-    1,
-  ],
-  [
-    "orb/no-effect-on-shared-selection",
-    "a layout effect keyed on a selected id",
-    "export function useX(): void {\n  const id = useSelectedCharacterId();\n  useLayoutEffect(() => { load(id); }, [other, id]);\n}",
-    FEATURE,
-    1,
-  ],
-  [
-    "orb/no-effect-on-shared-selection",
-    "a namespaced effect keyed on a pointer member",
-    "export function useX(): void {\n  const handle = useActiveChatHandle();\n  React.useEffect(() => { load(); }, [handle.id]);\n}",
-    FEATURE,
-    1,
-  ],
-  [
-    "orb/no-effect-on-shared-selection",
-    "an effect keyed on a prop",
-    "export function X({ characterId }: P): void {\n  const facet = useSelectedCharacterFacetId();\n  useLayoutEffect(() => { reset(); }, [characterId]);\n  render(facet);\n}",
-    FEATURE,
-    0,
-  ],
-  [
-    "orb/no-effect-on-shared-selection",
-    "the pointer derived in render",
-    "export function X(): string {\n  const chatId = useActiveChatId();\n  return chatId ?? 'none';\n}",
-    FEATURE,
-    0,
-  ],
-  [
-    "orb/no-effect-on-shared-selection",
-    "an empty-deps effect beside a pointer read",
-    "export function X(): void {\n  const chatId = useActiveChatId();\n  useEffect(() => { focus(); }, []);\n  render(chatId);\n}",
-    FEATURE,
-    0,
-  ],
-  [
-    "orb/no-effect-on-shared-selection",
-    "the shell tier",
-    "export function useX(): void {\n  const chatId = useActiveChatId();\n  useEffect(() => { load(chatId); }, [chatId]);\n}",
-    SHELL,
-    0,
-  ],
   // the queryKey selector
   ["no-restricted-syntax", "a hand-built queryKey", 'export const o = { queryKey: ["chat", id], queryFn };', FEATURE, 1],
   ["no-restricted-syntax", "a hand-built queryKey in data", 'export const o = queryOptions({ queryKey: ["auth", "me"], queryFn });', DATA, 1],
@@ -166,4 +116,113 @@ const CASES = [
 
 test.for(CASES)("%s: %s", { timeout: 120_000 }, async ([rule, , source, path, count]) => {
   expect(await findings(rule, source, path)).toHaveLength(count);
+});
+
+// no-effect-on-shared-selection resolves each hook to its declaring file, so it runs over a planted program.
+const EFFECT_RULE = "orb/no-effect-on-shared-selection";
+const STATE_FILES = {
+  "active-chat-store.ts":
+    "export function useActiveChatId(): string | null { return null; }\nexport function activeChatId(): string | null { return null; }\nexport function useActiveChatHandle(): { id: string } { return { id: '' }; }",
+  "character-selection-store.ts": "const sel = { usePrimaryId: (): string | null => null };\nexport const useSelectedCharacterId = sel.usePrimaryId;",
+  "persona-editor-selection-store.ts": "export function usePersonaEditorId(): string | null { return null; }",
+  "plugin-page-selection-store.ts": "const store = { usePrimaryId: (): string | null => null };\nexport const usePluginPageKey = store.usePrimaryId;",
+  "config-selection-store.ts": "export const useCollectionSelection = (): { kind: string } | null => null;",
+  "config-nav-store.ts":
+    "import { useCollectionSelection } from './config-selection-store.ts';\nexport function useActiveConfigGroup(): string | null { const member = useCollectionSelection(); return member === null ? null : member.kind; }\nexport function useActiveConfigSub(): string | null { return null; }",
+  "other-store.ts":
+    "import { activeChatId } from './active-chat-store.ts';\nexport function useOther(): string | null { return null; }\nexport function useReadsNow(): string | null { return activeChatId(); }",
+} as const;
+const STATE_BARREL = `${Object.keys(STATE_FILES)
+  .map((file) => `export * from './${file}';`)
+  .join("\n")}\n`;
+const HEADER =
+  "declare function useEffect(f: () => void, deps?: readonly unknown[]): void;\ndeclare function useLayoutEffect(f: () => void, deps?: readonly unknown[]): void;\n";
+
+async function effectFindings(source: string, path: string, plantedTree: (files: Record<string, string>) => Promise<string>): Promise<number> {
+  const root = await plantedTree({
+    "tsconfig.json": JSON.stringify({
+      compilerOptions: {
+        strict: true,
+        module: "esnext",
+        moduleResolution: "bundler",
+        target: "esnext",
+        allowImportingTsExtensions: true,
+        noEmit: true,
+        skipLibCheck: true,
+        jsx: "preserve",
+      },
+      include: ["packages"],
+    }),
+    ...Object.fromEntries(Object.entries(STATE_FILES).map(([file, text]) => [`${CLIENT}state/${file}`, text])),
+    [`${CLIENT}state/index.ts`]: STATE_BARREL,
+    [path]: `${HEADER}${source}`,
+  });
+  const config = await eslint.calculateConfigForFile(join(ROOT, path));
+  const found = new Linter({ cwd: root }).verify(
+    `${HEADER}${source}`,
+    {
+      files: ["**/*.{ts,tsx}"],
+      plugins: config?.plugins ?? {},
+      languageOptions: {
+        parser: tseslint.parser,
+        parserOptions: { project: ["tsconfig.json"], projectService: false, tsconfigRootDir: root, ecmaFeatures: { jsx: true } },
+      },
+      rules: { [EFFECT_RULE]: config?.rules?.[EFFECT_RULE] ?? "off" },
+    },
+    { filename: join(root, path) },
+  );
+  expect(found.filter(({ fatal }) => fatal === true)).toEqual([]);
+  return found.filter(({ ruleId }) => ruleId === EFFECT_RULE).length;
+}
+
+const imp = (...names: string[]): string => `import { ${names.join(", ")} } from '../../../state/index.ts';\n`;
+const keyed = (hook: string, call = "useEffect"): string =>
+  `export function useX(): void {\n  const id = ${hook}();\n  ${call}(() => { void id; }, [id]);\n}\n`;
+
+test.for([
+  ["the active chat", imp("useActiveChatId") + keyed("useActiveChatId"), 1],
+  [
+    "the active chat handle member",
+    `${imp("useActiveChatHandle")}export function useX(): void {\n  const handle = useActiveChatHandle();\n  useEffect(() => { void 0; }, [handle.id]);\n}\n`,
+    1,
+  ],
+  ["a layout effect on a selected id", imp("useSelectedCharacterId") + keyed("useSelectedCharacterId", "useLayoutEffect"), 1],
+  ["the persona editor pointer", imp("usePersonaEditorId") + keyed("usePersonaEditorId"), 1],
+  ["the plugin page pointer", imp("usePluginPageKey") + keyed("usePluginPageKey"), 1],
+  ["the collection selection", imp("useCollectionSelection") + keyed("useCollectionSelection"), 1],
+  ["a hook that wraps a pointer hook", imp("useActiveConfigGroup") + keyed("useActiveConfigGroup"), 1],
+  ["a nav hook that reads no pointer", imp("useActiveConfigSub") + keyed("useActiveConfigSub"), 0],
+  [
+    "a parameter fed a pointer value at a call site",
+    `${imp("useActiveChatId")}function useArrival(active: string | null): void {\n  useEffect(() => { void active; }, [active]);\n}\nexport function X(): void {\n  const chat = useActiveChatId();\n  useArrival(chat);\n}\n`,
+    1,
+  ],
+  [
+    "a parameter fed a non-pointer value",
+    `${imp("useOther")}function useArrival(active: string | null): void {\n  useEffect(() => { void active; }, [active]);\n}\nexport function X(): void {\n  const other = useOther();\n  useArrival(other);\n}\n`,
+    0,
+  ],
+  ["a hook that only calls the non-hook pointer reader", imp("useReadsNow") + keyed("useReadsNow"), 0],
+  ["a hook from a non-pointer store", imp("useOther") + keyed("useOther"), 0],
+  [
+    "an effect keyed on a prop beside a pointer read",
+    `${imp("useActiveChatId")}export function X({ characterId }: { characterId: string }): void {\n  const chat = useActiveChatId();\n  useLayoutEffect(() => { void chat; }, [characterId]);\n}\n`,
+    0,
+  ],
+  [
+    "an empty-deps effect beside a pointer read",
+    `${imp("useActiveChatId")}export function X(): void {\n  const chat = useActiveChatId();\n  useEffect(() => { void chat; }, []);\n}\n`,
+    0,
+  ],
+  [
+    "the pointer derived in render",
+    `${imp("useActiveChatId")}export function X(): string {\n  const chat = useActiveChatId();\n  return chat ?? 'none';\n}\n`,
+    0,
+  ],
+] as const)("orb/no-effect-on-shared-selection judges %s", { timeout: 120_000 }, async ([, source, count], { plantedTree }) => {
+  expect(await effectFindings(source, FEATURE, plantedTree)).toBe(count);
+});
+
+test("orb/no-effect-on-shared-selection leaves the shell tier alone", { timeout: 120_000 }, async ({ plantedTree }) => {
+  expect(await effectFindings(imp("useActiveChatId") + keyed("useActiveChatId"), SHELL, plantedTree)).toBe(0);
 });

@@ -65,12 +65,21 @@ Every piece of client state is exactly one of three classes — the blunt "cross
   3. **Total migrate** (pre-existing law) stays; identity/referential validity are 1 and 2's job, not a
      smarter migrate.
 
-Enforcer: `orb/persistence-boundary` (raw browser storage outside the store doors, §9; the named homes are `RAW_STORAGE_HOMES` in `eslint.config.ts`), the native required-key
+Enforcer: `orb/persistence-boundary` (raw browser storage outside the store doors, §9; the sanctioned homes are listed below), the native required-key
 contracts on `createPersistedStore` and `createEntityDraftStore`, and `orb/no-raw-zustand-persist`.
 The required-key types prove the options fields exist; total, crash-proof migration remains a factory
 behavior contract. Design of record + the as-built deltas (why store rebind reads a
 boot pointer rather than minting fresh, why legacy adoption goes through each store's own persist
 storage): D138.
+
+Raw browser storage has four sanctioned homes. `RAW_STORAGE_HOMES` in `eslint.config.ts` lists them and cites this section.
+
+- `state/durable-local.ts` holds the active-user pointer and the adoption hints. The store doors mint against them.
+- `data/session-resume.ts` keeps the chat to reopen and an invite token in `sessionStorage` across the sign-in redirect. The data is tab-scoped and written while no verified user exists, so no per-user namespace applies.
+- `main.tsx` keeps one `sessionStorage` flag that stops a reload loop after a stale chunk hash. It runs before any store exists and holds no user data.
+- `lib/probe-mode.ts` reads one `localStorage` flag that `pnpm snap --probe` seeds before navigation. The app never writes it.
+
+A new home needs a line here with its reason first.
 
 ## 11. The error-handling battery + the three-states law
 

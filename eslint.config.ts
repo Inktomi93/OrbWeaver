@@ -573,13 +573,13 @@ const PORTAL_FLOAT_HOMES = {
   "packages/ui/src/primitives/drawer/variants.ts": "its backdrop and viewport portal to the portal root",
   "packages/ui/src/art/web-weave/variants.ts": "the boot veil mounts at the document root, above the whole shell",
 } as const;
-// The only client files that touch browser storage directly; each says why it cannot mint a per-user store.
-const RAW_STORAGE_HOMES = {
-  "packages/client/src/state/durable-local.ts": "the per-user namespace pointer and adoption hints the store doors mint against",
-  "packages/client/src/data/session-resume.ts": "a tab-scoped sessionStorage bounce target, written while no verified user exists to namespace by",
-  "packages/client/src/lib/probe-mode.ts": "a read-only flag `pnpm snap --probe` seeds before navigation; the app never writes it",
-  "packages/client/src/main.tsx": "a one-shot sessionStorage reload-loop guard for a stale chunk hash, before any store exists",
-} as const;
+// The only client files that touch browser storage directly. client-architecture-state-and-gates.md §10a sanctions each one and states why.
+const RAW_STORAGE_HOMES = [
+  "packages/client/src/state/durable-local.ts",
+  "packages/client/src/data/session-resume.ts",
+  "packages/client/src/lib/probe-mode.ts",
+  "packages/client/src/main.tsx",
+];
 const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
   [
     { files: ["tests/**/*.{ts,tsx}"], rules: { "orb/no-test-fabrication": "error" } },
@@ -656,7 +656,7 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
         "orb/no-fake-disabled-id": "error",
       },
     },
-    { files: ["packages/client/src/**/*.{ts,tsx}"], ignores: Object.keys(RAW_STORAGE_HOMES), rules: { "orb/persistence-boundary": "error" } },
+    { files: ["packages/client/src/**/*.{ts,tsx}"], ignores: RAW_STORAGE_HOMES, rules: { "orb/persistence-boundary": "error" } },
     {
       files: ["packages/client/src/**/*.{ts,tsx}"],
       ignores: ["packages/client/src/data/**"],

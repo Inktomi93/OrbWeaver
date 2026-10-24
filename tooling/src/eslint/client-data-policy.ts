@@ -1,5 +1,6 @@
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESLint, TSESTree } from "@typescript-eslint/utils";
+import ts from "typescript";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 import { alternation } from "./syntax.ts";
 
@@ -91,10 +92,12 @@ export const CLIENT_DATA_RESTRICTIONS = [
   },
 ];
 
-/** Hooks that read a shared selection pointer: the `*-selection-store` verbs and the active-chat pointer. */
-const SELECTION_POINTER_HOOK = /^use(?:Selected\w+|Drilled\w+|ActiveChat(?:Id|Handle))$/u;
+/** The files whose exports are shared selection pointers: every `*-selection-store` and the active-chat pointer. */
+const POINTER_STORE_FILE = /\/state\/(?:[\w-]+-selection-store|active-chat-store)\.ts$/u;
 
 const EFFECT_HOOK = /^use(?:Layout)?Effect$/u;
+
+const HOOK_NAME = /^use[A-Z]/u;
 
 function variableNamed(scope: TSESLint.Scope.Scope | null, name: string): TSESLint.Scope.Variable | undefined {
   for (let current = scope; current !== null; current = current.upper) {
@@ -114,11 +117,78 @@ function dependencyRoot(element: TSESTree.Node): TSESTree.Identifier | undefined
   return node.type === "Identifier" ? node : undefined;
 }
 
-function readsSelectionPointer(variable: TSESLint.Scope.Variable): boolean {
+function resolvedSymbol(symbol: ts.Symbol | undefined, checker: ts.TypeChecker): ts.Symbol | undefined {
+  // biome-ignore lint/suspicious/noBitwiseOperators: TypeScript SymbolFlags is a compiler-owned bitfield.
+  return symbol !== undefined && (symbol.flags & ts.SymbolFlags.Alias) !== 0 ? checker.getAliasedSymbol(symbol) : symbol;
+}
+
+function functionBody(declaration: ts.Declaration): ts.Node | undefined {
+  if (ts.isFunctionDeclaration(declaration)) {
+    return declaration.body;
+  }
+  const init = ts.isVariableDeclaration(declaration) ? declaration.initializer : undefined;
+  return init !== undefined && (ts.isArrowFunction(init) || ts.isFunctionExpression(init)) ? init.body : undefined;
+}
+
+function callsPointerHook(node: ts.Node, checker: ts.TypeChecker): boolean {
+  if (ts.isCallExpression(node) && declaredInPointerStore(checker.getSymbolAtLocation(node.expression), checker, false)) {
+    return true;
+  }
+  return ts.forEachChild(node, (child) => (callsPointerHook(child, checker) ? true : undefined)) ?? false;
+}
+
+/** A symbol is a pointer hook when its declaration lives in a pointer store file, or (one hop) its body calls one. */
+function declaredInPointerStore(symbol: ts.Symbol | undefined, checker: ts.TypeChecker, followWrappers: boolean): boolean {
+  const target = resolvedSymbol(symbol, checker);
+  const declarations = target === undefined || !HOOK_NAME.test(target.name) ? [] : (target.declarations ?? []);
+  if (declarations.some((declaration) => POINTER_STORE_FILE.test(declaration.getSourceFile().fileName))) {
+    return true;
+  }
+  return followWrappers && declarations.some((declaration) => functionBody(declaration) !== undefined && callsPointerHook(declaration, checker));
+}
+
+type FunctionNode = TSESTree.FunctionDeclaration | TSESTree.FunctionExpression | TSESTree.ArrowFunctionExpression;
+
+function functionNameOf(node: FunctionNode): TSESTree.Identifier | undefined {
+  if (node.type === "FunctionDeclaration") {
+    return node.id ?? undefined;
+  }
+  return node.parent.type === "VariableDeclarator" && node.parent.id.type === "Identifier" ? node.parent.id : undefined;
+}
+
+function pointerThroughParameter(variable: TSESLint.Scope.Variable, context: OrbRuleContext): boolean {
   return variable.defs.some((def) => {
-    const init = def.type === "Variable" ? def.node.init : null;
-    return init?.type === "CallExpression" && init.callee.type === "Identifier" && SELECTION_POINTER_HOOK.test(init.callee.name);
+    if (def.type !== "Parameter") {
+      return false;
+    }
+    const owner = def.node as FunctionNode;
+    const index = owner.params.indexOf(def.name as TSESTree.Parameter);
+    const name = functionNameOf(owner);
+    const callee = name === undefined ? undefined : variableNamed(context.sourceCode.getScope(name), name.name);
+    return (
+      index >= 0 &&
+      (callee?.references ?? []).some(({ identifier }) => {
+        const call = identifier.parent;
+        const argument = call.type === "CallExpression" && call.callee === identifier ? call.arguments[index] : undefined;
+        const passed = argument?.type === "Identifier" ? variableNamed(context.sourceCode.getScope(argument), argument.name) : undefined;
+        return passed !== undefined && readsSelectionPointer(passed, context, false);
+      })
+    );
   });
+}
+
+function readsSelectionPointer(variable: TSESLint.Scope.Variable, context: OrbRuleContext, followParameters: boolean): boolean {
+  const services = context.sourceCode.parserServices;
+  if (services?.program === undefined || services.program === null || services.esTreeNodeToTSNodeMap === undefined) {
+    throw new Error("no-effect-on-shared-selection needs the parser's TypeScript Program to resolve a hook to its declaring file");
+  }
+  const checker = services.program.getTypeChecker();
+  const toTsNode = services.esTreeNodeToTSNodeMap;
+  const direct = variable.defs.some((def) => {
+    const init = def.type === "Variable" ? def.node.init : null;
+    return init?.type === "CallExpression" && declaredInPointerStore(checker.getSymbolAtLocation(toTsNode.get(init.callee)), checker, true);
+  });
+  return direct || (followParameters && pointerThroughParameter(variable, context));
 }
 
 function effectDependencies(node: TSESTree.CallExpression): readonly (TSESTree.Node | null)[] {
@@ -130,13 +200,16 @@ function effectDependencies(node: TSESTree.CallExpression): readonly (TSESTree.N
 function selectionDependency(element: TSESTree.Node | null, context: OrbRuleContext): TSESTree.Identifier | undefined {
   const root = element === null ? undefined : dependencyRoot(element);
   const variable = root === undefined ? undefined : variableNamed(context.sourceCode.getScope(root), root.name);
-  return variable !== undefined && readsSelectionPointer(variable) ? root : undefined;
+  return variable !== undefined && readsSelectionPointer(variable, context, true) ? root : undefined;
 }
 
 /**
- * An effect whose dependency list names a value read straight from a shared selection hook. Reading the
- * pointer in render and deriving from it is the sanctioned shape (ui-architecture-state-and-stack.md §5.1).
- * Limit: a value derived from the pointer first (`const key = id ?? ""`) is not followed.
+ * An effect whose dependency list names a value read straight from a shared selection hook: a hook declared
+ * in a pointer store file, or a hook whose body calls one. Reading the pointer in render and deriving from it
+ * is the sanctioned shape (ui-architecture-state-and-stack.md §5.1).
+ * A parameter counts when a call site in the same file passes it a value read straight from such a hook.
+ * Limit: a value derived from the pointer first (`const key = id ?? ""`), or handed down through a prop or an
+ * argument in another file, is not followed.
  */
 export const effectOnSharedSelectionRule: OrbRule = {
   meta: { type: "problem", schema: [] },
