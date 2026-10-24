@@ -98,7 +98,7 @@ test("the actual tick selects only enabled due schedules, not future or disabled
   const disabled = await schedule(root, false, "hourly");
   const future = await schedule(root, true, "weekly");
   root.clock.advance(CADENCE_INTERVAL_MS.hourly);
-  await tickWorkloadSchedules({ db: databaseHandle(root.db), now: root.clock.now, start: root.services.workloads.start });
+  await tickWorkloadSchedules({ db: databaseHandle(root.db), logger: root.logger, now: root.clock.now, start: root.services.workloads.start });
   const jobs = await root.services.workloads.list({ caller: await root.principalFor(root.ownerId), kind: "reconcile-stats" });
   expect(jobs).toHaveLength(1);
   expect(jobs[0]).toMatchObject({ kind: due.kind, ownerId: due.ownerId, status: "queued" });
@@ -112,7 +112,7 @@ test("the actual tick advances the next due instant and stamps lastRunAt", async
   await using root = await createServerHarness({ startJobs: false });
   const row = await schedule(root);
   root.clock.advance(CADENCE_INTERVAL_MS.daily);
-  await tickWorkloadSchedules({ db: databaseHandle(root.db), now: root.clock.now, start: root.services.workloads.start });
+  await tickWorkloadSchedules({ db: databaseHandle(root.db), logger: root.logger, now: root.clock.now, start: root.services.workloads.start });
   const [after] = await root.services.workloads.listSchedules({ caller: await root.principalFor(root.ownerId) });
   expect(after).toMatchObject({ id: row.id, lastRunAt: root.clock.now(), nextRunAt: root.clock.now() + CADENCE_INTERVAL_MS.daily });
 });

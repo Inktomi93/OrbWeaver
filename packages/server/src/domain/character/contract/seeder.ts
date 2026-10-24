@@ -8,6 +8,7 @@ import type { ThemeBackground } from "@orb/contracts/theme";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { AssetId, CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
 import type { BulkImportLorebook, HasPrimaryBook } from "#domain/world-info";
+import type { Logger } from "#foundation/observability";
 import type { CharacterService } from "./service.ts";
 
 /** One authored default card: the create input, its author-shipped native tags (attached separately —
@@ -57,6 +58,7 @@ export type SeededCardContent = Pick<
 >;
 
 export interface DefaultCharacterSeederDeps {
+  readonly logger: Logger;
   /** `update` applies each freshly-created card's `presentation` (the theme/background override arm); `getCard`
    *  reads the live content a resumed seed compares against the shipped pack (#1444); `get` reads the DETAIL,
    *  the only projection carrying the carried-presentation columns, so a finished card keeps a look the user

@@ -6,7 +6,7 @@ import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import type { IsAdmin, IsOwner, RequireOwner } from "#domain/admin";
-import type { AuditEntry } from "#foundation/observability";
+import type { AuditEntry, Logger } from "#foundation/observability";
 import type { WorkloadContributions } from "./contribution.ts";
 import type {
   CancelWorkloadParams,
@@ -58,6 +58,7 @@ export type WorkloadServiceDeps = WorkloadServiceContext;
  * `<= 0` disables the timers (deterministic test seam — a test drives cancel via `AbortSignal` instead).
  */
 export interface WorkloadRunnerDeps {
+  readonly logger: Logger;
   readonly emitEvent: WorkloadServiceContext["emitEvent"];
   readonly db: Db;
   /** The per-kind contribution registry the engine dispatches through (built at compose from the owning

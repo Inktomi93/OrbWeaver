@@ -9,10 +9,12 @@ import type { SeedRosterPreset } from "#domain/roster-preset";
 import { createRosterSeedStep } from "#domain/roster-preset";
 import type { ContentSeedStep, LegacySeedLatches, UserContentSeeder } from "#domain/settings";
 import { createUserContentSeeder as createContentSeedPolicy } from "#domain/settings";
+import type { Logger } from "#foundation/observability";
 
 export type { UserContentSeeder } from "#domain/settings";
 
 export interface UserContentSeederDeps {
+  readonly logger: Logger;
   /** The operator switch (`SEED_CONTENT`); off ⇒ nothing is seeded and nothing is recorded. */
   readonly enabled: () => boolean;
   readonly manifest: readonly SeedManifestItem[];
@@ -59,6 +61,7 @@ export function createUserContentSeeder(deps: UserContentSeederDeps): UserConten
     }
   });
   return createContentSeedPolicy({
+    logger: deps.logger,
     enabled: () => deps.enabled(),
     steps,
     now: () => deps.now(),

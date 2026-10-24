@@ -12,9 +12,11 @@
 
 import type { BootDatabaseHandle } from "@orb/db/wiring";
 import { migrateHandoffOfferVocab } from "#domain/chat";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 
 export interface MigrateHandoffOfferVocabDeps {
+  readonly logger: Logger;
   readonly db: BootDatabaseHandle;
 }
 

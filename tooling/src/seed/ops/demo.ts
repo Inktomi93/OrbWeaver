@@ -63,6 +63,7 @@ import {
 } from "@orb/server/entry/boot";
 import { createProcessSeams, createServices, NO_SHARE_RELAY, SessionsCrypto, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
 import { env } from "@orb/server/foundation/env";
+import { createLogger } from "@orb/server/foundation/observability";
 import { print } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ExitCode } from "../../floor/cli/exit-contract.ts";
@@ -325,15 +326,17 @@ export async function runFullSeed(deps: RunFullSeedDeps): Promise<RunFullSeedRes
     now,
     sessionSecret,
     idSource: seams.idSource,
+    logger: seams.logger,
     crypto: sessionsCrypto,
     seedUserConnections: createLocalLightUserSeed({
+      logger: seams.logger,
       db: wiringDb,
       now,
       idSource: seams.idSource,
       onEmbedSpaceBound: (boundOwner) => ownersBoundBeforeCompose.push(boundOwner),
     }),
   });
-  const ownerIds = await seedOwner({ db: wiringDb, sessions: bootSessions, ownerHandles: handles, now });
+  const ownerIds = await seedOwner({ db: wiringDb, logger: seams.logger, sessions: bootSessions, ownerHandles: handles, now });
   const ownerId = ownerIds[0];
   if (ownerId === undefined) {
     throw new Error("seed demo: seedOwner returned no owner id");
@@ -419,7 +422,13 @@ export async function runDemoSeed(argv: readonly string[]): Promise<ExitCode> {
 
   const now = (): number => Date.now();
   const db = await createDb(env.DATABASE_URL);
-  await runBootMigrations({ db, databaseUrl: env.DATABASE_URL, backupDir: env.DATA_LAYOUT.backups, launched: DB_LAUNCHED });
+  await runBootMigrations({
+    db,
+    logger: createLogger(env.LOG_LEVEL),
+    databaseUrl: env.DATABASE_URL,
+    backupDir: env.DATA_LAYOUT.backups,
+    launched: DB_LAUNCHED,
+  });
   log("db migrated from the baseline");
 
   await runFullSeed({

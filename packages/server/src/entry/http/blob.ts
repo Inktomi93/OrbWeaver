@@ -13,6 +13,7 @@ import type { UserId } from "@orb/kit/ids";
 import { sniffMime } from "@orb/kit/image-sniff";
 import type { Hono } from "hono";
 import type { AssetsService } from "#domain/assets";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import type { PrincipalEnv } from "./contract/request-env.ts";
 
@@ -57,6 +58,7 @@ export interface BlobCasPort {
 }
 
 export interface BlobDeps {
+  readonly logger: Logger;
   readonly assets: BlobAssetsPort;
   readonly cas: BlobCasPort;
 }

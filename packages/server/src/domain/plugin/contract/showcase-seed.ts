@@ -1,9 +1,11 @@
 // Showcase seeding consumes settings completion/provenance ports; plugin owns install and upgrade policy.
 
 import type { Principal } from "@orb/contracts/identity";
+import type { Logger } from "#foundation/observability";
 import type { HeldSeedPlugin, PluginSeedOps, ShowcaseVersionReader } from "./seed-ops.ts";
 
 export interface ExamplePluginSeederDeps {
+  readonly logger: Logger;
   readonly slugs: readonly string[];
   /** Pack one example's source directory into installable bundle bytes; `null` when the pack ships no such
    *  slug. A missing example skips ONE plugin and does not fail the pass (the other slugs still install) —

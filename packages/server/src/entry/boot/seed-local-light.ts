@@ -30,9 +30,11 @@ import type { IdSource, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { createLocalLightUserSeed as createUserSeedPolicy, seedLocalLightAccounts, seedLocalLightConnections } from "#domain/connection";
 import { createListSeedAccountIds } from "#domain/sessions";
+import type { Logger } from "#foundation/observability";
 import { minter } from "../compose/minter.ts";
 
 export interface SeedLocalLightDeps {
+  readonly logger: Logger;
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;
   readonly now: () => number;
@@ -52,6 +54,7 @@ function seedDepsFrom(deps: SeedLocalLightDeps): Parameters<typeof seedLocalLigh
 
 export function createLocalLightUserSeed(deps: SeedLocalLightDeps): (userId: UserId) => Promise<void> {
   return createUserSeedPolicy({
+    logger: deps.logger,
     seedConnections: (userId) => seedLocalLightConnections(seedDepsFrom(deps), userId),
     onEmbedSpaceBound: (userId) => deps.onEmbedSpaceBound(userId),
   });
@@ -59,11 +62,13 @@ export function createLocalLightUserSeed(deps: SeedLocalLightDeps): (userId: Use
 
 /** The boot sweep enumerates every account, so it alone takes the boot grant (D335). */
 export interface SeedLocalLightBootDeps extends SeedLocalLightDeps {
+  readonly logger: Logger;
   readonly db: BootDatabaseHandle;
 }
 
 export async function seedLocalLightOnBoot(deps: SeedLocalLightBootDeps): Promise<number> {
   return await seedLocalLightAccounts({
+    logger: deps.logger,
     seedConnections: (userId) => seedLocalLightConnections(seedDepsFrom(deps), userId),
     onEmbedSpaceBound: (userId) => deps.onEmbedSpaceBound(userId),
     listAccounts: createListSeedAccountIds(deps.db),

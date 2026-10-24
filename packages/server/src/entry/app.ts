@@ -28,7 +28,7 @@ import { readGlobalSettings } from "#domain/settings";
 import type { ImportWorldInfoPort } from "#domain/world-info";
 import type { Env } from "#foundation/env/record";
 import { allowedHostsInput, resolveAllowedHosts } from "#foundation/env/record";
-import type { BugReportDiagnosticsRead, MemoryRecallInspector, RpgTraceInspector } from "#foundation/observability";
+import type { BugReportDiagnosticsRead, Logger, MemoryRecallInspector, RpgTraceInspector } from "#foundation/observability";
 import { observability, observabilityErrorHandler, registerDebugRoutes, securityEvent } from "#foundation/observability";
 import { versionIdentity } from "#foundation/version";
 import type { AllowedHostsReader, AuthConfig } from "#infra/auth";
@@ -178,6 +178,7 @@ type AppEnv = PrincipalEnv;
  * Everything `createApp` needs, all built upstream by `lifecycle.ts`.
  */
 export interface AppDeps {
+  readonly logger: Logger;
   /** The parsed env record (`createProcessSeams`, or a test root's own parse): the IP and Host allowlists, the trusted
    *  hops, the debug token, the client bundle and the build posture this app reads. */
   readonly env: Env;
@@ -369,6 +370,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
       maxBatchSize: TRPC_BATCH_MAX_ITEMS,
       createContext: () =>
         createContext({
+          logger: deps.logger,
           liveBuses: deps.liveBuses,
           auth: c.get("principal"),
           sessionId: c.get("sessionId"),
@@ -399,7 +401,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     // `settings.getVersion` from anywhere.
     identityVisible: (peer, headers) => ownerFallbackAllowed(peer, headers),
   });
-  registerBlob(app, { assets: deps.assets, cas: deps.cas });
+  registerBlob(app, { logger: deps.logger, assets: deps.assets, cas: deps.cas });
 
   // The Tier-C guest-source doorway. It sits beside `blob` because it is the same
   // KIND of thing — an owner-gated byte read whose response TYPE is the security property — and unlike the
@@ -460,6 +462,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     newOpaqueId: deps.newOpaqueId,
   });
   registerAuthRoutes(plain, {
+    logger: deps.logger,
     emitUserEvent: deps.liveBuses.user.publishUserEvent,
     sessions: deps.sessions,
     // W7a — ending a session ends the streams it opened. The registry is transport's; the EDGE composes here,

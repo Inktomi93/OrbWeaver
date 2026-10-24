@@ -26,15 +26,15 @@ import { createResolveUserEnabled } from "#domain/sessions";
 import { createStatsBatchWiring } from "#domain/stats";
 import type { ImportWorldInfoPort, WorldInfoService } from "#domain/world-info";
 import { createBulkImportLorebook, createHasPrimaryBook, createLinkCarriedBooks, createWorldInfoService } from "#domain/world-info";
-import type { AuditEntry } from "#foundation/observability";
+import type { AuditEntry, Logger } from "#foundation/observability";
 import type { LiveBuses } from "#transport/trpc";
-
 import { createHostPrincipalResolver } from "../auth/index.ts";
 import { minter } from "./minter.ts";
 import { createDeleteReachCapture } from "./room-reach.ts";
 
 /** What the world-info seam needs from the composition root. */
 export interface WorldInfoComposeDeps {
+  readonly logger: Logger;
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
 
   readonly idSource: IdSource;
@@ -92,7 +92,7 @@ export function buildWorldInfo(deps: WorldInfoComposeDeps): WorldInfoComposeResu
     emit: deps.emitDomainEvent,
     // The DELETE residual (§3.6): `removeBook` snapshots the book's rooms through this BEFORE the delete
     // CASCADEs its four scope junctions, then fans the captured set — a post-write reach would see ∅.
-    captureRoomReachForDelete: createDeleteReachCapture(db, deps.emitChatEventLive)["world-info"],
+    captureRoomReachForDelete: createDeleteReachCapture(db, deps.emitChatEventLive, deps.logger)["world-info"],
   });
 
   // Wired here so the live card-import path actually writes an imported card's embedded character_book.

@@ -2,9 +2,11 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { AssetId, PersonaId } from "@orb/kit/ids";
+import type { Logger } from "#foundation/observability";
 import type { PersonaService } from "./service.ts";
 
 export interface DefaultPersonaSeederDeps {
+  readonly logger: Logger;
   /** Is AUTO-CREATION on for this stack (see the file header)? `false` ⇒ `ensureSeeded` creates nothing and
    *  records nothing — not even the latch — so the zero-personas first-run trigger genuinely holds and the
    *  user names their own `{{user}}`. REQUIRED (never defaulted): a composer that has not decided which kind

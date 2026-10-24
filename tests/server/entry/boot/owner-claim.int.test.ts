@@ -36,6 +36,7 @@ function recordingLog(): { readonly log: { readonly warn: (fields: Record<string
 async function configuredClaim(root: ServerTestHarness): Promise<Awaited<ReturnType<typeof createConfiguredOidc>>> {
   return await createConfiguredOidc({
     db: databaseHandle(root.db),
+    logger: root.logger,
     now: root.clock.now,
     built: root.app,
     settings: NATIVE_OIDC_SETTINGS,

@@ -11,9 +11,11 @@
 
 import type { BootDatabaseHandle } from "@orb/db/wiring";
 import { healLegacyBackgroundPins } from "#domain/settings";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 
 export interface HealLegacyBackgroundPinsDeps {
+  readonly logger: Logger;
   readonly db: BootDatabaseHandle;
 }
 

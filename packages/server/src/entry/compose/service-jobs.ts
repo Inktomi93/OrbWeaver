@@ -9,7 +9,7 @@ import type { ServiceJobs } from "#transport/jobs";
 import { createServiceJobs } from "#transport/jobs";
 import type { Services } from "#transport/trpc";
 
-type ServiceJobDeps = Pick<WorkloadRunnerDeps, "db" | "now" | "contributions" | "audit"> &
+type ServiceJobDeps = Pick<WorkloadRunnerDeps, "db" | "now" | "contributions" | "audit" | "logger"> &
   Pick<BackgroundWork, "track" | "supervise"> & {
     readonly services: Pick<Services, "workloads" | "settings">;
     readonly ownerId: UserId | null;
@@ -22,7 +22,9 @@ type ServiceJobDeps = Pick<WorkloadRunnerDeps, "db" | "now" | "contributions" | 
 export function buildServiceJobs(deps: ServiceJobDeps): ServiceJobs {
   const nextRunnable = createNextRunnableWorkload({ db: deps.db, contributions: deps.contributions, emitEvent: deps.progress.emitWorkloadEvent });
   return createServiceJobs({
+    logger: deps.logger,
     catalog: {
+      logger: deps.logger,
       service: deps.services.workloads,
       ownerId: deps.ownerId,
       now: deps.now,
@@ -31,6 +33,7 @@ export function buildServiceJobs(deps: ServiceJobDeps): ServiceJobs {
       track: deps.track,
     },
     schedule: {
+      logger: deps.logger,
       tick: tickWorkloadSchedules,
       db: deps.db,
       now: deps.now,
@@ -39,8 +42,10 @@ export function buildServiceJobs(deps: ServiceJobDeps): ServiceJobs {
       track: deps.track,
     },
     worker: {
+      logger: deps.logger,
       track: deps.track,
       runnerDeps: {
+        logger: deps.logger,
         db: deps.db,
         now: deps.now,
         contributions: deps.contributions,

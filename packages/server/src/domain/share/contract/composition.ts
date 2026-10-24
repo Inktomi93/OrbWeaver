@@ -1,5 +1,6 @@
 import type { TimerScheduler } from "@orb/kit/time";
 import type { BindPosture } from "#foundation/env/record";
+import type { Logger } from "#foundation/observability";
 import type { AcmeIssuerDeps } from "#infra/acme";
 import type { AllowedHostsReader } from "#infra/auth";
 import type { ScopedEgressOptions } from "#infra/network";
@@ -7,6 +8,7 @@ import type { CloudflaredPin, RelayAssetFetch, SpawnRelay } from "#infra/relay";
 import type { ShareServiceDeps } from "./service.ts";
 
 export interface ShareGraphOptions {
+  readonly logger: Logger;
   readonly bind: Pick<BindPosture, "host" | "publicBind">;
   readonly appPort: () => number;
   readonly relayDir: string;

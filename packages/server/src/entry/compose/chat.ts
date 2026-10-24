@@ -374,6 +374,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   );
 
   const chatCtx: ChatContext = {
+    logger: input.logger,
     resolveCorpusSourceState: input.search.resolveCorpusSourceState,
     db,
     now,

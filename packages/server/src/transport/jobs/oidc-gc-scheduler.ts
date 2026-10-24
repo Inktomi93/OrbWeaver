@@ -17,6 +17,7 @@
 // `runOidcGc` takes one sweep and returns; the loop fires it at boot + on the injected timer.
 
 import { MS_PER_HOUR } from "@orb/kit/time";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import type { BackgroundWork } from "#infra/tasks";
 
@@ -32,6 +33,7 @@ type ScheduleOp = (fn: () => void, ms: number) => () => void;
 
 /** The DI bundle the scheduler closes over — the store sweep op + clock + timer, injected at entry/. */
 export interface OidcGcSchedulerDeps {
+  readonly logger: Logger;
   readonly track?: BackgroundWork["track"];
   /** Reap every tx with `expiresAt <= before`, returning the count. Entry binds `createOidcStore(...).deleteExpired`. */
   readonly sweep: (before: number) => Promise<number>;

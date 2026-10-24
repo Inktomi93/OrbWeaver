@@ -142,6 +142,7 @@ async function handleChatEvent(ctx: AutomationContext, event: BusEvent, chatId: 
       {
         db: ctx.db,
         registry: ctx.pluginSubscribers,
+        logger: ctx.logger,
         resolveViewerVisibility: ctx.ops.chat.resolveViewerVisibility,
         // The D16 anchor resolver for a fact that REFERENCES canon without carrying it (#1428) — the same op
         // the message-shaped resolve already uses, so the gate adds no seam and no second canon reader.
@@ -202,6 +203,7 @@ async function handleDomainEvent(ctx: AutomationContext, event: DomainEvent): Pr
       {
         db: ctx.db,
         registry: ctx.pluginSubscribers,
+        logger: ctx.logger,
         resolveViewerVisibility: ctx.ops.chat.resolveViewerVisibility,
         getMessageFact: ctx.ops.chat.getMessageFact,
       },

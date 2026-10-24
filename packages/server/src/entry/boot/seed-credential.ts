@@ -5,11 +5,13 @@ import type { Principal } from "@orb/contracts/identity";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { CredentialsService } from "#domain/credentials";
 import { CREDENTIALS_OP_CODES } from "#domain/credentials";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 
 const OPENROUTER_PROVIDER = "openrouter" as const;
 
 export interface SeedCredentialDeps {
+  readonly logger: Logger;
   /** The credentials front door — only the existence check + the add verb are needed. */
   readonly credentials: Pick<CredentialsService, "list" | "add">;
   /** The deployment OWNER principal (rows are scoped by `principal.userId`). */

@@ -34,9 +34,11 @@ import { errorMessage } from "@orb/kit/error-message";
 import type { PluginId, UserId } from "@orb/kit/ids";
 import type { PluginService } from "#domain/plugin";
 import { listEnabledAcrossOwners, PluginCrashedError } from "#domain/plugin";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 
 export interface ReactivatePluginsDeps {
+  readonly logger: Logger;
   readonly db: BootDatabaseHandle;
   /** The REAL owner-scoped verb — the same one the Plugins pane's switch drives. */
   readonly setEnabled: PluginService["setEnabled"];

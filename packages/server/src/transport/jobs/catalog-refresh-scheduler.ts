@@ -12,6 +12,7 @@ import { DomainConflictError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { MS_PER_DAY, MS_PER_HOUR } from "@orb/kit/time";
 import type { WorkloadService } from "#domain/workloads";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import type { BackgroundWork } from "#infra/tasks";
 
@@ -36,6 +37,7 @@ const REFRESH_INPUT: StartWorkloadInput = { kind: "refresh-model-catalog", param
 type ScheduleOp = (fn: () => void, ms: number) => () => void;
 
 export interface CatalogRefreshSchedulerDeps {
+  readonly logger: Logger;
   readonly track?: BackgroundWork["track"];
   readonly service: WorkloadService;
   /** Workload rows are enqueued with this owner (provenance; null = a pure system trigger). */

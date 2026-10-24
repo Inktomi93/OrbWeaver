@@ -2,6 +2,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { UserId } from "@orb/kit/ids";
+import type { Logger } from "#foundation/observability";
 import type { LegacySeedLatches, ReadSeededKeys } from "./composed-ops.ts";
 
 export interface ContentSeedStep {
@@ -10,6 +11,7 @@ export interface ContentSeedStep {
   readonly seed: (principal: Principal) => Promise<boolean>;
 }
 export interface ContentSeedPolicyDeps {
+  readonly logger: Logger;
   readonly enabled: () => boolean;
   readonly steps: readonly ContentSeedStep[];
   readonly now: () => number;

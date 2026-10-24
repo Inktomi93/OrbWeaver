@@ -14,9 +14,11 @@ import type { BootDatabaseHandle } from "@orb/db/wiring";
 import { reclaimChatLocksOnBoot } from "#domain/chat";
 import type { WorkloadContributions, WorkloadProgressBus } from "#domain/workloads";
 import { reclaimInFlightOnBoot } from "#domain/workloads";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 
 export interface ReclaimLocksDeps {
+  readonly logger: Logger;
   readonly emitWorkloadEvent: WorkloadProgressBus["emitWorkloadEvent"];
   readonly db: BootDatabaseHandle;
   /** The contribution registry the row read path validates params against (poison tolerance), and the

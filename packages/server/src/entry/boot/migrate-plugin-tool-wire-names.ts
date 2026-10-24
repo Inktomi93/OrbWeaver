@@ -38,9 +38,11 @@ import type { BootDatabaseHandle } from "@orb/db/wiring";
 import { migratePluginToolWireNames as migrateAutomationArms } from "#domain/automation";
 import { migratePluginToolWireNames as migrateToolCallRecords } from "#domain/chat";
 import { pluginToolWireNameRenames, pluginToolWireNameRenamesRefused, readInstalledPluginSlugs } from "#domain/plugin";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 
 export interface MigratePluginToolWireNamesDeps {
+  readonly logger: Logger;
   readonly db: BootDatabaseHandle;
 }
 

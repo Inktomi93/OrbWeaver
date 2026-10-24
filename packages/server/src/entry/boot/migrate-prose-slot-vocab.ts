@@ -14,9 +14,11 @@
 
 import type { BootDatabaseHandle } from "@orb/db/wiring";
 import { migrateProseSlotVocab } from "#domain/preset";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 
 export interface MigrateProseSlotVocabDeps {
+  readonly logger: Logger;
   readonly db: BootDatabaseHandle;
 }
 

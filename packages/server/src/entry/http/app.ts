@@ -28,6 +28,7 @@ type HttpAppDeps = Pick<
   | "importStagingDir"
   | "physicalPeer"
   | "env"
+  | "logger"
 > & {
   readonly built: Pick<
     ServicesResult,
@@ -103,6 +104,7 @@ export function createHttpApp(deps: HttpAppDeps): ReturnType<typeof createApp> {
   const { supervise, newOpaqueId } = built;
   let seedQueue: Promise<void> = Promise.resolve();
   return createApp({
+    logger: deps.logger,
     liveBuses: built.liveBuses,
     authConfig,
     now,

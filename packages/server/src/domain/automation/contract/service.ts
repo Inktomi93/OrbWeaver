@@ -22,7 +22,7 @@ import type { Can } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import type { AutomationFireId, AutomationRuleId, AutomationSuggestionId } from "@orb/kit/ids";
 import type { SerialLanes } from "@orb/kit/serial-lanes";
-import type { superviseDetached } from "#foundation/observability";
+import type { Logger, superviseDetached } from "#foundation/observability";
 import type {
   ApplyProseRewrite,
   ArmDispatch,
@@ -69,6 +69,7 @@ import type { StreamAuthority } from "./results.ts";
  *  template render passes to `{{random}}`/`{{roll}}` (test-determinism gate); `can` is the ONE authority
  *  seam (D17 — automation never compares `role === 'host'` itself). */
 export interface AutomationContext {
+  readonly logger: Logger;
   readonly serialLanes: SerialLanes;
   readonly db: Db;
   readonly now: () => number;

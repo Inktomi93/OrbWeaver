@@ -72,6 +72,7 @@ test("owner deletion between queue observation and atomic claim cannot upgrade a
   await runWorkload(
     {
       db: databaseHandle(root.db),
+      logger: root.logger,
       contributions: root.app.workloadContributions,
       audit: root.app.audit,
       now: root.clock.now,

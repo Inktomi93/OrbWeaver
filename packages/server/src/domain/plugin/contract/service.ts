@@ -37,6 +37,7 @@ import type {
 import type { Db } from "@orb/db";
 import type { AssetId, ChatId, PluginId, UserId } from "@orb/kit/ids";
 import type { ScheduleOp } from "@orb/kit/time";
+import type { Logger } from "#foundation/observability";
 import type {
   PluginBelts,
   PluginHostOps,
@@ -269,6 +270,7 @@ export interface PluginUiOutbox {
 
 /** The injected-op bundle every plugin verb closes over, assembled at the composition root. */
 export interface PluginContext {
+  readonly logger: Logger;
   readonly scheduleTimeout: ScheduleOp;
   readonly db: Db;
   readonly now: () => number;

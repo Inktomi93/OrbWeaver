@@ -3,9 +3,11 @@
 
 import type { BootDatabaseHandle } from "@orb/db/wiring";
 import { repairStaleJoinSeq } from "#domain/chat";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 
 export interface RepairStaleJoinSeqDeps {
+  readonly logger: Logger;
   readonly db: BootDatabaseHandle;
 }
 

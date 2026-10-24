@@ -80,6 +80,7 @@ export function createChatService(
   // Build the actual engine object, not a typed view of the request-authority context.
   const engine = createTurnEngine(
     {
+      logger: ctx.logger,
       db: ctx.db,
       now: ctx.now,
       newMessageId: ctx.newMessageId,

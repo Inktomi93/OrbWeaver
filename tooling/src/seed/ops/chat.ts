@@ -97,9 +97,10 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
   }
 
   const now = (): number => Date.now();
+  const seams = createProcessSeams();
   await migrateDataLayout({ layout: env.DATA_LAYOUT, env });
   const db = await createDb(env.DATABASE_URL);
-  await runBootMigrations({ db, databaseUrl: env.DATABASE_URL, backupDir: env.DATA_LAYOUT.backups, launched: DB_LAUNCHED });
+  await runBootMigrations({ db, logger: seams.logger, databaseUrl: env.DATABASE_URL, backupDir: env.DATA_LAYOUT.backups, launched: DB_LAUNCHED });
 
   const sessionSecret = env.SESSION_SECRET ?? CHAT_SEED_SESSION_SECRET;
   const rolePolicy = createSessionsRolePolicy(env);
@@ -109,7 +110,6 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
   // An owner whose encoder this seed binds gets its search sweeps enqueued once services exist (as boot does).
   const ownersBoundBeforeCompose: UserId[] = [];
   const wiringDb = databaseHandle(db);
-  const seams = createProcessSeams();
   const sessionsCrypto = SessionsCrypto.production();
   const bootSessions = createSessionsService({
     rolePolicy,
@@ -117,15 +117,17 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
     now,
     sessionSecret,
     idSource: seams.idSource,
+    logger: seams.logger,
     crypto: sessionsCrypto,
     seedUserConnections: createLocalLightUserSeed({
+      logger: seams.logger,
       db: wiringDb,
       now,
       idSource: seams.idSource,
       onEmbedSpaceBound: (boundOwner) => ownersBoundBeforeCompose.push(boundOwner),
     }),
   });
-  const ownerIds = await seedOwner({ db: wiringDb, sessions: bootSessions, ownerHandles: handles, now });
+  const ownerIds = await seedOwner({ db: wiringDb, logger: seams.logger, sessions: bootSessions, ownerHandles: handles, now });
   const ownerId = ownerIds[0];
   if (ownerId === undefined) {
     throw new Error("seed chat: seedOwner returned no owner id");

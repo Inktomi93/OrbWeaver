@@ -16,7 +16,7 @@ test("trusted boot moves its singleton seed key without taking another account's
   const owner = await root.principalFor(root.ownerId);
   const heldHandle = brandedId("Handle").parse("boot-held-handle");
   const otherId = await root.app.sessions.ensureUser(heldHandle);
-  const deps = { db: databaseHandle(root.db), sessions: root.app.sessions, now: root.clock.now };
+  const deps = { db: databaseHandle(root.db), logger: root.logger, sessions: root.app.sessions, now: root.clock.now };
   expect(await seedOwner({ ...deps, ownerHandles: ["boot-moved-owner"] })).toEqual([owner.userId]);
   expect(await root.app.sessions.loadUserById(owner.userId)).toMatchObject({ handle: "boot-moved-owner", enabled: true });
   expect(await (await root.internalCallerFor(owner.userId)).sessions.me()).toMatchObject({ handle: "boot-moved-owner", globalRole: "owner" });

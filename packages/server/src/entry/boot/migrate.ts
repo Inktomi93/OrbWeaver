@@ -4,6 +4,7 @@ import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import type { Db } from "@orb/db";
 import { assertReferentialIntegrity, backupBeforeMigrate, checkBaseline, hasPendingMigrations, pruneDbBackups, resetDevDatabase, runMigrations } from "@orb/db";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 
 // DB_LAUNCHED is a constant since the owner ruling on #316, not posture-scoped. Baseline mismatch is boot-
@@ -25,6 +26,7 @@ function resolveMigrationsFolder(): string {
 }
 
 export interface MigrateDeps {
+  readonly logger: Logger;
   readonly db: Db;
   /** libSQL URL — backed up aside (file: URLs only; `:memory:`/not-yet-created is a no-op) before migrating. */
   readonly databaseUrl: string;

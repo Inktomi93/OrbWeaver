@@ -17,7 +17,7 @@ import type {
 } from "@orb/contracts/identity";
 import type { UserId } from "@orb/kit/ids";
 import type { RequireAdmin, RequireOwner } from "#domain/admin";
-import type { AuditEntry } from "#foundation/observability";
+import type { AuditEntry, Logger } from "#foundation/observability";
 import type { AcmeIssuer, CertificateStore } from "#infra/acme";
 import type { RelayHostWriter } from "#infra/auth";
 import type { TlsTerminator, TlsTerminatorOptions } from "#infra/network";
@@ -37,6 +37,7 @@ export interface RelayController {
 
 /** The controller's seams, wired at the composition root (`entry/lifecycle.ts`). */
 export interface RelayControllerDeps {
+  readonly logger: Logger;
   readonly relay: ShareRelayKind;
   readonly launcher: RelayLauncher;
   /** The relay host registry's write side (`infra/auth`); this controller is its only writer. */
@@ -71,6 +72,7 @@ export interface CertificateTransitions extends AsyncDisposable {
 
 /** The controller's seams, wired at the composition root (`entry/lifecycle.ts`). */
 export interface CertificateControllerDeps {
+  readonly logger: Logger;
   readonly issuer: AcmeIssuer;
   readonly store: CertificateStore;
   /** Opens the https listener on the app listener's interface, forwarding to the app over loopback. */
@@ -128,6 +130,7 @@ export type ShareBootOutcome =
 
 /** What the composition root hands the share service. */
 export interface ShareServiceDeps extends ShareFacts, CertificateFacts {
+  readonly logger: Logger;
   readonly relay: RelayController;
   readonly certificate: CertificateController;
   /** The owner's stored IP certificate choice, or null when it is off. */

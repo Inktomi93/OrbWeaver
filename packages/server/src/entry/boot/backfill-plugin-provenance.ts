@@ -15,9 +15,11 @@
 import type { BootDatabaseHandle } from "@orb/db/wiring";
 import type { BackfillPluginProvenanceResult } from "#domain/character";
 import { backfillPluginProvenance } from "#domain/character";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 
 export interface BackfillPluginProvenanceOnBootDeps {
+  readonly logger: Logger;
   readonly db: BootDatabaseHandle;
 }
 

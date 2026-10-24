@@ -24,6 +24,7 @@ import type { Db } from "@orb/db";
 import { stripHiddenSpans } from "@orb/kit/content";
 import type { ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import type { AutomationOps, ResolvedTrigger } from "../contract/ops.ts";
 import { ownsFactSubject } from "./fact-scope.ts";
@@ -56,6 +57,7 @@ export function createPluginSubscriberRegistry(): PluginSubscriberRegistry {
  *  {@link isBelowHistoryFloor}). Threaded from `AutomationContext` at the fan-out's front door; both chat ops
  *  are already wired at compose, so the gate borrows rather than growing a new seam. */
 interface VisibilityDeps {
+  readonly logger: Logger;
   readonly db: Db;
   readonly resolveViewerVisibility: AutomationOps["chat"]["resolveViewerVisibility"];
   readonly getMessageFact: AutomationOps["chat"]["getMessageFact"];

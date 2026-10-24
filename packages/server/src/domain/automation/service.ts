@@ -46,6 +46,7 @@ export function createAutomationService(input: DbAssemblyInput<AutomationService
       notify: deps.notify,
       suggestions: deps.suggestions,
       newSuggestionId: deps.newSuggestionId,
+      logger: deps.logger,
     }),
   };
   // Built ONCE and injected into BOTH mints: a preset's rule set is validated and shaped by the SAME planner

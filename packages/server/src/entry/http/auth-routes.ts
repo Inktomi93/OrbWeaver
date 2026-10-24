@@ -45,6 +45,7 @@ import { buildAuthorizationUrl, calculatePKCECodeChallenge, randomNonce, randomP
 import type { SignupInviteOps } from "#domain/chat";
 import type { ProvisionIdentityOptions, RevokedSessionsSummary, SessionsRolePolicy, SessionsService } from "#domain/sessions";
 import { OIDC_PENDING_JOIN_TTL_MS, OIDC_TRANSACTION_TTL_MS } from "#domain/sessions";
+import type { Logger } from "#foundation/observability";
 import { getLog, groupsLogFields, securityEvent } from "#foundation/observability";
 import type { BackchannelLogoutVerifier, OidcExchange, OidcTransaction, OwnerClaimCode, PublicHttpMintNotice } from "#infra/auth";
 import {
@@ -540,6 +541,7 @@ interface OidcSignupDeps {
 }
 
 export interface AuthRoutesDeps {
+  readonly logger: Logger;
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
   readonly sessions: AuthSessionsPort;
   /** W7a — the live-socket eviction edge, applied wherever this file ends a session. */

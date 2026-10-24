@@ -59,15 +59,15 @@ import { createStatsService } from "#domain/stats";
 import type { TagService } from "#domain/tag";
 import type { WorkloadContributions, WorkloadProgressBus, WorkloadService } from "#domain/workloads";
 import { createWorkloadService } from "#domain/workloads";
-import type { AuditEntry, superviseDetached } from "#foundation/observability";
+import type { AuditEntry, Logger, superviseDetached } from "#foundation/observability";
 import type { LiveBuses } from "#transport/trpc";
-
 import { minter } from "./minter.ts";
 import { createDeleteReachCapture, createRoomEntityFan } from "./room-reach.ts";
 import { createVisibleRoomsReader } from "./visible-rooms.ts";
 
 /** What the search/discovery cluster seam needs from the composition root. */
 export interface SearchDiscoveryComposeDeps {
+  readonly logger: Logger;
   readonly fieldIndex: Pick<FieldIndexCache, "fields" | "suggest">;
   readonly emitWorkloadEvent: WorkloadProgressBus["emitWorkloadEvent"];
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
@@ -155,6 +155,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   const assetReads = createAssetEmbeddingReads(assets);
   const tier0RangeOf = createLiveTier0Range(deps.getEffectiveConfig);
   const embeddings = createEmbeddingsService({
+    logger: deps.logger,
     scheduleTimeout: deps.scheduleTimeout,
     precomputedEmbedding: precomputedSeedEmbedding,
     ...assetReads,
@@ -187,6 +188,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   });
 
   const indexer = createEmbeddingsIndexer({
+    logger: deps.logger,
     indexAsset: embeddings.indexAsset,
     store: embeddings.store,
     loadCardText,
@@ -204,13 +206,13 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   // `chat_events` INSERT is gone. A SECOND subscriber beside the indexer's, deliberately: the two consumers
   // have different filters (the indexer skips flag-only edits and is knob-gated) and the bus error-isolates
   // per subscriber, so a failing reach query can never cost an embedding.
-  const fanEntityUpdateToRooms = createRoomEntityFan(db, deps.emitChatEventLive);
+  const fanEntityUpdateToRooms = createRoomEntityFan(db, deps.emitChatEventLive, deps.logger);
   eventBus.subscribe(fanEntityUpdateToRooms);
 
   // The DELETE half of the bridge (design §3.6 residual): a persona/book delete NULLs/cascades its seating
   // junctions, so the fan-on-event subscriber above resolves ∅ post-write. The delete verbs snapshot their
   // reach BEFORE the delete through this capture and fan the returned thunk after — same live-only emit surface.
-  const deleteReachCapture = createDeleteReachCapture(db, deps.emitChatEventLive);
+  const deleteReachCapture = createDeleteReachCapture(db, deps.emitChatEventLive, deps.logger);
 
   // Named (not inlined into the service call) because TWO things are built from it: the Principal-scoped
   // `PersonaService` and the PRINCIPAL-LESS participants op (`domain/persona/contract/ops.ts`) the chat
@@ -249,6 +251,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   const resolvePersonasForParticipants = createResolvePersonasForParticipants(personaCtx);
   const joinerPersonaStatement = createJoinerPersonaStatement(personaCtx);
   const presetCtx: PresetContext = {
+    logger: deps.logger,
     db,
     now,
     newPresetId: minter(ID_PREFIX.preset, deps.idSource),

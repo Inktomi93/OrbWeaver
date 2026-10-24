@@ -39,6 +39,7 @@ import type {
   LoadOwnedCardOp,
   StampRefinerySignalsOp,
 } from "#domain/character";
+import type { Logger } from "#foundation/observability";
 import type {
   ApplyAsCopyParams,
   ApplyFieldsParams,
@@ -80,6 +81,7 @@ type ResolveUserProse = (userId: UserId) => Promise<ProseOverrides>;
 /** The DI bundle the refinery verbs close over (assembled at `entry/compose/refinery.ts`, surfaced via
  *  `context.ts`). */
 export interface RefineryContext {
+  readonly logger: Logger;
   readonly db: Db;
   readonly now: () => number;
   readonly newRefinerySessionId: () => RefinerySessionId;

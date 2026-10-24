@@ -1,8 +1,10 @@
+import type { Logger } from "#foundation/observability";
 import type { CatalogRefreshSchedulerDeps } from "../catalog-refresh-scheduler.ts";
 import type { WorkloadScheduleSchedulerDeps } from "../workload-schedule-scheduler.ts";
 import type { WorkloadsWorkerDeps } from "./workloads-worker.ts";
 
 export interface ServiceJobsDeps {
+  readonly logger: Logger;
   readonly catalog: CatalogRefreshSchedulerDeps;
   readonly schedule: WorkloadScheduleSchedulerDeps;
   readonly worker: Omit<WorkloadsWorkerDeps, "signal">;

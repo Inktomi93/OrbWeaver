@@ -6,6 +6,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { RoutableTask } from "@orb/contracts/inference";
 import type { InferenceRuntime, LocalLightModelSlot, LocalLightPrefetchTarget } from "@orb/inference";
 import { LOCAL_LIGHT_MODEL_SLOTS, NoConnectionError } from "@orb/inference";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 
 const LOCAL_LIGHT_PROVIDER_ID = "local-light";
@@ -21,6 +22,7 @@ const TASK_SLOTS: readonly { readonly slot: LocalLightModelSlot; readonly tasks:
 ];
 
 export interface LocalLightPrefetchPlanDeps {
+  readonly logger: Logger;
   /** The runtime's resolve — the SAME fold a search uses, so the plan cannot disagree with the first request. */
   readonly resolve: InferenceRuntime["resolve"];
   /** The principals whose bindings the plan reads (the box owner at boot; empty ⇒ no plan). */

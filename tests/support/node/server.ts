@@ -27,7 +27,7 @@ import type { createConfiguredOidc, createHttpApp, ServicesDeps, ServicesResult 
 import { OWNER_CLAIM_URL_FILE_NAME } from "@orb/server/foundation/data-layout";
 import type { Env } from "@orb/server/foundation/env";
 import { authModeSource, bindPostureInput, hostEnvAllowlist, resolveBindPosture } from "@orb/server/foundation/env";
-import { createLogger, getLog, logger } from "@orb/server/foundation/observability";
+import { createLogger, getLog, logger as processLogger } from "@orb/server/foundation/observability";
 import { systemConnector, systemFetch } from "@orb/server/infra/network";
 import { appRouter, createCaller, createContext } from "@orb/server/transport/trpc";
 import type { Clock } from "../iso/clock.ts";
@@ -166,6 +166,8 @@ export interface UnclaimedServerTestHarness extends ComposedServerRoot, Omit<Ser
 
 export interface ServerTestHarness extends ComposedServerRoot, AsyncDisposable {
   readonly app: ServicesResult;
+  /** The root's logger: every line the graph writes outside a request goes through it, so a suite spies on it. */
+  readonly logger: ServicesDeps["logger"];
   readonly services: ServicesResult["services"];
   readonly db: Db;
   /** The env record this root parsed and composed with. */
@@ -258,13 +260,13 @@ function httpOverridesOf(options: Pick<ServerHarnessOptions, "physicalPeer">): P
 // The graph writes through the root's own logger, but sites item 1271 has not moved yet still write the process
 // logger, so a root borrows that one's level too and restores it on dispose.
 function borrowLogLevel(level: ServerHarnessOptions["logLevel"]): Disposable {
-  const previous = logger.level;
+  const previous = processLogger.level;
   if (level !== undefined) {
-    logger.level = level;
+    processLogger.level = level;
   }
   return {
     [Symbol.dispose]: (): void => {
-      logger.level = previous;
+      processLogger.level = previous;
     },
   };
 }
@@ -312,7 +314,7 @@ async function closeHarnessGraph(
   }
 }
 
-type HarnessConstruction = Pick<ServerTestHarness, "db" | "env" | "clock" | "idSource" | "timers"> & {
+type HarnessConstruction = Pick<ServerTestHarness, "db" | "env" | "clock" | "idSource" | "timers" | "logger"> & {
   readonly authConfig: AuthConfig;
   readonly rolePolicy: SessionsRolePolicy;
 };
@@ -327,12 +329,14 @@ async function prepareHarnessOwner(
     idSource,
     rolePolicy,
     sessionsCrypto,
-  }: Pick<HarnessConstruction, "clock" | "idSource" | "rolePolicy"> & Pick<ServicesDeps, "sessionsCrypto"> & { readonly wiringDb: ServicesDeps["db"] },
+    logger,
+  }: Pick<HarnessConstruction, "clock" | "idSource" | "rolePolicy" | "logger"> &
+    Pick<ServicesDeps, "sessionsCrypto"> & { readonly wiringDb: ServicesDeps["db"] },
 ): Promise<Pick<BootOwner, "ownerId" | "ownersBoundBeforeAssembly">> {
   if (options.ownerId !== undefined) {
     return { ownerId: options.ownerId ?? undefined, ownersBoundBeforeAssembly: [] };
   }
-  return await prepareBootOwner({ db: wiringDb, now: clock.now, idSource, rolePolicy, sessionSecret: SESSION_SECRET, sessionsCrypto, ownerSeed: {} });
+  return await prepareBootOwner({ db: wiringDb, logger, now: clock.now, idSource, rolePolicy, sessionSecret: SESSION_SECRET, sessionsCrypto, ownerSeed: {} });
 }
 
 const ACTOR_HANDLE_PREFIX = "actor";
@@ -418,6 +422,7 @@ async function configuredOidcFor(
     clock,
     timers,
     secretsDir,
+    logger,
   }: Omit<HarnessConstruction, "idSource" | "db"> & Pick<ServicesDeps, "db"> & Pick<ShareGraphOptions, "secretsDir">,
 ): Promise<(Awaited<ReturnType<typeof createConfiguredOidc>> & { readonly ownerClaimFile: string }) | undefined> {
   if (authConfig.mode !== "oidc") {
@@ -428,6 +433,7 @@ async function configuredOidcFor(
   const oidc = construction.use(
     await assembleOidc({
       db,
+      logger,
       now: clock.now,
       built: app,
       scheduleInterval: timers.interval,
@@ -437,7 +443,7 @@ async function configuredOidcFor(
   // Boot writes the claim beside the root's other secrets, so it follows a caller's `secretsDir` as sharing does.
   const ownerClaimFile = join(secretsDir, OWNER_CLAIM_URL_FILE_NAME);
   await announceOwnerClaim({
-    log: getLog(),
+    log: logger,
     sessions: app.sessions,
     ownerId: await app.sessions.getOwnerUserId(),
     ownerClaim: oidc.ownerClaim,
@@ -467,6 +473,7 @@ function shareInputsFor(options: ServerHarnessOptions | UnclaimedServerHarnessOp
   return {
     bind,
     appPort,
+    logger: inputs.logger,
     relayDir: options.relayDir ?? inputs.env.DATA_LAYOUT.relay,
     secretsDir: options.secretsDir ?? inputs.env.DATA_LAYOUT.secrets,
     now: inputs.clock.now,
@@ -506,7 +513,7 @@ function workloadsFor(
   };
   const tickWorkloadSchedulesOnce = async (): Promise<void> => {
     shutdown.throwIfAborted();
-    await tickWorkloadSchedules({ db: execution.db, now: execution.now, start: app.services.workloads.start });
+    await tickWorkloadSchedules({ db: execution.db, logger: execution.logger, now: execution.now, start: app.services.workloads.start });
   };
   return { runAdmittedWorkload, tickWorkloadSchedules: tickWorkloadSchedulesOnce };
 }
@@ -516,11 +523,18 @@ type ConfiguredOidc = Awaited<ReturnType<typeof createConfiguredOidc>>;
 /** Assemble the production OIDC owner over a built root with `settings`, as boot does for an `oidc` record; the
  *  caller disposes it. A root in another mode reaches the OIDC routes' owners this way. */
 export async function configureOidc(
-  root: Pick<ServerTestHarness, "db" | "app" | "clock" | "timers">,
+  root: Pick<ServerTestHarness, "db" | "app" | "clock" | "timers" | "logger">,
   settings: Parameters<typeof createConfiguredOidc>[0]["settings"],
 ): Promise<ConfiguredOidc> {
   const { createConfiguredOidc: assembleOidc } = await import("@orb/server/entry/compose");
-  return await assembleOidc({ db: databaseHandle(root.db), built: root.app, now: root.clock.now, settings, scheduleInterval: root.timers.interval });
+  return await assembleOidc({
+    db: databaseHandle(root.db),
+    logger: root.logger,
+    built: root.app,
+    now: root.clock.now,
+    settings,
+    scheduleInterval: root.timers.interval,
+  });
 }
 
 /** Build an owned in-process server graph; a supplied database remains its caller's resource. */
@@ -549,6 +563,7 @@ export async function createServerHarness(
   const env = harnessEnv(options, { rootDir });
   const authConfig: AuthConfig = { ...authConfigFromEnv(env), ...options.authConfig };
   const rolePolicy = createSessionsRolePolicy(env);
+  const logger = createLogger(env.LOG_LEVEL);
   construction.use(processObservability.openRoot());
   construction.use(borrowLogLevel(options.logLevel));
   let appLifetime: ServicesResult | undefined;
@@ -557,7 +572,7 @@ export async function createServerHarness(
   let shareLifetime: ShareGraph | undefined;
   construction.defer(() => closeHarnessGraph(httpLifetime, oidcLifetime, appLifetime, shareLifetime));
   const { modelCacheDir, ...dataSlots } = await directoriesFor(env, options);
-  const inputs: HarnessConstruction = { db, env, clock, idSource, timers, authConfig, rolePolicy };
+  const inputs: HarnessConstruction = { db, env, clock, idSource, timers, logger, authConfig, rolePolicy };
   const { createHttpApp: assembleHttp, createServices, createShareGraph, SessionsCrypto, UNSUPERVISED_RESTART } = await import("@orb/server/entry/compose");
   const wiringDb = databaseHandle(db);
   const sessionsCrypto = options.sessionsCrypto ?? SessionsCrypto.production();
@@ -570,7 +585,7 @@ export async function createServerHarness(
   shareLifetime = sharing;
   const app = await createServices({
     env,
-    logger: createLogger(env.LOG_LEVEL),
+    logger,
     hostEnvAllowlist,
     authModeSource: authModeSource(),
     authConfig,
@@ -603,6 +618,7 @@ export async function createServerHarness(
   construction.defer(() => manualWorkloadAbort.abort());
   const workloadExecution = {
     db: wiringDb,
+    logger,
     now: clock.now,
     contributions: app.workloadContributions,
     audit: app.audit,
@@ -616,6 +632,7 @@ export async function createServerHarness(
   let closing = false;
   const httpApp = assembleHttp({
     built: app,
+    logger,
     env,
     ...httpOverridesOf(options),
     authConfig,
@@ -633,7 +650,7 @@ export async function createServerHarness(
     ...(oidcLifetime === undefined ? {} : { oidc: oidcLifetime }),
     onOwnerClaimed: () => {
       app.supervise("server-harness-owner-claim", "share.resumeAfterOwnerClaim", {}, async () => {
-        getLog().info({ outcome: await app.services.share.resumeAfterOwnerClaim() }, "share owner claim settled");
+        getLog(logger).info({ outcome: await app.services.share.resumeAfterOwnerClaim() }, "share owner claim settled");
       });
     },
   });
@@ -643,6 +660,7 @@ export async function createServerHarness(
   const internalCallerFor = async (userId: UserId | null): Promise<ReturnType<typeof createCaller>> =>
     createCaller(
       createContext({
+        logger,
         liveBuses: app.liveBuses,
         auth: userId === null ? null : await principalFor(userId),
         sessionId: null,
@@ -661,6 +679,7 @@ export async function createServerHarness(
   const lifetime = construction.move();
   return Object.assign(new ComposedServerRoot(app, db, internalCallerFor, http), {
     env,
+    logger,
     clock,
     ids,
     idSource,

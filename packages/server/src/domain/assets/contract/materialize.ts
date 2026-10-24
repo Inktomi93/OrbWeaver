@@ -2,6 +2,7 @@ import type { StoredAsset } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
 import type { GeneratedImage } from "@orb/inference";
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
+import type { Logger } from "#foundation/observability";
 import type { SafeFetchOptions, SafeFetchResult } from "#infra/network";
 import type { BackgroundStoreParams } from "./background-store.ts";
 
@@ -13,6 +14,7 @@ export interface MaterializeBackgroundDeps {
 }
 
 export interface InlineReplyImageDeps {
+  readonly logger: Logger;
   readonly storeGenerated: (ownerId: UserId, bytes: Uint8Array, mime: string) => Promise<Pick<StoredAsset, "assetId">>;
   readonly maxBytes: () => number;
   /** The root's scoped egress `safeFetch`, so the download runs through the injected network execution. */

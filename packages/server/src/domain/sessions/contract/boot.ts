@@ -1,10 +1,12 @@
 import type { Db } from "@orb/db";
 import type { BootDatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
+import type { Logger } from "#foundation/observability";
 import type { BootSecretResolution } from "#infra/crypto";
 import type { SessionsService } from "./service.ts";
 
 /** Trusted boot owner provisioning; no owner Principal exists before this operation. */
 export interface SeedOwnerContext {
+  readonly logger: Logger;
   readonly db: Db;
   readonly sessions: Pick<SessionsService, "ensureUser" | "renameUserHandle">;
   readonly ownerHandles: readonly string[];

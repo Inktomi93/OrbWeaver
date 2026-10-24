@@ -252,6 +252,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     unregister: chatCompose.promptTransforms.unregister,
   });
   const automation = createAutomationService({
+    logger: deps.logger,
     db,
     now,
     prng: deps.random,
@@ -380,6 +381,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
   const plugin: PluginService = pluginResources.use(
     createPluginService(
       {
+        logger: deps.logger,
         db,
         now,
         scheduleTimeout: deps.scheduleTimeout,

@@ -11,6 +11,7 @@
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { MS_PER_MINUTE } from "@orb/kit/time";
 import type { ScheduleTickDeps } from "#domain/workloads";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import type { BackgroundWork } from "#infra/tasks";
 
@@ -28,6 +29,7 @@ type TickSchedulesOp = (deps: ScheduleTickDeps) => Promise<void>;
 /** The DI bundle the scheduler driver closes over — the tick op and its deps (db + clock + `start`) + the
  *  timer, all injected at entry/. */
 export interface WorkloadScheduleSchedulerDeps {
+  readonly logger: Logger;
   readonly track?: BackgroundWork["track"];
   readonly tick: TickSchedulesOp;
   readonly db: DatabaseHandle;
@@ -45,7 +47,7 @@ export interface WorkloadScheduleSchedulerDeps {
 export function startWorkloadScheduleScheduler(deps: WorkloadScheduleSchedulerDeps): () => void {
   const log = getLog().child({ component: LOG_COMPONENT });
   const checkMs = deps.checkIntervalMs ?? DEFAULT_CHECK_INTERVAL_MS;
-  const tickDeps: ScheduleTickDeps = { db: deps.db, now: deps.now, start: deps.start };
+  const tickDeps: ScheduleTickDeps = { logger: deps.logger, db: deps.db, now: deps.now, start: deps.start };
 
   const safeTick = (): void => {
     const completion = deps.tick(tickDeps).catch((err: unknown) => {
