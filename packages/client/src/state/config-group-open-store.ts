@@ -13,9 +13,12 @@ import { createPersistedStore } from "./create-persisted-store.ts";
 interface ConfigGroupOpenState {
   /** The EXPANDED groups. Absent from the list = collapsed (the default for every group). */
   readonly openIds: readonly ConfigGroupId[];
+  /** The groups whose ADVANCED FOLD is expanded. Absent = collapsed; it outlives the pane's unmount, so a
+   *  rail round-trip returns to the posture the reader left. */
+  readonly foldOpenIds: readonly ConfigGroupId[];
 }
 
-const DEFAULT_STATE: ConfigGroupOpenState = { openIds: [] };
+const DEFAULT_STATE: ConfigGroupOpenState = { openIds: [], foldOpenIds: [] };
 
 const PERSIST_VERSION = 1;
 
@@ -26,18 +29,33 @@ function sanitizeIds(v: unknown): readonly ConfigGroupId[] {
 function migrate(persisted: unknown): ConfigGroupOpenState {
   // v1 stored the list as `openKinds` (collection kinds only); the same ids are live group ids today.
   const raw = persisted as { openIds?: unknown; openKinds?: unknown } | null;
-  return { openIds: sanitizeIds(raw?.openIds ?? raw?.openKinds) };
+  const foldRaw = persisted as { foldOpenIds?: unknown } | null;
+  return { openIds: sanitizeIds(raw?.openIds ?? raw?.openKinds), foldOpenIds: sanitizeIds(foldRaw?.foldOpenIds) };
 }
 
 const useConfigGroupOpenStore = createPersistedStore<ConfigGroupOpenState>("config-group-open", (): ConfigGroupOpenState => DEFAULT_STATE, {
   version: PERSIST_VERSION,
   migrate,
-  partialize: (s): ConfigGroupOpenState => ({ openIds: s.openIds }),
+  partialize: (s): ConfigGroupOpenState => ({ openIds: s.openIds, foldOpenIds: s.foldOpenIds }),
 });
 
 /** Reactive: is this group expanded? A boolean selector (no fresh object per render). */
 export function useConfigGroupOpen(id: ConfigGroupId): boolean {
   return useConfigGroupOpenStore((s) => s.openIds.includes(id));
+}
+
+/** Reactive: is this group's Advanced fold expanded? */
+export function useConfigGroupFoldOpen(id: ConfigGroupId): boolean {
+  return useConfigGroupOpenStore((s) => s.foldOpenIds.includes(id));
+}
+
+/** Record the reader's answer for one group's Advanced fold. Idempotent. */
+export function setConfigGroupFoldOpen(id: ConfigGroupId, open: boolean): void {
+  const { foldOpenIds } = useConfigGroupOpenStore.getState();
+  if (foldOpenIds.includes(id) === open) {
+    return;
+  }
+  useConfigGroupOpenStore.setState({ foldOpenIds: open ? [...foldOpenIds, id] : foldOpenIds.filter((k) => k !== id) }, false, "configGroupOpen/fold");
 }
 
 /** Expand one group without collapsing anything — the deep-link arm (`openConfigTo`, a member selection)

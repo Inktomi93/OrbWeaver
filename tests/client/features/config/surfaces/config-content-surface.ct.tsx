@@ -70,6 +70,23 @@ test("a superseded delayed anchor cannot flash or scroll after its read arrives"
   await expect(looks).toBeFocused();
 });
 
+test("the group's Advanced fold keeps its open state when the content leaves and returns", async ({ corpus, mount, page }) => {
+  await routeTrpc(page, {
+    "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
+    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpus.reads["settings.getUserSettings"]),
+    "settings.listThemes": createCorpusReadResponder("settings.listThemes", corpus.reads["settings.listThemes"]),
+  });
+  await mount<typeof ConfigAnchorStory>("tests/client/features/config/surfaces/_anchor-stories/ConfigAnchorStory", {});
+  const fold = page.getByRole("button", { name: /Customize this look/u });
+  await expect(fold).toHaveAttribute("aria-expanded", "false");
+  await fold.click();
+  await expect(fold).toHaveAttribute("aria-expanded", "true");
+  await page.getByRole("button", { name: "Unmount content", exact: true }).click();
+  await expect(page.locator('[data-slot="config-content"]')).toHaveCount(0);
+  await page.getByRole("button", { name: "Remount content", exact: true }).click();
+  await expect(fold).toHaveAttribute("aria-expanded", "true");
+});
+
 test("unmount disconnects a pending anchor observer from its retired browser element", async ({ corpus, mount, page }) => {
   const hold = trpcHold<"settings.getUserSettings">();
   await routeTrpc(page, {

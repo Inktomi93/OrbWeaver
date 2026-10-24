@@ -33,7 +33,14 @@ function AnchorSubject(): ReactElement {
         Jump to looks
       </Button>
       <Button onClick={(): void => setMounted(false)}>Unmount content</Button>
-      <div style={{ height: 560, width: 900, minHeight: 0, display: "flex" }}>{mounted ? <ConfigContent /> : null}</div>
+      <Button onClick={(): void => setMounted(true)}>Remount content</Button>
+      <div style={{ height: 560, width: 900, minHeight: 0, display: "flex" }}>
+        {mounted ? (
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <ConfigContent />
+          </div>
+        ) : null}
+      </div>
     </Stack>
   );
 }
