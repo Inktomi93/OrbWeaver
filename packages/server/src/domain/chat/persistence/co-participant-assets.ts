@@ -1,7 +1,6 @@
-// The co-participant reference reads that let a room member render another member's assets. Every read starts
-// from the asset and requires a structural reference into a room where the CALLER is a present member; a hash
-// or an id alone never resolves. A link arm also needs the linking message at or above the caller's history floor.
-// The fallback order between the avatar and attachment arms is the verb's.
+// The co-participant reference reads that let a room member render another member's assets. Every read needs a
+// structural reference into a room where the CALLER is present, never a bare hash or id; a link arm also needs the
+// linking message at or above the caller's history floor. The fallback order between the arms is the verb's.
 
 import type { AssetBlobRef } from "@orb/contracts/assets";
 import type { Db } from "@orb/db";
