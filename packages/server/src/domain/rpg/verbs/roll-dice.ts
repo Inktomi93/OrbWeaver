@@ -7,6 +7,7 @@ import { rpgAttributeModifier } from "@orb/contracts/rpg";
 import type { DiceNotation } from "@orb/kit/dice";
 import { parseDiceNotation, rollDiceNotation } from "@orb/kit/dice";
 import { DomainOperationError } from "@orb/kit/errors";
+import { readOwnKey } from "@orb/kit/objects";
 import type { RollDiceParams } from "../contract/params.ts";
 import type { RollDiceResult } from "../contract/results.ts";
 import type { RpgContext, RpgGameRow, RpgService } from "../contract/service.ts";
@@ -45,7 +46,8 @@ async function resolveAbility(
     throw new DomainOperationError("rpg_unknown_attribute", `attribute "${key}" is not in the profile`);
   }
   const sheet = await findSheet(ctx.db, game.id, { userId: params.principal.userId });
-  const score = sheet?.sheet.attributes[ability.key];
+  // A host label can mint an `Object.prototype` member name as the key; only the sheet's own score counts.
+  const score = sheet === undefined ? undefined : readOwnKey(sheet.sheet.attributes, ability.key);
   if (score === undefined) {
     throw new DomainOperationError("rpg_unset_ability", `Set your ${ability.label} score before rolling an ability check.`);
   }

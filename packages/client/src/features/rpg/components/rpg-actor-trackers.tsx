@@ -28,6 +28,7 @@
 
 import type { RpgActorView, RpgTrackerDef, RpgTrackerValue } from "@orb/contracts/rpg";
 import { meterDisplayNumber, RPG_TRACKER_VALUE_EMPTY, trackerCeiling } from "@orb/contracts/rpg";
+import { readOwnKey } from "@orb/kit/objects";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Icon, X } from "@orb/ui/icons";
@@ -201,7 +202,7 @@ export function ActorMeters({
         <ActorTrackerMeter
           key={def.key}
           def={def}
-          value={values[def.key] ?? RPG_TRACKER_VALUE_EMPTY}
+          value={readOwnKey(values, def.key) ?? RPG_TRACKER_VALUE_EMPTY}
           ordinal={i}
           {...(subject === undefined ? {} : { subject })}
           {...(edit === undefined ? {} : { edit })}
@@ -232,7 +233,7 @@ export function ActorTrackerRows({
         <ActorTrackerText
           key={def.key}
           def={def}
-          value={values[def.key] ?? RPG_TRACKER_VALUE_EMPTY}
+          value={readOwnKey(values, def.key) ?? RPG_TRACKER_VALUE_EMPTY}
           {...(subject === undefined ? {} : { subject })}
           {...(edit === undefined ? {} : { edit })}
         />

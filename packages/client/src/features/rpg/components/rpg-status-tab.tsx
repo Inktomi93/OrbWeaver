@@ -20,6 +20,7 @@
 import { blobUrl } from "@orb/contracts/assets";
 import type { RpgActorOp, RpgActorRef, RpgActorView } from "@orb/contracts/rpg";
 import { resolveTrackerMaxOverride, rpgActorVolatileLockBase, trackerNumber } from "@orb/contracts/rpg";
+import { readOwnKey } from "@orb/kit/objects";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
@@ -100,7 +101,7 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
       onEditTrackerMax: (key, nextMax): { readonly draggedTo: number } | null => {
         const clampedMax = Math.max(1, nextMax); // the real `max ≥ 1` floor (Tier-1)
         const def = actor.trackers.find((d) => d.key === key);
-        const reading = trackerNumber(actor.volatile?.trackerValues[key]);
+        const reading = trackerNumber(actor.volatile === null ? undefined : readOwnKey(actor.volatile.trackerValues, key));
         // THIS character's ceiling (owner amendment): the override rides the actor's own value plane, and
         // resolves to `null` when it equals the game default — one gesture, one write, no drift class.
         const override = def === undefined ? clampedMax : resolveTrackerMaxOverride(def, clampedMax);

@@ -15,6 +15,7 @@
 //     drops the key), and it has no band to sit in — clamping it would resurrect the floor-value invention.
 
 import type { RpgActorView, RpgStatProfile } from "@orb/contracts/rpg";
+import { readOwnKey } from "@orb/kit/objects";
 import { Grid, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
@@ -43,7 +44,7 @@ export function AttributeGrid({
             <StatCell
               key={def.key}
               label={def.label}
-              value={actor.sheet.attributes[def.key] ?? null}
+              value={readOwnKey(actor.sheet.attributes, def.key) ?? null}
               {...(def.hint === "" ? {} : { hint: def.hint })}
               {...(onEditAttribute === undefined
                 ? {}

@@ -15,6 +15,7 @@
 
 import type { RpgActorRef, RpgActorView, RpgNpcGuideField, RpgNpcRef, RpgRelationship, RpgTrackerDef, RpgTrackerEntry } from "@orb/contracts/rpg";
 import { meterDisplayNumber, RPG_NPC_GUIDE_FIELDS, trackerCeiling, trackerReading } from "@orb/contracts/rpg";
+import { readOwnKey } from "@orb/kit/objects";
 import { Button } from "@orb/ui/button";
 import { ChevronDown, ChevronRight, Icon, UserPlus, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
@@ -71,7 +72,7 @@ function SceneNpcCard({ actor, edit }: { readonly actor: RpgActorView; readonly 
   // The trackers THIS actor carries, resolved server-side through the ONE carrier predicate — so the card
   // shows exactly the set the model's write schema offered for them (never a re-derivation).
   const values = actor.volatile?.trackerValues ?? {};
-  const entries: RpgTrackerEntry[] = actor.trackers.map((def) => ({ def, value: values[def.key] ?? null }));
+  const entries: RpgTrackerEntry[] = actor.trackers.map((def) => ({ def, value: readOwnKey(values, def.key) ?? null }));
   const meters = entries.filter((e) => e.def.shape === "meter");
   const texts = entries
     .filter((e) => e.def.shape !== "meter")
