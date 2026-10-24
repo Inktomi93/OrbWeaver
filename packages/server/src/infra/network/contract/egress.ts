@@ -5,6 +5,7 @@ import type { TimerScheduler } from "@orb/kit/time";
 import type pino from "pino";
 import type { buildConnector } from "undici";
 import type { Env } from "#foundation/env/record";
+import type { TraceRing } from "#src/foundation/observability/contract/tracing.ts";
 
 export const ENDPOINT_ADMISSIONS = ["public", "admitted", "refused", "invalid"] as const;
 
@@ -86,6 +87,8 @@ export interface ScopedEgressOptions {
   readonly env: Env;
   /** The root's logger every egress line falls back to outside a request. */
   readonly log: pino.Logger;
+  /** The root's trace ring a supervised egress cleanup seals into; `null` where no debug surface reads one. */
+  readonly traces: TraceRing | null;
 }
 
 export interface ScopedEgress extends AsyncDisposable {

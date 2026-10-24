@@ -55,7 +55,7 @@ export function ConnectionEditorUnavailable({ connection, onDone, onRemoved, fin
     : "This provider is no longer registered on this server. This connection can't run or be edited until the provider is restored.";
 
   return (
-    <Container className="@container/connection-editor" name="connection-editor">
+    <Container name="connection-editor">
       <Stack data-slot="connection-editor-unavailable" gap="block">
         <ConnectionEditorHeader label={connection.label} onDone={onDone} />
 

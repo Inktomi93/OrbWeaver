@@ -159,11 +159,30 @@ const PNG_CHUNK_IMPORT = {
   message: "Use the import or export domain for PNG card-chunk operations.",
 };
 
+// dependency-cruiser sees only literal import edges, so a computed specifier or a host loader reaches any db door
+// unseen (D335). `node:module` itself is a dependency-cruiser rule; these are the loaders no import names.
+const MODULE_LOADER_SYNTAX = [
+  {
+    selector: "ImportExpression:not([source.type='Literal'])",
+    message: "Write a dynamic import with a string-literal specifier; the db admission rules see only literal specifiers (D335).",
+  },
+  {
+    selector:
+      ":matches(MemberExpression[property.name='getBuiltinModule'], MemberExpression[property.value='getBuiltinModule'], Property[key.name='getBuiltinModule'])",
+    message: "Import the builtin by a literal specifier; process.getBuiltinModule hands back node:module past the db admission rules (D335).",
+  },
+  {
+    selector: ":matches(Property[key.name='importModuleDynamically'], Property[key.value='importModuleDynamically'])",
+    message: "A vm script gets no dynamic-import hook; it would load any module past the db admission rules (D335).",
+  },
+];
+
 const SERVER_SYNTAX = [
   {
     selector: String.raw`:matches(Literal[value=type(string)][raw=/corsproxy\.io/], TemplateElement[value.raw=/corsproxy\.io/])`,
     message: "D61 B5a: the rejected third-party CORS proxy cannot be spelled in server or inference literals; use the guarded network owner directly.",
   },
+  ...MODULE_LOADER_SYNTAX,
 ];
 
 // Literal bidi controls and C0/C1 controls make the reviewed text differ from what runs (trojan source).
@@ -755,6 +774,13 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       ignores: ["packages/ui/src/layout/**", "packages/ui/src/markdown/**"],
       rules: { "orb/no-raw-container-widths": "error" },
     },
+    {
+      files: ["packages/client/src/**/*.tsx", "packages/ui/src/**/*.tsx"],
+      rules: { "orb/no-layout-context-props": "error" },
+    },
+    { files: ["packages/client/src/features/**/*.{ts,tsx}"], rules: { "orb/no-raw-container-in-features": "error" } },
+    { files: ["packages/client/src/features/*/surfaces/**/*.tsx"], rules: { "orb/surface-consumes-container": "error" } },
+    { files: ["packages/client/src/features/*/anchors/**/*.tsx"], rules: { "orb/anchor-provides-container": "error" } },
     { files: ["packages/server/src/primitives/role-data/index.ts"], rules: { "orb/role-data-export-surface-0": "error" } },
     { files: ["packages/server/src/primitives/role-data/registry.ts"], rules: { "orb/role-data-export-surface-1": "error" } },
     { files: ["packages/server/src/primitives/role-data/decode/index.ts"], rules: { "orb/role-data-export-surface-2": "error" } },
@@ -956,6 +982,22 @@ const PRINCIPAL_RULES: { id: string; notUnder?: string[] }[] = [
     notUnder: ["packages/server/src/entry/**"],
   },
 ];
+// Files whose module state is one process's by construction: each is its own process root or a documented
+// per-process latch, so `orb/no-module-state` does not apply. Each entry names its reason.
+const MODULE_STATE_OWN_PROCESS = [
+  // The one process.env reader: the .env file's provenance is written once, at load, from this process's file.
+  "packages/server/src/foundation/env/index.ts",
+  // The process's build identity, read once and frozen so every surface reports the same string.
+  "packages/server/src/foundation/version/index.ts",
+  // The OTel provider and context manager are process-global by design; the boot latch guards their one install.
+  "packages/server/src/foundation/observability/tracing.ts",
+  // The plugin broker, its watchdog and its guest Worker are each their own process root.
+  "packages/server/src/infra/plugin-host/broker-entry.ts",
+  "packages/server/src/infra/plugin-host/broker-watchdog.ts",
+  "packages/server/src/infra/plugin-host/worker-runtime.ts",
+  // The compiled QuickJS WASM module the guest runtime shares, compiled once per process.
+  "packages/server/src/infra/plugin-host/module.ts",
+];
 const PRINCIPAL_SCOPE = rootSources("@server", "@inference");
 
 export default [
@@ -977,6 +1019,7 @@ export default [
     rules: { "no-restricted-imports": ["error", { patterns: [PNG_CHUNK_IMPORT] }] },
   },
   { files: rootSources("@server", "@inference"), rules: { "no-restricted-syntax": ["error", INVISIBLE_CONTROL_SYNTAX, ...SERVER_SYNTAX] } },
+  { files: rootSources("@db"), rules: { "no-restricted-syntax": ["error", INVISIBLE_CONTROL_SYNTAX, ...MODULE_LOADER_SYNTAX] } },
   {
     files: ["packages/server/src/domain/settings/seed-themes.ts", "packages/server/src/domain/preset/seed.ts"],
     rules: {
@@ -1011,6 +1054,12 @@ export default [
     ignores: ["packages/server/src/**/persistence/**"],
     plugins: { orb: localPlugin },
     rules: { "orb/assumes-single-replica": "error" },
+  },
+  {
+    files: rootSources("@server"),
+    ignores: MODULE_STATE_OWN_PROCESS,
+    plugins: { orb: localPlugin },
+    rules: { "orb/no-module-state": "error" },
   },
   { files: rootSources("@server", "@inference"), plugins: { orb: localPlugin }, rules: { "orb/detached-work-traced": "error" } },
   { files: [...rootSources("@tooling"), ...PLAYWRIGHT_TESTS], plugins: { orb: localPlugin }, rules: { "orb/evaluate-no-scope-capture": "error" } },

@@ -16,6 +16,7 @@ import { createSessionsRolePolicy } from "@orb/server/domain/sessions";
 import { createHostPrincipalResolver } from "@orb/server/entry/auth";
 import { createProcessSeams, createServices, NO_SHARE_RELAY, SessionsCrypto, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
 import { env } from "@orb/server/foundation/env";
+import { createAuditWiring } from "@orb/server/foundation/observability";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const SEED_AUTHOR = castId<Handle>("seed-vector-author");
@@ -25,9 +26,12 @@ const scratch = await mkdtemp(join(tmpdir(), "orb-seed-vectors-"));
 process.chdir(scratch);
 const db = await createDb(pathToFileURL(join(scratch, "seed.sqlite")).href);
 await runMigrations(db, join(root, "packages/db/src/migrations"));
+const seams = createProcessSeams();
+const wiringDb = databaseHandle(db);
 const built = await createServices({
-  ...createProcessSeams(),
-  db: databaseHandle(db),
+  ...seams,
+  audit: createAuditWiring(wiringDb, seams.idSource, seams.logger),
+  db: wiringDb,
   now: Date.now,
   ownerId: undefined,
   // The isolated author owns this disposable box, so the admin settings verb can turn corpus indexing off.

@@ -1,5 +1,6 @@
 import { useSectionRegistry } from "@orb/client/state";
 import { CtClientProviders } from "@orb/testkit/browser";
+import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 
 function ConfigList(): ReactElement {
@@ -15,9 +16,9 @@ export function ConfigListStory(): ReactElement {
   return (
     <CtClientProviders>
       <div style={{ height: 560, width: 420, minHeight: 0, display: "flex" }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <Container style={{ flex: 1, minWidth: 0 }}>
           <ConfigList />
-        </div>
+        </Container>
       </div>
     </CtClientProviders>
   );

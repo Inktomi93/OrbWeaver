@@ -16,6 +16,7 @@ const unscriptedFetch: ScopedEgressOptions["fetch"] = () => Promise.reject(new E
 test("an exact hostname port cannot be re-widened by the resolved address's containing CIDR", async () => {
   const resolvedHosts: string[] = [];
   await using egress = createScopedEgress({
+    traces: null,
     log: createTestLogger(),
     env: createTestEnv(),
     timers: quietTimers(),
@@ -34,6 +35,7 @@ test("an exact hostname port cannot be re-widened by the resolved address's cont
 
 test("the exact declared port and a different hostname inside the CIDR remain admitted", async () => {
   await using egress = createScopedEgress({
+    traces: null,
     log: createTestLogger(),
     env: createTestEnv(),
     timers: quietTimers(),
@@ -48,6 +50,7 @@ test("the exact declared port and a different hostname inside the CIDR remain ad
 
 test("a public resolved address is not turned into a private-endpoint port restriction", async () => {
   await using egress = createScopedEgress({
+    traces: null,
     log: createTestLogger(),
     env: createTestEnv(),
     timers: quietTimers(),

@@ -23,6 +23,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { openNewestChat, typeAndSend, waitForStreamOpen } from "./support/chat-room.ts";
+import { frameCursor, tapStream } from "./support/stream-tap.ts";
 import { WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import { getChatBindingRow, listCanon, listCharacters, localEngineConnection, startChat } from "./support/trpc.ts";
 
@@ -54,8 +55,10 @@ test("the chat Model role is what's stored AND what the turn actually rides (loc
   const characterId = (await listCharacters())[0]?.id ?? castId<CharacterId>("");
   expect(characterId).not.toBe("");
   const chatId = await startChat([characterId]);
+  await tapStream(page);
+  const since = frameCursor(page);
   await openNewestChat(page);
-  await waitForStreamOpen(page);
+  await waitForStreamOpen(page, chatId, since);
 
   const beforePosts = await genPostCount();
   await typeAndSend(page.getByRole("textbox", { name: "Message" }), "Reply with exactly: routing-probe-ok");

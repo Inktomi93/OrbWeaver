@@ -24,6 +24,7 @@ import process from "node:process";
 import type { DeploymentRenderPolicy } from "@orb/contracts/chat";
 import type { DebugErrorsResponse, RpgTracesResponse, WireCapturesResponse } from "@orb/contracts/debug";
 import { databaseForOwner } from "@orb/db/wiring-owner";
+import type { BoundedRing } from "@orb/kit/bounded-ring";
 import type { BugReportRecord } from "@orb/kit/bug-report";
 import { resolveEvidenceWindow } from "@orb/kit/evidence-window";
 import type { AutomationRuleId, CharacterId, ChatId, UserId } from "@orb/kit/ids";
@@ -33,11 +34,9 @@ import { bodyLimit } from "hono/body-limit";
 import { z } from "zod";
 import { diagnosticsPostureInput, diagnosticsPostureWarnings, resolveDiagnosticsPosture } from "#foundation/env/record";
 import { versionIdentity } from "#foundation/version";
-import { getAuditFailureSnapshot } from "../audit.ts";
 import type { DebugAuthOptions, DebugRoutesOptions } from "../contract/debug.ts";
 import type { Logger } from "../contract/logging.ts";
-import { logRing, recentRequests, securityEvent } from "../logger.ts";
-import { getTraceByRequestId, recentTraces } from "../tracing.ts";
+import { securityEvent } from "../logger.ts";
 import { captureNowMs, mintBugReportId, readBuildIdentity, secretLiterals, snapshotServerEvidence, writeBugReport } from "./bug-report.ts";
 import {
   automationFireRows,
@@ -175,9 +174,9 @@ interface LogQuery {
 }
 
 /** Pure filter over the log ring — kept out of the route handler so the registrar stays simple. */
-function collectLogs(query: LogQuery): Record<string, unknown>[] {
+function collectLogs(ring: BoundedRing<string>, query: LogQuery): Record<string, unknown>[] {
   const logs: Record<string, unknown>[] = [];
-  for (const line of logRing.recent(MAX_RING_READ)) {
+  for (const line of ring.recent(MAX_RING_READ)) {
     if (query.q !== undefined && !line.includes(query.q)) {
       continue;
     }
@@ -199,9 +198,9 @@ function collectLogs(query: LogQuery): Record<string, unknown>[] {
   return logs;
 }
 
-function collectErrors(limit: number): Record<string, unknown>[] {
+function collectErrors(ring: BoundedRing<string>, limit: number): Record<string, unknown>[] {
   const errors: Record<string, unknown>[] = [];
-  for (const line of logRing.recent(MAX_RING_READ)) {
+  for (const line of ring.recent(MAX_RING_READ)) {
     const record = parseLogRingLine(line);
     if (record !== null && ringLineLevel(record) >= ERROR_LEVEL) {
       errors.push(record);
@@ -274,6 +273,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions): voi
     wireCaptureEnabled,
     auth = options.env.DEBUG_TOKEN,
     log,
+    rings,
   } = options;
   const db = handle === undefined ? undefined : databaseForOwner(handle);
   const authConfig = debugAuthConfigOf(auth);
@@ -343,7 +343,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions): voi
         window: resolveEvidenceWindow(capturedAt.getTime(), parsed.data.windowMinutes),
         note: parsed.data.note,
         client: parsed.data.client ?? null,
-        server: snapshotServerEvidence(resolveEvidenceWindow(capturedAt.getTime(), parsed.data.windowMinutes), {
+        server: snapshotServerEvidence(resolveEvidenceWindow(capturedAt.getTime(), parsed.data.windowMinutes), rings, {
           wireCaptureEnabled,
           ...(rpgTrace === undefined ? {} : { rpgTrace }),
           ...(memoryRecall === undefined ? {} : { memoryRecall }),
@@ -361,7 +361,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions): voi
 
   app.get("/api/_debug/logs", (c) =>
     c.json({
-      logs: collectLogs({
+      logs: collectLogs(rings.logs, {
         limit: toDebugLimit(c.req.query("limit"), DEFAULT_LOG_LIMIT),
         minLevel: levelValue(c.req.query("level")),
         requestId: c.req.query("requestId"),
@@ -379,7 +379,9 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions): voi
     });
   }
 
-  app.get("/api/_debug/errors", (c) => c.json({ errors: collectErrors(toDebugLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT)) } satisfies DebugErrorsResponse));
+  app.get("/api/_debug/errors", (c) =>
+    c.json({ errors: collectErrors(rings.logs, toDebugLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT)) } satisfies DebugErrorsResponse),
+  );
 
   // The WIRE-CAPTURE read (TASK-24): the final provider request body each chat backend sent, filterable by
   // `chatId` (the harness's correlation key) or `backend`. Host-only (this debug gate); read-only, no table.
@@ -403,7 +405,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions): voi
       providerId: c.req.query("backend"),
       limit: toDebugLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
     };
-    const captures = recentWireCaptures(filter);
+    const captures = recentWireCaptures(rings.wireCaptures, filter);
     return c.json({ enabled: wireCaptureEnabled(), count: captures.length, captures } satisfies WireCapturesResponse);
   });
 
@@ -416,7 +418,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions): voi
   // into the engine on exactly the gate it wires the request sink on.
   app.get("/api/_debug/wire/outcomes", (c) => {
     const chatId = c.req.query("chatId");
-    const outcomes = recentTurnOutcomes({
+    const outcomes = recentTurnOutcomes(rings.turnOutcomes, {
       ...(chatId !== undefined ? { chatId: castId<ChatId>(chatId) } : {}),
       limit: toDebugLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
     });
@@ -427,14 +429,14 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions): voi
     const userId = c.req.query("userId");
     const limit = toDebugLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT);
     if (userId === undefined) {
-      return c.json({ requests: recentRequests(limit) });
+      return c.json({ requests: rings.requests.recent(limit) });
     }
-    const filtered = recentRequests(Number.MAX_SAFE_INTEGER).filter((r) => r.userId === userId);
+    const filtered = rings.requests.recent().filter((r) => r.userId === userId);
     return c.json({ requests: filtered.slice(0, limit) });
   });
 
   app.get("/api/_debug/traces", (c) => {
-    const traces = recentTraces(toDebugLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT)).map((t) => ({
+    const traces = rings.traces.recent(toDebugLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT)).map((t) => ({
       requestId: t.requestId,
       startedAt: t.startedAt,
       durationMs: t.durationMs,
@@ -445,7 +447,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions): voi
     return c.json({ count: traces.length, traces });
   });
   app.get("/api/_debug/traces/:requestId", (c) => {
-    const traceRecord = getTraceByRequestId(c.req.param("requestId"));
+    const traceRecord = rings.traces.get(c.req.param("requestId"));
     return traceRecord === undefined ? c.json({ error: "no trace recorded for that requestId" }, NOT_FOUND) : c.json(traceRecord);
   });
 
@@ -456,7 +458,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions): voi
   }
 
   if (db !== undefined) {
-    app.get("/api/_debug/db/stats", async (c) => c.json({ tables: await tableCounts(db), auditFailures: getAuditFailureSnapshot() }));
+    app.get("/api/_debug/db/stats", async (c) => c.json({ tables: await tableCounts(db), auditFailures: options.auditFailures() }));
     app.get("/api/_debug/db/integrity", async (c) => c.json(await integrityProbe(db, log)));
     app.get("/api/_debug/db/chat/:id", async (c) => c.json(await inspectChatState(db, castId<ChatId>(c.req.param("id")))));
     // LIST probes: id-discovery so a harness stops re-deriving ids through the client query cache.

@@ -1,7 +1,7 @@
 import type { StatementToken } from "@orb/db/wiring";
 import { statementToken } from "@orb/db/wiring-owner";
 import type { ExternalId, SessionId, SessionToken, UserId } from "@orb/kit/ids";
-import { getLog, logAudit } from "#foundation/observability";
+import { getLog } from "#foundation/observability";
 import type { Sealed } from "#infra/crypto";
 import type { RevokedSession, RevokedSessionsSummary } from "../contract/results.ts";
 import type { SessionsContext, SessionsService } from "../contract/service.ts";
@@ -58,8 +58,7 @@ export function createRevoke(
     if (revoked === undefined) {
       return null;
     }
-    await logAudit(
-      ctx.db,
+    await ctx.audit(
       {
         actorUserId: revoked.userId,
         action: AUTH_LOGOUT,
@@ -67,7 +66,6 @@ export function createRevoke(
         entityId: revoked.id,
       },
       now,
-      { idSource: ctx.idSource, log: ctx.logger },
     );
     // WHICH session this logout ended (W7a) + its OIDC end-session hint (#141). The row is the only place
     // the id exists — the caller holds a token, and the token is not an identity. Returning it is what lets

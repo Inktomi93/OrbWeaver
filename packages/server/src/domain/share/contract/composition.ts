@@ -9,6 +9,8 @@ import type { ShareServiceDeps } from "./service.ts";
 
 export interface ShareGraphOptions {
   readonly logger: Logger;
+  /** The root's trace ring the share egress's supervised cleanups seal into. */
+  readonly traces: ScopedEgressOptions["traces"];
   readonly bind: Pick<BindPosture, "host" | "publicBind">;
   readonly appPort: () => number;
   readonly relayDir: string;

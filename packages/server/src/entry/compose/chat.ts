@@ -96,8 +96,8 @@ import type { SettingsService } from "#domain/settings";
 import { createResolveRetainedChatAccountingScope, createResolveRetainedChatRebase, createStatsBatchWiring } from "#domain/stats";
 import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
 import { createCopyHandoffBooks, createCountHandoffBooks } from "#domain/world-info";
-import type { AuditEntry, Logger } from "#foundation/observability";
-import { createAuditWiring, recordMemoryLog } from "#foundation/observability";
+import type { AuditEntry, AuditWiring, Logger, TraceRing } from "#foundation/observability";
+import { recordMemoryLog } from "#foundation/observability";
 import { waitForTimer } from "#infra/timers";
 import { createRegexApplyReplace, createRegexTest } from "#primitives/regex";
 import { captureUserRole } from "#primitives/role-data";
@@ -152,6 +152,9 @@ export interface ChatComposeInput {
   /** The frozen-host → `Principal` bridge for role-sensitive ops. */
   readonly resolveHostPrincipal: (userId: UserId) => Promise<Principal>;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  /** The root's audit wiring, for the statements that must commit with their primary write. */
+  readonly auditStatements: AuditWiring;
+  readonly traces: TraceRing;
   readonly can: Can;
   /** D121-E: the regex domain's four-scope resolve op (the host-tier sources a turn assembles against). */
   readonly resolveRegexSources: ResolveRegexSources;
@@ -304,7 +307,7 @@ export interface ChatComposeResult extends AsyncDisposable {
 export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   const { db, now, emitChatEvent, timers } = input;
   const stats = createStatsBatchWiring(input.idSource);
-  const auditStatements = createAuditWiring(db, input.idSource, input.logger);
+  const auditStatements = input.auditStatements;
 
   const lifetime = new AsyncDisposableStack();
   // biome-ignore lint/nursery/useDisposables: lifetime adopts this resource for the returned owner; local using would close it before callers can use the graph.
@@ -376,6 +379,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
 
   const chatCtx: ChatContext = {
     logger: input.logger,
+    traces: input.traces,
     resolveCorpusSourceState: input.search.resolveCorpusSourceState,
     db,
     now,

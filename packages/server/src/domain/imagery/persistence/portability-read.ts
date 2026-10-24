@@ -1,5 +1,6 @@
 // Bulk history projection gates every output through the actual asset owner, including uncurated
 // images. Owned subject handles are labels for restore, never a carried foreign character authority.
+import { portableCharacterHandle } from "@orb/contracts/character";
 import type { PortableImageryCall, PortableImageryExecution } from "@orb/contracts/imagery";
 import { imageryImportSourceSchema } from "@orb/contracts/imagery";
 import { costDetailsSchema, generationUsageDetailsSchema, responseCacheSchema, tokenDetailsSchema } from "@orb/contracts/inference";
@@ -47,13 +48,15 @@ export async function readOwnedImageryCalls(db: Db, ownerId: UserId, nativeOnly 
     .select({ generation: imageryGenerations, subjectHandle: characters.handle, assetHash: assets.hash })
     .from(imageryGenerations)
     .innerJoin(assets, eq(assets.id, imageryGenerations.assetId))
-    .leftJoin(characters, and(eq(characters.id, imageryGenerations.subjectCharacterId), eq(characters.ownerId, ownerId)))
+    // A synthetic group row names no card, so it projects as no subject.
+    .leftJoin(characters, and(eq(characters.id, imageryGenerations.subjectCharacterId), eq(characters.ownerId, ownerId), eq(characters.synthetic, false)))
     .where(and(eq(assets.ownerId, ownerId), nativeOnly ? isNull(imageryGenerations.importSource) : undefined))
     .orderBy(asc(imageryGenerations.createdAt), asc(imageryGenerations.id));
   const calls: { readonly key: string; readonly call: PortableImageryCall }[] = [];
   for (const { generation: row, subjectHandle, assetHash } of rows) {
     const key = row.callId ?? row.id;
-    const call = projectedCall(row, subjectHandle, assetHash);
+    // The handle the subject's exported card carries, so the restore re-links to the card it restored.
+    const call = projectedCall(row, subjectHandle === null ? null : portableCharacterHandle(subjectHandle), assetHash);
     const prior = calls.find((item) => item.key === key);
     if (prior === undefined) {
       calls.push({ key, call });

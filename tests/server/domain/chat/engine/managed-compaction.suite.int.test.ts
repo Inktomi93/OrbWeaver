@@ -6,7 +6,7 @@ import { DEFAULT_COMPACT_INSTRUCTIONS, DEFAULT_PROMPT_CONFIG } from "@orb/contra
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { makePromptConfig } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL, processObservability } from "@orb/testkit/node/composed";
+import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "@orb/testkit/node/composed";
 import { sdkEngineRoom } from "./engine-physical.ts";
 import { ENGINE_SDK_MARKER, ENGINE_SDK_MODEL, ENGINE_SDK_REPLY } from "./engine-sdk-physical.mjs";
 
@@ -30,12 +30,12 @@ test("agent-sdk fit drops rebuild the durable marker through the chat's own nati
 
 test("the detached post-turn marker opens its own successful request trace", async () => {
   await using fixture = await sdkEngineRoom({ history: 8 });
-  const before = new Set(processObservability.traces(50).map(({ requestId }) => requestId));
+  const before = new Set(fixture.h.root.observability.traces(50).map(({ requestId }) => requestId));
   const outer = `controlled-foreground-compaction:${fixture.h.chatId}`;
-  expect((await processObservability.inRequestSpan(outer, "controlled public generate", () => fixture.turn(SMALL_INTENT))).aborted).toBe(false);
+  expect((await fixture.h.root.observability.inRequestSpan(outer, "controlled public generate", () => fixture.turn(SMALL_INTENT))).aborted).toBe(false);
   await fixture.h.root.settleBackground();
   expect(await fixture.marker()).toMatchObject({ compactSummary: ENGINE_SDK_MARKER });
-  const traces = processObservability
+  const traces = fixture.h.root.observability
     .traces(50)
     .filter(
       (trace) =>

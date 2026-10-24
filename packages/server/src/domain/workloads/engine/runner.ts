@@ -296,7 +296,7 @@ export async function runWorkload(deps: WorkloadRunnerDeps, row: WorkloadRunnabl
   };
 
   const cancelTimers = startLeaseTimers(deps, row, controller, lease);
-  const contribution = withRequestSpan(`workload:${row.id}`, "workload.run", { kind: row.kind }, () =>
+  const contribution = withRequestSpan({ traces: deps.traces, requestId: `workload:${row.id}` }, "workload.run", { kind: row.kind }, () =>
     dispatchAndRun(deps, { ctx, row, report, signal: controller.signal }),
   );
   let leaseFailed = false;

@@ -1,4 +1,4 @@
-// domain/embeddings/substrate/avatar-analysis-availability — the per-process memory of "this summarize model
+// domain/embeddings/substrate/avatar-analysis-availability — one root's memory of "this summarize model
 // cannot analyse an avatar", so the indexer asks a backend ONCE instead of once per asset, every sweep,
 // forever (#2422).
 //
@@ -13,41 +13,36 @@
 // about the model it replaced. The key is the same `roleClients.summarizerModel` string the caption row is
 // stamped with, so the latch and the provenance column can never disagree about which model is meant.
 //
-// ASSUMES(single-replica): module scope, per process — like `connection/substrate/vllm-gen-window-cache`,
-// and for the same reason (the engines are loopback-local on the one-box deployment). A restart re-asks, which
-// is the right window: swapping the served checkpoint is a restart-scale event.
+// ONE PER COMPOSITION ROOT: a root's verdict about its own engine never skips another root's call. A restart
+// re-asks, which is the right window: swapping the served checkpoint is a restart-scale event.
 //
 // DELIBERATELY NOT PERSISTED and deliberately not a negative CACHE with a TTL: a durable row would outlive the
-// engine swap that fixes it, and a TTL would re-introduce the wake on a schedule. "Ask once per process" is
+// engine swap that fixes it, and a TTL would re-introduce the wake on a schedule. "Ask once per root" is
 // the whole contract.
 
-/** Model ids the summarize backend has refused as nonexistent/unavailable this process. */
-const unservable = new Set<string>();
+import type { AvatarAnalysisAvailability } from "../contract/service.ts";
 
-/** Model ids whose skip has already been announced — the reason is logged ONCE, not once per asset. */
-const announced = new Set<string>();
-
-/** Has this model already told us it cannot serve an avatar analysis? */
-export function avatarAnalysisUnservable(model: string): boolean {
-  return unservable.has(model);
-}
-
-/** Record the backend's own refusal for this model. Returns true when THIS call latched it (the caller logs
- *  the loud line exactly then — a later asset's skip is silent by design). */
-export function markAvatarAnalysisUnservable(model: string): boolean {
-  if (unservable.has(model)) {
-    return false;
-  }
-  unservable.add(model);
-  return true;
-}
-
-/** True the FIRST time a given model's skip is announced — the once-per-process log gate for a skip that is
- *  decided before any call (a summarize model that declares no image input). */
-export function announceAvatarAnalysisSkip(model: string): boolean {
-  if (announced.has(model)) {
-    return false;
-  }
-  announced.add(model);
-  return true;
+/** A root's empty availability latch. */
+export function createAvatarAnalysisAvailability(): AvatarAnalysisAvailability {
+  // Model ids the summarize backend has refused as nonexistent/unavailable for this root.
+  const unservable = new Set<string>();
+  // Model ids whose skip has already been announced — the reason is logged ONCE, not once per asset.
+  const announced = new Set<string>();
+  return {
+    unservable: (model) => unservable.has(model),
+    markUnservable: (model): boolean => {
+      if (unservable.has(model)) {
+        return false;
+      }
+      unservable.add(model);
+      return true;
+    },
+    announceSkip: (model): boolean => {
+      if (announced.has(model)) {
+        return false;
+      }
+      announced.add(model);
+      return true;
+    },
+  };
 }

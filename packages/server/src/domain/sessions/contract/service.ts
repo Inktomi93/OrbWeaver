@@ -7,7 +7,7 @@ import type { Db } from "@orb/db";
 import type { AwaitableStatementToken, StatementToken } from "@orb/db/wiring";
 import type { ExternalId, Handle, IdSource, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
-import type { Logger } from "#foundation/observability";
+import type { AuditWiring, Logger } from "#foundation/observability";
 import type { Sealed, SecretBox } from "#infra/crypto";
 import type { CreateSessionParams, ProvisionIdentityOptions } from "./params.ts";
 import type {
@@ -39,6 +39,8 @@ export interface SessionsCryptoOps {
 /** The DI bundle every verb closes over, wired at the composition root. */
 export interface SessionsContext {
   readonly logger: Logger;
+  /** The root's best-effort audit writer (`AuditWiring.log`), so a dropped login or logout row counts in that root's window. */
+  readonly audit: AuditWiring["log"];
   readonly rolePolicy: SessionsRolePolicy;
   db: Db;
   now: () => number;

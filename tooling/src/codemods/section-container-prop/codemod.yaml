@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "section-container-prop"
+version: "0.1.0"
+description: "Rewrite a Section that spells the raw container class to its container prop."
+author: "Orbweaver"
+license: "AGPL-3.0-only"
+targets:
+  languages: ["tsx"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

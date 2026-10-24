@@ -5,7 +5,7 @@ import type { DatabaseHandle } from "@orb/db/wiring";
 import type { IdSource, UserId } from "@orb/kit/ids";
 import type { SessionsRolePolicy, SessionsService } from "#domain/sessions";
 import { createSessionsService } from "#domain/sessions";
-import type { Logger } from "#foundation/observability";
+import type { AuditWiring, Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import type { SessionsCrypto } from "../compose/sessions-crypto.ts";
 import { createLocalLightUserSeed } from "./seed-local-light.ts";
@@ -19,6 +19,8 @@ export interface BootOwnerSeed {
 
 export interface BootOwnerInput {
   readonly logger: Logger;
+  /** The root's audit writer, the same wiring compose receives. */
+  readonly audit: AuditWiring["log"];
   readonly db: DatabaseHandle;
   readonly now: () => number;
   readonly idSource: IdSource;
@@ -79,6 +81,7 @@ export async function prepareBootOwner(input: BootOwnerInput): Promise<BootOwner
   const ownersBoundBeforeAssembly: UserId[] = [];
   const sessions = createSessionsService({
     logger: input.logger,
+    audit: input.audit,
     rolePolicy: input.rolePolicy,
     db: input.db,
     now: input.now,

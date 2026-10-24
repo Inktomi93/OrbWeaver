@@ -361,12 +361,13 @@ export function MessageRow({
       <Stack
         role="article"
         aria-label={attribution.name ?? undefined}
+        container={true}
         data-message-id={message.id}
         gap="row"
         data-slot="message-row"
         data-role={role}
         data-kind={attribution.kind}
-        className={cn("group @container", skin.outer(role), enterClasses)}
+        className={cn("group", skin.outer(role), enterClasses)}
       >
         {selecting ? <Checkbox aria-label="Select message" checked={selected} onCheckedChange={(): void => toggleMessageSelected(message.id)} /> : null}
         {/* #1728 arm B — flex for `anchored`, a three-rail GRID for `gutterCentred`, whose rails centre the

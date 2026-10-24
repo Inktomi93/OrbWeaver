@@ -1,5 +1,44 @@
 import { alternation, DIRECT_CLASS_LITERAL_TEMPLATE, MATCH_MEDIA, TANSTACK_FORM_MINTS } from "./syntax.ts";
+
+// Attributes that tell a component where it is placed. The container answers that question (UI-Architecture-and-Layout.md §4b axis 1).
+// No @orb/ui variant is keyed by these names: `compact` appears only as a value of `size`/`density`/`listSize`.
+const LAYOUT_CONTEXT_PROPS = ["compact", "inDrawer", "inModal", "isMobile", "narrow"];
+
+const CONTAINMENT_OWNER =
+  ":matches(JSXOpeningElement[name.name='Container'], JSXOpeningElement[name.name=/^(Section|Stack)$/]:has(> JSXAttribute[name.name='container']))";
+
+// A dialog or drawer anchor provides its containment as the dialog box itself.
+const DIALOG_BOX = "JSXOpeningElement[name.name=/(?:Dialog|Drawer)$/]";
+
 export const UI_FEATURE_RESTRICTIONS = [
+  {
+    // A surface consumes the containment its anchor provides (UI-Architecture-and-Layout.md §4).
+    id: "surface-consumes-container",
+    selectors: [
+      {
+        selector: CONTAINMENT_OWNER,
+        message: "A surface never declares its own container. Move the <Container> (or `container` prop) to the anchor that mounts it.",
+      },
+    ],
+  },
+  {
+    id: "anchor-provides-container",
+    selectors: [
+      {
+        selector: `Program:not(:has(${CONTAINMENT_OWNER})):not(:has(${DIALOG_BOX}))`,
+        message: "An anchor provides containment: render <Container> (or <Section container>), or the dialog box it anchors.",
+      },
+    ],
+  },
+  {
+    id: "no-layout-context-props",
+    selectors: [
+      {
+        selector: `JSXAttribute[name.type='JSXIdentifier'][name.name=${alternation(LAYOUT_CONTEXT_PROPS)}]`,
+        message: `A layout-context prop (${LAYOUT_CONTEXT_PROPS.join(", ")}) tells a component where it sits; adapt to the container with a container query instead (UI-Architecture-and-Layout.md §4b axis 1).`,
+      },
+    ],
+  },
   {
     id: "class-token-splice",
     selectors: [

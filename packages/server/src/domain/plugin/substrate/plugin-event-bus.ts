@@ -24,7 +24,7 @@
 
 import { PLUGIN_PUBSUB_PAYLOAD_MAX_BYTES } from "@orb/contracts/plugin";
 import type { UserId } from "@orb/kit/ids";
-import type { Logger } from "#foundation/observability";
+import type { Logger, TraceRing } from "#foundation/observability";
 import { createDetachedSupervision } from "#foundation/observability";
 import type { PluginEventBus, PluginRegistrationHandle } from "../contract/ops.ts";
 
@@ -43,8 +43,8 @@ function channelKey(installer: UserId, emitterSlug: string, name: string): strin
 }
 
 /** Mint the process-wide private plugin-event bus. */
-export function createPluginEventBus(logger: Logger): PluginEventBus {
-  const { superviseDetached } = createDetachedSupervision(logger);
+export function createPluginEventBus(logger: Logger, traces: TraceRing): PluginEventBus {
+  const { superviseDetached } = createDetachedSupervision(logger, traces);
   const channels = new Map<string, Set<Subscriber>>();
   return {
     register: ({ installer, subscriberSlug, subscriptions, invoke }): PluginRegistrationHandle => {

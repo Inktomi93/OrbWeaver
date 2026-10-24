@@ -40,6 +40,7 @@ import type {
 import type {
   BulkEmbedResult,
   ImageSpace,
+  ImageSpaceDegrade,
   PruneDocumentChunksResult,
   PruneMemoryBlocksResult,
   PurgeDocumentVectorsResult,
@@ -105,9 +106,29 @@ export type ListCharacterIds = (ownerId?: UserId | null) => Promise<readonly Cha
 /** Enumerate image asset ids; `ownerId` scopes to one owner, omitted/null = all owners. */
 export type ListImageAssetIds = (ownerId?: UserId | null) => Promise<readonly AssetId[]>;
 
+/** One root's memory of which summarize models cannot analyse an avatar, keyed by model id. */
+export interface AvatarAnalysisAvailability {
+  readonly unservable: (model: string) => boolean;
+  /** Latch the backend's own refusal; true when THIS call latched it, so the caller logs the loud line once. */
+  readonly markUnservable: (model: string) => boolean;
+  /** True the first time this model's pre-call skip is announced. */
+  readonly announceSkip: (model: string) => boolean;
+}
+
+/** Says once per owner, space and cause that a root's images are indexed by their caption alone. */
+export type ReportImageSpaceDegrade = (ownerId: UserId, space: string, cause: ImageSpaceDegrade, logger: Logger) => void;
+
+/** One root's announce and availability latches (`createEmbeddingLatches`); another root's verdict never reaches them. */
+export interface EmbeddingLatches {
+  readonly avatarAnalysis: AvatarAnalysisAvailability;
+  readonly reportImageSpaceDegrade: ReportImageSpaceDegrade;
+}
+
 /** The DI bundle the embeddings verbs close over (assembled at `entry/`, surfaced via `context.ts`). */
 export interface EmbeddingsContext {
   readonly logger: Logger;
+  /** This root's latches, built once by its composition root. */
+  readonly latches: EmbeddingLatches;
   readonly scheduleTimeout: ScheduleOp;
   readonly precomputedEmbedding?:
     | ((

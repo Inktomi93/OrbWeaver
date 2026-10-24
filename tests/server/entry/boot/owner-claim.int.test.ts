@@ -37,6 +37,7 @@ async function configuredClaim(root: ServerTestHarness): Promise<Awaited<ReturnT
   return await createConfiguredOidc({
     db: databaseHandle(root.db),
     logger: root.logger,
+    rings: root.rings,
     now: root.clock.now,
     built: root.app,
     settings: NATIVE_OIDC_SETTINGS,
@@ -101,7 +102,7 @@ test("the callback that spends the code removes the claim file; a redeem that sp
   await using root = await createServerHarness();
   await using oidc = await configuredClaim(root);
   await using file = await claimFile();
-  const spending = removeOwnerClaimFileOnSpend(oidc.ownerClaim, file.path, root.app.newOpaqueId, root.logger);
+  const spending = removeOwnerClaimFileOnSpend(oidc.ownerClaim, file.path, root.app.newOpaqueId, { logger: root.logger, traces: root.rings.traces });
   const unclaimed: UserId | undefined = undefined;
   await announceOwnerClaim({
     log: recordingLog().log,

@@ -9,7 +9,7 @@ import { chatParticipants, chats, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
 import type { BatchHandle, DatabaseHandle } from "@orb/db/wiring";
-import { batchHandle, databaseForOwner, databaseHandle } from "@orb/db/wiring-owner";
+import { batchHandle, databaseForOwner } from "@orb/db/wiring-owner";
 import type { UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, asc, eq, gt, isNotNull, isNull } from "drizzle-orm";
@@ -106,7 +106,7 @@ export function createCompareAndSetImportedTokenUsage(
     ];
     // A losing CAS may conservatively advance the token. That costs at most a retry; separating the update
     // from its fence would let a winning write escape the rebuild snapshot entirely.
-    bumpCanonVersion(batchHandle(statements), databaseHandle(db), candidate.ownerId);
+    bumpCanonVersion(batchHandle(statements), input, candidate.ownerId);
     const results = await db.batch(batchMany(statements));
     const changed = results[0] as readonly { readonly id: string }[];
     return changed.length === 1;

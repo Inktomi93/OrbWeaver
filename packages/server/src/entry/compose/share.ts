@@ -12,7 +12,14 @@ import { CLOUDFLARED_PIN, createOwnedRelayLauncher } from "#infra/relay";
 export async function createShareGraph(options: ShareGraphOptions): Promise<ShareGraph> {
   await using owners = new AsyncDisposableStack();
   const network = owners.use(
-    createScopedEgress({ ...options.networkExecution, timers: options.timers, buildConnector: options.buildConnector, env: options.env, log: options.logger }),
+    createScopedEgress({
+      ...options.networkExecution,
+      timers: options.timers,
+      buildConnector: options.buildConnector,
+      env: options.env,
+      log: options.logger,
+      traces: options.traces,
+    }),
   );
   const hosts = createRelayHostRegistry();
   const pin = options.relaySeams?.pin ?? options.relay?.pin ?? CLOUDFLARED_PIN;

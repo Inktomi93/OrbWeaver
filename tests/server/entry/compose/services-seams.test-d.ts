@@ -22,6 +22,8 @@ const env = createTestEnv();
 const hostEnvAllowlist = (): Readonly<Record<string, string>> => ({});
 const authModeSource: ServicesDeps["authModeSource"] = "default";
 declare const logger: ServicesDeps["logger"];
+declare const rings: ServicesDeps["rings"];
+const serverInstanceId: ServicesDeps["serverInstanceId"] = "instance";
 
 test("the composition root requires every process seam, so a forgotten one cannot fall back to the ambient process", () => {
   expectTypeOf<Pick<ServicesDeps, ProcessSeam>>().toEqualTypeOf<Required<Pick<ServicesDeps, ProcessSeam>>>();
@@ -40,6 +42,8 @@ test("the composition root requires every process seam, so a forgotten one canno
     env,
     hostEnvAllowlist,
     authModeSource,
+    serverInstanceId,
+    rings,
   };
   expectTypeOf(complete).toExtend<Pick<ServicesDeps, ProcessSeam>>();
   // @ts-expect-error a root without `timers` must not compile
@@ -55,6 +59,8 @@ test("the composition root requires every process seam, so a forgotten one canno
     env,
     hostEnvAllowlist,
     authModeSource,
+    serverInstanceId,
+    rings,
   };
   // @ts-expect-error a root without `random` must not compile
   const withoutRandom: Pick<ServicesDeps, ProcessSeam> = {
@@ -69,6 +75,8 @@ test("the composition root requires every process seam, so a forgotten one canno
     env,
     hostEnvAllowlist,
     authModeSource,
+    serverInstanceId,
+    rings,
   };
   // @ts-expect-error a root without `randomInt` must not compile
   const withoutRandomInt: Pick<ServicesDeps, ProcessSeam> = {
@@ -83,6 +91,8 @@ test("the composition root requires every process seam, so a forgotten one canno
     env,
     hostEnvAllowlist,
     authModeSource,
+    serverInstanceId,
+    rings,
   };
   // @ts-expect-error a root without `idSource` must not compile
   const withoutIdSource: Pick<ServicesDeps, ProcessSeam> = {
@@ -97,6 +107,8 @@ test("the composition root requires every process seam, so a forgotten one canno
     env,
     hostEnvAllowlist,
     authModeSource,
+    serverInstanceId,
+    rings,
   };
   // @ts-expect-error a root without `newOpaqueId` must not compile
   const withoutNewOpaqueId: Pick<ServicesDeps, ProcessSeam> = {
@@ -111,6 +123,8 @@ test("the composition root requires every process seam, so a forgotten one canno
     env,
     hostEnvAllowlist,
     authModeSource,
+    serverInstanceId,
+    rings,
   };
   // @ts-expect-error a root without `buildConnector` must not compile
   const withoutBuildConnector: Pick<ServicesDeps, ProcessSeam> = {
@@ -125,6 +139,8 @@ test("the composition root requires every process seam, so a forgotten one canno
     env,
     hostEnvAllowlist,
     authModeSource,
+    serverInstanceId,
+    rings,
   };
   // @ts-expect-error a root without `networkExecution` must not compile
   const withoutNetworkExecution: Pick<ServicesDeps, ProcessSeam> = {
@@ -139,6 +155,8 @@ test("the composition root requires every process seam, so a forgotten one canno
     env,
     hostEnvAllowlist,
     authModeSource,
+    serverInstanceId,
+    rings,
   };
   // @ts-expect-error a root without `monotonicNow` must not compile
   const withoutMonotonicNow: Pick<ServicesDeps, ProcessSeam> = {
@@ -153,6 +171,8 @@ test("the composition root requires every process seam, so a forgotten one canno
     env,
     hostEnvAllowlist,
     authModeSource,
+    serverInstanceId,
+    rings,
   };
   // @ts-expect-error a root without `env` must not compile
   const withoutEnv: Pick<ServicesDeps, ProcessSeam> = {
@@ -167,6 +187,8 @@ test("the composition root requires every process seam, so a forgotten one canno
     monotonicNow,
     hostEnvAllowlist,
     authModeSource,
+    serverInstanceId,
+    rings,
   };
   // @ts-expect-error a root without `hostEnvAllowlist` must not compile
   const withoutHostEnvAllowlist: Pick<ServicesDeps, ProcessSeam> = {
@@ -181,6 +203,8 @@ test("the composition root requires every process seam, so a forgotten one canno
     monotonicNow,
     env,
     authModeSource,
+    serverInstanceId,
+    rings,
   };
   // @ts-expect-error a root without `authModeSource` must not compile
   const withoutAuthModeSource: Pick<ServicesDeps, ProcessSeam> = {
@@ -195,6 +219,8 @@ test("the composition root requires every process seam, so a forgotten one canno
     monotonicNow,
     env,
     hostEnvAllowlist,
+    serverInstanceId,
+    rings,
   };
   // @ts-expect-error a root without `logger` must not compile
   const withoutLogger: Pick<ServicesDeps, ProcessSeam> = {
@@ -209,6 +235,40 @@ test("the composition root requires every process seam, so a forgotten one canno
     env,
     hostEnvAllowlist,
     authModeSource,
+    serverInstanceId,
+    rings,
+  };
+  // @ts-expect-error a root without `serverInstanceId` must not compile
+  const withoutServerInstanceId: Pick<ServicesDeps, ProcessSeam> = {
+    logger,
+    timers,
+    random,
+    randomInt,
+    idSource,
+    newOpaqueId,
+    buildConnector,
+    networkExecution,
+    monotonicNow,
+    env,
+    hostEnvAllowlist,
+    authModeSource,
+    rings,
+  };
+  // @ts-expect-error a root without `rings` must not compile
+  const withoutRings: Pick<ServicesDeps, ProcessSeam> = {
+    logger,
+    timers,
+    random,
+    randomInt,
+    idSource,
+    newOpaqueId,
+    buildConnector,
+    networkExecution,
+    monotonicNow,
+    env,
+    hostEnvAllowlist,
+    authModeSource,
+    serverInstanceId,
   };
   expectTypeOf([
     withoutTimers,
@@ -223,5 +283,7 @@ test("the composition root requires every process seam, so a forgotten one canno
     withoutHostEnvAllowlist,
     withoutAuthModeSource,
     withoutLogger,
+    withoutServerInstanceId,
+    withoutRings,
   ]).toBeArray();
 });

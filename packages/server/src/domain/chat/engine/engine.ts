@@ -795,7 +795,7 @@ function fireRpgTurnCompleted(ctx: EngineContext, view: MessageView, turnId: Cha
     trackSettledWork(
       ctx,
       view.chatId,
-      withRequestSpan(rpgRoundRequestId(turnId), RPG_ROUND_SPAN, { chatId: view.chatId, messageId: view.id, turnId }, () =>
+      withRequestSpan({ traces: ctx.traces, requestId: rpgRoundRequestId(turnId) }, RPG_ROUND_SPAN, { chatId: view.chatId, messageId: view.id, turnId }, () =>
         rpg.onTurnCompleted(view.chatId, view.id, view.selectedVariantId, turnId, turn),
       ).catch((err: unknown) => getLog(ctx.logger).warn({ err, chatId: view.chatId, turnId }, "rpg: post-turn flush failed (reply already committed)")),
     );
@@ -827,9 +827,9 @@ function fireRpgTurnAborted(ctx: EngineContext, chatId: ChatId, turnId: ChatTurn
     trackSettledWork(
       ctx,
       chatId,
-      withRequestSpan(rpgAbortRequestId(turnId), RPG_ABORT_SPAN, { chatId, turnId, reason }, () => rpg.onTurnAborted(chatId, turnId, reason)).catch(
-        (err: unknown) => getLog(ctx.logger).warn({ err, chatId, turnId, reason }, "rpg: turn-abort staging clear failed (the turn is still aborted)"),
-      ),
+      withRequestSpan({ traces: ctx.traces, requestId: rpgAbortRequestId(turnId) }, RPG_ABORT_SPAN, { chatId, turnId, reason }, () =>
+        rpg.onTurnAborted(chatId, turnId, reason),
+      ).catch((err: unknown) => getLog(ctx.logger).warn({ err, chatId, turnId, reason }, "rpg: turn-abort staging clear failed (the turn is still aborted)")),
     );
   }
 }
@@ -1164,7 +1164,7 @@ function fireManagedCompaction(
   trackSettledWork(
     ctx,
     chatId,
-    withRequestSpan(compactionRequestId(turnId), COMPACTION_SPAN, { chatId, turnId, coveragePoint }, async () => {
+    withRequestSpan({ traces: ctx.traces, requestId: compactionRequestId(turnId) }, COMPACTION_SPAN, { chatId, turnId, coveragePoint }, async () => {
       try {
         const res = await deps.runCompaction({ chatId, connection, ownerId, coveragePoint, instructions, signal: ctx.backgroundSignal });
         // `updated:false` is a benign no-op (already covered / all-hidden span) — nothing changed, nothing to
@@ -1884,7 +1884,7 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
       trackSettledWork(
         ctx,
         prep.chatId,
-        withRequestSpan(memoryRequestId(turnId), MEMORY_SPAN, { chatId: prep.chatId, turnId }, async () => {
+        withRequestSpan({ traces: ctx.traces, requestId: memoryRequestId(turnId) }, MEMORY_SPAN, { chatId: prep.chatId, turnId }, async () => {
           try {
             await deps.generateMemory({
               chatId: prep.chatId,

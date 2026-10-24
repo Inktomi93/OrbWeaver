@@ -85,6 +85,9 @@ test("MEMBERS TAB: the same two-human room rendered as HOST and as MEMBER (host 
   try {
     const started = await api.trpc.chat.startChat.mutate({ characterIds });
     const chatId = started.chat.id;
+    // The real UI has no chat-by-id door, so each browser opens the room by a unique list-row title.
+    const title = `e2e-members-${Date.now()}`;
+    await api.trpc.chat.updateTitle.mutate({ chatId, title });
     const memberApi = await loginLocal(origin, castId<Handle>(LOCAL_MEMBER.handle), LOCAL_MEMBER.password);
     await addMemberToChat(api, memberApi, chatId, LOCAL_MEMBER.handle);
     // A committed room (the Members tab's `phase === "committed"` arm) — the greeting alone leaves the chat
@@ -95,8 +98,8 @@ test("MEMBERS TAB: the same two-human room rendered as HOST and as MEMBER (host 
     const memberView = await openBrowserActor(browser, origin, castId<Handle>(LOCAL_MEMBER.handle), LOCAL_MEMBER.password);
 
     try {
-      await openMembersTab(hostView.page, chatId);
-      await openMembersTab(memberView.page, chatId);
+      await openMembersTab(hostView.page, title);
+      await openMembersTab(memberView.page, title);
 
       const hostPanel = hostView.page.locator(MEMBERS_PANEL);
       const memberPanel = memberView.page.locator(MEMBERS_PANEL);

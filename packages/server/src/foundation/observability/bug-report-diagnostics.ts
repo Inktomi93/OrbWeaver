@@ -5,11 +5,11 @@
 import process from "node:process";
 import type { BugReportDiagnostics, BugReportServerError } from "@orb/contracts/diagnostics";
 import { BUG_REPORT_SERVER_ERRORS_MAX, DIAGNOSTIC_GRAMMARS } from "@orb/contracts/diagnostics";
+import type { BoundedRing } from "@orb/kit/bounded-ring";
 import { secretRedactionLiterals } from "@orb/kit/secret-redaction";
 import type { Env } from "#foundation/env/record";
 import { secretLiterals } from "./debug/bug-report.ts";
 import { ERROR_LEVEL, parseLogRingLine, ringLineLevel, ringLineTime } from "./debug/log-ring-read.ts";
-import { logRing } from "./logger.ts";
 
 /** The whole ring: the census counts every error line it still holds. */
 const RING_READ_DEPTH = 2000;
@@ -66,9 +66,9 @@ function carriesSecret(record: BugReportServerError, literals: readonly string[]
 }
 
 /** The safe error census, newest first. */
-function serverErrors(secrets: readonly string[]): Extract<BugReportDiagnostics["serverErrors"], { kind: "included" }> {
+function serverErrors(logs: BoundedRing<string>, secrets: readonly string[]): Extract<BugReportDiagnostics["serverErrors"], { kind: "included" }> {
   const literals = secretRedactionLiterals(secrets);
-  const lines = logRing
+  const lines = logs
     .recent(RING_READ_DEPTH)
     .map(parseLogRingLine)
     .filter((record): record is Record<string, unknown> => record !== null && ringLineLevel(record) >= ERROR_LEVEL);
@@ -80,7 +80,7 @@ function serverErrors(secrets: readonly string[]): Extract<BugReportDiagnostics[
   return { kind: "included", records, held: lines.length };
 }
 
-/** The bug-report read bound to one env record; the tRPC context carries it. */
+/** The bug-report read bound to one root's env record and log ring; the tRPC context carries it. */
 export type BugReportDiagnosticsRead = (args: { readonly includeServerErrors: boolean }) => BugReportDiagnostics;
 
 /**
@@ -88,10 +88,10 @@ export type BugReportDiagnosticsRead = (args: { readonly includeServerErrors: bo
  * diagnostics are not a delegated admin's), decided by the caller from the request Principal; every other
  * caller still gets the runtime facts. The scrub drops every secret-named value the record holds.
  */
-export function createBugReportDiagnosticsRead(record: Env): BugReportDiagnosticsRead {
+export function createBugReportDiagnosticsRead(record: Env, logs: BoundedRing<string>): BugReportDiagnosticsRead {
   const secrets = secretLiterals(record);
   return (args) => ({
     runtime: { node: process.version, platform: process.platform, arch: process.arch, authMode: record.AUTH_MODE },
-    serverErrors: args.includeServerErrors ? serverErrors(secrets) : { kind: "owner-only" },
+    serverErrors: args.includeServerErrors ? serverErrors(logs, secrets) : { kind: "owner-only" },
   });
 }

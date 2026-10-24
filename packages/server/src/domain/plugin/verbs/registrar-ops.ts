@@ -11,7 +11,7 @@ import { buildPluginPromptTransform, capFactContent } from "../substrate/registr
 const PLUGIN_TRANSFORM_ORDER_BASE = 1000;
 /** Bind registration identity, host gating and supervised event delivery to the process registries. */
 export function createPluginRegistrarOps(deps: PluginRegistrarDeps): PluginRegistrarOps {
-  const { superviseDetached } = createDetachedSupervision(deps.logger);
+  const { superviseDetached } = createDetachedSupervision(deps.logger, deps.traces);
   let pluginTransformSeq = 0;
   const { pluginSubscribers } = deps;
   return {

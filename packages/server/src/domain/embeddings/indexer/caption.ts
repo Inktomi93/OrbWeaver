@@ -25,11 +25,11 @@
 //
 // "RETRY NEXT SWEEP" IS FOR A FAILURE ABOUT THIS IMAGE — NEVER FOR ONE ABOUT THE MODEL (#2422). Two verdicts
 // are the same for every asset in the corpus, so they are decided BEFORE the call and remembered for the
-// process (`substrate/avatar-analysis-availability`):
+// root (`substrate/avatar-analysis-availability`, the root's `latches.avatarAnalysis`):
 //   - the resolved summarize model declares no image input (`roleClients.summarizerVision`) — nobody may hand
 //     it a picture, so the analysis is skipped without spending a call;
 //   - the backend answered `model_unavailable` (a vLLM 404 "The model `...` does not exist", the classified
-//     `ProviderError.kind`) — the model this process resolves is not the one the engine serves.
+//     `ProviderError.kind`) — the model this root resolves is not the one the engine serves.
 // Before this, either state cost ONE provider call per asset per sweep, forever - and the first of those calls
 // WAKES a sleeping local engine, so a boot bought a GPU wake plus N 404s for zero rows. The vision fact alone
 // cannot prevent that wake on our own engine: D143(c) makes the vllm capability descriptor err PERMISSIVE
@@ -46,7 +46,7 @@ import { projectJsonSchema } from "@orb/kit/json-schema";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import type { AvatarAnalysis } from "../contract/results.ts";
-import { announceAvatarAnalysisSkip, avatarAnalysisUnservable, markAvatarAnalysisUnservable } from "../substrate/avatar-analysis-availability.ts";
+import type { AvatarAnalysisAvailability } from "../contract/service.ts";
 
 const ANALYSIS_SYSTEM_PROMPT = [
   "You are an image analyst for a roleplay character library. Look at the image and return ONE JSON object.",
@@ -70,19 +70,22 @@ const skipped = (model: string): AvatarAnalysis => ({ caption: "", captionMeta: 
 
 /** Why an analysis on this resolved summarize role would make no provider call, or `null` when it would. The
  *  analysis and the sweep's call count both decide it here, so the count never promises a call the analysis skips. */
-function analysisSkipCause(resolved: ResolvedTaskView | null): "no-connection" | "unservable" | "no-image-input" | null {
+function analysisSkipCause(
+  resolved: ResolvedTaskView | null,
+  availability: AvatarAnalysisAvailability,
+): "no-connection" | "unservable" | "no-image-input" | null {
   if (resolved === null) {
     return "no-connection";
   }
-  if (avatarAnalysisUnservable(resolved.model)) {
+  if (availability.unservable(resolved.model)) {
     return "unservable";
   }
   return resolved.capability.kind === "generation" && acceptsImageInput(resolved.capability.generation) ? null : "no-image-input";
 }
 
 /** Whether an avatar analysis on this owner's summarize role would reach a model (one vision call). */
-export async function avatarAnalysisCallsModel(roleClients: RoleClients): Promise<boolean> {
-  return analysisSkipCause(await roleClients.resolved("structured")) === null;
+export async function avatarAnalysisCallsModel(roleClients: RoleClients, availability: AvatarAnalysisAvailability): Promise<boolean> {
+  return analysisSkipCause(await roleClients.resolved("structured"), availability) === null;
 }
 
 /**
@@ -97,22 +100,23 @@ export async function analyzeAvatarImage(
   roleClients: RoleClients,
   bytes: Uint8Array,
   presetParams: SideGenSampling | undefined,
-  logger: Logger,
+  sinks: { readonly logger: Logger; readonly availability: AvatarAnalysisAvailability },
 ): Promise<AvatarAnalysis> {
+  const { logger, availability } = sinks;
   // The CAPTION lens is a `structured` call WITH an image input (inference program §7.5-1): it names its task
   // and reads the vision requirement off the resolved capability — `accepts(cap, "input", "image")`.
   const resolved = await roleClients.resolved("structured");
-  const skipCause = analysisSkipCause(resolved);
+  const skipCause = analysisSkipCause(resolved, availability);
   if (resolved === null) {
     return skipped("(no-connection)");
   }
   const model = resolved.model;
   if (skipCause === "unservable") {
-    // Already answered by the backend this process. Silent: the loud line was logged when it latched.
+    // Already answered by the backend for this root. Silent: the loud line was logged when it latched.
     return skipped(model);
   }
   if (skipCause === "no-image-input") {
-    if (announceAvatarAnalysisSkip(model)) {
+    if (availability.announceSkip(model)) {
       getLog(logger).warn(
         { model },
         "embeddings indexer: the resolved summarize model declares no image input - avatar analysis skipped for this model (no provider call made)",
@@ -140,11 +144,11 @@ export async function analyzeAvatarImage(
     return { caption, captionMeta: { model, ...facets } };
   } catch (error) {
     // THE MODEL ITSELF IS NOT THERE - a verdict about the MODEL, identical for every asset, so it latches for
-    // the process and no later asset spends a call (or a wake) to rediscover it (#2422). The latch is the
+    // the root and no later asset spends a call (or a wake) to rediscover it (#2422). The latch is the
     // short-circuit at the top of this function; reaching this arm a second time means a CONCURRENT asset was
     // already in flight when the first one latched, which is a bounded handful, never the whole sweep.
     const unservable = error instanceof ProviderError && error.kind === "model_unavailable";
-    const latched = unservable && markAvatarAnalysisUnservable(model);
+    const latched = unservable && availability.markUnservable(model);
     // THE SKIP HAS TO BE AUDIBLE, AND IT IS ONE UNCONDITIONAL LINE ON PURPOSE. A backend that cannot serve
     // this schema at all (no guided decoding on the summarize role, a family that drops `responseFormat`)
     // fails EVERY asset identically, and the sweep's own counts cannot say so — the raw lens still lands, so

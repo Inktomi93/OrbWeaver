@@ -9,7 +9,7 @@ import { requireOwner } from "../guard.ts";
 const RESTART_UNSUPERVISED = "restart_unsupervised";
 const RESTART_INSTANCE_CHANGED = "restart_instance_changed";
 
-export function createRestart(ctx: Pick<AdminContext, "now" | "audit" | "serverRestart">): AdminService["restart"] {
+export function createRestart(ctx: Pick<AdminContext, "now" | "audit" | "serverRestart" | "serverInstanceId">): AdminService["restart"] {
   let requested = false;
   return async (params: RestartParams) => {
     requireOwner(params.principal);
@@ -20,7 +20,7 @@ export function createRestart(ctx: Pick<AdminContext, "now" | "audit" | "serverR
       );
     }
     // HTTP can reach a new process before the old live connection reports down. Admission binds both observations.
-    if (params.expectedServerInstanceId !== ctx.serverRestart.serverInstanceId) {
+    if (params.expectedServerInstanceId !== ctx.serverInstanceId) {
       throw new DomainOperationError(
         RESTART_INSTANCE_CHANGED,
         "The server changed before this request arrived. Wait for live updates, then confirm the restart again.",
