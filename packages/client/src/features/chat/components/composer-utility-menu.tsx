@@ -1,39 +1,45 @@
 // The composer's ✨ UTILITY menu (wand v2) — everything BUSY lives here so the composer's top row is just the
-// four guided icons and the adjacent Options/Tools doors. Regrouped by concept (side-eye P2-A), each group a labeled MenuGroup +
+// four guided icons and the adjacent Options/Tools doors. Grouped by concept, each group a labeled MenuGroup +
 // GroupLabel. The room's own groups lead — the `composer-room` contributions (a game's Dice rolls), then Story —
 // so a phone reaches a game's main action without scrolling past the generic groups. Media leads those, because
 // image actions are a main use and a phone must reach them without a hidden scroll; the rest follow by frequency:
 //   • Media  — Attach images & video (the sanctioned FileDropzone, ref-triggered off the row so the input is
-//              NOT a focus target inside the menuitem's accessible name — P1-C; accepts image/* + mp4/webm,
-//              #317) · the TWO image doors: Generate image from text (fast, spends on click — its typed text
+//              NOT a focus target inside the menuitem's accessible name; accepts image/* + mp4/webm)
+//              · the TWO image doors: Generate image from text (fast, spends on click — its typed text
 //              IS the prompt) and Imagine (opens the /imagine modal: mode strip + preview-before-spend). Both
-//              are here because both cost money and only one used to be findable (#623 P1-IA).
+//              are here because both cost money, so both must be findable.
 //              The group renders from `composer-media-group.tsx`; galleries live only in Options.
 //   • Input  — Recover input (recall the last FIRED steer — the D57 ring, owner-clarified) · Corrections (the
 //              rewrite/OOC dialog) · Clear input
 //   • Reply  — Regenerate (a PLAIN reroll of the tail assistant, distinct RefreshCw glyph + helper — the
 //              steer-aware reroll stays the ⟳ Swipe icon, §2.3e dual-home) · Simple send (post without
-//              generating) · Offer choices (R3/B1 — the ONE-SHOT ask for the next reply; un-game-gated and
-//              moved out of Plot, because the standing sibling and the fence renderer are both general now)
+//              generating) · Offer choices (the ONE-SHOT ask for the next reply; not game-gated, because the
+//              standing sibling and the fence renderer are both general)
 //              · Continuation submenu — Undo / Revert continuation
-//   • Story  — game-only, first after the room contributions: the six plot steers under one submenu (P1-B)
-// Each item is the omit-doctrine's disabled-affordance law: rendered enabled, or disabled-with-a-legible-reason,
-// never hidden. Permission-filtered gallery doors live in Chat options.
+//   • Story  — game-only, first after the room contributions: the six plot steers under one submenu
+// Each item is the omit-doctrine's disabled-affordance law: rendered enabled, or disabled with its reason as a
+// visible detail line, never hidden. Permission-filtered gallery doors live in Chat options.
 
 import type { GuidedGameSteerKind } from "@orb/kit/guided";
 import { RPG_PLOT_STEER_KINDS, RPG_PLOT_STEERS } from "@orb/kit/guided";
 import { Button } from "@orb/ui/button";
 import type { LucideIcon } from "@orb/ui/icons";
 import { Compass, Eraser, History, Icon, ListOrdered, MessageSquarePlus, Pencil, Redo2, RefreshCw, Undo2, WandSparkles } from "@orb/ui/icons";
+import { Stack } from "@orb/ui/layout";
 import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuSeparator, MenuSubmenuRoot, MenuSubmenuTrigger, MenuTrigger } from "@orb/ui/menu";
+import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { CSSProperties, ReactElement, ReactNode } from "react";
+import { useId } from "react";
+import { DescribedMenuItem } from "#components";
 import { OFFER_CHOICES_ONE_SHOT, REGENERATE_PLAIN_HELPER, SWIPE_NEEDS_REPLY, testId } from "#lib";
 import { useRecentSteers } from "#state";
 import type { useComposerUtilities } from "../hooks/use-composer-utilities.ts";
 import type { useGuidedActions } from "../hooks/use-guided-actions.ts";
 import type { ComposerImageControls } from "./composer-media-group.tsx";
 import { ComposerMediaGroup } from "./composer-media-group.tsx";
+
+const PLOT_STEERS_LABEL = "Steer the plot";
 
 interface UtilityMenuProps {
   readonly hasText: boolean;
@@ -159,17 +165,15 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
             <MenuTrigger
               data-testid={testId("composerUtility")}
               render={
-                // NO NATIVE `title` HERE (side-eye 2026-08-21): it read "Message tools" while the popup below
-                // reads "More message actions", so Chrome stacked a SECOND tooltip with DIFFERENT copy on the
-                // one control that had two answers. The accessible name stays "Message tools" (which every CT
-                // and the e2e room helper address it by) and the hover/focus explanation is the tooltip popup,
-                // once. Disabled MENUITEMS inside the popup keep their `title` — a menuitem cannot be
-                // tooltip-wrapped, and that idiom is unaffected.
+                // NO NATIVE `title` HERE: a second, native tooltip would stack over the popup. The accessible
+                // name is "Message tools" (which every CT and the e2e room helper address it by) and the
+                // hover/focus explanation is the tooltip popup, once. A disabled MENUITEM inside the popup says
+                // its reason as a visible detail line — a menuitem cannot be tooltip-wrapped.
                 //
-                // The name now sits on the BUTTON rather than on the MenuTrigger (#1021): the trigger renders
-                // this element, so it is the same DOM node and the same string — but an icon-only `@orb/ui`
-                // Button now REQUIRES its name at the type level, and a name declared one component up is
-                // invisible to that check (and to a reader of this element).
+                // The name sits on the BUTTON rather than on the MenuTrigger: the trigger renders this element,
+                // so it is the same DOM node and the same string — but an icon-only `@orb/ui` Button REQUIRES
+                // its name at the type level, and a name declared one component up is invisible to that check
+                // (and to a reader of this element).
                 <Button aria-label="Message tools" type="button" intent="ghost" size="glyph-lg" shape="pill" className="shrink-0">
                   <Icon icon={WandSparkles} size="sm" />
                 </Button>
@@ -177,12 +181,9 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
             />
           }
         />
-        {/* THE POPUP SPEAKS THE NAME, VERBATIM (#869). It used to read "More message actions" over an
-            accessible name of "Message tools" — and on an icon-only control the popup IS the visible label, so
-            WCAG 2.5.3 (§13.10 N2) failed in letter: the words on screen were not in the name. The 2026-08-21
-            ruling above SURVIVES — one tooltip, no native `title`, and the name stays the "Message tools"
-            string every CT and the e2e room helper address — what changed is the popup's copy, which was the
-            only half free to move. */}
+        {/* THE POPUP SPEAKS THE NAME, VERBATIM. On an icon-only control the popup IS the visible label, so
+            WCAG 2.5.3 (§13.10 N2) requires the words on screen to be in the name: one tooltip, no native
+            `title`, and the "Message tools" string every CT and the e2e room helper address. */}
         <TooltipPopup side="bottom">Message tools</TooltipPopup>
       </Tooltip>
       <MenuPopup side="top" style={MENU_BOUND}>
@@ -214,15 +215,15 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
           {recentSteers.length > 0 ? (
             <RecoverInputSubmenu steers={recentSteers} onRecall={onRecall} />
           ) : (
-            <MenuItem disabled={true} title="Fire a guided action first — then you can recall it">
-              <Icon icon={History} size="sm" />
-              Recover input
-            </MenuItem>
+            <DescribedMenuItem detail="Fire a guided action first — then you can recall it" disabled={true} icon={History} label="Recover input" />
           )}
-          <MenuItem disabled={!canTargetTail} title={canTargetTail ? undefined : SWIPE_NEEDS_REPLY} onClick={canTargetTail ? onRewrite : undefined}>
-            <Icon icon={Pencil} size="sm" />
-            Corrections…
-          </MenuItem>
+          <DescribedMenuItem
+            detail={canTargetTail ? undefined : SWIPE_NEEDS_REPLY}
+            disabled={!canTargetTail}
+            icon={Pencil}
+            label="Corrections…"
+            onClick={canTargetTail ? onRewrite : undefined}
+          />
           <UtilityActionItem
             icon={Eraser}
             label="Clear input"
@@ -233,11 +234,10 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
         </MenuGroup>
         <MenuSeparator />
         {/* REPLY — reroll / post the current reply. Regenerate wears a DISTINCT RefreshCw glyph + helper so it
-            is not confused with the top-row ⟳ Swipe icon (side-eye P1-A); Swipe is steer-aware, this is plain.
-            #570 RULED (owner, 2026-08-23): KEEP BOTH — this row fires the same `guided.fireSwipe("")` as the
-            swipe strip's tip chevron (swipe-strip.tsx), but the pair ratifies as CROSS-PLANE under #568's own
-            logic (a composer control here vs. a reader-side pager there), so it stands as a real second door,
-            not a duplicate to retire. */}
+            is not confused with the top-row ⟳ Swipe icon; Swipe is steer-aware, this is plain. An owner ruling
+            KEEPS BOTH: this row fires the same `guided.fireSwipe("")` as the swipe strip's tip chevron
+            (swipe-strip.tsx), but the pair is CROSS-PLANE (a composer control here vs. a reader-side pager
+            there), so it stands as a real second door, not a duplicate to retire. */}
         <MenuGroup>
           <MenuGroupLabel>Reply</MenuGroupLabel>
           <UtilityActionItem
@@ -255,22 +255,19 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
             enabled={onSimpleSend !== undefined}
             disabledReason={hasText ? "Send your first message normally, then Simple send is available" : "Type a message to post"}
           />
-          {/* R3 (B1) — UN-GAME-GATED, and it lives HERE rather than in the game-only Story group.
-              It never was a plot steer (the Plot comment already said so); it was game-gated only because the
-              standing `:::choices` posture used to exist only as an rpg feature. Both halves of the pair are
-              general now — the room-level toggle is in "This chat", the tokenizer renders the fence in any
-              room, and the chip click composes in any room — so a one-shot ask that works everywhere must be
-              REACHABLE everywhere. Rendered ONCE: moving it out of Plot rather than duplicating it is the
-              #568/#570 one-door rule, so a game chat gets the same single item, in the same place. */}
-          <MenuItem
+          {/* NOT GAME-GATED, and it lives HERE rather than in the game-only Story group: it is not a plot
+              steer. Both halves of the pair are general — the room-level toggle is in "This chat", the tokenizer
+              renders the fence in any room, and the chip click composes in any room — so a one-shot ask that
+              works everywhere must be REACHABLE everywhere. Rendered ONCE (the one-door rule), so a game chat
+              gets the same single item, in the same place. */}
+          <DescribedMenuItem
             data-testid={testId("composerGuidedGameSteer")}
+            detail={generationEnabled ? OFFER_CHOICES_ONE_SHOT : generationUnavailableReason}
             disabled={!generationEnabled}
+            icon={ListOrdered}
+            label="Offer choices"
             onClick={generationEnabled ? onOfferChoices : undefined}
-            title={generationEnabled ? OFFER_CHOICES_ONE_SHOT : generationUnavailableReason}
-          >
-            <Icon icon={ListOrdered} size="sm" />
-            Offer choices
-          </MenuItem>
+          />
           <MenuSubmenuRoot>
             <MenuSubmenuTrigger>
               <Icon icon={Undo2} size="sm" />
@@ -303,7 +300,7 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
 }
 
 /** One enabled-or-disabled-with-reason utility item (the omit-doctrine's disabled-affordance law). An enabled
- *  item may carry a `helper` (a title hint even when actionable — used to distinguish Regenerate from Swipe). */
+ *  item may carry a `helper` detail line (it tells Regenerate from Swipe). */
 function UtilityActionItem({
   icon,
   label,
@@ -320,10 +317,13 @@ function UtilityActionItem({
   readonly disabledReason: string;
 }): ReactElement {
   return (
-    <MenuItem disabled={!enabled} title={enabled ? helper : disabledReason} onClick={enabled ? onAction : undefined}>
-      {icon !== undefined ? <Icon icon={icon} size="sm" /> : null}
-      {label}
-    </MenuItem>
+    <DescribedMenuItem
+      detail={enabled ? helper : disabledReason}
+      disabled={!enabled}
+      {...(icon === undefined ? {} : { icon })}
+      label={label}
+      onClick={enabled ? onAction : undefined}
+    />
   );
 }
 
@@ -338,11 +338,27 @@ function PlotSteersSubmenu({
   readonly reason: string;
   readonly onSteer: (kind: GuidedGameSteerKind) => void;
 }): ReactElement {
+  const labelId = useId();
+  const reasonId = useId();
   return (
     <MenuSubmenuRoot>
-      <MenuSubmenuTrigger data-testid={testId("composerPlotSteers")} disabled={!enabled} title={enabled ? undefined : reason}>
+      <MenuSubmenuTrigger
+        aria-describedby={enabled ? undefined : reasonId}
+        aria-labelledby={enabled ? undefined : labelId}
+        data-testid={testId("composerPlotSteers")}
+        disabled={!enabled}
+      >
         <Icon icon={Compass} size="sm" />
-        Steer the plot
+        {enabled ? (
+          PLOT_STEERS_LABEL
+        ) : (
+          <Stack gap="tight">
+            <span id={labelId}>{PLOT_STEERS_LABEL}</span>
+            <Text id={reasonId} voice="gloss">
+              {reason}
+            </Text>
+          </Stack>
+        )}
       </MenuSubmenuTrigger>
       <MenuPopup>
         {RPG_PLOT_STEER_KINDS.map((kind) => (
@@ -357,7 +373,7 @@ function PlotSteersSubmenu({
 
 /** Recall a fired steer back into the composer (the D57 ring). The ring is DE-DUPED on push
  *  (`pushFiredSteer` filters an exact repeat to the front), so each steer string is unique — a content key
- *  is collision-free (the old wand's `key={steer}` collision defect is gone once the ring dedupes). Truncated. */
+ *  is collision-free. Truncated; the item's text is its full accessible name. */
 function RecoverInputSubmenu({ steers, onRecall }: { readonly steers: readonly string[]; readonly onRecall: (steer: string) => void }): ReactElement {
   return (
     <MenuSubmenuRoot>
@@ -367,7 +383,7 @@ function RecoverInputSubmenu({ steers, onRecall }: { readonly steers: readonly s
       </MenuSubmenuTrigger>
       <MenuPopup>
         {steers.map((steer) => (
-          <MenuItem key={steer} title={steer} onClick={(): void => onRecall(steer)} className="max-w-xs truncate">
+          <MenuItem key={steer} onClick={(): void => onRecall(steer)} className="max-w-xs truncate">
             {steer}
           </MenuItem>
         ))}

@@ -20,6 +20,7 @@ import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { useId } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { viewerTimeZone } from "#lib";
 import { isLiveTurnPhase, requestComposerFocus, setComposerDraft, useTurnPhase } from "#state";
@@ -62,6 +63,7 @@ export function RpgChoiceEcho({ state }: RpgChoiceEchoProps): ReactElement | nul
   const invalidation = useInvalidation();
   const sendChoice = useSendChoice({ trpc, invalidation });
   const busy = isLiveTurnPhase(useTurnPhase(chatId)) || sendChoice.isPending;
+  const reasonId = useId();
   const messagesQuery = useQuery({ ...trpc.chat.listMessages.queryOptions({ chatId }), enabled });
   if (!enabled) {
     return null;
@@ -90,6 +92,12 @@ export function RpgChoiceEcho({ state }: RpgChoiceEchoProps): ReactElement | nul
             · {BEHAVIOR_LINE[behavior]}
           </Text>
         </Text>
+        {/* A disabled choice's reason is visible copy, one line for the whole set. */}
+        {busy ? (
+          <Text id={reasonId} voice="gloss">
+            {TURN_IN_FLIGHT}
+          </Text>
+        ) : null}
         {options.map((option, index) => (
           <Button
             // The option TEXT is the identity (an id-less immutable model-authored list — the
@@ -99,7 +107,7 @@ export function RpgChoiceEcho({ state }: RpgChoiceEchoProps): ReactElement | nul
             size="wrap"
             focusableWhenDisabled={true}
             disabled={busy}
-            {...(busy ? { title: TURN_IN_FLIGHT } : {})}
+            {...(busy ? { "aria-describedby": reasonId } : {})}
             className="justify-start text-left"
             onClick={(): void => {
               if (!busy) {

@@ -33,10 +33,10 @@ export interface ShellTopbarProps {
    *  are identical in both regimes (see `leadControl`). */
   readonly mobile?: boolean;
   readonly onToggleList: () => void;
-  /** THE MOBILE ONE-SHELL RULE's back affordance (owner-ruled 2026-08-03): non-null only when a phone has
+  /** THE MOBILE ONE-SHELL RULE's back affordance (an owner ruling): non-null only when a phone has
    *  a member pushed over a list-bearing section's roster. It REPLACES the list toggle in the lead slot —
    *  one door back, not two (the mock's frame 3 draws exactly one lead control), and the toggle's own job
-   *  (float the list over the detail) is what "back" now does properly. */
+   *  (float the list over the detail) is what "back" does. */
   readonly onBack?: (() => void) | null;
   /** The back affordance's accessible name — the glyph carries no text (§13.10). `"Back to Chats"`. */
   readonly backLabel?: string;
@@ -96,19 +96,16 @@ export function TopbarIconButton({ label, icon, pressed, expanded, onClick, mark
  *  section has a list, else nothing. Back WINS over the toggle — both would be doors to the same roster, and
  *  the mock's pushed-detail frame draws exactly one lead control.
  *
- *  THE PHONE SPEAKS SCREENS, THE DESKTOP SPEAKS PANELS (side-eye 2026-08-07 finding 4, §14). "Hide list
+ *  THE PHONE SPEAKS SCREENS, THE DESKTOP SPEAKS PANELS (§14). "Hide list
  *  panel" names a frame REGION, which a phone does not have: at ≤48rem `resolvePanelMode` pins the LIST
  *  `docked` with nothing selected, i.e. the roster IS the screen, and this control swaps it for the section's
  *  no-selection CONTENT. So the mobile arm names the DESTINATION of the tap.
  *
- *  WHAT THIS DELIBERATELY DOES NOT DO — drop the control on mobile. The review that raised the vocabulary
- *  defect also asked for the toggle's removal, on the premise that it strands the user; side-eye's OWN
- *  receipt (reports/side-eye-reverify/t11-hidelist-320.png) shows the lead control re-rendered as the
- *  inverse label one tap away, so it does not. And removing it would reverse the 2026-08-03 owner-ruled
- *  mobile one-shell rule stated verbatim in `state/panel-resolve.ts` and `hooks/use-shell-layout.ts`: with
- *  the list pinned `docked` for all seven list-bearing sections, this toggle is the ONLY phone door to a
- *  section's no-selection CONTENT (the Corpus Explore overview). Orchestrator-ruled 2026-08-07: keep the
- *  mechanism, fix the words. */
+ *  WHAT THIS DELIBERATELY DOES NOT DO — drop the control on mobile. It does not strand the user: the lead
+ *  control re-renders as the inverse label one tap away. And the owner-ruled mobile one-shell rule
+ *  (`state/panel-resolve.ts`, `hooks/use-shell-layout.ts`) pins the list `docked` for every list-bearing
+ *  section, so this toggle is the ONLY phone door to a section's no-selection CONTENT (the Corpus Explore
+ *  overview). */
 function leadControl({ contentLabel, listDoorLabel, listMode, listAvailable, mobile, title, onToggleList, onBack, backLabel }: ShellTopbarProps): ReactNode {
   if (onBack !== undefined && onBack !== null) {
     // Same vocabulary as the LIST band's own back (components/list-pane-header.tsx): a ghost icon button
@@ -146,9 +143,9 @@ function listToggleLabel(mobile: boolean, listCollapsed: boolean, title: string)
 }
 
 /** Both identity arms share the page-title display step, distinct from editable body text without enlarging adjacent chrome. */
-function TopbarTitle({ className, children, title }: { readonly className?: string; readonly children: ReactNode; readonly title?: string }): ReactElement {
+function TopbarTitle({ className, children }: { readonly className?: string; readonly children: ReactNode }): ReactElement {
   return (
-    <Text className={className} size="display" weight="semibold" title={title}>
+    <Text className={className} size="display" weight="semibold">
       {children}
     </Text>
   );
@@ -173,11 +170,7 @@ export function ShellTopbar(props: ShellTopbarProps): ReactElement {
           {wideIdentity(props)}
         </div>
         <div className="shell-topbar-identity" data-identity="narrow">
-          {/* Same full-value affordance as the chat identity cluster's title (#239) — this arm truncates
-              under exactly the same rule, and on the narrow container it is the ONLY copy of the name. */}
-          <TopbarTitle className="shell-topbar-title truncate" title={props.screenTitle ?? props.title}>
-            {props.screenTitle ?? props.title}
-          </TopbarTitle>
+          <TopbarTitle className="shell-topbar-title truncate">{props.screenTitle ?? props.title}</TopbarTitle>
         </div>
       </div>
 

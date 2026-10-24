@@ -43,7 +43,6 @@ function NpcRelationship({ name, relationship, onEditRelationshipKind, relations
               intent="ghost"
               size="inline"
               aria-label={`${name} relationship: ${kind}`}
-              title="Click to edit"
               // The PILL shape + zero padding when a badge shows: the trigger's hover highlight must hug the
               // pill EXACTLY — padding around it reads as a mismatched halo (owner reports ×2, 08-01). The
               // seed state ("+ relationship") keeps its own padding for a clickable text target.
@@ -102,7 +101,7 @@ const GUIDE_CLASS: Readonly<Record<RpgNpcGuideField, string>> = {
 
 interface NpcGuidesProps {
   readonly name: string;
-  /** The standing per-character guides (RV-11) — the story writes them; an unwritten one is simply ABSENT
+  /** The standing per-character guides — the story writes them; an unwritten one is simply ABSENT
    *  (an omitted line, never a "none" placeholder: a missing guide is not a missing feature). */
   readonly appearance?: string;
   readonly outfit?: string;
@@ -210,7 +209,7 @@ interface NpcCardProps {
    *  relationship/tracker-shape glyph rule). Empty ⇒ nothing renders. */
   readonly emoji?: string;
   readonly mood?: string;
-  /** The standing per-character GUIDES (RV-11) — prose the story keeps current between beats. Quiet
+  /** The standing per-character GUIDES — prose the story keeps current between beats. Quiet
    *  secondary lines under the header, NOT tracker chips: they are sentences, not readings. Empty ⇒ omitted. */
   readonly appearance?: string;
   readonly outfit?: string;
