@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
-updated: 2026-10-11
+status: blocked
+updated: 2026-10-24
 priority: P1
 area: ci
+blocked: owner
 ---
 
 # Make workflow failures actionable and protect image publication
