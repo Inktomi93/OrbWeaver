@@ -33,7 +33,7 @@ import {
 } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany, batchStmt, chunkRows, isConstraintViolation } from "@orb/db/query";
-import { batchHandle, databaseForOwner, databaseHandle } from "@orb/db/wiring-owner";
+import { batchHandle, databaseForOwner } from "@orb/db/wiring-owner";
 import { assetIdsInContent } from "@orb/kit/content";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, ChatId, MessageId, MessageVariantId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
@@ -871,7 +871,7 @@ export function createBulkImportChats(assembly: ChatImportAssemblyContext): Bulk
   const ctx: ChatImportContext = {
     ...assembly,
     db: databaseForOwner(assembly.db),
-    bumpStatsCanonVersion: (batch, db, ownerId) => assembly.bumpStatsCanonVersion(batchHandle(batch), databaseHandle(db), ownerId),
+    bumpStatsCanonVersion: (batch, _db, ownerId) => assembly.bumpStatsCanonVersion(batchHandle(batch), assembly.db, ownerId),
   };
   return async ({ ownerId, characterId, chats: input }): Promise<BulkImportChatsResult> => {
     const { db } = ctx;

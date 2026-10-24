@@ -3,7 +3,7 @@
 // `tsc`). The `ImageryContext` (db + the injected clock/id seams + the connection/executor/assets/stats ops)
 // is built at the entry composition root and passed in — imagery sideways-imports nothing.
 
-import { batchHandle, databaseForOwner, databaseHandle } from "@orb/db/wiring-owner";
+import { batchHandle, databaseForOwner } from "@orb/db/wiring-owner";
 import type { ImageryPortabilityAssemblyContext, ImageryPortabilityContext, ImageryPortabilityService } from "./contract/portability.ts";
 import type { ImageryAssemblyInput, ImageryContext, ImageryService } from "./contract/service.ts";
 import { createCaptionAvatar } from "./verbs/caption-avatar.ts";
@@ -18,7 +18,7 @@ export function createImageryService(input: ImageryAssemblyInput): ImageryServic
   const ctx: ImageryContext = {
     ...input,
     db: databaseForOwner(input.db),
-    applyStatsDelta: (batch, db, delta) => input.applyStatsDelta(batchHandle(batch), databaseHandle(db), delta),
+    applyStatsDelta: (batch, _db, delta) => input.applyStatsDelta(batchHandle(batch), input.db, delta),
   };
   // Verb-to-verb deps are wired HERE (domain-no-cross-verb): captionAvatar → resolvePrompt → the two
   // prompt-consuming verbs. One resolvePrompt instance so extractPrompt + generatePicture share the dispatch.
@@ -36,7 +36,7 @@ export function createImageryPortability(input: ImageryPortabilityAssemblyContex
   const ctx: ImageryPortabilityContext = {
     ...input,
     db: databaseForOwner(input.db),
-    bumpStatsCanonVersion: (batch, db, ownerId) => input.bumpStatsCanonVersion(batchHandle(batch), databaseHandle(db), ownerId),
+    bumpStatsCanonVersion: (batch, _db, ownerId) => input.bumpStatsCanonVersion(batchHandle(batch), input.db, ownerId),
   };
   return { exportAll: createExportProvenance(ctx), importFile: createImportProvenance(ctx) };
 }
