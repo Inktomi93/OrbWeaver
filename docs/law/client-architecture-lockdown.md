@@ -145,7 +145,9 @@ FLIP may compute its delta in JS instead lives in `motion-and-animation-guide.md
 
 Its structural literals are limited to viewport units, grid ratios and zero sentinels, query conditions, and
 per-site alpha composition — everything else wants a token. A media condition is spelled through a generated `@variant` (`stylelint` `orb/no-raw-media-condition`); the
-query strings live in `tokens.json`. `shell.css`'s colour declarations are all
+query strings live in `tokens.json`. Stylelint (`stylelint.config.ts`: `stylelint-config-standard` with Tailwind's
+directives declared, the house allow-lists and the `orb/` rules) owns every CSS check; Biome formats the sheets and
+lints nothing in them, so no site carries two suppressions. `shell.css`'s colour declarations are all
 token-sourced; that paint is legal because it belongs to the shell's own region fills, seams, scrim, and
 elevation, never a component's skin.
 

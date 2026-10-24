@@ -52,6 +52,9 @@ catalog:
   dependency-cruiser: ^18.7.0
   # D321: CSS policy uses Stylelint's native AST and its maintained value parser, never a private CSS reader.
   stylelint: 17.16.0
+  stylelint-config-standard: 40.0.0
+  stylelint-value-no-unknown-custom-properties: 6.1.1
+  stylelint-plugin-logical-css: 2.1.0
   postcss-value-parser: 4.2.0
   "@eslint/css-tree": 4.1.2
   # @types/node tracks the RUNTIME (Node 26).

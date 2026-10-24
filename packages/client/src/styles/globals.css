@@ -11,8 +11,7 @@
  * `mx-auto` halves an odd remainder and lands every backdrop-filter layer inside the track on a half pixel, so the
  * start margin is floored and the end margin absorbs the odd pixel. */
 @utility orb-chat-track {
-  margin-inline-start: round(down, calc((100% - min(100%, var(--width-shell-content))) / 2), 1px);
-  margin-inline-end: auto;
+  margin-inline: round(down, calc((100% - min(100%, var(--width-shell-content))) / 2), 1px) auto;
 }
 
 @layer client {
@@ -34,6 +33,7 @@
     overscroll-behavior: none;
   }
 
+  /* stylelint-disable-next-line selector-max-id, selector-max-specificity -- the app mount node */
   #root {
     isolation: isolate;
   }
@@ -119,7 +119,7 @@
     padding: var(--spacing-row);
     margin: calc(var(--spacing-row) * -1);
   }
-  .settings-flash-anchor--lit {
+  .settings-flash-anchor-lit {
     box-shadow: inset 0 0 0 var(--border-width-accent) var(--color-ring);
   }
 }
@@ -146,10 +146,10 @@
        * and 4). The pane's own fill goes to none so the composite is one tint over one filtered backdrop;
        * `box-shadow: inherit` repaints the elevation's inset highlight above the blur. The pane's container type
        * is what contains the carrier. */
-      html[data-blur-panels] .shell-panel {
+      :root[data-blur-panels] .shell-panel {
         background: none;
       }
-      html[data-blur-panels] .shell-panel::before {
+      :root[data-blur-panels] .shell-panel::before {
         content: "";
         position: absolute;
         inset: 0;
@@ -160,19 +160,19 @@
         box-shadow: inherit;
       }
       /* An off-screen pane keeps no backdrop-filter, the most expensive paint primitive, blurring nothing. */
-      html[data-blur-panels] .shell-panel[data-panel-mode="collapsed"]::before {
+      :root[data-blur-panels] .shell-panel[data-panel-mode="collapsed"]::before {
         backdrop-filter: none;
       }
-      html[data-blur-composer] [data-slot="composer"] {
+      :root[data-blur-composer] [data-slot="composer"] {
         backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
         background-color: color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), var(--glass-under));
       }
       /* The reading surface takes glass in step with the panes, on a carrier pseudo for the same reason; no
        * `box-shadow: inherit`, since `.shell-main` authors no elevation and clips nothing. */
-      html[data-blur-panels] .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main {
+      :root[data-blur-panels] .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main {
         background: none;
       }
-      html[data-blur-panels] .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main::before {
+      :root[data-blur-panels] .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main::before {
         content: "";
         position: absolute;
         inset: 0;
@@ -185,8 +185,8 @@
        * never over the shell's opaque base, so its light arm takes the reading plate with or without a
        * wallpaper (D144(b), scoped in UI-Theming-and-Content.md §12.1); over `transparent`, 30% of a dark room
        * lands inside the popup and muted text falls below AA. */
-      html[data-blur-modals] [data-slot="dialog-popup"],
-      html[data-blur-modals] [data-slot="alert-dialog-popup"] {
+      :root[data-blur-modals] [data-slot="dialog-popup"],
+      :root[data-blur-modals] [data-slot="alert-dialog-popup"] {
         --glass-under: light-dark(var(--color-reading-plate), transparent);
         /* The blur sits on `::before`: on the popup itself it would make a backdrop root the sticky footer's
          * nested blur cannot see through. `relative` bounds that layer to the popup. */
@@ -194,8 +194,8 @@
         isolation: isolate;
         background-color: color-mix(in oklab, var(--color-popover) var(--blur-fill-chrome), var(--glass-under));
       }
-      html[data-blur-modals] [data-slot="dialog-popup"]::before,
-      html[data-blur-modals] [data-slot="alert-dialog-popup"]::before {
+      :root[data-blur-modals] [data-slot="dialog-popup"]::before,
+      :root[data-blur-modals] [data-slot="alert-dialog-popup"]::before {
         content: "";
         position: absolute;
         inset: 0;
@@ -205,7 +205,7 @@
         backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
       }
       /* The footer only blurs: the popup paints the fill, and a second one reads as a slab. */
-      html[data-blur-modals] [data-slot="dialog-footer"] {
+      :root[data-blur-modals] [data-slot="dialog-footer"] {
         backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
         background-color: transparent;
       }
@@ -221,7 +221,7 @@
       [data-role="system"] [data-slot="message-bubble"] {
         --glass-tint: var(--color-system-bubble);
       }
-      html[data-blur-messages] [data-role] [data-slot="message-bubble"] {
+      :root[data-blur-messages] [data-role] [data-slot="message-bubble"] {
         backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
         background-color: color-mix(in oklab, var(--glass-tint) var(--blur-fill-dense), var(--glass-under));
       }
@@ -239,8 +239,8 @@
    * alpha by condition (`not-transparency-reduce` is its exact negation), never by source order. */
   @variant contrast-more {
     /* A noise overlay works against a stated contrast preference. */
-    html[data-texture="grain"] .shell-grid::after,
-    html[data-texture="grain"] [data-slot="card-root"]::after {
+    :root[data-texture="grain"] .shell-grid::after,
+    :root[data-texture="grain"] [data-slot="card-root"]::after {
       display: none;
     }
   }
@@ -291,13 +291,13 @@
       --blur-fill-dense: 100%;
     }
     /* Each selector names the box its glass counterpart paints, so this layer's declaration lands on it. */
-    html[data-blur-panels] .shell-panel::before,
-    html[data-blur-composer] [data-slot="composer"],
-    html[data-blur-panels] .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main::before,
-    html[data-blur-modals] [data-slot="dialog-popup"]::before,
-    html[data-blur-modals] [data-slot="alert-dialog-popup"]::before,
-    html[data-blur-modals] [data-slot="dialog-footer"],
-    html[data-blur-messages] [data-role] [data-slot="message-bubble"] {
+    :root[data-blur-panels] .shell-panel::before,
+    :root[data-blur-composer] [data-slot="composer"],
+    :root[data-blur-panels] .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main::before,
+    :root[data-blur-modals] [data-slot="dialog-popup"]::before,
+    :root[data-blur-modals] [data-slot="alert-dialog-popup"]::before,
+    :root[data-blur-modals] [data-slot="dialog-footer"],
+    :root[data-blur-messages] [data-role] [data-slot="message-bubble"] {
       backdrop-filter: none;
     }
   }
@@ -305,7 +305,7 @@
 
 @layer appearance {
   /* The prose halo (`appearance.shadowEffects`); `text-shadow` inherits, so one declaration reaches the bubble's text. */
-  html[data-shadow] [data-slot="message-bubble"] {
+  :root[data-shadow] [data-slot="message-bubble"] {
     text-shadow: var(--shadow-prose);
   }
 }
@@ -337,24 +337,22 @@
     /* stylelint-disable-next-line declaration-property-value-allowed-list -- the user's continuous line-height multiplier, the declared residual of integer-line-boxes.md §2 */
     line-height: var(--reading-line-height);
     letter-spacing: var(--reading-letter-spacing);
-  }
-  [data-slot="message-bubble"] p + p {
-    margin-block-start: var(--reading-paragraph-spacing);
-  }
-  /* How far a pinned header bar and the swipe foot reach to the card's edges; echo widens the art side inline. */
-  [data-slot="message-bubble"] {
+    /* How far a pinned header bar and the swipe foot reach to the card's edges; echo widens the art side inline. */
     --row-reach-left: var(--spacing-block);
     --row-reach-right: var(--spacing-block);
     /* The swipe foot keeps the card inset on both sides, even across echo's art pane. */
     --row-foot-inset-left: var(--spacing-block);
     --row-foot-inset-right: var(--spacing-block);
   }
+  [data-slot="message-bubble"] p + p {
+    margin-block-start: var(--reading-paragraph-spacing);
+  }
   /* Wide code scrolls inside its message, never widens it: `contain: inline-size` takes the block out of the
    * bubble's intrinsic width. */
   [data-slot="message-bubble"] pre {
     contain: inline-size;
     max-inline-size: 100%;
-    overflow-x: auto;
+    overflow-inline: auto;
   }
   /* A message holding code takes its whole track, or a shrink-to-fit bubble gives the code no width at all. */
   [data-slot="message-content-column"]:has(pre),
@@ -393,17 +391,17 @@
   }
   /* With the soft keyboard up (`data-keyboard-up`, use-keyboard-inset-var.ts) the plugin flank folds away unless
    * the keyboard is its own, and the composer's refusal keeps to one line. */
-  html[data-keyboard-up] [data-slot="plugin-flank"]:not(:focus-within) {
+  :root[data-keyboard-up] [data-slot="plugin-flank"]:not(:focus-within) {
     display: none;
   }
-  html[data-keyboard-up] [data-slot="composer-guided-refusal"] {
+  :root[data-keyboard-up] [data-slot="composer-guided-refusal"] {
     display: block;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   /* Justify ships with hyphenation: without it a long word forces the line before it apart into rivers. */
-  html[data-justify-body-text] [data-slot="message-bubble"] {
+  :root[data-justify-body-text] [data-slot="message-bubble"] {
     text-align: justify;
     hyphens: auto;
   }
@@ -427,19 +425,19 @@
   /* `appearance.enableThemeColorization` retints the hairline tokens from the accent, mixed against the
    * foreground (a self-reference is a cycle). The descendant arm re-declares them below ThemeScope's inline
    * palette for the shell and the portal root alike; the `html` arm serves a provider-less document. */
-  html[data-theme-colorization] {
+  :root[data-theme-colorization] {
     --color-border: color-mix(in oklab, var(--color-primary) 22%, var(--color-foreground) 6%);
     --color-sidebar-border: color-mix(in oklab, var(--color-primary) 22%, var(--color-sidebar-foreground) 6%);
   }
-  html[data-theme-colorization] :is(.shell-grid, [data-slot="portal-root"]) {
+  :root[data-theme-colorization] :is(.shell-grid, [data-slot="portal-root"]) {
     --color-border: color-mix(in oklab, var(--color-primary) 22%, var(--color-foreground) 6%);
     --color-sidebar-border: color-mix(in oklab, var(--color-primary) 22%, var(--color-sidebar-foreground) 6%);
   }
 
   /* The grain texture: one `::after` over the whole shell, reading column included (owner ruling); per-surface
    * carriers would seam the film at every chrome boundary. */
-  html[data-texture="grain"] .shell-grid::after,
-  html[data-texture="grain"] [data-slot="card-root"]::after {
+  :root[data-texture="grain"] .shell-grid::after,
+  :root[data-texture="grain"] [data-slot="card-root"]::after {
     content: "";
     position: absolute;
     inset: 0;
@@ -451,12 +449,12 @@
     background-image: url("/grain.svg");
   }
   /* The card's positioning context for its grain carrier. */
-  html[data-texture="grain"] [data-slot="card-root"] {
+  :root[data-texture="grain"] [data-slot="card-root"] {
     position: relative;
   }
   /* One grain layer per pixel: inside the grid the shell's carrier already covers every card, so the card's own
    * arm serves only a portalled card. */
-  html[data-texture="grain"] .shell-grid [data-slot="card-root"]::after {
+  :root[data-texture="grain"] .shell-grid [data-slot="card-root"]::after {
     content: none;
   }
 

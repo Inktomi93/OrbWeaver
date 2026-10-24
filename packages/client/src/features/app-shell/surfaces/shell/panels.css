@@ -45,6 +45,7 @@
   /* Only the width differs for the context pane; the co-motion stays in the shared rule above. */
   .shell-panel[data-panel-side="context"][data-panel-mode="overlay"],
   .shell-panel[data-panel-side="context"][data-panel-mode="collapsed"] {
+    inset-inline-end: 0;
     inline-size: var(--panel-context-w);
   }
   /* A collapsed list pane is as wide as the track it left, not the clamp: a width change lands on its trailing
@@ -52,6 +53,10 @@
    * in the value, so the phone arm's `100dvw` still outranks this rule. */
   .shell-panel[data-panel-side="list"][data-panel-mode="collapsed"] {
     inline-size: var(--list-panel-collapsed-w);
+    /* The slide clears the rail too, since the list pane opens flush against it; it rides `transform`, not
+     * `translate`: the two add, and the FLIP keyframes (motion.css) own `translate` on these same elements. A
+     * physical axis; under a right-to-left shell the panels' slide is the known follow-up. */
+    transform: translateX(calc(-100% - var(--rail-w)));
   }
   /* A pane leaving a docked track slides out at its full-height box; an open overlay clears the topbar so the
    * toggle under it stays reachable, and a sheet (`data-panel-sheet`) keeps that inset while collapsed so open
@@ -67,26 +72,13 @@
   .shell-panel[data-panel-side="list"][data-panel-mode="collapsed"] {
     inset-inline-start: var(--rail-w);
   }
-  .shell-panel[data-panel-side="context"][data-panel-mode="overlay"],
-  .shell-panel[data-panel-side="context"][data-panel-mode="collapsed"] {
-    inset-inline-end: 0;
-  }
-  /* The slide rides `transform`, not `translate`: the two add, and the FLIP keyframes (motion.css) own `translate` on
-   * these same elements. A physical axis; under a right-to-left shell the panels' slide is the known follow-up. */
-  .shell-panel[data-panel-mode="overlay"] {
-    transform: translateX(0);
-  }
-  /* List panel opens flush against the rail, so its collapsed offset must clear the rail width too. */
-  .shell-panel[data-panel-side="list"][data-panel-mode="collapsed"] {
-    transform: translateX(calc(-100% - var(--rail-w)));
-  }
   .shell-panel[data-panel-side="context"][data-panel-mode="collapsed"] {
     transform: translateX(100%);
   }
-
   /* An overlay is a sheet (owner ruling): the content behind stays laid out full-width, so the float wears the
    * drawer's scrim-plus-overlay-shadow idiom or the cut controls read as breakage. */
   .shell-panel[data-panel-mode="overlay"] {
+    transform: translateX(0);
     box-shadow: var(--shadow-overlay);
   }
 
@@ -150,7 +142,7 @@
     /* A flex column, or the region's `flex: 1 1 auto` is inert and a section's VirtualList measures its full content. */
     display: flex;
     flex-direction: column;
-    overflow-y: auto;
+    overflow-block: auto;
     overscroll-behavior: contain;
     padding-inline: var(--spacing-row);
     padding-block: var(--spacing-row);

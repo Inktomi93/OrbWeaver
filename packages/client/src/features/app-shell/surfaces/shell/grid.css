@@ -38,9 +38,79 @@
      * horizon (D66); the bottom inset is refunded in the mobile arm, the one regime with a tab bar in that band.
      * `safe-area-max-inset-bottom` is the static form: the dynamic inset shrinks as browser chrome collapses and
      * would resize the frame on every scroll. */
-    padding-block-start: env(safe-area-inset-top);
-    padding-block-end: env(safe-area-max-inset-bottom, env(safe-area-inset-bottom));
+    padding-block: env(safe-area-inset-top) env(safe-area-max-inset-bottom, env(safe-area-inset-bottom));
     padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
+
+    /* The both-docked squeeze (owner ruling): with both panes docked the content track can fall under the reading
+   * floor, so the panes give up only the deficit, continuously, never at a breakpoint. Each pane's squeeze is
+   * gated on the other pane's mode, which the FLIP needs: a docked track must read the same on both sides of its
+   * own toggle. The context pane never squeezes below its container step, so the list pane carries the larger
+   * share; where the deficit outlives both floors the content track stays short. */
+    /* What the content track would miss if both panes took their clamps; on the grid so both docked widths read it. */
+    --pane-deficit: max(0px, var(--dimension-content-reading-floor) - (100dvw - var(--rail-w) - var(--panel-w) - var(--panel-context-w)));
+    /* The list pane's share; the context pane takes the rest and hits its step floor first. */
+    --pane-squeeze-list-share: 0.7;
+    --both-docked-list-track: max(var(--dimension-panel-floor), calc(var(--panel-w) - var(--pane-deficit) * var(--pane-squeeze-list-share)));
+    --both-docked-context-track: max(
+      var(--dimension-panel-context-step),
+      calc(var(--panel-context-w) - var(--pane-deficit) * (1 - var(--pane-squeeze-list-share)))
+    );
+    /* Content primacy: content must be at least half the sum of the two panes. The sentinel below renders the
+     * positive remainder so JS observes the real CSS resolution instead of re-deriving it. */
+    --content-primacy-deficit: max(0px, calc(var(--rail-w) + (var(--both-docked-list-track) + var(--both-docked-context-track)) * 1.5 - 100%));
+    --list-track-docked: var(--panel-w);
+    --context-track-docked: var(--panel-context-w);
+    /* The previous layout, re-derived: a section switch can move both tracks in one commit and `animation` does
+     * not compose across rules, so each FLIP reads one composed distance, the difference of two layouts. The
+     * previous layout follows from the 0/1 dock flags and the direction (`was = now - dir`); a conditional track
+     * is the product `B + b * (A - B)`. */
+    --list-docked: 0;
+    --context-docked: 0;
+    /* At rest every direction is 0 and `was` equals `now`, so an attribute that outlives its animation is harmless. */
+    --list-flip-dir: 0;
+    --context-flip-dir: 0;
+    --list-docked-was: calc(var(--list-docked) - var(--list-flip-dir));
+    --context-docked-was: calc(var(--context-docked) - var(--context-flip-dir));
+    --list-track-was: calc(var(--list-docked-was) * (var(--panel-w) + var(--context-docked-was) * (var(--both-docked-list-track) - var(--panel-w))));
+    --context-track-was: calc(
+      var(--context-docked-was) *
+      (var(--panel-context-w) + var(--list-docked-was) * (var(--both-docked-context-track) - var(--panel-context-w)))
+    );
+    /* The collapsed list pane's previous width: the `was` twin of `--list-track-docked`. An exiting pane holds the
+     * width it had so the regime change lands off-screen (a width change lands on the trailing edge, which no
+     * translate counters), and the collapsed pane rests at its own, possibly squeezed, width. */
+    --list-collapsed-w-was: calc(var(--panel-w) + var(--context-docked-was) * (var(--both-docked-list-track) - var(--panel-w)));
+    /* At rest the collapsed pane wears the `now` arm; motion.css swaps in the `was` arm for the one commit that
+     * undocks both panes together. */
+    --list-panel-collapsed-w: var(--list-track-docked);
+
+    /* The composed `from` corners, one per alignment class, each a difference between the two layouts: the start
+     * edge's travel, the end-pinned child's width change, and the centred child's capped half. */
+    --shell-main-flip-from: calc(var(--list-track-was) - var(--list-track));
+    /* The signed width change of `.shell-main` (positive = it narrowed): what the two tracks gained. */
+    --shell-track-shrink: calc(var(--list-track) + var(--context-track) - var(--list-track-was) - var(--context-track-was));
+    /* The content track's width as arithmetic: the centred counter needs the parent width, and a percentage in
+     * `translate` resolves against the element's own box. The premise is that the grid's box is the viewport's
+     * width (app-shell.ct.tsx reads the first painted frame of every door). */
+    --shell-content-track: calc(100dvw - env(safe-area-inset-left) - env(safe-area-inset-right) - var(--rail-w) - var(--list-track) - var(--context-track));
+    /* A box centred by auto margins sits `max(0, P - W) / 2` from its parent's start edge, so its delta across a
+     * commit is the difference of that for the two parent widths, halved; the sign lives in `--shell-track-shrink`. */
+    --shell-centre-flip-from: calc(
+      (
+        max(0px, var(--shell-content-track) + var(--shell-track-shrink) - var(--width-shell-content)) -
+        max(0px, var(--shell-content-track) - var(--width-shell-content))
+      ) /
+      2
+    );
+    /* A child pinned to the list pane's end edge moves by the pane's own width change (the list track's), only
+     * when the list track itself is not toggling: `1 - |dir|` is the gate, and `max(d, -d)` is `abs(d)` over -1/0/1. */
+    --shell-list-band-flip-from: calc((1 - max(var(--list-flip-dir), -1 * var(--list-flip-dir))) * (var(--list-track-was) - var(--list-track)));
+    /* The panes' entrances. The context pane is anchored to the frame's end edge, so `100% - <the track it had>`
+     * is its corner for docking, the squeeze give-back and the width-regime change alike; `max(docked, docked-was)`
+     * limits it to a pane that is or was in a track. The list pane rests collapsed at `-100% - rail`, so its
+     * docking corner is its previous (possibly squeezed) width plus the rail; `max(0, dir)` makes it docking-only. */
+    --list-panel-flip-from: calc(-1 * max(0, var(--list-flip-dir)) * (var(--list-collapsed-w-was) + var(--rail-w)));
+    --context-panel-flip-from: calc((100% - var(--context-track-was)) * max(var(--context-docked), var(--context-docked-was)));
   }
 
   /* Elevation `ramp`: a brightness ladder (rail darkest, panes and content lifted) with the hairlines dropped. */
@@ -112,89 +182,12 @@
   .shell-grid[data-list-mode="docked"] {
     --list-track: var(--list-track-docked);
     --list-docked: 1;
+    --context-track-docked: var(--both-docked-context-track);
   }
   .shell-grid[data-context-mode="docked"] {
     --context-track: var(--context-track-docked);
     --context-docked: 1;
-  }
-
-  /* The both-docked squeeze (owner ruling): with both panes docked the content track can fall under the reading
-   * floor, so the panes give up only the deficit, continuously, never at a breakpoint. Each pane's squeeze is
-   * gated on the other pane's mode, which the FLIP needs: a docked track must read the same on both sides of its
-   * own toggle. The context pane never squeezes below its container step, so the list pane carries the larger
-   * share; where the deficit outlives both floors the content track stays short. */
-  .shell-grid {
-    /* What the content track would miss if both panes took their clamps; on the grid so both docked widths read it. */
-    --pane-deficit: max(0px, var(--dimension-content-reading-floor) - (100dvw - var(--rail-w) - var(--panel-w) - var(--panel-context-w)));
-    /* The list pane's share; the context pane takes the rest and hits its step floor first. */
-    --pane-squeeze-list-share: 0.7;
-    --both-docked-list-track: max(var(--dimension-panel-floor), calc(var(--panel-w) - var(--pane-deficit) * var(--pane-squeeze-list-share)));
-    --both-docked-context-track: max(
-      var(--dimension-panel-context-step),
-      calc(var(--panel-context-w) - var(--pane-deficit) * (1 - var(--pane-squeeze-list-share)))
-    );
-    /* Content primacy: content must be at least half the sum of the two panes. The sentinel below renders the
-     * positive remainder so JS observes the real CSS resolution instead of re-deriving it. */
-    --content-primacy-deficit: max(0px, calc(var(--rail-w) + (var(--both-docked-list-track) + var(--both-docked-context-track)) * 1.5 - 100%));
-    --list-track-docked: var(--panel-w);
-    --context-track-docked: var(--panel-context-w);
-    /* The previous layout, re-derived: a section switch can move both tracks in one commit and `animation` does
-     * not compose across rules, so each FLIP reads one composed distance, the difference of two layouts. The
-     * previous layout follows from the 0/1 dock flags and the direction (`was = now - dir`); a conditional track
-     * is the product `B + b * (A - B)`. */
-    --list-docked: 0;
-    --context-docked: 0;
-    /* At rest every direction is 0 and `was` equals `now`, so an attribute that outlives its animation is harmless. */
-    --list-flip-dir: 0;
-    --context-flip-dir: 0;
-    --list-docked-was: calc(var(--list-docked) - var(--list-flip-dir));
-    --context-docked-was: calc(var(--context-docked) - var(--context-flip-dir));
-    --list-track-was: calc(var(--list-docked-was) * (var(--panel-w) + var(--context-docked-was) * (var(--both-docked-list-track) - var(--panel-w))));
-    --context-track-was: calc(
-      var(--context-docked-was) *
-      (var(--panel-context-w) + var(--list-docked-was) * (var(--both-docked-context-track) - var(--panel-context-w)))
-    );
-    /* The collapsed list pane's previous width: the `was` twin of `--list-track-docked`. An exiting pane holds the
-     * width it had so the regime change lands off-screen (a width change lands on the trailing edge, which no
-     * translate counters), and the collapsed pane rests at its own, possibly squeezed, width. */
-    --list-collapsed-w-was: calc(var(--panel-w) + var(--context-docked-was) * (var(--both-docked-list-track) - var(--panel-w)));
-    /* At rest the collapsed pane wears the `now` arm; motion.css swaps in the `was` arm for the one commit that
-     * undocks both panes together. */
-    --list-panel-collapsed-w: var(--list-track-docked);
-
-    /* The composed `from` corners, one per alignment class, each a difference between the two layouts: the start
-     * edge's travel, the end-pinned child's width change, and the centred child's capped half. */
-    --shell-main-flip-from: calc(var(--list-track-was) - var(--list-track));
-    /* The signed width change of `.shell-main` (positive = it narrowed): what the two tracks gained. */
-    --shell-track-shrink: calc(var(--list-track) + var(--context-track) - var(--list-track-was) - var(--context-track-was));
-    /* The content track's width as arithmetic: the centred counter needs the parent width, and a percentage in
-     * `translate` resolves against the element's own box. The premise is that the grid's box is the viewport's
-     * width (app-shell.ct.tsx reads the first painted frame of every door). */
-    --shell-content-track: calc(100dvw - env(safe-area-inset-left) - env(safe-area-inset-right) - var(--rail-w) - var(--list-track) - var(--context-track));
-    /* A box centred by auto margins sits `max(0, P - W) / 2` from its parent's start edge, so its delta across a
-     * commit is the difference of that for the two parent widths, halved; the sign lives in `--shell-track-shrink`. */
-    --shell-centre-flip-from: calc(
-      (
-        max(0px, var(--shell-content-track) + var(--shell-track-shrink) - var(--width-shell-content)) -
-        max(0px, var(--shell-content-track) - var(--width-shell-content))
-      ) /
-      2
-    );
-    /* A child pinned to the list pane's end edge moves by the pane's own width change (the list track's), only
-     * when the list track itself is not toggling: `1 - |dir|` is the gate, and `max(d, -d)` is `abs(d)` over -1/0/1. */
-    --shell-list-band-flip-from: calc((1 - max(var(--list-flip-dir), -1 * var(--list-flip-dir))) * (var(--list-track-was) - var(--list-track)));
-    /* The panes' entrances. The context pane is anchored to the frame's end edge, so `100% - <the track it had>`
-     * is its corner for docking, the squeeze give-back and the width-regime change alike; `max(docked, docked-was)`
-     * limits it to a pane that is or was in a track. The list pane rests collapsed at `-100% - rail`, so its
-     * docking corner is its previous (possibly squeezed) width plus the rail; `max(0, dir)` makes it docking-only. */
-    --list-panel-flip-from: calc(-1 * max(0, var(--list-flip-dir)) * (var(--list-collapsed-w-was) + var(--rail-w)));
-    --context-panel-flip-from: calc((100% - var(--context-track-was)) * max(var(--context-docked), var(--context-docked-was)));
-  }
-  .shell-grid[data-context-mode="docked"] {
     --list-track-docked: var(--both-docked-list-track);
-  }
-  .shell-grid[data-list-mode="docked"] {
-    --context-track-docked: var(--both-docked-context-track);
   }
 
   .shell-content-primacy-sentinel {

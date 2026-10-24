@@ -11,18 +11,16 @@
   .shell-grid:is([data-list-flip="in"], [data-list-settle="in"]) {
     --list-flip-dir: 1;
   }
+  /* For the one commit in which the list pane leaves, the collapsed pane also wears the width it had. */
   .shell-grid:is([data-list-flip="out"], [data-list-settle="out"]) {
     --list-flip-dir: -1;
+    --list-panel-collapsed-w: var(--list-collapsed-w-was);
   }
   .shell-grid:is([data-context-flip="in"], [data-context-settle="in"]) {
     --context-flip-dir: 1;
   }
   .shell-grid:is([data-context-flip="out"], [data-context-settle="out"]) {
     --context-flip-dir: -1;
-  }
-  /* For the one commit in which the list pane leaves, the collapsed pane wears the width it had. */
-  .shell-grid:is([data-list-flip="out"], [data-list-settle="out"]) {
-    --list-panel-collapsed-w: var(--list-collapsed-w-was);
   }
 
   /* One keyframe per moving element, both tracks summed into its distance: `animation` does not compose across

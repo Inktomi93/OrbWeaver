@@ -8,13 +8,9 @@
     *,
     *::before,
     *::after {
-      /* biome-ignore lint/complexity/noImportantStyles: the floor must beat inline styles */
       animation-duration: 0.01ms !important;
-      /* biome-ignore lint/complexity/noImportantStyles: same floor */
       animation-iteration-count: 1 !important;
-      /* biome-ignore lint/complexity/noImportantStyles: same floor */
       transition-property: none !important;
-      /* biome-ignore lint/complexity/noImportantStyles: same floor */
       scroll-behavior: auto !important;
     }
   }
@@ -24,13 +20,9 @@
   [data-reduced-motion="true"] *,
   [data-reduced-motion="true"] *::before,
   [data-reduced-motion="true"] *::after {
-    /* biome-ignore lint/complexity/noImportantStyles: the floor must beat inline styles */
     animation-duration: 0.01ms !important;
-    /* biome-ignore lint/complexity/noImportantStyles: same floor */
     animation-iteration-count: 1 !important;
-    /* biome-ignore lint/complexity/noImportantStyles: same floor */
     transition-property: none !important;
-    /* biome-ignore lint/complexity/noImportantStyles: same floor */
     scroll-behavior: auto !important;
   }
 }

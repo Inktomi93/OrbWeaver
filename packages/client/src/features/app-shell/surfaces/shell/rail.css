@@ -15,8 +15,7 @@
     align-items: center;
     gap: var(--spacing-row);
     /* No top padding: the brand cell sits flush at the top so its hairline shares the chrome-row baseline (D66). */
-    padding-block-start: 0;
-    padding-block-end: var(--spacing-block);
+    padding-block: 0 var(--spacing-block);
   }
   /* The brand cell is the rail's chrome-row header; `align-self: stretch` lets its hairline span the rail. */
   .shell-rail-brand {

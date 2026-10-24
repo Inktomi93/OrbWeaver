@@ -6,7 +6,7 @@
    * upstream face ships is registered, and `unicode-range` keeps a subset dormant until one of its glyphs paints. */
 
   @font-face {
-    font-family: "Geist";
+    font-family: Geist;
     font-style: normal;
     font-weight: 100 900;
     font-display: swap;
@@ -15,7 +15,7 @@
   }
 
   @font-face {
-    font-family: "Geist";
+    font-family: Geist;
     font-style: normal;
     font-weight: 100 900;
     font-display: swap;
@@ -24,7 +24,7 @@
   }
 
   @font-face {
-    font-family: "Geist";
+    font-family: Geist;
     font-style: normal;
     font-weight: 100 900;
     font-display: swap;
@@ -34,7 +34,7 @@
   }
 
   @font-face {
-    font-family: "Geist";
+    font-family: Geist;
     font-style: normal;
     font-weight: 100 900;
     font-display: swap;
@@ -44,7 +44,7 @@
   }
 
   @font-face {
-    font-family: "Geist";
+    font-family: Geist;
     font-style: normal;
     font-weight: 100 900;
     font-display: swap;
@@ -55,7 +55,7 @@
   }
 
   @font-face {
-    font-family: "Geist";
+    font-family: Geist;
     font-style: italic;
     font-weight: 100 900;
     font-display: swap;
@@ -64,7 +64,7 @@
   }
 
   @font-face {
-    font-family: "Geist";
+    font-family: Geist;
     font-style: italic;
     font-weight: 100 900;
     font-display: swap;
@@ -73,7 +73,7 @@
   }
 
   @font-face {
-    font-family: "Geist";
+    font-family: Geist;
     font-style: italic;
     font-weight: 100 900;
     font-display: swap;
@@ -83,7 +83,7 @@
   }
 
   @font-face {
-    font-family: "Geist";
+    font-family: Geist;
     font-style: italic;
     font-weight: 100 900;
     font-display: swap;
@@ -93,7 +93,7 @@
   }
 
   @font-face {
-    font-family: "Geist";
+    font-family: Geist;
     font-style: italic;
     font-weight: 100 900;
     font-display: swap;

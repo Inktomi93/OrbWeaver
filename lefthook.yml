@@ -6,11 +6,17 @@ pre-commit:
   commands:
     biome:
       run: pnpm exec biome check --staged --error-on-warnings --no-errors-on-unmatched
+    stylelint:
+      glob: "*.css"
+      run: pnpm exec stylelint {staged_files}
 
 pre-merge-commit:
   commands:
     biome:
       run: pnpm exec biome check --staged --error-on-warnings --no-errors-on-unmatched
+    stylelint:
+      glob: "*.css"
+      run: pnpm exec stylelint {staged_files}
 
 commit-msg:
   commands:

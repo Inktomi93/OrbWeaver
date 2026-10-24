@@ -38,6 +38,8 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-synthesis: none;
+    /* Thin themed scrollbars: `scrollbar-color` inherits from here; `scrollbar-width` does not, so it is set on `*`. */
+    scrollbar-color: color-mix(in oklab, var(--color-foreground) 22%, transparent) transparent;
   }
 
   /* The accent aura behind the empty-state brand glyph. `closest-side` from a centred origin, so the ramp reaches
@@ -225,10 +227,6 @@
     color: var(--color-primary-foreground);
   }
 
-  /* Thin themed scrollbars: `scrollbar-color` inherits from the root; `scrollbar-width` does not, so it is set on `*`. */
-  :root {
-    scrollbar-color: color-mix(in oklab, var(--color-foreground) 22%, transparent) transparent;
-  }
   * {
     scrollbar-width: thin;
   }
@@ -310,7 +308,7 @@
    * `style` nor `className`, so the only seam is CSS and only `!important` beats an inline style; the skip bought
    * offscreen layout alone, since Shiki tokenizes on mount regardless. */
   [data-streamdown="code-block"] {
-    /* biome-ignore lint/complexity/noImportantStyles: an inline style is beatable only this way */
+    /* stylelint-disable-next-line declaration-no-important -- an inline style is beatable only this way */
     content-visibility: visible !important;
   }
 }

@@ -7,6 +7,7 @@ import stylelint from "stylelint";
 type CssRoot = Parameters<ReturnType<Rule>>[0];
 type Declaration = Parameters<Parameters<CssRoot["walkDecls"]>[0]>[0];
 type AtRule = Parameters<Parameters<CssRoot["walkAtRules"]>[0]>[0];
+type StyleRule = Parameters<Parameters<CssRoot["walkRules"]>[0]>[0];
 
 const MOTION = "orb/motion-token-purity";
 const COLOR = "orb/no-raw-color-in-css";
@@ -293,8 +294,36 @@ const shadowRule: Rule<true> = (primary) => (root, result) => {
 shadowRule.ruleName = SHADOW;
 shadowRule.messages = SHADOW_MESSAGES;
 
+const LAYER = "orb/rule-in-layer";
+const LAYER_MESSAGES = messagesOf(LAYER, { rejected: "Every style rule sits inside a declared @layer block; Tailwind's own at-rules place themselves" });
+// The at-rules Tailwind or the browser places for us; a rule inside one needs no layer of its own.
+const SELF_PLACING_AT_RULE = /^(?:utility|theme|custom-variant|keyframes|property|font-face)\b/u;
+
+function insideLayer(rule: StyleRule): boolean {
+  for (let parent: unknown = rule.parent; typeof parent === "object" && parent !== null; parent = (parent as { parent?: unknown }).parent) {
+    if (isAtRule(parent) && (parent.name === "layer" || SELF_PLACING_AT_RULE.test(parent.name))) {
+      return true;
+    }
+  }
+  return false;
+}
+
+const layerRule: Rule<true> = (primary) => (root, result) => {
+  if (!stylelint.utils.validateOptions(result, LAYER, { actual: primary, possible: [true] })) {
+    return;
+  }
+  root.walkRules((rule) => {
+    if (!insideLayer(rule)) {
+      stylelint.utils.report({ result, ruleName: LAYER, node: rule, message: LAYER_MESSAGES.rejected });
+    }
+  });
+};
+layerRule.ruleName = LAYER;
+layerRule.messages = LAYER_MESSAGES;
+
 /** Stylesheet-only rules consumed by the native Stylelint configuration. */
 export const CSS_RULES = [
+  stylelint.createPlugin(LAYER, layerRule),
   stylelint.createPlugin(MOTION, motionRule),
   stylelint.createPlugin(COLOR, colorRule),
   stylelint.createPlugin(REST, restRule),

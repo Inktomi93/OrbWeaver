@@ -546,6 +546,15 @@
   },
   "overrides": [
     {
+      "includes": ["**/*.css"],
+      "linter": {
+        "enabled": false,
+        "rules": {
+          "recommended": false
+        }
+      }
+    },
+    {
       "includes": ["tooling/src/codemods/*/scripts/*.ts"],
       "linter": { "rules": { "style": { "noDefaultExport": "off", "useNodejsImportProtocol": "off" } } }
     },
@@ -2807,6 +2816,9 @@
   "css": {
     "parser": {
       "tailwindDirectives": true
+    },
+    "linter": {
+      "enabled": false
     }
   }
 }

@@ -338,7 +338,7 @@ export function renderGeneratedCss(tokens: readonly GeneratedCssValue[], conditi
   return (
     renderThemeCss(tokens.filter((token) => token.placement === "theme")) +
     renderConditionVariants(conditions) +
-    renderRootCss(tokens.filter((token) => token.placement === "root"))
+    themeLayer(renderRootCss(tokens.filter((token) => token.placement === "root")))
   );
 }
 
