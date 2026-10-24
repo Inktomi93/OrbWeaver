@@ -309,6 +309,30 @@ test("a handoff copies a room's cards but never its seated synthetic group row",
   expect({ copiedCard: library.includes(NAME), copiedGroup: library.includes(groupName) }).toEqual({ copiedCard: true, copiedGroup: false });
 });
 
+test("a synthetic group row cannot be duplicated, and a fork drops its seat", async () => {
+  await using root = await createServerHarness();
+  const owner = await root.principalFor(root.ownerId);
+  const characterId = await createCharacter(root, "wanderer", NAME);
+  const keeperId = await createCharacter(root, "keeper", "Keeper");
+  const { chatId, groupId } = await roomWithGroupRow(root, [characterId, keeperId]);
+  const groupName = (await root.services.character.get({ principal: owner, characterId: groupId })).name;
+  // A room seated before the seat gate: the second character seat points at the group row.
+  await root.db
+    .update(chatParticipants)
+    .set({ characterId: groupId })
+    .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.characterId, keeperId)));
+
+  const duplicated = await refusal(root.services.character.duplicate({ principal: owner, characterId: groupId }));
+  const fork = await root.services.chat.forkChat({ principal: owner, chatId });
+  const forkSeats = fork.chat.participants.flatMap((participant) => (participant.characterId === null ? [] : [participant.characterId]));
+  const library = (await (await root.internalCallerFor(root.ownerId)).character.list({})).items.map((item) => item.name);
+  expect({ duplicated, forkSeats, groupCardListed: library.includes(groupName) }).toEqual({
+    duplicated: "not-found",
+    forkSeats: [characterId],
+    groupCardListed: false,
+  });
+});
+
 const galleryFileSchema = z
   .object({ items: z.array(z.object({ assetId: typeIdSchema(ID_PREFIX.asset), subjectCharacterHandle: z.string().nullable() }).loose()) })
   .loose();

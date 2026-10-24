@@ -62,6 +62,7 @@ import {
   loadVariableDeltas,
   loadVariantsByMessageIds,
 } from "../persistence/queries.ts";
+import { seatableCharacterIds } from "../persistence/seat-characters.ts";
 import { NO_HISTORY_FLOOR, permitsHost } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { continuationToolsAreUndone } from "../substrate/content-signatures.ts";
@@ -482,14 +483,19 @@ function pushForkStatsDeltas(
 /** The character seats a forker owns — the seated characters a fork carries. A fork moves room authority to the
  *  forker, who becomes the sole `runAsUserId` under which every seated character's card resolves. Cards are
  *  single-owned, so a seat the forker doesn't own would collapse to a blank card — rather than refuse the
- *  fork, we drop those seats. An owner forking their own chat keeps the whole roster unchanged. */
+ *  fork, we drop those seats. A synthetic group seat left by a room seated before the seat gate drops the same
+ *  way. An owner forking their own chat keeps the rest of the roster unchanged. */
 async function resolveOwnedCharacterSeats(ctx: ChatContext, forkerUserId: UserId, sourceParticipants: readonly ParticipantRow[]): Promise<CharacterSeatRow[]> {
   const characterSeats = sourceParticipants.flatMap((p) => {
     const actor = classifyParticipant(p);
     return actor?.kind === "character" && p.leftSeq === null ? [{ ...p, characterId: actor.characterId }] : [];
   });
-  const cards = await Promise.all(characterSeats.map((s) => ctx.getCard({ ownerId: forkerUserId, characterId: s.characterId })));
-  return characterSeats.filter((_, i) => cards[i] !== null);
+  const seatable = await seatableCharacterIds(
+    ctx.db,
+    forkerUserId,
+    characterSeats.map((s) => s.characterId),
+  );
+  return characterSeats.filter((s) => seatable.has(s.characterId));
 }
 
 /** D79 ruling #8 — THE FORK'S VARIABLE CARRY. The runtime variable state is DERIVED by folding the seq-ordered
