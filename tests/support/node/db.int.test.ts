@@ -5,8 +5,10 @@
 // to the vitest timeout. Runs against the real proxied libSQL client — the same `LibSqlWrap` seam
 // production uses for OTel.
 
-import { users } from "@orb/db";
-import { freshCountedDb, freshHeldDb } from "./db.ts";
+import type { Db } from "@orb/db";
+import { closeDb, createDb, runMigrations, users } from "@orb/db";
+import { sql } from "drizzle-orm";
+import { freshCountedDb, freshDb, freshHeldDb, SHIPPED_MIGRATIONS } from "./db.ts";
 import { makeUser } from "./factories/rows.ts";
 import { expect, test } from "./fixtures.ts";
 
@@ -101,4 +103,123 @@ test("disarm lets later matching statements through while the parked one stays p
   gate.release();
   await parked;
   expect(await db.select().from(users)).toHaveLength(2);
+});
+
+// ── freshDb parity: the pushed schema is the schema the shipped chain builds ─────────────────────────
+
+interface MasterRow {
+  readonly type: string;
+  readonly name: string;
+  readonly tableName: string;
+}
+interface ColumnRow {
+  readonly name: string;
+  readonly type: string;
+  readonly notnull: number;
+  readonly defaultValue: string | null;
+  readonly pk: number;
+  readonly hidden: number;
+}
+interface IndexRow {
+  readonly name: string;
+  readonly unique: number;
+  readonly origin: string;
+  readonly partial: number;
+}
+interface IndexColumnRow {
+  readonly name: string | null;
+  readonly desc: number;
+}
+interface ForeignKeyRow {
+  readonly table: string;
+  readonly from: string;
+  readonly to: string | null;
+  readonly onUpdate: string;
+  readonly onDelete: string;
+}
+
+const SQLITE_INTERNAL = "sqlite_%";
+const DRIZZLE_LEDGER = "__drizzle_migrations";
+
+/** Every table, column, index, unique constraint and foreign key of `db`, one line each. Column position is
+ *  left out on purpose: an ADD COLUMN migration appends where a push follows the declaration. */
+async function schemaLines(db: Db): Promise<readonly string[]> {
+  const lines: string[] = [];
+  const objects = await db.all<MasterRow>(
+    sql`SELECT type, name, tbl_name AS tableName FROM sqlite_master WHERE name NOT LIKE ${SQLITE_INTERNAL} AND name <> ${DRIZZLE_LEDGER} ORDER BY type, name`,
+  );
+  for (const { type, name, tableName } of objects) {
+    lines.push(`${type} ${name} on ${tableName}`);
+    if (type === "table") {
+      lines.push(...(await tableLines(db, name)));
+    }
+  }
+  return lines.toSorted();
+}
+
+async function tableLines(db: Db, table: string): Promise<readonly string[]> {
+  const lines: string[] = [];
+  const columns = await db.all<ColumnRow>(sql`SELECT name, type, "notnull", dflt_value AS defaultValue, pk, hidden FROM pragma_table_xinfo(${table})`);
+  for (const c of columns) {
+    lines.push(`  column ${table}.${c.name} ${c.type} notnull=${c.notnull} default=${c.defaultValue} pk=${c.pk} hidden=${c.hidden}`);
+  }
+  const keys = await db.all<ForeignKeyRow>(
+    sql`SELECT "table", "from", "to", on_update AS onUpdate, on_delete AS onDelete FROM pragma_foreign_key_list(${table})`,
+  );
+  for (const f of keys) {
+    lines.push(`  fk ${table}.${f.from} -> ${f.table}.${f.to} update=${f.onUpdate} delete=${f.onDelete}`);
+  }
+  for (const i of await db.all<IndexRow>(sql`SELECT name, "unique", origin, partial FROM pragma_index_list(${table})`)) {
+    const members = await db.all<IndexColumnRow>(sql`SELECT name, "desc" FROM pragma_index_xinfo(${i.name}) WHERE key = 1 ORDER BY seqno`);
+    // A unique constraint owns an auto-named index; the name carries no meaning, the columns do.
+    const label = i.origin === "c" ? i.name : `${i.origin}-constraint`;
+    lines.push(
+      `  index ${table} ${label} unique=${i.unique} partial=${i.partial} (${members.map((m) => `${m.name}${m.desc === 1 ? " desc" : ""}`).join(", ")})`,
+    );
+  }
+  return lines;
+}
+
+function differences(left: readonly string[], right: readonly string[]): readonly string[] {
+  const inRight = new Set(right);
+  const inLeft = new Set(left);
+  return [...left.filter((line) => !inRight.has(line)).map((line) => `- ${line}`), ...right.filter((line) => !inLeft.has(line)).map((line) => `+ ${line}`)];
+}
+
+async function schemaPair(): Promise<{ readonly pushed: Db; readonly migrated: Db } & AsyncDisposable> {
+  const stack = new AsyncDisposableStack();
+  try {
+    const pushed = await freshDb();
+    stack.defer(() => closeDb(pushed));
+    const migrated = await createDb(":memory:");
+    stack.defer(() => closeDb(migrated));
+    await runMigrations(migrated, SHIPPED_MIGRATIONS);
+    const lifetime = stack.move();
+    return { pushed, migrated, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
+  } catch (error) {
+    await stack.disposeAsync();
+    throw error;
+  }
+}
+
+test("freshDb's pushed schema equals the schema runMigrations builds from the shipped chain", async () => {
+  await using pair = await schemaPair();
+  const pushed = await schemaLines(pair.pushed);
+  expect(pushed.length).toBeGreaterThan(100);
+  expect(differences(pushed, await schemaLines(pair.migrated))).toEqual([]);
+});
+
+test("the parity comparison reports a planted extra column, extra index and missing table", async () => {
+  await using pair = await schemaPair();
+  const baseline = await schemaLines(pair.migrated);
+  await pair.pushed.run(sql`ALTER TABLE users ADD COLUMN planted_drift text`);
+  await pair.pushed.run(sql`CREATE INDEX planted_drift_idx ON users (planted_drift)`);
+  const drifted = differences(await schemaLines(pair.pushed), baseline);
+  expect(drifted).toContainEqual(expect.stringContaining("users.planted_drift"));
+  expect(drifted).toContainEqual(expect.stringContaining("planted_drift_idx"));
+
+  await pair.pushed.run(sql`DROP INDEX planted_drift_idx`);
+  await pair.pushed.run(sql`ALTER TABLE users DROP COLUMN planted_drift`);
+  await pair.pushed.run(sql`DROP TABLE settings`);
+  expect(differences(await schemaLines(pair.pushed), baseline)).toContainEqual("+ table settings on settings");
 });
