@@ -178,9 +178,9 @@ interface GoalLineProps {
 /** A free-text objective with an optional `n/m` clock; done ⇒ struck through (§3.2). */
 export function GoalLine({ text, done = false, clock, onEditText }: GoalLineProps): ReactElement {
   return (
-    <Row justify="between" align="baseline" gap="block" data-slot="goal-line">
+    <Row justify="between" align="baseline" gap="block" className="min-w-0 flex-1" data-slot="goal-line">
       {onEditText === undefined ? (
-        <Text as="span" size="label" className={done ? "text-muted-foreground line-through" : undefined}>
+        <Text as="span" size="label" className={done ? "min-w-0 truncate text-muted-foreground line-through" : "min-w-0 truncate"}>
           {text}
         </Text>
       ) : (

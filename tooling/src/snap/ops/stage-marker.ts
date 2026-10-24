@@ -65,6 +65,10 @@ function readDeath(value: unknown): Pick<StageRow, "dead"> | Record<never, never
     : {};
 }
 
+function readWarming(value: unknown): Pick<StageRow, "warming"> | Record<never, never> {
+  return isRecord(value) && typeof value["since"] === "string" ? { warming: { since: value["since"] } } : {};
+}
+
 /** The armed idle timer, when the row has one (#1163 arm b). Absent stays absent — a keeper is a fact
  *  about a running process, never something to invent from a partial row. */
 function readKeeper(value: unknown): Pick<StageRow, "keeper"> | Record<never, never> {
@@ -131,6 +135,7 @@ function readRow(value: unknown): StageRow | null {
     dbProvenance: parseStageDbProvenance(value["dbProvenance"]),
     rsyncs: typeof value["rsyncs"] === "number" ? value["rsyncs"] : 0,
     ...readDeath(value["dead"]),
+    ...readWarming(value["warming"]),
     ...readKeeper(value["keeper"]),
   };
 }
@@ -273,6 +278,27 @@ export function markStageDead(home: string, band: number, detectedAt: string, op
     const row = readRowFor(home, band);
     if (row !== null) {
       writeRow(home, { ...row, dead: { detectedAt, op } });
+    }
+  });
+}
+
+/** Record that the stage's first navigation missed readiness while it still answered: kept for one warm retry. */
+export function markStageWarming(home: string, band: number, since: string): void {
+  withBandsLock(home, () => {
+    const row = readRowFor(home, band);
+    if (row !== null) {
+      writeRow(home, { ...row, warming: { since } });
+    }
+  });
+}
+
+/** The warm retry settled: the stage is an ordinary warm stage again. */
+export function clearStageWarming(home: string, band: number): void {
+  withBandsLock(home, () => {
+    const row = readRowFor(home, band);
+    if (row !== null) {
+      const { warming: _warming, ...settled } = row;
+      writeRow(home, settled);
     }
   });
 }

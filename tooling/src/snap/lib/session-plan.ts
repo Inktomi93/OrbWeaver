@@ -266,6 +266,7 @@ export function inheritSessionArgs(bootArgs: Args, call: Args, name: string, inh
     stageAuth: bootArgs.stageAuth,
     stageDb: bootArgs.stageDb,
     fresh: bootArgs.fresh,
+    freshExplicit: bootArgs.freshExplicit,
     cpuThrottle: bootArgs.cpuThrottle,
     network: bootArgs.network,
     vision: bootArgs.vision,

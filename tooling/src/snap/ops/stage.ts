@@ -76,7 +76,15 @@ import { runNicedSync, spawnFullPrioritySync } from "../../floor/process/proc.ts
 import { inheritedProcessEnv } from "../../floor/process/process-env.ts";
 import { FIXTURE_SEED_CLI_REL, fixtureIdentityEnv } from "../../stack/index.ts";
 import type { EnsureStageOps, EnsureStageOpts, StageAuthMode, StagePaths, StagePorts, StageRow, StageStopVerdict } from "../contract/stage.ts";
-import { liveHoldersOf, otherRunHolders, STAGE_USE_HEARTBEAT_MS, stageDecision, stageRebuildReason, stageRebuildRefusal } from "../lib/stage-bands.ts";
+import {
+  liveHoldersOf,
+  otherRunHolders,
+  resumesWarmingStage,
+  STAGE_USE_HEARTBEAT_MS,
+  stageDecision,
+  stageRebuildReason,
+  stageRebuildRefusal,
+} from "../lib/stage-bands.ts";
 import {
   DIRTY_STAGE_KEY,
   missingLauncherRefusal,
@@ -307,7 +315,7 @@ export function ensureStage(opts: EnsureStageOpts, ops: EnsureStageOps = REAL_EN
   const row = ops.armStageKeeper(home, resolved.row);
   // …and that SAME one exit publishes what this run bound, carrying whether we BOOTED it — the one fact the
   // boot-dead teardown may act on without breaking #324's warm-across-runs rule (lib/stage-run-binding.ts).
-  registerStageRunBinding({ row, home, booted: resolved.booted });
+  registerStageRunBinding({ row, home, booted: resolved.booted, owner: stageCallerOwner(root) });
   // Every caller that binds a stage holds it for its process's life (snap runs, session daemons,
   // cache:check), so no other checkout tears it down under that use.
   holdStageUse(home, row, stageCallerOwner(root), STAGE_USE_HEARTBEAT_MS);
@@ -361,10 +369,13 @@ function resolveStageRow(root: string, opts: EnsureStageOpts, ops: EnsureStageOp
   if (allocation.kind === "ours") {
     const healthy = stageRowHealth(allocation.row, nowMs) === "warm";
     const liveHolders = liveHoldersOf(allocation.row, nowMs, holderProcessRunning);
+    // `--stage-db` implies `--fresh`, which would rebuild the very stage a missed readiness kept for its warm
+    // retry and start vite's cold dependency optimize over.
+    const fresh = opts.fresh && !resumesWarmingStage(allocation.row, opts);
     const decision = stageDecision({
       targetSha,
       row: allocation.row,
-      fresh: opts.fresh,
+      fresh,
       healthy,
       auth,
       checkout: owner,
@@ -379,7 +390,7 @@ function resolveStageRow(root: string, opts: EnsureStageOpts, ops: EnsureStageOp
       throw new StageBusyError(stageRebuildRefusal(allocation.row, otherRunHolders(liveHolders, owner, process.pid), nowMs));
     }
     print(
-      `[snap-stage] rebuilding our stage ${shortSha(allocation.row.sha)} on band ${allocation.band} (${stageRebuildReason(allocation.row, { targetSha, auth, fresh: opts.fresh })})`,
+      `[snap-stage] rebuilding our stage ${shortSha(allocation.row.sha)} on band ${allocation.band} (${stageRebuildReason(allocation.row, { targetSha, auth, fresh })})`,
     );
     dropStage(root, home, allocation.row);
     writeRow(home, claimRow({ band: allocation.band, checkout: root, owner, targetSha, dir, nowIso }));

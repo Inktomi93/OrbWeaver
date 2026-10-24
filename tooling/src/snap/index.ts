@@ -120,8 +120,9 @@ export {
   urlTargetsStageBand,
 } from "./lib/stage-plan.ts";
 // #1837's boot-dead latch: which stage row this run bound and whether this run BOOTED it — the one fence
-// that keeps the boot-dead teardown off a stage a run merely REUSED (#324's warm-across-runs rule).
-export { boundStageRow, markStageBootDead, registerStageRunBinding, takeBootDeadStage } from "./lib/stage-run-binding.ts";
+// that keeps the boot-dead teardown off a stage a run merely REUSED (#324's warm-across-runs rule), bar a
+// stage already warming.
+export { boundStageRow, markStageSettled, markStageUnsettled, registerStageRunBinding, takeStageOutcome } from "./lib/stage-run-binding.ts";
 export { NETWORK_PROFILES, NO_CPU_THROTTLE, parseNetworkProfile, throttleResultValue } from "./lib/throttle.ts";
 // The mode surface — the cli's dispatch targets, exported so a caller can drive snap programmatically
 // (and so cli.ts enters through THIS door, per the front-door gate).
@@ -172,9 +173,10 @@ export { markerRoot as stageMarkerRoot, readBands, setStageKeeper, stageBandVerd
 // The bounded reap ledger (#1163): which ARM ended a stage. `--stage-status` prints it; a proof reads it.
 export { describeStageReaps, readStageReaps, recordStageReap } from "./ops/stage-reap-log.ts";
 export { cloneMigratedStageDb, cloneStageDb } from "./ops/stage-source.ts";
-// The boot-dead arm (#1837): cli.ts's own exit runs it — a stage this run BOOTED that never served a settled
-// app. Front-door members so a proof can plant a booted row and drive the SHIPPED teardown.
-export { tearDownBootDeadStage, tearDownStageRow } from "./ops/stage-teardown.ts";
+// The readiness verdict (#1837): cli.ts's own exit runs it — a stage this run BOOTED that never served a
+// settled app is kept warming for one retry or torn down. Front-door members so a proof can plant a booted row
+// and drive the SHIPPED teardown.
+export { settleStageReadiness, tearDownStageRow } from "./ops/stage-teardown.ts";
 // The stage wait queue (`--stage-wait`): cli.ts awaits `waitForStage` before the stage door; a proof drives the
 // SHIPPED queue against a scratch home with injected deps.
 export {

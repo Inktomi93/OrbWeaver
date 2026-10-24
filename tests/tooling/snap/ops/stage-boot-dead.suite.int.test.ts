@@ -3,7 +3,7 @@
 // on a band for 16 minutes; nothing reaped it before the 60 min keeper TTL, and every reuse in between would
 // have inherited the same dead app. This pins the arm that ends it: a PLANTED readiness failure against a
 // stage this run booted must leave ZERO of that stage's processes alive, clear the row, and say which arm
-// did it — through the SHIPPED `tearDownBootDeadStage`, not a re-spelling of its rules.
+// did it — through the SHIPPED `settleStageReadiness`, not a re-spelling of its rules.
 //
 // @instrument-absence-proof: the second case is the fence #324's ruling requires. A stage this run merely
 // REUSED (ours warm, or a sibling checkout's at the same sha) is the warm-across-runs feature and must
@@ -23,16 +23,26 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { FROZEN_AT_MS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { pidAlive } from "@orb/tooling/floor/artifacts/run-retention";
-import type { StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
-import { markStageBootDead, registerStageRunBinding } from "../../../../tooling/src/snap/lib/stage-run-binding.ts";
+import type { EnsureStageOps, StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
+import { STAGE_ROOT_REL } from "../../../../tooling/src/snap/lib/stage-plan.ts";
+import { markStageSettled, markStageUnsettled, registerStageRunBinding } from "../../../../tooling/src/snap/lib/stage-run-binding.ts";
+import { ensureStage } from "../../../../tooling/src/snap/ops/stage.ts";
 import { readBands, writeBands } from "../../../../tooling/src/snap/ops/stage-marker.ts";
 import { readStageReaps } from "../../../../tooling/src/snap/ops/stage-reap-log.ts";
-import { tearDownBootDeadStage } from "../../../../tooling/src/snap/ops/stage-teardown.ts";
+import type { StageSettleDeps } from "../../../../tooling/src/snap/ops/stage-teardown.ts";
+import { settleStageReadiness } from "../../../../tooling/src/snap/ops/stage-teardown.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const CASE_BUDGET_MS = scaledBudget(120_000);
 const POLL_MS = 100;
 const POLL_ATTEMPTS = 100;
+const WARMING_SINCE = new Date(FROZEN_AT_MS).toISOString();
+const MISSED = "the stage's first navigation came back degraded";
+
+/** The readiness probe, scripted: whether the stage's server and vite both answered after the miss. */
+function probes(answers: boolean): StageSettleDeps {
+  return { answers: () => answers, nowIso: () => WARMING_SINCE };
+}
 
 async function until(predicate: () => boolean): Promise<boolean> {
   for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt += 1) {
@@ -72,8 +82,9 @@ async function plantStage(scratch: string): Promise<{ readonly dir: string; read
   return { dir, port, pid: pid as number };
 }
 
-function plantRow(input: { readonly dir: string; readonly port: number; readonly checkout: string }): StageRow {
+function plantRow(input: { readonly dir: string; readonly port: number; readonly checkout: string; readonly warming?: boolean }): StageRow {
   return {
+    ...(input.warming === true ? { warming: { since: WARMING_SINCE } } : {}),
     band: 9,
     sha: "dirty",
     dir: input.dir,
@@ -97,12 +108,12 @@ test("a boot-dead stage this run BOOTED leaves zero stage processes behind", { t
   const planted = await plantStage(join(scratch, "booted"));
   const row = plantRow({ dir: planted.dir, port: planted.port, checkout: join(scratch, "booted") });
   writeBands(home, [row]);
-  registerStageRunBinding({ row, home, booted: true });
+  registerStageRunBinding({ row, home, booted: true, owner: row.checkout });
 
   // RED-FIRST SHAPE: the readiness failure is planted, exactly as ops/drive.ts raises it after the warm-up
   // re-navigation has already been paid and STILL came back non-settled.
-  markStageBootDead("the stage's warm-up re-navigation came back degraded");
-  tearDownBootDeadStage();
+  markStageUnsettled(MISSED);
+  settleStageReadiness(probes(false));
 
   expect(await until(() => !pidAlive(planted.pid)), `the planted stage group (pid ${String(planted.pid)}) must be dead, not orphaned`).toBe(true);
   expect(readBands(home), "the band it held must be free").toStrictEqual([]);
@@ -120,10 +131,10 @@ test("a boot-dead readiness failure never tears down a stage this run only REUSE
   const row = plantRow({ dir: planted.dir, port: planted.port, checkout: join(scratch, "reused") });
   writeBands(home, [row]);
   // PLANTED CONTROL: the identical failure, on a row this run did not build. #324's warm-across-runs rule.
-  registerStageRunBinding({ row, home, booted: false });
+  registerStageRunBinding({ row, home, booted: false, owner: row.checkout });
 
-  markStageBootDead("the stage's warm-up re-navigation came back degraded");
-  tearDownBootDeadStage();
+  markStageUnsettled(MISSED);
+  settleStageReadiness(probes(false));
 
   expect(pidAlive(planted.pid), "a warm stage we merely reused is somebody's live asset, not our corpse").toBe(true);
   expect(
@@ -131,4 +142,156 @@ test("a boot-dead readiness failure never tears down a stage this run only REUSE
     "its row survives too",
   ).toStrictEqual([9]);
   process.kill(planted.pid, "SIGTERM");
+});
+
+test("a booted stage whose server and vite answered after the first miss is kept WARMING, not torn down", { timeout: CASE_BUDGET_MS }, async ({ scratch }) => {
+  const home = join(scratch, "warming-home");
+  mkdirSync(home, { recursive: true });
+  const planted = await plantStage(join(scratch, "warming"));
+  const row = plantRow({ dir: planted.dir, port: planted.port, checkout: join(scratch, "warming") });
+  writeBands(home, [row]);
+  registerStageRunBinding({ row, home, booted: true, owner: row.checkout });
+
+  markStageUnsettled(MISSED);
+  settleStageReadiness(probes(true));
+
+  expect(pidAlive(planted.pid), "the cold optimize is still finishing; killing the stage restarts it from nothing").toBe(true);
+  expect(readBands(home).map((kept) => kept.warming)).toStrictEqual([{ since: WARMING_SINCE }]);
+  expect(readStageReaps(home), "a kept stage is not a reap").toStrictEqual([]);
+  process.kill(planted.pid, "SIGTERM");
+});
+
+test("the warm retry that misses again tears the stage down, though that run only REUSED it", { timeout: CASE_BUDGET_MS }, async ({ scratch }) => {
+  const home = join(scratch, "retry-miss-home");
+  mkdirSync(home, { recursive: true });
+  const planted = await plantStage(join(scratch, "retry-miss"));
+  const row = plantRow({ dir: planted.dir, port: planted.port, checkout: join(scratch, "retry-miss"), warming: true });
+  writeBands(home, [row]);
+  registerStageRunBinding({ row, home, booted: false, owner: row.checkout });
+
+  markStageUnsettled(MISSED);
+  settleStageReadiness(probes(true));
+
+  expect(await until(() => !pidAlive(planted.pid)), "a second miss on a warm stage is the boot-dead verdict").toBe(true);
+  expect(readBands(home)).toStrictEqual([]);
+  expect(readStageReaps(home).map((entry) => entry.arm)).toContain("boot-dead");
+});
+
+test("the warm retry that settles clears the warming mark and leaves the stage up", { timeout: CASE_BUDGET_MS }, async ({ scratch }) => {
+  const home = join(scratch, "retry-ok-home");
+  mkdirSync(home, { recursive: true });
+  const planted = await plantStage(join(scratch, "retry-ok"));
+  const row = plantRow({ dir: planted.dir, port: planted.port, checkout: join(scratch, "retry-ok"), warming: true });
+  writeBands(home, [row]);
+  registerStageRunBinding({ row, home, booted: false, owner: row.checkout });
+
+  markStageSettled();
+  settleStageReadiness(probes(true));
+
+  expect(pidAlive(planted.pid)).toBe(true);
+  expect(readBands(home).map((kept) => kept.warming)).toStrictEqual([undefined]);
+  process.kill(planted.pid, "SIGTERM");
+});
+
+test("another checkout bound to a warming stage cannot tear it down, miss or settle", { timeout: CASE_BUDGET_MS }, async ({ scratch }) => {
+  const home = join(scratch, "sibling-home");
+  mkdirSync(home, { recursive: true });
+  const planted = await plantStage(join(scratch, "sibling"));
+  const row = plantRow({ dir: planted.dir, port: planted.port, checkout: join(scratch, "sibling"), warming: true });
+  writeBands(home, [row]);
+  registerStageRunBinding({ row, home, booted: false, owner: join(scratch, "another-checkout") });
+
+  markStageUnsettled(MISSED);
+  settleStageReadiness(probes(true));
+  expect(pidAlive(planted.pid), "the owner's warm retry is not a sibling's to spend").toBe(true);
+  expect(readBands(home).map((kept) => kept.warming)).toStrictEqual([{ since: WARMING_SINCE }]);
+
+  registerStageRunBinding({ row, home, booted: false, owner: join(scratch, "another-checkout") });
+  markStageSettled();
+  settleStageReadiness(probes(true));
+  expect(
+    readBands(home).map((kept) => kept.warming),
+    "and its settle does not clear the owner's mark",
+  ).toStrictEqual([{ since: WARMING_SINCE }]);
+  process.kill(planted.pid, "SIGTERM");
+});
+
+test("a first miss on a stage whose vite or server did not answer is still boot-dead, with no warming kept", { timeout: CASE_BUDGET_MS }, async ({
+  scratch,
+}) => {
+  const home = join(scratch, "silent-home");
+  mkdirSync(home, { recursive: true });
+  const planted = await plantStage(join(scratch, "silent"));
+  const row = plantRow({ dir: planted.dir, port: planted.port, checkout: join(scratch, "silent") });
+  writeBands(home, [row]);
+  registerStageRunBinding({ row, home, booted: true, owner: row.checkout });
+
+  markStageUnsettled(MISSED);
+  settleStageReadiness(probes(false));
+
+  expect(await until(() => !pidAlive(planted.pid))).toBe(true);
+  expect(readBands(home)).toStrictEqual([]);
+});
+
+/** A stage whose server and vite ports both answer, run outside `.cache/snap-stage` so no teardown treats it as a
+ *  stage group. A child process, because the health probes block this process's event loop. */
+async function plantAnsweringPair(scratch: string): Promise<{ readonly server: number; readonly vite: number; readonly pid: number }> {
+  const [server, vite] = [await freePort(), await freePort()];
+  mkdirSync(scratch, { recursive: true });
+  const script = join(scratch, "answer.cjs");
+  writeFileSync(
+    script,
+    `for (const port of [${String(server)}, ${String(vite)}]) require("node:http").createServer((_q, s) => s.end("ok")).listen(port, "127.0.0.1");\n`,
+  );
+  const child = spawn(process.execPath, [script], { detached: true, stdio: "ignore" });
+  child.unref();
+  const pid = child.pid as number;
+  for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt += 1) {
+    const answered = await Promise.all(
+      [server, vite].map((port) =>
+        fetch(`http://127.0.0.1:${String(port)}/`).then(
+          () => true,
+          () => false,
+        ),
+      ),
+    );
+    if (answered.every(Boolean)) {
+      return { server, vite, pid };
+    }
+    await sleep(POLL_MS);
+  }
+  throw new Error("the planted pair never answered");
+}
+
+test("a warming stage is reused by the --stage-db fresh, and rebuilt by an explicit --fresh", { timeout: CASE_BUDGET_MS }, async ({ scratch }) => {
+  const home = join(scratch, "resume-home");
+  mkdirSync(join(home, STAGE_ROOT_REL), { recursive: true });
+  const pair = await plantAnsweringPair(join(scratch, "resume"));
+  const source = "/box/prod.db";
+  const sha = "0".repeat(40);
+  const row: StageRow = {
+    ...plantRow({ dir: join(scratch, "resume", STAGE_ROOT_REL, sha.slice(0, 12)), port: pair.server, checkout: "/repo/main", warming: true }),
+    sha,
+    vitePort: pair.vite,
+    holders: [],
+    dbProvenance: { copiedFrom: source, cloned: true, copiedAt: WARMING_SINCE, devDbMtimeAtCopy: WARMING_SINCE },
+  };
+  writeBands(home, [row]);
+  const ops: EnsureStageOps = {
+    repoRoot: (): string => "/repo/main",
+    resolveRef: (): string => sha,
+    markerRoot: (): string => home,
+    acquireStageBand: () => ({ allocation: { kind: "ours", band: row.band, row }, views: [] }),
+    armStageKeeper: (_home, armed) => armed,
+  };
+  try {
+    const resumed = ensureStage({ fresh: true, stageDb: source }, ops);
+    expect(resumed.startedAt, "the implied fresh keeps the stage that was warming").toBe(row.startedAt);
+    expect(readBands(home).map((kept) => kept.warming)).toStrictEqual([{ since: WARMING_SINCE }]);
+    // Same stage, same clone source, but the user asked for --fresh by name: the rebuild starts by stopping the
+    // stage, and the planted pair is not a stage group the stop may kill, so the rebuild refuses to proceed.
+    expect(() => ensureStage({ fresh: true, freshExplicit: true, stageDb: source }, ops)).toThrow("could not be replaced");
+  } finally {
+    process.kill(pair.pid, "SIGTERM");
+  }
 });

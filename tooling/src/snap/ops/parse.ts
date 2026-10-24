@@ -381,6 +381,7 @@ export function parseSnapArgs(
     isolated: false,
     ref: null,
     fresh: false,
+    freshExplicit: false,
     dirty: false,
     stageAuth: "single-user",
     stageDb: null,

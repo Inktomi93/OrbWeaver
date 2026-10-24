@@ -11,6 +11,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { ArchivedCard } from "../lib/archived-cards.ts";
 import { cardLabel } from "../lib/archived-cards.ts";
+import { turnStamp } from "../lib/turn-stamp.ts";
 import { RpgTurnRef } from "./rpg-turn-ref.tsx";
 
 export interface RpgCardRowProps {
@@ -28,7 +29,7 @@ export function RpgCardRow({ card, onOpen }: RpgCardRowProps): ReactElement {
       type="button"
       intent="outline"
       size="sm"
-      aria-label={`Open card: ${label}`}
+      aria-label={`Open card: ${label}, ${turnStamp(card.createdAt)}`}
       title="Open card"
       onClick={(): void => onOpen(card.key)}
       className="w-full px-field text-left"

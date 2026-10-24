@@ -7,6 +7,8 @@
 // The label is a real h3, the rung every other `voice="kicker"` section heading in the client uses (the
 // you-sheet, the member card viewer); the takeover panel is an `aside` with no heading of its own, so there is
 // no h2 to nest under and h3 keeps the rung uniform across tabs.
+// LANDMARK RULE: a Kicker section is a heading, never a region. The tab panel is the landmark (the context
+// bracket names it), and the h3s are the navigation inside it.
 
 import { Row } from "@orb/ui/layout";
 import { Separator } from "@orb/ui/separator";

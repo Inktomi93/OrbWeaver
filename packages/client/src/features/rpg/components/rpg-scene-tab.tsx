@@ -284,7 +284,8 @@ function SceneResyncDoorway({ state }: { readonly state: RpgPanelState }): React
 
 /** The Goals echo (#39 dual-homing): read-only rows that NAVIGATE to the quest plane's ONE edit home
  *  (the Quests tab) on click — never a second editor, never a dead echo. The row is a real button
- *  (keyboard-reachable, named "Open <quest> in Quests"); the GoalLine text stays the visible datum. */
+ *  (keyboard-reachable, named by its GoalLine text). The Quests tab opens with nothing highlighted, so the
+ *  name never promises a specific quest; `title` says where the row goes. */
 function SceneGoals({ quests }: { readonly quests: RpgTrackerView["quests"] }): ReactElement | null {
   if (quests.length === 0) {
     return null;
@@ -301,7 +302,6 @@ function SceneGoals({ quests }: { readonly quests: RpgTrackerView["quests"] }): 
             type="button"
             intent="ghost"
             size="inline"
-            aria-label={`Open ${quest.name} in Quests`}
             title="Open in Quests"
             onClick={(): void => revealContextPanel("rpg.quests")}
             className="w-full border border-transparent px-field text-left"
