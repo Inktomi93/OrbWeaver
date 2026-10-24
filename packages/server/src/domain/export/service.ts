@@ -12,10 +12,11 @@ import { createListHostChats } from "./verbs/list-host-chats.ts";
 
 export function createExportService(input: DbAssemblyInput<ExportContext>): ExportService {
   const ctx: ExportContext = { ...input, db: databaseForOwner(input.db) };
+  const exportCharacter = createExportCharacter(ctx);
   return {
-    exportCharacter: createExportCharacter(ctx),
+    exportCharacter,
     exportChat: createExportChat(ctx),
-    exportChatBundle: createExportChatBundle(ctx),
+    exportChatBundle: createExportChatBundle(ctx, exportCharacter),
     listHostChats: createListHostChats(ctx),
   };
 }
