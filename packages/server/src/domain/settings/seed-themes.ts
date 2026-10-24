@@ -16,14 +16,16 @@
 // value-set jsons in BOTH directions. Per D71 a seed theme RENDERS from its generated [data-theme] block;
 // the row's override is the duplicate-to-customize template.
 
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import { getLog } from "#foundation/observability";
 import { RETIRED_SEED_THEME_IDS } from "./constants.ts";
 import { deleteSeedThemes, upsertSeedThemes } from "./persistence/system-themes.ts";
 import { clearSelectedThemeIds } from "./persistence/theme-queries.ts";
 import { SEED_THEMES } from "./substrate/seed-themes.ts";
 
-export async function ensureSeedThemes(db: Db, now: () => number): Promise<void> {
+export async function ensureSeedThemes(handle: DatabaseHandle, now: () => number): Promise<void> {
+  const db = databaseForOwner(handle);
   const at = now();
   // Each upsert is an independent idempotent write keyed by its own sentinel id — no ordering between
   // them, so they go out together (the `boot/seed-owner` per-owner precedent), and one clock read keeps

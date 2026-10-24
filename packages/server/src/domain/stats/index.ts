@@ -4,9 +4,8 @@
 export type { StatsService, StatsWorkloadDeps } from "./contract/service.ts";
 
 export type { StatsBatchWiring } from "./contract/wiring.ts";
-export { reconcileOwnersMissingTimeline } from "./persistence/rebuild-from-canon.ts";
 export { createResolveRetainedChatAccountingScope, createResolveRetainedChatRebase } from "./persistence/retained-chat-accounting.ts";
 export { createStatsService } from "./service.ts";
 export { createStatsWorkloadContributions } from "./workload-contributions.ts";
 
-export { createStatsBatchWiring, reconcileStats } from "./write/wiring.ts";
+export { createStatsBatchWiring, reconcileOwnersMissingTimeline, reconcileStats } from "./write/wiring.ts";

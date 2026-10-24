@@ -36,8 +36,9 @@
 // string. `json()` would be actively worse here — it RAISES on a non-JSON text, which for a corrupt scalar
 // override would abort boot, the one thing this step must never do.
 
-import type { Db } from "@orb/db";
 import { presets } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import { sql } from "drizzle-orm";
 
 /** The #1737 rename, as the two JSON paths the rewrite moves an override between. Spelled as paths rather
@@ -49,7 +50,8 @@ const NEW_PROSE_PATH = '$.prose."chat.group.characterHeading"';
 /** Re-key every pre-#1737 `promptConfig.prose` override from `chat.group.castMember` to
  *  `chat.group.characterHeading`, carrying its `baseVersion` stamp. Returns the number of preset rows
  *  rewritten — 0 on every boot after the first, and on a db that never carried the old spelling. */
-export async function migrateProseSlotVocab(db: Db): Promise<number> {
+export async function migrateProseSlotVocab(handle: DatabaseHandle): Promise<number> {
+  const db = databaseForOwner(handle);
   const rows = await db
     .update(presets)
     .set({

@@ -188,6 +188,10 @@ export type AttachedBookRef = z.infer<typeof attachedBookRefSchema>;
 // field). The ONE literal home — the serde OUT-emitter + the import extractor read it from here.
 export const ATTACHED_BOOKS_WIRE_KEY = "orbweaver_attached_books";
 
+/** The V3-wire key the exported character's per-owner handle rides under. A restore asks for this handle
+ *  first, because a chat bundle names its seats by handle and a handle need not be the slug of the name. */
+export const CHARACTER_HANDLE_WIRE_KEY = "orbweaver_handle";
+
 // ── Greeting (V3 promotion Phase B) ─────────────────────────────────────────────────────────────────────
 // ONE greetings array folds the former three ST wire fields: `first_mes` (greetings[0].text), the
 // `alternate_greetings` (the rest, `groupOnly` absent/false), and `group_only_greetings` (`groupOnly: true`) —
@@ -592,6 +596,7 @@ const characterCardV3DataSchema = z
     // orbweaver-namespaced attached-book REFERENCES (never the book content). Optional so every
     // existing/foreign card stays valid; validated on the OUT boundary so a malformed ref fails loud.
     orbweaver_attached_books: z.array(attachedBookRefSchema).optional(),
+    [CHARACTER_HANDLE_WIRE_KEY]: characterHandleSchema.optional(),
   })
   .loose();
 

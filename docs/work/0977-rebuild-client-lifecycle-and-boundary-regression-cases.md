@@ -1,9 +1,9 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-22
+updated: 2026-10-24
 priority: P2
-plan: test-foundation
+plan: restoration-register
 ---
 
 # Rebuild client lifecycle and boundary regression cases

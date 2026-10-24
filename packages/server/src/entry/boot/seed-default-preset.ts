@@ -1,8 +1,8 @@
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
 import { ensureSystemDefaultPreset } from "#domain/preset";
 
 export interface SeedDefaultPresetDeps {
-  readonly db: Db;
+  readonly db: DatabaseHandle;
   readonly now: () => number;
 }
 

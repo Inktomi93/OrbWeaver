@@ -23,7 +23,6 @@
 // campaign. A failed re-link never un-writes the chat — a restored room missing its labels is strictly better
 // than no room, and the outcome still reports `ok`.
 
-import { characterHandleSchema } from "@orb/contracts/character";
 import type { BulkImportChatInput, BulkImportMessageInput, ImportedChatRemap } from "@orb/contracts/chat";
 import type { CharacterHandle, CharacterId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
 import type { RpgPortableGame } from "#domain/rpg";
@@ -35,15 +34,16 @@ import type { ImportChatFileInput } from "../contract/params.ts";
 import type { ImportChatFileOutcome } from "../contract/results.ts";
 import type { ImportContext, ImportProfileDeps, ImportService } from "../contract/service.ts";
 import { requireProfile } from "../guard.ts";
+import { carriedHandle } from "../substrate/handle.ts";
 
 /** The handles a bundle could re-link against, in preference order: its own seat list, then the directory it
- *  sat in. Deduped, and validated against the canonical handle contract before a library lookup. */
+ *  sat in. Deduped, and read through the restore's one handle rule, which the card restore also mints by. */
 function candidateHandles(bundle: PortableChat, filename: string): readonly CharacterHandle[] {
   const slash = filename.indexOf("/");
   const fromPath = slash === -1 ? [] : [filename.slice(0, slash)];
   return [...new Set([...bundle.characterHandles, ...fromPath])].flatMap((handle) => {
-    const parsed = characterHandleSchema.safeParse(handle);
-    return parsed.success ? [parsed.data] : [];
+    const carried = carriedHandle(handle);
+    return carried === null ? [] : [carried];
   });
 }
 

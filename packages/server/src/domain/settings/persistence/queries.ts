@@ -24,7 +24,7 @@ import { castId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import type { SQL } from "drizzle-orm";
-import { and, eq, exists, sql } from "drizzle-orm";
+import { and, eq, exists, inArray, sql } from "drizzle-orm";
 import { requireIntactStoredConfig } from "#primitives/stored-config";
 import { APP_SETTINGS_KEY } from "../contract/keys.ts";
 
@@ -83,6 +83,19 @@ export function pinnedBackgroundAssetIds(config: UserSettings): AssetId[] {
       : [];
   const ids = [...current, ...config.appearance.backgroundLibrary.map((entry) => entry.assetId)];
   return ids.filter((id, index, all) => all.indexOf(id) === index);
+}
+
+/** The owner's background assets keyed by content hash. `(ownerId, hash)` is unique, so each hash names at
+ *  most one asset; a hash the owner holds under another kind is absent. */
+export async function ownedBackgroundIdsByHash(db: Db, ownerId: UserId, hashes: readonly string[]): Promise<ReadonlyMap<string, AssetId>> {
+  if (hashes.length === 0) {
+    return new Map();
+  }
+  const rows = await db
+    .select({ id: assets.id, hash: assets.hash })
+    .from(assets)
+    .where(and(eq(assets.ownerId, ownerId), eq(assets.kind, BACKGROUND_ASSET_KIND), inArray(assets.hash, [...new Set(hashes)])));
+  return new Map(rows.map((row) => [row.hash, row.id]));
 }
 
 /** THE background predicate as EXISTS subqueries that RIDE the UPDATE (atomic with the write): every pinned

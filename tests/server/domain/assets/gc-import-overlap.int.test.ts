@@ -21,7 +21,7 @@ const CHARACTER_PLANE = /from "characters"/i;
 /** The sweep's destructive edge: it reaches this only once it has judged a blob garbage. */
 const ASSET_ROW_DELETE = /^delete from "assets"/i;
 const SOURCE_ID_CURSOR = 2 ** 29;
-/** The card restores under the handle its name slugs to, and the chat re-links to its character by that handle. */
+/** The card restores under the handle it exported, and the chat re-links to its character by that handle. */
 const RESTORED_HANDLE = "keeper";
 
 interface Backup {

@@ -149,6 +149,7 @@ export function createExportCharacter(ctx: ExportContext): ExportService["export
     // round-trips identically. The serde owns re-encoding depthPrompt + regexScripts back into `extensions`.
     const card = buildCardV3(
       {
+        handle: charRow.handle,
         name: charRow.name,
         description: charRow.description,
         personality: charRow.personality,

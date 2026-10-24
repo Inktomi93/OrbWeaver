@@ -18,14 +18,13 @@
 // Names are not unique; two matches refuse rather than guess. (The orb-native arm prefers the seat list the
 // file itself carries, and falls back to the directory handle.)
 
-import type { CharacterHandle, CharacterId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
-import { slugifyHandle } from "@orb/kit/slug";
+import type { CharacterId } from "@orb/kit/ids";
 import { sha256Hex } from "#primitives/content-hash";
 import { chatContentHash, parseChatJsonl } from "#primitives/serde/chat";
 import type { ImportChatFileInput } from "../contract/params.ts";
 import type { ImportChatFileOutcome } from "../contract/results.ts";
 import type { ImportContext, ImportService } from "../contract/service.ts";
+import { carriedHandle, requestedHandle } from "../substrate/handle.ts";
 
 const DEC = new TextDecoder();
 /** CASE-INSENSITIVE, exactly like the profile collector's own `JSONL_EXT` (`loader/collect.ts`): the two
@@ -38,8 +37,9 @@ type CharacterResolution = { readonly ok: true; readonly characterId: CharacterI
 
 // Exact names win over fallbacks; ambiguous names never pick a character arbitrarily.
 async function resolveCharacter(ctx: ImportContext, dirName: string, characterName: string): Promise<CharacterResolution> {
-  if (dirName.length > 0) {
-    const byHandle = await ctx.findByHandle({ ownerId: ctx.ownerId, handle: castId<CharacterHandle>(dirName) });
+  const dirHandle = carriedHandle(dirName);
+  if (dirHandle !== null) {
+    const byHandle = await ctx.findByHandle({ ownerId: ctx.ownerId, handle: dirHandle });
     if (byHandle !== null) {
       return { ok: true, characterId: byHandle };
     }
@@ -50,7 +50,8 @@ async function resolveCharacter(ctx: ImportContext, dirName: string, characterNa
   }
   let matches = await ctx.findByName({ ownerId: ctx.ownerId, name });
   if (matches.length === 0) {
-    const byHandle = await ctx.findByHandle({ ownerId: ctx.ownerId, handle: castId<CharacterHandle>(slugifyHandle(name)) });
+    // The handle an ST card of this name restored under: a foreign card carries no handle of its own.
+    const byHandle = await ctx.findByHandle({ ownerId: ctx.ownerId, handle: requestedHandle({ handle: null, name }) });
     if (byHandle !== null) {
       return { ok: true, characterId: byHandle };
     }

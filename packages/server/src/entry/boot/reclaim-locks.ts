@@ -10,7 +10,7 @@
 // attribution (#560) — the reclaim stamps them through the same shared reap sentences the steady-state sweep
 // uses, so a boot death never reads as a stale heartbeat.
 
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
 import { reclaimChatLocksOnBoot } from "#domain/chat";
 import type { WorkloadContributions, WorkloadProgressBus } from "#domain/workloads";
 import { reclaimInFlightOnBoot } from "#domain/workloads";
@@ -18,7 +18,7 @@ import { getLog } from "#foundation/observability";
 
 export interface ReclaimLocksDeps {
   readonly emitWorkloadEvent: WorkloadProgressBus["emitWorkloadEvent"];
-  readonly db: Db;
+  readonly db: DatabaseHandle;
   /** The contribution registry the row read path validates params against (poison tolerance), and the
    *  reclaim reads each kind's declared `resume` policy from. */
   readonly contributions: WorkloadContributions;

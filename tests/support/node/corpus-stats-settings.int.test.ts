@@ -3,6 +3,7 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { DEFAULT_USER_SETTINGS, USER_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";
 import { assertReferentialIntegrity } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { seedThemes } from "@orb/server/entry/boot";
 import { seedCorpusActors } from "./corpus-actors.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
@@ -22,7 +23,7 @@ test("native stats preserve nonzero retained history and user preferences surviv
   });
   await using root = await createServerHarness({ providerFetch: execution.execute });
   const actors = await seedCorpusActors(root);
-  await seedThemes({ db: root.db, now: root.clock.now });
+  await seedThemes({ db: databaseHandle(root.db), now: root.clock.now });
   const libraries = await seedCorpusLibraries(root);
   const caller = await root.internalCallerFor(root.ownerId);
   await caller.settings.updateUserSettingsSection({
