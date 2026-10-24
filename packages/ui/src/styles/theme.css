@@ -300,7 +300,8 @@
   --shadow-shell-over-art: 0 1px 3px var(--color-backdrop);
   --shadow-prose: 0 1px 2px oklch(from var(--color-backdrop) l c h / 0.45), 0 0 6px oklch(from var(--color-backdrop) l c h / 0.25);
   --shadow-glow: 0 0 0 1px oklch(from var(--color-primary) l c h / 0.4), 0 0 18px oklch(from var(--color-primary) l c h / 0.18);
-  --shadow-overlay: 0 0 0 1px var(--color-shadow-hairline), inset 0 1px 0 0 var(--color-shadow-highlight), 0 2px 4px var(--color-shadow-ambient-near), 0 12px 32px var(--color-shadow-ambient-far);
+  --shadow-layer-ambient-far: 0 12px 32px var(--color-shadow-ambient-far);
+  --shadow-overlay: 0 0 0 1px var(--color-shadow-hairline), inset 0 1px 0 0 var(--color-shadow-highlight), 0 2px 4px var(--color-shadow-ambient-near), var(--shadow-layer-ambient-far);
   --shadow-cta: inset 0 1px 0 var(--color-shadow-cta-highlight);
   --shadow-cta-glow: inset 0 1px 0 var(--color-shadow-cta-highlight), 0 0 0 1px oklch(from var(--color-primary) l c h / 0.4), 0 0 18px oklch(from var(--color-primary) l c h / 0.18);
   --tracking-normal: 0em;

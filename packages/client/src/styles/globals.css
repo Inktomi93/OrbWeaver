@@ -18,7 +18,7 @@
 
   body {
     position: relative;
-    min-height: 100dvh;
+    min-block-size: 100dvh;
     color: var(--color-foreground);
     background-color: var(--color-background);
   }
@@ -185,6 +185,17 @@
        * `[data-has-bg-image]` plate arm) is the carrier's, and an element with no background of its own is not a
        * translucent surface the over-art plate law speaks to; the plate reader counts it as the skip
        * `fill-moved-to-pseudo-carrier`, pinned in tests/tooling/verify/gates/over-art-plate-arm.int.test.ts. */
+      /* THE COLOUR EVERY GLASS TINT MIXES OVER: nothing, or under a wallpaper the derived reading plate on the
+       * light arm (the over-art plate law, UI-Theming-and-Content.md §12.1; D144(d) keeps the dark arm plateless).
+       * Declared on each consumer rather than inherited from the grid, because a `var()` inside a custom property
+       * resolves where the property is declared, and a bubble inside a carried theme scope must read that
+       * scope's plate. A pseudo carrier inherits it from its element. */
+      .shell-grid {
+        --glass-under: transparent;
+      }
+      .shell-grid[data-has-bg-image] :is(.shell-panel, .shell-main, [data-slot="composer"], [data-slot="message-bubble"]) {
+        --glass-under: light-dark(var(--color-reading-plate), transparent);
+      }
       html[data-blur-panels] .shell-panel {
         background: none;
       }
@@ -195,28 +206,8 @@
         z-index: -1;
         pointer-events: none;
         backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
-        background-color: color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), transparent);
+        background-color: color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), var(--glass-under));
         box-shadow: inherit;
-      }
-      /* THE CHROME PANES TAKE D144'S POLARITY FLOOR OVER ART. The rule above mixes the pane's own tint at a fixed
-       * share, so over a room wallpaper the rest of the art lands inside the pane, and under a light palette that
-       * fails the contrast floor; an alpha that was designed rather than derived.
-      * The fix mixes the pane's tint over `--color-reading-plate`, D144(b)'s derived, polarity-aware over-art
-       * backing (`readingPlateAlpha`), instead of over `transparent`. NO NEW NUMBER IS INVENTED: both partners of
-       * the mix are at or above the plate's own derived alpha (the tint is opaque, the plate IS the floor), so
-       * the composited alpha is too, by construction, at every value of `--blur-fill-chrome` including the
-       * reduced-transparency/contrast arms' 100%.
-      * ONLY THE LIGHT ARM MOVES, and that is D144(d): the dark arm's panes already clear the floor, and the
-       * sacred dark rooms do not move. `light-dark()` is the house polarity mechanism and reads the same
-       * `color-scheme` the clamp derives (`colorSchemeFor`) and the seed blocks declare, so scheme polarity and
-       * this floor can never disagree. The dark arm re-spells the rule above verbatim.
-      * Gated on `[data-has-bg-image]` because that is the whole question: without a wallpaper the pane's
-       * translucency composites over the shell's own opaque base and nothing unknown is behind it. */
-      html[data-blur-panels] .shell-grid[data-has-bg-image] .shell-panel::before {
-        background-color: light-dark(
-          color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), var(--color-reading-plate)),
-          color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), transparent)
-        );
       }
       /* A COLLAPSED PANE PAYS FOR NO GLASS. A section that declares a pane `"unavailable"` still renders its
        * `PanelChrome` (section-registry.ts: `"unavailable"` is not a fourth `PanelMode`; the panel resolves
@@ -235,25 +226,7 @@
       }
       html[data-blur-composer] [data-slot="composer"] {
         backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
-        background-color: color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), transparent);
-      }
-      /* THE COMPOSER TAKES D144'S POLARITY FLOOR OVER ART, the pane rule's twin one surface over
-       * (UI-Theming-and-Content.md §12.1). The rule above mixes the composer's tint at a fixed
-       * `--blur-fill-chrome`, so over a room wallpaper the rest of the art lands inside the box a person types
-       * into, whose caret has to stay findable against whatever photo scrolls behind it. Same fix: mix over
-       * `--color-reading-plate` instead of over `transparent`.
-      * NO NEW NUMBER IS INVENTED: both partners of the mix are at or above the plate's own derived alpha, so the
-       * composite is too, at every value of `--blur-fill-chrome` including the reduced-transparency and
-       * prefers-contrast arms' raises. ONLY THE LIGHT ARM MOVES (D144(d)): the dark arm re-spells the plateless
-       * base verbatim.
-      * THE WALLPAPER GATE IS A DESCENDANT SELECTOR OFF `.shell-grid`, the anatomy the composer has and the path
-       * shell.css already uses for this subject. It sets `background-color` alone and therefore does not touch
-       * the reduced-transparency arm's `backdrop-filter` ties below. */
-      html[data-blur-composer] .shell-grid[data-has-bg-image] [data-slot="composer"] {
-        background-color: light-dark(
-          color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), var(--color-reading-plate)),
-          color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), transparent)
-        );
+        background-color: color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), var(--glass-under));
       }
       /* The reading/document content backing upgrades to glass in lock-step with the side panels, so a frosted
        * look carries through instead of leaving an opaque slab beside glass panels.
@@ -286,35 +259,21 @@
         z-index: -1;
         pointer-events: none;
         backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
-        /* THE PLATE ARM, INLINE: this rule is already `[data-has-bg-image]`-gated, so it takes no companion rule
-         * the way `.shell-panel::before` does; the wallpaper gate the plate law asks for IS this selector. The
-         * tint mixes over `--color-reading-plate` on the LIGHT arm, D144(b)'s derived, polarity-aware over-art
-         * backing (`readingPlateAlpha`), instead of over `transparent`, which handed a share of whatever photo
-         * the user picked to the ink inside the reading column. NO NEW NUMBER IS INVENTED: both partners of the
-         * mix are at or above the plate's own derived alpha, so the composite is too, at every value of
-         * `--blur-fill-chrome` including the reduced-transparency and prefers-contrast arms' raises. ONLY THE
-         * LIGHT ARM MOVES (D144(d)): the dark arm re-spells the base verbatim. */
-        background-color: light-dark(
-          color-mix(in oklab, var(--color-card) var(--blur-fill-chrome), var(--color-reading-plate)),
-          color-mix(in oklab, var(--color-card) var(--blur-fill-chrome), transparent)
-        );
+        background-color: color-mix(in oklab, var(--color-card) var(--blur-fill-chrome), var(--glass-under));
       }
       /* A portaled modal composites over the scrim and whatever the transcript shows (images, dark bubbles),
        * never over the shell's opaque base, so its light arm takes the reading plate with or without a
        * wallpaper (D144(b), scoped in UI-Theming-and-Content.md §12.1); over `transparent`, 30% of a dark room
-       * lands inside the popup and muted text falls below AA. Only the light arm moves (D144(d)): the dark arm is
-       * the plateless base verbatim. */
+       * lands inside the popup and muted text falls below AA. */
       html[data-blur-modals] [data-slot="dialog-popup"],
       html[data-blur-modals] [data-slot="alert-dialog-popup"] {
+        --glass-under: light-dark(var(--color-reading-plate), transparent);
         /* The BLUR sits on ::before, not here: a backdrop-filter on the popup makes it a backdrop root, and the
          * sticky footer's nested blur then cannot see the body scrolling beneath it. `relative` bounds that layer
          * to the popup (the alert popup is otherwise static, so the layer would cover the viewport). */
         position: relative;
         isolation: isolate;
-        background-color: light-dark(
-          color-mix(in oklab, var(--color-popover) var(--blur-fill-chrome), var(--color-reading-plate)),
-          color-mix(in oklab, var(--color-popover) var(--blur-fill-chrome), transparent)
-        );
+        background-color: color-mix(in oklab, var(--color-popover) var(--blur-fill-chrome), var(--glass-under));
       }
       html[data-blur-modals] [data-slot="dialog-popup"]::before,
       html[data-blur-modals] [data-slot="alert-dialog-popup"]::before {
@@ -332,59 +291,21 @@
         backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
         background-color: transparent;
       }
-      /* Per-role bubble base so the glass tints as that bubble, not a generic grey. */
-      html[data-blur-messages] [data-role="user"] [data-slot="message-bubble"] {
+      /* The bubble glass tints as its role. The tint is declared on the bubble, inside a carried theme scope
+       * (`themedColumnContent`, message-row-parts.tsx), so a carried palette's bubble token and plate are the ones
+       * read; `data-role` sits on the row root outside that scope. */
+      [data-role="user"] [data-slot="message-bubble"] {
+        --glass-tint: var(--color-user-bubble);
+      }
+      [data-role="assistant"] [data-slot="message-bubble"] {
+        --glass-tint: var(--color-ai-bubble);
+      }
+      [data-role="system"] [data-slot="message-bubble"] {
+        --glass-tint: var(--color-system-bubble);
+      }
+      html[data-blur-messages] [data-role] [data-slot="message-bubble"] {
         backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
-        background-color: color-mix(in oklab, var(--color-user-bubble) var(--blur-fill-dense), transparent);
-      }
-      html[data-blur-messages] [data-role="assistant"] [data-slot="message-bubble"] {
-        backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
-        background-color: color-mix(in oklab, var(--color-ai-bubble) var(--blur-fill-dense), transparent);
-      }
-      html[data-blur-messages] [data-role="system"] [data-slot="message-bubble"] {
-        backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
-        background-color: color-mix(in oklab, var(--color-system-bubble) var(--blur-fill-dense), transparent);
-      }
-      /* THE THREE BUBBLES TAKE D144'S POLARITY FLOOR OVER ART (UI-Theming-and-Content.md §12.1), the same arm the
-       * panes, the reading surface and the modal slots carry, on the surface that holds the actual prose. The
-       * three rules above mix each role's tint at a fixed `--blur-fill-dense`, so over a room wallpaper the rest
-       * of the art composites straight under the transcript's ink, and a bubble is the one glass surface a reader
-       * is asked to read rather than glance at.
-      * ONE ARM PER ROLE, NOT ONE `[data-role]` CATCH-ALL, because the plate law pairs (subject, TINT): each base
-       * mixes a different token, so each owes its own `light-dark()` provider spelling that token. A merged rule
-       * would leave two of the three tints plateless while looking like it covered them.
-      * NO NEW NUMBER IS INVENTED, and ONLY THE LIGHT ARM MOVES, the same two constructions the pane rule states
-       * in full: both partners of the mix are at or above `--color-reading-plate`'s own derived alpha, and the
-       * dark arm re-spells the plateless base verbatim so the sacred dark rooms (D144(d)) do not move.
-      * The wallpaper gate is the same `.shell-grid[data-has-bg-image] [data-slot="message-bubble"]` descendant
-       * path shell.css uses for this subject, and these rules set `background-color` alone, so the
-       * reduced-transparency arm's `backdrop-filter: none` ties below are untouched.
-      * WHAT THE LIGHT ARM REACHES: `light-dark()` resolves at the element off the nearest `color-scheme`, and a
-       * carried room palette is a `color-scheme`: `themedColumnContent`
-       * (features/chat/components/message-row-parts.tsx) wraps the whole content column, bubble included, in a
-       * `ThemeScope` for every row whose attribution carries tokens, and that scope emits `colorScheme` derived
-       * from the carried base's polarity (packages/ui/src/content/theme-scope/clamp.ts, `colorSchemeFor`). So the
-       * USER arm always resolves off the app theme (user rows carry no palette,
-       * features/chat/lib/attribution.ts), while the ASSISTANT and SYSTEM arms resolve off the speaker's carried
-       * palette when the row has one: inside a dark-carried room under a light app theme they take the dark,
-       * plateless spelling, by design, since a dark-carried bubble is a dark surface. */
-      html[data-blur-messages] .shell-grid[data-has-bg-image] [data-role="user"] [data-slot="message-bubble"] {
-        background-color: light-dark(
-          color-mix(in oklab, var(--color-user-bubble) var(--blur-fill-dense), var(--color-reading-plate)),
-          color-mix(in oklab, var(--color-user-bubble) var(--blur-fill-dense), transparent)
-        );
-      }
-      html[data-blur-messages] .shell-grid[data-has-bg-image] [data-role="assistant"] [data-slot="message-bubble"] {
-        background-color: light-dark(
-          color-mix(in oklab, var(--color-ai-bubble) var(--blur-fill-dense), var(--color-reading-plate)),
-          color-mix(in oklab, var(--color-ai-bubble) var(--blur-fill-dense), transparent)
-        );
-      }
-      html[data-blur-messages] .shell-grid[data-has-bg-image] [data-role="system"] [data-slot="message-bubble"] {
-        background-color: light-dark(
-          color-mix(in oklab, var(--color-system-bubble) var(--blur-fill-dense), var(--color-reading-plate)),
-          color-mix(in oklab, var(--color-system-bubble) var(--blur-fill-dense), transparent)
-        );
+        background-color: color-mix(in oklab, var(--glass-tint) var(--blur-fill-dense), var(--glass-under));
       }
     }
   }
@@ -562,7 +483,7 @@
    * floor is still unmet at that pane, the stated residual, pinned in chat-room-track.suite.ct.tsx. */
   [data-slot="message-content-column"] {
     font-size: calc(var(--text-body) * var(--reading-body-scale, 1));
-    max-width: calc(var(--reading-measure) * var(--reading-body-scale, 1));
+    max-inline-size: calc(var(--reading-measure) * var(--reading-body-scale, 1));
     /* The centred skins' fixed column width (row-placement.ts): the measure, or the row less its two
      * identity rails when the row is narrower than both. `cqi` resolves against the row's own container. */
     --centred-column-width: min(calc(var(--reading-measure) * var(--reading-body-scale, 1)), calc(100cqi - 2 * (var(--size-avatar-lg) + var(--spacing-row))));
@@ -597,7 +518,7 @@
     letter-spacing: var(--reading-letter-spacing);
   }
   [data-slot="message-bubble"] p + p {
-    margin-top: var(--reading-paragraph-spacing);
+    margin-block-start: var(--reading-paragraph-spacing);
   }
   /* How far a pinned header bar and the swipe foot reach to the card's side edges: the card's own inset,
    * which echo widens on its art side to the art pane (an inline override from its decoration). */
@@ -613,7 +534,7 @@
    * width, so the bubble sizes to its prose and the code scrolls within whatever width that leaves. */
   [data-slot="message-bubble"] pre {
     contain: inline-size;
-    max-width: 100%;
+    max-inline-size: 100%;
     overflow-x: auto;
   }
   /* …which leaves a shrink-to-fit box holding code with no width to give it: a tide pill whose only child is
@@ -621,7 +542,7 @@
    * whole track instead (still under each skin's own caps), so the code scrolls in the widest box it may use. */
   [data-slot="message-content-column"]:has(pre),
   [data-slot="message-bubble"]:has(pre) {
-    width: 100%;
+    inline-size: 100%;
   }
   /* CODE TOKENS FOLLOW THE APP THEME, NOT THE DEVICE. Streamdown colours each Shiki token through `--sdm-c` and
    * switches to `--shiki-dark` under Tailwind's `dark:`, which is the OS `prefers-color-scheme` query. The app's
@@ -651,10 +572,10 @@
   [data-streamdown="code-block-download-button"]::before {
     content: "";
     position: absolute;
-    top: 50%;
-    left: 50%;
-    width: var(--size-touch-target);
-    height: var(--size-touch-target);
+    inset-block-start: 50%;
+    inset-inline-start: 50%;
+    inline-size: var(--size-touch-target);
+    block-size: var(--size-touch-target);
     translate: -50% -50%;
   }
   /* WITH THE SOFT KEYBOARD UP the transcript is what the reader needs: the plugin panels' disclosure folds
@@ -765,11 +686,9 @@
    * its own. Its first rendered child is the shared painted carrier: this preserves every caller's flex/grid
    * topology while giving every Surface consumer one inherited ambient lift, with no border, fill, or radius. */
   .shell-grid[data-elevation="glow"] [data-slot="surface-root"] > :first-child {
-    /* `filter:drop-shadow()` accepts exactly one non-inset shadow. `--shadow-overlay` is the shared
-     * multi-layer box-shadow recipe, so feeding it here computes to `none`. The ambient-far ingredient is
-     * the appearance system's depth colour; this one valid filter layer gives contents-carried surfaces the
-     * same ambient lift without inventing a feature-local box. */
-    filter: drop-shadow(0 12px 32px var(--color-shadow-ambient-far));
+    /* `filter: drop-shadow()` accepts exactly one non-inset shadow, so it carries the overlay recipe's deep
+     * ambient layer on its own; feeding it the whole recipe computes to `none`. */
+    filter: drop-shadow(var(--shadow-layer-ambient-far));
   }
 
   /* Chat-thread edge-fade: dissolves softly at a scrolled edge via mask-image rather than hard-clipping. Each
@@ -800,20 +719,6 @@
     --fade-top-stop: 0%;
     --fade-bottom-stop: 0%;
     --mask-top-inset: 0px;
-    -webkit-mask-image: linear-gradient(
-      to bottom,
-      black var(--mask-top-inset),
-      transparent var(--mask-top-inset),
-      rgb(0 0 0 / 0.04) calc(var(--mask-top-inset) + var(--fade-top-stop) * 0.25),
-      rgb(0 0 0 / 0.2) calc(var(--mask-top-inset) + var(--fade-top-stop) * 0.5),
-      rgb(0 0 0 / 0.55) calc(var(--mask-top-inset) + var(--fade-top-stop) * 0.75),
-      black calc(var(--mask-top-inset) + var(--fade-top-stop)),
-      black calc(100% - var(--fade-bottom-stop)),
-      rgb(0 0 0 / 0.55) calc(100% - var(--fade-bottom-stop) * 0.75),
-      rgb(0 0 0 / 0.2) calc(100% - var(--fade-bottom-stop) * 0.5),
-      rgb(0 0 0 / 0.04) calc(100% - var(--fade-bottom-stop) * 0.25),
-      transparent
-    );
     mask-image: linear-gradient(
       to bottom,
       black var(--mask-top-inset),
@@ -848,6 +753,6 @@
   /* Echo's track is the shared content track plus its art width. The skin's box/column cap is component-owned
    * inline geometry in message-row-variants; this selector is the track mechanism only. */
   .orb-echo-track {
-    max-width: calc(var(--width-shell-content) + var(--immersive-echo-art-width));
+    max-inline-size: calc(var(--width-shell-content) + var(--immersive-echo-art-width));
   }
 }

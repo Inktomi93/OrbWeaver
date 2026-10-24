@@ -30,7 +30,7 @@
   }
   @keyframes orb-web-weave {
     0% {
-      stroke-dashoffset: var(--orb-web-spiral-length, 84px);
+      stroke-dashoffset: var(--orb-web-spiral-length);
     }
     52% {
       stroke-dashoffset: 0;
@@ -39,7 +39,7 @@
       stroke-dashoffset: 0;
     }
     100% {
-      stroke-dashoffset: var(--orb-web-spiral-length, 84px);
+      stroke-dashoffset: var(--orb-web-spiral-length);
     }
   }
   @keyframes orb-web-breathe {
@@ -55,8 +55,8 @@
     animation: orb-web-spin var(--motion-ambient) linear infinite;
   }
   [data-slot="web-spinner"][data-animate] .orb-web-pulse {
-    stroke-dasharray: var(--orb-web-spiral-length, 84px);
-    stroke-dashoffset: var(--orb-web-spiral-length, 84px);
+    stroke-dasharray: var(--orb-web-spiral-length);
+    stroke-dashoffset: var(--orb-web-spiral-length);
     /* stylelint-disable-next-line orb/motion-token-purity -- the web spinner's weave stroke: a hand-tuned bezier shaped to the spiral's own geometry, not a member of the shared easing vocabulary, and the spinner is a self-contained loop. Ends when this independent recipe changes or joins coordinated motion. */
     animation: orb-web-weave var(--motion-shimmer) cubic-bezier(0.45, 0.05, 0.35, 0.95) infinite;
   }

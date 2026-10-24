@@ -74,7 +74,7 @@
     .shell-rail {
       grid-column: 1;
       grid-row: 2;
-      width: auto;
+      inline-size: auto;
       border-inline-end: none;
       border-block-start: var(--border-width-control) solid var(--color-sidebar-border);
       flex-direction: row;
@@ -95,9 +95,9 @@
     }
     .shell-rail .shell-rail-button {
       flex: 1 1 0;
-      min-width: 0;
-      width: auto;
-      height: var(--rail-w);
+      min-inline-size: 0;
+      inline-size: auto;
+      block-size: var(--rail-w);
       flex-direction: column;
       gap: var(--spacing-tight);
       border-radius: 0;
@@ -135,7 +135,7 @@
     .shell-panel[data-panel-mode="collapsed"] {
       position: fixed;
       inset-block: var(--dimension-chrome-row) calc(var(--rail-w) + env(safe-area-max-inset-bottom, env(safe-area-inset-bottom)));
-      width: 100dvw;
+      inline-size: 100dvw;
       /* THE SHELL'S OWN FLOAT RUNG, NOT THE PORTAL'S. `.shell-grid` is `isolation: isolate` (the scope block at
        * the top), so the only things this number orders are the shell's own painted children: the rail
        * (`--z-raised`), content (`.shell-main`, a stacking context via `container-type`), the scrim
@@ -160,7 +160,7 @@
     .shell-panel[data-panel-side="context"][data-panel-mode="overlay"],
     .shell-panel[data-panel-side="context"][data-panel-mode="collapsed"] {
       inset-inline: 0;
-      width: 100dvw;
+      inline-size: 100dvw;
       padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
     }
     /* THE OPEN CONTEXT SHEET IS THE WHOLE SCREEN, TAB BAR INCLUDED. The block's shared inset stops every sheet
@@ -196,7 +196,7 @@
      * scrim: this is not a float over content, it IS the content. */
     .shell-panel[data-panel-side="list"][data-panel-mode="docked"] {
       inset-inline: 0;
-      width: 100dvw;
+      inline-size: 100dvw;
       /* …and the ONE-SHELL docked list is fixed too, so it pays the same inline insets. */
       padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
       transform: none;

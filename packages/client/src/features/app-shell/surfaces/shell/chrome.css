@@ -6,8 +6,8 @@
     grid-row: 1;
     display: flex;
     flex-direction: column;
-    min-width: 0;
-    min-height: 0;
+    min-inline-size: 0;
+    min-block-size: 0;
     background: var(--color-background);
     /* Query CONTAINER for the topbar's progressive-disclosure (§4b axis-1 @container, NEVER a viewport
      * @media — the content column narrows independently of the viewport when panels dock). The named
@@ -21,7 +21,7 @@
     align-items: center;
     justify-content: space-between;
     gap: var(--spacing-row);
-    height: var(--dimension-chrome-row);
+    block-size: var(--dimension-chrome-row);
     /* The device inset is paid once on `.shell-grid`, on all four edges; this row keeps only its own rhythm. */
     padding-inline: var(--spacing-block);
     border-block-end: var(--border-width-control) solid var(--color-border);
@@ -32,7 +32,7 @@
     display: flex;
     align-items: center;
     gap: var(--spacing-row);
-    min-width: 0;
+    min-inline-size: 0;
   }
   /* The lead OWNS the fluid remainder and is the row's shrinker: it grows to claim the width the trail
    * doesn't need, and its title truncates only when genuinely out of room. The trail is intrinsic-width and
@@ -59,8 +59,8 @@
    * reads as exactly two groups (P1/N1). */
   .shell-topbar-divider {
     flex: none;
-    width: var(--border-width-control);
-    height: var(--size-glyph-sm);
+    inline-size: var(--border-width-control);
+    block-size: var(--size-glyph-sm);
     background: var(--color-border);
   }
 
@@ -83,7 +83,7 @@
    * floors its title on the title GROUP instead, below: a floor on the text inside a box that is allowed to
    * shrink spills the text over its neighbours.) */
   .shell-topbar-identity[data-identity="narrow"] .shell-topbar-title {
-    min-width: var(--dimension-shell-title-floor);
+    min-inline-size: var(--dimension-shell-title-floor);
   }
 
   /* SHRINK ORDER of the desktop chat identity, matched off .shell-main. The title GROUP owns the floor and clips
@@ -94,15 +94,15 @@
    * chips collapse to their glyphs (their accessible names already carry the count); below 72rem the creation
    * date goes, first, before the name is ever squeezed. */
   .shell-topbar-title-group {
-    min-width: var(--dimension-shell-title-floor);
+    min-inline-size: var(--dimension-shell-title-floor);
     overflow: hidden;
   }
   .shell-topbar-title-group:has(.shell-topbar-subtitle) {
-    min-width: calc(var(--dimension-shell-title-floor) * 3 + var(--spacing-row));
+    min-inline-size: calc(var(--dimension-shell-title-floor) * 3 + var(--spacing-row));
   }
   .shell-topbar-title-group:has(.shell-topbar-subtitle) .shell-topbar-title,
   .shell-topbar-identity .shell-topbar-subtitle {
-    min-width: calc(var(--dimension-shell-title-floor) * 1.5);
+    min-inline-size: calc(var(--dimension-shell-title-floor) * 1.5);
   }
   .shell-topbar-identity .shell-topbar-subtitle {
     flex-shrink: 8;
@@ -124,7 +124,7 @@
   /* The rename field is the name's slot: at least as wide as its content or a sensible minimum, the group caps it. */
   .shell-topbar-rename {
     flex: 1 0 auto;
-    min-width: calc(var(--dimension-shell-title-floor) * 2);
+    min-inline-size: calc(var(--dimension-shell-title-floor) * 2);
     field-sizing: content;
   }
   @container shell-main (max-width: 72rem) {
@@ -144,7 +144,7 @@
    * and the identity band paint NOTHING of their own: the pane (`.shell-panel`) paints one surface under every
    * elevation mode, and a header with its own fill is a second shade inside one pane. */
   .shell-context-header {
-    height: calc(var(--dimension-chrome-row) - var(--border-width-accent));
+    block-size: calc(var(--dimension-chrome-row) - var(--border-width-accent));
     box-shadow: inset 0 calc(var(--border-width-control) * -1) 0 var(--color-sidebar-border);
   }
   /* The tab strip scrolls inside its row; the fade and chevron say there is more, so no native scrollbar. */
@@ -180,13 +180,13 @@
     /* Wrap the registry trail rather than spending the screen title's minimum on overlapping controls. */
     .shell-topbar {
       flex-wrap: wrap;
-      height: auto;
-      min-height: var(--dimension-chrome-row);
+      block-size: auto;
+      min-block-size: var(--dimension-chrome-row);
       row-gap: 0;
     }
     .shell-topbar-lead,
     .shell-topbar-trail {
-      min-height: var(--dimension-chrome-row);
+      min-block-size: var(--dimension-chrome-row);
     }
 
     /* THE NARROW TOPBAR BUDGET. At this width the row seats exactly one lead control, one name and the trail's
@@ -208,11 +208,11 @@
     .shell-topbar-identity[data-identity="narrow"] {
       display: flex;
       flex: 1;
-      min-width: min-content;
+      min-inline-size: min-content;
     }
     /* Intrinsic sizing uses the title's own font-relative floor, not its full nowrap string. */
     .shell-topbar-identity[data-identity="narrow"] .shell-topbar-title {
-      width: 0;
+      inline-size: 0;
       flex: 1;
     }
     /* A chat's screen title is the participants, which are long: it takes the title step instead of the display
@@ -234,7 +234,7 @@
     /* The lead's minimum includes the actual title floor and its control; excess trail chrome wraps. */
     .shell-topbar-lead {
       flex-basis: 0;
-      min-width: min-content;
+      min-inline-size: min-content;
     }
     /* …and here the TRAIL gives too — but only down to its OWN content. `min-width: 0` let it shrink past
      * that, and its icons (each `flex: none`) overflowed the box: MEASURED on the live stage at 320px, the
@@ -243,7 +243,7 @@
      * actually gives on a full row is the LEAD's title, which truncates (its own 6ch floor). */
     .shell-topbar-trail {
       flex: 0 1 auto;
-      min-width: min-content;
+      min-inline-size: min-content;
     }
   }
 
@@ -252,8 +252,8 @@
    * it by the flex row. --size-touch-target is pointer-conditional (44px coarse / 28px fine, D62 P1). */
   @variant pointer-coarse {
     .shell-topbar-icon-btn {
-      min-width: var(--size-touch-target);
-      min-height: var(--size-touch-target);
+      min-inline-size: var(--size-touch-target);
+      min-block-size: var(--size-touch-target);
     }
   }
   /* …and it never shrinks, on any pointer. As a shrinkable flex item the lead's control squeezed to a sliver at

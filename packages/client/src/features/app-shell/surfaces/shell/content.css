@@ -28,8 +28,8 @@
 
   .shell-content {
     flex: 1 1 auto;
-    min-height: 0;
-    min-width: 0;
+    min-block-size: 0;
+    min-inline-size: 0;
     display: flex;
     view-transition-name: orb-section-content;
   }
@@ -55,8 +55,8 @@
   }
   ::view-transition-old(orb-section-content),
   ::view-transition-new(orb-section-content) {
-    width: 100%;
-    height: 100%;
+    inline-size: 100%;
+    block-size: 100%;
     object-fit: none;
     object-position: 0 0;
     /* Held at the end value: the old snapshot's shorter fade must stay faded until the new one finishes. */
@@ -64,8 +64,8 @@
   }
   .shell-region-fill {
     flex: 1 1 auto;
-    min-height: 0;
-    min-width: 0;
+    min-block-size: 0;
+    min-inline-size: 0;
     display: flex;
     flex-direction: column;
   }

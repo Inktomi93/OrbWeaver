@@ -24,7 +24,6 @@
     grid-template-rows: 100%;
     /* NO `transition: grid-template-columns` here — see "THE PANEL PUSH IS A FLIP" below. The track resizes
      * in ONE frame and the visible motion is a compositor-only counter-translate. */
-    height: 100vh; /* fallback for no-dvh */
     /* THE FRAME SHRINKS ABOVE THE SOFT KEYBOARD. `interactive-widget=resizes-content` is unimplemented in WebKit
      * and no browser shrinks `dvh` for the keyboard, so the frame subtracts the measured inset itself and every
      * region reflows from the grid; the composer rides up with the content column. Inside a room on a phone the
@@ -32,8 +31,7 @@
     * `--orb-keyboard-inset` is written by `use-keyboard-inset-var.ts` off `@orb/ui`'s `readKeyboardInset` and
      * REMOVED whenever there is no keyboard, so the `0px` fallback is required: a bare `var()` would be invalid
      * for the app's whole ordinary life and take this `height` declaration with it. */
-    /* biome-ignore lint/suspicious/noDuplicateProperties: intentional dvh-over-vh fallback — the vh line above is the floor for browsers without dvh; this line wins where supported. */
-    height: calc(100dvh - var(--orb-keyboard-inset, 0px));
+    block-size: calc(100dvh - var(--orb-keyboard-inset, 0px));
     position: relative;
     /* THE SHELL IS ONE ISOLATED STACKING SCOPE. `isolation: isolate` makes this box a stacking context, so every
      * z-index in this file orders only this grid's own children. Three consequences:
@@ -116,8 +114,8 @@
     text-shadow: none;
   }
   .shell-grid[data-has-bg-image][data-section="chats"] .shell-content [data-slot="empty-state-root"] {
-    width: max-content;
-    max-width: 100%;
+    inline-size: max-content;
+    max-inline-size: 100%;
     margin-inline: auto;
     padding: var(--spacing-section);
     border-radius: var(--radius-card);

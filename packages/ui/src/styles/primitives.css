@@ -1,4 +1,20 @@
 /* @orb/ui region: document floors and the primitive-wide treatments no utility can spell. Imported by globals.css inside its layer. */
+
+/* The gradient border ring (the CTA, the active tab, the active rail button): a `::after` overlay whose transparent
+ * padding-box fill composes over the element's own fill while the border-box gradient paints the ring, a primary
+ * head over the polarity-fixed sheen foot. The two knobs are each site's tuned weight; the colours are the tokens'. */
+@utility orb-gradient-ring {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border: var(--border-width-control) solid transparent;
+  background:
+    linear-gradient(transparent, transparent) padding-box,
+    linear-gradient(180deg, oklch(from var(--color-primary) l c h / var(--ring-head, 0.55)), oklch(from var(--color-sheen) l c h / var(--ring-foot, 0.04)))
+    border-box;
+}
+
 @layer ui {
   /* Client writes --font-scale onto root from the synced pref; rescales every rem-derived size
    * proportionally. Default 1 = no-op.
@@ -53,24 +69,13 @@
     font-size: var(--text-display);
     line-height: var(--leading-display);
   }
-  /* Gradient border ring on the primary CTA: a ::after overlay (dual background-clip: transparent padding-box
-   * fill + gradient border-box) so it composes over the element's own fill instead of clobbering it. Chrome/CTA
-   * only, never message prose. The gradient's FOOT is --color-sheen, a polarity-fixed sheen highlight, a
-   * deliberate white gloss unless a theme overrides the token. The per-site alpha (the tuned ring weight) stays
-   * here; only the colour is the token's call. Same pairing in .shell-rail-button.
-  * A selected media cell does not wear this ring: a selected cell is `SELECTION_RING_SELECTED` and nothing else
-   * (packages/ui/src/lib/selection-ring.ts). A call-to-action is not a selection state. */
+  /* The primary CTA wears the gradient ring at the recipe's default weight. Chrome only, never message prose.
+   * A selected media cell does not wear it: a selected cell is `SELECTION_RING_SELECTED` and nothing else
+   * (packages/ui/src/lib/selection-ring.ts); a call-to-action is not a selection state. */
   [data-slot="button"][data-cta]::after {
-    content: "";
-    position: absolute;
-    inset: 0;
+    @apply orb-gradient-ring;
     z-index: 1;
-    pointer-events: none;
-    border: var(--border-width-control) solid transparent;
     border-radius: inherit;
-    background:
-      linear-gradient(transparent, transparent) padding-box,
-      linear-gradient(180deg, oklch(from var(--color-primary) l c h / 0.55), oklch(from var(--color-sheen) l c h / 0.04)) border-box;
   }
   /* A disabled (not busy) primary is neutral, so its ring goes neutral too — an accent hairline round a grey button
    * would still read as live. */
@@ -91,22 +96,16 @@
    * (the list draws its own indicator) is a seal change with a vertical/`stacked` arm the rail would need
    * rendered checks for; until then this rule stays. */
   [data-slot="tabs-tab"][data-active]::after {
-    content: "";
-    position: absolute;
-    inset: 0;
+    --ring-head: 0.3;
+    --ring-foot: 0.02;
+    @apply orb-gradient-ring;
     z-index: 0;
-    pointer-events: none;
-    border: var(--border-width-control) solid transparent;
     border-radius: var(--radius-control);
-    background:
-      linear-gradient(transparent, transparent) padding-box,
-      linear-gradient(180deg, oklch(from var(--color-primary) l c h / 0.3), oklch(from var(--color-sheen) l c h / 0.02)) border-box;
   }
 
   /* Gradient-fade dividers: long separators dissolve at their ends via a mask gradient instead of a
    * hard 1px stub. Vertical (short) separators are left alone — a fade there reads as a bug. */
   [data-slot="separator"][data-orientation="horizontal"] {
-    -webkit-mask-image: linear-gradient(to right, transparent, black var(--fade-edge-stop), black calc(100% - var(--fade-edge-stop)), transparent);
     mask-image: linear-gradient(to right, transparent, black var(--fade-edge-stop), black calc(100% - var(--fade-edge-stop)), transparent);
   }
 
@@ -148,7 +147,7 @@
    * so it beats the `p-section` utility it extends. It ADDS to the section step, so a drawer on a device with no
    * home indicator is byte-identical (`env()` resolves 0px). */
   [data-slot="drawer-content"] {
-    padding-bottom: calc(var(--spacing-section) + env(safe-area-inset-bottom));
+    padding-block-end: calc(var(--spacing-section) + env(safe-area-inset-bottom));
   }
 
   /* ART BLEED: the two declarations `art/art-bleed/variants.ts` cannot honestly spell as utilities. Read them
@@ -175,7 +174,6 @@
   [data-slot="art-bleed"] {
     --art-bleed-peak: 0.55;
     inset-inline-start: min(100%, calc(var(--reading-measure-min) + var(--spacing-section)));
-    -webkit-mask-image: linear-gradient(to left, rgb(0 0 0 / var(--art-bleed-peak)), transparent);
     mask-image: linear-gradient(to left, rgb(0 0 0 / var(--art-bleed-peak)), transparent);
   }
 
@@ -212,13 +210,6 @@
   .scroll-fade-x {
     --fade-start-stop: 0%;
     --fade-end-stop: 0%;
-    -webkit-mask-image: linear-gradient(
-      to right,
-      rgb(0 0 0 / var(--scroll-fade-floor)),
-      black var(--fade-start-stop),
-      black calc(100% - var(--fade-end-stop)),
-      rgb(0 0 0 / var(--scroll-fade-floor))
-    );
     mask-image: linear-gradient(
       to right,
       rgb(0 0 0 / var(--scroll-fade-floor)),
@@ -268,13 +259,6 @@
        LENGTHS on this axis where the inline twin uses a percentage; see the header for why. */
     --fade-top-stop: 0px;
     --fade-bottom-stop: 0px;
-    -webkit-mask-image: linear-gradient(
-      to bottom,
-      rgb(0 0 0 / var(--scroll-fade-floor)),
-      black var(--fade-top-stop),
-      black calc(100% - var(--fade-bottom-stop)),
-      rgb(0 0 0 / var(--scroll-fade-floor))
-    );
     mask-image: linear-gradient(
       to bottom,
       rgb(0 0 0 / var(--scroll-fade-floor)),
@@ -372,7 +356,7 @@
    * and there is no design token for "as tall as this element's own two lines", the same reason
    * `orb-skeleton-shimmer` below is a class rather than a utility stack. */
   .orb-lines-2 {
-    min-height: 2lh;
+    min-block-size: 2lh;
   }
 
   /* Skeleton shimmer sweep: the gradient rides an oversized pseudo-element and translates on the
@@ -400,7 +384,7 @@
     position: absolute;
     inset-block: 0;
     inset-inline-start: -100%;
-    width: 200%;
+    inline-size: 200%;
     content: "";
     pointer-events: none;
     background-image: linear-gradient(

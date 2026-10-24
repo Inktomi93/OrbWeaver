@@ -8,7 +8,7 @@
     grid-column: 1;
     grid-row: 1;
     z-index: var(--z-raised);
-    width: var(--rail-w);
+    inline-size: var(--rail-w);
     background: var(--color-sidebar);
     color: var(--color-sidebar-foreground);
     border-inline-end: var(--border-width-control) solid var(--color-sidebar-border);
@@ -29,7 +29,7 @@
     align-self: stretch;
     align-items: center;
     justify-content: center;
-    height: var(--dimension-chrome-row);
+    block-size: var(--dimension-chrome-row);
     padding-inline: var(--spacing-block);
     border-block-end: var(--border-width-control) solid var(--color-sidebar-border);
     color: var(--color-muted-foreground);
@@ -58,7 +58,7 @@
     inset-block: var(--spacing-field);
     inset-inline-start: 0;
     /* A 2px accent bar — the hairline-plus rule, same species as the .shell-topbar-divider's 1px. */
-    width: var(--border-width-accent);
+    inline-size: var(--border-width-accent);
     border-start-end-radius: var(--border-width-accent);
     border-end-end-radius: var(--border-width-accent);
     background: var(--color-primary);
@@ -92,8 +92,8 @@
   }
 
   .shell-rail .shell-rail-button {
-    width: var(--size-control-lg);
-    height: var(--size-control-lg);
+    inline-size: var(--size-control-lg);
+    block-size: var(--size-control-lg);
   }
   .shell-rail .shell-rail-button:hover {
     background: var(--color-sidebar-accent);
@@ -114,20 +114,13 @@
     border-radius: inherit;
     box-shadow: var(--shadow-glow);
   }
-  /* The active rail button's gradient border — the globals.css CTA-ring recipe: a --color-primary head
-   * over a --color-sheen foot (polarity-fixed sheen highlight, a deliberate white gloss unless a theme
-   * overrides the token); the alpha is this site's tuned weight, the colour is the token's call. */
+  /* The active rail button wears the gradient ring (`orb-gradient-ring`, @orb/ui primitives.css) at this site's weight. */
   .shell-rail .shell-rail-button[data-active]::after {
-    content: "";
-    position: absolute;
-    inset: 0;
+    --ring-head: 0.45;
+    --ring-foot: 0.03;
+    @apply orb-gradient-ring;
     z-index: 1;
-    pointer-events: none;
-    border: var(--border-width-control) solid transparent;
     border-radius: inherit;
-    background:
-      linear-gradient(transparent, transparent) padding-box,
-      linear-gradient(180deg, oklch(from var(--color-primary) l c h / 0.45), oklch(from var(--color-sheen) l c h / 0.03)) border-box;
   }
 
   /* The button's label rides under the icon on the mobile bar; on the desktop icon column the tooltip

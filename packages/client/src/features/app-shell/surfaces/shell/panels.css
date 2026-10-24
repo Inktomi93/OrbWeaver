@@ -6,7 +6,7 @@
     grid-row: 1;
     display: flex;
     flex-direction: column;
-    min-height: 0;
+    min-block-size: 0;
     overflow: hidden;
     background: var(--color-sidebar);
     color: var(--color-sidebar-foreground);
@@ -40,7 +40,7 @@
 
   .shell-panel[data-panel-mode="docked"] {
     position: relative;
-    width: auto;
+    inline-size: auto;
   }
 
   .shell-panel[data-panel-mode="overlay"],
@@ -48,7 +48,7 @@
     position: absolute;
     /* grid-column:auto resets the abspos containing block off the grid area so inset-inline-start targets the shell edge. */
     grid-column: auto;
-    width: var(--panel-w);
+    inline-size: var(--panel-w);
     z-index: var(--z-overlay);
     transition: transform var(--shell-motion) var(--shell-ease);
   }
@@ -56,7 +56,7 @@
    * duration/easing stay in the shared rule above, where both panels inherit one event. */
   .shell-panel[data-panel-side="context"][data-panel-mode="overlay"],
   .shell-panel[data-panel-side="context"][data-panel-mode="collapsed"] {
-    width: var(--panel-context-w);
+    inline-size: var(--panel-context-w);
   }
   /* A COLLAPSED LIST PANE IS AS WIDE AS THE TRACK IT LEFT, NOT AS WIDE AS THE CLAMP. The list pane is anchored to
    * the rail, so a width change lands on its trailing edge, the one edge no translate can counter: `--panel-w`
@@ -69,7 +69,7 @@
    * `width: 100dvw` for this pane is later in source at a higher specificity, so this rule yields to it; a flip-gated `width`
    * on the panel would outrank it and spell a second raw sheet length. */
   .shell-panel[data-panel-side="list"][data-panel-mode="collapsed"] {
-    width: var(--list-panel-collapsed-w);
+    inline-size: var(--list-panel-collapsed-w);
   }
   /* A panel that leaves a DOCKED track slides out at the docked, full-height box, so a collapsed panel is
    * full-height. An OPEN overlay must clear the topbar row (mirrors the mobile overlay rule below) so it never
@@ -93,6 +93,8 @@
   .shell-panel[data-panel-side="context"][data-panel-mode="collapsed"] {
     inset-inline-end: 0;
   }
+  /* The slide rides `transform`, not `translate`: the two add, and the FLIP keyframes (motion.css) own `translate` on
+   * these same elements. A physical axis; under a right-to-left shell the panels' slide is the known follow-up. */
   .shell-panel[data-panel-mode="overlay"] {
     transform: translateX(0);
   }
@@ -132,7 +134,7 @@
     align-items: center;
     justify-content: space-between;
     gap: var(--spacing-row);
-    height: var(--dimension-chrome-row);
+    block-size: var(--dimension-chrome-row);
     padding-inline: var(--spacing-block);
     box-shadow: var(--shell-band-ember), var(--shell-band-rule);
   }
@@ -166,7 +168,7 @@
    * a normal chat's neutral "Details" label is a single line — both lay out from the start edge). */
   .shell-panel[data-panel-side="context"] .shell-panel-header > * {
     flex: 1 1 auto;
-    min-width: 0;
+    min-inline-size: 0;
   }
   /* …except the OVERLAY dismiss, a fixed control on the trailing edge that must not take a share of the band's
    * width. */
@@ -178,7 +180,7 @@
   .shell-panel-header-group {
     display: flex;
     flex: 1 1 auto;
-    min-width: 0;
+    min-inline-size: 0;
     align-items: center;
     justify-content: space-between;
     gap: var(--spacing-row);
@@ -197,7 +199,7 @@
 
   .shell-panel-body {
     flex: 1 1 auto;
-    min-height: 0;
+    min-block-size: 0;
     /* MUST be a flex column: the region wrapper inside (`.shell-region-fill`) carries `flex: 1 1 auto`, which
      * is INERT unless this parent is a flex container — without it the region grows to content height and a
      * section's VirtualList measures full content (over-3×-viewport → the seal throws). Block layout here only
