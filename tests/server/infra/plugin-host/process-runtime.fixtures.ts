@@ -176,3 +176,32 @@ export async function installGuest(root: ServerTestHarness, slug: string, source
     rows: (): ReturnType<typeof capturePluginRows> => capturePluginRows(root.db, root.ownerId, installed.id),
   };
 }
+
+export const NATIVE_TIMEOUT_MS = 30_000;
+export const STOPPED = "continuation stopped:";
+export const FLOOD_HOST_CALLS = 1024;
+export const BASE_GRANTS = ["ui.surface", "storage.kv"] as const;
+export const NOOP_COMMAND = 'h.ui.registerCommand({name:"noop",describe:"Native no-op",onRun:()=>{}});';
+
+export function firstChild(edge: ReturnType<typeof createPluginProcessEdge>): ChildProcess {
+  const child = edge.children[0];
+  if (child === undefined) {
+    throw new Error("the production host did not spawn its watchdog");
+  }
+  return child;
+}
+
+export function hasOperation(value: unknown, operation: string): boolean {
+  return frameField(value, "kind") === "bridge" && frameField(value, "operation") === operation;
+}
+
+export function releasedAuthorities(edge: ReturnType<typeof createPluginProcessEdge>): number {
+  return edge.delivered.filter((value) => frameField(value, "kind") === "authority-released").length;
+}
+
+export function floatCommand(body: string): string {
+  return `const h=orb.host(1);${NOOP_COMMAND}
+    h.ui.registerCommand({name:"float",describe:"Continue after return",onRun:()=>{
+      void(async()=>{await h.storage.get("gate");${body}})().catch(e=>h.log.warn(${JSON.stringify(STOPPED)}+e.name+":"+e.message));
+    }});`;
+}

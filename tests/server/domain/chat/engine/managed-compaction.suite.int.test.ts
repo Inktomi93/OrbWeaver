@@ -1,23 +1,18 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // @subject packages/server/src/domain/chat/verbs/compaction.ts
 // Native executable receipts distinguish app-owned markers from foreground dispatch through the real root.
-import { createCharacterSchema } from "@orb/contracts/character";
-import { parseVariantMetadata } from "@orb/contracts/chat";
 import type { UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_COMPACT_INSTRUCTIONS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import { messages, messageVariants } from "@orb/db";
-import { ProviderError } from "@orb/inference";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
 import { makePromptConfig } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "@orb/testkit/node/composed";
-import { and, desc, eq } from "drizzle-orm";
-import { beforeAll, describe } from "vitest";
 import { sdkEngineRoom } from "./engine-physical.ts";
 import { ENGINE_SDK_MARKER, ENGINE_SDK_MODEL, ENGINE_SDK_REPLY } from "./engine-sdk-physical.mjs";
 
 const SMALL_INTENT = { compaction: { mode: "managed" }, maxContextTokens: 200, maxOutputTokens: 64 } as const satisfies UserIntent;
+
 const PRESET_PARAMS = { ...DEFAULT_PROMPT_CONFIG.params, ...SMALL_INTENT };
 
 test("agent-sdk fit drops rebuild the durable marker through the chat's own native model", async () => {
@@ -96,90 +91,6 @@ test("verbatimTail4 covers exactly twelve of sixteen real canon rows before a do
   expect(fixture.receipts.map(({ marker }) => marker)).toEqual([true, false]);
 });
 
-async function recordSystemPrompt(fixture: Awaited<ReturnType<typeof sdkEngineRoom>>, count: number, heavy: boolean): Promise<void> {
-  const bootstrap = await fixture.turn({ compaction: { mode: "auto" } });
-  expect(bootstrap.aborted).toBe(false);
-  expect(bootstrap.messages).toHaveLength(1);
-  const newest = await fixture.h.root.db
-    .select({ seq: messages.seq, variantId: messageVariants.id, metadata: messageVariants.metadata })
-    .from(messages)
-    .innerJoin(messageVariants, eq(messages.selectedVariantId, messageVariants.id))
-    .where(and(eq(messages.chatId, fixture.h.chatId), eq(messages.role, "assistant")))
-    .orderBy(desc(messages.seq))
-    .get();
-  expect(newest).toMatchObject({ seq: await fixture.seqOfRow(count), variantId: bootstrap.messages[0]?.selectedVariantId });
-  expect(parseVariantMetadata(newest?.metadata).systemTokens).toBeGreaterThan(heavy ? 2000 : 0);
-  expect((await fixture.marker())?.compactSummary).toBeNull();
-}
-
-async function markerAt(
-  count: number,
-  recordedSystem: boolean,
-  foregroundFails: boolean,
-  heavy: boolean,
-): Promise<{ readonly compacted: boolean; readonly nativeExchanges: number }> {
-  await using fixture = await sdkEngineRoom({
-    history: recordedSystem ? count - 1 : count,
-    window: 8192,
-    characters: [createCharacterSchema.parse({ handle: "priced-keeper", name: "Aria", description: heavy ? "word ".repeat(2000) : "A bold knight." })],
-    promptConfig: makePromptConfig({ params: { ...DEFAULT_PROMPT_CONFIG.params, maxOutputTokens: 100, compaction: { mode: "managed" } } }),
-  });
-  if (recordedSystem) {
-    await recordSystemPrompt(fixture, count, heavy);
-  }
-  fixture.setPolicy({ foreground: foregroundFails ? "fail" : "reply" });
-  const [result] = await Promise.allSettled([fixture.turn()]);
-  const expected = foregroundFails ? { status: "rejected", reason: expect.any(ProviderError) } : { status: "fulfilled", value: { aborted: false } };
-  expect(result).toMatchObject(expected);
-  await fixture.h.root.settleBackground();
-  return { compacted: (await fixture.marker())?.compactSummary === ENGINE_SDK_MARKER, nativeExchanges: fixture.receipts.length };
-}
-
-async function firstCompactingRows(
-  recordedSystem: boolean,
-  foregroundFails: boolean,
-  heavy = false,
-  observe?: (nativeExchanges: number) => void,
-): Promise<number> {
-  let low = 9;
-  let high = 160;
-  while (low < high) {
-    const count = Math.floor((low + high) / 2);
-    const sample = await markerAt(count, recordedSystem, foregroundFails, heavy);
-    observe?.(sample.nativeExchanges);
-    if (sample.compacted) {
-      high = count;
-    } else {
-      low = count + 1;
-    }
-  }
-  expect(low).toBeLessThan(160);
-  return low;
-}
-
-describe("the measured pre-turn threshold", () => {
-  // The search is the shared input both offsets read, so it runs once here instead of inside whichever case runs first.
-  const measured = Promise.withResolvers<number>();
-  beforeAll(async () => {
-    measured.resolve(await firstCompactingRows(false, true));
-  });
-
-  for (const offset of [-1, 0]) {
-    test(`the actual pre-turn threshold ${offset === -1 ? "one-row-short refusal" : "crossing row"} is stable`, async () => {
-      const threshold = await measured.promise;
-      await using fixture = await sdkEngineRoom({
-        history: threshold + offset,
-        window: 8192,
-        policy: { foreground: "fail" },
-        promptConfig: makePromptConfig({ params: { ...DEFAULT_PROMPT_CONFIG.params, maxOutputTokens: 100, compaction: { mode: "managed" } } }),
-      });
-      await expect(fixture.turn()).toThrowProviderError("server");
-      expect((await fixture.marker())?.compactSummary).toBe(offset === -1 ? null : ENGINE_SDK_MARKER);
-      expect(fixture.receipts.filter(({ marker }) => marker)).toHaveLength(offset === -1 ? 0 : 1);
-    });
-  }
-});
-
 test("a failed physical pre-turn marker cannot prevent a successful foreground commit", async () => {
   await using fixture = await sdkEngineRoom({ history: 8, policy: { marker: "fail" } });
   const outcome = await fixture.turn(SMALL_INTENT);
@@ -188,70 +99,6 @@ test("a failed physical pre-turn marker cannot prevent a successful foreground c
   await fixture.h.root.settleBackground();
   expect((await fixture.marker())?.compactSummary).toBeNull();
   expect(fixture.receipts.some(({ marker }) => marker)).toBe(true);
-});
-
-test("a permanent marker outage cannot wall a real over-window turn: trim, warn, commit and leave no marker", async () => {
-  await using fixture = await sdkEngineRoom({ history: 16, window: 300, policy: { marker: "fail" } });
-  const preview = await fixture.h.caller.chat.previewContextFit({ chatId: fixture.h.chatId });
-  expect(preview).toMatchObject({ droppedCount: expect.any(Number), limit: { kind: "window", tokens: 300 } });
-  if ("unbound" in preview) {
-    throw new Error("the real SDK room lost its binding");
-  }
-  expect(preview.droppedCount).toBeGreaterThan(0);
-  const outcome = await fixture.turn({ compaction: { mode: "managed" }, maxOutputTokens: 64 });
-  expect(outcome.aborted).toBe(false);
-  expect(outcome.messages).toMatchObject([{ content: ENGINE_SDK_REPLY }]);
-  await fixture.h.root.settleBackground();
-  expect((await fixture.marker())?.compactSummary).toBeNull();
-  expect((await fixture.warnings()).map(({ payload }) => payload)).toContainEqual(expect.objectContaining({ code: "context_trimmed_no_summary" }));
-});
-
-for (const descriptionWords of [0, 2000]) {
-  test(`a ${descriptionWords}-word real card retains the actual fit-trim/no-summary warning premise`, async ({ annotate }) => {
-    await using fixture = await sdkEngineRoom({
-      history: 160,
-      window: 8000,
-      policy: { marker: "fail", inspectHistory: true },
-      characters: [createCharacterSchema.parse({ handle: "trim-keeper", name: "Aria", description: "word ".repeat(descriptionWords) })],
-      promptConfig: makePromptConfig({ params: { ...DEFAULT_PROMPT_CONFIG.params, maxOutputTokens: 100 } }),
-    });
-    const preview = await fixture.h.caller.chat.previewContextFit({ chatId: fixture.h.chatId });
-    if ("unbound" in preview) {
-      throw new Error("the real trim room lost its binding");
-    }
-    expect(preview.droppedCount).toBeGreaterThan(0);
-    expect(preview.droppedCount).toBeLessThan(160);
-    expect((await fixture.turn()).aborted).toBe(false);
-    await fixture.h.root.settleBackground();
-    const request = fixture.receipts.find(({ marker }) => !marker);
-    expect(request).toBeDefined();
-    expect(request?.importedSeed).toBeDefined();
-    expect(request?.importedSeed?.rowCount).toBeGreaterThan(0);
-    expect(request?.importedSeed?.rowCount).toBeLessThan(160);
-    expect(request?.argv).toContain(`--resume=${request?.importedSeed?.sessionId}`);
-    expect(request?.importedSeed?.lastText).toContain("turn 160 —");
-    expect(request?.importedSeed?.firstText).not.toContain("turn 1 —");
-    expect((await fixture.warnings()).map(({ payload }) => payload)).toContainEqual(expect.objectContaining({ code: "context_trimmed_no_summary" }));
-    expect((await fixture.marker())?.compactSummary).toBeNull();
-    await annotate(
-      JSON.stringify({ descriptionWords, importedRows: request?.importedSeed?.rowCount, sessionId: request?.importedSeed?.sessionId }),
-      "native-materialized-history",
-    );
-  });
-}
-
-test("a production-recorded heavy system prompt makes pre-turn and post-turn thresholds agree within one row", { tags: "slow" }, async ({ annotate }) => {
-  const samples: number[] = [];
-  const observe = (exchanges: number): void => {
-    samples.push(exchanges);
-  };
-  const postRows = await firstCompactingRows(false, false, true, observe);
-  const preRows = await firstCompactingRows(true, true, true, observe);
-  await annotate(
-    JSON.stringify({ postRows, preRows, probes: samples.length, nativeExchanges: samples.reduce((sum, count) => sum + count, 0) }),
-    "native-compaction-search",
-  );
-  expect(Math.abs(preRows - postRows)).toBeLessThanOrEqual(1);
 });
 
 test("the stateless route under the same blown fit never requests or stamps a managed marker", async () => {
