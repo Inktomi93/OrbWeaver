@@ -1,7 +1,9 @@
 // Idempotent SHOWCASE-PLUGIN seeder — the fourth member of the seeder family (default characters, default
 // persona, roster presets, and the showcase plugins). Called both at boot (the deployment owner) and on first
 // authed request (every new user), through the ONE shared instance so the in-process memo + the persisted
-// latch make re-runs a no-op. `ensureSeeded` never throws.
+// latch make re-runs a no-op. `ensureSeeded` never throws. Slugs install one at a time: every install draws
+// from the one injected id source, so concurrent installs make id order timing-dependent and a published
+// seeded fixture unreproducible.
 //
 // WHY EXAMPLES SHIP INSTALLED AT ALL. A plugin surface with an empty list teaches nobody what a plugin is.
 // The set is one per ARCHETYPE — one EVENT-driven (Research Familiar), one TOOL-registering (Oracle Deck),
@@ -112,10 +114,20 @@ export function createExamplePluginSeeder(deps: ExamplePluginSeederDeps): Exampl
     principal: Principal,
     held: ReadonlySet<string>,
   ): Promise<{ readonly latched: boolean; readonly wrote: Readonly<Record<string, string>> }> {
-    // Concurrent across SLUGS, and that is safe rather than merely convenient: each example is an independent
-    // `(owner, slug)` row with its own CAS asset, so two passes share no row and cannot race each other. A
-    // throw in any one of them rejects the whole pass — which is the intent: a partial seed must not latch.
-    const results = await Promise.all(deps.slugs.map(async (slug) => ({ slug, ...(await seedOne(principal, slug, held.has(slug))) })));
+    // In tuple order, one at a time (file header). A throw in one slug still lets every later slug install,
+    // then rejects the whole pass with the first failure — the intent: a partial seed must not latch.
+    const results: (Awaited<ReturnType<typeof seedOne>> & { readonly slug: string })[] = [];
+    const failures: unknown[] = [];
+    for (const slug of deps.slugs) {
+      try {
+        results.push({ slug, ...(await seedOne(principal, slug, held.has(slug))) });
+      } catch (error) {
+        failures.push(error);
+      }
+    }
+    if (failures.length > 0) {
+      throw failures[0];
+    }
     const minted = results.filter((row) => row.outcome === "installed").length;
     const unavailable = results.filter((row) => row.outcome === "unavailable").map((row) => row.slug);
     const wrote: Record<string, string> = {};

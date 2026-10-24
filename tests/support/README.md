@@ -90,6 +90,15 @@ Runnable examples:
 - [Gallery startup and failure behavior](browser/gallery.ct.tsx)
 - [Native mount and update type contracts](browser/gallery.dom.test-d.ts)
 
+## Republish the corpus fixture
+
+The committed synthetic corpus lives in `node/corpus-data`. Republish it when a contract it captures changes.
+
+1. Run `pnpm exec node scripts/corpus-fixture.ts publish <new-directory>`. The directory must not exist.
+2. Replace `node/corpus-data` with the published directory.
+
+Two publishes from one tree are byte-identical: every producer draws ids from the injected id source in a fixed order. `node/corpus-fixture-schema.test.ts` parses the committed fixture against the current published-corpus schema with the Node tests and names each missing or extra field.
+
 ## What is enforced
 
 | Contract | Enforcement |
