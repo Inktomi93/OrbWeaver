@@ -1,10 +1,8 @@
 import type { ConfigGroupId } from "@orb/client/state";
-import { seedThemes } from "@orb/server/entry/boot";
-import type { TrpcWireOutput } from "@orb/testkit/ct";
 import { routeTrpc, trpcHold } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { createServerHarness } from "@orb/testkit/node/composed";
-import { bootGrantFor } from "@orb/testkit/node/helpers";
+import type { CorpusRead, CorpusWire } from "@orb/testkit/iso";
+import { createCorpusReadResponder } from "@orb/testkit/iso";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
 import type { FirstBootStory } from "./_first-boot-stories.tsx";
@@ -40,55 +38,52 @@ const FIXED_KEYS: Readonly<Record<FirstBootGroup, readonly string[]>> = {
   appearance: ["config.appearance.looks"],
 };
 
-interface Captured {
-  readonly viewer: TrpcWireOutput<"sessions.me">;
-  readonly settings: TrpcWireOutput<"settings.getUserSettings">;
-  readonly themes: TrpcWireOutput<"settings.listThemes">;
-  readonly appSettings: TrpcWireOutput<"settings.getAppSettingsWithOverrides">;
-  readonly connections: TrpcWireOutput<"connection.list">;
-  readonly bindings: TrpcWireOutput<"connection.listBindings">;
-  readonly providers: TrpcWireOutput<"connection.providersAvailable">;
-  readonly credentials: TrpcWireOutput<"credentials.list">;
-  readonly users: TrpcWireOutput<"admin.listUsers">;
-  readonly workloads: TrpcWireOutput<"workloads.list">;
-  readonly schedules: TrpcWireOutput<"workloads.listSchedules">;
-  readonly signInMode: TrpcWireOutput<"share.signInMode">;
-  readonly shareStatus: TrpcWireOutput<"share.status">;
-  readonly presets: TrpcWireOutput<"preset.list">;
-  readonly spaceStatus: TrpcWireOutput<"search.spaceStatus">;
-}
+// What the browser would be served on a first boot: every read answered by its captured request, so a group that asks
+// for anything the corpus does not hold fails the test instead of being handed invented data.
+const FIRST_BOOT_READS = [
+  "sessions.me",
+  "settings.getUserSettings",
+  "settings.listThemes",
+  "settings.getAppSettingsWithOverrides",
+  "connection.list",
+  "connection.listBindings",
+  "connection.providersAvailable",
+  "credentials.list",
+  "admin.listUsers",
+  "workloads.list",
+  "workloads.listSchedules",
+  "share.signInMode",
+  "share.status",
+  "preset.list",
+  "search.spaceStatus",
+] as const;
+type FirstBootRead = (typeof FIRST_BOOT_READS)[number];
+type CorpusReads = { readonly [P in FirstBootRead]: (input: CorpusRead<P>["input"]) => CorpusRead<P>["output"] };
 
-// The wire of a fresh in-process server, read once: what the browser would be served on a first boot.
-async function captureReads(): Promise<Captured> {
-  await using root = await createServerHarness({ startJobs: false });
-  // A deployed server seeds the shipped themes at boot; the harness does not.
-  await seedThemes({ db: bootGrantFor(root.db), logger: root.logger, now: root.clock.now });
-  const caller = await root.internalCallerFor(root.ownerId);
+function corpusReads(corpus: CorpusWire): CorpusReads {
+  const { firstBoot } = corpus;
+  if (firstBoot === undefined) {
+    throw new Error("The corpus has no first-boot capture");
+  }
+  const { reads } = firstBoot;
   return {
-    viewer: await caller.sessions.me(),
-    settings: await caller.settings.getUserSettings(),
-    themes: await caller.settings.listThemes(),
-    appSettings: await caller.settings.getAppSettingsWithOverrides(),
-    connections: await caller.connection.list(),
-    bindings: await caller.connection.listBindings(),
-    providers: await caller.connection.providersAvailable(),
-    credentials: await caller.credentials.list(),
-    users: await caller.admin.listUsers(),
-    workloads: await caller.workloads.list({}),
-    schedules: await caller.workloads.listSchedules({}),
-    signInMode: await caller.share.signInMode(),
-    shareStatus: await caller.share.status(),
-    presets: await caller.preset.list(),
-    spaceStatus: await caller.search.spaceStatus(),
+    "sessions.me": createCorpusReadResponder("sessions.me", [reads.viewer]),
+    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", [reads.settings]),
+    "settings.listThemes": createCorpusReadResponder("settings.listThemes", [reads.themes]),
+    "settings.getAppSettingsWithOverrides": createCorpusReadResponder("settings.getAppSettingsWithOverrides", [reads.appSettings]),
+    "connection.list": createCorpusReadResponder("connection.list", [reads.connections]),
+    "connection.listBindings": createCorpusReadResponder("connection.listBindings", [reads.bindings]),
+    "connection.providersAvailable": createCorpusReadResponder("connection.providersAvailable", [reads.providers]),
+    "credentials.list": createCorpusReadResponder("credentials.list", [reads.credentials]),
+    "admin.listUsers": createCorpusReadResponder("admin.listUsers", [reads.users]),
+    "workloads.list": createCorpusReadResponder("workloads.list", firstBoot.workloadLists),
+    "workloads.listSchedules": createCorpusReadResponder("workloads.listSchedules", [reads.schedules]),
+    "share.signInMode": createCorpusReadResponder("share.signInMode", [reads.signInMode]),
+    "share.status": createCorpusReadResponder("share.status", [reads.shareStatus]),
+    "preset.list": createCorpusReadResponder("preset.list", [reads.presets]),
+    "search.spaceStatus": createCorpusReadResponder("search.spaceStatus", [reads.spaceStatus]),
   };
 }
-
-let captured: Promise<Captured> | undefined;
-function reads(): Promise<Captured> {
-  captured ??= captureReads();
-  return captured;
-}
-
 interface Held {
   /** Resolves when every held read is in flight. */
   readonly requested: Promise<unknown>;
@@ -97,25 +92,8 @@ interface Held {
   readonly releaseNested?: () => void;
 }
 
-async function routeGroup(page: Page, group: FirstBootGroup, c: Captured): Promise<Held> {
+async function routeGroup(page: Page, group: FirstBootGroup, answered: CorpusReads): Promise<Held> {
   // Every read any Settings group fires, answered at once; a group then holds the reads it measures.
-  const answered = {
-    "sessions.me": c.viewer,
-    "settings.getUserSettings": c.settings,
-    "settings.listThemes": c.themes,
-    "settings.getAppSettingsWithOverrides": c.appSettings,
-    "connection.list": c.connections,
-    "connection.listBindings": c.bindings,
-    "connection.providersAvailable": c.providers,
-    "credentials.list": c.credentials,
-    "admin.listUsers": c.users,
-    "workloads.list": c.workloads,
-    "workloads.listSchedules": c.schedules,
-    "share.signInMode": c.signInMode,
-    "share.status": c.shareStatus,
-    "preset.list": c.presets,
-    "search.spaceStatus": c.spaceStatus,
-  };
   switch (group) {
     case "workloads": {
       const settings = trpcHold<"settings.getUserSettings">();
@@ -124,15 +102,16 @@ async function routeGroup(page: Page, group: FirstBootGroup, c: Captured): Promi
       await routeTrpc(page, {
         ...answered,
         "settings.getUserSettings": () => settings,
-        "workloads.list": () => list,
+        // Only the Jobs list is held; the per-kind rebuild reads keep their own captures.
+        "workloads.list": (input) => (input?.kind === undefined ? list : answered["workloads.list"](input)),
         "workloads.listSchedules": () => schedules,
       });
       return {
         requested: Promise.all([settings.requested, list.requested, schedules.requested]),
         release: (): void => {
-          settings.release(c.settings);
-          list.release(c.workloads);
-          schedules.release(c.schedules);
+          settings.release(answered["settings.getUserSettings"](undefined));
+          list.release(answered["workloads.list"]({}));
+          schedules.release(answered["workloads.listSchedules"]({}));
         },
       };
     }
@@ -151,10 +130,10 @@ async function routeGroup(page: Page, group: FirstBootGroup, c: Captured): Promi
       return {
         requested: Promise.all([list.requested, bindings.requested, providers.requested, credentials.requested]),
         release: (): void => {
-          list.release(c.connections);
-          bindings.release(c.bindings);
-          providers.release(c.providers);
-          credentials.release(c.credentials);
+          list.release(answered["connection.list"](undefined));
+          bindings.release(answered["connection.listBindings"](undefined));
+          providers.release(answered["connection.providersAvailable"](undefined));
+          credentials.release(answered["credentials.list"](undefined));
         },
       };
     }
@@ -173,11 +152,11 @@ async function routeGroup(page: Page, group: FirstBootGroup, c: Captured): Promi
       return {
         requested: Promise.all([appSettings.requested, users.requested]),
         release: (): void => {
-          appSettings.release(c.appSettings);
-          users.release(c.users);
+          appSettings.release(answered["settings.getAppSettingsWithOverrides"](undefined));
+          users.release(answered["admin.listUsers"](undefined));
         },
         releaseNested: (): void => {
-          status.release(c.shareStatus);
+          status.release(answered["share.status"](undefined));
         },
       };
     }
@@ -192,8 +171,8 @@ async function routeGroup(page: Page, group: FirstBootGroup, c: Captured): Promi
       return {
         requested: Promise.all([themes.requested, settings.requested]),
         release: (): void => {
-          themes.release(c.themes);
-          settings.release(c.settings);
+          themes.release(answered["settings.listThemes"](undefined));
+          settings.release(answered["settings.getUserSettings"](undefined));
         },
       };
     }
@@ -263,10 +242,9 @@ for (const widthClass of WIDTH_CLASSES) {
 
     for (const group of FIRST_BOOT_GROUPS) {
       const keys = FIXED_KEYS[group];
-      test(`${group} settles inside the box it declared`, async ({ mount, page }) => {
+      test(`${group} settles inside the box it declared`, async ({ corpus, mount, page }) => {
         await page.emulateMedia({ reducedMotion: "reduce" });
-        const c = await reads();
-        const held = await routeGroup(page, group, c);
+        const held = await routeGroup(page, group, corpusReads(corpus));
         await mount<typeof FirstBootStory>("tests/client/features/config/surfaces/_first-boot-stories/FirstBootStory", {
           group,
           phone: widthClass.phone,

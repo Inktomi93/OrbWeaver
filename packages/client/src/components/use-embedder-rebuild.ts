@@ -2,9 +2,10 @@
 // Search's own per-target paused state decides whether there is a rebuild at all; the job rows say running or failed.
 
 import type { RoutableTask } from "@orb/contracts/inference";
+import { EMBEDDER_REBUILD_KINDS } from "@orb/contracts/workloads";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import type { Trpc } from "#data";
-import { EMBEDDER_REBUILD_KINDS, embedderRebuildState } from "#lib";
+import { embedderRebuildState } from "#lib";
 
 /** How often the reads re-run while a rebuild runs; the run reports progress at about this pace. */
 const REBUILD_POLL_MS = 5000;

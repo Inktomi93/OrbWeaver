@@ -20,14 +20,13 @@ import {
   modelCallEstimateSchema,
   scheduleCadenceSchema,
   startWorkloadEnvelope,
-  WORKLOAD_LIST_MAX_LIMIT,
-  workloadKindSchema,
+  workloadListInputSchema,
   workloadModeSchema,
   workloadRefSchema,
   workloadRowAnyKindSchema,
+  workloadScheduleListInputSchema,
   workloadScheduleRefSchema,
   workloadScheduleViewSchema,
-  workloadStatusSchema,
 } from "@orb/contracts/workloads";
 
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -116,19 +115,7 @@ export const workloadsRouter = t.router({
 
   list: authedProcedure
     .output(z.array(workloadRowAnyKindSchema).readonly())
-    .input(
-      z
-        .object({
-          kind: workloadKindSchema.optional(),
-          status: workloadStatusSchema.optional(),
-          since: z.number().optional(),
-          // The CEILING, enforced at the trust boundary (the `character.list` precedent): an over-bound ask
-          // is a BAD_REQUEST naming the bound, never an unbounded run-history fetch (`WORKLOAD_LIST_MAX_LIMIT`).
-          // The persistence hard cap is the internal-caller backstop.
-          limit: z.int().min(1).max(WORKLOAD_LIST_MAX_LIMIT).optional(),
-        })
-        .optional(),
-    )
+    .input(workloadListInputSchema)
     .query(({ ctx, input }) =>
       ctx.services.workloads.list({
         caller: ctx.auth,
@@ -206,7 +193,7 @@ export const workloadsRouter = t.router({
 
   listSchedules: authedProcedure
     .output(z.array(workloadScheduleViewSchema).readonly())
-    .input(z.object({ kind: workloadKindSchema.optional() }).optional())
+    .input(workloadScheduleListInputSchema)
     .query(({ ctx, input }) =>
       ctx.services.workloads.listSchedules({
         caller: ctx.auth,

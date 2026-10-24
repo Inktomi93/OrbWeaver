@@ -3,30 +3,8 @@
 // its credential by id). What this file adds is the pane's DERIVED reads. Each strict schema is its procedure's tRPC
 // output parser: an extra key fails the call instead of reaching the browser.
 
-import type {
-  CachePolicy,
-  CachePolicyContext,
-  Capability,
-  ConnectionBinding,
-  ProviderId,
-  ResolvedConnectionView,
-  ResolvedWarning,
-  RoutableTask,
-  Task,
-  UnavailableCause,
-} from "@orb/contracts/inference";
-import {
-  cachePolicyContextSchema,
-  cachePolicySchema,
-  capabilitySchema,
-  connectionBindingSchema,
-  providerIdSchema,
-  resolvedConnectionViewSchema,
-  resolvedWarningSchema,
-  routableTaskSchema,
-  taskSchema,
-  unavailableCauseSchema,
-} from "@orb/contracts/inference";
+import type { CachePolicy, CachePolicyContext, Capability, ProviderId, ResolvedWarning, RoutableTask, Task } from "@orb/contracts/inference";
+import { cachePolicyContextSchema, cachePolicySchema, capabilitySchema, providerIdSchema, resolvedWarningSchema, taskSchema } from "@orb/contracts/inference";
 import { z } from "zod";
 
 /** The capability read for one row (`runtime.capabilities.for`): the descriptor + the warnings it was
@@ -55,25 +33,7 @@ export const connectionCapabilityViewSchema = z.strictObject({
   detectedProviderId: providerIdSchema.optional(),
 }) satisfies z.ZodType<ConnectionCapabilityView>;
 
-/** One Model-roles row: the actor's binding for a task AND what a turn resolves to RIGHT NOW against the
- *  PERSISTED read (§5.3a: "Not applied yet — still running on …" is the readout this pair enables). */
-export interface BindingView {
-  /** One view per ROUTABLE task, bound or not — the pane renders every slot. */
-  readonly task: RoutableTask;
-  readonly binding: ConnectionBinding | null;
-  readonly resolved: ResolvedConnectionView | null;
-  /** The CLOSED cause union, not a free string: the pane turns it into a sentence, and an open discriminator
-   *  on a display-bound field is how a raw `endpoint-unreachable` ends up on screen as a label. It was
-   *  already `availability.cause` at the producer (`verbs/bindings.ts`); this only stops the type widening. */
-  readonly unavailableCause: UnavailableCause | null;
-}
-
-export const bindingViewSchema = z.strictObject({
-  task: routableTaskSchema,
-  binding: connectionBindingSchema.nullable(),
-  resolved: resolvedConnectionViewSchema.nullable(),
-  unavailableCause: unavailableCauseSchema.nullable(),
-}) satisfies z.ZodType<BindingView>;
+export type { BindingView } from "@orb/contracts/inference";
 
 export interface CatalogRefreshOutcome {
   readonly models: number | null;
