@@ -286,7 +286,7 @@ Lane `cb-css`, worktree `.claude/worktrees/agent-a93838f44c69f2f8c`, branch `wt/
 
 ### Remaining work
 
-Item 1316's remainder, by the census the two rules produce (`pnpm eslint --rule 'orb/feature-classname-layout-only: error' --rule 'orb/no-built-class-string: error' packages/client/src/features`); the rules turn on in `eslint.config.ts` when the count is zero:
+Item 1316's remainder. Both rules are on as errors in `eslint.config.ts` by owner ruling, with no baseline and no exemption list, so the pre-push lint is red until the last site goes; every site is listed by file and kind in `feature-classname-sites.md` beside this plan, and the sites drain through items 1334 to 1336 and 1338:
 
 - `Icon` paint (31 sites, `text-muted-foreground`, `text-warning`, `text-accolade`, `opacity-60`): `Icon` has no tone axis; add `tone` to the primitive, then map the tokens with the codemod.
 - `Text` datum tokens (`font-mono` 28, `tabular-nums` 19, `text-accolade` 11, `line-through` 7, `text-foreground` 11, `text-info` 4): a voice ruling (UI-Density-Law §2.3) and an `info` tone, then the codemod; see the `tabular-nums` fork above.

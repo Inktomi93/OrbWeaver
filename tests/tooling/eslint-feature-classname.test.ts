@@ -92,6 +92,14 @@ test.for([
   expect(await findings(BUILT_RULE, source)).toEqual([]);
 });
 
+test("both rules are on for feature source and off elsewhere", async () => {
+  const levelOf = async (rule: string, path: string): Promise<unknown> => (await eslint.calculateConfigForFile(join(ROOT, path)))?.rules?.[rule]?.[0];
+  expect(await levelOf(LAYOUT_RULE, FEATURE)).toBe(2);
+  expect(await levelOf(BUILT_RULE, FEATURE)).toBe(2);
+  expect(await levelOf(LAYOUT_RULE, "packages/client/src/components/control.tsx")).toBeUndefined();
+  expect(await levelOf(BUILT_RULE, "packages/ui/src/primitives/a/control.tsx")).toBeUndefined();
+});
+
 test("both rules judge feature source only", async () => {
   const source = `import { ROW } from "./row.ts";\nexport const T = (<Stack className={cn(ROW, "text-primary")} />);\n`;
   const outside = "packages/client/src/components/control.tsx";
