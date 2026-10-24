@@ -106,7 +106,7 @@ function titleEdits(title: SgNode<TSX>): Edit[] {
   const value = attributeValue(title);
   const owner = title.parent();
   const element = owner?.kind() === "jsx_opening_element" ? owner.parent() : owner;
-  if (value === undefined || owner === null || element === null || element === undefined) {
+  if (value === undefined || owner === null || element === null) {
     return [];
   }
   const name = findAttribute(owner, "aria-label");
