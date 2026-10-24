@@ -41,11 +41,11 @@
 // THE ACTION FOOTER ADAPTS TO ITS OWN BOX, NOT THE VIEWPORT (#439). At the mobile mount (a 366px dialog)
 // the two buttons at desktop label widths are wider than the footer's content box, and a `justify-end`
 // overflow goes LEFT — so "Blank chat" painted OUTSIDE the dialog and was clipped by the popup, worse as
-// the Start label grew with the selection count (measured 27px at 1 pick, 35px at 3). Below the `@md`
+// the Start label grew with the selection count (measured 27px at 1 pick, 35px at 3). Below the `@cq-28`
 // container step the two buttons SHARE the row (`flex-1 min-w-0`) and Start wears a count-abbreviated
 // label; at or above it they return to their natural widths and the full sentence. The step is a CONTAINER
 // query, never a media query (the §0 container rule): this surface is a modal body whose width is the
-// dialog's, not the viewport's. `@md` = 28rem = 448px, chosen with margin over the ~390px where the full
+// dialog's, not the viewport's. `@cq-28` = 28rem = 448px, chosen with margin over the ~390px where the full
 // labels stop fitting.
 //
 // THE ZERO-SELECTION START IS QUIET (#441). It used to be the loudest thing in the modal — a full primary
@@ -70,9 +70,9 @@ import { clearNewChatIntent, closeModal, openModal, useNewChatIntent } from "#st
 
 const SKELETON_ROW_COUNT = 6;
 
-/** The action buttons SHARE the footer row below the `@md` container step and take their natural widths at
+/** The action buttons SHARE the footer row below the `@cq-28` container step and take their natural widths at
  *  or above it (#439). Whole literals, never spliced — the Tailwind scanner never assembles a class name. */
-const ACTION_BUTTON = "min-w-0 flex-1 @cq-28:flex-none";
+const ACTION_BUTTON = "min-inline-0 flex-1 @cq-28:flex-none";
 
 /** …and the teaching arm adds the opacity override. BOTH spellings are needed: Base UI's Button sets the
  *  native `disabled` attribute AND `data-disabled`, and the primitive dims on each. The dim is a SIGNAL of
@@ -102,9 +102,9 @@ const ACTION_BUTTON = "min-w-0 flex-1 @cq-28:flex-none";
  *  teaching control turns this into a skin decided in two features — the drift the seal exists to stop — and
  *  the fix then is a Button variant (a `quietDisabled` arm on the state axis, beside `selection`), with both
  *  sites repointed and this constant deleted. Do not mint it for one site. */
-const TEACHING_ACTION_BUTTON = "min-w-0 flex-1 @cq-28:flex-none disabled:opacity-100 data-disabled:opacity-100";
+const TEACHING_ACTION_BUTTON = "min-inline-0 flex-1 @cq-28:flex-none disabled:opacity-100 data-disabled:opacity-100";
 
-/** The Start button's full label — also its accessible name at `@md` and up. */
+/** The Start button's full label — also its accessible name at `@cq-28` and up. */
 function startLabelFor(count: number, pending: boolean): string {
   if (pending) {
     return "Starting…";

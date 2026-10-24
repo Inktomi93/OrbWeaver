@@ -155,7 +155,7 @@ export const trackBarVariants = tv({
     // `glyph-*` twin). `shrink-0` rides the arm because a fixed swatch that shrinks is not a swatch.
     width: {
       full: { root: "inline-full" },
-      swatch: { root: "inline-block shrink-0" },
+      swatch: { root: "shrink-0 inline-(--spacing-block)" },
     },
     // `accent` swaps the CATEGORICAL ramp for a SEMANTIC intent, for a bar whose magnitude belongs to a
     // named zone rather than to a user-defined pool. The preset budget readout is the case: its bars

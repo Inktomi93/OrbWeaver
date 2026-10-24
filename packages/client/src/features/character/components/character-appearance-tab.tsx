@@ -78,7 +78,7 @@ const THEME_FIELD_NAMES = Object.keys(EMPTY_CHARACTER_THEME_FORM) as (keyof Char
  * label-left/control-right is a property of the INSTRUMENT-tier context panel (density spec §3.1), not of
  * the theme cluster. Vertical label-over-swatch turned eleven colour rows into a 54px-per-row ladder that
  * exhausted the viewport before Background was reachable; horizontal halves it. Base UI's horizontal Field
- * self-reverts to stacked below the `@md` container width, so a narrower panel still gets a readable label
+ * self-reverts to stacked below the `@cq-28` container width, so a narrower panel still gets a readable label
  * block. (It rode `character-options-tab.tsx` until #841 folded that shell away with the merge it existed
  * to hold.)
  */

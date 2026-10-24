@@ -56,7 +56,7 @@ type SavedRosterSummary = RosterPresetSummary;
  *  (natural 57) and the rules badge overlapped Start by 48px, so `elementFromPoint` at the badge's own
  *  centre returned Start — a tap on "2 rules" minted a room. The cause is a `shrink-0` action cluster that
  *  is sized by the COARSE touch floor (an unbudgeted width tax) against a name that was free to shrink to
- *  nothing. Both halves are fixed here: under `@md` the row stacks (name+badge line, actions line — each
+ *  nothing. Both halves are fixed here: under `@cq-28` the row stacks (name+badge line, actions line — each
  *  owns the full width, so nothing competes), and the name itself is `min-w-0 flex-1 truncate` inside its
  *  own line so it degrades to an ellipsis rather than to zero. `@container` sits on the row WRAPPER
  *  because an element cannot query itself. The crossover sits between the two measured points: 316px was
@@ -207,7 +207,7 @@ function SaveCurrentRoster(props: {
   const { capture, game, presetOf } = props;
   return (
     <Stack gap="tight">
-      {/* Its own container: below `@md` the name and the Save button stack, so the input keeps its width. */}
+      {/* Its own container: below `@cq-28` the name and the Save button stack, so the input keeps its width. */}
       <Stack container={true}>
         <Row align="center" gap="field" className="@max-cq-28:flex-col @max-cq-28:items-stretch">
           <Input

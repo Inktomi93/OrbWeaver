@@ -53,7 +53,7 @@ export const CLASS_RESTRICTIONS = [
     id: "ui-skin-fragment-purity",
     selectors: [
       "focus-visible:ring-",
-      "before:size-(--size-touch-target)",
+      "before:block-(--size-touch-target)",
       "rotate-45 border border-border bg-popover",
       "bg-backdrop",
       "data-disabled:pointer-events-none data-disabled:opacity-50",

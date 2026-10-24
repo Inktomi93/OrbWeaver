@@ -29,7 +29,7 @@ export const SWIPE_FOOT_INSIDE: SwipeFoot = { placement: "inside", row: FOOT_INS
  *  it keeps on each side is `--row-foot-inset-*`, set to the card inset in globals.css. */
 export const SWIPE_FOOT_ECHO: SwipeFoot = {
   placement: "inside",
-  row: `${FOOT_INSIDE_WIDTH} -ml-(--row-reach-left) pl-(--row-foot-inset-left) -mr-(--row-reach-right) pr-(--row-foot-inset-right) -mb-row rounded-b-card bg-ai-bubble`,
+  row: `${FOOT_INSIDE_WIDTH} -ms-(--row-reach-left) ps-(--row-foot-inset-left) -me-(--row-reach-right) pe-(--row-foot-inset-right) -mbe-row rounded-b-card bg-ai-bubble`,
   chevron: "text-muted-foreground",
 };
 

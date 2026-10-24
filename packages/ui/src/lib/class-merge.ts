@@ -223,29 +223,78 @@ export function setCssMergeObserver(observer: CssMergeObserver): void {
   cssMergeObserver = observer;
 }
 
-// The logical sizing utilities (`inline-*`, `block-*` and their min/max forms) set the same box dimension as
-// `w-*`/`h-*`/`size-*` in a horizontal writing mode, but tailwind-merge keeps them in separate groups, so a
-// caller's `w-(--token)` beside a variant's `inline-auto` kept both and the stylesheet order chose the width.
-// Lint spells new code logically while lib constants still carry the physical forms; the two must conflict.
-const LOGICAL_SIZE_CONFLICTS: Partial<Record<DefaultClassGroupIds, readonly DefaultClassGroupIds[]>> = {
-  w: ["inline-size"],
-  "inline-size": ["w"],
-  h: ["block-size"],
-  "block-size": ["h"],
+// A logical utility and its physical twin set the same declaration in the horizontal-tb left-to-right writing
+// mode this app renders in, but tailwind-merge keeps them in separate class groups, so `cn("border-l-2",
+// "border-s-0")` kept both and the stylesheet order chose the width. Each pair is one axis here, both ways, for
+// every sided family: sizing, padding, margin, inset, border width and colour, corner radius, scroll margin and
+// padding. The physical axis groups (`px`, `rounded-t`, …) also evict the logical sides they cover.
+const LOGICAL_TWINS: readonly (readonly [physical: DefaultClassGroupIds, logical: DefaultClassGroupIds])[] = [
+  ["w", "inline-size"],
+  ["min-w", "min-inline-size"],
+  ["max-w", "max-inline-size"],
+  ["h", "block-size"],
+  ["min-h", "min-block-size"],
+  ["max-h", "max-block-size"],
+  ["pl", "ps"],
+  ["pr", "pe"],
+  ["pt", "pbs"],
+  ["pb", "pbe"],
+  ["ml", "ms"],
+  ["mr", "me"],
+  ["mt", "mbs"],
+  ["mb", "mbe"],
+  ["left", "start"],
+  ["right", "end"],
+  ["top", "inset-bs"],
+  ["bottom", "inset-be"],
+  ["border-w-l", "border-w-s"],
+  ["border-w-r", "border-w-e"],
+  ["border-w-t", "border-w-bs"],
+  ["border-w-b", "border-w-be"],
+  ["border-color-l", "border-color-s"],
+  ["border-color-r", "border-color-e"],
+  ["border-color-t", "border-color-bs"],
+  ["border-color-b", "border-color-be"],
+  ["rounded-l", "rounded-s"],
+  ["rounded-r", "rounded-e"],
+  ["rounded-tl", "rounded-ss"],
+  ["rounded-tr", "rounded-se"],
+  ["rounded-br", "rounded-ee"],
+  ["rounded-bl", "rounded-es"],
+  ["scroll-ml", "scroll-ms"],
+  ["scroll-mr", "scroll-me"],
+  ["scroll-mt", "scroll-mbs"],
+  ["scroll-mb", "scroll-mbe"],
+  ["scroll-pl", "scroll-ps"],
+  ["scroll-pr", "scroll-pe"],
+  ["scroll-pt", "scroll-pbs"],
+  ["scroll-pb", "scroll-pbe"],
+];
+
+// Axis utilities that tailwind-merge already resolves over the physical sides, extended to the logical twins.
+const LOGICAL_AXIS_CONFLICTS: Partial<Record<DefaultClassGroupIds, readonly DefaultClassGroupIds[]>> = {
   size: ["inline-size", "block-size"],
-  "min-w": ["min-inline-size"],
-  "min-inline-size": ["min-w"],
-  "max-w": ["max-inline-size"],
-  "max-inline-size": ["max-w"],
-  "min-h": ["min-block-size"],
-  "min-block-size": ["min-h"],
-  "max-h": ["max-block-size"],
-  "max-block-size": ["max-h"],
+  "rounded-t": ["rounded-ss", "rounded-se"],
+  "rounded-b": ["rounded-es", "rounded-ee"],
+  "rounded-s": ["rounded-tl", "rounded-bl"],
+  "rounded-e": ["rounded-tr", "rounded-br"],
 };
+
+function logicalConflicts(): Partial<Record<DefaultClassGroupIds, readonly DefaultClassGroupIds[]>> {
+  const conflicts: Partial<Record<DefaultClassGroupIds, DefaultClassGroupIds[]>> = {};
+  for (const [physical, logical] of LOGICAL_TWINS) {
+    conflicts[physical] = [logical];
+    conflicts[logical] = [physical];
+  }
+  for (const [group, evicted] of Object.entries(LOGICAL_AXIS_CONFLICTS) as [DefaultClassGroupIds, readonly DefaultClassGroupIds[]][]) {
+    conflicts[group] = [...(conflicts[group] ?? []), ...evicted];
+  }
+  return conflicts;
+}
 
 /** The configured tailwind-merge instance — built once, at module scope, from the customizations above. */
 const mergeClasses = extendTailwindMerge({
-  extend: { classGroups: CLASS_GROUPS, theme: THEME, conflictingClassGroups: LOGICAL_SIZE_CONFLICTS },
+  extend: { classGroups: CLASS_GROUPS, theme: THEME, conflictingClassGroups: logicalConflicts() },
 });
 
 /**

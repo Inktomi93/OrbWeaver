@@ -18,4 +18,4 @@
 // CONSEQUENCE FOR ANYONE ADDING A CARRIER: the accent's carrier is part of the ratified exemption. A new
 // element wearing this fragment owes a matching selector in `SELECTION_RAIL_SEL`, or the audit reports the
 // idiom as a generated-UI tell on that element alone — a false positive against an owner ruling.
-export const SELECTION_RAIL = "border-l-2 border-l-transparent data-selected:border-l-primary data-selected:bg-primary/10";
+export const SELECTION_RAIL = "border-s-2 border-s-transparent data-selected:border-s-primary data-selected:bg-primary/10";

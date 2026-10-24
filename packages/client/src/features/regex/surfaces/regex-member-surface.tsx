@@ -92,8 +92,8 @@ function RegexMemberEditorBody({
     // `--width-content-col` — the EDITOR content-column cap, not a reading measure (#1175). See the tag
     // member editor's twin: this block holds controls, so the prose token is forbidden here by its own
     // contract, and `max-w-prose` was a third un-derived width. The token's stated consumption is
-    // THREE classes (#1664 — centered, capped, breathing to `--width-content-col-wide` past `@5xl`);
-    // the tag editor's twin carries the argument and the measured pane widths. The `@5xl` query measures
+    // THREE classes (#1664 — centered, capped, breathing to `--width-content-col-wide` past `@cq-64`);
+    // the tag editor's twin carries the argument and the measured pane widths. The `@cq-64` query measures
     // the config member anchor's box, not one this surface owns.
     <Stack
       className="mx-auto outline-none inline-full max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)"

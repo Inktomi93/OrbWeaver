@@ -8,7 +8,7 @@ import type { ReactElement, ReactNode } from "react";
 import { EMBED_REFUSAL_SLOTS, embedderCheckingText, embedRefusalRowText, embedRefusalText } from "#lib";
 
 // The editor is as wide as the settings body; a sentence capped at the prose measure never runs across it.
-const PROSE_MEASURE = "max-w-(--reading-measure-prose)";
+const PROSE_MEASURE = "max-inline-(--reading-measure-prose)";
 
 /** A refused embedder write, and the fact row it came from: `null` for a field above Advanced. */
 export interface EditorEmbedRefusal {

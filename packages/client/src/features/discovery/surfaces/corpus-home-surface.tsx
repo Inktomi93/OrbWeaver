@@ -235,7 +235,7 @@ function CorpusHomeBody(): ReactElement {
               three-pane width, the reading preset — the numeral floated at the right edge of its own
               content-sized column (measured x≈79 in a container whose text edge is 24) instead of lining up
               with the h1 above it. Right-alignment is a two-column relationship; it belongs to the arm that
-              has two columns, which is the same `@2xl` the masthead itself flips on. */}
+              has two columns, which is the same `@cq-40` the masthead itself flips on. */}
         {state.hero === null ? null : (
           <Row align="end" className="shrink-0" gap="section">
             <Stack className="@cq-40:text-end" gap="tight">

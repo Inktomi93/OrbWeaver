@@ -40,7 +40,7 @@ export function LabelsLibrarySurface({ returning = false }: { readonly returning
 
 function LibraryBody({ summary }: { readonly summary: ReturnType<typeof useTagLibrarySummary> }): ReactElement {
   if (summary === undefined) {
-    return <Skeleton className="block-(--size-control-lg) inline-full" />;
+    return <Skeleton className="block-(--height-row-placeholder) inline-full" />;
   }
   // An empty library TEACHES here and offers no second create verb: the finder's band carries the one
   // `New tag`, and one verb on one screen is the ruled count.

@@ -111,7 +111,7 @@ export interface BandProps extends Omit<ButtonBaseProps, "children" | "intent" |
  *  `SELECTION_RAIL` rides EVERY band, current or not: its resting arm is a transparent 2px rail, so the
  *  glyph column is identical on all thirteen settings bands and all four collection bands and entering a
  *  library cannot shift its own label by 2px (the `ListRow` reservation, for the same reason). */
-const BAND_CHASSIS = `min-w-0 w-full justify-start gap-tight px-tight ${SELECTION_RAIL}`;
+const BAND_CHASSIS = `min-inline-0 inline-full justify-start gap-tight px-tight ${SELECTION_RAIL}`;
 
 const CHEVRON_GLYPH = { reserved: ChevronRight, closed: ChevronRight, open: ChevronDown } as const;
 

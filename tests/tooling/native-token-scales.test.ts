@@ -99,6 +99,16 @@ const SUPPORTED = [
 const IMPORTANT = ["!p-0", "p-0!", "hover:!p-0", "hover:p-0!"];
 /** One control per class gate that moved from an `orb/` rule onto a restricted pattern. */
 const RETIRED_GATE_CONTROLS = ["pt-[13px]", "@min-[100rem]:flex", "p-(--primitive-space-8)", "bg-black", "text-red-500", "bg-[#fff]", "max-w-prose"];
+/** Class strings in UPPER_CASE constants and their object values: one hit per retired gate, plus the pointer variant in features. */
+const PLANTED_CONSTANTS = [
+  'export const PLANT_COLOR = "bg-red-500 text-white";',
+  'export const PLANT_ARBITRARY = "p-[13px] w-[300px]";',
+  'export const PLANT_VIEWPORT = "md:flex";',
+  'export const PLANT_PROSE = "max-w-prose";',
+  'export const PLANT_POINTER = "pointer-coarse:flex";',
+  'export const RAIL = { root: "bg-[#ff0000]" };',
+].join("\n");
+const PLANTED_CONSTANT_HITS = 7;
 /** A viewport variant, a pointer variant, a raw width step and an arbitrary width. */
 const SCOPED_CONTROLS = ["md:flex", "pointer-coarse:flex", "w-64", "w-[20rem]"];
 // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
@@ -186,6 +196,8 @@ test("effective UI/client native rules reject stock classes in real class carrie
     expect(lintWith(RESTRICTED_RULE, `cn("${STRUCTURAL_ARBITRARY}");`)).toEqual([]);
     expect(IMPORTANT.map((candidate) => lintWith(RESTRICTED_RULE, `cn("${candidate}");`).length)).toEqual(IMPORTANT.map(() => 1));
     expect(RETIRED_GATE_CONTROLS.map((candidate) => lintWith(RESTRICTED_RULE, `cn("${candidate}");`).length)).toEqual(RETIRED_GATE_CONTROLS.map(() => 1));
+    // The retired gates read every string literal; the patterns reach exported constants and their object values too.
+    expect(lintWith(RESTRICTED_RULE, PLANTED_CONSTANTS), path).toHaveLength(PLANTED_CONSTANT_HITS + pointerRefusals);
     // The scoped patterns: viewport variants and raw widths everywhere outside the shell, pointer variants in features only.
     expect(
       SCOPED_CONTROLS.map((candidate) => lintWith(RESTRICTED_RULE, `cn("${candidate}");`).length),

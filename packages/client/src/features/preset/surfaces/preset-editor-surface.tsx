@@ -387,7 +387,7 @@ function PresetEditorBody({
                 panels are out, but when you close them it looks awful"). So the column CENTERS — the house
                 convention for a wide content-pane editor (character-editor-surface.tsx uses the same
                 `mx-auto w-full max-w-…`) — and BREATHES to `--width-content-col-wide` once the pane itself
-                clears @5xl, which is exactly the panels-collapsed regime. The @5xl query measures the shell's
+                clears @cq-64, which is exactly the panels-collapsed regime. The @cq-64 query measures the shell's
                 content region (the pane's own width), which is why the cap and the container are two
                 elements and not one. It lives HERE and not per view so no body can opt out. */}
             <Stack className="mx-auto py-block inline-full max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)" gap="block">

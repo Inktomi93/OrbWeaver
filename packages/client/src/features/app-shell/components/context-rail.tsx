@@ -36,7 +36,7 @@ const CELL_ARIA_STRIP = { role: undefined, "aria-selected": undefined } as const
  *  "ONE ROW" IS A CLAIM, so the bar stands down in the state where it stops holding:
  *  `CONTEXT_RAIL_WRAPPED_EDGE_BAR_OFF` (its own note carries the 272px measurement and the mechanism).
  *  In the wrapped arm a first-row cell's bottom edge is the seam above row TWO. */
-const CELL_EDGE_CLASSES = `border-b-2 border-transparent data-active:border-primary ${CONTEXT_RAIL_WRAPPED_EDGE_BAR_OFF}`;
+const CELL_EDGE_CLASSES = `border-be-2 border-transparent data-active:border-primary ${CONTEXT_RAIL_WRAPPED_EDGE_BAR_OFF}`;
 
 /** The state rail holding the selection wears the raised fill; the receded rail wears nothing (the pane's own
  *  surface). The step is small by the palette's own values — the fill and the ember active cell carry it. */

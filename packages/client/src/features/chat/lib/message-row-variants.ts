@@ -169,7 +169,7 @@ function hushDecoration(): BubbleDecoration {
 // its portrait pane costs extra room on top of it. Still `mx-auto`, so the row centres on the same axis as
 // the composer (#213 asserts the axis, never equal widths), and still `w-full`, so a pane narrower than
 // the ask degrades to the pane instead of overflowing it.
-const ECHO_TRACK = "mx-auto w-full orb-echo-track";
+const ECHO_TRACK = "mx-auto inline-full orb-echo-track";
 
 function echoOuter(role: MessageRole): string {
   return cx(ECHO_TRACK, alignFor(role));
@@ -208,7 +208,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     // and character rows identical, the text inset as stock insets it.
     inner: () => cx("px-gutter pbs-row text-prose-body inline-full", BG_PHOTO_READING_PLATE),
     avatarTreatment: () => "none",
-    lastRowInner: "min-h-(--immersive-document-last-row-min-height)",
+    lastRowInner: "min-block-(--immersive-document-last-row-min-height)",
     bubbleLayout: "single",
     headerPlacement: "inside",
     swipeFoot: SWIPE_FOOT_INSIDE,

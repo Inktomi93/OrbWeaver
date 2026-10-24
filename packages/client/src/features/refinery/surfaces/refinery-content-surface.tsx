@@ -215,7 +215,7 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
         {outcome === null ? (
           // THE THREE LANES ACROSS THE WIDTH. Fixed rails either side of a fluid focal, and a container
           // query — never a viewport breakpoint — decides when the canvas can hold them: the shell's docked
-          // LIST and CONTEXT panels narrow this pane independently of the window. Below `@5xl` the lanes
+          // LIST and CONTEXT panels narrow this pane independently of the window. Below `@cq-64` the lanes
           // stack, which keeps every lane's full width at the phone/3-pane mount instead of crushing the
           // diff into a column no prose fits in. (Refinery's own `panelDefaults` collapse both panels — the
           // D62 content-first hub — so the three-lane arm is the default, not the lucky case.)

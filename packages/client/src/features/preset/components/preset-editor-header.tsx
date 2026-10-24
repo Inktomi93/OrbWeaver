@@ -82,7 +82,7 @@ export function PresetEditorHeader({
           body does, one element in. Measured before: at a 1520px pane the name + its Activate/Reset cluster
           spanned 1822px over a centered body, so the two ends of the header sat a hand-span outside the
           thing they belong to; they aligned only below the cap, where the column IS the pane.
-          The `Container` is here for the same reason it is around each panel: `@5xl` has to measure the
+          The `Container` is here for the same reason it is around each panel: `@cq-64` has to measure the
           PANE, and only a container can. Same classes as the panel column, deliberately — the header and
           the body must breathe together or they realign at every dock.
 

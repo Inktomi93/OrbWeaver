@@ -52,7 +52,7 @@ import { ViewerDialog } from "#components";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId } from "#lib";
 
-const PROSE_MEASURE = "max-w-(--reading-measure-prose)";
+const PROSE_MEASURE = "max-inline-(--reading-measure-prose)";
 
 export interface VariantWireViewerProps {
   readonly chatId: ChatId;

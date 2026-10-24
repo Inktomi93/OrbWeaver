@@ -42,7 +42,7 @@ import { useEmbedderRebuild } from "./use-embedder-rebuild.ts";
 const UNSET_VALUE = "";
 
 // The pane is as wide as the settings body; a sentence capped at the prose measure never runs across it.
-const PROSE_MEASURE = "max-w-(--reading-measure-prose)";
+const PROSE_MEASURE = "max-inline-(--reading-measure-prose)";
 
 // Unbinding the text embedder queues nothing: the stored index stays, and search keeps answering from it.
 const TEXT_EMBEDDER_UNSET = "None set — search keeps using your last index until you pick an embedder.";

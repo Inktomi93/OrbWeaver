@@ -31,7 +31,8 @@ const itemBase = `flex min-h-(--size-control-sm) cursor-default items-center gap
 // trigger's TRAILING chevron would suppress the gutter it needs. (`::before` is not an element, so it never
 // becomes the `:first-child` it is tested against.) Checkbox/radio rows are excluded — their indicator slot
 // is their own leading grammar.
-const LEADING_GUTTER = "before:block before:size-(--size-glyph-xs) before:shrink-0 before:content-[''] [&:has(>svg:first-child)]:before:hidden";
+const LEADING_GUTTER =
+  "before:block before:block-(--size-glyph-xs) before:inline-(--size-glyph-xs) before:shrink-0 before:content-[''] [&:has(>svg:first-child)]:before:hidden";
 
 export const menuVariants = tv({
   slots: {

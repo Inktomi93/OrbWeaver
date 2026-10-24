@@ -244,7 +244,7 @@ export const gridVariants = tv({
       // focus ring's reach on the block axis and takes it back as negative margin: the ring shows, the box holds.
       cellSwipe: "-my-tight snap-x snap-mandatory auto-cols-(--orb-grid-cell-fixed) grid-flow-col overflow-x-auto overscroll-x-contain py-tight",
       // `cellFixed`'s PHONE ARM (added 2026-08-30, #864 — the Characters landing shelves). Identical at
-      // every pane width the desktop shape reaches; it differs only BELOW `@md`, where the fixed 8.5rem
+      // every pane width the desktop shape reaches; it differs only BELOW `@cq-28`, where the fixed 8.5rem
       // track stops being the right answer. Measured against the approved 430px artboard: a 430px CONTENT
       // pane spends 2×`p-block` on its gutters and leaves ~398px, which `auto-fill` at a 136px track fills
       // with exactly TWO cells and ~120px of dead trailing air — the shelf reads as two big pictures rather
@@ -328,8 +328,8 @@ export const gridVariants = tv({
       // at EVERY pane width, 1864 included — the label cell also has to seat the hint trigger).
       //
       // AND IT FOLDS BEFORE THE RAIL DIES. At a narrow pane the fixed name box + the number twin + the reset
-      // left the rail 0-28px — a thumb on no track at all. Below `@lg` the rail takes the whole width;
-      // `@lg` and not `@md` because the fold has to happen while there is still a rail worth keeping
+      // left the rail 0-28px — a thumb on no track at all. Below `@cq-32` the rail takes the whole width;
+      // `@cq-32` and not `@cq-28` because the fold has to happen while there is still a rail worth keeping
       // (measured: the three-track arm needs ~468px of pane before the middle track clears an aimable
       // floor). The step is in `rem`, so it moves with `--font-scale` — the reading arm folds later, which
       // is exactly right for bigger type.
@@ -359,7 +359,7 @@ export const gridVariants = tv({
       // Four ordered action homes. A wide container keeps the explicit four-track row (`1fr` at the third
       // home is the spacer that pushes the last two right).
       //
-      // BELOW `@md` THE ARM IS FLEX-WRAP, NOT A SECOND GRID (#531, measured 2026-08-23). The old narrow arm
+      // BELOW `@cq-28` THE ARM IS FLEX-WRAP, NOT A SECOND GRID (#531, measured 2026-08-23). The old narrow arm
       // was a fixed `[1fr_auto]` 2×2 (plus a `@max-xs` third row the consumer placed by hand), so it spent a
       // whole extra 48px row + its gap at EVERY container below 768px — including containers where all four
       // homes provably fit on one line (measured: the chat composer needs 372px of homes and has 392px at a

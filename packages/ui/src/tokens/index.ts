@@ -271,6 +271,7 @@ export const TOKENS = {
   "height.scroll-sm": { cssVar: "--height-scroll-sm", value: "10rem" },
   "height.scroll-md": { cssVar: "--height-scroll-md", value: "16rem" },
   "height.scroll-lg": { cssVar: "--height-scroll-lg", value: "24rem" },
+  "height.row-placeholder": { cssVar: "--height-row-placeholder", value: "4rem" },
   "font-weight.normal": { cssVar: "--font-weight-normal", value: "400" },
   "font-weight.medium": { cssVar: "--font-weight-medium", value: "500" },
   "font-weight.semibold": { cssVar: "--font-weight-semibold", value: "600" },

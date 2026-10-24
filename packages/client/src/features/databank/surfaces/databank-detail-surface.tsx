@@ -196,7 +196,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
           content-column token is the one that names this job; `max-w-(--reading-measure-min)` was a third un-derived width.
 
           AND THE TOKEN'S CONSUMPTION IS THREE CLASSES, NOT ONE (#1664): its `$description` says the column
-          is CENTERED and BREATHES to `--width-content-col-wide` once its container clears `@5xl`, so the
+          is CENTERED and BREATHES to `--width-content-col-wide` once its container clears `@cq-64`, so the
           bare cap left-pinned 720px inside a pane measured (snap --isolated, 2026-09-05) at 968px with both
           panels docked and 1864px with both collapsed at 1920 — 1096px of dead void beside a 720px column, which
           is the defect the breathe step exists for. The query container here is the SHELL'S `content`

@@ -23,7 +23,7 @@ export const saveBarVariants = tv({
     // unreadable datum for another.
     //
     // So the census gets its OWN slot with a width-keyed arm: inline at the end of the bar once there is
-    // room (`@md`), and BELOW the identity on its own full-width line when there is not. `order-last` +
+    // room (`@cq-28`), and BELOW the identity on its own full-width line when there is not. `order-last` +
     // `basis-full` is the whole mechanism — a full-width flex item on a wrapping row takes a line of its
     // own — so nothing is hidden, abbreviated or put behind a tap: the full census stays on screen and
     // readable, it simply stops competing with the name for the same 430px.

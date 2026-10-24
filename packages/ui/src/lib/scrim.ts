@@ -42,6 +42,6 @@ import { OVERLAY_MOTION } from "./overlay-motion.ts";
 // clean.
 /** The polarity-fixed dimming fill on its own, for a layer that positions itself (the wallpaper scrim). */
 export const BACKDROP_FILL = "bg-backdrop";
-export const SCRIM_BASE = `fixed inset-0 min-h-dvh ${BACKDROP_FILL} supports-[-webkit-touch-callout:none]:absolute`;
+export const SCRIM_BASE = `fixed inset-0 min-block-dvh ${BACKDROP_FILL} supports-[-webkit-touch-callout:none]:absolute`;
 
 export const SCRIM = (tier: "popover" | "modal"): string => `${SCRIM_BASE} z-(--z-${tier}) ${OVERLAY_MOTION.backdropFade(tier === "modal" ? "base" : "fast")}`;

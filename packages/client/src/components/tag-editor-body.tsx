@@ -82,12 +82,12 @@ export function TagEditorBody({
 
           THE TOKEN'S STATED CONSUMPTION IS THREE CLASSES, NOT ONE (#1664). `--width-content-col`'s own
           `$description` says the column is CENTERED and BREATHES to `--width-content-col-wide` once its
-          container clears `@5xl`; the first spelling took the bare cap, so this editor LEFT-PINNED 720px
+          container clears `@cq-64`; the first spelling took the bare cap, so this editor LEFT-PINNED 720px
           inside the pane and left the rest dead — the exact defect the breathe step was minted for (owner,
           2026-08-02: "looks okay when both panels are out, but when you close them it looks awful").
           MEASURED on the real shell (snap --isolated, 2026-09-05): the config CONTENT pane this editor
           lands in is 520px at 1280 both-docked, 869px list-only, 1176px with both collapsed, and 920 / 1816px at
-          1920 — so the `@5xl` arm is REACHED (both collapsed at every desktop width) and is not dead code. The
+          1920 — so the `@cq-64` arm is REACHED (both collapsed at every desktop width) and is not dead code. The
           query container is the `<Container>` directly above, which is why the cap and the container are
           two elements. `w-full` rides with `mx-auto` because the pane is a flex column. */}
       <Stack

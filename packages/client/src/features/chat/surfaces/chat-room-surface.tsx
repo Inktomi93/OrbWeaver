@@ -174,7 +174,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                *  The `RoomFlankAnchor` + `@max-lg` is a CONTAINER query on this pane's own inline size, never the
                *  viewport (the shell's docked panels can narrow it on a wide screen): below 32rem/512px the
                *  flank stacks BELOW the thread instead of crushing its reading column (the
-               *  settings-shell-surface.tsx / role-slot-row.tsx `@max-md`/`@2xl` precedent, at the `lg` step
+               *  settings-shell-surface.tsx / role-slot-row.tsx `@max-cq-28`/`@cq-40` precedent, at the `lg` step
                *  since a thread+flank split needs more room than a nav+content split before beside is comfy). */}
               <RoomFlankAnchor>
                 <InlineFlankFitProbe />

@@ -23,7 +23,7 @@ import { PayloadView } from "./payload-view.tsx";
 import { RefineryChip } from "./refinery-chip.tsx";
 
 /** The plan line is a sentence to read, so it takes the prose measure, not the dialog's width. */
-const PLAN_LINE_MEASURE = "max-w-(--reading-measure-prose)";
+const PLAN_LINE_MEASURE = "max-inline-(--reading-measure-prose)";
 
 /** The raw door's PREFLIGHT (the third tier — see `@orb/contracts/refinery/schema-advisory`'s header).
  *  Tier 1 is `RefusalNote` (the belt's verbatim refusal, unchanged); tier 2 is this, and it NEVER

@@ -95,9 +95,9 @@ function NpcRelationship({ name, relationship, onEditRelationshipKind, relations
  *  other two guides are plain muted prose (they describe what IS on stage). One map, so the distinction is a
  *  lookup rather than a conditional sprinkled through the render. */
 const GUIDE_CLASS: Readonly<Record<RpgNpcGuideField, string>> = {
-  appearance: "min-w-0 break-words",
-  outfit: "min-w-0 break-words",
-  thoughts: "min-w-0 break-words italic",
+  appearance: "min-inline-0 break-words",
+  outfit: "min-inline-0 break-words",
+  thoughts: "min-inline-0 break-words italic",
 };
 
 interface NpcGuidesProps {

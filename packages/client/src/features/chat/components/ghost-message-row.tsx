@@ -381,7 +381,7 @@ export function GhostMessageRow({
       className={cn(skin.outer("assistant"), enterClasses)}
     >
       {/* The container above and this element's two arms are the settled row's, verbatim — the ghost is
-          the one row that MUST be laid out identically to what it becomes (#1728 arm B). THE `@max-md`
+          the one row that MUST be laid out identically to what it becomes (#1728 arm B). THE `@max-cq-28`
           AVATAR STEP IS PART OF THAT PARITY: the row body takes the settled row's own
           `ROW_BODY_AT_PHONE_WIDTH`, or a live turn at a phone width would reflow its gutter the
           instant it settled. */}

@@ -2,9 +2,9 @@
 // ≥44px touch floor holds by construction) with the matching padding/type step. Button spreads this
 // and adds an `icon` size; toggle uses it as-is.
 export const CONTROL_SIZE = {
-  sm: "h-(--size-control-sm) px-block text-label leading-label",
-  md: "h-(--size-control-md) px-block text-body leading-body",
-  lg: "h-(--size-control-lg) px-section text-body leading-body",
+  sm: "block-(--size-control-sm) px-block text-label leading-label",
+  md: "block-(--size-control-md) px-block text-body leading-body",
+  lg: "block-(--size-control-lg) px-section text-body leading-body",
 } as const;
 
 /** THE FILTER-CHIP BOX — the wrapping-rail cell, shared by button + toggle exactly the way CONTROL_SIZE
@@ -24,4 +24,4 @@ export const CONTROL_SIZE = {
  *  overrule it from a feature is a `font-*` className — the literal-shape dodge the density gate's A3 arm
  *  exists to stop. The register separation is carried by the ink, the edge and the radius instead, which
  *  are all box properties this arm and `intent` genuinely own. */
-export const CHIP_BOX = "h-(--size-touch-target) gap-tight px-row text-label leading-label";
+export const CHIP_BOX = "block-(--size-touch-target) gap-tight px-row text-label leading-label";

@@ -176,7 +176,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
                 allowed") wraps onto its own line instead of overflowing the min-w-0 column and painting
                 UNDER the shrink-0 controls cluster — the exact ~390px collision side-eye 2026-08-29 P2-1
                 photographed (Badge is whitespace-nowrap by design; the row must be the thing that bends);
-              · below @md the controls cluster drops onto its own line under the identity block, so the
+              · below @cq-28 the controls cluster drops onto its own line under the identity block, so the
                 toggle/Update/⋯ never compete with the badge for one cramped line at all. */}
         <Stack className="border-be border-border pbe-block" gap="tight">
           <Row align="start" className="@max-cq-28:flex-col @max-cq-28:items-stretch" gap="block" justify="between">

@@ -117,7 +117,7 @@ function tileTitle(item: RpgInventoryItem): string {
 // reading as "outline" or "ghost" — no intent arm owns "a bordered filled card that happens to be
 // clickable", and the member arm (`edit === undefined`) below is not even a `Button` (a plain `Row`), so the
 // skin cannot be an intent by construction. Composed here, at the one call site both lenses share.
-const TILE_CLASS = "relative w-full min-w-0 items-center gap-field rounded-control border border-border bg-card px-row py-field text-left";
+const TILE_CLASS = "relative inline-full min-inline-0 items-center gap-field rounded-control border border-border bg-card px-row py-field text-start";
 
 /** The tile's INK — the glyph · the name (wrapped) · ×N · the PINNED tell · where it's kept. Shared by both
  *  arms. `pinned` is the #78 affordance's grid half: the tile is itself a Button (the editor's trigger), so it
