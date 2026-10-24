@@ -11,7 +11,7 @@ import { Stack } from "@orb/ui/layout";
 import { useSandboxTheme } from "@orb/ui/sandbox-frame";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { QueryBoundary, ViewerDialog } from "#components";
 import { QueryErrorState, SkeletonRows, useCardFrameSrc, useTRPC } from "#data";
 import type { ArchivedCard } from "../lib/archived-cards.ts";
@@ -80,6 +80,7 @@ export interface RpgSceneCardsProps {
  *  doorway — the section is silent-when-empty ONLY for a game that can't have cards at all (RV-2: an
  *  invisible section reads as an absent feature, and the Journal "Cards" scope already words this state). */
 export function RpgSceneCards({ chatId, enabled }: RpgSceneCardsProps): ReactElement | null {
+  const headingId = useId();
   if (!enabled) {
     return null;
   }
@@ -89,26 +90,26 @@ export function RpgSceneCards({ chatId, enabled }: RpgSceneCardsProps): ReactEle
   // shared key would hand one room's box to another. `surface-box-store` never evicts, so each game chat this
   // device opens leaves one number behind; that is bounded by the rooms a person plays and costs bytes.
   return (
-    // A named region, so the error arm (which has no kicker) is still findable by landmark; the same
-    // `role="region"` + `aria-label` pairing the preset library surface uses for its list pane.
-    <Stack aria-label="Cards" data-slot="rpg-card-archive" role="region">
+    // A region named by its kicker. The error arm renders no kicker, so `aria-label` is the name that arm falls
+    // back to (an `aria-labelledby` that matches no element is skipped).
+    <Stack aria-label="Cards" aria-labelledby={headingId} data-slot="rpg-card-archive" role="region">
       <QueryBoundary
         fallback={
           <Stack gap="field">
-            <Kicker>Cards</Kicker>
+            <Kicker id={headingId}>Cards</Kicker>
             <SkeletonRows count={ARCHIVE_PENDING_ROWS} />
           </Stack>
         }
         renderError={(_error, retry): ReactElement => <QueryErrorState label="this game's cards" onRetry={retry} />}
         reserveKey={`rpg.cardArchive.${chatId}`}
       >
-        <ArchiveBody chatId={chatId} />
+        <ArchiveBody chatId={chatId} headingId={headingId} />
       </QueryBoundary>
     </Stack>
   );
 }
 
-function ArchiveBody({ chatId }: Pick<RpgSceneCardsProps, "chatId">): ReactElement {
+function ArchiveBody({ chatId, headingId }: Pick<RpgSceneCardsProps, "chatId"> & { readonly headingId: string }): ReactElement {
   const trpc = useTRPC();
   const [{ data: messages }, { data: chat }] = useSuspenseQueries({
     queries: [trpc.chat.listMessages.queryOptions({ chatId }), trpc.chat.getChat.queryOptions({ chatId })],
@@ -118,14 +119,14 @@ function ArchiveBody({ chatId }: Pick<RpgSceneCardsProps, "chatId">): ReactEleme
   if (cards.length === 0) {
     return (
       <Stack gap="field">
-        <Kicker>Cards</Kicker>
+        <Kicker id={headingId}>Cards</Kicker>
         <RpgDoorwayLine>No cards yet — the story crafts them, and they land here.</RpgDoorwayLine>
       </Stack>
     );
   }
   return (
     <Stack gap="field">
-      <Kicker>Cards — {cards.length}</Kicker>
+      <Kicker id={headingId}>Cards — {cards.length}</Kicker>
       {cards.map((card) => (
         <RpgCardRow key={card.key} card={card} onOpen={setOpenKey} />
       ))}

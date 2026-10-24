@@ -22,4 +22,8 @@ The chip uses the transcript's short form (time only for today, short date other
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+- Chip: `rpg-turn-ref.tsx` stamps a timed ref with the transcript's `timeLib.formatTime` for a turn from today and `timeLib.formatDate` otherwise, as a `time` with `dateTime`; its hover text names the turn by its instant. The id-only ref (veiled ledger) keeps the id tail.
+- Landmark ruling: every Scene section headed by a `Kicker` is a `role="region"` named by `aria-labelledby` on that heading; ruling stated in `rpg-kicker.tsx`. The card archive keeps `aria-label` as the name for its error arm, which renders no heading.
+- Quest link: the Quests tab opens with nothing highlighted (`revealContextPanel(tab)` takes no quest), so the row drops its `aria-label` and is named by its visible goal text.
+- CT: `scene-cards.ct.tsx` phone-width tests failed on the old source (no `time` chip, region named `Cards` instead of its heading) and pass on the new; `pnpm test:ct tests/client/features/rpg` 17 passed.
+- Not covered: the other Scene sections' regions have no CT mount (the story mounts the archive only); `tests/e2e/rpg-lite-loop.spec.ts` was edited for the goal button name and not run.

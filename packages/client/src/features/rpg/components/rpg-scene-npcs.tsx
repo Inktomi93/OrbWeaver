@@ -21,7 +21,7 @@ import { ChevronDown, ChevronRight, Icon, UserPlus, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { actorKey } from "../lib/actor-key.ts";
 import { RELATIONSHIP_GLYPHS } from "../lib/glyphs.ts";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
@@ -138,14 +138,17 @@ export function SceneNpcs({
   /** The section-scoped presence hand-lock pin — `null` when unlocked/not-host. */
   readonly lockPin?: ReactNode;
 }): ReactElement {
+  const headingId = useId();
   if (npcs.length === 0) {
     // The honest empty-npc doorway: the scene fills from the story; nothing to author by hand here.
     return <RpgDoorwayLine>No NPCs on stage yet — the story brings them in.</RpgDoorwayLine>;
   }
 
   return (
-    <Stack gap="field">
-      <Kicker trailing={lockPin}>On stage — {npcs.length}</Kicker>
+    <Stack gap="field" role="region" aria-labelledby={headingId}>
+      <Kicker id={headingId} trailing={lockPin}>
+        On stage — {npcs.length}
+      </Kicker>
       {npcs.map((actor) => (
         <SceneNpcCard key={actorKey(actor)} actor={actor} {...(edit === undefined ? {} : { edit })} />
       ))}
@@ -167,14 +170,15 @@ export function SceneNpcs({
  *  Collapsed by default: it is a memory, not the scene. The count rides the summary so a host knows there is
  *  something behind it without opening it. */
 export function SceneKnownCharacters({ offstage, edit }: { readonly offstage: readonly RpgActorView[]; readonly edit?: SceneNpcEdit }): ReactElement | null {
+  const headingId = useId();
   const [open, setOpen] = useState(false);
   if (offstage.length === 0) {
     return null;
   }
   return (
-    <Stack gap="field" data-slot="rpg-known-characters">
+    <Stack gap="field" role="region" aria-labelledby={headingId} data-slot="rpg-known-characters">
       <Row gap="field" align="center" justify="between">
-        <Kicker>Known characters — {offstage.length}</Kicker>
+        <Kicker id={headingId}>Known characters — {offstage.length}</Kicker>
         <Button
           intent="ghost"
           size="sm"

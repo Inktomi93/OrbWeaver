@@ -17,6 +17,7 @@ import { Button } from "@orb/ui/button";
 import { Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
+import { useId } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { revealContextPanel } from "#state";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
@@ -284,14 +285,16 @@ function SceneResyncDoorway({ state }: { readonly state: RpgPanelState }): React
 
 /** The Goals echo (#39 dual-homing): read-only rows that NAVIGATE to the quest plane's ONE edit home
  *  (the Quests tab) on click — never a second editor, never a dead echo. The row is a real button
- *  (keyboard-reachable, named "Open <quest> in Quests"); the GoalLine text stays the visible datum. */
+ *  (keyboard-reachable, named by its GoalLine text). The Quests tab opens with nothing highlighted, so the
+ *  name never promises a specific quest; `title` says where the row goes. */
 function SceneGoals({ quests }: { readonly quests: RpgTrackerView["quests"] }): ReactElement | null {
+  const headingId = useId();
   if (quests.length === 0) {
     return null;
   }
   return (
-    <Stack gap="field">
-      <Kicker>Goals</Kicker>
+    <Stack gap="field" role="region" aria-labelledby={headingId}>
+      <Kicker id={headingId}>Goals</Kicker>
       {quests.map((quest) => {
         const total = quest.objectives.length;
         const filled = quest.objectives.filter((o) => o.completed).length;
@@ -301,7 +304,6 @@ function SceneGoals({ quests }: { readonly quests: RpgTrackerView["quests"] }): 
             type="button"
             intent="ghost"
             size="inline"
-            aria-label={`Open ${quest.name} in Quests`}
             title="Open in Quests"
             onClick={(): void => revealContextPanel("rpg.quests")}
             className="w-full border border-transparent px-field text-left"
@@ -325,12 +327,15 @@ function SceneGameTrackers({
    *  so the pin renders once beside the section label. `null` when unlocked/not-host. */
   readonly lockPin?: ReactNode;
 }): ReactElement | null {
+  const headingId = useId();
   if (trackers.length === 0) {
     return null;
   }
   return (
-    <Stack gap="field">
-      <Kicker trailing={lockPin}>Trackers</Kicker>
+    <Stack gap="field" role="region" aria-labelledby={headingId}>
+      <Kicker id={headingId} trailing={lockPin}>
+        Trackers
+      </Kicker>
       {trackers.map((entry, i) => (
         <MeterRow
           key={entry.def.key}
@@ -352,12 +357,13 @@ function SceneGameTrackers({
 }
 
 function SceneBeats({ beats }: { readonly beats: readonly string[] }): ReactElement | null {
+  const headingId = useId();
   if (beats.length === 0) {
     return null;
   }
   return (
-    <Stack gap="field">
-      <Kicker>Just now</Kicker>
+    <Stack gap="field" role="region" aria-labelledby={headingId}>
+      <Kicker id={headingId}>Just now</Kicker>
       {beats.map((beat, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: the rolling beat window renders plain BeatLine text; its slots hold no local state or actions.
         <BeatLine key={i}>{beat}</BeatLine>

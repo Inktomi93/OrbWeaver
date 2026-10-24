@@ -356,7 +356,11 @@ test("an archive with no cards yet renders the empty doorway under its label", a
 test.describe("at phone width with a coarse pointer", () => {
   test.use({ viewport: { width: PHONE_WIDTH, height: 900 }, hasTouch: true, isMobile: true });
 
-  test("the section label is a heading and the card row is a touch-sized control showing its origin time", async ({ corpus, mount, page }) => {
+  test("the section is a region named by its heading and the card row is a touch-sized control with an older turn's date chip", async ({
+    corpus,
+    mount,
+    page,
+  }) => {
     await using root = await createCorpusHarness();
     const room = await archiveRoom(root, corpusChatId(corpus));
     await room.plantCard();
@@ -371,8 +375,15 @@ test.describe("at phone width with a coarse pointer", () => {
     const row = archive.locator('[data-slot="rpg-card-row"]');
     await expect(row).toBeVisible();
 
-    await expect(archive.getByRole("heading", { level: 3 })).toHaveCount(1);
-    await expect(row.locator('[data-slot="rpg-turn-ref"]')).toHaveText(createTimeLib({ timeZone: UTC_TIME_ZONE }).formatDateTime(origin.createdAt));
+    const heading = archive.getByRole("heading", { level: 3 });
+    await expect(heading).toHaveCount(1);
+    // The heading names the region: the settled heading carries the count, which the fallback `aria-label` does not.
+    await expect(archive).toHaveRole("region");
+    await expect(archive).toHaveAccessibleName((await heading.textContent()) ?? "");
+    const chip = row.locator('time[data-slot="rpg-turn-ref"]');
+    await expect(chip).toHaveText(createTimeLib({ timeZone: UTC_TIME_ZONE }).formatDate(origin.createdAt));
+    await expect(chip).toHaveAttribute("datetime", new Date(origin.createdAt).toISOString());
+    await expect(chip).not.toHaveAttribute("title", new RegExp(origin.id));
 
     expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
     const touchTarget = await page.evaluate(() => {
@@ -385,5 +396,22 @@ test.describe("at phone width with a coarse pointer", () => {
     });
     const box = await row.boundingBox();
     expect(box?.height ?? Number.NaN).toBeGreaterThanOrEqual(touchTarget);
+  });
+
+  test("a card from today carries the transcript's time-only stamp in its chip", async ({ corpus, mount, page }) => {
+    await using root = await createCorpusHarness();
+    const room = await archiveRoom(root, corpusChatId(corpus));
+    await room.plantCard();
+    const settled = await room.messages();
+    const origin = settled.messages.find((message) => message.role === "user");
+    if (origin === undefined) {
+      throw new Error("Committed corpus chat omitted its user message");
+    }
+    // The page's clock reads the origin instant, so the origin message is from "today" before the chip renders.
+    await page.clock.setFixedTime(origin.createdAt);
+    await routeTrpc(page, { ...room.reads, "chat.listMessages": () => settled });
+    await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
+    const chip = page.locator(ARCHIVE).locator('time[data-slot="rpg-turn-ref"]');
+    await expect(chip).toHaveText(createTimeLib({ timeZone: UTC_TIME_ZONE }).formatTime(origin.createdAt));
   });
 });

@@ -320,9 +320,9 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
     await expect(scene).toContainText("Secret"); // the text cast-field label
     await expect(scene).toContainText("Reputation"); // the game-tracker label
     // The Scene GOALS section is a read-only ECHO of the quest plane (#39 dual-homing — the Quests tab is
-    // its ONE edit home), so the row is a NAVIGATING button ("Open <quest> in Quests") carrying the goal
-    // name as its visible datum — never a second inline editor. The objective count renders as "1/2".
-    await expect(scene.getByRole("button", { name: "Open Find the Rusted Key in Quests" })).toContainText("Find the Rusted Key");
+    // its ONE edit home), so the row is a NAVIGATING button named by the goal's visible text — never a
+    // second inline editor. The objective count renders as "1/2".
+    await expect(scene.getByRole("button", { name: "Find the Rusted Key" })).toContainText("Find the Rusted Key");
     await expect(scene).toContainText("1/2");
     await expect(scene).toContainText("Stepped into the freezing night market");
     // Status tab: the hero's className + pool + condition render on the actor row.

@@ -7,6 +7,9 @@
 // The label is a real h3, the rung every other `voice="kicker"` section heading in the client uses (the
 // you-sheet, the member card viewer); the takeover panel is an `aside` with no heading of its own, so there is
 // no h2 to nest under and h3 keeps the rung uniform across tabs.
+// LANDMARK RULE: a Scene section headed by a Kicker is a `role="region"` named by that heading
+// (`aria-labelledby` the Kicker's `id`), so the landmark list shows every section or none. The card archive
+// also carries an `aria-label` for its error state, which renders no Kicker.
 
 import { Row } from "@orb/ui/layout";
 import { Separator } from "@orb/ui/separator";
@@ -15,6 +18,8 @@ import type { ReactElement, ReactNode } from "react";
 
 export interface RpgKickerProps {
   readonly children: ReactNode;
+  /** The heading's id, for the section region that `aria-labelledby` names it. */
+  readonly id?: string;
   /** Crown-gold host-only voice (highlight). @defaultValue false */
   readonly crown?: boolean;
   /** An affordance beside the text (the section lock pin) — sits before the rule. */
@@ -23,12 +28,12 @@ export interface RpgKickerProps {
 
 /** A muted letter-spaced caps section heading with a trailing rule (the mock's `.kicker`). The rule is the
  *  `@orb/ui/separator` primitive (`flex-1` to fill the row) — never a hand-styled raw element in a feature. */
-export function Kicker({ children, crown = false, trailing }: RpgKickerProps): ReactElement {
+export function Kicker({ children, id, crown = false, trailing }: RpgKickerProps): ReactElement {
   return (
     <Row gap="field" align="center">
       {/* `voice="kicker"` IS this anatomy (micro · caps · semibold · micro tracking · muted) — the
           crown case only re-colours it, so the className carries the colour and nothing else. */}
-      <Heading level={3} voice="kicker" className={crown ? "text-accolade" : ""}>
+      <Heading level={3} voice="kicker" {...(id === undefined ? {} : { id })} className={crown ? "text-accolade" : ""}>
         {children}
       </Heading>
       {trailing}

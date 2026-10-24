@@ -15,9 +15,9 @@ import { timeLib } from "#lib";
 const REF_TAIL_LEN = 4;
 
 export interface RpgTurnRefProps {
-  /** The origin message id — the tail-token fallback and the chip's title. */
+  /** The origin message id — the tail-token fallback when the row carries no time. */
   readonly messageId: MessageId;
-  /** The origin message's wall time (epoch ms). When the row carries it the chip shows the time; a row with
+  /** The origin message's wall time (epoch ms). When the row carries it the chip shows the transcript's short stamp; a row with
    *  only a message id (the veiled ledger's lie) keeps the id-tail token. */
   readonly createdAt?: number;
 }
@@ -27,11 +27,28 @@ function shortRef(messageId: MessageId): string {
   return `t${messageId.slice(-REF_TAIL_LEN)}`;
 }
 
-/** The mono TurnRef chip (display-only in v1 — see the file header). */
+/** The transcript stamps a message with `timeLib.formatTime`; the chip shows that same form for a turn from
+ *  today and the short date for an older one, so a chip never prints a different time than the transcript. */
+function stamp(createdAt: number): string {
+  const today = timeLib.calendarPosition(timeLib.now()).day;
+  return timeLib.calendarPosition(createdAt).day === today ? timeLib.formatTime(createdAt) : timeLib.formatDate(createdAt);
+}
+
+/** The mono TurnRef chip (display-only in v1 — see the file header). A timed chip is a `time` element whose
+ *  `dateTime` carries the instant; its hover text names the turn by that instant, never by the message id. */
 export function RpgTurnRef({ messageId, createdAt }: RpgTurnRefProps): ReactElement {
+  if (createdAt === undefined) {
+    return (
+      <Text as="span" voice="gloss" className="shrink-0 whitespace-nowrap font-mono tabular-nums" title="The turn this was told in" data-slot="rpg-turn-ref">
+        {shortRef(messageId)}
+      </Text>
+    );
+  }
   return (
-    <Text as="span" voice="gloss" className="shrink-0 font-mono tabular-nums" title={`Told at message ${messageId}`} data-slot="rpg-turn-ref">
-      {createdAt === undefined ? shortRef(messageId) : timeLib.formatDateTime(createdAt)}
-    </Text>
+    <time dateTime={new Date(createdAt).toISOString()} title={`Turn of ${timeLib.formatDateTime(createdAt)}`} data-slot="rpg-turn-ref">
+      <Text as="span" voice="gloss" className="shrink-0 whitespace-nowrap font-mono tabular-nums">
+        {stamp(createdAt)}
+      </Text>
+    </time>
   );
 }
