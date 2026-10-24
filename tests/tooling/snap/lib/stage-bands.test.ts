@@ -417,12 +417,14 @@ test("the dirty stage's key is never a real sha, so its row can never collide wi
 test("--stage-db keeps a stage that is warming from the SAME clone source, and rebuilds anything else", () => {
   const clone = { copiedFrom: "/box/prod.db", cloned: true as const, copiedAt: "2026-10-11T10:00:00.000Z", devDbMtimeAtCopy: "2026-10-11T09:00:00.000Z" };
   const warming = row(0, { dbProvenance: clone, warming: { since: USED_RECENTLY } });
-  expect(resumesWarmingStage(warming, "/box/prod.db")).toBe(true);
+  const ask = { stageDb: "/box/prod.db" };
+  expect(resumesWarmingStage(warming, ask)).toBe(true);
   // Planted controls: each fact the keep rests on, removed one at a time.
-  expect(resumesWarmingStage(row(0, { dbProvenance: clone }), "/box/prod.db"), "not warming").toBe(false);
-  expect(resumesWarmingStage(warming, "/box/other.db"), "another clone source").toBe(false);
-  expect(resumesWarmingStage(warming, undefined), "a plain --fresh with no clone source").toBe(false);
-  expect(resumesWarmingStage({ ...warming, dbProvenance: null }, "/box/prod.db"), "a stage that never cloned").toBe(false);
+  expect(resumesWarmingStage(row(0, { dbProvenance: clone }), ask), "not warming").toBe(false);
+  expect(resumesWarmingStage(warming, { stageDb: "/box/other.db" }), "another clone source").toBe(false);
+  expect(resumesWarmingStage(warming, {}), "a plain --fresh with no clone source").toBe(false);
+  expect(resumesWarmingStage({ ...warming, dbProvenance: null }, ask), "a stage that never cloned").toBe(false);
+  expect(resumesWarmingStage(warming, { ...ask, freshExplicit: true }), "an explicit --fresh always rebuilds").toBe(false);
 });
 
 test("the band line marks a warming stage, and only a warming one", () => {

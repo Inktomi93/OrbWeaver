@@ -371,7 +371,7 @@ function resolveStageRow(root: string, opts: EnsureStageOpts, ops: EnsureStageOp
     const liveHolders = liveHoldersOf(allocation.row, nowMs, holderProcessRunning);
     // `--stage-db` implies `--fresh`, which would rebuild the very stage a missed readiness kept for its warm
     // retry and start vite's cold dependency optimize over.
-    const fresh = opts.fresh && !resumesWarmingStage(allocation.row, opts.stageDb);
+    const fresh = opts.fresh && !resumesWarmingStage(allocation.row, opts);
     const decision = stageDecision({
       targetSha,
       row: allocation.row,

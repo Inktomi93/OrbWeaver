@@ -361,10 +361,17 @@ export function stageDecision(opts: {
   return row.holders === undefined && stageIdleMs(row, opts.nowMs) < OWN_STAGE_REPLACE_IDLE_MS ? "refuse" : "rebuild";
 }
 
-/** `--stage-db` forces a rebuild so the clone is fresh, but a stage still warming from that same clone source is
- *  the warm retry the readiness miss kept it for: rebuilding it would start the cold dependency optimize over. */
-export function resumesWarmingStage(row: StageRow, stageDb: string | undefined): boolean {
-  return row.warming !== undefined && stageDb !== undefined && row.dbProvenance?.cloned === true && row.dbProvenance.copiedFrom === resolve(stageDb);
+/** `--stage-db` implies a rebuild so the clone is fresh, but a stage still warming from that same clone source is
+ *  the warm retry the readiness miss kept it for: rebuilding it would start the cold dependency optimize over.
+ *  An explicit `--fresh` is never overridden. */
+export function resumesWarmingStage(row: StageRow, ask: { readonly stageDb?: string; readonly freshExplicit?: true }): boolean {
+  return (
+    ask.freshExplicit === undefined &&
+    row.warming !== undefined &&
+    ask.stageDb !== undefined &&
+    row.dbProvenance?.cloned === true &&
+    row.dbProvenance.copiedFrom === resolve(ask.stageDb)
+  );
 }
 
 /** The holders still reading the stage: a process still running, or otherwise a stamp younger than the

@@ -26,6 +26,7 @@ export const STAGE_FLAG_HANDLERS: Record<string, StageFlagHandler> = {
   },
   "--fresh": (a) => {
     a.fresh = true;
+    a.freshExplicit = true;
     a.isolated = true;
   },
   "--dirty": (a) => {

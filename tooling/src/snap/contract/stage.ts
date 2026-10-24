@@ -384,6 +384,8 @@ export interface StageLimits {
 export interface EnsureStageOpts {
   readonly ref?: string;
   readonly fresh: boolean;
+  /** True when `--fresh` itself was typed, as opposed to the `fresh` that `--stage-db` implies. */
+  readonly freshExplicit?: true;
   readonly dirty?: boolean;
   readonly auth?: StageAuthMode;
   /** A db file to clone into the rebuilt stage instead of the dev db (`--stage-db`). */
@@ -430,6 +432,9 @@ export interface StageArgs {
   ref: string | null;
   /** Force-rebuild the stage even when a warm one at this sha exists. Implies --isolated. */
   fresh: boolean;
+  /** `--fresh` was typed. `fresh` alone cannot say: `--stage-db` sets it too, and only that implied rebuild
+   *  yields to a stage still warming from the same clone. */
+  freshExplicit: boolean;
   /** Stage the WORKING TREE, not a commit: rsyncs tracked, modified and untracked source (gitignore-filtered)
    *  into a fixed stage dir on every call. Implies --isolated; takes priority over --ref. */
   dirty: boolean;

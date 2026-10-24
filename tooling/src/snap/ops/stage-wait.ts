@@ -56,9 +56,10 @@ const PROD_STAGE_WAIT_DEPS: StageWaitDeps = {
 };
 
 /** The `ensureStage` ask a run's argv makes, so the foreground and the waiter name one stage. */
-export function stageAskFromArgs(opts: Pick<Args, "ref" | "fresh" | "dirty" | "stageAuth" | "stageDb">): EnsureStageOpts {
+export function stageAskFromArgs(opts: Pick<Args, "ref" | "fresh" | "freshExplicit" | "dirty" | "stageAuth" | "stageDb">): EnsureStageOpts {
   return {
     fresh: opts.fresh,
+    ...(opts.freshExplicit ? { freshExplicit: true as const } : {}),
     auth: opts.stageAuth,
     ...(opts.dirty ? { dirty: true } : {}),
     ...(opts.ref === null || opts.dirty ? {} : { ref: opts.ref }),
@@ -95,6 +96,7 @@ function readTicket(value: unknown): StageWaitTicket | null {
     detail: typeof detail === "string" ? detail : null,
     ask: {
       fresh: ask["fresh"],
+      ...(ask["freshExplicit"] === true ? { freshExplicit: true as const } : {}),
       ...(typeof ask["ref"] === "string" ? { ref: ask["ref"] } : {}),
       ...(ask["dirty"] === true ? { dirty: true } : {}),
       ...(ask["auth"] === "local" || ask["auth"] === "single-user" ? { auth: ask["auth"] } : {}),
@@ -299,5 +301,6 @@ export async function waitForStage(opts: Args, deps: StageWaitDeps = PROD_STAGE_
   }
   // The waiter booted the stage; a forced rebuild here would tear it (and a --stage-db clone) down again.
   opts.fresh = false;
+  opts.freshExplicit = false;
   return null;
 }

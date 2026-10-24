@@ -3,7 +3,7 @@
 // on a band for 16 minutes; nothing reaped it before the 60 min keeper TTL, and every reuse in between would
 // have inherited the same dead app. This pins the arm that ends it: a PLANTED readiness failure against a
 // stage this run booted must leave ZERO of that stage's processes alive, clear the row, and say which arm
-// did it — through the SHIPPED `tearDownBootDeadStage`, not a re-spelling of its rules.
+// did it — through the SHIPPED `settleStageReadiness`, not a re-spelling of its rules.
 //
 // @instrument-absence-proof: the second case is the fence #324's ruling requires. A stage this run merely
 // REUSED (ours warm, or a sibling checkout's at the same sha) is the warm-across-runs feature and must
@@ -23,8 +23,10 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { FROZEN_AT_MS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { pidAlive } from "@orb/tooling/floor/artifacts/run-retention";
-import type { StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
+import type { EnsureStageOps, StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
+import { STAGE_ROOT_REL } from "../../../../tooling/src/snap/lib/stage-plan.ts";
 import { markStageSettled, markStageUnsettled, registerStageRunBinding } from "../../../../tooling/src/snap/lib/stage-run-binding.ts";
+import { ensureStage } from "../../../../tooling/src/snap/ops/stage.ts";
 import { readBands, writeBands } from "../../../../tooling/src/snap/ops/stage-marker.ts";
 import { readStageReaps } from "../../../../tooling/src/snap/ops/stage-reap-log.ts";
 import type { StageSettleDeps } from "../../../../tooling/src/snap/ops/stage-teardown.ts";
@@ -206,4 +208,67 @@ test("a first miss on a stage whose vite or server did not answer is still boot-
 
   expect(await until(() => !pidAlive(planted.pid))).toBe(true);
   expect(readBands(home)).toStrictEqual([]);
+});
+
+/** A stage whose server and vite ports both answer, run outside `.cache/snap-stage` so no teardown treats it as a
+ *  stage group. A child process, because the health probes block this process's event loop. */
+async function plantAnsweringPair(scratch: string): Promise<{ readonly server: number; readonly vite: number; readonly pid: number }> {
+  const [server, vite] = [await freePort(), await freePort()];
+  mkdirSync(scratch, { recursive: true });
+  const script = join(scratch, "answer.cjs");
+  writeFileSync(
+    script,
+    `for (const port of [${String(server)}, ${String(vite)}]) require("node:http").createServer((_q, s) => s.end("ok")).listen(port, "127.0.0.1");\n`,
+  );
+  const child = spawn(process.execPath, [script], { detached: true, stdio: "ignore" });
+  child.unref();
+  const pid = child.pid as number;
+  for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt += 1) {
+    const answered = await Promise.all(
+      [server, vite].map((port) =>
+        fetch(`http://127.0.0.1:${String(port)}/`).then(
+          () => true,
+          () => false,
+        ),
+      ),
+    );
+    if (answered.every(Boolean)) {
+      return { server, vite, pid };
+    }
+    await sleep(POLL_MS);
+  }
+  throw new Error("the planted pair never answered");
+}
+
+test("a warming stage is reused by the --stage-db fresh, and rebuilt by an explicit --fresh", { timeout: CASE_BUDGET_MS }, async ({ scratch }) => {
+  const home = join(scratch, "resume-home");
+  mkdirSync(join(home, STAGE_ROOT_REL), { recursive: true });
+  const pair = await plantAnsweringPair(join(scratch, "resume"));
+  const source = "/box/prod.db";
+  const sha = "0".repeat(40);
+  const row: StageRow = {
+    ...plantRow({ dir: join(scratch, "resume", STAGE_ROOT_REL, sha.slice(0, 12)), port: pair.server, checkout: "/repo/main", warming: true }),
+    sha,
+    vitePort: pair.vite,
+    holders: [],
+    dbProvenance: { copiedFrom: source, cloned: true, copiedAt: WARMING_SINCE, devDbMtimeAtCopy: WARMING_SINCE },
+  };
+  writeBands(home, [row]);
+  const ops: EnsureStageOps = {
+    repoRoot: (): string => "/repo/main",
+    resolveRef: (): string => sha,
+    markerRoot: (): string => home,
+    acquireStageBand: () => ({ allocation: { kind: "ours", band: row.band, row }, views: [] }),
+    armStageKeeper: (_home, armed) => armed,
+  };
+  try {
+    const resumed = ensureStage({ fresh: true, stageDb: source }, ops);
+    expect(resumed.startedAt, "the implied fresh keeps the stage that was warming").toBe(row.startedAt);
+    expect(readBands(home).map((kept) => kept.warming)).toStrictEqual([{ since: WARMING_SINCE }]);
+    // Same stage, same clone source, but the user asked for --fresh by name: the rebuild starts by stopping the
+    // stage, and the planted pair is not a stage group the stop may kill, so the rebuild refuses to proceed.
+    expect(() => ensureStage({ fresh: true, freshExplicit: true, stageDb: source }, ops)).toThrow("could not be replaced");
+  } finally {
+    process.kill(pair.pid, "SIGTERM");
+  }
 });

@@ -24,7 +24,7 @@ const SETTLED_KEEP_MINUTES = 60;
 const SETTLED_KEEP_MS = SETTLED_KEEP_MINUTES * MS_PER_MINUTE;
 
 export function stageWaitKey(owner: string, ask: EnsureStageOpts): string {
-  return JSON.stringify([owner, ask.ref ?? null, ask.dirty ?? false, ask.fresh, ask.auth ?? "single-user", ask.stageDb ?? null]);
+  return JSON.stringify([owner, ask.ref ?? null, ask.dirty ?? false, ask.fresh, ask.freshExplicit ?? false, ask.auth ?? "single-user", ask.stageDb ?? null]);
 }
 
 /** Drop what can never be served: a pending ticket whose waiter is gone, and a settled one nobody collected. */
