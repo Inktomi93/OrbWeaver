@@ -19,11 +19,11 @@ UI-Density-Law §2.3: features speak voices, not axes.
 
 ## Done when
 
-The owner rules a datum voice (or tone arm) and records it in the density law; the voice exists in `@orb/ui`; a codemod moves the sites.
+The density law records the ruling; both voices and the tone exist in `@orb/ui`; a codemod moves the sites.
 
 ## Owner ruling
 
-Pending.
+2026-10-24: a `datum` voice for numeric readouts, counts and timers (`tabular-nums` in the body face, at the gloss size); a separate `code` voice (Geist Mono) for ids, hashes and keys; `text-info` becomes a tone, not a voice.
 
 ## Evidence
 
