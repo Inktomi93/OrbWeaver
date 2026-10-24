@@ -36,6 +36,7 @@ const REST_MESSAGES = messagesOf(REST, { rejected: "A fractional-pixel or percen
 const CONDITION_MESSAGES = messagesOf(CONDITION, {
   media: "Spell a media condition as a generated @variant (pointer-coarse, motion-reduce, shell-mobile, …), never a raw @media",
   primitive: "A primitive ramp step is referenced directly; use the semantic token that aliases it",
+  container: "A container condition's length is a rem value of the container.cq-* ladder; a container query cannot read a variable, so lint binds it",
 });
 
 // ── The value allow-lists (client-architecture-lockdown.md §4.4) ───────────────────────────────────────────
@@ -220,12 +221,26 @@ restRule.messages = REST_MESSAGES;
 
 // Authored CSS names a condition through a generated `@variant` and a value through a semantic token: a raw
 // `@media` re-spells a query the vault owns, and a `--primitive-*` reference skips the semantic tier.
-const conditionRule: Rule<true> = (primary) => (root, result) => {
-  if (!stylelint.utils.validateOptions(result, CONDITION, { actual: primary, possible: [true] })) {
+const CONTAINER_LENGTH = /(\d+(?:\.\d+)?)(px|rem|em)\b/gu;
+
+/** A container condition cannot read a variable, so its lengths are bound to the container steps by lint instead. */
+function containerLengthsOffLadder(params: string, steps: ReadonlySet<number>): boolean {
+  return [...params.matchAll(CONTAINER_LENGTH)].some((match) => match[2] !== "rem" || !steps.has(Number(match[1])));
+}
+
+const conditionRule: Rule<true, { readonly containerSteps?: readonly number[] } | undefined> = (primary, secondary) => (root, result) => {
+  const options = { actual: secondary, possible: { containerSteps: [(value: unknown): boolean => typeof value === "number"] }, optional: true };
+  if (!stylelint.utils.validateOptions(result, CONDITION, { actual: primary, possible: [true] }, options)) {
     return;
   }
+  const steps = new Set(secondary?.containerSteps ?? []);
   root.walkAtRules("media", (atRule) => {
     stylelint.utils.report({ result, ruleName: CONDITION, node: atRule, message: CONDITION_MESSAGES.media });
+  });
+  root.walkAtRules("container", (atRule) => {
+    if (containerLengthsOffLadder(atRule.params, steps)) {
+      stylelint.utils.report({ result, ruleName: CONDITION, node: atRule, message: CONDITION_MESSAGES.container });
+    }
   });
   root.walkDecls((declaration) => {
     if (withoutValueComments(authoredValue(declaration)).includes(PRIMITIVE_VAR)) {
@@ -236,10 +251,50 @@ const conditionRule: Rule<true> = (primary) => (root, result) => {
 conditionRule.ruleName = CONDITION;
 conditionRule.messages = CONDITION_MESSAGES;
 
+// ADR 0200: a shadow's colours resolve through served variables (an ingredient, a relative colour from one, or a
+// mix over one) so a theme override reaches them; a frozen literal stays one colour under every palette.
+const SHADOW = "orb/shadow-from-ingredients";
+// A `--color-shadow-*` ingredient DEFINITION is a colour, not a shadow; it lives in the generated theme.
+const SHADOW_PROPERTY = /^(?:box-shadow|text-shadow|filter|--(?!color-)[a-z0-9-]*(?:shadow|band)[a-z0-9-]*)$/u;
+const SERVED_COLOR_FORMS =
+  /\b(?:oklch|oklab|rgb|hsl|lab|lch|color-mix)\((?:[^()]|\([^()]*\))*var\(--color-[a-z0-9-]+\)(?:[^()]|\([^()]*\))*\)|var\(--[a-z0-9-]+(?:,[^)]*)?\)/gu;
+const FROZEN_COLOR = /#[0-9a-f]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|oklch|oklab|lab|lch|color-mix)\(/iu;
+const SHADOW_MESSAGES = messagesOf(SHADOW, {
+  rejected: "A shadow colour is a served --color-* variable, a relative colour from one, or a mix over one, never a literal",
+});
+
+const shadowRule: Rule<true> = (primary) => (root, result) => {
+  if (!stylelint.utils.validateOptions(result, SHADOW, { actual: primary, possible: [true] })) {
+    return;
+  }
+  root.walkDecls((declaration) => {
+    if (!SHADOW_PROPERTY.test(declaration.prop)) {
+      return;
+    }
+    const value = authoredValue(declaration);
+    const scanned = withoutValueComments(value).replace(SERVED_COLOR_FORMS, blankText);
+    if (!FROZEN_COLOR.test(scanned)) {
+      return;
+    }
+    const valueIndex = valueIndexOf(declaration, value);
+    stylelint.utils.report({
+      result,
+      ruleName: SHADOW,
+      node: declaration,
+      message: SHADOW_MESSAGES.rejected,
+      index: valueIndex,
+      endIndex: valueIndex + value.length,
+    });
+  });
+};
+shadowRule.ruleName = SHADOW;
+shadowRule.messages = SHADOW_MESSAGES;
+
 /** Stylesheet-only rules consumed by the native Stylelint configuration. */
 export const CSS_RULES = [
   stylelint.createPlugin(MOTION, motionRule),
   stylelint.createPlugin(COLOR, colorRule),
   stylelint.createPlugin(REST, restRule),
   stylelint.createPlugin(CONDITION, conditionRule),
+  stylelint.createPlugin(SHADOW, shadowRule),
 ];

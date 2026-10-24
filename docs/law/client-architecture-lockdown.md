@@ -105,7 +105,7 @@ when its declarations use tokens.
 | `packages/ui/src/styles/globals.css` | ui's universal CSS mechanism tier: imports, UA/vendor normalization, reduced-motion and reset floors, shared keyframes, masks/formulas, and primitive-wide treatments — never product/shell styling | yes, only when CSS itself is the mechanism |
 | `packages/ui/src/styles/tiers.css` | density-tier slot map: semantic slot names repoint to DTCG token steps | yes (token references only) |
 | `packages/client/src/styles/globals.css` | client-wide CSS mechanisms: document appearance/defers, capability-query treatments, reading rules, and bounded recipes shared above features — never a component skin or shell-frame rule | yes, only when token/`tv()` composition cannot express it honestly |
-| `packages/client/src/features/app-shell/surfaces/shell.css` | the app frame: shell geometry, region paint, responsive regime, and coordinated compositor motion — never component skins | yes — the ONE feature-tier stylesheet |
+| `packages/client/src/features/app-shell/surfaces/shell.css`, the index that imports its `shell/` region files in cascade order | the app frame: shell geometry, region paint, responsive regime, and coordinated compositor motion — never component skins | yes — the ONE feature-tier stylesheet |
 
 `packages/ui/src/**/variants.ts` is not a CSS home. It is the component-skin mechanism: `tv()` composes token utilities and may not mint values or stylesheets.
 
@@ -136,7 +136,7 @@ in source.
 
 ### 4.4 Why `shell.css` is the exception
 
-`shell.css` owns the shell's structural surfaces and layout algebra: rail/list/context track arithmetic and
+`shell.css` is an index: it imports its `shell/` region files (grid, motion, rail, panels, chrome, content, mobile) in cascade order, so a rule's winner across regions is decided by that import order and a rule moves between regions only with its source position. Together they own the shell's structural surfaces and layout algebra: rail/list/context track arithmetic and
 the zero-width sentinel, co-motion variables, one viewport condition (`@variant shell-mobile`, generated from `breakpoint.shell`), and specificity-ordered elevation.
 Density repointing lives in `tiers.css`; shell does not own density semantics. Its panel motion uses FLIP
 because animating dynamic grid tracks causes layout shift; JS stamps `data-list-flip`, `shell.css` owns

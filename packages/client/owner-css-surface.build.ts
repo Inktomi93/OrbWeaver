@@ -12,6 +12,7 @@ export const OWNER_CSS_SURFACE_PATHS = {
   manifest: "packages/client/owner-css-surface.ts",
   producer: "packages/client/owner-css-surface.build.ts",
   shellCss: "packages/client/src/features/app-shell/surfaces/shell.css",
+  shellRegions: "packages/client/src/features/app-shell/surfaces/shell",
   sourceRoots: ["packages/ui/src", "packages/client/src"],
 } as const;
 
@@ -119,9 +120,9 @@ export function renderOwnerCssSurface({ sources, shellCss }: SurfaceInput): stri
   ].join("\n");
 }
 
-function* sourceFiles(root: string): Generator<string> {
+function* sourceFiles(root: string, extension = /\.tsx?$/u): Generator<string> {
   for (const entry of readdirSync(root, { recursive: true, withFileTypes: true })) {
-    if (entry.isFile() && /\.tsx?$/u.test(entry.name) && !entry.parentPath.includes("node_modules")) {
+    if (entry.isFile() && extension.test(entry.name) && !entry.parentPath.includes("node_modules")) {
       yield join(entry.parentPath, entry.name);
     }
   }
@@ -132,7 +133,12 @@ export function readOwnerCssSources(repoRoot = REPO_ROOT): SurfaceInput {
   const paths = OWNER_CSS_SURFACE_PATHS.sourceRoots.flatMap((root) => [...sourceFiles(join(repoRoot, root))]).sort();
   return {
     sources: paths.map((path) => ({ path: relative(repoRoot, path), text: readFileSync(path, "utf8") })),
-    shellCss: readFileSync(join(repoRoot, OWNER_CSS_SURFACE_PATHS.shellCss), "utf8"),
+    shellCss: [
+      OWNER_CSS_SURFACE_PATHS.shellCss,
+      ...[...sourceFiles(join(repoRoot, OWNER_CSS_SURFACE_PATHS.shellRegions), /\.css$/u)].sort().map((path) => relative(repoRoot, path)),
+    ]
+      .map((path) => readFileSync(join(repoRoot, path), "utf8"))
+      .join("\n"),
   };
 }
 

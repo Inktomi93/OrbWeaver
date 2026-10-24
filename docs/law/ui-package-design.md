@@ -162,6 +162,7 @@ Node token-authoring homes and type-only reexports follow [Spine-TypeScript §7.
     (`tooling/src/ui-audit/lib/checks-a11y.ts`), not the native application checks. `data-density="compact"` tightens orthogonally to pointer. Avatar/switch
     display sizes are pointer-INDEPENDENT (never narrow — §13.9 D62 delta).
   - **container breakpoints** — `--container-cq-<rem>`, one step per container width in use (§3 — container queries use named tokens).
+  - **font rendering** — one rule on `:root` in `packages/ui/src/styles/globals.css`: `-webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; font-synthesis: none;` (owner ruling). Grayscale antialiasing keeps macOS text thin on the dark themes; no synthesised bold or italic stands in for a face Geist does not ship. Chromium on Linux renders no smoothing difference, so the visible effect is macOS-only.
   - **type** — the Geist scale (display/headline/title/body/label/mono per the seed table);
     **radius** (`base/control/card/full`); **z** scale; **motion** (`--motion-fast/base/layout` +
     `--ease-out-expo`, reduced-motion floor unlayered in globals.css per D43 §11.4e).

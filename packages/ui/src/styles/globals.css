@@ -6,38 +6,28 @@
  * what lets `[data-surface-tier] …` beat a primitive's own utility default. */
 @import "./tiers.css";
 
-/* THE APP FACE — Geist + Geist Mono, self-hosted (owner ruling 2026-09-01). CSS is the mechanism here:
- * a face can only be registered with @font-face, and this is @orb/ui's universal-mechanism tier.
- *
- * The family NAMES below are the literal heads of the font.sans / font.mono token stacks
- * (theme.css: `--font-sans: Geist, ...` / `--font-mono: 'Geist Mono', ...`). They resolved to NOTHING
- * for the app's whole life — no face was ever shipped, so every surface painted the ui-sans-serif
- * fallback. Spell a name differently here and the cascade silently falls back again.
- *
- * The faces are ui-owned design-system property, homed beside the tokens that declare them, and reach
- * the client only through the one ordered CSS front door (client-architecture-lockdown.md §4.5).
- * Assets are the SIL OFL 1.1 Geist releases as subset by fontsource 5.3.0; ../fonts/OFL-1.1.txt is the
- * license that must travel with them. They are VENDORED rather than depended on: those packages
- * publish the faces as `Geist Variable` / `Geist Mono Variable`, which no token names, so the
- * registration had to be ours either way — and vendoring keeps an offline homelab install clean.
- * The .woff2 files live at src/fonts/, NOT beside this file: `ui-exports-map-complete` derives @orb/ui's
- * module shape from the tree, and a subdirectory under styles/ promotes styles/ from a CSS-only leaf to
- * an exportable FAMILY whose child then owes an index.ts front door. src/fonts/ is a flat leaf and owns
- * no export entry, so the asset home costs the sealed exports map nothing.
- *
- * ONE variable file per (family, style, subset) spans weight 100-900, so every weight the app asks for
- * (the density tier map's 600 included) is a real cut, never a synthesised bolding. Italic is likewise a
- * REAL cut, not a shear — markdown emphasis is this app's narration voice, tracker `thoughts` render
- * italic, and shiki italicises code comments; synthetic oblique would be visible in all three.
- *
- * EVERY subset the upstream face covers is registered (owner ruling 2026-09-01), not just latin: Geist
- * ships cyrillic · cyrillic-ext · latin · latin-ext · vietnamese, and Geist Mono adds symbols2 (the
- * box-drawing/arrow block a code fence full of `tree` output paints). Neither face covers greek or any
- * other script — that is upstream's coverage, and inventing a @font-face for a subset the font lacks
- * would only promise glyphs it cannot draw. Breadth is close to free because `unicode-range` makes a
- * subset DECLARED-BUT-DORMANT: the browser fetches a file only when a glyph inside its range actually
- * paints, so the cost is repository bytes, while the benefit is that a Cyrillic name mid-sentence stops
- * silently dropping to the fallback face — per-glyph fallback is invisible to every check we own. */
+/* THE APP FACE: Geist + Geist Mono, self-hosted (owner ruling). CSS is the mechanism here: a face can only be
+ * registered with @font-face, and this is @orb/ui's universal-mechanism tier.
+* The family NAMES below are the literal heads of the font.sans / font.mono token stacks (theme.css:
+ * `--font-sans: Geist, ...` / `--font-mono: 'Geist Mono', ...`). Spell a name differently here and the cascade
+ * silently falls back to ui-sans-serif.
+* The faces are ui-owned design-system property, homed beside the tokens that declare them, and reach the client
+ * only through the one ordered CSS front door (client-architecture-lockdown.md §4.5). Assets are the SIL OFL
+ * 1.1 Geist releases as subset by fontsource; ../fonts/OFL-1.1.txt is the license that must travel with them.
+ * They are VENDORED rather than depended on: those packages publish the faces as `Geist Variable` / `Geist Mono
+ * Variable`, which no token names, and vendoring keeps an offline homelab install clean. The .woff2 files live
+ * at src/fonts/, not beside this file: a subdirectory under styles/ would promote styles/ from a CSS-only leaf
+ * to an exportable family owing an index.ts front door.
+* ONE variable file per (family, style, subset) spans weight 100-900, so every weight the app asks for is a real
+ * cut, never a synthesised bolding. Italic is likewise a REAL cut, not a shear: markdown emphasis is this app's
+ * narration voice, tracker `thoughts` render italic, and shiki italicises code comments.
+* EVERY subset the upstream face covers is registered (owner ruling), not just latin: Geist ships cyrillic ·
+ * cyrillic-ext · latin · latin-ext · vietnamese, and Geist Mono adds symbols2 (the box-drawing/arrow block a
+ * code fence full of `tree` output paints). Neither face covers greek or any other script; inventing a
+ * @font-face for a subset the font lacks would only promise glyphs it cannot draw. Breadth is close to free
+ * because `unicode-range` makes a subset declared-but-dormant: the browser fetches a file only when a glyph
+ * inside its range paints, so a Cyrillic name mid-sentence stops silently dropping to the fallback face, which
+ * no check we own can see. */
 
 @font-face {
   font-family: "Geist";
@@ -253,21 +243,16 @@
     U+FEFF, U+FFFD;
 }
 
-/* Unlayered reduced-motion floor — a capability condition, legal outside @layer.
- *
- * TRANSITIONS ARE REMOVED, NOT SHORTENED (motion guide §3.9), and that spelling is LOAD-BEARING for
- * performance, not only for doctrine. The floor used to force `transition-duration: 0.01ms` on `*`
- * while leaving `transition-property` at its INITIAL value — which is `all`. That turns every element
- * in the document into "transition: all 0.01ms", so every freshly inserted node fires a bogus
- * transition for `scrollbar-color` (the one INHERITED property whose :root value differs from its
- * initial on a new node — see the scrollbar block below). Measured on a live room open, #257:
- * 1,063 transitionstart events, 1,016 of them `scrollbar-color`; with the property list set to `none`
- * the same drive fires ZERO. The old duration floor is gone with it — `none` already means no
- * transition can run, and a duration clamp beside it would only re-document a dead property.
- *
- * The cost: `transitionend` never fires under reduced motion. Every consumer was checked — Base UI
- * waits on `getAnimations()`/`animation.finished` (zero animations resolves immediately, so panels
- * and popups still unmount), and `WeaveVeil` takes its instant path without listening at all. */
+/* Unlayered reduced-motion floor: a capability condition, legal outside @layer.
+* TRANSITIONS ARE REMOVED, NOT SHORTENED (motion guide §3.9), and that spelling matters for performance, not
+ * only doctrine. A duration floor on `*` with `transition-property` left at its initial `all` turns every
+ * element into "transition: all 0.01ms", so every freshly inserted node fires a bogus transition for
+ * `scrollbar-color` (the one inherited property whose :root value differs from its initial on a new node; see
+ * the scrollbar block below). With the property list set to `none` nothing fires, and a duration clamp beside
+ * it would only re-document a dead property.
+* The cost: `transitionend` never fires under reduced motion. Base UI waits on
+ * `getAnimations()`/`animation.finished` (zero animations resolves immediately, so panels and popups still
+ * unmount), and `WeaveVeil` takes its instant path without listening at all. */
 @variant motion-reduce {
   *,
   *::before,
@@ -299,9 +284,14 @@
 }
 
 /* Client writes --font-scale onto root from the synced pref; rescales every rem-derived size
- * proportionally. Default 1 = no-op. Unlayered so nothing layered overrides it. */
+ * proportionally. Default 1 = no-op. Unlayered so nothing layered overrides it.
+ * The font rendering set (ui-package-design.md §4, owner ruling): grayscale antialiasing keeps macOS text
+ * thin on the dark themes, and no synthesised bold or italic stands in for a face Geist does not ship. */
 :root {
   font-size: calc(100% * var(--font-scale, 1));
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-synthesis: none;
 }
 
 /* Multi-palette seed value-sets are GENERATED into theme.css from src/tokens/themes/*.json (the base
@@ -335,30 +325,24 @@
 
 /* A teaching surface may promote its opening statement one ratified step without retuning every shared
  * EmptyState consumer.
- *
- * IT IS UNLAYERED, AND THAT IS WHAT IT MEANS (side-eye 2026-08-21 P4 — this comment used to claim the
- * opposite). The slot's own class list carries the container step-down (`@max-cq-24:text-body`, its
- * variants.ts), but an unlayered rule beats every Tailwind utility regardless of specificity or container
- * — the `tiers.css` list-row precedent — so a `focal` title holds the DISPLAY step at EVERY width,
- * including inside a ~307px LIST pane. That is the arm: `focal` is the surface's one focal statement, and
- * a statement that shrinks with its column is not one. A caller who wants the container response asks for
- * the default step instead. Pinned by computed value in empty-state.ct.tsx, never by reading this file. */
+* IT IS UNLAYERED, AND THAT IS WHAT IT MEANS. The slot's own class list carries the container step-down
+ * (`@max-cq-24:text-body`, its variants.ts), but an unlayered rule beats every Tailwind utility regardless of
+ * specificity or container (the `tiers.css` list-row precedent), so a `focal` title holds the DISPLAY step at
+ * every width, including inside a narrow LIST pane. That is the arm: `focal` is the surface's one focal
+ * statement, and a statement that shrinks with its column is not one. A caller who wants the container response
+ * asks for the default step instead. Pinned by computed value in empty-state.ct.tsx, never by reading this
+ * file. */
 [data-slot="empty-state-title"][data-title-step="focal"] {
   font-size: var(--text-display);
   line-height: var(--leading-display);
 }
-/* Gradient border ring on the primary CTA: a ::after overlay (dual background-clip: transparent
- * padding-box fill + gradient border-box) so it composes over the element's own fill instead of
- * clobbering it. Chrome/CTA only, never message prose.
- * The gradient's FOOT is --color-sheen: a polarity-fixed sheen highlight — a deliberate white gloss
- * unless a theme overrides the token. The per-site alpha (the tuned ring weight) stays here; only the
- * colour is the token's call. Same pairing in .shell-rail-button.
- *
- * THE SELECTED MEDIA CELL LEFT THIS RULE (#1840, side-eye 2026-09-06 E2). It was a THIRD layer on a state
- * that already had a ring and a check badge, and it made `MediaGrid` a third grid idiom beside the two
- * ruled ones. A selected cell is `SELECTION_RING_SELECTED` and nothing else now
- * (packages/ui/src/lib/selection-ring.ts). The CTA arm is untouched: a call-to-action is not a selection
- * state, so it is not one of the idioms E2 is counting. */
+/* Gradient border ring on the primary CTA: a ::after overlay (dual background-clip: transparent padding-box
+ * fill + gradient border-box) so it composes over the element's own fill instead of clobbering it. Chrome/CTA
+ * only, never message prose. The gradient's FOOT is --color-sheen, a polarity-fixed sheen highlight, a
+ * deliberate white gloss unless a theme overrides the token. The per-site alpha (the tuned ring weight) stays
+ * here; only the colour is the token's call. Same pairing in .shell-rail-button.
+* A selected media cell does not wear this ring: a selected cell is `SELECTION_RING_SELECTED` and nothing else
+ * (packages/ui/src/lib/selection-ring.ts). A call-to-action is not a selection state. */
 [data-slot="button"][data-cta]::after {
   content: "";
   position: absolute;
@@ -382,22 +366,13 @@
   position: relative;
 }
 
-/* Active-tab accent gradient border, same recipe as the CTA ring above (primary head, --color-sheen
- * foot), lower alpha.
- *
- * E2 CALLED THIS A REDUNDANT SECOND SELECTION LAYER AND THE PREMISE IS FALSE ON THIS TREE (#1840,
- * measured 2026-09-06). The review's reading — "the tabs' redundant second selected layer", on top of the
- * sliding indicator bar — assumes every tab list HAS that bar. `TabsIndicator` is an OPT-IN CHILD a
- * consumer renders itself (`tabs.tsx` exports it; `TabsList` does not draw one), and of the three tab
- * consumers on the tree only `preset-editor-header.tsx` does. For `workloads-jobs-section.tsx` and the
- * app shell's `context-rail.tsx` this rule is not the SECOND layer — it is the only geometric mark the
- * active tab carries, leaving `data-active:text-foreground` alone if it goes.
- *
- * Deleting it was tried and reverted with that receipt rather than shipped: the honest collapse is to make
- * the ONE layer present by construction (the list draws its own indicator), which is a seal change with a
- * vertical/`stacked` arm the rail would need rendered receipts for — reported for a follow-up, not
- * improvised at the end of a lane. The other two E2 targets (the media cell's four layers, the table row's
- * accent fill) landed; this one is a NAMED miss. */
+/* Active-tab accent gradient border, same recipe as the CTA ring above (primary head, --color-sheen foot),
+ * lower alpha.
+* NOT A REDUNDANT SECOND SELECTION LAYER. `TabsIndicator` is an opt-in child a consumer renders itself
+ * (`tabs.tsx` exports it; `TabsList` does not draw one), and most tab lists render none, so for them this rule
+ * is the only geometric mark the active tab carries. The honest collapse to one layer present by construction
+ * (the list draws its own indicator) is a seal change with a vertical/`stacked` arm the rail would need
+ * rendered checks for; until then this rule stays. */
 [data-slot="tabs-tab"][data-active]::after {
   content: "";
   position: absolute;
@@ -418,91 +393,68 @@
   mask-image: linear-gradient(to right, transparent, black var(--fade-edge-stop), black calc(100% - var(--fade-edge-stop)), transparent);
 }
 
-/* AN UNSET DATE-FAMILY INPUT WEARS THE PLACEHOLDER TONE (#522, side-eye 2026-08-22 rail-chats P3).
- * `<input type="month|date|time|week|datetime-local">` paints its own segmented editor, so the primitive's
- * `placeholder:text-muted-foreground` never reaches it: an unset control printed the browser's bare
- * `--------- ----` at FULL foreground, i.e. the loudest text in a filter column, saying nothing. Muted, the
- * same dashes read as "nothing chosen yet" — which is what they are.
- * IT IS A RULE HERE AND NOT A UTILITY because `::-webkit-datetime-edit` is a UA pseudo-element Tailwind
- * cannot address, and it is keyed off `data-empty` (emitted by `primitives/input/input.tsx`) because CSS
- * cannot ask the question: chromium matches NEITHER `:placeholder-shown` NOR `:invalid` on an empty date
- * input (measured 2026-08-22 — both false). Colour only; the native picker and its indicator are untouched. */
+/* AN UNSET DATE-FAMILY INPUT WEARS THE PLACEHOLDER TONE. `<input type="month|date|time|week|datetime-local">`
+ * paints its own segmented editor, so the primitive's `placeholder:text-muted-foreground` never reaches it: an
+ * unset control printed the browser's bare dashes at full foreground, the loudest text in a filter column,
+ * saying nothing. Muted, the same dashes read as "nothing chosen yet".
+* IT IS A RULE HERE AND NOT A UTILITY because `::-webkit-datetime-edit` is a UA pseudo-element Tailwind cannot
+ * address, and it is keyed off `data-empty` (emitted by `primitives/input/input.tsx`) because CSS cannot ask
+ * the question: Chromium matches neither `:placeholder-shown` nor `:invalid` on an empty date input. Colour
+ * only. */
 [data-slot="input-root"][data-empty]::-webkit-datetime-edit {
   color: var(--color-muted-foreground);
 }
 
-/* …AND SO DOES ITS PICKER GLYPH (#541b, side-eye — the half #522's own note deferred as "the native picker
- * and its indicator are untouched"). `::-webkit-calendar-picker-indicator` paints a MASKED/imaged glyph, not
- * text, so `color` does not reach it and the tint rule above left it at pure white — measured 255 in both
- * arms, i.e. the UA's own calendar icon was brighter than the
- * placeholder dashes beside it and the loudest ink in the whole filter column. `opacity` is the honest lever
- * (it composites the glyph toward the field's own plate the way a muted tone would) and it is NOT keyed off
- * `data-empty`: this indicator is a secondary affordance in either state, and when a value IS set it shares
- * the field's inline end with the consumer's own ghost clear glyph, which should lead. The ratio is stated
- * once here because Tailwind cannot address a UA pseudo-element, exactly as above. */
+/* …AND SO DOES ITS PICKER GLYPH. `::-webkit-calendar-picker-indicator` paints a masked/imaged glyph, not text,
+ * so `color` does not reach it and the tint rule above leaves it at pure white, the loudest ink in the whole
+ * filter column. `opacity` is the honest lever (it composites the glyph toward the field's own plate the way a
+ * muted tone would) and it is NOT keyed off `data-empty`: this indicator is a secondary affordance in either
+ * state, and when a value IS set it shares the field's inline end with the consumer's own ghost clear glyph,
+ * which should lead. Stated once here because Tailwind cannot address a UA pseudo-element. */
 [data-slot="input-root"]::-webkit-calendar-picker-indicator {
   opacity: 0.55;
 }
 
-/* ── A DRAWER'S LAST ROW CLEARS THE HOME INDICATOR (#1869) ────────────────────────────────────────────
- * Base UI's own bottom-sheet demos pad the popup with `calc(… + env(safe-area-inset-bottom, 0px) + …)` in
- * five separate places (https://base-ui.com/react/components/drawer). Our sealed
- * drawer carried none: `drawer/variants.ts`'s `content` slot is a bare `p-section`, so on any device with a
- * home indicator the sheet's final row sat inside the gesture band.
- *
- * IT IS NOT COVERED BY THE SHELL'S OWN INSETS, and that is the whole reason it needs its own rule: a Drawer
- * portals to `[data-slot="portal-root"]`, which app-shell.tsx renders as a SIBLING of `.shell-grid`. The
- * four-edge `padding` the frame pays reaches its own descendants and structurally cannot reach a portalled
- * float. This is the same anatomy the #623 modal-plate rule had to state for the same reason.
- *
- * EVERY SIDE, not just `bottom`: the left/right sheets are `inset-y-0`, so they reach the bottom edge too.
- * A phone's modal presentation IS this component (`modal-host.tsx` routes the coarse arm to `DrawerModal`),
- * so this is every mobile modal's last row, not an edge case.
- *
- * IT IS CSS AND NOT A VARIANT because `env()` has no token utility spelling: `variants.ts` composes token
- * utilities and may not mint values (paint law §4.2), and a `pb-[env(safe-area-inset-bottom)]` arbitrary
- * value is what `no-arbitrary-tw-values` exists to red. This tier owns "primitive-wide treatments" and is
- * legal "only when CSS itself is the mechanism" (§4.2/§4.3) — a runtime environment value only CSS can read
- * is exactly that case. Unlayered, so it beats the `p-section` utility it extends rather than replaces.
- *
- * It ADDS to the section step rather than overriding it, so a drawer on a device with no home indicator is
- * byte-identical to before (`env()` resolves 0px) and one with an indicator keeps its full padding plus the
- * clearance. */
+/* A DRAWER'S LAST ROW CLEARS THE HOME INDICATOR. Base UI's own bottom-sheet demos pad the popup with
+ * `env(safe-area-inset-bottom)`; our sealed drawer's `content` slot is a bare `p-section`, so on a device with
+ * a home indicator the sheet's final row would sit inside the gesture band.
+* IT IS NOT COVERED BY THE SHELL'S OWN INSETS, which is why it needs its own rule: a Drawer portals to
+ * `[data-slot="portal-root"]`, which app-shell.tsx renders as a SIBLING of `.shell-grid`, so the four-edge
+ * `padding` the frame pays structurally cannot reach a portalled float. Same anatomy as the modal-plate rule.
+* EVERY SIDE, not just `bottom`: the left/right sheets are `inset-y-0`, so they reach the bottom edge too. A
+ * phone's modal presentation IS this component (`modal-host.tsx` routes the coarse arm to `DrawerModal`), so
+ * this is every mobile modal's last row.
+* IT IS CSS AND NOT A VARIANT because `env()` has no token utility spelling: `variants.ts` composes token
+ * utilities and may not mint values (paint law §4.2), and an arbitrary `pb-[env(…)]` is what
+ * `no-arbitrary-tw-values` reds. This tier owns "primitive-wide treatments" and is legal "only when CSS itself
+ * is the mechanism" (§4.2/§4.3); a runtime environment value only CSS can read is exactly that case. Unlayered,
+ * so it beats the `p-section` utility it extends. It ADDS to the section step, so a drawer on a device with no
+ * home indicator is byte-identical (`env()` resolves 0px). */
 [data-slot="drawer-content"] {
   padding-bottom: calc(var(--spacing-section) + env(safe-area-inset-bottom));
 }
 
-/* ART BLEED (#205) — the two declarations `art/art-bleed/variants.ts` cannot honestly spell as utilities.
- * Read them together; the component's own header carries the WHY.
- *
- * `inset-inline-start` IS THE READING-SURFACE GUARANTEE. The band begins one `--reading-measure-min` in,
- * so a host that caps its content column at the same measure has NO INK OVER ART — which is why this
- * recipe invokes none of the D144 reading-plate machinery: a plate backs text that sits on art, and by
- * construction none does. `min(100%, …)` is the other half of the same expression and is what makes the
- * band VANISH on a surface narrower than the measure — the phone arm and the docked-narrow arm, with no
- * media query and no caller branch.
- *
- * WHICH MEASURE, AND WHY IT MOVED (#1121, side-eye HOME 2026-09-02 H7). It was `--reading-measure` (75ch),
- * and at the SHIPPED 1280 desktop default that resolved WIDER than the home hero itself: the band measured
- * `[773, 175, 0, 132]` — zero pixels — so #205's owner ruling ("the hero gets its room's art") did not fire
- * at the width most people run, and at 1920 what survived was a 33px slice of a face. The guarantee is
- * untouched: it is still "column capped at X, band starts at X plus one clearance", and X is simply the
- * design law's LOW reading bound rather than its high one. Both halves move together or neither does —
+/* ART BLEED: the two declarations `art/art-bleed/variants.ts` cannot honestly spell as utilities. Read them
+ * together; the component's own header carries the why.
+* `inset-inline-start` IS THE READING-SURFACE GUARANTEE. The band begins one `--reading-measure-min` in, so a
+ * host that caps its content column at the same measure has no ink over art, which is why this recipe invokes
+ * none of the D144 reading-plate machinery. `min(100%, …)` is the other half of the same expression and is what
+ * makes the band vanish on a surface narrower than the measure (the phone arm and the docked-narrow arm) with
+ * no media query and no caller branch.
+* WHICH MEASURE: the design law's LOW reading bound (`--reading-measure-min`), not its high one. At the common
+ * desktop width the high bound resolved wider than the home hero itself, so the band measured zero pixels and
+ * the owner's "the hero gets its room's art" ruling did not fire. Both halves move together or neither does:
  * `home-hearth-room.tsx` caps its column at the same token and says so.
- *
- * THE `+ --spacing-section` IS THE HOST'S OWN PADDING, PAID FOR WITHOUT NAMING IT. An absolutely
- * positioned layer lays out against its host's PADDING box while the host's content starts one padding
- * further in, so a bare `--reading-measure` begins the band exactly one padding SHORT of where the prose
- * ends (measured on the home hero: 11px of its trailing "Resume →" hint inside the band). A surface's
- * padding is TIER-resolved (styles/tiers.css picks it from the surface), so no consumer may name it;
- * `--spacing-section` is the top of that same scale and therefore an over-estimate in every tier and
- * every density — a guarantee rather than a tuned number. If a tier ever resolved a padding above the
- * section step, the consumer's own geometry test reds rather than a gradient quietly covering a word.
- *
- * The MASK carries the fade AND its ceiling in one place: `--art-bleed-peak` is how much of the picture
- * survives at the host's own edge. A full-strength photo there competes with the prose it is meant to
- * frame; the ramp to transparent is the rest. Prefixed twin per this file's other mask recipes. Static
- * (no transition) => reduced-motion-safe. */
+* THE `+ --spacing-section` IS THE HOST'S OWN PADDING, PAID FOR WITHOUT NAMING IT. An absolutely positioned
+ * layer lays out against its host's padding box while the host's content starts one padding further in, so a
+ * bare measure begins the band one padding short of where the prose ends. A surface's padding is tier-resolved
+ * (styles/tiers.css), so no consumer may name it; `--spacing-section` is the top of that scale and therefore an
+ * over-estimate in every tier and every density, a guarantee rather than a tuned number. If a tier ever
+ * resolved a padding above the section step, the consumer's own geometry test reds rather than a gradient
+ * quietly covering a word.
+* The MASK carries the fade AND its ceiling in one place: `--art-bleed-peak` is how much of the picture survives
+ * at the host's own edge; a full-strength photo there competes with the prose it frames. Prefixed twin per this
+ * file's other mask recipes. Static (no transition) ⇒ reduced-motion-safe. */
 [data-slot="art-bleed"] {
   --art-bleed-peak: 0.55;
   inset-inline-start: min(100%, calc(var(--reading-measure-min) + var(--spacing-section)));
@@ -510,46 +462,32 @@
   mask-image: linear-gradient(to left, rgb(0 0 0 / var(--art-bleed-peak)), transparent);
 }
 
-/* Horizontal-overflow cue: a scrollable strip (e.g. a many-tab tablist too wide for a narrow panel)
- * dissolves whichever edge has clipped content behind it, so the hidden items read as "more — scroll"
- * instead of a hard cut. Scroll-aware and both-edge — the same mechanism as the vertical
- * `message-list-scroll` fade: each edge fades ONLY while content is actually scrolled past it (the
- * consumer toggles data-fade-start/-end on scroll/resize), so an unscrolled or fitting strip renders
- * both its edges fully opaque instead of dimming a flush item against nothing.
- *
- * IT BOTTOMS OUT AT THE FLOOR, NOT AT ZERO (#1140, the inline twin of #1128). It ramped to TRANSPARENT,
- * so the item straddling a scrolled edge — the one whose word is half the reason to scroll — dissolved
- * into whatever sits behind the strip while a mask kept it fully hit-testable: a user could click a view
- * they could not read. MEASURED in the CT browser on the preset editor's five-tab strip, sweeping the pane
- * across 320/360/390/450px and both scrolled edges: at 360px the trailing 13px of `Transforms` read
- * **2.01:1** dark and **1.91:1** light (ink 187,186,184 against 255,253,250), and at 390px the leading
- * 22px of the ACTIVE `Params` tab read **3.24:1** light — while every tab clear of the band read 7.75:1
- * dark / 11.55:1 light in the same decode. Every contrast instrument we own resolves its subject through
- * `getComputedStyle`, which a mask never touches, and all of them reported the strip clean. The same cells
- * read 4.82 / 5.33 / 7.55:1 with the floor in place.
- *
- * ONLY THE FLOOR CROSSED THE AXIS, and that is deliberate. #1128's other half — a band that is a LENGTH
- * rather than `--fade-edge-stop`'s percentage — was a ruling about a self-scrolling SURFACE, whose band
- * grows with the pane; that block's header states in as many words that a percentage "is right for a
- * strip", and it is: a strip's band is a fraction of a box that only exists while the box is too small,
- * so it cannot run away. The finding here is a CONTRAST finding, the floor answers it, and the recorded
- * depth ruling survives untouched.
- *
- * WHAT THE FLOOR STILL CANNOT PROMISE is the block twin's paragraph verbatim — a muted pair needs an
- * alpha so high there is no perceptible fade left. This is set for the class the cue is actually over:
- * a tablist's labels and a strip's chips, at full ink. */
+/* Horizontal-overflow cue: a scrollable strip (a many-tab tablist too wide for a narrow panel) dissolves
+ * whichever edge has clipped content behind it, so the hidden items read as "more, scroll" instead of a hard
+ * cut. Scroll-aware and both-edge, the same mechanism as the vertical `message-list-scroll` fade: each edge
+ * fades ONLY while content is scrolled past it (the consumer toggles data-fade-start/-end on scroll/resize), so
+ * an unscrolled or fitting strip renders both edges fully opaque.
+* IT BOTTOMS OUT AT THE FLOOR, NOT AT ZERO. A ramp to transparent dissolves the item straddling a scrolled edge,
+ * the one whose word is half the reason to scroll, into whatever sits behind the strip while a mask keeps it
+ * fully hit-testable: a user could click a view they could not read, and every contrast instrument we own
+ * resolves its subject through `getComputedStyle`, which a mask never touches, so all of them report the strip
+ * clean.
+* ONLY THE FLOOR CROSSED THE AXIS. The block twin's band is a LENGTH because a self-scrolling SURFACE's band
+ * would otherwise grow with the pane; a strip's band is a fraction of a box that only exists while the box is
+ * too small, so a percentage is right here. The floor is a CONTRAST answer and leaves that depth ruling
+ * untouched.
+* WHAT THE FLOOR STILL CANNOT PROMISE: a muted pair needs an alpha so high there is no perceptible fade left.
+ * The floor is set for the class the cue is actually over: a tablist's labels and a strip's chips, at full ink. */
 
-/* THE ALPHA BOTH AXES BOTTOM OUT AT, declared ONCE for the one recipe that has two axes (#1140). It rides
-   `--scroll-fade-*`, NOT `--fade-*`: `--fade-edge-stop` is a GENERATED token family (tokens.json
-   `fade.edge-stop`) and the only names a stylesheet may mint inside it are the four sanctioned local stops
-   the `css-family-ownership` gate declares, so a `--fade-*-floor` here would rewrite a generated family
-   outside theme.css and is gate-RED. It mints no family at all, exactly as `--art-bleed-peak` above does,
-   and it stays local to this recipe because it is not portable: it is an alpha DERIVED from a contrast
-   floor, and the derivation is the `.scroll-fade-y` header below — a fade composites the ink toward
-   whatever is behind the scroller, so a full-contrast pair clears WCAG 1.4.3's 4.5:1 at alpha >= 0.48 on
-   the dark arm and >= 0.60 on the LIGHT one (near-black on near-white, the demanding polarity). 0.62
-   clears both. One declaration, because one number that drifted apart on two axes of one recipe would be
-   two cues that dim differently for no reason a reader could name. */
+/* THE ALPHA BOTH AXES BOTTOM OUT AT, declared ONCE for the one recipe that has two axes. It rides
+ * `--scroll-fade-*`, NOT `--fade-*`: `--fade-edge-stop` is a generated token family (tokens.json
+ * `fade.edge-stop`), and a stylesheet may not mint names inside a generated family outside theme.css. It mints
+ * no family at all, exactly as `--art-bleed-peak` above does, and stays local to this recipe because it is not
+ * portable: an alpha DERIVED from a contrast floor, derived in the `.scroll-fade-y` header below (a fade
+ * composites the ink toward whatever is behind the scroller, so a full-contrast pair clears WCAG 1.4.3's 4.5:1
+ * at alpha ≥ 0.48 on the dark arm and ≥ 0.60 on the light one; 0.62 clears both). One declaration, because one
+ * number that drifted apart on two axes of one recipe would be two cues that dim differently for no reason a
+ * reader could name. */
 .scroll-fade-x,
 .scroll-fade-y {
   --scroll-fade-floor: 0.62;
@@ -579,51 +517,35 @@
   --fade-end-stop: var(--fade-edge-stop);
 }
 
-/* Vertical-overflow cue — the SAME mechanism on the block axis, for a self-scrolling SURFACE (the home
- * content scroller) rather than a strip. Its own edge is the whole finding it answers (side-eye rail-home
- * P2-1): 293px of home sat below the fold at 1280x800 with `mask-image: none`, no scrollbar gutter and no
- * `::after`, so the last visible line was severed mid-word and read as a rendering fault instead of "scroll
- * for more" — with BOTH of the databank empty state's calls to action below the cut.
- *
- * It is not `[data-slot="message-list-scroll"]` (client globals.css) because that rule is the TRANSCRIPT's,
- * scoped to one slot and carrying the art-arm opt-out that only a chat background needs. This is the
- * generic surface form, homed beside `.scroll-fade-x` so both axes share one recipe. The DOM drivers
- * live in `@orb/ui/scroll-area`; selector constants remain in `@orb/ui/lib`.
- *
- * SCROLL-AWARE, same contract as the horizontal twin: an edge dissolves ONLY while content is actually
- * scrolled past it, so a surface that fits renders both edges fully opaque instead of dimming a flush
- * heading against nothing. Static (no transition) => reduced-motion-safe.
- *
- * IT IS A BOUNDED BAND WITH A FLOOR, NOT `--fade-edge-stop` TO ZERO (#1128, side-eye HOME 2026-09-02 H1).
- * The inline twin's `--fade-edge-stop` is a PERCENTAGE of the box, which is right for a strip and wrong
- * for a self-scrolling SURFACE: 10% of a 752px scroller is a 75px band, and the databank empty state's two
- * buttons sit 27px inside it at the shipped 1280x800 default. Measured on the live app AND reproduced in
- * the CT browser to the byte: `srgb(61,59,56)` ink over `srgb(15,12,10)`, **1.75:1**, while the peer CTA
- * one block up read 17.14:1 in the same decode. A mask is PAINT, so both buttons stayed fully
- * hit-testable — a user could click a primary door they could not read — and every contrast instrument we
- * own resolves its subject through `getComputedStyle` and reported the surface clean.
- *
- * TWO CHANGES, AND BOTH ARE LOAD-BEARING. (1) The band is a LENGTH (`--spacing-section`, the surface's own
- * rhythm), so it cannot grow with the pane: at any viewport a control more than one section-step above the
- * cut is painted at full strength, which is where a control that is genuinely on screen sits. (2) The ramp
- * bottoms out at `--scroll-fade-floor` rather than at zero, so a control the band DOES reach still carries
- * ink. The floor is derived, not chosen by eye: a fade composites the ink toward whatever is behind the
- * scroller, so for a full-contrast pair the composite clears WCAG 1.4.3's 4.5:1 at alpha >= 0.48 on the
- * dark arm and >= 0.60 on the LIGHT one (near-black on near-white, the demanding polarity); 0.62 clears
- * both, measured at 5.04:1 light and 6.9:1 dark in the worst case where a control lies wholly inside the
- * band. Prove it by framebuffer decode, not by property.
- *
- * WHAT A FADE STILL CANNOT PROMISE, stated so the next reader does not read this as a guarantee it is not:
- * a MUTED pair (7.62:1 authored) needs alpha >= 0.79 to hold 4.5:1, i.e. no perceptible fade at all. No
- * mask can keep every text weight at AA — the physics is the one `[data-slot="message-list-scroll"]`
- * (client globals.css) already states from the other side. The floor is set for the class this cue is
- * ACTUALLY over: controls and headings at full ink. */
+/* Vertical-overflow cue: the SAME mechanism on the block axis, for a self-scrolling SURFACE (the home content
+ * scroller) rather than a strip. Without it the last visible line at the fold is severed mid-word and reads as
+ * a rendering fault instead of "scroll for more", with calls to action below the cut.
+* It is not `[data-slot="message-list-scroll"]` (client globals.css) because that rule is the TRANSCRIPT's,
+ * scoped to one slot and carrying the art-arm opt-out only a chat background needs. This is the generic surface
+ * form, homed beside `.scroll-fade-x` so both axes share one recipe. The DOM drivers live in
+ * `@orb/ui/scroll-area`; selector constants remain in `@orb/ui/lib`.
+* SCROLL-AWARE, same contract as the horizontal twin: an edge dissolves ONLY while content is scrolled past it,
+ * so a surface that fits renders both edges fully opaque. Static (no transition) ⇒ reduced-motion-safe.
+* IT IS A BOUNDED BAND WITH A FLOOR, NOT `--fade-edge-stop` TO ZERO. The inline twin's `--fade-edge-stop` is a
+ * PERCENTAGE of the box, right for a strip and wrong for a self-scrolling surface: a tenth of a tall scroller
+ * is a deep band, and controls sit inside it at common viewports. A mask is PAINT, so those controls stay fully
+ * hit-testable while unreadable, and every contrast instrument we own resolves its subject through
+ * `getComputedStyle` and reports the surface clean.
+* TWO CHANGES, BOTH REQUIRED. (1) The band is a LENGTH (`--spacing-section`, the surface's own rhythm), so it
+ * cannot grow with the pane: at any viewport a control more than one section-step above the cut is painted at
+ * full strength. (2) The ramp bottoms out at `--scroll-fade-floor` rather than at zero, so a control the band
+ * DOES reach still carries ink. The floor is derived, not chosen by eye: for a full-contrast pair the composite
+ * clears WCAG 1.4.3's 4.5:1 at alpha ≥ 0.48 on the dark arm and ≥ 0.60 on the light one; 0.62 clears both.
+ * Prove it by framebuffer decode, not by property.
+* WHAT A FADE STILL CANNOT PROMISE: a MUTED pair needs alpha ≥ 0.79 to hold 4.5:1, i.e. no perceptible fade at
+ * all. No mask can keep every text weight at AA; the floor is set for the class this cue is over: controls and
+ * headings at full ink. */
 .scroll-fade-y {
-  /* THE DEPTH RIDES `--scroll-fade-*`, NOT `--fade-*`, for the reason the shared floor above states at
-     length: `--fade-edge-stop` is a GENERATED family and only the four sanctioned local stops may be
-     minted inside it. It mints no family at all and stays local because it is not portable — a depth in
-     the surface's OWN rhythm. The floor moved up to the shared rule when the inline twin needed the same
-     alpha (#1140); it is one number for one recipe, and its derivation is this header. */
+  /* THE DEPTH RIDES `--scroll-fade-*`, NOT `--fade-*`, for the reason the shared floor above states:
+   * `--fade-edge-stop` is a generated family and a stylesheet may not mint names inside it. It mints no family
+   * at all and stays local because it is not portable, a depth in the surface's own rhythm. The floor lives in
+   * the shared rule above because the inline twin needs the same alpha; one number for one recipe, derived in
+   * this header. */
   --scroll-fade-depth: var(--spacing-section);
   /* The two SANCTIONED stop names carry the scroll-aware half — 0 while an edge hides nothing. They are
      LENGTHS on this axis where the inline twin uses a percentage; see the header for why. */
@@ -653,19 +575,16 @@
   --fade-bottom-stop: var(--scroll-fade-depth);
 }
 
-/* CLAMPED-MENU TAIL CUE (side-eye 2026-08-06 P2). A menu taller than `--available-height` clamps and
- * scrolls (see menu/variants.ts `popup`), but the clamp is INVISIBLE: the last visible row ends flush at a
- * clean border and reads as the last row, so the tail below it is undiscoverable without a stray wheel.
- *
- * The self-scrolling-box background recipe, NOT a mask: `mask-image` clips at the border box and would eat
- * the popup's own `shadow-overlay` (the message-list scroller has no shadow, which is why it can mask). Two
- * `local` cover gradients ride the CONTENT and sit exactly over two `scroll` shadow gradients pinned to the
- * box — so a shadow shows only while content is actually scrolled past that edge, and a menu that fits
- * shows neither. Pure CSS: no scroll listener, no per-menu state, and correct the instant the popup opens.
- *
- * Base UI's Menu has NO ScrollUpArrow/ScrollDownArrow part (verified against the installed @base-ui/react
- * 1.7.0 `menu/index.parts.d.ts` — only Select publishes those), so the arrow anatomy Select uses is not
- * available here; this is the same affordance built from the popup's own paint. */
+/* CLAMPED-MENU TAIL CUE. A menu taller than `--available-height` clamps and scrolls (see menu/variants.ts
+ * `popup`), but the clamp is invisible: the last visible row ends flush at a clean border and reads as the last
+ * row.
+* The self-scrolling-box background recipe, NOT a mask: `mask-image` clips at the border box and would eat the
+ * popup's own `shadow-overlay` (the message-list scroller has no shadow, which is why it can mask). Two `local`
+ * cover gradients ride the CONTENT and sit exactly over two `scroll` shadow gradients pinned to the box, so a
+ * shadow shows only while content is scrolled past that edge, and a menu that fits shows neither. Pure CSS: no
+ * scroll listener, no per-menu state, correct the instant the popup opens.
+* Base UI's Menu has no ScrollUpArrow/ScrollDownArrow part (only Select publishes those), so this is the same
+ * affordance built from the popup's own paint. */
 /* The two COVER gradients stay opaque across the shadow's own depth (60% of --spacing-block exceeds
  * --spacing-tight), or a resting menu shows a ghost of the shadow it is there to hide. */
 [data-slot="menu-popup"] {
@@ -729,14 +648,13 @@
   scrollbar-width: thin;
 }
 
-/* TWO RESERVED LINES (`Text lines={2}`, side-eye home re-score 2026-08-18 #216-d). `line-clamp-2` CAPS a
- * run at two lines; it never RESERVES them, so in a grid of cells a one-line name and a two-line name push
- * their captions to different baselines (measured 21px apart in one row of the home face shelf). The
- * reservation is one line-height unit arithmetic — `lh` resolves against THIS element's computed
- * line-height, so it follows whatever voice the text is set in instead of pinning a step's pixel value.
- * It lives here, not as a Tailwind arbitrary value: `min-h-[2lh]` is off the token scale by construction
- * (`no-arbitrary-tw-values`), and there is no design token for "as tall as this element's own two lines"
- * — the same reason `orb-skeleton-shimmer` below is a class rather than a utility stack. */
+/* TWO RESERVED LINES (`Text lines={2}`). `line-clamp-2` CAPS a run at two lines; it never RESERVES them, so in
+ * a grid of cells a one-line name and a two-line name push their captions to different baselines. The
+ * reservation is one line-height unit arithmetic: `lh` resolves against THIS element's computed line-height, so
+ * it follows whatever voice the text is set in instead of pinning a step's pixel value. It lives here, not as a
+ * Tailwind arbitrary value: `min-h-[2lh]` is off the token scale by construction (`no-arbitrary-tw-values`),
+ * and there is no design token for "as tall as this element's own two lines", the same reason
+ * `orb-skeleton-shimmer` below is a class rather than a utility stack. */
 .orb-lines-2 {
   min-height: 2lh;
 }
@@ -752,20 +670,16 @@
     transform: translateX(100%);
   }
 }
-/* THE SWEEP'S TWO STOPS ARE NAMED, so a host that knows the skeleton lands on an unusual SURFACE can
- * re-point them (#690). The pseudo-element is 200% wide and always covers the whole bar, so these two
- * colours — NOT the `bg-muted` base in `skeleton/variants.ts` — are what a reader actually sees whenever
- * motion is on; the base fill only shows under reduced motion. That made the bar's legibility a property
- * of `muted`/`accent` alone, and on a LIGHT palette those sit ΔL 0.03 and 0.05 off the base while the
- * over-art READING PLATE sits at ΔL 0.038 — so a skeleton on the transcript's loading plate rendered at
- * 1.01:1 (measured) in a light carried-art room: three bars that are not there.
- *
- * THE DEFAULTS ARE var() FALLBACKS, NOT DECLARATIONS ON THIS CLASS, and that is load-bearing (measured:
- * the first spelling declared them here and the override did nothing). A custom property DECLARED on the
- * element beats one INHERITED from an ancestor, so defaulting them here would make every host's override
- * unreachable — the fallback form leaves the properties unset, so an ancestor's value inherits in and the
- * shipped tokens still paint for everyone else. Every skeleton outside the transcript's plate arm
- * (`message-row-backing.ts`, the one caller that re-points them) is byte-identical. */
+/* THE SWEEP'S TWO STOPS ARE NAMED, so a host that knows the skeleton lands on an unusual SURFACE can re-point
+ * them. The pseudo-element is 200% wide and always covers the whole bar, so these two colours, not the
+ * `bg-muted` base in `skeleton/variants.ts`, are what a reader sees whenever motion is on; the base fill only
+ * shows under reduced motion. On a light palette `muted`/`accent` sit within a few hundredths of L of the
+ * over-art reading plate, so an unpointed skeleton on the transcript's loading plate is invisible.
+* THE DEFAULTS ARE var() FALLBACKS, NOT DECLARATIONS ON THIS CLASS, and that is required: a custom property
+ * DECLARED on the element beats one INHERITED from an ancestor, so defaulting them here would make every host's
+ * override unreachable. The fallback form leaves the properties unset, so an ancestor's value inherits in and
+ * the shipped tokens still paint for everyone else (`message-row-backing.ts` is the one caller that re-points
+ * them). */
 .orb-skeleton-shimmer::after {
   position: absolute;
   inset-block: 0;
@@ -1131,13 +1045,12 @@
   animation: orb-ws-enter var(--motion-transit) ease-out both;
 }
 
-/* SIZE-GATING (side-eye F7). The stone ships at 120px, but a narrow container steps it down — and below ~90px
- * the finest layers stop being detail and start being noise (1px stars, a 3-unit sun ray, a 2-unit window).
- * Drop them there and thicken what remains, rather than shipping mush. SVG geometry properties (`r`) are real
- * CSS properties, so this is a paint change with no second render path.
- * The threshold IS the stone's smallest step (`variants.ts` → `@max-xs`, i.e. `--container-xs` = 20rem = the
- * 76px stone): one mapping, so the layers drop exactly when the stone is too small to carry them and never
- * while it is still 96px. A container query can't read a var(), so the length is spelled out here. */
+/* SIZE-GATING. The stone ships at 120px, but a narrow container steps it down, and below ~90px the finest
+ * layers stop being detail and start being noise (1px stars, a 3-unit sun ray, a 2-unit window). Drop them
+ * there and thicken what remains, rather than shipping mush. SVG geometry properties (`r`) are real CSS
+ * properties, so this is a paint change with no second render path. The threshold IS the stone's smallest step
+ * (`variants.ts` → `@max-cq-20`, the 76px stone): one mapping, so the layers drop exactly when the stone is too
+ * small to carry them and never while it is still 96px. */
 @container (max-width: 20rem) {
   [data-slot="waystone-cardinal-noon"] line,
   [data-slot="waystone-gable-window"] {

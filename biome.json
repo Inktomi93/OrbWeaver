@@ -568,7 +568,11 @@
       }
     },
     {
-      "includes": ["packages/client/src/features/app-shell/surfaces/shell.css", "packages/client/src/styles/globals.css"],
+      "includes": [
+        "packages/client/src/features/app-shell/surfaces/shell.css",
+        "packages/client/src/features/app-shell/surfaces/shell/*.css",
+        "packages/client/src/styles/globals.css"
+      ],
       "linter": {
         "rules": {
           "style": {

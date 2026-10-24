@@ -525,6 +525,31 @@ function validateRamps(tokens: readonly ContractToken[], diagnostics: TokenContr
   }
 }
 
+const SHADOW_TARGET_PREFIX = "--shadow-";
+/** A hex colour, or a colour function that is not the relative form over a served colour variable. */
+const FROZEN_SHADOW_COLOR = /#[0-9a-f]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|oklch|oklab|lab|lch)\((?!\s*from\s+var\(--color-)/iu;
+
+function shadowLayerAliasesColor(layer: unknown): boolean {
+  const color = isObject(layer) ? layer["color"] : undefined;
+  const target = typeof color === "string" ? ALIAS_RE.exec(color)?.[1] : undefined;
+  return target?.startsWith("color.") === true;
+}
+
+/** ADR 0200: a DTCG shadow token's colours alias a `color.*` token; a frozen colour cannot follow a theme once inlined. */
+function validateShadows(tokens: readonly ContractToken[], diagnostics: TokenContractDiagnostic[]): void {
+  for (const token of tokens) {
+    if (token.type !== "shadow" || aliasTarget(token) !== null) {
+      continue;
+    }
+    const layers = Array.isArray(token.value) ? token.value : [token.value];
+    for (const [index, layer] of layers.entries()) {
+      if (!shadowLayerAliasesColor(layer)) {
+        diagnostics.push(diagnostic(`/${token.path.join("/")}/$value/${index}/color`, "shadow.ingredient", "a shadow layer's colour aliases a color.* token"));
+      }
+    }
+  }
+}
+
 function validateFonts(tokens: readonly ContractToken[], diagnostics: TokenContractDiagnostic[]): void {
   for (const token of tokens) {
     if (token.type !== "fontFamily" || aliasTarget(token) !== null) {
@@ -596,6 +621,16 @@ function parseRootExtensions(base: JsonObject, byPath: ReadonlyMap<string, Contr
     return { cssValues: {}, conditions };
   }
   for (const [target, entry] of Object.entries(cssValues.data)) {
+    // ADR 0200: a shadow recipe resolves every colour through a served variable, or Tailwind's build-time inlining freezes it.
+    if (target.startsWith(SHADOW_TARGET_PREFIX) && FROZEN_SHADOW_COLOR.test(entry.value)) {
+      diagnostics.push(
+        diagnostic(
+          `/$extensions/orb.cssValues/${target}/value`,
+          "shadow.ingredient",
+          `${target} freezes a colour; a shadow colour is var(--color-*) or a relative colour from one`,
+        ),
+      );
+    }
     for (const provenance of entry.provenance) {
       if (!byPath.has(provenance)) {
         diagnostics.push(
@@ -875,6 +910,7 @@ export function validateTokenContractTexts(texts: TokenContractTexts): TokenCont
   }
   validateAliases(baseTokens, diagnostics);
   validateRamps(baseTokens, diagnostics);
+  validateShadows(baseTokens, diagnostics);
   validateFonts(baseTokens, diagnostics);
   validateInheritedValues(baseTokens, formatValidate, diagnostics);
   validateInheritedValues(lightTokenList, formatValidate, diagnostics);

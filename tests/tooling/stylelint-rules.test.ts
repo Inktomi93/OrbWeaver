@@ -23,6 +23,28 @@ test("each custom rule refuses its planted control", async () => {
   expect(await rulesHit(declaration("padding: var(--primitive-space-8);"))).toEqual(["orb/no-raw-media-condition"]);
 });
 
+test("a container condition is bound to the container ladder, and a shadow colour to a served variable", async () => {
+  expect(await rulesHit("@container shell-main (max-width: 32rem) { .probe { opacity: 1; } }")).toEqual([]);
+  expect(await rulesHit("@container (max-width: 30rem) { .probe { opacity: 1; } }")).toEqual(["orb/no-raw-media-condition"]);
+  expect(await rulesHit("@container (max-width: 512px) { .probe { opacity: 1; } }")).toEqual(["orb/no-raw-media-condition"]);
+  for (const body of [
+    "box-shadow: var(--shadow-overlay), inset 0 0 0 var(--border-width-accent) var(--color-ring);",
+    "box-shadow: 0 0 0 transparent;",
+    "text-shadow: 0 1px 2px oklch(from var(--color-backdrop) l c h / 0.45);",
+    "--shell-band-ember: inset 0 var(--border-width-accent) 0 color-mix(in oklab, var(--color-primary) 55%, transparent);",
+    "filter: drop-shadow(0 12px 32px var(--color-shadow-ambient-far));",
+  ]) {
+    expect(await rulesHit(declaration(body)), body).toEqual([]);
+  }
+  for (const body of [
+    "text-shadow: 0 0 var(--spacing-px) #000;",
+    "filter: drop-shadow(0 0 var(--spacing-px) oklch(0 0 0 / 0.4));",
+    "--shell-band-rule: 0 0 0 rgb(0 0 0 / 0.2);",
+  ]) {
+    expect(await rulesHit(declaration(body)), body).toContain("orb/shadow-from-ingredients");
+  }
+});
+
 test("a governed length takes tokens, formulas, viewport units and zero sentinels, never a raw length", async () => {
   const admitted = [
     "padding: var(--spacing-row);",

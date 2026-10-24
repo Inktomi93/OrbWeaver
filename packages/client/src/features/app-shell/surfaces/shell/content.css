@@ -1,0 +1,92 @@
+/* shell.css region: the content pane: the view transition, region fill and scrim. The index imports the regions in cascade order; a rule's winner across regions is
+ * decided there, so a rule moves between regions only with its source position. */
+
+/* THE VIEW TRANSITION IS SCOPED TO THE CONTENT PANE (motion guide §2, §3.7). `withViewTransition`
+ * (packages/client/src/lib/view-transition.ts) is the one wrapper every section, chat and character swap runs
+ * through. Captured on the UA's default `root` name it photographs the whole document: the shell's chrome does
+ * not stay put across a swap (home declares no LIST pane and chats does), so a frozen old document painted over
+ * the live one carries two topbars.
+* THE ROOT IS NOT THE THING THAT CHANGES. Every persistent region owns compositor-only motion of its own (the
+ * content column's push is a FLIP, the panels slide on `transform`, the scrim fades), and a root snapshot
+ * paints a still frame over it. So the document root opts out of capture and exactly one region is named: the
+ * content pane, the surface a swap replaces. Naming rail/topbar/panels instead was rejected: it hands their
+ * geometry to the UA's group morph, which would run beside the FLIP and the slide that already own it.
+* ONE NAME, ONE ELEMENT: a duplicate name aborts the whole transition; `withViewTransition` swallows the
+ * AbortError and the update still lands, so the failure mode is a hard cut.
+* CO-MOTION, VIA THE SAME TWO TOKENS: the `::view-transition-*` pseudos are children of the document root and
+ * never inherit `.shell-grid`'s `--shell-motion`/`--shell-ease`, so they are given the
+ * `--motion-base`/`--ease-out-expo` those alias.
+* REDUCED MOTION needs nothing here: `withViewTransition` starts no transition under `motionIsReduced()` (guide
+ * §3.9).
+* EVERYTHING NOT NAMED HERE STAYS LIVE: chrome and every portalled float keep painting and hit-testing over the
+ * swap, because the portal root is a sibling of `.shell-grid`. Which floats may outlive a swap is declared in
+ * `state/modal-slot-ids.ts` (`MODAL_CONTENT_LIFETIME`) and applied in `state/shell-store.ts`
+ * (`withContentSwap`), never in CSS and never by a second `view-transition-name`. */
+:root {
+  view-transition-name: none;
+}
+
+.shell-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  view-transition-name: orb-section-content;
+}
+
+::view-transition-old(orb-section-content) {
+  animation-duration: var(--motion-fast);
+  animation-timing-function: ease-out;
+}
+::view-transition-new(orb-section-content) {
+  animation-duration: var(--motion-base);
+  animation-timing-function: var(--ease-out-expo);
+}
+/* ONE EFFECT: THE CROSSFADE, AT A FIXED SCALE. The UA's default group morph animates the group between the two
+ * panes' boxes and its default image sizing (`inline-size: 100%`, auto height) stretches each snapshot to the
+ * group, so whenever the two sections' content panes differ in width the incoming content lunged in at up to
+ * 2.15x and the outgoing shrank to 0.46x, while two sections with the same pane geometry just faded. The group
+ * snaps to the destination's box and each snapshot is painted 1:1 from the pane's top-left, clipped to it:
+ * every section pair fades the same way, and the chrome's own FLIP/transform motion is not duplicated here. */
+::view-transition-group(orb-section-content) {
+  /* The name only: the `animation` shorthand also resets `animation-fill-mode`, which the images inherit, and the
+   * outgoing snapshot then snaps back to opacity 1 when its shorter fade ends. */
+  animation-name: none;
+}
+::view-transition-old(orb-section-content),
+::view-transition-new(orb-section-content) {
+  width: 100%;
+  height: 100%;
+  object-fit: none;
+  object-position: 0 0;
+  /* Held at the end value: the old snapshot's shorter fade must stay faded until the new one finishes. */
+  animation-fill-mode: both;
+}
+.shell-region-fill {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Scrim stays mounted and fades via opacity transition off the shared co-motion vars, so it never desyncs
+ * from the panel it dims. Clears the topbar row (mirrors the mobile scrim rule + the overlay panel rule
+ * above) so a visible scrim never intercepts the topbar's own panel-toggle click. */
+.shell-scrim {
+  position: absolute;
+  inset: 0;
+  inset-block-start: var(--dimension-chrome-row);
+  z-index: calc(var(--z-overlay) - 1);
+  /* A DIMMER (the panel-dismiss smoke) — the polarity-fixed backdrop token, never the reading plate. */
+  background: var(--color-backdrop);
+  border: none;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--shell-motion) var(--shell-ease);
+}
+.shell-scrim[data-visible="true"] {
+  opacity: 1;
+  pointer-events: auto;
+}

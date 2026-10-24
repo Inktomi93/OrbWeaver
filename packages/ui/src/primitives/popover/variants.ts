@@ -1,7 +1,7 @@
 import { OVERLAY_ARROW, OVERLAY_MOTION, SCRIM, tv } from "#lib";
 
 /**
- * Slot classes for the popover stack (ui-package-design §5). Positioner carries `--z-overlay`;
+ * Slot classes for the popover stack (ui-package-design §5). Positioner carries `--z-popover`;
  * popup animates on Base UI's `data-starting-style`/`data-ending-style`.
  */
 export const popoverVariants = tv({

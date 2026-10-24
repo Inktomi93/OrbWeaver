@@ -1,0 +1,142 @@
+/* shell.css region: the rail column and its brand, group, button and widget cells. The index imports the regions in cascade order; a rule's winner across regions is
+ * decided there, so a rule moves between regions only with its source position. */
+
+/* Rail — ONE component, ONE flat DOM list. This is the desktop icon column; the @media below reflows the
+ * SAME DOM into the mobile bottom tab bar (no twin blocks). The flex-column layout lives on .shell-rail
+ * itself now (the old .shell-rail-desktop wrapper is gone). */
+.shell-rail {
+  grid-column: 1;
+  grid-row: 1;
+  z-index: var(--z-raised);
+  width: var(--rail-w);
+  background: var(--color-sidebar);
+  color: var(--color-sidebar-foreground);
+  border-inline-end: var(--border-width-control) solid var(--color-sidebar-border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-row);
+  /* No top padding: the brand cell is the rail's chrome-row header and must sit flush at y=0 so its
+   * bottom hairline lands on the SAME baseline as the list/topbar/context headers (P1, D66). */
+  padding-block-start: 0;
+  padding-block-end: var(--spacing-block);
+}
+/* The brand is the rail's chrome-row header — a full-width chrome-row cell with the shared bottom hairline,
+ * on the one shared horizon. align-self:stretch overrides the rail's align-items:center so the hairline spans
+ * the whole rail width. */
+.shell-rail-brand {
+  display: flex;
+  align-self: stretch;
+  align-items: center;
+  justify-content: center;
+  height: var(--dimension-chrome-row);
+  padding-inline: var(--spacing-block);
+  border-block-end: var(--border-width-control) solid var(--color-sidebar-border);
+  color: var(--color-muted-foreground);
+}
+/* When a section claims the `rail.brand` zone (home), the brand cell IS that section's rail button: the same
+ * element, so the brand chrome-row geometry still applies and the active tint spans the full cell. It carries
+ * the nav zone's state grammar: muted at rest, ember + tint when active (the accent bar replaces the nav's
+ * glow/gradient pair, which reads too heavy at chrome-row height). The icon colour is what makes the state
+ * legible; an always-ember glyph leaves the active state with no delta. */
+.shell-rail-brand-button {
+  position: relative;
+  border-radius: 0;
+  color: var(--color-muted-foreground);
+}
+.shell-rail-brand-button:hover {
+  background: var(--color-sidebar-accent);
+  color: var(--color-sidebar-accent-foreground);
+}
+.shell-rail-brand-button[data-active] {
+  background: color-mix(in oklab, var(--color-primary) 14%, transparent);
+  color: var(--color-primary);
+}
+.shell-rail-brand-button[data-active]::before {
+  content: "";
+  position: absolute;
+  inset-block: var(--spacing-field);
+  inset-inline-start: 0;
+  /* A 2px accent bar — the hairline-plus rule, same species as the .shell-topbar-divider's 1px. */
+  width: var(--border-width-accent);
+  border-start-end-radius: var(--border-width-accent);
+  border-end-end-radius: var(--border-width-accent);
+  background: var(--color-primary);
+}
+.shell-rail-sections {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-section);
+}
+.shell-rail-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-field);
+}
+.shell-rail-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-row);
+}
+/* A live rail widget (the persona identity) — the old route-injected `.shell-rail-avatar` slot, now a
+ * registered `rail.end` chrome entry (§E-6). The extra top margin keeps the identity set apart from the
+ * footer-modal buttons above it, as the rail-foot avatar was. */
+.shell-rail-widget {
+  margin-block-start: var(--spacing-row);
+}
+.shell-rail-spacer {
+  flex: 1 1 auto;
+}
+
+.shell-rail .shell-rail-button {
+  width: var(--size-control-lg);
+  height: var(--size-control-lg);
+}
+.shell-rail .shell-rail-button:hover {
+  background: var(--color-sidebar-accent);
+  color: var(--color-sidebar-accent-foreground);
+}
+.shell-rail .shell-rail-button[data-active] {
+  background: color-mix(in oklab, var(--color-primary) 14%, transparent);
+  color: var(--color-primary);
+  position: relative;
+}
+/* Painted on a ::before layer, not box-shadow directly — the Button's focus ring is also a box-shadow utility and would be overwritten. */
+.shell-rail .shell-rail-button[data-active]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow: var(--shadow-glow);
+}
+/* The active rail button's gradient border — the globals.css CTA-ring recipe: a --color-primary head
+ * over a --color-sheen foot (polarity-fixed sheen highlight, a deliberate white gloss unless a theme
+ * overrides the token); the alpha is this site's tuned weight, the colour is the token's call. */
+.shell-rail .shell-rail-button[data-active]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  border: var(--border-width-control) solid transparent;
+  border-radius: inherit;
+  background:
+    linear-gradient(transparent, transparent) padding-box,
+    linear-gradient(180deg, oklch(from var(--color-primary) l c h / 0.45), oklch(from var(--color-sheen) l c h / 0.03)) border-box;
+}
+
+/* The button's label rides under the icon on the mobile bar; on the desktop icon column the tooltip
+ * carries it, so it's hidden here (but stays the accessible name via the button's aria-label). */
+.shell-rail-button-label {
+  line-height: var(--leading-none);
+  display: none;
+}
+/* The mobile-only "You" overflow tab has no place on the desktop icon column. */
+.shell-rail-button[data-rail-mobile-only] {
+  display: none;
+}

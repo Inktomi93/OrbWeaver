@@ -14,6 +14,10 @@ const leadings = Object.keys(tokens.leading)
   .filter((name) => !name.startsWith("$"))
   .map((name) => `var(--leading-${name})`);
 
+const containerSteps = Object.entries(tokens.container)
+  .filter(([name]) => !name.startsWith("$"))
+  .flatMap(([, step]) => (typeof step === "object" && "$value" in step ? [step.$value.value] : []));
+
 const config: Config = {
   ignoreFiles: ["**/dist/**", "**/node_modules/**"],
   plugins: CSS_RULES,
@@ -25,7 +29,8 @@ const config: Config = {
     "orb/motion-token-purity": true,
     "orb/no-raw-color-in-css": true,
     "orb/rest-transform-grid": [true, { reportDisables: true }],
-    "orb/no-raw-media-condition": true,
+    "orb/no-raw-media-condition": [true, { containerSteps }],
+    "orb/shadow-from-ingredients": true,
     "property-disallowed-list": ["/^--leading-[a-z-]+$/"],
     "declaration-property-value-allowed-list": {
       "line-height": [...leadings, "/^var\\(--orb-tier-[a-z-]+-leading\\)$/"],
@@ -43,6 +48,7 @@ const config: Config = {
       rules: {
         "orb/no-raw-color-in-css": null,
         "orb/no-raw-media-condition": null,
+        "orb/shadow-from-ingredients": null,
         "property-disallowed-list": null,
         "declaration-property-value-allowed-list": null,
       },

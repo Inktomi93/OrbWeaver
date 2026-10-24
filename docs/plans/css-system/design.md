@@ -30,6 +30,8 @@ These bind every leg. A lane that disagrees reports the clause and a proposal; i
 - Bulk TSX rewrites use the pinned codemod tool with fixtures and a dry-run set compared against an independent search.
 - This plan runs on forge, an exception to the no-forge rule, and one lane builds every leg so the system lands together, with a verifier and side-eye on the whole branch before merge.
 - Heavy runs (snap, CT, e2e, broad tests) start only when the one-minute load is under the core count. No lane generates artificial load; a browser-side slow-hardware check uses snap's per-page `--cpu-throttle`.
+- Font rendering: the standard set (`-webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; font-synthesis: none;`) is one rule on the root in the `@orb/ui` base layer, recorded as a law clause in `ui-package-design.md` §4: thinner macOS text on the dark themes, and no faked bold or italic when a Geist face is missing. The visible effect is macOS-only.
+- Elevation: no shadow or elevation token ramp. ADR 0200 composes every shadow from the five per-polarity colour ingredients because Tailwind inlines a composite `@theme` shadow into its utility at build time, so a per-theme override cannot reach it; `client-architecture-lockdown.md` §4.4 places specificity-ordered elevation in `shell.css`. The lane audits every surface's z step, shadow and glass treatment, fixes inconsistencies only within the ingredient model and the existing z ramp, reports the table in this plan, and reports a real gap with the ADR clause instead of building a mechanism. ADR 0200 is a constraint: nothing the lane lands may let a shadow stop resolving its colour through a served variable, and a check that fails on a frozen-colour shadow is wanted.
 
 ### Open questions
 
@@ -109,9 +111,46 @@ The design, as built:
 - `UI-Theming-and-Content.md` §12.1 and `client-architecture-lockdown.md` §4.3 point at the manifest. `knip.ts` gains the client package-root row the ui workspace already has.
 - Rejected: a hand-written list (the surface is several hundred names; a list nobody regenerates rots), a `@orb/ui` home (ui may not know client names), a runtime census over gallery stories (incomplete and slow), a curated subset of slots (the law names every `data-slot` value as the API; narrowing it is an owner ruling), primitives in a served `:root`.
 
-### Legs 4 and 6
+### Leg 6: the hand-written CSS, cleaned, built
 
-Not yet built. Leg 4: stylelint allow-lists over every hand-written CSS file for radius, gap, padding, margin, font-size, z-index, line-height and transitions, admitting `var(--token)` and the shell's structural literals (viewport units with their fallback line, `env(safe-area-inset-*)`, grid ratios, zero sentinels). Leg 6: the hand-written CSS drops history comments, dead rules and one-off literals, and `shell.css` splits by region.
+- Comments: every comment block carrying a date, a board number, a measurement narrative or a "used to" was rewritten to its reason (102 blocks across the four sheets); the files carry no history marker now.
+- Dead rules: a census of every `data-*` attribute, `data-slot` value and class the four sheets select against the TypeScript sources found none unspelled; the three `.shell-*` names with no speller lived only inside history comments.
+- Literals: the three named container queries in `shell.css` stay `@container` (a container condition cannot read a variable, and the compiler refuses a named `@max-cq-*` or `not-@cq-*` form inside authored `@variant`); the stylelint condition rule now binds every container length to the `container.cq-*` ladder (`cq-72` added for the identity budget), and the 30rem narrow-topbar budget moved to `cq-32`. The prose halo (`shadow.prose`) moved from a frozen-black DTCG shadow to a `cssValues` recipe derived from `--color-backdrop`, so it follows the palette's polarity.
+- `shell.css` is an index importing seven contiguous region files under `surfaces/shell/` (grid, motion, rail, panels, chrome, content, mobile) in source order, so no cascade winner moved; the owner-CSS manifest harvests the region files, Biome's shell override covers them, and lockdown §4.2/§4.4 name the shape.
+- Font rendering (owner ruling): the root rule in `@orb/ui` globals carries `-webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; font-synthesis: none;`; the law clause is `ui-package-design.md` §4. Geist ships real italic and 100-900 weight cuts, so nothing on the shipped faces was synthesised; the visible effect is macOS-only.
+
+Visible changes in this leg:
+
+| surface | before | after | reason |
+| - | - | - | - |
+| topbar identity at a content column between 480px and 512px | rich header cluster | plain screen title (`cq-32`) | 30rem is off the 4rem container ladder |
+| prose halo over wallpaper (`appearance.shadowEffects`) | black at 0.45/0.25 | `--color-backdrop`'s hue and lightness at the same alphas | ADR 0200: a shadow colour follows the theme; on Hearth the backdrop is near-black, so the default capture does not move |
+| macOS text | subpixel-antialiased | grayscale-antialiased | owner ruling; not visible on Linux Chromium |
+
+ADR 0200, checked as a constraint:
+
+- Leg 3's `--shadow-*: initial` reset predates the lane (it was in the reset list before leg 3); every served shadow recipe (`--shadow-overlay`, `--shadow-cta`, `--shadow-cta-glow`, `--shadow-glow`, `--shadow-shell-over-art`, and now `--shadow-prose`) composes its colours from `var(--color-*)` ingredients or a relative colour over one, so Tailwind's inlining of the recipe into `.shadow-*` keeps the ingredient variables live. `tests/ui/primitives/card/elevation-follows-theme.ct.tsx` proves it: an elevated Card's computed `box-shadow` ends with the served recipe's computed value under Hearth, and both change together under `[data-theme="light"]`.
+- The one place that froze a colour was `shadow.prose` (a DTCG shadow with literal `oklch(0 0 0 / …)` colours, consumed through `var(--shadow-prose)` in client globals); converted. No TSX spells an arbitrary or inline shadow.
+- Checks built: `token-contract.ts` refuses a DTCG shadow layer whose colour is not a `color.*` alias and a `cssValues` `--shadow-*` recipe with a hex or non-relative colour function (`shadow.ingredient`, planted controls in `tests/ui/token-contract.test.ts`); stylelint `orb/shadow-from-ingredients` refuses a `box-shadow`, `text-shadow`, `filter` or shadow-named custom property whose colour is not a served `--color-*` variable, a relative colour over one or a mix over one (planted controls in `tests/tooling/stylelint-rules.test.ts`; `theme.css` is exempt because it defines the ingredients).
+
+Elevation audit (z step, shadow, glass), with the like-surface check:
+
+| surface | z step | shadow | glass or scrim |
+| - | - | - | - |
+| popover, menu, select, autocomplete, combobox popups (`POPUP_SURFACE`) | `--z-popover` (65) | `shadow-overlay` | none |
+| tooltip | `--z-tooltip` (70) | `shadow-overlay` | none |
+| toast | `--z-toast` (68) | `shadow-overlay` | none |
+| dialog | `--z-modal` (50); footer `--z-raised` | `MODAL_SURFACE` → `shadow-overlay` | `SCRIM("modal")` (`bg-backdrop`) + `backdrop-blur-sm` |
+| alert-dialog | `--z-modal` (50) | `MODAL_SURFACE` → `shadow-overlay` | `SCRIM("modal")`, no blur (its header states the deliberate difference) |
+| drawer (the phone's modal presentation) | `--z-modal` (50); swipe area `--z-overlay` | `shadow-overlay` | `SCRIM_BASE` at `--z-modal`, no blur (the mobile-perf ruling: no backdrop-filter below the breakpoint) |
+| shell panels in overlay mode | `--z-overlay` (40); scrim one below | `shadow-overlay` | `.shell-scrim`; glass through `blurSurfaces` |
+| command palette | hosted in a dialog | inherits | inherits |
+
+Like surfaces agree: every anchored popup shares one recipe and one z step; tooltip and toast sit above popups by the z ramp's design; dialog, alert-dialog and drawer share `--z-modal`, `shadow-overlay` and the `bg-backdrop` scrim, and the one difference (dialog's `backdrop-blur-sm`) is deliberate and documented in both headers. No literal scrim exists (`bg-black/50` appears only in comments that forbid it). One stale comment fixed: `popover/variants.ts` said the positioner carries `--z-overlay`; it carries `--z-popover`. No gap needs a new mechanism.
+
+### Leg 4
+
+Built (`aa1495fc94`). Leg 4: stylelint allow-lists over every hand-written CSS file for radius, gap, padding, margin, font-size, z-index, line-height and transitions, admitting `var(--token)` and the shell's structural literals (viewport units with their fallback line, `env(safe-area-inset-*)`, grid ratios, zero sentinels). Leg 6: the hand-written CSS drops history comments, dead rules and one-off literals, and `shell.css` splits by region.
 
 ## Build state
 
@@ -129,9 +168,12 @@ Lane `cb-css`, worktree `.claude/worktrees/agent-a93838f44c69f2f8c`, branch `wt/
 - Leg-5 captures on `da1c4a417b` (run slots `-701705-2026-10-24T16-30-11-712Z` through `-716114-2026-10-24T16-31-50-276Z`): desktop home 0.9986, chat 0.9956, characters 0.9981, refinery 0.9968 (the topbar icon buttons 2px wider, md controls 2px taller); settings-desktop 0.8637 FAIL on threshold, every difference the md-control cascade (each settings nav row and each theme card's menu button +2px, so the column below shifts); phone home 0.9931, characters 0.9932, settings 0.9936, refinery 0.9941, every difference the bottom-bar captions 2px lower; chat-phone (no bottom bar) SSIM 1. Both differences are the leg-5 table's rows; no defect. Boundary pins at 768 and 1024 identical to the baseline.
 - Leg 2 (`b06709f97d`; captures on it against the `fbd87f1e7d` baselines, run slots `-842411-2026-10-24T16-55-29-204Z` through `-867992-2026-10-24T16-58-13-763Z`: every surface SSIM 1, boundary pins identical): `packages/client/owner-css-surface.build.ts` and the generated `owner-css-surface.ts`, the `surface:build` client script, the `@theme static` split in `tokens.build.ts`, the `@orb/ui/theme-scope/emit-vars` door, `tests/client/owner-css-surface.repo.int.test.ts`, the knip and Biome rows for the client package-root pair, the law pointers. Checks run: `tokens:build` and `surface:build`; the pin test (4 pass); `tests/ui/token-contract` (18 pass); `native-token-scales` and `css-merge-parity` (8 pass); scoped ESLint and Biome clean; dependency-cruiser over the three new files clean (no violations); whole `pnpm typecheck` green.
 
+- Leg 4 (`aa1495fc94`, on the merged tree `e713abe644`): `stylelint-rules.ts` and `stylelint.config.ts` replace the two JavaScript files, with the value allow-lists (`LENGTH_FROM_TOKENS` over the length properties and custom properties, the `z-index`, `font-weight` and `letter-spacing` lists), `tests/tooling/stylelint-rules.test.ts`, the ten literal fixes the lists caught, and the generated `MediaCondition` type dropped (no consumer). Checks run: `lint:css` clean under the TypeScript config (the CLI's `--print-config` shows the `orb/` rules, so the `.ts` config is the one loaded); the rules test (5 pass); root typecheck green; ESLint and Biome clean; dependency-cruiser clean. Captures on `aa1495fc94` against `e713abe644` baselines (run slots `-944119-2026-10-24T17-10-41-485Z` and the retake after the first baseline run came back degraded, docs/work/1296): every surface SSIM 1, boundary pins identical. The batch script now retries a boot or a capture that did not navigate.
+- Leg 6 (the commit after `aa1495fc94`): the comment rewrite (102 blocks), the dead-rule census (none), the `shell/` region split, the container-ladder binding with `cq-72`, the 30rem → `cq-32` move, `shadow.prose` to a derived recipe, the font rendering rule and its law clause, the ADR 0200 checks (`shadow.ingredient` in the contract, `orb/shadow-from-ingredients` in stylelint, the elevation CT), the elevation audit table, and the popover z comment. Checks run: `tokens:build` and `surface:build`; `tests/ui/token-contract` (19 pass) and the owner-CSS pin test (4 pass); `tests/tooling/stylelint-rules` (6 pass) and `native-token-scales` (2 pass); `lint:css` clean; Biome clean over the region files; ESLint over the edited files clean; root typecheck green; component tests: the elevation CT (1 pass) and the shell-touching set (login-pending-join, join-invite-dialog, background-upload, touch-floor, the card suites: 24 pass) on the split stylesheet; `pnpm knip` findings unchanged from main's set (none in the lane's files).
+
 ### In progress
 
-- Leg 4 is in progress on the merged tree (`e713abe644` merges main): `stylelint-rules.ts` and `stylelint.config.ts` replace the two JavaScript files, with the value allow-lists (`LENGTH_FROM_TOKENS` over the length properties and custom properties, the `z-index`, `font-weight` and `letter-spacing` lists), `tests/tooling/stylelint-rules.test.ts`, the three literal fixes (tiers `font-weight`, the streaming caret's margin and edge, the settings-flash ring), and the generated `MediaCondition` type dropped (no consumer). Next exact step: read the lint, test and typecheck results, commit, then snap before (`e713abe644`) and after; the expected visible change is none.
+- Leg 6 is committed as the commit after `aa1495fc94`; its baselines were taken on `aa1495fc94`. Next exact step: under the load gate run `after6 <sha> --diff` and the boundary pins; the expected differences are only the leg-6 table's rows (none on the default captures: the 480-512px identity budget needs a narrow content column, the prose halo needs a wallpaper with shadow effects, and the font set is macOS-only), so every `DIFF` should be SSIM 1. Then the whole-branch verifier and side-eye pass the plan's Owner rulings name.
 
 ### Decisions since the Owner rulings
 
@@ -226,4 +268,4 @@ Every step cites the clause that fixes it and carries its leg-5 decision. "Off-g
 
 ## Open verification
 
-WebKit behaviours Chromium cannot show: the iOS focus zoom floor (`text.field` at 16px), `env(safe-area-inset-*)` on a notched device, `interactive-widget=resizes-content` with the real keyboard, `-webkit-text-size-adjust` (set by Tailwind preflight). These are checked by structure (the literals survive every migration) and need a device pass.
+WebKit and macOS behaviours Chromium on Linux cannot show: the iOS focus zoom floor (`text.field` at 16px), `env(safe-area-inset-*)` on a notched device, `interactive-widget=resizes-content` with the real keyboard, `-webkit-text-size-adjust` (set by Tailwind preflight), and the root font-rendering set (`-webkit-font-smoothing` / `-moz-osx-font-smoothing` change nothing on Linux; `font-synthesis: none` only shows where a requested face is missing). These are checked by structure (the literals survive every migration) and need a device pass.

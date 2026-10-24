@@ -72,7 +72,7 @@ function validFixture(): TokenContractTexts {
       $type: "shadow",
       prose: {
         $value: {
-          color: color(0, 0, 0, 0.45),
+          color: "{color.background}",
           offsetX: { value: 0, unit: "px" },
           offsetY: { value: 1, unit: "px" },
           blur: { value: 2, unit: "px" },
@@ -210,6 +210,44 @@ describe("primitive ramp controls", () => {
       descend(descend(descend(base, "primitive"), "space"), "8")["$value"] = "{primitive.space.4}";
     });
     expect(codes(aliased)).toContain("primitive.raw");
+  });
+
+  test("a shadow colour is a served variable, never a frozen literal (ADR 0200)", () => {
+    const frozenRecipe = mutate(vault(), "base", (base) => {
+      descend(descend(base, "$extensions"), "orb.cssValues")["--shadow-planted"] = {
+        value: "0 1px 2px oklch(0 0 0 / 0.4)",
+        placement: "theme",
+        description: "planted",
+        provenance: ["color.backdrop"],
+      };
+    });
+    expect(codes(frozenRecipe)).toContain("shadow.ingredient");
+    const derivedRecipe = mutate(vault(), "base", (base) => {
+      descend(descend(base, "$extensions"), "orb.cssValues")["--shadow-planted"] = {
+        value: "0 1px 2px oklch(from var(--color-backdrop) l c h / 0.4), 0 0 0 var(--color-shadow-hairline)",
+        placement: "theme",
+        description: "planted",
+        provenance: ["color.backdrop"],
+      };
+    });
+    expect(codes(derivedRecipe)).not.toContain("shadow.ingredient");
+    const frozenToken = mutate(vault(), "base", (base) => {
+      base["shadow"] = {
+        planted: {
+          $type: "shadow",
+          $value: [
+            {
+              color: { colorSpace: "oklch", components: [0, 0, 0], alpha: 0.4 },
+              offsetX: { value: 0, unit: "px" },
+              offsetY: { value: 1, unit: "px" },
+              blur: { value: 2, unit: "px" },
+              spread: { value: 0, unit: "px" },
+            },
+          ],
+        },
+      };
+    });
+    expect(codes(frozenToken)).toContain("shadow.ingredient");
   });
 
   test("a space, size or leading step is named by its integer px at the 16px root", () => {

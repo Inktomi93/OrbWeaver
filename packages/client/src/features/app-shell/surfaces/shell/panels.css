@@ -1,0 +1,220 @@
+/* shell.css region: the list and context panels: modes, bands, headers, bodies and the content focus ring. The index imports the regions in cascade order; a rule's winner across regions is
+ * decided there, so a rule moves between regions only with its source position. */
+
+/* Side panels (the clamp-overlay) */
+.shell-panel {
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--color-sidebar);
+  color: var(--color-sidebar-foreground);
+  /* QUERY CONTAINER for the panel's chrome BAND (§4b axis-1 @container, never a viewport @media). The region
+   * `<Container>`s (`RegionAnchor`) wrap each panel's BODY only, so `.shell-panel-header`, a sibling of the
+   * region, had no container ancestor and every unnamed `@container` query inside the band evaluated against
+   * nothing. The PANEL is the box the band gets. Costless: the panel's inline size comes from the grid track,
+   * never from its contents, and body descendants keep their nearer region container.
+  * It is also what contains the glass: `container-type: inline-size` carries layout containment, which makes
+   * this box a stacking context and the containing block for absolutely positioned descendants in every panel
+   * mode. The pane's glass is a `.shell-panel::before` at `z-index: -1`, declared with its paint in the
+   * client-globals glass block, so the pane's text is not inside a `backdrop-filter` layer
+   * (`docs/law/integer-line-boxes.md` Laws 3 and 4). Dropping this declaration lets that fill escape the pane;
+   * the framebuffer pin in app-shell.ct.tsx says so. */
+  container-type: inline-size;
+}
+/* The panes and `<main>` take focus only programmatically (tabindex -1: the skip link, a floating pane
+ * opening, a section jump). The ring belongs on the controls inside them, never on a whole region. */
+.shell-panel:focus-visible,
+.shell-content:focus-visible {
+  outline: none;
+}
+.shell-panel[data-panel-side="list"] {
+  grid-column: 2;
+  border-inline-end: var(--border-width-control) solid var(--color-sidebar-border);
+}
+.shell-panel[data-panel-side="context"] {
+  grid-column: 4;
+  border-inline-start: var(--border-width-control) solid var(--color-sidebar-border);
+}
+
+.shell-panel[data-panel-mode="docked"] {
+  position: relative;
+  width: auto;
+}
+
+.shell-panel[data-panel-mode="overlay"],
+.shell-panel[data-panel-mode="collapsed"] {
+  position: absolute;
+  /* grid-column:auto resets the abspos containing block off the grid area so inset-inline-start targets the shell edge. */
+  grid-column: auto;
+  width: var(--panel-w);
+  z-index: var(--z-overlay);
+  transition: transform var(--shell-motion) var(--shell-ease);
+}
+/* …the CONTEXT panel is the wider one (see --panel-context-w); ONLY its width differs — the co-motion
+ * duration/easing stay in the shared rule above, where both panels inherit one event. */
+.shell-panel[data-panel-side="context"][data-panel-mode="overlay"],
+.shell-panel[data-panel-side="context"][data-panel-mode="collapsed"] {
+  width: var(--panel-context-w);
+}
+/* A COLLAPSED LIST PANE IS AS WIDE AS THE TRACK IT LEFT, NOT AS WIDE AS THE CLAMP. The list pane is anchored to
+ * the rail, so a width change lands on its trailing edge, the one edge no translate can counter: `--panel-w`
+ * here made the pane grow as it left. `--list-panel-collapsed-w` is the width it had, declared with the other
+ * composed distances on the grid, so at rest there is no discontinuity for the exit to animate away.
+* OVERLAY IS DELIBERATELY NOT INCLUDED: an overlay pane is a sheet over the content in a regime with no track
+ * and no squeeze, and it is on-screen, so holding a previous width would trade an invisible step for a visible
+ * one.
+* The direction lives in the value, never in a second rule, and here it matters twice: the phone block's own
+ * `width: 100dvw` for this pane is (0,3,0) and later in source, so this rule yields to it; a flip-gated `width`
+ * on the panel would outrank it and spell a second raw sheet length. */
+.shell-panel[data-panel-side="list"][data-panel-mode="collapsed"] {
+  width: var(--list-panel-collapsed-w);
+}
+/* A panel that leaves a DOCKED track slides out at the docked, full-height box, so a collapsed panel is
+ * full-height. An OPEN overlay must clear the topbar row (mirrors the mobile overlay rule below) so it never
+ * occludes the topbar's panel-toggle button underneath it (M10 correction — the desktop overlay
+ * previously covered the topbar and made the toggle unreachable while the panel it opened was showing).
+ * A panel in an overlay regime (`data-panel-sheet`) never had a docked box, and it is ON SCREEN for the
+ * first part of its exit: it keeps the overlay's inset, so open and close change `transform` and nothing else
+ * (a full-height collapsed box made the closing sheet jump up over the topbar before it slid away). */
+.shell-panel[data-panel-mode="collapsed"] {
+  inset-block: 0;
+}
+.shell-panel[data-panel-mode="overlay"],
+.shell-panel[data-panel-sheet][data-panel-mode="collapsed"] {
+  inset-block: var(--dimension-chrome-row) 0;
+}
+.shell-panel[data-panel-side="list"][data-panel-mode="overlay"],
+.shell-panel[data-panel-side="list"][data-panel-mode="collapsed"] {
+  inset-inline-start: var(--rail-w);
+}
+.shell-panel[data-panel-side="context"][data-panel-mode="overlay"],
+.shell-panel[data-panel-side="context"][data-panel-mode="collapsed"] {
+  inset-inline-end: 0;
+}
+.shell-panel[data-panel-mode="overlay"] {
+  transform: translateX(0);
+}
+/* List panel opens flush against the rail, so its collapsed offset must clear the rail width too. */
+.shell-panel[data-panel-side="list"][data-panel-mode="collapsed"] {
+  transform: translateX(calc(-100% - var(--rail-w)));
+}
+.shell-panel[data-panel-side="context"][data-panel-mode="collapsed"] {
+  transform: translateX(100%);
+}
+
+/* OVERLAY IS A SHEET, NOT A DOCKED PANE (owner ruling). In the narrow band and on mobile the panel floats while
+ * the content behind stays laid out full-width, so controls are cut mid-element at the panel's edge, which
+ * reads as breakage unless the float is unmistakable. The house sheet idiom is the drawer's (packages/ui
+ * primitives/drawer/variants.ts): scrim on the backdrop plus `shadow-overlay` on the popup, the same token
+ * every other float rides. elevation=glow already paints this on every panel in any mode, so the mode-scoped
+ * rule and the elevation rule agree by construction. */
+.shell-panel[data-panel-mode="overlay"] {
+  box-shadow: var(--shadow-overlay);
+}
+/* …and the ember top edge comes off a floating context pane. That edge is the content↔context BINDING, a
+ * docked-adjacency cue; floating, it binds to nothing and renders as an orphan stripe under the topbar. Scoped
+ * to the generic band only: a CLAIMED pane's band is childless (see the `:empty` rule) and the claimant paints
+ * its own top edge inside the body. */
+.shell-panel[data-panel-side="context"][data-panel-mode="overlay"] .shell-panel-header {
+  --shell-band-ember: 0 0 0 transparent;
+}
+
+/* THE BAND'S SEPARATOR IS AN INSET SHADOW, NOT A BORDER, AND THAT IS ARITHMETIC. `height: 3rem` +
+ * `border-block-end: 1px` is a 48px border box with a 47px content box, and `align-items: center` halves the
+ * odd remainder, so every occupant lands off the device-pixel grid at DPR 1, unfixable by re-voicing anything
+ * because every leading token at or above 21px is even. An inset shadow paints the same hairline without
+ * consuming box height, so the content box is 48 and the occupants land whole. The idiom is the CONTEXT band's
+ * own, one rule down.
+* TWO STOPS, TWO VARIABLES, because two rules answer them independently: elevation=ramp drops the RULE and must
+ * not take the ember; a floating context band drops the EMBER and must keep the rule. The `0 0 0 transparent`
+ * sentinel is the "off" value: a box-shadow list has no empty item, and an invalid stop would make the whole
+ * property invalid and delete the other one too. */
+.shell-panel-header {
+  --shell-band-ember: 0 0 0 transparent;
+  --shell-band-rule: inset 0 calc(var(--border-width-control) * -1) 0 var(--color-sidebar-border);
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-row);
+  height: var(--dimension-chrome-row);
+  padding-inline: var(--spacing-block);
+  box-shadow: var(--shell-band-ember), var(--shell-band-rule);
+}
+/* Content↔Context binding (north-star §4 N4 / P4): the Context band carries a 2px ember top edge as an
+ * INSET box-shadow (not a border) — identical over glass, and unaffected by ramp's `.shell-panel-header`
+ * border drop. Rides --color-primary, so a custom/seed theme retints it.
+ *
+ * The band's GROWTH exception (`height:auto` + `min-height` + `align-items:stretch` + block padding) is
+ * DELETED at HUD-1 H1: it existed only so the rpg takeover's two-line banner could fit a slot it did not
+ * own. The takeover now CLAIMS the pane and paints its own band, so this one is a one-line label again and
+ * keeps the D66 A1 chrome-row horizon it shares with the LIST band and the topbar. */
+.shell-panel[data-panel-side="context"] .shell-panel-header {
+  --shell-band-ember: inset 0 var(--border-width-accent) 0 color-mix(in oklab, var(--color-primary) 55%, transparent);
+}
+/* A CLAIMED context pane (HUD-1 §3.1 / §5.2 — D66 A1 SUSPENDED for this one case): the claimant owns the
+ * pane's TOP EDGE, including the 2px ember binding, which it paints itself. `SectionContextHeader` returns
+ * nothing under a claim, so the band element is genuinely childless and collapses out — no empty chrome
+ * row, no doubled ember edge. The LIST band and an UNCLAIMED context band are unaffected (both always have
+ * content: the list's title/action, the context's neutral "Details"). */
+.shell-panel[data-panel-side="context"] .shell-panel-header:empty {
+  display: none;
+}
+/* The context header's content fills the band width and stacks (the takeover header is a vertical Stack;
+ * a normal chat's neutral "Details" label is a single line — both lay out from the start edge). */
+.shell-panel[data-panel-side="context"] .shell-panel-header > * {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* …except the OVERLAY dismiss, a fixed control on the trailing edge that must not take a share of the band's
+ * width. */
+.shell-panel .shell-panel-header > [data-slot="panel-overlay-close"] {
+  flex: none;
+}
+/* The OVERLAY band's content group (panel-chrome.tsx): re-states the band's own two-child `space-between`
+ * inside itself, so a LIST header keeps its `identity … action` split while the dismiss owns the edge. */
+.shell-panel-header-group {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-row);
+}
+/* A BRACKETED (tabs) context pane, floating: the group is childless (`SectionContextHeader` returns nothing for
+ * a tabs context), so the band collapses exactly as the docked `:empty` rule collapses it; the bracket owns its
+ * top edge and its own way out (the dismiss rides at the trailing end of its header row, where the thing it
+ * closes is). Without this the shell's own dismiss would keep the band non-empty and paint the chrome row the
+ * bracket exists to remove. */
+.shell-panel[data-panel-side="context"] .shell-panel-header:has(> .shell-panel-header-group:empty) {
+  display: none;
+}
+/* THE BRACKET'S EMBER EDGE IS NOT HERE (owner ruling: shell.css is geometry, no colour). A tabs pane's header
+ * row lives inside the body (the context bracket), and the content↔context binding is painted by the bracket
+ * root itself from the theme's primary token (`context-bracket.tsx`). */
+
+.shell-panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  /* MUST be a flex column: the region wrapper inside (`.shell-region-fill`) carries `flex: 1 1 auto`, which
+   * is INERT unless this parent is a flex container — without it the region grows to content height and a
+   * section's VirtualList measures full content (over-3×-viewport → the seal throws). Block layout here only
+   * survived because most sections' content stayed small; a large LIST page (e.g. 48 hub cards) exposed it. */
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-inline: var(--spacing-row);
+  padding-block: var(--spacing-row);
+}
+/* A BRACKETED context pane owns the pane's EDGES, not just its content (HUD-1 §5.2): the band and both rails
+ * reach the pane's edges full-bleed. With the panel's padding in place the bracket's ember edge painted inset
+ * while the generic band's painted flush at row 0. `:has()` keys off the single-writer `data-context-bracket`
+ * attribute, so a `single`/`none` pane is untouched; the bracket re-pays the padding on its own viewport, so
+ * tab bodies are unchanged. */
+.shell-panel[data-panel-side="context"] .shell-panel-body:has([data-context-bracket]) {
+  padding-inline: 0;
+  padding-block: 0;
+}

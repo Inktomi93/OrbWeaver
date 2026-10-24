@@ -1,0 +1,264 @@
+/* shell.css region: the content column's chrome: main, topbar, the identity budget, the context header and tab strip. The index imports the regions in cascade order; a rule's winner across regions is
+ * decided there, so a rule moves between regions only with its source position. */
+
+.shell-main {
+  grid-column: 3;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--color-background);
+  /* Query CONTAINER for the topbar's progressive-disclosure (§4b axis-1 @container, NEVER a viewport
+   * @media — the content column narrows independently of the viewport when panels dock). The named
+   * container keeps the deeper message-thread <Container name=…> queries from ever resolving against
+   * this box. inline-size contains only the inline axis, so the flex column still grows vertically. */
+  container: shell-main / inline-size;
+}
+.shell-topbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-row);
+  height: var(--dimension-chrome-row);
+  /* The device inset is paid once on `.shell-grid`, on all four edges; this row keeps only its own rhythm. */
+  padding-inline: var(--spacing-block);
+  border-block-end: var(--border-width-control) solid var(--color-border);
+  background: var(--color-background);
+}
+.shell-topbar-lead,
+.shell-topbar-trail {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-row);
+  min-width: 0;
+}
+/* The lead OWNS the fluid remainder and is the row's shrinker: it grows to claim the width the trail
+ * doesn't need, and its title truncates only when genuinely out of room. The trail is intrinsic-width and
+ * never shrinks (flex: none) so its icon cluster keeps full tap targets on a narrow (mobile) row instead
+ * of crowding while the title collapses to two chars. */
+.shell-topbar-lead {
+  flex: 1 1 auto;
+}
+.shell-topbar-trail {
+  flex: none;
+}
+/* The trail's icon actions are one group: tighter than the row's rhythm so they read as a cluster, and a
+ * cluster whose members are all hidden paints nothing. Both groups wear the ghost control. */
+.shell-topbar-cluster {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-field);
+}
+.shell-topbar-cluster:empty {
+  display: none;
+}
+/* The one seam in the trail: separates the ⌘K chip (group 1) from the icon cluster (group 2) so the topbar
+ * reads as exactly two groups (P1/N1). */
+.shell-topbar-divider {
+  flex: none;
+  width: var(--border-width-control);
+  height: var(--size-glyph-sm);
+  background: var(--color-border);
+}
+
+/* The two IDENTITY arms are both in the DOM; the container query BELOW shows exactly one (a WIDTH question
+ * belongs to the container, never to a `compact` prop — ESLint layout-attribute restrictions in `eslint.config.js`).
+ *
+ * DECLARED HERE, ABOVE that query, on purpose: these selectors and the query's are the same specificity
+ * (0,2,0), so source order decides. Declared after it, this `display: none` won the narrow arm back and the
+ * screen title measured 0px wide with its text present — the exact shape of the defect the query exists to
+ * fix, re-introduced by ordering alone. */
+.shell-topbar-identity {
+  display: contents;
+}
+.shell-topbar-identity[data-identity="narrow"] {
+  display: none;
+}
+
+/* The screen title of the NARROW identity: a hard floor stops it collapsing to 0px when the chrome around it
+ * claims the row — it always shows a few chars + ellipsis rather than vanishing. (The chat's WIDE identity
+ * floors its title on the title GROUP instead, below: a floor on the text inside a box that is allowed to
+ * shrink spills the text over its neighbours.) */
+.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title {
+  min-width: var(--dimension-shell-title-floor);
+}
+
+/* THE PHONE'S SCREEN TITLE YIELDS TO THE OPEN PANE'S BAND. While the context pane is on screen and its identity band
+ * names the artifact (a heading in the band), the narrow identity's title would print the same string a few
+ * pixels above it, so it steps aside. This is keyed on the band carrying a heading rather than on a width: a
+ * pane whose band has no heading never takes the row's name away.
+ *
+ * It is ONLY the narrow arm. The desktop (wide) identity keeps the room's title and its member and memory chips
+ * with both panes docked: the chips collapse to their glyphs and the title truncates last (the container query
+ * below), instead of the whole identity vanishing from a row that still has room to shrink. */
+.shell-grid:is([data-context-mode="docked"], [data-context-mode="overlay"]):has([data-slot="context-bracket-band"] :is(h1, h2, h3))
+  .shell-topbar-identity[data-identity="narrow"]
+  .shell-topbar-title {
+  display: none;
+}
+
+/* SHRINK ORDER of the desktop chat identity, matched off .shell-main. The title GROUP owns the floor and clips
+ * its own overflow, so the title can never paint over the chips beside it; the chips are `shrink-0`, so only
+ * text gives. Inside the group the participants and the user's room name each keep the same real floor (a stub
+ * of either is useless, so neither is drawn at a few letters); the name yields to the participants first, down
+ * to that floor. Below 56rem of content column the avatar goes (a group's faces live in the cast row), the
+ * chips collapse to their glyphs (their accessible names already carry the count); below 72rem the creation
+ * date goes, first, before the name is ever squeezed. */
+.shell-topbar-title-group {
+  min-width: var(--dimension-shell-title-floor);
+  overflow: hidden;
+}
+.shell-topbar-title-group:has(.shell-topbar-subtitle) {
+  min-width: calc(var(--dimension-shell-title-floor) * 3 + var(--spacing-row));
+}
+.shell-topbar-title-group:has(.shell-topbar-subtitle) .shell-topbar-title,
+.shell-topbar-identity .shell-topbar-subtitle {
+  min-width: calc(var(--dimension-shell-title-floor) * 1.5);
+}
+.shell-topbar-identity .shell-topbar-subtitle {
+  flex-shrink: 8;
+}
+/* The rename field is the name's slot: at least as wide as its content or a sensible minimum, the group caps it. */
+.shell-topbar-rename {
+  flex: 1 0 auto;
+  min-width: calc(var(--dimension-shell-title-floor) * 2);
+  field-sizing: content;
+}
+@container shell-main (max-width: 72rem) {
+  .shell-topbar-identity .shell-topbar-date {
+    display: none;
+  }
+}
+@container shell-main (max-width: 56rem) {
+  .shell-topbar-identity .shell-chat-header-avatar,
+  .shell-topbar-identity .shell-chat-chip-count {
+    display: none;
+  }
+}
+
+/* THE CONTEXT PANE'S HEADER ROW sits on the shared 48px horizon: the bracket's 2px ember edge sits above it,
+ * so the row is that much shorter and its bottom hairline lands on the topbar's and list band's divider. It
+ * and the identity band paint NOTHING of their own: the pane (`.shell-panel`) paints one surface under every
+ * elevation mode, and a header with its own fill is a second shade inside one pane. */
+.shell-context-header {
+  height: calc(var(--dimension-chrome-row) - var(--border-width-accent));
+  box-shadow: inset 0 calc(var(--border-width-control) * -1) 0 var(--color-sidebar-border);
+}
+/* The tab strip scrolls inside its row; the fade and chevron say there is more, so no native scrollbar. */
+.shell-context-tab-strip {
+  scrollbar-width: none;
+  /* A focused tab scrolls into view clear of the fade (the fade is one gutter wide), so the end chevron never
+   * covers the last tab or clips its ring; at the very end the track simply stops. */
+  scroll-padding-inline: var(--spacing-gutter);
+}
+/* The fade blends into whatever the pane paints: the ramp elevation lifts the panes to the raised step. */
+.shell-grid[data-elevation="ramp"] [data-slot="context-tab-strip"] [data-slot="context-rail-fade"] {
+  --tw-gradient-from: var(--color-surface-raised);
+}
+.shell-context-tab-strip::-webkit-scrollbar {
+  display: none;
+}
+
+/* …AND THE CONTENT COLUMN'S OWN IDENTITY ECHO GOES WITH IT. While the CONTEXT pane's identity band is on screen
+ * it is the artifact's identity, so the character hero's read-only echoes of it (the `@handle`, the Own-look
+ * trigger, the chats door) stand down rather than render twice. The marker is minted in
+ * `character-hero-band.tsx` (`HERO_ECHO_CLASS`), whose note states what deliberately does not wear it: the name
+ * field and the portrait, the editor's only rename/replace affordances. Keyed on the shell's own mode, never a
+ * width: this is IA, not arithmetic. */
+.shell-grid:is([data-context-mode="docked"], [data-context-mode="overlay"]) .shell-character-hero-echo {
+  display: none;
+}
+
+/* Progressive-disclosure shed on a narrow content column (@container, matched off .shell-main). At the
+ * mobile column width the identity + trail can't share the row without starving the title, so the chat
+ * identity's avatar and title group step aside (the screen title names the room; the members and memory
+ * chips stay, glyph-only), and the screen title drops to the title step so it keeps more of the row. */
+@container shell-main (max-width: 32rem) {
+  /* Wrap the registry trail rather than spending the screen title's minimum on overlapping controls. */
+  .shell-topbar {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: var(--dimension-chrome-row);
+    row-gap: 0;
+  }
+  .shell-topbar-lead,
+  .shell-topbar-trail {
+    min-height: var(--dimension-chrome-row);
+  }
+
+  /* THE NARROW TOPBAR BUDGET. At this width the row seats exactly one lead control, one name and the trail's
+   * icons, so the section's rich header cluster steps aside for the plain screen title, the open member's own
+   * name. */
+  .shell-topbar-identity[data-identity="wide"] {
+    display: none;
+  }
+  /* The chat identity is the exception: its avatar and title group step aside but the room's state chips
+   * (members, memory — glyph-only at this width) ride after the screen title. */
+  .shell-topbar-identity[data-identity="wide"]:has(.shell-chat-member-chip) {
+    display: flex;
+    flex: none;
+    order: 1;
+  }
+  .shell-topbar-identity[data-identity="wide"] .shell-chat-header-lead {
+    display: none;
+  }
+  /* A chat's screen title is the participants, which are long: it takes the title step instead of the display
+   * step so more of the names fit beside the two chips. */
+  .shell-topbar-lead:has(.shell-chat-member-chip) .shell-topbar-identity[data-identity="narrow"] .shell-topbar-title {
+    font-size: var(--text-title);
+    line-height: var(--leading-title);
+  }
+  .shell-topbar-identity[data-identity="narrow"] {
+    display: flex;
+    flex: 1;
+    min-width: min-content;
+  }
+  /* Intrinsic sizing uses the title's own font-relative floor, not its full nowrap string. */
+  .shell-topbar-identity[data-identity="narrow"] .shell-topbar-title {
+    width: 0;
+    flex: 1;
+  }
+
+  /* …AND WHATEVER THE CONTENT REGION WAS ALSO CALLING IT STANDS DOWN. The swap above decides that at this width
+   * the TOPBAR owns the screen's identity; this is the other half of that decision, in the same block, so a
+   * surface that re-spelled the width for itself cannot drift when the budget is retuned.
+  * Opt-in and content-agnostic: a region marks the element that is a second copy of the topbar's title, and
+   * only that element. `display: none` rather than a visually-hidden clamp because the name is on screen, one
+   * row up. */
+  [data-shell-identity="defer"] {
+    display: none;
+  }
+  /* The lead's minimum includes the actual title floor and its control; excess trail chrome wraps. */
+  .shell-topbar-lead {
+    flex-basis: 0;
+    min-width: min-content;
+  }
+  /* …and here the TRAIL gives too — but only down to its OWN content. `min-width: 0` let it shrink past
+   * that, and its icons (each `flex: none`) overflowed the box: MEASURED on the live stage at 320px, the
+   * trail box came out 26px holding a 34px toggle plus the chat kebab at x=324 — four pixels PAST the
+   * viewport edge, so the room's own options menu was unreachable. `min-content` is the floor; what
+   * actually gives on a full row is the LEAD's title, which truncates (its own 6ch floor). */
+  .shell-topbar-trail {
+    flex: 0 1 auto;
+    min-width: min-content;
+  }
+}
+
+/* Tap-target floor for every topbar icon button (the lead list-panel toggle + the trail chrome icons):
+ * on a coarse pointer they must clear the ≥44px touch floor, so the lead toggle can't be squeezed below
+ * it by the flex row. --size-touch-target is pointer-conditional (44px coarse / 28px fine, D62 P1). */
+@variant pointer-coarse {
+  .shell-topbar-icon-btn {
+    min-width: var(--size-touch-target);
+    min-height: var(--size-touch-target);
+  }
+}
+/* …and it never shrinks, on any pointer. As a shrinkable flex item the lead's control squeezed to a sliver at
+ * narrow widths while its button kept its own box, which then overflowed under the trail; the trail is later in
+ * DOM, so it took the clicks. The control is the row's fixed cost; the TITLE is the only thing allowed to give. */
+.shell-topbar-icon-btn {
+  flex: none;
+}

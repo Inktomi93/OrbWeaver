@@ -52,27 +52,20 @@ body {
   animation: orb-weave-shimmer var(--motion-breathe) ease-in-out infinite;
 }
 
-/* Indeterminate hairline (refinery lane's RUNNING cell; side-eye 2026-08-09 polish item 1).
- * A determinate <Progress> would be a lie — a stage run is one bounded model call with no progress to
- * report — so this is the "working, duration unknown" affordance. A travelling segment on a hairline
- * track, expressed as a ::after that translates across its own clipped box: compositor-only (guide
- * §3.7, `translate` is a standalone Tailwind v4 property and composites like transform), never a
- * width/left animation. The class has one client producer and therefore lives in the client's mechanism
- * sheet; the CT harness imports this sheet in production order and renders it at the owning component.
- *
- * Reduced-motion REMOVES it (guide §3.9), and removes the SEGMENT too, not just its travel — a frozen
- * bar parked at one end reads as a stalled determinate progress bar, which is a worse lie than no
- * affordance. Both floors: the OS @media and the shell-stamped [data-reduced-motion="true"].
- *
- * THE TRACK RULE IS PART OF THE CLASS, NOT THE CONSUMER'S JOB (#143). The segment is an ABSOLUTE box
- * sized `33%` of — and inset to — its containing block, so it only means "a third of this track" when the
- * TRACK is that containing block. The one consumer hosted the class on a 1px `Container` with no
- * `relative`, and the segment escaped to the pane's scroll container: a full-height opaque
- * `--color-primary` block over a third of the workbench for the whole run (measured 302.5×752px), invisible
- * to hit-testing thanks to `pointer-events-none` and absent for reduced-motion users, which is why it
- * survived. A prose "host me on something positioned" would have been a wish, so the class OWNS both
- * halves of its own contract — the containing block and the clip the -100%→300% travel needs — and a
- * consumer can no longer get it wrong. Prove it by the segment's resolved box against its host's, never the class list. */
+/* Indeterminate hairline (the refinery lane's RUNNING cell). A determinate <Progress> would be a lie: a stage
+ * run is one bounded model call with no progress to report, so this is the "working, duration unknown"
+ * affordance. A travelling segment on a hairline track, a ::after that translates across its own clipped box:
+ * compositor-only (motion guide §3.7), never a width/left animation. The class has one client producer and
+ * lives in the client's mechanism sheet; the CT harness imports this sheet in production order.
+* Reduced motion REMOVES it (guide §3.9), and removes the SEGMENT too, not just its travel: a frozen bar parked
+ * at one end reads as a stalled determinate progress bar. Both floors: the OS condition and the shell-stamped
+ * [data-reduced-motion="true"].
+* THE TRACK RULE IS PART OF THE CLASS, NOT THE CONSUMER'S JOB. The segment is an absolute box sized `33%` of,
+ * and inset to, its containing block, so it only means "a third of this track" when the track IS that
+ * containing block; a host without `relative` let the segment escape to the pane's scroll container as an
+ * opaque block over a third of the workbench. The class owns both halves of its contract, the containing block
+ * and the clip the -100%→300% travel needs. Prove it by the segment's resolved box against its host's, never
+ * the class list. */
 @keyframes orb-indeterminate-hairline {
   from {
     translate: -100% 0;
@@ -152,87 +145,46 @@ body {
   box-shadow: inset 0 0 0 var(--border-width-accent) var(--color-ring);
 }
 
-/* Glass (appearance.blurSurfaces) + prose shadow (appearance.shadowEffects). data-blur/data-shadow
- * attrs live on html so they reach portalled content. "messages" gets the denser fill since it sits
- * behind scrolling prose; chrome (panels/composer/modals) gets the lighter fill.
- * surface list = BLUR_SURFACES (@orb/contracts/settings)
- *
- * THE GLASS DOES NOT RUN AT OR BELOW THE SHELL BREAKPOINT (#135) — backdrop-filter is too costly on
- * small/low-power devices. That mobile-perf ruling is stated HERE, as the glass's own applicability,
- * because it cannot survive as an override anywhere else: shell.css's mobile arm used to re-declare
- * these five selectors with `backdrop-filter: none`, at IDENTICAL specificity (at-rules add none), and
- * the production bundle emits shell.css FIRST and this sheet LAST (measured off a dist bundle; the shared
- * styles/index.ts front door gives production and CT that same order). Later-in-source wins, so the glass beat the
- * kill-switch and the ruling had never once taken effect. Not EMITTING the declarations is the only
- * form of it that is order-proof.
- *
- * The deleted override was also wrong in substance: it paired `backdrop-filter: none` with
- * `background-color: revert`, and `revert` in the author origin rolls back to the UA default
- * (transparent) — not to the surface's own fill, which is itself an author declaration. Had it ever
- * fired, a phone would have rendered message bubbles and panels with NO background at all. Withholding
- * the glass leaves each surface's own background standing (`.shell-panel`'s --color-sidebar, a bubble's
- * variant fill, the reading surface's --color-card), which is what "no glass here" is supposed to mean.
- *
- * `shell-desktop` is the exact complement of shell.css's `shell-mobile`; both are generated from
+/* Glass (appearance.blurSurfaces) + prose shadow (appearance.shadowEffects). data-blur/data-shadow attrs live
+ * on html so they reach portalled content. "messages" gets the denser fill since it sits behind scrolling
+ * prose; chrome (panels/composer/modals) gets the lighter fill. surface list = BLUR_SURFACES
+ * (@orb/contracts/settings)
+* THE GLASS DOES NOT RUN AT OR BELOW THE SHELL BREAKPOINT: backdrop-filter is too costly on small/low-power
+ * devices. That ruling is stated HERE, as the glass's own applicability, because it cannot survive as an
+ * override anywhere else: shell.css's mobile arm would re-declare these selectors at identical specificity, and
+ * this sheet is emitted LAST, so the glass would beat the kill-switch on source order. Not EMITTING the
+ * declarations is the only order-proof form. Withholding the glass leaves each surface's own background
+ * standing (`.shell-panel`'s --color-sidebar, a bubble's variant fill, the reading surface's --color-card),
+ * which is what "no glass here" means; a `background-color: revert` would roll back past the author origin to
+ * transparent.
+* `shell-desktop` is the exact complement of shell.css's `shell-mobile`; both are generated from
  * `breakpoint.shell`. */
 @variant shell-desktop {
   @supports (backdrop-filter: blur(1px)) {
-    /* THE PANE'S GLASS PAINTS ON A CARRIER PSEUDO, NOT ON THE PANE (#1154). `backdrop-filter` on
-     * `.shell-panel` made the whole pane one composited layer, which turns OFF per-paint baseline snapping
-     * for every text node inside it (docs/law/integer-line-boxes.md Law 3/4 — measured on driven Characters:
-     * `off-grid-text candidates=54 judged=33 affected=9`, all nine attributed to `aside.shell-panel`, and
-     * half of them structurally unfixable by layout because a glyph advance is fractional: the count span
-     * starts at 155.406px, the advance of the title run before it). The fix moves BOTH glass declarations
-     * onto a `::before` fill layer at `z-index: -1` — above the pane's own background, below every in-flow
-     * child — and takes the pane's own fill to transparent so the composite is BYTE-IDENTICAL: exactly one
-     * translucent tint over exactly one filtered backdrop, in that order. Keeping the fill on the pane
-     * would put the tint INSIDE the carrier's backdrop, and `saturate()` would then be applied to it too.
-     *
-     * THE CARRIER IS A PSEUDO AND NOT A RENDERED `<div>`, MEASURED, NOT PREFERRED. The element arm was
-     * built first and withdrawn on its receipts: with an extra abs-positioned child in every pane,
-     * `app-shell.ct.tsx` recorded a 0.187 layout-shift on the docked LIST toggle (budget 0.1 — the F-14
-     * defect the counter-translate FLIP exists to prevent) and lost the #846 topbar-yield pin, both
-     * reproduced against an otherwise identical tree. A pseudo adds no node for the shift attribution to
-     * name, no `:has()` shape, and no mount timing. Its known cost is stated at #1154 and routed, not
-     * hidden: `promoted-layer-offset` walks ELEMENTS only (ui-audit `census-grid.ts` calls
-     * `getComputedStyle(el)` with no pseudo argument), so that census now reports `candidates=0` on a pane
-     * surface where it used to report 1 — a real instrument gap, filed as such.
-     *
-     * ITS GEOMETRY IS HERE, WITH ITS PAINT, on the grain overlay's precedent (`html[data-texture="grain"]
-     * .shell-grid::after` ~200 lines down declares `content`/`position`/`inset`/`z-index`/`pointer-events`
-     * in this file): an appearance-gated paint carrier exists only where its paint does, so nothing is
-     * generated at all below the breakpoint or with the glass off. What CONTAINS it is shell.css's
-     * `container-type: inline-size` on `.shell-panel` (layout containment ⇒ stacking context + containing
-     * block in every panel mode); that file's comment carries the same coupling.
-     *
-     * `box-shadow: inherit` re-paints the pane's own elevation on the fill layer. `--shadow-overlay`
-     * (elevation=glow, and every FLOATING pane) carries an `inset 0 1px 0` top highlight painted in the
-     * pane's own background phase — i.e. BELOW this carrier, where its backdrop-filter would blur it away.
-     * Inheriting reproduces it at the same position; the recipe's three OUTER stops are clipped by
-     * `.shell-panel`'s own `overflow: hidden`, so nothing is doubled and no value is re-spelt here. A pane
-     * with no elevation inherits `none`.
-     *
-     * THE PANE PAINTS NO BACKGROUND AT ALL under the glass — `background: none`, the shorthand counterpart
-     * of shell.css's own `background: var(--color-sidebar)`, not a `background-color: transparent`. It is
-     * the same rendered result stated as the fact it is: the pane's whole fill (including D144's
-     * `[data-has-bg-image]` plate arm, which travelled with it) is now the carrier's, and an element with no
-     * background of its own is not a translucent surface the over-art plate law has anything to say about.
-     * It also keeps this rule OUT of that gate's population by classification rather than by exemption.
-     * TRUTH-REPAIR 2026-09-02: the two-part reader gap this paragraph reported at #1154 — an alpha-0 fill
-     * bucketed as UNREADABLE, and a marker escape that could not absolve an unreadable site — is CLOSED by
-     * #1171, so the sentence describing it has been replaced rather than left to rot. The reader now reads
-     * `transparent`/`none`/`rgba(…,0)` as a `no-fill` site, the marker absolves it, and a no-fill whose
-     * subject carries a `::before`/`::after` fill carrier in the same stylesheet is proved out of the
-     * population as the counted skip `fill-moved-to-pseudo-carrier` — which is exactly this rule and the
-     * `.shell-main` pair below. The spelling is unchanged and was already the right one; only its stated
-     * reason moved from "reported gap" to "counted exclusion".
-     * TRUTH-REPAIR 2026-09-02 (#1247): the numbers this paragraph quoted — glassRules=10, skipped
-     * {"fill-moved-to-pseudo-carrier":1}, findings=0, live=5 — were the #1154 lane's snapshot and had
-     * ALREADY drifted when written: the sentence names TWO carriers ("this rule and the `.shell-main` pair
-     * below") beside a count of one. Re-derived from `judgeStylesheets` on this tree: glassRules=11,
-     * skipped {"fill-moved-to-pseudo-carrier":2}, findings=0, live=4 (`.shell-main` left the live set at
-     * a7bb58f5ca, which gave its carrier D144's plate arm). A quoted census is a snapshot with a shelf life;
-     * the pin that must hold is in tests/tooling/verify/gates/over-art-plate-arm.int.test.ts. */
+    /* THE PANE'S GLASS PAINTS ON A CARRIER PSEUDO, NOT ON THE PANE. `backdrop-filter` on `.shell-panel` made
+     * the whole pane one composited layer, which turns off per-paint baseline snapping for every text node
+     * inside it (docs/law/integer-line-boxes.md Laws 3 and 4). Both glass declarations sit on a `::before` fill
+     * layer at `z-index: -1`, above the pane's own background and below every in-flow child, and the pane's own
+     * fill goes to transparent so the composite is byte-identical: exactly one translucent tint over exactly
+     * one filtered backdrop, in that order. Keeping the fill on the pane would put the tint inside the
+     * carrier's backdrop and `saturate()` would apply to it too.
+    * THE CARRIER IS A PSEUDO AND NOT A RENDERED `<div>`: an extra absolutely positioned child in every pane
+     * recorded a layout shift on the docked list toggle and broke the topbar-yield pin; a pseudo adds no node
+     * for shift attribution, no `:has()` shape and no mount timing. Its known cost: `promoted-layer-offset`
+     * walks elements only, so that census reports no candidate on a pane surface.
+    * ITS GEOMETRY IS HERE, WITH ITS PAINT, on the grain overlay's precedent: an appearance-gated paint carrier
+     * exists only where its paint does, so nothing is generated below the breakpoint or with the glass off.
+     * What CONTAINS it is shell.css's `container-type: inline-size` on `.shell-panel` (layout containment ⇒
+     * stacking context + containing block in every panel mode); that file's comment carries the same coupling.
+    * `box-shadow: inherit` re-paints the pane's own elevation on the fill layer: `--shadow-overlay` carries an
+     * `inset 0 1px 0` top highlight painted in the pane's own background phase, below this carrier, where its
+     * backdrop-filter would blur it away. The recipe's three outer stops are clipped by `.shell-panel`'s own
+     * `overflow: hidden`, so nothing is doubled; a pane with no elevation inherits `none`.
+    * THE PANE PAINTS NO BACKGROUND AT ALL under the glass: `background: none`, the shorthand counterpart of
+     * shell.css's own `background: var(--color-sidebar)`. The pane's whole fill (including the
+     * `[data-has-bg-image]` plate arm) is the carrier's, and an element with no background of its own is not a
+     * translucent surface the over-art plate law speaks to; the plate reader counts it as the skip
+     * `fill-moved-to-pseudo-carrier`, pinned in tests/tooling/verify/gates/over-art-plate-arm.int.test.ts. */
     html[data-blur-panels] .shell-panel {
       background: none;
     }
@@ -246,26 +198,19 @@ body {
       background-color: color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), transparent);
       box-shadow: inherit;
     }
-    /* #237 — THE CHROME PANES TAKE D144'S POLARITY FLOOR OVER ART. The rule above mixes the pane's own
-     * tint at a FIXED 70%, so over a room wallpaper 30% of the art lands inside the pane. Under the dark
-     * arm that measured 8.48:1; under the LIGHT seed the same list-pane kicker measured 3.69:1 live
-     * (pixel-sampled — the css-resolve path reports 7.01 and misses it entirely, because a wallpaper is a
-     * PAINT layer, not a computed background). Same defect class #217 closed for the reading plate: an
-     * alpha that was DESIGNED rather than derived.
-     *
-     * The fix mixes the pane's tint over `--color-reading-plate` — D144(b)'s already-derived, already
-     * polarity-aware over-art backing (`readingPlateAlpha`, #217) — instead of over `transparent`. NO NEW
-     * NUMBER IS INVENTED: both partners of the mix are at or above the plate's own derived alpha (the
-     * tint is opaque, the plate IS the floor), so the composited alpha is too, by construction, at every
-     * value of `--blur-fill-chrome` including the reduced-transparency/contrast arms' 100%.
-     *
-     * ONLY THE LIGHT ARM MOVES, and that is D144(d), not caution: the dark arm's panes already clear the
-     * floor, and the sacred dark rooms do not move. `light-dark()` is the house polarity mechanism
-     * (D71-3) and reads the SAME `color-scheme` the clamp derives (`colorSchemeFor`) and the seed blocks
-     * declare — scheme polarity and this floor can never disagree. The dark arm re-spells the rule above
-     * verbatim so it stays byte-identical.
-     *
-     * Gated on `[data-has-bg-image]` because that is the whole question: without a wallpaper the pane's
+    /* THE CHROME PANES TAKE D144'S POLARITY FLOOR OVER ART. The rule above mixes the pane's own tint at a fixed
+     * share, so over a room wallpaper the rest of the art lands inside the pane, and under a light palette that
+     * fails the contrast floor; an alpha that was designed rather than derived.
+    * The fix mixes the pane's tint over `--color-reading-plate`, D144(b)'s derived, polarity-aware over-art
+     * backing (`readingPlateAlpha`), instead of over `transparent`. NO NEW NUMBER IS INVENTED: both partners of
+     * the mix are at or above the plate's own derived alpha (the tint is opaque, the plate IS the floor), so
+     * the composited alpha is too, by construction, at every value of `--blur-fill-chrome` including the
+     * reduced-transparency/contrast arms' 100%.
+    * ONLY THE LIGHT ARM MOVES, and that is D144(d): the dark arm's panes already clear the floor, and the
+     * sacred dark rooms do not move. `light-dark()` is the house polarity mechanism and reads the same
+     * `color-scheme` the clamp derives (`colorSchemeFor`) and the seed blocks declare, so scheme polarity and
+     * this floor can never disagree. The dark arm re-spells the rule above verbatim.
+    * Gated on `[data-has-bg-image]` because that is the whole question: without a wallpaper the pane's
      * translucency composites over the shell's own opaque base and nothing unknown is behind it. */
     html[data-blur-panels] .shell-grid[data-has-bg-image] .shell-panel::before {
       background-color: light-dark(
@@ -273,27 +218,18 @@ body {
         color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), transparent)
       );
     }
-    /* A COLLAPSED PANE PAYS FOR NO GLASS (#1120, side-eye HOME 2026-09-02 H3). A section that declares a
-     * pane `"unavailable"` still renders its `PanelChrome` — that IS the ruled mechanism (owner decision
-     * H3 / arm L-b, section-registry.ts: `"unavailable"` is not a fourth `PanelMode`; the panel resolves
-     * `collapsed`, its track is already zero-width, and the topbar renders no toggle). What was NOT ruled
-     * is that the off-screen box keeps `backdrop-filter`. Measured on home, which declares BOTH panes
-     * away: two inert, aria-hidden, 80-byte asides carrying `blur(14px) saturate(1.4)` — the only two
-     * backdrop-filter elements on the page, i.e. the most expensive paint primitive in the browser, twice,
-     * blurring nothing, on the surface whose whole job is to appear instantly, forever. They also stayed
-     * live to the COMPOSITOR: the recorded drive flagged `[drop] 53ms · aside[aria-label="Home list"]` on
-     * the return-to-home click.
-     *
-     * It is not a home rule and must not be one: EVERY section pays this for whichever pane it leaves
-     * closed (chats' context pane, config's, the whole mobile arm). The gate is the panel's own resolved
-     * mode, which is the one fact that means "this box is off-screen".
-     *
-     * Higher specificity than the glass rule above (0,3,2 vs 0,2,2) so it is order-proof across sheets, and
-     * it deliberately does NOT touch `background-color`: an off-screen fill costs nothing, and leaving it
-     * keeps the docked/overlay arms byte-identical. Both rules moved onto the pane's own `::before` glass
-     * carrier at #1154 — same subject, one level down, and the specificity RELATIONSHIP is unchanged (the
-     * pseudo-element adds one to the type count on BOTH sides). The reduced-transparency arm below is
-     * unaffected — it asks for exactly this on every surface. */
+    /* A COLLAPSED PANE PAYS FOR NO GLASS. A section that declares a pane `"unavailable"` still renders its
+     * `PanelChrome` (section-registry.ts: `"unavailable"` is not a fourth `PanelMode`; the panel resolves
+     * `collapsed`, its track is zero-width, the topbar renders no toggle). The off-screen box must not keep
+     * `backdrop-filter`: the most expensive paint primitive in the browser, blurring nothing, and live to the
+     * compositor on every return to home.
+    * It is not a home rule: every section pays this for whichever pane it leaves closed. The gate is the
+     * panel's own resolved mode, the one fact that means "this box is off-screen".
+    * Higher specificity than the glass rule above (0,3,2 vs 0,2,2) so it is order-proof across sheets, and it
+     * deliberately does not touch `background-color`: an off-screen fill costs nothing, and leaving it keeps
+     * the docked/overlay arms byte-identical. Both rules sit on the pane's `::before` glass carrier, so the
+     * specificity relationship is unchanged. The reduced-transparency arm below asks for exactly this on every
+     * surface. */
     html[data-blur-panels] .shell-panel[data-panel-mode="collapsed"]::before {
       backdrop-filter: none;
     }
@@ -301,70 +237,45 @@ body {
       backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
       background-color: color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), transparent);
     }
-    /* THE COMPOSER TAKES D144'S POLARITY FLOOR OVER ART — the pane rule's twin, one surface over
+    /* THE COMPOSER TAKES D144'S POLARITY FLOOR OVER ART, the pane rule's twin one surface over
      * (UI-Theming-and-Content.md §12.1). The rule above mixes the composer's tint at a fixed
-     * `--blur-fill-chrome`, so over a room wallpaper the remainder of the art lands inside the box a person
-     * TYPES INTO — the one surface on the chat surface whose ink is the user's own words and whose caret has
-     * to stay findable against whatever photo scrolls behind it. Same defect class, same fix: mix over
-     * `--color-reading-plate` (D144(b)'s already-derived, already-polarity-aware over-art backing —
-     * `readingPlateAlpha`, #217) instead of over `transparent`.
-     *
-     * NO NEW NUMBER IS INVENTED: both partners of the mix are at or above the plate's own derived alpha
-     * (the tint is opaque, the plate IS the floor), so the composite is too, by construction, at every value
-     * of `--blur-fill-chrome` including the reduced-transparency and prefers-contrast arms' 100%/92%.
-     *
-     * ONLY THE LIGHT ARM MOVES (D144(d)): the dark arm re-spells the plateless base verbatim, so the sacred
-     * dark rooms render byte-identically.
-     *
-     * THE WALLPAPER GATE IS A DESCENDANT SELECTOR OFF `.shell-grid`, which is the anatomy the composer
-     * actually has — shell.css already reaches it exactly this way
-     * (`.shell-grid[data-has-bg-image] [data-slot="composer"] { text-shadow: none }`), so this is the sheet's
-     * own established path to this subject rather than a new one. It sets `background-color` alone and
-     * therefore does not touch the reduced-transparency arm's `backdrop-filter` ties below. */
+     * `--blur-fill-chrome`, so over a room wallpaper the rest of the art lands inside the box a person types
+     * into, whose caret has to stay findable against whatever photo scrolls behind it. Same fix: mix over
+     * `--color-reading-plate` instead of over `transparent`.
+    * NO NEW NUMBER IS INVENTED: both partners of the mix are at or above the plate's own derived alpha, so the
+     * composite is too, at every value of `--blur-fill-chrome` including the reduced-transparency and
+     * prefers-contrast arms' raises. ONLY THE LIGHT ARM MOVES (D144(d)): the dark arm re-spells the plateless
+     * base verbatim.
+    * THE WALLPAPER GATE IS A DESCENDANT SELECTOR OFF `.shell-grid`, the anatomy the composer has and the path
+     * shell.css already uses for this subject. It sets `background-color` alone and therefore does not touch
+     * the reduced-transparency arm's `backdrop-filter` ties below. */
     html[data-blur-composer] .shell-grid[data-has-bg-image] [data-slot="composer"] {
       background-color: light-dark(
         color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), var(--color-reading-plate)),
         color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), transparent)
       );
     }
-    /* The reading/document content backing upgrades to glass in lock-step with the side panels, so a
-     * frosted look carries through instead of leaving it an opaque slab beside glass panels.
-     *
-     * ON A CARRIER PSEUDO, FOR THE PANE'S OWN REASON (#1173 — the #1154 defect ONE SURFACE OVER). This
-     * rule promotes (`backdrop-filter`) and it CONTAINS TEXT, which is docs/law/integer-line-boxes.md Law 3/4
-     * exactly: a composited layer is rasterized once at its own sub-pixel offset, so the browser's
-     * per-paint baseline snapping is off for every glyph in the reading column beneath it. It did not
-     * show up in #1154's own measurement only because the audited arm (Characters) carries no wallpaper
-     * and this rule is gated on `[data-has-bg-image]`. Same fix, same shape: both glass declarations move
-     * onto a `::before` fill layer at `z-index: -1` — above `.shell-main`'s own background, below every
-     * in-flow child — and the pane's own fill goes to `background: none`, so the composite is
-     * BYTE-IDENTICAL (exactly one translucent tint over exactly one filtered backdrop, in that order).
-     * Keeping the fill on the pane would put the tint INSIDE the carrier's backdrop and `saturate()` would
-     * be applied to it too.
-     *
-     * WHAT CONTAINS IT is shell.css's `container: shell-main / inline-size` on `.shell-main` — inline-size
-     * containment implies layout containment, i.e. a stacking context AND a containing block for the
-     * absolutely-positioned pseudo. The pane rule 70 lines up depends on the identical fact about
-     * `.shell-panel`; this is one mechanism, not two.
-     *
-     * NO `box-shadow: inherit` HERE, and that is a DEVIATION FROM #1154 WITH A REASON, not an omission.
-     * That clause exists because `.shell-panel` paints `--shadow-overlay`, whose `inset 0 1px 0` highlight
-     * would be blurred away under the carrier, and because the pane's own `overflow: hidden` clips the
-     * recipe's three OUTER stops so nothing doubles. `.shell-main` authors NO elevation in either sheet
-     * and clips nothing, so inheriting here would resolve to `none` today and DOUBLE an outer shadow the
-     * day one is added. The pseudo carries only what it paints.
-     *
-     * THE PANE'S OWN FILL GOES TO `background: none`, the shorthand counterpart of shell.css's
-     * `background: var(--color-card)` on this same selector. Written in the POST-#1171 tense from the
-     * start: the over-art plate reader buckets that as a `no-fill` site, and a no-fill whose subject
-     * carries a `::before` fill carrier in the same stylesheet is proved out of the population as the
-     * counted skip `fill-moved-to-pseudo-carrier` — the same classification the pane rule above now
-     * carries, not an exemption and not a marker.
-     *
-     * Its known cost is the same one #1154 stated and routed: `promoted-layer-offset` walks ELEMENTS only
-     * (ui-audit census-grid.ts calls `getComputedStyle(el)` with no pseudo argument), so that census now
-     * reports one fewer candidate on a wallpapered reading surface — a real instrument gap, filed at
-     * #1154, not hidden here. */
+    /* The reading/document content backing upgrades to glass in lock-step with the side panels, so a frosted
+     * look carries through instead of leaving an opaque slab beside glass panels.
+    * ON A CARRIER PSEUDO, FOR THE PANE'S OWN REASON. This rule promotes (`backdrop-filter`) and it contains
+     * text, which is docs/law/integer-line-boxes.md Laws 3 and 4 exactly: a composited layer is rasterized once
+     * at its own sub-pixel offset, so per-paint baseline snapping is off for every glyph in the reading column
+     * beneath it. Same shape as the pane: both glass declarations on a `::before` fill layer at `z-index: -1`,
+     * the pane's own fill at `background: none`, so the composite is byte-identical.
+    * WHAT CONTAINS IT is shell.css's `container: shell-main / inline-size` on `.shell-main`: inline-size
+     * containment implies layout containment, a stacking context and a containing block for the absolutely
+     * positioned pseudo. The pane rule above depends on the identical fact about `.shell-panel`; this is one
+     * mechanism, not two.
+    * NO `box-shadow: inherit` HERE, and that is a deviation with a reason: that clause exists because
+     * `.shell-panel` paints `--shadow-overlay`, whose inset highlight would be blurred away under the carrier,
+     * and because the pane's own `overflow: hidden` clips the recipe's outer stops. `.shell-main` authors no
+     * elevation and clips nothing, so inheriting here would resolve to `none` today and double an outer shadow
+     * the day one is added. The pseudo carries only what it paints.
+    * THE PANE'S OWN FILL GOES TO `background: none`, the shorthand counterpart of shell.css's `background:
+     * var(--color-card)` on this same selector; the over-art plate reader counts it as the skip
+     * `fill-moved-to-pseudo-carrier`, the same classification the pane rule carries. Its known cost is the
+     * pane's: `promoted-layer-offset` walks elements only, so that census reports one fewer candidate on a
+     * wallpapered reading surface. */
     html[data-blur-panels] .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main {
       background: none;
     }
@@ -375,18 +286,14 @@ body {
       z-index: -1;
       pointer-events: none;
       backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
-      /* #237/#623's PLATE ARM, INLINE — this rule is ALREADY `[data-has-bg-image]`-gated, so it does not
-       * take a companion rule the way `.shell-panel::before` does; the wallpaper gate that the plate law
-       * asks for IS this selector. The tint mixes over `--color-reading-plate` on the LIGHT arm — D144(b)'s
-       * already-derived, already-polarity-aware over-art backing (`readingPlateAlpha`, #217) — instead of
-       * over `transparent`, which handed 30% of whatever photo the user picked to the ink inside the
-       * reading column. It was MEASURED at 3.69:1 under the light seed (#626's ledger row, the same number
-       * #237 measured on the list pane), and that row is deleted with this adoption rather than re-keyed
-       * onto the carrier: the debt is paid, not moved. NO NEW NUMBER IS INVENTED — both partners of the mix
-       * are at or above the plate's own derived alpha, so the composite is too, at every value of
-       * `--blur-fill-chrome` including the reduced-transparency and prefers-contrast arms' 100%/92%. ONLY
-       * THE LIGHT ARM MOVES (D144(d)): the dark arm re-spells the base verbatim so the sacred dark rooms
-       * render byte-identically. */
+      /* THE PLATE ARM, INLINE: this rule is already `[data-has-bg-image]`-gated, so it takes no companion rule
+       * the way `.shell-panel::before` does; the wallpaper gate the plate law asks for IS this selector. The
+       * tint mixes over `--color-reading-plate` on the LIGHT arm, D144(b)'s derived, polarity-aware over-art
+       * backing (`readingPlateAlpha`), instead of over `transparent`, which handed a share of whatever photo
+       * the user picked to the ink inside the reading column. NO NEW NUMBER IS INVENTED: both partners of the
+       * mix are at or above the plate's own derived alpha, so the composite is too, at every value of
+       * `--blur-fill-chrome` including the reduced-transparency and prefers-contrast arms' raises. ONLY THE
+       * LIGHT ARM MOVES (D144(d)): the dark arm re-spells the base verbatim. */
       background-color: light-dark(
         color-mix(in oklab, var(--color-card) var(--blur-fill-chrome), var(--color-reading-plate)),
         color-mix(in oklab, var(--color-card) var(--blur-fill-chrome), transparent)
@@ -438,41 +345,29 @@ body {
       backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
       background-color: color-mix(in oklab, var(--color-system-bubble) var(--blur-fill-dense), transparent);
     }
-    /* THE THREE BUBBLES TAKE D144'S POLARITY FLOOR OVER ART (UI-Theming-and-Content.md §12.1) — the same
-     * arm the panes (#237), the reading surface (#1173) and the modal slots (#623) already carry, finally
-     * reaching the surface that holds the ACTUAL PROSE. The three rules above mix each role's tint at a
-     * fixed `--blur-fill-dense`, so over a room wallpaper the remainder of the art composites straight
-     * under the transcript's ink — and a bubble is the one glass surface a reader is asked to READ rather
-     * than glance at.
-     *
-     * ONE ARM PER ROLE, NOT ONE `[data-role]` CATCH-ALL, because the plate law pairs (subject, TINT): each
-     * base mixes a different token, so each owes its own `light-dark()` provider spelling that token. A
-     * single merged rule would leave two of the three tints plateless while looking like it covered them.
-     *
-     * NO NEW NUMBER IS INVENTED, and ONLY THE LIGHT ARM MOVES — the same two constructions the pane rule
-     * ~200 lines up states in full: both partners of the mix are at or above `--color-reading-plate`'s own
-     * derived alpha (`readingPlateAlpha`, #217), so the composite is too at every value of
-     * `--blur-fill-dense` including the reduced-transparency and prefers-contrast arms' raises; and the dark
-     * arm re-spells the plateless base verbatim so the sacred dark rooms (D144(d)) do not move a pixel.
-     *
-     * The wallpaper gate is the same `.shell-grid[data-has-bg-image] [data-slot="message-bubble"]` descendant
-     * path shell.css already uses for this exact subject, and these rules set `background-color` alone, so
-     * the reduced-transparency arm's `backdrop-filter: none` ties below are untouched.
-     *
-     * WHAT THE LIGHT ARM ACTUALLY REACHES, narrowed on measurement (#2429 item 4 — the original claim above
-     * read as "all three roles, always"). `light-dark()` resolves at the ELEMENT, off the nearest
-     * `color-scheme`, and a carried room palette is a `color-scheme`: `themedColumnContent`
-     * (features/chat/components/message-row-parts.tsx) wraps the whole content column — bubble included —
-     * in a `ThemeScope` for every row whose attribution carries tokens, and that scope emits
-     * `colorScheme` derived from the carried base's own polarity
-     * (packages/ui/src/content/theme-scope/clamp.ts, `colorSchemeFor`). So:
-     *   - the USER arm always resolves off the APP theme — user rows carry no palette
-     *     (features/chat/lib/attribution.ts: "`null` for user rows and unresolved rows");
-     *   - the ASSISTANT and SYSTEM arms resolve off the SPEAKER's carried palette when the row has one, so
-     *     inside a DARK-carried card-themed room under a Light app theme they take the dark, PLATELESS
-     *     spelling. They reach the light plate only for rows with no carried palette, or a light-carried one.
-     * That is the intended behaviour, not a gap — a dark-carried bubble is a dark surface and D144(d) keeps
-     * dark rooms plateless — but the claim above must not be read as covering every rendered bubble. */
+    /* THE THREE BUBBLES TAKE D144'S POLARITY FLOOR OVER ART (UI-Theming-and-Content.md §12.1), the same arm the
+     * panes, the reading surface and the modal slots carry, on the surface that holds the actual prose. The
+     * three rules above mix each role's tint at a fixed `--blur-fill-dense`, so over a room wallpaper the rest
+     * of the art composites straight under the transcript's ink, and a bubble is the one glass surface a reader
+     * is asked to read rather than glance at.
+    * ONE ARM PER ROLE, NOT ONE `[data-role]` CATCH-ALL, because the plate law pairs (subject, TINT): each base
+     * mixes a different token, so each owes its own `light-dark()` provider spelling that token. A merged rule
+     * would leave two of the three tints plateless while looking like it covered them.
+    * NO NEW NUMBER IS INVENTED, and ONLY THE LIGHT ARM MOVES, the same two constructions the pane rule states
+     * in full: both partners of the mix are at or above `--color-reading-plate`'s own derived alpha, and the
+     * dark arm re-spells the plateless base verbatim so the sacred dark rooms (D144(d)) do not move.
+    * The wallpaper gate is the same `.shell-grid[data-has-bg-image] [data-slot="message-bubble"]` descendant
+     * path shell.css uses for this subject, and these rules set `background-color` alone, so the
+     * reduced-transparency arm's `backdrop-filter: none` ties below are untouched.
+    * WHAT THE LIGHT ARM REACHES: `light-dark()` resolves at the element off the nearest `color-scheme`, and a
+     * carried room palette is a `color-scheme`: `themedColumnContent`
+     * (features/chat/components/message-row-parts.tsx) wraps the whole content column, bubble included, in a
+     * `ThemeScope` for every row whose attribution carries tokens, and that scope emits `colorScheme` derived
+     * from the carried base's polarity (packages/ui/src/content/theme-scope/clamp.ts, `colorSchemeFor`). So the
+     * USER arm always resolves off the app theme (user rows carry no palette,
+     * features/chat/lib/attribution.ts), while the ASSISTANT and SYSTEM arms resolve off the speaker's carried
+     * palette when the row has one: inside a dark-carried room under a light app theme they take the dark,
+     * plateless spelling, by design, since a dark-carried bubble is a dark surface. */
     html[data-blur-messages] .shell-grid[data-has-bg-image] [data-role="user"] [data-slot="message-bubble"] {
       background-color: light-dark(
         color-mix(in oklab, var(--color-user-bubble) var(--blur-fill-dense), var(--color-reading-plate)),
@@ -494,46 +389,32 @@ body {
   }
 }
 
-/* prefers-reduced-transparency: reduce → SOLID, delivered by the glass's own FILL KNOB (#137).
- *
- * THIS ARM USED TO ANSWER THE GLASS WITH `background-color: revert`, AND SHIPPED THE OPPOSITE OF WHAT IT
- * PROMISED. `revert` rolls a property back past the ENTIRE author origin — the surface's own fill is an
- * author declaration too (`.shell-panel { background: var(--color-sidebar) }`, the composer's `bg-card`,
- * a bubble's role tint), so it resolved to the UA default: transparent. Measured in the CT browser under
- * emulated `reduce`: alpha 0 on every chrome surface and every bubble. It is the same `revert` mistake
- * #135 deleted from shell.css's mobile arm, which had never fired; this one fires. The arm is also
- * width-unscoped, so on a phone — where no glass is emitted at all (#135) — it stripped `.shell-panel`'s
- * fill for nothing.
- *
- * The fix drives `--blur-fill-chrome` / `--blur-fill-dense`, the two percentages the glass recipe mixes
- * with, to 100%. Those tokens have exactly ONE consumer each (the @supports block above), so this is the
- * glass's transparency dial and nothing else's. Consequences, all of them the point: every surface stays
- * tinted as ITSELF (the mix is per-surface) instead of being restored to a token this block would have to
- * re-spell and keep in sync; `.shell-main`'s reading-surface glass is covered too, which the hand-listed
- * five-selector arm had silently missed; the result does not depend on source order, because nothing is
- * overriding anything; and below the breakpoint no glass rule is emitted, so each surface simply keeps
- * its own fill. `backdrop-filter: none` stays a per-surface override — an opaque fill hides the blur but
- * the compositor still pays for it, and the preference is a request to stop spending that.
- *
- * surface list = BLUR_SURFACES (@orb/contracts/settings). */
+/* prefers-reduced-transparency: reduce → SOLID, delivered by the glass's own FILL KNOB.
+* Not `background-color: revert`: `revert` rolls a property back past the entire author origin, and the
+ * surface's own fill is an author declaration too (`.shell-panel { background: var(--color-sidebar) }`, the
+ * composer's `bg-card`, a bubble's role tint), so it resolves to the UA default, transparent, on every chrome
+ * surface and bubble.
+* This arm drives `--blur-fill-chrome` / `--blur-fill-dense`, the two percentages the glass recipe mixes with,
+ * to 100%. Those tokens have exactly ONE consumer each (the @supports block above), so this is the glass's
+ * transparency dial and nothing else's: every surface stays tinted as itself (the mix is per-surface) instead
+ * of being restored to a token this block would have to re-spell; `.shell-main`'s reading-surface glass is
+ * covered too; the result does not depend on source order, because nothing is overriding anything; and below
+ * the breakpoint no glass rule is emitted, so each surface keeps its own fill. `backdrop-filter: none` stays a
+ * per-surface override: an opaque fill hides the blur but the compositor still pays for it, and the preference
+ * is a request to stop spending that.
+* surface list = BLUR_SURFACES (@orb/contracts/settings). */
 @variant transparency-reduce {
   :root {
     --blur-fill-chrome: 100%;
     --blur-fill-dense: 100%;
   }
-  /* Every selector below is an exact specificity TIE with its glass counterpart and wins on source
-     order; that order must hold. The bubble
-     therefore has to carry the ROLE ancestor the glass rules key on (`[data-role="user"] …`) — without
-     it the selector is one attribute short and LOSES, which is why the old arm never killed a bubble's
-     backdrop-filter either, a hole the alpha bug hid. The panel arm names the pane's `::before` glass
-     carrier for the same reason (#1154 moved the glass one level down): the tie is with the rule that
-     actually paints, and a selector stopping at `.shell-panel` would now be one pseudo-element short —
-     which is a LOSS, not a near-miss, because the property it would set is on a box that no longer has
-     it. Both sides read (0,2,2). #1173 moved `.shell-main`'s reading-surface glass one level down for the
-     same reason, so its selector here names the same `::before`: the pseudo-element adds one to the type
-     count on BOTH sides of that pair, so the tie is preserved rather than restated, and a selector
-     stopping at `.shell-main` would now be setting `backdrop-filter: none` on a box that no longer has
-     one. */
+  /* Every selector below is an exact specificity TIE with its glass counterpart and wins on source order; that
+   * order must hold. The bubble therefore has to carry the ROLE ancestor the glass rules key on
+   * (`[data-role="user"] …`): without it the selector is one attribute short and LOSES. The panel arm names the
+   * pane's `::before` glass carrier for the same reason: the tie is with the rule that actually paints, and a
+   * selector stopping at `.shell-panel` would be one pseudo-element short, setting a property on a box that no
+   * longer has it. Both sides read (0,2,2). `.shell-main`'s reading-surface glass sits on the same kind of
+   * `::before`, so its selector here names that pseudo too. */
   html[data-blur-panels] .shell-panel::before,
   html[data-blur-composer] [data-slot="composer"],
   html[data-blur-panels] .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main::before,
@@ -546,83 +427,49 @@ body {
 }
 
 /* prefers-contrast: more → stronger borders + more opacity, never less legible.
- *
- * THE VALUE USED TO BE `high`, WHICH MATCHES NOTHING, SO THIS BLOCK HAD NEVER ONCE RENDERED (#138).
- * `high`/`low` are the WebKit-era spelling; Media Queries 5 renamed the values to
- * `no-preference | more | less | custom`, and Chromium/Firefox only ever report `more`. Probed live in
- * the CT browser: under `emulateMedia({ contrast: "more" })`, `(prefers-contrast: more)` matches and
- * `(prefers-contrast: high)` does NOT (asserted, app-shell.ct.tsx's #138 block). Respelling it is
- * behaviour-ENABLING — every rule below starts firing for high-contrast users — which is why it ships
- * with a rendered pin instead of as a one-word edit.
- *
- * THE OPACITY HALF IS THE GLASS'S OWN FILL KNOB, NOT A HAND-WRITTEN FILL (the #137 mechanism). This
- * block used to re-spell the glass recipe as `background-color: color-mix(in oklab, var(--color-sidebar)
- * 92%, transparent)` across four selectors, which carried three defects that only a rendered block can
- * have: it flattened BOTH modal slots from `--color-popover` (what the glass rule 60 lines up actually
- * mixes) to `--color-sidebar`, a copy-paste of the panel/composer lines above it; it missed
- * `.shell-main`'s reading-surface glass, the same hand-listing hole #137 found in the reduce arm; and it
- * was scoped by neither the breakpoint nor `@supports`, so on a phone — where no glass is emitted at all
- * (#135) — it would have REPLACED an opaque surface's own fill with a 92% mix, i.e. ADDED transparency
- * to answer a request for contrast. Driving `--blur-fill-chrome`/`--blur-fill-dense` (one consumer each:
- * the @supports block) fixes all three by construction — every surface stays tinted as itself, every
- * glass rule is covered, and nothing outside the glass is touched. Defaults are 70%/88%, so both moves
- * are a raise; the bubbles' 88% → 92% is the "more opacity" half of this block's own promise, which the
- * hand-written arm only ever delivered as a border.
- *
- * BOTH PREFERENCES SET ⇒ REDUCED-TRANSPARENCY WINS THE ALPHA (100%, not 92%). Stated as a CONDITION,
- * never as source order: `not (prefers-reduced-transparency: reduce)` is the exact negation of the arm
- * above, so the two are mutually exclusive by construction and no future reorder can flip the answer
- * (the #137 arm's own tie-on-source-order is the cautionary precedent, one screen up). The negated form
- * rather than `(prefers-reduced-transparency: no-preference)` is deliberate: an unknown feature query is
- * false, so the `no-preference` spelling would silently drop the contrast fix in a browser that knows
- * `prefers-contrast` but not `prefers-reduced-transparency` (Safari < 17).
- *
- * THE EDGE HALF IS PER-SIDE, PER-SURFACE, AND NOT BLUR-GATED. Three rulings, all paid for by a rendered
- * review of the first cut (side-eye, reports/side-eye-138/):
- *
- *  1. NEVER `border-width` (the shorthand) HERE. Tailwind v4's preflight sets `border: 0 solid` on every
- *     element, so border-STYLE is `solid` on all four sides app-wide and only the WIDTH is zero. The
- *     shorthand un-zeroes the three sides a surface never draws, and their colour is the preflight
- *     default — `currentColor`, i.e. the surface's TEXT colour. Measured: a 2px near-white 900px stripe
- *     down the list panel's left edge at 15.66:1 against its own fill, and a heavy dark frame in light.
- *     So each surface is given exactly the side it authors: the list panel's inline-END, the context
- *     panel's inline-START; only the composer and the two modal slots author all four, and only they get
- *     the shorthand. `message-bubble` is absent by the same rule — bubbles author NO border at any
- *     viewport, so a rule here would MINT one; their contrast half is the 92% dense fill.
- *  2. THE COLOUR IS RAISED WITH THE WIDTH, or the treatment is invisible. `--color-sidebar-border` /
- *     `--color-border` are 7-8% alpha hairlines; at 2px they measured 1.16:1 against the panel, i.e. a
- *     doubled invisible line, against WCAG 1.4.11's 3:1 non-text floor — while the panel's TEXT was
- *     already 8.66:1. The boundary was the whole gap. Each edge is mixed from the pair its OWN surface
- *     owns (sidebar-foreground over sidebar, foreground over card, popover-foreground over popover), so
- *     it is opaque, theme-derived, and correct on a custom palette. It is set per-surface rather than by
- *     overriding the two border TOKENS: a token override would silently restyle every hairline seam in
- *     the app (topbar, rail, row separators, cards) — out of scope for this block, listed as an omission
- *     below — and `--color-border` is declared INLINE on `.shell-grid` by ThemeScope, which an html-level
- *     override cannot beat (the colorization rules 90 lines down carry that scar).
- *  3. ACCESSIBILITY DOES NOT DEPEND ON AN AESTHETIC TOGGLE. The first cut gated every rule on
- *     `html[data-blur-*]`, so a contrast user who turned the glass OFF got nothing at all (measured).
- *     The edge half is now un-gated — the grain rule was already universal and is the precedent. The FILL
- *     half stays knob-driven, and that asymmetry is not an oversight: a fill percentage is meaningless
- *     unless the glass recipe is running, so gating it on the glass is a tautology, whereas an edge exists
- *     on every surface regardless. The edge half IS width-scoped (`width > 48rem`, shell.css's mobile
- *     complement, the #135 literal) because below the breakpoint the panels are full-bleed overlays that
- *     author a different seam entirely (`border-block-start`), so a desktop rule there would paint an
- *     edge that no layout has.
- *
- * The `html` type selector in each edge selector is specificity, not decoration: it clears shell.css's
- * own `.shell-panel[data-panel-side=…]` (0,2,0) without depending on which sheet the bundle emits last.
- *
- * DELIBERATELY UNTOUCHED, so the next reader does not read absence as oversight: `less` and `custom`
- * (`less` asks for the opposite of this block; `custom` means the user's own colour set is already in
- * force — forced-colors territory, and we ship no `forced-colors` arm at all yet); focus rings (the
- * `--color-ring` treatment is its own axis and already clears the floor); the topbar / rail /
- * panel-header / row-separator hairlines and every card border (the token-override blast radius above);
- * `data-elevation="ramp"`, which deletes the panels' inline borders outright at higher specificity and is
- * left winning — its raised FILL is the boundary signal there; and the sub-breakpoint layout (per 3).
- *
- * surface list: the four SLOTS above — it is
- * deliberately no longer the BLUR_SURFACES sync (that list is what the GLASS paints; `messages` is
- * excluded here on purpose, per 1). */
+* THE VALUE IS `more`, NOT `high`: `high`/`low` are the WebKit-era spelling; Media Queries 5 renamed the values
+ * to `no-preference | more | less | custom`, and Chromium/Firefox only ever report `more`. Pinned rendered in
+ * app-shell.ct.tsx under `emulateMedia({ contrast: "more" })`.
+* THE OPACITY HALF IS THE GLASS'S OWN FILL KNOB, NOT A HAND-WRITTEN FILL. Driving
+ * `--blur-fill-chrome`/`--blur-fill-dense` (one consumer each: the @supports block) keeps every surface tinted
+ * as itself, covers every glass rule including `.shell-main`'s, and touches nothing outside the glass; a
+ * hand-spelled mix per selector had copied the wrong base token, missed the reading surface, and, unscoped by
+ * the breakpoint, would have ADDED transparency on a phone to answer a request for contrast. Defaults are
+ * 70%/88%, so both moves are a raise.
+* BOTH PREFERENCES SET ⇒ REDUCED-TRANSPARENCY WINS THE ALPHA (100%, not 92%). Stated as a CONDITION, never as
+ * source order: `not (prefers-reduced-transparency: reduce)` is the exact negation of the arm above, so the two
+ * are mutually exclusive by construction and no reorder can flip the answer. The negated form rather than
+ * `(prefers-reduced-transparency: no-preference)` is deliberate: an unknown feature query is false, so the
+ * `no-preference` spelling would silently drop the contrast fix in a browser that knows `prefers-contrast` but
+ * not `prefers-reduced-transparency`.
+* THE EDGE HALF IS PER-SIDE, PER-SURFACE, AND NOT BLUR-GATED. Three rulings, each paid for by a rendered review:
+* 1. NEVER `border-width` (the shorthand) HERE. Tailwind's preflight sets `border: 0 solid` on every element, so
+ * border-style is `solid` on all four sides app-wide and only the width is zero; the shorthand un-zeroes the
+ * three sides a surface never draws, in `currentColor`, the surface's text colour. Each surface is given
+ * exactly the side it authors: the list panel's inline-END, the context panel's inline-START; only the composer
+ * and the two modal slots author all four. `message-bubble` is absent by the same rule: bubbles author no
+ * border at any viewport, so a rule here would mint one; their contrast half is the dense fill.
+* 2. THE COLOUR IS RAISED WITH THE WIDTH, or the treatment is invisible: the border tokens are low-alpha
+ * hairlines, and at 2px they are a doubled invisible line against WCAG 1.4.11's 3:1 non-text floor. Each edge
+ * is mixed from the pair its own surface owns (sidebar-foreground over sidebar, foreground over card,
+ * popover-foreground over popover), so it is opaque, theme-derived, and correct on a custom palette.
+ * Per-surface rather than a token override: a token override would restyle every hairline seam in the app, and
+ * `--color-border` is declared inline on `.shell-grid` by ThemeScope, which an html-level override cannot beat.
+* 3. ACCESSIBILITY DOES NOT DEPEND ON AN AESTHETIC TOGGLE. The edge half is un-gated (the grain rule is the
+ * precedent); a contrast user who turned the glass off still gets it. The FILL half stays knob-driven because a
+ * fill percentage is meaningless unless the glass recipe is running. The edge half IS width-scoped
+ * (`shell-desktop`) because below the breakpoint the panels are full-bleed overlays that author a different
+ * seam entirely (`border-block-start`).
+* The `html` type selector in each edge selector is specificity, not decoration: it clears shell.css's own
+ * `.shell-panel[data-panel-side=…]` (0,2,0) without depending on which sheet the bundle emits last.
+* DELIBERATELY UNTOUCHED: `less` and `custom` (`less` asks for the opposite; `custom` means the user's own
+ * colour set is in force, forced-colors territory, and we ship no `forced-colors` arm); focus rings (their own
+ * axis, already clearing the floor); the topbar / rail / panel-header / row-separator hairlines and every card
+ * border (the token-override blast radius above); `data-elevation="ramp"`, which deletes the panels' inline
+ * borders at higher specificity and is left winning, its raised fill being the boundary signal there; and the
+ * sub-breakpoint layout (per 3).
+* surface list: the four SLOTS above; deliberately not the BLUR_SURFACES sync (that list is what the glass
+ * paints; `messages` is excluded here on purpose, per 1). */
 @variant contrast-more {
   /* A noise overlay works against a stated high-contrast preference — drop it entirely here. */
   html[data-texture="grain"] .shell-grid::after,
@@ -676,14 +523,11 @@ html[data-shadow] [data-slot="message-bubble"] {
   text-shadow: var(--shadow-prose);
 }
 
-/* Brand wordmark readability halo (side-eye P3): the near-white "orbweaver" wordmark floats over the
- * live weave, where a bright strand/glow crossing behind a glyph drops worst-case framebuffer contrast
- * (measured ~1.43:1). A dark, theme-aware halo (--color-backdrop — the retired --color-scrim's exact
- * value, byte-identical across the #204 rename per the owner fence; the shell.css over-image precedent)
- * beds the glyphs so the ink never abuts a bright strand directly — a framebuffer mock over a
- * silk-bright strand measured the near-glyph worst-case lift from 1.53:1 → 1.84:1 and p05 1.55:1 →
- * 2.78:1. Decoration (aria-hidden), so not an a11y fix — a look fix. text-shadow inherits, so one rule
- * on the row reaches the wordmark text. */
+/* Brand wordmark readability halo: the near-white "orbweaver" wordmark floats over the live weave, where a
+ * bright strand or glow crossing behind a glyph drops worst-case framebuffer contrast. A dark, theme-aware halo
+ * (--color-backdrop, the shell.css over-image precedent) beds the glyphs so the ink never abuts a bright strand
+ * directly. Decoration (aria-hidden), so a look fix, not an a11y fix. text-shadow inherits, so one rule on the
+ * row reaches the wordmark text. */
 [data-slot="brand-wordmark"] {
   text-shadow:
     0 0 2px var(--color-backdrop),
@@ -691,51 +535,31 @@ html[data-shadow] [data-slot="message-bubble"] {
     0 1px 2px var(--color-backdrop);
 }
 
-/* THE READING MEASURE (#97, side-eye aesthetic shakedown 2026-08-16). The transcript ran at
- * `max-width: none` — measured 98ch at 1280px with both panels closed, and ~200ch on a 2560 monitor,
- * against the house 65-75ch law that the Configuration teaching copy (max-w-(--width-content-col)) already
- * honours. Homed here, in the styles tier, rather than as a class on
- * the two content columns: `message-row` and `ghost-message-row` BOTH stamp this slot and their measures
- * must not be allowed to drift (a ghost that reflows at commit is a visible jump), and this is already the
- * seam that owns reading typography for the slot below.
- *
- * It caps the CONTENT COLUMN, never the transcript REGION: `--width-shell-content` (the user's
- * chatWidthPct dial, app-shell.tsx) still owns how wide the thread and composer run, so the density law
- * and the row anatomy are untouched — only the line length is bounded. The `* --reading-body-scale`
- * multiply re-applies the user's reading-size scale, because the token's `ch` resolves against the
- * column's own (unscaled) font while the prose below is scaled by that var — without it a reader at
- * scale 1.5 would get a 50ch column.
- *
- * A CT COVERS THIS NOW (#114, 2026-08-16 — this paragraph previously said the opposite, and said "do not
- * go looking again"; that ruling was scoped to the harness as it then stood). The CT harness used
- * to import exactly TWO sheets (`@orb/ui/styles/globals.css` + `app-shell/surfaces/shell.css`), so every
- * rule in this file was structurally absent from every component test and a styles-tier regression could
- * not red one. The harness now enters through production's shared styles/index.ts, and the cap can be verified as computed max-width vs `--reading-measure` resolved
- * in the column's own font, plus a cap-on/cap-off A/B. The rendered measurement on the isolated stage
- * (`pnpm snap --isolated`) remains the whole-app receipt.
- *
- * THE ch RESOLVES IN THE PROSE FONT (#213). `ch` is font-relative to the element it is declared on, and
- * this column inherited the app's 1rem — while the prose inside it renders at `--text-body` (0.9375rem).
- * A ratified 75ch cap therefore fitted ~85 real characters per line (measured 81 on the owner's flat room,
- * 686px of column against a 7.87px average glyph). Setting the column's OWN font-size to the prose size is
- * what makes the token mean what it says; it changes no rendered type, because every child that carries
- * text declares its own size (the bubble re-states this identical expression, the name row rides
- * `--text-label`, the metadata/pager chrome ride their `Text` voices).
- *
- * THE BAND'S OTHER END IS *NOT* A `min-width` HERE, and that is a measured call, not an omission (#213).
- * This column is `flex-1` inside the row body, so it already takes every pixel the pane leaves — it is
- * never squeezed below the floor by anything in the transcript. What DOES eat the line is (a) an immersive
- * skin's decoration, which is fenced by `--reading-measure-min` at its own site (echo's box is
- * `measure-min + art-width`, message-row-variants.ts — the art lives OUTSIDE the prose measure), and (b) a
- * CONTENT pane narrower than the floor itself (measured 509px at list+context docked, where the column IS
- * the pane). A `min-width` cannot help (b): the percentage resolves against the row body, which also holds
- * the avatar gutter, so the floor would spill the column out of its own pane — strictly worse than a short
- * line. Holding the floor there is a shell-grid question (how narrow a docked panel may push the content
- * pane) — the fork this reported is RULED and BUILT (#240 → #242): the shell grid now squeezes both docked
- * panes when the content track would fall under `--dimension-content-reading-floor`, which moved that pane
- * 509 → 579px and its line from 55.3 to 65.1 REAL characters. Nothing here changed: the answer was always
- * the pane's, and the ruled floor is the real-character one, not this token's 65 `ch` (still unmet at that
- * pane — the stated residual, pinned in chat-room-track.suite.ct.tsx). */
+/* THE READING MEASURE. Without a cap the transcript ran at `max-width: none`, far past the house 65-75ch law
+ * the Configuration teaching copy (max-w-(--width-content-col)) already honours. Homed here, in the styles
+ * tier, rather than as a class on the two content columns: `message-row` and `ghost-message-row` BOTH stamp
+ * this slot and their measures must not drift (a ghost that reflows at commit is a visible jump), and this is
+ * already the seam that owns reading typography for the slot below.
+* It caps the CONTENT COLUMN, never the transcript REGION: `--width-shell-content` (the user's chatWidthPct
+ * dial, app-shell.tsx) still owns how wide the thread and composer run, so the density law and the row anatomy
+ * are untouched; only the line length is bounded. The `* --reading-body-scale` multiply re-applies the user's
+ * reading-size scale, because the token's `ch` resolves against the column's own font while the prose below is
+ * scaled by that var; without it a reader at scale 1.5 would get a 50ch column.
+* A CT covers this: the harness enters through production's shared styles/index.ts, so the cap is verified as
+ * computed max-width against `--reading-measure` resolved in the column's own font, plus a cap-on/cap-off A/B.
+ * The rendered measurement on the isolated stage (`pnpm snap --isolated`) remains the whole-app check.
+* THE ch RESOLVES IN THE PROSE FONT. `ch` is font-relative to the element it is declared on, and this column
+ * inherited the app's 1rem while the prose inside it renders at `--text-body`, so a 75ch cap fitted far more
+ * real characters per line. Setting the column's OWN font-size to the prose size is what makes the token mean
+ * what it says; it changes no rendered type, because every child that carries text declares its own size.
+* THE BAND'S OTHER END IS NOT A `min-width` HERE, and that is a measured call. This column is `flex-1` inside
+ * the row body, so it already takes every pixel the pane leaves. What eats the line is (a) an immersive skin's
+ * decoration, fenced by `--reading-measure-min` at its own site (echo's box is `measure-min + art-width`,
+ * message-row-variants.ts), and (b) a CONTENT pane narrower than the floor itself, where the column IS the
+ * pane. A `min-width` cannot help (b): the percentage resolves against the row body, which also holds the
+ * avatar gutter, so the floor would spill the column out of its own pane. Holding the floor there is the shell
+ * grid's question, answered by its both-docked squeeze against `--dimension-content-reading-floor`; the 65 `ch`
+ * floor is still unmet at that pane, the stated residual, pinned in chat-room-track.suite.ct.tsx. */
 [data-slot="message-content-column"] {
   font-size: calc(var(--text-body) * var(--reading-body-scale, 1));
   max-width: calc(var(--reading-measure) * var(--reading-body-scale, 1));
@@ -744,28 +568,22 @@ html[data-shadow] [data-slot="message-bubble"] {
   --centred-column-width: min(calc(var(--reading-measure) * var(--reading-body-scale, 1)), calc(100cqi - 2 * (var(--size-avatar-lg) + var(--spacing-row))));
 }
 
-/* THE ROOM'S TRACK CENTRES ON THE DEVICE-PIXEL GRID (#1362 — docs/law/integer-line-boxes.md Law 3). The track used
- * to carry Tailwind's `mx-auto`, which splits the leftover width in half: an ODD remainder lands the track,
- * and therefore every `backdrop-filter` layer inside it, on a half pixel. Measured on the isolated stage at
- * 1280x800 with all four blur surfaces on — content pane 893px, track 768px (`clamp(46.625rem, 60dvw,
- * 100dvw)`), remainder 125, margin 62.5 — `design-audit` reported `left -0.500 device px` on FOUR promoted
- * layers at once: `[data-slot=composer]`, `[data-slot=swipe-strip]` and two `[data-slot=message-bubble]`s,
- * plus the `off-grid-text` those bubbles' glyphs inherit. One cause, one repair site, because all of them
- * resolve their horizontal box through this one track (features/chat/lib/chat-track.ts, #213).
- *
- * FLOOR THE START MARGIN, LET THE END ABSORB THE ODD PIXEL. The remainder's parity is not ours: the pane
- * width belongs to the shell grid and the track width to the reader's `chatWidthPct` dial, so no authored
- * value can make the split even at every width — which is exactly why Law 3 is a RUNTIME rule with no
- * authorship half. `round()` is the same platform primitive Law 1's leading belt already rides (§3b), so
- * this is the belt's horizontal twin rather than a second technique. The end margin stays `auto`, so the
- * track still fills toward the far edge and a one-pixel asymmetry is the entire cost — against a half-pixel
- * resample of every glyph in the reading column, which is what it buys.
- *
- * IT IS A CLASS AND NOT A SLOT because the track is worn by four different slots (`message-row`,
- * `composer`, `transcript-loading`, the error state) and a hand-listed selector is exactly the drift
- * chat-track.ts's own header was minted against. Rendered pin: `pnpm snap / --goto chats --open-chat latest
- * --design-audit` with `blurSurfaces` including `messages` and a seeded background — a bare room promotes
- * nothing and is a false clean. */
+/* THE ROOM'S TRACK CENTRES ON THE DEVICE-PIXEL GRID (docs/law/integer-line-boxes.md Law 3). A Tailwind
+ * `mx-auto` splits the leftover width in half: an ODD remainder lands the track, and therefore every
+ * `backdrop-filter` layer inside it (the composer, the swipe strip, the bubbles, and the glyphs they carry), on
+ * a half pixel. One cause, one repair site, because all of them resolve their horizontal box through this one
+ * track (features/chat/lib/chat-track.ts).
+* FLOOR THE START MARGIN, LET THE END ABSORB THE ODD PIXEL. The remainder's parity is not ours: the pane width
+ * belongs to the shell grid and the track width to the reader's `chatWidthPct` dial, so no authored value can
+ * make the split even at every width, which is why Law 3 is a runtime rule with no authorship half. `round()`
+ * is the platform primitive Law 1's leading guard already rides (§3b). The end margin stays `auto`, so the
+ * track still fills toward the far edge and a one-pixel asymmetry is the entire cost, against a half-pixel
+ * resample of every glyph in the reading column.
+* IT IS A CLASS AND NOT A SLOT because the track is worn by four different slots (`message-row`, `composer`,
+ * `transcript-loading`, the error state), and a hand-listed selector is exactly the drift chat-track.ts's own
+ * header was minted against. Rendered pin: `pnpm snap / --goto chats --open-chat latest --design-audit` with
+ * `blurSurfaces` including `messages` and a seeded background; a bare room promotes nothing and is a false
+ * clean. */
 .orb-chat-track {
   margin-inline-start: round(down, calc((100% - min(100%, var(--width-shell-content))) / 2), 1px);
   margin-inline-end: auto;
@@ -852,14 +670,12 @@ html[data-keyboard-up] [data-slot="composer-guided-refusal"] {
   --row-foot-inset-left: var(--spacing-block);
   --row-foot-inset-right: var(--spacing-block);
 }
-/* JUSTIFY SHIPS WITH HYPHENATION, ALWAYS (#852). Justified text without it opens rivers of white down the
- * column — the browser can only stretch word spacing, so a long word that will not fit forces the line
- * before it apart. `design-audit --appearance-preset reading` measured 44 × `justified-text` findings on
- * `message-bubble` / `message-row-body` / `message-content-column` at 21.6px, which is the widest the
- * rivers get and, worse, is the ONE appearance profile named for reading. Pairing at the SAME site is the
- * fix rather than dropping justify: the setting is the reader's own choice (`justifyBodyText`), and
- * `hyphens: auto` costs nothing when the text is not justified because this rule only exists when it is.
- * `lang` is what feeds the hyphenation dictionary; the document carries it, so nothing is needed here. */
+/* JUSTIFY SHIPS WITH HYPHENATION, ALWAYS. Justified text without it opens rivers of white down the column: the
+ * browser can only stretch word spacing, so a long word that will not fit forces the line before it apart,
+ * worst at the reading profile's large sizes. Pairing at the same site is the fix rather than dropping justify:
+ * the setting is the reader's own choice (`justifyBodyText`), and `hyphens: auto` costs nothing when the text
+ * is not justified because this rule only exists when it is. `lang` feeds the hyphenation dictionary; the
+ * document carries it. */
 html[data-justify-body-text] [data-slot="message-bubble"] {
   text-align: justify;
   hyphens: auto;
@@ -868,17 +684,14 @@ html[data-justify-body-text] [data-slot="message-bubble"] {
   font-size: calc(var(--text-label) * var(--reading-name-scale, 1));
 }
 
-/* THE OVER-ART METADATA INK STEP-UP (#204). The transcript's quiet metadata (timestamp beside the name,
- * token/cost/timer datums, the model credit) speaks the gloss voice — `--color-muted-foreground`, a
- * deliberately SOFTER derived band (mutedLMax 0.82 / mutedLMin 0.34). Over a wallpaper those datums sit
- * on the translucent reading plate (0.65α over arbitrary art), and the muted band mathematically cannot
- * be guaranteed there on either polarity (a dark palette's 0.82 muted over plate-over-white-art ≈ 2.5:1;
- * a light palette's 0.34 measured 4.35:1 over warm art — the last P1 of the #204 audit). The chip is a
- * GUARANTEE tier (#106/#167: the 1.63:1 timestamp was its founding receipt), so over art its gloss steps
- * up to the FULL derived foreground — the ink the plate's alpha floor is actually proven for
- * (palette-contrast.suite.test.ts). Without a wallpaper nothing changes (the quiet voice stays quiet on
- * the page). One prefix-keyed rule, not per-element utilities: every `message-metadata-*` slot is the
- * same gloss-on-plate shape, and a new datum slot inherits the guarantee by naming convention. */
+/* THE OVER-ART METADATA INK STEP-UP. The transcript's quiet metadata (timestamp beside the name,
+ * token/cost/timer datums, the model credit) speaks the gloss voice, `--color-muted-foreground`, a deliberately
+ * softer derived band. Over a wallpaper those datums sit on the translucent reading plate, and the muted band
+ * cannot be guaranteed there on either polarity. The chip is a GUARANTEE tier, so over art its gloss steps up
+ * to the full derived foreground, the ink the plate's alpha floor is proven for
+ * (palette-contrast.suite.test.ts). Without a wallpaper nothing changes. One prefix-keyed rule, not per-element
+ * utilities: every `message-metadata-*` slot is the same gloss-on-plate shape, and a new datum slot inherits
+ * the guarantee by naming convention. */
 [data-has-bg-image] [data-slot^="message-metadata-"] {
   color: var(--color-foreground);
 }
@@ -907,19 +720,13 @@ html[data-theme-colorization] :is(.shell-grid, [data-slot="portal-root"]) {
   --color-sidebar-border: color-mix(in oklab, var(--color-primary) 22%, var(--color-sidebar-foreground) 6%);
 }
 
-/* appearance.surfaceTexture=grain — the opt-in film-grain overlay. A static same-origin SVG noise tile
- * (`public/grain.svg`), low opacity. NOT an inline `data:` URL — see the CSP note on the rule below,
- * which is why this line no longer claims one.
- *
- * THE HOST IS THE WHOLE SHELL, reading column included — RATIFIED by the owner 2026-08-22 (#435).
- * These two lines used to claim "shell chrome + cards only, never message-bubble", which the shipped
- * `.shell-grid::after` selector has never done: one `::after` on the grid covers every descendant,
- * prose among them. The ruling kept the selector and repaired the text, on measurement: the grain's
- * peak contribution over prose is sub-12/255 at this opacity under `soft-light` — below the legibility
- * threshold the old claim was protecting — and the `prefers-contrast: more` block ~160 lines above
- * DROPS the overlay outright, so the stated-preference user gets no noise at all. The rejected arm was
- * narrowing the selector to per-surface chrome carriers: it turns one even film into patchy noise with
- * seams at every chrome boundary and makes every future chrome slot a coupled site. */
+/* appearance.surfaceTexture=grain, the opt-in film-grain overlay. A static same-origin SVG noise tile
+ * (`public/grain.svg`), low opacity; not an inline `data:` URL, see the CSP note on the rule below.
+* THE HOST IS THE WHOLE SHELL, reading column included (owner ruling): one `::after` on the grid covers every
+ * descendant, prose among them. The grain's peak contribution over prose is far below the legibility threshold
+ * at this opacity under `soft-light`, and the `prefers-contrast: more` block above drops the overlay outright.
+ * The rejected arm was narrowing the selector to per-surface chrome carriers: it turns one even film into
+ * patchy noise with seams at every chrome boundary and makes every future chrome slot a coupled site. */
 html[data-texture="grain"] .shell-grid::after,
 html[data-texture="grain"] [data-slot="card-root"]::after {
   content: "";
@@ -940,15 +747,13 @@ html[data-texture="grain"] [data-slot="card-root"]::after {
 html[data-texture="grain"] [data-slot="card-root"] {
   position: relative;
 }
-/* ONE grain layer per pixel (#435). Inside the shell grid the whole-shell `::after` above already covers
-   every card, so the card's OWN arm composed a second 0.04 soft-light pass over exactly those pixels —
-   the cards read as double-grained against their surroundings (2x0.04, the defect the ratification
-   ruling named). `content: none` suppresses the pseudo entirely rather than zeroing its opacity: no
-   generated box at all, so nothing joins the stacking context or the paint.
-   THE CARD ARM SURVIVES OUTSIDE THE GRID, which is where its only real job is: Dialog/AlertDialog
-   portal to `document.body` (app-shell.tsx stamps appearance state on the DOCUMENT ROOT precisely
-   because of this), so a portalled card is not a `.shell-grid` descendant and its own `::after` is the
-   ONLY grain carrier it has. Narrowing by scope instead of deleting the arm is what keeps both true. */
+/* ONE grain layer per pixel. Inside the shell grid the whole-shell `::after` above already covers every card,
+ * so the card's own arm would compose a second soft-light pass over exactly those pixels and the cards would
+ * read as double-grained. `content: none` suppresses the pseudo entirely rather than zeroing its opacity: no
+ * generated box at all, so nothing joins the stacking context or the paint.
+* THE CARD ARM SURVIVES OUTSIDE THE GRID, which is where its only real job is: Dialog/AlertDialog portal to
+ * `document.body` (app-shell.tsx stamps appearance state on the document root for this reason), so a portalled
+ * card is not a `.shell-grid` descendant and its own `::after` is the only grain carrier it has. */
 html[data-texture="grain"] .shell-grid [data-slot="card-root"]::after {
   content: none;
 }
@@ -965,28 +770,21 @@ html[data-texture="grain"] .shell-grid [data-slot="card-root"]::after {
   filter: drop-shadow(0 12px 32px var(--color-shadow-ambient-far));
 }
 
-/* Chat-thread edge-fade: dissolves softly at a scrolled edge via mask-image rather than hard-clipping.
- * Each edge fades ONLY while content actually lies beyond it — data-fade-top/-bottom are toggled by
- * the MessageList primitive (@orb/ui) on scroll/resize, so a short unscrolled thread renders its
- * first/last rows fully opaque instead of half-faded against nothing.
- *
- * IT DISSOLVES INTO THE BACKDROP, SO IT ONLY RUNS WHERE THERE IS ONE (side-eye 2026-08-07 finding 5).
- * A mask fades EVERY pixel of the subtree at the same rate — the row's card AND the body prose painted on
- * it. Over the flat page background that is a dissolve into the colour the reader is already looking at.
- * Over a background PHOTO the card dissolves and the prose lands on the ART: measured at 320px on an art
- * theme, 1.29–3.34:1 across the top band, with the first row clearing AA only at y≈128. There is no colour
- * to dissolve INTO on an art theme, and every alternative treatment is the same physics — any occlusion of
- * the text collapses its contrast against whatever is behind it — so the honest answer is that the effect
- * does not apply there at full depth: under the shell's own `data-has-bg-image` flag (the same declarative
+/* Chat-thread edge-fade: dissolves softly at a scrolled edge via mask-image rather than hard-clipping. Each
+ * edge fades ONLY while content lies beyond it: data-fade-top/-bottom are toggled by the MessageList primitive
+ * (@orb/ui) on scroll/resize, so a short unscrolled thread renders its first/last rows fully opaque instead of
+ * half-faded against nothing.
+* IT DISSOLVES INTO THE BACKDROP, SO IT ONLY RUNS FULL DEPTH WHERE THERE IS ONE. A mask fades every pixel of the
+ * subtree at the same rate, the row's card AND the prose painted on it. Over the flat page background that is a
+ * dissolve into the colour the reader is already looking at; over a background PHOTO the card dissolves and the
+ * prose lands on the art, below AA across the band. There is no colour to dissolve into on an art theme and
+ * every alternative treatment is the same physics, so under the shell's own `data-has-bg-image` flag (the same
  * ancestor signal `message-row-backing.ts` reads for its legibility scrims) the band shrinks to one section
- * step, so only the line the edge cuts is dissolved and the rest of the prose stays on its card.
- *
- * The header of `features/chat/lib/message-row-variants.ts` has warned about exactly this since the
- * echo/whisper feather was built ("not literal `mask-image` (that would also fade the text painted on
- * top)") — the scroller did it anyway. NOTE FOR ANY FUTURE AUDIT: this defect is INVISIBLE to
- * `elementFromPoint` + `getComputedStyle`, which report the fully-opaque cream card for every faded row,
- * and therefore to design-audit and to snap's css-resolve path. It was found by sampling pixels and it is
- * pinned by sampling pixels (tests/client/features/chat/message-list-edge-fade.ct.tsx). */
+ * step: only the line the edge cuts is dissolved and the rest of the prose stays on its card.
+* The header of `features/chat/lib/message-row-variants.ts` warns about exactly this for the echo/whisper
+ * feather. This defect is INVISIBLE to `elementFromPoint` + `getComputedStyle`, which report the fully opaque
+ * card for every faded row, and therefore to design-audit and snap's css-resolve path; it is pinned by sampling
+ * pixels (tests/client/features/chat/message-list-edge-fade.ct.tsx). */
 /* EACH BAND EASES IN FROM ITS EDGE rather than ramping linearly: the first quarter of the band is nearly
  * transparent, so the line an edge cuts reads as gone instead of half drawn (a linear ramp left it a fifth
  * of the way up, a dim half-glyph under the toolbar), and the band still reaches the full card by its far
@@ -1042,8 +840,8 @@ html[data-texture="grain"] .shell-grid [data-slot="card-root"]::after {
   --fade-bottom-stop: var(--spacing-section);
 }
 
-/* Echo's track is the shared content track plus its art width (#212/#213). The skin's box/column cap is
- * component-owned inline geometry in message-row-variants; this selector is the track mechanism only. */
+/* Echo's track is the shared content track plus its art width. The skin's box/column cap is component-owned
+ * inline geometry in message-row-variants; this selector is the track mechanism only. */
 .orb-echo-track {
   max-width: calc(var(--width-shell-content) + var(--immersive-echo-art-width));
 }

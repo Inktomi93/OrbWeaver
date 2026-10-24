@@ -192,7 +192,6 @@
   --dimension-panel-context-step: 24rem;
   --dimension-content-reading-floor: 40.5rem;
   --dimension-shell-content-floor: 46.625rem;
-  --shadow-prose: 0 1px 2px oklch(0 0 0 / 0.45), 0 0 6px oklch(0 0 0 / 0.25);
   --blur-strength: 14px;
   --blur-fill-chrome: 70%;
   --blur-fill-dense: 88%;
@@ -242,6 +241,7 @@
   --container-cq-48: 48rem;
   --container-cq-56: 56rem;
   --container-cq-64: 64rem;
+  --container-cq-72: 72rem;
   --container-cq-80: 80rem;
   --container-cq-96: 96rem;
   --width-cell-fixed: 8.5rem;
@@ -298,6 +298,7 @@
   --dimension-shell-title-floor: 6ch;
   --dimension-shell-notice-cap: min(14rem, 30dvh);
   --shadow-shell-over-art: 0 1px 3px var(--color-backdrop);
+  --shadow-prose: 0 1px 2px oklch(from var(--color-backdrop) l c h / 0.45), 0 0 6px oklch(from var(--color-backdrop) l c h / 0.25);
   --shadow-glow: 0 0 0 1px oklch(from var(--color-primary) l c h / 0.4), 0 0 18px oklch(from var(--color-primary) l c h / 0.18);
   --shadow-overlay: 0 0 0 1px var(--color-shadow-hairline), inset 0 1px 0 0 var(--color-shadow-highlight), 0 2px 4px var(--color-shadow-ambient-near), 0 12px 32px var(--color-shadow-ambient-far);
   --shadow-cta: inset 0 1px 0 var(--color-shadow-cta-highlight);

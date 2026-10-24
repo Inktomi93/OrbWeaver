@@ -49,12 +49,11 @@
   --orb-tier-row-title-leading: var(--leading-label);
   --orb-tier-row-title-weight: var(--font-weight-semibold);
   --orb-tier-row-gloss-size: var(--text-micro);
-  /* THE PLATFORM FLOOR RIDES THE TOKEN, NOT THIS FILE (#1868, §4b axis 3). This was
-   * `--text-label`/`--leading-label`, 13px, two steps under iOS Safari's 16px focus-zoom threshold — so
-   * every LIST-pane search box zoomed the viewport on tap. `text.field-dense` IS the 13px step, with the
-   * coarse arm baked in (tokens.json `orb.pointerFine`), so the instrument tier's intent survives on a
-   * mouse and yields on a finger without this file learning what a pointer is. An earlier cut put a
-   * `@media (any-pointer: coarse)` block right here; the token layer is where a capability belongs. */
+  /* THE PLATFORM FLOOR RIDES THE TOKEN, NOT THIS FILE (§4b axis 3). A 13px field is two steps under iOS
+   * Safari's 16px focus-zoom threshold, so every LIST-pane search box would zoom the viewport on tap.
+   * `text.field-dense` IS the 13px step with the coarse arm baked in (tokens.json `orb.pointerFine`), so the
+   * instrument tier's intent survives on a mouse and yields on a finger without this file learning what a
+   * pointer is; the token layer is where a capability belongs. */
   --orb-tier-field-size: var(--text-field-dense);
   --orb-tier-field-leading: var(--leading-field-dense);
 }
@@ -71,9 +70,9 @@
   --orb-tier-row-title-leading: var(--leading-body);
   --orb-tier-row-title-weight: var(--font-weight-medium);
   --orb-tier-row-gloss-size: var(--text-label);
-  /* `text.field` rather than `text.body` — the form tier's field step is the FIELD token now, which is the
-   * same 15px on a fine pointer (so a form surface still lands exactly where an un-tiered one does, which
-   * is this block's whole promise) and 16px on a coarse one (#1868). */
+  /* `text.field` rather than `text.body`: the form tier's field step is the FIELD token, the same 15px on a
+   * fine pointer (so a form surface still lands exactly where an un-tiered one does, which is this block's
+   * whole promise) and 16px on a coarse one. */
   --orb-tier-field-size: var(--text-field);
   --orb-tier-field-leading: var(--leading-field);
 }
@@ -115,12 +114,11 @@
   line-height: var(--orb-tier-row-title-leading);
 }
 
-/* THE PROMOTED ROW TITLE (`<ListRow titleStep="promoted">`, side-eye #102 F8) — the `title` step (16px)
- * for a list whose rows ARE the surface's content rather than a directory of it (home's also-open rooms,
- * which the approved ramp assigns 16px; the six-step ramp otherwise had NO title step in use on that
- * page). It has to be spelled HERE for the same reason the ELEVATED radius opt-in is: the tier rule above
- * is unlayered, so a `text-title` utility on the same slot would lose to it inside every <Surface>. It is
- * tier-INDEPENDENT on purpose — "this row is the content" is a statement about the list, not the pane. */
+/* THE PROMOTED ROW TITLE (`<ListRow titleStep="promoted">`): the `title` step for a list whose rows ARE the
+ * surface's content rather than a directory of it (home's also-open rooms). It has to be spelled HERE for the
+ * same reason the ELEVATED radius opt-in is: the tier rule above is unlayered, so a `text-title` utility on the
+ * same slot would lose to it inside every <Surface>. It is tier-INDEPENDENT on purpose: "this row is the
+ * content" is a statement about the list, not the pane. */
 [data-surface-tier] [data-slot="list-row-title"][data-title-step="promoted"] {
   font-size: var(--text-title);
   font-weight: var(--font-weight-semibold);
@@ -145,9 +143,8 @@
   line-height: var(--leading-label);
 }
 
-/* The pane's own chrome — a search field and a picker inside a LIST pane are NOT the datum, and at the
- * tier-less body step (15px) they outshouted the 13px row titles they filter (side-eye P1-1). One step
- * down at instrument, untouched at form. */
+/* The pane's own chrome: a search field and a picker inside a LIST pane are NOT the datum, and at the tier-less
+ * body step they outshout the row titles they filter. One step down at instrument, untouched at form. */
 [data-surface-tier] [data-slot="input-root"],
 [data-surface-tier] [data-slot="select-trigger"] {
   font-size: var(--orb-tier-field-size);
@@ -161,10 +158,10 @@
   border-radius: var(--radius-card);
 }
 
-/* NESTED is the opposite opt-in, and needs the same unlayered spelling for the same reason: an island
- * rendered INSIDE another box steps one radius below its host (`--radius-inset`, the SUB-CONTROL mark
- * step), so the nesting reads as nesting rather than as two competing boxes. CD2, as ruled by side-eye
- * 2026-08-03: keep the fill, drop the border, step the radius down one. */
+/* NESTED is the opposite opt-in, and needs the same unlayered spelling for the same reason: an island rendered
+ * INSIDE another box steps one radius below its host (`--radius-inset`, the sub-control mark step), so the
+ * nesting reads as nesting rather than as two competing boxes. CD2: keep the fill, drop the border, step the
+ * radius down one. */
 [data-surface-tier] [data-slot="card-root"][data-nested] {
   border-radius: var(--radius-inset);
 }
