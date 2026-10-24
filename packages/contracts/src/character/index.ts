@@ -391,6 +391,8 @@ export const createCharacterSchema = z.object({
   extensions: z.record(z.string(), z.unknown()).nullable().optional(),
   residualData: z.record(z.string(), z.unknown()).nullable().optional(),
   avatarAssetId: cardFaceFields.avatarAssetId.optional(),
+  /** The owner's star; an imported card lands with the star its file carries (ST `extensions.fav`). */
+  starred: cardFaceFields.starred.optional(),
   /** Character's Note \@ Depth — null clears it; omit to leave unchanged. */
   depthPrompt: cardDepthPromptSchema.nullable().optional(),
 });

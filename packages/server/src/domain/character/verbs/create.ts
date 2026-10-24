@@ -105,6 +105,7 @@ export function createCreate(ctx: CharacterContext): CharacterService["create"] 
         createdAt: at,
         updatedAt: at,
         ...card,
+        starred: input.starred === true,
       },
       ctx.bumpStatsCanonVersion,
     );

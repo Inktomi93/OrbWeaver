@@ -608,6 +608,22 @@ test("a seeded library restored into a fresh box keeps one copy of each starter 
   expect({ outcome, names: await characterNames(target) }).toEqual({ outcome: { status: "succeeded", failed: 0 }, names: sourceNames });
 });
 
+test("an imported card keeps its star, alone and through a library restore", async () => {
+  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  expect(await restoreCard(source, "archivist.json", new TextEncoder().encode(STARRED_CARD))).toEqual({ ok: true, created: true });
+  const bundle = await exportLibrary(source, ["character"]);
+
+  await using target = await signedInBox();
+  await restore(target, bundle);
+  const starredOn = async (root: ServerTestHarness): Promise<boolean[]> => {
+    const caller = await root.internalCallerFor(root.ownerId);
+    const found = await charactersNamed(root, ARCHIVIST);
+    return await Promise.all(found.map(async (c) => (await caller.character.get({ characterId: c.id })).starred));
+  };
+
+  expect({ source: await starredOn(source), target: await starredOn(target) }).toEqual({ source: [true], target: [true] });
+});
+
 test("restoring bytes the owner holds under another id repairs that asset when its stored file is gone", async () => {
   await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
   const owner = await source.principalFor(source.ownerId);
