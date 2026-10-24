@@ -1,4 +1,4 @@
-// The WORKBENCH lane's shared chrome (program #102, mockup variant C): the numbered band that names a lane
+// The WORKBENCH lane's shared chrome (mockup variant C): the numbered band that names a lane
 // and the note row that says what is wrong with what it is showing. Both are shared by all three lanes, so
 // they are one anatomy in one file rather than three drawings that drift.
 //
@@ -10,19 +10,18 @@
 // one step. The heading is a real heading — the three lanes are peer blocks of the workbench, not children
 // of whichever lane precedes them (the outline lesson from home's side-eye F6).
 //
-// …AT `h3`, NOT `h2` (side-eye 2026-08-19 P3: "flat heading outline — the session title sits at its lanes'
-// level"). The workbench's one opening statement is the masthead's `h2` (`session-masthead.tsx`), and the
+// …AT `h3`, NOT `h2`, so the session title never sits at its lanes' level. The workbench's one opening statement is the masthead's `h2` (`session-masthead.tsx`), and the
 // lanes are blocks OF that session — three peers one step under it, which is exactly what `Section`'s own
-// `level` default states for the same shape. At `h2` the outline said the session and each of its lanes
-// were siblings, so a heading walk read four peer blocks with no subject.
+// `level` default states for the same shape. At `h2` the outline would say the session and each of
+// its lanes are siblings, so a heading walk would read four peer blocks with no subject.
 //
-// THE NOTE ROW IS THE VIEW-BACK PIN'S ONLY WAY HOME. Clearing the pin used to be a side effect of pressing
-// a stage in the stepper; with the stepper gone (the pipeline is parallel — there is nothing to switch),
-// walking back would strand a user on a superseded run forever without an explicit verb, so "Back to
+// THE NOTE ROW IS THE VIEW-BACK PIN'S ONLY WAY HOME. The pipeline is parallel — there is no stepper to
+// switch — so walking back would strand a user on a superseded run forever without an explicit verb, so "Back to
 // latest" ships beside the chip that announces the walk.
 
 import { modelDisplayName } from "@orb/kit/model-name";
 import { Button } from "@orb/ui/button";
+import { HintTrigger } from "@orb/ui/hint-trigger";
 import { Row } from "@orb/ui/layout";
 import { Separator } from "@orb/ui/separator";
 import { Heading, Text } from "@orb/ui/text";
@@ -51,16 +50,19 @@ export function LaneBand({ kicker, children }: LaneBandProps): ReactElement {
 
 /** The model that produced THIS lane's result — each stage can run on a different model, so the credit
  *  rides the result, not the session. A readable name; the full identifier (a local weights path can run
- *  past 100 characters) rides `title` only when the derivation shortened it. Nothing for a hand-authored run. */
+ *  past 100 characters) is a press-opened hint only when the derivation shortened it. Nothing for a hand-authored run. */
 export function RunModelCredit({ model }: { readonly model: string | null }): ReactElement | null {
   if (model === null) {
     return null;
   }
   const shown = modelDisplayName(model);
   return (
-    <Text as="span" voice="credit" {...(shown === model ? {} : { title: model })}>
-      {shown}
-    </Text>
+    <>
+      <Text as="span" voice="credit">
+        {shown}
+      </Text>
+      {shown === model ? null : <HintTrigger className="" hint={model} subject="the model" />}
+    </>
   );
 }
 

@@ -41,7 +41,7 @@ export function tagSortItems(handlesAvailable: boolean, cap: number): readonly S
 }
 
 /** The prune confirm's ACTION label — it agrees in number with the title's count, because "Delete them"
- *  over "Delete 1 unused tag?" is the confirm disagreeing with the question (side-eye 2026-08-03 P3). */
+ *  over "Delete 1 unused tag?" is the confirm disagreeing with the question. */
 export function pruneConfirmLabel(count: number): string {
   return count === 1 ? "Delete it" : "Delete them";
 }
@@ -88,31 +88,19 @@ export function unusedTagsLabel(count: number): string {
   return `${count} unused tag${count === 1 ? "" : "s"}`;
 }
 
-/** The "no colour at all" state, in words — ONE sentence, spent two ways below. `null` is a real state, not
- *  a blank: a tag with no colour paints the theme default, and "unset" and "set to something this theme
- *  swallows" were the same silence (side-eye 2026-08-06 P3). */
+/** The "no colour at all" state, in words — ONE sentence. `null` is a real state, not a blank: a tag with
+ *  no colour paints the theme default, and without words "unset" and "set to something this theme swallows"
+ *  are the same silence. */
 const COLOR_UNSET_LABEL = "Not set — uses the theme default";
 
 /** What a colour slot HOLDS, in words — the EDITOR's readout, wired as each picker's `Field description` so
  *  the 32×32 swatch button (which has no text of its own) carries it as an accessible DESCRIPTION rather
- *  than as prose sitting next to it (side-eye 2026-08-08 P2).
+ *  than as prose sitting next to it.
  *
- *  UNKEYED on purpose (its P3): the Field label sits 20px above and already says "Background" / "Text", so a
- *  `Background: ` prefix here spends the readout's one line repeating the label it hangs under, and at the
- *  editor's real 430px width it is what pushed the sentence onto a second line. */
+ *  UNKEYED on purpose: the Field label above already says "Background" / "Text", so a `Background: ` prefix
+ *  would spend the readout's one line repeating the label it hangs under. */
 export function tagColorValueLabel(value: string | null): string {
   return value ?? COLOR_UNSET_LABEL;
-}
-
-/** The same fact KEYED — the list swatch's hover tooltip, which is the one place with no label to lean on:
- *  a row is a bare chip, so the tooltip must name the slot itself. Lower-cased because here the sentence runs
- *  mid-phrase after the key, and there is exactly one home for its words.
- *
- *  IT IS NOT A ROW DATUM. The 2026-08-06 re-verify caught the first pass routing this through
- *  `ListRow.markers` — the row's `aria-describedby` channel — which made a screen reader recite the whole
- *  disclaimer once per row across a large tag library. A list row is a scan line; this is an editing fact. */
-export function tagColorLabel(kind: "Background" | "Text", value: string | null): string {
-  return value === null ? `${kind}: ${COLOR_UNSET_LABEL.toLowerCase()}` : `${kind}: ${value}`;
 }
 
 // The compact total-uses label for a tag row's usage chip (e.g. `"12 uses"` / `"1 use"` / `"unused"`).

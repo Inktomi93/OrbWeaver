@@ -307,3 +307,56 @@ export const baseUiPortalContainerRule: OrbRule = {
     return { JSXOpeningElement: check };
   },
 };
+
+const REACT_TYPES = /\/node_modules\/@types\/react\//u;
+
+// An iframe's `title` is its accessible name (HTML-AAM), not a hover hint, so the attribute keeps its meaning there.
+const NATIVE_TITLE_OWNERS = new Set(["iframe"]);
+
+const NATIVE_TITLE_MESSAGE =
+  "A native `title` is invisible on touch and is not the accessible name. Put the text in visible copy or an @orb/ui Tooltip (it describes its trigger through aria-describedby), or delete it when it repeats the accessible name (.claude/rules/ui-and-client.md).";
+
+function fromReactTypes(declarations: readonly ts.Declaration[] | undefined): boolean {
+  return (declarations ?? []).some((declaration) => REACT_TYPES.test(declaration.getSourceFile().fileName.replaceAll("\\", "/")));
+}
+
+// The `title` the checker binds to React's DOM attribute declarations is the browser's hover tooltip, whether it is
+// spelled on an intrinsic or forwarded by a primitive's props. A component that declares its own `title` prop (a
+// dialog heading, a row's visible title) binds to that declaration instead and passes.
+//
+// A spread is checked too: `{...{ title }}`, `{...(x ? {} : { title })}` and `{...props}` all set the attribute. A
+// spread whose own `title` is React's declaration (a rest of DOM props forwarded on) sets nothing new and passes;
+// the site that authored the value is checked where it was written.
+export const nativeTitleRule: OrbRule = {
+  meta: { type: "problem", schema: [] },
+  create(context: OrbRuleContext): RuleVisitor {
+    const native = nativeDeclarationContext(context);
+    // The attribute names bind to transient symbols; the props type the element expects names the declaration.
+    const targetIsNative = (opening: TSESTree.JSXOpeningElement): boolean => {
+      if (opening.name.type === "JSXIdentifier" && NATIVE_TITLE_OWNERS.has(opening.name.name)) {
+        return false;
+      }
+      const attributes = (native.esTreeNodeToTSNodeMap.get(opening) as ts.JsxOpeningLikeElement).attributes;
+      return fromReactTypes(native.checker.getContextualType(attributes)?.getProperty("title")?.declarations);
+    };
+    return {
+      "JSXAttribute[name.name='title']": (node: TSESTree.JSXAttribute): void => {
+        if (targetIsNative(node.parent as TSESTree.JSXOpeningElement)) {
+          context.report({ node: node.name, message: NATIVE_TITLE_MESSAGE });
+        }
+      },
+      JSXSpreadAttribute: (node: TSESTree.JSXSpreadAttribute): void => {
+        const spread = native.esTreeNodeToTSNodeMap.get(node);
+        const type = native.checker.getTypeAtLocation(spread.expression);
+        // A conditional spread is a union; any member that carries an authored `title` sets one.
+        const authored = (type.isUnion() ? type.types : [type]).some((member) => {
+          const title = member.getProperty("title");
+          return title !== undefined && !fromReactTypes(title.declarations);
+        });
+        if (authored && targetIsNative(node.parent as TSESTree.JSXOpeningElement)) {
+          context.report({ node, message: NATIVE_TITLE_MESSAGE });
+        }
+      },
+    };
+  },
+};

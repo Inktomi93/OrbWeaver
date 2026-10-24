@@ -19,7 +19,7 @@ export function ModelPickerRow({ entry, picked, current }: { readonly entry: Pic
     <Row align="start" className="flex-1 min-inline-0" gap="row">
       <Stack className="flex-1 min-inline-0" gap="field">
         <Row align="center" className="min-inline-0" gap="field">
-          <Text as="span" className="line-clamp-2 wrap-break-word min-inline-0" ink="inherit" title={entry.label}>
+          <Text as="span" className="line-clamp-2 wrap-break-word min-inline-0" ink="inherit">
             {entry.label}
           </Text>
           {hasVision(entry) ? (
@@ -34,7 +34,7 @@ export function ModelPickerRow({ entry, picked, current }: { readonly entry: Pic
           ) : null}
         </Row>
         {entry.label === entry.id ? null : (
-          <Text as="span" className="line-clamp-2 break-all" title={entry.id} voice="datumMono">
+          <Text as="span" className="line-clamp-2 break-all" voice="datumMono">
             {entry.id}
           </Text>
         )}

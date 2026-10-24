@@ -27,10 +27,10 @@ export function RelationshipBadge({ relationship }: { readonly relationship: Rpg
     const label = relationship.label !== "" ? relationship.label : "custom";
     // A free-text custom label can be arbitrarily long ("disgraced former lieutenant of the crown"); left
     // unbounded it grew the badge to ~236px and starved the character NAME to 0px. Cap + truncate the label
-    // so the badge yields width to the name (which is `shrink-0` in NpcCard), and carry the full text on
-    // `title` for hover. `min-w-0` lets the truncating child actually shrink inside the flex badge.
+    // so the badge yields width to the name (which is `shrink-0` in NpcCard); the Scene card's editor shows the
+    // full text. `min-w-0` lets the truncating child actually shrink inside the flex badge.
     return (
-      <Badge tone="soft" size="sm" intent="neutral" data-slot="relationship-badge" className="max-inline-(--width-control-col) min-inline-0" title={label}>
+      <Badge tone="soft" size="sm" intent="neutral" data-slot="relationship-badge" className="max-inline-(--width-control-col) min-inline-0">
         <Text as="span" size="micro" weight="medium" className="truncate">
           {label}
         </Text>

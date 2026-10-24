@@ -6,22 +6,22 @@
 //
 // EDIT-in-place (§3.2): a tracker VALUE edits through `editSnapshot` (the volatile plane) — host-only in v1
 // (`canEditShared`); the patch is a WHOLE-`actorState`-array overlay ([merge-clear] keyed-array grammar —
-// the server correlates by `actorRefKey`). A tracker's MAX edited HERE is THIS carrier's ceiling (owner
-// amendment 2026-07-31): the def's `max` is the DEFAULT, `value.max` is the per-carrier override, and two
+// the server correlates by `actorRefKey`). A tracker's MAX edited HERE is THIS carrier's ceiling (an owner
+// ruling): the def's `max` is the DEFAULT, `value.max` is the per-carrier override, and two
 // characters may legitimately have different Vitality ceilings (the d20 max-HP reality). So the gesture is the
 // intuitive one — the number you edit on a card is that character's — and it rides the SAME `editSnapshot`
 // write as the reading beside it, never `updateConfig`. Anti-drift: setting the ceiling back to the default
 // CLEARS the override (`resolveTrackerMaxOverride`), so a stored override always means "different on purpose",
 // and an overridden row says so (the "default: N" microline).
 //
-// WHOSE SHEET IS THIS? (#1383) — every block here takes an optional `subject` (the carrier's name) and
+// WHOSE SHEET IS THIS? — every block here takes an optional `subject` (the carrier's name) and
 // runs its control names through the tracker kit's ONE qualification grammar (`trackerFieldName` /
-// `trackerActionName`). The Status PARTICIPANT LIST passes it: four cards on one region published 4x "Add
-// condition", 4x "Status line", 3x "HP value" with no group boundary, so a screen-reader user editing a
-// sheet could not tell whose sheet it was. The character TAKEOVER does not pass it — one carrier fills
+// `trackerActionName`). The Status PARTICIPANT LIST passes it: without it, several cards on one region would
+// publish repeated "Add condition", "Status line" and "HP value" names with no group boundary, so a
+// screen-reader user editing a sheet could not tell whose sheet it was. The character TAKEOVER does not pass it — one carrier fills
 // the whole panel, and a prefix on every control there would be noise.
 //
-// PER-FIELD PINS (#10): every volatile hand edit stamps its FINE lock path (`actorState.<refKey>.status`,
+// PER-FIELD PINS: every volatile hand edit stamps its FINE lock path (`actorState.<refKey>.status`,
 // `…trackerValues.<key>`, `…conditions`) via `lockPaths`, and the pin glyph renders ON the locked value —
 // model-writable fields only; hand-only planes (the def's max/color, level, title) never lock, so they never
 // pin.
@@ -31,12 +31,13 @@ import { meterDisplayNumber, RPG_TRACKER_VALUE_EMPTY, trackerCeiling } from "@or
 import { readOwnKey } from "@orb/kit/objects";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
+import { HintTrigger } from "@orb/ui/hint-trigger";
 import { Icon, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { CHIP_TOUCH_FLOOR_AT_COARSE, VALUE_ROW_TOUCH_FLOOR_AT_COARSE } from "#components";
+import { CHIP_TOUCH_FLOOR_AT_COARSE, Tip, VALUE_ROW_TOUCH_FLOOR_AT_COARSE } from "#components";
 import { resolveConditionGlyph } from "../lib/glyphs.ts";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
 import { UNSET_DATUM } from "../lib/unset-datum.ts";
@@ -62,7 +63,7 @@ export interface ActorEdit {
   readonly onRemoveCondition: (name: string) => void;
   /** Edit the volatile status line (free text — "on edge"). */
   readonly onEditStatus: (next: string) => void;
-  /** Is this actor's fine lock path pinned (#10)? `sub` appends to the actor's lock base. */
+  /** Is this actor's fine lock path pinned? `sub` appends to the actor's lock base. */
   readonly isLocked: (sub: string) => boolean;
   /** Release a fine lock path (`sub` as above) — "let the model write it again". */
   readonly onRelease: (sub: string) => void;
@@ -74,7 +75,7 @@ export interface ActorEdit {
  *  an overfull value (value above the ceiling) reads in warning tone. An OVERRIDDEN ceiling states the default
  *  it departs from ("default: 30") so a divergence is visible and reversible — typing the default back clears
  *  the override. The note clears on the next server render (the value prop changes). A pinned tracker
- *  (`…trackerValues.<key>` locked, #10) leads with the pin glyph + its Release. */
+ *  (`…trackerValues.<key>` locked) leads with the pin glyph + its Release. */
 function ActorTrackerMeter({
   def,
   value,
@@ -108,11 +109,9 @@ function ActorTrackerMeter({
   // An OVERRIDE states the default it DEPARTS FROM — a divergence you can see is a divergence you can undo.
   // (`?? null` because a wire row may simply omit the key; absent and null both mean "follow the default".)
   //
-  // A DEPARTURE, NOT A PRESENCE (side-eye 2026-08-06 P3). The anti-drift rule says a stored `value.max`
-  // equal to the def's default is cleared at WRITE time, so this read treated "an override exists" as "it
-  // differs" — and every actor a story wrote a max onto without changing it printed `HP ceiling 20 —
-  // default: 20` under its bar, once per meter per actor, which is a whole list of lines saying nothing.
-  // The write-side rule is the invariant; this is the READ refusing to depend on it. A value equal to the
+  // A DEPARTURE, NOT A PRESENCE. The anti-drift rule says a stored `value.max` equal to the def's default is
+  // cleared at WRITE time, but a story can still write a max equal to the default; treating "an override
+  // exists" as "it differs" would print `HP ceiling 20 — default: 20` under every such bar. The write-side rule is the invariant; this is the READ refusing to depend on it. A value equal to the
   // default IS the default, however it got stored.
   const override = value.max ?? null;
   const overrideNote = override === null || def.max === null || override === def.max ? null : `${def.label} ceiling ${override} — default: ${def.max}`;
@@ -126,7 +125,7 @@ function ActorTrackerMeter({
       value={reading}
       max={max}
       valueWarning={reading !== null && max !== null && reading > max}
-      {...(def.hint === "" ? {} : { labelTitle: def.hint })}
+      {...(def.hint === "" ? {} : { labelHint: def.hint })}
       {...trackColorProps(resolveTrackerColor(def.color, ordinal))}
       {...(subject === undefined ? {} : { subject })}
       {...(release === undefined ? {} : { leading: <RpgFieldLock field={trackerFieldName(def.label, subject)} onRelease={release} /> })}
@@ -150,7 +149,7 @@ function ActorTrackerMeter({
 }
 
 /** One TEXT/LIST tracker's row — a labelled reading, editable in place. A meter is the bar above; these are
- *  the observations (the old text cast-fields), which have no bar to draw. */
+ *  the observations, which have no bar to draw. */
 function ActorTrackerText({
   def,
   value,
@@ -165,9 +164,12 @@ function ActorTrackerText({
   const display = def.shape === "list" ? (value.items ?? []).join(", ") : String(value.value ?? "");
   return (
     <Row gap="field" align="baseline" justify="between">
-      <Text as="span" voice="label" {...(def.hint === "" ? {} : { title: def.hint })}>
-        {def.label}
-      </Text>
+      <Row gap="field" align="center">
+        <Text as="span" voice="label">
+          {def.label}
+        </Text>
+        {def.hint === "" ? null : <HintTrigger className="" hint={def.hint} subject={def.label} />}
+      </Row>
       <TrackerValue
         ariaLabel={trackerFieldName(`${def.label} value`, subject)}
         display={display}
@@ -243,8 +245,8 @@ export function ActorTrackerRows({
   );
 }
 
-/** The quiet volatile STATUS line (free text — "on edge"). Editable-in-place for the host (#2); a pinned
- *  status (`…status` locked, #10) carries the pin + Release beside the value. Read-only + empty ⇒ nothing. */
+/** The quiet volatile STATUS line (free text — "on edge"). Editable-in-place for the host; a pinned
+ *  status (`…status` locked) carries the pin + Release beside the value. Read-only + empty ⇒ nothing. */
 export function StatusLine({ status, subject, edit }: { readonly status: string; readonly subject?: string; readonly edit?: ActorEdit }): ReactElement | null {
   if (edit === undefined) {
     if (status === "") {
@@ -257,10 +259,9 @@ export function StatusLine({ status, subject, edit }: { readonly status: string;
     );
   }
   return (
-    // THE ROW CARRIES THE COARSE TOUCH FLOOR, not the value (#869 — the fragment's own header states the
-    // measurement): a text-height value's 44px hit pseudo overflows into whatever is stacked within 44px of
-    // it, and on a just-started game the `+ condition` control one row down took all but ONE COLUMN of this
-    // dash's pixels. Floored, each row's pseudo fits inside its own band.
+    // THE ROW CARRIES THE COARSE TOUCH FLOOR, not the value (the fragment's own header states why): a
+    // text-height value's touch pseudo overflows into whatever is stacked near it, such as the `+ condition`
+    // control one row down. Floored, each row's pseudo fits inside its own band.
     <Row gap="field" align="center" className={`min-inline-0 ${VALUE_ROW_TOUCH_FLOOR_AT_COARSE}`}>
       <TrackerValue
         ariaLabel={trackerFieldName("Status line", subject)}
@@ -284,7 +285,7 @@ export function StatusLine({ status, subject, edit }: { readonly status: string;
 
 /** Condition chips: lit danger badges (glyph + name). Editable ⇒ each chip removes on click (× affordance)
  *  and an "add condition" input appends (Tier-2: an empty/duplicate name never sends). A pinned
- *  conditions plane (`…conditions` locked, #10) leads with the pin + Release. */
+ *  conditions plane (`…conditions` locked) leads with the pin + Release. */
 export function ConditionChips({
   conditions,
   subject,
@@ -302,8 +303,8 @@ export function ConditionChips({
     return null;
   }
   return (
-    // The coarse floor again (#869): with no chips yet this row is a bare text-height `+ condition`, whose
-    // 44x198 pseudo swallowed the status line ABOVE it. With chips it changes nothing — a chip already
+    // The coarse floor again: with no chips yet this row is a bare text-height `+ condition`, whose touch
+    // pseudo would swallow the status line ABOVE it. With chips it changes nothing — a chip already
     // carries `CHIP_TOUCH_FLOOR_AT_COARSE`, so the row is already ≥44 there.
     <Row gap="field" className={`flex-wrap ${VALUE_ROW_TOUCH_FLOOR_AT_COARSE}`} data-slot="rpg-conditions">
       {edit === undefined || !edit.isLocked(".conditions") ? null : (
@@ -312,33 +313,29 @@ export function ConditionChips({
           onRelease={(): void => edit.onRelease(".conditions")}
         />
       )}
-      {/* THE CHIP CARRIES THE TOUCH FLOOR AT COARSE (owner ruling 2026-08-07, on side-eye's measured
-          tables). The remove ✕ is `size="glyph-xs"` — FLOORLESS, so its 44px coarse hit area rides an
-          OVERFLOWING `::after` rather than its 16px box. MEASURED at 430 coarse with five live conditions:
-          chip 30 tall, `gap-field` 6 ⇒ wrapped-row pitch 36, so the ✕'s effective hit box was **43×35** on
-          every wrapped row — 9px under the vertical floor on a DESTRUCTIVE verb. (The
-          `no-floorless-control-in-wrap` gate's stated harm — committing a NEIGHBOUR — was measured false
-          here: a cross-chip sample lands in the 6px gap. The floor was the whole defect, and the chip's own
-          label was never at risk.) Flooring the CHIP is the only one of the four priced options that fixes
-          the CAUSE — a 44px hit area hanging off a 30px chip — instead of padding around it: at
-          `min-h-touch-target` the pseudo fits INSIDE its own chip, so the visible chip and the live
-          destructive zone are finally the same shape. FINE is untouched (a 30px chip in a dense tracker
-          row). */}
+      {/* THE CHIP CARRIES THE TOUCH FLOOR AT COARSE (an owner ruling). The remove ✕ is `size="glyph-xs"` —
+          FLOORLESS, so its coarse hit area rides an OVERFLOWING `::after` rather than its own box, and on a
+          wrapped row of short chips that area falls under the vertical floor on a DESTRUCTIVE verb.
+          Flooring the CHIP fixes the CAUSE — a touch-size hit area hanging off a shorter chip — instead of
+          padding around it: at `min-h-touch-target` the pseudo fits INSIDE its own chip, so the visible chip
+          and the live destructive zone are the same shape. FINE is untouched (a compact chip in a dense
+          tracker row). */}
       {conditions.map((cond) => (
         <Badge key={cond.name} tone="soft" size="sm" intent="danger" className={CHIP_TOUCH_FLOOR_AT_COARSE}>
           <Icon icon={resolveConditionGlyph(cond.name)} size="xs" />
           {cond.name}
           {onRemove === undefined ? null : (
-            <Button
-              aria-label={trackerActionName(`Remove ${cond.name}`, "from", subject)}
-              intent="ghost"
-              // eslint-disable-next-line orb/no-floorless-control-in-wrap -- The chip carries CHIP_TOUCH_FLOOR_AT_COARSE, so its remove target fits within the chip; ends when this geometry or floorless size changes.
-              size="glyph-xs"
-              onClick={(): void => onRemove(cond.name)}
-              title={trackerActionName(`Remove ${cond.name}`, "from", subject)}
-            >
-              <Icon icon={X} size="xs" />
-            </Button>
+            <Tip text={trackerActionName(`Remove ${cond.name}`, "from", subject)}>
+              <Button
+                aria-label={trackerActionName(`Remove ${cond.name}`, "from", subject)}
+                intent="ghost"
+                // eslint-disable-next-line orb/no-floorless-control-in-wrap -- The chip carries CHIP_TOUCH_FLOOR_AT_COARSE, so its remove target fits within the chip; ends when this geometry or floorless size changes.
+                size="glyph-xs"
+                onClick={(): void => onRemove(cond.name)}
+              >
+                <Icon icon={X} size="xs" />
+              </Button>
+            </Tip>
           )}
         </Badge>
       ))}

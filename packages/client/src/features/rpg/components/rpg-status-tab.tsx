@@ -5,10 +5,10 @@
 //     "neutral") with the quick edits that belong on a glanceable row: the volatile `status` line, the
 //     tracker meters (value AND max click-to-edit), the lit condition chips;
 //   • the CHARACTER TAKEOVER (`RpgCharacterDetail`) — the whole character, breadcrumb back to the list.
-// Sheet-the-tab dissolved into that second state (SETTLED, owner 2026-07-31): its title/level/wallet/
-// attribute planes live in the takeover, its tracker DEF rows moved to the Game tab's one def home.
+// The character sheet is that second state (an owner ruling): its title/level/wallet/attribute planes live in
+// the takeover, and its tracker DEF rows live on the Game tab's one def home.
 //
-// VEILED (P3) — the host-only standing-secrets ledger is a WIRED-WHEN-READY section shell
+// VEILED — the host-only standing-secrets ledger is a WIRED-WHEN-READY section shell
 // (`RpgVeiledSection`): the deception plane is being built by its own lane; until entries arrive the
 // shell renders NOTHING (the honest empty plane — no filler). The section + crown-gold grammar land here
 // because secrets are game-state about the CHARACTERS (the same lens this tab already is).
@@ -29,6 +29,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { Tip } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { revealContextPanel } from "#state";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
@@ -62,7 +63,7 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
   // two edit homes, which is the dual-homing rule this IA exists to obey.
   const characters = tracker.actors.filter((a) => a.actorRef.kind !== "npc");
   // The a11y subject per character — the display name, qualified by participant position ONLY where two entries
-  // carry the same name (#1531). Derived over the FILTERED list, because the collision that matters is the
+  // carry the same name. Derived over the FILTERED list, because the collision that matters is the
   // one a reader actually hears in this tab: an npc with the same name lives on Scene and is never in
   // this tree, so qualifying against it would rename a character for a rival nobody here can reach.
   const subjects = actorSubjects(characters);
@@ -72,7 +73,7 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
   }
 
   // One op-and-mutate for a target actor's volatile: the panel names the OP it performed, the server applies
-  // it against the true head and derives the FINE lock path (#10). No image, no client-named lock paths.
+  // it against the true head and derives the FINE lock path. No image, no client-named lock paths.
   const patch = (ref: RpgActorRef, ...ops: readonly RpgActorOp[]): void => patchActor.mutate({ chatId, targetRef: ref, ops: [...ops] });
 
   const editFor = (actor: RpgActorView): ActorEdit | undefined => {
@@ -141,11 +142,10 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
       >
         Characters — {characters.length}
       </Kicker>
-      {/* THE ORIENTING LEAD (#863 P1). A just-started game lands here with a list of cards that are all
-          em-dashes and `+ condition`, and nothing on the screen said a game had started or what would fill
-          it in — the cold 5-second test failed outright. The line shows only while the story has written
-          NOTHING (every actor's volatile plane is still null), so it teaches once and then gets out of the
-          way; an established game never carries it ([[empty-states-are-load-bearing]]). */}
+      {/* THE ORIENTING LEAD. A just-started game lands here with a list of cards that are all em-dashes and
+          `+ condition`, so the line says a game has started and what will fill it in. It shows only while the
+          story has written NOTHING (every actor's volatile plane is still null), so it teaches once and then
+          gets out of the way; an established game never carries it. */}
       {characters.length === 0 || characters.every((actor) => actor.volatile === null) ? (
         // The Game tab is the host's, so only a host is offered the door to it.
         <RpgDoorwayLine {...(isHost ? { actionLabel: "Open the Game tab", onAction: (): void => revealContextPanel("rpg.game") } : {})}>
@@ -174,7 +174,7 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
 interface RpgStatusCardProps {
   readonly actor: RpgActorView;
   /** How this character is NAMED to a reader — `actor.name`, qualified by participant position when a same-named
-   *  entry shares the tab (`actorSubjects`, #1531). Every accessible name on the card is built from it. */
+   *  entry shares the tab (`actorSubjects`). Every accessible name on the card is built from it. */
   readonly subject: string;
   readonly edit?: ActorEdit;
   /** Open this character's takeover (the card's name is the door). */
@@ -185,23 +185,21 @@ interface RpgStatusCardProps {
  *  condition chips. The name is a real button (the takeover's entry point); every other control on the card
  *  stays a sibling of it, never nested inside it.
  *
- *  A NAMED GROUP, AND EVERY CONTROL SAYS WHOSE (#1383). The Status region was one flat tree: four cards
- *  deep it published 4x "Add condition", 4x "Status line", 3x "HP value", 3x "HP max" — byte-identical
- *  accessible names on an EDITING surface, with nothing between one character's block and the next. A
- *  reader heard "button, 17" and could not tell whose sheet was being edited. Two halves, both needed: the
+ *  A NAMED GROUP, AND EVERY CONTROL SAYS WHOSE. As one flat tree, several cards would publish byte-identical
+ *  accessible names ("Add condition", "Status line", "HP value") on an EDITING surface, with nothing between
+ *  one character's block and the next. Two halves, both needed: the
  *  card is a `role="group"` named for the character (the boundary), and every control inside runs its name
  *  through the tracker kit's `subject` grammar (the disambiguation). Either alone still collides — a group
  *  boundary does not rename the controls, and unique names alone leave no structure to navigate by.
  *
- *  …AND THE SUBJECT IS NOT THE RAW NAME (#1531). Both halves above are built on the display name, so two
- *  participant entries carrying the SAME name (legal — #1366 keys distinct spellings distinctly, identical ones
- *  stay allowed) put the region straight back where it started: two groups sharing one label, and every
+ *  …AND THE SUBJECT IS NOT THE RAW NAME. Both halves above are built on the display name, so two participant
+ *  entries carrying the SAME name (legal — distinct spellings key distinctly, identical ones stay allowed)
+ *  would put the region straight back where it started: two groups sharing one label, and every
  *  control name duplicated across them. The card is handed a `subject` that `actorSubjects` has already
  *  qualified where — and only where — it collides.
  *
- *  There is no relationship badge here (R2). It joined a seated character to a scene-npc row by
- *  `presentCharacters[].characterId` — a field NO writer in the tree ever set, so the badge rendered for
- *  nobody. A stance is a NPC actor's datum (it lives on `identity`, and the Scene card is its home); a seated
+ *  There is no relationship badge here: no writer sets `presentCharacters[].characterId`, so a join from a
+ *  seated character to a scene-npc row would render for nobody. A stance is a NPC actor's datum (it lives on `identity`, and the Scene card is its home); a seated
  *  member's relationship to the player is the story's, not a tracked plane's. */
 function RpgStatusCard({ actor, subject, edit, onOpen }: RpgStatusCardProps): ReactElement {
   const volatile = actor.volatile;
@@ -210,22 +208,17 @@ function RpgStatusCard({ actor, subject, edit, onOpen }: RpgStatusCardProps): Re
       <Stack gap="field" data-slot="rpg-status-card" role="group" aria-label={subject}>
         <Row gap="block" align="center" justify="between">
           <Row gap="field" align="center" className="min-inline-0">
-            <Button
-              intent="ghost"
-              size="inline"
-              onClick={onOpen}
-              aria-label={`Open ${subject}`}
-              title={`Open ${subject}'s sheet`}
-              className="px-field font-medium min-inline-0"
-            >
-              <Avatar size="md" alt={actor.name} hueSeed={actor.name} {...(actor.avatar === undefined ? {} : { src: blobUrl(actor.avatar) })}>
-                {actor.name.slice(0, 1).toUpperCase()}
-              </Avatar>
-              <Text as="span" voice="label" className="truncate">
-                {actor.name}
-              </Text>
-              <Icon icon={ChevronRight} size="xs" className="shrink-0 text-muted-foreground" />
-            </Button>
+            <Tip text={`Open ${subject}'s sheet`}>
+              <Button intent="ghost" size="inline" onClick={onOpen} aria-label={`Open ${subject}`} className="px-field font-medium min-inline-0">
+                <Avatar size="md" alt={actor.name} hueSeed={actor.name} {...(actor.avatar === undefined ? {} : { src: blobUrl(actor.avatar) })}>
+                  {actor.name.slice(0, 1).toUpperCase()}
+                </Avatar>
+                <Text as="span" voice="label" className="truncate">
+                  {actor.name}
+                </Text>
+                <Icon icon={ChevronRight} size="xs" className="shrink-0 text-muted-foreground" />
+              </Button>
+            </Tip>
           </Row>
           {actor.sheet.className === "" ? null : (
             <Text as="span" voice="gloss" className="shrink-0">

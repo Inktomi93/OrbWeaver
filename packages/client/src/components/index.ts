@@ -8,6 +8,7 @@ export { ConfirmDialog } from "./confirm-dialog.tsx";
 export { useSetBinding, useUpdateConnection } from "./connection-role-mutations.ts";
 export { ConnectionRoleSlot } from "./connection-role-slot.tsx";
 export { CountText } from "./count-text.tsx";
+export { DescribedMenuItem } from "./described-menu-item.tsx";
 export { EditableTagChip } from "./editable-tag-chip.tsx";
 export { useEmbedRefusalToastAfterUnmount } from "./embedder-refusal-toast.ts";
 export { EntryListEditor } from "./entry-list-editor.tsx";
@@ -69,6 +70,7 @@ export {
   useSetTagOrder,
 } from "./tag-mutations.ts";
 export { TagPickerDialog } from "./tag-picker-dialog.tsx";
+export { Tip } from "./tip.tsx";
 export { TrailingArrow } from "./trailing-arrow.tsx";
 export type { ConfigLeafAddress, ConfigLeafValue } from "./use-config-leaf.ts";
 export { configLeafKey, useConfigLeaf, useConfigLeafReadings } from "./use-config-leaf.ts";

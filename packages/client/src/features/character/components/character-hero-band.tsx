@@ -1,15 +1,12 @@
 // The hero band — the editor's visual centerpiece. Mixes two commit models by design: the name is a draft
 // card field (bound to the form → save-bar), while the portrait is an immediate identity commit
 // (`character.update` single-key patches). The accent swatch is a read-only preview of the
-// resolved themeOverride — the theme control itself lives in the CONTEXT **Options** tab (the tab that
-// merged the former Appearance + History tabs; `character-options-tab.tsx` mounts `CharacterAppearanceTab`
-// inside it, and the COMPONENT kept the old name while the TAB did not).
+// resolved themeOverride — the theme control itself lives in the CONTEXT pane (`character-options-tab.tsx`
+// mounts `CharacterAppearanceTab`; the component name differs from the tab's).
 //
-// TRUTH-REPAIR 2026-08-30 (#838): this header used to claim "the portrait/star/archive are immediate
-// identity commits" here. The band renders NEITHER a star nor an archive control and never has on this
-// tree — `archived` arrives only as a prop the band reads for display. Archive's affordances for an open
-// character now live in the CONTEXT pane's `Character actions` kebab (the `open` slice of
-// `../lib/character-actions.ts`); the star lives on the list row.
+// The band renders NEITHER a star nor an archive control — `archived` arrives only as a prop the band reads
+// for display. Archive's affordances for an open character live in the CONTEXT pane's `Character actions`
+// kebab (the `open` slice of `../lib/character-actions.ts`); the star lives on the list row.
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { CharacterDetail } from "@orb/contracts/character";
@@ -53,17 +50,12 @@ type CharacterHeroDetail = Pick<
  *  device's own measurement on every subsequent open. */
 const TAG_SUGGESTION_SKELETON_ROWS = 1;
 
-/** THE HERO'S GLANCE ECHOES STAND DOWN WHILE THE CONTEXT PANE IS OPEN (#875 F5, side-eye 2026-08-30) —
- *  the shell marker `shell.css` keys the yield on, exactly as the topbar's identity yields to the chat
- *  band (#846). Measured at 1280 dock+dock: the portrait, the name, `@sabine`, the Own-look trigger and
- *  the chat count all rendered TWICE about 500px apart, and `design-audit` fired `duplicate-action-door`
- *  on "own look" and "chats" in both the desktop and mobile arms without being asked.
+/** THE HERO'S GLANCE ECHOES STAND DOWN WHILE THE CONTEXT PANE IS OPEN — the shell marker `shell.css` keys
+ *  the yield on, exactly as the topbar's identity yields to the chat band. Without it the handle, the
+ *  Own-look trigger and the chat count render twice on one screen, two doors to one action.
  *
- *  #513's RULING SURVIVES — ITS INPUT CHANGED. On 2026-08-22 the CONTEXT pane's echo group was deleted for
- *  exactly this collision, with the reason stated as "the hero prints the handle and its `1 chat ›`"
- *  (`character-overview-card.tsx`). #860's owner-ruled mock then gave the pane a HEAD BAND whose contract
- *  is the artifact's identity — so the de-dup still holds and its direction flips: while the band is on
- *  screen it is the identity's one home, and the hero yields the same three items.
+ *  The pane's HEAD BAND (an owner-ruled mock) is the artifact's identity, so while the band is on screen it
+ *  is the identity's one home, and the hero yields the same three items.
  *
  *  WHAT DOES NOT CARRY THE MARKER, deliberately: the NAME field and the PORTRAIT. They are the only rename
  *  and avatar-replace affordances on the surface — the band's `h2` and its 36px avatar are a GLANCE, these
@@ -108,7 +100,7 @@ export function CharacterHeroBand({
           <Row align="center" gap="row" className="flex-wrap">
             <Stack className="flex-1 min-inline-0" gap="field">
               <form.AppField name="name">{(field): ReactElement => <field.TextField label="Name" />}</form.AppField>
-              <Text voice="gloss" className={`truncate font-mono ${HERO_ECHO_CLASS}`} title={`@${detail.handle}`}>
+              <Text voice="gloss" className={`truncate font-mono ${HERO_ECHO_CLASS}`}>
                 @{detail.handle}
               </Text>
             </Stack>
@@ -121,9 +113,9 @@ export function CharacterHeroBand({
       </Row>
 
       <CharacterTagsRow characterId={detail.id} tags={detail.tags} trpc={trpc} />
-      {/* ITS OWN BOUNDARY, WITH A RESERVATION (#1133 F3). The suggestion strip is the block between the tags
-          row and the greeting, and it arrives on its own read — so before #1133 it rendered at zero height
-          and then pushed the greeting down 84px AFTER the editor had finished filling. Its own boundary
+      {/* ITS OWN BOUNDARY, WITH A RESERVATION. The suggestion strip is the block between the tags row and
+          the greeting, and it arrives on its own read — without a reservation it would render at zero height
+          and then push the greeting down after the editor had finished filling. Its own boundary
           keeps the suspense local (the editor does not re-suspend for it) and `reserveKey` holds the box
           this device measured, so the block below it never moves. */}
       <QueryBoundary
@@ -153,8 +145,8 @@ export function CharacterHeroBand({
  *
  *  The trigger is `size="media"`, never `size="icon"`: media sizes the button from its child, so the
  *  button box IS the portrait box. Under `size="icon"` the button stayed a 34px control while the 64px
- *  avatar painted outside it — over the "Name" label — and the real click target was the invisible 34px
- *  square (stickler 2026-08-01 F2). */
+ *  avatar would paint outside it — over the "Name" label — and the real click target would be the
+ *  invisible control square. */
 function HeroPortrait({ detail, trpc }: { readonly detail: CharacterHeroDetail; readonly trpc: Trpc }): ReactElement {
   const invalidation = useInvalidation();
   const upload = useUploadAsset();
@@ -166,7 +158,7 @@ function HeroPortrait({ detail, trpc }: { readonly detail: CharacterHeroDetail; 
   const onFile = async (file: File): Promise<void> => {
     // `FileTrigger` (unlike `FileDropzone`) carries no size ceiling of its own — pre-check against the
     // served route cap (`UploadCaps.assetUpload`) before the multipart POST, same pattern as the
-    // `.image`/`.databankUpload` FileDropzone consumers (census #72 item 1).
+    // `.image`/`.databankUpload` FileDropzone consumers.
     const oversize = oversizeUploadMessage(file, uploadCaps.assetUpload);
     if (oversize !== undefined) {
       notify.error(oversize);
@@ -174,12 +166,11 @@ function HeroPortrait({ detail, trpc }: { readonly detail: CharacterHeroDetail; 
     }
     try {
       const stored = await upload(file, "avatar");
-      // UPLOAD-COMPLETE IS NOT COMMIT (#1501). The blob landing in the CAS says nothing about the character
-      // row pointing at it: the portrait swapped and the confirm ring flashed on the same tick as `.mutate`,
-      // so a rejected `character.update` left the new face on screen — over a card that still wears the old
-      // one everywhere else — and the ring said it had been saved. Both the preview and its confirmation are
-      // the WRITE's, not the upload's; a failure keeps the old portrait and speaks through the mutation's own
-      // errorToast.
+      // UPLOAD-COMPLETE IS NOT COMMIT. The blob landing in the CAS says nothing about the character row
+      // pointing at it: swapping the portrait on `.mutate` would leave a rejected `character.update`'s new
+      // face on screen — over a card that still wears the old one everywhere else. Both the preview and its
+      // confirmation are the WRITE's, not the upload's; a failure keeps the old portrait and speaks through
+      // the mutation's own errorToast.
       update.mutate(
         { characterId: detail.id, input: { avatarAssetId: stored.assetId } },
         {
@@ -226,47 +217,31 @@ const CONFIRM_MS = 1500;
 /**
  * The card's OWN-LOOK marker — read-only; the theme control lives in the CONTEXT Options tab.
  *
- * IT ONLY RENDERS WHEN THERE IS SOMETHING TO MARK, AND IT SAYS WHAT IT MEANS (side-eye 2026-08-03, the
- * cold-first-timer finding). It used to render unconditionally: a bare 16px dot with an ALL-CAPS
- * "APPEARANCE" floating at the right edge of the Name field, no border, no tooltip, no affordance — the
- * reviewer had to read source to learn it meant "this character carries a theme override", and on a card
- * with NO override it painted the global primary, i.e. a marker for a fact that wasn't true. An override-less
- * card now shows nothing (the honest absence), and a card that carries one says so in words the reader can
- * act on.
+ * IT ONLY RENDERS WHEN THERE IS SOMETHING TO MARK, AND IT SAYS WHAT IT MEANS. An unconditional marker on a
+ * card with NO override would paint the global primary, a marker for a fact that isn't true. An
+ * override-less card shows nothing (the honest absence), and a card that carries one says so in words the
+ * reader can act on.
  */
 export function OwnLookMark({ themeOverride }: { readonly themeOverride: ThemeOverride | null }): ReactElement | null {
   const cardTheme = themeOverride === null ? null : cardEmbeddableSubset(themeOverride);
   if (cardTheme === null || Object.keys(cardTheme).length === 0) {
     return null;
   }
-  // IT NAMES A TAB THAT EXISTS (side-eye 2026-08-18 P2-7), AND IT KEEPS DOING SO. It used to point at "the
-  // Appearance tab" — there was none on Characters, while the Settings modal DOES have an "Appearance"
-  // category, so anyone who followed the sentence landed in the wrong surface entirely. That fixed name
-  // ("the Options tab") then aged out too when #841/#860 split Options into Look · History · Trust; the
-  // theme editor is the **Look** tab's. This string is the one user-facing site that has to follow the
-  // roster in `characters-section.tsx` — a pin reads it there, so a third rename cannot land silently.
-  // ITS NAME IS ITS VISIBLE TEXT, AND ITS GLOSS IS REACHABLE WITHOUT A MOUSE (side-eye 2026-08-30
-  // rail-characters P2, #840). Three defects in one element, all fixed here:
-  //   1. `role="img"` on a text badge — nothing here is an image; it is a status mark.
-  //   2. the accessible name was the whole SENTENCE while the visible text read `Own look`, so the name
-  //      did not contain the label — WCAG 2.5.3 Label-in-Name. (NOT covered by the #512 list-row ruling,
-  //      which is scoped to the row's `title + qualifier` contract.)
-  //   3. `tabIndex: -1` with `title: null` — the sentence reached a screen reader (as the img's name) and a
-  //      mouse (as the hover tooltip) and NOBODY ELSE. It is the only thing on the surface that says where
-  //      the character's look is edited, and a keyboard-only or touch user could never see it.
-  // A real focusable trigger fixes 3 outright: `@orb/ui`'s Tooltip seal threads `aria-describedby` from the
-  // trigger to the popup, so the sentence is the DESCRIPTION and `Own look` is the NAME, which is the
-  // pairing the three defects above were each a symptom of missing.
+  // IT NAMES A TAB THAT EXISTS: the theme editor is the **Look** tab's. This string is the one user-facing
+  // site that has to follow the roster in `characters-section.tsx` — a pin reads it there, so a rename
+  // cannot land silently.
+  // ITS NAME IS ITS VISIBLE TEXT, AND ITS GLOSS IS REACHABLE WITHOUT A MOUSE. `Own look` is the NAME (WCAG
+  // 2.5.3 Label-in-Name: the accessible name contains the visible label), and the sentence is the
+  // DESCRIPTION through `@orb/ui`'s Tooltip seal, which threads `aria-describedby` from the trigger. It is a
+  // status mark, not an image, so it takes no `role="img"`.
   //
-  // "TAB AND TAP BOTH REACH THE GLOSS" WAS HALF FALSE, AND THAT HALF IS FIXED HERE (#2443, side-eye
-  // 2026-09-19). The claim this comment used to make was refuted at the mechanism: Base UI 1.7.0 builds the
-  // tooltip's hover with `mouseOnly: true` (`tooltip/trigger/TooltipTrigger.js:147`) and its focus path
-  // returns early unless the trigger matches `:focus-visible` (`floating-ui-react/hooks/useFocus.js:104`).
-  // A tap focuses the button but does NOT make it `:focus-visible`, so TAB reached the gloss and TAP did
-  // not — and this sentence is the only thing on the surface that says where the look is edited. The chip
-  // has no other job on press, so the press opens the same sentence as a Popover (the `HintTrigger`
-  // anatomy); hover/`:focus-visible` keep the tooltip, whose `closeOnClick` default dismisses it as the
-  // popover opens, so the two never stack.
+  // TAB AND TAP BOTH REACH THE GLOSS. Base UI builds the tooltip's hover with `mouseOnly: true`
+  // (`tooltip/trigger/TooltipTrigger.js`) and its focus path returns early unless the trigger matches
+  // `:focus-visible` (`floating-ui-react/hooks/useFocus.js`). A tap focuses the button but does NOT make it
+  // `:focus-visible`, and this sentence is the only thing on the surface that says where the look is
+  // edited. The chip has no other job on press, so the press opens the same sentence as a Popover (the
+  // `HintTrigger` anatomy); hover/`:focus-visible` keep the tooltip, whose `closeOnClick` default dismisses
+  // it as the popover opens, so the two never stack.
   const label = "This card carries its own look — edit it in the Look tab.";
   return (
     <Popover>
@@ -275,13 +250,12 @@ export function OwnLookMark({ themeOverride }: { readonly themeOverride: ThemeOv
           render={
             <PopoverTrigger
               render={
-                // THE ACTIONABLE CHIP LIFTS ITS INK (#878 F12): `secondary` + `pill` at the `sm` control step,
+                // THE ACTIONABLE CHIP LIFTS ITS INK: `secondary` + `pill` at the `sm` control step,
                 // the same treatment the chat band's members and memory chips take, so ONE grammar reads across
                 // both bands — the live chip is at the foreground, a datum holds the muted step. (The axis is
                 // COLOUR, not the border: a `soft` Badge draws the same hairline — measured; the note in
-                // chat-recall-indicator.tsx carries it.) It replaces `ghost`+`size="inline"`, which drew nothing
-                // at rest and left the row marking `1 chat` and `1,257 tokens` — which you cannot press — as the
-                // shaped items and this one as bare text.
+                // chat-recall-indicator.tsx carries it.) A `ghost`+`size="inline"` chip would draw nothing at
+                // rest and leave the unpressable datum chips as the row's only shaped items.
                 <Button intent="secondary" shape="pill" size="sm" type="button">
                   <ThemeScope
                     className="shrink-0 rounded-full bg-primary ring-1 ring-border block-(--size-glyph-xs) inline-(--size-glyph-xs)"
@@ -289,18 +263,14 @@ export function OwnLookMark({ themeOverride }: { readonly themeOverride: ThemeOv
                   >
                     {null}
                   </ThemeScope>
-                  {/* The kicker register at its own weight (#573): this mark was micro-caps-muted at REGULAR
-                      weight — the same micro-caps tag `kicker` paints, one axis short of it. `interactiveKicker`,
-                      not `kicker` (#875 F6, 2026-08-30): this text is the VISIBLE LABEL OF A BUTTON, and `kicker`
-                      is the 10.5px micro step — under the 11px readable floor the context rail beside it refused
-                      to break ("the readable-floor ruling stands", context-rail.tsx). design-audit measured it as
-                      `undersized-ui-text` on both bands in every arm. Same instrument register, readable step. */}
-                  {/* `as="span"`, NOT the `<Text>` default `<p>` (side-eye 2026-09-02 nit 26, in BOTH homes —
-                      this component renders in the CONTENT header and again in the CONTEXT band, so one edit
-                      fixes two). `<button>` takes PHRASING content only: React-DOM constructs the tree so nothing
-                      reparents at runtime, but an HTML parser (SSR/hydration, an ariaSnapshot round trip) closes
-                      the button at the `<p>` and re-parents everything after it. Same voice, same accessible
-                      name — this is the `character-facet-row.tsx` #235 fix, applied to the site that missed it. */}
+                  {/* The kicker register at its own weight. `interactiveKicker`, not `kicker`: this text is the
+                      VISIBLE LABEL OF A BUTTON, and `kicker` is the micro step — under the readable floor the
+                      context rail beside it keeps ("the readable-floor ruling stands", context-rail.tsx). Same
+                      instrument register, readable step. */}
+                  {/* `as="span"`, NOT the `<Text>` default `<p>` (this component renders in the CONTENT header
+                      and again in the CONTEXT band). `<button>` takes PHRASING content only: React-DOM constructs
+                      the tree so nothing reparents at runtime, but an HTML parser (SSR/hydration, an ariaSnapshot
+                      round trip) closes the button at the `<p>` and re-parents everything after it. */}
                   <Text as="span" voice="interactiveKicker" ink="inherit">
                     Own look
                   </Text>
@@ -346,10 +316,9 @@ function HeroActions({
           <Icon icon={ChevronRight} size="sm" />
         </Button>
       ) : null}
-      {/* THE NAME IS STATIC AND `aria-pressed` CARRIES THE STATE (side-eye 2026-08-30 rail-characters P2,
-          #840). It used to flip BOTH — `Hide spoilers`/`false` → `Show spoilers`/`true` — so the ON state
-          announced as "Show spoilers, toggle button, PRESSED", i.e. "showing is on", while the spoilers
-          were in fact hidden. ARIA APG allows either half, never both: a flipping name describes the next
+      {/* THE NAME IS STATIC AND `aria-pressed` CARRIES THE STATE. Flipping BOTH — `Hide spoilers`/`false`
+          → `Show spoilers`/`true` — would announce the ON state as "Show spoilers, toggle button, PRESSED",
+          i.e. "showing is on", while the spoilers are hidden. ARIA APG allows either half, never both: a flipping name describes the next
           ACTION, `aria-pressed` describes the current STATE, and a control doing both inverts its meaning
           in exactly one of its two states. `Select multiple` on this same surface is the correct model
           (static name, `aria-pressed` false→true), which is what makes this a defect and not a style. */}

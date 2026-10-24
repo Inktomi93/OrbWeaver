@@ -1,17 +1,14 @@
-// The Scene tab's CAST section — the on-stage cards AND the R2 "Known characters" disclosure. Split out of
+// The Scene tab's CAST section — the on-stage cards AND the "Known characters" disclosure. Split out of
 // `rpg-scene-tab.tsx` for the component-size gate; the two lists are ONE anatomy, so they live together.
 //
-// R2 — THE OFFSTAGE NPC IS FINALLY A PERSON THE HOST CAN SEE. A departure used to DESTROY an npc's
-// identity row (name, emoji, mood, relationship, the standing guides) while her tracked state survived on a
-// plane NO surface projected: the host could not read her, edit her or remove her, and the model could still
-// be told to wound her. Departure is a PRESENCE drop now, and everything is retained — so the disclosure
+// THE OFFSTAGE NPC IS A PERSON THE HOST CAN SEE. Departure is a PRESENCE drop, and everything is retained —
+// identity row (name, emoji, mood, relationship, the standing guides) and tracked state — so the disclosure
 // below is where the retained person lives: readable, editable through the SAME card the stage uses, and
 // DISMISSABLE (`rpg.dismissActor`, the gesture the actor plane's additive merge policy always named and
 // never had).
 //
-// Every edit here is an OP on the actor's own row — identity and volatile alike. It used to be a whole-
-// `presentCharacters` IMAGE rebuilt from the live npcs on every keystroke, which pinned the ENTIRE plane on
-// one NPC's mood edit and could only ever author the members this client could see.
+// Every edit here is an OP on the actor's own row — identity and volatile alike — never a whole-plane image
+// rebuilt from the live npcs, which would pin the ENTIRE plane on one NPC's mood edit.
 
 import type { RpgActorRef, RpgActorView, RpgNpcGuideField, RpgNpcRef, RpgRelationship, RpgTrackerDef, RpgTrackerEntry } from "@orb/contracts/rpg";
 import { meterDisplayNumber, RPG_NPC_GUIDE_FIELDS, trackerCeiling, trackerReading } from "@orb/contracts/rpg";
@@ -22,6 +19,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
+import { Tip } from "#components";
 import { actorKey } from "../lib/actor-key.ts";
 import { RELATIONSHIP_GLYPHS } from "../lib/glyphs.ts";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
@@ -29,7 +27,7 @@ import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
 import { MeterRow, NpcCard } from "./tracker-blocks/index.ts";
 
-/** The standing guides this actor actually carries (RV-11) — spread onto the card so an UNWRITTEN guide is
+/** The standing guides this actor actually carries — spread onto the card so an UNWRITTEN guide is
  *  simply absent (no line, never a "none" placeholder). The story authors them; the host may correct what is
  *  there, and there is nothing honest to show for one nobody has written. */
 function guideProps(identity: NonNullable<RpgActorView["identity"]>): Partial<Record<RpgNpcGuideField, string>> {
@@ -153,14 +151,12 @@ export function SceneNpcs({
   );
 }
 
-/** THE KNOWN-CHARACTERS DISCLOSURE (R2) — every npc the game has met who is NOT on stage.
+/** THE KNOWN-CHARACTERS DISCLOSURE — every npc the game has met who is NOT on stage.
  *
- *  This section is the visible half of the reshape. Departure used to DESTROY an NPC's identity while keeping
- *  her tracked state in a plane no surface projected, so the state was simultaneously permanent and invisible:
- *  the host could not see her, edit her, or remove her, and the model could still be told to wound her. Now
- *  departure is a presence drop and nothing else, and this is where the retained person lives — readable,
+ *  Departure is a presence drop and nothing else, so retained state is never invisible: this is where the
+ *  retained person lives — readable,
  *  editable through the same card the stage uses, DISMISSABLE (`rpg.dismissActor`, the gesture the plane's
- *  additive merge policy always named and never had) and — R4 — PROMOTABLE (`rpg.promoteActor`): the recurring
+ *  additive merge policy names) and PROMOTABLE (`rpg.promoteActor`): the recurring
  *  stranger earns a real character card and a seat in the room. The two durable doorways home here together,
  *  and only here: the on-stage cards are the NOW window, and neither of these is a move in the scene.
  *
@@ -175,17 +171,18 @@ export function SceneKnownCharacters({ offstage, edit }: { readonly offstage: re
     <Stack gap="field" data-slot="rpg-known-characters">
       <Row gap="field" align="center" justify="between">
         <Kicker>Known characters — {offstage.length}</Kicker>
-        <Button
-          intent="ghost"
-          size="sm"
-          aria-expanded={open}
-          aria-label={open ? "Hide known characters" : "Show known characters"}
-          title={open ? "Hide the characters who are not in this scene" : "Characters the story has met who are not in this scene"}
-          onClick={(): void => setOpen(!open)}
-        >
-          <Icon icon={open ? ChevronDown : ChevronRight} size="xs" />
-          {open ? "Hide" : "Show"}
-        </Button>
+        <Tip text={open ? "Hide the characters who are not in this scene" : "Characters the story has met who are not in this scene"}>
+          <Button
+            intent="ghost"
+            size="sm"
+            aria-expanded={open}
+            aria-label={open ? "Hide known characters" : "Show known characters"}
+            onClick={(): void => setOpen(!open)}
+          >
+            <Icon icon={open ? ChevronDown : ChevronRight} size="xs" />
+            {open ? "Hide" : "Show"}
+          </Button>
+        </Tip>
       </Row>
       {open ? (
         <Stack gap="field">
@@ -254,27 +251,19 @@ function KnownCharacterDoorways({ actor, edit }: { readonly actor: RpgActorView;
       {/* PERMISSION-shaped ABSENCE, not a disabled control: a participant actor has nothing to promote (she already
           has a card), so the doorway simply is not there for one. */}
       {ref.kind === "npc" ? (
-        <Button
-          intent="ghost"
-          size="sm"
-          aria-label={`Promote ${actor.name} to the room's characters`}
-          title={`Give ${actor.name} a character card and a seat in this room`}
-          onClick={(): void => setPending("promote")}
-        >
-          <Icon icon={UserPlus} size="xs" />
-          Promote
-        </Button>
+        <Tip text={`Give ${actor.name} a character card and a seat in this room`}>
+          <Button intent="ghost" size="sm" aria-label={`Promote ${actor.name} to the room's characters`} onClick={(): void => setPending("promote")}>
+            <Icon icon={UserPlus} size="xs" />
+            Promote
+          </Button>
+        </Tip>
       ) : null}
-      <Button
-        intent="ghost"
-        size="sm"
-        aria-label={`Dismiss ${actor.name}`}
-        title={`Forget ${actor.name} — removes their state from this game`}
-        onClick={(): void => setPending("dismiss")}
-      >
-        <Icon icon={X} size="xs" />
-        Dismiss
-      </Button>
+      <Tip text={`Forget ${actor.name} — removes their state from this game`}>
+        <Button intent="ghost" size="sm" aria-label={`Dismiss ${actor.name}`} onClick={(): void => setPending("dismiss")}>
+          <Icon icon={X} size="xs" />
+          Dismiss
+        </Button>
+      </Tip>
     </Row>
   );
 }

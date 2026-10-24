@@ -23,10 +23,10 @@ export interface ChatHeaderTitleProps {
   readonly canRename: boolean;
 }
 
-/** The participants, leading. Its full value is the tooltip (the ellipsis is the layout's floor). */
+/** The participants, leading (the ellipsis is the layout's floor). */
 function ParticipantsText({ label }: { readonly label: string }): ReactElement {
   return (
-    <Text voice="promoted" className="shell-topbar-title truncate min-inline-0" title={label}>
+    <Text voice="promoted" className="shell-topbar-title truncate min-inline-0">
       {label}
     </Text>
   );
@@ -46,7 +46,7 @@ function TitleText({ label, roomName, createdAt }: Pick<ChatHeaderTitleProps, "l
     <>
       <ParticipantsText label={label} />
       {roomName === null ? null : (
-        <Text as="span" voice="quiet" className="shell-topbar-subtitle truncate min-inline-0" title={roomName}>
+        <Text as="span" voice="quiet" className="shell-topbar-subtitle truncate min-inline-0">
           {roomName}
         </Text>
       )}
