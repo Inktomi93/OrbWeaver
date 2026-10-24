@@ -90,6 +90,8 @@ export interface ServerHarnessOptions extends Partial<Pick<ServicesDeps, "secret
   readonly runtimeSpan?: NonNullable<ServicesDeps["providerSeams"]>["span"];
   readonly modelKernelModule?: NonNullable<NonNullable<ServicesDeps["providerSeams"]>["localLight"]>["kernelModule"];
   readonly allowRemoteModels?: NonNullable<NonNullable<ServicesDeps["providerSeams"]>["localLight"]>["allowRemoteModels"];
+  /** The production sessions crypto both the boot-owner step and the graph receive; a test passes one to spy on it. */
+  readonly sessionsCrypto?: ServicesDeps["sessionsCrypto"];
 }
 
 export type UnclaimedServerHarnessOptions = Omit<ServerHarnessOptions, "ownerId" | "authConfig"> & {
@@ -350,12 +352,13 @@ async function prepareHarnessOwner(
     clock,
     idSource,
     rolePolicy,
-  }: Pick<HarnessConstruction, "db" | "clock" | "idSource" | "rolePolicy"> & { readonly wiringDb: ServicesDeps["db"] },
+    sessionsCrypto,
+  }: Pick<HarnessConstruction, "db" | "clock" | "idSource" | "rolePolicy"> & Pick<ServicesDeps, "sessionsCrypto"> & { readonly wiringDb: ServicesDeps["db"] },
 ): Promise<Pick<BootOwner, "ownerId" | "ownersBoundBeforeAssembly">> {
   if (options.ownerId !== undefined) {
     return { ownerId: options.ownerId ?? undefined, ownersBoundBeforeAssembly: [] };
   }
-  return await prepareBootOwner({ db, wiringDb, now: clock.now, idSource, rolePolicy, sessionSecret: SESSION_SECRET, ownerSeed: {} });
+  return await prepareBootOwner({ db, wiringDb, now: clock.now, idSource, rolePolicy, sessionSecret: SESSION_SECRET, sessionsCrypto, ownerSeed: {} });
 }
 
 const ACTOR_HANDLE_PREFIX = "actor";
@@ -573,9 +576,10 @@ export async function createServerHarness(
     options,
   );
   const inputs: HarnessConstruction = { db, env, clock, idSource, timers, authConfig, rolePolicy, rootDir };
-  const { createHttpApp: assembleHttp, createServices, createShareGraph, UNSUPERVISED_RESTART } = await import("@orb/server/entry/compose");
+  const { createHttpApp: assembleHttp, createServices, createShareGraph, SessionsCrypto, UNSUPERVISED_RESTART } = await import("@orb/server/entry/compose");
   const wiringDb = databaseHandle(db);
-  const harnessOwner = await prepareHarnessOwner(options, { ...inputs, wiringDb });
+  const sessionsCrypto = options.sessionsCrypto ?? SessionsCrypto.production();
+  const harnessOwner = await prepareHarnessOwner(options, { ...inputs, wiringDb, sessionsCrypto });
   const { ownerId } = harnessOwner;
   const listener = createBinding<Readonly<AddressInfo>>("Share execution requires the server harness native listener");
   const shareInputs = shareInputsFor(options, inputs, () => listener.read().port);
@@ -600,6 +604,7 @@ export async function createServerHarness(
     secretBoxKey: options.secretBoxKey ?? null,
     ...replicaOf(options),
     sessionSecret: SESSION_SECRET,
+    sessionsCrypto,
     casDir,
     variantDir,
     importStagingDir,

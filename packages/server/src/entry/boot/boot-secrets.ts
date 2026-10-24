@@ -2,19 +2,15 @@
 // row depends on it; otherwise the boot refuses and names the file, because a new secret would orphan
 // every sealed credential, or every local password, session and live invite link.
 
-import type { Db } from "@orb/db";
-import { chatInvites, sessions, userCredentials } from "@orb/db";
-import { and, eq, gt, isNull, or } from "drizzle-orm";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { hasRedeemableInvite } from "#domain/chat";
+import { hasSealedCredentials } from "#domain/credentials";
 import { createSettleSessionSecret } from "#domain/sessions";
 import type { BootSecretResolution, KeyfileReport } from "#infra/crypto";
 import { loadOrCreateKeyfile } from "#infra/crypto";
 
-const LIMIT_ONE = 1;
-// The one invite state whose token can still be redeemed, so whose peppered hash still has to match.
-const LIVE_INVITE_STATUS = "pending";
-
 export interface BootSecretsDeps {
-  readonly db: Db;
+  readonly db: DatabaseHandle;
   readonly now: () => number;
   readonly credentialsKey: BootSecretResolution<Buffer>;
   readonly sessionSecret: BootSecretResolution<string>;
@@ -26,26 +22,6 @@ export interface BootSecretsDeps {
 export interface BootSecrets {
   readonly secretBoxKey: Buffer | null;
   readonly sessionSecret: string | null;
-}
-
-async function hasSealedCredentials(db: Db): Promise<boolean> {
-  const rows = await db.select({ id: userCredentials.id }).from(userCredentials).limit(LIMIT_ONE);
-  return rows.length > 0;
-}
-
-// The pepper's dependents: a local password hash, a session token hash, and a chat invite whose token hash
-// can still be redeemed (`pending`, and either open-ended or not yet expired).
-async function hasSessionTokenOrInviteDependents(db: Db, now: number): Promise<boolean> {
-  const sessionRows = await db.select({ id: sessions.id }).from(sessions).limit(LIMIT_ONE);
-  if (sessionRows.length > 0) {
-    return true;
-  }
-  const liveInvites = await db
-    .select({ id: chatInvites.id })
-    .from(chatInvites)
-    .where(and(eq(chatInvites.status, LIVE_INVITE_STATUS), or(isNull(chatInvites.expiresAt), gt(chatInvites.expiresAt, now))))
-    .limit(LIMIT_ONE);
-  return liveInvites.length > 0;
 }
 
 function missingCredentialsKeyRefusal(path: string): string {
@@ -70,10 +46,12 @@ export async function settleBootSecrets(deps: BootSecretsDeps): Promise<BootSecr
   let sessionSecret: string | null;
   if (deps.sessionSecret.kind === "absent") {
     const at = deps.now();
+    // The sessions verb probes its own password and session-token rows first; a redeemable invite's token hash
+    // is peppered with the same secret, so chat's invite probe is the other dependent.
     sessionSecret = await createSettleSessionSecret({
       db: deps.db,
       resolution: deps.sessionSecret,
-      hasOtherDependents: () => hasSessionTokenOrInviteDependents(deps.db, at),
+      hasOtherDependents: () => hasRedeemableInvite(deps.db, at),
       createKeyfile: (path) => loadOrCreateKeyfile(path, deps.reportKeyfile)?.toString("hex") ?? null,
     })();
   } else {

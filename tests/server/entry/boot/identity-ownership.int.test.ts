@@ -47,7 +47,7 @@ test("another account's actual password blocks a missing pepper after credential
   const sessionPath = join(directory, SECRET_FILE_NAMES.sessionSecret);
   await expect(
     settleBootSecrets({
-      db: root.db,
+      db: databaseHandle(root.db),
       now: root.clock.now,
       credentialsKey: { kind: "absent", path: credentialPath },
       sessionSecret: { kind: "absent", path: sessionPath },

@@ -35,7 +35,7 @@ import {
   seedThemes,
   seedUserContent,
 } from "@orb/server/entry/boot";
-import { createProcessSeams, createServices, NO_SHARE_RELAY, SESSIONS_CRYPTO, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
+import { createProcessSeams, createServices, NO_SHARE_RELAY, SessionsCrypto, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
 import { env } from "@orb/server/foundation/env";
 import { and, desc, eq } from "drizzle-orm";
 import { print } from "../../floor/artifacts/artifacts.ts";
@@ -109,13 +109,14 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
   const ownersBoundBeforeCompose: UserId[] = [];
   const wiringDb = databaseHandle(db);
   const seams = createProcessSeams();
+  const sessionsCrypto = SessionsCrypto.production();
   const bootSessions = createSessionsService({
     rolePolicy,
     db: wiringDb,
     now,
     sessionSecret,
     idSource: seams.idSource,
-    crypto: SESSIONS_CRYPTO,
+    crypto: sessionsCrypto,
     seedUserConnections: createLocalLightUserSeed({
       db: wiringDb,
       now,
@@ -140,6 +141,7 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
     casDir: env.ASSETS_DIR,
     variantDir: env.DATA_LAYOUT.variants,
     sessionSecret,
+    sessionsCrypto,
     holder: "seed-chat",
     // A seed run has no supervisor, so `admin.restart` refuses here.
     serverRestart: UNSUPERVISED_RESTART,

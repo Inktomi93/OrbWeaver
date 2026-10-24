@@ -6,7 +6,7 @@ import { users } from "@orb/db";
 import type { ExternalId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsCryptoOps } from "@orb/server/domain/sessions";
-import { SESSIONS_CRYPTO } from "@orb/server/entry/compose";
+import { SessionsCrypto } from "@orb/server/entry/compose";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
@@ -26,8 +26,8 @@ const STORED_SEPARATOR = "$";
 const UNAUTHORIZED = 401;
 const OK = 200;
 
-// The real factory, held before any spy so the probes below build hashers without being observed.
-const realCreatePasswordHasher = SESSIONS_CRYPTO.createPasswordHasher;
+// The real factory, from an instance no spy wraps, so the probes below build hashers without being observed.
+const realCreatePasswordHasher = SessionsCrypto.production().createPasswordHasher;
 
 interface ObservedRoot extends AsyncDisposable {
   readonly root: ServerTestHarness;
@@ -38,16 +38,17 @@ interface ObservedRoot extends AsyncDisposable {
   readonly login: (handle: Handle, password: string) => Promise<number>;
 }
 
-// Spies the crypto ops object the composition root hands to the sessions service (Spine-Testing §3), so the
-// verifier under observation is the production one the real login route reaches.
+// Spies the production crypto ops the root hands to the sessions service (Spine-Testing §3), so the verifier
+// under observation is the production one the real login route reaches.
 async function observedLocalRoot(): Promise<ObservedRoot> {
   let observed: { readonly verify: ObservedRoot["verify"]; readonly dummyHash: string } | undefined;
-  const factory = vi.spyOn(SESSIONS_CRYPTO, "createPasswordHasher").mockImplementation((pepper) => {
+  const sessionsCrypto = SessionsCrypto.production();
+  const factory = vi.spyOn(sessionsCrypto, "createPasswordHasher").mockImplementation((pepper) => {
     const hasher = realCreatePasswordHasher(pepper);
     observed = { verify: vi.spyOn(hasher, "verify"), dummyHash: hasher.dummyHash };
     return hasher;
   });
-  const root = await createServerHarness({ physicalPeer: () => LAN_PEER, authConfig: { mode: "local", fallback: "deny" } }).finally(() =>
+  const root = await createServerHarness({ physicalPeer: () => LAN_PEER, authConfig: { mode: "local", fallback: "deny" }, sessionsCrypto }).finally(() =>
     factory.mockRestore(),
   );
   if (observed === undefined) {

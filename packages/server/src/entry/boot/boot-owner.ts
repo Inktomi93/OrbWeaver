@@ -7,7 +7,7 @@ import type { IdSource, UserId } from "@orb/kit/ids";
 import type { SessionsRolePolicy, SessionsService } from "#domain/sessions";
 import { createSessionsService } from "#domain/sessions";
 import { getLog } from "#foundation/observability";
-import { SESSIONS_CRYPTO } from "../compose/sessions-crypto.ts";
+import type { SessionsCrypto } from "../compose/sessions-crypto.ts";
 import { createLocalLightUserSeed } from "./seed-local-light.ts";
 import { seedOwner } from "./seed-owner.ts";
 
@@ -24,6 +24,7 @@ export interface BootOwnerInput {
   readonly idSource: IdSource;
   readonly rolePolicy: SessionsRolePolicy;
   readonly sessionSecret: string | null;
+  readonly sessionsCrypto: SessionsCrypto;
   /** `null` in OIDC mode: the IdP's first owner-policy login mints the owner, so boot only reads an existing row. */
   readonly ownerSeed: BootOwnerSeed | null;
 }
@@ -81,7 +82,7 @@ export async function prepareBootOwner(input: BootOwnerInput): Promise<BootOwner
     db: input.wiringDb,
     now: input.now,
     idSource: input.idSource,
-    crypto: SESSIONS_CRYPTO,
+    crypto: input.sessionsCrypto,
     sessionSecret: input.sessionSecret,
     // The owner row is MINTED here (`seedOwner` → `ensureUser`), so this transient service needs the
     // per-user seed too: on a fresh install the boot sweep would otherwise be the only thing that ever seeds the
