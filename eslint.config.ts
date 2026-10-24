@@ -166,6 +166,33 @@ const SERVER_SYNTAX = [
   },
 ];
 
+// Literal bidi controls and C0/C1 controls make the reviewed text differ from what runs (trojan source).
+// Biome keeps escapes as written; this rejects the literal code points so source spells them as escapes.
+// Ranges are hex text so this file never carries the characters it bans. Tab, LF and CR stay allowed.
+const INVISIBLE_CONTROL_RANGES = [
+  ["0000", "0008"],
+  ["000b", "000c"],
+  ["000e", "001f"],
+  ["007f", "009f"],
+  ["061c", "061c"],
+  ["200e", "200f"],
+  ["202a", "202e"],
+  ["2066", "2069"],
+] as const;
+const HEX = 16;
+const INVISIBLE_CONTROL_CLASS = `[${INVISIBLE_CONTROL_RANGES.map(([first, last]) => `\\u${first}-\\u${last}`).join("")}]`;
+const INVISIBLE_CONTROL_MESSAGE = "Write bidi and C0/C1 control characters as escapes (\\uXXXX); a literal one hides what the code does from review.";
+// Flat config replaces a rule's options per block, so every no-restricted-syntax block must spread this entry.
+const INVISIBLE_CONTROL_SYNTAX = {
+  selector: `:matches(Literal[raw=/${INVISIBLE_CONTROL_CLASS}/], TemplateElement[value.raw=/${INVISIBLE_CONTROL_CLASS}/], JSXText[raw=/${INVISIBLE_CONTROL_CLASS}/])`,
+  message: INVISIBLE_CONTROL_MESSAGE,
+};
+// no-warning-comments matches each term as a plain substring when it holds no word character.
+const INVISIBLE_CONTROL_TERMS = INVISIBLE_CONTROL_RANGES.flatMap(([firstHex, lastHex]) => {
+  const first = Number.parseInt(firstHex, HEX);
+  return Array.from({ length: Number.parseInt(lastHex, HEX) - first + 1 }, (_, offset) => String.fromCodePoint(first + offset));
+});
+
 const CLIENT_SRC = "packages/client/src/**/*.{ts,tsx}";
 
 function rootSources(...refs: string[]): string[] {
@@ -229,6 +256,8 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
         { object: "Object", property: "setPrototypeOf", message: "Create the intended object without replacing its prototype." },
         { object: "Reflect", property: "setPrototypeOf", message: "Create the intended object without replacing its prototype." },
       ],
+      "no-restricted-syntax": ["error", INVISIBLE_CONTROL_SYNTAX],
+      "no-warning-comments": ["error", { terms: INVISIBLE_CONTROL_TERMS, location: "anywhere" }],
     },
   },
   {
@@ -947,12 +976,13 @@ export default [
     files: ["packages/server/src/domain/settings/**/*.{ts,tsx}"],
     rules: { "no-restricted-imports": ["error", { patterns: [PNG_CHUNK_IMPORT] }] },
   },
-  { files: rootSources("@server", "@inference"), rules: { "no-restricted-syntax": ["error", ...SERVER_SYNTAX] } },
+  { files: rootSources("@server", "@inference"), rules: { "no-restricted-syntax": ["error", INVISIBLE_CONTROL_SYNTAX, ...SERVER_SYNTAX] } },
   {
     files: ["packages/server/src/domain/settings/seed-themes.ts", "packages/server/src/domain/preset/seed.ts"],
     rules: {
       "no-restricted-syntax": [
         "error",
+        INVISIBLE_CONTROL_SYNTAX,
         ...SERVER_SYNTAX,
         {
           selector:
@@ -1071,7 +1101,13 @@ export default [
     // process environment at call time by design with no parameter to pass the value through.
     ignores: ["tests/tooling/**", "**/*.test-d.ts"],
     rules: {
-      "no-restricted-syntax": ["error", INTERNAL_MODULE_MOCK_RESTRICTION, EXTERNAL_MODULE_MOCK_RESTRICTION, ...TEST_ENVIRONMENT_RESTRICTIONS],
+      "no-restricted-syntax": [
+        "error",
+        INVISIBLE_CONTROL_SYNTAX,
+        INTERNAL_MODULE_MOCK_RESTRICTION,
+        EXTERNAL_MODULE_MOCK_RESTRICTION,
+        ...TEST_ENVIRONMENT_RESTRICTIONS,
+      ],
     },
   },
   {
@@ -1079,6 +1115,7 @@ export default [
     rules: {
       "no-restricted-syntax": [
         "error",
+        INVISIBLE_CONTROL_SYNTAX,
         INTERNAL_MODULE_MOCK_RESTRICTION,
         EXTERNAL_MODULE_MOCK_RESTRICTION,
         ...TEST_ENVIRONMENT_RESTRICTIONS,

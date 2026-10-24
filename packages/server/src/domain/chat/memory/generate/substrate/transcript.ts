@@ -134,9 +134,9 @@ export function blockHash(prefix: string, rows: readonly MsgRow[]): string {
   for (const r of rows) {
     h.update("\u0000");
     h.update(r.characterId ?? r.authorUserId ?? r.role);
-    h.update("");
+    h.update("\u0001");
     h.update(r.personaId ?? "");
-    h.update("");
+    h.update("\u0001");
     h.update(r.content);
   }
   return h.digest("hex");
