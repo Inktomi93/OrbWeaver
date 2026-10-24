@@ -224,7 +224,7 @@ const SERVER_DOORS = [
     .map((target) => `^${RegExp.escape(target.replace(/^\.\//u, "packages/server/"))}$`),
 ];
 // The suites that import a production constant from another module's door (Spine-Testing §9 imports constants from
-// their home): each line names the constant and why the suite needs its literal. No wire carries any of them.
+// their home): each line names the constant and why the suite needs it. No wire carries any of them.
 const SERVER_TEST_REACHES = {
   "tests/server/domain/settings/persistence/seed-ledger-tags.int.test.ts": {
     "domain/character": "DEFAULT_CHARACTER_CARDS: the authored tag list is the expected set the seeded card's tag rows must equal",
@@ -242,7 +242,7 @@ const SERVER_TEST_REACHES = {
     "infra/relay": "RELAY_STOP_GRACE_MS: the suite advances the scheduler by exactly the relay's own stop grace",
   },
   "tests/server/entry/compose/scoped-timers.int.test.ts": {
-    "domain/plugin": "pluginMacroName: the suite writes the macro token a guest registers, named by the plugin domain's own rule",
+    "domain/plugin": "pluginMacroName: no wire lists a plugin's registered macros, so the suite names the token by the plugin domain's own rule",
   },
 } as const satisfies Readonly<Record<string, Readonly<Record<string, string>>>>;
 

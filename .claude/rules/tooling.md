@@ -19,6 +19,8 @@ TypeScript configs are checked-in configuration. Edit the owning config directly
 `biome.json`, `eslint.config.ts` and `.dependency-cruiser.ts` are hand-authored on purpose, so a
 current violation cannot mint its own permission. Fix the native lint or dependency-cruiser rule that owns the constraint.
 
+Give every dependency-cruiser forbidden rule a unique name. Under `extends`, a later rule with the same name replaces the earlier one.
+
 ## Biome and tsc
 
 Run Biome before typecheck. Biome's `noUselessUndefined` deletes a trailing `return undefined;` as a
