@@ -33,11 +33,11 @@ import { createListSnapshots } from "./verbs/list-snapshots.ts";
 import { createListTagGroups } from "./verbs/list-tag-groups.ts";
 import { createLoadCardText } from "./verbs/load-card-text.ts";
 import { createMintSyntheticGroupCharacter } from "./verbs/mint-synthetic-group-character.ts";
-
 import { createRemove } from "./verbs/remove.ts";
 import { createRestore } from "./verbs/restore.ts";
 import { createRewriteGreeting } from "./verbs/rewrite-greeting.ts";
 import { createSnapshot } from "./verbs/snapshot.ts";
+import { createStampImportIdentity } from "./verbs/stamp-import-identity.ts";
 import { createUpdate } from "./verbs/update.ts";
 
 export function createCharacterService(input: CharacterAssemblyInput): CharacterService {
@@ -70,6 +70,7 @@ export function createCharacterService(input: CharacterAssemblyInput): Character
     listEmbeddableCharacterIds: createListEmbeddableCharacterIds(ctx),
     findByImportHash: createFindByImportHash(ctx),
     attachImportedArt: createAttachImportedArt(ctx),
+    stampImportIdentity: createStampImportIdentity(ctx),
     findByImportedFrom: createFindByImportedFrom(ctx),
     mintSyntheticGroupCharacter: createMintSyntheticGroupCharacter(ctx),
     findSyntheticGroupCharacter: createFindSyntheticGroupCharacter(ctx),

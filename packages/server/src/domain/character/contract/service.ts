@@ -38,6 +38,7 @@ import type {
   RestoreParams,
   RewriteGreetingParams,
   SnapshotParams,
+  StampImportIdentityParams,
   UpdateCharacterParams,
 } from "./params.ts";
 import type {
@@ -158,6 +159,9 @@ export interface CharacterService {
   /** Give an art-less owned character its avatar and re-key its import identity, in one conditional write.
    *  True when the row took the art; false when it already had one (nothing written). */
   readonly attachImportedArt: (params: AttachImportedArtParams) => Promise<boolean>;
+  /** Give a seeded card the import identity its own export carries, so restoring that export onto a box that
+   *  seeded the same card dedups. True when written; false when the row already carries an identity. */
+  readonly stampImportIdentity: (params: StampImportIdentityParams) => Promise<boolean>;
   /** Batched provenance oracle (hub-injected): the owner's characters carrying any of `values` in
    *  `importedFrom` — backs the hub search page's already-imported markers (doc 03 §2.1). */
   readonly findByImportedFrom: (params: FindByImportedFromParams) => Promise<ImportedFromMatch[]>;

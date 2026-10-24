@@ -31,6 +31,8 @@ import {
   migrateSeededCardBackgrounds,
 } from "#domain/character";
 import { createLoadChatAssetRefs, createLoadCoParticipantOwner, migrateSeededRoomBackgrounds } from "#domain/chat";
+import type { ExportService } from "#domain/export";
+import { cardPngIdentity } from "#domain/import";
 import type { DefaultPersonaSeeder, DefaultPersonaSeederDeps, PersonaService } from "#domain/persona";
 import { createDefaultPersonaSeeder, createFindSeededDefault } from "#domain/persona";
 import type { PresetService } from "#domain/preset";
@@ -102,6 +104,9 @@ export interface AssetsCharacterComposeDeps {
   /** World-info's lorebook import pair, composed after this seam (world-info builds over character). Read at
    *  seed time, never during composition. */
   readonly getLorebookImport: () => { readonly importLorebook: BulkImportLorebook; readonly hasPrimaryBook: HasPrimaryBook };
+  /** Request-time forward-ref: the card export (composes after this seam), whose bytes a seeded card's import
+   *  identity is read from. */
+  readonly getCardExport: () => Pick<ExportService, "exportCharacter">;
 }
 
 /** The assets/character compose product. `materializeBackgroundOp` is the constructed op the keystone rebinds
@@ -237,6 +242,14 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     characters: character,
     attachCardTag: createSeedCardTag((params) => tag.attachCardTagByName(params)),
     ...seedAvatars.character,
+    // The identity is read off the card's real export, so it is the one a restore of that export computes.
+    stampOwnIdentity: async (principal, characterId) => {
+      const exported = await deps.getCardExport().exportCharacter({ principal, characterId });
+      const identity = exported === null ? null : await cardPngIdentity(exported.bytes);
+      if (identity !== null) {
+        await character.stampImportIdentity({ ownerId: principal.userId, characterId, importHash: identity.importHash });
+      }
+    },
     markWelcomeAssistant: createMarkWelcomeAssistant(settings),
   });
 

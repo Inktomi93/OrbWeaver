@@ -848,6 +848,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     getPreset: () => preset,
     getPersona: () => persona,
     getLorebookImport: () => worldInfoCompose.importWorldInfo,
+    getCardExport: () => exportService,
     resolveUtilityPresetParams,
   });
   const { assets, character, galleryCtx, characterSeeder, personaSeeder, backgroundSeeder, characterOwned } = assetsCharacter;

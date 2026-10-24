@@ -592,6 +592,22 @@ test("a full library restore into a fresh box reports no failures and leaves no 
   });
 });
 
+/** Every character the owner holds, by name, sorted. */
+async function characterNames(root: ServerTestHarness): Promise<string[]> {
+  return (await (await root.internalCallerFor(root.ownerId)).character.list({})).items.map((item) => item.name).toSorted();
+}
+
+test("a seeded library restored into a fresh box keeps one copy of each starter card", async () => {
+  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  const sourceNames = await characterNames(source);
+  const bundle = await exportLibrary(source);
+
+  await using target = await signedInBox();
+  const outcome = await restore(target, bundle);
+
+  expect({ outcome, names: await characterNames(target) }).toEqual({ outcome: { status: "succeeded", failed: 0 }, names: sourceNames });
+});
+
 test("restoring bytes the owner holds under another id repairs that asset when its stored file is gone", async () => {
   await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
   const owner = await source.principalFor(source.ownerId);

@@ -706,6 +706,19 @@ export async function attachArtIfMissing(
   return rows.length > 0;
 }
 
+/** Write `importHash` onto an owned character that carries no import identity yet. True when written. */
+export async function stampImportHashIfUnset(
+  db: Db,
+  { ownerId, characterId, importHash }: { ownerId: UserId; characterId: CharacterId; importHash: string },
+): Promise<boolean> {
+  const rows = await db
+    .update(characters)
+    .set({ importHash })
+    .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId), isNull(characters.importHash)))
+    .returning({ id: characters.id });
+  return rows.length > 0;
+}
+
 /** Batched provenance oracle: the owner's characters whose `importedFrom` is any of `values` (one indexed
  *  `IN` read). Empty `values` short-circuits to no rows (never a bare `IN ()`). Owner-scoped in the WHERE, so
  *  a different owner's same-provenance card is never returned. */

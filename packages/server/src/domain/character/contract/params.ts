@@ -185,6 +185,13 @@ export interface AttachImportedArtParams {
   readonly importHash: string;
 }
 
+/** A shipped card's own export identity (seeder-injected, internal), written only onto a row that has none. */
+export interface StampImportIdentityParams {
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId;
+  readonly importHash: string;
+}
+
 /** By-handle lookup (seeder-injected, internal): the default-card seeder's partial-rerun resolve path. */
 export interface FindByHandleParams {
   readonly ownerId: UserId;
