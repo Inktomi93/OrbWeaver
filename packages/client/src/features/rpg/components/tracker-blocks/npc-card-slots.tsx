@@ -10,6 +10,7 @@ import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
+import { UNSET_DATUM } from "../../lib/unset-datum.ts";
 import { RelationshipBadge } from "./relationship-badge.tsx";
 import { TrackerChip } from "./tracker-blocks.tsx";
 import { TrackerValue } from "./tracker-value.tsx";
@@ -171,9 +172,9 @@ function NpcMood({ name, mood, onEditMood }: NpcMoodProps): ReactElement | null 
         </Text>
         <TrackerValue
           ariaLabel={`${name} mood`}
-          restAriaLabel={`${name} mood: ${moodLabel === "" ? "—" : moodLabel}`}
+          restAriaLabel={`${name} mood: ${moodLabel === "" ? UNSET_DATUM : moodLabel}`}
           display={mood ?? ""}
-          placeholder="—"
+          placeholder={UNSET_DATUM}
           onEdit={onEditMood}
           wrap={true}
           className="!w-auto min-w-0 max-w-full field-sizing-content"

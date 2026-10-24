@@ -21,3 +21,5 @@ export { makeRpgHudRegion } from "./lib/rpg-hud-region.tsx";
 // The per-row "what this turn did" disclosure (TOOLCALLS-INVISIBLE, arm A) — a `message-footer` surface
 // contribution the door appends to chat's surface registry. The seam's first real tenant.
 export { rpgTurnToolCallsSurface } from "./lib/turn-tool-calls-surface.tsx";
+// The unset-value mark every rpg value control shows, exported for the rpg panel CT assertions.
+export { UNSET_DATUM } from "./lib/unset-datum.ts";

@@ -2,6 +2,7 @@
 // an unset value on every rpg panel until the game sets it, then shows and computes its own value: the dice
 // ability check, the Status meter, the character attribute cell and the Scene character card. Reads come from a
 // real corpus root.
+import { UNSET_DATUM } from "@orb/client/features/rpg";
 import type { RpgStatProfile } from "@orb/contracts/rpg";
 import { RPG_PROFILE_D20, rpgAttributeModifier, rpgNpcSlug, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { ChatId, UserId } from "@orb/kit/ids";
@@ -20,9 +21,6 @@ const NPC_NAME = "Mira Vale";
 const TRACKER_MAX = 10;
 const TRACKER_VALUE = 3;
 const SCORE = 14;
-/** The em-dash an rpg value control shows for an unset reading. Production spells it inside `.tsx` modules a
- *  node-side spec cannot import. */
-const UNSET_DATUM = "—";
 
 type Routes = TrpcRoutes<
   "sessions.me" | "settings.getUserSettings" | "chat.getChat" | "chat.listMessages" | "rpg.getGame" | "rpg.getTrackerView" | "rpg.revealHidden"

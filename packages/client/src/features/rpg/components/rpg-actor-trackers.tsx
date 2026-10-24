@@ -39,6 +39,7 @@ import { useState } from "react";
 import { CHIP_TOUCH_FLOOR_AT_COARSE, VALUE_ROW_TOUCH_FLOOR_AT_COARSE } from "#components";
 import { resolveConditionGlyph } from "../lib/glyphs.ts";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
+import { UNSET_DATUM } from "../lib/unset-datum.ts";
 import { RpgFieldLock } from "./rpg-field-lock.tsx";
 import { MeterRow, TrackerValue, trackerActionName, trackerFieldName } from "./tracker-blocks/index.ts";
 
@@ -170,7 +171,7 @@ function ActorTrackerText({
       <TrackerValue
         ariaLabel={trackerFieldName(`${def.label} value`, subject)}
         display={display}
-        placeholder="—"
+        placeholder={UNSET_DATUM}
         {...(edit === undefined ? {} : { onEdit: (next: string): void => edit.onEditTrackerText(def.key, next) })}
         className="min-w-0 flex-1 text-right"
       />
