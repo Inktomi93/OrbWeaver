@@ -132,7 +132,7 @@ const bugReportInput = z.object({
  * The READ probes are deliberately untouched: they carry no body, and a cross-site page cannot read their
  * response.
  */
-function bugReportJsonOnly(log: Logger | undefined): MiddlewareHandler {
+function bugReportJsonOnly(log: Logger): MiddlewareHandler {
   return (c, next) => {
     const contentType = c.req.header("content-type");
     if (contentType?.toLowerCase().startsWith(BUG_REPORT_MEDIA_TYPE) === true) {

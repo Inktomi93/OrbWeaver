@@ -11,7 +11,7 @@ import type { IntegrityReport } from "../../contract/inspect.ts";
 export type { IntegrityReport } from "../../contract/inspect.ts";
 
 /** Run both integrity pragmas; a finding warns through the request's logger or else the root's `base`. */
-export async function integrityProbe(db: Db, base?: Logger): Promise<IntegrityReport> {
+export async function integrityProbe(db: Db, base: Logger): Promise<IntegrityReport> {
   const fk = await db.all<Record<string, unknown>>(sql`PRAGMA foreign_key_check`);
   const ic = await db.all<Record<string, string>>(sql`PRAGMA integrity_check`);
   // integrity_check returns one unnamed column per row — take the value without keying on the (snake_case)

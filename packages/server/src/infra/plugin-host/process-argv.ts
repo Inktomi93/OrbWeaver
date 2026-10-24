@@ -1,9 +1,12 @@
+import type { LogLevel } from "@orb/contracts/settings";
+import { LOG_LEVELS } from "@orb/contracts/settings";
 import type { NodeEnvironment } from "#primitives/node-environment";
 import { NODE_ENVIRONMENTS } from "#primitives/node-environment";
 import type { PluginBrokerArguments, PluginBrokerWatchdogArguments } from "./contract/process-protocol.ts";
 
-const ARGUMENT_COUNT = 4;
+const ARGUMENT_COUNT = 5;
 const NODE_ENVIRONMENT_INDEX = 3;
+const LOG_LEVEL_INDEX = 4;
 function requiredArgument(arguments_: readonly string[], index: number, label: string): string {
   const value = arguments_[index];
   if (value === undefined || value.length === 0) {
@@ -26,6 +29,14 @@ function nodeEnvironment(arguments_: readonly string[], index: number): NodeEnvi
   }
   return environment;
 }
+function logLevel(arguments_: readonly string[], index: number): LogLevel {
+  const value = requiredArgument(arguments_, index, "log level");
+  const level = LOG_LEVELS.find((candidate) => candidate === value);
+  if (level === undefined) {
+    throw new Error("plugin broker: log level is invalid");
+  }
+  return level;
+}
 function requireArgumentCount(arguments_: readonly string[]): void {
   if (arguments_.length !== ARGUMENT_COUNT) {
     throw new Error(`plugin broker: expected ${ARGUMENT_COUNT} launch arguments`);
@@ -39,11 +50,12 @@ export function parsePluginBrokerWatchdogArguments(arguments_: readonly string[]
     workerMaximum: positiveSafeInteger(arguments_, 1, "worker maximum"),
     memoryLimitBytes: positiveSafeInteger(arguments_, 2, "memory limit"),
     nodeEnvironment: nodeEnvironment(arguments_, NODE_ENVIRONMENT_INDEX),
+    logLevel: logLevel(arguments_, LOG_LEVEL_INDEX),
   };
 }
 /** The watchdog's broker launch arguments, in the order {@link parsePluginBrokerArguments} reads them. */
 export function formatPluginBrokerArguments(args: PluginBrokerArguments): string[] {
-  return [args.directory, String(args.workerMaximum), args.generation, args.nodeEnvironment];
+  return [args.directory, String(args.workerMaximum), args.generation, args.nodeEnvironment, args.logLevel];
 }
 /** Parse the watchdog's broker launch, including its new transport generation. */
 export function parsePluginBrokerArguments(arguments_: readonly string[]): PluginBrokerArguments {
@@ -53,5 +65,6 @@ export function parsePluginBrokerArguments(arguments_: readonly string[]): Plugi
     workerMaximum: positiveSafeInteger(arguments_, 1, "worker maximum"),
     generation: requiredArgument(arguments_, 2, "broker generation"),
     nodeEnvironment: nodeEnvironment(arguments_, NODE_ENVIRONMENT_INDEX),
+    logLevel: logLevel(arguments_, LOG_LEVEL_INDEX),
   };
 }

@@ -42,6 +42,7 @@ import { RowActionsMenu } from "#components";
 import type { ListPaneHeaderView } from "#lib";
 import { openModal } from "#state";
 import { useDatabankBankHealth, useDatabankCensus } from "../hooks/use-databank-census.ts";
+import { DATABANK_SWEEPS_CHECK_FAILED, DATABANK_SWEEPS_NEED_DOCUMENT } from "../lib/databank-copy.ts";
 import { DATABANK_SECTION_LABEL } from "../lib/databank-section-label.ts";
 import { useOwnerSweep } from "./use-owner-sweep.tsx";
 
@@ -69,6 +70,12 @@ export function useDatabankListHeader(): ListPaneHeaderView {
   // header renders nothing at 0), but stated as the absence it is. A SPREAD rather than `count={…?.total}`:
   // under `exactOptionalPropertyTypes`, "absent" and "present and undefined" are different types, and absent
   // is what an unread census is.
+  let closedReason: string | null = null;
+  if (health.isError) {
+    closedReason = DATABANK_SWEEPS_CHECK_FAILED;
+  } else if (bankIsEmpty) {
+    closedReason = DATABANK_SWEEPS_NEED_DOCUMENT;
+  }
   const countProp = census === undefined ? {} : { count: census };
 
   return {
@@ -81,8 +88,11 @@ export function useDatabankListHeader(): ListPaneHeaderView {
                   takes no pointer events and no focus, so a tooltip on it is a sentence the one reader who
                   needs it can never reach. The group's label is announced with the items it labels. */}
           <MenuGroup>
-            {bankIsEmpty ? <MenuGroupLabel>Add a document first — these sweeps run over your whole bank.</MenuGroupLabel> : null}
-            {health.isError ? <MenuGroupLabel>Couldn't check your bank, so these sweeps stay closed.</MenuGroupLabel> : null}
+            {/* ONE label, whose text is the current reason. Two sibling labels mount together when a failed
+                    re-read keeps an empty census, and the group's `aria-labelledby` is a single slot: the
+                    later label unmounting clears it and the survivor never re-registers, leaving the group
+                    unnamed. A failed read outranks "empty" — the census it kept may be stale. */}
+            {closedReason === null ? null : <MenuGroupLabel>{closedReason}</MenuGroupLabel>}
             {/* The failed arm's way out. A group label cannot be actioned and a disabled item cannot be
                     hovered, so the re-read is its own item — the same "a read failure is never a dead end"
                     rule `QueryErrorState` carries, spelled in the one grammar a menu has. */}

@@ -65,6 +65,8 @@ export interface SandboxMembrane {
   /** The broker Worker's app-performed egress: the app pins every guest `net.fetch` to the instance's manifest
    *  `netHosts` through the graph's scoped egress. The broker itself has no network. */
   readonly netEgress: PluginNetEgress;
+  /** The Worker root's logger a detached host-call failure reports through. */
+  readonly log: MembraneRuntime["log"];
 }
 
 /** A guest error projected to plain data (never a live handle across the boundary). `line` is the guest
@@ -228,6 +230,7 @@ export class Sandbox implements Disposable {
             grants: opts.membrane.grants,
             bridge: opts.membrane.bridge,
             netEgress: opts.membrane.netEgress,
+            log: opts.membrane.log,
             currentChat: (): InvocationChat | null => state.chat,
             currentToken: (): string | null => state.token,
             inFlight: state.inFlight,

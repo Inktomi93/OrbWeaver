@@ -65,7 +65,8 @@ import {
 import type { VarOp } from "@orb/kit/macro";
 import type { QuickJSContext, QuickJSDeferredPromise, QuickJSHandle } from "quickjs-emscripten-core";
 import { z } from "zod";
-import { superviseDetached } from "#src/foundation/observability/tracing.ts";
+import type { Logger } from "#src/foundation/observability/contract/logging.ts";
+import { createDetachedSupervision } from "#src/foundation/observability/tracing.ts";
 import {
   HOST_CALLS_IN_FLIGHT_MAX,
   HOST_FN_ARGS_MAX_BYTES,
@@ -112,6 +113,8 @@ export interface InFlightCounter {
  *  collector (the resident-handler runtime — the Sandbox keeps the guest handler handle, the membrane hands it
  *  over). */
 export interface MembraneRuntime {
+  /** The Worker root's logger. */
+  readonly log: Logger;
   readonly grants: ReadonlySet<PluginCapability>;
   readonly bridge: PluginBridge;
   readonly currentChat: () => InvocationChat | null;
@@ -226,6 +229,7 @@ interface AsyncFnSpec {
   readonly name: string;
   readonly inFlight: InFlightCounter;
   readonly pending: Set<QuickJSDeferredPromise>;
+  readonly log: Logger;
   readonly impl: (args: readonly unknown[], signal: AbortSignal) => Promise<unknown>;
 }
 
@@ -548,6 +552,7 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
     name: "setState",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "ui.setState");
       const surfaceId = args[0];
@@ -650,6 +655,7 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
     name: "toast",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "ui.toast");
       const named = args[0];
@@ -671,6 +677,7 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
     name: "openDialog",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "ui.openDialog");
       const surfaceId = args[0];
@@ -728,6 +735,7 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
     name: "listMessages",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "chat.listMessages");
       const { chatId } = resolveChat(runtime, args[0]);
@@ -741,6 +749,7 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
     name: "getVariables",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "chat.getVariables");
       const { chatId } = resolveChat(runtime, args[0]);
@@ -754,6 +763,7 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
     name: "listCharacters",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "chat.listCharacters");
       const { chatId } = resolveChat(runtime, args[0]);
@@ -765,6 +775,7 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
     name: "applyVariableOps",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "chat.applyVariableOps");
       const scope = resolveChat(runtime, args[0]);
@@ -793,6 +804,7 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
     name: "requestTurn",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "chat.requestTurn");
       const scope = resolveChat(runtime, args[0]);
@@ -815,6 +827,7 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
     name: "surfaceQuickReply",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "chat.surfaceQuickReply");
       const scope = resolveChat(runtime, args[0]);
@@ -914,6 +927,7 @@ function setWorldInfo(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     name: "listBooks",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "worldInfo.listBooks");
       const { chatId } = resolveChat(runtime, args[0]);
@@ -927,6 +941,7 @@ function setWorldInfo(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     name: "listEntries",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "worldInfo.listEntries");
       const { chatId } = resolveChat(runtime, args[0]);
@@ -941,6 +956,7 @@ function setWorldInfo(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     name: "upsertEntry",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "worldInfo.upsertEntry");
       const scope = resolveChat(runtime, args[0]);
@@ -972,6 +988,7 @@ function setAssets(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
     name: "read",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "assets.read");
       const assetId = args[0];
@@ -995,6 +1012,7 @@ function setSearch(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
     name: "documents",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "search.documents");
       const queryText = args[0];
@@ -1023,6 +1041,7 @@ function setImagery(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
     name: "generatePicture",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "imagery.generatePicture");
       const scope = resolveChat(runtime, args[0]);
@@ -1043,6 +1062,7 @@ function setVariables(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     name: "get",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "variables.get");
       return await runtime.bridge.variables.get(String(args[0]), invocationLiveness(signal));
@@ -1052,6 +1072,7 @@ function setVariables(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     name: "set",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "variables.set");
       await runtime.bridge.variables.set(String(args[0]), String(args[1]), invocationLiveness(signal));
@@ -1062,6 +1083,7 @@ function setVariables(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     name: "delete",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "variables.delete");
       await runtime.bridge.variables.delete(String(args[0]), invocationLiveness(signal));
@@ -1081,6 +1103,7 @@ function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
     name: "get",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "storage.get");
       return await runtime.bridge.storage.get(String(args[0]), invocationLiveness(signal));
@@ -1090,6 +1113,7 @@ function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
     name: "set",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "storage.set");
       await runtime.bridge.storage.set(String(args[0]), String(args[1]), invocationLiveness(signal));
@@ -1105,6 +1129,7 @@ function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
     name: "compareAndSet",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "storage.compareAndSet");
       const expected = typeof args[1] === "string" ? args[1] : null;
@@ -1115,6 +1140,7 @@ function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
     name: "delete",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "storage.delete");
       await runtime.bridge.storage.delete(String(args[0]), invocationLiveness(signal));
@@ -1125,6 +1151,7 @@ function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
     name: "list",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "storage.list");
       const prefix = typeof args[0] === "string" ? args[0] : undefined;
@@ -1156,6 +1183,7 @@ function setNotifications(ctx: QuickJSContext, surface: QuickJSHandle, runtime: 
     name: "post",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "notifications.post");
       const scope = resolveChat(runtime, args[0]);
@@ -1188,6 +1216,7 @@ function setLlm(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRu
     name: "quiet",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "llm.quiet");
       const prompt = args[0];
@@ -1216,6 +1245,7 @@ function setDatabank(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membr
     name: "ingest",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "databank.ingest");
       const doc = (typeof args[0] === "object" && args[0] !== null ? args[0] : {}) as { name?: unknown; text?: unknown };
@@ -1240,6 +1270,7 @@ function setCharacter(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     name: "ingest",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "character.ingest");
       const card = args[0];
@@ -1261,6 +1292,7 @@ function setCharacter(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     name: "ingestAsset",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "character.ingestAsset");
       const assetId = args[0];
@@ -1280,6 +1312,7 @@ function setCharacter(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     name: "setCardData",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "character.setCardData");
       const characterId = args[0];
@@ -1301,6 +1334,7 @@ function setCharacter(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     name: "getCardData",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "character.getCardData");
       const characterId = args[0];
@@ -1616,6 +1650,7 @@ function setPubsub(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
     name: "emit",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "pubsub.emit");
       const name = args[0];
@@ -1646,6 +1681,7 @@ function setNet(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRu
     name: "fetch",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "net.fetch");
       const url = args[0];
@@ -1659,6 +1695,7 @@ function setNet(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRu
     name: "fetchAsset",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
+    log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "net.fetchAsset");
       const url = args[0];
@@ -1739,7 +1776,8 @@ function chargeValue(value: unknown, pending: unknown[]): number {
  *  this does NOT claim to be: a spend CEILING (the D46 2026-07-24 amendment retired the plugin spend tier
  *  deliberately). It is a concurrency bound, and it is now true. */
 function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSpec): void {
-  const { name, inFlight, pending, impl } = spec;
+  const { name, inFlight, pending, impl, log } = spec;
+  const { superviseDetached } = createDetachedSupervision(log);
   using fn = ctx.newFunction(name, (...argHandles) => {
     // `deferred` is deliberately NOT `using`: its lifetime ESCAPES this scope (its `.handle` is the guest's
     // promise and the Sandbox's `pending` drain owns teardown). Same for the positional `argHandles`,

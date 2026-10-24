@@ -7,7 +7,6 @@ import type { LogLevel } from "@orb/contracts/settings";
 import type { ExternalId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { installKind } from "@orb/server/foundation/env";
-import { logger } from "@orb/server/foundation/observability";
 import { captureAccountViews } from "./corpus-auth.ts";
 import { captureNotificationViews } from "./factories/notification.ts";
 import { expect, test } from "./fixtures.ts";
@@ -26,7 +25,7 @@ test("native account and sharing suppliers keep request identity and owner-only 
   const adminCaller = await root.internalCallerFor(admin.id);
   const memberCaller = await root.internalCallerFor(member.id);
   const privateText = "Private diagnostic prose and opaque request material must not become public output.";
-  logger.error(
+  root.logger.error(
     { event: "supplier.capture", path: "sessions.me", code: "SUPPLIER_TEST", err: new Error(privateText), privateBody: privateText },
     `output supplier: ${privateText}`,
   );

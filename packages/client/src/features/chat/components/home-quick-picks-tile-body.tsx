@@ -6,6 +6,7 @@
 // It suspends; home mounts every tile body inside its own `QueryBoundary`.
 
 import { blobUrl } from "@orb/contracts/assets";
+import { HOME_QUICK_PICKS_LIMIT } from "@orb/contracts/character";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
@@ -22,8 +23,6 @@ import { useId, useLayoutEffect, useRef, useState } from "react";
 import { useStartChat, useTRPC } from "#data";
 import { resumeChat, setActiveSection } from "#state";
 
-/** The most faces this shelf reads; it shows as many of them as fit one row beside the door. */
-export const QUICK_PICKS_LIMIT = 6;
 const TRACK_SEPARATOR = /\s+/u;
 
 /** A face that only peeks into the swipe row already counts as visible, so the browser's own focus scroll leaves it
@@ -54,8 +53,8 @@ export function HomeQuickPicksTileBody(): ReactElement {
     // `startChat` rejects from `useStartChat`'s mutateAsync (data/use-start-chat.ts), whose errorToast "Couldn't start the chat." is the surface. Ends if useStartChat drops errorToast.
     startChat({ characterIds: [characterId] }).catch(() => undefined); // useStartChat's errorToast owns failure.
   };
-  const { data: page } = useSuspenseQuery(trpc.character.list.queryOptions({ limit: QUICK_PICKS_LIMIT }));
-  const quickPicks = page.items.slice(0, QUICK_PICKS_LIMIT);
+  const { data: page } = useSuspenseQuery(trpc.character.list.queryOptions({ limit: HOME_QUICK_PICKS_LIMIT }));
+  const quickPicks = page.items.slice(0, HOME_QUICK_PICKS_LIMIT);
   const hasFaces = quickPicks.length > 0;
   // ONE ROW OF FACES THAT FIT, THEN THE DOOR (owner ruling on 0254). The shelf's own auto-fill track count is
   // how many fixed cells fit its width; the door takes one, the faces take the rest, so the tile is one row

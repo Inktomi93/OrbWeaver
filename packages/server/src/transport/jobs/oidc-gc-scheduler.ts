@@ -59,12 +59,13 @@ async function runOidcGc(deps: OidcGcSchedulerDeps): Promise<void> {
  * on shutdown. A sweep error never takes the process down — it is logged and the next tick retries.
  */
 export function startOidcGcScheduler(deps: OidcGcSchedulerDeps): () => void {
-  const log = getLog(deps.logger).child({ component: LOG_COMPONENT });
+  // Built per line: a child copies the root's level when built, so one made at start would miss a later override.
+  const log = (): Logger => getLog(deps.logger).child({ component: LOG_COMPONENT });
   const intervalMs = deps.intervalMs ?? OIDC_GC_INTERVAL_MS;
 
   const safeSweep = (): void => {
     const completion = runOidcGc(deps).catch((err: unknown) => {
-      log.error({ err }, "oidc-gc: sweep failed (next tick retries)");
+      log().error({ err }, "oidc-gc: sweep failed (next tick retries)");
     });
     deps.track?.(completion);
   };

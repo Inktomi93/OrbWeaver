@@ -476,6 +476,9 @@ export type UpdateCharacterInput = z.infer<typeof updateCharacterSchema>;
 // row it decorates is where the datum belongs.
 export const CHARACTER_LIST_DEFAULT_LIMIT = 50;
 export const CHARACTER_LIST_MAX_LIMIT = 500;
+/** The most faces Home's shelf reads; it shows as many as fit one row beside the door. Homed here so the test corpus
+ *  captures the page the client asks for. */
+export const HOME_QUICK_PICKS_LIMIT = 6;
 
 // Each sort needs its own keyset, so the wire cursor is discriminated by `sort`. Default = `recent`.
 // `bestScore`/`worstScore` read the derived refinery signal (`characters.refinery.score`, 1-10), which is

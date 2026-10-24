@@ -26,6 +26,17 @@ test("capabilities refuse missing, mismatched and unknown discriminators or payl
   }
 });
 
+test("a rerank window is a positive whole token count and its inputs come from the closed modality vocabulary", () => {
+  // The window bounds the client-side pair clamp: a zero window would clamp every pair to nothing and score it anyway.
+  for (const maxInputTokens of [0, -512, 512.5]) {
+    expect(capabilitySchema.safeParse({ kind: "rerank", rerank: { ...RERANK_FLOOR, maxInputTokens } }).success).toBe(false);
+  }
+  expect(capabilitySchema.safeParse({ kind: "rerank", rerank: { ...RERANK_FLOOR, input: ["hologram"] } }).success).toBe(false);
+  expect(capabilitySchema.parse({ kind: "rerank", rerank: { ...RERANK_FLOOR, maxInputTokens: 8192, input: ["text", "image"] } })).toMatchObject({
+    rerank: { maxInputTokens: 8192, input: ["text", "image"] },
+  });
+});
+
 test("a valid capability strips another kind's payload", () => {
   expect(capabilitySchema.parse({ kind: "embedding", embedding: EMBEDDING_FLOOR, generation: GENERATION_FLOOR })).toEqual({
     kind: "embedding",

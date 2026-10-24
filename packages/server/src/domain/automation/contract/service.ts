@@ -22,7 +22,7 @@ import type { Can } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import type { AutomationFireId, AutomationRuleId, AutomationSuggestionId } from "@orb/kit/ids";
 import type { SerialLanes } from "@orb/kit/serial-lanes";
-import type { Logger, superviseDetached } from "#foundation/observability";
+import type { DetachedSupervision, Logger } from "#foundation/observability";
 import type {
   ApplyProseRewrite,
   ArmDispatch,
@@ -214,7 +214,7 @@ export interface AutomationService {
 /** The injected event sources + the service front door the watcher subsystem consumes (assembled at
  *  entry/compose — the buddy-observer / agents-scheduler env precedent). */
 export interface AutomationWatcherEnv {
-  readonly supervise: typeof superviseDetached;
+  readonly supervise: DetachedSupervision["superviseDetached"];
   /** The root's opaque nonce; it keeps each supervised handler name unique. */
   readonly newOpaqueId: () => string;
   /** The per-chat firehose subscription (the buddy/agents `subscribeAllChatEvents` seam); returns unsubscribe. */

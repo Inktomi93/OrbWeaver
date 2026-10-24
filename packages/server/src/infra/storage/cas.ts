@@ -117,7 +117,7 @@ function isDirSyncUnsupported(error: unknown): boolean {
 // bug. Nothing reads it back, so there is nothing for durable state to hold.
 let dirSyncUnsupportedAnnounced = false;
 
-async function fsyncDir(dir: string, log: Logger | undefined): Promise<void> {
+async function fsyncDir(dir: string, log: Logger): Promise<void> {
   try {
     await using handle = await open(dir, "r");
     await handle.sync();
@@ -135,8 +135,8 @@ async function fsyncDir(dir: string, log: Logger | undefined): Promise<void> {
   }
 }
 
-/** The content-addressed store under `rootDir`; `log` is the root's logger (absent ⇒ the process logger until item 1271 removes it). */
-export function createCas(rootDir: string, log?: Logger): Cas {
+/** The content-addressed store under `rootDir`; `log` is the root's logger. */
+export function createCas(rootDir: string, log: Logger): Cas {
   const tmpDir = join(rootDir, TMP_DIRNAME);
 
   function ownerDir(ownerId: string): string {

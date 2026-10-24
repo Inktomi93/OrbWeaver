@@ -9,7 +9,7 @@ import { createKeyedNoticeThrottle } from "./notice-throttle.ts";
 const UNKNOWN_PEER = "unknown";
 
 /** The unthrottled line: what `resolve` emits when no throttled notice is injected. */
-export function reportRelayedFallback(peerIp: string | undefined, log?: Logger): void {
+export function reportRelayedFallback(peerIp: string | undefined, log: Logger): void {
   securityEvent(
     "owner_fallback_relayed",
     { peerIp: peerIp ?? null },
@@ -19,7 +19,7 @@ export function reportRelayedFallback(peerIp: string | undefined, log?: Logger):
 }
 
 /** One line per peer per hour. `now` is the composition root's clock. */
-export function createRelayedFallbackNotice(now: () => number, log?: Logger): RelayedFallbackNotice {
+export function createRelayedFallbackNotice(now: () => number, log: Logger): RelayedFallbackNotice {
   const throttle = createKeyedNoticeThrottle(now);
   return (peerIp) => {
     throttle(peerIp ?? UNKNOWN_PEER, () => {

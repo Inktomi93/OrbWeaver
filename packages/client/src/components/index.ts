@@ -73,6 +73,7 @@ export { TrailingArrow } from "./trailing-arrow.tsx";
 export type { ConfigLeafAddress, ConfigLeafValue } from "./use-config-leaf.ts";
 export { configLeafKey, useConfigLeaf, useConfigLeafReadings } from "./use-config-leaf.ts";
 export { useEmbedderRebuild } from "./use-embedder-rebuild.ts";
+export { useFirstBootBox } from "./use-first-boot-box.ts";
 export { useModelRunConfirm } from "./use-model-run-confirm.ts";
 export { useRerankModel, useUtilityModel } from "./use-utility-model.ts";
 export type { UserMacrosFormValues } from "./user-macro-editor-dialog.tsx";

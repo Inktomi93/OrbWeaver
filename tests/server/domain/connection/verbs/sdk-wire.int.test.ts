@@ -163,7 +163,7 @@ test("native SDK malformed property paths never survive in error serialization o
       },
     );
   const caseId = ids.uuid();
-  processObservability.logger().error({ err: failure, caseId }, "native SDK malformed wire refusal");
+  root.logger.error({ err: failure, caseId }, "native SDK malformed wire refusal");
   const logged = processObservability.logLines(100).filter((line) => line.includes(caseId));
   expect(logged).toHaveLength(1);
   expect(logged.join("\n")).not.toContain(SDK_TOKEN);
