@@ -44,8 +44,8 @@ export function appearanceMessageRegistryEnabled(): boolean {
 }
 
 /** Collect outside dev. The registry's ONE reader is the agent debug bridge (`agent-bridge-appearance.ts`),
- *  so the bridge's own ungated install is the production caller — which is also what a production-mode
- *  component-test bundle enters through, instead of a `__…ForTest` switch (#1847). Returns the disposer;
+ *  so the bridge's own ungated install is the production caller, and a production-mode component-test
+ *  bundle enters through the same door. Returns the disposer;
  *  the bridge never disposes (a page has one bridge), a CT host that enables it directly does. */
 export function enableAppearanceMessageRegistry(): () => void {
   forcedOn = true;

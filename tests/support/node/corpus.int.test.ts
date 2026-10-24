@@ -27,6 +27,7 @@ import { createCorpusCapsule, loadCorpusFixture, prepareCorpusFixture } from "./
 import { createCorpusRecipe, CORPUS_OWNER_PASSWORD as OWNER_PASSWORD, CORPUS_PROVIDER_KEY as PROVIDER_KEY } from "./corpus-recipe.ts";
 import { seedUserCredential } from "./factories/credentials.ts";
 import { expect, test } from "./fixtures.ts";
+import { NATIVE_OIDC_SETTINGS } from "./oidc-issuer.ts";
 import { createServerHarness } from "./server.ts";
 
 const CLONE_MARKER = 123;
@@ -122,7 +123,21 @@ test("a completed migrated capsule closes its real producers before cloning scru
   const published = await readFile(join(fixture.layout.root, "corpus.json"), "utf8");
   expect(capsule.publishWire()).toBe(published);
   expect(parseCorpusWire(published)).toEqual(loaded.wire);
-  const privateValues = [...capsule.privateCaptures.publicationSecrets, OWNER_PASSWORD, PROVIDER_KEY, key.toString("hex")];
+  // Built from the captures, not from the refusal list `publishWire` already checks, so a secret dropped from that list fails here.
+  const { credential, oidc, chatLifecycle } = capsule.privateCaptures;
+  const privateValues = [
+    OWNER_PASSWORD,
+    PROVIDER_KEY,
+    key.toString("hex"),
+    NATIVE_OIDC_SETTINGS.OIDC_CLIENT_SECRET,
+    credential.row.ciphertext,
+    credential.row.iv,
+    credential.row.tag,
+    oidc.pending.secretHash,
+    ...oidc.transactions.flatMap((row) => [row.state, row.codeVerifier, row.nonce]),
+    ...[...oidc.ownerSessions, ...oidc.joinerSessions].map((row) => row.tokenHash),
+    ...[chatLifecycle.held, chatLifecycle.aborted, chatLifecycle.handoff].map(({ invite }) => invite.tokenHash),
+  ].filter((value) => value !== null);
   expect(privateValues.filter((value) => published.includes(value))).toEqual([]);
   const clone = await createDb(fixture.layout.databaseUrl);
   try {

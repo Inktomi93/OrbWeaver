@@ -30,4 +30,4 @@ The selected specs are `smoke.spec.ts`, `corpus-home-launch.spec.ts` and `live-s
 - The temp-chat launch also reads the started room through `chat.getChat` and requires `temporary`. The picker's teaching sentence is no longer asserted.
 - Proof: `pnpm exec playwright test --list` collects all three files, 13 tests. `pnpm typecheck packages/client/tsconfig.json tsconfig.tests-dom.json` passes. The e2e run needs the stack and is owed.
 
-Other specs still locate controls by literal role names. This item does not cover them.
+No copy-string assertion remains in the three specs. Their other controls and landmarks, such as Chats list, Home content, Message and Search characters, are still located by literal role names, as are the controls in the other specs. This item does not convert them.

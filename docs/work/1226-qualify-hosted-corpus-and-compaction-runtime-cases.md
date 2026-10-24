@@ -57,3 +57,13 @@ Local runs pass because `budget()` stretches each deadline by the host load aver
   | Chat lifecycle | A held turn lock and a handoff that must be released before cloning. |
 
 - The full capsule took 36 to 42 s. The small capsule case takes 3179 to 4372 ms alone, at load 28 on 24 cores. In the four-worker `tests/support` run it crossed the 5 s default at 5017 ms, so it keeps `slow`.
+
+- The capsule case's published-secret check builds its list from the captures, apart from the list `publishWire` refuses on.
+
+- The old capsule case's clone checks that no suite owned now have owners:
+
+  | Check | Owner |
+  | - | - |
+  | Roster, persona and tag reads on a scrubbed clone equal the capture, including the five tag-reach reads, `listTagsWithUsage` and `rosterPreset.applyToChat` | `tests/support/node/corpus-library-clone.int.test.ts`, which now clones with the publication scrub |
+  | A foreign caller gets NOT_FOUND from `rosterPreset.get`, `tag.listAttachedEntities` and `persona.listConnectedCharacters` on the clone | the same suite |
+  | Members re-authenticate on the clone with fresh sessions; a password rotation and a logout each revoke only their own cookie | `tests/support/node/corpus-auth.int.test.ts`, the local clone admission case |
