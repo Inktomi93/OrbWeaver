@@ -29,7 +29,6 @@ const PAYLOAD_TOO_LARGE = 413;
 const CHAT_ROUTE = "/api/import/chat";
 const UPLOAD_FIELD = "file";
 const CHAT_KIND = "chat";
-const IMPORT_FAILED = "import failed";
 
 /** The principal-carrying Hono app the sibling `/api/import/*` registrars take — DERIVED from one of them
  *  rather than re-declaring its env (one home for the shape; a re-spell would also re-spell Hono's
@@ -68,7 +67,7 @@ async function importAll(chat: PortableEntity, ownerId: UserId, files: readonly 
       imported.push({ filename: file.name, created: outcome.created === true });
       memoryChatIds.push(...(outcome.memoryChatIds ?? []));
     } else {
-      failed.push({ filename: file.name, error: outcome.error ?? IMPORT_FAILED });
+      failed.push({ filename: file.name, error: outcome.error });
     }
   }, Promise.resolve());
   return { imported, failed, memoryScope: await deps.settleImportMemory({ ownerId, from, memoryChatIds }) };

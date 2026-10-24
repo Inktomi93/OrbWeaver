@@ -291,7 +291,7 @@ function ReasoningCluster({
                     <Switch checked={on} onCheckedChange={(next): void => field.handleChange(next ? undefined : "none")} />
                   </Field>
                 </SettingTrackRow>
-                {on && control.kind === "effort" ? <EffortField levels={control.effortLevels ?? []} onChange={field.handleChange} value={effort} /> : null}
+                {on && control.kind === "effort" ? <EffortField levels={control.effortLevels} onChange={field.handleChange} value={effort} /> : null}
               </>
             );
           }}

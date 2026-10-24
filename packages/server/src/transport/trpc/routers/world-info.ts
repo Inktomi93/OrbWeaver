@@ -108,9 +108,9 @@ export const worldInfoRouter = t.router({
       if (!outcome.ok) {
         // The refusal REASON reaches the user as words — a book written by a newer orbweaver no longer reads
         // as "not a valid file". The import dialog renders this message.
-        throw new TRPCError({ code: "BAD_REQUEST", message: outcome.error ?? "That file isn't a valid world-info book." });
+        throw new TRPCError({ code: "BAD_REQUEST", message: outcome.error });
       }
-      return { created: outcome.created === true, name: outcome.name ?? null, renamedFrom: outcome.renamedFrom ?? null };
+      return { created: outcome.created === true, name: outcome.name, renamedFrom: outcome.renamedFrom ?? null };
     }),
 
   listEntries: authedProcedure

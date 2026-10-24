@@ -46,9 +46,7 @@ export function usePresetListHeader(): ListPaneHeaderView {
   const onImportOrb = async (fileText: string): Promise<string | null> => {
     const outcome = await importFile.mutateAsync({ fileText });
     if (!outcome.ok) {
-      // `PresetImportOutcome` is a flat optional bag (the bundle path's shape), so `error` is not narrowed
-      // by `ok` — the fallback is a message, never a silent close on a rejected file.
-      return outcome.error ?? "That file isn't a valid orbweaver preset export.";
+      return outcome.error;
     }
     setImportOpen(false);
     if (outcome.created !== true) {

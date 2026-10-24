@@ -78,7 +78,8 @@ const ROW_READ_HOMES = [
 ];
 const PLAYWRIGHT_TESTS = ["tests/**/*.ct.tsx", "tests/**/*.spec.ts", "tests/e2e/**/!(*.test).{ts,tsx}"];
 
-const MOCK_CALL = String.raw`CallExpression:matches([callee.name=/^(mock|doMock)$/], [callee.property.name=/^(mock|doMock)$/], [callee.property.value=/^(mock|doMock)$/])`;
+const MOCK_CALL =
+  "CallExpression:matches([callee.name=/^(mock|doMock)$/], [callee.property.name=/^(mock|doMock)$/], [callee.property.value=/^(mock|doMock)$/])";
 const INTERNAL_MODULE_SPECIFIER = String.raw`:matches([arguments.0.type='Literal'][arguments.0.value=/^(@orb\/|#|\.\.?\/)/], [arguments.0.type='ImportExpression'][arguments.0.source.value=/^(@orb\/|#|\.\.?\/)/])`;
 
 const INTERNAL_MODULE_MOCK_RESTRICTION = {

@@ -242,9 +242,8 @@ function ContentArm({ groups, selection, active, collection }: ContentArmProps):
       <Stack data-slot="config-member-frame" gap="block">
         {/* THE DRILL ROW IS THE MEMBER SURFACE'S (#1747, §3.4) — see `CollectionDrillExit` below for why,
             and for why the host still draws the EXIT while the member's own read is in flight.
-            THE ERROR ARM IS THE BATTERY, UNWRAPPED, and that is gate law rather than a preference:
-            `render-error-via-battery` requires that arrow to be `QueryErrorState`-rooted, so the exit
-            cannot ride along there the way it rides the fallback. It costs nothing the reader needs — the
+            THE ERROR ARM IS THE BATTERY, UNWRAPPED, by convention: the arrow renders `QueryErrorState`
+            directly, never a wrapper, so the exit cannot ride along there the way it rides the fallback. It costs nothing the reader needs — the
             battery's own Retry is the verb for a failed read, the LIST band is still on screen at every
             desktop width, and the phone's topbar carries its own Back. */}
         <QueryBoundary

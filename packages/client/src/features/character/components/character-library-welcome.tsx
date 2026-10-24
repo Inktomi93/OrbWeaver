@@ -151,7 +151,7 @@ type CharacterRow = CharacterListPage["items"][number];
  *  produce — but this shelf's whole cell is now a door INTO that room, so the predicate that admits a face
  *  is the predicate that proves the door. */
 function hasChatted(character: CharacterRow): character is CharacterRow & { readonly lastChatId: ChatId; readonly lastChattedAt: number } {
-  return character.lastChattedAt !== null && character.lastChatId !== null;
+  return character.lastChattedAt !== null;
 }
 
 /** The doors, in the ONE arm this pane owns them (#520 — never two `New`s on the plane). */

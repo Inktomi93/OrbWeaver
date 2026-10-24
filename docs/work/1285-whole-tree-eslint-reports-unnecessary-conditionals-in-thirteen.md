@@ -22,4 +22,4 @@ Each finding is resolved by fixing the type or removing the dead branch, never b
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Each finding was a `??` or comparison the type already ruled out, so the dead branch went; no type needed widening. The two no-overlap comparisons held no bug: `generatedReplyImagePart` tested `image.base64 !== undefined` where `GeneratedImage` guarantees it once `url` is absent, and `hasChatted` tested `lastChatId !== null` where `CharacterSummary` pairs it with `lastChattedAt`. `pnpm lint:eslint packages tooling tests` exit 0, `biome check . --error-on-warnings` exit 0, `pnpm typecheck` exit 0, and the covering suites pass (`portability-import.suite`, `import-bundle`, `import-response-boundaries`, `prompt-cache-prefix.suite`, `chat-import`, `appearance-invariants`).

@@ -126,7 +126,7 @@ function evaluateCascadeRow(
 
 function evaluateCascade(policy: RuntimeAppearanceHistoricalRow, receipt: AppearanceInvariantReceipt, errors: string[], violations: string[]): void {
   if (receipt.css.status !== "ok") {
-    errors.push(`CSS evidence is ${receipt.css.status}: ${receipt.css.error ?? "unknown"}`);
+    errors.push(`CSS evidence is ${receipt.css.status}: ${receipt.css.error}`);
     return;
   }
   if (receipt.cascade.length !== policy.cascade.length) {
@@ -250,7 +250,7 @@ function evaluatePixels(policy: RuntimeAppearanceHistoricalRow, receipt: Appeara
     // pixels — it just measures a FILL-ONLY subject's own painted channel instead of its ink. Excluding
     // it would report a legitimately measured swatch/indicator as an instrument error.
     const framebuffer = pixel.method === "pixel-sample" || pixel.method === "fill-sample";
-    if (pixel.status !== "ok" || !framebuffer || pixel.matchIndex === null || pixel.ratio === null || pixel.requiredRatio === null) {
+    if (pixel.status !== "ok" || !framebuffer || pixel.matchIndex === null) {
       errors.push(`pixel selector ${pixel.selector} lacks a composited framebuffer verdict`);
     } else if (pixel.passed !== true || pixel.ratio < pixel.requiredRatio) {
       violations.push(`pixel selector ${pixel.selector} contrast=${pixel.ratio} is below required=${pixel.requiredRatio}`);

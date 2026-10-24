@@ -20,9 +20,8 @@ export interface QueryErrorStateProps {
    * The CALLER'S OWN SURFACE for this block — its column track, a wallpaper-gated plate.
    *
    * It exists because the alternative was a wrapper, and a wrapper is the one shape that must not happen
-   * here: `render-error-via-battery` REDs a `renderError` arm that does not render this component
-   * directly, precisely so a surface never grows into a second hand-rolled error state (#681 tripped that
-   * gate, correctly). The battery keeps owning what the block SAYS and that Retry really refetches; where
+   * here: a `renderError` arm renders this component directly, so a surface never grows into a second
+   * hand-rolled error state. The battery keeps owning what the block SAYS and that Retry really refetches; where
    * the block sits and what it sits ON is the surface's own knowledge — the chat transcript's error state
    * needs the room's reading plate over art (`BG_PHOTO_ERROR_PLATE`), and `packages/client/src/data`
    * cannot import a feature's constant to know that.

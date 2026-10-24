@@ -161,7 +161,7 @@ function UnderstandingPassProgress({ pass }: { readonly pass: UnderstandingPassV
             enumerates its work reports `current`/`total` and gets a real bar; an atomic k-means reports a
             sentence and keeps the indeterminate one, because a bar with an invented number is worse than no
             bar at all. `aria-live` is the Progress primitive's own. */}
-        <Progress label={pass.stage ?? "Working"} showValue={pass.fraction !== null} value={pass.fraction === null ? null : pass.fraction * PERCENT} />
+        <Progress label={pass.stage} showValue={pass.fraction !== null} value={pass.fraction === null ? null : pass.fraction * PERCENT} />
         {pass.detail === null ? null : <Text voice="gloss">{pass.detail}</Text>}
       </Stack>
     );
