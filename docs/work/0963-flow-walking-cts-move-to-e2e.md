@@ -536,6 +536,12 @@ The deleted line named two CT files that do not exist. Propose this replacement 
 
 When the rebuilds land, extend the line with `tests/e2e/corpus-shell.spec.ts`, `tests/client/features/persona/anchors/first-run-persona-dialog.ct.tsx` and the `app-shell-*.ct.tsx` specs that cover the changed region. The ambient reads the old line called a feed come from the leg C helper `createShellAmbientReads`.
 
+### Rows handed over from 0977
+
+- Character list-header title and create-door widths at the docked 307 and 272 px widths: target `tests/client/features/app-shell/surfaces/app-shell-panels.ct.tsx`, both panes docked at 1280. The widths come from the `.shell-panel` grid and the `@container` query on it, so only the real shell reproduces them.
+- The databank Add dialog's mode strip and footer geometry, teaching-sentence size and Cancel in every arm: target `app-shell-modals.ct.tsx`. Only the shell's `ModalHost` renders the `addDocument` slot.
+- AR16 needs a pure `censusTitle(label, census)` that the section title hooks share (the empty-census rule repeats inline across those hooks); its unit test lands with that extraction.
+
 ## Review
 
 An independent review compared the first reference case map with the reference files, the cited maintained specs, and `tests/support`. Verdict: refuted. The map was close, but one Keep cited evidence that does not exist, a phone navigation family sat in CT while its siblings moved to e2e, two Drops misread the Drop rule, two pure functions had browser cases, and leg C named no source for the shell's ambient reads. The map and the register rows were revised to match.
