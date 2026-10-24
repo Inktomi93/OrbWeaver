@@ -5,7 +5,7 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { SNAPPED_LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
-import { dispatchCommandKey, routeShell, SECTION_PROCEDURES, SHELL_STORIES, seedShellState, touchDrag } from "./app-shell-ct.ts";
+import { dispatchCommandKey, routeRoom, SHELL_STORIES, seedShellState, touchDrag } from "./app-shell-ct.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const LIST = '.shell-panel[data-panel-side="list"]';
@@ -22,7 +22,7 @@ test.beforeAll(async () => {
 });
 
 test.beforeEach(async ({ corpus, page }) => {
-  await routeShell(page, corpus, await root.internalCallerFor(root.ownerId), SECTION_PROCEDURES);
+  await routeRoom(page, corpus, await root.internalCallerFor(root.ownerId));
 });
 
 test.afterAll(async () => {
@@ -316,3 +316,31 @@ test("on a desktop the rail reads first and the content column keeps the one mai
   await expect(page.getByRole("main")).toHaveClass(/shell-content/u);
   await expect(page.locator(LIST)).not.toHaveAttribute("role", "main");
 });
+
+for (const viewport of [NARROWEST, PHONE]) {
+  test(`at ${String(viewport.width)} an open room stands the tab bar down and runs to the grid's bottom edge, and Back restores the bar`, async ({
+    mount,
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await seedShellState(page, { activeSection: "chats" });
+    await mount<typeof AppShellStory>(STORY, {});
+    const tabBar = page.locator(".shell-rail");
+    const grid = page.locator(".shell-grid");
+    await expect(tabBar).toBeVisible();
+    await page.locator(`${LIST} [data-slot="list-row-title"]`).first().click();
+    await expect(page.locator('[data-slot="composer"]')).toBeVisible();
+    await expect(tabBar).toHaveCount(0);
+    await expect(grid).toHaveAttribute("data-room-screen", "true");
+    const gridBox = await grid.boundingBox();
+    await expect
+      .poll(async () => {
+        const main = await page.locator(".shell-main").boundingBox();
+        return (main?.y ?? 0) + (main?.height ?? 0);
+      })
+      .toBeCloseTo((gridBox?.y ?? 0) + (gridBox?.height ?? 0), 0);
+    await page.getByRole("button", { name: "Back to Chats", exact: true }).click();
+    await expect(tabBar).toBeVisible();
+    await expect(grid).not.toHaveAttribute("data-room-screen", /.*/u);
+  });
+}

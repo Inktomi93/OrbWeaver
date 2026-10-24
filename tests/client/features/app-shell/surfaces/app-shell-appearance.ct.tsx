@@ -3,18 +3,25 @@
 
 import { REDUCED_MOTION_ATTR } from "@orb/client/state";
 import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
+import type { ChatId } from "@orb/kit/ids";
 import { AA_NON_TEXT_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
-import { createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { createShellAmbientReads, routeOrbSocket, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { CDPSession, Locator, Page } from "@playwright/test";
-import type { AppShellModalStory, AppShellStory } from "./_app-shell-stories.tsx";
+import type { AppShellModalStory, AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { ShellToPendingStory } from "./_shell-handover-stories.tsx";
-import { PHONE, pixel, resolvedLength, SECTION_PROCEDURES, SHELL_STORIES, seedShellState } from "./app-shell-ct.ts";
+import { PHONE, pixel, ROOM_PROCEDURES, resolvedLength, SECTION_PROCEDURES, SHELL_STORIES, seedShellState } from "./app-shell-ct.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const MODAL_STORY = `${SHELL_STORIES}/AppShellModalStory`;
+const ROOM_STORY = `${SHELL_STORIES}/AppShellRoomStory`;
+const COMPOSER = '[data-slot="composer"]';
+// The roles a corpus room speaks in; no corpus room holds a system message.
+const ROOM_ROLES = ["user", "assistant"] as const;
+// Few enough of a room's last messages that all of them are on screen at the case viewport.
+const TAIL_MESSAGES = 4;
 const HANDOVER = "tests/client/features/app-shell/surfaces/_shell-handover-stories/ShellToPendingStory";
 const LIST = '.shell-panel[data-panel-side="list"]';
 const CONTEXT = '.shell-panel[data-panel-side="context"]';
@@ -24,12 +31,13 @@ const BOTH_DOCKED = { activeSection: "chats", panelOverrides: { chats: { list: "
 // Every axis the cascade cases read, pinned so the corpus viewer's own appearance never decides a case.
 const BASE_APPEARANCE: Partial<AppearanceSettings> = {
   backgroundImageKind: "none",
+  chatStyle: "bubble",
   blurSurfaces: ["panels", "composer", "modals"],
   elevation: "flat",
   reducedMotion: false,
   surfaceTexture: "none",
 };
-const SERVED = SECTION_PROCEDURES.filter((path) => path !== "settings.getUserSettings");
+const SERVED = [...SECTION_PROCEDURES, ...ROOM_PROCEDURES].filter((path) => path !== "settings.getUserSettings");
 // The reduced-motion floor writes `animation-duration: 0.01ms`, a literal with no token; anything under a
 // millisecond is floored, and the unfloored glyph runs at the resolved `--motion-breathe`.
 const FLOORED_MS = 1;
@@ -103,7 +111,35 @@ async function routeAppearance(page: Page, corpus: CorpusWire, appearance: Parti
       ...settings,
       config: { ...settings.config, theme, appearance: { ...settings.config.appearance, ...BASE_APPEARANCE, ...appearance } },
     }),
+    "stream.attach": null,
+    "stream.detach": null,
   });
+  await routeOrbSocket(page, { closeStream: false });
+}
+
+/** A corpus room whose last messages hold both roles, so a bubble of each is on screen. */
+async function groupRoomId(): Promise<ChatId> {
+  const caller = await root.internalCallerFor(root.ownerId);
+  for (const row of (await caller.chat.listChats({ limit: 100 })).items) {
+    const { messages } = await caller.chat.listMessages({ chatId: row.id, limit: TAIL_MESSAGES });
+    const spoken = new Set(messages.map((message) => message.role));
+    if (ROOM_ROLES.every((role) => spoken.has(role))) {
+      return row.id;
+    }
+  }
+  throw new Error("No corpus room ends on both roles");
+}
+
+/** The room's composer and a bubble of each role are on screen. */
+async function roomReady(page: Page): Promise<void> {
+  await expect(page.locator(COMPOSER)).toBeVisible();
+  for (const role of ROOM_ROLES) {
+    await expect(bubble(page, role)).toBeVisible();
+  }
+}
+
+function bubble(page: Page, role: (typeof ROOM_ROLES)[number]): Locator {
+  return page.locator(`[data-role="${role}"] [data-slot="message-bubble"]`).first();
 }
 
 /** The selected theme for a case: the corpus default for dark, the seeded Light theme for light. */
@@ -441,6 +477,61 @@ test.describe("contrast more", () => {
     await expect.poll(() => carrierBlur(pane)).toBe("none");
     await expect.poll(() => fillAlpha(dialog)).toBe(1);
     await expect.poll(() => computed(pane, "border-inline-end-width")).toBe("2px");
+  });
+});
+
+test.describe("in an open room", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize(WIDE);
+    await seedShellState(page, { activeSection: "chats" });
+  });
+
+  test("the glass beats ramp elevation on the composer, each role's bubble and a dialog opened over the room", async ({ corpus, mount, page }) => {
+    await routeAppearance(page, corpus, { blurSurfaces: ["composer", "messages", "modals"], elevation: "ramp" });
+    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: await groupRoomId() });
+    await roomReady(page);
+    await expect(page.locator(".shell-grid")).toHaveAttribute("data-elevation", "ramp");
+    await expect.poll(() => fillAlpha(page.locator(COMPOSER))).toBeLessThan(1);
+    await expect.poll(() => computed(page.locator(COMPOSER), "backdrop-filter")).toContain("blur(");
+    for (const role of ROOM_ROLES) {
+      await expect.poll(() => fillAlpha(bubble(page, role))).toBeLessThan(1);
+      await expect.poll(() => computed(bubble(page, role), "backdrop-filter")).toContain("blur(");
+    }
+    await page.locator(`${LIST} .shell-panel-header`).getByRole("button", { name: "New", exact: true }).click();
+    const dialog = page.locator(DIALOG);
+    await expect(dialog).toBeVisible();
+    await expect.poll(() => fillAlpha(dialog)).toBeLessThan(1);
+    await expect.poll(() => computed(dialog, "backdrop-filter", "::before")).toContain("blur(");
+  });
+
+  test("reduced transparency turns the composer and each role's bubble solid and stops their blur", async ({ corpus, mount, page }) => {
+    await routeAppearance(page, corpus, { blurSurfaces: ["composer", "messages"] });
+    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: await groupRoomId() });
+    await roomReady(page);
+    await expect.poll(() => fillAlpha(page.locator(COMPOSER))).toBeLessThan(1);
+    await emulate(page, { contrast: "no-preference", transparency: "reduce" });
+    for (const surface of [page.locator(COMPOSER), ...ROOM_ROLES.map((role) => bubble(page, role))]) {
+      await expect.poll(() => fillAlpha(surface)).toBe(1);
+      await expect.poll(() => computed(surface, "backdrop-filter")).toBe("none");
+    }
+  });
+
+  test("contrast more thickens the composer's own four sides, mints no border on a bubble, and raises the bubble fill to the dial", async ({
+    corpus,
+    mount,
+    page,
+  }) => {
+    await routeAppearance(page, corpus, { blurSurfaces: ["composer", "messages"] });
+    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: await groupRoomId() });
+    await roomReady(page);
+    await expect.poll(() => borderWidths(page.locator(COMPOSER))).toBe("1px 1px 1px 1px");
+    await expect.poll(() => fillAlpha(bubble(page, "assistant"))).toBeLessThan(CONTRAST_FILL_ALPHA);
+    await emulate(page, { contrast: "more", transparency: "no-preference" });
+    await expect.poll(() => borderWidths(page.locator(COMPOSER))).toBe("2px 2px 2px 2px");
+    for (const role of ROOM_ROLES) {
+      await expect.poll(() => borderWidths(bubble(page, role))).toBe("0px 0px 0px 0px");
+      await expect.poll(() => fillAlpha(bubble(page, role))).toBeCloseTo(CONTRAST_FILL_ALPHA, 2);
+    }
   });
 });
 

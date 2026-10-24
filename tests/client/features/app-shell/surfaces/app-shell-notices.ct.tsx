@@ -1,15 +1,13 @@
 // The shell's notice overlay and its stray-file guard: a notice never moves the content column, a burst stays inside
 // the overlay's cap, the empty overlay passes the pointer through, and only a file nothing else handled is swallowed.
-import { createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
-import type { AppShellModalStory, AppShellNoticeStory, AppShellStory } from "./_app-shell-stories.tsx";
-import { dropOn, SHELL_STORIES, settledBox } from "./app-shell-ct.ts";
+import type { AppShellModalStory, AppShellNoticeStory, AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
+import { dropOn, namedGroupRoom, routeRoom, SHELL_STORIES, seedShellState, settledBox } from "./app-shell-ct.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 // The Add document dialog's own reads, past Home's captures.
-const SERVED = ["sessions.me", "databank.listGlobal", "worldInfo.listBooks", "character.list", "chat.listChats"] as const;
 // Three wrapped lines of detail, so a burst of three outgrows the overlay's cap.
 const LONG_DETAIL =
   "The card imported, but two of its lorebook entries named a book this library does not hold, so they were set aside for you to place by hand. Open the import notes to see which entries and where they came from.";
@@ -21,8 +19,7 @@ test.beforeAll(async () => {
 });
 
 test.beforeEach(async ({ corpus, page }) => {
-  const caller = await root.internalCallerFor(root.ownerId);
-  await routeTrpc(page, { ...createShellAmbientReads(corpus), ...serveCorpusProcedures(caller, SERVED) });
+  await routeRoom(page, corpus, await root.internalCallerFor(root.ownerId));
 });
 
 test.afterAll(async () => {
@@ -58,6 +55,21 @@ test.describe("on a phone", () => {
     // The overlay hangs below the chrome row it sits under.
     expect(geometry.toastTop).toBeGreaterThanOrEqual(geometry.chromeBottom - 1);
     await expect(page.locator('[data-slot="toast-viewport"]')).toHaveCSS("position", "fixed");
+  });
+
+  test("in an open room a notice leaves the composer clear", async ({ mount, page }) => {
+    await seedShellState(page, { activeSection: "chats" });
+    const room = namedGroupRoom((await (await root.internalCallerFor(root.ownerId)).chat.listChats({ limit: 100 })).items);
+    await mount<typeof AppShellRoomStory>(`${SHELL_STORIES}/AppShellRoomStory`, { chatId: room.id });
+    const composer = page.locator('[data-slot="composer"]');
+    await expect(composer).toBeVisible();
+    const geometry = await raiseStrayNotice(page);
+    expect(geometry.prevented).toBe(true);
+    expect(geometry.after).toEqual(geometry.before);
+    const [toast, field] = await Promise.all([settledBox(page.locator('[data-slot="toast-root"]')), settledBox(composer)]);
+    const apart =
+      toast.y + toast.height <= field.y || field.y + field.height <= toast.y || toast.x + toast.width <= field.x || field.x + field.width <= toast.x;
+    expect(apart).toBe(true);
   });
 });
 
