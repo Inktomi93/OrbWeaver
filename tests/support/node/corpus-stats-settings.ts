@@ -9,7 +9,7 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { and, eq, inArray } from "drizzle-orm";
 import { seedCorpusAccount } from "./corpus-auth.ts";
 import type { TrpcCapture } from "./corpus-read.ts";
-import { seedStats } from "./factories/rows/stats.ts";
+import { seedStatsRows } from "./factories/rows/stats.ts";
 import type { TrpcInput, TrpcProcedurePath, TrpcWireOutput } from "./route-trpc.ts";
 import type { ServerTestHarness } from "./server.ts";
 
@@ -92,14 +92,14 @@ interface StatsSettingsCaptures {
   readonly emptyAfter: Pick<StatsReads, "overview" | "freshness" | "timeseries" | "byModel" | "momentum">;
   readonly reconciled: TrpcCapture<"stats.reconcile">;
   readonly repeated: TrpcCapture<"stats.reconcile">;
-  readonly rows: Awaited<ReturnType<typeof seedStats>>;
+  readonly rows: Awaited<ReturnType<typeof seedStatsRows>>;
   readonly stats: StatsReads;
   readonly afterRepeat: Pick<StatsReads, "overview" | "character" | "byModel" | "timeseries">;
   readonly foreign: {
     readonly userId: UserId;
     readonly character: Awaited<ReturnType<Caller["character"]["create"]>>;
     readonly room: Awaited<ReturnType<Caller["chat"]["startChat"]>>;
-    readonly rows: Awaited<ReturnType<typeof seedStats>>;
+    readonly rows: Awaited<ReturnType<typeof seedStatsRows>>;
     readonly turn: Awaited<ReturnType<ServerTestHarness["services"]["chat"]["send"]>>;
     readonly latency: TrpcCapture<"stats.latency">;
     readonly projection: {
@@ -107,7 +107,7 @@ interface StatsSettingsCaptures {
       readonly foreignCharacter: TrpcCapture<"stats.character">;
       readonly personas: TrpcCapture<"stats.personaUsage">;
       readonly latency: TrpcCapture<"stats.latency">;
-      readonly rowsAfter: Awaited<ReturnType<typeof seedStats>>;
+      readonly rowsAfter: Awaited<ReturnType<typeof seedStatsRows>>;
     };
   };
   readonly settings: SettingsCaptures;
@@ -233,9 +233,9 @@ export async function seedCorpusStatsSettings(root: ServerTestHarness, history: 
     content: "A foreign owner keeps this distinct native history.",
   });
   const foreignLatency = await read<"stats.latency">({ kind: "character", characterId: foreignCharacter.id }, foreign.stats.latency);
-  const foreignStats = await seedStats(root, foreignUserId);
+  const foreignStats = await seedStatsRows(root, foreignUserId);
   const reconciled = await read<"stats.reconcile">(undefined, caller.stats.reconcile);
-  const rows = await seedStats(root, root.ownerId);
+  const rows = await seedStatsRows(root, root.ownerId);
   const stats = await statsReads(caller, history.characterId);
   const repeated = await read<"stats.reconcile">(undefined, caller.stats.reconcile);
   const afterRepeat = {
@@ -249,7 +249,7 @@ export async function seedCorpusStatsSettings(root: ServerTestHarness, history: 
     foreignCharacter: await read<"stats.character">({ characterId: history.characterId }, foreign.stats.character),
     personas: await read<"stats.personaUsage">({ characterId: foreignCharacter.id }, caller.stats.personaUsage),
     latency: await read<"stats.latency">({ kind: "character", characterId: foreignCharacter.id }, caller.stats.latency),
-    rowsAfter: await seedStats(root, foreignUserId),
+    rowsAfter: await seedStatsRows(root, foreignUserId),
   };
   const settingsBefore = await read<"settings.getUserSettings">(undefined, caller.settings.getUserSettings);
   const initialThemes = await read<"settings.listThemes">(undefined, caller.settings.listThemes);

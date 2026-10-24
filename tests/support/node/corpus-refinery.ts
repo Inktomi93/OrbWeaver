@@ -1,7 +1,7 @@
 // Sessions, stage provenance and apply outcomes come from the real refinery and character owners.
 import { createCharacterSchema } from "@orb/contracts/character";
 import { CORPUS_REFINERY_SCHEMA_REVISION } from "./corpus-provider.ts";
-import { seedManualRefineryRun, seedRefineryRun, seedRefinerySchema, seedRefinerySession } from "./factories/rows/refinery.ts";
+import { seedManualRefineryRun, seedRefineryRunRows, seedRefinerySchema, seedRefinerySession } from "./factories/rows/refinery.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 type CorpusCaller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
@@ -10,9 +10,9 @@ export interface SeededCorpusRefinery {
   readonly character: Awaited<ReturnType<CorpusCaller["character"]["create"]>>;
   readonly session: Awaited<ReturnType<typeof seedRefinerySession>>;
   readonly preflight: Awaited<ReturnType<CorpusCaller["refinery"]["preflight"]>>;
-  readonly score: Awaited<ReturnType<typeof seedRefineryRun>>;
-  readonly rewrite: Awaited<ReturnType<typeof seedRefineryRun>>;
-  readonly analyze: Awaited<ReturnType<typeof seedRefineryRun>>;
+  readonly score: Awaited<ReturnType<typeof seedRefineryRunRows>>;
+  readonly rewrite: Awaited<ReturnType<typeof seedRefineryRunRows>>;
+  readonly analyze: Awaited<ReturnType<typeof seedRefineryRunRows>>;
   readonly review: Awaited<ReturnType<CorpusCaller["refinery"]["decideRewrite"]>>;
   readonly iteration: Awaited<ReturnType<CorpusCaller["refinery"]["iterate"]>>;
   readonly manual: Awaited<ReturnType<typeof seedManualRefineryRun>>;
@@ -24,8 +24,8 @@ export interface SeededCorpusRefinery {
   readonly schema: Awaited<ReturnType<typeof seedRefinerySchema>>;
   readonly revisedSchema: Awaited<ReturnType<CorpusCaller["refinery"]["updateSchema"]>>;
   readonly customSession: Awaited<ReturnType<typeof seedRefinerySession>>;
-  readonly customFirst: Awaited<ReturnType<typeof seedRefineryRun>>;
-  readonly customSecond: Awaited<ReturnType<typeof seedRefineryRun>>;
+  readonly customFirst: Awaited<ReturnType<typeof seedRefineryRunRows>>;
+  readonly customSecond: Awaited<ReturnType<typeof seedRefineryRunRows>>;
   readonly schemaPlan: Awaited<ReturnType<CorpusCaller["refinery"]["schemaPlan"]>>;
   readonly drill: Awaited<ReturnType<CorpusCaller["refinery"]["testSchema"]>>;
   readonly sessions: Awaited<ReturnType<CorpusCaller["refinery"]["listSessions"]>>;
@@ -47,9 +47,9 @@ export async function seedCorpusRefinery(root: ServerTestHarness): Promise<Seede
   });
   const session = await seedRefinerySession(root, { principal, characterId: character.id, name: "Orbital ledger refinement" });
   const preflight = await caller.refinery.preflight({ sessionId: session.id });
-  const score = await seedRefineryRun(root, { principal, sessionId: session.id, stage: "score" });
-  const rewrite = await seedRefineryRun(root, { principal, sessionId: session.id, stage: "rewrite" });
-  const analyze = await seedRefineryRun(root, { principal, sessionId: session.id, stage: "analyze" });
+  const score = await seedRefineryRunRows(root, { principal, sessionId: session.id, stage: "score" });
+  const rewrite = await seedRefineryRunRows(root, { principal, sessionId: session.id, stage: "rewrite" });
+  const analyze = await seedRefineryRunRows(root, { principal, sessionId: session.id, stage: "analyze" });
   const review = await caller.refinery.decideRewrite({ sessionId: session.id, rewriteRunId: rewrite.id, decisions: [true] });
   const iteration = await caller.refinery.iterate({ sessionId: session.id, guidance: "Keep the keeper curious." });
   const manual = await seedManualRefineryRun(root, {
@@ -91,9 +91,9 @@ export async function seedCorpusRefinery(root: ServerTestHarness): Promise<Seede
   });
   const schemaPlan = await caller.refinery.schemaPlan({ stage: "score", schema: schema.schema });
   const drill = await caller.refinery.testSchema({ stage: "score", schema: schema.schema, characterId: copy.character.id });
-  const customFirst = await seedRefineryRun(root, { principal, sessionId: customSession.id, stage: "score" });
+  const customFirst = await seedRefineryRunRows(root, { principal, sessionId: customSession.id, stage: "score" });
   const revisedSchema = await caller.refinery.updateSchema({ schemaId: schema.id, patch: { name: CORPUS_REFINERY_SCHEMA_REVISION } });
-  const customSecond = await seedRefineryRun(root, { principal, sessionId: customSession.id, stage: "score" });
+  const customSecond = await seedRefineryRunRows(root, { principal, sessionId: customSession.id, stage: "score" });
   const sessions = await caller.refinery.listSessions();
   const runs = await caller.refinery.listRuns({ sessionId: session.id });
   const customRuns = await caller.refinery.listRuns({ sessionId: customSession.id });

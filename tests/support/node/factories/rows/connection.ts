@@ -6,7 +6,7 @@ import type { ServerProducerRoot } from "../../server.ts";
 import type { ConnectionService, UserConnectionRow } from "../connection.ts";
 
 /** Captures a real saved connection without inventing its model, provider, credential or capability facts. */
-export async function seedUserConnection(root: ServerProducerRoot, params: Parameters<ConnectionService["create"]>[0]): Promise<UserConnectionRow> {
+export async function seedUserConnectionRows(root: ServerProducerRoot, params: Parameters<ConnectionService["create"]>[0]): Promise<UserConnectionRow> {
   const db = root.db;
   const create = root.services.connection.create;
   const view = await create(params);

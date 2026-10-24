@@ -1,0 +1,10 @@
+{
+  "moves": [
+    {
+      "from": "./factories/rows/stats.ts",
+      "to": "./factories/rows/stats.ts",
+      "names": { "seedStats": "seedStatsRows" },
+      "files": ["corpus.ts"]
+    }
+  ]
+}

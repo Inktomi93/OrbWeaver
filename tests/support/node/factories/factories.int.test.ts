@@ -1,6 +1,7 @@
 // @subject tests/support/node/factories/rows.ts
-// @subject tests/support/node/factories/chat.ts
-// @subject tests/support/node/factories/message.ts
+// @subject tests/support/node/factories/rows/chat.ts
+// @subject tests/support/node/factories/rows/message.ts
+// @subject tests/support/node/factories/rows/character.ts
 // Row builders stay FK-clean for persistence suites; root seeds return exactly what the production verbs wrote.
 
 import { createCharacterSchema } from "@orb/contracts/character";

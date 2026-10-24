@@ -96,13 +96,13 @@ export type UnclaimedServerHarnessOptions = Omit<ServerHarnessOptions, "ownerId"
   readonly authConfig: Partial<AuthConfig> & { readonly mode: "oidc" };
 };
 
-/** The account a claimed root mints: `sessions.ensureUser`, then the owner's audited admin verbs for each field. */
-/** What an actor mint hands back: the account's id and handle, never a stored users row (Spine-Testing §9). */
+// What an actor mint hands back: the account's id and handle, never a stored users row (Spine-Testing §9).
 interface ActorAccount {
   readonly id: UserId;
   readonly handle: Handle;
 }
 
+/** The account a claimed root mints: `sessions.ensureUser`, then the owner's audited admin verbs for each field. */
 export interface ActorSpec {
   /** Defaults to a fresh seeded handle; an already-held handle is refused, never adopted. */
   readonly handle?: Handle;

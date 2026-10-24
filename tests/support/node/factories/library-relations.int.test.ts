@@ -1,9 +1,10 @@
 // @subject tests/support/node/corpus-seed.ts
-// @subject tests/support/node/factories/tag.ts
-// @subject tests/support/node/factories/world-info.ts
+// @subject tests/support/node/factories/rows/tag.ts
+// @subject tests/support/node/factories/rows/world-info.ts
 // @subject tests/support/node/factories/databank.ts
 // @subject tests/support/node/factories/character.ts
-// @subject tests/support/node/factories/gallery.ts
+// @subject tests/support/node/factories/rows/gallery.ts
+// @subject tests/support/node/factories/rows/chat.ts
 // @subject packages/server/src/domain/world-info/verbs/books/create.ts
 // @subject packages/server/src/domain/world-info/verbs/entries/create.ts
 

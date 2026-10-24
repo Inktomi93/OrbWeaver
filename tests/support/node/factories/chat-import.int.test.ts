@@ -1,4 +1,4 @@
-// @subject tests/support/node/factories/chat.ts
+// @subject tests/support/node/factories/rows/chat.ts
 // @subject packages/server/src/domain/import/verbs/import-chat-bundle.ts
 // @subject packages/server/src/domain/export/verbs/export-chat-bundle.ts
 

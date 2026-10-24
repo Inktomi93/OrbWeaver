@@ -14,7 +14,7 @@ import {
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
 } from "./corpus-provider.ts";
-import { seedUserConnection } from "./factories/rows/connection.ts";
+import { seedUserConnectionRows } from "./factories/rows/connection.ts";
 import { captureStatsPopulations } from "./factories/rows/stats.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
@@ -53,7 +53,7 @@ test("native selected latency and economics separate model populations, retained
   await seedCorpusActors(root);
   const principal = await root.principalFor(root.ownerId);
   const caller = await root.internalCallerFor(root.ownerId);
-  const pricedConnection = await seedUserConnection(root, {
+  const pricedConnection = await seedUserConnectionRows(root, {
     principal,
     providerId: "custom-openai",
     credentialId: null,
@@ -65,7 +65,7 @@ test("native selected latency and economics separate model populations, retained
       features: { detectServer: false, pricing: { inputPerMTok: 2, outputPerMTok: 4 } },
     },
   });
-  const unpricedConnection = await seedUserConnection(root, {
+  const unpricedConnection = await seedUserConnectionRows(root, {
     principal,
     providerId: "custom-openai",
     credentialId: null,

@@ -8,7 +8,7 @@ import type { ServerProducerRoot } from "../../server.ts";
 import type { RefineryRunRow, RefinerySchemaRow, RefinerySessionRow } from "../refinery.ts";
 
 /** Capture a model-produced run by the identity the actual stage operation returned. */
-export async function seedRefineryRun(root: ServerProducerRoot, params: Parameters<RefineryService["runStage"]>[0]): Promise<RefineryRunRow> {
+export async function seedRefineryRunRows(root: ServerProducerRoot, params: Parameters<RefineryService["runStage"]>[0]): Promise<RefineryRunRow> {
   const db = root.db;
   const runStage = root.services.refinery.runStage;
   const view = await runStage(params);

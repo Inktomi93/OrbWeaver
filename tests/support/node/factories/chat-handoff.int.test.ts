@@ -1,4 +1,4 @@
-// @subject tests/support/node/factories/chat.ts
+// @subject tests/support/node/factories/rows/chat.ts
 
 import { closeDb } from "@orb/db";
 import { CHAT_OP_CODES } from "@orb/server/domain/chat";

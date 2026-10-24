@@ -1,4 +1,4 @@
-// @subject tests/support/node/factories/chat.ts
+// @subject tests/support/node/factories/rows/chat.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import { messageReactions } from "@orb/db";

@@ -1,4 +1,5 @@
-// @subject tests/support/node/factories/rpg.ts
+// @subject tests/support/node/factories/rows/rpg.ts
+// @subject tests/support/node/factories/rows.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import { declaredCapabilitySchema } from "@orb/contracts/inference";

@@ -1,4 +1,4 @@
-// @subject tests/support/node/factories/chat.ts
+// @subject tests/support/node/factories/rows/chat.ts
 
 import { declaredCapabilitySchema } from "@orb/contracts/inference";
 import { UTC_TIME_ZONE } from "@orb/kit/time";

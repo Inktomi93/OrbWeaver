@@ -1,4 +1,4 @@
-// @subject tests/support/node/factories/imagery.ts
+// @subject tests/support/node/factories/rows/imagery.ts
 // @subject packages/server/src/domain/imagery/persistence/queries.ts
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { GeneratePictureParams } from "@orb/contracts/imagery";

@@ -16,7 +16,7 @@ import { CORPUS_VARIANT_EDIT_MODEL, CORPUS_VARIANT_IMAGE_MODEL, CORPUS_VARIANT_K
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_PROVIDER_ENDPOINT } from "./corpus-provider.ts";
 import type { TrpcCapture } from "./corpus-read.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
-import { seedUserConnection } from "./factories/rows/connection.ts";
+import { seedUserConnectionRows } from "./factories/rows/connection.ts";
 import { seedUserCredential } from "./factories/rows/credentials.ts";
 import { seedIndexedAsset } from "./factories/rows/embedding-generation.ts";
 import { captureImageryGenerationRows, seedImageryGenerations } from "./factories/rows/imagery.ts";
@@ -45,7 +45,7 @@ interface CorpusImageVariants {
     readonly after: Awaited<ReturnType<Caller["connection"]["listBindings"]>>;
   };
   readonly credential: Awaited<ReturnType<typeof seedUserCredential>>;
-  readonly connections: readonly Awaited<ReturnType<typeof seedUserConnection>>[];
+  readonly connections: readonly Awaited<ReturnType<typeof seedUserConnectionRows>>[];
   readonly ownerId: ServerTestHarness["ownerId"];
   readonly memberId: ServerTestHarness["ownerId"];
   readonly character: Awaited<ReturnType<Caller["character"]["create"]>>;
@@ -143,7 +143,7 @@ export async function seedCorpusImageVariants(root: ServerTestHarness, wire: Cor
     baseUrl: CORPUS_PROVIDER_ENDPOINT,
     allowBackground: true,
   } as const;
-  const image = await seedUserConnection(root, {
+  const image = await seedUserConnectionRows(root, {
     ...connectionBase,
     model: CORPUS_VARIANT_IMAGE_MODEL,
     declared: {
@@ -152,7 +152,7 @@ export async function seedCorpusImageVariants(root: ServerTestHarness, wire: Cor
       features: { images: "images-api", detectServer: false },
     },
   });
-  const edit = await seedUserConnection(root, {
+  const edit = await seedUserConnectionRows(root, {
     ...connectionBase,
     model: CORPUS_VARIANT_EDIT_MODEL,
     declared: {
@@ -161,7 +161,7 @@ export async function seedCorpusImageVariants(root: ServerTestHarness, wire: Cor
       features: { images: "images-api", detectServer: false },
     },
   });
-  const text = await seedUserConnection(root, {
+  const text = await seedUserConnectionRows(root, {
     ...connectionBase,
     model: CORPUS_VARIANT_TEXT_MODEL,
     declared: {
@@ -170,7 +170,7 @@ export async function seedCorpusImageVariants(root: ServerTestHarness, wire: Cor
       features: { detectServer: false, pricing: { inputPerMTok: 1, outputPerMTok: 2 } },
     },
   });
-  const embed = await seedUserConnection(root, {
+  const embed = await seedUserConnectionRows(root, {
     ...connectionBase,
     model: CORPUS_EMBED_MODEL,
     declared: {

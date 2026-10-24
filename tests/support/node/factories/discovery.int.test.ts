@@ -1,5 +1,5 @@
-// @subject tests/support/node/factories/discovery.ts
-// @subject tests/support/node/factories/embedding-generation.ts
+// @subject tests/support/node/factories/rows/discovery.ts
+// @subject tests/support/node/factories/rows/embedding-generation.ts
 // @subject tests/support/node/corpus-provider.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";

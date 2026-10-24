@@ -1,8 +1,9 @@
 // @subject packages/server/src/domain/character/verbs/create.ts
 // @subject tests/support/node/factories/asset.ts
-// @subject tests/support/node/factories/character.ts
-// @subject tests/support/node/factories/persona.ts
-// @subject tests/support/node/factories/preset.ts
+// @subject tests/support/node/factories/rows/character.ts
+// @subject tests/support/node/factories/rows/persona.ts
+// @subject tests/support/node/factories/rows/preset.ts
+// @subject tests/support/node/factories/rows/asset.ts
 import { createCharacterSchema } from "@orb/contracts/character";
 import { createPersonaSchema, personaDetailSchema } from "@orb/contracts/persona";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";

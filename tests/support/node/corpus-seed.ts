@@ -34,7 +34,7 @@ import { captureRosterRows, seedRosterPreset } from "./factories/rows/roster-pre
 import type { CapturedCookieAuthRows } from "./factories/rows/sessions.ts";
 import { captureCookieAuthRows } from "./factories/rows/sessions.ts";
 import { seedUserContentLedger } from "./factories/rows/settings.ts";
-import { seedStats } from "./factories/rows/stats.ts";
+import { seedStatsRows } from "./factories/rows/stats.ts";
 import { seedCharacterTag, seedChatTag, seedPersonaTag, seedPresetTag, seedWorldBookTag } from "./factories/rows/tag.ts";
 import {
   captureWorldBookRows,
@@ -425,8 +425,8 @@ interface SyntheticCorpus {
     readonly regex: Awaited<ReturnType<typeof captureRegexRows>>;
     readonly rosters: Awaited<ReturnType<typeof captureRosterRows>>;
     readonly seedLedger: Awaited<ReturnType<typeof seedUserContentLedger>>;
-    readonly ownerStats: Awaited<ReturnType<typeof seedStats>>;
-    readonly secondUserStats: Awaited<ReturnType<typeof seedStats>>;
+    readonly ownerStats: Awaited<ReturnType<typeof seedStatsRows>>;
+    readonly secondUserStats: Awaited<ReturnType<typeof seedStatsRows>>;
     readonly loginBuckets: CapturedCookieAuthRows["loginBuckets"];
   };
   readonly auth: CorpusWire["auth"];
@@ -497,8 +497,8 @@ export async function seedSyntheticCorpus(root: ServerHarness, options: SeedSynt
 
   const { auth, loginBuckets, secrets } = await captureCookieAuthRows(root, owner, options.ownerPassword);
   await root.settleBackground();
-  const ownerStats = await seedStats(root, root.ownerId);
-  const secondUserStats = await seedStats(root, seed.secondUserId);
+  const ownerStats = await seedStatsRows(root, root.ownerId);
+  const secondUserStats = await seedStatsRows(root, seed.secondUserId);
   const identities = { soloChatId: seed.solo.chat.id, groupChatId: seed.group.chat.id, documentId: seed.document.document.id };
 
   return {

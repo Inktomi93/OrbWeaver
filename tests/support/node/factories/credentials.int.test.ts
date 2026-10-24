@@ -1,4 +1,5 @@
 // @subject tests/support/node/factories/credentials.ts
+// @subject tests/support/node/factories/rows/credentials.ts
 
 import { randomBytes } from "node:crypto";
 import { credentialExecutionEvidenceOf, credentialViewSchema } from "@orb/contracts/credentials";

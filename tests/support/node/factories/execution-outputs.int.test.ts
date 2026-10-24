@@ -1,5 +1,8 @@
 // @subject tests/support/node/factories/automation-view.ts
 // @subject tests/support/node/factories/automation.ts
+// @subject tests/support/node/factories/rows/automation.ts
+// @subject tests/support/node/factories/rows/plugin.ts
+// @subject tests/support/node/factories/rows/world-info.ts
 import { spawn } from "node:child_process";
 import type { AutomationBusEvent } from "@orb/contracts/automation";
 import { automationRuleCreateSchema, automationRuleToolViewSchema, RULE_PRESET_IDS } from "@orb/contracts/automation";

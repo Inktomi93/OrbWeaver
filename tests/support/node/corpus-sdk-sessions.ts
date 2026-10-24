@@ -7,7 +7,7 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { seedCorpusAccount } from "./corpus-auth.ts";
 import { CORPUS_SDK_EMPTY, CORPUS_SDK_HOLD, CORPUS_SDK_MODEL, CORPUS_SDK_QUERY, CORPUS_SDK_REUSE, CORPUS_SDK_TOKEN } from "./corpus-sdk-protocol.ts";
 import type { createCorpusSdkExecution } from "./corpus-sdk-wire.ts";
-import { seedUserConnection } from "./factories/rows/connection.ts";
+import { seedUserConnectionRows } from "./factories/rows/connection.ts";
 import { seedUserCredential } from "./factories/rows/credentials.ts";
 import { captureSdkSessionRows } from "./factories/rows.ts";
 import type { ServerTestHarness } from "./server.ts";
@@ -17,14 +17,14 @@ type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
 interface SdkActor {
   readonly principal: Awaited<ReturnType<ServerTestHarness["principalFor"]>>;
   readonly credential: Awaited<ReturnType<typeof seedUserCredential>>;
-  readonly connection: Awaited<ReturnType<typeof seedUserConnection>>;
+  readonly connection: Awaited<ReturnType<typeof seedUserConnectionRows>>;
 }
 interface SdkCapture {
   readonly result: ChatResult;
   readonly rows: SdkRows;
 }
 interface CorpusSdkSessions extends SdkActor {
-  readonly alternateConnection: Awaited<ReturnType<typeof seedUserConnection>>;
+  readonly alternateConnection: Awaited<ReturnType<typeof seedUserConnectionRows>>;
   readonly room: Awaited<ReturnType<Caller["chat"]["startChat"]>>;
   readonly source: Awaited<ReturnType<ServerTestHarness["app"]["chatRpgOps"]["postNarratorMessage"]>>;
   readonly empty: SdkCapture & { readonly room: CorpusSdkSessions["room"] };
@@ -43,8 +43,8 @@ interface CorpusSdkSessions extends SdkActor {
   readonly rows: SdkRows;
 }
 
-async function savedSdkConnection(root: ServerTestHarness, actor: Pick<SdkActor, "principal" | "credential">): ReturnType<typeof seedUserConnection> {
-  return await seedUserConnection(root, {
+async function savedSdkConnection(root: ServerTestHarness, actor: Pick<SdkActor, "principal" | "credential">): ReturnType<typeof seedUserConnectionRows> {
+  return await seedUserConnectionRows(root, {
     principal: actor.principal,
     providerId: "claude-sub",
     credentialId: actor.credential.view.id,

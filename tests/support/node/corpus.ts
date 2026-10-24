@@ -53,7 +53,7 @@ import type {
 import type { seedCorpusStatsSettings as produceCorpusStatsSettings } from "./corpus-stats-settings.ts";
 import type { seedUserCredential as produceCredential } from "./factories/rows/credentials.ts";
 import type { seedRecallCorpusRows as produceRecallCorpus } from "./factories/rows/recall.ts";
-import type { seedStats as produceSearchStats } from "./factories/rows/stats.ts";
+import type { seedStatsRows as produceSearchStats } from "./factories/rows/stats.ts";
 import type { ServerHarnessOptions, ServerTestHarness } from "./server.ts";
 
 const CORPUS_WIRE_FILE = "corpus.json";
@@ -732,7 +732,7 @@ async function captureCapsule(options: CorpusCapsuleOptions & CorpusCapsuleProdu
   const { seedCorpusRpgRounds } = await import("./corpus-rpg-rounds.ts");
   const { seedCorpusSearch, captureCorpusSearchPublication, settleCorpusSearchImages: settleSearchImages } = await import("./corpus-search.ts");
   const { createCorpusSearchWire } = await import("./corpus-search-wire.ts");
-  const { seedStats } = await import("./factories/rows/stats.ts");
+  const { seedStatsRows } = await import("./factories/rows/stats.ts");
   const { seedCorpusConnection } = await import("./corpus-connection.ts");
   const { seedCorpusStatsSettings } = await import("./corpus-stats-settings.ts");
   const { seedCorpusSdkSessions } = await import("./corpus-sdk-sessions.ts");
@@ -878,7 +878,7 @@ async function captureCapsule(options: CorpusCapsuleOptions & CorpusCapsuleProdu
   signal?.throwIfAborted();
   const searchFinal = await searchWire.capture(() => captureCorpusSearchPublication(root, search));
   signal?.throwIfAborted();
-  const postSearchStats = await seedStats(root, root.ownerId);
+  const postSearchStats = await seedStatsRows(root, root.ownerId);
   signal?.throwIfAborted();
   const wire = hydrateCorpusWire({
     auth: baseline.auth,

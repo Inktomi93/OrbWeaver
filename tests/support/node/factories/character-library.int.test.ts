@@ -1,4 +1,4 @@
-// @subject tests/support/node/factories/character.ts
+// @subject tests/support/node/factories/rows/character.ts
 // @subject packages/server/src/domain/character/verbs/snapshot.ts
 // @subject packages/server/src/domain/character/verbs/get-snapshot.ts
 // @subject packages/server/src/domain/character/verbs/list-snapshots.ts

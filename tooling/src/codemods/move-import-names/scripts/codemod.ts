@@ -143,6 +143,58 @@ function moveKind(move: ImportMove, typeOnly: boolean, context: MoveContext): re
   return edits;
 }
 
+// A move whose `from` and `to` are one module renames in place: each named specifier, and each shorthand key a
+// `const { name } = await import(module)` destructures, so a renamed export keeps every static and dynamic importer.
+function renameInPlace(move: ImportMove, rootNode: SgNode<TS>, context: MoveContext): readonly Edit[] {
+  const specifiers = context.statements.filter((candidate) => sourceOf(candidate) === move.from).flatMap(specifiersOf);
+  return [...specifiers.flatMap((specifier) => renameSpecifier(specifier, move, context)), ...renameDynamicKeys(move, rootNode, context)];
+}
+
+function renameSpecifier(specifier: SgNode<TS>, move: ImportMove, context: MoveContext): readonly Edit[] {
+  const imported = specifier.field("name")?.text() ?? "";
+  const renamed = move.names[imported];
+  if (renamed === undefined || renamed === imported) {
+    return [];
+  }
+  if (specifier.field("alias") === null) {
+    context.renames.set(imported, renamed);
+  }
+  return [specifier.replace(respell(specifier, renamed))];
+}
+
+function renameDynamicKeys(move: ImportMove, rootNode: SgNode<TS>, context: MoveContext): readonly Edit[] {
+  const destructure = {
+    kind: "variable_declarator",
+    has: {
+      field: "value",
+      kind: "await_expression",
+      has: { kind: "call_expression", has: { kind: "arguments", has: { kind: "string", regex: `^["']${escapeRegex(move.from)}["']$` } } },
+    },
+  } as const;
+  const edits: Edit[] = [];
+  // `{ name }` binds the export's own name, so its references rename too; `{ name: local }` renames only the key.
+  for (const key of rootNode.findAll({ rule: { kind: "shorthand_property_identifier_pattern", inside: { kind: "object_pattern", inside: destructure } } })) {
+    const renamed = move.names[key.text()];
+    if (renamed !== undefined && renamed !== key.text()) {
+      edits.push(key.replace(renamed));
+      context.renames.set(key.text(), renamed);
+    }
+  }
+  // A `property_identifier` whose parent is a pair pattern is that pair's key; its value side binds an `identifier`.
+  const keyed = { kind: "property_identifier", inside: { kind: "pair_pattern", inside: { kind: "object_pattern", inside: destructure } } } as const;
+  for (const key of rootNode.findAll({ rule: keyed })) {
+    const renamed = move.names[key.text()];
+    if (renamed !== undefined && renamed !== key.text()) {
+      edits.push(key.replace(renamed));
+    }
+  }
+  return edits;
+}
+
+function escapeRegex(text: string): string {
+  return text.replaceAll(/[.*+?^${}()|[\]\\/]/g, String.raw`\$&`);
+}
+
 const codemod: Codemod<TS> = (root, options) => {
   const plan = readPlan(options.targetDir, options.params["plan"] ?? DEFAULT_PLAN_FILE);
   const file = root.relativeFilename();
@@ -152,7 +204,9 @@ const codemod: Codemod<TS> = (root, options) => {
   }
   const rootNode = root.root();
   const context: MoveContext = { statements: rootNode.findAll(IMPORT_STATEMENT), bytes: new TextEncoder().encode(rootNode.text()), renames: new Map() };
-  const edits = moves.flatMap((move) => [true, false].flatMap((typeOnly) => moveKind(move, typeOnly, context)));
+  const edits = moves.flatMap((move) =>
+    move.from === move.to ? renameInPlace(move, rootNode, context) : [true, false].flatMap((typeOnly) => moveKind(move, typeOnly, context)),
+  );
   for (const [name, renamed] of context.renames) {
     // Value bindings are `identifier`s and type bindings `type_identifier`s; keys, members and strings are other kinds.
     const references = rootNode.findAll({

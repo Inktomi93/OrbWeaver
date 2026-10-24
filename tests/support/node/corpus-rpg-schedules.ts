@@ -2,7 +2,7 @@
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import { MS_PER_MINUTE } from "@orb/kit/time";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
-import { seedWorkload } from "./factories/rows/workload.ts";
+import { seedWorkloadRows } from "./factories/rows/workload.ts";
 import { seedWorkloadScheduleRows } from "./factories/rows.ts";
 import type { ServerTestHarness } from "./server.ts";
 
@@ -10,7 +10,7 @@ type CorpusCaller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
 type Schedule = Awaited<ReturnType<CorpusCaller["workloads"]["updateSchedule"]>>;
 type Job = Awaited<ReturnType<CorpusCaller["workloads"]["get"]>>;
 interface SeededCorpusRpgSchedules {
-  readonly queued: Awaited<ReturnType<typeof seedWorkload>>;
+  readonly queued: Awaited<ReturnType<typeof seedWorkloadRows>>;
   readonly beforeDue: Job;
   readonly cancellation: Awaited<ReturnType<CorpusCaller["workloads"]["cancel"]>>;
   readonly cancelled: Job;
@@ -34,7 +34,7 @@ export async function seedCorpusRpgSchedules(root: ServerTestHarness): Promise<S
   const caller = await root.internalCallerFor(root.ownerId);
   const principal = await root.principalFor(root.ownerId);
   const scheduledAt = root.clock.now() + CADENCE_INTERVAL_MS.daily;
-  const queued = await seedWorkload(root, {
+  const queued = await seedWorkloadRows(root, {
     caller: principal,
     ownerId: root.ownerId,
     mode: "singular",

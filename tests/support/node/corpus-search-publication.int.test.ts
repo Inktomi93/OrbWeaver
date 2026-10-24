@@ -42,7 +42,7 @@ import { captureCorpusSearchPublication, seedCorpusSearch, settleCorpusSearchIma
 import { createCorpusSearchWire, replayCorpusSearchWire } from "./corpus-search-wire.ts";
 import { captureCookieAuth, captureCorpusReads, seedCorpusLibraries } from "./corpus-seed.ts";
 import { SHIPPED_MIGRATIONS } from "./db.ts";
-import { seedUserConnection } from "./factories/rows/connection.ts";
+import { seedUserConnectionRows } from "./factories/rows/connection.ts";
 import { seedUserCredential } from "./factories/rows/credentials.ts";
 import { seedRecallCorpusRows } from "./factories/rows/recall.ts";
 import { expect, test } from "./fixtures.ts";
@@ -225,7 +225,7 @@ test("settled search publication survives native authenticated clone reads and r
       await caller.character.update({ characterId: witness.id, input: { name: witness.name } });
       Object.assign(malformed.searchLibrary.reads.fields.output, { [secret]: true });
       expect(() => serializeCorpusWire(malformed, secrets)).toThrow("Corpus publication contains private material");
-      const temporary = await seedUserConnection(root, {
+      const temporary = await seedUserConnectionRows(root, {
         principal: actors.owner,
         providerId: "custom-openai",
         credentialId: null,

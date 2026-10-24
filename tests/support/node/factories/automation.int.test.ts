@@ -1,4 +1,4 @@
-// @subject tests/support/node/factories/automation.ts
+// @subject tests/support/node/factories/rows/automation.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import { automationFires, automationRuleState } from "@orb/db";

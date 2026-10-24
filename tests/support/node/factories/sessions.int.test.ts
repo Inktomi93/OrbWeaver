@@ -1,4 +1,4 @@
-// @subject tests/support/node/factories/sessions.ts
+// @subject tests/support/node/factories/rows/sessions.ts
 
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { RATE_LIMIT_CAP_MIN } from "@orb/contracts/settings";

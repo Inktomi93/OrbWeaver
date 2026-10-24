@@ -1,4 +1,5 @@
-// @subject tests/support/node/factories/plugin.ts
+// @subject tests/support/node/factories/rows/plugin.ts
+// @subject tests/support/node/factories/rows/provider.ts
 
 import { spawn } from "node:child_process";
 import { pluginKv, pluginProviderClaims } from "@orb/db";

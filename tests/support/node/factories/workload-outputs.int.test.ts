@@ -1,4 +1,4 @@
-// @subject tests/support/node/factories/workload.ts
+// @subject tests/support/node/factories/rows/workload.ts
 import { setTimeout as physicalDelay } from "node:timers/promises";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
@@ -13,7 +13,7 @@ import {
 } from "../corpus-provider.ts";
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
-import { seedWorkload } from "./rows/workload.ts";
+import { seedWorkloadRows } from "./rows/workload.ts";
 
 test("native cancellation outputs distinguish queued, running and terminal work without granting a stranger its identity", async () => {
   const physical = createCorpusProviderExecution({
@@ -50,7 +50,7 @@ test("native cancellation outputs distinguish queued, running and terminal work 
   });
   await root.settleBackground();
   const service = root.services.workloads;
-  const future = await seedWorkload(root, {
+  const future = await seedWorkloadRows(root, {
     caller: principal,
     ownerId: principal.userId,
     mode: "singular",
@@ -70,7 +70,7 @@ test("native cancellation outputs distinguish queued, running and terminal work 
   expect(await service.get({ caller: principal, id: future.id })).toEqual(cancelled);
   expect(await service.estimateRetryModelCalls({ caller: principal, id: future.id })).toEqual({ calls: null });
   holding = true;
-  const active = await seedWorkload(root, {
+  const active = await seedWorkloadRows(root, {
     caller: principal,
     ownerId: principal.userId,
     mode: "singular",

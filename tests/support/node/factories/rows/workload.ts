@@ -6,7 +6,7 @@ import type { ServerProducerRoot } from "../../server.ts";
 import type { WorkloadDbRow, WorkloadScheduleRow, WorkloadService } from "../workload.ts";
 
 /** Captures the admitted/adopted row's actual state; enqueue is not evidence of successful execution. */
-export async function seedWorkload(root: ServerProducerRoot, params: Parameters<WorkloadService["start"]>[0]): Promise<WorkloadDbRow> {
+export async function seedWorkloadRows(root: ServerProducerRoot, params: Parameters<WorkloadService["start"]>[0]): Promise<WorkloadDbRow> {
   const db = root.db;
   const start = root.services.workloads.start;
   const ref = await start(params);

@@ -6,7 +6,7 @@ import { WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
 import { eq } from "drizzle-orm";
 import sharp from "sharp";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_PROVIDER_ENDPOINT } from "./corpus-provider.ts";
-import { seedUserConnection } from "./factories/rows/connection.ts";
+import { seedUserConnectionRows } from "./factories/rows/connection.ts";
 import { seedEmbeddedCorpus, seedIndexedAsset } from "./factories/rows/embedding-generation.ts";
 import type { ServerTestHarness } from "./server.ts";
 
@@ -16,7 +16,7 @@ export const CORPUS_KNOWLEDGE_IMAGE_SIZES = [
 ] as const;
 type CorpusCaller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
 interface CorpusKnowledgeImages {
-  readonly connection: Awaited<ReturnType<typeof seedUserConnection>>;
+  readonly connection: Awaited<ReturnType<typeof seedUserConnectionRows>>;
   readonly cards: readonly Awaited<ReturnType<CorpusCaller["character"]["create"]>>[];
   readonly assets: readonly (typeof assets.$inferSelect)[];
   readonly indexed: readonly Awaited<ReturnType<typeof seedIndexedAsset>>[];
@@ -33,7 +33,7 @@ interface CorpusKnowledgeImages {
 export async function seedCorpusKnowledgeImages(root: ServerTestHarness): Promise<CorpusKnowledgeImages> {
   const principal = await root.principalFor(root.ownerId);
   const caller = await root.internalCallerFor(root.ownerId);
-  const connection = await seedUserConnection(root, {
+  const connection = await seedUserConnectionRows(root, {
     principal,
     providerId: "custom-openai",
     credentialId: null,

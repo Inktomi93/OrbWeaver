@@ -7,7 +7,7 @@ import type { ServerProducerRoot } from "../../server.ts";
 import type { CapturedStatsPopulations, Reconcile, SeededStats } from "../stats.ts";
 
 /** Reconciliation does not create a canon fence for an owner with no live stats mutation. */
-export async function seedStats(root: ServerProducerRoot, ownerId: Parameters<Reconcile>[0]): Promise<SeededStats> {
+export async function seedStatsRows(root: ServerProducerRoot, ownerId: Parameters<Reconcile>[0]): Promise<SeededStats> {
   const db = root.db;
   const reconcile = root.services.stats.reconcile;
   const result = await reconcile(ownerId);
@@ -38,7 +38,7 @@ export async function captureStatsPopulations(
   const { chatIds, characterIds } = subjects;
   const canon = await db.select().from(messages).where(inArray(messages.chatId, chatIds)).orderBy(messages.id);
   return {
-    rows: await seedStats(root, ownerId),
+    rows: await seedStatsRows(root, ownerId),
     chats: await db.select().from(chats).where(inArray(chats.id, chatIds)).orderBy(chats.id),
     messages: canon,
     variants: await db

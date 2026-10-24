@@ -14,7 +14,7 @@ import {
   CORPUS_CONNECTION_MODEL,
   CORPUS_CONNECTION_TURN_CUE,
 } from "./corpus-connection-wire.ts";
-import { seedUserConnection } from "./factories/rows/connection.ts";
+import { seedUserConnectionRows } from "./factories/rows/connection.ts";
 import { seedUserCredential } from "./factories/rows/credentials.ts";
 import { captureTurnRows } from "./factories/rows.ts";
 import type { ServerTestHarness } from "./server.ts";
@@ -27,7 +27,7 @@ type Listing = Awaited<ReturnType<Caller["connection"]["catalogModels"]>>;
 type Credential = Awaited<ReturnType<typeof seedUserCredential>>;
 interface OwnedConnection {
   readonly credential: Credential;
-  readonly row: Awaited<ReturnType<typeof seedUserConnection>>;
+  readonly row: Awaited<ReturnType<typeof seedUserConnectionRows>>;
   readonly view: View;
 }
 interface ConnectionEffects {
@@ -153,7 +153,7 @@ async function ownedEndpoint(root: ServerTestHarness, ownerId: ServerTestHarness
   const principal = await root.principalFor(ownerId);
   const caller = await root.internalCallerFor(ownerId);
   const credential = await seedUserCredential(root, { principal, provider: "custom-openai", key });
-  const row = await seedUserConnection(root, {
+  const row = await seedUserConnectionRows(root, {
     principal,
     providerId: "custom-openai",
     credentialId: credential.view.id,
@@ -287,7 +287,7 @@ async function diagnosticReads(parties: ConnectionParties, wire: Wire): Promise<
 async function accountReads(root: ServerTestHarness, caller: Caller, wire: Wire): Promise<ConnectionAccount> {
   const principal = await root.principalFor(root.ownerId);
   const credential = await seedUserCredential(root, { principal, provider: "openrouter", key: CORPUS_CONNECTION_HOSTED_KEY });
-  const row = await seedUserConnection(root, {
+  const row = await seedUserConnectionRows(root, {
     principal,
     providerId: "openrouter",
     credentialId: credential.view.id,
@@ -335,7 +335,7 @@ async function accountReads(root: ServerTestHarness, caller: Caller, wire: Wire)
 async function refusalReads(root: ServerTestHarness, parties: ConnectionParties, wire: Wire): Promise<ConnectionRefusals> {
   const { caller, other, own, foreign } = parties;
   const principal = await root.principalFor(root.ownerId);
-  const blocked = await seedUserConnection(root, {
+  const blocked = await seedUserConnectionRows(root, {
     principal,
     providerId: "custom-openai",
     credentialId: own.credential.view.id,
@@ -375,7 +375,7 @@ async function refusalReads(root: ServerTestHarness, parties: ConnectionParties,
   ]);
   const after = await effects(root);
   const requestsAfter = wire.requests.length;
-  const disposable = await seedUserConnection(root, {
+  const disposable = await seedUserConnectionRows(root, {
     principal,
     providerId: "custom-openai",
     credentialId: null,

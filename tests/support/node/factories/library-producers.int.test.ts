@@ -1,7 +1,9 @@
-// @subject tests/support/node/factories/persona.ts
-// @subject tests/support/node/factories/preset.ts
-// @subject tests/support/node/factories/roster-preset.ts
-// @subject tests/support/node/factories/tag.ts
+// @subject tests/support/node/factories/rows/persona.ts
+// @subject tests/support/node/factories/rows/preset.ts
+// @subject tests/support/node/factories/rows/roster-preset.ts
+// @subject tests/support/node/factories/rows/tag.ts
+// @subject tests/support/node/factories/rows/asset.ts
+// @subject tests/support/node/factories/rows/character.ts
 import { createCharacterSchema } from "@orb/contracts/character";
 import { personaDetailSchema } from "@orb/contracts/persona";
 import { parsePresetFile, presetDetailSchema, presetImportOutcomeSchema } from "@orb/contracts/preset";
