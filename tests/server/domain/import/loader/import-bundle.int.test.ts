@@ -27,11 +27,18 @@ import type { AssetId, CharacterHandle, CharacterId, ChatId, UserId, WorkloadId 
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import { buildChatBundleFile, CHAT_BUNDLE_EXT, parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
-import { buildImageryCall } from "@orb/server/primitives/serde/imagery";
 import { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness, extractZip, makeAssetBytes, seedTranscript } from "@orb/testkit/node/composed";
+import {
+  CORPUS_EMBEDDING_VECTOR,
+  CORPUS_PROVIDER_ENDPOINT,
+  createCorpusProviderExecution,
+  createServerHarness,
+  extractZip,
+  makeAssetBytes,
+  seedTranscript,
+} from "@orb/testkit/node/composed";
 import { z } from "zod";
 
 const EXPORT_ROUTE = "/api/export/library";
@@ -49,12 +56,13 @@ const CHOSEN_HANDLE = castId<CharacterHandle>("lantern-warden");
 const CHARACTER_NAME = "Keeper";
 
 /** A local box whose loopback requests act as its owner, after that owner's first-login seed has settled. */
-async function signedInBox(ids?: ReturnType<typeof createSeededIds>): Promise<ServerTestHarness> {
+async function signedInBox(ids?: ReturnType<typeof createSeededIds>, providerFetch?: typeof fetch): Promise<ServerTestHarness> {
   const root = await createServerHarness({
     physicalPeer: () => "127.0.0.1",
     startJobs: false,
     env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" },
     ...(ids === undefined ? {} : { ids }),
+    ...(providerFetch === undefined ? {} : { providerFetch }),
   });
   expect((await root.http.request(SIGNED_IN_ROUTE)).status).toBe(200);
   await root.settleBackground();
@@ -632,38 +640,43 @@ const DOCUMENT_TEXT = "The orbital ledger keeps its own counsel.";
 const TEXT_MIME = "text/plain";
 const documentFileSchema = z.object({ sourceAssetId: typeIdSchema(ID_PREFIX.asset).nullable() }).loose();
 
-/** One imagery execution naming `assetId` as its only output, through the production imagery serde. */
-function imageryCallFile(root: ServerTestHarness, assetId: AssetId): Uint8Array {
-  const usage = {
-    tokensIn: null,
-    tokensOut: null,
-    cacheReadTokens: null,
-    cacheWriteTokens: null,
-    reasoningTokens: null,
-    servedModel: null,
-    tokenDetails: null,
-    costDetails: null,
-    costProvenance: null,
-  };
-  const execution = {
-    sourceCallId: root.idSource.typeId(ID_PREFIX.imageryCall),
-    mode: "character",
-    prompt: "A keeper at the ledger.",
-    negativePrompt: null,
-    model: "corpus-image-v1",
-    provider: "custom-openai",
-    costUsd: null,
-    usage,
-    subjectCharacterHandle: null,
-    chatId: null,
-    connectionId: null,
-    identityHash: null,
-    edited: false,
-    createdAt: 1,
-  };
-  return buildImageryCall(
-    portableImageryCallSchema.parse({ execution, images: [{ sourceGenerationId: root.idSource.typeId(ID_PREFIX.imageryGeneration), assetId }] }),
-  );
+const IMAGE_MODEL = "ledger-image-v1";
+
+/** A provider that answers each image generation with the next of `pictures`, over the loopback corpus endpoint. */
+function imageProvider(pictures: Uint8Array[]): typeof fetch {
+  return createCorpusProviderExecution({
+    modelIds: [IMAGE_MODEL],
+    embedding: CORPUS_EMBEDDING_VECTOR,
+    chatText: "",
+    structuredReplies: new Map(),
+    images: pictures,
+  }).execute;
+}
+
+/** Generate one picture through the owner's own image binding, so the box holds native imagery history. */
+async function generateOnePicture(root: ServerTestHarness): Promise<AssetId> {
+  const owner = await root.principalFor(root.ownerId);
+  await root.services.settings.updateAppSettings({ principal: owner, partial: { privateEndpointAllowlist: [new URL(CORPUS_PROVIDER_ENDPOINT).hostname] } });
+  const connection = await root.services.connection.create({
+    principal: owner,
+    providerId: "custom-openai",
+    credentialId: null,
+    baseUrl: CORPUS_PROVIDER_ENDPOINT,
+    model: IMAGE_MODEL,
+    allowBackground: true,
+    declared: {
+      kind: "generation",
+      generation: { context: { window: 32_000 }, output: { modalities: ["text", "image"] } },
+      features: { images: "images-api", detectServer: false },
+    },
+  });
+  await root.services.connection.setBinding({ principal: owner, task: "generateImage", connectionId: connection.id });
+  const picture = await root.services.imagery.generatePicture({ caller: owner, mode: "free", prompt: "A keeper at the ledger.", n: 1 });
+  const [image] = picture.images;
+  if (image === undefined) {
+    throw new Error("the image generation returned no picture");
+  }
+  return image.assetId;
 }
 
 /** The bytes each of the owner's databank source blobs and imagery outputs names, read off the owner's own export. */
@@ -712,18 +725,19 @@ async function restoreReferrersOnly(root: ServerTestHarness, ownerId: UserId, bu
 }
 
 test("databank documents and imagery history restore onto bytes the owner holds under another id, never another account's", async () => {
-  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  const pictures: Uint8Array[] = [];
+  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR), imageProvider(pictures));
+  pictures.push(makeAssetBytes(source.idSource.typeId(ID_PREFIX.asset)));
   const owner = await source.principalFor(source.ownerId);
   const documentBytes = new TextEncoder().encode(DOCUMENT_TEXT);
   await source.services.databank.upload({ principal: owner, bytes: documentBytes, mime: TEXT_MIME, name: "Ledger" });
   const [sourceDocument] = await source.services.assets.listOwned({ principal: owner, kind: "document", limit: 1 });
-  const imageBytes = makeAssetBytes(source.idSource.typeId(ID_PREFIX.asset));
-  const image = await source.services.assets.store({ principal: owner, kind: "generated", mime: PNG, bytes: imageBytes });
-  const imagery = source.app.portability.find((entity) => entity.kind === "imagery");
-  if (imagery === undefined || sourceDocument === undefined) {
-    throw new Error("production composition has no imagery descriptor, or the upload kept no source blob");
+  const generated = await generateOnePicture(source);
+  const image = await source.services.assets.assetCasRefById(generated);
+  const imageBytes = await source.services.assets.loadAssetBytes(generated);
+  if (sourceDocument === undefined || image === undefined || imageBytes === null) {
+    throw new Error("the upload kept no source blob, or the generated picture stored no bytes");
   }
-  expect(await imagery.importFile(source.ownerId, { filename: "call.json", bytes: imageryCallFile(source, image.assetId) })).toMatchObject({ ok: true });
   const bundle = await exportLibrary(source, ["assets", "databank", "imagery"]);
 
   await using target = await signedInBox();
@@ -743,7 +757,7 @@ test("databank documents and imagery history restore onto bytes the owner holds 
   const outcome = await restore(held, bundle);
 
   expect({
-    heldUnderOwnIds: heldDocument.assetId !== sourceDocument.assetId && heldImage.assetId !== image.assetId,
+    heldUnderOwnIds: heldDocument.assetId !== sourceDocument.assetId && heldImage.assetId !== generated,
     unheldRefused: unheld.filter((result) => !result.ok).length,
     unheldReferrers,
     outcome,

@@ -54,4 +54,10 @@ Runs:
 - `pnpm depcruise`: no violations.
 - `pnpm lint:eslint` on the changed files: clean.
 
-Not covered: a seeded row created before this change keeps a null identity until it is seeded again. A seed-pack migration that rewrites a seeded card's content does not re-stamp its identity.
+Not covered:
+
+- A seeded row created before this change keeps a null identity until it is seeded again.
+- A seed-pack migration that rewrites a seeded card's content does not re-stamp its identity. A restore from a box seeded with the new pack onto a box migrated from the old pack can then land that card twice.
+- `backfillPluginProvenance` now reads seeded rows as candidates, because they carry an identity and no `importedFrom`. They carry no `plugin_<slug>` key, so it counts them as left authored and writes nothing.
+
+The imagery history in the part 4 case comes from a real image generation on the source box, through the owner's own image binding and a scripted provider. It then travels through the library export.
