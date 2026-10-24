@@ -10,7 +10,39 @@ plan: restoration-register
 
 ## What
 
-Qualify deterministic data, production composition, scripted external edges and joined resource lifetimes in maintained testkit support. Qualify provider recipes, cancellation reporting and software snapshots through selected cases. Remove copied assemblies from maintained support with their replacements.
+The maintained kit under `tests/support/**` holds [Spine-Testing](../law/Spine-Testing.md) sections 3 and 9. Time, ids and randomness are injected. Server composition calls production. Every root has a joined lifetime. Provider recipes, cancellation reporting and software snapshots keep their observable outcomes.
+
+The measured gap is small. The kit has no ambient business clock and no unseeded id source. The work is the list below.
+
+### Measured inventory
+
+Scope: every `.ts` and `.tsx` file tracked under `tests/support`. Both languages were scanned with `ast-grep`. An `rg` pass backs each negative claim.
+
+| Category | Finding | Sites |
+| - | - | - |
+| Business time | No `Date.now()`, no-argument `new Date()`, `performance.now()` or `DateTime.now()`. | 0 |
+| Derived dates | `new Date(x)` over an injected value: `corpus-surface-wire.ts:21`, `:22`, `x509.ts:63`, `oidc-issuer.int.test.ts:71`. Compliant. | 4 |
+| Physical timing | `setTimeout`, `setInterval`, `AbortSignal.timeout`, `Atomics.wait`, `setImmediate` and `node:timers/promises` waits, all at a child, socket or provider edge. Section 3 permits them. | 25 |
+| Delay as barrier | A fixed delay or turn count decides completion: `corpus-fixture-lifetime.int.test.ts:50`, `corpus-execution.int.test.ts:43`, `:132`, `corpus-workloads.int.test.ts:49`, `showcase-guest.ts:43` (24 turns). Section 7 needs a lifecycle signal. | 5 |
+| Second epoch | `atlas-guest.ts:9` `FIXED_EPOCH` beside the shared `FROZEN_AT_MS`. | 1 |
+| Duplicate timer seam | `createManualTimer` (`iso/clock.ts:55`, one consumer `tests/inference/roles/side-gen.int.test.ts`) beside `createControlledTimers` (`iso/timers.ts:17`). | 2 seams |
+| Unseeded ids and randomness | No `randomUUID`, `Math.random`, `nanoid` or bare `typeid()`. Ids come from `createSeededIds` (`iso/ids.ts`), `createIdSource(ids.next)` (`server.ts:543`) and `ids.uuid` (`server.ts:581`). | 0 |
+| Entropy in tests | `randomBytes(32)` as the secret-box key, in nine files. Twenty-eight sites in five files already use `Buffer.alloc(32, 1)`. | 19 |
+| Ambient process reads in the root | `server.ts:572` `hostEnvAllowlist` and `:573` `authModeSource()` read the real process. | 2 |
+| Copied assemblies | See the next table. | 3 |
+| Plain resource bindings | Triage by file found one file without cleanup: `node/db.int.test.ts` opens eight in-memory handles and closes none. The other bindings adopt through `defer`, `use` or `using`. | 8 handles |
+
+The kit calls `createServices` once, in `server.ts:570`. Checked and not copies: the `ServicesDeps` field list (`server.ts:570-597`, type-checked against production), `ENV_SEAMS` (a `Record` over production env keys with the production parse), the auth mode tables (read `AUTH_MODE_DEFAULT_FALLBACK`) and the browser mount (`ct-runtime.ts:25`, `ct-data-providers.tsx:33` call `createClientRuntime` and `createAuthedComposition`).
+
+| Copy | Production owner it duplicates |
+| - | - |
+| `server.ts:602-609` `workloadExecution` literal, and `workloadsFor` (`:483-511`) that runs one workload by hand | `buildServiceJobs` runner deps and worker (`packages/server/src/entry/compose/service-jobs.ts:44-57`) |
+| `server.ts:641-656` `createContext` parts for `internalCallerFor` | the tRPC mount (`packages/server/src/entry/app.ts:371-383`) |
+| `db.ts:20-66` `freshDb` pushes the live schema with drizzle-kit | `runMigrations` (`packages/db/src/client/index.ts:376`), which `corpus.ts:769` already calls |
+
+Real-root controls that exist: `seeded-ids.test.ts`, `server-lifetime.int.test.ts`, `server-native.int.test.ts`, `http-graph-teardown.int.test.ts`, `http-lifetime.int.test.ts`, `network-lifetime.int.test.ts`, `plugin-lifetime.int.test.ts`, `sdk-lifetime.int.test.ts` (identity replay), `model-kernel.int.test.ts`, `corpus-fixture-lifetime.int.test.ts`, `corpus-server.int.test.ts:127` (two roots write identical rows) and `oidc-issuer.int.test.ts` (frozen-time verification).
+
+Controls that do not exist: a direct test of `createControlledTimers` and `createFrozenClock`, a test that `freshDb` matches the migrated chain, and a test for the two ambient process reads. The `db.ts` header cites a parity test at `tests/tooling/verify/ops/db-baseline-parity.int.test.ts`. That file does not exist.
 
 ## Why
 
@@ -18,7 +50,72 @@ Rebuilt tests need stable inputs and the actual production graph, not copied dom
 
 ## Done when
 
-Maintained support uses production-derived data, seeded IDs and injected business time. Protocol and physical timing follow Spine-Testing section 3. Real-root controls prove deterministic behavior and joined cleanup. Provider recipes, cancellation reporting and software snapshots preserve observable outcomes. Copied assembly helpers leave with qualified replacements.
+- `rg 'randomBytes' tests/support` finds no test or factory key.
+- No fixed delay or turn count decides completion in the kit. Each negative assertion has a positive control.
+- The kit has one timer seam and one frozen epoch.
+- `server.ts` builds workload execution and internal callers from production owners, not copied literals.
+- A control proves `freshDb` matches the migrated schema, or `freshDb` runs the migrated chain.
+- A control covers `createControlledTimers` order, repeat and disposal.
+- No test in `node/db.int.test.ts` leaves a database handle open.
+- The root reads no real process input beyond the record it parsed.
+
+The item names provider recipes, cancellation reporting and software snapshots. No file under `tests/`, `packages/` or `docs/` defines those terms apart from this item. Leg 7 asks the owner to name them or drop the clause.
+
+## Plan
+
+Run the legs in order. Legs 1, 2, 5 and 6 touch only `tests/support`. Leg 3 needs production exports. Run each leg's named tests bare and by full path.
+
+### Leg 1: one secret-box key (codemod candidate)
+
+One rule across many files. Replace `randomBytes(32)` and `Buffer.alloc(32, 1)` with one exported kit constant. Follow `.claude/skills/codemod/SKILL.md` for the 47 sites. Keep a second distinct key where a case needs two.
+
+Files: `corpus-connection.int.test.ts`, `corpus-library-views.int.test.ts`, `corpus-sdk-sessions.int.test.ts`, `corpus-recipe.ts`, `corpus-image-variants.int.test.ts`, `corpus-search-publication.int.test.ts`, `corpus-library-clone.int.test.ts`, `factories/credentials.int.test.ts`, `corpus-publication.int.test.ts`, plus the five files that use `Buffer.alloc(32, 1)`.
+
+Done: no `randomBytes` under `tests/support`. The listed test files pass. `corpus-library-clone` keeps source and clone keys distinct.
+
+### Leg 2: lifecycle signals replace delays (per-site judgment)
+
+Five sites, each with its own signal: the abort event, the `ready` promise, or the held-statement release. Do not share a helper. Show each old form red under a slowed timer, then green.
+
+Files: `corpus-fixture-lifetime.int.test.ts`, `corpus-execution.int.test.ts`, `corpus-workloads.int.test.ts`, `showcase-guest.ts`.
+
+Done: no `physicalDelay` or turn loop decides completion in these files. Each negative assertion keeps a positive control.
+
+### Leg 3: root builds from production owners (per-site judgment, touches `packages/server`)
+
+Export the workload runner deps and the internal context parts from the compose graph. Then delete `workloadExecution`, `workloadsFor` and the `createContext` literal from `server.ts`. This changes production exports, so it follows D318 and the standing rule to export before reuse.
+
+Files: `tests/support/node/server.ts`, `packages/server/src/entry/compose/service-jobs.ts`, `packages/server/src/entry/compose/services.ts`, `packages/server/src/entry/app.ts`.
+
+Done: `server.ts` holds no copy of either literal. `corpus-execution.int.test.ts`, `corpus-workloads.int.test.ts` and `server-lifetime.int.test.ts` pass. A production defect in runner deps fails them.
+
+### Leg 4: `freshDb` schema parity (one site)
+
+Default: keep the drizzle-kit push, which Spine-Testing names for `freshDb`, and add a control. Compare `sqlite_master` of `freshDb` with a database from `runMigrations(db, SHIPPED_MIGRATIONS)`. Repoint the `db.ts` header.
+
+Files: `tests/support/node/db.ts`, `tests/support/node/db.int.test.ts`.
+
+Done: the control fails when a table, column or index differs. It passes on the current tree. The header cites an existing file.
+
+### Leg 5: timer and clock seams (per-site judgment)
+
+Fold `createManualTimer` into `createControlledTimers` and move its two consumers. Point `atlas-guest.ts` at `FROZEN_AT_MS`. Add a unit test for timer order, repeat and disposal.
+
+Files: `tests/support/iso/clock.ts`, `tests/support/iso/timers.ts`, `tests/support/iso/index.ts`, `tests/support/node/atlas-guest.ts`, `tests/inference/roles/side-gen.int.test.ts`.
+
+Done: one timer seam is exported. The new test fails when due-order or disposal changes.
+
+### Leg 6: root inputs and handle lifetimes (per-site judgment)
+
+Replace `hostEnvAllowlist` and `authModeSource()` in `server.ts` with values from the parsed record, or a fixed value. Add a control that a developer shell variable does not change the root. Close the eight handles in `db.int.test.ts` through `AsyncDisposableStack`.
+
+Files: `tests/support/node/server.ts`, `tests/support/node/env-seams.int.test.ts`, `tests/support/node/db.int.test.ts`.
+
+Done: the control fails on the old code with a planted shell variable. The handles close.
+
+### Leg 7: owner question
+
+Name the referent of "provider recipes, cancellation reporting and software snapshots", or drop the clause from Done. Default: drop it at closure.
 
 ## Evidence
 
