@@ -1,12 +1,19 @@
 {
-  "extends": "../../tsconfig.base.json",
+  // Mirrors the author toolchain's compiler options for the ui runtime; see tsconfig.author-main.json.
   "compilerOptions": {
+    "noUncheckedIndexedAccess": true,
     "lib": ["es2023"],
+    "module": "esnext",
     "moduleDetection": "force",
+    "moduleResolution": "bundler",
+    "noEmit": true,
+    "noImplicitReturns": true,
     "skipLibCheck": false,
+    "strict": true,
     "target": "es2023",
-    "types": []
+    "types": ["@orb/plugin-sdk/ui"],
+    "useDefineForClassFields": true
   },
-  "include": ["bundles/*/ui.ts", "../plugin-sdk/ui.d.ts", "../plugin-sdk/shared.d.ts", "../../reset.d.ts", "../../platform.d.ts"],
+  "include": ["bundles/*/ui.ts"],
   "exclude": ["**/node_modules"]
 }

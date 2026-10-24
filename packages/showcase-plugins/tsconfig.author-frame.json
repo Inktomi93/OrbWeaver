@@ -1,12 +1,19 @@
 {
-  "extends": "../../tsconfig.world-browser.json",
+  // Mirrors the author toolchain's compiler options for the frame runtime; see tsconfig.author-main.json.
   "compilerOptions": {
+    "noUncheckedIndexedAccess": true,
     "lib": ["es2023", "dom"],
+    "module": "esnext",
     "moduleDetection": "force",
+    "moduleResolution": "bundler",
+    "noEmit": true,
+    "noImplicitReturns": true,
     "skipLibCheck": false,
+    "strict": true,
     "target": "es2023",
-    "types": []
+    "types": ["@orb/plugin-sdk/frame"],
+    "useDefineForClassFields": true
   },
-  "include": ["bundles/*/frame.ts", "../plugin-sdk/frame.d.ts", "../../reset.d.ts", "../../platform.d.ts"],
+  "include": ["bundles/*/frame.ts"],
   "exclude": ["**/node_modules"]
 }
