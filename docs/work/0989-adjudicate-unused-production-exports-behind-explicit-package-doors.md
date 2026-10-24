@@ -26,6 +26,10 @@ Closing wildcard package paths exposes unused symbols but does not remove them. 
 
 `pnpm knip:prod` reports clean through the package doors, with each finding adjudicated in package or domain batches. Each batch records production roots and consumer scope. Removed exports preserve real callers; retained external APIs have explicit contracts. Add no baseline file and no new exemption. Add no custom liveness reader or fake consumer. Each kept door and reach entry carries its production consumer or reason. CI and the pre-push check run `pnpm knip:prod`, so a production export with only test consumers fails the build; today CI runs plain `pnpm knip`, which counts tests as consumers and passes a test-only export.
 
+## Owner ruling
+
+2026-10-24: in production mode the testkit doors, tooling and the operator scripts count as consumers, because their job is to drive production; plain test files do not. `knip.ts` scopes production consumers that way, so `pnpm knip:prod` fails exactly a production export whose only consumers are tests. The default `pnpm knip` run still fails a testkit door export no test uses.
+
 ## Evidence
 
 Continue owner-authorized package batches. Keep other scopes parked and preserve their source, reports and unfinished qualifications.
