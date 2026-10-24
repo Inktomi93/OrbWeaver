@@ -1,7 +1,7 @@
 // The Scene tab's card archive: its loading, error, empty and populated states, with the error arm rendered as
 // the shared recoverable error state directly under the section root. Reads come from a real corpus root.
 import type { ChatId } from "@orb/kit/ids";
-import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { createTimeLib, UTC_TIME_ZONE } from "@orb/kit/time";
 import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/ct";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -11,6 +11,7 @@ import type { RpgSceneCardsStory } from "./_scene-cards-stories.tsx";
 
 const STORY = "tests/client/features/rpg/components/_scene-cards-stories/RpgSceneCardsStory";
 const ARCHIVE = '[data-slot="rpg-card-archive"]';
+const PHONE_WIDTH = 430;
 const CARD_TITLE = "The harbour ledger";
 const CARD_FENCE = `:::card title="${CARD_TITLE}"\n<p>Tide tables for the quay.</p>\n:::`;
 
@@ -206,4 +207,39 @@ test("an archive with no cards yet renders the empty doorway under its label", a
   await expect(archive.getByText("Cards", { exact: true })).toBeVisible();
   await expect(archive.getByText("No cards yet", { exact: false })).toBeVisible();
   await expect(archive.getByRole("button", { name: CARD_TITLE, exact: false })).toHaveCount(0);
+});
+
+test.describe("at phone width with a coarse pointer", () => {
+  test.use({ viewport: { width: PHONE_WIDTH, height: 900 }, hasTouch: true, isMobile: true });
+
+  test("the section label is a heading and the card row is a touch-sized control showing its origin time", async ({ corpus, mount, page }) => {
+    await using root = await createCorpusHarness();
+    const room = await archiveRoom(root, corpusChatId(corpus));
+    await room.plantCard();
+    const settled = await room.messages();
+    const origin = settled.messages.find((message) => message.role === "user");
+    if (origin === undefined) {
+      throw new Error("Committed corpus chat omitted its user message");
+    }
+    await routeTrpc(page, { ...room.reads, "chat.listMessages": () => settled });
+    await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
+    const archive = page.locator(ARCHIVE);
+    const row = archive.locator('[data-slot="rpg-card-row"]');
+    await expect(row).toBeVisible();
+
+    await expect(archive.getByRole("heading", { level: 3 })).toHaveCount(1);
+    await expect(row.locator('[data-slot="rpg-turn-ref"]')).toHaveText(createTimeLib({ timeZone: UTC_TIME_ZONE }).formatDateTime(origin.createdAt));
+
+    expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+    const touchTarget = await page.evaluate(() => {
+      const probe = document.createElement("div");
+      probe.style.blockSize = "var(--spacing-touch-target)";
+      document.body.append(probe);
+      const height = probe.getBoundingClientRect().height;
+      probe.remove();
+      return height;
+    });
+    const box = await row.boundingBox();
+    expect(box?.height ?? Number.NaN).toBeGreaterThanOrEqual(touchTarget);
+  });
 });

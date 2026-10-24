@@ -2,7 +2,8 @@
 // archive and the Journal chronicle/Cards scope; "chrome designed once, used in
 // three homes"). The row IS the immersive card's title BAR minus its body — the same anatomy the transcript
 // card wears when collapsed (✦ title · provenance · turn ref · open affordance), so a card reads the same
-// wherever it is met. Bordered and compact (an instrument row, never a padded card-in-a-card).
+// wherever it is met. Bordered and compact (an instrument row, never a padded card-in-a-card). The button is
+// the `sm` control size, whose height is the pointer-conditional token (44px at a coarse pointer).
 
 import { Button } from "@orb/ui/button";
 import { Expand, Icon } from "@orb/ui/icons";
@@ -26,11 +27,11 @@ export function RpgCardRow({ card, onOpen }: RpgCardRowProps): ReactElement {
     <Button
       type="button"
       intent="outline"
-      size="inline"
+      size="sm"
       aria-label={`Open card: ${label}`}
       title="Open card"
       onClick={(): void => onOpen(card.key)}
-      className="w-full px-field py-row text-left"
+      className="w-full px-field text-left"
       data-slot="rpg-card-row"
     >
       <Text as="span" voice="label" className="min-w-0 flex-1 truncate">
@@ -41,7 +42,7 @@ export function RpgCardRow({ card, onOpen }: RpgCardRowProps): ReactElement {
           auto
         </Text>
       ) : null}
-      <RpgTurnRef messageId={card.messageId} />
+      <RpgTurnRef messageId={card.messageId} createdAt={card.createdAt} />
       <Icon icon={Expand} size="xs" className="shrink-0 text-muted-foreground" />
     </Button>
   );
