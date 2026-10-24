@@ -8,8 +8,6 @@ import { AMBIENT_STUBS } from "@orb/server/infra/plugin-host";
 import { unzipSync } from "fflate";
 
 const REPO_ROOT = join(import.meta.dirname, "..", "..", "..");
-/** Macrotask spins per settle — enough for a floated guest continuation to land. */
-const SETTLE_TICKS = 24;
 
 const sources = new Map<string, Promise<string>>();
 
@@ -37,15 +35,8 @@ export function mainSourceOf(slug: string): Promise<string> {
   return built;
 }
 
-/** Spin the macrotask queue so a floated guest continuation lands. */
-async function settle(): Promise<void> {
-  for (let i = 0; i < SETTLE_TICKS; i++) {
-    await new Promise((resolve) => setImmediate(resolve));
-  }
-}
-
-/** Run the built guest under real denial; a captured publication can supply its readiness instead of queue turns. */
-export async function bootShowcase(slug: string, host: object, ready?: Promise<void>): Promise<void> {
+/** Run the built guest under real denial. `ready` is the caller's own observation of the guest's last startup effect on the fake host. */
+export async function bootShowcase(slug: string, host: object, ready: Promise<void>): Promise<void> {
   const source = await mainSourceOf(slug);
   const ctx = vm.createContext({});
   vm.runInContext(AMBIENT_STUBS, ctx);
@@ -58,9 +49,5 @@ export async function bootShowcase(slug: string, host: object, ready?: Promise<v
     },
   };
   vm.runInContext(source, ctx, { filename: "plugin-guest.js" });
-  if (ready === undefined) {
-    await settle();
-  } else {
-    await ready;
-  }
+  await ready;
 }

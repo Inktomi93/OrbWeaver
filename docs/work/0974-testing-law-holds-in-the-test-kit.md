@@ -79,6 +79,8 @@ Files: `corpus-fixture-lifetime.int.test.ts`, `corpus-execution.int.test.ts`, `c
 
 Done: no `physicalDelay` or turn loop decides completion in these files. Each negative assertion keeps a positive control.
 
+Leg 2 landed in the commit that carries this line. Four sites wait on their own signal. `corpus-execution.int.test.ts:43` stays: its subject is the absence of the helper's physical 5000 ms default deadline, which `settleCorpusWorkloads` creates internally with `AbortSignal.timeout` and emits no event for. A test-only export is banned, so the 6000 ms hold is the only observation left.
+
 ### Leg 3: root builds from production owners (per-site judgment)
 
 Call the production builders, `buildServiceJobs` and the `createContext` assembly, through the doors they already have. Add no production export that only tests use (0989). If a builder has no door, route its parts through the composition root's existing output instead. Then delete `workloadExecution`, `workloadsFor` and the `createContext` literal from `server.ts`.
@@ -116,6 +118,15 @@ Done: the control fails on the old code with a planted shell variable. The handl
 The server harness exposes business clock, ID, random and timer seams. Existing support has selected runtime qualification; that does not establish complete replacement coverage.
 
 [D319](../adr/0319-native-protocol-time-in-scripted-test-edges.md) preserves native signed-protocol timestamps and verification. It does not authorize ambient business clocks.
+
+Leg 2 evidence: each old form failed under a planted slowdown and each new form passed under the same plant.
+
+| Site | Signal | Plant |
+| - | - | - |
+| `corpus-fixture-lifetime.int.test.ts:50` | the signal's `abort` event | `scripts/corpus-fixture-lifetime.ts` remaining time plus 200 ms |
+| `corpus-execution.int.test.ts:132` | the signal's `abort` event, listened to before setup | test timeout 100 ms to 400 ms |
+| `corpus-workloads.int.test.ts:49` | the settled `settleCorpusWorkloads` promise while the read stays held | `RECALL_WAIT_TIMEOUT_MS` 5000 to 7000 |
+| `showcase-guest.ts:43` | the caller's `ready` promise: the tool registration, or the guest's own startup warning | storage read delayed 40 turns |
 
 ## Selected asset and imagery cases
 
