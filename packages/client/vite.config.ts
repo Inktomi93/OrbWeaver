@@ -11,6 +11,7 @@ import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import type { HtmlTagDescriptor, Plugin, ResolvedConfig } from "vite";
 import { defineConfig, isFileLoadingAllowed, resolveConfig, searchForWorkspaceRoot } from "vite";
 import checker from "vite-plugin-checker";
+import { BROWSER_TARGETS } from "./browser-targets.ts";
 import { nativeTypecheck } from "./native-typecheck.config.ts";
 
 const WORKSPACE_ROOT = searchForWorkspaceRoot(import.meta.dirname);
@@ -402,7 +403,7 @@ async function withCompilerTransformCache(pluginPromise: ReturnType<typeof babel
   return plugin;
 }
 
-// @orb/client build — fully es2025, React-Compiler full-compile from day one (D54). Entry is
+// @orb/client build — targets from browser-targets.ts, React-Compiler full-compile from day one (D54). Entry is
 // index.html + src/main.tsx with a hand-written code-based route tree (src/routes/ — no file-based
 // codegen, UI-Arch §6.1). Every non-default option below is annotated with its why.
 //
@@ -681,14 +682,10 @@ export default defineConfig(({ mode }) => {
           },
         },
       },
-      // Fully es2025. NOTE (corrected 2026-08-07): this is lowered by OXC/Rolldown, NOT esbuild — vite 8
-      // treats esbuild as an optional peer it only lazily imports for `cssMinify: "esbuild"` and the
-      // deprecated `transformWithEsbuild`. The old comment here claimed the target rode a pnpm-workspace
-      // `esbuild@^0.25.0 → 0.28.1` override "because 0.25.x rejects es2025"; that override has been
-      // REMOVED and this build is green without it. cssTarget follows the same es2025 baseline.
-      target: "es2025",
-      cssTarget: "es2025",
-      // es2025 browsers ship native modulepreload — drop the polyfill.
+      // One browser list for JS and CSS (browser-targets.ts). JS is lowered by OXC/Rolldown, not esbuild.
+      target: [...BROWSER_TARGETS],
+      cssTarget: [...BROWSER_TARGETS],
+      // Every target browser ships native modulepreload — drop the polyfill.
       modulePreload: { polyfill: false },
       // CRITICAL (D44): assetsInlineLimit:0 → NO `data:` URIs, so the app CSP `img-src` stays tight
       // (D44 `allowDataImages:false`). A few extra small-asset requests are fine on a self-hosted box;
