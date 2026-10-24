@@ -1,7 +1,7 @@
 // The rpg flush's observability hooks and its bus emit: what the state round did on each turn, made visible in the
 // log and (when tracing is on) the flight recorder. A deliberate outcome logs at debug or info; a degrade warns.
 
-import { logger } from "#foundation/observability";
+import type { Logger } from "#foundation/observability";
 import type { RpgRoundObservers } from "#src/domain/rpg/contract/rounds.ts";
 import type { FlushBarrierScheduleTimeout } from "#src/domain/rpg/contract/service.ts";
 import type { RpgTraceSink } from "#src/domain/rpg/contract/trace.ts";
@@ -12,6 +12,7 @@ export function createRpgRoundObservers(
   trace: RpgTraceSink | undefined,
   scheduleTimeout: FlushBarrierScheduleTimeout,
   emitBus: RpgRoundObservers["emitBus"],
+  logger: Logger,
 ): RpgRoundObservers {
   return {
     // The feature-root rpg bus emit (§4.9) — a verb/flush calls it after its durable write; fire-and-forget.

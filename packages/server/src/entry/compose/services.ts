@@ -1159,6 +1159,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
 
   const rpgTrace = deps.env.RPG_TRACE === "on" ? createRpgTraceRecorder({ now }) : undefined;
   const rpgCompose = buildRpg({
+    logger: deps.logger,
     emitRpgEvent: rpgEvents.publishRpgEvent,
     scheduleTimeout: timers.timeout,
     randomInt: deps.randomInt,

@@ -9,7 +9,6 @@ import { errorMessage } from "@orb/kit/error-message";
 import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
-import { logger } from "#foundation/observability";
 import { createRpgRoundsContext } from "#src/domain/rpg/context.ts";
 import type { ExtractCtx, PromptInputs, RpgRoundsAssemblyDeps, RpgRoundsDeps, StructuredRound } from "#src/domain/rpg/contract/rounds.ts";
 import type { RpgContext, RpgStateDelta } from "#src/domain/rpg/contract/service.ts";
@@ -96,7 +95,7 @@ async function resyncViaToolRound(
   if (primary !== null) {
     return await resyncViaStructuredRound(deps, { ...args, round: structuredRound(primary, shapes.schemas()[primary], tools, lead), priorCalls: [] });
   }
-  warnIfStructuredUnavailable({ chatId, model: conn.model, api: conn.api, vehicle: config.stateCaptureVehicle });
+  warnIfStructuredUnavailable({ logger: deps.logger, chatId, model: conn.model, api: conn.api, vehicle: config.stateCaptureVehicle });
   let calls: readonly RpgToolCall[];
   try {
     const result = await deps.executor.runChatTurn(
@@ -110,18 +109,26 @@ async function resyncViaToolRound(
         tools,
       }),
     );
-    logToolRoundUsage({ chatId, api: conn.api, pass: "resync", result });
+    logToolRoundUsage({ logger: deps.logger, chatId, api: conn.api, pass: "resync", result });
     calls = result.toolCalls ?? [];
   } catch (err) {
     if (err instanceof GenerationObservationPersistenceError) {
       throw err;
     }
-    logger.warn({ event: RESYNC_EVENTS.failed, chatId, model: conn.model, api: conn.api, err }, "rpg resync tool round failed");
+    deps.logger.warn({ event: RESYNC_EVENTS.failed, chatId, model: conn.model, api: conn.api, err }, "rpg resync tool round failed");
     return { ok: false, reason: `${RESYNC_FAILED_REASON} ${errorMessage(err)}` };
   }
   const fallback = fallbackStateRound(generation, calls, shapes.plans);
   if (fallback !== null) {
-    logStructuredFallback({ chatId, model: conn.model, api: conn.api, shape: fallback, calls: calls.length, event: "rpg.resync.structured_fallback" });
+    logStructuredFallback({
+      logger: deps.logger,
+      chatId,
+      model: conn.model,
+      api: conn.api,
+      shape: fallback,
+      calls: calls.length,
+      event: "rpg.resync.structured_fallback",
+    });
     return await resyncViaStructuredRound(deps, { ...args, round: structuredRound(fallback, shapes.schemas()[fallback], tools, lead), priorCalls: calls });
   }
   // The SAME loss log both in-turn tool vehicles run, in the resync's own event namespace.
@@ -236,7 +243,7 @@ export function buildRunResyncExtraction(input: RpgRoundsAssemblyDeps): RpgConte
       conn = await roomWindowed(deps, chatId, (await deps.connection.resolve({ task: "chat", principal: host })).resolved as Resolved<"chat">);
     } catch (err) {
       if (isUnresolvable(err)) {
-        logger.warn({ event: "rpg.resync.unresolvable", chatId }, "rpg resync: the host's chat connection did not resolve — no rebuild");
+        deps.logger.warn({ event: "rpg.resync.unresolvable", chatId }, "rpg resync: the host's chat connection did not resolve — no rebuild");
         return { ok: false, reason: RESYNC_UNRESOLVABLE_REASON };
       }
       throw err;
@@ -247,7 +254,7 @@ export function buildRunResyncExtraction(input: RpgRoundsAssemblyDeps): RpgConte
     // wire tools (the catch-up round) or the structured writer (the degrade where no forced round is carried).
     const toolRound = carriesForcedToolRound(conn) && hasToolWriter(generationOf(conn));
     if (!(toolRound || hasStructuredWriter(generationOf(conn)))) {
-      logger.warn({ event: "rpg.resync.readonly", chatId, model: conn.model, api: conn.api }, "rpg resync: connection has no state writer — no rebuild");
+      deps.logger.warn({ event: "rpg.resync.readonly", chatId, model: conn.model, api: conn.api }, "rpg resync: connection has no state writer — no rebuild");
       return { ok: false, reason: RESYNC_READONLY_REASON };
     }
     // Establish-EVERYTHING (`reconcile: true`) over the WHOLE window (`extractionContext: "full"`, forced — the
@@ -308,7 +315,7 @@ async function resyncViaStructured(
     if (err instanceof GenerationObservationPersistenceError) {
       throw err;
     }
-    logger.warn({ event: "rpg.resync.failed", chatId, model: conn.model, api: conn.api, err }, "rpg resync extraction failed");
+    deps.logger.warn({ event: "rpg.resync.failed", chatId, model: conn.model, api: conn.api, err }, "rpg resync extraction failed");
     // THE HOST HEARS IT. This catch used to return an empty delta, which the verb reported as "nothing to
     // resync" — so a provider that refused every single call (live, on the DEFAULT hosted backend) looked
     // exactly like a story with no drift. The provider's own sentence rides out to the toast.
@@ -320,15 +327,16 @@ async function resyncViaStructured(
   // all-or-nothing).
   const { extraction, dropped, stripped } = salvageExtraction(safeJson(text));
   if (dropped.length > 0) {
-    logger.warn(
+    deps.logger.warn(
       { event: "rpg.resync.unparseable", chatId, model: conn.model, api: conn.api, dropped },
       "rpg resync: plane(s)/entry(ies) did not conform — DROPPED (the rest of the rebuild still applies)",
     );
   }
-  logStrippedKeys({ chatId, model: conn.model, api: conn.api, vehicle: "resync", event: "rpg.resync.stripped", stripped });
+  logStrippedKeys({ logger: deps.logger, chatId, model: conn.model, api: conn.api, vehicle: "resync", event: "rpg.resync.stripped", stripped });
   const participantIndex = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
   const delta = extractionToStateDelta(baseState, extraction, createExtractionMints(deps.idSource), { participantIndex, trackerDefs: inputs.config.trackers });
   logExtractionOutcome({
+    logger: deps.logger,
     chatId,
     model: conn.model,
     api: conn.api,

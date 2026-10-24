@@ -11,7 +11,6 @@ import { errorMessage } from "@orb/kit/error-message";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import type { RpgCardCorpus } from "#domain/chat";
-import { logger } from "#foundation/observability";
 import { createRpgRoundsContext } from "#src/domain/rpg/context.ts";
 import type { ExtractCtx, RpgRoundsAssemblyDeps, RpgRoundsDeps } from "#src/domain/rpg/contract/rounds.ts";
 import type { RpgContext } from "#src/domain/rpg/contract/service.ts";
@@ -87,13 +86,16 @@ async function resolveHostRoundConnection(
     conn = await roomWindowed(deps, chatId, (await deps.connection.resolve({ task: "chat", principal: host })).resolved as Resolved<"chat">);
   } catch (err) {
     if (isUnresolvable(err)) {
-      logger.warn({ event: "rpg.populate.unresolvable", chatId }, "rpg populate: the host's chat connection did not resolve — no round");
+      deps.logger.warn({ event: "rpg.populate.unresolvable", chatId }, "rpg populate: the host's chat connection did not resolve — no round");
       return { ok: false, reason: POPULATE_UNRESOLVABLE_REASON };
     }
     throw err;
   }
   if (!hasStructuredWriter(generationOf(conn))) {
-    logger.warn({ event: "rpg.populate.readonly", chatId, model: conn.model, api: conn.api }, "rpg populate: connection has no structured writer — no round");
+    deps.logger.warn(
+      { event: "rpg.populate.readonly", chatId, model: conn.model, api: conn.api },
+      "rpg populate: connection has no structured writer — no round",
+    );
     return { ok: false, reason: POPULATE_READONLY_REASON };
   }
   return { ok: true, conn };
@@ -144,7 +146,7 @@ export function buildRunPopulateExtraction(input: RpgRoundsAssemblyDeps): RpgCon
     try {
       text = await extractStructured(deps, ctx);
     } catch (err) {
-      logger.warn({ event: "rpg.populate.failed", chatId, model: conn.model, api: conn.api, err }, "rpg populate round failed");
+      deps.logger.warn({ event: "rpg.populate.failed", chatId, model: conn.model, api: conn.api, err }, "rpg populate round failed");
       // THE HOST HEARS IT (POPLOUD — the resync's catch verbatim). This used to return an empty delta, which
       // the verb reported as "this card had nothing to fill" — so a provider that refused every structured
       // request looked exactly like an empty card. The provider's own sentence rides out to the toast.
@@ -153,7 +155,7 @@ export function buildRunPopulateExtraction(input: RpgRoundsAssemblyDeps): RpgCon
     // EXT-4a salvage, per plane / per entry — a malformed item costs that item, never the quests beside it.
     const { sheet, extraction, dropped } = salvagePopulate(safeJson(text));
     if (dropped.length > 0) {
-      logger.warn(
+      deps.logger.warn(
         { event: "rpg.populate.unparseable", chatId, model: conn.model, api: conn.api, dropped },
         "rpg populate: plane(s)/entry(ies) did not conform — DROPPED (the rest of the round still applies)",
       );
@@ -164,6 +166,7 @@ export function buildRunPopulateExtraction(input: RpgRoundsAssemblyDeps): RpgCon
       trackerDefs: game?.config.trackers ?? [],
     });
     logExtractionOutcome({
+      logger: input.logger,
       chatId,
       model: conn.model,
       api: conn.api,

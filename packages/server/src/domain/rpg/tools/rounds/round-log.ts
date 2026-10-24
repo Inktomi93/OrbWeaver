@@ -7,7 +7,7 @@ import { healedJournalTypes, malformedToolCallDetails, RPG_STATE_ROUND_FAILED_SU
 import type { ChatResult } from "@orb/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import type { ChatId } from "@orb/kit/ids";
-import { logger } from "#foundation/observability";
+import type { Logger } from "#foundation/observability";
 import type { ActorRefIndex } from "#src/domain/rpg/contract/params.ts";
 import { ghostTargetRefs } from "../apply.ts";
 
@@ -25,6 +25,7 @@ const STRUCTURED_UNAVAILABLE_CODE = "structured-unavailable";
  *  The lines are INDEPENDENT (not an either/or): since R5 drops the ghost args, a ghost-only extraction is
  *  precisely the case that also writes nothing — an `else if` would have hidden the cause behind the symptom. */
 export function logExtractionOutcome(args: {
+  readonly logger: Logger;
   readonly chatId: ChatId;
   readonly model: string;
   readonly api: ChatApi | null;
@@ -42,7 +43,7 @@ export function logExtractionOutcome(args: {
   // home, so the log can never disagree with what actually applied).
   const phantomTargets = ghostTargetRefs(args.base, args.parsed, args.participantIndex);
   if (phantomTargets.length > 0) {
-    logger.warn(
+    args.logger.warn(
       { event: "rpg.extraction.phantom", chatId: args.chatId, model: args.model, api: args.api, phantomTargets },
       "rpg extraction named ghost actor(s) with no live referent — those args were DROPPED (no cast mint)",
     );
@@ -52,14 +53,14 @@ export function logExtractionOutcome(args: {
   // FOLDED extraction, so all three delivery paths report it identically (this function is their one tail).
   const healed = healedJournalTypes(args.parsed);
   if (healed.length > 0) {
-    logger.warn(
+    args.logger.warn(
       { event: "rpg.extraction.healed", chatId: args.chatId, model: args.model, api: args.api, healedJournalTypes: healed },
       "rpg extraction: journal entry(ies) omitted `type` — HEALED to note (the entry still applies)",
     );
   }
   const wroteNothing = Object.keys(args.delta.statePatch).length === 0 && args.delta.journal.length === 0;
   if (wroteNothing) {
-    logger.warn(
+    args.logger.warn(
       { event: "rpg.extraction.empty", chatId: args.chatId, model: args.model, api: args.api, actorRefs: args.actorRefs, phantomTargets },
       "rpg extraction wrote NOTHING renderable (mis-target or empty beat)",
     );
@@ -79,6 +80,7 @@ export function logExtractionOutcome(args: {
  *
  *  Both are silent on the happy path. */
 export function logToolCallLosses(args: {
+  readonly logger: Logger;
   readonly chatId: ChatId;
   readonly model: string;
   readonly api: ChatApi | null;
@@ -95,7 +97,7 @@ export function logToolCallLosses(args: {
   // failing path, the expectation, and the value the model actually sent.
   const droppedDetails = malformedToolCallDetails(args.calls);
   if (droppedDetails.length > 0) {
-    logger.warn(
+    args.logger.warn(
       {
         event: events.unparseable,
         chatId: args.chatId,
@@ -113,7 +115,7 @@ export function logToolCallLosses(args: {
   // hole in it announces itself (`update_scene.weather` on an indoor scene).
   const salvaged = salvagedToolCallFields(args.calls);
   if (salvaged.length > 0) {
-    logger.warn(
+    args.logger.warn(
       { event: events.unparseable, chatId: args.chatId, model: args.model, api: args.api, salvagedFields: salvaged },
       `rpg ${args.vehicle}: field(s) with unusable values DROPPED — the rest of the call applied (a closed vocabulary may be missing a member)`,
     );
@@ -126,6 +128,7 @@ export function logToolCallLosses(args: {
  *  (`rpg.extraction.stripped` / `rpg.resync.stripped`) — the resync keeps its own trail, as it does for every
  *  other class. Silent on the happy path. */
 export function logStrippedKeys(args: {
+  readonly logger: Logger;
   readonly chatId: ChatId;
   readonly model: string;
   readonly api: ChatApi | null;
@@ -136,7 +139,7 @@ export function logStrippedKeys(args: {
   if (args.stripped.length === 0) {
     return;
   }
-  logger.warn(
+  args.logger.warn(
     { event: args.event, chatId: args.chatId, model: args.model, api: args.api, strippedKeys: args.stripped },
     `rpg ${args.vehicle}: the model sent key(s) the schema does not declare — those writes were DROPPED (everything else applied)`,
   );
@@ -152,13 +155,14 @@ export function logStrippedKeys(args: {
  *  name says which one billed. Metadata only — never prompt/reply/extraction text. The FAILURE arm is
  *  already named by `rpg.toolround.failed` (a throw has no usage to report). */
 export function logToolRoundUsage(args: {
+  readonly logger: Logger;
   readonly chatId: ChatId;
   readonly api: ChatApi | null;
   readonly pass: "primary" | "inventory-audit" | "resync";
   readonly result: ChatResult;
 }): void {
   const { usage } = args.result;
-  logger.info(
+  args.logger.info(
     {
       event: "rpg.toolround.usage",
       chatId: args.chatId,
@@ -194,13 +198,14 @@ export function isCancelled(signal: AbortSignal): boolean {
  *  `preflight` says whether any spend happened at all (`true` = the abort beat the call, so nothing was billed).
  *  The vehicle is named because the two arms bill on different provider trails. */
 export function logCancelled(args: {
+  readonly logger: Logger;
   readonly chatId: ChatId;
   readonly model: string;
   readonly api: ChatApi | null;
   readonly vehicle: string;
   readonly preflight: boolean;
 }): void {
-  logger.info(
+  args.logger.info(
     { event: "rpg.stateround.cancelled", chatId: args.chatId, model: args.model, api: args.api, vehicle: args.vehicle, preflight: args.preflight },
     args.preflight
       ? `rpg ${args.vehicle} cancelled before its model call — nothing billed, no state written`
@@ -223,7 +228,7 @@ export function roundFailure(err: unknown): string {
 /** Parse structured-output text to a value, or `null` on non-JSON (the schema parse then fails → empty). */
 export function safeJson(text: string): unknown {
   // `null` reaches the salvage decoders, which report it as a `root` drop, and
-  // each caller logs a non-empty drop with `logger.warn` (`rpg.extraction.unparseable`, rounds/extraction.ts:95; the
+  // each caller logs a non-empty drop at warn (`rpg.extraction.unparseable`, rounds/extraction.ts:95; the
   // other three callers log at their own sites). Ends if a caller stops logging a root drop.
   try {
     return JSON.parse(text);
@@ -236,6 +241,7 @@ export function safeJson(text: string): unknown {
  *  structured output, or no shape fits its grammar — so the round runs as tool calls. LOUD, with a named code: the
  *  host chose a vehicle and is not getting it. */
 export function warnIfStructuredUnavailable(args: {
+  readonly logger: Logger;
   readonly chatId: ChatId;
   readonly model: string;
   readonly api: ChatApi | null;
@@ -244,7 +250,7 @@ export function warnIfStructuredUnavailable(args: {
   if (args.vehicle !== "structured") {
     return;
   }
-  logger.warn(
+  args.logger.warn(
     { event: STATE_VEHICLE_FALLBACK_EVENT, code: STRUCTURED_UNAVAILABLE_CODE, chatId: args.chatId, model: args.model, api: args.api },
     "rpg state round: the game asks for a structured reply but this model cannot give one — running tool calls instead",
   );
@@ -253,6 +259,7 @@ export function warnIfStructuredUnavailable(args: {
 /** The structured-fallback line: a tool round whose `required` went out as `auto` came back with nothing usable,
  *  so the beat is asked again as a structured round. A WARN, because it is a second billed call. */
 export function logStructuredFallback(args: {
+  readonly logger: Logger;
   readonly chatId: ChatId;
   readonly model: string;
   readonly api: ChatApi | null;
@@ -260,7 +267,7 @@ export function logStructuredFallback(args: {
   readonly calls: number;
   readonly event: string;
 }): void {
-  logger.warn(
+  args.logger.warn(
     { event: args.event, chatId: args.chatId, model: args.model, api: args.api, shape: args.shape, toolCalls: args.calls },
     "rpg state round: the downgraded tool round returned no usable call — retrying once as a structured round",
   );

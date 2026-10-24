@@ -32,7 +32,6 @@ import type { ChatId, ChatTurnId } from "@orb/kit/ids";
 import type { WireReady } from "@orb/kit/json-schema";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import type { RpgTurnTranscriptMessage } from "#domain/chat";
-import { logger } from "#foundation/observability";
 import type { StateRoundPlans } from "#src/domain/rpg/contract/params.ts";
 import type { RpgRoundsDeps, StructuredRound } from "#src/domain/rpg/contract/rounds.ts";
 import type { RpgRunToolRound, RpgStateDelta } from "#src/domain/rpg/contract/service.ts";
@@ -112,7 +111,7 @@ async function runInventoryAudit(args: {
     const audit = await args.deps.executor.runChatTurn(
       toForcedToolRoundRequest({ ...args.round, systemPrompt: resolveProseText("rpg.extract.plane.inventory", args.prose), tools: args.tools }),
     );
-    logToolRoundUsage({ chatId, api: connection.api, pass: "inventory-audit", result: audit });
+    logToolRoundUsage({ logger: args.deps.logger, chatId, api: connection.api, pass: "inventory-audit", result: audit });
     const calls = audit.toolCalls ?? [];
     args.deps.trace?.({ phase: "tool", chatId, turnId: args.turnId, vehicle: "cheap inventory audit", calls: recordToolCalls(calls) });
     return calls;
@@ -120,7 +119,7 @@ async function runInventoryAudit(args: {
     if (err instanceof GenerationObservationPersistenceError) {
       throw err;
     }
-    logger.warn({ event: "rpg.inventory-audit.failed", chatId, model: connection.model, api: connection.api, err }, "rpg inventory audit failed");
+    args.deps.logger.warn({ event: "rpg.inventory-audit.failed", chatId, model: connection.model, api: connection.api, err }, "rpg inventory audit failed");
     return [];
   }
 }
@@ -163,11 +162,12 @@ export async function foldRoundCalls(
   },
 ): Promise<RpgStateDelta> {
   const { chatId, conn, baseState, refs, calls, trackerDefs } = args;
-  logToolCallLosses({ chatId, model: conn.model, api: conn.api, calls, vehicle: args.vehicle, events: args.events });
+  logToolCallLosses({ logger: deps.logger, chatId, model: conn.model, api: conn.api, calls, vehicle: args.vehicle, events: args.events });
   const extraction = toolCallsToExtraction(calls);
   const participantIndex = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
   const delta = extractionToStateDelta(baseState, extraction, createExtractionMints(deps.idSource), { participantIndex, trackerDefs });
   logExtractionOutcome({
+    logger: deps.logger,
     chatId,
     model: conn.model,
     api: conn.api,
@@ -282,10 +282,10 @@ export async function requestStructuredCalls(
       throw err;
     }
     if (signal !== undefined && isCancelled(signal)) {
-      logCancelled({ chatId, model: conn.model, api: conn.api, vehicle: STRUCTURED_ROUND_VEHICLE, preflight: false });
+      logCancelled({ logger: deps.logger, chatId, model: conn.model, api: conn.api, vehicle: STRUCTURED_ROUND_VEHICLE, preflight: false });
       return { kind: "cancelled" };
     }
-    logger.warn({ event: args.events.failed, ...line, err }, "rpg structured state round failed");
+    deps.logger.warn({ event: args.events.failed, ...line, err }, "rpg structured state round failed");
     return { kind: "failed", err };
   }
   let changes: RpgStructuredChanges | null;
@@ -293,7 +293,7 @@ export async function requestStructuredCalls(
   try {
     changes = STRUCTURED_DECODERS[round.shape](safeJson(text), round.tools);
   } catch (err) {
-    logger.warn({ event: args.events.unparseable, ...line, err }, "rpg structured state round: the reply could not be decoded — nothing applied");
+    deps.logger.warn({ event: args.events.unparseable, ...line, err }, "rpg structured state round: the reply could not be decoded — nothing applied");
     return { kind: "failed", err };
   }
   // A reply that addresses none of the round's tools (every entry unreadable, or only tools the round does not offer)
@@ -301,11 +301,11 @@ export async function requestStructuredCalls(
   // A reply whose values were all refused still addressed real tools: those are recorded drops.
   const offered = new Set(round.tools.map((tool) => tool.name));
   if (changes === null || ![...changes.calls, ...changes.unassembled].some((call) => offered.has(call.name))) {
-    logger.warn({ event: args.events.unparseable, ...line }, "rpg structured state round: the reply was not a list of changes — nothing applied");
+    deps.logger.warn({ event: args.events.unparseable, ...line }, "rpg structured state round: the reply was not a list of changes — nothing applied");
     return { kind: "failed", err: new Error(STRUCTURED_REPLY_UNREADABLE) };
   }
   if (changes.unreadable > 0 || changes.dropped.length > 0) {
-    logger.warn(
+    deps.logger.warn(
       { event: args.events.unparseable, ...line, unreadableEntries: changes.unreadable, droppedFields: changes.dropped },
       "rpg structured state round: entries that were not a change, or could not be placed in a call, were DROPPED (every other change still applies)",
     );

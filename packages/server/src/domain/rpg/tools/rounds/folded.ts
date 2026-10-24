@@ -3,7 +3,6 @@
 
 import { resolveProseText } from "@orb/contracts/prose";
 import { buildToolRoundWireTools, cacheStableExtractionRefs, recordToolCalls, toolCallsToExtraction } from "@orb/contracts/rpg";
-import { logger } from "#foundation/observability";
 import { createRpgRoundsContext } from "#src/domain/rpg/context.ts";
 import type { RpgRoundsAssemblyDeps } from "#src/domain/rpg/contract/rounds.ts";
 import type { RpgContext } from "#src/domain/rpg/contract/service.ts";
@@ -71,11 +70,14 @@ export function buildFoldTurnToolCalls(input: RpgRoundsAssemblyDeps): RpgContext
     deps.trace?.({ phase: "tool", chatId, turnId, vehicle: "folded extraction", calls: recordToolCalls(toolCalls) });
     // A malformed arg NEVER fails the turn (the narrative is already committed) — `toolCallsToExtraction` drops
     // it, and this names what was dropped so the loss is diagnosable instead of silent (D109-7 totality).
-    logToolCallLosses({ chatId, model: conn.model, api: conn.api, calls: toolCalls, vehicle: "folded extraction" });
+    logToolCallLosses({ logger: input.logger, chatId, model: conn.model, api: conn.api, calls: toolCalls, vehicle: "folded extraction" });
     // Defensive direct-call arm. The normal flush reroutes an empty terminal array to the required tool round;
     // an explicit `no_changes` call is how a folded quiet beat avoids that fallback.
     if (toolCalls.length === 0) {
-      logger.info({ event: "rpg.extraction.folded.quiet", chatId, model: conn.model, api: conn.api }, "rpg folded turn recorded no state change (quiet beat)");
+      deps.logger.info(
+        { event: "rpg.extraction.folded.quiet", chatId, model: conn.model, api: conn.api },
+        "rpg folded turn recorded no state change (quiet beat)",
+      );
       return { statePatch: {}, journal: [] };
     }
     const extraction = toolCallsToExtraction(toolCalls);
@@ -87,6 +89,7 @@ export function buildFoldTurnToolCalls(input: RpgRoundsAssemblyDeps): RpgContext
     const participantIndex = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
     const delta = extractionToStateDelta(baseState, extraction, createExtractionMints(deps.idSource), { participantIndex, trackerDefs });
     logExtractionOutcome({
+      logger: input.logger,
       chatId,
       model: conn.model,
       api: conn.api,
