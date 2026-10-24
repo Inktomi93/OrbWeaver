@@ -18,7 +18,7 @@ Keyboard and screen-reader users lose their place after a prune.
 
 ## Done when
 
-Focus after a prune and after a delete lands on the finder root, proven by a CT on the focus handoff, and the AR18 case in `tests/e2e/corpus-workbench.spec.ts` passes without `test.fail()`.
+Focus after a prune and after a delete lands on the finder root, proven by a CT on the focus handoff with a control that fails on the current early focus call.
 
 ## Evidence
 
