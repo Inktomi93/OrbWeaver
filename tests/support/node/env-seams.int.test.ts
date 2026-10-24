@@ -20,6 +20,7 @@ import { ENV_SEAMS } from "./env-seams.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
 import { createCorpusHarness, expect, test } from "./fixtures.ts";
 import { createServerHarness, SECRET_BOX_TEST_KEY } from "./server.ts";
+import { createTestLogger } from "./test-logger.ts";
 
 const EVERY_INTERFACE = "0.0.0.0";
 const PNG = "image/png";
@@ -80,7 +81,7 @@ test("a composed row follows its source: an asset the product stores lands in th
     expect(relative(parent, root.env.DATA_DIR).startsWith("..")).toBe(false);
     const principal = await root.principalFor(root.ownerId);
     const stored = await root.services.assets.store({ principal, bytes: makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)), kind: "attachment", mime: PNG });
-    expect(await createCas(root.env.ASSETS_DIR).exists(root.ownerId, stored.hash)).toBe(true);
+    expect(await createCas(root.env.ASSETS_DIR, createTestLogger()).exists(root.ownerId, stored.hash)).toBe(true);
   } finally {
     await rm(parent, { recursive: true, force: true });
   }

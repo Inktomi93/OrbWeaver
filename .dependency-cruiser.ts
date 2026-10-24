@@ -795,7 +795,7 @@ const SERVER_AUTHORITY = [
     severity: "error",
     from: {
       path: SRV,
-      pathNot: [`${SRV}entry/(index|lifecycle)\\.ts$`, `${SRV}entry/compose/process-seams\\.ts$`, `${SRV}foundation/observability/logger\\.ts$`],
+      pathNot: [`${SRV}entry/(index|lifecycle)\\.ts$`, `${SRV}entry/compose/process-seams\\.ts$`],
     },
     to: { path: `${SRV}foundation/env/index\\.ts$`, dependencyTypesNot: ["type-only"] },
   },

@@ -10,7 +10,6 @@ import type { Db } from "@orb/db";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { Logger } from "#foundation/observability";
-import { logger as processLogger } from "#foundation/observability";
 import type { SettingsContext, SettingsEnvFloor } from "../contract/service.ts";
 import { readAppOverrideRaw } from "../persistence/queries.ts";
 import { layer } from "./layer.ts";
@@ -30,8 +29,6 @@ export function createEffectiveConfigCache(
     reloadEffectiveConfig: async (): Promise<EffectiveAppConfig> => {
       resolved = await readResolvedConfig(db, floor);
       logger.level = resolved.logLevel;
-      // Transitional: sites item 1271 has not moved to the root's logger still write the process logger.
-      processLogger.level = resolved.logLevel;
       return resolved;
     },
   };

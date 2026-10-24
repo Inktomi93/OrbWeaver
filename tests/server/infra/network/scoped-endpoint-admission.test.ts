@@ -4,6 +4,7 @@ import { queryObjects } from "node:v8";
 import { ANY_HOST, createScopedEgress, systemConnector, systemFetch, systemResolver } from "@orb/server/infra/network";
 import { createControlledTimers, createFrozenClock } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
+import { createTestLogger } from "@orb/testkit/node/composed";
 import { createTestEnv } from "@orb/testkit/node/helpers";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 
@@ -16,6 +17,7 @@ test("unresolved write-time endpoint admission remains public without attempting
   const failure = new Error("controlled NXDOMAIN");
   let rawCalls = 0;
   await using egress = createScopedEgress({
+    log: createTestLogger(),
     env: createTestEnv(),
     timers: quietTimers(),
     buildConnector: systemConnector,
@@ -35,6 +37,7 @@ test.each([
   { address: "169.254.169.254", verdict: "refused", allowlist: ["0.0.0.0/0"] },
 ] as const)("write-time admission preserves $address as $verdict", async ({ address, verdict, allowlist }) => {
   await using egress = createScopedEgress({
+    log: createTestLogger(),
     env: createTestEnv(),
     timers: quietTimers(),
     buildConnector: systemConnector,
@@ -49,6 +52,7 @@ test("configured and arbitrary URL execution still reject DNS failure before the
   const failure = new Error("controlled physical DNS refusal");
   let rawCalls = 0;
   await using egress = createScopedEgress({
+    log: createTestLogger(),
     env: createTestEnv(),
     timers: quietTimers(),
     buildConnector: systemConnector,
@@ -96,6 +100,7 @@ test.each([false, true])(
     }
     // The physical loopback control: the real request and DNS against a real listener.
     await using egress = createScopedEgress({
+      log: createTestLogger(),
       env: createTestEnv(),
       timers: quietTimers(),
       buildConnector: systemConnector,
@@ -172,6 +177,7 @@ test.each(["EOF", "error", "cancel"] as const)(
     }
     let normalized: WeakRef<Request> | undefined;
     await using egress = createScopedEgress({
+      log: createTestLogger(),
       env: createTestEnv(),
       timers: quietTimers(),
       buildConnector: systemConnector,

@@ -1,11 +1,11 @@
 import type { Logger } from "#foundation/observability";
-import { createDetachedSupervision, superviseSettled } from "#foundation/observability";
+import { createDetachedSupervision } from "#foundation/observability";
 import type { BackgroundWork } from "./contract/background.ts";
 
 /** Own the cancellation and settlement of work that outlives its initiating request; a failure outside a
- *  request reports through the root's `log` (absent ⇒ the process logger until item 1271 removes it). */
-export function createBackgroundWork(log?: Logger): BackgroundWork {
-  const settled = log === undefined ? superviseSettled : createDetachedSupervision(log).superviseSettled;
+ *  request reports through the root's `log`. */
+export function createBackgroundWork(log: Logger): BackgroundWork {
+  const { superviseSettled: settled } = createDetachedSupervision(log);
   const controller = new AbortController();
   const pending = new Set<Promise<void>>();
   let closed = false;

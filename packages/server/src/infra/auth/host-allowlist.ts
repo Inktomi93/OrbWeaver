@@ -119,7 +119,7 @@ export function allowedHostsReader(configured: readonly string[], relayHosts: Al
 }
 
 /** The unthrottled line for one refused host. The host rides in its own field, never in the message: the sender picks it. */
-function reportHostNotAllowed(host: string, inContainer: boolean, log: Logger | undefined): void {
+function reportHostNotAllowed(host: string, inContainer: boolean, log: Logger): void {
   securityEvent(
     "host_not_allowed",
     { host },
@@ -132,7 +132,7 @@ function reportHostNotAllowed(host: string, inContainer: boolean, log: Logger | 
 
 /** One line per refused host per hour; the key map is bounded (`notice-throttle.ts`), because the sender picks the
  *  name. `now` is the composition root's clock. */
-export function createHostNotAllowedNotice(now: () => number, inContainer: boolean, log?: Logger): HostNotAllowedNotice {
+export function createHostNotAllowedNotice(now: () => number, inContainer: boolean, log: Logger): HostNotAllowedNotice {
   const throttle = createKeyedNoticeThrottle(now);
   return (host) => {
     throttle(host, () => {

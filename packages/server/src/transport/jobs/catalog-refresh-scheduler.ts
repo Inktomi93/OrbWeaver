@@ -90,12 +90,13 @@ async function runCatalogCheck(deps: CatalogRefreshSchedulerDeps): Promise<void>
 /** Start the scheduler: one immediate boot check + the recurring decision tick on the injected timer.
  *  Returns the clear closure so entry's lifecycle layer can tear the timer down on shutdown. */
 export function startCatalogRefreshScheduler(deps: CatalogRefreshSchedulerDeps): () => void {
-  const log = getLog(deps.logger).child({ component: LOG_COMPONENT });
+  // Built per line: a child copies the root's level when built, so one made at start would miss a later override.
+  const log = (): Logger => getLog(deps.logger).child({ component: LOG_COMPONENT });
   const checkMs = deps.checkIntervalMs ?? DEFAULT_CHECK_INTERVAL_MS;
 
   const safeCheck = (): void => {
     const completion = runCatalogCheck(deps).catch((err: unknown) => {
-      log.error({ err }, "catalog-refresh: check failed (next tick retries)");
+      log().error({ err }, "catalog-refresh: check failed (next tick retries)");
     });
     deps.track?.(completion);
   };

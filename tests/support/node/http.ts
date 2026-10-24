@@ -5,9 +5,9 @@ import type { AddressInfo } from "node:net";
 import { errorMessage } from "@orb/kit/error-message";
 import type { createHttpApp } from "@orb/server/entry/compose";
 import { loopbackCompanion } from "@orb/server/foundation/env";
-import { getLog } from "@orb/server/foundation/observability";
 import type { NativeHttpBindings } from "@orb/server/infra/network";
 import { createOwnedResponseBody, drainHttpServer, joinNativeHttpRequest, serveHttpServer } from "@orb/server/infra/network";
+import { createTestLogger } from "./test-logger.ts";
 
 type HttpApp = ReturnType<typeof createHttpApp>;
 
@@ -104,7 +104,7 @@ export function createOwnedHttpRequests(
     for (const entry of requests) {
       entry.controller.abort();
     }
-    const listenerClosed = listening?.then(() => Promise.all([...servers].map((server) => drainHttpServer(server, getLog(), scheduleTimeout))));
+    const listenerClosed = listening?.then(() => Promise.all([...servers].map((server) => drainHttpServer(server, createTestLogger(), scheduleTimeout))));
     const settled = await Promise.allSettled([Promise.all(requests.map((entry) => entry.completion.promise)), listenerClosed]);
     for (const result of settled) {
       if (result.status === "rejected") {

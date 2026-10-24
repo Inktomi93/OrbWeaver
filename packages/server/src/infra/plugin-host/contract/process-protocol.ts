@@ -1,4 +1,5 @@
 import type { PluginLogLevel } from "@orb/contracts/plugin";
+import type { LogLevel } from "@orb/contracts/settings";
 import type { NodeEnvironment } from "#primitives/node-environment";
 
 export interface PluginBrokerWatchdogArguments {
@@ -6,6 +7,8 @@ export interface PluginBrokerWatchdogArguments {
   readonly workerMaximum: number;
   readonly memoryLimitBytes: number;
   readonly nodeEnvironment: NodeEnvironment;
+  /** The app record's `LOG_LEVEL`; each guest Worker builds its own root logger at it. */
+  readonly logLevel: LogLevel;
 }
 
 export interface PluginBrokerArguments extends Omit<PluginBrokerWatchdogArguments, "memoryLimitBytes"> {

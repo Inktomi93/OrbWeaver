@@ -62,7 +62,7 @@ export function requestClientScope(c: Context, trustedProxies: readonly string[]
 }
 
 /** The unthrottled line: what the mint routes emit when no throttled notice is injected. */
-export function reportPublicHttpMint(ip: string | null, log?: Logger): void {
+export function reportPublicHttpMint(ip: string | null, log: Logger): void {
   securityEvent(
     "session_minted_over_public_http",
     { clientIp: ip },
@@ -72,7 +72,7 @@ export function reportPublicHttpMint(ip: string | null, log?: Logger): void {
 }
 
 /** One line per client address per hour. `now` is the composition root's clock. */
-export function createPublicHttpMintNotice(now: () => number, log?: Logger): PublicHttpMintNotice {
+export function createPublicHttpMintNotice(now: () => number, log: Logger): PublicHttpMintNotice {
   const throttle = createKeyedNoticeThrottle(now);
   return (ip) => {
     throttle(ip ?? UNKNOWN_CLIENT, () => {
