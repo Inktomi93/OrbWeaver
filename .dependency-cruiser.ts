@@ -96,7 +96,7 @@ const SUBPATH_LEAF_IMPORTERS = [
   "packages/client/src/features/chat/components/message-row.tsx",
 ].map((path) => `^${path.replaceAll(".", "\\.")}$`);
 
-// The packages each package may import; a test tree of the package runs production only from the same set.
+// The packages kit, contracts, db, inference and client may import; a test tree of the package runs production only from the same set. Server, default-content and showcase-plugins keep their rows below.
 const CAKE = {
   kit: "^packages/kit/",
   contracts: "^packages/(contracts|kit)/",
