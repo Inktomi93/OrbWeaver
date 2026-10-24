@@ -14,6 +14,7 @@ import { Row } from "@orb/ui/layout";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
+import { TEMPORARY_CHAT_BADGE } from "#lib";
 import { useActiveChatId } from "#state";
 import { ChatHeaderSurface } from "./chat-header.tsx";
 
@@ -43,7 +44,7 @@ function TopbarHeader({ chatId }: { readonly chatId: ChatId }): ReactElement {
     <Row align="center" className="min-w-0" gap="row">
       <ChatHeaderSurface chatId={chatId} />
       <Badge intent="neutral" tone="soft">
-        Temporary
+        {TEMPORARY_CHAT_BADGE}
       </Badge>
     </Row>
   );

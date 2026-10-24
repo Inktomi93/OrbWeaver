@@ -12,6 +12,7 @@ export { setBootReadPending } from "./boot-reads.ts";
 export type { BugReportServerFacts, PublicBrowserFacts, PublicBugReport } from "./bug-report-public.ts";
 export { buildPublicBugReport, publicBugReportIssueUrl } from "./bug-report-public.ts";
 export { busDupCheck, busInvalidate, busSubscribe, busUnsubscribe } from "./bus-devlog.ts";
+export { BLANK_CHAT_NAME, NO_CHAT_SELECTED_TITLE, START_NEW_CHAT_NAME, START_TEMP_CHAT_NAME, TEMPORARY_CHAT_BADGE } from "./chat-launch-names.ts";
 export { authoredChatName, chatRoomTitle, deriveChatTitle } from "./chat-title.ts";
 export { buildClientErrorPayload } from "./client-error-report.ts";
 export type {

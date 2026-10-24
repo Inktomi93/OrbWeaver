@@ -46,7 +46,6 @@ import { corpusSearchSchema, hydrateCorpusSearch, publishCorpusSearch } from "./
 
 export type { CorpusRegexLibrary, CorpusWorldInfoLibrary } from "./corpus-library.ts";
 export type { CorpusLibraryRelations } from "./corpus-library-relations.ts";
-export type { CorpusSearchLibrary } from "./corpus-search.ts";
 
 const PRIVATE_MATERIAL_MESSAGE = "Corpus publication contains private material";
 

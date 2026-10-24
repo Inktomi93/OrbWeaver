@@ -76,7 +76,12 @@ test("portable preset and live-rule captures equal fresh native reads in a scrub
   const cloneLayout = resolveDataLayout({ ["DATA_DIR"]: join(parent, "clone") });
   const sourcePath = localPath(sourceLayout.databaseUrl);
   assert(sourcePath !== undefined);
-  cloneStageDb(sourcePath, { databaseUrl: cloneLayout.databaseUrl, assetsDir: cloneLayout.assets });
+  // The publication scrub, as a published corpus clone gets it: private runtime state removed and known secrets refused.
+  cloneStageDb(
+    sourcePath,
+    { databaseUrl: cloneLayout.databaseUrl, assetsDir: cloneLayout.assets },
+    { publication: { privateLiterals: produced.authentication.secrets } },
+  );
   const cloneDb = await createDb(cloneLayout.databaseUrl);
   ownership.defer(() => closeDb(cloneDb));
   expect(await cloneDb.select().from(sessions)).toEqual([]);
@@ -133,6 +138,26 @@ test("portable preset and live-rule captures equal fresh native reads in a scrub
     const body = await response.text();
     expect(body).not.toContain(JSON.stringify(read.output));
   }
+  // Roster, persona and tag relations read back from the scrubbed clone exactly as the source captured them.
+  const ownerCaller = await clone.internalCallerFor(relations.viewerUserId);
+  expect(await ownerCaller.rosterPreset.get(reads.rosterDetail.input)).toEqual(reads.rosterDetail.output);
+  expect((await ownerCaller.rosterPreset.list(reads.rosterList.input)).find((row) => row.id === relations.ids.rosterPresetId)).toEqual(
+    reads.rosterList.output.find((row) => row.id === relations.ids.rosterPresetId),
+  );
+  expect(await ownerCaller.persona.listConnectedToCharacter(reads.personaConnected.input)).toEqual(reads.personaConnected.output);
+  expect(await ownerCaller.persona.listConnectedCharacters(reads.personaCharacters.input)).toEqual(reads.personaCharacters.output);
+  for (const reach of [reads.characterReach, reads.chatReach, reads.worldBookReach, reads.personaReach, reads.presetReach]) {
+    expect(await ownerCaller.tag.listAttachedEntities(reach.input)).toEqual(reach.output);
+  }
+  expect(await ownerCaller.tag.listPendingSuggestions(reads.tagPendingAfter.input)).toEqual(reads.tagPendingAfter.output);
+  const nativeUsage = (await ownerCaller.tag.listTagsWithUsage()).find((tag) => tag.id === relations.ids.tagId);
+  expect(nativeUsage).toEqual(reads.tagUsage.output.find((tag) => tag.id === relations.ids.tagId));
+  expect(nativeUsage).not.toEqual(reads.tagBefore.output.find((tag) => tag.id === relations.ids.tagId));
+  expect(await ownerCaller.rosterPreset.applyToChat(reads.rosterAppliedAgain.input)).toEqual(reads.rosterAppliedAgain.output);
+  const foreignCaller = await clone.internalCallerFor(produced.foreignId);
+  await expect(foreignCaller.rosterPreset.get(reads.rosterDetail.input)).rejects.toMatchObject({ code: "NOT_FOUND" });
+  await expect(foreignCaller.tag.listAttachedEntities(reads.characterReach.input)).rejects.toMatchObject({ code: "NOT_FOUND" });
+  await expect(foreignCaller.persona.listConnectedCharacters(reads.personaCharacters.input)).rejects.toMatchObject({ code: "NOT_FOUND" });
   const invite = await clone.services.chat.createInvite({
     principal: owner,
     chatId: relations.ids.rosterChatId,
