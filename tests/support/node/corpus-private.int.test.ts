@@ -1,6 +1,6 @@
 // @subject tests/support/node/corpus.ts
 // Intrinsic wall time: private intake runs every corpus producer against a copied, migrated database, the same capture a publish
-// performs (about 80 s on a loaded box), so this one case cannot be split below it. Output admission lives in corpus-private-admission.
+// performs (measured 32 s alone, load 8), so this one case cannot be split below it. Output admission lives in corpus-private-admission.
 import { spawn } from "node:child_process";
 import { access, cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
