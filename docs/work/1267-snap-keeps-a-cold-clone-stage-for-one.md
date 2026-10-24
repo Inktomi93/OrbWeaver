@@ -23,3 +23,5 @@ A stage whose server and vite both answered but whose first navigation missed re
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Owed: one live `pnpm snap --stage-db` run under real load, once the box is quiet, to confirm a cold vite optimize ends with the stage kept warming and the retry settling.

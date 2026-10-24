@@ -172,6 +172,9 @@ test("--stage-wait takes whole minutes, implies an isolated stage, and the ask c
   expect(parsed.stageWait).toBe(30);
   expect(parsed.isolated).toBe(true);
   expect(stageAskFromArgs(parsed)).toEqual({ fresh: true, auth: "local", stageDb: "/scratch/orbweaver.db" });
+  // The typed --fresh is told apart from the one --stage-db implies, and both ride the ask.
+  expect(stageAskFromArgs(parseSnapArgs(["/", "--fresh", "--stage-db", "/scratch/orbweaver.db"]))).toMatchObject({ fresh: true, freshExplicit: true });
+  expect(parseSnapArgs(["/", "--stage-db", "/scratch/orbweaver.db"]).freshExplicit).toBe(false);
   expect(parseSnapArgs(["/", "--stage-wait", "0"]).errors).toHaveLength(1);
   expect(parseSnapArgs(["--stage-wait", "30", "--stage-down"]).errors).toHaveLength(1);
 });

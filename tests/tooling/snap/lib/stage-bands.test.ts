@@ -21,9 +21,11 @@ import {
   allocateStageBand,
   DEFAULT_STAGE_CAP,
   DEFAULT_STAGE_TTL_MIN,
+  describeStageBandRow,
   isSharedReuseCandidate,
   liveHoldersOf,
   resolveStageLimits,
+  resumesWarmingStage,
   rowIsDangling,
   STAGE_ERA_MAX_RSYNCS,
   stageDecision,
@@ -210,6 +212,8 @@ test("another owner's --stage-db clone is never a shared-reuse candidate, whatev
   // The clone's own owner, a different sha and an unbound band are not candidates either.
   expect(isSharedReuseCandidate({ ...theirs, dbProvenance: clone }, { ...ask, owner: `${MAIN_CHECKOUT}#side-eye-a` })).toBe(false);
   expect(isSharedReuseCandidate({ ...theirs, sha: OTHER_SHA }, ask)).toBe(false);
+  // A stage warming for its owner's one retry is not a sibling's to share: a miss there would tear it down.
+  expect(isSharedReuseCandidate({ ...theirs, warming: { since: USED_RECENTLY } }, ask)).toBe(false);
   expect(isSharedReuseCandidate(theirs, { ...ask, bandBound: false })).toBe(false);
   expect(isSharedReuseCandidate(null, ask)).toBe(false);
 });
@@ -410,4 +414,25 @@ test("the ERA rule rebuilds a long-lived --dirty stage, and EXEMPTS a --ref stag
 test("the dirty stage's key is never a real sha, so its row can never collide with a ref stage's", () => {
   expect(DIRTY_STAGE_KEY).not.toMatch(/^[0-9a-f]{40}$/u);
   expect(row(0, { sha: DIRTY_STAGE_KEY }).sha).toBe("dirty");
+});
+
+test("--stage-db keeps a stage that is warming from the SAME clone source, and rebuilds anything else", () => {
+  const clone = { copiedFrom: "/box/prod.db", cloned: true as const, copiedAt: "2026-10-11T10:00:00.000Z", devDbMtimeAtCopy: "2026-10-11T09:00:00.000Z" };
+  const warming = row(0, { dbProvenance: clone, warming: { since: USED_RECENTLY } });
+  const ask = { stageDb: "/box/prod.db" };
+  expect(resumesWarmingStage(warming, ask)).toBe(true);
+  // Planted controls: each fact the keep rests on, removed one at a time.
+  expect(resumesWarmingStage(row(0, { dbProvenance: clone }), ask), "not warming").toBe(false);
+  expect(resumesWarmingStage(warming, { stageDb: "/box/other.db" }), "another clone source").toBe(false);
+  expect(resumesWarmingStage(warming, {}), "a plain --fresh with no clone source").toBe(false);
+  expect(resumesWarmingStage({ ...warming, dbProvenance: null }, ask), "a stage that never cloned").toBe(false);
+  expect(resumesWarmingStage(warming, { ...ask, freshExplicit: true }), "an explicit --fresh always rebuilds").toBe(false);
+});
+
+test("the band line marks a warming stage, and only a warming one", () => {
+  const [warming, ready] = [row(0, { warming: { since: USED_RECENTLY } }), row(1)];
+  expect(describeStageBandRow({ band: 0, row: warming, bandBound: true, bandIsStageRooted: true, healthy: true, liveSessions: [] }, NOW)).toContain("WARMING");
+  expect(describeStageBandRow({ band: 1, row: ready, bandBound: true, bandIsStageRooted: true, healthy: true, liveSessions: [] }, NOW)).not.toContain(
+    "WARMING",
+  );
 });

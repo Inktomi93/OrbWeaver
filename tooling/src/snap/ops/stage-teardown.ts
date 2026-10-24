@@ -36,10 +36,10 @@ import { escalateStopSync } from "../../floor/process/stop-escalation.ts";
 import { waitSync } from "../../floor/process/sync-sleep.ts";
 import type { StageBandView, StagePorts, StageReapArm, StageRow, StageStopDeps, StageStopVerdict } from "../contract/stage.ts";
 import { missingLauncherRefusal, shortSha, stageBandEnv, stageLauncher, stageLauncherSpawn } from "../lib/stage-plan.ts";
-import { takeBootDeadStage } from "../lib/stage-run-binding.ts";
+import { takeStageOutcome } from "../lib/stage-run-binding.ts";
 import { sweepStrandedBrowsers } from "./browser-sweep.ts";
-import { clearRow } from "./stage-marker.ts";
-import { pidIsStageRooted, processGroupTarget } from "./stage-probe.ts";
+import { clearRow, clearStageWarming, markStageWarming } from "./stage-marker.ts";
+import { pidIsStageRooted, processGroupTarget, stageHealthzOk, stageViteOk } from "./stage-probe.ts";
 import { recordStageReap } from "./stage-reap-log.ts";
 import { removeStageDir } from "./stage-source.ts";
 
@@ -188,24 +188,56 @@ export function tearDownStageRow(home: string, row: StageRow, arm: StageReapArm,
  *  the same dead app to every later reuse; two lanes in one afternoon killed those groups by hand. #324's
  *  RULE is untouched (no teardown at run completion, warmth across runs is the feature); its INPUT changed.
  *
+ *  ONE WARM RETRY FIRST. When the stage's server AND vite both still answer after the miss, the first navigation
+ *  only lost a race with vite's cold dependency optimize, so the stage is marked `warming` and kept; the next
+ *  run is its retry. That retry settling clears the mark, and missing again is the verdict above. Server and
+ *  vite answering are the existing `/healthz` and origin probes (ops/stage-probe.ts), never a sleep.
+ *
  *  THE LOGS OUTLIVE THE DIR, because the refusal text tells the reader to go read them and `removeStageDir`
  *  is about to delete them. They are copied into THIS run's slot first (`<slot>/stage-logs/`), and the
  *  printed line names where they landed — a teardown that silently ate its own evidence would just move the
  *  lie one hop. No open run slot (a library caller, a test) ⇒ nothing to copy into, and the teardown still
  *  runs: killing the process group is the part that must not be optional. */
-export function tearDownBootDeadStage(): void {
-  const dead = takeBootDeadStage();
-  if (dead === null) {
+export function settleStageReadiness(deps: StageSettleDeps = LIVE_SETTLE_DEPS): void {
+  const outcome = takeStageOutcome();
+  if (outcome === null) {
     return;
   }
-  const { row, home } = dead.binding;
+  const { row, home } = outcome.binding;
+  if (outcome.kind === "settled") {
+    clearStageWarming(home, row.band);
+    print(`[snap-stage] band ${row.band} settled on its warm retry; the warming mark is cleared.`);
+    return;
+  }
+  const retry = row.warming !== undefined;
+  if (!retry && deps.answers({ server: row.serverPort, vite: row.vitePort })) {
+    // A cold vite dependency optimize can outlast the client's readiness ceiling while server and vite both
+    // answer, so the stage is kept for one warm retry. A tear-down here would make every retry cold again.
+    markStageWarming(home, row.band, deps.nowIso());
+    print(
+      `[snap-stage] WARMING band ${row.band} — ${outcome.reason}, but its server and vite both answered; keeping the stage (dir ${row.dir}) for one warm retry. A second miss tears it down.`,
+    );
+    return;
+  }
   const kept = preserveStageLogs(row.dir);
   print(
-    `[snap-stage] BOOT-DEAD band ${row.band} — ${dead.reason}; tearing the stage down (dir ${row.dir}, :${String(row.serverPort)}/:${String(row.vitePort)}). ` +
+    `[snap-stage] BOOT-DEAD band ${row.band} — ${outcome.reason}${retry ? " (the warm retry also missed)" : ""}; tearing the stage down (dir ${row.dir}, :${String(row.serverPort)}/:${String(row.vitePort)}). ` +
       (kept === null ? "No stack log was found to preserve." : `Its stack log is preserved at ${kept}.`),
   );
   tearDownStageRow(home, row, "boot-dead");
 }
+
+/** What the readiness judgement reads of the box, injected so a test scripts the probe and the clock. */
+export interface StageSettleDeps {
+  /** Did the stage's server (`/healthz`) and its vite both answer? */
+  readonly answers: (ports: StagePorts) => boolean;
+  readonly nowIso: () => string;
+}
+
+const LIVE_SETTLE_DEPS: StageSettleDeps = {
+  answers: (ports) => stageHealthzOk(ports.server) && stageViteOk(ports.vite),
+  nowIso: () => new Date().toISOString(),
+};
 
 /** Copy the staged stack's own logs into this run's slot before the dir goes. Best-effort by design: a
  *  missing log dir, or no run slot open, costs the reader context but must never block the process-group

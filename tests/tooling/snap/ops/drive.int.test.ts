@@ -5,7 +5,7 @@ import { FROZEN_AT_MS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { chromium, devices } from "@playwright/test";
 import { MOBILE_DEVICE } from "../../../../tooling/src/floor/browser/browser-environment.ts";
-import { registerStageRunBinding, takeBootDeadStage } from "../../../../tooling/src/snap/lib/stage-run-binding.ts";
+import { registerStageRunBinding, takeStageOutcome } from "../../../../tooling/src/snap/lib/stage-run-binding.ts";
 import { navigate } from "../../../../tooling/src/snap/ops/drive.ts";
 import { driveActions } from "../../../../tooling/src/snap/ops/drive-actions.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
@@ -53,6 +53,7 @@ function bindBootedStage(): void {
   registerStageRunBinding({
     home: "/planted/home",
     booted: true,
+    owner: "/planted",
     row: {
       band: 9,
       sha: "dirty",
@@ -76,7 +77,7 @@ test("a settled isolated stage succeeds on its first navigation", { timeout: BRO
   try {
     expect(await driveOnce(["/", "--isolated"], server.base)).toBeNull();
     expect(server.documents()).toBe(1);
-    expect(takeBootDeadStage()).toBeNull();
+    expect(takeStageOutcome()).toBeNull();
   } finally {
     await server.close();
   }
@@ -88,7 +89,7 @@ test("a failed first navigation stays failed even when a second document would s
   try {
     expect(await driveOnce(["/", "--isolated"], server.base)).toContain("data-app-ready came up DEGRADED");
     expect(server.documents()).toBe(1);
-    expect(takeBootDeadStage()?.reason).toContain("first navigation came back degraded");
+    expect(takeStageOutcome()).toMatchObject({ kind: "unsettled", reason: expect.stringContaining("first navigation came back degraded") });
   } finally {
     await server.close();
   }
@@ -138,7 +139,7 @@ test("--isolated does not retry or mark the stage BOOT-DEAD for a not-found rend
 
     expect(navError, "still classified as not-found under --isolated").toContain("NOT-FOUND");
     expect(server.documents(), "the first not-found navigation is retained").toBe(1);
-    expect(takeBootDeadStage()).toBeNull();
+    expect(takeStageOutcome()).toBeNull();
   } finally {
     await server.close();
   }
