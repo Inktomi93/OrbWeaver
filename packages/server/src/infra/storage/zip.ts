@@ -235,10 +235,10 @@ async function readEocd(archive: ArchiveReader): Promise<CentralDirLocation> {
   return { count, cdOffset };
 }
 
-// zlib's conservative `deflateBound`, the ceiling it promises for ANY windowBits/memLevel/strategy: U + U/8 +
-// U/64 + 5 in current zlib, which covers the older U + U/8 + U/256 + U/512 + 4, about 14% over the input. A
-// low-memLevel encoder really writes about 4% over random input, so the default-parameter bound (about 0.1%)
-// would refuse an honest archive. A record claiming more is a size lie, refused before its compressed bytes are
+// zlib's conservative `deflateBound` for any windowBits/memLevel/strategy is the larger of two forms: fixed blocks
+// with 9-bit literals, U + U/8 + U/256 + U/512 + 4 (about 13%), and 127-byte stored blocks at memLevel 1,
+// U + U/32 + U/128 + U/2048 + 7 (about 4%). This bound, U + U/8 + U/64 + 16 (about 14%), sits above both; the
+// default-parameter bound (about 0.1%) would refuse an honest low-memLevel archive. A record claiming more is a size lie, refused before its compressed bytes are
 // read, so one entry never costs more memory than this multiple of its declared output. The slack also covers
 // the 2-byte stream an empty entry deflates to.
 const DEFLATE_BOUND_EIGHTH = 8;
