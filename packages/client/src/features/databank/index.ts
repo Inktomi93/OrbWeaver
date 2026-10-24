@@ -12,8 +12,6 @@
 
 // The ingest ceremony as a shell MODAL SLOT — openable from any surface that owns the intent (P1-2).
 export { addDocumentModal } from "./lib/add-document-modal.tsx";
-// The maintenance group reasons, for tests that compare the rendered name with the source.
-export { DATABANK_SWEEPS_CHECK_FAILED, DATABANK_SWEEPS_NEED_DOCUMENT } from "./lib/databank-copy.ts";
 export { databankSection } from "./lib/databank-section.tsx";
 // The HOME tile (D-7) — a CONTRIBUTION the door assembles, never an import home makes of this feature.
 export { databankDocumentsTile } from "./lib/home-documents-tile.tsx";

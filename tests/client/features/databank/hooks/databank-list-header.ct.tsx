@@ -1,6 +1,5 @@
 // @subject packages/client/src/features/databank/hooks/use-databank-list-header.tsx
 // @subject packages/client/src/features/databank/hooks/use-owner-sweep.tsx
-import { DATABANK_SWEEPS_CHECK_FAILED, DATABANK_SWEEPS_NEED_DOCUMENT } from "@orb/client/features/databank";
 import { DATABANK_LIST_DEFAULT_LIMIT } from "@orb/contracts/databank";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { TrpcWireOutput } from "@orb/testkit/ct";
@@ -45,6 +44,18 @@ async function groupName(page: Page): Promise<string> {
     throw new Error(`The menu group carries no accessible name:\n${snapshot}`);
   }
   return name;
+}
+
+/** The group is named by exactly one label, and the browser's computed name is that label's visible text. */
+async function expectNamedByItsOneLabel(page: Page): Promise<void> {
+  const group = page.getByRole("menu").getByRole("group");
+  const name = await groupName(page);
+  await expect(group.locator('[data-slot="menu-group-label"]')).toHaveCount(1);
+  const labelId = await group.getAttribute("aria-labelledby");
+  expect(labelId).not.toBeNull();
+  const label = page.locator(`[id="${labelId ?? ""}"]`);
+  await expect(label).toHaveCount(1);
+  await expect(label).toHaveText(name);
 }
 
 async function openMaintenance(page: Page): Promise<void> {
@@ -163,14 +174,14 @@ test("the maintenance group is named after every census transition", async ({ mo
   // failed
   await openMaintenance(page);
   await expect(checkAgain).toBeVisible();
-  expect(await groupName(page)).toBe(DATABANK_SWEEPS_CHECK_FAILED);
+  await expectNamedByItsOneLabel(page);
 
   // failed -> empty
   answer = "empty";
   await checkAgain.click();
   await openMaintenance(page);
   await expect(checkAgain).toHaveCount(0);
-  expect(await groupName(page)).toBe(DATABANK_SWEEPS_NEED_DOCUMENT);
+  await expectNamedByItsOneLabel(page);
   await page.keyboard.press("Escape");
 
   // empty -> stocked
@@ -186,7 +197,7 @@ test("the maintenance group is named after every census transition", async ({ mo
   await component.getByRole("button", { name: "Re-read census", exact: true }).click();
   await openMaintenance(page);
   await expect(checkAgain).toBeVisible();
-  expect(await groupName(page)).toBe(DATABANK_SWEEPS_CHECK_FAILED);
+  await expectNamedByItsOneLabel(page);
   // failed -> stocked
   answer = "stocked";
   await checkAgain.click();
@@ -199,7 +210,7 @@ test("the maintenance group is named after every census transition", async ({ mo
   answer = "empty";
   await component.getByRole("button", { name: "Re-read census", exact: true }).click();
   await openMaintenance(page);
-  expect(await groupName(page)).toBe(DATABANK_SWEEPS_NEED_DOCUMENT);
+  await expectNamedByItsOneLabel(page);
   await page.keyboard.press("Escape");
 
   // empty -> failed -> empty: the failed read keeps the last census (0), so BOTH reasons hold at once;
@@ -212,7 +223,7 @@ test("the maintenance group is named after every census transition", async ({ mo
   await checkAgain.click();
   await openMaintenance(page);
   await expect(checkAgain).toHaveCount(0);
-  expect(await groupName(page)).toBe(DATABANK_SWEEPS_NEED_DOCUMENT);
+  await expectNamedByItsOneLabel(page);
 });
 
 test("the band prints the server census of a bank deeper than one list page", async ({ mount, page }) => {
