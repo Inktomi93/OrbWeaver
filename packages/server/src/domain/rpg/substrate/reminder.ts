@@ -263,7 +263,7 @@ export function actorLine(
 function relationshipSeg(rel: RpgRelationship, hints: Readonly<Record<string, string>>): string | null {
   if (rel.kind === "custom") {
     const label = rel.label !== "" ? rel.label : "custom";
-    const hint = hints[label];
+    const hint = readOwnKey(hints, label);
     return hint !== undefined && hint !== "" ? `${label} (${hint})` : label;
   }
   return rel.kind === "neutral" ? null : rel.kind;

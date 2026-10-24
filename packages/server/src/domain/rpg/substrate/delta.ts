@@ -432,7 +432,7 @@ function relationshipDisplay(rel: NonNullable<ActorState[number]["identity"]>["r
     return rel.kind;
   }
   const label = rel.label !== "" ? rel.label : "custom";
-  const hint = ctx.relationshipHints[label];
+  const hint = readOwnKey(ctx.relationshipHints, label);
   return hint !== undefined && hint !== "" ? `${label} (${hint})` : label;
 }
 

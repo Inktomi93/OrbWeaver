@@ -22,4 +22,6 @@ Both sites read through `readOwnKey`; a reminder test and a delta test with a `c
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+- `tests/server/domain/rpg/substrate/reminder-own-keys.int.test.ts` and `delta-own-keys.int.test.ts` send two real beats around a hand edit to a custom relationship labelled `constructor`. Both failed on the old source with `constructor (function Object() { [native code] })` in the model request, and pass with both sites on `readOwnKey`.
+- Sweep: `ast-grep run -l ts -p '$X[$Y]' packages/server/src/domain/rpg` scanned 94 files (`-l tsx`: 0 matches, 0 `.tsx` files in the tree) and found 102 index reads. The label reads are the two fixed sites. The `participantNames[...]` reads key on `character:`/`user:`/`npc:` prefixed strings, which no inherited member name matches. Every other read indexes by a numeric index, a closed tuple or union member, or a schema-validated state plane name.
+- Open for a ruling: `KEYED_ARRAYS[lastSegment(path)]` in `substrate/merge.ts` (two reads) indexes by a patch path segment; a plane name `constructor` would read `Object`. The patch keys are schema-validated state planes, so it is not reachable from a host label today.
