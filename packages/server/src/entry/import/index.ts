@@ -1,8 +1,6 @@
 // Front door for the bulk-import composition driver, which is the one place that constructs the per-owner
 // ImportService and wires the character/assets cross-feature ops.
 
-export { IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
-
 export { importStagedArchive, runBundleImport } from "#domain/import";
 export { createNodeFsImportPort } from "#infra/storage";
 

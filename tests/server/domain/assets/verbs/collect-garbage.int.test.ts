@@ -4,11 +4,10 @@
 // @subject packages/server/src/domain/assets/persistence/asset-refs.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";
-import type { Principal } from "@orb/contracts/identity";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, PLUGIN_UI_ASSETS_DIR, pluginManifestSchema } from "@orb/contracts/plugin";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
 import { documents } from "@orb/db";
-import type { CharacterHandle, ChatId, MessageId } from "@orb/kit/ids";
+import type { CharacterHandle } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { recordPluginFetchedAsset } from "@orb/server/domain/plugin";
 import { FROZEN_AT_MS } from "@orb/testkit/iso";
@@ -29,6 +28,7 @@ import { eq } from "drizzle-orm";
 import type { GcBox, StoredRef } from "../gc-box.ts";
 import {
   ageOnly,
+  attach,
   aWeekAgo,
   GC_IMAGE_MODEL,
   inlineImage,
@@ -36,6 +36,7 @@ import {
   openRoom,
   PNG,
   runScheduledGc,
+  say,
   stampBlob,
   stampEveryBlob,
   store,
@@ -62,32 +63,6 @@ function gcPluginBundle(slug: string, image: Uint8Array): Uint8Array {
     netHosts: ["covers.example.invalid"],
   });
   return makePluginBundle(manifest, GC_PLUGIN_SOURCE, FROZEN_AT_MS, { [GC_PLUGIN_IMAGE_PATH]: image });
-}
-
-interface Post {
-  readonly content: string;
-  /** Rides the send's own attachment door, which writes the `message_assets` link. */
-  readonly attached?: readonly StoredRef[];
-  readonly as?: Principal;
-}
-
-/** Post without generating. */
-async function say(box: GcBox, chatId: ChatId, post: Post): Promise<MessageId> {
-  const outcome = await box.root.services.chat.commitMessage({
-    principal: post.as ?? box.principal,
-    chatId,
-    content: post.content,
-    attachmentAssetIds: (post.attached ?? []).map((ref) => ref.assetId),
-  });
-  const message = outcome.messages[0];
-  if (message === undefined) {
-    throw new Error("commitMessage returned no committed row");
-  }
-  return message.id;
-}
-
-async function attach(box: GcBox, chatId: ChatId, ref: StoredRef): Promise<MessageId> {
-  return await say(box, chatId, { content: "", attached: [ref] });
 }
 
 function backgroundSource(ref: StoredRef): ReturnType<typeof themeBackgroundSchema.parse> {

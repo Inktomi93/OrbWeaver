@@ -1,15 +1,17 @@
 // Streaming zip codec (packZip for download, extractZip for upload). extractZip is the hostile-input
-// boundary: buffers the compressed archive under a cap, parses the central directory (never the local
-// headers, which a crafted archive can desync), validates each entry before inflating, then stages inflated bytes to disk.
+// boundary: reads a staged archive by position (or a memory/stream source held whole) under a cap, parses the
+// central directory (never the local headers, which a crafted archive can desync), validates each entry before
+// inflating, then stages inflated bytes to disk.
 
 import { randomUUID } from "node:crypto";
 import { constants as fsConstants } from "node:fs";
+import type { FileHandle } from "node:fs/promises";
 import { mkdir, mkdtemp, open, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { crc32, deflateRawSync, inflateRawSync, constants as zlibConstants } from "node:zlib";
 import { superviseDetached } from "#foundation/observability";
-import type { ExtractOptions, StagedArchive, StagedEntry, ZipEntry } from "./contract.ts";
+import type { ExtractOptions, StagedArchive, StagedEntry, ZipEntry, ZipSource } from "./contract.ts";
 
 const SIG_LOCAL = 0x04_03_4b_50;
 const SIG_CENTRAL = 0x02_01_4b_50;
@@ -83,8 +85,6 @@ const ZIP_REJECT_KINDS = ["too-large", "too-many-entries", "bad-method", "zip-sl
 
 type ZipRejectKind = (typeof ZIP_REJECT_KINDS)[number];
 
-type ZipByteSource = Uint8Array | ReadableStream<Uint8Array> | AsyncIterable<Uint8Array>;
-
 /** Thrown by `extractZip`; never carries file bytes, only the machine-auditable rejection cause. */
 class ZipRejectedError extends Error {
   readonly kind: ZipRejectKind;
@@ -95,7 +95,68 @@ class ZipRejectedError extends Error {
   }
 }
 
-// Every read is bounded — a crafted archive can point an offset past the buffer.
+/** Random access over the archive. Every parse step reads only the bytes it needs, so a staged file is never
+ *  loaded whole and a crafted offset past the end is a rejection, never a read beyond the archive. */
+interface ArchiveReader {
+  readonly size: number;
+  readonly read: (at: number, length: number) => Promise<Uint8Array>;
+}
+
+function assertInArchive(size: number, at: number, length: number): void {
+  if (at < 0 || length < 0 || at + length > size) {
+    throw new ZipRejectedError("malformed", "read past end of archive");
+  }
+}
+
+function memoryReader(buf: Uint8Array): ArchiveReader {
+  return {
+    size: buf.length,
+    read: (at, length): Promise<Uint8Array> => {
+      assertInArchive(buf.length, at, length);
+      return Promise.resolve(buf.subarray(at, at + length));
+    },
+  };
+}
+
+async function fileReader(handle: FileHandle, maxTotalBytes: number): Promise<ArchiveReader> {
+  const { size } = await handle.stat();
+  if (size > maxTotalBytes) {
+    throw new ZipRejectedError("too-large", `archive is ${size} bytes, over ${maxTotalBytes}`);
+  }
+  return {
+    size,
+    read: async (at, length): Promise<Uint8Array> => {
+      assertInArchive(size, at, length);
+      const out = new Uint8Array(length);
+      let filled = 0;
+      while (filled < length) {
+        const { bytesRead } = await handle.read(out, filled, length - filled, at + filled);
+        if (bytesRead === 0) {
+          throw new ZipRejectedError("malformed", "archive ended before its declared size");
+        }
+        filled += bytesRead;
+      }
+      return out;
+    },
+  };
+}
+
+/** A staged file is read by position under the cap; memory and stream sources are held whole under it. */
+async function openArchive(source: ZipSource, maxTotalBytes: number): Promise<ArchiveReader> {
+  if (source instanceof Uint8Array) {
+    if (source.length > maxTotalBytes) {
+      throw new ZipRejectedError("too-large", `archive is ${source.length} bytes, over ${maxTotalBytes}`);
+    }
+    return memoryReader(source);
+  }
+  // A Node read stream carries an `fd` too, so a stream is told apart by being iterable, never by its descriptor.
+  if ("getReader" in source || Symbol.asyncIterator in source) {
+    return memoryReader(await bufferCapped(source, maxTotalBytes));
+  }
+  return await fileReader(source, maxTotalBytes);
+}
+
+// Every header read is bounded — a crafted archive can point an offset past the buffer.
 function u16(buf: Uint8Array, at: number): number {
   if (at < 0 || at + U16_BYTES > buf.length) {
     throw new ZipRejectedError("malformed", "read past end of archive");
@@ -143,32 +204,49 @@ interface CentralRecord {
   readonly localOffset: number;
 }
 
-function findEocd(buf: Uint8Array): number {
-  const minStart = Math.max(0, buf.length - EOCD_MIN_SIZE - EOCD_MAX_COMMENT);
-  for (let at = buf.length - EOCD_MIN_SIZE; at >= minStart; at--) {
-    if (u32(buf, at) === SIG_EOCD) {
-      return at;
-    }
-  }
-  throw new ZipRejectedError("malformed", "no end-of-central-directory record (not a zip)");
-}
-
 interface CentralDirLocation {
   readonly count: number;
   readonly cdOffset: number;
 }
 
-function readEocd(buf: Uint8Array, eocdAt: number): CentralDirLocation {
-  const count = u16(buf, eocdAt + EOCD_OFF_TOTAL_ENTRIES);
-  const cdSize = u32(buf, eocdAt + EOCD_OFF_CD_SIZE);
-  const cdOffset = u32(buf, eocdAt + EOCD_OFF_CD_OFFSET);
+/** The end-of-central-directory record sits within the archive's last 22 bytes plus its comment. */
+async function readEocd(archive: ArchiveReader): Promise<CentralDirLocation> {
+  const tailLength = Math.min(archive.size, EOCD_MIN_SIZE + EOCD_MAX_COMMENT);
+  const tail = await archive.read(archive.size - tailLength, tailLength);
+  let eocdAt = -1;
+  for (let at = tail.length - EOCD_MIN_SIZE; at >= 0; at--) {
+    if (u32(tail, at) === SIG_EOCD) {
+      eocdAt = at;
+      break;
+    }
+  }
+  if (eocdAt === -1) {
+    throw new ZipRejectedError("malformed", "no end-of-central-directory record (not a zip)");
+  }
+  const count = u16(tail, eocdAt + EOCD_OFF_TOTAL_ENTRIES);
+  const cdSize = u32(tail, eocdAt + EOCD_OFF_CD_SIZE);
+  const cdOffset = u32(tail, eocdAt + EOCD_OFF_CD_OFFSET);
   if (count === U16_MAX || cdOffset === U32_MAX || cdSize === U32_MAX) {
     throw new ZipRejectedError("unsupported", "ZIP64 archive is not supported");
   }
-  if (cdOffset + cdSize > buf.length) {
+  if (cdOffset + cdSize > archive.size) {
     throw new ZipRejectedError("malformed", "central directory extends past the archive");
   }
   return { count, cdOffset };
+}
+
+// zlib's conservative `deflateBound`, the ceiling it promises for ANY windowBits/memLevel/strategy: U + U/8 +
+// U/64 + 5 in current zlib, which covers the older U + U/8 + U/256 + U/512 + 4, about 14% over the input. A
+// low-memLevel encoder really writes about 4% over random input, so the default-parameter bound (about 0.1%)
+// would refuse an honest archive. A record claiming more is a size lie, refused before its compressed bytes are
+// read, so one entry never costs more memory than this multiple of its declared output. The slack also covers
+// the 2-byte stream an empty entry deflates to.
+const DEFLATE_BOUND_EIGHTH = 8;
+const DEFLATE_BOUND_64TH = 64;
+const DEFLATE_BOUND_SLACK = 16;
+
+function maxDeflatedBytes(uncompressedSize: number): number {
+  return uncompressedSize + Math.ceil(uncompressedSize / DEFLATE_BOUND_EIGHTH) + Math.ceil(uncompressedSize / DEFLATE_BOUND_64TH) + DEFLATE_BOUND_SLACK;
 }
 
 interface EntryLimits {
@@ -176,19 +254,25 @@ interface EntryLimits {
   readonly maxEntryBytes: number;
 }
 
-function parseCentralRecord(buf: Uint8Array, at: number, index: number, maxEntryBytes: number): { readonly record: CentralRecord; readonly nextAt: number } {
-  if (u32(buf, at) !== SIG_CENTRAL) {
+async function parseCentralRecord(
+  archive: ArchiveReader,
+  at: number,
+  index: number,
+  maxEntryBytes: number,
+): Promise<{ readonly record: CentralRecord; readonly nextAt: number }> {
+  const buf = await archive.read(at, CENTRAL_FIXED_SIZE);
+  if (u32(buf, 0) !== SIG_CENTRAL) {
     throw new ZipRejectedError("malformed", `central directory entry ${index} has a bad signature`);
   }
-  const flags = u16(buf, at + CDH_OFF_FLAGS);
-  const method = u16(buf, at + CDH_OFF_METHOD);
-  const crc = u32(buf, at + CDH_OFF_CRC);
-  const compressedSize = u32(buf, at + CDH_OFF_COMPRESSED);
-  const uncompressedSize = u32(buf, at + CDH_OFF_UNCOMPRESSED);
-  const nameLen = u16(buf, at + CDH_OFF_NAME_LEN);
-  const extraLen = u16(buf, at + CDH_OFF_EXTRA_LEN);
-  const commentLen = u16(buf, at + CDH_OFF_COMMENT_LEN);
-  const localOffset = u32(buf, at + CDH_OFF_LOCAL_OFFSET);
+  const flags = u16(buf, CDH_OFF_FLAGS);
+  const method = u16(buf, CDH_OFF_METHOD);
+  const crc = u32(buf, CDH_OFF_CRC);
+  const compressedSize = u32(buf, CDH_OFF_COMPRESSED);
+  const uncompressedSize = u32(buf, CDH_OFF_UNCOMPRESSED);
+  const nameLen = u16(buf, CDH_OFF_NAME_LEN);
+  const extraLen = u16(buf, CDH_OFF_EXTRA_LEN);
+  const commentLen = u16(buf, CDH_OFF_COMMENT_LEN);
+  const localOffset = u32(buf, CDH_OFF_LOCAL_OFFSET);
 
   if (compressedSize === U32_MAX || uncompressedSize === U32_MAX) {
     throw new ZipRejectedError("unsupported", "ZIP64 entry size is not supported");
@@ -203,11 +287,14 @@ function parseCentralRecord(buf: Uint8Array, at: number, index: number, maxEntry
   if (uncompressedSize > maxEntryBytes) {
     throw new ZipRejectedError("too-large", `entry ${index} declares ${uncompressedSize} bytes, over the ${maxEntryBytes} per-entry cap`);
   }
+  if (compressedSize > maxDeflatedBytes(uncompressedSize)) {
+    throw new ZipRejectedError("malformed", `entry ${index} declares ${compressedSize} compressed bytes, more than any encoder writes for ${uncompressedSize}`);
+  }
   const nameAt = at + CENTRAL_FIXED_SIZE;
-  if (nameAt + nameLen > buf.length) {
+  if (nameAt + nameLen > archive.size) {
     throw new ZipRejectedError("malformed", `entry ${index} name extends past the archive`);
   }
-  const name = new TextDecoder("utf-8").decode(buf.subarray(nameAt, nameAt + nameLen));
+  const name = new TextDecoder("utf-8").decode(await archive.read(nameAt, nameLen));
   assertSafeName(name);
   return {
     record: { name, method, crc, compressedSize, uncompressedSize, localOffset },
@@ -215,14 +302,15 @@ function parseCentralRecord(buf: Uint8Array, at: number, index: number, maxEntry
   };
 }
 
-function readCentralDirectory(buf: Uint8Array, location: CentralDirLocation, limits: EntryLimits): CentralRecord[] {
+async function readCentralDirectory(archive: ArchiveReader, location: CentralDirLocation, limits: EntryLimits): Promise<CentralRecord[]> {
   if (location.count > limits.maxEntries) {
     throw new ZipRejectedError("too-many-entries", `${location.count} entries exceeds the cap of ${limits.maxEntries}`);
   }
   const records: CentralRecord[] = [];
   let at = location.cdOffset;
   for (let i = 0; i < location.count; i++) {
-    const { record, nextAt } = parseCentralRecord(buf, at, i, limits.maxEntryBytes);
+    // Each record's length is in its own fixed header, so the walk is sequential by construction.
+    const { record, nextAt } = await parseCentralRecord(archive, at, i, limits.maxEntryBytes);
     records.push(record);
     at = nextAt;
   }
@@ -230,22 +318,23 @@ function readCentralDirectory(buf: Uint8Array, location: CentralDirLocation, lim
 }
 
 // Data offset comes from the local header (its lengths can differ from the central copy); sizes always come from the already-validated central record.
-function locateData(buf: Uint8Array, rec: CentralRecord): Uint8Array {
-  if (u32(buf, rec.localOffset) !== SIG_LOCAL) {
+async function locateData(archive: ArchiveReader, rec: CentralRecord): Promise<Uint8Array> {
+  const head = await archive.read(rec.localOffset, LOCAL_FIXED_SIZE);
+  if (u32(head, 0) !== SIG_LOCAL) {
     throw new ZipRejectedError("malformed", `entry ${rec.name} has no local header`);
   }
-  const nameLen = u16(buf, rec.localOffset + LFH_OFF_NAME_LEN);
-  const extraLen = u16(buf, rec.localOffset + LFH_OFF_EXTRA_LEN);
+  const nameLen = u16(head, LFH_OFF_NAME_LEN);
+  const extraLen = u16(head, LFH_OFF_EXTRA_LEN);
   const dataAt = rec.localOffset + LOCAL_FIXED_SIZE + nameLen + extraLen;
   const dataEnd = dataAt + rec.compressedSize;
-  if (dataEnd > buf.length) {
+  if (dataEnd > archive.size) {
     throw new ZipRejectedError("malformed", `entry ${rec.name} data extends past the archive`);
   }
-  return buf.subarray(dataAt, dataEnd);
+  return await archive.read(dataAt, rec.compressedSize);
 }
 
-function inflateEntry(buf: Uint8Array, rec: CentralRecord): Uint8Array {
-  const compressed = locateData(buf, rec);
+async function inflateEntry(archive: ArchiveReader, rec: CentralRecord): Promise<Uint8Array> {
+  const compressed = await locateData(archive, rec);
   let out: Uint8Array;
   if (rec.method === METHOD_STORE) {
     if (rec.compressedSize !== rec.uncompressedSize) {
@@ -270,7 +359,9 @@ function inflateEntry(buf: Uint8Array, rec: CentralRecord): Uint8Array {
 function inflateWithCap(compressed: Uint8Array, rec: CentralRecord): Uint8Array {
   try {
     return inflateRawSync(compressed, {
-      maxOutputLength: rec.uncompressedSize,
+      // zlib rejects a zero output cap outright, so an empty entry (the 2-byte stream Java writes) gets one
+      // byte of room; any byte it really produces fails the declared-size check after this call.
+      maxOutputLength: Math.max(rec.uncompressedSize, 1),
       finishFlush: zlibConstants.Z_FINISH,
     });
   } catch (err) {
@@ -312,13 +403,7 @@ function toAsyncIterable(source: ReadableStream<Uint8Array> | AsyncIterable<Uint
   };
 }
 
-async function bufferCapped(source: ZipByteSource, maxTotalBytes: number): Promise<Uint8Array> {
-  if (source instanceof Uint8Array) {
-    if (source.length > maxTotalBytes) {
-      throw new ZipRejectedError("too-large", `archive is ${source.length} bytes, over ${maxTotalBytes}`);
-    }
-    return source;
-  }
+async function bufferCapped(source: ReadableStream<Uint8Array> | AsyncIterable<Uint8Array>, maxTotalBytes: number): Promise<Uint8Array> {
   const chunks: Uint8Array[] = [];
   let total = 0;
   for await (const chunk of toAsyncIterable(source)) {
@@ -362,11 +447,11 @@ async function readStaged(path: string): Promise<Uint8Array> {
   }
 }
 
-async function stageRecords(dir: string, buf: Uint8Array, records: readonly CentralRecord[], maxTotalDecompressedBytes: number): Promise<StagedEntry[]> {
+async function stageRecords(dir: string, archive: ArchiveReader, records: readonly CentralRecord[], maxTotalDecompressedBytes: number): Promise<StagedEntry[]> {
   const entries: StagedEntry[] = [];
   let producedTotal = 0;
   for (const [i, rec] of records.entries()) {
-    const bytes = inflateEntry(buf, rec);
+    const bytes = await inflateEntry(archive, rec);
     producedTotal += bytes.length;
     if (producedTotal > maxTotalDecompressedBytes) {
       throw new ZipRejectedError("bomb", `aggregate decompressed size exceeds ${maxTotalDecompressedBytes} bytes (amplification bomb)`);
@@ -379,24 +464,24 @@ async function stageRecords(dir: string, buf: Uint8Array, records: readonly Cent
   return entries;
 }
 
-export async function extractZip(source: ZipByteSource, options?: ExtractOptions): Promise<StagedArchive> {
+/** Validate and stage an untrusted archive. A staged file handle stays its caller's to close. */
+export async function extractZip(source: ZipSource, options?: ExtractOptions): Promise<StagedArchive> {
   const maxTotalBytes = options?.maxTotalBytes ?? DEFAULT_MAX_TOTAL_BYTES;
   const maxEntryBytes = options?.maxEntryBytes ?? DEFAULT_MAX_ENTRY_BYTES;
   const maxTotalDecompressedBytes = options?.maxTotalDecompressedBytes ?? DEFAULT_MAX_TOTAL_DECOMPRESSED_BYTES;
   const maxEntries = Math.min(options?.maxEntries ?? DEFAULT_MAX_ENTRIES, DEFAULT_MAX_ENTRIES);
   const stagingRoot = options?.stagingRoot ?? tmpdir();
 
-  const buf = await bufferCapped(source, maxTotalBytes);
-  const eocdAt = findEocd(buf);
-  const location = readEocd(buf, eocdAt);
+  const archive = await openArchive(source, maxTotalBytes);
+  const location = await readEocd(archive);
   // Structural belts run here eagerly, before a single byte is inflated (fail-closed).
-  const records = readCentralDirectory(buf, location, { maxEntries, maxEntryBytes });
+  const records = await readCentralDirectory(archive, location, { maxEntries, maxEntryBytes });
 
   await mkdir(stagingRoot, { recursive: true });
   const dir = await mkdtemp(join(stagingRoot, STAGING_PREFIX));
   const dispose = (): Promise<void> => rm(dir, { recursive: true, force: true });
   try {
-    const entries = await stageRecords(dir, buf, records, maxTotalDecompressedBytes);
+    const entries = await stageRecords(dir, archive, records, maxTotalDecompressedBytes);
     return { entries, dispose };
   } catch (err) {
     await dispose();

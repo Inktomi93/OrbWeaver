@@ -65,7 +65,7 @@ export { seedGlobalRegexScript, seedRegexScript } from "./factories/regex.ts";
 export { captureRpgSnapshot, seedRpgCheckpoint, seedRpgGame } from "./factories/rpg.ts";
 export { seedUserSettings } from "./factories/settings.ts";
 export { seedCreatedTag } from "./factories/tag.ts";
-export { seedWorkloadSchedule } from "./factories/workload.ts";
+export { createQueueScanner, seedWorkloadSchedule } from "./factories/workload.ts";
 export type { ServerHarnessOptions, ServerTestHarness, UnclaimedServerTestHarness } from "./server.ts";
 export { createServerHarness } from "./server.ts";
 export { claimShareOwner, readRelayStarts, relayExecutable, relayProgram, SHARE_OWNER_PASSWORD } from "./share.ts";

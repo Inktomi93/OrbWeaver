@@ -4,7 +4,7 @@ import { refineryScorePayloadSchema } from "@orb/contracts/refinery";
 import type { StartWorkloadInput, WorkloadRunnableRow } from "@orb/contracts/workloads";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import type { WorkloadId } from "@orb/kit/ids";
-import { createNextRunnableWorkload, runWorkload } from "@orb/server/domain/workloads";
+import { runWorkload } from "@orb/server/domain/workloads";
 import type { ServerTestHarness, seedRecallRoom } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
@@ -12,6 +12,7 @@ import {
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
+  createQueueScanner,
   seedCorpusConnections,
 } from "@orb/testkit/node/composed";
 
@@ -108,14 +109,6 @@ export async function executeRow(root: ServerTestHarness, row: WorkloadRunnableR
     row,
     new AbortController().signal,
   );
-}
-
-export function createQueueScanner(root: ServerTestHarness): ReturnType<typeof createNextRunnableWorkload> {
-  return createNextRunnableWorkload({
-    db: databaseHandle(root.db),
-    contributions: root.app.workloadContributions,
-    emitEvent: root.app.workloadEvents.emitWorkloadEvent,
-  });
 }
 
 export async function observeQueued(root: ServerTestHarness, id: WorkloadId): Promise<WorkloadRunnableRow> {

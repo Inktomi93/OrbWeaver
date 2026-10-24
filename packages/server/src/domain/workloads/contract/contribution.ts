@@ -74,6 +74,11 @@ export interface WorkloadContribution<K extends WorkloadKind = WorkloadKind> {
    */
   readonly modelCalls?: (args: WorkloadEstimateScope & { readonly funderUserId: UserId | null; readonly params: WorkloadParamsByKind[K] }) => Promise<number>;
   readonly resume: WorkloadResumePolicy;
+  /**
+   * The kinds this one must never run BESIDE, for any owner, on any lane or replica (D334). The exclusion binds
+   * both ways, so the kind that cares declares it once. OMIT IT when the kind can run beside any other.
+   */
+  readonly excludes?: readonly WorkloadKind[];
   /** The run body — a compose-built closure over the OWNING domain's own verbs. No shared env hub. */
   readonly run: (ctx: WorkloadRunContext, params: WorkloadParamsByKind[K], report: ReportProgress, signal: AbortSignal) => Promise<WorkloadResultByKind[K]>;
 }

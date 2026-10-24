@@ -280,3 +280,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D331 | [Tooling and test shapes stay beside the function that uses them](0331-tooling-and-test-shapes-stay-beside-their-function.md) | active |
 | D332 | [Host handoff settles old-authority work before transfer](0332-host-handoff-settles-old-authority-work-before-transfer.md) | active |
 | D333 | [Retained tooling serves application development](0333-retained-tooling-serves-application-development.md) | active |
+| D334 | [A workload contribution may exclude kinds from running beside it](0334-workload-kinds-may-exclude-each-other.md) | active |

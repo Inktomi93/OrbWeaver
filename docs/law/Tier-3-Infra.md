@@ -40,7 +40,7 @@ The db-free Strategy executor turning request `Headers` (+ the raw TCP peer) int
 
 - **`cas.ts`** — the per-user CAS (`<owner>/ab/cd/<hash>`, D21 — no cross-user byte-dedup/existence-oracle; ownership is gated ABOVE it by the assets domain + the owner-gated `/blob` route). Crash-atomic write; write-once dedup with an injected-clock mtime bump for GC's grace window.
 - **`variant-cache.ts`** — the derived-webp cache, sibling to the CAS; atomic but `fsync:false` (reproducible from the original).
-- **`zip.ts`** — the streaming zip codec (`packZip` for export download, `extractZip` for hub/upload import). `extractZip` is the hostile-input boundary: buffers the archive under a cap, parses the CENTRAL directory (NEVER the local headers — a crafted archive can desync them), validates each entry before inflating, then stages inflated bytes to disk. The bit/shift/mask ops are the zip byte-format exemption.
+- **`zip.ts`** — the streaming zip codec (`packZip` for export download, `extractZip` for hub/upload import). `extractZip` is the hostile-input boundary: reads a staged archive by position (a memory or stream source is held whole) under a cap, refuses an entry that claims more compressed bytes than deflate can write for its size, parses the CENTRAL directory (NEVER the local headers — a crafted archive can desync them), validates each entry before inflating, then stages inflated bytes to disk. The bit/shift/mask ops are the zip byte-format exemption.
 
 ### `infra/image` — the sharp adapter (D6)
 

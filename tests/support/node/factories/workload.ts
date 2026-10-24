@@ -1,13 +1,24 @@
 // Admission, contribution params, active-slot adoption and schedule cadence remain production decisions.
 import { workloadSchedules, workloads } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
+import { createNextRunnableWorkload } from "@orb/server/domain/workloads";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { eq } from "drizzle-orm";
-import type { ServerProducerRoot } from "../server.ts";
+import type { ServerProducerRoot, ServerTestHarness } from "../server.ts";
 
 type WorkloadService = ServicesResult["services"]["workloads"];
 type WorkloadScheduleRow = typeof workloadSchedules.$inferSelect;
 
 export type WorkloadDbRow = typeof workloads.$inferSelect;
+
+/** The engine's own queue scan bound to the root, so a suite reads what a lane's worker would claim next. */
+export function createQueueScanner(root: Pick<ServerTestHarness, "db" | "app">): ReturnType<typeof createNextRunnableWorkload> {
+  return createNextRunnableWorkload({
+    db: databaseHandle(root.db),
+    contributions: root.app.workloadContributions,
+    emitEvent: root.app.workloadEvents.emitWorkloadEvent,
+  });
+}
 
 /** Captures the admitted/adopted row's actual state; enqueue is not evidence of successful execution. */
 export async function seedWorkload(root: ServerProducerRoot, params: Parameters<WorkloadService["start"]>[0]): Promise<WorkloadDbRow> {

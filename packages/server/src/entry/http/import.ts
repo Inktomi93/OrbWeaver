@@ -1,8 +1,10 @@
 // The bundle-upload registrar. One route, workload-backed: POST /api/import/bundle stages a portability
 // zip to disk, then starts a per-owner singular import-bundle workload (202 {workloadId}) — the import
 // runs off the request, so a full bundle never times out the HTTP upload, and concurrent uploads by one
-// owner are serialized by the workload single-active lock (409). Belt order: auth (401 before the body is
-// touched) → CSRF → a DoS byte cap on the staging write (413, partial file removed) → owner-scoped start.
+// owner are refused 409: a second upload while one is still staging before its body is read, and one beside
+// a running import by the workload single-active lock. Belt order: auth (401 before the body is touched) →
+// CSRF → one staging upload per owner → a DoS byte cap on the staging write (413, partial file removed) →
+// owner-scoped start.
 // The staged zip is owned by the workload from `start` on (its runner-env op cleans it up in a finally);
 // a pre-dispatch failure removes it here instead.
 //
@@ -15,13 +17,15 @@
 import { constants as fsConstants } from "node:fs";
 import { mkdir, open, rm } from "node:fs/promises";
 import { join } from "node:path";
+import type { Principal } from "@orb/contracts/identity";
 import { importStartedSchema } from "@orb/contracts/import";
+import { IMPORT_BUNDLE_MAX_BYTES } from "@orb/contracts/uploads";
 import { DomainConflictError } from "@orb/kit/errors";
-import type { Hono } from "hono";
+import type { UserId } from "@orb/kit/ids";
+import type { Context, Hono } from "hono";
 import { DEFAULT_IMPORT_STAGING_DIR, stagedOwnerRoot } from "#domain/import";
 import type { WorkloadService } from "#domain/workloads";
 import { hasCsrfHeader } from "#infra/auth";
-import { IMPORT_MAX_TOTAL_BYTES } from "../import/index.ts";
 import type { PrincipalEnv } from "./contract/request-env.ts";
 
 const UNAUTHORIZED = 401;
@@ -31,6 +35,7 @@ const PAYLOAD_TOO_LARGE = 413;
 const CONFLICT = 409;
 const ACCEPTED = 202;
 const BUNDLE_ROUTE = "/api/import/bundle";
+const ALREADY_RUNNING = "a bundle import is already running for this account";
 /** Staging dirs are per-uploader, so they are created rwx for the app user only. */
 const OWNER_ONLY_DIR = 0o700;
 
@@ -81,6 +86,9 @@ async function stageCapped(body: ReadableStream<Uint8Array>, path: string, maxBy
 /** Register `POST /api/import/bundle` on `app`. Auth-first, CSRF-guarded, DoS-capped; stages the upload +
  *  starts a per-owner `import-bundle` workload, returning `202 { workloadId }`. */
 export function registerImportBundle(app: Hono<PrincipalEnv>, deps: ImportBundleDeps): void {
+  // Owners whose upload is still staging. The single-active lock only answers at `start`, after a whole
+  // bundle (up to the 4 GiB cap) is on disk, so without this one member could stage many bundles at once.
+  const staging = new Set<UserId>();
   app.post(BUNDLE_ROUTE, async (c) => {
     const principal = c.get("principal");
     if (principal === null) {
@@ -97,32 +105,47 @@ export function registerImportBundle(app: Hono<PrincipalEnv>, deps: ImportBundle
     if (body === null) {
       return c.json({ error: "empty request body — expected a zip bundle" }, BAD_REQUEST);
     }
-
-    // The uploader's OWN staging namespace — the import run re-derives it from its row owner, so a handle
-    // only ever resolves for the account it was staged for. 0o700: the directory is not a shared inbox.
-    const stagingRoot = stagedOwnerRoot(deps.stagingDir ?? DEFAULT_IMPORT_STAGING_DIR, principal.userId);
-    await mkdir(stagingRoot, { recursive: true, mode: OWNER_ONLY_DIR });
-    const token = `import-bundle-${deps.newOpaqueId()}.zip`;
-    const stagedPath = join(stagingRoot, token);
-    const staged = await stageCapped(body, stagedPath, IMPORT_MAX_TOTAL_BYTES);
-    if (!staged) {
-      return c.json({ error: "bundle exceeds the maximum upload size" }, PAYLOAD_TOO_LARGE);
+    const ownerId = principal.userId;
+    if (staging.has(ownerId)) {
+      // Refused before a byte of this body is read.
+      await body.cancel();
+      return c.json({ error: ALREADY_RUNNING }, CONFLICT);
     }
-
+    staging.add(ownerId);
     try {
-      const { id } = await deps.workloads.start({
-        input: { kind: "import-bundle", params: { token } },
-        caller: principal,
-        mode: "singular",
-        ownerId: principal.userId,
-      });
-      return c.json(importStartedSchema.parse({ workloadId: id }), ACCEPTED);
-    } catch (err) {
-      await rm(stagedPath, { force: true });
-      if (err instanceof DomainConflictError) {
-        return c.json({ error: "a bundle import is already running for this account" }, CONFLICT);
-      }
-      throw err;
+      return await stageAndStart(c, body, principal, deps);
+    } finally {
+      staging.delete(ownerId);
     }
   });
+}
+
+/** Stage the body under the owner's own root, then start its workload; a refused start removes the staged file. */
+async function stageAndStart(c: Context<PrincipalEnv>, body: ReadableStream<Uint8Array>, principal: Principal, deps: ImportBundleDeps): Promise<Response> {
+  // The uploader's OWN staging namespace — the import run re-derives it from its row owner, so a handle
+  // only ever resolves for the account it was staged for. 0o700: the directory is not a shared inbox.
+  const stagingRoot = stagedOwnerRoot(deps.stagingDir ?? DEFAULT_IMPORT_STAGING_DIR, principal.userId);
+  await mkdir(stagingRoot, { recursive: true, mode: OWNER_ONLY_DIR });
+  const token = `import-bundle-${deps.newOpaqueId()}.zip`;
+  const stagedPath = join(stagingRoot, token);
+  const staged = await stageCapped(body, stagedPath, IMPORT_BUNDLE_MAX_BYTES);
+  if (!staged) {
+    return c.json({ error: "bundle exceeds the maximum upload size" }, PAYLOAD_TOO_LARGE);
+  }
+
+  try {
+    const { id } = await deps.workloads.start({
+      input: { kind: "import-bundle", params: { token } },
+      caller: principal,
+      mode: "singular",
+      ownerId: principal.userId,
+    });
+    return c.json(importStartedSchema.parse({ workloadId: id }), ACCEPTED);
+  } catch (err) {
+    await rm(stagedPath, { force: true });
+    if (err instanceof DomainConflictError) {
+      return c.json({ error: ALREADY_RUNNING }, CONFLICT);
+    }
+    throw err;
+  }
 }

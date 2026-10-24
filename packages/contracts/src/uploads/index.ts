@@ -23,6 +23,7 @@ const BYTES_PER_MIB = BYTES_PER_KIB * BYTES_PER_KIB;
 const ASSET_UPLOAD_MIB = 64;
 const DATABANK_UPLOAD_MIB = 20;
 const IMPORT_TOTAL_MIB = 256;
+const IMPORT_BUNDLE_MIB = 4096; // 4 GiB
 const IMPORT_DECOMPRESSED_MIB = 10_240; // 10 GiB
 const DATABANK_EXTRACT_MIB = DATABANK_UPLOAD_MIB * 10;
 const IMPORT_TREE_TOTAL_MIB = 1024;
@@ -40,9 +41,17 @@ export const ASSET_UPLOAD_MAX_BYTES = ASSET_UPLOAD_MIB * BYTES_PER_MIB;
 export const DATABANK_UPLOAD_MAX_BYTES = DATABANK_UPLOAD_MIB * BYTES_PER_MIB;
 
 // ── The import family (a portability bundle / bare card → /api/import + the bundle runner) ─────────────
-/** The per-request COMPRESSED archive cap (256 MiB). A larger upload is aborted mid-stream, never fully
- *  staged. Shared by the HTTP import edge, the bundle runner, and the profile-dir per-blob store belt. */
+/** The per-request cap for an import the server holds IN MEMORY (256 MiB): a bare card, a chat file, a
+ *  card-lorebook restore. A larger body is refused before it is buffered. A backup ZIP is disk-staged and
+ *  has its own cap, {@link IMPORT_BUNDLE_MAX_BYTES}. */
 export const IMPORT_MAX_TOTAL_BYTES = IMPORT_TOTAL_MIB * BYTES_PER_MIB;
+
+/** The COMPRESSED backup ZIP cap (4 GiB): the HTTP edge stages the upload to disk under it, aborting
+ *  mid-stream and removing the partial file past it, and the extractor reads the staged file by position
+ *  under it, never buffering the archive. 4 GiB is the ZIP32 ceiling the library export itself writes
+ *  within, so no export is refused for its compressed size. An export whose entries inflate past
+ *  {@link IMPORT_MAX_DECOMPRESSED_BYTES} is still refused by that floor. */
+export const IMPORT_BUNDLE_MAX_BYTES = IMPORT_BUNDLE_MIB * BYTES_PER_MIB;
 
 /** SECURITY FLOOR (not served) — the aggregate DECOMPRESSED cap (10 GiB, disk-staged). Sized so a genuine
  *  full-account all-blobs backup fits while an amplification/zip-bomb archive aborts. Moves with its
@@ -55,8 +64,8 @@ export const IMPORT_MAX_DECOMPRESSED_BYTES = IMPORT_DECOMPRESSED_MIB * BYTES_PER
  *  can still expand without bound — the loader's per-ENTRY cap refuses one bomb but sums nothing, so N legal
  *  entries walked straight past it.
  *
- *  10× the upload cap, and deliberately far tighter than the import family's 40× ({@link
- *  IMPORT_MAX_DECOMPRESSED_BYTES}, 256 MiB → 10 GiB): that belt guards a DISK-STAGED backup, while an
+ *  10× the upload cap, and deliberately far tighter than the import family's aggregate ({@link
+ *  IMPORT_MAX_DECOMPRESSED_BYTES}, 10 GiB): that belt guards a DISK-STAGED backup, while an
  *  extraction loader materializes every accepted entry IN MEMORY. Deflate over XHTML/text runs about 5–8×,
  *  so 10× admits a genuine all-text book with real headroom while an amplification archive aborts from the
  *  zip headers, before any output buffer is allocated. */
@@ -85,8 +94,10 @@ export const uploadCapsSchema = z
     image: z.number(),
     /** A single databank source document. */
     databankUpload: z.number(),
-    /** The per-request import bundle / bare-card cap. */
+    /** The per-request cap for an in-memory import: a bare card or a chat file. */
     importTotal: z.number(),
+    /** The backup ZIP cap. */
+    importBundle: z.number(),
     /** The folder-import caps: one upload's total bytes, one file's bytes, and one upload's file count. The
      *  folder picker plans its uploads against these before any request. */
     importTreeTotal: z.number(),
@@ -104,6 +115,7 @@ export const DEFAULT_UPLOAD_CAPS: UploadCaps = {
   image: ASSET_UPLOAD_MAX_BYTES,
   databankUpload: DATABANK_UPLOAD_MAX_BYTES,
   importTotal: IMPORT_MAX_TOTAL_BYTES,
+  importBundle: IMPORT_BUNDLE_MAX_BYTES,
   importTreeTotal: IMPORT_TREE_MAX_TOTAL_BYTES,
   importTreeFile: IMPORT_TREE_MAX_FILE_BYTES,
   importTreeFiles: IMPORT_TREE_MAX_FILES,
@@ -128,6 +140,7 @@ export function resolveUploadCaps(overrides: EffectiveUploadOverrides): UploadCa
     image: Math.min(ASSET_UPLOAD_MAX_BYTES, overrides.maxImageBytes),
     databankUpload: Math.min(DATABANK_UPLOAD_MAX_BYTES, overrides.maxDatabankBytes),
     importTotal: IMPORT_MAX_TOTAL_BYTES,
+    importBundle: IMPORT_BUNDLE_MAX_BYTES,
     importTreeTotal: IMPORT_TREE_MAX_TOTAL_BYTES,
     importTreeFile: IMPORT_TREE_MAX_FILE_BYTES,
     importTreeFiles: IMPORT_TREE_MAX_FILES,

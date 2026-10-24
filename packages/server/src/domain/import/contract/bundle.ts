@@ -1,6 +1,6 @@
 import type { PortabilityRegistry, PortableImportOutcome, PortableKind } from "@orb/contracts/portability";
 import type { UserId } from "@orb/kit/ids";
-import type { ExtractOptions, StagedArchive } from "#infra/storage";
+import type { ExtractOptions, StagedArchive, ZipSource } from "#infra/storage";
 
 /** One file's bundle-import outcome, aggregated into the operator-auditable report. `kind: null` marks a
  *  file whose directory matched no registered entity (skipped, not failed); `notes` carries what a file that
@@ -23,7 +23,7 @@ export interface BundleImportReport {
 export interface BundleImportDeps {
   readonly registry: PortabilityRegistry;
   readonly ownerId: UserId;
-  readonly archive: Uint8Array | ReadableStream<Uint8Array>;
+  readonly archive: ZipSource;
   /** The staging extractor the root wires from `infra/storage` (it writes the staging tree to disk). */
   readonly extractArchive: (archive: BundleImportDeps["archive"], options?: ExtractOptions) => Promise<StagedArchive>;
   readonly extractOptions?: ExtractOptions;

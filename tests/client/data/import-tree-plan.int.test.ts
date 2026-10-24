@@ -1,10 +1,11 @@
 // @subject packages/client/src/data/import-tree-plan.ts
 // @subject packages/client/src/data/import-tree-packer.ts
+// @subject packages/client/src/data/import-tree-served.ts
 import type { TreeImportCaps, TreeImportPlan } from "@orb/client/data";
-import { importTree, planServedTreeImport, planTreeImport, relativePathOf } from "@orb/client/data";
+import { importTree, planServedFolderImport, planServedTreeImport, planTreeImport, relativePathOf } from "@orb/client/data";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { PersonaCollisionChoices } from "@orb/contracts/import";
-import { admitTreeBatch, importStartedSchema, PERSONA_COLLISION_CHOICES } from "@orb/contracts/import";
+import { admitTreeBatch, importStartedSchema, PERSONA_COLLISION_CHOICES, treeUploadFixedFramingBytes, treeUploadPartFramingBytes } from "@orb/contracts/import";
 import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_DIRECTORIES, PORTABLE_IMPORT_ORDER } from "@orb/contracts/portability";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
@@ -143,9 +144,84 @@ test("every upload of a folder near the served total fits that total as a whole 
   }
 });
 
+/** The served total that holds exactly `files`, framing bound included, in one upload answering `collisionKeys`. */
+function totalHolding(files: readonly File[], collisionKeys: readonly string[] = []): number {
+  return files.reduce(
+    (sum, file) => sum + file.size + treeUploadPartFramingBytes({ path: relativePathOf(file), type: file.type }),
+    treeUploadFixedFramingBytes(collisionKeys),
+  );
+}
+
+test("the framing reserve scales with each upload, not with every file of the folder", async ({ harness }) => {
+  const files = ["f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8"].map((stem) => nativeFile(harness, "regex", stem, UNIT));
+  const served: TreeImportCaps = { totalBytes: totalHolding(files.slice(0, 4)), fileBytes: UNIT, files: DEFAULT_UPLOAD_CAPS.importTreeFiles };
+  const plan = await planServedTreeImport(files, served, []);
+  expect(plan.batches.map((batch) => batch.length)).toEqual([4, 4]);
+  for (const bytes of await sentBodyBytes(plan, {})) {
+    expect(bytes).toBeLessThanOrEqual(served.totalBytes);
+  }
+});
+
+test("a file no framed upload can carry is skipped with its reason instead of sent alone", async ({ harness }) => {
+  const small = nativeFile(harness, "regex", "small", UNIT);
+  const whole = nativeFile(harness, "regex", "whole", UNIT * 2);
+  // The per-file cap admits the large file, but no upload body that holds it fits the total.
+  const served: TreeImportCaps = { totalBytes: totalHolding([small]), fileBytes: UNIT * 2, files: DEFAULT_UPLOAD_CAPS.importTreeFiles };
+  const plan = await planServedTreeImport([small, whole], served, []);
+  expect(plan.batches).toEqual([[small]]);
+  expect(plan.skipped.map((entry) => entry.path)).toEqual([relativePathOf(whole).slice(WRAPPER.length + 1)]);
+  expect(plan.files).toBe(1);
+});
+
+test("a served total the upload framing alone fills refuses the plan instead of sending one file per upload", async ({ harness }) => {
+  const files = ["a", "b"].map((stem) => nativeFile(harness, "regex", stem, 1));
+  const served: TreeImportCaps = { totalBytes: totalHolding([]), fileBytes: UNIT, files: DEFAULT_UPLOAD_CAPS.importTreeFiles };
+  await expect(planServedTreeImport(files, served, [])).rejects.toThrow(Error);
+});
+
+/** A single-user root whose loopback requests act as its owner, so the client's own fetches reach it unauthenticated. */
+const SINGLE_USER = {
+  authConfig: { ...authConfigFromEnv(), mode: "single-user", fallback: "owner" },
+  physicalPeer: () => "127.0.0.1",
+  startJobs: false,
+} as const;
+
+test("a folder whose persona collides with an owned one is replanned so every upload carries its answer", async () => {
+  await using root = await createServerHarness(SINGLE_USER);
+  await root.services.persona.create({ principal: await root.principalFor(root.ownerId), input: { name: "Wanderer", description: "The owned wanderer." } });
+  const settings = {
+    ["power_user"]: { personas: { "wanderer.png": "Wanderer" }, ["persona_descriptions"]: { "wanderer.png": { description: "The folder's wanderer." } } },
+  };
+  const settingsFile = pickedFile(`${WRAPPER}/settings.json`, JSON.stringify(settings));
+  const cards = ["c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8"].map((stem) => pickedFile(`${WRAPPER}/characters/${stem}.png`, "x".repeat(UNIT)));
+  const files = [settingsFile, ...cards];
+  // Four cards beside the shared settings fill an upload exactly until a collision answer joins every upload.
+  const served: TreeImportCaps = {
+    totalBytes: totalHolding([settingsFile, ...cards.slice(0, 4)]),
+    fileBytes: UNIT,
+    files: DEFAULT_UPLOAD_CAPS.importTreeFiles,
+  };
+  const cardsPerUpload = (plan: TreeImportPlan): number[] => plan.batches.map((batch) => batch.filter((file) => cards.includes(file)).length);
+  expect(cardsPerUpload(await planServedTreeImport(files, served, []))).toEqual([4, 4]);
+
+  vi.stubGlobal("fetch", (input: string, init?: RequestInit) => root.http.request(input, init));
+  let preflight: Awaited<ReturnType<typeof planServedFolderImport>>;
+  try {
+    preflight = await planServedFolderImport(files, served);
+  } finally {
+    vi.unstubAllGlobals();
+  }
+
+  expect(preflight.collisions).toHaveLength(1);
+  expect(cardsPerUpload(preflight.plan)).toEqual([3, 3, 2]);
+  const choices = Object.fromEntries(preflight.collisions.map((c) => [c.key, PERSONA_COLLISION_CHOICES[0]]));
+  for (const bytes of await sentBodyBytes(preflight.plan, choices)) {
+    expect(bytes).toBeLessThanOrEqual(served.totalBytes);
+  }
+});
+
 test("a restore whose chat is picked before its character still links the chat once every upload has run", async () => {
-  const single = { authConfig: { ...authConfigFromEnv(), mode: "single-user", fallback: "owner" }, physicalPeer: () => "127.0.0.1", startJobs: false } as const;
-  await using exporter = await createServerHarness(single);
+  await using exporter = await createServerHarness(SINGLE_USER);
   const author = await exporter.internalCallerFor(exporter.ownerId);
   const card = await author.character.create({
     input: createCharacterSchema.parse({ handle: "split-aria", name: "Split Aria", description: "Split restore witness" }),
@@ -168,7 +244,7 @@ test("a restore whose chat is picked before its character still links the chat o
   });
   expect(plan.batches.length).toBeGreaterThan(1);
 
-  await using restorer = await createServerHarness(single);
+  await using restorer = await createServerHarness(SINGLE_USER);
   const runAdmittedWorkload = restorer.runAdmittedWorkload;
   if (runAdmittedWorkload === undefined) {
     throw new Error("the harness did not expose manual workload execution");

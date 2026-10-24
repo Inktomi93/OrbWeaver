@@ -117,10 +117,11 @@ function ImportPreflight({
 
 /** The import controls: dropzone → PREFLIGHT → busy + live progress → summary (or error) → reset. */
 export function ImportLibrarySection(): ReactElement {
-  // The per-request body cap, SERVED from the deployment config (never a hand-kept mirror) so an over-cap
-  // file is rejected inline, not after a wasted round-trip. The folder picker carries NO cap of its own: the
-  // plan decides per file against the served folder caps and says why a file stays behind.
-  const importMaxBytes = useUploadCaps().importTotal;
+  // The backup ZIP cap, SERVED from the deployment config (never a hand-kept mirror) so an over-cap file is
+  // rejected inline, not after a wasted round-trip. It is the largest file this dropzone takes; a card over the
+  // tighter in-memory card cap is refused by its route with that cap's message. The folder picker carries NO cap
+  // of its own: the plan decides per file against the served folder caps and says why a file stays behind.
+  const importMaxBytes = useUploadCaps().importBundle;
   const { state, stageFiles, stageFolder, chooseCollision, chooseAllCollisions, confirm, cancel, reset, track } = useLibraryImport();
   const staged = state.status === "staged" ? state : null;
   const busy = state.status === "uploading" || state.status === "running";

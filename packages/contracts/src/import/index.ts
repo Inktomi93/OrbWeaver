@@ -298,24 +298,25 @@ export interface TreeUploadPart {
 }
 
 /**
- * An upper bound on the bytes a tree upload's multipart body adds to the file bytes it carries. It holds for any
- * upload of at most `maxFiles` of `parts`, with or without a layout declaration, and with any choice for each
- * persona collision. The served tree cap limits the whole body, so a planner packs file bytes against the cap
- * less this bound.
+ * An upper bound on the bytes one file part adds to a tree upload's multipart body beside the file's own bytes.
+ * The served tree cap limits the whole body, so a planner charges every file it packs this much on top of its size.
  */
-export function treeUploadFramingBytes(parts: readonly TreeUploadPart[], maxFiles: number, personaCollisionKeys: readonly string[]): number {
-  const fileFraming = parts
-    .map((part) => partFramingBytes(TREE_FILE_FIELD, part))
-    .toSorted((a, b) => b - a)
-    .slice(0, maxFiles)
-    .reduce((sum, bytes) => sum + bytes, 0);
+export function treeUploadPartFramingBytes(part: TreeUploadPart): number {
+  return partFramingBytes(TREE_FILE_FIELD, part);
+}
+
+/**
+ * An upper bound on the bytes every tree upload's multipart body carries whatever files it holds: a layout
+ * declaration, any choice for each persona collision, and the close delimiter. A planner reserves this once per upload.
+ */
+export function treeUploadFixedFramingBytes(personaCollisionKeys: readonly string[]): number {
   const layout = Math.max(...TREE_LAYOUT_DECLARATIONS.map((value) => partFramingBytes(TREE_LAYOUT_FIELD, null) + encodedBytes(value)));
   const longestChoice = PERSONA_COLLISION_CHOICES.reduce((longest, value) => (value.length > longest.length ? value : longest));
   const collisions = personaCollisionKeys.reduce(
     (sum, key) => sum + partFramingBytes(PERSONA_COLLISION_FIELD, null) + encodedBytes(encodePersonaCollisionChoices({ [key]: longestChoice })[0] ?? ""),
     0,
   );
-  return fileFraming + layout + collisions + MULTIPART_CLOSE_BYTES;
+  return layout + collisions + MULTIPART_CLOSE_BYTES;
 }
 
 /**

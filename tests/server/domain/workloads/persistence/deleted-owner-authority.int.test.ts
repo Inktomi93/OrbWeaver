@@ -7,10 +7,10 @@ import { databaseHandle } from "@orb/db/wiring-driver";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { runWorkload } from "@orb/server/domain/workloads";
 import { expect, test } from "@orb/testkit/node";
-import { createServerHarness, seedCorpusConnections } from "@orb/testkit/node/composed";
+import { createQueueScanner, createServerHarness, seedCorpusConnections } from "@orb/testkit/node/composed";
 import { eq, sql } from "drizzle-orm";
 import { vi } from "vitest";
-import { createQueueScanner, executeAdmitted, observeQueued, physicalWire, QUEUE_OBSERVATION_DELAY_MS } from "../funding.fixtures.ts";
+import { executeAdmitted, observeQueued, physicalWire, QUEUE_OBSERVATION_DELAY_MS } from "../funding.fixtures.ts";
 
 test("a deleted owner's admitted job never upgrades into every-owner execution or a retry", async () => {
   const wire = physicalWire();

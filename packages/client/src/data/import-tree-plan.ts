@@ -2,7 +2,8 @@
 // splits before any request. THE PLAN IS THE POINT. The server refuses a whole upload over its caps, and a
 // long-lived ST folder carries planes the importer never reads (vectors, extension installs, text-completion
 // presets, backups) beside the ones it does. So the browser skips what the server would only report, drops a
-// file over the per-file cap with its reason, and splits the rest into uploads under the total cap — each a
+// file over the per-file cap or too large for any one framed upload with its reason, and splits the rest into
+// uploads whose whole bodies stay under the total cap — each a
 // complete import on its own: a card travels with its chats, a group with its member cards and transcripts,
 // and the planes other planes resolve against by name ride in every upload: `settings.json` (personas,
 // tags), the persona avatars (art is persona identity, so an art-less repeat would mint a twin) and the
@@ -24,6 +25,14 @@ export interface TreeImportCaps {
   readonly fileBytes: number;
   readonly files: number;
 }
+
+/** What each upload's multipart body adds to the file bytes it carries: once per upload, and per file part. */
+export interface TreeUploadFraming {
+  readonly perUpload: number;
+  readonly perFile: (file: File) => number;
+}
+
+const NO_FRAMING: TreeUploadFraming = { perUpload: 0, perFile: () => 0 };
 
 /** One picked file the plan will not send, with the reason the preflight and the summary print. */
 export interface SkippedTreeFile {
@@ -54,6 +63,7 @@ const WORLDS_DIR = "worlds" satisfies StProfileHandledEntry;
 
 // Generic and profile plans report the same per-file cap refusal.
 const OVER_FILE_CAP_REASON = "over the per-file size cap";
+const OVER_UPLOAD_CAP_REASON = "too large for one upload";
 const UNHANDLED_FALLBACK = "no importer for this plane";
 /** Why `secrets.json` is left out, from the one reason map. */
 const ST_PROFILE_SECRETS_REASON = (stProfileEntryDisposition(ST_SECRETS_FILE, false) as { readonly reason: string | null }).reason ?? UNHANDLED_FALLBACK;
@@ -128,21 +138,46 @@ function bundleKeyForChatDir(dirName: string, cardKeys: ReadonlySet<string>): st
   return chatDirCardCandidates(handle).find((c) => cardKeys.has(c)) ?? null;
 }
 
-/** A greedy split in the given order; an over-cap file joins `skipped`. */
-function packGeneric(planned: readonly PlannedFile[], caps: TreeImportCaps, skipped: SkippedTreeFile[]): Omit<TreeImportPlan, "layout"> {
-  const packer = new UploadPacker<PlannedFile>(caps, []);
-  let files = 0;
+/** A packer over the served caps, charging each file its own bytes plus its part framing. */
+function packerFor(caps: TreeImportCaps, framing: TreeUploadFraming, always: readonly PlannedFile[]): UploadPacker<PlannedFile> {
+  return new UploadPacker<PlannedFile>(
+    { totalBytes: caps.totalBytes - framing.perUpload, files: caps.files },
+    always,
+    (f) => f.file.size + framing.perFile(f.file),
+  );
+}
+
+/** The finished uploads, with each rejected file joining `skipped` and the files and bytes the uploads carry
+ *  counted once each (shared files repeat across uploads). */
+function finishPlan(packer: UploadPacker<PlannedFile>, skipped: SkippedTreeFile[]): Omit<TreeImportPlan, "layout"> {
+  const { batches, rejected } = packer.finish();
+  for (const f of rejected) {
+    skipped.push({ path: f.path, reason: OVER_UPLOAD_CAP_REASON });
+  }
+  const sent = new Set(batches.flat());
   let bytes = 0;
+  for (const file of sent) {
+    bytes += file.size;
+  }
+  return { batches, skipped, files: sent.size, bytes };
+}
+
+/** A greedy split in the given order; an over-cap file joins `skipped`. */
+function packGeneric(
+  planned: readonly PlannedFile[],
+  caps: TreeImportCaps,
+  framing: TreeUploadFraming,
+  skipped: SkippedTreeFile[],
+): Omit<TreeImportPlan, "layout"> {
+  const packer = packerFor(caps, framing, []);
   for (const f of planned) {
     if (f.file.size > caps.fileBytes) {
       skipped.push({ path: f.path, reason: OVER_FILE_CAP_REASON });
       continue;
     }
     packer.add([], [f]);
-    files += 1;
-    bytes += f.file.size;
   }
-  return { batches: packer.finish(), skipped, files, bytes };
+  return finishPlan(packer, skipped);
 }
 
 /** Each native directory's position in the loader's dependency order; an entry outside every one sorts last. */
@@ -157,15 +192,15 @@ function nativeImportRank(f: PlannedFile): number {
  *  under a native directory, so an entry outside one is skipped here instead of refusing its whole upload.
  *  The loader orders planes only within one upload and resolves links by name against what already landed,
  *  so the files are packed in its dependency order: every upload then follows all of its dependencies. */
-function planGeneric(picked: readonly PlannedFile[], caps: TreeImportCaps): TreeImportPlan {
+function planGeneric(picked: readonly PlannedFile[], caps: TreeImportCaps, framing: TreeUploadFraming): TreeImportPlan {
   const planned = picked.toSorted((a, b) => nativeImportRank(a) - nativeImportRank(b));
-  const whole = packGeneric(planned, caps, []);
+  const whole = packGeneric(planned, caps, framing, []);
   if (whole.batches.length <= 1) {
     return { ...whole, layout: null };
   }
   const nativeEntry = (f: PlannedFile): boolean => admitTreeBatch([f.path], "orb").kind === "orb";
   const outside = planned.filter((f) => !nativeEntry(f)).map((f) => ({ path: f.path, reason: UNHANDLED_FALLBACK }));
-  return { ...packGeneric(planned.filter(nativeEntry), caps, outside), layout: "orb" };
+  return { ...packGeneric(planned.filter(nativeEntry), caps, framing, outside), layout: "orb" };
 }
 
 /** Where one picked file belongs in the plan. */
@@ -301,11 +336,14 @@ async function groupUnits(
   return { groups, unclaimedGroupChats };
 }
 
-/** Plan a picked folder's uploads against the served caps. `readText` reads a group definition's text (the
- *  default is `File.text`); it is injectable so a node test can plan without a DOM `File`. */
+/** Plan a picked folder's uploads against the served caps, charging each upload `framing` on top of its file
+ *  bytes. `readText` reads a group definition's text (the default is `File.text`); it is injectable so a node
+ *  test can plan without a DOM `File`.
+ *  @throws Error when the folder has no supported layout, or the caps leave no room for any file. */
 export async function planTreeImport(
   files: readonly File[],
   caps: TreeImportCaps,
+  framing: TreeUploadFraming = NO_FRAMING,
   readText: (file: File) => Promise<string> = (f) => f.text(),
 ): Promise<TreeImportPlan> {
   const rawPaths = files.map(relativePathOf);
@@ -323,42 +361,27 @@ export async function planTreeImport(
     throw new Error("The selected folder does not contain an unambiguous supported library layout");
   }
   if (layout.kind === "orb") {
-    return planGeneric(planned, caps);
+    return planGeneric(planned, caps, framing);
   }
   const inProfile = layout.stagePrefix === "" ? planned.map((f) => ({ ...f, segments: f.segments.slice(1) })) : planned;
   const classified = classifySt(inProfile, caps);
   const { groups, unclaimedGroupChats } = await groupUnits(classified, readText);
 
-  const always = classified.shared;
-  const packer = new UploadPacker(caps, always);
-  const counted = new Set<PlannedFile>(always);
-
+  const packer = packerFor(caps, framing, classified.shared);
   // Base plane first: presets, themes, backgrounds, orphan chats, unclaimed group chats.
   for (const f of [...classified.base, ...unclaimedGroupChats]) {
     packer.add([], [f]);
-    counted.add(f);
   }
   // Character bundles, cards first so a split never strands a chat dir without its card.
   for (const [, bundle] of [...classified.bundles].sort(([a], [b]) => a.localeCompare(b))) {
     packer.add(bundle.cards, bundle.chats);
-    for (const f of [...bundle.cards, ...bundle.chats]) {
-      counted.add(f);
-    }
   }
   // Groups last, with their member cards repeated (a card dedups by content, so a repeat costs bytes only).
   for (const group of groups) {
     const members = group.memberKeys.flatMap((key) => classified.bundles.get(key)?.cards ?? []);
     packer.add([group.definition, ...members], group.chats);
-    for (const f of [group.definition, ...group.chats]) {
-      counted.add(f);
-    }
   }
-
-  let bytes = 0;
-  for (const f of counted) {
-    bytes += f.file.size;
-  }
-  return { batches: packer.finish(), skipped: classified.skipped, files: counted.size, bytes, layout: null };
+  return { ...finishPlan(packer, classified.skipped), layout: null };
 }
 
 /** Every file the plan's uploads carry, once each (settings.json and the avatars repeat across batches). The
