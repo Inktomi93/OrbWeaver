@@ -92,6 +92,7 @@
     "./text": "./src/primitives/text/index.ts",
     "./textarea": "./src/primitives/textarea/index.ts",
     "./theme-scope": "./src/content/theme-scope/index.ts",
+    "./theme-scope/emit-vars": "./src/content/theme-scope/emit-vars.ts",
     "./theme-swatch": "./src/content/theme-swatch/index.ts",
     "./toast": "./src/primitives/toast/index.ts",
     "./toggle": "./src/primitives/toggle/index.ts",

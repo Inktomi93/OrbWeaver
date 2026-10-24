@@ -298,10 +298,16 @@ const RESET_NAMESPACES = ["spacing", "text", "leading", "tracking", "font-weight
 /** The two spacing members that are structure, not design: `p-0`/`inset-0`/`min-w-0` and the one-pixel `w-px`. */
 const STRUCTURAL_SPACING = ["  --spacing-0: 0;", "  --spacing-px: 1px;"];
 
+/** The ramp primitives are private: the plain `@theme` block drops an unreferenced variable, so they are never served. */
+const PRIMITIVE_GROUP = "primitive";
+
+/** Resets and primitives in `@theme`; every semantic token in `@theme static`, so owner CSS can read any of them. */
 function renderThemeCss(tokens: readonly GeneratedCssValue[]): string {
   const resets = RESET_NAMESPACES.map((namespace) => `  --${namespace}-*: initial;`);
-  const lines = tokens.map((t) => `  ${cssVarName(t.path)}: ${t.value};`);
-  return `/* ${HEADER}\n */\n@theme {\n${[...resets, ...STRUCTURAL_SPACING, ...lines].join("\n")}\n}\n`;
+  const line = (t: GeneratedCssValue): string => `  ${cssVarName(t.path)}: ${t.value};`;
+  const primitives = tokens.filter((t) => t.path[0] === PRIMITIVE_GROUP).map(line);
+  const served = tokens.filter((t) => t.path[0] !== PRIMITIVE_GROUP).map(line);
+  return `/* ${HEADER}\n */\n@theme {\n${[...resets, ...primitives].join("\n")}\n}\n\n@theme static {\n${[...STRUCTURAL_SPACING, ...served].join("\n")}\n}\n`;
 }
 
 /** One `@custom-variant` per named condition; a built-in of the same name is replaced, so the query has one home. */

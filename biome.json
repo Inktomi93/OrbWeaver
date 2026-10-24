@@ -17,6 +17,7 @@
       "!packages/ui/src/tokens/index.ts",
       "!packages/ui/src/tokens/themes.gen.ts",
       "!packages/ui/src/styles/theme.css",
+      "!packages/client/owner-css-surface.ts",
       "!tooling/src/snap/lib/devtools-frontend",
       "!tooling/src/codemods/*/tests*",
       "!**/node_modules",
@@ -2153,7 +2154,7 @@
       }
     },
     {
-      "includes": ["packages/client/vite.config.ts", "packages/client/native-typecheck.config.ts"],
+      "includes": ["packages/client/vite.config.ts", "packages/client/native-typecheck.config.ts", "packages/client/owner-css-surface.build.ts"],
       "linter": {
         "rules": {
           "correctness": {

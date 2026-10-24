@@ -129,7 +129,7 @@ not a second token vocabulary, and it is not a place for feature paint.
 
 Owner-authored custom CSS is user data, not a seventh repository CSS home. It enters through
 `CustomThemeStyle` after `validateThemeCss`, is deliberately unlayered so the owner wins, and targets the
-stable `data-slot` and `.shell-*` API. The validator warns on `@import`, rejects `position:
+stable API the manifest `packages/client/owner-css-surface.ts` declares. The validator warns on `@import`, rejects `position:
 fixed`/`sticky`, and the contracts schema caps the field at `THEME_CSS_MAX`. The full contract is
 `UI-Theming-and-Content.md` §12; this exception never licenses raw literals or another authored stylesheet
 in source.

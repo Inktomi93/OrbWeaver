@@ -9,7 +9,8 @@
   "scripts": {
     "dev": "vite --configLoader native",
     "build": "vite build --configLoader native",
-    "preview": "vite preview --configLoader native"
+    "preview": "vite preview --configLoader native",
+    "surface:build": "node owner-css-surface.build.ts"
   },
   "exports": {
     ".": "./src/index.ts",
