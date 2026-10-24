@@ -15,6 +15,8 @@
 //   • the anchor persona + each user turn's persona — `(ownerId, name)`, the persona domain's own dedup key,
 //     so this resolves exactly the row its import verb would have merged onto. A miss degrades to no persona.
 //   • the tag overlay — resolve-or-create by name through tag's own by-name attach (D30 per-tagger overlay).
+//   • the room background and inline images — by the content hash each carries, onto the owner's own copy of
+//     those bytes, since a target that already held them keeps its own asset row.
 //   • the rpg campaign — the carried POSITIONS (`messages[i].variants[j]`) remapped through the
 //     `ImportedChatRemap` the chat write op returns. This is the load-bearing step: get it wrong and every
 //     snapshot, journal entry and tool-call record anchors to the wrong turn (or to nothing).
@@ -23,8 +25,12 @@
 // campaign. A failed re-link never un-writes the chat — a restored room missing its labels is strictly better
 // than no room, and the outcome still reports `ok`.
 
+import { assetIdSchema } from "@orb/contracts/assets";
 import type { BulkImportChatInput, BulkImportMessageInput, ImportedChatRemap } from "@orb/contracts/chat";
-import type { CharacterHandle, CharacterId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
+import { themeBackgroundSchema } from "@orb/contracts/theme";
+import { relinkContentAssets } from "@orb/kit/content";
+import { isPlainObject } from "@orb/kit/guards";
+import type { AssetId, CharacterHandle, CharacterId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
 import type { RpgPortableGame } from "#domain/rpg";
 import { sha256Hex } from "#primitives/content-hash";
 import type { PortableChat, PortableRpgGame } from "#primitives/serde/chat-bundle";
@@ -135,6 +141,46 @@ function toMessageInput(
       metadata: v.metadata,
       ...(v.usage === undefined ? {} : { usage: v.usage }),
     })),
+  };
+}
+
+/** The room background the bundle carries when it names an asset, read off the verbatim room blob. */
+function carriedAssetBackground(metadata: PortableChat["metadata"]): { readonly raw: Record<string, unknown>; readonly hash: string } | null {
+  const raw = metadata?.["background"];
+  if (!isPlainObject(raw)) {
+    return null;
+  }
+  const source = themeBackgroundSchema.safeParse(raw);
+  return source.success && source.data.kind === "asset" && source.data.assetHash.length > 0 ? { raw, hash: source.data.assetHash } : null;
+}
+
+/** The bundle with its room background and inline images pointed at the owner's own assets holding the carried
+ *  bytes. A miss keeps the carried id, which resolves when the asset restored under it. */
+async function relinkCarriedAssets(profile: ImportProfileDeps, ownerId: ImportContext["ownerId"], bundle: PortableChat): Promise<PortableChat> {
+  const find = profile.findOwnedAssetIdsByHash;
+  const background = carriedAssetBackground(bundle.metadata);
+  const inline = Object.entries(bundle.assetHashes ?? {});
+  if (find === undefined || (background === null && inline.length === 0)) {
+    return bundle;
+  }
+  const held = await find(ownerId, [...new Set([...(background === null ? [] : [background.hash]), ...inline.map(([, hash]) => hash)])]);
+  const relink = new Map<AssetId, AssetId>();
+  for (const [carried, hash] of inline) {
+    const id = assetIdSchema.safeParse(carried);
+    const to = held.get(hash);
+    if (id.success && to !== undefined && to !== id.data) {
+      relink.set(id.data, to);
+    }
+  }
+  const backgroundId = background === null ? undefined : held.get(background.hash);
+  return {
+    ...bundle,
+    metadata:
+      backgroundId === undefined || background === null ? bundle.metadata : { ...bundle.metadata, background: { ...background.raw, assetId: backgroundId } },
+    messages:
+      relink.size === 0
+        ? bundle.messages
+        : bundle.messages.map((m) => ({ ...m, variants: m.variants.map((v) => ({ ...v, content: relinkContentAssets(v.content, relink) })) })),
   };
 }
 
@@ -326,7 +372,9 @@ async function writeBundle(args: {
   const result = await profile.bulkImportChats({
     ownerId: ctx.ownerId,
     characterId: characterIds.primary,
-    chats: [toChatInput({ bundle, characterIds, personaIdByName, filename, importHash: sha256Hex(bytes) })],
+    chats: [
+      toChatInput({ bundle: await relinkCarriedAssets(profile, ctx.ownerId, bundle), characterIds, personaIdByName, filename, importHash: sha256Hex(bytes) }),
+    ],
   });
   // The same clause `importChats` runs: a real conversation queues the free index pass, never a memory build.
   if (result.realConversationsWritten.length > 0) {

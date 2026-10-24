@@ -14,8 +14,13 @@
 import type { AssetBlobRef } from "@orb/contracts/assets";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import type { AssetsContext, AssetsService } from "../contract/service.ts";
-import { selectOwnedAssetRefs } from "../persistence/queries.ts";
+import { selectOwnedAssetIdsByHash, selectOwnedAssetRefs } from "../persistence/queries.ts";
 
 export function createResolveOwnedAssetRefs(ctx: AssetsContext): AssetsService["resolveOwnedAssetRefs"] {
   return (ownerId: UserId, assetIds: readonly AssetId[]): Promise<readonly AssetBlobRef[]> => selectOwnedAssetRefs(ctx.db, ownerId, assetIds);
+}
+
+/** The by-content twin, for a restore whose carried ids name the exporting box's rows. Same owner scope. */
+export function createOwnedAssetIdsByHash(ctx: AssetsContext): AssetsService["ownedAssetIdsByHash"] {
+  return (ownerId: UserId, hashes: readonly string[]): Promise<ReadonlyMap<string, AssetId>> => selectOwnedAssetIdsByHash(ctx.db, ownerId, hashes);
 }

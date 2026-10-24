@@ -22,7 +22,7 @@ import { createReapIfOrphan } from "./verbs/reap-if-orphan.ts";
 import { createRebuildFromTree } from "./verbs/rebuild-from-tree.ts";
 import { createRemoveFromGallery } from "./verbs/remove-from-gallery.ts";
 import { createResolveChatAssetRefs } from "./verbs/resolve-chat-asset-refs.ts";
-import { createResolveOwnedAssetRefs } from "./verbs/resolve-owned-asset-refs.ts";
+import { createOwnedAssetIdsByHash, createResolveOwnedAssetRefs } from "./verbs/resolve-owned-asset-refs.ts";
 import { createResolveVariant } from "./verbs/resolve-variant.ts";
 import { createStore } from "./verbs/store.ts";
 
@@ -42,6 +42,7 @@ export function createAssetsService(input: DbAssemblyInput<AssetsContext>): Asse
     removeFromGallery: createRemoveFromGallery(ctx),
     listGallery: createListGallery(ctx),
     resolveOwnedAssetRefs: createResolveOwnedAssetRefs(ctx),
+    ownedAssetIdsByHash: createOwnedAssetIdsByHash(ctx),
     resolveChatAssetRefs: createResolveChatAssetRefs(ctx),
     backfillAvatars: createBackfillAvatars(ctx),
     collectGarbage: createCollectGarbage(ctx),

@@ -70,6 +70,18 @@ export async function selectOwnedAssetRefs(db: Db, ownerId: UserId, assetIds: re
   return rows;
 }
 
+/** The owner's asset id for each of `hashes` it holds; a hash it does not hold is absent. Owner-scoped. */
+export async function selectOwnedAssetIdsByHash(db: Db, ownerId: UserId, hashes: readonly string[]): Promise<Map<string, AssetId>> {
+  if (hashes.length === 0) {
+    return new Map();
+  }
+  const rows = await db
+    .select({ id: assets.id, hash: assets.hash })
+    .from(assets)
+    .where(and(eq(assets.ownerId, ownerId), inArray(assets.hash, [...hashes])));
+  return new Map(rows.map((r) => [r.hash, r.id]));
+}
+
 /** Every image asset id, all owners when `ownerId` omitted — a trusted system sweep, not user-facing. */
 export async function listImageAssetIdRows(db: Db, ownerId?: UserId | null): Promise<AssetId[]> {
   const scope = and(
@@ -344,6 +356,7 @@ const GALLERY_ORDERS: Record<GallerySort, GalleryOrder> = {
 
 interface GalleryExportRow {
   readonly assetId: AssetId;
+  readonly assetHash: string;
   readonly subjectCharacterId: CharacterId | null;
   readonly createdAt: number;
 }
@@ -353,6 +366,7 @@ export async function listGalleryItemsForExport(db: Db, ownerId: UserId): Promis
   const rows = await db
     .select({
       assetId: galleryItems.assetId,
+      assetHash: assets.hash,
       subjectCharacterId: galleryItems.subjectCharacterId,
       createdAt: galleryItems.createdAt,
     })

@@ -203,6 +203,9 @@ export interface PortableChat {
   readonly injections: readonly PortableChatInjection[];
   readonly messages: readonly PortableChatMessage[];
   readonly pendingGenerationObservations?: readonly PendingGenerationObservationInput[];
+  /** The content hash of each asset an inline image names, keyed by the carried asset id. The target may hold
+   *  those bytes under its own id, so the import re-links each inline image by its hash. */
+  readonly assetHashes?: Readonly<Record<string, string>>;
   readonly rpg: PortableRpgGame | null;
 }
 
@@ -337,6 +340,7 @@ const wireChatSchema = z.object({
   injections: z.array(wireInjectionSchema).catch([]),
   messages: z.array(wireMessageSchema),
   pendingGenerationObservations: pendingGenerationObservationsSchema.optional(),
+  assetHashes: z.record(z.string(), z.string()).optional().catch(undefined),
   rpg: wireRpgSchema.nullish().catch(null),
 });
 
@@ -568,6 +572,7 @@ const chatBundleSerde = defineJsonObjectSerde<PortableChat, WireChat>({
     })),
     rpg: chat.rpg === null ? null : rpgToWire(chat.rpg),
     ...(chat.pendingGenerationObservations === undefined ? {} : { pendingGenerationObservations: [...chat.pendingGenerationObservations] }),
+    ...(chat.assetHashes === undefined ? {} : { assetHashes: { ...chat.assetHashes } }),
   }),
   fromWire: (body) => {
     const messages = body.messages.map(
@@ -618,6 +623,7 @@ const chatBundleSerde = defineJsonObjectSerde<PortableChat, WireChat>({
                   : variantExists(messages, row.sourceMessageIndex, row.sourceVariantIdx)),
             ),
           }),
+      ...(body.assetHashes === undefined ? {} : { assetHashes: body.assetHashes }),
       rpg,
     };
   },

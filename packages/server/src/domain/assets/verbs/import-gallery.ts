@@ -1,8 +1,7 @@
 // ONE portable gallery file → the owner's `gallery_items` curation rows, via the gallery serde core. Each
-// carried `subjectCharacterHandle` resolves to the importer's own character id via `findCharacterByHandle`;
-// an unresolved/null handle writes the row un-charactered. Gates on asset ownership before writing (a
-// curation row cannot reference another user's asset) and dedups on `(assetId, subjectCharacterId)`.
-// Never throws for a bad file — returns `{ok:false, error}` so one malformed entry cannot abort a bundle.
+// image re-links by its content hash, then by its carried id; each `subjectCharacterHandle` resolves through
+// `findCharacterByHandle`, and an unresolved/null handle writes the row un-charactered. Gates on asset
+// ownership and dedups on `(assetId, subjectCharacterId)`. Never throws for a bad file — `{ok:false, error}`.
 
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
@@ -13,14 +12,16 @@ import { GALLERY_SCHEMA_KIND, parseGallery } from "#primitives/serde/gallery";
 import { portableParseError } from "#primitives/serde/lib";
 import type { GalleryImportOutcome, GalleryPortableFile } from "../contract/results.ts";
 import type { AssetsContext } from "../contract/service.ts";
-import { importGalleryItem, ownedAssetForGallery } from "../persistence/queries.ts";
+import { assetIdForHash, importGalleryItem, ownedAssetForGallery } from "../persistence/queries.ts";
 
 /** Restore ONE curation row: gate on asset ownership, re-link the handle, then idempotently write.
  *  Returns true only when a genuinely new row was written. */
 async function restoreItem(ctx: AssetsContext, ownerId: UserId, item: CanonicalGalleryItem): Promise<boolean> {
+  // The owner may hold these bytes under its own id (a fresh box's seeded avatars and plates).
+  const byHash = item.assetHash === null ? undefined : await assetIdForHash(ctx.db, ownerId, item.assetHash);
+  const assetId = byHash ?? item.assetId;
   // A missing/foreign asset means the blob was not part of this bundle — skip.
-  const owned = await ownedAssetForGallery(ctx.db, ownerId, item.assetId);
-  if (owned === undefined) {
+  if (byHash === undefined && (await ownedAssetForGallery(ctx.db, ownerId, assetId)) === undefined) {
     return false;
   }
   let subjectCharacterId: CharacterId | null = null;
@@ -32,7 +33,7 @@ async function restoreItem(ctx: AssetsContext, ownerId: UserId, item: CanonicalG
   }
   const result = await importGalleryItem(ctx.db, {
     id: ctx.newGalleryItemId(),
-    assetId: item.assetId,
+    assetId,
     subjectCharacterId,
     createdAt: item.createdAt ?? ctx.now(),
   });

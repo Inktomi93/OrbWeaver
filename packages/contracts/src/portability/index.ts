@@ -57,7 +57,8 @@ export const PORTABLE_DIRECTORIES = {
 /** Fixed dependency order the core imports a full bundle in — personas/world-info/tags land before
  *  characters, characters+personas before chats — so foreign-key-style attachments resolve. */
 export const PORTABLE_IMPORT_ORDER = [
-  // assets FIRST: blobs restore under their original ids before anything references them.
+  // assets FIRST: blobs restore under their original ids, or onto the owner's copy of the same bytes, before
+  // anything references them.
   "assets",
   "user-settings",
   "tag",

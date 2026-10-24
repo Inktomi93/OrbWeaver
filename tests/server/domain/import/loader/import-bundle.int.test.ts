@@ -6,6 +6,9 @@
 // @subject packages/server/src/domain/settings/verbs/import-user-settings.ts
 // @subject packages/server/src/primitives/serde/card/index.ts
 // @subject packages/server/src/domain/export/verbs/export-character.ts
+// @subject packages/server/src/domain/assets/verbs/import-asset.ts
+// @subject packages/server/src/domain/assets/verbs/import-gallery.ts
+// @subject packages/server/src/domain/import/verbs/import-chat-bundle.ts
 
 import type { OwnedAssetCursor } from "@orb/contracts/assets";
 import { ASSET_LIST_LIMIT_MAX } from "@orb/contracts/assets";
@@ -13,7 +16,8 @@ import { CHARACTER_HANDLE_WIRE_KEY, characterCardV3Schema, characterHandleSchema
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { importStartedSchema } from "@orb/contracts/import";
 import type { PortableImportOutcome, PortableKind } from "@orb/contracts/portability";
-import type { CharacterHandle, CharacterId, WorkloadId } from "@orb/kit/ids";
+import { ASSET_SCHEME, assetIdsInContent } from "@orb/kit/content";
+import type { CharacterHandle, CharacterId, ChatId, WorkloadId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
@@ -278,5 +282,69 @@ test("user settings restore onto the background art the fresh box already seeded
     picked: { kind: "asset", hash: plate.assetHash, resolves: plate.assetHash },
     library: exported.backgroundLibrary.map((entry) => ({ hash: entry.assetHash, resolves: entry.assetHash })),
     ownUploadId: upload.assetId,
+  });
+});
+
+async function galleryHashes(root: ServerTestHarness): Promise<string[]> {
+  const page = await (await root.internalCallerFor(root.ownerId)).assets.listGallery({ limit: ASSET_LIST_LIMIT_MAX });
+  if (page.length === ASSET_LIST_LIMIT_MAX) {
+    throw new Error("the gallery outgrew one page; read it by cursor");
+  }
+  return page.map((item) => item.hash).toSorted();
+}
+
+// The fresh box already holds the seeded plates and avatars under its own ids, so each one the source library
+// refers to restores onto those bytes and every referrer re-links by content.
+test("a full library restore into a fresh box reports no failures and leaves no reference dangling", async () => {
+  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  const owner = await source.principalFor(source.ownerId);
+  const [plate] = (await source.services.settings.getUserSettings({ principal: owner })).config.appearance.backgroundLibrary;
+  if (plate === undefined) {
+    throw new Error("the first-login seed landed no background plate");
+  }
+  await source.services.character.create({
+    principal: owner,
+    input: createCharacterSchema.parse({ handle: CHOSEN_HANDLE, name: CHARACTER_NAME, description: "A keeper tends the orbital ledger." }),
+  });
+  await source.services.assets.addToGallery({ principal: owner, assetId: plate.assetId });
+  const background = { kind: "asset", assetId: plate.assetId, assetHash: plate.assetHash, mime: plate.mime, externalUrl: "", provenanceUrl: "" };
+  await seedTranscript(source, {
+    ownerId: source.ownerId,
+    characterHandles: [CHOSEN_HANDLE],
+    lines: [
+      { role: "user", content: `The ledger at dusk: ![plate](${ASSET_SCHEME}${plate.assetId})` },
+      { role: "assistant", speakerHandle: CHOSEN_HANDLE, content: "Every orbit is accounted for." },
+    ],
+    chat: { metadata: { background } },
+  });
+  const sourceGallery = await galleryHashes(source);
+  const bundle = await exportLibrary(source);
+
+  await using target = await signedInBox();
+  const outcome = await restore(target, bundle);
+  const caller = await target.internalCallerFor(target.ownerId);
+  const [character] = (await caller.character.list({})).items.filter((item) => item.name === CHARACTER_NAME);
+  const [room] = character === undefined ? [] : (await caller.chat.listChats({ characterId: character.id })).items;
+  const hashOf = async (assetId: string | undefined): Promise<string | null> =>
+    assetId === undefined ? null : ((await target.services.assets.assetCasRefById(castId(assetId)))?.hash ?? null);
+  /** What the restored room's background and inline attachment resolve to on the target, or nulls without a room. */
+  const restoredRoom = async (chatId: ChatId): Promise<{ readonly background: string | null; readonly attachment: readonly string[] }> => {
+    const [opening] = (await caller.chat.listMessages({ chatId })).messages;
+    const attached = assetIdsInContent(opening?.content ?? "");
+    return {
+      background: await hashOf((await caller.chat.getChat({ chatId })).background?.assetId),
+      // The render grant reads the message's structural link, so a pair here is the attachment resolving.
+      attachment: (await caller.assets.resolveChatBlobRefs({ chatId, assetIds: attached })).map((ref) => ref.hash),
+    };
+  };
+
+  expect({
+    outcome,
+    room: room === undefined ? null : await restoredRoom(room.id),
+    gallery: await galleryHashes(target),
+  }).toEqual({
+    outcome: { status: "succeeded", failed: 0 },
+    room: { background: plate.assetHash, attachment: [plate.assetHash] },
+    gallery: sourceGallery,
   });
 });
