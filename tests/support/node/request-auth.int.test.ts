@@ -15,7 +15,7 @@ test.each([
   { peer: undefined, firstRun: false, scope: "public" },
 ])("actual HTTP bootstrap preserves physical peer $peer independently of forged forwarding headers", async ({ peer, firstRun, scope }) => {
   const readPeer = vi.fn(() => peer);
-  await using harness = await createServerHarness({ authConfig: { mode: "local" }, physicalPeer: readPeer });
+  await using harness = await createServerHarness({ env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" }, physicalPeer: readPeer });
   const response = await harness.http.request("/api/auth/config");
   expect(response.status).toBe(200);
   const config = authConfigSchema.parse(await response.json());
@@ -35,7 +35,7 @@ test.each([
 });
 
 test("local HTTP admission requires its CSRF-protected password flow and rechecks a disabled account", async () => {
-  await using harness = await createServerHarness({ authConfig: { mode: "local" } });
+  await using harness = await createServerHarness({ env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" } });
   const owner = await harness.internalCallerFor(harness.ownerId);
   const user = await owner.admin.createUser({ handle: HANDLE, password: PASSWORD });
   const anonymous = await harness.http.request("/api/auth/me");
@@ -62,9 +62,9 @@ test("local HTTP admission requires its CSRF-protected password flow and recheck
 });
 
 test("identical actor IDs in independent roots cannot authenticate with the other root's minted cookie", async () => {
-  const authConfig = { mode: "local" } satisfies NonNullable<Parameters<typeof createServerHarness>[0]>["authConfig"];
-  await using first = await createServerHarness({ authConfig });
-  await using second = await createServerHarness({ authConfig });
+  const authEnv = { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" } satisfies NonNullable<Parameters<typeof createServerHarness>[0]>["env"];
+  await using first = await createServerHarness({ env: authEnv });
+  await using second = await createServerHarness({ env: authEnv });
   const firstOwner = await first.internalCallerFor(first.ownerId);
   const secondOwner = await second.internalCallerFor(second.ownerId);
   const firstUser = await firstOwner.admin.createUser({ handle: HANDLE, password: PASSWORD });

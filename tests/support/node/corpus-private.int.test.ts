@@ -29,6 +29,7 @@ import {
 import { CORPUS_PLUGIN_MANIFEST } from "./corpus-plugin.ts";
 import { createCorpusRecipe } from "./corpus-recipe.ts";
 import { SHIPPED_MIGRATIONS } from "./db.ts";
+import { createTestEnv } from "./env.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
 import { capturePluginRows, makePluginBundle } from "./factories/plugin.ts";
 import { seedUser } from "./factories/rows.ts";
@@ -80,7 +81,8 @@ test("private intake retains the existing singleton owner and nonempty content i
       pluginSpawn: spawn,
       ownerId: original.id,
       ids,
-      authConfig: { mode: "local", fallback: "deny", defaultHandle: original.handle },
+      env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" },
+      rolePolicyConfig: { ["DEFAULT_USER_HANDLE"]: original.handle, ["OWNER_HANDLES"]: createTestEnv().DEFAULT_USER_HANDLE },
       casDir: layout.assets,
       variantDir: layout.variants,
       importStagingDir: layout.importStaging,
@@ -194,7 +196,8 @@ test("private intake retains the existing singleton owner and nonempty content i
       startJobs: false,
       ownerId: original.id,
       ids,
-      authConfig: { mode: "local", fallback: "deny", defaultHandle: original.handle },
+      env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" },
+      rolePolicyConfig: { ["DEFAULT_USER_HANDLE"]: original.handle, ["OWNER_HANDLES"]: createTestEnv().DEFAULT_USER_HANDLE },
       casDir: layout.assets,
       variantDir: layout.variants,
       importStagingDir: layout.importStaging,
@@ -221,7 +224,8 @@ test("private intake retains the existing singleton owner and nonempty content i
       startJobs: false,
       ownerId: original.id,
       ids,
-      authConfig: { mode: "local", fallback: "deny", defaultHandle: original.handle },
+      env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" },
+      rolePolicyConfig: { ["DEFAULT_USER_HANDLE"]: original.handle, ["OWNER_HANDLES"]: createTestEnv().DEFAULT_USER_HANDLE },
       casDir: layout.assets,
       variantDir: layout.variants,
       importStagingDir: layout.importStaging,

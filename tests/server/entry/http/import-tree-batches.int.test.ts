@@ -30,7 +30,7 @@ interface BackupEntry {
 
 function harness(): Promise<ServerTestHarness> {
   return createServerHarness({
-    authConfig: { mode: "single-user", fallback: "owner" },
+    env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" },
     physicalPeer: () => "127.0.0.1",
     startJobs: false,
   });

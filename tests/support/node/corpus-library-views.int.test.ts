@@ -29,7 +29,7 @@ test("native library projections retain canonical usage, ordering, intake and re
   await using root = await createServerHarness({
     providerFetch: wire.execute,
     secretBoxKey: randomBytes(32),
-    authConfig: { mode: "local", fallback: "deny" },
+    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" },
   });
   const actors = await seedCorpusActors(root);
   const library = await seedCorpusLibraries(root);

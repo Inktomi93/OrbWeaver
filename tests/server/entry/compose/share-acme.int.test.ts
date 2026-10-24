@@ -44,7 +44,7 @@ async function setup(holdPath?: string, options: ServerHarnessOptions = {}): Pro
   const held = holdPath === undefined ? undefined : authority.hold(holdPath);
   const harness = owners.use(
     await createServerHarness({
-      authConfig: { mode: "local" },
+      env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" },
       bindHost: "0.0.0.0",
       allowPublicBind: true,
       share: { acme: { directoryUrl: authority.directoryUrl, polling: { attempts: 2, minMs: 1, maxMs: 2 } } },
@@ -314,7 +314,7 @@ test("shutdown preserves borrowed certificates for real restart; a corrupt store
     db,
     ownerId: first.harness.ownerId,
     secretsDir: first.harness.secretsDir,
-    authConfig: { mode: "local" as const },
+    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" },
     bindHost: "0.0.0.0",
     allowPublicBind: true,
     share: { acme: { directoryUrl: first.authority.directoryUrl, polling: { attempts: 2, minMs: 1, maxMs: 2 } } },

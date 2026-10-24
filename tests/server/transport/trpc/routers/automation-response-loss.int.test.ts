@@ -18,7 +18,7 @@ const body = {
 test("lost mounted HTTP response after real commit recovers one unchanged birth with no second position", async () => {
   await using root = await createServerHarness({
     physicalPeer: () => "127.0.0.1",
-    authConfig: { mode: "single-user", fallback: "owner" },
+    env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" },
   });
   const owner = await root.internalCallerFor(root.ownerId);
   const other = await root.actor();

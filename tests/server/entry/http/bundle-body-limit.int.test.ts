@@ -15,7 +15,7 @@ const MALFORMED_ARCHIVE = /zip rejected \(malformed\)/u;
 // Staging a body one byte past the 4 GiB bundle cap writes 4 GiB to disk before the refusal: that is the proven runtime.
 test("actual raw bundle overflow cancels its source and removes the partial staged file without a workload", { tags: ["slow"] }, async () => {
   await using root = await createServerHarness({
-    authConfig: { mode: "single-user", fallback: "owner" },
+    env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" },
     physicalPeer: () => "127.0.0.1",
   });
   const capacity = await statfs(root.importStagingDir);
@@ -34,7 +34,7 @@ test("actual raw bundle overflow cancels its source and removes the partial stag
 
 test("a backup over the in-memory import cap is staged whole and its import reads the archive itself, not a size refusal", async () => {
   await using root = await createServerHarness({
-    authConfig: { mode: "single-user", fallback: "owner" },
+    env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" },
     physicalPeer: () => "127.0.0.1",
     startJobs: false,
   });
@@ -61,7 +61,7 @@ test("a backup over the in-memory import cap is staged whole and its import read
 
 test("a second upload by an owner whose first is still staging is refused before its body is read", async () => {
   await using root = await createServerHarness({
-    authConfig: { mode: "single-user", fallback: "owner" },
+    env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" },
     physicalPeer: () => "127.0.0.1",
     startJobs: false,
   });
@@ -106,7 +106,7 @@ test("a second upload by an owner whose first is still staging is refused before
 
 test("a faulting raw upload removes its small pre-dispatch staging prefix", async () => {
   await using root = await createServerHarness({
-    authConfig: { mode: "single-user", fallback: "owner" },
+    env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" },
     physicalPeer: () => "127.0.0.1",
   });
   const principal = await root.principalFor(root.ownerId);
@@ -124,7 +124,7 @@ test("a faulting raw upload removes its small pre-dispatch staging prefix", asyn
 
 test("actual exported ZIP bytes stage unchanged for their owning workload and conflict cleans only the refused upload", async () => {
   await using root = await createServerHarness({
-    authConfig: { mode: "single-user", fallback: "owner" },
+    env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" },
     physicalPeer: () => "127.0.0.1",
   });
   const principal = await root.principalFor(root.ownerId);
@@ -153,7 +153,7 @@ test("actual exported ZIP bytes stage unchanged for their owning workload and co
 
 test("an absent raw body fails without creating a staging namespace or workload", async () => {
   await using root = await createServerHarness({
-    authConfig: { mode: "single-user", fallback: "owner" },
+    env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" },
     physicalPeer: () => "127.0.0.1",
   });
   const response = await root.http.request(BUNDLE_ROUTE, { method: "POST", headers: CSRF_HEADERS });

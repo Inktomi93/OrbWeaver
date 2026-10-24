@@ -180,7 +180,7 @@ test("a served total the upload framing alone fills refuses the plan instead of 
 
 /** A single-user root whose loopback requests act as its owner, so the client's own fetches reach it unauthenticated. */
 const SINGLE_USER = {
-  authConfig: { mode: "single-user", fallback: "owner" },
+  env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" },
   physicalPeer: () => "127.0.0.1",
   startJobs: false,
 } as const;

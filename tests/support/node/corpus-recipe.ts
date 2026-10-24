@@ -134,7 +134,7 @@ export async function createCorpusRecipe(parent: string): Promise<CorpusRecipe> 
     server: {
       clock,
       ids,
-      authConfig: { mode: "local" as const },
+      env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" },
       providerFetch: execution.execute,
       secretBoxKey: key,
       temporaryParentDir: parent,

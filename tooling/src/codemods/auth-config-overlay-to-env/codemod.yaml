@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "auth-config-overlay-to-env"
+version: "0.1.0"
+description: "Move a test root's parse-accepted authConfig overlay onto raw env keys in its record."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["typescript"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

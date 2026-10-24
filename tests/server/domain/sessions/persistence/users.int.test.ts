@@ -25,7 +25,7 @@ function forwardHeaderRoot(policy: Partial<SessionsRolePolicyConfig> = {}): Prom
   const { OIDC_ADMIN_GROUPS: _admins, OIDC_ALLOWED_GROUPS: _allowed, OWNER_GROUP: _owners, ...base } = env;
   return createServerHarness({
     rolePolicyConfig: { ...base, ["OIDC_ALLOWED_GROUPS"]: MEMBER_GROUP, ...policy },
-    authConfig: { mode: "forward-header", fallback: "deny", forwardTrustedProxies: ["127.0.0.1/32"] },
+    env: { ["AUTH_MODE"]: "forward-header", ["AUTH_FALLBACK"]: "deny", ["FORWARD_AUTH_TRUSTED_PROXIES"]: "127.0.0.1/32" },
     physicalPeer: () => "127.0.0.1",
   });
 }

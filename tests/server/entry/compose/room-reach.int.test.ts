@@ -11,9 +11,9 @@ import { freshHeldDb, withheldTable } from "@orb/testkit/node/composed";
 import { and, eq } from "drizzle-orm";
 import { onTestFinished, vi } from "vitest";
 
-const test = baseTest.extend<Pick<Fixtures, "authConfig">>({
-  authConfig: async ({}, use): Promise<void> => {
-    await use({ mode: "local" });
+const test = baseTest.extend<Pick<Fixtures, "env">>({
+  env: async ({}, use): Promise<void> => {
+    await use({ ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" });
   },
 });
 

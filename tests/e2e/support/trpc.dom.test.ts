@@ -11,7 +11,7 @@ import { createTrpcClient } from "./trpc.ts";
 
 test("native success calls preserve paths, inputs, batched output identity and persisted mutations", async () => {
   await using root = await createServerHarness({
-    authConfig: { mode: "single-user", fallback: "owner" },
+    env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" },
     physicalPeer: () => "127.0.0.1",
   });
   const address = await root.listen();
@@ -45,7 +45,7 @@ test("native success calls preserve paths, inputs, batched output identity and p
 
 test("caller cookies and CSRF remain distinct from fallback and raw status probes", async () => {
   await using root = await createServerHarness({
-    authConfig: { mode: "local", fallback: "owner" },
+    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" },
     physicalPeer: () => "127.0.0.1",
   });
   const member = await root.actor();
@@ -69,7 +69,7 @@ test("caller cookies and CSRF remain distinct from fallback and raw status probe
 
 test("upstream failures retain HTTP diagnostics and malformed success bytes reach the native parser", async () => {
   await using root = await createServerHarness({
-    authConfig: { mode: "single-user", fallback: "owner" },
+    env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" },
     physicalPeer: () => "127.0.0.1",
   });
   const productResponse = await root.http.request("/api/trpc/sessions.me?batch=1");

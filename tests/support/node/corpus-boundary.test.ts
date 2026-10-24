@@ -21,7 +21,7 @@ test("capsule creation refuses an existing data root before opening or modifying
   await expect(
     createCorpusCapsule({
       directory,
-      server: { authConfig: { mode: "local" }, pluginSpawn: spawn },
+      server: { env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" }, pluginSpawn: spawn },
       seed: { ownerPassword: "unused-boundary-password", log: () => undefined },
       privateCredential: { provider: "custom-openai", key: "unused-boundary-credential" },
     }),
