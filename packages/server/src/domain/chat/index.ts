@@ -59,9 +59,6 @@ export { createLiveTier0Range } from "./memory/recall/live-tier-range.ts";
 // The recall flight recorder (#250) — the composition root builds ONE and wires its sink onto `ChatContext`.
 export { createMemoryRecallRecorder } from "./memory/recall/recorder.ts";
 export { createBulkImportChats } from "./persistence/import-write.ts";
-// The membership primitive imagery's extractQuiet compose-gate reads (leak-free NOT_FOUND for a non-member —
-// cross-tenant-sweep-enforced; the createGetMembership precedent, a pure `(db, chatId, userId)` read).
-
 export { createRoomSeatReach } from "./persistence/room-reach.ts";
 export {
   createCompareAndSetImportedTokenUsage,
