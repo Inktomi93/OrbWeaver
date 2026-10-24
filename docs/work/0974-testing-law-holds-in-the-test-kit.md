@@ -51,7 +51,7 @@ Rebuilt tests need stable inputs and the actual production graph, not copied dom
 ## Done when
 
 - `rg 'randomBytes' tests/support` finds no test or factory key.
-- No fixed delay or turn count decides completion in the kit. Each negative assertion has a positive control.
+- No fixed delay or turn count decides completion in the kit. Each negative assertion has a positive control. One absence wait stays: `tests/support/node/corpus-execution.int.test.ts` proves the helper does not apply its own default deadline when the caller supplies a signal, and that deadline emits nothing a test can observe without a test-only export; its positive control is the same case's settle after release.
 - The kit has one timer seam and one frozen epoch.
 - `server.ts` builds internal callers from the root's context factory. Its workload dispatch deps are bound to the production type.
 - A control proves `freshDb` matches the migrated schema, or `freshDb` runs the migrated chain.
