@@ -15,7 +15,7 @@ const REPO_ROOT = join(import.meta.dirname, "../..");
 const ENTRY_DIR = "packages/server/src/entry/compose";
 const QUERY_RULE = "entry-wiring-no-query-capability";
 const DRIVER_RULE = "entry-wiring-no-physical-driver";
-const LOADER_RULE = "entry-wiring-no-module-loader";
+const LOADER_RULE = "host-module-loader-confined";
 const CONTRACT_RULE = "query-wiring-contract-is-type-only";
 const OWNER_RULE = "query-wiring-owner-conversion";
 const WIRING_CONTRACT = "packages/db/src/client/wiring.ts";
@@ -66,8 +66,13 @@ interface ImportCase {
   readonly name: string;
   readonly source: (helper: string) => string;
   readonly helper?: { readonly dir: string; readonly source: string };
+  /** Where the probe is planted, when not under `ENTRY_DIR`. */
+  readonly dir?: string;
   readonly rule: string | null;
 }
+
+// `createRequire` loads any specifier at runtime; the import graph sees only the `node:module` edge.
+const REQUIRE_LOADER = 'import { createRequire } from "node:module"; export const load = (spec: string): unknown => createRequire(import.meta.url)(spec);';
 
 const IMPORT_CASES: readonly ImportCase[] = [
   { name: "public alias", source: () => 'import { createDb as connect } from "@orb/db"; export { connect };', rule: QUERY_RULE },
@@ -77,6 +82,14 @@ const IMPORT_CASES: readonly ImportCase[] = [
   { name: "relative client", source: () => 'import { createDb } from "../../../../db/src/client/index.ts"; export { createDb };', rule: QUERY_RULE },
   { name: "physical admission", source: () => 'import { databaseHandle } from "@orb/db/wiring-driver"; export { databaseHandle };', rule: QUERY_RULE },
   { name: "module loader alias", source: () => 'import { createRequire as loader } from "node:module"; export { loader };', rule: LOADER_RULE },
+  { name: "domain createRequire", source: () => REQUIRE_LOADER, dir: "packages/server/src/domain/character", rule: LOADER_RULE },
+  { name: "db createRequire", source: () => REQUIRE_LOADER, dir: "packages/db/src/client", rule: LOADER_RULE },
+  {
+    name: "inference bare module namespace",
+    source: () => 'import * as host from "module"; export { host };',
+    dir: "packages/inference/src/backends",
+    rule: LOADER_RULE,
+  },
   { name: "boot barrel", source: () => 'export * from "@orb/server/entry/boot";', rule: DRIVER_RULE },
   { name: "Drizzle constructor", source: () => 'export { drizzle } from "drizzle-orm/libsql";', rule: QUERY_RULE },
   { name: "raw batch door", source: () => 'export { batchStmt } from "@orb/db/query";', rule: QUERY_RULE },
@@ -118,7 +131,7 @@ interface CheckerRun {
 }
 
 const planted: PlantedCase[] = IMPORT_CASES.map((row, index) => {
-  const entry = `${ENTRY_DIR}/native-query-probe-${String(index)}.ts`;
+  const entry = `${row.dir ?? ENTRY_DIR}/native-query-probe-${String(index)}.ts`;
   const helper = row.helper === undefined ? undefined : `${row.helper.dir}/native-query-helper-${String(index)}.ts`;
   return { ...row, paths: helper === undefined ? [entry] : [entry, helper] };
 });
@@ -151,6 +164,7 @@ beforeAll(async () => {
     if (entry === undefined) {
       throw new Error(`case ${row.name} has no entry path`);
     }
+    mkdirSync(dirname(join(treeRoot, entry)), { recursive: true });
     writeFileSync(join(treeRoot, entry), row.source(helper === undefined ? "" : (helper.split("/").at(-1) ?? "")));
     if (helper !== undefined && row.helper !== undefined) {
       writeFileSync(join(treeRoot, helper), row.helper.source);
