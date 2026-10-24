@@ -56,7 +56,7 @@ function sampleCompletion(pid: number, deps: ProcReads & { readonly platform?: N
 
 /** Reuse the native table walk, but a failed directory read is not a completed empty sweep. */
 export function completionProcesses(
-  deps: ProcReads & { readonly platform?: NodeJS.Platform; readonly owner?: ProcessCompletionOwner } = {},
+  deps: ProcReads & { readonly platform?: NodeJS.Platform; readonly owner?: ProcessCompletionOwner; readonly marker?: string } = {},
 ): readonly ProcessEntry[] {
   if ((deps.platform ?? process.platform) !== "linux") {
     throw new Error("process completion table unavailable on this platform");
@@ -69,7 +69,7 @@ export function completionProcesses(
   }
   return linuxProcesses({
     ...deps,
-    readFile: completionFileReader(deps, deps.owner),
+    readFile: completionFileReader(deps, deps.owner, deps.marker),
     readDir: deps.readDir ?? ((path): readonly string[] => readdirSync(path)),
   });
 }
@@ -86,7 +86,7 @@ function readErrorCode(error: unknown): string {
 
 /** Native runners keep their real/effective UID. Inaccessible foreign users cannot be their children;
  *  ambiguous ownership under this UID must retain the clone, not become an empty marker selection. */
-function completionFileReader(deps: ProcReads, owner: ProcessCompletionOwner | undefined): (path: string) => string | null {
+function completionFileReader(deps: ProcReads, owner: ProcessCompletionOwner | undefined, marker: string | undefined): (path: string) => string | null {
   const read = deps.readFile ?? ((path: string): string => readFileSync(path, "utf8"));
   return (path): string | null => {
     let metadataRead = "null";
@@ -101,24 +101,20 @@ function completionFileReader(deps: ProcReads, owner: ProcessCompletionOwner | u
       }
       metadataRead = readErrorCode(error);
     }
-    return excludeInaccessibleProcess(path, read, owner, metadataRead);
+    return excludeInaccessibleProcess(path, read, { owner, marker }, metadataRead);
   };
 }
 
 function excludeInaccessibleProcess(
   path: string,
   read: (path: string) => string | null,
-  owner: ProcessCompletionOwner | undefined,
+  { owner, marker }: { readonly owner: ProcessCompletionOwner | undefined; readonly marker: string | undefined },
   metadataRead: string,
 ): null {
   const pid = /^\/proc\/(?<pid>\d+)\//u.exec(path)?.groups?.["pid"];
-  let sample: CompletionSample | undefined;
-  if (owner !== undefined && pid !== undefined) {
-    sample = sampleCompletion(Number(pid), { readFile: read });
-    const candidate = sample.value;
-    if (candidate.kind !== "unknown" && (candidate.kind === "gone" || candidate.kind === "zombie" || BigInt(candidate.identity) < BigInt(owner.identity))) {
-      return null;
-    }
+  const sample = owner !== undefined && pid !== undefined ? sampleCompletion(Number(pid), { readFile: read }) : undefined;
+  if (owner !== undefined && sample !== undefined && completedOrOlder(sample.value, owner)) {
+    return null;
   }
   const status = completionStatus(pid, read);
   if (status.gone) {
@@ -127,15 +123,11 @@ function excludeInaccessibleProcess(
   const ids = /^Uid:\s+(?<real>\d+)\s+(?<effective>\d+)\s+(?<saved>\d+)\s+(?<filesystem>\d+)/mu.exec(status.text ?? "")?.groups;
   const userId = process.getuid?.();
   const effectiveId = process.geteuid?.();
-  if (
-    ids !== undefined &&
-    userId !== undefined &&
-    effectiveId !== undefined &&
-    Number(ids["real"]) !== userId &&
-    Number(ids["real"]) !== effectiveId &&
-    Number(ids["effective"]) !== userId &&
-    Number(ids["effective"]) !== effectiveId
-  ) {
+  if (foreignToBoth(ids, userId, effectiveId)) {
+    return null;
+  }
+  const lineage = environLineage(path, pid, read, marker);
+  if (lineage.excluded) {
     return null;
   }
   // Refusal diagnostics contain only kernel identity fields and known errno names, never metadata bytes or error messages.
@@ -144,14 +136,80 @@ function excludeInaccessibleProcess(
     owner: owner === undefined ? null : { pid: owner.pid, startTicks: owner.identity },
     candidate: sample === undefined ? null : { kind: sample.value.kind, state: sample.state, startTicks: sample.startTicks, statRead: sample.statRead },
     statusRead: status.read,
-    uids:
-      ids === undefined
-        ? null
-        : { real: Number(ids["real"]), effective: Number(ids["effective"]), saved: Number(ids["saved"]), filesystem: Number(ids["filesystem"]) },
+    uids: ids === undefined ? null : uidFacts(ids),
     selfUid: userId ?? null,
     selfEffectiveUid: effectiveId ?? null,
   };
-  throw new Error(`process completion metadata unavailable: ${path} | completion-read ${JSON.stringify(facts)}`);
+  throw new Error(
+    `process completion metadata unavailable: ${path} | completion-read ${JSON.stringify(facts)}${lineage.label === "" ? "" : ` | ${lineage.label}`}`,
+  );
+}
+
+function completedOrOlder(candidate: ProcessCompletion, owner: ProcessCompletionOwner): boolean {
+  return candidate.kind !== "unknown" && (candidate.kind === "gone" || candidate.kind === "zombie" || BigInt(candidate.identity) < BigInt(owner.identity));
+}
+
+function uidFacts(ids: Record<string, string | undefined>): Record<string, number> {
+  return { real: Number(ids["real"]), effective: Number(ids["effective"]), saved: Number(ids["saved"]), filesystem: Number(ids["filesystem"]) };
+}
+
+function foreignToBoth(ids: Record<string, string | undefined> | undefined, userId: number | undefined, effectiveId: number | undefined): boolean {
+  return (
+    ids !== undefined &&
+    userId !== undefined &&
+    effectiveId !== undefined &&
+    Number(ids["real"]) !== userId &&
+    Number(ids["real"]) !== effectiveId &&
+    Number(ids["effective"]) !== userId &&
+    Number(ids["effective"]) !== effectiveId
+  );
+}
+
+/** The kernel's comm is 15 bytes at most; keeping only that, in a safe alphabet, names a process without echoing metadata. */
+const COMM_MAX = 15;
+const COMM_RE = /^Name:\s*(?<name>.*)$/mu;
+
+function commOf(status: string | null): string {
+  const name = COMM_RE.exec(status ?? "")?.groups?.["name"];
+  return name === undefined ? "?" : name.slice(0, COMM_MAX).replaceAll(/[^\w.:-]/gu, "?");
+}
+
+function peek(read: (path: string) => string | null, path: string): string | null {
+  // An unreadable file is "not observed" here; the caller refuses on it, never signals on it.
+  try {
+    return read(path);
+  } catch {
+    return null;
+  }
+}
+
+/** A process whose environ this user cannot read cannot carry our marker when its parent is alive, its parent's
+ *  environ is readable and neither carries the marker: the marker is exported into the spawn environment, so a
+ *  marked process descends from a marked one, and a process that rewrites its own environ (chromium) is stamped in
+ *  argv. `label` names the process and its parent for the refusal. */
+function environLineage(
+  path: string,
+  pid: string | undefined,
+  read: (path: string) => string | null,
+  marker: string | undefined,
+): { readonly excluded: boolean; readonly label: string } {
+  if (pid === undefined) {
+    return { excluded: false, label: "" };
+  }
+  const status = peek(read, `${PROC}/${pid}/status`);
+  const self = `process ${pid} (${commOf(status)})`;
+  const ppid = status === null ? null : parseProcStatusParent(status);
+  if (ppid === null || ppid <= 0) {
+    return { excluded: false, label: `${self} parent unknown` };
+  }
+  const alive = sampleCompletion(ppid, { readFile: read }).value.kind === "live";
+  const parentEnviron = peek(read, `${PROC}/${ppid}/environ`);
+  const carriers = [parentEnviron, peek(read, `${PROC}/${ppid}/cmdline`), peek(read, `${PROC}/${pid}/cmdline`)];
+  const marked = marker !== undefined && carriers.some((text) => text?.includes(marker) === true);
+  const parent = `parent ${String(ppid)} (${commOf(peek(read, `${PROC}/${String(ppid)}/status`))})`;
+  const facts = [alive ? "alive" : "not alive", parentEnviron === null ? "environ unreadable" : "environ readable", marked ? "marked" : "unmarked"];
+  const label = `${self} ${parent} ${facts.join(", ")}`;
+  return { excluded: path.endsWith("/environ") && marker !== undefined && alive && parentEnviron !== null && !marked, label };
 }
 
 function completionStatus(pid: string | undefined, read: (path: string) => string | null): { text: string | null; read: string; gone: boolean } {
