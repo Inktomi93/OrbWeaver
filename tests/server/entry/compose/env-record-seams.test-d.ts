@@ -31,5 +31,5 @@ test("the composition root, the HTTP app, the scoped egress, the share graph and
 
 test("the env key tuple is every key the schema reads and nothing the parse derives", () => {
   expectTypeOf<(typeof ENV_KEYS)[number]>().toEqualTypeOf<EnvKey>();
-  expectTypeOf<EnvKey>().toEqualTypeOf<Exclude<keyof Env, "DATA_LAYOUT">>();
+  expectTypeOf<EnvKey>().toEqualTypeOf<Exclude<keyof Env, "DATA_LAYOUT" | "INSTALL_KIND" | "MACHINE_HOSTNAME">>();
 });

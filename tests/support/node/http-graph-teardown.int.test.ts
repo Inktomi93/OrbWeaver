@@ -12,7 +12,7 @@ test("root teardown cancels its actual service graph before joining a held real 
   await using database = new AsyncDisposableStack();
   const held = await freshHeldDb();
   database.defer(() => closeDb(held.db));
-  await using harness = await createServerHarness({ db: held.db, authConfig: { mode: "local" } });
+  await using harness = await createServerHarness({ db: held.db, env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" } });
   const caller = await harness.internalCallerFor(harness.ownerId);
   const handle = castId<Handle>("held-native-login");
   const password = "a-real-password-through-the-real-session-verifier";

@@ -10,7 +10,7 @@ area: stats
 
 ## What
 
-From the 0486 lane: (1) deleting a generated image cascades away its imagery_generations row but the live rollup never subtracts the spend, so a later Recompute lowers spend; decide whether image spend is history (its own ledger like compaction) or current canon (deletion subtracts live). (2) Imagery execution history travels through the `imagery` descriptor and rebuilds grouped image spend. Compaction spend still does not travel; carry its history in the bundle. (3) Compaction and other chat metadata writes bump chats.updatedAt, which moves the rebuild character lastActivityAt with no live delta; decide whether those count as character activity. (4) The image delta adds modelGenSamples without genTimeMs and cost without costSamples, skewing averages.
+From the 0486 lane: (1) deleting a generated image cascades away its imagery_generations row but the live rollup never subtracts the spend, so a later Recompute lowers spend; decide whether image spend is history (its own ledger like compaction) or current canon (deletion subtracts live). (2) Landed in part: imagery execution history travels through the `imagery` descriptor and rebuilds grouped image spend. Compaction spend still does not travel; carry its history in the bundle. (3) Compaction and other chat metadata writes bump chats.updatedAt, which moves the rebuild character lastActivityAt with no live delta; decide whether those count as character activity. (4) The image delta adds modelGenSamples without genTimeMs and cost without costSamples, skewing averages.
 
 ## Why
 
@@ -26,6 +26,6 @@ The launch cut discloses partial retained accounting without rebuilding absent t
 
 The original accounting, restore, sample and owner-enumeration work remains open.
 
-Also: extraction and caption spend (generate-picture.ts:248-250) never reach stats at all; reconcileStats all-owner mode enumerates only owners with characters.
+Also: extraction and caption spend (`packages/server/src/domain/imagery/verbs/generate-picture.ts:262`) never reach stats at all; reconcileStats all-owner mode enumerates only owners with characters.
 
-Also: the TSDoc at rebuild-from-canon.ts (reconcileOwnersMissingTimeline) should name owners whose generated assets were deleted among the per-boot re-run cases; the model_stats-only case of the heal predicate (unpriced generations) has no test of its own.
+Also: the TSDoc of reconcileOwnersMissingTimeline (`packages/server/src/domain/stats/persistence/rebuild-from-canon.ts:91`) should name owners whose generated assets were deleted among the per-boot re-run cases; the model_stats-only case of the heal predicate (unpriced generations) has no test of its own.

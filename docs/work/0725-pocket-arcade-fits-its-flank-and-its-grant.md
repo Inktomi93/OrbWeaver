@@ -10,7 +10,7 @@ area: plugin
 
 ## What
 
-'New game' wraps onto two lines in the 194 px flank and the grant line starts lowercase ('runs its own interface code…') (fp2-pa-chat.png). Final pass leg 2 (plugins); review: ~/homelab/development/probe-archive/side-eye-reviews/final-pass-2-plugins.md.
+The grant text starts lowercase ('runs its own interface code…') in `packages/client/src/features/plugin/lib/plugin-copy.ts:145`. `packages/client/src/features/plugin/components/plugin-grant-list.tsx:246` renders it as a continuation clause. Whether it takes sentence case is the open question. The 'New game' wrap is fixed (`packages/showcase-plugins/bundles/pocket-arcade/main.ts:73-74`).
 
 ## Why
 
@@ -18,7 +18,7 @@ Plugin final pass finding.
 
 ## Done when
 
-The button fits one line and the grant copy is sentence case.
+The owner rules the grant copy form, and the rendered grant line reads as a sentence in that form.
 
 ## Evidence
 

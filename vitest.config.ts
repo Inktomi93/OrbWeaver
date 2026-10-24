@@ -57,8 +57,11 @@ export function vitestConfig(): ViteUserConfig {
       // boots at `owner` on its own. Between #1864 and #2406 this line carried the pin the flat `deny`
       // default made mandatory.
       env: { CORPUS_AUTOINDEX: "false", LOG_LEVEL: "silent", ORB_ENV_NO_FILE: "1" },
-      // Native bindings need process isolation; module isolation stays at Vitest's true default.
+      // Native bindings need process isolation. One module registry per worker: every file reuses the
+      // server graph import, and no module may read the environment at import time (the harness
+      // supplies the seams instead).
       pool: "forks",
+      isolate: false,
       maxWorkers: CONCURRENCY.vitestMaxWorkers,
       restoreMocks: true,
       clearMocks: true,
@@ -94,9 +97,6 @@ export function vitestConfig(): ViteUserConfig {
           test: {
             name: "integration",
             sequence: { groupOrder: NORMAL_GROUP_ORDER },
-            // One module registry per worker: every file reuses the server graph import, and no module may
-            // read the environment at import time (the harness supplies the seams instead).
-            isolate: false,
             setupFiles: ["tests/support/node/composed-real.ts"],
             include: withIgnored([...exclusiveTestGlobs(({ family, resource }) => family === "integration" && resource === null), `!${TOOLING}`]),
           },

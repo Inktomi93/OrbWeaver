@@ -7,6 +7,7 @@ import { Gauge, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
+import { UNSET_DATUM } from "../../lib/unset-datum.ts";
 import { TrackerValue } from "./tracker-value.tsx";
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -42,7 +43,7 @@ export function StatCell({ label, value, hint, onEditValue }: StatCellProps): Re
         {onEditValue === undefined ? (
           <Text as="span" size="title" tone={value === null ? "muted" : "default"} className="tabular-nums">
             {/* `??`, never `||` — a real reading of ZERO is a reading, and must not fall through to the em-dash. */}
-            {value ?? "—"}
+            {value ?? UNSET_DATUM}
           </Text>
         ) : (
           <TrackerValue
@@ -51,7 +52,7 @@ export function StatCell({ label, value, hint, onEditValue }: StatCellProps): Re
             // The rest state's em-dash for an unset-but-editable cell — TrackerValue renders `placeholder` muted
             // when the display is empty, which is the same "intentionally blank, not unfinished" arm every other
             // editable value uses. An editor typing over it sees an EMPTY field, not a floor value to delete.
-            placeholder="—"
+            placeholder={UNSET_DATUM}
             kind="numeric"
             size="title"
             onEdit={(next): void => {

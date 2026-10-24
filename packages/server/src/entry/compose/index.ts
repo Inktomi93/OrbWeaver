@@ -10,5 +10,5 @@ export { LIFECYCLE_DOORS, NON_PORTABLE_CANON, PORTABLE_CANON_TABLES } from "./po
 export { createProcessSeams } from "./process-seams.ts";
 export type { ServicesDeps, ServicesResult } from "./services.ts";
 export { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "./services.ts";
-export { SESSIONS_CRYPTO } from "./sessions-crypto.ts";
+export { SessionsCrypto } from "./sessions-crypto.ts";
 export { createShareGraph } from "./share.ts";

@@ -197,7 +197,7 @@ import { buildRpg } from "./rpg.ts";
 import type { SearchDiscoveryComposeResult } from "./search-discovery.ts";
 import { buildSearchDiscovery } from "./search-discovery.ts";
 import { buildServiceJobs } from "./service-jobs.ts";
-import { SESSIONS_CRYPTO } from "./sessions-crypto.ts";
+import type { SessionsCrypto } from "./sessions-crypto.ts";
 import { createUpstreamProbes } from "./update-check.ts";
 import { buildWorkloadContributions } from "./workload-contributions.ts";
 import { buildWorldInfo } from "./world-info.ts";
@@ -260,6 +260,8 @@ export interface ServicesDeps {
   /** The ST profile-directory snapshot `import-st`'s `importAll` reads; absent ⇒ repo-root `.st-data`. */
   readonly stProfileDir?: string;
   readonly sessionSecret: string | null;
+  /** The sessions service's hasher and id-token cipher; the same instance the root's boot-owner step received. */
+  readonly sessionsCrypto: SessionsCrypto;
   readonly providerSeams?: InferenceSeams;
   /** This replica's stable lock-holder tag — must match the boot reclaim's match key. */
   readonly holder?: string;
@@ -544,7 +546,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     db,
     now,
     idSource,
-    crypto: SESSIONS_CRYPTO,
+    crypto: deps.sessionsCrypto,
     sessionSecret: deps.sessionSecret,
     seedUserConnections,
     rolePolicy,

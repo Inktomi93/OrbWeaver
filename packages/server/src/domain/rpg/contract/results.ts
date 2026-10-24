@@ -27,20 +27,3 @@ export interface LockedPatchOutcome<T> {
   /** Deduplicated, in the order the walk met them. EMPTY when no lock bit. */
   readonly suppressed: readonly string[];
 }
-
-/** The raw result of ONE roll (`substrate/dice.ts::rollNotation`) — the per-die faces BEFORE the modifier plus the
- *  summed total WITH it. The unbaked half of {@link RollDiceResult}: the verb stamps and echoes the notation
- *  over this. Homed here rather than beside the roller since 2026-08-22 (#408 — the `no-inline-types`
- *  `/tools/` clause was exempting the rpg tool subsystem by string accident; §7.4 puts a domain-internal shape
- *  in the domain's `contract/`). */
-export interface DiceRoll {
-  readonly faces: readonly number[];
-  readonly total: number;
-}
-
-/** One `NdM(+/-K)` expression's fields (`substrate/dice.ts::matchDiceNotation`), each finite by construction. */
-export interface ParsedDiceNotation {
-  readonly count: number;
-  readonly faces: number;
-  readonly modifier: number;
-}

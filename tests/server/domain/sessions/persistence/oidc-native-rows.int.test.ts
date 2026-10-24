@@ -414,7 +414,7 @@ test("failed OIDC GC construction joins its held actual database sweep and retai
   let settled = false;
   const result = createServerHarness({
     ownerId: null,
-    authConfig: { mode: "oidc", fallback: "deny" },
+    env: { ["AUTH_MODE"]: "oidc", ["AUTH_FALLBACK"]: "deny" },
     db: held.db,
     clock,
     timers,

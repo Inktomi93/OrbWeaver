@@ -31,29 +31,30 @@ const ANONYMOUS = { authenticated: false, handle: null, role: null };
 
 type Root = Pick<ServerTestHarness, "http">;
 
-function singleUserOverlay(defaultHandle?: Handle): NonNullable<ServerHarnessOptions["authConfig"]> {
-  return { mode: "single-user", fallback: "owner", ...(defaultHandle === undefined ? {} : { defaultHandle }) };
-}
-
 function single(options: Omit<ServerHarnessOptions, "authConfig"> & { readonly defaultHandle?: Handle } = {}): Promise<ServerTestHarness> {
-  const { defaultHandle, ...rest } = options;
-  return createServerHarness({ physicalPeer: () => LOOPBACK, ...rest, authConfig: singleUserOverlay(defaultHandle) });
+  const { defaultHandle, rolePolicyConfig, ...rest } = options;
+  return createServerHarness({
+    physicalPeer: () => LOOPBACK,
+    ...rest,
+    env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" },
+    rolePolicyConfig: { ...rolePolicyConfig, ...(defaultHandle === undefined ? {} : { ["DEFAULT_USER_HANDLE"]: defaultHandle }) },
+  });
 }
 
 function local(peer: () => string = () => LOOPBACK): Promise<ServerTestHarness> {
-  return createServerHarness({ physicalPeer: peer, authConfig: { mode: "local", fallback: "deny" } });
+  return createServerHarness({ physicalPeer: peer, env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
 }
 
 function forward(peer: () => string, rolePolicyConfig: SessionsRolePolicyConfig = env): Promise<ServerTestHarness> {
   return createServerHarness({
     physicalPeer: peer,
     rolePolicyConfig,
-    env: { ["FORWARD_AUTH_TRUSTED_PROXIES"]: TRUSTED_PROXIES.join(",") },
-    authConfig: {
-      mode: "forward-header",
-      fallback: "owner",
-      forwardUserHeader: FORWARD_USER_HEADER,
-      forwardGroupsHeader: FORWARD_GROUPS_HEADER,
+    env: {
+      ["FORWARD_AUTH_TRUSTED_PROXIES"]: TRUSTED_PROXIES.join(","),
+      ["AUTH_MODE"]: "forward-header",
+      ["AUTH_FALLBACK"]: "owner",
+      ["FORWARD_AUTH_USER_HEADER"]: FORWARD_USER_HEADER,
+      ["FORWARD_AUTH_GROUPS_HEADER"]: FORWARD_GROUPS_HEADER,
     },
   });
 }
@@ -92,7 +93,7 @@ test("D135: the fallback Principal and the frozen-host Principal AGREE about the
   const seam = createAuthSeam({
     emitUserEvent: root.app.liveBuses.user.publishUserEvent,
     sessions: root.app.sessions,
-    config: { ...authConfigFromEnv(root.env), ...singleUserOverlay(PLACEHOLDER_HANDLE) },
+    config: authConfigFromEnv(root.env),
   });
   const { principal } = await seam.resolvePrincipal(new Headers(), { peerIp: LOOPBACK, transport: "http" });
   expect(principal).toEqual(await root.principalFor(request.userId));
@@ -277,7 +278,7 @@ test("debugGateAdmits requires a CREDENTIAL as well as the OWNER role", async ()
 test("debugGateAdmits takes a VERIFIED SSO identity, never a proxy-asserted one", async () => {
   await using root = await createServerHarness({
     physicalPeer: () => LOOPBACK,
-    authConfig: { mode: "forward-header", fallback: "deny", forwardTrustedProxies: ["127.0.0.1/32"] },
+    env: { ["AUTH_MODE"]: "forward-header", ["AUTH_FALLBACK"]: "deny", ["FORWARD_AUTH_TRUSTED_PROXIES"]: "127.0.0.1/32" },
   });
   const ownerHandle = (await root.principalFor(root.ownerId)).handle;
   const unsigned = { "remote-user": ownerHandle };

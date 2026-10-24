@@ -225,7 +225,7 @@ export interface AppDeps {
   readonly sessions: AuthSessionsPort;
   readonly isShuttingDown: () => boolean;
   readonly credentialsKeyOk: () => boolean;
-  /** Whether the process runs in a container (`foundation/env` `runsInContainer`); picks the fix the Host refusal names. */
+  /** Whether the process runs in a container (the record's `INSTALL_KIND`); picks the fix the Host refusal names. */
   readonly inContainer: boolean;
   /** The relay registry's read side (`createRelayHostRegistry`): the Host allowlist admits these names beside the env
    *  list. The app never writes it; the relay controller holds the write side. */

@@ -19,7 +19,7 @@ import { eq } from "drizzle-orm";
 const OWNER_PASSWORD = "native-owner-row-password";
 
 test("a delegate cannot disable, bind or reset the owner, while the owner can rotate the credential used by actual HTTP login", async () => {
-  await using root = await createServerHarness({ authConfig: { mode: "local", fallback: "deny" } });
+  await using root = await createServerHarness({ env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
   const owner = await root.principalFor(root.ownerId);
   const delegate = await root.actor({ role: "admin" });
   const admin = await root.principalFor(delegate.id);

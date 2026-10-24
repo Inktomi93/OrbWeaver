@@ -13,7 +13,7 @@ import { z } from "zod";
 import { readAccounts } from "./admin/accounts.ts";
 import { test } from "./fixtures.ts";
 import { CLIENT_ID, createNativeIssuer, ISSUER, NATIVE_OIDC_SETTINGS } from "./oidc-issuer.ts";
-import type { ActorSpec, ServerHarnessOptions, ServerTestHarness } from "./server.ts";
+import type { ActorSpec, AuthModeEnv, ServerHarnessOptions, ServerTestHarness } from "./server.ts";
 import { createServerHarness } from "./server.ts";
 import type { NativeIssuer } from "./sign-in.ts";
 import { forwardHeaders, SignInRefusal, signInWithOidc, signInWithPassword } from "./sign-in.ts";
@@ -41,7 +41,8 @@ export const AUTH_MODE_CAPABILITIES = {
 } as const satisfies Record<AuthMode, AuthModeCapability>;
 
 type PhysicalPeer = NonNullable<ServerHarnessOptions["physicalPeer"]>;
-type ModeHarnessOptions = Required<Pick<ServerHarnessOptions, "authConfig" | "physicalPeer">> & Pick<ServerHarnessOptions, "oidc" | "networkExecution">;
+type ModeHarnessOptions<Mode extends AuthMode> = Required<Pick<ServerHarnessOptions, "physicalPeer">> &
+  Pick<ServerHarnessOptions, "oidc" | "networkExecution"> & { readonly env: AuthModeEnv<Mode> };
 
 const LOOPBACK_PEER = "127.0.0.1";
 // A public address for the issuer host and for every login-mode caller, so no loopback or private-range rule applies.
@@ -68,27 +69,28 @@ function issuerNetwork(issuer: NativeIssuer): NonNullable<ServerHarnessOptions["
   };
 }
 
-const MODE_HARNESS: Record<AuthMode, (issuer: NativeIssuer) => ModeHarnessOptions> = {
-  "single-user": () => ({
-    authConfig: { mode: "single-user", fallback: AUTH_MODE_DEFAULT_FALLBACK["single-user"] },
-    physicalPeer: atPeer(LOOPBACK_PEER),
-  }),
-  local: () => ({ authConfig: { mode: "local", fallback: AUTH_MODE_DEFAULT_FALLBACK.local }, physicalPeer: atPeer(PUBLIC_PEER) }),
+// The mode's posture keys; its fallback is the product's own unset default, stated so the record reads as it resolves.
+function postureOf<Mode extends AuthMode>(mode: Mode): AuthModeEnv<Mode> {
+  return { ["AUTH_MODE"]: mode, ["AUTH_FALLBACK"]: AUTH_MODE_DEFAULT_FALLBACK[mode] };
+}
+
+const MODE_HARNESS: { readonly [Mode in AuthMode]: (issuer: NativeIssuer) => ModeHarnessOptions<Mode> } = {
+  "single-user": () => ({ env: postureOf("single-user"), physicalPeer: atPeer(LOOPBACK_PEER) }),
+  local: () => ({ env: postureOf("local"), physicalPeer: atPeer(PUBLIC_PEER) }),
   oidc: (issuer) => ({
-    authConfig: { mode: "oidc", fallback: AUTH_MODE_DEFAULT_FALLBACK.oidc },
+    env: postureOf("oidc"),
     physicalPeer: atPeer(PUBLIC_PEER),
     oidc: NATIVE_OIDC_SETTINGS,
     networkExecution: issuerNetwork(issuer),
   }),
+  // No trusted proxy is declared, so only the signed path admits.
   "forward-header": (issuer) => ({
-    authConfig: {
-      mode: "forward-header",
-      fallback: AUTH_MODE_DEFAULT_FALLBACK["forward-header"],
-      verifyForwardJwt: true,
-      jwksAllowlist: [ISSUER_HOST],
-      jwtIssuer: ISSUER,
-      jwtAudience: CLIENT_ID,
-      forwardTrustedProxies: [],
+    env: {
+      ...postureOf("forward-header"),
+      ["FORWARD_AUTH_VERIFY_JWT"]: "true",
+      ["FORWARD_AUTH_JWKS_ALLOWLIST"]: ISSUER_HOST,
+      ["FORWARD_AUTH_JWT_ISSUER"]: ISSUER,
+      ["FORWARD_AUTH_JWT_AUDIENCE"]: CLIENT_ID,
     },
     physicalPeer: atPeer(PUBLIC_PEER),
     networkExecution: issuerNetwork(issuer),
@@ -96,7 +98,7 @@ const MODE_HARNESS: Record<AuthMode, (issuer: NativeIssuer) => ModeHarnessOption
 };
 
 /** The harness options that compose `mode` against `issuer`; a root built from them signs in through this door. */
-export function authModeHarnessOptions(mode: AuthMode, issuer: NativeIssuer): ModeHarnessOptions {
+export function authModeHarnessOptions<Mode extends AuthMode>(mode: Mode, issuer: NativeIssuer): ModeHarnessOptions<Mode> {
   return MODE_HARNESS[mode](issuer);
 }
 
@@ -107,14 +109,17 @@ export type AuthModeRoot = ServerTestHarness & {
   readonly issuer: NativeIssuer;
 };
 
-/** Everything but the mode's own identity wiring; `physicalPeer` stays open so a case can move the caller off the box. */
-export type AuthModeRootOptions = Omit<ServerHarnessOptions, "authConfig" | "ownerId" | "oidc" | "networkExecution">;
+/** Everything but the mode's own identity wiring; `physicalPeer` stays open so a case can move the caller off the box,
+ *  and `env` adds keys beside the mode's posture without restating its mode. */
+export type AuthModeRootOptions = Omit<ServerHarnessOptions, "authConfig" | "ownerId" | "oidc" | "networkExecution" | "env"> & {
+  readonly env?: Omit<NonNullable<ServerHarnessOptions["env"]>, "AUTH_MODE">;
+};
 
 /** A claimed root in `mode`, wired to a fresh scripted issuer. */
 export async function createAuthModeRoot(mode: AuthMode, options: AuthModeRootOptions = {}): Promise<AuthModeRoot> {
   const issuer = await createNativeIssuer();
   const wiring = authModeHarnessOptions(mode, issuer);
-  const root = await createServerHarness({ ...wiring, ...options });
+  const root = await createServerHarness({ ...wiring, ...options, env: { ...wiring.env, ...options.env } });
   return Object.assign(root, { mode, capability: AUTH_MODE_CAPABILITIES[mode], issuer });
 }
 

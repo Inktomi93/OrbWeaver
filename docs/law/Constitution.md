@@ -104,8 +104,7 @@ Each domain lives at `packages/server/src/domain/<name>/` and follows the folder
 
 ### Participants, agents and identity
 
-Read `Spine-Identity-and-Auth.md`. Agent principals are designed but not built; the design is the parked
-plan `../plans/agent-principals/design.md`.
+Read `Spine-Identity-and-Auth.md`. Agent principals are not built; D60 records the design.
 
 ### Knowledge and derived data
 

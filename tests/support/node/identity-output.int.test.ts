@@ -17,7 +17,7 @@ import { captureShareViews } from "./share.ts";
 const OUTPUT_LOG_LEVEL = "error" satisfies LogLevel;
 
 test("native account and sharing suppliers keep request identity and owner-only diagnostics separate from delegated sign-in guidance", async () => {
-  await using root = await createServerHarness({ logLevel: OUTPUT_LOG_LEVEL, authConfig: { mode: "local", fallback: "deny" } });
+  await using root = await createServerHarness({ logLevel: OUTPUT_LOG_LEVEL, env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
   const owner = await root.principalFor(root.ownerId);
   const admin = await root.actor({ role: "admin" });
   const subject = "private-native-supplier-subject";
@@ -79,7 +79,7 @@ test("native account and sharing suppliers keep request identity and owner-only 
 });
 
 test("native notification snapshots distinguish offline and unknown IDs from unavailable disclosure without leaking last-seen state", async () => {
-  await using root = await createServerHarness({ logLevel: OUTPUT_LOG_LEVEL, authConfig: { mode: "local", fallback: "deny" } });
+  await using root = await createServerHarness({ logLevel: OUTPUT_LOG_LEVEL, env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
   const owner = await root.principalFor(root.ownerId);
   await root.services.settings.updateAppSettings({ principal: owner, partial: { localMultiUser: true } });
   const reader = await root.actor();

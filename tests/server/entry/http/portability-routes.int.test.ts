@@ -35,7 +35,7 @@ async function box(): Promise<Box> {
   const root = await createServerHarness({
     physicalPeer: () => "127.0.0.1",
     startJobs: false,
-    authConfig: { mode: "local", fallback: "owner" },
+    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" },
   });
   const member = await signedInMember(root, castId<Handle>("portability-member"));
   const run = root.runAdmittedWorkload;

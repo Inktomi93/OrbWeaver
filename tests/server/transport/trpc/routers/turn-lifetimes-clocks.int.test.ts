@@ -9,7 +9,7 @@ import { CLOCK_CONFIG, CLOCK_PREFIX, KATHMANDU, KATHMANDU_CLOCK, NOW } from "./t
 
 test("the actual mounted send refuses numeric or missing zones before provider work after a valid zoned request", async () => {
   await using h = await textRoom(["The keeper records the requested clock."], {
-    server: { clock: createFrozenClock(NOW), physicalPeer: () => "127.0.0.1", authConfig: { mode: "single-user", fallback: "owner" } },
+    server: { clock: createFrozenClock(NOW), physicalPeer: () => "127.0.0.1", env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" } },
     group: { output: "per-speaker", policy: "list" },
     promptConfig: CLOCK_CONFIG,
   });

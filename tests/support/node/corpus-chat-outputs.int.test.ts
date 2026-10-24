@@ -13,7 +13,7 @@ test("native chat output suppliers retain exact canon, viewer projections, page 
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
   });
-  await using root = await createServerHarness({ providerFetch: provider.execute, authConfig: { mode: "local", fallback: "deny" } });
+  await using root = await createServerHarness({ providerFetch: provider.execute, env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
   const result = await seedCorpusChatOutputs(root);
   const { reads, updates, member, invitation } = result;
   const assistant = result.turn.messages.find((message) => message.role === "assistant");

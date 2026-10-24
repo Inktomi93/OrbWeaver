@@ -3,7 +3,29 @@ import type { IConfiguration, IForbiddenRuleType } from "dependency-cruiser";
 import { BROWSER_TEST_SUFFIXES, TEST_KIND_DEFINITIONS, TEST_KIND_SUFFIXES } from "./tooling/src/floor/testing/test-kinds.ts";
 
 const ENTRY_SOURCE = "^packages/server/src/entry/";
-const ENTRY_DRIVER_PATTERN = `${ENTRY_SOURCE}(?:(?:index|lifecycle)\\.ts$|boot/(?!(?:seed-example-plugins|seed-user-content|seed-local-light)\\.ts$))`;
+// The entry files that hold the physical database (Tier-5 invariant 1). Every other entry file takes the inert
+// `DatabaseHandle`; a lower owner whose door still takes a raw `Db` is why most boot steps stay on this list.
+const ENTRY_DRIVERS = {
+  "index.ts": "the process entry point imports the lifecycle",
+  "lifecycle.ts": "opens, migrates, optimizes and closes the physical database",
+  "boot/index.ts": "the boot barrel the lifecycle reads re-exports the drivers below",
+  "boot/migrate.ts": "runs the migrations, backups and integrity check, and resolves the migrations folder through node:module",
+  "boot/migrate-data-layout.ts": "opens, snapshots and detaches the legacy database while the data layout moves",
+  "boot/boot-owner.ts": "hands the boot Db to seedOwner, whose sessions door takes a raw Db",
+  "boot/backfill-plugin-provenance.ts": "hands the boot Db to character's backfillPluginProvenance",
+  "boot/heal-legacy-background-pins.ts": "hands the boot Db to settings' healLegacyBackgroundPins",
+  "boot/migrate-handoff-offer-vocab.ts": "hands the boot Db to chat's migrateHandoffOfferVocab",
+  "boot/migrate-plugin-tool-wire-names.ts": "hands the boot Db to the plugin slug read and chat's and automation's rewrites",
+  "boot/migrate-prose-slot-vocab.ts": "hands the boot Db to preset's migrateProseSlotVocab",
+  "boot/reactivate-plugins.ts": "hands the boot Db to plugin's listEnabledAcrossOwners",
+  "boot/rebuild-stats-timeline.ts": "hands the boot Db to stats' reconcileOwnersMissingTimeline",
+  "boot/reclaim-locks.ts": "hands the boot Db to chat's lock reclaim and the workloads in-flight reclaim",
+  "boot/seed-default-preset.ts": "hands the boot Db to preset's ensureSystemDefaultPreset",
+  "boot/seed-themes.ts": "hands the boot Db to settings' ensureSeedThemes",
+} as const satisfies Readonly<Record<string, string>>;
+const ENTRY_DRIVER_PATTERN = `${ENTRY_SOURCE}(?:${Object.keys(ENTRY_DRIVERS)
+  .map((path) => RegExp.escape(path))
+  .join("|")})$`;
 const GROUPING_DIRS = {
   server: ["entry", "transport", "domain", "infra", "foundation", "primitives"],
   inference: ["backends"],
@@ -465,6 +487,15 @@ const SERVER_AUTHORITY = [
     to: { path: `${SRV}foundation/env/index\\.ts$`, dependencyTypesNot: ["type-only"] },
   },
   {
+    name: "env-record-reads-no-host",
+    comment:
+      "The record parse takes the machine's container posture, its name and the secret-file reader as inputs, so a test root states every fact production reads. Only the process reader (foundation/env/index.ts) touches the file system, the OS or the process.",
+    severity: "error",
+    from: { path: `${SRV}foundation/env/record/index\\.ts$` },
+    // `module` is listed because `createRequire` loads any host module past the static graph.
+    to: { path: "^(node:)?(fs|fs/promises|os|process|child_process|module)$", reachable: true },
+  },
+  {
     name: "infra-no-db",
     comment: "Adapters receive database operations by injection rather than acquiring query authority.",
     severity: "error",
@@ -539,6 +570,13 @@ const SERVER_AUTHORITY = [
     severity: "error",
     from: { path: `${SRV}transport/`, pathNot: `${SRV}transport/rate-limit\\.ts$` },
     to: { path: [DB, `${SRV}infra/`], dependencyTypesNot: ["type-only"] },
+  },
+  {
+    name: "job-drivers-domain-types-only",
+    comment: "Job drivers receive their engine ops from the composition root and import only types from a domain front door (Tier-4 invariant 2).",
+    severity: "error",
+    from: { path: `${SRV}transport/jobs/` },
+    to: { path: `${SRV}domain/`, dependencyTypesNot: ["type-only"] },
   },
   {
     name: "no-cross-driver",

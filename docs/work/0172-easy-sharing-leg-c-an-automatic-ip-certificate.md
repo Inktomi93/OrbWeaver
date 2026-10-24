@@ -1,7 +1,7 @@
 ---
 kind: work
 status: blocked
-updated: 2026-10-12
+updated: 2026-10-24
 priority: P2
 area: network
 blocked: owner

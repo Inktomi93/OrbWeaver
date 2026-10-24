@@ -10,7 +10,7 @@ import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, seedCorpusActors, seedMessage } from "@orb/testkit/node/composed";
 
 test("real membership, roster and wire owners keep role data separate from global privilege and fresh chat authority", async () => {
-  await using root = await createServerHarness({ authConfig: { mode: "forward-header", fallback: "deny" } });
+  await using root = await createServerHarness({ env: { ["AUTH_MODE"]: "forward-header", ["AUTH_FALLBACK"]: "deny" } });
   const host = await root.principalFor(root.ownerId);
   const actor = await root.actor({ role: "admin" });
   const member = await root.principalFor(actor.id);

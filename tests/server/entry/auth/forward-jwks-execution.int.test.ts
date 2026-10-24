@@ -16,14 +16,13 @@ const KEY_URL = new URL("jwks", ISSUER).href;
 
 function rootFor(execution: typeof fetch): Promise<ServerTestHarness> {
   return createServerHarness({
-    authConfig: {
-      mode: "forward-header",
-      fallback: "deny",
-      verifyForwardJwt: true,
-      jwksAllowlist: [KEY_HOST],
-      jwtIssuer: ISSUER,
-      jwtAudience: CLIENT_ID,
-      forwardTrustedProxies: [],
+    env: {
+      ["AUTH_MODE"]: "forward-header",
+      ["AUTH_FALLBACK"]: "deny",
+      ["FORWARD_AUTH_VERIFY_JWT"]: "true",
+      ["FORWARD_AUTH_JWKS_ALLOWLIST"]: KEY_HOST,
+      ["FORWARD_AUTH_JWT_ISSUER"]: ISSUER,
+      ["FORWARD_AUTH_JWT_AUDIENCE"]: CLIENT_ID,
     },
     physicalPeer: () => "93.184.215.14",
     networkExecution: {

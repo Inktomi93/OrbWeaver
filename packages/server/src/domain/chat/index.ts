@@ -79,13 +79,17 @@ export {
 } from "./persistence/token-usage-backfill.ts";
 // The room's PRESENT host read: the one home of that rule. Compose wires it into every domain that needs the
 // host (databank, embeddings, memory, regex, imagery) and the reaction gates call it directly.
+// `repairStaleJoinSeq` and `hasRedeemableInvite` are boot steps (`entry/boot/repair-stale-join-seq`,
+// `entry/boot/boot-secrets`); chat owns their SQL because it owns the seat and invite tables.
 export {
+  hasRedeemableInvite,
   isCharacterSeated,
   loadPluginCharacters,
   loadPluginMessages,
   loadPresentCharacterSeats,
   loadPresentHostUserId,
   migrateSeededRoomBackgrounds,
+  repairStaleJoinSeq,
 } from "./persistence/wiring-reads.ts";
 export { createChatService, createVisibleExtractQuiet } from "./service.ts";
 // The ONE D16 per-bus-event visibility verdict (`substrate/auth/clamp`). Exported because the LIVE half of

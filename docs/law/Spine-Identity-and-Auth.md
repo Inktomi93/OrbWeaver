@@ -312,9 +312,7 @@ suite. The only live agent surface is dormant DDL, kept so the re-land needs no 
   the host principal, so an agent initiator would otherwise inherit the host's full tool ceiling. It
   never does — an initiator's ceiling derives from its own capability factor at the point of initiation,
   never by inheritance through a turn's execution context.
-- Design of record: ledger D60 and the parked agent-principals plan
-  (`../plans/agent-principals/design.md`). A parked plan is not quotable as build authority; D60
-  describes the design, not the tree.
+- Design of record: ledger D60. It describes the design, not the tree.
 
 Saved rosters use the live character-seat schema. Future desired-seat contracts belong to the resumed seat design.
 

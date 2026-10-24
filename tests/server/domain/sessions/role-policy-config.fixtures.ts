@@ -10,7 +10,7 @@ import { createServerHarness } from "@orb/testkit/node/composed";
 export function rootForConfig(rolePolicyConfig: SessionsRolePolicyConfig): Promise<ServerTestHarness> {
   return createServerHarness({
     rolePolicyConfig,
-    authConfig: { mode: "forward-header", fallback: "deny", forwardTrustedProxies: ["127.0.0.1/32"] },
+    env: { ["AUTH_MODE"]: "forward-header", ["AUTH_FALLBACK"]: "deny", ["FORWARD_AUTH_TRUSTED_PROXIES"]: "127.0.0.1/32" },
     physicalPeer: () => "127.0.0.1",
   });
 }

@@ -54,7 +54,7 @@ import type { seedCorpusStatsSettings as produceCorpusStatsSettings } from "./co
 import type { seedUserCredential as produceCredential } from "./factories/rows/credentials.ts";
 import type { seedRecallCorpusRows as produceRecallCorpus } from "./factories/rows/recall.ts";
 import type { seedStatsRows as produceSearchStats } from "./factories/rows/stats.ts";
-import type { ServerHarnessOptions, ServerTestHarness } from "./server.ts";
+import type { AuthModeEnv, ServerHarnessOptions, ServerTestHarness } from "./server.ts";
 
 const CORPUS_WIRE_FILE = "corpus.json";
 const CORPUS_REPLAY_FILE = "replay.json";
@@ -76,9 +76,10 @@ export interface CorpusCapsuleOptions {
   readonly directory: string;
   readonly server: Omit<
     ServerHarnessOptions,
-    "db" | "ownerId" | "physicalPeer" | "authConfig" | "casDir" | "variantDir" | "importStagingDir" | "timers" | "oidc" | "random"
+    "db" | "ownerId" | "physicalPeer" | "authConfig" | "env" | "casDir" | "variantDir" | "importStagingDir" | "timers" | "oidc" | "random"
   > & {
-    readonly authConfig: NonNullable<ServerHarnessOptions["authConfig"]> & { readonly mode: "local" };
+    /** The capsule's record posture: a `local` box, which the owner's oidc claim root and the private root restate. */
+    readonly env: AuthModeEnv<"local">;
     readonly pluginSpawn: NonNullable<ServerHarnessOptions["pluginSpawn"]>;
   };
   readonly seed: SeedSyntheticCorpusOptions;
@@ -150,6 +151,15 @@ export interface CorpusServerHarness extends ServerTestHarness {
   readonly corpus: PreparedCorpusFixture;
 }
 
+/** A resumed corpus root's record posture; a caller's `env` keys lay over it. */
+const CORPUS_RECORD_POSTURE = { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } as const satisfies AuthModeEnv<"local">;
+
+// The retained owner's handle is the fallback placeholder, while the owner policy stays the default record's.
+async function retainedOwnerPolicy(handle: string): Promise<NonNullable<ServerHarnessOptions["rolePolicyConfig"]>> {
+  const { createTestEnv } = await import("./env.ts");
+  return { ["DEFAULT_USER_HANDLE"]: handle, ["OWNER_HANDLES"]: createTestEnv().DEFAULT_USER_HANDLE };
+}
+
 export type CorpusHarnessOptions = Omit<
   ServerHarnessOptions,
   "db" | "clock" | "ids" | "timers" | "ownerId" | "casDir" | "variantDir" | "importStagingDir" | "temporaryParentDir" | "relayDir" | "secretsDir" | "random"
@@ -182,7 +192,8 @@ export async function createCorpusHarness(directory?: string, options: CorpusHar
       ownerId: brandedId("UserId").parse(owner.userId),
       clock: createFrozenClock(source.replay.nowMs),
       ids: createSeededIds(source.replay.idCursor),
-      authConfig: options.authConfig ?? { mode: "local", fallback: "deny", defaultHandle: owner.handle },
+      env: { ...CORPUS_RECORD_POSTURE, ...options.env },
+      rolePolicyConfig: { ...(await retainedOwnerPolicy(owner.handle)), ...options.rolePolicyConfig },
       casDir: corpus.layout.assets,
       variantDir: corpus.layout.variants,
       importStagingDir: corpus.layout.importStaging,
@@ -567,7 +578,7 @@ async function initializeCorpusOwner(
     ...runtime,
     startJobs: !privateSource,
     ownerId: null,
-    authConfig: { ...options.server.authConfig, mode: "oidc", fallback: "deny" },
+    env: { ...options.server.env, ["AUTH_MODE"]: "oidc", ["AUTH_FALLBACK"]: "deny" },
     // biome-ignore lint/style/useNamingConvention: OIDC_SIGNUP is the canonical startup setting; the fresh corpus exercises the real pending-join path.
     oidc: { ...NATIVE_OIDC_SETTINGS, OIDC_SIGNUP: false },
     networkExecution: {
@@ -782,7 +793,12 @@ async function captureCapsule(options: CorpusCapsuleOptions & CorpusCapsuleProdu
       clock,
       ids,
       ownerId,
-      ...(ownerHandle === undefined ? {} : { authConfig: { ...options.server.authConfig, defaultHandle: ownerHandle, fallback: "deny" } }),
+      ...(ownerHandle === undefined
+        ? {}
+        : {
+            env: { ...options.server.env, ["AUTH_FALLBACK"]: "deny" },
+            rolePolicyConfig: { ...(await retainedOwnerPolicy(ownerHandle)), ...options.server.rolePolicyConfig },
+          }),
       sdkSpawn: sdkExecution.spawn,
       providerFetch: imageWire.wrap(connectionWire.wrap(rpgFlightWire.wrap(chatWire.wrap(options.server.providerFetch ?? fetch)))),
       networkExecution: {

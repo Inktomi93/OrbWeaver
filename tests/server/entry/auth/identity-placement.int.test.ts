@@ -7,12 +7,12 @@ import { castId } from "@orb/kit/ids";
 import { isAdmin, isOwner } from "@orb/server/domain/admin";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, damageOwnerRow, readAccounts } from "@orb/testkit/node/composed";
+import { createTestEnv } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";
 
 test("the real header seam hands sessions a pre-row identity and never trusts forged userId or role headers", async () => {
   await using root = await createServerHarness({
-    env: { ["FORWARD_AUTH_TRUSTED_PROXIES"]: "127.0.0.1/32" },
-    authConfig: { mode: "forward-header", fallback: "deny" },
+    env: { ["FORWARD_AUTH_TRUSTED_PROXIES"]: "127.0.0.1/32", ["AUTH_MODE"]: "forward-header", ["AUTH_FALLBACK"]: "deny" },
     physicalPeer: () => "127.0.0.1",
   });
   const provision = vi.spyOn(root.app.sessions, "provisionIdentity");
@@ -49,8 +49,10 @@ test("the real header seam hands sessions a pre-row identity and never trusts fo
 
 test("fallback and frozen-host identities read the same live owner row instead of granting the verification placeholder a role", async () => {
   const placeholder = castId<Handle>("verification-placeholder-is-not-owner");
+  // A record names a placeholder apart from the owner only beside an explicit owner handle; the owner keeps the default.
   await using root = await createServerHarness({
-    authConfig: { mode: "single-user", fallback: "owner", defaultHandle: placeholder },
+    env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" },
+    rolePolicyConfig: { ["DEFAULT_USER_HANDLE"]: placeholder, ["OWNER_HANDLES"]: createTestEnv().DEFAULT_USER_HANDLE },
     physicalPeer: () => "127.0.0.1",
   });
   const owner = await root.principalFor(root.ownerId);

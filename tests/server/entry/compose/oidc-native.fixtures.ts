@@ -26,7 +26,6 @@ export function rootFor(
     ...edges,
     ...wiring,
     ownerId: null,
-    authConfig: { ...wiring.authConfig, mode: "oidc" },
     oidc: { ...SETTINGS, ...oidc },
   });
 }

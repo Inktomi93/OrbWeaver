@@ -50,7 +50,8 @@ import { resolveProseText } from "@orb/contracts/prose";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import { runStructuredTurn, StructuredOutputError } from "@orb/inference";
 import type { VarOp } from "@orb/kit/macro";
-import { neutralizeMacros, setVarKey } from "@orb/kit/macro";
+import { neutralizeMacros } from "@orb/kit/macro";
+import { writeOwnKey } from "@orb/kit/objects";
 import { getLog } from "#foundation/observability";
 import { sha256Hex } from "#primitives/content-hash";
 import type {
@@ -379,7 +380,7 @@ const ROUTE_APPLIERS: Record<AnalysisOutputClass, RouteApplier> = {
     await deps.ops.chat.applyVariableOps(frame.chatId, ops);
     // The write-through law (`arm-executors.ts::writeArmVariable`), through the plane's OWN-key writer
     // (#1564): a route key of `__proto__` written with property syntax lands nowhere at all.
-    setVarKey(frame.env.vars, route.key, value);
+    writeOwnKey(frame.env.vars, route.key, value);
     return ROUTE_OK;
   },
 };

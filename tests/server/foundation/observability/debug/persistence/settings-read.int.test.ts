@@ -24,7 +24,7 @@ import { eq, sql } from "drizzle-orm";
 const PASSWORD = "operator-read-control-password";
 
 test("the settings probe preserves key order and stored values while rejecting anonymous and delegated-admin readers", async () => {
-  await using root = await createServerHarness({ authConfig: { mode: "local", fallback: "deny" } });
+  await using root = await createServerHarness({ env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
   const zeta = { key: "application:debug-zeta", value: { marker: "operator-only-settings-marker", opaque: [null, true, 3] }, updatedAt: root.clock.now() };
   await root.services.settings.setGlobalSetting(zeta.key, zeta.value);
   root.clock.advance(1000);

@@ -1,12 +1,12 @@
 // The Node harness assembles the production graph once. Only clocks, business entropy, scheduling and
 // external execution vary; identity, policy, persistence and accounting stay with their production owners.
+// A root binds a public interface only with `allowPublicBind: true`: a production record binds every interface.
 
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { UserRole } from "@orb/contracts/identity";
-import type { LogLevel } from "@orb/contracts/settings";
+import type { AuthMode, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { closeDb } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
@@ -15,16 +15,17 @@ import { createBinding } from "@orb/kit/binding";
 import type { ExternalId, Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId, createIdSource } from "@orb/kit/ids";
 import { isAdmin } from "@orb/server/domain/admin";
-import type { SessionsRolePolicy, SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
-import { createSessionsRolePolicy, ROLE_POLICY_ENV_KEYS } from "@orb/server/domain/sessions";
+import type { SessionsRolePolicy } from "@orb/server/domain/sessions";
+import { createSessionsRolePolicy } from "@orb/server/domain/sessions";
 import type { ShareGraph, ShareGraphOptions } from "@orb/server/domain/share";
 import { loadWorkload, runWorkload, tickWorkloadSchedules } from "@orb/server/domain/workloads";
 import { authConfigFromEnv, createHostPrincipalResolver } from "@orb/server/entry/auth";
 import type { BootOwner } from "@orb/server/entry/boot";
 import { announceOwnerClaim, handOffBootOwnerSweeps, prepareBootOwner, removeOwnerClaimFileOnSpend } from "@orb/server/entry/boot";
 import type { createConfiguredOidc, createHttpApp, ServicesDeps, ServicesResult } from "@orb/server/entry/compose";
-import type { Env, EnvKey } from "@orb/server/foundation/env";
-import { authModeSource, hostEnvAllowlist, resolveBindPosture } from "@orb/server/foundation/env";
+import { OWNER_CLAIM_URL_FILE_NAME } from "@orb/server/foundation/data-layout";
+import type { Env } from "@orb/server/foundation/env";
+import { authModeSource, bindPostureInput, hostEnvAllowlist, resolveBindPosture } from "@orb/server/foundation/env";
 import { getLog, logger } from "@orb/server/foundation/observability";
 import { systemConnector, systemFetch } from "@orb/server/infra/network";
 import { createCaller, createContext } from "@orb/server/transport/trpc";
@@ -35,32 +36,25 @@ import { createSeededIds } from "../iso/ids.ts";
 import type { ControlledTimers } from "../iso/timers.ts";
 import { createControlledTimers } from "../iso/timers.ts";
 import { freshDb } from "./db.ts";
-import { createTestEnv } from "./env.ts";
+import type { EnvSeamOptions, RawEnvInput } from "./env-seams.ts";
+import { harnessEnv } from "./env-seams.ts";
 import type { OwnedHttpRequests } from "./http.ts";
 import { createOwnedHttpRequests } from "./http.ts";
 
 type AuthConfig = ReturnType<typeof authConfigFromEnv>;
 
-export interface ServerHarnessOptions extends Partial<Pick<ServicesDeps, "secretBoxKey" | "casDir" | "variantDir" | "importStagingDir" | "holder">> {
-  /** Raw env keys for this root's record, parsed beside the named options below by the production parse, so a
-   *  value production refuses is refused here. */
-  readonly env?: Partial<Record<EnvKey, string>>;
-  /** `RPG_TRACE` in the record. */
-  readonly rpgTrace?: boolean;
-  /** `WIRE_CAPTURE` in the record. */
-  readonly wireCapture?: boolean;
-  /** `WIRE_CAPTURE_REPLY` in the record. */
-  readonly wireCaptureReply?: boolean;
-  /** `LOG_LEVEL` in the record; the process logger is borrowed at the same level for the root's lifetime. */
-  readonly logLevel?: LogLevel;
+/** The root's options. Every env key reaches the record through its {@link ENV_SEAMS} row: the named options in
+ *  {@link EnvSeamOptions}, or `env` for a raw row. */
+export interface ServerHarnessOptions extends EnvSeamOptions, Partial<Pick<ServicesDeps, "secretBoxKey" | "variantDir" | "holder">> {
+  /** Raw values for the raw rows, parsed with the rest of the record by the production parse, so a value production
+   *  refuses is refused here. */
+  readonly env?: RawEnvInput;
   /** Scripted network seams; an omitted resolver refuses, an omitted fetch is the provider transport (services) or
    *  the real platform fetch behind the refusing resolver (sharing). */
   readonly networkExecution?: Partial<ServicesDeps["networkExecution"]> | undefined;
   readonly share?: Pick<ShareGraphOptions, "relay" | "acme">;
   readonly relayDir?: string;
   readonly secretsDir?: string;
-  readonly bindHost?: string;
-  readonly allowPublicBind?: boolean;
   readonly pluginSpawn?: NonNullable<ServicesDeps["pluginExecution"]>["spawn"];
   readonly db?: Db;
   readonly startJobs?: boolean;
@@ -71,17 +65,11 @@ export interface ServerHarnessOptions extends Partial<Pick<ServicesDeps, "secret
   readonly temporaryParentDir?: ReturnType<typeof tmpdir>;
   readonly ids?: SeededIds;
   readonly random?: () => number;
-  /** Fields laid over the record's `authConfigFromEnv`; a field may hold a pairing the env parse would refuse. */
+  /** Fields laid over the record's `authConfigFromEnv`, only for a pairing the env parse refuses, such as `single-user`
+   *  with `deny`. Every reader of the record still sees the record's posture, so an accepted pairing goes in `env`. */
   readonly authConfig?: Partial<AuthConfig>;
-  /** The role-policy keys in the record. */
-  readonly rolePolicyConfig?: Partial<SessionsRolePolicyConfig>;
   readonly physicalPeer?: Parameters<typeof createHttpApp>[0]["physicalPeer"];
-  /** `CLIENT_DIST_DIR` in the record. */
-  readonly clientDistDir?: string;
-  /** `DEBUG_TOKEN` in the record. */
-  readonly debugToken?: string;
   readonly ownerId?: UserId;
-  readonly oidc?: NonNullable<Parameters<typeof createConfiguredOidc>[0]["settings"]>;
   readonly providerFetch?: typeof fetch;
   readonly sdkQuery?: AgentSdkQuery;
   readonly sdkSpawn?: AgentSdkSpawn;
@@ -89,12 +77,19 @@ export interface ServerHarnessOptions extends Partial<Pick<ServicesDeps, "secret
   readonly runtimeSpan?: NonNullable<ServicesDeps["providerSeams"]>["span"];
   readonly modelKernelModule?: NonNullable<NonNullable<ServicesDeps["providerSeams"]>["localLight"]>["kernelModule"];
   readonly allowRemoteModels?: NonNullable<NonNullable<ServicesDeps["providerSeams"]>["localLight"]>["allowRemoteModels"];
+  /** The production sessions crypto both the boot-owner step and the graph receive; a test passes one to spy on it. */
+  readonly sessionsCrypto?: ServicesDeps["sessionsCrypto"];
 }
 
-export type UnclaimedServerHarnessOptions = Omit<ServerHarnessOptions, "ownerId" | "authConfig"> & {
-  readonly ownerId: null;
-  readonly authConfig: Partial<AuthConfig> & { readonly mode: "oidc" };
-};
+/** Raw env keys whose record composes `mode`. */
+export type AuthModeEnv<Mode extends AuthMode> = NonNullable<ServerHarnessOptions["env"]> & { readonly ["AUTH_MODE"]: Mode };
+
+/** Only `oidc` boots with no owner, so an unclaimed root states that mode in its record or, for a pairing the parse
+ *  refuses, in its overlay. */
+export type UnclaimedServerHarnessOptions = Omit<ServerHarnessOptions, "ownerId" | "authConfig" | "env"> & { readonly ownerId: null } & (
+    | { readonly env: AuthModeEnv<"oidc">; readonly authConfig?: Partial<AuthConfig> }
+    | { readonly env?: RawEnvInput; readonly authConfig: Partial<AuthConfig> & { readonly mode: "oidc" } }
+  );
 
 // What an actor mint hands back: the account's id and handle, never a stored users row (Spine-Testing §9).
 interface ActorAccount {
@@ -224,9 +219,9 @@ function networkExecutionOf(options: Pick<ServerHarnessOptions, "networkExecutio
   return { fetch: options.networkExecution?.fetch ?? fallbackFetch, resolver: options.networkExecution?.resolver ?? refusingResolver };
 }
 
+// The local-light cache stays the record's `LOCAL_LIGHT_CACHE_DIR`, which compose reads itself.
 function providerExecutionOf(
   options: Pick<ServerHarnessOptions, "sdkQuery" | "sdkSpawn" | "sdkNative" | "modelKernelModule" | "allowRemoteModels" | "runtimeSpan">,
-  modelCacheDir: string,
 ): NonNullable<ServicesDeps["providerSeams"]> {
   return {
     agentSdk: {
@@ -239,36 +234,10 @@ function providerExecutionOf(
     },
     ...(options.runtimeSpan === undefined ? {} : { span: options.runtimeSpan }),
     localLight: {
-      cacheDir: modelCacheDir,
       allowRemoteModels: options.allowRemoteModels ?? false,
       kernelModule: options.modelKernelModule ?? new URL("./refuse-model-kernel.ts", import.meta.url).href,
     },
   };
-}
-
-function onOff(flag: boolean): "on" | "off" {
-  return flag ? "on" : "off";
-}
-
-/** The root's env record: the test posture over the root's own data directory, each named option as its key, then
- *  the raw `env` keys, through the production parse. */
-function harnessEnv(options: ServerHarnessOptions | UnclaimedServerHarnessOptions, rootDir: string): Env {
-  return createTestEnv({
-    ["DATA_DIR"]: rootDir,
-    ...(options.logLevel === undefined ? {} : { ["LOG_LEVEL"]: options.logLevel }),
-    ...(options.rpgTrace === undefined ? {} : { ["RPG_TRACE"]: onOff(options.rpgTrace) }),
-    ...(options.wireCapture === undefined ? {} : { ["WIRE_CAPTURE"]: onOff(options.wireCapture) }),
-    ...(options.wireCaptureReply === undefined ? {} : { ["WIRE_CAPTURE_REPLY"]: onOff(options.wireCaptureReply) }),
-    ...(options.debugToken === undefined ? {} : { ["DEBUG_TOKEN"]: options.debugToken }),
-    ...(options.clientDistDir === undefined ? {} : { ["CLIENT_DIST_DIR"]: options.clientDistDir }),
-    ...rolePolicyInput(options.rolePolicyConfig),
-    ...options.env,
-  });
-}
-
-// Only the role-policy keys: a caller may hand a whole parsed record, whose non-string values are no raw input.
-function rolePolicyInput(config: ServerHarnessOptions["rolePolicyConfig"]): Partial<Record<EnvKey, string>> {
-  return Object.fromEntries(ROLE_POLICY_ENV_KEYS.flatMap((key) => (config?.[key] === undefined ? [] : [[key, config[key]] as const])));
 }
 
 // A second root on the same database is another replica only when it locks under its own holder tag.
@@ -293,24 +262,21 @@ function borrowLogLevel(level: ServerHarnessOptions["logLevel"]): Disposable {
   };
 }
 
+// The record's data slots, as boot hands them to compose; compose reads the users, reports and wire-capture slots
+// from the record itself. Each directory exists before the graph starts.
 async function directoriesFor(
-  rootDir: string,
-  options: Pick<ServerHarnessOptions, "casDir" | "variantDir" | "importStagingDir">,
-): Promise<
-  Required<Pick<ServicesDeps, "casDir" | "variantDir" | "importStagingDir" | "importReportsDir" | "userRuntimeDir" | "stProfileDir" | "wireCaptureDir">> &
-    Pick<ServerTestHarness, "modelCacheDir">
-> {
+  env: Env,
+  options: Pick<ServerHarnessOptions, "variantDir">,
+): Promise<Pick<ServicesDeps, "casDir" | "variantDir" | "importStagingDir" | "stProfileDir"> & Pick<ServerTestHarness, "modelCacheDir">> {
   const paths = {
-    casDir: options.casDir ?? join(rootDir, "cas"),
-    variantDir: options.variantDir ?? join(rootDir, "variants"),
-    importStagingDir: options.importStagingDir ?? join(rootDir, "import-staging"),
-    importReportsDir: join(rootDir, "import-reports"),
-    userRuntimeDir: join(rootDir, "user-runtime"),
-    modelCacheDir: join(rootDir, "model-cache"),
-    stProfileDir: join(rootDir, "st-profile"),
-    wireCaptureDir: join(rootDir, "wire-capture"),
+    casDir: env.ASSETS_DIR,
+    variantDir: options.variantDir ?? env.DATA_LAYOUT.variants,
+    importStagingDir: env.IMPORT_STAGING_DIR,
+    modelCacheDir: env.LOCAL_LIGHT_CACHE_DIR,
+    ...(env.ST_PROFILE_DIR === undefined ? {} : { stProfileDir: env.ST_PROFILE_DIR }),
   };
-  await Promise.all(Object.values(paths).map((path) => mkdir(path, { recursive: true })));
+  const composeOwned = [env.USER_RUNTIME_DIR, env.DATA_LAYOUT.reports, env.DATA_LAYOUT.wireCapture, env.DATA_LAYOUT.secrets];
+  await Promise.all([...Object.values(paths), ...composeOwned].map((path) => mkdir(path, { recursive: true })));
   return paths;
 }
 
@@ -342,7 +308,6 @@ async function closeHarnessGraph(
 type HarnessConstruction = Pick<ServerTestHarness, "db" | "env" | "clock" | "idSource" | "timers"> & {
   readonly authConfig: AuthConfig;
   readonly rolePolicy: SessionsRolePolicy;
-  readonly rootDir: string;
 };
 
 // Boot's own pre-assembly owner step, seeded in every auth mode. A supplied id names an owner an earlier root on the
@@ -355,12 +320,13 @@ async function prepareHarnessOwner(
     clock,
     idSource,
     rolePolicy,
-  }: Pick<HarnessConstruction, "db" | "clock" | "idSource" | "rolePolicy"> & { readonly wiringDb: ServicesDeps["db"] },
+    sessionsCrypto,
+  }: Pick<HarnessConstruction, "db" | "clock" | "idSource" | "rolePolicy"> & Pick<ServicesDeps, "sessionsCrypto"> & { readonly wiringDb: ServicesDeps["db"] },
 ): Promise<Pick<BootOwner, "ownerId" | "ownersBoundBeforeAssembly">> {
   if (options.ownerId !== undefined) {
     return { ownerId: options.ownerId ?? undefined, ownersBoundBeforeAssembly: [] };
   }
-  return await prepareBootOwner({ db, wiringDb, now: clock.now, idSource, rolePolicy, sessionSecret: SESSION_SECRET, ownerSeed: {} });
+  return await prepareBootOwner({ db, wiringDb, now: clock.now, idSource, rolePolicy, sessionSecret: SESSION_SECRET, sessionsCrypto, ownerSeed: {} });
 }
 
 const ACTOR_HANDLE_PREFIX = "actor";
@@ -438,9 +404,15 @@ function actorFor(
 }
 
 async function configuredOidcFor(
-  options: ServerHarnessOptions | UnclaimedServerHarnessOptions,
   app: ServicesResult,
-  { db, env, authConfig, clock, timers, rootDir }: Omit<HarnessConstruction, "idSource" | "db"> & Pick<ServicesDeps, "db">,
+  {
+    db,
+    env,
+    authConfig,
+    clock,
+    timers,
+    secretsDir,
+  }: Omit<HarnessConstruction, "idSource" | "db"> & Pick<ServicesDeps, "db"> & Pick<ShareGraphOptions, "secretsDir">,
 ): Promise<(Awaited<ReturnType<typeof createConfiguredOidc>> & { readonly ownerClaimFile: string }) | undefined> {
   if (authConfig.mode !== "oidc") {
     return;
@@ -453,10 +425,11 @@ async function configuredOidcFor(
       now: clock.now,
       built: app,
       scheduleInterval: timers.interval,
-      settings: options.oidc ?? env,
+      settings: env,
     }),
   );
-  const ownerClaimFile = join(rootDir, "owner-claim-url");
+  // Boot writes the claim beside the root's other secrets, so it follows a caller's `secretsDir` as sharing does.
+  const ownerClaimFile = join(secretsDir, OWNER_CLAIM_URL_FILE_NAME);
   await announceOwnerClaim({
     log: getLog(),
     sessions: app.sessions,
@@ -464,7 +437,7 @@ async function configuredOidcFor(
     ownerClaim: oidc.ownerClaim,
     redirectAllowlist: oidc.redirectAllowlist,
     claimUrlFile: ownerClaimFile,
-    inContainer: false,
+    inContainer: bindPostureInput(env).inContainer,
   });
   const lifetime = construction.move();
   return {
@@ -476,22 +449,20 @@ async function configuredOidcFor(
 }
 
 function shareInputsFor(options: ServerHarnessOptions | UnclaimedServerHarnessOptions, inputs: HarnessConstruction, appPort: () => number): ShareGraphOptions {
-  const bind = resolveBindPosture({
-    nodeEnv: "test",
-    authMode: inputs.authConfig.mode,
-    bindHost: options.bindHost ?? "127.0.0.1",
-    allowDevPublicBind: options.allowPublicBind ?? false,
-    ownerPeersDeclared: false,
-    inContainer: false,
-  });
-  if (bind.refusal !== null) {
-    throw new Error(bind.refusal);
+  // Boot's own bind input over the root's record; the parse already refused every refused bind, so this posture
+  // carries none.
+  const bind = resolveBindPosture(bindPostureInput(inputs.env));
+  // Production binds every interface by design, which a test root on a dev box must never do by accident.
+  if (bind.publicBind && options.allowPublicBind !== true) {
+    throw new Error(
+      `server harness: this record binds ${bind.host ?? "every interface"} publicly; pass allowPublicBind: true for a root that must listen there`,
+    );
   }
   return {
     bind,
     appPort,
-    relayDir: options.relayDir ?? join(inputs.rootDir, "relay"),
-    secretsDir: options.secretsDir ?? join(inputs.rootDir, "secrets"),
+    relayDir: options.relayDir ?? inputs.env.DATA_LAYOUT.relay,
+    secretsDir: options.secretsDir ?? inputs.env.DATA_LAYOUT.secrets,
     now: inputs.clock.now,
     timers: inputs.timers,
     // The harness keeps the physical dial real; the refusing resolver is what keeps names off the network.
@@ -557,7 +528,7 @@ export async function createServerHarness(
   const timers: ServerTestHarness["timers"] = construction.use(pendingTimers ?? createControlledTimers(clock));
   pendingTimers = undefined;
   const random = options.random ?? ((): number => 0.5);
-  const env = harnessEnv(options, rootDir);
+  const env = harnessEnv(options, { rootDir });
   const authConfig: AuthConfig = { ...authConfigFromEnv(env), ...options.authConfig };
   const rolePolicy = createSessionsRolePolicy(env);
   construction.use(borrowLogLevel(options.logLevel));
@@ -566,14 +537,12 @@ export async function createServerHarness(
   let oidcLifetime: Awaited<ReturnType<typeof createConfiguredOidc>> | undefined;
   let shareLifetime: ShareGraph | undefined;
   construction.defer(() => closeHarnessGraph(httpLifetime, oidcLifetime, appLifetime, shareLifetime));
-  const { casDir, variantDir, importStagingDir, importReportsDir, userRuntimeDir, modelCacheDir, stProfileDir, wireCaptureDir } = await directoriesFor(
-    rootDir,
-    options,
-  );
-  const inputs: HarnessConstruction = { db, env, clock, idSource, timers, authConfig, rolePolicy, rootDir };
-  const { createHttpApp: assembleHttp, createServices, createShareGraph, UNSUPERVISED_RESTART } = await import("@orb/server/entry/compose");
+  const { modelCacheDir, ...dataSlots } = await directoriesFor(env, options);
+  const inputs: HarnessConstruction = { db, env, clock, idSource, timers, authConfig, rolePolicy };
+  const { createHttpApp: assembleHttp, createServices, createShareGraph, SessionsCrypto, UNSUPERVISED_RESTART } = await import("@orb/server/entry/compose");
   const wiringDb = databaseHandle(db);
-  const harnessOwner = await prepareHarnessOwner(options, { ...inputs, wiringDb });
+  const sessionsCrypto = options.sessionsCrypto ?? SessionsCrypto.production();
+  const harnessOwner = await prepareHarnessOwner(options, { ...inputs, wiringDb, sessionsCrypto });
   const { ownerId } = harnessOwner;
   const listener = createBinding<Readonly<AddressInfo>>("Share execution requires the server harness native listener");
   const shareInputs = shareInputsFor(options, inputs, () => listener.read().port);
@@ -598,16 +567,11 @@ export async function createServerHarness(
     secretBoxKey: options.secretBoxKey ?? null,
     ...replicaOf(options),
     sessionSecret: SESSION_SECRET,
-    casDir,
-    variantDir,
-    importStagingDir,
-    importReportsDir,
-    stProfileDir,
-    userRuntimeDir,
-    wireCaptureDir,
+    sessionsCrypto,
+    ...dataSlots,
     serverRestart: UNSUPERVISED_RESTART,
     share: sharing.share,
-    providerSeams: providerExecutionOf(options, modelCacheDir),
+    providerSeams: providerExecutionOf(options),
     pluginExecution: { spawn: options.pluginSpawn ?? refusingPluginSpawn },
     monotonicNow: clock.now,
     networkExecution: networkExecutionOf(options, options.providerFetch ?? refusingProviderFetch()),
@@ -626,7 +590,7 @@ export async function createServerHarness(
   } satisfies Parameters<typeof runWorkload>[0];
   const principalFor = createHostPrincipalResolver(app.sessions);
   const credentialsKeyOk = await app.services.credentials.probeKeyDecrypt();
-  const configuredOidc = await configuredOidcFor(options, app, { ...inputs, db: wiringDb });
+  const configuredOidc = await configuredOidcFor(app, { ...inputs, db: wiringDb, secretsDir });
   oidcLifetime = configuredOidc;
   let closing = false;
   const httpApp = assembleHttp({
@@ -635,16 +599,16 @@ export async function createServerHarness(
     ...httpOverridesOf(options),
     authConfig,
     db: wiringDb,
-    importStagingDir,
+    importStagingDir: env.IMPORT_STAGING_DIR,
     now: clock.now,
-    casDir,
+    casDir: env.ASSETS_DIR,
     sessionSecret: SESSION_SECRET,
     isShuttingDown: () => closing,
     credentialsKeyOk: () => credentialsKeyOk,
-    inContainer: false,
+    inContainer: bindPostureInput(env).inContainer,
     relayHosts: sharing.relayHosts,
     shareState: sharing.share.relay.status,
-    oidcProviderName: "Harness identity provider",
+    oidcProviderName: env.OIDC_PROVIDER_NAME,
     ...(oidcLifetime === undefined ? {} : { oidc: oidcLifetime }),
     onOwnerClaimed: () => {
       app.supervise("server-harness-owner-claim", "share.resumeAfterOwnerClaim", {}, async () => {
@@ -689,7 +653,7 @@ export async function createServerHarness(
       listener.bind(address);
       return address;
     },
-    importStagingDir,
+    importStagingDir: env.IMPORT_STAGING_DIR,
     modelCacheDir,
     relayDir,
     secretsDir,

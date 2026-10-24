@@ -58,7 +58,7 @@ test("settled search publication survives native authenticated clone reads and r
   const sourceDb = await createDb(sourceLayout.databaseUrl);
   const clock = createFrozenClock();
   const ids = createSeededIds();
-  const authConfig = { mode: "local" as const, fallback: "deny" as const };
+  const authEnv = { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" };
   const physical = createCorpusSearchWire(
     createCorpusProviderExecution({
       modelIds: [CORPUS_TEXT_MODEL, CORPUS_EMBED_MODEL],
@@ -80,7 +80,7 @@ test("settled search publication survives native authenticated clone reads and r
         db: sourceDb,
         clock,
         ids,
-        authConfig,
+        env: authEnv,
         providerFetch: (): Promise<Response> => Promise.reject(new Error("native search must use its supplied physical network edge")),
         networkExecution: { fetch: physical.execute },
         secretBoxKey: randomBytes(32),
@@ -308,7 +308,7 @@ test("settled search publication survives native authenticated clone reads and r
     db,
     clock,
     ids,
-    authConfig,
+    env: authEnv,
     ownerId: produced.wire.searchLibrary.viewerUserId,
     providerFetch: replay.execute,
     casDir: cloneLayout.assets,

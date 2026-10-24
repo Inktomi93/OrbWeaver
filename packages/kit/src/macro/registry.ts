@@ -10,23 +10,22 @@
 import { DateTime } from "luxon";
 import type { CelValue } from "#cel";
 import { evalCel, isCelParseError, parseCel } from "#cel";
+import { diceNotationInBounds, parseDiceNotation, rollDiceNotation } from "#dice";
+import { readOwnKey, writeOwnKey } from "#objects";
 import { BUILTIN_MACRO_METADATA } from "./builtin-metadata.ts";
 import { isIfTruthy } from "./metadata.ts";
 import { unitDraw } from "./prng.ts";
 import type { MacroAST, MacroContext, MacroHandler, MacroMetadata, MacroMetadataInput, MacroRegisterOptions, MacroRegistry, VarOp } from "./types.ts";
-import { applyVarOp, macroValueText, readVarKey, setVarKey } from "./variables.ts";
+import { applyVarOp, macroValueText } from "./variables.ts";
 
-const DECIMAL_RADIX = 10;
 const RANDOM_DEFAULT_CEIL = 101; // bare {{random}} rolls 0..100 inclusive
 const RANGE_ARG_COUNT = 2;
-const ROLL_MAX = 10_000; // caps dice count/sides so a hostile card can't block the loop
 const MIN_QUOTED_LEN = 2;
 
 const BARE_IDENT = /^[\w.-]+$/;
 const COMPARATOR_OPS = ["==", "!="] as const;
 const COMPARATOR_OP_LENGTH = 2;
 const NOT_FOUND = -1;
-const DICE_SPEC = /^(\d*)d(\d+)$/;
 const PLAIN_INT = /^\d+$/;
 
 // Honors a per-request IANA `ctx.timezone` (the browser's); an absent/invalid zone falls back to UTC, never the
@@ -196,7 +195,7 @@ function readContextValue(name: string, ctx: MacroContext): unknown {
     default:
       // OWN keys only (#1564): property syntax would answer `Object.prototype` for a bare `{{__proto__}}`
       // and the prototype's methods for `{{toString}}` — inherited members are not this plane's vocabulary.
-      return readVarKey(ctx.env, name);
+      return readOwnKey(ctx.env, name);
   }
 }
 
@@ -321,41 +320,16 @@ const randomHandler: MacroHandler = (args, ctx) => {
   return args[idx] ?? "";
 };
 
-// The "NdM" branch of {{roll}}, split out so the handler itself stays under the complexity cap.
-function rollDice(dice: RegExpMatchArray, random: () => number): string {
-  const count = dice[1] !== undefined && dice[1] !== "" ? Number.parseInt(dice[1], DECIMAL_RADIX) : 1;
-  const sides = Number.parseInt(dice[2] ?? "", DECIMAL_RADIX);
-  if (count < 1 || sides < 1 || count > ROLL_MAX || sides > ROLL_MAX) {
-    return "";
-  }
-  let total = 0;
-  for (let i = 0; i < count; i += 1) {
-    total += Math.floor(random() * sides) + 1;
-  }
-  return String(total);
-}
-
-// {{roll::NdM}} (sum of N M-sided dice) or {{roll::N}} (1..N). Empty/invalid → "".
+// {{roll::NdM(+/-K)}} (the sum of N M-sided dice plus K) or {{roll::N}} (one N-sided die). Empty/invalid → "".
 const rollHandler: MacroHandler = (args, ctx) => {
   // Every draw below rides the ONE normalising seam — an injected PRNG is untrusted (#1359, ./prng.ts).
   const source = ctx.random ?? Math.random;
-  const random = (): number => unitDraw(source);
-  const spec = args[0]?.trim().toLowerCase();
-  if (spec === undefined || spec === "") {
+  const spec = args[0]?.trim() ?? "";
+  const notation = parseDiceNotation(PLAIN_INT.test(spec) ? `d${spec}` : spec);
+  if (notation === null || !diceNotationInBounds(notation)) {
     return "";
   }
-  const dice = DICE_SPEC.exec(spec);
-  if (dice) {
-    return rollDice(dice, random);
-  }
-  if (PLAIN_INT.test(spec)) {
-    const n = Number.parseInt(spec, DECIMAL_RADIX);
-    if (n < 1 || n > ROLL_MAX) {
-      return "";
-    }
-    return String(Math.floor(random() * n) + 1);
-  }
-  return "";
+  return String(rollDiceNotation(notation, (max) => Math.floor(unitDraw(source) * max)).total);
 };
 
 // {{pick::A::B::C}} — option-pick under the injected PRNG (distinct from {{random}}, no numeric-range mode).
@@ -441,7 +415,7 @@ const readVar: MacroHandler = (args, ctx) => {
   if (key === undefined || key === "") {
     return "";
   }
-  return macroValueText(readVarKey(ctx.env, key) ?? "");
+  return macroValueText(readOwnKey(ctx.env, key) ?? "");
 };
 
 // {{setvar::name::value}} — write `value` to ctx.env[name], render "". Records the op on ctx.opLog.
@@ -480,13 +454,13 @@ const incVar: MacroHandler = (args, ctx) => {
     return "";
   }
   const op: VarOp = { op: "inc", key };
-  const current = macroValueText(readVarKey(ctx.env, key) ?? "0");
+  const current = macroValueText(readOwnKey(ctx.env, key) ?? "0");
   if (!applyVarOp(ctx.env, op)) {
     pushVarError(ctx, `'incvar' needs a whole number: variable '${key}' currently holds '${current}'`);
     return current;
   }
   ctx.opLog?.push(op);
-  return macroValueText(readVarKey(ctx.env, key) ?? "");
+  return macroValueText(readOwnKey(ctx.env, key) ?? "");
 };
 
 // {{decvar::name}} — −1 on the stored string, IFF it is a complete integer. Mirrors {{incvar}} above.
@@ -496,13 +470,13 @@ const decVar: MacroHandler = (args, ctx) => {
     return "";
   }
   const op: VarOp = { op: "dec", key };
-  const current = macroValueText(readVarKey(ctx.env, key) ?? "0");
+  const current = macroValueText(readOwnKey(ctx.env, key) ?? "0");
   if (!applyVarOp(ctx.env, op)) {
     pushVarError(ctx, `'decvar' needs a whole number: variable '${key}' currently holds '${current}'`);
     return current;
   }
   ctx.opLog?.push(op);
-  return macroValueText(readVarKey(ctx.env, key) ?? "");
+  return macroValueText(readOwnKey(ctx.env, key) ?? "");
 };
 
 // {{hasvar::name}} — "true" / "" so it composes with `{{if hasvar::flag}}`. Semantics: "exists" is
@@ -534,7 +508,7 @@ const getGlobalVar: MacroHandler = (args, ctx) => {
   if (key === undefined || key === "") {
     return "";
   }
-  return ctx.globalVars === undefined ? "" : (readVarKey(ctx.globalVars, key) ?? "");
+  return ctx.globalVars === undefined ? "" : (readOwnKey(ctx.globalVars, key) ?? "");
 };
 
 // {{setglobalvar::key::value}} — collect a write onto ctx.globalVarWrites (drained + upserted at turn
@@ -548,7 +522,7 @@ const setGlobalVar: MacroHandler = (args, ctx) => {
   const value = args[1] ?? "";
   ctx.globalVarWrites?.push({ key, value });
   if (ctx.globalVars !== undefined) {
-    setVarKey(ctx.globalVars, key, value);
+    writeOwnKey(ctx.globalVars, key, value);
   }
   return "";
 };

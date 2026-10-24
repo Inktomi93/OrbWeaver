@@ -12,7 +12,7 @@ export const NEW_HANDLE = castId<Handle>("newbie");
 export const test = base.extend<{ root: ServerTestHarness }>({
   root: async ({}, use): Promise<void> => {
     await using root = await createServerHarness({
-      authConfig: { mode: "local", fallback: "deny" },
+      env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" },
       rolePolicyConfig: { ["DEFAULT_USER_HANDLE"]: "owner", ["OWNER_HANDLES"]: "owner" },
     });
     await use(root);

@@ -10,7 +10,7 @@ area: rpg
 
 ## What
 
-The audit flags fractional Waystone SVG bounds at rest, but a controlled SVG comparison does not establish visible blur. Adjudicate the rule against painted geometry. Measure the reported gold and Grit touch targets, layer offsets and page typography hierarchy. Captured results: `reports/alpha-product-completion/rpg-readability/measurement-refusals.md`.
+The audit flags fractional Waystone SVG bounds at rest, but a controlled SVG comparison does not establish visible blur. Adjudicate the rule against painted geometry. Measure the reported gold and Grit touch targets, layer offsets and page typography hierarchy. The ruling doc is `docs/law/integer-line-boxes.md` section 9.
 
 ## Why
 

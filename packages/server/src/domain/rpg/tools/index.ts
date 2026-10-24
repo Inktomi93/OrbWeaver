@@ -225,7 +225,7 @@ export function rpgToolDefinitions(input: RpgAssemblyContext): readonly ToolDefi
         }
         return Promise.resolve({
           ok: true,
-          value: { notation: args.notation, total: rolled.total, faces: rolled.faces, ...(args.reason !== undefined ? { reason: args.reason } : {}) },
+          value: { notation: args.notation, total: rolled.total, faces: rolled.rolls, ...(args.reason !== undefined ? { reason: args.reason } : {}) },
         });
       },
     }),

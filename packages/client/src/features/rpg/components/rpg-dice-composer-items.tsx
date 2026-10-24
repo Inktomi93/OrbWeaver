@@ -3,6 +3,7 @@
 
 import { isRpgEngaged, RPG_RULESET_DICE, rpgAttributeModifier } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
+import { readOwnKey } from "@orb/kit/objects";
 import { Dices, Icon } from "@orb/ui/icons";
 import { MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuSeparator, MenuSubmenuRoot, MenuSubmenuTrigger } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
@@ -73,7 +74,7 @@ export function RpgDiceComposerItems({ chatId }: { readonly chatId: ChatId }): R
             <MenuGroup>
               <MenuGroupLabel>Your ability checks · d20</MenuGroupLabel>
               {(game?.publicConfig.statProfile.attributes ?? []).map((def, index) => {
-                const score = ownActor?.sheet.attributes[def.key];
+                const score = ownActor === undefined ? undefined : readOwnKey(ownActor.sheet.attributes, def.key);
                 const modifier = score === undefined || game === undefined ? null : rpgAttributeModifier(game.publicConfig.statProfile, score);
                 const descriptionId = `${reasonId}-${index}`;
                 return (

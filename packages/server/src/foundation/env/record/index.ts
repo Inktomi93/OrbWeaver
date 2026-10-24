@@ -1,8 +1,7 @@
 // The env record: the zod schema with its AUTH_MODE boot-fatality, the pure `parseEnv`, and the posture inputs read
-// from a parsed record. No import here reads the process, so every tier may take a record from this module.
+// from a parsed record. Nothing here reads the process or the machine; the parse takes the machine's facts and its
+// file reader as inputs (dep-cruiser `env-record-reads-no-host`), so every tier may take a record from this module.
 
-import { readFileSync } from "node:fs";
-import { hostname } from "node:os";
 import type { AUTH_MODES, InstallKind } from "@orb/contracts/identity";
 import { authModeSchema, MIN_PASSWORD_LENGTH, shareRelayKindSchema } from "@orb/contracts/identity";
 import { localLightCpuPercentSchema } from "@orb/contracts/inference";
@@ -17,7 +16,7 @@ import { DEFAULT_DATA_DIR, resolveDataLayout } from "#foundation/data-layout";
 import { NODE_ENVIRONMENTS } from "#primitives/node-environment";
 import { allowedHostsEntryRefusal, machineHostnameFor } from "../allowed-hosts.ts";
 import { resolveBindPosture } from "../bind.ts";
-import { runsInContainer, settingInstruction } from "../container.ts";
+import { settingInstruction } from "../container.ts";
 import type { AllowedHostsInput, BindPostureInput, DiagnosticsPostureInput, OwnerFallbackCredentialInput, OwnerFallbackPeerInput } from "../contract.ts";
 import { parseOwnerFallbackTrustedPeers, resolveOwnerFallbackPeers } from "../fallback-peers.ts";
 import { trustedPrivateRangeRefusal, unreadableTrustedPrivateRanges } from "../private-ranges.ts";
@@ -239,9 +238,9 @@ const envObjectSchema = z.object({
   // The operator switch for the user seed (D263): `off` gives no account the shipped characters, persona or
   // roster presets and records nothing in the seed ledger, so turning it back on seeds what was withheld.
   SEED_CONTENT: z.enum(["on", "off"]).default("on"),
-  // The container image's self-declaration (`ENV ORB_CONTAINER=true` in the Dockerfile), read with the runtime's
-  // marker files by `container.ts::runsInContainer`. It picks the fix text operator-facing refusals name, and keeps
-  // the random container host name out of the Host allowlist. Never set it on bare metal.
+  // The container image's self-declaration (`ENV ORB_CONTAINER=true` in the Dockerfile), joined with the runtime's
+  // marker files (`HostFacts.containerMarker`) into `INSTALL_KIND`. It picks the fix text operator-facing refusals
+  // name, and keeps the random container host name out of the Host allowlist. Never set it on bare metal.
   ORB_CONTAINER: envBool(false),
 
   // THE DATA ROOT (`foundation/data-layout` holds the tree). Every slot key below that is unset derives
@@ -475,11 +474,36 @@ interface ResolvedFields {
   readonly USER_RUNTIME_DIR: DataLayout["users"];
   readonly IMPORT_STAGING_DIR: DataLayout["importStaging"];
   readonly DATA_LAYOUT: DataLayout;
+  /** The image's declaration joined with the machine's container marker. */
+  readonly INSTALL_KIND: InstallKind;
+  /** The machine's own name, as the process reader saw it. */
+  readonly MACHINE_HOSTNAME: string;
 }
 type ResolvedEnv = Omit<EnvObject, keyof ResolvedFields> & ResolvedFields;
 
+/** What only the machine knows. The process reader (`../index.ts`) reads both; a test root states them. */
+export interface HostFacts {
+  /** A container runtime's marker file exists (`CONTAINER_MARKER_FILES`). */
+  readonly containerMarker: boolean;
+  readonly hostname: string;
+}
+
+/** Everything one parse reads: the raw environment, the keys a loaded `.env` FILE declared (an input with no file
+ *  passes an empty set), the machine's facts, and the reader for `<KEY>_FILE` secrets. */
+export interface EnvParseInput {
+  readonly source: Readonly<Record<string, string | undefined>>;
+  readonly envFileKeys: ReadonlySet<string>;
+  readonly host: HostFacts;
+  /** Reads a secret file as UTF-8 text; throws when the file cannot be read. */
+  readonly readFile: (path: string) => string;
+}
+
+function installKindOf(val: EnvObject, host: HostFacts): InstallKind {
+  return val.ORB_CONTAINER || host.containerMarker ? "container" : "bare-metal";
+}
+
 /** The boot-fatal refusals. `envFileKeys` names the keys a loaded `.env` FILE declared (the launch-only refusal). */
-function refineEnv(val: EnvObject, ctx: z.RefinementCtx, envFileKeys: ReadonlySet<string>): void {
+function refineEnv(val: EnvObject, ctx: z.RefinementCtx, envFileKeys: ReadonlySet<string>, install: InstallKind): void {
   // Fail fast at boot if the selected mode lacks the credentials to run it — a misconfigured deploy must
   // not silently fall back to owner-on-the-public-FQDN. The per-mode requirement is a mapped-type Record
   // over AUTH_MODES (the string-union dispatch discipline), so a fifth mode fails `tsc` here instead of
@@ -567,7 +591,7 @@ function refineEnv(val: EnvObject, ctx: z.RefinementCtx, envFileKeys: ReadonlySe
   // GENERALIZED: the rule is now a TABLE (`LAUNCH_ONLY_ENV_KEYS`) rather than one predicate, because
   // `AUTH_FALLBACK_TRUSTED_PEERS` is launch-only for the same reason with a different consequence — each
   // key carries its own operator sentence, and a third knob is a row, not a second copy of this block.
-  refuseLaunchOnlyEnvFileKeys(ctx, runsInContainer(val.ORB_CONTAINER), envFileKeys);
+  refuseLaunchOnlyEnvFileKeys(ctx, install === "container", envFileKeys);
   // THE WIDENED FALLBACK PEER SET × BREAK-GLASS (docs/law/container-deployment-security.md).
   // Same fail-fast family as the blocks above, and the one combination the widening may never enter.
   // `AUTH_BREAK_GLASS=true` exists to unlock ONE thing: a brief, on-box, proxy-off recovery session in an
@@ -604,7 +628,7 @@ function refineEnv(val: EnvObject, ctx: z.RefinementCtx, envFileKeys: ReadonlySe
     bindHost: val.BIND_HOST,
     allowDevPublicBind: val.ALLOW_DEV_PUBLIC_BIND,
     ownerPeersDeclared: parseOwnerFallbackTrustedPeers(val.AUTH_FALLBACK_TRUSTED_PEERS).length > 0,
-    inContainer: runsInContainer(val.ORB_CONTAINER),
+    inContainer: install === "container",
   });
   if (bind.refusal !== null) {
     ctx.addIssue({ code: "custom", path: ["BIND_HOST"], message: bind.refusal });
@@ -643,7 +667,7 @@ function refineEnv(val: EnvObject, ctx: z.RefinementCtx, envFileKeys: ReadonlySe
 // and `entry/lifecycle` all read it unchanged and no site branches on `undefined`. The data slots resolve
 // the same way: every slot key reads as its EFFECTIVE path, and `DATA_LAYOUT` carries the whole tree for
 // the slots that have no key of their own.
-function resolveEnv(val: EnvObject): ResolvedEnv {
+function resolveEnv(val: EnvObject, host: HostFacts): ResolvedEnv {
   const layout = resolveDataLayout(val);
   return {
     ...val,
@@ -654,22 +678,24 @@ function resolveEnv(val: EnvObject): ResolvedEnv {
     USER_RUNTIME_DIR: layout.users,
     IMPORT_STAGING_DIR: layout.importStaging,
     DATA_LAYOUT: layout,
+    INSTALL_KIND: installKindOf(val, host),
+    MACHINE_HOSTNAME: host.hostname,
   };
 }
 
 /** The parsed env record: every key at its effective value, plus the resolved `DATA_LAYOUT`. */
 export type Env = Readonly<ResolvedEnv>;
 
-/** A key the env schema reads. `DATA_LAYOUT` is derived by the parse, so it is no key. */
+/** A key the env schema reads. `DATA_LAYOUT`, `INSTALL_KIND` and `MACHINE_HOSTNAME` are derived by the parse, so
+ *  they are no keys. */
 export type EnvKey = keyof z.input<typeof envObjectSchema>;
 
 /** Every key the env schema reads, derived from the schema so a new key joins it. */
 export const ENV_KEYS: readonly EnvKey[] = envObjectSchema.keyof().options;
 
 /** Parse a raw env input the way boot parses the process: `<KEY>_FILE` secrets read in, then the schema.
- *  `envFileKeys` names the keys a loaded `.env` FILE declared; an input with no file passes an empty set.
  *  @throws EnvRefusedError naming each refused key, or an unreadable secret file. */
-export function parseEnv(source: Readonly<Record<string, string | undefined>>, envFileKeys: ReadonlySet<string>): Env {
+export function parseEnv({ source, envFileKeys, host, readFile }: EnvParseInput): Env {
   const input = { ...source };
   for (const key of APP_SECRET_ENV_KEYS) {
     const fileKey = `${key}_FILE`;
@@ -680,7 +706,7 @@ export function parseEnv(source: Readonly<Record<string, string | undefined>>, e
     }
     let value: string;
     try {
-      value = readFileSync(file, "utf8").replace(/\n+$/u, "");
+      value = readFile(file).replace(/\n+$/u, "");
     } catch (err) {
       throw new EnvRefusedError(
         new z.ZodError([{ code: "custom", path: [fileKey], message: "The named secret file is unreadable; check its path and permissions." }]),
@@ -691,9 +717,9 @@ export function parseEnv(source: Readonly<Record<string, string | undefined>>, e
   }
   const parsed = envObjectSchema
     .superRefine((val, ctx) => {
-      refineEnv(val, ctx, envFileKeys);
+      refineEnv(val, ctx, envFileKeys, installKindOf(val, host));
     })
-    .transform(resolveEnv)
+    .transform((val) => resolveEnv(val, host))
     .safeParse(input);
   if (!parsed.success) {
     throw new EnvRefusedError(parsed.error);
@@ -734,7 +760,7 @@ export function bindPostureInput(record: Env): BindPostureInput {
     bindHost: record.BIND_HOST,
     allowDevPublicBind: record.ALLOW_DEV_PUBLIC_BIND,
     ownerPeersDeclared: parseOwnerFallbackTrustedPeers(record.AUTH_FALLBACK_TRUSTED_PEERS).length > 0,
-    inContainer: runsInContainer(record.ORB_CONTAINER),
+    inContainer: record.INSTALL_KIND === "container",
   };
 }
 
@@ -755,7 +781,7 @@ export function ownerFallbackCredentialInput(record: Env): OwnerFallbackCredenti
 
 /** The install shape, from the image's own declaration or the runtime's marker files. */
 export function installKind(record: Env): InstallKind {
-  return runsInContainer(record.ORB_CONTAINER) ? "container" : "bare-metal";
+  return record.INSTALL_KIND;
 }
 
 /** The raw inputs the Host allowlist resolver reads (`allowed-hosts.ts` holds the grammar). The parse above has
@@ -764,7 +790,7 @@ export function allowedHostsInput(record: Env): AllowedHostsInput {
   return {
     allowedHosts: record.ALLOWED_HOSTS,
     oidcRedirectUris: record.OIDC_REDIRECT_URIS,
-    machineHostname: machineHostnameFor(runsInContainer(record.ORB_CONTAINER), hostname()),
+    machineHostname: machineHostnameFor(record.INSTALL_KIND === "container", record.MACHINE_HOSTNAME),
   };
 }
 

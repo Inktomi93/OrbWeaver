@@ -9,6 +9,7 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { isOwner } from "@orb/server/domain/admin";
 import { authConfigFromEnv, createAuthSeam } from "@orb/server/entry/auth";
+import { AUTH_MODE_DEFAULT_FALLBACK } from "@orb/server/foundation/env";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, damageOwnerRow } from "@orb/testkit/node/composed";
@@ -19,6 +20,7 @@ import { authMe, claimedOwnerCookie, debugStatus, FORWARD_USERNAME_CLAIM, policy
 
 const LOOPBACK = "127.0.0.1";
 const LAN_PEER = "10.0.0.7";
+const WIDENED_OWNER_PEERS = "10.0.0.0/8";
 const ADMIN_GROUP = "orb-debug-admins";
 /** The principal-blind whole-db reads the gate is the entire boundary for, plus the db-free info control. */
 const PROBE_PATHS = ["/api/_debug/info", "/api/_debug/db/chats", "/api/_debug/config/user"] as const;
@@ -48,12 +50,16 @@ function rootFor(
   mode: AuthMode,
   options: Omit<ServerHarnessOptions, "authConfig"> & { readonly fallback?: "owner" | "deny" } = {},
 ): Promise<ServerTestHarness> {
-  const { fallback, ...rest } = options;
+  const { fallback = AUTH_MODE_DEFAULT_FALLBACK[mode], env, ...rest } = options;
   return createServerHarness({
     physicalPeer: () => LOOPBACK,
     ...(mode === "oidc" ? { oidc: NATIVE_OIDC_SETTINGS } : {}),
     ...rest,
-    authConfig: { mode, fallback: fallback ?? (mode === "single-user" ? "owner" : "deny") },
+    // The parse refuses `deny` under `single-user`, so that pairing alone rides the overlay; every other posture is
+    // the record's, which the owner-fallback credential rule also reads.
+    ...(mode === "single-user" && fallback === "deny"
+      ? { env: { ...env }, authConfig: { mode, fallback } }
+      : { env: { ...env, ["AUTH_MODE"]: mode, ["AUTH_FALLBACK"]: fallback } }),
   });
 }
 
@@ -107,7 +113,7 @@ describe("un-credentialed callers, and a relayed single-user loopback caller, ne
   });
 
   test("no resolvable TCP peer is refused in every posture (the fallback arm cannot even mint)", async () => {
-    await using root = await createServerHarness({ authConfig: { mode: "single-user", fallback: "owner" } });
+    await using root = await createServerHarness({ env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" } });
     expect(await outcomes(root, { host: LOOPBACK })).toEqual(ALL_REFUSED_TOKENLESS);
   });
 });
@@ -134,6 +140,15 @@ describe("the loopback owner fallback opens the door only where the posture says
     expect((await authMe(root)).authenticated).toBe(true);
     expect(await outcomes(root)).toEqual(ALL_REFUSED_TOKENLESS);
   });
+
+  // The record's widened peer set makes the loopback owner no operator credential, whatever the mode.
+  for (const mode of AUTH_MODES) {
+    test(`${mode}: the STRICT posture refuses an un-relayed loopback owner over HTTP (a widened peer set)`, async () => {
+      await using root = await rootFor(mode, { fallback: "owner", env: { ["AUTH_FALLBACK_TRUSTED_PEERS"]: WIDENED_OWNER_PEERS } });
+      expect(await authMe(root)).toMatchObject({ authenticated: true, role: "owner" });
+      expect(await outcomes(root)).toEqual(ALL_REFUSED_TOKENLESS);
+    });
+  }
 
   // The posture is a launch fact production binds into the seam; a seam bound without it is the production arm.
   test("the PRODUCTION posture refuses the same loopback owner, single-user included (a proxy makes everyone one)", async () => {
@@ -185,7 +200,7 @@ describe("the two real credentials still open the gate", () => {
   test("an UNSIGNED forward-header OWNER from a trusted proxy is refused (only a verified JWT is a credential)", async () => {
     await using root = await createServerHarness({
       physicalPeer: () => LOOPBACK,
-      authConfig: { mode: "forward-header", fallback: "deny", forwardTrustedProxies: ["127.0.0.0/8"] },
+      env: { ["AUTH_MODE"]: "forward-header", ["AUTH_FALLBACK"]: "deny", ["FORWARD_AUTH_TRUSTED_PROXIES"]: "127.0.0.0/8" },
     });
     const unsigned = { "x-authentik-username": (await root.principalFor(root.ownerId)).handle };
     expect((await authMe(root, unsigned)).role).toBe("owner");
