@@ -759,6 +759,7 @@ async function captureCapsule(options: CorpusCapsuleOptions & CorpusCapsuleProdu
   const { seedCorpusActors } = await import("./corpus-actors.ts");
   const { captureCookieAuth, seedCorpusAutomation, seedCorpusLibraries, seedSyntheticCorpus } = await import("./corpus-seed.ts");
   const { seedCorpusAccount } = await import("./corpus-auth.ts");
+  const { captureCorpusFirstBoot } = await import("./corpus-first-boot.ts");
   const { captureCorpusShellAmbient } = await import("./corpus-shell.ts");
   signal?.throwIfAborted();
   await using lifetimes = new AsyncDisposableStack();
@@ -903,6 +904,7 @@ async function captureCapsule(options: CorpusCapsuleOptions & CorpusCapsuleProdu
     ...(oidc === undefined ? {} : { oidc: oidc.wire }),
     ...(await captureHealthAndReads({ root, db, signal, baseline, libraries })),
     shellAmbient: await captureCorpusShellAmbient(root),
+    firstBoot: await captureCorpusFirstBoot(),
     searchLibrary: searchFinal.value,
     pluginLibrary: plugins.library,
     notificationInbox: notifications.publication,

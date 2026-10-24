@@ -41,6 +41,9 @@ export type WorkloadKind = (typeof WORKLOAD_KINDS)[number];
 
 export const workloadKindSchema = z.enum(WORKLOAD_KINDS) satisfies z.ZodType<WorkloadKind>;
 
+/** The workload kinds an embedder change queues, one per scope search waits on: cards and pictures, documents, memory. */
+export const EMBEDDER_REBUILD_KINDS = ["index", "databank-reindex", "memory-backfill"] as const satisfies readonly WorkloadKind[];
+
 /** Which embed source(s) an `index` run sweeps. Also that kind's ADMISSION KEY (below): `text` and `image`
  *  runs hold different single-active slots (concurrent) while two `text` runs collide. */
 export const INDEX_SOURCES = ["text", "image", "all"] as const;

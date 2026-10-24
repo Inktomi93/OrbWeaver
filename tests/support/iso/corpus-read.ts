@@ -2,8 +2,10 @@
 import type * as automation from "@orb/contracts/automation";
 import type * as character from "@orb/contracts/character";
 import type * as chat from "@orb/contracts/chat";
+import type * as credentials from "@orb/contracts/credentials";
 import type * as databank from "@orb/contracts/databank";
 import type * as identity from "@orb/contracts/identity";
+import type * as inference from "@orb/contracts/inference";
 import type * as notifications from "@orb/contracts/notifications";
 import type * as persona from "@orb/contracts/persona";
 import type * as plugin from "@orb/contracts/plugin";
@@ -14,6 +16,7 @@ import type * as search from "@orb/contracts/search";
 import type * as settings from "@orb/contracts/settings";
 import type * as stats from "@orb/contracts/stats";
 import type * as tag from "@orb/contracts/tag";
+import type * as workloads from "@orb/contracts/workloads";
 import type * as world from "@orb/contracts/world-info";
 import type { UserId } from "@orb/kit/ids";
 import type { z } from "zod";
@@ -34,6 +37,19 @@ export interface CorpusProcedures {
   readonly "sessions.me": InputlessCapture<z.output<typeof identity.viewerViewSchema>>;
   readonly "settings.getUserSettings": InputlessCapture<z.output<typeof settings.userSettingsViewSchema>>;
   readonly "settings.listThemes": InputlessCapture<readonly z.output<typeof settings.themeViewSchema>[]>;
+  readonly "settings.getAppSettingsWithOverrides": InputlessCapture<z.output<typeof settings.appSettingsViewSchema>>;
+  readonly "connection.list": InputlessCapture<readonly z.output<typeof inference.connectionViewSchema>[]>;
+  readonly "connection.listBindings": Capture<z.input<typeof inference.listBindingsInputSchema>, readonly z.output<typeof inference.bindingViewSchema>[]>;
+  readonly "connection.providersAvailable": InputlessCapture<readonly z.output<typeof inference.providerAvailabilitySchema>[]>;
+  readonly "credentials.list": InputlessCapture<readonly z.output<typeof credentials.credentialViewSchema>[]>;
+  readonly "admin.listUsers": InputlessCapture<readonly z.output<typeof identity.adminUserViewSchema>[]>;
+  readonly "workloads.list": Capture<z.input<typeof workloads.workloadListInputSchema>, readonly z.output<typeof workloads.workloadRowAnyKindSchema>[]>;
+  readonly "workloads.listSchedules": Capture<
+    z.input<typeof workloads.workloadScheduleListInputSchema>,
+    readonly z.output<typeof workloads.workloadScheduleViewSchema>[]
+  >;
+  readonly "share.signInMode": InputlessCapture<z.output<typeof identity.signInModeViewSchema>>;
+  readonly "share.status": InputlessCapture<z.output<typeof identity.shareStatusSchema>>;
   readonly "character.list": Capture<z.input<typeof character.characterListInputSchema>, z.output<typeof character.listCharactersResultSchema>>;
   readonly "character.count": Capture<z.input<typeof character.characterCensusInputSchema> | undefined, number>;
   readonly "persona.list": InputlessCapture<readonly z.output<typeof persona.personaDetailSchema>[]>;
