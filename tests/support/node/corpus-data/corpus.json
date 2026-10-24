@@ -6803,6 +6803,646 @@
       }
     ]
   },
+  "firstBoot": {
+    "reads": {
+      "viewer": { "userId": "00000000000000000000000001", "handle": "owner", "globalRole": "owner" },
+      "settings": {
+        "userId": "00000000000000000000000001",
+        "schemaVersion": 10,
+        "config": {
+          "schemaVersion": 10,
+          "seeds": {
+            "defaultPersonaId": null,
+            "currentPersonaId": null,
+            "welcomeAssistantCharacterId": null,
+            "defaultPresetId": null,
+            "summarizePreset": null
+          },
+          "worldInfo": { "scanDepth": 6, "tokenBudget": 1024 },
+          "memory": { "enabled": false },
+          "databank": {
+            "chunk": { "chunkSize": 2500, "overlapPercent": 0, "wholeFileThreshold": 5120 },
+            "retrieval": { "k": 5, "minScore": 0.25, "rerank": false },
+            "slotTokenBudget": 4096
+          },
+          "chat": {
+            "attachmentQuality": { "imageDetail": "auto", "videoMaxResolution": "720" },
+            "enterSends": true,
+            "autoContinue": false,
+            "autoContinueRounds": 1,
+            "continueOnSend": true,
+            "generateOnEmptySend": true,
+            "autoSwipe": { "enabled": false, "minLength": 0, "blacklist": [], "maxRetries": 1 },
+            "customStoppingStrings": [],
+            "tempChatTtlHours": 24,
+            "smoothStream": true,
+            "smoothStreamCps": 80,
+            "streamScrollMode": "follow",
+            "reasoningAutoCollapse": true,
+            "offerChoices": false,
+            "charactersCanReact": false,
+            "reactionsEnabled": true,
+            "runCardScripts": true
+          },
+          "library": { "pageSize": 30 },
+          "imagery": { "templates": {}, "captions": {} },
+          "prose": {},
+          "persona": { "showNotifications": true },
+          "groupDefaults": {
+            "output": "per-speaker",
+            "policy": "natural",
+            "smartPicker": "reranker",
+            "cardScope": "merged",
+            "speakerTags": false,
+            "groupNudge": true,
+            "autoMode": false,
+            "autoModeMaxTurns": 6,
+            "autoModeDelayMs": 1500,
+            "allowSelfResponses": false,
+            "memberCardVisibility": "sheet"
+          },
+          "onboarding": {
+            "defaultCharactersSeeded": false,
+            "defaultPersonaSeeded": false,
+            "defaultBackgroundsSeeded": false,
+            "examplePluginsSeeded": false,
+            "seededPluginVersions": {},
+            "distributedPluginsApplied": false
+          },
+          "workloads": {},
+          "profile": { "hiddenChatPluginIds": [], "flankCollapsed": false },
+          "appearance": {
+            "chatWidthPct": 60,
+            "fontScale": 1,
+            "avatarSize": "lg",
+            "avatarShape": "round",
+            "avatarAspect": "square",
+            "avatarRing": "none",
+            "density": "comfortable",
+            "elevation": "flat",
+            "chatStyle": "bubble",
+            "showTimestamps": true,
+            "showGenerationTimer": false,
+            "showGenerationCost": false,
+            "showTokenCount": false,
+            "showMessageId": false,
+            "showModelIcon": false,
+            "showInChatAvatars": true,
+            "messageActions": "hover",
+            "autoFixMarkdown": false,
+            "colorQuotedSpeech": true,
+            "blurSurfaces": ["panels", "composer", "modals"],
+            "shadowEffects": false,
+            "surfaceTexture": "none",
+            "reducedMotion": false,
+            "backgroundImageKind": "none",
+            "backgroundAssetId": "",
+            "backgroundAssetHash": "",
+            "backgroundAssetMime": "",
+            "backgroundLibrary": [],
+            "backgroundFit": "cover",
+            "backgroundDim": 0.45,
+            "backgroundBlur": 0,
+            "readingLineHeight": 1.55,
+            "readingLetterSpacing": 0,
+            "readingParagraphSpacing": 0.75,
+            "readingNameScale": 1,
+            "readingBodyScale": 1,
+            "justifyBodyText": false,
+            "enableThemeColorization": false,
+            "blurStrength": 14,
+            "showLLMReasoningIcon": false
+          },
+          "theme": { "selectedThemeId": null }
+        },
+        "updatedAt": 0,
+        "configUnreadable": null
+      },
+      "themes": [
+        {
+          "id": "theme_00000000000000000000000001",
+          "name": "Hearth",
+          "override": {
+            "accent": "oklch(0.72 0.175 52)",
+            "userBubble": { "bg": "oklch(0.255 0.006 60)", "fg": "oklch(0.955 0.004 75)" },
+            "aiBubble": { "bg": "oklch(0.205 0.006 60)", "fg": "oklch(0.955 0.004 75)" },
+            "systemBubble": { "bg": "oklch(0.255 0.006 60)", "fg": "oklch(0.74 0.008 65)" },
+            "speaker": "oklch(0.72 0.175 52)",
+            "dialogueColor": "oklch(0.86 0.1 85)",
+            "narrationColor": "oklch(0.78 0.02 70)",
+            "bodyColor": "oklch(0.9 0.008 72)",
+            "font": "Geist",
+            "radius": "card",
+            "background": "oklch(0.158 0.006 60)",
+            "density": "comfortable"
+          },
+          "css": null,
+          "isSeed": true,
+          "isDefault": true,
+          "createdAt": 1750000000000,
+          "updatedAt": 1750000000000
+        },
+        {
+          "id": "theme_00000000000000000000000003",
+          "name": "Light",
+          "override": {
+            "accent": "oklch(0.5 0.16 50)",
+            "userBubble": { "bg": "oklch(0.93 0.02 60)", "fg": "oklch(0.25 0.02 60)" },
+            "aiBubble": { "bg": "oklch(0.97 0.006 60)", "fg": "oklch(0.22 0.02 60)" },
+            "systemBubble": { "bg": "oklch(0.93 0.015 60)", "fg": "oklch(0.45 0.02 60)" },
+            "speaker": "oklch(0.5 0.17 50)",
+            "dialogueColor": "oklch(0.4 0.1 240)",
+            "narrationColor": "oklch(0.42 0.03 60)",
+            "bodyColor": "oklch(0.28 0.015 60)",
+            "font": "Geist",
+            "radius": "card",
+            "background": "oklch(0.98 0.004 75)",
+            "density": "comfortable"
+          },
+          "css": null,
+          "isSeed": true,
+          "isDefault": false,
+          "createdAt": 1750000000000,
+          "updatedAt": 1750000000000
+        },
+        {
+          "id": "theme_00000000000000000000000002",
+          "name": "Mocha",
+          "override": {
+            "accent": "oklch(0.7 0.14 250)",
+            "userBubble": { "bg": "oklch(0.26 0.02 250)", "fg": "oklch(0.95 0.01 250)" },
+            "aiBubble": { "bg": "oklch(0.21 0.015 250)", "fg": "oklch(0.95 0.01 250)" },
+            "systemBubble": { "bg": "oklch(0.26 0.015 250)", "fg": "oklch(0.7 0.01 250)" },
+            "speaker": "oklch(0.7 0.14 250)",
+            "dialogueColor": "oklch(0.85 0.09 55)",
+            "narrationColor": "oklch(0.76 0.03 230)",
+            "bodyColor": "oklch(0.88 0.015 240)",
+            "font": "Geist",
+            "radius": "card",
+            "background": "oklch(0.15 0.015 250)",
+            "density": "comfortable"
+          },
+          "css": null,
+          "isSeed": true,
+          "isDefault": false,
+          "createdAt": 1750000000000,
+          "updatedAt": 1750000000000
+        }
+      ],
+      "appSettings": {
+        "resolved": {
+          "corpusAutoindex": false,
+          "importSkipCharacters": [],
+          "logLevel": "silent",
+          "forbidExternalMedia": true,
+          "trustHtml": false,
+          "allowInteractiveCards": true,
+          "memoryDefaults": {},
+          "rateLimits": { "aiTurn": 30, "publicIp": 60, "authed": 600, "login": 10 },
+          "privateEndpointAllowlist": ["127.0.0.1", "::1"],
+          "localMultiUser": false,
+          "discreetLogin": false,
+          "ipCertificate": null,
+          "maxImageBytes": 5000000,
+          "maxDatabankBytes": 20971520,
+          "promptTransformDeadlineMs": 250,
+          "catalogRefreshIntervalMs": 86400000,
+          "imageVariantQuality": 80,
+          "promptCacheMinDepth": 0
+        },
+        "overrides": {}
+      },
+      "connections": [
+        {
+          "id": "user_connection_00000000000000000000000002",
+          "ownerId": "00000000000000000000000001",
+          "label": "Built-in embeddings",
+          "providerId": "local-light",
+          "credentialId": null,
+          "baseUrl": null,
+          "model": "jinaai/jina-clip-v2",
+          "api": "auto",
+          "declared": null,
+          "extras": null,
+          "transport": null,
+          "modelCheck": "listed",
+          "allowBackground": true,
+          "promptCache": null,
+          "createdAt": 1750000000000,
+          "updatedAt": 1750000000000,
+          "providerLabel": "Built-in (this device)",
+          "tasks": ["embed", "imageEmbed"]
+        },
+        {
+          "id": "user_connection_00000000000000000000000003",
+          "ownerId": "00000000000000000000000001",
+          "label": "Built-in reranker",
+          "providerId": "local-light",
+          "credentialId": null,
+          "baseUrl": null,
+          "model": "cross-encoder/ettin-reranker-32m-v1",
+          "api": "auto",
+          "declared": null,
+          "extras": null,
+          "transport": null,
+          "modelCheck": "listed",
+          "allowBackground": true,
+          "promptCache": null,
+          "createdAt": 1750000000000,
+          "updatedAt": 1750000000000,
+          "providerLabel": "Built-in (this device)",
+          "tasks": ["rerank"]
+        }
+      ],
+      "bindings": [
+        { "task": "chat", "binding": null, "resolved": null, "unavailableCause": "no-connection" },
+        { "task": "summarize", "binding": null, "resolved": null, "unavailableCause": "no-connection" },
+        { "task": "generateImage", "binding": null, "resolved": null, "unavailableCause": "no-connection" },
+        {
+          "task": "embed",
+          "binding": {
+            "id": "connection_binding_00000000000000000000000004",
+            "task": "embed",
+            "connectionId": "user_connection_00000000000000000000000002",
+            "actorKind": "user",
+            "userId": "00000000000000000000000001",
+            "ruleId": null,
+            "pluginId": null
+          },
+          "resolved": {
+            "task": "embed",
+            "connectionId": "user_connection_00000000000000000000000002",
+            "providerId": "local-light",
+            "wire": "local-light",
+            "api": null,
+            "model": "jinaai/jina-clip-v2",
+            "capability": {
+              "kind": "embedding",
+              "embedding": {
+                "dims": 1024,
+                "mrl": true,
+                "maxInputTokens": 8192,
+                "input": ["text", "image"],
+                "output": ["vector"],
+                "instructionAware": false,
+                "dtype": "q8",
+                "localTextEncoding": { "version": 1, "maxTokens": 512, "pooling": "mean-normalized" }
+              }
+            },
+            "requirement": { "ok": true }
+          },
+          "unavailableCause": null
+        },
+        {
+          "task": "imageEmbed",
+          "binding": {
+            "id": "connection_binding_00000000000000000000000006",
+            "task": "imageEmbed",
+            "connectionId": "user_connection_00000000000000000000000002",
+            "actorKind": "user",
+            "userId": "00000000000000000000000001",
+            "ruleId": null,
+            "pluginId": null
+          },
+          "resolved": {
+            "task": "imageEmbed",
+            "connectionId": "user_connection_00000000000000000000000002",
+            "providerId": "local-light",
+            "wire": "local-light",
+            "api": null,
+            "model": "jinaai/jina-clip-v2",
+            "capability": {
+              "kind": "embedding",
+              "embedding": {
+                "dims": 1024,
+                "mrl": true,
+                "maxInputTokens": 8192,
+                "input": ["text", "image"],
+                "output": ["vector"],
+                "instructionAware": false,
+                "dtype": "q8",
+                "localTextEncoding": { "version": 1, "maxTokens": 512, "pooling": "mean-normalized" }
+              }
+            },
+            "requirement": { "ok": true }
+          },
+          "unavailableCause": null
+        },
+        {
+          "task": "rerank",
+          "binding": {
+            "id": "connection_binding_00000000000000000000000005",
+            "task": "rerank",
+            "connectionId": "user_connection_00000000000000000000000003",
+            "actorKind": "user",
+            "userId": "00000000000000000000000001",
+            "ruleId": null,
+            "pluginId": null
+          },
+          "resolved": {
+            "task": "rerank",
+            "connectionId": "user_connection_00000000000000000000000003",
+            "providerId": "local-light",
+            "wire": "local-light",
+            "api": null,
+            "model": "cross-encoder/ettin-reranker-32m-v1",
+            "capability": {
+              "kind": "rerank",
+              "rerank": {
+                "maxInputTokens": 2048,
+                "input": ["text"],
+                "instructionAware": false,
+                "onnx": {
+                  "head": "sentence-transformers",
+                  "dtype": "fp32",
+                  "files": { "x64": "model_quint8_avx2", "arm64": "model_qint8_arm64" },
+                  "revision": "b33e5ceb5110773ea9cf5e00c9bedc83a8c2afdd",
+                  "dynamicQuantized": true
+                }
+              }
+            },
+            "requirement": { "ok": true }
+          },
+          "unavailableCause": null
+        }
+      ],
+      "providers": [
+        {
+          "provider": {
+            "id": "google",
+            "label": "Google Gemini",
+            "wire": "google-generative-ai",
+            "features": { "structuredMode": "gemini-schema" },
+            "auth": "apiKey",
+            "baseUrl": "https://generativelanguage.googleapis.com/v1beta",
+            "apis": ["google-generative-ai"],
+            "catalog": "url",
+            "metered": true,
+            "docsUrl": "https://ai.google.dev/gemini-api/docs"
+          },
+          "available": true
+        },
+        {
+          "provider": {
+            "id": "openrouter",
+            "label": "OpenRouter",
+            "wire": "openai-compat",
+            "dialect": "openrouter",
+            "features": { "strictJson": "never", "structuredMode": "strict-compatible", "rerankPath": "/rerank" },
+            "auth": "apiKey",
+            "baseUrl": "https://openrouter.ai/api/v1",
+            "apis": ["chat-completions"],
+            "catalog": "url",
+            "metered": true,
+            "docsUrl": "https://openrouter.ai/docs"
+          },
+          "available": true
+        },
+        {
+          "provider": {
+            "id": "anthropic",
+            "label": "Anthropic",
+            "wire": "anthropic-messages",
+            "features": { "structuredMode": "anthropic-format" },
+            "auth": "apiKey",
+            "baseUrl": "https://api.anthropic.com",
+            "apis": ["anthropic-messages"],
+            "catalog": "url",
+            "metered": true,
+            "docsUrl": "https://docs.anthropic.com"
+          },
+          "available": true
+        },
+        {
+          "provider": {
+            "id": "claude-sub",
+            "label": "Claude subscription",
+            "wire": "agent-sdk",
+            "features": { "structuredMode": "anthropic-format", "concurrency": { "summarize": 4 } },
+            "auth": "oauthToken",
+            "apis": ["agent-sdk"],
+            "catalog": "url",
+            "metered": false,
+            "docsUrl": "https://docs.anthropic.com/en/docs/claude-code"
+          },
+          "available": true
+        },
+        {
+          "provider": {
+            "id": "openai",
+            "label": "OpenAI",
+            "wire": "openai-compat",
+            "dialect": "openai-compatible",
+            "features": {
+              "strictJson": "declared-only",
+              "structuredMode": "strict-compatible",
+              "effort": "reasoning_effort",
+              "outputCapField": "max_completion_tokens",
+              "images": "images-api"
+            },
+            "auth": "apiKey",
+            "baseUrl": "https://api.openai.com/v1",
+            "apis": ["chat-completions"],
+            "serves": ["chat", "summarize", "structured", "embed", "generateImage"],
+            "catalog": "url",
+            "metered": true,
+            "docsUrl": "https://platform.openai.com/docs"
+          },
+          "available": true
+        },
+        {
+          "provider": {
+            "id": "vllm",
+            "label": "vLLM",
+            "wire": "openai-compat",
+            "dialect": "openai-compatible",
+            "features": {
+              "prefill": "continue-final-message",
+              "strictJson": "default-on",
+              "structuredMode": "guided-decoding",
+              "effort": "reasoning_effort",
+              "rerankPath": "/rerank",
+              "sleep": { "isSleepingPath": "/is_sleeping", "wakePath": "/wake_up" },
+              "prefillSuppressesThinking": true,
+              "reasoningKeys": ["reasoning", "reasoning_content"],
+              "samplerKeys": { "bannedStrings": "bad_words" },
+              "tokenizeApi": "vllm",
+              "thinkingOff": "chat_template_kwargs",
+              "reasoningBudgetField": "thinking_token_budget"
+            },
+            "auth": "endpoint",
+            "apis": ["chat-completions"],
+            "catalog": "url",
+            "metered": false,
+            "docsUrl": "https://docs.vllm.ai"
+          },
+          "available": true
+        },
+        {
+          "provider": {
+            "id": "lm-studio",
+            "label": "LM Studio",
+            "wire": "openai-compat",
+            "dialect": "openai-compatible",
+            "features": { "prefill": "none", "structuredMode": "hosted-common", "samplerKeys": { "repetitionPenalty": "repeat_penalty" } },
+            "auth": "endpoint",
+            "apis": ["chat-completions"],
+            "catalog": "url",
+            "metered": false,
+            "docsUrl": "https://lmstudio.ai/docs"
+          },
+          "available": true
+        },
+        {
+          "provider": {
+            "id": "ollama",
+            "label": "Ollama",
+            "wire": "openai-compat",
+            "dialect": "openai-compatible",
+            "features": {
+              "prefill": "none",
+              "structuredMode": "gbnf",
+              "effort": "reasoning_effort",
+              "modelInfoApi": "ollama",
+              "nativeChat": "ollama",
+              "samplerKeys": { "repetitionPenalty": "repeat_penalty" },
+              "thinkingOff": "reasoning_effort"
+            },
+            "auth": "endpoint",
+            "apis": ["chat-completions"],
+            "catalog": "url",
+            "metered": false,
+            "docsUrl": "https://docs.ollama.com"
+          },
+          "available": true
+        },
+        {
+          "provider": {
+            "id": "llama-cpp",
+            "label": "llama.cpp server",
+            "wire": "openai-compat",
+            "dialect": "openai-compatible",
+            "features": {
+              "prefill": "none",
+              "structuredMode": "gbnf",
+              "modelInfoApi": "llama-cpp",
+              "rerankPath": "/rerank",
+              "samplerKeys": { "repetitionPenalty": "repeat_penalty" },
+              "samplerOrder": "llama-cpp",
+              "bannedStrings": "logit-bias-ban",
+              "tokenizeApi": "llama-cpp",
+              "thinkingOff": "chat_template_kwargs",
+              "reasoningBudgetField": "thinking_budget_tokens"
+            },
+            "auth": "endpoint",
+            "apis": ["chat-completions"],
+            "catalog": "url",
+            "metered": false,
+            "docsUrl": "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md"
+          },
+          "available": true
+        },
+        {
+          "provider": {
+            "id": "koboldcpp",
+            "label": "KoboldCpp",
+            "wire": "openai-compat",
+            "dialect": "openai-compatible",
+            "features": {
+              "prefill": "none",
+              "structuredMode": "gbnf",
+              "modelInfoApi": "koboldcpp",
+              "samplerKeys": {
+                "typicalP": "typical",
+                "topNSigma": "nsigma",
+                "repetitionPenaltyRange": "rep_pen_range",
+                "mirostatMode": "mirostat_mode",
+                "banEos": "ban_eos_token"
+              },
+              "samplerAliases": { "repetitionPenalty": ["rep_pen", "repeat_penalty"] },
+              "samplerOrder": "koboldcpp",
+              "tokenizeApi": "koboldcpp",
+              "thinkingOff": "chat_template_kwargs",
+              "reasoningBudgetField": "thinking_budget_tokens"
+            },
+            "auth": "endpoint",
+            "apis": ["chat-completions"],
+            "catalog": "url",
+            "metered": false,
+            "docsUrl": "https://github.com/LostRuins/koboldcpp/wiki"
+          },
+          "available": true
+        },
+        {
+          "provider": {
+            "id": "custom-openai",
+            "label": "Custom OpenAI-compatible",
+            "wire": "openai-compat",
+            "dialect": "openai-compatible",
+            "features": { "structuredMode": "hosted-common", "detectServer": true, "thinkingOff": "chat_template_kwargs" },
+            "auth": "endpoint",
+            "apis": ["chat-completions"],
+            "catalog": "url",
+            "metered": false
+          },
+          "available": true
+        },
+        {
+          "provider": {
+            "id": "local-light",
+            "label": "Built-in (this device)",
+            "wire": "local-light",
+            "auth": "none",
+            "apis": [],
+            "catalog": "builtin",
+            "metered": false
+          },
+          "available": true
+        }
+      ],
+      "credentials": [],
+      "users": [
+        {
+          "id": "00000000000000000000000001",
+          "handle": "owner",
+          "externalId": null,
+          "role": "owner",
+          "enabled": true,
+          "kind": "human",
+          "ownerHandle": null,
+          "createdAt": 1750000000000,
+          "updatedAt": 1750000000000
+        }
+      ],
+      "schedules": [],
+      "signInMode": {
+        "mode": "single-user",
+        "source": "default",
+        "install": "bare-metal",
+        "targets": [
+          { "mode": "local", "shareRefusal": null },
+          {
+            "mode": "oidc",
+            "shareRefusal": {
+              "code": "share_oidc",
+              "message": "Your identity provider sends people back only to the addresses registered with it, and a relay's random name is never one of them, so no one could sign in through it. Friends join at the address in OIDC_REDIRECT_URIS with an invite link."
+            }
+          },
+          {
+            "mode": "forward-header",
+            "shareRefusal": {
+              "code": "share_forward_header",
+              "message": "A relay on this machine delivers every visitor from a loopback address, and forward-header mode trusts a loopback proxy to name the user, so a visitor could claim any account. Friends reach this server through your proxy instead."
+            }
+          }
+        ]
+      },
+      "shareStatus": { "relay": { "state": "off" }, "liveSocketCount": 0, "publicAddresses": [], "certificate": { "state": "off" } },
+      "presets": [],
+      "spaceStatus": { "paused": false, "embed": false, "imageEmbed": false }
+    },
+    "workloadLists": [[], [], [], []]
+  },
   "searchLibrary": {
     "viewerUserId": "00000000000000000000000003",
     "ids": {

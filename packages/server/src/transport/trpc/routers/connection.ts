@@ -10,6 +10,8 @@
 
 import { credentialHealthSchema } from "@orb/contracts/credentials";
 import {
+  bindingActorSchema,
+  bindingViewSchema,
   capabilityTargetSchema,
   connectionApiSchema,
   connectionBindingSchema,
@@ -19,6 +21,7 @@ import {
   connectionViewSchema,
   declaredCapabilitySchema,
   embedSpaceChangePreviewSchema,
+  listBindingsInputSchema,
   modelCheckSchema,
   modelIdSchema,
   modelListingSchema,
@@ -34,7 +37,7 @@ import {
 import { accountCreditsSchema, endpointInspectionSchema, generationCostSchema, verifyAuthResultSchema } from "@orb/contracts/providers";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
-import { bindingViewSchema, catalogRefreshOutcomeSchema, connectionCapabilityViewSchema } from "#domain/connection";
+import { catalogRefreshOutcomeSchema, connectionCapabilityViewSchema } from "#domain/connection";
 import { adminProcedure, authedProcedure, t } from "../trpc.ts";
 
 const connectionId = connectionRefSchema.shape.connectionId;
@@ -57,12 +60,6 @@ const connectionFields = z.object({
   allowBackground: z.boolean().optional(),
   promptCache: promptCacheSettingsSchema.nullable().optional(),
 });
-
-/** The actor a binding belongs to, from the caller's side; absent ⇒ the caller's own `user` bindings. */
-const bindingActor = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("automation-rule"), ruleId: typeIdSchema(ID_PREFIX.automationRule) }),
-  z.object({ kind: z.literal("plugin-grant"), pluginId: typeIdSchema(ID_PREFIX.plugin) }),
-]);
 
 export const connectionRouter = t.router({
   // ── the user's rows
@@ -110,12 +107,12 @@ export const connectionRouter = t.router({
 
   // ── Model roles (`connection_bindings`; "binding" is a schema word — the pane says "Model roles", §5.3a)
   listBindings: authedProcedure
-    .input(z.object({ actor: bindingActor.optional() }).optional())
+    .input(listBindingsInputSchema)
     .output(z.array(bindingViewSchema).readonly())
     .query(({ ctx, input }) => ctx.services.connection.listBindings({ principal: ctx.auth, ...(input?.actor !== undefined ? { actor: input.actor } : {}) })),
 
   setBinding: authedProcedure
-    .input(z.object({ task: routableTaskSchema, connectionId: connectionId.nullable(), actor: bindingActor.optional() }))
+    .input(z.object({ task: routableTaskSchema, connectionId: connectionId.nullable(), actor: bindingActorSchema.optional() }))
     .output(connectionBindingSchema)
     .mutation(({ ctx, input }) =>
       ctx.services.connection.setBinding({
