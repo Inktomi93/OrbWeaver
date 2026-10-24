@@ -1,6 +1,6 @@
 // verb: exportGallery — resolves subjectCharacterId → HANDLE (via injected resolveCharacterHandle; assets
 // never sideways-imports character domain) since character ids don't survive a fresh box; missing/deleted
-// subject degrades to null handle. assetId carried as-is (stable, no remap).
+// subject degrades to null handle. Each image carries its content hash, which the import re-links by.
 
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
@@ -31,6 +31,7 @@ export function createExportGallery(input: DbAssemblyInput<AssetsContext>): (own
 
     const items: CanonicalGalleryItem[] = rows.map((r) => ({
       assetId: r.assetId,
+      assetHash: r.assetHash,
       subjectCharacterHandle: r.subjectCharacterId !== null ? (handleById.get(r.subjectCharacterId) ?? null) : null,
       createdAt: r.createdAt,
     }));

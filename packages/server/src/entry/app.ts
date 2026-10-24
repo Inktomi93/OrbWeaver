@@ -28,7 +28,7 @@ import { readGlobalSettings } from "#domain/settings";
 import type { ImportWorldInfoPort } from "#domain/world-info";
 import type { Env } from "#foundation/env/record";
 import { allowedHostsInput, resolveAllowedHosts } from "#foundation/env/record";
-import type { BugReportDiagnosticsRead, Logger, MemoryRecallInspector, RpgTraceInspector } from "#foundation/observability";
+import type { Logger, MemoryRecallInspector, RpgTraceInspector } from "#foundation/observability";
 import { createRequestObservability, registerDebugRoutes, securityEvent } from "#foundation/observability";
 import { versionIdentity } from "#foundation/version";
 import type { AllowedHostsReader, AuthConfig } from "#infra/auth";
@@ -36,8 +36,8 @@ import { allowedHostsReader, createHostNotAllowedNotice, createPublicHttpMintNot
 import type { PhysicalPeerRead } from "#infra/network";
 import { clientIp, createPhysicalPeerMiddleware, ipAllowlistMiddleware, parseAllowlist, peerIp, trustedProxiesOf } from "#infra/network";
 import type { LiveBuses } from "#transport/trpc";
-import type { PresenceRegistry, RateLimitGate, Services, SocketRegistry } from "../transport/trpc/index.ts";
-import { appRouter, createContext } from "../transport/trpc/index.ts";
+import type { ContextForRequest, Services, SocketRegistry } from "../transport/trpc/index.ts";
+import { appRouter } from "../transport/trpc/index.ts";
 import type { AuthSeam } from "./auth/index.ts";
 import { createMultiHumanCapability, readSessionCookie } from "./auth/index.ts";
 import type {
@@ -196,12 +196,10 @@ export interface AppDeps {
   readonly db: DatabaseHandle;
   readonly seam: AuthSeam;
   readonly services: Services;
-  readonly rateLimit: RateLimitGate;
-  readonly presence: PresenceRegistry;
+  /** The composed graph's tRPC context; the mount supplies only the request's own facts. */
+  readonly trpcContext: ContextForRequest;
   /** The multiplexed-socket cells (SSE-1) — read by the `stream` router and the /api/_debug counter. */
   readonly sockets: SocketRegistry;
-  /** The bug-report read over the root's env record, carried on every tRPC context. */
-  readonly bugReportDiagnostics: BugReportDiagnosticsRead;
   /** R-OBS — the rpg flight recorder's read half, present ONLY when tracing is enabled (`RPG_TRACE=on` in the
    *  record). Absent ⇒ `/api/_debug/rpg/traces` is not registered at all, which is the route's
    *  own contract: tracing off means the door does not exist rather than answering an empty ring. */
@@ -373,19 +371,11 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
       router: appRouter,
       maxBatchSize: TRPC_BATCH_MAX_ITEMS,
       createContext: () =>
-        createContext({
-          logger: deps.logger,
-          liveBuses: deps.liveBuses,
+        deps.trpcContext({
           auth: c.get("principal"),
           sessionId: c.get("sessionId"),
-          services: deps.services,
-          rateLimit: deps.rateLimit,
-          presence: deps.presence,
-          sockets: deps.sockets,
-          multiHumanCapable: multiHumanCapable(),
           csrfHeaderPresent: hasCsrfHeader(c.req.raw.headers),
           clientIp: clientIp(c, trustedProxies),
-          bugReportDiagnostics: deps.bugReportDiagnostics,
         }),
       responseMeta: ({ errors }) => rateLimitResponseMeta(errors),
       // Subscriptions avoid buffering relays; query inputs avoid URL ceilings. Mutations stay POST-only.

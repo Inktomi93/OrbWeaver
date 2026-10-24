@@ -135,7 +135,7 @@ import { createAttachOwnedBooksByName, createImportStandaloneLorebook } from "#d
 import { APP_NAME, APP_URL } from "#foundation/config";
 import type { Env } from "#foundation/env/record";
 import { allowedHostsInput, installKind, publicAddresses } from "#foundation/env/record";
-import type { AuditEntry, BugReportDiagnosticsRead, Logger, WireCaptureSpill } from "#foundation/observability";
+import type { AuditEntry, Logger, WireCaptureSpill } from "#foundation/observability";
 import {
   addSpanEvent,
   createAuditWiring,
@@ -165,8 +165,8 @@ import type { BackgroundWork } from "#infra/tasks";
 import { createBackgroundWork } from "#infra/tasks";
 import { createScopedTimers } from "#infra/timers";
 import type { ServiceJobs } from "#transport/jobs";
-import type { LiveBuses, PresenceRegistry, RateLimitGate, Services, SocketRegistry } from "#transport/trpc";
-import { createLiveBuses, createPresenceRegistry, createSocketRegistry } from "#transport/trpc";
+import type { ContextForRequest, LiveBuses, PresenceRegistry, Services, SocketRegistry } from "#transport/trpc";
+import { createContext, createLiveBuses, createPresenceRegistry, createSocketRegistry } from "#transport/trpc";
 import { createHostPrincipalResolver, createMultiHumanCapability } from "../auth/index.ts";
 import type { ExamplePluginSeeder } from "../boot/seed-example-plugins.ts";
 import { createExamplePluginSeeder } from "../boot/seed-example-plugins.ts";
@@ -333,7 +333,8 @@ export interface ServicesResult extends AsyncDisposable {
   readonly egress: ScopedEgress;
   readonly forwardJwtVerifier: ForwardJwtVerifier;
   readonly services: Services;
-  readonly rateLimit: RateLimitGate;
+  /** The tRPC context over this graph's handles; the HTTP mount and any in-process caller bind their request facts to it. */
+  readonly trpcContext: ContextForRequest;
   readonly multiHumanCapable: ReturnType<typeof createMultiHumanCapability>;
   readonly settleBackground: BackgroundWork["settle"];
   readonly supervise: BackgroundWork["supervise"];
@@ -402,8 +403,6 @@ export interface ServicesResult extends AsyncDisposable {
    *  `/api/_debug/wire/captures` as `enabled` so a reader can tell an off recorder from a quiet one. Surfaced
    *  because the decision lives HERE, so no downstream reader re-reads the knob. */
   readonly wireCaptureOn: boolean;
-  /** The production "Report a bug" read over this graph's env record; the tRPC context carries it. */
-  readonly bugReportDiagnostics: BugReportDiagnosticsRead;
   /** The content store this graph writes, surfaced so a suite ages a blob past the GC grace window: a blob's
    *  mtime is a filesystem fact no injected clock moves. */
   readonly cas: Cas;
@@ -1549,6 +1548,20 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   });
   jobsLifetime = jobs;
 
+  const bugReportDiagnostics = createBugReportDiagnosticsRead(deps.env);
+  const trpcContext: ContextForRequest = (request) =>
+    createContext({
+      ...request,
+      logger: deps.logger,
+      liveBuses,
+      services,
+      rateLimit,
+      presence,
+      sockets,
+      multiHumanCapable: multiHumanCapable(),
+      bugReportDiagnostics,
+    });
+
   const lifetime = construction.move();
   return {
     startJobs: jobs.start,
@@ -1561,7 +1574,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     supervise: background.supervise,
     newOpaqueId,
     services,
-    rateLimit,
+    trpcContext,
     multiHumanCapable,
     automation,
     presence,
@@ -1604,7 +1617,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       embedReindex.detachStaleSpaceReindex();
     },
     wireCaptureOn,
-    bugReportDiagnostics: createBugReportDiagnosticsRead(deps.env),
     cas,
     crossFeatureOps: { resolveChatHostUserId, resolvePersonasForParticipants, importContextFor: installerImportContext },
     storePluginFetchedAsset: storeFetchedAsset,

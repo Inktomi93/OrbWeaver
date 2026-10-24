@@ -127,6 +127,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     findPersonaByName: ({ ownerId, name }: { readonly ownerId: UserId; readonly name: string }): Promise<PersonaId | null> => findPersonaByName(ownerId, name),
     attachChatTagByName: deps.attachChatTag,
     importRpgGame: deps.importRpgGame,
+    findOwnedAssetIdsByHash: deps.assets.ownedAssetIdsByHash,
     resolveOwnerPrincipal: deps.resolveOwnerPrincipal,
   };
 

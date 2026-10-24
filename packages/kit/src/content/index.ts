@@ -930,6 +930,23 @@ export function assetIdsInContent(content: string): AssetId[] {
   ];
 }
 
+/** `content` with each `asset:<id>` image ref that `relink` names pointed at its new id. Reads the same
+ *  committed grammar as {@link assetIdsInContent} and re-emits every other span byte-for-byte. */
+export function relinkContentAssets(content: string, relink: ReadonlyMap<AssetId, AssetId>): string {
+  if (relink.size === 0) {
+    return content;
+  }
+  return tokenizeContent(content, { committed: true })
+    .map((span) => {
+      if (span.kind !== "image" || span.ref.kind !== "asset") {
+        return contentSpanRaw(span);
+      }
+      const to = relink.get(span.ref.assetId);
+      return contentSpanRaw(to === undefined ? span : { ...span, ref: { kind: "asset", assetId: to } });
+    })
+    .join("");
+}
+
 /** One hidden-class span — the §3.6 secret carrier. Named here so the strip, the host-reveal projection, and
  *  any future hidden-channel consumer share ONE spelling instead of re-`Extract`ing the union member. */
 export type HiddenContentSpan = Extract<ContentSpan, { kind: "hidden" }>;

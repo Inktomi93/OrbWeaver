@@ -20,6 +20,7 @@ import { stagedOwnerRoot } from "@orb/server/domain/import";
 import type { SessionsRolePolicy } from "@orb/server/domain/sessions";
 import { createSessionsRolePolicy } from "@orb/server/domain/sessions";
 import type { ShareGraph, ShareGraphOptions } from "@orb/server/domain/share";
+import type { WorkloadRunnerDeps } from "@orb/server/domain/workloads";
 import { loadWorkload, runWorkload, tickWorkloadSchedules } from "@orb/server/domain/workloads";
 import { authConfigFromEnv, createHostPrincipalResolver } from "@orb/server/entry/auth";
 import type { BootOwner } from "@orb/server/entry/boot";
@@ -30,7 +31,7 @@ import type { Env } from "@orb/server/foundation/env";
 import { bindPostureInput, resolveBindPosture } from "@orb/server/foundation/env";
 import { createLogger, getLog, logger as processLogger } from "@orb/server/foundation/observability";
 import { systemConnector, systemFetch } from "@orb/server/infra/network";
-import { appRouter, createCaller, createContext } from "@orb/server/transport/trpc";
+import { appRouter, createCaller } from "@orb/server/transport/trpc";
 import type { Clock } from "../iso/clock.ts";
 import { createFrozenClock } from "../iso/clock.ts";
 import type { SeededIds } from "../iso/ids.ts";
@@ -500,9 +501,11 @@ function shareInputsFor(options: ServerHarnessOptions | UnclaimedServerHarnessOp
   };
 }
 
+// Production has no door that runs one chosen row, so this one-shot dispatch stays in the kit as timing control: a case
+// decides which admitted row runs and when. It calls the production front doors with deps bound to their type.
 function workloadsFor(
   app: ServicesResult,
-  execution: Parameters<typeof runWorkload>[0],
+  execution: WorkloadRunnerDeps,
   shutdown: AbortSignal,
   startJobs: ServerHarnessOptions["startJobs"],
 ): Pick<ServerTestHarness, "runAdmittedWorkload" | "tickWorkloadSchedules"> {
@@ -636,7 +639,7 @@ export async function createServerHarness(
     audit: app.audit,
     emitEvent: app.workloadEvents.emitWorkloadEvent,
     scheduleInterval: timers.interval,
-  } satisfies Parameters<typeof runWorkload>[0];
+  } satisfies WorkloadRunnerDeps;
   const principalFor = createHostPrincipalResolver(app.sessions);
   const credentialsKeyOk = await app.services.credentials.probeKeyDecrypt();
   const configuredOidc = await configuredOidcFor(app, { ...inputs, db: wiringDb, secretsDir });
@@ -671,19 +674,11 @@ export async function createServerHarness(
   httpLifetime = http;
   const internalCallerFor = async (userId: UserId | null): Promise<ReturnType<typeof createCaller>> =>
     createCaller(
-      createContext({
-        logger,
-        liveBuses: app.liveBuses,
+      app.trpcContext({
         auth: userId === null ? null : await principalFor(userId),
         sessionId: null,
-        services: app.services,
-        rateLimit: app.rateLimit,
-        presence: app.presence,
-        sockets: app.sockets,
-        multiHumanCapable: app.multiHumanCapable(),
         csrfHeaderPresent: false,
         clientIp: IN_PROCESS_CLIENT_IP,
-        bugReportDiagnostics: app.bugReportDiagnostics,
       }),
     );
   const actor = actorFor({ app, ids }, ownerId, principalFor);

@@ -4,8 +4,8 @@
 // work stays out of here, in the assets domain's gallery export/import verbs.
 //
 // The subject character travels as its handle, never the raw subjectCharacterId — character ids are not
-// preserved across a fresh box. `assetId` is carried as-is: the assets entity restores the blob under its
-// original id before gallery imports, so the id is stable and re-links with no remap.
+// preserved across a fresh box. The image travels as its content hash beside the exporting box's `assetId`:
+// the target may already hold those bytes under its own id, so the import re-links by hash first.
 //
 // orb-native only: SillyTavern has no per-character curated-gallery concept, so there is no ST-compat
 // adapter here. The envelope is the uniform {schemaKind, schemaVersion} header; parseGallery rejects a
@@ -23,11 +23,13 @@ import { defineJsonRowsSerde, NO_JSON_HEADER, noJsonHeader } from "#primitives/s
 export const GALLERY_SCHEMA_KIND = "orb.gallery";
 const GALLERY_SCHEMA_VERSION = 1;
 
-/** One curation row as it travels in a gallery file: the curated assetId, the subject character's handle
- *  (null for an un-charactered item), and the curation timestamp. No GalleryItemId (a fresh id is minted
- *  on import), no ownerId (ownership derives through the asset FK). */
+/** One curation row as it travels in a gallery file: the curated assetId and its content hash (null in a
+ *  file written before the hash travelled), the subject character's handle (null for an un-charactered
+ *  item), and the curation timestamp. No GalleryItemId (a fresh id is minted on import), no ownerId
+ *  (ownership derives through the asset FK). */
 export interface CanonicalGalleryItem {
   readonly assetId: AssetId;
+  readonly assetHash: string | null;
   readonly subjectCharacterHandle: string | null;
   readonly createdAt: number | null;
 }
@@ -42,6 +44,7 @@ export interface GalleryExport {
 function itemToWire(item: CanonicalGalleryItem): Record<string, unknown> {
   return {
     assetId: item.assetId,
+    assetHash: item.assetHash,
     subjectCharacterHandle: item.subjectCharacterHandle,
     createdAt: item.createdAt,
   };
@@ -53,12 +56,14 @@ function itemToWire(item: CanonicalGalleryItem): Record<string, unknown> {
 const wireItemSchema = z
   .object({
     assetId: typeIdSchema(ID_PREFIX.asset),
+    assetHash: z.string().nullish().catch(null),
     subjectCharacterHandle: z.string().trim().min(1).nullish().catch(null),
     createdAt: z.int().nonnegative().nullish().catch(null),
   })
   .transform(
     (item): CanonicalGalleryItem => ({
       assetId: item.assetId,
+      assetHash: item.assetHash ?? null,
       subjectCharacterHandle: item.subjectCharacterHandle ?? null,
       createdAt: item.createdAt ?? null,
     }),

@@ -6,19 +6,29 @@
 // @subject packages/server/src/domain/import/verbs/import-chat-bundle.ts
 // @subject packages/server/src/domain/export/verbs/export-chat-bundle.ts
 // @subject packages/server/src/domain/settings/verbs/import-user-settings.ts
+// @subject packages/server/src/primitives/serde/card/index.ts
+// @subject packages/server/src/domain/export/verbs/export-character.ts
+// @subject packages/server/src/domain/assets/verbs/import-asset.ts
+// @subject packages/server/src/domain/assets/verbs/import-gallery.ts
 
+import { rm } from "node:fs/promises";
+import type { OwnedAssetCursor } from "@orb/contracts/assets";
+import { ASSET_LIST_LIMIT_MAX } from "@orb/contracts/assets";
 import { CHARACTER_HANDLE_WIRE_KEY, characterCardV3Schema, characterHandleSchema, createCharacterSchema } from "@orb/contracts/character";
+import { parseVariantMetadata } from "@orb/contracts/chat";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { importStartedSchema } from "@orb/contracts/import";
 import type { PortableImportOutcome, PortableKind } from "@orb/contracts/portability";
-import type { CharacterHandle, CharacterId, WorkloadId } from "@orb/kit/ids";
+import { PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
+import { ASSET_SCHEME, assetIdsInContent } from "@orb/kit/content";
+import type { CharacterHandle, CharacterId, ChatId, WorkloadId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import { buildChatBundleFile, CHAT_BUNDLE_EXT, parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
 import { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness, makeAssetBytes, seedTranscript } from "@orb/testkit/node/composed";
+import { createServerHarness, extractZip, makeAssetBytes, seedTranscript } from "@orb/testkit/node/composed";
 
 const EXPORT_ROUTE = "/api/export/library";
 const BUNDLE_ROUTE = "/api/import/bundle";
@@ -27,6 +37,8 @@ const SIGNED_IN_ROUTE = "/api/trpc/sessions.me";
 const WORKLOAD_DEADLINE_MS = 60_000;
 /** Asset ids restore verbatim, so the exporting box mints from its own band. */
 const SOURCE_ID_CURSOR = 2 ** 29;
+/** A second restore target, which also restores ids it did not mint. */
+const THIRD_BOX_ID_CURSOR = 2 ** 30;
 const PNG = "image/png";
 /** A handle the owner chose, which is not the slug of the character's name. */
 const CHOSEN_HANDLE = castId<CharacterHandle>("lantern-warden");
@@ -381,6 +393,63 @@ test("a seat's card identity resolves only inside the importing account", async 
   }).toEqual({ member: false, namesOwnerCard: false, owner: true, ownerRooms: 1 });
 });
 
+/** A SillyTavern card its author starred, whose embedded book carries a description. */
+const ARCHIVIST = "Archivist";
+// The SillyTavern wire spells its keys in snake_case, so the card is written as the bytes a user would drop in.
+const STARRED_CARD = `{"spec":"chara_card_v3","spec_version":"3.0","data":{"name":"${ARCHIVIST}","description":"An archivist of the outer stacks.","first_mes":"Welcome to the stacks.","alternate_greetings":["Mind the dust."],"extensions":{"fav":true,"talkativeness":"0.7"},"character_book":{"name":"Archive Book","description":"What the archivist remembers.","entries":[{"keys":["lantern"],"content":"The lantern burns amber.","insertion_order":10,"enabled":true,"id":0,"extensions":{}}]}}}`;
+
+/** Every content hash the owner holds, through the owned-asset read the library uses. */
+async function ownedAssetHashes(root: ServerTestHarness): Promise<Set<string>> {
+  const caller = await root.internalCallerFor(root.ownerId);
+  const hashes = new Set<string>();
+  let cursor: OwnedAssetCursor | undefined;
+  for (;;) {
+    const page = await caller.assets.listOwned({ limit: ASSET_LIST_LIMIT_MAX, ...(cursor === undefined ? {} : { cursor }) });
+    for (const item of page) {
+      hashes.add(item.hash);
+    }
+    const last = page.at(-1);
+    if (page.length < ASSET_LIST_LIMIT_MAX || last === undefined) {
+      return hashes;
+    }
+    cursor = { uploadedAt: last.uploadedAt, assetId: last.assetId };
+  }
+}
+
+// A restore into a box that already holds the card dedups onto it only when the two identities match, so one
+// character per box after every crossing is the identity holding across exports.
+test("a restored card keeps its import identity through the next export and restore, whatever its star", async () => {
+  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  expect(await restoreCard(source, "archivist.json", new TextEncoder().encode(STARRED_CARD))).toEqual({ ok: true, created: true });
+  const sourceBundle = await exportLibrary(source);
+
+  await using target = await signedInBox();
+  await restore(target, sourceBundle);
+  const [restored] = await charactersNamed(target, ARCHIVIST);
+  if (restored === undefined) {
+    throw new Error("the restore landed no archivist");
+  }
+  // A star is the owner's mark on the library, not card content.
+  await target.services.character.update({ principal: await target.principalFor(target.ownerId), characterId: restored.id, input: { starred: true } });
+  const targetBundle = await exportLibrary(target);
+
+  await using third = await signedInBox(createSeededIds(THIRD_BOX_ID_CURSOR));
+  await restore(third, targetBundle);
+  const [sourceAssets, targetAssets, thirdAssets] = [await ownedAssetHashes(source), await ownedAssetHashes(target), await ownedAssetHashes(third)];
+  // The target's own re-export, now starred, back into the target.
+  await restore(target, targetBundle);
+  await restore(source, targetBundle);
+
+  expect({
+    charactersPerBox: [
+      (await charactersNamed(source, ARCHIVIST)).length,
+      (await charactersNamed(target, ARCHIVIST)).length,
+      (await charactersNamed(third, ARCHIVIST)).length,
+    ],
+    assetsLost: [[...sourceAssets].filter((hash) => !targetAssets.has(hash)), [...targetAssets].filter((hash) => !thirdAssets.has(hash))],
+  }).toEqual({ charactersPerBox: [1, 1, 1], assetsLost: [[], []] });
+});
+
 test("user settings restore onto the background art the fresh box already seeded", async () => {
   await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
   const owner = await source.principalFor(source.ownerId);
@@ -429,5 +498,119 @@ test("user settings restore onto the background art the fresh box already seeded
     picked: { kind: "asset", hash: plate.assetHash, resolves: plate.assetHash },
     library: exported.backgroundLibrary.map((entry) => ({ hash: entry.assetHash, resolves: entry.assetHash })),
     ownUploadId: upload.assetId,
+  });
+});
+
+/** Whether the keeper room's opening signature snapshot, as the target re-exports it, still signs the restored
+ *  content and names the restored attachment ids. */
+async function restoredSignatures(
+  root: ServerTestHarness,
+  content: string,
+  attached: readonly string[],
+): Promise<{ readonly matchesContent: boolean; readonly imagesResolve: boolean } | null> {
+  const staged = await extractZip(await exportLibrary(root, ["character", "chat"]));
+  try {
+    const entry = staged.entries.find((candidate) => candidate.path.startsWith(`${PORTABLE_DIRECTORIES.chat}${CHOSEN_HANDLE}/`));
+    const parsed = entry === undefined ? null : parseChatBundleFile(await entry.read());
+    const snapshot = parsed?.ok === true ? parseVariantMetadata(parsed.value.messages[0]?.variants[0]?.metadata ?? null).contentSignatures : undefined;
+    return snapshot === undefined
+      ? null
+      : { matchesContent: snapshot.content === content, imagesResolve: snapshot.images.every((image) => attached.includes(image.assetId)) };
+  } finally {
+    await staged.dispose();
+  }
+}
+
+async function galleryHashes(root: ServerTestHarness): Promise<string[]> {
+  const page = await (await root.internalCallerFor(root.ownerId)).assets.listGallery({ limit: ASSET_LIST_LIMIT_MAX });
+  if (page.length === ASSET_LIST_LIMIT_MAX) {
+    throw new Error("the gallery outgrew one page; read it by cursor");
+  }
+  return page.map((item) => item.hash).toSorted();
+}
+
+// The fresh box already holds the seeded plates and avatars under its own ids, so each one the source library
+// refers to restores onto those bytes and every referrer re-links by content.
+test("a full library restore into a fresh box reports no failures and leaves no reference dangling", async () => {
+  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  const owner = await source.principalFor(source.ownerId);
+  const [plate] = (await source.services.settings.getUserSettings({ principal: owner })).config.appearance.backgroundLibrary;
+  if (plate === undefined) {
+    throw new Error("the first-login seed landed no background plate");
+  }
+  await source.services.character.create({
+    principal: owner,
+    input: createCharacterSchema.parse({ handle: CHOSEN_HANDLE, name: CHARACTER_NAME, description: "A keeper tends the orbital ledger." }),
+  });
+  await source.services.assets.addToGallery({ principal: owner, assetId: plate.assetId });
+  const background = { kind: "asset", assetId: plate.assetId, assetHash: plate.assetHash, mime: plate.mime, externalUrl: "", provenanceUrl: "" };
+  const opening = `The ledger at dusk: ![plate](${ASSET_SCHEME}${plate.assetId})`;
+  // Replay provenance signs the exact content and its image ids, so it must re-link with them.
+  const signatures = { content: opening, text: [], images: [{ assetId: plate.assetId, thoughtSignature: "signed-plate" }] };
+  await seedTranscript(source, {
+    ownerId: source.ownerId,
+    characterHandles: [CHOSEN_HANDLE],
+    lines: [
+      { role: "user", content: opening, metadata: { contentSignatures: signatures } },
+      { role: "assistant", speakerHandle: CHOSEN_HANDLE, content: "Every orbit is accounted for." },
+    ],
+    chat: { metadata: { background } },
+  });
+  const sourceGallery = await galleryHashes(source);
+  const bundle = await exportLibrary(source);
+
+  await using target = await signedInBox();
+  const outcome = await restore(target, bundle);
+  const caller = await target.internalCallerFor(target.ownerId);
+  const [character] = (await caller.character.list({})).items.filter((item) => item.name === CHARACTER_NAME);
+  const [room] = character === undefined ? [] : (await caller.chat.listChats({ characterId: character.id })).items;
+  const hashOf = async (assetId: string | undefined): Promise<string | null> =>
+    assetId === undefined ? null : ((await target.services.assets.assetCasRefById(castId(assetId)))?.hash ?? null);
+  /** What the restored room's background and inline attachment resolve to on the target, or nulls without a room. */
+  const restoredRoom = async (
+    chatId: ChatId,
+  ): Promise<{ readonly background: string | null; readonly attachment: readonly string[]; readonly signed: unknown }> => {
+    const [first] = (await caller.chat.listMessages({ chatId })).messages;
+    const restoredContent = first?.content ?? "";
+    const attached = assetIdsInContent(restoredContent);
+    return {
+      background: await hashOf((await caller.chat.getChat({ chatId })).background?.assetId),
+      // The render grant reads the message's structural link, so a pair here is the attachment resolving.
+      attachment: (await caller.assets.resolveChatBlobRefs({ chatId, assetIds: attached })).map((ref) => ref.hash),
+      signed: await restoredSignatures(target, restoredContent, attached),
+    };
+  };
+
+  expect({
+    outcome,
+    room: room === undefined ? null : await restoredRoom(room.id),
+    gallery: await galleryHashes(target),
+  }).toEqual({
+    outcome: { status: "succeeded", failed: 0 },
+    room: { background: plate.assetHash, attachment: [plate.assetHash], signed: { matchesContent: true, imagesResolve: true } },
+    gallery: sourceGallery,
+  });
+});
+
+test("restoring bytes the owner holds under another id repairs that asset when its stored file is gone", async () => {
+  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  const owner = await source.principalFor(source.ownerId);
+  const bytes = makeAssetBytes(source.idSource.typeId(ID_PREFIX.asset));
+  // A backup carries only the assets the library refers to.
+  const upload = await source.services.assets.store({ principal: owner, kind: "background", mime: PNG, bytes });
+  await source.services.assets.addToGallery({ principal: owner, assetId: upload.assetId });
+  const bundle = await exportLibrary(source, ["assets"]);
+
+  await using target = await signedInBox();
+  const held = await target.services.assets.store({ principal: await target.principalFor(target.ownerId), kind: "background", mime: PNG, bytes });
+  await rm(target.app.cas.blobPath(target.ownerId, held.hash));
+  const outcome = await restore(target, bundle);
+  const stored = await target.app.cas.exists(target.ownerId, held.hash);
+  const restored = stored ? await target.services.assets.loadAssetBytes(held.assetId) : null;
+
+  expect({ outcome, stored, readable: restored !== null && Buffer.from(restored).equals(Buffer.from(bytes)) }).toEqual({
+    outcome: { status: "succeeded", failed: 0 },
+    stored: true,
+    readable: true,
   });
 });

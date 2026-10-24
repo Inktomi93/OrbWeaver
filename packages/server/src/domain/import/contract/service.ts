@@ -128,6 +128,10 @@ type FindPersonaByNameOp = (args: { readonly ownerId: UserId; readonly name: str
  *  the ACCEPTED-LOSSY row). By NAME, because tag ids no more survive a cross-box move than chat ids do. */
 type AttachChatTagByNameOp = (args: { readonly ownerId: UserId; readonly chatId: ChatId; readonly tagName: string }) => Promise<boolean>;
 
+/** Assets-owned by-content lookup: the owner's asset id for each content hash it holds. A restored room's
+ *  background and inline images name the exporting box's ids, so they re-link by the hash they carry. */
+type FindOwnedAssetIdsByHashOp = (ownerId: UserId, hashes: readonly string[]) => Promise<ReadonlyMap<string, AssetId>>;
+
 /** Profile-wave deps: no db handle or id minters here — each entity write is an injected owning-domain op. */
 export interface ImportProfileDeps {
   readonly now: () => number;
@@ -151,6 +155,7 @@ export interface ImportProfileDeps {
   /** The chat-anchored rpg campaign's write half. Every message/variant ref is remapped by the bundle verb
    *  through the `ImportedChatRemap` the chat write op returns, before this ever sees it. */
   readonly importRpgGame?: ImportRpgGame;
+  readonly findOwnedAssetIdsByHash?: FindOwnedAssetIdsByHashOp;
   /** Preset-owned import write op — the ST preset wave hands it orb-native `orb.preset` BYTES, so the preset
    *  domain keeps its one serde AND its one (ownerId, name) collision rule and import owns neither. OPTIONAL on
    *  the `importLorebook` precedent: absent ⇒ the preset plane simply does not restore (the profile-import

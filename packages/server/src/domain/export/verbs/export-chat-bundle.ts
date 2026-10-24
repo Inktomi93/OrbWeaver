@@ -26,8 +26,21 @@ import {
   storedGenerationUsageSchema,
   tokenDetailsSchema,
 } from "@orb/contracts/inference";
-import { characters, chatGenerationObservations, chatInjections, chatParticipants, chats, chatTags, messages, messageVariants, personas, tags } from "@orb/db";
-import type { CharacterHandle, CharacterId, ChatId, ChatTurnId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
+import {
+  assets,
+  characters,
+  chatGenerationObservations,
+  chatInjections,
+  chatParticipants,
+  chats,
+  chatTags,
+  messages,
+  messageVariants,
+  personas,
+  tags,
+} from "@orb/db";
+import { assetIdsInContent } from "@orb/kit/content";
+import type { CharacterHandle, CharacterId, ChatId, ChatTurnId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, asc, eq, getTableColumns, inArray, isNotNull, isNull } from "drizzle-orm";
 import type { RpgPortableGame } from "#domain/rpg";
 import type {
@@ -43,7 +56,6 @@ import type { ExportChatBundleParams, SeatCardIdentity } from "../contract/param
 import type { ExportedFile } from "../contract/results.ts";
 import type { ExportContext, ExportService } from "../contract/service.ts";
 import { slug } from "../substrate/download-slug.ts";
-import { createExportCharacter } from "./export-character.ts";
 
 type ChatRow = typeof chats.$inferSelect;
 type MessageRow = typeof messages.$inferSelect;
@@ -142,6 +154,20 @@ async function loadPersonaNames(ctx: ExportContext, ids: readonly PersonaId[]): 
     .from(personas)
     .where(inArray(personas.id, [...ids]));
   return new Map<PersonaId, string>(rows.map((r) => [r.id, r.name]));
+}
+
+/** The content hash of each of the exporter's own assets the transcript's inline images name. An asset of
+ *  another member is not in this owner's backup, so it carries no hash and restores as plain markup. */
+async function loadInlineAssetHashes(ctx: ExportContext, ownerId: UserId, canon: readonly PortableChatMessage[]): Promise<Pick<PortableChat, "assetHashes">> {
+  const ids = [...new Set(canon.flatMap((m) => m.variants.flatMap((v) => assetIdsInContent(v.content))))];
+  if (ids.length === 0) {
+    return {};
+  }
+  const rows = await ctx.db
+    .select({ id: assets.id, hash: assets.hash })
+    .from(assets)
+    .where(and(inArray(assets.id, ids), eq(assets.ownerId, ownerId)));
+  return rows.length === 0 ? {} : { assetHashes: Object.fromEntries(rows.map((r) => [r.id, r.hash])) };
 }
 
 function toPortableVariant(v: VariantRow): PortableChatVariant {
@@ -362,8 +388,7 @@ async function loadHostedChat(ctx: ExportContext, params: ExportChatBundleParams
   return chat ?? null;
 }
 
-export function createExportChatBundle(ctx: ExportContext): ExportService["exportChatBundle"] {
-  const exportCharacter = createExportCharacter(ctx);
+export function createExportChatBundle(ctx: ExportContext, exportCharacter: ExportService["exportCharacter"]): ExportService["exportChatBundle"] {
   return async (params: ExportChatBundleParams): Promise<ExportedFile | null> => {
     const chat = await loadHostedChat(ctx, params);
     if (chat === null) {
@@ -385,6 +410,7 @@ export function createExportChatBundle(ctx: ExportContext): ExportService["expor
     const { portable, messageIndexById, variantPositionById } = buildCanon({ slots, variantsByMessage, handleById, personaNameById });
 
     const rpg = rawRpg === null ? null : toPortableRpg({ game: rawRpg, messageIndexById, variantPositionById, handleById });
+    const inlineAssets = await loadInlineAssetHashes(ctx, params.principal.userId, portable);
     const bundle: PortableChat = {
       title: chat.title ?? "",
       createdAt: chat.createdAt,
@@ -406,6 +432,7 @@ export function createExportChatBundle(ctx: ExportContext): ExportService["expor
       ...(observations.length === 0
         ? {}
         : { pendingGenerationObservations: portableObservations({ rows: observations, messageIndexById, variantPositionById }) }),
+      ...inlineAssets,
       rpg,
     };
     // A FLAT, human-meaningful download name (the `exportChat` slug shape) — the single-chat HTTP door serves

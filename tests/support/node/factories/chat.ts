@@ -68,7 +68,7 @@ export interface TranscriptLine
   extends Pick<PortableChatMessage, "role">,
     Partial<Pick<PortableChatMessage, "kind" | "speakerHandle" | "personaName">>,
     Pick<PortableChatVariant, "content">,
-    Partial<Pick<PortableChatVariant, "reasoning">> {}
+    Partial<Pick<PortableChatVariant, "reasoning" | "metadata">> {}
 
 export interface SeedTranscriptParams {
   readonly ownerId: UserId;
@@ -150,7 +150,7 @@ export function transcriptMessage(line: TranscriptLine): PortableChatMessage {
         genStartedAt: null,
         genFinishedAt: null,
         variableDelta: null,
-        metadata: null,
+        metadata: line.metadata ?? null,
       },
     ],
   };
