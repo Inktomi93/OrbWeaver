@@ -18,7 +18,7 @@ A read of a process-wide ring from a per-root test is a shared-state read, and t
 
 ## Done when
 
-The observability seam scopes ring reads to the root (a per-root sink or a root tag on each line the reader filters by), or each root's id source starts from a distinct seed so no two roots in one worker share ids; the sdk-wire and sdk-lifetime suites pass together under `--no-isolate --maxWorkers=1` in one worker; the testkit README's observability row states the scoping.
+The observability seam scopes ring reads to the live roots: the first root opened with none live empties the process ring, a root opened while another is live does not, and overlapping roots share lines (a stated limit; no reader holds two roots live). Every ring reader in `tests/**` reads through the seam. The sdk-wire and sdk-lifetime suites pass together under `pnpm test <both> --no-isolate --maxWorkers=1 --no-cache`, with the control (the clear disabled) red. The testkit README's composed row states the scoping.
 
 ## Evidence
 
