@@ -24,6 +24,7 @@
 // have to be a fourth place that knows about three sections' stores.
 
 import { useGatedQuery, useTRPC } from "#data";
+import { censusTitle } from "#lib";
 import { useSelectedCharacterId } from "#state";
 import { useCharacterCensus } from "../hooks/use-character-census.ts";
 import { CHARACTERS_SECTION_LABEL } from "./characters-section-label.ts";
@@ -41,12 +42,5 @@ export function useCharactersSelectionTitle(): string | null {
     const name = data?.name ?? "";
     return name.length === 0 ? null : name;
   }
-  // A ZERO CENSUS IS STILL SUPPRESSED, in the band's own spelling (`ListPaneHeader`: "a zero census is
-  // noise, not information", and `"0"` is the same fact a caller happened to format). An empty library says
-  // `Characters` and lets its empty state do the teaching — the count is what distinguishes a populated
-  // library from an empty one, and printing `· 0` over copy that already says so is not that distinction.
-  if (census === undefined || census === 0 || census === "0") {
-    return null;
-  }
-  return `${CHARACTERS_SECTION_LABEL} · ${String(census)}`;
+  return censusTitle(CHARACTERS_SECTION_LABEL, census);
 }

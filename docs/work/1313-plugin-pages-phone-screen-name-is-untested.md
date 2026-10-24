@@ -23,4 +23,6 @@ A CT over the production extensions section, or the AR16 title-composer case in 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+- The composer is `censusTitle` (`packages/client/src/lib/census-title.ts`), which `useExtensionsSelectionTitle` and the other section title hooks now call. Before, the extensions hook suppressed only a numeric zero.
+- `pnpm test tests/client/lib/census-title.dom.test.ts`: 2 passed. The cases assert `Plugin pages · 2`, `Plugin pages · 2 of 330` and `Plugin pages · 0 of 5`, and a null title for `0`, `"0"` and an unread census.
+- Control: the composer without its `"0"` arm failed the zero case with `expected 'Plugin pages · 0' to be null`; reverted.

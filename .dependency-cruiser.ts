@@ -442,6 +442,13 @@ const PACKAGE_TEST_REACHES = {
   "tests/client/features/app-shell/lib/command-shortcut-label.test.ts": {
     "packages/client/src/features/app-shell/lib/command-shortcut-label.ts": "commandShortcutLabel: the feature-private platform key hint",
   },
+  "tests/client/routes/_route-pending-stories.tsx": {
+    "packages/client/src/routes/route-pending.tsx": "RoutePending: the router's pending component, which only the router renders and no door forwards",
+  },
+  "tests/client/features/app-shell/surfaces/_shell-handover-stories.tsx": {
+    "packages/client/src/routes/route-pending.tsx":
+      "RoutePending: the mark a pending route paints in the shell's place, outside the shell's reduced-motion carrier",
+  },
   "tests/client/features/chat/lib/empty-send-and-duration.test.ts": {
     "packages/client/src/features/chat/lib/continue-on-empty.ts": "resolveEmptySendAction: the feature-private empty-send dispatch",
     "packages/client/src/features/chat/lib/gen-duration.ts": "durationLabel and genDurationLabel: the feature-private duration formatting",

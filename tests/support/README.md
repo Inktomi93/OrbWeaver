@@ -93,6 +93,7 @@ Follow the [native gallery contract](../../docs/law/Spine-Testing.md#7-client--b
 3. Import the story with `import type` in the spec.
 4. Call native `mount<typeof Story>(exactStoryId, dataProps)`. Keep callbacks and state inside the browser story.
 5. Register network handlers and initialization scripts before mounting. Use configured `baseURL` before the first navigation.
+   A shell mount takes its Home reads from `createShellAmbientReads(corpus)`. Pass any other procedure the subject sends to `serveCorpusProcedures`, which runs the exact request on a corpus root's internal caller.
 6. Assert the rendered outcome using accessible locators and retrying web assertions.
 7. Use `update()` for state-preserving prop changes. Await `unmount()` when proving disposal.
 

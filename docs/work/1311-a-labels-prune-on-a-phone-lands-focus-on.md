@@ -22,4 +22,6 @@ Focus after a prune and after a delete lands on the finder root, proven by a CT 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+- `tests/client/features/tag/surfaces/labels-final-focus.ct.tsx` drives the prune and the row delete on the production Labels finder at 390 coarse, by mouse and by touch. All four land on the finder root on the unmodified source, so the defect does not reproduce on the finder alone. The What section's inert mechanism is unconfirmed: Base UI 1.9 marks the background `aria-hidden` and `data-base-ui-inert`, not `inert`.
+- Control: both confirms returning Base UI's default focus (`finalFocus` answering `true`) fail all four cases, so they catch the observed landing.
+- Open: the e2e saw it in the phone shell over the corpus Labels mode, where the user-bus refetch of the tag list races the confirm's close. A CT reproduces it only with the shell and that refetch.

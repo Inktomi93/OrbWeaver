@@ -7,7 +7,7 @@
 
 import { useGatedQuery, useTRPC } from "#data";
 import type { CorpusDestination } from "#lib";
-import { CORPUS_MODE_LABELS } from "#lib";
+import { CORPUS_MODE_LABELS, censusTitle } from "#lib";
 import { useSelectedCorpusCharacterId, useSelectedCorpusDestination } from "#state";
 import { useCorpusCensus } from "../hooks/use-corpus-census.ts";
 
@@ -33,13 +33,7 @@ export function useCorpusSelectionTitle(active: boolean): string | null {
   if (characterId !== null) {
     return name.length === 0 ? null : name;
   }
-  // A ZERO CENSUS IS STILL SUPPRESSED, in the band's own spelling (`ListPaneHeader`: "a zero census is noise,
-  // not information", and `"0"` is the same fact a caller happened to format) — an empty or settling catalog
-  // says `Explore`, never the bare section name, and lets its empty state do the teaching.
-  if (census === undefined || census === 0 || census === "0") {
-    return CORPUS_MODE_LABELS.explore;
-  }
-  return `${CORPUS_MODE_LABELS.explore} · ${String(census)}`;
+  return censusTitle(CORPUS_MODE_LABELS.explore, census) ?? CORPUS_MODE_LABELS.explore;
 }
 
 function assertDestinationNever(destination: never): never {
