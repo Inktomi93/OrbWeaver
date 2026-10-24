@@ -17,7 +17,7 @@ test.for([
   expect(installKind(record)).toBe(install);
   expect(allowedHostsInput(record).machineHostname).toBe(machineHostname);
 
-  const refusal = resolveBindPosture({ ...bindPostureInput(record), bindHost: PUBLIC_HOST, inContainer: install === "container" }).refusal;
+  const refusal = resolveBindPosture({ ...bindPostureInput(record), bindHost: PUBLIC_HOST }).refusal;
   expect(refusal).not.toBeNull();
   expect(() => createTestEnv({ ["BIND_HOST"]: PUBLIC_HOST }, host)).toThrow(refusal ?? "");
 });
