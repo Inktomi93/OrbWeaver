@@ -1,8 +1,8 @@
+import { peekQueryData } from "@orb/client/data";
 import { createClientRuntime } from "@orb/testkit/browser";
 import { expect, test } from "@orb/testkit/node";
 import { queryOptions } from "@tanstack/react-query";
 import { vi } from "vitest";
-import { peekQueryData } from "#client/data/peek-query.ts";
 
 test("peeking never fetches or creates a missing entry and returns an existing cache value unchanged", async () => {
   using lifetime = new DisposableStack();
