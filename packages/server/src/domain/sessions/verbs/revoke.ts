@@ -39,7 +39,7 @@ function openIdTokenHint(ctx: SessionsContext, sealed: Sealed | null, sessionId:
   if (sealed === null) {
     return null;
   }
-  // the owner is the `getLog().warn` at revoke.ts:46 inside this catch, which records the failed open with the session id; the reader credits a log only when it carries the caught binding, and this catch is bindingless on purpose so the raw GCM error stays out of the record. Ends if that warn is removed or the end-session hint becomes required for a correct logout.
+  // the owner is the `getLog(ctx.logger).warn` below inside this catch, which records the failed open with the session id; the reader credits a log only when it carries the caught binding, and this catch is bindingless on purpose so the raw GCM error stays out of the record. Ends if that warn is removed or the end-session hint becomes required for a correct logout.
   try {
     return ctx.openIdToken(sealed, sessionId);
   } catch {

@@ -2,7 +2,7 @@
 // fallback (§10-3), mirroring `avatar-analysis-availability`'s announce gate and for the same reason.
 //
 // WHAT IT MAKES AUDIBLE. Until §10-3 an owner with no image-capable embedder had every picture DROPPED by
-// the indexer behind `getLog().debug(...)` — their images were simply never searchable and nothing said so
+// the indexer behind a debug line — their images were simply never searchable and nothing said so
 // at any level anyone reads. The fallback fixes the behaviour (the caption is embedded as text, so the
 // picture is findable); this makes the DEGRADE itself a WARN, because "your pictures are indexed by their
 // caption only" is a real reduction in retrieval quality and a user can fix it by binding an image embedder.

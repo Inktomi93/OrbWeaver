@@ -6,7 +6,7 @@
 // per rule for the rule's author; a harness driving a live stage needs the whole log with no principal in
 // the path (the `chatListSummaries` / `characterPolicySweep` posture — `@owner-scope-ok`, D20).
 //
-// The analysis arm's own diagnostic lines already flow through `getLog()` into the central ring
+// The analysis arm's own diagnostic lines already flow through the root logger into the central ring
 // (`/api/_debug/logs`); this probe is the DURABLE half of that picture. Reads @orb/db DOWN (no port). The
 // storage-only `reserved` reservation (an in-flight budget hold, finalized or released by the dispatcher) is
 // excluded exactly as every domain read excludes it — it is not a terminal and must never read as one.
