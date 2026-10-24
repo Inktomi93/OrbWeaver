@@ -31,7 +31,7 @@ import { useStartRoster } from "../hooks/use-start-roster.ts";
 import { rosterRuleKnobGloss, rulesetLine } from "../lib/roster-copy.ts";
 
 /** The stored seats, resent VERBATIM on a rename (the update verb is a full replace). The view's ids
- *  stay BRANDED end to end (`CharacterId` — brand-in-name-position; the wire's `z.input` accepts them). */
+ *  stay BRANDED end to end (`CharacterId`; the wire's `z.input` accepts them). */
 function memberInputsOf(view: RosterPresetView): CharacterMemberSpec[] {
   return view.members.map((m) => ({
     kind: "character" as const,

@@ -1554,7 +1554,7 @@ function identityFromClaims(
     return null;
   }
   // Branded ONCE here, so the two observability calls below and the returned identity all speak about the
-  // same `Handle` and no `string` sits in a name position (`brand-in-name-position`).
+  // same `Handle` and no bare `string` stands where a handle is meant.
   const handle = castId<Handle>(username);
   const rawUid = readClaimPath(claims, claimMap.uidClaim);
   const uid = typeof rawUid === "string" && rawUid.length > 0 ? rawUid : null;
