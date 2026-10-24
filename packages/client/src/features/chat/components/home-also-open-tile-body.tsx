@@ -20,6 +20,7 @@
 //
 // It suspends; home mounts every tile body inside its own `QueryBoundary`.
 
+import { HOME_RECENT_CHATS_LIMIT } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { Row, Stack } from "@orb/ui/layout";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -28,7 +29,6 @@ import { useTRPC } from "#data";
 import { resumeChat } from "#state";
 import { splitHearth } from "../lib/home-hearth.ts";
 import { ChatSummaryRow } from "./chat-summary-row.tsx";
-import { RECENTS_LIMIT } from "./home-recents-tile-body.tsx";
 
 /** Selecting a recent is a CROSS-SECTION navigation: write chat's own selection AND move the rail to chats
  *  (`#state` module action — §12's sanctioned channel; home never wires this). Back returns here. */
@@ -38,7 +38,7 @@ function openRecent(chatId: ChatId): void {
 
 export function HomeAlsoOpenTileBody(): ReactElement {
   const trpc = useTRPC();
-  const { data: page } = useSuspenseQuery(trpc.chat.listChats.queryOptions({ limit: RECENTS_LIMIT }));
+  const { data: page } = useSuspenseQuery(trpc.chat.listChats.queryOptions({ limit: HOME_RECENT_CHATS_LIMIT }));
   const alsoOpen = splitHearth(page.items).rest;
 
   return (

@@ -144,7 +144,7 @@ export { chatIdInputSchema, chatListInputSchema, listMessagesInputSchema } from 
 export type { ChatLibraryLens } from "./library.ts";
 export { chatCensusInputSchema } from "./library.ts";
 export type { ChatListCursor } from "./listing.ts";
-export { CHAT_LIST_MAX_LIMIT } from "./listing.ts";
+export { CHAT_LIST_MAX_LIMIT, HOME_RECENT_CHATS_LIMIT } from "./listing.ts";
 export { memberToolCalls, projectViewForMember } from "./member-projection.ts";
 export type { MessagesPage, MessageWindow } from "./message-pages.ts";
 export { messagesPageSchema, messageWindowSchema } from "./message-pages.ts";

@@ -23,9 +23,10 @@
 // Elsewhere does not repeat Databank while the tile is on screen. The tile is unconditionally visible, which is what
 // keeps the claim safe (see `HomeTileContribution.sectionId`).
 
+import { HOME_RECENT_DOCUMENTS_LIMIT } from "@orb/contracts/databank";
 import { Database } from "@orb/ui/icons";
 import type { HomeTileContribution } from "#state";
-import { HomeDocumentsTileAction, HomeDocumentsTileBody, RECENT_DOCUMENTS_LIMIT } from "../components/home-documents-tile-body.tsx";
+import { HomeDocumentsTileAction, HomeDocumentsTileBody } from "../components/home-documents-tile-body.tsx";
 
 /** LAST on the shelf, which makes this tile the shelf's FOOT — the block `home-surface.tsx` pairs with the
  *  roadmap fold at a wide pane.
@@ -40,9 +41,9 @@ import { HomeDocumentsTileAction, HomeDocumentsTileBody, RECENT_DOCUMENTS_LIMIT 
  *  BODY instead (see `home-documents-tile-body.tsx`: the empty arm leads with its doors). */
 const DOCUMENTS_TILE_ORDER = 50;
 
-/** The FIRST-BOOT skeleton box (#92): the health line, then `RECENT_DOCUMENTS_LIMIT` document rows —
+/** The FIRST-BOOT skeleton box (#92): the health line, then `HOME_RECENT_DOCUMENTS_LIMIT` document rows —
  *  derived from the body's own read so the two cannot drift. From boot two on the MEASURED box wins. */
-const DOCUMENTS_SKELETON_ROWS = RECENT_DOCUMENTS_LIMIT + 1;
+const DOCUMENTS_SKELETON_ROWS = HOME_RECENT_DOCUMENTS_LIMIT + 1;
 
 export const databankDocumentsTile: HomeTileContribution = {
   id: "databank.documents",
