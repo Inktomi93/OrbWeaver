@@ -762,6 +762,10 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       ignores: ["packages/ui/src/layout/**", "packages/ui/src/markdown/**"],
       rules: { "orb/no-raw-container-widths": "error" },
     },
+    {
+      files: ["packages/client/src/**/*.tsx", "packages/ui/src/**/*.tsx"],
+      rules: { "orb/no-layout-context-props": "error" },
+    },
     { files: ["packages/server/src/primitives/role-data/index.ts"], rules: { "orb/role-data-export-surface-0": "error" } },
     { files: ["packages/server/src/primitives/role-data/registry.ts"], rules: { "orb/role-data-export-surface-1": "error" } },
     { files: ["packages/server/src/primitives/role-data/decode/index.ts"], rules: { "orb/role-data-export-surface-2": "error" } },
