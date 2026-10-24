@@ -1,5 +1,6 @@
 // One assets-gc box on the real composition root: a scratch CAS, a scripted image provider and the owner Principal.
-// Shared by the sweep's verb suite and its persistence-tier suite for unreadable stored references.
+// Shared by the assets suites whose verdict is what the one reference collector keeps: the sweep, its
+// unreadable-reference persistence suite, the portability export and the sweep's overlap with an import.
 
 import { mkdtemp, rm, utimes } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -10,7 +11,7 @@ import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { assets, closeDb } from "@orb/db";
 import { contentSpanRaw } from "@orb/kit/content";
-import type { AssetId, CharacterHandle, ChatId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import type { Cas } from "@orb/server/infra/storage/cas";
 import { createCas } from "@orb/server/infra/storage/cas";
@@ -157,4 +158,30 @@ export async function openRoom(box: GcBox, handle: CharacterHandle, principal: P
   });
   const room = await box.root.services.chat.startChat({ principal, characterIds: [character.id], opening: "none" });
   return room.chat.id;
+}
+
+export interface Post {
+  readonly content: string;
+  /** Rides the send's own attachment door, which writes the `message_assets` link. */
+  readonly attached?: readonly StoredRef[];
+  readonly as?: Principal;
+}
+
+/** Post without generating. */
+export async function say(box: GcBox, chatId: ChatId, post: Post): Promise<MessageId> {
+  const outcome = await box.root.services.chat.commitMessage({
+    principal: post.as ?? box.principal,
+    chatId,
+    content: post.content,
+    attachmentAssetIds: (post.attached ?? []).map((ref) => ref.assetId),
+  });
+  const message = outcome.messages[0];
+  if (message === undefined) {
+    throw new Error("commitMessage returned no committed row");
+  }
+  return message.id;
+}
+
+export async function attach(box: GcBox, chatId: ChatId, ref: StoredRef): Promise<MessageId> {
+  return await say(box, chatId, { content: "", attached: [ref] });
 }
