@@ -222,9 +222,29 @@ export function setCssMergeObserver(observer: CssMergeObserver): void {
   cssMergeObserver = observer;
 }
 
+// The logical sizing utilities (`inline-*`, `block-*` and their min/max forms) set the same box dimension as
+// `w-*`/`h-*`/`size-*` in a horizontal writing mode, but tailwind-merge keeps them in separate groups, so a
+// caller's `w-(--token)` beside a variant's `inline-auto` kept both and the stylesheet order chose the width.
+// Lint spells new code logically while lib constants still carry the physical forms; the two must conflict.
+const LOGICAL_SIZE_CONFLICTS = {
+  w: ["inline-size"],
+  "inline-size": ["w"],
+  h: ["block-size"],
+  "block-size": ["h"],
+  size: ["inline-size", "block-size"],
+  "min-w": ["min-inline-size"],
+  "min-inline-size": ["min-w"],
+  "max-w": ["max-inline-size"],
+  "max-inline-size": ["max-w"],
+  "min-h": ["min-block-size"],
+  "min-block-size": ["min-h"],
+  "max-h": ["max-block-size"],
+  "max-block-size": ["max-h"],
+};
+
 /** The configured tailwind-merge instance — built once, at module scope, from the customizations above. */
 const mergeClasses = extendTailwindMerge({
-  extend: { classGroups: CLASS_GROUPS, theme: THEME },
+  extend: { classGroups: CLASS_GROUPS, theme: THEME, conflictingClassGroups: LOGICAL_SIZE_CONFLICTS },
 });
 
 /**
