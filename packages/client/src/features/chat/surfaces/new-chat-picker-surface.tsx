@@ -65,6 +65,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { CharacterPicker } from "#components";
 import { useStartChat, useTRPC } from "#data";
+import { BLANK_CHAT_NAME, TEMPORARY_CHAT_BADGE } from "#lib";
 import { clearNewChatIntent, closeModal, openModal, useNewChatIntent } from "#state";
 
 const SKELETON_ROW_COUNT = 6;
@@ -187,7 +188,7 @@ export function NewChatPicker(): ReactElement {
       {intent?.temporary === true ? (
         <Row align="center" gap="field" padding="block">
           <Badge intent="neutral" tone="soft">
-            Temporary
+            {TEMPORARY_CHAT_BADGE}
           </Badge>
           <Text size="label" tone="muted">
             This room won't join your chats list, and you can't switch it later.
@@ -234,7 +235,7 @@ export function NewChatPicker(): ReactElement {
         </Text>
         <Button className={ACTION_BUTTON} disabled={isPending} intent="ghost" onClick={(): void => found([])}>
           <Icon icon={Plus} size="sm" />
-          Blank chat
+          {BLANK_CHAT_NAME}
         </Button>
         <Button
           className={teaching ? TEACHING_ACTION_BUTTON : ACTION_BUTTON}

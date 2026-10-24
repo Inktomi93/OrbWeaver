@@ -16,6 +16,7 @@
 // Model-free (settings hit no model), so NOT `@live` — it runs in the routine suite. Storage is NEVER
 // cleared; the finally block restores appearance + theme to defaults via the API (no storage touch).
 
+import { appearanceGroup, CONFIG_SECTION_LABEL } from "@orb/client/features/config";
 import { waitForAppReady } from "./support/chat-room.ts";
 import { expect, test } from "./support/corpus-test.ts";
 import { WAIT_INSTANT_MS, WAIT_SURFACE_MS, WAIT_UI_MS } from "./support/timeouts.ts";
@@ -39,6 +40,8 @@ const SEEDED_BG_OPTION = "Charlotte's study";
  *  is in the DOM whatever theme is applied. The spec is NAMED for render truth and that one assertion never
  *  measured any: it passed while no theme had been applied at all. Anchor on `html`. */
 const SHELL_GRID = ".shell-grid";
+const SAVE_FOOTER = '[data-slot="config-save-footer"]';
+const AUTOSAVE_STATUS = '[data-slot="autosave-status"]';
 const APPLIED_THEME = 'html[data-theme="mocha"]';
 
 /** Count settings-save POSTs seen since the counter was installed — the oscillation tell. A network
@@ -88,8 +91,8 @@ test.describe("settings render-truth (no-clear-needed) — #16", () => {
     if (isMobile) {
       await page.getByRole("button", { name: "You", exact: true }).click();
     }
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("button", { name: "Appearance" }).click();
+    await page.getByRole("button", { name: CONFIG_SECTION_LABEL, exact: true }).click();
+    await page.getByRole("button", { name: appearanceGroup.label }).click();
     // The shipped looks render as CARDS; picking one applies it (the `selectedThemeId` patch).
     // THE CARD IS A RADIO, NOT A BUTTON (#2245). The looks collection is a `RadioGroupPicker`
     // (appearance-looks-section.tsx) whose items carry the theme name; the only BUTTON carrying "Mocha" is
@@ -169,16 +172,15 @@ test.describe("settings render-truth (no-clear-needed) — #16", () => {
     const bgAfterReload = await page.locator('[data-slot="theme-background-layer"]').evaluate((el: Element) => getComputedStyle(el).backgroundImage);
     expect(bgAfterReload).toContain("url(");
 
-    // ── 5. The #11 save-circuit-breaker never tripped (no autosave "error" surfaced). The AutosaveStatus
-    // affordance renders a Retry control only in the error state — its absence is the breaker-silent proof. ──
+    // ── 5. The #11 save-circuit-breaker never tripped (no autosave "error" surfaced). The pane's aggregate save
+    // footer and a section's inline status render a failed write as role="alert" and every other arm as role="status". ──
     if (isMobile) {
       await page.getByRole("button", { name: "You", exact: true }).click();
     }
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("button", { name: "Appearance" }).click();
-    // The appearance autosave status shows the owner-ruled honest "Saved" readout when clean; a tripped
-    // breaker would instead surface a Retry button. Assert the healthy status is present and no Retry.
-    await expect(page.getByText("Saved", { exact: true }).first()).toBeVisible({ timeout: WAIT_UI_MS });
-    await expect(page.getByRole("button", { name: "Retry" })).toHaveCount(0);
+    await page.getByRole("button", { name: CONFIG_SECTION_LABEL, exact: true }).click();
+    await page.getByRole("button", { name: appearanceGroup.label }).click();
+    // The status arm is the positive control: the readout mounted, so the absent alert arm is the breaker staying silent.
+    await expect(page.locator(`${SAVE_FOOTER}[role="status"]`).first()).toBeVisible({ timeout: WAIT_UI_MS });
+    await expect(page.locator(`${SAVE_FOOTER}[role="alert"], ${AUTOSAVE_STATUS}[role="alert"]`)).toHaveCount(0);
   });
 });

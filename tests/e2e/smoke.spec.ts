@@ -14,6 +14,7 @@
 //     `chat.listChats` resolved. The chats-LIST surface (`aria-label="Chats list"`) moved OFF `/` in the #102
 //     rework; it now lives on the Chats SECTION (reached via the Primary rail), not the landing.
 
+import { START_TEMP_CHAT_NAME } from "@orb/client/lib";
 import { chatDetailSchema } from "@orb/contracts/chat";
 import { documentDetailViewSchema } from "@orb/contracts/databank";
 import { corpusReadInput } from "@orb/testkit/iso";
@@ -29,12 +30,12 @@ const HEALTHZ_URL = `${SINGLE_USER.backendUrl}/healthz`;
 const LOGIN_FIELD = /password|handle|username/u;
 // The app's one URL — what a section deep link must LAND on (#181).
 const APP_URL = /\/$/u;
-// The root route's notFound copy (`routes/__root.tsx`) — a CURLY apostrophe, as rendered.
-const NOT_FOUND_COPY = "that route doesn’t exist";
 const APP_READY = "html[data-app-ready]";
 // The not-found boundary's FAILURE-SURFACE DECLARE (`lib/app-failure-surface.tsx`) — what design-audit
 // reads to refuse a route that resolved to nothing (#1081).
 const NOT_FOUND_DECLARE = '[data-app-failure="not-found"]';
+// The read-error block every home tile's `QueryBoundary` renders (`data/query-error-state.tsx`).
+const QUERY_ERROR = '[data-slot="query-error"]';
 
 // `@smoke` — the fast anti-rot subset run by the pre-push lefthook gate (`pnpm e2e:smoke`). Model-free +
 // data-light; proves the stack boots, auth resolves, the SPA mounts, and the drift-prone `/` landing surface
@@ -87,7 +88,7 @@ test("the SPA shell mounts and single-user boots with no login form", {
 test("a section deep link boots the app and lands on the one app URL", { tag: "@smoke" }, async ({ page, isMobile }) => {
   await page.goto("/chats");
   await expect(page.getByRole("main")).toBeVisible({ timeout: WAIT_SETTLE_MS });
-  await expect(page.getByText(NOT_FOUND_COPY)).toHaveCount(0);
+  await expect(page.locator(NOT_FOUND_DECLARE)).toHaveCount(0);
   const main = isMobile
     ? page.getByRole("main").filter({ has: page.getByRole("list", { name: "Chats list", exact: true }) })
     : page.getByRole("main", { name: "Chats content", exact: true });
@@ -100,13 +101,12 @@ test("a path that is NOT a section still renders the not-found surface", { tag: 
   await page.goto("/definitely-not-a-section");
   // The alias resolves the segment against the SECTION vocabulary and throws notFound on a miss — a typo
   // must never be silently absorbed into the app (that is how a dead link looks like a working one).
-  await expect(page.getByText(NOT_FOUND_COPY)).toBeVisible({ timeout: WAIT_SETTLE_MS });
-  // …AND IT DECLARES ITSELF (#1081). `data-app-failure` is the app telling an instrument that this is not
+  // IT DECLARES ITSELF (#1081). `data-app-failure` is the app telling an instrument that this is not
   // one of its surfaces: design-audit reads it and refuses (`tooling/src/ui-audit/lib/evidence.ts`
   // `failureSurfaceGap`), because before the declare existed `design-audit /__no-such-route__` printed a
   // full population table over this boundary and exited 0. The stamp is a cross-tree contract with no
   // compiler between its halves, so this is the assertion that keeps them from drifting apart.
-  await expect(page.locator(NOT_FOUND_DECLARE)).toBeVisible();
+  await expect(page.locator(NOT_FOUND_DECLARE)).toBeVisible({ timeout: WAIT_SETTLE_MS });
 });
 
 test("the home page renders the home surface (tRPC query works)", {
@@ -121,9 +121,10 @@ test("the home page renders the home surface (tRPC query works)", {
   // (The chats-LIST surface — `getByRole("list", { name: "Chats list" })` — moved to the Chats SECTION in this
   // rework; it no longer lives on `/`, which is exactly the stale coupling this test used to carry.)
   await expect(page.locator(APP_READY)).toBeAttached({ timeout: WAIT_SETTLE_MS });
-  await expect(page.getByRole("main", { name: "Home content" })).toBeVisible({ timeout: WAIT_UI_MS });
-  await expect(page.getByText("Couldn't load your chats")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Start a temp chat", exact: true })).toBeVisible();
+  const home = page.getByRole("main", { name: "Home content" });
+  await expect(home).toBeVisible({ timeout: WAIT_UI_MS });
+  await expect(home.getByRole("button", { name: START_TEMP_CHAT_NAME, exact: true })).toBeVisible();
+  await expect(home.locator(QUERY_ERROR)).toHaveCount(0);
 });
 
 test("the selected corpus clone serves the captured room identity, content and visible title", { tag: ["@smoke", "@corpus"] }, async ({ page }) => {
