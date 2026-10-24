@@ -33,4 +33,6 @@ Each file run alone with `pnpm test <file> --maxWorkers=1`, durations from the n
 | `support/node/corpus` | 4.6, 15.1 | 5.1, 19.1 | unchanged; already warms the clone graph at import |
 | `plugin-host/process-runtime` | 17.4, 7.5 | 4.2, 8.2 | split; `-lifecycle` 5.4 and `-continuations` 5.4; one real watchdog child per case |
 
+Re-measured solo with `--maxWorkers=1` at load 8 to 9 (test-file wall, s): `private-diagnostics` 10.9, `-redaction` 8.1, `-framing` 10.8; `corpus-private` 32.1 (intrinsic, header states 32 s); `corpus-private-admission` 2.7; `corpus` 2.6; `continue-restore-races` 1.9, `continue-revert-row` 4.8, `continue-revert-snapshot` 6.8, `continue-undo-row` 4.3, `continue-undo-snapshot` 7.4; `managed-compaction` 6.5, `-thresholds` 5.4, `-trim` 2.1; `process-runtime` 6.9, `-lifecycle` 1.5, `-continuations` 1.8. Only `corpus-private` exceeds 20 s.
+
 The hosted run's duration line is not yet recorded: it needs the next push.
