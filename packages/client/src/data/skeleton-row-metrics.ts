@@ -78,3 +78,15 @@ export function skeletonRowCountFor(boxHeight: number, fallback: number): number
   }
   return Math.max(1, Math.round((boxHeight - 2 * pad + gap) / (rowHeight + gap)));
 }
+
+/** The box `rows` `SkeletonRows shape="line"` rows occupy: the exact inverse of {@link skeletonRowCountFor}.
+ *  `null` when the tokens cannot be resolved, so a caller declares no box rather than a guessed one. */
+export function skeletonBoxFor(rows: number): number | null {
+  const rowHeight = spacingPx("spacing.control-lg");
+  const gap = spacingPx("spacing.row");
+  const pad = spacingPx("spacing.block");
+  if (rowHeight === null || gap === null || pad === null) {
+    return null;
+  }
+  return 2 * pad + rows * rowHeight + (rows - 1) * gap;
+}

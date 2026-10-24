@@ -20,7 +20,7 @@ import { Textarea } from "@orb/ui/textarea";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary } from "#components";
+import { QueryBoundary, useFirstBootBox } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
@@ -42,11 +42,13 @@ function useIsBoxOwner(): boolean {
 
 /** Multi-user — the local-mode seating switch (owner-only) beside the login-page posture (admin-writable). */
 export function MultiUserSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
+  const firstBootBox = useFirstBootBox({ wide: 25, narrow: 24 });
   return (
     // RESERVED (#1098) — the seating switch plus the login-page posture — a small but fixed knob stack.
     <QueryBoundary
       fallback={<SkeletonRows count={4} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="multi-user — administrators only" onRetry={retry} />}
+      reserveBlock={firstBootBox}
       reserveKey="config.admin.multiUser"
     >
       <MultiUserBody anchorId={anchorId} sectionId={sectionId} />

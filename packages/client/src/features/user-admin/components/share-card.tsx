@@ -12,7 +12,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode, Ref } from "react";
 import { useEffect, useId, useRef, useState } from "react";
-import { ConfirmDialog, QueryBoundary } from "#components";
+import { ConfirmDialog, QueryBoundary, useFirstBootBox } from "#components";
 import type { AuthConfig } from "#data";
 import { QueryErrorState, SkeletonRows, useAuthConfig, useInvalidation, useTRPC } from "#data";
 import { useRevokeUserSessions } from "../hooks/use-admin-mutations.ts";
@@ -103,6 +103,7 @@ export interface ShareCardProps {
 
 /** Owner-only: the caller omits it for anyone else. Its own boundary, so a failed read leaves the section standing. */
 export function ShareCard(props: ShareCardProps): ReactElement {
+  const firstBootBox = useFirstBootBox({ wide: 15, narrow: 13 });
   return (
     <Card>
       <Section heading={SHARE_CARD_TITLE} level={4} aria-label={SHARE_CARD_TITLE}>
@@ -110,6 +111,7 @@ export function ShareCard(props: ShareCardProps): ReactElement {
         <QueryBoundary
           fallback={<SkeletonRows count={4} />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="sharing — the owner only" onRetry={retry} />}
+          reserveBlock={firstBootBox}
           reserveKey="config.admin.multiUser.share"
         >
           <ShareCardBody {...props} />

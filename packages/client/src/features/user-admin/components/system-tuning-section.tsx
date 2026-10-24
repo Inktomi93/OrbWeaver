@@ -13,7 +13,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary } from "#components";
+import { QueryBoundary, useFirstBootBox } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
@@ -103,11 +103,13 @@ function toDraft(resolved: EffectiveAppConfig): Draft {
 
 /** The section's own suspense/error boundary so it is self-contained. */
 export function SystemTuningSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
+  const firstBootBox = useFirstBootBox({ wide: 7, narrow: 13 });
   return (
     // RESERVED (#1098) — the other of the two LONGEST admin knob stacks.
     <QueryBoundary
       fallback={<SkeletonRows count={5} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="system tuning — administrators only" onRetry={retry} />}
+      reserveBlock={firstBootBox}
       reserveKey="config.admin.systemTuning"
     >
       <SystemTuningBody anchorId={anchorId} sectionId={sectionId} />
