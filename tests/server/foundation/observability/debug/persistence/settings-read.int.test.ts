@@ -3,13 +3,13 @@
 import { automationTriggerFor } from "@orb/contracts/automation";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
-import { CSRF_HEADER } from "@orb/contracts/identity";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import { automationFires, characters } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node";
+import { signInWithPassword } from "@orb/testkit/node/auth";
 import {
   createServerHarness,
   seedAutomationRule,
@@ -35,16 +35,7 @@ test("the settings probe preserves key order and stored values while rejecting a
   const owner = await root.principalFor(root.ownerId);
   const signIn = async (principal: Principal): Promise<string> => {
     await root.services.admin.resetPassword({ principal: owner, userId: principal.userId, password: PASSWORD });
-    const response = await root.http.request("/api/auth/login", {
-      method: "POST",
-      headers: { host: "localhost", [CSRF_HEADER]: "1" },
-      body: new URLSearchParams({ handle: principal.handle, password: PASSWORD }),
-    });
-    expect(response.status).toBe(200);
-    const cookie = response.headers
-      .getSetCookie()
-      .map((line) => line.split(";")[0])
-      .join("; ");
+    const cookie = await signInWithPassword(root, principal.handle, PASSWORD, { host: "localhost" });
     expect(cookie).not.toBe("");
     return cookie;
   };

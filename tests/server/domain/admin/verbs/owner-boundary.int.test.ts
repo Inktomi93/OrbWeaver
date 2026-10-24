@@ -5,13 +5,14 @@
 // @subject packages/server/src/domain/admin/verbs/reset-password.ts
 // @subject packages/server/src/domain/admin/verbs/set-enabled.ts
 // @subject packages/server/src/domain/admin/verbs/set-role.ts
-import { adminUserViewSchema, authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
+import { adminUserViewSchema, authMeSchema } from "@orb/contracts/identity";
 import { sessionAdminViewSchema } from "@orb/contracts/session";
 import { users } from "@orb/db";
 import type { ExternalId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node";
+import { signInWithPassword } from "@orb/testkit/node/auth";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
@@ -97,18 +98,7 @@ test("a delegate cannot disable, bind or reset the owner, while the owner can ro
     code: "cannot_modify_owner",
   });
   expect(await root.db.select().from(users).where(eq(users.id, owner.userId)).get()).toEqual(before);
-  const login = await root.http.request("/api/auth/login", {
-    method: "POST",
-    headers: { [CSRF_HEADER]: "1" },
-    body: new URLSearchParams({ handle: owner.handle, password: PASSWORD }),
-  });
-  expect(login.status).toBe(200);
-  await login.arrayBuffer();
-  const cookie = login.headers.get("set-cookie")?.split(";")[0];
-  expect(cookie).toBeDefined();
-  if (cookie === undefined) {
-    throw new Error("the actual owner login did not issue its session cookie");
-  }
+  const cookie = await signInWithPassword(root, owner.handle, PASSWORD);
   const me = await root.http.request("/api/auth/me", { headers: { cookie } });
   expect(authMeSchema.parse(await me.json())).toEqual({ authenticated: true, handle: owner.handle, role: "owner" });
 });

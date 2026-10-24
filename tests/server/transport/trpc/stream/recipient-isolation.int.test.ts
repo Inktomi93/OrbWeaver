@@ -1,4 +1,3 @@
-import { CSRF_HEADER } from "@orb/contracts/identity";
 import { declaredCapabilitySchema } from "@orb/contracts/inference";
 import { streamConnectInputSchema } from "@orb/contracts/stream";
 import type { ChatId, Handle } from "@orb/kit/ids";
@@ -6,6 +5,7 @@ import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node";
+import { signInWithPassword } from "@orb/testkit/node/auth";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
 
@@ -55,17 +55,7 @@ test("actual authenticated multiplexing enforces socket ownership and withholds 
   const joined = await member.invites.redeemInvite({ token: invitation.token });
   expect(joined.participant.joinSeq).toBe(anchorMessage.seq);
   await owner.invites.setMemberHistoryVisibility({ chatId: shared.id, userId: user.id, visibility: "from-join" });
-  const login = await harness.http.request("/api/auth/login", {
-    method: "POST",
-    headers: { [CSRF_HEADER]: "1" },
-    body: new URLSearchParams({ handle, password }),
-  });
-  expect(login.status).toBe(200);
-  await login.arrayBuffer();
-  const cookie = login.headers.get("set-cookie")?.split(";")[0];
-  if (cookie === undefined) {
-    throw new Error("the actual password login did not mint its session cookie");
-  }
+  const cookie = await signInWithPassword(harness, handle, password);
   const subscribed = new Set<ChatId>();
   const subscribe = harness.app.liveBuses.chat.subscribeChatEvents;
   const observation = vi.spyOn(harness.app.liveBuses.chat, "subscribeChatEvents").mockImplementation((chatId, signal): ReturnType<typeof subscribe> => {

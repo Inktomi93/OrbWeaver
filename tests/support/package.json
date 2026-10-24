@@ -14,6 +14,7 @@
     "./ct-corpus": "./node/ct-corpus.ts",
     "./iso": "./iso/index.ts",
     "./node": "./node/index.ts",
+    "./node/auth": "./node/auth.ts",
     "./node/composed": "./node/composed.ts",
     "./node/helpers": "./node/helpers.ts",
     "./node/rows": "./node/factories/rows.ts",

@@ -432,9 +432,12 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
       },
     },
     rules: {
-      "vitest/expect-expect": ["error", { assertFunctionNames: ["expect", "expectTypeOf"], additionalTestBlockFunctions: ["auditRuleTest", "cellTest"] }],
+      "vitest/expect-expect": [
+        "error",
+        { assertFunctionNames: ["expect", "expectTypeOf"], additionalTestBlockFunctions: ["auditRuleTest", "cellTest", "forEachAuthMode"] },
+      ],
       "vitest/valid-expect": ["error", { maxArgs: 2 }],
-      "vitest/no-standalone-expect": ["error", { additionalTestBlockFunctions: ["auditRuleTest", "cellTest"] }],
+      "vitest/no-standalone-expect": ["error", { additionalTestBlockFunctions: ["auditRuleTest", "cellTest", "forEachAuthMode"] }],
       "vitest/valid-title": ["error", { allowArguments: true }],
       "vitest/valid-describe-callback": "error",
       "vitest/no-disabled-tests": "error",

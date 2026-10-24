@@ -26,6 +26,7 @@ Import testkit through the doors its `package.json` exports. A door is a barrel 
 | `@orb/testkit/node` | the vitest `test` and `expect` with their fixtures; it registers fixtures at import, so only vitest files import it |
 | `@orb/testkit/node/helpers` | Node-side helpers that never load the server graph at import; Playwright configs and scripts may import it |
 | `@orb/testkit/node/composed` | the server harness, database, root seeds that run production verbs, corpus producers and chat composition; it loads the server graph |
+| `@orb/testkit/node/auth` | sign-in through the product's login path for each auth mode: `createAuthModeRoot`, `forEachAuthMode`, `signIn` and the per-route steps under it; only vitest files import it |
 | `@orb/testkit/node/rows` | direct row builders for persistence suites under `tests/db/` and `tests/**/persistence/`, including suites on a pre-migration schema where production verbs cannot run: `makeUser`, `seedUser`, `seedChatRow`, `seedCharacterRow` and `seedMessageRow`; dependency-cruiser refuses every other importer. Composed suites mint users with `harness.actor`, which runs `sessions.ensureUser` and the owner's audited admin verbs, or `sessions.provisionIdentity` on an unclaimed root; the harness seeds its owner through boot's `seedOwner`, and fixtures read ids back from the root |
 | `@orb/testkit/ct` | Playwright-side helpers for component specs: declared tRPC and socket interception, section navigation |
 | `@orb/testkit/ct-corpus` | the Playwright `test` and `expect` that mount against a corpus-backed server |
@@ -37,6 +38,35 @@ Import testkit through the doors its `package.json` exports. A door is a barrel 
 To publish a helper, add its name to the door's barrel. Inside testkit, use relative imports. Follow [the test layout and world rules](../../docs/law/Spine-Testing.md#2-the-tree).
 
 Call production operations and registry factories. Derive inputs from their contracts, builders or corpus. Script external execution at its real boundary. Do not replace domain services, authorization, persistence or application modules with fabricated behavior.
+
+## Sign in through the product
+
+Use `@orb/testkit/node/auth` for any case that needs an authenticated request.
+
+1. Build a root in one mode with `createAuthModeRoot(mode)`, or run the case under every mode with `forEachAuthMode(name, body)`.
+2. Mint accounts with `mintMember(root)` and take the owner with `ownerSubject(root)`.
+3. Call `signIn(root, who)`. It returns the request `headers`, the admitted `viewer` and the row-derived `principal`.
+4. Send `headers` with every `root.http.request`.
+
+`signIn` drives the mode's own login path and reads `sessions.me` back. A product refusal throws `SignInRefusal` with the HTTP status; `trySignIn` returns it instead.
+
+| Mode | Login path |
+| - | - |
+| `single-user` | the owner's un-credentialed request from a loopback peer; a member gets the password route's answer |
+| `local` | `POST /api/auth/login` with the account's password |
+| `oidc` | the authorization-code flow against the scripted issuer; an unbound owner presents the boot claim code |
+| `forward-header` | the proxy's signed JWT headers for the account |
+
+Branch a case on the capability, never on the mode name. `AUTH_MODE_CAPABILITIES` in [node/auth.ts](node/auth.ts) is the table:
+
+| Mode | `members` | `ownerFallback` |
+| - | - | - |
+| `single-user` | false | true |
+| `local` | true | false |
+| `oidc` | true | false |
+| `forward-header` | true | false |
+
+`members` means a second account can sign in. Multiplayer surfaces also need the product's `app.multiHumanCapable()`, which `local` turns on only with the `localMultiUser` app setting.
 
 ## Author a component case
 

@@ -9,10 +9,11 @@ import { MS_PER_HOUR } from "@orb/kit/time";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { getLog } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node";
+import { cookieHeader } from "@orb/testkit/node/auth";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { describe, vi } from "vitest";
-import { authMe, sessionCookie, signedInMember } from "../_auth-roots.ts";
+import { authMe, signedInMember } from "../_auth-roots.ts";
 
 const LAN_PEER = "192.168.1.55";
 const PROXY_PEER = "172.18.0.5";
@@ -110,9 +111,9 @@ describe("Rule C — the minted cookie follows the request's transport", () => {
 
   test("logout reads only this transport's cookie, and clears both names", async () => {
     await using both = await box();
-    const http = sessionCookie(await both.login());
+    const http = cookieHeader(await both.login());
     both.at(PROXY_PEER);
-    const https = sessionCookie(await both.login(PROXY_HTTPS));
+    const https = cookieHeader(await both.login(PROXY_HTTPS));
     const cookie = `${http}; ${https}`;
     both.at(LAN_PEER);
     const overHttp = await both.root.http.request("/api/auth/logout", { method: "POST", headers: { cookie, [CSRF_HEADER]: "1" } });
