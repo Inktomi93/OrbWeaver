@@ -16,6 +16,7 @@ import type { TimerScheduler } from "@orb/kit/time";
 import type pino from "pino";
 import type { Env } from "#foundation/env/record";
 import type { ScopedEgress } from "#infra/network";
+import type { TraceRing } from "#src/foundation/observability/contract/tracing.ts";
 import type { PluginNetEgress } from "./net-egress.ts";
 
 /** The determinism seams every instance's realm binds. */
@@ -34,12 +35,14 @@ export interface PluginHostSeamDeps {
   readonly mirrorLog?: (label: string, level: PluginLogLevel, message: string) => void;
   /** The app root's logger a guest line and a settlement failure land in outside a request. */
   readonly log: pino.Logger;
+  /** The app root's trace ring a supervised bridge settlement seals into. */
+  readonly traces: TraceRing;
 }
 
 /** A Worker-local runtime schedules nothing, fetches nothing and launches no broker itself: the app process owns the
  *  timers, the broker connect clock, the broker launch config and the scoped egress, and the Worker forwards every
  *  guest fetch to it through `netEgress`. */
-export type LocalPluginHostSeams = Omit<PluginHostSeamDeps, "timers" | "monotonicNow" | "safeFetch" | "env" | "log"> & {
+export type LocalPluginHostSeams = Omit<PluginHostSeamDeps, "timers" | "monotonicNow" | "safeFetch" | "env" | "log" | "traces"> & {
   /** The broker Worker's forwarding egress: the app performs every plugin fetch against its own copy of the
    *  instance's `netHosts`. */
   readonly netEgress: PluginNetEgress;

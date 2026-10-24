@@ -199,7 +199,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
   const now = (): number => Date.now();
   const seams = createProcessSeams();
   const log = seams.logger;
-  const { superviseDetached } = createDetachedSupervision(log);
+  const { superviseDetached } = createDetachedSupervision(log, seams.rings.traces);
 
   let isShuttingDown = false;
   let shutdownCompletion: Promise<void> | undefined;
@@ -247,7 +247,14 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
 
     // Swap undici's global dispatcher for the private-IP-rejecting DNS lookup so every outbound fetch
     // below is address-gated before it can fire. No-op when EGRESS_FIREWALL=false.
-    installEgressFirewall({ ...seams.networkExecution, timers: seams.timers, buildConnector: seams.buildConnector, env: seams.env, log });
+    installEgressFirewall({
+      ...seams.networkExecution,
+      timers: seams.timers,
+      buildConnector: seams.buildConnector,
+      env: seams.env,
+      log,
+      traces: seams.rings.traces,
+    });
 
     // The data layout FIRST, before anything opens a file under it: a legacy flat data dir is renamed into
     // the current tree (db/, backups/, secrets/, cache/ …) under a journal. Every path below reads the layout
@@ -349,7 +356,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     const bootSessions = preparedOwner.sessions;
     const ownerId = preparedOwner.ownerId;
     const ownerClaimFile = join(env.DATA_LAYOUT.secrets, OWNER_CLAIM_URL_FILE_NAME);
-    const ownerClaim = removeOwnerClaimFileOnSpend(createOwnerClaimCode(), ownerClaimFile, seams.newOpaqueId, log);
+    const ownerClaim = removeOwnerClaimFileOnSpend(createOwnerClaimCode(), ownerClaimFile, seams.newOpaqueId, { logger: log, traces: seams.rings.traces });
     if (env.AUTH_MODE === "oidc") {
       await announceOwnerClaim({
         log,
@@ -407,6 +414,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     const listenPort = (): number => listenerAddress?.port ?? options.listenPort ?? env.PORT;
     sharing = await createShareGraph({
       logger: seams.logger,
+      traces: seams.rings.traces,
       bind,
       appPort: listenPort,
       relayDir: env.DATA_LAYOUT.relay,
@@ -532,7 +540,16 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
 
     const oidcWiring =
       env.AUTH_MODE === "oidc"
-        ? await createConfiguredOidc({ logger: seams.logger, db: wiringDb, now, built, ownerClaim, scheduleInterval: seams.timers.interval, settings: env })
+        ? await createConfiguredOidc({
+            logger: seams.logger,
+            rings: seams.rings,
+            db: wiringDb,
+            now,
+            built,
+            ownerClaim,
+            scheduleInterval: seams.timers.interval,
+            settings: env,
+          })
         : undefined;
     oidcLifetime = oidcWiring ?? null;
 

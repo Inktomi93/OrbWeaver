@@ -16,7 +16,7 @@ interface EmbedSweep {
 
 /** Build the generation-change and live-autoindex triggers over injected workload admission. */
 export function createEmbeddingReindexTriggers(deps: EmbeddingReindexDeps): EmbeddingReindexTriggers {
-  const { superviseDetached, superviseSettled } = createDetachedSupervision(deps.logger);
+  const { superviseDetached, superviseSettled } = createDetachedSupervision(deps.logger, deps.traces);
   const supervise = deps.supervise ?? superviseDetached;
   // Memory-off owners record a vacuous receipt instead of queueing a run admission would refuse.
   const enqueueOwnerMemory = async (ownerId: UserId, params: { readonly embedderChanged?: boolean }): Promise<unknown> => {

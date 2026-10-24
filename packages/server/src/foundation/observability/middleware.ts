@@ -98,7 +98,7 @@ function observeRequest(log: Logger, rings: ObservabilityRings): MiddlewareHandl
         bindRequestUser(principal.userId, principal.handle);
       }
 
-      await withRequestSpan(requestId, `http ${method} ${path}`, { "http.method": method, "http.path": path }, async () => {
+      await withRequestSpan({ traces: rings.traces, requestId }, `http ${method} ${path}`, { "http.method": method, "http.path": path }, async () => {
         await next();
       });
       stampRequestId(c, requestId);
@@ -149,7 +149,7 @@ function observeThrowAboveScope(log: Logger, rings: ObservabilityRings, err: unk
     // The root span exists only to carry the failure; `recordThrownRequest` marks the span ACTIVE INSIDE
     // this callback as error + adds the `exception` event, and `withRequestSpan`'s OK-set is guarded on
     // exactly that, so the sealed bucket reads status:"error" without this having to throw.
-    await withRequestSpan(requestId, `http ${method} ${path}`, { "http.method": method, "http.path": path }, () => {
+    await withRequestSpan({ traces: rings.traces, requestId }, `http ${method} ${path}`, { "http.method": method, "http.path": path }, () => {
       recordThrownRequest(err);
     });
     rings.requests.push({

@@ -488,7 +488,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const healthThrottle = resources.use(createCredentialHealthThrottle());
   const publishUserEvent = liveBuses.user.publishUserEvent;
   // biome-ignore lint/nursery/useDisposables: backgroundResources owns this settlement through the moved graph stack; the borrowed operation view must not close at return.
-  const background: Omit<BackgroundWork, keyof AsyncDisposable> = backgroundResources.use(createBackgroundWork(deps.logger));
+  const background: Omit<BackgroundWork, keyof AsyncDisposable> = backgroundResources.use(createBackgroundWork(deps.logger, deps.rings.traces));
   let chatLifetime: ChatComposeResult | undefined;
   let rpgLifetime: RpgComposeResult | undefined;
   let pluginLifetime: AutomationPluginComposeResult | undefined;
@@ -532,6 +532,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       buildConnector: deps.buildConnector,
       env: deps.env,
       log: deps.logger,
+      traces: deps.rings.traces,
     }),
   );
   egressLifetime = egress;
@@ -869,6 +870,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // `enqueueEmbedReindex` (bound onto the keystone's late-bound holder below).
   const searchDiscovery = buildSearchDiscovery({
     logger: deps.logger,
+    traces: deps.rings.traces,
     fieldIndex,
     emitWorkloadEvent: workloadEvents.emitWorkloadEvent,
     emitUserEvent: liveBuses.user.publishUserEvent,
@@ -1056,6 +1058,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const pluginMacros = createPluginMacroRegistry(deps.logger, timers.timeout);
   const chatCompose = buildChatService({
     auditStatements: deps.audit,
+    traces: deps.rings.traces,
     publishChatChanged: liveBuses.user.publishChatChanged,
     publishNotification: liveBuses.notifications.publishNotification,
     timers,
@@ -1258,6 +1261,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const automationPlugin = await buildAutomationPlugin({
     env: deps.env,
     logger: deps.logger,
+    traces: deps.rings.traces,
     ...pluginExecutionInputs(deps),
     monotonicNow: deps.monotonicNow,
     timers,
@@ -1547,6 +1551,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // biome-ignore lint/nursery/useDisposables: jobsLifetime adopts this exact owner for graph cancellation and joins; local await using would stop it before startup.
   const jobs = buildServiceJobs({
     logger: deps.logger,
+    traces: deps.rings.traces,
     db,
     now,
     contributions: workloadContributions,
@@ -1566,6 +1571,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     createContext({
       ...request,
       logger: deps.logger,
+      traces: deps.rings.traces,
       liveBuses,
       services,
       rateLimit,

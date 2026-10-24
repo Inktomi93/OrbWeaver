@@ -3,7 +3,6 @@ import {
   createLogger,
   createObservabilityRings,
   createRequestObservability,
-  getTraceByRequestId,
   initTracing,
   setSpanAttrs,
   span,
@@ -16,6 +15,7 @@ import { Hono } from "hono";
 const ROOT = "migration.request";
 const CHILD = "migration.child";
 const GRANDCHILD = "migration.grandchild";
+const rings = createObservabilityRings();
 
 test("interleaved async requests retain their own child and grandchild parentage", async ({ ids }) => {
   initTracing();
@@ -23,7 +23,7 @@ test("interleaved async requests retain their own child and grandchild parentage
   const release = Promise.withResolvers<void>();
   const requests = [0, 1].map(() => ({ requestId: `concurrent:${ids.uuid()}`, entered: Promise.withResolvers<void>() }));
   const running = requests.map(({ requestId, entered }) =>
-    withRequestSpan(requestId, ROOT, {}, () =>
+    withRequestSpan({ traces: rings.traces, requestId }, ROOT, {}, () =>
       span(CHILD, async () => {
         entered.resolve();
         await release.promise;
@@ -34,14 +34,14 @@ test("interleaved async requests retain their own child and grandchild parentage
   try {
     await Promise.all(requests.map(({ entered }) => entered.promise));
     for (const { requestId } of requests) {
-      expect(getTraceByRequestId(requestId)).toBeUndefined();
+      expect(rings.traces.get(requestId)).toBeUndefined();
     }
   } finally {
     release.resolve();
     await Promise.all(running);
   }
   for (const { requestId } of requests) {
-    const recorded = getTraceByRequestId(requestId);
+    const recorded = rings.traces.get(requestId);
     expect(recorded).toMatchObject({ requestId, rootName: ROOT, status: "ok", totals: { spanCount: 3 } });
     expect(recorded?.spans.map((entry) => entry.name).sort()).toEqual([ROOT, CHILD, GRANDCHILD].sort());
     const root = recorded?.spans.find((entry) => entry.name === ROOT);
@@ -58,7 +58,6 @@ test("a handled HTTP error retains error status and redacts its invite capabilit
   const requestId = `handled:${ids.uuid()}`;
   const failure = new Error("handled-request-failure");
   const token = "private-invite-fixture";
-  const rings = createObservabilityRings();
   const { observability, observabilityErrorHandler } = createRequestObservability(createLogger(createTestEnv().LOG_LEVEL, rings.logs), rings);
   const app = new Hono();
   app.use("*", observability);
@@ -69,7 +68,7 @@ test("a handled HTTP error retains error status and redacts its invite capabilit
   const response = await app.request(`/join/${token}`, { headers: { "X-Request-Id": requestId } });
   expect(response.status).toBe(500);
   expect(response.headers.get("X-Request-Id")).toBe(requestId);
-  const recorded = getTraceByRequestId(requestId);
+  const recorded = rings.traces.get(requestId);
   expect(recorded).toMatchObject({ rootName: "http GET /join/:token", status: "error", totals: { spanCount: 1 } });
   expect(recorded?.spans[0]?.attributes["http.path"]).toBe("/join/:token");
   expect(JSON.stringify(recorded)).not.toContain(token);
@@ -84,14 +83,14 @@ test("cancellation propagates the original reason and ends both spans as errors"
   const reason = new Error("cancelled-request");
   controller.abort(reason);
   await expect(
-    withRequestSpan(requestId, ROOT, {}, () =>
+    withRequestSpan({ traces: rings.traces, requestId }, ROOT, {}, () =>
       span(CHILD, async () => {
         await Promise.resolve();
         controller.signal.throwIfAborted();
       }),
     ),
   ).rejects.toBe(reason);
-  const recorded = getTraceByRequestId(requestId);
+  const recorded = rings.traces.get(requestId);
   expect(recorded).toMatchObject({ status: "error", totals: { spanCount: 2 } });
   expect(recorded?.spans.map((entry) => entry.status)).toEqual(["error", "error"]);
   expect(recorded?.spans.find((entry) => entry.name === CHILD)?.events).toEqual([
@@ -102,14 +101,14 @@ test("cancellation propagates the original reason and ends both spans as errors"
 test("the ring keeps bounded scalar metadata, native arrays and event attributes", async ({ ids }) => {
   const requestId = `metadata:${ids.uuid()}`;
   const long = "metadata".repeat(256);
-  await withRequestSpan(requestId, ROOT, {}, () =>
+  await withRequestSpan({ traces: rings.traces, requestId }, ROOT, {}, () =>
     span(CHILD, (active) => {
       active.setAttribute("native.array", ["first", "second"]);
       setSpanAttrs({ detail: long, count: 2, enabled: true, absent: undefined });
       addSpanEvent("metadata.event", { detail: long, count: 2, enabled: true });
     }),
   );
-  const child = getTraceByRequestId(requestId)?.spans.find((entry) => entry.name === CHILD);
+  const child = rings.traces.get(requestId)?.spans.find((entry) => entry.name === CHILD);
   expect(child?.attributes).toMatchObject({ "native.array": '["first","second"]', count: 2, enabled: true });
   expect(child?.attributes).not.toHaveProperty("absent");
   const bounded = child?.attributes["detail"];

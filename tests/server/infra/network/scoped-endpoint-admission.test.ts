@@ -17,6 +17,7 @@ test("unresolved write-time endpoint admission remains public without attempting
   const failure = new Error("controlled NXDOMAIN");
   let rawCalls = 0;
   await using egress = createScopedEgress({
+    traces: null,
     log: createTestLogger(),
     env: createTestEnv(),
     timers: quietTimers(),
@@ -37,6 +38,7 @@ test.each([
   { address: "169.254.169.254", verdict: "refused", allowlist: ["0.0.0.0/0"] },
 ] as const)("write-time admission preserves $address as $verdict", async ({ address, verdict, allowlist }) => {
   await using egress = createScopedEgress({
+    traces: null,
     log: createTestLogger(),
     env: createTestEnv(),
     timers: quietTimers(),
@@ -52,6 +54,7 @@ test("configured and arbitrary URL execution still reject DNS failure before the
   const failure = new Error("controlled physical DNS refusal");
   let rawCalls = 0;
   await using egress = createScopedEgress({
+    traces: null,
     log: createTestLogger(),
     env: createTestEnv(),
     timers: quietTimers(),
@@ -100,6 +103,7 @@ test.each([false, true])(
     }
     // The physical loopback control: the real request and DNS against a real listener.
     await using egress = createScopedEgress({
+      traces: null,
       log: createTestLogger(),
       env: createTestEnv(),
       timers: quietTimers(),
@@ -177,6 +181,7 @@ test.each(["EOF", "error", "cancel"] as const)(
     }
     let normalized: WeakRef<Request> | undefined;
     await using egress = createScopedEgress({
+      traces: null,
       log: createTestLogger(),
       env: createTestEnv(),
       timers: quietTimers(),

@@ -445,7 +445,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     maxImageBytes: () => deps.services.settings.getEffectiveConfig().maxImageBytes,
     maxDatabankBytes: () => deps.services.settings.getEffectiveConfig().maxDatabankBytes,
   });
-  registerExport(app, { logger: deps.logger, export: deps.exportService, registry: deps.portability });
+  registerExport(app, { logger: deps.logger, traces: deps.rings.traces, export: deps.exportService, registry: deps.portability });
   registerImportBundle(app, {
     workloads: deps.services.workloads,
     stagingDir: deps.importStagingDir,

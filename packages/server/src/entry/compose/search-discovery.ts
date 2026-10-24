@@ -59,7 +59,7 @@ import { createStatsService } from "#domain/stats";
 import type { TagService } from "#domain/tag";
 import type { WorkloadContributions, WorkloadProgressBus, WorkloadService } from "#domain/workloads";
 import { createWorkloadService } from "#domain/workloads";
-import type { AuditEntry, DetachedSupervision, Logger } from "#foundation/observability";
+import type { AuditEntry, DetachedSupervision, Logger, TraceRing } from "#foundation/observability";
 import type { LiveBuses } from "#transport/trpc";
 import { minter } from "./minter.ts";
 import { createDeleteReachCapture, createRoomEntityFan } from "./room-reach.ts";
@@ -68,6 +68,7 @@ import { createVisibleRoomsReader } from "./visible-rooms.ts";
 /** What the search/discovery cluster seam needs from the composition root. */
 export interface SearchDiscoveryComposeDeps {
   readonly logger: Logger;
+  readonly traces: TraceRing;
   readonly fieldIndex: Pick<FieldIndexCache, "fields" | "suggest">;
   readonly emitWorkloadEvent: WorkloadProgressBus["emitWorkloadEvent"];
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
@@ -343,6 +344,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
 
   const reindex = createEmbeddingReindexTriggers({
     logger: deps.logger,
+    traces: deps.traces,
     supervise: deps.supervise,
     now,
     getEffectiveConfig: deps.getEffectiveConfig,

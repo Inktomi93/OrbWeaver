@@ -2,6 +2,7 @@ import type { BoundedRing } from "@orb/kit/bounded-ring";
 import type { UserId } from "@orb/kit/ids";
 import type { HonoRequest } from "hono";
 import type pino from "pino";
+import type { TraceRing } from "./tracing.ts";
 
 /** A root's pino logger; pino v10 exports it only as a member of the `pino` namespace. */
 export type Logger = pino.Logger;
@@ -21,6 +22,7 @@ export interface RequestRecord {
 export interface ObservabilityRings {
   readonly logs: BoundedRing<string>;
   readonly requests: BoundedRing<RequestRecord>;
+  readonly traces: TraceRing;
 }
 
 /** The foundation sink accepts opaque metadata without importing a domain's richer event vocabulary. */

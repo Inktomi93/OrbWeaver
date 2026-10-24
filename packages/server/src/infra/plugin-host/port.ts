@@ -215,7 +215,8 @@ export function createLocalPluginHost(seams: LocalPluginHostSeams): {
 } {
   // This Worker's root: the app's logger cannot cross the process, so the Worker builds its own from its record; no debug surface reads it.
   const log = createLogger(seams.logLevel, null);
-  const { superviseDetached } = createDetachedSupervision(log);
+  // The Worker's spans reach no debug surface either.
+  const { superviseDetached } = createDetachedSupervision(log, null);
   const runtimes = new Map<PluginInstance, Resident>();
   const hostSeams: HostSeams = { nowEpochMs: seams.nowEpochMs, nextRandom: seams.nextRandom, mintId: seams.mintId };
 

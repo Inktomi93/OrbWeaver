@@ -37,7 +37,6 @@ import { versionIdentity } from "#foundation/version";
 import type { DebugAuthOptions, DebugRoutesOptions } from "../contract/debug.ts";
 import type { Logger } from "../contract/logging.ts";
 import { securityEvent } from "../logger.ts";
-import { getTraceByRequestId, recentTraces } from "../tracing.ts";
 import { captureNowMs, mintBugReportId, readBuildIdentity, secretLiterals, snapshotServerEvidence, writeBugReport } from "./bug-report.ts";
 import {
   automationFireRows,
@@ -443,7 +442,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions): voi
   });
 
   app.get("/api/_debug/traces", (c) => {
-    const traces = recentTraces(toDebugLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT)).map((t) => ({
+    const traces = rings.traces.recent(toDebugLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT)).map((t) => ({
       requestId: t.requestId,
       startedAt: t.startedAt,
       durationMs: t.durationMs,
@@ -454,7 +453,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions): voi
     return c.json({ count: traces.length, traces });
   });
   app.get("/api/_debug/traces/:requestId", (c) => {
-    const traceRecord = getTraceByRequestId(c.req.param("requestId"));
+    const traceRecord = rings.traces.get(c.req.param("requestId"));
     return traceRecord === undefined ? c.json({ error: "no trace recorded for that requestId" }, NOT_FOUND) : c.json(traceRecord);
   });
 

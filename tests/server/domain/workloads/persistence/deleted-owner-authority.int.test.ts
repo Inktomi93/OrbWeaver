@@ -73,6 +73,7 @@ test("owner deletion between queue observation and atomic claim cannot upgrade a
     {
       db: databaseHandle(root.db),
       logger: root.logger,
+      traces: root.rings.traces,
       contributions: root.app.workloadContributions,
       audit: root.app.audit,
       now: root.clock.now,

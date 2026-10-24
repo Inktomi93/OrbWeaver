@@ -1777,7 +1777,8 @@ function chargeValue(value: unknown, pending: unknown[]): number {
  *  deliberately). It is a concurrency bound, and it is now true. */
 function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSpec): void {
   const { name, inFlight, pending, impl, log } = spec;
-  const { superviseDetached } = createDetachedSupervision(log);
+  // The membrane runs in the broker Worker, whose spans reach no debug surface.
+  const { superviseDetached } = createDetachedSupervision(log, null);
   using fn = ctx.newFunction(name, (...argHandles) => {
     // `deferred` is deliberately NOT `using`: its lifetime ESCAPES this scope (its `.handle` is the guest's
     // promise and the Sandbox's `pending` drain owns teardown). Same for the positional `argHandles`,

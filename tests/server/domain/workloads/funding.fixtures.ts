@@ -99,6 +99,7 @@ export async function executeRow(root: ServerTestHarness, row: WorkloadRunnableR
     {
       db: databaseHandle(root.db),
       logger: root.logger,
+      traces: root.rings.traces,
       contributions: root.app.workloadContributions,
       now: root.clock.now,
       audit: root.app.audit,

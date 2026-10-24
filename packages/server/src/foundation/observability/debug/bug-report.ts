@@ -1,11 +1,10 @@
 // THE BUG-REPORT CAPTURE (#1095) — the server half of the owner's dev bug-found button: one click, a typed
 // note, and everything the process knows lands in a durable file an agent session can read cold.
 //
-// WHY THIS HALF EXISTS AT ALL: the in-memory flight recorders (the root's log + request rings, `tracing.ts`'s
-// trace ring, `wire-capture.ts`'s provider request/outcome rings, the injected rpg + memory-recall recorders)
-// are WIPED on every server respawn — and `node --watch` respawns on every saved source file. Asking the owner
-// to "go look at /api/_debug/wire/captures later" is asking for evidence that will not exist by then. The
-// capture happens AT REPORT TIME, in the same process that holds the rings.
+// WHY THIS HALF EXISTS AT ALL: the in-memory flight recorders (the root's log, request and trace rings,
+// `wire-capture.ts`'s provider request/outcome rings, the injected rpg + memory-recall recorders) are WIPED
+// on every server respawn — and `node --watch` respawns on every saved source file. Asking the owner to "go look
+// at /api/_debug/wire/captures later" is asking for evidence that will not exist by then. The capture happens AT REPORT TIME, in the same process that holds the rings.
 //
 // RING COVERAGE AND INTENTIONAL BOUNDARIES (#1168, inventory of #1095):
 //   COVERED: the root log ring (error-level log lines), requests (HTTP-level with method/path/status/duration/userId),
@@ -63,7 +62,6 @@ import { redactKnownSecrets, secretRedactionLiterals } from "@orb/kit/secret-red
 import { formatVersionIdentity } from "@orb/kit/version-identity";
 import type { BugReportInspectors } from "../contract/debug.ts";
 import type { ObservabilityRings } from "../contract/logging.ts";
-import { recentTraces } from "../tracing.ts";
 import { ERROR_LEVEL, parseLogRingLine, ringLineLevel, ringLineTime } from "./log-ring-read.ts";
 import { recentTurnOutcomes, recentWireCaptures } from "./wire-capture.ts";
 
@@ -167,7 +165,7 @@ export function snapshotServerEvidence(window: EvidenceWindow, rings: Observabil
     }),
     traces: sliceByWindow({
       source: "traces",
-      entries: recentTraces(RING_READ_DEPTH).map((trace) => ({
+      entries: rings.traces.recent(RING_READ_DEPTH).map((trace) => ({
         requestId: trace.requestId,
         startedAt: trace.startedAt,
         durationMs: trace.durationMs,

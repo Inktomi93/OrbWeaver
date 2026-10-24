@@ -71,7 +71,7 @@ async function packed(): Promise<Uint8Array> {
   async function* entries(): AsyncIterable<{ readonly path: string; readonly bytes: Uint8Array }> {
     yield* ENTRIES;
   }
-  return new Uint8Array(await new Response(packZip(entries(), createTestLogger())).arrayBuffer());
+  return new Uint8Array(await new Response(packZip(entries(), createTestLogger(), null)).arrayBuffer());
 }
 
 async function stagedFiles(root: string): Promise<number> {

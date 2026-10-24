@@ -4,7 +4,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { Handle, SessionToken, UserId } from "@orb/kit/ids";
 import { ownerFallbackCredentialInput, resolveOwnerFallbackCredential } from "#foundation/env/record";
-import type { Logger } from "#foundation/observability";
+import type { Logger, ObservabilityRings } from "#foundation/observability";
 import { createDetachedSupervision } from "#foundation/observability";
 import type { AuthConfig } from "#infra/auth";
 import { createPasswordHasher, createRelayedFallbackNotice, ownerFallbackAllowed } from "#infra/auth";
@@ -153,7 +153,7 @@ export function createHttpApp(deps: HttpAppDeps): ReturnType<typeof createApp> {
       // injected id source: concurrent seeders let I/O timing decide which row gets which id, and a seeded
       // replay could not reproduce its own fixture. Each step keeps its own span and failure report, so one
       // failed seeder still leaves the next one running.
-      const run = seedQueue.then(() => seedUser(built, principal, attrs, deps.logger));
+      const run = seedQueue.then(() => seedUser(built, principal, attrs, deps));
       // The supervise below reports this run's failure; the queue only orders, so a failed run never stalls the next.
       seedQueue = run.then(
         () => undefined,
@@ -172,10 +172,10 @@ async function seedUser(
   built: Pick<HttpAppDeps["built"], "backgroundSeeder" | "contentSeeder" | "examplePluginSeeder" | "distributedPluginApplier" | "newOpaqueId">,
   principal: Principal,
   attrs: { readonly userId: UserId },
-  logger: Logger,
+  observed: { readonly logger: Logger; readonly rings: ObservabilityRings },
 ): Promise<void> {
   const { newOpaqueId } = built;
-  const { superviseSettled } = createDetachedSupervision(logger);
+  const { superviseSettled } = createDetachedSupervision(observed.logger, observed.rings.traces);
   await superviseSettled(`seed-user:${principal.userId}:content:${newOpaqueId()}`, "seed.user.content", attrs, () =>
     built.backgroundSeeder.ensureSeeded(principal).then((): Promise<void> => built.contentSeeder.ensureSeeded(principal)),
   );

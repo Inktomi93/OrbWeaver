@@ -96,7 +96,7 @@ import type { SettingsService } from "#domain/settings";
 import { createResolveRetainedChatAccountingScope, createResolveRetainedChatRebase, createStatsBatchWiring } from "#domain/stats";
 import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
 import { createCopyHandoffBooks, createCountHandoffBooks } from "#domain/world-info";
-import type { AuditEntry, AuditWiring, Logger } from "#foundation/observability";
+import type { AuditEntry, AuditWiring, Logger, TraceRing } from "#foundation/observability";
 import { recordMemoryLog } from "#foundation/observability";
 import { waitForTimer } from "#infra/timers";
 import { createRegexApplyReplace, createRegexTest } from "#primitives/regex";
@@ -154,6 +154,7 @@ export interface ChatComposeInput {
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   /** The root's audit wiring, for the statements that must commit with their primary write. */
   readonly auditStatements: AuditWiring;
+  readonly traces: TraceRing;
   readonly can: Can;
   /** D121-E: the regex domain's four-scope resolve op (the host-tier sources a turn assembles against). */
   readonly resolveRegexSources: ResolveRegexSources;
@@ -378,6 +379,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
 
   const chatCtx: ChatContext = {
     logger: input.logger,
+    traces: input.traces,
     resolveCorpusSourceState: input.search.resolveCorpusSourceState,
     db,
     now,

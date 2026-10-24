@@ -65,6 +65,7 @@ export const streamRouter = t.router({
         runSocket({
           logger: ctx.logger,
           serverInstanceId: ctx.serverInstanceId,
+          traces: ctx.traces,
           registry: ctx.sockets,
           cell,
           principal: ctx.auth,

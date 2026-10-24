@@ -79,7 +79,9 @@ const SUBPATH_INTERNALS = `^(?:${SUBPATH_MODULES.flatMap(({ internal }) => inter
 // Exact leaf imports avoid barrels that widen Worker or DOM-free compiler graphs.
 const SUBPATH_LEAF_IMPORTERS = [
   // The observability barrel reaches DB; the permission-model broker cannot probe environment files.
+  "packages/server/src/infra/network/contract/egress.ts",
   "packages/server/src/infra/network/egress.ts",
+  "packages/server/src/infra/plugin-host/contract/port.ts",
   "packages/server/src/infra/plugin-host/membrane.ts",
   "packages/server/src/infra/plugin-host/port.ts",
   "packages/server/src/infra/plugin-host/process-permission.ts",

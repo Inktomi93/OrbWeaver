@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 import type { UserId } from "@orb/kit/ids";
 import type { SessionsService } from "#domain/sessions";
 import { fileReadCommand } from "#foundation/env/record";
-import type { Logger } from "#foundation/observability";
+import type { Logger, TraceRing } from "#foundation/observability";
 import { createDetachedSupervision } from "#foundation/observability";
 import type { OwnerClaimCode } from "#infra/auth";
 import { removeSecretFile, writeSecretFile } from "#infra/crypto";
@@ -49,8 +49,13 @@ export async function announceOwnerClaim(step: OwnerClaimAnnouncement): Promise<
 }
 
 /** `claim` whose spending callback also removes the claim file, so the file never outlives the code it holds. */
-export function removeOwnerClaimFileOnSpend(claim: OwnerClaimCode, claimUrlFile: string, newOpaqueId: () => string, logger: Logger): OwnerClaimCode {
-  const { superviseDetached } = createDetachedSupervision(logger);
+export function removeOwnerClaimFileOnSpend(
+  claim: OwnerClaimCode,
+  claimUrlFile: string,
+  newOpaqueId: () => string,
+  observed: { readonly logger: Logger; readonly traces: TraceRing },
+): OwnerClaimCode {
+  const { superviseDetached } = createDetachedSupervision(observed.logger, observed.traces);
   return {
     ...claim,
     redeem: (state: string): boolean => {

@@ -2,7 +2,7 @@
 // sealed traces and a request-root span. A second root in the same worker reads only its own rings.
 
 import type { ObservabilityRings, RequestTrace } from "@orb/server/foundation/observability";
-import { initTracing, logSerializers, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
+import { initTracing, logSerializers, withRequestSpan } from "@orb/server/foundation/observability";
 
 /** What one root logged and traced. */
 export interface RootObservability {
@@ -21,10 +21,10 @@ export function observeRoot(rings: ObservabilityRings): RootObservability {
   return {
     logLines: (limit) => rings.logs.recent(limit),
     serializeError: (error) => logSerializers.err(error),
-    traces: (limit) => recentTraces(limit),
+    traces: (limit) => rings.traces.recent(limit),
     inRequestSpan: <T>(requestId: string, name: string, work: () => Promise<T> | T): Promise<T> => {
       initTracing();
-      return withRequestSpan(requestId, name, {}, work);
+      return withRequestSpan({ traces: rings.traces, requestId }, name, {}, work);
     },
   };
 }

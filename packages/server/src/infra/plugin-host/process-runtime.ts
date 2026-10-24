@@ -950,7 +950,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
   const poolResources = new AsyncDisposableStack();
   const bridgeResources = new AsyncDisposableStack();
   // biome-ignore lint/nursery/useDisposables: bridgeResources owns settlement during returned host teardown; the borrowed operation view must not close at return.
-  const bridgeSettlement: Omit<BackgroundWork, keyof AsyncDisposable> = bridgeResources.use(createBackgroundWork(seams.log));
+  const bridgeSettlement: Omit<BackgroundWork, keyof AsyncDisposable> = bridgeResources.use(createBackgroundWork(seams.log, seams.traces));
   let closed = false;
   let closing: Promise<void> | undefined;
   let pool: Pick<WarmRuntimePool<Binding>, "acquire" | "discard" | "fail" | "remove">;

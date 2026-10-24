@@ -32,7 +32,7 @@ import type { StatsService } from "#domain/stats";
 import type { TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
 import type { WorldInfoService } from "#domain/world-info";
-import type { BugReportDiagnosticsRead, Logger } from "#foundation/observability";
+import type { BugReportDiagnosticsRead, Logger, TraceRing } from "#foundation/observability";
 import type { LiveBuses } from "./contract/live-buses.ts";
 import type { PresenceRegistry } from "./presence-registry.ts";
 import type { SocketRegistry } from "./stream/socket-registry.ts";
@@ -98,6 +98,10 @@ export interface RateLimitGate {
 export interface Context {
   /** @internal */
   readonly logger: Logger;
+  /** The root's trace ring the socket's supervised room pumps seal into.
+   * @internal
+   */
+  readonly traces: TraceRing;
   /** @internal */
   readonly liveBuses: LiveBuses;
   /** @internal */
@@ -168,9 +172,11 @@ export function createContext(parts: {
   readonly bugReportDiagnostics: BugReportDiagnosticsRead;
   readonly serverInstanceId: string;
   readonly logger: Logger;
+  readonly traces: TraceRing;
 }): Context {
   return {
     logger: parts.logger,
+    traces: parts.traces,
     liveBuses: parts.liveBuses,
     auth: parts.auth,
     sessionId: parts.sessionId,

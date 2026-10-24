@@ -6,7 +6,7 @@ import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import type { IsAdmin, IsOwner, RequireOwner } from "#domain/admin";
-import type { AuditEntry, Logger } from "#foundation/observability";
+import type { AuditEntry, Logger, TraceRing } from "#foundation/observability";
 import type { WorkloadContributions } from "./contribution.ts";
 import type {
   CancelWorkloadParams,
@@ -59,6 +59,8 @@ export type WorkloadServiceDeps = WorkloadServiceContext;
  */
 export interface WorkloadRunnerDeps {
   readonly logger: Logger;
+  /** The root's trace ring each run's `workload.run` root seals into. */
+  readonly traces: TraceRing;
   readonly emitEvent: WorkloadServiceContext["emitEvent"];
   readonly db: Db;
   /** The per-kind contribution registry the engine dispatches through (built at compose from the owning

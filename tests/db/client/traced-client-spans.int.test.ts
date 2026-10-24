@@ -1,7 +1,7 @@
 // The real database wrapper records each query's success and failure as spans and still closes natively.
 
 import { closeDb, createDb } from "@orb/db";
-import { getTraceByRequestId, withRequestSpan, wrapLibSqlClient } from "@orb/server/foundation/observability";
+import { createObservabilityRings, withRequestSpan, wrapLibSqlClient } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node";
 import { sql } from "drizzle-orm";
 
@@ -11,11 +11,12 @@ test("the real DB wrapper records query results and failures without breaking na
   const db = await createDb(":memory:", wrapLibSqlClient);
   using lifetime = new DisposableStack();
   lifetime.defer(() => closeDb(db));
+  const { traces } = createObservabilityRings();
   const successId = `db-success:${ids.uuid()}`;
-  await withRequestSpan(successId, DB_ROOT, {}, async () => {
+  await withRequestSpan({ traces, requestId: successId }, DB_ROOT, {}, async () => {
     expect(await db.get<{ answer: number }>(sql`SELECT 7 AS answer`)).toEqual({ answer: 7 });
   });
-  const succeeded = getTraceByRequestId(successId);
+  const succeeded = traces.get(successId);
   expect(succeeded).toMatchObject({ status: "ok", totals: { spanCount: 2, dbSpanCount: 1 } });
   const root = succeeded?.spans.find((entry) => entry.name === DB_ROOT);
   expect(succeeded?.spans.find((entry) => entry.name === "db.execute")).toMatchObject({
@@ -24,8 +25,8 @@ test("the real DB wrapper records query results and failures without breaking na
     attributes: { "db.method": "execute", "db.rows": 1, "db.sql": "SELECT 7 AS answer" },
   });
   const failureId = `db-failure:${ids.uuid()}`;
-  await expect(withRequestSpan(failureId, DB_ROOT, {}, () => db.get(sql`SELECT * FROM missing_migration_table`))).rejects.toThrow();
-  const failed = getTraceByRequestId(failureId);
+  await expect(withRequestSpan({ traces, requestId: failureId }, DB_ROOT, {}, () => db.get(sql`SELECT * FROM missing_migration_table`))).rejects.toThrow();
+  const failed = traces.get(failureId);
   expect(failed).toMatchObject({ status: "error", totals: { spanCount: 2, dbSpanCount: 1 } });
   expect(failed?.spans.find((entry) => entry.name === "db.execute")).toMatchObject({
     status: "error",

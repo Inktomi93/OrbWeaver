@@ -1,29 +1,29 @@
-// OTel spans + the per-requestId trace ring + the libSQL driver wrap. One root span per request → a tree
-// of child spans. On request end the tree seals into a bounded ring the /api/_debug/traces surface reads.
-// We run the OTel SDK, not the collector stack: a custom SpanProcessor (RingExporter) pushes finished
-// spans into the in-memory ring — the OTLP-replaceable seam. Spans are metadata only; RP content never
-// reaches a span attribute.
-//
-// ASSUMES(single-replica): the trace ring is module-scope, per-process.
+// OTel spans + the per-requestId trace rings + the libSQL driver wrap. One root span per request → a tree
+// of child spans. On request end the tree seals into the ring of the composition root that opened it, which its
+// /api/_debug/traces surface reads. The OTel provider is process-global and takes its processors only at
+// construction, so one routing processor (`RingRouter`, the OTLP-replaceable seam) hands each finished span to the
+// ring its request root put in the OTel context. Spans are metadata only; RP content never reaches an attribute.
 
-import type { Span, SpanOptions, Tracer } from "@opentelemetry/api";
-import { context, SpanStatusCode, trace } from "@opentelemetry/api";
+import type { Context, Span, SpanOptions, Tracer } from "@opentelemetry/api";
+import { context, createContextKey, SpanStatusCode, trace } from "@opentelemetry/api";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import { resourceFromAttributes } from "@opentelemetry/resources";
-import type { ReadableSpan, SpanExporter, SpanProcessor } from "@opentelemetry/sdk-trace";
-import { SimpleSpanProcessor, TracerProvider } from "@opentelemetry/sdk-trace";
+import type { ReadableSpan, SpanProcessor } from "@opentelemetry/sdk-trace";
+import { TracerProvider } from "@opentelemetry/sdk-trace";
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from "@opentelemetry/semantic-conventions";
 import { errorMessage } from "@orb/kit/error-message";
 import { versionIdentity } from "#foundation/version";
 import type { Logger } from "./contract/logging.ts";
-import type { DetachedSupervision, RequestTrace, SerializedSpan, SerializedSpanEvent, SpanAttrs } from "./contract/tracing.ts";
+import type { DetachedSupervision, RequestTrace, SerializedSpan, SerializedSpanEvent, SpanAttrs, TraceRing } from "./contract/tracing.ts";
 import { getLog } from "./logger.ts";
 
-export type { DetachedSupervision, RequestTrace, SerializedSpan, SerializedSpanEvent, SpanAttrs } from "./contract/tracing.ts";
+export type { DetachedSupervision, RequestTrace, SerializedSpan, SerializedSpanEvent, SpanAttrs, TraceRing } from "./contract/tracing.ts";
 
 const TRACER_NAME = "orbweaver";
 // The attribute the root span stamps + child spans copy down so the ring buckets a whole tree together.
 const REQUEST_ID_ATTR = "orb.requestId";
+// The OTel context slot a request root fills with its composition root's trace ring; every span opened under it inherits it.
+const TRACE_RING_KEY = createContextKey("orb.traceRing");
 const REQUEST_TRACE_CAPACITY = 500;
 // Hard cap on UNSEALED (in-progress) buckets — bounds the pathological cases where a root NEVER lands (a
 // post-request fire-and-forget span copying an already-sealed parent's request id; detached work whose
@@ -42,7 +42,7 @@ interface BucketState {
 
 /** Per-requestId ring of completed traces. Each finished span appends into a transient bucket keyed by the
  *  root's request id; once the root closes, the bucket seals into a RequestTrace + pushes into this ring. */
-class TraceRing {
+class BucketedTraceRing implements TraceRing {
   private readonly traces: (RequestTrace | undefined)[];
   private readonly cap: number;
   private head = 0;
@@ -164,17 +164,33 @@ class TraceRing {
   }
 }
 
-const traceRing = new TraceRing(REQUEST_TRACE_CAPACITY);
+/** A composition root's empty trace ring; `createObservabilityRings` builds it beside the root's log and request rings. */
+export function createTraceRing(): TraceRing {
+  return new BucketedTraceRing(REQUEST_TRACE_CAPACITY);
+}
 
-/** SpanProcessor that hands every finished span to the ring. The exporter is unused (we store the data
- *  structurally) — an OTLP exporter is the future-replaceable seam. */
-class RingExporter implements SpanExporter {
-  export(spans: ReadableSpan[], resultCallback: (result: { code: number }) => void): void {
-    for (const readable of spans) {
-      traceRing.ingest(readable);
+/** The one span processor on the global provider: a span started under a request root's context lands in that
+ *  root's ring when it ends. A span with no ring in its context (no request root above it) is not recorded. */
+class RingRouter implements SpanProcessor {
+  // Keyed by the live span object, which the SDK hands to both hooks; an entry lives exactly as long as its span.
+  private readonly routes = new WeakMap<object, BucketedTraceRing>();
+
+  onStart(started: object, parentContext: Context): void {
+    const ring = parentContext.getValue(TRACE_RING_KEY);
+    if (ring instanceof BucketedTraceRing) {
+      this.routes.set(started, ring);
     }
-    resultCallback({ code: 0 });
   }
+
+  onEnd(ended: ReadableSpan): void {
+    this.routes.get(ended)?.ingest(ended);
+    this.routes.delete(ended);
+  }
+
+  forceFlush(): Promise<void> {
+    return Promise.resolve();
+  }
+
   shutdown(): Promise<void> {
     return Promise.resolve();
   }
@@ -182,7 +198,6 @@ class RingExporter implements SpanExporter {
 
 let booted = false;
 let tracer: Tracer | undefined;
-let processor: SpanProcessor | undefined;
 
 /** Initialize the OTel SDK. Called at boot BEFORE any code opens a span. Idempotent (a second call is a
  *  no-op — tests import freely without re-bootstrapping). Wired from `entry/`. */
@@ -194,14 +209,12 @@ export function initTracing(): void {
   const contextManager = new AsyncLocalStorageContextManager();
   contextManager.enable();
   context.setGlobalContextManager(contextManager);
-  const exporter = new RingExporter();
-  processor = new SimpleSpanProcessor({ exporter });
   const provider = new TracerProvider({
     resource: resourceFromAttributes({
       [ATTR_SERVICE_NAME]: TRACER_NAME,
       [ATTR_SERVICE_VERSION]: versionIdentity().version,
     }),
-    spanProcessors: [processor],
+    spanProcessors: [new RingRouter()],
   });
   trace.setGlobalTracerProvider(provider);
   tracer = provider.getTracer(TRACER_NAME);
@@ -259,20 +272,28 @@ export function span<T>(name: string, fn: (span: Span) => Promise<T> | T, attrs:
 }
 
 /**
- * Open a REQUEST-ROOT span — sets the request-id attribute so the processor buckets the whole tree under it.
- * Used by the per-request middleware, the workload runner, and post-request background work. The callback
- * runs with the root active in OTel context.
+ * Open a REQUEST-ROOT span — sets the request-id attribute so the processor buckets the whole tree under it, in
+ * `request.traces`, the ring of the composition root that opened it (`null`: a root no debug surface reads, such as
+ * the plugin broker Worker, whose tree lands in no ring). Used by the per-request middleware, the workload runner,
+ * and post-request background work. The callback runs with the root active in OTel context.
  *
  * `root: true` is LOAD-BEARING, not decoration: the ring seals a bucket only when a span with NO parent lands
- * (`TraceRing.ingest`). Called while another span is active — which is exactly the post-request background
+ * (`BucketedTraceRing.ingest`). Called while another span is active — which is exactly the post-request background
  * case (the engine's rpg round is dispatched from inside the `trpc.*` span it outlives) — OTel would
  * otherwise parent this span to that one, and the bucket keyed by THIS request id would never see a
  * parentless span: the whole subtree would sit unsealed until evicted as a leak, i.e. silently invisible.
  * `root: true` is the OTel-native detach, and it makes this function's name true from every call site.
  */
-export function withRequestSpan<T>(requestId: string, name: string, attrs: SpanAttrs, fn: () => Promise<T> | T): Promise<T> {
+export function withRequestSpan<T>(
+  request: { readonly traces: TraceRing | null; readonly requestId: string },
+  name: string,
+  attrs: SpanAttrs,
+  fn: () => Promise<T> | T,
+): Promise<T> {
   const t = getTracer();
-  return t.startActiveSpan(name, { attributes: { ...cleanAttrs(attrs), [REQUEST_ID_ATTR]: requestId }, root: true }, async (root) => {
+  const opts: SpanOptions = { attributes: { ...cleanAttrs(attrs), [REQUEST_ID_ATTR]: request.requestId }, root: true };
+  const parent = context.active().setValue(TRACE_RING_KEY, request.traces);
+  return t.startActiveSpan(name, opts, parent, async (root) => {
     try {
       const result = await fn();
       // Do NOT clobber an ERROR status a HANDLED throw already set on this root while `next()` still
@@ -295,7 +316,8 @@ export function withRequestSpan<T>(requestId: string, name: string, attrs: SpanA
   });
 }
 
-/** The detached-work boundaries over a root's logger: a rejection report outside a request writes `log`.
+/** The detached-work boundaries over a root's logger and trace ring: each operation's tree seals into `traces`,
+ *  and a rejection report outside a request writes `log`.
  *
  * `superviseDetached` starts work that deliberately outlives its caller. The operation FACTORY runs inside its
  * own request-root span; returning `void` is the explicit contract that callers receive no completion or
@@ -307,19 +329,19 @@ export function withRequestSpan<T>(requestId: string, name: string, attrs: SpanA
  * that has to be deterministic: it awaits the closed root span and the same single operator-visible rejection
  * report. The promise resolves after success or reported operation failure; a failure of the report itself
  * still rejects. */
-export function createDetachedSupervision(log: Logger): DetachedSupervision {
+export function createDetachedSupervision(log: Logger, traces: TraceRing | null): DetachedSupervision {
   const report = (requestId: string, name: string, attrs: SpanAttrs, err: unknown): void => {
     getLog(log).error({ ...cleanAttrs(attrs), err, requestId, spanName: name }, "detached operation failed");
   };
   return {
     superviseDetached: (requestId, name, attrs, operation): void => {
-      withRequestSpan(requestId, name, attrs, operation).then(
+      withRequestSpan({ traces, requestId }, name, attrs, operation).then(
         () => undefined,
         (err: unknown) => report(requestId, name, attrs, err),
       );
     },
     superviseSettled: (requestId, name, attrs, operation): Promise<void> =>
-      withRequestSpan(requestId, name, attrs, operation).then(
+      withRequestSpan({ traces, requestId }, name, attrs, operation).then(
         () => undefined,
         (err: unknown) => report(requestId, name, attrs, err),
       ),
@@ -365,14 +387,6 @@ export function addSpanEvent(name: string, attrs: SpanAttrs = {}): void {
  *  the row count a query returned). */
 export function setSpanAttrs(attrs: SpanAttrs): void {
   trace.getActiveSpan()?.setAttributes(cleanAttrs(attrs));
-}
-
-/** Read APIs for /api/_debug/traces. */
-export function recentTraces(limit: number): RequestTrace[] {
-  return traceRing.recent(limit);
-}
-export function getTraceByRequestId(requestId: string): RequestTrace | undefined {
-  return traceRing.get(requestId);
 }
 
 // The right seam for query timing is the libSQL client itself (drizzle's logger is pre-query only). We wrap

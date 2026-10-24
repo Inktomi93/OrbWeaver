@@ -81,6 +81,7 @@ export function createChatService(
   const engine = createTurnEngine(
     {
       logger: ctx.logger,
+      traces: ctx.traces,
       db: ctx.db,
       now: ctx.now,
       newMessageId: ctx.newMessageId,

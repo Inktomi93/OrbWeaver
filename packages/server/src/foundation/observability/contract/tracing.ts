@@ -40,7 +40,13 @@ export interface SpanAttrs {
   [key: string]: ScalarAttribute | undefined;
 }
 
-/** The two detached-work boundaries one root's logger reports through (`createDetachedSupervision`). */
+/** One composition root's sealed request traces, newest first; the root's `/api/_debug/traces` reads serve it. */
+export interface TraceRing {
+  readonly recent: (limit: number) => RequestTrace[];
+  readonly get: (requestId: string) => RequestTrace | undefined;
+}
+
+/** The two detached-work boundaries one root's logger and trace ring record (`createDetachedSupervision`). */
 export interface DetachedSupervision {
   readonly superviseDetached: (requestId: string, name: string, attrs: SpanAttrs, operation: () => Promise<unknown> | unknown) => void;
   readonly superviseSettled: (requestId: string, name: string, attrs: SpanAttrs, operation: () => Promise<unknown> | unknown) => Promise<void>;

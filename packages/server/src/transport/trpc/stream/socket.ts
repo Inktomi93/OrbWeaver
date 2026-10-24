@@ -48,7 +48,7 @@ import { tracked } from "@trpc/server";
 // pino's own type: the published router declaration must not resolve the observability barrel's source.
 import type pino from "pino";
 import { createDetachedSupervision, getLog } from "#foundation/observability";
-import type { Services } from "../context.ts";
+import type { Context, Services } from "../context.ts";
 import type { LiveBuses } from "../contract/live-buses.ts";
 import { classifyDomainError } from "../error-mapping.ts";
 import { createFrameQueue } from "./frame-queue.ts";
@@ -84,6 +84,8 @@ export interface RunSocketArgs {
   readonly logger: pino.Logger;
   /** The root's identity, sent first so a client that reconnects to another root knows the server restarted. */
   readonly serverInstanceId: string;
+  /** The root's trace ring each supervised room pump seals into. */
+  readonly traces: Context["traces"];
   readonly liveBuses: LiveBuses;
   readonly registry: SocketRegistry;
   /** ALREADY ADOPTED by the resolver — so a cross-principal socketId is a real NOT_FOUND rejection of the
@@ -99,8 +101,8 @@ export interface RunSocketArgs {
 }
 
 export async function* runSocket(args: RunSocketArgs): AsyncGenerator<TrackedEnvelope<StreamFrame>> {
-  const { registry, cell, principal, services, liveBuses, multiHumanCapable, signal, logger, serverInstanceId } = args;
-  const { superviseSettled } = createDetachedSupervision(logger);
+  const { registry, cell, principal, services, liveBuses, multiHumanCapable, signal, logger, serverInstanceId, traces } = args;
+  const { superviseSettled } = createDetachedSupervision(logger, traces);
   const socketId: SocketId = cell.socketId;
   const queue = createFrameQueue({
     cursorFor: (key) => cell.rooms.get(key)?.cursor ?? null,

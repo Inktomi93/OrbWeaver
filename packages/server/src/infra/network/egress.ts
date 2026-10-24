@@ -67,7 +67,7 @@ const DEFAULT_DEADLINE_MS = 15_000;
 
 function superviseEgressCleanup(context: EgressContext, reason: string, operation: () => Promise<unknown>): void {
   context.cleanupSequence += 1;
-  const { superviseSettled: settled } = createDetachedSupervision(context.log);
+  const { superviseSettled: settled } = createDetachedSupervision(context.log, context.traces);
   const completion = settled(`egress-cleanup:${String(context.cleanupSequence)}`, "egress.cleanup", { reason }, async () => {
     try {
       return await operation();
@@ -206,6 +206,7 @@ interface EgressContext {
   closed: boolean;
   /** The root's logger every egress line falls back to outside a request. */
   readonly log: Logger;
+  readonly traces: ScopedEgressOptions["traces"];
 }
 
 function createEgressContext(options: ScopedEgressOptions, global: boolean): EgressContext {
@@ -231,6 +232,7 @@ function createEgressContext(options: ScopedEgressOptions, global: boolean): Egr
     cleanupSequence: 0,
     closed: false,
     log: options.log,
+    traces: options.traces,
   };
 }
 

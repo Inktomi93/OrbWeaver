@@ -1,11 +1,11 @@
 import type { LogLevel } from "@orb/contracts/settings";
-import { createDetachedSupervision, createLogger, createObservabilityRings, getTraceByRequestId, span } from "@orb/server/foundation/observability";
+import { createDetachedSupervision, createLogger, createObservabilityRings, span } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node";
 
 // The runner's silent floor emits no log bytes; these cases read the error report from a root logger at error.
 const REPORT_LEVEL = "error" satisfies LogLevel;
 const rings = createObservabilityRings();
-const { superviseDetached, superviseSettled } = createDetachedSupervision(createLogger(REPORT_LEVEL, rings.logs));
+const { superviseDetached, superviseSettled } = createDetachedSupervision(createLogger(REPORT_LEVEL, rings.logs), rings.traces);
 
 const OPERATION_KIND = "lifetime-probe";
 const SUCCESS_SPAN = "owned.success";
@@ -25,11 +25,11 @@ test("supervised success settles only after its actual root and child trace have
     await span(SUCCESS_CHILD, () => undefined);
   });
   await entered.promise;
-  expect(getTraceByRequestId(requestId)).toBeUndefined();
+  expect(rings.traces.get(requestId)).toBeUndefined();
   release.resolve();
   await settled;
   expect(runs).toBe(1);
-  const trace = getTraceByRequestId(requestId);
+  const trace = rings.traces.get(requestId);
   expect(trace).toMatchObject({ requestId, rootName: SUCCESS_SPAN, status: "ok" });
   const root = trace?.spans.find((entry) => entry.parentSpanId === undefined);
   const child = trace?.spans.find((entry) => entry.name === SUCCESS_CHILD);
@@ -42,7 +42,7 @@ test("supervised rejection settles after the error trace and exactly one existin
   const requestId = `settled-rejection:${ids.uuid()}`;
   const failure = new Error("settlement-probe-error");
   await superviseSettled(requestId, REJECTION_SPAN, { operationKind: OPERATION_KIND }, () => span(REJECTION_CHILD, () => Promise.reject(failure)));
-  const trace = getTraceByRequestId(requestId);
+  const trace = rings.traces.get(requestId);
   expect(trace).toMatchObject({ requestId, rootName: REJECTION_SPAN, status: "error" });
   expect(trace?.spans.find((entry) => entry.name === REJECTION_CHILD)?.status).toBe("error");
   const lines = rings.logs.recent(100).filter((line) => line.includes(`"requestId":"${requestId}"`));
@@ -66,7 +66,7 @@ for (const mode of ["synchronous", "asynchronous"] as const) {
       }),
     ).toBeUndefined();
     await expect.poll(() => rings.logs.recent(100).filter((line) => line.includes(`"requestId":"${requestId}"`))).toHaveLength(1);
-    expect(getTraceByRequestId(requestId)).toMatchObject({ requestId, rootName: REJECTION_SPAN, status: "error" });
+    expect(rings.traces.get(requestId)).toMatchObject({ requestId, rootName: REJECTION_SPAN, status: "error" });
     const lines = rings.logs.recent(100).filter((line) => line.includes(`"requestId":"${requestId}"`));
     expect(lines).toHaveLength(1);
     expect(lines[0]).toContain(failure.message);
@@ -88,6 +88,6 @@ test("settlement does not hide a failure of the canonical rejection report", asy
   };
   const requestId = `report-rejection:${ids.uuid()}`;
   await expect(superviseSettled(requestId, REJECTION_SPAN, attrs, () => Promise.reject(new Error("operation failed")))).rejects.toBe(reportFailure);
-  expect(getTraceByRequestId(requestId)?.status).toBe("error");
+  expect(rings.traces.get(requestId)?.status).toBe("error");
   expect(rings.logs.recent(100).filter((line) => line.includes(`"requestId":"${requestId}"`))).toEqual([]);
 });
